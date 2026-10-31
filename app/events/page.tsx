@@ -439,6 +439,8 @@ export default function EventsPage() {
           setLoginNoetig(Boolean(d.needsLogin));
           setFehler(d.error ?? 'nicht ladbar');
         } else {
+          // Ein spaeterer Abruf, der klappt, loescht die alte Fehlermeldung (sie blieb sonst bis zum Neuladen stehen).
+          setFehler(null); setLoginNoetig(false);
           gemerkteRegion();
           setCups(nachAusgaben(d.cups ?? []));
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
@@ -750,7 +752,12 @@ export default function EventsPage() {
                 <p className="font-semibold text-amber-300"><T>Epic ist noch nicht verbunden</T></p>
               </div>
             )}
-            {fehler && !loginNoetig && <p className="mb-4 text-sm text-rose-400">{fehler}</p>}
+            {/* Ausfall: ehrlicher Hinweis statt der rohen Fehlermeldung - und unten kein "Keine Cups", das waere eine Behauptung. */}
+            {fehler && !loginNoetig && (
+              <p role="alert" className="mb-4 text-sm text-rose-400">
+                <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+              </p>
+            )}
 
             {laedt ? <LadeSchirm /> : reiter === 'katalog' ? (
               abschnitte.length ? (
@@ -762,10 +769,10 @@ export default function EventsPage() {
                       oeffnen={oeffnen} />
                   ))}
                 </div>
-              ) : (
+              ) : fehler && !cups.length ? null : (
                 <p className="py-10 text-center text-sm text-slate-500"><T>Keine Cups in dieser Auswahl.</T></p>
               )
-            ) : (
+            ) : fehler && !cups.length ? null : (
               <Kalender cups={gefiltert} sprache={sprache} region={region}
                 oeffnen={oeffnen} />
             )}
