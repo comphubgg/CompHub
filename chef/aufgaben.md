@@ -6,6 +6,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Saison-Bestenlisten enden am 10.10., das Profil hat Spieltage bis 27.10.** _(Statistik · Wirkung 5/5)_ - Gemessen: /api/szene-stats?ansicht=start (S42) zeigt Peterbot mit 57 Matches / 152 Elims / 42.853 Schaden, sein Profil (?spieler=45ce4565…&saison=S42) mit 83 / 208 / 59.572. Der jüngste Spieltag in grundlage.spieltage der Startantwort ist vom 10.10. (FNCSSoloFastTracks); im Profil stehen FNCS Solo Heats (18.10.), Finals (26./27.10.) und PE Event 9 (22./23.10.). Vermutung: die vorgerechnete Startantwort ist veraltet oder aggregateSaison/grossesTurnier lässt die neuen eigenen Spieltage weg (lib/szeneStats.ts um Zeile 1440). Mit Zugang zur Ablage prüfen.
 - [ ] **Statistik-Startseite: Listen kürzen** (siehe unten, 1,1 MB) - noch offen, braucht eigenen Abruf für die volle Liste.
+- [ ] **Gleicher Anzeigename für verschiedene Konten** - in den Saisonlisten erscheinen zwei Konten als „RISE“ (NAC e5556b32…, ASIA 635ed9f3… „Riddle RiIse“), weil die Szene-Quelle beiden diesen Namen gibt. Idee: bei Namensgleichheit in einer Liste die Region oder den Epic-Namen klein dahinter zeigen.
 - [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
 
 ## Zusammenfassung je Bereich
