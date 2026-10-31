@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
+import { istVip, kontoAus, nachId } from '@/lib/konten';
+import { darf, wirksameRechte, type Bereich } from '@/lib/rechte';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 
@@ -71,4 +72,42 @@ export async function istAdminAnfrage(_request?: Request): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Darf diese Anfrage in einem der Bereiche aendern? Der Admin immer, ein Manager mit dem Recht fuer einen der Bereiche
+ * (dieselbe Regel wie darf() in lib/rechte und wie die Oberflaeche ueber /api/auth/check-admin).
+ *
+ * Seit 31.10.2026 in den Schreib-Routen, die vorher niemanden prueften (Player Center, Formvorlage der Turnierkarte) - die Knoepfe
+ * waren nur im Browser ausgeblendet, eine von Hand geschickte Anfrage kam durch.
+ */
+export async function darfBereichAnfrage(...bereiche: Bereich[]): Promise<boolean> {
+  if (await istAdminAnfrage()) return true;
+  try {
+    const laden = await cookies();
+    const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
+    if (id) {
+      const k = await nachId(id);
+      if (k && !k.gesperrt && bereiche.some((b) => darf(k.rolle ?? null, wirksameRechte(k.rolle, k.rechte, istVip(k)), b))) return true;
+    }
+    const name = vipAus(laden.get('streamer_dashboard_auth')?.value);
+    if (name) {
+      const r = rechteVon(await zugangNach(name));
+      if (r.gueltig && bereiche.some((b) => darf(r.rolle, r.rechte, b))) return true;
+    }
+  } catch { /* ohne Pruefung kein Recht */ }
+  return false;
+}
+
+/** Ist ueberhaupt jemand angemeldet (CompHub-Konto oder gueltiger Zugang)? Fuer Eintraege, die jedes Konto anlegen darf. */
+export async function angemeldetAnfrage(): Promise<boolean> {
+  if (await istAdminAnfrage()) return true;
+  try {
+    const laden = await cookies();
+    const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
+    if (id) { const k = await nachId(id); if (k && !k.gesperrt) return true; }
+    const name = vipAus(laden.get('streamer_dashboard_auth')?.value);
+    if (name && rechteVon(await zugangNach(name)).gueltig) return true;
+  } catch { /* ohne Pruefung nicht angemeldet */ }
+  return false;
 }

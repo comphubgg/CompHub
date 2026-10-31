@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { angemeldetAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { getSupabaseServerClient, hasSupabaseConfig, isSupabaseFallbackError } from '@/lib/supabaseServer';
@@ -59,6 +60,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await angemeldetAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Bitte zuerst anmelden.' }, { status: 403 });
   try {
     const body = await request.json();
     if (!body || !Array.isArray(body.duos)) {
@@ -101,6 +104,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await angemeldetAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Bitte zuerst anmelden.' }, { status: 403 });
   try {
     const body = await request.json();
     let duos: Array<[string, string]> = [];

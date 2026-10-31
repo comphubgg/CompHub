@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { erfolg, fehlversuch, gesperrt } from '@/lib/fehlversuche';
 import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -66,13 +67,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
+    // Nach fuenf falschen Versuchen 15 Minuten Pause fuer diesen Anschluss und Namen (lib/fehlversuche).
+    const sperre = gesperrt(request, String(username));
+    if (sperre) return NextResponse.json({ error: sperre }, { status: 400 });
+
     const data = await readVipUsers();
     const normalizedUsername = String(username).trim().toLowerCase();
     const user = data.users.find((u: any) => u.username.toLowerCase() === normalizedUsername);
 
     if (!user || user.accessKey !== accessKey || user.status !== 'active') {
+      fehlversuch(request, String(username));
       return NextResponse.json({ error: 'Invalid username or access key' }, { status: 401 });
     }
+    erfolg(request, String(username));
 
     /*
      * Ein Manager-Zugang meldet sich an wie jeder andere.

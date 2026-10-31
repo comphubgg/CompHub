@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { t } from "@/app/lib/i18n";
@@ -63,6 +64,8 @@ export async function GET() {
 
 // POST: Füge einen Streamer hinzu
 export async function POST(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Nur für den Admin.' }, { status: 403 });
   try {
     const { twitch, twitter, region } = await request.json();
 
@@ -93,6 +96,8 @@ export async function POST(request: NextRequest) {
 
 // DELETE: Entferne einen Streamer
 export async function DELETE(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Nur für den Admin.' }, { status: 403 });
   try {
     const { twitch, region } = await request.json();
 
@@ -122,6 +127,8 @@ export async function DELETE(request: NextRequest) {
 
 // PUT: Aktualisiere einen Streamer
 export async function PUT(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Nur für den Admin.' }, { status: 403 });
   try {
     const { twitch, twitter, region } = await request.json();
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { darfBereichAnfrage } from '@/lib/adminPruefung';
 import { wirfWeg } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -161,6 +162,8 @@ function uebernimm(
 }
 
 export async function POST(request: Request) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await darfBereichAnfrage('spieler', 'karten', 'tweets', 'prognosen')) return NextResponse.json({ ok: false, success: false, error: 'Dafür fehlt dir das Recht.' }, { status: 403 });
   const eingang = await request.json() as Partial<SpielerProfil>;
   const name = (eingang.name ?? '').trim();
   const id = (eingang.id ?? '').trim();
@@ -288,6 +291,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await darfBereichAnfrage('spieler', 'karten', 'tweets', 'prognosen')) return NextResponse.json({ ok: false, success: false, error: 'Dafür fehlt dir das Recht.' }, { status: 403 });
   const { searchParams } = new URL(request.url);
   const id = (searchParams.get('id') ?? '').trim();
   const name = (searchParams.get('name') ?? '').trim();

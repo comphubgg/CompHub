@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { t } from '@/app/lib/i18n';
@@ -103,6 +104,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Nur für den Admin.' }, { status: 403 });
   try {
     const body = await request.json();
 
