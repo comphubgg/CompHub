@@ -37,6 +37,7 @@
   const funde = new Map();
   const nimm = (el, url, b, h) => {
     if (!url || url.startsWith('data:') || /\.svg(\?|$)/i.test(url) || funde.has(url)) return;
+    if (/logo|icon|emblem|badge|flag|sprite|banner|emote|favicon/i.test(url.split('?')[0])) return;
     if (b < 60 || h < 60) return;                 // Symbole, Flaggen, Emotes
     const v = h / b; if (v < 0.6 || v > 1.9) return; // Banner und Leisten
     funde.set(url, { url, name: nameVon(el) });
