@@ -3,7 +3,7 @@
     "id": "chef-1",
     "datum": "2026-10-31T18:55:00Z",
     "titel": "Englische Fassung für 33 Texte nachgetragen",
-    "bereich": "Uebersetzung",
+    "bereich": "Übersetzung",
     "warum": "Auf Englisch standen an einigen Stellen noch deutsche Sätze. Öffentlich betroffen war der Knopf 'Kartenbild wählen' auf der Turnierkarten-Seite; der Rest steckte in den Admin-Werkzeugen (Alte Karten, Plakate, Replay-Ansicht, Konten).",
     "was": "Jeder dieser Texte hat jetzt eine englische Fassung. Wer die Seite auf Englisch nutzt, sieht dort kein Deutsch mehr. Auf Deutsch ändert sich nichts.",
     "ansehen": [
@@ -61,7 +61,7 @@
     "id": "chef-4",
     "datum": "2026-10-31T18:50:00Z",
     "titel": "Fünf weitere deutsche Reste auf Englisch",
-    "bereich": "Uebersetzung",
+    "bereich": "Übersetzung",
     "warum": "Auf der englischen Seite standen noch deutsche Wörter: bei einem Spieltag über den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knöpfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
     "was": "Diese fünf Stellen erscheinen auf Englisch jetzt englisch. Auf Deutsch bleibt alles, wie es war.",
     "ansehen": [
@@ -1332,6 +1332,28 @@
       "75e90463b290c5bc5e90d3614376f4a9f2df5e80"
     ],
     "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-68",
+    "datum": "2026-10-31T20:48:00Z",
+    "titel": "Admin-Prüfung an einer Stelle statt in vielen Kopien",
+    "kurz": "Unsichtbar: Admin-Prüfung steht nur noch einmal – weniger Lücken möglich.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Sicherheit",
+    "warum": "Die Frage „Ist das ein Admin und nicht gesperrt?“ stand in 17 Schnittstellen jeweils kopiert – eine Kopie ließ gesperrte Admins bei der Besuchszählung durch.",
+    "was": "Alle 17 fragen jetzt dieselbe Stelle. Gesperrte Konten werden überall abgewiesen; sonst darf jeder genau das, was er vorher durfte.",
+    "ansehen": [
+      "/admin"
+    ],
+    "commits": [
+      "928833b6edef361696e895e0f06453d885d0d3ae"
+    ],
+    "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
