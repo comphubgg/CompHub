@@ -332,6 +332,8 @@ const LISTEN_SORTEN = ['elims', 'damage', 'matches', 'headshots', 'hits', 'assis
 
 async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> {
   const p = url.searchParams;
+  // Ein einzelner Spieltag oder eine Reihe ist keine Saisonliste: die Grundliste hat andere Zahlen.
+  if (p.get('event') || p.get('events')) return null;
   const frei = (x: string | null) => (!x || x === 'alle' || x === 'all' ? '' : x);
   const saison = p.get('saison') ?? '';
   const region = frei(p.get('region'));
@@ -420,7 +422,12 @@ async function holeRoh(request: Request) {
    * "Zu diesem Spieltag liegen keine Einzelwerte vor" (Betreiber, 30.9.2026).
    */
   const mehrere = (url.searchParams.get('events') ?? '').split(',').filter(Boolean);
-  if (mehrere.length && mehrere.length <= 6) return berechne(request);
+  /*
+   * Bis zwoelf Spieltage: die Performance Cup hat in einer Saison acht, neun Tage. Bei mehr als sechs fiel die
+   * Anfrage aus dieser Regel und wurde unten aus der Saisonliste der Region "abgeleitet" - mit den Zahlen aller
+   * Spieltage der Region statt nur der Reihe (S42 EU: 20 Spieltage statt 8).
+   */
+  if (mehrere.length && mehrere.length <= 12) return berechne(request);
 
   /*
    * Die Antwort zu einem einzelnen Spieler wird wie jede andere abgelegt.
