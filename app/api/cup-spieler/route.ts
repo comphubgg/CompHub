@@ -74,8 +74,25 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
    * Gerechnet aus Epics Server-Replays der gewerteten Spiele (bei den Globals
    * 6 + 6); Osirion zaehlt dort 13 Matches, die Werte weichen deshalb ab.
    */
+  /*
+   * Schaden, erlittener Schaden, Treffer, Sturm- und Ueberlebenszeit aus unseren vollen Replays statt aus der Szene-Quelle (31.10.2026, Vergleich mit
+   * Osirion beim FNCS-Solos-Finale EU: die Replays treffen Osirions Reihenfolge fast genau - Quote tjino 2,10 zu Osirions 2,03, die Quelle hatte ghonzo
+   * 1,55 vorn; Sturmzeit ghxstyah 1h 36m wie Osirion). Nur wenn jeder Tag ganz gelesen ist; Material, Bauteile, Strecke, Assists bleiben aus der Quelle.
+   */
+  const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number }>();
+  let repVoll = tage.length > 0;
   for (const w of tage) {
-    const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+    const c = await liesJson<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>;
+      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }> } | null>(`clutch/${w}.json`, null).catch(() => null);
+    if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
+    for (const [id, d] of Object.entries(c?.schaden ?? {})) {
+      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
+      x.dmg += d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += d.sturm ?? 0; rep.set(e, x);
+    }
+    for (const [id, v] of Object.entries(c?.leben ?? {})) {
+      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
+      x.leben += v; rep.set(e, x);
+    }
     if (!c?.summe) continue;
     clutchDa = true;
     for (const [id, pkt] of Object.entries(c.summe)) {
@@ -83,12 +100,14 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       clutch.set(e, (clutch.get(e) ?? 0) + pkt);
     }
   }
+  const ausRep = (id: string) => (repVoll ? rep.get(id.toLowerCase()) ?? rep.get(id) : undefined);
 
   const nameVon = (id: string) => anzeige.get(id)
     ?? sz.spieler.find((x) => x.epicId === id)?.username ?? id.slice(0, 8);
   const spieler = sz.spieler.map((x) => {
     const t = teamVon.get(x.epicId);
     const spiele = x.matchesPlayed || sz.matches || 0;
+    const r = ausRep(x.epicId);
     return {
       epicId: x.epicId,
       name: nameVon(x.epicId),
@@ -97,24 +116,24 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       kills: solo && soloElims.has(x.epicId) ? soloElims.get(x.epicId)! : x.eliminations ?? 0,
       knocks: 0, tode: 0, umgehauen: 0,
       assists: x.assists ?? 0,
-      damage: Math.round(x.damageDealt ?? 0),
-      damageTaken: Math.round(x.damageTakenFromPlayers ?? 0),
+      damage: Math.round(r ? r.dmg : x.damageDealt ?? 0),
+      damageTaken: Math.round(r ? r.erlitten : x.damageTakenFromPlayers ?? 0),
       // Ausgeteilter geteilt durch von Spielern erlittenen Schaden - dieselbe
       // Rechnung wie ueberall im Werkzeug (lib/szeneStats, "quote"). Das Feld
       // "damageRatio" der Quelle passt zu keiner Formel (siehe dort).
-      damageRatio: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
-      quote: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
+      damageRatio: r ? (r.erlitten > 0 ? r.dmg / r.erlitten : null) : x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
+      quote: r ? (r.erlitten > 0 ? r.dmg / r.erlitten : null) : x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
       genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
       clutch: clutchDa ? (clutch.get(x.epicId) ?? 0) : null,
       // Fuer die Kacheln (app/components/StatKacheln) - dieselben Summen wie
       // in der Statistik (lib/szeneStats): Meter, Sekunden, Stueck.
-      hits: x.hitsToPlayers ?? 0,
+      hits: r ? r.treffer : x.hitsToPlayers ?? 0,
       headshots: x.headshots ?? 0,
       mats: (x.woodFarmed ?? 0) + (x.stoneFarmed ?? 0) + (x.metalFarmed ?? 0),
       builds: (x.woodBuildsPlaced ?? 0) + (x.stoneBuildsPlaced ?? 0) + (x.metalBuildsPlaced ?? 0),
       distanz: (x.distanceOnFoot ?? 0) + (x.distanceSkydiving ?? 0),
-      timeInStorm: x.timeInStorm ?? 0,
-      timeAlive: x.timeAlive ?? 0,
+      timeInStorm: r && r.sturm > 0 ? Math.round(r.sturm) : x.timeInStorm ?? 0,
+      timeAlive: r && r.leben > 0 ? Math.round(r.leben) : x.timeAlive ?? 0,
       // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.
       shots: x.shots ?? 0,
       reboots: ohneReboots ? 0 : x.rebootsAndRevives ?? 0,

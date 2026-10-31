@@ -11,7 +11,7 @@
 (async () => {
   /*
    * Erst alles aufklappen (Betreiber, 31.10.2026: "Show More (9982 more)" - jeder Klick laedt nur zehn nach). Klickt jeden Knopf "Show more",
-   * "Load more", "Mehr anzeigen" ... so schnell es die Seite zulaesst, bis keiner mehr da ist oder nichts mehr dazukommt (hoechstens 3 Minuten).
+   * "Load more", "Mehr anzeigen" ... so schnell es die Seite zulaesst, bis keiner mehr da ist oder nichts mehr dazukommt (hoechstens 20 Minuten).
    */
   const MEHR = /^\s*(show|load|see|view)\s+more|^\s*mehr\s+(anzeigen|laden)/i;
   // Nur Aufklapp-Knoepfe - keine Links, die auf eine andere Seite fuehren ("Show all ->").
@@ -19,19 +19,21 @@
     .find((el) => MEHR.test(el.innerText || el.textContent || '') && el.offsetParent !== null && !el.disabled);
   const anzeige = document.createElement('div');
   anzeige.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#1d9bf0;color:#fff;font:700 14px system-ui;padding:10px 14px;border-radius:10px';
-  let klicks = 0; const bis = Date.now() + 180_000; let ohneWachstum = 0; const alleElemente = document.getElementsByTagName('*'); let groesse = alleElemente.length;
+  // Bis zu 20 Minuten (31.10.2026: nach 3 Minuten stand es bei 7000 von 10.000). Schluss erst, wenn 15 Sekunden lang nichts mehr dazukommt -
+  // manche Seiten laden nach jedem Klick erst aus dem Netz nach.
+  let klicks = 0; const bis = Date.now() + 20 * 60_000;
+  const alleElemente = document.getElementsByTagName('*'); let groesse = alleElemente.length; let zuletztNeu = Date.now();
   if (knopf()) document.body.appendChild(anzeige);
   while (Date.now() < bis) {
     const k = knopf();
-    if (!k) break;
+    if (!k) { if (Date.now() - zuletztNeu > 4000) break; await new Promise((r) => setTimeout(r, 250)); continue; }
     k.click(); klicks += 1;
-    anzeige.textContent = `CompHub: klappe auf ... ${klicks} Klicks`;
+    anzeige.textContent = `CompHub: klappe auf ... ${klicks} Klicks (${Math.round((bis - Date.now()) / 60000)} min Rest)`;
     await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     const jetzt = alleElemente.length;
-    ohneWachstum = jetzt > groesse ? 0 : ohneWachstum + 1;
-    groesse = jetzt;
-    if (ohneWachstum > 200) await new Promise((r) => setTimeout(r, 300));
-    if (ohneWachstum > 260) break;
+    if (jetzt > groesse) { groesse = jetzt; zuletztNeu = Date.now(); }
+    else if (Date.now() - zuletztNeu > 15_000) break;
+    else if (Date.now() - zuletztNeu > 1500) await new Promise((r) => setTimeout(r, 200));
   }
   anzeige.remove();
   // Nachgeladene Bilder (loading=lazy) einmal anstossen: einmal ganz runter und zurueck.
