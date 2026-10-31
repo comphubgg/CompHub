@@ -6,7 +6,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
 - [ ] **Viele Statistik-Korrekturen (chef-39, -41, -42, -47 …) wirken erst nach Freigabe** - die Startantwort rechnet der Stundenlauf von main. Der Vorher/Nachher-Vergleich auf localhost zeigt sie nur, wenn localhost selbst rechnet.
-- [ ] **FNCS Solo Final EU Tag 2: vlc franek 124 Kopftreffer in 6 Spielen, Nächster 45** - Ausreißer; prüfen, ob die Quelle (Epic/Replay) hier Treffer statt Kopftreffer liefert.
+- [ ] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt („laut Epic“ / „aus den Replays“), statt etwas umzurechnen.
+- [x] **Spielerwerte je Cup: Rang bei Gleichstand** (chef-58) und Team-Kacheln (chef-57).
 - [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
 
 ## Neu entdeckt (Runde 3, 31.10.2026 – Statistik-Prüfung)
