@@ -263,6 +263,8 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
                 const drin = !!finalisten && r.spieler.length > 0 && r.spieler.every((s) => finalisten.has(s.id));
                 return (
                   <tr key={r.id} onClick={oeffne && r.spieler[0] ? () => oeffne(r.spieler[0]) : undefined}
+                    tabIndex={oeffne && r.spieler[0] ? 0 : undefined} role={oeffne && r.spieler[0] ? 'button' : undefined}
+                    onKeyDown={oeffne && r.spieler[0] ? (ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); oeffne(r.spieler[0]); } } : undefined}
                     className={`border-t border-zinc-800/70 transition hover:bg-sky-500/[0.06] ${oeffne ? 'cursor-pointer' : ''}`}>
                     <td className="px-3 py-2 text-sm font-black tabular-nums text-slate-400">{r.rang}</td>
                     <td className="px-3 py-2">

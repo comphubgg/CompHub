@@ -3780,7 +3780,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <tbody>
                   {zeilen.map((e) => (
                     <Fragment key={e.rank}>
-                      <tr onClick={() => setOffen(offen === e.rank ? null : e.rank)}
+                      <tr onClick={() => setOffen(offen === e.rank ? null : e.rank)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); setOffen(offen === e.rank ? null : e.rank); } }}
                         className={`cursor-pointer border-b border-zinc-900 transition
                                     hover:bg-zinc-900/60 ${offen === e.rank ? 'bg-zinc-900/70' : ''}
                                     ${istMein(e) ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>

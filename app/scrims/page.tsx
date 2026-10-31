@@ -923,7 +923,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
                         </thead>
                         <tbody className="tabular-nums">
                           {gefiltert.slice(0, zeigen).map((tm) => (
-                            <tr key={tm.teamId} onClick={() => setGewaehlt(tm.teamId)}
+                            <tr key={tm.teamId} onClick={() => setGewaehlt(tm.teamId)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); setGewaehlt(tm.teamId); } }}
                               className={`${zeile} cursor-pointer transition ${
                                 team?.teamId === tm.teamId ? 'bg-sky-500/10' : 'hover:bg-zinc-900/60'}`}>
                               <td className="px-4 py-2.5">
