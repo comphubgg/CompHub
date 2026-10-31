@@ -11,6 +11,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import DiscordKnopf from '@/app/components/DiscordKnopf';
 import StartVitrine from '@/app/components/StartVitrine';
 import Rollzahl from '@/app/components/Rollzahl';
+import LiveDemnaechst from '@/app/components/LiveDemnaechst';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -381,6 +382,7 @@ export default function Startseite() {
           <p className="mt-3 text-center text-[11px] text-slate-500">
             <T>Live aus dem eigenen Archiv — keine geschätzten Zahlen.</T>
           </p>
+          <LiveDemnaechst />
         </div>
       </section>
 

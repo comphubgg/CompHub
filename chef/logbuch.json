@@ -193,5 +193,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-11",
+    "titel": "Startseite: Leiste „Live und demnächst“",
+    "bereich": "Startseite",
+    "modell": "Sonnet",
+    "warum": "Die Startseite zeigte nur Cups, die schon vorbei sind. Was heute läuft oder als Nächstes kommt (z. B. die FNCS Solos Reload Qualifiers am 3.11.), sah ein Besucher dort nicht.",
+    "was": "Unter den vier Zahlen oben steht jetzt eine schmale Leiste mit den nächsten drei Cups: Bild, Name, Regionen (EU zuerst) und „Beginnt in 3 Tagen“. Läuft gerade ein Cup, steht er vorne mit roter Live-Marke. Ein Klick öffnet die Event-Seite. Auf dem Handy wischt man seitlich. Ist der Cup-Katalog nicht erreichbar, erscheint die Leiste einfach nicht.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "mittel",
+    "datum": "2026-10-31T19:01:15Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

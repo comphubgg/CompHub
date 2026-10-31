@@ -5235,6 +5235,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   "Diese Karte bearbeiten": "Edit this map",
   "Alle alten Maps": "All old maps",
   "Speichert …": "Saving …",
+  // Startseite: Leiste "Live und demnächst"
+  "Live und demnächst": "Live and coming up",
+  "Beginnt in {n} Minute": "Starts in {n} minute",
+  "Beginnt in {n} Minuten": "Starts in {n} minutes",
+  "Beginnt in {n} Stunde": "Starts in {n} hour",
+  "Beginnt in {n} Stunden": "Starts in {n} hours",
+  "Beginnt in {n} Tagen": "Starts in {n} days",
   "Alte Maps verwalten": "Manage old maps",
 };
 
