@@ -41,7 +41,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 ## SOFORT – Wunsch des Betreibers (31.10.2026, abends)
 
-- [ ] **Kopfzeile automatisch ausblenden (wie die Windows-Taskleiste)** _(höchste Priorität nach chef-14)_
+- [x] **Kopfzeile automatisch ausblenden (wie die Windows-Taskleiste)** (chef-51; gemerkt im Browser wie die anderen Zahnrad-Einstellungen, nicht beim Konto) _(höchste Priorität nach chef-14)_
   - In den Einstellungen (Zahnrad unten rechts) ein neuer Schalter, z. B. „Kopfzeile automatisch ausblenden“. **Standard: aus** – dann bleibt alles genau wie jetzt (Leiste immer sichtbar, ohne Ein- und Ausfahren).
   - Ist der Schalter an: Die schwarze Leiste mit Hintergrund und den Menüpunkten (Home, Streams, Rankings, Events, Statistics, Tierlist, Maps, FNCS, Profilbild) verschwindet. **Sichtbar bleiben nur Logo und Name „CompHub“ oben links – ohne Hintergrund**, frei über der Seite.
   - Fährt man mit der Maus an den oberen Rand (oder über das Logo), fährt die Leiste weich herunter; verlässt die Maus sie, fährt sie wieder hoch. Auf dem Handy: Tippen auf Logo zeigt sie.
