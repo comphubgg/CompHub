@@ -137,8 +137,8 @@ export default function PlayerCenter() {
    */
   const [filter, setFilter] = useState<Set<Filterart>>(new Set());
   const [menge, setMenge] = useState(SCHRITT);
-  /** Ab wie vielen Matches jemand ueberhaupt auftaucht. */
-  const [mindestens, setMindestens] = useState(20);
+  /** Ab wie vielen Matches jemand ueberhaupt auftaucht - Standard alle (Betreiber, 31.10.2026: "wir haben nur 5000 Profile", es sind 8.522). */
+  const [mindestens, setMindestens] = useState(1);
 
   // Was gerade bearbeitet wird
   const [offen, setOffen] = useState<string | null>(null);
