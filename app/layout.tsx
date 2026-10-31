@@ -96,7 +96,8 @@ export const metadata: Metadata = {
     description: 'Stats, tournaments and rankings for competitive Fortnite.',
     images: ['/logos/CompHub-Logo.png'],
   },
-  alternates: { canonical: WURZEL },
+  // './' wird je Aufruf zur Adresse genau dieser Seite aufgeloest (Startseite: WURZEL).
+  alternates: { canonical: './' },
   robots: { index: true, follow: true },
 };
 
