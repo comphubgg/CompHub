@@ -233,7 +233,7 @@ export default function MainHeader({ sektionenAnfang }: {
         {/* Das Zeichen und der Schriftzug - ohne Kasten, in der Anzeigeschrift des neuen Designs. */}
         <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5 pr-2 sm:gap-3 sm:pr-6" aria-label="CompHub">
           <img
-            src="/logos/CompHub-Logo.png"
+            src="/logos/CompHub-Logo-96.webp"
             alt=""
             className="h-9 w-9 rounded-xl object-cover sm:h-10 sm:w-10"
           />
