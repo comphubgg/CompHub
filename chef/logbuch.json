@@ -278,5 +278,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-14",
+    "titel": "Startseite: Spielersuche direkt im Kopf",
+    "bereich": "Statistik",
+    "modell": "Sonnet",
+    "warum": "Wer einen Spieler sucht, musste erst „Statistiken“ öffnen und dort das kleine Suchfeld oben rechts finden. Auf vergleichbaren Seiten ist die Suche das Erste, was man sieht.",
+    "was": "Mitten im Kopf der Startseite, unter „Statistiken, Turniere und Streams an einem Ort“, steht jetzt ein großes Suchfeld. Schon beim Tippen (ab zwei Buchstaben) erscheinen bis zu acht Treffer mit Foto, Flagge und Region; ein Klick oder Enter öffnet das Profil. Pfeiltasten und Escape funktionieren. Ist die Suche gestört, steht „Suche gerade nicht erreichbar“ da – nie fälschlich „Kein Spieler gefunden“. Tipp zum Ansehen: „pete“ eingeben.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "mittel",
+    "datum": "2026-10-31T19:05:11Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
