@@ -7,4 +7,4 @@
  * mit echten Werten. Dieselbe Regel gilt in der Bilderansicht und in den Zahlen der Statistikseite; stuende sie an zwei
  * Stellen verschieden, stimmte die Zahl oben nicht mit der Liste darunter.
  */
-export const ARCHIV_MINDEST_MATCHES = 10;
+export const ARCHIV_MINDEST_MATCHES = 1;

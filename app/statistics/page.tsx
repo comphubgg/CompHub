@@ -2093,13 +2093,34 @@ function SpielerFaecher({ spieler, schaden, aufAlle, aufOeffnen }: { spieler: Sp
    * statt des Faechers aus sechs Namen. Genommen werden aus der Elim-Rangliste je Heimatregion die ersten beiden mit Foto; die Reihenfolge der Regionen ist fest.
    */
   const REGIONEN_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ME', 'ASIA', 'OCE'];
+  /*
+   * Fest gesetzte Karten (Betreiber, 31.10.2026: "wo sind die EU-Spieler - mach Shxrk, Vico da hin"). Fuer EU stehen diese beiden statt des
+   * Ersten der Elim-Liste; sie werden ueber die Suche geholt, weil sie nicht in jeder Saison oben in der Liste stehen. Kommt einer nicht,
+   * faellt die Region auf die Elim-Liste zurueck.
+   */
+  const FEST: Record<string, string[]> = { EU: ['Shxrk', 'Vico'] };
+  const [fest, setFest] = useState<Spieler[]>([]);
+  useEffect(() => {
+    let weg = false;
+    const namen = Object.values(FEST).flat();
+    Promise.all(namen.map((n) => fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(n)}`).then((r) => r.json())
+      .then((j) => ((j?.spieler ?? []) as Spieler[]).find((p) => p.bild && p.anzeige.toLowerCase() === n.toLowerCase()) ?? null)
+      .catch(() => null)))
+      .then((l) => { if (!weg) setFest(l.filter((x): x is Spieler => !!x)); });
+    return () => { weg = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const karten = useMemo(() => {
     const mit = spieler.filter((x) => x.bild);
     const raus: Spieler[] = [];
     // Einer je Region (Betreiber, 19.10.2026: zwei Reihen Fotos untereinander sahen nicht sauber aus - zurueck zum Faecher, nur mit einem je Region).
-    for (const r of REGIONEN_REIHE) raus.push(...mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 1));
+    for (const r of REGIONEN_REIHE) {
+      const gesetzt = fest.filter((x) => (FEST[r] ?? []).some((n) => n.toLowerCase() === x.anzeige.toLowerCase()));
+      raus.push(...(gesetzt.length ? gesetzt : mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 1)));
+    }
     return raus;
-  }, [spieler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spieler, fest]);
   if (karten.length < 4) return null;
   const mitte = (karten.length - 1) / 2;
   return (
