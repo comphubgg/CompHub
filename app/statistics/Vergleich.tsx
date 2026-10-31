@@ -113,7 +113,8 @@ const ACHSEN: Achse[] = [
   { titel: 'DAMAGE', wert: (s) => (s.matches ? s.damage / s.matches : 0) },
   { titel: 'DMG RATIO', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : 0) },
   { titel: 'ACCURACY', wert: (s) => (s.shots > 0 ? s.hitsMitSchuss / s.shots : 0) },
-  { titel: 'HEADSHOTS', wert: (s) => (s.matches ? s.headshots / s.matches : 0) },
+  // Kopftreffer gibt es nur an Tagen mit Schusszahlen - also durch diese Matches teilen, wie Bauteile und Material (vorher: durch alle Matches).
+  { titel: 'HEADSHOTS', wert: (s) => (s.matchesVoll ? s.headshots / s.matchesVoll : 0) },
   { titel: 'BUILDS', wert: (s) => { return s.matchesVoll ? s.builds / s.matchesVoll : 0; } },
   { titel: 'MATS', wert: (s) => { return s.matchesVoll ? s.mats / s.matchesVoll : 0; } },
   { titel: 'HITS', wert: (s) => (s.matches ? s.hits / s.matches : 0) },
