@@ -985,5 +985,14 @@
       "zeit": "2026-10-31T21:51:35.204Z",
       "main": "fac3def1"
     }
+  },
+  "chef-94": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:51:36.771Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
