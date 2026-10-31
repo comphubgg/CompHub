@@ -905,8 +905,9 @@
     "notiz": "",
     "zeit": "2026-10-31T21:46:59.795Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "fehler",
+      "text": "Im Logbuch stehen zu diesem Eintrag keine Commits.",
+      "zeit": "2026-10-31T21:47:02.249Z"
     }
   }
 }
