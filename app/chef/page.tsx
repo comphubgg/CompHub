@@ -16,7 +16,10 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 interface Eintrag {
   id: string; datum: string; titel: string; bereich?: string; warum: string; was: string;
   ansehen?: string[]; commits?: string[]; groesse?: string; modell?: string; status: string; runde?: number;
+  /** Ein Satz, hoechstens 12 Woerter - das liest der Betreiber zuerst (31.10.2026: "ich bin faul, so einfach wie moeglich"). */
+  kurz?: string;
 }
+interface Foto { pfad: string; vorher: string; nachher: string; stellen: number; benannt?: boolean }
 interface Entscheidung {
   entscheidung: 'ja' | 'nein' | 'aendern'; notiz?: string; zeit: string;
   uebernahme?: { stand: string; text: string; zeit?: string };
@@ -25,6 +28,7 @@ interface Status { letzteRunde?: string; macheGerade?: string; naechstes?: strin
 interface Antwort {
   ok: boolean; error?: string; holfehler?: string | null; logbuch: Eintrag[]; entscheidungen: Record<string, Entscheidung>;
   status: Status | null; pause: boolean;
+  bilder?: Record<string, { fotos: Foto[]; zeit: string }>; bilderLaufen?: boolean;
 }
 
 const wann = (iso?: string) => {
@@ -43,6 +47,9 @@ export default function ChefSeite() {
   const [notiz, setNotiz] = useState('');
   /** Vorher/Nachher: welche Karte und welcher Pfad gerade nebeneinander offen ist (Betreiber, 31.10.2026: "sehen, was er aendern wuerde und wieso"). */
   const [vergleich, setVergleich] = useState<{ id: string; pfad: string } | null>(null);
+  /** Welche Karten ihre langen Texte zeigen - sonst steht nur der kurze Satz und das Bild da. */
+  const [lang, setLang] = useState<Record<string, boolean>>({});
+  const [gross, setGross] = useState<string | null>(null);
 
   const laden = useCallback(() => fetch('/api/chef', { cache: 'no-store' }).then((r) => r.json())
     .then((j: Antwort) => { if (j.ok) { setDaten(j); setFehler(''); } else setFehler(j.error ?? 'Nicht erreichbar.'); })
@@ -89,11 +96,32 @@ export default function ChefSeite() {
           {x.modell && <span>· {x.modell}</span>}
           {(x.runde ?? 1) > 1 && <span>· <T>Fassung</T> {x.runde}</span>}
         </div>
-        <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-100">{x.titel}</h3>
-        <div className="mt-4 grid gap-4 text-base leading-relaxed text-slate-300 md:grid-cols-2">
-          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Warum</T></p><p className="mt-1 whitespace-pre-line">{x.warum}</p></div>
-          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Was ist neu</T></p><p className="mt-1 whitespace-pre-line">{x.was}</p></div>
-        </div>
+        <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-100">{x.kurz || x.titel}</h3>
+        {x.kurz && <p className="mt-1 text-sm text-slate-500">{x.titel}</p>}
+        {/* Das markierte Bild zuerst - rot umrandet, was neu ist (scripts/chef-bilder.mjs). Klick vergroessert. */}
+        {(daten?.bilder?.[x.id]?.fotos ?? []).map((f) => (
+          <figure key={f.nachher} className="mt-5">
+            <button type="button" onClick={() => setGross(gross === f.nachher ? null : f.nachher)}
+              className={`block w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 text-left ${gross === f.nachher ? '' : 'max-h-[26rem]'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.nachher} alt={x.titel} className="w-full" />
+            </button>
+            <figcaption className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+              <span>{f.pfad}</span>
+              <span>· {f.stellen ? `${f.stellen} ${t('Stelle(n) rot markiert')}` : t('Keine Stelle markiert - Vergleich unten öffnen')}</span>
+              <a href={f.vorher} target="_blank" rel="noreferrer" className="text-sky-400 hover:text-sky-300"><T>Bild vorher</T> ↗</a>
+            </figcaption>
+          </figure>
+        ))}
+        {!daten?.bilder?.[x.id] && knoepfe && daten?.bilderLaufen && <p className="mt-4 text-sm text-slate-500"><T>Bild wird gerade gemacht …</T></p>}
+        {lang[x.id] ? (
+          <div className="mt-4 grid gap-4 text-base leading-relaxed text-slate-300 md:grid-cols-2">
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Warum</T></p><p className="mt-1 whitespace-pre-line">{x.warum}</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Was ist neu</T></p><p className="mt-1 whitespace-pre-line">{x.was}</p></div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setLang({ ...lang, [x.id]: true })} className="mt-3 text-sm font-semibold text-slate-400 hover:text-sky-400"><T>Warum und was genau?</T></button>
+        )}
         {!!x.ansehen?.length && (
           <div className="mt-5 flex flex-wrap gap-2">
             {x.ansehen.map((p) => (

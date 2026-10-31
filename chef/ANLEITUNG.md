@@ -93,6 +93,8 @@ Arbeit committest du nicht als `[chef-N]`, sondern notierst sie in `aufgaben.md`
   "id": "chef-12",
   "datum": "2026-11-01T03:10:00Z",
   "titel": "Spielersuche findet auch alte Namen",
+  "kurz": "Suche findet Spieler jetzt auch unter alten Namen.",
+  "markieren": ["text:Search a player", "css:header input[type=search]"],
   "bereich": "Statistik",
   "warum": "Wer einen Spieler unter seinem frueheren Namen sucht, fand nichts (Beispiel: ...).",
   "was": "Die Suche schaut jetzt auch in die Namensliste jedes Kontos. ...",
@@ -106,6 +108,14 @@ Arbeit committest du nicht als `[chef-N]`, sondern notierst sie in `aufgaben.md`
 ```
 
 **Alles, was der Betreiber liest (Logbuch, Status, Notizen), schreibst du mit echten Umlauten: ä, ö, ü, ß - also "für", "Größe", "Änderung", nie "fuer", "Groesse", "Aenderung".** Das versteht er sonst nicht immer. Bestehende Einträge mit ue/oe/ae korrigierst du in der nächsten Runde.
+
+**KURZ!** Der Betreiber will so wenig lesen wie möglich: `kurz` ist **ein Satz, höchstens 12 Wörter** - das liest er zuerst und oft nur das.
+`warum` und `was` je **höchstens ein bis zwei kurze Sätze**. Lieber ein Bild als ein Absatz.
+
+**Bilder:** Auf seinem PC entstehen von jedem Pfad in `ansehen` automatisch ein Bild der echten Seite und eines deiner Fassung, die geänderte
+Stelle rot umrandet. Damit die Umrandung genau sitzt, nennst du in `markieren` die Stellen, die du geändert hast: `"text:..."` = ein
+sichtbarer Text auf der Seite (so, wie er auf der englischen Seite erscheint), `"css:..."` = ein CSS-Selektor. Zwei bis vier Stellen
+reichen. Wartende Einträge ohne `markieren` ergänzt du in der nächsten Runde (gleicher Eintrag, kein neuer Commit nötig außer dem Logbuch).
 
 Schreib `warum` und `was` auf **einfachem Deutsch für einen Nicht-Programmierer**: was sieht ein Besucher anders, wo genau.
 Keine Dateinamen, keine Fachwoerter. `ansehen` sind Pfade auf der Seite, die der Betreiber auf localhost oeffnen kann.

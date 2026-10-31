@@ -224,7 +224,10 @@
       "249532a6472a85af134d6520b7d5e678c4a5f723"
     ],
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:Live and coming up"
+    ]
   },
   {
     "id": "chef-10",
@@ -319,7 +322,10 @@
       "63a7625a68b6d73194f6749a624fcc9ffb6c84dd"
     ],
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "css:input[placeholder*=\"Search a player\"]"
+    ]
   },
   {
     "id": "chef-15",

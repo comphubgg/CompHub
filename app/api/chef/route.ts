@@ -67,12 +67,29 @@ function schreibenUndSchieben(nachricht: string, aendern: () => void): string | 
   return 'Gespeichert, aber GitHub hat den Stand gerade nicht angenommen - der naechste Klick versucht es erneut.';
 }
 
+/*
+ * Die markierten Vorher/Nachher-Bilder (scripts/chef-bilder.mjs) entstehen von selbst, solange die Seite offen ist: hoechstens ein Lauf
+ * zugleich, neu angestossen, wenn der letzte fertig ist. Das Skript macht nur Bilder fuer wartende Eintraege, die noch keine haben.
+ */
+let bilderLauf: ReturnType<typeof spawn> | null = null;
+let bilderZuletzt = 0;
+function bilderAnstossen() {
+  if (bilderLauf || Date.now() - bilderZuletzt < 60_000) return;
+  bilderZuletzt = Date.now();
+  const log = fs.openSync(path.join(ORDNER, 'chef-bilder.log'), 'a');
+  bilderLauf = spawn(process.execPath, [path.join(ORDNER, 'scripts', 'chef-bilder.mjs')], { cwd: ORDNER, stdio: ['ignore', log, log], windowsHide: true });
+  bilderLauf.on('exit', () => { bilderLauf = null; });
+}
+
 export async function GET(request: Request) {
   if (!nurLokal(request)) return NextResponse.json({ ok: false, error: 'Nur auf dem PC des Betreibers.' });
   const fehler = holen();
+  bilderAnstossen();
   return NextResponse.json({
     ok: true,
     holfehler: fehler,
+    bilder: lies<Record<string, unknown>>('bilder.json', {}),
+    bilderLaufen: !!bilderLauf,
     logbuch: lies<unknown[]>('logbuch.json', []),
     entscheidungen: lies<Record<string, unknown>>('entscheidungen.json', {}),
     status: lies<Record<string, unknown> | null>('status.json', null),
