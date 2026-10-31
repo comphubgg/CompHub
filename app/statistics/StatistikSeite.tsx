@@ -3321,8 +3321,10 @@ export default function StatistikSeite() {
   /** Eine Reihe (oder einen ihrer Spieltage) nachladen. */
   const ladeReihe = useCallback(async (name: string, tage: Turnier[], wahl: string) => {
     const p = new URLSearchParams({ saison, region: regionAktiv, sort: 'elims', limit: '500' });
-    if (wahl) p.set('event', wahl);
-    else p.set('events', tage.map((t) => t.windowId).join(','));
+    /* Eine Sammelkachel (LAN-Finale ueber mehrere Tage) traegt ihre Fenster in "events"; ihr windowId ist nur der des letzten Tages. */
+    const gewaehlt = wahl ? tage.find((t) => t.windowId === wahl) : undefined;
+    if (wahl && !gewaehlt?.events?.length) p.set('event', wahl);
+    else p.set('events', [...new Set((gewaehlt ? [gewaehlt] : tage).flatMap((t) => t.events?.length ? t.events : [t.windowId]))].join(','));
     const stand = `${saison}|${regionAktiv}`;
     try {
       const j = await (await fetch(`/api/szene-stats?${p}`)).json();
