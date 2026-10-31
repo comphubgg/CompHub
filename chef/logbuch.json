@@ -126,5 +126,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-9",
+    "titel": "Streams: zwei unnötige Abrufe weg, keine falschen Nullen mehr",
+    "bereich": "Daten",
+    "warum": "Bei jedem Wechsel des Streamers holte die Streams-Seite im Hintergrund Spielerwerte von zwei fremden Diensten – angezeigt wurden sie nirgends. Der erste Dienst lehnt inzwischen jede Anfrage ab, der zweite meldete bei einem Ausfall „0 Punkte, 0 $ Preisgeld“, als wären das echte Werte.",
+    "was": "Die Streams-Seite fragt diese Werte nicht mehr ab; sichtbar ändert sich nichts, der Wechsel zwischen Streamern wird nur etwas leichter. Die Werte-Schnittstelle meldet bei einem Ausfall jetzt „nicht erreichbar“ statt Nullen.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:54:48Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
