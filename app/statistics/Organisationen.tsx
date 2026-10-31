@@ -191,6 +191,8 @@ export default function Organisationen({ aufSpieler }: {
   const ort = ortVon(sprache);
   const [daten, setDaten] = useState<Antwort | null>(null);
   const [fehler, setFehler] = useState('');
+  /** Zaehlt hoch, wenn der Abruf ausfiel: nach zehn Sekunden noch einmal. */
+  const [versuch, setVersuch] = useState(0);
   const [region, setRegion] = useState<string>('alle');
   const [suche, setSuche] = useState('');
   const [offen, setOffen] = useState<string | null>(null);
@@ -205,19 +207,22 @@ export default function Organisationen({ aufSpieler }: {
 
   useEffect(() => {
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    const neuVersuchen = () => { nochmal = setTimeout(() => { if (!weg) setVersuch((v) => v + 1); }, 10_000); };
     fetch(zeitraum === 'alle' ? '/api/orgs?zeitraum=alle' : '/api/orgs', { cache: 'no-store' })
       .then(async (r) => {
         const j = await r.json().catch(() => null);
         if (weg) return;
-        if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? t('Die Organisationen ließen sich gerade nicht laden.')); return; }
+        if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? t('Die Organisationen ließen sich gerade nicht laden.')); neuVersuchen(); return; }
+        setFehler('');
         // "Alle Jahre" noch nicht gerechnet (neu seit 30.9.2026, der
         // stuendliche Lauf legt es ab): dann das Jahr statt lauter Striche.
         if (zeitraum === 'alle' && j.stand === null) { setZeitraum('jahr'); return; }
         setDaten(j as Antwort);
       })
-      .catch(() => { if (!weg) setFehler(t('Die Organisationen ließen sich gerade nicht laden.')); });
-    return () => { weg = true; };
-  }, [t, zeitraum]);
+      .catch(() => { if (!weg) { setFehler(t('Die Organisationen ließen sich gerade nicht laden.')); neuVersuchen(); } });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [t, zeitraum, versuch]);
 
   const geld = useMemo(() => new Intl.NumberFormat(ort, {
     style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
@@ -246,6 +251,7 @@ export default function Organisationen({ aufSpieler }: {
     return (
       <div className="rounded-2xl border border-amber-800/60 bg-amber-950/20 px-5 py-4 text-sm text-amber-200">
         {fehler}
+        <p className="mt-1 text-xs text-amber-200/70"><T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T></p>
       </div>
     );
   }
