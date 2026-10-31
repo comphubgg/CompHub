@@ -198,15 +198,21 @@ export async function POST(request: Request) {
     if (String(koerper.website ?? '').trim()) {
       return NextResponse.json({ ok: true, hinweis: null });
     }
+    /*
+     * Beide Bremsen antworten mit 400, nicht mit 429: aus 429 macht der
+     * Cloudflare-Lastverteiler eine eigene Fehlerseite, und die Meldung unten
+     * kaeme nie im Formular an. Die Anmeldeseite zeigt jede Antwort, die nicht
+     * ok ist, mit ihrem Text an - fuer sie aendert sich nichts.
+     */
     const aufgegangen = Number(koerper.seit);
     if (Number.isFinite(aufgegangen) && Date.now() - aufgegangen < 3000) {
       return NextResponse.json(
-        { fehler: 'Das ging zu schnell. Bitte noch einmal.' }, { status: 429 });
+        { fehler: 'Das ging zu schnell. Bitte noch einmal.' }, { status: 400 });
     }
     if (await kontenVonAnschlussLetzteStunde(anschluss(request)) >= 3) {
       return NextResponse.json(
         { fehler: 'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.' },
-        { status: 429 });
+        { status: 400 });
     }
 
     if (!emailTaugt(email)) {

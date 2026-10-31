@@ -17,5 +17,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-2",
+    "datum": "2026-10-31T18:40:00Z",
+    "titel": "Registrierung: Hinweis 'zu schnell' kommt im Formular an",
+    "bereich": "Konto",
+    "warum": "Wer sich sehr schnell registriert oder von einem Anschluss schon mehrere Konten angelegt hat, bekam vom Server eine Antwort, aus der der Lastverteiler eine fremde Fehlerseite macht. Der Hinweis 'Das ging zu schnell. Bitte noch einmal.' kam so womoeglich nie beim Besucher an.",
+    "was": "Der Server meldet diese beiden Faelle jetzt so, dass die Anmeldeseite sie ganz normal als roten Hinweis unter dem Formular zeigt. Sonst aendert sich an der Registrierung nichts - die Bremsen gegen Bots bleiben gleich streng.",
+    "ansehen": [
+      "/sign-in"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
