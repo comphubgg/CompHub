@@ -29,10 +29,14 @@ const dateiName = (n) => n.toUpperCase().replace(/[^A-Z0-9 ._-]/g, '').replace(/
 let geholt = 0, schief = 0;
 const gesehen = new Set();
 let i = 0;
-await Promise.all(Array.from({ length: 6 }, async () => {
+// Langsam und ruecksichtsvoll: zwei zugleich, kurze Pause (31.10.2026 - nach Hunderten offener Tabs sperrte EU Competitive den Anschluss eine Weile).
+await Promise.all(Array.from({ length: 2 }, async () => {
   while (i < liste.length) {
     const e = liste[i++];
-    let name = dateiName(e.name);
+    await new Promise((r) => setTimeout(r, 250));
+    // Der Name aus der Bild-Adresse, wenn sie ihn traegt ("/playerpictures/PETERBOT.jpg") - der Befehl erwischte sonst manchmal nur die Region.
+    const ausAdresse = decodeURIComponent(e.url.split('?')[0].split('/').pop() ?? '').replace(/\.(jpe?g|png|webp)$/i, '');
+    let name = dateiName(/^[A-Za-z0-9 ._-]{2,30}$/.test(ausAdresse) && !/^(default|placeholder|unknown|noimage)/i.test(ausAdresse) ? ausAdresse : e.name);
     while (gesehen.has(name)) name += '_2';
     gesehen.add(name);
     try {
