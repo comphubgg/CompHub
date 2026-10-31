@@ -644,5 +644,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-36",
+    "datum": "2026-10-31T19:37:38Z",
+    "titel": "Spielerprofile zeigen beim Teilen Name und Foto",
+    "bereich": "Statistik",
+    "warum": "Wer einen Spielerlink in Discord oder auf X teilte, sah nur den allgemeinen Statistik-Titel – ohne Namen, ohne Bild.",
+    "was": "Browser-Tab und Link-Vorschau zeigen jetzt den Namen des Spielers und, wenn es eins gibt, sein Foto; ohne Foto das CompHub-Logo. Die Seite selbst bleibt genau gleich.",
+    "ansehen": [
+      "/statistics?spieler=02c93e4588f241baa6cb5040632326b4"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
