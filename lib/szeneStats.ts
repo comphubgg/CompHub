@@ -1786,7 +1786,18 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   // aus der Gesamtsumme aller Zeiten.
   const gebraucht = new Set([...geld.keys(), ...teamElims.plaetze.map((p) => p.epicId)]);
   if ([...gebraucht].some((id) => !namen.has(id))) {
-    for (const s of await gesamtSummen()) if (!namen.has(s.epicId) && gebraucht.has(s.epicId)) namen.set(s.epicId, s);
+    /*
+     * Nur Name, Land, Bild und Region aus der Gesamtsumme - die Zahlen nicht.
+     * Vorher stand bei Konten ohne Szene-Werte im Zeitraum (2019 bis 2023, oder
+     * eine Saison, die das Archiv fuer sie nicht hat) ihre Gesamtzahl an
+     * Spieltagen und Matches in der Zeile: Peterbot 2022 "147 Spieltage, 772
+     * Matches" (alle Zeit) statt der Zahlen dieses Zeitraums.
+     */
+    for (const s of await gesamtSummen()) {
+      if (!namen.has(s.epicId) && gebraucht.has(s.epicId)) {
+        namen.set(s.epicId, { ...s, ...leereSumme(s.epicId, s.name), namen: s.namen, regionen: s.regionen });
+      }
+    }
   }
   const geldPlaetze = [...geld.entries()]
     .filter(([, betrag]) => betrag > 0)
