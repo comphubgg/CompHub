@@ -5126,7 +5126,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {b.plaetze.map((pl, i) => (
                       <li key={`${b.schluessel}-${pl.rank}-${i}`}
                         className="mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2">
-                        <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>
+                        <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${(pl.statPlatz ?? i + 1) === 1 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>
                           {pl.statPlatz ?? i + 1}
                         </span>
                         <TeamFlagge groesse={20}
