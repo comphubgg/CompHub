@@ -64,7 +64,8 @@ function stand(e: { datum: number | null; ende: number | null }): 'ended' | 'liv
 const StandMarke = ({ s }: { s: 'ended' | 'live' | 'upcoming' }) => (
   <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm ${s === 'live'
     ? 'border-red-400/50 bg-red-500/70 text-white' : s === 'upcoming' ? 'border-sky-300/40 bg-sky-500/70 text-white' : 'border-white/20 bg-black/55 text-slate-200'}`}>
-    {s === 'live' ? 'Live' : s === 'upcoming' ? 'Upcoming' : 'Ended'}
+    {/* Dieselben Woerter wie auf der Events-Seite, ueber die Uebersetzung - vorher fest englisch, auch im deutschen Modus. */}
+    <T>{s === 'live' ? 'Live' : s === 'upcoming' ? 'Demnächst' : 'Beendet'}</T>
   </span>
 );
 
