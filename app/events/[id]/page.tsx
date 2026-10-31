@@ -700,6 +700,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [statistik, setStatistik] = useState<Bestenliste[]>([]);
   /** Wann Epic die Bestenliste zuletzt fortgeschrieben hat - "zuletzt aktualisiert". */
   const [statistikStand, setStatistikStand] = useState<string | null>(null);
+  /** Die Teamwerte waren nicht zu holen: dann steht ein Hinweis da statt "leer", und nach 10 Sekunden geht es noch einmal los. */
+  const [statistikFehlt, setStatistikFehlt] = useState(false);
+  const [statistikVersuch, setStatistikVersuch] = useState(0);
   /*
    * Von Hand neu laden (Betreiber, 27.10.2026: "fuer die VIPs ein kleines Reload-Zeichen neben Alle und Freunde - da druecke ich drauf und der ganze Cup mit Statistik, Matches und
    * Leaderboard geht auf den neuesten Stand, und die Uhrzeit wird auch neu"). neuNr stoesst Spielerwerte und Statistik an, handFrischBis laesst die Abrufe der naechsten
@@ -922,6 +925,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
   const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
+  /** Die Spielerwerte waren nicht zu holen: Hinweis statt leerem Kasten, neuer Versuch nach 10 Sekunden. */
+  const [spielerFehlt, setSpielerFehlt] = useState(false);
+  const [spielerVersuch, setSpielerVersuch] = useState(0);
   const [spielerSuche, setSpielerSuche] = useState('');
   const [kopiert, setKopiert] = useState<string | null>(null);
 
@@ -1550,15 +1556,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * verlassen kann.
    */
   useEffect(() => {
-    if (!lbFenster || !zeigeStatistik) { setStatistik([]); return; }
+    if (!lbFenster || !zeigeStatistik) { setStatistik([]); setStatistikFehlt(false); return; }
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
         + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
-      .then((d) => { if (!weg) { setStatistik(d.bestenlisten ?? []); setStatistikStand(d.aktualisiert ?? null); } })
-      .catch(() => { if (!weg) setStatistik([]); });
-    return () => { weg = true; };
-  }, [lbFenster, zeigeStatistik, neuNr, summenFenster, summenText]);
+      .then((d) => {
+        if (weg) return;
+        if (!Array.isArray(d?.bestenlisten)) throw new Error('keine Bestenlisten');
+        setStatistikFehlt(false);
+        setStatistik(d.bestenlisten);
+        setStatistikStand(d.aktualisiert ?? null);
+      })
+      .catch(() => {
+        if (weg) return;
+        setStatistik([]);
+        setStatistikFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setStatistikVersuch((v) => v + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [lbFenster, zeigeStatistik, neuNr, summenFenster, summenText, statistikVersuch]);
 
   // Die Profile einmal holen - sie aendern sich waehrend eines Cups nicht.
   useEffect(() => {
@@ -2137,14 +2155,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     spielerNeuGesehen.current = neuNr;
     let weg = false;
     if (!spielerWerte) setSpielerLaedt(true);
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
       + `&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
-      .then((j) => { if (!weg && !(j?.error && spielerWerte)) setSpielerWerte(j?.error ? null : j); })
-      .catch(() => { if (!weg && !spielerWerte) setSpielerWerte(null); })
+      .then((j) => {
+        if (weg) return;
+        if (!Array.isArray(j?.spieler)) throw new Error('keine Spielerliste');
+        setSpielerFehlt(false);
+        setSpielerWerte(j);
+      })
+      .catch(() => {
+        if (weg || spielerWerte) return;
+        setSpielerWerte(null);
+        setSpielerFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setSpielerVersuch((v) => v + 1); }, 10_000);
+      })
       .finally(() => { if (!weg) setSpielerLaedt(false); });
-    return () => { weg = true; };
-  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText, soloCup]);
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText, soloCup, spielerVersuch]);
 
   // Solange die Replays eines Spieltags ausgewertet werden, alle zwei Minuten nachsehen - die Werte erscheinen dann ohne Neuladen.
   useEffect(() => {
@@ -4616,7 +4645,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </div>
             </header>
 
-            {spielerLaedt && !spielerWerte && (
+            {spielerFehlt && !spielerWerte && (
+              <p className="p-8 text-center text-sm text-slate-500">
+                <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+              </p>
+            )}
+
+            {spielerLaedt && !spielerWerte && !spielerFehlt && (
               <div className="space-y-1 p-4">
                 {[...Array(8)].map((unbenutzt, i) =>
                   <div key={i} className="h-8 animate-pulse rounded bg-zinc-900/60" />)}
@@ -5033,7 +5068,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {reiter === 'teams' && !statistik.length && (
           <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                         text-center text-sm text-slate-500">
-            <T>Zu diesem Spieltag liegen noch keine Teamwerte vor.</T>
+            {statistikFehlt
+              ? <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+              : <T>Zu diesem Spieltag liegen noch keine Teamwerte vor.</T>}
           </p>
         )}
 
