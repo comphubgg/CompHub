@@ -5161,6 +5161,74 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Liegt für diesen Cup nicht vor': 'Not available for this cup',
   'Endstand aus der Szene-Quelle': 'Final values from the scene source',
   'Epic gibt je Spieltag nur die ersten 10.000 Plätze heraus, gesucht wird in diesen.': 'Epic only releases the first 10,000 places per match day – the search covers these.',
+
+  // ------------------------------------------------- Admin-Werkzeuge (Nachtrag)
+  "Das Konto sieht danach die Seite Team und pflegt den Kader dieser Organisation.":
+    "The account will then see the Team page and manage this organisation's roster.",
+  "Kartenbild wählen":
+    "Choose map image",
+  "Auf der Karte ziehen, um ein Rechteck zu zeichnen.":
+    "Drag on the map to draw a rectangle.",
+  "Keine Form gewählt":
+    "No shape selected",
+  "Von der Form nehmen":
+    "Remove from shape",
+  "Eine Zeile pro Team, die Namen mit & getrennt. Jeder Name wird im Archiv gesucht: gibt es genau einen Treffer, kommen Flagge und Konto dazu.":
+    "One line per team, names separated by &. Each name is looked up in the archive: if there is exactly one match, flag and account are added.",
+  "Alle löschen":
+    "Delete all",
+  "Noch keine Teams.":
+    "No teams yet.",
+  "Team löschen":
+    "Delete team",
+  "Platz, Punkte, Victory Royales und Eliminierungen je Team - alles von Hand. Teams legst du im Reiter „Teams“ an.":
+    "Place, points, Victory Royales and eliminations per team - all entered by hand. Teams are created in the “Teams” tab.",
+  "Plätze nach Punkten vergeben":
+    "Assign places by points",
+  "Plätze löschen":
+    "Clear places",
+  "Noch keine Teams - lege sie zuerst im Reiter „Teams“ an.":
+    "No teams yet - create them first in the “Teams” tab.",
+  "Bild der Kachel (Adresse)":
+    "Tile image (URL)",
+  "Epics Bestenliste und Teams zeigen, solange hier keine eigenen Teams stehen.":
+    "Show Epic's leaderboard and teams as long as no custom teams are entered here.",
+  "Sobald du das erste eigene Team anlegst, gilt nur noch, was du eingetragen hast.":
+    "As soon as you add the first custom team, only what you entered counts.",
+  "Event löschen":
+    "Delete event",
+  "Diese Karte ist gerade versteckt.":
+    "This map is currently hidden.",
+  "Zur öffentlichen Übersicht":
+    "To the public overview",
+  "Ein Event anlegen. Danach öffnest du es mit „Bearbeiten“ und zeichnest Formen, Teams und Leaderboard ein.":
+    "Create an event. Then open it with “Edit” and draw in shapes, teams and the leaderboard.",
+  "Saison wählen":
+    "Choose season",
+  "Kartenbild für alle hier setzen":
+    "Set map image for all shown here",
+  "Eine Insel auswählen - sie gilt danach für alle angezeigten Karten. Einzelne änderst du später im Editor.":
+    "Pick an island - it then applies to all maps shown. You can change individual ones later in the editor.",
+  "Hier steht noch nichts. Mit „Event anlegen“ kommt die erste Karte dazu.":
+    "Nothing here yet. “Create event” adds the first map.",
+  "Zu diesem Spieltag gibt es keine Karte.":
+    "There is no map for this match day.",
+  "Kopieren hat nicht geklappt - bitte herunterladen.":
+    "Copying failed - please download instead.",
+  "Das Plakat lässt sich gerade nicht zeichnen.":
+    "The poster can't be drawn right now.",
+  "Kopieren hat nicht geklappt.":
+    "Copying failed.",
+  "Name tippen — ohne Eingabe der Erste":
+    "Type a name — leave empty for first place",
+  "Jedes Game der Finals und LANs aus Epics Server-Replays: die Zonen, jede Elim und jeder Knock mit Ort und Zeit, die Teams. Der Server liest neue Games stündlich aus und bewahrt sie auf, auch wenn Epic das Replay nach 31 Tagen löscht.":
+    "Every game of the finals and LANs from Epic's server replays: the zones, every elim and every knock with place and time, the teams. The server reads new games every hour and keeps them, even after Epic deletes the replay after 31 days.",
+  "Noch keine Games ausgewertet. Der stündliche Lauf liest die Replays der Finals und LANs der letzten 31 Tage nach und nach aus.":
+    "No games analysed yet. The hourly run works through the replays of the finals and LANs from the last 31 days.",
+  "Zone mit Radius":
+    "Zone with radius",
+  "Weiße Ringe: die Zonen des Games, je später desto kräftiger. ✖ Elim, ● Knock - in der Farbe des Teams, das ihn geholt hat (Top 8 farbig). Zeigen mit der Maus nennt Zeit, Täter, Opfer und Abstand.":
+    "White rings: the zones of the game, stronger the later they are. ✖ elim, ● knock - in the colour of the team that got it (top 8 in colour). Hovering shows time, attacker, victim and distance.",
 };
 
 /**
