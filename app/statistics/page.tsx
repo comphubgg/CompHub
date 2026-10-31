@@ -116,6 +116,8 @@ interface Turnier {
   /** Die Tage dieser LAN - zum Umschalten zwischen Tag und Summe. */
   tage?: Array<{ windowId: string; datei: string; titel: string }>;
   name: string; spieler: number; matches: number; datum?: number;
+  /** Aus eigenen Daten (Epic + Replays) - und ob dort noch Werte fehlen, weil die Replays noch gelesen werden (lib/szeneEigen). */
+  eigen?: boolean; unvollstaendig?: boolean;
   /** Eine LAN - mit Namen und Ort, aus der LAN-Datei. */
   lan?: { name: string | null; ort: string | null } | null;
   /** Epics eigene Grafik zum Cup, sofern eine passt. */
@@ -4239,6 +4241,20 @@ export default function StatistikSeite() {
                 </div>
               )}
 
+
+              {/*
+                * Noch nicht ganz fertig gelesen (Betreiber, 31.10.2026): so sagen, statt halbe Zahlen als fertige auszugeben. Spaetestens
+                * einen Tag nach dem Cup-Ende muss der Spieltag vollstaendig sein.
+                */}
+              {cup.eigen && cup.unvollstaendig && (
+                <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  <span aria-hidden className="mt-0.5 inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
+                  <span>
+                    <b><T>Statistik noch nicht vollständig.</T></b>{' '}
+                    <T>Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.</T>
+                  </span>
+                </div>
+              )}
 
               {cupLaedt && !cupFeld.length ? (
                 <LadeSchirm />

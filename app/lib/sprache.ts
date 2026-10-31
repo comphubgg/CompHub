@@ -4518,6 +4518,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Ordner löschen': 'Delete folder',
   'Streamer suchen …': 'Search streamers …',
   'Streamer oder Stream-Titel suchen …': 'Search streamers or stream titles …',
+  'Statistik noch nicht vollständig.': 'Statistics not complete yet.',
+  'Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.': 'The replays of this match day are still being analysed - some values may still be missing. Everything is in place no later than 24 hours after the cup ends.',
   'Chat an': 'Chat on',
   'Chat aus': 'Chat off',
   'Wähle links einen Streamer oder ein Pro-POV.': 'Pick a streamer or a pro POV on the left.',

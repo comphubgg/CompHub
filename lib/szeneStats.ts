@@ -165,6 +165,8 @@ export interface ArchivEintrag {
   datum?: number;
   /** Aus eigenen Daten gebaut (lib/szeneEigen) - nicht von der Szene-Quelle; manche Werte fehlen darin. */
   eigen?: boolean;
+  /** Eigener Spieltag, bei dem noch nicht jeder Spieler Elims und Schaden hat - die Replays werden noch gelesen. */
+  unvollstaendig?: boolean;
 }
 
 /** Die Rohwerte eines Spielers an einem Spieltag. */
@@ -254,6 +256,7 @@ async function eigeneEintraege(quelle: ArchivEintrag[]): Promise<ArchivEintrag[]
         region: t.region, season: t.season, datei: `${t.windowId}.json`, eventId: t.eventId, windowId: t.windowId,
         name: [t.titel || cupNameAusKennung(t.windowId), rundenName(t.windowId, t.istFinale)].filter(Boolean).join(' - '),
         spieler: werte.players.length, matches: werte.matches, datum: t.datum ?? undefined, eigen: true,
+        unvollstaendig: werte.players.some((x) => x.eliminations === undefined || x.damageDealt === undefined),
       });
     }
   }));
