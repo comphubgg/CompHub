@@ -1289,5 +1289,51 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-66",
+    "datum": "2026-10-31T20:40:00Z",
+    "titel": "Cup-Seite: Ausfall der Statistik zeigt einen Hinweis",
+    "kurz": "Unsichtbar: Cup-Seite → Teams/Spieler zeigen bei Ausfall Hinweis statt leer.",
+    "markieren": [
+      "text:Tournament stats",
+      "text:Player Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Quelle der Team- oder Spielerwerte aus, stand dort „noch keine Teamwerte“ oder ein leerer Kasten.",
+    "was": "Jetzt steht „Die Zahlen sind gerade nicht erreichbar“, und nach 10 Sekunden lädt es von selbst neu.",
+    "ansehen": [
+      "/events"
+    ],
+    "commits": [
+      "6406ba0f6ff5601c66ba91cf6af957bf8a061997"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-67",
+    "datum": "2026-10-31T20:41:00Z",
+    "titel": "Statistik: Ausfall bei Spielerliste und Regionen zeigt einen Hinweis",
+    "kurz": "Unsichtbar: Spielerliste und Regionen melden Ausfälle ehrlich und laden neu.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei einem Ausfall stand in der Spielerliste eine rohe Fehlermeldung, in den Regionen „keine Einzelwerte“ oder ein endloser Ladebalken.",
+    "was": "Überall steht jetzt „gerade nicht erreichbar“, nach 10 Sekunden wird neu gefragt. „Kein Spieler gefunden“ bleibt davon getrennt.",
+    "ansehen": [
+      "/statistics?bereich=spieler",
+      "/statistics?bereich=regional"
+    ],
+    "commits": [
+      "75e90463b290c5bc5e90d3614376f4a9f2df5e80"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
