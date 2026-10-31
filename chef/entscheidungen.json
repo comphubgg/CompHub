@@ -71,7 +71,7 @@
   },
   "chef-14": {
     "entscheidung": "aendern",
-    "notiz": "Die Suche will ich, aber nicht so gro� und fett mitten im Kopf der Startseite. Bitte klein und unauff�llig oben rechts in der Kopfzeile (z. B. nur ein kleines Lupen-Symbol, das beim Klick die Suche �ffnet).",
-    "zeit": "2026-10-31T19:43:40.715Z"
+    "notiz": "Missverständnis (Fehler des Assistenten): Die Suche gehört NICHT in die Kopfzeile/Navigation – die Lupe dort bitte wieder entfernen. Gewünscht ist ein kleines, unauffälliges Suchfeld auf der Seite selbst, oben rechts direkt unter der Kopfzeile (über dem Hintergrund der Startseite, etwa dort, wo rechts oben im Kopfbereich Platz ist). Klein, dezent, nicht fett – es soll nicht ins Auge springen.",
+    "zeit": "2026-10-31T20:00:42.329Z"
   }
 }
