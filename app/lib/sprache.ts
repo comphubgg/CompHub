@@ -5262,6 +5262,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   "Beginnt in {n} Stunden": "Starts in {n} hours",
   "Beginnt in {n} Tagen": "Starts in {n} days",
   "Alte Maps verwalten": "Manage old maps",
+  // Spielersuche auf der Startseite
+  "Spieler suchen — Namen eintippen": "Search a player — type a name",
+  "Suche läuft": "Searching",
+  "Suche gerade nicht erreichbar": "Search is unavailable right now",
 };
 
 /**
