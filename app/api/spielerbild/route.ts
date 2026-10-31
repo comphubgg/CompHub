@@ -3,6 +3,7 @@ import { bilder } from '@/lib/epicCups';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
+import { spielerbildGross } from '@/lib/spielerbildKlein';
 /*
  * Das Foto zu einem Namen.
  *
@@ -42,7 +43,7 @@ function finde(b: Fotos, name: string): string | null {
   const genau = b.players.find((p) => namensSchluessel(p.key) === schluessel);
   const treffer = genau
     ?? b.players.find((p) => name.toLowerCase().includes(p.key));
-  return treffer ? `/spielerbilder/${encodeURIComponent(treffer.file)}` : null;
+  return treffer ? spielerbildGross(treffer.file) : null;
 }
 
 async function holeRoh(request: Request) {

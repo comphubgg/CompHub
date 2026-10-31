@@ -15,6 +15,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
+import { createHash } from 'node:crypto';
 
 const QUELLE = path.join(process.cwd(), 'public', 'spielerbilder');
 const ZIEL = path.join(process.cwd(), 'public', 'spielerbilder-klein');
@@ -60,6 +61,18 @@ async function main() {
       weg += 1;
     }
   }
+  /*
+   * Ein Kennzeichen je Foto (die ersten acht Zeichen seines Inhalts-Hashs) fuer lib/spielerbildKlein: es haengt als "?v=" an der Adresse.
+   * Cloudflare laesst Browser Fotos vier Stunden lang aus dem eigenen Speicher zeigen; ein neu zugeschnittenes Foto unter demselben Namen sah
+   * der Betreiber deshalb erst Stunden spaeter (31.10.2026: Salko auf der Startseite noch mit dem zweiten Spieler im Bild). Mit neuem Inhalt
+   * kommt eine neue Adresse, und jeder Browser laedt sofort neu.
+   */
+  const stand = {};
+  for (const datei of dateien.sort()) {
+    stand[datei] = createHash('sha1').update(await fs.readFile(path.join(QUELLE, datei))).digest('hex').slice(0, 8);
+  }
+  await fs.writeFile(path.join(process.cwd(), 'lib', 'fotoStand.json'), JSON.stringify(stand));
+
   console.log(`Spielerfotos klein: ${geschrieben} geschrieben, ${uebersprungen} aktuell, ${weg} entfernt`
     + (fehler ? `, ${fehler} Fehler` : '') + '.');
 }

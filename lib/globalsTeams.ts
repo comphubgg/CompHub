@@ -7,6 +7,7 @@ import { gecacht, holeTop } from '@/lib/epicCups';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 
+import { spielerbildGross } from './spielerbildKlein';
 /*
  * Das Feld der Global Championship - wer antritt, und woher.
  *
@@ -188,7 +189,7 @@ export async function globalsTeams(fenster: string) {
   const bildZu = new Map<string, string>();
   for (const b of bilder) {
     if (b.epicId && b.echtesFoto) {
-      bildZu.set(b.epicId, `/spielerbilder/${encodeURIComponent(b.datei)}`);
+      bildZu.set(b.epicId, spielerbildGross(b.datei));
     }
   }
   const szene = new Map<string, { name: string; land: string }>();

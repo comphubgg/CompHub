@@ -16,6 +16,7 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
 import { tagZweiPrognose } from '@/lib/tiktokPrognose';
 
+import { spielerbildGross } from '@/lib/spielerbildKlein';
 /*
  * Plakate zum Posten (Betreiber, 21.10.2026): "ein Plakat im eigenen Stil und mit anderer Anordnung fuer Team Stats bzw. Solo Stats, fuer Standings, fuer Finals und andere
  * Statistiken - unter Posts, erstellbar, und es soll immer wieder kommen". 1600 x 900, dunkler Grund und Blau wie die Seite, Anzeigeschrift Bricolage, Text Figtree.
@@ -443,7 +444,7 @@ async function zeitstrahlDaten(id: string, ursprung: string): Promise<Zeitstrahl
   const bilder = await liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []);
   const datei = bilder.find((x) => x.epicId === id && x.echtesFoto)?.datei;
   return {
-    name: profil.anzeige || profil.name || id.slice(0, 8), land: profil.land, bild: datei ? `/spielerbilder/${encodeURIComponent(datei)}` : profil.bild,
+    name: profil.anzeige || profil.name || id.slice(0, 8), land: profil.land, bild: datei ? spielerbildGross(datei) : profil.bild,
     jahre, gesamt: jahre.reduce((a, j) => a + j.betrag, 0),
     groesste: [...posten.values()].sort((a, b) => b.betrag - a.betrag).slice(0, 3),
   };

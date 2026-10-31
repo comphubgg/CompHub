@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { liesJson, speicher } from '@/lib/ablage';
+import { spielerbildGross } from '@/lib/spielerbildKlein';
 import {
   liesGalerie, schreibGalerie, liesBild, schreibBild, loescheBild, neueId, gehoertZuCup,
   type Galerie, type GalerieEintrag, type GalerieEvent,
@@ -47,7 +48,7 @@ async function spielerAngaben(alle: string[]) {
     if (id) profilVon.set(id.toLowerCase(), p);
   }
   const bildVon = new Map<string, string>();
-  for (const b of bilder) if (b.epicId && b.echtesFoto) bildVon.set(b.epicId.toLowerCase(), `/spielerbilder/${encodeURIComponent(b.datei)}`);
+  for (const b of bilder) if (b.epicId && b.echtesFoto) bildVon.set(b.epicId.toLowerCase(), spielerbildGross(b.datei));
   for (const id of alle) {
     const p = profilVon.get(id);
     const n = namen[id];

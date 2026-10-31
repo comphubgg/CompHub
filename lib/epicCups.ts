@@ -14,6 +14,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 
+import { spielerbildGross } from './spielerbildKlein';
 // Oeffentlich dokumentierter Epic Android-Game-Client. Kein Geheimnis.
 // Der PC-Client faellt raus: der darf keine dauerhafte Geraete-Anmeldung
 // anlegen; der iOS-Client wurde von Epic abgeschaltet.
@@ -1961,7 +1962,7 @@ export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten:
         const k = kontext && p.id ? kontext(String(p.id), p.name) : null;
         return {
           ...p,
-          img: ausKonto ? `/spielerbilder/${encodeURIComponent(ausKonto)}` : null,
+          img: ausKonto ? spielerbildGross(ausKonto) : null,
           logo: findeLogo(p.name),
           ...(k ? { anzeige: k.anzeige, land: k.land } : {}),
         };

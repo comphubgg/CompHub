@@ -11,6 +11,7 @@ import { ueberdauernd } from '@/lib/ueberdauernd';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { standAnhaengen } from '@/lib/spielerbildKlein';
 let letzteCups: VCup[] | null = null;
 /** Die Cups der zuletzt abgelegten Antwort (data/.zuletzt, siehe lib/ueberdauernd) - nach einem Neustart der einzige Vorrat. */
 function vorigeCups(): VCup[] {
@@ -64,7 +65,7 @@ async function startHolen(request: Request): Promise<Start | null> {
 }
 
 const schlank = (z: Zeile) => ({
-  id: z.epicId, name: z.anzeige || z.name, land: z.land ?? null, region: z.heimat ?? '', bild: z.bild ?? null,
+  id: z.epicId, name: z.anzeige || z.name, land: z.land ?? null, region: z.heimat ?? '', bild: z.bild ? standAnhaengen(z.bild) : null,
   elims: z.elims ?? 0, schaden: z.damage ?? 0, quote: z.quote ?? 0, matches: z.matches ?? 0,
 });
 

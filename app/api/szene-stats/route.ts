@@ -18,7 +18,7 @@ import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
-import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { spielerbildKlein, spielerbildGross, standAnhaengen } from '@/lib/spielerbildKlein';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -177,7 +177,7 @@ async function liesBilder() {
       karte.set(e.epicId, {
         // Listen und Karten bekommen die kleine Fassung; das Profil nimmt das Original (gross).
         pfad: spielerbildKlein(e.datei),
-        gross: `/spielerbilder/${encodeURIComponent(e.datei)}`,
+        gross: spielerbildGross(e.datei),
         echt: true,
       });
     }
@@ -1664,7 +1664,10 @@ export async function GET(request: Request) {
       && (antwort.headers.get('content-type') ?? '').includes('json')) {
     const text = (await antwort.text()).replace(
       /"(bild|img)":"\/spielerbilder\/([A-Za-z0-9._-]+)\.(?:jpe?g|png)"/gi,
-      (_m, feld: string, name: string) => `"${feld}":"/spielerbilder-klein/${name}.webp"`);
+      (_m, feld: string, name: string) => `"${feld}":"/spielerbilder-klein/${name}.webp"`)
+      // ... und das Kennzeichen des Foto-Inhalts dazu, damit ein neu zugeschnittenes Foto nicht Stunden im Browser haengt (lib/spielerbildKlein).
+      .replace(/"(bild|img|pfad|gross)":"(\/spielerbilder(?:-klein)?\/[^"?]+)"/g,
+        (_m, feld: string, url: string) => `"${feld}":"${standAnhaengen(url)}"`);
     const koepfe = new Headers(antwort.headers);
     koepfe.delete('content-length');
     return zwischenspeichern(new NextResponse(text, { status: antwort.status, headers: koepfe }), 60);
