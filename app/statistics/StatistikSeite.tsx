@@ -2271,6 +2271,8 @@ export default function StatistikSeite() {
   const [saison, setSaison] = useState('');
   const [region, setRegion] = useState('');
   const [sort, setSort] = useState('elims');
+  /** Sind Sortierung, Region und Saison schon aus der Adresse gelesen? Vorher wird nichts geschrieben. */
+  const [listeAusAdresse, setListeAusAdresse] = useState(false);
   /** Ab wie vielen Matches jemand in einer Quoten-Sortierung vorn steht (chef-41, aus der Antwort) - sonst null. */
   const [listenMindest, setListenMindest] = useState<number | null>(null);
   const [suche, setSuche] = useState('');
@@ -2704,8 +2706,19 @@ export default function StatistikSeite() {
         setRegionen(regionen);
         // Voreingestellt die Heimatregion statt "alle" - danach sucht er
         // ohnehin als Erstes, und die Liste ist damit gleich brauchbar.
-        if (regionen.length) setRegion(regionen.includes('EU') ? 'EU' : regionen[0]);
-        if (j.saisons?.length) setSaison(j.saisons[0].kennung);
+        let neueRegion = regionen.length ? (regionen.includes('EU') ? 'EU' : regionen[0]) : '';
+        let neueSaison = j.saisons?.length ? j.saisons[0].kennung : '';
+        /* Aus der Adresse: "?region=EU" ("alle" = ohne Region), "?saison=S42" ("alle" = alle Saisons), "?sort=damage". */
+        const wRegion = suchParameter?.get('region');
+        if (wRegion === 'alle') neueRegion = '';
+        else if (wRegion && regionen.includes(wRegion)) neueRegion = wRegion;
+        const wSaison = suchParameter?.get('saison');
+        if (wSaison === 'alle' || (wSaison && (j.saisons as Array<{ kennung: string }>).some((x) => x.kennung === wSaison))) neueSaison = wSaison;
+        const wSort = suchParameter?.get('sort');
+        if (wSort && SORTIERUNG.some(([w]) => w === wSort)) setSort(wSort);
+        setRegion(neueRegion);
+        if (neueSaison) setSaison(neueSaison);
+        setListeAusAdresse(true);
       })
       .catch(() => {
         if (weg) return;
@@ -3534,6 +3547,29 @@ export default function StatistikSeite() {
    * wieder in der Liste, obwohl beide Haelften fuer sich richtig waren.
    */
   const ausAdresseGeholt = useRef(false);
+
+  /*
+   * Bereich, Sortierung, Region und Saison stehen in der Adresse, damit sich
+   * eine sortierte Bestenliste teilen laesst: "/statistics?bereich=spieler&sort=damage&region=EU&saison=S42".
+   * Standardwerte (Start, elims, Heimatregion, neueste Saison) bleiben draussen.
+   * Geschrieben wird mit replaceState, wie beim Profil.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !listeAusAdresse) return;
+    const stdRegion = regionen.length ? (regionen.includes('EU') ? 'EU' : regionen[0]) : '';
+    const stdSaison = saisons.length ? saisons[0].kennung : '';
+    const p = new URLSearchParams(window.location.search);
+    const setze = (k: string, v: string | null) => { if (v === null) p.delete(k); else p.set(k, v); };
+    setze('bereich', bereich === 'start' ? null : bereich);
+    setze('sort', sort === 'elims' ? null : sort);
+    setze('region', region === stdRegion ? null : (region || 'alle'));
+    setze('saison', saison === stdSaison ? null : (saison || null));
+    const rest = p.toString();
+    const adresse = window.location.pathname + (rest ? `?${rest}` : '');
+    if (adresse !== window.location.pathname + window.location.search) {
+      window.history.replaceState(window.history.state, '', adresse);
+    }
+  }, [listeAusAdresse, bereich, sort, region, saison, regionen, saisons]);
 
   /*
    * Das Profil zumachen.
