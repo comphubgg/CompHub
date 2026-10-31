@@ -182,8 +182,6 @@ export default function Home() {
    * haette ein Blick aufs Handy die Ansicht am Rechner umgestellt.
    */
   const [ordnerAufHandy, setOrdnerAufHandy] = useState(false);
-  const [stats, setStats] = useState<any>(null);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [currentHost, setCurrentHost] = useState<string>('');
   const removedStreamers = useMemo(() => new Set(['darmfn_']), []);
   const sidebarSearchInputRef = useRef<HTMLInputElement | null>(null);
@@ -1330,45 +1328,11 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     }).slice(0, 20);
   }, [folders, sidebarSearchQuery]);
 
-  useEffect(() => {
-    if (!isMounted || !activeStreamerTwitch) return;
-
-    let cancelled = false;
-
-    async function loadStats() {
-      if (cancelled) return;
-      setLoadingStats(true);
-      try {
-        const playerName = activeStreamerTwitch;
-        let res = await fetch(`/api/br-statistik?playerName=${encodeURIComponent(playerName)}`);
-        let data = await res.json();
-
-        if (!cancelled && data && !data.error) {
-          setStats(data);
-        } else if (!cancelled) {
-          res = await fetch(`/api/stats?epic=${encodeURIComponent(playerName)}`);
-          data = await res.json();
-          if (!cancelled) {
-            setStats(data);
-          }
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Fehler beim Laden der Stats:", err);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingStats(false);
-        }
-      }
-    }
-
-    const timer = window.setTimeout(loadStats, 800);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [activeStreamerTwitch, isMounted]);
+  /*
+   * Hier holte die Seite bei jedem Streamerwechsel Werte von fortnite-api.com (lehnt ohne Schluessel mit 401 ab) und danach von
+   * tracker.gg - angezeigt wurden sie nirgends. Zwei unnoetige Abrufe je Wechsel, und bei einem Ausfall Nullen statt "nicht
+   * erreichbar". Entfernt (Chef, 31.10.2026).
+   */
 
 
 
