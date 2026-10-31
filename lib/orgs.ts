@@ -173,7 +173,8 @@ export function saeubere(o: Partial<Org>): Org {
         twitch: rolle === 'creator' ? konto(s?.twitch) : null,
         tiktok: rolle === 'creator' ? konto(s?.tiktok) : null,
         youtube: rolle === 'creator' ? konto(s?.youtube) : null,
-        bild: /^\/spielerbilder\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
+        // Auch Bilder im Ordner der Org (public/orgs/<org>/...) - z. B. die X-Profilbilder der CLUE-Spieler ohne CompHub-Foto (31.10.2026).
+        bild: /^\/(spielerbilder|orgs\/[a-z0-9-]+)\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
         liquipedia: s?.liquipedia ? text(s.liquipedia, 120) : null,
       };
     }).filter((s) => s.name || s.epicId),
