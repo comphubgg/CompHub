@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -218,7 +219,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
     if (!c.window) return '';
     const treffer = cupWahl.find((x) => x.wert === `${c.event}|${c.window}`);
     if (!treffer) return c.window;
-    const datum = new Date(treffer.begin).toLocaleDateString('de-DE',
+    const datum = new Date(treffer.begin).toLocaleDateString(ortJetzt(),
       { day: '2-digit', month: '2-digit', year: '2-digit' });
     return `${treffer.titel} · ${datum}`;
   };
@@ -226,7 +227,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
   /** Wann dieses Overlay zuletzt angefasst wurde - kurz und lesbar. */
   const standVon = (o: OverlayEintrag): string => {
     if (!o.geaendert) return '';
-    return new Date(o.geaendert).toLocaleDateString('de-DE',
+    return new Date(o.geaendert).toLocaleDateString(ortJetzt(),
       { day: '2-digit', month: '2-digit' });
   };
 
@@ -435,7 +436,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                           )}
                           <span className="min-w-0 flex-1 truncate">{c.titel}</span>
                           <span className="shrink-0 tabular-nums text-slate-600">
-                            {new Date(c.begin).toLocaleDateString('de-DE',
+                            {new Date(c.begin).toLocaleDateString(ortJetzt(),
                               { day: '2-digit', month: '2-digit' })}
                           </span>
                         </button>
@@ -467,7 +468,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                                      hover:bg-zinc-900">
                           <span className="min-w-0 flex-1 truncate">{c.titel}</span>
                           <span className="shrink-0 tabular-nums text-slate-600">
-                            {new Date(c.begin).toLocaleDateString('de-DE',
+                            {new Date(c.begin).toLocaleDateString(ortJetzt(),
                               { day: '2-digit', month: '2-digit' })}
                           </span>
                         </button>

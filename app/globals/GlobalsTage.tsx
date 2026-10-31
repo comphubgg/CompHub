@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import {
@@ -90,7 +91,7 @@ export default function GlobalsTagWahl({
                   : 'border-zinc-800 text-slate-300 hover:border-zinc-700'}`}>
               {tag.titel}
               <span className="ml-2 text-[11px] text-slate-500">
-                {new Intl.DateTimeFormat('de-DE', {
+                {new Intl.DateTimeFormat(ortJetzt(), {
                   day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels',
                 }).format(new Date(tag.begin))}
               </span>

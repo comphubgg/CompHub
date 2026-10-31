@@ -236,7 +236,7 @@ export default function Maps() {
           </div>
           {eintraege && (
             <p className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-right shadow-sm">
-              <span className="schrift-anzeige block text-3xl font-extrabold tabular-nums text-sky-500">{gesamt.toLocaleString('de-DE')}</span>
+              <span className="schrift-anzeige block text-3xl font-extrabold tabular-nums text-sky-500">{gesamt.toLocaleString(ortJetzt())}</span>
               <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karten</T></span>
             </p>
           )}

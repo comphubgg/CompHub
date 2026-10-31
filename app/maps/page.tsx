@@ -10,6 +10,7 @@
 import {
   Fragment, use, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
+import { ortJetzt } from '@/app/lib/ort';
 import { MARKE } from '@/lib/marke';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
@@ -1186,7 +1187,7 @@ export default function KartenSeite(
    */
   const cupListe = useMemo(() => {
     const tag = (ms: number) => new Date(ms)
-      .toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+      .toLocaleDateString(ortJetzt(), { day: '2-digit', month: '2-digit' });
 
     const aufbereitet = cups.map((c) => {
       const alleFenster = Object.values(c.regionen).flat();
@@ -1411,7 +1412,7 @@ export default function KartenSeite(
     setSpots(gehoben.spots);
     setTeams(gehoben.teams);
     setStatus(`Gespeicherte Zuordnung von ${new Date(treffer.geaendert)
-      .toLocaleString('de-DE', { day: '2-digit', month: '2-digit',
+      .toLocaleString(ortJetzt(), { day: '2-digit', month: '2-digit',
         hour: '2-digit', minute: '2-digit' })} geladen`);
   }
 
@@ -2779,7 +2780,7 @@ export default function KartenSeite(
     setVeroeffentlicht({
       id,
       cup: cup?.titel ?? null,
-      spieltag: f ? new Date(f.begin).toLocaleDateString('de-DE',
+      spieltag: f ? new Date(f.begin).toLocaleDateString(ortJetzt(),
         { day: '2-digit', month: '2-digit' }) : null,
     });
     setStatus('');
@@ -3893,7 +3894,7 @@ ${name}
                 <option value="">— auswählen —</option>
                 {fenster.map((f) => (
                   <option key={f.windowId} value={f.windowId}>
-                    {f.region} · {new Date(f.begin).toLocaleDateString('de-DE',
+                    {f.region} · {new Date(f.begin).toLocaleDateString(ortJetzt(),
                       { day: '2-digit', month: '2-digit' })}{f.istFinale ? ' · Finale' : ''}
                   </option>
                 ))}
@@ -3919,7 +3920,7 @@ ${name}
               {selbstGesichert && (
                 <span className="text-center text-[10px] text-emerald-500">
                   <T>von selbst gesichert</T>{' '}
-                  {new Date(selbstGesichert).toLocaleTimeString('de-DE')}
+                  {new Date(selbstGesichert).toLocaleTimeString(ortJetzt())}
                 </span>
               )}
             </div>
@@ -3982,7 +3983,7 @@ ${name}
                   <option value="">— auswählen —</option>
                   {nobleListe.map((w) => (
                     <option key={`${w.turnierId}|${w.region}|${w.windowId}`} value={`${w.turnierId}|${w.region}|${w.windowId}`}>
-                      {w.turnier} · {w.name} · {w.region}{w.start ? ` · ${new Date(w.start).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''}
+                      {w.turnier} · {w.name} · {w.region}{w.start ? ` · ${new Date(w.start).toLocaleDateString(ortJetzt(), { day: '2-digit', month: '2-digit' })}` : ''}
                     </option>
                   ))}
                 </select>
@@ -4263,7 +4264,7 @@ ${name}
                             className="rounded-lg border border-amber-700/60 px-2.5 py-1 text-xs text-amber-100
                                        transition hover:border-amber-500 hover:bg-amber-900/30">
                             {w.turnier} · {w.name} · {w.region}
-                            {w.start ? ` · ${new Date(w.start).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''}
+                            {w.start ? ` · ${new Date(w.start).toLocaleDateString(ortJetzt(), { day: '2-digit', month: '2-digit' })}` : ''}
                           </button>
                         ))}
                       </div>
@@ -4502,7 +4503,7 @@ ${name}
                         <span className="min-w-0 flex-1 truncate">
                           {kartenTitel(f.cupTitel, f, uebs) || f.windowId}
                           <span className="ml-1.5 text-[10px] text-slate-600">
-                            {f.region} · {new Date(f.begin).toLocaleDateString('de-DE',
+                            {f.region} · {new Date(f.begin).toLocaleDateString(ortJetzt(),
                               { day: '2-digit', month: '2-digit' })}
                           </span>
                         </span>
