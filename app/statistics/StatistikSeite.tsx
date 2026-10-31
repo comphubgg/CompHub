@@ -2358,6 +2358,8 @@ export default function StatistikSeite() {
   /** Die Startantwort fehlt gerade (und wird alle zehn Sekunden neu versucht). */
   const [startFehlt, setStartFehlt] = useState(false);
   const [startVersuch, setStartVersuch] = useState(0);
+  /** Das Turnierverzeichnis kam nicht - dann steht nicht ewig "Wird geladen". */
+  const [turniereFehlt, setTurniereFehlt] = useState(false);
   const [jahrVersuch, setJahrVersuch] = useState(0);
   /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
   const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
@@ -3112,8 +3114,8 @@ export default function StatistikSeite() {
       .then(() => fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1')))
       .then((r) => r.json())
-      .then((j) => setTurniere(j.turniere ?? []))
-      .catch(() => setTurniere([]));
+      .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); })
+      .catch(() => { setTurniere([]); setTurniereFehlt(true); });
   }, [bereich, saison, nurGrosse]);
 
   /*
@@ -3199,8 +3201,8 @@ export default function StatistikSeite() {
     fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
-      .then((j) => setTurniere(j.turniere ?? []))
-      .catch(() => {});
+      .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); })
+      .catch(() => setTurniereFehlt(true));
   }, [bereich, saison, nurGrosse]);
 
   /** Eine Reihe (oder einen ihrer Spieltage) nachladen. */
@@ -4831,7 +4833,7 @@ export default function StatistikSeite() {
                 {!gefiltert.length ? (
                   <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                                 text-center text-sm text-slate-500">
-                    {turniere.length ? t('Nichts gefunden.') : t('Wird geladen …')}
+                    {turniere.length ? t('Nichts gefunden.') : turniereFehlt ? t('Das Archiv ist gerade nicht erreichbar.') : t('Wird geladen …')}
                   </p>
                 ) : tafel ? (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
