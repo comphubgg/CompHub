@@ -1875,5 +1875,27 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-90",
+    "datum": "2026-10-31T21:28:00Z",
+    "titel": "Spielerprofil: Heimatregion-Filter behält die LAN-Turniere",
+    "kurz": "Spielerprofil → nur Heimatregion: Globals, Summit & Co. fallen nicht mehr weg.",
+    "markieren": [
+      "text:Global Championship"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wählte man im Profil nur die Heimatregion, verschwanden LAN-Spieltage (z. B. Globals in EU bei peterbot aus NAC) – ein Tippfehler in der Erkennung der LAN-Tage.",
+    "was": "LAN-Tage zählen jetzt wie gedacht zur Heimatregion jedes Spielers. Der Spielervergleich wurde nachgerechnet und stimmt.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "094a8dcc00c4b96b17f9d571bb49024ed09f4242"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
