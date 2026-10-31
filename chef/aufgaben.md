@@ -32,6 +32,15 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Datum fest britisch auch auf weiteren Seiten** (erledigt mit chef-30) - chef-19 deckt Startseite, Maps, FNCS ab; per grep nach "'en-GB'" weitere Stellen suchen. VIP-Ablaufdatum im Kopf (MainHeader) ist fest deutsch.
 - [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** (Cup-Seiten chef-31, Spielerprofile chef-36, Sitemap chef-38) - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
 
+## SOFORT – Wunsch des Betreibers (31.10.2026, abends)
+
+- [ ] **Kopfzeile automatisch ausblenden (wie die Windows-Taskleiste)** _(höchste Priorität nach chef-14)_
+  - In den Einstellungen (Zahnrad unten rechts) ein neuer Schalter, z. B. „Kopfzeile automatisch ausblenden“. **Standard: aus** – dann bleibt alles genau wie jetzt (Leiste immer sichtbar, ohne Ein- und Ausfahren).
+  - Ist der Schalter an: Die schwarze Leiste mit Hintergrund und den Menüpunkten (Home, Streams, Rankings, Events, Statistics, Tierlist, Maps, FNCS, Profilbild) verschwindet. **Sichtbar bleiben nur Logo und Name „CompHub“ oben links – ohne Hintergrund**, frei über der Seite.
+  - Fährt man mit der Maus an den oberen Rand (oder über das Logo), fährt die Leiste weich herunter; verlässt die Maus sie, fährt sie wieder hoch. Auf dem Handy: Tippen auf Logo zeigt sie.
+  - Die Einstellung merkt sich die Seite (beim Konto, sonst im Browser), gilt auf allen Seiten.
+  - Neue Texte über die Übersetzung, Stil wie die übrigen Einstellungen.
+
 ## Zusammenfassung je Bereich
 
 **Besucher-Seiten:** Die öffentlichen Seiten sind inhaltlich sehr reich: Startseite mit echten Zahlen, Statistik mit Spielerprofilen, Events wie bei Fortnite Tracker, Maps-Archiv, fast alle Texte übersetzt (meine Prüfung der Übersetzungen fand keine echten Lücken auf den Hauptseiten). Am meisten fehlt das, was ein Fan bei Osirion oder Fortnite Tracker zuerst sucht: eine Spielersuche gleich beim Einstieg und ein Hinweis, was heute oder als Nächstes läuft. Dazu kommen ein paar Schwächen, die man messen kann: Alle Seiten haben denselben Titel und dieselbe Vorschau beim Teilen. Zwei Zahlen widersprechen sich (982 Spieltage im ganzen Archiv, aber 1.342 im Jahr 2026). Die Startseite lädt unnötig Daten. Und zum 1.1.2027 zeigt der Preisgeld-Block Werte aller Zeiten unter der Überschrift „2027“. Die meisten Verbesserungen sind klein bis mittel und berühren keine ausdrückliche Entscheidung des Betreibers.
