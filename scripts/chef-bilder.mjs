@@ -121,7 +121,7 @@ async function main() {
   const bilder = lies(LISTE, {});
   const wunsch = process.argv.slice(2);
   const zuMachen = logbuch.filter((e) => (wunsch.length ? wunsch.includes(e.id) : e.status === 'wartet')
-    && (wunsch.length || !bilder[e.id] || bilder[e.id].stand !== (e.commits ?? []).join(',') + (e.runde ?? 1))
+    && (wunsch.length || !bilder[e.id] || bilder[e.id].stand !== (e.commits ?? []).join(',') + (e.runde ?? 1) + (e.markieren ?? []).join('|'))
     && (e.ansehen ?? []).some(zeigbar));
   if (!zuMachen.length) { console.log('Keine neuen Bilder noetig.'); return; }
   fs.mkdirSync(ZIEL, { recursive: true });
@@ -147,7 +147,7 @@ async function main() {
         console.log(`${e.id} ${pfad}: ${u.boxen.length} Stellen (${Math.round(u.anteil * 100)} % der Flaeche)`);
       } catch (f) { console.log(`${e.id} ${pfad}: ${String(f.message).slice(0, 120)}`); }
     }
-    bilder[e.id] = { stand: (e.commits ?? []).join(',') + (e.runde ?? 1), zeit: new Date().toISOString(), fotos };
+    bilder[e.id] = { stand: (e.commits ?? []).join(',') + (e.runde ?? 1) + (e.markieren ?? []).join('|'), zeit: new Date().toISOString(), fotos };
     fs.writeFileSync(LISTE, `${JSON.stringify(bilder, null, 1)}\n`);
   }
   await browser.close();
