@@ -135,8 +135,9 @@
     "notiz": "",
     "zeit": "2026-10-31T21:14:28.388Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "fehler",
+      "text": "Im Logbuch stehen zu diesem Eintrag keine Commits.",
+      "zeit": "2026-10-31T21:15:23.978Z"
     }
   },
   "chef-86": {
