@@ -90,16 +90,16 @@ function summiere(tage: Array<[string, Zeile[]]>, solo = false): Summe {
 }
 
 /** Die Zeilen der Tafel: Titel, Wert, Nachkommastellen, "weniger ist besser". */
-interface Reihe { key: string; titel: string; wert: (s: Summe) => number; nk: number; weniger?: boolean; suffix?: string }
+interface Reihe { key: string; titel: string; wert: (s: Summe) => number | null; nk: number; weniger?: boolean; suffix?: string }
 const REIHEN: Reihe[] = [
   { key: 'elims', titel: 'Eliminierungen', wert: (s) => s.elims, nk: 0 },
   { key: 'damage', titel: 'Schaden', wert: (s) => s.damage, nk: 0 },
-  { key: 'quote', titel: 'Schadensquote', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : 0), nk: 2 },
+  { key: 'quote', titel: 'Schadensquote', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : null), nk: 2 },
   { key: 'headshots', titel: 'Kopftreffer', wert: (s) => s.headshots, nk: 0 },
   { key: 'hits', titel: 'Treffer auf Spieler', wert: (s) => s.hits, nk: 0 },
-  { key: 'genauigkeit', titel: 'Genauigkeit', wert: (s) => (s.shots > 0 ? (s.hitsMitSchuss / s.shots) * 100 : 0), nk: 1, suffix: '%' },
-  { key: 'dpm', titel: 'Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.damage / (s.zeit / 60) : 0), nk: 0 },
-  { key: 'tpm', titel: 'Erlittener Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.genommen / (s.zeit / 60) : 0), nk: 0, weniger: true },
+  { key: 'genauigkeit', titel: 'Genauigkeit', wert: (s) => (s.shots > 0 ? (s.hitsMitSchuss / s.shots) * 100 : null), nk: 1, suffix: '%' },
+  { key: 'dpm', titel: 'Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.damage / (s.zeit / 60) : null), nk: 0 },
+  { key: 'tpm', titel: 'Erlittener Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.genommen / (s.zeit / 60) : null), nk: 0, weniger: true },
   { key: 'builds', titel: 'Gesetzte Bauteile', wert: (s) => s.builds, nk: 0 },
   { key: 'mats', titel: 'Gesammeltes Material', wert: (s) => s.mats, nk: 0 },
   { key: 'reboots', titel: 'Reboots & Revives', wert: (s) => s.reboots, nk: 0 },
@@ -221,23 +221,24 @@ function Board({ links, rechts, nameL, nameR, loc }: { links: Summe; rechts: Sum
       <div className="space-y-3.5">
         {REIHEN.map((r) => {
           const a = r.wert(links); const b = r.wert(rechts);
-          const gross = Math.max(a, b, 0.0001);
+          // Unbekannt (Nenner 0) ist nicht 0: Strich, kein Balken, kein Sieger.
+          const gross = Math.max(a ?? 0, b ?? 0, 0.0001);
           // Verglichen wird, was auf der Tafel steht: zwei gleiche Anzeigen sind gleichauf, nicht eine gruen und eine rot.
-          const ra = Number(a.toFixed(r.nk)); const rb = Number(b.toFixed(r.nk));
-          const vorn = ra === rb ? 0 : ((r.weniger ? ra < rb : ra > rb) ? -1 : 1);
+          const ra = a === null ? null : Number(a.toFixed(r.nk)); const rb = b === null ? null : Number(b.toFixed(r.nk));
+          const vorn = ra === null || rb === null ? 0 : ra === rb ? 0 : ((r.weniger ? ra < rb : ra > rb) ? -1 : 1);
           const farbe = (seite: -1 | 1) => (vorn === 0 ? 'bg-sky-400' : vorn === seite ? 'bg-emerald-400' : 'bg-rose-400');
           const text = (seite: -1 | 1) => (vorn === seite ? 'font-black text-emerald-400' : vorn === 0 ? 'font-bold text-slate-200' : 'font-semibold text-slate-500');
           return (
             <div key={r.key} className="grid grid-cols-[64px_1fr_minmax(88px,160px)_1fr_64px] items-center gap-2 sm:grid-cols-[84px_1fr_minmax(140px,200px)_1fr_84px] sm:gap-3">
-              <span className={`text-right text-sm tabular-nums ${text(-1)}`}>{fmt(a, r.nk, loc)}{r.suffix ?? ''}</span>
+              <span className={`text-right text-sm tabular-nums ${text(-1)}`}>{a === null ? '—' : <>{fmt(a, r.nk, loc)}{r.suffix ?? ''}</>}</span>
               <span className="flex h-2 justify-end overflow-hidden rounded-full bg-white/[0.06]">
-                <span className={`h-full rounded-full ${farbe(-1)}`} style={{ width: `${(a / gross) * 100}%` }} />
+                <span className={`h-full rounded-full ${farbe(-1)}`} style={{ width: `${((a ?? 0) / gross) * 100}%` }} />
               </span>
               <span className="text-center text-[10px] font-black uppercase leading-tight tracking-[0.14em] text-slate-300"><T>{r.titel}</T></span>
               <span className="flex h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                <span className={`h-full rounded-full ${farbe(1)}`} style={{ width: `${(b / gross) * 100}%` }} />
+                <span className={`h-full rounded-full ${farbe(1)}`} style={{ width: `${((b ?? 0) / gross) * 100}%` }} />
               </span>
-              <span className={`text-left text-sm tabular-nums ${text(1)}`}>{fmt(b, r.nk, loc)}{r.suffix ?? ''}</span>
+              <span className={`text-left text-sm tabular-nums ${text(1)}`}>{b === null ? '—' : <>{fmt(b, r.nk, loc)}{r.suffix ?? ''}</>}</span>
             </div>
           );
         })}
