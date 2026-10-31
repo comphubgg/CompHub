@@ -5729,7 +5729,8 @@ export default function StatistikSeite() {
             )}
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
-                <T>Die Zahl sind die Finals (Szene-Quelle und eigene Replays), nur Heimatregion. Darunter, getrennt: was in den Opens dazukam.</T>
+                {/* Vorher stand hier "nur Heimatregion" - gezaehlt wird aber ueber alle Regionen und die LAN (lib/szeneStats, Betreiber 1.10.2026). */}
+                <T>Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.</T>
               </p>
             )}
             <div className="divide-y divide-zinc-900">

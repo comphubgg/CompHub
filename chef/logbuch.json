@@ -420,5 +420,21 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-26",
+    "titel": "Elims-Liste: Erklärtext stimmt wieder mit der Zählung überein",
+    "bereich": "Statistik",
+    "warum": "Unter der vollen Liste „Meiste Eliminierungen“ stand „nur Heimatregion“. Gezählt wird aber seit deiner Entscheidung vom 1.10. über alle Regionen samt Globals (Peterbot = NAC + NAW + Globals), und darüber steht auch „alle Regionen“. Der Text widersprach also der Zahl.",
+    "was": "Der Satz lautet jetzt „Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.“ – auf Englisch entsprechend.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:14:25Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
