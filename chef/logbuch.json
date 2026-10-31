@@ -130,7 +130,7 @@
       "cf46af5e411a5c15293a47fe4f0d6ffddc0130ea"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Startseite, Rampenlicht: „Ratio“ heißt „Damage ratio“, Maus darüber erklärt es.",
     "markieren": [
@@ -152,7 +152,7 @@
       "3daf185d76798a3a30053da6f6e056b1d82228d3"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Streams-Seite spart zwei Abrufe, zeigt nie mehr falsche Nullen.",
     "markieren": [
@@ -175,7 +175,7 @@
     "commits": [
       "d4078a0ca2df36195840a6db81e974a5542f939e"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik am Handy: Pfeil am Rand zeigt weitere Reiter.",
     "markieren": [
@@ -199,7 +199,7 @@
       "a5174e2aaea40aeff1a6e01434e4a2facd3f32e9"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik, Liste „Meiste Eliminierungen“: Schaden und Quote stehen jetzt dabei.",
     "markieren": [
@@ -223,7 +223,7 @@
       "adca7e90fddfa30066108a067931e6239efed744"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik → Jahr 2026: „Beste Schadensquote“ nur noch mit genug Matches.",
     "markieren": [
@@ -246,7 +246,7 @@
     "commits": [
       "249532a6472a85af134d6520b7d5e678c4a5f723"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:Live and coming up"
@@ -289,7 +289,7 @@
       "ddffd2a2584db8a59b7e4df7a35288aab8dbf567"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Handymenü auf Unterseiten: aktueller Bereich ist hervorgehoben.",
     "markieren": [
@@ -311,7 +311,7 @@
       "52b8ec6e41ce2f7ff8ca50accdc87ab47dee8c4c"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Turnier-Maps: Marken heißen wie bei Events („Finished“ statt „Ended“).",
     "markieren": [
@@ -336,7 +336,7 @@
       "a1e12749b7a5664317dcc40f03ba1d1f1e1ceeb8"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Auf Deutsch: Startseite, Maps, FNCS zeigen deutsches Datum und Zahlen.",
     "markieren": [
@@ -361,14 +361,15 @@
       "18697ef21a765773f15a16ee893b5f24b89fc618",
       "4ef5ba11986b8996e3657c5aed3dcfeaafc0eec3"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 3,
     "markieren": [
       "css:input[type=search]",
       "text:Search player"
     ],
     "erledigtAm": "2026-10-31T20:12:00Z",
-    "kurz": "Startseite oben rechts: kleines, dezentes Suchfeld; Lupe in der Kopfzeile ist weg."
+    "kurz": "Startseite oben rechts: kleines, dezentes Suchfeld; Lupe in der Kopfzeile ist weg.",
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-15",
@@ -385,7 +386,7 @@
     "commits": [
       "7ae03b039bfdf6e83e406c97b6efb173a03c8489"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Störung im Foto-Eingang löscht keine Sammlung mehr.",
     "markieren": [
@@ -407,7 +408,7 @@
     "commits": [
       "562c7b5a26e9d2e80ee7b22be5de2fbace24010f"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Match-Finder bei Epic-Ausfall: roter Hinweis und „Nochmal versuchen“.",
     "markieren": [
@@ -429,12 +430,13 @@
       "5c07480bdd9f6c538abbd26ce2f73cf6312712c9"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Admin-Dashboard bei Störung: roter Hinweis statt „keine Rechte“.",
     "markieren": [
       "css:main"
-    ]
+    ],
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-22",
@@ -451,7 +453,7 @@
     "commits": [
       "a18db8f6e72d6cd97f77aac987a1df62c7e742e7"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Statistik-Startseite lädt rund zehnmal weniger Daten.",
     "markieren": [
@@ -473,7 +475,7 @@
     "commits": [
       "57f1a8d2204ad01a4db4398fdc5c023e4df49330"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Overlays → Löschen: 10 Sekunden „Rückgängig“, dazu „Zuletzt gelöscht“.",
     "markieren": [
@@ -496,12 +498,13 @@
     "commits": [
       "56cf9048bc3e51457ea944bfb613f1b0ecfac75a"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Streams: Speichern fehlgeschlagen zeigt roten Streifen mit „Erneut versuchen“.",
     "markieren": [
       "text:Try again"
-    ]
+    ],
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-26",
@@ -518,7 +521,7 @@
       "c3fc55dcf599bd69928d3d5e32de793c4d075d04"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik, Elims-Liste: Erklärsatz darunter passt jetzt zur Zählung.",
     "markieren": [
@@ -541,7 +544,7 @@
     "commits": [
       "b49d3486c30c2db62fa3303113859f8419fccb35"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: jede Seite lädt schneller, Logo oben ist kleinere Datei.",
     "markieren": [
@@ -563,7 +566,7 @@
     "commits": [
       "034aa84f56d30e114b8c0389dca0488b8769f839"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Admin-Archiv → Overlay löschen: „Rückgängig“ und roter Fehlerhinweis.",
     "markieren": [
@@ -585,7 +588,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Startseite lädt rund 280 KB weniger.",
     "markieren": [
@@ -609,7 +612,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Events, Scrims, Spielerliste: Zeilen per Tab-Taste anwählbar, blauer Rahmen.",
     "markieren": [
@@ -636,7 +639,7 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Auf Deutsch: Kopf, Maps, Konto, Globals zeigen deutsches Datum.",
     "markieren": [
@@ -659,7 +662,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Admin → Zugänge löschen: Rückfrage nennt den Namen des Zugangs.",
     "markieren": [
@@ -681,7 +684,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Cup-Seite: Browser-Tab und Link-Vorschau zeigen den Cup-Namen.",
     "markieren": [
@@ -703,7 +706,7 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet (Bau) + Opus (Prüfung, Server-Teil neu)",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:Solo Clutch Points"
@@ -726,7 +729,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik, Turniere und Regional: Zeilen per Tab und Enter öffnen.",
     "markieren": [
@@ -749,7 +752,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Zeitplan-Fehler lösen keine Cloudflare-Fehlerseite mehr aus.",
     "markieren": [
@@ -771,7 +774,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: Google findet jetzt Spielerprofile und Cup-Seiten.",
     "markieren": [
@@ -793,12 +796,13 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Spielerprofil: Browser-Tab und Link-Vorschau zeigen Name und Foto.",
     "markieren": [
       "css:head title"
-    ]
+    ],
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-39",
@@ -816,7 +820,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus (Prüfung: Sonnet)",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:km"
@@ -840,12 +844,13 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:Your players"
     ],
-    "kurz": "Spielerprofil: Stern neben der Region, gemerkte Spieler oben in der Statistik."
+    "kurz": "Spielerprofil: Stern neben der Region, gemerkte Spieler oben in der Statistik.",
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-40",
@@ -862,12 +867,13 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "css:main .rounded-3xl"
     ],
-    "kurz": "Statistik → Spieler: Treppchen rundet Werte wie das Profil."
+    "kurz": "Statistik → Spieler: Treppchen rundet Werte wie das Profil.",
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-41",
@@ -884,7 +890,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Statistik → Spieler, nach Quote sortieren: nur Spieler mit genug Matches vorn.",
     "markieren": [
@@ -907,7 +913,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Spielerprofil, Vergleich mit dem Feld: Kopftreffer/Material-Prozente fair gerechnet.",
     "markieren": [
@@ -930,7 +936,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Admin → Tweets: Laufstrecke alter Saisons in richtiger Einheit.",
     "markieren": [
@@ -952,12 +958,13 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:from 20 matches"
     ],
-    "kurz": "Statistik → Spieler, nach Damage ratio sortieren: „ab 20 Matches“ über dem Treppchen."
+    "kurz": "Statistik → Spieler, nach Damage ratio sortieren: „ab 20 Matches“ über dem Treppchen.",
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-43",
@@ -975,7 +982,7 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "css:main"
@@ -997,7 +1004,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:K/D"
@@ -1019,7 +1026,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Cup-Statistik: abgesagte Runden zählen in den Kacheln nicht mehr mit.",
     "markieren": [
@@ -1041,7 +1048,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:K/D"
@@ -1064,12 +1071,13 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "kurz": "Unsichtbar: jede Besucherseite rund 28 KB kleiner (Admin-Texte ausgelagert).",
     "markieren": [
       "css:main"
-    ]
+    ],
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-50",
@@ -1086,7 +1094,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1,
     "markieren": [
       "text:Longest Avg Time Alive"
@@ -1113,8 +1121,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 4
+    "status": "live",
+    "runde": 4,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-52",
@@ -1135,8 +1144,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 4
+    "status": "live",
+    "runde": 4,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-54",
@@ -1157,7 +1167,7 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4
   },
   {
@@ -1180,8 +1190,9 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 4
+    "status": "live",
+    "runde": 4,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-57",
@@ -1204,7 +1215,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4
   },
   {
@@ -1227,7 +1238,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 4
   },
   {
@@ -1250,7 +1261,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4
   },
   {
@@ -1287,7 +1298,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4,
     "markieren": [
       "css:main"
@@ -1312,7 +1323,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4
   },
   {
@@ -1331,11 +1342,12 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 4,
     "markieren": [
       "css:main"
-    ]
+    ],
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-64",
@@ -1356,8 +1368,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 4
+    "status": "live",
+    "runde": 4,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-63",
@@ -1375,7 +1388,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 4,
     "markieren": [
       "css:main"
@@ -1401,8 +1414,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 4
+    "status": "live",
+    "runde": 4,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-66",
@@ -1424,7 +1438,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1447,8 +1461,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-68",
@@ -1469,7 +1484,7 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1492,7 +1507,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1514,8 +1529,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-75",
@@ -1536,8 +1552,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-70",
@@ -1558,7 +1575,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1582,8 +1599,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-74",
@@ -1604,8 +1622,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-77",
@@ -1626,7 +1645,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1648,7 +1667,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1671,8 +1690,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-78",
@@ -1693,7 +1713,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1716,8 +1736,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-83",
@@ -1738,7 +1759,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1760,8 +1781,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-86",
@@ -1782,8 +1804,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-88",
@@ -1805,7 +1828,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1829,8 +1852,9 @@
     ],
     "groesse": "mittel",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-89",
@@ -1851,8 +1875,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-91",
@@ -1873,7 +1898,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
+    "status": "live",
     "runde": 5
   },
   {
@@ -1895,8 +1920,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "status": "wartet",
-    "runde": 5
+    "status": "live",
+    "runde": 5,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-92",
@@ -1917,8 +1943,9 @@
     "commits": [
       "d716eed69cb4c0fed35815a305e2c6aa9d80dc62"
     ],
-    "status": "wartet",
-    "runde": 6
+    "status": "live",
+    "runde": 6,
+    "hinweis": "Passte nicht direkt auf die Seite (frühere Änderungen fehlten dort noch). Der Chef hat ihn am 31.10. um 21:31 in der richtigen Reihenfolge selbst übernommen – jetzt auf GitHub."
   },
   {
     "id": "chef-93",
@@ -1983,7 +2010,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "4ae3cd1d1fbf0d5fc87447c2705534a697bf5a67"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2004,7 +2033,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "b8fe5e62ea7bea9b903c0679ca41ca772d6e3573"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2026,7 +2057,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "305f4c51eece6023ca22ccee43ac636681c05554"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2045,7 +2078,9 @@
     "ansehen": [
       "/events/s42_fncssolos_reload_finals"
     ],
-    "commits": [],
+    "commits": [
+      "66e1281c0c8635faf3b5dda93aa467f9dcd7914f"
+    ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (weitere Stellen)",
     "status": "wartet",
@@ -2068,7 +2103,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "1bb43a202d24229335d9c6ddbec63f4fd4ab24cb"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2089,7 +2126,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "c5727bd273f904ce13fddbe8c33109daa7f701ec"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2110,7 +2149,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "0e8a80dfa14e959e5eac6803faaeb2d26863a6de"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -2129,7 +2170,9 @@
     "ansehen": [
       "/statistics"
     ],
-    "commits": [],
+    "commits": [
+      "2470a9be7a1697daca213e0ef05cea7e46536854"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -2151,7 +2194,9 @@
       "/statistics?spieler=39a4c6ccd9bf46a2bc6f9a3106de22f4&saison=S42",
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42"
     ],
-    "commits": [],
+    "commits": [
+      "442cd2dad9fe29fc53ef7b1742f4655797b0679b"
+    ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (allgemeiner gemacht)",
     "status": "wartet",
@@ -2171,7 +2216,9 @@
     "ansehen": [
       "/statistics?bereich=vergleich"
     ],
-    "commits": [],
+    "commits": [
+      "34fbaa74eef6b38e4eea3bb17f8af1db9f32e86a"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
