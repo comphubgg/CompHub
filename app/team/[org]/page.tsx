@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import TeamFlagge from '@/components/TeamFlagge';
 
 interface Spieler {
   epicId: string | null; name: string; role: 'pro' | 'academy' | 'creator'; country: string | null; homeRegion: string | null;
@@ -28,11 +29,6 @@ interface Antwort {
 }
 
 const ROLLEN: Array<[Spieler['role'], string]> = [['pro', 'Pro Roster'], ['academy', 'Academy Roster'], ['creator', 'Content Creator']];
-
-function flagge(land: string | null) {
-  if (!land || !/^[A-Z]{2}$/i.test(land)) return '';
-  return String.fromCodePoint(...land.toUpperCase().split('').map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
-}
 
 export default function TeamSeite() {
   const { org } = useParams<{ org: string }>();
@@ -105,7 +101,9 @@ export default function TeamSeite() {
                         ? <img src={p.photo} alt={p.name} className="h-full w-full object-cover" />
                         : <div className="grid h-full w-full place-items-center text-5xl font-extrabold text-zinc-600">{p.name.slice(0, 1).toUpperCase()}</div>}
                     </div>
-                    <p className="mt-3 truncate text-lg font-extrabold uppercase text-slate-100">{flagge(p.country)} {p.name}</p>
+                    <p className="mt-3 flex min-w-0 items-center gap-2 text-lg font-extrabold uppercase text-slate-100">
+                      {p.country && <TeamFlagge laender={[p.country]} groesse={20} />}<span className="truncate">{p.name}</span>
+                    </p>
                     <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
                       <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Preisgeld</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{geld(p.earnings)}</dd></div>
                       <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Matches</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{zahl(p.matches)}</dd></div>

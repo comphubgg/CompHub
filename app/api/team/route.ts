@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       heimatRegionen().catch(() => new Map<string, string>()),
       liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
       liesJson<Record<string, { name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { name?: string; land?: string }>)),
-      abgelegteAntwort<{ posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => null),
+      abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => null),
     ]);
     const summeVon = new Map(summen.map((s) => [s.epicId, s]));
     const bildVon = new Map<string, string>();
@@ -59,11 +59,14 @@ export async function GET(request: Request) {
     const players = org.spieler.map((sp) => {
       const id = sp.epicId;
       const s = id ? summeVon.get(id) : undefined;
-      const posten = id && verdienst ? [...(verdienst.posten[id] ?? [])].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0)) : null;
+      // Nur wenn das Konto im vorgerechneten Preisgeld schon vorkommt - ein frisch eingetragener Spieler hat bis zum naechsten Stundenlauf null, nicht 0.
+      const bekannt = !!id && !!verdienst && (id in verdienst.posten || (verdienst.konten ?? []).includes(id));
+      const posten = bekannt ? [...(verdienst!.posten[id!] ?? [])].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0)) : null;
       const earnings = posten ? posten.reduce((a, p) => a + p.betrag, 0) : null;
       return {
         epicId: id,
-        name: (id && profile[id]?.name) || sp.name,
+        // Der Name, wie die Org ihn fuehrt (Kader) - nicht der wechselnde Epic-Name.
+        name: sp.name || (id && profile[id]?.name) || '',
         role: sp.rolle,
         since: sp.seit,
         country: (id && profile[id]?.land) || null,
