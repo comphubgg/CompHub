@@ -6,7 +6,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Auch die Spielerliste S42 ist veraltet, nicht nur die Startantwort** _(Statistik · Wirkung 5/5, Betrieb)_ - /api/szene-stats?saison=S42&sort=elims&limit=300: peterbot 57 Matches / 152 Elims, Profil 83 / 208 (ebenso Veno 56/64, CURVE 48/74). Die Liste endet bei PerformanceEvaluation_Event7Round2; Heat2, Event9, Solo Finals fehlen. Formel und Rundung stimmen (300 Zeilen nachgerechnet). Ursache: vorgerechnete Antwort (Schlüssel szene|limit=500|saison=S42|sort=elims) seit ~9.10. nicht neu abgelegt – gehört zu chef-61.
 - [ ] **Jahresbilanz-Auswahl (jahr, Region, Saison) noch nicht in der Adresse** - Folgeschritt zu chef-72; ebenso Regionsseite.
-- [ ] **KopfAnKopf.tsx wird nirgends eingebunden** - toter Baustein, Kandidat zum Entfernen (wie chef-60).
+- [x] **KopfAnKopf.tsx wird nirgends eingebunden** (chef-75) - toter Baustein, Kandidat zum Entfernen (wie chef-60).
 
 ## Neu entdeckt (Runde 4, 31.10.2026)
 

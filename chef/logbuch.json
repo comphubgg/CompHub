@@ -1530,7 +1530,9 @@
     "ansehen": [
       "/statistics?bereich=vergleich"
     ],
-    "commits": [],
+    "commits": [
+      "01f32bd50c4e353eb9fad8ce9c98bf162f96d868"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
