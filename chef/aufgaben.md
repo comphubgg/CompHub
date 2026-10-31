@@ -10,7 +10,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Perzentile teilen Material/Bauteile/Kopftreffer durch alle Matches** (chef-42).
 - [ ] **Live: Elims-Liste der Startantwort trägt Schaden/Quote/Treffer 0 für alle 400 Spieler** _(Statistik · Wirkung 4/5)_ - im Code (lib/szeneStats um Zeile 1600, „saisonWerte“) schon behoben, die vorgerechnete Antwort ist alt. Nach dem nächsten Stundenlauf mit /api/szene-stats?ansicht=start prüfen (listen[feld=elims].plaetze[0].damage muss > 0 sein). Falls weiter 0: herausfinden, warum der Lauf die Startantwort nicht neu ablegt.
 - [ ] **damageProMatch in der Elims-Liste aus der Finals-Summe, matches aus jeRegion** - kann auseinanderlaufen, wenn Opens/LAN in den Matches stecken. In 6 geprüften Zeilen gleich - beobachten.
-- [ ] **Spielerliste: Hinweis „ab N Matches“ bei Quoten-Sortierung** - die Antwort trägt jetzt mindestMatches (chef-41); die Oberfläche könnte es wie auf der Startseite anzeigen.
+- [x] **Spielerliste: Hinweis „ab N Matches“ bei Quoten-Sortierung** (chef-45) - die Antwort trägt jetzt mindestMatches (chef-41); die Oberfläche könnte es wie auf der Startseite anzeigen.
 - [ ] **spieler-stats (Streams-Seite) rechnet Strecke als Meter** - prüfen, aus welcher Quelle; bei Zentimetern dort dasselbe Problem andersherum.
 - [ ] **Ungenutzte Bausteine entfernen** (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
 - [ ] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (siehe unten) - als Nächstes, sprache.ts ist jetzt frei.

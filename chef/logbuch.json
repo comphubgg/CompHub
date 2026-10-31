@@ -759,5 +759,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-45",
+    "datum": "2026-10-31T19:43:16Z",
+    "titel": "Spielerliste nennt die Mindestzahl an Matches",
+    "bereich": "Statistik",
+    "warum": "Seit chef-41 stehen bei Quoten-Sortierungen nur Spieler mit genug Matches vorn – ohne Hinweis wüsste ein Besucher nicht, warum jemand mit höherer Quote weiter unten steht.",
+    "was": "Über dem Treppchen steht bei Schadensquote, Genauigkeit und den Werten je Match jetzt „· ab 20 Matches“ (die Zahl kommt aus der Saison), genau wie in den Listen der Statistik-Startseite.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

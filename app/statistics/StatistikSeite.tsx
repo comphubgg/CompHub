@@ -2271,6 +2271,8 @@ export default function StatistikSeite() {
   const [saison, setSaison] = useState('');
   const [region, setRegion] = useState('');
   const [sort, setSort] = useState('elims');
+  /** Ab wie vielen Matches jemand in einer Quoten-Sortierung vorn steht (chef-41, aus der Antwort) - sonst null. */
+  const [listenMindest, setListenMindest] = useState<number | null>(null);
   const [suche, setSuche] = useState('');
 
   // Startansicht - mehrere Spieltage, die im Takt durchwechseln
@@ -2928,8 +2930,9 @@ export default function StatistikSeite() {
       if (!j.success) throw new Error(j.error ?? 'nicht ladbar');
       setSpieler(j.spieler ?? []);
       setGesamt(j.gesamt ?? 0);
+      setListenMindest(typeof j.mindestMatches === 'number' ? j.mindestMatches : null);
     } catch (e) {
-      setFehler((e as Error).message); setSpieler([]);
+      setFehler((e as Error).message); setSpieler([]); setListenMindest(null);
     } finally { setLaedt(false); }
   }, [saison, region, sort, suche, holeMitFrist]);
 
@@ -5505,6 +5508,7 @@ export default function StatistikSeite() {
                 <div className="mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
                   <p className="px-5 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                     {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
+                    {listenMindest ? <> · {t('ab {n} Matches').replace('{n}', String(listenMindest))}</> : null}
                   </p>
                   <Treppchen drei={gezeigteSpieler.slice(0, 3).map((sp, i) => ({ sp, nr: i + 1 }))} aufKlick={(sp) => oeffne(sp)}
                     wertVon={(sp) => {
