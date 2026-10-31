@@ -60,6 +60,12 @@ export function summiereTage(tage: CupEintrag[][]): CupEintrag[] {
       const da = nach.get(k);
       if (!da) { nach.set(k, { ...e, matches: [...e.matches], players: [...e.players] }); continue; }
       for (const f of SUMMEN) da[f] = (da[f] ?? 0) + (e[f] ?? 0);
+      // Punkte aus Platzierung und Elims nur, wo die Tage sie fuehren - sonst bliebe vom ersten Tag allein etwas stehen.
+      for (const f of ['punktePlatz', 'punkteElims'] as const) {
+        if (da[f] !== undefined || e[f] !== undefined) da[f] = (da[f] ?? 0) + (e[f] ?? 0);
+      }
+      // Der Anteil ("Top 5 %") gilt fuer einen Tag, nicht fuer die Summe.
+      da.percentile = undefined;
       da.matches.push(...e.matches);
       if (e.bestPlace !== null && (da.bestPlace === null || e.bestPlace < da.bestPlace)) da.bestPlace = e.bestPlace;
     }
