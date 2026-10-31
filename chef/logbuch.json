@@ -49,5 +49,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-4",
+    "datum": "2026-10-31T18:50:00Z",
+    "titel": "Fuenf weitere deutsche Reste auf Englisch",
+    "bereich": "Uebersetzung",
+    "warum": "Auf der englischen Seite standen noch deutsche Woerter: bei einem Spieltag ueber den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knoepfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
+    "was": "Diese fuenf Stellen erscheinen auf Englisch jetzt englisch. Auf Deutsch bleibt alles, wie es war.",
+    "ansehen": [
+      "/tournament-maps",
+      "/events"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
