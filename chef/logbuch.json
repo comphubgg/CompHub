@@ -2071,5 +2071,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-100",
+    "datum": "2026-10-31T21:55:00Z",
+    "titel": "Vergleich: fehlende Kopftreffer, Bauteile, Material als Strich",
+    "kurz": "Vergleich: „Headshots“, „Builds Placed“ zeigen Strich statt 0, wenn Daten fehlen.",
+    "markieren": [
+      "text:Headshots",
+      "text:Builds Placed"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieltage aus eigenen Daten kennen Kopftreffer, Bauteile und Material nicht. Im Vergleich stand dann 0, und der Gegner wurde als besser markiert.",
+    "was": "Ohne solche Werte steht jetzt ein Strich, und keiner der beiden wird als Sieger dieser Zeile markiert.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
