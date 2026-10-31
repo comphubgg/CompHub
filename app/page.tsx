@@ -13,6 +13,7 @@ import StartVitrine from '@/app/components/StartVitrine';
 import Rollzahl from '@/app/components/Rollzahl';
 import Lieblinge from '@/app/components/Lieblinge';
 import LiveDemnaechst from '@/app/components/LiveDemnaechst';
+import KopfSuche from '@/app/components/KopfSuche';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -325,6 +326,12 @@ export default function Startseite() {
         * Spielerfotos -, davor Logo, Name und die Wege hinein. Die Abschnitte "Woher die Zahlen", "Mit Konto mehr", die Partnerleiste und "Wie man VIP
         * wird" sind von hier weg: die VIP-Auskunft steht im Konto (VipInfo), die Quellen in der Fusszeile.
         */}
+      <div className="relative">
+      {/* Die Spielersuche: klein und dezent oben rechts, direkt unter der Kopfzeile (Betreiber, 31.10.2026 zu chef-14). Ausserhalb des
+          Kopfbereichs, weil der seinen Inhalt abschneidet und die Trefferliste sonst nicht herausragen koennte. */}
+      <div className="absolute right-4 top-4 z-30 w-44 sm:right-6 sm:w-56">
+        <KopfSuche />
+      </div>
       <section className="relative isolate overflow-hidden px-4 pb-16 pt-28 sm:pt-36">
         <HeroHintergrund />
 
@@ -396,6 +403,7 @@ export default function Startseite() {
           <LiveDemnaechst />
         </div>
       </section>
+      </div>
 
       {/* ------------------------------------------- Maps, Spieler, Statistik, Mehr */}
       <div className="mx-auto max-w-6xl px-4"><Lieblinge className="pt-10" /></div>
