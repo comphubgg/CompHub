@@ -416,7 +416,10 @@ async function holeRoh(request: Request) {
    * fertige Antwort zuerst; dass die Ablage nicht unbegrenzt waechst,
    * erledigt der stuendliche Lauf (scripts/antworten-aufraeumen.mjs).
    */
+  const startAnsicht = url.searchParams.get('ansicht') === 'start' && url.searchParams.get('clutch') !== 'alle';
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
+    // "liste=<feld>" ist nur eine Sicht auf die abgelegte Startantwort, keine eigene Rechnung.
+    .filter(([k]) => !(startAnsicht && k === 'liste'))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('|') || 'standard')
@@ -448,7 +451,7 @@ async function holeRoh(request: Request) {
     try { fertig = await abgelegteAntwort<unknown>(schluessel); }
     catch { /* nicht erreichbar - unten 503, der Rand behaelt den letzten Stand */ }
     if (fertig) {
-      return NextResponse.json(fertig, {
+      return startAnsicht ? startAusliefern(fertig, url) : NextResponse.json(fertig, {
         headers: { 'Cache-Control': CDN_FRIST },
       });
     }
@@ -472,7 +475,7 @@ async function holeRoh(request: Request) {
     }, url.searchParams.has('spieler') ? 15 * 60_000 : undefined, !archivWeit,
       // Das Profil eines Spielers: nach 15 Minuten im Hintergrund erneuert, nach drei Stunden nie mehr alt ausgeliefert.
       url.searchParams.has('spieler') ? 3 * 3_600_000 : undefined);
-    return NextResponse.json(wert, {
+    return startAnsicht ? startAusliefern(wert, url) : NextResponse.json(wert, {
       headers: { 'Cache-Control': CDN_FRIST },
     });
   } catch (e) {
@@ -482,8 +485,51 @@ async function holeRoh(request: Request) {
       return NextResponse.json({ success: false, error: e.message },
         { status: 424, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
     }
-    return berechne(request);
+    const roh = await berechne(request);
+    if (!startAnsicht || !roh.ok) return roh;
+    return startAusliefern(await roh.json() as unknown, url);
   }
+}
+
+/** Wie viele Plaetze je Bestenliste in der Startantwort stehen; der Rest kommt mit "&liste=<feld>". */
+const START_PLAETZE = 15;
+/** Die Regionen, aus denen die Spielerkarten der Startseite (SpielerFaecher) je einen Spieler mit Foto nehmen. */
+const FAECHER_REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ME', 'ASIA', 'OCE'];
+
+/**
+ * Die Startantwort ausliefern.
+ *
+ * Abgelegt und gerechnet wird die volle Antwort (vierhundert Plaetze je Liste;
+ * die Startvitrine liest sie so aus der Ablage). Ausgeliefert werden nur die
+ * ersten fuenfzehn Plaetze mit der Gesamtzahl - 1,14 MB wurden so ein paar
+ * Dutzend KB. "liste=<feld>" liefert eine Liste ganz, aus derselben Antwort.
+ * Die Spielerkarten brauchen je Region den ersten mit Foto aus der ganzen
+ * Elim-Liste; die kommen als "faecher" mit.
+ */
+function startAusliefern(wert: unknown, url: URL): NextResponse {
+  const kopf = { 'Cache-Control': CDN_FRIST };
+  const w = (wert ?? {}) as { listen?: Array<{ feld: string; plaetze?: Array<Record<string, unknown>> }> };
+  const listen = Array.isArray(w.listen) ? w.listen : [];
+  const feld = url.searchParams.get('liste');
+  if (feld) {
+    const l = listen.find((x) => x.feld === feld);
+    if (!l) {
+      return NextResponse.json({ success: false, error: 'Diese Liste gibt es in der Startansicht nicht.' },
+        { status: 424, headers: { 'Cache-Control': 'no-store' } });
+    }
+    return NextResponse.json({ success: true, feld, plaetze: l.plaetze ?? [] }, { headers: kopf });
+  }
+  const elims = listen.find((l) => l.feld === 'elims')?.plaetze ?? [];
+  const faecher: Array<Record<string, unknown>> = [];
+  for (const r of FAECHER_REGIONEN) {
+    const x = elims.find((p) => p.bild && ((p.heimat as string) || (p.regionen as string[] | undefined)?.[0] || '') === r);
+    if (x) faecher.push(x);
+  }
+  return NextResponse.json({
+    ...(wert as Record<string, unknown>),
+    faecher,
+    listen: listen.map((l) => ({ ...l, gesamt: (l.plaetze ?? []).length, plaetze: (l.plaetze ?? []).slice(0, START_PLAETZE) })),
+  }, { headers: kopf });
 }
 
 async function berechne(request: Request) {

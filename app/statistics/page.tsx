@@ -163,6 +163,8 @@ interface Liste {
   mindestMatches?: number | null;
   feld: string; titel: string; nachkomma: number; einheit: string | null;
   plaetze: Spieler[];
+  /** Wie viele Plaetze es insgesamt gibt - die Startantwort schickt nur die ersten; der Rest kommt mit "&liste=<feld>". */
+  gesamt?: number;
 }
 
 /**
@@ -2060,7 +2062,7 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
  * drauf druecke, poppt es auf." Links die Zahl der Profile und der Weg zur ganzen Liste, rechts fuenf Spielerkarten wie ein Faecher; eine Karte
  * gerade gezogen hebt sich beim Ueberfahren, ein Klick oeffnet sie gross mit den Werten - dort geht es weiter ins Profil.
  */
-function SpielerFaecher({ spieler, schaden, aufAlle, aufOeffnen }: { spieler: Spieler[]; /** Schaden je Konto-Id aus der Schadensliste - die Elim-Liste traegt ihn nicht. */ schaden: Map<string, number>; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
+function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
   const t = useT();
   const { sprache } = useSprache();
   const [anzahl, setAnzahl] = useState<number | null>(null);
@@ -2238,6 +2240,12 @@ export default function StatistikSeite() {
    */
   const [kachelHalt, setKachelHalt] = useState(false);
   const [listen, setListen] = useState<Liste[]>([]);
+  /** Je Region der erste Elim-Spieler mit Foto - die Karten oben; die Startantwort schickt sie extra, weil die Liste nur die ersten Plaetze traegt. */
+  const [faecher, setFaecher] = useState<Spieler[]>([]);
+  /** Die vollen Startlisten, die schon geholt wurden (je Saison und Feld) - ein zweiter Klick braucht keine Anfrage. */
+  const vollGeholt = useRef(new Map<string, Spieler[]>());
+  /** Spieler, die in dieser Sitzung versteckt wurden - sie fehlen auch in einer spaeter geholten vollen Liste. */
+  const versteckteIds = useRef(new Set<string>());
   /** Solo Clutch Points der Saison - Tabelle unter den Bestenlisten. */
   const [clutchSaison, setClutchSaison] = useState<{ spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] } | null>(null);
   /** Welche Spieltage in den Saisonlisten stecken - siehe Nachweis unten. */
@@ -2796,12 +2804,14 @@ export default function StatistikSeite() {
   /* ----------------------------------------------------------- Startseite */
   useEffect(() => {
     if (!saison) return;
+    vollGeholt.current.clear();
     fetch(`/api/szene-stats?ansicht=start&saison=${saison}`)
       .then((r) => r.json())
       .then((j) => {
         setKacheln(j.kacheln ?? []);
         setKachelNr(0);
         setListen(j.listen ?? []);
+        setFaecher(j.faecher ?? []);
         setClutchSaison(j.clutch?.zeilen?.length ? j.clutch : null);
         setGrundlage(j.grundlage ?? null);
         setProfile(j.profile ?? []);
@@ -3607,6 +3617,8 @@ export default function StatistikSeite() {
       setSpieler((alt) => alt.map(ersetzen));
       setKacheln((alt) => alt.map((k) => ({ ...k, spitze: ersetzen(k.spitze) })));
       setListen((alt) => alt.map((l) => ({ ...l, plaetze: l.plaetze.map(ersetzen) })));
+      setFaecher((alt) => alt.map(ersetzen));
+      for (const [k, v] of vollGeholt.current) vollGeholt.current.set(k, v.map(ersetzen));
       setGalerie((alt) => alt.map(ersetzen));
       setProfile((alt) => alt.map((g) => ({ ...g, spieler: g.spieler.map(ersetzen) })));
       setDuelle((alt) => alt.map((d) => ({
@@ -3640,7 +3652,10 @@ export default function StatistikSeite() {
       const weg = (x: Spieler) => x.epicId !== offen.epicId;
       setSpieler((alt) => alt.filter(weg));
       setGalerie((alt) => alt.filter(weg));
-      setListen((alt) => alt.map((l) => ({ ...l, plaetze: l.plaetze.filter(weg) })));
+      setListen((alt) => alt.map((l) => ({ ...l, plaetze: l.plaetze.filter(weg), gesamt: l.gesamt !== undefined && l.plaetze.some((x) => !weg(x)) ? l.gesamt - 1 : l.gesamt })));
+      setFaecher((alt) => alt.filter(weg));
+      versteckteIds.current.add(offen.epicId);
+      for (const [k, v] of vollGeholt.current) vollGeholt.current.set(k, v.filter(weg));
       setProfile((alt) => alt.map((g) => ({ ...g, spieler: g.spieler.filter(weg) })));
       setEntfernenFrage(false);
       setOffen(null);
@@ -3845,6 +3860,31 @@ export default function StatistikSeite() {
 
   /** Die laufende Bestenliste in der Leiste. */
   const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
+
+  /**
+   * Eine Startliste ganz holen.
+   *
+   * Die Startantwort traegt nur die ersten Plaetze (und in "gesamt" die Zahl aller). Hinter "Alle anzeigen" kommt die volle Liste mit
+   * "&liste=<feld>", mit dem Ladeschirm wie beim Jahr. Kommt sie nicht, bleibt es bei dem, was schon da ist - nichts wird erfunden.
+   */
+  const startListeVoll = useCallback(async (l: Liste): Promise<Spieler[]> => {
+    if ((l.gesamt ?? l.plaetze.length) <= l.plaetze.length) return l.plaetze;
+    const schluessel = `${saison}|${l.feld}`;
+    const da = vollGeholt.current.get(schluessel);
+    if (da) return da;
+    setListenLaedt(true);
+    try {
+      const j = await (await fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&liste=${encodeURIComponent(l.feld)}`,
+        { signal: AbortSignal.timeout(20_000) })).json();
+      if (j?.success && Array.isArray(j.plaetze) && j.plaetze.length >= l.plaetze.length) {
+        const zeilen = (j.plaetze as Spieler[]).filter((x) => !versteckteIds.current.has(x.epicId));
+        vollGeholt.current.set(schluessel, zeilen);
+        return zeilen;
+      }
+    } catch { /* dann bleibt es bei den ersten Plaetzen */ }
+    finally { setListenLaedt(false); }
+    return l.plaetze;
+  }, [saison]);
 
   /*
    * Der Ladeschirm erst nach einer Viertelsekunde - und nur solange
@@ -4076,7 +4116,7 @@ export default function StatistikSeite() {
           {/* ------------------------------------------------- Übersicht */}
           {bereich === 'start' && (
             <>
-              {seitenliste && <SpielerFaecher spieler={seitenliste.plaetze} schaden={new Map((listen.find((l) => l.feld === 'damage')?.plaetze ?? []).map((x) => [x.epicId, x.damage]))} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
+              {faecher.length > 0 && <SpielerFaecher spieler={faecher} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
               {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
               <StatistikAufmacher
                 kacheln={(() => {
@@ -4116,9 +4156,10 @@ export default function StatistikSeite() {
                       <p className="mt-0.5 text-xs text-slate-500">{saisonTitel} <T>· alle Regionen</T></p>
                     </div>
                     <button type="button"
-                      onClick={() => {
+                      onClick={async () => {
+                        const zeilen = await startListeVoll(seitenliste);
                         setVolleListe({
-                          titel: seitenliste.titel, zusatz: saisonTitel, zeilen: seitenliste.plaetze,
+                          titel: seitenliste.titel, zusatz: saisonTitel, zeilen,
                           feld: seitenliste.feld as keyof Spieler, nachkomma: seitenliste.nachkomma ?? 0, einheit: seitenliste.einheit ?? '',
                         });
                         setListenTiefe(50);
@@ -4193,9 +4234,10 @@ export default function StatistikSeite() {
                         )}
                         {/* Und das Plus: dieselbe Liste in voller Laenge, wie auf der Cup-Seite und in den Regionen. */}
                         <button type="button" title={t('Alle anzeigen')}
-                          onClick={() => {
+                          onClick={async () => {
+                            const zeilen = await startListeVoll(l);
                             setVolleListe({
-                              titel: l.titel, zusatz: saisonTitel, zeilen: l.plaetze, feld: l.feld as keyof Spieler,
+                              titel: l.titel, zusatz: saisonTitel, zeilen, feld: l.feld as keyof Spieler,
                               nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '',
                             });
                             setListenTiefe(50);

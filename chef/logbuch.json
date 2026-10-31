@@ -372,5 +372,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-22",
+    "titel": "Statistik-Startseite lädt rund zehnmal weniger",
+    "bereich": "Statistik",
+    "modell": "Sonnet",
+    "warum": "Beim Öffnen der Statistik wurden jedes Mal sechs Bestenlisten mit je 400 Plätzen geladen, gut 1,1 MB. Angezeigt werden zuerst aber nur die ersten 5 bis 15. Auf dem Handy dauerte das spürbar.",
+    "was": "Die Seite holt jetzt nur die ersten 15 Plätze je Liste, insgesamt etwa ein Zehntel der Datenmenge (geschätzt rund 130 KB statt 1,1 MB). Erst bei „Alle anzeigen“ oder dem Plus-Knopf kommt die ganze Liste nach, mit dem gewohnten Ladeschirm, beim zweiten Klick ohne Wartezeit. Die Spielerkarten oben (je Region einer mit Foto) kommen extra mit. Versteckte Spieler bleiben auch in den nachgeladenen Listen versteckt. Klappt das Nachladen nicht, bleiben die ersten Plätze stehen.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "mittel",
+    "datum": "2026-10-31T19:11:31Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
