@@ -30,6 +30,7 @@ import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdien
 import { teamElimsListe } from '@/lib/elimsArchiv';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { DATEN_ORT } from './datenOrt';
+import { eigenKandidat, eigeneSpieler, type EigeneSpielerZeile } from '@/lib/szeneEigen';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
 
@@ -162,6 +163,8 @@ export interface ArchivEintrag {
   matches: number;
   /** Wann die Quelle die Datei erzeugt hat. */
   datum?: number;
+  /** Aus eigenen Daten gebaut (lib/szeneEigen) - nicht von der Szene-Quelle; manche Werte fehlen darin. */
+  eigen?: boolean;
 }
 
 /** Die Rohwerte eines Spielers an einem Spieltag. */
@@ -220,9 +223,43 @@ export interface SpielerSumme {
   elimsProMatch: number;
   /** Schaden je Match. */
   damageProMatch: number;
+  /** Matches aus Spieltagen der Szene-Quelle - fuer Material und Bauteile je Match (eigene Tage kennen beides nicht). */
+  matchesVoll?: number;
+  /** Nur beim Zusammenrechnen: Treffer aus Tagen mit Schusszahl. */
+  hitsMitSchuss?: number;
 }
 
 /* ------------------------------------------------------------ Verzeichnis */
+
+/*
+ * Die eigenen Spieltage (lib/szeneEigen): je Fenster die Spielerwerte im Speicher, das Verzeichnis dazu eine Viertelstunde gemerkt - das Lesen der
+ * Epic-Spieltage, Replays und vollen Replays dauert, und die Werte aendern sich nur, wenn ein weiterer Spieltag fertig gelesen ist.
+ */
+const eigeneDateien = new Map<string, EigeneSpielerZeile[]>();
+let eigeneMerker: { liste: ArchivEintrag[]; bis: number } | null = null;
+
+async function eigeneEintraege(quelle: ArchivEintrag[]): Promise<ArchivEintrag[]> {
+  if (eigeneMerker && Date.now() < eigeneMerker.bis) return eigeneMerker.liste;
+  const imArchiv = new Set(quelle.map((e) => e.windowId));
+  const kandidaten = (await liesEpicSpieltage()).filter((t) => eigenKandidat(t, imArchiv));
+  const liste: ArchivEintrag[] = [];
+  let i = 0;
+  await Promise.all(Array.from({ length: 6 }, async () => {
+    while (i < kandidaten.length) {
+      const t = kandidaten[i++];
+      const werte = await eigeneSpieler(t).catch(() => null);
+      if (!werte) continue;
+      eigeneDateien.set(t.windowId, werte.players);
+      liste.push({
+        region: t.region, season: t.season, datei: `${t.windowId}.json`, eventId: t.eventId, windowId: t.windowId,
+        name: [t.titel || cupNameAusKennung(t.windowId), rundenName(t.windowId, t.istFinale)].filter(Boolean).join(' - '),
+        spieler: werte.players.length, matches: werte.matches, datum: t.datum ?? undefined, eigen: true,
+      });
+    }
+  }));
+  eigeneMerker = { liste, bis: Date.now() + 15 * 60_000 };
+  return liste;
+}
 
 let verzeichnis: ArchivEintrag[] | null = null;
 let verzeichnisBis = 0;
@@ -246,6 +283,10 @@ export async function liesVerzeichnis(): Promise<ArchivEintrag[]> {
     throw new Error(`Verzeichnis der Szene nicht lesbar: ${(e as Error).message}`);
   }
   if (!Array.isArray(gelesen) || !gelesen.length) throw new Error('Verzeichnis der Szene ist leer');
+  // Dazu die eigenen Spieltage seit dem Ende der Quelle (Idee 26) - nur dort, wo die Epic-Spieltage liegen (Stundenlauf), nie auf dem Host der Seite.
+  if (!ohneDateien()) {
+    try { gelesen = [...gelesen, ...await eigeneEintraege(gelesen)]; } catch { /* ohne eigene Tage bleibt die Quelle */ }
+  }
   verzeichnis = gelesen;
   verzeichnisBis = Date.now() + 60_000;
   return verzeichnis;
@@ -275,6 +316,10 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.daten;
 
   let daten: Datei | null = null;
+  if (e.eigen) {
+    const p = eigeneDateien.get(e.windowId);
+    return p ? { ...e, players: p as unknown as RohSpieler[] } : null;
+  }
   try {
     daten = JSON.parse(await fs.readFile(
       path.join(ABLAGE, e.region, e.season, e.datei), 'utf8')) as Datei;
@@ -391,6 +436,8 @@ export async function summen(filter: Filter = {}) {
       s.reboots += p.rebootsAndRevives || 0;
       s.shots += p.shots || 0;
       s.hits += p.hitsToPlayers || 0;
+      // Eigene Spieltage kennen keine Schuesse, kein Material, keine Bauteile: Genauigkeit und die Werte je Match zaehlen nur Tage, die sie haben.
+      if (typeof p.shots === 'number') { s.hitsMitSchuss = (s.hitsMitSchuss ?? 0) + (p.hitsToPlayers || 0); s.matchesVoll = (s.matchesVoll ?? 0) + (p.matchesPlayed || 0); }
       s.headshots += p.headshots || 0;
       s.damage += p.damageDealt || 0;
       s.damageTaken += p.damageTakenFromPlayers || 0;
@@ -416,7 +463,8 @@ export async function summen(filter: Filter = {}) {
     s.namen = [...(namen.get(s.epicId) ?? [])];
     s.regionen = [...(regionen.get(s.epicId) ?? [])];
     s.quote = s.damageTaken > 0 ? +(s.damage / s.damageTaken).toFixed(2) : 0;
-    s.genauigkeit = s.shots > 0 ? +((s.hits / s.shots) * 100).toFixed(1) : 0;
+    s.genauigkeit = s.shots > 0 ? +(((s.hitsMitSchuss ?? s.hits) / s.shots) * 100).toFixed(1) : 0;
+    delete s.hitsMitSchuss;
     s.elimsProMatch = s.matches > 0 ? +(s.elims / s.matches).toFixed(2) : 0;
     s.damageProMatch = s.matches > 0 ? Math.round(s.damage / s.matches) : 0;
     s.damage = Math.round(s.damage);
@@ -1042,6 +1090,8 @@ export function summeAusVerlauf(
     s.reboots += p.rebootsAndRevives || 0;
     s.shots += p.shots || 0;
     s.hits += p.hitsToPlayers || 0;
+    // Wie in summen(): eigene Spieltage ohne Schusszahl zaehlen nicht in die Genauigkeit, nicht in Material und Bauteile je Match.
+    if (typeof p.shots === 'number') { s.hitsMitSchuss = (s.hitsMitSchuss ?? 0) + (p.hitsToPlayers || 0); s.matchesVoll = (s.matchesVoll ?? 0) + (p.matchesPlayed || 0); }
     s.headshots += p.headshots || 0;
     s.damage += p.damageDealt || 0;
     s.damageTaken += p.damageTakenFromPlayers || 0;
@@ -1061,7 +1111,8 @@ export function summeAusVerlauf(
   s.namen = [...namen];
   s.regionen = [...regionen];
   s.quote = s.damageTaken > 0 ? +(s.damage / s.damageTaken).toFixed(2) : 0;
-  s.genauigkeit = s.shots > 0 ? +((s.hits / s.shots) * 100).toFixed(1) : 0;
+  s.genauigkeit = s.shots > 0 ? +(((s.hitsMitSchuss ?? s.hits) / s.shots) * 100).toFixed(1) : 0;
+  delete s.hitsMitSchuss;
   s.elimsProMatch = s.matches > 0 ? +(s.elims / s.matches).toFixed(2) : 0;
   s.damageProMatch = s.matches > 0 ? Math.round(s.damage / s.matches) : 0;
   s.damage = Math.round(s.damage);

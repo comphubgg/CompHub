@@ -32,6 +32,8 @@ interface Zeile { event: string; windowId: string; season: string; datum?: numbe
 interface Summe {
   matches: number; elims: number; damage: number; genommen: number; headshots: number; hits: number; shots: number;
   zeit: number; builds: number; mats: number; reboots: number; spieltage: number;
+  /** Matches und Treffer nur aus Spieltagen mit Schusszahl - eigene Spieltage (seit 10.10.2026) kennen weder Schuesse noch Material noch Bauteile. */
+  matchesVoll: number; hitsMitSchuss: number;
 }
 
 const ERSTE_SAISON = 30;
@@ -68,11 +70,14 @@ function gemeinsam(zeilenJe: Zeile[][], solo = false): Map<string, Zeile[]> {
 
 /** Zusammen gespielt zaehlen die Matches einmal (alle spielten dieselben); als Solo-Werte zaehlt jedes Match jedes Spielers - die Quoten und "je Match" sind dann Werte je Spieler. */
 function summiere(tage: Array<[string, Zeile[]]>, solo = false): Summe {
-  const s: Summe = { matches: 0, elims: 0, damage: 0, genommen: 0, headshots: 0, hits: 0, shots: 0, zeit: 0, builds: 0, mats: 0, reboots: 0, spieltage: 0 };
+  const s: Summe = { matches: 0, elims: 0, damage: 0, genommen: 0, headshots: 0, hits: 0, shots: 0, zeit: 0, builds: 0, mats: 0, reboots: 0, spieltage: 0, matchesVoll: 0, hitsMitSchuss: 0 };
   for (const [, mitglieder] of tage) {
     s.spieltage += 1;
-    s.matches += solo ? mitglieder.reduce((a, z) => a + n0(z.werte?.matchesPlayed), 0) : Math.max(...mitglieder.map((z) => n0(z.werte?.matchesPlayed)));
+    const m = solo ? mitglieder.reduce((a, z) => a + n0(z.werte?.matchesPlayed), 0) : Math.max(...mitglieder.map((z) => n0(z.werte?.matchesPlayed)));
+    s.matches += m;
+    if (mitglieder.some((z) => typeof z.werte?.shots === 'number')) s.matchesVoll += m;
     for (const z of mitglieder) {
+      if (typeof z.werte?.shots === 'number') s.hitsMitSchuss += n0(z.werte?.hitsToPlayers);
       const w = z.werte ?? {};
       s.elims += n0(w.eliminations); s.damage += n0(w.damageDealt); s.genommen += n0(w.damageTakenFromPlayers);
       s.headshots += n0(w.headshots); s.hits += n0(w.hitsToPlayers); s.shots += n0(w.shots); s.zeit += n0(w.timeAlive);
@@ -92,7 +97,7 @@ const REIHEN: Reihe[] = [
   { key: 'quote', titel: 'Schadensquote', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : 0), nk: 2 },
   { key: 'headshots', titel: 'Kopftreffer', wert: (s) => s.headshots, nk: 0 },
   { key: 'hits', titel: 'Treffer auf Spieler', wert: (s) => s.hits, nk: 0 },
-  { key: 'genauigkeit', titel: 'Genauigkeit', wert: (s) => (s.shots > 0 ? (s.hits / s.shots) * 100 : 0), nk: 1, suffix: '%' },
+  { key: 'genauigkeit', titel: 'Genauigkeit', wert: (s) => (s.shots > 0 ? (s.hitsMitSchuss / s.shots) * 100 : 0), nk: 1, suffix: '%' },
   { key: 'dpm', titel: 'Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.damage / (s.zeit / 60) : 0), nk: 0 },
   { key: 'tpm', titel: 'Erlittener Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.genommen / (s.zeit / 60) : 0), nk: 0, weniger: true },
   { key: 'builds', titel: 'Gesetzte Bauteile', wert: (s) => s.builds, nk: 0 },
@@ -107,10 +112,10 @@ const ACHSEN: Achse[] = [
   { titel: 'ELIMS', wert: (s) => (s.matches ? s.elims / s.matches : 0) },
   { titel: 'DAMAGE', wert: (s) => (s.matches ? s.damage / s.matches : 0) },
   { titel: 'DMG RATIO', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : 0) },
-  { titel: 'ACCURACY', wert: (s) => (s.shots > 0 ? s.hits / s.shots : 0) },
+  { titel: 'ACCURACY', wert: (s) => (s.shots > 0 ? s.hitsMitSchuss / s.shots : 0) },
   { titel: 'HEADSHOTS', wert: (s) => (s.matches ? s.headshots / s.matches : 0) },
-  { titel: 'BUILDS', wert: (s) => (s.matches ? s.builds / s.matches : 0) },
-  { titel: 'MATS', wert: (s) => (s.matches ? s.mats / s.matches : 0) },
+  { titel: 'BUILDS', wert: (s) => { return s.matchesVoll ? s.builds / s.matchesVoll : 0; } },
+  { titel: 'MATS', wert: (s) => { return s.matchesVoll ? s.mats / s.matchesVoll : 0; } },
   { titel: 'HITS', wert: (s) => (s.matches ? s.hits / s.matches : 0) },
 ];
 
