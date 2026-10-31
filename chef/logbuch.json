@@ -727,5 +727,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-42",
+    "datum": "2026-10-31T19:41:29Z",
+    "titel": "Profil-Vergleich mit dem Feld: Kopftreffer, Material, Bauteile fair gerechnet",
+    "bereich": "Statistik",
+    "warum": "Im Spielerprofil steht bei jedem Wert, besser als wie viel Prozent der Spieler jemand ist. Für Kopftreffer, Material, Bauteile und Reboots wurde dabei durch alle Matches geteilt – auch durch die neueren Finals aus unseren eigenen Replays, die diese Werte gar nicht kennen. Wer viele solche Finals gespielt hat, stand deshalb zu Unrecht schlechter da.",
+    "was": "Diese vier Werte werden jetzt nur durch die Matches geteilt, für die es sie auch gibt – so wie es der Spielervergleich schon richtig machte. Die Prozentangaben im Profil stimmen damit für Spieler mit vielen neuen Finals.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
