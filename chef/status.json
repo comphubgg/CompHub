@@ -1,12 +1,11 @@
 {
-  "letzteRunde": "2026-10-31T20:24:00Z",
-  "macheGerade": "Runde 5 läuft.",
+  "letzteRunde": "2026-10-31T21:00:00Z",
+  "macheGerade": "Runde 5 fertig – 23 neue Verbesserungen warten auf dich (chef-66 bis chef-91). Statistik-Fehler behoben: Performance-Cup-Reihe zeigte die Zahlen der ganzen Region (chef-78), Teamplatz bei Duo-Cups um eins daneben (chef-70), alte Jahre zeigten Karriere-Matches (chef-88/89), Heimatregion-Filter warf LAN-Turniere raus (chef-90), FNCS-Grand-Finals im Profil endeten 2025 (chef-80). Neu: Bestenlisten nennen ihren Stand (chef-73), Links merken Sortierung/Region/Saison/Jahr (chef-72/74), Strich statt 0,00 (chef-87), Ausfälle zeigen überall Hinweis (chef-66/67/71/83/86). Wichtig: Saisonlisten sind seit ca. 10.10. nicht neu abgelegt (Nachtrag bei chef-61).",
   "naechstes": [
-    "Nach dem nächsten Stundenlauf prüfen: Saisonlisten mit Finals 26./27.10. und Schaden in der Elims-Liste",
-    "Weitere stille Fehler auf der Statistikseite (Muster chef-64/65)",
-    "Admin-Prüfung an einer Stelle zusammenlegen (Teil 2 nach chef-63)"
+    "Nach dem nächsten Stundenlauf prüfen: Spielerliste S42 (peterbot muss 83 Matches haben) und Startantwort",
+    "Regionsseite: eigene Parameter in der Adresse prüfen",
+    "Mshary in zwei Orgs – Betreiber fragen"
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)",
-  "laeuftSeit": "2026-10-31T20:28:00Z"
+  "modell": "Opus (Planung, Prüfung) + Sonnet (Unteragenten)"
 }
