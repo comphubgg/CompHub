@@ -4047,6 +4047,12 @@ export default function StatistikSeite() {
    * Die sechs Kennzahlen im Kopf des Profils - das Bild "Rückblick als Bild" (RueckblickBild) zeigt dieselben.
    * Die Unterzeilen werden hier zusammengesetzt und müssen deshalb selbst übersetzt werden: ein fertiger Satz geht an <T> vorbei.
    */
+  /* Ein FNCS-Global-Championship-Sieg steht schon in fncs.titel (als "GLOBALS <Jahr>") und zugleich in lanErgebnisse - nur einmal zaehlen. */
+  const lanSiege = lanErgebnisse.filter((l) => {
+    if (l.platz !== 1) return false;
+    const jahr = /global-championship-(\d{4})/.exec(l.kennung)?.[1];
+    return !(jahr && fncsGrandFinals.some((f) => f.platz === 1 && f.saison === `GLOBALS ${jahr}`));
+  }).length;
   const kennzahlen: Array<[string, string, string]> = !offen ? [] : [
                   /*
                    * Die Unterzeilen werden hier zusammengesetzt und muessen
@@ -4079,10 +4085,9 @@ export default function StatistikSeite() {
                      andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
                      drin sein." */
                   ['Titel',
-                    String((fncs?.titel ?? 0) + lanErgebnisse.filter((l) => l.platz === 1).length),
+                    String((fncs?.titel ?? 0) + lanSiege),
                     [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
-                      lanErgebnisse.filter((l) => l.platz === 1).length
-                        ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
+                      lanSiege ? `${lanSiege} LAN` : '']
                       .filter(Boolean).join(' · ')],
                 ];
 
