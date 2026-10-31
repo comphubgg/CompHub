@@ -1560,5 +1560,51 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-73",
+    "datum": "2026-10-31T21:00:00Z",
+    "titel": "Bestenlisten nennen ihren Stand",
+    "kurz": "Statistik: unter „Most eliminations“ und in der Spielerliste steht „As of 10. Oktober“.",
+    "markieren": [
+      "text:As of",
+      "text:Most eliminations"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Saisonlisten reichen gerade nur bis 10.10. (die Finals vom 26./27.10. fehlen) – Besucher konnten das nicht erkennen.",
+    "was": "Neben der Saison steht jetzt das Datum des jüngsten gezählten Spieltags. Fehlt es, steht nichts.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=spieler"
+    ],
+    "commits": [
+      "cb979eb90ac400418148dc54199bb39fc2a982f8"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-74",
+    "datum": "2026-10-31T21:01:00Z",
+    "titel": "Jahresbilanz: Auswahl steht in der Adresse",
+    "kurz": "Statistik → Jahr: Jahr, Region und Saison stehen in der Adresse, Link teilbar.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer „2025 · EU“ in der Jahresbilanz einstellte und den Link schickte, landete beim Empfänger auf 2026, alle Regionen.",
+    "was": "Die Adresse merkt sich jetzt Jahr, Region und Saison; unbekannte Werte werden ignoriert.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2025&jregion=EU"
+    ],
+    "commits": [
+      "83e83e26cf3ef9daab22fe698029a5f4bd60b475"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
