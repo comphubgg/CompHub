@@ -4073,7 +4073,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Replays ließen sich gerade nicht laden.': 'The replays could not be loaded right now.',
   'Dieses Match ist nicht ausgewertet.': 'This match has not been evaluated.',
   'Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.': 'FNCS only: these numbers come from the Grand Finals, since Chapter 5 Season 3.',
-  'Die Titel zählen alle FNCS-Endspiele seit Chapter 1.': 'Titles count every FNCS final since Chapter 1.',
+  'Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.': 'Titles count the European Grand Finals, the Globals, the Invitational and the Summit since Chapter 1.',
   'Spieler {n}': 'Player {n}',
   'Seit {n}': 'Since {n}',
   'Seiten tauschen': 'Swap sides',
