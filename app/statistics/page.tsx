@@ -4744,7 +4744,7 @@ export default function StatistikSeite() {
                         {gefiltert.map((t) => {
                           const art = turnierArt(t.name);
                           return (
-                          <tr key={t.region + t.datei} onClick={() => setCup(t)}
+                          <tr key={t.region + t.datei} onClick={() => setCup(t)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); setCup(t); } }}
                             className="cursor-pointer border-b border-zinc-900 transition
                                        hover:bg-zinc-900/60">
                             <td className="px-4 py-2.5 text-slate-200">
@@ -5484,7 +5484,7 @@ export default function StatistikSeite() {
                       </thead>
                       <tbody>
                         {gezeigteSpieler.map((sp, i) => (
-                          <tr key={sp.epicId} onClick={() => oeffne(sp)}
+                          <tr key={sp.epicId} onClick={() => oeffne(sp)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); oeffne(sp); } }}
                             className="cursor-pointer border-b border-zinc-900 transition
                                        hover:bg-zinc-900/60">
                             <td className={`px-4 py-2.5 text-right font-bold tabular-nums ${
