@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { darfBereichAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -66,6 +67,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await darfBereichAnfrage('karten', 'prognosen')) return NextResponse.json({ ok: false, success: false, error: 'Dafür fehlt dir das Recht.' }, { status: 403 });
   const eingang = await request.json() as { bild?: string; spots?: Spot[] };
   const bild = eingang.bild || STANDARD;
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { angemeldetAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { getSupabaseServerClient, hasSupabaseConfig, isSupabaseFallbackError } from '@/lib/supabaseServer';
@@ -84,6 +85,12 @@ function normalizeDuoNames(player1: string, player2: string) {
   return { player1: names[0], player2: names[1] };
 }
 
+/**
+ * Ein Name als Wert in einem .or(...)-Filter - in Anfuehrungszeichen, damit Komma, Klammer oder Punkt im Namen den Filter nicht
+ * umbauen koennen (31.10.2026: vorher wurde der eingetippte Name roh eingesetzt).
+ */
+const pg = (v: unknown) => `"${String(v ?? '').replace(/[\\"]/g, (c) => `\\${c}`)}"`;
+
 export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
@@ -137,6 +144,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await angemeldetAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Bitte zuerst anmelden.' }, { status: 403 });
   try {
     const body = (await request.json()) as PlayerPayload;
     if (!body || !body.region || !body.type || !body.name) {
@@ -223,7 +232,7 @@ export async function POST(request: NextRequest) {
       const { data: existing, error: fetchError } = await supabase
         .from('duos')
         .select('*')
-        .or(`player1.eq.${player1},player1.eq.${player2},player2.eq.${player1},player2.eq.${player2}`);
+        .or(`player1.eq.${pg(player1)},player1.eq.${pg(player2)},player2.eq.${pg(player1)},player2.eq.${pg(player2)}`);
 
       if (fetchError) {
         console.error('Supabase error fetching existing duos', fetchError);
@@ -239,7 +248,7 @@ export async function POST(request: NextRequest) {
         const { error: deleteError } = await supabase
           .from('duos')
           .delete()
-          .or(`player1.eq.${player1},player1.eq.${player2},player2.eq.${player1},player2.eq.${player2}`);
+          .or(`player1.eq.${pg(player1)},player1.eq.${pg(player2)},player2.eq.${pg(player1)},player2.eq.${pg(player2)}`);
 
         if (deleteError) {
           console.error('Supabase error deleting existing duos', deleteError);
@@ -314,6 +323,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await angemeldetAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Bitte zuerst anmelden.' }, { status: 403 });
   try {
     const { name, region, type } = await request.json();
     if (!name || !type) {
@@ -356,7 +367,7 @@ export async function DELETE(request: NextRequest) {
       const { error } = await supabase
         .from('duos')
         .delete()
-        .or(`and(player1.eq.${normalized1},player2.eq.${normalized2}),and(player1.eq.${normalized2},player2.eq.${normalized1})`);
+        .or(`and(player1.eq.${pg(normalized1)},player2.eq.${pg(normalized2)}),and(player1.eq.${pg(normalized2)},player2.eq.${pg(normalized1)})`);
 
       if (error) {
         console.error('Supabase error deleting duo', error);
@@ -380,6 +391,8 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await angemeldetAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Bitte zuerst anmelden.' }, { status: 403 });
   try {
     const { oldName, newName, region, twitter } = await request.json();
 

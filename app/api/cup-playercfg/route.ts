@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -22,6 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Serverseitige Pruefung (31.10.2026): vorher kam jede von Hand geschickte Anfrage durch, die Knoepfe waren nur im Browser versteckt.
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, success: false, error: 'Nur für den Admin.' }, { status: 403 });
   // Auf Vercel ist das Dateisystem schreibgeschuetzt - dort muessten die
   // Einstellungen in Supabase liegen. Lokal reicht die Datei.
   if (IS_VERCEL) {

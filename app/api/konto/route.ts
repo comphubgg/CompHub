@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { erfolg, fehlversuch, gesperrt } from '@/lib/fehlversuche';
 import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import { cookies } from 'next/headers';
 import {
@@ -198,12 +199,6 @@ export async function POST(request: Request) {
     if (String(koerper.website ?? '').trim()) {
       return NextResponse.json({ ok: true, hinweis: null });
     }
-    /*
-     * Beide Bremsen antworten mit 400, nicht mit 429: aus 429 macht der
-     * Cloudflare-Lastverteiler eine eigene Fehlerseite, und die Meldung unten
-     * kaeme nie im Formular an. Die Anmeldeseite zeigt jede Antwort, die nicht
-     * ok ist, mit ihrem Text an - fuer sie aendert sich nichts.
-     */
     const aufgegangen = Number(koerper.seit);
     if (Number.isFinite(aufgegangen) && Date.now() - aufgegangen < 3000) {
       return NextResponse.json(
@@ -212,6 +207,7 @@ export async function POST(request: Request) {
     if (await kontenVonAnschlussLetzteStunde(anschluss(request)) >= 3) {
       return NextResponse.json(
         { fehler: 'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.' },
+        // 400 statt 429: den Status 429 wertet der Cloudflare-Lastverteiler als Ausfall und schickt die Anfrage ein zweites Mal los.
         { status: 400 });
     }
 
@@ -361,6 +357,8 @@ export async function POST(request: Request) {
   if (was === 'anmelden') {
     const email = String(koerper.email ?? '').trim();
     const passwort = String(koerper.passwort ?? '');
+    const sperre = gesperrt(request, email);
+    if (sperre) return NextResponse.json({ fehler: sperre }, { status: 400 });
 
     /*
      * Adresse oder Name - beides geht.
@@ -401,8 +399,10 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     if (!passwortStimmt(passwort, konto.passwort)) {
+      fehlversuch(request, email);
       return NextResponse.json({ fehler: 'Passwort stimmt nicht.' }, { status: 401 });
     }
+    erfolg(request, email);
     if (konto.gesperrt) {
       return NextResponse.json(
         { fehler: 'Dieses Konto ist gesperrt.' }, { status: 403 });
