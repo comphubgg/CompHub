@@ -711,5 +711,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-41",
+    "datum": "2026-10-31T19:40:58Z",
+    "titel": "Quoten-Listen: Mindestzahl an Matches wie auf der Startseite",
+    "bereich": "Statistik",
+    "warum": "In der Spielerliste stand unter „Beste Schadensquote“ für S42 ROBJITT mit 16 Matches vorn (2,16), auf der Statistik-Startseite für dieselbe Saison ZDOG (1,75 bei 22 Matches) – die Startseite verlangt mindestens 20 Matches, die Spielerliste gar keine. Zwei verschiedene „Beste“ für dieselbe Sache; bei kleinen Saisons konnte sogar jemand mit einem einzigen Match vorne stehen.",
+    "was": "Bei Schadensquote, Genauigkeit, Elims je Match und Schaden je Match gilt jetzt überall dieselbe Grenze. Wer sie erreicht, steht vorn; wer zu wenige Matches hat, fällt nicht heraus, sondern steht dahinter – die Liste bleibt vollständig.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
