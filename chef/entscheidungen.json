@@ -925,5 +925,14 @@
     "entscheidung": "nein",
     "notiz": "",
     "zeit": "2026-10-31T21:48:14.486Z"
+  },
+  "chef-101": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:48:45.342Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
