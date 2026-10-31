@@ -595,5 +595,22 @@
     "modell": "Sonnet (Bau) + Opus (Prüfung, Server-Teil neu)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-34",
+    "datum": "2026-10-31T19:34:43Z",
+    "titel": "Statistik: Turnier- und Spielerlisten per Tastatur öffnen",
+    "bereich": "Statistik",
+    "warum": "In der Statistik ließen sich die Zeilen der Turnierliste und der Spielerliste nur mit der Maus öffnen – chef-28 hatte die Statistikseite selbst noch ausgespart.",
+    "was": "Mit Tab springt man jetzt auch dort zu einer Zeile und öffnet den Cup bzw. das Spielerprofil mit Enter oder Leertaste; der blaue Fokusrahmen zeigt, wo man ist.",
+    "ansehen": [
+      "/statistics?bereich=turniere",
+      "/statistics?bereich=regional"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
