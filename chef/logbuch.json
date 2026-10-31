@@ -2113,5 +2113,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-102",
+    "datum": "2026-10-31T22:00:00Z",
+    "titel": "Bestenlisten der Statistik: gleicher Wert, gleicher Platz",
+    "kurz": "Statistik → Bestenliste mit „+“ öffnen: zwei Spieler mit 109 Elims teilen sich den Platz.",
+    "markieren": [
+      "text:Show all",
+      "css:.divide-y.divide-zinc-900"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Listen zählten nur die Zeilen durch: zwei Spieler mit 109 Eliminierungen standen auf verschiedenen Plätzen.",
+    "was": "Gleicher angezeigter Wert heißt jetzt gleicher Platz (1, 2, 2, 4) – in den Karten, in der langen Liste und auf dem Treppchen, wie schon auf der Cup-Seite.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 6
   }
 ]
