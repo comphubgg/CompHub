@@ -244,5 +244,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-18",
+    "titel": "Turnier-Maps: Marken „Live / Demnächst / Beendet“ wie bei den Events",
+    "bereich": "Sprache",
+    "warum": "Auf der Seite der Turnier-Maps standen die Marken auf den Kacheln fest auf Englisch („Upcoming“, „Ended“) – auch wenn man Deutsch gewählt hatte. Die Events-Seite sagt dazu „Demnächst“ und „Beendet“ (englisch „Upcoming“ und „Finished“).",
+    "was": "Die Marken laufen jetzt über die Übersetzung und benutzen dieselben Wörter wie die Events-Seite. Auf Englisch heißt „Ended“ jetzt „Finished“, genau wie bei den Events.",
+    "ansehen": [
+      "/tournament-maps"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:04:08Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
