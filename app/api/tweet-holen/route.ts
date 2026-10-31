@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: `Beitrag nicht lesbar (HTTP ${antwort.status}) — geloescht, `
         + 'privat oder gesperrt?' },
-      { status: antwort.status === 404 ? 404 : 502 });
+      { status: antwort.status === 404 ? 404 : 424 }); // nie 5xx: daraus macht Cloudflare eine Fehlerseite, und der Hinweis kaeme im Werkzeug nicht an
   }
 
   const d = await antwort.json() as { tweet?: FxTweet };
