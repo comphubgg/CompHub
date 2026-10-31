@@ -227,5 +227,22 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-17",
+    "titel": "Handymenü zeigt auch auf Unterseiten, wo man ist",
+    "bereich": "Navigation",
+    "warum": "Im Handymenü war der aktuelle Bereich nur hervorgehoben, wenn man genau auf der Hauptseite des Bereichs stand. Auf einer Event-Seite (/events/…) oder einer Replay-Seite war kein Eintrag markiert – oben am Computer schon.",
+    "was": "Das Handymenü markiert jetzt nach derselben Regel wie die Kopfzeile am Computer: auch auf Unterseiten ist der Bereich hervorgehoben. Die Farbe der Markierung passt jetzt zum übrigen Kopf.",
+    "ansehen": [
+      "/events",
+      "/replays"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:03:39Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

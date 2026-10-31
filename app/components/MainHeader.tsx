@@ -409,10 +409,11 @@ export default function MainHeader({ sektionenAnfang }: {
             return (
               <Link key={item.href} href={href} prefetch={false}
                 onClick={() => setMenueOffen(false)}
+                aria-current={istAktiv(pathname, item.href) ? 'page' : undefined}
                 className={`flex items-center gap-2 rounded-lg px-3 py-3 text-base
-                            transition ${pathname === item.href
-                    ? 'bg-slate-800 text-slate-100'
-                    : 'text-slate-300 active:bg-slate-900'}`}>
+                            transition ${istAktiv(pathname, item.href)
+                    ? 'bg-zinc-800 text-slate-100'
+                    : 'text-slate-300 active:bg-zinc-900'}`}>
                 <T>{item.label}</T>
                 {eigen !== 'online' && (
                   <span aria-hidden
