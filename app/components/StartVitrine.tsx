@@ -57,7 +57,8 @@ interface VRang { rang: number; name: string; land: string | null; wertung: numb
 interface Vitrine { ok: boolean; saison: string | null; saisonName?: string | null; spieler: VSpieler[]; cups: VCup[]; maps: number; regionen: VRegion[]; rangliste: VRang[] }
 interface SolosFenster { windowId: string; name: string; art: string; spieler: Array<{ id: string; anzeige: string; land: string | null }> }
 
-const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'Europe/Brussels' });
+// Datum in der gewaehlten Sprache (app/lib/ort) - vorher fest britisch, auch im deutschen Modus.
+const DATUM = { format: (d: Date) => new Intl.DateTimeFormat(ortJetzt(), { day: '2-digit', month: 'short', timeZone: 'Europe/Brussels' }).format(d) };
 
 /* ----------------------------------------------------------------- Helfer */
 

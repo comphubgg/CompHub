@@ -16,6 +16,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ortJetzt } from '@/app/lib/ort';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
@@ -44,7 +45,8 @@ const KAPITEL_BILD: Record<number, string> = {
   3: '/saisonbilder/CH3.jpg', 2: '/saisonbilder/Chapter 2 Remix.jpg', 1: '/saisonbilder/CH1.jpg',
 };
 
-const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
+// Datum in der gewaehlten Sprache (app/lib/ort) - vorher fest britisch, auch im deutschen Modus.
+const DATUM = { format: (d: Date) => new Intl.DateTimeFormat(ortJetzt(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' }).format(d) };
 
 const CSS = `
 @keyframes mp-rein { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }

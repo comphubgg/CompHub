@@ -13,6 +13,7 @@ import KartenHintergrund, { FNCS_BILDER } from '@/app/components/KartenHintergru
 import { useEffect, useMemo, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
+import { ortJetzt } from '@/app/lib/ort';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
@@ -41,7 +42,8 @@ function Tafel({ titel, unter, children }: { titel: string; unter?: string; chil
   );
 }
 
-const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
+// Datum in der gewaehlten Sprache (app/lib/ort) - vorher fest britisch, auch im deutschen Modus.
+const DATUM = { format: (d: Date) => new Intl.DateTimeFormat(ortJetzt(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' }).format(d) };
 const JAHR = new Intl.DateTimeFormat('en-GB', { year: 'numeric', timeZone: 'Europe/Brussels' });
 
 /** Die Farbe des Platzes: Gold, Silber, Bronze. */
@@ -477,9 +479,9 @@ export default function FncsSeite() {
                           <tr key={`${s.name}-${i}`} className="border-b border-white/[0.04]">
                             <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
                             <td className="px-3 py-1.5"><span className="flex items-center gap-2"><TeamFlagge groesse={16} laender={[s.land ?? undefined]} /><span className="text-[12px] font-bold uppercase text-slate-100">{s.name}</span></span></td>
-                            <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-50">{s.punkte.toLocaleString('en-GB')}</td>
+                            <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-50">{s.punkte.toLocaleString(ortJetzt())}</td>
                             <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.siege}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{s.elims.toLocaleString('en-GB')}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{s.elims.toLocaleString(ortJetzt())}</td>
                           </tr>
                         ))}
                       </tbody>
