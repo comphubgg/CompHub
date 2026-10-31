@@ -187,3 +187,30 @@ html[data-modus="hell"] [data-karten-hg] { display: none; }
  * (kein :focus-visible) bleibt alles wie vorher. Die Eingabefelder im Admin haben oben ihre eigene, spezifischere Regel.
  */
 :focus-visible { outline: 2px solid #0ea5e9; outline-offset: 2px; }
+
+/*
+ * Kopfzeile automatisch ausblenden (Zahnrad, html[data-kopfzeile="auto"]).
+ * Aus (Standard): nichts davon greift, die Kopfzeile bleibt wie sie ist. An: die Leiste hat keinen Grund mehr und liegt fest oben (nimmt keinen
+ * Platz), nur Logo und Name stehen sichtbar. Der Grund und die Eintraege fahren herunter, wenn die Maus den oberen Rand (Streifen) oder das Logo
+ * beruehrt, wenn per Tab etwas in der Leiste Fokus hat oder (Touch) das Logo angetippt wurde (data-offen).
+ */
+.kopf-streifen, .kopf-grund { display: none; }
+html[data-kopfzeile="auto"] .kopf {
+  position: fixed; left: 0; right: 0; top: 0; background: transparent; border-bottom-color: transparent; backdrop-filter: none; pointer-events: none;
+}
+html[data-kopfzeile="auto"] .kopf-streifen { display: block; position: absolute; left: 0; right: 0; top: 0; height: 8px; pointer-events: auto; }
+html[data-kopfzeile="auto"] .kopf-grund {
+  display: block; position: absolute; inset: 0; z-index: -1; transform: translateY(-100%); transition: transform .2s ease; pointer-events: none;
+}
+html[data-kopfzeile="auto"] .kopf-logo { position: relative; pointer-events: auto; filter: drop-shadow(0 1px 4px rgba(0,0,0,.7)); }
+html[data-kopfzeile="auto"] .kopf-rest {
+  transform: translateY(-150%); visibility: hidden; pointer-events: none; transition: transform .2s ease, visibility 0s linear .2s;
+}
+html[data-kopfzeile="auto"] .kopf:focus-within .kopf-grund,
+html[data-kopfzeile="auto"] .kopf[data-offen="ja"] .kopf-grund { transform: translateY(0); pointer-events: auto; }
+html[data-kopfzeile="auto"] .kopf:focus-within .kopf-rest,
+html[data-kopfzeile="auto"] .kopf[data-offen="ja"] .kopf-rest { transform: translateY(0); visibility: visible; pointer-events: auto; transition-delay: 0s; }
+@media (hover: hover) {
+  html[data-kopfzeile="auto"] .kopf:hover .kopf-grund { transform: translateY(0); pointer-events: auto; }
+  html[data-kopfzeile="auto"] .kopf:hover .kopf-rest { transform: translateY(0); visibility: visible; pointer-events: auto; transition-delay: 0s; }
+}

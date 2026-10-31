@@ -34,6 +34,9 @@ export const hellMoeglich = (pfad: string): boolean => designFuerPfad(pfad) === 
 export type Groesse = 'klein' | 'normal' | 'gross';
 export const GROESSE_COOKIE = 'comphub_groesse';
 export const BEWEGUNG_COOKIE = 'comphub_bewegung';
+/** comphub_kopfzeile "auto" (fehlt: aus) - die Kopfzeile blendet sich aus und faehrt erst bei Beruehrung des oberen Rands herunter. */
+export const KOPFZEILE_COOKIE = 'comphub_kopfzeile';
+export const lieseKopfzeile = (wert: string | undefined | null): 'auto' | 'aus' => (wert === 'auto' ? 'auto' : 'aus');
 
 export const lieseGroesse = (wert: string | undefined | null): Groesse => (wert === 'klein' || wert === 'gross' ? wert : 'normal');
 export const lieseBewegung = (wert: string | undefined | null): 'an' | 'aus' => (wert === 'aus' ? 'aus' : 'an');
