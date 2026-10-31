@@ -1125,5 +1125,26 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-56",
+    "datum": "2026-10-31T20:40:00Z",
+    "titel": "Replays: abgelaufene Matches heißen „abgelaufen“ statt „wird geladen“",
+    "kurz": "Admin → Replays → Crash Bandicoot Cup ME aufklappen: 2.037 Matches „Replay bei Epic abgelaufen“.",
+    "markieren": [
+      "text:Replay bei Epic abgelaufen",
+      "text:Eingesammelte Turniere"
+    ],
+    "bereich": "Daten",
+    "warum": "2.206 Matches standen ewig auf „wird geladen“, obwohl Epic sie nach 31 Tagen gelöscht hat – die kommen nie mehr.",
+    "was": "Was älter als 31 Tage und nicht fertig ist, steht jetzt grau als „Replay bei Epic abgelaufen“ und zählt nicht mehr als offen. Gespeichert wird nichts anders.",
+    "ansehen": [
+      "/admin/replays"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]

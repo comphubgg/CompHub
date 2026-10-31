@@ -132,7 +132,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
             if (stand === 'PARSED') ausgewertet += n;
             if ((f.datum ?? 0) > grenze) imFristGesamt += n;
             // Offen zaehlt nur, was noch zu holen ist: Epic haelt ein Replay 31 Tage vor.
-            if (stand !== 'PARSED' && (f.datum ?? 0) > grenze && !nieDa) offenInFrist += n;
+            if (stand !== 'PARSED' && stand !== 'ABGELAUFEN' && (f.datum ?? 0) > grenze && !nieDa) offenInFrist += n;
           }
         }
         setReplays({ gesamt, ausgewertet, offenInFrist, imFristGesamt });
