@@ -2196,6 +2196,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   '— aus —': '— off —',
 
   // --------------------------------------------------------------- Admin
+  // (Was nur unter /admin vorkommt, steht in spracheAdmin.ts.)
   'Beiträge': 'Posts',
   'Dashboard': 'Dashboard',
   'Verstanden': 'Got it',
@@ -2204,27 +2205,17 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Aus der Liste nehmen': 'Remove from the list',
   'Team von Hand': 'Team by hand',
   'Sky & Scroll': 'Sky & Scroll',
-  'Zwei Namen mit &, Komma oder Schrägstrich trennen. Ein einzelner Name ergibt ein Solo.':
-    'Separate two names with &, a comma or a slash. A single name makes a solo.',
   'Dieses Team steht schon in der Liste.': 'That team is already in the list.',
   'aufgenommen': 'added',
-  'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber':
-    'Something broken, missing or worth improving? Tell the operator',
   'gerade da': 'here right now',
   'nicht mehr da': 'not here any more',
-  'Jede offene Seite meldet sich einmal pro Minute. Wer zwei Minuten lang nichts von sich hören lässt, gilt als weg — ein geschlossener Browser wird also binnen zwei Minuten rot. Wer sich abmeldet, verschwindet sofort.':
-    'Every open page checks in once a minute. Anyone silent for two minutes '
-    + 'counts as gone — so a closed browser turns red within two minutes. '
-    + 'Signing out takes effect immediately.',
   'Karte bauen': 'Create a map',
   'Live': 'Live',
   'Wer gerade da ist und wann sich wer angemeldet hat':
     'Who is here right now and when each person signed in',
   'Wer gerade da ist und wer sich wann angemeldet hat.':
     'Who is here right now, and when each person signed in.',
-  'zu den Admin-Werkzeugen': 'to the admin tools',
   'Gerade da': 'Here right now',
-  'Gerade niemand.': 'Nobody right now.',
   'Zuletzt hier': 'Last seen',
   'zuletzt hier': 'last seen',
   'angemeldet': 'signed in',
@@ -2232,14 +2223,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Min.': 'min ago',
   'Std.': 'h ago',
   'Tagen': 'days ago',
-  'Noch niemand aufgezeichnet. Die Liste füllt sich, sobald sich jemand anmeldet oder eine Seite öffnet — rückwirkend gibt es nichts, vorher wurde das nicht festgehalten.':
-    'Nobody recorded yet. The list fills up as soon as someone signs in or '
-    + 'opens a page — there is nothing retroactive, this was not recorded '
-    + 'before.',
-  '„Gerade da“ heißt: in den letzten fünf Minuten war eine Seite offen. Wer den Tab schließt, meldet sich nicht ab — mehr lässt sich darüber nicht sagen.':
-    '“Here right now” means a page was open in the last five '
-    + 'minutes. Closing a tab does not sign anyone out — nothing more can '
-    + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
   'Schärfe':
     'Sharpness',
@@ -2247,16 +2230,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Normal',
   'Doppelt (schärfer)':
     'Double (sharper)',
-  'Trag die Browser-Quelle in OBS mit der doppelten Breite und Höhe ein und zieh sie in der Szene auf 50 % — dann wird nichts hochgerechnet und alles ist scharf.':
-    'Enter the browser source in OBS at double the width and height and scale it to 50 % in the scene — then nothing is upscaled and everything is sharp.',
-  'Unscharf in OBS? Zieh die Quelle in der Szene nie größer, als sie eingetragen ist. Mit „Schärfe: Doppelt“ wird alles doppelt so groß gezeichnet — Quelle doppelt so groß eintragen, in der Szene auf 50 %.':
-    'Blurry in OBS? Never scale the source up in the scene beyond the size it is entered at. With "Sharpness: Double" everything is drawn twice as large — enter the source twice as large and scale it to 50 % in the scene.',
-  'Größe der Bilder':
-    'Photo size',
   'Eigener Text':
     'Custom text',
-  'Eine Zeile, frei geschrieben — mit Balken oder ohne. Was hier steht, steht im Stream.':
-    'One line, written freely — with a bar or without. What stands here stands on stream.',
   'Eine Zeile Text, frei geschrieben, mit Balken oder ohne':
     'One line of text, written freely, with a bar or without',
   'Schriftart':
@@ -2273,10 +2248,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'right now',
   'Spieltage gezählt':
     'match days counted',
-  'Diese Adresse bleibt gleich. Was du hier änderst und übernimmst, ist im Stream nach wenigen Sekunden zu sehen.':
-    'This address stays the same. Whatever you change and apply here shows up on stream within seconds.',
-  'Erst speichern — dann bekommst du eine Adresse, die bei jeder späteren Änderung gleich bleibt.':
-    'Save first — then you get an address that stays the same through every later change.',
   'je Spieler, aus Replays, Opens und Finals':
     'per player, from replays, opens and finals',
   'Szene-Quelle':
@@ -2285,8 +2256,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Not in the leaderboard yet. Pre-select from the directory — the values arrive as soon as they play.',
   'vormerken':
     'pre-select',
-  'Noch kein Verlauf — er beginnt mit der nächsten Sitzung.':
-    'No history yet — it starts with the next session.',
   'jetzt':
     'now',
   'Sitzungen':
@@ -2297,20 +2266,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Custom overlay',
   'Overlays (Globals 2026)':
     'Overlays (Globals 2026)',
-  'Spieler-Banner (Globals 2026)':
-    'Player banner (Globals 2026)',
-  'Custom overlay (Globals 2026)':
-    'Custom overlay (Globals 2026)',
-  'Leaderboard im Aussehen der Global Championship':
-    'Leaderboard in the look of the Global Championship',
-  'Zwei Spieler mit Foto, in den Farben des Turniers':
-    'Two players with photos, in the colours of the tournament',
-  'Freier Stand - 1v1s, 4v4s, alles mit eigenem Titel':
-    'Free scoreboard — 1v1s, 4v4s, with your own title',
   'VIP-Bereiche':
     'VIP areas',
-  'Die Adminrolle schließt diesen Bereich ein':
-    'The admin role includes this area',
   'Alle Teams sind gesetzt.':
     'All teams are placed.',
   'Bereits gesetzt':
@@ -2415,18 +2372,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'CompHub mark in the header',
   'Something Big Is Coming':
     'Something Big Is Coming',
-  'Scrims der Community-Server — Leaderboards, Sessions und Statistiken, direkt auf CompHub.':
-    'Community server scrims — leaderboards, sessions and statistics, right here on CompHub.',
   'Zu den Turnieren':
     'Back to the tournaments',
   'Im Discord erfahren, wann es losgeht':
     'Hear about the launch on Discord',
   'Scrims':
     'Scrims',
-  'Übungsrunden der Community-Server — Leaderboard, Sessions und Statistiken.':
-    'Practice rounds run by the community servers — leaderboard, sessions and statistics.',
-  'Alle Scrims':
-    'All scrims',
   'Yunite ist noch nicht eingerichtet — es fehlt der Schlüssel der App.':
     'Yunite is not set up yet — the app key is missing.',
   'Noch hat kein Discord-Server die App freigeschaltet. Sobald einer es tut, stehen seine Scrims hier.':
@@ -2437,18 +2388,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'This server has not run any scrims yet.',
   'Yunite antwortet gerade nicht.':
     'Yunite is not responding right now.',
-  'Zu diesem Scrim liegt noch keine Bestenliste vor.':
-    'There is no leaderboard for this scrim yet.',
   'Noch keine Runde gespielt.':
     'No round played yet.',
   'nicht gewertet':
     'not counted',
   'wird gewertet':
     'being counted',
-  'Orte an':
-    'Places on',
-  'Orte aus':
-    'Places off',
   'Teams an':
     'Teams on',
   'Teams aus':
@@ -2505,8 +2450,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'The leaderboard is not reachable right now. It will be retried in a moment.',
   'Meiste Team-Eliminierungen':
     'Most team eliminations',
-  'Team-Eliminierungen aus Epics Bestenlisten: die Eliminierungen des ganzen Teams je Spieltag, für jedes Mitglied gezählt; erfasst sind je Spieltag die besten 500 Teams':
-    'Team eliminations from Epic\'s leaderboards: the whole team\'s eliminations per match day, counted for every member; each match day covers the top 500 teams',
   'Zugang im Discord anfragen':
     'Request access on Discord',
   'Drück im Discord unter Get Access auf den Knopf und füll das kurze Formular aus, oder schreib mir auf X. Ich antworte selbst, angenommen oder abgelehnt, immer mit Grund.':
@@ -2525,14 +2468,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Updates on every new feature, support tickets, VIP and manager access at the press of a button, and the community around Fortnite competitive.',
   'Discord öffnen':
     'Open Discord',
-  'Bis (optional)':
-    'Until (optional)',
   'Cup auf der Seite':
     'Cup on the site',
   'Cup suchen …':
     'Search cup …',
-  'Kein Cup verknüpft':
-    'No cup linked',
   'Noch keine Bilder oder Videos zu diesem Cup.':
     'No pictures or videos of this cup yet.',
   'Spieler auf den Bildern (optional)':
@@ -2545,14 +2484,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'YouTube, Twitch, X and TikTok play right here.',
   'Von':
     'From',
-  'Zu den Profilen':
-    'To the profiles',
   'Allgemeines Archiv':
     'General archive',
-  'Bilder eines Spielers ohne Event':
-    'Pictures of a player without an event',
-  'Für das allgemeine Archiv erst einen Spieler wählen.':
-    'Choose a player first for the general archive.',
   'Spielerarchiv':
     'Player archive',
   'Noch keine Bilder oder Videos zu diesem Spieler.':
@@ -2569,38 +2502,22 @@ const AUF_ENGLISCH: Record<string, string> = {
     'photo',
   'Video':
     'video',
-  'Die Ablage antwortet gerade nicht. Die Konten sind da, nur gerade nicht lesbar.':
-    'The storage is not responding right now. The accounts are there, just not readable at the moment.',
   'Noch einmal':
     'Try again',
   'Archiv':
     'Archive',
-  'Archiv pflegen':
-    'Manage archive',
   'Fotos':
     'photos',
   'Videos':
     'videos',
   'Einträge':
     'entries',
-  'Noch nichts im Archiv.':
-    'Nothing in the archive yet.',
   'Das Archiv ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
     'The archive is not reachable right now. Trying again in a moment.',
   'Das Archiv ist gerade nicht erreichbar.':
     'The archive is not reachable right now.',
-  'Zu diesem Event liegt noch nichts vor.':
-    'Nothing here for this event yet.',
-  'Zurück zu den Events':
-    'Back to the events',
-  'Beitrag auf X öffnen':
-    'Open post on X',
   'Video öffnen':
     'Open video',
-  'Profile in der Statistik':
-    'Profiles in the statistics',
-  'Öffentliche Seite':
-    'Public page',
   'Neues Event':
     'New event',
   'Name, z. B. FNCS Global Championship 2025':
@@ -2609,8 +2526,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Place, e.g. Lyon',
   'Ort':
     'Place',
-  'Beschreibung (optional)':
-    'Description (optional)',
   'Name und Datum sind nötig.':
     'Name and date are required.',
   'nicht angelegt':
@@ -2619,12 +2534,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'not uploaded',
   'nicht entfernt':
     'not removed',
-  'Erst ein Event anlegen.':
-    'Create an event first.',
   'Event entfernen':
     'Remove event',
-  'Spieler, die auf den nächsten Fotos und Videos zu sehen sind':
-    'Players seen on the next photos and videos',
   'Fotos hierher ziehen oder auswählen':
     'Drop photos here or choose them',
   'JPG, PNG, WebP · bis 20 MB je Bild · mehrere auf einmal':
@@ -2637,18 +2548,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Add',
   'Erkannt':
     'Detected',
-  'YouTube, Twitch und TikTok werden eingebettet, X als Link.':
-    'YouTube, Twitch and TikTok are embedded, X as a link.',
-  'Noch keine Fotos oder Videos in diesem Event.':
-    'No photos or videos in this event yet.',
-  'In ein anderes Event verschieben':
-    'Move to another event',
   'Spieler hinzufügen …':
     'Add player …',
   'Diesen Eintrag wirklich entfernen?':
     'Really remove this entry?',
-  'Dieses Event wirklich entfernen?':
-    'Really remove this event?',
   'Eine Adresse mit https:// ist nötig.':
     'An address starting with https:// is required.',
   'Wird hochgeladen':
@@ -2657,10 +2560,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Photos and videos of events and players',
   'Liste wird geladen …':
     'Loading list …',
-  'ganzes Kapitel':
-    'whole chapter',
-  'Ganzes Kapitel':
-    'Whole chapter',
   'Cup mit Preisgeld':
     'cup with prize money',
   'Cups mit Preisgeld':
@@ -2725,22 +2624,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Online cups: Epic\'s payout table per match day and region, applied to Epic\'s own leaderboard by placement; for multi-day finals the final standing across all days counts. LAN events: per player from published tables. Whatever is missing here has no table, it is not zero.',
   'Preisgeld nur, wo eine Auszahlungstabelle vorliegt':
     'Prize money only where a payout table exists',
-  'Einstellen, speichern, dann liegt es auf dem Bild.':
-    'Adjust, save, and it sits on the picture.',
-  'Szene löschen':
-    'Delete scene',
-  'Speichert von selbst':
-    'Saves by itself',
   'Einrichten':
     'Set up',
-  'Noch nicht eingerichtet':
-    'Not set up yet',
   'Gespeicherte':
     'Saved ones',
-  'Auf das Bild legen':
-    'Put on the picture',
-  'Online-Cups aus der gepflegten Preisgeldtabelle (EU) und LAN-Events aus veröffentlichten Tabellen, je Person.':
-    'Online cups from the maintained prize table (EU) and LAN events from published tables, per player.',
   'Die Overlays sind Teil des VIP-Zugangs.':
     'Overlays are part of VIP access.',
   'Ranglisten, Teamkarten, Cup-Timer und mehr — live in deinem Stream.':
@@ -2753,98 +2640,52 @@ const AUF_ENGLISCH: Record<string, string> = {
     'DM us on X',
   'Schon VIP? Anmelden':
     'Already VIP? Sign in',
-  'Links oben die drei Striche: von dort kommen Team card, Standings, Cup timer, Offspawn, Custom text und Qual line auf das Bild. Ziehen zum Verschieben, die Ecke zum Vergrößern.':
-    'Top left, the three lines: from there Team card, Standings, Cup timer, Offspawn, Custom text and Qual line come onto the picture. Drag to move, the corner to resize.',
-  'Nach vorn':
-    'Bring to front',
   'Einstellungen':
     'Settings',
   'Werbung':
     'Ad',
   'Gameplay':
     'Gameplay',
-  'Cam':
-    'Cam',
-  'Nur hier sichtbar, nicht in OBS: wo Cam, Gameplay und Werbung liegen.':
-    'Only visible here, not in OBS: where cam, gameplay and ads sit.',
   'Platzhalter':
     'Placeholders',
-  'Noch keins gespeichert.':
-    'None saved yet.',
-  'Neues anlegen':
-    'Create new',
-  'Neue Szene':
-    'New scene',
-  'Meine Szenen':
-    'My scenes',
   'Elemente':
     'elements',
   'OBS-Adresse':
     'OBS address',
-  'Konnte nicht speichern':
-    'Could not save',
-  'Meine Szene':
-    'My scene',
   'Name der Szene':
     'Scene name',
   'Studio':
     'Studio',
-  'Ohne Aufstellung: die Plätze stehen nur in der tiefen Auswertung, und die läuft nur dort, wo der Leser liegt (eigener Rechner, Laufrechner), nicht auf der Webseite.':
-    'No lineup: placements only come from the deep parse, which runs only where the reader is installed (your machine, the runner), not on the website.',
-  'alle 10 Sekunden':
-    'every 10 seconds',
-  'noch kein Protokoll':
-    'no log yet',
   'neu ausgewertet':
     'newly parsed',
   'Fenster':
     'windows',
   'laufende Cups':
     'live cups',
-  'Durchgänge':
-    'passes',
   'her':
     'ago',
-  'letzter Durchgang':
-    'last pass',
-  'Sammler wartet':
-    'Collector idle',
-  'Sammler läuft':
-    'Collector running',
   'Ganzes Jahr':
     'Whole year',
   'Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.':
     'Counted: finals in all regions plus LAN (scene source and our own replays). Below, separately: what was added in the opens.',
-  'Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.':
-    'Counted by seasons (a chapter starts in late November of the previous year): 2024 = Chapter 5 Season 3 and 4, 2025 = Chapter 6, 2026 = Chapter 7. The archive has no dates for older match days.',
-  'Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.':
-    'Online cups: derived from placement or points and the maintained prize table (EU only). LAN events: per player from published tables (Esports Charts, Esports Earnings). Anything missing here is not recorded, not zero.',
   'Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.':
     'No prize money is recorded for this player. Earnings exist only where a prize table is maintained (EU) or a LAN result is recorded.',
   'in':
     'in',
   'Alle Zeit':
     'All time',
-  'Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.':
-    'Per player from our own replays and the finals of the scene source, home region only. Next to the number: Finals · Opens.',
   'Opens':
     'Opens',
   'Finals':
     'Finals',
   'Spieltagen':
     'match days',
-  'Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist':
-    'Earnings only where a prize money table is maintained',
-  'Gezählt nach Saisons: Chapter 7 Season 1 bis 4 (die erste Saison beginnt Ende November des Vorjahres). Das Archiv kennt zu älteren Spieltagen kein Datum.':
-    'Counted by seasons: Chapter 7 Season 1 to 4 (the first season starts in late November of the previous year). The archive has no dates for older match days.',
   'in diesem Jahr':
     'this year',
   'Meistes Preisgeld':
     'Most earnings',
   'Verdienst':
     'Earnings',
-  'Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person':
-    'Derived from placement or points and the maintained prize money table, per player',
   'Klicken zum Umschalten':
     'Click to switch',
   'Nur für dich sichtbar':
@@ -2859,26 +2700,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Several accounts were just created from this connection. Please try again later.',
   'Schaden und Treffer kommen aus den vollen Replays jedes Matches, Material aus den Finals.':
     'Damage and hits come from the full replay of every match, materials from the finals.',
-  'Twitch-Name eingeben, Enter — kommt in die Multiview':
-    'type a Twitch name, press Enter — it joins the multiview',
   'Wird gesucht …':
     'Searching …',
-  'Kein Kanal gefunden':
-    'No channel found',
-  'Enter nimmt den Namen trotzdem':
-    'Enter adds the name anyway',
   'Follower':
     'followers',
   'offline':
     'offline',
   'Keiner':
     'None',
-  'Unscharf in OBS? Zieh die Quelle in der Szene nie größer, als sie eingetragen ist — stell lieber hier die Schriftgröße höher.':
-    'Blurry in OBS? Never scale the source up in the scene beyond the size it is entered at — raise the font size here instead.',
-  'Spieler suchen — für Name und Bild':
-    'search a player — for name and photo',
-  'Bild entfernen':
-    'remove photo',
   'Farbe des Balkens':
     'Bar colour',
   'Orange':
@@ -2887,8 +2716,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Offspawn',
   'Zwei Teams und ein Stand, von Hand gepflegt':
     'Two teams and a score, kept by hand',
-  'Zwei Teams, ein Stand von Hand. Epic weiß davon nichts — was hier steht, steht im Stream.':
-    'Two teams, a score by hand. Epic knows nothing about it; what stands here stands on stream.',
   'Der Stand':
     'The score',
   'Teamname':
@@ -2915,16 +2742,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Switch account',
   'Sehen, was ein VIP oder Manager sieht':
     'See what a VIP or manager sees',
-  'In einen Zugang wechseln':
-    'Switch into an access',
-  'zurück zu den Admin-Werkzeugen':
-    'back to the admin tools',
-  'Ein Klick, und du siehst, was dieser Zugang sieht — seine Overlays, seine Rechte. Zurück geht es nur über eine neue Anmeldung; ein Cookie, das deine Adminrechte heimlich mitführt, wäre ein zweiter Schlüssel zur Verwaltung.':
-    'One click and you see what this access sees: its overlays, its rights. Getting back needs a fresh sign-in; a cookie quietly carrying your admin rights along would be a second key to the administration.',
   'Namen suchen':
     'search names',
-  'Nur für Admins.':
-    'Admins only.',
   'stillgelegt':
     'suspended',
   'Wer mitspielen darf':
@@ -2933,18 +2752,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Straight from Epic tournament data for exactly this match day; none of it is guessed.',
   'Zu diesem Spieltag nennt Epic keine Bedingungen.':
     'Epic names no requirements for this match day.',
-  'Cup — nach Datum geordnet':
-    'Cup — sorted by date',
   'Untereinander':
     'Stacked',
   'Eine Zeile':
     'One line',
   'Bearbeiten':
     'Edit',
-  'Als Manager wählst du den Spieltag, um den es gerade geht: was läuft, was heute schon lief, und was gleich anfängt — in Europa ab 15 Minuten vorher, in den anderen Regionen ab zwei Stunden vorher.':
-    'As a manager you pick the match day that is actually on: what is running, what ran earlier today, and what is about to start — in Europe from 15 minutes before, in the other regions from two hours before.',
-  'Gerade läuft kein Spieltag und keiner fängt gleich an. Sobald einer ansteht, erscheint er hier von selbst.':
-    'No match day is running and none is about to start. As soon as one comes up it appears here on its own.',
   'Neu':
     'New',
   'Wie deckend der Grund ist':
@@ -2955,52 +2768,36 @@ const AUF_ENGLISCH: Record<string, string> = {
     'The top places of the running match day, as an overlay for your stream.',
   'Erst anlegen — dann steht hier die Vorschau, genau so wie sie im Stream aussieht.':
     'Create it first, then the preview appears here exactly as it looks on stream.',
-  'Dieser Spieltag hat schon angefangen — deshalb bleibt die Vorschau leer. Genau so verhält sich der Timer auch im Stream: er verschwindet, sobald der Cup läuft.':
-    'This match day has already started, which is why the preview stays empty. The timer behaves the same way on stream: it disappears once the cup is running.',
   'Steht als Rangschwelle in Epics Auszahlungstabelle — bei einem Divisional-Finale etwa Top 50.':
     'It is the rank threshold in Epics payout table, for a divisional final about top 50.',
   'Speichern und in OBS einbauen':
     'Save and add it in OBS',
   'Name, zum Beispiel „Peterbot & Pxxo“':
     'Name, for example "Peterbot & Pxxo"',
-  'Gespeichert werden Duo und Aussehen, nicht der Spieltag. Die Adresse zeigt immer auf den laufenden Spieltag deiner Region, also steht sie beim nächsten Turnier noch richtig.':
-    'What gets saved is the duo and the look, not the match day. The address always points at the running match day of your region, so it still works at the next tournament.',
   'Gespeichert als':
     'Saved as',
-  'du findest es oben unter „Deine Overlays“.':
-    'you find it above under "Your overlays".',
   'Die Adresse für OBS':
     'The address for OBS',
   'In OBS unten bei „Quellen“ auf + drücken.':
     'In OBS, press + under "Sources".',
   '„Browser“ wählen und einen Namen vergeben.':
     'Choose "Browser" and give it a name.',
-  'Die Adresse oben in das Feld „URL“ einfügen, Breite und Höhe nach Geschmack, OK.':
-    'Paste the address above into the "URL" field, set width and height to taste, OK.',
-  'Diese Adresse bleibt gültig. Änderst du hier später etwas und speicherst, ist es im Stream nach wenigen Sekunden zu sehen — die Browser-Quelle musst du nicht anfassen.':
-    'This address stays valid. If you change something here later and save, it shows up on stream within seconds; you do not have to touch the browser source.',
   'mehr anzeigen':
     'show more',
   'weniger':
     'show less',
   'Fertig':
     'Done',
-  'Gerade läuft kein Cup. Mit „mehr anzeigen“ siehst du auch die übrigen Regionen, die kommenden Tage sowie Ranked, Reload, Mobile und Arenas.':
-    'No cup is running right now. With "show more" you also see the other regions, the coming days, and Ranked, Reload, Mobile and Arenas.',
   'Cup timer':
     'Cup timer',
   'Countdown bis zum Start des Spieltags':
     'Countdown to the start of the match day',
-  'Ein Countdown bis zum Start des Spieltags. Sobald der Cup läuft, verschwindet er von selbst.':
-    'A countdown to the start of the match day. As soon as the cup is live it disappears on its own.',
   'Worauf gewartet wird':
     'What it waits for',
   'Erst sichtbar ab':
     'Only visible from',
   'Cup-Name darunter':
     'Cup name below',
-  'Null Stunden heißt: immer sichtbar. Sonst bleibt der Timer verborgen, bis es so weit ist — ein Countdown über zwei Tage ist keine Information, sondern eine Uhr im Bild.':
-    'Zero hours means always visible. Otherwise the timer stays hidden until it is close: a countdown over two days is not information, it is a clock on screen.',
   'Start':
     'Start',
   'läuft schon oder ist vorbei':
@@ -3017,40 +2814,18 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Which cup?',
   'Welche Art?':
     'Which kind?',
-  'andere Cups anzeigen':
-    'show other cups',
-  'nur die üblichen':
-    'only the usual ones',
   'sonstiger Cup':
     'other cup',
   'zurück zu deinen Overlays':
     'back to your overlays',
-  'In diesen Tagen läuft kein passender Cup. Mit „andere Cups anzeigen“ siehst du auch Ranked, Reload, Mobile und Arenas.':
-    'No matching cup in these days. With "show other cups" you also see Ranked, Reload, Mobile and Arenas.',
   'Zwei Spieler nebeneinander, mit Foto und Werten':
     'Two players side by side, with photo and numbers',
   'Die vordersten Plätze des laufenden Spieltags':
     'The top places of the running day',
   'Wie viele Punkte es zum Weiterkommen braucht':
     'How many points it takes to get through',
-  'Wer sich damit anmelden darf':
-    'Who may sign in with it',
-  'Namen, durch Komma oder Zeile getrennt':
-    'names, separated by comma or line',
-  'Beim Anmelden gibt jeder nach Name und Schlüssel noch seinen eigenen Namen an. Steht er nicht hier, kommt er nicht hinein — auch mit richtigem Schlüssel nicht. So sperrst du einen Einzelnen aus, ohne den anderen den Schlüssel zu wechseln.':
-    'When signing in, each person gives their own name after the access name and key. If it is not listed here, they do not get in — not even with the right key. That is how you lock out one person without changing the key for everyone else.',
   'Namen':
     'Names',
-  'Ohne Namen kommt niemand hinein.':
-    'Without names nobody gets in.',
-  'Schlüssel neu schreiben':
-    'Rewrite keys',
-  'Räumt jeden Schlüsselkanal leer und schreibt den gültigen Schlüssel neu hinein — vom Bot, mit Knopf darunter. Die Schlüssel selbst bleiben unverändert, niemand wird ausgesperrt.':
-    'Clears every key channel and writes the valid key into it again — from the bot, with the button below. The keys themselves stay unchanged, nobody is locked out.',
-  'Dieser Name ist für diesen Zugang nicht eingetragen.':
-    'That name is not registered for this access.',
-  'Mehrere Leute teilen ihn sich. Gib den Namen an, unter dem du eingetragen bist — er steht danach neben jedem Overlay, das du anlegst oder änderst.':
-    'Several people share it. Give the name you are registered under — it then shows next to every overlay you create or change.',
   'Schlüssel neu geschrieben':
     'Key rewritten',
   'Schlüssel blieb aus':
@@ -3065,45 +2840,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Roles for the guides found',
   'VIP-Manager':
     'VIP manager',
-  'Der Zugang heißt dann':
-    'The access will then be called',
-  'Ein Zugang, den sich mehrere Leute teilen: sie betreuen damit die Overlays eines Streamers und sonst nichts. Der Name ergibt sich aus dem Streamer, der Schlüssel landet in Discord unter „Manager Access Keys“. Beim Anmelden gibt jeder zusätzlich seinen eigenen Namen an — so steht neben jedem Overlay, wer es angelegt hat.':
-    'An access several people share: they look after one streamer’s overlays and nothing else. The name follows from the streamer, the key lands in Discord under “Manager Access Keys”. When signing in, each person also gives their own name — so every overlay says who created it.',
-  'Streamer, dessen Overlays betreut werden':
-    'streamer whose overlays are looked after',
   'Dieser Zugang betreut die Overlays von':
     'This access looks after the overlays of',
-  'Mehrere Leute teilen ihn sich — sag kurz, wer du bist, damit neben jedem Overlay steht, wer es angelegt oder geändert hat.':
-    'Several people share it — say who you are, so every overlay shows who created or changed it.',
   'Dein Name':
     'Your name',
-  'Zwei bis vierundzwanzig Zeichen, keine Sonderzeichen.':
-    'Two to twenty-four characters, no special characters.',
-  'Cup — nach Wichtigkeit geordnet':
-    'Cup — sorted by importance',
-  'mehr — auch Ranked, Reload, Mobile und Arenas':
-    'more — including Ranked, Reload, Mobile and Arenas',
-  'In diesen Tagen läuft kein passender Cup. Die Auswahl füllt sich von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür nicht anfassen.':
-    'No matching cup in these days. The list fills itself as soon as one comes up — you do not have to touch the overlay in OBS for that.',
-  'Discord einrichten':
-    'Set up Discord',
-  'Legt die Kategorien, Kanäle und Berechtigungen an und stellt die Aushänge neu. Vorhandene Nachrichten im Willkommenskanal werden dabei entfernt.':
-    'Creates the categories, channels and permissions and puts the notices '
-    + 'up again. Existing messages in the welcome channel are removed in the '
-    + 'process.',
-  'Der Aufbau ließ sich nicht ausführen.':
-    'The setup could not be run.',
-  'wird eingerichtet …':
-    'setting up …',
   'Server einrichten':
     'Set up server',
-  'Legt die Support-Kategorie an, schiebt den vorhandenen Support-Kanal hinein und stellt drei schreibgeschützte Aushänge auf: Willkommen, VIP-Leitfaden und Manager-Leitfaden — auf Englisch, mit einem Knopf für die deutsche Fassung. Die Schlüsselkanäle bleiben unberührt.':
-    'Creates the Support category, moves the existing support channel into '
-    + 'it and puts up three read-only notices: welcome, VIP guide and manager '
-    + 'guide — in English, with a button for the German version. The key '
-    + 'channels are left untouched.',
-  'Nichts zu tun.':
-    'Nothing to do.',
   'Kategorie umbenannt':
     'Category renamed',
   'Kategorie angelegt':
@@ -3128,112 +2870,40 @@ const AUF_ENGLISCH: Record<string, string> = {
     'No bot token stored.',
   'Die Kanalliste kam nicht.':
     'The channel list did not arrive.',
-  'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch noch für den Schlüsselwechsel. Sie erscheinen, sobald der Schlüssel hinterlegt und die Interactions-URL eingetragen ist.':
-    'Without DISCORD_PUBLIC_KEY there are no buttons — neither for German '
-    + 'nor for changing the key. They appear as soon as the key is stored and '
-    + 'the interactions URL is entered.',
-  'In diesen Zugang wechseln':
-    'Switch into this access',
-  'Zum Zurückkehren musst du dich neu anmelden.':
-    'To get back you will have to sign in again.',
-  'Wechsel nicht möglich':
-    'Cannot switch',
-  'Manager für':
-    'Manager for',
-  'hineinsehen':
-    'view as',
   'In die Betreiberkennung lässt sich nicht wechseln.':
     'You cannot switch into the owner account.',
   'Für diesen Namen gibt es keinen Zugang.':
     'There is no access with that name.',
   'Dieser Zugang ist stillgelegt.':
     'This access is suspended.',
-  'Verwaltet die Overlays von':
-    'Manages the overlays of',
-  'leer lassen für einen normalen VIP-Zugang':
-    'leave empty for a normal VIP access',
-  'Steht hier ein Name, wird daraus ein Manager-Zugang: mehrere Leute teilen ihn sich, sehen und bearbeiten die Overlays dieses Streamers und sonst nichts. Sein Schlüssel landet in Discord unter „Manager Access Keys“, in einem Kanal je Streamer.':
-    'With a name here this becomes a manager access: several people share '
-    + 'it, see and edit that streamer’s overlays and nothing else. Its key '
-    + 'goes to Discord under “Manager Access Keys”, one channel per streamer.',
   'Schaden an Bauten':
     'Damage To Structures',
-  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor. Deine eigenen Werte bekommst du trotzdem: einmal meine-werte-holen.bat starten — dann liest das Werkzeug die Replays, die Fortnite auf deinem Rechner ablegt.':
-    'Epic does not publish damage, accuracy or materials, and the scene '
-    + 'source has nothing for this cup either. You can still get your own: '
-    + 'run meine-werte-holen.bat once — the tool then reads the replays '
-    + 'Fortnite stores on your PC.',
   'Rang': 'Rank',
   'geladen': 'loaded',
   'Kennzahl': 'Stat',
-  'Zu diesem Spieltag veröffentlicht Epic keine Punktetabelle — ohne sie lässt sich der Verlauf nicht aufteilen.': 'Epic publishes no scoring table for this match day — without it the points cannot be split up.',
-  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt — alles darüber steht trotzdem, es kommt aus Epics Bestenliste.': 'Epic does not publish damage, accuracy or materials. They come from a scene source that appears one to two days later and does not cover every cup — everything above it is there regardless, from Epic’s leaderboard.',
-  'Deine Werte': 'Your Stats',
   'Konto auswählen': 'Select an account',
-  'kein Mitspieler': 'no team-mate',
   'Schaden an Spielern': 'Damage To Players',
-  'Bauteile gesetzt': 'Builds Placed',
-  'Lebenszeit je Runde': 'Avg Time Alive',
   'Zeit im Sturm': 'Time in Storm',
-  'Zu diesem Spieltag liegen keine Einzelwerte vor. Schaden, Trefferquote und Material veröffentlicht Epic nicht — sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt.': 'No individual stats for this match day. Epic does not publish damage, accuracy or materials — they come from a scene source that appears one to two days later and does not cover every cup.',
-  'Wähle oben dein Konto — dann stehen hier deine Werte und die deines Mitspielers nebeneinander.': 'Pick your account above — then your stats and your team-mate’s appear side by side.',
-  'Diese Einzelwerte veröffentlicht Epic nicht. Sie stammen aus der Szene-Quelle, die dieses Werkzeug spiegelt.': 'Epic does not publish these individual stats. They come from the scene source this tool mirrors.',
   'aus dem Replay': 'from the replay',
-  'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.':
-    'places — Epic delivered no record for them, even though the whole '
-    + 'field is loaded. The match ID above is complete.',
   'von dieser Lobby im Leaderboard': 'of this lobby in the leaderboard',
   'Weitere Matches werden geladen …': 'Loading more matches …',
-  'Hier stehen nur die Teams dieser Lobby, die im Tagesranking unter den ersten zehntausend liegen — weiter hinten platzierte gibt Epic nicht heraus. Die Match-ID oben ist vollständig.':
-    'Only the teams of this lobby that rank inside the day’s first ten '
-    + 'thousand places are listed — Epic does not hand out those placed '
-    + 'further down. The match ID above is complete.',
   'Wird durchsucht …': 'Searching …',
   'Preispool': 'Prize Pool',
   'Sieger oder Spieler suchen …': 'Search winner or player …',
   'lädt weitere …': 'loading more …',
   'Kein Treffer für': 'No match for',
   'die Liste wird noch tiefer geladen …': 'the list is still loading further down …',
-  'In dieser Saison gibt es noch keine weiteren Spieltage — die Quelle liefert sie ein bis zwei Tage nach jedem Cup.':
-    'No further match days in this season yet — the source publishes them '
-    + 'one to two days after each cup.',
   'Der Name braucht drei bis vierundzwanzig Zeichen.':
     'The name needs three to twenty-four characters.',
   'Im Namen darf kein Leerzeichen stehen.': 'The name cannot contain a space.',
-  'Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich und Unterstrich. Umlaute gehen, Sonderzeichen wie @ oder / nicht.':
-    'Letters, digits, dot, hyphen and underscore are allowed. Accents and '
-    + 'umlauts are fine; symbols like @ or / are not.',
-  'Discord: kein Bot-Token auf diesem Rechner hinterlegt.':
-    'Discord: no bot token configured on this machine.',
-  'Discord: der Kanal ließ sich nicht finden oder anlegen.':
-    'Discord: the channel could not be found or created.',
-  'Discord hat die Nachricht abgelehnt — meist fehlt dem Bot im Kanal das Recht, dort zu schreiben.':
-    'Discord rejected the message — usually the bot lacks permission to '
-    + 'write in that channel.',
   'Ändern': 'Change',
   'Neuen Schlüssel setzen': 'Set new key',
   'freiwillig — eigener Schlüssel': 'optional — your own key',
-  'Der alte Schlüssel gilt danach nicht mehr. Leer lassen für einen zufälligen — oder einen eigenen eintippen, dann gilt er genau so, mit Groß- und Kleinschreibung.':
-    'The old key stops working afterwards. Leave empty for a random one — '
-    + 'or type your own, which is then used exactly as written, upper and lower '
-    + 'case included.',
   'Neuer Schlüssel — er liegt auch in deinem Discord-Kanal.':
     'New key — it is in your Discord channel too.',
   'Neuer Schlüssel gesetzt.': 'New key set.',
-  'Anfang des Schlüssels': 'Start of the key',
-  'Ganzer Schlüssel von Hand': 'Whole key by hand',
   '— freiwillig': '— optional',
-  'gilt genau so, wie du ihn tippst': 'used exactly as you type it',
-  'Beim Anmelden wird Zeichen für Zeichen verglichen — Groß- und Kleinschreibung zählt also mit.':
-    'Signing in compares character by character, so upper and lower case matter.',
-  'Darf den Schlüssel selbst wechseln': 'May change their own key',
-  'In den Discord-Kanal des VIPs gelegt — der alte Schlüssel dort ist weg.':
-    'Posted to the VIP’s Discord channel — the old key there is gone.',
-  'Dieses Konto ist gesperrt. Eine neue Anmeldung mit derselben Adresse ist nicht möglich — wende dich an den Betreiber.':
-    'This account is blocked. Signing up again with the same address is not '
-    + 'possible — please contact the operator.',
   'Ordner': 'Folders',
-  'Ordner ausblenden': 'Hide folders',
   'Menü': 'Menu',
   'erstellt': 'created',
 
@@ -4926,19 +4596,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Punkte, die ein Spieler allein im Team holt: Platzierungen und Eliminierungen, nachdem sein Mitspieler ausgeschieden ist. Gezählt aus den Replays.': 'Points a player earns on their own: placements and eliminations after their teammate is out. Counted from the replays.',
 
   // Admin Tools im Dashboard.
-  'Admin Tools': 'Admin Tools',
   'Deine Rolle': 'Your role',
   'Werkzeuge': 'Tools',
   'nicht freigegeben': 'not granted',
   'zur Übersicht der Verwaltung': 'to the admin overview',
-  ['Du darfst alles — jedes Werkzeug hier ist offen, und du brauchst dafür '
-    + 'keinen VIP-Schlüssel.']:
-    'You may do everything — every tool here is open, and you do not need a '
-    + 'VIP key for it.',
-  ['Du darfst genau die Werkzeuge, die dir freigegeben wurden. Die anderen '
-    + 'stehen grau da, damit du siehst, was es sonst noch gibt.']:
-    'You may use exactly the tools you were granted. The others stay greyed '
-    + 'out so you can see what else exists.',
   'Kontoverwaltung': 'Account management',
   'Rollen vergeben, VIP befristen, Konten sperren':
     'Assign roles, time-limit VIP, block accounts',
@@ -5098,38 +4759,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'total in the leaderboard.',
 
   // Beitragsseite des Admins, nach dem Umbau in drei Schritte.
-  'Was soll es werden?': 'What should it be?',
-  'Cup & Spieltag': 'Cup & match day',
-  'Ein roter Punkt heißt: läuft gerade.': 'A red dot means: running right now.',
-  'Ein Name, eine Kennzahl oder eine Platzzahl — Enter drückt ab.':
-    'A name, a stat or a number of places — Enter fires it.',
-  'ältere Spieltage anzeigen': 'show older match days',
-  'Für diesen Spieltag liegen keine Einzelwerte vor':
-    'No per-player values exist for this match day',
-  'Spitzenwert je Kennzahl': 'Top value per stat',
   'Alle Werte eines Spielers': 'Every value of one player',
-  'Einzelwerte von': 'Per-player values from',
-  'Kennzahlen im Beitrag': 'Stats in the post',
-  'weitere Kennzahlen': 'more stats',
-  'filtern …': 'filter …',
   'keine': 'none',
-  'Das breite Bild hinter dem Logo auf der Seite der Organisation.': 'The wide image behind the logo on the organization page.',
-  'kein Banner': 'no banner',
-  'Banner hochladen': 'Upload banner',
-  'Banner von X übernehmen': 'Take banner from X',
-  'Banner entfernen': 'Remove banner',
-  'Erst das X-Konto eintragen': 'Enter the X account first',
-  'Content Creator ohne Epic-Konto: Namen tippen …': 'Content creator without an Epic account: type a name …',
   'Kein Spieler gefunden.': 'No player found.',
   'Beide Tage zusammen': 'Both days combined',
-  'Bilderarchiv': 'Player Pictures',
   'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
   'Nochmal versuchen': 'Try again',
   'Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.': 'Damage, hits and headshots counted from the server replays (without hits on knocked players); compared with Epic’s own figures about 6% lower on average.',
   'Kumulativ': 'Cumulative',
-  'Gespielt am': 'Played at',
-  'An Elims beteiligt': 'Involved in elims',
-  'älter als 31 Tage, nicht mehr holbar': 'older than 31 days, no longer available',
   'Zonen & Games': 'Zones & Games',
   'Zonen-Bild bauen, Kills und Zonen je Game': 'Build the zone image, kills and zones per game',
   'Karriere-Bestwerte': 'Career Best',
@@ -5177,72 +4814,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Epic gibt je Spieltag nur die ersten 10.000 Plätze heraus, gesucht wird in diesen.': 'Epic only releases the first 10,000 places per match day – the search covers these.',
 
   // ------------------------------------------------- Admin-Werkzeuge (Nachtrag)
-  "Das Konto sieht danach die Seite Team und pflegt den Kader dieser Organisation.":
-    "The account will then see the Team page and manage this organisation's roster.",
   "Kartenbild wählen":
     "Choose map image",
-  "Auf der Karte ziehen, um ein Rechteck zu zeichnen.":
-    "Drag on the map to draw a rectangle.",
-  "Keine Form gewählt":
-    "No shape selected",
-  "Von der Form nehmen":
-    "Remove from shape",
-  "Eine Zeile pro Team, die Namen mit & getrennt. Jeder Name wird im Archiv gesucht: gibt es genau einen Treffer, kommen Flagge und Konto dazu.":
-    "One line per team, names separated by &. Each name is looked up in the archive: if there is exactly one match, flag and account are added.",
-  "Alle löschen":
-    "Delete all",
-  "Noch keine Teams.":
-    "No teams yet.",
-  "Team löschen":
-    "Delete team",
-  "Platz, Punkte, Victory Royales und Eliminierungen je Team - alles von Hand. Teams legst du im Reiter „Teams“ an.":
-    "Place, points, Victory Royales and eliminations per team - all entered by hand. Teams are created in the “Teams” tab.",
-  "Plätze nach Punkten vergeben":
-    "Assign places by points",
-  "Plätze löschen":
-    "Clear places",
-  "Noch keine Teams - lege sie zuerst im Reiter „Teams“ an.":
-    "No teams yet - create them first in the “Teams” tab.",
-  "Bild der Kachel (Adresse)":
-    "Tile image (URL)",
-  "Epics Bestenliste und Teams zeigen, solange hier keine eigenen Teams stehen.":
-    "Show Epic's leaderboard and teams as long as no custom teams are entered here.",
-  "Sobald du das erste eigene Team anlegst, gilt nur noch, was du eingetragen hast.":
-    "As soon as you add the first custom team, only what you entered counts.",
-  "Event löschen":
-    "Delete event",
-  "Diese Karte ist gerade versteckt.":
-    "This map is currently hidden.",
-  "Zur öffentlichen Übersicht":
-    "To the public overview",
-  "Ein Event anlegen. Danach öffnest du es mit „Bearbeiten“ und zeichnest Formen, Teams und Leaderboard ein.":
-    "Create an event. Then open it with “Edit” and draw in shapes, teams and the leaderboard.",
   "Saison wählen":
     "Choose season",
-  "Kartenbild für alle hier setzen":
-    "Set map image for all shown here",
-  "Eine Insel auswählen - sie gilt danach für alle angezeigten Karten. Einzelne änderst du später im Editor.":
-    "Pick an island - it then applies to all maps shown. You can change individual ones later in the editor.",
-  "Hier steht noch nichts. Mit „Event anlegen“ kommt die erste Karte dazu.":
-    "Nothing here yet. “Create event” adds the first map.",
-  "Zu diesem Spieltag gibt es keine Karte.":
-    "There is no map for this match day.",
-  "Kopieren hat nicht geklappt - bitte herunterladen.":
-    "Copying failed - please download instead.",
-  "Das Plakat lässt sich gerade nicht zeichnen.":
-    "The poster can't be drawn right now.",
-  "Kopieren hat nicht geklappt.":
-    "Copying failed.",
-  "Name tippen — ohne Eingabe der Erste":
-    "Type a name — leave empty for first place",
-  "Jedes Game der Finals und LANs aus Epics Server-Replays: die Zonen, jede Elim und jeder Knock mit Ort und Zeit, die Teams. Der Server liest neue Games stündlich aus und bewahrt sie auf, auch wenn Epic das Replay nach 31 Tagen löscht.":
-    "Every game of the finals and LANs from Epic's server replays: the zones, every elim and every knock with place and time, the teams. The server reads new games every hour and keeps them, even after Epic deletes the replay after 31 days.",
-  "Noch keine Games ausgewertet. Der stündliche Lauf liest die Replays der Finals und LANs der letzten 31 Tage nach und nach aus.":
-    "No games analysed yet. The hourly run works through the replays of the finals and LANs from the last 31 days.",
   "Zone mit Radius":
     "Zone with radius",
-  "Weiße Ringe: die Zonen des Games, je später desto kräftiger. ✖ Elim, ● Knock - in der Farbe des Teams, das ihn geholt hat (Top 8 farbig). Zeigen mit der Maus nennt Zeit, Täter, Opfer und Abstand.":
-    "White rings: the zones of the game, stronger the later they are. ✖ elim, ● knock - in the colour of the team that got it (top 8 in colour). Hovering shows time, attacker, victim and distance.",
   // Turnierkarten und Spieltag (Nachtrag)
   "aus deinem eigenen Replay": "from your own replay",
   "Diese Karte bearbeiten": "Edit this map",
@@ -5389,6 +4966,18 @@ const AUF_DEUTSCH: Record<string, string> = {
 export function uebersetze(text: string, sprache: Sprache): string {
   if (!text) return text;
   return (sprache === 'en' ? AUF_ENGLISCH[text] : AUF_DEUTSCH[text]) ?? text;
+}
+
+/**
+ * Weitere englische Texte eintragen (die Admin-Tabelle, siehe spracheAdmin.ts).
+ *
+ * Wird beim Laden des Admin-Rahmens aufgerufen, vor dem ersten Zeichnen.
+ * Vorhandene Eintraege werden nicht ueberschrieben.
+ */
+export function ergaenzeEnglisch(mehr: Record<string, string>): void {
+  for (const k of Object.keys(mehr)) {
+    if (!(k in AUF_ENGLISCH)) AUF_ENGLISCH[k] = mehr[k];
+  }
 }
 
 /** Wie viele Texte die Tabelle kennt - fuer eine schnelle Kontrolle. */

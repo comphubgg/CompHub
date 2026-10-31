@@ -19,7 +19,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Cup-Statistik „Most Time Alive“ ist die Summe aller Spiele** - belohnt mehr Spiele statt längeres Überleben. Kachel „Ø Lebenszeit je Spiel“ (avgTimeAlive) dazu oder umbenennen.
 - [ ] **Profilantwort: timeInStorm/timeAlive ungerundet (125298.70997…)** - beim Zusammenrechnen runden.
 - [ ] **Ungenutzte Bausteine entfernen** (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
-- [ ] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (siehe unten) - als Nächstes, sprache.ts ist jetzt frei.
+- [x] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (chef-46; 215 Texte, der Rest wird auch öffentlich genutzt)
 
 ## Neu entdeckt (Runde 2, 31.10.2026)
 
@@ -192,7 +192,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Welche Dateien am Release liegen, steht an fünf Stellen einzeln: lib/ablageGithub.ts:60 (AM_RELEASE), :107 (NUR_RELEASE), :136 (ZUERST), scripts/ablage-github.mjs:150 (AM_RELEASE) und scripts/daten-sync.mjs:75 (NUR_RELEASE), dazu scripts/supabase-nachholen.mjs:43. Sie laufen schon auseinander: Das Skript kennt 'clutch-roh/', die Seite nicht. daten-sync.mjs hat '/^_/', die Seite nicht. Fehlt ein Muster in der Liste der Seite, sucht sie die Datei in Supabase, wo sie nie liegt.
   - Vorschlag: Die Muster in eine gemeinsame Datei lib/releaseListen.mjs legen, so wie es lib/releaseTags.mjs für die Release-Namen schon vormacht. Seite und Skripte importieren nur noch von dort.
   - Dateien: lib/ablageGithub.ts, scripts/ablage-github.mjs, scripts/daten-sync.mjs, scripts/supabase-nachholen.mjs, lib/releaseTags.mjs
-- [ ] **Admin-Texte nicht mehr an jeden Besucher schicken** _(Bereich: Technik und Tempo · Wirkung 2/5 · Aufwand mittel · Risiko niedrig)_
+- [x] **Admin-Texte nicht mehr an jeden Besucher schicken** (chef-46) _(Bereich: Technik und Tempo · Wirkung 2/5 · Aufwand mittel · Risiko niedrig)_
   - Problem: Die Übersetzungstabelle app/lib/sprache.ts (5299 Zeilen, 340 KB Quelltext) steckt über SprachProvider (app/components/SprachProvider.tsx:22) in jedem Seitenaufruf. Gemessen ist das Paket 1ys0v-5uj-y7y.js 304.091 Byte groß, übertragen 106.477 Byte, und damit das größte Paket jeder Seite. Allein der Abschnitt 'Admin' (Zeilen 2192-3234, rund 1040 Zeilen) betrifft nur den Betreiber, wird aber an alle Besucher ausgeliefert.
   - Vorschlag: Die Tabelle in einen allgemeinen Teil und einen Admin-Teil aufteilen. Der Admin-Teil wird nur unter /admin geladen, z. B. als Ergänzung im Admin-Layout. Die Funktion uebersetze() und alle t('...')-Aufrufe bleiben gleich. Beim Werkzeug uebersetzer.cjs an die bekannte Dubletten-Falle denken und danach mit UMFANG zählen, ob keine Einträge verloren gingen.
   - Dateien: app/lib/sprache.ts, app/components/SprachProvider.tsx, app/admin/layout.tsx

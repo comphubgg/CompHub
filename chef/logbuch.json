@@ -846,5 +846,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-46",
+    "datum": "2026-10-31T19:51:48Z",
+    "titel": "Admin-Übersetzungen nur noch im Admin laden",
+    "bereich": "Tempo",
+    "warum": "Die englischen Texte, die nur du im Admin-Bereich siehst, steckten im Sprachpaket jeder Seite. Jeder Besucher lud sie mit, obwohl er sie nie sieht.",
+    "was": "215 reine Admin-Texte stehen jetzt in einem eigenen Paket und werden nur unter /admin geladen. Für Besucher ist jede Seite rund 28 KB kleiner (übertragen etwa 8–10 KB). Geprüft: Alle 3.905 Texte ergeben im Admin genau dieselbe englische Fassung wie vorher. Texte, die auch auf öffentlichen Seiten vorkommen, sind im allgemeinen Paket geblieben.",
+    "ansehen": [
+      "/",
+      "/admin"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
