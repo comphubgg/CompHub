@@ -291,8 +291,9 @@
     "notiz": "",
     "zeit": "2026-10-31T21:14:28.388Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "fehler",
+      "text": "GitHub hat die Übernahme abgelehnt: Command failed: git -c credential.helper= -c http.extraheader=Authorization: Basic eC1hY2Nlc3MtdG9rZW46Z2hwX0h6Mlo2bEtCSTF6SVFsekZ4R2NZZkJkRnZMTnBwVzRjTkhyMQ== ",
+      "zeit": "2026-10-31T21:17:53.861Z"
     }
   },
   "chef-75": {
