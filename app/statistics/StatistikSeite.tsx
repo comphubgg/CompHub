@@ -2323,7 +2323,7 @@ export default function StatistikSeite() {
   const [vglArt, setVglArt] = useState('Alle');
   /** Der Spieler unter der Maus - leuchtet in allen Ranglisten eines Cups auf. */
   const [markiert, setMarkiert] = useState<string | null>(null);
-  /** Solo (Profil gegen Profil) oder Duo gegen Duo - siehe KopfAnKopf. */
+  /** Solo (Profil gegen Profil) oder Duo gegen Duo. */
   const [vglModus, setVglModus] = useState<'solo' | 'duo'>('solo');
   const [vglWieViele, setVglWieViele] = useState<number>(5);
   /** Merker, wenn ein Gewaehlter in der Saison gar nicht angetreten ist. */

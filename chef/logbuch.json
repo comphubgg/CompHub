@@ -1515,5 +1515,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-75",
+    "datum": "2026-10-31T20:50:00Z",
+    "titel": "Ungenutzter Vergleichs-Baustein entfernt",
+    "kurz": "Unsichtbar: nie eingebundener Duo-Vergleich (368 Zeilen) aus dem Code entfernt.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Technik",
+    "warum": "Ein fertiger Baustein für „Duo gegen Duo“ lag im Code, war aber nirgends auf der Seite eingebaut.",
+    "was": "Er ist entfernt; auf der Seite ändert sich nichts. Soll der Duo-Vergleich wiederkommen, sag „ändern“ – dann baue ich ihn ein statt zu löschen.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 5
   }
 ]
