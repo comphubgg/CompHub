@@ -1090,12 +1090,13 @@
     ],
     "bereich": "Statistik",
     "warum": "Die Kacheln zählten nur die Zeilen durch: sechs Teams mit je einem Sieg standen auf Platz 1 bis 6.",
-    "was": "Gleicher Wert heißt jetzt gleicher Platz (1, 2, 2, 4) – in den Kacheln und in der ganzen Liste. Bei den Punkten bleibt Epics offizieller Platz.",
+    "was": "Gleicher Wert heißt jetzt gleicher Platz (1, 2, 2, 4) – in den Kacheln und in der ganzen Liste. Bei den Punkten bleibt Epics offizieller Platz. Geteilte erste Plätze sind alle blau hervorgehoben.",
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
     "commits": [
-      "4a6a10e16fd8da76525ba168db7c6e4a2bff2767"
+      "4a6a10e16fd8da76525ba168db7c6e4a2bff2767",
+      "053bcd324ae048df03aa20ba75a7e2bad9d5b68c"
     ],
     "groesse": "klein",
     "modell": "Sonnet",
