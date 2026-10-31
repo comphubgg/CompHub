@@ -1917,5 +1917,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-93",
+    "datum": "2026-10-31T21:25:00Z",
+    "titel": "Regionen: LAN-Finale zählt beide Tage",
+    "kurz": "Regionen → S37 NAC → FNCS Global Championship: Kachel zeigt jetzt beide Finaltage.",
+    "markieren": [
+      "text:FNCS Global Championship",
+      "css:section.mb-7 .ml-auto button.rounded-full"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei LAN-Finals über zwei Tage lud die Kachel nur den letzten Tag: Tjino hatte 17 statt 33 Elims, 594 statt 1.188 Matches im Feld.",
+    "was": "Ein Klick auf die Kachel oder „Gesamt“ lädt jetzt alle Tage des Finales.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S37&region=NAC"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
