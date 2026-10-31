@@ -388,6 +388,9 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   const [eventsOffen, setEventsOffen] = useState(false);
   const [daten, setDaten] = useState<Record<string, Zeile[]>>({});
   const [laedt, setLaedt] = useState(false);
+  /** Die Zeilen eines Spielers fehlen gerade (Ablage nicht erreichbar) - dann Hinweis, und alle zehn Sekunden noch einmal. */
+  const [datenFehlt, setDatenFehlt] = useState(false);
+  const [datenVersuch, setDatenVersuch] = useState(0);
   // Wie ein Team gezaehlt wird: nur zusammen gespielte Spieltage - oder jeder mit allen eigenen (Solo-Werte). Wird sich gemerkt.
   const [zaehlung, setZaehlung] = useState<'zusammen' | 'solo'>(() => {
     try { return typeof window !== 'undefined' && window.localStorage.getItem('comphub_vergleich_zaehlung') === 'solo' ? 'solo' : 'zusammen'; } catch { return 'zusammen'; }
@@ -411,12 +414,27 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
     const fehlen = ids.filter((id) => !daten[`${id}|${saison}`]);
     if (!fehlen.length) return undefined;
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     setLaedt(true);
-    Promise.all(fehlen.map((id) => fetch(`/api/szene-stats?spieler=${id}&saison=${saison}`).then((r) => r.json()).then((j) => [id, (j?.verlauf ?? []) as Zeile[]] as const).catch(() => [id, [] as Zeile[]] as const)))
-      .then((paare) => { if (!weg) setDaten((d) => ({ ...d, ...Object.fromEntries(paare.map(([id, z]) => [`${id}|${saison}`, z])) })); })
+    /*
+     * Faellt ein Abruf aus, wird nichts abgelegt: ein leeres Feld sah sonst aus wie "nicht angetreten".
+     * Stattdessen steht ein Hinweis, und nach zehn Sekunden wird es noch einmal versucht.
+     */
+    Promise.all(fehlen.map((id) => fetch(`/api/szene-stats?spieler=${id}&saison=${saison}`).then((r) => r.json()).then((j) => {
+      if (!Array.isArray(j?.verlauf)) throw new Error('keine Liste');
+      return [id, j.verlauf as Zeile[]] as const;
+    }).catch(() => null)))
+      .then((paare) => {
+        if (weg) return;
+        const gut = paare.filter((x): x is readonly [string, Zeile[]] => x !== null);
+        const fehlt = gut.length < paare.length;
+        setDatenFehlt(fehlt);
+        if (gut.length) setDaten((d) => ({ ...d, ...Object.fromEntries(gut.map(([id, z]) => [`${id}|${saison}`, z])) }));
+        if (fehlt) nochmal = setTimeout(() => { if (!weg) setDatenVersuch((v) => v + 1); }, 10_000);
+      })
       .finally(() => { if (!weg) setLaedt(false); });
-    return () => { weg = true; };
-  }, [ids, saison, daten]);
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [ids, saison, daten, datenVersuch]);
 
   const zeilenVon = useCallback((s: VglSpieler) => (daten[`${s.epicId}|${saison}`] ?? []).filter((z) => nrVon(z.season) >= ERSTE_SAISON), [daten, saison]);
   const tageL = useMemo(() => gemeinsam(mitL.map(zeilenVon), solo), [mitL, zeilenVon, solo]);
@@ -549,7 +567,11 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
           </div>
 
           <div className="mt-3">
-            {!hatDaten && !laedt ? (
+            {datenFehlt && !laedt && !hatDaten ? (
+              <p className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center text-sm text-slate-500">
+                <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+              </p>
+            ) : !hatDaten && !laedt ? (
               <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center">
                 <p className="text-sm text-slate-400">
                   {n === 1 ? t('Mindestens einer der beiden ist im gewählten Zeitraum nicht angetreten.') : solo ? t('Keiner dieser Spieler ist im gewählten Zeitraum angetreten.') : t('Dieses Team hat im gewählten Zeitraum nicht zusammen gespielt.')}
