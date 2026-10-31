@@ -579,5 +579,21 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-27",
+    "datum": "2026-10-31T19:34:17Z",
+    "titel": "Clutch-Suche lädt nur noch die Treffer",
+    "bereich": "Statistik",
+    "warum": "Wer in der Tabelle „Solo Clutch Points“ nur zwei Buchstaben eintippte oder auf „Details“ drückte, lud die komplette Liste mit rund 20.000 Spielern (etwa 3 MB) aufs Gerät – auf dem Handy dauerte das spürbar.",
+    "was": "Beim Tippen kommen jetzt nur noch die höchstens 50 passenden Spieler mit ihrem richtigen Platz in der ganzen Liste, beim Blättern immer die nächsten 100 Zeilen. Die Zahlen stammen aus genau derselben fertigen Liste wie vorher, es ändert sich nur, wie viel geladen wird.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet (Bau) + Opus (Prüfung, Server-Teil neu)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
