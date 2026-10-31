@@ -1965,5 +1965,26 @@
     "modell": "Sonnet (gefunden) + Opus (übertragen)",
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-95",
+    "datum": "2026-10-31T21:40:00Z",
+    "titel": "Orgs: Turnierzahl passt zum Preisgeld",
+    "kurz": "Orgs → „All years“ → Team Atlantic: „Paid tournaments“ zeigt 275 statt 0.",
+    "markieren": [
+      "text:Paid tournaments",
+      "text:Won for the organization"
+    ],
+    "bereich": "Statistik",
+    "warum": "Über alle Jahre zählte das Preisgeld die ehemaligen Spieler mit, die Turnierzahl daneben nicht: Team Atlantic 456.605 $ bei 0 Turnieren, XSET 416 statt 613.",
+    "was": "Die Turnierzahl rechnet jetzt genauso wie das Preisgeld: Pro-Spieler, über alle Jahre plus Ehemalige. Im Jahr 2026 bleibt alles gleich.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
