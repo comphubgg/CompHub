@@ -970,5 +970,25 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-52",
+    "datum": "2026-10-31T20:10:00Z",
+    "titel": "Spielerprofil: Zeitwerte als ganze Sekunden",
+    "kurz": "Unsichtbar: Profil- und Listenwerte für Zeit im Sturm und Lebenszeit sind jetzt gerundet.",
+    "markieren": [
+      "text:Time in storm"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Antwort trug Werte wie 125298,70997… Sekunden – unnötig lang und überall anders gerundet.",
+    "was": "Zeit im Sturm und Lebenszeit werden beim Zusammenzählen auf ganze Sekunden gerundet, in Profil und Bestenlisten gleich.",
+    "ansehen": [
+      "/statistics?spieler=peterbot"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]

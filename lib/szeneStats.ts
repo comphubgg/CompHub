@@ -509,6 +509,8 @@ export async function summen(filter: Filter = {}) {
     s.heals = Math.round(s.heals);
     s.stormDamage = Math.round(s.stormDamage);
     s.fallDamage = Math.round(s.fallDamage);
+    s.timeInStorm = Math.round(s.timeInStorm);
+    s.timeAlive = Math.round(s.timeAlive);
     // Schon je Zeile in Kilometer umgerechnet (streckeKm).
     s.distanz = +s.distanz.toFixed(1);
     return s;
@@ -1157,6 +1159,8 @@ export function summeAusVerlauf(
   s.heals = Math.round(s.heals);
   s.stormDamage = Math.round(s.stormDamage);
   s.fallDamage = Math.round(s.fallDamage);
+  s.timeInStorm = Math.round(s.timeInStorm);
+  s.timeAlive = Math.round(s.timeAlive);
   // Zentimeter in Kilometer - die Quelle zaehlt in Zentimetern.
   s.distanz = +s.distanz.toFixed(1);
   return s;
