@@ -1,11 +1,12 @@
 {
   "letzteRunde": "2026-10-31T18:55:00Z",
-  "macheGerade": "Runde 1 fertig - vier kleine Verbesserungen warten auf deine Entscheidung",
+  "macheGerade": "Runde 2 läuft",
   "naechstes": [
     "Zeitplan-Schnittstellen auf Fehlercodes pruefen",
     "Alte Schluessel-Uebersetzungen klaeren",
     "Seitentitel und Ladeschirme je Reiter pruefen"
   ],
   "pause": false,
-  "modell": "Opus"
+  "modell": "Opus",
+  "laeuftSeit": "2026-10-31T18:47:00Z"
 }
