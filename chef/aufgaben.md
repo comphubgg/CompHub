@@ -13,8 +13,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Profil: FNCS Grand Finals endeten bei GLOBALS 2025** (chef-80)
 - [ ] **FNCS-Ereignisliste: NAC nur für S36, S40, S41** - frühere NAC-Majors fehlen (Datenstand der Quelle).
 
-- [ ] **Regional: Reihe „FNCS“ mischt Solo Final und Global Championship** - Einteilung prüfen (reiheVon).
-- [ ] **Global-Kachel meldet 12 Matches, jeder Spieler hat 6** (Turnierliste, S42).
+- [x] **Regional: Reihe „FNCS“ mischte Solo Final und Globals** (chef-82)
+- [x] **Global-Kachel 12 Matches** - kein Fehler: Kachel fasst beide Tage zusammen (6+6), so gewollt (28.9.).
 - [ ] **ladeReihe nutzt bei LAN-Sammelkacheln nur den letzten Tag** (latent, S40–S42 nicht betroffen).
 
 ## Neu entdeckt (Runde 4, 31.10.2026)

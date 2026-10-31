@@ -1695,5 +1695,72 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-82",
+    "datum": "2026-10-31T21:14:00Z",
+    "titel": "Regionen: Globals als eigene Reihe",
+    "kurz": "Statistik → Regional: Globals stehen als eigene Reihe, nicht mehr unter „FNCS“.",
+    "markieren": [
+      "text:FNCS Global Championship",
+      "text:FNCS"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Reihe „FNCS“ zählte die Solo Finals (online) und die Globals (LAN) zusammen – eine Mischzahl.",
+    "was": "Die Globals und andere LANs haben jetzt eine eigene Reihe „FNCS Global Championship“.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S42&region=EU"
+    ],
+    "commits": [
+      "ab4456a91b297d4bf63421800df1db1d6cefec51"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-83",
+    "datum": "2026-10-31T21:15:00Z",
+    "titel": "Events: Ausfall zeigt Hinweis statt „keine Cups“",
+    "kurz": "Unsichtbar: Events-Seite zeigt bei Ausfall Hinweis statt Fehlertext und „No cups“.",
+    "markieren": [
+      "css:[role=alert]"
+    ],
+    "bereich": "Events",
+    "warum": "Bei einem Ausfall stand eine rohe Fehlermeldung („Failed to fetch“) und darunter „keine Cups“ – und sie blieb sogar stehen, wenn es wieder klappte.",
+    "was": "Jetzt steht „gerade nicht erreichbar“; der Hinweis verschwindet, sobald die Cups wieder da sind.",
+    "ansehen": [
+      "/events"
+    ],
+    "commits": [
+      "538acd083d36f1fea91311e06cb86ec1722ec351"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-84",
+    "datum": "2026-10-31T21:16:00Z",
+    "titel": "Regionen: Reihenname „Weitere“ auf Englisch",
+    "kurz": "Statistik → Regional: Reihe „Weitere“ heißt auf Englisch jetzt „Others“.",
+    "markieren": [
+      "text:Others"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Auf der englischen Seite stand über der letzten Reihe das deutsche Wort „Weitere“.",
+    "was": "Die Reihennamen laufen jetzt über die Übersetzung.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S42&region=EU"
+    ],
+    "commits": [
+      "2803358737538c7ae1c1317da1a8b701bc3a73d0"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 5
   }
 ]
