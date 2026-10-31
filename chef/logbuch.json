@@ -110,5 +110,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-8",
+    "titel": "Rampenlicht: „Ratio“ heißt jetzt „Damage ratio“ und erklärt sich",
+    "bereich": "Statistik",
+    "warum": "Die Karte „Spieler im Rampenlicht“ auf der Startseite zeigte eine Zahl „Ratio“, ohne zu sagen, was geteilt wird. Beispiel SALKO: 917 Elims in 441 Matches, aber „Ratio 1,2“ – das konnte niemand nachvollziehen. Fehlte der eingesteckte Schaden, stand dort „0,00“.",
+    "was": "Die Zahl heißt jetzt wie in der Statistik „Damage ratio“ (Schaden ausgeteilt geteilt durch Schaden eingesteckt). Fährt man mit der Maus darüber, erscheint genau dieser Satz. Ohne Wert steht ein Strich statt 0,00.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:54:07Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
