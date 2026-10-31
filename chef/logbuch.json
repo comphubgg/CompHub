@@ -1240,7 +1240,9 @@
     "ansehen": [
       "/statistics"
     ],
-    "commits": [],
+    "commits": [
+      "d80de86a546478ddd832f2062081a018de8bd9c9"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
