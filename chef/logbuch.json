@@ -596,7 +596,9 @@
     "ansehen": [
       "/statistics"
     ],
-    "commits": [],
+    "commits": [
+      "3b95fa4d09a71d683e562df6579612d13fd0580a"
+    ],
     "groesse": "mittel",
     "modell": "Sonnet (Bau) + Opus (Prüfung, Server-Teil neu)",
     "status": "wartet",
@@ -613,7 +615,9 @@
       "/statistics?bereich=turniere",
       "/statistics?bereich=regional"
     ],
-    "commits": [],
+    "commits": [
+      "accb7ce9b1d603d6b69123d7448d066fa7cf0f2a"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -629,7 +633,9 @@
     "ansehen": [
       "/"
     ],
-    "commits": [],
+    "commits": [
+      "0427e2b1a8530046a41c1c7227b58f39235cf192"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -645,7 +651,9 @@
     "ansehen": [
       "/sitemap.xml"
     ],
-    "commits": [],
+    "commits": [
+      "ab7c4d2eae2560ca224924324fdb25e6886155a8"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -661,7 +669,9 @@
     "ansehen": [
       "/statistics?spieler=02c93e4588f241baa6cb5040632326b4"
     ],
-    "commits": [],
+    "commits": [
+      "f03afdca58c124705b52d2c6f635c1c4e41a4873"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
@@ -678,7 +688,9 @@
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42",
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
     ],
-    "commits": [],
+    "commits": [
+      "de7165799180bbe07390a03a8e1a447ac8d3c0c2"
+    ],
     "groesse": "klein",
     "modell": "Opus (Prüfung: Sonnet)",
     "status": "wartet",
@@ -696,7 +708,9 @@
       "/statistics",
       "/"
     ],
-    "commits": [],
+    "commits": [
+      "f21f36286410f2282f228e1b968f985968ad04cf"
+    ],
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
@@ -712,7 +726,9 @@
     "ansehen": [
       "/statistics?bereich=spieler"
     ],
-    "commits": [],
+    "commits": [
+      "fe5f08e7c54e1251a1a19eae914d69dd73e860ba"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -728,7 +744,9 @@
     "ansehen": [
       "/statistics?bereich=spieler"
     ],
-    "commits": [],
+    "commits": [
+      "99735b4f9c77d7e7a6882de258ec8f5d192a4e78"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -744,7 +762,9 @@
     "ansehen": [
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
     ],
-    "commits": [],
+    "commits": [
+      "41d29b181f56d9bba29f6cea00f5fa4df9d8bd29"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -760,7 +780,9 @@
     "ansehen": [
       "/admin/tweets"
     ],
-    "commits": [],
+    "commits": [
+      "730e8795f6ddd1ee409fddc4d17abace3b0de83e"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -776,7 +798,9 @@
     "ansehen": [
       "/statistics?bereich=spieler"
     ],
-    "commits": [],
+    "commits": [
+      "f4ba98ac7b68c22325a12b7df37e9bcd5913a3e0"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -793,7 +817,9 @@
       "/events",
       "/events?status=vorbei"
     ],
-    "commits": [],
+    "commits": [
+      "585e4258a1b565e031a4a498a86512c84cb83e06"
+    ],
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
@@ -809,7 +835,9 @@
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
-    "commits": [],
+    "commits": [
+      "cf288472640731b24d4b1bfa92cd82224c99adf4"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -825,7 +853,9 @@
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
-    "commits": [],
+    "commits": [
+      "1ec15cc1f825b8da0109b4334623a568565bdfbc"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -841,7 +871,9 @@
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
-    "commits": [],
+    "commits": [
+      "78ecc077cbb7f2c8eaa5c2054108f5a566a81c41"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -858,7 +890,9 @@
       "/",
       "/admin"
     ],
-    "commits": [],
+    "commits": [
+      "4c4aa44ca36c53a0bccc0bfbc7560fbe2f0b7be6"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
