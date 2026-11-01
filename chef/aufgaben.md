@@ -2,16 +2,27 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 7, 01.11.2026)
+
+- [x] **Ursache für veraltete Startantwort und Jahresliste gefunden** (chef-106) – im Lauf 1661 (31.10.) brach der Vorrechner Akten und Startansicht nach genau 300 s ab („fetch failed“, Grenze von Nodes fetch; das AbortSignal mit 900 s griff nie). Der Server rechnete weiter, lief auf 7,7 GB und starb; danach fehlten in Teil 1 und 2 über 150 Antworten (start, jahr=2026, jahr=alle …). Nach Freigabe beim nächsten Stundenlauf prüfen: Log ohne „FEHLT 300“, /api/szene-stats?ansicht=start → peterbot 83 Matches, Elims-Liste mit Schaden > 0.
+- [x] **Preisgeld 2026: EU-gefiltert > alle Regionen** – kein Rechenfehler: Saison-Antworten stimmen (Summe S39–S42 = Jahr EU), nur die Jahresantwort ohne Region ist alt (1342 statt 1725 Spieltage). Wird mit chef-106 behoben.
+- [x] **Vergleich BUILDS/MATS ohne Daten** – schon mit chef-100 erledigt.
+- [x] **Cup-Spielerdetails 0 Elim-Punkte** (chef-105, live).
+- [x] **Cup-Seite: Quali-Auskunft verschwand still** (chef-107).
+- [x] **Cup-Seite: Preisgeld-Kachel verschwand still bei Ausfall** (chef-109).
+- [x] **FNCS All-Time: Gleichstand ohne Regel** (chef-108).
+- [ ] **Teil-Neustart im Datenlauf**: Wenn der Server in einer Portion stirbt, scheitert der Rest der Portion sofort (0,0 s). Vorschlag an den Betrieb: Vorrechner merkt „Server weg“ und bricht die Portion ab bzw. der Ablauf startet neu (Workflow – nicht meine Datei).
+
 ## Neu entdeckt (Runde 6, 31.10.2026)
 
 - [x] **LAN-Sammelkachel in den Regionen lud nur den letzten Tag** (chef-93) – S37 NAC Globals: 17 statt 33 Elims.
 - [x] **Titel im Profil zählte Globals-Sieg doppelt** (chef-94).
 - [x] **Orgs: Turnierzahl ohne Ehemalige** (chef-95), **FNCS All-Time: Platz bei Suche** (chef-96), **Jahresbilanz „650 von 545“** (chef-97), **„18m 60s“** (chef-98), **LAN-Tag im Turnierkopf** (chef-99), **Vergleich 0 statt Strich** (chef-100), **Aufmacher-Quote Komma** (chef-101), **Bestenlisten Gleichstand** (chef-102).
-- [ ] **Preisgeld 2026 bei shxrk: EU-gefiltert (393.650) größer als alle Regionen (353.450)** _(Statistik · Wirkung 4/5)_ – /api/szene-stats?ansicht=jahr&jahr=2026 mit und ohne region=EU. Ursache unbekannt; Verdacht: Akte-Einträge mit liveFenster-Überspringen oder `if (!v) break;` in jahresListen (lib/szeneStats.ts ~1735).
+- [x] **Preisgeld 2026 bei shxrk (Runde 7: veraltete Antwort, chef-106): EU-gefiltert (393.650) größer als alle Regionen (353.450)** _(Statistik · Wirkung 4/5)_ – /api/szene-stats?ansicht=jahr&jahr=2026 mit und ohne region=EU. Ursache unbekannt; Verdacht: Akte-Einträge mit liveFenster-Überspringen oder `if (!v) break;` in jahresListen (lib/szeneStats.ts ~1735).
 - [ ] **Cup-Seite Duo/Trio: Preisgeld-Summe vs. Zeilen je Team** – ein Prüfer meinte, die Summe sei halb so groß wie die Summe der Zeilen. Nicht übernommen: cup-preise setzt proPerson für Epic-Tabellen auf false, der Vorschlag hätte dort nichts geändert. An einem echten Duo-Cup mit Epic-Preisgeld nachmessen.
-- [ ] **Cup-Spielerdetails: Zeile „Elimination“/„Placement“ verschwindet bei 0 Punkten** (8 Spieler im FNCS Solo Final EU) – kosmetisch, 0 zeigen statt ausblenden?
-- [ ] **FNCS All-Time: Gleichstand bei gleichem Gesamtwert ohne Regel** (Einfügereihenfolge).
-- [ ] **Vergleich: Kacheln BUILDS/MATS je Match zeigen 0 ohne Daten** (Vergleich.tsx ~117) – wie chef-100 Strich.
+- [x] **Cup-Spielerdetails: Zeile „Elimination“/„Placement“ verschwindet bei 0 Punkten** (chef-105) (8 Spieler im FNCS Solo Final EU) – kosmetisch, 0 zeigen statt ausblenden?
+- [x] **FNCS All-Time: Gleichstand bei gleichem Gesamtwert ohne Regel** (chef-108).
+- [x] **Vergleich: Kacheln BUILDS/MATS je Match zeigen 0 ohne Daten** (chef-100) (Vergleich.tsx ~117) – wie chef-100 Strich.
 - [ ] **Startseite S42 weiter veraltet** (21:10 gemessen: peterbot 57 Matches, Schaden der Elims-Liste 0) – siehe chef-61.
 
 ## Neu entdeckt (Runde 5, 31.10.2026)
