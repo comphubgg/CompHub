@@ -3769,7 +3769,7 @@ ${name}
               <p>
                 <T>Fortnite-Karte vom</T>{" "}
                 <span className="text-slate-300">
-                  {new Date(karte.stand).toLocaleDateString("de-DE",
+                  {new Date(karte.stand).toLocaleDateString(ortJetzt(),
                     { day: "2-digit", month: "long", year: "numeric" })}
                 </span>
                 {karte.tageAlt !== null && karte.tageAlt > 3 && (
