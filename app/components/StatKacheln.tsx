@@ -229,7 +229,8 @@ function GanzeListe({ kachel, wert, zu, aufKlick }: {
   zu: () => void;
   aufKlick?: (s: KachelSpieler) => void;
 }) {
-  const { t } = useSprache();
+  const { t, sprache } = useSprache();
+  const ort = ortVon(sprache);
   const [tiefe, setTiefe] = useState<50 | 100 | 0>(50);
   const [suche, setSuche] = useState('');
   const [gezeigt, setGezeigt] = useState(500);
@@ -255,7 +256,7 @@ function GanzeListe({ kachel, wert, zu, aufKlick }: {
         <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-3">
           <h3 className="text-sm font-semibold text-slate-100"><T>{kachel.titel}</T></h3>
           <span className="text-xs text-slate-500">
-            {kachel.zeilen.length.toLocaleString()} <T>Spieler</T>
+            {kachel.zeilen.length.toLocaleString(ort)} <T>Spieler</T>
           </span>
           <input value={suche} autoFocus
             onChange={(e) => { setSuche(e.target.value); setGezeigt(500); }}

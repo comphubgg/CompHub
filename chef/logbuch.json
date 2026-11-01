@@ -2953,6 +2953,26 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T03:20:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "7a14b21"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-138",
+    "titel": "Cup-Kacheln: Spielerzahl der ganzen Liste im Seitenformat",
+    "kurz": "Unsichtbar: Spielerzahl in „Show all“ der Cup-Kacheln folgt der Seitensprache.",
+    "markieren": [],
+    "warum": "Die Zahl folgte der Browsersprache statt der Seite – bei über 999 Spielern stand ein anderes Trennzeichen als in der Liste.",
+    "was": "Sie nutzt jetzt dieselbe Formatierung wie alle anderen Zahlen der Kachel.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:20:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
