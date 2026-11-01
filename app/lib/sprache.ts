@@ -4497,6 +4497,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Qualität beim Verlassen zurücksetzen': 'Revert quality on exit',
   'Beim Verlassen stummschalten': 'Mute on exit',
   'Live-Status': 'Live status',
+  'Die Kanalsuche ist gerade nicht erreichbar.': 'Channel search is not reachable right now.',
   'Live-Status abfragen': 'Live status polling',
   'Darstellung': 'Appearance',
   'Dunkler Modus': 'Dark mode',

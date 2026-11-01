@@ -4574,5 +4574,25 @@
     "commits": [
       "248948d"
     ]
+  },
+  {
+    "id": "chef-209",
+    "titel": "Multiview: Kanalsuche meldet Ausfall",
+    "kurz": "Streams → Multiview → Kanal eintippen: bei Ausfall steht „Channel search is not reachable“.",
+    "markieren": [
+      "text:Channel search is not reachable right now."
+    ],
+    "bereich": "Streams",
+    "warum": "Fiel die Kanalsuche aus, blieben die Vorschläge still leer – als gäbe es keinen Kanal.",
+    "was": "Jetzt erscheint unter dem Eingabefeld ein kurzer Hinweis; bei echten 0 Treffern bleibt es leer.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:52:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

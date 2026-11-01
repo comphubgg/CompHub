@@ -402,6 +402,8 @@ export default function Seitenleiste(p: Props) {
   const [listeOffen, setListeOffen] = useState(true);
   const [fundeOffen, setFundeOffen] = useState(false);
   const [funde, setFunde] = useState<KanalFund[]>([]);
+  /** Die Suche selbst ist ausgefallen (nicht: null Treffer) - dann ein Hinweis statt stiller Leere. */
+  const [sucheAusfall, setSucheAusfall] = useState(false);
   const [mehr, setMehr] = useState(false);
   const [zeilenAktiv, setZeilenAktiv] = useState<string | null>(null);
   const [ordnerMenue, setOrdnerMenue] = useState<string | null>(null);
@@ -433,13 +435,17 @@ export default function Seitenleiste(p: Props) {
   useEffect(() => {
     const q = eingabe.trim();
     setMehr(false);
-    if (q.length < 2) { setFunde([]); return undefined; }
+    if (q.length < 2) { setFunde([]); setSucheAusfall(false); return undefined; }
     const abbruch = new AbortController();
     const uhr = window.setTimeout(() => {
       fetch(`/api/kanal-suche?q=${encodeURIComponent(q)}`, { signal: abbruch.signal })
         .then((r) => r.json())
-        .then((j) => { if (!abbruch.signal.aborted) setFunde(Array.isArray(j?.kanaele) ? j.kanaele : []); })
-        .catch(() => { if (!abbruch.signal.aborted) setFunde([]); });
+        .then((j) => {
+          if (abbruch.signal.aborted) return;
+          setFunde(Array.isArray(j?.kanaele) ? j.kanaele : []);
+          setSucheAusfall(!!j?.hinweis);
+        })
+        .catch(() => { if (!abbruch.signal.aborted) { setFunde([]); setSucheAusfall(true); } });
     }, 200);
     return () => { window.clearTimeout(uhr); abbruch.abort(); };
   }, [eingabe]);
@@ -451,7 +457,7 @@ export default function Seitenleiste(p: Props) {
   const gezeigt = mehr ? funde : erste;
 
   const hinzu = (text: string) => {
-    if (a.hinzufuegen(text, zielOrdner || undefined)) { setEingabe(''); setFunde([]); setFehler(false); setFundeOffen(false); }
+    if (a.hinzufuegen(text, zielOrdner || undefined)) { setEingabe(''); setFunde([]); setSucheAusfall(false); setFehler(false); setFundeOffen(false); }
     else setFehler(true);
   };
   const aus = () => {
@@ -532,6 +538,12 @@ export default function Seitenleiste(p: Props) {
               className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white transition hover:bg-sky-400">
               <Zeichen d={D.plus} />
             </button>
+            {fundeOffen && eingabe.trim().length >= 2 && gezeigt.length === 0 && sucheAusfall && (
+              <p role="status" onMouseDown={(e) => e.preventDefault()}
+                className="mv-fl mv-mute absolute left-0 right-0 top-full z-40 mt-1.5 rounded-lg border px-3 py-2 text-xs shadow-2xl">
+                <T>Die Kanalsuche ist gerade nicht erreichbar.</T>
+              </p>
+            )}
             {fundeOffen && eingabe.trim().length >= 2 && gezeigt.length > 0 && (
               <div onMouseDown={(e) => e.preventDefault()}
                 className="mv-fl absolute left-0 right-0 top-full z-40 mt-1.5 overflow-hidden rounded-lg border shadow-2xl">
