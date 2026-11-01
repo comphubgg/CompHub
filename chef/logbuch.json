@@ -5928,5 +5928,25 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:51:26Z"
+  },
+  {
+    "id": "chef-269",
+    "titel": "Live-Replays: Ausfall statt stiller Weiterleitung",
+    "kurz": "Unsichtbar: ist die Replay-Ablage aus, sagt /replays „gerade nicht erreichbar“ statt leer.",
+    "markieren": [
+      "text:All cups"
+    ],
+    "bereich": "Replays",
+    "warum": "Fiel die Replay-Ablage aus, landete ein Link auf einen Cup still auf der Übersicht, als gäbe es den Cup nicht.",
+    "was": "Bei einem Ausfall zeigt die Übersicht jetzt die bekannte Meldung „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/replays?quelle=aus"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:51:30Z"
   }
 ]

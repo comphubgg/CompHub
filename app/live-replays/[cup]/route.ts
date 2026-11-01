@@ -13,8 +13,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ cup: string }> }) {
   const { cup } = await params;
-  const tage = nachSpieltag(await replayIndex().catch(() => ({})));
-  const t = neuesterTag(tage, decodeURIComponent(cup));
+  // Antwortet die Ablage nicht, ist das kein unbekannter Cup: die Uebersicht zeigt dann "gerade nicht erreichbar" statt still leer zu wirken.
+  let index: Awaited<ReturnType<typeof replayIndex>>;
+  try { index = await replayIndex(); } catch {
+    return new NextResponse(null, { status: 307, headers: { Location: '/replays?quelle=aus' } });
+  }
+  const t = neuesterTag(nachSpieltag(index), decodeURIComponent(cup));
   const ziel = t ? `/replays/${encodeURIComponent(t.windowId)}` : '/replays';
   return new NextResponse(null, { status: 307, headers: { Location: ziel } });
 }

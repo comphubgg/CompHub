@@ -30,8 +30,10 @@ export default function ReplaysSeite() {
 
   useEffect(() => {
     let weg = false;
+    // /live-replays/<Cup> schickt mit ?quelle=aus hierher, wenn die Ablage nicht antwortete (nicht: der Cup ist unbekannt).
+    try { if (new URLSearchParams(window.location.search).get('quelle') === 'aus') setFehler(true); } catch { /* ohne Adresse */ }
     fetch('/api/replay?uebersicht=1').then((r) => r.json())
-      .then((j) => { if (!weg) { if (Array.isArray(j?.cups)) setCups(j.cups); else setFehler(true); } })
+      .then((j) => { if (!weg) { if (Array.isArray(j?.cups)) { setCups(j.cups); setFehler(false); } else setFehler(true); } })
       .catch(() => { if (!weg) setFehler(true); });
     return () => { weg = true; };
   }, []);
