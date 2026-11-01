@@ -31,6 +31,13 @@ import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
 import WegKasten from './WegKasten';
+
+/** Hinweise der Twitch-Suche, die eine Uebersetzung haben (Schluessel in app/lib/sprache.ts). */
+const TWITCH_HINWEISE = new Set([
+  'Twitch ist nicht eingerichtet - ohne Client-ID gibt es keine Suche.',
+  'Twitch nimmt die hinterlegten Zugangsdaten nicht an.',
+  'Twitch nimmt die hinterlegten Zugangsdaten nicht an — TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET erneuern.',
+]);
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -1779,7 +1786,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       const j = await (await fetch(
         `/api/twitch-suche?q=${encodeURIComponent(begriff.trim())}`)).json();
       setTwitchVorschlag((a) => ({ ...a, [k]: j.kanaele ?? [] }));
-      setTwitchHinweis(j.hinweis ?? '');
+      // Die Schnittstelle schreibt ihre Hinweise deutsch; bekannte Saetze laufen ueber die Uebersetzung, alles andere wird zu "antwortet nicht".
+      const h = String(j.hinweis ?? '');
+      setTwitchHinweis(!h ? '' : TWITCH_HINWEISE.has(h) ? h : 'Twitch antwortet gerade nicht.');
     } catch { /* dann eben ohne Vorschlag */ }
   }
 
@@ -5519,7 +5528,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       )}
                     </div>
                     {twitchHinweis && !(twitchVorschlag[k] ?? []).length && (
-                      <p className="mb-2 text-[11px] text-amber-500">{twitchHinweis}</p>
+                      <p className="mb-2 text-[11px] text-amber-500"><T>{twitchHinweis}</T></p>
                     )}
                     {(twitchVorschlag[k] ?? []).length > 0 && (
                       <div className="mb-2 flex flex-wrap gap-1.5">

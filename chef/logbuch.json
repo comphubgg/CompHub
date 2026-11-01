@@ -5189,5 +5189,25 @@
     "commits": [
       "af1f6b7"
     ]
+  },
+  {
+    "id": "chef-237",
+    "datum": "2026-11-01T05:05:00Z",
+    "titel": "Cup-Seite (Admin): Twitch-Hinweis übersetzt",
+    "kurz": "Cup-Seite → Twitch-Kanal suchen (nur Admin): Hinweis jetzt auf Englisch.",
+    "markieren": [
+      "css:p.text-amber-500"
+    ],
+    "bereich": "Admin",
+    "warum": "Fand die Twitch-Suche nichts, stand der Hinweis immer deutsch und technisch da, auch auf der englischen Seite.",
+    "was": "Bekannte Hinweise sind übersetzt; alles andere zeigt „Twitch antwortet gerade nicht“.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
