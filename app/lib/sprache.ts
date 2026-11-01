@@ -2595,6 +2595,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Leaderboard',
   'Nationalitäten':
     'Nationalities',
+  'Die Prognosen sind gerade nicht erreichbar.':
+    'The predictions are not reachable right now.',
   'Es ist noch keine Prognose veröffentlicht.':
     'No prediction has been published yet.',
   'Zu diesem Cup liefert Epic noch keine Bestenliste.':

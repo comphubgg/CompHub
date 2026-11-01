@@ -157,16 +157,21 @@ function BetreiberPrognose() {
   const [preiseFehlt, setPreiseFehlt] = useState(false);
   const [kartenNr, setKartenNr] = useState(0);
   const [geladen, setGeladen] = useState(false);
+  const [listeFehlt, setListeFehlt] = useState(false);
 
   useEffect(() => {
     void Promise.all([
-      fetch('/api/prognosen').then((r) => r.json()).then((d) => d.prognosen ?? []).catch(() => []),
+      fetch('/api/prognosen').then((r) => r.json()).then((d) => {
+        if (!d || !Array.isArray(d.prognosen)) throw new Error('keine Prognosen');
+        return d.prognosen;
+      }).catch(() => null),
       fetch('/api/spieler-profile').then((r) => r.json()).then((j) => j.profile ?? {}).catch(() => ({})),
       fetch('/api/auth/check-admin').then((r) => r.json()).then((j) => j.isAdmin === true).catch(() => false),
-    ]).then(([liste, prof, admin]: [Prognose[], Record<string, Profil>, boolean]) => {
+    ]).then(([liste, prof, admin]: [Prognose[] | null, Record<string, Profil>, boolean]) => {
+      setListeFehlt(liste === null);
       setIstAdmin(admin);
       setProfile(prof);
-      const sichtbar = liste.filter((p) => p.oeffentlich || admin);
+      const sichtbar = (liste ?? []).filter((p) => p.oeffentlich || admin);
       setPrognosen(sichtbar);
       const gewuenscht = parameter?.get('id');
       setGewaehlt(gewuenscht && sichtbar.some((p) => p.id === gewuenscht)
@@ -412,7 +417,7 @@ function BetreiberPrognose() {
 
       {!prognosen.length ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
-          <T>Es ist noch keine Prognose veröffentlicht.</T>
+          {listeFehlt ? <T>Die Prognosen sind gerade nicht erreichbar.</T> : <T>Es ist noch keine Prognose veröffentlicht.</T>}
         </p>
       ) : (
         <div className="flex gap-4">
