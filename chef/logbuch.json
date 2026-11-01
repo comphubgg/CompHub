@@ -3382,5 +3382,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:26:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-157",
+    "titel": "Profil: Saison-Zusammenfassung zählt richtig",
+    "kurz": "Profil → Turniere → Chapter 7 Season 3: „Summary“ nennt 23 statt 24 Spieltage.",
+    "markieren": [
+      "text:Chapter 7 Season 3",
+      "text:Summary"
+    ],
+    "warum": "Die Zusammenfassung zählte die LAN-Gesamtzeile als eigenen Spieltag mit (24), das Banner darüber sagte 23; ohne erlittenen Schaden stand als Quote „0,00“.",
+    "was": "Es zählen nur echte Spieltage, und die Quote zeigt einen Strich, wenn kein erlittener Schaden bekannt ist.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

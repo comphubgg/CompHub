@@ -1685,8 +1685,8 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   <T>Zusammenfassung</T>
                   <span className="ml-1.5 font-normal normal-case tracking-normal
                                    text-slate-600">
-                    {zeilen.length}{' '}
-                    <T>{zeilen.length === 1 ? 'Spieltag' : 'Spieltage'}</T>
+                    {tage.length}{' '}
+                    <T>{tage.length === 1 ? 'Spieltag' : 'Spieltage'}</T>
                   </span>
                 </td>
                 <td />
@@ -1703,7 +1703,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   {zahl(Math.round(schaden), 0, sprache)}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {zahl(erlitten > 0 ? schaden / erlitten : 0, 2, sprache)}
+                  {erlitten > 0 ? zahl(schaden / erlitten, 2, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
                   {zahl(n((z) => mats(z.werte)), 0, sprache)}
