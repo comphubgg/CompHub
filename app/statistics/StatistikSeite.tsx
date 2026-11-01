@@ -4810,7 +4810,7 @@ export default function StatistikSeite() {
                               });
                               setListenTiefe(50);
                             }}
-                              title={`Alle ${l.zeilen.length} anzeigen`}
+                              title={t('Alle {n} anzeigen').replace('{n}', String(l.zeilen.length))}
                               className="ml-auto rounded border border-zinc-700 px-1.5
                                          text-[11px] leading-4 text-slate-400 transition
                                          hover:border-sky-500 hover:text-sky-400">

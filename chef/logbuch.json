@@ -2754,6 +2754,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:55:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "b4c9c77"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-129",
+    "titel": "Spieltag: Plus-Knopf der Bestenlisten auf Englisch",
+    "kurz": "Statistik → Turnier → „+“ einer Bestenliste: Hinweis „Show all“ statt „Alle … anzeigen“.",
+    "markieren": [
+      "css:button[title^='Show all']"
+    ],
+    "warum": "Beim Überfahren des Plus stand auf der englischen Seite „Alle 40 anzeigen“.",
+    "was": "Der Hinweis läuft jetzt über die Übersetzung wie an den anderen Stellen.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:55:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
