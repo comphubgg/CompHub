@@ -8,5 +8,6 @@
     "Nächste Runde: Ausfall-Hinweis bei Qualifikationsbedingungen (cup-quali), Globals-Solos-Tafel Strich, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-251, chef-265) + Sonnet (übrige, von Opus nachgeprüft)"
+  "modell": "Opus (Planung, Prüfung, chef-251, chef-265) + Sonnet (übrige, von Opus nachgeprüft)",
+  "laeuftSeit": "2026-11-01T05:47:00Z"
 }
