@@ -9,6 +9,12 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Live: Reihen-Abfrage mit acht Spieltagen kommt noch aus der Saisonliste** (S42 EU Performance Cups, limit=500: 21 Spieltage, 752 Spieler; limit=2000: richtig 8 Spieltage, 428) – chef-78 steht auf main, die Live-Antwort ist vermutlich noch zwischengespeichert. Nach dem nächsten Bau prüfen.
 - [x] (chef-239) **Statistik → Cups wartete auf eine überflüssige Vorab-Abfrage**.
 - [x] (chef-240) **Admin Tweets: Quoten ohne Mindestzahl an Spielen**.
+- [x] (chef-241) **Cup-Kachel „Alle anzeigen“ bei Finals über mehrere Tage nur ein Tag** (Kachel = Summe, volle Liste = ein Tag).
+- [x] (chef-242) **Profil: Fenster „FNCS-Siege“ listete alle LAN-Plätze** (peterbot 13 Zeilen statt 6).
+- [x] (chef-243) **Orgs: ungerechnete Ehemalige als 0 $** statt Strich.
+- [x] (chef-244) **Spielerkacheln ohne Sortierwert** bei Kopftreffer, Trefferquote, Matches.
+- [ ] **Spieler mit Elims, aber Schaden 0** (S42 EU: rxnnysznǃ, 5 Matches, 3 Elims, Schaden 0, erlitten 0) – Schaden fehlt in der Quelle, Liste zeigt „0“ statt Strich. Die Antwort trägt matchesElims/matchesSchaden nicht; damit ließe sich „unbekannt“ erkennen. Kleiner Fall, beobachten.
+- [ ] **Erfolge-Reiter im Profil: gleiche Plätze nur nach Datum**, LAN-Finals ohne Datum landen zuletzt (Karriere-Bestwerte stellen LAN bei Gleichstand nach vorn) – Gestaltungsfrage.
 - [x] **Logbuch-Umlaute geprüft**: Titel/Kurz/Warum/Was haben keine ue/oe/ae-Schreibungen mehr (nur echte Wörter wie „Quelle“, „neue“).
 
 ## Neu entdeckt (Runde 11, 01.11.2026)
