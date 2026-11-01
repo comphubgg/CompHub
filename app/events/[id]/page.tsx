@@ -3735,7 +3735,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <div key={p.id} className="flex items-center gap-2.5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={flaggenPfad(landVon(p))} alt=""
-                          title={landVon(p) ?? 'Herkunft nicht hinterlegt'}
+                          title={landVon(p) ?? t('Herkunft nicht hinterlegt')}
                           className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">

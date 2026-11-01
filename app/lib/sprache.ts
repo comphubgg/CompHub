@@ -4055,6 +4055,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Du hast noch keine Epic-Freunde freigegeben.': 'You have not shared any Epic friends yet.',
   'Im Dashboard freigeben': 'Share in the dashboard',
   'Statistik dieses Spielers': 'Statistics of this player',
+  'Herkunft nicht hinterlegt': 'Origin not on file',
   'Teamkamerad': 'Teammate',
   'Zeit': 'Time',
   'Spieler am Leben': 'Players alive',
