@@ -1,12 +1,12 @@
 {
-  "letzteRunde": "2026-11-01T03:53:00Z",
-  "macheGerade": "Runde 10 fertig: 45 Verbesserungen (chef-162 bis chef-206) – fast alle an der Statistik: Mindestzahl an Matches für Quoten in Regionen und Turnierstatistik (mit Hinweis), feste Reihenfolge bei Gleichstand, sortierter Wert als eigene Spalte, Zahlenformat nach Sprache (Cup-Seite, Startseite, FNCS, Replays), Übersetzung der Cup-Kacheln und des Spielerfensters, Globals im Verdienst mit Endplatz, viele Ausfall-Hinweise statt leerer Stellen. Alles wartet auf deine Entscheidung.",
+  "letzteRunde": "2026-11-01T04:17:00Z",
+  "macheGerade": "Runde 11 fertig: 26 Verbesserungen (chef-207 bis chef-232), fast alle an der Statistik: Cup-Statistik zählt Spiele des ganzen Feldes, abgesagte Runden ganz herausgerechnet, FNCS-All-Time je Major vollständig, Globals-Kachel nicht doppelt, Vergleich rechnet „je Match“/„je Minute“ wie das Profil, Profil zeigt Kopftreffer-Anteil und Zeiten, „ab 5 Matches“ an Cup-Kacheln, viele Ausfall-Hinweise statt leerer Stellen (Streams, Cup-Seite, Profil), 22 fehlende englische Texte. Alles wartet auf deine Entscheidung.",
   "naechstes": [
     "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
-    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs (seit Beitritt); Mshary in zwei Orgs; zählen Asien-Siege als FNCS-Titel; „FNCS Winners“-Hinweis um Grand Royale/All-Star ergänzen?",
-    "Nächste Runde: Live-Status-Ausfall nicht als „alle offline“, Kanalsuche-Ausfall, weitere Statistik-Prüfung."
+    "Frage an dich: Orgs – soll ein neuer Beitritt den alten Aufenthalt automatisch beenden? (Cold, Mshary, Curve werden sonst doppelt gezählt) Oder pflegst du Enddaten im Admin?",
+    "Weitere Fragen: Mindestspiele Cup-Kacheln (Hälfte) gegen Spieler-Reiter (5) angleichen? Teamseite „Earnings“ gegen Orgs; zählen Asien-Siege als FNCS-Titel?",
+    "Nächste Runde: LAN-Preisgeld in der Jahresliste mit Daten prüfen, weitere Statistik-Prüfung (Saisonliste, Regionen)."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-162/163/182/195) + Sonnet (übrige)",
-  "laeuftSeit": "2026-11-01T03:47:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-207/219) + Sonnet (übrige)"
 }

@@ -20,7 +20,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Cup-Seite: Schaden in Teamtabelle (Epic, gesamt) ≠ Reiter Spieler (Replays, nur an Spielern)** – z. B. Nxthan 15.424 gegen 4.497. Eigene Titel, aber verwirrend – Beschriftung klarer machen?
 - [ ] **Duo-Cups: Spieler-Elims weichen 1–2 von Team-Elims ab** (Replay-Zählung gegen Epic) – Quelle, kein Code-Fehler.
 - [ ] **Live-Seite älter als main?** K/D im Solo-Finale live noch alt (Shxrk 5,83 statt 3,5), obwohl chef-160 (live) es behebt – nach nächstem Bau prüfen.
-- [x] Erledigt in Runde 11: chef-207 bis chef-213 (siehe Logbuch).
+- [ ] **Jahresliste: LAN-Preisgeld evtl. doppelt** – jahresListen rechnet LAN-Fenster (Escargo_Day4, BambiRaptor_Day2 …) erst über die Online-Auszahlungstabelle und addiert dann lanSummen; das Profil ersetzt die Tabelle durch das LAN-Geld. Doppelt nur, wenn data/preisgeld-tabellen.json diese Fenster enthält – mit Daten prüfen. Fertiger Entwurf (Runde 11, nicht übernommen): LAN-Fenster aus lanEintraege (ohne offen) in der Tabellen-Schleife und in der Verdienst-Akte überspringen, lanTage = Zahl dieser Fenster, nicht gelistete zu spieltage addieren.
+- [ ] **Orgs: Preisgeld doppelt bei Wechsel** – Wechseltag zählt bei alter (bis inklusive) und neuer Org (seit inklusive), z. B. Curve KoS bis 20.09. / XSET seit 20.09.; und alte Aufenthalte ohne Enddatum laufen weiter (Cold XSET 405.200 $ + Twisted Minds 306.150 $; Mshary SCYTES + Vision). Vorschlag an den Betreiber: späterer Beitritt beendet den früheren Aufenthalt am Vortag – oder Enddaten im Admin (/admin/orgs) pflegen (11 Ehemalige ohne „bis“: Cold, Sphinx, josh, Retro, Resignz, Rainy, Anon, Stiffaroonie, Xavz, Phzin, Edson; Julle bei 1P ohne „seit“). FRAGE AN BETREIBER.
+- [x] Erledigt in Runde 11: chef-207 bis chef-232 (siehe Logbuch).
+- [x] (alt) chef-207 bis chef-213 (siehe Logbuch).
 
 ## Neu entdeckt (Runde 10, 01.11.2026)
 
