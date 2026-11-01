@@ -2085,6 +2085,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'etwa': 'about',
   'Preisgeld': 'Prize Pool',
   'je Region': 'per region',
+  'insgesamt ausgezahlt': 'paid out in total',
   'beste': 'top',
   'Gegenstände': 'Items',
   '← Alle Events': '← All events',

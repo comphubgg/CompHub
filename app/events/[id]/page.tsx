@@ -159,6 +159,16 @@ function teamGroesseAus(playlist?: string): number | null {
   return null;
 }
 
+/**
+ * Der Faktor, mit dem ein Betrag aus der Tabelle zum Betrag fuer das ganze
+ * Team wird. Die Tabellen nennen den Betrag je Spieler (proPerson); die
+ * Summe ueber alle Plaetze ist aber das, was ein Team insgesamt bekommt -
+ * bei einem Duo also das Doppelte der Summe der Zeilen je Spieler.
+ */
+function teamFaktor(proPerson: boolean | undefined, playlist?: string): number {
+  return proPerson !== false ? (teamGroesseAus(playlist) ?? 1) : 1;
+}
+
 /** Die Rangstufen in Epics Reihenfolge, so heissen sie im Spiel. */
 const RANG_STUFEN = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Unreal'];
 /**
@@ -2949,8 +2959,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * bekommt jeder etwas, die Schwelle sagt dort nichts.
                */
               (/final/i.test(fenster.windowId) && !fenster.qualifiziert && (preise?.gesamt ?? 0) > 0 && (preise?.geld.length ?? 0) > 0)
-                ? [t('Preisgeld'), `${(preise?.gesamt ?? 0).toLocaleString(ort)} ${preise?.waehrung ?? 'USD'}`
-                  + (() => { const erster = preise?.geld.find((x) => x.art === 'rank' && x.schwelle === 1); return erster ? ` · #1 ${erster.betrag.toLocaleString(ort)}` : ''; })()]
+                ? [t('Preisgeld'), `${((preise?.gesamt ?? 0) * teamFaktor(preise?.proPerson, fenster.playlist)).toLocaleString(ort)} ${preise?.waehrung ?? 'USD'}`
+                  + (() => { const erster = preise?.geld.find((x) => x.art === 'rank' && x.schwelle === 1); return erster ? ` · #1 ${(erster.betrag * teamFaktor(preise?.proPerson, fenster.playlist)).toLocaleString(ort)}` : ''; })()]
               : (fenster.qualifiziert || qual?.schwelle)
                 ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
@@ -3252,9 +3262,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   sich. */}
               {preise.gesamt !== null && (
                 <span className="text-sm font-bold text-emerald-400">
-                  {preise.gesamt.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
+                  {(preise.gesamt * teamFaktor(preise.proPerson, fenster?.playlist)).toLocaleString(ort)} {preise.waehrung ?? 'USD'}
                   <span className="ml-1 text-[11px] font-normal text-slate-500">
-                    {preise.proPerson ? <T>je Person</T> : <T>je Region</T>}
+                    {preise.proPerson
+                      ? (teamFaktor(preise.proPerson, fenster?.playlist) > 1 ? <T>insgesamt ausgezahlt</T> : <T>je Person</T>)
+                      : <T>je Region</T>}
                   </span>
                 </span>
               )}

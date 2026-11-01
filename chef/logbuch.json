@@ -3181,5 +3181,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:05:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-148",
+    "titel": "Duo-/Trio-Cups: Preisgeld-Summe je Team",
+    "kurz": "Cup-Seite Duo-Finale → Preisgeld: Summe oben 19.700 $ statt 9.850 $, passend zu den Zeilen.",
+    "markieren": [
+      "text:paid out in total",
+      "text:Prize Pool"
+    ],
+    "warum": "Im Duo-Finale Division 1 Woche 1 (EU) stand oben 9.850 $ „je Person“, die Zeilen darunter (je Team) ergaben aber 19.700 $.",
+    "was": "Summe und Betrag für Platz 1 werden bei Duo, Trio und Squad je Team gerechnet; dahinter steht „insgesamt ausgezahlt“.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSDivisionalCup_Division1_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
