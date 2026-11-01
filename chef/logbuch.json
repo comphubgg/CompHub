@@ -3338,5 +3338,23 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:22:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-155",
+    "titel": "FNCS Solos: Spieler-Fenster lädt nicht ständig neu",
+    "kurz": "Unsichtbar: Globals Solos → offenes Spieler-Fenster flackert nicht mehr und bleibt beim Gewählten.",
+    "markieren": [],
+    "warum": "Solange das Fenster offen war, verschwanden die Werte bei jeder Aktualisierung der Seite kurz, und eine andere Auswahl sprang zurück.",
+    "was": "Der Startspieler wird nur neu gesetzt, wenn wirklich ein anderer Spieler gemeint ist.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

@@ -292,7 +292,10 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   // Anderer Cup oder Spieltag: die Auswahl faellt weg.
   useEffect(() => { setWahl(null); setDaten(null); setTreffer(null); setSuche(''); setMehr(false); setAuswertung(null); }, [eventId, windowId]);
   // Ein vorgegebener Spieler gilt nach dem Zuruecksetzen oben.
-  useEffect(() => { if (startSpieler) setWahl(startSpieler); }, [startSpieler, eventId, windowId]);
+  // Als Id und Name, nicht als Objekt: die Solo-Seite reicht bei jedem Zeichnen ein frisches Objekt herein, das die Auswahl zuruecksetzte und die Werte neu holte.
+  const startId = startSpieler?.id;
+  const startName = startSpieler?.name;
+  useEffect(() => { if (startId !== undefined && startName !== undefined) setWahl({ id: startId, name: startName }); }, [startId, startName, eventId, windowId]);
 
   const e = daten?.eintrag ?? null;
   const spiele = e?.matches ?? [];
