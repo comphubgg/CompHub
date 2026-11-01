@@ -11,7 +11,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Live-Status merkt sich „unbekannt“ im Seiten-Ausweichweg** (ueberSeite, MERK_DAUER) – nach einem Ausfall bleibt der Hinweis bis zum Ablauf stehen. Beobachten.
 - [ ] **Profil-Ansicht: Epic-Wert damageRatio je Zeile ≠ Schaden/erlitten** (z. B. Solo Final Tag 2: 2,69 gegen 3.980/1.552 = 2,56) – CompHub rechnet selbst, Epic anders. Nur Hinweis, keine Anzeige betroffen.
 - [ ] **Benennung Trefferquote uneinheitlich**: Spielerliste „Treffer %“, Bestenliste/Profil „Trefferquote“, Vergleich „Genauigkeit“ – auf ein Wort einigen.
-- [ ] **FNCS-Elims-Tabelle je Major**: sortiert nur innerhalb der 80 Besten nach Gesamt – wer in einem Major viel hatte, insgesamt aber nicht Top 80 ist, fehlt.
+- [x] **FNCS-Elims-Tabelle je Major** (schon mit chef-220 erledigt): sortiert nur innerhalb der 80 Besten nach Gesamt – wer in einem Major viel hatte, insgesamt aber nicht Top 80 ist, fehlt.
 - [ ] **FNCS-Ereignisse: Punkte der Plätze 1–5 fehlen** bei Invitational 2022, Global Championship 2023 und 2025 (Quelle liefert nur den Platz) – Oberfläche zeigt „–“, korrekt.
 - [ ] **Live-Antwort /api/fncs-alltime älter als der Code** (Listenende nicht nach bestem Major sortiert) – nach dem nächsten Bau prüfen.
 - [ ] **Turnierverzeichnis: Regionsfilter EU blendet Globals aus**, wenn die LAN-Kachel NAC trägt (seit chef-228 bevorzugt EU) – nach Bau prüfen; ggf. LAN-Kachel bei jeder Region zeigen (Betreiber fragen).
