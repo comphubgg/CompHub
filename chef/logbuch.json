@@ -2706,7 +2706,9 @@
     "ansehen": [
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
     ],
-    "commits": [],
+    "commits": [
+      "aa32fca"
+    ],
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
