@@ -86,6 +86,7 @@ export default function RanglisteNeu() {
   }, [sprache]);
 
   const [uebersicht, setUebersicht] = useState<Uebersicht | null>(null);
+  const [uebersichtFehler, setUebersichtFehler] = useState(false);
   const [suche, setSuche] = useState('');
   const [proSeite, setProSeite] = useState<number>(ZEILEN[0]);
   const [seite, setSeite] = useState(1);
@@ -95,7 +96,15 @@ export default function RanglisteNeu() {
 
   useEffect(() => {
     let weg = false;
-    fetch('/api/power-rankings?uebersicht=1', { cache: 'no-store' }).then((r) => r.json()).then((j: Uebersicht) => { if (!weg && j?.success) setUebersicht(j); }).catch(() => { /* ohne Uebersicht bleibt die Liste */ });
+    // Ohne Uebersicht bleibt die Liste - aber der Ausfall wird gesagt. Beim ersten Holen (noch keine Liste) fehlen die Felder, das ist kein Ausfall und kein Absturz.
+    fetch('/api/power-rankings?uebersicht=1', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j: Uebersicht & { holt?: boolean }) => {
+        if (weg) return;
+        if (j?.success && Array.isArray(j.spitze) && Array.isArray(j.aufsteiger) && Array.isArray(j.absteiger) && Array.isArray(j.laender)) setUebersicht(j);
+        else if (!j?.success) setUebersichtFehler(true);
+      })
+      .catch(() => { if (!weg) setUebersichtFehler(true); });
     return () => { weg = true; };
   }, []);
 
@@ -184,6 +193,11 @@ export default function RanglisteNeu() {
       )}
 
       {/* ----------------------------------------------------------- Bewegung und Laender */}
+      {uebersichtFehler && !uebersicht && (
+        <p role="alert" className="rounded-3xl border border-amber-500/30 bg-amber-500/10 px-6 py-4 text-sm text-amber-200">
+          <T>Die Spitze, die Auf- und Absteiger und die Länder sind gerade nicht erreichbar. Die Liste darunter bleibt davon unberührt.</T>
+        </p>
+      )}
       {uebersicht && (
         <section className="grid gap-4 lg:grid-cols-3">
           {([['aufsteiger', t('Aufsteiger'), true], ['absteiger', t('Absteiger'), false]] as const).map(([schluessel, titel, hoch]) => (

@@ -1552,6 +1552,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Zugang wirklich löschen? Anmeldung, Rollen und Kanal sind danach weg.']: 'Really delete this access? Sign-in, roles and channel will be gone.',
   'Zugang löschen und Grund senden': 'Delete access and send the reason',
   'Nicht ladbar.': 'Could not be loaded.',
+  'Die Spitze, die Auf- und Absteiger und die Länder sind gerade nicht erreichbar. Die Liste darunter bleibt davon unberührt.':
+    'The top three, the climbers and fallers and the countries are currently unreachable. The list below is not affected.',
   'Die Rangliste ist gerade nicht erreichbar. Sie wird gleich noch einmal versucht.': 'The ranking is currently unreachable. It will be retried shortly.',
   'Abgelaufen und gelöscht': 'Expired and deleted',
   'VIP-Zugänge': 'VIP access',
