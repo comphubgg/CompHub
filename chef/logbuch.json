@@ -2492,5 +2492,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-117",
+    "datum": "2026-11-01T02:20:00Z",
+    "titel": "Profil: gestrichelte Linie im Damage-Ratio-Verlauf erklärt",
+    "kurz": "Profil → Verlauf der Damage Ratio: Kopfzeile nennt jetzt den Schnitt der gestrichelten Linie.",
+    "markieren": [
+      "text:Damage Ratio",
+      "text:Average"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die gestrichelte Linie hatte keine Beschriftung und wich von der Quote im Profilkopf ab – das wirkte wie ein Widerspruch.",
+    "was": "Oben steht jetzt „Schnitt“ mit dem Wert der Linie und einem kleinen gestrichelten Zeichen davor.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

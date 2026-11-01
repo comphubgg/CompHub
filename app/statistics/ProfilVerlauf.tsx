@@ -71,7 +71,10 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
         <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300"><T>Verlauf der Damage Ratio</T></h3>
         {werte.length > 0 && (
           <span className="text-[11px] text-slate-500">
-            <T>Bester</T> <b className="text-emerald-400">{zahl(max)}</b> · <T>Schlechtester</T> <b className="text-rose-400">{zahl(min)}</b> · {punkte.length} Events
+            <T>Bester</T> <b className="text-emerald-400">{zahl(max)}</b> · <T>Schlechtester</T> <b className="text-rose-400">{zahl(min)}</b>
+            {/* Die gestrichelte Linie im Bild: der Schnitt der gezeigten Events (nicht die Quote im Profilkopf, die ueber den ganzen Schaden rechnet). */}
+            {' · '}<span aria-hidden className="mx-0.5 inline-block w-4 border-t border-dashed border-slate-500 align-middle" /> <T>Schnitt</T> <b className="text-slate-300">{zahl(schnitt)}</b>
+            {' · '}{punkte.length} Events
           </span>
         )}
         <div className="ml-auto flex gap-1.5">
