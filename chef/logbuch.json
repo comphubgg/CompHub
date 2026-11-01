@@ -2310,5 +2310,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 7
+  },
+  {
+    "id": "chef-109",
+    "datum": "2026-11-01T02:05:00Z",
+    "titel": "Cup-Seite: Preisgeld-Ausfall zeigt Hinweis",
+    "kurz": "Cup-Seite: fällt die Preisgeld-Auskunft aus, steht ‚gerade nicht erreichbar‘ statt still nichts.",
+    "markieren": [
+      "text:The numbers are not reachable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei einem kurzen Ausfall verschwanden Preisgeld-Kachel und Reiter ‚Preis‘ ohne Hinweis – sah aus wie ‚kein Preisgeld‘.",
+    "was": "Jetzt steht unter den Kacheln derselbe kleine Hinweis wie bei chef-107, und die Seite versucht es nach 10 Sekunden erneut. Echtes ‚kein Preisgeld‘ bleibt wie bisher.",
+    "ansehen": [
+      "/events"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 7
   }
 ]

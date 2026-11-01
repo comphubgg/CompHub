@@ -971,6 +971,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   } | null>(null);
   /** Die Qualifikations-Auskunft war nicht zu holen: Hinweis unter den Kacheln, neuer Versuch nach 10 Sekunden. */
   const [qualFehlt, setQualFehlt] = useState(false);
+  /** Das Preisgeld war nicht zu holen: Hinweis statt stillem Weglassen, neuer Versuch nach 10 Sekunden. */
+  const [preiseFehlt, setPreiseFehlt] = useState(false);
+  const [preiseVersuch, setPreiseVersuch] = useState(0);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
   const belohnungsRang = useMemo(() => {
     const g = [...(preise?.gegenstaende ?? []), ...(preise?.geld ?? [])].filter((x) => x.art === 'rank' && x.schwelle >= 1);
@@ -1512,12 +1515,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         // die letzte Runde des Tages sehr wohl das Finale ist.
         + `&finale=${finaleJetzt ? '1' : '0'}`)
         .then((r) => r.json())
-        .then((j) => (j?.error ? null : j))
+        .then((j) => {
+          // Ein Fehler der Schnittstelle ist kein "kein Preisgeld" - das kommt als Antwort ohne "error".
+          if (!j || typeof j !== 'object' || j.error) throw new Error('keine Preisauskunft');
+          return j;
+        })
       : Promise.resolve(null);
-    holen.then((v) => { if (!weg) setPreise(v); })
-      .catch(() => { if (!weg) setPreise(null); });
-    return () => { weg = true; };
-  }, [fenster, finaleJetzt]);
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    holen.then((v) => { if (!weg) { setPreiseFehlt(false); setPreise(v); } })
+      .catch(() => {
+        if (weg) return;
+        setPreise(null);
+        setPreiseFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setPreiseVersuch((n) => n + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [fenster, finaleJetzt, preiseVersuch]);
 
   const laeuftGerade = fenster?.status === 'live';
 
@@ -2964,7 +2977,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {fenster && qualFehlt && !qual && (
+        {fenster && ((qualFehlt && !qual) || (preiseFehlt && !preise)) && (
           <p className="-mt-2 mb-5 text-xs text-slate-500">
             <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
           </p>
