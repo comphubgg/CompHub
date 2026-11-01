@@ -4789,6 +4789,8 @@
     "datum": "2026-11-01T04:00:00Z",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "92f97e9"
+    ]
   }
 ]
