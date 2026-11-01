@@ -561,10 +561,11 @@ export default function EventsPage() {
     ?? hervor.find((c) => c.bild))?.bild ?? null;
 
   const heute = useMemo(() => {
-    const tag = new Date().toDateString();
-    return new Set(gefiltert.filter((c) => Object.values(c.regionen).flat()
-      .some((f) => new Date(f.begin).toDateString() === tag)).map((c) => c.id)).size;
-  }, [gefiltert]);
+    const tag = new Date(jetzt).toDateString();
+    // Nur die Fenster der gewaehlten Region zaehlen (mit Europa gewaehlt zaehlte sonst ein Cup mit, der nur in NA heute spielt); die Uhr springt um Mitternacht mit.
+    return new Set(gefiltert.filter((c) => fensterIn(c, region)
+      .some((f) => f.begin && new Date(f.begin).toDateString() === tag)).map((c) => c.id)).size;
+  }, [gefiltert, region, jetzt]);
 
   // Beendet, Kalender, Suche - oder zu wenige kommende Cups fuer die Kopfreihe (die fuellt sie mit zuletzt beendeten auf).
   const brauchtVergangene = status === 'vorbei' || reiter === 'kalender' || suche.trim() !== '' || (!laedt && hervor.length < 4);

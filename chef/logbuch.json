@@ -2978,5 +2978,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-139",
+    "titel": "Events: „Turniere heute“ zählt nur die gewählte Region",
+    "kurz": "Events → Region Europe: Zähler „tournaments today“ zählt nur noch EU-Cups.",
+    "markieren": [
+      "css:main .rounded-md.bg-zinc-800"
+    ],
+    "warum": "Mit gewählter Region zählte der Zähler auch Cups, die nur in anderen Regionen heute spielen, und sprang nach Mitternacht nicht um.",
+    "was": "Er zählt jetzt nur die Spieltage der gewählten Region und rechnet mit der laufenden Uhr.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:25:00Z",
+    "bereich": "Events",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
