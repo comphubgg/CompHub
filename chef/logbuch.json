@@ -2713,5 +2713,27 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-127",
+    "datum": "2026-11-01T02:50:00Z",
+    "titel": "Statistik oben: Spieltage passen zur Startseite",
+    "kurz": "Statistik oben: „Match days“ zeigt 4.733 wie die Startseite statt 982.",
+    "markieren": [
+      "text:Match days",
+      "css:.tabular-nums"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Startseite nannte 4.733 Spieltage im Archiv, die Statistikseite oben nur 982 – zwei Zahlen für dasselbe.",
+    "was": "Die Statistikseite zählt jetzt wie die Startseite: auch die Spieltage aus Epics Bestenlisten.",
+    "ansehen": [
+      "/statistics",
+      "/"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

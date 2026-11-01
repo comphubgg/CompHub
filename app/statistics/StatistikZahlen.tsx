@@ -27,11 +27,20 @@ export default function StatistikZahlen() {
   useEffect(() => {
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
+    /*
+     * Die Spieltage wie auf der Startseite: das Groessere aus dem Szene-Verzeichnis und der Liste "alle Zeit" (dort zaehlen auch Epics
+     * Bestenlisten). Vorher stand hier nur das Verzeichnis (982), die Startseite zeigte fuer dasselbe "Spieltage im Archiv" 4.733.
+     */
+    const alleZeit = fetch('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { signal: AbortSignal.timeout(20_000) })
+      .then((r) => r.json()).catch(() => null) as Promise<{ success?: boolean; spieltage?: number } | null>;
     fetch('/api/statistik-zahlen', { signal: AbortSignal.timeout(20_000) })
       .then((r) => r.json())
-      .then((j) => {
+      .then(async (j) => {
         if (!j?.ok) throw new Error('keine Zahlen');
-        if (!weg) { setZ(j); setFehlt(false); }
+        const a = await alleZeit;
+        const tage = Math.max(a?.success && typeof a.spieltage === 'number' ? a.spieltage : 0,
+          typeof j.spieltage === 'number' ? j.spieltage : 0) || null;
+        if (!weg) { setZ({ ...j, spieltage: tage }); setFehlt(false); }
       })
       .catch(() => {
         // Ein Ausfall soll nicht wie "keine Zahlen" aussehen: Hinweis zeigen und gleich noch einmal fragen.
