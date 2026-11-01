@@ -3740,5 +3740,28 @@
     "datum": "2026-11-01T03:25:00Z",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-172",
+    "datum": "2026-11-01T03:25:00Z",
+    "titel": "Turnierstatistik: Best K/D und Ø-Platz erst ab der Hälfte der Spiele",
+    "kurz": "Cup-Seite → Teams → „Best K/D“: kein Team mit nur einem Spiel vorn.",
+    "markieren": [
+      "text:Best K/D",
+      "text:Best Average Placement"
+    ],
+    "bereich": "Statistik",
+    "warum": "In laufenden Cups konnte ein Team mit einem einzigen guten Spiel die K/D- und Platz-Liste anführen.",
+    "was": "Beide Listen zählen jetzt nur Teams mit mindestens der Hälfte der meisten Spiele – wie schon „Longest Avg Time Alive“.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=teams"
+    ],
+    "commits": [
+      "ae21d35"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
