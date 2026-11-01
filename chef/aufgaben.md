@@ -21,7 +21,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Erledigt in Runde 10**: chef-162 bis chef-206 (Profil-Format, Kurven-Zahlenformat, Summenzeile, Kopfsuche-Ausfall, feste Reihenfolge der Bestenlisten, Sortier-Spalte, Quoten-Mindestzahl in Regionen und Turnierstatistik, Preisgeld-$, Vergleich 1st/2nd, Ländernamen, Ausfälle bei Runden/Preisgeld/Overlays/Tierlist/Power Rankings, Zahlenformat auf Cup-Seite, Startseite, FNCS, Replays, Übersetzung Cup-Kacheln und Spielerfenster, Globals im Verdienst).
 - [x] (chef-182) **Hinweis „ab N Spielen“ fehlt an den Cup-Kacheln** „Longest Avg Time Alive“, „Best K/D“, „Best Average Placement“ (Schwelle: Hälfte der meisten Spiele) – Antwort von cup-stats um die Schwelle ergänzen und an der Kachel zeigen.
 - [ ] **„FNCS Winners“-Hinweis nennt Grand Royale und All-Star Solo nicht**, obwohl sie gezählt werden – Wortlaut mit dem Betreiber klären.
-- [ ] **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
+- [x] (chef-219) **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
 - [ ] **Teamseite: fehlt die Power-Ranking-Datei, merkt die Seite das nicht** (lib/powerRankings lies() unterscheidet Ausfall nicht von „Datei fehlt“) – größere Änderung.
 - [ ] **Replay-Spielerliste: fehlende Kills erscheinen als 0** (kills ?? 0) – Quelle unterscheidet nicht zwischen „0“ und „unbekannt“; beobachten.
 - [x] (chef-195) **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
