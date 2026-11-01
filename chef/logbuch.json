@@ -4307,5 +4307,71 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-197",
+    "datum": "2026-11-01T03:40:00Z",
+    "titel": "Events: gleiche Startzeit in fester Reihenfolge",
+    "kurz": "Events → obere Kacheln und Kalender: gleiche Startzeit springt nicht mehr hin und her.",
+    "markieren": [
+      "text:Calendar"
+    ],
+    "bereich": "Events",
+    "warum": "Bei gleicher Startzeit hing die Reihenfolge der Kacheln oben und im Kalender vom Laden ab.",
+    "was": "Jetzt erst die wichtigen Turniere, dann eine feste Folge.",
+    "ansehen": [
+      "/events"
+    ],
+    "commits": [
+      "7262e98"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-198",
+    "datum": "2026-11-01T03:40:00Z",
+    "titel": "Startseite: Rampenlicht-Zahlen im Format der Sprache",
+    "kurz": "Startseite → Spieler im Rampenlicht: „300,283“ Schaden auf Englisch statt „300.283“.",
+    "markieren": [
+      "text:Damage"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die drei rollenden Zahlen standen auch auf der englischen Seite im deutschen Format – „300.283“ liest sich dort als 300.",
+    "was": "Sie folgen jetzt der Seitensprache.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [
+      "7a9870a"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-199",
+    "datum": "2026-11-01T03:40:00Z",
+    "titel": "FNCS: Punkte mit Tausendertrennung",
+    "kurz": "FNCS → Top-Platzierungen: Punkte „1,234“ statt „1234“.",
+    "markieren": [
+      "text:PTS"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Punkte in den Ergebnislisten standen als nackte Zahl, die Tabelle darunter mit Trennung.",
+    "was": "Jetzt überall gleich im Format der Sprache.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [
+      "4f01ece"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
