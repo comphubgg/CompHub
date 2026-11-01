@@ -6,6 +6,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [x] (chef-252) **Cup-Spieler-Reiter: Suchtreffer standen immer als Nr. 1**.
 - [x] (chef-254) **Profil-Stärkefelder: unbekannte Quoten als Rang 0**.
+- [ ] **Vergleich → Platzierungen: wer einen Cup allein gespielt hat, steht grün als Sieger** – Gestaltungsfrage (nicht gespielt ≠ unbekannt); Betreiber fragen. Entwurf liegt vor (neutral färben).
+- [ ] **Statistik-Zahlen: Regionen mit gleicher Spielerzahl ohne feste Reihenfolge**; Org-Spieler bei gleichem Betrag nach Dateireihenfolge – klein.
 - [ ] **Saisonliste S42: Strecke („distanz“) wohl auch 100× zu klein** (ChapGOTY 7: 3,1 km in 90 Matches) – wie bei S41; Spalte wird nicht gezeigt, kommt mit der Neuberechnung (chef-106).
 
 ## Neu entdeckt (Runde 13, 01.11.2026)
