@@ -4836,5 +4836,25 @@
     "commits": [
       "632e345"
     ]
+  },
+  {
+    "id": "chef-221",
+    "titel": "Cup-Seite → About: Ausfall der Bedingungen meldet sich",
+    "kurz": "Cup-Seite → About → „Wer mitspielen darf“: bei Ausfall Hinweis statt „keine Bedingungen“.",
+    "markieren": [
+      "text:cannot be reached right now"
+    ],
+    "bereich": "Events",
+    "warum": "Fiel die Abfrage aus, stand dort „Zu diesem Spieltag nennt Epic keine Bedingungen“ – eine falsche Aussage.",
+    "was": "Jetzt steht dort, dass die Angabe gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=about"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:04:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

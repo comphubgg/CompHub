@@ -840,6 +840,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * schauen ihn nie an, und die Anfrage geht zu Epic.
    */
   const [quali, setQuali] = useState<Array<{ art: string; text: string }> | null>(null);
+  /** Die Teilnahmebedingungen waren nicht abrufbar - das ist nicht "Epic nennt keine". */
+  const [qualiFehlt, setQualiFehlt] = useState(false);
   /** "Show rules" unter About - die Teilnahmebedingungen, eingeklappt. */
   const [regelnOffen, setRegelnOffen] = useState(false);
   /** Name und Bild der Reload-Insel des Spieltags (lib/inseln, /api/karten-bild). */
@@ -852,8 +854,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     });
     fetch(`/api/cup-quali?${p.toString()}`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => setQuali(Array.isArray(j?.zeilen) ? j.zeilen : []))
-      .catch(() => setQuali([]));
+      .then((j) => {
+        if (j?.ok === false || !Array.isArray(j?.zeilen)) throw new Error('keine Zeilen');
+        setQualiFehlt(false);
+        setQuali(j.zeilen);
+      })
+      .catch(() => { setQualiFehlt(true); setQuali([]); });
   }, [reiter, quali, fenster]);
 
   // About: die Insel eines Reload-Spieltags mit Namen und Karte. Die Seite
@@ -3554,7 +3560,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <T>Direkt aus Epics Turnierdaten für genau diesen Spieltag — nichts davon ist geschätzt.</T>
                   </p>
                   {!quali && <LadeSchirm />}
-                  {quali && !quali.length && (
+                  {quali && !quali.length && qualiFehlt && (
+                    <p role="status" className="mt-4 text-sm leading-relaxed text-slate-500">
+                      {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Wer mitspielen darf'))}
+                    </p>
+                  )}
+                  {quali && !quali.length && !qualiFehlt && (
                     <p className="mt-4 text-sm leading-relaxed text-slate-500">
                       <T>Zu diesem Spieltag nennt Epic keine Bedingungen.</T>
                     </p>
