@@ -501,6 +501,12 @@ function schnitt(wert: number, ort = 'de-DE', stellen = 2, nullIstWert = false) 
   });
 }
 
+/** Eine Dezimalzahl mit festen Stellen im Zahlenformat der Seite (0 bleibt ein Wert); fehlt sie, steht ein Strich. */
+function dezText(wert: number | null | undefined, ort: string, stellen = 2) {
+  return typeof wert === 'number' && Number.isFinite(wert)
+    ? wert.toLocaleString(ort, { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) : '–';
+}
+
 /** Eine ganze Zahl im Zahlenformat der Seite; fehlt sie, steht ein Strich. */
 function zahlText(wert: number | null | undefined, ort: string) {
   return typeof wert === 'number' && Number.isFinite(wert) ? wert.toLocaleString(ort) : '–';
@@ -4366,7 +4372,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                         ['Schaden an Bauten', t.eigen.schadenAnBauten],
                                         ['Trefferquote', t.eigen.trefferquote === null
                                           ? null
-                                          : `${(t.eigen.trefferquote * 100).toFixed(1)} %`],
+                                          : `${dezText(t.eigen.trefferquote * 100, ort, 1)} %`],
                                         ['Waffenschaden', t.eigen.schadenWaffen],
                                         ['Sonstiger Schaden', t.eigen.schadenSonst],
                                         ['Material gefarmt', t.eigen.matsGefarmt],
@@ -4850,10 +4856,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             {sp.spiele ? Math.round((sp.damage ?? 0) / sp.spiele).toLocaleString(ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
-                            {sp.spiele ? (sp.kills / sp.spiele).toFixed(2) : '—'}
+                            {sp.spiele ? dezText(sp.kills / sp.spiele, ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
-                            {typeof sp.damageRatio === 'number' ? sp.damageRatio.toFixed(2) : '—'}
+                            {typeof sp.damageRatio === 'number' ? dezText(sp.damageRatio, ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">
                             {(sp.damage ?? 0).toLocaleString(ort)}
@@ -4934,7 +4940,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                          text-slate-500">{sp.tode}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums
                                          text-slate-400">
-                            {sp.spiele ? (sp.kills / sp.spiele).toFixed(2) : '—'}
+                            {sp.spiele ? dezText(sp.kills / sp.spiele, ort) : '—'}
                           </td>
                           <td className="px-4 py-1.5 text-right tabular-nums
                                          text-slate-500">{sp.spiele}</td>
