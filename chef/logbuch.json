@@ -3512,5 +3512,28 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "id": "chef-162",
+    "datum": "2026-11-01T03:25:00Z",
+    "titel": "FNCS im Profil: Format der Invitationals",
+    "kurz": "Profil Veno → FNCS-Tabelle: „Invitational 2022“ zeigt „Duo“ statt Strich.",
+    "markieren": [
+      "text:INVITATIONAL 2022",
+      "text:CH2 S2 INVITATIONAL"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Invitational 2022 und beim Invitational von Chapter 2 Season 2 stand in der Spalte Format nur ein Strich.",
+    "was": "Beide stehen jetzt mit ihrem Format da (2022 Duo, CH2 S2 Solo) – so, wie die FNCS-Seite sie auch führt.",
+    "ansehen": [
+      "/statistics?spieler=5b9f90e50d3644319676cfcc51e458bf"
+    ],
+    "commits": [
+      "03756cf"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
