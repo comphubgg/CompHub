@@ -4373,5 +4373,52 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-200",
+    "datum": "2026-11-01T03:45:00Z",
+    "titel": "Spielerfenster: Beschriftungen übersetzt",
+    "kurz": "Cup-Seite → Spieler öffnen, Sprache Deutsch: „Ø Platzierung“ statt „Avg Placement“.",
+    "markieren": [
+      "text:Avg Placement",
+      "text:Damage Ratio",
+      "text:Last update"
+    ],
+    "bereich": "Statistik",
+    "warum": "Im Spielerfenster eines Cups waren alle Zeilentitel und die Aktualisierungszeile auch auf Deutsch englisch.",
+    "was": "Sie laufen jetzt über die Übersetzung („vor 5 Minuten“ statt „5 minutes ago“); Englisch bleibt gleich.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=liste"
+    ],
+    "commits": [
+      "dba2e79"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-201",
+    "datum": "2026-11-01T03:45:00Z",
+    "titel": "Verdienst: Global Championships mit LAN-Name und Endplatz",
+    "kurz": "Profil Vico → Earnings: Globals 2026 „LAN · Antwerp“, Platz 3 statt „Day 2“, Platz 7.",
+    "markieren": [
+      "text:FNCS Global Championship 2026",
+      "text:LAN"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei den Global Championships stand im Verdienst nur der Tagesname und der Platz dieses Tages statt des Endplatzes.",
+    "was": "Jetzt wie bei den anderen LANs: Turniername, LAN-Schild mit Ort und echter Endplatz. Die Beträge bleiben gleich.",
+    "ansehen": [
+      "/statistics?spieler=02c93e4588f241baa6cb5040632326b4"
+    ],
+    "commits": [
+      "b5c45ec"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
