@@ -5858,5 +5858,26 @@
     "commits": [
       "1613937"
     ]
+  },
+  {
+    "id": "chef-266",
+    "datum": "2026-11-01T06:20:00Z",
+    "titel": "Profil: Spieltage ohne Werte nicht als 0",
+    "kurz": "Spielerprofil → Kurve, „Beste Spieltage“, Auszeichnungen: Tage ohne Wert zählen nicht als 0.",
+    "markieren": [
+      "text:Best days",
+      "text:Awards"
+    ],
+    "bereich": "Statistik",
+    "warum": "Eigene Spieltage seit CH7 S2 führen nicht immer Elims/Schaden; dann stand in der Kurve 0, die „Besten Spieltage“ waren durcheinander und „Höchster Schaden“ verschwand ganz.",
+    "was": "Kurve, Beste Spieltage und Auszeichnungen rechnen nur mit Tagen, die den Wert wirklich haben.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

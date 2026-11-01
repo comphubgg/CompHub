@@ -2720,8 +2720,17 @@ export default function StatistikSeite() {
   const [offen, setOffen] = useState<Spieler | null>(null);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   /** Beim Schadensverhältnis zählen nur Tage, an denen Schaden erlitten wurde - sonst wäre "unbekannt" eine 0 in der Kurve. */
-  const kurveZeilen = kurve === 'quote'
-    ? verlauf.filter((z) => z.werte.damageTakenFromPlayers > 0) : verlauf;
+  /* Eigene Spieltage (ohne Quelle) führen nicht jeden Wert: fehlt er, ist er unbekannt und keine 0 in der Kurve. */
+  const kurveZeilen = verlauf.filter((z) => {
+    const w = z.werte;
+    switch (kurve) {
+      case 'quote': return w.damageTakenFromPlayers > 0 && typeof w.damageDealt === 'number';
+      case 'damageDealt': return typeof w.damageDealt === 'number';
+      case 'builds': return typeof w.woodBuildsPlaced === 'number';
+      case 'mats': return typeof w.woodFarmed === 'number';
+      default: return typeof w.eliminations === 'number';
+    }
+  });
   const kurveStellen = kurve === 'quote' ? 2 : 0;
   /** Laeuft gerade eine Abfrage fuer das offene Profil? */
   const [profilLaedt, setProfilLaedt] = useState(false);
@@ -6515,9 +6524,9 @@ export default function StatistikSeite() {
                                        text-slate-600"><T>nach Eliminierungen</T></span>
                     </p>
                     <div className="space-y-2">
-                      {[...verlauf]
+                      {verlauf.filter((z) => typeof z.werte.eliminations === 'number')
                         .sort((a, b) => b.werte.eliminations - a.werte.eliminations
-                          || b.werte.damageDealt - a.werte.damageDealt || (b.datum ?? 0) - (a.datum ?? 0))
+                          || (b.werte.damageDealt ?? 0) - (a.werte.damageDealt ?? 0) || (b.datum ?? 0) - (a.datum ?? 0))
                         .slice(0, 3)
                         .map((z) => (
                           <div key={`best-${z.windowId}-${z.region}`}
@@ -6749,10 +6758,13 @@ export default function StatistikSeite() {
                   {(() => {
                     /* Dieselbe Quelle wie die Tafel "FNCS Grand Finals" darueber (vollstaendig bis heute) - die Liste der Quelle endet bei den Globals 2025 und zaehlte Chapter 7 nicht mit. */
                     const finals = fncsGrandFinals;
-                    const besteElims = verlauf.length
-                      ? Math.max(...verlauf.map((z) => z.werte.eliminations)) : 0;
-                    const besterSchaden = verlauf.length
-                      ? Math.max(...verlauf.map((z) => z.werte.damageDealt)) : 0;
+                    // Nur Tage, die den Wert führen - ein fehlender Wert (undefined) machte sonst das ganze Maximum zu NaN und die Zeile verschwand.
+                    const elimsTage = verlauf.filter((z) => typeof z.werte.eliminations === 'number');
+                    const schadenTage = verlauf.filter((z) => typeof z.werte.damageDealt === 'number');
+                    const besteElims = elimsTage.length
+                      ? Math.max(...elimsTage.map((z) => z.werte.eliminations)) : 0;
+                    const besterSchaden = schadenTage.length
+                      ? Math.max(...schadenTage.map((z) => z.werte.damageDealt)) : 0;
 
                     /*
                       * Die Unterzeilen laufen durch die Uebersetzung.
