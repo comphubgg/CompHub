@@ -453,6 +453,9 @@ export default function FncsSeite() {
               <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
               <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.</T></p>
             </div>
+            {alt?.rekorde && (alt.rekorde.fehlend ?? 0) > 0 && (
+              <p className="mb-3 text-[11px] text-slate-500">{t('{n} Endspiele fehlen gerade – Epic antwortet nicht. Die Summen sind deshalb zu klein.').replace('{n}', String(alt.rekorde.fehlend))}</p>
+            )}
             {alt && (
               <div className="mb-10 grid gap-4 lg:grid-cols-3">
                 <Tafel titel="FNCS Winners" unter="Titles">

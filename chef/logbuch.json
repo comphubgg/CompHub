@@ -3045,5 +3045,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-142",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "FNCS All-Time: fehlende Endspiele werden gemeldet",
+    "kurz": "FNCS → All-Time Stats: Fehlt ein Endspiel, steht ein Hinweis über den Tabellen.",
+    "markieren": [
+      "text:All-Time Leaderboard"
+    ],
+    "bereich": "Statistik",
+    "warum": "Lieferte Epic ein Endspiel nicht, zeigte die Seite still zu kleine Summen – und speicherte sie bis zu 7 Tage als „gute“ Antwort.",
+    "was": "Fehlende Endspiele werden gezählt und gemeldet; gibt es eine vollständige Antwort vom letzten Tag, kommt die; sonst wird nach 2 Minuten neu gefragt.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
