@@ -5611,5 +5611,25 @@
     "commits": [
       "e78bf74"
     ]
+  },
+  {
+    "id": "chef-255",
+    "datum": "2026-11-01T05:55:00Z",
+    "titel": "Beste Schadensquote: nur Spieler mit Daten",
+    "kurz": "Unsichtbar: Bestenliste „Beste Schadensquote“ führt Spieler ohne erlittenen Schaden nicht mehr.",
+    "markieren": [
+      "text:Best Damage Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieler ohne erlittenen Schaden (z. B. zeyrox in S42, Quote unbekannt) standen mit Quote 0 in der Liste.",
+    "was": "Saison- und Jahres-Bestenliste der Schadensquote nehmen nur noch Spieler mit erlittenem Schaden.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

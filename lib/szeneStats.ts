@@ -1435,7 +1435,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
      */
     mindestMatches: k.feld === 'quote' ? mindestMatches : null,
     plaetze: [...saisonFeld]
-      .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches : true))
+      // Ohne erlittenen Schaden ist die Quote unbekannt (auf der Seite ein Strich) - kein Platz in der Bestenliste.
+      .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches && s.damageTaken > 0 : true))
       .sort(nachKennzahl(String(k.feld)))
       /*
        * Vierhundert statt sechzig.
@@ -1844,7 +1845,8 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     einheit: k.einheit ?? null,
     mindestMatches: k.feld === 'quote' ? quoteMindest : null,
     plaetze: [...feld]
-      .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest : true))
+      // Ohne erlittenen Schaden ist die Quote unbekannt - kein Platz in der Bestenliste.
+      .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest && s.damageTaken > 0 : true))
       .sort(nachKennzahl(String(k.feld)))
       .slice(0, LISTEN_LAENGE),
   }));
