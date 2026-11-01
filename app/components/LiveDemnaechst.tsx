@@ -60,22 +60,35 @@ export default function LiveDemnaechst() {
   const t = useT();
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [jetzt, setJetzt] = useState(0);
+  const [fehler, setFehler] = useState(false);
 
   useEffect(() => {
     let weg = false;
     fetch('/api/cup-catalog', { signal: AbortSignal.timeout(10_000) })
       .then((r) => r.json())
       .then((j: { cups?: Cup[] }) => {
-        if (weg || !Array.isArray(j?.cups)) return;
+        if (weg) return;
+        if (!Array.isArray(j?.cups)) { setFehler(true); return; }
+        setFehler(false);
         setCups(j.cups);
         setJetzt(Date.now());
       })
-      .catch(() => undefined);
+      .catch(() => { if (!weg) setFehler(true); });
     // Der Text zaehlt mit: jede Minute neu ablesen.
     const id = window.setInterval(() => setJetzt(Date.now()), 60_000);
     return () => { weg = true; window.clearInterval(id); };
   }, []);
 
+  if (fehler && !cups) {
+    return (
+      <div className="mt-6">
+        <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Live und demnächst</T></p>
+        <p className="rounded-2xl border border-zinc-800 bg-zinc-900/85 p-3 text-center text-sm text-slate-400">
+          {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Live und demnächst'))}
+        </p>
+      </div>
+    );
+  }
   if (!cups || !jetzt) return null;
   const eintraege = cups.map((c) => eintragVon(c, jetzt)).filter((e): e is Eintrag => e !== null)
     .sort((a, b) => (a.live === b.live ? (a.start ?? 0) - (b.start ?? 0) : a.live ? -1 : 1))
