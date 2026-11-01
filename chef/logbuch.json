@@ -5538,6 +5538,8 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "f177bb8"
+    ]
   }
 ]
