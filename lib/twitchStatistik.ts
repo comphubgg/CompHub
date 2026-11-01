@@ -122,10 +122,11 @@ function streamWerte(s: TwitchStream) {
   const start = Date.parse(s.start);
   const minuten = s.verlauf.length ? s.verlauf[s.verlauf.length - 1][0] : 0;
   const zuschauer = s.verlauf.map(([, v]) => v);
-  const peak = zuschauer.length ? Math.max(...zuschauer) : 0;
-  const durchschnitt = zuschauer.length ? Math.round(zuschauer.reduce((a, b) => a + b, 0) / zuschauer.length) : 0;
+  // Ohne einen einzigen Messpunkt gibt es keine Spitze und keinen Durchschnitt - null (Strich), nicht 0.
+  const peak: number | null = zuschauer.length ? Math.max(...zuschauer) : null;
+  const durchschnitt: number | null = zuschauer.length ? Math.round(zuschauer.reduce((a, b) => a + b, 0) / zuschauer.length) : null;
   // Spitze ohne Raid: zu jedem Zeitpunkt die Zuschauer der Raids der letzten halben Stunde abgezogen.
-  const peakOhneRaid = s.raids.length
+  const peakOhneRaid: number | null = s.raids.length && zuschauer.length
     ? Math.max(0, ...s.verlauf.map(([m, v]) => {
       const t = start + m * 60_000;
       const geraidet = s.raids.filter((r) => { const rt = Date.parse(r.zeit); return rt <= t && t - rt < RAID_WIRKUNG_MS; }).reduce((a, r) => a + r.zuschauer, 0);
@@ -134,23 +135,28 @@ function streamWerte(s: TwitchStream) {
     : peak;
   return {
     id: s.id, start: s.start, ende: s.ende, live: !s.ende, titel: s.titel, spiel: s.spiel, minuten, peak, peakOhneRaid, durchschnitt,
-    chatter: s.chatter ?? s.chatterIds?.length ?? 0, nachrichten: s.nachrichten ?? 0,
+    chatter: (s.chatter ?? s.chatterIds?.length ?? null) as number | null, nachrichten: (s.nachrichten ?? null) as number | null,
     raids: s.raids.length, raidZuschauer: s.raids.reduce((a, r) => a + r.zuschauer, 0), nurArchiv: false,
   };
 }
 type StreamWerte = ReturnType<typeof streamWerte>;
+const vorhanden = (l: Array<number | null>) => l.filter((x): x is number => x !== null);
 
 function zusammen(st: StreamWerte[], neueFollower: number | null) {
   const gezaehlt = st.filter((s) => !s.nurArchiv);
+  // Ein Stream ohne Messwerte (null) geht weder als 0 in Summe, Spitze noch gewichteten Schnitt ein.
+  const peaks = vorhanden(gezaehlt.map((s) => s.peak)); const ohneRaid = vorhanden(gezaehlt.map((s) => s.peakOhneRaid));
+  const chatters = vorhanden(gezaehlt.map((s) => s.chatter)); const nachr = vorhanden(gezaehlt.map((s) => s.nachrichten));
+  const mitSchnitt = gezaehlt.filter((s): s is typeof s & { durchschnitt: number } => s.durchschnitt !== null);
   return {
     streams: st.length,
     stunden: Math.round(st.reduce((a, s) => a + s.minuten, 0) / 6) / 10,
-    peak: gezaehlt.length ? Math.max(...gezaehlt.map((s) => s.peak)) : null,
-    peakOhneRaid: gezaehlt.length ? Math.max(...gezaehlt.map((s) => s.peakOhneRaid)) : null,
-    durchschnitt: gezaehlt.length ? Math.round(gezaehlt.reduce((a, s) => a + s.durchschnitt * Math.max(1, s.minuten), 0) / gezaehlt.reduce((a, s) => a + Math.max(1, s.minuten), 0)) : null,
-    chatter: gezaehlt.length ? gezaehlt.reduce((a, s) => a + s.chatter, 0) : null,
-    chatterMax: gezaehlt.length ? Math.max(...gezaehlt.map((s) => s.chatter)) : null,
-    nachrichten: gezaehlt.length ? gezaehlt.reduce((a, s) => a + s.nachrichten, 0) : null,
+    peak: peaks.length ? Math.max(...peaks) : null,
+    peakOhneRaid: ohneRaid.length ? Math.max(...ohneRaid) : null,
+    durchschnitt: mitSchnitt.length ? Math.round(mitSchnitt.reduce((a, s) => a + s.durchschnitt * Math.max(1, s.minuten), 0) / mitSchnitt.reduce((a, s) => a + Math.max(1, s.minuten), 0)) : null,
+    chatter: chatters.length ? chatters.reduce((a, b) => a + b, 0) : null,
+    chatterMax: chatters.length ? Math.max(...chatters) : null,
+    nachrichten: nachr.length ? nachr.reduce((a, b) => a + b, 0) : null,
     raids: gezaehlt.reduce((a, s) => a + s.raids, 0),
     raidZuschauer: gezaehlt.reduce((a, s) => a + s.raidZuschauer, 0),
     neueFollower,
@@ -165,7 +171,7 @@ export async function auswerten(d: TwitchDatei, art?: string, einheit?: string) 
   // VODs aus der Zeit, die der Sammler nicht hat (kein gezaehlter Stream beginnt binnen 15 Minuten).
   const ausArchiv: StreamWerte[] = archiv
     .filter((a) => !gezaehlt.some((s) => Math.abs(Date.parse(s.start) - Date.parse(a.start)) < 15 * 60_000))
-    .map((a) => ({ id: `vod-${a.start}`, start: a.start, ende: a.start, live: false, titel: a.titel, spiel: '', minuten: a.minuten, peak: 0, peakOhneRaid: 0, durchschnitt: 0, chatter: 0, nachrichten: 0, raids: 0, raidZuschauer: 0, nurArchiv: true }));
+    .map((a) => ({ id: `vod-${a.start}`, start: a.start, ende: a.start, live: false, titel: a.titel, spiel: '', minuten: a.minuten, peak: null, peakOhneRaid: null, durchschnitt: null, chatter: null, nachrichten: null, raids: 0, raidZuschauer: 0, nurArchiv: true }));
   const alle = [...gezaehlt, ...ausArchiv].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
   const follower = [...d.follower].sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -191,7 +197,7 @@ export async function auswerten(d: TwitchDatei, art?: string, einheit?: string) 
   const liveBlock = live && offen ? (() => {
     const w = streamWerte(offen);
     return { seit: live.start, zuschauer: live.zuschauer, titel: live.titel, spiel: live.spiel, minuten: Math.round((Date.now() - Date.parse(live.start)) / 60_000),
-      peak: Math.max(w.peak, live.zuschauer), durchschnitt: w.durchschnitt, chatter: w.chatter, nachrichten: w.nachrichten, raids: offen.raids };
+      peak: Math.max(w.peak ?? 0, live.zuschauer), durchschnitt: w.durchschnitt, chatter: w.chatter, nachrichten: w.nachrichten, raids: offen.raids };
   })() : live ? { seit: live.start, zuschauer: live.zuschauer, titel: live.titel, spiel: live.spiel, minuten: Math.round((Date.now() - Date.parse(live.start)) / 60_000),
     peak: live.zuschauer, durchschnitt: null, chatter: null, nachrichten: null, raids: [] } : null;
 

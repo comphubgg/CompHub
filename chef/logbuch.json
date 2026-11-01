@@ -6103,5 +6103,26 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T06:00:05Z"
+  },
+  {
+    "id": "chef-277",
+    "titel": "Twitch-Statistik: fehlende Stream-Werte als Strich",
+    "kurz": "Twitch-Statistik → Woche: Streams ohne Messwerte zeigen „–“ und drücken den Schnitt nicht mehr.",
+    "markieren": [
+      "text:Peak",
+      "text:Chatters"
+    ],
+    "bereich": "Statistik",
+    "warum": "Streams ohne Zuschauer-Messpunkte zählten mit 0 – der Wochenschnitt halbierte sich dadurch (800 und 0 ergab 400).",
+    "was": "Fehlende Werte bleiben leer, zählen nicht in Spitze, Schnitt und Summen und zeigen einen Strich.",
+    "ansehen": [
+      "/twitch-statistik?art=woche"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T06:00:11Z"
   }
 ]

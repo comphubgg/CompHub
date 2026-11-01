@@ -19,7 +19,7 @@ interface Werte {
   streams: number; stunden: number; peak: number | null; peakOhneRaid: number | null; durchschnitt: number | null; chatter: number | null; chatterMax: number | null;
   nachrichten: number | null; raids: number; raidZuschauer: number; neueFollower: number | null; nurArchiv: boolean;
 }
-interface Stream { id: string; start: string; live: boolean; titel: string; minuten: number; peak: number; peakOhneRaid: number; durchschnitt: number; chatter: number; raids: number; raidZuschauer: number; nurArchiv: boolean }
+interface Stream { id: string; start: string; live: boolean; titel: string; minuten: number; peak: number | null; peakOhneRaid: number | null; durchschnitt: number | null; chatter: number | null; raids: number; raidZuschauer: number; nurArchiv: boolean }
 type Art = 'tag' | 'woche' | 'monat' | 'jahr' | 'gesamt';
 interface Auswertung {
   login: string; name: string; follower: number | null; zaehltSeit: string | null;
