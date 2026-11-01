@@ -5792,5 +5792,25 @@
     "commits": [
       "7a03fcf"
     ]
+  },
+  {
+    "id": "chef-263",
+    "datum": "2026-11-01T06:14:00Z",
+    "titel": "Tierlist: Ablage-Ausfall löscht nichts mehr",
+    "kurz": "Unsichtbar: Tierlist → bei Ablage-Ausfall kommen entfernte Duos nicht zurück, die Liste bleibt.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Tierlist",
+    "warum": "Fiel die Ablage kurz aus, galt die Liste der entfernten Einträge als leer – Entferntes tauchte wieder auf, und das nächste Entfernen überschrieb die gespeicherte Liste fast leer.",
+    "was": "Nur eine fehlende Datei gilt jetzt als leer; bei anderen Lesefehlern wird nichts geschrieben und die Seite behält die bekannte Liste.",
+    "ansehen": [
+      "/tierlist"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

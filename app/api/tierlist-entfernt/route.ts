@@ -44,12 +44,28 @@ interface Eintrag {
   wann: string;
 }
 
+/*
+ * Nur "Datei gibt es noch nicht" heisst "nichts entfernt". Jeder andere
+ * Lesefehler (Ablage nicht erreichbar, Datei unlesbar) wirft: sonst taucht
+ * alles Entfernte wieder auf, und das naechste Entfernen wuerde die
+ * gespeicherte Liste mit einer fast leeren ueberschreiben.
+ */
 async function lies(): Promise<Eintrag[]> {
+  let roh: string;
   try {
-    return JSON.parse(await fs.readFile(DATEI, 'utf8')) as Eintrag[];
-  } catch {
-    return [];
+    roh = await fs.readFile(DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
+    throw e;
   }
+  const liste = JSON.parse(roh);
+  if (!Array.isArray(liste)) throw new Error('tierlist-entfernt: keine Liste');
+  return liste as Eintrag[];
+}
+
+/** Antwort bei Ausfall der Ablage: nie 5xx, aber klar als Ausfall markiert. */
+function ausfall() {
+  return NextResponse.json({ success: false, ausfall: true, error: 'Ablage nicht erreichbar' });
 }
 
 async function schreibe(liste: Eintrag[]) {
@@ -58,12 +74,16 @@ async function schreibe(liste: Eintrag[]) {
 }
 
 export async function GET() {
-  const liste = await lies();
-  return NextResponse.json({
-    success: true,
-    schluessel: liste.map((e) => e.schluessel),
-    entfernt: liste,
-  });
+  try {
+    const liste = await lies();
+    return NextResponse.json({
+      success: true,
+      schluessel: liste.map((e) => e.schluessel),
+      entfernt: liste,
+    });
+  } catch {
+    return NextResponse.json({ success: false, ausfall: true, error: 'Ablage nicht erreichbar', schluessel: [], entfernt: [] });
+  }
 }
 
 export async function POST(request: Request) {
@@ -78,16 +98,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'kein Schluessel' }, { status: 400 });
   }
 
-  const liste = await lies();
-  if (!liste.some((e) => e.schluessel === schluessel)) {
-    liste.push({
-      schluessel,
-      name: typeof koerper.name === 'string' ? koerper.name : undefined,
-      wann: new Date().toISOString(),
-    });
-    await schreibe(liste);
+  try {
+    const liste = await lies();
+    if (!liste.some((e) => e.schluessel === schluessel)) {
+      liste.push({
+        schluessel,
+        name: typeof koerper.name === 'string' ? koerper.name : undefined,
+        wann: new Date().toISOString(),
+      });
+      await schreibe(liste);
+    }
+    return NextResponse.json({ success: true, anzahl: liste.length });
+  } catch {
+    return ausfall();
   }
-  return NextResponse.json({ success: true, anzahl: liste.length });
 }
 
 export async function DELETE(request: Request) {
@@ -95,7 +119,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'nur fuer den Admin' }, { status: 403 });
   }
   const schluessel = new URL(request.url).searchParams.get('schluessel') ?? '';
-  const liste = (await lies()).filter((e) => e.schluessel !== schluessel);
-  await schreibe(liste);
-  return NextResponse.json({ success: true, anzahl: liste.length });
+  try {
+    const liste = (await lies()).filter((e) => e.schluessel !== schluessel);
+    await schreibe(liste);
+    return NextResponse.json({ success: true, anzahl: liste.length });
+  } catch {
+    return ausfall();
+  }
 }

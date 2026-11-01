@@ -288,6 +288,8 @@ export default function TierListPage() {
   const entferntLaden = useCallback(async () => {
     try {
       const j = await (await fetch('/api/tierlist-entfernt', { cache: 'no-store' })).json();
+      // Bei Ausfall der Ablage die bekannte Liste behalten statt leeren.
+      if (j?.success === false) return;
       setEntfernt(new Set<string>(Array.isArray(j?.schluessel) ? j.schluessel : []));
     } catch { /* ohne bleibt alles sichtbar - besser als eine leere Liste */ }
   }, []);
