@@ -154,6 +154,7 @@ function BetreiberPrognose() {
   const [feldLaedt, setFeldLaedt] = useState(false);
   const [feldHinweis, setFeldHinweis] = useState('');
   const [preise, setPreise] = useState<{ geld: Preisstufe[]; proPerson: boolean; hinweis?: string } | null>(null);
+  const [preiseFehlt, setPreiseFehlt] = useState(false);
   const [kartenNr, setKartenNr] = useState(0);
   const [geladen, setGeladen] = useState(false);
 
@@ -255,8 +256,13 @@ function BetreiberPrognose() {
     fetch(`/api/cup-preise?window=${encodeURIComponent(q.windowId)}&region=${encodeURIComponent(q.region)}`
       + `&event=${encodeURIComponent(q.eventId)}&finale=1`, { signal: AbortSignal.timeout(20_000) })
       .then((r) => r.json())
-      .then((j) => setPreise({ geld: j.geld ?? [], proPerson: !!j.proPerson, hinweis: j.hinweis }))
-      .catch(() => setPreise(null));
+      .then((j) => {
+        // Eine Fehlerantwort (424) ist kein "kein Preisgeld".
+        if (!j || j.error) throw new Error('keine Preisauskunft');
+        return j;
+      })
+      .then((j) => { setPreiseFehlt(false); setPreise({ geld: j.geld ?? [], proPerson: !!j.proPerson, hinweis: j.hinweis }); })
+      .catch(() => { setPreise(null); setPreiseFehlt(true); });
   }, [prognose]);
 
   const teamVon = useCallback((key: string | null) => (key ? feld.find((x) => x.key === key) ?? null : null), [feld]);
@@ -720,7 +726,13 @@ function BetreiberPrognose() {
             ) : (
               <div>
                 {!preise ? (
-                  <div className="h-40" />
+                  preiseFehlt
+                    ? (
+                      <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-amber-400">
+                        <T>Das Preisgeld ist gerade nicht erreichbar.</T>
+                      </p>
+                    )
+                    : <div className="h-40" />
                 ) : !preise.geld.length ? (
                   <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
                     <T>Zu diesem Spieltag veröffentlicht Epic keine Auszahlungstabelle.</T>

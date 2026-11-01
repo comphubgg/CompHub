@@ -379,5 +379,10 @@ async function holeRoh(request: Request) {
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 300);
+  // Ein unerwarteter Fehler darf nie als 500 enden (der Lastverteiler macht daraus eine Fehlerseite) - 424 wie der Rest der Route; die Seite wertet "error" als Ausfall.
+  try {
+    return zwischenspeichern(await holeRoh(request), 300);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message, needsLogin: false }, { status: 424 });
+  }
 }
