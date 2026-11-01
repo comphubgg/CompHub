@@ -2720,7 +2720,7 @@
     "titel": "Statistik oben: Spieltage passen zur Startseite",
     "kurz": "Statistik oben: „Match days“ zeigt 4.733 wie die Startseite statt 982.",
     "markieren": [
-      "text:Match days",
+      "text:match days",
       "css:.tabular-nums"
     ],
     "bereich": "Statistik",
