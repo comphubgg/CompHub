@@ -165,6 +165,7 @@ function FinaleKasten({ k, daten }: { k: WegKnoten; daten: WegDaten }) {
 /** Wo steht dieses Konto - die Leiste oben ("YOU ARE HERE"). */
 function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; auf: (k: WegKennung | null) => void }) {
   const t = useT();
+  const ort = useOrt();
   const zugang = useZugang();
   const epicId = zugang.epicId;
   const [stand, setStand] = useState<{ stand: WegStand | null; durchsucht: number; tief: boolean } | null>(null);
@@ -211,7 +212,7 @@ function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; au
       {epicId && !laedt && !fehler && stand && stand.stand && (
         <span className="text-slate-200">
           <span className="font-bold text-sky-300">{knoten ? t(NAME[knoten.id]) : stand.stand.name}</span>
-          {knoten && knoten.fenster.length > 1 ? ` · ${stand.stand.name}` : ''} — <T>Platz</T> <span className="font-bold tabular-nums">{stand.stand.rang.toLocaleString()}</span>, <span className="tabular-nums">{stand.stand.punkte}</span> pts
+          {knoten && knoten.fenster.length > 1 ? ` · ${stand.stand.name}` : ''} — <T>Platz</T> <span className="font-bold tabular-nums">{stand.stand.rang.toLocaleString(ort)}</span>, <span className="tabular-nums">{stand.stand.punkte.toLocaleString(ort)}</span> pts
         </span>
       )}
       {/* Noch keine Runde gespielt (die naechste Ausgabe steht schon im Plan): dann gibt es keinen Stand - nicht "steht in keiner Liste" (28.10.2026). */}
