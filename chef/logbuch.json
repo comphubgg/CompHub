@@ -4192,5 +4192,73 @@
     "datum": "2026-11-01T03:30:00Z",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-192",
+    "datum": "2026-11-01T03:31:00Z",
+    "titel": "Tierlist: Ausfall der Spielerliste wird gemeldet",
+    "kurz": "Tierlist → Spielerfeld bei Ausfall: Hinweis statt „alle eingestuft“.",
+    "markieren": [
+      "text:The player list is currently unreachable",
+      "text:All players assigned"
+    ],
+    "bereich": "Tierlist",
+    "warum": "Lud die Spielerliste nicht, sah das Feld aus, als wären alle Spieler schon einsortiert; die Absage blieb zudem 5 Minuten zwischengespeichert.",
+    "was": "Jetzt steht dort, dass die Liste gerade nicht erreichbar ist, und beim nächsten Laden wird neu gefragt.",
+    "ansehen": [
+      "/tierlist"
+    ],
+    "commits": [
+      "9abbadf"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-193",
+    "datum": "2026-11-01T03:31:00Z",
+    "titel": "Power Rankings: Ausfall der Übersicht wird gemeldet",
+    "kurz": "Power Rankings: fehlen Spitze/Aufsteiger, steht ein Hinweis statt Lücke.",
+    "markieren": [
+      "text:currently unreachable",
+      "text:All places"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Übersicht (Top 3, Auf- und Absteiger, Länder) aus, fehlten die Blöcke still; beim allerersten Holen konnte die Seite sogar abstürzen.",
+    "was": "Jetzt erscheint ein Hinweis, die Liste darunter bleibt; der Absturz ist behoben.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "commits": [
+      "a99f4c9"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-194",
+    "datum": "2026-11-01T03:31:00Z",
+    "titel": "Twitch-Statistik: Zahlen im Format der Sprache",
+    "kurz": "Twitch-Statistik: Zuschauerzahlen „1,234“ auf Englisch statt Browserformat.",
+    "markieren": [
+      "text:Last 30 days"
+    ],
+    "bereich": "Werkzeuge",
+    "warum": "Zahlen folgten dem Browser – ein englischer Besucher mit deutschem Browser las „1.234“ als 1,2.",
+    "was": "Sie folgen jetzt der Seitensprache.",
+    "ansehen": [
+      "/twitch-statistik"
+    ],
+    "commits": [
+      "df8fb46"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
