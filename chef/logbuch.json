@@ -2246,5 +2246,23 @@
     "modell": "Opus",
     "status": "live",
     "runde": 6
+  },
+  {
+    "id": "chef-106",
+    "datum": "2026-11-01T01:50:00Z",
+    "titel": "Datenlauf: schwere Statistik-Antworten werden wieder fertig",
+    "kurz": "Unsichtbar: Startseite der Statistik und Jahresliste 2026 werden wieder stündlich erneuert.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Seit etwa 10.10. sind Statistik-Startseite und Preisgeld-Jahresliste 2026 veraltet (peterbot 57 statt 83 Matches, Schaden 0; mit EU-Filter mehr Preisgeld als ohne). Der Datenlauf brach die großen Abfragen nach genau 5 Minuten ab, der Server rechnete trotzdem weiter, lief am 31.10. auf 7,7 GB voll und stürzte ab.",
+    "was": "Der Datenlauf wartet bei den großen Abfragen jetzt wirklich bis zu 15 Minuten (wie eigentlich schon gedacht), statt nach 5 Minuten aufzugeben. Wirkt erst nach Freigabe, beim nächsten Stundenlauf.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 7
   }
 ]

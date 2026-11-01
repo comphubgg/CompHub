@@ -23,6 +23,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import http from 'node:http';
+import https from 'node:https';
 
 const SERVER = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
 
@@ -188,6 +190,28 @@ async function saisons() {
   return [];
 }
 
+/*
+ * Eine Abfrage mit eigener Geduld. Nicht ueber fetch: dessen eingebaute Grenze
+ * bricht jede Antwort nach 300 Sekunden ohne Kopfzeilen ab ("fetch failed"),
+ * egal was AbortSignal.timeout sagt. So endeten die Akten und die Startansicht
+ * nach 300,9 s, der Server rechnete sie trotzdem weiter, die naechste schwere
+ * Abfrage kam dazu - am 31.10.2026 lief er dabei auf 7,7 GB und starb, und
+ * Startansicht und Jahresliste 2026 blieben alt (Stand ~10.10.).
+ */
+function holen(url, ms) {
+  return new Promise((fertig, fehler) => {
+    const modul = url.startsWith('https:') ? https : http;
+    const anfrage = modul.get(url, (antwort) => {
+      let bytes = 0;
+      antwort.on('data', (stueck) => { bytes += stueck.length; });
+      antwort.on('end', () => { clearTimeout(uhr); fertig({ ok: antwort.statusCode >= 200 && antwort.statusCode < 300, status: antwort.statusCode, bytes }); });
+      antwort.on('error', (e) => { clearTimeout(uhr); fehler(e); });
+    });
+    const uhr = setTimeout(() => anfrage.destroy(new Error(`nach ${Math.round(ms / 1000)} s abgebrochen`)), ms);
+    anfrage.on('error', (e) => { clearTimeout(uhr); fehler(e); });
+  });
+}
+
 const zeit = (ms) => `${(ms / 1000).toFixed(1)}s`;
 
 async function los() {
@@ -228,12 +252,9 @@ async function los() {
       // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv) duerfen laenger: abgebrochen rechnet der Server
       // trotzdem weiter und blockiert die naechste - am 12.10.2026 liefen so Akten und Startansicht beide in die Frist.
       const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)/.test(weg);
-      const r = await fetch(SERVER + weg, {
-        // Drei Minuten: eine haengende Abfrage hielt sonst die ganze
-        // letzte Portion bis in die Zeitgrenze auf.
-        signal: AbortSignal.timeout(schwer ? 900_000 : 180_000),
-      });
-      const bytes = (await r.arrayBuffer()).byteLength;
+      // Drei Minuten: eine haengende Abfrage hielt sonst die ganze letzte Portion bis in die Zeitgrenze auf.
+      const r = await holen(SERVER + weg, schwer ? 900_000 : 180_000);
+      const bytes = r.bytes;
       if (!r.ok) throw new Error(String(r.status));
       ok += 1;
       console.log(`  ok    ${zeit(Date.now() - start).padStart(7)}  ${String(bytes).padStart(9)} B  ${weg}`);
