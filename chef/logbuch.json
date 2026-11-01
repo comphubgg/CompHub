@@ -4420,5 +4420,49 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-202",
+    "datum": "2026-11-01T03:48:00Z",
+    "titel": "Maps: Kartendatum nach Seitensprache",
+    "kurz": "Maps → unter der Karte: Datum „1 November 2026“ auf Englisch.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Maps",
+    "warum": "Das Datum der Fortnite-Karte stand auch auf der englischen Seite im deutschen Format.",
+    "was": "Es folgt jetzt der Seitensprache wie die übrigen Daten der Seite.",
+    "ansehen": [
+      "/maps"
+    ],
+    "commits": [
+      "666b641"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-203",
+    "datum": "2026-11-01T03:48:00Z",
+    "titel": "Startseite: Zahlen oben melden einen Ausfall",
+    "kurz": "Startseite oben bei Ausfall: Hinweis „not reachable“ statt vier stiller Striche.",
+    "markieren": [
+      "text:The numbers are not reachable right now."
+    ],
+    "bereich": "Statistik",
+    "warum": "Fielen die Quellen aus, standen bei Spieltagen, Saisons, Regionen und Matches nur Striche – ohne Erklärung.",
+    "was": "Fehlen alle vier, steht darunter ein Hinweis, und die Seite versucht es nach 10 Sekunden neu.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [
+      "690e4cb"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
