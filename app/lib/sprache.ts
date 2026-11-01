@@ -808,6 +808,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Data is being refreshed here. That usually takes a few minutes, after '
     + 'which everything is back.',
   'Quelle antwortet nicht': 'Source not responding',
+  'Replay-Auswertung': 'Replay analysis',
+  'Deshalb sind keine Lobbys ausgeblendet.': 'So no lobbies are hidden for now.',
   '{bereich} ist gerade nicht erreichbar.': '{bereich} cannot be reached right now.',
   ['Eine Datenquelle antwortet im Moment nicht. Lieber nichts zeigen als '
     + 'falsche Zahlen — sobald sie wieder da ist, geht es hier weiter.']:

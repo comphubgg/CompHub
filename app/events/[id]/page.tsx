@@ -766,6 +766,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
   /** Match-ID -> Nummer der Replay-Seite, fuer die Matches dieses Spieltags mit mindestens 80 Spielern. */
   const [matchSeiten, setMatchSeiten] = useState<Record<string, number>>({});
+  /** Die Replay-Auswertung war nicht abrufbar - dann ist "keine Match-Seite" unbekannt, nicht leer. */
+  const [matchSeitenFehlt, setMatchSeitenFehlt] = useState(false);
   /**
    * Wie viele Runden gerade gezeigt werden.
    *
@@ -1954,13 +1956,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const rundenZahl = spiele?.length ?? 0;
   useEffect(() => {
-    if (reiter !== 'runden' || !lbFenster || !rundenZahl) { setMatchSeiten({}); return undefined; }
+    if (reiter !== 'runden' || !lbFenster || !rundenZahl) { setMatchSeiten({}); setMatchSeitenFehlt(false); return undefined; }
     let weg = false;
     // Gesamtwertung: die Match-Seiten aller Tage zusammen.
     Promise.all((summenFenster ?? [lbFenster.windowId]).map((w) => fetch(`/api/replay?fenster=${encodeURIComponent(w)}`)
       .then((r) => (r.ok ? r.json() : null)).catch(() => null)))
-      .then((js) => { if (!weg) setMatchSeiten(Object.assign({}, ...js.map((j) => j?.matches ?? {}))); })
-      .catch(() => { if (!weg) setMatchSeiten({}); });
+      .then((js) => {
+        if (weg) return;
+        setMatchSeitenFehlt(js.some((j) => !j));
+        setMatchSeiten(Object.assign({}, ...js.map((j) => j?.matches ?? {})));
+      })
+      .catch(() => { if (!weg) { setMatchSeiten({}); setMatchSeitenFehlt(true); } });
     return () => { weg = true; };
   }, [reiter, lbFenster, rundenZahl, summenFenster]);
 
@@ -4115,7 +4121,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            * mindestens 80 bekannten Spielern oder mit eigener Replay-Seite; wie viele fehlen, steht in einem Satz.
            */
           const spielerIn = (sp: Spiel) => sp.teams.reduce((n, z) => n + z.spieler.length, 0);
-          const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= 80;
+          // Ist die Replay-Auswertung nicht erreichbar, wird nichts ausgeblendet: ob eine Lobby ein Replay hat, ist dann unbekannt.
+          const vollstaendig = (sp: Spiel) => matchSeitenFehlt || !!matchSeiten[sp.id] || spielerIn(sp) >= 80;
           const ausgeblendet = eineLobby ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
           const gefiltert = eineLobby ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
           const gezeigt = gefiltert.slice(0, sichtbareSpiele);
@@ -4542,6 +4549,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     Kachel ist deshalb eine eigene Lobby und keine gemeinsame
                     Runde — geordnet nach dem Zeitpunkt, an dem sie zu Ende
                     war.</T>
+                  </p>
+                )}
+
+                {matchSeitenFehlt && (
+                  <p role="status" className="mb-2 p-2 text-center text-sm text-slate-500">
+                    {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Replay-Auswertung'))}{' '}
+                    <T>Deshalb sind keine Lobbys ausgeblendet.</T>
                   </p>
                 )}
 

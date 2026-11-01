@@ -4858,5 +4858,25 @@
     "commits": [
       "e83e6f7"
     ]
+  },
+  {
+    "id": "chef-222",
+    "titel": "Cup-Seite → Runden: bei Replay-Ausfall keine Lobbys versteckt",
+    "kurz": "Cup-Seite → Runden: fällt die Replay-Auswertung aus, bleiben alle Lobbys sichtbar, mit Hinweis.",
+    "markieren": [
+      "text:So no lobbies are hidden for now."
+    ],
+    "bereich": "Events",
+    "warum": "Fiel die Replay-Auswertung aus, galt jede Lobby als „ohne Replay“ – kleine Lobbys verschwanden und die Zahl der ausgeblendeten war falsch.",
+    "was": "Jetzt wird bei Ausfall nichts ausgeblendet, und oben steht ein Hinweis.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=runden"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:04:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
