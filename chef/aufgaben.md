@@ -13,6 +13,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **FNCS-Tafel: NAC-Finale bei EU-Spielern** (chef-150), **Titelzahl ohne Globals 2026** (chef-151), **Vergleich-Abruf im Dauerlauf** (chef-149), **Preisgeld-Summe Duo** (chef-148).
 - [ ] **swizzy: Quelle schreibt ihm „CH2 S8: Platz 1“ zu** (Mitspieler 951acca5, SHAMOKIY) – das EU-Finale gewannen Setty, Kami und TEEQ; in seiner Akte steht ein Sieg im Asien-Finale S18. Quelle falsch; nach chef-151 zeigt das Profil 5 Titel, /fncs 4. Betreiber fragen, ob Asien-Siege zählen.
 - [ ] **chef-150 Grenzfall**: Spieler, die die Region gewechselt haben, verlieren Finals der alten Region in der Tafel. Beobachten.
+- [ ] **Profil → Verdienst: S32 „Chapter 2 Remix“ steht unter Chapter 2** (Name vor Nummer); laut Code-Kommentar gehören S28–S32 zu Chapter 5. Summen stimmen, nur die Gruppe ist fraglich – Betreiber fragen.
+- [ ] **„Beste Spieltage“ zeigt die Saison als Kürzel („S41“) statt Namen** – prüfen, ob gewollt.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
