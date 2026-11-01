@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-01T05:06:00Z",
-  "macheGerade": "Runde 12 fertig: 5 Verbesserungen (chef-233 bis chef-237): Spielerliste heißt „Trefferquote“ wie überall, Cup-Bestwerte großer Cups aus dem ganzen Feld, toter Code auf Streams/Statistik weg (eine unnötige Abfrage weniger), zwei Übersetzungen im Admin. FNCS-Elims je Major war schon mit chef-220 erledigt.",
+  "letzteRunde": "2026-11-01T05:13:22Z",
+  "macheGerade": "Runde 13 fertig: 13 Verbesserungen (chef-238 bis chef-250), u. a. Replay-Fenster zeigte 1.069 statt 108 Damage, Profil-Fenster „FNCS-Siege“ listete alle LAN-Plätze, Cup-Kachel „Alle anzeigen“ zeigte bei mehrtägigen Finals nur einen Tag.",
   "naechstes": [
     "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
-    "Frage an dich: Orgs – soll ein neuer Beitritt den alten Aufenthalt automatisch beenden? (Cold, Mshary, Curve werden sonst doppelt gezählt) Oder pflegst du Enddaten im Admin?",
-    "Weitere Fragen: Mindestspiele Cup-Kacheln (Hälfte) gegen Spieler-Reiter (5) angleichen? Teamseite „Earnings“ gegen Orgs; zählen Asien-Siege als FNCS-Titel?",
-    "Nächste Runde: weitere Statistik-Prüfung (Saisonliste, Regionen, limit=500 bei Regions-Saisonliste und Reihen-Abfrage), Admin Tweets Genauigkeit."
+    "Frage an dich: Orgs – soll ein neuer Beitritt den alten Aufenthalt automatisch beenden? Oder pflegst du Enddaten im Admin?",
+    "Weitere Fragen: Mindestspiele Cup-Kacheln (Hälfte) gegen Spieler-Reiter (5)? Teamseite „Earnings“ gegen Orgs; zählen Asien-Siege als FNCS-Titel? Regions-Saisonliste im Vorrechner auf 2.000 Spieler (heute 500 von 752)?",
+    "Nächste Runde: Ranking-Bild/News-Posts wie chef-250, geteilte Ränge im Cup-Spieler-Reiter, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-233/234/237) + Sonnet (chef-235/236)",
-  "laeuftSeit": "2026-11-01T04:46:59Z"
+  "modell": "Opus (Planung, Prüfung, chef-238 bis chef-240) + Sonnet (chef-241 bis chef-250, von Opus nachgeprüft)"
 }

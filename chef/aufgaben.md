@@ -15,6 +15,14 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-244) **Spielerkacheln ohne Sortierwert** bei Kopftreffer, Trefferquote, Matches.
 - [ ] **Spieler mit Elims, aber Schaden 0** (S42 EU: rxnnysznǃ, 5 Matches, 3 Elims, Schaden 0, erlitten 0) – Schaden fehlt in der Quelle, Liste zeigt „0“ statt Strich. Die Antwort trägt matchesElims/matchesSchaden nicht; damit ließe sich „unbekannt“ erkennen. Kleiner Fall, beobachten.
 - [ ] **Erfolge-Reiter im Profil: gleiche Plätze nur nach Datum**, LAN-Finals ohne Datum landen zuletzt (Karriere-Bestwerte stellen LAN bei Gleichstand nach vorn) – Gestaltungsfrage.
+- [x] (chef-245) **Teamseite: Elims je Match 0.00 ohne Kill-Daten** → Strich.
+- [x] (chef-246) **Preisgeld-Liste ohne feste Reihenfolge bei gleichem Betrag**.
+- [x] (chef-247) **Replay-Spielerfenster: 1.069 statt 108 Damage** (Einschläge statt Treffer).
+- [x] (chef-248) **Cup-Spieler: Summe über mehrere Tage ließ halb gelesene Tage still weg**.
+- [x] (chef-249) **POV-Banner: Epic-Ausfall nach „kein Cup“ blieb „kein Cup“**.
+- [x] (chef-250) **Power Rankings: Treppchen aus den ersten Einträgen statt Platz 1–3**.
+- [ ] **Gleiche Schwäche wie chef-250**: Ranking-Bild (app/api/ranking-bild) und News-Posts (lib/newsPosts.ts, Aufsteiger der Top 100 mit slice(0, 100)) nehmen „die ersten Einträge“ als Spitze.
+- [ ] **Cup-Spieler-Reiter: gleiche Werte bekommen gleichen Rang** (statRang 1, 2, 2, 4) – geteilte Ränge hat der Betreiber bei chef-102 abgelehnt; prüfen, ob chef-58 das so wollte, sonst angleichen.
 - [x] **Logbuch-Umlaute geprüft**: Titel/Kurz/Warum/Was haben keine ue/oe/ae-Schreibungen mehr (nur echte Wörter wie „Quelle“, „neue“).
 
 ## Neu entdeckt (Runde 11, 01.11.2026)
