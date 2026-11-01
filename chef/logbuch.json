@@ -2377,5 +2377,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-112",
+    "datum": "2026-11-01T02:10:00Z",
+    "titel": "Vergleich: Spielersuche meldet einen Ausfall",
+    "kurz": "Vergleich → „+ Player 1“: Bei Suchausfall steht „gerade nicht erreichbar“ statt Leere.",
+    "markieren": [
+      "text:Search is unavailable right now",
+      "css:input[placeholder]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Suche aus, blieb die Liste leer – das sah aus wie „niemand gefunden“.",
+    "was": "Jetzt steht unter dem Suchfeld ein Hinweis, dass die Suche gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

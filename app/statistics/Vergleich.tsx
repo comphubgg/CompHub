@@ -135,19 +135,24 @@ function Slot({ wer, nr, onWahl, belegt }: { wer: VglSpieler | null; nr: number;
   const [offen, setOffen] = useState(false);
   const [q, setQ] = useState('');
   const [treffer, setTreffer] = useState<VglSpieler[]>([]);
+  /** Die Suche selbst fiel aus - dann Hinweis statt einer leeren Liste, die nach "niemand gefunden" aussaehe. */
+  const [suchFehler, setSuchFehler] = useState(false);
   const feld = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!offen) return undefined;
     feld.current?.focus();
     const text = q.trim();
-    if (text.length < 2) { setTreffer([]); return undefined; }
+    if (text.length < 2) { setTreffer([]); setSuchFehler(false); return undefined; }
     let weg = false;
     const uhr = setTimeout(() => {
       fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(text)}`)
         .then((r) => r.json())
-        .then((j) => { if (!weg) setTreffer(Array.isArray(j?.spieler) ? j.spieler.slice(0, 8) : []); })
-        .catch(() => { if (!weg) setTreffer([]); });
+        .then((j) => {
+          if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+          if (!weg) { setTreffer(j.spieler.slice(0, 8)); setSuchFehler(false); }
+        })
+        .catch(() => { if (!weg) { setTreffer([]); setSuchFehler(true); } });
     }, 220);
     return () => { weg = true; clearTimeout(uhr); };
   }, [q, offen]);
@@ -173,6 +178,11 @@ function Slot({ wer, nr, onWahl, belegt }: { wer: VglSpieler | null; nr: number;
           className="w-full rounded-xl border border-dashed border-white/[0.15] bg-white/[0.02] px-3 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-sky-500/60 hover:text-sky-300">
           + {t('Spieler {n}').replace('{n}', String(nr))}
         </button>
+      )}
+      {offen && suchFehler && q.trim().length >= 2 && (
+        <p role="alert" className="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-white/[0.1] bg-zinc-950 px-3 py-2.5 text-xs text-slate-300 shadow-2xl">
+          <T>Suche gerade nicht erreichbar</T>
+        </p>
       )}
       {offen && treffer.length > 0 && (
         <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/[0.1] bg-zinc-950 shadow-2xl">
