@@ -3,7 +3,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { szeneFenster, epicTag } from '@/lib/szeneStats';
+import { szeneFenster, epicTag, streckeKm } from '@/lib/szeneStats';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
@@ -132,7 +132,9 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       headshots: x.headshots ?? 0,
       mats: (x.woodFarmed ?? 0) + (x.stoneFarmed ?? 0) + (x.metalFarmed ?? 0),
       builds: (x.woodBuildsPlaced ?? 0) + (x.stoneBuildsPlaced ?? 0) + (x.metalBuildsPlaced ?? 0),
-      distanz: (x.distanceOnFoot ?? 0) + (x.distanceSkydiving ?? 0),
+      // Immer in Metern, wie die Kacheln es erwarten: die Szene-Quelle zaehlt bis S40 in Zentimetern (S39: 3.273.807 statt 32,7 km), ab S41
+      // in Metern - die Einheit erkennt streckeKm an der Geschwindigkeit je Lebenszeit.
+      distanz: streckeKm(x) * 1000,
       timeInStorm: r && r.sturm > 0 ? Math.round(r.sturm) : x.timeInStorm ?? 0,
       timeAlive: r && r.leben > 0 ? Math.round(r.leben) : x.timeAlive ?? 0,
       // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.

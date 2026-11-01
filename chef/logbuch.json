@@ -3360,5 +3360,25 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:24:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-156",
+    "titel": "Player Stats alter Turniere: Strecke stimmt",
+    "kurz": "Cup-Seite (Saison 39 und älter) → Player Stats → Strecke: 32,7 km statt 3.273,8 km.",
+    "markieren": [
+      "text:Distance Traveled"
+    ],
+    "warum": "Bei älteren Turnieren zählt die Quelle in Zentimetern, die Seite las Meter – peterbot (S39, 8 Matches) stand mit 3.273,8 statt 32,7 km da.",
+    "was": "Die Strecke wird je nach Quelle aus Zentimetern oder Metern umgerechnet; neue Turniere bleiben wie bisher.",
+    "ansehen": [
+      "/events/epicgames_S39_ReloadEliteSeries2Heat1_NAC"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

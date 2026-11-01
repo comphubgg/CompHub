@@ -388,7 +388,7 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
  * gemessen trennt eine Grenze von 30 je Sekunde beide Quellen weit (Meter hoechstens 6,5, Zentimeter mindestens 124). Ohne
  * Lebenszeit dasselbe je Match (Meter rund 4.000, Zentimeter rund 400.000).
  */
-function streckeKm(p: { distanceOnFoot?: number; distanceSkydiving?: number; timeAlive?: number; matchesPlayed?: number }): number {
+export function streckeKm(p: { distanceOnFoot?: number; distanceSkydiving?: number; timeAlive?: number; matchesPlayed?: number }): number {
   const roh = (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
   if (!roh) return 0;
   const zentimeter = p.timeAlive && p.timeAlive > 0
