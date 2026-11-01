@@ -4600,13 +4600,11 @@
   {
     "id": "chef-210",
     "titel": "Cup-Statistik: „nach N Spielen“ stimmt auch im Ranked-Cup",
-    "kurz": "Cup-Seite → Statistik: „Standings after N games“ zählt das ganze Feld, nicht den Ersten.",
-    "markieren": [
-      "text:Standings after"
-    ],
+    "kurz": "Unsichtbar: Cup-Statistik nennt die Spielzahl des Feldes, nicht die des Ersten.",
+    "markieren": [],
     "bereich": "Statistik",
     "warum": "Die Spielzahl kam vom Ersten der Tabelle. Im Ranked Cup Duos EU (Event 8) hatte der Erste 1 Spiel, andere bis zu 11 – angezeigt wurde 1.",
-    "was": "Jetzt zählt die höchste Spielzahl im Feld (im Beispiel 11).",
+    "was": "Jetzt zählt die höchste Spielzahl im Feld (im Beispiel 11) – das steht z. B. in der Bild-Fußzeile der Turnierstatistik.",
     "ansehen": [
       "/events/epicgames_S42_RankedCupDuos_EU?window=S42_RankedCupDuos_Event8_EU"
     ],
@@ -4666,7 +4664,7 @@
     "titel": "Statistik → Bilder: Ausfall statt ewiger Ladekacheln",
     "kurz": "Statistik → Bilder (nur Admin): bei Ausfall Hinweis statt endloser grauer Kacheln.",
     "markieren": [
-      "text:The numbers cannot be reached right now"
+      "text:The numbers are not reachable right now."
     ],
     "bereich": "Statistik",
     "warum": "Fiel der Abruf aus, standen die grauen Ladekacheln für immer da.",
