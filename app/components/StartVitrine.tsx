@@ -171,7 +171,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
               {([['Schadensquote', s.quote > 0 ? s.quote.toLocaleString(ortJetzt(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null, 'text-emerald-400', 'Schaden ausgeteilt geteilt durch Schaden eingesteckt'], ['Elims', zahl(s.elims), 'text-[#fff]', ''], ['Schaden', zahl(s.schaden), 'text-[#fff]', '']] as const).map(([t, w, farbe, hilfe]) => (
                 <div key={t} title={hilfe ? uebersetze(hilfe) : undefined} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
-                  <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} /></p>
+                  <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} ort={ortJetzt()} /></p>
                 </div>
               ))}
             </div>
