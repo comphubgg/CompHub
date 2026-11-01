@@ -1835,7 +1835,6 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
   // Dieselbe Karte wie die Bestenlisten der Uebersicht (Betreiber, 19.10.2026: "sieht noch nicht nach meinem neuen Stil aus"): der Erste mit Foto, darunter die Plaetze.
   const [erster, ...rest] = liste.zeilen.slice(0, 5);
   const wertVon = (sp: Spieler) => feldText(sp, liste.feld as string, liste.nachkomma ?? 0, sprache, liste.einheit ?? '');
-  const plaetze = gleichePlaetze(liste.zeilen.slice(0, 5), wertVon);
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
       <div className="flex items-center gap-2 px-5 pt-4">
@@ -1874,7 +1873,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
       )}
       <div className="px-1 pb-2 pt-1">
         {rest.map((sp, i) => (
-          <Platz key={sp.epicId} nr={plaetze[i + 1]} s={sp} wert={wertVon(sp)} aufKlick={() => aufSpieler(sp)} />
+          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => aufSpieler(sp)} />
         ))}
       </div>
     </div>
@@ -2066,16 +2065,6 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
       </p>
     </section>
   );
-}
-
-/**
- * Plaetze einer Bestenliste: gleicher angezeigter Wert, gleicher Platz (1, 2, 2, 4) - wie die Cup-Statistik (chef-57).
- * Vorher zaehlte die Liste nur die Zeilen durch: zwei Spieler mit 109 Elims standen auf 12 und 13.
- */
-function gleichePlaetze<S>(zeilen: S[], text: (s: S) => string): number[] {
-  const plaetze: number[] = [];
-  zeilen.forEach((z, i) => { plaetze.push(i > 0 && text(zeilen[i - 1]) === text(z) ? plaetze[i - 1] : i + 1); });
-  return plaetze;
 }
 
 /** Eine Zeile in einer Bestenliste. */
@@ -4477,7 +4466,6 @@ export default function StatistikSeite() {
                 {listen.filter((l) => l.feld !== 'elims').map((l) => {
                   const [erster, ...rest] = l.plaetze.slice(0, 5);
                   const wertVon = (sp: Spieler) => feldText(sp, l.feld, l.nachkomma, sprache, l.einheit ?? '');
-                  const plaetze = gleichePlaetze(l.plaetze.slice(0, 5), wertVon);
                   return (
                     <div key={l.feld} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
                       <div className="flex items-center gap-2 px-5 pt-4">
@@ -4530,7 +4518,7 @@ export default function StatistikSeite() {
                       )}
                       <div className="px-1 pb-2 pt-1">
                         {rest.map((sp, i) => (
-                          <Platz key={sp.epicId} nr={plaetze[i + 1]} s={sp} wert={wertVon(sp)} aufKlick={() => oeffne(sp)} />
+                          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => oeffne(sp)} />
                         ))}
                       </div>
                     </div>
@@ -5899,10 +5887,7 @@ export default function StatistikSeite() {
         const q = listenSuche.trim().toLowerCase();
         const regionen = nachRegionReihe([...new Set(volleListe.zeilen
           .map((sp) => sp.heimat || sp.regionen?.[0] || '').filter(Boolean))]);
-        const plaetze = gleichePlaetze(volleListe.zeilen, (sp) => (volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
-          : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
-          : feldText(sp, volleListe.feld as string, volleListe.nachkomma, sprache, volleListe.einheit)));
-        const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: plaetze[i] }));
+        const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: i + 1 }));
         const gefiltert = nummeriert
           .filter(({ sp }) => !listenRegion || (sp.heimat || sp.regionen?.[0] || '') === listenRegion)
           .filter(({ sp }) => !q || [sp.anzeige, sp.name, ...(sp.namen ?? [])]
