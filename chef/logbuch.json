@@ -2913,5 +2913,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-136",
+    "datum": "2026-11-01T03:15:00Z",
+    "titel": "Match-Seite: fehlende Spielerwerte als Strich statt 0",
+    "kurz": "Match-Seite → Spielerwerte: Spieler mit Verbindungsabbruch zeigen „—“ statt 0 Schaden.",
+    "markieren": [
+      "text:Spielerwerte des Matches",
+      "css:section table tbody tr"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieler mit Verbindungsabbruch haben keine Replay-Werte, standen aber mit 0 Schaden und 0:00 im Sturm da (z. B. 13 von 100 im NAW-Finale, Spiel 1).",
+    "was": "Fehlen die Werte, steht jetzt ein Strich; die Sturmzeit zeigt nie mehr „x:60“.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day1_NAW/1"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

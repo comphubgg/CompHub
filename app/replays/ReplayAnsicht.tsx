@@ -662,7 +662,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                     <li key={x.team} className="border-b border-white/[0.04]">
                       <button type="button" onClick={() => setTeamWahl(teamWahl === x.team ? null : x.team)}
                         className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-sky-500/[0.06] ${teamWahl === x.team ? 'bg-sky-500/10' : ''}`}>
-                        <span className={`w-6 shrink-0 text-right text-[11px] font-black tabular-nums ${x.platz === 1 ? 'text-amber-300' : 'text-slate-500'}`}>{x.platz < 999 ? x.platz : '–'}</span>
+                        <span className={`w-6 shrink-0 text-right text-[11px] font-black tabular-nums ${x.platz === 1 ? 'text-amber-300' : 'text-slate-500'}`}>{x.platz < 999 ? x.platz : '—'}</span>
                         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: FARBEN[x.team % FARBEN.length], opacity: lebt ? 1 : 0.3 }} />
                         <span className="flex min-w-0 flex-1 flex-col text-[11px] font-bold uppercase leading-[1.25]" style={{ opacity: lebt ? 1 : 0.5 }}>
                           {x.spieler.map((s) => <span key={s.id} className="truncate text-slate-100">{ohneVorsatz(s.name)}</span>)}
@@ -685,7 +685,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                 <tbody>
                   {[...echte].sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999) || (b.kills ?? 0) - (a.kills ?? 0)).map((s) => (
                     <tr key={s.id} className="border-b border-white/[0.04]" style={{ opacity: lebtBei(s, zeit) ? 1 : 0.5 }}>
-                      <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '–'}</td>
+                      <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '—'}</td>
                       <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
                       {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString()}</td>}
@@ -733,7 +733,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         const zu = new Map((match.zusatz ?? []).map((x) => [x.id, x]));
         const mitSchaden = sch.size > 0; const mitZusatz = zu.size > 0;
         const zeilen = [...echte].sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999) || (b.kills ?? 0) - (a.kills ?? 0));
-        const sek = (n?: number) => (typeof n === 'number' ? `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, '0')}` : '0:00');
+        const sek = (n?: number) => (typeof n === 'number' ? uhr(n) : '—');
         return (
           <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
             <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Spielerwerte des Matches</T></p>
@@ -751,19 +751,19 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                     const a = sch.get(sp.id); const z = zu.get(sp.id);
                     return (
                       <tr key={sp.id} className={`border-b border-white/[0.04] transition hover:bg-sky-500/[0.05] ${wahlTeam?.spieler.some((x) => x.id === sp.id) ? 'bg-sky-500/[0.08]' : ''}`}>
-                        <td className="px-4 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{sp.platz && sp.platz < 999 ? sp.platz : '–'}</td>
+                        <td className="px-4 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{sp.platz && sp.platz < 999 ? sp.platz : '—'}</td>
                         <td className="px-3 py-1.5 text-[12px] font-bold uppercase" style={{ color: farbeVon(sp.id) }}>{ohneVorsatz(sp.name)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{sp.kills ?? 0}</td>
                         {mitSchaden && <>
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-100">{Math.round(a?.gemachtOhneBoden ?? a?.gemacht ?? 0).toLocaleString()}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{Math.round(a?.genommen ?? 0).toLocaleString()}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{a?.treffer ?? 0}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-amber-300/90">{a?.krit ?? 0}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-100">{a ? Math.round(a.gemachtOhneBoden ?? a.gemacht ?? 0).toLocaleString() : '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{a ? Math.round(a.genommen ?? 0).toLocaleString() : '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{a ? a.treffer ?? 0 : '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-amber-300/90">{a ? a.krit ?? 0 : '—'}</td>
                         </>}
                         {mitZusatz && <>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{sek(z?.sturmSek)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z?.wiederbelebt ?? 0}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z?.rebootet ?? 0}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z ? z.wiederbelebt ?? 0 : '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z ? z.rebootet ?? 0 : '—'}</td>
                         </>}
                       </tr>
                     );
