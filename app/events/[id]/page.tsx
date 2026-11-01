@@ -4831,7 +4831,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{sp.kills}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{sp.assists ?? 0}</td>
                           {spielerWerte.clutch && (
-                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-amber-300/90">{sp.clutch ?? 0}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-amber-300/90">{typeof sp.clutch === 'number' ? sp.clutch : '—'}</td>
                           )}
                           <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{sp.spiele}</td>
                         </tr>

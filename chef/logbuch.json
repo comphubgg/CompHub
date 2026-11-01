@@ -2622,6 +2622,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:35:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "d0b1b44"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-123",
+    "titel": "Cup-Seite: Solo Clutch ohne Wert zeigt Strich",
+    "kurz": "Cup-Seite → Player Stats, Spalte Solo Clutch: „—“ statt 0, solange Replays fehlen.",
+    "markieren": [
+      "text:Solo Clutch"
+    ],
+    "warum": "Waren die Spiele eines Spielers noch nicht alle ausgewertet, stand eine 0 – das ist eine Behauptung ohne Grundlage.",
+    "was": "Ohne fertigen Wert steht jetzt ein Strich, echte Werte bleiben unverändert.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU?reiter=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:35:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
