@@ -3136,5 +3136,25 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T02:58:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-146",
+    "titel": "Statistik oben: Ausfall der Regionen-Zahlen wird gemeldet",
+    "kurz": "Bei Ausfall: Statistik-Startseite zeigt statt fehlender Regionen-Kästchen einen Hinweis.",
+    "markieren": [
+      "text:The numbers are not reachable right now. Trying again in a moment."
+    ],
+    "warum": "Fiel die Zahlenquelle aus, verschwand der Regionen-Block ohne Erklärung.",
+    "was": "Es steht „Die Zahlen sind gerade nicht erreichbar …“ da, alle 10 Sekunden kommt ein neuer Versuch.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

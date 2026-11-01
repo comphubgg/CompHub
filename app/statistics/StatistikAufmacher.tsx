@@ -72,6 +72,9 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
   const t = useT();
   const ort = ortVon(sprache);
   const [zahlen, setZahlen] = useState<Zahlen | null>(null);
+  /** Die Zahlen waren nicht zu holen: Hinweis statt stiller Lücke, neuer Versuch nach zehn Sekunden. */
+  const [fehlt, setFehlt] = useState(false);
+  const [versuch, setVersuch] = useState(0);
   const [nr, setNr] = useState(0);
   const [halt, setHalt] = useState(false);
   const [heroRef, heroDrin] = useSichtbar<HTMLDivElement>();
@@ -79,10 +82,19 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
 
   useEffect(() => {
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch('/api/statistik-zahlen', { signal: AbortSignal.timeout(30_000) }).then((r) => r.json())
-      .then((j) => { if (!weg && j?.ok) setZahlen(j); }).catch(() => { /* dann fehlen die Kästchen */ });
-    return () => { weg = true; };
-  }, []);
+      .then((j) => {
+        if (!j?.ok) throw new Error('keine Zahlen');
+        if (!weg) { setZahlen(j); setFehlt(false); }
+      })
+      .catch(() => {
+        if (weg) return;
+        setFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setVersuch((n) => n + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [versuch]);
 
   // Alle sieben Sekunden zum nächsten Turnier - solange die Maus nicht darauf liegt.
   useEffect(() => {
@@ -185,6 +197,11 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
       )}
 
       {/* -------------------------------------------- Regionen */}
+      {fehlt && !zahlen && (
+        <p className="px-1 text-center text-xs text-slate-500">
+          <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+        </p>
+      )}
       {kaestchen.length > 0 && (
         <section ref={regRef} className="grid items-center gap-10 px-1 py-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
