@@ -1,12 +1,11 @@
 {
-  "letzteRunde": "2026-11-01T03:02:00Z",
-  "macheGerade": "Runde 9 fertig: 19 Verbesserungen (chef-143 bis chef-161), fast alle an der Statistik – u. a. Strecke 0,0 km bzw. 100× zu groß, K/D im Solo-Finale 9,5 statt 3,8, Preisgeld-Summe bei Duos halb so groß, Orgs zählten Turniere mehrfach, NAC-Finale als EU-Titel, fehlende Ausfall-Hinweise. Alles wartet auf deine Entscheidung.",
+  "letzteRunde": "2026-11-01T03:53:00Z",
+  "macheGerade": "Runde 10 fertig: 45 Verbesserungen (chef-162 bis chef-206) – fast alle an der Statistik: Mindestzahl an Matches für Quoten in Regionen und Turnierstatistik (mit Hinweis), feste Reihenfolge bei Gleichstand, sortierter Wert als eigene Spalte, Zahlenformat nach Sprache (Cup-Seite, Startseite, FNCS, Replays), Übersetzung der Cup-Kacheln und des Spielerfensters, Globals im Verdienst mit Endplatz, viele Ausfall-Hinweise statt leerer Stellen. Alles wartet auf deine Entscheidung.",
   "naechstes": [
-    "WICHTIG: chef-106 freigeben – solange rechnet der Stundenlauf die Startseite der Statistik, die S41-/S42-Listen und die Jahresliste 2025 nicht neu (z. B. Strecke S41 100× zu klein, peterbot S42 57 statt 83 Matches).",
-    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs-Liste (seit Beitritt); Mshary in zwei Orgs; zählen Asien-Siege als FNCS-Titel (swizzy CH2 S8)?",
-    "FNCS Solo Final EU: Tagesdatei hat ein von Epic entferntes Team (101 statt 100 Zeilen) – Datenlauf neu holen lassen."
+    "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
+    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs (seit Beitritt); Mshary in zwei Orgs; zählen Asien-Siege als FNCS-Titel; „FNCS Winners“-Hinweis um Grand Royale/All-Star ergänzen?",
+    "Nächste Runde: Live-Status-Ausfall nicht als „alle offline“, Kanalsuche-Ausfall, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-150/159) + Sonnet (übrige)",
-  "laeuftSeit": "2026-11-01T03:07:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-162/163/182/195) + Sonnet (übrige)"
 }

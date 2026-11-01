@@ -4508,5 +4508,27 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-206",
+    "datum": "2026-11-01T03:52:00Z",
+    "titel": "Multiview: Hinweis bei Ausfall des Live-Status",
+    "kurz": "Streams → Multiview bei Ausfall: oben „Live status cannot be reached“.",
+    "markieren": [
+      "text:Live status cannot be reached right now."
+    ],
+    "bereich": "Streams",
+    "warum": "Schlug die Live-Abfrage fehl, merkte man in der Multiview nichts – der Stand wirkte aktuell.",
+    "was": "Jetzt steht oben ein Hinweis; er verschwindet, sobald die Abfrage wieder klappt.",
+    "ansehen": [
+      "/streams"
+    ],
+    "commits": [
+      "ad141ff"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
