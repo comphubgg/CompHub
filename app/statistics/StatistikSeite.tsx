@@ -5357,9 +5357,8 @@ export default function StatistikSeite() {
               ) : !regionFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
-                  Für {regionAktiv} liegen {alleSaisons ? t('über alle Saisons')
-                    : `${t('in der Saison')} ${saisonTitel}`}{' '}
-                  <T>keine Einzelwerte vor.</T>
+                  {t('Für {r} liegen {z} keine Einzelwerte vor.').replace('{r}', regionAktiv)
+                    .replace('{z}', alleSaisons ? t('über alle Saisons') : `${t('in der Saison')} ${saisonTitel}`)}
                 </p>
               ) : (
                 <>

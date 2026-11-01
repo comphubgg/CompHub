@@ -2023,6 +2023,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Zu diesem Spieltag liegen': 'For this match day there are',
   'keine Einzelwerte vor.': 'no individual values.',
   '{a} von {b} Spielern gezeigt.': '{a} of {b} players shown.',
+  'Für {r} liegen {z} keine Einzelwerte vor.': 'No individual values for {r} {z}.',
   'Meister Schaden erlitten': 'Most damage taken',
   'nach Eliminierungen über alle erfassten Spieltage, ab 20 Matches':
     'by eliminations across all recorded match days, from 20 matches',

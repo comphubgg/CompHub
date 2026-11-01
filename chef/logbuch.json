@@ -2666,6 +2666,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:40:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "c94e0bb"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-125",
+    "titel": "Regionen: Hinweis ohne Einzelwerte ganz auf Englisch",
+    "kurz": "Regionen → Region ohne Einzelwerte: Hinweis jetzt ganz englisch statt Mischsatz.",
+    "markieren": [
+      "text:No individual values for"
+    ],
+    "warum": "Der Hinweis begann fest mit „Für … liegen“ – auf der englischen Seite ein deutsch-englischer Mischsatz.",
+    "was": "Der ganze Satz läuft jetzt über die Übersetzung.",
+    "ansehen": [
+      "/statistics?bereich=regional"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:40:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
