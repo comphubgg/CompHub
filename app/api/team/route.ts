@@ -46,12 +46,14 @@ export async function GET(request: Request) {
     const org = orgs.find((o) => o.id === kennung);
     if (!org) return NextResponse.json({ ok: false, reason: 'unbekannte Organisation' }, { status: 404, headers: KOPF });
 
+    // Fiel eine Quelle aus, steht "unvollstaendig" in der Antwort - sonst saehe ein Ausfall wie "noch keine gewerteten Spiele" aus.
+    let ausfall = false;
     const [summen, heimat, bilder, profile, verdienst, prStand] = await Promise.all([
-      gesamtSummen().catch(() => [] as Awaited<ReturnType<typeof gesamtSummen>>),
+      gesamtSummen().catch(() => { ausfall = true; return [] as Awaited<ReturnType<typeof gesamtSummen>>; }),
       heimatRegionen().catch(() => new Map<string, string>()),
       liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
       liesJson<Record<string, { name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { name?: string; land?: string }>)),
-      abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => null),
+      abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => { ausfall = true; return null; }),
       liesPr(PR_LISTE).catch(() => null),
     ]);
     // Epics Power Rankings (weltweit, taeglich): fuer jeden Spieler mit Konto mindestens Rang und Punkte - auch ohne Finals im Archiv.
@@ -110,7 +112,9 @@ export async function GET(request: Request) {
       players,
       at: new Date().toISOString(),
       source: 'CompHub',
-    }, { headers: KOPF });
+      ...(ausfall ? { unvollstaendig: true } : {}),
+      // Eine unvollstaendige Antwort nicht fuer Minuten im Zwischenspeicher halten.
+    }, { headers: ausfall ? { ...KOPF, 'Cache-Control': 'no-store' } : KOPF });
   } catch (e) {
     return NextResponse.json({ ok: false, reason: `CompHub antwortet gerade nicht: ${(e as Error).message}` }, { status: 424, headers: KOPF });
   }

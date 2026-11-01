@@ -3898,6 +3898,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Dieses Team gibt es auf CompHub nicht.': 'This team does not exist on CompHub.',
   'Das Team lässt sich gerade nicht laden.': 'The team cannot be loaded right now.',
   'Webseite': 'Website',
+  'Die Werte sind gerade nicht erreichbar. Bitte gleich noch einmal laden.': 'The figures are not reachable right now. Please reload in a moment.',
   'Letzte Ergebnisse': 'Latest results',
   'Noch keine Ergebnisse mit Preisgeld.': 'No prize results yet.',
   'Noch keinem Epic-Konto zugeordnet - deshalb noch keine Werte.': 'Not linked to an Epic account yet - no stats so far.',

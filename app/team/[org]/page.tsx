@@ -26,7 +26,7 @@ interface Spieler {
   powerRank: number | null; powerPoints: number | null;
 }
 interface Antwort {
-  ok: boolean; reason?: string;
+  ok: boolean; reason?: string; unvollstaendig?: boolean;
   org?: { slug: string; name: string; logo: string | null; banner: string | null; colors: { primary: string | null }; region: string | null; links: Record<string, string | null> };
   players?: Spieler[];
 }
@@ -99,6 +99,9 @@ export default function TeamSeite() {
       </section>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-8">
+        {daten.unvollstaendig && (
+          <p role="alert" className="mt-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300"><T>Die Werte sind gerade nicht erreichbar. Bitte gleich noch einmal laden.</T></p>
+        )}
         {gruppen.map((g) => (
           <section key={g.titel} className="mt-12">
             <h2 className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: farbe }}><T>{g.titel}</T> <span className="text-slate-500">· {g.liste.length}</span></h2>

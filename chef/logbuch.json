@@ -2868,5 +2868,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-134",
+    "titel": "Teamseite: Ausfall nicht als leere Werte zeigen",
+    "kurz": "Teamseite: Bei Datenausfall steht ein Hinweis statt nur Striche „keine Spiele“.",
+    "markieren": [
+      "text:The figures are not reachable right now"
+    ],
+    "warum": "Fiel die Datenquelle aus, sah die Teamseite aus wie „noch keine gewerteten Spiele“ – und blieb so bis zu 40 Minuten im Zwischenspeicher.",
+    "was": "Die Seite zeigt dann „gerade nicht erreichbar“, und die halbe Antwort wird nicht mehr zwischengespeichert.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:10:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
