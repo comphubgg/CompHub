@@ -31,7 +31,8 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
 
   const punkte = useMemo(() => {
     const alle = zeilen
-      .filter((z) => (z.werte.damageTakenFromPlayers ?? 0) > 0)
+      // Nur Tage, die beide Werte führen - ein Tag ohne Schadenswert wäre sonst ein falscher Punkt bei 0.
+      .filter((z) => (z.werte.damageTakenFromPlayers ?? 0) > 0 && typeof z.werte.damageDealt === 'number')
       .map((z) => ({ event: z.event, datum: z.datum ?? 0, wert: (z.werte.damageDealt ?? 0) / (z.werte.damageTakenFromPlayers ?? 1), dealt: z.werte.damageDealt ?? 0, taken: z.werte.damageTakenFromPlayers ?? 0 }))
       .sort((a, b) => a.datum - b.datum);
     const auswahl = gross ? alle.filter((p) => GROSS.test(p.event)) : alle;
