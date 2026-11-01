@@ -3604,5 +3604,141 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-166",
+    "titel": "Profil: Beste Spieltage nennen die Saison mit Namen",
+    "kurz": "Profil → „Best match days“: „Chapter 7 Season 3“ statt „S41“.",
+    "markieren": [
+      "text:Best match days"
+    ],
+    "bereich": "Statistik",
+    "warum": "Unter den besten Spieltagen stand die Saison als Kürzel, überall sonst mit Namen.",
+    "was": "Jetzt steht der Saisonname da; fehlt der Schaden eines Tages, ein Strich statt 0.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "9b1e500"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-167",
+    "titel": "Kopfsuche: Ausfall zeigt Hinweis",
+    "kurz": "Statistik → Suchfeld oben: bei Ausfall Hinweis statt leerer Liste.",
+    "markieren": [
+      "css:input[placeholder^='Search']",
+      "text:could not be loaded right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete die Spielersuche oben nicht, passierte nichts – das sah aus wie „kein Spieler gefunden“.",
+    "was": "Jetzt erscheint unter dem Feld ein Hinweis, dass die Liste gerade nicht geladen werden konnte.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [
+      "f2a9db5"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-168",
+    "titel": "Profil-Kurve: Zahlen im Format der Sprache",
+    "kurz": "Profil → Kurve „Damage per match day“: 13,892 statt 13892.",
+    "markieren": [
+      "text:per match day",
+      "text:at most"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kurve schrieb Zahlen roh ohne Tausendertrennung; beim Schadensverhältnis zogen Tage ohne erlittenen Schaden die Kurve auf 0.",
+    "was": "Zahlen stehen jetzt wie überall auf der Seite; Tage ohne erlittenen Schaden fehlen in der Verhältnis-Kurve.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "fc3cc6a"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-169",
+    "titel": "Profil-Turniere: Zusammenfassung mit Strich statt 0",
+    "kurz": "Profil → Turniere → „Summary“: Strich statt 0, wenn Werte fehlen.",
+    "markieren": [
+      "text:Summary"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieler mit nur Epic-Zeilen (ohne eigene Werte) sahen in der Summenzeile 0 Elims und 0 Schaden.",
+    "was": "Dort steht jetzt ein Strich. Bei Spielern mit Werten ändert sich nichts.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "df48081"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-170",
+    "titel": "Bestenlisten: feste Reihenfolge bei gleichem Wert",
+    "kurz": "Statistik → Spielerliste: gleiche Werte stehen immer gleich (erst Elims, dann Schaden).",
+    "markieren": [
+      "css:table tbody tr"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Wert tauschten Spieler nach neuen Daten die Plätze.",
+    "was": "Bei Gleichstand entscheiden jetzt mehr Eliminierungen, dann mehr Schaden. Kein geteilter Rang.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=headshots"
+    ],
+    "commits": [
+      "b2aaecc"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-171",
+    "titel": "Spielerliste: sortierter Wert als eigene Spalte",
+    "kurz": "Spielerliste nach „Builds“ sortieren: neue blaue Spalte zeigt den Wert.",
+    "markieren": [
+      "text:Builds placed",
+      "css:table thead th:last-child"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach Bauteilen, Material, Assists oder Werten je Match sortiert, sah man den Wert nirgends in der Liste.",
+    "was": "Dann steht er als zusätzliche blaue Spalte bzw. vierte Zahl in jeder Kachel.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=builds",
+      "/statistics?bereich=spieler&sort=elimsProMatch"
+    ],
+    "commits": [
+      "9a8f109"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:25:00Z",
+    "status": "wartet",
+    "runde": 1
   }
 ]
