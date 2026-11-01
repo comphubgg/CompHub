@@ -4680,5 +4680,26 @@
     "commits": [
       "111ca70"
     ]
+  },
+  {
+    "id": "chef-214",
+    "titel": "Spielerprofil: drei Werte mehr",
+    "kurz": "Spielerprofil → Werte: neu „Headshot share“, „Time alive“ und „Time in storm“.",
+    "markieren": [
+      "text:Headshot share",
+      "text:Time in storm"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Quelle liefert Überlebenszeit, Zeit im Sturm und Kopftreffer, das Profil zeigte davon keinen echten Wert (nur einen Balken).",
+    "was": "Drei neue Zeilen nach „Strecke“, z. B. peterbot: 22,8 % Kopftreffer, 253h 37m am Leben, 34h 48m im Sturm. Fehlt die Grundlage, steht ein Strich.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:57:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

@@ -6647,6 +6647,9 @@ export default function StatistikSeite() {
                     ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
                     ['Fallschaden', zahl(offen.fallDamage, 0, sprache)],
                     ['Strecke', `${zahl(offen.distanz, 1, sprache)} km`],
+                    ['Kopftreffer-Anteil', offen.hits > 0 ? `${zahl((offen.headshots / offen.hits) * 100, 1, sprache)} %` : '—'],
+                    ['Zeit am Leben', offen.timeAlive > 0 ? alsZeit(offen.timeAlive) : '—'],
+                    ['Zeit im Sturm', offen.timeInStorm > 0 ? alsZeit(offen.timeInStorm) : '—'],
                     ['Spieltage', zahl(offen.events, 0, sprache)],
                     ['Matches', zahl(offen.matches, 0, sprache)],
                   ] as Array<[string, string]>).map(([l, v]) => (

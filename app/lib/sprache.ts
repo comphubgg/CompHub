@@ -315,6 +315,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Trefferquote': 'Accuracy',
   'Schüsse': 'Shots fired',
   'Kopftreffer': 'Headshots',
+  'Kopftreffer-Anteil': 'Headshot share',
   'Assists': 'Assists',
   'Wiederbelebungen': 'Reboots & revives',
   'Material': 'Mats farmed',
