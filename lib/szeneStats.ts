@@ -2488,7 +2488,7 @@ async function vollWerte(windowId: string) {
   } catch { return {}; }
 }
 
-export interface ClutchZeile { epicId: string; punkte: number; spiele: number; solo: number | null }
+export interface ClutchZeile { epicId: string; punkte: number; spiele: number; solo: number | null; rang?: number }
 
 /**
  * Solo Clutch Points der ganzen Saison, je Spieler.
@@ -2535,7 +2535,10 @@ export async function clutchDerSaison(saison: string, verzeichnis: ArchivEintrag
   const zeilen: ClutchZeile[] = [...je.entries()]
     .filter(([, z]) => z.punkte > 0)
     .map(([epicId, z]) => ({ epicId, punkte: z.punkte, spiele: z.spiele, solo: soloDa ? z.solo : null }))
-    .sort((a, b) => b.punkte - a.punkte);
+    // Gleiche Punkte: weniger Clutch-Spiele zuerst, dann die Kennung - eine feste Reihenfolge statt der Reihenfolge der Dateien.
+    .sort((a, b) => b.punkte - a.punkte || a.spiele - b.spiele || (a.epicId < b.epicId ? -1 : a.epicId > b.epicId ? 1 : 0));
+  // Gleiche Punkte, gleicher Rang (1, 2, 2, 4) - wie bei den Spielerlisten der Cups.
+  zeilen.forEach((z, i) => { z.rang = i > 0 && zeilen[i - 1].punkte === z.punkte ? zeilen[i - 1].rang : i + 1; });
   return { zeilen, spieltage: tage, soloDa };
 }
 

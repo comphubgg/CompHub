@@ -1915,7 +1915,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
  */
 interface ClutchZeileAnzeige {
   epicId: string; anzeige: string; gepflegt: boolean; land: string | null;
-  heimat: string; punkte: number; spiele: number; solo: number | null;
+  heimat: string; punkte: number; spiele: number; solo: number | null; rang?: number;
 }
 function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   daten: { spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] };
@@ -2015,13 +2015,13 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   // Mit Rang in der ganzen Liste, damit er auch in der Trefferliste stimmt.
   const gefunden = suchen
     ? (vollDa
-      ? alle.map((z, i) => ({ z, rang: i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+      ? alle.map((z, i) => ({ z, rang: z.rang ?? i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
       : trefferDa ? treffer.liste : null)
     : null;
   const zeilen = (gefunden ?? (suchen ? [] : (offen ? alle.slice(0, vollDa ? sichtbar : alle.length || 10) : daten.zeilen.slice(0, 10))
-    .map((z, i) => ({ z, rang: i + 1 }))));
+    .map((z, i) => ({ z, rang: z.rang ?? i + 1 }))));
   // Solange die ersten hundert noch nicht da sind, steht die Startliste (zehn Zeilen) da.
-  const angezeigt = suchen || !offen || alle.length ? zeilen : daten.zeilen.slice(0, 10).map((z, i) => ({ z, rang: i + 1 }));
+  const angezeigt = suchen || !offen || alle.length ? zeilen : daten.zeilen.slice(0, 10).map((z, i) => ({ z, rang: z.rang ?? i + 1 }));
 
   // Der Balken je Zeile misst gegen die beste Wertung (die Liste ist nach Punkten geordnet).
   const spitze = Math.max(1, daten.zeilen[0]?.punkte ?? alle[0]?.punkte ?? 1);

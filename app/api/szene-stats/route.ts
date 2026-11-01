@@ -704,7 +704,7 @@ async function berechne(request: Request) {
        * waeren das ebenso viele Anfragen.
        */
       const clutchZeigen = async (
-        c: { spieltage: number; soloDa: boolean; zeilen: Array<{ epicId: string; punkte: number; spiele: number; solo: number | null }> },
+        c: { spieltage: number; soloDa: boolean; zeilen: Array<{ epicId: string; punkte: number; spiele: number; solo: number | null; rang?: number }> },
         nur: number | null,
       ) => {
         const zeilen = nur === null ? c.zeilen : c.zeilen.slice(0, nur);
@@ -726,7 +726,7 @@ async function berechne(request: Request) {
             gepflegt: Boolean(gepflegt.get(z.epicId)?.anzeige || gepflegt.get(z.epicId)?.name),
             land: gepflegt.get(z.epicId)?.land || szene.get(z.epicId)?.land || null,
             heimat: heimat.get(z.epicId) ?? '',
-            punkte: z.punkte, spiele: z.spiele, solo: z.solo,
+            punkte: z.punkte, spiele: z.spiele, solo: z.solo, rang: z.rang,
           })),
         };
       };
@@ -1784,7 +1784,7 @@ async function clutchTeil(request: Request, modus: 'suche' | 'seite'): Promise<R
     // Wie bisher im Browser: Kleinschreibung, "enthaelt" im angezeigten Namen; Rang = Platz in der ganzen Liste.
     const klein = (url.searchParams.get('q') ?? '').trim().toLowerCase();
     const treffer = klein.length < 2 ? [] : alle
-      .map((z, i) => ({ z, rang: i + 1 }))
+      .map((z, i) => ({ z, rang: typeof z.rang === 'number' ? z.rang : i + 1 }))
       .filter((x) => String(x.z.anzeige ?? x.z.name ?? '').toLowerCase().includes(klein))
       .slice(0, 50);
     return NextResponse.json({ ...kopf, clutch: { ...rest, gesamt: alle.length, treffer } }, {
