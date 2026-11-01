@@ -8,7 +8,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Profil-Strecke live noch alt** – peterbot Karriere 3.242,8 km; mit der Umrechnung aus chef-39 (S41/S42 in Metern) müssten es rund 3.912 km sein. Der Code auf main stimmt, die vorgerechneten Summen sind alt (gleiche Ursache wie chef-106). Nach Freigabe von chef-106 prüfen: /api/szene-stats?spieler=45ce4565b6db452c9419119b12e7eac3 → spieler.distanz ≈ 3912.
 - [x] **Orgs ohne Preisgeld alphabetisch** (chef-111), **Vergleich-Suche still leer** (chef-112), **Auszeichnungen nur bis Globals 2025** (chef-113), **Beste Spieltage Gleichstand** (chef-114), **„je Duo“ bei Trios** (chef-115), **Cup-Spielersuche still leer** (chef-116).
 - [ ] **FNCS-Liste im Profil: „Solo“, wenn Mitspieler fehlen** – die Quelle unterscheidet „Solo“ nicht von „Mitspieler unbekannt“ (z. B. GRAND ROYALE, GLOBALS 2023). Format aus dem Turniernamen ableiten?
-- [ ] **Karriere-Bestwerte: Spiele ohne Datum zuletzt** – peterbots Globals-2024-Sieg (LAN, ohne Datum) fehlt unter den drei besten Platzierungen.
+- [x] **Karriere-Bestwerte: Spiele ohne Datum zuletzt** (chef-118) – peterbots Globals-2024-Sieg (LAN, ohne Datum) fehlt unter den drei besten Platzierungen.
 - [x] **Damage-Ratio-Verlauf: gestrichelte Linie ohne Beschriftung** (chef-117) – Mittel der Turnier-Quoten (weicht von der Quote im Kopf ab). Beschriften.
 - [ ] **Orgs: „Bezahlte Turniere“ zählt ein Turnier mehrfach**, wenn mehrere Spieler der Org bezahlt wurden – braucht Turnier-Kennungen in der Antwort.
 - [ ] **cup-spieler (Szene-Quelle): fehlende Assists/Schaden werden 0** – prüfen, ob die Quelle 0 oder nichts meldet.
