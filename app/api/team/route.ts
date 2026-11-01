@@ -84,8 +84,8 @@ export async function GET(request: Request) {
         elims: s?.elims ?? null, assists: s?.assists ?? null,
         damage: s ? Math.round(s.damage) : null, damageTaken: s ? Math.round(s.damageTaken) : null,
         heals: s ? Math.round(s.heals) : null, mats: s?.mats ?? null, builds: s?.builds ?? null,
-        // Ohne Schuesse, Schaden oder erlittenen Schaden ist der Wert unbekannt (die Summe fuehrt dann 0) - null, damit die Seite einen Strich zeigt.
-        accuracy: s?.shots ? runde(s.genauigkeit, 1) : null, elimsPerMatch: runde(s?.elimsProMatch),
+        // Ohne Schuesse, Elims-Tage, Schaden oder erlittenen Schaden ist der Wert unbekannt (die Summe fuehrt dann 0) - null, damit die Seite einen Strich zeigt.
+        accuracy: s?.shots ? runde(s.genauigkeit, 1) : null, elimsPerMatch: s && (s.matchesElims ?? s.matches) ? runde(s.elimsProMatch) : null,
         damagePerMatch: s?.damage ? runde(s.damageProMatch, 0) : null,
         // Schaden ausgeteilt / erlitten - KEIN K/D (CompHub fuehrt kein K/D ueber das Archiv).
         damageRatio: s?.damageTaken ? runde(s.quote) : null,

@@ -5384,5 +5384,25 @@
     "commits": [
       "f97e70d"
     ]
+  },
+  {
+    "id": "chef-245",
+    "datum": "2026-11-01T05:04:53Z",
+    "titel": "Teamseite: Elims je Match ohne Daten = Strich",
+    "kurz": "Unsichtbar: Teamseite → Spielerfenster zeigt „—“ statt 0.00 Elims je Match, wenn Kills fehlen.",
+    "markieren": [
+      "text:Elims per match"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte ein Spieler nur Spieltage ohne gesicherte Kills, stand im Spielerfenster der Teamseite „0.00 Elims je Match“ – als hätte er nie eliminiert.",
+    "was": "Jetzt steht dort ein Strich, wie schon bei Trefferquote und Schaden je Match.",
+    "ansehen": [
+      "/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
