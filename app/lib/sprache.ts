@@ -4257,6 +4257,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Mitte': 'Middle',
   'Wartet auf das erste Match': 'Waiting for the first match',
   'Spielt gerade in keinem Cup': 'Not playing in a cup right now',
+  'Statistik gerade nicht erreichbar': 'Stats are unavailable right now',
   'Nicht angemeldet.': 'Not signed in.',
   'Nicht gelöst.': 'Not disconnected.',
   'Epic Games': 'Epic Games',

@@ -10,6 +10,7 @@ import { standFuer } from '@/lib/povStats';
  *     { ok: true, verfuegbar: false }                    der Profi hat kein verbundenes Epic-Konto
  *     { ok: true, verfuegbar: true, stand: null }        er spielt gerade in keinem laufenden Cup
  *     { ok: true, verfuegbar: true, stand: { ... } }     Platz, Punkte, Eliminierungen des laufenden Cups
+ *     424 { ok: false, epicAusfall: true }               Epic nicht erreichbar (kein Treffer und die Abfragen scheiterten)
  *
  * Wer das POV sehen darf, darf auch das sehen - dieselbe Pruefung wie beim Strom.
  */
@@ -33,6 +34,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, verfuegbar: true, stand: await standFuer(epicId) }, { headers: nie });
   } catch {
     // Epic antwortet nicht: das Overlay behaelt den letzten Stand, statt "kein Cup" zu behaupten.
-    return NextResponse.json({ ok: false, error: 'Epic antwortet nicht.' }, { status: 424, headers: nie });
+    return NextResponse.json({ ok: false, error: 'Epic antwortet nicht.', epicAusfall: true }, { status: 424, headers: nie });
   }
 }

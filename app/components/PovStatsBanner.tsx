@@ -47,6 +47,7 @@ export function PovStatsBanner({ pro, schluessel, einst, name, bild, versetzt = 
 }) {
   const t = useT();
   const [stand, setStand] = useState<Stand | null | undefined>(undefined);
+  const [ausfall, setAusfall] = useState(false);
 
   useEffect(() => {
     if (!einst.an) return undefined;
@@ -54,8 +55,12 @@ export function PovStatsBanner({ pro, schluessel, einst, name, bild, versetzt = 
     const holen = () => {
       const s = schluessel ? `&s=${encodeURIComponent(schluessel)}` : '';
       fetch(`/api/pov/stats?pro=${encodeURIComponent(pro)}${s}`, { cache: 'no-store' })
-        .then((r) => r.json())
-        .then((j) => { if (!weg && j?.ok && j.verfuegbar) setStand(j.stand ?? null); })
+        .then(async (r) => ({ status: r.status, j: await r.json().catch(() => null) }))
+        .then(({ status, j }) => {
+          if (weg) return;
+          if (status === 424 || j?.epicAusfall) { setAusfall(true); return; } // letzter Stand bleibt stehen
+          if (j?.ok && j.verfuegbar) { setAusfall(false); setStand(j.stand ?? null); }
+        })
         .catch(() => undefined); // der letzte Stand bleibt stehen
     };
     holen();
@@ -63,9 +68,11 @@ export function PovStatsBanner({ pro, schluessel, einst, name, bild, versetzt = 
     return () => { weg = true; window.clearInterval(uhr); };
   }, [einst.an, pro, schluessel]);
 
-  if (!einst.an || stand === undefined) return null;
+  // Epic-Ausfall ohne vorherigen Stand: kurzer Hinweis statt "spielt in keinem Cup".
+  const nurAusfall = stand === undefined && ausfall;
+  if (!einst.an || (stand === undefined && !ausfall)) return null;
   const g = GROESSEN[einst.groesse] ?? GROESSEN.mittel;
-  const gespielt = stand && stand.spiele > 0;
+  const gespielt = !!stand && stand.spiele > 0;
   const zelle = (wert: string | number, etikett: string) => (
     <div className="text-center leading-tight">
       <div className={`${g.wert} font-bold tabular-nums`}>{wert}</div>
@@ -93,7 +100,8 @@ export function PovStatsBanner({ pro, schluessel, einst, name, bild, versetzt = 
         </div>
       ) : (
         <div className={`${g.cup} text-white/70`}>
-          {stand ? t('Wartet auf das erste Match') : t('Spielt gerade in keinem Cup')}
+          {nurAusfall ? t('Statistik gerade nicht erreichbar')
+            : stand ? t('Wartet auf das erste Match') : t('Spielt gerade in keinem Cup')}
         </div>
       )}
     </div>

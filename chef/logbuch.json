@@ -3023,5 +3023,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-141",
+    "datum": "2026-11-01T03:30:00Z",
+    "titel": "POV-Statistik: Epic-Ausfall nicht als „kein Cup“ zeigen",
+    "kurz": "Streams → POV-Statistik: Bei Epic-Störung „Stats are unavailable“ statt „kein Cup“.",
+    "markieren": [
+      "text:Stats are unavailable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete Epic nicht, behauptete das Banner, der Profi spiele gerade in keinem Cup.",
+    "was": "Scheitern alle Regionen oder die meisten Abfragen, steht jetzt „gerade nicht erreichbar“; ein einzelnes hakendes Turnier löst das nicht aus.",
+    "ansehen": [
+      "/streams"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

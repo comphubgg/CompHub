@@ -27,14 +27,19 @@ const FENSTER_TTL = 3 * 60_000;
 const STAND_TTL = 30_000;
 
 /** Alle Fenster, die gerade laufen - ueber alle Regionen, ohne Doppelte. */
-async function laufendeFenster(): Promise<CupFenster[]> {
+async function laufendeFenster(): Promise<{ fenster: CupFenster[]; alleListenFehlt: boolean }> {
   const nach = new Map<string, CupFenster>();
   const listen = await Promise.all(REGIONEN.map((r) =>
     gecacht(`events|${r}`, FENSTER_TTL, () => listeCups(r)).catch(() => null)));
   for (const l of listen) {
     for (const w of l?.windows ?? []) if (w.status === 'live') nach.set(w.windowId, w);
   }
-  return [...nach.values()];
+  return { fenster: [...nach.values()], alleListenFehlt: listen.every((l) => l === null) };
+}
+
+/** Epic ist nicht erreichbar (kein Cup-Stand ermittelbar). Die Route antwortet dann mit 424. */
+export class EpicAusfall extends Error {
+  constructor() { super('Epic antwortet nicht.'); this.name = 'EpicAusfall'; }
 }
 
 /**
@@ -47,19 +52,27 @@ export async function standFuer(epicId: string): Promise<PovStand | null> {
   const id = epicId.replace(/-/g, '').toLowerCase();
   if (!/^[0-9a-f]{32}$/.test(id)) return null;
   return gecacht(`povstand|${id}`, STAND_TTL, async () => {
-    const fenster = await laufendeFenster();
+    const { fenster: alle, alleListenFehlt } = await laufendeFenster();
+    const fenster = alle.slice(0, 12);
+    let fehlgeschlagen = 0;
     let beste: { w: CupFenster; e: CupEintrag; stand: string } | null = null;
     // Alle laufenden Fenster gleichzeitig, aber nur die ersten Seiten - zehn Fenster sind der Ausnahmefall.
-    const treffer = await Promise.all(fenster.slice(0, 12).map(async (w) => {
+    const treffer = await Promise.all(fenster.map(async (w) => {
       try {
         const d = await findeSpieler(w.eventId, w.windowId, [], [id], 8);
         const e = (d.entries as CupEintrag[] | undefined)?.find((x) => x.players.some((p) => p.id === id));
         return e ? { w, e, stand: String((d as { updated?: string }).updated ?? new Date().toISOString()) } : null;
-      } catch { return null; }
+      } catch { fehlgeschlagen++; return null; }
     }));
     // Mehrere Treffer (Qualifikation und Cup am selben Abend): das Fenster mit den meisten gespielten Matches.
     for (const t of treffer) if (t && (!beste || t.e.games > beste.e.games)) beste = t;
-    if (!beste) return null;
+    if (!beste) {
+      // Kein Treffer ist nur dann "spielt nirgends", wenn Epic uns auch antworten konnte. Ein einzelnes
+      // wackliges Fenster eines fremden Cups zaehlt nicht: erst wenn alle Regionslisten fehlen oder mehr
+      // als die Haelfte der Fenster-Abfragen scheiterte, ist es ein Ausfall (nicht gecacht, Route: 424).
+      if (alleListenFehlt || fehlgeschlagen * 2 > fenster.length) throw new EpicAusfall();
+      return null;
+    }
     const { w, e } = beste;
     const runde = rundenName(w.windowId, /Final/i.test(w.windowId));
     const cup = [cupNameAusKennung(w.windowId), runde].filter(Boolean).join(' · ');
