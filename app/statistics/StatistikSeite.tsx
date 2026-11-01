@@ -222,7 +222,7 @@ function rangArt(typ: string): string {
 
 interface Perzentile {
   elims: number; damage: number; headshots: number; mats: number; builds: number;
-  timeAlive: number; reboots: number; quote: number; genauigkeit: number;
+  timeAlive: number; reboots: number; quote: number | null; genauigkeit: number | null;
   feldgroesse: number;
 }
 
@@ -4121,7 +4121,7 @@ export default function StatistikSeite() {
                    * standen, obwohl oben Englisch eingestellt war.
                    */
                   ['Schadensquote', feldText(offen, 'quote', 2, sprache),
-                    perzentile
+                    perzentile && perzentile.quote !== null
                       ? t('besser als {n} %').replace('{n}', String(perzentile.quote))
                       : t('ausgeteilt zu erlitten')],
                   ['Regionaler Rang', rang?.regional ? `#${rang.regional}` : '—',
@@ -6632,9 +6632,11 @@ export default function StatistikSeite() {
                           ['Überleben', [['Zeit am Leben', perzentile.timeAlive],
                             ['Schadensquote', perzentile.quote],
                             ['Wiederbelebungen', perzentile.reboots]]],
-                        ] as Array<[string, Array<[string, number]>]>).map(([titel, teile]) => {
-                          const schnitt = Math.round(
-                            teile.reduce((n, t) => n + t[1], 0) / teile.length);
+                        ] as Array<[string, Array<[string, number | null]>]>).map(([titel, teile]) => {
+                          // Unbekannte Teile (Strich) zaehlen nicht mit - sonst zoege eine 0 den Schnitt nach unten.
+                          const bekannt = teile.filter((t): t is [string, number] => t[1] !== null);
+                          const schnitt = bekannt.length
+                            ? Math.round(bekannt.reduce((n, t) => n + t[1], 0) / bekannt.length) : 0;
                           return (
                             <div key={titel} className="bg-zinc-950 p-5">
                               <p className="text-[10px] font-semibold uppercase
@@ -6657,11 +6659,11 @@ export default function StatistikSeite() {
                                     <span className="w-28 shrink-0 text-[11px]
                                                      text-slate-500"><T>{t[0]}</T></span>
                                     <span className="min-w-0 flex-1">
-                                      <Balken wert={t[1]} klein />
+                                      <Balken wert={t[1] ?? 0} klein />
                                     </span>
                                     <span className="w-7 shrink-0 text-right text-[11px]
                                                      font-semibold tabular-nums
-                                                     text-slate-300">{t[1]}</span>
+                                                     text-slate-300">{t[1] ?? '—'}</span>
                                   </div>
                                 ))}
                               </div>

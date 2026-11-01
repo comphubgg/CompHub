@@ -1229,6 +1229,8 @@ async function berechne(request: Request) {
         const drunter = feld.filter((s) => holen(s) < wert).length;
         return Math.round((drunter / feld.length) * 100);
       };
+      const rangUnter = (wert: number, holen: (s: typeof gesamt[number]) => number, bekannte: typeof gesamt) =>
+        bekannte.length ? Math.round((bekannte.filter((s) => holen(s) < wert).length / bekannte.length) * 100) : null;
       /** Denselben Wert je Match - fuer den Spieler wie fuer das Feld. */
       type Nenner = 'voll' | 'elims' | 'schaden' | 'zeit';
       const jeMatch = (holen: (s: typeof gesamt[number]) => number, nenner: Nenner | false = false) =>
@@ -1261,8 +1263,12 @@ async function berechne(request: Request) {
         reboots: rangJe((s) => s.reboots, 'voll'),
         // Quote und Trefferquote sind schon Verhaeltnisse - die bleiben, wie
         // sie sind, sonst teilte man zweimal.
-        quote: rang(gEintrag.quote, (s) => s.quote),
-        genauigkeit: rang(gEintrag.genauigkeit, (s) => s.genauigkeit),
+        // Ohne erlittenen Schaden bzw. Schuesse ist der Wert unbekannt (auf der Seite ein Strich): dann kein Rang - eine 0 zoege den
+        // Feld-Schnitt nach unten, und im Feld zaehlten Unbekannte als schlechter.
+        quote: gEintrag.damageTaken > 0
+          ? rangUnter(gEintrag.quote, (s) => s.quote, feld.filter((s) => s.damageTaken > 0)) : null,
+        genauigkeit: gEintrag.shots > 0
+          ? rangUnter(gEintrag.genauigkeit, (s) => s.genauigkeit, feld.filter((s) => s.shots > 0)) : null,
         feldgroesse: feld.length,
       } : null;
 

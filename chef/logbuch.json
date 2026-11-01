@@ -5587,5 +5587,27 @@
     "commits": [
       "4c58f67"
     ]
+  },
+  {
+    "id": "chef-254",
+    "datum": "2026-11-01T05:50:00Z",
+    "titel": "Profil-Stärkefelder: unbekannte Quoten zählen nicht",
+    "kurz": "Spielerprofil → Stärkefelder: ohne Schuss-/Schadensdaten steht ein Strich statt 0.",
+    "markieren": [
+      "text:Firepower",
+      "text:Hit rate",
+      "text:Survival"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ohne Schussdaten zeigte das Profil bei Trefferquote „–“, die Stärkefelder aber Rang 0 – das zog „Feuerkraft“ nach unten; im Feld zählten Unbekannte als schlechter.",
+    "was": "Unbekannte Quoten bekommen keinen Rang mehr, zählen nicht im Schnitt, und der Rang wird nur gegen Spieler mit Daten gerechnet.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
