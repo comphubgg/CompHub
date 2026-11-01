@@ -2,11 +2,20 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 13, 01.11.2026)
+
+- [x] (chef-238) **Regionen: Reihen-Bestwerte nur aus 500 Spielern** – Nachladen des ganzen Felds wie bei chef-235.
+- [ ] **Regions-Saisonliste nur 500 von 752 Spielern** (S42 EU: gesamt 752) – die Liste wird aus der vorgerechneten Antwort mit limit=500 abgeleitet, eine größere Grenze geht ohne Vorrechnen nicht. Vorschlag: im Vorrechner (scripts/antworten-vorrechnen.mjs, Zeile ~131) limit=2000 für die Regions-Saisonlisten. Wirkung klein (Quoten brauchen ohnehin Mindest-Matches), Speicher prüfen – erst nach chef-106 und mit dem Betreiber.
+- [ ] **Live: Reihen-Abfrage mit acht Spieltagen kommt noch aus der Saisonliste** (S42 EU Performance Cups, limit=500: 21 Spieltage, 752 Spieler; limit=2000: richtig 8 Spieltage, 428) – chef-78 steht auf main, die Live-Antwort ist vermutlich noch zwischengespeichert. Nach dem nächsten Bau prüfen.
+- [x] (chef-239) **Statistik → Cups wartete auf eine überflüssige Vorab-Abfrage**.
+- [x] (chef-240) **Admin Tweets: Quoten ohne Mindestzahl an Spielen**.
+- [x] **Logbuch-Umlaute geprüft**: Titel/Kurz/Warum/Was haben keine ue/oe/ae-Schreibungen mehr (nur echte Wörter wie „Quelle“, „neue“).
+
 ## Neu entdeckt (Runde 11, 01.11.2026)
 
 - [x] (chef-237) **Twitch-Kanalvorschläge im Flaggen-/Twitch-Editor der Cup-Seite** (app/events/[id]/page.tsx, twitchSuchen ~Z. 5473) zeigen den deutschen, technischen `hinweis`-Text der Schnittstelle – auf übersetzten Hinweis umstellen (nur Admin).
 - [x] (chef-236) **Streams-Seite: toter Code** (kachelAusSuche, setKachelSuche, kanalFunde – nie angezeigt) und auf der Statistikseite `suchen`, `vglLaden`, `laufende` – aufräumen.
-- [ ] **Admin Tweets: Genauigkeit aus Replay-Treffern und Szene-Schüssen gemischt** – die Cup-Spieler-Antwort rechnet nur aus der Szene-Quelle; Tweet und Seite können verschiedene Werte zeigen.
+- [ ] **Admin Tweets: Genauigkeit aus Replay-Treffern und Szene-Schüssen gemischt** – die Cup-Spieler-Antwort rechnet nur aus der Szene-Quelle; Tweet und Seite können verschiedene Werte zeigen. (Runde 13: spieler-stats rechnet Treffer/Schüsse aus einer Quelle – Mischung nicht gefunden; Mindestzahl ergänzt mit chef-240.)
 - [ ] **Ranked-Cups: K/D mit „Tode = Spiele − Siege“** – bei 1 bis 11 Spielen je Team fraglich; Betreiber fragen, ob die Ranked-Statistik so bleiben soll.
 - [ ] **Live-Status merkt sich „unbekannt“ im Seiten-Ausweichweg** (ueberSeite, MERK_DAUER) – nach einem Ausfall bleibt der Hinweis bis zum Ablauf stehen. Beobachten.
 - [ ] **Profil-Ansicht: Epic-Wert damageRatio je Zeile ≠ Schaden/erlitten** (z. B. Solo Final Tag 2: 2,69 gegen 3.980/1.552 = 2,56) – CompHub rechnet selbst, Epic anders. Nur Hinweis, keine Anzeige betroffen.
