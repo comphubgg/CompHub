@@ -2776,6 +2776,29 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:55:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "a774cf9"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-130",
+    "titel": "Power Rankings: Suche findet den angezeigten Namen",
+    "kurz": "Power Rankings → Suche „Malibuca“: findet jetzt Platz 3 statt nur Fremde.",
+    "markieren": [
+      "text:Malibuca",
+      "css:input[type=search]"
+    ],
+    "warum": "Die Suche prüfte nur den Epic-Namen – wer „Malibuca“ tippte, fand nicht Platz 3 („big winter arc“), sondern nur „Schmalibuca“.",
+    "was": "Gesucht wird jetzt auch im groß angezeigten Namen.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:55:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1

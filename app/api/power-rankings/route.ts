@@ -98,7 +98,8 @@ async function holeRoh(request: Request) {
 
     const alle = stand.spieler;
     const gefiltert = suche
-      ? alle.filter((s) => s.name.toLowerCase().includes(suche))
+      // Gesucht wird auch im gefuehrten Namen, den die Seite gross zeigt - wer "Malibuca" tippt (Platz 3, bei Epic "big winter arc"), muss ihn finden.
+      ? alle.filter((s) => s.name.toLowerCase().includes(suche) || mit(s).anzeige.toLowerCase().includes(suche))
       : alle;
 
     const seiten = Math.max(1, Math.ceil(gefiltert.length / proSeite));
