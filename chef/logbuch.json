@@ -5211,5 +5211,25 @@
     "commits": [
       "4fee640"
     ]
+  },
+  {
+    "id": "chef-238",
+    "datum": "2026-11-01T04:50:10Z",
+    "titel": "Regionen: Reihen-Bestwerte aus dem ganzen Feld",
+    "kurz": "Unsichtbar: Bestwerte einer Turnierreihe zählen jetzt alle Teilnehmer, nicht nur 500.",
+    "markieren": [
+      "text:Best Accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte eine Turnierreihe (z. B. alle Performance Cups) mehr als 500 Spieler, kamen die Bestwerte nur aus den 500 mit den meisten Elims.",
+    "was": "Wie schon bei einzelnen Cups holt die Seite dann einmal das ganze Feld (bis 2.000).",
+    "ansehen": [
+      "/statistics?bereich=regional"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

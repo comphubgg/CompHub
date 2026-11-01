@@ -3372,8 +3372,18 @@ export default function StatistikSeite() {
     else p.set('events', [...new Set((gewaehlt ? [gewaehlt] : tage).flatMap((t) => t.events?.length ? t.events : [t.windowId]))].join(','));
     const stand = `${saison}|${regionAktiv}`;
     try {
-      const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+      let j = await (await fetch(`/api/szene-stats?${p}`)).json();
       if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+      /* Wie bei der Spieltag-Ansicht: Hat die Reihe mehr als 500 Teilnehmer, einmal das ganze Feld holen (bis 2000),
+         sonst stammen Bestwerte wie die Trefferquote nur aus den 500 mit den meisten Elims. */
+      const gesamt = Number(j?.gesamt) || 0;
+      if (gesamt > j.spieler.length) {
+        try {
+          const q = new URLSearchParams(p); q.set('limit', String(Math.min(2000, gesamt)));
+          const voll = await (await fetch(`/api/szene-stats?${q}`)).json();
+          if (Array.isArray(voll?.spieler) && voll.spieler.length >= j.spieler.length) j = voll;
+        } catch { /* beim Teilfeld bleiben */ }
+      }
       if (reihenStand.current !== stand) return;
       setReihenFehlt((alt) => ({ ...alt, [name]: false }));
       setReihenFeld((alt) => ({ ...alt, [name]: j.spieler }));
