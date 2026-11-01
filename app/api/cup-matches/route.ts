@@ -761,11 +761,16 @@ async function tageMatches(request: Request, event: string, windows: string[]) {
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  const p = new URL(request.url).searchParams;
-  const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
-  if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 60);
-  if (istGlobalsFinale(p.get('event'), p.get('window'))) {
-    return zwischenspeichern(await globalsMatches(request), 60);
+  // Ein unerwarteter Fehler (etwa beim Zusammenfassen mehrerer Tage) darf nie als 500 enden - der Lastverteiler macht daraus eine Fehlerseite; 424 wie der Rest der Route.
+  try {
+    const p = new URL(request.url).searchParams;
+    const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+    if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 60);
+    if (istGlobalsFinale(p.get('event'), p.get('window'))) {
+      return zwischenspeichern(await globalsMatches(request), 60);
+    }
+    return zwischenspeichern(await holeRoh(request), 20);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message, needsLogin: false }, { status: 424 });
   }
-  return zwischenspeichern(await holeRoh(request), 20);
 }

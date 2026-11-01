@@ -771,6 +771,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Dann fehlen in jeder Aufstellung die Teams, die im Tagesranking hinter
    * den zehntausend liegen - auch dort, wo keine Luecke zu sehen ist.
    */
+  const [spieleFehlt, setSpieleFehlt] = useState(false);
   const [spieleFeldGrenze, setSpieleFeldGrenze] = useState(false);
   /** Suche innerhalb der Runden - Sieger oder irgendein Mitspieler. */
   const [spielSuche, setSpielSuche] = useState('');
@@ -1911,7 +1912,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
-        setSpiele(j?.spiele ?? []);
+        // Eine Fehlerantwort (424) hat keine Liste - das ist nicht "keine Runden", die Seite behaelt dann, was sie hat.
+        if (!Array.isArray(j?.spiele)) throw new Error('keine Matches');
+        setSpiele(j.spiele);
+        setSpieleFehlt(false);
         setSpieleFeldGrenze(Boolean(j?.feldGrenze));
       })
       /*
@@ -1920,7 +1924,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        * Vorher wurde die Liste geleert - eine kurze Stoerung sah dann aus
        * wie "keine Runden", mitten im Stream.
        */
-      .catch(() => { if (!weg && !spiele) setSpiele([]); })
+      .catch(() => { if (!weg && !spiele) setSpieleFehlt(true); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
   }, [reiter, lbFenster, spiele, tabelle.length, vertieft, nachladen, summenFenster, summenText]);
@@ -4494,6 +4498,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <T>Bei einem großen Cup dauert das ein bis zwei Minuten.</T>
                     </p>
                   </div>
+                )}
+
+                {spieleFehlt && !spiele && !spieleLaedt && (
+                  <p className="p-4 text-center text-sm text-amber-400">
+                    <T>Der Spielverlauf ist gerade nicht erreichbar.</T>
+                  </p>
                 )}
 
                 {spiele && !spiele.length && (
