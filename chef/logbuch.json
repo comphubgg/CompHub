@@ -5769,5 +5769,26 @@
     "commits": [
       "e2abbd1"
     ]
+  },
+  {
+    "id": "chef-262",
+    "datum": "2026-11-01T06:12:00Z",
+    "titel": "Feste Reihenfolge bei Gleichstand",
+    "kurz": "Unsichtbar: Regionen, Org-Spieler und Teamverlauf springen bei Gleichstand nicht mehr hin und her.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleicher Zahl hing die Reihenfolge von der Ablage ab und konnte zwischen zwei Aufrufen wechseln.",
+    "was": "Regionen: bei Gleichstand EU zuerst; Org-Spieler: mehr Turniere zuerst; Teamverlauf: offene Zeiten zuerst, dann Teamname.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

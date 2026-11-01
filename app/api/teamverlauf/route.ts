@@ -119,6 +119,9 @@ export async function GET(request: Request) {
 
   // Das Juengste oben: erst die aktuellen, dann nach Beginn.
   eintraege.sort((a, b) => Number(b.aktuell) - Number(a.aktuell)
-    || String(b.seit ?? '').localeCompare(String(a.seit ?? '')));
+    || String(b.seit ?? '').localeCompare(String(a.seit ?? ''))
+    // Gleichstand: das Ende zuerst (kein Ende = noch offen), dann der Teamname.
+    || String(b.bis ?? '9999').localeCompare(String(a.bis ?? '9999'))
+    || String(a.team).localeCompare(String(b.team)));
   return NextResponse.json({ eintraege, quelle: echte.length ? 'liquipedia' : 'orgs' }, { headers: { 'Cache-Control': 'no-store' } });
 }

@@ -129,7 +129,9 @@ export async function GET(request: Request) {
         rolle: s.rolle, x: s.x || (p as { x?: string } | undefined)?.x || null,
         twitch: s.twitch, tiktok: s.tiktok, youtube: s.youtube,
       };
-    }).sort((a, b) => (b.betrag ?? -1) - (a.betrag ?? -1));
+    }).sort((a, b) => (b.betrag ?? -1) - (a.betrag ?? -1)
+      // Gleichstand beim Betrag: mehr Turniere zuerst, dann der frueher Eingetragene (Dateireihenfolge bleibt, die Sortierung ist stabil).
+      || (b.turniere ?? -1) - (a.turniere ?? -1));
     const jahrExtras = alleJahre ? o.extras
       : o.extras.filter((e) => !e.datum || e.datum.startsWith(String(ORGS_JAHR)));
     /*

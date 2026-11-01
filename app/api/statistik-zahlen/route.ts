@@ -3,6 +3,7 @@ import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { liesJson } from '@/lib/ablage';
 import { abgelegteAntwort, CDN_FRIST } from '@/lib/antwortSpeicher';
 import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 
 /*
  * Die vier grossen Zahlen der Statistikseite: Spieler, Spieltage, Eliminierungen, Schaden.
@@ -22,6 +23,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 let merker: { bis: number; antwort: Record<string, unknown> } | null = null;
+
+const rang = (r: string) => { const i = (SOLOS_REGIONEN as readonly string[]).indexOf(r.toUpperCase()); return i < 0 ? SOLOS_REGIONEN.length : i; };
 
 interface Bildeintrag { epicId: string; echtesFoto?: boolean }
 
@@ -43,7 +46,9 @@ export async function GET() {
     if (liste.length) {
       const je = new Map<string, number>();
       for (const x of liste) { const r = heimat.get(x.epicId) || x.regionen?.[0] || ''; if (r) je.set(r, (je.get(r) ?? 0) + 1); }
-      regionen = [...je.entries()].map(([region, n]) => ({ region, n })).sort((a, b) => b.n - a.n);
+      regionen = [...je.entries()].map(([region, n]) => ({ region, n })).sort((a, b) => b.n - a.n
+        // Gleichstand: feste Reihenfolge nach Bedeutung (EU zuerst), unbekannte Regionen ans Ende - nie alphabetisch (Betreiber).
+        || rang(a.region) - rang(b.region));
       spieler = liste.length;
       elims = liste.reduce((a, s) => a + (s.elims ?? 0), 0);
       schaden = Math.round(liste.reduce((a, s) => a + (s.damage ?? 0), 0));
