@@ -474,7 +474,8 @@ function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFe
 /** Ohne laufende Solos: das juengste FNCS-Endspiel gross - Bild, Titel und das Siegertreppchen mit Fotos (wie auf /fncs). */
 function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
   if (!e) return <Karte titel="FNCS" href="/fncs" symbol={SYM.pokal} glas><Hinweis geladen={fertig} /></Karte>;
-  const reihe = [e.spitze[1], e.spitze[0], e.spitze[2]];
+  // Nach dem echten Platz, nicht nach der Stelle in der Liste: fehlt Platz 2 oder 3, bleibt die Stelle leer statt dass der Nächste aufrückt.
+  const reihe = [2, 1, 3].map((platz) => e.spitze.find((x) => x.rang === platz));
   return (
     <Link href="/fncs" className="vit-glas group/karte block overflow-hidden rounded-3xl">
       <div className="relative aspect-[16/6] overflow-hidden">
@@ -490,7 +491,7 @@ function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
         {e.preisgeld && <span className="absolute right-3 top-3 rounded-full bg-[rgba(0,0,0,.6)] px-2.5 py-1 text-[11px] font-black text-[#6ee7b7] backdrop-blur">{e.preisgeld}</span>}
       </div>
       <div className="grid grid-cols-3 items-end gap-2 p-5">
-        {reihe.map((p, i) => p && (
+        {reihe.map((p, i) => !p ? <div key={`leer-${i}`} /> : (
           <div key={p.rang} className="flex min-w-0 flex-col items-center">
             <span className="flex">
               {p.spieler.map((s, k) => (

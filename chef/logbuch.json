@@ -5724,5 +5724,25 @@
     "commits": [
       "aeca62b"
     ]
+  },
+  {
+    "id": "chef-260",
+    "datum": "2026-11-01T06:08:00Z",
+    "titel": "FNCS-Karte: Treppchen nach echtem Platz",
+    "kurz": "Unsichtbar: Startseite → FNCS-Karte: fehlt Platz 2, rückt Platz 3 nicht aufs Silberpodest.",
+    "markieren": [
+      "css:.vit-glas"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Karte nahm die ersten drei Einträge der Liste als Platz 1–3; fehlte einer, stand der Nächste auf dem falschen Podest.",
+    "was": "Die Karte sucht Platz 1, 2 und 3 jetzt nach dem echten Rang und lässt eine fehlende Stelle leer.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
