@@ -3204,5 +3204,23 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:08:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-149",
+    "titel": "Vergleich: Zahlen werden nicht mehr doppelt und im Dauerlauf geholt",
+    "kurz": "Unsichtbar: Statistik → Vergleich lädt Spielerzahlen nur einmal, bei Ausfall alle 10 Sekunden.",
+    "markieren": [],
+    "warum": "Bei jedem Neuzeichnen startete der Abruf von vorn – normal doppelt, bei einem Ausfall pausenlos statt alle 10 Sekunden.",
+    "was": "Der Abruf startet nur noch, wenn sich die gewählten Spieler oder die Saison ändern.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

@@ -432,8 +432,10 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   const saisonListe = useMemo(() => saisons.filter((s) => nrVon(s.kennung) >= ERSTE_SAISON).sort((a, b) => nrVon(b.kennung) - nrVon(a.kennung)), [saisons]);
 
   // Zeilen nachladen: fuer jeden Gewaehlten in der gewaehlten Saison.
-  const ids = useMemo(() => [...mitL, ...mitR].map((x) => x.epicId), [mitL, mitR]);
+  // Als Text, nicht als Liste: eine neue Liste je Zeichnung startete den Abruf bei jedem Neuzeichnen von vorn - bei einem Ausfall im Dauerlauf statt alle zehn Sekunden.
+  const idSchluessel = [...mitL, ...mitR].map((x) => x.epicId).join(',');
   useEffect(() => {
+    const ids = idSchluessel ? idSchluessel.split(',') : [];
     const fehlen = ids.filter((id) => !daten[`${id}|${saison}`]);
     if (!fehlen.length) return undefined;
     let weg = false;
@@ -457,7 +459,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
       })
       .finally(() => { if (!weg) setLaedt(false); });
     return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
-  }, [ids, saison, daten, datenVersuch]);
+  }, [idSchluessel, saison, daten, datenVersuch]);
 
   const zeilenVon = useCallback((s: VglSpieler) => (daten[`${s.epicId}|${saison}`] ?? []).filter((z) => nrVon(z.season) >= ERSTE_SAISON), [daten, saison]);
   const tageL = useMemo(() => gemeinsam(mitL.map(zeilenVon), solo), [mitL, zeilenVon, solo]);
