@@ -5118,7 +5118,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 * Spitzenreiters.
                 */}
               <span className="text-[11px] text-slate-500">
-                <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
+                <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : ({ 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[teamGroesseAus(fenster?.playlist) ?? 0] ?? t('Team')}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
               </span>
             </div>
             {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (

@@ -2442,6 +2442,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:15:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "eef8628"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-115",
+    "titel": "Cup-Seite: Turnierstatistik nennt Trio und Squad richtig",
+    "kurz": "Cup-Seite → Teams: Bei Trio- und Squad-Cups steht nicht mehr „Values per Duo“.",
+    "markieren": [
+      "text:Values per"
+    ],
+    "warum": "Über der Turnierstatistik stand fest „je Duo“ – auch bei Trios und Squads.",
+    "was": "Das Format kommt jetzt aus dem Spielmodus (Duo, Trio, Squad), sonst steht „Team“.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU?reiter=teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:15:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
