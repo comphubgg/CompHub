@@ -617,6 +617,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Alle Zahlen aus allen Saisons': 'All numbers from every season',
   'über alle Saisons': 'across all seasons',
   'über {n} Spieltage': 'over {n} match days',
+  '{n} Events': '{n} events',
   'Nur': 'Only',
   'hinterlegt': 'linked',
   'ändern': 'change',

@@ -22,7 +22,7 @@ export interface VerlaufPunkt { event: string; datum?: number | null; werte: { d
 const GROSS = /FNCS.*(Final|Major|Grand)|Global|Summit|Reload Elite Series|Championship|Invitational|Grand Royale/i;
 
 export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
-  const { sprache } = useSprache();
+  const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
   const [zeitraum, setZeitraum] = useState<'letzte' | 'alle'>('letzte');
   const [gross, setGross] = useState(false);
@@ -75,7 +75,7 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
             <T>Bester</T> <b className="text-emerald-400">{zahl(max)}</b> · <T>Schlechtester</T> <b className="text-rose-400">{zahl(min)}</b>
             {/* Die gestrichelte Linie im Bild: der Schnitt der gezeigten Events (nicht die Quote im Profilkopf, die ueber den ganzen Schaden rechnet). */}
             {' · '}<span aria-hidden className="mx-0.5 inline-block w-4 border-t border-dashed border-slate-500 align-middle" /> <T>Schnitt</T> <b className="text-slate-300">{zahl(schnitt)}</b>
-            {' · '}{punkte.length} Events
+            {' · '}{t('{n} Events').replace('{n}', String(punkte.length))}
           </span>
         )}
         <div className="ml-auto flex gap-1.5">
@@ -109,7 +109,7 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
             </div>
           )}
           <svg key={schluessel} viewBox={`0 0 ${B} ${H}`} className="h-auto w-full" role="img"
-            aria-label="Damage Ratio">
+            aria-label={t('Damage Ratio')}>
             <defs>
               <linearGradient id="verlauf-flaeche" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.28" />

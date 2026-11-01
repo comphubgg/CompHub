@@ -4770,5 +4770,25 @@
     "commits": [
       "8a5ff96"
     ]
+  },
+  {
+    "id": "chef-218",
+    "titel": "Profil-Verlauf: „events“ auf der englischen Seite klein",
+    "kurz": "Spielerprofil → Verlauf der Damage Ratio: Zähler heißt englisch „12 events“.",
+    "markieren": [
+      "text:events"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Der Zähler stand fest im Code („Events“) und lief nicht über die Übersetzung.",
+    "was": "Jetzt übersetzt; auch die Beschreibung für Vorleseprogramme.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:00:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
