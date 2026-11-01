@@ -3247,5 +3247,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Fund) + Opus (Bau)"
+  },
+  {
+    "datum": "2026-11-01T03:14:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-151",
+    "titel": "Profil: FNCS-Titel zählen neue Siege mit",
+    "kurz": "Profil swizzy → „Titel“ und Pokale zählen den Globals-2026-Sieg jetzt mit.",
+    "markieren": [
+      "text:FNCS-Sieger",
+      "text:FNCS Grand Finals"
+    ],
+    "warum": "Die Titelzahl kam aus einer Liste, die bei Globals 2025 endet – swizzys Globals-2026-Sieg stand golden in der Tafel, fehlte aber in „4 Titel“.",
+    "was": "Zur Zahl der Liste kommen die Siege der Tafel danach (Grand Finals, Globals); Summit und EWC bleiben LAN-Siege.",
+    "ansehen": [
+      "/statistics?spieler=072e8b9f8188405ab0eb52544e1dc906"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

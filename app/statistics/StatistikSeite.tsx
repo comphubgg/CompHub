@@ -2721,6 +2721,17 @@ export default function StatistikSeite() {
   const fncsGrandFinals = useMemo(() => (fncsTafel.length ? fncsTafel : (fncs?.saisons ?? []))
     .filter((x) => x.platz > 0)
     .map((x) => ({ saison: x.saison, platz: x.platz })), [fncsTafel, fncs]);
+  /**
+   * Die FNCS-Titel: die Zahl der Quelle (endet bei den Globals 2025) plus die Siege der Tafel danach (Grand Finals, Globals 2026) -
+   * sonst standen neben "3 Titel" vier goldene Plaetze, und die FNCS-Seite zaehlte mehr. Summit und EWC zaehlen die LAN-Siege, die FNCS Solos sind kein Titel.
+   */
+  const fncsTitel = useMemo(() => {
+    if (!fncs) return 0;
+    const bekannt = new Set(fncs.saisons.map((x) => x.saison));
+    const neu = fncsTafel.filter((x) => x.platz === 1 && !bekannt.has(x.saison) && !/SOLOS$/.test(x.saison)
+      && (x.typ === 'ONLINE' || /^GLOBALS/.test(x.saison))).length;
+    return fncs.titel + neu;
+  }, [fncsTafel, fncs]);
   const [erfolge, setErfolge] = useState<Erfolg[]>([]);
   /** Welche Marke gerade aufgeklappt ist. */
   const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
@@ -4096,8 +4107,8 @@ export default function StatistikSeite() {
                      andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
                      drin sein." */
                   ['Titel',
-                    String((fncs?.titel ?? 0) + lanSiege),
-                    [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
+                    String(fncsTitel + lanSiege),
+                    [fncsTitel > 0 ? `${fncsTitel} FNCS` : '',
                       lanSiege ? `${lanSiege} LAN` : '']
                       .filter(Boolean).join(' · ')],
                 ];
@@ -6083,12 +6094,12 @@ export default function StatistikSeite() {
                       Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
                       keinen leeren Kasten. Ein Druck darauf oeffnet die Liste dahinter. */}
                   <div className="mt-5 flex flex-wrap items-stretch gap-2">
-                    {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
+                    {(fncsTitel > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
                       <button onClick={() => setMarke('fncs')}
                         className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-amber-400 hover:bg-amber-500/20">
                         <span className="flex items-center justify-center gap-0.5 text-amber-500">
-                          {[...Array(Math.min(fncs!.titel, 8))].map((_, i) => <Pokal key={i} />)}
-                          {fncs!.titel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncs!.titel}</span>}
+                          {[...Array(Math.min(fncsTitel, 8))].map((_, i) => <Pokal key={i} />)}
+                          {fncsTitel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncsTitel}</span>}
                         </span>
                         <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
                       </button>
@@ -6622,10 +6633,10 @@ export default function StatistikSeite() {
                                       tracking-[0.18em] text-slate-500">
                           <T>FNCS Grand Finals</T>
                         </p>
-                        {fncs.titel > 0 && (
+                        {fncsTitel > 0 && (
                           <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[11px]
                                            font-semibold text-amber-400">
-                            {t('{n} Titel').replace('{n}', String(fncs.titel))}
+                            {t('{n} Titel').replace('{n}', String(fncsTitel))}
                           </span>
                         )}
                         <span className="ml-auto text-[10px] text-slate-600">
@@ -6672,8 +6683,8 @@ export default function StatistikSeite() {
                       * "Eliminierungen an einem Tag".
                       */
                     const zeilen: Array<[string, string, string]> = [];
-                    if (fncs && fncs.titel > 0) zeilen.push(
-                      ['FNCS-Titel', String(fncs.titel), t('Siege in den Grand Finals')]);
+                    if (fncsTitel > 0) zeilen.push(
+                      ['FNCS-Titel', String(fncsTitel), t('Siege in den Grand Finals')]);
                     if (finals.length) zeilen.push(
                       ['Grand Finals', String(finals.length), t('erreichte Endrunden')]);
                     const topZehn = finals.filter((x) => x.platz <= 10).length;
