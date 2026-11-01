@@ -5292,5 +5292,26 @@
     "commits": [
       "58cc879"
     ]
+  },
+  {
+    "id": "chef-241",
+    "datum": "2026-11-01T04:58:44Z",
+    "titel": "Cup-Kachel „Alle anzeigen“ zeigt die Summe aller Tage",
+    "kurz": "Finale über mehrere Tage → Kachel öffnen: Liste zeigt jetzt die Summe, nicht einen Tag.",
+    "markieren": [
+      "text:Best K/D",
+      "text:Longest Avg Time Alive"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei Finals über mehrere Tage zeigte die Kachel die Summe aller Tage, die geöffnete volle Liste aber nur einen Tag – andere Werte und Reihenfolge.",
+    "was": "Die volle Liste fragt jetzt genauso nach allen Tagen wie die Kachel.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

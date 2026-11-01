@@ -1117,42 +1117,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return { ...fenster, windowId: stufe.kennung };
   }, [fenster, rang]);
 
-  /**
-   * Eine Kennzahl oeffnen und dabei das ganze Feld nachladen.
-   *
-   * In der Uebersicht steckt je Kennzahl nur die Spitze - alle fuenfzehn in
-   * voller Laenge mitzuschicken waeren bei einem grossen Cup mehrere
-   * Megabyte bei jedem Aufruf. Beim Oeffnen wird deshalb genau diese eine
-   * nachgeholt. Vorher standen dort hundert Zeilen, auch wenn "Alle"
-   * gewaehlt war, und bei einem Cup mit zehntausend Teilnehmern sah das aus
-   * wie ein Fehler.
-   */
-  const listeOeffnen = useCallback((b: Bestenliste) => {
-    setOffeneListe(b); setListenTiefe(50); setListenSuche(''); setListenGezeigt(500);
-    if (!lbFenster) return;
-    setListeLaedt(true);
-    /*
-     * In zwei Stufen: erst tausend (wenige Sekunden), dann das ganze Feld.
-     *
-     * Die vollen zehntausend brauchen auf dem kostenlosen Host rund eine
-     * Minute (hundert Seiten bei Epic, zehntausend Namen). Bis dahin standen
-     * nur hundert da, auch unter "Alle" - der Betreiber: "wirklich alle ...
-     * nicht nur 100".
-     */
-    const hole = (limit: number) => fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
-      + `&window=${encodeURIComponent(lbFenster.windowId)}`
-      + `&liste=${encodeURIComponent(b.schluessel)}&limit=${limit}&top=5`)
-      .then((r) => r.json())
-      .then((d) => {
-        const voll = (d.bestenlisten ?? [])[0];
-        if (voll?.alle?.length) {
-          setOffeneListe((jetzt) => (jetzt && jetzt.schluessel === b.schluessel
-            && voll.alle.length > jetzt.alle.length ? { ...jetzt, alle: voll.alle } : jetzt));
-        }
-      })
-      .catch(() => { /* dann bleibt die kuerzere Liste stehen */ });
-    void hole(1000).then(() => hole(10000)).finally(() => setListeLaedt(false));
-  }, [lbFenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
 
@@ -1350,6 +1314,44 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Die Fensterkennungen, ueber die gerechnet wird - null, solange ein einzelner Tag gewaehlt ist. */
   const summenFenster = useMemo(() => (kumAktiv && kumDa ? kumTage.filter((x) => x.status !== 'kommt').map((x) => x.windowId) : null), [kumAktiv, kumDa, kumTage]);
   const summenText = summenFenster ? summenFenster.map(encodeURIComponent).join(',') : '';
+
+  /**
+   * Eine Kennzahl oeffnen und dabei das ganze Feld nachladen.
+   *
+   * In der Uebersicht steckt je Kennzahl nur die Spitze - alle fuenfzehn in
+   * voller Laenge mitzuschicken waeren bei einem grossen Cup mehrere
+   * Megabyte bei jedem Aufruf. Beim Oeffnen wird deshalb genau diese eine
+   * nachgeholt. Vorher standen dort hundert Zeilen, auch wenn "Alle"
+   * gewaehlt war, und bei einem Cup mit zehntausend Teilnehmern sah das aus
+   * wie ein Fehler.
+   */
+  const listeOeffnen = useCallback((b: Bestenliste) => {
+    setOffeneListe(b); setListenTiefe(50); setListenSuche(''); setListenGezeigt(500);
+    if (!lbFenster) return;
+    setListeLaedt(true);
+    /*
+     * In zwei Stufen: erst tausend (wenige Sekunden), dann das ganze Feld.
+     *
+     * Die vollen zehntausend brauchen auf dem kostenlosen Host rund eine
+     * Minute (hundert Seiten bei Epic, zehntausend Namen). Bis dahin standen
+     * nur hundert da, auch unter "Alle" - der Betreiber: "wirklich alle ...
+     * nicht nur 100".
+     */
+    // Wie die Kacheln selbst: bei einem Finale ueber mehrere Tage die Summe (&windows=), sonst zeigt die Liste nur einen Tag.
+    const hole = (limit: number) => fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
+      + `&window=${encodeURIComponent(lbFenster.windowId)}${summenFenster ? `&windows=${summenText}` : ''}`
+      + `&liste=${encodeURIComponent(b.schluessel)}&limit=${limit}&top=5`)
+      .then((r) => r.json())
+      .then((d) => {
+        const voll = (d.bestenlisten ?? [])[0];
+        if (voll?.alle?.length) {
+          setOffeneListe((jetzt) => (jetzt && jetzt.schluessel === b.schluessel
+            && voll.alle.length > jetzt.alle.length ? { ...jetzt, alle: voll.alle } : jetzt));
+        }
+      })
+      .catch(() => { /* dann bleibt die kuerzere Liste stehen */ });
+    void hole(1000).then(() => hole(10000)).finally(() => setListeLaedt(false));
+  }, [lbFenster, summenFenster, summenText]);
 
   /**
    * Wie heisst welches Spielfenster?
