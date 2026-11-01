@@ -2,10 +2,18 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 10, 01.11.2026)
+
+- [x] **Erledigt in Runde 10**: chef-162 bis chef-181 (Profil-Format, Kurven-Zahlenformat, Summenzeile, Kopfsuche-Ausfall, feste Reihenfolge der Bestenlisten, Sortier-Spalte, Quoten-Mindestzahl in Regionen und Turnierstatistik, Preisgeld-$, Vergleich 1st/2nd, Ländernamen, Ausfälle bei Runden/Preisgeld/Overlays).
+- [ ] **Hinweis „ab N Spielen“ fehlt an den Cup-Kacheln** „Longest Avg Time Alive“, „Best K/D“, „Best Average Placement“ (Schwelle: Hälfte der meisten Spiele) – Antwort von cup-stats um die Schwelle ergänzen und an der Kachel zeigen.
+- [ ] **„FNCS Winners“-Hinweis nennt Grand Royale und All-Star Solo nicht**, obwohl sie gezählt werden – Wortlaut mit dem Betreiber klären.
+- [ ] **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
+- [ ] **Hilfs-Worktrees starten auf altem Stand** – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
+
 ## Neu entdeckt (Runde 9, 01.11.2026)
 
 - [x] **Profil: Ranked-Zeile verschwand bei Ausfall still** (chef-144).
-- [ ] **FNCS-Tabelle im Profil: INVITATIONAL 2022 ohne Format** – zeigt jetzt einen Strich; falls das Format sicher bekannt ist (Duo?), in die feste Liste aufnehmen.
+- [x] **FNCS-Tabelle im Profil: INVITATIONAL 2022 ohne Format** (chef-162: Duo, CH2 S2 Invitational Solo – laut eigener FNCS-Daten).
 - [x] **Cup-Statistik FNCS Solo Final EU geprüft**: K/D, Siege, Gleichstände, Ø-Platz stimmen.
 - [ ] **Saisonliste S41: Strecke 100× zu klein** (peterbot 3,9 km statt 390,6 km in 94 Matches; Shxrk, Cold, Zdog, Scroll genauso) und Zeit im Sturm ungerundet – der Code ist seit chef-39/chef-52 richtig, die abgelegte Liste stammt von vorher. Die Saisonliste zeigt keine Strecken-Spalte, aber die Antwort ist falsch.
 - [ ] **Grundproblem: abgelegte Antworten werden nach einer Rechenänderung nicht verworfen** (S41-Liste, Jahresliste 2025, Startantwort S42). Idee: eine Versionsnummer der Rechenregeln in den Ablageschlüssel, damit der Stundenlauf nach einer Änderung alles neu rechnet. Vorsicht: dann rechnet der Lauf alles auf einmal neu (Speicher, vgl. chef-106) – erst nach Freigabe von chef-106 und mit dem Betreiber.
@@ -14,7 +22,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **swizzy: Quelle schreibt ihm „CH2 S8: Platz 1“ zu** (Mitspieler 951acca5, SHAMOKIY) – das EU-Finale gewannen Setty, Kami und TEEQ; in seiner Akte steht ein Sieg im Asien-Finale S18. Quelle falsch; nach chef-151 zeigt das Profil 5 Titel, /fncs 4. Betreiber fragen, ob Asien-Siege zählen.
 - [ ] **chef-150 Grenzfall**: Spieler, die die Region gewechselt haben, verlieren Finals der alten Region in der Tafel. Beobachten.
 - [ ] **Profil → Verdienst: S32 „Chapter 2 Remix“ steht unter Chapter 2** (Name vor Nummer); laut Code-Kommentar gehören S28–S32 zu Chapter 5. Summen stimmen, nur die Gruppe ist fraglich – Betreiber fragen.
-- [ ] **„Beste Spieltage“ zeigt die Saison als Kürzel („S41“) statt Namen** – prüfen, ob gewollt.
+- [x] **„Beste Spieltage“ zeigt die Saison als Kürzel** (chef-166).
 - [ ] **Clutch Saison vs. Cup**: Die Saisonliste addiert auch halb gelesene Spieltage, die Cup-Seite zeigt dort einen Strich – Saisonwerte können kleiner sein als die Summe der Cups. Lösung braucht die Matchzahl je Spieler in der Saisonrechnung; erst nach Neuberechnung von S42 messbar.
 - [x] **Turnier-Ansicht ohne Weg zur Cup-Seite** (chef-159).
 - [ ] **Endtabelle FNCS Solo Final EU: ein Team zu viel** – die gespiegelte Tagesdatei (Tag 1) hat noch „d3bf3b35“ (87 Punkte), das Epic inzwischen entfernt hat; dadurch 101 statt 100 Zeilen, Plätze ab 57 an Tag 1 um eins verschoben, und der Eintrag bekommt 300 $. Spiegel-Datei neu holen (Datenlauf, nicht mein Bereich) – Betreiber/Betrieb fragen.
