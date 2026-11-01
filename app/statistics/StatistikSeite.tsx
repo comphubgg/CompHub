@@ -2646,6 +2646,8 @@ export default function StatistikSeite() {
   /* Die Suche in der Kopfzeile - findet jeden Spieler im Archiv. */
   const [kopfSuche, setKopfSuche] = useState('');
   const [kopfTreffer, setKopfTreffer] = useState<Spieler[]>([]);
+  /** Die Suche war nicht zu erreichen - nicht zu verwechseln mit "kein Treffer". */
+  const [kopfFehlt, setKopfFehlt] = useState(false);
   const [kopfOffen, setKopfOffen] = useState(false);
 
   /**
@@ -3117,13 +3119,14 @@ export default function StatistikSeite() {
     // Effekts: so gibt es nur einen Weg, auf dem sich die Trefferliste
     // aendert, und React bekommt keine Zustandsaenderung mitten im Zeichnen.
     const t = setTimeout(async () => {
-      if (q.length < 2) { if (!weg) setKopfTreffer([]); return; }
+      if (q.length < 2) { if (!weg) { setKopfTreffer([]); setKopfFehlt(false); } return; }
       try {
         const r = await fetch(`/api/szene-stats?ansicht=suche`
           + `&q=${encodeURIComponent(q)}`);
         const j = await r.json();
-        if (!weg) setKopfTreffer(j.spieler ?? []);
-      } catch { if (!weg) setKopfTreffer([]); }
+        if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+        if (!weg) { setKopfTreffer(j.spieler); setKopfFehlt(false); }
+      } catch { if (!weg) { setKopfTreffer([]); setKopfFehlt(true); } }
     }, 250);
     return () => { weg = true; clearTimeout(t); };
   }, [kopfSuche]);
@@ -4282,6 +4285,13 @@ export default function StatistikSeite() {
                    py-1.5 text-sm text-slate-100 outline-none
                    placeholder:text-slate-600 focus:border-sky-500" />
 
+      {kopfOffen && bereich !== 'bilder' && kopfFehlt && kopfSuche.trim().length >= 2 && !kopfTreffer.length && (
+        <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
+                        rounded-lg border border-zinc-700 bg-zinc-950
+                        shadow-2xl">
+          <p className="px-3 py-3 text-center text-xs text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
+        </div>
+      )}
       {kopfOffen && bereich !== 'bilder' && kopfTreffer.length > 0 && (
         <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
                         rounded-lg border border-zinc-700 bg-zinc-950
