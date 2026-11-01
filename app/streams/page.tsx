@@ -193,6 +193,8 @@ export default function Home() {
   const [twitchSearchQuery, setTwitchSearchQuery] = useState('');
   const [twitchSearchResults, setTwitchSearchResults] = useState<any[]>([]);
   const [liveStatusMap, setLiveStatusMap] = useState<{ [key: string]: boolean }>({});
+  /** Twitch war bei der letzten Abfrage nicht erreichbar: der letzte bekannte Stand bleibt, statt "alle offline". */
+  const [liveAusfall, setLiveAusfall] = useState(false);
   /** Der Titel des laufenden Streams je Kanal (klein) - fuer den Titelfilter in der Seitenleiste. */
   const [liveTitelMap, setLiveTitelMap] = useState<{ [key: string]: string }>({});
   const [zuschauerMap, setZuschauerMap] = useState<{ [key: string]: number }>({});
@@ -635,13 +637,16 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       const neueZuschauer: { [key: string]: number } = {};
       const neueBilder: { [key: string]: string } = {};
 
+      let ausfall = false;
       usernames.forEach(name => {
         const normalizedName = normalizeLiveStatusUsername(name);
+        if (liveData[normalizedName]?.unbekannt) { ausfall = true; return; }
         newStatusMap[normalizedName] = liveData[normalizedName]?.isLive || false;
         newTitelMap[normalizedName] = liveData[normalizedName]?.isLive ? String(liveData[normalizedName]?.title ?? '') : '';
         neueZuschauer[normalizedName] = liveData[normalizedName]?.isLive ? Number(liveData[normalizedName]?.viewers) || 0 : 0;
         if (liveData[normalizedName]?.bild) neueBilder[normalizedName] = String(liveData[normalizedName].bild);
       });
+      setLiveAusfall(ausfall);
       setLiveStatusMap(prev => ({ ...prev, ...newStatusMap }));
       setLiveTitelMap(prev => ({ ...prev, ...newTitelMap }));
       setZuschauerMap(prev => ({ ...prev, ...neueZuschauer }));
@@ -1824,6 +1829,13 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     setTwitchSearchResults([]);
   };
 
+  const liveAusfallHinweis = liveAusfall && (
+    <p role="status"
+      className="fixed inset-x-3 top-3 z-[190] mx-auto max-w-xl rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2.5 text-sm text-slate-200 shadow-lg">
+      {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Live-Status'))}
+    </p>
+  );
+
   const speicherLeiste = speicherFehler && (
     <div role="alert"
       className="fixed inset-x-3 top-3 z-[200] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-xl border border-rose-500/60 bg-rose-950/90 px-4 py-2.5 text-sm font-medium text-rose-200 shadow-lg">
@@ -1909,6 +1921,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
   return (
     <>
     {speicherLeiste}
+    {liveAusfallHinweis}
     <Einzelansicht
       host={currentHost}
       ordner={folders}

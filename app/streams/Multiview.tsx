@@ -606,10 +606,15 @@ export default function Multiview(props: MultiviewProps) {
         });
         if (weg) return;
         if (!r.ok) { setLiveFehler(true); return; }
-        const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number; title?: string }>;
+        const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number; title?: string; unbekannt?: boolean }>;
         const neuer: LiveStand = {};
-        for (const k of kanaele.split(',')) neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0, title: j[k]?.isLive ? String(j[k]?.title ?? '') : '' };
-        if (!weg) { setLive((alt) => ({ ...alt, ...neuer })); setLiveFehler(false); }
+        let ausfall = false;
+        // Unbekannt (Twitch nicht erreichbar) ist nicht offline: der letzte bekannte Stand bleibt, der Hinweis erscheint.
+        for (const k of kanaele.split(',')) {
+          if (j[k]?.unbekannt) { ausfall = true; continue; }
+          neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0, title: j[k]?.isLive ? String(j[k]?.title ?? '') : '' };
+        }
+        if (!weg) { setLive((alt) => ({ ...alt, ...neuer })); setLiveFehler(ausfall); }
       } catch { if (!weg) setLiveFehler(true); /* beim naechsten Takt wieder */ }
       finally { if (!weg) setLiveFertig(true); }
     };

@@ -880,7 +880,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * dem Namen eines Profis waere ein Fehler, den niemand bemerkt.
    */
   const [live, setLive] = useState<Record<string,
-    { isLive: boolean; viewers: number }> | null>(null);
+    { isLive: boolean; viewers: number; unbekannt?: boolean }> | null>(null);
   const [liveLaedt, setLiveLaedt] = useState(false);
 
   /*
@@ -4993,14 +4993,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 {live && (() => {
                   const sendet = mitTwitch.filter((x) =>
                     live[x.kanal.toLowerCase()]?.isLive);
+                  // Unbekannt (Twitch nicht erreichbar) ist nicht "sendet niemand".
+                  const ausfall = mitTwitch.some((x) => live[x.kanal.toLowerCase()]?.unbekannt);
+                  const hinweis = ausfall && (
+                    <p role="status" className="p-4 text-center text-sm text-slate-500">
+                      {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Live-Status'))}
+                    </p>
+                  );
                   if (!sendet.length) {
-                    return (
+                    return hinweis || (
                       <p className="p-4 text-center text-sm text-slate-500">
                         <T>Gerade sendet niemand von ihnen.</T>
                       </p>
                     );
                   }
                   return (
+                    <>
+                    {hinweis}
                     <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {sendet
                         .sort((a, b) =>
@@ -5119,6 +5128,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </li>
                         ))}
                     </ul>
+                    </>
                   );
                 })()}
 

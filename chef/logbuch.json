@@ -4552,5 +4552,25 @@
     "commits": [
       "7821e53"
     ]
+  },
+  {
+    "id": "chef-208",
+    "titel": "Streams: Twitch-Ausfall nicht mehr als „alle offline“",
+    "kurz": "Streams und Cup-Seite → Streams: bei Twitch-Ausfall Hinweis statt „alle offline“.",
+    "markieren": [
+      "text:Live status cannot be reached right now."
+    ],
+    "bereich": "Streams",
+    "warum": "War Twitch nicht erreichbar, meldete die Seite alle Kanäle als offline – das war geraten.",
+    "was": "Jetzt bleibt der letzte bekannte Stand stehen und oben erscheint ein Hinweis, dass der Live-Status gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:52:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
