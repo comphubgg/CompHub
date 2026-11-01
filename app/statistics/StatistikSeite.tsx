@@ -6489,11 +6489,12 @@ export default function StatistikSeite() {
                                 {turnierName(z.event, t)}
                               </p>
                               <p className="mt-0.5 text-[11px] text-slate-500">
-                                {z.season} · {z.region} · {z.werte.matchesPlayed} <T>Matches</T>
+                                {/* Die Saison mit Namen wie überall sonst ("Chapter 7 Season 3"), nicht als Kennung "S41". */}
+                                {saisons.find((x) => x.kennung === z.season)?.name ?? saisonNamen[z.season] ?? SAISON_NAMEN_KURZ[z.season] ?? z.season} · {z.region} · {z.werte.matchesPlayed} <T>Matches</T>
                               </p>
                             </div>
                             <span className="shrink-0 text-sm tabular-nums text-slate-400">
-                              {zahl(Math.round(z.werte.damageDealt), 0, sprache)} <T>Schaden</T>
+                              {z.werte.damageDealt > 0 ? zahl(Math.round(z.werte.damageDealt), 0, sprache) : '—'} <T>Schaden</T>
                             </span>
                           </div>
                         ))}
