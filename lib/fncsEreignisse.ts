@@ -443,7 +443,8 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
     const fakt = FNCS_FAKTEN[schluesselVon(k.e.saison, k.art)];
     try {
       const ziel = fenster.length > 1 ? `windows=${fenster.map(encodeURIComponent).join(',')}` : `window=${encodeURIComponent(fenster[0])}`;
-      const zeilen = await ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`);
+      // Bis zu dreimal fragen (wie bei den Ereignissen): ein kurzer Aussetzer bei Epic liess sonst ein ganzes Endspiel aus allen Summen fallen.
+      const zeilen = await mitWiederholung(() => ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`));
       const label = k.art === 'gc' ? `${k.jahr} Global Championship` : `${k.e.saisonKurz} Grand Finals`;
       for (const z of zeilen) {
         let spieler = z.players.map((p) => {

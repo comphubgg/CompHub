@@ -2826,5 +2826,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-132",
+    "datum": "2026-11-01T03:00:00Z",
+    "titel": "FNCS All-Time: kurzer Epic-Aussetzer verfälscht die Rekorde nicht mehr",
+    "kurz": "Unsichtbar: FNCS All-Time fragt jedes Endspiel bis zu dreimal, bevor es fehlt.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Hakte Epic bei einem Endspiel nur kurz, fehlte es in allen Summen und Rekorden – und blieb so bis zu einer halben Stunde stehen.",
+    "was": "Jedes Endspiel wird jetzt bis zu dreimal abgefragt, wie die übrigen FNCS-Daten auch.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet + Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
