@@ -42,14 +42,24 @@ async function holeRoh(request: Request) {
 
 // Welche Bilder liegen bereit? Fuer die Verwaltungsseite.
 export async function POST() {
-  const b = await bilder();
-  return NextResponse.json({
-    bilder: b.players.map((x) => x.key),
-    logos: b.logos.map((x) => x.key),
-  });
+  // Die Bilder liegen in der Ablage - ist sie nicht erreichbar, 424 statt 500 (Lastverteiler-Fehlerseite).
+  try {
+    const b = await bilder();
+    return NextResponse.json({
+      bilder: b.players.map((x) => x.key),
+      logos: b.logos.map((x) => x.key),
+    });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
+  }
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 60);
+  // Ein Lesefehler ausserhalb der Epic-Abfrage (etwa bei den Bildern) darf nie als 500 enden - 424 wie oben.
+  try {
+    return zwischenspeichern(await holeRoh(request), 60);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message, needsLogin: false }, { status: 424 });
+  }
 }
