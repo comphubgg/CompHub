@@ -4925,5 +4925,25 @@
     "commits": [
       "a9dd254"
     ]
+  },
+  {
+    "id": "chef-225",
+    "titel": "Spielervergleich: „Trefferquote“ wie überall",
+    "kurz": "Statistik → Vergleich (deutsche Seite): Kachel heißt „Trefferquote“ statt „Genauigkeit“.",
+    "markieren": [
+      "text:Accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "Profil und Bestenlisten sagen „Trefferquote“, nur der Vergleich „Genauigkeit“.",
+    "was": "Einheitlicher Name; auf Englisch bleibt es „Accuracy“.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:04:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
