@@ -14,6 +14,12 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **FNCS-Elims-Tabelle je Major**: sortiert nur innerhalb der 80 Besten nach Gesamt – wer in einem Major viel hatte, insgesamt aber nicht Top 80 ist, fehlt.
 - [ ] **FNCS-Ereignisse: Punkte der Plätze 1–5 fehlen** bei Invitational 2022, Global Championship 2023 und 2025 (Quelle liefert nur den Platz) – Oberfläche zeigt „–“, korrekt.
 - [ ] **Live-Antwort /api/fncs-alltime älter als der Code** (Listenende nicht nach bestem Major sortiert) – nach dem nächsten Bau prüfen.
+- [ ] **Turnierverzeichnis: Regionsfilter EU blendet Globals aus**, wenn die LAN-Kachel NAC trägt (seit chef-228 bevorzugt EU) – nach Bau prüfen; ggf. LAN-Kachel bei jeder Region zeigen (Betreiber fragen).
+- [ ] **Spieltag-Einzelwerte mit limit=500** – bei offenen Cups mit mehr Teilnehmern kommen Bestwerte (Trefferquote) nur aus den 500 mit den meisten Elims.
+- [ ] **Mindestspiele uneinheitlich**: Cup-Statistik-Kacheln (cup-stats) = Hälfte der meisten Spiele, Reiter Spieler = 5 (Betreibervorgabe) – bei 6-Spiele-Tagen 3 gegen 5. Betreiber fragen, ob angleichen.
+- [ ] **Cup-Seite: Schaden in Teamtabelle (Epic, gesamt) ≠ Reiter Spieler (Replays, nur an Spielern)** – z. B. Nxthan 15.424 gegen 4.497. Eigene Titel, aber verwirrend – Beschriftung klarer machen?
+- [ ] **Duo-Cups: Spieler-Elims weichen 1–2 von Team-Elims ab** (Replay-Zählung gegen Epic) – Quelle, kein Code-Fehler.
+- [ ] **Live-Seite älter als main?** K/D im Solo-Finale live noch alt (Shxrk 5,83 statt 3,5), obwohl chef-160 (live) es behebt – nach nächstem Bau prüfen.
 - [x] Erledigt in Runde 11: chef-207 bis chef-213 (siehe Logbuch).
 
 ## Neu entdeckt (Runde 10, 01.11.2026)
