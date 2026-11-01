@@ -2451,6 +2451,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Show publicly again',
   'Noch keine Ergebnisse — der Spieltag hat noch nicht begonnen.':
     'No results yet, this match day has not started.',
+  'Die Suche im ganzen Feld ist gerade nicht erreichbar. Es wird nur in der geladenen Liste gesucht.':
+    'The search across the whole field is not reachable right now. Only the loaded list is being searched.',
   'Die Bestenliste ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
     'The leaderboard is not reachable right now. It will be retried in a moment.',
   'Meiste Team-Eliminierungen':

@@ -2464,6 +2464,29 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:15:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "d6a580b"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-116",
+    "titel": "Cup-Seite: Spielersuche meldet einen Ausfall",
+    "kurz": "Cup-Seite → Player Stats: Fällt die Suche aus, steht ein Hinweis statt Leere.",
+    "markieren": [
+      "text:The search across the whole field",
+      "css:input[placeholder=\"Search players …\"]"
+    ],
+    "warum": "Bei großen Cups sah eine ausgefallene Suche aus wie „Spieler nicht dabei“.",
+    "was": "Die geladene Liste bleibt durchsuchbar, darüber steht, dass die Suche im ganzen Feld gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU?reiter=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:15:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1

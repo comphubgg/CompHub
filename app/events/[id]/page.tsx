@@ -922,6 +922,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Wann die Werte zuletzt gerechnet wurden (Replays). */
     aktualisiert?: string | null;
   } | null>(null);
+  /** Die Suche im ganzen Feld ist gescheitert - dann steht nur die Suche in der geladenen Liste zur Verfuegung. */
+  const [spielerSucheFehlt, setSpielerSucheFehlt] = useState(false);
   /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
   const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
@@ -2125,6 +2127,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const q = spielerSuche.trim();
     if (reiter !== 'spieler' || !fenster || !spielerWerte?.gekuerzt || q.length < 2) {
       setSpielerTreffer(null);
+      setSpielerSucheFehlt(false);
       return;
     }
     let weg = false;
@@ -2132,8 +2135,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
         + `&event=${encodeURIComponent(fenster.eventId)}&q=${encodeURIComponent(q)}${summenFenster ? `&windows=${summenText}` : ''}`)
         .then((r) => r.json())
-        .then((j) => { if (!weg) setSpielerTreffer(j?.spieler ?? []); })
-        .catch(() => { if (!weg) setSpielerTreffer([]); });
+        .then((j) => {
+          if (weg) return;
+          if (!Array.isArray(j?.spieler)) throw new Error('keine Treffer');
+          setSpielerSucheFehlt(false);
+          setSpielerTreffer(j.spieler);
+        })
+        // Ein Fehler ist kein "keine Treffer": die Liste bleibt, ein Hinweis erscheint.
+        .catch(() => { if (!weg) { setSpielerTreffer(null); setSpielerSucheFehlt(true); } });
     }, 350);
     return () => { weg = true; clearTimeout(uhr); };
   }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche, summenFenster, summenText]);
@@ -4671,6 +4680,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 )}
               </div>
             </header>
+
+            {spielerSucheFehlt && spielerWerte && spielerSuche.trim().length >= 2 && (
+              <p className="px-4 py-2 text-center text-xs text-amber-500/90">
+                <T>Die Suche im ganzen Feld ist gerade nicht erreichbar. Es wird nur in der geladenen Liste gesucht.</T>
+              </p>
+            )}
 
             {spielerFehlt && !spielerWerte && (
               <p className="p-8 text-center text-sm text-slate-500">
