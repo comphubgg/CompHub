@@ -2551,7 +2551,9 @@
     "ansehen": [
       "/events/epicgames_S42_RankedCupDuos_EU"
     ],
-    "commits": [],
+    "commits": [
+      "3e11080"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
