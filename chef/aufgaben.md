@@ -15,6 +15,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **chef-150 Grenzfall**: Spieler, die die Region gewechselt haben, verlieren Finals der alten Region in der Tafel. Beobachten.
 - [ ] **Profil → Verdienst: S32 „Chapter 2 Remix“ steht unter Chapter 2** (Name vor Nummer); laut Code-Kommentar gehören S28–S32 zu Chapter 5. Summen stimmen, nur die Gruppe ist fraglich – Betreiber fragen.
 - [ ] **„Beste Spieltage“ zeigt die Saison als Kürzel („S41“) statt Namen** – prüfen, ob gewollt.
+- [ ] **Clutch Saison vs. Cup**: Die Saisonliste addiert auch halb gelesene Spieltage, die Cup-Seite zeigt dort einen Strich – Saisonwerte können kleiner sein als die Summe der Cups. Lösung braucht die Matchzahl je Spieler in der Saisonrechnung; erst nach Neuberechnung von S42 messbar.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
