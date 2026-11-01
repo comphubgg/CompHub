@@ -2,6 +2,16 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 11, 01.11.2026)
+
+- [ ] **Twitch-Kanalvorschläge im Flaggen-/Twitch-Editor der Cup-Seite** (app/events/[id]/page.tsx, twitchSuchen ~Z. 5473) zeigen den deutschen, technischen `hinweis`-Text der Schnittstelle – auf übersetzten Hinweis umstellen (nur Admin).
+- [ ] **Streams-Seite: toter Code** (kachelAusSuche, setKachelSuche, kanalFunde – nie angezeigt) und auf der Statistikseite `suchen`, `vglLaden`, `laufende` – aufräumen.
+- [ ] **Admin Tweets: Genauigkeit aus Replay-Treffern und Szene-Schüssen gemischt** – die Cup-Spieler-Antwort rechnet nur aus der Szene-Quelle; Tweet und Seite können verschiedene Werte zeigen.
+- [ ] **Ranked-Cups: K/D mit „Tode = Spiele − Siege“** – bei 1 bis 11 Spielen je Team fraglich; Betreiber fragen, ob die Ranked-Statistik so bleiben soll.
+- [ ] **Live-Status merkt sich „unbekannt“ im Seiten-Ausweichweg** (ueberSeite, MERK_DAUER) – nach einem Ausfall bleibt der Hinweis bis zum Ablauf stehen. Beobachten.
+- [ ] **Profil-Ansicht: Epic-Wert damageRatio je Zeile ≠ Schaden/erlitten** (z. B. Solo Final Tag 2: 2,69 gegen 3.980/1.552 = 2,56) – CompHub rechnet selbst, Epic anders. Nur Hinweis, keine Anzeige betroffen.
+- [x] Erledigt in Runde 11: chef-207 bis chef-213 (siehe Logbuch).
+
 ## Neu entdeckt (Runde 10, 01.11.2026)
 
 - [x] **Erledigt in Runde 10**: chef-162 bis chef-206 (Profil-Format, Kurven-Zahlenformat, Summenzeile, Kopfsuche-Ausfall, feste Reihenfolge der Bestenlisten, Sortier-Spalte, Quoten-Mindestzahl in Regionen und Turnierstatistik, Preisgeld-$, Vergleich 1st/2nd, Ländernamen, Ausfälle bei Runden/Preisgeld/Overlays/Tierlist/Power Rankings, Zahlenformat auf Cup-Seite, Startseite, FNCS, Replays, Übersetzung Cup-Kacheln und Spielerfenster, Globals im Verdienst).
@@ -12,9 +22,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Replay-Spielerliste: fehlende Kills erscheinen als 0** (kills ?? 0) – Quelle unterscheidet nicht zwischen „0“ und „unbekannt“; beobachten.
 - [x] (chef-195) **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
 - [ ] **Verdienst: Spalte „Region“ zeigt bei reinen LAN-Zeilen den Saisonnamen** – Gestaltungsfrage.
-- [ ] **Events-Kopf: Archivzahlen („319 tournaments on 393 days“) ohne Tausendertrennung** – erst ab 1.000 sichtbar.
-- [ ] **Live-Status-Schnittstelle: Twitch-Ausfall erscheint als „alle offline“** (app/api/live-status, catch setzt isLive:false) – als Ausfall melden.
-- [ ] **Kanalsuche: Ausfall lässt Vorschläge still leer** (streams page.tsx, MvSeitenleiste – Feld „hinweis“ der Antwort wird nicht gezeigt).
+- [x] (chef-207) **Events-Kopf: Archivzahlen („319 tournaments on 393 days“) ohne Tausendertrennung** – erst ab 1.000 sichtbar.
+- [x] (chef-208) **Live-Status-Schnittstelle: Twitch-Ausfall erscheint als „alle offline“** (app/api/live-status, catch setzt isLive:false) – als Ausfall melden.
+- [x] (chef-209) **Kanalsuche: Ausfall lässt Vorschläge still leer** (streams page.tsx, MvSeitenleiste – Feld „hinweis“ der Antwort wird nicht gezeigt).
 - [ ] **Admin alte-maps: Datum fest deutsch, Fehlermeldung nicht übersetzt** (nur Admin).
 - [ ] **Hilfs-Worktrees starten auf altem Stand** – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
 
