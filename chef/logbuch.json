@@ -2402,5 +2402,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-113",
+    "titel": "Profil: Auszeichnungen zählen alle Grand Finals",
+    "kurz": "Profil → Auszeichnungen: „Grand Finals“ und „Top 10“ passen jetzt zur FNCS-Tafel.",
+    "markieren": [
+      "text:Grand Finals",
+      "text:Top 10"
+    ],
+    "warum": "Die Auszeichnungen zählten nur bis zu den Globals 2025; die FNCS-Tafel daneben zählt bis heute (peterbot: 20 statt 26 Finals).",
+    "was": "Beide nehmen jetzt dieselbe vollständige Liste – peterbot zeigt 26 Grand Finals, 17 davon in den Top 10.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:15:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

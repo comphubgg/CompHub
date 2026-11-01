@@ -6636,7 +6636,8 @@ export default function StatistikSeite() {
                       vergebene Ehrung: darum steht unter jeder Zahl, woher
                       sie kommt. */}
                   {(() => {
-                    const finals = fncs?.saisons.filter((x) => x.platz > 0) ?? [];
+                    /* Dieselbe Quelle wie die Tafel "FNCS Grand Finals" darueber (vollstaendig bis heute) - die Liste der Quelle endet bei den Globals 2025 und zaehlte Chapter 7 nicht mit. */
+                    const finals = fncsGrandFinals;
                     const besteElims = verlauf.length
                       ? Math.max(...verlauf.map((z) => z.werte.eliminations)) : 0;
                     const besterSchaden = verlauf.length
