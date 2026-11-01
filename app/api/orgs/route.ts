@@ -5,6 +5,7 @@ import {
 } from '@/lib/orgs';
 import { abgelegteAntwort, legeAntwortAb, ohneDateien } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
@@ -62,6 +63,9 @@ async function rechneAlle(orgs: Org[]): Promise<VerdienstAntwort> {
   }
   return { zeit: Date.now(), konten: [...ids], posten };
 }
+
+/** Rang einer Region fuer den Gleichstand: EU vorn, dann die uebliche Reihenfolge, Unbekanntes zuletzt. */
+const regionRang = (r: string | null | undefined) => { const i = r ? REGIONEN_REIHE.indexOf(r as never) : -1; return i < 0 ? 99 : i; };
 
 export async function GET(request: Request) {
   const ansicht = new URL(request.url).searchParams.get('ansicht');
@@ -150,7 +154,11 @@ export async function GET(request: Request) {
     const summeEhemalige = alleJahre ? ehemalige.reduce((a, e) => a + (e.betrag ?? 0), 0) : 0;
     const gesamt = verdienst ? summeSpieler + summeEhemalige + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
     return { ...o, spieler, ehemalige, extras: jahrExtras, gesamt };
-  }).sort((a, b) => (b.gesamt ?? -1) - (a.gesamt ?? -1) || a.name.localeCompare(b.name));
+  }).sort((a, b) => (b.gesamt ?? -1) - (a.gesamt ?? -1)
+    // Gleichstand (viele Orgs ohne Preisgeld): EU zuerst, dann die mit dem groesseren Kader - nie alphabetisch (Betreiber).
+    || regionRang(a.region) - regionRang(b.region)
+    || b.spieler.length - a.spieler.length
+    || a.name.localeCompare(b.name));
 
   return NextResponse.json({ jahr: alleJahre ? 'alle' : ORGS_JAHR, stand: verdienst?.zeit ?? null, orgs: raus });
 }
