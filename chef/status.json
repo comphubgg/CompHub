@@ -8,5 +8,6 @@
     "Nächste Runde: weitere Statistik-Prüfung (Saisonliste, Regionen, limit=500 bei Regions-Saisonliste und Reihen-Abfrage), Admin Tweets Genauigkeit."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-233/234/237) + Sonnet (chef-235/236)"
+  "modell": "Opus (Planung, Prüfung, chef-233/234/237) + Sonnet (chef-235/236)",
+  "laeuftSeit": "2026-11-01T04:46:59Z"
 }
