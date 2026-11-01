@@ -1,11 +1,11 @@
 {
-  "letzteRunde": "2026-11-01T02:15:00Z",
-  "macheGerade": "Runde 8 fertig: 33 Verbesserungen (chef-110 bis chef-142), fast alle an der Statistik – vor allem Stellen, an denen ein Ausfall wie „keine Daten“ aussah, Nullen statt Strichen, Widersprüche (Spieltage 982 gegen 4.733, Grand Finals 20 gegen 26) und feste Reihenfolgen. Alles wartet auf deine Entscheidung.",
+  "letzteRunde": "2026-11-01T03:02:00Z",
+  "macheGerade": "Runde 9 fertig: 19 Verbesserungen (chef-143 bis chef-161), fast alle an der Statistik – u. a. Strecke 0,0 km bzw. 100× zu groß, K/D im Solo-Finale 9,5 statt 3,8, Preisgeld-Summe bei Duos halb so groß, Orgs zählten Turniere mehrfach, NAC-Finale als EU-Titel, fehlende Ausfall-Hinweise. Alles wartet auf deine Entscheidung.",
   "naechstes": [
-    "Nach Freigabe von chef-106: Stundenlauf prüfen (peterbot S42 = 83 Matches, Strecke ≈ 3.912 km)",
-    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs-Liste (seit Beitritt); Mshary in zwei Orgs"
+    "WICHTIG: chef-106 freigeben – solange rechnet der Stundenlauf die Startseite der Statistik, die S41-/S42-Listen und die Jahresliste 2025 nicht neu (z. B. Strecke S41 100× zu klein, peterbot S42 57 statt 83 Matches).",
+    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs-Liste (seit Beitritt); Mshary in zwei Orgs; zählen Asien-Siege als FNCS-Titel (swizzy CH2 S8)?",
+    "FNCS Solo Final EU: Tagesdatei hat ein von Epic entferntes Team (101 statt 100 Zeilen) – Datenlauf neu holen lassen."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-110/117/118/127) + Sonnet (übrige)",
-  "laeuftSeit": "2026-11-01T02:27:30Z"
+  "modell": "Opus (Planung, Prüfung, chef-150/159) + Sonnet (übrige)"
 }
