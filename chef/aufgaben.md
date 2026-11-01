@@ -2,6 +2,12 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 8, 01.11.2026)
+
+- [x] **Statistik oben: vier Striche bei Ausfall ohne Hinweis** (chef-110).
+- [ ] **Profil-Strecke live noch alt** – peterbot Karriere 3.242,8 km; mit der Umrechnung aus chef-39 (S41/S42 in Metern) müssten es rund 3.912 km sein. Der Code auf main stimmt, die vorgerechneten Summen sind alt (gleiche Ursache wie chef-106). Nach Freigabe von chef-106 prüfen: /api/szene-stats?spieler=45ce4565b6db452c9419119b12e7eac3 → spieler.distanz ≈ 3912.
+- [x] **Profil geprüft**: Summen von Elims, Matches, Schaden, Treffern, Quote und Lebenszeit stimmen mit der Summe aller 152 Spieltage überein (peterbot).
+
 ## Neu entdeckt (Runde 7, 01.11.2026)
 
 - [x] **Ursache für veraltete Startantwort und Jahresliste gefunden** (chef-106) – im Lauf 1661 (31.10.) brach der Vorrechner Akten und Startansicht nach genau 300 s ab („fetch failed“, Grenze von Nodes fetch; das AbortSignal mit 900 s griff nie). Der Server rechnete weiter, lief auf 7,7 GB und starb; danach fehlten in Teil 1 und 2 über 150 Antworten (start, jahr=2026, jahr=alle …). Nach Freigabe beim nächsten Stundenlauf prüfen: Log ohne „FEHLT 300“, /api/szene-stats?ansicht=start → peterbot 83 Matches, Elims-Liste mit Schaden > 0.

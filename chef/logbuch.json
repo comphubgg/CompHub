@@ -2341,7 +2341,7 @@
     "titel": "Statistik: große Zahlen oben melden einen Ausfall",
     "kurz": "Statistik oben: Bei Ausfall steht „gerade nicht erreichbar“ statt nur Striche.",
     "markieren": [
-      "text:Players are counted",
+      "text:Counted are the players",
       "css:.tabular-nums"
     ],
     "bereich": "Statistik",
@@ -2350,7 +2350,9 @@
     "ansehen": [
       "/statistics"
     ],
-    "commits": [],
+    "commits": [
+      "f79266d"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
