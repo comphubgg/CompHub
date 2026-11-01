@@ -66,7 +66,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [x] **Regional: Reihe „FNCS“ mischte Solo Final und Globals** (chef-82)
 - [x] **Global-Kachel 12 Matches** - kein Fehler: Kachel fasst beide Tage zusammen (6+6), so gewollt (28.9.).
-- [ ] **ladeReihe nutzt bei LAN-Sammelkacheln nur den letzten Tag** (latent, S40–S42 nicht betroffen).
+- [x] **ladeReihe nutzt bei LAN-Sammelkacheln nur den letzten Tag** – mit chef-93 erledigt (Runde 9 geprüft).
 
 - [x] **Preisgeld geprüft**: Jahresliste 2026 und Profile (Vico, Malibuca, Shxrk, T3eny, Pixie) stimmen je Saison auf den Dollar, LAN-Geld ohne Doppelzählung.
 - [x] **Events-Übersicht geprüft**: Status, Datum, Reihenfolge stimmen (Ausfallhinweis: chef-83).
