@@ -2577,6 +2577,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:35:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "36c0615"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-121",
+    "titel": "Organisationen: Liste bleibt bei kurzem Ausfall stehen",
+    "kurz": "Organisationen: Bei kurzem Ausfall bleibt die Liste, darüber ein kleiner Hinweis.",
+    "markieren": [
+      "text:The numbers are not reachable right now"
+    ],
+    "warum": "Schlug ein neuer Abruf fehl, verschwand die schon geladene Liste hinter einem Fehlerkasten.",
+    "was": "Die Liste bleibt sichtbar, darüber steht klein „gerade nicht erreichbar“, und es wird weiter versucht.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:35:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1

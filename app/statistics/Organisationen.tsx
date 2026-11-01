@@ -247,7 +247,7 @@ export default function Organisationen({ aufSpieler }: {
       .filter((o) => !q || o.name.toLowerCase().includes(q));
   }, [daten, region, suche]);
 
-  if (fehler) {
+  if (fehler && !daten) {
     return (
       <div className="rounded-2xl border border-amber-800/60 bg-amber-950/20 px-5 py-4 text-sm text-amber-200">
         {fehler}
@@ -256,6 +256,10 @@ export default function Organisationen({ aufSpieler }: {
     );
   }
   if (!daten) return <LadeSchirm />;
+  // Schon geladene Liste bleibt stehen; schlaegt der Neuversuch fehl, nur ein kleiner Hinweis darueber.
+  const hinweis = fehler ? (
+    <p role="status" className="text-xs text-amber-200/70"><T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T></p>
+  ) : null;
 
   const org = offen ? daten.orgs.find((o) => o.id === offen) ?? null : null;
   const standText = daten.stand
@@ -274,6 +278,7 @@ export default function Organisationen({ aufSpieler }: {
       + (daten?.jahr === 'alle' ? (org.ehemalige ?? []).reduce((a, e) => a + (e.turniere ?? 0), 0) : 0);
     return (
       <div className="space-y-8">
+        {hinweis}
         <button type="button" onClick={() => setOffen(null)}
           className="text-sm text-slate-400 transition hover:text-sky-400">
           ← <T>Alle Organisationen</T>
@@ -492,6 +497,7 @@ export default function Organisationen({ aufSpieler }: {
 
   return (
     <div className="space-y-6">
+      {hinweis}
       <header className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 px-6 py-8 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
         <LogoLauf orgs={daten.orgs} />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
