@@ -4464,5 +4464,49 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-204",
+    "datum": "2026-11-01T03:50:00Z",
+    "titel": "Startseite: Ausfall der Cup-Leiste zeigt Hinweis",
+    "kurz": "Startseite → „Live und demnächst“ bei Ausfall: Hinweis statt verschwundener Leiste.",
+    "markieren": [
+      "text:Live and coming up"
+    ],
+    "bereich": "Startseite",
+    "warum": "Fiel die Turnierliste aus, verschwand die Leiste „Live und demnächst“ ganz – als liefe nichts.",
+    "was": "Jetzt bleibt die Überschrift, darunter steht, dass sie gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [
+      "a3ea78f"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-205",
+    "datum": "2026-11-01T03:50:00Z",
+    "titel": "Prognosen: Abruffehler nicht als leere Liste",
+    "kurz": "Prognosen bei Ausfall: „not reachable“ statt „noch keine Prognose veröffentlicht“.",
+    "markieren": [
+      "text:The predictions are not reachable right now."
+    ],
+    "bereich": "Prognosen",
+    "warum": "Konnten die Prognosen nicht geladen werden, hieß es, es sei noch keine veröffentlicht.",
+    "was": "Jetzt steht dort, dass sie gerade nicht erreichbar sind.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "commits": [
+      "0ea028a"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
