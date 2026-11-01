@@ -5833,6 +5833,8 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "baa9988"
+    ]
   }
 ]
