@@ -603,9 +603,9 @@ function naechsterSchritt(gezeigt: number): number {
  * Es ist auch keine Kleinigkeit: die eine Angabe ist fuer fast jeden
  * erreichbar, die andere fuer acht Teams weltweit.
  */
-function schwellenText(art: string, schwelle: number): string {
+function schwellenText(art: string, schwelle: number, punkte: string, ort: string): string {
   if (art === 'percentile') return `Top ${(schwelle * 100).toFixed(0)} %`;
-  if (art === 'value') return `${schwelle} Points`;
+  if (art === 'value') return `${schwelle.toLocaleString(ort)} ${punkte}`;
   return `Top #${schwelle}`;
 }
 
@@ -3367,7 +3367,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <div key={`${gruppe[0].art}-${gruppe[0].schwelle}`}
                       className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
                       <div className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-bold text-sky-400">
-                        {schwellenText(gruppe[0].art, gruppe[0].schwelle)}
+                        {schwellenText(gruppe[0].art, gruppe[0].schwelle, t('Punkte'), ort)}
                         {gruppe[0].art === 'rank' && schwellenSicht[String(gruppe[0].schwelle)] != null && (
                           <span className="text-xs font-semibold tabular-nums text-emerald-400">
                             {schwellenSicht[String(gruppe[0].schwelle)].toLocaleString(ort)} <T>Punkte</T>
