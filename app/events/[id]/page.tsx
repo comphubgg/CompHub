@@ -491,8 +491,9 @@ function uhr(ms: number, ort = 'de-DE') {
  * 17,55 stehen, sieht die eine ganze Zahl aus wie ein anderes Mass.
  * Zwei Stellen, immer - dann steht die Spalte gerade.
  */
-function schnitt(wert: number, ort = 'de-DE', stellen = 2) {
-  if (!Number.isFinite(wert) || wert === 0) return '–';
+function schnitt(wert: number, ort = 'de-DE', stellen = 2, nullIstWert = false) {
+  // nullIstWert: eine echte 0 (Team hat gespielt, aber keine Elims) ist ein Wert, kein fehlender.
+  if (!Number.isFinite(wert) || (wert === 0 && !nullIstWert)) return '–';
   return wert.toLocaleString(ort, {
     minimumFractionDigits: stellen, maximumFractionDigits: stellen,
   });
@@ -3756,12 +3757,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {kachel('Punkte', e.points, true)}
                     {kachel('Spiele', e.games, true)}
                     {kachel('Siege', e.wins, true)}
-                    {kachel('Ø Punkte', schnitt(e.avgPoints, ort))}
+                    {kachel('Ø Punkte', schnitt(e.avgPoints, ort, 2, e.games > 0))}
                     {kachel('Ø Platz', schnitt(e.avgPlace, ort))}
                     {kachel('Ø Überlebenszeit', dauer(e.games ? e.timeAlive / e.games : 0))}
                     {kachel('Elims', e.elims)}
-                    {kachel('Ø Elims', schnitt(e.avgElims, ort))}
-                    {kachel('K/D', schnitt(e.kd, ort))}
+                    {kachel('Ø Elims', schnitt(e.avgElims, ort, 2, e.games > 0))}
+                    {kachel('K/D', schnitt(e.kd, ort, 2, e.games > 0))}
                   </div>
                   <div className="border-t border-zinc-800 pt-4">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
