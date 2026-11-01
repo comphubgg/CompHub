@@ -48,7 +48,8 @@
   let gespeichert = {};
 
   async function ladeCfg(server) {
-    try { gespeichert = await (await fetch((server || '') + '/api/cup-playercfg')).json(); }
+    // Eine Fehlerantwort (424) hat keine Einstellungen - dann gilt die Automatik aus dem Spielerbild, und "error" darf nicht als Spielername durchgehen.
+    try { const r = await fetch((server || '') + '/api/cup-playercfg'); gespeichert = r.ok ? await r.json() : {}; }
     catch { gespeichert = {}; }
     return gespeichert;
   }

@@ -13,13 +13,22 @@ const IS_VERCEL = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_E
 
 type Cfg = Record<string, Record<string, string>>;
 
+// Nur eine fehlende Datei heisst "noch nichts eingestellt". Jeder andere Lesefehler (Ablage nicht erreichbar) wirft - sonst sähe er aus wie "leer", und ein Speichern würde alle Einstellungen überschreiben.
 async function lies(): Promise<Cfg> {
   try { return JSON.parse(await fs.readFile(DATEI, 'utf8')) as Cfg; }
-  catch { return {}; }
+  catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw e;
+  }
 }
 
 export async function GET() {
-  return NextResponse.json(await lies());
+  // 424 statt 500 (der Lastverteiler macht aus 5xx eine Fehlerseite); das Overlay wertet "nicht ok" als Ausfall und nimmt die Farben aus dem Spielerbild.
+  try {
+    return NextResponse.json(await lies());
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -41,12 +50,15 @@ export async function POST(request: Request) {
   const name = String(body.name ?? '').trim().toLowerCase();
   if (!name) return NextResponse.json({ error: 'name fehlt' }, { status: 400 });
 
-  const alle = await lies();
-  if (body.cfg === null) delete alle[name];
-  else alle[name] = body.cfg ?? {};
+  try {
+    const alle = await lies();
+    if (body.cfg === null) delete alle[name];
+    else alle[name] = body.cfg ?? {};
 
-  await fs.mkdir(path.dirname(DATEI), { recursive: true });
-  await fs.writeFile(DATEI, JSON.stringify(alle, null, 2));
-
-  return NextResponse.json({ ok: true, anzahl: Object.keys(alle).length });
+    await fs.mkdir(path.dirname(DATEI), { recursive: true });
+    await fs.writeFile(DATEI, JSON.stringify(alle, null, 2));
+    return NextResponse.json({ ok: true, anzahl: Object.keys(alle).length });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
+  }
 }
