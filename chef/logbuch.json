@@ -5338,5 +5338,25 @@
     "commits": [
       "10c9820"
     ]
+  },
+  {
+    "id": "chef-243",
+    "datum": "2026-11-01T05:01:08Z",
+    "titel": "Orgs: Ehemalige ohne Rechnung zeigen Strich statt 0 $",
+    "kurz": "Orgs → „Alle Jahre“: neu eingetragene Ehemalige zeigen „—“ statt „$0“.",
+    "markieren": [
+      "text:—"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ein frisch eingetragener ehemaliger Spieler, der noch nicht gerechnet war, stand mit 0 $ und 0 Turnieren da – und machte die Summe einer Org ohne andere Werte zu 0 $.",
+    "was": "Wie bei heutigen Spielern steht dann ein Strich, bis der Stundenlauf ihn gerechnet hat.",
+    "ansehen": [
+      "/statistics?bereich=orgs&zeitraum=alle"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

@@ -138,7 +138,10 @@ export async function GET(request: Request) {
      * bleibt der Betrag leer (null), statt 0 vorzutaeuschen.
      */
     const ehemalige = (o.ehemalige ?? []).map((e) => {
-      const posten = e.epicId && verdienst ? (verdienst.posten[e.epicId] ?? []) : null;
+      // Wie bei den heutigen Spielern: ein Konto, das beim letzten Rechnen noch nicht dabei war, hat keinen Betrag (null, "wird gerechnet") - nicht 0.
+      const bekannt = !!(e.epicId && verdienst
+        && (e.epicId in verdienst.posten || (verdienst.konten ?? []).includes(e.epicId)));
+      const posten = e.epicId && verdienst && bekannt ? (verdienst.posten[e.epicId] ?? []) : null;
       const wert = alleJahre && posten ? fuerDieOrg(posten, e.seit, e.bis) : null;
       return {
         // liquipedia durchgereicht, damit das Admin-Werkzeug sie behaelt.
