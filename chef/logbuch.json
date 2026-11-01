@@ -2334,5 +2334,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 7
+  },
+  {
+    "id": "chef-110",
+    "datum": "2026-11-01T02:05:00Z",
+    "titel": "Statistik: große Zahlen oben melden einen Ausfall",
+    "kurz": "Statistik oben: Bei Ausfall steht „gerade nicht erreichbar“ statt nur Striche.",
+    "markieren": [
+      "text:Players are counted",
+      "css:.tabular-nums"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Auskunft aus, standen oben nur vier Striche – das sah aus wie „keine Daten“.",
+    "was": "Jetzt erscheint darunter ein Hinweis, und nach zehn Sekunden wird es noch einmal versucht.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

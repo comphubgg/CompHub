@@ -19,17 +19,29 @@ export default function StatistikZahlen() {
   const [z, setZ] = useState<Zahlen | null>(null);
   const [fertig, setFertig] = useState(false);
   const [sichtbar, setSichtbar] = useState(false);
+  /** Die Zahlen waren nicht zu holen: Hinweis statt stiller Striche, neuer Versuch nach zehn Sekunden. */
+  const [fehlt, setFehlt] = useState(false);
+  const [versuch, setVersuch] = useState(0);
   const halter = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch('/api/statistik-zahlen', { signal: AbortSignal.timeout(20_000) })
       .then((r) => r.json())
-      .then((j) => { if (!weg && j?.ok) setZ(j); })
-      .catch(() => { /* dann bleiben die Striche */ })
+      .then((j) => {
+        if (!j?.ok) throw new Error('keine Zahlen');
+        if (!weg) { setZ(j); setFehlt(false); }
+      })
+      .catch(() => {
+        // Ein Ausfall soll nicht wie "keine Zahlen" aussehen: Hinweis zeigen und gleich noch einmal fragen.
+        if (weg) return;
+        setFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setVersuch((n) => n + 1); }, 10_000);
+      })
       .finally(() => { if (!weg) setFertig(true); });
-    return () => { weg = true; };
-  }, []);
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [versuch]);
 
   useEffect(() => {
     const el = halter.current;
@@ -61,6 +73,11 @@ export default function StatistikZahlen() {
           </div>
         ))}
       </div>
+      {fehlt && !z && (
+        <p className="relative mt-5 text-center text-xs text-slate-500">
+          <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+        </p>
+      )}
       <p className="relative mt-5 text-center text-[10px] text-slate-600">
         <T>Gezählt werden die Spieler im Archiv: ab 10 Matches oder mit Foto.</T>
       </p>
