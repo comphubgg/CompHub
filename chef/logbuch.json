@@ -5656,5 +5656,26 @@
     "commits": [
       "ca7cb77"
     ]
+  },
+  {
+    "id": "chef-257",
+    "datum": "2026-11-01T06:02:00Z",
+    "titel": "Vergangene Cups zeigen die Preisgeld-Summe",
+    "kurz": "Cup-Seite älterer Spieltage: neben „Preisgeld“ steht jetzt die Gesamtsumme.",
+    "markieren": [
+      "text:Prize money",
+      "text:total paid out"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei vergangenen Spieltagen standen die Beträge je Platz da, die Summe daneben fehlte – beim laufenden Cup war sie da.",
+    "was": "Die Summe wird jetzt auch aus der Tabelle vergangener Spieltage über alle Plätze gerechnet.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSDivisionalCup_Division1_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

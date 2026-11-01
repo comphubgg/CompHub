@@ -287,7 +287,8 @@ async function holeRoh(request: Request) {
           vorhanden: true, window: window_, region, waehrung: tabelle.waehrung ?? 'USD',
           proPerson: true, gepflegt: true, quelle: tabelle.fenster === window_ ? 'preisgeld-tabellen' : `preisgeld-tabellen (${tabelle.fenster})`,
           erlaeuterung: tabelle.name ?? null, geld, gegenstaende: [], wertung,
-          gesamt: null,
+          // Wie bei Epics eigener Tabelle: die Summe ueber alle Plaetze - sonst zeigt ein vergangener Spieltag Zeilen ohne Summe.
+          gesamt: summeUeberPlaetze(geld),
         });
       }
     }
