@@ -54,8 +54,9 @@ export async function GET(request: Request) {
       liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
       liesJson<Record<string, { name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { name?: string; land?: string }>)),
       abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => { ausfall = true; return null; }),
-      liesPr(PR_LISTE).catch(() => null),
+      liesPr(PR_LISTE).catch(() => null).then((x) => { if (!x) ausfall = true; return x; }),
     ]);
+    // Fehlt der Stand der Power Rankings, saehe jeder Spieler wie "nicht platziert" aus - die Seite sagt dann "gerade nicht erreichbar".
     // Epics Power Rankings (weltweit, taeglich): fuer jeden Spieler mit Konto mindestens Rang und Punkte - auch ohne Finals im Archiv.
     const prVon = new Map(((prStand as unknown as { spieler?: Array<{ id: string; rank: number; wertung: number }> } | null)?.spieler ?? []).map((x) => [x.id, x]));
     const summeVon = new Map(summen.map((s) => [s.epicId, s]));

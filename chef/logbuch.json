@@ -5564,5 +5564,26 @@
     "commits": [
       "4f38f3c"
     ]
+  },
+  {
+    "id": "chef-253",
+    "datum": "2026-11-01T05:45:00Z",
+    "titel": "Teamseite: fehlende Power Rankings melden",
+    "kurz": "Unsichtbar: Teamseite sagt „gerade nicht erreichbar“, wenn der Ranking-Stand fehlt.",
+    "markieren": [
+      "css:p[role=alert]",
+      "text:PR"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte der Stand der Power Rankings, stand bei allen Spielern „PR –“ – das sah aus wie „nicht platziert“.",
+    "was": "Die Seite zeigt dann ihren vorhandenen Hinweis „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
