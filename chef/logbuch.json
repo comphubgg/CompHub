@@ -5164,5 +5164,24 @@
     "status": "wartet",
     "runde": 1,
     "commits": []
+  },
+  {
+    "id": "chef-236",
+    "datum": "2026-11-01T04:56:00Z",
+    "titel": "Streams und Statistik: toter Code entfernt",
+    "kurz": "Unsichtbar: Turnier-Reiter spart eine unnötige Abfrage, weniger alter Code.",
+    "markieren": [],
+    "bereich": "Technik",
+    "warum": "Auf der Streams-Seite und der Statistikseite lagen nie benutzte Teile, darunter eine Abfrage aller Cups, deren Ergebnis nirgends erschien.",
+    "was": "Die unbenutzten Teile sind weg; sichtbar ändert sich nichts, der Turnier-Reiter lädt eine Abfrage weniger.",
+    "ansehen": [
+      "/streams",
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

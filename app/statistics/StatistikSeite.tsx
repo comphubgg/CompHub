@@ -2508,20 +2508,6 @@ export default function StatistikSeite() {
   // Turnierliste und Regionen
   const [turniere, setTurniere] = useState<Turnier[]>([]);
 
-  /**
-   * Finale, die gerade laufen oder eben zu Ende gingen.
-   *
-   * Warum es das braucht: die Einzelwerte hier stammen von eucompetitive,
-   * und die veroeffentlicht sie erst ein bis zwei Tage nach einem Cup. Ein
-   * Finale von gestern Abend fehlt deshalb in dieser Liste - fuer den
-   * Betreiber sah es so aus, als haette ich es schlicht vergessen. Epic
-   * selbst fuehrt das Fenster dagegen sofort. Beide Quellen
-   * nebeneinandergelegt laesst sich sagen, was noch fehlt und warum, statt
-   * es stillschweigend auszulassen.
-   */
-  const [laufende, setLaufende] = useState<Array<{
-    titel: string; region: string; windowId: string; live: boolean;
-  }>>([]);
   /*
    * Nur die grossen Finale - so ist es voreingestellt.
    *
@@ -3232,38 +3218,6 @@ export default function StatistikSeite() {
     return () => { weg = true; };
   }, [cupAktiv]);
 
-  const suchen = useCallback(async (text: string, wohin: (t: Spieler[]) => void) => {
-    const q = text.trim();
-    if (q.length < 2) { wohin([]); return; }
-    try {
-      /*
-       * Die eigene Suche des Archivs, nicht die gefilterte Saisonliste.
-       *
-       * Vorher wurde die Liste der gewaehlten Saison durchsucht. In einer
-       * frisch angefangenen Saison steht dort fast niemand - "Vico"
-       * eingetippt fand deshalb keinen Vico, obwohl er im Archiv steht.
-       * "ansicht=suche" sucht ueber das ganze Archiv und ausserdem in allen
-       * Namen, unter denen ein Konto je angetreten ist; deshalb fand der
-       * Turniername ihn und der gepflegte nicht.
-       */
-      const r = await fetch('/api/szene-stats?ansicht=suche'
-        + `&q=${encodeURIComponent(q)}`);
-      const j = await r.json();
-      wohin(j.spieler ?? []);
-    } catch { wohin([]); }
-  }, [saison]);
-
-  /** Zu einem gewaehlten Spieler den Verlauf nachladen. */
-  const vglLaden = useCallback(async (sp: Spieler,
-    wohin: (z: VerlaufZeile[]) => void) => {
-    try {
-      const r = await fetch(`/api/szene-stats?spieler=${sp.epicId}&saison=${saison}`);
-      const j = await r.json();
-      // Ebenfalls nur die Zeilen der Quelle - siehe oben.
-      wohin(j.verlauf ?? []);
-    } catch { wohin([]); }
-  }, [saison]);
-
   /**
    * Die Saison umschalten nimmt den Vergleich mit.
    *
@@ -3350,50 +3304,6 @@ export default function StatistikSeite() {
       .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); })
       .catch(() => { setTurniere([]); setTurniereFehlt(true); });
   }, [bereich, saison, nurGrosse]);
-
-  /*
-   * Was Epic schon fuehrt, die Szene-Quelle aber noch nicht.
-   *
-   * Nur Finale, und nur die der letzten drei Tage - was laenger her ist und
-   * immer noch fehlt, ist kein Ladeproblem mehr, sondern eine Luecke, und
-   * die gehoert nicht als "kommt gleich" ausgegeben.
-   */
-  useEffect(() => {
-    if (bereich !== 'turniere') return;
-    let weg = false;
-    fetch('/api/cup-catalog?modus=alle')
-      .then((r) => r.json())
-      .then((j) => {
-        if (weg) return;
-        const drei = Date.now() - 3 * 24 * 3600 * 1000;
-        const raus: Array<{ titel: string; region: string; windowId: string; live: boolean }> = [];
-        for (const c of (j.cups ?? [])) {
-          for (const [region, fenster] of Object.entries(c.regionen ?? {})) {
-            for (const f of (fenster as Array<Record<string, unknown>>)) {
-              /*
-               * "istFinale" allein genuegt nicht: beim Performance
-               * Evaluation Cup steht es auf false, obwohl die zweite Runde
-               * das Finale ist - die Eventseite nennt sie auch so. Ohne
-               * diesen Zusatz fiel genau der Cup durch, um den es ging.
-               */
-              const finalrunde = f.istFinale
-                || /round2/i.test(String(f.windowId ?? ''));
-              if (!finalrunde || f.status === 'kommt') continue;
-              const begin = Number(f.begin ?? 0);
-              if (begin < drei) continue;
-              raus.push({
-                titel: String(c.titel ?? ''), region,
-                windowId: String(f.windowId ?? ''),
-                live: f.status === 'laeuft' || f.status === 'live',
-              });
-            }
-          }
-        }
-        setLaufende(raus);
-      })
-      .catch(() => { if (!weg) setLaufende([]); });
-    return () => { weg = true; };
-  }, [bereich]);
 
   /* ------------------------------------------------------------ Regionen */
 

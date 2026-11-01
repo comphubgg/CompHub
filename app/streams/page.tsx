@@ -1131,15 +1131,6 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
   }, [mehrfach, kachelnGezeigt, activeStreamerTwitch]);
 
   /*
-   * Die Suche ueber der Kachelansicht.
-   *
-   * Ein Twitch-Name, Enter, drin - ob er sendet oder nicht. Auch eine
-   * ganze Adresse wie twitch.tv/name geht; Twitch-Namen bestehen aus
-   * Buchstaben, Ziffern und Unterstrich.
-   */
-  const [kachelSuche, setKachelSuche] = useState('');
-
-  /*
    * Die Profi-POVs, die dieser Besucher sehen darf.
    *
    * Die Profis geben sie in ihrem Dashboard einzeln frei (app/admin/ProDashboard.tsx); der Server
@@ -1169,106 +1160,6 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     const abbau = sichtbarerTakt(holen, 20_000);
     return () => { weg = true; abbau(); };
   }, [zugang.vip, zugang.nutzer]);
-
-  /*
-   * Die Vorschlaege unter dem Suchfeld.
-   *
-   * Der Betreiber: "am besten kommt noch eine Liste darunter von den
-   * Streamern, die gerade live sind ... die mit den meisten Zuschauern
-   * zuerst. Wenn niemand live ist, die Top fuenf nach Followern. Und wenn
-   * man doch jemand anderen meint, geht man auf Show more."
-   *
-   * Geholt wird bei jedem Buchstaben, ohne Pause - der Betreiber wollte
-   * sehen, wie die Liste beim Tippen kleiner wird, "auch wenn ich keine
-   * Pause mache, sondern durchgehend druecke". Die vorige Anfrage wird
-   * dabei abgebrochen, und die vorige Liste bleibt stehen, bis die neue da
-   * ist - sonst flackerte sie bei jedem Buchstaben leer.
-   */
-  interface KanalFund {
-    login: string; name: string; live: boolean;
-    zuschauer: number | null; follower: number | null; spiel: string; bild: string;
-  }
-  const [kanalFunde, setKanalFunde] = useState<KanalFund[]>([]);
-  const [kanalSucheLaeuft, setKanalSucheLaeuft] = useState(false);
-  const [kanalMehr, setKanalMehr] = useState(false);
-  const [kanalListeOffen, setKanalListeOffen] = useState(false);
-  useEffect(() => {
-    const q = kachelSuche.trim();
-    setKanalMehr(false);
-    if (!q) { setKanalFunde([]); setKanalSucheLaeuft(false); return undefined; }
-    const abbruch = new AbortController();
-    setKanalSucheLaeuft(true);
-    fetch(`/api/kanal-suche?q=${encodeURIComponent(q)}`, { signal: abbruch.signal })
-      .then((r) => r.json())
-      .then((j) => {
-        if (abbruch.signal.aborted) return;
-        setKanalFunde(Array.isArray(j?.kanaele) ? j.kanaele : []);
-        setKanalListeOffen(true);
-        setKanalSucheLaeuft(false);
-      })
-      .catch(() => { if (!abbruch.signal.aborted) { setKanalFunde([]); setKanalSucheLaeuft(false); } });
-    return () => abbruch.abort();
-  }, [kachelSuche]);
-
-  /*
-   * Was von den Funden zuerst zu sehen ist.
-   *
-   * Die Sendenden, wenn es welche gibt - sonst die fuenf mit den meisten
-   * Followern. Alles Uebrige hinter "mehr anzeigen".
-   */
-  const kanalErste = useMemo(() => {
-    const live = kanalFunde.filter((k) => k.live);
-    return live.length ? live : kanalFunde.slice(0, 5);
-  }, [kanalFunde]);
-  const kanalGezeigt = kanalMehr ? kanalFunde : kanalErste;
-  const kanalRest = kanalFunde.length - kanalErste.length;
-
-  /** Zahlen wie Twitch sie schreibt: 1.2K, 107K. */
-  const kurz = (n: number) => new Intl.NumberFormat('en', {
-    notation: 'compact', maximumFractionDigits: 1,
-  }).format(n);
-
-  const kachelHinzufuegen = (eingabe: string) => {
-    const name = eingabe.trim().toLowerCase()
-      .replace(/^(https?:\/\/)?(www\.)?twitch\.tv\//, '')
-      .replace(/[/?#].*$/, '')
-      .replace(/^@/, '');
-    if (!/^[a-z0-9_]{3,25}$/.test(name)) return false;
-    /*
-     * Was gerade zu sehen ist, bleibt.
-     *
-     * Ohne eigene Auswahl zeigt die Ansicht alle Sendenden des Ordners;
-     * der erste getippte Name schreibt diese Kacheln fest und haengt sich
-     * an - sonst verschwaenden drei laufende Streams, weil ein vierter
-     * dazukommt.
-     */
-    const bisher = kachelnGezeigt.map((k) => k.twitch);
-    setEigeneWahl(true);
-    setKachelWahl((alt) => {
-      const grundlage = alt.length ? alt : bisher;
-      const neu = grundlage.includes(name) ? grundlage : [...grundlage, name];
-      localStorage.setItem('multihub_kachel_wahl', JSON.stringify(neu));
-      return neu;
-    });
-    setKachelSuche('');
-    setKanalFunde([]);
-    setKanalListeOffen(false);
-    return true;
-  };
-
-  /*
-   * Enter: der genaue Treffer, sonst der erste, sonst das Getippte.
-   *
-   * Wer "okis" tippt und "okisfn" ganz oben sieht, meint den; wer den
-   * exakten Namen tippt, meint den, auch wenn ein groesserer Kanal
-   * daruebersteht.
-   */
-  const kachelAusSuche = () => {
-    const q = kachelSuche.trim().toLowerCase();
-    const genau = kanalFunde.find((k) => k.login === q);
-    const erster = kanalGezeigt[0];
-    kachelHinzufuegen(genau?.login ?? erster?.login ?? kachelSuche);
-  };
 
   const kachelFlaeche = useRef<HTMLDivElement | null>(null);
   const [flaeche, setFlaeche] = useState({ breite: 0, hoehe: 0 });
