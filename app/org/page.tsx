@@ -215,7 +215,7 @@ export default function OrgSeite() {
                           </label>
                         )}
                         {s.epicId && (
-                          <Link href={`/statistics?spieler=${encodeURIComponent(s.name)}`} className="rounded-full border border-zinc-700 px-3 py-1.5 font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-500"><T>Profil ansehen</T></Link>
+                          <Link href={`/statistics?spieler=${encodeURIComponent(s.epicId)}`} className="rounded-full border border-zinc-700 px-3 py-1.5 font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-500"><T>Profil ansehen</T></Link>
                         )}
                         <span className="flex-1" />
                         {frage === i ? (

@@ -2885,6 +2885,29 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T03:10:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "389c93f"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-135",
+    "titel": "Org-Kader: Profil-Link trifft den richtigen Spieler",
+    "kurz": "Org-Bereich → Kader → „Profil ansehen“ öffnet jetzt sicher das richtige Profil.",
+    "markieren": [
+      "text:View profile",
+      "css:a[href^='/statistics?spieler=']"
+    ],
+    "warum": "Der Link suchte über den Kader-Namen, der vom Epic-Namen abweichen oder doppelt vorkommen kann.",
+    "was": "Der Link nutzt jetzt das Epic-Konto des Spielers, wie schon die Teamseite.",
+    "ansehen": [
+      "/org?org=clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:10:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
