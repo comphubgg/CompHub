@@ -501,6 +501,11 @@ function schnitt(wert: number, ort = 'de-DE', stellen = 2, nullIstWert = false) 
   });
 }
 
+/** Eine ganze Zahl im Zahlenformat der Seite; fehlt sie, steht ein Strich. */
+function zahlText(wert: number | null | undefined, ort: string) {
+  return typeof wert === 'number' && Number.isFinite(wert) ? wert.toLocaleString(ort) : '–';
+}
+
 function dauer(sek: number) {
   if (!sek) return '–';
   const m = Math.floor(sek / 60);
@@ -3760,13 +3765,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-4">
-                    {kachel('Punkte', e.points, true)}
+                    {kachel('Punkte', zahlText(e.points, ort), true)}
                     {kachel('Spiele', e.games, true)}
-                    {kachel('Siege', e.wins, true)}
+                    {kachel('Siege', zahlText(e.wins, ort), true)}
                     {kachel('Ø Punkte', schnitt(e.avgPoints, ort, 2, e.games > 0))}
                     {kachel('Ø Platz', schnitt(e.avgPlace, ort))}
                     {kachel('Ø Überlebenszeit', dauer(e.games ? e.timeAlive / e.games : 0))}
-                    {kachel('Elims', e.elims)}
+                    {kachel('Elims', zahlText(e.elims, ort))}
                     {kachel('Ø Elims', schnitt(e.avgElims, ort, 2, e.games > 0))}
                     {kachel('K/D', schnitt(e.kd, ort, 2, e.games > 0))}
                   </div>
@@ -3820,7 +3825,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               {meinTeam && (
                 <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs">
                   <span className="font-semibold uppercase tracking-wider text-sky-300"><T>Mein Team</T></span>
-                  <span className="text-slate-200">#{meinTeam.e.rank} · {meinTeam.e.points} <T>Punkte</T> · {meinTeam.e.elims} Elims</span>
+                  <span className="text-slate-200">#{meinTeam.e.rank} · {zahlText(meinTeam.e.points, ort)} <T>Punkte</T> · {zahlText(meinTeam.e.elims, ort)} Elims</span>
                   <button type="button"
                     onClick={() => { setSeite(Math.floor(meinTeam.index / proSeite) + 1); setOffen(meinTeam.e.rank); }}
                     className="ml-auto rounded-md border border-sky-500/50 px-2.5 py-1 text-sky-300 transition hover:bg-sky-500/10">
@@ -3895,14 +3900,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-100">
-                          {e.points}
+                          {zahlText(e.points, ort)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.elims}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.wins}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{zahlText(e.elims, ort)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{zahlText(e.wins, ort)}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                           {schnitt(e.avgPlace, ort)}
                         </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-400">{e.games}</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-slate-400">{zahlText(e.games, ort)}</td>
                         {mitPreis && (() => {
                           const betrag = preisFuer(e.rank, e.points);
                           return (
