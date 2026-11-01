@@ -535,9 +535,10 @@ export default function EventsPage() {
      * FNCS, Globals, Division, Majors und LANs zuerst, Arena-, Test- und Mobile-Cups zuletzt - innerhalb gleicher Wichtigkeit nach Zeit.
      */
     const vorn = [
-      ...basis.filter((c) => von(c).status === 'live').sort((a, b) => gewicht(a) - gewicht(b)),
+      ...basis.filter((c) => von(c).status === 'live')
+        .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).letzter ?? 0) - (von(b).letzter ?? 0) || gleich(a, b)),
       ...basis.filter((c) => von(c).status === 'kommt')
-        .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
+        .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).naechster ?? 0) - (von(b).naechster ?? 0) || gleich(a, b)),
     // Ein wichtiger Cup, der bald kommt, steht vor einem unwichtigen, der gerade laeuft (stabil sortiert: sonst live vor demnaechst).
     ].sort((a, b) => gewicht(a) - gewicht(b))
       /*
@@ -549,7 +550,7 @@ export default function EventsPage() {
     // Kommen weniger als vier, fuellen die zuletzt beendeten wichtigen Cups auf (mit "Beendet"-Marke) - eine halb leere Reihe sah kaputt aus.
     if (vorn.length < 4) {
       const zuletzt = basis.filter((c) => von(c).status === 'vorbei' && gewicht(c) < 2 && !vorn.some((v) => serieVon(v.titel) === serieVon(c.titel)))
-        .sort((a, b) => gewicht(a) - gewicht(b) || (von(b).letzter ?? 0) - (von(a).letzter ?? 0))
+        .sort((a, b) => gewicht(a) - gewicht(b) || (von(b).letzter ?? 0) - (von(a).letzter ?? 0) || gleich(a, b))
         .filter((c, i, a) => a.findIndex((x) => serieVon(x.titel) === serieVon(c.titel)) === i);
       vorn.push(...zuletzt.slice(0, 4 - vorn.length));
     }
@@ -918,7 +919,7 @@ function Kalender({ cups, sprache, region, oeffnen }: {
         tag: Number(k),
         cups: [...m.values()]
           .map((e) => ({ ...e, zeiten: e.zeiten.sort((x, y) => x.begin - y.begin) }))
-          .sort((x, y) => x.zeiten[0].begin - y.zeiten[0].begin),
+          .sort((x, y) => x.zeiten[0].begin - y.zeiten[0].begin || gleich(x.cup, y.cup)),
       }));
   }, [cups, region]);
 
