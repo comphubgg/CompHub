@@ -16,6 +16,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Profil → Verdienst: S32 „Chapter 2 Remix“ steht unter Chapter 2** (Name vor Nummer); laut Code-Kommentar gehören S28–S32 zu Chapter 5. Summen stimmen, nur die Gruppe ist fraglich – Betreiber fragen.
 - [ ] **„Beste Spieltage“ zeigt die Saison als Kürzel („S41“) statt Namen** – prüfen, ob gewollt.
 - [ ] **Clutch Saison vs. Cup**: Die Saisonliste addiert auch halb gelesene Spieltage, die Cup-Seite zeigt dort einen Strich – Saisonwerte können kleiner sein als die Summe der Cups. Lösung braucht die Matchzahl je Spieler in der Saisonrechnung; erst nach Neuberechnung von S42 messbar.
+- [x] **Turnier-Ansicht ohne Weg zur Cup-Seite** (chef-159).
+- [ ] **Endtabelle FNCS Solo Final EU: ein Team zu viel** – die gespiegelte Tagesdatei (Tag 1) hat noch „d3bf3b35“ (87 Punkte), das Epic inzwischen entfernt hat; dadurch 101 statt 100 Zeilen, Plätze ab 57 an Tag 1 um eins verschoben, und der Eintrag bekommt 300 $. Spiegel-Datei neu holen (Datenlauf, nicht mein Bereich) – Betreiber/Betrieb fragen.
+- [x] **Geprüft ohne Befund (Runde 9)**: Power Rankings (Reihenfolge, Pfeile, Ausfall), Startseite (Zahlen gleich wie Statistik), Turnier-Endtabellen gegen Epic (S41 LCM: 50/50 gleich), Vergleich gegen Profil, Profil-Summen je Saison.
+- [ ] **Startseite Preisgeld: bei Ausfall der Jahresliste Allzeit-Liste unter „2026“** – erneut gefunden, aber das ist der Fall aus chef-6 (abgelehnt). Nicht noch einmal bauen.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
