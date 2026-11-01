@@ -3763,5 +3763,71 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-173",
+    "datum": "2026-11-01T03:30:00Z",
+    "titel": "Jahresbilanz: Preisgeld mit Dollarzeichen vorn",
+    "kurz": "Jahresbilanz → „Most earnings“: „$452,375“ statt „452,375 $“.",
+    "markieren": [
+      "text:Most earnings"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nur in der Jahresbilanz stand das Dollarzeichen hinter der Zahl, im Profil und in den Turnieren davor.",
+    "was": "Jetzt überall gleich: Dollarzeichen vorn. Prozentwerte im Englischen ohne Leerzeichen („12.5%“).",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2026"
+    ],
+    "commits": [
+      "cbad79d"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft und angepasst von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-174",
+    "datum": "2026-11-01T03:30:00Z",
+    "titel": "Vergleich: Platzierungen als 1st, 2nd, 3rd",
+    "kurz": "Vergleich → zwei Spieler → Platzierungen: „3rd“ statt „3.“ auf Englisch.",
+    "markieren": [
+      "text:Placements"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die englische Seite zeigte Plätze in deutscher Schreibweise („3.“).",
+    "was": "Englisch jetzt „1st, 2nd, 3rd, 11th“, Deutsch bleibt „3.“.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [
+      "2b06e6b"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-175",
+    "datum": "2026-11-01T03:30:00Z",
+    "titel": "FNCS All-Time: Ländernamen in der Sprache der Seite",
+    "kurz": "FNCS → All-Time → Nationalities: auf Deutsch „Deutschland“ statt „Germany“.",
+    "markieren": [
+      "text:Nationalities"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Länderliste war auch auf Deutsch englisch.",
+    "was": "Sie folgt jetzt der eingestellten Sprache, wie die Datumsangaben daneben.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [
+      "7b4f4da"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
