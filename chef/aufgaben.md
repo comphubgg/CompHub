@@ -10,6 +10,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Ranked-Cups: K/D mit „Tode = Spiele − Siege“** – bei 1 bis 11 Spielen je Team fraglich; Betreiber fragen, ob die Ranked-Statistik so bleiben soll.
 - [ ] **Live-Status merkt sich „unbekannt“ im Seiten-Ausweichweg** (ueberSeite, MERK_DAUER) – nach einem Ausfall bleibt der Hinweis bis zum Ablauf stehen. Beobachten.
 - [ ] **Profil-Ansicht: Epic-Wert damageRatio je Zeile ≠ Schaden/erlitten** (z. B. Solo Final Tag 2: 2,69 gegen 3.980/1.552 = 2,56) – CompHub rechnet selbst, Epic anders. Nur Hinweis, keine Anzeige betroffen.
+- [ ] **Benennung Trefferquote uneinheitlich**: Spielerliste „Treffer %“, Bestenliste/Profil „Trefferquote“, Vergleich „Genauigkeit“ – auf ein Wort einigen.
+- [ ] **FNCS-Elims-Tabelle je Major**: sortiert nur innerhalb der 80 Besten nach Gesamt – wer in einem Major viel hatte, insgesamt aber nicht Top 80 ist, fehlt.
+- [ ] **FNCS-Ereignisse: Punkte der Plätze 1–5 fehlen** bei Invitational 2022, Global Championship 2023 und 2025 (Quelle liefert nur den Platz) – Oberfläche zeigt „–“, korrekt.
+- [ ] **Live-Antwort /api/fncs-alltime älter als der Code** (Listenende nicht nach bestem Major sortiert) – nach dem nächsten Bau prüfen.
 - [x] Erledigt in Runde 11: chef-207 bis chef-213 (siehe Logbuch).
 
 ## Neu entdeckt (Runde 10, 01.11.2026)
