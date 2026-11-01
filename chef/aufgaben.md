@@ -20,6 +20,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Endtabelle FNCS Solo Final EU: ein Team zu viel** – die gespiegelte Tagesdatei (Tag 1) hat noch „d3bf3b35“ (87 Punkte), das Epic inzwischen entfernt hat; dadurch 101 statt 100 Zeilen, Plätze ab 57 an Tag 1 um eins verschoben, und der Eintrag bekommt 300 $. Spiegel-Datei neu holen (Datenlauf, nicht mein Bereich) – Betreiber/Betrieb fragen.
 - [x] **Geprüft ohne Befund (Runde 9)**: Power Rankings (Reihenfolge, Pfeile, Ausfall), Startseite (Zahlen gleich wie Statistik), Turnier-Endtabellen gegen Epic (S41 LCM: 50/50 gleich), Vergleich gegen Profil, Profil-Summen je Saison.
 - [ ] **Startseite Preisgeld: bei Ausfall der Jahresliste Allzeit-Liste unter „2026“** – erneut gefunden, aber das ist der Fall aus chef-6 (abgelehnt). Nicht noch einmal bauen.
+- [x] **Jahresbilanz: gleiche Werte, verschiedene Plätze** (2025 Elims Platz 7/8 mit je 669) – NICHT gebaut: geteilter Rang wurde bei chef-102 abgelehnt. Geprüft sonst ohne Befund (Merstach 2025 = Profil; EU ≤ alle).
+- [x] **Orgs geprüft**: alle 117 Summen = Pro-Spieler + Extras (+ Ehemalige); pixie/SwizzY/Tjino gleich wie im Profil.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
