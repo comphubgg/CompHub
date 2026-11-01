@@ -4283,5 +4283,29 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-196",
+    "datum": "2026-11-01T03:38:00Z",
+    "titel": "Player Stats: Dezimalzahlen im Format der Sprache",
+    "kurz": "Cup-Seite → Player Stats, Sprache Deutsch: Damage Ratio „2,35“ statt „2.35“.",
+    "markieren": [
+      "text:Damage Ratio",
+      "text:Avg Placement",
+      "text:K/D Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kills je Spiel, Damage Ratio, Ø-Platz und K/D standen fest mit Punkt; im Spielerfenster war das Format fest amerikanisch.",
+    "was": "Alle diese Zahlen folgen jetzt der Seitensprache; fehlende Werte bleiben ein Strich.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
+    ],
+    "commits": [
+      "fd18211"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
