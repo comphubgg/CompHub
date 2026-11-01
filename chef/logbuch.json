@@ -5289,6 +5289,8 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "58cc879"
+    ]
   }
 ]
