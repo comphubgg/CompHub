@@ -2936,5 +2936,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-137",
+    "titel": "Startseite: Schadensquote im Rampenlicht mit richtigem Komma",
+    "kurz": "Startseite → Spieler im Rampenlicht, auf Deutsch: Quote „1,45“ statt „1.45“.",
+    "markieren": [
+      "css:.vit-an"
+    ],
+    "warum": "Die Quote stand immer mit Punkt, Elims und Schaden daneben folgten der gewählten Sprache.",
+    "was": "Die Quote folgt jetzt auch der gewählten Sprache.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:20:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
