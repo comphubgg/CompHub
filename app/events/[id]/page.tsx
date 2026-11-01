@@ -969,6 +969,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     fuerBelohnung?: boolean; aehnlich?: boolean; ausVorlauf?: boolean;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
+  /** Die Qualifikations-Auskunft war nicht zu holen: Hinweis unter den Kacheln, neuer Versuch nach 10 Sekunden. */
+  const [qualFehlt, setQualFehlt] = useState(false);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
   const belohnungsRang = useMemo(() => {
     const g = [...(preise?.gegenstaende ?? []), ...(preise?.geld ?? [])].filter((x) => x.art === 'rank' && x.schwelle >= 1);
@@ -990,7 +992,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * der naechsten Runde antritt, ist der Kreis, der weitergekommen ist.
      * Die Schnittstelle zaehlt das selbst, wenn keine Schwelle mitkommt.
      */
-    if (!fenster) { setQual(null); return undefined; }
+    if (!fenster) { setQual(null); setQualFehlt(false); return undefined; }
     let uhr: number | undefined;
     /*
      * Solange der Spieltag laeuft, alle zwanzig Sekunden neu.
@@ -1009,7 +1011,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
-        setQual(j?.vorhanden ? j : null);
+        if (j?.error || typeof j?.vorhanden !== 'boolean') throw new Error('keine Qualifikationsauskunft');
+        setQualFehlt(false);
+        setQual(j.vorhanden ? j : null);
         // Ein verborgener Tab fragt nicht - er holt beim Zurueckkommen nach.
         if (j?.laeuft) uhr = window.setTimeout(() => {
           if (!document.hidden) { holen(); return; }
@@ -1021,7 +1025,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           document.addEventListener('visibilitychange', zurueck);
         }, 30_000);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (weg) return;
+        setQualFehlt(true);
+        uhr = window.setTimeout(() => { if (!weg) holen(); }, 10_000);
+      });
     holen();
     return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
   }, [fenster, belohnungsRang]);
@@ -2954,6 +2962,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </div>
             ))}
           </div>
+        )}
+
+        {fenster && qualFehlt && !qual && (
+          <p className="-mt-2 mb-5 text-xs text-slate-500">
+            <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+          </p>
         )}
 
         {istAdmin && fenster && ohneKarte.includes(fenster.windowId) && (

@@ -2264,5 +2264,25 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 7
+  },
+  {
+    "id": "chef-107",
+    "datum": "2026-11-01T01:52:00Z",
+    "titel": "Cup-Seite: Ausfall der Qualifikations-Auskunft zeigt Hinweis",
+    "kurz": "Cup-Seite: fällt die Quali-Auskunft aus, steht ‚gerade nicht erreichbar‘ statt still nichts.",
+    "markieren": [
+      "text:The numbers are not reachable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "War die Auskunft ‚Qualifizieren sich / Top N · X Punkte‘ kurz nicht zu holen, verschwand die Kachel ohne Hinweis – sah aus wie ‚gibt es nicht‘.",
+    "was": "Jetzt steht unter den Kacheln ein kleiner Hinweis, und die Seite versucht es nach 10 Sekunden von selbst noch einmal. Nur im Fehlerfall sichtbar.",
+    "ansehen": [
+      "/events"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 7
   }
 ]
