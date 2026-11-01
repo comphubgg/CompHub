@@ -1,12 +1,12 @@
 {
   "letzteRunde": "2026-11-01T02:10:00Z",
-  "macheGerade": "Runde 7 fertig. Wichtig: Ursache gefunden, warum Statistik-Startseite und Preisgeld-Jahresliste 2026 seit ~10.10. alt sind – der Datenlauf brach große Abfragen nach 5 Minuten ab, der Server lief voll und stürzte ab (chef-106, bitte freigeben). Dazu: Cup-Seite meldet Ausfälle von Quali- und Preisgeld-Auskunft (chef-107/109), FNCS All-Time mit fester Reihenfolge bei Gleichstand (chef-108). chef-105 nach main übernommen, chef-98/102 zurückgenommen.",
+  "macheGerade": "Runde 8 fertig: 31 Verbesserungen (chef-110 bis chef-140), fast alle an der Statistik – vor allem Stellen, an denen ein Ausfall wie „keine Daten“ aussah, Nullen statt Strichen, Widersprüche (Spieltage 982 gegen 4.733, Grand Finals 20 gegen 26) und feste Reihenfolgen. Alles wartet auf deine Entscheidung.",
   "naechstes": [
-    "Nach Freigabe von chef-106: nächsten Stundenlauf prüfen (kein „FEHLT 300 s“, peterbot S42 = 83 Matches)",
-    "Weitere stille Ausfälle auf Statistik- und Profilseiten suchen",
-    "Mshary in zwei Orgs – Betreiber fragen"
+    "Nach Freigabe von chef-106: Stundenlauf prüfen (peterbot S42 = 83 Matches, Strecke ≈ 3.912 km)",
+    "FNCS All-Time: Teilsummen als „unvollständig“ kennzeichnen statt speichern",
+    "POV-Statistik: Ausfall nur bei Mehrheit der Regionen melden",
+    "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs-Liste (seit Beitritt); Mshary in zwei Orgs"
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-106) + Sonnet (chef-107–109)",
-  "laeuftSeit": "2026-11-01T01:47:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-110/117/118/127) + Sonnet (übrige)"
 }
