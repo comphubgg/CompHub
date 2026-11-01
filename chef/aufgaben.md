@@ -8,6 +8,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-182) **Hinweis „ab N Spielen“ fehlt an den Cup-Kacheln** „Longest Avg Time Alive“, „Best K/D“, „Best Average Placement“ (Schwelle: Hälfte der meisten Spiele) – Antwort von cup-stats um die Schwelle ergänzen und an der Kachel zeigen.
 - [ ] **„FNCS Winners“-Hinweis nennt Grand Royale und All-Star Solo nicht**, obwohl sie gezählt werden – Wortlaut mit dem Betreiber klären.
 - [ ] **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
+- [ ] **Teamseite: fehlt die Power-Ranking-Datei, merkt die Seite das nicht** (lib/powerRankings lies() unterscheidet Ausfall nicht von „Datei fehlt“) – größere Änderung.
+- [ ] **Replay-Spielerliste: fehlende Kills erscheinen als 0** (kills ?? 0) – Quelle unterscheidet nicht zwischen „0“ und „unbekannt“; beobachten.
+- [ ] **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
 - [ ] **Hilfs-Worktrees starten auf altem Stand** – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
 
 ## Neu entdeckt (Runde 9, 01.11.2026)
