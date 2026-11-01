@@ -5142,7 +5142,9 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "357c77f"
+    ]
   },
   {
     "id": "chef-235",
@@ -5163,7 +5165,9 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "36fb60e"
+    ]
   },
   {
     "id": "chef-236",
@@ -5182,6 +5186,8 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "af1f6b7"
+    ]
   }
 ]
