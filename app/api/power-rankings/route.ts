@@ -84,14 +84,16 @@ async function holeRoh(request: Request) {
      * Fortschreibung (ueber alle zehntausend), und aus welchen Laendern die ersten hundert kommen.
      */
     if (p.get('uebersicht') === '1') {
+      // Die Spitze und die Top 100 sind Plaetze 1-3 / 1-100, nicht "die ersten Eintraege": fehlt der Anfang der Liste (Epic lieferte am 23.9.2026 nur ab
+      // Platz 101), stuende sonst Platz 101 als Goldkarte da, und die "Top 100" waeren Platz 101-200.
       const liste = stand.spieler;
       const auf = liste.filter((s) => s.deltaPlatz > 0).sort((a, b) => b.deltaPlatz - a.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const ab = liste.filter((s) => s.deltaPlatz < 0).sort((a, b) => a.deltaPlatz - b.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const laender: Record<string, number> = {};
-      for (const s of liste.slice(0, 100).map(mit)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
+      for (const s of liste.filter((x) => x.rank <= 100).map(mit)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
       return NextResponse.json({
         success: true, fetchedAt: stand.geholt, total: liste.length,
-        spitze: liste.slice(0, 3).map(mit), aufsteiger: auf, absteiger: ab,
+        spitze: liste.filter((x) => x.rank <= 3).map(mit), aufsteiger: auf, absteiger: ab,
         laender: Object.entries(laender).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([land, n]) => ({ land, n })),
       });
     }
