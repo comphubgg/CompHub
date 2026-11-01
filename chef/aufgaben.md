@@ -8,6 +8,12 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-254) **Profil-Stärkefelder: unbekannte Quoten als Rang 0**.
 - [ ] **Vergleich → Platzierungen: wer einen Cup allein gespielt hat, steht grün als Sieger** – Gestaltungsfrage (nicht gespielt ≠ unbekannt); Betreiber fragen. Entwurf liegt vor (neutral färben).
 - [ ] **Statistik-Zahlen: Regionen mit gleicher Spielerzahl ohne feste Reihenfolge**; Org-Spieler bei gleichem Betrag nach Dateireihenfolge – klein.
+- [x] (chef-255 bis chef-265) Runde 14: Schadensquote-Bestenliste, Replay-Tausender, Preisgeld-Summe vergangener Cups, Seitenfuß Power Rankings, Globals-Solos-Punkte, FNCS-Treppchen, Finale-Summen, Gleichstände, Tierlist-Ausfall, Qualifikation (0 und 502).
+- [ ] **/api/cup-quali: Ausfall = leere Liste mit ok:false** – Seite unterscheidet Ausfall nicht von „keine Bedingungen“; Hinweis „gerade nicht erreichbar“ ergänzen.
+- [ ] **Globals Solos Tafel: unbekannte Punkte als leere Zelle statt „–“** (app/globals-solos/SolosSeite.tsx).
+- [ ] **Startvitrine (schlank): fehlende Elims/Schaden/Matches werden 0** – prüfen, ob sichtbar.
+- [ ] **cup-ranked: Namen werden für alle ids aufgelöst, genutzt nur 25** – Tempo.
+- [ ] **solos-/globals-preisgeld: unbezahlte erste Stufe würde den nächsten Betrag erben** – nur theoretisch.
 - [ ] **Saisonliste S42: Strecke („distanz“) wohl auch 100× zu klein** (ChapGOTY 7: 3,1 km in 90 Matches) – wie bei S41; Spalte wird nicht gezeigt, kommt mit der Neuberechnung (chef-106).
 
 ## Neu entdeckt (Runde 13, 01.11.2026)
