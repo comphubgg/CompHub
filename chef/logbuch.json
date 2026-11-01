@@ -3450,5 +3450,26 @@
     ],
     "groesse": "klein",
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-01T03:34:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-160",
+    "titel": "Solo-Finale: K/D in Player Stats stimmt",
+    "kurz": "FNCS Solo Final EU → Player Stats → K/D: Shxrk 3,8 statt 9,5.",
+    "markieren": [
+      "text:K/D",
+      "text:Shxrk"
+    ],
+    "warum": "Die Kills kamen aus allen 6 Spielen, die Tode nur aus den 2 bis 4 schon gelesenen Replays – Shxrk stand bei 9,5 (19 Kills, 2 Tode), Epic sagt 3,8.",
+    "was": "Im Solo gelten als Tode Spiele minus Siege aus Epics Bestenliste; ist das nicht sicher, steht ein Strich statt einer zu hohen Zahl.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

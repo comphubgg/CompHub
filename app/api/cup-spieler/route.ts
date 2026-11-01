@@ -324,11 +324,12 @@ async function holeRoh(request: Request) {
    * 12 Spielen -> 5,83; Bestenliste und Kacheln derselben Seite: 3,2). Jetzt: Tode mindestens Spiele minus Siege, die Siege aus Epics
    * Bestenliste - nur bei kleinen Feldern (Finals), damit grosse offene Runden nicht hunderte Seiten abfragen.
    */
+  const siegeVon = new Map<string, { spiele: number; siege: number }>();
   const rep = await (async () => {
     if (!repRoh?.spieler.length || !event || repRoh.spieler.length > 300 || tage.some((w) => /reload/i.test(w))) return repRoh;
     if (!repRoh.teams?.length || !repRoh.teams.every((x) => (x.spieler?.length ?? 1) <= 1)) return repRoh;
     try {
-      const siege = new Map<string, { spiele: number; siege: number }>();
+      const siege = siegeVon;
       for (const w of tage) {
         const d = await gecacht(`stats|${event}|${w}|300`, 45_000, () => holeTop(event, w, 300));
         for (const e of (d.entries ?? []) as CupEintrag[]) {
@@ -360,9 +361,15 @@ async function holeRoh(request: Request) {
         const r = ausRep.get(x.epicId);
         x.knocks = r?.knocks ?? x.knocks;
         // Wie bei allen anderen Cups: Eliminierungen je Match und K/D (Tode aus den Replays), ab fuenf Spielen.
-        if (r) x.tode = r.gestorben;
+        // Zaehlen die Replays weniger Spiele als die Szene-Quelle (Tag 2 FNCS Solo Final EU: Replays 2 von 6 Spielen), sind ihre Tode eine Teilsumme -
+        // 5,5 K/D (11 Kills, 2 Tode) neben Epics 1,83. Dann gilt im Solo Spiele minus Siege aus Epics Bestenliste, sonst kein K/D.
+        const s = siegeVon.get(x.epicId.toLowerCase());
+        const todeSolo = s && s.spiele === x.spiele ? Math.max(0, s.spiele - s.siege) : null;
+        const voll = !!r && r.matches === x.spiele;
+        if (voll) x.tode = Math.max(r!.gestorben, todeSolo ?? 0);
+        else if (todeSolo !== null) x.tode = todeSolo;
         // Im Finale spielt jeder alle Spiele - dort reicht die Zahl der Spiele des Finales (Performance: vier).
-        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(r ? { kd: x.kills / Math.max(1, r.gestorben) } : {}) });
+        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(voll || todeSolo !== null ? { kd: x.kills / Math.max(1, x.tode) } : {}) });
       }
     }
     if (kennzahl) {
