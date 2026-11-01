@@ -74,7 +74,7 @@ function Spitze({ e }: { e: FncsEreignis }) {
           <span className={`w-4 text-center font-black tabular-nums ${PLATZ_FARBE[i] ?? 'text-slate-500'}`}>{p.rang}</span>
           <TeamFlagge groesse={p.spieler.length > 1 ? 24 : 18} laender={p.spieler.map((x) => x.land)} />
           <span className="min-w-0 flex-1 truncate font-bold uppercase tracking-wide text-slate-100">{p.spieler.map((x) => x.name).join(' · ')}</span>
-          <span className="w-11 text-right tabular-nums text-sky-400">{p.punkte ?? '–'}</span>
+          <span className="w-11 text-right tabular-nums text-sky-400">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span>
           <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
         </li>
       ))}
@@ -174,7 +174,7 @@ function Treppchen({ e, gross = false }: { e: FncsEreignis; gross?: boolean }) {
                 {p.spieler.map((x) => x.name).join(' · ')}
               </span>
               <span className={`mt-0.5 text-center tabular-nums ${gross ? 'text-xs' : 'text-[10px]'}`}>
-                <span className="font-bold text-sky-300">{p.punkte ?? '–'}</span><span className="text-slate-500"> PTS</span>
+                <span className="font-bold text-sky-300">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span><span className="text-slate-500"> PTS</span>
                 <span className="text-slate-600"> · </span><span className="font-bold text-emerald-400">{p.preis ?? '–'}</span>
               </span>
               <span className={`mt-2 flex w-full items-start justify-center rounded-t-xl border border-b-0 pt-1.5 ${hoehe[i]} ${erster
@@ -193,7 +193,7 @@ function Treppchen({ e, gross = false }: { e: FncsEreignis; gross?: boolean }) {
               <span className="w-4 text-center font-black tabular-nums text-slate-500">{p.rang}</span>
               <TeamFlagge groesse={p.spieler.length > 1 ? 20 : 14} laender={p.spieler.map((x) => x.land)} />
               <span className="min-w-0 flex-1 truncate font-bold uppercase text-slate-300">{p.spieler.map((x) => x.name).join(' · ')}</span>
-              <span className="w-10 text-right tabular-nums text-sky-300">{p.punkte ?? '–'}</span>
+              <span className="w-10 text-right tabular-nums text-sky-300">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span>
               <span className="w-12 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
             </li>
           ))}
