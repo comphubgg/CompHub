@@ -2372,7 +2372,9 @@
     "ansehen": [
       "/statistics?bereich=orgs"
     ],
-    "commits": [],
+    "commits": [
+      "590c7ba"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
@@ -2393,7 +2395,9 @@
     "ansehen": [
       "/statistics?bereich=vergleich"
     ],
-    "commits": [],
+    "commits": [
+      "791f537"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
