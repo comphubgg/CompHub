@@ -7027,8 +7027,10 @@ export default function StatistikSeite() {
                                   </td>
                                 </tr>
                               ) : z ? (() => {
+                                // Dasselbe Fenster wie bei der Summe oben (Escargo, Bratwurst, BambiRaptor, Dinosauron, MannekenPis) -
+                                // sonst fehlte bei den Global Championships der LAN-Name und der Endplatz.
                                 const lan = lanErgebnisse.find((l) => l.season === z.season
-                                  && (l.kennung.includes('reload') ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId)));
+                                  && (l.fenster ?? '').split('_')[0] === z.windowId.split('_')[0]);
                                 return (
                                   <tr key={z.windowId + z.region} className="border-b border-zinc-900">
                                     <td className="px-3 py-2 text-slate-200">
