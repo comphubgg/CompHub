@@ -5746,5 +5746,26 @@
     "commits": [
       "3571ecd"
     ]
+  },
+  {
+    "id": "chef-261",
+    "datum": "2026-11-01T06:08:00Z",
+    "titel": "Finale-Endstand: fehlende Matches/Elims als Strich",
+    "kurz": "Statistik → Spieltage → mehrtägiges Finale: fehlende Matches/Elims zeigen „–“ statt 0 oder halbe Summe.",
+    "markieren": [
+      "text:Matches",
+      "text:Elims"
+    ],
+    "bereich": "Statistik",
+    "warum": "Führte ein Tag eines zweitägigen Finales keine Matches oder Elims, zeigte der Endstand 0 oder nur die Zahl des anderen Tages.",
+    "was": "Die Summe über alle Tage bleibt jetzt leer (Strich), sobald ein Tag den Wert nicht hat.",
+    "ansehen": [
+      "/statistics?bereich=spieltage"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

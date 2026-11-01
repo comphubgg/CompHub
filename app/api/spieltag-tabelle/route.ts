@@ -23,7 +23,7 @@ import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstan
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-interface Team { platz: number; punkte: number; matches?: number; teamElims?: number; spieler: string[] }
+interface Team { platz: number; punkte: number; matches?: number | null; teamElims?: number | null; spieler: string[] }
 
 async function liesDatei(ordner: string, saison: string, fenster: string) {
   try {
@@ -99,7 +99,8 @@ export async function GET(request: Request) {
   const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/)
     ?? (p.get('gesamt') === '1' ? fenster.match(/^(?:MannekenPis|Dinosauron|BambiRaptor)_Day(\d+)$/) : null);
   if (daten?.teams?.length && letzterTag && Number(letzterTag[1]) >= 2) {
-    const summe = new Map<string, { spieler: string[]; punkte: number; matches: number; teamElims: number }>();
+    // matches/teamElims bleiben null, sobald ein Tag sie nicht fuehrt - eine halbe Summe oder eine 0 waere falsch.
+    const summe = new Map<string, { spieler: string[]; punkte: number; matches: number | null; teamElims: number | null }>();
     let vollstaendig = true;
     for (let t = 1; t <= Number(letzterTag[1]); t++) {
       const tagFenster = fenster.replace(/Day\d+/, `Day${t}`);
@@ -108,8 +109,10 @@ export async function GET(request: Request) {
       if (!tag?.teams?.length) { vollstaendig = false; break; }
       for (const team of tag.teams) {
         const k = [...team.spieler].sort().join(',');
-        const e = summe.get(k) ?? { spieler: team.spieler, punkte: 0, matches: 0, teamElims: 0 };
-        e.punkte += team.punkte; e.matches += team.matches ?? 0; e.teamElims += team.teamElims ?? 0;
+        const e = summe.get(k) ?? { spieler: team.spieler, punkte: 0, matches: t === 1 ? 0 : null, teamElims: t === 1 ? 0 : null };
+        e.punkte += team.punkte;
+        e.matches = e.matches === null || team.matches == null ? null : e.matches + team.matches;
+        e.teamElims = e.teamElims === null || team.teamElims == null ? null : e.teamElims + team.teamElims;
         summe.set(k, e);
       }
     }
