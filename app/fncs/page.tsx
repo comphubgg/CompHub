@@ -28,7 +28,7 @@ interface Sp { id: string; name: string; land: string | null; bild: string | nul
 interface Titel { id: string; name: string; land: string | null; titel: number }
 type AllTime = { events: Ev[]; spieler: Sp[]; ab: string; titel: Titel[]; laender: Array<{ land: string; titel: number }>; rekorde: FncsRekorde | null };
 
-const landName = (code: string) => { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code; } catch { return code; } };
+const landName = (code: string) => { try { return new Intl.DisplayNames([ortJetzt()], { type: 'region' }).of(code) ?? code; } catch { return code; } };
 
 /** Eine Tafel der All-Time Stats: Kopfzeile, darunter die Liste (scrollt in sich, ohne Aufklapp-Knopf). */
 function Tafel({ titel, unter, children }: { titel: string; unter?: string; children: React.ReactNode }) {
