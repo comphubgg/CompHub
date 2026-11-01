@@ -4106,11 +4106,12 @@ export default function StatistikSeite() {
    * Die Unterzeilen werden hier zusammengesetzt und müssen deshalb selbst übersetzt werden: ein fertiger Satz geht an <T> vorbei.
    */
   /* Ein FNCS-Global-Championship-Sieg steht schon in fncs.titel (als "GLOBALS <Jahr>") und zugleich in lanErgebnisse - nur einmal zaehlen. */
-  const lanSiege = lanErgebnisse.filter((l) => {
+  const lanSiegeListe = lanErgebnisse.filter((l) => {
     if (l.platz !== 1) return false;
     const jahr = /global-championship-(\d{4})/.exec(l.kennung)?.[1];
     return !(jahr && fncsGrandFinals.some((f) => f.platz === 1 && f.saison === `GLOBALS ${jahr}`));
-  }).length;
+  });
+  const lanSiege = lanSiegeListe.length;
   const kennzahlen: Array<[string, string, string]> = !offen ? [] : [
                   /*
                    * Die Unterzeilen werden hier zusammengesetzt und muessen
@@ -7261,7 +7262,7 @@ export default function StatistikSeite() {
                               </tr>
                             </thead>
                             <tbody>
-                              {lanErgebnisse.map((l) => (
+                              {lanSiegeListe.map((l) => (
                                 <tr key={l.kennung} className="border-b border-zinc-900">
                                   <td className="whitespace-nowrap px-2 py-2.5">
                                     <span className="font-semibold text-slate-200">

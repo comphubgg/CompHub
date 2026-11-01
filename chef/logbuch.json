@@ -5315,5 +5315,26 @@
     "commits": [
       "1b9d97c"
     ]
+  },
+  {
+    "id": "chef-242",
+    "datum": "2026-11-01T04:59:27Z",
+    "titel": "Profil: Fenster „FNCS-Siege“ zeigt nur Siege",
+    "kurz": "Profil → Abzeichen „FNCS-Sieger“ anklicken: Liste zeigt nur noch echte Siege.",
+    "markieren": [
+      "text:FNCS-Siege",
+      "text:LAN"
+    ],
+    "bereich": "Statistik",
+    "warum": "Das Fenster „FNCS-Siege“ listete alle LAN-Ergebnisse mit, auch 12. oder 37. Plätze – bei peterbot 13 Zeilen statt 6 Titel, Globals 2024 doppelt.",
+    "was": "Es zeigt jetzt nur LAN-Siege, die nicht schon als FNCS-Titel dastehen – passend zur Titelzahl im Kopf.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
