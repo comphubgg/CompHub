@@ -142,7 +142,16 @@ export async function GET(request: Request) {
       headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
     });
   } catch {
-    return berechne(request);
+    /*
+     * Faellt auch die Neuberechnung aus (Ablage oder Archiv nicht erreichbar), ist das ein erwarteter Ausfall der Quelle und kein Fehler des
+     * Servers: 424 mit Hinweis statt eines unbehandelten 500, den die Seite wie "keine Spieler" lesen koennte.
+     */
+    try {
+      return await berechne(request);
+    } catch (e) {
+      return NextResponse.json({ success: false, error: (e as Error).message || 'Quelle nicht erreichbar' },
+        { status: 424, headers: { 'Cache-Control': 'no-store', 'Retry-After': '120' } });
+    }
   }
 }
 

@@ -6083,5 +6083,23 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:56:29Z"
+  },
+  {
+    "id": "chef-276",
+    "titel": "Spieler-Center: Ausfall ohne Server-Fehler",
+    "kurz": "Unsichtbar: fällt das Archiv aus, antwortet die Spielerliste im Admin ohne Server-Fehler.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Fiel neben der vorgerechneten Liste auch das Archiv aus, kam ein Server-Fehler (500) – der Lastverteiler macht daraus eine Fehlerseite.",
+    "was": "Jetzt kommt eine geordnete Antwort „gerade nicht erreichbar“ mit neuem Versuch nach zwei Minuten.",
+    "ansehen": [
+      "/admin/players"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T06:00:05Z"
   }
 ]
