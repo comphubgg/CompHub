@@ -4,18 +4,18 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 ## Neu entdeckt (Runde 11, 01.11.2026)
 
-- [ ] **Twitch-Kanalvorschläge im Flaggen-/Twitch-Editor der Cup-Seite** (app/events/[id]/page.tsx, twitchSuchen ~Z. 5473) zeigen den deutschen, technischen `hinweis`-Text der Schnittstelle – auf übersetzten Hinweis umstellen (nur Admin).
-- [ ] **Streams-Seite: toter Code** (kachelAusSuche, setKachelSuche, kanalFunde – nie angezeigt) und auf der Statistikseite `suchen`, `vglLaden`, `laufende` – aufräumen.
+- [x] (chef-237) **Twitch-Kanalvorschläge im Flaggen-/Twitch-Editor der Cup-Seite** (app/events/[id]/page.tsx, twitchSuchen ~Z. 5473) zeigen den deutschen, technischen `hinweis`-Text der Schnittstelle – auf übersetzten Hinweis umstellen (nur Admin).
+- [x] (chef-236) **Streams-Seite: toter Code** (kachelAusSuche, setKachelSuche, kanalFunde – nie angezeigt) und auf der Statistikseite `suchen`, `vglLaden`, `laufende` – aufräumen.
 - [ ] **Admin Tweets: Genauigkeit aus Replay-Treffern und Szene-Schüssen gemischt** – die Cup-Spieler-Antwort rechnet nur aus der Szene-Quelle; Tweet und Seite können verschiedene Werte zeigen.
 - [ ] **Ranked-Cups: K/D mit „Tode = Spiele − Siege“** – bei 1 bis 11 Spielen je Team fraglich; Betreiber fragen, ob die Ranked-Statistik so bleiben soll.
 - [ ] **Live-Status merkt sich „unbekannt“ im Seiten-Ausweichweg** (ueberSeite, MERK_DAUER) – nach einem Ausfall bleibt der Hinweis bis zum Ablauf stehen. Beobachten.
 - [ ] **Profil-Ansicht: Epic-Wert damageRatio je Zeile ≠ Schaden/erlitten** (z. B. Solo Final Tag 2: 2,69 gegen 3.980/1.552 = 2,56) – CompHub rechnet selbst, Epic anders. Nur Hinweis, keine Anzeige betroffen.
-- [ ] **Benennung Trefferquote uneinheitlich**: Spielerliste „Treffer %“, Bestenliste/Profil „Trefferquote“, Vergleich „Genauigkeit“ – auf ein Wort einigen.
+- [x] (chef-233) **Benennung Trefferquote uneinheitlich**: Spielerliste „Treffer %“, Bestenliste/Profil „Trefferquote“, Vergleich „Genauigkeit“ – auf ein Wort einigen.
 - [x] **FNCS-Elims-Tabelle je Major** (schon mit chef-220 erledigt): sortiert nur innerhalb der 80 Besten nach Gesamt – wer in einem Major viel hatte, insgesamt aber nicht Top 80 ist, fehlt.
 - [ ] **FNCS-Ereignisse: Punkte der Plätze 1–5 fehlen** bei Invitational 2022, Global Championship 2023 und 2025 (Quelle liefert nur den Platz) – Oberfläche zeigt „–“, korrekt.
 - [ ] **Live-Antwort /api/fncs-alltime älter als der Code** (Listenende nicht nach bestem Major sortiert) – nach dem nächsten Bau prüfen.
 - [ ] **Turnierverzeichnis: Regionsfilter EU blendet Globals aus**, wenn die LAN-Kachel NAC trägt (seit chef-228 bevorzugt EU) – nach Bau prüfen; ggf. LAN-Kachel bei jeder Region zeigen (Betreiber fragen).
-- [ ] **Spieltag-Einzelwerte mit limit=500** – bei offenen Cups mit mehr Teilnehmern kommen Bestwerte (Trefferquote) nur aus den 500 mit den meisten Elims.
+- [x] (chef-235, Spieltag-Ansicht; offen: Regions-Saisonliste und Reihen-Abfrage nutzen auch limit=500) **Spieltag-Einzelwerte mit limit=500** – bei offenen Cups mit mehr Teilnehmern kommen Bestwerte (Trefferquote) nur aus den 500 mit den meisten Elims.
 - [ ] **Mindestspiele uneinheitlich**: Cup-Statistik-Kacheln (cup-stats) = Hälfte der meisten Spiele, Reiter Spieler = 5 (Betreibervorgabe) – bei 6-Spiele-Tagen 3 gegen 5. Betreiber fragen, ob angleichen.
 - [ ] **Cup-Seite: Schaden in Teamtabelle (Epic, gesamt) ≠ Reiter Spieler (Replays, nur an Spielern)** – z. B. Nxthan 15.424 gegen 4.497. Eigene Titel, aber verwirrend – Beschriftung klarer machen?
 - [ ] **Duo-Cups: Spieler-Elims weichen 1–2 von Team-Elims ab** (Replay-Zählung gegen Epic) – Quelle, kein Code-Fehler.
@@ -38,8 +38,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-207) **Events-Kopf: Archivzahlen („319 tournaments on 393 days“) ohne Tausendertrennung** – erst ab 1.000 sichtbar.
 - [x] (chef-208) **Live-Status-Schnittstelle: Twitch-Ausfall erscheint als „alle offline“** (app/api/live-status, catch setzt isLive:false) – als Ausfall melden.
 - [x] (chef-209) **Kanalsuche: Ausfall lässt Vorschläge still leer** (streams page.tsx, MvSeitenleiste – Feld „hinweis“ der Antwort wird nicht gezeigt).
-- [ ] **Admin alte-maps: Datum fest deutsch, Fehlermeldung nicht übersetzt** (nur Admin).
-- [ ] **Hilfs-Worktrees starten auf altem Stand** – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
+- [x] (chef-234) **Admin alte-maps: Datum fest deutsch, Fehlermeldung nicht übersetzt** (nur Admin).
+- [ ] **Hilfs-Worktrees starten auf altem Stand und ohne node_modules** (Runde 12: in der Cloud fehlt node_modules – zuerst `npm ci --ignore-scripts`, sonst ist tsc wertlos) – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
 
 ## Neu entdeckt (Runde 9, 01.11.2026)
 

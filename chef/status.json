@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-01T04:17:00Z",
-  "macheGerade": "Runde 11 fertig: 26 Verbesserungen (chef-207 bis chef-232), fast alle an der Statistik: Cup-Statistik zählt Spiele des ganzen Feldes, abgesagte Runden ganz herausgerechnet, FNCS-All-Time je Major vollständig, Globals-Kachel nicht doppelt, Vergleich rechnet „je Match“/„je Minute“ wie das Profil, Profil zeigt Kopftreffer-Anteil und Zeiten, „ab 5 Matches“ an Cup-Kacheln, viele Ausfall-Hinweise statt leerer Stellen (Streams, Cup-Seite, Profil), 22 fehlende englische Texte. Alles wartet auf deine Entscheidung.",
+  "letzteRunde": "2026-11-01T05:06:00Z",
+  "macheGerade": "Runde 12 fertig: 5 Verbesserungen (chef-233 bis chef-237): Spielerliste heißt „Trefferquote“ wie überall, Cup-Bestwerte großer Cups aus dem ganzen Feld, toter Code auf Streams/Statistik weg (eine unnötige Abfrage weniger), zwei Übersetzungen im Admin. FNCS-Elims je Major war schon mit chef-220 erledigt.",
   "naechstes": [
     "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
     "Frage an dich: Orgs – soll ein neuer Beitritt den alten Aufenthalt automatisch beenden? (Cold, Mshary, Curve werden sonst doppelt gezählt) Oder pflegst du Enddaten im Admin?",
     "Weitere Fragen: Mindestspiele Cup-Kacheln (Hälfte) gegen Spieler-Reiter (5) angleichen? Teamseite „Earnings“ gegen Orgs; zählen Asien-Siege als FNCS-Titel?",
-    "Nächste Runde: LAN-Preisgeld in der Jahresliste mit Daten prüfen, weitere Statistik-Prüfung (Saisonliste, Regionen)."
+    "Nächste Runde: weitere Statistik-Prüfung (Saisonliste, Regionen, limit=500 bei Regions-Saisonliste und Reihen-Abfrage), Admin Tweets Genauigkeit."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-207/219) + Sonnet (übrige)",
-  "laeuftSeit": "2026-11-01T04:27:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-233/234/237) + Sonnet (chef-235/236)"
 }
