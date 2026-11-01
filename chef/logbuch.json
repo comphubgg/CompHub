@@ -4530,5 +4530,25 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-207",
+    "titel": "Events-Kopf: Archivzahlen mit Tausenderpunkt",
+    "kurz": "Events → Kopfzeile: Archivzahlen bekommen ab 1.000 einen Tausenderpunkt.",
+    "markieren": [
+      "text:tournaments on"
+    ],
+    "bereich": "Events",
+    "warum": "Die Archivzahlen standen ohne Trennung da – ab 1.000 Turnieren schwer lesbar.",
+    "was": "Die Zahlen folgen jetzt dem Zahlenformat der Seitensprache (1,000 bzw. 1.000).",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "datum": "2026-11-01T03:50:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

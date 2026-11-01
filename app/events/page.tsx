@@ -642,7 +642,7 @@ export default function EventsPage() {
                 <T>Bestenlisten und Statistiken zu allen Fortnite-Turnieren - direkt von Epic.</T>
                 {archiv.turniere > 0 && (
                   <span className="font-normal text-slate-400">
-                    {' '}<T>Im Archiv liegen</T> {archiv.turniere} <T>Turniere an</T> {archiv.tage} <T>Tagen.</T>
+                    {' '}<T>Im Archiv liegen</T> {archiv.turniere.toLocaleString(sprache === 'en' ? 'en-GB' : 'de-DE')} <T>Turniere an</T> {archiv.tage.toLocaleString(sprache === 'en' ? 'en-GB' : 'de-DE')} <T>Tagen.</T>
                   </span>
                 )}
               </p>
