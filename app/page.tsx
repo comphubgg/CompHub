@@ -230,6 +230,9 @@ export default function Startseite() {
    * oder ob es nichts zu zeigen gibt.
    */
   const [laedt, setLaedt] = useState(true);
+  /** Die Zahlen oben waren nicht zu holen: Hinweis statt stiller Striche, neuer Versuch nach zehn Sekunden. */
+  const [fehlt, setFehlt] = useState(false);
+  const [versuch, setVersuch] = useState(0);
   /*
    * Die genaue Zahl der ausgewerteten Matches (Betreiber, 31.10.2026): "lass die Funktion so (1M+), aber wenn ich draufklicke - egal welcher
    * User - sehe ich die genaue Zahl". Ein Klick zeigt sie ausgeschrieben und holt dabei den neuesten Stand; nach dem Neuladen steht wieder 1M+.
@@ -245,6 +248,8 @@ export default function Startseite() {
   };
 
   useEffect(() => {
+    let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     void Promise.resolve().then(async () => {
       try {
         /*
@@ -280,7 +285,7 @@ export default function Startseite() {
         const replays = typeof zahl?.ausgewertet === 'number' && zahl.ausgewertet > 0 ? null
           : await fetch('/api/replays', { signal: frist }).then((r) => r.json()).catch(() => null);
         // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
-        setStand({
+        const neu: Stand = {
           saisons: archiv?.saisons?.length ?? null,
           spieltage: Math.max(
             alleZeit?.success && typeof alleZeit.spieltage === 'number' ? alleZeit.spieltage : 0,
@@ -290,11 +295,22 @@ export default function Startseite() {
           replays: Math.max(zahl?.ausgewertet ?? 0, (replays?.fenster ?? []).reduce(
             (n: number, f: { zaehler?: Record<string, number> }) =>
               n + (f.zaehler?.PARSED ?? 0), 0)) || null,
-        });
-      } catch { /* dann bleiben die Zahlen aus */ }
-      finally { setLaedt(false); }
+        };
+        if (weg) return;
+        setStand(neu);
+        // Fehlt jede Zahl, ist die Quelle ausgefallen: kein stilles Strich-Raster, sondern Hinweis und neuer Versuch.
+        const alleLeer = neu.spieltage == null && neu.saisons == null && neu.regionen == null && neu.replays == null;
+        setFehlt(alleLeer);
+        if (alleLeer) nochmal = setTimeout(() => { if (!weg) setVersuch((n) => n + 1); }, 10_000);
+      } catch {
+        if (weg) return;
+        setFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setVersuch((n) => n + 1); }, 10_000);
+      }
+      finally { if (!weg) setLaedt(false); }
     });
-  }, []);
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [versuch]);
 
   /*
    * "Matches ausgewertet" live (Betreiber, 30.10.2026: "ich bin AFK auf dieser Seite, ich sehe live, wie die Zahl nach oben geht"): jede Minute die
@@ -397,6 +413,11 @@ export default function Startseite() {
               </div>
             ))}
           </div>
+          {fehlt && (
+            <p role="alert" className="mt-3 text-center text-sm text-slate-400">
+              <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+            </p>
+          )}
           <p className="mt-3 text-center text-[11px] text-slate-500">
             <T>Live aus dem eigenen Archiv — keine geschätzten Zahlen.</T>
           </p>
