@@ -6053,7 +6053,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "4be09b6"
+    ],
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:55:38Z"
