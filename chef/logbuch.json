@@ -5123,5 +5123,25 @@
     "commits": [
       "9b0d25b"
     ]
+  },
+  {
+    "id": "chef-234",
+    "datum": "2026-11-01T04:50:00Z",
+    "titel": "Admin Alte Maps: Datum und Fehlermeldung übersetzt",
+    "kurz": "Admin → Alte Maps: Datum im Sprachformat, Ladefehler auf Englisch.",
+    "markieren": [
+      "css:table td.tabular-nums"
+    ],
+    "bereich": "Admin",
+    "warum": "Das Datum stand immer deutsch, die Fehlermeldung beim Laden hatte keine Übersetzung.",
+    "was": "Datum folgt jetzt der gewählten Sprache; die Fehlermeldung nutzt den vorhandenen übersetzten Satz.",
+    "ansehen": [
+      "/admin/alte-maps"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

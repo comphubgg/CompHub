@@ -14,7 +14,8 @@ import { useEffect, useMemo, useState } from 'react';
 import KartenUpdateWahl from '@/app/components/KartenUpdateWahl';
 import Link from 'next/link';
 import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useSprache, useT } from '@/app/components/SprachProvider';
+import { ortVon } from '@/app/lib/ort';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 
@@ -27,10 +28,13 @@ interface Eintrag {
 interface Saison { kennung: string; nr: number; name: string; kurz: string; kapitel: number }
 interface Zahlen { formen: number; teams: number; rang: number; versteckt: boolean }
 
-const DATUM = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Brussels' });
+/** Datum im Format der gewählten Sprache (vorher fest deutsch). */
+const DATUM_FORM: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Brussels' };
 
 export default function AlteMapsVerwaltung() {
   const t = useT();
+  const { sprache } = useSprache();
+  const DATUM = useMemo(() => new Intl.DateTimeFormat(ortVon(sprache), DATUM_FORM), [sprache]);
   const zugang = useZugang();
   const [eintraege, setEintraege] = useState<Eintrag[] | null>(null);
   const [zahlen, setZahlen] = useState<Record<string, Zahlen>>({});
@@ -51,9 +55,9 @@ export default function AlteMapsVerwaltung() {
     fetch('/api/alte-maps?liste=1', { cache: 'no-store' }).then((r) => r.json()),
     fetch('/api/maps-liste', { cache: 'no-store' }).then((r) => r.json()),
   ]).then(([a, l]) => {
-    if (!a?.ok) { setFehler(a?.error || 'Die Karten ließen sich nicht laden.'); return; }
+    if (!a?.ok) { setFehler(a?.error || 'Die Karten ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.'); return; }
     setEintraege(a.eintraege ?? []); setZahlen(a.zahlen ?? {}); setSaisons(l?.saisons ?? []); setFehler('');
-  }).catch(() => setFehler('Die Karten ließen sich nicht laden.'));
+  }).catch(() => setFehler('Die Karten ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.'));
 
   useEffect(() => { if (zugang.admin) void laden(); }, [zugang.admin]);
 
