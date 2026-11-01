@@ -5950,5 +5950,25 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:51:30Z"
+  },
+  {
+    "id": "chef-270",
+    "titel": "Orgs: Preisgeld-Ausfall nicht als „wird gerechnet“",
+    "kurz": "Unsichtbar: Statistik → Orgs sagt bei Ausfall „Preisgeld gerade nicht erreichbar“ statt „wird gerechnet“.",
+    "markieren": [
+      "text:Organizations"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Preisgeld-Ablage aus, stand dort „Wird innerhalb der nächsten Stunde gerechnet“ – das stimmte nicht.",
+    "was": "Die Seite unterscheidet jetzt Ausfall und „noch nicht gerechnet“.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:51:39Z"
   }
 ]

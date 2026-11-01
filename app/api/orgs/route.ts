@@ -91,13 +91,15 @@ export async function GET(request: Request) {
   const alleJahre = new URL(request.url).searchParams.get('zeitraum') === 'alle';
   const schluessel = alleJahre ? SCHLUESSEL_ALLE : SCHLUESSEL;
   let verdienst: VerdienstAntwort | null = null;
+  // Ausfall der Ablage ist etwas anderes als "noch nicht gerechnet" - die Seite soll "nicht erreichbar" sagen, nicht "wird gerechnet".
+  let ausfall = false;
   try {
     verdienst = await abgelegteAntwort<VerdienstAntwort>(schluessel);
     if (!verdienst && !ohneDateien()) {
       verdienst = alleJahre ? await rechneAlle(orgs) : await rechne(orgs);
       await legeAntwortAb(schluessel, verdienst);
     }
-  } catch { verdienst = null; }
+  } catch { verdienst = null; ausfall = true; }
 
   // Anzeige je Konto: der gepflegte Name, die Flagge, das Foto.
   const [profile, bilder] = await Promise.all([
@@ -185,7 +187,7 @@ export async function GET(request: Request) {
     || b.spieler.length - a.spieler.length
     || a.name.localeCompare(b.name));
 
-  return NextResponse.json({ jahr: alleJahre ? 'alle' : ORGS_JAHR, stand: verdienst?.zeit ?? null, orgs: raus });
+  return NextResponse.json({ jahr: alleJahre ? 'alle' : ORGS_JAHR, stand: verdienst?.zeit ?? null, ...(ausfall ? { unvollstaendig: true } : {}), orgs: raus });
 }
 
 export async function POST(request: Request) {

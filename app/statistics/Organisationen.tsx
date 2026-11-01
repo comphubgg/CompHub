@@ -42,7 +42,7 @@ interface OrgAnzeige {
   ehemalige?: Array<{ name: string; epicId: string | null; seit: string | null; bis: string | null;
     land: string | null; betrag: number | null; turniere: number | null }>;
 }
-interface Antwort { jahr: number | 'alle'; stand: number | null; orgs: OrgAnzeige[] }
+interface Antwort { jahr: number | 'alle'; stand: number | null; unvollstaendig?: boolean; orgs: OrgAnzeige[] }
 
 /* ------------------------------------------------------------ Zeichen */
 
@@ -266,7 +266,7 @@ export default function Organisationen({ aufSpieler }: {
   const org = offen ? daten.orgs.find((o) => o.id === offen) ?? null : null;
   const standText = daten.stand
     ? `${t('Stand')} ${new Date(daten.stand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-    : t('Wird innerhalb der nächsten Stunde gerechnet');
+    : daten.unvollstaendig ? t('Das Preisgeld ist gerade nicht erreichbar.') : t('Wird innerhalb der nächsten Stunde gerechnet');
   const betragText = (o: OrgAnzeige) => (o.gesamt === null ? '—' : geld.format(o.gesamt));
   /** "2026" oder "Alle Jahre" - fuer Kopf, Kacheln und Karten. */
   const jahrText = daten ? (daten.jahr === 'alle' ? t('Alle Jahre') : String(daten.jahr)) : '';
@@ -399,7 +399,7 @@ export default function Organisationen({ aufSpieler }: {
                         {!!s.turniere && <> · {s.turniere} {s.turniere === 1 ? t('bezahltes Turnier') : t('bezahlte Turniere')}</>}
                       </span>
                       <span className="text-lg font-bold tabular-nums text-slate-50"
-                        title={s.betrag === null ? t('Wird innerhalb der nächsten Stunde gerechnet') : undefined}>
+                        title={s.betrag === null ? (daten.unvollstaendig ? t('Das Preisgeld ist gerade nicht erreichbar.') : t('Wird innerhalb der nächsten Stunde gerechnet')) : undefined}>
                         {s.betrag === null ? '—' : geld.format(s.betrag)}
                       </span>
                     </div>
