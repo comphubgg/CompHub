@@ -7,6 +7,8 @@ import { globalsTeams } from '@/lib/globalsTeams';
  * Das Feld der Global Championship - wer antritt, und woher. Die ganze
  * Zuordnung steht in lib/globalsTeams; die Karten brauchen sie auch, um die
  * LAN-Konten auf die echten Namen zurueckzufuehren.
+ *
+ * Faellt Epic aus, kommt 424 statt 500: der Lastverteiler macht aus jeder 5xx eine Fehlerseite (alle Aufrufer lesen "error").
  */
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(
       { error: (e as Error).message, needsLogin: login },
-      { status: login ? 401 : 500 },
+      { status: login ? 401 : 424 },
     );
   }
 }
