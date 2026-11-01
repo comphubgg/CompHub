@@ -275,7 +275,7 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
                         {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? ''}</td>
+                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? '–'}</td>
                   </tr>
                 );
               })}
