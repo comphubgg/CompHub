@@ -5080,5 +5080,23 @@
     "commits": [
       "24d3272"
     ]
+  },
+  {
+    "id": "chef-232",
+    "titel": "Turnierverzeichnis: fehlende Angaben als Strich",
+    "kurz": "Unsichtbar: Statistik → Cups zeigt „—“ statt 0, wenn Datum, Spieler oder Matches fehlen.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Fehlte einem Spieltag eine Angabe, stand dort 0 oder nichts – das sah aus wie ein echter Wert.",
+    "was": "Jetzt steht ein Strich; eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:13:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

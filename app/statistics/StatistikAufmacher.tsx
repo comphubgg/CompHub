@@ -138,7 +138,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
               </button>
             </div>
             {kacheln.length > 1 && (
-              <div className="mt-6 flex items-center gap-1.5" role="tablist" aria-label="Turniere">
+              <div className="mt-6 flex items-center gap-1.5" role="tablist" aria-label={t('Turniere')}>
                 {kacheln.map((_, i) => (
                   <button key={i} type="button" role="tab" aria-selected={i === nr} onClick={() => setNr(i)}
                     className={`h-1 rounded-full transition-all duration-500 ${i === nr ? 'w-8 bg-slate-100' : 'w-4 bg-white/20 hover:bg-white/40'}`} />

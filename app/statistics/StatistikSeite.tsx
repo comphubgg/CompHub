@@ -4864,11 +4864,11 @@ export default function StatistikSeite() {
                             </h2>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               {[cupAktiv?.region ?? cup.region, saisonTitel,
-                                datumText((cupAktiv ?? cup).datum, sprache),
-                                `${zahl((cupAktiv ?? cup).spieler, 0, sprache)} ${t('Spieler')}`,
-                                `${zahl((cupAktiv ?? cup).matches, 0, sprache)} ${t('Matches')}`]
-                                .filter(Boolean).map((x) => (
-                                  <span key={x} className="rounded border border-zinc-800
+                                datumText((cupAktiv ?? cup).datum, sprache) || '—',
+                                `${zahlOderStrich((cupAktiv ?? cup).spieler, 0, sprache)} ${t('Spieler')}`,
+                                `${zahlOderStrich((cupAktiv ?? cup).matches, 0, sprache)} ${t('Matches')}`]
+                                .filter(Boolean).map((x, i) => (
+                                  <span key={`${i}-${x}`} className="rounded border border-zinc-800
                                                            bg-zinc-900/60 px-2 py-0.5
                                                            text-[11px] text-slate-400">
                                     {x}
@@ -5069,7 +5069,7 @@ export default function StatistikSeite() {
                                       </td>
                                       <td className="px-4 py-2 text-right tabular-nums
                                                      text-slate-500">
-                                        {r.matches !== null ? r.matches : '—'}
+                                        {zahlOderStrich(r.matches, 0, sprache)}
                                       </td>
                                     </tr>
                                   ));
@@ -5179,9 +5179,9 @@ export default function StatistikSeite() {
                               {turnierTitel(t.name)}
                             </p>
                             <p className="mt-1 text-[11px] text-slate-500">
-                              {datumText(t.datum, sprache)}{' '}
-                              · {zahl(t.spieler, 0, sprache)} <T>Spieler</T>
-                              {' '}· {zahl(t.matches, 0, sprache)} <T>Matches</T>
+                              {datumText(t.datum, sprache) || '—'}{' '}
+                              · {zahlOderStrich(t.spieler, 0, sprache)} <T>Spieler</T>
+                              {' '}· {zahlOderStrich(t.matches, 0, sprache)} <T>Matches</T>
                             </p>
                           </div>
                         </button>
