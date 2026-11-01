@@ -22,6 +22,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Startseite Preisgeld: bei Ausfall der Jahresliste Allzeit-Liste unter „2026“** – erneut gefunden, aber das ist der Fall aus chef-6 (abgelehnt). Nicht noch einmal bauen.
 - [x] **Jahresbilanz: gleiche Werte, verschiedene Plätze** (2025 Elims Platz 7/8 mit je 669) – NICHT gebaut: geteilter Rang wurde bei chef-102 abgelehnt. Geprüft sonst ohne Befund (Merstach 2025 = Profil; EU ≤ alle).
 - [x] **Orgs geprüft**: alle 117 Summen = Pro-Spieler + Extras (+ Ehemalige); pixie/SwizzY/Tjino gleich wie im Profil.
+- [ ] **FNCS Solo Final EU Tag 2: Replay-Kopftreffer größer als Epics** (prism: Replays 14, Epic 6) und Schaden-Abstand größer als die üblichen 6 % (Shxrk 4.298 gegen 6.389) – nur 2 bzw. 4 von 6 Replays gelesen; nach vollständiger Auswertung neu messen.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
