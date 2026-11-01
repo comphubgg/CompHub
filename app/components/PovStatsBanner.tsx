@@ -68,8 +68,9 @@ export function PovStatsBanner({ pro, schluessel, einst, name, bild, versetzt = 
     return () => { weg = true; window.clearInterval(uhr); };
   }, [einst.an, pro, schluessel]);
 
-  // Epic-Ausfall ohne vorherigen Stand: kurzer Hinweis statt "spielt in keinem Cup".
-  const nurAusfall = stand === undefined && ausfall;
+  // Epic-Ausfall ohne Stand (noch keiner oder zuletzt "kein Cup"): kurzer Hinweis statt "spielt in keinem Cup" -
+  // ob er jetzt spielt, wissen wir waehrend des Ausfalls nicht. Ein vorhandener Stand bleibt stehen.
+  const nurAusfall = !stand && ausfall;
   if (!einst.an || (stand === undefined && !ausfall)) return null;
   const g = GROESSEN[einst.groesse] ?? GROESSEN.mittel;
   const gespielt = !!stand && stand.spiele > 0;

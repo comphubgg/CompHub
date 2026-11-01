@@ -5475,5 +5475,25 @@
     "commits": [
       "4431ee5"
     ]
+  },
+  {
+    "id": "chef-249",
+    "datum": "2026-11-01T05:12:44Z",
+    "titel": "POV-Statistik: Epic-Ausfall nicht als „spielt in keinem Cup“",
+    "kurz": "Unsichtbar: Streams → POV-Banner zeigt bei Epic-Ausfall „nicht erreichbar“ statt „kein Cup“.",
+    "markieren": [
+      "text:Not playing in a cup right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Stand im Banner einmal „spielt in keinem Cup“ und fiel dann Epic aus, blieb dieser Satz stehen – auch wenn der Profi inzwischen spielte.",
+    "was": "Während eines Ausfalls steht jetzt „Statistik gerade nicht erreichbar“, bis Epic wieder antwortet.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
