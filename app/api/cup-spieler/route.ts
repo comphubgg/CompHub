@@ -633,5 +633,10 @@ async function holeRoh(request: Request) {
 }
 
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 60);
+  // Ein unerwarteter Lesefehler darf nie als 500 enden (der Lastverteiler macht daraus eine Fehlerseite) - 424 wie die übrigen Cup-Routen.
+  try {
+    return zwischenspeichern(await holeRoh(request), 60);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message, vorhanden: false }, { status: 424 });
+  }
 }
