@@ -6005,7 +6005,7 @@
     "warum": "Die Szene-Quelle kennt Knocks und Tode nicht; ohne Replays stand dort für jeden Spieler „0“.",
     "was": "Unbekannte Knocks/Tode zeigen einen Strich, die Kacheln dazu erscheinen nur mit echten Werten.",
     "ansehen": [
-      "/events"
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
     ],
     "groesse": "klein",
     "modell": "Sonnet",
@@ -6162,7 +6162,7 @@
     "warum": "Stand ein Spieler nicht in der Replay-Auswertung, zeigte das Fenster 0 Eliminierungen und 0 Knocks – und rechnete damit den Schnitt.",
     "was": "Ohne Replay-Eintrag sind die Werte unbekannt und zeigen einen Strich.",
     "ansehen": [
-      "/events"
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
     ],
     "groesse": "klein",
     "modell": "Sonnet",
@@ -6185,7 +6185,7 @@
     "warum": "Hatte in einer Platzgruppe niemand Schadenswerte, stand „0“; der Schnitt teilte auch durch Spieler ohne Wert.",
     "was": "Gezählt werden nur Spieler mit echtem Wert; ohne jeden Wert steht ein Strich.",
     "ansehen": [
-      "/events"
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
     ],
     "groesse": "klein",
     "modell": "Sonnet",
