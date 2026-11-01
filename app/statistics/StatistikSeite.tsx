@@ -111,6 +111,8 @@ interface Spieler {
   stormDamage: number; fallDamage: number; mats: number; builds: number;
   distanz: number; timeInStorm: number; timeAlive: number;
   quote: number; genauigkeit: number; elimsProMatch: number; damageProMatch: number;
+  /** Matches aus Tagen mit Eliminierungen bzw. Schaden - Nenner der Je-Match-Werte (nur in vollen Zeilen). */
+  matchesElims?: number; matchesSchaden?: number;
 }
 
 interface Turnier {
@@ -625,7 +627,19 @@ function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string
   if (!sp) return false;
   if (feld === 'quote') return sp.damageTaken !== undefined && !(sp.damageTaken > 0);
   if (feld === 'genauigkeit') return sp.shots !== undefined && !(sp.shots > 0);
-  if (feld === 'elimsProMatch' || feld === 'damageProMatch') return sp.matches !== undefined && !(sp.matches > 0);
+  /*
+   * Je Match: der Nenner sind nur die Matches der Tage, die den Wert fuehren (matchesElims / matchesSchaden, lib/szeneStats) -
+   * eigene Tage ohne gesicherte Kills oder ohne Schaden zaehlen nicht mit. Ein Spieler mit 12 Matches, aber 0 Matches mit Schaden
+   * hat "Schaden je Match" 0 in der Quelle, gemeint ist "unbekannt". Schlanke Zeilen ohne diese Felder gelten nach den Matches.
+   */
+  if (feld === 'elimsProMatch') {
+    const n = sp.matchesElims ?? sp.matches;
+    return n !== undefined && !(n > 0);
+  }
+  if (feld === 'damageProMatch') {
+    const n = sp.matchesSchaden ?? sp.matches;
+    return n !== undefined && !(n > 0);
+  }
   return false;
 }
 /** Wert eines Spielerfeldes als Text - "—" statt 0, wenn der Quotient unbekannt ist. */

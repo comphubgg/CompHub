@@ -6059,5 +6059,27 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:55:38Z"
+  },
+  {
+    "id": "chef-275",
+    "titel": "Spielerliste: Je-Match-Werte ohne Datenbasis als Strich",
+    "kurz": "Statistik → Spieler → nach „Damage per match“ sortieren: ohne Schadensdaten „–“ statt 0.",
+    "markieren": [
+      "text:Damage per match",
+      "text:Elims per match"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte ein Spieler Matches, aber keine mit Schadenswerten, stand „0 Schaden je Match“ – gemeint war „unbekannt“.",
+    "was": "Die Liste prüft jetzt die Matches, die den Wert wirklich führen; ohne sie steht ein Strich.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=damageProMatch",
+      "/statistics?bereich=spieler&sort=elimsProMatch"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:56:29Z"
   }
 ]
