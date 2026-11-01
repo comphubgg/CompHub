@@ -1,5 +1,6 @@
 import { alleTurniere, detail } from '@/lib/nobleKarte';
 import { liesJson } from '@/lib/ablage';
+import { REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
 import { titelMit } from '@/lib/cupTitel';
@@ -336,11 +337,14 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
   for (const e of liste) if ((!e.bild || ersatz.has(e.bild)) && echtesBild.has(e.turnierId)) e.bild = echtesBild.get(e.turnierId) ?? e.bild;
 
   const nr = (e: MapEintrag) => Number(e.saison.slice(1)) || 0;
+  const regionRang = (r: string) => { const i = REGIONEN_REIHE.indexOf(r); return i < 0 ? 99 : i; };
   const mitNoble = new Set(liste.filter((e) => !e.alt).map((e) => e.saison));
   const sichtbar = liste.filter((e) => !SAISON_OHNE_MAPS.has(e.saison) && !istDemo(e));
   sichtbar.sort((a, b) => nr(b) - nr(a)
     || (mitNoble.has(a.saison) ? (b.datum ?? 0) - (a.datum ?? 0) : 0)
-    || (b.reihe ?? 0) - (a.reihe ?? 0) || (b.datum ?? 0) - (a.datum ?? 0));
+    || (b.reihe ?? 0) - (a.reihe ?? 0) || (b.datum ?? 0) - (a.datum ?? 0)
+    // Gleiche Zeit in mehreren Regionen: EU zuerst, dann nach Staerke - nicht in der Reihenfolge, in der die Antworten eintrafen.
+    || regionRang(a.region) - regionRang(b.region) || a.windowId.localeCompare(b.windowId));
   merker = { bis: Date.now() + 15 * 60_000, liste: sichtbar, versteckt };
   return sichtbar;
 }

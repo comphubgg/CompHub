@@ -2846,5 +2846,25 @@
     "modell": "Sonnet + Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-133",
+    "datum": "2026-11-01T03:05:00Z",
+    "titel": "Map-Archiv: gleichzeitige Regionen mit EU zuerst",
+    "kurz": "Tournament Maps S42: Heats gleicher Uhrzeit stehen fest EU zuerst, nicht zufällig.",
+    "markieren": [
+      "css:main a[href^='/tournament-maps/karte']"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleicher Startzeit (z. B. Heat 2 EU und ME) entschied der Zufall die Reihenfolge – sie sprang bei jedem Laden.",
+    "was": "Bei gleicher Zeit gilt jetzt die feste Regionsreihenfolge, EU zuerst.",
+    "ansehen": [
+      "/tournament-maps?saison=S42"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
