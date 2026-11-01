@@ -5881,5 +5881,27 @@
     "commits": [
       "e5c7b3f"
     ]
+  },
+  {
+    "id": "chef-267",
+    "titel": "Duell: fehlende Werte als Strich statt 0",
+    "kurz": "Statistik → Duell: fehlen Elims, Schaden, Treffer oder Reboots, steht „–“ statt 0.",
+    "markieren": [
+      "text:Eliminations",
+      "text:Damage ratio",
+      "text:Hits to players"
+    ],
+    "bereich": "Statistik",
+    "warum": "Eigene Spieltage führen oft keine Elims/Schaden/Treffer; der Spieler stand dann mit 0 da und „verlor“ die Zeile.",
+    "was": "Unbekannte Werte zeigen einen Strich und zählen nicht als Niederlage – in Tafel, Radar und Formkurve.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:51:01Z"
   }
 ]
