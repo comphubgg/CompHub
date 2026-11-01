@@ -10,7 +10,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
 - [ ] **Teamseite: fehlt die Power-Ranking-Datei, merkt die Seite das nicht** (lib/powerRankings lies() unterscheidet Ausfall nicht von „Datei fehlt“) – größere Änderung.
 - [ ] **Replay-Spielerliste: fehlende Kills erscheinen als 0** (kills ?? 0) – Quelle unterscheidet nicht zwischen „0“ und „unbekannt“; beobachten.
-- [ ] **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
+- [x] (chef-195) **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
 - [ ] **Hilfs-Worktrees starten auf altem Stand** – Helfer immer zuerst `git reset --hard origin/claude/chef` machen lassen (Runde 10: sechs Doppelfunde).
 
 ## Neu entdeckt (Runde 9, 01.11.2026)

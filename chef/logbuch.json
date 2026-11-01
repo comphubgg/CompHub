@@ -4260,5 +4260,28 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-195",
+    "datum": "2026-11-01T03:36:00Z",
+    "titel": "Turnierstatistik: Kacheltitel auf Deutsch übersetzt",
+    "kurz": "Cup-Seite → Teams, Sprache Deutsch: „Meiste Eliminierungen“ statt „Most Eliminations“.",
+    "markieren": [
+      "text:Most Eliminations",
+      "text:Best K/D"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die 16 Kacheltitel der Turnierstatistik blieben auch auf Deutsch englisch.",
+    "was": "Sie laufen jetzt über die Übersetzung; auf Englisch bleibt alles gleich.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=teams"
+    ],
+    "commits": [
+      "6d8dc89"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
