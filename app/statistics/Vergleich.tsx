@@ -107,17 +107,17 @@ const REIHEN: Reihe[] = [
 ];
 
 /** Die Achsen des Radars - je Match gerechnet, damit wenige und viele Spieltage vergleichbar bleiben. */
-interface Achse { titel: string; wert: (s: Summe) => number }
+interface Achse { titel: string; wert: (s: Summe) => number | null }
 const ACHSEN: Achse[] = [
-  { titel: 'ELIMS', wert: (s) => (s.matches ? s.elims / s.matches : 0) },
-  { titel: 'DAMAGE', wert: (s) => (s.matches ? s.damage / s.matches : 0) },
-  { titel: 'DMG RATIO', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : 0) },
-  { titel: 'ACCURACY', wert: (s) => (s.shots > 0 ? s.hitsMitSchuss / s.shots : 0) },
+  { titel: 'ELIMS', wert: (s) => (s.matches ? s.elims / s.matches : null) },
+  { titel: 'DAMAGE', wert: (s) => (s.matches ? s.damage / s.matches : null) },
+  { titel: 'DMG RATIO', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : null) },
+  { titel: 'ACCURACY', wert: (s) => (s.shots > 0 ? s.hitsMitSchuss / s.shots : null) },
   // Kopftreffer gibt es nur an Tagen mit Schusszahlen - also durch diese Matches teilen, wie Bauteile und Material (vorher: durch alle Matches).
-  { titel: 'HEADSHOTS', wert: (s) => (s.matchesVoll ? s.headshots / s.matchesVoll : 0) },
-  { titel: 'BUILDS', wert: (s) => { return s.matchesVoll ? s.builds / s.matchesVoll : 0; } },
-  { titel: 'MATS', wert: (s) => { return s.matchesVoll ? s.mats / s.matchesVoll : 0; } },
-  { titel: 'HITS', wert: (s) => (s.matches ? s.hits / s.matches : 0) },
+  { titel: 'HEADSHOTS', wert: (s) => (s.matchesVoll ? s.headshots / s.matchesVoll : null) },
+  { titel: 'BUILDS', wert: (s) => { return s.matchesVoll ? s.builds / s.matchesVoll : null; } },
+  { titel: 'MATS', wert: (s) => { return s.matchesVoll ? s.mats / s.matchesVoll : null; } },
+  { titel: 'HITS', wert: (s) => (s.matches ? s.hits / s.matches : null) },
 ];
 
 /** Die Kurven der Form: ein Wert je Spieltag. */
@@ -268,11 +268,18 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
     return [mitteX + Math.cos(w) * R * anteil, mitteY + Math.sin(w) * R * anteil] as const;
   };
   // Jede Achse hat ihren eigenen Massstab: der Hoehere erreicht 92 Prozent, der andere sein Verhaeltnis dazu.
+  // Unbekannte Werte (kein Nenner) bleiben null: weder Punkt noch Ecke, nie als 0 gezeichnet - wie das "—" im Board.
   const anteile = ACHSEN.map((a) => {
-    const x = a.wert(links); const y = a.wert(rechts); const m = Math.max(x, y, 0.0001);
-    return [x / m * 0.92, y / m * 0.92] as const;
+    const x = a.wert(links); const y = a.wert(rechts); const m = Math.max(x ?? 0, y ?? 0, 0.0001);
+    return [x === null ? null : x / m * 0.92, y === null ? null : y / m * 0.92] as const;
   });
-  const flaeche = (seite: 0 | 1) => anteile.map((p, i) => punkt(i, Math.max(0.04, p[seite])).join(',')).join(' ');
+  const flaeche = (seite: 0 | 1) => anteile.flatMap((p, i) => { const v = p[seite]; return v === null ? [] : [punkt(i, Math.max(0.04, v)).join(',')]; });
+  const zeichne = (seite: 0 | 1, farbe: string, fuellung: string) => {
+    const pts = flaeche(seite);
+    if (pts.length === 0) return null;
+    if (pts.length < 3) return <polyline points={pts.join(' ')} fill="none" stroke={farbe} strokeWidth="2.4" strokeLinejoin="round" />;
+    return <polygon points={pts.join(' ')} fill={farbe} fillOpacity={fuellung} stroke={farbe} strokeWidth="2.4" strokeLinejoin="round" />;
+  };
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-5 sm:px-8">
       <div className="mb-2 flex items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
@@ -290,16 +297,20 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
             <g key={a.titel}>
               <line x1={mitteX} y1={mitteY} x2={x} y2={y} stroke="currentColor" className="text-white/[0.08]" />
               <text x={lx} y={ly} textAnchor={Math.abs(lx - mitteX) < 8 ? 'middle' : lx > mitteX ? 'start' : 'end'} dominantBaseline="middle"
-                className="fill-slate-300" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1 }}>{a.titel}</text>
+                className={anteile[i][0] === null && anteile[i][1] === null ? 'fill-slate-600' : 'fill-slate-300'} style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1 }}>
+                {a.titel}
+                {anteile[i][0] === null && <tspan fill={FARBE_LINKS}> —</tspan>}
+                {anteile[i][1] === null && <tspan fill={FARBE_RECHTS}> —</tspan>}
+              </text>
             </g>
           );
         })}
-        <polygon points={flaeche(1)} fill={FARBE_RECHTS} fillOpacity=".16" stroke={FARBE_RECHTS} strokeWidth="2.4" strokeLinejoin="round" />
-        <polygon points={flaeche(0)} fill={FARBE_LINKS} fillOpacity=".1" stroke={FARBE_LINKS} strokeWidth="2.4" strokeLinejoin="round" />
+        {zeichne(1, FARBE_RECHTS, '.16')}
+        {zeichne(0, FARBE_LINKS, '.1')}
         {anteile.map((p, i) => (
           <g key={ACHSEN[i].titel}>
-            <circle cx={punkt(i, Math.max(0.04, p[1]))[0]} cy={punkt(i, Math.max(0.04, p[1]))[1]} r="4" fill={FARBE_RECHTS} />
-            <circle cx={punkt(i, Math.max(0.04, p[0]))[0]} cy={punkt(i, Math.max(0.04, p[0]))[1]} r="4" fill={FARBE_LINKS} />
+            {p[1] !== null && <circle cx={punkt(i, Math.max(0.04, p[1]))[0]} cy={punkt(i, Math.max(0.04, p[1]))[1]} r="4" fill={FARBE_RECHTS} />}
+            {p[0] !== null && <circle cx={punkt(i, Math.max(0.04, p[0]))[0]} cy={punkt(i, Math.max(0.04, p[0]))[1]} r="4" fill={FARBE_LINKS} />}
           </g>
         ))}
       </svg>

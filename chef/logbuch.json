@@ -2558,5 +2558,27 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-120",
+    "titel": "Vergleich: Radar zeigt fehlende Werte als Strich",
+    "kurz": "Vergleich → Radar: Achsen ohne Daten zeigen „—“ statt einer Spitze bei 0.",
+    "markieren": [
+      "text:ACCURACY",
+      "text:HEADSHOTS",
+      "css:svg[aria-label='Radar'] polygon"
+    ],
+    "warum": "Fehlten Werte (z. B. keine Schüsse gezählt), zeichnete das Radar eine 0 – die Tabelle darunter zeigt dort richtig „—“.",
+    "was": "Unbekannte Achsen bekommen keinen Punkt mehr; hinter dem Achsennamen steht „—“ in der Farbe des Spielers.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:35:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
