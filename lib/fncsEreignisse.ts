@@ -12,6 +12,7 @@ import { kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
 import { endspielArt, schluesselVon, landVonName, plaetze, type Art } from '@/lib/fncsListe';
 import { hatArchiv } from '@/lib/fncsBestenlisten';
 import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
+import { vglRekord, vglLeaderboard } from '@/lib/fncsReihenfolge';
 
 /*
  * Die Endspiele der FNCS fuer die FNCS-Seite: jede Grand Finals, jede Global Championship, das Invitational und die Summit -
@@ -466,12 +467,12 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
       }
     } catch { /* dieses Endspiel fehlt dann in der Summe */ }
   }));
-  const top = (f: (t: (typeof alleTeams)[number]) => number): RekordZeile[] => [...alleTeams].sort((a, b) => f(b) - f(a)).slice(0, 8)
-    .map((t) => ({ event: t.event, wert: f(t), spieler: t.spieler }));
+  const top = (haupt: 'punkte' | 'siege' | 'elims'): RekordZeile[] => [...alleTeams].sort(vglRekord(haupt)).slice(0, 8)
+    .map((t) => ({ event: t.event, wert: t[haupt], spieler: t.spieler }));
   const daten: FncsRekorde = {
     ab: 'Chapter 5 Season 3',
-    spieler: [...je.values()].sort((a, b) => b.punkte - a.punkte).slice(0, 100),
-    punkte: top((t) => t.punkte), siege: top((t) => t.siege), elims: top((t) => t.elims),
+    spieler: [...je.values()].sort(vglLeaderboard).slice(0, 100),
+    punkte: top('punkte'), siege: top('siege'), elims: top('elims'),
   };
   rekordMerker = { bis: Date.now() + 30 * 60_000, daten };
   return daten;
