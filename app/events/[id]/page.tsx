@@ -2152,23 +2152,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * seinen Konten (app/api/cup-leaderboard, ids=). Gemerkt je Platz, bis der Spieltag wechselt.
    */
   const [nachMatches, setNachMatches] = useState<Record<number, Match[]>>({});
-  useEffect(() => { setNachMatches({}); }, [lbFenster?.windowId]);
+  // Platz -> der Abruf ist gescheitert (dann steht ein Hinweis mit "Erneut versuchen" da, nicht "Keine Matchdaten").
+  const [nachFehler, setNachFehler] = useState<Record<number, boolean>>({});
+  const [nachVersuch, setNachVersuch] = useState(0);
+  useEffect(() => { setNachMatches({}); setNachFehler({}); }, [lbFenster?.windowId]);
   useEffect(() => {
     const e = tabelle.find((x) => x.rank === offen);
-    if (!e?.matchesWeg || nachMatches[e.rank] || !lbFenster) return undefined;
+    if (!e?.matchesWeg || nachMatches[e.rank] || nachFehler[e.rank] || !lbFenster) return undefined;
     let weg = false;
     const ids = e.players.map((p) => (p as { id?: string }).id).filter(Boolean).join(',');
     if (!ids) return undefined;
     fetch(`/api/cup-leaderboard?event=${encodeURIComponent(lbFenster.eventId)}&window=${encodeURIComponent(lbFenster.windowId)}&ids=${encodeURIComponent(ids)}`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j: { entries?: Eintrag[] }) => {
         if (weg) return;
         const treffer = (j.entries ?? []).find((x) => x.rank === e.rank) ?? (j.entries ?? [])[0];
         setNachMatches((alt) => ({ ...alt, [e.rank]: treffer?.matches ?? [] }));
       })
-      .catch(() => { if (!weg) setNachMatches((alt) => ({ ...alt, [e.rank]: [] })); });
+      .catch(() => { if (!weg) setNachFehler((alt) => ({ ...alt, [e.rank]: true })); });
     return () => { weg = true; };
-  }, [offen, tabelle, lbFenster, nachMatches]);
+  }, [offen, tabelle, lbFenster, nachMatches, nachFehler, nachVersuch]);
 
   // Vor dem Laden der Spielerwerte bestimmt - Solo-Cups zeigen die Player Stats im Reiter "teams".
   const soloCup = useMemo(() => {
@@ -3774,7 +3777,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </div>
                         </div>
                       ))}
-                      {!spieleListe.length && <p className="text-xs text-slate-600">{e.matchesWeg && !nachMatches[e.rank] ? <T>Wird geladen …</T> : <T>Keine Matchdaten.</T>}</p>}
+                      {!spieleListe.length && (e.matchesWeg && nachFehler[e.rank] && !nachMatches[e.rank]
+                        ? (
+                          <p className="text-xs text-amber-400">
+                            <T>Der Spielverlauf ist gerade nicht erreichbar.</T>{' '}
+                            <button
+                              type="button"
+                              className="underline hover:text-amber-300"
+                              onClick={() => { setNachFehler((alt) => ({ ...alt, [e.rank]: false })); setNachVersuch((n) => n + 1); }}
+                            ><T>Erneut versuchen</T></button>
+                          </p>
+                        )
+                        : <p className="text-xs text-slate-600">{e.matchesWeg && !nachMatches[e.rank] ? <T>Wird geladen …</T> : <T>Keine Matchdaten.</T>}</p>)}
                     </div>
                   </div>
                 </div>

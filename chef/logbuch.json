@@ -2599,6 +2599,29 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:35:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "09928b2"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-122",
+    "titel": "Cup-Seite: Spielverlauf eines Teams meldet einen Ausfall",
+    "kurz": "Cup-Seite → Team ab Platz 301 öffnen: Ausfall zeigt Hinweis und „Try again“.",
+    "markieren": [
+      "text:The match history is not reachable right now.",
+      "text:Try again"
+    ],
+    "warum": "Fiel der Abruf aus, stand „Keine Matchdaten“ – als hätte das Team nicht gespielt.",
+    "was": "Jetzt steht dort, dass der Spielverlauf gerade nicht erreichbar ist, mit Knopf zum erneuten Laden.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU?reiter=teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:35:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
