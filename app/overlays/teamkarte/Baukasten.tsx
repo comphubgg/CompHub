@@ -290,6 +290,8 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamFuer, setTeamFuer] = useState('');
   const [teamLaedt, setTeamLaedt] = useState(false);
+  /** Die Teamliste war nicht zu holen - dann ein Hinweis statt einer leeren Liste, der Knopf bleibt fuer einen neuen Versuch. */
+  const [teamFehler, setTeamFehler] = useState(false);
   const [teamSuche, setTeamSuche] = useState('');
   const [duo, setDuo] = useState<Spieler[]>([]);
   /** Ergebnis der Turniersuche - null heisst "es wurde nicht gesucht". */
@@ -519,13 +521,15 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const ladeTeams = useCallback(async () => {
     if (!eventId || !windowId) return;
     setTeamLaedt(true);
+    setTeamFehler(false);
     try {
       const r = await fetch(`/api/cup-roster?event=${encodeURIComponent(eventId)}`
         + `&window=${encodeURIComponent(windowId)}&limit=200`);
       const d = await r.json();
-      setTeams(r.ok ? (d.teams ?? []) : []);
+      if (!r.ok || !Array.isArray(d?.teams)) { setTeams([]); setTeamFehler(true); return; }
+      setTeams(d.teams);
       setTeamFuer(cup);
-    } catch { setTeams([]); }
+    } catch { setTeams([]); setTeamFehler(true); }
     finally { setTeamLaedt(false); }
   }, [eventId, windowId, cup]);
 
@@ -1045,6 +1049,11 @@ export default function TeamkarteBaukasten({ globals = false }: {
                                  hover:text-slate-300 disabled:opacity-40">
                       {teamLaedt ? <T>lädt …</T> : <T>oder die Besten dieses Spieltags zeigen</T>}
                     </button>
+                  )}
+                  {teamFehler && teamFuer !== cup && !teamLaedt && (
+                    <p role="status" className="mb-2 text-[11px] text-amber-300">
+                      <T>Die Teamliste ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.</T>
+                    </p>
                   )}
 
                   <div className="max-h-64 space-y-1 overflow-y-auto">

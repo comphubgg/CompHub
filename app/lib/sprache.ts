@@ -2488,6 +2488,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'The search across the whole field is not reachable right now. Only the loaded list is being searched.',
   'Teamverlauf und Galerie sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
     'Team history and gallery cannot be reached right now. It will be retried shortly.',
+  'Die Teamliste ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.':
+    'The team list cannot be reached right now. Please try again in a moment.',
   'Das Preisgeld ist gerade nicht erreichbar.':
     'The prize money is not reachable right now.',
   'Der Spielverlauf ist gerade nicht erreichbar.':

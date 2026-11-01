@@ -4792,5 +4792,25 @@
     "commits": [
       "92f97e9"
     ]
+  },
+  {
+    "id": "chef-219",
+    "titel": "Teamkarten-Baukasten: Ausfall der Teamliste meldet sich",
+    "kurz": "Overlays → Teamkarte → „Besten zeigen“: bei Ausfall Hinweis statt leerer Liste.",
+    "markieren": [
+      "text:The team list cannot be reached right now."
+    ],
+    "bereich": "Overlays",
+    "warum": "Fiel die Teamliste aus, blieb die Liste einfach leer – als hätte der Spieltag keine Teams.",
+    "was": "Jetzt steht ein Hinweis, und der Knopf bleibt für einen neuen Versuch da.",
+    "ansehen": [
+      "/overlays/teamkarte"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "datum": "2026-11-01T04:02:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
