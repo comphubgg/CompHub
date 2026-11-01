@@ -282,7 +282,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         {schadenTeil && (
           <span className="mt-1 block text-slate-500">
             {schadenTeil.teams > 0
-              ? t('Schaden, Treffer und Kopftreffer: aus den vollen Replays aller {m} Spiele der besten {n} Teams - für diese Spieler vollständig. Ein volles Replay sind rund 140 MB, alle Lobbys eines offenen Cups wären Hunderte Gigabyte.').replace('{m}', String(schadenTeil.matches)).replace('{n}', String(schadenTeil.teams))
+              ? t('Schaden, Treffer und Kopftreffer: aus den vollen Replays aller {m} Spiele der besten {n} Teams - für diese Spieler vollständig. Ein volles Replay sind rund 140 MB, alle Lobbys eines offenen Cups wären Hunderte Gigabyte.').replace('{m}', schadenTeil.matches.toLocaleString(ort)).replace('{n}', schadenTeil.teams.toLocaleString(ort))
               : t('Schaden, Treffer und Kopftreffer: {m} von {v} Spielen voll gelesen, der Rest folgt. Bis dahin stehen Werte nur bei Spielern, deren Spiele alle gelesen sind.').replace('{m}', schadenTeil.matches.toLocaleString(ort)).replace('{v}', (schadenTeil.vonMindestens ?? schadenTeil.matches).toLocaleString(ort))}
           </span>
         )}
@@ -334,7 +334,7 @@ function PlattformLeiste({ werte, ort }: { werte: Record<string, number>; ort: s
           <div key={name} className="flex items-center gap-2 text-sm">
             <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PLATTFORM_FARBE[name] ?? '#64748b' }} />
             <span className="font-semibold text-slate-200">{name}</span>
-            <span className="ml-auto tabular-nums text-slate-400">{((n / summe) * 100).toLocaleString(ort, { maximumFractionDigits: 1 })} %</span>
+            <span className="ml-auto tabular-nums text-slate-400">{((n / summe) * 100).toLocaleString(ort, { maximumFractionDigits: 1 })}{ort === 'en-GB' ? '%' : ' %'}</span>
           </div>
         ))}
       </div>

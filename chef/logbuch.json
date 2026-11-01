@@ -5036,5 +5036,25 @@
     "commits": [
       "671b4c0"
     ]
+  },
+  {
+    "id": "chef-230",
+    "titel": "Cup-Seite → Spieler: Zahlenformat nach Sprache",
+    "kurz": "Cup-Seite → Spieler: Plattform-Anteil englisch „6.1%“, Spielzahlen mit Tausenderpunkt.",
+    "markieren": [
+      "text:%"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Plattform-Leiste setzte auch englisch ein Leerzeichen vor „%“, und die Spiel- und Teamzahlen im Replay-Hinweis hatten keine Tausendertrennung.",
+    "was": "Beides folgt jetzt der Seitensprache wie auf der Statistikseite.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:11:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
