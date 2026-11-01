@@ -175,10 +175,15 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
     { titel: 'Matches', wert: zahl(matches), roh: true },
     { titel: teamWerte ? 'Teams' : 'Spieler', wert: zahl(anzahl) },
     // Steht eine Summe ueber alle Spieler bereit, keine Kachel, die nur einen Teil zusammenzaehlt (Schaden gibt es bei grossen Cups nur fuer die besten Teams).
-    ...SUMMEN.filter((s) => vorhanden.has(s.feld) && (!ganz || typeof ganz[s.feld] === 'number')).map((s) => ({
-      titel: s.titel,
-      wert: zeigen(summe(s.feld) / teiler, s.format, teiler > 1 && s.format !== 'zeit' && s.format !== 'km' ? 1 : 0),
-    })),
+    ...SUMMEN.filter((s) => vorhanden.has(s.feld) && (!ganz || typeof ganz[s.feld] === 'number')).map((s) => {
+      // Ohne Summe der Schnittstelle (Platzgruppe): nur Spieler MIT Wert zaehlen - ohne Wert steht ein Strich, keine 0, und der Schnitt teilt nicht durch Spieler ohne Wert.
+      const mit = ganz ? null : feld.filter((x) => typeof x[s.feld] === 'number');
+      if (mit && !mit.length) return { titel: s.titel, wert: '–' };
+      const nenner = mit ? (art === 'jeSpieler' ? mit.length : art === 'jeSpielerMatch' ? mit.reduce((a, x) => a + (Number(x.spiele) || 0), 0) : teiler) : teiler;
+      const dazu = mit ? mit.reduce((a, x) => a + Number(x[s.feld]), 0) : summe(s.feld);
+      const n = Math.max(1, nenner);
+      return { titel: s.titel, wert: zeigen(dazu / n, s.format, n > 1 && s.format !== 'zeit' && s.format !== 'km' ? 1 : 0) };
+    }),
   ];
   const sichtbar = mehr ? kacheln : kacheln.slice(0, 12);
 

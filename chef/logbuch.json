@@ -6172,5 +6172,26 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T06:00:34Z"
+  },
+  {
+    "id": "chef-280",
+    "titel": "Player Stats je Platzgruppe: Schnitt nur über Spieler mit Wert",
+    "kurz": "Cup-Seite → Player Stats → „Platz 26 bis 100“: fehlender Schaden „–“, Schnitt nicht zu niedrig.",
+    "markieren": [
+      "text:Damage To Players",
+      "text:Average per Player"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte in einer Platzgruppe niemand Schadenswerte, stand „0“; der Schnitt teilte auch durch Spieler ohne Wert.",
+    "was": "Gezählt werden nur Spieler mit echtem Wert; ohne jeden Wert steht ein Strich.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T06:00:41Z"
   }
 ]
