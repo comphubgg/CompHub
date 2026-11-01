@@ -358,16 +358,14 @@ function kurzDatum(ms: number, sprache: string) {
 
 function dauer(ms: number) {
   if (ms <= 0) return '';
-  const minuten = Math.round(ms / 60_000); // erst runden, sonst "1h 60m"
-  const h = Math.floor(minuten / 60);
-  const m = minuten % 60;
+  const h = Math.floor(ms / 3600_000);
+  const m = Math.round((ms % 3600_000) / 60_000);
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
 function zeitText(sekunden: number) {
   if (!sekunden) return '–';
-  const s = Math.round(sekunden); // erst runden, sonst "3m 60s"
-  return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(sekunden / 60)}m ${String(Math.round(sekunden % 60)).padStart(2, '0')}s`;
 }
 
 /** Status einer Serie: live, laeuft (eine Session ist offen) oder vorbei. */

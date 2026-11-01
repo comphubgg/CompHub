@@ -488,11 +488,10 @@ function schnitt(wert: number, ort = 'de-DE', stellen = 2) {
   });
 }
 
-function dauer(roh: number) {
-  if (!roh) return '–';
-  const sek = Math.round(roh); // erst runden, sonst "18m 60s"
+function dauer(sek: number) {
+  if (!sek) return '–';
   const m = Math.floor(sek / 60);
-  return m < 1 ? `${sek}s` : `${m}m ${String(sek % 60).padStart(2, '0')}s`;
+  return m < 1 ? `${Math.round(sek)}s` : `${m}m ${String(Math.round(sek % 60)).padStart(2, '0')}s`;
 }
 
 /** Wie viele Plaetze hoechstens geholt werden. Darueber wird die Tabelle
