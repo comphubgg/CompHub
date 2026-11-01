@@ -7,6 +7,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Profil: Ranked-Zeile verschwand bei Ausfall still** (chef-144).
 - [ ] **FNCS-Tabelle im Profil: INVITATIONAL 2022 ohne Format** – zeigt jetzt einen Strich; falls das Format sicher bekannt ist (Duo?), in die feste Liste aufnehmen.
 - [x] **Cup-Statistik FNCS Solo Final EU geprüft**: K/D, Siege, Gleichstände, Ø-Platz stimmen.
+- [ ] **Saisonliste S41: Strecke 100× zu klein** (peterbot 3,9 km statt 390,6 km in 94 Matches; Shxrk, Cold, Zdog, Scroll genauso) und Zeit im Sturm ungerundet – der Code ist seit chef-39/chef-52 richtig, die abgelegte Liste stammt von vorher. Die Saisonliste zeigt keine Strecken-Spalte, aber die Antwort ist falsch.
+- [ ] **Grundproblem: abgelegte Antworten werden nach einer Rechenänderung nicht verworfen** (S41-Liste, Jahresliste 2025, Startantwort S42). Idee: eine Versionsnummer der Rechenregeln in den Ablageschlüssel, damit der Stundenlauf nach einer Änderung alles neu rechnet. Vorsicht: dann rechnet der Lauf alles auf einmal neu (Speicher, vgl. chef-106) – erst nach Freigabe von chef-106 und mit dem Betreiber.
 - [ ] **Jahresliste 2025 ebenfalls alt**: „Beste Schadensquote“ hat Mindestgrenze 10 Matches, obwohl chef-13 (live) 36 ergibt (meiste Matches 363) – die vorgerechnete Jahresantwort wurde seit chef-13 nicht neu abgelegt. Gleiche Ursache wie chef-106.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
