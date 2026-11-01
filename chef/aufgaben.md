@@ -24,6 +24,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Cup-Seite: Preisgeld-Kachel verschwand still bei Ausfall** (chef-109).
 - [x] **FNCS All-Time: Gleichstand ohne Regel** (chef-108).
 - [x] **Cup-Schnittstellen mit 500/502/401 bei Epic-Ausfall** (chef-119). **Radar 0 statt Strich** (chef-120), **Orgs-Liste verschwand bei Neuversuch** (chef-121), **Team-Spielverlauf still leer** (chef-122), **Solo Clutch 0 ohne Wert** (chef-123).
+- [x] **Statistik oben 982 Spieltage, Startseite 4.733** (chef-127), **Endtabelle still weg** (chef-128), **Plus-Hinweis deutsch** (chef-129), **Power-Rankings-Suche ohne Anzeigenamen** (chef-130), **Power-Rankings Rohfehler** (chef-131), **FNCS All-Time ohne Wiederholung** (chef-132).
+- [ ] **FNCS All-Time: fällt ein Endspiel trotz drei Versuchen aus, steht eine Teilsumme als „letzte gute Antwort“** bis zu 7 Tage. Ein Helfer wollte dann gar nicht antworten – abgelehnt, weil ein dauerhaft fehlendes altes Endspiel die ganze Tafel lahmlegen würde. Besser: Antwort mit Feld „unvollständig“, nicht als letzte gute speichern, auf der Seite kleiner Hinweis.
 - [ ] **Teil-Neustart im Datenlauf**: Wenn der Server in einer Portion stirbt, scheitert der Rest der Portion sofort (0,0 s). Vorschlag an den Betrieb: Vorrechner merkt „Server weg“ und bricht die Portion ab bzw. der Ablauf startet neu (Workflow – nicht meine Datei).
 
 ## Neu entdeckt (Runde 6, 31.10.2026)
