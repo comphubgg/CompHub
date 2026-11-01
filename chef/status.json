@@ -7,5 +7,6 @@
     "Nächste Runde: Live-Status-Ausfall nicht als „alle offline“, Kanalsuche-Ausfall, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-162/163/182/195) + Sonnet (übrige)"
+  "modell": "Opus (Planung, Prüfung, chef-162/163/182/195) + Sonnet (übrige)",
+  "laeuftSeit": "2026-11-01T03:47:00Z"
 }
