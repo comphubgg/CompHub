@@ -9,7 +9,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Orgs ohne Preisgeld alphabetisch** (chef-111), **Vergleich-Suche still leer** (chef-112), **Auszeichnungen nur bis Globals 2025** (chef-113), **Beste Spieltage Gleichstand** (chef-114), **„je Duo“ bei Trios** (chef-115), **Cup-Spielersuche still leer** (chef-116).
 - [ ] **FNCS-Liste im Profil: „Solo“, wenn Mitspieler fehlen** – die Quelle unterscheidet „Solo“ nicht von „Mitspieler unbekannt“ (z. B. GRAND ROYALE, GLOBALS 2023). Format aus dem Turniernamen ableiten?
 - [ ] **Karriere-Bestwerte: Spiele ohne Datum zuletzt** – peterbots Globals-2024-Sieg (LAN, ohne Datum) fehlt unter den drei besten Platzierungen.
-- [ ] **Damage-Ratio-Verlauf: gestrichelte Linie ohne Beschriftung** – Mittel der Turnier-Quoten (weicht von der Quote im Kopf ab). Beschriften.
+- [x] **Damage-Ratio-Verlauf: gestrichelte Linie ohne Beschriftung** (chef-117) – Mittel der Turnier-Quoten (weicht von der Quote im Kopf ab). Beschriften.
 - [ ] **Orgs: „Bezahlte Turniere“ zählt ein Turnier mehrfach**, wenn mehrere Spieler der Org bezahlt wurden – braucht Turnier-Kennungen in der Antwort.
 - [ ] **cup-spieler (Szene-Quelle): fehlende Assists/Schaden werden 0** – prüfen, ob die Quelle 0 oder nichts meldet.
 - [x] **Profil geprüft**: Summen von Elims, Matches, Schaden, Treffern, Quote und Lebenszeit stimmen mit der Summe aller 152 Spieltage überein (peterbot).
