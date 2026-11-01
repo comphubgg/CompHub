@@ -1697,19 +1697,19 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   {zahl(alleN((z) => z.werte.matchesPlayed), 0, sprache)}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-sky-400">
-                  {zahl(n((z) => z.werte.eliminations), 0, sprache)}
+                  {mitWerten.length ? zahl(n((z) => z.werte.eliminations), 0, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {zahl(Math.round(schaden), 0, sprache)}
+                  {mitWerten.length ? zahl(Math.round(schaden), 0, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
                   {erlitten > 0 ? zahl(schaden / erlitten, 2, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {zahl(n((z) => mats(z.werte)), 0, sprache)}
+                  {mitWerten.length ? zahl(n((z) => mats(z.werte)), 0, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {zahl(n((z) => builds(z.werte)), 0, sprache)}
+                  {mitWerten.length ? zahl(n((z) => builds(z.werte)), 0, sprache) : '—'}
                 </td>
                 <td />
               </tr>
