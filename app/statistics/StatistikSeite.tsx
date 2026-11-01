@@ -421,6 +421,31 @@ const CUP_LISTEN: Array<{
   { feld: 'reboots', titel: 'Meiste Wiederbelebungen' },
 ];
 
+/**
+ * Die Bestenlisten aus einem Feld von Spielern - fuer eine Region, eine Turnierreihe oder einen Spieltag.
+ *
+ * Quoten (Schadens- und Trefferquote) brauchen eine Mindestzahl an Matches, sonst steht jemand mit zwei Matches ganz oben: dieselbe
+ * Regel wie auf der Startseite und in der Spielerliste (route.ts, mindestFuer): die Haelfte der hoechsten Matchzahl im Feld, mindestens
+ * 3, hoechstens 20. Bei Gleichstand entscheidet eine feste Folge - mehr Eliminierungen, mehr Schaden, zuletzt die Konto-Id -, nicht
+ * die Reihenfolge der Antwort (wie lib/szeneStats nachKennzahl). Die Mindestzahl steht an der Liste, damit niemand raetselt, wo jemand fehlt.
+ */
+function bestenlisten(feld: Spieler[]) {
+  const hoechste = feld.reduce((m, sp) => Math.max(m, Number(sp.matches) || 0), 0);
+  const mindestQuote = Math.max(3, Math.min(20, Math.round(hoechste / 2)));
+  const zahlVon = (sp: Spieler, f: string) => Number((sp as unknown as Record<string, unknown>)[f]) || 0;
+  return CUP_LISTEN.map((k) => {
+    const mindest = k.feld === 'quote' || k.feld === 'genauigkeit' ? mindestQuote : null;
+    const f = k.feld as string;
+    const zeilen = feld
+      .filter((sp) => zahlVon(sp, f) > 0 && (mindest === null || (Number(sp.matches) || 0) >= mindest))
+      .sort((a, b) => (k.kleinBesser ? zahlVon(a, f) - zahlVon(b, f) : zahlVon(b, f) - zahlVon(a, f))
+        || zahlVon(b, 'elims') - zahlVon(a, 'elims')
+        || zahlVon(b, 'damage') - zahlVon(a, 'damage')
+        || String(a.epicId).localeCompare(String(b.epicId)));
+    return { ...k, zeilen, mindest };
+  }).filter((l) => l.zeilen.length);
+}
+
 /** "47m 3s" / "2h 2m" - Sekunden als Zeit, wie in den Ranglisten ueblich. */
 function alsZeit(sek: number): string {
   const s = Math.max(0, Math.round(sek));
@@ -1876,7 +1901,7 @@ function Verlaufslinie({ werte, beschriftung, marken, nachkomma = 0 }: {
 /** Eine Bestenliste als Karte - Kopf, Pluszeichen, die besten fuenf. */
 function ListenKarte({ liste, aufVoll, aufSpieler }: {
   liste: { titel: string; feld: keyof Spieler; nachkomma?: number; einheit?: string; format?: WertFormat;
-           zeilen: Spieler[] };
+           mindest?: number | null; zeilen: Spieler[] };
   aufVoll: () => void;
   aufSpieler: (s: Spieler) => void;
 }) {
@@ -1889,6 +1914,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
       <div className="flex items-center gap-2 px-5 pt-4">
         <h3 className="schrift-anzeige text-base font-extrabold text-slate-100"><T>{liste.titel}</T></h3>
+        {!!liste.mindest && <span className="text-[11px] text-slate-500">{t('ab {n} Matches').replace('{n}', String(liste.mindest))}</span>}
         {liste.zeilen.length > 5 && (
           <button onClick={aufVoll} title={t('Alle {n} anzeigen').replace('{n}', String(liste.zeilen.length))}
             className="ml-auto grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm leading-none text-slate-400 transition hover:border-sky-500 hover:text-sky-500">+</button>
@@ -2633,6 +2659,8 @@ export default function StatistikSeite() {
     /** Woher die Liste stammt (Saison oder Region) - bleibt, wie es ist. */
     zusatz?: string;
     zeilen: Spieler[];
+    /** Quotenlisten: ab wie vielen Matches jemand mitzaehlt. */
+    mindest?: number | null;
     feld: keyof Spieler; nachkomma: number; einheit: string; format?: WertFormat } | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
   /** Die Preisgeldliste blaettert: hundert je Seite, ab eins. */
@@ -3432,14 +3460,7 @@ export default function StatistikSeite() {
   }, [bereich, reihen, ladeReihe]);
 
   /** Aus einem Feld die zwoelf Bestenlisten rechnen. */
-  const listenAus = useCallback((feld: Spieler[]) => CUP_LISTEN.map((k) => {
-    const zeilen = feld
-      .filter((sp) => Number(sp[k.feld]) > 0)
-      .sort((a, b) => (k.kleinBesser
-        ? Number(a[k.feld]) - Number(b[k.feld])
-        : Number(b[k.feld]) - Number(a[k.feld])));
-    return { ...k, zeilen };
-  }).filter((l) => l.zeilen.length), []);
+  const listenAus = useCallback((feld: Spieler[]) => bestenlisten(feld), []);
 
   /**
    * Das Feld eines einzelnen Spieltags.
@@ -3472,14 +3493,7 @@ export default function StatistikSeite() {
   }, [cupAktiv]);
 
   /** Die Bestenlisten dieses Spieltags, aus dem geladenen Feld gerechnet. */
-  const cupListen = useMemo(() => CUP_LISTEN.map((k) => {
-    const zeilen = cupFeld
-      .filter((sp) => Number(sp[k.feld]) > 0)
-      .sort((a, b) => (k.kleinBesser
-        ? Number(a[k.feld]) - Number(b[k.feld])
-        : Number(b[k.feld]) - Number(a[k.feld])));
-    return { ...k, zeilen };
-  }).filter((l) => l.zeilen.length), [cupFeld]);
+  const cupListen = useMemo(() => bestenlisten(cupFeld), [cupFeld]);
 
   /* -------------------------------------------------------- Spielerkarte */
   /**
@@ -4883,11 +4897,12 @@ export default function StatistikSeite() {
                                       bg-zinc-900/40 px-3 py-2 text-[10px] font-semibold
                                       uppercase tracking-[0.14em] text-slate-400">
                           <T>{l.titel}</T>
+                          {!!l.mindest && <span className="font-normal normal-case tracking-normal text-slate-500">{t('ab {n} Matches').replace('{n}', String(l.mindest))}</span>}
                           {/* Dahinter das ganze Feld, nicht nur die Spitze. */}
                           {l.zeilen.length > 5 && (
                             <button onClick={() => {
                               setVolleListe({
-                                titel: l.titel, zeilen: l.zeilen, feld: l.feld,
+                                titel: l.titel, zeilen: l.zeilen, mindest: l.mindest, feld: l.feld,
                                 nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '', format: l.format,
                               });
                               setListenTiefe(50);
@@ -5504,7 +5519,7 @@ export default function StatistikSeite() {
                       <ListenKarte key={l.titel} liste={l}
                         aufVoll={() => {
                           setVolleListe({
-                            titel: l.titel, zusatz: regionAktiv, zeilen: l.zeilen,
+                            titel: l.titel, zusatz: regionAktiv, zeilen: l.zeilen, mindest: l.mindest,
                             feld: l.feld, nachkomma: l.nachkomma ?? 0,
                             einheit: l.einheit ?? '', format: l.format,
                           });
@@ -5562,7 +5577,7 @@ export default function StatistikSeite() {
                               <ListenKarte key={r.name + l.titel} liste={l}
                                 aufVoll={() => {
                                   setVolleListe({
-                                    titel: l.titel, zusatz: r.name, zeilen: l.zeilen,
+                                    titel: l.titel, zusatz: r.name, zeilen: l.zeilen, mindest: l.mindest,
                                     feld: l.feld, nachkomma: l.nachkomma ?? 0,
                                     einheit: l.einheit ?? '', format: l.format,
                                   });
@@ -6020,6 +6035,9 @@ export default function StatistikSeite() {
                 <T>{volleListe.titel}</T>
                 {volleListe.zusatz && (
                   <span className="ml-2 font-normal text-slate-500">{volleListe.zusatz}</span>
+                )}
+                {!!volleListe.mindest && (
+                  <span className="ml-2 text-sm font-normal text-slate-500">{t('ab {n} Matches').replace('{n}', String(volleListe.mindest))}</span>
                 )}
               </h3>
               <span className="text-xs text-slate-500">
