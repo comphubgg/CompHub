@@ -5190,7 +5190,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
                   <div className="flex items-center gap-2 px-4 pb-3 pt-4">
                     <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
-                    <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">{b.titel}</h3>
+                    <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50"><T>{b.titel}</T></h3>
                     {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld - dieselbe Sortierung, nur ungekuerzt. */}
                     <button type="button" onClick={() => listeOeffnen(b)} disabled={b.alle.length <= b.plaetze.length}
                       title={`${t('Alle anzeigen')} (${b.alle.length})`}
@@ -5267,7 +5267,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                  px-4 py-3">
                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
                   <span className="not-italic">{offeneListe.symbol}</span>
-                  {offeneListe.titel}
+                  <T>{offeneListe.titel}</T>
                 </h3>
                 <span className="text-xs text-slate-500">
                   {offeneListe.alle.length.toLocaleString(ort)}

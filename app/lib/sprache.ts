@@ -4990,6 +4990,13 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Silver I': 'Silber I', 'Silver II': 'Silber II', 'Silver III': 'Silber III',
   'Platinum I': 'Platin I', 'Platinum II': 'Platin II', 'Platinum III': 'Platin III',
   'Diamond I': 'Diamant I', 'Diamond II': 'Diamant II', 'Diamond III': 'Diamant III',
+  // Titel der Cup-Turnierstatistik (kommen englisch aus app/api/cup-stats).
+  'Most Points': 'Meiste Punkte', 'Most Eliminations': 'Meiste Eliminierungen', 'Most Damage Dealt': 'Meister Schaden',
+  'Most Damage Taken': 'Meister erlittener Schaden', 'Most Headshots': 'Meiste Kopftreffer', 'Most Victory Royales': 'Meiste Siege',
+  'Best K/D': 'Beste K/D', 'Best Average Placement': 'Bester Ø-Platz', 'Most Mats Farmed': 'Meistes gefarmtes Material',
+  'Most Mats Used': 'Meistes verbautes Material', 'Most Chests Opened': 'Meiste geöffnete Kisten', 'Most Heals Used': 'Meiste Heilung genutzt',
+  'Most Shields Used': 'Meiste Schilde genutzt', 'Most Distance Traveled': 'Längste Strecke', 'Most Time Alive': 'Längste Zeit am Leben',
+  'Longest Avg Time Alive': 'Längste Ø-Lebenszeit',
 };
 
 /**
