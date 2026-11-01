@@ -3535,5 +3535,28 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-163",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "Profil: Damage-Ratio-Verlauf ohne falsche Nullpunkte",
+    "kurz": "Profil → Damage-Ratio-Verlauf: Spieltage ohne Schadenswert fallen weg statt 0.",
+    "markieren": [
+      "text:Damage Ratio",
+      "css:svg path"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte an einem Spieltag der verursachte Schaden, stand dort ein Punkt bei 0 – das drückte auch die gestrichelte Durchschnittslinie.",
+    "was": "Solche Tage kommen jetzt nicht in die Kurve. Reine Absicherung, ein echter Fall ist mir nicht bekannt.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "610b147"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
