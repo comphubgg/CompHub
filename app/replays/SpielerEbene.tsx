@@ -206,6 +206,7 @@ export function useSpielerDaten(m: SpielerDaten) {
       schuesse: [...(m.schuesse ?? [])].sort((a, b) => a[0] - b[0]),
       loot: [...(m.loot ?? [])].sort((a, b) => a[0] - b[0]),
       namen: m.lootNamen ?? [],
+      treffer,
       da: Boolean(m.orte && Object.keys(m.orte).length),
     };
   }, [m.orte, m.leben, m.hand, m.blick, m.waffenNamen, m.schuesse, m.loot, m.lootNamen, m.treffer]);
@@ -361,7 +362,10 @@ export function SpielerFenster({ d, zeit, s, farbe, schliessen }: { d: Aufbereit
   const schild = tot ? 0 : d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null;
   const { faecher, hand } = ausruestung(d, s.id, zeit);
   const handArt = hand ? artVon(hand).art : null;
-  const meine = d.schuesse.filter((x) => x[1] === s.id && x[5] > 0 && x[0] <= zeit);
+  // Treffer/Damage/Kopftreffer wie die Tabelle "Spielerwerte" (ohne Treffer auf Umgehauene): aus den Treffern des Replays; nur ohne sie (aeltere Matches) aus den Einschluegen.
+  const meine = d.treffer.length
+    ? d.treffer.filter((h) => h[1] === s.id && !h[5] && h[0] <= zeit).map((h) => [h[0], h[1], 0, 0, h[3], h[4] ? 2 : 1])
+    : d.schuesse.filter((x) => x[1] === s.id && x[5] > 0 && x[0] <= zeit);
   return (
     <div className="rounded-xl border border-white/10 bg-black/60 p-3">
       <div className="flex items-center justify-between gap-3">

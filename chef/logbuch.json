@@ -5429,5 +5429,26 @@
     "commits": [
       "91690c5"
     ]
+  },
+  {
+    "id": "chef-247",
+    "datum": "2026-11-01T05:09:30Z",
+    "titel": "Replay: Spielerfenster zeigt dieselben Treffer wie die Tabelle",
+    "kurz": "Replay → Spieler auf der Karte anklicken: Treffer und Damage stimmen jetzt mit der Tabelle.",
+    "markieren": [
+      "text:Damage",
+      "text:Headshots"
+    ],
+    "bereich": "Statistik",
+    "warum": "Das Fenster zählte alle Einschläge, die Tabelle nur echte Treffer an Spielern – z. B. 1.069 gegen 108 Damage für denselben Spieler im selben Match.",
+    "was": "Das Fenster rechnet jetzt aus denselben Treffern wie die Tabelle; nur alte Matches ohne diese Daten bleiben beim alten Weg.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day2_NAW/1"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
