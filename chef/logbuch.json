@@ -3829,5 +3829,98 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-176",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "Regionen und Spieltage: Quotenlisten ab Mindestzahl an Matches",
+    "kurz": "Regionen → „Best damage ratio“: NAFRI (2 Matches) nicht mehr vor peterbot.",
+    "markieren": [
+      "text:Best damage ratio",
+      "text:from",
+      "text:Best accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "In den Regionen- und Spieltag-Listen führten Spieler mit 2–6 Matches die Schadens- und Trefferquote an (z. B. NAFRI 2 Matches vor peterbot 23).",
+    "was": "Wie auf der Startseite zählt jetzt nur, wer genug Matches hat; die Grenze steht als „from N matches“ an der Liste. Gleichstände stehen fest geordnet.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S41&region=EU",
+      "/statistics?bereich=turniere"
+    ],
+    "commits": [
+      "88e2fef"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-177",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "Regionen über alle Saisons: Reiter nennen die Saison",
+    "kurz": "Regionen → alle Saisons: Reiter „Chapter 7 Season 4 · Week 4 · Finals“ statt viermal gleich.",
+    "markieren": [
+      "text:Week 4"
+    ],
+    "bereich": "Statistik",
+    "warum": "Über alle Saisons hießen mehrere Spieltag-Reiter gleich („Week 4 · Finals“ viermal).",
+    "was": "Vor dem Namen steht jetzt die Saison. In einer einzelnen Saison bleibt alles wie bisher.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=alle&region=EU"
+    ],
+    "commits": [
+      "944ce69"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-178",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "Cup-Seite Runden: Ausfall zeigt Hinweis",
+    "kurz": "Cup-Seite → „Rounds“ bei Ausfall: Hinweis statt „Epic liefert keine Runden“.",
+    "markieren": [
+      "text:Rounds",
+      "text:not reachable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Quelle aus, stand bei den Runden, Epic liefere keine – das war falsch; teils kam eine Fehlerseite.",
+    "was": "Jetzt erscheint „gerade nicht erreichbar“; eine schon geladene Liste bleibt stehen.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=runden"
+    ],
+    "commits": [
+      "a08da5d"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-179",
+    "datum": "2026-11-01T03:35:00Z",
+    "titel": "Prognosen: Preisgeld-Ausfall zeigt Hinweis",
+    "kurz": "Prognosen → Preisgeld bei Ausfall: Hinweis statt leerer Fläche.",
+    "markieren": [
+      "text:Prize",
+      "text:The prize money is not reachable right now."
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete die Preisgeld-Abfrage nicht, blieb die Fläche leer oder es hieß, Epic habe keine Tabelle.",
+    "was": "Jetzt steht „The prize money is not reachable right now.“ da, und die Abfrage liefert nie mehr eine Fehlerseite.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "commits": [
+      "950c9a2"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
