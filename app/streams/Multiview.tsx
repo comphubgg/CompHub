@@ -271,6 +271,8 @@ export default function Multiview(props: MultiviewProps) {
   const [live, setLive] = useState<LiveStand>({});
   /** Hat die erste Live-Abfrage geantwortet (oder ist gescheitert)? Bis dahin bleibt Unbekanntes verborgen. */
   const [liveFertig, setLiveFertig] = useState(false);
+  /** Hat die letzte Live-Abfrage versagt? Dann steht ein Hinweis da, statt dass "niemand live" vorgetäuscht wird. */
+  const [liveFehler, setLiveFehler] = useState(false);
   const [dialog, setDialog] = useState<null | 'einstellungen' | 'kuerzel'>(null);
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   const [rueck, setRueck] = useState<null | { text: string; stand: MvStream[] }>(null);
@@ -602,12 +604,13 @@ export default function Multiview(props: MultiviewProps) {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usernames: kanaele.split(',') }),
         });
-        if (!r.ok || weg) return;
+        if (weg) return;
+        if (!r.ok) { setLiveFehler(true); return; }
         const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number; title?: string }>;
         const neuer: LiveStand = {};
         for (const k of kanaele.split(',')) neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0, title: j[k]?.isLive ? String(j[k]?.title ?? '') : '' };
-        if (!weg) setLive((alt) => ({ ...alt, ...neuer }));
-      } catch { /* beim naechsten Takt wieder */ }
+        if (!weg) { setLive((alt) => ({ ...alt, ...neuer })); setLiveFehler(false); }
+      } catch { if (!weg) setLiveFehler(true); /* beim naechsten Takt wieder */ }
       finally { if (!weg) setLiveFertig(true); }
     };
     void holen();
@@ -699,6 +702,12 @@ export default function Multiview(props: MultiviewProps) {
               aktionen={aktionen} griff={griff} ziehen={ziehen} />
           );
         })}
+
+        {liveFehler && (
+          <p role="status" className="mv-fl absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-2xl">
+            {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Live-Status'))}
+          </p>
+        )}
 
         {sichtbar.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
