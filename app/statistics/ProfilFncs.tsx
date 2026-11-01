@@ -29,7 +29,9 @@ function formatVon(saison: string, bekannteMitspieler: number): 'Solo' | 'Duo' |
   if (/\bDUOS?\b/.test(s)) return 'Duo';
   if (/\bTRIOS?\b/.test(s)) return 'Trio';
   if (/\bSQUADS?\b/.test(s)) return 'Squad';
-  if (s === 'GRAND ROYALE' || s === 'GLOBALS 2023' || s === 'GLOBALS 2024') return 'Duo';
+  // Invitational 2022 (Raleigh) war ein Duo-Turnier, das Invitational von CH2 S2 ein Solo - so stehen beide auch auf der FNCS-Seite.
+  if (s === 'GRAND ROYALE' || s === 'GLOBALS 2023' || s === 'GLOBALS 2024' || s === 'INVITATIONAL 2022') return 'Duo';
+  if (s === 'CH2 S2 INVITATIONAL') return 'Solo';
   if (s === 'GLOBALS 2025') return 'Trio';
   return (['', 'Duo', 'Trio', 'Squad'] as const)[bekannteMitspieler] ?? '';
 }
