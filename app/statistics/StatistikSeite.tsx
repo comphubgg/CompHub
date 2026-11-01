@@ -5548,7 +5548,8 @@ export default function StatistikSeite() {
                                             transition ${wahl === t.windowId
                                   ? 'border-sky-500 bg-sky-500/10 text-sky-500'
                                   : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
-                                {kurzTurnier(t.name)}
+                                {/* Ueber alle Saisons heissen Spieltage mehrerer Saisons gleich ("Week 4 · Finals" gibt es viermal): die Saison steht davor. */}
+                                {alleSaisons ? `${t.saisonName ?? t.season} · ` : ''}{kurzTurnier(t.name)}
                               </button>
                             ))}
                             <button
