@@ -4902,5 +4902,26 @@
     "commits": [
       "8b93287"
     ]
+  },
+  {
+    "id": "chef-224",
+    "titel": "Spielervergleich: „je Match“ wie im Profil gerechnet",
+    "kurz": "Statistik → Vergleich: Elims/Schaden je Match rechnen wie Profil und Bestenlisten.",
+    "markieren": [
+      "text:ELIMS",
+      "text:DAMAGE"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Vergleich teilte durch alle Matches, auch durch Spieltage ohne Elim- oder Schadenswert; Profil und Bestenlisten nur durch Matches mit Wert. So zeigte er zu kleine Schnitte (Beispiel: 10 Elims in 5 Matches plus ein leerer Tag → 1,00 statt 2,00).",
+    "was": "Jetzt dieselbe Rechnung wie überall; betrifft nur Spieler mit solchen Tagen.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:04:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
