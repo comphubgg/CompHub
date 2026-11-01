@@ -5814,5 +5814,25 @@
     "commits": [
       "17e4839"
     ]
+  },
+  {
+    "id": "chef-264",
+    "datum": "2026-11-01T06:16:00Z",
+    "titel": "Qualifikation: frühere Ausgaben ohne Punkte nicht als 0",
+    "kurz": "Cup-Seite → über „Qualifizieren sich“ fahren: frühere Ausgaben ohne Punkte zeigen keine „0“ mehr.",
+    "markieren": [
+      "text:Qualify"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte eine frühere Ausgabe auf dem Schwellenplatz keine Punkte, stand im Hinweis „0“, obwohl der Schnitt diesen Wert schon wegließ.",
+    "was": "Solche Ausgaben gelten jetzt als unbekannt, wie beim Schnitt und beim laufenden Spieltag.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

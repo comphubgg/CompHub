@@ -281,7 +281,8 @@ async function holeRoh(request: Request) {
         ?? board.entries[board.entries.length - 1];
       ausgaben.push({
         windowId: f.windowId, datum: f.begin,
-        punkte: treffer && treffer.rank === schwelle ? treffer.points : null,
+        // 0 Punkte auf dem Platz heissen: nichts gespielt oder keine Punkte bei Epic - unbekannt, nicht 0 (wie oben bei "tatsaechlich" und im Schnitt).
+        punkte: treffer && treffer.rank === schwelle && typeof treffer.points === 'number' && treffer.points > 0 ? treffer.points : null,
         ...(aehnlich ? { titel: titelVon.get(f.windowId) ?? null } : {}),
       });
     } catch {
