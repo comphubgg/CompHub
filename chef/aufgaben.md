@@ -2,15 +2,22 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 9, 01.11.2026)
+
+- [x] **Profil: Ranked-Zeile verschwand bei Ausfall still** (chef-144).
+- [ ] **FNCS-Tabelle im Profil: INVITATIONAL 2022 ohne Format** – zeigt jetzt einen Strich; falls das Format sicher bekannt ist (Duo?), in die feste Liste aufnehmen.
+- [x] **Cup-Statistik FNCS Solo Final EU geprüft**: K/D, Siege, Gleichstände, Ø-Platz stimmen.
+- [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
+
 ## Neu entdeckt (Runde 8, 01.11.2026)
 
 - [x] **Statistik oben: vier Striche bei Ausfall ohne Hinweis** (chef-110).
 - [ ] **Profil-Strecke live noch alt** – peterbot Karriere 3.242,8 km; mit der Umrechnung aus chef-39 (S41/S42 in Metern) müssten es rund 3.912 km sein. Der Code auf main stimmt, die vorgerechneten Summen sind alt (gleiche Ursache wie chef-106). Nach Freigabe von chef-106 prüfen: /api/szene-stats?spieler=45ce4565b6db452c9419119b12e7eac3 → spieler.distanz ≈ 3912.
 - [x] **Orgs ohne Preisgeld alphabetisch** (chef-111), **Vergleich-Suche still leer** (chef-112), **Auszeichnungen nur bis Globals 2025** (chef-113), **Beste Spieltage Gleichstand** (chef-114), **„je Duo“ bei Trios** (chef-115), **Cup-Spielersuche still leer** (chef-116).
-- [ ] **FNCS-Liste im Profil: „Solo“, wenn Mitspieler fehlen** – die Quelle unterscheidet „Solo“ nicht von „Mitspieler unbekannt“ (z. B. GRAND ROYALE, GLOBALS 2023). Format aus dem Turniernamen ableiten?
+- [x] (chef-145) **FNCS-Liste im Profil: „Solo“, wenn Mitspieler fehlen** – die Quelle unterscheidet „Solo“ nicht von „Mitspieler unbekannt“ (z. B. GRAND ROYALE, GLOBALS 2023). Format aus dem Turniernamen ableiten?
 - [x] **Karriere-Bestwerte: Spiele ohne Datum zuletzt** (chef-118) – peterbots Globals-2024-Sieg (LAN, ohne Datum) fehlt unter den drei besten Platzierungen.
 - [x] **Damage-Ratio-Verlauf: gestrichelte Linie ohne Beschriftung** (chef-117) – Mittel der Turnier-Quoten (weicht von der Quote im Kopf ab). Beschriften.
-- [ ] **Orgs: „Bezahlte Turniere“ zählt ein Turnier mehrfach**, wenn mehrere Spieler der Org bezahlt wurden – braucht Turnier-Kennungen in der Antwort.
+- [x] (chef-143) **Orgs: „Bezahlte Turniere“ zählt ein Turnier mehrfach**, wenn mehrere Spieler der Org bezahlt wurden – braucht Turnier-Kennungen in der Antwort.
 - [ ] **cup-spieler (Szene-Quelle): fehlende Assists/Schaden werden 0** – Code gelesen: `?? 0` ist nur Absicherung, die Quelle liefert die Felder als Zahl. Erst angehen, wenn ein echter Fall ohne Wert auftaucht.
 - [x] **Profil geprüft**: Summen von Elims, Matches, Schaden, Treffern, Quote und Lebenszeit stimmen mit der Summe aller 152 Spieltage überein (peterbot).
 
@@ -70,7 +77,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
 - [ ] **Viele Statistik-Korrekturen (chef-39, -41, -42, -47 …) wirken erst nach Freigabe** - die Startantwort rechnet der Stundenlauf von main. Der Vorher/Nachher-Vergleich auf localhost zeigt sie nur, wenn localhost selbst rechnet.
-- [ ] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. (chef-59 erledigt) Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt („laut Epic“ / „aus den Replays“), statt etwas umzurechnen.
+- [x] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. (chef-59 erledigt) Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt. Runde 9 geprüft: steht schon da („direkt von Epic“ bei Team Stats, „Aus den Match-Replays“ bei Player Stats) – nichts zu tun.
 - [x] **Spielerwerte je Cup: Rang bei Gleichstand** (chef-58) und Team-Kacheln (chef-57).
 - [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
 - [x] **Statistik-Startseite stand bei Ausfall leer da** (chef-64).
@@ -104,7 +111,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Gleicher Anzeigename für verschiedene Konten** (geprüft: die Region steht in jeder Zeile daneben, damit unterscheidbar - kein Umbau nötig) - in den Saisonlisten erscheinen zwei Konten als „RISE“ (NAC e5556b32…, ASIA 635ed9f3… „Riddle RiIse“), weil die Szene-Quelle beiden diesen Namen gibt. Idee: bei Namensgleichheit in einer Liste die Region oder den Epic-Namen klein dahinter zeigen.
 - [x] **Jahresbilanz: Rang „1 von 8.522“ gegen Perzentile über 4.969 Spieler im selben Profil** - prüfen, ob die zwei Feldgrößen erklärt werden (Perzentile vermutlich mit Mindest-Matches). Geprüft: die Seite schreibt dazu „unter … Spielern mit mindestens zehn Matches“ - erklärt.
 - [x] **Datum fest britisch auch auf weiteren Seiten** (erledigt mit chef-30) - chef-19 deckt Startseite, Maps, FNCS ab; per grep nach "'en-GB'" weitere Stellen suchen. VIP-Ablaufdatum im Kopf (MainHeader) ist fest deutsch.
-- [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** (Cup-Seiten chef-31, Spielerprofile chef-36, Sitemap chef-38) - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
+- [x] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** (Runde 9 geprüft: alles live) (Cup-Seiten chef-31, Spielerprofile chef-36, Sitemap chef-38) - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
 
 ## SOFORT – Wunsch des Betreibers (31.10.2026, abends)
 
