@@ -85,8 +85,9 @@ async function holeRoh(request: Request) {
       () => cupsGruppiert([region as typeof REGIONEN[number]]));
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;
+    // Nie 5xx (der Lastverteiler macht daraus eine Fehlerseite) - 424 wie bei den anderen Cup-Schnittstellen.
     return NextResponse.json({ error: (e as Error).message, needsLogin: login },
-      { status: login ? 401 : 502 });
+      { status: 424 });
   }
 
   // Dazu das Archiv: Epic fuehrt die Spieltage der Vorsaison nicht mehr - ohne sie fehlte neuen Saisons jede fruehere Ausgabe.

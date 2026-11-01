@@ -5836,5 +5836,25 @@
     "commits": [
       "baa9988"
     ]
+  },
+  {
+    "id": "chef-265",
+    "datum": "2026-11-01T06:17:00Z",
+    "titel": "Qualifikation: Epic-Ausfall ohne Fehlerseite",
+    "kurz": "Unsichtbar: fällt Epic aus, antwortet die Qualifikations-Abfrage ohne Server-Fehler (wie die anderen Cup-Abfragen).",
+    "markieren": [
+      "text:Qualify"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Abfrage antwortete bei einem Epic-Ausfall mit einem Server-Fehler (502) – die Regel sagt: nie 5xx, sonst zeigt der Lastverteiler eine Fehlerseite.",
+    "was": "Sie antwortet jetzt wie die übrigen Cup-Abfragen mit „abhängige Quelle fehlt“; die Seite zeigt den Ausfall wie bisher.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
