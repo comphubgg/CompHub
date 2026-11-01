@@ -106,7 +106,7 @@ export default function RanglisteNeu() {
       if (suche.trim()) p.set('q', suche.trim());
       const r = await fetch(`/api/power-rankings?${p}`, { cache: 'no-store' });
       const j = await r.json() as Seite;
-      if (!r.ok || !j.success) throw new Error(j.error ?? 'Nicht ladbar');
+      if (!r.ok || !j.success) throw new Error('nicht erreichbar');
       setDaten(j);
     } catch (e) { setFehler((e as Error).message); } finally { setLaedt(false); }
   }, [seite, proSeite, suche]);
@@ -115,6 +115,13 @@ export default function RanglisteNeu() {
     const uhr = window.setTimeout(holen, suche ? 300 : 0);
     return () => window.clearTimeout(uhr);
   }, [holen, suche]);
+
+  // Der Hinweis verspricht einen neuen Versuch - dann gibt es ihn auch.
+  useEffect(() => {
+    if (!fehler) return;
+    const uhr = window.setTimeout(holen, 15_000);
+    return () => window.clearTimeout(uhr);
+  }, [fehler, holen]);
 
   const seitenZahl = daten?.totalPages ?? 1;
   const seiteJetzt = Math.min(Math.max(1, seite), seitenZahl);
@@ -248,7 +255,7 @@ export default function RanglisteNeu() {
           </p>
         )}
 
-        {fehler ? <p className="p-8 text-center text-sm text-rose-500">{fehler}</p>
+        {fehler ? <p role="alert" className="p-8 text-center text-sm text-rose-500"><T>Die Rangliste ist gerade nicht erreichbar. Sie wird gleich noch einmal versucht.</T></p>
           : laedt && !spieler.length ? <LadeSchirm />
           : daten?.holt ? <p className="p-8 text-center text-sm text-slate-400"><T>Die Rangliste wird gerade geholt — zehntausend Plätze in hundert Schritten. Das dauert einige Minuten; lade die Seite danach neu.</T></p>
           : !spieler.length ? <p className="p-8 text-center text-sm text-slate-500">{suche ? <>{t('Kein Spieler gefunden für')} „{suche}“.</> : <T>Keine Daten.</T>}</p>

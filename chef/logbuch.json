@@ -2799,6 +2799,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:55:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "71760ff"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-131",
+    "titel": "Power Rankings: Ladefehler als verständlicher Hinweis",
+    "kurz": "Power Rankings: Bei Ausfall übersetzter Hinweis und neuer Versuch statt Rohfehler.",
+    "markieren": [
+      "text:The ranking is currently unreachable"
+    ],
+    "warum": "Bei einem Ladefehler stand eine rohe, unübersetzte Meldung („Failed to fetch“), und die Liste blieb leer.",
+    "was": "Jetzt erscheint „gerade nicht erreichbar“, nach 15 Sekunden wird es erneut versucht.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:55:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1
