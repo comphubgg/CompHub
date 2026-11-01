@@ -1765,12 +1765,19 @@ export default function TweetSeite() {
   const spielerListen = useMemo<Bestenliste[]>(() => {
     const roh = einzelwerte;
     if (!roh.length) return [];
+    /* Quoten erst ab einer Mindestzahl an Spielen - dieselbe Regel wie auf der Statistikseite (Hälfte der meisten Spiele, 3 bis 20).
+       Sonst stand in einem offenen Cup jemand mit einem einzigen Spiel als "Best Accuracy" im Tweet. */
+    const hoechste = roh.reduce((m, p) => Math.max(m, Number(p.matches) || 0), 0);
+    const mindestQuote = Math.max(3, Math.min(20, Math.round(hoechste / 2)));
+    const istQuote = (s: string) => s === 'quote' || s === 'quoteNiedrig' || s === 'genauigkeit';
     return SPIELER_KENNZAHLEN.map((k) => {
       // "Lowest Damage Ratio" greift auf dasselbe Feld zu, sortiert nur andersherum.
       const feld = (k.schluessel === 'quoteNiedrig' ? 'quote' : k.schluessel) as keyof SpielerWert;
       const wertVon = (p: SpielerWert) => Number(p[feld]);
+      // Ohne Spielzahl in der Quelle (0) greift die Regel nicht - dann lieber alle zeigen als keinen.
+      const genug = (p: SpielerWert) => !istQuote(String(k.schluessel)) || !hoechste || (Number(p.matches) || 0) >= mindestQuote;
       const sortiert = [...roh]
-        .filter((p) => wertVon(p) > 0)
+        .filter((p) => wertVon(p) > 0 && genug(p))
         .sort((a, b) => (k.kleinBesser ? wertVon(a) - wertVon(b) : wertVon(b) - wertVon(a)));
       if (!sortiert.length) return null;
       // Einmal das ganze Feld aufbereiten. Die Kachel nimmt sich die ersten

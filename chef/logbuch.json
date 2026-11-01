@@ -5268,5 +5268,27 @@
     "commits": [
       "f4fa106"
     ]
+  },
+  {
+    "id": "chef-240",
+    "datum": "2026-11-01T04:56:45Z",
+    "titel": "Admin Tweets: Quoten erst ab genug Spielen",
+    "kurz": "Admin → Tweets: „Best Accuracy“/„Damage Ratio“ zählen erst ab halb so vielen Spielen.",
+    "markieren": [
+      "text:Best Accuracy",
+      "text:Best Damage Ratio",
+      "text:Lowest Damage Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "In offenen Cups konnte jemand mit einem einzigen Spiel als beste Trefferquote im Tweet stehen – auf der Statistikseite gilt längst eine Mindestzahl.",
+    "was": "Jetzt gilt dieselbe Regel wie auf der Statistikseite: mindestens die Hälfte der meisten Spiele (3 bis 20).",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
