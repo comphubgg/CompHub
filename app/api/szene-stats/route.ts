@@ -9,7 +9,7 @@ import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, saisonKurz, startseite, summen, tagesbeste, verlauf, epicVerlauf,
   istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
-  JAHR_SAISONS, summeAusVerlauf,
+  JAHR_SAISONS, summeAusVerlauf, nachKennzahl,
   clutchFuerSaison,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -366,7 +366,8 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
   // Die Mindestzahl richtet sich nach der ganzen Grundliste, nicht nach den Suchtreffern.
   const mindestMatches = mindestFuer(grund.spieler, feld);
   const genug = (z: Zeile) => mindestMatches === null || (Number(z.matches) || 0) >= mindestMatches;
-  const sortiert = [...gefiltert].sort((a, b) => Number(genug(b)) - Number(genug(a)) || Number(b[feld]) - Number(a[feld]));
+  const folge = nachKennzahl(feld);
+  const sortiert = [...gefiltert].sort((a, b) => Number(genug(b)) - Number(genug(a)) || folge(a, b));
   return {
     success: true,
     quelle: QUELLE,
@@ -1675,8 +1676,9 @@ async function berechne(request: Request) {
     // Quoten mit Mindestzahl an Matches wie auf der Startseite (mindestFuer) - die Grenze aus der ganzen Gruppe, nicht aus den Suchtreffern.
     const mindestMatches = mindestFuer(alle as unknown as Array<Record<string, unknown>>, feld as string);
     const genug = (z: { matches: number }) => mindestMatches === null || z.matches >= mindestMatches;
+    const folge = nachKennzahl(feld as string);
     const sortiert = [...gefiltert].sort((a, b) =>
-      Number(genug(b)) - Number(genug(a)) || Number(b[feld]) - Number(a[feld]));
+      Number(genug(b)) - Number(genug(a)) || folge(a, b));
 
     const gepflegt = await liesProfile();
     const bildZu = await liesBilder();

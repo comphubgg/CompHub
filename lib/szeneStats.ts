@@ -1190,6 +1190,24 @@ export function summeAusVerlauf(
 
 /* ------------------------------------------------------------ Startseite */
 
+/**
+ * Die Reihenfolge einer Bestenliste nach einem Feld, mit fester Regel bei Gleichstand.
+ *
+ * Vorher entschied bei gleichem Wert nur die Reihenfolge, in der die Konten beim Einlesen auftauchten - die aendert sich mit jedem
+ * neuen Spieltag, und zwei Spieler mit 109 Eliminierungen tauschten beim Neuladen die Plaetze. Jetzt: erst der Wert, dann mehr
+ * Eliminierungen, dann mehr Schaden, zuletzt die Konto-Id (die sich nie aendert). Ein geteilter Rang ist vom Betreiber abgelehnt.
+ */
+export function nachKennzahl(feld: string) {
+  const zahl = (z: Record<string, unknown>, f: string) => Number(z[f]) || 0;
+  return (a: object, b: object) => {
+    const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
+    return zahl(y, feld) - zahl(x, feld)
+      || zahl(y, 'elims') - zahl(x, 'elims')
+      || zahl(y, 'damage') - zahl(x, 'damage')
+      || String(x.epicId ?? '').localeCompare(String(y.epicId ?? ''));
+  };
+}
+
 /** Wie viele Plaetze eine Bestenliste der Startansicht traegt. */
 const LISTEN_LAENGE = 400;
 
@@ -1418,7 +1436,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     mindestMatches: k.feld === 'quote' ? mindestMatches : null,
     plaetze: [...saisonFeld]
       .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches : true))
-      .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
+      .sort(nachKennzahl(String(k.feld)))
       /*
        * Vierhundert statt sechzig.
        *
@@ -1827,7 +1845,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     mindestMatches: k.feld === 'quote' ? quoteMindest : null,
     plaetze: [...feld]
       .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest : true))
-      .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
+      .sort(nachKennzahl(String(k.feld)))
       .slice(0, LISTEN_LAENGE),
   }));
   const namen = new Map(feld.map((s) => [s.epicId, s]));
