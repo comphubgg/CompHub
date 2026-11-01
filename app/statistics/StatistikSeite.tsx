@@ -2768,33 +2768,42 @@ export default function StatistikSeite() {
     team: string; org: string | null; logo: string | null; seit: string | null; bis: string | null;
     aktuell: boolean; hinweis: string | null; rolle: string | null;
   }>>([]);
+  /** Teamverlauf oder Galerie waren nicht zu holen: Ihr Reiter fehlte sonst, als gaebe es nichts - stattdessen steht ein Hinweis, nach zehn Sekunden neuer Versuch. */
+  const [reiterFehlt, setReiterFehlt] = useState<{ team: boolean; archiv: boolean }>({ team: false, archiv: false });
+  const [reiterVersuch, setReiterVersuch] = useState(0);
   useEffect(() => {
-    if (!offen?.epicId) { setTeamVerlauf([]); return; }
+    if (!offen?.epicId) { setTeamVerlauf([]); setArchivAnzahl(0); setArchivBilder([]); setReiterFehlt({ team: false, archiv: false }); return undefined; }
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    const ausfall = (welcher: 'team' | 'archiv') => {
+      if (weg) return;
+      setReiterFehlt((f) => ({ ...f, [welcher]: true }));
+      if (!nochmal) nochmal = setTimeout(() => { if (!weg) setReiterVersuch((v) => v + 1); }, 10_000);
+    };
     fetch(`/api/teamverlauf?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => { if (!weg) setTeamVerlauf(Array.isArray(j?.eintraege) ? j.eintraege : []); })
-      .catch(() => { if (!weg) setTeamVerlauf([]); });
-    return () => { weg = true; };
-  }, [offen?.epicId]);
+      .then((j) => {
+        if (!Array.isArray(j?.eintraege)) throw new Error('keine Liste');
+        if (!weg) { setTeamVerlauf(j.eintraege); setReiterFehlt((f) => ({ ...f, team: false })); }
+      })
+      .catch(() => { if (!weg) setTeamVerlauf([]); ausfall('team'); });
+    fetch(`/api/galerie?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!Array.isArray(j?.eintraege)) throw new Error('keine Liste');
+        if (weg) return;
+        const liste: GalerieEintrag[] = j.eintraege;
+        setReiterFehlt((f) => ({ ...f, archiv: false }));
+        setArchivAnzahl(liste.length);
+        setArchivBilder(liste.filter((e) => e.art === 'bild' && e.datei).sort((x, y) => y.erstellt - x.erstellt));
+      })
+      .catch(() => { if (!weg) setArchivAnzahl(0); ausfall('archiv'); });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [offen?.epicId, reiterVersuch]);
   /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
   const [archivAnzahl, setArchivAnzahl] = useState(0);
   /** Die Bilder davon - ein paar stehen unten in der Uebersicht. */
   const [archivBilder, setArchivBilder] = useState<GalerieEintrag[]>([]);
-  useEffect(() => {
-    if (!offen?.epicId) { setArchivAnzahl(0); setArchivBilder([]); return; }
-    let weg = false;
-    fetch(`/api/galerie?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => {
-        if (weg) return;
-        const liste: GalerieEintrag[] = Array.isArray(j?.eintraege) ? j.eintraege : [];
-        setArchivAnzahl(liste.length);
-        setArchivBilder(liste.filter((e) => e.art === 'bild' && e.datei).sort((a, b) => b.erstellt - a.erstellt));
-      })
-      .catch(() => { if (!weg) setArchivAnzahl(0); });
-    return () => { weg = true; };
-  }, [offen?.epicId]);
   const [saisonBilder, setSaisonBilder] = useState<Record<string, string | null>>({});
   const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
   /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
@@ -6413,6 +6422,11 @@ export default function StatistikSeite() {
             </div>
 
             <div className="px-7 py-6">
+              {(reiterFehlt.team || reiterFehlt.archiv) && (
+                <p role="status" className="mb-4 text-center text-xs text-amber-200/70">
+                  <T>Teamverlauf und Galerie sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
+              )}
               {/* Leise ueber allem: worueber wird hier gerechnet.
                   Nicht zum Lesen gedacht, sondern zum Nachsehen - wer sich
                   fragt, ob eine Zahl fuer eine Saison oder fuers ganze

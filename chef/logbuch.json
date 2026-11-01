@@ -4638,5 +4638,25 @@
     "commits": [
       "fc0e717"
     ]
+  },
+  {
+    "id": "chef-212",
+    "titel": "Spielerprofil: Ausfall von Teamverlauf/Galerie meldet sich",
+    "kurz": "Spielerprofil: fehlen Teamverlauf/Galerie wegen Ausfall, steht oben ein Hinweis.",
+    "markieren": [
+      "text:Team history and gallery cannot be reached right now."
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Abfrage aus, fehlten die Reiter „Teamverlauf“ und „Galerie“ einfach – als hätte der Spieler keine.",
+    "was": "Jetzt steht über dem Profil ein Hinweis, nach 10 Sekunden wird es erneut versucht.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:54:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
