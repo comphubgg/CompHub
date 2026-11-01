@@ -691,7 +691,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                       <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
                       {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString(ort)}</td>}
-                      <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : <T>Sieger</T>}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : s.platz === 1 ? <T>Sieger</T> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
