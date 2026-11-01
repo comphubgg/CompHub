@@ -3415,13 +3415,13 @@
     "status": "wartet",
     "runde": 1,
     "id": "chef-158",
-    "titel": "Solo Clutch Points: Gleichstand mit gleichem Rang",
-    "kurz": "Statistik → Solo Clutch Points: gleiche Punkte zeigen gleichen Rang (1, 2, 2, 4).",
+    "titel": "Solo Clutch Points: feste Reihenfolge bei Gleichstand",
+    "kurz": "Statistik → Solo Clutch Points: gleiche Punkte stehen in fester statt zufälliger Reihenfolge.",
     "markieren": [
       "text:Solo Clutch Points"
     ],
-    "warum": "In S42 haben 747 Spieler genau 2 Punkte – sie bekamen verschiedene Ränge in zufälliger Reihenfolge, die Cup-Seiten ranken gleiche Werte gleich.",
-    "was": "Gleiche Punkte = gleicher Rang; innerhalb gilt: weniger Clutch-Spiele zuerst, dann eine feste Reihenfolge. Wirkt nach der nächsten Neuberechnung.",
+    "warum": "In S42 haben 747 Spieler genau 2 Punkte – ihre Reihenfolge hing vom Zufall der Dateien ab und wechselte.",
+    "was": "Bei gleichen Punkten steht vorn, wer weniger Clutch-Spiele brauchte, dann eine feste Reihenfolge. Plätze bleiben fortlaufend (wie von dir bei chef-102 gewünscht). Wirkt nach der nächsten Neuberechnung.",
     "ansehen": [
       "/statistics?saison=S42"
     ],

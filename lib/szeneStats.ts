@@ -2537,8 +2537,7 @@ export async function clutchDerSaison(saison: string, verzeichnis: ArchivEintrag
     .map(([epicId, z]) => ({ epicId, punkte: z.punkte, spiele: z.spiele, solo: soloDa ? z.solo : null }))
     // Gleiche Punkte: weniger Clutch-Spiele zuerst, dann die Kennung - eine feste Reihenfolge statt der Reihenfolge der Dateien.
     .sort((a, b) => b.punkte - a.punkte || a.spiele - b.spiele || (a.epicId < b.epicId ? -1 : a.epicId > b.epicId ? 1 : 0));
-  // Gleiche Punkte, gleicher Rang (1, 2, 2, 4) - wie bei den Spielerlisten der Cups.
-  zeilen.forEach((z, i) => { z.rang = i > 0 && zeilen[i - 1].punkte === z.punkte ? zeilen[i - 1].rang : i + 1; });
+  // Kein geteilter Rang: "gleicher Wert, gleicher Platz" hat der Betreiber fuer die Bestenlisten der Statistik abgelehnt (chef-102).
   return { zeilen, spieltage: tage, soloDa };
 }
 
