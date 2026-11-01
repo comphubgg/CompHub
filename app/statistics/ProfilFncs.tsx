@@ -225,7 +225,13 @@ export function ErfolgeReiter({ tafel, erfolge }: { tafel: TafelZeile[]; erfolge
 export function KarriereBest({ tafel }: { tafel: TafelZeile[] }) {
   const { sprache } = useSprache();
   const en = sprache === 'en';
-  const beste = tafel.filter((z) => z.platz > 0).sort((a, b) => a.platz - b.platz || (b.datum ?? 0) - (a.datum ?? 0)).slice(0, 3);
+  /*
+   * Bei gleichem Platz zuerst die LAN-Finals (Globals, Grand Royale ...) - die groessere Buehne; sie haben in der Quelle oft kein Datum
+   * und fielen sonst ans Ende (peterbot: Globals-2024-Sieg fehlte unter seinen fuenf FNCS-Siegen). Danach das juengere Finale.
+   */
+  const beste = tafel.filter((z) => z.platz > 0)
+    .sort((a, b) => a.platz - b.platz || Number(b.typ === 'LAN') - Number(a.typ === 'LAN') || (b.datum ?? 0) - (a.datum ?? 0))
+    .slice(0, 3);
   if (!beste.length) return null;
   return (
     <section>

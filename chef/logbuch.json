@@ -2515,5 +2515,26 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-118",
+    "datum": "2026-11-01T02:25:00Z",
+    "titel": "Profil: Karriere-Bestwerte zeigen Globals-Siege",
+    "kurz": "Profil → Career Best: Bei gleichem Platz steht der Globals-Sieg jetzt vorn.",
+    "markieren": [
+      "text:Career Best",
+      "text:GLOBALS 2024"
+    ],
+    "bereich": "Statistik",
+    "warum": "LAN-Finals haben oft kein Datum und rutschten ans Ende – peterbots Globals-Sieg 2024 fehlte in den drei Bestwerten.",
+    "was": "Bei gleichem Platz kommen LAN-Finals zuerst, danach das jüngere Finale.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
