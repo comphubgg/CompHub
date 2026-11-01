@@ -5100,5 +5100,26 @@
     "commits": [
       "ad5ae4a"
     ]
+  },
+  {
+    "id": "chef-233",
+    "datum": "2026-11-01T04:35:00Z",
+    "titel": "Spielerliste: „Trefferquote“ statt „Treffer %“",
+    "kurz": "Statistik → Spieler: Spalte heißt jetzt „Accuracy“ wie im Profil und Vergleich.",
+    "markieren": [
+      "text:Accuracy",
+      "css:table thead th:nth-child(8)"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Spielerliste schrieb „Accuracy %“, Profil, Bestenliste und Vergleich „Accuracy“ – dasselbe hieß zweimal anders.",
+    "was": "Spalte und Kachel in der Spielerkarte heißen jetzt überall gleich.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

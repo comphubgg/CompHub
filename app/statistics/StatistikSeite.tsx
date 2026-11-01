@@ -2342,7 +2342,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
               </h3>
               <div className="mt-5 grid grid-cols-3 gap-2">
                 {([['Quote', voll ? feldText(voll, 'quote', 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
-                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? feldText(voll, 'genauigkeit', 1, sprache, ' %') : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Trefferquote', voll ? feldText(voll, 'genauigkeit', 1, sprache, ' %') : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                   <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
                     <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
                     <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-500' : 'text-slate-100'}`}>{v}</p>
@@ -5967,7 +5967,7 @@ export default function StatistikSeite() {
                           <th className="px-3 py-3 text-right font-medium"><T>Schaden</T></th>
                           <th className="px-3 py-3 text-right font-medium"><T>Quote</T></th>
                           <th className="px-3 py-3 text-right font-medium"><T>Kopftreffer</T></th>
-                          <th className={`${EXTRA_SPALTE[sort] ? 'px-3' : 'px-4'} py-3 text-right font-medium`}><T>Treffer %</T></th>
+                          <th className={`${EXTRA_SPALTE[sort] ? 'px-3' : 'px-4'} py-3 text-right font-medium`}><T>Trefferquote</T></th>
                           {EXTRA_SPALTE[sort] && (
                             <th className="px-4 py-3 text-right font-medium text-sky-500"><T>{EXTRA_SPALTE[sort].kopf}</T></th>
                           )}
