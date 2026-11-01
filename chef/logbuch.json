@@ -1967,7 +1967,7 @@
     "commits": [
       "ea513de6271e32b8f7f127fc4728fa1a3b3b3049"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -1990,7 +1990,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (übertragen)",
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2013,7 +2013,7 @@
     "commits": [
       "4ae3cd1d1fbf0d5fc87447c2705534a697bf5a67"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2036,7 +2036,7 @@
     "commits": [
       "b8fe5e62ea7bea9b903c0679ca41ca772d6e3573"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2060,7 +2060,7 @@
     "commits": [
       "305f4c51eece6023ca22ccee43ac636681c05554"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2083,7 +2083,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (weitere Stellen)",
-    "status": "wartet",
+    "status": "abgelehnt",
     "runde": 6
   },
   {
@@ -2106,7 +2106,7 @@
     "commits": [
       "1bb43a202d24229335d9c6ddbec63f4fd4ab24cb"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2129,7 +2129,7 @@
     "commits": [
       "c5727bd273f904ce13fddbe8c33109daa7f701ec"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2152,7 +2152,7 @@
     "commits": [
       "0e8a80dfa14e959e5eac6803faaeb2d26863a6de"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2175,7 +2175,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "abgelehnt",
     "runde": 6
   },
   {
@@ -2199,7 +2199,7 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (allgemeiner gemacht)",
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2221,7 +2221,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   },
   {
@@ -2239,10 +2239,12 @@
     "ansehen": [
       "/events/s42_fncssolos_reload_finals"
     ],
-    "commits": [],
+    "commits": [
+      "31986ae33dd32da6a7ed1b7b6faae5e3d150e826"
+    ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 6
   }
 ]
