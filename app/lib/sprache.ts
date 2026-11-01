@@ -2022,6 +2022,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'nicht angetreten.': 'did not compete.',
   'Zu diesem Spieltag liegen': 'For this match day there are',
   'keine Einzelwerte vor.': 'no individual values.',
+  '{a} von {b} Spielern gezeigt.': '{a} of {b} players shown.',
   'Meister Schaden erlitten': 'Most damage taken',
   'nach Eliminierungen über alle erfassten Spieltage, ab 20 Matches':
     'by eliminations across all recorded match days, from 20 matches',

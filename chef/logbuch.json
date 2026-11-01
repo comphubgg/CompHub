@@ -2649,5 +2649,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-124",
+    "titel": "Spielerliste: Fußzeile ganz auf Englisch",
+    "kurz": "Spieler → unter der Liste: „players shown“ statt halb deutschem „Spielern gezeigt“.",
+    "markieren": [
+      "text:players shown"
+    ],
+    "warum": "Unter der Spielerliste stand auf der englischen Seite „… of … Spielern gezeigt.“.",
+    "was": "Der Satz läuft jetzt ganz über die Übersetzung.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:40:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

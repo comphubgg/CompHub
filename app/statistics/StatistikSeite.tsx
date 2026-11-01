@@ -5866,7 +5866,7 @@ export default function StatistikSeite() {
               )}
               {gesamt > gezeigteSpieler.length && (
                 <p className="mt-2 text-xs text-slate-600">
-                  {zahl(gezeigteSpieler.length, 0, sprache)} <T>von</T> {zahl(gesamt, 0, sprache)} Spielern gezeigt.
+                  {t('{a} von {b} Spielern gezeigt.').replace('{a}', zahl(gezeigteSpieler.length, 0, sprache)).replace('{b}', zahl(gesamt, 0, sprache))}
                 </p>
               )}
             </>
