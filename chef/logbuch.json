@@ -2538,5 +2538,23 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-119",
+    "datum": "2026-11-01T02:30:00Z",
+    "titel": "Cup-Schnittstellen: Epic-Ausfall ohne Fehlerseite",
+    "kurz": "Unsichtbar: Fällt Epic aus, zeigen Cup-Seiten den Hinweis statt einer Fehlerseite.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Acht Cup-Schnittstellen meldeten einen Epic-Ausfall als Serverfehler – der Lastverteiler macht daraus eine Fehlerseite.",
+    "was": "Sie melden den Ausfall jetzt wie die Statistik („Quelle nicht erreichbar“), die Seite zeigt ihren eigenen Hinweis.",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

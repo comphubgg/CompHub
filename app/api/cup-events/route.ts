@@ -20,7 +20,7 @@ async function holeRoh(request: Request) {
         needsLogin: login,
         eingerichtet: await istEingerichtet(),
       },
-      { status: login ? 401 : 500 },
+      { status: 424 },
     );
   }
 }

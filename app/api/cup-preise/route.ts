@@ -147,7 +147,7 @@ async function holeRoh(request: Request) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(
       { error: (e as Error).message, needsLogin: login },
-      { status: login ? 401 : 502 });
+      { status: 424 });
   }
 
   // Epic schluesselt teils mit der blossen Fenster-Id, teils mit einer

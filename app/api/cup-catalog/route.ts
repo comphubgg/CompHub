@@ -278,7 +278,7 @@ export async function GET(request: Request) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(
       { error: (e as Error).message, needsLogin: login },
-      { status: login ? 401 : 500 },
+      { status: 424 },
     );
   }
 }
