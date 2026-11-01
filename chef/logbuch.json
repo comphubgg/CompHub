@@ -3558,5 +3558,51 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-164",
+    "datum": "2026-11-01T03:45:00Z",
+    "titel": "Team-Details: echte 0 als 0,00 statt Strich",
+    "kurz": "Cup-Seite → Team anklicken: Ø Elims und K/D zeigen 0,00 statt Strich.",
+    "markieren": [
+      "text:Avg. elims",
+      "text:K/D",
+      "text:Avg. points"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ein Team mit Spielen, aber ohne Eliminierung zeigte „Elims 0“ und daneben „Ø Elims –“ – das widersprach sich.",
+    "was": "Hat das Team gespielt, steht dort jetzt 0,00. Der Strich bleibt, wo wirklich nichts bekannt ist (z. B. Ø Platz).",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "commits": [
+      "4a87966"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-165",
+    "datum": "2026-11-01T03:45:00Z",
+    "titel": "Player Stats: unerwarteter Fehler ergibt Hinweis statt Fehlerseite",
+    "kurz": "Unsichtbar: Player Stats zeigen bei einem Lesefehler den Hinweis statt Fehlerseite.",
+    "markieren": [
+      "text:Player Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ging beim Lesen der Spielerwerte etwas Unerwartetes schief, kam eine Server-Fehlermeldung, aus der der Lastverteiler eine Fehlerseite macht.",
+    "was": "Jetzt antwortet die Seite wie die übrigen Cup-Abfragen mit „nicht erreichbar“, und der Reiter versucht es nach 10 Sekunden erneut.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
+    ],
+    "commits": [
+      "74ec670"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
