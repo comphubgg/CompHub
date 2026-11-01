@@ -132,14 +132,14 @@ async function eventZu(windowId: string, region: string = REGION): Promise<strin
   } catch { return null; }
 }
 
-async function ergebnisse(windowId: string, region: string = REGION, eventId?: string): Promise<Map<string, { rang: number; punkte: number }>> {
-  const karte = new Map<string, { rang: number; punkte: number }>();
+async function ergebnisse(windowId: string, region: string = REGION, eventId?: string): Promise<Map<string, { rang: number; punkte: number | null }>> {
+  const karte = new Map<string, { rang: number; punkte: number | null }>();
   const event = eventId ?? await eventZu(windowId, region);
   if (!event) return karte;
   try {
     const roh = await gecacht(`solos|top|${windowId}`, 2 * 60_000, () => holeTop(event, windowId, 100, true));
     for (const e of (roh as { entries?: Array<{ rank: number; points?: number; players?: Array<{ id: string }> }> }).entries ?? []) {
-      for (const p of e.players ?? []) karte.set(p.id, { rang: e.rank, punkte: e.points ?? 0 });
+      for (const p of e.players ?? []) karte.set(p.id, { rang: e.rank, punkte: typeof e.points === 'number' ? e.points : null });
     }
   } catch { /* ohne Ergebnisse bleibt die Gruppe ohne Rang */ }
   return karte;
@@ -372,7 +372,7 @@ async function herkunftAus(fenster: SolosFenster[], region: string, eventVon?: M
   const finale = [...new Map(fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler).map((s) => [s.id, s])).values()];
   const heats = fenster.filter((f) => f.art === 'heat');
   const qualis = fenster.filter((f) => f.art === 'qualifier');
-  const ergebnisseJe = new Map<string, Map<string, { rang: number; punkte: number }>>();
+  const ergebnisseJe = new Map<string, Map<string, { rang: number; punkte: number | null }>>();
   await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId, region, eventVon?.get(q.windowId))); }));
 
   const gruppen = new Map<string, SolosGruppe>();

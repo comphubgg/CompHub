@@ -5702,5 +5702,25 @@
     "commits": [
       "b6533f8"
     ]
+  },
+  {
+    "id": "chef-259",
+    "datum": "2026-11-01T06:08:00Z",
+    "titel": "Globals Solos: unbekannte Punkte nicht als 0",
+    "kurz": "Globals Solos → Qualifiziert: fehlen Epics Punkte, steht „#5“ statt „#5 · 0 Punkte“.",
+    "markieren": [
+      "text:Points"
+    ],
+    "bereich": "Statistik",
+    "warum": "Lieferte Epic zu einem Qualifier-Platz keine Punkte, stand dort „0 Punkte“ – das ist erfunden.",
+    "was": "Fehlende Punkte bleiben jetzt unbekannt und werden nicht angezeigt.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
