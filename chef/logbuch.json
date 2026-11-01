@@ -3473,5 +3473,23 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:36:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-161",
+    "titel": "Teamseite: fehlende Werte als Strich",
+    "kurz": "Bei fehlenden Daten: Teamseite → Spieler zeigt Strich statt 0 bei Schaden je Match.",
+    "markieren": [],
+    "warum": "Fehlten einem Spieler Schaden, Schüsse oder erlittener Schaden, rechnete die Seite mit 0 und zeigte „0“ als Trefferquote, Schaden je Match oder Quote.",
+    "was": "Diese drei Werte bleiben jetzt leer (Strich), wenn die Grundwerte fehlen. Live noch kein Fall gefunden – reine Absicherung.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

@@ -84,9 +84,11 @@ export async function GET(request: Request) {
         elims: s?.elims ?? null, assists: s?.assists ?? null,
         damage: s ? Math.round(s.damage) : null, damageTaken: s ? Math.round(s.damageTaken) : null,
         heals: s ? Math.round(s.heals) : null, mats: s?.mats ?? null, builds: s?.builds ?? null,
-        accuracy: runde(s?.genauigkeit, 1), elimsPerMatch: runde(s?.elimsProMatch), damagePerMatch: runde(s?.damageProMatch, 0),
+        // Ohne Schuesse, Schaden oder erlittenen Schaden ist der Wert unbekannt (die Summe fuehrt dann 0) - null, damit die Seite einen Strich zeigt.
+        accuracy: s?.shots ? runde(s.genauigkeit, 1) : null, elimsPerMatch: runde(s?.elimsProMatch),
+        damagePerMatch: s?.damage ? runde(s.damageProMatch, 0) : null,
         // Schaden ausgeteilt / erlitten - KEIN K/D (CompHub fuehrt kein K/D ueber das Archiv).
-        damageRatio: runde(s?.quote),
+        damageRatio: s?.damageTaken ? runde(s.quote) : null,
         timeAliveSec: s ? Math.round(s.timeAlive) : null,
         powerRank: (id && prVon.get(id)?.rank) || null,
         powerPoints: (id && prVon.get(id)?.wertung) || null,
