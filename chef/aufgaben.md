@@ -7,6 +7,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Profil: Ranked-Zeile verschwand bei Ausfall still** (chef-144).
 - [ ] **FNCS-Tabelle im Profil: INVITATIONAL 2022 ohne Format** – zeigt jetzt einen Strich; falls das Format sicher bekannt ist (Duo?), in die feste Liste aufnehmen.
 - [x] **Cup-Statistik FNCS Solo Final EU geprüft**: K/D, Siege, Gleichstände, Ø-Platz stimmen.
+- [ ] **Jahresliste 2025 ebenfalls alt**: „Beste Schadensquote“ hat Mindestgrenze 10 Matches, obwohl chef-13 (live) 36 ergibt (meiste Matches 363) – die vorgerechnete Jahresantwort wurde seit chef-13 nicht neu abgelegt. Gleiche Ursache wie chef-106.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)
@@ -35,7 +36,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-142) **FNCS All-Time: fällt ein Endspiel trotz drei Versuchen aus, steht eine Teilsumme als „letzte gute Antwort“** bis zu 7 Tage. Ein Helfer wollte dann gar nicht antworten – abgelehnt, weil ein dauerhaft fehlendes altes Endspiel die ganze Tafel lahmlegen würde. Besser: Antwort mit Feld „unvollständig“, nicht als letzte gute speichern, auf der Seite kleiner Hinweis.
 - [x] **Map-Archiv Zufallsreihenfolge** (chef-133), **Teamseite Ausfall = Striche** (chef-134), **Org-Kader-Link über Namen** (chef-135), **Match-Seite 0 bei Verbindungsabbruch** (chef-136).
 - [ ] **Teamseite „Earnings“ = Karriere-Preisgeld, Orgs-Liste = Preisgeld seit Beitritt (Standard: dieses Jahr)** – z. B. HavoK/pixie 843.915 gegen 328.800. Beschriftung klarer machen? Betreiber fragen.
-- [ ] **Match-Seite: Kills-Spalte weicht bei einigen Spielern vom Kill-Feed ab** – vermutlich nicht gezählte Bot-Kills; nachprüfen.
+- [x] **Match-Seite: Kills-Spalte weicht bei einigen Spielern vom Kill-Feed ab** (Runde 9 geprüft: kein Fehler – der Feed zeigt auch Bot-Kills und eigene Sturm-/Fall-Tode, die Spalte zählt wie Epic nur echte Spieler; Beispiel FNCS Solo Final EU Tag 2, Spiel 1: M8 Rax Spalte 1, Feed 3 mit 2 Bots) – vermutlich nicht gezählte Bot-Kills; nachprüfen.
 - [x] **Startseite Quote „1.45“ auf Deutsch** (chef-137), **Kachel-Spielerzahl Browsersprache** (chef-138), **Events „heute“ über alle Regionen** (chef-139), **Events Gleichstand** (chef-140).
 - [x] (chef-141) **POV-Statistik (Streams): Epic-Ausfall erscheint als „Spielt gerade in keinem Cup“** – Ausfälle je Region/Fenster werden geschluckt. Ein Helfer-Vorschlag (bei jedem Teil-Ausfall Fehler werfen) abgelehnt: ein einziges hakendes Fenster irgendeines Cups hätte dann „nicht erreichbar“ gezeigt, obwohl der Profi einfach nicht spielt. Besser: nur werfen, wenn ALLE Regionen bzw. die Mehrheit ausfallen.
 - [ ] **Teil-Neustart im Datenlauf**: Wenn der Server in einer Portion stirbt, scheitert der Rest der Portion sofort (0,0 s). Vorschlag an den Betrieb: Vorrechner merkt „Server weg“ und bricht die Portion ab bzw. der Ablauf startet neu (Workflow – nicht meine Datei).
