@@ -19,7 +19,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useSprache, useT } from '@/app/components/SprachProvider';
+import { ortVon } from '@/app/lib/ort';
 import { AlleSpieler, KartenHud, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
 
 export interface RSpieler {
@@ -94,6 +95,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
   hervorheben?: string;
 }) {
   const t = useT();
+  const ort = ortVon(useSprache().sprache);
   const echte = useMemo(() => match.spieler.filter((s) => !s.bot), [match.spieler]);
   const feed = useMemo(() => [...match.feed].sort((a, b) => a.t - b.t), [match.feed]);
   const nachId = useMemo(() => new Map(match.spieler.map((s) => [s.id, s])), [match.spieler]);
@@ -688,7 +690,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                       <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '—'}</td>
                       <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
-                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString()}</td>}
+                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString(ort)}</td>}
                       <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : <T>Sieger</T>}</td>
                     </tr>
                   ))}
@@ -755,8 +757,8 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                         <td className="px-3 py-1.5 text-[12px] font-bold uppercase" style={{ color: farbeVon(sp.id) }}>{ohneVorsatz(sp.name)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{sp.kills ?? 0}</td>
                         {mitSchaden && <>
-                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-100">{a ? Math.round(a.gemachtOhneBoden ?? a.gemacht ?? 0).toLocaleString() : '—'}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{a ? Math.round(a.genommen ?? 0).toLocaleString() : '—'}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-100">{a ? Math.round(a.gemachtOhneBoden ?? a.gemacht ?? 0).toLocaleString(ort) : '—'}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{a ? Math.round(a.genommen ?? 0).toLocaleString(ort) : '—'}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{a ? a.treffer ?? 0 : '—'}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-amber-300/90">{a ? a.krit ?? 0 : '—'}</td>
                         </>}
