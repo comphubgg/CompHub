@@ -11,7 +11,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Karriere-Bestwerte: Spiele ohne Datum zuletzt** (chef-118) – peterbots Globals-2024-Sieg (LAN, ohne Datum) fehlt unter den drei besten Platzierungen.
 - [x] **Damage-Ratio-Verlauf: gestrichelte Linie ohne Beschriftung** (chef-117) – Mittel der Turnier-Quoten (weicht von der Quote im Kopf ab). Beschriften.
 - [ ] **Orgs: „Bezahlte Turniere“ zählt ein Turnier mehrfach**, wenn mehrere Spieler der Org bezahlt wurden – braucht Turnier-Kennungen in der Antwort.
-- [ ] **cup-spieler (Szene-Quelle): fehlende Assists/Schaden werden 0** – prüfen, ob die Quelle 0 oder nichts meldet.
+- [ ] **cup-spieler (Szene-Quelle): fehlende Assists/Schaden werden 0** – Code gelesen: `?? 0` ist nur Absicherung, die Quelle liefert die Felder als Zahl. Erst angehen, wenn ein echter Fall ohne Wert auftaucht.
 - [x] **Profil geprüft**: Summen von Elims, Matches, Schaden, Treffern, Quote und Lebenszeit stimmen mit der Summe aller 152 Spieltage überein (peterbot).
 
 ## Neu entdeckt (Runde 7, 01.11.2026)
@@ -23,6 +23,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Cup-Seite: Quali-Auskunft verschwand still** (chef-107).
 - [x] **Cup-Seite: Preisgeld-Kachel verschwand still bei Ausfall** (chef-109).
 - [x] **FNCS All-Time: Gleichstand ohne Regel** (chef-108).
+- [x] **Cup-Schnittstellen mit 500/502/401 bei Epic-Ausfall** (chef-119). **Radar 0 statt Strich** (chef-120), **Orgs-Liste verschwand bei Neuversuch** (chef-121), **Team-Spielverlauf still leer** (chef-122), **Solo Clutch 0 ohne Wert** (chef-123).
 - [ ] **Teil-Neustart im Datenlauf**: Wenn der Server in einer Portion stirbt, scheitert der Rest der Portion sofort (0,0 s). Vorschlag an den Betrieb: Vorrechner merkt „Server weg“ und bricht die Portion ab bzw. der Ablauf startet neu (Workflow – nicht meine Datei).
 
 ## Neu entdeckt (Runde 6, 31.10.2026)
