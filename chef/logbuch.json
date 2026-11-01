@@ -5679,5 +5679,26 @@
     "commits": [
       "b0eaaeb"
     ]
+  },
+  {
+    "id": "chef-258",
+    "datum": "2026-11-01T06:05:00Z",
+    "titel": "Power Rankings: Seitenfuß nennt echte Plätze",
+    "kurz": "Power Rankings → unter der Liste: echte Plätze statt Zählung; bei Suche „Result 1 to 3“.",
+    "markieren": [
+      "css:[data-tour=\"rankingsFooter\"]",
+      "text:Rank"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer suchte, las unten „Platz 1 bis 3“, obwohl die Treffer z. B. auf Platz 3, 40 und 77 stehen; begann die Liste erst bei Platz 101, stand dort „Platz 1 bis 50“.",
+    "was": "Ohne Suche stehen dort die echten Plätze der Seite, mit Suche die Zahl der Treffer.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

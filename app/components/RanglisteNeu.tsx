@@ -306,7 +306,10 @@ export default function RanglisteNeu() {
               {seitenZahl > 1 && (
                 <div data-tour="rankingsFooter" className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 px-5 py-4 sm:px-6">
                   <span className="text-xs text-slate-500">
-                    <T>Platz</T> {zahl((seiteJetzt - 1) * proSeite + 1)} <T>bis</T> {zahl(Math.min(seiteJetzt * proSeite, daten?.matched ?? 0))} <T>von</T> {zahl(daten?.matched ?? 0)}
+                    {/* Ohne Suche stehen hier die echten Plätze der Seite (die Liste kann erst bei 101 beginnen); mit Suche zählen die Treffer, nicht der Platz. */}
+                    {suche.trim()
+                      ? <>{t('Suchtreffer')} {zahl((seiteJetzt - 1) * proSeite + 1)} <T>bis</T> {zahl(Math.min(seiteJetzt * proSeite, daten?.matched ?? 0))} <T>von</T> {zahl(daten?.matched ?? 0)}</>
+                      : <><T>Platz</T> {zahl(spieler[0].rank)} <T>bis</T> {zahl(spieler[spieler.length - 1].rank)} <T>von</T> {zahl(daten?.letzterPlatz ?? daten?.matched ?? 0)}</>}
                   </span>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button onClick={() => setSeite(seiteJetzt - 1)} disabled={seiteJetzt <= 1} className="rounded-full border border-zinc-800 px-3.5 py-1.5 text-xs text-slate-300 transition hover:border-sky-500 disabled:cursor-not-allowed disabled:opacity-30">‹</button>

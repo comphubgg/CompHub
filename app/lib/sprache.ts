@@ -4011,6 +4011,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Überblick': 'Overview',
   'Zahlen': 'Numbers',
   'Ergebnisse': 'Results',
+  'Suchtreffer': 'Result',
   'Meilensteine': 'Milestones',
   'Galerie': 'Gallery',
   'Zahlen & Rekorde': 'Numbers & records',
