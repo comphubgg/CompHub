@@ -4880,5 +4880,25 @@
     "commits": [
       "143dc7a"
     ]
+  },
+  {
+    "id": "chef-223",
+    "titel": "Cup-Seite → Karte: Reiter bleibt bei Ausfall",
+    "kurz": "Finals-Cup-Seite → Karte: bei Ausfall bleibt der Reiter mit „Map cannot be reached“.",
+    "markieren": [
+      "text:Map cannot be reached right now."
+    ],
+    "bereich": "Events",
+    "warum": "Fiel die Kartenliste aus, verschwand der Reiter „Karte“ an Finals – als gäbe es keine Karte.",
+    "was": "Jetzt bleibt der Reiter an EU- und NAC-Finals stehen und sagt, dass die Karte gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=karte"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:04:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

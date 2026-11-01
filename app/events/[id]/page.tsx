@@ -1189,6 +1189,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [karten, setKarten] = useState<Array<{ id: string; titel: string; spiele?: string;
     bildTitel?: string; eventId?: string; windowId: string }>>([]);
 
+  /** Die Kartenliste war nicht abrufbar - dann ist "keine Karte" unbekannt, nicht leer. */
+  const [kartenFehlt, setKartenFehlt] = useState(false);
+
   // ---- Cup finden ----------------------------------------------------
   useEffect(() => {
     let weg = false;
@@ -1259,8 +1262,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           nach.sort((a, b) => (a.bildTitel ?? a.titel)
             .localeCompare(b.bildTitel ?? b.titel, 'de', { numeric: true }));
           setKarten(nach);
+          setKartenFehlt(false);
         })
-        .catch(() => {});
+        .catch(() => { if (!weg) setKartenFehlt(true); });
     };
     holen();
     // Eine Minute, und nur bei sichtbarem Tab: frueher alle zwanzig
@@ -2767,13 +2771,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos ohne Reload; eine hinterlegte Karte).
   const wegDa = !!cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id);
   const kartenAnzahl = kartenZumZeigen.length;
+  // Ist die Kartenliste nicht erreichbar, bleibt der Reiter an Finals stehen und sagt es - sonst sieht es aus, als gaebe es keine Karte.
+  const karteUnbekannt = kartenFehlt && kartenAnzahl === 0 && !!fenster
+    && KARTEN_REGIONEN.includes(fenster.region) && !fenster.eventId.startsWith('manuell_')
+    && !!fenster.istFinale;
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');
     // Ranked Cups haben diese Reiter nicht - siehe die Leiste unten.
     if (cup?.art === 'ranked' && ['spieler', 'archiv'].includes(reiter)) setReiter('liste');
     if (reiter === 'weg' && !wegDa) setReiter('liste');
-    if (reiter === 'karte' && kartenAnzahl === 0) setReiter('liste');
-  }, [soloCup, reiter, cup?.art, wegDa, kartenAnzahl]);
+    if (reiter === 'karte' && kartenAnzahl === 0 && !karteUnbekannt) setReiter('liste');
+  }, [soloCup, reiter, cup?.art, wegDa, kartenAnzahl, karteUnbekannt]);
 
   if (fehler) {
     return (
@@ -3137,7 +3145,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <T>Der Weg ins Grand Final</T>
             </button>
             )}
-          {kartenAnzahl > 0 && (
+          {(kartenAnzahl > 0 || karteUnbekannt) && (
             <button
               onClick={() => setReiter('karte')}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
@@ -3455,6 +3463,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {/* ------------------------------------------------- Weg ins Grand Final und Karte (Reiter, 27.10.2026) */}
         {reiter === 'weg' && wegDa && (
           <WegKasten alsReiter region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
+        )}
+        {reiter === 'karte' && karteUnbekannt && (
+          <p role="status" className="p-4 text-center text-sm text-slate-500">
+            {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Karte'))}
+          </p>
         )}
         {reiter === 'karte' && kartenZumZeigen.length > 0 && (() => {
           const knoepfe = (
