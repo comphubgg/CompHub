@@ -5381,6 +5381,8 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "f97e70d"
+    ]
   }
 ]
