@@ -4660,5 +4660,25 @@
     "commits": [
       "7def4ff"
     ]
+  },
+  {
+    "id": "chef-213",
+    "titel": "Statistik → Bilder: Ausfall statt ewiger Ladekacheln",
+    "kurz": "Statistik → Bilder (nur Admin): bei Ausfall Hinweis statt endloser grauer Kacheln.",
+    "markieren": [
+      "text:The numbers cannot be reached right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel der Abruf aus, standen die grauen Ladekacheln für immer da.",
+    "was": "Jetzt steht ein Hinweis, nach 10 Sekunden wird erneut versucht.",
+    "ansehen": [
+      "/statistics?bereich=bilder"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:54:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

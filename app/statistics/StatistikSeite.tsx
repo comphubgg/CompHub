@@ -2680,6 +2680,8 @@ export default function StatistikSeite() {
 
   // Die Galerie aller Spieler mit Foto
   const [galerie, setGalerie] = useState<Spieler[]>([]);
+  const [galerieFehlt, setGalerieFehlt] = useState(false);
+  const [galerieVersuch, setGalerieVersuch] = useState(0);
   const [galerieSuche, setGalerieSuche] = useState('');
   /*
    * Die Fotoliste nach Region.
@@ -3314,12 +3316,23 @@ export default function StatistikSeite() {
 
   /* ------------------------------------------------------------- Galerie */
   useEffect(() => {
-    if (bereich !== 'bilder' || !istAdmin || galerie.length) return;
+    if (bereich !== 'bilder' || !istAdmin || galerie.length) return undefined;
+    let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    /* Faellt der Abruf aus, standen die grauen Platzhalter fuer immer da, als wuerde noch geladen: Hinweis, und nach zehn Sekunden noch einmal. */
     fetch('/api/szene-stats?ansicht=bilder')
       .then((r) => r.json())
-      .then((j) => setGalerie(j.spieler ?? []))
-      .catch(() => setGalerie([]));
-  }, [bereich, istAdmin, galerie.length]);
+      .then((j) => {
+        if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+        if (!weg) { setGalerieFehlt(false); setGalerie(j.spieler); }
+      })
+      .catch(() => {
+        if (weg) return;
+        setGalerieFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setGalerieVersuch((v) => v + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [bereich, istAdmin, galerie.length, galerieVersuch]);
 
   /* ------------------------------------------------------------ Turniere */
   useEffect(() => {
@@ -5698,7 +5711,11 @@ export default function StatistikSeite() {
                       filtert hier das Raster. */}
                 </div>
 
-                {!galerie.length ? (
+                {!galerie.length && galerieFehlt ? (
+                  <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
+                    <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                  </p>
+                ) : !galerie.length ? (
                   <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                     {[...Array(16)].map((_, i) =>
                       <div key={i} className="aspect-[4/5] animate-pulse rounded-xl
