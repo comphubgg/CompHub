@@ -576,6 +576,17 @@ function zahl(n: number, nachkomma = 0, sprache: 'de' | 'en' = 'de') {
 }
 
 /**
+ * Zahl mit Einheit: Dollar immer vorn ("$452,375" bzw. "$452.375" - so wie im Profil und in den Turnieren), Prozent im Englischen
+ * ohne Leerzeichen ("12.5%"). Andere Einheiten (" km" ...) bleiben hinten.
+ */
+function mitEinheit(text: string, einheit: string, sprache: 'de' | 'en'): string {
+  if (!einheit) return text;
+  if (einheit.trim() === '$') return `$${text}`;
+  if (sprache === 'en' && einheit.trim() === '%') return `${text}%`;
+  return text + einheit;
+}
+
+/**
  * Ist dieser Quotient unbekannt (Nenner 0)? Dann steht auf der Seite ein Strich, keine Null: 0,00 hiesse "Schaden ausgeteilt, nichts
  * erhalten" - gemeint ist aber "dazu liegen keine Zahlen vor" (z. B. Zeilen nur von Epic ohne Replay). Fehlt das Nennerfeld ganz
  * (schlanke Listenzeile), gilt der Wert als bekannt. Ein echtes 0 (Zaehler 0, Nenner > 0) bleibt 0.
@@ -590,7 +601,7 @@ function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string
 /** Wert eines Spielerfeldes als Text - "—" statt 0, wenn der Quotient unbekannt ist. */
 function feldText(sp: Partial<Spieler> | null | undefined, feld: string, nachkomma: number, sprache: 'de' | 'en', einheit = ''): string {
   if (quotientUnbekannt(sp, feld)) return '—';
-  return zahl(Number((sp as unknown as Record<string, number> | null | undefined)?.[feld] ?? 0), nachkomma, sprache) + einheit;
+  return mitEinheit(zahl(Number((sp as unknown as Record<string, number> | null | undefined)?.[feld] ?? 0), nachkomma, sprache), einheit, sprache);
 }
 
 function datumText(ms?: number, sprache: 'de' | 'en' = 'de') {
@@ -5407,7 +5418,7 @@ export default function StatistikSeite() {
                                   <T>{l.titel}</T>
                                 </span>
                                 <span className="text-[15px] font-bold tabular-nums text-sky-400">
-                                  {quotientUnbekannt(sp, l.feld) ? '—' : <>{zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache)}{l.einheit ?? ''}</>}
+                                  {quotientUnbekannt(sp, l.feld) ? '—' : mitEinheit(zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache), l.einheit ?? '', sprache)}
                                 </span>
                               </span>
                             </span>
