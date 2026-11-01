@@ -97,10 +97,12 @@ async function rechnenRoh() {
         je.set(sp.epicId, x);
       }
     }
-    const spieler = [...je.values()].sort(vglElims).slice(0, 80).map((x) => {
+    // Mit dem angezeigten Namen sortieren und erst dann auf 80 kuerzen: die Seite sortiert nach dem Anzeigenamen (vglElims), und bei
+    // gleich vielen Eliminierungen entschied hier sonst der rohe Epic-Name - die Reihenfolge und wer an Platz 80 noch dabei ist, wichen ab.
+    const spieler = [...je.values()].map((x) => {
       const k = kontext(x.id, x.name);
       return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
-    });
+    }).sort(vglElims).slice(0, 80);
     // Die Titel (FNCS-Sieger) seit Chapter 1 - aus der Spielerliste der Szene-Quelle - und nach Land.
     // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
     const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();

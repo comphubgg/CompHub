@@ -4728,5 +4728,25 @@
     "commits": [
       "29d8411"
     ]
+  },
+  {
+    "id": "chef-216",
+    "titel": "FNCS All-Time: Gleichstand bei Elims gleich geordnet wie auf der Seite",
+    "kurz": "FNCS → All-Time Stats → Eliminierungen: Gleichstände nach angezeigtem Namen, gleiche Top 80.",
+    "markieren": [
+      "css:table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleich vielen Elims ordnete der Server nach dem rohen Epic-Namen, die Seite nach dem angezeigten – so entschied am Rand bei Platz 80 der falsche Name, wer noch dabei ist.",
+    "was": "Beide nutzen jetzt dieselbe Regel (Elims, bester Major, angezeigter Name).",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:00:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
