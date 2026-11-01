@@ -945,7 +945,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     quelle?: string;
     spieler: Array<{
       epicId: string; name: string; land: string; spiele: number;
-      kills: number; knocks: number; tode: number; umgehauen: number;
+      kills: number; knocks: number | null; tode: number | null; umgehauen: number | null;
       platz: number | null; partner: string[];
       assists?: number; damage?: number; damageTaken?: number;
       damageRatio?: number | null; genauigkeit?: number | null;
@@ -4986,9 +4986,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           <td className="px-3 py-1.5 text-right tabular-nums
                                          font-semibold text-slate-100">{sp.kills}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums
-                                         text-slate-400">{sp.knocks}</td>
+                                         text-slate-400">{sp.knocks ?? "–"}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums
-                                         text-slate-500">{sp.tode}</td>
+                                         text-slate-500">{sp.tode ?? "–"}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums
                                          text-slate-400">
                             {sp.spiele ? dezText(sp.kills / sp.spiele, ort) : '—'}

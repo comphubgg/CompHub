@@ -115,7 +115,8 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       land: land.get(x.epicId) ?? '',
       spiele,
       kills: solo && soloElims.has(x.epicId) ? soloElims.get(x.epicId)! : x.eliminations ?? 0,
-      knocks: 0, tode: 0, umgehauen: 0,
+      // Knocks, Tode und Umgehauene fuehrt die Szene-Quelle nicht: ohne Replays unbekannt (null), nie 0 - sonst zeigen Kacheln und Summen "0 Knocks, 0 Tode".
+      knocks: null as number | null, tode: null as number | null, umgehauen: null as number | null,
       assists: x.assists ?? 0,
       damage: Math.round(r ? r.dmg : x.damageDealt ?? 0),
       damageTaken: Math.round(r ? r.erlitten : x.damageTakenFromPlayers ?? 0),
@@ -370,7 +371,7 @@ async function holeRoh(request: Request) {
         if (voll) x.tode = Math.max(r!.gestorben, todeSolo ?? 0);
         else if (todeSolo !== null) x.tode = todeSolo;
         // Im Finale spielt jeder alle Spiele - dort reicht die Zahl der Spiele des Finales (Performance: vier).
-        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(voll || todeSolo !== null ? { kd: x.kills / Math.max(1, x.tode) } : {}) });
+        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(voll || todeSolo !== null ? { kd: x.kills / Math.max(1, x.tode ?? 0) } : {}) });
       }
     }
     if (kennzahl) {
