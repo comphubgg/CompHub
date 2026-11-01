@@ -2693,5 +2693,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-126",
+    "datum": "2026-11-01T02:45:00Z",
+    "titel": "Statistik: Kills und Schaden je Match mit richtigem Teiler",
+    "kurz": "Unsichtbar: Kills und Schaden je Match zählen nur Tage, die den Wert haben.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Eigene Spieltage ohne gesicherte Kills oder Schaden zählten mit ihren Matches im Teiler und drückten den Schnitt (auch in den Perzentilen).",
+    "was": "Kills, Schaden und Lebenszeit je Match teilen jetzt nur durch die Matches der Tage, die den Wert wirklich führen. Sichtbar erst nach dem nächsten Stundenlauf.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
