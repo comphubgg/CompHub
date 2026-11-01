@@ -85,7 +85,10 @@ export async function GET(request: Request) {
     if (roh.length < 10) return Response.json({ ok: false, fehler: 'Rangliste nicht ladbar' }, { status: 200 });
     const name = (s: Spieler) => (profile[s.id]?.anzeige || profile[s.id]?.name || s.anzeige || s.name).toUpperCase();
     const land = (s: Spieler) => (profile[s.id]?.land || s.land || '').toLowerCase();
-    const top = roh.slice(0, 10);
+    // Die Top 10 sind Plaetze 1-10, nicht "die ersten Eintraege": fehlt der Anfang der Liste (Epic lieferte am 23.9.2026 nur ab Platz 101), stuende
+    // sonst Platz 101 als Nummer 1 auf dem Bild. Dann lieber kein Bild.
+    const top = roh.filter((s) => s.rank >= 1 && s.rank <= 10).sort((a, b) => a.rank - b.rank).slice(0, 10);
+    if (top.length < 10 || top[0].rank !== 1) return Response.json({ ok: false, fehler: 'Rangliste nicht ladbar' }, { status: 200 });
     // Der groesste Aufsteiger der ersten hundert (die zweite Seite dazu).
     const zwei = await prLesen(new Request('http://localhost/api/power-rankings?page=2')).then((r) => r.json()).catch(() => ({})) as { players?: Spieler[] };
     const kletterer = [...roh, ...(zwei.players ?? [])].filter((s) => s.rank <= 100 && (s.deltaPlatz ?? 0) > 0).sort((a, b) => (b.deltaPlatz ?? 0) - (a.deltaPlatz ?? 0))[0] ?? null;

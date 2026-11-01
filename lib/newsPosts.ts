@@ -73,15 +73,18 @@ const prName = (n: string) => lateinisch(ohneZierrat(kernname(n)).trim() || n).t
 export async function rankingFuerNews(): Promise<NewsBeitrag | null> {
   const pr = await liesJson<{ spieler?: PrSpieler[]; epicStand?: string | number } | null>('power-rankings/global.json', null);
   if (!pr?.spieler || pr.spieler.length < 10) return null;
+  // Spitze = Plaetze 1-10 bzw. 1-100, nicht "die ersten Eintraege": fehlt der Anfang der Liste (Epic lieferte am 23.9.2026 nur ab Platz 101), kein Beitrag.
+  const vorn = pr.spieler.filter((s) => s.rank >= 1 && s.rank <= 10).sort((a, b) => a.rank - b.rank);
+  if (vorn.length < 5 || vorn[0].rank !== 1) return null;
   const verlauf = await liesJson<Verlauf | null>(VERLAUF, null);
   if (!verlauf) return null;
-  const stand = `pr1:${crypto.createHash('sha1').update(pr.spieler.slice(0, 10).map((s) => `${s.rank}:${s.id ?? s.name}:${s.wertung}`).join('|')).digest('hex').slice(0, 12)}`;
+  const stand = `pr1:${crypto.createHash('sha1').update(vorn.map((s) => `${s.rank}:${s.id ?? s.name}:${s.wertung}`).join('|')).digest('hex').slice(0, 12)}`;
   if (verlauf.ranking === stand) return null;
   await schreibJson(VERLAUF, { ...verlauf, ranking: stand } satisfies Verlauf);
   if (!verlauf.ranking?.startsWith('pr1:')) return null;
-  const top = pr.spieler.slice(0, 5);
+  const top = vorn.slice(0, 5);
   const pfeil = (d?: number) => (d && d > 0 ? ` ▲${d}` : d && d < 0 ? ` ▼${-d}` : '');
-  const kletterer = pr.spieler.slice(0, 100).filter((s) => (s.deltaPlatz ?? 0) > 0).sort((a, b) => (b.deltaPlatz ?? 0) - (a.deltaPlatz ?? 0))[0];
+  const kletterer = pr.spieler.filter((s) => s.rank <= 100 && (s.deltaPlatz ?? 0) > 0).sort((a, b) => (b.deltaPlatz ?? 0) - (a.deltaPlatz ?? 0))[0];
   return {
     schluessel: `ranking:${stand}`, titel: 'Power Rankings update',
     text: `**Power Rankings updated** 📈\n${top.map((s) => `${s.rank}. ${flagge(s.land)} ${prName(s.name)} - ${s.wertung.toLocaleString('en-US')}${pfeil(s.deltaPlatz)}`).join('\n')}${kletterer ? `\n\nBiggest climber in the top 100: ${flagge(kletterer.land)} ${prName(kletterer.name)} (▲${kletterer.deltaPlatz} to #${kletterer.rank})` : ''}\nFull ranking: ${SEITE}/power-rankings`,

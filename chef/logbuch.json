@@ -5519,5 +5519,25 @@
     "commits": [
       "a29a2ce"
     ]
+  },
+  {
+    "id": "chef-251",
+    "datum": "2026-11-01T05:40:00Z",
+    "titel": "Ranking-Bild und News: Spitze nur aus Platz 1–10",
+    "kurz": "Unsichtbar: fehlt Epics Listenanfang, entsteht kein Ranking-Bild/Beitrag mit Platz 101 als Nummer 1.",
+    "markieren": [
+      "css:img"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wie bei chef-250: Lieferte Epic die Liste erst ab Platz 101, hätten Bild und News-Beitrag Platz 101–110 als Top 10 gezeigt.",
+    "was": "Bild und Beitrag nehmen jetzt wirklich Platz 1–10; fehlt Platz 1, entsteht keins von beiden.",
+    "ansehen": [
+      "/api/ranking-bild"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
