@@ -19,6 +19,18 @@ export function vglElims(a: ElimsZeile, b: ElimsZeile): number {
 /** Dieselbe Liste nach einem einzelnen Major: dessen Wert, dann die Total-Regel. */
 export const vglElimsMajor = (key: string) => (a: ElimsZeile, b: ElimsZeile) => (b.je[key] ?? -1) - (a.je[key] ?? -1) || vglElims(a, b);
 
+/** Wie viele Zeilen die Eliminierungs-Tabelle zeigt - je Sortierung (Total oder ein Major). */
+export const ELIMS_ZEILEN = 80;
+
+/**
+ * Die Zeilen der Eliminierungs-Tabelle: bei "gesamt" die 80 Besten nach Total, bei einem Major die 80 Besten dieses Majors
+ * (nur wer dort gespielt hat). Server (Vereinigung beider Auswahlen) und Seite nutzen dieselbe Regel, damit nichts fehlt.
+ */
+export function elimsAuswahl<T extends ElimsZeile>(alle: T[], sortNach: string): T[] {
+  if (sortNach === 'gesamt') return [...alle].sort(vglElims).slice(0, ELIMS_ZEILEN);
+  return alle.filter((x) => x.je[sortNach] !== undefined).sort(vglElimsMajor(sortNach)).slice(0, ELIMS_ZEILEN);
+}
+
 type LbZeile = { name: string; punkte: number; siege: number; elims: number; finals: number };
 
 /** All-Time Leaderboard: mehr Punkte, dann mehr Siege, dann mehr Eliminierungen, dann weniger Endspiele (gleiche Ausbeute aus weniger Spielen), dann Name. */

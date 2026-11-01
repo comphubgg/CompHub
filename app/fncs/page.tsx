@@ -20,7 +20,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
-import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
+import { elimsAuswahl } from '@/lib/fncsReihenfolge';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -349,8 +349,7 @@ export default function FncsSeite() {
     if (!alt) return [];
     const q = suche.trim().toLowerCase();
     // Der Platz kommt aus der ganzen Liste, nicht aus den Treffern: wer "Tjino" sucht, sieht seinen echten Platz, nicht die 1.
-    return [...alt.spieler]
-      .sort(sortNach === 'gesamt' ? vglElims : vglElimsMajor(sortNach))
+    return elimsAuswahl(alt.spieler, sortNach)
       .map((s, i) => ({ ...s, platz: i + 1 }))
       .filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [alt, sortNach, suche]);
@@ -362,7 +361,7 @@ export default function FncsSeite() {
   const grenzen = useMemo(() => {
     const m: Record<string, [number, number, number]> = {};
     for (const ev of alt?.events ?? []) {
-      const w = (alt?.spieler ?? []).map((s) => s.je[ev.key]).filter((x): x is number => x !== undefined).sort((a, b) => a - b);
+      const w = elimsAuswahl(alt?.spieler ?? [], 'gesamt').map((s) => s.je[ev.key]).filter((x): x is number => x !== undefined).sort((a, b) => a - b);
       const q = (p: number) => w[Math.min(w.length - 1, Math.floor(w.length * p))] ?? 0;
       m[ev.key] = [q(0.25), q(0.5), q(0.75)];
     }

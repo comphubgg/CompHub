@@ -4,7 +4,7 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
 import { fncsRekorde, fncsEreignisse } from '@/lib/fncsEreignisse';
 import { ueberdauernd } from '@/lib/ueberdauernd';
-import { vglElims, nameVgl } from '@/lib/fncsReihenfolge';
+import { elimsAuswahl, vglElims, nameVgl } from '@/lib/fncsReihenfolge';
 
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
@@ -99,10 +99,16 @@ async function rechnenRoh() {
     }
     // Mit dem angezeigten Namen sortieren und erst dann auf 80 kuerzen: die Seite sortiert nach dem Anzeigenamen (vglElims), und bei
     // gleich vielen Eliminierungen entschied hier sonst der rohe Epic-Name - die Reihenfolge und wer an Platz 80 noch dabei ist, wichen ab.
-    const spieler = [...je.values()].map((x) => {
+    const alle = [...je.values()].map((x) => {
       const k = kontext(x.id, x.name);
       return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
-    }).sort(vglElims).slice(0, 80);
+    });
+    // Die Tabelle laesst sich nach Total und nach jedem Major sortieren - jede Sortierung zeigt ihre 80 Besten. Damit keine Liste
+    // unvollstaendig ist, liefert die Antwort die Vereinigung: die 80 nach Total plus die 80 je Major (ohne Doppelte).
+    const top = elimsAuswahl(alle, 'gesamt');
+    const dabei = new Set(top.map((x) => x.id));
+    for (const ev of events) for (const x of elimsAuswahl(alle, ev.key)) dabei.add(x.id);
+    const spieler = alle.filter((x) => dabei.has(x.id)).sort(vglElims);
     // Die Titel (FNCS-Sieger) seit Chapter 1 - aus der Spielerliste der Szene-Quelle - und nach Land.
     // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
     const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();
@@ -116,7 +122,7 @@ async function rechnenRoh() {
       }
     }
     // Bei gleich vielen Titeln entscheidet die Staerke (Platz in der Eliminierungs-Aufstellung der Grand Finals) - nie das Alphabet (Betreiber).
-    const staerke = new Map(spieler.map((x, i) => [x.name.toLowerCase(), i] as const));
+    const staerke = new Map(top.map((x, i) => [x.name.toLowerCase(), i] as const));
     const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6) || nameVgl(a.name, b.name)).map((t) => ({ id: t.name, ...t }));
     // Laender: mehr Titel, dann mehr verschiedene Titelgewinner, dann Laendercode.
     const nachLand = new Map<string, { titel: number; koepfe: number }>();

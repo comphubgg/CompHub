@@ -4814,5 +4814,25 @@
     "commits": [
       "6bde65b"
     ]
+  },
+  {
+    "id": "chef-220",
+    "titel": "FNCS All-Time: Sortierung je Major zeigt dessen 80 Beste",
+    "kurz": "FNCS → All-Time Stats → Eliminierungen → Major-Spalte anklicken: jetzt dessen 80 Beste.",
+    "markieren": [
+      "css:table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach einem Major sortiert, sah man nur Spieler aus den 80 Besten insgesamt – je Major fehlten so 15 bis 35 Spieler, am Ende standen Zeilen ohne Wert.",
+    "was": "Jede Major-Sortierung zeigt jetzt die 80 Besten genau dieses Majors; „Total“ bleibt wie bisher.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:03:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
