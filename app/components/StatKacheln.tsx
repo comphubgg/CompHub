@@ -37,6 +37,8 @@ export interface KachelListe {
   nachkomma?: number;
   einheit?: string;
   kleinBesser?: boolean;
+  /** Ab wie vielen Matches jemand in der Liste steht (Quoten je Match) - wird an der Kachel genannt, wie "ab 10 Matches" in der Statistik. */
+  mindest?: number;
   /** "zeit": Sekunden als "1h 30m"; "km": Meter als Kilometer. */
   format?: 'zeit' | 'km';
 }
@@ -127,6 +129,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                 <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
                 <h3 className="min-w-0 flex-1 text-balance text-center text-[clamp(11px,1.05vw,15px)] font-extrabold uppercase leading-tight tracking-wide text-slate-50">
                   <T>{k.titel}</T>
+                  {!!k.mindest && <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal text-slate-500">{t('ab {n} Matches').replace('{n}', String(k.mindest))}</span>}
                 </h3>
                 <button type="button" onClick={() => (aufVoll ? aufVoll(k) : setOffen(k))} disabled={!k.zeilen.length}
                   title={`${t('Alle anzeigen')} (${k.zeilen.length})`}

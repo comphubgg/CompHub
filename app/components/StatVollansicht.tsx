@@ -99,7 +99,9 @@ export default function StatVollansicht({ kachel, alle, quelle, zurueck, zuDetai
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-extrabold text-slate-50"><T>{kachel.titel}</T> · <T>Bestenliste</T></h2>
+        <h2 className="text-lg font-extrabold text-slate-50"><T>{kachel.titel}</T> · <T>Bestenliste</T>
+          {!!kachel.mindest && <span className="ml-2 text-xs font-medium text-slate-500">{t('ab {n} Matches').replace('{n}', String(kachel.mindest))}</span>}
+        </h2>
         <button type="button" onClick={zurueck}
           className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-slate-200
                      transition hover:border-sky-500 hover:text-sky-400">

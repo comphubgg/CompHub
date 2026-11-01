@@ -142,7 +142,9 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
    */
   const [alleKacheln, setAlleKacheln] = useState(false);
   const mitWerten = useMemo(() => OSIRION_KACHELN.filter((k) => spieler.some((s) => Number(s[k.feld]) > 0)), [spieler]);
-  const gezeigteKacheln = alleKacheln ? mitWerten : mitWerten.slice(0, 10);
+  // Je Match gerechnete Listen (Eliminierungen je Match, K/D) fuehren nur Spieler ab fuenf Matches - bei weniger Runden gilt die Rundenzahl (app/api/cup-spieler).
+  const gezeigteKacheln = (alleKacheln ? mitWerten : mitWerten.slice(0, 10))
+    .map((k) => (k.feld === 'elimsJeMatch' || k.feld === 'kd' ? { ...k, mindest: Math.min(5, matches || 5) } : k));
 
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
   const zeigen = (v: number, f?: Format, n = 0) => (f === 'zeit' ? alsZeit(v, true)

@@ -5058,5 +5058,25 @@
     "commits": [
       "621816a"
     ]
+  },
+  {
+    "id": "chef-231",
+    "titel": "Cup-Seite → Spieler: „ab 5 Matches“ an Quoten-Kacheln",
+    "kurz": "Cup-Seite → Spieler: Kacheln „Elims per match“ und „K/D“ zeigen „from 5 matches“.",
+    "markieren": [
+      "text:from 5 matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "Diese Kacheln führen nur Spieler ab 5 Matches – ohne Hinweis fehlten Spieler scheinbar grundlos. Die Statistikseite nennt ihre Grenze schon.",
+    "was": "Unter dem Titel der Kachel und in der großen Ansicht steht jetzt die Grenze (bei kürzeren Cups die Rundenzahl).",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:11:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
