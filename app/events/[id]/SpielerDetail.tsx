@@ -198,6 +198,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   const [suche, setSuche] = useState('');
   const [treffer, setTreffer] = useState<Treffer[] | null>(null);
   const [sucht, setSucht] = useState(false);
+  /** Die Suche war nicht zu erreichen: Hinweis statt "Kein Spieler gefunden". */
+  const [sucheFehlt, setSucheFehlt] = useState(false);
   const [wahl, setWahl] = useState<{ id: string; name: string } | null>(null);
   const [daten, setDaten] = useState<Antwort | null>(null);
   const [laedt, setLaedt] = useState(false);
@@ -232,12 +234,12 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   // Die Suche - erst nach einer kurzen Tipppause.
   useEffect(() => {
     const q = suche.trim();
-    if (q.length < 2) { setTreffer(null); return undefined; }
+    if (q.length < 2) { setTreffer(null); setSucheFehlt(false); return undefined; }
     let weg = false; setSucht(true);
     const uhr = setTimeout(() => {
       fetch(`/api/spieler-detail?event=${encodeURIComponent(eventId)}&window=${encodeURIComponent(windowId)}&q=${encodeURIComponent(q)}`)
-        .then((r) => r.json()).then((j) => { if (!weg) setTreffer(j?.ok ? j.treffer : []); })
-        .catch(() => { if (!weg) setTreffer([]); })
+        .then((r) => r.json()).then((j) => { if (!weg) { setTreffer(j?.ok ? j.treffer : []); setSucheFehlt(!j?.ok); } })
+        .catch(() => { if (!weg) { setTreffer([]); setSucheFehlt(true); } })
         .finally(() => { if (!weg) setSucht(false); });
     }, 350);
     return () => { weg = true; clearTimeout(uhr); setSucht(false); };
@@ -386,7 +388,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
           {suche.trim().length >= 2 && (
             <div className="absolute left-0 right-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl">
               {sucht && <p className="px-3 py-2 text-xs text-slate-400"><T>Wird durchsucht …</T></p>}
-              {!sucht && treffer && treffer.length === 0 && <p className="px-3 py-2 text-xs text-slate-400"><T>Kein Spieler gefunden.</T></p>}
+              {!sucht && sucheFehlt && <p className="px-3 py-2 text-xs text-slate-400"><T>Gerade nicht erreichbar.</T></p>}
+              {!sucht && !sucheFehlt && treffer && treffer.length === 0 && <p className="px-3 py-2 text-xs text-slate-400"><T>Kein Spieler gefunden.</T></p>}
               {(treffer ?? []).map((x) => (
                 <button key={`${x.id}-${x.rank}`} type="button" onClick={() => { setWahl({ id: x.id, name: x.name }); setSuche(''); setTreffer(null); }}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-sky-500/10">

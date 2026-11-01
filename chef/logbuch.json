@@ -3156,5 +3156,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:00:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-147",
+    "titel": "Cup-Spielersuche: Ausfall nicht als „kein Spieler“",
+    "kurz": "Bei Ausfall: Cup-Seite → Team Stats-Suche zeigt „Not reachable right now.“ statt „No player found.“",
+    "markieren": [
+      "text:Not reachable right now.",
+      "text:No player found."
+    ],
+    "warum": "Antwortete die Suche nicht, stand „Kein Spieler gefunden“ – als gäbe es den Spieler im Cup nicht.",
+    "was": "Bei einem Fehler steht jetzt „Gerade nicht erreichbar.“; „Kein Spieler gefunden“ nur noch bei echter leerer Antwort.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
