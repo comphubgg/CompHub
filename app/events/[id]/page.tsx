@@ -4878,14 +4878,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </thead>
                   <tbody>
                     {spielerWerte.spieler
-                      .filter((sp) => {
+                      // Platz in der ganzen Liste, nicht unter den Suchtreffern: wer sucht, behält seinen Platz (vorher stand jeder Treffer als Nr. 1).
+                      .map((sp, i) => ({ sp, platzGanz: i + 1 }))
+                      .filter(({ sp }) => {
                         const q = spielerSuche.trim().toLowerCase();
                         return !q || sp.name.toLowerCase().includes(q)
                           || sp.partner.some((x) => x.toLowerCase().includes(q));
                       })
-                      .map((sp, i) => (
+                      .map(({ sp, platzGanz }) => (
                         <tr key={sp.epicId} className="border-b border-zinc-900/70 last:border-0">
-                          <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{i + 1}</td>
+                          <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{platzGanz}</td>
                           <td className="px-3 py-1.5">
                             <span className="flex items-center gap-2">
                               {sp.land && (

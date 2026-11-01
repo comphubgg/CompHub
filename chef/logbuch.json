@@ -5541,5 +5541,26 @@
     "commits": [
       "f177bb8"
     ]
+  },
+  {
+    "id": "chef-252",
+    "datum": "2026-11-01T05:45:00Z",
+    "titel": "Cup-Spieler: Suche behält den echten Platz",
+    "kurz": "Cup-Seite → Reiter Spieler → Name suchen: Treffer zeigt seinen echten Platz statt „1“.",
+    "markieren": [
+      "css:table tbody td:first-child",
+      "text:Damage"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer im Spieler-Reiter einen Namen suchte, sah den Treffer immer als Nr. 1, auch wenn er in der Liste z. B. auf Platz 14 steht.",
+    "was": "Die Nummer wird jetzt aus der ganzen Liste vergeben und bleibt bei der Suche stehen.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
