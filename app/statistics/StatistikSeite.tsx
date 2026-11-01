@@ -460,6 +460,18 @@ const SORTIERUNG: Array<[string, string]> = [
 ];
 
 /**
+ * Sortierungen der Spielerliste, deren Wert in keiner festen Spalte und keiner Kachel steht: Kopf der Spalte und Nachkommastellen.
+ * Ohne diese Spalte sortierte die Liste nach einem Wert, den man nirgends sah.
+ */
+const EXTRA_SPALTE: Record<string, { kopf: string; nachkomma: number }> = {
+  assists: { kopf: 'Assists', nachkomma: 0 },
+  mats: { kopf: 'Material', nachkomma: 0 },
+  builds: { kopf: 'Bauteile', nachkomma: 0 },
+  elimsProMatch: { kopf: 'Elims je Match', nachkomma: 2 },
+  damageProMatch: { kopf: 'Schaden je Match', nachkomma: 0 },
+};
+
+/**
  * Die Art eines Turniers aus seinem Namen.
  *
  * Epic liefert zu den aelteren Spieltagen kein Bild mehr - von 402 haben nur
@@ -5865,7 +5877,9 @@ export default function StatistikSeite() {
                                          bg-black/45 backdrop-blur-sm">
                           {([['Quote', feldText(sp, 'quote', 2, sprache), true],
                              ['Elims', kurzZahl(sp.elims, sprache), false],
-                             ['Schaden', kurzZahl(sp.damage, sprache), false]] as
+                             ['Schaden', kurzZahl(sp.damage, sprache), false],
+                             ...(EXTRA_SPALTE[sort] ? [[EXTRA_SPALTE[sort].kopf,
+                               feldText(sp, sort, EXTRA_SPALTE[sort].nachkomma, sprache), false]] : [])] as
                             Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                               <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
                                 <span className="block truncate text-[9px] font-semibold
@@ -5895,7 +5909,10 @@ export default function StatistikSeite() {
                           <th className="px-3 py-3 text-right font-medium"><T>Schaden</T></th>
                           <th className="px-3 py-3 text-right font-medium"><T>Quote</T></th>
                           <th className="px-3 py-3 text-right font-medium"><T>Kopftreffer</T></th>
-                          <th className="px-4 py-3 text-right font-medium"><T>Treffer %</T></th>
+                          <th className={`${EXTRA_SPALTE[sort] ? 'px-3' : 'px-4'} py-3 text-right font-medium`}><T>Treffer %</T></th>
+                          {EXTRA_SPALTE[sort] && (
+                            <th className="px-4 py-3 text-right font-medium text-sky-500"><T>{EXTRA_SPALTE[sort].kopf}</T></th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -5928,9 +5945,14 @@ export default function StatistikSeite() {
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
                               {zahl(sp.headshots, 0, sprache)}
                             </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
+                            <td className={`${EXTRA_SPALTE[sort] ? 'px-3' : 'px-4'} py-2.5 text-right tabular-nums text-slate-400`}>
                               {feldText(sp, 'genauigkeit', 1, sprache, ' %')}
                             </td>
+                            {EXTRA_SPALTE[sort] && (
+                              <td className="px-4 py-2.5 text-right font-bold tabular-nums text-sky-400">
+                                {feldText(sp, sort, EXTRA_SPALTE[sort].nachkomma, sprache)}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
