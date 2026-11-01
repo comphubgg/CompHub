@@ -2995,6 +2995,29 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T03:25:00Z",
     "bereich": "Events",
+    "commits": [
+      "8808236"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-140",
+    "titel": "Events: gleiche Startzeit ergibt feste Reihenfolge",
+    "kurz": "Events → Live/Upcoming/Ended: Cups mit gleicher Startzeit springen nicht mehr umher.",
+    "markieren": [
+      "text:Upcoming",
+      "text:Live"
+    ],
+    "warum": "Bei gleicher Startzeit hing die Reihenfolge davon ab, was zuerst geladen war – sie änderte sich beim Nachladen.",
+    "was": "Bei Gleichstand stehen wichtige Cups (FNCS, Globals, Majors) vorn, danach eine feste Reihenfolge.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T03:25:00Z",
+    "bereich": "Events",
     "commits": [],
     "status": "wartet",
     "runde": 1

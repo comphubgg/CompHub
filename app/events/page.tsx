@@ -228,6 +228,10 @@ function saisonVon(c: Cup): number {
   return m ? Number(m[1]) : 0;
 }
 
+/** Die Reihenfolge bei gleicher Zeit: erst die wichtigen, dann die Kennung - sonst haengt sie von der Ladereihenfolge ab. */
+const gewicht = (c: Cup) => (/FNCS|Global|Championship|Division|Major|LAN|Elite/i.test(c.titel) ? 0 : /Arena|Test|Fight Night|Mobile/i.test(c.titel) ? 2 : 1);
+const gleich = (a: Cup, b: Cup) => gewicht(a) - gewicht(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /** Die Fenster eines Cups in dieser Region - bei "alle" alle. */
 function fensterIn(c: Cup, region: string): Fenster[] {
   if (region === 'alle' || c.global) return Object.values(c.regionen).flat();
@@ -491,11 +495,11 @@ export default function EventsPage() {
   const abschnitte = useMemo(() => {
     const von = (c: Cup) => lage.get(c.id) ?? lageVon(c, region, jetzt);
     const live = gefiltert.filter((c) => von(c).status === 'live')
-      .sort((a, b) => (von(a).letzter ?? 0) - (von(b).letzter ?? 0));
+      .sort((a, b) => (von(a).letzter ?? 0) - (von(b).letzter ?? 0) || gleich(a, b));
     const kommt = gefiltert.filter((c) => von(c).status === 'kommt')
-      .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0));
+      .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0) || gleich(a, b));
     const vorbeiAlle = gefiltert.filter((c) => von(c).status === 'vorbei')
-      .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
+      .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0) || gleich(a, b));
     /*
      * Die laufende Season ist die hoechste, in der schon etwas stattgefunden hat.
      *
@@ -530,7 +534,6 @@ export default function EventsPage() {
      * Nach Wichtigkeit (Betreiber: Listen nach Relevanz ordnen; 30.10.2026 standen "Arenas Fight Night" und "Arenas Test Cup" vor FNCS Solos Reload):
      * FNCS, Globals, Division, Majors und LANs zuerst, Arena-, Test- und Mobile-Cups zuletzt - innerhalb gleicher Wichtigkeit nach Zeit.
      */
-    const gewicht = (c: Cup) => (/FNCS|Global|Championship|Division|Major|LAN|Elite/i.test(c.titel) ? 0 : /Arena|Test|Fight Night|Mobile/i.test(c.titel) ? 2 : 1);
     const vorn = [
       ...basis.filter((c) => von(c).status === 'live').sort((a, b) => gewicht(a) - gewicht(b)),
       ...basis.filter((c) => von(c).status === 'kommt')
