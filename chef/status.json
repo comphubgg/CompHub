@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-01T05:13:22Z",
-  "macheGerade": "Runde 13 fertig: 13 Verbesserungen (chef-238 bis chef-250), u. a. Replay-Fenster zeigte 1.069 statt 108 Damage, Profil-Fenster „FNCS-Siege“ listete alle LAN-Plätze, Cup-Kachel „Alle anzeigen“ zeigte bei mehrtägigen Finals nur einen Tag.",
+  "letzteRunde": "2026-11-01T05:45:00Z",
+  "macheGerade": "Runde 14 fertig: 16 Verbesserungen (chef-251 bis chef-266), u. a. Cup-Suche zeigte jeden Treffer als Platz 1, Profil-Stärkefelder werteten fehlende Quoten als 0, vergangene Cups ohne Preisgeld-Summe, Qualifikations-Abfrage antwortete bei Epic-Ausfall mit Server-Fehler.",
   "naechstes": [
     "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
-    "Frage an dich: Orgs – soll ein neuer Beitritt den alten Aufenthalt automatisch beenden? Oder pflegst du Enddaten im Admin?",
-    "Weitere Fragen: Mindestspiele Cup-Kacheln (Hälfte) gegen Spieler-Reiter (5)? Teamseite „Earnings“ gegen Orgs; zählen Asien-Siege als FNCS-Titel? Regions-Saisonliste im Vorrechner auf 2.000 Spieler (heute 500 von 752)?",
-    "Nächste Runde: Ranking-Bild/News-Posts wie chef-250, geteilte Ränge im Cup-Spieler-Reiter, weitere Statistik-Prüfung."
+    "Frage an dich: Vergleich → Platzierungen: soll ein Spieler grün als Sieger stehen, wenn der andere den Cup gar nicht gespielt hat?",
+    "Offene Fragen weiter: Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter, Asien-Siege als FNCS-Titel, Regions-Saisonliste auf 2.000 Spieler.",
+    "Nächste Runde: Ausfall-Hinweis bei Qualifikationsbedingungen (cup-quali), Globals-Solos-Tafel Strich, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-238 bis chef-240) + Sonnet (chef-241 bis chef-250, von Opus nachgeprüft)",
-  "laeuftSeit": "2026-11-01T05:27:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-251, chef-265) + Sonnet (übrige, von Opus nachgeprüft)"
 }
