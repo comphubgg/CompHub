@@ -2252,7 +2252,10 @@
     "datum": "2026-11-01T01:50:00Z",
     "titel": "Datenlauf: schwere Statistik-Antworten werden wieder fertig",
     "kurz": "Unsichtbar: Startseite der Statistik und Jahresliste 2026 werden wieder stündlich erneuert.",
-    "markieren": [],
+    "markieren": [
+      "text:Statistics",
+      "css:main h1"
+    ],
     "bereich": "Statistik",
     "warum": "Seit etwa 10.10. sind Statistik-Startseite und Preisgeld-Jahresliste 2026 veraltet (peterbot 57 statt 83 Matches, Schaden 0; mit EU-Filter mehr Preisgeld als ohne). Der Datenlauf brach die großen Abfragen nach genau 5 Minuten ab, der Server rechnete trotzdem weiter, lief am 31.10. auf 7,7 GB voll und stürzte ab.",
     "was": "Der Datenlauf wartet bei den großen Abfragen jetzt wirklich bis zu 15 Minuten (wie eigentlich schon gedacht), statt nach 5 Minuten aufzugeben. Wirkt erst nach Freigabe, beim nächsten Stundenlauf.",
@@ -2544,7 +2547,9 @@
     "datum": "2026-11-01T02:30:00Z",
     "titel": "Cup-Schnittstellen: Epic-Ausfall ohne Fehlerseite",
     "kurz": "Unsichtbar: Fällt Epic aus, zeigen Cup-Seiten den Hinweis statt einer Fehlerseite.",
-    "markieren": [],
+    "markieren": [
+      "css:main"
+    ],
     "bereich": "Statistik",
     "warum": "Acht Cup-Schnittstellen meldeten einen Epic-Ausfall als Serverfehler – der Lastverteiler macht daraus eine Fehlerseite.",
     "was": "Sie melden den Ausfall jetzt wie die Statistik („Quelle nicht erreichbar“), die Seite zeigt ihren eigenen Hinweis.",
@@ -2699,7 +2704,9 @@
     "datum": "2026-11-01T02:45:00Z",
     "titel": "Statistik: Kills und Schaden je Match mit richtigem Teiler",
     "kurz": "Unsichtbar: Kills und Schaden je Match zählen nur Tage, die den Wert haben.",
-    "markieren": [],
+    "markieren": [
+      "text:per match"
+    ],
     "bereich": "Statistik",
     "warum": "Eigene Spieltage ohne gesicherte Kills oder Schaden zählten mit ihren Matches im Teiler und drückten den Schnitt (auch in den Perzentilen).",
     "was": "Kills, Schaden und Lebenszeit je Match teilen jetzt nur durch die Matches der Tage, die den Wert wirklich führen. Sichtbar erst nach dem nächsten Stundenlauf.",
@@ -2832,7 +2839,9 @@
     "datum": "2026-11-01T03:00:00Z",
     "titel": "FNCS All-Time: kurzer Epic-Aussetzer verfälscht die Rekorde nicht mehr",
     "kurz": "Unsichtbar: FNCS All-Time fragt jedes Endspiel bis zu dreimal, bevor es fehlt.",
-    "markieren": [],
+    "markieren": [
+      "text:All-Time Leaderboard"
+    ],
     "bereich": "Statistik",
     "warum": "Hakte Epic bei einem Endspiel nur kurz, fehlte es in allen Summen und Rekorden – und blieb so bis zu einer halben Stunde stehen.",
     "was": "Jedes Endspiel wird jetzt bis zu dreimal abgefragt, wie die übrigen FNCS-Daten auch.",
@@ -2963,7 +2972,9 @@
     "id": "chef-138",
     "titel": "Cup-Kacheln: Spielerzahl der ganzen Liste im Seitenformat",
     "kurz": "Unsichtbar: Spielerzahl in „Show all“ der Cup-Kacheln folgt der Seitensprache.",
-    "markieren": [],
+    "markieren": [
+      "css:button[title^='Show all']"
+    ],
     "warum": "Die Zahl folgte der Browsersprache statt der Seite – bei über 999 Spielern stand ein anderes Trennzeichen als in der Liste.",
     "was": "Sie nutzt jetzt dieselbe Formatierung wie alle anderen Zahlen der Kachel.",
     "ansehen": [
@@ -3169,7 +3180,7 @@
     "runde": 1,
     "id": "chef-147",
     "titel": "Cup-Spielersuche: Ausfall nicht als „kein Spieler“",
-    "kurz": "Bei Ausfall: Cup-Seite → Team Stats-Suche zeigt „Not reachable right now.“ statt „No player found.“",
+    "kurz": "Cup-Seite → Team-Stats-Suche bei Ausfall: „Not reachable“ statt „No player found“.",
     "markieren": [
       "text:Not reachable right now.",
       "text:No player found."
@@ -3192,7 +3203,7 @@
     "runde": 1,
     "id": "chef-148",
     "titel": "Duo-/Trio-Cups: Preisgeld-Summe je Team",
-    "kurz": "Cup-Seite Duo-Finale → Preisgeld: Summe oben 19.700 $ statt 9.850 $, passend zu den Zeilen.",
+    "kurz": "Duo-Finale → Preisgeld: Summe oben 19.700 $ statt 9.850 $.",
     "markieren": [
       "text:paid out in total",
       "text:Prize Pool"
@@ -3216,7 +3227,9 @@
     "id": "chef-149",
     "titel": "Vergleich: Zahlen werden nicht mehr doppelt und im Dauerlauf geholt",
     "kurz": "Unsichtbar: Statistik → Vergleich lädt Spielerzahlen nur einmal, bei Ausfall alle 10 Sekunden.",
-    "markieren": [],
+    "markieren": [
+      "text:Compare"
+    ],
     "warum": "Bei jedem Neuzeichnen startete der Abruf von vorn – normal doppelt, bei einem Ausfall pausenlos statt alle 10 Sekunden.",
     "was": "Der Abruf startet nur noch, wenn sich die gewählten Spieler oder die Saison ändern.",
     "ansehen": [
@@ -3332,7 +3345,9 @@
     "id": "chef-154",
     "titel": "Cup-Seite: Runden werden nicht doppelt geladen",
     "kurz": "Unsichtbar: Cup-Seite → Reiter „Rounds“ lädt die Runden nur noch einmal.",
-    "markieren": [],
+    "markieren": [
+      "text:Rounds"
+    ],
     "warum": "Beim Öffnen der Runden ging die Anfrage sofort ein zweites Mal raus – die erste Antwort wurde weggeworfen.",
     "was": "Der Abruf startet nur noch neu, wenn sich Spieltag, Bestenliste oder Stand wirklich ändern.",
     "ansehen": [
@@ -3352,7 +3367,9 @@
     "id": "chef-155",
     "titel": "FNCS Solos: Spieler-Fenster lädt nicht ständig neu",
     "kurz": "Unsichtbar: Globals Solos → offenes Spieler-Fenster flackert nicht mehr und bleibt beim Gewählten.",
-    "markieren": [],
+    "markieren": [
+      "css:[role=dialog]"
+    ],
     "warum": "Solange das Fenster offen war, verschwanden die Werte bei jeder Aktualisierung der Seite kurz, und eine andere Auswahl sprang zurück.",
     "was": "Der Startspieler wird nur neu gesetzt, wenn wirklich ein anderer Spieler gemeint ist.",
     "ansehen": [
@@ -3371,7 +3388,7 @@
     "runde": 1,
     "id": "chef-156",
     "titel": "Player Stats alter Turniere: Strecke stimmt",
-    "kurz": "Cup-Seite (Saison 39 und älter) → Player Stats → Strecke: 32,7 km statt 3.273,8 km.",
+    "kurz": "Alte Cups (bis S39) → Player Stats: Strecke 32,7 km statt 3.273,8 km.",
     "markieren": [
       "text:Distance Traveled"
     ],
@@ -3439,7 +3456,7 @@
     "runde": 1,
     "id": "chef-159",
     "titel": "Turnier-Ansicht: Link zur Cup-Seite",
-    "kurz": "Statistik → Turnier öffnen → über der Endtabelle: neuer Link „To the cup page ↗“.",
+    "kurz": "Statistik → Turnier öffnen: neuer Link „To the cup page ↗“.",
     "markieren": [
       "text:To the cup page"
     ],
@@ -3485,7 +3502,9 @@
     "id": "chef-161",
     "titel": "Teamseite: fehlende Werte als Strich",
     "kurz": "Bei fehlenden Daten: Teamseite → Spieler zeigt Strich statt 0 bei Schaden je Match.",
-    "markieren": [],
+    "markieren": [
+      "text:Damage"
+    ],
     "warum": "Fehlten einem Spieler Schaden, Schüsse oder erlittener Schaden, rechnete die Seite mit 0 und zeigte „0“ als Trefferquote, Schaden je Match oder Quote.",
     "was": "Diese drei Werte bleiben jetzt leer (Strich), wenn die Grundwerte fehlen. Live noch kein Fall gefunden – reine Absicherung.",
     "ansehen": [
