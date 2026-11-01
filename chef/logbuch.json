@@ -4596,5 +4596,25 @@
     "commits": [
       "ef32b7e"
     ]
+  },
+  {
+    "id": "chef-210",
+    "titel": "Cup-Statistik: „nach N Spielen“ stimmt auch im Ranked-Cup",
+    "kurz": "Cup-Seite → Statistik: „Standings after N games“ zählt das ganze Feld, nicht den Ersten.",
+    "markieren": [
+      "text:Standings after"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Spielzahl kam vom Ersten der Tabelle. Im Ranked Cup Duos EU (Event 8) hatte der Erste 1 Spiel, andere bis zu 11 – angezeigt wurde 1.",
+    "was": "Jetzt zählt die höchste Spielzahl im Feld (im Beispiel 11).",
+    "ansehen": [
+      "/events/epicgames_S42_RankedCupDuos_EU?window=S42_RankedCupDuos_Event8_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:53:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

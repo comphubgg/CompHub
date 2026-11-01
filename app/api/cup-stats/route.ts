@@ -187,7 +187,8 @@ async function holeRoh(request: Request) {
     return NextResponse.json({
       aktualisiert: aktualisiert || null,
       teams: eintraege.length,
-      spiele: eintraege[0]?.games ?? 0,
+      // Die meisten Spiele eines Teams im Feld - nicht die des Ersten: im Ranked-Cup stand der Erste mit einem Spiel da, das Feld spielte bis zu elf.
+      spiele: eintraege.reduce((m, e) => Math.max(m, e.games || 0), 0),
       bestenlisten,
       geliefert: [...felder].sort(),
       hinweis: 'Stats are per team, the way Epic reports them.',
