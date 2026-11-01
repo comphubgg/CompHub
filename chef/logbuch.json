@@ -5360,5 +5360,27 @@
     "commits": [
       "94b7db6"
     ]
+  },
+  {
+    "id": "chef-244",
+    "datum": "2026-11-01T05:02:54Z",
+    "titel": "Spielerkacheln zeigen den Sortierwert",
+    "kurz": "Spieler → nach Trefferquote, Kopftreffer oder Matches sortieren: Kachel zeigt jetzt diesen Wert.",
+    "markieren": [
+      "text:Accuracy",
+      "text:Headshots"
+    ],
+    "bereich": "Statistik",
+    "warum": "In der Kachelansicht stand nur Quote, Elims und Schaden – sortiert nach Trefferquote, Kopftreffer oder Matches sah man den entscheidenden Wert nicht.",
+    "was": "Jede Kachel bekommt dann eine vierte Zeile mit genau diesem Wert.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=genauigkeit",
+      "/statistics?bereich=spieler&sort=headshots"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

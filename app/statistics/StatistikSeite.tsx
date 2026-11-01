@@ -5872,7 +5872,11 @@ export default function StatistikSeite() {
                              ['Elims', kurzZahl(sp.elims, sprache), false],
                              ['Schaden', kurzZahl(sp.damage, sprache), false],
                              ...(EXTRA_SPALTE[sort] ? [[EXTRA_SPALTE[sort].kopf,
-                               feldText(sp, sort, EXTRA_SPALTE[sort].nachkomma, sprache), false]] : [])] as
+                               feldText(sp, sort, EXTRA_SPALTE[sort].nachkomma, sprache), false]]
+                               // Die Kachel kennt Quote, Elims und Schaden; Kopftreffer, Trefferquote und Matches stehen nur in der Listenansicht - sonst sortiert die Kachel nach einem Wert, den man nicht sieht.
+                               : sort === 'headshots' ? [['Kopftreffer', feldText(sp, sort, 0, sprache), false]]
+                               : sort === 'genauigkeit' ? [['Trefferquote', feldText(sp, sort, 1, sprache, ' %'), false]]
+                               : sort === 'matches' ? [['Matches', feldText(sp, sort, 0, sprache), false]] : [])] as
                             Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                               <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
                                 <span className="block truncate text-[9px] font-semibold
