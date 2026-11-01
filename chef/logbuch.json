@@ -3224,5 +3224,28 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:12:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-150",
+    "titel": "Profil: Finale anderer Regionen nicht als Grand Final",
+    "kurz": "Profil Veno → FNCS-Tafel: CH7 S2 zeigt nicht mehr seinen NAC-Sieg als EU-Titel.",
+    "markieren": [
+      "text:FNCS Grand Finals",
+      "text:CH7 S2",
+      "text:CH7 S3"
+    ],
+    "warum": "Veno stand bei CH7 S2 auf Platz 1 und bei CH7 S3 auf Platz 3 – das waren NAC-Finals; Europa gewannen andere. Er hatte so 4 statt 3 Siege.",
+    "was": "In die Tafel kommen nur Finals der Region, in der der Spieler die meisten FNCS-Finals gespielt hat.",
+    "ansehen": [
+      "/statistics?spieler=5b9f90e50d3644319676cfcc51e458bf",
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Fund) + Opus (Bau)"
   }
 ]

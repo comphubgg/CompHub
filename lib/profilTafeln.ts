@@ -86,11 +86,23 @@ export function fncsTafel(opt: {
   const { quelle, zeilen, lan, spieler, label, kennungVon } = opt;
   const nr = (k?: string) => (k && /^S\d+$/.test(k) ? Number(k.slice(1)) : NaN);
 
+  // Die Heimat des Spielers: die Region, in der er die meisten FNCS-Finals gespielt hat. Ein Finale einer anderen Region (ein EU-Spieler beim
+  // NAC-Major, "S40_FNCSMajor1_Final_Day2_NAC") gehoert nicht in seine Tafel - sonst stand Veno mit seinem NAC-Sieg als Sieger des EU-Finales da.
+  const regionVon = (w: string) => /_(EU|NAC|NAW|NAE|NA|BR|ASIA|ME|OCE)(?=_|$)/i.exec(w)?.[1]?.toUpperCase() ?? null;
+  const zaehler = new Map<string, number>();
+  for (const z of zeilen) {
+    const r = fncsFinalTag(z.windowId) ? regionVon(z.windowId) : null;
+    if (r) zaehler.set(r, (zaehler.get(r) ?? 0) + 1);
+  }
+  const heimat = [...zaehler.entries()].sort((a, b) => b[1] - a[1] || (a[0] === 'EU' ? -1 : b[0] === 'EU' ? 1 : 0))[0]?.[0] ?? null;
+
   // Je Saison der letzte Tag des Finales, den der Spieler gespielt hat.
   const jeSaison = new Map<string, ProfilZeile & { tag: number }>();
   for (const z of zeilen) {
     const tag = fncsFinalTag(z.windowId);
     if (!tag) continue;
+    const r = regionVon(z.windowId);
+    if (heimat && r && r !== heimat) continue;
     const da = jeSaison.get(z.season);
     if (!da || tag > da.tag || (tag === da.tag && (z.mitspieler.length > da.mitspieler.length))) jeSaison.set(z.season, { ...z, tag });
   }
