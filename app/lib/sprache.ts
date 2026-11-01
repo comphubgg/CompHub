@@ -3031,6 +3031,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   '← Zurück zu den Turnieren': '← Back to tournaments',
   'Zu diesem Spieler liegen keine Vergleichswerte vor.':
     'No comparison values are available for this player.',
+  'Die Endtabelle ist gerade nicht erreichbar. Bitte gleich noch einmal öffnen.': 'The final standings are not available right now. Please open this again in a moment.',
   'Die Werte konnten gerade nicht geladen werden. Bitte gleich noch einmal öffnen.':
     'The values could not be loaded just now. Please open it again in a moment.',
   'Nicht gespeichert. Bitte noch einmal umschalten.': 'Not saved. Please switch it again.',

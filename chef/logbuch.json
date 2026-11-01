@@ -2737,5 +2737,25 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-128",
+    "titel": "Spieltag: Endtabelle meldet einen Ausfall",
+    "kurz": "Statistik → Turnier öffnen: Fehlt die Endtabelle durch Ausfall, steht jetzt ein Hinweis.",
+    "markieren": [
+      "text:The final standings are not available right now"
+    ],
+    "warum": "Fiel der Abruf aus, verschwand der ganze Abschnitt „Endstand“ – als gäbe es keine Tabelle.",
+    "was": "Jetzt steht dort, dass die Endtabelle gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:55:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

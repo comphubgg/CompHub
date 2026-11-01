@@ -2516,6 +2516,8 @@ export default function StatistikSeite() {
   const [tabelleLaedt, setTabelleLaedt] = useState(false);
   /** Ob die Tabelle der Endstand ueber alle Tage eines Finales ist. */
   const [tabelleGesamt, setTabelleGesamt] = useState(false);
+  /** Die Endtabelle kam nicht an - nicht dasselbe wie "keine Tabelle gespiegelt". */
+  const [tabelleFehlt, setTabelleFehlt] = useState(false);
   const [tabelleSuche, setTabelleSuche] = useState('');
   const [tabelleTiefe, setTabelleTiefe] = useState(50);
 
@@ -3102,12 +3104,16 @@ export default function StatistikSeite() {
     if (!cup?.windowId) { setSpieltagTabelle(null); return; }
     let weg = false;
     setSpieltagTabelle(null); setTabelleSuche(''); setTabelleTiefe(50);
-    setTabelleLaedt(true);
+    setTabelleLaedt(true); setTabelleFehlt(false);
     fetch(`/api/spieltag-tabelle?window=${encodeURIComponent(cup.windowId)}`
       + `&saison=${encodeURIComponent(cup.season ?? '')}${cup.gesamt ? '&gesamt=1' : ''}`)
-      .then((r) => r.json())
-      .then((j) => { if (!weg) { setSpieltagTabelle(j?.teams ?? []); setTabelleGesamt(Boolean(j?.gesamt)); } })
-      .catch(() => { if (!weg) setSpieltagTabelle([]); })
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !Array.isArray(j?.teams)) throw new Error(j?.error ?? `HTTP ${r.status}`);
+        return j;
+      })
+      .then((j) => { if (!weg) { setSpieltagTabelle(j.teams); setTabelleGesamt(Boolean(j.gesamt)); } })
+      .catch(() => { if (!weg) { setSpieltagTabelle([]); setTabelleFehlt(true); } })
       .finally(() => { if (!weg) setTabelleLaedt(false); });
     return () => { weg = true; };
   }, [cupAktiv]);
@@ -4835,6 +4841,11 @@ export default function StatistikSeite() {
                     * eines Turniers: wer hat gewonnen. Bei siebenhundert
                     * Teams gehoert ein Suchfeld dazu, sonst scrollt man.
                     */}
+                  {tabelleFehlt && !tabelleLaedt && (
+                    <p className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 text-center text-sm text-slate-500">
+                      <T>Die Endtabelle ist gerade nicht erreichbar. Bitte gleich noch einmal öffnen.</T>
+                    </p>
+                  )}
                   {(tabelleLaedt || (spieltagTabelle?.length ?? 0) > 0) && (
                     <section className="mt-6">
                       <div className="mb-2 flex flex-wrap items-center gap-3">
