@@ -762,8 +762,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * blockiert, waehrend man schon liest.
    */
   const [sichtbareSpiele, setSichtbareSpiele] = useState(ERSTE_SPIELE);
-  /** Wie gross die Bestenliste war, als die Runden geholt wurden. */
-  const [spieleBasis, setSpieleBasis] = useState(0);
+  /** Wie gross die Bestenliste war, als die Runden geholt wurden. Als Merker, nicht als Zustand: wer ihn im Abruf setzt und zugleich als Abhaengigkeit fuehrt, startet den Abruf gleich noch einmal. */
+  const spieleBasis = useRef(0);
   /**
    * Stiess die Bestenliste an ihre Grenze, als die Runden gebaut wurden?
    *
@@ -1842,7 +1842,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     setSpiele(null); setOffenesSpiel(null); setKopiert(null);
-    setSichtbareSpiele(ERSTE_SPIELE); setSpielSuche(''); setSpieleBasis(0);
+    setSichtbareSpiele(ERSTE_SPIELE); setSpielSuche(''); spieleBasis.current = 0;
     setSpieleFeldGrenze(false);
     setSpielerWerte(null); setLive(null);
   }, [fenster, kumAktiv]);
@@ -1886,12 +1886,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * Unterbau derselbe, aber der Stand hat sich geaendert.
      */
     const stillesLaden = nachladen !== zuletztNachgeladen.current;
-    if (spiele && !stillesLaden && (vertieft || tabelle.length <= spieleBasis)) return;
+    if (spiele && !stillesLaden && (vertieft || tabelle.length <= spieleBasis.current)) return;
     zuletztNachgeladen.current = nachladen;
     let weg = false;
     // Beim stillen Nachladen kein Ladezeichen: die Liste steht ja da.
     if (!stillesLaden) setSpieleLaedt(true);
-    setSpieleBasis(tabelle.length);
+    spieleBasis.current = tabelle.length;
     fetch(`/api/cup-matches?event=${encodeURIComponent(lbFenster.eventId)}`
       /*
        * So viel wie das Feld hergibt, nicht mehr.
@@ -1922,7 +1922,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg && !spiele) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen, summenFenster, summenText]);
+  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, nachladen, summenFenster, summenText]);
 
   /*
    * Welche Matches eine eigene Seite haben (Replay-Auswertung mit allen Spielern, Zonen, Kill-Feed). Gefragt wird, wenn die Runden da sind

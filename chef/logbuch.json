@@ -3320,5 +3320,23 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:20:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-154",
+    "titel": "Cup-Seite: Runden werden nicht doppelt geladen",
+    "kurz": "Unsichtbar: Cup-Seite → Reiter „Rounds“ lädt die Runden nur noch einmal.",
+    "markieren": [],
+    "warum": "Beim Öffnen der Runden ging die Anfrage sofort ein zweites Mal raus – die erste Antwort wurde weggeworfen.",
+    "was": "Der Abruf startet nur noch neu, wenn sich Spieltag, Bestenliste oder Stand wirklich ändern.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
