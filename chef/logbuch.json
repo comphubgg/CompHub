@@ -4703,5 +4703,28 @@
     "commits": [
       "6dc97e3"
     ]
+  },
+  {
+    "id": "chef-215",
+    "titel": "22 deutsche Texte auf der englischen Seite übersetzt",
+    "kurz": "Englische Seite: 22 Sätze standen noch deutsch (Cup-Matches, Overlays, Scrims) – jetzt englisch.",
+    "markieren": [
+      "text:Only the teams of this lobby",
+      "text:Scrims of the community servers"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Englische Besucher lasen z. B. unter einer Cup-Lobby und auf /scrims noch deutsche Sätze.",
+    "was": "Die fehlenden 22 Texte haben jetzt eine englische Fassung (Lobby-Hinweis, Overlay-Hilfen, Scrims-Untertitel, Waffenschaden).",
+    "ansehen": [
+      "/scrims",
+      "/overlays/text",
+      "/overlays/timer"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:57:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
