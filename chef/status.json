@@ -1,13 +1,10 @@
 {
-  "letzteRunde": "2026-11-01T02:10:00Z",
-  "macheGerade": "Runde 8 fertig: 31 Verbesserungen (chef-110 bis chef-140), fast alle an der Statistik – vor allem Stellen, an denen ein Ausfall wie „keine Daten“ aussah, Nullen statt Strichen, Widersprüche (Spieltage 982 gegen 4.733, Grand Finals 20 gegen 26) und feste Reihenfolgen. Alles wartet auf deine Entscheidung.",
+  "letzteRunde": "2026-11-01T02:15:00Z",
+  "macheGerade": "Runde 8 fertig: 33 Verbesserungen (chef-110 bis chef-142), fast alle an der Statistik – vor allem Stellen, an denen ein Ausfall wie „keine Daten“ aussah, Nullen statt Strichen, Widersprüche (Spieltage 982 gegen 4.733, Grand Finals 20 gegen 26) und feste Reihenfolgen. Alles wartet auf deine Entscheidung.",
   "naechstes": [
     "Nach Freigabe von chef-106: Stundenlauf prüfen (peterbot S42 = 83 Matches, Strecke ≈ 3.912 km)",
-    "FNCS All-Time: Teilsummen als „unvollständig“ kennzeichnen statt speichern",
-    "POV-Statistik: Ausfall nur bei Mehrheit der Regionen melden",
     "Fragen an dich: Teamseite „Earnings“ (Karriere) gegen Orgs-Liste (seit Beitritt); Mshary in zwei Orgs"
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-110/117/118/127) + Sonnet (übrige)",
-  "laeuftSeit": "2026-11-01T01:47:00Z"
+  "modell": "Opus (Planung, Prüfung, chef-110/117/118/127) + Sonnet (übrige)"
 }
