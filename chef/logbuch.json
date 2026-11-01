@@ -3966,5 +3966,29 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-182",
+    "datum": "2026-11-01T03:45:00Z",
+    "titel": "Turnierstatistik: Kacheln nennen die Mindestzahl an Spielen",
+    "kurz": "Cup-Seite → Teams → „Best K/D“: darunter steht jetzt „from 3 matches“.",
+    "markieren": [
+      "text:Best K/D",
+      "text:Longest Avg Time Alive",
+      "text:from"
+    ],
+    "bereich": "Statistik",
+    "warum": "K/D, Ø-Platz und Ø-Lebenszeit zählen nur Teams mit mindestens der Hälfte der meisten Spiele – das stand nirgends.",
+    "was": "Die Grenze steht jetzt klein unter dem Kacheltitel und in der vollen Liste.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=teams"
+    ],
+    "commits": [
+      "8093ca1"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
