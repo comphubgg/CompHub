@@ -5233,5 +5233,25 @@
     "commits": [
       "18484b8"
     ]
+  },
+  {
+    "id": "chef-239",
+    "datum": "2026-11-01T04:55:22Z",
+    "titel": "Statistik → Cups lädt mit einer Abfrage weniger",
+    "kurz": "Unsichtbar: Statistik → Cups erscheint schneller, eine überflüssige Vorab-Abfrage fällt weg.",
+    "markieren": [
+      "css:main table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Reiter holte erst die ganze Spielerliste und danach das Turnierverzeichnis – doppelte Wartezeit, und fiel die erste Abfrage aus, kam gar keine Liste.",
+    "was": "Jetzt wird gleich das Verzeichnis geholt.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

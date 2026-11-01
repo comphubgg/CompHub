@@ -3296,10 +3296,10 @@ export default function StatistikSeite() {
   /* ------------------------------------------------------------ Turniere */
   useEffect(() => {
     if (bereich !== 'turniere' || !saison) return;
-    fetch('/api/szene-stats')
-      .then((r) => r.json())
-      .then(() => fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
-        + (nurGrosse ? '' : '&alle=1')))
+    /* Direkt das Verzeichnis holen. Vorher lief erst die ganze Grundliste (die die Seite schon beim Aufschlagen hat) und erst
+       danach das Verzeichnis - der Reiter wartete auf zwei Antworten hintereinander, und fiel die erste aus, kam gar keine Liste. */
+    fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
+        + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
       .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); })
       .catch(() => { setTurniere([]); setTurniereFehlt(true); });
