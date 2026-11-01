@@ -442,10 +442,12 @@ async function holeRoh(request: Request) {
   } | null;
   const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
+  const tageDateien = tage.length > 1 ? await Promise.all(tage.map(clutchEinzeln)) : [];
+  // Teilweise gelesene oder fehlende Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage: ein uebersprungener Tag liesse die Summe
+  // zu niedrig neben den Elims ALLER Tage stehen (ganzGelesen sieht davon nichts) - dann lieber gar keine Summe.
   const clutchDatei: ClutchDatei = tage.length > 1
-    ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
-      // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
-      if (!c || c.teilweise) return a;
+    ? tageDateien.reduce<ClutchDatei>((a, c) => {
+      if (!c || c.teilweise || tageDateien.some((x) => !x || x.teilweise)) return a;
       const raus = a ?? { summe: {}, schaden: {}, leben: {} };
       for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + v;
       for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;

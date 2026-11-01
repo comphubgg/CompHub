@@ -5452,5 +5452,26 @@
     "commits": [
       "1504802"
     ]
+  },
+  {
+    "id": "chef-248",
+    "datum": "2026-11-01T05:09:50Z",
+    "titel": "Cup-Spieler: keine halbe Summe über mehrere Tage",
+    "kurz": "Unsichtbar: Finals über mehrere Tage → Spieler: kein Schaden nur eines Tages neben Elims beider Tage.",
+    "markieren": [
+      "text:Damage Ratio",
+      "text:Time Alive"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte ein Tag oder war er nur teilweise gelesen, wurden Schaden, Treffer, Zeit und Clutch nur aus den übrigen Tagen summiert – neben Elims aller Tage, ohne Hinweis.",
+    "was": "Die Summe entsteht jetzt nur, wenn alle Tage ganz gelesen sind; sonst steht ein Strich, wie schon bei der anderen Quelle.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
