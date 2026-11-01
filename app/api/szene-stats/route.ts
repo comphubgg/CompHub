@@ -1092,6 +1092,17 @@ async function berechne(request: Request) {
        * Zahlen rechnet dieselbe Summe wie fuer eine Turnierreihe.
        */
       const lanGruppen = new Map<string, typeof turniere>();
+      /*
+       * Die Quelle legt einen LAN-Tag unter EU und zusaetzlich unter NAC ab. Ohne Regionsfilter kam er so doppelt in die
+       * Summe (S37: 24 statt 12 Matches, "Day 1" zweimal). Ein Tag zaehlt einmal, bevorzugt der EU-Eintrag.
+       */
+      for (let i = turniere.length - 1; i >= 0; i--) {
+        const t = turniere[i];
+        if (!/^(MannekenPis|Dinosauron|BambiRaptor)_Day\d+$/.test(t.windowId ?? '')) continue;
+        const gleich = turniere.findIndex((x, j) => j !== i && x.windowId === t.windowId
+          && (x.region === 'EU' || (t.region !== 'EU' && j < i)));
+        if (gleich !== -1) turniere.splice(i, 1);
+      }
       for (const t of turniere) {
         const m = /^(MannekenPis|Dinosauron|BambiRaptor)_Day\d+$/.exec(t.windowId ?? '');
         if (!m) continue;

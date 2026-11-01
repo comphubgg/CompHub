@@ -4991,5 +4991,26 @@
     "commits": [
       "de021ca"
     ]
+  },
+  {
+    "id": "chef-228",
+    "titel": "Turnierverzeichnis: Globals-Kachel zählt jeden Tag einmal",
+    "kurz": "Statistik → Turniere → Globals-Kachel: einmal „Day 1/Day 2“, halbe (richtige) Matchzahl.",
+    "markieren": [
+      "text:Day 1",
+      "text:Day 2"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Quelle führt jeden Globals-Tag unter EU und NAC. Die Kachel zählte ihn doppelt: S37 zeigte 24 statt 12 Matches und zweimal „Day 1“ und „Day 2“.",
+    "was": "Jeder Tag zählt jetzt einmal (der EU-Eintrag).",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:10:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
