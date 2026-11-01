@@ -152,7 +152,10 @@ export async function GET(request: Request) {
     // stehen mit ihren eigenen Zahlen da, gehen aber nicht in die Summe.
     const summeSpieler = spieler.filter((s) => s.rolle === 'pro').reduce((a, s) => a + (s.betrag ?? 0), 0);
     const summeEhemalige = alleJahre ? ehemalige.reduce((a, e) => a + (e.betrag ?? 0), 0) : 0;
-    const gesamt = verdienst ? summeSpieler + summeEhemalige + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
+    // Kennt die Org weder bei Pro-Spielern (und Ehemaligen) einen Betrag noch Extras, ist die Summe unbekannt (null) - nicht 0 (Konto fehlt oder wird noch gerechnet).
+    const betragBekannt = spieler.some((s) => s.rolle === 'pro' && s.betrag !== null)
+      || (alleJahre && ehemalige.some((e) => e.betrag !== null)) || jahrExtras.length > 0;
+    const gesamt = verdienst && betragBekannt ? summeSpieler + summeEhemalige + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
     // Bezahlte Turniere der Org: jeder Spieltag einmal, auch wenn mehrere
     // Spieler darin Geld holten (gleiche Auswahl wie bei der Summe: Pro + Ehemalige).
     const fenster = new Set<string>();
