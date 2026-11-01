@@ -3295,5 +3295,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:18:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-153",
+    "titel": "Regionen: Reihen und Regionen nach Wichtigkeit",
+    "kurz": "Statistik → Regionen: FNCS steht vor Performance Cup; BR vor ASIA statt alphabetisch.",
+    "markieren": [
+      "text:FNCS Division 1",
+      "text:Performance Cup"
+    ],
+    "warum": "In EU S41 stand der Performance Cup (6 Tage) vor FNCS und Division 1; bei Gleichstand entschied der Zufall, die übrigen Regionen standen alphabetisch.",
+    "was": "Feste Reihenfolge: Globals, FNCS, Division 1, RES, Reload Elite, Performance Cup, Weitere; Regionen EU, NAC, NAW, BR, ASIA, OCE, ME.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S41&region=EU"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

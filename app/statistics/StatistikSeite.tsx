@@ -47,9 +47,11 @@ import RueckblickBild from './RueckblickBild';
  *
  * Der Betreiber sitzt in Europa und schaut dort zuerst hin; alphabetisch
  * sortiert stuende ASIA vorn und EU an dritter Stelle. Was hier nicht
- * aufgezaehlt ist, folgt dahinter in der Reihenfolge der Quelle.
+ * aufgezaehlt ist, folgt dahinter in der Reihenfolge der Quelle - und die ist
+ * alphabetisch (ASIA, BR, ME, OCE), darum stehen auch die uebrigen Regionen
+ * hier ausdruecklich nach Gewicht: Brasilien, Asien, Ozeanien, Naher Osten.
  */
-const REGION_REIHE = ['EU', 'NAC', 'NAW'];
+const REGION_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'OCE', 'ME'];
 
 function nachRegionReihe(regionen: string[]): string[] {
   const rang = (r: string) => {
@@ -512,6 +514,12 @@ function reiheVon(name: string, windowId = ''): string {
   if (/performance/.test(n)) return 'Performance Cup';
   return 'Weitere';
 }
+
+/** Wie wichtig eine Reihe ist - vorn die Globals, hinten "Weitere". Bei gleichem Rang entscheidet die Zahl der Spieltage. */
+const REIHEN_RANG = [
+  'FNCS Global Championship', 'FNCS', 'FNCS Division 1', 'RES Championship',
+  'Reload Elite Series', 'Performance Cup', 'Weitere',
+];
 
 /** Die Kurzform eines Spieltagsnamens - fuer die Reiter einer Reihe. */
 function kurzTurnier(name: string) {
@@ -3341,7 +3349,11 @@ export default function StatistikSeite() {
       .map(([name, tage]) => ({
         name, tage: tage.sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0)),
       }))
-      .sort((a, b) => b.tage.length - a.tage.length);
+      .sort((a, b) => {
+        const ra = REIHEN_RANG.indexOf(a.name); const rb = REIHEN_RANG.indexOf(b.name);
+        return (ra === -1 ? REIHEN_RANG.length : ra) - (rb === -1 ? REIHEN_RANG.length : rb)
+          || b.tage.length - a.tage.length;
+      });
   }, [turniere, regionAktiv]);
 
   /** Das Turnierverzeichnis auch fuer die Regionenseite holen. */
