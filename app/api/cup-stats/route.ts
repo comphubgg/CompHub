@@ -166,6 +166,8 @@ async function holeRoh(request: Request) {
         // Wie viele Nachkommastellen dazugehoeren. Ohne diese Angabe wird
         // aus 17,00 in der Anzeige "17", und die Spalte steht schief.
         nachkomma: k.nachkomma ?? 0,
+        // Werte je Spiel zaehlen erst ab dieser Spielzahl - die Kachel nennt sie, damit niemand raetselt, wo ein Team fehlt.
+        mindestSpiele: mindestSpiele > 1 ? mindestSpiele : null,
         plaetze: alle.slice(0, proListe),
         alle,
       };

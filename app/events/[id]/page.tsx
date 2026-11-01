@@ -259,6 +259,8 @@ interface Bestenliste {
   einheit: string | null;
   /** Wie viele Nachkommastellen die Werte dieser Liste haben. */
   nachkomma?: number;
+  /** Werte je Spiel (K/D, Platz, Zeit am Leben): erst ab so vielen Spielen dabei. */
+  mindestSpiele?: number | null;
   /** Die Spitze fuer die Kachel. */
   plaetze: StatPlatz[];
   /** Das ganze Feld - dahinter steht das Pluszeichen. */
@@ -5194,6 +5196,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       </svg>
                     </button>
                   </div>
+                  {!!b.mindestSpiele && (
+                    <p className="-mt-1.5 px-4 pb-2 text-center text-[11px] text-slate-500">
+                      {t('ab {n} Matches').replace('{n}', String(b.mindestSpiele))}
+                    </p>
+                  )}
                   <div className="px-3">
                     <div className="flex items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-300">
                       <span className="w-5 shrink-0 text-center">#</span>
@@ -5260,6 +5267,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <span className="text-xs text-slate-500">
                   {offeneListe.alle.length.toLocaleString(ort)}
                   {' '}{soloCup ? <T>Spieler</T> : <T>Teams</T>}
+                  {offeneListe.mindestSpiele ? ` · ${t('ab {n} Matches').replace('{n}', String(offeneListe.mindestSpiele))}` : ''}
                   {listeLaedt ? ' …' : ''}
                 </span>
 
