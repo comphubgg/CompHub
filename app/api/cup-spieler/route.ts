@@ -355,8 +355,9 @@ async function holeRoh(request: Request) {
   })();
   const szene = await ausSzene(tage, anzeige, land).catch(() => null);
   if (szene) {
-    if (rep?.spieler.length) {
-      const ausRep = new Map(rep.spieler.map((x) => [x.epicId, x]));
+    {
+      // Auch ohne Replays (Cups, deren Replays Epic geloescht hat): Eliminierungen je Match brauchen nur Kills und Spiele der Szene-Quelle.
+      const ausRep = new Map((rep?.spieler ?? []).map((x) => [x.epicId, x]));
       for (const x of szene.spieler) {
         const r = ausRep.get(x.epicId);
         x.knocks = r?.knocks ?? x.knocks;

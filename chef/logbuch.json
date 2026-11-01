@@ -5014,5 +5014,25 @@
     "commits": [
       "0ccb168"
     ]
+  },
+  {
+    "id": "chef-229",
+    "titel": "Cup-Seite → Spieler: „Elims je Match“ auch ohne Replays",
+    "kurz": "Cup-Seite → Spieler bei alten Finals: Kachel „Elims per match“ fehlt nicht mehr.",
+    "markieren": [
+      "text:per match"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Wert kam nur, wenn Replays vorlagen – bei Finals, deren Replays Epic nach 31 Tagen löscht, fehlte er, obwohl Kills und Spiele bekannt sind.",
+    "was": "Jetzt wird er aus Kills und Spielen gerechnet (z. B. Tjino 27 in 12 Spielen = 2,25). K/D bleibt ohne Tode leer, außer im Solo (Spiele minus Siege).",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:10:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
