@@ -1377,6 +1377,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Tierlist - was dasteht, wenn nichts dasteht
   'Kein Spieler gefunden': 'No players found',
   'Alle Spieler sind eingestuft': 'All players assigned',
+  'Die Spielerliste ist gerade nicht erreichbar - das heißt nicht, dass sie leer ist. Bitte lade die Seite gleich noch einmal.':
+    'The player list is currently unreachable — that does not mean it is empty. Please reload the page shortly.',
   'Melde dich an, um deine Tierlist zu sehen':
     'Sign in to see your tier list',
   'Deine Tierlist ist noch leer - lege unten Spieler an':

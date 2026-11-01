@@ -96,5 +96,7 @@ export async function GET(request: Request) {
   const modus = new URL(request.url).searchParams.get('modus') === 'duo' ? 'duo' : 'solo';
   const sechsStunden = 6 * 3_600_000;
   const pool = await ueberdauernd(`tierlist-pool-v3-${modus}`, sechsStunden, 7 * 864e5, () => (modus === 'duo' ? duoPool() : soloPool())).catch(() => null);
-  return NextResponse.json({ ok: Boolean(pool), modus, pool: pool ?? [] }, { headers: { 'Cache-Control': 'public, max-age=300' } });
+  // Kein Pool ist ein Ausfall, kein leerer Pool: 424 und nicht zwischenspeichern, sonst haelt der Lastverteiler die Absage fuenf Minuten fest.
+  if (!pool) return NextResponse.json({ ok: false, modus, pool: [] }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ ok: true, modus, pool }, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }

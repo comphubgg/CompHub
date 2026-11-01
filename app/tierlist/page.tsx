@@ -417,21 +417,22 @@ export default function TierListPage() {
    * die nicht mehr antwortet; Solo und Duo standen deshalb oft leer, abgemeldet immer ("auch wenn man ausgeloggt ist, soll da Leute drin sein").
    * Auch Gaeste bekommen den Pool zum Einsortieren - selbst anlegen koennen sie weiterhin nicht (createDisabled).
    */
-  const [soloDuoPool, setSoloDuoPool] = useState<{ solo: any[]; duo: any[] } | null>(null);
+  const [soloDuoPool, setSoloDuoPool] = useState<{ solo: any[] | null; duo: any[] | null } | null>(null);
   useEffect(() => {
     let weg = false;
     const spieler = (p: any, region: string) => ({
       id: generateId(), name: String(p?.name ?? ''), region,
       countryCode: p?.land ? String(p.land).toLowerCase() : 'flag-GLOBE',
     });
-    void Promise.all(['solo', 'duo'].map((m) => fetch(`/api/tierlist-pool?modus=${m}`).then((r) => r.json()).catch(() => null)))
+    // Ein Ausfall (ok: false) ist keine leere Liste: null heisst "unbekannt", dann wird nichts aufgeraeumt und die Seite sagt es.
+    void Promise.all(['solo', 'duo'].map((m) => fetch(`/api/tierlist-pool?modus=${m}`).then((r) => r.json()).then((j) => (j?.ok ? j : null)).catch(() => null)))
       .then(([s, d]) => {
         if (weg) return;
         setSoloDuoPool({
-          solo: (s?.pool ?? []).map((e: any) => spieler(e.spieler?.[0], e.region ?? 'EU')),
-          duo: (d?.pool ?? []).map((e: any) => ({
+          solo: s ? (s.pool ?? []).map((e: any) => spieler(e.spieler?.[0], e.region ?? 'EU')) : null,
+          duo: d ? (d.pool ?? []).map((e: any) => ({
             id: `duo-${generateId()}`, player1: spieler(e.spieler?.[0], e.region ?? 'EU'), player2: spieler(e.spieler?.[1], e.region ?? 'EU'), region: e.region ?? 'EU',
-          })),
+          })) : null,
         });
       });
     return () => { weg = true; };
@@ -442,6 +443,7 @@ export default function TierListPage() {
       .filter((e: any) => !e.isTrio && (mode === 'duo' ? e.isDuo : !e.isDuo))
       .map((e: any) => (mode === 'duo' ? getDuoKey(e.data) : getSoloKey(e.data))));
     const kandidaten = mode === 'duo' ? soloDuoPool.duo : soloDuoPool.solo;
+    if (!kandidaten) return;
     const neu = kandidaten.filter((d: any) => {
       const k = mode === 'duo' ? getDuoKey(d) : getSoloKey(d);
       return k && !vorhanden.has(k) && !entfernt.has(k);
@@ -1503,7 +1505,9 @@ export default function TierListPage() {
            * Datenverlust ("Ich sehe einfach keinen einzigen Spieler in der
            * Tierlist, das ist ein Disaster").
            */
-          leerHinweis={tierListState.entries.length === 0
+          leerHinweis={(mode === 'solo' || mode === 'duo') && soloDuoPool && !(mode === 'duo' ? soloDuoPool.duo : soloDuoPool.solo)
+            ? 'Die Spielerliste ist gerade nicht erreichbar - das heißt nicht, dass sie leer ist. Bitte lade die Seite gleich noch einmal.'
+            : tierListState.entries.length === 0
             ? (isGuest
               ? 'Melde dich an, um deine Tierlist zu sehen'
               : 'Deine Tierlist ist noch leer - lege unten Spieler an')
