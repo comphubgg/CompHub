@@ -35,7 +35,7 @@ interface Kategorie {
   /** Umrechnung fuer die Anzeige, etwa Zentimeter in Kilometer. */
   faktor?: number;
   nachkomma?: number;
-  /** Ein Wert je Spiel - zaehlt nur fuer Teams mit mindestens der Haelfte der meisten Spiele, sonst fuehrt ein einziges gutes Spiel. */
+  /** Ein Wert je Spiel (Quote/Schnitt: K/D, Durchschnittsplatz, Zeit am Leben) - zaehlt nur fuer Teams mit mindestens der Haelfte der meisten Spiele, sonst fuehrt ein einziges gutes Spiel. */
   jeSpiel?: boolean;
   wert: (e: CupEintrag) => number;
 }
@@ -47,9 +47,9 @@ const KATEGORIEN: Kategorie[] = [
   { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage Taken', wert: (e) => e.damageTaken },
   { schluessel: 'headshots', symbol: '💀',   titel: 'Most Headshots',       wert: (e) => e.headshots },
   { schluessel: 'wins', symbol: '👑',        titel: 'Most Victory Royales',             wert: (e) => e.wins },
-  { schluessel: 'kd', symbol: '⚔️',          titel: 'Best K/D',                nachkomma: 2, wert: (e) => e.kd },
+  { schluessel: 'kd', symbol: '⚔️',          titel: 'Best K/D',                nachkomma: 2, jeSpiel: true, wert: (e) => e.kd },
   { schluessel: 'avgPlace', symbol: '📍',    titel: 'Best Average Placement', kleinBesser: true,
-    nachkomma: 2, wert: (e) => e.avgPlace },
+    nachkomma: 2, jeSpiel: true, wert: (e) => e.avgPlace },
   { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Most Mats Farmed', wert: (e) => e.matsGefarmt },
   { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', wert: (e) => e.matsVerbaut },
   { schluessel: 'kisten', symbol: '📦',      titel: 'Most Chests Opened',   wert: (e) => e.kisten },
