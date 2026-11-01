@@ -6015,5 +6015,25 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:55:27Z"
+  },
+  {
+    "id": "chef-273",
+    "titel": "Globals-Duo: Ausfall nicht als „nie zusammen gespielt“",
+    "kurz": "Unsichtbar: Globals → Teams → Duo öffnen: bei Ausfall „nicht ladbar“ statt „keine gemeinsamen Cups“.",
+    "markieren": [
+      "text:Played together — this season"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel eine Quelle aus, stand 30 Minuten lang „haben keinen Cup zusammen gespielt“ – falsch.",
+    "was": "Ein Ausfall zeigt jetzt „Die Cups ließen sich gerade nicht laden“ und wird nicht gemerkt.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:55:32Z"
   }
 ]

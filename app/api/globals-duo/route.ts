@@ -35,9 +35,11 @@ interface Zeile {
 }
 
 async function gemeinsam(a: string, b: string): Promise<Zeile[]> {
+  // Faellt eine Quelle aus, ist "keine gemeinsamen Cups" nicht belegt - das darf nicht als leere Liste (und 30 Minuten lang gemerkt) herauskommen.
+  let ausfall = false;
   const [archiv, epic] = await Promise.all([
-    verlauf(a).catch(() => []),
-    epicVerlauf(a).catch(() => []),
+    verlauf(a).catch(() => { ausfall = true; return []; }),
+    epicVerlauf(a).catch(() => { ausfall = true; return []; }),
   ]);
   const roh: Array<Zeile & { region: string; mit: string[]; name: string }> = [];
   const gesehen = new Set<string>();
@@ -64,7 +66,10 @@ async function gemeinsam(a: string, b: string): Promise<Zeile[]> {
       region: z.region, mit: z.mitspieler ?? [], name: z.titel,
     });
   }
-  if (!roh.length) return [];
+  if (!roh.length) {
+    if (ausfall) throw new Error('Die Cups sind gerade nicht erreichbar.');
+    return [];
+  }
 
   // "Diese Saison" ist die juengste, in der der Spieler ueberhaupt antrat.
   const saison = [...roh].sort((x, y) => y.datum - x.datum)[0].season;
@@ -72,6 +77,7 @@ async function gemeinsam(a: string, b: string): Promise<Zeile[]> {
     .filter((z) => z.season === saison && z.mit.includes(b))
     .sort((x, y) => y.datum - x.datum)
     .slice(0, 12);
+  if (!treffer.length && ausfall) throw new Error('Die Cups sind gerade nicht erreichbar.');
 
   return Promise.all(treffer.map(async (z) => ({
     windowId: z.windowId, titel: z.titel, season: z.season, datum: z.datum,
