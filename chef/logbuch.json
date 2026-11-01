@@ -4601,7 +4601,10 @@
     "id": "chef-210",
     "titel": "Cup-Statistik: „nach N Spielen“ stimmt auch im Ranked-Cup",
     "kurz": "Unsichtbar: Cup-Statistik nennt die Spielzahl des Feldes, nicht die des Ersten.",
-    "markieren": [],
+    "markieren": [
+      "text:after",
+      "css:footer"
+    ],
     "bereich": "Statistik",
     "warum": "Die Spielzahl kam vom Ersten der Tabelle. Im Ranked Cup Duos EU (Event 8) hatte der Erste 1 Spiel, andere bis zu 11 – angezeigt wurde 1.",
     "was": "Jetzt zählt die höchste Spielzahl im Feld (im Beispiel 11) – das steht z. B. in der Bild-Fußzeile der Turnierstatistik.",
@@ -4621,7 +4624,10 @@
     "id": "chef-211",
     "titel": "Abgesagte Runden: alle Cup-Werte ohne sie gerechnet",
     "kurz": "Unsichtbar: Cup-Kacheln (K/D, Zeit, Strecke) rechnen abgesagte Runden jetzt ganz heraus.",
-    "markieren": [],
+    "markieren": [
+      "text:Best K/D",
+      "text:Longest Avg Time Alive"
+    ],
     "bereich": "Statistik",
     "warum": "Bei einer abgesagten Runde wurden nur Punkte und Elims abgezogen – K/D, Überlebenszeit, Strecke, Heilung und Material zählten sie weiter mit. Beispiel: 6 Spiele, 9 Elims, eine Runde mit 3 Elims abgesagt – K/D blieb 1,5 statt 1,2.",
     "was": "Jetzt werden alle Werte ohne die abgesagte Runde und genauso gerundet gerechnet wie sonst. Sichtbar nur an Spieltagen mit abgesagter Runde.",
@@ -4755,7 +4761,9 @@
     "id": "chef-217",
     "titel": "Profil-Werteliste: fehlender Wert = Strich",
     "kurz": "Unsichtbar: Spielerprofil → Werte zeigt „—“ statt 0, wenn ein Wert fehlt.",
-    "markieren": [],
+    "markieren": [
+      "text:—"
+    ],
     "bereich": "Statistik",
     "warum": "Fehlte ein Wert in der Quelle, stand in der Werteliste still eine 0 – das sah aus wie ein echter Wert.",
     "was": "Jetzt steht dort ein Strich; eine echte 0 bleibt 0.",
@@ -5085,7 +5093,10 @@
     "id": "chef-232",
     "titel": "Turnierverzeichnis: fehlende Angaben als Strich",
     "kurz": "Unsichtbar: Statistik → Cups zeigt „—“ statt 0, wenn Datum, Spieler oder Matches fehlen.",
-    "markieren": [],
+    "markieren": [
+      "text:—",
+      "css:main table"
+    ],
     "bereich": "Statistik",
     "warum": "Fehlte einem Spieltag eine Angabe, stand dort 0 oder nichts – das sah aus wie ein echter Wert.",
     "was": "Jetzt steht ein Strich; eine echte 0 bleibt 0.",
@@ -5174,7 +5185,9 @@
     "datum": "2026-11-01T04:56:00Z",
     "titel": "Streams und Statistik: toter Code entfernt",
     "kurz": "Unsichtbar: Turnier-Reiter spart eine unnötige Abfrage, weniger alter Code.",
-    "markieren": [],
+    "markieren": [
+      "css:main"
+    ],
     "bereich": "Technik",
     "warum": "Auf der Streams-Seite und der Statistikseite lagen nie benutzte Teile, darunter eine Abfrage aller Cups, deren Ergebnis nirgends erschien.",
     "was": "Die unbenutzten Teile sind weg; sichtbar ändert sich nichts, der Turnier-Reiter lädt eine Abfrage weniger.",
@@ -5252,6 +5265,8 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1,
-    "commits": []
+    "commits": [
+      "f4fa106"
+    ]
   }
 ]
