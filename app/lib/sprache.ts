@@ -3634,6 +3634,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Gerade läuft kein passender Cup. Schalte den Filter „Nur FNCS, Cash und Performance“ aus, um auch Ranked, Reload, Mobile und Arenas zu sehen, oder zeig die letzte Woche.': 'No matching cup is running right now. Switch off the filter "Only FNCS, Cash and Performance" to also see Ranked, Reload, Mobile and Arenas, or show the last week.',
   'In diesem Cup spielen Teams. Das Banner zeigt die Werte des Teams und trägt dafür die Zeile „Team stats“.': 'Teams play in this cup. The banner shows the stats of the team and carries the line "Team stats" for it.',
   'Solo': 'Solo',
+  'Squad': 'Squad',
   'Akzentfarbe': 'Accent color',
   'Team-Karte': 'Team card',
   'Foto, Name und Zahlen in einer Karte — wie beim Duo.': 'Photo, name and numbers in one card — like the duo.',

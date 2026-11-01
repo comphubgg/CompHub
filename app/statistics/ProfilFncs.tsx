@@ -18,6 +18,22 @@ export interface Mitspieler { epicId: string; name: string; land: string | null 
 export interface TafelZeile { saison: string; platz: number; typ: 'LAN' | 'ONLINE'; mitspieler: Mitspieler[]; datum: number | null }
 export interface Erfolg { titel: string; season: string; saisonName?: string; platz: number; typ: 'LAN' | 'ONLINE'; mitspieler: Mitspieler[]; datum: number | null }
 
+/**
+ * Das Format (Solo/Duo/Trio/Squad) eines Eintrags. Die Quelle unterscheidet nicht zwischen "allein" und "Mitspieler unbekannt" - eine leere Mitspielerliste
+ * heisst also nicht Solo. Verlaesslich ist nur: der Name nennt das Format, ein bekanntes Turnier (Globals, Grand Royale) oder bekannte Mitspieler.
+ * Sonst leer (Strich).
+ */
+function formatVon(saison: string, bekannteMitspieler: number): 'Solo' | 'Duo' | 'Trio' | 'Squad' | '' {
+  const s = saison.toUpperCase();
+  if (/\bSOLOS?\b/.test(s)) return 'Solo';
+  if (/\bDUOS?\b/.test(s)) return 'Duo';
+  if (/\bTRIOS?\b/.test(s)) return 'Trio';
+  if (/\bSQUADS?\b/.test(s)) return 'Squad';
+  if (s === 'GRAND ROYALE' || s === 'GLOBALS 2023' || s === 'GLOBALS 2024') return 'Duo';
+  if (s === 'GLOBALS 2025') return 'Trio';
+  return (['', 'Duo', 'Trio', 'Squad'] as const)[bekannteMitspieler] ?? '';
+}
+
 /** "1st", "2nd" - im Deutschen "1.", "2.". */
 function platzText(p: number, en: boolean) {
   if (!en) return `${p}.`;
@@ -157,7 +173,7 @@ export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string 
                   <td className="px-3 py-2 text-center"><Typ typ={z.typ} /></td>
                   <td className="px-3 py-2"><Team mitspieler={z.mitspieler} /></td>
                   <td className="px-3 py-2 text-right text-xs text-slate-500">
-                    {z.platz ? (['Solo', 'Duo', 'Trio', 'Squad'][z.mitspieler.length] ?? '') : ''}
+                    {z.platz ? (() => { const f = formatVon(z.saison, z.mitspieler.length); return f ? <T>{f}</T> : '—'; })() : ''}
                   </td>
                 </tr>
               ))}

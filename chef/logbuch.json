@@ -3109,5 +3109,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T02:55:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-145",
+    "titel": "FNCS im Profil: kein falsches „Solo“ mehr",
+    "kurz": "Profil → FNCS-Tabelle, Spalte Format: Globals 2023 und Grand Royale stehen als „Duo“.",
+    "markieren": [
+      "text:GRAND ROYALE",
+      "text:GLOBALS 2023"
+    ],
+    "warum": "Kannte die Quelle die Mitspieler nicht, stand „Solo“ da – bei peterbot etwa bei Globals 2023 und Grand Royale, beides Duo-Turniere.",
+    "was": "Das Format kommt jetzt aus dem Turniernamen oder bekannten Turnieren (Globals 2023/2024, Grand Royale = Duo, Globals 2025 = Trio); sonst steht ein Strich statt „Solo“.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
