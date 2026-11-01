@@ -5972,5 +5972,23 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:51:39Z"
+  },
+  {
+    "id": "chef-271",
+    "titel": "Ranked-Cup: weniger Namensabfragen",
+    "kurz": "Unsichtbar: Ranked-Kopf im Spielerprofil lädt schneller (nur 25 Namen statt alle).",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Die Abfrage löste die Namen aller Spieler bei Epic auf, gezeigt wurden aber nur 25.",
+    "was": "Jetzt werden nur die 25 gezeigten Namen geholt, doppelte nur einmal.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:51:44Z"
   }
 ]

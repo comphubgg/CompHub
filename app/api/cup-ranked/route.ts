@@ -46,9 +46,11 @@ export async function GET(request: Request) {
     }
 
     const { token } = await getToken();
-    const namen = await loeseNamenAuf(ids, token);
+    // Nur die 25, die unten wirklich ausgegeben werden - nicht alle ids aufloesen.
+    const genutzt = [...new Set(ids)].slice(0, 25);
+    const namen = await loeseNamenAuf(genutzt, token);
 
-    const spieler = await Promise.all(ids.slice(0, 25).map(async (id) => ({
+    const spieler = await Promise.all(genutzt.map(async (id) => ({
       id,
       name: namen[id] ?? id.slice(0, 8),
       // Nur Modi zeigen, in denen wirklich gespielt wurde.
