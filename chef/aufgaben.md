@@ -30,7 +30,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Teamseite „Earnings“ = Karriere-Preisgeld, Orgs-Liste = Preisgeld seit Beitritt (Standard: dieses Jahr)** – z. B. HavoK/pixie 843.915 gegen 328.800. Beschriftung klarer machen? Betreiber fragen.
 - [ ] **Match-Seite: Kills-Spalte weicht bei einigen Spielern vom Kill-Feed ab** – vermutlich nicht gezählte Bot-Kills; nachprüfen.
 - [x] **Startseite Quote „1.45“ auf Deutsch** (chef-137), **Kachel-Spielerzahl Browsersprache** (chef-138), **Events „heute“ über alle Regionen** (chef-139), **Events Gleichstand** (chef-140).
-- [ ] **POV-Statistik (Streams): Epic-Ausfall erscheint als „Spielt gerade in keinem Cup“** – Ausfälle je Region/Fenster werden geschluckt. Ein Helfer-Vorschlag (bei jedem Teil-Ausfall Fehler werfen) abgelehnt: ein einziges hakendes Fenster irgendeines Cups hätte dann „nicht erreichbar“ gezeigt, obwohl der Profi einfach nicht spielt. Besser: nur werfen, wenn ALLE Regionen bzw. die Mehrheit ausfallen.
+- [x] (chef-141) **POV-Statistik (Streams): Epic-Ausfall erscheint als „Spielt gerade in keinem Cup“** – Ausfälle je Region/Fenster werden geschluckt. Ein Helfer-Vorschlag (bei jedem Teil-Ausfall Fehler werfen) abgelehnt: ein einziges hakendes Fenster irgendeines Cups hätte dann „nicht erreichbar“ gezeigt, obwohl der Profi einfach nicht spielt. Besser: nur werfen, wenn ALLE Regionen bzw. die Mehrheit ausfallen.
 - [ ] **Teil-Neustart im Datenlauf**: Wenn der Server in einer Portion stirbt, scheitert der Rest der Portion sofort (0,0 s). Vorschlag an den Betrieb: Vorrechner merkt „Server weg“ und bricht die Portion ab bzw. der Ablauf startet neu (Workflow – nicht meine Datei).
 
 ## Neu entdeckt (Runde 6, 31.10.2026)
