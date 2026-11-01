@@ -2259,7 +2259,9 @@
     "ansehen": [
       "/statistics"
     ],
-    "commits": [],
+    "commits": [
+      "899ae37fcfc19226b4ceb1c8a09afd6ffa81f8f2"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -2279,7 +2281,9 @@
     "ansehen": [
       "/events"
     ],
-    "commits": [],
+    "commits": [
+      "5eb6a31f7bb727390e91169a082e2e431da68551"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
