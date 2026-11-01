@@ -600,6 +600,11 @@ function zahl(n: number, nachkomma = 0, sprache: 'de' | 'en' = 'de') {
   });
 }
 
+/** Wie zahl, aber "—" statt 0, wenn der Wert in der Quelle fehlt (undefined/null). Eine echte 0 bleibt 0. */
+function zahlOderStrich(n: number | null | undefined, nachkomma = 0, sprache: 'de' | 'en' = 'de') {
+  return n == null ? '—' : zahl(n, nachkomma, sprache);
+}
+
 /**
  * Zahl mit Einheit: Dollar immer vorn ("$452,375" bzw. "$452.375" - so wie im Profil und in den Turnieren), Prozent im Englischen
  * ohne Leerzeichen ("12.5%"). Andere Einheiten (" km" ...) bleiben hinten.
@@ -6629,29 +6634,29 @@ export default function StatistikSeite() {
                 <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                   {([
-                    ['Eliminierungen', zahl(offen.elims, 0, sprache)],
+                    ['Eliminierungen', zahlOderStrich(offen.elims, 0, sprache)],
                     ['Elims je Match', feldText(offen, 'elimsProMatch', 2, sprache)],
-                    ['Assists', zahl(offen.assists, 0, sprache)],
-                    ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
-                    ['Schaden', zahl(offen.damage, 0, sprache)],
+                    ['Assists', zahlOderStrich(offen.assists, 0, sprache)],
+                    ['Wiederbelebungen', zahlOderStrich(offen.reboots, 0, sprache)],
+                    ['Schaden', zahlOderStrich(offen.damage, 0, sprache)],
                     ['Schaden je Match', feldText(offen, 'damageProMatch', 0, sprache)],
-                    ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
+                    ['Schaden erlitten', zahlOderStrich(offen.damageTaken, 0, sprache)],
                     ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
-                    ['Schüsse', zahl(offen.shots, 0, sprache)],
-                    ['Treffer', zahl(offen.hits, 0, sprache)],
+                    ['Schüsse', zahlOderStrich(offen.shots, 0, sprache)],
+                    ['Treffer', zahlOderStrich(offen.hits, 0, sprache)],
                     ['Trefferquote', feldText(offen, 'genauigkeit', 1, sprache, ' %')],
-                    ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
-                    ['Material', zahl(offen.mats, 0, sprache)],
-                    ['Bauteile', zahl(offen.builds, 0, sprache)],
-                    ['Heilung', zahl(offen.heals, 0, sprache)],
-                    ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
-                    ['Fallschaden', zahl(offen.fallDamage, 0, sprache)],
-                    ['Strecke', `${zahl(offen.distanz, 1, sprache)} km`],
+                    ['Kopftreffer', zahlOderStrich(offen.headshots, 0, sprache)],
+                    ['Material', zahlOderStrich(offen.mats, 0, sprache)],
+                    ['Bauteile', zahlOderStrich(offen.builds, 0, sprache)],
+                    ['Heilung', zahlOderStrich(offen.heals, 0, sprache)],
+                    ['Sturmschaden', zahlOderStrich(offen.stormDamage, 0, sprache)],
+                    ['Fallschaden', zahlOderStrich(offen.fallDamage, 0, sprache)],
+                    ['Strecke', offen.distanz == null ? '—' : `${zahl(offen.distanz, 1, sprache)} km`],
                     ['Kopftreffer-Anteil', offen.hits > 0 ? `${zahl((offen.headshots / offen.hits) * 100, 1, sprache)} %` : '—'],
                     ['Zeit am Leben', offen.timeAlive > 0 ? alsZeit(offen.timeAlive) : '—'],
                     ['Zeit im Sturm', offen.timeInStorm > 0 ? alsZeit(offen.timeInStorm) : '—'],
-                    ['Spieltage', zahl(offen.events, 0, sprache)],
-                    ['Matches', zahl(offen.matches, 0, sprache)],
+                    ['Spieltage', zahlOderStrich(offen.events, 0, sprache)],
+                    ['Matches', zahlOderStrich(offen.matches, 0, sprache)],
                   ] as Array<[string, string]>).map(([l, v]) => (
                     <div key={l} className="flex items-baseline justify-between gap-4
                                             border-b border-zinc-900 py-2.5">

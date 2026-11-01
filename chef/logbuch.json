@@ -4750,5 +4750,23 @@
     "commits": [
       "1f19c16"
     ]
+  },
+  {
+    "id": "chef-217",
+    "titel": "Profil-Werteliste: fehlender Wert = Strich",
+    "kurz": "Unsichtbar: Spielerprofil → Werte zeigt „—“ statt 0, wenn ein Wert fehlt.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Fehlte ein Wert in der Quelle, stand in der Werteliste still eine 0 – das sah aus wie ein echter Wert.",
+    "was": "Jetzt steht dort ein Strich; eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/statistics?ansicht=suche&id=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:00:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
