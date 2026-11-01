@@ -4969,5 +4969,25 @@
     "commits": [
       "cfba2ba"
     ]
+  },
+  {
+    "id": "chef-227",
+    "titel": "Spielervergleich: ein Strich für fehlende Plätze",
+    "kurz": "Statistik → Vergleich → Platzierungen je Cup: fehlender Platz zeigt „—“ wie überall.",
+    "markieren": [
+      "text:—"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlende Plätze hatten einen kürzeren Strich als alle anderen fehlenden Werte.",
+    "was": "Jetzt überall derselbe Strich.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:06:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

@@ -636,9 +636,9 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
                   const farbe = (x: number | null, y: number | null) => (x === null ? 'text-slate-700' : y === null || x < y ? 'font-black text-emerald-400' : x === y ? 'font-bold text-slate-200' : 'font-semibold text-slate-400');
                   return (
                     <div key={e.windowId} className="grid grid-cols-[56px_1fr_56px] items-center gap-3 border-b border-white/[0.04] py-1.5 last:border-b-0">
-                      <span className={`text-right text-sm tabular-nums ${farbe(a, b)}`}>{a === null ? '–' : platzText(a, loc)}</span>
+                      <span className={`text-right text-sm tabular-nums ${farbe(a, b)}`}>{a === null ? '—' : platzText(a, loc)}</span>
                       <span className="truncate text-center text-[11px] font-bold uppercase tracking-wide text-slate-400">{e.event}</span>
-                      <span className={`text-left text-sm tabular-nums ${farbe(b, a)}`}>{b === null ? '–' : platzText(b, loc)}</span>
+                      <span className={`text-left text-sm tabular-nums ${farbe(b, a)}`}>{b === null ? '—' : platzText(b, loc)}</span>
                     </div>
                   );
                 })}
