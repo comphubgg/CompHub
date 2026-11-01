@@ -132,7 +132,7 @@ export async function GET(request: Request) {
         const e = rep.spieler.find((x) => normId(x.epicId) === i);
         const d = clutch?.schaden?.[i];
         replay = {
-          kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
+          kills: e ? e.kills : null, knocks: e ? e.knocks : null, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
         };

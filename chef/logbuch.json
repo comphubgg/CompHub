@@ -6149,5 +6149,26 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T06:00:16Z"
+  },
+  {
+    "id": "chef-279",
+    "titel": "Cup-Spielerdetails: ohne Replay-Eintrag Strich statt 0",
+    "kurz": "Cup-Seite → Spieler öffnen: fehlt er im Replay, steht „–“ statt „Eliminations 0“.",
+    "markieren": [
+      "text:Knocks",
+      "text:Check details in Player Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Stand ein Spieler nicht in der Replay-Auswertung, zeigte das Fenster 0 Eliminierungen und 0 Knocks – und rechnete damit den Schnitt.",
+    "was": "Ohne Replay-Eintrag sind die Werte unbekannt und zeigen einen Strich.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T06:00:34Z"
   }
 ]
