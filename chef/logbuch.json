@@ -5633,5 +5633,26 @@
     "commits": [
       "efe82f6"
     ]
+  },
+  {
+    "id": "chef-256",
+    "datum": "2026-11-01T05:58:00Z",
+    "titel": "Replay-Spielerfenster: Damage mit Tausenderpunkt",
+    "kurz": "Replay → Spieler anklicken: Damage im Fenster zeigt 1,234 statt 1234.",
+    "markieren": [
+      "text:Damage",
+      "text:Headshots"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Tabelle schrieb Schaden mit Tausendertrennung, das Spielerfenster nicht (z. B. 1234 statt 1,234).",
+    "was": "Das Fenster schreibt die Zahl jetzt im Zahlenformat der Sprache.",
+    "ansehen": [
+      "/replays"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

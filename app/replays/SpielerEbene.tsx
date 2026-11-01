@@ -19,6 +19,8 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
+import { useSprache } from '@/app/components/SprachProvider';
+import { ortVon } from '@/app/lib/ort';
 import LOOT_BILDER from '@/app/replays/lootBilder.json';
 
 export interface SpielerDaten {
@@ -357,6 +359,7 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
 
 /** Das HUD des gewaehlten Spielers wie im Spiel: Name, Schild, Leben, die Faecher mit Bildern, das Gehaltene umrandet. */
 export function SpielerFenster({ d, zeit, s, farbe, schliessen }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null; kills?: number }; farbe: string; schliessen: () => void }) {
+  const ort = ortVon(useSprache().sprache);
   const tot = typeof s.tod === 'number' && s.tod <= zeit;
   const hp = tot ? 0 : hpBei(d.leben.get(s.id), zeit);
   const schild = tot ? 0 : d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null;
@@ -383,7 +386,7 @@ export function SpielerFenster({ d, zeit, s, farbe, schliessen }: { d: Aufbereit
         {!faecher.length && !hand && <span className="text-xs text-slate-500"><T>Noch nichts aufgehoben.</T></span>}
       </div>
       <p className="mt-2.5 text-[11px] text-slate-400">
-        <T>Treffer</T> <b className="tabular-nums text-slate-100">{meine.length}</b> · Damage <b className="tabular-nums text-slate-100">{Math.round(meine.reduce((a, x) => a + x[4], 0))}</b> · <T>Kopftreffer</T> <b className="tabular-nums text-slate-100">{meine.filter((x) => x[5] === 2).length}</b>
+        <T>Treffer</T> <b className="tabular-nums text-slate-100">{meine.length}</b> · Damage <b className="tabular-nums text-slate-100">{Math.round(meine.reduce((a, x) => a + x[4], 0)).toLocaleString(ort)}</b> · <T>Kopftreffer</T> <b className="tabular-nums text-slate-100">{meine.filter((x) => x[5] === 2).length}</b>
       </p>
       {schild !== null && <p className="mt-1 text-[10px] text-slate-500"><T>Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.</T></p>}
     </div>
