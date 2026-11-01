@@ -3922,5 +3922,49 @@
     "modell": "Sonnet (geprüft von Opus)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-180",
+    "datum": "2026-11-01T03:40:00Z",
+    "titel": "Overlay-Teamliste: Ablage-Ausfall ohne Fehlerseite",
+    "kurz": "Unsichtbar: Teamkarten-Baukasten bekommt bei Ablage-Ausfall keine Fehlerseite mehr.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Werkzeuge",
+    "warum": "War die Bilderablage nicht lesbar, antwortete die Teamliste mit einem Serverfehler, aus dem der Lastverteiler eine Fehlerseite macht.",
+    "was": "Jetzt kommt eine saubere Ausfall-Antwort; der Baukasten bleibt bedienbar.",
+    "ansehen": [
+      "/overlays/teamkarte"
+    ],
+    "commits": [
+      "e422be6"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-181",
+    "datum": "2026-11-01T03:40:00Z",
+    "titel": "Banner-Overlay: Spielerfarben werden bei Ausfall nicht überschrieben",
+    "kurz": "Unsichtbar: Spielerfarben im Banner gehen bei Ablage-Ausfall nicht mehr verloren.",
+    "markieren": [
+      "css:body"
+    ],
+    "bereich": "Werkzeuge",
+    "warum": "Konnte die Ablage nicht gelesen werden, galt das als „nichts eingestellt“ – ein Speichern hätte dann alle gespeicherten Farben durch eine einzige ersetzt.",
+    "was": "Nur eine wirklich fehlende Datei gilt als leer; sonst wird nichts gespeichert, und das Banner nimmt solange die Farben aus dem Spielerbild.",
+    "ansehen": [
+      "/overlays"
+    ],
+    "commits": [
+      "804e1a7"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
