@@ -70,19 +70,36 @@ export function ohneAbgesagte(
       n.damage -= m.damage ?? 0;
       n.damageTaken -= m.damageTaken ?? 0;
       n.headshots -= m.headshots ?? 0;
+      // Auch die uebrigen Summen der Kacheln (Ueberlebenszeit, Strecke, Heilung ...): vorher zaehlte die abgesagte Runde dort weiter mit.
+      n.timeAlive -= m.timeAlive ?? 0;
+      n.damageSquad -= m.damageSquad ?? 0;
+      n.strecke -= m.strecke ?? 0;
+      n.kisten -= m.kisten ?? 0;
+      n.heilung -= m.heilung ?? 0;
+      n.schild -= m.schild ?? 0;
+      n.matsGefarmt -= (m.holzGefarmt ?? 0) + (m.steinGefarmt ?? 0) + (m.metallGefarmt ?? 0) + (m.zutatGefarmt ?? 0);
+      n.matsVerbaut -= (m.holzVerbaut ?? 0) + (m.steinVerbaut ?? 0) + (m.metallVerbaut ?? 0) + (m.zutatVerbaut ?? 0);
+      // Die Aufteilung der Punkte (Platz / Elims) bleibt mit den Punkten im Einklang.
+      if (n.punktePlatz !== undefined && typeof m.punktePlatz === 'number') n.punktePlatz = +(n.punktePlatz - m.punktePlatz).toFixed(2);
+      if (n.punkteElims !== undefined && typeof m.punkteElim === 'number') n.punkteElims = +(n.punkteElims - m.punkteElim).toFixed(2);
     }
     const spiele = Math.max(1, n.games);
-    n.avgPoints = n.points / spiele;
-    n.avgElims = n.elims / spiele;
+    // Gleiche Rundung und gleiche Formeln wie lib/epicCups (formeEintrag) - sonst blieben K/D und Zeit je Spiel auf dem Stand vor der Absage.
+    n.avgPoints = n.games ? +(n.points / spiele).toFixed(2) : 0;
+    n.avgElims = n.games ? +(n.elims / spiele).toFixed(2) : 0;
+    n.avgTimeAlive = n.games ? Math.round(n.timeAlive / spiele) : 0;
+    n.kd = n.games - n.wins > 0 ? +(n.elims / (n.games - n.wins)).toFixed(2) : n.elims;
     const plaetze = n.matches.map((m) => m.placement).filter((x): x is number => typeof x === 'number');
-    n.avgPlace = plaetze.length ? plaetze.reduce((a, b) => a + b, 0) / plaetze.length : n.avgPlace;
+    n.avgPlace = plaetze.length ? +(plaetze.reduce((a, b) => a + b, 0) / plaetze.length).toFixed(2) : n.avgPlace;
     n.bestPlace = plaetze.length ? Math.min(...plaetze) : n.bestPlace;
     return n;
   });
   if (ganzeListe) {
     // Epics Reihenfolge bei Gleichstand: Punkte, Siege, Elims je Spiel, Platz je Spiel.
+    const je = (e: CupEintrag, x: number) => x / Math.max(1, e.games);
+    const platzSchnitt = (e: CupEintrag) => { const p = e.matches.map((m) => m.placement).filter((x): x is number => typeof x === 'number'); return p.length ? p.reduce((a, b) => a + b, 0) / p.length : e.avgPlace; };
     raus.sort((a, b) => b.points - a.points || b.wins - a.wins
-      || b.avgElims - a.avgElims || a.avgPlace - b.avgPlace);
+      || je(b, b.elims) - je(a, a.elims) || platzSchnitt(a) - platzSchnitt(b));
     raus.forEach((e, i) => { e.rank = i + 1; });
   }
   return { eintraege: raus, punkteUnsicher: unsicher };

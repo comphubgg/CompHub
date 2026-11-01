@@ -4618,5 +4618,23 @@
     "commits": [
       "9dc4003"
     ]
+  },
+  {
+    "id": "chef-211",
+    "titel": "Abgesagte Runden: alle Cup-Werte ohne sie gerechnet",
+    "kurz": "Unsichtbar: Cup-Kacheln (K/D, Zeit, Strecke) rechnen abgesagte Runden jetzt ganz heraus.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Bei einer abgesagten Runde wurden nur Punkte und Elims abgezogen – K/D, Überlebenszeit, Strecke, Heilung und Material zählten sie weiter mit. Beispiel: 6 Spiele, 9 Elims, eine Runde mit 3 Elims abgesagt – K/D blieb 1,5 statt 1,2.",
+    "was": "Jetzt werden alle Werte ohne die abgesagte Runde und genauso gerundet gerechnet wie sonst. Sichtbar nur an Spieltagen mit abgesagter Runde.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:53:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
