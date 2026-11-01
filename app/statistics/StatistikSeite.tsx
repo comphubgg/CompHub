@@ -426,6 +426,23 @@ function alsZeit(sek: number): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
+/**
+ * Der Wert einer Bestenliste als Text.
+ *
+ * Zeiten kommen in Sekunden, die Strecke aus der Szene-Quelle bereits in
+ * Kilometern (lib/szeneStats: streckeKm) - nicht durch 1000 teilen, sonst
+ * stehen aus 25,4 km "0,0 km" da. Ohne format zaehlt der Zahlenwert.
+ */
+function listenWert(
+  sp: Partial<Spieler>, l: { feld: keyof Spieler | string; nachkomma?: number; einheit?: string; format?: WertFormat },
+  sprache: 'de' | 'en',
+): string {
+  const roh = Number((sp as unknown as Record<string, number>)[l.feld as string]);
+  if (l.format === 'zeit') return alsZeit(roh);
+  if (l.format === 'km') return `${zahl(roh, 1, sprache)} km`;
+  return feldText(sp, l.feld as string, l.nachkomma ?? 0, sprache, l.einheit ?? '');
+}
+
 const SORTIERUNG: Array<[string, string]> = [
   ['elims', 'Meiste Eliminierungen'],
   ['damage', 'Meister Schaden'],
@@ -1825,7 +1842,7 @@ function Verlaufslinie({ werte, beschriftung, marken }: {
 
 /** Eine Bestenliste als Karte - Kopf, Pluszeichen, die besten fuenf. */
 function ListenKarte({ liste, aufVoll, aufSpieler }: {
-  liste: { titel: string; feld: keyof Spieler; nachkomma?: number; einheit?: string;
+  liste: { titel: string; feld: keyof Spieler; nachkomma?: number; einheit?: string; format?: WertFormat;
            zeilen: Spieler[] };
   aufVoll: () => void;
   aufSpieler: (s: Spieler) => void;
@@ -1834,7 +1851,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
   const { sprache } = useSprache();
   // Dieselbe Karte wie die Bestenlisten der Uebersicht (Betreiber, 19.10.2026: "sieht noch nicht nach meinem neuen Stil aus"): der Erste mit Foto, darunter die Plaetze.
   const [erster, ...rest] = liste.zeilen.slice(0, 5);
-  const wertVon = (sp: Spieler) => feldText(sp, liste.feld as string, liste.nachkomma ?? 0, sprache, liste.einheit ?? '');
+  const wertVon = (sp: Spieler) => listenWert(sp, liste, sprache);
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
       <div className="flex items-center gap-2 px-5 pt-4">
@@ -4835,9 +4852,7 @@ export default function StatistikSeite() {
                         <div className="divide-y divide-zinc-900">
                           {l.zeilen.slice(0, 5).map((sp, i) => (
                             <Platz key={sp.epicId} nr={i + 1} s={sp}
-                              wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
-                                : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
-                                : feldText(sp, l.feld as string, l.nachkomma ?? 0, sprache, l.einheit ?? '')}
+                              wert={listenWert(sp, l, sprache)}
                               hervor={markiert === sp.epicId}
                               aufZeigen={(an) => setMarkiert(an ? sp.epicId : null)}
                               aufKlick={() => oeffne(sp)} />
@@ -5433,7 +5448,7 @@ export default function StatistikSeite() {
                           setVolleListe({
                             titel: l.titel, zusatz: regionAktiv, zeilen: l.zeilen,
                             feld: l.feld, nachkomma: l.nachkomma ?? 0,
-                            einheit: l.einheit ?? '',
+                            einheit: l.einheit ?? '', format: l.format,
                           });
                           setListenTiefe(50);
                         }}
@@ -5491,7 +5506,7 @@ export default function StatistikSeite() {
                                   setVolleListe({
                                     titel: l.titel, zusatz: r.name, zeilen: l.zeilen,
                                     feld: l.feld, nachkomma: l.nachkomma ?? 0,
-                                    einheit: l.einheit ?? '',
+                                    einheit: l.einheit ?? '', format: l.format,
                                   });
                                   setListenTiefe(50);
                                 }}
@@ -6003,9 +6018,7 @@ export default function StatistikSeite() {
             {/* Die ersten Drei der Auswahl (nach Region gefiltert) mit Foto - nur auf der ersten Seite und ohne Suche. */}
             {!q && (!istGeld || seite === 1) && (
               <Treppchen drei={gefiltert.slice(0, 3)} aufKlick={(sp) => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
-                wertVon={(sp) => (volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
-                  : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
-                  : feldText(sp, volleListe.feld as string, volleListe.nachkomma, sprache, volleListe.einheit))} />
+                wertVon={(sp) => listenWert(sp, volleListe, sprache)} />
             )}
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
@@ -6017,9 +6030,7 @@ export default function StatistikSeite() {
               {zeigen.map(({ sp, nr }) => (
                 <Platz key={sp.epicId} nr={nr} s={sp}
                   mitBild={istGeld}
-                  wert={volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
-                    : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
-                    : feldText(sp, volleListe.feld as string, volleListe.nachkomma, sprache, volleListe.einheit)}
+                  wert={listenWert(sp, volleListe, sprache)}
                   zusatz={istElims && typeof sp.opensElims === 'number'
                     ? `${t('Finals')} ${sp.finals ?? 0} · ${t('Opens')}: ${zahl(sp.opensElims ?? 0, 0, sprache)} ${t('Elims')} ${t('in')} ${sp.opens ?? 0} ${t('Spieltagen')}`
                     : undefined}

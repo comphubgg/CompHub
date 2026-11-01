@@ -3272,5 +3272,28 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:16:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-152",
+    "titel": "Regionen und Turniere: Strecke und Zeiten richtig",
+    "kurz": "Statistik → Turnier/Region → „Longest Distance“: 25,4 km statt 0,0 km; Zeiten als Minuten.",
+    "markieren": [
+      "text:Longest Distance",
+      "text:Longest Time in Storm",
+      "text:Longest Survival Time"
+    ],
+    "warum": "Die Strecke kam schon in Kilometern und wurde nochmals durch 1000 geteilt (25,4 km → „0,0 km“); in den Regionslisten standen Zeiten als rohe Sekunden (1190 statt 19m 50s).",
+    "was": "Alle diese Listen zeigen Zeit als Minuten und Sekunden und die Strecke einmal richtig in km.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S41&region=EU",
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
