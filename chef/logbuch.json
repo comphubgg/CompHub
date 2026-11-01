@@ -5905,5 +5905,26 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T05:51:01Z"
+  },
+  {
+    "id": "chef-268",
+    "titel": "Startseite-Vitrine: fehlende Werte als Strich",
+    "kurz": "Startseite → „Spieler im Rampenlicht“: fehlende Elims/Schaden zeigen „–“ statt 0.",
+    "markieren": [
+      "text:Player in the spotlight",
+      "text:Damage ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlten Elims oder Schaden in der Quelle, zeigte die Karte „0“ – das ist eine falsche Behauptung.",
+    "was": "Unbekannte Werte bleiben leer und erscheinen als Strich.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T05:51:26Z"
   }
 ]

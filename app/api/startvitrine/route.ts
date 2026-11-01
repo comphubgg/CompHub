@@ -64,9 +64,11 @@ async function startHolen(request: Request): Promise<Start | null> {
   return null;
 }
 
+const endlich = (n: unknown): number | null => (typeof n === 'number' && Number.isFinite(n) ? n : null);
 const schlank = (z: Zeile) => ({
   id: z.epicId, name: z.anzeige || z.name, land: z.land ?? null, region: z.heimat ?? '', bild: z.bild ? standAnhaengen(z.bild) : null,
-  elims: z.elims ?? 0, schaden: z.damage ?? 0, quote: z.quote ?? 0, matches: z.matches ?? 0,
+  // Fehlt ein Wert, bleibt er null (die Karte zeigt "—"), nie 0.
+  elims: endlich(z.elims), schaden: endlich(z.damage), quote: endlich(z.quote), matches: endlich(z.matches),
 });
 
 const ENGLISCH: Record<string, string> = { Runde: 'Round', Tag: 'Day', Finale: 'Finals' };

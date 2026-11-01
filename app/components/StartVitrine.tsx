@@ -50,7 +50,7 @@ const CSS = `
 
 /* ------------------------------------------------------------------ Typen */
 
-interface VSpieler { id: string; name: string; land: string | null; region: string; bild: string | null; elims: number; schaden: number; quote: number; matches: number }
+interface VSpieler { id: string; name: string; land: string | null; region: string; bild: string | null; elims: number | null; schaden: number | null; quote: number | null; matches: number | null }
 interface VZeile { rang: number; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }
 interface VCup { titel: string; cup: string; typ: string; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: VZeile[] }
 interface VRegion { region: string; name: string; land: string | null; elims: number }
@@ -168,7 +168,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
             <div className="mt-4 grid grid-cols-3 gap-2">
               {/* "Quote" sagte nicht, was geteilt wird (SALKO: 917 Elims in 441 Matches, Quote 1,2). Es ist Schaden ausgeteilt durch Schaden
                   eingesteckt - so heisst sie jetzt, mit demselben Namen wie in der Statistik. Ohne eingesteckten Schaden ein Strich, keine 0,00. */}
-              {([['Schadensquote', s.quote > 0 ? s.quote.toLocaleString(ortJetzt(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null, 'text-emerald-400', 'Schaden ausgeteilt geteilt durch Schaden eingesteckt'], ['Elims', zahl(s.elims), 'text-[#fff]', ''], ['Schaden', zahl(s.schaden), 'text-[#fff]', '']] as const).map(([t, w, farbe, hilfe]) => (
+              {([['Schadensquote', s.quote != null && s.quote > 0 ? s.quote.toLocaleString(ortJetzt(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null, 'text-emerald-400', 'Schaden ausgeteilt geteilt durch Schaden eingesteckt'], ['Elims', (s.elims == null ? null : zahl(s.elims)), 'text-[#fff]', ''], ['Schaden', (s.schaden == null ? null : zahl(s.schaden)), 'text-[#fff]', '']] as const).map(([t, w, farbe, hilfe]) => (
                 <div key={t} title={hilfe ? uebersetze(hilfe) : undefined} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
                   <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} ort={ortJetzt()} /></p>
