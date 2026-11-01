@@ -4947,5 +4947,25 @@
     "commits": [
       "1836f1f"
     ]
+  },
+  {
+    "id": "chef-226",
+    "titel": "Spielervergleich: Schaden je Minute nicht mehr zu hoch",
+    "kurz": "Statistik → Vergleich: „Damage per minute“ zählt nur Tage mit bekannter Lebenszeit.",
+    "markieren": [
+      "text:per minute"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Schaden aller Tage wurde durch die Lebenszeit nur einiger Tage geteilt – fehlte an einem Tag die Zeit, war der Wert zu hoch.",
+    "was": "Schaden und Zeit stammen jetzt aus denselben Tagen; gilt auch für den erlittenen Schaden je Minute.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T04:06:00Z",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]
