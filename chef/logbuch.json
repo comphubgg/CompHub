@@ -2420,6 +2420,28 @@
     "modell": "Sonnet",
     "datum": "2026-11-01T02:15:00Z",
     "bereich": "Statistik",
+    "commits": [
+      "db67dac"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-114",
+    "titel": "Profil: Beste Spieltage bei Gleichstand eindeutig",
+    "kurz": "Unsichtbar: Beste Spieltage im Profil – bei gleich vielen Elims entscheidet der Schaden.",
+    "markieren": [
+      "text:Best days"
+    ],
+    "warum": "Bei gleich vielen Eliminierungen entschied der Zufall, welche Spieltage oben standen.",
+    "was": "Bei Gleichstand zählt jetzt zuerst der höhere Schaden, dann der jüngere Tag.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "datum": "2026-11-01T02:15:00Z",
+    "bereich": "Statistik",
     "commits": [],
     "status": "wartet",
     "runde": 1

@@ -6413,7 +6413,8 @@ export default function StatistikSeite() {
                     </p>
                     <div className="space-y-2">
                       {[...verlauf]
-                        .sort((a, b) => b.werte.eliminations - a.werte.eliminations)
+                        .sort((a, b) => b.werte.eliminations - a.werte.eliminations
+                          || b.werte.damageDealt - a.werte.damageDealt || (b.datum ?? 0) - (a.datum ?? 0))
                         .slice(0, 3)
                         .map((z) => (
                           <div key={`best-${z.windowId}-${z.region}`}
