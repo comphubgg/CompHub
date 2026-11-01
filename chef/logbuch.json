@@ -5143,5 +5143,26 @@
     "status": "wartet",
     "runde": 1,
     "commits": []
+  },
+  {
+    "id": "chef-235",
+    "datum": "2026-11-01T04:55:00Z",
+    "titel": "Cup-Bestwerte aus dem ganzen Feld",
+    "kurz": "Unsichtbar: Bestwerte großer Cups (z. B. Trefferquote) zählen jetzt alle Teilnehmer.",
+    "markieren": [
+      "text:Best Accuracy",
+      "text:Best Damage Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei offenen Cups mit mehr als 500 Spielern kamen die Bestwerte nur aus den 500 mit den meisten Elims – ein treffsicherer Spieler mit wenig Elims fehlte.",
+    "was": "Hat ein Cup mehr Teilnehmer, holt die Seite einmal das ganze Feld (bis 2.000) und rechnet die Bestwerte daraus.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

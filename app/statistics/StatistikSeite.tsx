@@ -3507,10 +3507,24 @@ export default function StatistikSeite() {
       ...(cup.events?.length ? { events: cup.events.join(',') } : { event: cup.windowId }),
       sort: 'elims', limit: '500',
     });
-    fetch(`/api/szene-stats?${p}`)
-      .then(async (r) => {
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j?.success === false) throw new Error(j?.error ?? `HTTP ${r.status}`);
+    const hole = async (q: URLSearchParams) => {
+      const r = await fetch(`/api/szene-stats?${q}`);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j?.success === false) throw new Error(j?.error ?? `HTTP ${r.status}`);
+      return j;
+    };
+    /* Die ersten 500 (nach Elims) reichen fuer die meisten Cups. Hat der Cup mehr Teilnehmer, wuerden Bestwerte wie die Trefferquote
+       nur aus diesen 500 stammen - dann einmal das ganze Feld holen (die Antwort kennt es als "gesamt", Obergrenze 2000). */
+    hole(p)
+      .then(async (j) => {
+        const gesamt = Number(j?.gesamt) || 0;
+        if (gesamt > (j.spieler?.length ?? 0)) {
+          try {
+            const q = new URLSearchParams(p); q.set('limit', String(Math.min(2000, gesamt)));
+            const voll = await hole(q);
+            if (Array.isArray(voll?.spieler) && voll.spieler.length >= (j.spieler?.length ?? 0)) return voll;
+          } catch { /* beim Teilfeld bleiben */ }
+        }
         return j;
       })
       .then((j) => { if (!weg) setCupFeld(j.spieler ?? []); })
