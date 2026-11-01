@@ -2,6 +2,12 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 14, 01.11.2026)
+
+- [x] (chef-252) **Cup-Spieler-Reiter: Suchtreffer standen immer als Nr. 1**.
+- [x] (chef-254) **Profil-Stärkefelder: unbekannte Quoten als Rang 0**.
+- [ ] **Saisonliste S42: Strecke („distanz“) wohl auch 100× zu klein** (ChapGOTY 7: 3,1 km in 90 Matches) – wie bei S41; Spalte wird nicht gezeigt, kommt mit der Neuberechnung (chef-106).
+
 ## Neu entdeckt (Runde 13, 01.11.2026)
 
 - [x] (chef-238) **Regionen: Reihen-Bestwerte nur aus 500 Spielern** – Nachladen des ganzen Felds wie bei chef-235.
@@ -21,8 +27,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-248) **Cup-Spieler: Summe über mehrere Tage ließ halb gelesene Tage still weg**.
 - [x] (chef-249) **POV-Banner: Epic-Ausfall nach „kein Cup“ blieb „kein Cup“**.
 - [x] (chef-250) **Power Rankings: Treppchen aus den ersten Einträgen statt Platz 1–3**.
-- [ ] **Gleiche Schwäche wie chef-250**: Ranking-Bild (app/api/ranking-bild) und News-Posts (lib/newsPosts.ts, Aufsteiger der Top 100 mit slice(0, 100)) nehmen „die ersten Einträge“ als Spitze.
-- [ ] **Cup-Spieler-Reiter: gleiche Werte bekommen gleichen Rang** (statRang 1, 2, 2, 4) – geteilte Ränge hat der Betreiber bei chef-102 abgelehnt; prüfen, ob chef-58 das so wollte, sonst angleichen.
+- [x] (chef-251) **Gleiche Schwäche wie chef-250**: Ranking-Bild (app/api/ranking-bild) und News-Posts (lib/newsPosts.ts, Aufsteiger der Top 100 mit slice(0, 100)) nehmen „die ersten Einträge“ als Spitze.
+- [x] (geklärt Runde 14: chef-58 angenommen, chef-102 abgelehnt – auf der Cup-Seite gewollt, so lassen) **Cup-Spieler-Reiter: gleiche Werte bekommen gleichen Rang** (statRang 1, 2, 2, 4) – geteilte Ränge hat der Betreiber bei chef-102 abgelehnt; prüfen, ob chef-58 das so wollte, sonst angleichen.
 - [x] **Logbuch-Umlaute geprüft**: Titel/Kurz/Warum/Was haben keine ue/oe/ae-Schreibungen mehr (nur echte Wörter wie „Quelle“, „neue“).
 
 ## Neu entdeckt (Runde 11, 01.11.2026)
@@ -54,7 +60,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-182) **Hinweis „ab N Spielen“ fehlt an den Cup-Kacheln** „Longest Avg Time Alive“, „Best K/D“, „Best Average Placement“ (Schwelle: Hälfte der meisten Spiele) – Antwort von cup-stats um die Schwelle ergänzen und an der Kachel zeigen.
 - [ ] **„FNCS Winners“-Hinweis nennt Grand Royale und All-Star Solo nicht**, obwohl sie gezählt werden – Wortlaut mit dem Betreiber klären.
 - [x] (chef-219) **Teamkarten-Baukasten zeigt bei Ausfall leere Teamliste** (Admin-Werkzeug) – Hinweis ergänzen.
-- [ ] **Teamseite: fehlt die Power-Ranking-Datei, merkt die Seite das nicht** (lib/powerRankings lies() unterscheidet Ausfall nicht von „Datei fehlt“) – größere Änderung.
+- [x] (chef-253) **Teamseite: fehlt die Power-Ranking-Datei, merkt die Seite das nicht** (lib/powerRankings lies() unterscheidet Ausfall nicht von „Datei fehlt“) – größere Änderung.
 - [ ] **Replay-Spielerliste: fehlende Kills erscheinen als 0** (kills ?? 0) – Quelle unterscheidet nicht zwischen „0“ und „unbekannt“; beobachten.
 - [x] (chef-195) **Cup-Kacheltitel kommen englisch aus der Schnittstelle** („Best K/D“ usw.) – auf Deutsch nicht übersetzt; Titel über <T> laufen lassen und Schlüssel ergänzen.
 - [ ] **Verdienst: Spalte „Region“ zeigt bei reinen LAN-Zeilen den Saisonnamen** – Gestaltungsfrage.
