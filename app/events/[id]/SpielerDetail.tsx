@@ -130,6 +130,7 @@ const TEAM_TITEL = new Set(['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg 
 
 /** Placement- und Eliminationspunkte ueber die Spiele, aufsummiert - gefuellte Flaechen wie bei Osirion, die Beschriftung am Ende der Linie. */
 function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
+  const t = useT();
   const n = platz.length;
   const max = Math.max(1, ...platz, ...elim);
   const x = (i: number) => (n > 1 ? (i / (n - 1)) * 300 : 0);
@@ -146,8 +147,8 @@ function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
         <path d={linie(elim)} fill="none" stroke="#38bdf8" strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
         <line x1="0" x2="300" y1="70" y2="70" stroke="#52525b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
-      <span className="absolute right-1 text-[10px] font-semibold text-slate-300" style={{ top: oben(platz) }}>Placement</span>
-      <span className="absolute right-1 text-[10px] font-semibold text-sky-300" style={{ top: oben(elim) }}>Elimination</span>
+      <span className="absolute right-1 text-[10px] font-semibold text-slate-300" style={{ top: oben(platz) }}>{t('Placement')}</span>
+      <span className="absolute right-1 text-[10px] font-semibold text-sky-300" style={{ top: oben(elim) }}>{t('Elimination')}</span>
     </div>
   );
 }
@@ -175,10 +176,11 @@ function Welle({ werte, rot, kumuliert }: { werte: number[]; rot?: boolean; kumu
   );
 }
 
-function vorMinuten(iso: string | null, jetzt: number): string | null {
+function vorMinuten(iso: string | null, jetzt: number, de: boolean): string | null {
   if (!iso) return null;
   const ms = Date.parse(iso); if (!Number.isFinite(ms)) return null;
   const m = Math.max(0, Math.round((jetzt - ms) / 60000));
+  if (de) return m < 1 ? 'gerade eben' : m === 1 ? 'vor 1 Minute' : m < 90 ? `vor ${m} Minuten` : `vor ${Math.round(m / 60)} Stunden`;
   return m < 1 ? 'just now' : m === 1 ? '1 minute ago' : m < 90 ? `${m} minutes ago` : `${Math.round(m / 60)} hours ago`;
 }
 
@@ -314,7 +316,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     } catch { setTrennFehler(t('Das Trennen hat nicht geklappt.')); }
   };
   const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
-  const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
+  const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt, ort === 'de-DE');
   // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
   const zeilen = useMemo(() => [
     ...KERN.filter((z) => !team || (!TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null))),
@@ -437,24 +439,24 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                     <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
                     {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
                   </p>
-                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} points</p>
+                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} {t('points')}</p>
                 </div>
                 <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
                   {/* Epic laesst einen Teil weg, wenn er 0 ist (8 Spieler im FNCS Solo Final EU ohne Elim-Punkte): steht der andere da, gilt der fehlende als 0, statt die Zeile zu verstecken. */}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0, ort)} points</span></p>}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0, ort)} points</span></p>}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">{t('Placement')}</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0, ort)} {t('points')}</span></p>}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">{t('Elimination')}</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0, ort)} {t('points')}</span></p>}
                 </div>
               </div>
               <p className="mt-2 flex justify-between px-1 text-[11px] text-slate-500">
-                <span>Last update <b className="text-slate-300">{letzte ?? '–'}</b></span>
-                <span>Next update <b className="text-slate-300">in {naechste ?? '–'} {naechste === 1 ? 'minute' : 'minutes'}</b></span>
+                <span>{t('Last update')} <b className="text-slate-300">{letzte ?? '–'}</b></span>
+                <span>{t('Next update')} <b className="text-slate-300">in {naechste ?? '–'} {naechste === 1 ? t('minute') : t('minutes')}</b></span>
               </p>
             </div>
             {spiele.length > 1 && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
               <div className="flex flex-col justify-end">
                 <PunkteKurve platz={kumPlatz} elim={kumElim} />
                 <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
-                <p className="text-center text-[10px] text-slate-500">Match number</p>
+                <p className="text-center text-[10px] text-slate-500">{t('Match number')}</p>
               </div>
             )}
           </div>
@@ -481,9 +483,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
               {zeilen.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto">
                   <div className="w-[150px] shrink-0">
-                    <p className="flex h-[40px] items-center px-2 text-[13px] font-bold text-slate-200">Stat</p>
+                    <p className="flex h-[40px] items-center px-2 text-[13px] font-bold text-slate-200">{t('Stat')}</p>
                     {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
-                      <p key={z.titel} className="flex h-[34px] items-center px-2 text-[13px] font-semibold text-slate-300">{z.titel}</p>
+                      <p key={z.titel} className="flex h-[34px] items-center px-2 text-[13px] font-semibold text-slate-300">{t(z.titel)}</p>
                     ))}
                   </div>
                   {mitglieder.map((m, i) => (
@@ -522,7 +524,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
               {!team && spiele.length > 1 && (
                 <>
                   <div className="flex h-[40px] items-center justify-end">
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> {t('Cumulative')}</label>
                   </div>
                   {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
                     <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
@@ -536,14 +538,14 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40">
                   <div className="flex h-[40px] items-center justify-between border-b border-white/[0.06] px-3">
                     <span className="text-[13px] font-bold text-slate-200"><T>Team je Spiel</T></span>
-                    {spiele.length > 1 && <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>}
+                    {spiele.length > 1 && <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> {t('Cumulative')}</label>}
                   </div>
                   {teamReihen.map((z) => {
                     const w = z.wert(mitglieder[0], ctx);
                     if (w === null) return null;
                     return (
                       <div key={z.titel} className="grid h-[34px] grid-cols-[130px_70px_minmax(0,1fr)] items-center gap-2 border-b border-white/[0.03] px-3 last:border-b-0">
-                        <span className="text-[13px] font-semibold text-slate-300">{z.titel}</span>
+                        <span className="text-[13px] font-semibold text-slate-300">{t(z.titel)}</span>
                         <span className="text-right text-[13px] font-bold tabular-nums text-slate-50">{z.zeige(w, ort)}</span>
                         {z.je && spiele.length > 1 ? <Welle werte={spiele.map((m) => z.je?.(m) ?? 0)} rot={z.rot} kumuliert={kumuliert} /> : <span />}
                       </div>

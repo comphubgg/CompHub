@@ -4882,6 +4882,15 @@ const AUF_ENGLISCH: Record<string, string> = {
  * die andere Richtung, damit im deutschen Modus wirklich alles deutsch ist.
  */
 const AUF_DEUTSCH: Record<string, string> = {
+  // Spielerfenster eines Cups (app/events/[id]/SpielerDetail.tsx): Zeilentitel und Beschriftungen stehen dort englisch im Code.
+  'Stat': 'Wert', 'Points': 'Punkte', 'points': 'Punkte', 'Matches': 'Spiele', 'Wins': 'Siege',
+  'Avg Time Alive': 'Ø Überlebenszeit', 'Avg Placement': 'Ø Platzierung', 'Avg Points': 'Ø Punkte',
+  'Eliminations': 'Eliminierungen', 'Avg Eliminations': 'Ø Eliminierungen', 'K/D Ratio': 'K/D',
+  'Damage To Players': 'Schaden an Spielern', 'Damage From Players': 'Schaden von Spielern', 'Damage Ratio': 'Schadensverhältnis',
+  'Time in Storm': 'Zeit im Sturm', 'Players Revived': 'Wiederbelebte Spieler', 'Got Revived': 'Selbst wiederbelebt',
+  'Players Rebooted': 'Zurückgeholte Spieler', 'Got Rebooted': 'Selbst zurückgeholt',
+  'Placement': 'Platzierung', 'Elimination': 'Eliminierung', 'Match number': 'Spielnummer', 'Cumulative': 'Aufsummiert',
+  'Last update': 'Zuletzt aktualisiert', 'Next update': 'Nächste Aktualisierung', 'minute': 'Minute', 'minutes': 'Minuten',
   'Close': 'Schließen',
   ['Guest mode active: editing is disabled. Log in to manage your own folders.']:
     'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu '
