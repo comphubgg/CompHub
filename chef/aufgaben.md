@@ -10,6 +10,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Saisonliste S41: Strecke 100× zu klein** (peterbot 3,9 km statt 390,6 km in 94 Matches; Shxrk, Cold, Zdog, Scroll genauso) und Zeit im Sturm ungerundet – der Code ist seit chef-39/chef-52 richtig, die abgelegte Liste stammt von vorher. Die Saisonliste zeigt keine Strecken-Spalte, aber die Antwort ist falsch.
 - [ ] **Grundproblem: abgelegte Antworten werden nach einer Rechenänderung nicht verworfen** (S41-Liste, Jahresliste 2025, Startantwort S42). Idee: eine Versionsnummer der Rechenregeln in den Ablageschlüssel, damit der Stundenlauf nach einer Änderung alles neu rechnet. Vorsicht: dann rechnet der Lauf alles auf einmal neu (Speicher, vgl. chef-106) – erst nach Freigabe von chef-106 und mit dem Betreiber.
 - [ ] **Jahresliste 2025 ebenfalls alt**: „Beste Schadensquote“ hat Mindestgrenze 10 Matches, obwohl chef-13 (live) 36 ergibt (meiste Matches 363) – die vorgerechnete Jahresantwort wurde seit chef-13 nicht neu abgelegt. Gleiche Ursache wie chef-106.
+- [x] **FNCS-Tafel: NAC-Finale bei EU-Spielern** (chef-150), **Titelzahl ohne Globals 2026** (chef-151), **Vergleich-Abruf im Dauerlauf** (chef-149), **Preisgeld-Summe Duo** (chef-148).
+- [ ] **swizzy: Quelle schreibt ihm „CH2 S8: Platz 1“ zu** (Mitspieler 951acca5, SHAMOKIY) – das EU-Finale gewannen Setty, Kami und TEEQ; in seiner Akte steht ein Sieg im Asien-Finale S18. Quelle falsch; nach chef-151 zeigt das Profil 5 Titel, /fncs 4. Betreiber fragen, ob Asien-Siege zählen.
+- [ ] **chef-150 Grenzfall**: Spieler, die die Region gewechselt haben, verlieren Finals der alten Region in der Tafel. Beobachten.
 - [ ] **Startantwort S42 weiter alt** (02:30 gemessen: peterbot 57 Matches, Elims-Liste Schaden 0) – wartet auf Freigabe von chef-106.
 
 ## Neu entdeckt (Runde 8, 01.11.2026)

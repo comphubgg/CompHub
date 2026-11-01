@@ -3228,7 +3228,9 @@
   {
     "datum": "2026-11-01T03:12:00Z",
     "bereich": "Statistik",
-    "commits": [],
+    "commits": [
+      "35d1871"
+    ],
     "status": "wartet",
     "runde": 1,
     "id": "chef-150",
@@ -3251,7 +3253,9 @@
   {
     "datum": "2026-11-01T03:14:00Z",
     "bereich": "Statistik",
-    "commits": [],
+    "commits": [
+      "92ce8ce"
+    ],
     "status": "wartet",
     "runde": 1,
     "id": "chef-151",
