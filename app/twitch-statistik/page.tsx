@@ -7,6 +7,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import VipVorhang from '@/app/overlays/VipVorhang';
 import { useZugang } from '@/app/lib/zugang';
 import { useSprache, useT } from '@/app/components/SprachProvider';
+import { ortJetzt } from '@/app/lib/ort';
 
 /*
  * Twitch-Statistik fuer VIPs (Betreiber, 27.10.2026): Tag, Woche, Monat, Jahr, gesamt - Spitze mit und ohne Raid, Durchschnitt, neue Follower, Chatter, Raids.
@@ -35,7 +36,7 @@ interface Antwort {
 
 const ARTEN: Array<[Art, string]> = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['gesamt', 'Gesamt']];
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
-const zahl = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString());
+const zahl = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString(ortJetzt()));
 const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
 /** Der Zuschauerverlauf eines Streams als Flaeche, Raids als Marken. */
@@ -57,7 +58,7 @@ function Verlauf({ v }: { v: NonNullable<Auswertung['verlauf']> }) {
       })}
       <text x={0} y={H + 15} fill="rgb(100 116 139)" fontSize="11">0 min</text>
       <text x={B} y={H + 15} fill="rgb(100 116 139)" fontSize="11" textAnchor="end">{maxM} min</text>
-      <text x={B} y={14} fill="rgb(100 116 139)" fontSize="11" textAnchor="end">{maxV.toLocaleString()}</text>
+      <text x={B} y={14} fill="rgb(100 116 139)" fontSize="11" textAnchor="end">{maxV.toLocaleString(ortJetzt())}</text>
     </svg>
   );
 }
@@ -221,11 +222,11 @@ export default function TwitchStatistik() {
                   <Kachel titel={t('Spitze')} wert={zahl(w.peak)} unter={t('mit Raids')} />
                   <Kachel titel={t('Spitze ohne Raid')} wert={zahl(w.peakOhneRaid)} />
                   <Kachel titel={t('Ø Zuschauer')} wert={zahl(w.durchschnitt)} />
-                  <Kachel titel={t('Neue Follower')} wert={w.neueFollower === null ? '—' : `${w.neueFollower >= 0 ? '+' : ''}${w.neueFollower.toLocaleString()}`} />
+                  <Kachel titel={t('Neue Follower')} wert={w.neueFollower === null ? '—' : `${w.neueFollower >= 0 ? '+' : ''}${w.neueFollower.toLocaleString(ortJetzt())}`} />
                   <Kachel titel={t('Chatter')} wert={zahl(w.chatter)} unter={w.chatterMax !== null ? `${t('max.')} ${zahl(w.chatterMax)} ${t('je Stream')}` : undefined} />
                   <Kachel titel={t('Nachrichten')} wert={zahl(w.nachrichten)} />
                   <Kachel titel={t('Raids')} wert={zahl(w.raids)} unter={w.raids ? `${zahl(w.raidZuschauer)} ${t('Zuschauer')}` : undefined} />
-                  <Kachel titel={t('Streams')} wert={zahl(w.streams)} unter={`${w.stunden.toLocaleString()} h`} />
+                  <Kachel titel={t('Streams')} wert={zahl(w.streams)} unter={`${w.stunden.toLocaleString(ortJetzt())} h`} />
                 </div>
               </>
             )}
@@ -239,9 +240,9 @@ export default function TwitchStatistik() {
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
               <Kachel titel={t('Ø Zuschauer')} wert={zahl(a.tracker.avgViewers)} />
               <Kachel titel={t('Spitze')} wert={zahl(a.tracker.maxViewers)} />
-              <Kachel titel={t('Gestreamt')} wert={`${a.tracker.stunden.toLocaleString()} h`} />
+              <Kachel titel={t('Gestreamt')} wert={`${a.tracker.stunden.toLocaleString(ortJetzt())} h`} />
               <Kachel titel={t('Watch-Hours')} wert={zahl(a.tracker.watchHours)} />
-              <Kachel titel={t('Neue Follower')} wert={`${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString()}`} />
+              <Kachel titel={t('Neue Follower')} wert={`${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString(ortJetzt())}`} />
             </div>
           </section>
         )}
