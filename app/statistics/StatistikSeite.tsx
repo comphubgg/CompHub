@@ -4900,6 +4900,13 @@ export default function StatistikSeite() {
                             <T>Teams</T>
                           </span>
                         )}
+                        {/* Vom Turnier hier zur Cup-Seite (Runden, Team Stats, Player Stats) - vorher gab es keinen Weg dorthin. */}
+                        {cupAktiv?.eventId?.startsWith('epicgames_') && (
+                          <a href={`/events/${encodeURIComponent(cupAktiv.eventId)}`}
+                            className="text-xs text-sky-400 hover:underline">
+                            <T>Zur Cup-Seite</T> ↗
+                          </a>
+                        )}
                         <input value={tabelleSuche}
                           onChange={(e) => setTabelleSuche(e.target.value)}
                           placeholder={t('Spieler suchen …')}

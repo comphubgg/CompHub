@@ -3427,5 +3427,25 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T03:30:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-159",
+    "titel": "Turnier-Ansicht: Link zur Cup-Seite",
+    "kurz": "Statistik → Turnier öffnen → über der Endtabelle: neuer Link „To the cup page ↗“.",
+    "markieren": [
+      "text:To the cup page"
+    ],
+    "warum": "Wer in der Statistik ein Turnier ansah, kam nicht zur Cup-Seite mit Runden, Team Stats und Player Stats.",
+    "was": "Neben „Final standings“ steht jetzt ein Link, der genau diesen Cup öffnet.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Opus"
   }
 ]
