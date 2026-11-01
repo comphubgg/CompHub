@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
 import {
-  liesOrgs, schreibOrgs, saeubere, orgKennung, fuerDieOrg, ORGS_JAHR, type Org, type Posten,
+  liesOrgs, schreibOrgs, saeubere, orgKennung, fuerDieOrg, fensterFuerDieOrg, ORGS_JAHR, type Org, type Posten,
 } from '@/lib/orgs';
 import { abgelegteAntwort, legeAntwortAb, ohneDateien } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
@@ -153,7 +153,24 @@ export async function GET(request: Request) {
     const summeSpieler = spieler.filter((s) => s.rolle === 'pro').reduce((a, s) => a + (s.betrag ?? 0), 0);
     const summeEhemalige = alleJahre ? ehemalige.reduce((a, e) => a + (e.betrag ?? 0), 0) : 0;
     const gesamt = verdienst ? summeSpieler + summeEhemalige + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
-    return { ...o, spieler, ehemalige, extras: jahrExtras, gesamt };
+    // Bezahlte Turniere der Org: jeder Spieltag einmal, auch wenn mehrere
+    // Spieler darin Geld holten (gleiche Auswahl wie bei der Summe: Pro + Ehemalige).
+    const fenster = new Set<string>();
+    if (verdienst) {
+      for (const s of o.spieler) {
+        if (s.rolle !== 'pro' || !s.epicId) continue;
+        const po = verdienst.posten[s.epicId];
+        if (po) for (const w of fensterFuerDieOrg(po, s.seit)) fenster.add(w);
+      }
+      if (alleJahre) {
+        for (const e of o.ehemalige ?? []) {
+          const po = e.epicId ? verdienst.posten[e.epicId] : null;
+          if (po) for (const w of fensterFuerDieOrg(po, e.seit, e.bis)) fenster.add(w);
+        }
+      }
+    }
+    const turniereOrg = verdienst ? fenster.size : null;
+    return { ...o, spieler, ehemalige, extras: jahrExtras, gesamt, turniereOrg };
   }).sort((a, b) => (b.gesamt ?? -1) - (a.gesamt ?? -1)
     // Gleichstand (viele Orgs ohne Preisgeld): EU zuerst, dann die mit dem groesseren Kader - nie alphabetisch (Betreiber).
     || regionRang(a.region) - regionRang(b.region)

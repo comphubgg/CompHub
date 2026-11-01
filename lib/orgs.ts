@@ -228,3 +228,19 @@ export function fuerDieOrg(posten: Posten[], seit: string | null, bis: string | 
   }
   return { betrag, anzahl };
 }
+
+/**
+ * Die Spieltage (windowId), in denen ein Spieler fuer die Org Preisgeld holte -
+ * dieselbe Auswahl wie fuerDieOrg. Damit zaehlt die Org einen Spieltag nur
+ * einmal, auch wenn mehrere ihrer Spieler darin bezahlt wurden.
+ */
+export function fensterFuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null): string[] {
+  const ab = seit ? Date.parse(`${seit}T00:00:00Z`) : 0;
+  const ende = bis ? Date.parse(`${bis}T23:59:59Z`) : Infinity;
+  const raus: string[] = [];
+  for (const p of posten) {
+    if (p.datum === null ? (!!seit || !!bis) : (p.datum < ab || p.datum > ende)) continue;
+    raus.push(p.windowId);
+  }
+  return raus;
+}

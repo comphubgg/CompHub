@@ -3067,5 +3067,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "datum": "2026-11-01T02:45:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-143",
+    "titel": "Orgs: bezahlte Turniere nur einmal zählen",
+    "kurz": "Statistik → Orgs → eine Org öffnen: „Paid tournaments“ zählt jedes Turnier nur einmal.",
+    "markieren": [
+      "text:Bezahlte Turniere",
+      "text:Paid tournaments"
+    ],
+    "warum": "Holten mehrere Spieler einer Org im selben Turnier Geld, zählte es mehrfach – HavoK by Vitality kam so auf 432.",
+    "was": "Jeder Spieltag zählt jetzt pro Org genau einmal, egal wie viele ihrer Spieler bezahlt wurden.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]

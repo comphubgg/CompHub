@@ -34,6 +34,8 @@ interface OrgAnzeige {
   id: string; name: string; logo: string | null; banner?: string | null; website: string | null; x: string | null;
   youtube?: string | null; twitch?: string | null; instagram?: string | null; tiktok?: string | null;
   land?: string | null; region: string | null; gesamt: number | null;
+  /** Bezahlte Turniere der Org, jeder Spieltag einmal. */
+  turniereOrg?: number | null;
   spieler: OrgSpielerAnzeige[];
   extras: Array<{ titel: string; betrag: number; datum: string | null }>;
   /** Ehemalige laut Liquipedia - bei "alle Jahre" mit ihrem Preisgeld fuer die Org. */
@@ -274,8 +276,9 @@ export default function Organisationen({ aufSpieler }: {
     const kanal = kanaele(org);
     const gruppen = GRUPPEN.filter(([r]) => org.spieler.some((s) => rolleVon(s) === r));
     // Wie beim Preisgeld: nur das Pro Roster, und ueber alle Jahre auch die Ehemaligen.
-    const turniere = org.spieler.filter((s) => rolleVon(s) === 'pro').reduce((a, s) => a + (s.turniere ?? 0), 0)
-      + (daten?.jahr === 'alle' ? (org.ehemalige ?? []).reduce((a, e) => a + (e.turniere ?? 0), 0) : 0);
+    // Aeltere abgelegte Antworten kennen turniereOrg noch nicht - dann wie bisher die Summe je Spieler.
+    const turniere = org.turniereOrg ?? (org.spieler.filter((s) => rolleVon(s) === 'pro').reduce((a, s) => a + (s.turniere ?? 0), 0)
+      + (daten?.jahr === 'alle' ? (org.ehemalige ?? []).reduce((a, e) => a + (e.turniere ?? 0), 0) : 0));
     return (
       <div className="space-y-8">
         {hinweis}
