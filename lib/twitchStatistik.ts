@@ -81,7 +81,7 @@ export async function archivVon(id: string): Promise<ArchivStream[]> {
   return liste;
 }
 
-export interface Tracker { avgViewers: number; maxViewers: number; stunden: number; watchHours: number; follower: number; followerGesamt: number }
+export interface Tracker { avgViewers: number; maxViewers: number | null; stunden: number | null; watchHours: number | null; follower: number | null; followerGesamt: number | null }
 const trackerSpeicher = new Map<string, { bis: number; wert: Tracker | null }>();
 
 /** Die letzten 30 Tage laut TwitchTracker (oeffentliche Schnittstelle) - oder null. */
@@ -96,7 +96,10 @@ export async function trackerVon(login: string): Promise<Tracker | null> {
     if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) {
       const j = await r.json() as { avg_viewers?: number; max_viewers?: number; minutes_streamed?: number; hours_watched?: number; followers?: number; followers_total?: number };
       if (typeof j.avg_viewers === 'number') {
-        wert = { avgViewers: j.avg_viewers, maxViewers: j.max_viewers ?? 0, stunden: Math.round((j.minutes_streamed ?? 0) / 6) / 10, watchHours: j.hours_watched ?? 0, follower: j.followers ?? 0, followerGesamt: j.followers_total ?? 0 };
+        // Fehlt ein Feld in der Antwort, bleibt es null (Strich) - nicht 0.
+        const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+        const min = num(j.minutes_streamed);
+        wert = { avgViewers: j.avg_viewers, maxViewers: num(j.max_viewers), stunden: min === null ? null : Math.round(min / 6) / 10, watchHours: num(j.hours_watched), follower: num(j.followers), followerGesamt: num(j.followers_total) };
       }
     }
   } catch { /* ohne TwitchTracker */ }

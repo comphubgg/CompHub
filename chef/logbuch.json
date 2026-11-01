@@ -6126,5 +6126,26 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T06:00:11Z"
+  },
+  {
+    "id": "chef-278",
+    "titel": "Twitch-Statistik: fehlende TwitchTracker-Werte als Strich",
+    "kurz": "Twitch-Statistik → „Last 30 days“: fehlende Werte zeigen „–“ statt „0 h“ oder „+0“.",
+    "markieren": [
+      "text:Last 30 days",
+      "text:New followers"
+    ],
+    "bereich": "Statistik",
+    "warum": "Lieferte TwitchTracker ein Feld nicht, stand dort „Gestreamt 0 h“ oder „Neue Follower +0“.",
+    "was": "Fehlende Felder zeigen jetzt einen Strich.",
+    "ansehen": [
+      "/twitch-statistik?art=gesamt"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "datum": "2026-11-01T06:00:16Z"
   }
 ]

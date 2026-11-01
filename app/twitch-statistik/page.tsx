@@ -26,7 +26,7 @@ interface Auswertung {
   einheiten: Record<Art, string[]>; art: Art; einheit: string; werte: Werte; streams: Stream[];
   verlauf: { start: string; live: boolean; punkte: Array<[number, number]>; raids: Array<{ von: string; zuschauer: number; zeit: string }> } | null;
   live: { seit: string; zuschauer: number; titel: string; spiel: string; minuten: number; peak: number; durchschnitt: number | null; chatter: number | null; nachrichten: number | null; raids: Array<{ von: string; zuschauer: number }> } | null;
-  tracker: { avgViewers: number; maxViewers: number; stunden: number; watchHours: number; follower: number; followerGesamt: number } | null;
+  tracker: { avgViewers: number; maxViewers: number | null; stunden: number | null; watchHours: number | null; follower: number | null; followerGesamt: number | null } | null;
 }
 interface Antwort {
   ok: boolean; error?: string; admin: boolean; gewaehlt: string | null; auswertung: Auswertung | null;
@@ -240,9 +240,9 @@ export default function TwitchStatistik() {
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
               <Kachel titel={t('Ø Zuschauer')} wert={zahl(a.tracker.avgViewers)} />
               <Kachel titel={t('Spitze')} wert={zahl(a.tracker.maxViewers)} />
-              <Kachel titel={t('Gestreamt')} wert={`${a.tracker.stunden.toLocaleString(ortJetzt())} h`} />
+              <Kachel titel={t('Gestreamt')} wert={a.tracker.stunden === null ? '—' : `${a.tracker.stunden.toLocaleString(ortJetzt())} h`} />
               <Kachel titel={t('Watch-Hours')} wert={zahl(a.tracker.watchHours)} />
-              <Kachel titel={t('Neue Follower')} wert={`${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString(ortJetzt())}`} />
+              <Kachel titel={t('Neue Follower')} wert={a.tracker.follower === null ? '—' : `${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString(ortJetzt())}`} />
             </div>
           </section>
         )}
