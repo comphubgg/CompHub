@@ -5406,5 +5406,26 @@
     "commits": [
       "f665dbb"
     ]
+  },
+  {
+    "id": "chef-246",
+    "datum": "2026-11-01T05:06:11Z",
+    "titel": "Preisgeld-Liste: feste Reihenfolge bei gleichem Betrag",
+    "kurz": "Unsichtbar: Gleich viel Preisgeld → Spieler tauschen nicht mehr zufällig die Plätze.",
+    "markieren": [
+      "text:Most Earnings"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Betrag hing die Reihenfolge davon ab, in welcher Folge Dateien eingelesen wurden – nach jedem Neurechnen konnte ein anderer auf Platz 5 stehen.",
+    "was": "Gleichstände haben jetzt eine feste Reihenfolge wie in allen anderen Bestenlisten.",
+    "ansehen": [
+      "/",
+      "/statistics?bereich=jahr"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1,
+    "commits": []
   }
 ]

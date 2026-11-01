@@ -1883,7 +1883,8 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   }
   const geldPlaetze = [...geld.entries()]
     .filter(([, betrag]) => betrag > 0)
-    .sort((a, b) => b[1] - a[1])
+    // Bei gleichem Betrag nach Kennung - sonst entscheidet die Reihenfolge, in der die Konten eingelesen wurden (wie in nachKennzahl).
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, volleVerdienstListe ? undefined : LISTEN_LAENGE);
   /*
    * Wer nur in der Verdienst-Akte steht (ein Spieler von 2019, den das
