@@ -3990,5 +3990,207 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-183",
+    "titel": "Replay-Ansicht: Schaden im Zahlenformat der Sprache",
+    "kurz": "Match-Replay → Spielerwerte: Schaden „1,234“ auf Englisch statt Browserformat.",
+    "markieren": [
+      "text:Damage",
+      "text:Taken"
+    ],
+    "bereich": "Statistik",
+    "warum": "Schadenszahlen ab 1000 folgten dem Browser statt der Seitensprache.",
+    "was": "Sie folgen jetzt der gewählten Sprache wie der Rest der Seite.",
+    "ansehen": [
+      "/replays"
+    ],
+    "commits": [
+      "0295845"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-184",
+    "titel": "Replay-Spielerliste: „Sieger“ nur bei Platz 1",
+    "kurz": "Match-Replay → Players → „Eliminated“: Strich statt „Winners“ ohne Ausscheidezeit.",
+    "markieren": [
+      "text:Eliminated",
+      "text:Winners"
+    ],
+    "bereich": "Statistik",
+    "warum": "Jeder ohne gespeicherte Ausscheidezeit galt als Sieger.",
+    "was": "„Sieger“ steht nur noch bei Platz 1, sonst ein Strich.",
+    "ansehen": [
+      "/replays"
+    ],
+    "commits": [
+      "d808af6"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-185",
+    "titel": "Replay-Zonen: fehlende Werte als Strich",
+    "kurz": "Match-Replay → Zones: Strich statt „0 m“/„0 s“ bei fehlenden Werten.",
+    "markieren": [
+      "text:Zones"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlende Zonenwerte erschienen als 0 m bzw. 0 s.",
+    "was": "Jetzt steht dort ein Strich.",
+    "ansehen": [
+      "/replays"
+    ],
+    "commits": [
+      "1b045b4"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-186",
+    "titel": "Globals-Feld: Epic-Ausfall ohne Fehlerseite",
+    "kurz": "Unsichtbar: Globals-Teams zeigen bei Epic-Ausfall die Meldung statt Fehlerseite.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete Epic nicht, kam ein Serverfehler, aus dem der Lastverteiler eine Fehlerseite macht.",
+    "was": "Jetzt kommt eine saubere Ausfall-Antwort; die Seiten zeigen ihre eigene Meldung.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "commits": [
+      "5047e7e"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-187",
+    "titel": "Globals Solos: Platz und Punkte im Format der Sprache",
+    "kurz": "Globals Solos → Plan → „Du bist hier“: Platz und Punkte mit Tausendertrennung.",
+    "markieren": [
+      "text:pts"
+    ],
+    "bereich": "Statistik",
+    "warum": "Platz folgte dem Browser, Punkte standen ganz ohne Format.",
+    "was": "Beide folgen jetzt der Seitensprache.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "commits": [
+      "c7ac0a2"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-188",
+    "titel": "Orgs: unbekannter Betrag als Strich statt $0",
+    "kurz": "Statistik → Orgs: Orgs ohne bekannten Betrag zeigen Strich statt „$0“.",
+    "markieren": [
+      "text:$0"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte kein Spieler einer Org ein bekanntes Konto, stand „$0“ da – als hätte sie nichts gewonnen.",
+    "was": "Dann steht ein Strich; ein echter Betrag von 0 bleibt „$0“.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "commits": [
+      "26b568e"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-189",
+    "titel": "Cup-Preise: Punkte-Stufe in der Sprache der Seite",
+    "kurz": "Cup-Seite → Prize → Gegenstände: „5 Punkte“ auf Deutsch statt „5 Points“.",
+    "markieren": [
+      "text:Points"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Punkte-Stufe über Gegenständen war fest englisch und ohne Tausendertrennung.",
+    "was": "Sie folgt jetzt der Seitensprache.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=preis"
+    ],
+    "commits": [
+      "ed3f80f"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-190",
+    "titel": "Team-Details: Herkunfts-Hinweis übersetzt",
+    "kurz": "Cup-Seite → Team öffnen → Flagge ohne Land: „Origin not on file“.",
+    "markieren": [
+      "css:[title='Origin not on file']"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Hinweis über der Flagge war immer deutsch.",
+    "was": "Er läuft jetzt über die Übersetzung.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=liste"
+    ],
+    "commits": [
+      "95927ca"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-191",
+    "titel": "Endtabelle: Punkte, Elims, Siege mit Tausendertrennung",
+    "kurz": "Cup-Seite → Leaderboard: „1,476“ Punkte statt „1476“; fehlend = Strich.",
+    "markieren": [
+      "text:Points",
+      "text:Elims",
+      "text:Wins"
+    ],
+    "bereich": "Statistik",
+    "warum": "Punkte, Elims, Siege und Spiele standen als nackte Zahl, anders als die übrigen Werte.",
+    "was": "Sie stehen jetzt im Zahlenformat der Sprache; fehlt ein Wert, ein Strich.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU?reiter=liste"
+    ],
+    "commits": [
+      "82df7a4"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (geprüft von Opus)",
+    "datum": "2026-11-01T03:30:00Z",
+    "status": "wartet",
+    "runde": 1
   }
 ]
