@@ -3088,5 +3088,26 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (Bau) + Opus (Prüfung)"
+  },
+  {
+    "datum": "2026-11-01T02:50:00Z",
+    "bereich": "Statistik",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "id": "chef-144",
+    "titel": "Profil: Ranked-Ausfall wird gemeldet",
+    "kurz": "Bei Ausfall: Spielerprofil zeigt bei „Ranked“ „Not reachable right now.“ statt nichts.",
+    "markieren": [
+      "text:Ranked",
+      "text:Not reachable right now."
+    ],
+    "warum": "Antwortete Epic beim Rang nicht, fehlte die Zeile einfach – als hätte der Spieler keinen Rang.",
+    "was": "Bei einem Ausfall steht neben „Ranked“ jetzt „Gerade nicht erreichbar.“",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (Bau) + Opus (Prüfung)"
   }
 ]
