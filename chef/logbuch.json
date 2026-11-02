@@ -8176,5 +8176,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-370",
+    "datum": "2026-11-02T03:15:19Z",
+    "titel": "Prognosen: Ausfall nicht mehr als „keine Bestenliste“",
+    "kurz": "Prognosen: Bei Epic-Ausfall steht „gerade nicht erreichbar“ statt „noch keine Bestenliste“.",
+    "markieren": [
+      "text:The leaderboard is not reachable right now."
+    ],
+    "bereich": "Prognosen",
+    "warum": "Fiel das Laden eines Spieltags aus, sah das aus wie ein Cup ohne Bestenliste.",
+    "was": "Bleibt das Feld wegen eines Ausfalls leer, steht jetzt der passende Hinweis.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

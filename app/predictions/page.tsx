@@ -214,6 +214,7 @@ function BetreiberPrognose() {
     setFeldLaedt(true); setFeldHinweis('');
     (async () => {
       const gefunden = new Map<string, Team>();
+      let ausgefallen = false;
       // Das gespeicherte Feld zuerst - es ist der Stand, fuer den die
       // Reihenfolge gemacht wurde. Aeltere Prognosen ohne Feld holen es
       // wie bisher aus ihren Quellen.
@@ -224,7 +225,7 @@ function BetreiberPrognose() {
             + `&window=${encodeURIComponent(q.windowId)}&limit=${q.topN ?? 200}`,
             { signal: AbortSignal.timeout(30_000) });
           const d = await r.json();
-          if (!r.ok) continue;
+          if (!r.ok) { ausgefallen = true; continue; }
           const eintraege = (d.entries ?? []).slice(0, q.topN ?? undefined) as Array<{
             rank: number; players: Array<{ name: string; id?: string }>;
           }>;
@@ -238,14 +239,16 @@ function BetreiberPrognose() {
             if (da) { da.herkunft.push(herkunft); da.besterPlatz = Math.min(da.besterPlatz, e.rank); }
             else gefunden.set(key, { key, namen, ids, herkunft: [herkunft], besterPlatz: e.rank, region: q.region });
           }
-        } catch { /* dieser Spieltag fehlt dann */ }
+        } catch { ausgefallen = true; /* dieser Spieltag fehlt dann */ }
       }
       for (const m of prognose.manuell ?? []) if (!gefunden.has(m.key)) gefunden.set(m.key, m);
       if (weg) return;
       const liste = [...gefunden.values()].sort((a, b) => a.besterPlatz - b.besterPlatz);
       setFeld(liste);
       if (!liste.length) {
-        setFeldHinweis(prognose.quellen.length
+        setFeldHinweis(ausgefallen
+          ? t('Die Bestenliste ist gerade nicht erreichbar.')
+          : prognose.quellen.length
           ? t('Zu diesem Cup liefert Epic noch keine Bestenliste.')
           : t('Zu diesem Cup ist noch kein Spieltag hinterlegt.'));
       }

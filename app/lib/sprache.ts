@@ -3906,6 +3906,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Farbe der Organisation': 'Organization color',
   'Eigene Farbe': 'Custom color',
   'Die Ablage antwortet gerade nicht.': 'The storage is not responding right now.',
+  'Die Bestenliste ist gerade nicht erreichbar.': 'The leaderboard is not reachable right now.',
   'Diese Karte ist gerade nicht erreichbar. Bitte in einer Minute neu laden.': 'This map is not reachable right now. Please reload in a minute.',
   'Spieler hinzufügen': 'Add a player',
   'Tippe den Namen - das Konto wird für dich gesucht.': 'Type the name - the account is looked up for you.',
