@@ -20,6 +20,20 @@ import path from 'node:path';
 import { ABLAGE, liesZustand, zustandAusOrdner } from '../lib/replayKern.mjs';
 import { ERSTE_GETEILTE_SAISON, LETZTE_SAISON } from '../lib/releaseTags.mjs';
 
+/*
+ * Wie standAnzeige in app/api/replays: Arena-Matches legt Epic nicht als Server-Replay ab (der Sammler fasst sie nicht an) - sie zaehlen als
+ * "ohne Replay", nicht als offen; was nach 31 Tagen nicht fertig ist, kommt nie mehr (ABGELAUFEN). Sonst konnte "offen" nie auf null gehen
+ * (2.11.2026: 29.869 offen, davon 19.400 aus Arena-Cups). Nur die Zaehlung - die Zustaende bleiben, wie sie sind.
+ */
+const ENDGUELTIG = new Set(['PARSED', 'NOT_AVAILABLE', 'FAILED', 'ABGELAUFEN']);
+function standAnzeige(m, fensterDatum, jetzt, windowId) {
+  if (ENDGUELTIG.has(m.stand)) return m.stand;
+  if (/Arena/i.test(windowId ?? '')) return 'NOT_AVAILABLE';
+  const t = m.zeitpunkt ? Date.parse(m.zeitpunkt) : NaN;
+  const zeit = Number.isFinite(t) && t > 0 ? t : (fensterDatum ?? 0);
+  return zeit > 0 && zeit < jetzt - 31 * 864e5 ? 'ABGELAUFEN' : m.stand;
+}
+
 /** Wie app/api/replays: "S42_SoloVictoryCup_Event1Round2_EU" -> "Event 1 Round 2". */
 function rundeName(windowId, region) {
   let rest = windowId.replace(/^S\d+_/i, '');
@@ -93,7 +107,11 @@ async function main() {
       if (!Object.keys(z.matches ?? {}).length) z = await zustandAusOrdner(season, windowId) ?? z;
       if (!z?.windowId && !Object.keys(z?.matches ?? {}).length) continue;
       const zaehler = {};
-      for (const m of Object.values(z.matches ?? {})) zaehler[m.stand] = (zaehler[m.stand] ?? 0) + 1;
+      const jetzt = Date.now();
+      for (const m of Object.values(z.matches ?? {})) {
+        const stand = standAnzeige(m, z.datum, jetzt, z.windowId ?? windowId);
+        zaehler[stand] = (zaehler[stand] ?? 0) + 1;
+      }
       fenster.push({
         ...z, matches: {}, zaehler,
         gesamt: Object.keys(z.matches ?? {}).length,
