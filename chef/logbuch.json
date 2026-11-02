@@ -8196,5 +8196,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-371",
+    "datum": "2026-11-02T03:15:24Z",
+    "titel": "Profil-Verlauf: größere Achsenzahlen",
+    "kurz": "Profil → Überblick, Damage-Ratio-Kurve: Achsenzahlen und Infofenster größer.",
+    "markieren": [
+      "css:svg text[text-anchor=end]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Zahlen an der Kurve waren am Handy nur etwa 8 Pixel groß, das Infofenster 10 Pixel.",
+    "was": "Achsenzahlen und Infofenster haben jetzt größere Schrift.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

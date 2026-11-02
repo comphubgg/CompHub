@@ -39,7 +39,7 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
     return zeitraum === 'letzte' ? auswahl.slice(-12) : auswahl;
   }, [zeilen, zeitraum, gross]);
 
-  const B = 800; const H = 260; const RAND = { l: 40, r: 16, o: 16, u: 26 };
+  const B = 800; const H = 260; const RAND = { l: 52, r: 16, o: 18, u: 26 };
   const werte = punkte.map((p) => p.wert);
   const min = werte.length ? Math.min(...werte) : 0;
   const max = werte.length ? Math.max(...werte) : 1;
@@ -100,12 +100,12 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
           <div className="relative min-w-[560px]" onMouseLeave={() => setAktiv(null)}>
           {/* Das Fenster zum Punkt: Event, Datum, Ratio und die beiden Schadenszahlen, ueber dem Punkt. */}
           {a && aktiv !== null && (
-            <div className="pointer-events-none absolute z-10 w-56 -translate-x-1/2 rounded-2xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 shadow-xl"
+            <div className="pointer-events-none absolute z-10 w-64 -translate-x-1/2 rounded-2xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 shadow-xl"
               style={{ left: `${Math.min(88, Math.max(12, (x(aktiv) / B) * 100))}%`, top: `${(y(a.wert) / H) * 100}%`, transform: 'translate(-50%, calc(-100% - 14px))' }}>
-              <p className="truncate text-xs font-bold text-slate-100">{a.event}</p>
-              {a.datum > 0 && <p className="mt-0.5 text-[10px] text-slate-500">{tag(a.datum)}</p>}
-              <p className="mt-1.5 flex items-baseline gap-2"><span className="text-lg font-extrabold tabular-nums text-sky-500">{zahl(a.wert)}</span><span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Damage Ratio</T></span></p>
-              <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">{ganz(a.dealt)} <T>ausgeteilt</T> · {ganz(a.taken)} <T>erlitten</T></p>
+              <p className="truncate text-sm font-bold text-slate-100">{a.event}</p>
+              {a.datum > 0 && <p className="mt-0.5 text-xs text-slate-500">{tag(a.datum)}</p>}
+              <p className="mt-1.5 flex items-baseline gap-2"><span className="text-lg font-extrabold tabular-nums text-sky-500">{zahl(a.wert)}</span><span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Damage Ratio</T></span></p>
+              <p className="mt-0.5 text-xs tabular-nums text-slate-400">{ganz(a.dealt)} <T>ausgeteilt</T> · {ganz(a.taken)} <T>erlitten</T></p>
             </div>
           )}
           <svg key={schluessel} viewBox={`0 0 ${B} ${H}`} className="h-auto w-full" role="img"
@@ -119,7 +119,7 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
             {stufen.map((v) => (
               <g key={v}>
                 <line x1={RAND.l} x2={B - RAND.r} y1={y(v)} y2={y(v)} stroke="var(--color-zinc-800)" strokeWidth={1} />
-                <text x={RAND.l - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize={11} fill="var(--color-slate-500)">{zahl(v)}</text>
+                <text x={RAND.l - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize={15} fill="var(--color-slate-500)">{zahl(v)}</text>
               </g>
             ))}
             <line x1={RAND.l} x2={B - RAND.r} y1={y(schnitt)} y2={y(schnitt)} stroke="#64748b" strokeDasharray="5 5" strokeWidth={1} />
