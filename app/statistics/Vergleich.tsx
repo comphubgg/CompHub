@@ -380,7 +380,9 @@ function Form({ punkte, kurve, setKurve, nameL, nameR, loc }: {
           <span className="flex items-center gap-2"><i className="inline-block h-0.5 w-5" style={{ background: FARBE_RECHTS }} />{nameR}</span>
         </div>
       </div>
-      {punkte.length === 0 ? <p className="py-10 text-center text-sm text-slate-500"><T>Keine gemeinsamen Spieltage im gewählten Zeitraum.</T></p> : (
+      {punkte.length === 0 ? <p className="py-10 text-center text-sm text-slate-500"><T>Keine gemeinsamen Spieltage im gewählten Zeitraum.</T></p>
+        // Spieltage gibt es, aber keiner davon hat diesen Wert (z. B. nur Epic-Daten ohne Schaden): Hinweis statt leerer Flaeche.
+        : werte.length === 0 ? <p className="py-10 text-center text-sm text-slate-500"><T>Für diesen Wert fehlen an allen Spieltagen die Daten.</T></p> : (
         <div className="overflow-x-auto">
           <svg viewBox={`0 0 ${B} ${H}`} className="block w-full min-w-[560px]" role="img" aria-label="Form">
             {[0, 0.25, 0.5, 0.75, 1].map((s) => {

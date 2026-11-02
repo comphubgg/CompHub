@@ -9206,5 +9206,25 @@
       "/statistics?bereich=orgs"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T03:51:20Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-415",
+    "titel": "Vergleich → Form: Hinweis statt leerer Fläche",
+    "kurz": "Vergleich → Form: fehlt ein Wert überall, steht ein Hinweis statt leerem Diagramm.",
+    "markieren": [
+      "text:No data for this stat on any match day."
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatten beide Spieler an keinem Spieltag z. B. Schadenswerte, war das Diagramm einfach leer.",
+    "was": "Dann steht dort jetzt „Für diesen Wert fehlen an allen Spieltagen die Daten“.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "modell": "Opus"
   }
 ]

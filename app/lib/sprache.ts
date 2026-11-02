@@ -4191,6 +4191,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Eliminierungen pro Match': 'Eliminations per match',
   'Schaden pro Match': 'Damage per match',
   'Keine gemeinsamen Spieltage im gewählten Zeitraum.': 'No shared match days in the chosen period.',
+  'Für diesen Wert fehlen an allen Spieltagen die Daten.': 'No data for this stat on any match day.',
   'Ein Punkt je gemeinsamem Spieltag - Maus darüber für den Cup.': 'One point per shared match day - hover for the cup.',
   'Cups': 'Cups',
   'Platzierungen': 'Placements',
