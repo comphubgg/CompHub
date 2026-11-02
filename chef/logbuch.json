@@ -7611,7 +7611,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "commits": [],
+    "commits": [
+      "256e9045afb1181d17950bc43cff4739ffffeddf"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -7632,7 +7634,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "commits": [],
+    "commits": [
+      "682aebed09ea4dd157d92a36ebba3bcd582fa28b"
+    ],
     "status": "wartet",
     "runde": 1
   }

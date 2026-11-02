@@ -12,7 +12,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-336 bis chef-343) Cup-Spieler Strich statt 0, FNCS-Reihenfolge ohne Namen, FNCS-Seite übersetzt, Jahresbilanz-Ausfall, Mehrtages-Summen, Duell-Strich, Replay-Leben, Replay-Meter.
 - [ ] **Replay-Spielerwerte: Treffer/Kopftreffer `?? 0`** bei Spielern mit Schadenszeile, aber ohne eigenen Wert – wie Kills (Quelle trennt nicht); beobachten.
 - [ ] **Startseite LiveDemnaechst: gleicher Start = Reihenfolge des Katalogs** – stabil, aber nicht nach Stärke; Betreiber fragen, ob EU/Bedeutung zuerst.
-- [ ] **FNCS-Titel-Rangfolge (Route fncs-alltime) endet noch bei nameVgl** – nur, wenn zwei Titelgewinner gleich viele Titel haben und beide nicht unter den 80 Besten stehen; eine Zeile.
+- [x] (chef-344) **FNCS-Titel-Rangfolge (Route fncs-alltime) endete bei nameVgl** – nur, wenn zwei Titelgewinner gleich viele Titel haben und beide nicht unter den 80 Besten stehen; eine Zeile.
 - [ ] **Schnittstellen /api/br-statistik und /api/eigene-werte nirgends aufgerufen** (auch nicht in scripts/, .github/) – löschen? Betreiber fragen.
 - [ ] **Profil → Überblick → Werte: Assists, Wiederbelebungen, Heilung, Sturmschaden zeigen 0 an reinen Epic-Tagen** – Quelle trennt 0 und unbekannt dort nicht; beobachten.
 - [ ] **Profil: Tagesbeste ohne feste Folge bei Gleichstand** – harmlos, solange nur die Anzahl gezeigt wird.
