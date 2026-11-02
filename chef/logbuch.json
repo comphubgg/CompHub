@@ -6335,5 +6335,28 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-287",
+    "datum": "2026-11-02T01:19:36Z",
+    "titel": "Cup-Kacheln rechnen über die ersten tausend Teams",
+    "kurz": "Offener Cup → Teams → Turnierstatistik: Bestwerte aus 1.000 statt 100 Teams.",
+    "markieren": [
+      "text:Most Eliminations",
+      "text:Best K/D"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kacheln sahen nur die 100 punktbesten Teams; im Reload-Testcup NAC fehlte so ein Team mit 68 Elims (Gesamtplatz 474), die Kachel zeigte 62 als Bestwert.",
+    "was": "Die Kacheln erscheinen sofort wie bisher und werden kurz danach mit den ersten 1.000 Teams nachgerechnet. Alle 10.000 wären live zu langsam.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "commits": [
+      "151f0bece549b259888eee145febb3d9fccabfdd"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (von Opus geprüft und auf 1.000 begrenzt)",
+    "status": "wartet",
+    "runde": 1
   }
 ]

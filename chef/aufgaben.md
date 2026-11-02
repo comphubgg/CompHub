@@ -420,3 +420,10 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [x] chef-2: Registrierung antwortet nicht mehr mit 429 - 31.10.
 - [x] chef-3: Beitrag-Holen im Admin antwortet nicht mehr mit 502 - 31.10.
 - [x] chef-4: fuenf weitere deutsche Reste auf Englisch - 31.10.
+
+## Neu entdeckt (Runde 15, 02.11.2026)
+
+- [x] (chef-281 bis chef-287) Runde 15: Tausenderpunkte Power Rankings/Solos, „4m 60s“, Spielverlauf-Elims, Stärkefelder ohne Wert, Erfolge-Reihenfolge, Cup-Kacheln über 1.000 Teams.
+- [ ] **Cup-Kacheln: Teams jenseits Platz 1.000** fehlen weiter in den Bestwerten (Abfrage mit 10.000 brauchte live über 30 s → 502). Besser: Spitze je Kennzahl beim Datenlauf vorrechnen.
+- [ ] **Admin Tweets: cup-stats ohne limit** (nur 100 Teams) – gleiche Schwäche wie chef-287, nur Admin.
+- [ ] **Cup-Spieler (Szene-Quelle): fehlender Schaden/Assists = 0** – Helfer-Vorschlag „ganze Spalte Strich, wenn alle 0“ abgelehnt (versteckt echte Nullen, z. B. Assists im Solo). Erst mit Quellfeld „unbekannt“ lösen.
