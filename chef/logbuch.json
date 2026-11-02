@@ -8156,5 +8156,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-369",
+    "datum": "2026-11-02T03:14:47Z",
+    "titel": "Kartenlink: Ladeschirm und Ausfall-Hinweis",
+    "kurz": "Karten per Link: Ladeschirm, bei Ausfall „gerade nicht erreichbar“ statt Standardkarte.",
+    "markieren": [
+      "text:This map is not reachable right now. Please reload in a minute."
+    ],
+    "bereich": "Karten",
+    "warum": "Wer einen Kartenlink öffnete, sah bei einem Ausfall still die Standardkarte – ohne Hinweis und ohne Ladeanzeige.",
+    "was": "Beim Laden erscheint der Ladeschirm, bei Ausfall ein Hinweis zum Neuladen.",
+    "ansehen": [
+      "/maps"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

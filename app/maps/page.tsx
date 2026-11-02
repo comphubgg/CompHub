@@ -16,6 +16,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { useT } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
@@ -555,6 +556,9 @@ export default function KartenSeite(
 
   const [linkKarte, setLinkKarte] = useState<string | null>(
     () => nurText(suchParameter.id));
+  /** Wer über einen Kartenlink kommt, sieht Ladeschirm oder Ausfall-Hinweis statt einer leeren Karte. */
+  const [linkStand, setLinkStand] = useState<'laedt' | 'fertig' | 'fehler'>(
+    () => (nurText(suchParameter.id) ? 'laedt' : 'fertig'));
   const vorlageGeladen = useRef(false);
   /**
    * Hat der Admin die Formen gerade selbst angefasst?
@@ -1058,6 +1062,8 @@ export default function KartenSeite(
       .then((j) => setFlaggen(j.flaggen ?? [])).catch(() => {});
     fetch('/api/turnier-karten').then((r) => r.json())
       .then((d) => {
+        if (nurText(suchParameter.id) && !Array.isArray(d.karten)) setLinkStand('fehler');
+        else setLinkStand('fertig');
         const liste: GespeicherteKarte[] = d.karten ?? [];
         setAusErsatz(!!d.ersatz);
         merkeStaende(liste);
@@ -1103,7 +1109,7 @@ export default function KartenSeite(
            */
           spotsFuer.current = k.bildId || 'fortnite-karte';
         }
-      }).catch(() => { setLinkKarte(null); }); // ohne Antwort: lieber die Standardkarte als eine leere Flaeche
+      }).catch(() => { setLinkStand('fehler'); setLinkKarte(null); }); // ohne Antwort: lieber die Standardkarte als eine leere Flaeche
   }, []);
 
   // Formvorlage zum gewaehlten Kartenbild holen. Jede Karte hat ihre eigenen
@@ -3718,6 +3724,13 @@ ${name}
               <T>Neu laden</T>
             </button>
           </div>
+        )}
+        {linkStand === 'laedt' && <LadeSchirm />}
+        {linkStand === 'fehler' && (
+          <p className="mb-3 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
+                        text-sm text-amber-200">
+            <T>Diese Karte ist gerade nicht erreichbar. Bitte in einer Minute neu laden.</T>
+          </p>
         )}
         {ausErsatz && (
           <p className="mb-3 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
