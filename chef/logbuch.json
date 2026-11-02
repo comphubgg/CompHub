@@ -6604,5 +6604,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-299",
+    "datum": "2026-11-02T01:32:09Z",
+    "titel": "Org-Kader: Ausfall der Kontosuche wird gemeldet",
+    "kurz": "Org-Seite → Add player: bei Suchausfall Hinweis statt scheinbar „kein Spieler gefunden“.",
+    "markieren": [
+      "text:Add player"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Kontosuche aus, sah es aus wie „kein Treffer“ – man legte leicht einen Spieler ohne Konto doppelt an.",
+    "was": "Ein gelber Hinweis sagt, dass die Suche gerade nicht erreichbar ist; Hinzufügen ohne Konto geht weiter.",
+    "ansehen": [
+      "/org"
+    ],
+    "commits": [
+      "46a4caca55a36c53b1cfc7e17698048d37d5d100"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
