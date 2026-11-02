@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
         ? `https://cdn.discordapp.com/avatars/${nutzer.id}/${nutzer.avatar}.png?size=256`
         : undefined,
     });
-    const antwort = zurueck(req, '/account');
+    const antwort = zurueck(req, '/account?willkommen=1');
     altesHostCookieWeg(antwort, req, COOKIE);
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
       ...sitzungsDomain(req),

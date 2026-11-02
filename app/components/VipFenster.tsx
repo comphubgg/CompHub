@@ -31,6 +31,10 @@ const KONFETTI = Array.from({ length: 24 }, (_, i) => ({
 
 const STIL = `
 @keyframes vipf-rein { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes vipf-raus { to { opacity: 0; transform: translateY(-14px) scale(.985); } }
+@keyframes vipf-hinter-raus { to { opacity: 0; } }
+.vipf-raus { animation: vipf-raus .6s cubic-bezier(.4,0,.8,.4) forwards; }
+.vipf-hinter-raus { animation: vipf-hinter-raus .6s ease forwards; }
 @keyframes vipf-bild { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
 @keyframes vipf-atmen { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
 @keyframes vipf-schweben { 0%, 100% { transform: translateY(0) rotate(var(--dreh, 0deg)); } 50% { transform: translateY(-14px) rotate(var(--dreh, 0deg)); } }
@@ -62,13 +66,18 @@ export default function VipFenster() {
   const t = useT();
   const [lage, setLage] = useState<Lage | null>(null);
   const [wer, setWer] = useState<Wer>({ name: '', bild: null });
+  /** Von selbst wieder weg (nach dem Login): erst einblenden, nach ein paar Sekunden ausblenden - kein Klick noetig (Betreiber, 2.11.2026). */
+  const [auto, setAuto] = useState(false);
+  const [raus, setRaus] = useState(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const rueck = p.get('twitch');
     const vorschau = rueck === 'vorschau' || rueck === 'willkommen';
-    if (rueck) {
-      p.delete('twitch');
+    // Gerade angemeldet (app/sign-in und die Rueckwege der Anmeldedienste haengen ?willkommen=1 an): kurz Willkommen, dann von selbst weg.
+    const nachLogin = p.get('willkommen') === '1';
+    if (rueck || nachLogin) {
+      p.delete('twitch'); p.delete('willkommen');
       const rest = p.toString();
       window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
     }
@@ -80,8 +89,8 @@ export default function VipFenster() {
         if (rueck === 'bestaetigt') { setLage('bestaetigt'); return; }
         if (rueck === 'falsches-konto') { setLage('falsch'); return; }
         if (j.grund === 'twitch') { setLage('pruefung'); return; }
-        // Das erste Mal auf diesem Geraet (je Zugang gemerkt) - einmal Willkommen, danach nie wieder.
-        if (j.authorized && j.user) { willkommenEinmal(j.user); return; }
+        if (!nachLogin) return;
+        if (j.authorized && j.user) { willkommen(); return; }
         /*
          * Kein Schluessel: vielleicht ein Konto - ein Pro ueber seine POV-Einladung (app/api/pov/einladung legt das Pro-Konto an), ein
          * Manager, ein Admin oder ein VIP mit Konto. Gewoehnliche Besucher mit Konto bekommen kein Fenster.
@@ -91,19 +100,25 @@ export default function VipFenster() {
             const konto = k.angemeldet ? k.konto : null;
             if (!konto?.id || !(konto.rolle || konto.vip)) return;
             setWer({ name: konto.name || '', bild: k.bild ?? null });
-            willkommenEinmal(`konto:${konto.id}`);
+            willkommen();
           });
       })
       .catch(() => undefined);
-    function willkommenEinmal(wer: string) {
-      const k = `${MERKER}${wer.toLowerCase()}`;
-      try {
-        // Fuer immer abgeschaltet (Einstellungen, app/components/Sprachschalter) - dann nie.
-        if (localStorage.getItem(`${MERKER}aus`) === '1') return;
-        if (!localStorage.getItem(k)) { localStorage.setItem(k, String(Date.now())); setLage('willkommen'); }
-      } catch { /* ohne Speicher kein Willkommen - lieber keins als jedes Mal */ }
+    function willkommen() {
+      // Fuer immer abgeschaltet (Einstellungen, app/components/Sprachschalter) - dann nie.
+      try { if (localStorage.getItem(`${MERKER}aus`) === '1') return; } catch { /* ohne Speicher: zeigen */ }
+      setLage('willkommen');
+      setAuto(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!lage || !auto) return undefined;
+    // 3,6 s lesen, dann 0,6 s ausblenden - lang genug fuer Foto und Satz, kurz genug, dass es nicht im Weg steht.
+    const weg = window.setTimeout(() => setRaus(true), 3600);
+    const zu = window.setTimeout(() => { setLage(null); setRaus(false); setAuto(false); }, 4250);
+    return () => { window.clearTimeout(weg); window.clearTimeout(zu); };
+  }, [lage, auto]);
 
   useEffect(() => {
     if (!lage) return undefined;
@@ -133,7 +148,7 @@ export default function VipFenster() {
   const knopf = 'relative inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl text-[16px] font-extrabold transition';
   return (
     <div role="dialog" aria-modal="true" aria-label={kopf}
-      className="fixed inset-0 z-[9000] overflow-y-auto bg-[rgba(3,7,18,0.6)] backdrop-blur-[2px]"
+      className={`fixed inset-0 z-[9000] overflow-y-auto bg-[rgba(3,7,18,0.6)] backdrop-blur-[2px] ${raus ? 'vipf-hinter-raus' : ''}`}
       style={{ backgroundImage: 'radial-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), radial-gradient(55% 45% at 50% 0%, rgba(14,165,233,0.22), transparent 70%), radial-gradient(40% 35% at 85% 90%, rgba(14,165,233,0.10), transparent 70%)', backgroundSize: '22px 22px, 100% 100%, 100% 100%' }}>
       <style>{STIL}</style>
 
@@ -148,7 +163,7 @@ export default function VipFenster() {
         <div className="flex items-center gap-3"><span className="h-3 w-3 rounded-full bg-sky-400/60" /><span className="font-mono text-xl font-bold tracking-widest text-sky-200/40">12:47</span></div>} />
 
       <div className="flex min-h-full items-center justify-center p-0 sm:p-6">
-        <section className="vipf-rein relative grid w-full max-w-[960px] overflow-hidden bg-[#111114] shadow-[0_30px_90px_rgba(0,0,0,.6),0_0_0_1px_rgba(14,165,233,.06),0_0_120px_rgba(14,165,233,.10)] sm:rounded-[28px] sm:border sm:border-white/[0.08] md:grid-cols-[5fr_6fr]">
+        <section className={`${raus ? 'vipf-raus' : 'vipf-rein'} relative grid w-full max-w-[960px] overflow-hidden bg-[#111114] shadow-[0_30px_90px_rgba(0,0,0,.6),0_0_0_1px_rgba(14,165,233,.06),0_0_120px_rgba(14,165,233,.10)] sm:rounded-[28px] sm:border sm:border-white/[0.08] md:grid-cols-[5fr_6fr]`}>
           {/* Links: das Bild */}
           <div className="relative min-h-[300px] overflow-hidden bg-[#0b1220] md:min-h-[560px]">
             {wer.bild ? (
@@ -234,11 +249,11 @@ export default function VipFenster() {
                     </span>
                     <span>{t('Auf Discord fragen')}<small className="mt-px block text-[11px] font-medium text-slate-500">{t('neuer Schlüssel in Minuten')}</small></span>
                   </a>
-                  <a href="https://x.com/juanitofnbr" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-3 text-[14px] font-bold text-slate-100 transition hover:border-slate-400/60">
+                  <a href={`https://x.com/${MARKE.x}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-3 text-[14px] font-bold text-slate-100 transition hover:border-slate-400/60">
                     <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl bg-white/[0.08] text-slate-200">
                       <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor"><path d="M18.2 2h3.4l-7.4 8.5L23 22h-6.8l-5.3-7-6.1 7H1.4l7.9-9.1L1 2h7l4.8 6.4L18.2 2zm-1.2 18h1.9L7.1 3.9H5.1L17 20z" /></svg>
                     </span>
-                    <span>{t('DM auf X')}<small className="mt-px block text-[11px] font-medium text-slate-500">@juanitofnbr</small></span>
+                    <span>{t('DM auf X')}<small className="mt-px block text-[11px] font-medium text-slate-500">@{MARKE.x}</small></span>
                   </a>
                 </div>
               </>

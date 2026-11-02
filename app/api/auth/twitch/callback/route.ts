@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
       name: nutzer.login || nutzer.display_name,
       bildUrl: nutzer.profile_image_url,
     });
-    const antwort = zurueck(req, '/account');
+    const antwort = zurueck(req, '/account?willkommen=1');
     altesHostCookieWeg(antwort, req, COOKIE);
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
       ...sitzungsDomain(req),

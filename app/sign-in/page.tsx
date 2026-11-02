@@ -176,7 +176,8 @@ export default function Anmelden({ start = 'anmelden' }: {
             });
             if (v.ok) {
               const nach = new URLSearchParams(window.location.search).get('weiter') ?? '';
-              window.location.href = /^\/[a-z0-9/_-]*$/i.test(nach) && !nach.startsWith('//') ? nach : '/vip';
+              // ?willkommen=1: das Willkommen-Fenster blendet kurz ein und wieder aus (app/components/VipFenster).
+              window.location.href = `${/^\/[a-z0-9/_-]*$/i.test(nach) && !nach.startsWith('//') ? nach : '/vip'}?willkommen=1`;
               return;
             }
           } catch { /* dann gilt die Antwort des Kontos */ }
@@ -189,7 +190,7 @@ export default function Anmelden({ start = 'anmelden' }: {
       if (j?.hinweis) setHinweis(j.hinweis);
       // Wer von einer gesperrten Adresse kam (/admin), kommt dorthin zurueck.
       const weiter = new URLSearchParams(window.location.search).get('weiter') ?? '';
-      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : (j?.konto?.rolle === 'pro' ? '/pov' : '/account'));
+      router.push(`${/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : (j?.konto?.rolle === 'pro' ? '/pov' : '/account')}?willkommen=1`);
       router.refresh();
     } catch (err) {
       setFehler((err as Error).message);

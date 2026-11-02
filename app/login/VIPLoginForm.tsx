@@ -66,7 +66,8 @@ export default function VIPLoginForm() {
       // Nach /vip, nicht nach /admin: wer mit einem Zugangsschluessel
       // hereinkommt, ist kein Administrator und soll auch nicht so
       // adressiert werden. Dieselbe Seite, die passende Adresse.
-      window.location.href = '/vip';
+      // ?willkommen=1: kurz das Willkommen-Fenster, dann von selbst ins Dashboard (app/components/VipFenster).
+      window.location.href = '/vip?willkommen=1';
     } catch {
       setFehler(t('Anmeldung fehlgeschlagen. Bitte die Verbindung prüfen.'));
     } finally {

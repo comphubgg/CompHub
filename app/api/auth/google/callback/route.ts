@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     }
 
     await merkeAnmeldung(konto.id);
-    const antwort = zurueck(req, '/account');
+    const antwort = zurueck(req, '/account?willkommen=1');
     altesHostCookieWeg(antwort, req, COOKIE);
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
       ...sitzungsDomain(req),

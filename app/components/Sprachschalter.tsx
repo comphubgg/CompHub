@@ -148,7 +148,7 @@ export default function Sprachschalter() {
           <Zeile titel={t('Animationen')}>
             <Wahl wert={bewegung} setze={stelleBewegung} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
-          <Zeile titel={t('Willkommen-Fenster')} hinweis={t('beim ersten Anmelden auf einem neuen Gerät')}>
+          <Zeile titel={t('Willkommen-Fenster')} hinweis={t('kurz nach jedem Anmelden')}>
             <Wahl wert={willkommen} setze={stelleWillkommen} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
           <Zeile titel={t('Kopfzeile automatisch ausblenden')}>

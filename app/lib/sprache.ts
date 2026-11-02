@@ -3898,6 +3898,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
   'Willkommen-Fenster': 'Welcome screen',
+  'kurz nach jedem Anmelden': 'briefly after every sign-in',
   'beim ersten Anmelden auf einem neuen Gerät': 'on the first sign-in from a new device',
   'Willkommen': 'Welcome',
   'Du bist drin.': 'You’re in.',
