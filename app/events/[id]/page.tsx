@@ -3573,14 +3573,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     </div>
                   )}
                   {st.pbm && (
-                    <p className="text-sm font-bold text-emerald-400">Points-Based Matchmaking (ELO)</p>
+                    <p className="text-sm font-bold text-emerald-400"><T>Points-Based Matchmaking (ELO)</T></p>
                   )}
                   {kartenName && zeile(t('Karte'), kartenName)}
                   {(format || fenster.matchCap) && zeile(t('Format'), (
                     <>
                       {format && <>{format}{st.zeroBuild ? ' · Zero Build' : ''}{st.maxSpieler ? ` (max ${st.maxSpieler} ${t('Spieler')})` : ''}</>}
                       {format && fenster.matchCap ? <span className="text-slate-600">  |  </span> : null}
-                      {fenster.matchCap ? <><span className="font-bold text-slate-100">Matches:</span> {fenster.matchCap}</> : null}
+                      {fenster.matchCap ? <><span className="font-bold text-slate-100">{t('Matches:')}</span> {fenster.matchCap}</> : null}
                     </>
                   ))}
                   {!!fenster.plattformen?.length && zeile(t('Plattformen'), fenster.nurTouch
@@ -3814,7 +3814,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                   <div
                     onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
-                    title={istAdmin ? 'Doppelklick: Flaggen und Twitch-Kanal dieses Duos' : undefined}
+                    title={istAdmin ? t('Doppelklick: Flaggen und Twitch-Kanal dieses Duos') : undefined}
                     className={`space-y-2 ${istAdmin ? 'cursor-pointer' : ''}`}>
                     {e.players.map((p) => (
                       <div key={p.id} className="flex items-center gap-2.5">

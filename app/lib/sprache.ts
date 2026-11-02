@@ -5007,6 +5007,7 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Close': 'Schließen',
   // Cup-Seite: Beschriftungen mit Einzahl/Mehrzahl und Spielnummer (app/events/[id]/page.tsx).
   'Spieler (Einzahl)': 'Spieler', 'Game': 'Spiel',
+  'Points-Based Matchmaking (ELO)': 'Punktebasiertes Matchmaking (ELO)', 'Matches:': 'Spiele:',
   'Generate map': 'Karte erzeugen',
   ['Guest mode active: editing is disabled. Log in to manage your own folders.']:
     'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu '
@@ -5137,6 +5138,9 @@ const AUF_DEUTSCH: Record<string, string> = {
   'versteckt': 'hidden',
   'PNG hochladen': 'Upload PNG',
   'Ohne Cup und Spieltag fehlt die Zuordnung, deshalb taucht die Karte bei den Events nicht auf. Beides oben auswählen und noch einmal speichern.': 'Without a cup and match day the map has no assignment, so it does not appear under the events. Pick both above and save again.',
+
+  // Cup-Seite (app/events/[id]/page.tsx)
+  'Doppelklick: Flaggen und Twitch-Kanal dieses Duos': 'Double-click: flags and Twitch channel of this duo',
 };
 
 /**

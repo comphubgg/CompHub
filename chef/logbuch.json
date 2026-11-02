@@ -9576,5 +9576,28 @@
       "/maps"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:05:08Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-433",
+    "titel": "Cup-Seite und Prognosen: letzte feste Texte übersetzt",
+    "kurz": "Cup-Seite (Matchmaking-Hinweis, „Matches:“) und Prognosen („Reset“): jetzt auch auf Deutsch.",
+    "markieren": [
+      "text:Points-Based Matchmaking (ELO)",
+      "text:Matches:",
+      "text:Reset"
+    ],
+    "bereich": "Statistik",
+    "warum": "Drei Beschriftungen standen fest im Code und blieben auf der deutschen Seite englisch, ein Tooltip auf der englischen deutsch.",
+    "was": "Sie laufen jetzt über die Übersetzung.",
+    "ansehen": [
+      "/events",
+      "/predictions"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

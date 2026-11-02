@@ -368,7 +368,7 @@ export default function Tippen() {
                           <button type="button" onClick={() => void teilen()} disabled={!gesetzt}
                             className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-300 disabled:opacity-40">{kopiert ? t('Kopiert') : t('Teilen')}</button>
                           {!resetFrage
-                            ? <button type="button" onClick={() => setResetFrage(true)} disabled={!gesetzt && !tipp.mvp} className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-bold text-slate-400 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Reset</button>
+                            ? <button type="button" onClick={() => setResetFrage(true)} disabled={!gesetzt && !tipp.mvp} className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-bold text-slate-400 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40"><T>Reset</T></button>
                             : <span className="flex items-center gap-1 text-[11px]"><span className="text-slate-400"><T>Alles leeren?</T></span>
                                 <button type="button" onClick={zuruecksetzen} className="rounded-full bg-rose-600 px-2.5 py-1 font-bold text-white"><T>Ja</T></button>
                                 <button type="button" onClick={() => setResetFrage(false)} className="rounded-full border border-zinc-700 px-2.5 py-1 font-bold text-slate-300"><T>Nein</T></button></span>}
