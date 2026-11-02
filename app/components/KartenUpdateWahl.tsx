@@ -119,7 +119,7 @@ export default function KartenUpdateWahl({ aktuell, waehle, vorgabe, speichert =
                 <img src={bildVon(u.url)} alt="" loading="lazy" className="aspect-square w-full bg-zinc-950 object-cover" />
                 <span className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] font-bold text-slate-200">
                   <span>{t('Update')} {u.patch}</span>
-                  {u.neu && <span className="rounded bg-amber-400 px-1 text-[9px] font-black uppercase text-zinc-950">{t('neu')}</span>}
+                  {u.neu && <span className="rounded bg-amber-400 px-1 text-[11px] font-black uppercase text-zinc-950">{t('neu')}</span>}
                 </span>
               </button>
             ))}

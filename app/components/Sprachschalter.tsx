@@ -26,8 +26,8 @@ function Zeile({ titel, hinweis, children }: { titel: string; hinweis?: string; 
   return (
     <div className="py-3 first:pt-1 last:pb-1">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <p className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
-        {hinweis && <p className="text-[0.68rem] text-slate-500">{hinweis}</p>}
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
+        {hinweis && <p className="text-[11px] text-slate-500">{hinweis}</p>}
       </div>
       {children}
     </div>

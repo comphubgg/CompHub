@@ -114,7 +114,7 @@ export default function Melden() {
           </h2>
           {/* Damit klar ist, dass die Seite mitgeht - niemand soll sie
               abtippen, und niemand soll ueberrascht sein, dass sie dabei ist. */}
-          <p className="mt-0.5 truncate font-mono text-[10px] text-slate-600">
+          <p className="mt-0.5 truncate font-mono text-[11px] text-slate-600">
             {pfad}
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function Melden() {
           )}
 
           <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-[10px] text-slate-600">
+            <span className="text-[11px] text-slate-600">
               <T>Geht an den Betreiber, mit deinem Konto.</T>
             </span>
             <button onClick={() => void senden()} disabled={laeuft}

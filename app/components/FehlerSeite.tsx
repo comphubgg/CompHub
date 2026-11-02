@@ -61,7 +61,7 @@ export default function FehlerSeite({ code, wiederholen }: { code: number; wiede
           <Link href="/events" prefetch={false} className="transition hover:text-sky-500">Events</Link>
           <Link href="/tournament-maps" prefetch={false} className="transition hover:text-sky-500">Maps</Link>
         </p>
-        <p className="mt-6 text-[10px] uppercase tracking-[0.2em] text-slate-600"><T>Fehlercode</T> {code}</p>
+        <p className="mt-6 text-[11px] uppercase tracking-[0.2em] text-slate-600"><T>Fehlercode</T> {code}</p>
       </div>
     </main>
   );

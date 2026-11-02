@@ -187,7 +187,7 @@ export default function RanglisteNeu() {
                 <div className="mt-5"><Name s={s} /></div>
                 <div className="mt-4 flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>PR-Wertung</T></p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>PR-Wertung</T></p>
                     <p className="schrift-anzeige text-3xl font-extrabold leading-tight tabular-nums text-slate-100">{zahl(s.wertung)}</p>
                   </div>
                   <Bewegung platz={s.deltaPlatz} gross zahl={zahl} />

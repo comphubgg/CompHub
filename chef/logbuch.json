@@ -9491,5 +9491,26 @@
       "/predictions"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:00:52Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-429",
+    "titel": "Chat, Melden, Sprachwahl und mehr: Schrift mindestens 11 Pixel",
+    "kurz": "Chatfenster, Melden, Sprachschalter, Rangliste, Fehlerseite: kleine Schrift jetzt 11 Pixel.",
+    "markieren": [
+      "text:Language",
+      "text:PR rating"
+    ],
+    "bereich": "Oberfläche",
+    "warum": "Uhrzeiten, Marken und Hinweise in sieben Bausteinen standen mit 9 bis knapp 11 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

@@ -711,7 +711,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                                    transition hover:bg-zinc-900">
                         <span className="truncate">{n.name}</span>
                         {n.rolle && (
-                          <span className="shrink-0 text-[10px] text-slate-600">
+                          <span className="shrink-0 text-[11px] text-slate-600">
                             {n.rolle}
                           </span>
                         )}
@@ -727,7 +727,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                                disabled:opacity-40">
                     {legtAn ? <T>wird angelegt …</T> : <T>Gruppe anlegen</T>}
                   </button>
-                  <span className="text-[10px] text-slate-600">
+                  <span className="text-[11px] text-slate-600">
                     {gewaehlteNutzer.length === 1
                       ? <T>eine Person — es wird ein Einzelgespräch</T>
                       : <T>ab zwei Personen wird es eine Gruppe</T>}
@@ -807,7 +807,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                         {admin && g.vonVip && (
                           <span className="shrink-0 rounded border
                                            border-amber-500/50 bg-amber-500/10
-                                           px-1.5 text-[9px] font-bold uppercase
+                                           px-1.5 text-[11px] font-bold uppercase
                                            tracking-wider text-amber-400">
                             {g.vonRolle === 'pro' ? 'Pro' : 'VIP'}
                           </span>
@@ -818,13 +818,13 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[11px] text-slate-600">
                         {uhrzeit(g.zuletzt)}
                       </span>
                       {g.ungelesen > 0 && (
                         <span className="grid h-4 min-w-4 place-items-center
                                          rounded-full bg-sky-500 px-1
-                                         text-[10px] font-bold text-white">
+                                         text-[11px] font-bold text-white">
                           {g.ungelesen}
                         </span>
                       )}
@@ -874,7 +874,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                               ))}
                             </div>
                           )}
-                          <p className={`mt-1 text-[10px] text-slate-500
+                          <p className={`mt-1 text-[11px] text-slate-500
                             ${eigen ? 'text-right' : 'text-left'}`}>
                             {uhrzeit(n.zeit)}
                           </p>
@@ -911,7 +911,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                       <pre className="overflow-x-auto whitespace-pre-wrap font-mono
                                       text-[11px] leading-relaxed text-slate-300">{hinweis}</pre>
                       <button type="button" onClick={() => setHinweis(null)}
-                        className="mt-1 text-[10px] text-slate-500 transition
+                        className="mt-1 text-[11px] text-slate-500 transition
                                    hover:text-sky-400">
                         <T>schließen</T>
                       </button>
@@ -954,7 +954,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                                      transition hover:bg-zinc-900">
                           <span className="truncate">{n.name}</span>
                           {n.rolle && (
-                            <span className="shrink-0 text-[10px] text-slate-600">
+                            <span className="shrink-0 text-[11px] text-slate-600">
                               {n.rolle}
                             </span>
                           )}
