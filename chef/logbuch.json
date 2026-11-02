@@ -10315,5 +10315,26 @@
       "/replays",
       "/replays/S42_FNCSSolo_Final_Day1_NAW"
     ]
+  },
+  {
+    "id": "chef-465",
+    "datum": "2026-11-02T04:51:10Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Profil-Ergebnisse: fehlende Elims und Schaden als Strich statt „NaN“",
+    "kurz": "Spielerprofil → Results: fehlende Elims/Schaden zeigen Strich statt leer oder „NaN“.",
+    "markieren": [
+      "text:Results",
+      "text:Summary"
+    ],
+    "warum": "Bei eigenen Spieltagen ohne gelesene Replays stand beim Schaden „NaN“ und in der Zusammenfassung „NaN“ bei Elims und Schaden.",
+    "was": "Fehlende Werte zeigen einen Strich; die Zusammenfassung zählt nur Tage, die den Wert haben.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ]
   }
 ]

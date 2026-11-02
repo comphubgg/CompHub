@@ -1585,7 +1585,8 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   * man sieht, dass sie aus einer anderen Quelle stammt als
                   * die Zahlen der Zeilen darueber.
                   */}
-                {!z.nurEpic ? z.werte.eliminations
+                {!z.nurEpic ? (typeof z.werte.eliminations === 'number'
+                  ? z.werte.eliminations : <span className="text-slate-700">—</span>)
                   : typeof z.replayElims === 'number' ? (
                     <span
                       title={t('Aus dem eigenen Replay dieses Spieltags '
@@ -1623,7 +1624,9 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg, 0, sprache)}</span>
                   : z.nurEpic
                     ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
-                    : zahl(Math.round(z.werte.damageDealt), 0, sprache)}
+                    : typeof z.werte.damageDealt === 'number'
+                      ? zahl(Math.round(z.werte.damageDealt), 0, sprache)
+                      : <span className="text-slate-700">—</span>}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
                 {z.nurEpic && z.replaySchaden && z.replaySchaden.erlitten > 0
@@ -1676,8 +1679,13 @@ function VerlaufTabelle({ zeilen, fuss }: {
             mitWerten.reduce((summe, z) => summe + holen(z), 0);
           const alleN = (holen: (z: VerlaufZeile) => number) =>
             tage.reduce((summe, z) => summe + holen(z), 0);
-          const schaden = n((z) => z.werte.damageDealt);
-          const erlitten = n((z) => z.werte.damageTakenFromPlayers);
+          /* Eigene Spieltage, deren Replays noch nicht gelesen sind, tragen Eliminierungen und Schaden nicht: summiert wird nur, was da ist (sonst stünde "NaN" in der Zeile). */
+          const mitElims = mitWerten.filter((z) => typeof z.werte.eliminations === 'number');
+          const mitSchaden = mitWerten.filter((z) => typeof z.werte.damageDealt === 'number');
+          const mitQuote = mitSchaden.filter((z) => typeof z.werte.damageTakenFromPlayers === 'number');
+          const schaden = mitSchaden.reduce((a, z) => a + z.werte.damageDealt, 0);
+          const quoteSchaden = mitQuote.reduce((a, z) => a + z.werte.damageDealt, 0);
+          const erlitten = mitQuote.reduce((a, z) => a + z.werte.damageTakenFromPlayers, 0);
           const mitPlatz = tage.filter((z) => z.platz !== null);
           const schnittPlatz = mitPlatz.length
             ? mitPlatz.reduce((sum, z) => sum + (z.platz ?? 0), 0) / mitPlatz.length
@@ -1708,13 +1716,13 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   {zahl(alleN((z) => z.werte.matchesPlayed), 0, sprache)}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-sky-400">
-                  {mitWerten.length ? zahl(n((z) => z.werte.eliminations), 0, sprache) : '—'}
+                  {mitElims.length ? zahl(mitElims.reduce((a, z) => a + z.werte.eliminations, 0), 0, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {mitWerten.length ? zahl(Math.round(schaden), 0, sprache) : '—'}
+                  {mitSchaden.length ? zahl(Math.round(schaden), 0, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
-                  {erlitten > 0 ? zahl(schaden / erlitten, 2, sprache) : '—'}
+                  {erlitten > 0 ? zahl(quoteSchaden / erlitten, 2, sprache) : '—'}
                 </td>
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
                   {mitWerten.length ? zahl(n((z) => mats(z.werte)), 0, sprache) : '—'}
@@ -4075,6 +4083,10 @@ export default function StatistikSeite() {
         for (const [k, v] of Object.entries(z.werte)) {
           if (typeof v === 'number') werte[k] = (werte[k] ?? 0) + v;
         }
+      }
+      /* Fehlt einem Tag der LAN Eliminierungen oder Schaden (Replays noch nicht gelesen), steht in der Gesamtzeile keine Teilsumme, sondern ein Strich. */
+      for (const f of ['eliminations', 'damageDealt', 'damageTakenFromPlayers'] as const) {
+        if (tageDerLan.some((z) => typeof z.werte[f] !== 'number')) delete werte[f];
       }
       const punkte = tageDerLan.every((z) => typeof z.punkte === 'number')
         ? tageDerLan.reduce((a, z) => a + (z.punkte ?? 0), 0) : null;
