@@ -6898,5 +6898,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-312",
+    "datum": "2026-11-02T01:58:04Z",
+    "titel": "Regionen-Listen: Mindestzahl der Quoten zählt nur Matches mit Wert",
+    "kurz": "Regionen → „Best damage ratio“: Mindest-Matches zählen nur Matches mit Schaden.",
+    "markieren": [
+      "text:Best damage ratio",
+      "text:Best accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer 12 Matches hatte, davon nur 2 mit Schaden, stand in der Regionen-Liste mit einer Quote aus 2 Matches – in Startseite und Spielerliste fehlte er zu Recht.",
+    "was": "Die Regionen-Listen zählen jetzt wie die anderen Listen nur die Matches, auf denen die Quote beruht.",
+    "ansehen": [
+      "/statistics?bereich=regional&region=EU&saison=S42"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -436,11 +436,16 @@ function bestenlisten(feld: Spieler[]) {
   const hoechste = feld.reduce((m, sp) => Math.max(m, Number(sp.matches) || 0), 0);
   const mindestQuote = Math.max(3, Math.min(20, Math.round(hoechste / 2)));
   const zahlVon = (sp: Spieler, f: string) => Number((sp as unknown as Record<string, unknown>)[f]) || 0;
+  /* Die Mindestzahl zaehlt nur Matches, auf denen die Quote beruht (wie matchesFuerQuote in lib/szeneStats): eigene Spieltage ohne Schaden bzw. Schuesse zaehlen nicht mit. Ohne Nenner (aeltere Antwort) alle Matches. */
+  const matchesFuerQuote = (sp: Spieler, f: string) => {
+    const n = f === 'quote' ? sp.matchesSchaden : f === 'genauigkeit' ? sp.matchesVoll : undefined;
+    return Number(typeof n === 'number' ? n : sp.matches) || 0;
+  };
   return CUP_LISTEN.map((k) => {
     const mindest = k.feld === 'quote' || k.feld === 'genauigkeit' ? mindestQuote : null;
     const f = k.feld as string;
     const zeilen = feld
-      .filter((sp) => zahlVon(sp, f) > 0 && (mindest === null || (Number(sp.matches) || 0) >= mindest))
+      .filter((sp) => zahlVon(sp, f) > 0 && (mindest === null || matchesFuerQuote(sp, f) >= mindest))
       .sort((a, b) => (k.kleinBesser ? zahlVon(a, f) - zahlVon(b, f) : zahlVon(b, f) - zahlVon(a, f))
         || zahlVon(b, 'elims') - zahlVon(a, 'elims')
         || zahlVon(b, 'damage') - zahlVon(a, 'damage')
