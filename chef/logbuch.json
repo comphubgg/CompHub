@@ -8366,5 +8366,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-378",
+    "datum": "2026-11-02T03:21:06Z",
+    "titel": "Cup-Spielerfenster: K/D bei teilweise gelesenen Replays",
+    "kurz": "Cup → Spieler anklicken: „K/D Ratio“ nicht mehr zu hoch, wenn Replays fehlen.",
+    "markieren": [
+      "text:K/D Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Tode kamen nur aus den gelesenen Replays, die Eliminierungen aus allen Spielen – bei 2 von 6 Replays war die K/D viel zu hoch.",
+    "was": "Fehlen Replays, rechnet die K/D Eliminierungen und Tode aus denselben Replays.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

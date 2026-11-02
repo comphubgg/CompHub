@@ -109,7 +109,13 @@ const KERN: Zeile[] = [
   { titel: 'Eliminations', wert: elimsVon, zeige: num, je: (m) => m.elims },
   { titel: 'Avg Eliminations', wert: (m, c) => { const k = elimsVon(m, c); return k !== null && c.e && c.e.games ? k / c.e.games : null; }, zeige: (v, ort) => dez(v, ort, 2) },
   { titel: 'K/D Ratio', wert: (m, c) => {
-    if (m.replay && m.replay.tode !== null) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
+    if (m.replay && m.replay.tode !== null) {
+      // Lagen nur ein Teil der Spiele als Replay vor, stehen die Tode nur fuer diesen Teil: dann nicht gegen alle Eliminierungen (Szene/Epic) rechnen,
+      // sondern gegen die Eliminierungen derselben Replays - sonst wird die K/D zu hoch.
+      const teilweise = m.replay.spiele !== null && !!c.e && m.replay.spiele < c.e.games;
+      if (!teilweise) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
+      if (m.replay.kills !== null) return m.replay.kills / Math.max(1, m.replay.tode);
+    }
     const k = elimsVon(m, c);
     return k !== null && c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
   }, zeige: (v, ort) => dez(v, ort, 2) },
