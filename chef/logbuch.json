@@ -8532,5 +8532,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-385",
+    "datum": "2026-11-02T03:23:52Z",
+    "titel": "Cup-Spielerfenster: „Nächste Aktualisierung“ hängt nicht mehr bei 0",
+    "kurz": "Cup → Spieler anklicken: „Next update in 0 minutes“ bleibt nach Fehlschlag nicht stehen.",
+    "markieren": [
+      "text:Next update"
+    ],
+    "bereich": "Statistik",
+    "warum": "Schlug eine Auffrischung fehl, stand dauerhaft „in 0 Minuten“, obwohl schon der nächste Versuch lief.",
+    "was": "Die Anzeige zählt jetzt ab dem letzten Versuch.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

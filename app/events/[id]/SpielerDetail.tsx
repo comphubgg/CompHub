@@ -218,6 +218,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   const [mehr, setMehr] = useState(false);
   const [jetzt, setJetzt] = useState(() => Date.now());
   const [geholt, setGeholt] = useState(0);
+  /** Wann zuletzt gefragt wurde - auch erfolglos. Daran haengt "Naechste Aktualisierung"; sonst stuende nach einem Fehlschlag dauerhaft "in 0 Minuten". */
+  const [versucht, setVersucht] = useState(0);
   const [eigenerName, setEigenerName] = useState('');
   const rahmen = useRef<HTMLDivElement | null>(null);
   const [trennFehler, setTrennFehler] = useState('');
@@ -257,7 +259,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
 
   const laden = useCallback((id: string, still = false) => {
     if (!still) { setLaedt(true); setDaten(null); }
-    setFehler('');
+    setFehler(''); setVersucht(Date.now());
     return fetch(`/api/spieler-detail?event=${encodeURIComponent(eventId)}&window=${encodeURIComponent(windowId)}&id=${id}`)
       .then((r) => r.json())
       .then((j: Antwort) => { if (j?.ok) { setDaten(j); setGeholt(Date.now()); } else setFehler('Epic liefert gerade nichts.'); })
@@ -323,7 +325,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
       setTrennFehler(j?.fehler || t('Das Trennen hat nicht geklappt.'));
     } catch { setTrennFehler(t('Das Trennen hat nicht geklappt.')); }
   };
-  const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
+  const naechste = geholt ? Math.max(0, Math.ceil((Math.max(geholt, versucht) + TAKT_MS - jetzt) / 60000)) : null;
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt, ort === 'de-DE');
   // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
   const zeilen = useMemo(() => [
