@@ -28,6 +28,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import ReiterInfo from '@/app/components/ReiterInfo';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
 import { bildPfad } from '@/app/components/ArchivTeile';
 import type { GalerieEintrag } from '@/lib/galerieTypen';
@@ -333,6 +334,17 @@ const BEREICHE: Array<[Bereich, string]> = [
  * waehlen und gegeneinanderstellen. Die fertigen Uebersichten - auch die
  * Kopf-an-Kopf-Zahlen darin - sieht jeder.
  */
+/** Ein Satz je Bereich fuer das kleine "i" an der Leiste (ReiterInfo, Betreiber 2.11.2026). */
+const BEREICH_ERKLAERUNG: Partial<Record<Bereich, string>> = {
+  start: 'Das Wichtigste auf einen Blick: Rekorde, Bestwerte und die Spieler, die gerade vorne sind.',
+  turniere: 'Alle ausgewerteten Cups mit Ergebnissen und Statistiken.',
+  regional: 'Die Spieler einer Region im Vergleich.',
+  spieler: 'Alle Spieler mit ihren Werten. Ein Klick öffnet das Profil.',
+  jahr: 'Das laufende Jahr: Preisgeld, Siege und Bestwerte.',
+  orgs: 'Die E-Sports-Teams mit ihren Spielern und Preisgeldern.',
+  vergleich: 'Zwei Spieler direkt gegeneinander vergleichen.',
+};
+
 const VIP_BEREICHE: Array<[Bereich, string]> = [
   ['vergleich', 'Duell'],
 ];
@@ -4208,6 +4220,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
           <Zeichen art={wert} />
           <T>{titel}</T>
+          {BEREICH_ERKLAERUNG[wert] && <ReiterInfo text={BEREICH_ERKLAERUNG[wert]!} />}
         </button>
       ))}
     </nav>
