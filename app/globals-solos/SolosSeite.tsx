@@ -186,6 +186,7 @@ function wegName(g: SolosGruppe, t: (s: string) => string): { titel: string; tex
 
 function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosSpieler, w: string) => void }) {
   const t = useT();
+  const ort = useSprache().sprache === 'de' ? 'de-DE' : 'en-GB';
   const heats = daten.fenster.filter((f) => f.art === 'heat');
   const gesamt = daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0);
   const ftSchwelle = daten.stufen.find((s) => s.art === 'fasttrack')?.qualifiziert;
@@ -211,7 +212,7 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
                   <p className="mt-0.5 text-[11px] text-slate-500">{n.text}</p>
                   <div className="mt-4">
                     <Spielerliste spieler={g.spieler} auf={(sp) => oeffne(sp, g.windowId ?? '')}
-                      unter={(sp) => (sp.rang !== null ? `#${sp.rang}${sp.punkte !== null ? ` · ${sp.punkte} ${t('Punkte')}` : ''}` : undefined)} />
+                      unter={(sp) => (sp.rang !== null ? `#${sp.rang.toLocaleString(ort)}${sp.punkte !== null ? ` · ${sp.punkte.toLocaleString(ort)} ${t('Punkte')}` : ''}` : undefined)} />
                   </div>
                 </div>
               );

@@ -88,7 +88,7 @@ function Kasten({ k, hier, kante }: { k: WegKnoten; hier?: boolean; kante?: Reac
           <p className="font-semibold text-slate-300">
             {k.schnitt.map((s) => s.punkte).every((p) => p === null)
               ? <span className="font-normal text-slate-500">#{k.schnitt[0].rang.toLocaleString(ort)} · <T>noch keine Punkte</T></span>
-              : <>#{k.schnitt[0].rang.toLocaleString(ort)} = <span className="tabular-nums">{k.schnitt.map((s) => (s.punkte === null ? '–' : s.punkte)).join(' / ')}</span> pts{live && <span className="ml-1 font-normal text-sky-400">(<T>live</T>)</span>}</>}
+              : <>#{k.schnitt[0].rang.toLocaleString(ort)} = <span className="tabular-nums">{k.schnitt.map((s) => (s.punkte === null ? '–' : s.punkte.toLocaleString(ort))).join(' / ')}</span> pts{live && <span className="ml-1 font-normal text-sky-400">(<T>live</T>)</span>}</>}
           </p>
         )}
         {k.sofortPunkte && <p className="font-semibold text-sky-400">{k.sofortPunkte.toLocaleString(ort)} pts = <T>sofort durch</T></p>}
