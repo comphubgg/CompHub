@@ -223,8 +223,8 @@ function rangArt(typ: string): string {
 }
 
 interface Perzentile {
-  elims: number; damage: number; headshots: number; mats: number; builds: number;
-  timeAlive: number; reboots: number; quote: number | null; genauigkeit: number | null;
+  elims: number | null; damage: number | null; headshots: number | null; mats: number | null; builds: number | null;
+  timeAlive: number | null; reboots: number | null; quote: number | null; genauigkeit: number | null;
   feldgroesse: number;
 }
 
@@ -6659,20 +6659,20 @@ export default function StatistikSeite() {
                           // Unbekannte Teile (Strich) zaehlen nicht mit - sonst zoege eine 0 den Schnitt nach unten.
                           const bekannt = teile.filter((t): t is [string, number] => t[1] !== null);
                           const schnitt = bekannt.length
-                            ? Math.round(bekannt.reduce((n, t) => n + t[1], 0) / bekannt.length) : 0;
+                            ? Math.round(bekannt.reduce((n, t) => n + t[1], 0) / bekannt.length) : null;
                           return (
                             <div key={titel} className="bg-zinc-950 p-5">
                               <p className="text-[10px] font-semibold uppercase
                                             tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
                               <p className="mt-2 flex flex-wrap items-baseline gap-2">
                                 <span className="text-4xl font-bold tabular-nums
-                                                 text-sky-400">{schnitt}</span>
+                                                 text-sky-400">{schnitt ?? '—'}</span>
                                 <span className="text-xs text-slate-600">/100</span>
                               </p>
                               <p className="mt-1 text-[11px] text-slate-500">
-                                <T>besser als</T> {schnitt} <T>Prozent des Feldes</T>
+                                {schnitt === null ? <T>Kein Wert erfasst</T> : <><T>besser als</T> {schnitt} <T>Prozent des Feldes</T></>}
                               </p>
-                              <div className="mt-3"><Balken wert={schnitt} /></div>
+                              <div className="mt-3"><Balken wert={schnitt ?? 0} /></div>
                               <div className="mt-4 space-y-2">
                                 {teile.map((t) => (
                                   <div key={t[0]} className="flex items-center gap-3">

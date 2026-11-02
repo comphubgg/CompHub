@@ -1224,34 +1224,35 @@ async function berechne(request: Request) {
       mark('gesamt');
       const gEintrag = gesamt.find((s) => s.epicId === spieler);
       const feld = gesamt.filter((s) => s.matches >= 10);
-      const rang = (wert: number, holen: (s: typeof gesamt[number]) => number) => {
-        if (!feld.length) return 0;
-        const drunter = feld.filter((s) => holen(s) < wert).length;
-        return Math.round((drunter / feld.length) * 100);
+      /** Die Matches, durch die ein Wert geteilt wird - 0, wenn kein Tag den Wert fuehrt. */
+      type Nenner = 'voll' | 'elims' | 'schaden' | 'zeit';
+      const nennerFeld = { voll: 'matchesVoll', elims: 'matchesElims', schaden: 'matchesSchaden', zeit: 'matchesZeit' } as const;
+      // Eine aeltere fertige Antwort kennt die Nenner noch nicht: dann gilt wie frueher die Gesamtzahl der Matches.
+      const nennerBekannt = (n: Nenner) => gesamt.some((s) => s[nennerFeld[n]] !== undefined);
+      const nennerVon = (s: typeof gesamt[number], nenner: Nenner | false) =>
+        nenner === false || !nennerBekannt(nenner) ? s.matches : (s[nennerFeld[nenner]] ?? 0);
+      /** Denselben Wert je Match - fuer den Spieler wie fuer das Feld. */
+      const jeMatch = (holen: (s: typeof gesamt[number]) => number, nenner: Nenner | false = false) =>
+        // Nur die Matches der Tage teilen, die den Wert fuehren (eigene Tage kennen Kills, Schaden, Zeit nicht immer).
+        (s: typeof gesamt[number]) => { const n = nennerVon(s, nenner); return n > 0 ? holen(s) / n : 0; };
+      const rang = (wert: number, holen: (s: typeof gesamt[number]) => number, bekannte = feld) => {
+        if (!bekannte.length) return 0;
+        const drunter = bekannte.filter((s) => holen(s) < wert).length;
+        return Math.round((drunter / bekannte.length) * 100);
       };
       const rangUnter = (wert: number, holen: (s: typeof gesamt[number]) => number, bekannte: typeof gesamt) =>
         bekannte.length ? Math.round((bekannte.filter((s) => holen(s) < wert).length / bekannte.length) * 100) : null;
-      /** Denselben Wert je Match - fuer den Spieler wie fuer das Feld. */
-      type Nenner = 'voll' | 'elims' | 'schaden' | 'zeit';
-      const jeMatch = (holen: (s: typeof gesamt[number]) => number, nenner: Nenner | false = false) =>
-        (s: typeof gesamt[number]) => {
-          // Nur die Matches der Tage teilen, die den Wert fuehren (eigene Tage kennen Kills, Schaden, Zeit nicht immer).
-          const n = nenner === 'voll' ? (s.matchesVoll ?? s.matches)
-            : nenner === 'elims' ? (s.matchesElims ?? s.matches)
-            : nenner === 'schaden' ? (s.matchesSchaden ?? s.matches)
-            : nenner === 'zeit' ? (s.matchesZeit ?? s.matches)
-            : s.matches;
-          return n > 0 ? holen(s) / n : 0;
-        };
       /*
        * Kopftreffer, Material, Bauteile und Reboots kennen die eigenen Spieltage nicht (lib/szeneStats, matchesVoll) - diese Werte
        * je Match nur durch die Matches teilen, die sie haben. Vorher zogen die Finals ohne diese Angaben den Schnitt nach unten, und
        * wer viele eigene Spieltage hatte, rutschte im Vergleich zu Unrecht ab (der Vergleich tat es schon richtig).
        */
-      const rangJe = (holen: (s: typeof gesamt[number]) => number, nenner: Nenner | false = false) => {
-        if (!gEintrag) return 0;
+      // Fuehrt kein Tag des Spielers den Wert (Nenner 0), ist er unbekannt (auf der Seite ein Strich): dann kein Rang statt "0 %" - und im Feld
+      // zaehlen nur Spieler, die den Wert fuehren, sonst stuende jeder Unbekannte als Schlechtester darunter.
+      const rangJe = (holen: (s: typeof gesamt[number]) => number, nenner: Nenner | false = false): number | null => {
+        if (!gEintrag || nennerVon(gEintrag, nenner) <= 0) return null;
         const pro = jeMatch(holen, nenner);
-        return rang(pro(gEintrag), pro);
+        return rang(pro(gEintrag), pro, feld.filter((s) => nennerVon(s, nenner) > 0));
       };
       const perzentile = gEintrag ? {
         elims: rangJe((s) => s.elims, 'elims'),
