@@ -8071,5 +8071,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-365",
+    "datum": "2026-11-02T03:11:54Z",
+    "titel": "Vergleich: Hinweis, wenn eine Seite gerade fehlt",
+    "kurz": "Statistik → Vergleich: Fehlt ein Spieler kurz, steht ein Hinweis statt „0 Matches“.",
+    "markieren": [
+      "text:The numbers are not reachable right now",
+      "text:Matches played"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kamen die Zahlen nur für einen der beiden Spieler nicht an, sah er aus wie „nie angetreten“ (0 Matches, Striche).",
+    "was": "Darüber steht jetzt „gerade nicht erreichbar, wird gleich erneut versucht“; nach dem nächsten Versuch verschwindet der Hinweis.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

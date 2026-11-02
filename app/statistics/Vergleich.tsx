@@ -615,6 +615,12 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
           </div>
 
           <div className="mt-3">
+            {/* Fehlt nur die Zeilenablage einer Seite, zeigt die andere Seite schon Zahlen - die fehlende darf nicht wie "nicht angetreten" aussehen. */}
+            {datenFehlt && !laedt && hatDaten && (
+              <p role="alert" className="mb-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-center text-xs text-slate-400">
+                <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+              </p>
+            )}
             {wartet && !hatDaten ? (
               <LadeSchirm />
             ) : datenFehlt && !laedt && !hatDaten ? (
