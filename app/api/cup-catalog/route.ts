@@ -111,7 +111,9 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
     const reload = /reload/i.test(quelle);
     const fehlt = [zb && !istZeroBuild(c.titel) ? 'Zero Build' : '', reload && !/reload/i.test(c.titel) ? 'Reload' : ''].filter(Boolean);
     // Auch die Cups mit Bauen sagen es (Betreiber, 26.10.2026: "ob Zero Build oder nicht Zero Build im Titel"): "(Battle Royale)" - bei den FNCS-Reihen (Championship, Division) ist es ohnehin klar.
-    if (!fehlt.length && !zb && !reload && c.art !== 'championship' && c.art !== 'division' && !/battle royale|\(br\)/i.test(c.titel) && (w?.playlist || w?.eventId)) fehlt.push('Battle Royale');
+    // Nicht bei Cups auf einer eigenen Insel (Playlist "VK_Play", z. B. die Arenas-Cups - Boxfights im Bauen-Modus, keine BR-Karte; Betreiber, 2.11.2026).
+    const eigeneInsel = /VK_Play|Creative|Arena/i.test(`${w?.playlist ?? ''} ${c.id} ${c.titel}`);
+    if (!fehlt.length && !zb && !reload && !eigeneInsel && c.art !== 'championship' && c.art !== 'division' && !/battle royale|\(br\)/i.test(c.titel) && (w?.playlist || w?.eventId)) fehlt.push('Battle Royale');
     return fehlt.length ? { ...c, titel: `${c.titel} (${fehlt.join(' ')})` } : c;
   });
 }
