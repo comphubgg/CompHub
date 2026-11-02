@@ -1044,7 +1044,13 @@
   "chef-126": {
     "entscheidung": "ja",
     "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
-    "zeit": "2026-11-02T09:53:49.518Z"
+    "zeit": "2026-11-02T09:53:49.518Z",
+    "uebernahme": {
+      "stand": "live",
+      "text": "Auf GitHub (main 9067960b); die Seite wird neu gebaut und ist in etwa 10 Minuten live. Netlify folgt mit dem nächsten Bau (höchstens alle 6 Stunden).",
+      "zeit": "2026-11-02T09:54:24.067Z",
+      "main": "9067960b"
+    }
   },
   "chef-285": {
     "entscheidung": "ja",
