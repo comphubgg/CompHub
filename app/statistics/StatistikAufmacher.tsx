@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { holeStatistikZahlen } from './statistikZahlenAbruf';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import Rollzahl from '@/app/components/Rollzahl';
@@ -83,7 +84,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
   useEffect(() => {
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
-    fetch('/api/statistik-zahlen', { signal: AbortSignal.timeout(30_000) }).then((r) => r.json())
+    holeStatistikZahlen()
       .then((j) => {
         if (!j?.ok) throw new Error('keine Zahlen');
         if (!weg) { setZahlen(j); setFehlt(false); }

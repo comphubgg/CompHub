@@ -5,6 +5,7 @@ import T from '@/app/components/T';
 import Rollzahl from '@/app/components/Rollzahl';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
+import { holeStatistikZahlen } from './statistikZahlenAbruf';
 
 /*
  * Die großen Zahlen oben auf der Statistikseite - rollen beim Erscheinen hoch.
@@ -33,8 +34,7 @@ export default function StatistikZahlen() {
      */
     const alleZeit = fetch('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { signal: AbortSignal.timeout(20_000) })
       .then((r) => r.json()).catch(() => null) as Promise<{ success?: boolean; spieltage?: number } | null>;
-    fetch('/api/statistik-zahlen', { signal: AbortSignal.timeout(20_000) })
-      .then((r) => r.json())
+    holeStatistikZahlen()
       .then(async (j) => {
         if (!j?.ok) throw new Error('keine Zahlen');
         const a = await alleZeit;

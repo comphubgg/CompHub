@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import StatistikZahlen from './StatistikZahlen';
 import StatistikAufmacher from './StatistikAufmacher';
+import { holeStatistikZahlen } from './statistikZahlenAbruf';
 import { useSearchParams } from 'next/navigation';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
@@ -2261,7 +2262,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
   }, [auf]);
   useEffect(() => {
     let weg = false;
-    fetch('/api/statistik-zahlen').then((r) => r.json()).then((j) => { if (!weg && j?.ok && typeof j.spieler === 'number') setAnzahl(j.spieler); }).catch(() => { /* ohne Zahl bleibt ein Strich */ });
+    holeStatistikZahlen().then((j) => { if (!weg && j?.ok && typeof j.spieler === 'number') setAnzahl(j.spieler); }).catch(() => { /* ohne Zahl bleibt ein Strich */ });
     return () => { weg = true; };
   }, []);
   useEffect(() => {
