@@ -4034,6 +4034,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Rangliste': 'Standings',
   'Alle Plätze': 'All places',
   'Aus welchen Ländern die Top 100 kommen': 'Where the top 100 come from',
+  'Bei {n} der ersten {m} Spieler ist kein Land bekannt – sie fehlen hier.': 'No country is known for {n} of the first {m} players – they are not counted here.',
   'seit der letzten Fortschreibung': 'since the last update',
   'Absteiger': 'Fallers',
   'Aufsteiger': 'Climbers',

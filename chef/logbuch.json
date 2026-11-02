@@ -10043,5 +10043,25 @@
     "ansehen": [
       "/statistics?bereich=turniere"
     ]
+  },
+  {
+    "id": "chef-452",
+    "datum": "2026-11-02T04:36:48Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Power Rankings: Länderkasten nennt, wie viele ohne Land sind",
+    "kurz": "Power Rankings → Länderkasten: Hinweis, wie viele der Top 100 kein Land haben.",
+    "markieren": [
+      "text:No country is known for"
+    ],
+    "warum": "Der Kasten zählte nur 33 der Top 100 (nur sie haben eine Flagge) und sah trotzdem vollständig aus.",
+    "was": "Darunter steht jetzt, bei wie vielen der ersten 100 kein Land bekannt ist.",
+    "ansehen": [
+      "/power-rankings"
+    ]
   }
 ]

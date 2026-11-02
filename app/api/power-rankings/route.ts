@@ -90,11 +90,15 @@ async function holeRoh(request: Request) {
       const auf = liste.filter((s) => s.deltaPlatz > 0).sort((a, b) => b.deltaPlatz - a.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const ab = liste.filter((s) => s.deltaPlatz < 0).sort((a, b) => a.deltaPlatz - b.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const laender: Record<string, number> = {};
-      for (const s of liste.filter((x) => x.rank <= 100).map(mit)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
+      // Nur Profis haben eine Flagge: die Laenderzaehlung deckt nicht alle hundert ab. Wie viele ohne Land sind, geht mit, damit die Seite das sagen kann.
+      const ersteHundert = liste.filter((x) => x.rank <= 100).map(mit);
+      for (const s of ersteHundert) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
+      const ohneLand = ersteHundert.filter((s) => !s.land).length;
       return NextResponse.json({
         success: true, fetchedAt: stand.geholt, total: liste.length,
         spitze: liste.filter((x) => x.rank <= 3).map(mit), aufsteiger: auf, absteiger: ab,
         laender: Object.entries(laender).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([land, n]) => ({ land, n })),
+        ohneLand, ersteHundert: ersteHundert.length,
       });
     }
 

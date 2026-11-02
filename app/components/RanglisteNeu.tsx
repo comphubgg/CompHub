@@ -26,7 +26,7 @@ interface Seite {
 }
 interface Uebersicht {
   success: boolean; fetchedAt: number; total: number;
-  spitze: Spieler[]; aufsteiger: Spieler[]; absteiger: Spieler[]; laender: Array<{ land: string; n: number }>;
+  spitze: Spieler[]; aufsteiger: Spieler[]; absteiger: Spieler[]; laender: Array<{ land: string; n: number }>; ohneLand?: number; ersteHundert?: number;
 }
 
 const ZEILEN = [50, 100] as const;
@@ -240,6 +240,11 @@ export default function RanglisteNeu() {
                 </li>
               ))}
             </ul>
+            {!!uebersicht.ohneLand && (
+              <p className="mt-3 text-[0.7rem] text-slate-500">
+                {t('Bei {n} der ersten {m} Spieler ist kein Land bekannt – sie fehlen hier.').replace('{n}', zahl(uebersicht.ohneLand)).replace('{m}', zahl(uebersicht.ersteHundert ?? 100))}
+              </p>
+            )}
           </div>
         </section>
       )}
