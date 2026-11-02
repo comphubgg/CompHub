@@ -628,6 +628,20 @@ function schadenNennerFehlt(sp: Partial<Spieler>): boolean {
   if (sp.matchesSchaden !== undefined) return sp.matchesSchaden === 0;
   return sp.matchesElims !== undefined || sp.matchesVoll !== undefined || sp.matchesZeit !== undefined;
 }
+/**
+ * Fehlen Schuesse, Treffer, Kopftreffer, Material und Bauteile ganz, weil kein Spieltag der Szene-Quelle (mit Schusszahl) vorliegt?
+ * Dann ist die 0 in der Summe "unbekannt", nicht "nichts getroffen". Gleiche Regel wie beim Schaden: traegt die Zeile andere Nenner,
+ * ist ein fehlendes matchesVoll = 0; aeltere Antworten ohne jeden Nenner gelten als bekannt.
+ */
+function vollNennerFehlt(sp: Partial<Spieler>): boolean {
+  if (sp.matchesVoll !== undefined) return sp.matchesVoll === 0;
+  return sp.matchesElims !== undefined || sp.matchesSchaden !== undefined || sp.matchesZeit !== undefined;
+}
+/** Summenwert im Profil: "—" statt 0, wenn die Quelle den Wert fuer keinen Spieltag fuehrt. */
+function profilZahl(sp: Partial<Spieler>, feld: 'damage' | 'damageTaken' | 'shots' | 'hits' | 'headshots' | 'mats' | 'builds', sprache: 'de' | 'en'): string {
+  const fehlt = feld === 'damage' || feld === 'damageTaken' ? schadenNennerFehlt(sp) : vollNennerFehlt(sp);
+  return fehlt ? '—' : zahlOderStrich(sp[feld], 0, sprache);
+}
 function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string): boolean {
   if (!sp) return false;
   if (feld === 'quote') return sp.damageTaken !== undefined && !(sp.damageTaken > 0);
@@ -6524,17 +6538,17 @@ export default function StatistikSeite() {
                                     bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                       {([
                         ['Eliminierungen', zahl(offen.elims, 0, sprache)],
-                        ['Schaden', zahl(offen.damage, 0, sprache)],
-                        ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
+                        ['Schaden', profilZahl(offen, 'damage', sprache)],
+                        ['Schaden erlitten', profilZahl(offen, 'damageTaken', sprache)],
                         ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
-                        ['Treffer', zahl(offen.hits, 0, sprache)],
-                        ['Schüsse', zahl(offen.shots, 0, sprache)],
+                        ['Treffer', profilZahl(offen, 'hits', sprache)],
+                        ['Schüsse', profilZahl(offen, 'shots', sprache)],
                         ['Trefferquote', feldText(offen, 'genauigkeit', 1, sprache, ' %')],
-                        ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
+                        ['Kopftreffer', profilZahl(offen, 'headshots', sprache)],
                         ['Assists', zahl(offen.assists, 0, sprache)],
                         ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
-                        ['Material', zahl(offen.mats, 0, sprache)],
-                        ['Bauteile', zahl(offen.builds, 0, sprache)],
+                        ['Material', profilZahl(offen, 'mats', sprache)],
+                        ['Bauteile', profilZahl(offen, 'builds', sprache)],
                         ['Heilung', zahl(offen.heals, 0, sprache)],
                         ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
                         ['Matches', zahl(offen.matches, 0, sprache)],
@@ -6620,16 +6634,16 @@ export default function StatistikSeite() {
                     ['Elims je Match', feldText(offen, 'elimsProMatch', 2, sprache)],
                     ['Assists', zahlOderStrich(offen.assists, 0, sprache)],
                     ['Wiederbelebungen', zahlOderStrich(offen.reboots, 0, sprache)],
-                    ['Schaden', zahlOderStrich(offen.damage, 0, sprache)],
+                    ['Schaden', profilZahl(offen, 'damage', sprache)],
                     ['Schaden je Match', feldText(offen, 'damageProMatch', 0, sprache)],
-                    ['Schaden erlitten', zahlOderStrich(offen.damageTaken, 0, sprache)],
+                    ['Schaden erlitten', profilZahl(offen, 'damageTaken', sprache)],
                     ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
-                    ['Schüsse', zahlOderStrich(offen.shots, 0, sprache)],
-                    ['Treffer', zahlOderStrich(offen.hits, 0, sprache)],
+                    ['Schüsse', profilZahl(offen, 'shots', sprache)],
+                    ['Treffer', profilZahl(offen, 'hits', sprache)],
                     ['Trefferquote', feldText(offen, 'genauigkeit', 1, sprache, ' %')],
-                    ['Kopftreffer', zahlOderStrich(offen.headshots, 0, sprache)],
-                    ['Material', zahlOderStrich(offen.mats, 0, sprache)],
-                    ['Bauteile', zahlOderStrich(offen.builds, 0, sprache)],
+                    ['Kopftreffer', profilZahl(offen, 'headshots', sprache)],
+                    ['Material', profilZahl(offen, 'mats', sprache)],
+                    ['Bauteile', profilZahl(offen, 'builds', sprache)],
                     ['Heilung', zahlOderStrich(offen.heals, 0, sprache)],
                     ['Sturmschaden', zahlOderStrich(offen.stormDamage, 0, sprache)],
                     ['Fallschaden', zahlOderStrich(offen.fallDamage, 0, sprache)],

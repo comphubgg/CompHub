@@ -6828,5 +6828,27 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-309",
+    "datum": "2026-11-02T01:53:17Z",
+    "titel": "Profil-Werte: Schaden, Treffer, Material ohne Quelle als Strich statt 0",
+    "kurz": "Profil → Werte: Schaden/Treffer/Material ohne Daten zeigen „—“ statt 0.",
+    "markieren": [
+      "text:Damage taken",
+      "text:Headshots",
+      "text:Materials"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte kein Spieltag eines Spielers Schaden- oder Schussdaten, stand im Profil „0“ – die Spielerliste zeigt dort seit chef-301 schon einen Strich.",
+    "was": "Das Profil nutzt dieselbe Regel: ohne Daten ein Strich, eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/statistics?bereich=spieler&spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
