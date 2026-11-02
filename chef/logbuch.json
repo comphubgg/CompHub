@@ -8010,5 +8010,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-362",
+    "datum": "2026-11-02T02:56:05Z",
+    "titel": "Tierlist: ungenutzte Meldungen aufgeräumt",
+    "kurz": "Unsichtbar: drei nie angezeigte Meldungs-Zustände aus der Tierlist entfernt.",
+    "markieren": [],
+    "bereich": "Technik",
+    "warum": "Die Tierlist setzte drei Meldungen, die nirgends erschienen – der zugehörige Import ist längst entfernt.",
+    "was": "Entfernt; die sichtbaren Speichern-Hinweise bleiben unverändert.",
+    "ansehen": [
+      "/tierlist"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

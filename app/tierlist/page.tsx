@@ -67,7 +67,6 @@ export default function TierListPage() {
   // Tier list state (stabiler Hook-Aufruf)
   const tierListState = useTierList(listId, mode);
 
-  const [clipboardMessage, setClipboardMessage] = useState<string | null>(null);
 
   /**
    * Die gepflegten Spielerprofile - Herkunft an einer einzigen Stelle.
@@ -358,7 +357,6 @@ export default function TierListPage() {
     if (ausQuelle) return ausQuelle.toLowerCase();
     return undefined;
   }, [spielerProfile, laenderNachName]);
-  const [cloudSaveMessage, setCloudSaveMessage] = useState<string | null>(null);
   /*
    * Eine Liste unter einem Titel ablegen.
    *
@@ -370,13 +368,11 @@ export default function TierListPage() {
   const [ablegenOffen, setAblegenOffen] = useState(false);
   const [ablegenTitel, setAblegenTitel] = useState('');
   const [ablegenStand, setAblegenStand] = useState<'ok' | 'fehler' | 'anmelden' | null>(null);
-  const [uploadStatusMessage, setUploadStatusMessage] = useState<string | null>(null);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showImportTextArea, setShowImportTextArea] = useState(false);
   const [importText, setImportText] = useState('');
   const isInitialCloudSave = useRef(true);
-  const uploadStatusTimer = useRef<number | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = user?.name?.trim().toLowerCase() || '';
@@ -640,11 +636,9 @@ export default function TierListPage() {
 
   const saveTierlistsToCloud = async (): Promise<boolean> => {
     if (!darfSpeichern) {
-      setCloudSaveMessage('Sign in to save your tierlist');
       return false;
     }
 
-    setCloudSaveMessage(null);
     setIsCloudSaving(true);
 
     try {
@@ -666,19 +660,14 @@ export default function TierListPage() {
       const result = await response.json();
 
       if (!response.ok || !result?.success) {
-        const error = result?.error || 'Cloud save failed';
-        setCloudSaveMessage(`Cloud save failed: ${error}`);
         return false;
       }
 
-      setCloudSaveMessage('Global tierlist saved successfully');
       return true;
-    } catch (error: any) {
-      setCloudSaveMessage(`Cloud save failed: ${error?.message || 'unknown error'}`);
+    } catch {
       return false;
     } finally {
       setIsCloudSaving(false);
-      window.setTimeout(() => setCloudSaveMessage(null), 4000);
     }
   };
 
@@ -779,22 +768,18 @@ export default function TierListPage() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setClipboardMessage(`Tierlist saved as ${fileName}`);
   };
 
   const importTierData = async (jsonText: string): Promise<boolean> => {
     if (previewMode || isGuest) {
-      setClipboardMessage('Please log in as VIP to import tier data');
       return false;
     }
 
     if (!isAdmin) {
-      setClipboardMessage('Only admin can import tier data');
       return false;
     }
 
     if (!jsonText) {
-      setClipboardMessage('Import cancelled');
       return false;
     }
 
@@ -872,20 +857,12 @@ export default function TierListPage() {
       tierListState.addEntries(importEntities, { localOnly: !isAdmin });
 
       if (isAdmin) {
-        const saved = await saveTierlistsToCloud();
-        if (saved) {
-          setUploadStatusMessage(`Imported ${importEntities.length} entries and saved online`);
-        } else {
-          setClipboardMessage(`Imported ${importEntities.length} entries locally but failed to save online`);
-        }
-      } else {
-        setUploadStatusMessage(`Imported ${importEntities.length} entries locally`);
+        await saveTierlistsToCloud();
       }
 
       return true;
     } catch (error: any) {
       console.error('Failed to import tierlist data', error);
-      setClipboardMessage(`Import failed: ${error?.message || 'invalid data'}`);
       return false;
     }
   };
@@ -897,26 +874,8 @@ export default function TierListPage() {
     }
   };
 
-  useEffect(() => {
-    if (!uploadStatusMessage) return;
-    if (uploadStatusTimer.current) {
-      window.clearTimeout(uploadStatusTimer.current);
-    }
-    uploadStatusTimer.current = window.setTimeout(() => {
-      setUploadStatusMessage(null);
-      uploadStatusTimer.current = null;
-    }, 5000);
-    return () => {
-      if (uploadStatusTimer.current) {
-        window.clearTimeout(uploadStatusTimer.current);
-        uploadStatusTimer.current = null;
-      }
-    };
-  }, [uploadStatusMessage]);
-
   const handleImportText = async () => {
     if (!importText.trim()) {
-      setClipboardMessage('Import cancelled');
       return;
     }
     await importTierData(importText);
@@ -928,7 +887,6 @@ export default function TierListPage() {
       await importTierData(text);
     } catch (error: any) {
       console.error('Failed to read import file', error);
-      setClipboardMessage(`Import failed: ${error?.message || 'could not read file'}`);
     }
   };
 
