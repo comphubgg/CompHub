@@ -8344,5 +8344,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-377",
+    "datum": "2026-11-02T03:21:01Z",
+    "titel": "Cup-Spielerfenster: Schrift mindestens 11 Pixel",
+    "kurz": "Cup → Spieler anklicken: Kurvenbeschriftungen und Spielnummern größer.",
+    "markieren": [
+      "text:Match number",
+      "text:Placement",
+      "text:Elimination"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beschriftungen an den Kurven standen mit 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

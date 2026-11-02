@@ -149,8 +149,8 @@ function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
         <path d={linie(elim)} fill="none" stroke="#38bdf8" strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
         <line x1="0" x2="300" y1="70" y2="70" stroke="#52525b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
-      <span className="absolute right-1 text-[10px] font-semibold text-slate-300" style={{ top: oben(platz) }}>{t('Placement')}</span>
-      <span className="absolute right-1 text-[10px] font-semibold text-sky-300" style={{ top: oben(elim) }}>{t('Elimination')}</span>
+      <span className="absolute right-1 text-[11px] font-semibold text-slate-300" style={{ top: oben(platz) }}>{t('Placement')}</span>
+      <span className="absolute right-1 text-[11px] font-semibold text-sky-300" style={{ top: oben(elim) }}>{t('Elimination')}</span>
     </div>
   );
 }
@@ -341,7 +341,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     const vorn = z.weniger ? v === tief : v === hoch;
     const hinten = z.weniger ? v === hoch : v === tief;
     if (!vorn && !hinten) return null;
-    return <span className={`ml-1.5 text-[10px] ${vorn ? 'text-emerald-400' : 'text-rose-400'}`}>{v === hoch ? '▲' : '▼'}</span>;
+    return <span className={`ml-1.5 text-[11px] ${vorn ? 'text-emerald-400' : 'text-rose-400'}`}>{v === hoch ? '▲' : '▼'}</span>;
   };
 
   const kasten = 'rounded-xl border bg-zinc-950/40';
@@ -457,8 +457,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
             {spiele.length > 1 && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
               <div className="flex flex-col justify-end">
                 <PunkteKurve platz={kumPlatz} elim={kumElim} />
-                <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
-                <p className="text-center text-[10px] text-slate-500">{t('Match number')}</p>
+                <p className="flex justify-between text-[11px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
+                <p className="text-center text-[11px] text-slate-500">{t('Match number')}</p>
               </div>
             )}
           </div>
@@ -533,7 +533,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                       <Welle werte={z.je ? spiele.map((m) => z.je?.(m) ?? 0) : []} rot={z.rot} kumuliert={kumuliert} />
                     </div>
                   ))}
-                  <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
+                  <p className="flex justify-between text-[11px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
                 </>
               )}
               {team && (
@@ -553,7 +553,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                       </div>
                     );
                   })}
-                  {spiele.length > 1 && <p className="flex justify-between px-3 pb-1 pl-[218px] text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>}
+                  {spiele.length > 1 && <p className="flex justify-between px-3 pb-1 pl-[218px] text-[11px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>}
                 </div>
               )}
             </div>
