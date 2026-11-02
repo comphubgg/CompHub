@@ -7253,5 +7253,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-328",
+    "datum": "2026-11-02T02:31:02Z",
+    "titel": "Cup-Kacheln: feste Reihenfolge bei gleichem Wert",
+    "kurz": "Cup-Seite → Kacheln: gleicher Wert – mehr Schaden steht jetzt vorn, immer gleich.",
+    "markieren": [
+      "text:Most Eliminations",
+      "text:Most Damage Dealt"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Wert hing die Reihenfolge in den Kacheln von der Quelle ab und konnte springen.",
+    "was": "Bei Gleichstand entscheidet der Schaden, dann eine feste Kennung (nie der Name). Geteilte Plätze (1, 2, 2, 4) bleiben wie angenommen.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und angepasst)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

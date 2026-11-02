@@ -131,8 +131,17 @@ async function holeRoh(request: Request) {
       // Liefert das Turnier diese Kennzahl nicht, entfaellt die Kategorie.
       if (!mitWert.length) return null;
 
+      /*
+       * Feste Folge bei Gleichstand (sonst entscheidet die Reihenfolge der Quelle): erst der Kennwert, dann Schaden (absteigend),
+       * zuletzt die Konto-Ids als stabile Stufe - bewusst nicht der Name. Bei den Punkten gilt davor Epics Gesamtplatz (Tiebreaker).
+       * Die geteilten Plaetze (1, 2, 2, 4) bleiben, wie mit chef-57 angenommen - nur die Folge innerhalb eines Gleichstands ist jetzt fest.
+       */
+      const kontoFolge = (e: CupEintrag) => e.players.map((p) => p.id).join(',');
       const sortiert = [...mitWert].sort((a, b) =>
-        k.kleinBesser ? k.wert(a) - k.wert(b) : k.wert(b) - k.wert(a));
+        (k.kleinBesser ? k.wert(a) - k.wert(b) : k.wert(b) - k.wert(a))
+        || (k.schluessel === 'points' ? a.rank - b.rank : 0)
+        || (b.damage || 0) - (a.damage || 0)
+        || (kontoFolge(a) < kontoFolge(b) ? -1 : kontoFolge(a) > kontoFolge(b) ? 1 : 0));
 
       /*
        * Platz in dieser Kennzahl: gleicher angezeigter Wert, gleicher Platz (1, 2, 2, 4). Vorher zaehlte die Kachel nur die Zeilen durch -
