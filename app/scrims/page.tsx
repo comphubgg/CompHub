@@ -1321,7 +1321,7 @@ export default function ScrimsSeite() {
     if (serie.quelle === 'noble') {
       try {
         const d = await fetch(`/api/scrims?quelle=noble&turnier=${encodeURIComponent(sitzung.id)}`)
-          .then((r) => r.json());
+          .then((r) => { if (!r.ok) throw new Error('Noble'); return r.json(); });
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa);

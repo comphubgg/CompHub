@@ -9042,5 +9042,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-408",
+    "datum": "2026-11-02T03:34:53Z",
+    "titel": "Scrims: Noble-Turnier-Fehler gilt als Ausfall",
+    "kurz": "Unsichtbar: Scrims zeigen bei Noble-Fehlerantwort „nicht da“ statt leerem Turnier.",
+    "markieren": [],
+    "bereich": "Scrims",
+    "warum": "Eine Fehlerantwort beim Öffnen eines Noble-Turniers sah aus wie ein leeres Turnier.",
+    "was": "Sie zählt jetzt als Ausfall mit Hinweis.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
