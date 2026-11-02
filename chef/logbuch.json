@@ -10185,5 +10185,27 @@
     "ansehen": [
       "/events"
     ]
+  },
+  {
+    "id": "chef-459",
+    "datum": "2026-11-02T04:44:06Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Events-Seite: Marken und Filter in 11 Pixel",
+    "kurz": "Events → Kacheln und Filter: „Live“, „Region“, Regions-Etikett jetzt 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:Live",
+      "text:Region",
+      "text:Type"
+    ],
+    "warum": "Status-Marke, Regions-Etikett und Filterbeschriftung waren nur 9–10 Pixel groß.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/events"
+    ]
   }
 ]

@@ -331,7 +331,7 @@ function Marke({ lage, t }: { lage: Lage; t: (s: string) => string }) {
   // Dazu die Stufe, wo es eine gibt: "LIVE · HEAT 2", "IN 2 H · HEAT 1 · OCE".
   const text = [grund, lage.stufe, lage.wo].filter(Boolean).join(' · ');
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[9px]
+    <span className={`inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px]
                       font-bold uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${
       s === 'live' ? 'text-white' : s === 'kommt' ? 'text-sky-300' : 'text-slate-400'}`}>
       {s === 'live' && (
@@ -366,7 +366,7 @@ function Wahl<W extends string>({ titel, wert, setzen, optionen }: {
   const { t } = useSprache();
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+      <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
         <T>{titel}</T>
       </span>
       <select value={wert} onChange={(e) => setzen(e.target.value as W)}
@@ -657,7 +657,7 @@ export default function EventsPage() {
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <label className="block">
-                <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
                   <T>Region</T>
                 </span>
                 <select value={region} onChange={(e) => setRegion(e.target.value)}
@@ -868,7 +868,7 @@ function Abschnitt({ titel, cups, oeffnen, lageZu, mehr = 0, mehrZeigen }: {
                   <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
                   <div className="absolute left-2 top-2"><Marke lage={lageZu(c)} t={t} /></div>
-                  <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[9px]
+                  <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px]
                                    font-semibold uppercase tracking-wider text-slate-200 ring-1 ring-white/10">
                     {c.global ? t('global') : istMobile(c) ? t('Mobile')
                       : `${regionen.length} ${t(regionen.length === 1 ? 'Region' : 'Regionen')}`}
