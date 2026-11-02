@@ -9310,5 +9310,25 @@
       "/events"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:55:17Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-420",
+    "titel": "Spielerliste: „ab N Matches“ auch bei der Suche",
+    "kurz": "Spieler → nach Quote sortieren und suchen: über der Liste steht „ab N Matches“.",
+    "markieren": [
+      "text:Search a player"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Mindestzahl an Matches galt auch bei der Suche, stand aber nur über dem Treppchen.",
+    "was": "Ohne Treppchen steht dieselbe Zeile jetzt über der Liste.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=quote&region=EU"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

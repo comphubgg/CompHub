@@ -5796,6 +5796,14 @@ export default function StatistikSeite() {
                 </div>
               )}
 
+              {/* Ohne Treppchen (Suche oder weniger als drei) steht die Mindestzahl Matches ueber der Liste - dieselbe Huerde, die der Server auch bei der Suche anwendet. */}
+              {!!listenMindest && !spielerFehlt && !grundFehlt && !laedt && gezeigteSpieler.length > 0 && (suche || gezeigteSpieler.length < 3) && (
+                <p className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                  {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
+                  {' · '}{t('ab {n} Matches').replace('{n}', String(listenMindest))}
+                </p>
+              )}
+
               {/* Wechselt Sortierung, Region oder Suche, steht bis zur Antwort noch die alte Liste da - ohne Hinweis sähe sie wie die neue aus. */}
               {laedt && spieler.length > 0 && !spielerFehlt && (
                 <p className="mb-3 flex items-center gap-2 text-xs text-slate-500" role="status">
