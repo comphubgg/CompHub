@@ -27,6 +27,20 @@ import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 export const BLAU = '#0e47de';
 
+/**
+ * Eine Meldung des Servers in der gewaehlten Sprache. Die Antworten von
+ * /api/globals-solos, /api/solos-weg und /api/solos-preisgeld sind deutsch
+ * (mit der Ursache dahinter in Klammern oder nach dem Doppelpunkt) - die
+ * Ursache bleibt unuebersetzt, der feste Teil davor geht durch die Tabelle.
+ */
+export function serverMeldung(t: (s: string) => string, text: string): string {
+  const nachDoppelpunkt = text.match(/^(Noble nicht erreichbar): (.*)$/s);
+  if (nachDoppelpunkt) return `${t(nachDoppelpunkt[1])}: ${nachDoppelpunkt[2]}`;
+  const inKlammer = text.match(/^(Epic liefert gerade nichts) \((.*)\)\.$/s);
+  if (inKlammer) return `${t(inKlammer[1])} (${inKlammer[2]}).`;
+  return t(text);
+}
+
 /** Wo das Kartenbild herkommt: Bilder der Quelle ueber unseren Server, eigene direkt, sonst Epics aktuelle Karte. */
 export function kartenQuelle(bild?: string | null): string {
   if (!bild) return fortniteKarte(false);

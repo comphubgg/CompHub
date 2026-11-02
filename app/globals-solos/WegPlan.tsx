@@ -5,6 +5,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import { serverMeldung } from './Bausteine';
 import type { WegDaten, WegKante, WegKennung, WegKnoten, WegStand, WegZahl } from '@/lib/solosWeg';
 
 /*
@@ -208,7 +209,7 @@ function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; au
       <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400"><T>Du bist hier</T></span>
       {!epicId && <span className="text-slate-300"><T>Mit einem verknüpften Epic-Konto siehst du, wo du auf dem Weg stehst.</T> <Link href="/account" className="font-semibold text-sky-400 hover:underline"><T>Zum Konto</T> →</Link></span>}
       {epicId && laedt && <span className="text-slate-400"><T>Wird gesucht …</T></span>}
-      {epicId && !laedt && fehler && <span className="text-slate-400">{fehler}</span>}
+      {epicId && !laedt && fehler && <span className="text-slate-400">{serverMeldung(t, fehler)}</span>}
       {epicId && !laedt && !fehler && stand && stand.stand && (
         <span className="text-slate-200">
           <span className="font-bold text-sky-300">{knoten ? t(NAME[knoten.id]) : stand.stand.name}</span>
@@ -253,7 +254,7 @@ export default function WegPlan({ region }: { region: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [region]);
 
-  if (fehler && !plan) return <p className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-8 text-center text-sm text-slate-400">{fehler}</p>;
+  if (fehler && !plan) return <p className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-8 text-center text-sm text-slate-400">{serverMeldung(t, fehler)}</p>;
   if (!plan) return <p className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-10 text-center text-sm text-slate-500"><T>Der Plan wird geladen …</T></p>;
 
   const knoten = (id: WegKennung) => plan.knoten.find((k) => k.id === id);

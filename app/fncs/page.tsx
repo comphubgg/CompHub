@@ -409,7 +409,7 @@ export default function FncsSeite() {
               </div>
               {/* Die Region: nur, wo es Events gibt - dazu kommt der Knopf von selbst, sobald dort eines ist. */}
               {[...zahlRegion.keys()].length > 1 && (
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Region">
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('Region')}>
                   <button type="button" onClick={() => setRegion('')} className={chip(region === '')}><T>Alle Regionen</T></button>
                   {[...REGIONEN_REIHE, 'GLOBAL'].filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
                     const farbe = regionFarbe(r);

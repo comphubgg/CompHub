@@ -3843,6 +3843,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Name für die Anzeige — leer heißt: so, wie Epic ihn liefert': 'Display name — empty means: as Epic delivers it',
   'Leaderboard nicht ladbar': 'Leaderboard cannot be loaded',
   'Noble nicht erreichbar': 'Noble not reachable',
+  // ------------------------------------------------------------ Solos: Meldungen des Servers
+  'Noble führt FNCS Solos gerade nicht.': 'Noble is not running FNCS Solos right now.',
+  'Epic führt FNCS Solos in dieser Region gerade nicht.': 'Epic is not running FNCS Solos in this region right now.',
+  'FNCS Solos läuft in dieser Region gerade nicht.': 'FNCS Solos is not running in this region right now.',
+  'Das ist keine Epic-Konto-Id.': 'That is not an Epic account ID.',
+  'Epic liefert gerade nichts': 'Epic is not returning anything right now',
   'Ohne Konto-ID lässt sich der Name nicht dauerhaft merken': 'Without an account ID the name cannot be remembered permanently',
   'Diese Karte endgültig löschen?': 'Delete this map for good?',
   'Formen und Verteilung sind dann weg — das lässt sich nicht rückgängig machen.': 'Shapes and distribution are gone then — this cannot be undone.',

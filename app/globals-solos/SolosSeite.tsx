@@ -14,7 +14,7 @@ import { fokusVon } from '@/lib/fotoFokus';
 import { regionAnzeige } from '@/lib/regionFarbe';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } from '@/lib/globalsSolos';
-import { Karte } from './Bausteine';
+import { Karte, serverMeldung } from './Bausteine';
 import WegPlan from './WegPlan';
 import Preisgeld from './Preisgeld';
 
@@ -484,7 +484,7 @@ export default function SolosSeite() {
 
         {laedt && !daten && stufe !== 'preisgeld' && <LadeSchirm />}
         {fehler && !daten && !laedt && stufe !== 'preisgeld' && (
-          <p className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-8 text-center text-sm text-slate-400">{fehler}</p>
+          <p className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-8 text-center text-sm text-slate-400">{serverMeldung(t, fehler)}</p>
         )}
 
         {daten && stufe === 'weg' && <Weg daten={daten} auf={() => waehleStufe('qualifiziert')} />}

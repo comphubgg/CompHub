@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
-import { useSprache } from '@/app/components/SprachProvider';
+import { useT, useSprache } from '@/app/components/SprachProvider';
+import { serverMeldung } from './Bausteine';
 import LadeSchirm from '@/app/components/LadeSchirm';
 
 /*
@@ -23,6 +24,7 @@ const PODEST = [
 
 export default function Preisgeld({ region }: { region: string }) {
   const { sprache } = useSprache();
+  const t = useT();
   const [antwort, setAntwort] = useState<{ fuer: string; daten: Antwort } | null>(null);
   const [fehler, setFehler] = useState<{ fuer: string; text: string } | null>(null);
   const [wahl, setWahl] = useState('');
@@ -51,7 +53,7 @@ export default function Preisgeld({ region }: { region: string }) {
     return (
       <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3 text-sm text-sky-300">
         <T>Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.</T>
-        <span className="ml-2 text-sky-300/60">({fehlerText})</span>
+        <span className="ml-2 text-sky-300/60">({serverMeldung(t, fehlerText)})</span>
       </p>
     );
   }
