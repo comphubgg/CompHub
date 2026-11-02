@@ -259,9 +259,11 @@ export default function Organisationen({ aufSpieler }: {
   }
   if (!daten) return <LadeSchirm />;
   // Schon geladene Liste bleibt stehen; schlaegt der Neuversuch fehl, nur ein kleiner Hinweis darueber.
+  // Wurde gerade zwischen "Alle Jahre" und dem Jahr umgeschaltet, gehoert die stehende Liste noch zum anderen Zeitraum: Ladeschirm statt falscher Betraege.
+  const wechselt = !fehler && (zeitraum === 'alle') !== (daten.jahr === 'alle');
   const hinweis = fehler ? (
     <p role="status" className="text-xs text-amber-200/70"><T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T></p>
-  ) : null;
+  ) : wechselt ? <LadeSchirm /> : null;
 
   const org = offen ? daten.orgs.find((o) => o.id === offen) ?? null : null;
   const standText = daten.stand

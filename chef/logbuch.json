@@ -8114,5 +8114,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-367",
+    "datum": "2026-11-02T03:12:25Z",
+    "titel": "Organisationen: Ladeschirm beim Zeitraum-Wechsel",
+    "kurz": "Statistik → Orgs: „All years“/„2026“ umschalten zeigt Ladeschirm statt alter Beträge.",
+    "markieren": [
+      "text:All years",
+      "text:2026"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach dem Umschalten standen kurz noch die Beträge des anderen Zeitraums unter dem schon gewechselten Knopf.",
+    "was": "Bis die passende Liste da ist, erscheint der Ladeschirm.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
