@@ -4729,7 +4729,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {reiter === 'teams' && soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
             <SpielerStatsUebersicht
-              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
+              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? undefined }))}
               matches={spielerWerte.runden}
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
@@ -4751,7 +4751,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
             <SpielerStatsUebersicht
-              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
+              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? undefined }))}
               matches={spielerWerte.runden}
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
@@ -4935,7 +4935,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             </span>
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-100">
-                            {sp.spiele ? Math.round((sp.damage ?? 0) / sp.spiele).toLocaleString(ort) : '—'}
+                            {sp.spiele && typeof sp.damage === 'number' ? Math.round(sp.damage / sp.spiele).toLocaleString(ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
                             {sp.spiele ? dezText(sp.kills / sp.spiele, ort) : '—'}
@@ -4944,7 +4944,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             {typeof sp.damageRatio === 'number' ? dezText(sp.damageRatio, ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">
-                            {(sp.damage ?? 0).toLocaleString(ort)}
+                            {typeof sp.damage === 'number' ? sp.damage.toLocaleString(ort) : '—'}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{sp.kills}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{typeof sp.assists === 'number' ? sp.assists : '—'}</td>

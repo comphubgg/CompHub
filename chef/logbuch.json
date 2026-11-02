@@ -9409,5 +9409,26 @@
       "/statistics?bereich=spieler"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T03:59:49Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-425",
+    "titel": "Cup-Spielerwerte: fehlender Schaden als Strich statt 0",
+    "kurz": "Cup-Seite → Spieler: fehlender Schaden und Schadensquote zeigen „—“ statt 0.",
+    "markieren": [
+      "text:Damage",
+      "text:Damage Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Lieferte die Quelle für einen Spieler keinen Schaden, stand dort eine erfundene 0.",
+    "was": "Dann steht jetzt ein Strich; echte Nullen bleiben 0.",
+    "ansehen": [
+      "/events"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
