@@ -6626,5 +6626,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-300",
+    "datum": "2026-11-02T01:32:42Z",
+    "titel": "Startseite: Cup-Tabelle mit Tausenderpunkt",
+    "kurz": "Startseite → letzter Cup: Punkte, Siege, Elims wie überall mit Tausenderpunkt.",
+    "markieren": [
+      "css:table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die kleine Cup-Tabelle der Startseite schrieb Zahlen roh (z. B. „1204“), der Rest der Seite „1,204“.",
+    "was": "Gleiches Zahlenformat wie die übrige Startseite; sichtbar erst ab 1.000.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [
+      "71db1c8bdde278fc622ceb753154319535ddc840"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
