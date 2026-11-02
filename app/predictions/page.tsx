@@ -514,7 +514,7 @@ function BetreiberPrognose() {
                 )}
                 {gruppen.map(([titel, teams]) => (
                   <div key={titel} className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60">
-                    <p className="border-b border-zinc-800 px-4 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <p className="border-b border-zinc-800 px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                       {titel}
                     </p>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4">
@@ -539,7 +539,7 @@ function BetreiberPrognose() {
                               ))}
                             </span>
                             {region && (
-                              <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-slate-400">
+                              <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[11px] font-semibold tracking-wider text-slate-400">
                                 {region}
                               </span>
                             )}

@@ -9471,5 +9471,25 @@
       "/statistics"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:00:44Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-428",
+    "titel": "Prognosen: Schrift mindestens 11 Pixel",
+    "kurz": "Prognosen: Rang-, MVP- und #Nummer-Marken jetzt 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:MVP"
+    ],
+    "bereich": "Prognosen",
+    "warum": "Sechs Marken und Zeilen standen mit 9 bis 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

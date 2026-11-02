@@ -243,14 +243,14 @@ export default function Tippen() {
         <TeamFotos t={tm} px={36} />
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block truncate text-xs font-bold uppercase text-slate-100">{nameVon(tm)}</span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500"><Flaggen t={tm} />{tm.rang ? <span className="tabular-nums">#{tm.rang}</span> : null}</span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500"><Flaggen t={tm} />{tm.rang ? <span className="tabular-nums">#{tm.rang}</span> : null}</span>
         </span>
         {tm.spieler.map((s) => (
           <button key={s.id} type="button" onClick={(e) => { e.stopPropagation(); setzeMvp(s.id); }}
             title={tipp.mvp === s.id ? t('MVP entfernen') : `${t('Als MVP wählen')}: ${s.anzeige || s.name}`}
             className={`shrink-0 rounded-md p-1 text-sm leading-none transition ${tipp.mvp === s.id ? 'bg-amber-400 text-zinc-950' : 'text-slate-600 hover:bg-zinc-800 hover:text-amber-300'}`}>★</button>
         ))}
-        {nr ? <span className="shrink-0 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums text-sky-300">#{nr}</span> : null}
+        {nr ? <span className="shrink-0 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums text-sky-300">#{nr}</span> : null}
       </div>
     );
   };
@@ -271,11 +271,11 @@ export default function Tippen() {
             <TeamFotos t={tm} px={30} />
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-xs font-bold uppercase text-slate-100">{nameVon(tm)}</span>
-              <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500"><Flaggen t={tm} />
+              <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500"><Flaggen t={tm} />
                 {echt ? <span className={`tabular-nums font-semibold ${echt === i + 1 ? 'text-emerald-400' : Math.abs(echt - (i + 1)) <= 3 ? 'text-sky-300' : 'text-slate-400'}`}>{t('war')} #{echt}</span> : null}
               </span>
             </span>
-            {tm.spieler.some((s) => s.id === tipp.mvp) && <span title="MVP" className="rounded-md bg-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold text-zinc-950">MVP</span>}
+            {tm.spieler.some((s) => s.id === tipp.mvp) && <span title="MVP" className="rounded-md bg-amber-400 px-1.5 py-0.5 text-[11px] font-extrabold text-zinc-950">MVP</span>}
             <button type="button" onClick={() => nimmHeraus(i)} aria-label={t('Aus der Reihenfolge nehmen')} className="shrink-0 rounded-md px-1.5 text-slate-600 transition hover:bg-rose-950 hover:text-rose-300">×</button>
           </div>
         ) : <span className="flex-1 text-[11px] text-slate-600"><T>Spieler hierher ziehen oder anklicken</T></span>}
