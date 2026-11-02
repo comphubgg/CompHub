@@ -567,7 +567,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
             </div>
           )}
           <button type="button" onClick={zuruecksetzen}
-            className="rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300">Reset</button>
+            className="rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300"><T>Reset</T></button>
           <label className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3.5 py-1.5 text-xs font-bold">
             <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Saison</T></span>
             <select value={saison} onChange={(e) => { setSaison(e.target.value); setOhne(new Set()); }} className="cursor-pointer bg-transparent py-1 text-slate-100 outline-none">
