@@ -7744,5 +7744,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-350",
+    "datum": "2026-11-02T02:47:53Z",
+    "titel": "Tierlist: Hinweis beim Umbenennen übersetzt",
+    "kurz": "Tierlist → Maus über Stufen-Namen: „Double-click to rename“ statt deutschem Hinweis.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Oberfläche",
+    "warum": "Der Hinweis beim Stufen-Namen stand auch auf der englischen Seite deutsch da.",
+    "was": "Er läuft jetzt über die Übersetzung, die schon vorhanden war.",
+    "ansehen": [
+      "/tierlist"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

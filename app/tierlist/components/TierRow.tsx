@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { TierKey } from '../types';
 import { TIER_COLORS } from '../utils/constants';
+import { useT } from '@/app/components/SprachProvider';
 
 interface TierRowProps {
   tier: TierKey;
@@ -52,6 +53,7 @@ export const TierRow: React.FC<TierRowProps> = ({
   disableLabelEdit = false,
   disabled = false,
 }) => {
+  const t = useT();
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editValue, setEditValue] = useState(tierLabel);
 
@@ -97,7 +99,7 @@ export const TierRow: React.FC<TierRowProps> = ({
             onDoubleClick={() => {
               if (!disableLabelEdit) setIsEditingLabel(true);
             }}
-            title={disableLabelEdit ? undefined : 'Doppelklick zum Umbenennen'}
+            title={disableLabelEdit ? undefined : t('Doppelklick zum Umbenennen')}
             className={`transition ${disableLabelEdit ? 'cursor-default opacity-80' : 'cursor-text hover:opacity-80'}`}
           >
             {tierLabel}
