@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-02T02:08:02Z",
-  "macheGerade": "Runde 16 fertig: 20 Verbesserungen (chef-306 bis chef-325), u. a. Profil-Summenzeile unter den richtigen Spalten, Profil-Werte ohne Daten als Strich, Titel-Pokale passend zur Kennzahl, Replay-Damage überall gleich, „3m 60s“ behoben, Ladeschirm beim Saisonwechsel, Ausfälle (Archiv, FNCS-Rekorde, Speicher) sichtbar gemeldet.",
+  "letzteRunde": "2026-11-02T02:56:05Z",
+  "macheGerade": "Runde 17 fertig: 37 Verbesserungen (chef-326 bis chef-362), u. a. Strich statt 0 in Spielerliste und Cup-Spielerwerten, keine halben Summen über mehrere Finaltage (Clutch, Assists, Spiele-Kachel), Profil-Rang wie Bestenliste, viele Gleichstände ohne Alphabet (FNCS, Globals, Cup-Kacheln, Elims-Liste, Turnier-Kacheln), Duell-Strich ohne Sieger, FNCS-Seite und Tierlist übersetzt, Streamer-Liste bei Ausfall geschützt.",
   "naechstes": [
-    "WICHTIG weiterhin: chef-106 freigeben – die Statistik-Startantwort ist live immer noch vom 10.10. (peterbot 57 Matches, Elims-Liste Schaden 0).",
-    "Fragen an dich: FNCS-Elims-Farben nur aus den 80 Besten? Events-Kalender in Browser-Zeit oder Brüssel? Tierlist-Pool ohne Ranking-Platz – wonach ordnen?",
-    "Offene Fragen weiter: FNCS-Rekorde nur Europa? Vergleich-Sieger ohne Gegner, Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter.",
-    "Nächste Runde: Quoten-Hürden gemeinsam umstellen, Radar „HITS“-Nenner, toten Code aufräumen, Spielerliste mit Sortierung prüfen."
+    "WICHTIG weiterhin: chef-106 freigeben – die Statistik-Startantwort ist live immer noch vom 10.10.; viele Statistik-Korrekturen wirken erst nach der Neuberechnung.",
+    "Fragen an dich: Schnittstellen /api/br-statistik und /api/eigene-werte werden nirgends benutzt – löschen? FNCS-Elims-Farben nur aus den 80 Besten? Events-Kalender in Browser-Zeit oder Brüssel? Tierlist-Pool ohne Ranking-Platz – wonach ordnen?",
+    "Offene Fragen weiter: Vergleich-Sieger ohne Gegner, Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter, Verdienst genau 0 auf Globals-Teams.",
+    "Nächste Runde: Quoten-Hürden gemeinsam umstellen, tote Import-Funktionen der Tierlist entfernen, weitere Bereiche (Karten, Scrims, Predictions-Anzeige) prüfen."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung) + Sonnet (Prüfer in 4 Wellen, jedes Ergebnis von Opus nachgeprüft; 5 Entwürfe verworfen)",
-  "laeuftSeit": "2026-11-02T02:27:00Z"
+  "modell": "Opus (Planung, Prüfung, 9 eigene Verbesserungen) + Sonnet (24 Prüfer in 6 Wellen, jedes Ergebnis von Opus nachgeprüft; 2 Entwürfe angepasst, 1 Rang-Änderung verworfen)"
 }
