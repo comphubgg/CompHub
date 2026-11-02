@@ -110,6 +110,8 @@ export interface SolosDaten {
   fenster: SolosFenster[];
   /** Die Finalisten, nach Herkunft gruppiert. */
   qualifiziert: SolosGruppe[];
+  /** Vor dem ersten Spieltag: die leere Karte der Insel der Reihe (aus der Playlist der ersten Stufe) - app/api/globals-solos. */
+  leereKarte?: { url: string; titel: string } | null;
 }
 
 interface Profil { anzeige?: string; name?: string; land?: string }

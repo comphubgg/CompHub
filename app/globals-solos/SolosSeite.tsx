@@ -31,10 +31,10 @@ import Preisgeld from './Preisgeld';
  * Zwei Zeilen wie bei eucompetitive.com/grands (Betreiber, 26.10.2026: "pass die Solo-FNCS an wie dort"): oben die Stufen - Fast Tracks, Heat 1, Heat 2, Last Chance, Finals -,
  * darunter, rechts, die Ansicht dieser Stufe: Karte, Bestenliste, Spieler, Laender. Vor den Spieltagen stehen "Der Weg" und "Qualifiziert", am Ende das Preisgeld.
  */
-type Fest = 'weg' | 'qualifiziert' | 'preisgeld';
+type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte';
 type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender';
 const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder']];
-const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld';
+const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld' || x === 'karte';
 
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
 
@@ -472,6 +472,8 @@ export default function SolosSeite() {
         <nav className="flex flex-wrap items-center gap-1 self-start rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm" aria-label={t('Stufe')}>
           <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}><T>Der Weg</T></button>
           <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}><T>Qualifiziert</T></button>
+          {/* Vor dem ersten Spieltag: die leere Karte der Insel, auf der gespielt wird (Betreiber, 2.11.2026: "einfach mal eine leere Map da haben"). */}
+          {!spieltage.length && daten?.leereKarte && <button type="button" onClick={() => waehleStufe('karte')} className={knopf(stufe === 'karte')}><T>Karte</T></button>}
           {spieltage.length > 0 && <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />}
           {spieltage.map((x) => (
             <button key={x.windowId} type="button" onClick={() => waehleStufe(x.name, ansicht)} className={knopf(stufe === x.name)}>
@@ -500,6 +502,16 @@ export default function SolosSeite() {
         )}
 
         {daten && stufe === 'weg' && <Weg daten={daten} auf={() => waehleStufe('qualifiziert')} />}
+        {daten && stufe === 'karte' && daten.leereKarte && (
+          <section className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-5 py-3">
+              <p className="text-sm font-bold uppercase tracking-wider text-slate-200">{daten.leereKarte.titel}</p>
+              <p className="text-xs text-slate-500"><T>Landepunkte erscheinen, sobald die erste Runde gespielt ist.</T></p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={daten.leereKarte.url} alt={daten.leereKarte.titel} className="mx-auto block w-full max-w-4xl" />
+          </section>
+        )}
         {daten && stufe === 'qualifiziert' && (
           <Qualifiziert daten={daten} oeffne={(s, w) => { const ziel2 = daten.fenster.find((x) => x.windowId === w) ?? daten.fenster.find((x) => x.art === 'finale'); if (ziel2 && eventVon(ziel2.windowId)) setPanel({ id: s.id, name: s.anzeige, windowId: ziel2.windowId }); }} />
         )}

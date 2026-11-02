@@ -5,6 +5,8 @@ import { leereNoble } from '@/lib/nobleKarte';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { ueberdauernd } from '@/lib/ueberdauernd';
 import { liesJson, schreibJson } from '@/lib/ablage';
+import { inselAusPlaylist, brBildFuer } from '@/lib/inseln';
+import { eigeneKarte } from '@/lib/bildAdressen';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -17,6 +19,20 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+async function leereKarteFuer(windowId: string): Promise<{ url: string; titel: string } | null> {
+  const basis = `http://127.0.0.1:${process.env.PORT || 3100}`;
+  const katalog = await (await fetch(`${basis}/api/cup-catalog?modus=standard`, { signal: AbortSignal.timeout(30_000) })).json() as { cups?: Array<{ regionen?: Record<string, Array<{ windowId: string; playlist?: string }>> }> };
+  let playlist: string | undefined;
+  for (const c of katalog.cups ?? []) for (const f of Object.values(c.regionen ?? {}).flat()) if (f.windowId === windowId) playlist = f.playlist;
+  const insel = inselAusPlaylist(playlist);
+  if (!insel.schluessel) return null;
+  const inseln = await liesJson<Record<string, string>>('insel-bilder.json', {});
+  const id = insel.art === 'br' ? brBildFuer(inseln, windowId) : inseln[insel.schluessel];
+  if (!id) return null;
+  const karten = await liesJson<Array<{ id: string; titel: string }>>('kartenbilder/karten.json', []).catch(() => []);
+  return { url: eigeneKarte(id), titel: karten.find((k) => k.id === id)?.titel ?? id };
+}
 
 export async function GET(request: Request) {
   const suche = new URL(request.url).searchParams;
@@ -58,7 +74,9 @@ export async function GET(request: Request) {
      */
     const reloadStufen = !!roh?.stufen.some((x) => /reload/i.test(x.windowId));
     const reloadFenster = !!roh?.fenster.some((x) => /reload/i.test(x.windowId));
-    const daten = roh && roh.fenster.length && reloadStufen !== reloadFenster ? { ...roh, fenster: [], qualifiziert: [] } : roh;
+    const gefiltert = roh && roh.fenster.length && reloadStufen !== reloadFenster ? { ...roh, fenster: [], qualifiziert: [] } : roh;
+    // Noch kein Spieltag: die leere Karte der Insel, auf der gespielt wird - aus der Playlist der ersten Stufe (Katalog) und der Zuordnung insel-bilder.json.
+    const daten = gefiltert && !gefiltert.fenster.length && gefiltert.stufen.length ? { ...gefiltert, leereKarte: await leereKarteFuer(gefiltert.stufen[0].windowId).catch(() => null) } : gefiltert;
     if (!daten) {
       return NextResponse.json({ ok: false, error: region === 'EU' ? 'Noble führt FNCS Solos gerade nicht.' : 'Epic führt FNCS Solos in dieser Region gerade nicht.' },
         { status: 404, headers: { 'Cache-Control': 'no-store' } });
