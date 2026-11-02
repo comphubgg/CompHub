@@ -5171,13 +5171,13 @@ export default function StatistikSeite() {
                             </td>
                             <td className="px-3 py-2.5"><RegionMarke region={t.region} /></td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
-                              {zahl(t.spieler, 0, sprache)}
+                              {zahlOderStrich(t.spieler, 0, sprache)}
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
-                              {zahl(t.matches, 0, sprache)}
+                              {zahlOderStrich(t.matches, 0, sprache)}
                             </td>
                             <td className="px-4 py-2.5 text-right text-xs text-slate-500">
-                              {datumText(t.datum, sprache)}
+                              {datumText(t.datum, sprache) || '—'}
                             </td>
                           </tr>
                           );

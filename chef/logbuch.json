@@ -8871,5 +8871,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-400",
+    "datum": "2026-11-02T03:33:00Z",
+    "titel": "Turnierverzeichnis-Liste: Strich statt 0",
+    "kurz": "Statistik → Turniere, Listenansicht: fehlende Spieler/Matches/Datum als Strich wie in Kacheln.",
+    "markieren": [
+      "text:Players",
+      "text:Matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Liste zeigte bei fehlenden Werten 0 oder nichts, die Kacheln einen Strich.",
+    "was": "Beide zeigen jetzt einheitlich einen Strich; eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
