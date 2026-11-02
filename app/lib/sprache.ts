@@ -4998,6 +4998,8 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Placement': 'Platzierung', 'Elimination': 'Eliminierung', 'Match number': 'Spielnummer', 'Cumulative': 'Aufsummiert',
   'Rank': 'Platz', 'Last update': 'Zuletzt aktualisiert', 'Next update': 'Nächste Aktualisierung', 'minute': 'Minute', 'minutes': 'Minuten',
   'Close': 'Schließen',
+  // Cup-Seite: Beschriftungen mit Einzahl/Mehrzahl und Spielnummer (app/events/[id]/page.tsx).
+  'Spieler (Einzahl)': 'Spieler', 'Game': 'Spiel',
   'Generate map': 'Karte erzeugen',
   ['Guest mode active: editing is disabled. Log in to manage your own folders.']:
     'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu '

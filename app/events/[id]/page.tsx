@@ -3866,7 +3866,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               {m.placement ? platzText(m.placement) : '–'}
                             </div>
                             <div className="text-[11px] text-slate-500">
-                              <span className="text-slate-600">{sprache === 'en' ? 'Game' : 'Spiel'} {nr}</span>
+                              <span className="text-slate-600">{t('Game')} {nr}</span>
                               {m.endTime && Number.isFinite(Date.parse(m.endTime)) && (
                                 <> · {new Date(m.endTime).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
                               )}

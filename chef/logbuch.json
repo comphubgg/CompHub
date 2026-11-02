@@ -8922,5 +8922,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-402",
+    "datum": "2026-11-02T03:33:47Z",
+    "titel": "Cup-Seite: „Spieler (Einzahl)“ und „Game“ übersetzt",
+    "kurz": "Cup-Seite auf Deutsch: kein „Spieler (Einzahl)“ mehr, Spielverlauf zeigt „Spiel 1“.",
+    "markieren": [
+      "text:Game 1"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Im deutschen Modus stand „Werte je Spieler (Einzahl)“ – ein Übersetzungsrest.",
+    "was": "Die fehlenden deutschen Einträge sind ergänzt.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
