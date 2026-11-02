@@ -10357,5 +10357,25 @@
     "ansehen": [
       "/match-finder"
     ]
+  },
+  {
+    "id": "chef-467",
+    "datum": "2026-11-02T04:51:11Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Twitch-Statistik: Raids ohne gezählte Streams als Strich",
+    "kurz": "Twitch-Statistik → Zeitraum nur aus dem Archiv: Kachel „Raids“ zeigt Strich statt 0.",
+    "markieren": [
+      "text:Raids"
+    ],
+    "warum": "Raids zählt nur CompHub selbst; für reine Archiv-Zeiträume stand eine erfundene 0, die Tabelle zeigte dort schon Striche.",
+    "was": "Die Kachel zeigt dann einen Strich, eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/twitch-statistik"
+    ]
   }
 ]

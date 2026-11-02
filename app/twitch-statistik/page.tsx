@@ -225,7 +225,7 @@ export default function TwitchStatistik() {
                   <Kachel titel={t('Neue Follower')} wert={w.neueFollower === null ? '—' : `${w.neueFollower >= 0 ? '+' : ''}${w.neueFollower.toLocaleString(ortJetzt())}`} />
                   <Kachel titel={t('Chatter')} wert={zahl(w.chatter)} unter={w.chatterMax !== null ? `${t('max.')} ${zahl(w.chatterMax)} ${t('je Stream')}` : undefined} />
                   <Kachel titel={t('Nachrichten')} wert={zahl(w.nachrichten)} />
-                  <Kachel titel={t('Raids')} wert={zahl(w.raids)} unter={w.raids ? `${zahl(w.raidZuschauer)} ${t('Zuschauer')}` : undefined} />
+                  <Kachel titel={t('Raids')} wert={w.nurArchiv || !w.streams ? '—' : zahl(w.raids)} unter={w.raids ? `${zahl(w.raidZuschauer)} ${t('Zuschauer')}` : undefined} />
                   <Kachel titel={t('Streams')} wert={zahl(w.streams)} unter={`${w.stunden.toLocaleString(ortJetzt())} h`} />
                 </div>
               </>
