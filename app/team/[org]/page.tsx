@@ -124,9 +124,9 @@ export default function TeamSeite() {
                       {p.country && <TeamFlagge laender={[p.country]} groesse={20} />}<span className="truncate">{p.name}</span>
                     </p>
                     <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Verdienst</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{geld(p.earnings)}</dd></div>
-                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Matches</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{zahl(p.matches)}</dd></div>
-                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">PR</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{p.powerRank ? `#${zahl(p.powerRank)}` : '—'}</dd></div>
+                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Verdienst</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{geld(p.earnings)}</dd></div>
+                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Matches</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{zahl(p.matches)}</dd></div>
+                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">PR</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{p.powerRank ? `#${zahl(p.powerRank)}` : '—'}</dd></div>
                     </dl>
                   </>
                 );
@@ -162,7 +162,7 @@ export default function TeamSeite() {
                     ['Verdienst', geld(offen.earnings)], ['Power Ranking', offen.powerRank ? `#${zahl(offen.powerRank)}` : '—'], ['PR-Punkte', zahl(offen.powerPoints)],
                     ['Matches', zahl(offen.matches)], ['Elims je Match', zahl(offen.elimsPerMatch, 2)], ['Schaden je Match', zahl(offen.damagePerMatch)],
                   ] as Array<[string, string]>).map(([k, v]) => (
-                    <div key={k} className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{k}</T></dt><dd className="text-base font-bold tabular-nums text-slate-100">{v}</dd></div>
+                    <div key={k} className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>{k}</T></dt><dd className="text-base font-bold tabular-nums text-slate-100">{v}</dd></div>
                   ))}
                 </dl>
                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Letzte Ergebnisse</T></p>

@@ -10229,5 +10229,27 @@
     "ansehen": [
       "/statistics?bereich=turniere"
     ]
+  },
+  {
+    "id": "chef-461",
+    "datum": "2026-11-02T04:46:35Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Teamseite und Org-POV: Schrift mindestens 11 Pixel",
+    "kurz": "Teamseite → Spielerkarten/-fenster und Org-POV „Live“: Beschriftungen jetzt 11 statt 10 Pixel.",
+    "markieren": [
+      "text:Earnings",
+      "text:Matches",
+      "text:PR"
+    ],
+    "warum": "Kachel-Beschriftungen und Live/Offline-Marken waren nur 10 Pixel groß.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/team/clue-esports"
+    ]
   }
 ]

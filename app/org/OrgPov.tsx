@@ -90,8 +90,8 @@ export default function OrgPov({ orgParam, farbe }: { orgParam: string; farbe: s
                   <p className="truncate text-[11px] text-slate-500">{k.konto}</p>
                 </div>
                 {k.live
-                  ? <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /><T>Live</T> · {k.zuschauer}</span>
-                  : <span className="rounded-full border border-zinc-700 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500"><T>Offline</T></span>}
+                  ? <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /><T>Live</T> · {k.zuschauer}</span>
+                  : <span className="rounded-full border border-zinc-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-500"><T>Offline</T></span>}
               </div>
 
               <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400"><T>Qualität</T></p>
