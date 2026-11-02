@@ -1327,7 +1327,7 @@ export default function ScrimsSeite() {
         setNichtDa(!!d.nichtDa);
         // Die Teamgroesse und die Regeln kennt erst das Leaderboard selbst.
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier } });
-      } catch { /* dann bleibt es leer */ }
+      } catch { setNichtDa(true); }
       finally { setLaedtCup(false); }
       return;
     }
@@ -1336,7 +1336,7 @@ export default function ScrimsSeite() {
         + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => r.json());
       setTeams(d.teams ?? []);
       setRunden(d.runden ?? []);
-    } catch { /* dann bleibt es leer, der Hinweis steht unten */ }
+    } catch { setNichtDa(true); }
     finally { setLaedtCup(false); }
   }, []);
 

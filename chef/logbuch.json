@@ -8451,5 +8451,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-382",
+    "datum": "2026-11-02T03:21:54Z",
+    "titel": "Scrims: Ausfall beim Öffnen einer Session",
+    "kurz": "Scrims → Session öffnen: bei Ausfall Hinweis statt „gespielt wurde offenbar nicht“.",
+    "markieren": [
+      "text:The source is not providing this leaderboard right now"
+    ],
+    "bereich": "Scrims",
+    "warum": "Ein Netzfehler sah aus wie eine Session ohne Einträge.",
+    "was": "Bei Ausfall erscheint der vorhandene Hinweis „Quelle gibt das Leaderboard gerade nicht heraus“.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
