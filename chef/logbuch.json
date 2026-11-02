@@ -8691,5 +8691,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-392",
+    "datum": "2026-11-02T03:27:35Z",
+    "titel": "Turnierverzeichnis: keine Cups der alten Saison nach Wechsel",
+    "kurz": "Statistik → Turniere, Saison wechseln: keine Cups der alten Saison mehr in der Liste.",
+    "markieren": [
+      "text:The archive is not reachable right now."
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach dem Saisonwechsel standen bis zur Antwort Cups der alten Saison da; eine späte Antwort konnte die neue Liste überschreiben, ein Ausfall zeigte „Nichts gefunden“.",
+    "was": "Es erscheinen nur Cups der gewählten Saison, späte Antworten werden verworfen, bei Ausfall steht „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

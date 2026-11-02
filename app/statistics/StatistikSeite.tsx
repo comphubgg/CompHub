@@ -3272,11 +3272,14 @@ export default function StatistikSeite() {
     if (bereich !== 'turniere' || !saison) return;
     /* Direkt das Verzeichnis holen. Vorher lief erst die ganze Grundliste (die die Seite schon beim Aufschlagen hat) und erst
        danach das Verzeichnis - der Reiter wartete auf zwei Antworten hintereinander, und fiel die erste aus, kam gar keine Liste. */
+    /* Wechselt die Saison, bevor die Antwort da ist, darf die späte Antwort der alten Saison die neue nicht überschreiben. */
+    let weg = false;
     fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
-      .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); setTurniereStand(saison); })
-      .catch(() => { setTurniere([]); setTurniereFehlt(true); });
+      .then((j) => { if (weg) return; if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); setTurniereStand(saison); })
+      .catch(() => { if (weg) return; setTurniere([]); setTurniereStand(''); setTurniereFehlt(true); });
+    return () => { weg = true; };
   }, [bereich, saison, nurGrosse]);
 
   /* ------------------------------------------------------------ Regionen */
@@ -5012,7 +5015,8 @@ export default function StatistikSeite() {
           )}
 
           {bereich === 'turniere' && !cup && (() => {
-            const gefiltert = turniere.filter((t) =>
+            /* Nach einem Saisonwechsel stehen bis zur Antwort noch die Cups der alten Saison in der Liste - die gehören nicht unter die neue. */
+            const gefiltert = (turniereStand === saison ? turniere : []).filter((t) =>
               (!region || t.region === region)
               && (!turnierSuche.trim()
                   || t.name.toLowerCase().includes(turnierSuche.trim().toLowerCase())));
@@ -5055,7 +5059,7 @@ export default function StatistikSeite() {
                 {!gefiltert.length ? (
                   <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                                 text-center text-sm text-slate-500">
-                    {turniere.length || turniereStand === saison ? t('Nichts gefunden.') : turniereFehlt ? t('Das Archiv ist gerade nicht erreichbar.') : t('Wird geladen …')}
+                    {turniereStand === saison ? t('Nichts gefunden.') : turniereFehlt ? t('Das Archiv ist gerade nicht erreichbar.') : t('Wird geladen …')}
                   </p>
                 ) : tafel ? (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
