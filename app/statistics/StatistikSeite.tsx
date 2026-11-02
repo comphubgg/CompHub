@@ -2517,6 +2517,8 @@ export default function StatistikSeite() {
   /** Die Startantwort fehlt gerade (und wird alle zehn Sekunden neu versucht). */
   const [startFehlt, setStartFehlt] = useState(false);
   const [startVersuch, setStartVersuch] = useState(0);
+  /** Die Startantwort wird gerade geholt (beim ersten Öffnen und bei jedem Saisonwechsel) - dann steht der Ladeschirm statt einer leeren Seite. */
+  const [startLaedt, setStartLaedt] = useState(true);
   /** Das Turnierverzeichnis kam nicht - dann steht nicht ewig "Wird geladen". */
   const [turniereFehlt, setTurniereFehlt] = useState(false);
   /** Für welche Saison das Turnierverzeichnis geantwortet hat - eine leere Antwort ist "keine Turniere", nicht "wird geladen". */
@@ -3113,12 +3115,19 @@ export default function StatistikSeite() {
      */
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
+    /*
+     * Beim Saisonwechsel nicht die Listen der alten Saison unter dem neuen Saisonnamen stehen lassen - und bei ausbleibender Antwort
+     * soll der Hinweis erscheinen, nicht die alten Zahlen.
+     */
+    setStartLaedt(true);
+    setKacheln([]); setListen([]); setFaecher([]); setClutchSaison(null); setGrundlage(null); setProfile([]); setDuelle([]);
     fetch(`/api/szene-stats?ansicht=start&saison=${saison}`)
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
         if (!Array.isArray(j?.listen)) throw new Error('keine Liste');
         setStartFehlt(false);
+        setStartLaedt(false);
         setKacheln(j.kacheln ?? []);
         setKachelNr(0);
         setListen(j.listen ?? []);
@@ -3131,6 +3140,7 @@ export default function StatistikSeite() {
       })
       .catch(() => {
         if (weg) return;
+        setStartLaedt(false);
         setStartFehlt(true);
         nochmal = setTimeout(() => { if (!weg) setStartVersuch((v) => v + 1); }, 10_000);
       });
@@ -4245,7 +4255,8 @@ export default function StatistikSeite() {
    * wirklich gewartet wird. Was aus dem Speicher kommt, zeigt keinen
    * Schirm; was laenger dauert, zeigt ihn genau so lange, wie es dauert.
    */
-  const wartet = profilLaedt || (bereich === 'jahr' && jahrLaedt)
+  const wartet = profilLaedt || (bereich === 'start' && startLaedt)
+    || (bereich === 'jahr' && jahrLaedt)
     || (bereich === 'spieler' && laedt && !spieler.length)
     || (bereich === 'turniere' && cupLaedt && !cupFeld.length)
     || (bereich === 'regional' && regionLaedt && !regionFeld.length)

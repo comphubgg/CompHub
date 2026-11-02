@@ -7189,5 +7189,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-325",
+    "datum": "2026-11-02T02:07:17Z",
+    "titel": "Statistik-Start: Ladeschirm und keine alten Listen beim Saisonwechsel",
+    "kurz": "Statistik → Saison wechseln: Ladeschirm statt alter Zahlen unter neuem Saisonnamen.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Saisonwechsel standen Bestenlisten und Aufmacher der alten Saison unter dem neuen Namen, bis die Antwort kam; ein Ausfall blieb dadurch unsichtbar.",
+    "was": "Beim Wechsel erscheint der Ladeschirm; fällt die Antwort aus, steht „gerade nicht erreichbar“ statt alter Zahlen.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
