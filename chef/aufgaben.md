@@ -5,6 +5,13 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 ## Neu entdeckt (Runde 17, 02.11.2026)
 
 - [x] (chef-329) **Spielerliste: Kopftreffer/Material/Bauteile 0 statt Strich ohne Schussdaten** – Profil zeigte schon Strich.
+- [x] (chef-332) **Profil-Verlauf: leerer Kasten**, wenn weniger als zwei Spieltage den gewählten Wert haben.
+- [x] (chef-333) **Cup-Spieler (Szene): Clutch über mehrere Tage als halbe Summe**, wenn ein Tag fehlt oder teilweise gelesen ist.
+- [x] (chef-334) **FNCS Nationalities: Gleichstand nach Ländercode** (alphabetisch).
+- [x] (chef-335) **Profil-Rang bei gleichen Elims ≠ Bestenliste** (Einlese-Reihenfolge).
+- [ ] **Schnittstellen /api/br-statistik und /api/eigene-werte nirgends aufgerufen** (auch nicht in scripts/, .github/) – löschen? Betreiber fragen.
+- [ ] **Profil → Überblick → Werte: Assists, Wiederbelebungen, Heilung, Sturmschaden zeigen 0 an reinen Epic-Tagen** – Quelle trennt 0 und unbekannt dort nicht; beobachten.
+- [ ] **Profil: Tagesbeste ohne feste Folge bei Gleichstand** – harmlos, solange nur die Anzahl gezeigt wird.
 
 ## Neu entdeckt (Runde 16, 02.11.2026)
 
