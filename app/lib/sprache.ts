@@ -1366,6 +1366,8 @@ const AUF_ENGLISCH: Record<string, string> = {
 
   // Globals-Teams: Duo-Ansicht
   'Zusammen gespielt — diese Saison': 'Played together — this season',
+  'Zu diesem Team ist nur ein Spieler bekannt — gemeinsame Cups lassen sich so nicht bestimmen.':
+    'Only one player is known for this team, so shared cups cannot be worked out.',
   'Die Cups ließen sich gerade nicht laden.': 'The cups could not be loaded right now.',
   'Zu diesem Duo kennt das Werkzeug keines der Konten — Cups gibt es deshalb keine.':
     'The tool knows neither account of this duo — so there are no cups to show.',

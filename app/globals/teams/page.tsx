@@ -295,7 +295,11 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
           <h3 className="mb-3 text-sm font-semibold text-sky-200">
             <T>Zusammen gespielt — diese Saison</T>
           </h3>
-          {zeilen === null ? (
+          {!a || !b ? (
+            <p className="py-6 text-center text-xs text-slate-500">
+              <T>Zu diesem Team ist nur ein Spieler bekannt — gemeinsame Cups lassen sich so nicht bestimmen.</T>
+            </p>
+          ) : zeilen === null ? (
             <p className="py-6 text-center text-xs text-slate-500"><T>lädt …</T></p>
           ) : zeilen === 'fehler' ? (
             <p className="py-6 text-center text-xs text-slate-500">
