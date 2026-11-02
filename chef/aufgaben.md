@@ -22,6 +22,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Profil: Zeile über der Ergebnisse-Tabelle zählt Epic-Zeilen nicht mit** („N Spieltage · M Matches“ aus verlauf/offen.matches, Tabelle zeigt zusätzlich epicZeilen) – Betreiber fragen, ob beide Quellen zählen sollen.
 - [ ] **Match-Seite: „Game {nr}“ und „SCRIM LIVE“ (Match-ID-Finder) fest im Code**, Favoritenkarte zeigt bei Ausfall „Wird geladen …“ neben dem Fehlerbalken – klein.
 - [ ] **Replays Teams-Reiter: Platzierungspunkte summieren alle Stufen mit n >= platz** – stimmt nur bei Stufen-Schwellen in Epics Wertung; prüfen.
+- [ ] **Turnierkarten: Regionsfeld (w-9) – „GLOBAL“ passt schon bei 10 px nicht** (tournament-maps/page.tsx ~376) – Feld breiter oder Text kürzen; Betreiber fragen.
+- [ ] **chef-469 bis chef-471 ohne `markieren`** – nächste Runde Stellen nachtragen.
 - [ ] **FNCS-Archiv S12 Invitational / S18 Grand Royale: Punkte nicht absteigend nach Platz** – Quelle.
 
 ## Neu entdeckt (Runde 19, 02.11.2026)
