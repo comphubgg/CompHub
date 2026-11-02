@@ -6966,5 +6966,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-315",
+    "datum": "2026-11-02T01:58:23Z",
+    "titel": "Startseite Global-Karte: feste Reihenfolge der Regionen bei Gleichstand",
+    "kurz": "Unsichtbar: Startseite „Global“ – bei gleichen Elims steht EU vor NAC usw.",
+    "markieren": [
+      "text:Most eliminations · best player per region"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatten zwei Regionen gleich viele Elims, entschied die Dateireihenfolge über die Reihenfolge der Balken.",
+    "was": "Bei Gleichstand gilt die feste Reihenfolge EU, NAC, NAW, BR, ASIA, ME, OCE.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -6,6 +6,7 @@ import { gecacht, holeTop } from '@/lib/epicCups';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
 import { saisonName } from '@/lib/szeneStats';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import { GET as prLesen } from '../power-rankings/route';
 import { ueberdauernd } from '@/lib/ueberdauernd';
 import fs from 'node:fs';
@@ -63,6 +64,9 @@ async function startHolen(request: Request): Promise<Start | null> {
   }
   return null;
 }
+
+/** Platz einer Region in der festen Reihenfolge nach Bedeutung (EU zuerst); unbekannte ans Ende - nie alphabetisch. */
+const regionRang = (r: string) => { const i = (SOLOS_REGIONEN as readonly string[]).indexOf(r.toUpperCase()); return i < 0 ? SOLOS_REGIONEN.length : i; };
 
 const endlich = (n: unknown): number | null => (typeof n === 'number' && Number.isFinite(n) ? n : null);
 const schlank = (z: Zeile) => ({
@@ -179,7 +183,8 @@ async function rechnen(request: Request) {
     .map((p) => ({ region: p.region, bester: [...p.spieler].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0))[0] }))
     .filter((r) => r.bester && (r.bester.elims ?? 0) > 0)
     .map((r) => ({ region: r.region, name: r.bester.anzeige || r.bester.name, land: r.bester.land ?? null, elims: r.bester.elims ?? 0 }))
-    .sort((a, b) => b.elims - a.elims);
+    // Gleichstand: feste Reihenfolge nach Bedeutung (EU zuerst).
+    .sort((a, b) => b.elims - a.elims || regionRang(a.region) - regionRang(b.region));
   if (start.saison) {
     try {
       // Dieselbe Liste wie "Meiste Eliminierungen" in der Leiste der Statistikseite - mit denselben Zahlen und derselben
@@ -192,7 +197,7 @@ async function rechnen(request: Request) {
         const n = z.elims ?? 0;
         if (r && n > (je.get(r)?.elims ?? 0)) je.set(r, { region: r, name: z.anzeige || z.name, land: z.land ?? null, elims: n });
       }
-      const saisonweit = [...je.values()].sort((a, b) => b.elims - a.elims);
+      const saisonweit = [...je.values()].sort((a, b) => b.elims - a.elims || regionRang(a.region) - regionRang(b.region));
       if (saisonweit.length >= 3) regionen = saisonweit;
     } catch { /* ohne Saisonliste bleiben die Profilwerte */ }
   }
