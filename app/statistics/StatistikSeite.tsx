@@ -3313,7 +3313,8 @@ export default function StatistikSeite() {
   /** Die Turnierreihen dieser Region, aus den Spieltagen gebuendelt. */
   const reihen = useMemo(() => {
     const gruppen = new Map<string, Turnier[]>();
-    for (const t of turniere) {
+    /* Nur das Verzeichnis dieser Saison: nach dem Saisonwechsel steht bis zur Antwort noch das alte da, und dessen Spieltage würden mit der neuen Saison abgefragt (leere Blöcke, die nie neu laden). */
+    for (const t of turniereStand === saison ? turniere : []) {
       if (t.region !== regionAktiv) continue;
       const r = reiheVon(t.name, t.windowId);
       (gruppen.get(r) ?? gruppen.set(r, []).get(r)!).push(t);
@@ -3327,11 +3328,12 @@ export default function StatistikSeite() {
         return (ra === -1 ? REIHEN_RANG.length : ra) - (rb === -1 ? REIHEN_RANG.length : rb)
           || b.tage.length - a.tage.length;
       });
-  }, [turniere, regionAktiv]);
+  }, [turniere, turniereStand, saison, regionAktiv]);
 
   /** Das Turnierverzeichnis auch fuer die Regionenseite holen. */
   useEffect(() => {
     if (bereich !== 'regional' || !saison) return;
+    setTurniereFehlt(false);
     fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
@@ -5468,6 +5470,12 @@ export default function StatistikSeite() {
                     ))}
                   </div>
 
+                  {/* Ausfall des Verzeichnisses: sonst fehlen die Turnierreihen unten, und es sieht aus, als gäbe es keine. */}
+                  {turniereFehlt && turniereStand !== saison && (
+                    <p className="mb-7 rounded-xl border border-zinc-800 bg-zinc-950/60 p-6 text-center text-sm text-slate-500">
+                      <T>Das Archiv ist gerade nicht erreichbar.</T>
+                    </p>
+                  )}
                   {/* Je Turnierreihe ein eigener Block mit seinen Spieltagen */}
                   {reihen.map((r) => {
                     const wahl = reihenWahl[r.name] ?? '';

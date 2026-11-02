@@ -8280,5 +8280,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-374",
+    "datum": "2026-11-02T03:20:01Z",
+    "titel": "Regionen: Turnierreihen nach Saisonwechsel richtig",
+    "kurz": "Statistik → Regionen, Saison wechseln: Turnierreihen unten laden richtig, bei Ausfall ein Hinweis.",
+    "markieren": [
+      "text:The archive is not reachable right now.",
+      "text:Performance Cups"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach einem Saisonwechsel wurden die Reihen der alten Saison mit der neuen abgefragt und blieben leer; fiel das Verzeichnis aus, fehlten sie ohne Hinweis.",
+    "was": "Die Reihen nehmen nur noch das Verzeichnis der gewählten Saison; bei Ausfall steht „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/statistics?bereich=regional"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
