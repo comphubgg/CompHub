@@ -359,9 +359,11 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
   }
   if (!grund?.spieler) return null;
 
-  const enthaelt = (z: Zeile) => (z.namen ?? []).some((n) => n.toLowerCase().includes(suche))
-    || String(z.anzeige ?? '').toLowerCase().includes(suche)
-    || String(z.name ?? '').toLowerCase().includes(suche);
+  // Doppelgaenger-Zeichen zaehlen wie normale (wie bei der Namenssuche oben): "pablowingu" findet auch "Pаblowingu" mit kyrillischem a.
+  const sucheV = vergleichbar(suche);
+  const enthaelt = (z: Zeile) => (z.namen ?? []).some((n) => vergleichbar(n).includes(sucheV))
+    || vergleichbar(String(z.anzeige ?? '')).includes(sucheV)
+    || vergleichbar(String(z.name ?? '')).includes(sucheV);
   const gefiltert = suche ? grund.spieler.filter(enthaelt) : grund.spieler;
   // Die Mindestzahl richtet sich nach der ganzen Grundliste, nicht nach den Suchtreffern.
   const mindestMatches = mindestFuer(grund.spieler, feld);
@@ -1689,7 +1691,8 @@ async function berechne(request: Request) {
       keyof typeof alle[number];
 
     const gefiltert = suche
-      ? alle.filter((s) => s.namen.some((n) => n.toLowerCase().includes(suche)))
+      // Doppelgaenger-Zeichen zaehlen wie normale, auch der Anzeigename zaehlt (wie bei der Namenssuche).
+      ? alle.filter((s) => [s.name, ...s.namen].some((n) => vergleichbar(n).includes(vergleichbar(suche))))
       : alle;
 
     // Quoten mit Mindestzahl an Matches wie auf der Startseite (mindestFuer) - die Grenze aus der ganzen Gruppe, nicht aus den Suchtreffern.
@@ -1803,10 +1806,10 @@ async function clutchTeil(request: Request, modus: 'suche' | 'seite'): Promise<R
   const kopf = { success: true, quelle: wert.quelle, saison: wert.saison };
   if (modus === 'suche') {
     // Wie bisher im Browser: Kleinschreibung, "enthaelt" im angezeigten Namen; Rang = Platz in der ganzen Liste.
-    const klein = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+    const klein = vergleichbar((url.searchParams.get('q') ?? '').trim());
     const treffer = klein.length < 2 ? [] : alle
       .map((z, i) => ({ z, rang: typeof z.rang === 'number' ? z.rang : i + 1 }))
-      .filter((x) => String(x.z.anzeige ?? x.z.name ?? '').toLowerCase().includes(klein))
+      .filter((x) => vergleichbar(String(x.z.anzeige ?? x.z.name ?? '')).includes(klein))
       .slice(0, 50);
     return NextResponse.json({ ...kopf, clutch: { ...rest, gesamt: alle.length, treffer } }, {
       headers: { 'Cache-Control': CDN_FRIST } });

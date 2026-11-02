@@ -9239,7 +9239,7 @@
     "markieren": [
       "text:vs",
       "text:Cups",
-      "text:Saison"
+      "text:Season"
     ],
     "bereich": "Statistik",
     "warum": "Elf Beschriftungen im Vergleich standen mit 9 bis 10 Pixeln und waren schwer lesbar.",
@@ -9367,6 +9367,26 @@
     "was": "Jetzt erst Europa, dann die Regionen nach Größe der Szene.",
     "ansehen": [
       "/scrims"
+    ],
+    "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T03:58:51Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-423",
+    "titel": "Spielersuche in Listen findet Namen mit fremden Buchstaben",
+    "kurz": "Statistik → Spieler/Clutch suchen: „pablowingu“ findet jetzt auch „Pаblowingu“ (kyrillisches a).",
+    "markieren": [
+      "text:Search a player"
+    ],
+    "bereich": "Statistik",
+    "warum": "Viele Spieler tragen Namen mit Buchstaben aus anderen Alphabeten; in der Spielerliste und bei Clutch fand die Suche sie nicht, obwohl sie gleich aussehen.",
+    "was": "Die Suche behandelt diese Doppelgänger-Buchstaben jetzt wie normale – wie es die Namenssuche oben schon tat.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
     ],
     "modell": "Opus"
   }
