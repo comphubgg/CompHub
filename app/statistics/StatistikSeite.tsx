@@ -716,7 +716,7 @@ function platzFarbe(p: number | null) {
  */
 function RegionMarke({ region }: { region: string }) {
   return (
-    <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px]
+    <span className="shrink-0 whitespace-nowrap rounded bg-zinc-800/80 px-1.5 py-0.5 text-[11px]
                      font-semibold tracking-wider text-slate-400">
       {region}
     </span>

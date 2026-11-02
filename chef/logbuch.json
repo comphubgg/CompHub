@@ -8827,5 +8827,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-398",
+    "datum": "2026-11-02T03:32:39Z",
+    "titel": "Regionsmarken größer",
+    "kurz": "Statistik: kleine Regionsmarken (EU, NAC …) 11 statt 9 Pixel, ohne Umbruch.",
+    "markieren": [
+      "text:EU",
+      "text:NAC"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Regionsmarken neben Spielern und Cups waren mit 9 Pixeln kaum lesbar.",
+    "was": "Sie stehen jetzt mit 11 Pixeln und brechen nicht um.",
+    "ansehen": [
+      "/statistics?bereich=spieler",
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
