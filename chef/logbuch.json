@@ -10207,5 +10207,27 @@
     "ansehen": [
       "/events"
     ]
+  },
+  {
+    "id": "chef-460",
+    "datum": "2026-11-02T04:44:06Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Spieltag-Ansicht: beim Tageswechsel keine Listen des Vortags",
+    "kurz": "Turniere → Globals → zwischen Day 1/Day 2 wechseln: Ladeschirm statt Listen des anderen Tages.",
+    "markieren": [
+      "text:Day 1",
+      "text:Day 2",
+      "text:Both days combined"
+    ],
+    "warum": "Beim Wechsel standen bis zur Antwort die Bestenlisten des vorigen Tages unter Datum und Zahlen des neuen.",
+    "was": "Die alten Listen verschwinden sofort, bis die neuen da sind, steht der Ladeschirm.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ]
   }
 ]

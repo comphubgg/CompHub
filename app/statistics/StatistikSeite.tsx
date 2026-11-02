@@ -3427,6 +3427,8 @@ export default function StatistikSeite() {
     let weg = false;
     setCupLaedt(true);
     setCupFehler(false);
+    /* Beim Wechsel zwischen Tag 1, Tag 2 und der Summe stünden sonst bis zur Antwort die Listen des vorigen Tages unter der Kopfzeile des neuen. */
+    setCupFeld([]);
     const p = new URLSearchParams({
       saison: cup.season, region: cup.region,
       ...(cup.events?.length ? { events: cup.events.join(',') } : { event: cup.windowId }),
