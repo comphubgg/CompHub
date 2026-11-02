@@ -10336,5 +10336,26 @@
     "ansehen": [
       "/statistics?bereich=spieler"
     ]
+  },
+  {
+    "id": "chef-466",
+    "datum": "2026-11-02T04:51:11Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Match-ID-Finder: fehlende Werte als Strich, „Elims“ übersetzt",
+    "kurz": "Match-ID-Finder → Favorit im Scrim: Strich statt „#null · null“, Matchliste mit Strich.",
+    "markieren": [
+      "text:Points",
+      "text:Elims"
+    ],
+    "warum": "Fehlten Platz oder Punkte, stand „#null · null Punkte“ bzw. „0 Punkte“; leere Zellen in der Matchliste, „elims“ fest englisch.",
+    "was": "Fehlende Werte zeigen einen Strich, „Elims“ läuft über die Übersetzung.",
+    "ansehen": [
+      "/match-finder"
+    ]
   }
 ]

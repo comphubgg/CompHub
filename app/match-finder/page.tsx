@@ -168,7 +168,7 @@ export default function MatchFinder() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-lg font-bold text-slate-100">{f.name}</p>
-                      {s?.rang ? <p className="text-xs text-slate-500">#{s.rang} · {s.punkte ?? 0} <T>Punkte</T></p> : null}
+                      {s?.rang ? <p className="text-xs text-slate-500">#{s.rang} · {s.punkte ?? '–'} <T>Punkte</T></p> : null}
                     </div>
                     <button type="button" onClick={() => speichern(favoriten.filter((x) => x.id !== f.id))}
                       className="text-xs text-slate-500 transition hover:text-rose-400"><T>Entfernen</T></button>
@@ -194,7 +194,7 @@ export default function MatchFinder() {
                         : <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? t('Angemeldet') : 'SCRIM LIVE'}</span>}
                       <span className="text-xs text-slate-200">{s.scrim.session} <span className="text-slate-500">· {s.scrim.server}</span></span>
                       {!s.scrim.nurAngemeldet && (
-                        <span className="text-xs tabular-nums text-slate-300">#{s.scrim.platz} · {s.scrim.punkte} {t('Punkte')} · {s.scrim.spiele} {t('Spiele')}{s.scrim.kills != null ? ` · ${s.scrim.kills} elims` : ''}</span>
+                        <span className="text-xs tabular-nums text-slate-300">{s.scrim.platz != null ? `#${s.scrim.platz}` : '–'} · {s.scrim.punkte ?? '–'} {t('Punkte')} · {s.scrim.spiele} {t('Spiele')} · {s.scrim.kills ?? '–'} {t('Elims')}</span>
                       )}
                       {s.scrim.letztesSpiel && (
                         <span className="text-xs text-slate-400">{t('Letztes Spiel')} · <span title={t('Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.')}>{t('Yunite-Code')}</span> <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code>{' '}<button type="button" onClick={() => kopieren(s.scrim!.letztesSpiel!.code)}
@@ -211,8 +211,8 @@ export default function MatchFinder() {
                             <tr key={m.matchId} className="border-t border-zinc-800/80">
                               <td className="py-1.5 pr-3 tabular-nums text-slate-500">{uhrzeit(m.ende)}</td>
                               <td className="py-1.5 pr-3 text-slate-400">{m.titel}</td>
-                              <td className="py-1.5 pr-3 tabular-nums text-slate-300">{m.platz ? `#${m.platz}` : ''}</td>
-                              <td className="py-1.5 pr-3 tabular-nums text-slate-300">{m.elims != null ? `${m.elims} elims` : ''}</td>
+                              <td className="py-1.5 pr-3 tabular-nums text-slate-300">{m.platz ? `#${m.platz}` : '–'}</td>
+                              <td className="py-1.5 pr-3 tabular-nums text-slate-300">{m.elims != null ? `${m.elims} ${t('Elims')}` : '–'}</td>
                               <td className="py-1.5 text-right">
                                 <button type="button" onClick={() => kopieren(m.matchId)} title={m.matchId}
                                   className="rounded-md border border-zinc-700 px-2 py-1 font-mono text-[11px] text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
