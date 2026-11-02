@@ -7332,5 +7332,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-332",
+    "datum": "2026-11-02T02:34:09Z",
+    "titel": "Profil-Verlauf: Hinweis statt leerem Kasten",
+    "kurz": "Profil → Verlauf, Knopf „Builds“: Hinweis statt leerem Kasten, wenn zu wenige Spieltage Werte haben.",
+    "markieren": [
+      "text:Not enough match days with this stat to draw a trend."
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatten weniger als zwei Spieltage den gewählten Wert, blieb der Kasten des Verlaufs einfach leer.",
+    "was": "Dort steht jetzt ein kurzer Hinweis, dass es zu wenige Spieltage für einen Verlauf gibt.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
