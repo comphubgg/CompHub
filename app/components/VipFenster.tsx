@@ -133,7 +133,7 @@ export default function VipFenster() {
   const knopf = 'relative inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl text-[16px] font-extrabold transition';
   return (
     <div role="dialog" aria-modal="true" aria-label={kopf}
-      className="fixed inset-0 z-[300] overflow-y-auto bg-[rgba(3,7,18,0.6)] backdrop-blur-[2px]"
+      className="fixed inset-0 z-[9000] overflow-y-auto bg-[rgba(3,7,18,0.6)] backdrop-blur-[2px]"
       style={{ backgroundImage: 'radial-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), radial-gradient(55% 45% at 50% 0%, rgba(14,165,233,0.22), transparent 70%), radial-gradient(40% 35% at 85% 90%, rgba(14,165,233,0.10), transparent 70%)', backgroundSize: '22px 22px, 100% 100%, 100% 100%' }}>
       <style>{STIL}</style>
 
