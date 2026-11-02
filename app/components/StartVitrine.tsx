@@ -194,6 +194,7 @@ const CUP_MS = 7500;
 
 /** Ein Cup nach dem anderen - mit Bild, Datum, Region und den ersten Teams der Bestenliste. */
 function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
+  const uebersetze = useT();
   const liste = daten?.cups ?? [];
   const [halt, setHalt] = useState(false);
   const i = useRad(liste.length, CUP_MS, halt);
@@ -219,7 +220,7 @@ function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean })
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-                  <th className="w-6 pb-1">#</th><th className="pb-1">Team</th><th className="w-10 pb-1 text-right">Pts</th><th className="w-8 pb-1 text-right" title="Victory Royales">VR</th><th className="w-10 pb-1 text-right">Elims</th>
+                  <th className="w-6 pb-1">#</th><th className="pb-1"><T>Team</T></th><th className="w-10 pb-1 text-right"><T>Pkt.</T></th><th className="w-8 pb-1 text-right" title={uebersetze('Siege (Victory Royales)')}>VR</th><th className="w-10 pb-1 text-right"><T>Elims</T></th>
                 </tr>
               </thead>
               <tbody>

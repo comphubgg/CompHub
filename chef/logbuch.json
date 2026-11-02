@@ -10143,5 +10143,26 @@
     "ansehen": [
       "/statistics?bereich=jahr"
     ]
+  },
+  {
+    "id": "chef-457",
+    "datum": "2026-11-02T04:42:54Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Übersetzung",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Startseite Turnierkarte: Tabellenkopf übersetzt",
+    "kurz": "Startseite → Karte „Turniere“ auf Deutsch: Spaltenkopf „Pkt.“ statt „Pts“.",
+    "markieren": [
+      "text:Pts",
+      "text:VR"
+    ],
+    "warum": "Der Tabellenkopf war fest englisch, auch auf der deutschen Seite.",
+    "was": "Die Spaltenköpfe laufen jetzt über die Übersetzung; Englisch bleibt gleich.",
+    "ansehen": [
+      "/"
+    ]
   }
 ]
