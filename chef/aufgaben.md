@@ -4,7 +4,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 ## Neu entdeckt (Runde 19, 02.11.2026)
 
-- [ ] **WIDERSPRUCH Profil ↔ Saisonliste:** peterbot S42 – Profil (`/api/szene-stats?spieler=45ce…&saison=S42`) 17 Events / 83 Matches / 208 Elims, Saison-Bestenliste und Statistik-Start 12 / 57 / 152. Vermutlich zählt das Profil LAN (Global Championship) und eigene Auswertungen (Performance Evaluation Cup, Div-1-Practice) mit, die Liste nur Szene-Finaltage – im Code (lib/szeneStats: summen vs. startseite/auswahl) klären, dann entweder angleichen oder im Profil sagen, was gezählt wird.
+- [ ] **WIDERSPRUCH Profil ↔ Saisonliste = chef-106 (wartet auf Freigabe):** peterbot S42 – Profil 17 Events / 83 Matches / 208 Elims, Saison-Bestenliste und Statistik-Start 12 / 57 / 152. Grund: die Listen enden beim Spieltag vom 10.10.2026, das Profil kennt die fünf neueren (Solo-Finale 26./27.10., Performance Cup Woche 9, Heats). Am 02.11. nachgemessen – Listen damit über drei Wochen alt. Nur die Freigabe von chef-106 hilft.
 - [x] (chef-423, chef-424, chef-430) **Suchfelder ohne Doppelgänger-Buchstaben** – Spielerliste, Clutch, Spieltag-Tabelle, Bestenliste, Cup-Leaderboard, Cup-Spieler, Power Rankings. Noch offen (kleiner): Scrims-Teamsuche, Globals-Solos-Bausteine, Tournament-Maps-Karten, StatKacheln-Suche, Organisationen-Suche.
 - [x] (chef-414 bis chef-430) Orgs-Jahr, Vergleich (Hinweis, Schrift), Cup-Matches-Strich, Kurvenlücken, Mindestzahl bei Suche, Scrims-Rennen und Regionen, Mein-Ergebnis-Regionen, Cup-Schaden-Strich, Schrift 11 px (Cup, Prognosen, Chat, Melden, Sprache, Rangliste, Fehlerseite).
 - [ ] **OBS-Overlay PovStatsBanner: Stufen „klein“/„mittel“ mit 8–9 px** – Gestaltungsfrage, Betreiber fragen.
