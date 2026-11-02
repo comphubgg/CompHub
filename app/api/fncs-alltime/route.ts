@@ -27,7 +27,8 @@ const ENDSPIEL = /FNCS_?Major(\d)_(?:GrandFinal|Final)_?Day(\d)/i;
  */
 export async function GET() {
   try {
-    const antwort = await ueberdauernd('fncs-alltime', 30 * 60_000, 7 * 864e5, rechnen);
+    // Eine Antwort mit fehlenden Endspielen gilt nur kurz als frisch - dann wird bald neu gefragt.
+    const antwort = await ueberdauernd('fncs-alltime', letzteUnvollstaendig ? 2 * 60_000 : 30 * 60_000, 7 * 864e5, rechnen);
     if (!antwort) throw new Error('Keine FNCS-Endspiele im Archiv');
     return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   } catch (e) {
@@ -35,7 +36,37 @@ export async function GET() {
   }
 }
 
+/*
+ * Fehlende Endspiele (rekorde.fehlend > 0): Die Summen waeren zu klein. Gibt es eine aeltere Antwort mit vollstaendigen Rekorden (hoechstens einen Tag alt),
+ * kommt die stattdessen; sonst die unvollstaendige (ein Endspiel, das Epic dauerhaft nicht mehr fuehrt, soll die Seite nicht lahmlegen).
+ * Die vollstaendigen Antworten liegen zusaetzlich unter eigenem Schluessel; "gerechnetAm" sagt, wie alt sie sind.
+ */
+const VOLL_MAX_ALTER = 864e5;
+let letzteUnvollstaendig = false;
+
 async function rechnen() {
+  const neu = await rechnenRoh();
+  const unvollstaendig = Boolean(neu.rekorde && (neu.rekorde.fehlend ?? 0) > 0);
+  letzteUnvollstaendig = unvollstaendig;
+  if (!unvollstaendig) {
+    // Vollstaendig: als letzte vollstaendige Antwort ablegen.
+    if (neu.rekorde) {
+      const stempel = { ...neu, gerechnetAm: Date.now() };
+      await ueberdauernd('fncs-alltime-voll', 0, 7 * 864e5, async () => stempel).catch(() => null);
+    }
+    return neu;
+  }
+  // Nur lesen: nichts rechnen, nichts ueberschreiben (null).
+  const alt = await ueberdauernd<typeof neu & { gerechnetAm?: number }>('fncs-alltime-voll', Number.MAX_SAFE_INTEGER, 7 * 864e5, async () => null).catch(() => null);
+  if (alt && typeof alt.gerechnetAm === 'number' && Date.now() - alt.gerechnetAm < VOLL_MAX_ALTER && alt.rekorde && !((alt.rekorde.fehlend ?? 0) > 0)) {
+    const { gerechnetAm: _g, ...rest } = alt;
+    void _g;
+    return rest;
+  }
+  return neu;
+}
+
+async function rechnenRoh() {
   {
     const verz = (await liesVerzeichnis()).filter((e) => e.region === 'EU');
     // Je Major (Saison + Nummer) die beiden Endspieltage.

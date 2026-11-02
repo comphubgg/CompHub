@@ -420,6 +420,8 @@ export interface FncsRekorde {
   ab: string;
   spieler: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>;
   punkte: RekordZeile[]; siege: RekordZeile[]; elims: RekordZeile[];
+  /** Wie viele Endspiele Epic trotz Wiederholungen nicht geliefert hat - dann sind die Summen zu klein. Fehlt oder 0: vollstaendig. */
+  fehlend?: number;
 }
 
 let rekordMerker: { bis: number; daten: FncsRekorde } | null = null;
@@ -435,6 +437,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
   const mitEpic = kandidaten(liste).filter((k) => (k.e.tage ?? []).length > 1 || k.e.eventId);
   const je = new Map<string, { name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>();
   const alleTeams: Array<{ event: string; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }> = [];
+  let fehlend = 0;
   await Promise.all(mitEpic.map(async (k) => {
     const tage = k.e.tage ?? [];
     const fenster = tage.length > 1 ? tage.map((t) => t.windowId) : [k.e.windowId];
@@ -465,7 +468,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
           je.set(schluessel, a);
         }
       }
-    } catch { /* dieses Endspiel fehlt dann in der Summe */ }
+    } catch { fehlend += 1; /* dieses Endspiel fehlt dann in der Summe - und wird gemeldet */ }
   }));
   const top = (haupt: 'punkte' | 'siege' | 'elims'): RekordZeile[] => [...alleTeams].sort(vglRekord(haupt)).slice(0, 8)
     .map((t) => ({ event: t.event, wert: t[haupt], spieler: t.spieler }));
@@ -473,7 +476,9 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
     ab: 'Chapter 5 Season 3',
     spieler: [...je.values()].sort(vglLeaderboard).slice(0, 100),
     punkte: top('punkte'), siege: top('siege'), elims: top('elims'),
+    ...(fehlend > 0 ? { fehlend } : {}),
   };
-  rekordMerker = { bis: Date.now() + 30 * 60_000, daten };
+  // Eine unvollstaendige Summe nur kurz merken, damit bald neu gefragt wird.
+  rekordMerker = { bis: Date.now() + (fehlend > 0 ? 2 : 30) * 60_000, daten };
   return daten;
 }

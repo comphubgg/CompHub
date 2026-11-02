@@ -4092,6 +4092,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.': 'Titles count the European Grand Finals, the Globals, the Invitational and the Summit since Chapter 1.',
   'Spieler {n}': 'Player {n}',
   'Seit {n}': 'Since {n}',
+  '{n} Endspiele fehlen gerade – Epic antwortet nicht. Die Summen sind deshalb zu klein.': '{n} Grand Finals are missing right now – Epic is not responding. The totals are therefore too low.',
   'Seiten tauschen': 'Swap sides',
   'Auswahl': 'Selection',
   'Alle Cups': 'All cups',
