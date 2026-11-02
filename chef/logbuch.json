@@ -9533,5 +9533,27 @@
       "/power-rankings"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T04:03:39Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-431",
+    "titel": "Weitere Suchfelder finden Namen mit fremden Buchstaben",
+    "kurz": "Scrims, Stat-Kacheln, Turnierkarten, Globals Solos: Suche findet auch Namen mit kyrillischen Buchstaben.",
+    "markieren": [
+      "css:input[type=search]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fünf weitere Suchfelder verglichen Buchstaben genau und fanden Namen wie „GоdL“ (kyrillisches о) nicht.",
+    "was": "Sie behandeln Doppelgänger-Buchstaben jetzt wie normale.",
+    "ansehen": [
+      "/scrims",
+      "/globals-solos",
+      "/tournament-maps"
+    ],
+    "modell": "Opus"
   }
 ]

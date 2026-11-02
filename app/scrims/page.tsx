@@ -29,6 +29,7 @@
 // Yunite-Premium verbunden ist, steht ein Beispiel da - gekennzeichnet, an
 // jeder Kachel und ueber der ganzen Ansicht.
 
+import { vergleichbar } from '@/lib/homoglyph';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 
@@ -666,7 +667,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
 
   const q = suche.trim().toLowerCase();
   const gefiltert = useMemo(() => (q
-    ? teams.filter((tm) => tm.spieler.some((s) => s.name.toLowerCase().includes(q)))
+    ? teams.filter((tm) => tm.spieler.some((s) => vergleichbar(s.name).includes(vergleichbar(q))))
     : teams), [teams, q]);
 
   /*

@@ -18,6 +18,7 @@
  * Raster voll bleibt.
  */
 
+import { vergleichbar } from '@/lib/homoglyph';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
@@ -247,7 +248,7 @@ function GanzeListe({ kachel, wert, zu, aufKlick }: {
 
   const mitPlatz = kachel.zeilen.map((s, i) => ({ s, platz: i + 1 }));
   const q = suche.trim().toLowerCase();
-  const gefiltert = q ? mitPlatz.filter(({ s }) => s.name.toLowerCase().includes(q))
+  const gefiltert = q ? mitPlatz.filter(({ s }) => vergleichbar(s.name).includes(vergleichbar(q)))
     : tiefe ? mitPlatz.slice(0, tiefe) : mitPlatz;
   const zeilen = gefiltert.slice(0, gezeigt);
 

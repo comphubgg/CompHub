@@ -1,5 +1,6 @@
 'use client';
 
+import { vergleichbar } from '@/lib/homoglyph';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -68,7 +69,7 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
   const nachId = useMemo(() => new Map(teams.map((x) => [x.id, x])), [teams]);
   const pool = useMemo(() => {
     const q = suche.trim().toLowerCase();
-    return teams.filter((x) => !zu[x.id] && (!q || x.spieler.some((s) => s.anzeige.toLowerCase().includes(q))));
+    return teams.filter((x) => !zu[x.id] && (!q || x.spieler.some((s) => vergleichbar(s.anzeige).includes(vergleichbar(q)))));
   }, [teams, zu, suche]);
 
   if (!teams.length) return <p className="text-sm text-slate-500"><T>Zu diesem Spieltag gibt es noch keine Teams.</T></p>;

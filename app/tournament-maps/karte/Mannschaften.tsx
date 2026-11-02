@@ -1,5 +1,6 @@
 'use client';
 
+import { vergleichbar } from '@/lib/homoglyph';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -24,7 +25,7 @@ export function TeamKarten({ teams }: { teams: SolosTeam[] }) {
     return [...teams].sort((a, b) => (hatRang ? (a.rang ?? 9999) - (b.rang ?? 9999) : 0));
   }, [teams]);
   const q = suche.trim().toLowerCase();
-  const sichtbar = q ? geordnet.filter((x) => x.spieler.some((s) => s.anzeige.toLowerCase().includes(q) || (s.land ?? '').toLowerCase() === q)) : geordnet;
+  const sichtbar = q ? geordnet.filter((x) => x.spieler.some((s) => vergleichbar(s.anzeige).includes(vergleichbar(q)) || (s.land ?? '').toLowerCase() === q)) : geordnet;
 
   return (
     <div>

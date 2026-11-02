@@ -1,5 +1,6 @@
 'use client';
 
+import { vergleichbar } from '@/lib/homoglyph';
 import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
@@ -165,7 +166,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const treffer = useMemo(() => {
     const q = suche.trim().toLowerCase();
     if (!q) return [] as Array<{ name: string; spot: string }>;
-    return alleNamen.filter((x) => x.name.toLowerCase().includes(q) || kartenName(x.name).toLowerCase().includes(q));
+    return alleNamen.filter((x) => vergleichbar(x.name).includes(vergleichbar(q)) || vergleichbar(kartenName(x.name)).includes(vergleichbar(q)));
   }, [suche, alleNamen]);
   const trefferSpots = useMemo(() => new Set(treffer.map((x) => x.spot)), [treffer]);
   const zeilen = useCallback((name: string) => [kartenName(name)], []);
