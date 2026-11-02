@@ -66,14 +66,16 @@ export default function OrgSeite() {
   // ------------------------------------------------------------------ Suche
   const [name, setName] = useState('');
   const [treffer, setTreffer] = useState<Treffer[]>([]);
+  // Ein Ausfall der Suche ist etwas anderes als "kein Treffer".
+  const [sucheAus, setSucheAus] = useState(false);
   useEffect(() => {
     const q = name.trim().toLowerCase();
-    if (q.length < 2) { const zu = setTimeout(() => setTreffer([]), 0); return () => clearTimeout(zu); }
+    if (q.length < 2) { const zu = setTimeout(() => { setTreffer([]); setSucheAus(false); }, 0); return () => clearTimeout(zu); }
     let weg = false;
     const uhr = setTimeout(() => {
       void fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`).then((r) => r.json())
-        .then((j) => { if (!weg) setTreffer(Array.isArray(j?.spieler) ? j.spieler : []); })
-        .catch(() => { if (!weg) setTreffer([]); });
+        .then((j) => { if (!weg) { setTreffer(Array.isArray(j?.spieler) ? j.spieler : []); setSucheAus(!Array.isArray(j?.spieler)); } })
+        .catch(() => { if (!weg) { setTreffer([]); setSucheAus(true); } });
     }, 300);
     return () => { weg = true; clearTimeout(uhr); };
   }, [name]);
@@ -146,6 +148,9 @@ export default function OrgSeite() {
         <h2 className="text-lg font-bold text-white"><T>Spieler hinzufügen</T></h2>
         <p className="mt-1 text-xs text-slate-400"><T>Tippe den Namen - das Konto wird für dich gesucht.</T></p>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Spielername')} className={`${feld} mt-3`} />
+        {name.trim().length >= 2 && sucheAus && (
+          <p role="alert" className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs text-amber-300"><T>Die Kontosuche ist gerade nicht erreichbar. Du kannst den Spieler trotzdem ohne Konto hinzufügen.</T></p>
+        )}
         {name.trim().length >= 2 && (
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {treffer.map((x) => (

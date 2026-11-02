@@ -3897,6 +3897,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tippe den Namen - das Konto wird für dich gesucht.': 'Type the name - the account is looked up for you.',
   'Spielername': 'Player name',
   'Ohne Konto hinzufügen: {name}': 'Add without account: {name}',
+  'Die Kontosuche ist gerade nicht erreichbar. Du kannst den Spieler trotzdem ohne Konto hinzufügen.': 'Account search is not reachable right now. You can still add the player without an account.',
   'Pro Roster': 'Pro roster',
   'Academy Roster': 'Academy roster',
   'Content Creator': 'Content creator',
