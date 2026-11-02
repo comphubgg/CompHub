@@ -7393,5 +7393,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-335",
+    "datum": "2026-11-02T02:34:50Z",
+    "titel": "Profil-Rang bei gleichen Elims wie in der Bestenliste",
+    "kurz": "Profil → „Global Rank“: bei gleichen Elims gleicher Platz wie in der Bestenliste.",
+    "markieren": [
+      "text:Global Rank",
+      "text:Regional Rank"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleich vielen Elims hing der Profil-Rang von der Einlese-Reihenfolge ab und konnte von der Bestenliste abweichen.",
+    "was": "Das Profil ordnet jetzt genau wie die Liste: Elims, dann Schaden, dann eine feste Kennung.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

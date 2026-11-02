@@ -1446,7 +1446,8 @@ async function berechne(request: Request) {
       const heimatKarte = await heimatRegionen();
       mark('heimat');
       const meineRegion = heimatKarte.get(spieler) ?? '';
-      const nachElims = [...alle].sort((a2, b2) => b2.elims - a2.elims);
+      // Gleiche Folge wie in der Bestenliste (Elims, dann Schaden, dann Konto-Id) - sonst hinge der Rang bei Gleichstand von der Einlese-Reihenfolge ab.
+      const nachElims = [...alle].sort(nachKennzahl('elims'));
       const rangGlobal = nachElims.findIndex((x) => x.epicId === spieler) + 1;
       const regional = nachElims.filter(
         (x) => (heimatKarte.get(x.epicId) ?? '') === meineRegion);
