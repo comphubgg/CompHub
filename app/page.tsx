@@ -437,6 +437,12 @@ export default function Startseite() {
               <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
             </p>
           )}
+          {/* Fehlt nur ein Teil der vier Zahlen, soll der einzelne Strich nicht wie "keine Daten" aussehen. */}
+          {!fehlt && !laedt && stand != null && [stand.spieltage, stand.saisons, stand.regionen, stand.replays].some((w) => w == null) && (
+            <p role="status" className="mt-3 text-center text-sm text-slate-400">
+              <T>Einzelne Zahlen sind gerade nicht erreichbar.</T>
+            </p>
+          )}
           <p className="mt-3 text-center text-[11px] text-slate-500">
             <T>Live aus dem eigenen Archiv — keine geschätzten Zahlen.</T>
           </p>

@@ -9116,5 +9116,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-411",
+    "datum": "2026-11-02T03:37:49Z",
+    "titel": "Startseite: Hinweis bei Teil-Ausfall der Kopfzahlen",
+    "kurz": "Startseite unter den vier Kopfzahlen: Hinweis, wenn nur einzelne Zahlen fehlen.",
+    "markieren": [
+      "text:Some of the numbers are not reachable right now."
+    ],
+    "bereich": "Startseite",
+    "warum": "Fiel nur eine Quelle aus, stand ein einzelner Strich ohne Erklärung.",
+    "was": "Dann erscheint jetzt der Hinweis „Einzelne Zahlen sind gerade nicht erreichbar“.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

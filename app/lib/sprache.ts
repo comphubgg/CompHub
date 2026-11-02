@@ -2678,6 +2678,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Expand sidebar',
   'Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
     'The numbers are not reachable right now. Trying again in a moment.',
+  'Einzelne Zahlen sind gerade nicht erreichbar.':
+    'Some of the numbers are not reachable right now.',
   'aller Zeiten':
     'of all time',
   'Nur Finals':
