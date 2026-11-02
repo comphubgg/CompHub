@@ -6199,5 +6199,141 @@
     "status": "wartet",
     "runde": 1,
     "datum": "2026-11-01T06:00:41Z"
+  },
+  {
+    "id": "chef-281",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Power Rankings: große Plätze mit Tausenderpunkt",
+    "kurz": "Power Rankings → Auf-/Absteiger: „#4.821“ und Sprünge mit Tausenderpunkt.",
+    "markieren": [
+      "text:since the last update",
+      "css:li.flex.items-center.gap-3 > span.tabular-nums"
+    ],
+    "bereich": "Statistik",
+    "warum": "Oben bei Auf- und Absteigern stand „#4821“, in der Tabelle darunter „4.821“ – derselbe Spieler sah verschieden aus.",
+    "was": "Plätze und Sprünge haben jetzt überall Tausenderpunkte; das Platzfeld wird bei langen Zahlen breiter.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "commits": [
+      "d67e03f2535e06975d4d4084aba3bf6830eb85a3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-282",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Solos Qualifiziert: Platz und Punkte mit Tausenderpunkt",
+    "kurz": "Globals Solos → Qualifiziert: Platz und Punkte unter Fotos mit Tausenderpunkt.",
+    "markieren": [
+      "text:Points",
+      "text:pts"
+    ],
+    "bereich": "Statistik",
+    "warum": "Unter den Spielerfotos stand „#12345 · 1234 Punkte“, im Weg-Plan daneben „#12.345“.",
+    "was": "Platz und Punkte sind jetzt überall gleich mit Tausenderpunkt geschrieben.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "commits": [
+      "8ceff81846c4c8abb50f9f7fe0d85db2798a33f2"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-283",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Überlebenszeit nie mehr „4m 60s“",
+    "kurz": "Cup → Team öffnen: Überlebenszeit nie mehr „4m 60s“, sondern „5m 00s“.",
+    "markieren": [
+      "text:Match history"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei Zeiten knapp unter einer vollen Minute stand „4m 60s“.",
+    "was": "Erst auf ganze Sekunden runden, dann in Minuten teilen.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "commits": [
+      "c3f27346ec8302a226c0d79c8421329ac51f1cb2"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-284",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Spielverlauf: fehlende Elims als Strich",
+    "kurz": "Cup → Team öffnen → Spielverlauf: fehlende Elims als „– Elims“ statt „0 Elims“.",
+    "markieren": [
+      "text:Elims"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte für ein Spiel die Elim-Zahl, stand „0 Elims“ – das sieht aus wie echte null.",
+    "was": "Jetzt steht ein Strich, echte Zahlen mit Tausenderpunkt.",
+    "ansehen": [
+      "/events/epicgames_S42_FNCSSolo_Final_EU"
+    ],
+    "commits": [
+      "b5e15320164339b60a5af347fc3596c401461334"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-285",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Stärkefelder: unbekannte Werte als Strich statt 0 %",
+    "kurz": "Profil → Stärkefelder: fehlende Werte zeigen „–“ statt „besser als 0 %“.",
+    "markieren": [
+      "text:better than",
+      "text:/100"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieler ohne Kopftreffer-, Material- oder Bauteil-Daten standen mit „0/100, besser als 0 % des Felds“ da; außerdem zählten Spieler ohne Wert im Vergleichsfeld als Schlechteste.",
+    "was": "Ohne Wert steht ein Strich und „Kein Wert erfasst“; verglichen wird nur mit Spielern, die den Wert haben.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "2bd59b441a713131f0501cbd07fcfec3e6fef639"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-286",
+    "datum": "2026-11-02T01:15:10Z",
+    "titel": "Erfolge-Reiter wie Karriere-Bestwerte sortiert",
+    "kurz": "Profil → Erfolge → FNCS: bei gleichem Platz LAN-Titel zuerst, wie bei Bestwerten.",
+    "markieren": [
+      "text:Career Best",
+      "text:FNCS"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Platz standen LAN-Finals (Globals) im Erfolge-Reiter hinten, in den Karriere-Bestwerten vorn.",
+    "was": "Beide sortieren jetzt gleich: Platz, dann LAN vor Online, dann neuer zuerst.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "dc70de3ea48e18f2d20831bc705c23d4d1ae0398"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
