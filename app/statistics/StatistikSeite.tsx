@@ -17,6 +17,8 @@
 //
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
+// Doppelgaenger-Buchstaben (kyrillisches a, ǃ statt !) zaehlen beim Suchen wie normale.
+import { vergleichbar } from '@/lib/homoglyph';
 import MerkStern from '@/app/components/MerkStern';
 import Lieblinge from '@/app/components/Lieblinge';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
@@ -2022,7 +2024,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   // Mit Rang in der ganzen Liste, damit er auch in der Trefferliste stimmt.
   const gefunden = suchen
     ? (vollDa
-      ? alle.map((z, i) => ({ z, rang: z.rang ?? i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+      ? alle.map((z, i) => ({ z, rang: z.rang ?? i + 1 })).filter((x) => vergleichbar(x.z.anzeige).includes(vergleichbar(klein))).slice(0, 50)
       : trefferDa ? treffer.liste : null)
     : null;
   const zeilen = (gefunden ?? (suchen ? [] : (offen ? alle.slice(0, vollDa ? sichtbar : alle.length || 10) : daten.zeilen.slice(0, 10))
@@ -4947,7 +4949,7 @@ export default function StatistikSeite() {
                                   const q = tabelleSuche.trim().toLowerCase();
                                   const gefunden = (spieltagTabelle ?? []).filter((r) =>
                                     !q || r.spieler.some((sp) =>
-                                      sp.name.toLowerCase().includes(q)));
+                                      vergleichbar(sp.name).includes(vergleichbar(q))));
                                   // Beim Suchen zaehlt das ganze Feld, nicht
                                   // die ersten fuenfzig.
                                   const zeigen = q ? gefunden
@@ -5592,7 +5594,7 @@ export default function StatistikSeite() {
               : nachLand
                 ? nachRegion.filter((sp) =>
                   laender.includes((sp.land ?? '').toLowerCase()))
-                : nachRegion.filter((sp) => sp.anzeige.toLowerCase().includes(q));
+                : nachRegion.filter((sp) => vergleichbar(sp.anzeige).includes(vergleichbar(q)));
             return (
               <>
                 <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -5995,7 +5997,7 @@ export default function StatistikSeite() {
         const gefiltert = nummeriert
           .filter(({ sp }) => !listenRegion || (sp.heimat || sp.regionen?.[0] || '') === listenRegion)
           .filter(({ sp }) => !q || [sp.anzeige, sp.name, ...(sp.namen ?? [])]
-            .some((n) => (n ?? '').toLowerCase().includes(q)));
+            .some((n) => vergleichbar(n ?? '').includes(vergleichbar(q))));
         const istElims = volleListe.feld === 'elims';
         const istGeld = volleListe.feld === 'verdienst';
         const JE_SEITE = 100;
