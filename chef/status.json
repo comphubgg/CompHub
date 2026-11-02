@@ -7,6 +7,6 @@
     "Bitte entscheiden: Scrims-Beispiele bei Yunite-Ausfall durch Hinweis ersetzen? Globals-Prize-Pool leer (Epic führt keine Tabelle) – Rückfall aus eigenen Daten? Gleichstand-Ränge in Kacheln teilen oder durchzählen?",
     "Nächste Runde: markieren für chef-469 bis chef-472 nachtragen, nach Veröffentlichung Profil „alle“ nachmessen, weitere Statistik-Querprüfungen."
   ],
-  "pause": false,
+  "pause": true,
   "modell": "Opus (Planung, Prüfung, 3 eigene Verbesserungen, 1 Helfer-Entwurf verworfen: Scrims-Beispiele gegen Betreiberwunsch) + Sonnet (14 Helfer) + Haiku (1 Helfer)"
 }
