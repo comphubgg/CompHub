@@ -271,7 +271,7 @@ export default function TwitchStatistik() {
                   <tr key={s.id} className="border-t border-zinc-800/80">
                     <td className="py-2 pr-3 tabular-nums text-slate-400">{s.live ? <span className="font-bold text-red-400">LIVE</span> : new Date(s.start).toLocaleDateString(ort)}</td>
                     <td className="max-w-[320px] truncate py-2 pr-3 text-slate-200" title={s.titel}>
-                      {s.titel}{s.nurArchiv && <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-slate-400"><T>Archiv</T></span>}
+                      {s.titel}{s.nurArchiv && <span className="ml-2 rounded bg-zinc-800 px-1.5 py-0.5 text-[11px] text-slate-400"><T>Archiv</T></span>}
                     </td>
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-400">{dauer(s.minuten)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-100">{s.nurArchiv ? '—' : zahl(s.peak)}</td>

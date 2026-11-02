@@ -10377,5 +10377,25 @@
     "ansehen": [
       "/twitch-statistik"
     ]
+  },
+  {
+    "id": "chef-468",
+    "datum": "2026-11-02T04:51:11Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Twitch-Statistik: Archiv-Marke in 11 Pixel",
+    "kurz": "Twitch-Statistik → Tabelle „Streams“: Marke „Archive“ jetzt 11 statt 10 Pixel.",
+    "markieren": [
+      "text:Archive"
+    ],
+    "warum": "Die Marke war nur 10 Pixel groß.",
+    "was": "Sie ist jetzt 11 Pixel groß.",
+    "ansehen": [
+      "/twitch-statistik"
+    ]
   }
 ]
