@@ -2019,6 +2019,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'höchstens': 'at most',
   'mindestens': 'at least',
   'Spieltage, ältester links': 'match days, oldest on the left',
+  'Zu wenige Spieltage mit diesem Wert für einen Verlauf.': 'Not enough match days with this stat to draw a trend.',
   'in der Saison': 'in season',
   'nicht angetreten.': 'did not compete.',
   'Zu diesem Spieltag liegen': 'For this match day there are',

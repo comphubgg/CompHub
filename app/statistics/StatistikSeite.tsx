@@ -6624,6 +6624,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                         </span>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+                        {/* Fuehren weniger als zwei Spieltage diesen Wert (z. B. Bauteile nur an Tagen mit Schusszahl), zeichnet die Linie nichts -
+                            dann ein Hinweis statt eines leeren Kastens. */}
+                        {kurveZeilen.length < 2 && (
+                          <p className="py-6 text-center text-sm text-slate-500"><T>Zu wenige Spieltage mit diesem Wert für einen Verlauf.</T></p>
+                        )}
                         <Verlaufslinie
                           beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
                           werte={[...kurveZeilen].reverse().map((z) => kurveWert(z.werte))}
