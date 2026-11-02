@@ -10164,5 +10164,26 @@
     "ansehen": [
       "/"
     ]
+  },
+  {
+    "id": "chef-458",
+    "datum": "2026-11-02T04:43:22Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Cup-Spielerwerte: Elims je Match und K/D auch bei kurzen Cups",
+    "kurz": "Cup mit unter 5 Runden → Player Stats: Kacheln „Elims je Match“ und „K/D“ zeigen jetzt Werte.",
+    "markieren": [
+      "text:K/D",
+      "text:Eliminations per match"
+    ],
+    "warum": "Die Kachel versprach „ab 4 Matches“, die Rechnung aus den Replays verlangte aber fest 5 – bei kurzen Cups bekam niemand einen Wert.",
+    "was": "Die Rechnung nutzt jetzt dieselbe Grenze wie die Beschriftung.",
+    "ansehen": [
+      "/events"
+    ]
   }
 ]

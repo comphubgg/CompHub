@@ -515,6 +515,8 @@ async function holeRoh(request: Request) {
     return raus;
   })();
 
+  const mindestSpiele = Math.min(5, rep.matches || 5);
+
   /** Alle Werte eines Spielers aus Replays und vollen Replays - ohne Namen und Team (die kommen nur fuer gezeigte Zeilen dazu). */
   const werte = (x: (typeof rep.spieler)[number]) => ({
     epicId: x.epicId,
@@ -525,7 +527,8 @@ async function holeRoh(request: Request) {
     tode: x.gestorben,
     umgehauen: x.umgehauen,
     // Erst ab fuenf Spielen - sonst fuehrt einer mit einem einzigen guten Spiel.
-    ...(x.matches >= 5 ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
+    // Bei weniger als fuenf Runden gilt die Rundenzahl - so nennt es auch die Kachel ("ab 4 Matches") und so rechnet die Szene-Quelle oben.
+    ...(x.matches >= mindestSpiele ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
     clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
     // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
     ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
@@ -582,7 +585,7 @@ async function holeRoh(request: Request) {
     if (q) return basis;
     const drin = new Set(basis.map((x) => x.epicId));
     const mit = (liste: typeof auswahl) => { for (const x of liste) if (!drin.has(x.epicId)) { drin.add(x.epicId); basis.push(x); } };
-    const genug = rep.spieler.filter((x) => x.matches >= 5);
+    const genug = rep.spieler.filter((x) => x.matches >= mindestSpiele);
     mit([...rep.spieler].sort((a, b) => b.knocks - a.knocks).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / b.matches - a.kills / a.matches).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / Math.max(1, b.gestorben) - a.kills / Math.max(1, a.gestorben)).slice(0, 25));
