@@ -125,7 +125,7 @@ async function baueSpielerIndex(alle: Record<string, IndexEintrag>, frist = 25_0
   return Object.keys(alle).filter((id) => !idx.matches[id]).length;
 }
 
-export interface MeinGame { nr: number; id: string; beginn?: string; platz: number | null; kills: number; teamKills: number; mitspieler: string[]; sieger: boolean }
+export interface MeinGame { nr: number; id: string; beginn?: string; platz: number | null; kills: number | null; teamKills: number | null; mitspieler: string[]; sieger: boolean }
 export interface MeinTag { windowId: string; region: string; games: MeinGame[] }
 export interface MeinCup { eventId: string; kurz: string; titel: string; season: string; beginn: string; tage: MeinTag[] }
 
@@ -141,7 +141,8 @@ export async function meineCups(epicId: string, alle: Record<string, IndexEintra
     if (!meine.length) continue;
     const games: MeinGame[] = [];
     for (const m of meine) {
-      let platz: number | null = null; let kills = 0; let teamKills = 0; let mitspieler: string[] = []; let sieger = false;
+      // Ist das Game nicht lesbar, bleiben Elims null (Strich) - nicht 0.
+      let platz: number | null = null; let kills: number | null = null; let teamKills: number | null = null; let mitspieler: string[] = []; let sieger = false;
       try {
         const d = await liesJson<{ spieler?: Array<{ epic?: string; name?: string; team?: number; platz?: number; kills?: number; teamKills?: number }> } | null>(m.datei, null);
         const ich = d?.spieler?.find((s) => String(s.epic ?? '').toLowerCase() === id);

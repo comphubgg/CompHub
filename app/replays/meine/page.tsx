@@ -17,7 +17,7 @@ import ReplayUmschalter from '../ReplayUmschalter';
 import { useZugang } from '@/app/lib/zugang';
 import { replayDatum, replayUhrzeit, tagName, schoenerTitel, ohneMarke } from '@/lib/replayNamen';
 
-interface Game { nr: number; id: string; beginn?: string; platz: number | null; kills: number; teamKills: number; mitspieler: string[]; sieger: boolean }
+interface Game { nr: number; id: string; beginn?: string; platz: number | null; kills: number | null; teamKills: number | null; mitspieler: string[]; sieger: boolean }
 interface Tag { windowId: string; region: string; games: Game[] }
 interface Cup { eventId: string; kurz: string; titel: string; season: string; beginn: string; tage: Tag[] }
 interface Antwort { fertig: boolean; fehlen: number; gesamt: number; cups: Cup[] }
@@ -117,7 +117,7 @@ export default function MeineReplays() {
                             </span>
                             <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] tabular-nums text-slate-300">
                               {g.platz !== null && <span className={g.sieger ? 'font-black text-amber-300' : ''}><T>Platz</T> #{g.platz}</span>}
-                              <span>{g.kills} Elims{g.teamKills !== g.kills ? ` (Team ${g.teamKills})` : ''}</span>
+                              <span>{g.kills === null ? '–' : g.kills} Elims{g.kills !== null && g.teamKills !== null && g.teamKills !== g.kills ? ` (Team ${g.teamKills})` : ''}</span>
                             </span>
                             {g.mitspieler.length > 0 && <span className="mt-0.5 block truncate text-[10px] uppercase text-slate-500">+ {g.mitspieler.map(ohneMarke).join(' · ')}</span>}
                           </Link>
