@@ -3624,7 +3624,7 @@ export default function StatistikSeite() {
     // Ein frisch geoeffnetes Profil zeigt die ganze Laufbahn - das ist die
     // Frage, die man beim Aufschlagen eines Profils zuerst hat.
     setProfilSaison('alle');
-    setVerdienstKapitel(0); setVerdienstSaison('');
+    setVerdienstKapitel(0); setVerdienstSaison(''); setVerdienstJahr(0);
     void profilLaden(s, 'alle');
   }, [profilLaden]);
 
