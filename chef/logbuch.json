@@ -7983,7 +7983,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "commits": [],
+    "commits": [
+      "851922279bfb1170af972adb373f0b2f09969af3"
+    ],
     "status": "wartet",
     "runde": 1
   }

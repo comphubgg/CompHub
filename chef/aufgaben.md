@@ -11,7 +11,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-335) **Profil-Rang bei gleichen Elims ≠ Bestenliste** (Einlese-Reihenfolge).
 - [x] (chef-336 bis chef-343) Cup-Spieler Strich statt 0, FNCS-Reihenfolge ohne Namen, FNCS-Seite übersetzt, Jahresbilanz-Ausfall, Mehrtages-Summen, Duell-Strich, Replay-Leben, Replay-Meter.
 - [x] (chef-344 bis chef-358) FNCS Winners, Turnier-Kacheln (Marke und Klickziel), Streamer-Liste bei Ausfall, Globals-Teams (Ausfall, Duo mit einem Spieler, Suche ohne Treffer), Posts- und Tierlist-Übersetzungen, Mehrtages-Gesamtwertung, Elims-Liste-Gleichstand, Top-Prozent mit Komma, Tweet-Mindestspiele, Tages-Preisgeld.
-- [ ] **Admin-Tweets: Einzelspieler bei Gleichstand in Eingabereihenfolge** (Teams nutzen den Turnierrang) – klein, nur Admin.
+- [x] (chef-360) **Admin-Tweets: Einzelspieler bei Gleichstand in Eingabereihenfolge** (Teams nutzen den Turnierrang) – klein, nur Admin.
 - [ ] **Cup-Seite Summenansicht: Spiele-Kachel nimmt Obergrenze des letzten Tages**, wenn nicht jeder Tag eine eigene hat – Randfall.
 - [ ] **Globals-Teams: Verdienst genau 0 erscheint als Strich** – Geschmackssache, Betreiber fragen.
 - [ ] **Tierlist: Meldungen, die gar nicht angezeigt werden** (setClipboardMessage, setCloudSaveMessage, setUploadStatusMessage) – toter Code? prüfen.
@@ -20,7 +20,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-344) **FNCS-Titel-Rangfolge (Route fncs-alltime) endete bei nameVgl** – nur, wenn zwei Titelgewinner gleich viele Titel haben und beide nicht unter den 80 Besten stehen; eine Zeile.
 - [ ] **Schnittstellen /api/br-statistik und /api/eigene-werte nirgends aufgerufen** (auch nicht in scripts/, .github/) – löschen? Betreiber fragen.
 - [ ] **Profil → Überblick → Werte: Assists, Wiederbelebungen, Heilung, Sturmschaden zeigen 0 an reinen Epic-Tagen** – Quelle trennt 0 und unbekannt dort nicht; beobachten.
-- [ ] **Profil: Tagesbeste ohne feste Folge bei Gleichstand** – harmlos, solange nur die Anzahl gezeigt wird.
+- [x] (chef-359) **Profil: Tagesbeste ohne feste Folge bei Gleichstand** – harmlos, solange nur die Anzahl gezeigt wird.
 
 ## Neu entdeckt (Runde 16, 02.11.2026)
 
