@@ -23,6 +23,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
+import { ORGS_JAHR } from '@/lib/orgsJahr';
 
 type Rolle = 'pro' | 'academy' | 'creator';
 interface OrgSpielerAnzeige {
@@ -515,7 +516,7 @@ export default function Organisationen({ aufSpieler }: {
               : <T>Preisgeld für die Organisation, gezählt ab dem Beitritt jedes Spielers</T>}
           </p>
           <div className="mt-3 flex gap-1.5">
-            {([['alle', t('Alle Jahre')], ['jahr', '2026']] as Array<['alle' | 'jahr', string]>).map(([w, titel]) => (
+            {([['alle', t('Alle Jahre')], ['jahr', String(ORGS_JAHR)]] as Array<['alle' | 'jahr', string]>).map(([w, titel]) => (
               <button key={w} type="button" onClick={() => setZeitraum(w)}
                 className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${zeitraum === w
                   ? 'border-sky-500 bg-sky-500/10 text-sky-400'

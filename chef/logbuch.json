@@ -9185,5 +9185,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "datum": "2026-11-02T03:50:07Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-414",
+    "titel": "Orgs: Jahres-Knopf aus derselben Quelle wie die Rechnung",
+    "kurz": "Unsichtbar: Orgs-Knopf „2026“ wechselt zum Jahreswechsel mit der Preisgeld-Rechnung.",
+    "markieren": [
+      "text:Alle Jahre",
+      "text:2026"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Knopf hatte die Jahreszahl fest eingetragen; nach dem Jahreswechsel hätte er „2026“ gezeigt, obwohl schon 2027 gerechnet wird.",
+    "was": "Knopf und Rechnung lesen die Jahreszahl jetzt an einer einzigen Stelle.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "modell": "Opus"
   }
 ]

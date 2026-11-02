@@ -20,8 +20,8 @@ import { speicher, schreibJson } from '@/lib/ablage';
 import { orgBild } from '@/lib/bildAdressen';
 
 export const ORGS_DATEI = 'orgs.json';
-/** Das Jahr, dessen Preisgeld gezaehlt wird. */
-export const ORGS_JAHR = 2026;
+/** Das Jahr, dessen Preisgeld gezaehlt wird (gemeinsam mit der Seite, siehe orgsJahr.ts). */
+export { ORGS_JAHR } from '@/lib/orgsJahr';
 
 /**
  * Die Rolle in der Org. Der Betreiber (26./28.9.2026): Pro Roster, darunter
