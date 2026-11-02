@@ -204,15 +204,17 @@ async function rechnen(request: Request) {
   if (cups.length) letzteCups = cups;
   else cups = letzteCups ?? (letzteCups = vorigeCups());
   // Die ersten fuenf der Power Rankings - mit dem Namen aus den Profilen statt Epics Anzeigenamen samt Teamkuerzel.
-  let rangliste: Array<{ rang: number; name: string; land: string | null; wertung: number; delta: number }> = [];
+  let rangliste: Array<{ rang: number; name: string; land: string | null; wertung: number; delta: number; bild: string | null }> = [];
   try {
     const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {});
     const j = await (await prLesen(new Request('http://localhost/api/power-rankings?page=1'))).json() as {
-      players?: Array<{ rank: number; id: string; name: string; land?: string; wertung: number; deltaPlatz?: number }>;
+      players?: Array<{ rank: number; id: string; name: string; land?: string; wertung: number; deltaPlatz?: number; bild?: string | null }>;
     };
     rangliste = (j.players ?? []).slice(0, 5).map((x) => ({
       rang: x.rank, name: profile[x.id]?.anzeige || profile[x.id]?.name || x.name,
       land: (profile[x.id]?.land || x.land || '').toUpperCase() || null, wertung: x.wertung, delta: x.deltaPlatz ?? 0,
+      // Das Foto wie auf der Rangliste selbst (Betreiber, 2.11.2026: das Treppchen "mit einem Profilbild beschmuecken").
+      bild: x.bild ?? null,
     }));
   } catch { /* ohne Rangliste bleibt die Karte leer */ }
   let maps = 0;

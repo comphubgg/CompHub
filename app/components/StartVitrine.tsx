@@ -54,7 +54,7 @@ interface VSpieler { id: string; name: string; land: string | null; region: stri
 interface VZeile { rang: number; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }
 interface VCup { titel: string; cup: string; typ: string; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: VZeile[] }
 interface VRegion { region: string; name: string; land: string | null; elims: number }
-interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number }
+interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number; bild?: string | null }
 interface Vitrine { ok: boolean; saison: string | null; saisonName?: string | null; spieler: VSpieler[]; cups: VCup[]; maps: number; regionen: VRegion[]; rangliste: VRang[] }
 interface SolosFenster { windowId: string; name: string; art: string; spieler: Array<{ id: string; anzeige: string; land: string | null }> }
 
@@ -379,11 +379,15 @@ function MapsSpalte({ anzahl }: { anzahl: number }) {
 
 /* ------------------------------------------------------------------ More */
 
+/** Die Stufen wie auf der Tierlist-Seite (Farben von dort): links der Buchstabe im Farbblock, rechts die Reihe. */
 const STUFEN = [
-  { buchstabe: 'S', farbe: 'bg-red-500', rand: 'border-red-500/40' },
-  { buchstabe: 'A', farbe: 'bg-orange-500', rand: 'border-orange-500/40' },
-  { buchstabe: 'B', farbe: 'bg-amber-400', rand: 'border-amber-400/40' },
+  { buchstabe: 'S', farbe: 'bg-[#e53e3e]' },
+  { buchstabe: 'A', farbe: 'bg-[#f97316]' },
+  { buchstabe: 'B', farbe: 'bg-[#eab308]' },
+  { buchstabe: 'C', farbe: 'bg-[#22c55e]' },
+  { buchstabe: 'D', farbe: 'bg-[#3b82f6]' },
 ];
+const JE_STUFE = 4;
 
 /** Spieler, die auf dem Vorbild schon in der Vorschau stehen - hier bewusst andere (hoechstens einer, zwei davon). */
 const NICHT_IN_DER_VORSCHAU = new Set(['peterbot', 'vico', 'rax', 'kami', 'mero', 'veno', 'bugha', 'shxrk', 'queasy']);
@@ -393,21 +397,21 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
   const alle = daten?.spieler ?? [];
   const frei = alle.filter((s) => !NICHT_IN_DER_VORSCHAU.has(s.name.toLowerCase()));
   // Genug andere? Dann nur sie; sonst mit dem Rest auffuellen.
-  const liste = frei.length >= 9 ? frei : [...frei, ...alle.filter((s) => !frei.includes(s))];
+  const liste = frei.length >= STUFEN.length * JE_STUFE ? frei : [...frei, ...alle.filter((s) => !frei.includes(s))];
   return (
     <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen} glas>
-      {liste.length < 9 ? <Hinweis geladen={fertig} /> : (
+      {liste.length < STUFEN.length * JE_STUFE ? <Hinweis geladen={fertig} /> : (
         <>
-          {/* Die Stufen als drei Spalten nebeneinander (Betreiber, 14.10.2026: "sieht zu krass nach dem Vorbild aus") - oben der Buchstabe, darunter
-              die Spieler untereinander. */}
-          <div className="grid grid-cols-3 gap-2.5">
+          {/* Wie die Tierlist-Seite selbst (Betreiber, 2.11.2026: "1:1 die Tierlist-Seite reinklatschen", unten war zu viel frei): Stufe um Stufe
+              untereinander, links der farbige Buchstabe, rechts die Spieler nebeneinander. Fuenf Stufen fuellen die Hoehe neben den FNCS. */}
+          <div className="space-y-2">
             {STUFEN.map((st, r) => (
-              <div key={st.buchstabe} className={`vit-an overflow-hidden rounded-2xl border bg-black/20 ${st.rand}`}
-                style={{ animation: `vit-rein .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
-                <span className={`flex items-center justify-center py-2 text-2xl font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
-                <div className="space-y-1.5 p-2">
-                  {liste.slice(r * 3, r * 3 + 3).map((s) => (
-                    <span key={s.id} className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-zinc-900/70 p-1">
+              <div key={st.buchstabe} className="vit-an flex min-h-[3.6rem] overflow-hidden rounded-xl bg-zinc-900/80"
+                style={{ animation: `vit-rein .5s ${r * 100}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <span className={`flex w-14 shrink-0 items-center justify-center text-xl font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
+                <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5 p-1.5 sm:grid-cols-4">
+                  {liste.slice(r * JE_STUFE, r * JE_STUFE + JE_STUFE).map((s) => (
+                    <span key={s.id} className="flex min-w-0 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-1">
                       <Gesicht name={s.name} bild={s.bild} px={30} />
                       <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase text-slate-100">{s.name}</span>
                       <TeamFlagge groesse={11} laender={[s.land ?? undefined]} />
@@ -534,8 +538,11 @@ function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }
             {treppe.map((r, k) => (
               <div key={r.rang} className="vit-an flex min-w-0 flex-col items-center"
                 style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
-                <TeamFlagge groesse={16} laender={[r.land ?? undefined]} />
-                <span className="mt-1 w-full truncate text-center text-[11px] font-black uppercase text-slate-100">{r.name}</span>
+                <Gesicht name={r.name} bild={r.bild ?? null} px={r.rang === 1 ? 46 : 38} />
+                <span className="mt-1 flex w-full min-w-0 items-center justify-center gap-1">
+                  <TeamFlagge groesse={12} laender={[r.land ?? undefined]} />
+                  <span className="truncate text-[11px] font-black uppercase text-slate-100">{r.name}</span>
+                </span>
                 <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
                 {delta(r.delta)}
                 <div className={`mt-1 grid w-full place-items-center rounded-t-lg border border-white/[0.06] ${r.rang === 1 ? 'bg-sky-500/25' : 'bg-black/30'} ${HOEHE[r.rang] ?? 'h-8'}`}>
