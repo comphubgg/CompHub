@@ -7568,5 +7568,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-342",
+    "datum": "2026-11-02T02:42:02Z",
+    "titel": "Replay-Karte: unbekanntes Leben als Strich statt 0/100",
+    "kurz": "Replay → Spieler auf der Karte antippen: unbekanntes Leben zeigt „–/100“ statt „0/100“.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kannte das Replay das Leben eines lebenden Spielers nicht, stand „0/100“ – als wäre er fast tot.",
+    "was": "Dort steht jetzt ein Strich und der Balken bleibt leer.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day1_NAW/1"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

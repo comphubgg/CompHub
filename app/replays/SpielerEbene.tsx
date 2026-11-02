@@ -241,16 +241,16 @@ function ausruestung(d: Aufbereitet, id: number, zeit: number) {
 /** Schild- und Lebensbalken wie im Spiel: blau oben, gruen unten, mit Zahl. */
 function Balken({ hp, schild, schmal }: { hp: number | null; schild: number | null; schmal?: boolean }) {
   const h = schmal ? 5 : 13;
-  const zeile = (wert: number, farbe: string) => (
+  const zeile = (wert: number | null, farbe: string) => (
     <div className="relative overflow-hidden rounded-sm bg-black/70" style={{ height: h }}>
-      <div className="h-full" style={{ width: `${Math.max(0, Math.min(100, wert))}%`, background: farbe }} />
-      {!schmal && <span className="absolute inset-0 pl-1 text-[9px] font-black leading-[13px] text-white" style={{ textShadow: '0 0 2px #000' }}>{Math.round(wert)}/100</span>}
+      <div className="h-full" style={{ width: `${Math.max(0, Math.min(100, wert ?? 0))}%`, background: farbe }} />
+      {!schmal && <span className="absolute inset-0 pl-1 text-[9px] font-black leading-[13px] text-white" style={{ textShadow: '0 0 2px #000' }}>{wert === null ? '–' : Math.round(wert)}/100</span>}
     </div>
   );
   return (
     <div className="grid gap-[2px]">
       {schild !== null && zeile(schild, '#3b82f6')}
-      {zeile(hp ?? 0, '#65a30d')}
+      {zeile(hp, '#65a30d')}
     </div>
   );
 }
