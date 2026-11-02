@@ -10,6 +10,11 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-334) **FNCS Nationalities: Gleichstand nach Ländercode** (alphabetisch).
 - [x] (chef-335) **Profil-Rang bei gleichen Elims ≠ Bestenliste** (Einlese-Reihenfolge).
 - [x] (chef-336 bis chef-343) Cup-Spieler Strich statt 0, FNCS-Reihenfolge ohne Namen, FNCS-Seite übersetzt, Jahresbilanz-Ausfall, Mehrtages-Summen, Duell-Strich, Replay-Leben, Replay-Meter.
+- [x] (chef-344 bis chef-358) FNCS Winners, Turnier-Kacheln (Marke und Klickziel), Streamer-Liste bei Ausfall, Globals-Teams (Ausfall, Duo mit einem Spieler, Suche ohne Treffer), Posts- und Tierlist-Übersetzungen, Mehrtages-Gesamtwertung, Elims-Liste-Gleichstand, Top-Prozent mit Komma, Tweet-Mindestspiele, Tages-Preisgeld.
+- [ ] **Admin-Tweets: Einzelspieler bei Gleichstand in Eingabereihenfolge** (Teams nutzen den Turnierrang) – klein, nur Admin.
+- [ ] **Cup-Seite Summenansicht: Spiele-Kachel nimmt Obergrenze des letzten Tages**, wenn nicht jeder Tag eine eigene hat – Randfall.
+- [ ] **Globals-Teams: Verdienst genau 0 erscheint als Strich** – Geschmackssache, Betreiber fragen.
+- [ ] **Tierlist: Meldungen, die gar nicht angezeigt werden** (setClipboardMessage, setCloudSaveMessage, setUploadStatusMessage) – toter Code? prüfen.
 - [ ] **Replay-Spielerwerte: Treffer/Kopftreffer `?? 0`** bei Spielern mit Schadenszeile, aber ohne eigenen Wert – wie Kills (Quelle trennt nicht); beobachten.
 - [ ] **Startseite LiveDemnaechst: gleicher Start = Reihenfolge des Katalogs** – stabil, aber nicht nach Stärke; Betreiber fragen, ob EU/Bedeutung zuerst.
 - [x] (chef-344) **FNCS-Titel-Rangfolge (Route fncs-alltime) endete bei nameVgl** – nur, wenn zwei Titelgewinner gleich viele Titel haben und beide nicht unter den 80 Besten stehen; eine Zeile.
