@@ -111,10 +111,11 @@ interface Zeile {
   tagesPlatz: number;
   teamId: string | null;
   spieler: Array<{ id: string; name: string }>;
-  elims: number;
-  wins: number;
-  timeAlive: number;
-  damage: number;
+  /** null = unbekannt (Epic meldet nichts) - nie als 0 erfinden. */
+  elims: number | null;
+  wins: number | null;
+  timeAlive: number | null;
+  damage: number | null;
   /** Wann dieses Team ausgeschieden ist. */
   ende: string | null;
   /** Aus Epics Punktetabelle gerechnet - null, wenn es keine gibt. */
@@ -323,12 +324,15 @@ async function holeRoh(request: Request) {
           tagesPlatz: e.rank,
           teamId: e.teamId,
           spieler: e.players.map((s) => ({ id: s.id, name: s.name })),
-          elims: m.elims ?? 0,
-          wins: m.wins ?? 0,
-          timeAlive: m.timeAlive ?? 0,
-          damage: m.damage ?? 0,
+          elims: typeof m.elims === 'number' ? m.elims : null,
+          wins: typeof m.wins === 'number' ? m.wins : null,
+          timeAlive: typeof m.timeAlive === 'number' ? m.timeAlive : null,
+          damage: typeof m.damage === 'number' ? m.damage : null,
           ende: m.endTime ?? null,
-          punkte: punkteFuerRunde(wertung, platz, m.elims ?? 0),
+          // Ohne bekannte Elims lassen sich Elim-Punkte nicht rechnen: dann unbekannt.
+          punkte: typeof m.elims !== 'number' && wertung.some((w) => w.was === 'Elimination')
+            ? null
+            : punkteFuerRunde(wertung, platz, typeof m.elims === 'number' ? m.elims : 0),
         });
         runden.set(m.sessionId, r);
       }
@@ -445,7 +449,7 @@ async function holeRoh(request: Request) {
           tagesPlatz: e.rank,
           teamId: e.teamId,
           spieler: e.players.map((sp) => ({ id: sp.id, name: sp.name })),
-          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          elims: null, wins: null, timeAlive: null, damage: null,
           ende: null, punkte: null,
           ausReplay: true,
         });
@@ -474,7 +478,7 @@ async function holeRoh(request: Request) {
             id: kennung(p.id),
             name: p.name ?? namenNach.get(kennung(p.id)) ?? kennung(p.id).slice(0, 8),
           })),
-          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          elims: null, wins: null, timeAlive: null, damage: null,
           ende: null, punkte: null,
           ausReplay: true,
         });
@@ -488,7 +492,7 @@ async function holeRoh(request: Request) {
           tagesPlatz: 0,
           teamId: null,
           spieler: [{ id: konto, name: namenNach.get(konto) ?? konto.slice(0, 8) }],
-          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          elims: null, wins: null, timeAlive: null, damage: null,
           ende: null, punkte: null,
           ausReplay: true,
         });
@@ -631,7 +635,9 @@ async function holeRoh(request: Request) {
           vollstaendig,
           /** Wie viele Plaetze in der erwarteten Spanne fehlen. */
           fehlend: Math.max(0, erwartet - einmalig.size),
-          laengsteLebenszeit: s.teams.reduce((a, t) => Math.max(a, t.timeAlive), 0),
+          // Alle Zeiten unbekannt: unbekannt (null), nicht 0.
+          laengsteLebenszeit: s.teams.reduce<number | null>(
+            (a, t) => (typeof t.timeAlive === 'number' ? Math.max(a ?? 0, t.timeAlive) : a), null),
           sieger: s.teams.find((t) => t.platz === 1)?.spieler.map((x) => x.name) ?? [],
         };
       })
