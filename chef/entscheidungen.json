@@ -1029,5 +1029,66 @@
       "zeit": "2026-10-31T21:52:37.326Z",
       "main": "26a98229"
     }
+  },
+  "chef-472": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z",
+    "uebernahme": {
+      "stand": "live",
+      "text": "Auf GitHub (main 517b8967); die Seite wird neu gebaut und ist in etwa 10 Minuten live. Netlify baut neu.",
+      "zeit": "2026-11-02T09:54:15.149Z",
+      "main": "517b8967"
+    }
+  },
+  "chef-126": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-285": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-417": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-418": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-208": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-455": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-380": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-396": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-397": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
+  },
+  "chef-142": {
+    "entscheidung": "ja",
+    "notiz": "freigegeben im Chat (Betreiber: \"mach alles was nuetzt\", 2.11.2026)",
+    "zeit": "2026-11-02T09:53:49.518Z"
   }
 }
