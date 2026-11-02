@@ -7614,5 +7614,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-344",
+    "datum": "2026-11-02T02:44:07Z",
+    "titel": "FNCS Winners: Gleichstand außerhalb der 80 Besten nicht mehr alphabetisch",
+    "kurz": "FNCS → All-Time Stats → FNCS Winners: gleiche Titelzahl ordnet nach Stärke, dann neuestem Titel.",
+    "markieren": [
+      "text:FNCS Winners",
+      "text:Titles"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatten zwei Titelgewinner gleich viele Titel und standen beide nicht unter den 80 Besten, entschied das Alphabet.",
+    "was": "Jetzt entscheidet ihr Platz in der ganzen Elims-Aufstellung, dann wer den neueren Titel hat; der Name nur, wenn wirklich alles gleich ist.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

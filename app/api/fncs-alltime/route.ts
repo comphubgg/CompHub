@@ -112,19 +112,23 @@ async function rechnenRoh() {
     const spieler = alle.filter((x) => dabei.has(x.id)).sort(vglElims);
     // Die Titel (FNCS-Sieger) seit Chapter 1 - aus der Spielerliste der Szene-Quelle - und nach Land.
     // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
-    const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();
+    const siegerJe = new Map<string, { name: string; land: string | null; titel: number; zuletzt: number }>();
     for (const e of await fncsEreignisse()) {
       // Die Titel zaehlen die europaeischen Grand Finals, die Globals, das Invitational und die Summit - nicht die Majors der anderen Regionen.
       if (e.regionCode !== 'EU' && e.regionCode !== 'GLOBAL') continue;
       for (const sp of e.spitze.find((x) => x.rang === 1)?.spieler ?? []) {
         const k = sp.name.toLowerCase();
-        const a = siegerJe.get(k) ?? { name: sp.name, land: sp.land, titel: 0 };
-        a.titel += 1; a.land = a.land ?? sp.land; siegerJe.set(k, a);
+        const a = siegerJe.get(k) ?? { name: sp.name, land: sp.land, titel: 0, zuletzt: 0 };
+        a.titel += 1; a.land = a.land ?? sp.land; a.zuletzt = Math.max(a.zuletzt, e.datum ?? 0); siegerJe.set(k, a);
       }
     }
     // Bei gleich vielen Titeln entscheidet die Staerke (Platz in der Eliminierungs-Aufstellung der Grand Finals) - nie das Alphabet (Betreiber).
     const staerke = new Map(top.map((x, i) => [x.name.toLowerCase(), i] as const));
-    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6) || nameVgl(a.name, b.name)).map((t) => ({ id: t.name, ...t }));
+    // Wer nicht unter den 80 steht, wird nach seinem Platz in der ganzen Elims-Aufstellung eingeordnet, dann nach dem neuesten Titel; der Name nur als allerletzte Stufe.
+    const staerkeAlle = new Map([...alle].sort(vglElims).map((x, i) => [x.name.toLowerCase(), i] as const));
+    const rangVon = (n: string) => staerke.get(n.toLowerCase()) ?? staerkeAlle.get(n.toLowerCase()) ?? 1e6;
+    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || rangVon(a.name) - rangVon(b.name) || b.zuletzt - a.zuletzt || nameVgl(a.name, b.name))
+      .map((t) => ({ id: t.name, ...t }));
     // Laender: mehr Titel, dann mehr verschiedene Titelgewinner, dann das Land des staerksten Titelgewinners (nie der Laendercode = Alphabet).
     // "titel" ist schon nach Titeln und Staerke geordnet; die Position des ersten Gewinners eines Landes ist sein Rang.
     const nachLand = new Map<string, { titel: number; koepfe: number; erster: number }>();
