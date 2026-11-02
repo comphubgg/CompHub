@@ -10023,5 +10023,25 @@
     "ansehen": [
       "/statistics?bereich=bilder"
     ]
+  },
+  {
+    "id": "chef-451",
+    "datum": "2026-11-02T04:36:14Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "mittel",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Spieltag-Tabelle: Endstand auch bei den Finals 2023 und 2024",
+    "kurz": "FNCS-Finale 2023/2024, Tag 2: Tabelle zeigt jetzt den Endstand beider Tage, nicht Tag 2 allein.",
+    "markieren": [
+      "css:table"
+    ],
+    "warum": "Bei den Finals 2023/2024 standen Platz, Punkte und Preisgeld nur von Tag 2 – z. B. Major 3 EU 2024: Chap/T3eny als Sieger, im Endstand liegt aber Vico/Flickzy vorn.",
+    "was": "Die Tabelle erkennt diese Finals jetzt wie das Spielerprofil und zählt beide Tage zusammen.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ]
   }
 ]

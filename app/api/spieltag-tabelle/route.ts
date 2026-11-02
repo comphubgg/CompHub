@@ -96,7 +96,9 @@ export async function GET(request: Request) {
    */
   let gesamt = false;
   // Bei einer LAN nur auf Wunsch (Kachel "Finals"): Day 2 allein bleibt Day 2.
-  const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/)
+  // Dieselben Fenster-Namen wie lib/szeneStats (letzterTagEinesFinales): auch 2024 ("GrandFinalDay2") und 2023 ("GrandFinals_EU_Day2") fuehren am zweiten Tag nur diesen Tag.
+  const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day|GrandFinalDay)(\d+)_/)
+    ?? fenster.match(/_GrandFinals_[A-Z]+_Day(\d+)$/)
     ?? (p.get('gesamt') === '1' ? fenster.match(/^(?:MannekenPis|Dinosauron|BambiRaptor)_Day(\d+)$/) : null);
   if (daten?.teams?.length && letzterTag && Number(letzterTag[1]) >= 2) {
     // matches/teamElims bleiben null, sobald ein Tag sie nicht fuehrt - eine halbe Summe oder eine 0 waere falsch.
