@@ -8,6 +8,8 @@ import {
 import { ergaenzeAusDienst } from '@/lib/kontoErgaenzen';
 import { ueberHttps, vipAus } from '@/lib/vipCookie';
 import { zugangTwitchBestaetigen } from '@/lib/vipZugaenge';
+import { geraetAus, geraetText } from '@/lib/geraet';
+import { schickeAlarm } from '@/lib/discord';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
@@ -171,6 +173,18 @@ export async function GET(req: NextRequest) {
     if (req.cookies.get('twitch_oauth_art')?.value === 'vip-pruefung') {
       const vip = vipAus(req.cookies.get('streamer_dashboard_auth')?.value);
       const ergebnis = vip ? await zugangTwitchBestaetigen(vip, nutzer.login ?? '', nutzer.id) : 'nicht-noetig';
+      /*
+       * Der Betreiber bekommt es sofort auf Discord (#admin-alarm) - mit dem Twitch-Konto, das es versucht hat, und dem Geraet (Betreiber,
+       * 2.11.2026: "dann schreibt er mir automatisch ... mit welchem Account"). Gerade der Fehlversuch verraet, wer den Schluessel benutzt.
+       */
+      if (vip && ergebnis !== 'nicht-noetig') {
+        const wer = `${nutzer.display_name || nutzer.login || '?'} (twitch.tv/${nutzer.login ?? '?'}, Twitch-Id ${nutzer.id})`;
+        const womit = geraetText(geraetAus(req.headers)) || 'unbekannt';
+        void schickeAlarm(ergebnis === 'ok'
+          ? { titel: `Schlüssel ${vip}: mit Twitch bestätigt`, text: `Der Schlüssel **${vip}** wurde mit dem richtigen Twitch-Konto bestätigt und ist wieder aktiv.\n\nTwitch: ${wer}\nGerät: ${womit}` }
+          : { titel: `Schlüssel ${vip}: falsches Twitch-Konto`, text: `Jemand mit dem Schlüssel **${vip}** hat sich mit einem anderen Twitch-Konto bestätigen wollen. Der Schlüssel bleibt pausiert.\n\nTwitch: ${wer}\nGerät: ${womit}` })
+          .catch(() => undefined);
+      }
       const fertig = zurueck(req, ergebnis === 'ok' ? '/?twitch=bestaetigt' : ergebnis === 'falsches-konto' ? '/?twitch=falsches-konto' : '/');
       fertig.cookies.set('twitch_oauth_art', '', { path: '/', maxAge: 0 });
       fertig.cookies.set('twitch_oauth_state', '', { path: '/', maxAge: 0 });
