@@ -26,9 +26,17 @@ export async function GET(request: Request) {
   try {
     // Die Kurzfassung der Startseite kommt nach einem Neustart sofort aus der letzten guten Antwort (lib/ueberdauernd); frisch gerechnet wird im Hintergrund.
     const kurzAnfrage = suche.get('kurz') === '1' && !frisch;
-    const daten = kurzAnfrage
+    const roh = kurzAnfrage
       ? await ueberdauernd(`globals-solos-${region}`, 2 * 60_000, 24 * 3600_000, () => globalsSolos(region))
       : await globalsSolos(region);
+    /*
+     * Nur die laufende Reihe (2.11.2026): Epics Stufen waren schon die Solos Reload (Season 43), Spieler, Heats und Karten kamen aber noch von
+     * den Battle-Royale-Solos der Season 42 - die Seite stand deshalb als "FNCS · Battle Royale" da, die Startseite zeigte deren Heats. Gehoert
+     * die Reihe der Stufen nicht zu der der Spieltage, fallen die Spieltage weg, bis die neue Reihe eigene hat.
+     */
+    const reloadStufen = !!roh?.stufen.some((x) => /reload/i.test(x.windowId));
+    const reloadFenster = !!roh?.fenster.some((x) => /reload/i.test(x.windowId));
+    const daten = roh && roh.fenster.length && reloadStufen !== reloadFenster ? { ...roh, fenster: [], qualifiziert: [] } : roh;
     if (!daten) {
       return NextResponse.json({ ok: false, error: region === 'EU' ? 'Noble führt FNCS Solos gerade nicht.' : 'Epic führt FNCS Solos in dieser Region gerade nicht.' },
         { status: 404, headers: { 'Cache-Control': 'no-store' } });
