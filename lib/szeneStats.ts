@@ -2487,8 +2487,12 @@ export async function szeneFenster(windowIds: string[]): Promise<{ matches: numb
       const da = summe.get(p.epicId);
       if (!da) { summe.set(p.epicId, { ...p }); continue; }
       const ziel = da as unknown as Record<string, unknown>;
-      for (const [k, v] of Object.entries(p)) {
-        if (typeof v === 'number' && typeof ziel[k] === 'number') ziel[k] = (ziel[k] as number) + v;
+      const neu = p as unknown as Record<string, unknown>;
+      for (const [k, v] of Object.entries(ziel)) {
+        if (typeof v !== 'number') continue;
+        // Fehlt das Feld an diesem Tag, ist die Summe unbekannt - nicht der Wert des ersten Tages (halbe Summe).
+        if (typeof neu[k] === 'number') ziel[k] = v + (neu[k] as number);
+        else delete ziel[k];
       }
       da.username = p.username;
     }

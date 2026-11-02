@@ -7526,5 +7526,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-340",
+    "datum": "2026-11-02T02:41:14Z",
+    "titel": "Cup-Spielerwerte über mehrere Tage: keine halben Summen mehr",
+    "kurz": "Cup-Seite → Finale, alle Tage: fehlt ein Wert an einem Tag, steht „–“ statt halber Summe.",
+    "markieren": [
+      "text:Most assists",
+      "text:Assists"
+    ],
+    "bereich": "Statistik",
+    "warum": "Führte nur der erste Finaltag z. B. Assists, stand dessen Wert als Summe aller Tage da – zu niedrig, sah aber vollständig aus.",
+    "was": "Fehlt ein Wert an einem der Tage, gilt die Summe als unbekannt und es steht ein Strich; haben alle Tage den Wert, wird wie bisher addiert.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
