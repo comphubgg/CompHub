@@ -9697,5 +9697,25 @@
       "/admin/predictions"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T04:11:20Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-439",
+    "titel": "Prognosen: Ladeschirm statt leerer Fläche",
+    "kurz": "Prognosen → Teams/Preisgeld: beim Laden steht „Loading …“ statt leerer Fläche.",
+    "markieren": [
+      "text:Loading …"
+    ],
+    "bereich": "Prognosen",
+    "warum": "Beim Laden des Teamfelds und des Preisgelds stand ein leerer Kasten da – wie „keine Daten“.",
+    "was": "Dort erscheint jetzt der gewohnte Ladeschirm; bei Ausfall bleibt der Hinweis „nicht erreichbar“.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

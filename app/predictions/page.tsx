@@ -455,7 +455,7 @@ function BetreiberPrognose() {
               <p className="mb-3 text-[11px] text-slate-500"><T>Flaggen und Länder sind gerade nicht erreichbar.</T></p>
             )}
             {feldLaedt && !feld.length ? (
-              <div className="h-64" />
+              <LadeSchirm />
             ) : abschnitt === 'duos' ? (
               <div className="space-y-4">
                 {istAdmin && (
@@ -745,7 +745,7 @@ function BetreiberPrognose() {
                         <T>Das Preisgeld ist gerade nicht erreichbar.</T>
                       </p>
                     )
-                    : <div className="h-40" />
+                    : prognose?.quellen.length ? <LadeSchirm /> : null
                 ) : !preise.geld.length ? (
                   <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
                     <T>Zu diesem Spieltag veröffentlicht Epic keine Auszahlungstabelle.</T>
