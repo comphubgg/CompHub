@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import EpicMeldung from '@/app/components/EpicMeldung';
 import TeamFlagge from '@/components/TeamFlagge';
@@ -42,20 +42,19 @@ interface Antwort {
 }
 interface Treffer { id: string; name: string; rank: number; points: number; team: string[] }
 
-const num = (v: number) => Math.round(v).toLocaleString('en-US');
-const pct = (v: number) => `${v.toFixed(2)}%`;
+const num = (v: number, ort = 'en-GB') => Math.round(v).toLocaleString(ort);
+const dez = (v: number, ort: string, n: number) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
 function dauer(s: number): string {
   const st = Math.floor(s / 3600); const mi = Math.floor((s % 3600) / 60);
   return st ? `${st}h ${mi}m` : `${mi}m ${Math.round(s % 60)}s`;
 }
-const km = (cm: number) => `${(cm / 100000).toFixed(1)}km`;
 
 type Wert = number | null;
 interface Ctx { e: Eintrag | null; solo: boolean; mitglieder: Mitglied[]; echtSolo: boolean }
 interface Zeile {
   titel: string;
   wert: (m: Mitglied, c: Ctx) => Wert;
-  zeige: (v: number) => string;
+  zeige: (v: number, ort: string) => string;
   /** Der Wert je Spiel fuer die Kurve - nur dort, wo Epic ihn je Spiel liefert (und nur bei Solo-Cups, sonst gilt er dem Team). */
   je?: (m: Match) => number | undefined;
   /** Rot statt blau: Schaden, den man genommen hat, Sturm. */
@@ -99,27 +98,27 @@ const KERN: Zeile[] = [
   { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => ((m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) || undefined },
   { titel: 'Matches', wert: (_m, c) => (c.e ? c.e.games : null), zeige: num },
   { titel: 'Wins', wert: (_m, c) => (c.e ? c.e.wins : null), zeige: num, je: (m) => m.wins },
-  { titel: 'Avg Time Alive', wert: (_m, c) => (c.e && c.e.games && c.e.timeAlive ? c.e.timeAlive / c.e.games : null), zeige: dauer, je: (m) => m.timeAlive },
+  { titel: 'Avg Time Alive', wert: (_m, c) => (c.e && c.e.games && c.e.timeAlive ? c.e.timeAlive / c.e.games : null), zeige: (v) => dauer(v), je: (m) => m.timeAlive },
   { titel: 'Avg Placement', wert: (_m, c) => {
     const p = (c.e?.matches ?? []).map((x) => x.placement).filter((v): v is number => typeof v === 'number' && v > 0);
     return p.length ? p.reduce((s, v) => s + v, 0) / p.length : null;
-  }, zeige: (v) => v.toFixed(2), je: (m) => m.placement, weniger: true },
-  { titel: 'Avg Points', wert: (_m, c) => (c.e && c.e.games ? c.e.points / c.e.games : null), zeige: (v) => v.toFixed(1) },
+  }, zeige: (v, ort) => dez(v, ort, 2), je: (m) => m.placement, weniger: true },
+  { titel: 'Avg Points', wert: (_m, c) => (c.e && c.e.games ? c.e.points / c.e.games : null), zeige: (v, ort) => dez(v, ort, 1) },
   { titel: 'Eliminations', wert: elimsVon, zeige: num, je: (m) => m.elims },
-  { titel: 'Avg Eliminations', wert: (m, c) => { const k = elimsVon(m, c); return k !== null && c.e && c.e.games ? k / c.e.games : null; }, zeige: (v) => v.toFixed(2) },
+  { titel: 'Avg Eliminations', wert: (m, c) => { const k = elimsVon(m, c); return k !== null && c.e && c.e.games ? k / c.e.games : null; }, zeige: (v, ort) => dez(v, ort, 2) },
   { titel: 'K/D Ratio', wert: (m, c) => {
     if (m.replay && m.replay.tode !== null) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
     const k = elimsVon(m, c);
     return k !== null && c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
-  }, zeige: (v) => v.toFixed(2) },
+  }, zeige: (v, ort) => dez(v, ort, 2) },
 ];
 
 /** Dazu nur, was fuer alle Spieler der Ansicht vorliegt - sonst stuenden bei dem einen Zeilen, die dem anderen fehlen. */
 const ZUSATZ: Zeile[] = [
   { titel: 'Damage To Players', wert: dmg, zeige: num, je: (m) => m.damage },
   { titel: 'Damage From Players', wert: dmgT, zeige: num, je: (m) => m.damageTaken, rot: true, weniger: true },
-  { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v) => v.toFixed(2) },
-  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: dauer, rot: true, weniger: true },
+  { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v, ort) => dez(v, ort, 2) },
+  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
   { titel: 'Players Revived', wert: (m, c) => vomMitspieler(m, c, wiederbelebt), zeige: num },
   { titel: 'Got Revived', wert: (m, c) => (c.echtSolo ? 0 : wiederbelebt(m)), zeige: num },
   { titel: 'Players Rebooted', wert: (m, c) => vomMitspieler(m, c, reboots), zeige: num },
@@ -193,6 +192,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   kompakt?: boolean;
 }) {
   const t = useT();
+  const ort = useSprache().sprache === 'en' ? 'en-GB' : 'de-DE';
   const zugang = useZugang();
   const [offen, setOffen] = useState(false);
   const [suche, setSuche] = useState('');
@@ -431,12 +431,12 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                     <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
                     {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
                   </p>
-                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points)} points</p>
+                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} points</p>
                 </div>
                 <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
                   {/* Epic laesst einen Teil weg, wenn er 0 ist (8 Spieler im FNCS Solo Final EU ohne Elim-Punkte): steht der andere da, gilt der fehlende als 0, statt die Zeile zu verstecken. */}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0)} points</span></p>}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0)} points</span></p>}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0, ort)} points</span></p>}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0, ort)} points</span></p>}
                 </div>
               </div>
               <p className="mt-2 flex justify-between px-1 text-[11px] text-slate-500">
@@ -492,7 +492,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                           <p key={z.titel} className="flex h-[34px] items-center justify-center border-b border-white/[0.03] px-2 text-[13px] last:border-b-0">
                             {w === null
                               ? <span className="text-slate-600">–</span>
-                              : <><span className={`font-bold tabular-nums ${m.ich || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w)}</span>{team ? pfeil(z, werte, i) : null}</>}
+                              : <><span className={`font-bold tabular-nums ${m.ich || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w, ort)}</span>{team ? pfeil(z, werte, i) : null}</>}
                           </p>
                         );
                       })}
@@ -538,7 +538,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                     return (
                       <div key={z.titel} className="grid h-[34px] grid-cols-[130px_70px_minmax(0,1fr)] items-center gap-2 border-b border-white/[0.03] px-3 last:border-b-0">
                         <span className="text-[13px] font-semibold text-slate-300">{z.titel}</span>
-                        <span className="text-right text-[13px] font-bold tabular-nums text-slate-50">{z.zeige(w)}</span>
+                        <span className="text-right text-[13px] font-bold tabular-nums text-slate-50">{z.zeige(w, ort)}</span>
                         {z.je && spiele.length > 1 ? <Welle werte={spiele.map((m) => z.je?.(m) ?? 0)} rot={z.rot} kumuliert={kumuliert} /> : <span />}
                       </div>
                     );
