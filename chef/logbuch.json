@@ -8092,5 +8092,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-366",
+    "datum": "2026-11-02T03:12:25Z",
+    "titel": "Statistik-Kopfzahlen: Platzhalter beim Laden",
+    "kurz": "Statistik oben, vier große Zahlen: beim Laden pulsiert ein Balken statt „—“.",
+    "markieren": [
+      "text:Players",
+      "text:Eliminations",
+      "css:.animate-pulse"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ein Strich heißt „Wert unbekannt“ – beim Laden sah es aus, als fehlten die Zahlen.",
+    "was": "Bis die Zahlen da sind, pulsiert ein Platzhalter; fehlt ein Wert wirklich, steht weiter der Strich.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

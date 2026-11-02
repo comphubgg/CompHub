@@ -76,7 +76,8 @@ export default function StatistikZahlen() {
         {eintraege.map(([titel, wert]) => (
           <div key={titel} className="px-2">
             <p className="text-3xl font-black text-slate-50 sm:text-4xl 2xl:text-5xl">
-              <Rollzahl wert={wert} los={sichtbar && fertig} ort={ort} />
+              {fertig ? <Rollzahl wert={wert} los={sichtbar} ort={ort} />
+                : <span aria-hidden className="mx-auto block h-[1em] w-24 animate-pulse rounded-md bg-white/[0.08]" />}
             </p>
             <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>{titel}</T></p>
           </div>
