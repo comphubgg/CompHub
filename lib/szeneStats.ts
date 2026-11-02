@@ -1845,8 +1845,9 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     if (region && (feld.find((s) => s.epicId === id)?.regionen ?? []).indexOf(region) === -1) continue;
     geld.set(id, (geld.get(id) ?? 0) + betrag);
   }
-  lanTage = (await lanSummen(saisons)).size ? eintraege.filter((e) =>
-    ['Escargo_Day4', 'Bratwurst_Finals_Day3', 'Dinosauron_Day2', 'BambiRaptor_Day2'].includes(e.windowId)).length : 0;
+  // Die LAN-Spieltage, deren Geld oben mitzaehlt - aus der gepflegten Datei statt einer festen Liste (sonst fehlte z. B. MannekenPis_Day2, Globals 2026).
+  const lanFenster = new Set((await lanEintraege()).filter((e) => saisons.includes(e.season) && !e.offen?.length).map((e) => e.fenster));
+  lanTage = eintraege.filter((e) => lanFenster.has(e.windowId)).length;
   mitRegel += lanTage;
 
   /*
