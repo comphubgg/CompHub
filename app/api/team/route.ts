@@ -69,6 +69,9 @@ export async function GET(request: Request) {
       const earnings = posten ? posten.reduce((a, p) => a + p.betrag, 0) : null;
       return {
         epicId: id,
+        // "confirmed" nur mit Beleg (Epic-Name mit Team-Kuerzel, Kader bei fortnitetracker.com, X am Profil, vom Betreiber bestaetigt), sonst "guess".
+        epicIdConfidence: id ? (sp.beleg ? 'confirmed' : 'guess') : null,
+        epicIdBeleg: id ? (sp.beleg ?? null) : null,
         // Der Name, wie die Org ihn fuehrt (Kader) - nicht der wechselnde Epic-Name.
         name: sp.name || (id && profile[id]?.name) || '',
         role: sp.rolle,

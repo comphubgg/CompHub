@@ -53,6 +53,11 @@ export interface OrgSpieler {
   bild?: string | null;
   /** Die Liquipedia-Spielerseite - fuer Teamverlauf und Zuordnung ueber X. */
   liquipedia?: string | null;
+  /**
+   * Womit die Zuordnung zum Epic-Konto belegt ist (2.11.2026, fuer /api/team "epicIdConfidence"): z. B. 'Epic-Name "clue eyniǃ"' oder
+   * 'fortnitetracker.com CLUE-Kader'. Ohne Beleg gilt ein Konto als Vermutung, und fremde Team-Seiten zeigen keine Werte dazu.
+   */
+  beleg?: string | null;
 }
 
 /** Ein ehemaliger Spieler der Org, wie Liquipedia ihn fuehrt. */
@@ -176,6 +181,7 @@ export function saeubere(o: Partial<Org>): Org {
         // Auch Bilder im Ordner der Org (public/orgs/<org>/...) - z. B. die X-Profilbilder der CLUE-Spieler ohne CompHub-Foto (31.10.2026).
         bild: /^\/(spielerbilder|orgs\/[a-z0-9-]+)\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
         liquipedia: s?.liquipedia ? text(s.liquipedia, 120) : null,
+        beleg: s?.beleg ? text(s.beleg, 200) : null,
       };
     }).filter((s) => s.name || s.epicId),
     liquipedia: o.liquipedia ? text(o.liquipedia, 120) : null,

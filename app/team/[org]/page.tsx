@@ -18,6 +18,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 
 interface Spieler {
+  epicIdConfidence?: 'confirmed' | 'guess' | null;
   epicId: string | null; name: string; role: 'pro' | 'academy' | 'creator'; country: string | null; homeRegion: string | null;
   matches: number | null; elims: number | null; damagePerMatch: number | null; elimsPerMatch: number | null; damageRatio: number | null;
   earnings: number | null; photo: string | null; profileUrl: string | null; x: string | null;
@@ -49,7 +50,11 @@ export default function TeamSeite() {
 
   useEffect(() => {
     let weg = false;
-    fetch(`/api/team?org=${encodeURIComponent(org)}`).then((r) => r.json()).then((j: Antwort) => { if (!weg) setDaten(j); })
+    // Vermutete Konten (ohne Beleg) zeigen keine Werte - lieber ein Strich als die Zahlen eines fremden Spielers.
+    fetch(`/api/team?org=${encodeURIComponent(org)}`).then((r) => r.json()).then((j: Antwort) => {
+      if (j.players) j.players = j.players.map((p) => (p.epicIdConfidence === 'guess' ? { ...p, epicId: null, matches: null, elims: null, damagePerMatch: null, elimsPerMatch: null, damageRatio: null, earnings: null, powerRank: null, powerPoints: null, events: null, accuracy: null, damage: null, recentResults: [], profileUrl: null } : p));
+      if (!weg) setDaten(j);
+    })
       .catch(() => { if (!weg) setDaten({ ok: false, reason: 'CompHub antwortet gerade nicht.' }); });
     return () => { weg = true; };
   }, [org]);
