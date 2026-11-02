@@ -7677,5 +7677,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-347",
+    "datum": "2026-11-02T02:45:06Z",
+    "titel": "Globals-Teams: verständlicher Hinweis statt interner Fehlermeldung",
+    "kurz": "Globals → Teams bei Ausfall: „The field could not be loaded right now.“ statt Rohfehler.",
+    "markieren": [
+      "text:The field could not be loaded right now."
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Teamliste aus, stand dort der interne, deutsche Technik-Fehlertext – auch auf der englischen Seite.",
+    "was": "Jetzt steht ein verständlicher, übersetzter Satz.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

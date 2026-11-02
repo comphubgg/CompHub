@@ -414,7 +414,7 @@ export default function GlobalsTeams() {
       ) : fehler ? (
         <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3
                       text-sm text-sky-300">
-          {fehler}
+          <T>Das Feld ließ sich gerade nicht laden.</T>
         </p>
       ) : !teams.length ? (
         <p className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3

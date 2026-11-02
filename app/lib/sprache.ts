@@ -4191,6 +4191,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Antippen und umbenennen': 'Tap to rename',
   'Die Buchstaben lassen sich umbenennen.': 'Tap a letter to rename it.',
   'Eigene Tierlist bauen und die FNCS verfolgen.': 'Build your own tier list and follow the FNCS.',
+  'Das Feld ließ sich gerade nicht laden.': 'The field could not be loaded right now.',
   'Der Endstand ließ sich gerade nicht laden.': 'The final standings could not be loaded right now.',
   'Endstand nach beiden Tagen': 'Final standings after both days',
   'Statistik': 'Statistics',
