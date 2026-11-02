@@ -10487,5 +10487,23 @@
     "ansehen": [
       "/account"
     ]
+  },
+  {
+    "id": "chef-472",
+    "datum": "2026-11-02T05:02:19Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "mittel",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Profil „alle Saisons“ nutzt die vorbereitete Antwort",
+    "kurz": "Unsichtbar: Spielerprofil mit Zeitraum „alle“ lädt aus dem Speicher statt 30 s lang neu.",
+    "markieren": [],
+    "warum": "Ein Profil mit „alle Saisons“ wurde jedes Mal neu berechnet und brach live nach 30 Sekunden mit einer Fehlerseite ab (gemessen 02.11., peterbot).",
+    "was": "Es nutzt jetzt dieselbe vorbereitete Antwort wie das Profil ohne Zeitraum – gleiche Zahlen, nur schnell.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ]
   }
 ]

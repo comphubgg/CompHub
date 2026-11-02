@@ -444,9 +444,13 @@ async function holeRoh(request: Request) {
    * erledigt der stuendliche Lauf (scripts/antworten-aufraeumen.mjs).
    */
   const startAnsicht = url.searchParams.get('ansicht') === 'start' && url.searchParams.get('clutch') !== 'alle';
+  // Ein Profil mit "saison=alle" / "region=alle" rechnet exakt wie eines ohne den Zusatz (ohneFilter in berechne):
+  // gleicher Schluessel, sonst traf es nie die vorgewaermte Antwort und rechnete kalt (30 s, dann 502/503).
+  const profilOhneAnsicht = url.searchParams.has('spieler') && !url.searchParams.has('ansicht');
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
     // "liste=<feld>" ist nur eine Sicht auf die abgelegte Startantwort, keine eigene Rechnung.
     .filter(([k]) => !(startAnsicht && k === 'liste'))
+    .filter(([k, v]) => !(profilOhneAnsicht && (k === 'saison' || k === 'region') && (v === 'alle' || v === 'all')))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('|') || 'standard')
