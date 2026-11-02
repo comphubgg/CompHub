@@ -3000,8 +3000,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               // Ohne Epics Obergrenze (LANs wie die Globals) zaehlt, was
               // gespielt ist - die hoechste Matchzahl der Bestenliste. Dort
               // stand "unbegrenzt", obwohl es zwoelf Games waren.
-              [t('Spiele'), summenFenster && kumTage.every((x) => x.matchCap)
-                ? String(kumTage.filter((x) => summenFenster.includes(x.windowId)).reduce((a, x) => a + (x.matchCap ?? 0), 0))
+              // Summenansicht: nur die Summe der Obergrenzen der gezaehlten
+              // Tage; fehlt eine, ein Strich statt der Obergrenze eines Tages.
+              [t('Spiele'), summenFenster
+                ? (kumTage.filter((x) => summenFenster.includes(x.windowId)).every((x) => x.matchCap)
+                  ? String(kumTage.filter((x) => summenFenster.includes(x.windowId)).reduce((a, x) => a + (x.matchCap ?? 0), 0))
+                  : '—')
                 : fenster.matchCap
                   ? String(fenster.matchCap)
                   : fenster.status !== 'kommt' && gespielteRunden ? String(gespielteRunden) : t('unbegrenzt')],

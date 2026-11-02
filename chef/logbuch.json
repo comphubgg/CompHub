@@ -7988,5 +7988,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-361",
+    "datum": "2026-11-02T02:55:34Z",
+    "titel": "Cup-Seite Summe mehrerer Tage: Spiele-Kachel ohne falsche Zahl",
+    "kurz": "Cup-Seite → Finale, Summe aller Tage: Kachel „Games“ zeigt „–“ statt Spielzahl eines Tages.",
+    "markieren": [
+      "text:Games"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte einem Finaltag die Spiele-Obergrenze, zeigte die Summen-Kachel die Zahl nur eines Tages (z. B. 6 statt 12).",
+    "was": "Jetzt steht dort ein Strich; haben alle gezählten Tage eine Obergrenze, steht wie bisher die Summe.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
