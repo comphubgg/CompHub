@@ -253,6 +253,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ ausgewertet, offen: summe('PENDING'), zeit: new Date().toISOString() },
       { headers: { 'Cache-Control': 'public, max-age=30' } });
   }
+  /*
+   * Der Stand eines Spieltags (?stand=<windowId>) - fuer die kleine Zeile "Ausgewertet" auf der Event-Seite (Betreiber, 2.11.2026: wie der
+   * "Parsing Status" bei Osirion, "aber wirklich mini klein"). Aus derselben Uebersicht; nie rueckwaerts (replay-rekord.json wie oben).
+   */
+  const standFuer = url.searchParams.get('stand');
+  if (standFuer) {
+    const r = await GET(new Request(new URL('/api/replays', url)));
+    const d = await r.json().catch(() => null) as { fenster?: Array<{ windowId?: string; zaehler?: Record<string, number>; gesamt?: number }> } | null;
+    const f = d?.fenster?.find((x) => x.windowId === standFuer);
+    if (!f || !f.gesamt) return NextResponse.json({ gesamt: 0 }, { headers: { 'Cache-Control': 'public, max-age=60' } });
+    const rekord = await rekordLaden();
+    const gelesen = Math.min(f.gesamt, Math.max(f.zaehler?.PARSED ?? 0, rekord[standFuer] ?? 0));
+    return NextResponse.json({ gelesen, gesamt: f.gesamt, ohneReplay: f.zaehler?.NOT_AVAILABLE ?? 0 },
+      { headers: { 'Cache-Control': 'public, max-age=60' } });
+  }
   if (![...url.searchParams.keys()].length) {
     /*
      * Ohne Dateien (Vercel) gibt es die Uebersicht nur fertig aus der

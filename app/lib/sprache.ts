@@ -3894,6 +3894,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Aktuelle Reihe': 'Current series',
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
+  'Ausgewertet': 'Analyzed',
   'Letzte Ergebnisse': 'Latest results',
   'Noch keine Ergebnisse mit Preisgeld.': 'No prize results yet.',
   'Noch keinem Epic-Konto zugeordnet - deshalb noch keine Werte.': 'Not linked to an Epic account yet - no stats so far.',

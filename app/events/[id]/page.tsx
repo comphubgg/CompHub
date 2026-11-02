@@ -31,6 +31,7 @@ import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
 import WegKasten from './WegKasten';
+import AuswertungsStand from './AuswertungsStand';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -3464,6 +3465,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           : aboutJetzt ? startText(fenster.begin, aboutJetzt, sprache === 'en') : ''}
                     </>
                   ))}
+                  <AuswertungsStand windowId={fenster.windowId} />
                 </div>
                 {/* Die Karte des Spieltags, klein. */}
                 {kartenBild && (
