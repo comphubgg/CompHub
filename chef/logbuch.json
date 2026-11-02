@@ -6671,5 +6671,49 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-302",
+    "datum": "2026-11-02T01:35:59Z",
+    "titel": "FNCS Solos: Server-Meldungen auf Englisch",
+    "kurz": "Globals Solos → Region ohne Solos: Hinweis jetzt englisch statt deutsch.",
+    "markieren": [
+      "text:FNCS Solos is not running"
+    ],
+    "bereich": "Statistik",
+    "warum": "Meldungen wie „Noble führt FNCS Solos gerade nicht.“ standen auch für englische Besucher auf Deutsch.",
+    "was": "Der feste Teil der Meldung läuft jetzt durch die Übersetzung; die genannte Ursache bleibt wie geliefert.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "commits": [
+      "3d762448a7cbb53db9a97574c5d419a56ea45bc5"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-303",
+    "datum": "2026-11-02T01:35:59Z",
+    "titel": "Vergleich: Knopf „Zurücksetzen“ übersetzt",
+    "kurz": "Unsichtbar (Englisch gleich): Vergleich → Knopf heißt auf Deutsch „Zurücksetzen“.",
+    "markieren": [
+      "text:Reset"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Knopf stand fest auf Englisch, auch in der deutschen Ansicht.",
+    "was": "Er läuft jetzt durch die Übersetzung.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [
+      "5406934f4cf20cfe5412b206c129001a0ae2029d"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
