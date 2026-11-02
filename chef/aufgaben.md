@@ -6,12 +6,15 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [x] (chef-385 bis chef-408) Spielerfenster-Aktualisierung, Startseite (Preisgeld-Ausfall, Schrift), Globals-Teams-Regionen, Globals-Preisgeld-Rohtext, Karten-Übersetzung, Scrims-Ausfälle, Turnierverzeichnis nach Saisonwechsel, Spielerliste-Ladehinweis, FNCS (Suche, Ort, Schrift, Namen), Statistik-Schrift 11 px, Ladeanzeigen Jahr/Regionen, Cup-Seite (Übersetzung, Schrift, Rundentabelle), Solos-Tafel, Prognosen-Flaggen, Rückblick-Ladeanzeige.
 - [ ] **Orgtags Valiant/Ovation/Aight** (lib/orgtags.ts) – Vorschlag im Logbuch; dieselbe Liste wirkt auf namensSchluessel (Zuordnungen). Betreiber entscheidet. Besser: `npm run orgtags` mit Datenzugang.
-- [ ] **Schrift unter 11 px an weiteren Stellen**: StatistikSeite Zeilen ~899, 1034, 1093, 1169, 1488–1540, 1893, 2054, 2153, 2298, 2592, 4310, 4502–4592 (Start-Reiter, Bestenlisten, SpielerFaecher); Turnierbild-Platzhalter text-[8px] („PERFORMANCE“ passt nicht); Cup-Seite Kopfbereich ~2875–3568 und ~5125–5459.
+- [x] (chef-410, chef-412) Schrift unter 11 px – StatistikSeite und Cup-Kopf erledigt. Alte Notiz: StatistikSeite Zeilen ~899, 1034, 1093, 1169, 1488–1540, 1893, 2054, 2153, 2298, 2592, 4310, 4502–4592 (Start-Reiter, Bestenlisten, SpielerFaecher); Turnierbild-Platzhalter text-[8px] („PERFORMANCE“ passt nicht); Cup-Seite Kopfbereich ~2875–3568 und ~5125–5459.
 - [ ] **cup-matches-API: fehlende Elims/Schaden/Zeit je Team → 0** (app/api/cup-matches/route.ts) – nur in der API sauber lösbar.
 - [ ] **FNCS: fncsPlatzierungen() ohne lateinisch()**; Global Championship 2024/Invitational 2020/Grand Royale 2021 Punkte widersprüchlich (Quelle).
-- [ ] **Scrims: Archiv-, Poyo-, Yunite-Abrufe ohne r.ok-Prüfung; nach Ausfall bleiben alte Teams/Runden stehen.**
+- [x] (chef-413) **Scrims: Archiv-, Poyo-, Yunite-Abrufe ohne r.ok-Prüfung.**
+- [ ] **Scrims: schneller Session-Wechsel – späte Antwort kann neuere Teams überschreiben.**
+- [ ] **LiveDemnaechst: Cup-Fenster ohne `end` zählt weder als live noch als kommend** – fehlt in der Liste; prüfen, ob der Katalog solche Fenster liefert.
+- [ ] **Cup-Seite: text-[10px] noch bei Label „Karte“ (~Z. 676).**
 - [ ] **Spielerliste: „ab N Matches“ nur im Treppchen**, nicht bei Suche/Liste (gehört zu Quoten-Hürden).
-- [ ] **Startseite: fällt nur ein Teil der Kopfzahlen aus, stehen Striche ohne Hinweis.**
+- [x] (chef-411) **Startseite: Teil-Ausfall der Kopfzahlen ohne Hinweis.**
 
 - [x] (chef-363, chef-364) **Teamseite: Kachel-Beschriftungen englisch, Beitrittsdatum roh „2026-04“.**
 - [x] (chef-365) **Vergleich: Ausfall nur einer Seite sah aus wie „0 Matches“.**
