@@ -57,6 +57,13 @@ export async function GET(request: Request) {
     // Die Liste ueber alle Jahre wird seltener erneuert (stand am 2.11.2026 noch vom 31.10.) - wer dort fehlt, bekommt das Jahr 2026
     // (fuer neue Kader-Spieler dasselbe: ihre Ergebnisse liegen alle in diesem Jahr).
     const verdienstJahr = await abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|2026').catch(() => null);
+    /*
+     * Werte von fortnitetracker.com (Betreiber, 2.11.2026: Earnings wie bei FT, dazu FT-PR je Spieler). FT sperrt automatische Abrufe
+     * (Cloudflare-Pruefung) - der Stand liegt deshalb mit Datum in ft-stand/<org>.json (vom Kaderblatt der Org abgeschrieben), je Spieler unter
+     * dem Kadernamen. Wo er fehlt, bleiben die eigenen Werte; die Quelle steht immer dabei.
+     */
+    const ft = await liesJson<{ stand?: string; zeitraum?: string; quelle?: string; spieler?: Record<string, { prPoints: number; prRank: number; region: string; earnings: number }> } | null>(`ft-stand/${org.id}.json`, null).catch(() => null);
+    const ftVon = (name: string) => ft?.spieler?.[name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '')] ?? null;
     // Epics Power Rankings (weltweit, taeglich): fuer jeden Spieler mit Konto mindestens Rang und Punkte - auch ohne Finals im Archiv.
     const prVon = new Map(((prStand as unknown as { spieler?: Array<{ id: string; rank: number; wertung: number }> } | null)?.spieler ?? []).map((x) => [x.id, x]));
     const summeVon = new Map(summen.map((s) => [s.epicId, s]));
@@ -95,8 +102,16 @@ export async function GET(request: Request) {
         timeAliveSec: s ? Math.round(s.timeAlive) : null,
         powerRank: (id && prVon.get(id)?.rank) || null,
         powerPoints: (id && prVon.get(id)?.wertung) || null,
-        // Preisgeld aller Jahre in USD aus den Ergebnissen, die CompHub kennt; null = noch nicht vorgerechnet.
-        earnings,
+        // Earnings: von fortnitetracker.com, wenn der Stand den Spieler fuehrt (zaehlt mehr Turniere), sonst CompHubs eigene Rechnung.
+        earnings: ftVon(sp.name) ? ftVon(sp.name)!.earnings : earnings,
+        earningsSource: ftVon(sp.name) ? 'fortnitetracker' : (earnings == null ? null : 'comphub'),
+        earningsComphub: earnings,
+        earningsStand: ftVon(sp.name) ? ft?.stand ?? null : null,
+        // Fortnite-Tracker-PR (nicht Epics Power Ranking) - Punkte und Rang des Jahres in der Region, Stand siehe ftStand.
+        ftPrPoints: ftVon(sp.name)?.prPoints ?? null,
+        ftPrRank: ftVon(sp.name)?.prRank ?? null,
+        ftPrRegion: ftVon(sp.name)?.region ?? null,
+        ftStand: ftVon(sp.name) ? ft?.stand ?? null : null,
         recentResults: (posten ?? []).slice(0, 10).map((p) => ({
           // Platz und Punkte fuehrt diese Liste nicht - nur Turnier, Tag und Preisgeld (lib/orgs, Posten).
           date: p.datum ? new Date(p.datum).toISOString().slice(0, 10) : null, event: p.titel, prize: p.betrag, windowId: p.windowId,

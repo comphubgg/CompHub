@@ -25,6 +25,7 @@ interface Spieler {
   twitch: string | null; since: string | null; events: number | null; accuracy: number | null; damage: number | null;
   recentResults: Array<{ date: string | null; event: string; prize: number }>;
   powerRank: number | null; powerPoints: number | null;
+  ftPrPoints?: number | null; ftPrRank?: number | null; ftPrRegion?: string | null; earningsSource?: string | null;
 }
 interface Antwort {
   ok: boolean; reason?: string;
@@ -156,7 +157,11 @@ export default function TeamSeite() {
                 </h3>
                 <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
                   {([
-                    ['Earnings', geld(offen.earnings)], ['Power Ranking', offen.powerRank ? `#${zahl(offen.powerRank)}` : '—'], ['PR-Punkte', zahl(offen.powerPoints)],
+                    ['Earnings', geld(offen.earnings)],
+                    // PR von Fortnite Tracker, wenn bekannt (Betreiber, 2.11.2026), sonst Epics Power Ranking.
+                    ...(offen.ftPrPoints != null
+                      ? [['FT PR', zahl(offen.ftPrPoints)], [`FT-Rang ${offen.ftPrRegion ?? ''}`.trim(), offen.ftPrRank ? `#${zahl(offen.ftPrRank)}` : '—']] as Array<[string, string]>
+                      : [['Power Ranking', offen.powerRank ? `#${zahl(offen.powerRank)}` : '—'], ['PR-Punkte', zahl(offen.powerPoints)]] as Array<[string, string]>),
                     ['Matches', zahl(offen.matches)], ['Elims je Match', zahl(offen.elimsPerMatch, 2)], ['Schaden je Match', zahl(offen.damagePerMatch)],
                   ] as Array<[string, string]>).map(([k, v]) => (
                     <div key={k} className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{k}</T></dt><dd className="text-base font-bold tabular-nums text-slate-100">{v}</dd></div>
