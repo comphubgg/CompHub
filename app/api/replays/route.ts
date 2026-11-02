@@ -141,8 +141,13 @@ function rundeName(windowId: string, region?: string) {
  */
 const FRIST_MS = 31 * 864e5;
 const ENDGUELTIG = new Set(['PARSED', 'NOT_AVAILABLE', 'FAILED', 'ABGELAUFEN']);
-function standAnzeige(m: MatchZustand, fensterDatum?: number, jetzt = Date.now()) {
+function standAnzeige(m: MatchZustand, fensterDatum?: number, jetzt = Date.now(), windowId = '') {
   if (ENDGUELTIG.has(m.stand)) return m.stand;
+  /*
+   * Arena-Matches legt Epic nicht als Server-Replay ab (alle 404, lib/replayRegel; der Sammler fasst sie deshalb gar nicht an). Sie standen
+   * trotzdem als "offen" in der Zahl - beim ArenaTestCup Event 8 allein 17.600 -, und die Zahl konnte so nie auf null gehen (Betreiber, 2.11.2026).
+   */
+  if (/Arena/i.test(windowId)) return 'NOT_AVAILABLE';
   const t = m.zeitpunkt ? Date.parse(m.zeitpunkt) : NaN;
   const zeit = Number.isFinite(t) && t > 0 ? t : (fensterDatum ?? 0);
   return zeit > 0 && zeit < jetzt - FRIST_MS ? 'ABGELAUFEN' : m.stand;
@@ -165,7 +170,7 @@ async function alleFenster() {
       const zaehler: Record<string, number> = {};
       const jetzt = Date.now();
       for (const m of Object.values(z.matches ?? {})) {
-        const stand = standAnzeige(m, z.datum, jetzt);
+        const stand = standAnzeige(m, z.datum, jetzt, z.windowId ?? windowId);
         zaehler[stand] = (zaehler[stand] ?? 0) + 1;
       }
       raus.push({
@@ -323,7 +328,7 @@ async function berechne(request: Request) {
       fenster: { ...z, matches: undefined,
         runde: rundeName(z.windowId ?? fenster, z.region) },
       matches: Object.entries(z.matches ?? {})
-        .map(([matchId, m]) => ({ matchId, ...m, stand: standAnzeige(m, z.datum) }))
+        .map(([matchId, m]) => ({ matchId, ...m, stand: standAnzeige(m, z.datum, Date.now(), z.windowId ?? fenster) }))
         .sort((a, b) => (a.zeitpunkt ?? '').localeCompare(b.zeitpunkt ?? '')),
     });
   }
