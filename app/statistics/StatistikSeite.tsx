@@ -2724,6 +2724,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
   /** Epics Ranked-Stufen des offenen Spielers - der aktuelle Stand je Art. */
   const [ranked, setRanked] = useState<RangStufe[] | null>(null);
+  /** Epics Ranked-Abfrage fehlt gerade - nicht zu verwechseln mit "dieser Spieler hat keinen Rang". */
+  const [rankedFehlt, setRankedFehlt] = useState(false);
 
   /* -------------------------------------------------- Grunddaten einmalig */
   useEffect(() => {
@@ -3779,7 +3781,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   useEffect(() => {
     if (!offen?.epicId) { setRanked(null); return; }
     let weg = false;
-    setRanked(null);
+    setRanked(null); setRankedFehlt(false);
     Promise.all([
       fetch(`/api/cup-ranked?ids=${encodeURIComponent(offen.epicId)}`)
         .then((r) => r.json()),
@@ -3787,6 +3789,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     ])
       .then(([j, tj]) => {
         if (weg) return;
+        if (!Array.isArray(j?.spieler) || !Array.isArray(tj?.tracks)) throw new Error('keine Liste');
         /*
          * Nur die Rangsaisons, die gerade laufen.
          *
@@ -3806,7 +3809,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
           .map((r) => ({ ...r, stufen: aktiv.get(r.trackguid) }))
           .sort((a, b) => (b.aktualisiert ?? '').localeCompare(a.aktualisiert ?? '')));
       })
-      .catch(() => { if (!weg) setRanked(null); });
+      .catch(() => { if (!weg) { setRanked(null); setRankedFehlt(true); } });
     return () => { weg = true; };
   }, [offen?.epicId]);
 
@@ -6123,6 +6126,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     * jedem Spieler gibt. Die Stufe steht als Zahl, nicht als Name: Epics Rangsaisons haben unterschiedlich viele Stufen
                     * (achtzehn, zweiundzwanzig, einhunderteins), ein Name wie "Diamant III" passt nur zur ersten; die Zahl stimmt immer.
                     */}
+                  {rankedFehlt && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
+                      <span className="text-xs text-rose-300"><T>Gerade nicht erreichbar.</T></span>
+                    </div>
+                  )}
                   {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
