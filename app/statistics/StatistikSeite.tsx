@@ -3605,6 +3605,13 @@ export default function StatistikSeite() {
    * wieder in der Liste, obwohl beide Haelften fuer sich richtig waren.
    */
   const ausAdresseGeholt = useRef(false);
+  /*
+   * Kommt jemand mit ?spieler=<...> (z. B. von der Seite einer Org), steht bis zum Profil ein Ladeschirm "Profil wird geladen" statt der
+   * Spielerliste (2.11.2026: 20-40 s Liste wirkten wie ein falscher Link). Faellt weg, sobald das Profil offen ist oder die Suche nichts fand.
+   */
+  const [profilAusLink, setProfilAusLink] = useState(false);
+  // Erst im Browser gesetzt - auf dem Server gibt es keine Adresse, und ein Unterschied beim ersten Zeichnen brachte React aus dem Tritt.
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('spieler')) setProfilAusLink(true); }, []);
 
   /*
    * Bereich, Sortierung, Region und Saison stehen in der Adresse, damit sich
@@ -3747,6 +3754,7 @@ export default function StatistikSeite() {
         } catch { /* dann bleibt es bei der Liste */ }
       }
       if (treffer) oeffne(treffer);
+      setProfilAusLink(false);
     })();
   }, [spieler, oeffne]);
 
@@ -4280,6 +4288,7 @@ export default function StatistikSeite() {
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
       {schirmSichtbar && <LadeSchirm />}
+      {profilAusLink && !offen && <LadeSchirm text={t('Profil wird geladen …')} />}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 
         {/* ---------------------------------------------- rechter Inhalt */}
