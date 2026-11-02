@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
 import { findeSpieler, MAX_PAGES } from '@/lib/epicCups';
-import { AKTUELLE_FASSUNG, FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, merkeKonto, schreibeAnfrage } from '@/lib/eigeneAuswertung';
+import { liesJson } from '@/lib/ablage';
+import { AKTUELLE_FASSUNG, FRIST_MS, anfrageName, ergebnisName, fensterOk, kontoOk, merkeKonto, schreibeAnfrage, type Anfrage, type Ergebnis } from '@/lib/eigeneAuswertung';
 
 /*
  * Die Auswertung der eigenen Lobbys eines Cups (lib/eigeneAuswertung).
@@ -22,6 +23,16 @@ export const maxDuration = 60;
 const NEIN = { 'Cache-Control': 'no-store' };
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
+const AUS = { error: 'Die Ablage antwortet gerade nicht.' };
+/**
+ * Ergebnis und Bestellung lesen. Antwortet die Ablage nicht, kommt hier ein Fehler - und nicht "nichts da": sonst sah ein Ausfall aus wie
+ * "noch nicht bestellt", und die Seite bestellte die Auswertung ein zweites Mal.
+ */
+const lese = (w: string, id: string) => Promise.all([
+  liesJson<Ergebnis | null>(ergebnisName(w, id), null),
+  liesJson<Anfrage | null>(anfrageName(w, id), null),
+]);
+
 /** Das verifizierte Epic-Konto dieser Anfrage - leer, wenn es keins gibt. */
 async function ich(): Promise<string> {
   const laden = await cookies();
@@ -35,7 +46,8 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const w = p.get('window') ?? ''; const id = normId(p.get('id') ?? '');
   if (!fensterOk(w) || !kontoOk(id)) return NextResponse.json({ ok: false, error: 'Fenster und Konto fehlen.' }, { status: 400, headers: NEIN });
-  const [e, a] = await Promise.all([leseErgebnis(w, id), leseAnfrage(w, id)]);
+  let e: Ergebnis | null; let a: Anfrage | null;
+  try { [e, a] = await lese(w, id); } catch { return NextResponse.json({ ok: false, ...AUS }, { status: 424, headers: NEIN }); }
   return NextResponse.json({
     ok: true,
     ergebnis: e ? { gelesen: e.gelesen, sitzungen: e.sitzungen, gerechnet: e.gerechnet, grund: e.grund ?? null } : null,
@@ -53,8 +65,9 @@ export async function POST(request: Request) {
   await merkeKonto(id);
 
   // Fertig nur in der heutigen Fassung - eine aeltere (z. B. Damage mit dem alten Leser) wird neu bestellt und bis dahin weiter gezeigt.
-  if (((await leseErgebnis(w, id))?.version ?? 0) >= AKTUELLE_FASSUNG) return NextResponse.json({ ok: true, stand: 'fertig' }, { headers: NEIN });
-  const alt = await leseAnfrage(w, id);
+  let ergebnis: Ergebnis | null; let alt: Anfrage | null;
+  try { [ergebnis, alt] = await lese(w, id); } catch { return NextResponse.json({ ok: false, ...AUS }, { status: 424, headers: NEIN }); }
+  if ((ergebnis?.version ?? 0) >= AKTUELLE_FASSUNG) return NextResponse.json({ ok: true, stand: 'fertig' }, { headers: NEIN });
   if (alt) return NextResponse.json({ ok: true, stand: 'angefragt', zeit: alt.zeit }, { headers: NEIN });
 
   try {

@@ -6988,5 +6988,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-316",
+    "datum": "2026-11-02T02:00:31Z",
+    "titel": "Eigene Auswertung: Ablage-Ausfall ist nicht mehr „noch nicht bestellt“",
+    "kurz": "Unsichtbar: Cup-Spielerdetails melden Speicher-Ausfall statt doppelt zu bestellen.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete der Speicher nicht, hielt die Seite das für „noch nicht bestellt“ und bestellte die eigene Auswertung ein zweites Mal.",
+    "was": "Bei Ausfall steht jetzt „Speicher antwortet gerade nicht“; es wird nichts doppelt bestellt.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
