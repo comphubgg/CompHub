@@ -7594,5 +7594,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-343",
+    "datum": "2026-11-02T02:43:00Z",
+    "titel": "Replay: Meter mit Tausenderpunkt",
+    "kurz": "Replay → Zone und Kill-Abstand: „1.200 m“ statt „1200 m“.",
+    "markieren": [
+      "text:Zone"
+    ],
+    "bereich": "Statistik",
+    "warum": "Zonenradius und Kill-Abstände standen ohne Tausenderpunkt, anders als alle anderen Zahlen der Seite.",
+    "was": "Meterangaben ab 1.000 haben jetzt den Tausenderpunkt der gewählten Sprache.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day1_NAW/1"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

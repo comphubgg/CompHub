@@ -373,7 +373,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           [t('Zeit'), uhr(zeit - tStart), `${uhr(zeit)}`],
           [t('Spieler am Leben'), String(lebende), `${echte.length}`],
           [t('Teams am Leben'), String(teamsLeben), `${teams.length}`],
-          [t('Zone'), zone.jetzt ? `${Math.round(zone.jetzt.r / 100)} m` : '–', zone.schrumpft ? t('schrumpft') : zone.phase ? `${t('Phase')} ${zone.phase}/${match.zonen.length}` : t('noch nicht gestartet')],
+          [t('Zone'), zone.jetzt ? `${Math.round(zone.jetzt.r / 100).toLocaleString(ort)} m` : '–', zone.schrumpft ? t('schrumpft') : zone.phase ? `${t('Phase')} ${zone.phase}/${match.zonen.length}` : t('noch nicht gestartet')],
         ].map(([k, w, u]) => (
           <div key={k} className="rounded-xl border border-white/[0.08] bg-zinc-900/50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{k}</p>
@@ -508,7 +508,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                   </p>
                   <p className={`mt-1 text-[10px] ${tip.e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}`}>
                     {tip.e.art === 'tot' ? t('Eliminiert') : t('Umgehauen')} · {uhr(tip.e.t - tStart)}
-                    {h.von ? <span className="text-slate-400"> {t('durch')} {h.von}{h.abstand !== null ? ` · ${h.abstand} m` : ''}</span> : <span className="text-slate-500"> · {t('Zone / Sturz')}</span>}
+                    {h.von ? <span className="text-slate-400"> {t('durch')} {h.von}{h.abstand !== null ? ` · ${h.abstand.toLocaleString(ort)} m` : ''}</span> : <span className="text-slate-500"> · {t('Zone / Sturz')}</span>}
                   </p>
                 </div>
               );
@@ -625,7 +625,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                               <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{nameVon(taeter)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
                                 {' '}<span className={e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}>{e.art === 'tot' ? t('eliminiert') : t('knockt')}</span>{' '}
                                 <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
-                                {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100)} m</span>}</>
+                                {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100).toLocaleString(ort)} m</span>}</>
                             )}
                           </span>
                         </button>
@@ -723,8 +723,8 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                   <td className="px-3 py-1.5">{typeof z.schrumpftAb === 'number'
                     ? <button type="button" onClick={() => springe(z.schrumpftAb as number)} className="tabular-nums text-sky-300 hover:underline">{uhr(z.schrumpftAb - tStart)}</button>
                     : <span className="text-slate-500">—</span>}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{typeof z.radius === 'number' ? `${Math.round(z.radius / 100)} m` : '—'}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{typeof z.naechsterRadius === 'number' ? `${Math.round(z.naechsterRadius / 100)} m` : '—'}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{typeof z.radius === 'number' ? `${Math.round(z.radius / 100).toLocaleString(ort)} m` : '—'}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{typeof z.naechsterRadius === 'number' ? `${Math.round(z.naechsterRadius / 100).toLocaleString(ort)} m` : '—'}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof z.schrumpftBis === 'number' && typeof z.schrumpftAb === 'number' ? `${Math.round(z.schrumpftBis - z.schrumpftAb)} s` : '—'}</td>
                 </tr>
               ))}
