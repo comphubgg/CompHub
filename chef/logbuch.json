@@ -7434,5 +7434,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-336",
+    "datum": "2026-11-02T02:38:01Z",
+    "titel": "Cup-Spielerwerte: Strich statt 0 bei unbekannten Assists, Kopftreffern, Bauteilen",
+    "kurz": "Cup-Seite → Player Stats: unbekannte Assists zeigen „–“ statt 0; Kacheln ohne falsche Nullen.",
+    "markieren": [
+      "text:Assists",
+      "text:Most Assists"
+    ],
+    "bereich": "Statistik",
+    "warum": "An Spieltagen aus eigenen Daten fehlen Assists, Kopftreffer, Material, Bauteile und Sturmzeit – die Seite zeigte dafür 0.",
+    "was": "Unbekannte Werte stehen jetzt als Strich; eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -21,6 +21,12 @@ import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
  * Zuordnung der Turnierkonten (lib/lanKonten). Beim Finale der Globals
  * zaehlen beide Tage zusammen.
  */
+/** Summe der Werte, die da sind - fehlen alle, ist der Wert unbekannt (null), nicht 0. */
+function summeOderNull(...w: Array<number | undefined>): number | null {
+  const da = w.filter((v): v is number => typeof v === 'number');
+  return da.length ? da.reduce((a, b) => a + b, 0) : null;
+}
+
 async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<string, string>) {
   const sz = await szeneFenster(tage);
   if (!sz?.spieler.length) return null;
@@ -120,7 +126,8 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       kills: solo && soloElims.has(x.epicId) ? soloElims.get(x.epicId)! : x.eliminations ?? 0,
       // Knocks, Tode und Umgehauene fuehrt die Szene-Quelle nicht: ohne Replays unbekannt (null), nie 0 - sonst zeigen Kacheln und Summen "0 Knocks, 0 Tode".
       knocks: null as number | null, tode: null as number | null, umgehauen: null as number | null,
-      assists: x.assists ?? 0,
+      // Eigene Spieltage (lib/szeneEigen) fuehren Assists, Kopftreffer, Material, Bauteile und Sturmzeit nicht: unbekannt = null (Strich), nie 0.
+      assists: x.assists ?? null,
       damage: Math.round(r ? r.dmg : x.damageDealt ?? 0),
       damageTaken: Math.round(r ? r.erlitten : x.damageTakenFromPlayers ?? 0),
       // Ausgeteilter geteilt durch von Spielern erlittenen Schaden - dieselbe
@@ -133,13 +140,13 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       // Fuer die Kacheln (app/components/StatKacheln) - dieselben Summen wie
       // in der Statistik (lib/szeneStats): Meter, Sekunden, Stueck.
       hits: r ? r.treffer : x.hitsToPlayers ?? 0,
-      headshots: x.headshots ?? 0,
-      mats: (x.woodFarmed ?? 0) + (x.stoneFarmed ?? 0) + (x.metalFarmed ?? 0),
-      builds: (x.woodBuildsPlaced ?? 0) + (x.stoneBuildsPlaced ?? 0) + (x.metalBuildsPlaced ?? 0),
+      headshots: x.headshots ?? null,
+      mats: summeOderNull(x.woodFarmed, x.stoneFarmed, x.metalFarmed),
+      builds: summeOderNull(x.woodBuildsPlaced, x.stoneBuildsPlaced, x.metalBuildsPlaced),
       // Immer in Metern, wie die Kacheln es erwarten: die Szene-Quelle zaehlt bis S40 in Zentimetern (S39: 3.273.807 statt 32,7 km), ab S41
       // in Metern - die Einheit erkennt streckeKm an der Geschwindigkeit je Lebenszeit.
       distanz: streckeKm(x) * 1000,
-      timeInStorm: r && r.sturm > 0 ? Math.round(r.sturm) : x.timeInStorm ?? 0,
+      timeInStorm: r && r.sturm > 0 ? Math.round(r.sturm) : x.timeInStorm ?? null,
       timeAlive: r && r.leben > 0 ? Math.round(r.leben) : x.timeAlive ?? 0,
       // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.
       shots: x.shots ?? 0,

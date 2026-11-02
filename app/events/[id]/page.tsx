@@ -951,11 +951,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       epicId: string; name: string; land: string; spiele: number;
       kills: number; knocks: number | null; tode: number | null; umgehauen: number | null;
       platz: number | null; partner: string[];
-      assists?: number; damage?: number; damageTaken?: number;
+      assists?: number | null; damage?: number; damageTaken?: number;
       damageRatio?: number | null; genauigkeit?: number | null;
       clutch?: number | null;
-      hits?: number; headshots?: number; mats?: number; builds?: number;
-      distanz?: number; timeInStorm?: number; timeAlive?: number;
+      hits?: number; headshots?: number | null; mats?: number | null; builds?: number | null;
+      distanz?: number; timeInStorm?: number | null; timeAlive?: number;
       /** Platz im ganzen Feld nach Kills (Replays). */
       rang?: number | null;
     }>;
@@ -4941,7 +4941,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             {(sp.damage ?? 0).toLocaleString(ort)}
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{sp.kills}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{sp.assists ?? 0}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{typeof sp.assists === 'number' ? sp.assists : '—'}</td>
                           {spielerWerte.clutch && (
                             <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-amber-300/90">{typeof sp.clutch === 'number' ? sp.clutch : '—'}</td>
                           )}
