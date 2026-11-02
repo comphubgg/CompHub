@@ -89,6 +89,33 @@ export interface Zugang {
    * hereinlaesst, solange keine Namen dastehen, waere eine Falle.
    */
   mods?: string[];
+  /**
+   * Dieser Schluessel gilt erst, wenn sich sein Inhaber einmal mit genau diesem Twitch-Konto bestaetigt hat (Betreiber, 2.11.2026: der Verdacht,
+   * dass ein Streamer-Schluessel von jemand anderem benutzt wird). Bis dahin hat er keine Rechte; die Seite zeigt den Hinweis
+   * (app/components/TwitchPruefung). Kleingeschrieben, der Twitch-Login, nicht der Anzeigename.
+   */
+  twitchPflicht?: string;
+  /** Wann die Bestaetigung geklappt hat - und mit welchem Twitch-Konto. */
+  twitchBestaetigt?: number;
+  twitchId?: string;
+}
+
+/** Wartet dieser Zugang noch auf die Bestaetigung mit Twitch? */
+export function wartetAufTwitch(z: Zugang | null): boolean {
+  return !!z && !!(z.twitchPflicht ?? '').trim() && !z.twitchBestaetigt;
+}
+
+/** Die Bestaetigung mit Twitch eintragen - nur, wenn das Twitch-Konto das verlangte ist. */
+export async function zugangTwitchBestaetigen(name: string, twitchLogin: string, twitchId: string): Promise<'ok' | 'falsches-konto' | 'nicht-noetig'> {
+  const gesucht = name.trim().toLowerCase();
+  const alle = await alleZugaenge();
+  const z = alle.find((x) => x.username.toLowerCase() === gesucht);
+  if (!z || !wartetAufTwitch(z)) return 'nicht-noetig';
+  if (twitchLogin.trim().toLowerCase() !== z.twitchPflicht!.trim().toLowerCase()) return 'falsches-konto';
+  z.twitchBestaetigt = Date.now();
+  z.twitchId = twitchId;
+  await schreibeZugaenge(alle);
+  return 'ok';
 }
 
 export async function alleZugaenge(): Promise<Zugang[]> {
@@ -138,7 +165,8 @@ export function rechteVon(z: Zugang | null): {
   vip: boolean;
   epicId: string | null;
 } {
-  if (!z || z.status !== 'active') {
+  // Stillgelegt - oder noch nicht mit Twitch bestaetigt: dann darf der Schluessel nichts, an keiner Stelle.
+  if (!z || z.status !== 'active' || wartetAufTwitch(z)) {
     return { gueltig: false, rolle: null, rechte: [], vip: false, epicId: null };
   }
   /*

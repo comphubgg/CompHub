@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { zugangNach, rechteVon } from "@/lib/vipZugaenge";
+import { zugangNach, rechteVon, wartetAufTwitch } from "@/lib/vipZugaenge";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
    * dieser Datei, und er soll sich nicht versehentlich selbst aussperren
    * koennen.
    */
+  // Der Schluessel wartet auf die Bestaetigung mit Twitch - die Seite zeigt dafuer den Hinweis (app/components/TwitchPruefung).
+  if (!betreiber && wartetAufTwitch(eintrag)) {
+    return NextResponse.json({ authorized: false, grund: 'twitch', user: login });
+  }
   if (!betreiber && (!eintrag || !darf.gueltig)) {
     return NextResponse.json({
       authorized: false,

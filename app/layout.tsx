@@ -13,6 +13,7 @@ import FotoFokus from './components/FotoFokus';
 import DashAnsicht from './components/DashAnsicht';
 import NeuerStand from './components/NeuerStand';
 import PreviewTour from './components/PreviewTour';
+import TwitchPruefung from './components/TwitchPruefung';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
 import Besuchszaehler from './components/Besuchszaehler';
 import Fehlerfaenger from './components/Fehlerfaenger';
@@ -193,6 +194,7 @@ export default async function RootLayout({
           <DesignWaechter />
           <MainHeader sektionenAnfang={lage} />
           <PreviewTour />
+          <TwitchPruefung />
           <Suspense fallback={<RouteTransitionLoader />}>
             {/*
               * Die Sperre liegt zwischen Kopfzeile und Inhalt - die Leiste

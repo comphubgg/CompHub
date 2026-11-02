@@ -6,7 +6,8 @@ import {
   verknuepfe,
 } from '@/lib/konten';
 import { ergaenzeAusDienst } from '@/lib/kontoErgaenzen';
-import { ueberHttps } from '@/lib/vipCookie';
+import { ueberHttps, vipAus } from '@/lib/vipCookie';
+import { zugangTwitchBestaetigen } from '@/lib/vipZugaenge';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
@@ -162,6 +163,19 @@ export async function GET(req: NextRequest) {
       return fertig;
     }
     if (!nutzer?.id) return zurueck(req, '/sign-in?fehler=profil');
+
+    /*
+     * Ein VIP-Schluessel wird mit Twitch bestaetigt (app/components/TwitchPruefung): kein Konto anlegen, nur pruefen, ob das Twitch-Konto das ist,
+     * das der Zugang verlangt (lib/vipZugaenge, twitchPflicht). Ein anderes Twitch-Konto wird abgewiesen.
+     */
+    if (req.cookies.get('twitch_oauth_art')?.value === 'vip-pruefung') {
+      const vip = vipAus(req.cookies.get('streamer_dashboard_auth')?.value);
+      const ergebnis = vip ? await zugangTwitchBestaetigen(vip, nutzer.login ?? '', nutzer.id) : 'nicht-noetig';
+      const fertig = zurueck(req, ergebnis === 'ok' ? '/?twitch=bestaetigt' : ergebnis === 'falsches-konto' ? '/?twitch=falsches-konto' : '/');
+      fertig.cookies.set('twitch_oauth_art', '', { path: '/', maxAge: 0 });
+      fertig.cookies.set('twitch_oauth_state', '', { path: '/', maxAge: 0 });
+      return fertig;
+    }
 
     // Wer die Freigabe fuer die Adresse verweigert, kann kein Konto bekommen.
     // Das wird gesagt, statt eine Adresse zu erfinden.
