@@ -5280,7 +5280,10 @@ export default function StatistikSeite() {
               </p>
 
               {jahrLaedt && !jahr ? (
-                <div className="h-64" />
+                <div role="status" className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60">
+                  <span aria-hidden className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-500" />
+                  <p className="text-sm text-slate-500"><T>Wird geladen …</T></p>
+                </div>
               ) : jahrFehlt && !jahr ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
@@ -5406,7 +5409,10 @@ export default function StatistikSeite() {
               </div>
 
               {regionLaedt && !regionFeld.length ? (
-                <div className="h-64" />
+                <div role="status" className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60">
+                  <span aria-hidden className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-500" />
+                  <p className="text-sm text-slate-500"><T>Wird geladen …</T></p>
+                </div>
               ) : regionFehlt && !regionFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">

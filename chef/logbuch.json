@@ -8849,5 +8849,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-399",
+    "datum": "2026-11-02T03:32:50Z",
+    "titel": "Jahresbilanz und Regionen: Ladeanzeige statt leerer Fläche",
+    "kurz": "Statistik → Jahr / Regionen: beim Laden Ring mit „Loading …“ statt leerer Fläche.",
+    "markieren": [
+      "text:Loading …",
+      "css:.animate-spin"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Laden stand nur eine leere Fläche – das sah wie ein Ausfall aus.",
+    "was": "Dort dreht sich jetzt ein Ladering mit Text.",
+    "ansehen": [
+      "/statistics?bereich=jahr",
+      "/statistics?bereich=regional"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
