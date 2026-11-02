@@ -4239,7 +4239,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               sie Match ID. Sie ist zum Weiterreichen da,
                               deshalb ein Knopf statt einer Zeile zum
                               Markieren. */}
-                          <code className="rounded bg-zinc-900 px-2 py-1 text-[10px]
+                          <code className="rounded bg-zinc-900 px-2 py-1 text-[11px]
                                            text-slate-400">{sp.id}</code>
                           <button onClick={() => idKopieren(sp.id)}
                             className="rounded-lg border border-zinc-800 px-2.5 py-1

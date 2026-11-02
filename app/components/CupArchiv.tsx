@@ -148,14 +148,14 @@ export default function CupArchiv({ cupId, cupName, von, bis, istAdmin, aufAnzah
             <div className="mt-4 space-y-4">
               {events.length > 1 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Wohin</T></span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Wohin</T></span>
                   <select value={wohin || events[0]?.id || ''} onChange={(e) => setWohin(e.target.value)} className={feld}>
                     {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}{ev.datum ? ` · ${ev.datum.slice(0, 4)}` : ''}</option>)}
                   </select>
                 </div>
               )}
               <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spieler auf den Bildern (optional)</T></p>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spieler auf den Bildern (optional)</T></p>
                 <SpielerSuche gewaehlt={spielerWahl} angaben={spieler} aufAendern={setSpielerWahl} t={t} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">

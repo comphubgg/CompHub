@@ -9450,5 +9450,26 @@
       "/account"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:00:29Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-427",
+    "titel": "Statistik-Ränder: Schrift mindestens 11 Pixel",
+    "kurz": "Cup-Seite (Match-ID), Stat-Kacheln, Spieler-/Cup-Archiv: kleine Beschriftungen jetzt 11 Pixel.",
+    "markieren": [
+      "text:Match ID"
+    ],
+    "bereich": "Statistik",
+    "warum": "Zwölf Beschriftungen standen noch mit 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/events",
+      "/statistics"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

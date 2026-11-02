@@ -155,7 +155,7 @@ export default function SpielerArchiv({ epicId, istAdmin }: { epicId: string; is
           {ladeOffen && (
             <div className="mt-4 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Wohin</T></span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Wohin</T></span>
                 <select value={wohin} onChange={(e) => setWohin(e.target.value)} className={feld}>
                   <option value="">{t('Allgemeines Archiv')}</option>
                   {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}{ev.datum ? ` · ${ev.datum.slice(0, 4)}` : ''}</option>)}
@@ -168,16 +168,16 @@ export default function SpielerArchiv({ epicId, istAdmin }: { epicId: string; is
                     className={`w-72 ${feld}`} />
                   <input value={neu.ort} onChange={(e) => setNeu({ ...neu, ort: e.target.value })} placeholder={t('Ort, z. B. Lyon')}
                     className={`w-36 ${feld}`} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Von</T></span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Von</T></span>
                   <input type="date" value={neu.datum} onChange={(e) => setNeu({ ...neu, datum: e.target.value })} className={feld} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>bis</T></span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>bis</T></span>
                   <input type="date" value={neu.bis} min={neu.datum || undefined} onChange={(e) => setNeu({ ...neu, bis: e.target.value })} className={feld} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Cup auf der Seite</T></span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Cup auf der Seite</T></span>
                   <CupWahl wert={neu.cupId} aufAendern={(cupId) => setNeu({ ...neu, cupId })} t={t} />
                 </div>
               )}
               <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Weitere Spieler auf den Bildern</T></p>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Weitere Spieler auf den Bildern</T></p>
                 <SpielerSuche gewaehlt={weitere} angaben={spieler} aufAendern={setWeitere} t={t} />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -218,7 +218,7 @@ export default function SpielerArchiv({ epicId, istAdmin }: { epicId: string; is
         <>
           {allgemein.length > 0 && (
             <section>
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <T>Allgemeines Archiv</T>
                 <span className="ml-2 font-normal normal-case tracking-normal text-slate-600">{allgemein.length}</span>
               </p>
@@ -227,7 +227,7 @@ export default function SpielerArchiv({ epicId, istAdmin }: { epicId: string; is
           )}
           {seineEvents.length > 0 && (
             <section>
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Events</T></p>
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Events</T></p>
               <div className="mb-4 flex flex-wrap gap-1.5">
                 {seineEvents.map((ev) => (
                   <button key={ev.id} onClick={() => setEventWahl(ev.id)}

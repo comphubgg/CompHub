@@ -129,7 +129,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                 <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
                 <h3 className="min-w-0 flex-1 text-balance text-center text-[clamp(11px,1.05vw,15px)] font-extrabold uppercase leading-tight tracking-wide text-slate-50">
                   <T>{k.titel}</T>
-                  {!!k.mindest && <span className="mt-0.5 block text-[10px] font-medium normal-case tracking-normal text-slate-500">{t('ab {n} Matches').replace('{n}', String(k.mindest))}</span>}
+                  {!!k.mindest && <span className="mt-0.5 block text-[11px] font-medium normal-case tracking-normal text-slate-500">{t('ab {n} Matches').replace('{n}', String(k.mindest))}</span>}
                 </h3>
                 <button type="button" onClick={() => (aufVoll ? aufVoll(k) : setOffen(k))} disabled={!k.zeilen.length}
                   title={`${t('Alle anzeigen')} (${k.zeilen.length})`}
@@ -174,7 +174,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
         onMouseLeave={() => setMarkiert(null)}>
         {kacheln.map((k) => (
           <div key={k.titel} className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60">
-            <p className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/40 px-3 py-2 text-[10px]
+            <p className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/40 px-3 py-2 text-[11px]
                           font-semibold uppercase tracking-[0.14em] text-slate-400">
               <T>{k.titel}</T>
               {k.zeilen.length > anzahl && (
