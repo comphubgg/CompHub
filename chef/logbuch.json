@@ -7166,5 +7166,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-324",
+    "datum": "2026-11-02T02:06:31Z",
+    "titel": "Power Rankings: Auf-/Absteiger ohne Namen zeigen Strich",
+    "kurz": "Power Rankings → Aufsteiger/Absteiger: Konto ohne Namen zeigt „—“ statt leerer Zeile.",
+    "markieren": [
+      "css:section.grid li span.truncate"
+    ],
+    "bereich": "Statistik",
+    "warum": "Konten, die Epic ohne Namen führt (z. B. Platz 7.529), standen in den Kästen mit leerer Namensspalte.",
+    "was": "Dort steht jetzt ein Strich – wie schon in der Hauptliste.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -215,7 +215,7 @@ export default function RanglisteNeu() {
                   <li key={s.id || s.rank} className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-zinc-800/70">
                     <span className="min-w-9 shrink-0 text-right text-sm font-bold tabular-nums text-slate-500">#{zahl(s.rank)}</span>
                     <TeamFlagge groesse={22} laender={[s.land || undefined]} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">{s.anzeige || s.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">{s.anzeige || s.name || '—'}</span>
                     <span className={`inline-flex items-center gap-1 text-sm font-bold tabular-nums ${hoch ? 'text-emerald-500' : 'text-rose-500'}`}><Winkel hoch={hoch} />{zahl(Math.abs(s.deltaPlatz))}</span>
                   </li>
                 ))}
