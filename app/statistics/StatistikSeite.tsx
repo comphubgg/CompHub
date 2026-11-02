@@ -39,7 +39,7 @@ import { JAHR_SAISONS, jahrVonSaison } from '@/lib/saisonJahre';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerArchiv from '@/app/components/SpielerArchiv';
 import Organisationen from './Organisationen';
-import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
+import { regionFarbe } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
@@ -2204,7 +2204,8 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
    * Die Spieler (Betreiber, 19.10.2026): "von jeder Region zwei Spieler mit Profilbild, von Anfang an aufgeklappt, der Name gross, ein, zwei kleine Werte" -
    * statt des Faechers aus sechs Namen. Genommen werden aus der Elim-Rangliste je Heimatregion die ersten beiden mit Foto; die Reihenfolge der Regionen ist fest.
    */
-  const REGIONEN_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ME', 'ASIA', 'OCE'];
+  // Dieselbe Reihenfolge wie ueberall auf der Statistikseite (REGION_REIHE oben) - vorher stand der Nahe Osten hier vor Asien.
+  const REGIONEN_REIHE = REGION_REIHE;
   /*
    * Fest gesetzte Karten (Betreiber, 31.10.2026: "wo sind die EU-Spieler - mach Shxrk, Vico da hin"). Fuer EU stehen diese beiden statt des
    * Ersten der Elim-Liste; sie werden ueber die Suche geholt, weil sie nicht in jeder Saison oben in der Liste stehen. Kommt einer nicht,
@@ -5638,7 +5639,7 @@ export default function StatistikSeite() {
                   {/* Die Regionen, in denen wirklich gespielt wird - mit
                       ihren Farben, damit die Reihe nicht grau in grau ist. */}
                   <div className="flex flex-wrap items-center gap-1">
-                    {['alle', ...REGIONEN_REIHE].map((r) => (
+                    {['alle', ...REGION_REIHE].map((r) => (
                       <button key={r}
                         onClick={() => { setGalerieRegion(r); setGalerieMenge(400); }}
                         className={`rounded border px-2 py-0.5 text-[11px] transition ${

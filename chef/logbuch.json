@@ -9658,5 +9658,26 @@
       "/statistics?bereich=spieler"
     ],
     "modell": "Sonnet (Fund) + Opus (gekürzt: Umbenennung verworfen)"
+  },
+  {
+    "datum": "2026-11-02T04:10:09Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-437",
+    "titel": "Statistik: eine Regionen-Reihenfolge für alle Reiter",
+    "kurz": "Statistik-Start (Spieler je Region) und Galerie: Regionen in derselben Reihenfolge wie überall.",
+    "markieren": [
+      "text:ASIA",
+      "text:ME"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Statistikseite ordnete Regionen an drei Stellen verschieden: mal Naher Osten vor Asien, mal dahinter.",
+    "was": "Alle Stellen folgen jetzt der Reihenfolge der Seite: EU, NAC, NAW, BR, ASIA, OCE, ME.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "modell": "Opus"
   }
 ]
