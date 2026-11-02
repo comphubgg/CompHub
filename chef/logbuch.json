@@ -7232,5 +7232,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-327",
+    "datum": "2026-11-02T02:30:28Z",
+    "titel": "Globals-Teams: Länder mit gleicher Spielerzahl nach Stärke geordnet",
+    "kurz": "Globals → Teams → Nationalities: bei gleicher Spielerzahl steht das Land mit dem besseren Team vorn.",
+    "markieren": [
+      "text:Nationalities",
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Länder mit gleich vielen Spielern standen in keiner festen Reihenfolge.",
+    "was": "Bei Gleichstand entscheidet jetzt der beste Platz eines Teams aus dem Land, dann die meisten Punkte.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

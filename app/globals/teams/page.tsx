@@ -108,11 +108,26 @@ function LaenderRaster({ teams }: { teams: Team[] }) {
   }, [sprache]);
   const gruppen = useMemo(() => {
     const je = new Map<string, Spieler[]>();
-    for (const tm of teams) for (const s of tm.spieler) {
-      if (!s.land) continue;
-      (je.get(s.land) ?? je.set(s.land, []).get(s.land)!).push(s);
-    }
-    return [...je.entries()].sort((a, b) => b[1].length - a[1].length);
+    // Staerke der Teams je Land: bester Platz, dann meiste Punkte; als letzte
+    // Stufe die Reihenfolge des ersten Auftretens (Teams kommen nach Platz).
+    const staerke = new Map<string, { rang: number; punkte: number; erst: number }>();
+    teams.forEach((tm, i) => {
+      for (const s of tm.spieler) {
+        if (!s.land) continue;
+        (je.get(s.land) ?? je.set(s.land, []).get(s.land)!).push(s);
+        const st = staerke.get(s.land);
+        if (!st) staerke.set(s.land, { rang: tm.rang, punkte: tm.punkte, erst: i });
+        else {
+          st.rang = Math.min(st.rang, tm.rang);
+          st.punkte = Math.max(st.punkte, tm.punkte);
+        }
+      }
+    });
+    return [...je.entries()].sort((a, b) => {
+      const sa = staerke.get(a[0])!, sb = staerke.get(b[0])!;
+      return b[1].length - a[1].length || sa.rang - sb.rang
+        || sb.punkte - sa.punkte || sa.erst - sb.erst;
+    });
   }, [teams]);
   const ohne = teams.flatMap((tm) => tm.spieler).filter((s) => !s.land).length;
 
