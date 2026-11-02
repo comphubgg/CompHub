@@ -15,6 +15,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Gleichstand-Ränge uneinheitlich:** StatKacheln und ihre Ganze-Liste zählen 1, 2, 3 durch, StatVollansicht teilt Plätze (1, 2, 2, 4). Seit chef-102 (abgelehnt) gilt „kein geteilter Rang“? Betreiber fragen.
 - [ ] **Startseite: „Zehn Saisons, sieben Regionen“ fest geschrieben** – stimmt heute, wird bei neuer Saison falsch. Bei Saisonwechsel prüfen.
 - [ ] **Startseite Maps-Zahl: bei Ausfall nur Strich ohne Hinweis** – klein.
+- [ ] **Turnierverzeichnis live: S37-Globals-Kachel doppelt (24 statt 12 Matches) und falsch einsortiert** – im Code seit chef-228 behoben, nach nächstem Veröffentlichen prüfen.
+- [ ] **Saisonliste in lib/szeneStats sortiert Kennungen als Text** – stimmt nur bei zweistelligen (S30–S42). Nur Risiko.
+- [ ] **Events-Regionsauswahl: Regionsnamen („Europe“, „Middle East“) auch auf Deutsch englisch** – Betreiber fragen.
 - [ ] **FNCS-Archiv S12 Invitational / S18 Grand Royale: Punkte nicht absteigend nach Platz** – Quelle.
 
 ## Neu entdeckt (Runde 19, 02.11.2026)
