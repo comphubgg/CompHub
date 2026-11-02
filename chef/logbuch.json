@@ -8554,5 +8554,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-386",
+    "datum": "2026-11-02T03:25:28Z",
+    "titel": "Startseite: Preisgeld-Block mit Ladeanzeige und Ausfall-Hinweis",
+    "kurz": "Startseite, Block „Most Earnings“: Ladekreis beim Laden, Hinweis bei Ausfall statt Lücke.",
+    "markieren": [
+      "text:Most Earnings",
+      "text:The prize money is not reachable right now."
+    ],
+    "bereich": "Startseite",
+    "warum": "Fiel die Preisgeld-Abfrage aus, fehlte der ganze Block still; beim Laden sprang die Seite.",
+    "was": "Überschrift steht sofort, darunter Ladekreis oder „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

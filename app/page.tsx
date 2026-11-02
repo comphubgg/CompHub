@@ -40,17 +40,36 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
   const [dieses, setDieses] = useState<Antwort | null>(null);
   const [alle, setAlle] = useState<Antwort | null>(null);
   const [wahl, setWahl] = useState<'jahr' | 'alle'>('jahr');
+  /** Beide Anfragen sind beantwortet (oder gescheitert) - erst dann gilt "nicht erreichbar". */
+  const [fertig, setFertig] = useState(false);
   useEffect(() => {
     const hole = (adresse: string, setz: (a: Antwort) => void) =>
       fetch(adresse, { signal: AbortSignal.timeout(10_000) })
         .then((r) => r.json())
         .then((j) => { if (j?.plaetze?.length) setz(j); })
-        .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
-    void hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, setDieses);
-    void hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', setAlle);
+        .catch(() => { /* bleibt leer; unten steht dann der Hinweis */ });
+    void Promise.all([
+      hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, setDieses),
+      hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', setAlle),
+    ]).then(() => setFertig(true));
   }, [jahr]);
   const daten = wahl === 'alle' ? (alle ?? dieses) : (dieses ?? alle);
-  if (!daten) return null;
+  // Bis die Antwort da ist: Ladeanzeige; bleibt sie aus: Hinweis statt eines Abschnitts, der still fehlt.
+  if (!daten) {
+    return (
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-500"><T>Preisgeld</T></p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl"><T>Meistes Preisgeld</T></h2>
+          {fertig ? (
+            <p role="alert" className="mt-4 text-sm text-slate-400"><T>Das Preisgeld ist gerade nicht erreichbar.</T></p>
+          ) : (
+            <span role="status" className="mt-5 block h-7 w-7 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-500" />
+          )}
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="px-4 py-16">
       <div className="mx-auto max-w-6xl">
