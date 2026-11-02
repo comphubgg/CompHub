@@ -100,6 +100,8 @@ async function holeRoh(request: Request) {
    * Deshalb wird genau die eine nachgeladen, wenn sie gebraucht wird.
    */
   const nurListe = (searchParams.get('liste') ?? '').trim();
+  // ?kompakt=1: nur die Kachel-Spitze, ohne das ganze Feld mitzuschicken - gerechnet wird trotzdem ueber alle geholten Teams.
+  const kompakt = searchParams.get('kompakt') === '1';
 
   if (!event || (!window_ && tageListe.length < 2)) {
     return NextResponse.json({ error: 'event und window sind noetig' }, { status: 400 });
@@ -169,7 +171,9 @@ async function holeRoh(request: Request) {
         // Werte je Spiel zaehlen erst ab dieser Spielzahl - die Kachel nennt sie, damit niemand raetselt, wo ein Team fehlt.
         mindestSpiele: mindestSpiele > 1 ? mindestSpiele : null,
         plaetze: alle.slice(0, proListe),
-        alle,
+        // Wie viele Teams in dieser Kennzahl gewertet sind - auch wenn "alle" (kompakt) nicht mitkommt.
+        anzahl: alle.length,
+        alle: kompakt ? [] : alle,
       };
     }).filter(Boolean);
 

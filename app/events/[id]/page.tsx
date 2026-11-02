@@ -270,8 +270,10 @@ interface Bestenliste {
   mindestSpiele?: number | null;
   /** Die Spitze fuer die Kachel. */
   plaetze: StatPlatz[];
-  /** Das ganze Feld - dahinter steht das Pluszeichen. */
+  /** Das ganze Feld - dahinter steht das Pluszeichen. Bei "kompakt" leer. */
   alle: StatPlatz[];
+  /** Wie viele Teams gewertet sind (die Liste "alle" kann kuerzer sein). */
+  anzahl?: number;
 }
 
 interface Cup {
@@ -1630,8 +1632,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (!lbFenster || !zeigeStatistik) { setStatistik([]); setStatistikFehlt(false); return; }
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
-    fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
-        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
+    const url = (limit: number | null, kompakt: boolean) => `/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
+      + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${limit ? `&limit=${limit}` : ''}${kompakt ? '&kompakt=1' : ''}`
+      + `${summenFenster ? `&windows=${summenText}` : ''}${!limit && Date.now() < handFrischBis.current ? '&frisch=1' : ''}`;
+    /*
+     * Die Kacheln nennen die Spitze des ganzen Feldes. Die schnelle Antwort kennt nur die ersten hundert Teams - in einem Cup mit
+     * tausenden Teams fehlen dort Teams, die weit hinten in der Gesamtwertung stehen, aber den besten Einzelwert haben. Deshalb
+     * wird bei vollem Feld mit den ersten tausend nachgerechnet (alle zehntausend waeren live zu langsam: 502 nach 30 s) (der Server schickt dabei nur die Spitze, "kompakt").
+     */
+    const ausbauen = (stufen: number[], vorher: Bestenliste[]) => {
+      const [limit, ...rest] = stufen;
+      if (!limit || weg) return;
+      fetch(url(limit, true))
+        .then((r) => r.json())
+        .then((d) => {
+          if (weg || !Array.isArray(d?.bestenlisten)) return;
+          const alt = new Map(vorher.map((b) => [b.schluessel, b]));
+          const neu = (d.bestenlisten as Bestenliste[]).map((b) => ({ ...b, alle: alt.get(b.schluessel)?.alle ?? b.plaetze }));
+          setStatistik(neu);
+          if ((d.teams ?? 0) >= limit) ausbauen(rest, neu);
+        })
+        .catch(() => { /* dann bleibt die Spitze der ersten Antwort stehen */ });
+    };
+    fetch(url(null, false))
       .then((r) => r.json())
       .then((d) => {
         if (weg) return;
@@ -1639,6 +1662,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         setStatistikFehlt(false);
         setStatistik(d.bestenlisten);
         setStatistikStand(d.aktualisiert ?? null);
+        if ((d.teams ?? 0) >= 100) ausbauen([1000], d.bestenlisten);
       })
       .catch(() => {
         if (weg) return;
@@ -5261,8 +5285,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
                     <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50"><T>{b.titel}</T></h3>
                     {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld - dieselbe Sortierung, nur ungekuerzt. */}
-                    <button type="button" onClick={() => listeOeffnen(b)} disabled={b.alle.length <= b.plaetze.length}
-                      title={`${t('Alle anzeigen')} (${b.alle.length})`}
+                    <button type="button" onClick={() => listeOeffnen(b)} disabled={(b.anzahl ?? b.alle.length) <= b.plaetze.length}
+                      title={`${t('Alle anzeigen')} (${b.anzahl ?? b.alle.length})`}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-slate-300
                                  transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-30">
                       <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
