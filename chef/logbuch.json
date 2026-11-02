@@ -9022,5 +9022,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-407",
+    "datum": "2026-11-02T03:34:42Z",
+    "titel": "Rückblick-Bild: Ladeanzeige",
+    "kurz": "Profil → „Rückblick als Bild“: Ring mit „Creating image …“ statt leerer Fläche.",
+    "markieren": [
+      "text:Creating image …"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bis Schrift und Bilder geladen waren, blieb das Fenster leer.",
+    "was": "Bis das Bild fertig ist, dreht sich ein Ladering.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

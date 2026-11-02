@@ -160,6 +160,8 @@ export default function RueckblickBild({ daten }: { daten: RueckblickDaten }) {
   const t = useT();
   const [auf, setAuf] = useState(false);
   const [stand, setStand] = useState('');
+  /** Schrift und Bilder werden noch geladen - die Leinwand ist bis dahin leer. */
+  const [malt, setMalt] = useState(false);
   const leinwand = useRef<HTMLCanvasElement>(null);
   const titel = t('Saison-Rückblick');
 
@@ -168,7 +170,11 @@ export default function RueckblickBild({ daten }: { daten: RueckblickDaten }) {
   useEffect(() => {
     if (!auf || !leinwand.current) return undefined;
     let weg = false;
-    void zeichne(leinwand.current, JSON.parse(inhalt) as RueckblickDaten, titel).then((ok) => { if (!weg && !ok) setStand(t('Das Bild ließ sich nicht zeichnen.')); });
+    void zeichne(leinwand.current, JSON.parse(inhalt) as RueckblickDaten, titel).then((ok) => {
+      if (weg) return;
+      setMalt(false);
+      if (!ok) setStand(t('Das Bild ließ sich nicht zeichnen.'));
+    }).catch(() => { if (!weg) { setMalt(false); setStand(t('Das Bild ließ sich nicht zeichnen.')); } });
     return () => { weg = true; };
   }, [auf, inhalt, titel, t]);
 
@@ -183,7 +189,7 @@ export default function RueckblickBild({ daten }: { daten: RueckblickDaten }) {
 
   return (
     <>
-      <button type="button" onClick={() => { setStand(''); setAuf(true); }}
+      <button type="button" onClick={() => { setStand(''); setMalt(true); setAuf(true); }}
         className="rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-400 transition hover:border-sky-400 hover:bg-sky-500/20">
         <T>Rückblick als Bild</T>
       </button>
@@ -191,7 +197,15 @@ export default function RueckblickBild({ daten }: { daten: RueckblickDaten }) {
         <div role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setAuf(false); }}
           className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
           <div className="flex max-h-full w-full max-w-md flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl">
-            <canvas ref={leinwand} className="w-full rounded-xl border border-zinc-800 bg-zinc-950" style={{ aspectRatio: `${B} / ${H}` }} />
+            <div className="relative">
+              <canvas ref={leinwand} className="w-full rounded-xl border border-zinc-800 bg-zinc-950" style={{ aspectRatio: `${B} / ${H}` }} />
+              {malt && (
+                <div role="status" aria-live="polite" className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-zinc-950">
+                  <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-sky-500 border-t-transparent" aria-hidden="true" />
+                  <span className="text-sm text-slate-400"><T>Bild wird erstellt …</T></span>
+                </div>
+              )}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => void speichern(false)}
                 className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400"><T>Bild kopieren</T></button>

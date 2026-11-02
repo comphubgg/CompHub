@@ -2662,6 +2662,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'The order has not been set yet.',
   'Spieler ohne hinterlegtes Land':
     'players without a country on file',
+  'Bild wird erstellt …':
+    'Creating image …',
   'Flaggen und Länder sind gerade nicht erreichbar.':
     'Flags and countries are not available right now.',
   'Zu diesem Spieltag veröffentlicht Epic keine Auszahlungstabelle.':
