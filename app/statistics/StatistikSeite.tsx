@@ -3338,6 +3338,8 @@ export default function StatistikSeite() {
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
     setRegionLaedt(true);
+    /* Das Feld der vorigen Region/Saison weg: sonst stehen deren Spieler unter der neuen Überschrift, bis die Antwort da ist (und bleiben, wenn sie ausfällt). */
+    setRegionFeld([]);
     setReihenWahl({}); setReihenFeld({}); setReihenFehlt({});
     reihenStand.current = `${saison}|${regionAktiv}`;
     fetch(`/api/szene-stats?saison=${saison}&region=${regionAktiv}&sort=elims&limit=500`)
