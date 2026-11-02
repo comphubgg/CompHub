@@ -6759,5 +6759,26 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-306",
+    "datum": "2026-11-02T01:52:50Z",
+    "titel": "Lobby-Tabelle: aus dem Replay nachgetragene Teams zeigen Strich statt 0",
+    "kurz": "Cup → Matches → Spiel aufklappen: Replay-Teams zeigen „—“ statt 0 Elims/Schaden.",
+    "markieren": [
+      "text:from replay",
+      "css:div.max-h-96.overflow-auto table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Teams, die nur das Replay kennt (nicht Epic), standen mit 0 Elims, 0 Schaden, 0:00 Spielzeit und Tagesplatz 0 da – als hätten sie nichts gemacht.",
+    "was": "Diese Werte kennt die Quelle nicht, darum steht dort jetzt ein Strich; Elims und Tagesplatz mit Tausenderpunkt.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

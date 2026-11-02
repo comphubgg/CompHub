@@ -4396,22 +4396,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-300">
-                                  {t.elims}
+                                  {t.ausReplay ? '—' : t.elims.toLocaleString(ort)}
                                 </td>
                                 {mitSchaden && (
                                   <td className="px-3 py-1.5 text-right tabular-nums
                                                  text-slate-300">
-                                    {t.damage.toLocaleString(ort)}
+                                    {t.ausReplay ? '—' : t.damage.toLocaleString(ort)}
                                   </td>
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-400">
-                                  {Math.floor(t.timeAlive / 60)}:
-                                  {String(t.timeAlive % 60).padStart(2, '0')}
+                                  {t.ausReplay ? '—' : `${Math.floor(t.timeAlive / 60)}:${String(t.timeAlive % 60).padStart(2, '0')}`}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-600">
-                                  {t.tagesPlatz}
+                                  {t.tagesPlatz > 0 ? t.tagesPlatz.toLocaleString(ort) : '—'}
                                 </td>
                               </tr>
                               {/*
