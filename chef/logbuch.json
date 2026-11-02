@@ -6446,5 +6446,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-292",
+    "datum": "2026-11-02T01:21:29Z",
+    "titel": "Twitch-Tabelle: Stream ohne Raid zeigt 0",
+    "kurz": "Twitch-Statistik → Streams-Tabelle: Raids „0“ statt „—“, wie in der Kachel.",
+    "markieren": [
+      "text:Raids"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ein gezählter Stream ohne Raid stand mit „—“ da, die Kachel darüber zeigte „0“.",
+    "was": "Echte null steht jetzt als 0; nur reine Archiv-Streams ohne Daten behalten den Strich.",
+    "ansehen": [
+      "/twitch-statistik"
+    ],
+    "commits": [
+      "90d46f280028f4dc88d95d8339c133c81a2e6cd0"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

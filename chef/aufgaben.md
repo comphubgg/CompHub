@@ -429,5 +429,5 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [ ] **Cup-Spieler (Szene-Quelle): fehlender Schaden/Assists = 0** – Helfer-Vorschlag „ganze Spalte Strich, wenn alle 0“ abgelehnt (versteckt echte Nullen, z. B. Assists im Solo). Erst mit Quellfeld „unbekannt“ lösen.
 - [x] (chef-288 bis chef-291) Regionen-Wechsel, leeres Turnierverzeichnis, Twitch-Ausfall, unlesbare Games in „Meine Replays“.
 - [ ] **Spieltag-Bestenlisten: Quoten-Listen fehlen bei Feldern mit höchstens 2 Matches** (Mindestzahl max(3, …)) – Helfer-Vorschlag „Mindestzahl höchstens meiste Matches“ nicht übernommen (Quote aus 1 Match); Betreiber fragen.
-- [ ] **Twitch-Tabelle: 0 Raids als „—“**, Kachel zeigt „0“ – klein, nur VIP.
+- [x] (chef-292) **Twitch-Tabelle: 0 Raids als „—“**, Kachel zeigt „0“ – klein, nur VIP.
 - [ ] **Replays: gleiche Startzeit zweier Games ohne feste Reihenfolge** (S42 LCQ NAC) – Reihenfolge festlegen würde Game-Nummern/Adressen verschieben; Betreiber fragen.
