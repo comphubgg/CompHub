@@ -206,6 +206,16 @@ export function orgKennung(name: string): string {
 export interface Posten { datum: number | null; betrag: number; titel: string; windowId: string }
 
 /**
+ * Letzter zaehlender Zeitpunkt eines Austritts. Normal gilt der Austrittstag
+ * mit (bis 23:59:59). Wechselt dieselbe Person am selben Tag zur naechsten Org
+ * (bisOhneTag), zaehlt der Tag erst fuer die neue Org: die alte endet am Tag davor.
+ */
+function endeZeit(bis: string | null, bisOhneTag: boolean): number {
+  if (!bis) return Infinity;
+  return bisOhneTag ? Date.parse(`${bis}T00:00:00Z`) - 1 : Date.parse(`${bis}T23:59:59Z`);
+}
+
+/**
  * Was ein Spieler fuer die Org gewonnen hat: das Preisgeld des Jahres ab dem
  * Tag seines Beitritts. Ohne bekanntes Beitrittsdatum zaehlt das ganze Jahr -
  * die Anzeige sagt dann "since" nicht dazu. Posten ohne Tag zaehlen nur,
@@ -217,10 +227,9 @@ export interface Posten { datum: number | null; betrag: number; titel: string; w
  * gefiltert an - ein zusaetzlicher Schnitt am 1. Januar liesse die Finals vom
  * Dezember fehlen, die das Spielerprofil unter 2026 fuehrt.
  */
-export function fuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null): { betrag: number; anzahl: number } {
+export function fuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null, bisOhneTag = false): { betrag: number; anzahl: number } {
   const ab = seit ? Date.parse(`${seit}T00:00:00Z`) : 0;
-  // Bei Ehemaligen: nur bis zum Austrittstag (einschliesslich).
-  const ende = bis ? Date.parse(`${bis}T23:59:59Z`) : Infinity;
+  const ende = endeZeit(bis, bisOhneTag);
   let betrag = 0; let anzahl = 0;
   for (const p of posten) {
     if (p.datum === null ? (!!seit || !!bis) : (p.datum < ab || p.datum > ende)) continue;
@@ -234,9 +243,9 @@ export function fuerDieOrg(posten: Posten[], seit: string | null, bis: string | 
  * dieselbe Auswahl wie fuerDieOrg. Damit zaehlt die Org einen Spieltag nur
  * einmal, auch wenn mehrere ihrer Spieler darin bezahlt wurden.
  */
-export function fensterFuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null): string[] {
+export function fensterFuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null, bisOhneTag = false): string[] {
   const ab = seit ? Date.parse(`${seit}T00:00:00Z`) : 0;
-  const ende = bis ? Date.parse(`${bis}T23:59:59Z`) : Infinity;
+  const ende = endeZeit(bis, bisOhneTag);
   const raus: string[] = [];
   for (const p of posten) {
     if (p.datum === null ? (!!seit || !!bis) : (p.datum < ab || p.datum > ende)) continue;

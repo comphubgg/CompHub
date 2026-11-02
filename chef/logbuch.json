@@ -9599,5 +9599,25 @@
       "/predictions"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:08:09Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-434",
+    "titel": "Orgs: Turnier am Wechseltag zählt nur für die neue Organisation",
+    "kurz": "Orgs → Alle Jahre: Preisgeld am Wechseltag zählt nicht mehr bei beiden Organisationen.",
+    "markieren": [
+      "text:All years"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wechselte ein Spieler an einem Turniertag die Organisation (z. B. Curve: KoS bis 20.09., XSET seit 20.09.), zählte das Preisgeld dieses Tages für beide.",
+    "was": "Es zählt jetzt nur für die neue Organisation; ein einfaches Austrittsdatum ohne Wechsel bleibt wie bisher.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

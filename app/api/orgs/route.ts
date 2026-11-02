@@ -109,6 +109,20 @@ export async function GET(request: Request) {
   const bildZu = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.datei && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
 
+  // Wechseltag: Beginnt dieselbe Person (Konto) an ihrem Austrittstag bei einer
+  // anderen Org, zaehlt der Tag nur fuer die neue - das Ende der alten ist dann exklusiv.
+  const beginne = new Map<string, Set<string>>();
+  for (const o of orgs) {
+    const eintraege: Array<{ epicId?: string | null; seit?: string | null }> = [...o.spieler, ...(o.ehemalige ?? [])];
+    for (const x of eintraege) {
+      if (!x.epicId || !x.seit) continue;
+      const tage = beginne.get(x.epicId) ?? new Set<string>();
+      tage.add(x.seit); beginne.set(x.epicId, tage);
+    }
+  }
+  const wechselTag = (e: { epicId?: string | null; seit: string | null; bis: string | null }) =>
+    !!(e.epicId && e.bis && e.bis !== e.seit && beginne.get(e.epicId)?.has(e.bis));
+
   const raus = orgs.map((o) => {
     const spieler = o.spieler.map((s) => {
       const p = s.epicId ? profile[s.epicId] : undefined;
@@ -146,7 +160,7 @@ export async function GET(request: Request) {
       const bekannt = !!(e.epicId && verdienst
         && (e.epicId in verdienst.posten || (verdienst.konten ?? []).includes(e.epicId)));
       const posten = e.epicId && verdienst && bekannt ? (verdienst.posten[e.epicId] ?? []) : null;
-      const wert = alleJahre && posten ? fuerDieOrg(posten, e.seit, e.bis) : null;
+      const wert = alleJahre && posten ? fuerDieOrg(posten, e.seit, e.bis, wechselTag(e)) : null;
       return {
         // liquipedia durchgereicht, damit das Admin-Werkzeug sie behaelt.
         name: e.name, liquipedia: e.liquipedia ?? null,
@@ -175,7 +189,7 @@ export async function GET(request: Request) {
       if (alleJahre) {
         for (const e of o.ehemalige ?? []) {
           const po = e.epicId ? verdienst.posten[e.epicId] : null;
-          if (po) for (const w of fensterFuerDieOrg(po, e.seit, e.bis)) fenster.add(w);
+          if (po) for (const w of fensterFuerDieOrg(po, e.seit, e.bis, wechselTag(e))) fenster.add(w);
         }
       }
     }
