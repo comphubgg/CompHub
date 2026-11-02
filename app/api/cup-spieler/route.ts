@@ -3,7 +3,8 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { szeneFenster, epicTag } from '@/lib/szeneStats';
+import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
+import { szeneFenster, epicTag, streckeKm } from '@/lib/szeneStats';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
@@ -28,20 +29,28 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const echtVon = (id: string) => lan[id]?.echt ?? id;
 
   // Die Teams ueber alle Tage: Punkte zusammen, daraus der Platz.
-  const teams = new Map<string, { spieler: string[]; punkte: number; platz?: number }>();
+  const teams = new Map<string, { spieler: string[]; roh: string[]; punkte: number; platz?: number }>();
   for (const w of tage) {
     const tag = await epicTag(w);
     for (const t of tag?.teams ?? []) {
       const echte = (t.spieler ?? []).map(echtVon);
       const k = [...echte].sort().join('|');
-      const da = teams.get(k) ?? { spieler: echte, punkte: 0 };
+      const da = teams.get(k) ?? { spieler: echte, roh: t.spieler ?? [], punkte: 0 };
       da.punkte += t.punkte ?? 0;
       if (tage.length === 1) da.platz = t.platz;
       teams.set(k, da);
     }
   }
   if (tage.length > 1) {
-    [...teams.values()].sort((a, b) => b.punkte - a.punkte).forEach((t, i) => { t.platz = i + 1; });
+    // Gleiche Punkte wie im Endstand der Spieltag-Tabelle trennen (Siege, Elims je Spiel, mittlere Platzierung; lib/endstandGleichstand):
+    // sonst bekam dasselbe Team hier einen Platz nach Einlesereihenfolge, dort den geteilten oder getrennten Platz. Fehlen die Zahlen: geteilter Platz.
+    const liste = [...teams.values()].sort((a, b) => b.punkte - a.punkte);
+    const gleichstand = liste.some((t, i) => i > 0 && t.punkte === liste[i - 1].punkte);
+    const werte = gleichstand && tage.every((w, i) => w === tage[tage.length - 1].replace(/Day\d+/, `Day${i + 1}`))
+      ? await gleichstandWerte(tage[tage.length - 1], tage.length, { epic: false }).catch(() => null)
+      : null;
+    const geordnet = platzeMitGleichstand(liste.map((t) => ({ ...t, spieler: t.roh })), werte);
+    liste.forEach((t) => { t.platz = geordnet.find((g) => g.spieler === t.roh)?.platz; });
   }
   const teamVon = new Map<string, { spieler: string[]; platz?: number }>();
   for (const t of teams.values()) for (const id of t.spieler) teamVon.set(id, t);
