@@ -9717,5 +9717,25 @@
       "/predictions"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:11:24Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-440",
+    "titel": "Org-Seite: Ladeschirm im POV-Bereich",
+    "kurz": "Org-Seite → POV-Bereich: beim Laden steht „Loading …“ statt nichts.",
+    "markieren": [
+      "text:Loading …"
+    ],
+    "bereich": "Orgs",
+    "warum": "Bis die Kanalliste kam, blieb der POV-Bereich einfach leer.",
+    "was": "Dort erscheint jetzt der Ladeschirm; bei Ausfall der bekannte Hinweis.",
+    "ansehen": [
+      "/org"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -56,7 +57,7 @@ export default function OrgPov({ orgParam, farbe }: { orgParam: string; farbe: s
     return q ? vips.filter((v) => v.name.toLowerCase().includes(q)) : vips;
   }, [vips, suche]);
 
-  if (kanaele === null && !fehler) return null;
+  if (kanaele === null && !fehler) return <LadeSchirm />;
 
   return (
     <section className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.18)]">
