@@ -1488,25 +1488,6 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     return folder.streamers.filter(s => liveStatusMap[s.twitch.toLowerCase()]).length;
   };
 
-  // Sortiere Streamer nach Online-Status (Live nach Zuschauerzahl absteigend, dann Offline alphabetisch)
-  const getSortedStreamers = (streamers: Streamer[]) => {
-    if (!autoSortByLive || isGuest) {
-      return streamers;
-    }
-
-    return [...streamers].sort((a, b) => {
-      const aIsLive = liveStatusMap[a.twitch.toLowerCase()] || false;
-      const bIsLive = liveStatusMap[b.twitch.toLowerCase()] || false;
-      
-      // Live-Streamer zuerst
-      if (aIsLive && !bIsLive) return -1;
-      if (!aIsLive && bIsLive) return 1;
-      
-      // Falls gleicher Status: alphabetisch
-      return a.twitch.localeCompare(b.twitch);
-    });
-  };
-
   // Check status of all streamers in the folder
   const checkAllStreamersStatus = async (folderStreamers: Streamer[]) => {
     for (const streamer of folderStreamers) {
