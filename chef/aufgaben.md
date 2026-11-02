@@ -432,3 +432,5 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [x] (chef-292) **Twitch-Tabelle: 0 Raids als „—“**, Kachel zeigt „0“ – klein, nur VIP.
 - [ ] **Replays: gleiche Startzeit zweier Games ohne feste Reihenfolge** (S42 LCQ NAC) – Reihenfolge festlegen würde Game-Nummern/Adressen verschieben; Betreiber fragen.
 - [x] (chef-293) Quoten-Mindestzahl aus den Matches mit Wert. Offen: Tagesbester Eliminierer lässt Spieler ohne bestätigte Team-Kills weg (eigene Team-Tage) – beobachten.
+- [ ] **FNCS All-Time: Leaderboard und Rekorde zählen alle Regionen, Titel und Elims-Tabelle nur Europa** – Seitentexte sprechen von „Europa“. Betreiber fragen, ob Rekorde/Leaderboard nur EU zählen sollen (Betreiber 19.10.: „auch noch die anderen Grands“).
+- [ ] **Startseite Cup-Tabelle: Punkte/Siege/Elims ohne Tausenderpunkt** – erst ab 1.000 sichtbar, klein.
