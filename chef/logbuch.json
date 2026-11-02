@@ -7941,5 +7941,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-359",
+    "datum": "2026-11-02T02:53:51Z",
+    "titel": "Statistik: Profilkarten, Duelle und Tagesbeste bei Gleichstand fest geordnet",
+    "kurz": "Statistik → Profilkarten/Duelle: bei gleichen Elims entscheidet der Schaden, nicht der Zufall.",
+    "markieren": [
+      "text:Day winner"
+    ],
+    "bereich": "Statistik",
+    "warum": "Profilkarten je Region, Duelle, die Bildersammlung und die Tagesbesten im Profil sortierten nur nach Elims – bei Gleichstand zufällig.",
+    "was": "Jetzt wie in den Bestenlisten: Elims, dann Schaden, zuletzt eine feste Kennung.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

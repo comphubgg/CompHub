@@ -769,7 +769,7 @@ async function berechne(request: Request) {
       // ein Anzeigeobjekt, und danach ist nicht mehr zu sortieren.
       const mitFoto = (await gesamtSummen())
         .filter((x) => bildZu.get(x.epicId)?.echt && x.matches >= 10)
-        .sort((a, b) => b.elims - a.elims);
+        .sort(nachKennzahl('elims'));
 
       const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'OCE', 'ME', 'ASIA'];
       const profile = REGIONEN.map((r) => ({
@@ -959,7 +959,7 @@ async function berechne(request: Request) {
       // laengst da ist.
       const feld = (await gesamtSummen())
         .filter((x) => x.matches >= ARCHIV_MINDEST_MATCHES || bildZu.get(x.epicId)?.echt)
-        .sort((a2, b2) => b2.elims - a2.elims);
+        .sort(nachKennzahl('elims'));
 
       const spieler = feld.map((x) => {
         const pr = gepflegt.get(x.epicId);
@@ -1307,7 +1307,7 @@ async function berechne(request: Request) {
       mark('tagesbeste');
       const tagesbest = tage
         .map((t) => ({ ...t, saisonName: saisonName(t.season) }))
-        .sort((a, b) => b.elims - a.elims);
+        .sort((a, b) => b.elims - a.elims || b.damage - a.damage || a.windowId.localeCompare(b.windowId));
 
       /**
        * Zu den FNCS-Siegen so viel wie moeglich.
