@@ -6537,5 +6537,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-296",
+    "datum": "2026-11-02T01:29:17Z",
+    "titel": "Jahresliste: Globals 2026 als Spieltag mit Preisgeld gezählt",
+    "kurz": "Statistik → Jahr 2026 → Most earnings: Zahl der Spieltage mit Preisgeld um Globals ergänzt.",
+    "markieren": [
+      "text:Most earnings"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Zahl „N von M Spieltagen mit Auszahlungstabelle“ kannte nur vier feste LANs; die Globals 2026 (Antwerpen) fehlten. Das Geld selbst war richtig.",
+    "was": "Die LAN-Spieltage kommen jetzt aus der gepflegten LAN-Liste, neue LANs zählen von selbst mit.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2026"
+    ],
+    "commits": [
+      "61dd3b28d0232abb07a170ce9e29f4e693648fde"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
