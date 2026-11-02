@@ -7923,5 +7923,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-358",
+    "datum": "2026-11-02T02:52:52Z",
+    "titel": "Tages-Preisgeld im Morgenbericht: feste Reihenfolge bei gleichem Betrag",
+    "kurz": "Unsichtbar: Preisgeld-Spitze im Morgenbericht ordnet gleiche Beträge nach bestem Platz.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Preisgeld hing die Reihenfolge der 15 Besten von der Einlese-Reihenfolge ab.",
+    "was": "Jetzt entscheidet der bessere beste Platz, zuletzt eine feste Kennung.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

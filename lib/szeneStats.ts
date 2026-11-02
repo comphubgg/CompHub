@@ -2104,7 +2104,10 @@ export async function tagesVerdienst(seit: number) {
     if (einer) mitTabelle += 1;
   }
   const namen = new Map((await gesamtSummen()).map((s) => [s.epicId, s.name]));
-  const spitze = [...geld.entries()].sort((a, b) => b[1].betrag - a[1].betrag).slice(0, 15);
+  // Bei gleichem Betrag: der bessere beste Platz, zuletzt die Konto-Id - sonst entschiede die Einlese-Reihenfolge (nie der Name).
+  const besterPlatz = (e: { fenster: Array<{ platz: number }> }) => Math.min(...e.fenster.map((f) => f.platz).filter((x) => x > 0), 1e9);
+  const spitze = [...geld.entries()]
+    .sort((a, b) => b[1].betrag - a[1].betrag || besterPlatz(a[1]) - besterPlatz(b[1]) || a[0].localeCompare(b[0])).slice(0, 15);
   const namenlos = spitze.map(([id]) => id).filter((id) => !namen.get(id));
   if (namenlos.length && !ohneDateien()) {
     try {
