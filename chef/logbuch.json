@@ -8805,5 +8805,27 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-397",
+    "datum": "2026-11-02T03:32:29Z",
+    "titel": "Spieler- und Turnier-Reiter: Schrift mindestens 11 Pixel",
+    "kurz": "Statistik → Spieler und Turniere: Beschriftungen, LAN-Marken, Tabellenköpfe 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:LAN",
+      "text:Elims"
+    ],
+    "bereich": "Statistik",
+    "warum": "52 Beschriftungen in beiden Reitern standen mit 9 oder 10 Pixeln.",
+    "was": "Alle auf 11 Pixel; lange Wörter wie „Trefferquote“ werden auf schmalen Kacheln eher gekürzt.",
+    "ansehen": [
+      "/statistics?bereich=spieler",
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
