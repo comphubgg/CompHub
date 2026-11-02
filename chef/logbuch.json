@@ -7010,5 +7010,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-317",
+    "datum": "2026-11-02T02:00:32Z",
+    "titel": "Replay: Damage in Tabelle, Spielerliste und Spielerfenster am Ende gleich",
+    "kurz": "Replay → ans Ende springen: Damage in Liste, Fenster und Tabelle jetzt gleich.",
+    "markieren": [
+      "text:Damage",
+      "text:Players"
+    ],
+    "bereich": "Statistik",
+    "warum": "Liste und Spielerfenster zählten einzeln gerundete Treffer zusammen – bei 45 von 99 Spielern (FNCS Solo Final NAW, Game 1) 1 mehr oder weniger als die Tabelle.",
+    "was": "Am Ende des Games zeigen alle drei Stellen den Wert der Tabelle; während des Games weiter die laufende Summe.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day1_NAW/1"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

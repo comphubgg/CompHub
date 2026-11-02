@@ -240,6 +240,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
     for (const h of trefferBis) if (!h[5]) m.set(h[1], (m.get(h[1]) ?? 0) + h[3]);
     return m;
   }, [trefferBis]);
+  /** Schaden eines Spielers bis jetzt; sind alle Treffer gezaehlt, gilt der Wert der Tabelle "Spielerwerte" (die Treffer sind einzeln gerundet - die Summe wich um 1 ab). */
+  const schadenVon = (id: number): number => {
+    const a = trefferBis.length === treffer.length ? match.schaden?.find((x) => x.id === id) : undefined;
+    return a ? (a.gemachtOhneBoden ?? a.gemacht ?? 0) : (schadenBis.get(id) ?? 0);
+  };
   const tote = bisJetzt.filter((e) => e.art === 'tot' && aufKarte(e));
   const gerade = bisJetzt.filter((e) => e.art === 'unten' && aufKarte(e) && zeit - e.t < KNOCK_DAUER);
   const farbeVon = (id?: number) => FARBEN[(nachId.get(id ?? -1)?.team ?? 0) % FARBEN.length];
@@ -589,7 +594,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         <aside className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 lg:sticky lg:top-4">
           {gewaehlt !== null && nachId.get(gewaehlt) && (
             <div className="border-b border-white/[0.08] p-1.5">
-              <SpielerFenster d={sd} zeit={zeit} s={{ id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod, kills: nachId.get(gewaehlt)?.kills }} farbe={farbeVon(gewaehlt)} schliessen={() => setGewaehlt(null)} />
+              <SpielerFenster d={sd} zeit={zeit} s={{ id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod, kills: nachId.get(gewaehlt)?.kills }} schaden={schadenVon(gewaehlt)} farbe={farbeVon(gewaehlt)} schliessen={() => setGewaehlt(null)} />
             </div>
           )}
           {sd.da && gewaehlt === null && (
@@ -690,7 +695,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                       <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '—'}</td>
                       <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
-                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString(ort)}</td>}
+                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenVon(s.id)).toLocaleString(ort)}</td>}
                       <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : s.platz === 1 ? <T>Sieger</T> : '—'}</td>
                     </tr>
                   ))}
