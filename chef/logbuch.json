@@ -9947,5 +9947,26 @@
     "ansehen": [
       "/statistics?bereich=vergleich"
     ]
+  },
+  {
+    "id": "chef-448",
+    "datum": "2026-11-02T04:32:19Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Profil: Eliminierungen als Strich, wenn kein Tag sie kennt",
+    "kurz": "Spielerprofil → Übersicht/Werte: „Eliminations“ zeigt Strich statt 0, wenn Kills unbekannt.",
+    "markieren": [
+      "text:Eliminations",
+      "text:Elims"
+    ],
+    "warum": "Daneben zeigte „Elims je Match“ schon einen Strich, die Summe aber 0 – das widersprach sich im selben Kasten.",
+    "was": "Kennt kein Spieltag des Spielers die Kills, steht auch bei der Summe ein Strich.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ]
   }
 ]

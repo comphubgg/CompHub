@@ -665,8 +665,12 @@ function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string
    * eigene Tage ohne gesicherte Kills oder ohne Schaden zaehlen nicht mit. Ein Spieler mit 12 Matches, aber 0 Matches mit Schaden
    * hat "Schaden je Match" 0 in der Quelle, gemeint ist "unbekannt". Schlanke Zeilen ohne diese Felder gelten nach den Matches.
    */
-  if (feld === 'elimsProMatch') {
+  if (feld === 'elimsProMatch' || feld === 'elims') {
     const n = sp.matchesElims ?? sp.matches;
+    // Die Summe nur dann als unbekannt, wenn sie 0 ist: eine Zahl über 0 stammt immer aus einem Tag, der Eliminierungen führt.
+    if (feld === 'elims' && (sp.elims ?? 0) > 0) return false;
+    // Fehlt die Summe ganz, ist sie unbekannt - nie eine 0.
+    if (feld === 'elims' && sp.elims === undefined) return true;
     return n !== undefined && !(n > 0);
   }
   if (feld === 'damageProMatch') {
@@ -5468,7 +5472,7 @@ export default function StatistikSeite() {
                             <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">{grossName(sp.anzeige, sp.gepflegt)}</span>
                           </span>
                           <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
-                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', quotientUnbekannt(sp, 'damage') ? '—' : kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
+                            {([['Elims', feldText(sp, 'elims', 0, sprache)], ['Schaden', quotientUnbekannt(sp, 'damage') ? '—' : kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
                               <span key={l} className="min-w-0">
                                 <span className="block truncate text-[11px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
                                 <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
@@ -6511,7 +6515,7 @@ export default function StatistikSeite() {
                     <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                     bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                       {([
-                        ['Eliminierungen', zahl(offen.elims, 0, sprache)],
+                        ['Eliminierungen', feldText(offen, 'elims', 0, sprache)],
                         ['Schaden', profilZahl(offen, 'damage', sprache)],
                         ['Schaden erlitten', profilZahl(offen, 'damageTaken', sprache)],
                         ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
@@ -6604,7 +6608,7 @@ export default function StatistikSeite() {
                 <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                   {([
-                    ['Eliminierungen', zahlOderStrich(offen.elims, 0, sprache)],
+                    ['Eliminierungen', feldText(offen, 'elims', 0, sprache)],
                     ['Elims je Match', feldText(offen, 'elimsProMatch', 2, sprache)],
                     ['Assists', zahlOderStrich(offen.assists, 0, sprache)],
                     ['Wiederbelebungen', zahlOderStrich(offen.reboots, 0, sprache)],
