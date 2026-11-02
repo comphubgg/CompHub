@@ -656,6 +656,8 @@ function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string
    * fehlendes matchesSchaden also 0 = unbekannt, kein echter Nullwert. Aeltere Antworten ohne jeden Nenner bleiben wie bisher.
    */
   if (feld === 'damage') return schadenNennerFehlt(sp);
+  // Kopftreffer, Treffer, Material, Bauteile: wie im Profil ein Strich, wenn kein Spieltag mit Schusszahl vorliegt.
+  if (feld === 'headshots' || feld === 'hits' || feld === 'mats' || feld === 'builds') return vollNennerFehlt(sp);
   /*
    * Je Match: der Nenner sind nur die Matches der Tage, die den Wert fuehren (matchesElims / matchesSchaden, lib/szeneStats) -
    * eigene Tage ohne gesicherte Kills oder ohne Schaden zaehlen nicht mit. Ein Spieler mit 12 Matches, aber 0 Matches mit Schaden
@@ -6013,7 +6015,7 @@ export default function StatistikSeite() {
                               {feldText(sp, 'quote', 2, sprache)}
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
-                              {zahl(sp.headshots, 0, sprache)}
+                              {feldText(sp, 'headshots', 0, sprache)}
                             </td>
                             <td className={`${EXTRA_SPALTE[sort] ? 'px-3' : 'px-4'} py-2.5 text-right tabular-nums text-slate-400`}>
                               {feldText(sp, 'genauigkeit', 1, sprache, ' %')}

@@ -7274,5 +7274,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-329",
+    "datum": "2026-11-02T02:31:27Z",
+    "titel": "Spielerliste: Strich statt 0 bei Kopftreffern, Material und Bauteilen ohne Daten",
+    "kurz": "Statistik → Spieler: Kopftreffer/Bauteile/Material ohne Schussdaten zeigen „–“ statt 0, wie im Profil.",
+    "markieren": [
+      "text:Headshots",
+      "text:Builds"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei Spielern ohne Schussdaten stand in der Liste 0 Kopftreffer, im Profil desselben Spielers ein Strich.",
+    "was": "Liste, Kacheln und Treppchen zeigen dort jetzt ebenfalls einen Strich; eine echte 0 bleibt 0.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=headshots&saison=S42",
+      "/statistics?bereich=spieler&sort=builds&saison=S42"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
