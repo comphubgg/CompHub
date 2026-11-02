@@ -158,6 +158,8 @@ function BetreiberPrognose() {
   const [kartenNr, setKartenNr] = useState(0);
   const [geladen, setGeladen] = useState(false);
   const [listeFehlt, setListeFehlt] = useState(false);
+  /** Profile oder Laender aus dem Archiv nicht erreichbar - dann fehlen Flaggen und Laender, ohne dass es leer wirkt. */
+  const [herkunftFehlt, setHerkunftFehlt] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -165,7 +167,7 @@ function BetreiberPrognose() {
         if (!d || !Array.isArray(d.prognosen)) throw new Error('keine Prognosen');
         return d.prognosen;
       }).catch(() => null),
-      fetch('/api/spieler-profile').then((r) => r.json()).then((j) => j.profile ?? {}).catch(() => ({})),
+      fetch('/api/spieler-profile').then((r) => { if (!r.ok) throw new Error('Profile'); return r.json(); }).then((j) => j.profile ?? {}).catch(() => { setHerkunftFehlt(true); return {}; }),
       fetch('/api/auth/check-admin').then((r) => r.json()).then((j) => j.isAdmin === true).catch(() => false),
     ]).then(([liste, prof, admin]: [Prognose[] | null, Record<string, Profil>, boolean]) => {
       setListeFehlt(liste === null);
@@ -178,8 +180,8 @@ function BetreiberPrognose() {
         ? gewuenscht : (sichtbar[0]?.id ?? ''));
       setGeladen(true);
     });
-    fetch('/api/spieler-laender', { signal: AbortSignal.timeout(20_000) }).then((r) => r.json())
-      .then((j) => setHerkunft({ laender: j.laender ?? {}, heimat: j.heimat ?? {} })).catch(() => {});
+    fetch('/api/spieler-laender', { signal: AbortSignal.timeout(20_000) }).then((r) => { if (!r.ok) throw new Error('Laender'); return r.json(); })
+      .then((j) => setHerkunft({ laender: j.laender ?? {}, heimat: j.heimat ?? {} })).catch(() => setHerkunftFehlt(true));
   }, [parameter]);
 
   const prognose = useMemo(() => prognosen.find((p) => p.id === gewaehlt) ?? null, [prognosen, gewaehlt]);
@@ -449,6 +451,9 @@ function BetreiberPrognose() {
           </aside>
 
           <section className="min-w-0 flex-1">
+            {herkunftFehlt && (
+              <p className="mb-3 text-[11px] text-slate-500"><T>Flaggen und Länder sind gerade nicht erreichbar.</T></p>
+            )}
             {feldLaedt && !feld.length ? (
               <div className="h-64" />
             ) : abschnitt === 'duos' ? (

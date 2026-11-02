@@ -9002,5 +9002,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-406",
+    "datum": "2026-11-02T03:34:35Z",
+    "titel": "Prognosen: Hinweis, wenn Flaggen fehlen",
+    "kurz": "Prognosen: Fallen Länderdaten aus, steht „Flaggen und Länder gerade nicht erreichbar“.",
+    "markieren": [
+      "text:Flags and countries are not available right now."
+    ],
+    "bereich": "Prognosen",
+    "warum": "Fielen die Länderdaten aus, fehlten Flaggen still – das sah wie fehlende Angaben aus.",
+    "was": "Eine kleine graue Zeile weist auf den Ausfall hin.",
+    "ansehen": [
+      "/predictions"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
