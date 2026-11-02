@@ -72,6 +72,11 @@ export default function TeamSeite() {
   }
   const o = daten.org;
   const zahl = (n: number | null, stellen = 0) => (n == null ? '—' : n.toLocaleString(ort, { maximumFractionDigits: stellen, minimumFractionDigits: stellen }));
+  // Beitrittsdatum als Monat und Jahr ("April 2026") statt roh "2026-04"; unlesbare Angaben bleiben, wie sie sind.
+  const seitText = (d: string) => {
+    const z = new Date(`${d.slice(0, 7)}-01T12:00:00Z`);
+    return Number.isNaN(z.getTime()) ? d.slice(0, 7) : z.toLocaleDateString(ort, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  };
   const geld = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString(ort, { maximumFractionDigits: 0 })}`);
 
   return (
@@ -147,7 +152,7 @@ export default function TeamSeite() {
               <div className="min-w-0 flex-1 overflow-y-auto p-6">
                 <button type="button" onClick={() => setOffen(null)} className="absolute right-4 top-4 rounded-full bg-zinc-800/90 px-3 py-1 text-sm text-slate-300 hover:text-white">✕</button>
                 <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: farbe }}>
-                  <T>{ROLLEN.find(([r]) => r === offen.role)?.[1] ?? 'Pro Roster'}</T>{offen.homeRegion ? ` · ${offen.homeRegion}` : ''}{offen.since ? ` · ${t('seit')} ${offen.since.slice(0, 7)}` : ''}
+                  <T>{ROLLEN.find(([r]) => r === offen.role)?.[1] ?? 'Pro Roster'}</T>{offen.homeRegion ? ` · ${offen.homeRegion}` : ''}{offen.since ? ` · ${t('seit')} ${seitText(offen.since)}` : ''}
                 </p>
                 <h3 className="mt-1 flex items-center gap-2 text-3xl font-extrabold uppercase text-slate-50">
                   {offen.country && <TeamFlagge laender={[offen.country]} groesse={24} />}<span className="truncate">{offen.name}</span>

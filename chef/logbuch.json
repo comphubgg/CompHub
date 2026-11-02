@@ -8051,5 +8051,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-364",
+    "datum": "2026-11-02T03:11:39Z",
+    "titel": "Teamseite: Beitrittsdatum lesbar",
+    "kurz": "Teamseite → Spieler anklicken: „seit April 2026“ statt „seit 2026-04“.",
+    "markieren": [
+      "css:[role=dialog] p.uppercase"
+    ],
+    "bereich": "Teams",
+    "warum": "Im Spielerfenster stand das Beitrittsdatum als rohe Zahl „2026-04“.",
+    "was": "Es steht jetzt als Monat und Jahr da, in der gewählten Sprache.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
