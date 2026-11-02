@@ -2014,6 +2014,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Spielern mit mindestens zehn Matches, über alle erfassten Spieltage':
     'players with at least ten matches, across all recorded match days',
   'besser als': 'better than',
+  'Kein Wert erfasst': 'No value recorded',
   'Prozent des Feldes': 'percent of the field',
   'höchstens': 'at most',
   'mindestens': 'at least',
