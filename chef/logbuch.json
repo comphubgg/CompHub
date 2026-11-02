@@ -8301,5 +8301,28 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-375",
+    "datum": "2026-11-02T03:20:13Z",
+    "titel": "Jahresbilanz und Regionen: Beschriftungen größer",
+    "kurz": "Jahresbilanz und Regionen: Beschriftungen auf Spielerkacheln 11 statt 8–10 Pixel.",
+    "markieren": [
+      "text:Elims",
+      "text:Damage",
+      "text:Most Eliminations"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die kleinen Beschriftungen auf den Spielerkacheln waren mit 8 bis 10 Pixeln kaum lesbar.",
+    "was": "Sie stehen jetzt mit 11 Pixeln; lange Listennamen werden gekürzt.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2025",
+      "/statistics?bereich=regional"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

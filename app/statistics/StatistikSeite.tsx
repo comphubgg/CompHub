@@ -5350,7 +5350,7 @@ export default function StatistikSeite() {
                                                text-4xl text-zinc-800">?</span>
                             )}
                             <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5
-                                              py-0.5 text-[10px] font-bold tabular-nums ${
+                                              py-0.5 text-[11px] font-bold tabular-nums ${
                                               i === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
                               {i + 1}
                             </span>
@@ -5370,7 +5370,7 @@ export default function StatistikSeite() {
                               <span className="mt-1.5 flex items-baseline justify-between
                                                rounded-lg bg-black/45 px-2 py-1.5
                                                backdrop-blur-sm">
-                                <span className="text-[9px] font-semibold uppercase text-slate-400">
+                                <span className="min-w-0 truncate pr-2 text-[11px] font-semibold uppercase text-slate-400">
                                   <T>{l.titel}</T>
                                 </span>
                                 <span className="text-[15px] font-bold tabular-nums text-sky-400">
@@ -5440,7 +5440,7 @@ export default function StatistikSeite() {
                           <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
                             {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', quotientUnbekannt(sp, 'damage') ? '—' : kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
                               <span key={l} className="min-w-0">
-                                <span className="block truncate text-[8px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
+                                <span className="block truncate text-[11px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
                                 <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
                               </span>
                             ))}
