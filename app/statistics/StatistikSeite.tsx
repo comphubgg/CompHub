@@ -1720,8 +1720,10 @@ function Balken({ wert, klein = false }: { wert: number; klein?: boolean }) {
  * Linie mit Punkten, dafuer lohnt keine Abhaengigkeit, und so passt sie sich
  * ohne Umwege der Farbe des Werkzeugs an.
  */
-function Verlaufslinie({ werte, beschriftung, marken }: {
+function Verlaufslinie({ werte, beschriftung, marken, nachkomma = 0 }: {
   werte: number[]; beschriftung: string;
+  /** Nachkommastellen der Werte (Schadensverhältnis: 2) - Zahlen stehen im Zahlenformat der Sprache. */
+  nachkomma?: number;
   /** Woher der Punkt stammt - eine Beschriftung je Wert. */
   marken?: string[];
 }) {
@@ -1781,7 +1783,7 @@ function Verlaufslinie({ werte, beschriftung, marken }: {
             <span className="h-2 w-2 rounded-sm bg-sky-400" />
             {beschriftung.replace(/ je Spieltag$/, '')}
             <span className="font-semibold tabular-nums text-slate-100">
-              {werte[zeigt]}
+              {zahl(werte[zeigt], nachkomma, sprache)}
             </span>
           </p>
           <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
@@ -1815,8 +1817,8 @@ function Verlaufslinie({ werte, beschriftung, marken }: {
           <circle key={`griff-${i}`} cx={x(i)} cy={y(v)} r="16" fill="transparent"
             onMouseEnter={() => setZeigt(i)} onMouseLeave={() => setZeigt(null)} />
         ))}
-        <text x={rand} y={12} className="fill-slate-600" fontSize="10">{hoch}</text>
-        <text x={rand} y={H - 6} className="fill-slate-600" fontSize="10">{tief}</text>
+        <text x={rand} y={12} className="fill-slate-600" fontSize="10">{zahl(hoch, nachkomma, sprache)}</text>
+        <text x={rand} y={H - 6} className="fill-slate-600" fontSize="10">{zahl(tief, nachkomma, sprache)}</text>
       </svg>
       </div>
     </div>
@@ -2644,6 +2646,10 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   }, []);
   const [offen, setOffen] = useState<Spieler | null>(null);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
+  /** Beim Schadensverhältnis zählen nur Tage, an denen Schaden erlitten wurde - sonst wäre "unbekannt" eine 0 in der Kurve. */
+  const kurveZeilen = kurve === 'quote'
+    ? verlauf.filter((z) => z.werte.damageTakenFromPlayers > 0) : verlauf;
+  const kurveStellen = kurve === 'quote' ? 2 : 0;
   /** Laeuft gerade eine Abfrage fuer das offene Profil? */
   const [profilLaedt, setProfilLaedt] = useState(false);
   /** Das Profil kam trotz Wiederholungen nicht - dann eine Meldung statt "nicht angetreten". */
@@ -6605,21 +6611,22 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                       tracking-[0.18em] text-slate-500">
                           <T>{kurveName}</T> <T>je Spieltag</T>
                         </p>
-                        <span className="text-[11px] text-slate-500">
-                          <T>höchstens</T> {Math.max(...verlauf.map((z) => kurveWert(z.werte)))}
+                        {kurveZeilen.length > 0 && <span className="text-[11px] text-slate-500">
+                          <T>höchstens</T> {zahl(Math.max(...kurveZeilen.map((z) => kurveWert(z.werte))), kurveStellen, sprache)}
                           {', '}<T>mindestens</T>{' '}
-                          {Math.min(...verlauf.map((z) => kurveWert(z.werte)))}
-                        </span>
+                          {zahl(Math.min(...kurveZeilen.map((z) => kurveWert(z.werte))), kurveStellen, sprache)}
+                        </span>}
                         {kurvenWahl}
                         <span className="ml-auto text-[10px] text-slate-600">
-                          {verlauf.length} <T>Spieltage, ältester links</T>
+                          {kurveZeilen.length} <T>Spieltage, ältester links</T>
                         </span>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
                         <Verlaufslinie
                           beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
-                          werte={[...verlauf].reverse().map((z) => kurveWert(z.werte))}
-                          marken={[...verlauf].reverse().map((z) =>
+                          werte={[...kurveZeilen].reverse().map((z) => kurveWert(z.werte))}
+                          nachkomma={kurveStellen}
+                          marken={[...kurveZeilen].reverse().map((z) =>
                             `${turnierName(z.event, t)} · ${z.region}`)} />
                       </div>
                     </section>
