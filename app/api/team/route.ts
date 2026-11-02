@@ -54,6 +54,9 @@ export async function GET(request: Request) {
       abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => null),
       liesPr(PR_LISTE).catch(() => null),
     ]);
+    // Die Liste ueber alle Jahre wird seltener erneuert (stand am 2.11.2026 noch vom 31.10.) - wer dort fehlt, bekommt das Jahr 2026
+    // (fuer neue Kader-Spieler dasselbe: ihre Ergebnisse liegen alle in diesem Jahr).
+    const verdienstJahr = await abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|2026').catch(() => null);
     // Epics Power Rankings (weltweit, taeglich): fuer jeden Spieler mit Konto mindestens Rang und Punkte - auch ohne Finals im Archiv.
     const prVon = new Map(((prStand as unknown as { spieler?: Array<{ id: string; rank: number; wertung: number }> } | null)?.spieler ?? []).map((x) => [x.id, x]));
     const summeVon = new Map(summen.map((s) => [s.epicId, s]));
@@ -64,8 +67,9 @@ export async function GET(request: Request) {
       const id = sp.epicId;
       const s = id ? summeVon.get(id) : undefined;
       // Nur wenn das Konto im vorgerechneten Preisgeld schon vorkommt - ein frisch eingetragener Spieler hat bis zum naechsten Stundenlauf null, nicht 0.
-      const bekannt = !!id && !!verdienst && (id in verdienst.posten || (verdienst.konten ?? []).includes(id));
-      const posten = bekannt ? [...(verdienst!.posten[id!] ?? [])].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0)) : null;
+      const kennt = (v: { konten?: string[]; posten: Record<string, Posten[]> } | null) => !!id && !!v && (id in v.posten || (v.konten ?? []).includes(id));
+      const quelle = kennt(verdienst) ? verdienst : kennt(verdienstJahr) ? verdienstJahr : null;
+      const posten = quelle ? [...(quelle.posten[id!] ?? [])].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0)) : null;
       const earnings = posten ? posten.reduce((a, p) => a + p.betrag, 0) : null;
       return {
         epicId: id,
