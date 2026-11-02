@@ -32,7 +32,8 @@ export interface TwitchDatei { id: string; login: string; name: string; follower
 const KANAELE = 'twitch-kanaele.json';
 export const liesKanaele = async () => (await liesJson<{ kanaele?: TwitchKanal[] } | null>(KANAELE, null))?.kanaele ?? [];
 export const schreibeKanaele = (kanaele: TwitchKanal[]) => schreibJson(KANAELE, { kanaele });
-export const liesDatei = (id: string) => liesJson<TwitchDatei | null>(`twitch-statistik/${id}.json`, null).catch(() => null);
+// Fehlt die Datei, kommt null; antwortet die Ablage nicht, wirft es - das darf nicht wie "noch keine Werte" aussehen (der Aufrufer meldet den Ausfall).
+export const liesDatei = (id: string) => liesJson<TwitchDatei | null>(`twitch-statistik/${id}.json`, null);
 
 /** Wie lange nach einem Raid dessen Zuschauer als "geraidet" gelten - so lange zaehlt die Spitze ohne Raid sie nicht mit. */
 const RAID_WIRKUNG_MS = 30 * 60_000;

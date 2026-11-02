@@ -4406,6 +4406,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Es erscheint im HUD-Banner deines POVs, wenn „Mit Profilbild" an ist.': 'It appears in the HUD banner of your POV when “With profile picture” is on.',
   'Deinen Namen und dein Passwort änderst du unter': 'You change your name and password under',
   'Nicht ladbar': 'Could not be loaded',
+  'Die Twitch-Statistik ist gerade nicht erreichbar - das heißt nicht, dass es keine Werte gibt. Bitte gleich noch einmal versuchen.':
+    'The Twitch statistics are currently unavailable - that does not mean there are no values. Please try again shortly.',
   'Live beenden': 'End live',
   'Live gehen': 'Go live',
   'Du bist live gemeldet': 'You are marked live',
