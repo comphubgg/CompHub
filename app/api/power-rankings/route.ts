@@ -35,7 +35,7 @@ async function holeRoh(request: Request) {
       return NextResponse.json({
         success: true, page: 1, pageSize: proSeite, totalPages: 1,
         matched: 0, total: 0, fetchedAt: 0, players: [], holt: true,
-      });
+      }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (istAlt(stand)) erneuereImHintergrund(LISTE);
 
@@ -136,5 +136,8 @@ async function holeRoh(request: Request) {
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 300);
+  const antwort = await holeRoh(request);
+  // Die leere "wird gerade geholt"-Antwort nie ins Netz legen: sonst zeigte die Seite bis zu 35 Minuten "Rangliste wird geholt", obwohl die Datei laengst da ist.
+  if (antwort.headers.get('Cache-Control') === 'no-store') return antwort;
+  return zwischenspeichern(antwort, 300);
 }
