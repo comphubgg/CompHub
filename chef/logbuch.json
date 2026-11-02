@@ -9076,5 +9076,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-409",
+    "datum": "2026-11-02T03:35:21Z",
+    "titel": "Vorschlag: Org-Namen Valiant, Ovation, Aight vor Spielernamen entfernen",
+    "kurz": "Vorschlag: FNCS Global Championship 2024 zeigt „Valiant Trulex“ statt „Trulex“.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Auf Platz 3–5 der Global Championship 2024 stehen Org-Namen vor den Spielernamen.",
+    "was": "Die Liste der Org-Namen um drei Einträge ergänzen. Nicht gebaut, weil dieselbe Liste auch Spieler-Zuordnungen beeinflusst – bitte entscheiden.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus zurückgehalten)",
+    "commits": [],
+    "status": "vorschlag",
+    "runde": 1
   }
 ]
