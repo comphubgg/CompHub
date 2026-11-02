@@ -73,6 +73,11 @@ function Team({ mitspieler }: { mitspieler: Mitspieler[] }) {
   );
 }
 
+/** Beste Platzierung zuerst; bei Gleichstand LAN vor Online, dann das juengere Finale, zuletzt die Saison (feste Folge). */
+function vorn(a: TafelZeile, b: TafelZeile) {
+  return a.platz - b.platz || Number(b.typ === 'LAN') - Number(a.typ === 'LAN') || (b.datum ?? 0) - (a.datum ?? 0) || a.saison.localeCompare(b.saison);
+}
+
 export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string }) {
   const { sprache } = useSprache();
   const en = sprache === 'en';
@@ -191,7 +196,9 @@ export function ErfolgeReiter({ tafel, erfolge }: { tafel: TafelZeile[]; erfolge
   const { sprache } = useSprache();
   const en = sprache === 'en';
   const [wahl, setWahl] = useState<'fncs' | 'andere'>('fncs');
-  const fncs = tafel.filter((z) => z.platz > 0).sort((a, b) => a.platz - b.platz || (b.datum ?? 0) - (a.datum ?? 0));
+  // Dieselbe Folge wie bei den Karriere-Bestwerten (KarriereBest): bei gleichem Platz zuerst LAN, dann das juengere Finale, zuletzt der Name -
+  // sonst stand ein LAN-Sieg ohne Datum (Globals) hinter Online-Siegen und die Reihenfolge hing von der Antwort ab.
+  const fncs = tafel.filter((z) => z.platz > 0).sort(vorn);
   const cashSiege = erfolge.filter((e) => e.platz === 1 && /cash cup/i.test(e.titel)).length;
 
   const Zeile = ({ platz, titel, unter, typ, mitspieler }: { platz: number; titel: string; unter?: string; typ: 'LAN' | 'ONLINE'; mitspieler: Mitspieler[] }) => (
@@ -248,7 +255,7 @@ export function KarriereBest({ tafel }: { tafel: TafelZeile[] }) {
    * und fielen sonst ans Ende (peterbot: Globals-2024-Sieg fehlte unter seinen fuenf FNCS-Siegen). Danach das juengere Finale.
    */
   const beste = tafel.filter((z) => z.platz > 0)
-    .sort((a, b) => a.platz - b.platz || Number(b.typ === 'LAN') - Number(a.typ === 'LAN') || (b.datum ?? 0) - (a.datum ?? 0))
+    .sort(vorn)
     .slice(0, 3);
   if (!beste.length) return null;
   return (
