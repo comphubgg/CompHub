@@ -79,7 +79,12 @@ export function summiereTage(tage: CupEintrag[][]): CupEintrag[] {
       avgPlace: plaetze.length ? +(plaetze.reduce((a, b) => a + b, 0) / plaetze.length).toFixed(2) : e.avgPlace,
       kd: e.games - e.wins > 0 ? +(e.elims / (e.games - e.wins)).toFixed(2) : e.elims,
     };
-  }).sort((a, b) => b.points - a.points || b.wins - a.wins || b.avgElims - a.avgElims || a.avgPlace - b.avgPlace);
+  });
+  // Unbekannter Schnittplatz (0 oder fehlend) darf bei Gleichstand nicht nach vorn rutschen; zuletzt die Konto-Ids als feste Stufe (nie der Name).
+  const platzWert = (x: number) => (x > 0 ? x : 1e9);
+  const schluessel = (e: CupEintrag) => e.players.map((p) => p.id).sort().join('|');
+  raus.sort((a, b) => b.points - a.points || b.wins - a.wins || b.avgElims - a.avgElims || platzWert(a.avgPlace) - platzWert(b.avgPlace)
+    || (schluessel(a) < schluessel(b) ? -1 : schluessel(a) > schluessel(b) ? 1 : 0));
   raus.forEach((e, i) => { e.rank = i + 1; });
   return raus;
 }

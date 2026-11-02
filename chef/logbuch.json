@@ -7814,5 +7814,23 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-353",
+    "datum": "2026-11-02T02:49:05Z",
+    "titel": "Finale über mehrere Tage: feste Reihenfolge bei Gleichstand",
+    "kurz": "Unsichtbar: Gesamtwertung mehrerer Finaltage ordnet Gleichstände fest, ohne unbekannten Ø-Platz vorn.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Bei ganz gleichen Werten hing die Reihenfolge der Gesamtwertung von der Ladefolge ab; ein unbekannter Ø-Platz rutschte nach vorn.",
+    "was": "Unbekannter Ø-Platz zählt jetzt als schlechtester, zuletzt entscheidet eine feste Kennung (nie der Name).",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
