@@ -4,6 +4,7 @@ import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import { leereNoble } from '@/lib/nobleKarte';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import { liesJson, schreibJson } from '@/lib/ablage';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -23,6 +24,27 @@ export async function GET(request: Request) {
   const wunsch = (suche.get('region') ?? 'EU').toUpperCase();
   const region = (SOLOS_REGIONEN as readonly string[]).includes(wunsch) ? wunsch : 'EU';
   if (frisch && await istAdminAnfrage(request)) leereNoble();
+  /*
+   * Eine fruehere Reihe als Archiv (Betreiber, 2.11.2026: "die alte Solo-FNCS-Seite soll wie die Globals-Seite sein - offline, aber noch
+   * vorhanden"): ?reihe=S42. Einmal eingefroren in solos-archiv/<reihe>-<region>.json, danach immer genau dieser Stand - Noble und Epic
+   * fuehren die alte Reihe nicht ewig.
+   */
+  const reihe = (suche.get('reihe') ?? '').toUpperCase();
+  if (/^S\d{2}$/.test(reihe)) {
+    try {
+      const datei = `solos-archiv/${reihe}-${region}.json`;
+      const da = await liesJson<Record<string, unknown> | null>(datei, null).catch(() => null);
+      if (da) return NextResponse.json({ ok: true, archiv: reihe, ...da }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+      const neu = await globalsSolos(region, reihe.slice(1));
+      const passt = !!neu && neu.stufen.length > 0 && neu.stufen.every((x) => x.windowId.toUpperCase().startsWith(`${reihe}_`))
+        && (!neu.fenster.length || neu.fenster.some((x) => x.windowId.toUpperCase().startsWith(`${reihe}_`)));
+      if (!neu || !passt) return NextResponse.json({ ok: false, error: 'Diese Reihe liegt nicht mehr vor.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+      await schreibJson(datei, neu).catch(() => { /* dann beim naechsten Aufruf */ });
+      return NextResponse.json({ ok: true, archiv: reihe, ...neu }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
+    }
+  }
   try {
     // Die Kurzfassung der Startseite kommt nach einem Neustart sofort aus der letzten guten Antwort (lib/ueberdauernd); frisch gerechnet wird im Hintergrund.
     const kurzAnfrage = suche.get('kurz') === '1' && !frisch;

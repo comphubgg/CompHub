@@ -276,7 +276,7 @@ function stufeVon(windowId: string): { name: string; art: SolosStufe['art']; zie
 }
 
 /** Die Stufen von FNCS Solos in einer Region, aus Epics Katalog (Schwellen aus der Auszahlungstabelle). Zehn Minuten im Speicher. */
-async function stufenFuer(region: string): Promise<SolosStufe[]> {
+async function stufenFuer(region: string, saison?: string): Promise<SolosStufe[]> {
   try {
     // Der Katalog des Werkzeugs (Epics aktuelle Events + das Archiv): auch die Fast Tracks und Qualifier, die Epic selbst nicht mehr fuehrt.
     type KatalogFenster = { windowId: string; eventId: string; status: 'live' | 'kommt' | 'vorbei'; begin: number; end?: number; qualifiziert?: number };
@@ -302,6 +302,8 @@ async function stufenFuer(region: string): Promise<SolosStufe[]> {
      */
     const seasonVon = (s: SolosStufe) => /^S(\d+)_/i.exec(s.windowId)?.[1] ?? '';
     const seasons = [...new Set(alle.map(seasonVon).filter(Boolean))];
+    // Eine bestimmte, fruehere Reihe (Archiv, ?reihe=S42) - nur deren Stufen.
+    if (saison) return alle.filter((s) => seasonVon(s) === saison);
     if (seasons.length < 2) return alle;
     const offen = seasons
       .filter((sn) => alle.some((s) => s.art === 'finale' && seasonVon(s) === sn && s.status !== 'vorbei'))
@@ -405,8 +407,8 @@ async function herkunftAus(fenster: SolosFenster[], region: string, eventVon?: M
   return qualifiziert;
 }
 
-export async function globalsSolos(region: string = REGION): Promise<SolosDaten | null> {
-  if (region !== REGION) return globalsSolosEpic(region);
+export async function globalsSolos(region: string = REGION, saison?: string): Promise<SolosDaten | null> {
+  if (region !== REGION) return globalsSolosEpic(region, saison);
   const turniere = await jungeTurniere(12);
   const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
   if (!turnier) return null;
@@ -423,7 +425,7 @@ export async function globalsSolos(region: string = REGION): Promise<SolosDaten 
   const fenster: SolosFenster[] = einzeln.map(({ w, d }) => fensterAus(w, d, spielerVon))
     .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
 
-  const stufenEu = await stufenFuer(REGION);
+  const stufenEu = await stufenFuer(REGION, saison);
   /*
    * Noble nennt beide Last-Chance-Tage schlicht "LCQ". Es sind zwei verschiedene Spieltage (Betreiber, 20.10.2026): gestern das Last Chance Qualifier mit den Top 70, die in die Lobby
    * kommen, heute die Last Chance Finals mit hundert Spielern - die Namen kommen deshalb aus Epics Stufen, nach dem Beginn zugeordnet.
@@ -501,9 +503,9 @@ function fensterName(windowId: string): string | null {
  * eigenen Bestenlisten (Betreiber, 19.10.2026: "bei den Heats eine Region waehlen koennen"). Wer in einem Heat steht, ist dort gestartet - ein Heat, der noch nicht
  * gespielt wurde, hat deshalb noch keine Spieler. Landepunkte gibt es hier keine (die kennt nur Noble).
  */
-async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
+async function globalsSolosEpic(region: string, saison?: string): Promise<SolosDaten | null> {
   if (!(SOLOS_REGIONEN as readonly string[]).includes(region)) return null;
-  const stufen = await stufenFuer(region);
+  const stufen = await stufenFuer(region, saison);
   const fenster0 = stufen
     .filter((s) => s.art !== 'qualifier')
     .map((s) => ({ windowId: s.windowId, eventId: s.eventId, status: s.status, begin: s.begin, end: s.end ?? undefined, art: s.art, weiter: s.qualifiziert }))

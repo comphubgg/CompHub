@@ -298,6 +298,14 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
 export default function SolosSeite() {
   const t = useT();
   const [region, setRegion] = useState<string>('EU');
+  /*
+   * Eine fruehere Reihe als Archiv (?reihe=S42) - eingefroren, wie die Globals-Seite (Betreiber, 2.11.2026). Ohne Angabe die laufende Reihe.
+   */
+  const [archiv, setArchiv] = useState<string>('');
+  useEffect(() => {
+    const r = (new URLSearchParams(window.location.search).get('reihe') ?? '').toUpperCase();
+    if (/^S\d{2}$/.test(r)) setArchiv(r);
+  }, []);
   /** Die gewaehlte Stufe: eine der festen oder der Name einer Stufe ("Heat 1", "Finals Day 1") - der Name gilt in jeder Region, die Kennung nicht. */
   const [stufe, setStufe] = useState<string>('');
   const [ansicht, setAnsicht] = useState<Ansicht>('karte');
@@ -340,13 +348,13 @@ export default function SolosSeite() {
   /** Eine Antwort, die zu einer anderen Region gehoert als der gerade gewaehlten, wird verworfen - sonst ueberschrieb die langsame Antwort der Startregion (EU) die der gewaehlten. */
   const holen = useCallback(async (veraltet: () => boolean) => {
     try {
-      const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}`, { cache: 'no-store' });
+      const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}${archiv ? `&reihe=${archiv}` : ''}`, { cache: 'no-store' });
       const j = await r.json() as ({ ok: true } & SolosDaten) | { ok: false; error?: string };
       if (veraltet()) return;
       if (!r.ok || !j.ok) throw new Error(('error' in j && j.error) || 'nicht ladbar');
       setDaten(j); setFehler('');
     } catch (e) { if (!veraltet()) setFehler((e as Error).message); } finally { if (!veraltet()) setLaedt(false); }
-  }, [region]);
+  }, [region, archiv]);
   useEffect(() => {
     if (!bereit) return undefined;
     let weg = false;
@@ -433,7 +441,12 @@ export default function SolosSeite() {
                 FNCS Solos{reihe === 'reload' ? ' Reload' : ''} <span className="text-[#38bdf8]">{regionAnzeige({ region })}</span>
               </h1>
               <p className="mt-3 max-w-xl text-sm text-[#cbd5e1]"><T>Jede Stufe auf dem Weg ins Grand Final — für jede Region: Qualifier, Fast Tracks, Heats, Last Chance, Finale und die Landepunkte.</T></p>
+              {/* Umschalter laufende Reihe / Archiv der Season 42 (BR-Solos). */}
               <div className="mt-4 flex flex-wrap gap-2">
+                <a href="/globals-solos" className={`rounded-full px-3 py-1 text-xs font-bold ${!archiv ? 'bg-[#0ea5e9] text-[#fff]' : 'border border-[rgba(255,255,255,.3)] text-[#e2e8f0] hover:border-[#38bdf8]'}`}><T>Aktuelle Reihe</T></a>
+                <a href="/globals-solos?reihe=S42" className={`rounded-full px-3 py-1 text-xs font-bold ${archiv === 'S42' ? 'bg-[#0ea5e9] text-[#fff]' : 'border border-[rgba(255,255,255,.3)] text-[#e2e8f0] hover:border-[#38bdf8]'}`}><T>Archiv: FNCS Solos Season 42</T></a>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {live && <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#fff]"><span className="h-2 w-2 animate-pulse rounded-full bg-[#fff]" /><T>Live</T></span>}
                 {daten && <span className="rounded-full border border-[rgba(255,255,255,.3)] bg-[rgba(0,0,0,.45)] px-3 py-1 text-xs font-semibold text-[#e2e8f0]">{daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0)} <T>qualifiziert</T></span>}
               </div>

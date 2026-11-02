@@ -3890,6 +3890,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Dieses Team gibt es auf CompHub nicht.': 'This team does not exist on CompHub.',
   'Das Team lässt sich gerade nicht laden.': 'The team cannot be loaded right now.',
   'Webseite': 'Website',
+  'Aktuelle Reihe': 'Current series',
+  'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Letzte Ergebnisse': 'Latest results',
   'Noch keine Ergebnisse mit Preisgeld.': 'No prize results yet.',
