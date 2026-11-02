@@ -7723,5 +7723,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-349",
+    "datum": "2026-11-02T02:47:46Z",
+    "titel": "Posts des Tages: Fehlermeldungen übersetzt",
+    "kurz": "Posts des Tages auf Englisch: Fehlermeldungen jetzt englisch statt deutsch („Could not be replaced.“).",
+    "markieren": [
+      "text:Could not be replaced.",
+      "text:Could not be loaded."
+    ],
+    "bereich": "Oberfläche",
+    "warum": "Schlug Laden oder Ersetzen eines Posts fehl, stand die Meldung immer auf Deutsch.",
+    "was": "Die Meldungen laufen jetzt über die Übersetzung; drei fehlende Sätze sind ergänzt.",
+    "ansehen": [
+      "/posts"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und ergänzt)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

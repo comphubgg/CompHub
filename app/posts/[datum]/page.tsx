@@ -15,6 +15,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
+import { useT } from '@/app/components/SprachProvider';
 
 interface Post { nr: number; art: string; schluessel: string; titel: string; text: string }
 interface Plan { datum: string; posts: Post[] }
@@ -25,6 +26,7 @@ const tagVersatz = (datum: string, tage: number) => new Date(Date.parse(`${datum
 
 export default function PostsDesTages() {
   const zugang = useZugang();
+  const t = useT();
   const { datum } = useParams<{ datum: string }>();
   const [plan, setPlan] = useState<Plan | null | undefined>(undefined);
   const [fehler, setFehler] = useState('');
@@ -38,10 +40,10 @@ export default function PostsDesTages() {
     try {
       const r = await fetch(`/api/posts?datum=${encodeURIComponent(datum)}`, { cache: 'no-store' });
       const j = await r.json();
-      if (!j?.ok) { setFehler(j?.error || 'Nicht ladbar.'); setPlan(null); return; }
+      if (!j?.ok) { setFehler(t(j?.error || 'Nicht ladbar.')); setPlan(null); return; }
       setPlan(j.plan ?? null);
-    } catch { setFehler('Nicht ladbar.'); setPlan(null); }
-  }, [datum]);
+    } catch { setFehler(t('Nicht ladbar.')); setPlan(null); }
+  }, [datum, t]);
   useEffect(() => { if (zugang.admin) void laden(); }, [zugang.admin, laden]);
 
   const kopieren = async (p: Post) => {
@@ -63,7 +65,7 @@ export default function PostsDesTages() {
     try {
       const r = await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datum, aktion: 'neu', nr }) });
       const j = await r.json();
-      if (j?.ok) { setPlan(j.plan); setStand((s) => s + 1); } else setFehler(j?.error || 'Nicht ersetzt.');
+      if (j?.ok) { setPlan(j.plan); setStand((s) => s + 1); } else setFehler(t(j?.error || 'Nicht ersetzt.'));
     } finally { setErsetzt(null); }
   };
 
