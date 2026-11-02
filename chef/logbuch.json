@@ -6852,5 +6852,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-310",
+    "datum": "2026-11-02T01:53:31Z",
+    "titel": "Tagesbester: feste Reihenfolge bei gleich vielen Eliminierungen",
+    "kurz": "Unsichtbar: „Tagesbester“ oben auf der Statistik wechselt bei Gleichstand nicht mehr zufällig.",
+    "markieren": [
+      "text:Day winner",
+      "css:button.sa-glas"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatten zwei Spieler am selben Tag gleich viele Elims, entschied nur die Reihenfolge in der Datei, wer als Tagesbester erschien.",
+    "was": "Bei Gleichstand gewinnt mehr Schaden – dieselbe Regel wie in den Bestenlisten.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

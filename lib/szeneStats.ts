@@ -1382,7 +1382,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     const { spieler: feld } = await summen({
       saison: t.season, region: t.region, event: t.windowId,
     });
-    const besten = [...feld].sort((a, b) => b.elims - a.elims).slice(0, jeTag);
+    // Gleich viele Eliminierungen: mehr Schaden zuerst, dann die Konto-Id - der "Tagesbester" der Startseite wechselt sonst mit der Dateireihenfolge.
+    const besten = [...feld].sort((a, b) => b.elims - a.elims || b.damage - a.damage || a.epicId.localeCompare(b.epicId)).slice(0, jeTag);
     if (!besten.length) continue;
     const bild = await bildFuer(t.name);
     const plaetze = await platzKarte(t.season, t.windowId);
