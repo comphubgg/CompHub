@@ -7314,5 +7314,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-331",
+    "datum": "2026-11-02T02:32:31Z",
+    "titel": "Statistikseite: ungenutzte Turnierliste entfernt",
+    "kurz": "Unsichtbar: 100 Zeilen nie benutzter Code aus der Statistikseite entfernt.",
+    "markieren": [],
+    "bereich": "Technik",
+    "warum": "Eine alte Turnierliste stand noch im Code, wurde aber nirgends mehr angezeigt.",
+    "was": "Entfernt – die Seite bleibt gleich, der Code ist kleiner und übersichtlicher.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
