@@ -1771,6 +1771,11 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 <td className="px-2 py-3 text-center tabular-nums text-slate-300">
                   {schnittPlatz !== null ? `Ø ${zahl(schnittPlatz, 1, sprache)}` : '—'}
                 </td>
+                {/* Punkte (und Verdienst) lassen sich über Spieltage nicht
+                    sinnvoll addieren: leere Zellen halten die Spalten
+                    unter ihrer Überschrift. */}
+                <td />
+                {zeilen.some((x) => typeof x.verdienst === 'number') && <td />}
                 <td className="px-2 py-3 text-right tabular-nums text-slate-300">
                   {zahl(alleN((z) => z.werte.matchesPlayed), 0, sprache)}
                 </td>

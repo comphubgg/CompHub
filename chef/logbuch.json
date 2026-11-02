@@ -6805,5 +6805,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-308",
+    "datum": "2026-11-02T01:53:16Z",
+    "titel": "Profil-Tabelle: Summenzeile steht unter den richtigen Spalten",
+    "kurz": "Profil → Turniere: Summen der „Summary“-Zeile stehen jetzt unter ihrer Spalte.",
+    "markieren": [
+      "text:Summary",
+      "css:tfoot tr.border-t-2"
+    ],
+    "bereich": "Statistik",
+    "warum": "In der Summenzeile fehlten Felder für Punkte und Verdienst – die Matches-Summe stand unter „Punkte“, die Elims unter „Matches“ usw.",
+    "was": "Unter Punkte und Verdienst bleibt die Zelle leer, alle Summen stehen unter ihrer Überschrift.",
+    "ansehen": [
+      "/statistics?bereich=spieler&spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
