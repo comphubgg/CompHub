@@ -169,8 +169,8 @@ function LaenderRaster({ teams }: { teams: Team[] }) {
  * seiner Qualifikation (siehe /api/globals-teams).
  */
 const REGIONEN: Array<[string, string]> = [
-  ['EU', 'Europe'], ['NAC', 'NA Central'], ['NAW', 'NA West'], ['BR', 'Brazil'],
-  ['ASIA', 'Asia'], ['ME', 'Middle East'], ['OCE', 'Oceania'],
+  ['EU', 'Europa'], ['NAC', 'Nordamerika Mitte'], ['NAW', 'Nordamerika West'], ['BR', 'Brasilien'],
+  ['ASIA', 'Asien'], ['ME', 'Mittlerer Osten'], ['OCE', 'Ozeanien'],
 ];
 
 function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) => void }) {
@@ -190,7 +190,7 @@ function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) 
               <span className="rounded-md bg-sky-400/15 px-2 py-0.5 text-xs font-black text-sky-200">
                 {g.kurz}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">{g.name}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100"><T>{g.name}</T></span>
               <span className="text-xs tabular-nums text-slate-500">{g.teams.length}</span>
             </div>
             <ul className="space-y-1">

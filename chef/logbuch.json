@@ -8602,5 +8602,27 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-388",
+    "datum": "2026-11-02T03:26:38Z",
+    "titel": "Globals-Teams: Regionsnamen übersetzt",
+    "kurz": "Globals → Teams, Ansicht Regionen: „Europa“, „Brasilien“ usw. jetzt auch auf Deutsch.",
+    "markieren": [
+      "text:Europe",
+      "text:NA Central",
+      "text:Middle East"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Die Regionsnamen standen fest englisch im Code, auch im deutschen Modus.",
+    "was": "Sie laufen jetzt über die Übersetzung.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
