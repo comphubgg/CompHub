@@ -2,16 +2,20 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 17, 02.11.2026)
+
+- [x] (chef-329) **Spielerliste: Kopftreffer/Material/Bauteile 0 statt Strich ohne Schussdaten** – Profil zeigte schon Strich.
+
 ## Neu entdeckt (Runde 16, 02.11.2026)
 
 - [x] (chef-306 bis chef-325) Runde 16: Power-Rankings-Strich ohne Namen, Ladeschirm Saisonwechsel, Lobby-Replay-Teams Strich, Tausenderpunkte (Kachel-Knopf, Vergleich, Spielerfenster), Profil-Summenzeile, Profil-Werte-Strich, Tagesbester-Gleichstand, Power-Rankings-Suche, Regionen-Quoten-Mindestzahl, Archiv-Ausfall Events, Global-Karte Regionen, eigene Auswertung Ausfall, Replay-Damage gleich, Replay-Zonen Strich, FNCS-Rekorde-Ausfall, „3m 60s“, Titel-Pokale, Erfolge-Reihenfolge.
 - [ ] **FNCS-Elims-Farbstufen nur aus den 80 Besten nach Total** – beim Sortieren nach einem Major werden Spieler außerhalb der 80 mit fremden Grenzen gefärbt. Gestaltungsfrage (mit allen Spielern wäre fast alles grün) – Betreiber fragen.
-- [ ] **Vergleich-Radar „HITS“ teilt durch alle Matches**, auch durch Tage ohne Trefferdaten (Kopftreffer/Bauteile teilen durch matchesVoll). Bräuchte eigenen Nenner „Matches mit Treffern“ – klein.
-- [ ] **Globals-Teams-Länderraster: gleiche Spielerzahl ohne feste Folge** – nicht nach Ländercode (alphabetisch verboten); feste Folge nach Stärke der Teams wäre richtig.
-- [ ] **Cup Player Stats: Gleichstand in Kacheln nach Quelle** – Lösung nach Schaden/Konto-Id statt Namen (Entwurf mit Namen abgelehnt, alphabetisch).
+- [x] (chef-326) **Vergleich-Radar „HITS“ teilt durch alle Matches**, auch durch Tage ohne Trefferdaten (Kopftreffer/Bauteile teilen durch matchesVoll). Bräuchte eigenen Nenner „Matches mit Treffern“ – klein.
+- [x] (chef-327) **Globals-Teams-Länderraster: gleiche Spielerzahl ohne feste Folge** – nicht nach Ländercode (alphabetisch verboten); feste Folge nach Stärke der Teams wäre richtig.
+- [x] (chef-328, geteilte Plätze aus chef-57 bleiben) **Cup Player Stats: Gleichstand in Kacheln nach Quelle** – Lösung nach Schaden/Konto-Id statt Namen (Entwurf mit Namen abgelehnt, alphabetisch).
 - [ ] **Events-Kalender: Uhrzeiten in Browser-Zeitzone**, Startseite/Solos in Europe/Brussels – Absicht? Betreiber fragen.
-- [ ] **Toter Code**: TurnierListe in StatistikSeite.tsx (~Z. 1443) nirgends genutzt; /api/br-statistik und /api/eigene-werte nirgends eingebunden (br-statistik erfindet Nullen) – aufräumen.
-- [ ] **ESLint-Fehler RanglisteNeu.tsx Z. 84** (react-hooks/preserve-manual-memoization, useMemo laendername) – schon vorher da.
+- [x] (chef-331 TurnierListe entfernt; die zwei Schnittstellen nirgends aufgerufen, auch nicht in scripts/ – noch nicht gelöscht, Betreiber fragen) **Toter Code**: TurnierListe in StatistikSeite.tsx (~Z. 1443) nirgends genutzt; /api/br-statistik und /api/eigene-werte nirgends eingebunden (br-statistik erfindet Nullen) – aufräumen.
+- [x] (chef-330) **ESLint-Fehler RanglisteNeu.tsx Z. 84** (react-hooks/preserve-manual-memoization, useMemo laendername) – schon vorher da.
 - [ ] **Statistik-Start: Quoten-Hürde aus allen Matches des Fleißigsten** (lib/szeneStats startseite, hoechsteMatches; ebenso jahresListen quoteMindest und Regionen bestenlisten) – Entwurf mit matchesFuerQuote liegt vor, aber nur gemeinsam für alle Listen umstellen, sonst neue Widersprüche; wirkt erst nach Neuberechnung (chef-106).
 - [ ] **Tierlist-Pool: Spieler ohne Power-Ranking-Platz alphabetisch** – Betreiberregel „nie alphabetisch“; Ersatz nach Kennung sähe zufällig aus. Besser nach Bekanntheit (z. B. Preisgeld) – Betreiber fragen.
 - [ ] **Profil-Verlauf Damage Ratio: Tag ohne Datum gilt als ältester** und fällt aus „Letzte 12“ – beobachten.
