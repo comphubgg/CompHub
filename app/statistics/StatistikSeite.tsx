@@ -3612,6 +3612,13 @@ export default function StatistikSeite() {
   const [profilAusLink, setProfilAusLink] = useState(false);
   // Erst im Browser gesetzt - auf dem Server gibt es keine Adresse, und ein Unterschied beim ersten Zeichnen brachte React aus dem Tritt.
   useEffect(() => { if (new URLSearchParams(window.location.search).get('spieler')) setProfilAusLink(true); }, []);
+  // Weg erst, wenn das Profil wirklich steht (zwischendurch setzte der Seitenaufbau es noch einmal zurueck) - spaetestens nach einer Minute.
+  useEffect(() => { if (offen) setProfilAusLink(false); }, [offen]);
+  useEffect(() => {
+    if (!profilAusLink) return undefined;
+    const u = setTimeout(() => setProfilAusLink(false), 60_000);
+    return () => clearTimeout(u);
+  }, [profilAusLink]);
 
   /*
    * Bereich, Sortierung, Region und Saison stehen in der Adresse, damit sich
@@ -3753,8 +3760,7 @@ export default function StatistikSeite() {
           treffer = liste.find(passt) ?? liste[0];
         } catch { /* dann bleibt es bei der Liste */ }
       }
-      if (treffer) oeffne(treffer);
-      setProfilAusLink(false);
+      if (treffer) oeffne(treffer); else setProfilAusLink(false);
     })();
   }, [spieler, oeffne]);
 
