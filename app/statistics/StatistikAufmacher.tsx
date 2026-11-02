@@ -107,10 +107,12 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
   const k = kacheln.length ? kacheln[nr % kacheln.length] : null;
   const regionen = zahlen?.regionen ?? [];
   const nachRegion = new Map(regionen.map((r) => [r.region, r.n]));
-  const kaestchen = [
+  // Ohne Zahlen (laden oder Ausfall) stehen die Kästchen trotzdem da - mit Platzhalter bzw. Strich -, damit der Block mit
+  // "Regionen ansehen" nicht verschwindet und die Seite beim Eintreffen nicht springt.
+  const kaestchen: Array<{ kopf: string; n: number | null; unten: string }> = zahlen ? [
     ...REIHE.filter((r) => nachRegion.has(r)).map((r) => ({ kopf: r, n: nachRegion.get(r) ?? 0, unten: 'Spieler' })),
-    ...(zahlen?.spieler != null ? [{ kopf: 'ALL', n: zahlen.spieler, unten: 'Weltweit' }] : []),
-  ];
+    ...(zahlen.spieler != null ? [{ kopf: 'ALL', n: zahlen.spieler, unten: 'Weltweit' }] : []),
+  ] : [...REIHE.map((r) => ({ kopf: r, n: null, unten: 'Spieler' })), { kopf: 'ALL', n: null, unten: 'Weltweit' }];
 
   return (
     <div className="mb-12 mt-10 space-y-14">
@@ -216,7 +218,10 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
                     opacity: regDrin ? undefined : 0,
                   }}>
                   <span className={`text-sm font-black tracking-wider ${farbe?.schrift ?? 'text-slate-50'}`}>{c.kopf}</span>
-                  <p className="mt-1.5 text-xl font-black text-slate-50"><Rollzahl wert={c.n} los={regDrin} ort={ort} /></p>
+                  <p className="mt-1.5 text-xl font-black text-slate-50">
+                    {c.n != null ? <Rollzahl wert={c.n} los={regDrin} ort={ort} />
+                      : fehlt ? '—' : <span aria-hidden className="mx-auto block h-[1em] w-14 animate-pulse rounded-md bg-white/[0.08]" />}
+                  </p>
                   <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{c.unten}</T></p>
                 </div>
               );

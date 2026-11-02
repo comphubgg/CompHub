@@ -8135,5 +8135,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-368",
+    "datum": "2026-11-02T03:14:23Z",
+    "titel": "Statistik: Regionen-Block bleibt beim Laden stehen",
+    "kurz": "Statistik, Block „Seven regions“: beim Laden Platzhalter statt fehlendem Block samt Knöpfen.",
+    "markieren": [
+      "text:Seven regions.",
+      "text:View regions"
+    ],
+    "bereich": "Statistik",
+    "warum": "Solange die Spielerzahlen luden oder ausfielen, fehlte der ganze Regionen-Block – auch der Knopf „Regionen ansehen“ – und die Seite sprang beim Eintreffen.",
+    "was": "Der Block steht jetzt immer da; die Kästchen pulsieren beim Laden und zeigen bei Ausfall einen Strich.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
