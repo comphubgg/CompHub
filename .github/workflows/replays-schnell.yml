@@ -210,6 +210,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run replays-schnell.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen (${{ steps.zusammen.outputs.rest }} offen)"
 
+      # Die Nacharbeiter wieder anwerfen, sobald die Schnellspur keinen Vorrang mehr hat (unter 400 offen, wie scripts/schnell-vorrang.mjs). Sie
+      # halten bei Vorrang an und stossen sich dann nicht selbst neu an; der stuendliche Zeitplan von GitHub fiel am 2.11.2026 stundenlang aus -
+      # die alten offenen Matches blieben liegen. Nur wenn gerade kein Nacharbeiter laeuft oder wartet.
+      - name: Nacharbeiter wieder anwerfen
+        if: ${{ !cancelled() && fromJSON(needs.planen.outputs.offen || '0') < 400 }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          laeuft=$(gh run list -w replays-nacharbeiten.yml -R "${{ github.repository }}" -L 5 --json status -q '[.[] | select(.status != "completed")] | length')
+          if [ "${laeuft:-1}" = "0" ]; then gh workflow run replays-nacharbeiten.yml -R "${{ github.repository }}" --ref main && echo "Nacharbeiter angestossen"; else echo "Nacharbeiter laufen schon ($laeuft)"; fi
+
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
