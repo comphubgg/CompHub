@@ -9348,5 +9348,26 @@
       "/scrims"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:56:31Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-422",
+    "titel": "Scrims: Regionen-Auswahl mit Europa zuerst",
+    "kurz": "Scrims → Regionen-Auswahl: Europe steht jetzt oben statt alphabetisch hinter Asia.",
+    "markieren": [
+      "text:All regions",
+      "css:select"
+    ],
+    "bereich": "Scrims",
+    "warum": "Die Regionen in der Auswahl standen alphabetisch (Asia, Brazil, Europe …).",
+    "was": "Jetzt erst Europa, dann die Regionen nach Größe der Szene.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "modell": "Opus"
   }
 ]

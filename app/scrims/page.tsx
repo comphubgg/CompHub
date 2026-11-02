@@ -1355,8 +1355,12 @@ export default function ScrimsSeite() {
     finally { if (aktuell()) setLaedtCup(false); }
   }, []);
 
-  const regionen = useMemo(
-    () => [...new Set(serien.map((x) => x.region).filter(Boolean))].sort(), [serien]);
+  // EU zuerst, dann nach Groesse der Szene - nie alphabetisch (Betreiber); Unbekanntes ans Ende.
+  const regionen = useMemo(() => {
+    const reihe = ['EU', 'NAC', 'NAE', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+    const rang = (r: string) => (reihe.includes(r) ? reihe.indexOf(r) : reihe.length);
+    return [...new Set(serien.map((x) => x.region).filter(Boolean))].sort((a, b) => rang(a) - rang(b));
+  }, [serien]);
 
   /*
    * Was gezeigt wird: Scrims oder Community Events (Yunite unterscheidet
