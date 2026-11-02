@@ -9226,5 +9226,27 @@
       "/statistics?bereich=vergleich"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T03:51:44Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-416",
+    "titel": "Vergleich: Schrift überall mindestens 11 Pixel",
+    "kurz": "Vergleich: Beschriftungen (vs, Wertnamen, Cups, Saison, Hinweise) jetzt 11 Pixel.",
+    "markieren": [
+      "text:vs",
+      "text:Cups",
+      "text:Saison"
+    ],
+    "bereich": "Statistik",
+    "warum": "Elf Beschriftungen im Vergleich standen mit 9 bis 10 Pixeln und waren schwer lesbar.",
+    "was": "Sie stehen jetzt mit 11 Pixeln wie auf den anderen Statistik-Reitern.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "modell": "Opus"
   }
 ]

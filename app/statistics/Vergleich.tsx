@@ -206,7 +206,7 @@ function Slot({ wer, nr, onWahl, belegt, loc }: { wer: VglSpieler | null; nr: nu
               className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-zinc-900">
               <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
               <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase text-slate-200">{x.anzeige}</span>
-              {x.matches != null && <span className="shrink-0 text-[10px] text-slate-600">{x.matches.toLocaleString(loc)} <T>Matches</T></span>}
+              {x.matches != null && <span className="shrink-0 text-[11px] text-slate-600">{x.matches.toLocaleString(loc)} <T>Matches</T></span>}
             </button>
           ))}
         </div>
@@ -247,7 +247,7 @@ function Board({ links, rechts, nameL, nameR, loc }: { links: Summe; rechts: Sum
     <div className="rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-5 sm:px-8">
       <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
         <span className="min-w-0 truncate text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameL}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
         <span className="min-w-0 truncate text-right text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameR}</span>
       </div>
       <div className="space-y-3.5">
@@ -266,7 +266,7 @@ function Board({ links, rechts, nameL, nameR, loc }: { links: Summe; rechts: Sum
               <span className="flex h-2 justify-end overflow-hidden rounded-full bg-white/[0.06]">
                 <span className={`h-full rounded-full ${farbe(-1)}`} style={{ width: `${((a ?? 0) / gross) * 100}%` }} />
               </span>
-              <span className="text-center text-[10px] font-black uppercase leading-tight tracking-[0.14em] text-slate-300"><T>{r.titel}</T></span>
+              <span className="text-center text-[11px] font-black uppercase leading-tight tracking-[0.14em] text-slate-300"><T>{r.titel}</T></span>
               <span className="flex h-2 overflow-hidden rounded-full bg-white/[0.06]">
                 <span className={`h-full rounded-full ${farbe(1)}`} style={{ width: `${((b ?? 0) / gross) * 100}%` }} />
               </span>
@@ -305,7 +305,7 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
     <div className="rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-5 sm:px-8">
       <div className="mb-2 flex items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
         <span className="min-w-0 truncate text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameL}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
         <span className="min-w-0 truncate text-right text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameR}</span>
       </div>
       <svg viewBox="0 0 480 420" className="mx-auto block w-full max-w-[560px]" role="img" aria-label="Radar">
@@ -339,7 +339,7 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
         <span className="flex items-center gap-2"><i className="inline-block h-0.5 w-5" style={{ background: FARBE_LINKS }} />{nameL}</span>
         <span className="flex items-center gap-2"><i className="inline-block h-0.5 w-5" style={{ background: FARBE_RECHTS }} />{nameR}</span>
       </div>
-      <p className="mt-3 text-center text-[10px] text-slate-600"><T>Jede Achse ist auf den Höheren der beiden skaliert; Werte je Match.</T></p>
+      <p className="mt-3 text-center text-[11px] text-slate-600"><T>Jede Achse ist auf den Höheren der beiden skaliert; Werte je Match.</T></p>
     </div>
   );
 }
@@ -411,7 +411,7 @@ function Form({ punkte, kurve, setKurve, nameL, nameR, loc }: {
           </svg>
         </div>
       )}
-      <p className="mt-2 text-center text-[10px] text-slate-600"><T>Ein Punkt je gemeinsamem Spieltag - Maus darüber für den Cup.</T></p>
+      <p className="mt-2 text-center text-[11px] text-slate-600"><T>Ein Punkt je gemeinsamem Spieltag - Maus darüber für den Cup.</T></p>
     </div>
   );
 }
@@ -532,13 +532,13 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
         <div className="relative">
           <button type="button" onClick={() => setEventsOffen((v) => !v)} disabled={!events.length}
             className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3.5 py-2 text-xs font-bold transition hover:border-sky-500/60 disabled:opacity-50">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Cups</T></span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Cups</T></span>
             <span className="text-slate-100">{ohne.size ? t('Auswahl') : t('Alle Cups')}</span>
             <span className="tabular-nums text-slate-500">{events.length - [...ohne].filter((w) => events.some((e) => e.windowId === w)).length}/{events.length}</span>
           </button>
           {eventsOffen && (
             <div className="absolute left-0 top-full z-30 mt-1 w-[320px] max-w-[90vw] rounded-xl border border-white/[0.1] bg-zinc-950 p-2 shadow-2xl">
-              <div className="mb-1 flex gap-2 px-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="mb-1 flex gap-2 px-1 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <button type="button" className="hover:text-sky-300" onClick={() => setOhne(new Set())}><T>Alle</T></button>
                 <button type="button" className="hover:text-sky-300" onClick={() => setOhne(new Set(events.map((e) => e.windowId)))}><T>Keine</T></button>
                 <button type="button" className="ml-auto hover:text-sky-300" onClick={() => setEventsOffen(false)}>×</button>
@@ -549,7 +549,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
                     <input type="checkbox" checked={aktiv(e.windowId)} className="accent-sky-500"
                       onChange={() => setOhne((alt) => { const x = new Set(alt); if (x.has(e.windowId)) x.delete(e.windowId); else x.add(e.windowId); return x; })} />
                     <span className="min-w-0 flex-1 truncate">{e.event}</span>
-                    {e.datum > 0 && <span className="shrink-0 text-[10px] tabular-nums text-slate-600">{new Date(e.datum).toLocaleDateString(loc, { day: '2-digit', month: '2-digit' })}</span>}
+                    {e.datum > 0 && <span className="shrink-0 text-[11px] tabular-nums text-slate-600">{new Date(e.datum).toLocaleDateString(loc, { day: '2-digit', month: '2-digit' })}</span>}
                   </label>
                 ))}
               </div>
@@ -573,7 +573,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
           <button type="button" onClick={zuruecksetzen}
             className="rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300"><T>Reset</T></button>
           <label className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3.5 py-1.5 text-xs font-bold">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Saison</T></span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Saison</T></span>
             <select value={saison} onChange={(e) => { setSaison(e.target.value); setOhne(new Set()); }} className="cursor-pointer bg-transparent py-1 text-slate-100 outline-none">
               <option value="alle" className="bg-zinc-900">{t('Alle Saisons')}</option>
               {saisonListe.map((s) => <option key={s.kennung} value={s.kennung} className="bg-zinc-900">{s.name}</option>)}
@@ -647,7 +647,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
           {/* Die Platzierungen je Cup, beide nebeneinander */}
           {hatDaten && (
             <div className="mt-4 rounded-2xl border border-white/[0.08] bg-zinc-950/70 px-4 py-5 sm:px-8">
-              <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{saisonName} · <T>Platzierungen</T></p>
+              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{saisonName} · <T>Platzierungen</T></p>
               <div className="max-h-[420px] overflow-y-auto">
                 {events.filter((e) => aktiv(e.windowId)).slice().reverse().map((e) => {
                   const pl = (tage: Map<string, Zeile[]>) => { const p = (tage.get(e.windowId) ?? []).map((z) => z.platz).filter((x): x is number => typeof x === 'number'); return p.length ? Math.min(...p) : null; };
