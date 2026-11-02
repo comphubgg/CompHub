@@ -404,7 +404,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                     <span className="block truncate font-semibold text-slate-100">{x.name}</span>
                     {x.team.length > 0 && <span className="block truncate text-[11px] text-slate-500">+ {x.team.join(' · ')}</span>}
                   </span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-slate-500">#{x.rank} · {x.points} {t('Punkte')}</span>
+                  <span className="shrink-0 text-[11px] tabular-nums text-slate-500">#{x.rank.toLocaleString(ort)} · {x.points.toLocaleString(ort)} {t('Punkte')}</span>
                 </button>
               ))}
             </div>
@@ -438,7 +438,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 </div>
                 <div className="mt-3 flex items-baseline justify-between gap-3">
                   <p className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
+                    <span className="text-2xl font-black text-slate-50">Rank #{daten.rank?.toLocaleString(ort) ?? "–"}</span>
                     {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
                   </p>
                   <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} {t('points')}</p>

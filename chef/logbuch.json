@@ -7099,5 +7099,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-321",
+    "datum": "2026-11-02T02:03:00Z",
+    "titel": "Spielerfenster: Rang und Punkte mit Tausendertrennung",
+    "kurz": "Cup → Spielerfenster: „Rank #12,345“ und Suchtreffer mit Tausenderpunkt.",
+    "markieren": [
+      "text:Rank #"
+    ],
+    "bereich": "Statistik",
+    "warum": "In großen offenen Cups stand „Rank #12345 · 10234 Punkte“ ohne Trennung, überall sonst mit.",
+    "was": "Rang und Punkte sind jetzt nach Sprache formatiert; fehlt der Rang, steht ein Strich.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
