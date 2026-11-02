@@ -92,7 +92,7 @@ export default function SpieltagSeite() {
                     <span className="text-xl font-black uppercase tracking-tight text-slate-50">Game {m.nr}</span>
                     <span className="text-[11px] tabular-nums text-slate-500">{replayUhrzeit(m.beginn)}</span>
                   </p>
-                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Sieger</T></p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Sieger</T></p>
                   <p className="mt-0.5 min-h-[2.4em] text-[12px] font-bold uppercase leading-snug text-amber-300">{(m.sieger ?? []).map(ohneMarke).join(' · ') || '–'}</p>
                   <p className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
                     <span>{m.spieler ?? '–'} <T>Spieler</T> · {m.zonen ?? '–'} <T>Zonen</T></span>

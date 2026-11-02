@@ -79,7 +79,7 @@ export default function ReplaysSeite() {
                     <li key={d.windowId}>
                       <Link href={`/replays/${encodeURIComponent(d.windowId)}`}
                         className="flex items-center gap-2.5 rounded-xl border border-zinc-800 px-3 py-2 text-[12px] transition hover:border-sky-500 hover:bg-zinc-800">
-                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-200">{d.region}</span>
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-slate-200">{d.region}</span>
                         <span className="font-semibold text-slate-200">{c.tage.filter((x) => x.region === d.region).length > 1 ? tagName(d.windowId, i) : datum(d.beginn)}</span>
                         <span className="min-w-0 flex-1 truncate text-[11px] uppercase text-slate-500">{d.sieger.map(ohneMarke).join(' · ')}</span>
                         <span className="shrink-0 tabular-nums text-slate-400">{d.games} <T>Games</T></span>

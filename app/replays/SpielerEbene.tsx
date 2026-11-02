@@ -388,7 +388,7 @@ export function SpielerFenster({ d, zeit, s, schaden, farbe, schliessen }: { d: 
       <p className="mt-2.5 text-[11px] text-slate-400">
         <T>Treffer</T> <b className="tabular-nums text-slate-100">{meine.length}</b> · Damage <b className="tabular-nums text-slate-100">{Math.round(d.treffer.length && schaden !== undefined ? schaden : meine.reduce((a, x) => a + x[4], 0)).toLocaleString(ort)}</b> · <T>Kopftreffer</T> <b className="tabular-nums text-slate-100">{meine.filter((x) => x[5] === 2).length}</b>
       </p>
-      {schild !== null && <p className="mt-1 text-[10px] text-slate-500"><T>Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.</T></p>}
+      {schild !== null && <p className="mt-1 text-[11px] text-slate-500"><T>Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.</T></p>}
     </div>
   );
 }
@@ -433,7 +433,7 @@ export function KartenHud({ d, zeit, s, farbe, steuerung }: { d: Aufbereitet; ze
           <p className="mt-1.5 flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-base font-bold leading-tight">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: farbe }} />
             <span className="truncate">{s.name}</span>
-            {tot && <span className="ml-auto text-[10px] font-bold uppercase text-rose-400"><T>Ausgeschieden</T></span>}
+            {tot && <span className="ml-auto text-[11px] font-bold uppercase text-rose-400"><T>Ausgeschieden</T></span>}
           </p>
           <div className="mt-1"><Balken hp={hp} schild={schild} /></div>
           <div className="mt-1.5 flex flex-wrap gap-1">

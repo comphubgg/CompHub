@@ -10292,5 +10292,28 @@
     "ansehen": [
       "/scrims"
     ]
+  },
+  {
+    "id": "chef-464",
+    "datum": "2026-11-02T04:47:42Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Replays: Schrift mindestens 11 Pixel",
+    "kurz": "Replays → Match öffnen: Tabellenköpfe, Legende, „HS“, „BETA“ jetzt 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:Legend",
+      "text:Zones",
+      "text:Match player stats"
+    ],
+    "warum": "Auf den Replay-Seiten standen 20 Beschriftungen in 9–10 Pixel.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß; nur die Zahl im schmalen Lebensbalken bleibt klein, weil sie sonst nicht passt.",
+    "ansehen": [
+      "/replays",
+      "/replays/S42_FNCSSolo_Final_Day1_NAW"
+    ]
   }
 ]

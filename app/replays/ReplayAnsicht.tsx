@@ -376,7 +376,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           [t('Zone'), zone.jetzt ? `${Math.round(zone.jetzt.r / 100).toLocaleString(ort)} m` : '–', zone.schrumpft ? t('schrumpft') : zone.phase ? `${t('Phase')} ${zone.phase}/${match.zonen.length}` : t('noch nicht gestartet')],
         ].map(([k, w, u]) => (
           <div key={k} className="rounded-xl border border-white/[0.08] bg-zinc-900/50 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{k}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{k}</p>
             <p className="mt-0.5 text-2xl font-black tabular-nums text-slate-50">{w}</p>
             <p className="text-[11px] text-slate-500">{u}</p>
           </div>
@@ -500,13 +500,13 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: h.farbe }} />
                     <span className="truncate">{h.name}</span>
                   </p>
-                  {h.mitspieler.length > 0 && <p className="mt-0.5 truncate text-[10px] text-slate-500">+ {h.mitspieler.join(' · ')}</p>}
+                  {h.mitspieler.length > 0 && <p className="mt-0.5 truncate text-[11px] text-slate-500">+ {h.mitspieler.join(' · ')}</p>}
                   <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 tabular-nums text-slate-300">
                     {h.platz !== null && <span><T>Platz</T> <b className="text-slate-50">#{h.platz}</b></span>}
                     {h.punkte !== null && <span><T>Punkte</T> <b className="text-slate-50">{h.punkte}</b></span>}
                     <span>Elims <b className="text-slate-50">{h.kills}</b>{h.teamKills !== h.kills ? <span className="text-slate-500"> (Team {h.teamKills})</span> : null}</span>
                   </p>
-                  <p className={`mt-1 text-[10px] ${tip.e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}`}>
+                  <p className={`mt-1 text-[11px] ${tip.e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}`}>
                     {tip.e.art === 'tot' ? t('Eliminiert') : t('Umgehauen')} · {uhr(tip.e.t - tStart)}
                     {h.von ? <span className="text-slate-400"> {t('durch')} {h.von}{h.abstand !== null ? ` · ${h.abstand.toLocaleString(ort)} m` : ''}</span> : <span className="text-slate-500"> · {t('Zone / Sturz')}</span>}
                   </p>
@@ -517,7 +517,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
           {sd.da && (
             <p className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-[12px] leading-snug text-amber-100`}>
-              <b className="mr-1.5 rounded bg-amber-400 px-1.5 py-px text-[10px] font-black tracking-wider text-black">BETA</b>
+              <b className="mr-1.5 rounded bg-amber-400 px-1.5 py-px text-[11px] font-black tracking-wider text-black">BETA</b>
               <T>Die Spieler-Ansicht ist noch in Arbeit: Bewegungen laufen von einem bekannten Ort zum nächsten, der Schild ist geschätzt, Munition fehlt noch und einige neue Waffen haben noch kein Bild.</T>
             </p>
           )}
@@ -562,7 +562,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
           {/* ------------------------------------------------ Legende */}
           <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Legende</T></p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Legende</T></p>
             <ul className="grid gap-x-6 gap-y-2 text-[12px] leading-snug text-slate-300 sm:grid-cols-2">
               <li className="flex items-start gap-2.5"><span className="mt-0.5 shrink-0"><XZeichen farbe="#38bdf8" gross={18} /></span><span><T>Eliminierung: hier ist ein Spieler ausgeschieden. Die Farbe zeigt sein Team; das Zeichen bleibt stehen.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-black bg-amber-400" /><span><T>Knock: ein Spieler liegt am Boden. Der Kreis verschwindet nach 12 Sekunden - dann ist er aufgestanden oder ausgeschieden.</T></span></li>
@@ -576,7 +576,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
           {/* ------------------------------------------------ Kurve */}
           <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Spieler am Leben im Verlauf</T></p>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Spieler am Leben im Verlauf</T></p>
             <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-24 w-full cursor-pointer"
               onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); springe(tStart + ((e.clientX - r.left) / r.width) * (tEnde - tStart)); }}>
               {match.zonen.map((z, i) => (
@@ -625,7 +625,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                               <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{nameVon(taeter)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
                                 {' '}<span className={e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}>{e.art === 'tot' ? t('eliminiert') : t('knockt')}</span>{' '}
                                 <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
-                                {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100).toLocaleString(ort)} m</span>}</>
+                                {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[11px] text-slate-600">{Math.round(e.abstand / 100).toLocaleString(ort)} m</span>}</>
                             )}
                           </span>
                         </button>
@@ -647,10 +647,10 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                           <span className="w-10 shrink-0 text-[11px] tabular-nums text-slate-500">{uhr(h[0] - tStart)}</span>
                           <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-slate-300">
                             <b style={{ color: farbeVon(h[1]) }}>{nameVon(von)}</b> <span className="text-slate-500">→</span> <b style={{ color: farbeVon(h[2]) }}>{nameVon(an)}</b>
-                            {h[5] ? <span className="ml-1 text-[10px] text-amber-300/80"><T>am Boden</T></span> : null}
+                            {h[5] ? <span className="ml-1 text-[11px] text-amber-300/80"><T>am Boden</T></span> : null}
                           </span>
                           <span className={`shrink-0 text-[12px] font-bold tabular-nums ${h[6] ? 'text-rose-400' : h[4] ? 'text-amber-300' : 'text-slate-200'}`}>
-                            {h[3]}{h[4] ? <span className="ml-0.5 text-[10px]">HS</span> : null}
+                            {h[3]}{h[4] ? <span className="ml-0.5 text-[11px]">HS</span> : null}
                           </span>
                         </button>
                       </li>
@@ -685,7 +685,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
             {reiter === 'spieler' && (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                     <th className="w-9 px-3 py-2">#</th><th className="px-2 py-2"><T>Spieler</T></th><th className="px-2 py-2 text-right">Elims</th>{treffer.length > 0 && <th className="px-2 py-2 text-right">Damage</th>}<th className="px-3 py-2 text-right"><T>Ausgeschieden</T></th>
                   </tr>
                 </thead>
@@ -708,11 +708,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
       {/* ------------------------------------------------ Zonen */}
       <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
-        <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Zonen</T></p>
+        <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Zonen</T></p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 <th className="px-4 py-2">#</th><th className="px-3 py-2"><T>Beginn</T></th><th className="px-3 py-2 text-right"><T>Radius</T></th><th className="px-3 py-2 text-right"><T>Danach</T></th><th className="px-3 py-2 text-right"><T>Schrumpft</T></th>
               </tr>
             </thead>
@@ -745,11 +745,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         const sek = (n?: number) => (typeof n === 'number' ? uhr(n) : '—');
         return (
           <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
-            <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Spielerwerte des Matches</T></p>
+            <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Spielerwerte des Matches</T></p>
             <div className="max-h-[32rem] overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-zinc-900">
-                  <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                     <th className="w-10 px-4 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th><th className="px-3 py-2 text-right">Elims</th>
                     {mitSchaden && <><th className="px-3 py-2 text-right">Damage</th><th className="px-3 py-2 text-right"><T>Eingesteckt</T></th><th className="px-3 py-2 text-right"><T>Treffer</T></th><th className="px-3 py-2 text-right"><T>Kopftreffer</T></th></>}
                     {mitZusatz && <><th className="px-3 py-2 text-right"><T>Im Sturm</T></th><th className="px-3 py-2 text-right"><T>Wiederbelebt</T></th><th className="px-3 py-2 text-right">Reboots</th></>}

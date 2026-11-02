@@ -119,7 +119,7 @@ export default function MeineReplays() {
                               {g.platz !== null && <span className={g.sieger ? 'font-black text-amber-300' : ''}><T>Platz</T> #{g.platz}</span>}
                               <span>{g.kills === null ? '–' : g.kills} Elims{g.kills !== null && g.teamKills !== null && g.teamKills !== g.kills ? ` (Team ${g.teamKills})` : ''}</span>
                             </span>
-                            {g.mitspieler.length > 0 && <span className="mt-0.5 block truncate text-[10px] uppercase text-slate-500">+ {g.mitspieler.map(ohneMarke).join(' · ')}</span>}
+                            {g.mitspieler.length > 0 && <span className="mt-0.5 block truncate text-[11px] uppercase text-slate-500">+ {g.mitspieler.map(ohneMarke).join(' · ')}</span>}
                           </Link>
                         </li>
                       ))}
