@@ -8665,5 +8665,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-391",
+    "datum": "2026-11-02T03:26:59Z",
+    "titel": "Scrims: Fehlerantwort von Noble gilt als Ausfall",
+    "kurz": "Unsichtbar: Scrims zeigen bei Noble-Fehlerantwort den Ausfall-Hinweis statt leerer Liste.",
+    "markieren": [],
+    "bereich": "Scrims",
+    "warum": "Eine Fehlerantwort von Noble wurde wie „keine Scrims“ gelesen.",
+    "was": "Sie zählt jetzt als Ausfall, dann erscheint der Hinweis.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

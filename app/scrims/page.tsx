@@ -1157,7 +1157,7 @@ export default function ScrimsSeite() {
     const echteHolen = async (): Promise<Serie[]> => {
       const [archiv, live] = await Promise.all([
         fetch('/api/scrims?quelle=archiv').then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        fetch('/api/scrims?quelle=noble').then((r) => r.json()).catch(() => null),
+        fetch('/api/scrims?quelle=noble').then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]) as [{
         server: Array<{
           quelle: 'noble' | 'poyo'; guildId: string; name: string; bild?: string | null; inaktiv?: boolean;
