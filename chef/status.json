@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-02T04:16:56Z",
-  "macheGerade": "Runde 20 läuft",
+  "letzteRunde": "2026-11-02T05:02:42Z",
+  "macheGerade": "Runde 20 fertig: 28 Verbesserungen (chef-445 bis chef-472), u. a. Profil „alle Saisons“ bricht live nach 30 s ab – Fix chef-472, veraltete „ab 10/20 Matches“-Hinweise, Finals 2023/2024 mit Endstand, Gleichstand-Plätze wie im Endstand, Strich statt 0/NaN an mehreren Stellen, Schrift 11 px auf Replays, Events, Scrims, Karten, Konto.",
   "naechstes": [
-    "WICHTIG: chef-106 freigeben – nachgemessen am 02.11.: Statistik-Bestenlisten enden beim 10.10., das Profil kennt fünf neuere Spieltage (peterbot S42: Liste 57 Matches/152 Elims, Profil 83/208).",
-    "Bitte entscheiden: chef-409 (Org-Namen Valiant/Ovation/Aight) und welche Regionen-Reihenfolge gilt (Statistik: …ASIA, OCE, ME – sonst: …ASIA, ME, OCE).",
-    "Offene Fragen: alphabetische Listen ohne klares Ersatzkriterium (Streamer, Kartenlisten, Flaggenwahl), OBS-Overlay-Schrift 8–9 px, /api/br-statistik und /api/eigene-werte löschen?",
-    "Nächste Runde: Lint-Fehler (react-hooks/set-state-in-effect) in den Kartenseiten, Live-Status-Merker, weitere Statistik-Querprüfungen gegen /api."
+    "WICHTIG: chef-472 freigeben – Spielerprofile mit „alle Saisons“ laden live nicht (502/503 nach 30 s, gemessen 02.11. 04:50).",
+    "WICHTIG: chef-106 freigeben – Statistik-Bestenlisten enden beim 10.10.",
+    "Bitte entscheiden: Scrims-Beispiele bei Yunite-Ausfall durch Hinweis ersetzen? Globals-Prize-Pool leer (Epic führt keine Tabelle) – Rückfall aus eigenen Daten? Gleichstand-Ränge in Kacheln teilen oder durchzählen?",
+    "Nächste Runde: markieren für chef-469 bis chef-472 nachtragen, nach Veröffentlichung Profil „alle“ nachmessen, weitere Statistik-Querprüfungen."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, 12 eigene Verbesserungen, Helfer-Ergebnisse auf aktuellen Stand übertragen, 6 Helfer-Entwürfe verworfen weil schon erledigt oder geraten) + Sonnet (17 Helfer in 5 Wellen)",
-  "laeuftSeit": "2026-11-02T04:27:02Z"
+  "modell": "Opus (Planung, Prüfung, 3 eigene Verbesserungen, 1 Helfer-Entwurf verworfen: Scrims-Beispiele gegen Betreiberwunsch) + Sonnet (14 Helfer) + Haiku (1 Helfer)"
 }
