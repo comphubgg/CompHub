@@ -3137,7 +3137,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
-  'Gezählt werden die Spieler im Archiv: ab 10 Matches oder mit Foto.': "Counted are the players in the archive: 10 or more matches, or with a photo.",
+  'Gezählt wird jeder Spieler im Archiv mit mindestens einem Match oder einem Foto.': "Every player in the archive with at least one match or a photo is counted.",
   'Letztes Turnier': "Latest tournament",
   'Sein Team': "His team",
   'Der jüngste Spieltag im Archiv: der Endstand, der Beste des Tages und die Werte jedes Spielers.': "The most recent match day in the archive: the final standings, the best player of the day and every player's numbers.",

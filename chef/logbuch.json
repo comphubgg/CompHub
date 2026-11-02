@@ -9886,5 +9886,26 @@
       "/events"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "id": "chef-445",
+    "datum": "2026-11-02T04:31:09Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Opus",
+    "titel": "Statistik-Zahlen: Hinweis nennt die richtige Grenze",
+    "kurz": "Statistik oben: Hinweis sagt jetzt „ab einem Match“ statt „ab 10 Matches“.",
+    "markieren": [
+      "text:Every player in the archive",
+      "css:main p.text-center"
+    ],
+    "warum": "Seit der Umstellung auf „alle Konten ab 1 Match“ zählt die Seite 8.622 Spieler, der Hinweis darunter sprach aber noch von „ab 10 Matches“.",
+    "was": "Der Hinweis beschreibt jetzt, was wirklich gezählt wird.",
+    "ansehen": [
+      "/statistics"
+    ]
   }
 ]
