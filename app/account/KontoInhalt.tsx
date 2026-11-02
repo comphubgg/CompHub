@@ -886,7 +886,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
               zugang.admin ? 'Admin' : zugang.manager ? 'Manager' : zugang.vip ? 'VIP' : '', !!daten.angelegt],
           ] as Array<[string, string, string, boolean]>).map(([titel, wert, zusatz, gut]) => (
             <div key={titel} className="bg-zinc-900 px-4 py-3.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
               <p className="mt-1 flex items-center gap-2 truncate text-sm font-bold text-slate-100">
                 <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${gut ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                 <span className="truncate">{wert}</span>
@@ -946,7 +946,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                     <p className="flex flex-wrap items-center gap-2 text-sm text-slate-200">
                       <span className="h-2 w-2 rounded-full bg-emerald-400" />
                       <span className="font-semibold">{daten.epicName || meinEpicName || '…'}</span>
-                      <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400">
+                      <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] uppercase tracking-wider text-emerald-400">
                         {daten.epicVerifiziert ? <T>Von Epic bestätigt</T> : <T>Vom Betreiber zugewiesen</T>}
                       </span>
                     </p>
@@ -1284,7 +1284,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                             <T>{w.was}</T>
                           </span>
                         </span>
-                        <span className="ml-auto text-[10px] uppercase
+                        <span className="ml-auto text-[11px] uppercase
                                          tracking-wider text-slate-700">
                           <T>nicht freigegeben</T>
                         </span>

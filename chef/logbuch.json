@@ -10469,5 +10469,23 @@
     "ansehen": [
       "/maps"
     ]
+  },
+  {
+    "id": "chef-471",
+    "datum": "2026-11-02T04:54:45Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Haiku (von Opus geprüft)",
+    "titel": "Konto: Schrift mindestens 11 Pixel",
+    "kurz": "Konto und „Mein Ergebnis“: 8 kleine Beschriftungen jetzt 11 statt 10 Pixel.",
+    "markieren": [],
+    "warum": "Im Konto standen 8 Beschriftungen in 10 Pixel.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/account"
+    ]
   }
 ]

@@ -279,7 +279,7 @@ export default function MeinErgebnis(
                   <span className="block text-[11px] font-semibold text-slate-100">
                     {nameVon(f)}
                   </span>
-                  <span className="block text-[10px] text-slate-500">
+                  <span className="block text-[11px] text-slate-500">
                     {datum(f.ende)}
                   </span>
                   <span className={`mt-1 block text-[11px] ${dabei
@@ -314,7 +314,7 @@ export default function MeinErgebnis(
                           border border-zinc-800 bg-zinc-800 sm:grid-cols-4">
             {kopfzahlen.map(([k, v]) => (
               <div key={k} className="bg-zinc-950 px-3 py-2.5">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                <p className="text-[11px] uppercase tracking-wider text-slate-500">
                   <T>{k}</T>
                 </p>
                 <p className="mt-0.5 text-xl font-semibold tabular-nums text-slate-100">
@@ -327,7 +327,7 @@ export default function MeinErgebnis(
           <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
             {gruppen.map((g) => (
               <div key={g.titel}>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase
+                <p className="mb-1.5 text-[11px] font-semibold uppercase
                               tracking-[0.14em] text-slate-500">
                   <T>{g.titel}</T>
                 </p>
@@ -350,14 +350,14 @@ export default function MeinErgebnis(
               fuehrt - Punkte je Spiel gibt es dort nicht. */}
           {!!eintrag.matches?.length && (
             <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase
+              <p className="mb-1.5 text-[11px] font-semibold uppercase
                             tracking-[0.14em] text-slate-500">
                 <T>Spiel für Spiel</T>
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[24rem] text-[12px]">
                   <thead>
-                    <tr className="text-left text-[10px] uppercase
+                    <tr className="text-left text-[11px] uppercase
                                    tracking-wider text-slate-600">
                       <th className="py-1 pr-3 font-medium"><T>Spiel</T></th>
                       <th className="py-1 pr-3 font-medium"><T>Platzierung</T></th>
