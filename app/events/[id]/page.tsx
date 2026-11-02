@@ -24,7 +24,7 @@ import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent, GLOBALS_CUP_ALIAS, GLOBALS_CUP_ID } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
-import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
+import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
@@ -3415,7 +3415,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           // nimmt ihre enge Fassung "<id>-nah", wenn es sie gibt (sonst faellt das Bild unten auf das Original zurueck).
           const kartenBild = st.reload
             ? (insel ? eigeneKarte(`${insel.bildId}-nah`) : null)
-            : st.insel.art === 'br' ? fortniteKarte(false) : null;
+            : st.insel.art === 'br' ? naheFortniteKarte() : null;
           const kartenErsatz = st.reload && insel ? eigeneKarte(insel.bildId) : null;
           const zeile = (titel: string, wert: React.ReactNode) => (
             <p className="text-sm leading-relaxed text-slate-300">
@@ -3470,8 +3470,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <div className="h-44 w-44 shrink-0 self-start overflow-hidden rounded-lg border border-zinc-800">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={kartenBild} alt={kartenName ?? ''} loading="lazy"
-                      onError={(ev) => { const el = ev.currentTarget; if (kartenErsatz && !el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = kartenErsatz; el.classList.add('scale-[1.15]'); } }}
-                      className={`h-full w-full object-cover ${st.reload ? '' : 'scale-[1.15]'}`} />
+                      onError={(ev) => { const el = ev.currentTarget; if (kartenErsatz && !el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = kartenErsatz; } }}
+                      className="h-full w-full object-cover" />
                   </div>
                 )}
               </div>
