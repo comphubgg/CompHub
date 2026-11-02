@@ -427,3 +427,7 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [ ] **Cup-Kacheln: Teams jenseits Platz 1.000** fehlen weiter in den Bestwerten (Abfrage mit 10.000 brauchte live über 30 s → 502). Besser: Spitze je Kennzahl beim Datenlauf vorrechnen.
 - [ ] **Admin Tweets: cup-stats ohne limit** (nur 100 Teams) – gleiche Schwäche wie chef-287, nur Admin.
 - [ ] **Cup-Spieler (Szene-Quelle): fehlender Schaden/Assists = 0** – Helfer-Vorschlag „ganze Spalte Strich, wenn alle 0“ abgelehnt (versteckt echte Nullen, z. B. Assists im Solo). Erst mit Quellfeld „unbekannt“ lösen.
+- [x] (chef-288 bis chef-291) Regionen-Wechsel, leeres Turnierverzeichnis, Twitch-Ausfall, unlesbare Games in „Meine Replays“.
+- [ ] **Spieltag-Bestenlisten: Quoten-Listen fehlen bei Feldern mit höchstens 2 Matches** (Mindestzahl max(3, …)) – Helfer-Vorschlag „Mindestzahl höchstens meiste Matches“ nicht übernommen (Quote aus 1 Match); Betreiber fragen.
+- [ ] **Twitch-Tabelle: 0 Raids als „—“**, Kachel zeigt „0“ – klein, nur VIP.
+- [ ] **Replays: gleiche Startzeit zweier Games ohne feste Reihenfolge** (S42 LCQ NAC) – Reihenfolge festlegen würde Game-Nummern/Adressen verschieben; Betreiber fragen.

@@ -6358,5 +6358,93 @@
     "modell": "Sonnet (von Opus geprüft und auf 1.000 begrenzt)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-288",
+    "datum": "2026-11-02T01:20:34Z",
+    "titel": "Regionen: kein altes Feld unter neuer Überschrift",
+    "kurz": "Regionen → EU, dann NAC anklicken: kurz keine EU-Spieler mehr unter „NAC“.",
+    "markieren": [
+      "text:The strongest of the season"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Wechsel der Region oder Saison standen die Spieler der vorigen Region unter der neuen Überschrift, bis die Antwort kam – bei Ausfall dauerhaft.",
+    "was": "Beim Wechsel wird das alte Feld sofort geleert; dann kommt der Ladeschirm oder „gerade nicht erreichbar“.",
+    "ansehen": [
+      "/statistics?bereich=regional&region=NAC"
+    ],
+    "commits": [
+      "7c1b7e5018df690e3238f45557d7ad3f4f14593d"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-289",
+    "datum": "2026-11-02T01:20:34Z",
+    "titel": "Turnierverzeichnis: leer heißt „Nichts gefunden“",
+    "kurz": "Unsichtbar: Turniere einer leeren Saison zeigen „Nichts gefunden“ statt ewig „Lädt“.",
+    "markieren": [
+      "text:Nothing found."
+    ],
+    "bereich": "Statistik",
+    "warum": "Antwortete das Verzeichnis mit einer leeren Liste, stand für immer „Wird geladen …“.",
+    "was": "Die Seite merkt sich, dass die Antwort da ist, und zeigt dann „Nichts gefunden.“",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "commits": [
+      "c15fd766943a6ac9ec02ca54c7cfb644bef10b03"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-290",
+    "datum": "2026-11-02T01:20:34Z",
+    "titel": "Twitch-Statistik: Ausfall statt leerer Kanal",
+    "kurz": "Unsichtbar: Twitch-Statistik meldet bei Ausfall „nicht erreichbar“ statt leerer Werte.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Ablage aus, gab es einen Server-Fehler oder der Kanal sah aus, als hätte er noch keine Streams.",
+    "was": "Jetzt kommt eine geordnete Antwort mit dem Hinweis, dass die Statistik gerade nicht erreichbar ist.",
+    "ansehen": [
+      "/twitch-statistik"
+    ],
+    "commits": [
+      "3b0024b9d9b68c22e18134616e66431cc9876f83"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-291",
+    "datum": "2026-11-02T01:20:34Z",
+    "titel": "Meine Replays: unlesbares Game zeigt Strich",
+    "kurz": "Meine Replays → Game-Karten: nicht lesbares Game zeigt „– Elims“ statt „0 Elims“.",
+    "markieren": [
+      "text:Elims"
+    ],
+    "bereich": "Statistik",
+    "warum": "Ließ sich ein Game nicht lesen, stand auf der Karte „0 Elims“, obwohl der Spieler vielleicht 5 hatte.",
+    "was": "Dann steht ein Strich; lesbare Games bleiben unverändert.",
+    "ansehen": [
+      "/replays/meine"
+    ],
+    "commits": [
+      "4656812add3c613da2a1090d8af567abf7945523"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
