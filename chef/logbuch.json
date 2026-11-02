@@ -7853,5 +7853,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-355",
+    "datum": "2026-11-02T02:51:35Z",
+    "titel": "Statistik-Start: Elims-Liste bei Gleichstand fest geordnet",
+    "kurz": "Statistik → Elims-Liste: bei gleichen Elims steht jetzt der mit mehr Schaden vorn.",
+    "markieren": [
+      "text:Elims"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleich vielen Elims entschied in der Elims-Liste die Einlese-Reihenfolge.",
+    "was": "Jetzt entscheidet der Schaden, zuletzt eine feste Kennung – wie in den anderen Bestenlisten. Wirkt nach der nächsten Neuberechnung.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

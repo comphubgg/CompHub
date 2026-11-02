@@ -1677,7 +1677,9 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
       return { ...s, heimat, jeRegion: jeRegionSumme };
     })
       .filter((s) => s.elims > 0 || (s.opensElims ?? 0) > 0)
-      .sort((a, b) => b.elims - a.elims || (b.opensElims ?? 0) - (a.opensElims ?? 0))
+      .sort((a, b) => b.elims - a.elims || (b.opensElims ?? 0) - (a.opensElims ?? 0)
+        // Bei Gleichstand wie in nachKennzahl: mehr Schaden, zuletzt die Konto-Id - nie die Einlese-Reihenfolge.
+        || (b.damage ?? 0) - (a.damage ?? 0) || String(a.epicId ?? '').localeCompare(String(b.epicId ?? '')))
       .slice(0, LISTEN_LAENGE);
     elimsListe.plaetze = plaetze;
   }
