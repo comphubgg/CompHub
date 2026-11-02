@@ -123,7 +123,7 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
         <dl className="mt-3 grid grid-cols-3 gap-3 border-y border-white/[0.06] py-3">
           <Fakt titel="Preisgeld" wert={e.preisgeld ?? '–'} />
           <Fakt titel="Teams" wert={e.teams ? String(e.teams) : '–'} />
-          <Fakt titel={e.lan ? 'Austragungsort' : 'Typ'} wert={e.lan ? (e.ort ?? 'LAN') : 'Online'} />
+          <Fakt titel={e.lan ? 'Austragungsort' : 'Typ'} wert={e.lan ? (e.ort ?? '–') : 'Online'} />
         </dl>
         <Spitze e={e} />
         {link && <p className="mt-auto pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-sky-400"><T>Karte und Leaderboard</T> →</p>}
@@ -236,7 +236,7 @@ function Aufmacher({ e, nr, aktuell }: { e: FncsEreignis; nr: number; aktuell: b
         </div>
         <div className="flex flex-col gap-5 p-5 sm:p-7">
           <dl className="grid grid-cols-3 gap-2">
-            {([['Preisgeld', e.preisgeld ?? '–'], ['Teams', e.teams ? String(e.teams) : '–'], [e.lan ? 'Austragungsort' : 'Typ', e.lan ? (e.ort ?? 'LAN') : 'Online']] as const).map(([titel, wert]) => (
+            {([['Preisgeld', e.preisgeld ?? '–'], ['Teams', e.teams ? String(e.teams) : '–'], [e.lan ? 'Austragungsort' : 'Typ', e.lan ? (e.ort ?? '–') : 'Online']] as const).map(([titel, wert]) => (
               <div key={titel} className="min-w-0 rounded-xl border border-white/[0.07] bg-zinc-950 px-3 py-2.5">
                 <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></dt>
                 <dd className="mt-0.5 truncate text-base font-black text-slate-50">{wert}</dd>

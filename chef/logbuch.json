@@ -8752,5 +8752,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-395",
+    "datum": "2026-11-02T03:28:04Z",
+    "titel": "FNCS: unbekannter Austragungsort als Strich",
+    "kurz": "FNCS, oberste Karte Global Championship 2026: „Venue“ zeigt „–“ statt „LAN“.",
+    "markieren": [
+      "text:Venue",
+      "text:Global Championship 2026"
+    ],
+    "bereich": "FNCS",
+    "warum": "Bei unbekanntem Ort stand „LAN“ unter „Austragungsort“ – das sieht aus wie ein Ortsname.",
+    "was": "Jetzt steht ein Strich, bis der Ort bekannt ist.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
