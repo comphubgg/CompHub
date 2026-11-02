@@ -32,16 +32,6 @@ import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
 import WegKasten from './WegKasten';
 import AuswertungsStand from './AuswertungsStand';
-import ReiterInfo from '@/app/components/ReiterInfo';
-
-/** Ein Satz je Reiter fuer das kleine "i" (ReiterInfo) - was dahinter steht (Betreiber, 2.11.2026). */
-const REITER_ERKLAERUNG: Record<string, string> = {
-  Leaderboard: 'Der Endstand des Spieltags: Platz, Punkte, Siege und Elims jedes Teams.',
-  Matches: 'Jedes einzelne Match des Spieltags mit Sieger und den Werten aus den Replays.',
-  'Spieler-Stats': 'Die Werte jedes Spielers über den ganzen Spieltag, etwa Schaden, Elims und Genauigkeit.',
-  'Team-Stats': 'Die Werte jedes Teams über den ganzen Spieltag zusammengezählt.',
-  Streams: 'Wer diesen Cup gerade live auf Twitch spielt.',
-};
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -3055,13 +3045,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ]).map(([id, name]) => (
             <button key={id}
               onClick={() => setReiter(id as typeof reiter)}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === id
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               {name === 'Matches' || name === 'Streams'
                 ? name : <T>{name}</T>}
-              {REITER_ERKLAERUNG[name] && <ReiterInfo text={REITER_ERKLAERUNG[name]} />}
             </button>
           ))}
 
@@ -3076,34 +3065,31 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           {wegDa && (
             <button
               onClick={() => setReiter('weg')}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === 'weg'
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               <T>Der Weg ins Grand Final</T>
-              <ReiterInfo text="Welche Runde zu welcher führt und wie viele Plätze jeweils weiterkommen." />
             </button>
             )}
           {kartenAnzahl > 0 && (
             <button
               onClick={() => setReiter('karte')}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === 'karte'
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               <T>Karte</T>
-              <ReiterInfo text="Wo die Teams in diesem Cup landen." />
             </button>
             )}
           {preise?.vorhanden && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
             <button
               onClick={() => setReiter('preis')}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === 'preis'
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               <T>Preispool</T>
-              <ReiterInfo text="Was es für welchen Platz gibt: Preisgeld und Gegenstände." />
             </button>
           )}
 
@@ -3119,12 +3105,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           {archivAnzahl > 0 && cup?.art !== 'ranked' && (
             <button
               onClick={() => setReiter('archiv')}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === 'archiv'
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               <T>Archiv</T>
-              <ReiterInfo text="Fotos und Videos von diesem Event." />
               <span className="ml-1.5 text-slate-500">{archivAnzahl}</span>
             </button>
           )}
@@ -3141,12 +3126,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           {/* About steht immer ganz hinten. */}
           <button
             onClick={() => setReiter('about')}
-            className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
               reiter === 'about'
                 ? 'bg-sky-500/10 text-sky-400'
                 : 'text-slate-400 hover:text-slate-200'}`}>
             About
-            <ReiterInfo text="Infos zum Cup: Karte, Format, Plattformen, Datum und Regeln." />
           </button>
 
           {/*

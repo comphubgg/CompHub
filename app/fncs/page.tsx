@@ -21,7 +21,6 @@ import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
-import ReiterInfo from '@/app/components/ReiterInfo';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -374,7 +373,7 @@ export default function FncsSeite() {
     return v >= c ? 'bg-emerald-800 text-white' : v >= b ? 'bg-emerald-500/80 text-white' : v >= a ? 'bg-amber-400/90 text-zinc-950' : 'bg-rose-500/80 text-white';
   };
 
-  const reiter = (an: boolean) => `inline-flex items-center rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
+  const reiter = (an: boolean) => `rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
     <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
@@ -388,8 +387,8 @@ export default function FncsSeite() {
             <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Alle Endspiele der FNCS, die das Archiv kennt - mit Platzierungen und den meisten Eliminierungen.</T></p>
           </div>
           <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-zinc-950 p-1">
-            <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events<ReiterInfo text="Alle FNCS-Endspiele mit Gewinnern und Bestenliste." /></button>
-            <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats<ReiterInfo text="Die Bestwerte über alle FNCS-Finals seit Chapter 5 Season 3." /></button>
+            <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
+            <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats</button>
             {/* FNCS Solos: eine eigene Seite fuer alle Regionen (Heats, Last Chance, Finale, Karte). */}
             <Link href="/globals-solos" className={reiter(false)}>Solos</Link>
           </div>

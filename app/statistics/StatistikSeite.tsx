@@ -28,7 +28,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
-import ReiterInfo from '@/app/components/ReiterInfo';
+import StatistikIntro from './StatistikIntro';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
 import { bildPfad } from '@/app/components/ArchivTeile';
 import type { GalerieEintrag } from '@/lib/galerieTypen';
@@ -334,17 +334,6 @@ const BEREICHE: Array<[Bereich, string]> = [
  * waehlen und gegeneinanderstellen. Die fertigen Uebersichten - auch die
  * Kopf-an-Kopf-Zahlen darin - sieht jeder.
  */
-/** Ein Satz je Bereich fuer das kleine "i" an der Leiste (ReiterInfo, Betreiber 2.11.2026). */
-const BEREICH_ERKLAERUNG: Partial<Record<Bereich, string>> = {
-  start: 'Das Wichtigste auf einen Blick: Rekorde, Bestwerte und die Spieler, die gerade vorne sind.',
-  turniere: 'Alle ausgewerteten Cups mit Ergebnissen und Statistiken.',
-  regional: 'Die Spieler einer Region im Vergleich.',
-  spieler: 'Alle Spieler mit ihren Werten. Ein Klick öffnet das Profil.',
-  jahr: 'Das laufende Jahr: Preisgeld, Siege und Bestwerte.',
-  orgs: 'Die E-Sports-Teams mit ihren Spielern und Preisgeldern.',
-  vergleich: 'Zwei Spieler direkt gegeneinander vergleichen.',
-};
-
 const VIP_BEREICHE: Array<[Bereich, string]> = [
   ['vergleich', 'Duell'],
 ];
@@ -4211,16 +4200,16 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   }, [bereich, sichtbareBereiche.length]);
 
   const bereichsLeiste = (
-    <div className="relative mb-6 max-w-full">
+    <div className="mb-6 flex max-w-full items-center gap-2">
+    <div className="relative min-w-0 flex-1">
     <nav ref={leisteRef} onScroll={pruefeLeiste} aria-label={t('Statistiken')}
       className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
       {sichtbareBereiche.map(([wert, titel]) => (
-        <button key={wert} type="button" onClick={() => wechsleBereich(wert)} aria-current={bereich === wert ? 'page' : undefined}
+        <button key={wert} type="button" onClick={() => wechsleBereich(wert)} aria-current={bereich === wert ? 'page' : undefined} data-intro={`bereich-${wert}`}
           className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${bereich === wert
             ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
           <Zeichen art={wert} />
           <T>{titel}</T>
-          {BEREICH_ERKLAERUNG[wert] && <ReiterInfo text={BEREICH_ERKLAERUNG[wert]!} />}
         </button>
       ))}
     </nav>
@@ -4234,11 +4223,15 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
       </div>
     ))}
     </div>
+    {/* Ein "i" fuer alles: kurze Fuehrung durch die Seite (StatistikIntro) - neben der Leiste, nicht darin: am Handy laege es sonst am Ende
+        der seitlich wischbaren Leiste und waere nicht zu sehen. */}
+    <StatistikIntro bereiche={sichtbareBereiche.map(([w, titel]) => [w, titel] as [string, string])} />
+    </div>
   );
 
   /** Die Suche nach einem Spieler - sie steht immer oben rechts, auch im Profil und in der vollen Liste (Betreiber, 26.10.2026). */
   const kopfSuchfeld = (
-    <div className="relative ml-auto w-56 sm:w-72">
+    <div className="relative ml-auto w-56 sm:w-72" data-intro="suche">
       <input value={kopfSuche}
         onChange={(e) => {
           setKopfSuche(e.target.value);

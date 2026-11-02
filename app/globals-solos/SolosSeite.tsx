@@ -17,7 +17,6 @@ import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } 
 import { Karte } from './Bausteine';
 import WegPlan from './WegPlan';
 import Preisgeld from './Preisgeld';
-import ReiterInfo from '@/app/components/ReiterInfo';
 
 /*
  * FNCS Solos - die Seite, komplett neu (Betreiber, 19.10.2026: "komplett neu, nicht mal aehnlich - in meinem neuen Stil, in Weiss und in Schwarz gut,
@@ -35,13 +34,6 @@ import ReiterInfo from '@/app/components/ReiterInfo';
 type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte';
 type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender';
 const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder']];
-/** Ein Satz je Ansicht fuer das kleine "i" (ReiterInfo). */
-const ANSICHT_ERKLAERUNG: Record<Ansicht, string> = {
-  karte: 'Wo jeder Spieler dieses Spieltags landet.',
-  bestenliste: 'Der Stand des Spieltags mit den Punkten jedes Spielers.',
-  spieler: 'Alle Spieler dieses Spieltags mit Foto, Land und Werten.',
-  laender: 'Wie viele Spieler aus welchem Land dabei sind.',
-};
 const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld' || x === 'karte';
 
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
@@ -478,10 +470,10 @@ export default function SolosSeite() {
 
         {/* Erste Zeile: die Stufen */}
         <nav className="flex flex-wrap items-center gap-1 self-start rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm" aria-label={t('Stufe')}>
-          <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}><T>Der Weg</T><ReiterInfo text="Alle Stufen bis zum Grand Final und wie viele Spieler aus jeder Runde weiterkommen." /></button>
-          <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}><T>Qualifiziert</T><ReiterInfo text="Wer schon sicher im Finale steht und über welchen Weg." /></button>
+          <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}><T>Der Weg</T></button>
+          <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}><T>Qualifiziert</T></button>
           {/* Vor dem ersten Spieltag: die leere Karte der Insel, auf der gespielt wird (Betreiber, 2.11.2026: "einfach mal eine leere Map da haben"). */}
-          {!spieltage.length && daten?.leereKarte && <button type="button" onClick={() => waehleStufe('karte')} className={knopf(stufe === 'karte')}><T>Karte</T><ReiterInfo text="Die Insel, auf der diese Reihe gespielt wird. Die Landepunkte kommen mit dem ersten Spieltag." /></button>}
+          {!spieltage.length && daten?.leereKarte && <button type="button" onClick={() => waehleStufe('karte')} className={knopf(stufe === 'karte')}><T>Karte</T></button>}
           {spieltage.length > 0 && <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />}
           {spieltage.map((x) => (
             <button key={x.windowId} type="button" onClick={() => waehleStufe(x.name, ansicht)} className={knopf(stufe === x.name)}>
@@ -490,7 +482,7 @@ export default function SolosSeite() {
             </button>
           ))}
           <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />
-          <button type="button" onClick={() => waehleStufe('preisgeld')} className={knopf(stufe === 'preisgeld')}><T>Preisgeld</T><ReiterInfo text="Was es in dieser Reihe für welchen Platz gibt." /></button>
+          <button type="button" onClick={() => waehleStufe('preisgeld')} className={knopf(stufe === 'preisgeld')}><T>Preisgeld</T></button>
         </nav>
 
         {/* Zweite Zeile: die Ansicht der gewaehlten Stufe, rechts */}
@@ -498,7 +490,7 @@ export default function SolosSeite() {
           <div className="flex justify-end">
             <nav className="flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm" aria-label={t('Ansicht')}>
               {ANSICHTEN.map(([k, titel]) => (
-                <button key={k} type="button" onClick={() => waehleStufe(stufe, k)} className={knopf(ansicht === k)}><T>{titel}</T><ReiterInfo text={ANSICHT_ERKLAERUNG[k]} /></button>
+                <button key={k} type="button" onClick={() => waehleStufe(stufe, k)} className={knopf(ansicht === k)}><T>{titel}</T></button>
               ))}
             </nav>
           </div>
