@@ -39,7 +39,8 @@ async function liesJson<T>(p: string, leer: T): Promise<T> {
 
 async function lade(url: string): Promise<Buffer | null> {
   try {
-    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(60_000) });
+    // Mit Browser-Kennung: fortnite.gg weist Abrufe ohne sie ab (2.11.2026) - deshalb kam am Season-Start nur das falsche Bild von fortnite-api.com.
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(60_000), headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CompHub' } });
     return r.ok ? Buffer.from(await r.arrayBuffer()) : null;
   } catch { return null; }
 }
@@ -96,6 +97,26 @@ export async function saisonKartenPflegen(fenster: Array<{ windowId: string; beg
 
   let bild: Buffer | null = null;
   let titel = '';
+  /*
+   * Selbstheilung: Stammt die Insel der laufenden Saison von fortnite-api.com (Titel ohne "Update"), gibt es bei fortnite.gg aber schon das
+   * Bild "<N>.00", wird sie ersetzt. Am 1.11.2026 lag als S43 eine ganz andere Insel von fortnite-api.com da.
+   */
+  if (inseln[brSchluessel(laufend)]) {
+    const titelJetzt = (await liesJson<Kartenbild[]>(VERZEICHNIS, [])).find((k) => k.id === inseln[brSchluessel(laufend)])?.titel ?? '';
+    if (!/Update|Stand/.test(titelJetzt)) {
+      const ersatz = await patchBild(laufend);
+      if (ersatz) {
+        const id = inseln[brSchluessel(laufend)];
+        await fs.writeFile(path.join(ORDNER, `${id}.png`), ersatz);
+        const karten = await liesJson<Kartenbild[]>(VERZEICHNIS, []);
+        const i = karten.findIndex((k) => k.id === id);
+        const eintrag: Kartenbild = { id, titel: `Battle Royale - S${laufend} (Update ${laufend}.00)`, datei: `${id}.png`, hochgeladen: jetzt, groesse: ersatz.length };
+        if (i >= 0) karten[i] = eintrag; else karten.push(eintrag);
+        await fs.writeFile(VERZEICHNIS, JSON.stringify(karten, null, 2), 'utf8');
+        log.push(`S${laufend}: Insel durch das Bild von fortnite.gg ersetzt (vorher fortnite-api.com)`);
+      }
+    }
+  }
   if (!inseln[brSchluessel(laufend)]) {
     const vorige = zugeordnet.filter((n) => n < laufend).sort((a, b) => b - a)[0];
     const heute = await karteVonHeute();
