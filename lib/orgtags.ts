@@ -10,7 +10,14 @@
 //   npm run orgtags
 // aus dem Namensverzeichnis neu erzeugen.
 
+/*
+ * Von Hand dazu (Betreiber, 2.11.2026): Orgs, die nur in den Grand-Final-Daten frueherer Jahre vor dem Namen stehen und darum
+ * nicht aus dem Namensverzeichnis kommen - die Global Championship 2024 zeigte "Valiant Trulex" statt "Trulex".
+ */
+const VON_HAND = ['valiant', 'ovation', 'aight'];
+
 export const ORGTAGS: ReadonlySet<string> = new Set([
+  ...VON_HAND,
   '1p', '1tr', '1up', '1x', '21', '2r', '7ven', '95v', 'a1st', 'ace',
   'aevion', 'ag', 'agal', 'ahl', 'al', 'alahli', 'almhmd', 'alp', 'alpha',
   'alpha7', 'alula', 'amoris', 'arm', 'armr', 'arw', 'asc', 'ascend',
