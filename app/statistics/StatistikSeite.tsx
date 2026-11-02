@@ -112,7 +112,7 @@ interface Spieler {
   distanz: number; timeInStorm: number; timeAlive: number;
   quote: number; genauigkeit: number; elimsProMatch: number; damageProMatch: number;
   /** Matches aus Tagen mit Eliminierungen bzw. Schaden - Nenner der Je-Match-Werte (nur in vollen Zeilen). */
-  matchesElims?: number; matchesSchaden?: number;
+  matchesElims?: number; matchesSchaden?: number; matchesVoll?: number; matchesZeit?: number;
 }
 
 interface Turnier {
@@ -623,10 +623,19 @@ function mitEinheit(text: string, einheit: string, sprache: 'de' | 'en'): string
  * erhalten" - gemeint ist aber "dazu liegen keine Zahlen vor" (z. B. Zeilen nur von Epic ohne Replay). Fehlt das Nennerfeld ganz
  * (schlanke Listenzeile), gilt der Wert als bekannt. Ein echtes 0 (Zaehler 0, Nenner > 0) bleibt 0.
  */
+function schadenNennerFehlt(sp: Partial<Spieler>): boolean {
+  if (sp.matchesSchaden !== undefined) return sp.matchesSchaden === 0;
+  return sp.matchesElims !== undefined || sp.matchesVoll !== undefined || sp.matchesZeit !== undefined;
+}
 function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string): boolean {
   if (!sp) return false;
   if (feld === 'quote') return sp.damageTaken !== undefined && !(sp.damageTaken > 0);
-  if (feld === 'genauigkeit') return sp.shots !== undefined && !(sp.shots > 0);
+  if (feld === 'genauigkeit') return (sp.shots !== undefined && !(sp.shots > 0)) || sp.matchesVoll === 0;
+  /*
+   * Schaden selbst: die Antwort laesst einen Nenner weg, der 0 waere. Traegt die Zeile andere Nenner (neuere Antwort), ist ein
+   * fehlendes matchesSchaden also 0 = unbekannt, kein echter Nullwert. Aeltere Antworten ohne jeden Nenner bleiben wie bisher.
+   */
+  if (feld === 'damage') return schadenNennerFehlt(sp);
   /*
    * Je Match: der Nenner sind nur die Matches der Tage, die den Wert fuehren (matchesElims / matchesSchaden, lib/szeneStats) -
    * eigene Tage ohne gesicherte Kills oder ohne Schaden zaehlen nicht mit. Ein Spieler mit 12 Matches, aber 0 Matches mit Schaden
@@ -637,6 +646,7 @@ function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string
     return n !== undefined && !(n > 0);
   }
   if (feld === 'damageProMatch') {
+    if (schadenNennerFehlt(sp)) return true;
     const n = sp.matchesSchaden ?? sp.matches;
     return n !== undefined && !(n > 0);
   }
@@ -5486,7 +5496,7 @@ export default function StatistikSeite() {
                             <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">{grossName(sp.anzeige, sp.gepflegt)}</span>
                           </span>
                           <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
-                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
+                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', quotientUnbekannt(sp, 'damage') ? '—' : kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
                               <span key={l} className="min-w-0">
                                 <span className="block truncate text-[8px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
                                 <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
@@ -5897,7 +5907,7 @@ export default function StatistikSeite() {
                                          bg-black/45 backdrop-blur-sm">
                           {([['Quote', feldText(sp, 'quote', 2, sprache), true],
                              ['Elims', kurzZahl(sp.elims, sprache), false],
-                             ['Schaden', kurzZahl(sp.damage, sprache), false],
+                             ['Schaden', quotientUnbekannt(sp, 'damage') ? '—' : kurzZahl(sp.damage, sprache), false],
                              ...(EXTRA_SPALTE[sort] ? [[EXTRA_SPALTE[sort].kopf,
                                feldText(sp, sort, EXTRA_SPALTE[sort].nachkomma, sprache), false]]
                                // Die Kachel kennt Quote, Elims und Schaden; Kopftreffer, Trefferquote und Matches stehen nur in der Listenansicht - sonst sortiert die Kachel nach einem Wert, den man nicht sieht.
@@ -5961,7 +5971,7 @@ export default function StatistikSeite() {
                             <td className="px-3 py-2.5 text-right font-bold tabular-nums
                                            text-sky-400">{zahl(sp.elims, 0, sprache)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
-                              {zahl(sp.damage, 0, sprache)}
+                              {feldText(sp, 'damage', 0, sprache)}
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
                               {feldText(sp, 'quote', 2, sprache)}
