@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-02T03:38:37Z",
-  "macheGerade": "Runde 19 läuft.",
+  "letzteRunde": "2026-11-02T04:16:56Z",
+  "macheGerade": "Runde 19 fertig: 31 Verbesserungen (chef-414 bis chef-444), u. a. Suche findet Namen mit kyrillischen Buchstaben (Statistik, Cups, Power Rankings, Scrims), Cup-Matches und Cup-Spielerwerte mit Strich statt erfundener 0, Kurven im Spielerfenster mit Lücken, Orgs-Preisgeld am Wechseltag nicht mehr doppelt, Remix-Saison bei Chapter 5, Scrims-Rennen und Regionen EU zuerst, Konto-Ausfall mit Hinweis, Ladeschirme, Übersetzungen, Schrift 11 px, Tausendertrennung.",
   "naechstes": [
-    "WICHTIG weiterhin: chef-106 freigeben – die Statistik-Startantwort ist live immer noch alt; viele Statistik-Korrekturen wirken erst nach der Neuberechnung.",
-    "Bitte entscheiden: chef-409 (Org-Namen Valiant/Ovation/Aight entfernen – berührt auch Zuordnungen).",
-    "Offene Fragen weiter: Schnittstellen /api/br-statistik und /api/eigene-werte löschen? FNCS-Elims-Farben, Events-Zeitzone, Tierlist-Pool-Reihenfolge, Orgs ohne Preisgeld alphabetisch – wonach ordnen?",
-    "Nächste Runde: Kurven im Spielerfenster mit Lücken statt 0, cup-matches-API Strich statt 0, LiveDemnaechst ohne Ende, Scrims späte Antworten."
+    "WICHTIG: chef-106 freigeben – nachgemessen am 02.11.: Statistik-Bestenlisten enden beim 10.10., das Profil kennt fünf neuere Spieltage (peterbot S42: Liste 57 Matches/152 Elims, Profil 83/208).",
+    "Bitte entscheiden: chef-409 (Org-Namen Valiant/Ovation/Aight) und welche Regionen-Reihenfolge gilt (Statistik: …ASIA, OCE, ME – sonst: …ASIA, ME, OCE).",
+    "Offene Fragen: alphabetische Listen ohne klares Ersatzkriterium (Streamer, Kartenlisten, Flaggenwahl), OBS-Overlay-Schrift 8–9 px, /api/br-statistik und /api/eigene-werte löschen?",
+    "Nächste Runde: Lint-Fehler (react-hooks/set-state-in-effect) in den Kartenseiten, Live-Status-Merker, weitere Statistik-Querprüfungen gegen /api."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, 4 eigene Verbesserungen, 3 Helfer-Entwürfe korrigiert, 1 zurückgehalten) + Sonnet (19 Prüfer in 5 Wellen)",
-  "laeuftSeit": "2026-11-02T03:47:00Z"
+  "modell": "Opus (Planung, Prüfung, 12 eigene Verbesserungen, Helfer-Ergebnisse auf aktuellen Stand übertragen, 6 Helfer-Entwürfe verworfen weil schon erledigt oder geraten) + Sonnet (17 Helfer in 5 Wellen)"
 }
