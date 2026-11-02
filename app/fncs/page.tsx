@@ -21,6 +21,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { elimsAuswahl } from '@/lib/fncsReihenfolge';
+import { vergleichbar } from '@/lib/homoglyph';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -347,11 +348,12 @@ export default function FncsSeite() {
     ? 'bg-sky-500 text-white' : 'border border-white/10 bg-zinc-900 text-slate-300 hover:border-sky-500/60 hover:text-sky-300'}`;
   const zeilen = useMemo(() => {
     if (!alt) return [];
-    const q = suche.trim().toLowerCase();
+    // Fremdalphabet-Zwillinge zaehlen als Latein: "Pаblowingu" (kyrillisches а) und "Мoneymaker" fand die Suche "pablowingu" bzw. "moneymaker" sonst nicht.
+    const q = vergleichbar(suche.trim());
     // Der Platz kommt aus der ganzen Liste, nicht aus den Treffern: wer "Tjino" sucht, sieht seinen echten Platz, nicht die 1.
     return elimsAuswahl(alt.spieler, sortNach)
       .map((s, i) => ({ ...s, platz: i + 1 }))
-      .filter((s) => !q || s.name.toLowerCase().includes(q));
+      .filter((s) => !q || vergleichbar(s.name).includes(q));
   }, [alt, sortNach, suche]);
   /**
    * Die Farbe einer Zelle - wie auf dem Vorbild: je Major in vier Stufen, rot (wenige Eliminierungen) bis dunkelgruen (viele).

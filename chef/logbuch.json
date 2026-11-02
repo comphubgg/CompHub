@@ -8732,5 +8732,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-394",
+    "datum": "2026-11-02T03:27:57Z",
+    "titel": "FNCS-Suche findet Namen mit fremden Buchstaben",
+    "kurz": "FNCS → Allzeit-Statistik, Suche „pablowingu“: findet jetzt Pаblowingu und Мoneymaker.",
+    "markieren": [
+      "css:input[type=search]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Manche Namen enthalten kyrillische Buchstaben, die wie lateinische aussehen – die Suche fand sie nicht.",
+    "was": "Die Suche behandelt solche Doppelgänger-Buchstaben wie lateinische.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
