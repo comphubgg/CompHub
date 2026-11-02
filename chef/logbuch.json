@@ -8324,5 +8324,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-376",
+    "datum": "2026-11-02T03:20:51Z",
+    "titel": "Cup-Spielerfenster: Platz und Fehlertext übersetzt",
+    "kurz": "Cup → Spieler anklicken: „Platz #“ auf Deutsch, Fehlertext auch auf Englisch.",
+    "markieren": [
+      "text:Rank #"
+    ],
+    "bereich": "Statistik",
+    "warum": "„Rank #“ blieb im deutschen Modus englisch, der Ausfall-Hinweis stand für englische Besucher auf Deutsch.",
+    "was": "Beides läuft jetzt über die Übersetzung.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

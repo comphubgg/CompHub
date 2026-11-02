@@ -254,7 +254,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     setFehler('');
     return fetch(`/api/spieler-detail?event=${encodeURIComponent(eventId)}&window=${encodeURIComponent(windowId)}&id=${id}`)
       .then((r) => r.json())
-      .then((j: Antwort) => { if (j?.ok) { setDaten(j); setGeholt(Date.now()); } else setFehler(j?.error ?? 'Epic liefert gerade nichts.'); })
+      .then((j: Antwort) => { if (j?.ok) { setDaten(j); setGeholt(Date.now()); } else setFehler('Epic liefert gerade nichts.'); })
       .catch(() => setFehler('Epic liefert gerade nichts.'))
       .finally(() => setLaedt(false));
   }, [eventId, windowId]);
@@ -438,7 +438,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 </div>
                 <div className="mt-3 flex items-baseline justify-between gap-3">
                   <p className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-50">Rank #{daten.rank?.toLocaleString(ort) ?? "–"}</span>
+                    <span className="text-2xl font-black text-slate-50">{t('Rank')} #{daten.rank?.toLocaleString(ort) ?? '–'}</span>
                     {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top.toLocaleString(ort)} %</span>}
                   </p>
                   <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} {t('points')}</p>

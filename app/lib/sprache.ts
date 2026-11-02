@@ -43,6 +43,7 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Lieblingsspieler
+  'Epic liefert gerade nichts.': 'Epic is not returning any data right now.',
   'Deine Spieler': 'Your players',
   'Zu „Deine Spieler“ hinzufügen': 'Add to “Your players”',
   'Aus „Deine Spieler“ entfernen': 'Remove from “Your players”',
@@ -4987,7 +4988,7 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Time in Storm': 'Zeit im Sturm', 'Players Revived': 'Wiederbelebte Spieler', 'Got Revived': 'Selbst wiederbelebt',
   'Players Rebooted': 'Zurückgeholte Spieler', 'Got Rebooted': 'Selbst zurückgeholt',
   'Placement': 'Platzierung', 'Elimination': 'Eliminierung', 'Match number': 'Spielnummer', 'Cumulative': 'Aufsummiert',
-  'Last update': 'Zuletzt aktualisiert', 'Next update': 'Nächste Aktualisierung', 'minute': 'Minute', 'minutes': 'Minuten',
+  'Rank': 'Platz', 'Last update': 'Zuletzt aktualisiert', 'Next update': 'Nächste Aktualisierung', 'minute': 'Minute', 'minutes': 'Minuten',
   'Close': 'Schließen',
   ['Guest mode active: editing is disabled. Log in to manage your own folders.']:
     'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu '
