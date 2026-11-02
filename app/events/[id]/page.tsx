@@ -4018,7 +4018,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         */}
                       {fenster?.qualifiziert === e.rank && (
                         <tr>
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={mitPreis ? 8 : 7} className="p-0">
                             <div className="flex items-center gap-3 border-y
                                             border-amber-500/40 bg-amber-500/10
                                             px-4 py-1">
@@ -4410,7 +4410,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-400">
-                                  {t.ausReplay ? '—' : `${Math.floor(t.timeAlive / 60)}:${String(t.timeAlive % 60).padStart(2, '0')}`}
+                                  {t.ausReplay || !(t.timeAlive > 0) ? '—' : `${Math.floor(Math.round(t.timeAlive) / 60)}:${String(Math.round(t.timeAlive) % 60).padStart(2, '0')}`}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-600">

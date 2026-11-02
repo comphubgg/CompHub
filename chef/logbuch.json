@@ -8962,5 +8962,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-404",
+    "datum": "2026-11-02T03:34:03Z",
+    "titel": "Rundentabelle: Strich statt 0:00, Qualifikationslinie voll",
+    "kurz": "Cup → Rounds: fehlende Überlebenszeit „—“ statt „0:00“; Qualifikationslinie über volle Breite.",
+    "markieren": [
+      "text:qualify"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlende Zeiten sahen aus wie echte 0:00, Bruchteile ergaben „3:5.7“; die Linie war bei Preisgeld-Spalte zu kurz.",
+    "was": "Zeiten sind gerundet, fehlende zeigen einen Strich; die Linie reicht über alle Spalten.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
