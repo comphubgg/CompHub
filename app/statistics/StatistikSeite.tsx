@@ -4723,7 +4723,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                             justify-center text-4xl text-zinc-700">?</div>
                           )}
                           <span className="absolute right-3 top-3 rounded bg-sky-500 px-2
-                                           py-0.5 text-[10px] font-bold tracking-wider
+                                           py-0.5 text-[11px] font-bold tracking-wider
                                            text-white"><T>TOP</T></span>
                           <span className="absolute bottom-3 left-3 flex items-center gap-2">
                             <TeamFlagge groesse={22}
@@ -4759,7 +4759,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                             * beide gleich gebaut.
                             */}
                           <div className="border-b border-zinc-800 px-5 py-4">
-                            <p className="text-[10px] font-semibold uppercase
+                            <p className="text-[11px] font-semibold uppercase
                                           tracking-[0.18em] text-slate-500">
                               <T>Turnier</T>
                             </p>
@@ -4796,7 +4796,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                               // Deutsch etwa "Schadensquote" - darf die
                               // Reihe nicht auseinanderziehen.
                               <div key={l} className="h-[78px] bg-zinc-950 px-5 py-3.5">
-                                <p className="truncate text-[10px] font-semibold
+                                <p className="truncate text-[11px] font-semibold
                                               uppercase tracking-[0.14em]
                                               text-slate-500"><T>{l}</T></p>
                                 <p className="mt-0.5 truncate text-2xl font-bold
@@ -4810,7 +4810,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     </section>
                   ); })()}
 
-                  <p className="mb-2 text-[10px] font-semibold uppercase
+                  <p className="mb-2 text-[11px] font-semibold uppercase
                                 tracking-[0.18em] text-slate-500">
                     <T>Bestenlisten dieses Spieltags</T>
                   </p>
@@ -4825,7 +4825,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                         className="overflow-hidden rounded-xl border border-zinc-800
                                    bg-zinc-950/60">
                         <p className="flex items-center gap-2 border-b border-zinc-800
-                                      bg-zinc-900/40 px-3 py-2 text-[10px] font-semibold
+                                      bg-zinc-900/40 px-3 py-2 text-[11px] font-semibold
                                       uppercase tracking-[0.14em] text-slate-400">
                           <T>{l.titel}</T>
                           {/* Dahinter das ganze Feld, nicht nur die Spitze. */}
@@ -4871,7 +4871,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {(tabelleLaedt || (spieltagTabelle?.length ?? 0) > 0) && (
                     <section className="mt-6">
                       <div className="mb-2 flex flex-wrap items-center gap-3">
-                        <p className="text-[10px] font-semibold uppercase
+                        <p className="text-[11px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500">
                           {tabelleGesamt ? <T>Endstand des Finales über alle Tage</T> : <T>Endstand des Spieltags</T>}
                         </p>
@@ -4897,7 +4897,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="border-b border-zinc-800 text-[10px]
+                                <tr className="border-b border-zinc-800 text-[11px]
                                                uppercase tracking-wider text-slate-500">
                                   <th className="px-4 py-2.5 text-right font-medium">#</th>
                                   <th className="px-3 py-2.5 text-left font-medium">Team</th>
@@ -5062,7 +5062,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                               <RegionMarke region={t.region} />
                               <RegionMarke region={t.saisonName ?? t.season} />
                               {t.lan && (
-                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px]
                                                  font-semibold uppercase tracking-wider text-amber-400">
                                   LAN{t.lan.ort ? ` · ${t.lan.ort}` : ''}
                                 </span>
@@ -5092,7 +5092,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] uppercase
+                        <tr className="border-b border-zinc-800 text-[11px] uppercase
                                        tracking-wider text-slate-500">
                           <th className="px-4 py-3 text-left font-medium"><T>Turnier</T></th>
                           <th className="px-3 py-3 text-left font-medium"><T>Region</T></th>
@@ -5136,7 +5136,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                               {t.nurEpic && (
                                 <span className="ml-2 rounded border
                                                  border-amber-700/50 px-1.5
-                                                 text-[9px] uppercase
+                                                 text-[11px] uppercase
                                                  tracking-wider text-amber-500/80">
                                   <T>nur Epic</T>
                                 </span>
@@ -5827,7 +5827,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                              ['Schaden', kurzZahl(sp.damage, sprache), false]] as
                             Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                               <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
-                                <span className="block truncate text-[9px] font-semibold
+                                <span className="block truncate text-[11px] font-semibold
                                                  uppercase text-slate-400"><T>{l}</T></span>
                                 <span className={`mt-0.5 block truncate text-[13px] font-bold
                                                   tabular-nums ${farbig
@@ -5845,7 +5845,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] uppercase
+                        <tr className="border-b border-zinc-800 text-[11px] uppercase
                                        tracking-wider text-slate-500">
                           <th className="w-12 px-4 py-3 text-right font-medium">#</th>
                           <th className="px-3 py-3 text-left font-medium"><T>Spieler</T></th>
@@ -6110,7 +6110,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           {[...Array(Math.min(fncs!.titel, 8))].map((_, i) => <Pokal key={i} />)}
                           {fncs!.titel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncs!.titel}</span>}
                         </span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
+                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
                       </button>
                     )}
                     {tagesbest.length > 0 && (
@@ -6120,7 +6120,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           {[...Array(Math.min(tagesbest.length, 12))].map((_, i) => <Stern key={i} />)}
                           {tagesbest.length > 12 && <span className="ml-1 text-[11px] font-bold">×{tagesbest.length}</span>}
                         </span>
-                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-sky-500/90"><T>Tagesbester</T></span>
+                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-500/90"><T>Tagesbester</T></span>
                       </button>
                     )}
                     {/* Hier stand die Karte "Bester Spieltag": die Marke "Tagesbester" zeigt schon, an wie vielen Spieltagen niemand mehr
@@ -6134,13 +6134,13 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     */}
                   {rankedFehlt && (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
                       <span className="text-xs text-rose-300"><T>Gerade nicht erreichbar.</T></span>
                     </div>
                   )}
                   {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
                       {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
                         <span key={r.trackguid} className="inline-flex items-baseline gap-2 rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs backdrop-blur">
                           <span className="uppercase tracking-wider text-slate-500">{rangArt(r.rankingType)}</span>
@@ -6161,7 +6161,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             {istAdmin && (
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg
                               border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em]
                                  text-slate-500"><T>Pflege</T></span>
                 <input value={pflegeName}
                   onChange={(e) => { setPflegeName(e.target.value); setPflegeStand(''); }}
@@ -6215,7 +6215,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                  hover:border-rose-500/60 hover:text-rose-400">
                       <T>Ausblenden</T>
                     </button>
-                    <span className="text-[10px] text-slate-600">
+                    <span className="text-[11px] text-slate-600">
                       <T>Konto</T> {offen.epicId.slice(0, 8)}…
                     </span>
                   </>
@@ -6299,7 +6299,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
               ))}
 
               <label className="ml-auto flex items-center gap-2 py-2">
-                <span className="text-[10px] font-semibold uppercase
+                <span className="text-[11px] font-semibold uppercase
                                  tracking-[0.14em] text-slate-600">
                   <T>Zeitraum</T>
                 </span>
@@ -6328,7 +6328,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   Nicht zum Lesen gedacht, sondern zum Nachsehen - wer sich
                   fragt, ob eine Zahl fuer eine Saison oder fuers ganze
                   Archiv gilt, findet die Antwort ohne zu suchen. */}
-              <p className="mb-4 text-center text-[10px] tracking-[0.14em]
+              <p className="mb-4 text-center text-[11px] tracking-[0.14em]
                             text-slate-700">
                 {spielerReiter === 'verdienst' ? (() => {
                   const mitGeld = [...verlauf, ...epicZeilen].filter((z) => (z.verdienst ?? 0) > 0);
@@ -6378,7 +6378,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
               ) : spielerReiter === 'uebersicht' ? (
                 <div className="space-y-7">
                   <section>
-                    <p className="mb-3 text-[10px] font-semibold uppercase
+                    <p className="mb-3 text-[11px] font-semibold uppercase
                                   tracking-[0.18em] text-slate-500">
                       <T>Die letzten drei Turniere</T>
                       {heimatRegion && (
@@ -6406,9 +6406,9 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                       im Vorbild, ruhiger als ein Raster aus Kaesten. */}
                   <section>
                     <div className="mb-3 flex items-baseline gap-3">
-                      <p className="text-[10px] font-semibold uppercase
+                      <p className="text-[11px] font-semibold uppercase
                                     tracking-[0.18em] text-slate-500"><T>Werte</T></p>
-                      <span className="ml-auto text-[10px] text-slate-600">
+                      <span className="ml-auto text-[11px] text-slate-600">
                         {t('über {n} Spieltage')
                           .replace('{n}', zahl(offen.events, 0, sprache))}
                       </span>
@@ -6444,7 +6444,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   </section>
 
                   <section>
-                    <p className="mb-3 text-[10px] font-semibold uppercase
+                    <p className="mb-3 text-[11px] font-semibold uppercase
                                   tracking-[0.18em] text-slate-500">
                       <T>Beste Spieltage</T>
                       <span className="ml-2 font-normal normal-case tracking-normal
@@ -6484,7 +6484,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {archivBilder.length > 0 && (
                     <section>
                       <div className="mb-3 flex items-center gap-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spielerbilder</T></p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spielerbilder</T></p>
                         <button type="button" onClick={() => setSpielerReiter('archiv')}
                           className="ml-auto text-[11px] text-slate-500 transition hover:text-sky-400">
                           <T>Alle ansehen</T> →
@@ -6545,9 +6545,9 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {perzentile && (
                     <section>
                       <div className="mb-3 flex flex-wrap items-baseline gap-3">
-                        <p className="text-[10px] font-semibold uppercase
+                        <p className="text-[11px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500"><T>Stärkefelder</T></p>
-                        <span className="ml-auto text-[10px] text-slate-600">
+                        <span className="ml-auto text-[11px] text-slate-600">
                           <T>Rang je Match unter</T> {zahl(perzentile.feldgroesse, 0, sprache)} <T>Spielern mit mindestens zehn Matches, über alle erfassten Spieltage</T>
                         </span>
                       </div>
@@ -6570,7 +6570,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                             ? Math.round(bekannt.reduce((n, t) => n + t[1], 0) / bekannt.length) : null;
                           return (
                             <div key={titel} className="bg-zinc-950 p-5">
-                              <p className="text-[10px] font-semibold uppercase
+                              <p className="text-[11px] font-semibold uppercase
                                             tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
                               <p className="mt-2 flex flex-wrap items-baseline gap-2">
                                 <span className="text-4xl font-bold tabular-nums
@@ -6609,7 +6609,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {verlauf.length > 1 && (
                     <section>
                       <div className="mb-3 flex flex-wrap items-baseline gap-3">
-                        <p className="text-[10px] font-semibold uppercase
+                        <p className="text-[11px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500">
                           <T>{kurveName}</T> <T>je Spieltag</T>
                         </p>
@@ -6619,7 +6619,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           {zahl(Math.min(...kurveZeilen.map((z) => kurveWert(z.werte))), kurveStellen, sprache)}
                         </span>}
                         {kurvenWahl}
-                        <span className="ml-auto text-[10px] text-slate-600">
+                        <span className="ml-auto text-[11px] text-slate-600">
                           {kurveZeilen.length} <T>Spieltage, ältester links</T>
                         </span>
                       </div>
@@ -6645,7 +6645,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {fncs && fncsGrandFinals.length > 0 && (
                     <section>
                       <div className="mb-3 flex flex-wrap items-baseline gap-3">
-                        <p className="text-[10px] font-semibold uppercase
+                        <p className="text-[11px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500">
                           <T>FNCS Grand Finals</T>
                         </p>
@@ -6655,7 +6655,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                             {t('{n} Titel').replace('{n}', String(fncs.titel))}
                           </span>
                         )}
-                        <span className="ml-auto text-[10px] text-slate-600">
+                        <span className="ml-auto text-[11px] text-slate-600">
                           <T>Platzierungen laut Quelle</T>
                         </span>
                       </div>
@@ -6720,11 +6720,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     return (
                       <section>
                         <div className="mb-3 flex flex-wrap items-baseline gap-3">
-                          <p className="text-[10px] font-semibold uppercase
+                          <p className="text-[11px] font-semibold uppercase
                                         tracking-[0.18em] text-slate-500">
                             <T>Auszeichnungen</T>
                           </p>
-                          <span className="ml-auto text-[10px] text-slate-600">
+                          <span className="ml-auto text-[11px] text-slate-600">
                             <T>aus den Daten gezählt, nicht vergeben</T>
                           </span>
                         </div>
@@ -6733,11 +6733,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                             <div key={titel}
                               className="rounded-lg border border-zinc-800
                                          bg-zinc-900/30 px-5 py-4">
-                              <p className="text-[10px] font-semibold uppercase
+                              <p className="text-[11px] font-semibold uppercase
                                             tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
                               <p className="mt-1.5 text-2xl font-bold tabular-nums
                                             text-slate-50">{wert}</p>
-                              <p className="mt-1 text-[10px] text-slate-600">{unten}</p>
+                              <p className="mt-1 text-[11px] text-slate-600">{unten}</p>
                             </div>
                           ))}
                         </div>
@@ -6824,7 +6824,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                       <div className="flex flex-wrap items-end justify-between gap-6 rounded-lg
                                       border border-zinc-800 bg-zinc-900/30 p-5">
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]
                                         text-slate-500"><T>Verdienst</T> · {wahlTitel}</p>
                           <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
                             ${zahl(summe, 0, sprache)}
@@ -6836,7 +6836,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           ) : null}
                         </div>
                         <div className="relative flex items-center gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                             <T>Zeitraum</T>
                           </span>
                           <button onClick={() => setZeitraumOffen((o) => !o)}
@@ -6856,7 +6856,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                 {/* Die Jahre - "eine zweite Period mit 2025, 24, 23 ..." */}
                                 {jahre.length > 0 && (
                                   <div className="mt-1 border-t border-zinc-900 pt-1">
-                                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>Jahre</T></p>
+                                    <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>Jahre</T></p>
                                     {jahre.map((j) => (
                                       <button key={j} onClick={() => waehle(`j:${j}`)}
                                         className={zeile(verdienstJahr === j, true, true)}>
@@ -6892,7 +6892,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                         <div className="overflow-x-auto rounded-lg border border-zinc-800">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="border-b border-zinc-800 text-[10px] uppercase
+                              <tr className="border-b border-zinc-800 text-[11px] uppercase
                                              tracking-wider text-slate-500">
                                 <th className="px-3 py-2 text-left font-medium"><T>Turnier</T></th>
                                 <th className="px-3 py-2 text-center font-medium"><T>Region</T></th>
@@ -6915,9 +6915,9 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                   <td className="px-3 py-2 text-slate-200">
                                     {l.name}
                                     <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
-                                                     text-[9px] font-semibold uppercase text-amber-400">LAN{l.ort ? ` · ${l.ort}` : ''}</span>
+                                                     text-[11px] font-semibold uppercase text-amber-400">LAN{l.ort ? ` · ${l.ort}` : ''}</span>
                                     {l.datum ? (
-                                      <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                      <span className="ml-2 whitespace-nowrap text-[11px] tabular-nums text-slate-600">
                                         {new Date(l.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
                                           { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                       </span>
@@ -6950,19 +6950,19 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                       {lan ? lan.name : turnierName(z.event, t)}
                                       {lan && (
                                         <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
-                                                         text-[9px] font-semibold uppercase text-amber-400">
+                                                         text-[11px] font-semibold uppercase text-amber-400">
                                           LAN{lan.ort ? ` · ${lan.ort}` : ''}
                                         </span>
                                       )}
                                       {z.datum ? (
-                                        <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                        <span className="ml-2 whitespace-nowrap text-[11px] tabular-nums text-slate-600">
                                           {new Date(z.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
                                             { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                         </span>
                                       ) : null}
                                     </td>
                                     <td className="px-3 py-2 text-center">
-                                      <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                                      <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px]
                                                        font-semibold tracking-wider text-slate-400">{z.region}</span>
                                     </td>
                                     <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(lan ? lan.platz : z.platz)}`}>
@@ -7028,7 +7028,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="truncate text-sm font-bold text-slate-100">{e.team}</span>
-                          {e.aktuell && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-400"><T>Aktuell</T></span>}
+                          {e.aktuell && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-sky-400"><T>Aktuell</T></span>}
                           {e.rolle && e.rolle !== 'pro' && <span className="text-[11px] text-slate-500">{e.rolle === 'academy' ? 'Academy' : 'Content Creator'}</span>}
                           {e.hinweis && <span className="text-[11px] text-slate-500">({e.hinweis})</span>}
                         </div>
@@ -7175,7 +7175,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="border-b border-zinc-800 text-[10px]
+                              <tr className="border-b border-zinc-800 text-[11px]
                                              uppercase tracking-wider text-slate-500">
                                 <th className="px-2 py-2 text-left font-medium">
                                   <T>Saison</T>
@@ -7207,14 +7207,14 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                     <span className="font-semibold text-slate-200">
                                       {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
                                     </span>
-                                    <span className={`ml-2 text-[10px] font-bold ${platzFarbe(l.platz)}`}>
+                                    <span className={`ml-2 text-[11px] font-bold ${platzFarbe(l.platz)}`}>
                                       {l.platz}.
                                     </span>
                                   </td>
                                   <td className="px-2 py-2.5 text-slate-300" colSpan={5}>
                                     {l.name}
                                     <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
-                                                     text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                                     text-[11px] font-semibold uppercase text-amber-400">LAN</span>
                                     <span className="ml-2 text-emerald-400">${zahl(l.betrag, 0, sprache)}</span>
                                   </td>
                                 </tr>
@@ -7229,7 +7229,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                       <span className="font-semibold text-slate-200">
                                         {x.saison}
                                       </span>
-                                      <span className="ml-2 text-[10px]
+                                      <span className="ml-2 text-[11px]
                                                        font-bold text-amber-400">
                                         1.
                                       </span>
@@ -7287,7 +7287,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
                             <thead>
-                              <tr className="border-b border-zinc-800 text-[10px]
+                              <tr className="border-b border-zinc-800 text-[11px]
                                              uppercase tracking-wider text-slate-500">
                                 <th className="px-2 py-2 text-left font-medium">
                                   <T>Saison</T>
@@ -7316,7 +7316,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                   <td className="whitespace-nowrap px-2 py-2.5
                                                  text-slate-500">
                                     {t.saisonName}
-                                    <span className="ml-1.5 text-[10px]
+                                    <span className="ml-1.5 text-[11px]
                                                      text-slate-600">{t.region}</span>
                                   </td>
                                   <td className="px-2 py-2.5 font-semibold
