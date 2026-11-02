@@ -9759,5 +9759,25 @@
       "/statistics?bereich=vergleich"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:14:19Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-442",
+    "titel": "Konto: gewohnter Ladeschirm",
+    "kurz": "Kontoseite: beim Laden der gewohnte Ladeschirm statt winziger grauer Zeile.",
+    "markieren": [
+      "text:Loading …"
+    ],
+    "bereich": "Konto",
+    "warum": "Die Kontoseite zeigte beim Laden nur eine kleine, kaum sichtbare Zeile.",
+    "was": "Dort erscheint jetzt derselbe Ladeschirm wie auf allen anderen Seiten.",
+    "ansehen": [
+      "/account"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

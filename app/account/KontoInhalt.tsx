@@ -14,6 +14,7 @@ import { useZugang } from '@/app/lib/zugang';
 import { BEREICHE as VERWALTUNGSBEREICHE, type Bereich as BereichRecht } from '@/lib/rechte';
 import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
 import Fusszeile from '@/app/components/Fusszeile';
+import LadeSchirm from '@/app/components/LadeSchirm';
 
 // Das eigene Konto.
 //
@@ -765,8 +766,8 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
 
   if (laedt) {
     return (
-      <main className="min-h-screen bg-zinc-950 px-4 py-20 text-center">
-        <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
+      <main className="min-h-screen bg-zinc-950 px-4 py-20">
+        <LadeSchirm />
       </main>
     );
   }
