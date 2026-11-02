@@ -7372,5 +7372,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-334",
+    "datum": "2026-11-02T02:34:49Z",
+    "titel": "FNCS Nationalities: Gleichstand nach stärkstem Titelgewinner statt Alphabet",
+    "kurz": "FNCS → All-Time Stats → Nationalities: gleiche Titelzahl ordnet nach stärkstem Gewinner, nicht nach Alphabet.",
+    "markieren": [
+      "text:Nationalities",
+      "text:Titles by country"
+    ],
+    "bereich": "Statistik",
+    "warum": "Länder mit gleich vielen Titeln und Gewinnern standen nach dem Ländercode – also alphabetisch.",
+    "was": "Bei Gleichstand steht jetzt das Land vorn, dessen bester Titelgewinner in der Winners-Liste weiter oben steht.",
+    "ansehen": [
+      "/fncs?tab=alltime"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

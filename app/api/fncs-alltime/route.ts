@@ -125,10 +125,11 @@ async function rechnenRoh() {
     // Bei gleich vielen Titeln entscheidet die Staerke (Platz in der Eliminierungs-Aufstellung der Grand Finals) - nie das Alphabet (Betreiber).
     const staerke = new Map(top.map((x, i) => [x.name.toLowerCase(), i] as const));
     const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6) || nameVgl(a.name, b.name)).map((t) => ({ id: t.name, ...t }));
-    // Laender: mehr Titel, dann mehr verschiedene Titelgewinner, dann Laendercode.
-    const nachLand = new Map<string, { titel: number; koepfe: number }>();
-    for (const t of titel) if (t.land) { const a = nachLand.get(t.land) ?? { titel: 0, koepfe: 0 }; a.titel += t.titel; a.koepfe += 1; nachLand.set(t.land, a); }
-    const laender = [...nachLand.entries()].sort(([ca, a], [cb, b]) => b.titel - a.titel || b.koepfe - a.koepfe || nameVgl(ca, cb)).map(([land, a]) => ({ land, titel: a.titel }));
+    // Laender: mehr Titel, dann mehr verschiedene Titelgewinner, dann das Land des staerksten Titelgewinners (nie der Laendercode = Alphabet).
+    // "titel" ist schon nach Titeln und Staerke geordnet; die Position des ersten Gewinners eines Landes ist sein Rang.
+    const nachLand = new Map<string, { titel: number; koepfe: number; erster: number }>();
+    titel.forEach((t, i) => { if (t.land) { const a = nachLand.get(t.land) ?? { titel: 0, koepfe: 0, erster: i }; a.titel += t.titel; a.koepfe += 1; nachLand.set(t.land, a); } });
+    const laender = [...nachLand.entries()].sort(([, a], [, b]) => b.titel - a.titel || b.koepfe - a.koepfe || a.erster - b.erster).map(([land, a]) => ({ land, titel: a.titel }));
     // Punkte, Siege, Eliminierungen und Rekorde der Grand Finals, die Epic noch fuehrt.
     const rekorde = await fncsRekorde().catch(() => null);
     return { ok: true, events, spieler, ab: events[0]?.saisonName ?? '', titel, laender, rekorde };
