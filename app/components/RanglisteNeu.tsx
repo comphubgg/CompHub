@@ -9,7 +9,7 @@
  * das Werkzeug ihn fuehrt (Profil, Namensliste der Szene), Epics Name steht klein darunter.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TeamFlagge from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
@@ -108,16 +108,20 @@ export default function RanglisteNeu() {
     return () => { weg = true; };
   }, []);
 
+  /** Nummer des letzten Abrufs: antwortet ein frueherer (z. B. "ab") nach dem neueren ("abc"), darf er die Liste nicht mehr ueberschreiben. */
+  const abrufNr = useRef(0);
   const holen = useCallback(async () => {
+    const nr = ++abrufNr.current;
     setLaedt(true); setFehler(null);
     try {
       const p = new URLSearchParams({ page: String(seite), pageSize: String(proSeite) });
       if (suche.trim()) p.set('q', suche.trim());
       const r = await fetch(`/api/power-rankings?${p}`, { cache: 'no-store' });
       const j = await r.json() as Seite;
+      if (nr !== abrufNr.current) return;
       if (!r.ok || !j.success) throw new Error('nicht erreichbar');
       setDaten(j);
-    } catch (e) { setFehler((e as Error).message); } finally { setLaedt(false); }
+    } catch (e) { if (nr === abrufNr.current) setFehler((e as Error).message); } finally { if (nr === abrufNr.current) setLaedt(false); }
   }, [seite, proSeite, suche]);
 
   useEffect(() => {

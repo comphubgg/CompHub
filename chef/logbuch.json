@@ -6875,5 +6875,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-311",
+    "datum": "2026-11-02T01:53:32Z",
+    "titel": "Power Rankings: späte Antwort einer älteren Suche überschreibt die Liste nicht mehr",
+    "kurz": "Power Rankings → Spielersuche: Liste passt immer zum zuletzt getippten Namen.",
+    "markieren": [
+      "text:Search player",
+      "css:[data-tour=\"rankingsTable\"]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim schnellen Tippen konnte die Antwort auf „ab“ nach der auf „abc“ ankommen – dann zeigte die Liste Treffer für den alten Suchtext.",
+    "was": "Nur die jüngste Suche darf die Liste füllen; ältere Antworten werden verworfen.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
