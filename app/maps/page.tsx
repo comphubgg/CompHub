@@ -3623,7 +3623,7 @@ ${name}
       {funde?.map((f) => (
         <span key={f.epicId} style={{ left: `${f.x}%`, top: `${f.y}%` }}
           className={`karten-fest pointer-events-none absolute z-20 whitespace-nowrap rounded
-                      px-1 py-0.5 text-[9px] font-semibold shadow ${f.nehmen
+                      px-1 py-0.5 text-[11px] font-semibold shadow ${f.nehmen
             ? 'bg-sky-500/90 text-white'
             : 'bg-zinc-900/85 text-slate-500 line-through'}`}>
           {kuerze(f.name)}
@@ -3833,7 +3833,7 @@ ${name}
                         : 'border-zinc-800 text-slate-300 hover:border-zinc-600'}`}>
                     {k.bildTitel ?? k.titel}
                     {k.spiele && (
-                      <span className="ml-1.5 text-[10px] text-slate-500">{k.spiele}</span>
+                      <span className="ml-1.5 text-[11px] text-slate-500">{k.spiele}</span>
                     )}
                   </a>
                 ))}
@@ -3931,7 +3931,7 @@ ${name}
               {/* Ohne diese Zeile waere ein stilles Speichern von einem
                   stillen Verlieren nicht zu unterscheiden. */}
               {selbstGesichert && (
-                <span className="text-center text-[10px] text-emerald-500">
+                <span className="text-center text-[11px] text-emerald-500">
                   <T>von selbst gesichert</T>{' '}
                   {new Date(selbstGesichert).toLocaleTimeString(ortJetzt())}
                 </span>
@@ -4178,7 +4178,7 @@ ${name}
                     <TeamFlagge groesse={16} laender={[f.land || undefined]} />
                     <span>{f.name}</span>
                     {f.guete < 1 && (
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[11px] text-slate-500">
                         „{f.roh}“
                       </span>
                     )}
@@ -4365,7 +4365,7 @@ ${name}
                   e.target.value = "";
                 }} />
             </label>
-            <span className="text-[10px] text-slate-600">
+            <span className="text-[11px] text-slate-600">
               <T>erst benennen, dann Datei wählen</T>
             </span>
           </div>
@@ -4453,14 +4453,14 @@ ${name}
                         className="min-w-0 flex-1 truncate text-left text-slate-300
                                    hover:text-sky-400">
                         {k.titel}
-                        <span className="ml-1.5 text-[10px] text-slate-500">
+                        <span className="ml-1.5 text-[11px] text-slate-500">
                           {k.bildTitel ?? 'Battle Royale'}
                           {k.cupTitel ? ` · ${k.cupTitel}` : ''}
                         </span>
                       </a>
                       {!sichtbar && (
                         <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5
-                                         text-[10px] text-slate-400">{uebs('versteckt')}</span>
+                                         text-[11px] text-slate-400">{uebs('versteckt')}</span>
                       )}
                       {/*
                         * Das rote Kreuz loescht - nach Rueckfrage mit dem Namen.
@@ -4512,7 +4512,7 @@ ${name}
                                    transition hover:border-sky-700 hover:text-sky-400">
                         <span className="min-w-0 flex-1 truncate">
                           {kartenTitel(f.cupTitel, f, uebs) || f.windowId}
-                          <span className="ml-1.5 text-[10px] text-slate-600">
+                          <span className="ml-1.5 text-[11px] text-slate-600">
                             {f.region} · {new Date(f.begin).toLocaleDateString(ortJetzt(),
                               { day: '2-digit', month: '2-digit' })}
                           </span>
@@ -4619,7 +4619,7 @@ ${name}
                       {namenVon(meinTeam).join(' + ')}
                     </span>
                     {meinSpot && (
-                      <span className="ml-auto shrink-0 text-[10px] text-sky-400/80">
+                      <span className="ml-auto shrink-0 text-[11px] text-sky-400/80">
                         {meinSpot.name ?? uebs('gesetzt')}
                       </span>
                     )}
@@ -4665,7 +4665,7 @@ ${name}
                   {!!teamSuche && (
                     <span className="absolute right-2 top-1/2 flex -translate-y-1/2
                                      items-center gap-1.5">
-                      <span className="text-[10px] tabular-nums text-slate-500">
+                      <span className="text-[11px] tabular-nums text-slate-500">
                         {sichtbareTeams.length}
                       </span>
                       <button onClick={() => setTeamSuche('')}
@@ -4802,7 +4802,7 @@ ${name}
                             {namenVon(t).join(' + ')}
                           </span>
                           {spot && (
-                            <span className="ml-auto shrink-0 text-[10px] text-slate-500">
+                            <span className="ml-auto shrink-0 text-[11px] text-slate-500">
                               {spot.name ?? uebs('gesetzt')}
                             </span>
                           )}

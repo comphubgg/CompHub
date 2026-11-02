@@ -10451,5 +10451,23 @@
     "ansehen": [
       "/tournament-maps"
     ]
+  },
+  {
+    "id": "chef-470",
+    "datum": "2026-11-02T04:54:44Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Haiku (von Opus geprüft)",
+    "titel": "Kartenseite: Schrift mindestens 11 Pixel",
+    "kurz": "Maps: 11 kleine Beschriftungen jetzt 11 statt 9–10 Pixel.",
+    "markieren": [],
+    "warum": "Auf der Kartenseite standen 11 Beschriftungen in 9–10 Pixel.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/maps"
+    ]
   }
 ]
