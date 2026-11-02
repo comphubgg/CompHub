@@ -6715,5 +6715,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-304",
+    "datum": "2026-11-02T01:37:59Z",
+    "titel": "Statistik-Start: Gesamtzahlen einmal statt dreimal geladen",
+    "kurz": "Unsichtbar: Statistik-Startseite holt die Gesamtzahlen einmal statt dreimal.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Drei Teile der Startseite fragten dieselben Gesamtzahlen je einzeln ab – dreifache Last bei jedem Aufruf.",
+    "was": "Sie teilen sich jetzt einen Abruf (30 Sekunden gemerkt); bei Ausfall wird wie bisher neu versucht.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [
+      "5c3a7709fad12d6fb7875229f0746101f40b480a"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
