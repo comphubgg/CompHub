@@ -56,7 +56,6 @@ export default function GlobalsPreisgeld() {
       {fehler ? (
         <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3 text-sm text-sky-300">
           <T>Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.</T>
-          <span className="ml-2 text-sky-300/60">({fehler})</span>
         </p>
       ) : !daten ? (
         <LadeSchirm />

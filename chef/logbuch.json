@@ -8624,5 +8624,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-389",
+    "datum": "2026-11-02T03:26:46Z",
+    "titel": "Globals-Preisgeld: kein Server-Rohtext im Ausfall-Hinweis",
+    "kurz": "Globals → Preisgeld bei Ausfall: keine rohe Fehlermeldung mehr in Klammern.",
+    "markieren": [
+      "css:.border-sky-800"
+    ],
+    "bereich": "Globals",
+    "warum": "Bei Ausfall stand hinter dem Hinweis ein unübersetzter technischer Fehlertext.",
+    "was": "Es bleibt nur der feste, übersetzte Hinweis.",
+    "ansehen": [
+      "/globals/prizepool"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
