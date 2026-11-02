@@ -36,8 +36,8 @@ function Tafel({ titel, unter, children }: { titel: string; unter?: string; chil
   return (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900">
       <p className="border-b border-white/[0.08] bg-zinc-800 px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>{titel}</T></span>
-        {unter && <span className="ml-2 text-[10px] text-slate-600"><T>{unter}</T></span>}
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>{titel}</T></span>
+        {unter && <span className="ml-2 text-[11px] text-slate-600"><T>{unter}</T></span>}
       </p>
       <div className="max-h-[560px] overflow-y-auto">{children}</div>
     </section>
@@ -67,16 +67,16 @@ function Spitze({ e }: { e: FncsEreignis }) {
   // Beides, bei jedem Turnier (Betreiber, 13.10.2026: "Punkte sollte es immer geben, Earnings in 90 Prozent"): fehlt ein Wert, steht ein Strich.
   return (
     <ol className="mt-3 space-y-1.5">
-      <li className="flex items-center gap-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-        <span className="w-4" /><span className="min-w-0 flex-1"><T>Team</T></span><span className="w-11 text-right">PTS</span><span className="w-14 text-right"><T>Verdienst</T></span>
+      <li className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+        <span className="w-4" /><span className="min-w-0 flex-1"><T>Team</T></span><span className="w-12 text-right">PTS</span><span className="w-[4.75rem] text-right"><T>Verdienst</T></span>
       </li>
       {e.spitze.map((p, i) => (
         <li key={p.rang} className="flex items-center gap-2.5 text-[11px]">
           <span className={`w-4 text-center font-black tabular-nums ${PLATZ_FARBE[i] ?? 'text-slate-500'}`}>{p.rang}</span>
           <TeamFlagge groesse={p.spieler.length > 1 ? 24 : 18} laender={p.spieler.map((x) => x.land)} />
           <span className="min-w-0 flex-1 truncate font-bold uppercase tracking-wide text-slate-100">{p.spieler.map((x) => x.name).join(' · ')}</span>
-          <span className="w-11 text-right tabular-nums text-sky-400">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span>
-          <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
+          <span className="w-12 text-right tabular-nums text-sky-400">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span>
+          <span className="w-[4.75rem] text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
         </li>
       ))}
     </ol>
@@ -86,7 +86,7 @@ function Spitze({ e }: { e: FncsEreignis }) {
 function Fakt({ titel, wert }: { titel: string; wert: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></dt>
+      <dt className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></dt>
       <dd className="mt-0.5 truncate text-sm font-black text-slate-100">{wert}</dd>
     </div>
   );
@@ -105,9 +105,9 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
         )}
         <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="absolute left-3 top-3 flex gap-1.5">
-          {aktuell && <span className="rounded border border-red-400/50 bg-red-500/80 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
-          {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
-          <span className="rounded border border-white/25 bg-black/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
+          {aktuell && <span className="rounded border border-red-400/50 bg-red-500/80 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
+          {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+          <span className="rounded border border-white/25 bg-black/55 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
         </div>
         <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[11px] font-black tabular-nums text-slate-100 backdrop-blur-sm">#{nr}</span>
         <div className="absolute inset-x-3 bottom-3">
@@ -120,7 +120,7 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
           <span className="min-w-0 truncate text-[13px] font-bold text-slate-100">{e.titel}</span>
           <span className="shrink-0 text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
         </p>
-        <dl className="mt-3 grid grid-cols-3 gap-3 border-y border-white/[0.06] py-3">
+        <dl className="mt-3 grid grid-cols-[1fr_1fr_1.7fr] gap-3 border-y border-white/[0.06] py-3">
           <Fakt titel="Preisgeld" wert={e.preisgeld ?? '–'} />
           <Fakt titel="Teams" wert={e.teams ? String(e.teams) : '–'} />
           <Fakt titel={e.lan ? 'Austragungsort' : 'Typ'} wert={e.lan ? (e.ort ?? '–') : 'Online'} />
@@ -174,7 +174,7 @@ function Treppchen({ e, gross = false }: { e: FncsEreignis; gross?: boolean }) {
               <span className={`mt-1 line-clamp-2 w-full break-words text-center font-black uppercase leading-tight tracking-wide ${gross ? 'text-[13px]' : 'text-[11px]'} ${erster ? 'text-white' : 'text-slate-200'}`}>
                 {p.spieler.map((x) => x.name).join(' · ')}
               </span>
-              <span className={`mt-0.5 text-center tabular-nums ${gross ? 'text-xs' : 'text-[10px]'}`}>
+              <span className={`mt-0.5 text-center tabular-nums ${gross ? 'text-xs' : 'text-[11px]'}`}>
                 <span className="font-bold text-sky-300">{p.punkte?.toLocaleString(ortJetzt()) ?? '–'}</span><span className="text-slate-500"> PTS</span>
                 <span className="text-slate-600"> · </span><span className="font-bold text-emerald-400">{p.preis ?? '–'}</span>
               </span>
@@ -207,10 +207,10 @@ function Treppchen({ e, gross = false }: { e: FncsEreignis; gross?: boolean }) {
 function Marken({ e, aktuell, nr }: { e: FncsEreignis; aktuell: boolean; nr: number }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
-      {aktuell && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
-      {e.lan && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
-      <span className="rounded-full border border-white/20 bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
-      <span className="rounded-full border border-white/15 bg-black/60 px-2 py-0.5 text-[9px] font-black tabular-nums text-slate-300 backdrop-blur-sm">#{nr}</span>
+      {aktuell && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
+      {e.lan && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+      <span className="rounded-full border border-white/20 bg-black/60 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
+      <span className="rounded-full border border-white/15 bg-black/60 px-2 py-0.5 text-[11px] font-black tabular-nums text-slate-300 backdrop-blur-sm">#{nr}</span>
     </span>
   );
 }
@@ -235,10 +235,10 @@ function Aufmacher({ e, nr, aktuell }: { e: FncsEreignis; nr: number; aktuell: b
           </div>
         </div>
         <div className="flex flex-col gap-5 p-5 sm:p-7">
-          <dl className="grid grid-cols-3 gap-2">
+          <dl className="grid grid-cols-[1fr_1fr_1.7fr] gap-2">
             {([['Preisgeld', e.preisgeld ?? '–'], ['Teams', e.teams ? String(e.teams) : '–'], [e.lan ? 'Austragungsort' : 'Typ', e.lan ? (e.ort ?? '–') : 'Online']] as const).map(([titel, wert]) => (
               <div key={titel} className="min-w-0 rounded-xl border border-white/[0.07] bg-zinc-950 px-3 py-2.5">
-                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></dt>
+                <dt className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></dt>
                 <dd className="mt-0.5 truncate text-base font-black text-slate-50">{wert}</dd>
               </div>
             ))}
@@ -281,10 +281,10 @@ function Zeitstrahl({ liste, nrVon, aktuellKey }: { liste: FncsEreignis[]; nrVon
                   <span aria-hidden className={`absolute -left-[28px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-zinc-950 ${e.key === aktuellKey ? 'bg-red-400' : e.lan ? 'bg-amber-400' : 'bg-sky-500'}`} />
                   <span className="w-12 shrink-0 text-xs font-black tabular-nums text-slate-600">#{nrVon.get(e.key)}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-sky-300">{e.kopf1}</span>
+                    <span className="block text-[11px] font-black uppercase tracking-[0.2em] text-sky-300">{e.kopf1}</span>
                     <span className="block truncate text-sm font-black uppercase tracking-wide text-slate-50">{e.kopf2}</span>
                   </span>
-                  {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+                  {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
                   <span className="w-24 shrink-0 text-right text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
                   <span className="flex min-w-[180px] items-center gap-2 sm:w-[260px]">
                     {sieger ? (
@@ -476,7 +476,7 @@ export default function FncsSeite() {
                   {alt.rekorde ? (
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                           <th className="w-8 px-3 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th>
                           <th className="px-2 py-2 text-right">PTS</th><th className="px-2 py-2 text-right">VR</th><th className="px-3 py-2 text-right">Elims</th>
                         </tr>
@@ -522,7 +522,7 @@ export default function FncsSeite() {
                           <TeamFlagge groesse={z.spieler.length > 1 ? 24 : 16} laender={z.spieler.map((x) => x.land)} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[12px] font-bold uppercase text-slate-100">{z.spieler.map((x) => x.name).join(' · ')}</span>
-                            <span className="block text-[10px] text-slate-600">{z.event}</span>
+                            <span className="block text-[11px] text-slate-600">{z.event}</span>
                           </span>
                           <span className="text-sm font-black tabular-nums text-sky-400">{z.wert}</span>
                         </li>
@@ -558,14 +558,14 @@ export default function FncsSeite() {
               <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-zinc-900">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.08] text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <tr className="border-b border-white/[0.08] text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       <th className="w-12 px-3 py-2 text-left">#</th>
                       <th className="px-3 py-2 text-left"><T>Spieler</T></th>
                       <th className="px-3 py-2 text-right"><button type="button" onClick={() => setSortNach('gesamt')} className={sortNach === 'gesamt' ? 'text-sky-400' : 'hover:text-slate-200'}>{t('Gesamt')}</button></th>
                       {alt.events.map((ev) => (
                         <th key={ev.key} className="px-2 py-2 text-center">
                           <button type="button" onClick={() => setSortNach(ev.key)} title={ev.saisonName} className={`whitespace-nowrap ${sortNach === ev.key ? 'text-sky-400' : 'hover:text-slate-200'}`}>
-                            {ev.titel.replace('FNCS ', '')}<span className="block text-[9px] font-medium normal-case tracking-normal text-slate-600">{ev.saisonKurz}</span>
+                            {ev.titel.replace('FNCS ', '')}<span className="block text-[11px] font-medium normal-case tracking-normal text-slate-600">{ev.saisonKurz}</span>
                           </button>
                         </th>
                       ))}

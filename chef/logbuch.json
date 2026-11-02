@@ -8773,5 +8773,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-396",
+    "datum": "2026-11-02T03:28:10Z",
+    "titel": "FNCS-Seite: Schrift mindestens 11 Pixel",
+    "kurz": "FNCS: Tabellenköpfe, Marken und Kartenangaben jetzt 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:Prize pool",
+      "text:Venue",
+      "text:LAN"
+    ],
+    "bereich": "FNCS",
+    "warum": "19 Stellen der Seite standen mit 9 oder 10 Pixeln.",
+    "was": "Alle auf 11 Pixel; Spalten etwas breiter, damit alles passt.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
