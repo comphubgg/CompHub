@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
     if (!nutzer?.id) return zurueck(req, '/sign-in?fehler=profil');
 
     /*
-     * Ein VIP-Schluessel wird mit Twitch bestaetigt (app/components/TwitchPruefung): kein Konto anlegen, nur pruefen, ob das Twitch-Konto das ist,
+     * Ein VIP-Schluessel wird mit Twitch bestaetigt (app/components/VipFenster): kein Konto anlegen, nur pruefen, ob das Twitch-Konto das ist,
      * das der Zugang verlangt (lib/vipZugaenge, twitchPflicht). Ein anderes Twitch-Konto wird abgewiesen.
      */
     if (req.cookies.get('twitch_oauth_art')?.value === 'vip-pruefung') {

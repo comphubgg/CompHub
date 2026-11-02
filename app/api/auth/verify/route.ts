@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { zugangNach, rechteVon, wartetAufTwitch } from "@/lib/vipZugaenge";
+import { vipBild, anzeigeName } from "@/lib/vipBild";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -74,9 +75,9 @@ export async function GET(req: NextRequest) {
    * dieser Datei, und er soll sich nicht versehentlich selbst aussperren
    * koennen.
    */
-  // Der Schluessel wartet auf die Bestaetigung mit Twitch - die Seite zeigt dafuer den Hinweis (app/components/TwitchPruefung).
+  // Der Schluessel wartet auf die Bestaetigung mit Twitch - die Seite zeigt dafuer den Hinweis (app/components/VipFenster).
   if (!betreiber && wartetAufTwitch(eintrag)) {
-    return NextResponse.json({ authorized: false, grund: 'twitch', user: login });
+    return NextResponse.json({ authorized: false, grund: 'twitch', user: login, anzeige: anzeigeName(login), bild: await vipBild(login, eintrag?.epicId) });
   }
   if (!betreiber && (!eintrag || !darf.gueltig)) {
     return NextResponse.json({
@@ -99,5 +100,8 @@ export async function GET(req: NextRequest) {
      * nur waehrend des Spieltags umstellen, ein VIP jederzeit.
      */
     verwaltet: (eintrag?.verwaltet ?? '').trim() || null,
+    // Fuer das Willkommen-Fenster beim ersten Anmelden auf einem Geraet (app/components/VipFenster): Anzeigename und Foto (lib/vipBild).
+    anzeige: anzeigeName(login),
+    bild: await vipBild(login, darf.epicId),
   });
 }

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   const twitchUrl = `https://id.twitch.tv/oauth2/authorize?${params.toString()}`;
   const response = NextResponse.redirect(twitchUrl);
-  // Bestaetigung eines VIP-Schluessels mit Twitch (app/components/TwitchPruefung) statt einer Anmeldung - der Rueckweg erkennt es am Cookie.
+  // Bestaetigung eines VIP-Schluessels mit Twitch (app/components/VipFenster) statt einer Anmeldung - der Rueckweg erkennt es am Cookie.
   if (req.nextUrl.searchParams.get('zweck') === 'vip') {
     response.cookies.set('twitch_oauth_art', 'vip-pruefung', {
       ...sitzungsDomain(req), httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 300,
