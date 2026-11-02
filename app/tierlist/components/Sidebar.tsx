@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useT } from '@/app/components/SprachProvider';
 import { Region, TierListEntry } from '../types';
 import { SearchBar } from './SearchBar';
 import { PlayerPool } from './PlayerPool';
@@ -87,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   leerHinweis,
   createDisabled = false,
 }) => {
+  const t = useT();
   return (
     <aside className="sidebar">
       <div className="sidebar-card sidebar-search">
@@ -95,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SearchBar
             value={searchQuery}
             onChange={onSearchChange}
-            placeholder="Search player..."
+            placeholder={t('Spieler suchen...')}
           />
           <BilderSchalter />
         </div>

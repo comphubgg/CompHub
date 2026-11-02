@@ -2,6 +2,7 @@
 
 import React from 'react';
 
+import { useT } from '@/app/components/SprachProvider';
 import T from '@/app/components/T';
 interface ToolbarProps {
   onReset: () => void;
@@ -19,10 +20,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   currentMode,
   disabled = false,
 }) => {
+  const t = useT();
   return (
-    <div className="toolbar" role="toolbar" aria-label="Tierlist controls">
+    <div className="toolbar" role="toolbar" aria-label={t('Tierlist-Steuerung')}>
       <button onClick={onReset} disabled={disabled} className="reset-btn">
-        <T>Reset</T>
+        <T>Zurücksetzen</T>
       </button>
 
       <button

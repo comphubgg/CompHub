@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useT } from '@/app/components/SprachProvider';
 
 interface SearchBarProps {
   value: string;
@@ -14,8 +15,9 @@ interface SearchBarProps {
 export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
-  placeholder = 'Search players...',
+  placeholder,
 }) => {
+  const t = useT();
   return (
     <div className="search-wrap">
       <svg
@@ -35,7 +37,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         className="search-input"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('Spieler durchsuchen...')}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { flaggenPfad } from '@/components/TeamFlagge';
 import React, { useEffect, useState } from 'react';
+import { useT } from '@/app/components/SprachProvider';
 import { Region } from '../types';
 import { storageService } from '../services/storageService';
 import { FlaggenWahl, FLAGGEN_MIT_GLOBUS } from './FlaggenWahl';
@@ -36,6 +37,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
   onShowExisting,
   disabled = false,
 }) => {
+  const t = useT();
   const [player1, setPlayer1] = useState('');
   const [player2, setPlayer2] = useState('');
   const [player3, setPlayer3] = useState('');
@@ -235,7 +237,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     try {
       if (mode === 'solo') {
         if (!player1.trim()) {
-          setError('Player name required');
+          setError(t('Spielername erforderlich'));
           return;
         }
 
@@ -263,11 +265,11 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
       } else if (mode === 'trio') {
         const namen = [player1, player2, player3].map((n) => n.trim());
         if (namen.some((n) => !n)) {
-          setError('Three player names required');
+          setError(t('Drei Spielernamen erforderlich'));
           return;
         }
         if (new Set(namen.map((n) => n.toLowerCase())).size < 3) {
-          setError('A trio requires three different player names');
+          setError(t('Ein Trio braucht drei verschiedene Spielernamen'));
           return;
         }
         const schluessel = (xs: string[]) => xs.map((n) => n.toLowerCase().replace(/[^a-z0-9]/g, '')).sort().join('+');
@@ -275,14 +277,14 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         const schonDa = (existingEntries || []).some((entry: any) => entry.isTrio
           && schluessel([entry.data?.player1?.name, entry.data?.player2?.name, entry.data?.player3?.name].map(String)) === gesucht);
         if (schonDa) {
-          setError('This trio is already in the list');
+          setError(t('Dieses Trio steht schon in der Liste'));
           return;
         }
         await onCreateTrio?.(namen as [string, string, string], [countryCode, countryCode2, countryCode3]);
         setPlayer1(''); setPlayer2(''); setPlayer3('');
       } else {
         if (!player1.trim() || !player2.trim()) {
-          setError('Both player names required');
+          setError(t('Beide Spielernamen erforderlich'));
           return;
         }
 
@@ -290,7 +292,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         const normalized2 = player2.trim().toLowerCase();
 
         if (normalized1 === normalized2) {
-          setError('A duo requires two different player names');
+          setError(t('Ein Duo braucht zwei verschiedene Spielernamen'));
           return;
         }
 
@@ -303,7 +305,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         }
 
         if (usedNames.has(normalized1) || usedNames.has(normalized2)) {
-          setError('Each player name may only be used once in the current duo list');
+          setError(t('Jeder Spielername darf in der aktuellen Duo-Liste nur einmal vorkommen'));
           return;
         }
 
@@ -312,7 +314,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         setPlayer2('');
       }
     } catch (err: any) {
-      const msg = err?.message || `Failed to create ${mode === 'solo' ? 'player' : mode}`;
+      const msg = err?.message || t(mode === 'solo' ? 'Spieler konnte nicht angelegt werden' : mode === 'duo' ? 'Duo konnte nicht angelegt werden' : 'Trio konnte nicht angelegt werden');
       setError(msg);
     } finally {
       setLoading(false);
@@ -383,7 +385,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         <div className="create-panel-field create-panel-player">
           <input
             type="text"
-            placeholder={mode === 'solo' ? 'Player name...' : 'Player 1...'}
+            placeholder={mode === 'solo' ? t('Spielername...') : t('Spieler 1...')}
             value={player1}
             onChange={e => {
               const v = e.target.value.toUpperCase();
@@ -407,7 +409,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
           <div className="create-panel-field create-panel-player">
             <input
               type="text"
-              placeholder="Player 2..."
+              placeholder={t('Spieler 2...')}
               value={player2}
               onChange={e => {
                 const v = e.target.value.toUpperCase();
@@ -432,7 +434,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
           <div className="create-panel-field create-panel-player">
             <input
               type="text"
-              placeholder="Player 3..."
+              placeholder={t('Spieler 3...')}
               value={player3}
               onChange={e => { setError(null); setPlayer3(e.target.value.toUpperCase()); setAktivesFeld(3); }}
               onFocus={() => setAktivesFeld(3)}

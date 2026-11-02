@@ -1151,14 +1151,14 @@ export default function TierListPage() {
     const soloPlayerKeys = getUsedSoloPlayerKeys();
     const playerKey = getSoloKey(playerCandidate);
     if (playerKey && soloPlayerKeys.has(playerKey)) {
-      throw new Error('A solo player with the same name already exists');
+      throw new Error(txt('Einen Solo-Spieler mit diesem Namen gibt es schon'));
     }
 
     let player: any;
     if (isAdmin) {
       const saved = await playerService.addPlayer(name.trim(), region, countryCode);
       if (!saved) {
-        throw new Error('Failed to save player online');
+        throw new Error(txt('Spieler konnte nicht online gespeichert werden'));
       }
       player = {
         id: generateId(),
@@ -1192,12 +1192,12 @@ export default function TierListPage() {
     const normalized1 = player1.trim().toLowerCase();
     const normalized2 = player2.trim().toLowerCase();
     if (normalized1 === normalized2) {
-      throw new Error('A duo requires two different player names');
+      throw new Error(txt('Ein Duo braucht zwei verschiedene Spielernamen'));
     }
 
     const usedNames = getUsedDuoNames();
     if (usedNames.has(normalized1) || usedNames.has(normalized2)) {
-      throw new Error('Each player name may only be used once in the current duo list');
+      throw new Error(txt('Jeder Spielername darf in der aktuellen Duo-Liste nur einmal vorkommen'));
     }
 
     try {
@@ -1279,7 +1279,7 @@ export default function TierListPage() {
           });
           if (!antwort.ok) {
             const j = await antwort.json().catch(() => ({}));
-            throw new Error(j?.error || 'Failed to save trio online');
+            throw new Error(j?.error || txt('Trio konnte nicht online gespeichert werden'));
           }
           // Stand er schon einmal in der Entfernt-Liste, gilt das Anlegen als Zuruecknahme.
           const schluessel = getTrioKey(trio);
@@ -1386,7 +1386,7 @@ export default function TierListPage() {
                 className="reset-btn"
                 onClick={() => tierListState.resetTierAssignments()}
               >
-                <T>Reset</T>
+                <T>Zurücksetzen</T>
               </button>
               <button
                 type="button"

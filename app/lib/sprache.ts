@@ -4943,6 +4943,30 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Meiste Punkte in einem Grand Finals': 'Most points in a single Grand Finals',
   'Meiste Victory Royales in einem Grand Finals': 'Most Victory Royales in a single Grand Finals',
   'Meiste Elims in einem Grand Finals': 'Most elims in a single Grand Finals',
+
+  // Tierlist: vorher fest englisch
+  'Tierlist-Steuerung': 'Tierlist controls',
+  'Spielername erforderlich': 'Player name required',
+  'Drei Spielernamen erforderlich': 'Three player names required',
+  'Ein Trio braucht drei verschiedene Spielernamen': 'A trio requires three different player names',
+  'Dieses Trio steht schon in der Liste': 'This trio is already in the list',
+  'Beide Spielernamen erforderlich': 'Both player names required',
+  'Ein Duo braucht zwei verschiedene Spielernamen': 'A duo requires two different player names',
+  'Jeder Spielername darf in der aktuellen Duo-Liste nur einmal vorkommen': 'Each player name may only be used once in the current duo list',
+  'Spieler konnte nicht angelegt werden': 'Failed to create player',
+  'Duo konnte nicht angelegt werden': 'Failed to create duo',
+  'Trio konnte nicht angelegt werden': 'Failed to create trio',
+  'Spielername...': 'Player name...',
+  'Spieler 1...': 'Player 1...',
+  'Spieler 2...': 'Player 2...',
+  'Spieler 3...': 'Player 3...',
+  'Spieler suchen...': 'Search player...',
+  'Spieler durchsuchen...': 'Search players...',
+  'Globaler Spieler': 'Global Player',
+  'Eintrag aus der Liste löschen': 'Delete entry',
+  'Einen Solo-Spieler mit diesem Namen gibt es schon': 'A solo player with the same name already exists',
+  'Spieler konnte nicht online gespeichert werden': 'Failed to save player online',
+  'Trio konnte nicht online gespeichert werden': 'Failed to save trio online',
 };
 
 /**

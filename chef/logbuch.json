@@ -7832,5 +7832,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-354",
+    "datum": "2026-11-02T02:51:20Z",
+    "titel": "Tierlist: feste englische Texte übersetzt",
+    "kurz": "Tierlist auf Deutsch: Platzhalter, Hinweise und Fehlermeldungen jetzt deutsch statt englisch.",
+    "markieren": [
+      "css:input[placeholder]",
+      "css:main"
+    ],
+    "bereich": "Oberfläche",
+    "warum": "Auf der deutschen Seite standen in der Tierlist viele Texte fest auf Englisch (z. B. „Search player...“, „Player name required“).",
+    "was": "21 Texte laufen jetzt über die Übersetzung; die englische Seite bleibt genau gleich.",
+    "ansehen": [
+      "/tierlist"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

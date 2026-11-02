@@ -403,7 +403,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         )}
         {isGlobal && (
           <div className="global-flag-badge">
-            <img src="/flags/flag-GLOBE.png" alt="Global" className="global-flag" title="Global Player" />
+            <img src="/flags/flag-GLOBE.png" alt="Global" className="global-flag" title={t('Globaler Spieler')} />
           </div>
         )}
       </div>
@@ -457,7 +457,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                 onDelete();
               }}
               className="admin-delete-btn"
-              title="Delete entry"
+              title={t('Eintrag aus der Liste löschen')}
             >
               ×
             </button>
