@@ -7077,5 +7077,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-320",
+    "datum": "2026-11-02T02:03:00Z",
+    "titel": "Spielerfenster: Überlebenszeit nie mehr „3m 60s“",
+    "kurz": "Cup → Spieler anklicken: Überlebenszeit zeigt „4m 0s“ statt „3m 60s“.",
+    "markieren": [
+      "text:Avg Time Alive"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei 239,6 Sekunden stand im Spielerfenster „3m 60s“, knapp unter einer Stunde „59m 60s“.",
+    "was": "Die Zeit wird erst auf ganze Sekunden gerundet und dann in Minuten und Sekunden zerlegt.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
