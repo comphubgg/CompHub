@@ -6559,5 +6559,50 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-297",
+    "datum": "2026-11-02T01:31:55Z",
+    "titel": "Globals: Endstand mit Ladeschirm",
+    "kurz": "Globals-Startseite: Endstand zeigt beim Laden den Ladeschirm statt Lücke.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bis die Antwort kam, fehlte der Endstand ganz und sprang dann plötzlich hinein.",
+    "was": "Jetzt steht dort der übliche Ladeschirm.",
+    "ansehen": [
+      "/globals"
+    ],
+    "commits": [
+      "5145a9961ef1f1fe35be68239b90e6941325fb05"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-298",
+    "datum": "2026-11-02T01:31:55Z",
+    "titel": "Vergleich: Ladeschirm statt leerem Board",
+    "kurz": "Vergleich → zwei Spieler wählen: erst Ladeschirm, nicht kurz Nullen oder „nicht angetreten“.",
+    "markieren": [
+      "text:Board",
+      "text:Radar"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Laden standen kurz lauter Nullen oder „nicht angetreten“ da, obwohl die Zahlen noch unterwegs waren.",
+    "was": "Bis die Zahlen da sind, zeigt der Vergleich den Ladeschirm; Ausfall-Hinweis bleibt wie bisher.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [
+      "2cc0d7d2e5ac63c669e506406b4ed1e196a02d86"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
