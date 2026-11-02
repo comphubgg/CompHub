@@ -227,5 +227,7 @@ export function andereErfolge(zeilen: ProfilZeile[], lan: LanListe[], spieler: s
       mitspieler: e.spieler.filter((s) => s.platz === ich.platz && s.epicId !== spieler).map((s) => s.epicId), datum: null,
     });
   }
-  return raus.sort((a, b) => a.platz - b.platz || (b.datum ?? 0) - (a.datum ?? 0));
+  // Feste Folge bei Gleichstand (wie bei den FNCS-Platzierungen): LAN vor Online, juengeres Datum, zuletzt Titel und Saison.
+  return raus.sort((a, b) => a.platz - b.platz || Number(b.typ === 'LAN') - Number(a.typ === 'LAN')
+    || (b.datum ?? 0) - (a.datum ?? 0) || a.titel.localeCompare(b.titel) || a.season.localeCompare(b.season));
 }

@@ -7144,5 +7144,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-323",
+    "datum": "2026-11-02T02:04:27Z",
+    "titel": "Erfolge-Reiter „Weitere“: feste Reihenfolge bei gleichem Platz",
+    "kurz": "Unsichtbar: Profil → Erfolge → Weitere: gleiche Plätze springen nicht mehr.",
+    "markieren": [
+      "text:More"
+    ],
+    "bereich": "Statistik",
+    "warum": "Gleich platzierte LAN-Erfolge (ohne Datum) oder Cups am selben Tag standen in zufälliger Reihenfolge.",
+    "was": "Bei gleichem Platz steht LAN vor Online, dann das neuere Datum – wie bei den FNCS-Platzierungen.",
+    "ansehen": [
+      "/statistics?bereich=spieler&spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
