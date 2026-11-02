@@ -5662,7 +5662,7 @@ export default function StatistikSeite() {
                   <p className="text-[11px] text-slate-600">
                     {nachLand
                       ? <><T>Länder</T>{' '}{laender.map((x) => x.toUpperCase()).join(', ')}</>
-                      : <T>nach Eliminierungen über alle erfassten Spieltage, ab 20 Matches</T>}
+                      : <T>nach Eliminierungen über alle erfassten Spieltage, ab einem Match oder mit Foto</T>}
                     {eingabe && zeigen.length !== grundmenge.length
                       && <> · {zahl(zeigen.length, 0, sprache)} <T>Treffer</T></>}
                   </p>

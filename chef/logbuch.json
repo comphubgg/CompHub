@@ -9990,5 +9990,25 @@
     "ansehen": [
       "/statistics"
     ]
+  },
+  {
+    "id": "chef-450",
+    "datum": "2026-11-02T04:34:22Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Opus",
+    "titel": "Fotoübersicht: Hinweis nennt die richtige Grenze",
+    "kurz": "Statistik → Bilder (nur Admin): Hinweis sagt „ab einem Match“ statt „ab 20 Matches“.",
+    "markieren": [
+      "text:from one match or with a photo"
+    ],
+    "warum": "Die Fotoübersicht zeigt seit der Umstellung jedes Konto ab einem Match, der Hinweis sprach noch von 20.",
+    "was": "Der Hinweis nennt jetzt die echte Grenze.",
+    "ansehen": [
+      "/statistics?bereich=bilder"
+    ]
   }
 ]

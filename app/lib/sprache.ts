@@ -2073,8 +2073,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   '{a} von {b} Spielern gezeigt.': '{a} of {b} players shown.',
   'Für {r} liegen {z} keine Einzelwerte vor.': 'No individual values for {r} {z}.',
   'Meister Schaden erlitten': 'Most damage taken',
-  'nach Eliminierungen über alle erfassten Spieltage, ab 20 Matches':
-    'by eliminations across all recorded match days, from 20 matches',
+  'nach Eliminierungen über alle erfassten Spieltage, ab einem Match oder mit Foto':
+    'by eliminations across all recorded match days, from one match or with a photo',
   ['Spieltage, an denen niemand mehr Eliminierungen hatte — gezählt '
     + 'über alle']:
     'Match days on which nobody had more eliminations — counted across all',
