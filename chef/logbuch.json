@@ -7938,7 +7938,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "commits": [],
+    "commits": [
+      "c2ba33b8200574f092b8ef7e2defe5cc9d467885"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -7959,7 +7961,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (von Opus geprüft)",
-    "commits": [],
+    "commits": [
+      "a2eac86fee65e4b41f4d23632ff6a61c15ed43d1"
+    ],
     "status": "wartet",
     "runde": 1
   }
