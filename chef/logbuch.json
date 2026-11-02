@@ -7547,5 +7547,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-341",
+    "datum": "2026-11-02T02:41:42Z",
+    "titel": "Duell-Tafel: Strich gewinnt und verliert nicht",
+    "kurz": "Statistik → Duell: steht bei einem Spieler „–“, bekommt keine Seite Balken-Sieg.",
+    "markieren": [
+      "text:Headshots",
+      "text:Hits"
+    ],
+    "bereich": "Statistik",
+    "warum": "Zeigte ein Spieler einen Strich (Wert unbekannt), leuchtete der andere trotzdem blau als Sieger, und der Strich bekam einen Balken.",
+    "was": "Bei unbekanntem Wert gibt es auf dieser Seite keinen Balken und keinen Sieger; sind beide Werte bekannt, bleibt alles wie vorher.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -867,11 +867,13 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '', linksUn
   nachkomma?: number; einheit?: string; linksUnbekannt?: boolean; rechtsUnbekannt?: boolean;
 }) {
   const { sprache } = useSprache();
-  const groesser = Math.max(links, rechts);
-  const anteilLinks = groesser > 0 ? (links / groesser) * 100 : 0;
-  const anteilRechts = groesser > 0 ? (rechts / groesser) * 100 : 0;
-  const linksVorn = links > rechts;
-  const rechtsVorn = rechts > links;
+  // Ein Strich ist unbekannt, nicht 0: er hat keinen Balken, und es gewinnt nichts gegen ihn.
+  const groesser = Math.max(linksUnbekannt ? 0 : links, rechtsUnbekannt ? 0 : rechts);
+  const anteilLinks = groesser > 0 && !linksUnbekannt ? (links / groesser) * 100 : 0;
+  const anteilRechts = groesser > 0 && !rechtsUnbekannt ? (rechts / groesser) * 100 : 0;
+  const vergleichbar = !linksUnbekannt && !rechtsUnbekannt;
+  const linksVorn = vergleichbar && links > rechts;
+  const rechtsVorn = vergleichbar && rechts > links;
   return (
     /*
       * Auf dem Handy steht die Beschriftung ueber der Zeile.
