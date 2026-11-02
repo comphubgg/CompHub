@@ -5,6 +5,7 @@ import { zaehleAufruf, BESUCH_COOKIE } from '@/lib/besuche';
 import { kontoAus, nachId } from '@/lib/konten';
 import { vipAus } from '@/lib/vipCookie';
 import { merkeAufruf } from '@/lib/anwesenheit';
+import { geraetAus } from '@/lib/geraet';
 
 /*
  * Die Meldung "hier ist jemand".
@@ -52,13 +53,15 @@ export async function POST(request: Request) {
      * bei den Besuchszahlen bleibt er weiterhin aussen vor.
      */
     const vip = vipAus(laden.get(VIP_COOKIE)?.value);
+    // Grob, womit (lib/geraet: Art, System, Browser, Land - keine IP).
+    const geraet = geraetAus(request.headers);
     if (vip) {
-      void merkeAufruf(`vip:${vip.toLowerCase()}`, vip, 'vip');
+      void merkeAufruf(`vip:${vip.toLowerCase()}`, vip, 'vip', geraet);
     } else {
       const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
       if (id) {
         const k = await nachId(id);
-        if (k) void merkeAufruf(k.id, k.name || k.email, 'konto');
+        if (k) void merkeAufruf(k.id, k.name || k.email, 'konto', geraet);
       }
     }
 

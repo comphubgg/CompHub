@@ -40,7 +40,10 @@ const EN: RechtsText = {
         + 'other data to build a profile of you.',
         'We count visits to see how much the site is used. For this a cookie with a random value is set; no name or e-mail '
         + 'address is attached to it. The operator\'s own visits are not counted. For signed-in accounts the site additionally '
-        + 'notes that the account is currently active, so that an administrator can see who is online.',
+        + 'notes that the account is currently active, so that an administrator can see who is online. To protect accounts '
+        + 'against shared or stolen access, each session of a signed-in account also records a rough device description: device '
+        + 'type, operating system, browser, the phone model where the browser reports it, and the country. No IP address and no '
+        + 'precise location are stored; the last 60 sessions and 12 devices per account are kept.',
       ],
     },
     {
@@ -202,7 +205,9 @@ const DE: RechtsText = {
         'Wir zählen Besuche, um zu sehen, wie stark die Seite genutzt wird. Dafür wird ein Cookie mit einem Zufallswert gesetzt; '
         + 'Name oder E-Mail-Adresse hängen nicht daran. Die eigenen Aufrufe des Betreibers werden nicht mitgezählt. Bei '
         + 'angemeldeten Konten wird außerdem vermerkt, dass das Konto gerade aktiv ist, damit ein Administrator sehen kann, wer '
-        + 'online ist.',
+        + 'online ist. Zum Schutz vor weitergegebenen oder gestohlenen Zugängen wird je Sitzung eines angemeldeten Kontos zudem grob '
+        + 'festgehalten, womit sie stattfand: Geräteart, Betriebssystem, Browser, das Handymodell, wenn der Browser es nennt, und '
+        + 'das Land. Keine IP-Adresse und kein genauer Ort; aufbewahrt werden die letzten 60 Sitzungen und 12 Geräte je Konto.',
       ],
     },
     {

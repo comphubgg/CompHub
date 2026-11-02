@@ -93,7 +93,11 @@ const nextConfig: NextConfig = {
    * Der Browser merkt sich die Antworten weiter (Cache-Control), und davor kann Cloudflare stehen.
    */
   async headers() {
-    return [{ source: '/api/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] }];
+    return [
+      { source: '/api/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
+      // Chrome auf Android nennt das Handymodell nur auf Nachfrage (Client Hints) - fuer die grobe Geraeteangabe je Sitzung (lib/geraet).
+      { source: '/:path*', headers: [{ key: 'Accept-CH', value: 'Sec-CH-UA-Model, Sec-CH-UA-Mobile, Sec-CH-UA-Platform-Version' }] },
+    ];
   },
   /*
    * Spielerfotos, die der Betreiber im Admin-Werkzeug hochlaedt, liegen im

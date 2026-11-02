@@ -1,4 +1,5 @@
 import { liesJson, schreibJson, speicher } from '@/lib/ablage';
+import { geraetSchluessel, type Geraet } from '@/lib/geraet';
 
 /*
  * Wer ist gerade da, wer war wann zuletzt hier - und wie lange.
@@ -61,7 +62,21 @@ export interface Sitzung {
   /** Erstes und letztes Lebenszeichen der Sitzung. */
   von: number;
   bis: number;
+  /** Womit (grob, lib/geraet) - seit 2.11.2026; aeltere Sitzungen haben es nicht. */
+  geraet?: Geraet;
 }
+
+/** Ein Geraet, das dieses Konto benutzt hat. */
+export interface KontoGeraet {
+  geraet: Geraet;
+  zuerst: number;
+  zuletzt: number;
+  /** In wie vielen Sitzungen. */
+  sitzungen: number;
+}
+
+/** Wie viele verschiedene Geraete je Konto aufgehoben werden. */
+const GERAETE_HOECHSTENS = 12;
 
 export interface Anwesend {
   /** Der angezeigte Name. */
@@ -80,6 +95,8 @@ export interface Anwesend {
   abgemeldet?: number;
   /** Die letzten Sitzungen, juengste zuletzt. */
   sitzungen?: Sitzung[];
+  /** Die Geraete, mit denen dieses Konto da war (Betreiber, 2.11.2026: sehen, ob ein Schluessel weitergegeben wurde). */
+  geraete?: KontoGeraet[];
 }
 
 /** Der Dateiname einer Kennung - ohne Zeichen, die im Pfad nichts verloren haben. */
@@ -134,19 +151,38 @@ async function schreibEintrag(kennung: string, e: Anwesend): Promise<void> {
  * laufenden Sitzung; sonst beginnt eine neue. So wird aus "zehn Minuten
  * offen, dann zu" genau eine Zeile von zehn Minuten.
  */
-function mitSitzung(e: Anwesend, jetzt: number, neueSitzung: boolean): Sitzung[] {
+function mitSitzung(e: Anwesend, jetzt: number, neueSitzung: boolean, geraet?: Geraet | null): Sitzung[] {
   const liste = [...(e.sitzungen ?? [])];
   const letzte = liste[liste.length - 1];
-  const abgerissen = !letzte || jetzt - letzte.bis >= NOCH_DA_MS
+  // Ein anderes Geraet ist eine andere Sitzung - auch wenn beide zugleich offen sind.
+  const anderesGeraet = !!geraet && !!letzte?.geraet && geraetSchluessel(geraet) !== geraetSchluessel(letzte.geraet);
+  const abgerissen = !letzte || jetzt - letzte.bis >= NOCH_DA_MS || anderesGeraet
     || (e.abgemeldet !== undefined && e.abgemeldet >= letzte.bis);
-  if (neueSitzung || abgerissen) liste.push({ von: jetzt, bis: jetzt });
-  else letzte.bis = jetzt;
+  if (neueSitzung || abgerissen) liste.push({ von: jetzt, bis: jetzt, ...(geraet ? { geraet } : {}) });
+  else {
+    letzte.bis = jetzt;
+    if (geraet && !letzte.geraet) letzte.geraet = geraet;
+  }
   return liste.slice(-SITZUNGEN_HOECHSTENS);
+}
+
+/** Die Geraeteliste fortschreiben: bekanntes Geraet auffrischen, neues vorne anhaengen. */
+function mitGeraet(e: Anwesend, jetzt: number, geraet: Geraet | null | undefined, neueSitzung: boolean): KontoGeraet[] | undefined {
+  if (!geraet) return e.geraete;
+  const liste = [...(e.geraete ?? [])];
+  const k = geraetSchluessel(geraet);
+  const da = liste.find((x) => geraetSchluessel(x.geraet) === k);
+  if (da) {
+    da.zuletzt = jetzt;
+    da.geraet = geraet;
+    if (neueSitzung) da.sitzungen += 1;
+  } else liste.push({ geraet, zuerst: jetzt, zuletzt: jetzt, sitzungen: 1 });
+  return liste.sort((a, b) => b.zuletzt - a.zuletzt).slice(0, GERAETE_HOECHSTENS);
 }
 
 /** Jemand hat eine Seite geoeffnet oder sich gemeldet. */
 export async function merkeAufruf(
-  kennung: string, name: string, art: 'konto' | 'vip',
+  kennung: string, name: string, art: 'konto' | 'vip', geraet?: Geraet | null,
 ): Promise<void> {
   if (!kennung) return;
   const jetzt = Date.now();
@@ -155,7 +191,9 @@ export async function merkeAufruf(
   const zuletzt = zuletztGeschrieben.get(kennung) ?? 0;
   const laeuft = bisher && jetzt - (bisher.zuletzt ?? 0) < NOCH_DA_MS
     && !(bisher.abgemeldet && bisher.abgemeldet >= (bisher.zuletzt ?? 0));
-  if (laeuft && jetzt - zuletzt < SCHREIB_ABSTAND_MS) return;
+  const letzteSitzung = bisher?.sitzungen?.[bisher.sitzungen.length - 1];
+  const anderesGeraet = !!geraet && geraetSchluessel(geraet) !== geraetSchluessel(letzteSitzung?.geraet);
+  if (laeuft && jetzt - zuletzt < SCHREIB_ABSTAND_MS && !anderesGeraet) return;
 
   const e: Anwesend = {
     ...(bisher ?? { name: name || kennung, art, zuletzt: jetzt }),
@@ -163,7 +201,9 @@ export async function merkeAufruf(
     art,
     zuletzt: jetzt,
   };
-  e.sitzungen = mitSitzung(bisher ?? e, jetzt, false);
+  const vorher = (bisher ?? e).sitzungen?.length ?? 0;
+  e.sitzungen = mitSitzung(bisher ?? e, jetzt, false, geraet);
+  e.geraete = mitGeraet(bisher ?? e, jetzt, geraet, e.sitzungen.length !== vorher || !laeuft);
   await schreibEintrag(kennung, e);
 }
 

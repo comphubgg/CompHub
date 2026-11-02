@@ -5,6 +5,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
+import { geraetText, type Geraet } from '@/lib/geraet';
 
 /*
  * Wer gerade da ist, und wer wann zuletzt.
@@ -32,8 +33,10 @@ interface Person {
   ersteAnmeldung?: number;
   anmeldungen?: number;
   online: boolean;
-  /** Die letzten Sitzungen - von erstem bis letztem Lebenszeichen. */
-  sitzungen?: Array<{ von: number; bis: number }>;
+  /** Die letzten Sitzungen - von erstem bis letztem Lebenszeichen, seit 2.11.2026 mit Geraet. */
+  sitzungen?: Array<{ von: number; bis: number; geraet?: Geraet }>;
+  /** Die Geraete dieses Kontos (lib/anwesenheit). */
+  geraete?: Array<{ geraet: Geraet; zuerst: number; zuletzt: number; sitzungen: number }>;
 }
 
 export default function LivePage() {
@@ -99,6 +102,10 @@ export default function LivePage() {
     return `${h} ${t('Std.')} ${m % 60} ${t('Min.')}`;
   };
 
+  /** "Handy · iPhone · iOS 18 · Safari · CH" - Geraeteart und Unbekannt uebersetzt, der Rest sind Namen. */
+  const geraetZeile = (g: Geraet) => geraetText({ ...g, art: t(g.art) as Geraet['art'], system: g.system === 'Unbekannt' ? t('Unbekannt') : g.system,
+    browser: g.browser === 'Anderer Browser' ? t('Anderer Browser') : g.browser });
+
   /*
    * Der Verlauf - aufgeklappt unter der Zeile.
    *
@@ -117,6 +124,21 @@ export default function LivePage() {
       );
     }
     return (
+      <>
+      {/* Womit dieses Konto da war - mehrere Geraete heissen nicht zwingend mehrere Personen (Handy und PC), ein fremdes Land schon eher. */}
+      {!!p.geraete?.length && (
+        <div className="mx-3 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Geräte</T> · {p.geraete.length}</p>
+          <ul className="space-y-0.5">
+            {p.geraete.map((g) => (
+              <li key={`${g.zuerst}`} className="text-[12px] text-slate-300">
+                {geraetZeile(g.geraet)}
+                <span className="text-slate-500"> · {g.sitzungen} <T>Sitzungen</T> · <T>zuletzt</T> {wann(g.zuletzt)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ul className="mx-3 mb-2 space-y-0.5 border-l border-zinc-800 pl-3">
         {liste.slice(0, 30).map((s, i) => {
           const laeuft = i === 0 && p.online;
@@ -129,10 +151,12 @@ export default function LivePage() {
               {' · '}{zeit(s.von)}–{laeuft ? t('jetzt') : zeit(s.bis)}
               {' · '}{dauer(s.von, laeuft ? Date.now() : s.bis)}
               {laeuft && <span className="ml-2 text-emerald-400"><T>läuft</T></span>}
+              {s.geraet && <span className="ml-2 text-slate-400">{geraetZeile(s.geraet)}</span>}
             </li>
           );
         })}
       </ul>
+      </>
     );
   };
 
