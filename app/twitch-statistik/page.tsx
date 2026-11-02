@@ -278,7 +278,7 @@ export default function TwitchStatistik() {
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{s.nurArchiv ? '—' : zahl(s.peakOhneRaid)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{s.nurArchiv ? '—' : zahl(s.durchschnitt)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{s.nurArchiv ? '—' : zahl(s.chatter)}</td>
-                    <td className="py-2 text-right tabular-nums text-slate-300">{s.raids ? `${s.raids} (${zahl(s.raidZuschauer)})` : '—'}</td>
+                    <td className="py-2 text-right tabular-nums text-slate-300">{s.nurArchiv ? '—' : s.raids ? `${zahl(s.raids)} (${zahl(s.raidZuschauer)})` : zahl(0)}</td>
                   </tr>
                 ))}
               </tbody>
