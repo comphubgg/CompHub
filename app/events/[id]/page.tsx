@@ -4398,7 +4398,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 {mitPunkten && (
                                   <td className="px-3 py-1.5 text-right font-semibold
                                                  tabular-nums text-sky-400">
-                                    {t.punkte ?? '—'}
+                                    {t.punkte == null ? '—' : t.punkte.toLocaleString(ort)}
                                   </td>
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums

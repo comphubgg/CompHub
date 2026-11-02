@@ -75,7 +75,7 @@ function Endstand() {
           {([['Punkte', sieger.punkte], ['Eliminierungen', sieger.elims], ['Siege', sieger.siege]] as Array<[string, number]>).map(([l, v], i) => (
             <div key={l} className={i === 0 ? 'pr-4' : 'px-4'}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{l}</T></p>
-              <p className="mt-1 text-2xl font-black tabular-nums text-slate-50">{v}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums text-slate-50">{v.toLocaleString(ortJetzt())}</p>
             </div>
           ))}
         </div>
@@ -88,8 +88,8 @@ function Endstand() {
               <span className="w-5 text-center text-xs font-black tabular-nums text-slate-500">{x.rang}</span>
               <TeamFlagge groesse={26} laender={x.spieler.map((p) => p.land ?? undefined)} />
               <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase text-slate-100">{x.spieler.map((p) => p.anzeige).join(' · ')}</span>
-              <span className="text-[11px] tabular-nums text-slate-500">{x.elims} <T>Elims</T></span>
-              <span className="w-12 text-right text-sm font-black tabular-nums text-sky-400">{x.punkte}</span>
+              <span className="text-[11px] tabular-nums text-slate-500">{x.elims.toLocaleString(ortJetzt())} <T>Elims</T></span>
+              <span className="w-12 text-right text-sm font-black tabular-nums text-sky-400">{x.punkte.toLocaleString(ortJetzt())}</span>
             </li>
           ))}
         </ol>

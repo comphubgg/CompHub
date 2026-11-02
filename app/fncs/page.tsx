@@ -524,7 +524,7 @@ export default function FncsSeite() {
                             <span className="block truncate text-[12px] font-bold uppercase text-slate-100">{z.spieler.map((x) => x.name).join(' · ')}</span>
                             <span className="block text-[11px] text-slate-600">{z.event}</span>
                           </span>
-                          <span className="text-sm font-black tabular-nums text-sky-400">{z.wert}</span>
+                          <span className="text-sm font-black tabular-nums text-sky-400">{z.wert.toLocaleString(ortJetzt())}</span>
                         </li>
                       ))}
                     </ol>
@@ -585,7 +585,7 @@ export default function FncsSeite() {
                             <span className="text-[12px] font-bold uppercase tracking-wide text-slate-100">{s.name}</span>
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 text-right text-sm font-black tabular-nums text-slate-50">{s.gesamt}</td>
+                        <td className="px-3 py-1.5 text-right text-sm font-black tabular-nums text-slate-50">{s.gesamt?.toLocaleString(ortJetzt()) ?? '–'}</td>
                         {alt.events.map((ev) => {
                           const v = s.je[ev.key];
                           return (

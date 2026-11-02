@@ -7431,7 +7431,7 @@ export default function StatistikSeite() {
                                   </td>
                                   <td className="px-2 py-2.5 text-right font-bold
                                                  tabular-nums text-sky-400">
-                                    {t.elims}
+                                    {zahl(t.elims, 0, sprache)}
                                   </td>
                                   <td className="px-2 py-2.5 text-right tabular-nums
                                                  text-slate-400">

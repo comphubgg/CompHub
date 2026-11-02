@@ -9800,5 +9800,29 @@
       "/account"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T04:15:27Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-444",
+    "titel": "Tausendertrennung an sieben weiteren Stellen",
+    "kurz": "Profil (Beste Spieltage), Cup-Matches, FNCS-Rekorde, Globals-Endstand: große Zahlen jetzt mit Tausenderpunkt.",
+    "markieren": [
+      "text:Records",
+      "text:Total",
+      "text:Eliminations"
+    ],
+    "bereich": "Statistik",
+    "warum": "An sieben Stellen standen Summen wie Elims oder Punkte am Stück (1234), daneben aber getrennt (1.234).",
+    "was": "Sie stehen jetzt überall mit Tausendertrennung; unbekannte Werte bleiben ein Strich.",
+    "ansehen": [
+      "/fncs",
+      "/globals",
+      "/events"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
