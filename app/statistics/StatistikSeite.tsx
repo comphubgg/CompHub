@@ -3269,6 +3269,24 @@ export default function StatistikSeite() {
     return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
   }, [bereich, istAdmin, galerie.length, galerieVersuch]);
 
+  /* Die Turnierliste je Saison holen - Turniere- und Regionen-Reiter fragen dieselbe Adresse ab und teilen sich die Antwort.
+     Gemerkt wird das Versprechen (so teilen sich auch gleichzeitige Abrufe einen Abruf) und nur bei Erfolg, kurzzeitig;
+     ein Fehler wird sofort vergessen, damit der nächste Versuch neu abruft. Der Schlüssel enthält die Saison, eine alte Antwort landet nie unter einer neuen. */
+  const turnierListen = useRef(new Map<string, { bis: number; liste: Promise<Turnier[]> }>());
+  const holeTurnierliste = useCallback((s: string): Promise<Turnier[]> => {
+    const adresse = `/api/szene-stats?ansicht=turniere&saison=${s}` + (nurGrosse ? '' : '&alle=1');
+    const drin = turnierListen.current.get(adresse);
+    if (drin && drin.bis > Date.now()) return drin.liste;
+    const liste = fetch(adresse).then((r) => r.json()).then((j) => {
+      if (!Array.isArray(j?.turniere)) throw new Error('keine Liste');
+      return j.turniere as Turnier[];
+    });
+    const eintrag = { bis: Date.now() + 60_000, liste };
+    turnierListen.current.set(adresse, eintrag);
+    liste.catch(() => { if (turnierListen.current.get(adresse) === eintrag) turnierListen.current.delete(adresse); });
+    return liste;
+  }, []);
+
   /* ------------------------------------------------------------ Turniere */
   useEffect(() => {
     if (bereich !== 'turniere' || !saison) return;
@@ -3276,13 +3294,11 @@ export default function StatistikSeite() {
        danach das Verzeichnis - der Reiter wartete auf zwei Antworten hintereinander, und fiel die erste aus, kam gar keine Liste. */
     /* Wechselt die Saison, bevor die Antwort da ist, darf die späte Antwort der alten Saison die neue nicht überschreiben. */
     let weg = false;
-    fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
-        + (nurGrosse ? '' : '&alle=1'))
-      .then((r) => r.json())
-      .then((j) => { if (weg) return; if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); setTurniereStand(saison); })
+    holeTurnierliste(saison)
+      .then((liste) => { if (weg) return; setTurniereFehlt(false); setTurniere(liste); setTurniereStand(saison); })
       .catch(() => { if (weg) return; setTurniere([]); setTurniereStand(''); setTurniereFehlt(true); });
     return () => { weg = true; };
-  }, [bereich, saison, nurGrosse]);
+  }, [bereich, saison, holeTurnierliste]);
 
   /* ------------------------------------------------------------ Regionen */
 
@@ -3339,12 +3355,12 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (bereich !== 'regional' || !saison) return;
     setTurniereFehlt(false);
-    fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
-        + (nurGrosse ? '' : '&alle=1'))
-      .then((r) => r.json())
-      .then((j) => { if (!Array.isArray(j?.turniere)) throw new Error('keine Liste'); setTurniereFehlt(false); setTurniere(j.turniere); setTurniereStand(saison); })
-      .catch(() => setTurniereFehlt(true));
-  }, [bereich, saison, nurGrosse]);
+    let weg = false;
+    holeTurnierliste(saison)
+      .then((liste) => { if (weg) return; setTurniereFehlt(false); setTurniere(liste); setTurniereStand(saison); })
+      .catch(() => { if (!weg) setTurniereFehlt(true); });
+    return () => { weg = true; };
+  }, [bereich, saison, holeTurnierliste]);
 
   /** Eine Reihe (oder einen ihrer Spieltage) nachladen. */
   const ladeReihe = useCallback(async (name: string, tage: Turnier[], wahl: string) => {

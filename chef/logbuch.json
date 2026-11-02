@@ -9619,5 +9619,24 @@
       "/statistics?bereich=orgs"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:08:18Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-435",
+    "titel": "Statistik: Turnierliste nur einmal laden",
+    "kurz": "Unsichtbar: Turniere- und Regionen-Reiter laden die Turnierliste nur noch einmal.",
+    "markieren": [],
+    "bereich": "Statistik",
+    "warum": "Beim Wechsel zwischen „Turniere“ und „Regionen“ wurde dieselbe Liste jedes Mal neu geholt; bei Regionen konnte eine späte Antwort der alten Saison die neue überschreiben.",
+    "was": "Beide Reiter teilen sich die Antwort je Saison; Fehler werden nicht gemerkt, späte Antworten verworfen.",
+    "ansehen": [
+      "/statistics?bereich=turniere",
+      "/statistics?bereich=regional"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
