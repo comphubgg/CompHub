@@ -46,7 +46,8 @@ let letzteUnvollstaendig = false;
 
 async function rechnen() {
   const neu = await rechnenRoh();
-  const unvollstaendig = Boolean(neu.rekorde && (neu.rekorde.fehlend ?? 0) > 0);
+  // Auch "Rekorde ganz ausgefallen" (null) ist unvollstaendig: sonst bliebe die leere Antwort 30 Minuten (und 7 Tage als Rückfall) stehen.
+  const unvollstaendig = !neu.rekorde || (neu.rekorde.fehlend ?? 0) > 0;
   letzteUnvollstaendig = unvollstaendig;
   if (!unvollstaendig) {
     // Vollstaendig: als letzte vollstaendige Antwort ablegen.

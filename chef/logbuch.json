@@ -7055,5 +7055,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-319",
+    "datum": "2026-11-02T02:02:45Z",
+    "titel": "FNCS All-Time: ausgefallene Rekorde nicht 30 Minuten festhalten",
+    "kurz": "Unsichtbar: FNCS → All-Time: kurzer Epic-Ausfall versteckt die Rekord-Tafeln nicht mehr 30 Min.",
+    "markieren": [
+      "text:All-Time Leaderboard"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel die Rekord-Abfrage bei Epic ganz aus, galt die leere Antwort als vollständig und blieb 30 Minuten stehen – Leaderboard „nicht ladbar“, Rekorde weg.",
+    "was": "Ein solcher Ausfall gilt jetzt als unvollständig: Die Seite zeigt die letzte vollständige Antwort und fragt nach 2 Minuten neu.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
