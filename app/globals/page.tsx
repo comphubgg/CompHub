@@ -4,6 +4,7 @@ import { ortJetzt } from '@/app/lib/ort';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import GlobalsGeruest, { GLOBALS_SEITEN } from './GlobalsGeruest';
@@ -47,6 +48,7 @@ function Endstand() {
     return () => { weg = true; };
   }, []);
   if (fehler) return <p className="mb-6 text-xs text-slate-600"><T>Der Endstand ließ sich gerade nicht laden.</T></p>;
+  if (!teams && !fehler) return <LadeSchirm />;
   if (!teams?.length) return null;
   const [sieger, ...rest] = teams;
   return (
