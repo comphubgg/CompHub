@@ -4,6 +4,7 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
 import { fncsRekorde, fncsEreignisse } from '@/lib/fncsEreignisse';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import { vglElims, nameVgl } from '@/lib/fncsReihenfolge';
 
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
@@ -65,7 +66,7 @@ async function rechnen() {
         je.set(sp.epicId, x);
       }
     }
-    const spieler = [...je.values()].sort((a, b) => b.gesamt - a.gesamt).slice(0, 80).map((x) => {
+    const spieler = [...je.values()].sort(vglElims).slice(0, 80).map((x) => {
       const k = kontext(x.id, x.name);
       return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
     });
@@ -83,10 +84,11 @@ async function rechnen() {
     }
     // Bei gleich vielen Titeln entscheidet die Staerke (Platz in der Eliminierungs-Aufstellung der Grand Finals) - nie das Alphabet (Betreiber).
     const staerke = new Map(spieler.map((x, i) => [x.name.toLowerCase(), i] as const));
-    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6)).map((t) => ({ id: t.name, ...t }));
-    const nachLand = new Map<string, number>();
-    for (const t of titel) if (t.land) nachLand.set(t.land, (nachLand.get(t.land) ?? 0) + t.titel);
-    const laender = [...nachLand.entries()].map(([land, n]) => ({ land, titel: n })).sort((a, b) => b.titel - a.titel);
+    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6) || nameVgl(a.name, b.name)).map((t) => ({ id: t.name, ...t }));
+    // Laender: mehr Titel, dann mehr verschiedene Titelgewinner, dann Laendercode.
+    const nachLand = new Map<string, { titel: number; koepfe: number }>();
+    for (const t of titel) if (t.land) { const a = nachLand.get(t.land) ?? { titel: 0, koepfe: 0 }; a.titel += t.titel; a.koepfe += 1; nachLand.set(t.land, a); }
+    const laender = [...nachLand.entries()].sort(([ca, a], [cb, b]) => b.titel - a.titel || b.koepfe - a.koepfe || nameVgl(ca, cb)).map(([land, a]) => ({ land, titel: a.titel }));
     // Punkte, Siege, Eliminierungen und Rekorde der Grand Finals, die Epic noch fuehrt.
     const rekorde = await fncsRekorde().catch(() => null);
     return { ok: true, events, spieler, ab: events[0]?.saisonName ?? '', titel, laender, rekorde };

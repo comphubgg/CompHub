@@ -20,6 +20,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
+import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -349,7 +350,7 @@ export default function FncsSeite() {
     const q = suche.trim().toLowerCase();
     // Der Platz kommt aus der ganzen Liste, nicht aus den Treffern: wer "Tjino" sucht, sieht seinen echten Platz, nicht die 1.
     return [...alt.spieler]
-      .sort((a, b) => (sortNach === 'gesamt' ? b.gesamt - a.gesamt : (b.je[sortNach] ?? -1) - (a.je[sortNach] ?? -1) || b.gesamt - a.gesamt))
+      .sort(sortNach === 'gesamt' ? vglElims : vglElimsMajor(sortNach))
       .map((s, i) => ({ ...s, platz: i + 1 }))
       .filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [alt, sortNach, suche]);
