@@ -10103,5 +10103,25 @@
     "ansehen": [
       "/globals/prizepool"
     ]
+  },
+  {
+    "id": "chef-455",
+    "datum": "2026-11-02T04:39:52Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "mittel",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Cup-Spieler: Plätze bei Punktgleichheit wie im Endstand",
+    "kurz": "Unsichtbar: Mehrtages-Cups (z. B. Globals) – Spielerliste vergibt Plätze bei Punktgleichheit wie der Endstand.",
+    "markieren": [
+      "css:table"
+    ],
+    "warum": "Bei gleichen Punkten bekam ein Team in der Spielerliste einen zufälligen Platz, im Endstand den richtigen (nach Siegen, Elims, Platzierung) – zwei Plätze für dasselbe Team.",
+    "was": "Die Spielerliste trennt Gleichstände jetzt nach derselben Regel; fehlen die Zahlen, teilen sich die Teams den Platz.",
+    "ansehen": [
+      "/globals"
+    ]
   }
 ]
