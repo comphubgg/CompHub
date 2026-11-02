@@ -20,13 +20,14 @@ interface SpielerKopf { epicId: string; name?: string; anzeige?: string; bild?: 
 
 async function ladeSpieler(id: string): Promise<SpielerKopf | null> {
   try {
-    const r = await fetch(`${WURZEL}/api/szene-stats?spieler=${encodeURIComponent(id)}`, {
+    // Ueber die Suche nach der Id: sie kennt auch den Namen, unter dem eine Org den Spieler fuehrt (2.11.2026, Archivname kann veraltet sein).
+    const r = await fetch(`${WURZEL}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(id)}`, {
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(3000),
     });
     if (!r.ok) return null;
     const d = await r.json();
-    const s = d?.spieler as SpielerKopf | undefined;
+    const s = (Array.isArray(d?.spieler) ? d.spieler[0] : d?.spieler) as SpielerKopf | undefined;
     if (!s || s.epicId?.toLowerCase() !== id.toLowerCase()) return null;
     const anzeige = (s.anzeige || s.name || '').trim();
     return anzeige ? s : null;

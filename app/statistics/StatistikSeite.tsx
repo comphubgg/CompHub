@@ -3654,7 +3654,8 @@ export default function StatistikSeite() {
 
     const p = new URLSearchParams(window.location.search);
     const ist = p.get('spieler');
-    const soll = offen ? (offen.anzeige || offen.name) : null;
+    // In die Adresse kommt die Konto-Id, nicht der Name (2.11.2026): Namen sind mehrdeutig, ein Link auf "eyni" oeffnete einen anderen Spieler.
+    const soll = offen ? (offen.epicId || offen.anzeige || offen.name) : null;
     if ((soll ?? null) === (ist ?? null)) return;
     if (soll) p.set('spieler', soll); else p.delete('spieler');
     const rest = p.toString();

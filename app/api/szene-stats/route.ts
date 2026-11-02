@@ -920,13 +920,24 @@ async function berechne(request: Request) {
       // Auch der aktuelle Epic-Name zaehlt (Juu heisst gerade "juuzon ay лол7"), und Doppelgaenger-Zeichen zaehlen wie normale.
       const qv = vergleichbar(q);
       const jetzt = await aktuelleNamen();
+      // Eine Epic-Konto-Id findet genau dieses Konto (2.11.2026: Team-Seiten verlinken nur noch ueber die Id - "eyni" fuehrte ueber den Namen
+      // zu einem anderen Spieler, und ?spieler=<id> blieb bei der Liste haengen, weil die Suche Ids nicht kannte).
+      const istId = /^[0-9a-f]{32}$/i.test(q.trim());
+      // Der Name, unter dem eine Organisation den Spieler fuehrt - fuer Konten ohne gepflegtes Profil, deren Archivname veraltet sein kann
+      // (eyni stand als "omni eynibot", heute "clue eyniǃ", bei CLUE "eyni").
+      const orgName = new Map<string, string>();
+      try {
+        const { liesOrgs } = await import('@/lib/orgs');
+        for (const o of await liesOrgs()) for (const sp of o.spieler) if (sp.epicId && sp.name) orgName.set(sp.epicId, sp.name);
+      } catch { /* ohne Orgs bleibt der Archivname */ }
       const treffer = (await holeSuchIndex())
-        .filter((e) => [e.anzeige, e.name, jetzt[e.epicId] ?? '', ...e.namen].some((n) => vergleichbar(n).includes(qv)))
+        .filter((e) => (istId ? e.epicId.toLowerCase() === q.trim().toLowerCase()
+          : [e.anzeige, e.name, jetzt[e.epicId] ?? '', ...e.namen, orgName.get(e.epicId) ?? ''].some((n) => vergleichbar(n).includes(qv))))
         // Gepflegte Profile (die Profis) zuerst, dann wer mehr gespielt hat: bei "twi" ist der gesuchte Spieler der mit Hunderten Matches,
         // nicht ein gleichnamiges Konto mit dreien.
         .sort((a, b) => Number(b.gepflegt) - Number(a.gepflegt) || b.matches - a.matches)
         .slice(0, 8)
-        .map((e) => ({ ...e, aktuell: jetzt[e.epicId] ?? null }));
+        .map((e) => ({ ...e, ...(!e.gepflegt && orgName.get(e.epicId) ? { anzeige: orgName.get(e.epicId)! } : {}), aktuell: jetzt[e.epicId] ?? null }));
 
       return NextResponse.json({ success: true, quelle: QUELLE, spieler: treffer });
     }
