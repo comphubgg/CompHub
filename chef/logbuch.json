@@ -7211,5 +7211,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-326",
+    "datum": "2026-11-02T02:29:39Z",
+    "titel": "Vergleich-Radar: Treffer je Match nur aus Tagen mit Trefferdaten",
+    "kurz": "Statistik → Vergleich: Radar-Achse „HITS“ teilt nur durch Matches mit Trefferdaten.",
+    "markieren": [
+      "text:HITS",
+      "css:svg[aria-label=Radar] polygon"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieltage ohne Trefferzahlen zählten beim Teilen mit – Spieler mit vielen solchen Tagen sahen im Radar schlechter aus, als sie sind.",
+    "was": "„HITS“ wird jetzt wie Kopftreffer und Bauteile nur durch die Matches geteilt, für die es Trefferzahlen gibt.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

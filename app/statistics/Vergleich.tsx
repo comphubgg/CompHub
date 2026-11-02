@@ -34,7 +34,7 @@ interface Summe {
   matches: number; elims: number; damage: number; genommen: number; headshots: number; hits: number; shots: number;
   zeit: number; builds: number; mats: number; reboots: number; spieltage: number;
   /** Matches und Treffer nur aus Spieltagen mit Schusszahl - eigene Spieltage (seit 10.10.2026) kennen weder Schuesse noch Material noch Bauteile. */
-  matchesVoll: number; hitsMitSchuss: number;
+  matchesVoll: number; matchesHits: number; hitsMitSchuss: number;
   /** Schaden bzw. erlittener Schaden nur aus Zeilen mit Lebenszeit - Zaehler passend zum Nenner `zeit` fuer "pro Minute". */
   damageMitZeit: number; genommenMitZeit: number;
   /** Matches nur aus Spieltagen, die Eliminierungen bzw. Schaden fuehren - Nenner fuer "je Match", wie matchesElims/matchesSchaden in lib/szeneStats (Profil, Bestenlisten). */
@@ -77,12 +77,13 @@ function gemeinsam(zeilenJe: Zeile[][], solo = false): Map<string, Zeile[]> {
 
 /** Zusammen gespielt zaehlen die Matches einmal (alle spielten dieselben); als Solo-Werte zaehlt jedes Match jedes Spielers - die Quoten und "je Match" sind dann Werte je Spieler. */
 function summiere(tage: Array<[string, Zeile[]]>, solo = false): Summe {
-  const s: Summe = { matches: 0, elims: 0, damage: 0, genommen: 0, headshots: 0, hits: 0, shots: 0, zeit: 0, builds: 0, mats: 0, reboots: 0, spieltage: 0, matchesVoll: 0, hitsMitSchuss: 0, damageMitZeit: 0, genommenMitZeit: 0, matchesElims: 0, matchesSchaden: 0, hatHits: false, hatReboots: false };
+  const s: Summe = { matches: 0, elims: 0, damage: 0, genommen: 0, headshots: 0, hits: 0, shots: 0, zeit: 0, builds: 0, mats: 0, reboots: 0, spieltage: 0, matchesVoll: 0, matchesHits: 0, hitsMitSchuss: 0, damageMitZeit: 0, genommenMitZeit: 0, matchesElims: 0, matchesSchaden: 0, hatHits: false, hatReboots: false };
   for (const [, mitglieder] of tage) {
     s.spieltage += 1;
     const m = solo ? mitglieder.reduce((a, z) => a + n0(z.werte?.matchesPlayed), 0) : Math.max(...mitglieder.map((z) => n0(z.werte?.matchesPlayed)));
     s.matches += m;
     if (mitglieder.some((z) => typeof z.werte?.shots === 'number')) s.matchesVoll += m;
+    if (mitglieder.some((z) => typeof z.werte?.hitsToPlayers === 'number')) s.matchesHits += m;
     if (mitglieder.some((z) => typeof z.werte?.eliminations === 'number')) s.matchesElims += m;
     if (mitglieder.some((z) => typeof z.werte?.damageDealt === 'number')) s.matchesSchaden += m;
     for (const z of mitglieder) {
@@ -129,7 +130,8 @@ const ACHSEN: Achse[] = [
   { titel: 'HEADSHOTS', wert: (s) => (s.matchesVoll ? s.headshots / s.matchesVoll : null) },
   { titel: 'BUILDS', wert: (s) => { return s.matchesVoll ? s.builds / s.matchesVoll : null; } },
   { titel: 'MATS', wert: (s) => { return s.matchesVoll ? s.mats / s.matchesVoll : null; } },
-  { titel: 'HITS', wert: (s) => (s.hatHits && s.matches ? s.hits / s.matches : null) },
+  // Treffer nur durch die Matches der Tage mit Trefferzahlen teilen - Tage ohne Trefferdaten drueckten den Wert sonst nach unten.
+  { titel: 'HITS', wert: (s) => (s.hatHits && s.matchesHits ? s.hits / s.matchesHits : null) },
 ];
 
 /** Die Kurven der Form: ein Wert je Spieltag. */
