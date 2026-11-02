@@ -7476,5 +7476,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-338",
+    "datum": "2026-11-02T02:38:32Z",
+    "titel": "FNCS-Seite: feste englische Beschriftungen übersetzt",
+    "kurz": "FNCS auf Deutsch: Reiter, Karten und Rekord-Titel stehen jetzt auf Deutsch statt Englisch.",
+    "markieren": [
+      "text:All-Time Stats",
+      "text:Prize Pool",
+      "text:FNCS Winners"
+    ],
+    "bereich": "Statistik",
+    "warum": "Auf der deutschen Seite standen auf /fncs viele Beschriftungen fest auf Englisch (z. B. „Prize pool“, „All-Time Leaderboard“).",
+    "was": "Sie laufen jetzt über die Übersetzung; die englische Seite bleibt genau gleich, Fachbegriffe wie PTS, Elims und Solos bleiben englisch.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und angepasst)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

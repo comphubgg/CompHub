@@ -35,8 +35,8 @@ function Tafel({ titel, unter, children }: { titel: string; unter?: string; chil
   return (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900">
       <p className="border-b border-white/[0.08] bg-zinc-800 px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">{titel}</span>
-        {unter && <span className="ml-2 text-[10px] text-slate-600">{unter}</span>}
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>{titel}</T></span>
+        {unter && <span className="ml-2 text-[10px] text-slate-600"><T>{unter}</T></span>}
       </p>
       <div className="max-h-[560px] overflow-y-auto">{children}</div>
     </section>
@@ -67,7 +67,7 @@ function Spitze({ e }: { e: FncsEreignis }) {
   return (
     <ol className="mt-3 space-y-1.5">
       <li className="flex items-center gap-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-        <span className="w-4" /><span className="min-w-0 flex-1">Team</span><span className="w-11 text-right">PTS</span><span className="w-14 text-right">Earnings</span>
+        <span className="w-4" /><span className="min-w-0 flex-1"><T>Team</T></span><span className="w-11 text-right">PTS</span><span className="w-14 text-right"><T>Verdienst</T></span>
       </li>
       {e.spitze.map((p, i) => (
         <li key={p.rang} className="flex items-center gap-2.5 text-[11px]">
@@ -85,7 +85,7 @@ function Spitze({ e }: { e: FncsEreignis }) {
 function Fakt({ titel, wert }: { titel: string; wert: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</dt>
+      <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></dt>
       <dd className="mt-0.5 truncate text-sm font-black text-slate-100">{wert}</dd>
     </div>
   );
@@ -104,7 +104,7 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
         )}
         <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="absolute left-3 top-3 flex gap-1.5">
-          {aktuell && <span className="rounded border border-red-400/50 bg-red-500/80 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Current</span>}
+          {aktuell && <span className="rounded border border-red-400/50 bg-red-500/80 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
           {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
           <span className="rounded border border-white/25 bg-black/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
         </div>
@@ -120,9 +120,9 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
           <span className="shrink-0 text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
         </p>
         <dl className="mt-3 grid grid-cols-3 gap-3 border-y border-white/[0.06] py-3">
-          <Fakt titel="Prize pool" wert={e.preisgeld ?? '–'} />
+          <Fakt titel="Preisgeld" wert={e.preisgeld ?? '–'} />
           <Fakt titel="Teams" wert={e.teams ? String(e.teams) : '–'} />
-          <Fakt titel={e.lan ? 'Location' : 'Type'} wert={e.lan ? (e.ort ?? 'LAN') : 'Online'} />
+          <Fakt titel={e.lan ? 'Austragungsort' : 'Typ'} wert={e.lan ? (e.ort ?? 'LAN') : 'Online'} />
         </dl>
         <Spitze e={e} />
         {link && <p className="mt-auto pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-sky-400"><T>Karte und Leaderboard</T> →</p>}
@@ -206,7 +206,7 @@ function Treppchen({ e, gross = false }: { e: FncsEreignis; gross?: boolean }) {
 function Marken({ e, aktuell, nr }: { e: FncsEreignis; aktuell: boolean; nr: number }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
-      {aktuell && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Current</span>}
+      {aktuell && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><T>Aktuell</T></span>}
       {e.lan && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
       <span className="rounded-full border border-white/20 bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
       <span className="rounded-full border border-white/15 bg-black/60 px-2 py-0.5 text-[9px] font-black tabular-nums text-slate-300 backdrop-blur-sm">#{nr}</span>
@@ -235,9 +235,9 @@ function Aufmacher({ e, nr, aktuell }: { e: FncsEreignis; nr: number; aktuell: b
         </div>
         <div className="flex flex-col gap-5 p-5 sm:p-7">
           <dl className="grid grid-cols-3 gap-2">
-            {([['Prize pool', e.preisgeld ?? '–'], ['Teams', e.teams ? String(e.teams) : '–'], [e.lan ? 'Location' : 'Type', e.lan ? (e.ort ?? 'LAN') : 'Online']] as const).map(([titel, wert]) => (
+            {([['Preisgeld', e.preisgeld ?? '–'], ['Teams', e.teams ? String(e.teams) : '–'], [e.lan ? 'Austragungsort' : 'Typ', e.lan ? (e.ort ?? 'LAN') : 'Online']] as const).map(([titel, wert]) => (
               <div key={titel} className="min-w-0 rounded-xl border border-white/[0.07] bg-zinc-950 px-3 py-2.5">
-                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</dt>
+                <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></dt>
                 <dd className="mt-0.5 truncate text-base font-black text-slate-50">{wert}</dd>
               </div>
             ))}
@@ -386,8 +386,8 @@ export default function FncsSeite() {
             <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Alle Endspiele der FNCS, die das Archiv kennt - mit Platzierungen und den meisten Eliminierungen.</T></p>
           </div>
           <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-zinc-950 p-1">
-            <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
-            <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats</button>
+            <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>{t('Veranstaltungen')}</button>
+            <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>{t('Allzeit-Statistik')}</button>
             {/* FNCS Solos: eine eigene Seite fuer alle Regionen (Heats, Last Chance, Finale, Karte). */}
             <Link href="/globals-solos" className={reiter(false)}>Solos</Link>
           </div>
@@ -423,8 +423,8 @@ export default function FncsSeite() {
                 </div>
               )}
               <div className="ml-auto flex gap-1.5">
-                {([['board', 'Board'], ['timeline', 'Timeline']] as const).map(([k, titel]) => (
-                  <button key={k} type="button" onClick={() => setAnsicht(k)} className={chip(ansicht === k)}>{titel}</button>
+                {([['board', 'Board'], ['timeline', 'Zeitstrahl']] as const).map(([k, titel]) => (
+                  <button key={k} type="button" onClick={() => setAnsicht(k)} className={chip(ansicht === k)}>{t(titel)}</button>
                 ))}
               </div>
             </div>
@@ -457,7 +457,7 @@ export default function FncsSeite() {
             )}
             {alt && (
               <div className="mb-10 grid gap-4 lg:grid-cols-3">
-                <Tafel titel="FNCS Winners" unter="Titles">
+                <Tafel titel="FNCS-Siegerliste" unter="Meistertitel">
                   <ol>
                     {alt.titel.map((s, i) => (
                       <li key={`${s.id}-${s.name}`} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
@@ -470,7 +470,7 @@ export default function FncsSeite() {
                   </ol>
                 </Tafel>
 
-                <Tafel titel="All-Time Leaderboard" unter={alt.rekorde ? t('Seit {n}').replace('{n}', alt.rekorde.ab) : ''}>
+                <Tafel titel="Ewige Bestenliste" unter={alt.rekorde ? t('Seit {n}').replace('{n}', alt.rekorde.ab) : ''}>
                   {alt.rekorde ? (
                     <table className="w-full text-sm">
                       <thead>
@@ -494,7 +494,7 @@ export default function FncsSeite() {
                   ) : <p className="px-3 py-4 text-xs text-slate-500"><T>Die Aufstellung ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
                 </Tafel>
 
-                <Tafel titel="Nationalities" unter="Titles by country">
+                <Tafel titel="Nationalitäten" unter="Titel nach Land">
                   <ol>
                     {alt.laender.map((l, i) => (
                       <li key={l.land} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
@@ -511,7 +511,7 @@ export default function FncsSeite() {
 
             {alt?.rekorde && (
               <div className="mb-10 grid gap-4 lg:grid-cols-3">
-                {([['Most points in a single Grand Finals', alt.rekorde.punkte], ['Most Victory Royales in a single Grand Finals', alt.rekorde.siege], ['Most elims in a single Grand Finals', alt.rekorde.elims]] as const).map(([titel, zeilen]) => (
+                {([['Meiste Punkte in einem Grand Finals', alt.rekorde.punkte], ['Meiste Victory Royales in einem Grand Finals', alt.rekorde.siege], ['Meiste Elims in einem Grand Finals', alt.rekorde.elims]] as const).map(([titel, zeilen]) => (
                   <Tafel key={titel} titel={titel} unter={t('Seit {n}').replace('{n}', alt.rekorde?.ab ?? '')}>
                     <ol>
                       {zeilen.map((z, i) => (
@@ -559,7 +559,7 @@ export default function FncsSeite() {
                     <tr className="border-b border-white/[0.08] text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                       <th className="w-12 px-3 py-2 text-left">#</th>
                       <th className="px-3 py-2 text-left"><T>Spieler</T></th>
-                      <th className="px-3 py-2 text-right"><button type="button" onClick={() => setSortNach('gesamt')} className={sortNach === 'gesamt' ? 'text-sky-400' : 'hover:text-slate-200'}>Total</button></th>
+                      <th className="px-3 py-2 text-right"><button type="button" onClick={() => setSortNach('gesamt')} className={sortNach === 'gesamt' ? 'text-sky-400' : 'hover:text-slate-200'}>{t('Gesamt')}</button></th>
                       {alt.events.map((ev) => (
                         <th key={ev.key} className="px-2 py-2 text-center">
                           <button type="button" onClick={() => setSortNach(ev.key)} title={ev.saisonName} className={`whitespace-nowrap ${sortNach === ev.key ? 'text-sky-400' : 'hover:text-slate-200'}`}>

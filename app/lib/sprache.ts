@@ -4924,6 +4924,18 @@ const AUF_ENGLISCH: Record<string, string> = {
   "Spieler suchen — Namen eintippen": "Search a player — type a name",
   "Suche läuft": "Searching",
   "Suche gerade nicht erreichbar": "Search is unavailable right now",
+  // FNCS-Seite (app/fncs/page.tsx): feste Beschriftungen der Karten und der Allzeit-Statistik.
+  'Austragungsort': 'Location',
+  'Veranstaltungen': 'Events',
+  'Allzeit-Statistik': 'All-Time Stats',
+  'Zeitstrahl': 'Timeline',
+  'FNCS-Siegerliste': 'FNCS Winners',
+  'Meistertitel': 'Titles',
+  'Ewige Bestenliste': 'All-Time Leaderboard',
+  'Titel nach Land': 'Titles by country',
+  'Meiste Punkte in einem Grand Finals': 'Most points in a single Grand Finals',
+  'Meiste Victory Royales in einem Grand Finals': 'Most Victory Royales in a single Grand Finals',
+  'Meiste Elims in einem Grand Finals': 'Most elims in a single Grand Finals',
 };
 
 /**
