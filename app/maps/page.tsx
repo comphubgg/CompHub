@@ -3908,7 +3908,7 @@ ${name}
                 {fenster.map((f) => (
                   <option key={f.windowId} value={f.windowId}>
                     {f.region} · {new Date(f.begin).toLocaleDateString(ortJetzt(),
-                      { day: '2-digit', month: '2-digit' })}{f.istFinale ? ' · Finale' : ''}
+                      { day: '2-digit', month: '2-digit' })}{f.istFinale ? ` · ${uebs('Finale')}` : ''}
                   </option>
                 ))}
               </select>
@@ -3919,7 +3919,7 @@ ${name}
                 title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
                 className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
                            text-white transition hover:bg-sky-400 disabled:opacity-40">
-                {nobleLaeuft ? uebs('lädt…') : spots.length ? uebs('Karte fertigstellen') : 'Generate map'}
+                {nobleLaeuft ? uebs('lädt…') : spots.length ? uebs('Karte fertigstellen') : uebs('Generate map')}
               </button>
             )}
             <div className="flex flex-col items-stretch justify-end gap-1">

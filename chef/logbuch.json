@@ -8644,5 +8644,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-390",
+    "datum": "2026-11-02T03:26:52Z",
+    "titel": "Karten: „Finale“ und „Karte erzeugen“ übersetzt",
+    "kurz": "Maps → Spieltag-Auswahl und Bau-Knopf: „Finals“/„Karte erzeugen“ folgen der Sprache.",
+    "markieren": [
+      "text:Generate map",
+      "text:Finals"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "„Finale“ stand auf Englisch deutsch, „Generate map“ auf Deutsch englisch.",
+    "was": "Beides läuft jetzt über die Übersetzung.",
+    "ansehen": [
+      "/maps"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
