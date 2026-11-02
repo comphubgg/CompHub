@@ -9330,5 +9330,23 @@
       "/statistics?bereich=spieler&sort=quote&region=EU"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:55:57Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-421",
+    "titel": "Scrims: schneller Session-Wechsel zeigt keine alten Teams",
+    "kurz": "Unsichtbar: Scrims-Session schnell wechseln zeigt nie mehr Teams der vorigen.",
+    "markieren": [],
+    "bereich": "Scrims",
+    "warum": "Kam die Antwort der vorigen Session später an, überschrieb sie die Teams der neu gewählten.",
+    "was": "Veraltete Antworten werden jetzt verworfen.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

@@ -1130,6 +1130,8 @@ export default function ScrimsSeite() {
    */
   const [laedt, setLaedt] = useState(true);
   const [laedtCup, setLaedtCup] = useState(false);
+  /** Zaehlt die Abrufe einer Session; eine spaete Antwort eines aelteren Abrufs (schneller Wechsel) wird verworfen. */
+  const abruf = useRef(0);
   const [hinweis, setHinweis] = useState('');
   /** Archiv und Noble live haben beide nicht geantwortet: Noble und Poyo fehlen, weil nicht erreichbar. */
   const [echteAus, setEchteAus] = useState(false);
@@ -1281,7 +1283,10 @@ export default function ScrimsSeite() {
 
   /** Eine Session öffnen: Bestenliste und Runden dazu. */
   const oeffnen = useCallback(async (serie: Serie, sitzung: Sitzung) => {
+    const nr = ++abruf.current;
+    const aktuell = () => nr === abruf.current;
     setOffen({ serie, sitzung }); setTeams([]); setRunden([]); setNichtDa(false);
+    setLaedtCup(false);
     setOffeneKachel(null);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     // Das Beispiel braucht keine Abfrage - es steht schon fest.
@@ -1296,12 +1301,13 @@ export default function ScrimsSeite() {
       try {
         const d = await fetch(`/api/scrims?quelle=archiv&turnier=${encodeURIComponent(sitzung.id)}`)
           .then((r) => { if (!r.ok) throw new Error('Archiv'); return r.json(); });
+        if (!aktuell()) return;
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa || !d.teams);
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier, archiv: true } });
-      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
-      finally { setLaedtCup(false); }
+      } catch { if (aktuell()) { setTeams([]); setRunden([]); setNichtDa(true); } }
+      finally { if (aktuell()) setLaedtCup(false); }
       return;
     }
     // Poyo, noch nicht im Archiv: kommt es erst, gibt es nichts zu holen;
@@ -1314,24 +1320,26 @@ export default function ScrimsSeite() {
           if (!r.ok) throw new Error('Poyo');
           return r.json();
         });
+        if (!aktuell()) return;
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa);
-      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
-      finally { setLaedtCup(false); }
+      } catch { if (aktuell()) { setTeams([]); setRunden([]); setNichtDa(true); } }
+      finally { if (aktuell()) setLaedtCup(false); }
       return;
     }
     if (serie.quelle === 'noble') {
       try {
         const d = await fetch(`/api/scrims?quelle=noble&turnier=${encodeURIComponent(sitzung.id)}`)
           .then((r) => { if (!r.ok) throw new Error('Noble'); return r.json(); });
+        if (!aktuell()) return;
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa);
         // Die Teamgroesse und die Regeln kennt erst das Leaderboard selbst.
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier } });
-      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
-      finally { setLaedtCup(false); }
+      } catch { if (aktuell()) { setTeams([]); setRunden([]); setNichtDa(true); } }
+      finally { if (aktuell()) setLaedtCup(false); }
       return;
     }
     try {
@@ -1340,10 +1348,11 @@ export default function ScrimsSeite() {
         if (!r.ok) throw new Error('Yunite');
         return r.json();
       });
+      if (!aktuell()) return;
       setTeams(d.teams ?? []);
       setRunden(d.runden ?? []);
-    } catch { setTeams([]); setRunden([]); setNichtDa(true); }
-    finally { setLaedtCup(false); }
+    } catch { if (aktuell()) { setTeams([]); setRunden([]); setNichtDa(true); } }
+    finally { if (aktuell()) setLaedtCup(false); }
   }, []);
 
   const regionen = useMemo(
@@ -1411,7 +1420,7 @@ export default function ScrimsSeite() {
         {laedt || zugang.laedt ? <LadeSchirm /> : offen ? (
           <SessionSeite serie={offen.serie} sitzung={offen.sitzung} teams={teams} runden={runden}
             laedt={laedtCup} nichtDa={nichtDa}
-            zurueck={() => setOffen(null)}
+            zurueck={() => { abruf.current += 1; setLaedtCup(false); setOffen(null); }}
             wechsle={(s) => { void oeffnen(offen.serie, s); }} />
         ) : (
           <>
