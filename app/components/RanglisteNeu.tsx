@@ -55,12 +55,12 @@ function Winkel({ hoch, px = 11 }: { hoch: boolean; px?: number }) {
 }
 
 /** Die Bewegung seit der letzten Fortschreibung: Pfeil und Zahl, farbig nur im Pfeil. */
-function Bewegung({ platz, gross = false }: { platz: number; gross?: boolean }) {
+function Bewegung({ platz, gross = false, zahl }: { platz: number; gross?: boolean; zahl: (n: number) => string }) {
   if (!platz) return <span className="text-slate-600">—</span>;
   const hoch = platz > 0;
   return (
     <span className={`inline-flex items-center gap-1 font-bold tabular-nums ${gross ? 'text-sm' : 'text-xs'} ${hoch ? 'text-emerald-500' : 'text-rose-500'}`}>
-      <Winkel hoch={hoch} />{Math.abs(platz)}
+      <Winkel hoch={hoch} />{zahl(Math.abs(platz))}
     </span>
   );
 }
@@ -183,7 +183,7 @@ export default function RanglisteNeu() {
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>PR-Wertung</T></p>
                     <p className="schrift-anzeige text-3xl font-extrabold leading-tight tabular-nums text-slate-100">{zahl(s.wertung)}</p>
                   </div>
-                  <Bewegung platz={s.deltaPlatz} gross />
+                  <Bewegung platz={s.deltaPlatz} gross zahl={zahl} />
                 </div>
                 </div>
               </article>
@@ -209,10 +209,10 @@ export default function RanglisteNeu() {
               <ol className="space-y-1.5">
                 {uebersicht[schluessel].slice(0, 6).map((s) => (
                   <li key={s.id || s.rank} className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-zinc-800/70">
-                    <span className="w-9 shrink-0 text-right text-sm font-bold tabular-nums text-slate-500">#{s.rank}</span>
+                    <span className="min-w-9 shrink-0 text-right text-sm font-bold tabular-nums text-slate-500">#{zahl(s.rank)}</span>
                     <TeamFlagge groesse={22} laender={[s.land || undefined]} />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">{s.anzeige || s.name}</span>
-                    <span className={`inline-flex items-center gap-1 text-sm font-bold tabular-nums ${hoch ? 'text-emerald-500' : 'text-rose-500'}`}><Winkel hoch={hoch} />{Math.abs(s.deltaPlatz)}</span>
+                    <span className={`inline-flex items-center gap-1 text-sm font-bold tabular-nums ${hoch ? 'text-emerald-500' : 'text-rose-500'}`}><Winkel hoch={hoch} />{zahl(Math.abs(s.deltaPlatz))}</span>
                   </li>
                 ))}
               </ol>
@@ -291,7 +291,7 @@ export default function RanglisteNeu() {
                       <span className="mt-1 block text-[0.7rem] tabular-nums text-slate-500"><T>Höchstwert</T> {zahl(s.bestwert)}</span>
                     </span>
                     <span className="flex items-center justify-end gap-4 text-right">
-                      <span className="hidden sm:block"><Bewegung platz={s.deltaPlatz} /></span>
+                      <span className="hidden sm:block"><Bewegung platz={s.deltaPlatz} zahl={zahl} /></span>
                       <span>
                         <span className="schrift-anzeige block text-lg font-extrabold leading-tight tabular-nums text-slate-100">{zahl(s.wertung)}</span>
                         <span className={`block text-[0.7rem] font-semibold tabular-nums ${s.deltaWertung > 0 ? 'text-emerald-500' : s.deltaWertung < 0 ? 'text-rose-500' : 'text-slate-500'}`}>
