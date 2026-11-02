@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-01T05:45:00Z",
-  "macheGerade": "Runde 14 fertig: 16 Verbesserungen (chef-251 bis chef-266), u. a. Cup-Suche zeigte jeden Treffer als Platz 1, Profil-Stärkefelder werteten fehlende Quoten als 0, vergangene Cups ohne Preisgeld-Summe, Qualifikations-Abfrage antwortete bei Epic-Ausfall mit Server-Fehler.",
+  "letzteRunde": "2026-11-02T01:40:42Z",
+  "macheGerade": "Runde 15 fertig: 25 Verbesserungen (chef-281 bis chef-305), u. a. Cup-Kacheln über 1.000 statt 100 Teams, Stärkefelder ohne Wert als Strich, Schaden-„0“ in der Spielerliste, Quoten-Mindestzahl aus echten Matches, Verdienst-Jahr beim Spielerwechsel, FNCS-Rekorde mit Region, Ladeschirme, Tempo der Statistik-Startseite.",
   "naechstes": [
     "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
-    "Frage an dich: Vergleich → Platzierungen: soll ein Spieler grün als Sieger stehen, wenn der andere den Cup gar nicht gespielt hat?",
-    "Offene Fragen weiter: Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter, Asien-Siege als FNCS-Titel, Regions-Saisonliste auf 2.000 Spieler.",
-    "Nächste Runde: Ausfall-Hinweis bei Qualifikationsbedingungen (cup-quali), Globals-Solos-Tafel Strich, weitere Statistik-Prüfung."
+    "Fragen an dich: FNCS-Rekorde/Leaderboard nur Europa oder alle Regionen? FNCS-Seite absichtlich nur Englisch? Quoten-Listen bei Spieltagen mit 1–2 Matches?",
+    "Offene Fragen weiter: Vergleich-Sieger ohne Gegner, Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter.",
+    "Nächste Runde: Cup-Kacheln jenseits Platz 1.000 (vorrechnen), doppelte Turnierliste Turniere/Regionen, weitere Statistik-Prüfung."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-251, chef-265) + Sonnet (übrige, von Opus nachgeprüft)",
-  "laeuftSeit": "2026-11-02T01:07:41Z"
+  "modell": "Opus (Planung, Prüfung, chef-292/296/300) + Sonnet (übrige, von Opus nachgeprüft)"
 }

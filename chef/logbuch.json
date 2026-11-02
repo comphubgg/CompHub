@@ -6737,5 +6737,27 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-305",
+    "datum": "2026-11-02T01:40:42Z",
+    "titel": "Power Rankings: „wird geholt“ bleibt nicht 35 Minuten hängen",
+    "kurz": "Unsichtbar: Power Rankings zeigen neue Liste sofort, nicht bis 35 Min. „wird geholt“.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die leere Antwort „Rangliste wird geholt“ wurde wie eine fertige Liste zwischengespeichert – Besucher sahen sie bis zu 35 Minuten weiter.",
+    "was": "Diese Zwischenantwort wird nicht mehr gespeichert; fertige Listen wie bisher 5 Minuten.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "commits": [
+      "431d2eef7bf2ec9cb7d70a479987da00eef32bd4"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
