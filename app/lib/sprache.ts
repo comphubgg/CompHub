@@ -2408,6 +2408,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Your prediction is not reachable right now - storage is not responding. Nothing is lost; please reload in a moment.',
   'Quelle: Epics Auszahlungstabelle der Global Championship. Die Beträge gelten je Spieler; ein Duo erhält das Doppelte.':
     "Source: Epic's payout table for the Global Championship. Amounts are per player; a duo receives double.",
+  'Für die Global Championship führt Epic gerade keine Auszahlungstabelle - ein erneutes Laden ändert daran nichts.':
+    'Epic is not listing a payout table for the Global Championship right now - reloading will not change that.',
   'Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.':
     'Epic is not returning the prize money right now - please reload in a moment.',
   'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship':

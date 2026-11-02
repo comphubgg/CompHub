@@ -10083,5 +10083,25 @@
     "ansehen": [
       "/fncs"
     ]
+  },
+  {
+    "id": "chef-454",
+    "datum": "2026-11-02T04:37:49Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Globals",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Globals-Preisgeld: ehrlicher Hinweis, wenn Epic keine Tabelle führt",
+    "kurz": "Globals → Prize pool: Hinweis sagt jetzt, dass Epic keine Tabelle führt – statt „neu laden“.",
+    "markieren": [
+      "text:Epic is not listing a payout table"
+    ],
+    "warum": "Epic führt für die Globals gerade keine Auszahlungstabelle; die Seite riet trotzdem zum Neuladen, was nichts ändert.",
+    "was": "Antwortet Epic ohne Tabelle, steht das so da; bei echtem Ausfall bleibt der alte Hinweis.",
+    "ansehen": [
+      "/globals/prizepool"
+    ]
   }
 ]

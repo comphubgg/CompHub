@@ -19,7 +19,7 @@ import GlobalsGeruest, { FNCS_BLAU } from '../GlobalsGeruest';
 interface Platz { platz: number; proSpieler: number; proTeam: number; spanne: [number, number] }
 interface Antwort {
   waehrung: string; teamGroesse: number; plaetze: Platz[];
-  summe: number; summeProSpieler: number; error?: string;
+  summe: number; summeProSpieler: number; error?: string; keineTabelle?: boolean;
 }
 
 const PODEST = [
@@ -32,6 +32,8 @@ export default function GlobalsPreisgeld() {
   const { sprache } = useSprache();
   const [daten, setDaten] = useState<Antwort | null>(null);
   const [fehler, setFehler] = useState('');
+  /** Epic antwortet, nennt aber keine Tabelle - dann hilft Neuladen nicht. */
+  const [keine, setKeine] = useState(false);
 
   useEffect(() => {
     let weg = false;
@@ -39,7 +41,7 @@ export default function GlobalsPreisgeld() {
       .then((r) => r.json())
       .then((j: Antwort) => {
         if (weg) return;
-        if (j.error) setFehler(j.error); else setDaten(j);
+        if (j.error) { setFehler(j.error); setKeine(j.keineTabelle === true); } else setDaten(j);
       })
       .catch((e) => { if (!weg) setFehler((e as Error).message); });
     return () => { weg = true; };
@@ -55,7 +57,9 @@ export default function GlobalsPreisgeld() {
     <GlobalsGeruest aktiv="/globals/prizepool">
       {fehler ? (
         <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3 text-sm text-sky-300">
-          <T>Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.</T>
+          {keine
+            ? <T>Für die Global Championship führt Epic gerade keine Auszahlungstabelle - ein erneutes Laden ändert daran nichts.</T>
+            : <T>Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.</T>}
         </p>
       ) : !daten ? (
         <LadeSchirm />

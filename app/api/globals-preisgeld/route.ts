@@ -34,15 +34,20 @@ type Rohtabelle = Record<string, Array<{
   ranks?: Array<{ threshold?: number; payouts?: Array<{ rewardType?: string; quantity?: number }> }>;
 }>>;
 
+/** Epic antwortet, nennt aber keine Auszahlungstabelle (Turnier aus dem Katalog) - kein Ausfall, ein erneutes Laden hilft nicht. */
+class KeineTabelle extends Error {}
+
 async function tabelle() {
   // Das Turnier steht in jedem Regionskatalog; EU zuerst, die anderen als
   // Rueckfall, falls einer gerade nicht antwortet.
   let letzterFehler: unknown = null;
+  let epicAntwortete = false;
   for (const region of ['EU', 'NAC', 'ASIA', 'BR']) {
     try {
       const k = await holeKatalog(region) as unknown as { payoutTables?: Rohtabelle };
       const gruppen = Object.entries(k.payoutTables ?? {})
         .find(([w]) => w === GLOBALS_EVENT || w.includes('MannekenPis'))?.[1];
+      epicAntwortete = true;
       const g = gruppen?.find((x) => x.scoringType === 'rank');
       if (!g) continue;
       const stufen = (g.ranks ?? [])
@@ -58,6 +63,8 @@ async function tabelle() {
       if (stufen.length) return stufen;
     } catch (e) { letzterFehler = e; }
   }
+  // Hat wenigstens eine Region geantwortet, ohne die Tabelle zu nennen, ist es keine Stoerung.
+  if (epicAntwortete) throw new KeineTabelle('Epic nennt fuer die Globals keine Auszahlungstabelle.');
   throw letzterFehler ?? new Error('Epic nennt fuer die Globals keine Auszahlungstabelle.');
 }
 
@@ -83,6 +90,6 @@ export async function GET() {
     }, { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } });
   } catch (e) {
     // Kein 5xx (Cloudflare machte daraus eine HTML-Seite, die Seite zeigte "Unexpected token") - die Seite liest "error".
-    return NextResponse.json({ error: (e as Error).message });
+    return NextResponse.json({ error: (e as Error).message, ...(e instanceof KeineTabelle ? { keineTabelle: true } : {}) });
   }
 }
