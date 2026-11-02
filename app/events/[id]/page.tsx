@@ -521,8 +521,10 @@ function zahlText(wert: number | null | undefined, ort: string) {
 
 function dauer(sek: number) {
   if (!sek) return '–';
-  const m = Math.floor(sek / 60);
-  return m < 1 ? `${Math.round(sek)}s` : `${m}m ${String(Math.round(sek % 60)).padStart(2, '0')}s`;
+  // Erst auf ganze Sekunden runden, dann teilen - sonst wurde aus 299,7 s "4m 60s" statt "5m 00s".
+  const ganz = Math.round(sek);
+  const m = Math.floor(ganz / 60);
+  return m < 1 ? `${ganz}s` : `${m}m ${String(ganz % 60).padStart(2, '0')}s`;
 }
 
 /** Wie viele Plaetze hoechstens geholt werden. Darueber wird die Tabelle
