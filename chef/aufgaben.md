@@ -2,36 +2,46 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 19, 02.11.2026)
+
+- [ ] **WIDERSPRUCH Profil ↔ Saisonliste:** peterbot S42 – Profil (`/api/szene-stats?spieler=45ce…&saison=S42`) 17 Events / 83 Matches / 208 Elims, Saison-Bestenliste und Statistik-Start 12 / 57 / 152. Vermutlich zählt das Profil LAN (Global Championship) und eigene Auswertungen (Performance Evaluation Cup, Div-1-Practice) mit, die Liste nur Szene-Finaltage – im Code (lib/szeneStats: summen vs. startseite/auswahl) klären, dann entweder angleichen oder im Profil sagen, was gezählt wird.
+- [x] (chef-423, chef-424, chef-430) **Suchfelder ohne Doppelgänger-Buchstaben** – Spielerliste, Clutch, Spieltag-Tabelle, Bestenliste, Cup-Leaderboard, Cup-Spieler, Power Rankings. Noch offen (kleiner): Scrims-Teamsuche, Globals-Solos-Bausteine, Tournament-Maps-Karten, StatKacheln-Suche, Organisationen-Suche.
+- [x] (chef-414 bis chef-430) Orgs-Jahr, Vergleich (Hinweis, Schrift), Cup-Matches-Strich, Kurvenlücken, Mindestzahl bei Suche, Scrims-Rennen und Regionen, Mein-Ergebnis-Regionen, Cup-Schaden-Strich, Schrift 11 px (Cup, Prognosen, Chat, Melden, Sprache, Rangliste, Fehlerseite).
+- [ ] **OBS-Overlay PovStatsBanner: Stufen „klein“/„mittel“ mit 8–9 px** – Gestaltungsfrage, Betreiber fragen.
+- [ ] **Alphabetisch, Ersatz unklar (Betreiber fragen):** Karten-Fenster Spielerliste (KarteImEvent), Tierlist-Flaggenwahl, Streamerliste (/streams), Solos-Preisgeld-, VIP-, POV-Listen, Kartenlisten (fortnite-map, karten-bild, Globals-Solos-Bausteine).
+- [ ] **Verworfen in dieser Runde:** Startseite „Cup ohne Endzeit 3 h live“ – Katalog liefert immer ein Ende (187/187), eine geratene Dauer wäre erfunden.
+- [ ] **Helfer-Arbeitsordner:** Unteragenten mit `isolation: worktree` starten auf einem alten Stand (chef-105) – im Auftrag immer zuerst `git fetch origin claude/chef && git checkout -B <eigener-name> origin/claude/chef` verlangen, mit eigenem Zweignamen je Helfer.
+
 ## Neu entdeckt (Runde 18, 02.11.2026)
 
 - [x] (chef-385 bis chef-408) Spielerfenster-Aktualisierung, Startseite (Preisgeld-Ausfall, Schrift), Globals-Teams-Regionen, Globals-Preisgeld-Rohtext, Karten-Übersetzung, Scrims-Ausfälle, Turnierverzeichnis nach Saisonwechsel, Spielerliste-Ladehinweis, FNCS (Suche, Ort, Schrift, Namen), Statistik-Schrift 11 px, Ladeanzeigen Jahr/Regionen, Cup-Seite (Übersetzung, Schrift, Rundentabelle), Solos-Tafel, Prognosen-Flaggen, Rückblick-Ladeanzeige.
 - [ ] **Orgtags Valiant/Ovation/Aight** (lib/orgtags.ts) – Vorschlag im Logbuch; dieselbe Liste wirkt auf namensSchluessel (Zuordnungen). Betreiber entscheidet. Besser: `npm run orgtags` mit Datenzugang.
 - [x] (chef-410, chef-412) Schrift unter 11 px – StatistikSeite und Cup-Kopf erledigt. Alte Notiz: StatistikSeite Zeilen ~899, 1034, 1093, 1169, 1488–1540, 1893, 2054, 2153, 2298, 2592, 4310, 4502–4592 (Start-Reiter, Bestenlisten, SpielerFaecher); Turnierbild-Platzhalter text-[8px] („PERFORMANCE“ passt nicht); Cup-Seite Kopfbereich ~2875–3568 und ~5125–5459.
-- [ ] **cup-matches-API: fehlende Elims/Schaden/Zeit je Team → 0** (app/api/cup-matches/route.ts) – nur in der API sauber lösbar.
+- [x] (chef-417) **cup-matches-API: fehlende Elims/Schaden/Zeit je Team → 0** (app/api/cup-matches/route.ts) – nur in der API sauber lösbar.
 - [ ] **FNCS: fncsPlatzierungen() ohne lateinisch()**; Global Championship 2024/Invitational 2020/Grand Royale 2021 Punkte widersprüchlich (Quelle).
 - [x] (chef-413) **Scrims: Archiv-, Poyo-, Yunite-Abrufe ohne r.ok-Prüfung.**
-- [ ] **Scrims: schneller Session-Wechsel – späte Antwort kann neuere Teams überschreiben.**
-- [ ] **LiveDemnaechst: Cup-Fenster ohne `end` zählt weder als live noch als kommend** – fehlt in der Liste; prüfen, ob der Katalog solche Fenster liefert.
-- [ ] **Cup-Seite: text-[10px] noch bei Label „Karte“ (~Z. 676).**
-- [ ] **Spielerliste: „ab N Matches“ nur im Treppchen**, nicht bei Suche/Liste (gehört zu Quoten-Hürden).
+- [x] (chef-421) **Scrims: schneller Session-Wechsel – späte Antwort kann neuere Teams überschreiben.**
+- [x] (geprüft: Katalog liefert immer ein Ende) **LiveDemnaechst: Cup-Fenster ohne `end` zählt weder als live noch als kommend** – fehlt in der Liste; prüfen, ob der Katalog solche Fenster liefert.
+- [x] (chef-419) **Cup-Seite: text-[10px] noch bei Label „Karte“ (~Z. 676).**
+- [x] (chef-420) **Spielerliste: „ab N Matches“ nur im Treppchen**, nicht bei Suche/Liste (gehört zu Quoten-Hürden).
 - [x] (chef-411) **Startseite: Teil-Ausfall der Kopfzahlen ohne Hinweis.**
 
 - [x] (chef-363, chef-364) **Teamseite: Kachel-Beschriftungen englisch, Beitrittsdatum roh „2026-04“.**
 - [x] (chef-365) **Vergleich: Ausfall nur einer Seite sah aus wie „0 Matches“.**
 - [x] (chef-366) **Statistik-Kopfzahlen: beim Laden Strich statt Platzhalter.**
 - [x] (chef-367) **Orgs: beim Wechsel Alle Jahre/2026 kurz alte Beträge unter neuem Knopf.**
-- [ ] **Orgs: Knopf „2026“ fest im Code** – muss mit ORGS_JAHR (lib/orgs.ts, nur Server) zusammen umgestellt werden; zum Jahreswechsel beides anpassen oder Jahr aus der Antwort nehmen.
+- [x] (chef-414) **Orgs: Knopf „2026“ fest im Code** – muss mit ORGS_JAHR (lib/orgs.ts, nur Server) zusammen umgestellt werden; zum Jahreswechsel beides anpassen oder Jahr aus der Antwort nehmen.
 - [ ] **Orgs-API: gleicher Betrag (oft kein Preisgeld) → nach Name sortiert** (app/api/orgs/route.ts ~188) – „nie alphabetisch“; Ersatzreihenfolge (Spielerzahl? Power Ranking?) mit dem Betreiber klären.
 - [ ] **Streams: getSortedStreamers wird nirgends benutzt** (Kommentar verspricht „Live nach Zuschauern“, sortiert aber nur alphabetisch) – toter Code; entfernen oder wirklich nach Zuschauern sortieren (zuschauerMap vorhanden).
-- [ ] **Vergleich → Form: wenn alle Werte beider Seiten unbekannt, leeres Diagramm ohne Hinweis** – Randfall.
+- [x] (chef-415) **Vergleich → Form: wenn alle Werte beider Seiten unbekannt, leeres Diagramm ohne Hinweis** – Randfall.
 - [x] (chef-368) **Statistik-Aufmacher: Regionen-Block fehlte beim Laden/Ausfall samt Knopf „Regionen ansehen“.**
 - [x] (chef-369 bis chef-384) Kartenlink-Ausfall, Prognosen-Ausfall, Profil-Schriftgrößen, Scrims-Marken und -Ausfälle, Regionen-Turnierreihen nach Saisonwechsel, Cup-Spielerfenster (Übersetzung, Schrift, K/D bei teilweise gelesenen Replays), Globals-Karte, Globals/Solos-Schrift, toter Streams-Code, Karten-Editor-Übersetzung.
-- [ ] **Regionsmarke (RegionMarke in StatistikSeite) 9 px auf allen Reitern** – gemeinsam genutzt, vorsichtig vergrößern.
-- [ ] **Jahresbilanz/Regionen: beim Laden leerer Kasten (h-64) statt Ladeanzeige.**
-- [ ] **Cup-Spielerfenster: Kurven setzen fehlenden Match-Wert auf 0** (Einbruch statt Lücke); „Next update in 0 minutes“ bleibt nach fehlgeschlagener Auffrischung stehen.
+- [x] (schon erledigt) **Regionsmarke (RegionMarke in StatistikSeite) 9 px auf allen Reitern** – gemeinsam genutzt, vorsichtig vergrößern.
+- [x] (schon erledigt) **Jahresbilanz/Regionen: beim Laden leerer Kasten (h-64) statt Ladeanzeige.**
+- [x] (chef-418; „Next update in 0“ war schon erledigt) **Cup-Spielerfenster: Kurven setzen fehlenden Match-Wert auf 0** (Einbruch statt Lücke); „Next update in 0 minutes“ bleibt nach fehlgeschlagener Auffrischung stehen.
 - [ ] **Cup-Spielerfenster: kumulierte Ansicht summiert auch Platzierung und Überlebenszeit** – Betreiber fragen, ob gewollt.
-- [ ] **Globals-Solos-Tafel: r.spieler[0] ungeprüft** (Absturz bei Zeile ohne Spieler, bisher nie gesehen); Punkte dort ohne Tausendertrennung.
-- [ ] **Prognosen: /api/spieler-laender und /api/spieler-profile fallen still aus** – Flaggen fehlen dann ohne Hinweis.
+- [x] (schon erledigt) **Globals-Solos-Tafel: r.spieler[0] ungeprüft** (Absturz bei Zeile ohne Spieler, bisher nie gesehen); Punkte dort ohne Tausendertrennung.
+- [x] (schon erledigt) **Prognosen: /api/spieler-laender und /api/spieler-profile fallen still aus** – Flaggen fehlen dann ohne Hinweis.
 - [ ] **Scrims Yunite-Pfad: ein einzelner Server-Ausfall ersetzt alles durch Beispiele.**
 - [ ] **Rückblick-Bild: leere Leinwand bis Schrift/Bilder geladen** – Ladeanzeige fehlt.
 
