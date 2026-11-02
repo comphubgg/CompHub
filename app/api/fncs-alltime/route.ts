@@ -4,6 +4,7 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
 import { fncsRekorde, fncsEreignisse } from '@/lib/fncsEreignisse';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import { lateinisch } from '@/lib/homoglyph';
 import { elimsAuswahl, vglElims, nameVgl } from '@/lib/fncsReihenfolge';
 
 /*
@@ -102,7 +103,7 @@ async function rechnenRoh() {
     // gleich vielen Eliminierungen entschied hier sonst der rohe Epic-Name - die Reihenfolge und wer an Platz 80 noch dabei ist, wichen ab.
     const alle = [...je.values()].map((x) => {
       const k = kontext(x.id, x.name);
-      return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
+      return { id: x.id, name: lateinisch(k.anzeige), land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
     });
     // Die Tabelle laesst sich nach Total und nach jedem Major sortieren - jede Sortierung zeigt ihre 80 Besten. Damit keine Liste
     // unvollstaendig ist, liefert die Antwort die Vereinigung: die 80 nach Total plus die 80 je Major (ohne Doppelte).

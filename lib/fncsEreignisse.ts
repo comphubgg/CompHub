@@ -8,7 +8,7 @@ import { GET as globalsEndstand } from '@/app/api/globals-endstand/route';
 import { globalsTeams } from '@/lib/globalsTeams';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { liesJson } from '@/lib/ablage';
-import { kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
+import { kernname, lateinisch, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
 import { endspielArt, schluesselVon, landVonName, plaetze, type Art } from '@/lib/fncsListe';
 import { hatArchiv } from '@/lib/fncsBestenlisten';
 import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
@@ -55,7 +55,7 @@ export interface FncsEreignis {
 }
 
 /** Ein Name ohne Turniermarke, Orgtag und Fremdalphabet-Zwillinge - wie auf den Kacheln der Tierlist ("[FNCS24] EXD Peterbot" wird "peterbot"). */
-const rein = (n: string) => ohneZierrat(kernname(n)).trim() || n;
+const rein = (n: string) => lateinisch(ohneZierrat(kernname(n)).trim() || n);
 
 interface Kandidat { e: MapEintrag; art: Art; jahr?: string; /** Gesetzt bei den Grand Finals der uebrigen Regionen - die Archive und Eckdaten gelten nur fuer Europa. */ region?: string }
 
@@ -194,15 +194,17 @@ async function ausGlobals(): Promise<FncsSpitze[]> {
 const NUR_ID = /^[0-9a-f]{8,32}$/i;
 async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<string, ArchivEintrag>): Promise<{ teams: number | null; spitze: FncsSpitze[] }> {
   const r = await spitzeFuerRoh(k, fakt, archiv);
-  if (!fakt || !r.spitze.some((t) => t.spieler.some((p) => NUR_ID.test(p.name.trim())))) return r;
+  // Nur die Anzeige: kyrillische Doppelgaenger-Buchstaben ("Pаblowingu") werden lateinisch, die Zuordnung (Konto-Id) bleibt.
+  const lateinisch_ = (s: FncsSpitze[]) => s.map((t) => ({ ...t, spieler: t.spieler.map((p) => ({ ...p, name: lateinisch(p.name) })) }));
+  if (!fakt || !r.spitze.some((t) => t.spieler.some((p) => NUR_ID.test(p.name.trim())))) return { ...r, spitze: lateinisch_(r.spitze) };
   const land = await landVonName();
   return {
     ...r,
-    spitze: r.spitze.map((t) => {
+    spitze: lateinisch_(r.spitze.map((t) => {
       if (!t.spieler.some((p) => NUR_ID.test(p.name.trim()))) return t;
       const f = fakt.top.find((x) => x.rang === t.rang);
       return f ? { ...t, spieler: f.spieler.map((n) => ({ name: n, land: land(n) })) } : t;
-    }),
+    })),
   };
 }
 
@@ -436,6 +438,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
   const [liste, kontext, land] = await Promise.all([mapsVerzeichnis(), spielerKontext(), landVonName()]);
   const mitEpic = kandidaten(liste).filter((k) => (k.e.tage ?? []).length > 1 || k.e.eventId);
   const je = new Map<string, { name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number; bestRang?: number; zuletzt?: number; kennung?: string }>();
+  const schreibweisen = new Map<string, Map<string, number>>();
   const alleTeams: Array<{ event: string; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }>; eu: boolean; datum: number; rang: number; kennung: string }> = [];
   let fehlend = 0;
   await Promise.all(mitEpic.map(async (k) => {
@@ -474,6 +477,9 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
         spieler.forEach((s, i) => {
           const schluessel = namensSchluessel(s.name);
           const a = je.get(schluessel) ?? { name: s.name, land: s.land, punkte: 0, siege: 0, elims: 0, finals: 0 };
+          // Schreibweisen zaehlen: "swizzy" und "SwizzY" sind dieselbe Person - angezeigt wird die haeufigste, nicht die, deren Endspiel zuerst fertig wurde.
+          const sw = schreibweisen.get(schluessel) ?? new Map<string, number>();
+          sw.set(s.name, (sw.get(s.name) ?? 0) + 1); schreibweisen.set(schluessel, sw);
           a.punkte += punkte; a.siege += siege; a.elims += elims; a.finals += 1; a.land = a.land ?? s.land;
           a.bestRang = Math.min(a.bestRang ?? 1e9, z.rank); a.zuletzt = Math.max(a.zuletzt ?? 0, datum);
           const id = spieler.length === z.players.length ? z.players[i]?.id : undefined;
@@ -487,7 +493,12 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
     .map((t) => ({ event: t.event, wert: t[haupt], spieler: t.spieler }));
   const daten: FncsRekorde = {
     ab: 'Chapter 5 Season 3',
-    spieler: [...je.values()].sort(vglLeaderboard).slice(0, 100),
+    spieler: [...je.entries()].map(([k, a]) => {
+      const sw = [...(schreibweisen.get(k) ?? [])];
+      // Gleichstand der Schreibweisen: die kleingeschriebene (so steht der Name auch in der Elims-Tabelle) - nie die Reihenfolge der Antworten.
+      sw.sort((x, y) => y[1] - x[1] || (x[0] === x[0].toLowerCase() ? -1 : 0) - (y[0] === y[0].toLowerCase() ? -1 : 0) || (x[0] < y[0] ? -1 : 1));
+      return { ...a, name: lateinisch(sw.length ? sw[0][0] : a.name) };
+    }).sort(vglLeaderboard).slice(0, 100),
     punkte: top('punkte'), siege: top('siege'), elims: top('elims'),
     ...(fehlend > 0 ? { fehlend } : {}),
   };

@@ -8900,5 +8900,27 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-401",
+    "datum": "2026-11-02T03:33:47Z",
+    "titel": "FNCS: Namen lateinisch und einheitlich",
+    "kurz": "FNCS: „Pablowingu“, „Moneymaker“, „swizzy“ überall gleich und ohne fremde Buchstaben.",
+    "markieren": [
+      "text:Pablowingu",
+      "text:swizzy",
+      "text:Moneymaker"
+    ],
+    "bereich": "Statistik",
+    "warum": "Namen enthielten kyrillische Doppelgänger-Buchstaben, und swizzy hieß je nach Tafel „swizzy“ oder „SwizzY“.",
+    "was": "Nur die Anzeige: Doppelgänger werden lateinisch, die Ewige Bestenliste nimmt die häufigste Schreibweise. Wirkt nach der nächsten Neuberechnung.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und ergänzt)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
