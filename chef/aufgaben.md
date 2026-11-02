@@ -63,7 +63,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Cup-Spielerfenster: kumulierte Ansicht summiert auch Platzierung und Überlebenszeit** – Betreiber fragen, ob gewollt.
 - [x] (schon erledigt) **Globals-Solos-Tafel: r.spieler[0] ungeprüft** (Absturz bei Zeile ohne Spieler, bisher nie gesehen); Punkte dort ohne Tausendertrennung.
 - [x] (schon erledigt) **Prognosen: /api/spieler-laender und /api/spieler-profile fallen still aus** – Flaggen fehlen dann ohne Hinweis.
-- [ ] **Scrims Yunite-Pfad: ein einzelner Server-Ausfall ersetzt alles durch Beispiele.**
+- [ ] **Scrims Yunite-Pfad: ein einzelner Server-Ausfall ersetzt alles durch Beispiele.** _(Runde 20: bestätigt. Zudem prüft die Seite `r.ok` nicht – Ausfall sieht aus wie „kein Server freigeschaltet“. Ein Helfer-Entwurf strich alle Beispieldaten; verworfen, weil die Beispiele laut Code-Kommentar vom Betreiber gewollt sind (Vital, Community Events). Betreiber fragen: Beispiele behalten, aber bei Ausfall Hinweis statt Beispiel?)_
 - [ ] **Rückblick-Bild: leere Leinwand bis Schrift/Bilder geladen** – Ladeanzeige fehlt.
 
 ## Neu entdeckt (Runde 17, 02.11.2026)
