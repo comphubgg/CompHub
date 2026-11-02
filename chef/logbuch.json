@@ -9136,5 +9136,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-412",
+    "datum": "2026-11-02T03:38:22Z",
+    "titel": "Cup-Seite: Kopf und Auswahl in 11 Pixel",
+    "kurz": "Cup-Seite oben: Live-/Finale-Marken, Info-Kacheln und Zusatzzahlen jetzt 11 Pixel.",
+    "markieren": [
+      "text:Live",
+      "text:Event-Info"
+    ],
+    "bereich": "Statistik",
+    "warum": "13 Beschriftungen im Kopf und in der Auswahl standen mit 9 bis 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

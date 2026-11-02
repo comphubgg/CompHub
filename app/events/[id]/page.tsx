@@ -2872,11 +2872,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
             {cup?.untertitel && <span>{cup.untertitel}</span>}
             {cup?.live && (
-              <span className="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold
+              <span className="rounded bg-rose-600 px-2 py-0.5 text-[11px] font-bold
                                uppercase tracking-wider text-white"><T>Live</T></span>
             )}
             {fenster?.istFinale && (
-              <span className="rounded bg-amber-950/70 px-2 py-0.5 text-[10px] font-semibold
+              <span className="rounded bg-amber-950/70 px-2 py-0.5 text-[11px] font-semibold
                                uppercase tracking-wider text-amber-300"><T>Finale</T></span>
             )}
           </p>
@@ -2947,7 +2947,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
                     {!!kartenFuer(f).length && (
                       <span title={`${t('Karten zu diesem Spieltag')}: ${kartenFuer(f).length}`}
-                        className="text-[10px] text-sky-400">◆</span>
+                        className="text-[11px] text-sky-400">◆</span>
                     )}
                   </div>
                   {!!fensterNamen[i]?.neben && (
@@ -3071,7 +3071,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
                   ? `${qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt} + ${QUAL_ZUSCHLAG}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
+                <div className="text-[11px] uppercase tracking-wider text-slate-500">{l}</div>
                 <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
               </div>
             ))}
@@ -3372,7 +3372,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         * Zeile.
                         */}
                       {g.art === 'rank' ? <>Top {g.schwelle}{schwellenSicht[String(g.schwelle)] != null && (
-                        <span className="ml-1.5 text-[10px] font-semibold tabular-nums text-sky-400">{schwellenSicht[String(g.schwelle)].toLocaleString(ort)} <T>Punkte</T></span>
+                        <span className="ml-1.5 text-[11px] font-semibold tabular-nums text-sky-400">{schwellenSicht[String(g.schwelle)].toLocaleString(ort)} <T>Punkte</T></span>
                       )}</>
                         : g.art === 'percentile'
                           ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
@@ -3386,7 +3386,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           {(g.betrag * (teamGroesseAus(fenster?.playlist) ?? 1)).toLocaleString(ort)}{' '}
                           {preise.waehrung ?? 'USD'}
                         </span>
-                        <span className="block text-[10px] text-slate-500">
+                        <span className="block text-[11px] text-slate-500">
                           {g.betrag.toLocaleString(ort)} <T>pro Spieler</T>
                         </span>
                       </span>
@@ -3443,7 +3443,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         {gruppe[0].art === 'rank' && schwellenSicht[String(gruppe[0].schwelle)] != null && (
                           <span className="text-xs font-semibold tabular-nums text-emerald-400">
                             {schwellenSicht[String(gruppe[0].schwelle)].toLocaleString(ort)} <T>Punkte</T>
-                            {laeuftGerade && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-red-400">live</span>}
+                            {laeuftGerade && <span className="ml-1.5 text-[11px] font-black uppercase tracking-wider text-red-400">live</span>}
                           </span>
                         )}
                       </div>
@@ -3480,7 +3480,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           */}
         {kumDa && ['liste', 'runden', 'spieler', 'teams', 'karte'].includes(reiter) && (
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ansicht</T></span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ansicht</T></span>
             <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/70 p-0.5">
               <button type="button"
                 onClick={() => { setKumAktiv(true); setFenster(kumLetzter); setSeite(1); }}
@@ -3565,7 +3565,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       stehen ... bei jedem Cup". */}
                   {cup?.beschreibung && (
                     <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
+                      <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
                       <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{cup.beschreibung}</p>
                     </div>
                   )}
@@ -5122,7 +5122,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                               rounded-lg border border-zinc-700 bg-zinc-950
                                               shadow-lg shadow-black/60">
                                 <p className="border-b border-zinc-800 px-3 py-1.5
-                                              text-[10px] uppercase tracking-wider
+                                              text-[11px] uppercase tracking-wider
                                               text-slate-500">
                                   <T>In welchen Ordner?</T>
                                 </p>
@@ -5136,7 +5136,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                                    text-slate-300 transition
                                                    hover:bg-zinc-900">
                                         <span className="truncate">{o.name}</span>
-                                        <span className="shrink-0 text-[10px] text-slate-600">
+                                        <span className="shrink-0 text-[11px] text-slate-600">
                                           {o.streamers.length}
                                         </span>
                                       </button>
@@ -5333,7 +5333,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             minimumFractionDigits: b.nachkomma ?? 0,
                             maximumFractionDigits: b.nachkomma ?? 0,
                           })}
-                          {b.einheit && <span className="ml-0.5 text-[10px]
+                          {b.einheit && <span className="ml-0.5 text-[11px]
                                                         font-normal text-slate-500">
                             {b.einheit}</span>}
                         </span>
@@ -5456,7 +5456,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           maximumFractionDigits: offeneListe.nachkomma ?? 0,
                         })}
                         {offeneListe.einheit && (
-                          <span className="ml-0.5 text-[10px] font-normal text-slate-500">
+                          <span className="ml-0.5 text-[11px] font-normal text-slate-500">
                             {offeneListe.einheit}
                           </span>
                         )}
