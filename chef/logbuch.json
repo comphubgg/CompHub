@@ -7352,5 +7352,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-333",
+    "datum": "2026-11-02T02:34:49Z",
+    "titel": "Cup-Spielerwerte: Clutch-Punkte über mehrere Tage nur vollständig",
+    "kurz": "Cup-Seite → Finale, Summe aller Tage: „Solo Clutch Points“ nur, wenn jeder Tag gerechnet ist.",
+    "markieren": [
+      "text:Solo Clutch Points"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte für einen Finaltag die Clutch-Rechnung, stand eine halbe Summe neben den Elims aller Tage – zu niedrig.",
+    "was": "Über mehrere Tage erscheinen die Clutch-Punkte nur, wenn jeder Tag fertig gerechnet ist; sonst steht nichts statt einer falschen Zahl.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und angepasst)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

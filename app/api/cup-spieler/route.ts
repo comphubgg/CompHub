@@ -69,7 +69,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
    * Turnierkonten, hier auf die echten umgeschrieben.
    */
   const clutch = new Map<string, number>();
-  let clutchDa = false;
+  let clutchTage = 0;
   /*
    * Seit dem 28.9.2026 wieder sichtbar - der Betreiber will die Kachel.
    * Gerechnet aus Epics Server-Replays der gewerteten Spiele (bei den Globals
@@ -94,13 +94,16 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
       x.leben += v; rep.set(e, x);
     }
-    if (!c?.summe) continue;
-    clutchDa = true;
+    // Ueber mehrere Tage zaehlt ein teilweise gelesener Tag nicht (halbe Summe); ein einzelner Tag bleibt wie bisher sichtbar.
+    if (!c?.summe || (tage.length > 1 && c.teilweise)) continue;
+    clutchTage += 1;
     for (const [id, pkt] of Object.entries(c.summe)) {
       const e = echtVon(id);
       clutch.set(e, (clutch.get(e) ?? 0) + pkt);
     }
   }
+  // Mehrere Tage: Clutch nur, wenn jeder Tag gerechnet ist - sonst stuende eine halbe Summe neben den Elims aller Tage.
+  const clutchDa = clutchTage > 0 && clutchTage === tage.length;
   const ausRep = (id: string) => (repVoll ? rep.get(id.toLowerCase()) ?? rep.get(id) : undefined);
 
   const nameVon = (id: string) => anzeige.get(id)
