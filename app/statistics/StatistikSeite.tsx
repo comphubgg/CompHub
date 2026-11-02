@@ -6590,11 +6590,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                     <span className="w-28 shrink-0 text-[11px]
                                                      text-slate-500"><T>{t[0]}</T></span>
                                     <span className="min-w-0 flex-1">
-                                      <Balken wert={t[1]} klein />
+                                      <Balken wert={t[1] ?? 0} klein />
                                     </span>
                                     <span className="w-7 shrink-0 text-right text-[11px]
                                                      font-semibold tabular-nums
-                                                     text-slate-300">{t[1]}</span>
+                                                     text-slate-300">{t[1] ?? '–'}</span>
                                   </div>
                                 ))}
                               </div>

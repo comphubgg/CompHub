@@ -4,7 +4,7 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
-import { szeneFenster, epicTag, streckeKm } from '@/lib/szeneStats';
+import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
