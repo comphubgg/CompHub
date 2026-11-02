@@ -675,7 +675,7 @@ function KartenKnopf({ karte, aufVerstecken, mitInsel = false }: {
           </svg>
         </span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karte</T></span>
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karte</T></span>
           <span className="block truncate text-sm font-bold text-slate-100">{name}</span>
           {zusatz && <span className="block truncate text-[11px] text-sky-400/80">{zusatz}</span>}
         </span>

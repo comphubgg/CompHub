@@ -9290,5 +9290,25 @@
       "/events"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:54:38Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-419",
+    "titel": "Cup-Seite: Beschriftung „Map“ in 11 Pixel",
+    "kurz": "Cup-Seite oben → Kartenkachel: Beschriftung über dem Kartennamen jetzt 11 Pixel.",
+    "markieren": [
+      "text:Map"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Beschriftung stand noch mit 10 Pixeln.",
+    "was": "Sie steht jetzt mit 11 Pixeln wie der Rest des Kopfs.",
+    "ansehen": [
+      "/events"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
