@@ -7033,5 +7033,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-318",
+    "datum": "2026-11-02T02:00:32Z",
+    "titel": "Replay-Zonen: fehlender Beginn als Strich statt falscher Zeit",
+    "kurz": "Replay → Tabelle „Zones“: fehlender Zonen-Beginn zeigt „—“ statt einer falschen Zeit.",
+    "markieren": [
+      "text:Zones"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte der Beginn einer Zone, stand dort eine erfundene Zeit mit Sprung-Link; die Nachbarspalten zeigten schon einen Strich.",
+    "was": "Ohne Wert steht ein Strich ohne Link – wie in den anderen Spalten.",
+    "ansehen": [
+      "/replays/S42_FNCSSolo_Final_Day1_NAW/1"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

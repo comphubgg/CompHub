@@ -720,7 +720,9 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               {match.zonen.map((z, i) => (
                 <tr key={i} className={`border-b border-white/[0.04] transition hover:bg-sky-500/[0.05] ${zone.phase === i + 1 ? 'bg-sky-500/[0.08]' : ''}`}>
                   <td className="px-4 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
-                  <td className="px-3 py-1.5"><button type="button" onClick={() => springe(z.schrumpftAb ?? tStart)} className="tabular-nums text-sky-300 hover:underline">{uhr((z.schrumpftAb ?? 0) - tStart)}</button></td>
+                  <td className="px-3 py-1.5">{typeof z.schrumpftAb === 'number'
+                    ? <button type="button" onClick={() => springe(z.schrumpftAb as number)} className="tabular-nums text-sky-300 hover:underline">{uhr(z.schrumpftAb - tStart)}</button>
+                    : <span className="text-slate-500">—</span>}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{typeof z.radius === 'number' ? `${Math.round(z.radius / 100)} m` : '—'}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{typeof z.naechsterRadius === 'number' ? `${Math.round(z.naechsterRadius / 100)} m` : '—'}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof z.schrumpftBis === 'number' && typeof z.schrumpftAb === 'number' ? `${Math.round(z.schrumpftBis - z.schrumpftAb)} s` : '—'}</td>
