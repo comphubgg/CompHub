@@ -9890,7 +9890,9 @@
   {
     "id": "chef-445",
     "datum": "2026-11-02T04:31:09Z",
-    "commits": [],
+    "commits": [
+      "36a93997164e976150ebcd8b811291e1e7b44d7b"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
@@ -9911,7 +9913,9 @@
   {
     "id": "chef-446",
     "datum": "2026-11-02T04:31:52Z",
-    "commits": [],
+    "commits": [
+      "702b81e01fea13782f23a4abef166a91da9e823e"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
@@ -9931,7 +9935,9 @@
   {
     "id": "chef-447",
     "datum": "2026-11-02T04:31:52Z",
-    "commits": [],
+    "commits": [
+      "b3cfbc2a32ccaaf61f671e8cbab9b0676203a176"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
@@ -9951,7 +9957,9 @@
   {
     "id": "chef-448",
     "datum": "2026-11-02T04:32:19Z",
-    "commits": [],
+    "commits": [
+      "4101a3cff04909bc4b5890f3cb66f83afe00d20c"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
@@ -9972,7 +9980,10 @@
   {
     "id": "chef-449",
     "datum": "2026-11-02T04:32:27Z",
-    "commits": [],
+    "commits": [
+      "5b611c3d7994331b335c6e52f93cfce94b81aaeb",
+      "831be2fce9e2d676aad4362e3d063f86ed1c0d16"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
@@ -9994,7 +10005,9 @@
   {
     "id": "chef-450",
     "datum": "2026-11-02T04:34:22Z",
-    "commits": [],
+    "commits": [
+      "2a144131d14ecb3e0866fd5cd88aff5844679914"
+    ],
     "status": "wartet",
     "runde": 1,
     "groesse": "klein",
