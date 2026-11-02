@@ -448,7 +448,15 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
       const ziel = fenster.length > 1 ? `windows=${fenster.map(encodeURIComponent).join(',')}` : `window=${encodeURIComponent(fenster[0])}`;
       // Bis zu dreimal fragen (wie bei den Ereignissen): ein kurzer Aussetzer bei Epic liess sonst ein ganzes Endspiel aus allen Summen fallen.
       const zeilen = await mitWiederholung(() => ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`));
-      const label = k.art === 'gc' ? `${k.jahr} Global Championship` : `${k.e.saisonKurz} Grand Finals`;
+      // Der Name sagt, welches Endspiel es war: die Grand Finals der anderen Regionen (NAC, OCE ...) tragen ihre Region, sonst stuende "CH6 S3 Grand Finals" mehrfach da,
+      // einmal fuer Europa und einmal fuer Nordamerika - und Invitational, Summit, Grand Royale und All-Star hiessen alle "Grand Finals".
+      const basis = k.art === 'gc' ? `${k.jahr} Global Championship`
+        : k.art === 'invitational' ? `${k.jahr ?? k.e.saisonKurz} Invitational`
+          : k.art === 'summit' ? 'Major 1 Summit'
+            : k.art === 'royale' ? `${k.e.saisonKurz} Grand Royale`
+              : k.art === 'allstar' ? `${k.e.saisonKurz} All-Star Solo`
+                : `${k.e.saisonKurz} Grand Finals`;
+      const label = k.region ? `${basis} · ${k.region}` : basis;
       for (const z of zeilen) {
         let spieler = z.players.map((p) => {
           const x = kontext(p.id, p.displayName || p.name || '');
