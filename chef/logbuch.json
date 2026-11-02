@@ -7455,5 +7455,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-337",
+    "datum": "2026-11-02T02:38:07Z",
+    "titel": "FNCS All-Time: Gleichstand nach Stärke statt Alphabet",
+    "kurz": "FNCS → All-Time Stats: gleiche Werte ordnen nach bestem Platz/Aktualität, nicht nach Namen.",
+    "markieren": [
+      "text:All-Time Leaderboard",
+      "text:All-Time Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei ganz gleichen Werten entschied in Bestenliste, Rekorden und Elims-Tabelle der Name – also das Alphabet.",
+    "was": "Jetzt entscheiden der bessere beste Platz, dann wer zuletzt gespielt hat (bei Rekorden: Europa zuerst, neuere zuerst), zuletzt eine feste Kennung.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

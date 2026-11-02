@@ -418,7 +418,7 @@ export interface RekordZeile { event: string; wert: number; spieler: Array<{ nam
 export interface FncsRekorde {
   /** Ab welcher Saison die Zahlen zaehlen - was Epics Bestenliste noch fuehrt. */
   ab: string;
-  spieler: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>;
+  spieler: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number; bestRang?: number; zuletzt?: number; kennung?: string }>;
   punkte: RekordZeile[]; siege: RekordZeile[]; elims: RekordZeile[];
   /** Wie viele Endspiele Epic trotz Wiederholungen nicht geliefert hat - dann sind die Summen zu klein. Fehlt oder 0: vollstaendig. */
   fehlend?: number;
@@ -435,8 +435,8 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
   if (rekordMerker && rekordMerker.bis > Date.now()) return rekordMerker.daten;
   const [liste, kontext, land] = await Promise.all([mapsVerzeichnis(), spielerKontext(), landVonName()]);
   const mitEpic = kandidaten(liste).filter((k) => (k.e.tage ?? []).length > 1 || k.e.eventId);
-  const je = new Map<string, { name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>();
-  const alleTeams: Array<{ event: string; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }> = [];
+  const je = new Map<string, { name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number; bestRang?: number; zuletzt?: number; kennung?: string }>();
+  const alleTeams: Array<{ event: string; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }>; eu: boolean; datum: number; rang: number; kennung: string }> = [];
   let fehlend = 0;
   await Promise.all(mitEpic.map(async (k) => {
     const tage = k.e.tage ?? [];
@@ -469,13 +469,17 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
           if (f) spieler = f.spieler.map((n) => ({ name: n, land: land(n) }));
         }
         const punkte = z.points ?? 0; const siege = z.wins ?? 0; const elims = z.elims ?? 0;
-        alleTeams.push({ event: label, punkte, siege, elims, spieler });
-        for (const s of spieler) {
+        const datum = k.e.datum ?? 0;
+        alleTeams.push({ event: label, punkte, siege, elims, spieler, eu: !k.region, datum, rang: z.rank, kennung: eventId });
+        spieler.forEach((s, i) => {
           const schluessel = namensSchluessel(s.name);
           const a = je.get(schluessel) ?? { name: s.name, land: s.land, punkte: 0, siege: 0, elims: 0, finals: 0 };
           a.punkte += punkte; a.siege += siege; a.elims += elims; a.finals += 1; a.land = a.land ?? s.land;
+          a.bestRang = Math.min(a.bestRang ?? 1e9, z.rank); a.zuletzt = Math.max(a.zuletzt ?? 0, datum);
+          const id = spieler.length === z.players.length ? z.players[i]?.id : undefined;
+          if (id && (!a.kennung || id < a.kennung)) a.kennung = id;
           je.set(schluessel, a);
-        }
+        });
       }
     } catch { fehlend += 1; /* dieses Endspiel fehlt dann in der Summe - und wird gemeldet */ }
   }));
