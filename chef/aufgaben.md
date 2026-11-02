@@ -11,6 +11,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Power Rankings Aufsteiger: Neueinsteiger mit riesigen Sprüngen** (Platz 3621, +9.849 aus Epics deltaPlatz) – Betreiber fragen, ob Neueinsteiger dort stehen sollen.
 - [ ] **cup-leaderboard tageGesamt holt je Tag nur zwei Seiten** – bei großen Feldern könnten in Mehrtages-Summen Teams fehlen (Finals ~100 Teams unkritisch). Beobachten.
 - [ ] **Globals-Teams Duo-Ansicht:** fehlt nur einem Spieler die Konto-Id, steht „keinen Cup zusammen gespielt“ statt „unbekannt“ – live haben alle eine Id, nur theoretisch.
+- [ ] **Jahresbilanz „Spieltage“ (EU/S42: 171) zählt Victory/Cash Cups mit, Regionen-Reiter 21** – im Code gewollt, wirkt aber wie Widerspruch. Betreiber fragen, ob beschriften.
 - [ ] **FNCS-Archiv S12 Invitational / S18 Grand Royale: Punkte nicht absteigend nach Platz** – Quelle.
 
 ## Neu entdeckt (Runde 19, 02.11.2026)
