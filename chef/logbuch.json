@@ -7966,5 +7966,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-360",
+    "datum": "2026-11-02T02:54:56Z",
+    "titel": "Admin-Tweets: Spieler-Bestenlisten bei Gleichstand fest geordnet",
+    "kurz": "Admin → Tweets: gleiche Werte bei Spielern ordnen nach Schaden statt Antwort-Reihenfolge.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichem Wert standen Einzelspieler im Tweet in der Reihenfolge, in der die Antwort kam – das konnte beim nächsten Laden wechseln.",
+    "was": "Jetzt entscheidet bei Gleichstand der Schaden, zuletzt eine feste Kennung (Teams nutzen weiter den Turnierplatz).",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

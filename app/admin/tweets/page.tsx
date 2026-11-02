@@ -1778,7 +1778,8 @@ export default function TweetSeite() {
       const genug = (p: SpielerWert) => !istQuote(String(k.schluessel)) || !hoechste || (Number(p.matches) || 0) >= mindestQuote;
       const sortiert = [...roh]
         .filter((p) => wertVon(p) > 0 && genug(p))
-        .sort((a, b) => (k.kleinBesser ? wertVon(a) - wertVon(b) : wertVon(b) - wertVon(a)));
+        .sort((a, b) => (k.kleinBesser ? wertVon(a) - wertVon(b) : wertVon(b) - wertVon(a))
+          || (Number(b.damage) || 0) - (Number(a.damage) || 0) || String(a.epicId ?? '').localeCompare(String(b.epicId ?? '')));
       if (!sortiert.length) return null;
       // Einmal das ganze Feld aufbereiten. Die Kachel nimmt sich die ersten
       // fuenf, die Vollansicht hinter dem Pluszeichen bekommt den Rest.
@@ -2692,7 +2693,9 @@ export default function TweetSeite() {
         const roh = einzelwerte
           .map((sp) => ({ sp, wert: Number(sp[feld] ?? 0) }))
           .filter((x) => x.wert > 0 && (Number(x.sp.matches) || 0) >= mindestSpiele)
-          .sort((a, b) => b.wert - a.wert)
+          // Bei Gleichstand mehr Schaden, zuletzt die Konto-Id - nicht die Reihenfolge, in der die Antwort kam.
+          .sort((a, b) => b.wert - a.wert || (Number(b.sp.damage) || 0) - (Number(a.sp.damage) || 0)
+            || String(a.sp.epicId ?? '').localeCompare(String(b.sp.epicId ?? '')))
           .slice(0, auswahl.grenze ?? 10);
 
         if (!roh.length) {
