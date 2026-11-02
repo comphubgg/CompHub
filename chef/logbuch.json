@@ -9927,5 +9927,25 @@
     "ansehen": [
       "/statistics?bereich=organisationen"
     ]
+  },
+  {
+    "id": "chef-447",
+    "datum": "2026-11-02T04:31:52Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Vergleich: Spielersuche ohne Treffer zeigt Hinweis",
+    "kurz": "Vergleich → „+ Spieler 1“ → Unsinn tippen: jetzt steht „Nobody found.“ statt nichts.",
+    "markieren": [
+      "text:Nobody found."
+    ],
+    "warum": "Ohne Treffer blieb das Suchfeld stumm – das sah aus, als hinge die Suche.",
+    "was": "Ist die Antwort da und passt niemand, steht „Niemand gefunden.“",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ]
   }
 ]

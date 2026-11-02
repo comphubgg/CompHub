@@ -151,22 +151,24 @@ function Slot({ wer, nr, onWahl, belegt, loc }: { wer: VglSpieler | null; nr: nu
   const [treffer, setTreffer] = useState<VglSpieler[]>([]);
   /** Die Suche selbst fiel aus - dann Hinweis statt einer leeren Liste, die nach "niemand gefunden" aussaehe. */
   const [suchFehler, setSuchFehler] = useState(false);
+  /** Für diesen Suchtext liegt eine Antwort vor - erst dann darf "niemand gefunden" stehen, nicht schon beim Tippen. */
+  const [gesucht, setGesucht] = useState('');
   const feld = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!offen) return undefined;
     feld.current?.focus();
     const text = q.trim();
-    if (text.length < 2) { setTreffer([]); setSuchFehler(false); return undefined; }
+    if (text.length < 2) { setTreffer([]); setSuchFehler(false); setGesucht(''); return undefined; }
     let weg = false;
     const uhr = setTimeout(() => {
       fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(text)}`)
         .then((r) => r.json())
         .then((j) => {
           if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
-          if (!weg) { setTreffer(j.spieler.slice(0, 8)); setSuchFehler(false); }
+          if (!weg) { setTreffer(j.spieler.slice(0, 8)); setSuchFehler(false); setGesucht(text); }
         })
-        .catch(() => { if (!weg) { setTreffer([]); setSuchFehler(true); } });
+        .catch(() => { if (!weg) { setTreffer([]); setSuchFehler(true); setGesucht(''); } });
     }, 220);
     return () => { weg = true; clearTimeout(uhr); };
   }, [q, offen]);
@@ -196,6 +198,11 @@ function Slot({ wer, nr, onWahl, belegt, loc }: { wer: VglSpieler | null; nr: nu
       {offen && suchFehler && q.trim().length >= 2 && (
         <p role="alert" className="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-white/[0.1] bg-zinc-950 px-3 py-2.5 text-xs text-slate-300 shadow-2xl">
           <T>Suche gerade nicht erreichbar</T>
+        </p>
+      )}
+      {offen && !suchFehler && gesucht !== '' && gesucht === q.trim() && !treffer.some((x) => !belegt.has(x.epicId)) && (
+        <p className="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-white/[0.1] bg-zinc-950 px-3 py-2.5 text-xs text-slate-400 shadow-2xl">
+          <T>Niemand gefunden.</T>
         </p>
       )}
       {offen && treffer.length > 0 && (
