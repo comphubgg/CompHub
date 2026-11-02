@@ -7790,5 +7790,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-352",
+    "datum": "2026-11-02T02:48:32Z",
+    "titel": "Globals-Teams: Suche ohne Treffer zeigt Meldung",
+    "kurz": "Globals → Teams → Suche „zzzz“: „No player with that name in the field.“ statt leerer Fläche.",
+    "markieren": [
+      "text:No player with that name in the field."
+    ],
+    "bereich": "Statistik",
+    "warum": "Fand die Spielersuche niemanden, blieb die Fläche einfach leer.",
+    "was": "Jetzt steht eine kurze Meldung da – in allen drei Ansichten.",
+    "ansehen": [
+      "/globals/teams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -451,6 +451,13 @@ export default function GlobalsTeams() {
             </span>
           </div>
 
+          {suche.trim() && !gezeigt.length && (
+            <p className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3
+                          text-sm text-slate-400">
+              <T>Kein Spieler mit diesem Namen im Feld.</T>
+            </p>
+          )}
+
           {ansicht === 'laender' && <LaenderRaster teams={gezeigt} />}
           {ansicht === 'regionen' && <RegionenRaster teams={gezeigt} oeffnen={setOffen} />}
 
