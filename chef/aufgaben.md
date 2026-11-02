@@ -2,6 +2,17 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 20, 02.11.2026)
+
+- [x] (chef-445, chef-450) **Hinweise nannten noch „ab 10/20 Matches“**, seit main (3f671ad) zählt jedes Konto ab 1 Match – Statistik-Zahlen und Fotoübersicht korrigiert. Wer `ARCHIV_MINDEST_MATCHES` ändert, muss diese beiden Texte mitändern.
+- [x] (chef-451) Spieltag-Tabelle erkannte Finals 2023/2024 (GrandFinalDay2, _GrandFinals_EU_Day2) nicht als Endstand.
+- [ ] **Globals → Prize pool live leer:** Epic führt für die Global Championship keine Auszahlungstabelle mehr (Antwort 02.11.). Rückfall aus data/lan-preisgelder.json denkbar, aber dort nur Spieler mit Konto – Plätze hätten Lücken. Betreiber fragen.
+- [ ] **FNCS Ewige Bestenliste: Spalte „Elims“ = Elims des ganzen Teams** (Vico 373, in der Elims-Tabelle 186) – bewusst so (lib/fncsEreignisse), sieht aber wie Einzelwert aus. Betreiber fragen: umbenennen in „Team-Elims“?
+- [ ] **Power Rankings Aufsteiger: Neueinsteiger mit riesigen Sprüngen** (Platz 3621, +9.849 aus Epics deltaPlatz) – Betreiber fragen, ob Neueinsteiger dort stehen sollen.
+- [ ] **cup-leaderboard tageGesamt holt je Tag nur zwei Seiten** – bei großen Feldern könnten in Mehrtages-Summen Teams fehlen (Finals ~100 Teams unkritisch). Beobachten.
+- [ ] **Globals-Teams Duo-Ansicht:** fehlt nur einem Spieler die Konto-Id, steht „keinen Cup zusammen gespielt“ statt „unbekannt“ – live haben alle eine Id, nur theoretisch.
+- [ ] **FNCS-Archiv S12 Invitational / S18 Grand Royale: Punkte nicht absteigend nach Platz** – Quelle.
+
 ## Neu entdeckt (Runde 19, 02.11.2026)
 
 - [ ] **WIDERSPRUCH Profil ↔ Saisonliste = chef-106 (wartet auf Freigabe):** peterbot S42 – Profil 17 Events / 83 Matches / 208 Elims, Saison-Bestenliste und Statistik-Start 12 / 57 / 152. Grund: die Listen enden beim Spieltag vom 10.10.2026, das Profil kennt die fünf neueren (Solo-Finale 26./27.10., Performance Cup Woche 9, Heats). Am 02.11. nachgemessen – Listen damit über drei Wochen alt. Nur die Freigabe von chef-106 hilft.
