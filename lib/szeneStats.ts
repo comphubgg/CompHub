@@ -1208,6 +1208,21 @@ export function nachKennzahl(feld: string) {
   };
 }
 
+/**
+ * Die Matches, auf denen ein Verhaeltniswert wirklich beruht - fuer die Mindestzahl der Quotenlisten.
+ *
+ * Eigene Spieltage kennen nicht alles (Schaden, Kills, Schuesse nur, wo die Replays voll gelesen sind), zaehlen aber mit ihren Matches
+ * in "matches". Wer 12 Matches hatte, davon 2 mit Schaden, stand mit einer Quote aus 2 Matches in der Liste, als haette er 12 gespielt.
+ * Ohne Nenner (aeltere fertige Antwort) bleibt es bei allen Matches.
+ */
+export function matchesFuerQuote(z: object, feld: string): number {
+  const r = z as Record<string, unknown>;
+  const nenner = feld === 'quote' || feld === 'damageProMatch' ? r.matchesSchaden
+    : feld === 'elimsProMatch' ? r.matchesElims
+    : feld === 'genauigkeit' ? r.matchesVoll : undefined;
+  return Number(typeof nenner === 'number' ? nenner : r.matches) || 0;
+}
+
 /** Wie viele Plaetze eine Bestenliste der Startansicht traegt. */
 const LISTEN_LAENGE = 400;
 
@@ -1436,7 +1451,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     mindestMatches: k.feld === 'quote' ? mindestMatches : null,
     plaetze: [...saisonFeld]
       // Ohne erlittenen Schaden ist die Quote unbekannt (auf der Seite ein Strich) - kein Platz in der Bestenliste.
-      .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches && s.damageTaken > 0 : true))
+      .filter((s) => (k.feld === 'quote' ? matchesFuerQuote(s, 'quote') >= mindestMatches && s.damageTaken > 0 : true))
       .sort(nachKennzahl(String(k.feld)))
       /*
        * Vierhundert statt sechzig.
@@ -1846,7 +1861,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     mindestMatches: k.feld === 'quote' ? quoteMindest : null,
     plaetze: [...feld]
       // Ohne erlittenen Schaden ist die Quote unbekannt - kein Platz in der Bestenliste.
-      .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest && s.damageTaken > 0 : true))
+      .filter((s) => (k.feld === 'quote' ? matchesFuerQuote(s, 'quote') >= quoteMindest && s.damageTaken > 0 : true))
       .sort(nachKennzahl(String(k.feld)))
       .slice(0, LISTEN_LAENGE),
   }));
