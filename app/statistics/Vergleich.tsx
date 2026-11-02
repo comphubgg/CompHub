@@ -142,7 +142,7 @@ const KURVEN: Kurve[] = [
 
 /* ------------------------------------------------------------------ Spielerwahl */
 
-function Slot({ wer, nr, onWahl, belegt }: { wer: VglSpieler | null; nr: number; onWahl: (s: VglSpieler | null) => void; belegt: Set<string> }) {
+function Slot({ wer, nr, onWahl, belegt, loc }: { wer: VglSpieler | null; nr: number; onWahl: (s: VglSpieler | null) => void; belegt: Set<string>; loc: string }) {
   const t = useT();
   const [offen, setOffen] = useState(false);
   const [q, setQ] = useState('');
@@ -204,7 +204,7 @@ function Slot({ wer, nr, onWahl, belegt }: { wer: VglSpieler | null; nr: number;
               className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-zinc-900">
               <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
               <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase text-slate-200">{x.anzeige}</span>
-              {x.matches != null && <span className="shrink-0 text-[10px] text-slate-600">{x.matches} <T>Matches</T></span>}
+              {x.matches != null && <span className="shrink-0 text-[10px] text-slate-600">{x.matches.toLocaleString(loc)} <T>Matches</T></span>}
             </button>
           ))}
         </div>
@@ -580,10 +580,10 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
 
       {/* Die Wahl: links und rechts je 1 bis 3 Spieler */}
       <div className="grid items-start gap-3 md:grid-cols-[1fr_auto_1fr]">
-        <div className="space-y-2">{Array.from({ length: n }, (_, i) => <Slot key={`l${i}`} wer={links[i]} nr={i + 1} belegt={belegt} onWahl={(s) => setzeSlot('l', i, s)} />)}</div>
+        <div className="space-y-2">{Array.from({ length: n }, (_, i) => <Slot key={`l${i}`} wer={links[i]} nr={i + 1} belegt={belegt} loc={loc} onWahl={(s) => setzeSlot('l', i, s)} />)}</div>
         <button type="button" onClick={tauschen} aria-label={t('Seiten tauschen')} title={t('Seiten tauschen')}
           className="mx-auto hidden h-10 w-10 place-items-center rounded-full border border-white/[0.12] bg-white/[0.04] text-slate-300 transition hover:border-sky-500/60 hover:text-sky-300 md:grid">⇄</button>
-        <div className="space-y-2">{Array.from({ length: n }, (_, i) => <Slot key={`r${i}`} wer={rechts[i]} nr={i + 1} belegt={belegt} onWahl={(s) => setzeSlot('r', i, s)} />)}</div>
+        <div className="space-y-2">{Array.from({ length: n }, (_, i) => <Slot key={`r${i}`} wer={rechts[i]} nr={i + 1} belegt={belegt} loc={loc} onWahl={(s) => setzeSlot('r', i, s)} />)}</div>
       </div>
 
       {!beideKomplett ? (

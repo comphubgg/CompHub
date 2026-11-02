@@ -6921,5 +6921,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-313",
+    "datum": "2026-11-02T01:58:04Z",
+    "titel": "Vergleich: Matchzahl in der Spielersuche mit Tausendertrennung",
+    "kurz": "Vergleich → Spieler suchen: Matchzahl rechts im Treffer mit Tausenderpunkt.",
+    "markieren": [
+      "text:+ Player 1"
+    ],
+    "bereich": "Statistik",
+    "warum": "In den Suchtreffern stand „1234 Matches“, überall sonst „1.234“.",
+    "was": "Die Zahl ist jetzt nach Sprache formatiert (1.234 bzw. 1,234).",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
