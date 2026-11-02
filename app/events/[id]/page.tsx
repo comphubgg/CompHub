@@ -3839,7 +3839,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                   <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-4">
                     {kachel('Punkte', zahlText(e.points, ort), true)}
-                    {kachel('Spiele', e.games, true)}
+                    {kachel('Spiele', zahlText(e.games, ort), true)}
                     {kachel('Siege', zahlText(e.wins, ort), true)}
                     {kachel('Ø Punkte', schnitt(e.avgPoints, ort, 2, e.games > 0))}
                     {kachel('Ø Platz', schnitt(e.avgPlace, ort))}
@@ -5285,7 +5285,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50"><T>{b.titel}</T></h3>
                     {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld - dieselbe Sortierung, nur ungekuerzt. */}
                     <button type="button" onClick={() => listeOeffnen(b)} disabled={(b.anzahl ?? b.alle.length) <= b.plaetze.length}
-                      title={`${t('Alle anzeigen')} (${b.anzahl ?? b.alle.length})`}
+                      title={`${t('Alle anzeigen')} (${(b.anzahl ?? b.alle.length).toLocaleString(ort)})`}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-slate-300
                                  transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-30">
                       <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">

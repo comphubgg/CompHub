@@ -6782,5 +6782,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-307",
+    "datum": "2026-11-02T01:52:50Z",
+    "titel": "Cup-Seite: Teamzahl am Vergrößern-Knopf mit Tausendertrennung",
+    "kurz": "Cup → Teams → Kachel-Knopf „Alle anzeigen (12,345)“ jetzt mit Tausenderpunkt.",
+    "markieren": [
+      "text:Games",
+      "css:button[title^='View all']"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Knopf zeigte „12345“, die geöffnete Liste darüber „12.345 Teams“ – uneinheitlich.",
+    "was": "Knopf-Hinweis und die Kachel „Spiele“ in den Team-Details schreiben große Zahlen mit Tausenderpunkt.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
