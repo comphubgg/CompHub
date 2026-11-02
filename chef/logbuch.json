@@ -8237,5 +8237,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-373",
+    "datum": "2026-11-02T03:15:58Z",
+    "titel": "Scrims: Marken und Zeitangabe auf Deutsch",
+    "kurz": "Scrims: „Beendet“, „Demnächst“ und „in 2 Std. 30 Min.“ folgen jetzt der Sprache.",
+    "markieren": [
+      "text:Upcoming",
+      "text:Finished"
+    ],
+    "bereich": "Scrims",
+    "warum": "Die Marken „Ended“, „Upcoming“ und „in 14 min“ standen auch im deutschen Modus englisch.",
+    "was": "Sie laufen über die Übersetzung; auf Englisch steht nun „Finished“ wie bei den Events.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und korrigiert)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

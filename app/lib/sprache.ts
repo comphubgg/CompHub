@@ -1222,6 +1222,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'vor {n} Tagen': '{n} days ago',
   'in {n} Min.': 'in {n} min',
   'in {n} Std.': 'in {n} h',
+  '{n} Min.': '{n} min',
   'in {n} Tagen': 'in {n} days',
   'heute': 'today',
   'gestern': 'yesterday',

@@ -333,11 +333,12 @@ function Namen({ spieler }: { spieler: Team['spieler'] }) {
 }
 
 /** Wie lange noch bis zum Start: "in 14 min", "in 2 h". */
-function baldText(ms: number, jetzt: number) {
+function baldText(ms: number, jetzt: number, t: (text: string) => string) {
   const min = Math.max(0, Math.round((ms - jetzt) / 60_000));
-  if (min < 60) return `in ${min} min`;
+  if (min < 60) return t('in {n} Min.').replace('{n}', String(min));
   const h = Math.floor(min / 60);
-  return `in ${h} h${min % 60 ? ` ${min % 60} min` : ''}`;
+  // "in 2 Std. 30 Min." / "in 2 h 30 min" - Stunden und Minuten je für sich übersetzt.
+  return `${t('in {n} Std.').replace('{n}', String(h))}${min % 60 ? ` ${t('{n} Min.').replace('{n}', String(min % 60))}` : ''}`;
 }
 
 /* ============================================================ Helfer */
@@ -530,7 +531,7 @@ function Kachel({ serie, offen, umschalten, waehle }: {
                 )}
                 <span className={`shrink-0 text-[11px] font-bold uppercase ${
                   s.live ? 'text-sky-400' : s.vorbei ? 'text-slate-500' : 'text-indigo-300'}`}>
-                  {s.live ? 'Live' : s.vorbei ? 'Ended' : `Upcoming · ${baldText(s.beginn, jetzt)}`}
+                  {s.live ? 'Live' : s.vorbei ? t('Beendet') : `${t('Demnächst')} · ${baldText(s.beginn, jetzt, t)}`}
                 </span>
               </button>
             ))}
@@ -788,7 +789,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
               <span>👤 {GROESSE[sitzung.teamGroesse] ?? `${sitzung.teamGroesse}er`}</span>
               {kommt ? (
                 <span className="text-indigo-300">
-                  Upcoming · {baldText(sitzung.beginn, jetzt)}
+                  {t("Demnächst")} · {baldText(sitzung.beginn, jetzt, t)}
                   {!!sitzung.plaetze && ` · ${sitzung.spieler ?? 0}/${sitzung.plaetze} ${t('Spieler')}`}
                 </span>
               ) : <span>⚔ {runden.length} <T>{rundenWort}</T></span>}
@@ -1514,7 +1515,7 @@ export default function ScrimsSeite() {
                                   <span className="truncate">{x.name}</span>
                                   <span className={`text-[11px] font-bold uppercase ${
                                     x.live ? 'text-sky-400' : x.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
-                                    {x.live ? 'Live' : x.vorbei ? 'Ended' : 'Upcoming'}
+                                    {x.live ? 'Live' : x.vorbei ? t('Beendet') : t('Demnächst')}
                                   </span>
                                 </button>
                               ))}
