@@ -9269,5 +9269,26 @@
       "/events"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:54:29Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "mittel",
+    "id": "chef-418",
+    "titel": "Cup-Spielerfenster: Lücke statt Einbruch auf 0",
+    "kurz": "Cup → Spieler anklicken: Kurven zeigen fehlende Matches als Lücke statt Absturz auf 0.",
+    "markieren": [
+      "text:Placement",
+      "text:Cumulative"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte der Wert eines Matches, fiel die Kurve auf 0 – als hätte der Spieler dort nichts geschafft.",
+    "was": "Die Linie reißt dort jetzt ab; echte Nullen bleiben 0, auch ein Match mit 0 Punkten.",
+    "ansehen": [
+      "/events"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
