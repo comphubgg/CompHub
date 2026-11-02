@@ -4,7 +4,8 @@ import { twitchToken, erneuereTwitchToken, twitchEingerichtet } from "@/lib/twit
 
 /** title: der Titel des laufenden Streams - fuer den Titelfilter der Streams-Seite (Betreiber, 19.10.2026: nach "LCQ" und Co. filtern). */
 /** bild: das Twitch-Profilbild - die Streamer-Liste zeigt es neben dem Namen (Idee 28, 31.10.2026). */
-type Status = { isLive: boolean; viewers: number; title?: string; bild?: string | null };
+/** unbekannt: die Quelle war nicht erreichbar - "offline" waere geraten (Ausfall, 1.11.2026). */
+type Status = { isLive: boolean; viewers: number; title?: string; bild?: string | null; unbekannt?: boolean };
 
 // Profilbilder aendern sich selten - einen Tag merken, damit nicht jede Abfrage der Liste auch /helix/users fragt.
 const bildMerker = new Map<string, { bild: string | null; bis: number }>();
@@ -46,7 +47,7 @@ async function ueberSeite(namen: string[]): Promise<Record<string, Status>> {
 
   await Promise.all(offen.map(async (name) => {
     const key = name.toLowerCase();
-    let wert: Status = { isLive: false, viewers: 0 };
+    let wert: Status = { isLive: false, viewers: 0, unbekannt: true };
     try {
       const res = await fetch(`https://www.twitch.tv/${encodeURIComponent(name)}`, {
         redirect: 'manual',
@@ -60,7 +61,7 @@ async function ueberSeite(namen: string[]): Promise<Record<string, Status>> {
         cache: 'no-store',
       });
       if (res.ok) wert = detectTwitchLiveStatusFromHtml(await res.text(), name);
-    } catch { /* offline lassen */ }
+    } catch { /* Seite nicht erreichbar: bleibt "unbekannt", nicht "offline" */ }
     merker.set(key, { wert, bis: Date.now() + MERK_DAUER });
     ergebnis[key] = wert;
   }));
@@ -69,8 +70,10 @@ async function ueberSeite(namen: string[]): Promise<Record<string, Status>> {
 }
 
 export async function POST(req: Request) {
+  let genannt: string[] = [];
   try {
     const { usernames } = await req.json();
+    if (Array.isArray(usernames)) genannt = usernames.filter((n): n is string => typeof n === 'string');
 
     if (!usernames || !Array.isArray(usernames) || usernames.length === 0) {
       return Response.json({}, { status: 400 });
@@ -151,8 +154,9 @@ export async function POST(req: Request) {
         });
       } catch (error) {
         console.error(t('error_fetching_stream_data', 'Error fetching stream data:'), error);
+        // Nicht erreichbar heisst nicht offline: als unbekannt melden, die Anzeige entscheidet.
         chunk.forEach((name: string) => {
-          result[name.toLowerCase()] = { isLive: false, viewers: 0 };
+          result[name.toLowerCase()] = { isLive: false, viewers: 0, unbekannt: true };
         });
       }
 
@@ -165,6 +169,7 @@ export async function POST(req: Request) {
     return Response.json(result);
   } catch (error) {
     console.error(t('error_in_live_status_route', 'Error in live status route:'), error);
-    return Response.json({}, { status: 424 });
+    // Immer 200: ein Ausfall darf die Anzeige nicht zu "alle offline" oder einem Fehlerzustand machen.
+    return Response.json(Object.fromEntries(genannt.map((n) => [n.toLowerCase(), { isLive: false, viewers: 0, unbekannt: true } as Status])));
   }
 }
