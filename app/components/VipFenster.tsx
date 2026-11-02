@@ -98,6 +98,8 @@ export default function VipFenster() {
     function willkommenEinmal(wer: string) {
       const k = `${MERKER}${wer.toLowerCase()}`;
       try {
+        // Fuer immer abgeschaltet (Einstellungen, app/components/Sprachschalter) - dann nie.
+        if (localStorage.getItem(`${MERKER}aus`) === '1') return;
         if (!localStorage.getItem(k)) { localStorage.setItem(k, String(Date.now())); setLage('willkommen'); }
       } catch { /* ohne Speicher kein Willkommen - lieber keins als jedes Mal */ }
     }

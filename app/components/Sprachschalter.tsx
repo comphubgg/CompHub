@@ -77,6 +77,8 @@ export default function Sprachschalter() {
   const [groesse, setGroesse] = useState<Groesse>('normal');
   const [bewegung, setBewegung] = useState<'an' | 'aus'>('an');
   const [kopfAuto, setKopfAuto] = useState<'auto' | 'aus'>('aus');
+  /** Das Willkommen-Fenster beim ersten Anmelden auf einem Geraet (app/components/VipFenster) - hier fuer immer abschaltbar (Betreiber, 2.11.2026). */
+  const [willkommen, setWillkommen] = useState<'an' | 'aus'>('an');
   const huelle = useRef<HTMLDivElement>(null);
 
   // Den Stand vom <html>-Element holen (dort hat ihn der Server hingeschrieben).
@@ -86,6 +88,7 @@ export default function Sprachschalter() {
     setGroesse((h.dataset.groesse as Groesse) || 'normal');
     setBewegung(h.dataset.bewegung === 'aus' ? 'aus' : 'an');
     setKopfAuto(h.dataset.kopfzeile === 'auto' ? 'auto' : 'aus');
+    try { setWillkommen(localStorage.getItem('comphub-willkommen:aus') === '1' ? 'aus' : 'an'); } catch { /* ohne Speicher */ }
   }, []);
 
   // Schliessen: Escape oder ein Klick daneben.
@@ -110,6 +113,11 @@ export default function Sprachschalter() {
   const stelleKopfzeile = (k: 'auto' | 'aus') => {
     merke(KOPFZEILE_COOKIE, k); setKopfAuto(k);
     if (k === 'aus') delete document.documentElement.dataset.kopfzeile; else document.documentElement.dataset.kopfzeile = 'auto';
+  };
+
+  const stelleWillkommen = (w: 'an' | 'aus') => {
+    setWillkommen(w);
+    try { if (w === 'aus') localStorage.setItem('comphub-willkommen:aus', '1'); else localStorage.removeItem('comphub-willkommen:aus'); } catch { /* ohne Speicher */ }
   };
 
   return (
@@ -139,6 +147,9 @@ export default function Sprachschalter() {
           </Zeile>
           <Zeile titel={t('Animationen')}>
             <Wahl wert={bewegung} setze={stelleBewegung} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
+          </Zeile>
+          <Zeile titel={t('Willkommen-Fenster')} hinweis={t('beim ersten Anmelden auf einem neuen Gerät')}>
+            <Wahl wert={willkommen} setze={stelleWillkommen} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
           <Zeile titel={t('Kopfzeile automatisch ausblenden')}>
             <Wahl wert={kopfAuto === 'auto' ? 'an' : 'aus'} setze={(w) => stelleKopfzeile(w === 'an' ? 'auto' : 'aus')} optionen={[['an', t('An')], ['aus', t('Aus')]]} />

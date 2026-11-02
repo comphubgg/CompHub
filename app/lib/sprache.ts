@@ -3897,6 +3897,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
+  'Willkommen-Fenster': 'Welcome screen',
+  'beim ersten Anmelden auf einem neuen Gerät': 'on the first sign-in from a new device',
   'Willkommen': 'Welcome',
   'Du bist drin.': 'You’re in.',
   'Alles wieder frei.': 'All unlocked again.',
