@@ -18,6 +18,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Turnierverzeichnis live: S37-Globals-Kachel doppelt (24 statt 12 Matches) und falsch einsortiert** – im Code seit chef-228 behoben, nach nächstem Veröffentlichen prüfen.
 - [ ] **Saisonliste in lib/szeneStats sortiert Kennungen als Text** – stimmt nur bei zweistelligen (S30–S42). Nur Risiko.
 - [ ] **Events-Regionsauswahl: Regionsnamen („Europe“, „Middle East“) auch auf Deutsch englisch** – Betreiber fragen.
+- [ ] **LIVE-AUSFALL Profil „alle Saisons“:** /api/szene-stats?spieler=…&saison=alle läuft 30 s in 502/503 (02.11. 04:50, peterbot, mehrfach); S42 in 2–6 s. Betreiber per Benachrichtigung informiert, Helfer untersucht Ursache.
+- [ ] **Profil: Zeile über der Ergebnisse-Tabelle zählt Epic-Zeilen nicht mit** („N Spieltage · M Matches“ aus verlauf/offen.matches, Tabelle zeigt zusätzlich epicZeilen) – Betreiber fragen, ob beide Quellen zählen sollen.
+- [ ] **Match-Seite: „Game {nr}“ und „SCRIM LIVE“ (Match-ID-Finder) fest im Code**, Favoritenkarte zeigt bei Ausfall „Wird geladen …“ neben dem Fehlerbalken – klein.
+- [ ] **Replays Teams-Reiter: Platzierungspunkte summieren alle Stufen mit n >= platz** – stimmt nur bei Stufen-Schwellen in Epics Wertung; prüfen.
 - [ ] **FNCS-Archiv S12 Invitational / S18 Grand Royale: Punkte nicht absteigend nach Platz** – Quelle.
 
 ## Neu entdeckt (Runde 19, 02.11.2026)
