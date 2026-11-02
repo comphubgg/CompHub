@@ -1,6 +1,6 @@
 {
   "letzteRunde": "2026-11-02T04:16:56Z",
-  "macheGerade": "Runde 19 fertig: 31 Verbesserungen (chef-414 bis chef-444), u. a. Suche findet Namen mit kyrillischen Buchstaben (Statistik, Cups, Power Rankings, Scrims), Cup-Matches und Cup-Spielerwerte mit Strich statt erfundener 0, Kurven im Spielerfenster mit Lücken, Orgs-Preisgeld am Wechseltag nicht mehr doppelt, Remix-Saison bei Chapter 5, Scrims-Rennen und Regionen EU zuerst, Konto-Ausfall mit Hinweis, Ladeschirme, Übersetzungen, Schrift 11 px, Tausendertrennung.",
+  "macheGerade": "Runde 20 läuft",
   "naechstes": [
     "WICHTIG: chef-106 freigeben – nachgemessen am 02.11.: Statistik-Bestenlisten enden beim 10.10., das Profil kennt fünf neuere Spieltage (peterbot S42: Liste 57 Matches/152 Elims, Profil 83/208).",
     "Bitte entscheiden: chef-409 (Org-Namen Valiant/Ovation/Aight) und welche Regionen-Reihenfolge gilt (Statistik: …ASIA, OCE, ME – sonst: …ASIA, ME, OCE).",
@@ -8,5 +8,6 @@
     "Nächste Runde: Lint-Fehler (react-hooks/set-state-in-effect) in den Kartenseiten, Live-Status-Merker, weitere Statistik-Querprüfungen gegen /api."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, 12 eigene Verbesserungen, Helfer-Ergebnisse auf aktuellen Stand übertragen, 6 Helfer-Entwürfe verworfen weil schon erledigt oder geraten) + Sonnet (17 Helfer in 5 Wellen)"
+  "modell": "Opus (Planung, Prüfung, 12 eigene Verbesserungen, Helfer-Ergebnisse auf aktuellen Stand übertragen, 6 Helfer-Entwürfe verworfen weil schon erledigt oder geraten) + Sonnet (17 Helfer in 5 Wellen)",
+  "laeuftSeit": "2026-11-02T04:27:02Z"
 }
