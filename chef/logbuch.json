@@ -8386,5 +8386,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-379",
+    "datum": "2026-11-02T03:21:32Z",
+    "titel": "Globals-Karte: Ausfall-Hinweis statt „keine Karte“",
+    "kurz": "Globals → Karte: bei Ausfall ein Hinweis statt „noch keine Karte“ oder Rohtext.",
+    "markieren": [
+      "text:The Globals map could not be loaded right now. Please try again in a moment."
+    ],
+    "bereich": "Globals",
+    "warum": "Eine Fehlerantwort sah aus wie „es gibt keine Karte“, ein Netzfehler zeigte rohen englischen Fehlertext.",
+    "was": "Jetzt steht ein übersetzter Hinweis, dass die Karte gerade nicht lädt.",
+    "ansehen": [
+      "/globals/map"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

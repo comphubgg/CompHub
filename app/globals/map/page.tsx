@@ -457,11 +457,13 @@ export default function GlobalsMap() {
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
-        const alle: Karte[] = Array.isArray(j) ? j : (j?.karten ?? []);
+        // Eine Fehlerantwort ohne Kartenliste ist keine leere Liste - sonst stuende dort "Noch keine Karte".
+        if (!Array.isArray(j) && !Array.isArray(j?.karten)) throw new Error(String(j?.error ?? 'keine Kartenliste'));
+        const alle: Karte[] = Array.isArray(j) ? j : j.karten;
         setAusErsatz(!!j?.ersatz);
         setKarten(alle.filter((k) => k.eventId === GLOBALS_EVENT));
       })
-      .catch((e) => { if (!weg) { setFehler((e as Error).message); setKarten([]); } });
+      .catch(() => { if (!weg) { setFehler('1'); setKarten([]); } });
     fetch(`/api/globals-teams?fenster=${encodeURIComponent(GLOBALS_TAGE[0].windowId)}`)
       .then((r) => r.json())
       .then((j) => { if (!weg && Array.isArray(j?.teams)) setFeld(j.teams); })
@@ -527,7 +529,7 @@ export default function GlobalsMap() {
         <LadeSchirm />
       ) : fehler ? (
         <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3
-                      text-sm text-sky-300">{fehler}</p>
+                      text-sm text-sky-300"><T>Die Karte der Globals ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
       ) : !karte ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
           <h2 className="text-base font-semibold text-slate-100">

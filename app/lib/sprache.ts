@@ -4202,6 +4202,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Buchstaben lassen sich umbenennen.': 'Tap a letter to rename it.',
   'Eigene Tierlist bauen und die FNCS verfolgen.': 'Build your own tier list and follow the FNCS.',
   'Das Feld ließ sich gerade nicht laden.': 'The field could not be loaded right now.',
+  'Die Karte der Globals ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The Globals map could not be loaded right now. Please try again in a moment.',
   'Der Endstand ließ sich gerade nicht laden.': 'The final standings could not be loaded right now.',
   'Endstand nach beiden Tagen': 'Final standings after both days',
   'Statistik': 'Statistics',
