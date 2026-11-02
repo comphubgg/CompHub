@@ -7873,5 +7873,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-356",
+    "datum": "2026-11-02T02:51:44Z",
+    "titel": "Spielerfenster: „Top 2,3 %“ mit deutschem Komma",
+    "kurz": "Cup-Seite → Spieler öffnen (Deutsch): „Top 2,3 %“ statt „Top 2.3 %“.",
+    "markieren": [
+      "text:Rank"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Prozentangabe im Spielerfenster stand auch auf Deutsch mit Punkt als Dezimalzeichen.",
+    "was": "Sie folgt jetzt dem Zahlenformat der gewählten Sprache; Englisch bleibt gleich.",
+    "ansehen": [
+      "/events/s43_test_reload"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

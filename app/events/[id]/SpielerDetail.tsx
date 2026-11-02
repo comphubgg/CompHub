@@ -439,7 +439,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 <div className="mt-3 flex items-baseline justify-between gap-3">
                   <p className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-slate-50">Rank #{daten.rank?.toLocaleString(ort) ?? "–"}</span>
-                    {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
+                    {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top.toLocaleString(ort)} %</span>}
                   </p>
                   <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} {t('points')}</p>
                 </div>
