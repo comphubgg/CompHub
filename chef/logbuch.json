@@ -9679,5 +9679,23 @@
       "/statistics"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T04:10:37Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-438",
+    "titel": "Prognose-Feld: Epic-Ausfall ohne Server-Fehlerseite",
+    "kurz": "Unsichtbar: Admin-Prognosen zeigen bei Epic-Ausfall die Meldung statt einer Fehlerseite.",
+    "markieren": [],
+    "bereich": "Admin",
+    "warum": "Fiel Epic aus, antwortete die Feld-Abfrage der Prognosen mit einem Server-Fehler; der Lastverteiler kann daraus eine Fehlerseite machen.",
+    "was": "Sie antwortet jetzt wie die anderen Abfragen mit „Quelle nicht erreichbar“; das Werkzeug zeigt weiter die Meldung.",
+    "ansehen": [
+      "/admin/predictions"
+    ],
+    "modell": "Opus"
   }
 ]

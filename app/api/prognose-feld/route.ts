@@ -36,7 +36,8 @@ export async function GET(request: Request) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(
       { error: (e as Error).message, needsLogin: login },
-      { status: login ? 401 : 500 },
+      // Epic-Ausfall ist erwartbar: 424 statt 500, sonst macht der Lastverteiler eine Fehlerseite daraus (wie globals-teams).
+      { status: login ? 401 : 424 },
     );
   }
 }
