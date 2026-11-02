@@ -316,7 +316,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="text-[10px] uppercase tracking-wider text-slate-500">
+                <thead className="text-[11px] uppercase tracking-wider text-slate-500">
                   <tr>
                     <th className="py-1.5 pr-2 font-medium"><T>Cup</T></th>
                     <th className="py-1.5 pr-2 font-medium"><T>Datum</T></th>
@@ -344,7 +344,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
                   ))}
                 </tbody>
               </table>
-              <p className="mt-2 text-[10px] text-slate-600">
+              <p className="mt-2 text-[11px] text-slate-600">
                 <T>Elims je Spieler aus der Szene-Quelle, sonst aus unseren Replays; fehlt beides, steht ein Strich.</T>
               </p>
             </div>

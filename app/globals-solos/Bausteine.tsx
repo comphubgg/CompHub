@@ -509,7 +509,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />
-          <span className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">thecomphub.com</span>
+          <span className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">thecomphub.com</span>
         </div>
         {/* Unten rechts ganz am Rand (Betreiber, 30.10.2026: "ganz am Rand", nicht in der Karte): Lupe, Vollbild und fuer den Admin Bild kopieren. */}
         <div className="absolute bottom-2 right-2 z-40 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>

@@ -70,7 +70,7 @@ function Kachel({ s, unter, auf, klein }: { s: SolosSpieler; unter?: string; auf
         <span className="mt-px shrink-0"><TeamFlagge groesse={12} laender={[s.land ?? undefined]} /></span>
         <span className="line-clamp-2 min-w-0 break-words">{s.anzeige}</span>
       </p>
-      {unter && <p className="-mt-1 text-[10px] font-semibold tabular-nums text-slate-500">{unter}</p>}
+      {unter && <p className="-mt-1 text-[11px] font-semibold tabular-nums text-slate-500">{unter}</p>}
     </>
   );
   const klasse = 'flex min-w-0 flex-col gap-2 text-left';
@@ -89,7 +89,7 @@ function NurName({ s, unter, auf }: { s: SolosSpieler; unter?: string; auf?: () 
       <PlatzhalterRund name={s.anzeige} groesse={36} eckig />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5"><TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span></span>
-        {unter && <span className="block text-[10px] font-semibold tabular-nums text-slate-500">{unter}</span>}
+        {unter && <span className="block text-[11px] font-semibold tabular-nums text-slate-500">{unter}</span>}
       </span>
     </>
   );
@@ -256,7 +256,7 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
       {reihen.length > 0 ? (
         <div className="mt-3 max-h-[34rem] overflow-y-auto rounded-xl border border-zinc-800">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-zinc-900 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <thead className="sticky top-0 bg-zinc-900 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               <tr><th className="w-12 px-3 py-2 text-left">#</th><th className="px-3 py-2 text-left"><T>Spieler</T></th><th className="w-20 px-3 py-2 text-right"><T>Punkte</T></th></tr>
             </thead>
             <tbody>
@@ -273,7 +273,7 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
                         <span className="w-10 shrink-0"><Bild s={r.spieler[0]} /></span>
                         <TeamFlagge groesse={14} laender={r.spieler.map((s) => s.land ?? undefined)} />
                         <span className="min-w-0 truncate text-sm font-bold uppercase text-slate-100">{r.spieler.map((s) => s.anzeige).join(' · ')}</span>
-                        {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
+                        {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? '–'}</td>

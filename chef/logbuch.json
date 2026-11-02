@@ -8406,5 +8406,30 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-380",
+    "datum": "2026-11-02T03:21:37Z",
+    "titel": "Globals und Solos: kleine Schrift größer",
+    "kurz": "Globals- und Solos-Seiten: 21 Kleinschriften (9–10 Pixel) jetzt 11 Pixel.",
+    "markieren": [
+      "text:Final standings after both days",
+      "text:Live",
+      "text:Prize Pool"
+    ],
+    "bereich": "Globals",
+    "warum": "Tabellenköpfe, Marken und Unterzeilen standen mit 9 bis 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln; Pfeiltexte im Weg-Plan brechen eventuell etwas früher um.",
+    "ansehen": [
+      "/globals",
+      "/globals/prizepool",
+      "/globals-solos?region=EU&stufe=weg",
+      "/globals-solos?region=EU&stufe=preisgeld"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

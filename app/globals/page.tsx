@@ -54,7 +54,7 @@ function Endstand() {
   return (
     <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div className="relative overflow-hidden rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-400/[0.14] via-zinc-900/60 to-zinc-950 p-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/90"><T>Sieger</T></p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/90"><T>Sieger</T></p>
         {/* Die Sieger mit Foto (Betreiber, 30.10.2026: "Ich LIEBE Bilder") - ohne Foto die Silhouette, Name und Flagge darunter. */}
         <div className="mt-4 grid grid-cols-2 gap-3">
           {sieger.spieler.map((p) => (
@@ -74,14 +74,14 @@ function Endstand() {
         <div className="mt-6 grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 pt-4">
           {([['Punkte', sieger.punkte], ['Eliminierungen', sieger.elims], ['Siege', sieger.siege]] as Array<[string, number]>).map(([l, v], i) => (
             <div key={l} className={i === 0 ? 'pr-4' : 'px-4'}>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{l}</T></p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{l}</T></p>
               <p className="mt-1 text-2xl font-black tabular-nums text-slate-50">{v}</p>
             </div>
           ))}
         </div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
-        <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"><T>Endstand nach beiden Tagen</T></p>
+        <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400"><T>Endstand nach beiden Tagen</T></p>
         <ol className="max-h-[640px] overflow-y-auto">
           {rest.map((x) => (
             <li key={x.rang} className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2 last:border-b-0">

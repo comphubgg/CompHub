@@ -126,7 +126,7 @@ export default function GlobalsPreisgeld() {
                 </span>
                 {p.spanne[0] !== p.spanne[1] && (
                   <span title={`${p.spanne[0]}–${p.spanne[1]}`}
-                    className="shrink-0 rounded-md border border-zinc-700 px-2 py-0.5 text-[10px]
+                    className="shrink-0 rounded-md border border-zinc-700 px-2 py-0.5 text-[11px]
                                font-semibold tabular-nums text-slate-400">
                     {p.spanne[0]}–{p.spanne[1]}
                   </span>
