@@ -9094,5 +9094,27 @@
     "commits": [],
     "status": "vorschlag",
     "runde": 1
+  },
+  {
+    "id": "chef-410",
+    "datum": "2026-11-02T03:37:48Z",
+    "titel": "Statistik: restliche Kleinstschrift 11 Pixel",
+    "kurz": "Statistik Start-Reiter, Bestenlisten, Spielerfächer: alle Kleinstschriften jetzt 11 Pixel.",
+    "markieren": [
+      "text:PERF.",
+      "css:.text-\\[11px\\]"
+    ],
+    "bereich": "Statistik",
+    "warum": "23 Beschriftungen standen noch mit 8 bis 10 Pixeln.",
+    "was": "Alle auf 11 Pixel; im kleinen Turnierbild-Platzhalter steht „PERF.“, damit das Wort hineinpasst.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=turniere"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft und angepasst)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

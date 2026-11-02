@@ -896,7 +896,7 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '', linksUn
         <span className={`h-1.5 rounded-full ${linksVorn ? 'bg-sky-400' : 'bg-zinc-600'}`}
           style={{ width: `${anteilLinks}%` }} />
       </span>
-      <span className="order-1 w-full shrink-0 text-center text-[10px] font-semibold
+      <span className="order-1 w-full shrink-0 text-center text-[11px] font-semibold
                        uppercase tracking-[0.12em] text-slate-500
                        sm:order-none sm:w-36"><T>{titel}</T></span>
       <span className="order-4 flex min-w-0 flex-1 overflow-hidden rounded-full
@@ -1031,7 +1031,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
           {nameVon(rechts, true)}
           {foto(rechts, true)}
           <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">{zeitraum}</span>
+            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">{zeitraum}</span>
           </div>
         </div>
         <div className="px-5 py-4">
@@ -1090,7 +1090,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
             Vorher standen dort die Matchzahlen - die sagen nichts darueber,
             welchen Zeitraum man gerade vergleicht, und genau das ist die
             erste Frage. Die Matches stehen jetzt als eigene Zeile unten. */}
-        <p className="mb-2 text-center text-[10px] font-semibold uppercase
+        <p className="mb-2 text-center text-[11px] font-semibold uppercase
                       tracking-[0.2em] text-slate-600">
           {zeitraum}
         </p>
@@ -1166,7 +1166,7 @@ function Netz({ links, rechts, namen }: {
               transform: `translate(${linksProzent < 22 ? '0'
                 : linksProzent > 78 ? '-100%' : '-50%'}, calc(-100% - 12px))`,
             }}>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em]
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em]
                           text-slate-500"><T>{titel}</T></p>
             <p className="flex items-center gap-2 text-[11px] text-slate-400">
               <span className="h-2 w-2 rounded-full bg-slate-200" />
@@ -1485,7 +1485,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-zinc-800 text-[10px] uppercase
+          <tr className="border-b border-zinc-800 text-[11px] uppercase
                          tracking-wider text-slate-500">
             <th className="px-2 py-2 text-left font-medium"><T>Turnier</T></th>
             <th className="px-2 py-2 text-center font-medium"><T>Region</T></th>
@@ -1520,13 +1520,13 @@ function VerlaufTabelle({ zeilen, fuss }: {
               <td className="px-2 py-2 text-slate-300">
                 {turnierName(z.event)}
                 {z.lan && (
-                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px]
                                    font-semibold uppercase text-amber-400">
                     LAN{z.lan.ort ? ` · ${z.lan.ort}` : ''}
                   </span>
                 )}
                 {kurzDatum(z.datum) && (
-                  <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums
+                  <span className="ml-2 whitespace-nowrap text-[11px] tabular-nums
                                    text-slate-600">
                     {kurzDatum(z.datum)}
                   </span>
@@ -1537,7 +1537,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
                     ob die Zahlen fehlen. */}
               </td>
               <td className="px-2 py-2 text-center">
-                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px]
                                  font-semibold tracking-wider text-slate-400">
                   {z.region}
                 </span>
@@ -1890,7 +1890,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
           </span>
           <span className="flex min-w-0 flex-1 flex-col justify-between p-3">
             <span className="flex items-center gap-2">
-              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-black text-zinc-950">1</span>
               <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
             </span>
             <span>
@@ -2051,7 +2051,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
       </div>
       <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
         <div className="flex items-center gap-3 border-b border-zinc-800 px-5 py-3
-                        text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           <span className="w-8 shrink-0">#</span>
           <span className="min-w-0 flex-1"><T>Spieler</T></span>
           <span className="hidden w-16 shrink-0 sm:block"><T>Region</T></span>
@@ -2150,7 +2150,7 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
           </span>
         </span>
         {zusatz && (
-          <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
+          <span className="block truncate text-[11px] tabular-nums text-slate-500">{zusatz}</span>
         )}
       </span>
       <RegionMarke region={s.heimat || s.regionen[0] || ''} />
@@ -2295,7 +2295,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
                 {([['Quote', voll ? feldText(voll, 'quote', 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
                   ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Trefferquote', voll ? feldText(voll, 'genauigkeit', 1, sprache, ' %') : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                   <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400"><T>{l}</T></p>
                     <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-500' : 'text-slate-100'}`}>{v}</p>
                   </div>
                 ))}
@@ -2589,7 +2589,7 @@ export default function StatistikSeite() {
     <div className="flex flex-wrap items-center gap-1">
       {KURVEN.map(([feld, name]) => (
         <button key={feld} onClick={() => setKurve(feld)}
-          className={`rounded border px-2 py-0.5 text-[10px] transition ${
+          className={`rounded border px-2 py-0.5 text-[11px] transition ${
             kurve === feld
               ? 'border-sky-500 bg-sky-500/10 text-sky-400'
               : 'border-zinc-800 text-slate-500 hover:border-zinc-700'}`}>
@@ -4307,7 +4307,7 @@ export default function StatistikSeite() {
                 {grossName(sp.anzeige, sp.gepflegt)}
               </span>
               {sp.heimat && <RegionMarke region={sp.heimat} />}
-              <span className="shrink-0 text-[10px] text-slate-600">
+              <span className="shrink-0 text-[11px] text-slate-600">
                 {sp.matches > 0 ? <>{zahl(sp.matches, 0, sprache)} <T>Matches</T></> : '—'}
               </span>
             </button>
@@ -4499,7 +4499,7 @@ export default function StatistikSeite() {
                 </section>
               )}
 
-              <p className="mb-2 text-[10px] font-semibold uppercase
+              <p className="mb-2 text-[11px] font-semibold uppercase
                             tracking-[0.18em] text-slate-500">
                 {alleSaisons ? t('Bestenlisten über alle Saisons')
                   : `${t('Bestenlisten der Saison')} ${saisonTitel}`}
@@ -4549,7 +4549,7 @@ export default function StatistikSeite() {
                           </span>
                           <span className="flex min-w-0 flex-1 flex-col justify-between p-3.5">
                             <span className="flex items-center gap-2">
-                              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+                              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-black text-zinc-950">1</span>
                               <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
                             </span>
                             <span>
@@ -4581,15 +4581,15 @@ export default function StatistikSeite() {
               {duelle.length > 0 && (
                 <section className="mt-7">
                   <div className="mb-2 flex flex-wrap items-baseline gap-3">
-                    <p className="text-[10px] font-semibold uppercase
+                    <p className="text-[11px] font-semibold uppercase
                                   tracking-[0.18em] text-slate-500">
                       <T>Kopf an Kopf</T>
                     </p>
-                    <span className="text-[10px] text-slate-600">
+                    <span className="text-[11px] text-slate-600">
                       {duellNr + 1} <T>von</T> {duelle.length}
                     </span>
                     <button onClick={() => wechsleBereich('vergleich')}
-                      className="ml-auto text-[10px] font-semibold uppercase
+                      className="ml-auto text-[11px] font-semibold uppercase
                                  tracking-[0.14em] text-slate-500 transition
                                  hover:text-sky-400">
                       <T>Selbst vergleichen →</T>
@@ -5149,11 +5149,11 @@ export default function StatistikSeite() {
                                   <img src={t.bild} alt="" loading="lazy"
                                     className="h-7 w-12 shrink-0 rounded object-cover" />
                                 ) : (
-                                  <span className={`flex h-7 w-12 shrink-0 items-center
+                                  <span className={`flex h-7 w-16 shrink-0 items-center overflow-hidden
                                                     justify-center rounded bg-gradient-to-br
-                                                    ${art.farbe} text-[8px] font-black
-                                                    tracking-wide text-white/90`}>
-                                    {art.wort}
+                                                    ${art.farbe} text-[11px] font-black
+                                                    tracking-normal text-white/90`}>
+                                    {art.wort === 'PERFORMANCE' ? 'PERF.' : art.wort}
                                   </span>
                                 )}
                                 <span className="min-w-0">
@@ -5679,20 +5679,20 @@ export default function StatistikSeite() {
                                                text-zinc-700">
                                 {zahl(sp.elims, 0, sprache)}
                               </span>
-                              <span className="text-[9px] font-semibold uppercase
+                              <span className="text-[11px] font-semibold uppercase
                                                tracking-[0.14em] text-zinc-800">
                                 <T>Elims</T>
                               </span>
                             </div>
                           )}
                           <span className="absolute left-1.5 top-1.5 rounded
-                                           bg-black/70 px-1.5 py-0.5 text-[9px]
+                                           bg-black/70 px-1.5 py-0.5 text-[11px]
                                            font-bold tabular-nums text-slate-400">
                             {i + 1}
                           </span>
                           {sp.heimat && (
                             <span className="absolute right-1.5 top-1.5 rounded
-                                             bg-black/70 px-1.5 py-0.5 text-[9px]
+                                             bg-black/70 px-1.5 py-0.5 text-[11px]
                                              font-semibold tracking-wider
                                              text-slate-300">
                               {sp.heimat}
