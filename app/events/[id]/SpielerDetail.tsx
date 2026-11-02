@@ -95,7 +95,7 @@ const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.hea
 // faellt nur im Solo auf die Bestenliste zurueck.
 const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c);
 const KERN: Zeile[] = [
-  { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => ((m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) || undefined },
+  { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => (m.punktePlatz === undefined && m.punkteElim === undefined ? undefined : (m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) },
   { titel: 'Matches', wert: (_m, c) => (c.e ? c.e.games : null), zeige: num },
   { titel: 'Wins', wert: (_m, c) => (c.e ? c.e.wins : null), zeige: num, je: (m) => m.wins },
   { titel: 'Avg Time Alive', wert: (_m, c) => (c.e && c.e.games && c.e.timeAlive ? c.e.timeAlive / c.e.games : null), zeige: (v) => dauer(v), je: (m) => m.timeAlive },
@@ -129,21 +129,30 @@ const ZUSATZ: Zeile[] = [
 const TEAM_TITEL = new Set(['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points']);
 
 /** Placement- und Eliminationspunkte ueber die Spiele, aufsummiert - gefuellte Flaechen wie bei Osirion, die Beschriftung am Ende der Linie. */
-function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
+function PunkteKurve({ platz, elim }: { platz: Array<number | null>; elim: Array<number | null> }) {
+  const t = useT();
   const n = platz.length;
-  const max = Math.max(1, ...platz, ...elim);
+  const max = Math.max(1, ...platz.map((v) => v ?? 0), ...elim.map((v) => v ?? 0));
   const x = (i: number) => (n > 1 ? (i / (n - 1)) * 300 : 0);
   const y = (v: number) => 70 - (v / max) * 62;
-  const linie = (w: number[]) => w.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ');
-  const flaeche = (w: number[]) => `${linie(w)} L300,70 L0,70 Z`;
-  const oben = (w: number[]) => `${Math.max(0, (y(w[w.length - 1] ?? 0) / 72) * 100 - 14)}%`;
+  // Fehlt ein Match, bleibt die Linie dort offen (eine Luecke statt eines Einbruchs auf 0): jeder zusammenhaengende Abschnitt ist ein eigener Weg.
+  const abschnitte = (w: Array<number | null>) => {
+    const out: Array<Array<[number, number]>> = []; let akt: Array<[number, number]> = [];
+    w.forEach((v, i) => { if (v === null) { if (akt.length) out.push(akt); akt = []; } else akt.push([x(i), y(v)]); });
+    if (akt.length) out.push(akt);
+    return out;
+  };
+  const linie = (w: Array<number | null>) => abschnitte(w).map((a) => (a.length === 1 ? `M${a[0][0]},${a[0][1]} h0.01` : a.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(' '))).join(' ');
+  const flaeche = (w: Array<number | null>) => abschnitte(w).filter((a) => a.length > 1).map((a) => `${a.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(' ')} L${a[a.length - 1][0]},70 L${a[0][0]},70 Z`).join(' ');
+  const letzter = (w: Array<number | null>) => { for (let i = w.length - 1; i >= 0; i -= 1) { const v = w[i]; if (v !== null) return v; } return 0; };
+  const oben = (w: Array<number | null>) => `${Math.max(0, (y(letzter(w)) / 72) * 100 - 14)}%`;
   return (
     <div className="relative">
       <svg viewBox="0 0 300 72" preserveAspectRatio="none" className="h-32 w-full">
         <path d={flaeche(platz)} fill="#a1a1aa" fillOpacity={0.14} />
-        <path d={linie(platz)} fill="none" stroke="#d4d4d8" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+        <path d={linie(platz)} fill="none" stroke="#d4d4d8" strokeWidth={1.6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         <path d={flaeche(elim)} fill="#38bdf8" fillOpacity={0.2} />
-        <path d={linie(elim)} fill="none" stroke="#38bdf8" strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
+        <path d={linie(elim)} fill="none" stroke="#38bdf8" strokeWidth={1.8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         <line x1="0" x2="300" y1="70" y2="70" stroke="#52525b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className="absolute right-1 text-[10px] font-semibold text-slate-300" style={{ top: oben(platz) }}>Placement</span>
@@ -156,20 +165,31 @@ function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
 const ZUERST = 13;
 
 /** Eine Kurve ueber die Spiele - gefuellte Flaeche wie bei Osirion; ohne Werte nur die Grundlinie. */
-function Welle({ werte, rot, kumuliert }: { werte: number[]; rot?: boolean; kumuliert: boolean }) {
+function Welle({ werte, rot, kumuliert }: { werte: Array<number | undefined>; rot?: boolean; kumuliert: boolean }) {
   const farbe = rot ? '#f87171' : '#38bdf8';
   if (werte.length < 2 || werte.every((v) => !v)) return <svg viewBox="0 0 300 26" preserveAspectRatio="none" className="h-[26px] w-full"><line x1="0" x2="300" y1="25" y2="25" stroke="#3f3f46" strokeWidth="1" /></svg>;
-  let reihe = werte;
-  if (kumuliert) { let a = 0; reihe = werte.map((v) => (a += v)); }
-  const max = Math.max(...reihe, 1); const min = kumuliert ? 0 : Math.min(...reihe, 0);
+  // Ein fehlender Wert bleibt null: dort reisst die Linie ab. Kumuliert zaehlt die laufende Summe nur die bekannten Werte; der Punkt des fehlenden Matches bleibt leer.
+  let reihe: Array<number | null> = werte.map((v) => (typeof v === 'number' && Number.isFinite(v) ? v : null));
+  if (kumuliert) { let a = 0; reihe = reihe.map((v) => (v === null ? null : (a += v))); }
+  const bekannt = reihe.filter((v): v is number => v !== null);
+  const max = Math.max(...bekannt, 1); const min = kumuliert ? 0 : Math.min(...bekannt, 0);
   const x = (i: number) => (i / (reihe.length - 1)) * 300;
   const y = (v: number) => 24 - ((v - min) / Math.max(1e-9, max - min)) * 22;
-  let d = `M${x(0)},${y(reihe[0])}`;
-  for (let i = 1; i < reihe.length; i += 1) { const cx = (x(i - 1) + x(i)) / 2; d += ` C${cx},${y(reihe[i - 1])} ${cx},${y(reihe[i])} ${x(i)},${y(reihe[i])}`; }
+  const abschnitte: Array<Array<[number, number]>> = []; let akt: Array<[number, number]> = [];
+  reihe.forEach((v, i) => { if (v === null) { if (akt.length) abschnitte.push(akt); akt = []; } else akt.push([x(i), y(v)]); });
+  if (akt.length) abschnitte.push(akt);
+  const kurve = (a: Array<[number, number]>) => {
+    let d = `M${a[0][0]},${a[0][1]}`;
+    for (let i = 1; i < a.length; i += 1) { const cx = (a[i - 1][0] + a[i][0]) / 2; d += ` C${cx},${a[i - 1][1]} ${cx},${a[i][1]} ${a[i][0]},${a[i][1]}`; }
+    return d;
+  };
+  const lang = abschnitte.filter((a) => a.length > 1);
+  const einzeln = abschnitte.filter((a) => a.length === 1);
   return (
     <svg viewBox="0 0 300 26" preserveAspectRatio="none" className="h-[26px] w-full">
-      <path d={`${d} L300,25 L0,25 Z`} fill={farbe} fillOpacity={0.22} />
-      <path d={d} fill="none" stroke={farbe} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+      {lang.map((a, k) => <path key={`f${k}`} d={`${kurve(a)} L${a[a.length - 1][0]},25 L${a[0][0]},25 Z`} fill={farbe} fillOpacity={0.22} />)}
+      {lang.map((a, k) => <path key={`l${k}`} d={kurve(a)} fill="none" stroke={farbe} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />)}
+      {einzeln.map((a, k) => <path key={`p${k}`} d={`M${a[0][0]},${a[0][1]} h0.01`} fill="none" stroke={farbe} strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
       <line x1="0" x2="300" y1="25" y2="25" stroke="#3f3f46" strokeWidth="1" />
     </svg>
   );
@@ -318,8 +338,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mitglieder, e, solo]);
 
-  const kumPlatz = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punktePlatz ?? 0)); }, [spiele]);
-  const kumElim = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punkteElim ?? 0)); }, [spiele]);
+  // Laufende Summe nur ueber bekannte Werte; fehlt der Wert eines Matches, bleibt der Punkt leer (null) statt 0.
+  const kumPlatz = useMemo(() => { let a = 0; return spiele.map((m) => (m.punktePlatz === undefined ? null : (a += m.punktePlatz))); }, [spiele]);
+  const kumElim = useMemo(() => { let a = 0; return spiele.map((m) => (m.punkteElim === undefined ? null : (a += m.punkteElim))); }, [spiele]);
   const teamReihen = useMemo(() => KERN.filter((z) => TEAM_TITEL.has(z.titel)), []);
 
   /** Der Pfeil eines Werts im Vergleich zu den Mitspielern: vorn gruen nach oben, hinten rot nach unten (bei "weniger ist besser" andersherum). */
@@ -520,7 +541,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                   </div>
                   {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
                     <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
-                      <Welle werte={z.je ? spiele.map((m) => z.je?.(m) ?? 0) : []} rot={z.rot} kumuliert={kumuliert} />
+                      <Welle werte={z.je ? spiele.map((m) => z.je?.(m)) : []} rot={z.rot} kumuliert={kumuliert} />
                     </div>
                   ))}
                   <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
@@ -539,7 +560,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                       <div key={z.titel} className="grid h-[34px] grid-cols-[130px_70px_minmax(0,1fr)] items-center gap-2 border-b border-white/[0.03] px-3 last:border-b-0">
                         <span className="text-[13px] font-semibold text-slate-300">{z.titel}</span>
                         <span className="text-right text-[13px] font-bold tabular-nums text-slate-50">{z.zeige(w, ort)}</span>
-                        {z.je && spiele.length > 1 ? <Welle werte={spiele.map((m) => z.je?.(m) ?? 0)} rot={z.rot} kumuliert={kumuliert} /> : <span />}
+                        {z.je && spiele.length > 1 ? <Welle werte={spiele.map((m) => z.je?.(m))} rot={z.rot} kumuliert={kumuliert} /> : <span />}
                       </div>
                     );
                   })}
