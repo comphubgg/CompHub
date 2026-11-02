@@ -35,8 +35,10 @@ async function getStreamersData(): Promise<StreamersData> {
     await ensureDataDir();
     const content = await fs.readFile(STREAMERS_FILE, 'utf-8');
     return JSON.parse(content);
-  } catch {
-    // Datei existiert nicht, return empty data
+  } catch (e) {
+    // Nur "Datei gibt es noch nicht" heisst leer. Ein Ausfall der Ablage darf nicht wie eine leere Liste aussehen:
+    // sonst schreibt Hinzufuegen/Entfernen/Aendern die Liste mit nur einem Eintrag zurueck und loescht alle anderen.
+    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') throw e;
     return {
       streamers: {
         EU: [],

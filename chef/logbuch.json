@@ -7659,5 +7659,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-346",
+    "datum": "2026-11-02T02:45:00Z",
+    "titel": "Streamer-Liste: Ausfall löscht nicht mehr alle Einträge",
+    "kurz": "Unsichtbar: Streamer hinzufügen bei Speicher-Ausfall löscht nicht mehr die ganze Liste.",
+    "markieren": [],
+    "bereich": "Verlässlichkeit",
+    "warum": "Antwortete der Speicher gerade nicht, galt die Streamer-Liste als leer – beim Hinzufügen, Entfernen oder Ändern wurde sie dann mit fast nichts überschrieben.",
+    "was": "Nur wenn die Liste wirklich noch nicht existiert, gilt sie als leer; bei einem Ausfall kommt eine Fehlermeldung und nichts wird überschrieben.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
