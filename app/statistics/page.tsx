@@ -76,6 +76,9 @@ export async function generateMetadata(
   }
 }
 
-export default function Page() {
-  return <StatistikSeite />;
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // Mit ?spieler=... schon auf dem Server "Profil wird geladen" zeichnen - bis die Seite im Browser startet, vergingen bis zu zehn Sekunden mit
+  // der Spielerliste (2.11.2026, Links von Org-Seiten wirkten wie falsch).
+  const roh = (await searchParams)?.spieler;
+  return <StatistikSeite profilLink={!!(Array.isArray(roh) ? roh[0] : roh)} />;
 }

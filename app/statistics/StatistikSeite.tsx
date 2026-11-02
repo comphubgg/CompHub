@@ -2286,7 +2286,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
 /** Zaehlt die Profilabrufe: nur der juengste darf Zustand setzen. */
 let profilAbrufNr = 0;
 
-export default function StatistikSeite() {
+export default function StatistikSeite({ profilLink = false }: { profilLink?: boolean } = {}) {
   // Fuer Beschriftungen, die in einem Attribut stehen - dort hilft kein
   // eingewickelter Text. Die Sprache selbst wird fuer das Datum gebraucht.
   const { sprache, t } = useSprache();
@@ -3609,9 +3609,8 @@ export default function StatistikSeite() {
    * Kommt jemand mit ?spieler=<...> (z. B. von der Seite einer Org), steht bis zum Profil ein Ladeschirm "Profil wird geladen" statt der
    * Spielerliste (2.11.2026: 20-40 s Liste wirkten wie ein falscher Link). Faellt weg, sobald das Profil offen ist oder die Suche nichts fand.
    */
-  const [profilAusLink, setProfilAusLink] = useState(false);
-  // Erst im Browser gesetzt - auf dem Server gibt es keine Adresse, und ein Unterschied beim ersten Zeichnen brachte React aus dem Tritt.
-  useEffect(() => { if (new URLSearchParams(window.location.search).get('spieler')) setProfilAusLink(true); }, []);
+  // Vom Server mitgegeben (app/statistics/page.tsx) - so steht der Ladeschirm schon im ersten Bild, Server und Browser zeichnen dasselbe.
+  const [profilAusLink, setProfilAusLink] = useState(profilLink);
   // Weg erst, wenn das Profil wirklich steht (zwischendurch setzte der Seitenaufbau es noch einmal zurueck) - spaetestens nach einer Minute.
   useEffect(() => { if (offen) setProfilAusLink(false); }, [offen]);
   useEffect(() => {
@@ -4294,7 +4293,13 @@ export default function StatistikSeite() {
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
       {schirmSichtbar && <LadeSchirm />}
-      {profilAusLink && !offen && <LadeSchirm text={t('Profil wird geladen …')} />}
+      {/* Sofort sichtbar (auch im ersten Bild vom Server, ohne die Verzoegerung des LadeSchirms) und deckend - die Liste darunter soll man nicht sehen. */}
+      {profilAusLink && !offen && (
+        <div className="fixed inset-x-0 bottom-0 top-16 z-[80] flex flex-col items-center justify-center bg-zinc-950" aria-live="polite" aria-busy="true">
+          <span className="h-12 w-12 animate-spin rounded-full border-[3px] border-zinc-800 border-t-sky-500" />
+          <span className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">{t('Profil wird geladen …')}</span>
+        </div>
+      )}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 
         {/* ---------------------------------------------- rechter Inhalt */}
