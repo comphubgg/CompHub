@@ -6648,5 +6648,28 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-301",
+    "datum": "2026-11-02T01:34:53Z",
+    "titel": "Spielerliste: unbekannter Schaden als Strich",
+    "kurz": "Spieler → nach Damage sortieren: fehlender Schaden „—“ statt „0“ (z. B. rxnnysznǃ).",
+    "markieren": [
+      "text:Damage",
+      "text:per match"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieler ohne Schadenswerte in der Quelle standen mit Damage 0 da, obwohl sie Elims hatten (S42 EU: rxnnysznǃ, 5 Matches, 3 Elims).",
+    "was": "Hat kein Match einen Schadenswert, stehen Damage und Damage je Match als Strich; ebenso Trefferquote ohne Schussdaten. Echte Nullen bleiben 0.",
+    "ansehen": [
+      "/statistics?bereich=spieler&saison=S42&region=EU&sort=damage"
+    ],
+    "commits": [
+      "0c8afe4e85623678a995eed7ac380a6201821f8a"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -27,7 +27,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] (chef-242) **Profil: Fenster „FNCS-Siege“ listete alle LAN-Plätze** (peterbot 13 Zeilen statt 6).
 - [x] (chef-243) **Orgs: ungerechnete Ehemalige als 0 $** statt Strich.
 - [x] (chef-244) **Spielerkacheln ohne Sortierwert** bei Kopftreffer, Trefferquote, Matches.
-- [ ] **Spieler mit Elims, aber Schaden 0** (S42 EU: rxnnysznǃ, 5 Matches, 3 Elims, Schaden 0, erlitten 0) – Schaden fehlt in der Quelle, Liste zeigt „0“ statt Strich. Die Antwort trägt matchesElims/matchesSchaden nicht; damit ließe sich „unbekannt“ erkennen. Kleiner Fall, beobachten.
+- [x] (chef-301) **Spieler mit Elims, aber Schaden 0** (S42 EU: rxnnysznǃ, 5 Matches, 3 Elims, Schaden 0, erlitten 0) – Schaden fehlt in der Quelle, Liste zeigt „0“ statt Strich. Die Antwort trägt matchesElims/matchesSchaden nicht; damit ließe sich „unbekannt“ erkennen. Kleiner Fall, beobachten.
 - [x] (chef-286) **Erfolge-Reiter im Profil: gleiche Plätze nur nach Datum**, LAN-Finals ohne Datum landen zuletzt (Karriere-Bestwerte stellen LAN bei Gleichstand nach vorn) – Gestaltungsfrage.
 - [x] (chef-245) **Teamseite: Elims je Match 0.00 ohne Kill-Daten** → Strich.
 - [x] (chef-246) **Preisgeld-Liste ohne feste Reihenfolge bei gleichem Betrag**.
