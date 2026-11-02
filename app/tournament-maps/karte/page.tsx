@@ -294,7 +294,7 @@ export default function KartenSeite() {
                               className={`group overflow-hidden rounded-lg border text-left transition ${wahlBild === a.u ? 'border-sky-400' : 'border-white/10 hover:border-sky-500/60'}`}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={encodeURI(a.u)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
-                              <span className="block truncate px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">{a.titel}</span>
+                              <span className="block truncate px-1.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{a.titel}</span>
                             </button>
                           ))}
                         </div>

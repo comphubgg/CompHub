@@ -42,7 +42,7 @@ export function TeamKarten({ teams }: { teams: SolosTeam[] }) {
               <span className="mt-2 flex flex-col text-[11px] font-black uppercase leading-snug tracking-wide text-slate-100">
                 {x.spieler.map((s) => <span key={s.id}>{s.anzeige}</span>)}
               </span>
-              <span className="mt-1 text-[10px] font-semibold tabular-nums text-slate-600">#{x.rang ?? i + 1}</span>
+              <span className="mt-1 text-[11px] font-semibold tabular-nums text-slate-600">#{x.rang ?? i + 1}</span>
             </li>
           ))}
         </ul>
@@ -62,7 +62,7 @@ export function RangAusTeams({ teams, schmal = false }: { teams: SolosTeam[]; /*
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th><th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>
             {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}
             {mitElims && <th className="w-16 px-3 py-2 text-right">Elims</th>}
@@ -108,7 +108,7 @@ export function Platzierungen({ zeilen, schmal = false }: { zeilen: PlatzZeile[]
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
             {mitPunkte && <th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>}
             {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}
@@ -182,7 +182,7 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
             <th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>
             {!schmal && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}

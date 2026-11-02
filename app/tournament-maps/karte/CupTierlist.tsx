@@ -112,7 +112,7 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
         {/* Der Pool ist genau so hoch wie die sieben Stufen daneben (Betreiber, 13.10.2026): am Rechner fuellt er die Zeile, die Stufen bestimmen die Hoehe. */}
         <aside className="relative rounded-xl border border-white/[0.08] bg-zinc-900/40">
           <div className="flex max-h-[520px] flex-col p-3 lg:absolute lg:inset-0 lg:max-h-none">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pool <span className="text-slate-600">{pool.length}</span></p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pool <span className="text-slate-600">{pool.length}</span></p>
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
               className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
             <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">

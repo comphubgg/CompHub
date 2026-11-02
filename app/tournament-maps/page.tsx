@@ -62,7 +62,7 @@ function stand(e: { datum: number | null; ende: number | null }): 'ended' | 'liv
 }
 
 const StandMarke = ({ s }: { s: 'ended' | 'live' | 'upcoming' }) => (
-  <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm ${s === 'live'
+  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm ${s === 'live'
     ? 'border-red-400/50 bg-red-500/70 text-white' : s === 'upcoming' ? 'border-sky-300/40 bg-sky-500/70 text-white' : 'border-white/20 bg-black/55 text-slate-200'}`}>
     {/* Dieselben Woerter wie auf der Events-Seite, ueber die Uebersetzung - vorher fest englisch, auch im deutschen Modus. */}
     <T>{s === 'live' ? 'Live' : s === 'upcoming' ? 'Demnächst' : 'Beendet'}</T>
@@ -84,16 +84,16 @@ function Kachel({ e, i }: { e: Eintrag; i: number }) {
         )}
         <span aria-hidden className="absolute inset-0 foto-unten" />
         <span className="absolute left-3 top-3"><StandMarke s={stand(e)} /></span>
-        <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{regionAnzeige(e)}</span>
+        <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{regionAnzeige(e)}</span>
         <p className="schrift-anzeige absolute inset-x-3 bottom-3 line-clamp-2 text-left text-[1.05rem] font-extrabold leading-tight text-[#fff] drop-shadow">{e.titel.replace(/\s*·\s*/g, ' – ')}</p>
       </div>
       {/* Kleine Marken: die Region in ihrer Farbe, die Saison als Umriss, Art und Spieltag grau. */}
       <div className="flex flex-wrap items-center gap-1 px-3 py-2.5">
-        {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
-        <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionAnzeige(e) === 'GLOBAL' ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : regionFarbe(e.region).marke}`}>{regionAnzeige(e)}</span>
-        {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
-        <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
-        {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
+        {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+        <span className={`rounded border px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${regionAnzeige(e) === 'GLOBAL' ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : regionFarbe(e.region).marke}`}>{regionAnzeige(e)}</span>
+        {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
+        <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
+        {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
         <span className="ml-auto text-[11px] tabular-nums text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
       </div>
     </Link>
@@ -112,7 +112,7 @@ function EigeneKachel({ k, i }: { k: Eigene; i: number }) {
         ) : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950 text-3xl font-black text-sky-500/40">MAP</div>}
         <span aria-hidden className="absolute inset-0 foto-unten" />
         {k.region && k.region !== 'GLOBAL' && (
-          <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{k.region}</span>
+          <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{k.region}</span>
         )}
         <p className="schrift-anzeige absolute inset-x-3 bottom-3 line-clamp-2 text-left text-[1.05rem] font-extrabold leading-tight text-[#fff] drop-shadow">{k.titel.replace(/\s*·\s*/g, ' – ')}</p>
       </div>
@@ -319,13 +319,13 @@ export default function Maps() {
           {filterOffen && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-t border-zinc-800 pt-3">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Art</T></span>
+              <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Art</T></span>
               {TYPEN.map(([k, titel]) => (
                 <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chipKlein(typ === k)}>{titel}</button>
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Region">
-              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Region</T></span>
+              <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Region</T></span>
               <button type="button" onClick={() => setRegion('')} className={chipKlein(region === '')}><T>Alle</T></button>
               {/* Regionen ohne Karten haben keinen Knopf - er erscheint von selbst, sobald dort eine Karte dazukommt (Betreiber, 19.10.2026). Die gewaehlte bleibt, damit man sie abwaehlen kann. */}
               {[...REGIONEN_REIHE, 'GLOBAL'].filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {

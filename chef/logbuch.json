@@ -10433,5 +10433,23 @@
     "ansehen": [
       "/twitch-statistik"
     ]
+  },
+  {
+    "id": "chef-469",
+    "datum": "2026-11-02T04:54:44Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Haiku (von Opus geprüft)",
+    "titel": "Turnierkarten: Schrift mindestens 11 Pixel",
+    "kurz": "Turnierkarten-Werkzeug: 16 kleine Beschriftungen jetzt 11 statt 9–10 Pixel.",
+    "markieren": [],
+    "warum": "Im Turnierkarten-Werkzeug standen 16 Beschriftungen in 9–10 Pixel.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/tournament-maps"
+    ]
   }
 ]
