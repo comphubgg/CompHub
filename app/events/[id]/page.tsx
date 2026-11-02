@@ -3415,7 +3415,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           // Ohne Ortsnamen und nah an der Insel (Betreiber, 2.11.2026: "mehr Zoom, weniger Wasser ... ohne Stadtnamen"); eine Reload-Insel
           // nimmt ihre enge Fassung "<id>-nah", wenn es sie gibt (sonst faellt das Bild unten auf das Original zurueck).
           const kartenBild = st.reload
-            ? (insel ? eigeneKarte(`${insel.bildId}-nah`) : null)
+            ? (insel ? `${eigeneKarte(`${insel.bildId}-nah`)}?v=2` : null)
             : st.insel.art === 'br' ? naheFortniteKarte() : null;
           const kartenErsatz = st.reload && insel ? eigeneKarte(insel.bildId) : null;
           const zeile = (titel: string, wert: React.ReactNode) => (

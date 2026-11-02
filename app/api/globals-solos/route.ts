@@ -30,13 +30,16 @@ async function leereKarteFuer(windowId: string): Promise<{ url: string; titel: s
   const inseln = await liesJson<Record<string, string>>('insel-bilder.json', {});
   const id = insel.art === 'br' ? brBildFuer(inseln, windowId) : inseln[insel.schluessel];
   if (!id) return null;
-  const karten = await liesJson<Array<{ id: string; titel: string }>>('kartenbilder/karten.json', []).catch(() => []);
+  const karten = await liesJson<Array<{ id: string; titel: string; hochgeladen?: number }>>('kartenbilder/karten.json', []).catch(() => []);
   /*
    * Gibt es eine Fassung "<id>-nah" (eng um die Insel geschnitten, ohne Starter-Insel, eigenes Meer - Betreiber, 2.11.2026: "mehr Zoom,
    * weniger Wasser"), zeigt die leere Karte diese. Das Originalbild bleibt unangetastet: auf ihm liegen die Landepunkte gespeicherter Karten.
    */
   const nah = karten.find((k) => k.id === `${id}-nah`);
-  return { url: eigeneKarte(nah ? nah.id : id), titel: karten.find((k) => k.id === id)?.titel ?? id };
+  // Mit dem Zeitpunkt des Hochladens in der Adresse: ein neues Bild unter derselben Kennung kam sonst nicht an, Browser und Cloudflare
+  // hielten das alte (Betreiber, 2.11.2026: "bei mir immer noch so ... Qualitaet").
+  const bild = nah ?? karten.find((k) => k.id === id);
+  return { url: `${eigeneKarte(bild?.id ?? id)}${bild?.hochgeladen ? `?v=${bild.hochgeladen}` : ''}`, titel: karten.find((k) => k.id === id)?.titel ?? id };
 }
 
 export async function GET(request: Request) {
