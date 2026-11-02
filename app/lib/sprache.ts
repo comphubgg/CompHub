@@ -1461,6 +1461,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Only running and past cups — an upcoming one has no field yet.',
   'Weiter bis Platz': 'Advancing down to place',
   'lädt…': 'loading…',
+  'Teams laden': 'Load teams',
+  'Hat das Finale noch keine eigenen Ergebnisse, kommen die Qualifizierten der Vorrunde': 'If the final has no results of its own yet, the qualifiers from the earlier round are used',
   'Feld laden': 'Load field',
   'Formen': 'Shapes',
   'Karte': 'Map',

@@ -8489,5 +8489,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-384",
+    "datum": "2026-11-02T03:22:06Z",
+    "titel": "Karten-Editor: Knöpfe übersetzt",
+    "kurz": "Karten-Editor (Admin): „Teams laden“, „lädt…“ und Auswahlfelder folgen der Sprache.",
+    "markieren": [
+      "text:Load teams",
+      "text:— select —"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Diese Texte standen auch auf Englisch fest auf Deutsch.",
+    "was": "Sie laufen jetzt über die Übersetzung.",
+    "ansehen": [
+      "/maps"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

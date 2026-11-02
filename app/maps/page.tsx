@@ -3904,7 +3904,7 @@ ${name}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                            text-sm text-slate-100 outline-none focus:border-sky-500
                            disabled:opacity-40">
-                <option value="">— auswählen —</option>
+                <option value="">{uebs('— auswählen —')}</option>
                 {fenster.map((f) => (
                   <option key={f.windowId} value={f.windowId}>
                     {f.region} · {new Date(f.begin).toLocaleDateString(ortJetzt(),
@@ -3919,7 +3919,7 @@ ${name}
                 title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
                 className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
                            text-white transition hover:bg-sky-400 disabled:opacity-40">
-                {nobleLaeuft ? 'lädt…' : spots.length ? uebs('Karte fertigstellen') : 'Generate map'}
+                {nobleLaeuft ? uebs('lädt…') : spots.length ? uebs('Karte fertigstellen') : 'Generate map'}
               </button>
             )}
             <div className="flex flex-col items-stretch justify-end gap-1">
@@ -3976,12 +3976,12 @@ ${name}
             </label>
             <button onClick={ladeTeams} disabled={!fensterId || laedtTeams}
               title={fensterId && vorrundeZu(fensterId)
-                ? 'Hat das Finale noch keine eigenen Ergebnisse, kommen die '
-                  + 'Qualifizierten der Vorrunde'
+                ? uebs('Hat das Finale noch keine eigenen Ergebnisse, kommen die '
+                  + 'Qualifizierten der Vorrunde')
                 : undefined}
               className="self-end rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium
                          text-slate-100 transition hover:bg-zinc-700 disabled:opacity-40">
-              {laedtTeams ? 'lädt…' : 'Teams laden'}
+              {laedtTeams ? uebs('lädt…') : uebs('Teams laden')}
             </button>
             {darfBauen && nobleListe && (
               <label className="text-xs text-slate-400">
@@ -3993,7 +3993,7 @@ ${name}
                   }}
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                              text-sm text-slate-100 outline-none focus:border-sky-500">
-                  <option value="">— auswählen —</option>
+                  <option value="">{uebs('— auswählen —')}</option>
                   {nobleListe.map((w) => (
                     <option key={`${w.turnierId}|${w.region}|${w.windowId}`} value={`${w.turnierId}|${w.region}|${w.windowId}`}>
                       {w.turnier} · {w.name} · {w.region}{w.start ? ` · ${new Date(w.start).toLocaleDateString(ortJetzt(), { day: '2-digit', month: '2-digit' })}` : ''}
