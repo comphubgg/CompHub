@@ -76,7 +76,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
         <Abschnitt>
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-500">
                 <T>Preisgeld</T>
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
@@ -117,13 +117,13 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                                    text-zinc-800">?</span>
                 )}
                 <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5
-                                  text-[10px] font-bold tabular-nums ${
+                                  text-[11px] font-bold tabular-nums ${
                                   i === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
                   {i + 1}
                 </span>
                 {sp.heimat && (
                   <span className="absolute right-2 top-2 rounded bg-black/70 px-1.5 py-0.5
-                                   text-[9px] font-semibold tracking-wider text-slate-300">
+                                   text-[11px] font-semibold tracking-wider text-slate-300">
                     {sp.heimat}
                   </span>
                 )}
@@ -424,7 +424,7 @@ export default function Startseite() {
                 {...(titel === 'Matches ausgewertet' ? { role: 'button', tabIndex: 0, title: t('Genaue Zahl anzeigen'), onClick: genauZeigen,
                   onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); genauZeigen(); } } } : {})}>
                 <p className="schrift-anzeige text-3xl font-extrabold tabular-nums text-sky-500 sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
-                <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   {/* Der Punkt sagt: diese Zahl laeuft live mit. */}
                   {titel === 'Matches ausgewertet' && <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" />}
                   <T>{titel}</T>

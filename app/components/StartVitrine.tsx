@@ -162,7 +162,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
               <span className="flex items-center gap-3">
                 <TeamFlagge groesse={30} laender={[s.land ?? undefined]} />
                 <span className="schrift-anzeige min-w-0 truncate text-4xl font-extrabold uppercase tracking-tight text-[#fff] sm:text-5xl">{s.name}</span>
-                <span className="rounded border border-[rgba(255,255,255,.3)] bg-[rgba(255,255,255,.12)] px-1.5 py-0.5 text-[10px] font-bold text-[#e2e8f0]">{s.region}</span>
+                <span className="rounded border border-[rgba(255,255,255,.3)] bg-[rgba(255,255,255,.12)] px-1.5 py-0.5 text-[11px] font-bold text-[#e2e8f0]">{s.region}</span>
               </span>
             </Link>
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -170,7 +170,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
                   eingesteckt - so heisst sie jetzt, mit demselben Namen wie in der Statistik. Ohne eingesteckten Schaden ein Strich, keine 0,00. */}
               {([['Schadensquote', s.quote != null && s.quote > 0 ? s.quote.toLocaleString(ortJetzt(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null, 'text-emerald-400', 'Schaden ausgeteilt geteilt durch Schaden eingesteckt'], ['Elims', (s.elims == null ? null : zahl(s.elims)), 'text-[#fff]', ''], ['Schaden', (s.schaden == null ? null : zahl(s.schaden)), 'text-[#fff]', '']] as const).map(([t, w, farbe, hilfe]) => (
                 <div key={t} title={hilfe ? uebersetze(hilfe) : undefined} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
                   <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} ort={ortJetzt()} /></p>
                 </div>
               ))}
@@ -179,7 +179,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
               <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,.18)]">
                 <div key={i} className="vit-an h-full origin-left bg-sky-400" style={{ animation: `vit-fuell ${RAD_MS + 1400}ms linear both`, animationPlayState: halt ? 'paused' : 'running' }} />
               </div>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]"><T>alle Saisons</T></span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]"><T>alle Saisons</T></span>
             </div>
           </div>
         </>
@@ -210,7 +210,7 @@ function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean })
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black uppercase tracking-wide text-slate-100">{c.titel.replace(/\s*·\s*/g, ' – ')}</p>
-                <p className="mt-0.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <p className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   <span className="rounded bg-white/[0.08] px-1 py-0.5 text-slate-300">{c.region}</span>
                   <span>{c.saisonKurz}</span>{c.datum ? <span>{DATUM.format(new Date(c.datum))}</span> : null}
                 </p>
@@ -218,14 +218,14 @@ function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean })
             </div>
             <table className="w-full text-[11px]">
               <thead>
-                <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                   <th className="w-6 pb-1">#</th><th className="pb-1">Team</th><th className="w-10 pb-1 text-right">Pts</th><th className="w-8 pb-1 text-right" title="Victory Royales">VR</th><th className="w-10 pb-1 text-right">Elims</th>
                 </tr>
               </thead>
               <tbody>
                 {c.zeilen.slice(0, 5).map((z, k) => (
                   <tr key={z.rang} className="vit-an border-t border-white/[0.05]" style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
-                    <td className="py-1.5 text-[10px] font-bold tabular-nums text-slate-500">{z.rang}</td>
+                    <td className="py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{z.rang}</td>
                     <td className="py-1.5">
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         {z.spieler.map((p) => (
@@ -264,7 +264,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
     <Karte titel="Global" href="/statistics" symbol={SYM.welt} glas>
       {regionen.length === 0 ? <Hinweis geladen={fertig} /> : (
         <div ref={setHalter} onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
-          <p className="mb-2 flex justify-between text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <p className="mb-2 flex justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <span><T>Meiste Eliminierungen · Bester je Region</T></span>
             {(daten?.saisonName || daten?.saison) && <span>{daten.saisonName || daten.saison}</span>}
           </p>
@@ -280,7 +280,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
                       transform: drin ? 'scaleX(1)' : 'scaleX(0)',
                       transition: `transform .9s cubic-bezier(.2,.8,.2,1) ${k * 90}ms, background .5s`,
                     }} />
-                  <span className="relative z-10 flex h-full items-center gap-1 px-1.5 text-[10px] font-semibold text-white/90">
+                  <span className="relative z-10 flex h-full items-center gap-1 px-1.5 text-[11px] font-semibold text-white/90">
                     <TeamFlagge groesse={11} laender={[r.land ?? undefined]} />
                     <span className="truncate uppercase">{r.name}</span>
                   </span>
@@ -366,7 +366,7 @@ function MapsSpalte({ anzahl }: { anzahl: number }) {
       <div className="mt-5 flex items-end justify-between gap-3">
         <p className="text-4xl font-black tabular-nums leading-none text-sky-400 sm:text-6xl">
           {anzahl ? <>{zahl(gezaehlt)}<span className="text-sky-500">+</span></> : '—'}
-          <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Maps</span>
+          <span className="ml-2 align-middle text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Maps</span>
         </p>
         <Link href="/tournament-maps"
           className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-zinc-900 shadow-lg transition hover:bg-sky-100">
@@ -409,7 +409,7 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
                   {liste.slice(r * 3, r * 3 + 3).map((s) => (
                     <span key={s.id} className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-zinc-900/70 p-1">
                       <Gesicht name={s.name} bild={s.bild} px={30} />
-                      <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase text-slate-100">{s.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase text-slate-100">{s.name}</span>
                       <TeamFlagge groesse={11} laender={[s.land ?? undefined]} />
                     </span>
                   ))}
@@ -417,7 +417,7 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
               </div>
             ))}
           </div>
-          <p className="pt-2 text-[10px] text-slate-600"><T>Vorschau nach Eliminierungen — bau deine eigene.</T></p>
+          <p className="pt-2 text-[11px] text-slate-600"><T>Vorschau nach Eliminierungen — bau deine eigene.</T></p>
         </>
       )}
     </Karte>
@@ -442,7 +442,7 @@ function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFe
         <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,9,11,.95), rgba(9,9,11,.1) 65%)' }} />
         <span className="absolute bottom-3 left-4 text-xl font-black uppercase tracking-tight text-[#fff] drop-shadow">FNCS Solos{reload ? ' Reload' : ''}</span>
         {stufen.some((s) => s.status === 'live') && (
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#fff]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#fff]" />Live</span>
+          <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-[#fff]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#fff]" />Live</span>
         )}
       </div>
       <div className="p-5">
@@ -458,7 +458,7 @@ function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFe
           <div className="mt-3 grid grid-cols-2 gap-2">
             {zeigen.map((h) => (
               <div key={h.windowId} className="rounded-xl border border-white/[0.07] bg-black/25 p-2.5">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">{h.name}</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-300">{h.name}</p>
                 {h.spieler.slice(0, 5).map((p) => (
                   <p key={p.id} className="flex items-center gap-1.5 truncate py-0.5 text-[11px] font-bold uppercase text-slate-200"><TeamFlagge groesse={12} laender={[p.land ?? undefined]} /><span className="truncate">{p.anzeige}</span></p>
                 ))}
@@ -485,7 +485,7 @@ function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
         )}
         <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,9,11,.95), rgba(9,9,11,.1) 65%)' }} />
         <span className="absolute bottom-3 left-4">
-          <span className="block text-[10px] font-black uppercase tracking-[0.24em] text-[#7dd3fc]">FNCS · {e.kopf1}</span>
+          <span className="block text-[11px] font-black uppercase tracking-[0.24em] text-[#7dd3fc]">FNCS · {e.kopf1}</span>
           <span className="block text-xl font-black uppercase tracking-tight text-[#fff] drop-shadow">{e.kopf2}</span>
         </span>
         {e.preisgeld && <span className="absolute right-3 top-3 rounded-full bg-[rgba(0,0,0,.6)] px-2.5 py-1 text-[11px] font-black text-[#6ee7b7] backdrop-blur">{e.preisgeld}</span>}
@@ -503,7 +503,7 @@ function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
                 </span>
               ))}
             </span>
-            <span className="mt-1 line-clamp-2 w-full text-center text-[10px] font-black uppercase leading-tight text-slate-100">{p.spieler.map((s) => s.name).join(' · ')}</span>
+            <span className="mt-1 line-clamp-2 w-full text-center text-[11px] font-black uppercase leading-tight text-slate-100">{p.spieler.map((s) => s.name).join(' · ')}</span>
             <span className={`mt-1.5 flex w-full justify-center rounded-t-lg border border-b-0 pt-1 text-sm font-black ${i === 1 ? 'h-12 border-sky-400/60 bg-sky-500/20 text-amber-300' : i === 0 ? 'h-9 border-white/10 bg-white/[0.06] text-slate-300' : 'h-7 border-white/10 bg-white/[0.06] text-amber-600'}`}>{p.rang}</span>
           </div>
         ))}
@@ -526,7 +526,7 @@ function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }
               <TeamFlagge groesse={13} laender={[r.land ?? undefined]} />
               <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase text-slate-100">{r.name}</span>
               <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
-              <span className={`w-6 text-right text-[10px] font-bold tabular-nums ${r.delta > 0 ? 'text-emerald-400' : r.delta < 0 ? 'text-rose-400' : 'text-slate-600'}`}>
+              <span className={`w-6 text-right text-[11px] font-bold tabular-nums ${r.delta > 0 ? 'text-emerald-400' : r.delta < 0 ? 'text-rose-400' : 'text-slate-600'}`}>
                 {r.delta > 0 ? `▲${r.delta}` : r.delta < 0 ? `▼${-r.delta}` : '–'}
               </span>
             </li>

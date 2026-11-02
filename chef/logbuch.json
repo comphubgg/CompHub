@@ -8575,5 +8575,28 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-387",
+    "datum": "2026-11-02T03:25:37Z",
+    "titel": "Startseite: Kleinstschrift mindestens 11 Pixel",
+    "kurz": "Startseite: Beschriftungen, Rangmarken und Regionskürzel jetzt mindestens 11 Pixel groß.",
+    "markieren": [
+      "text:Matches processed",
+      "text:All seasons",
+      "text:Most Earnings"
+    ],
+    "bereich": "Startseite",
+    "warum": "Viele kleine Beschriftungen standen mit 9 bis 10 Pixeln.",
+    "was": "Sie stehen jetzt mit 11 Pixeln; „Deine Spieler“ auf der Statistikseite wächst mit.",
+    "ansehen": [
+      "/",
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

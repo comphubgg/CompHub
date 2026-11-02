@@ -11,7 +11,7 @@ export default function Lieblinge({ className = '' }: { className?: string }) {
   if (!liste.length) return null;
   return (
     <section className={className}>
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-500"><T>Deine Spieler</T></p>
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-500"><T>Deine Spieler</T></p>
       <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
         {liste.map((p) => (
           <li key={p.epicId} className="min-w-0">
