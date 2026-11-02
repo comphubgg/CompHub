@@ -3411,9 +3411,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           const groesse = teamGroesseAus(fenster.playlist);
           const format = groesse ? ({ 1: 'Solo', 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[groesse] : null;
           const kartenName = st.reload ? insel?.titel ?? null : st.insel.art === 'br' ? 'Battle Royale' : null;
+          // Ohne Ortsnamen und nah an der Insel (Betreiber, 2.11.2026: "mehr Zoom, weniger Wasser ... ohne Stadtnamen"); eine Reload-Insel
+          // nimmt ihre enge Fassung "<id>-nah", wenn es sie gibt (sonst faellt das Bild unten auf das Original zurueck).
           const kartenBild = st.reload
-            ? (insel ? eigeneKarte(insel.bildId) : null)
-            : st.insel.art === 'br' ? fortniteKarte(true) : null;
+            ? (insel ? eigeneKarte(`${insel.bildId}-nah`) : null)
+            : st.insel.art === 'br' ? fortniteKarte(false) : null;
+          const kartenErsatz = st.reload && insel ? eigeneKarte(insel.bildId) : null;
           const zeile = (titel: string, wert: React.ReactNode) => (
             <p className="text-sm leading-relaxed text-slate-300">
               <span className="font-bold text-slate-100">{titel}:</span> {wert}
@@ -3464,9 +3467,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
                 {/* Die Karte des Spieltags, klein. */}
                 {kartenBild && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={kartenBild} alt={kartenName ?? ''} loading="lazy"
-                    className="h-44 w-44 shrink-0 self-start rounded-lg border border-zinc-800 object-cover" />
+                  <div className="h-44 w-44 shrink-0 self-start overflow-hidden rounded-lg border border-zinc-800">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={kartenBild} alt={kartenName ?? ''} loading="lazy"
+                      onError={(ev) => { const el = ev.currentTarget; if (kartenErsatz && !el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = kartenErsatz; el.classList.add('scale-[1.15]'); } }}
+                      className={`h-full w-full object-cover ${st.reload ? '' : 'scale-[1.15]'}`} />
+                  </div>
                 )}
               </div>
 
