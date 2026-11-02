@@ -77,13 +77,16 @@ function Name({ s, klein = false }: { s: Spieler; klein?: boolean }) {
   );
 }
 
+/** Liefert die Funktion, die einen Laendercode in den Landesnamen der Sprache umsetzt (ausserhalb der Komponente, damit useMemo sauber bleibt). */
+function laendernamenFuer(sprache: string): (c: string) => string {
+  try { const d = new Intl.DisplayNames([sprache === 'de' ? 'de' : 'en'], { type: 'region' }); return (c: string) => d.of(c.toUpperCase()) ?? c.toUpperCase(); } catch { return (c: string) => c.toUpperCase(); }
+}
+
 export default function RanglisteNeu() {
   const { t, sprache } = useSprache();
   const ort = ortVon(sprache);
   const zahl = (n: number) => n.toLocaleString(ort);
-  const laendername = useMemo(() => {
-    try { const d = new Intl.DisplayNames([sprache === 'de' ? 'de' : 'en'], { type: 'region' }); return (c: string) => d.of(c.toUpperCase()) ?? c.toUpperCase(); } catch { return (c: string) => c.toUpperCase(); }
-  }, [sprache]);
+  const laendername = useMemo(() => laendernamenFuer(sprache), [sprache]);
 
   const [uebersicht, setUebersicht] = useState<Uebersicht | null>(null);
   const [uebersichtFehler, setUebersichtFehler] = useState(false);

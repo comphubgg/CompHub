@@ -7296,5 +7296,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-330",
+    "datum": "2026-11-02T02:32:20Z",
+    "titel": "Rangliste: Programmierfehler-Warnung behoben",
+    "kurz": "Unsichtbar: Rangliste rechnet Ländernamen sauberer, keine Fehlermeldung mehr beim Prüfen.",
+    "markieren": [],
+    "bereich": "Technik",
+    "warum": "Die automatische Code-Prüfung meldete in der Rangliste einen Fehler.",
+    "was": "Die Ländernamen werden gleich berechnet wie vorher, nur sauber aufgeschrieben – Besucher sehen keinen Unterschied.",
+    "ansehen": [
+      "/power-rankings"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
