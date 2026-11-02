@@ -1,13 +1,12 @@
 {
-  "letzteRunde": "2026-11-02T01:40:42Z",
-  "macheGerade": "Runde 15 fertig: 25 Verbesserungen (chef-281 bis chef-305), u. a. Cup-Kacheln über 1.000 statt 100 Teams, Stärkefelder ohne Wert als Strich, Schaden-„0“ in der Spielerliste, Quoten-Mindestzahl aus echten Matches, Verdienst-Jahr beim Spielerwechsel, FNCS-Rekorde mit Region, Ladeschirme, Tempo der Statistik-Startseite.",
+  "letzteRunde": "2026-11-02T02:08:02Z",
+  "macheGerade": "Runde 16 fertig: 20 Verbesserungen (chef-306 bis chef-325), u. a. Profil-Summenzeile unter den richtigen Spalten, Profil-Werte ohne Daten als Strich, Titel-Pokale passend zur Kennzahl, Replay-Damage überall gleich, „3m 60s“ behoben, Ladeschirm beim Saisonwechsel, Ausfälle (Archiv, FNCS-Rekorde, Speicher) sichtbar gemeldet.",
   "naechstes": [
-    "WICHTIG weiterhin: chef-106 freigeben – sonst rechnet der Stundenlauf Statistik-Start, S41-/S42-Listen und Jahresliste 2025 nicht neu.",
-    "Fragen an dich: FNCS-Rekorde/Leaderboard nur Europa oder alle Regionen? FNCS-Seite absichtlich nur Englisch? Quoten-Listen bei Spieltagen mit 1–2 Matches?",
-    "Offene Fragen weiter: Vergleich-Sieger ohne Gegner, Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter.",
-    "Nächste Runde: Cup-Kacheln jenseits Platz 1.000 (vorrechnen), doppelte Turnierliste Turniere/Regionen, weitere Statistik-Prüfung."
+    "WICHTIG weiterhin: chef-106 freigeben – die Statistik-Startantwort ist live immer noch vom 10.10. (peterbot 57 Matches, Elims-Liste Schaden 0).",
+    "Fragen an dich: FNCS-Elims-Farben nur aus den 80 Besten? Events-Kalender in Browser-Zeit oder Brüssel? Tierlist-Pool ohne Ranking-Platz – wonach ordnen?",
+    "Offene Fragen weiter: FNCS-Rekorde nur Europa? Vergleich-Sieger ohne Gegner, Orgs-Enddaten, Mindestspiele Cup-Kacheln gegen Spieler-Reiter.",
+    "Nächste Runde: Quoten-Hürden gemeinsam umstellen, Radar „HITS“-Nenner, toten Code aufräumen, Spielerliste mit Sortierung prüfen."
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, chef-292/296/300) + Sonnet (übrige, von Opus nachgeprüft)",
-  "laeuftSeit": "2026-11-02T01:47:12Z"
+  "modell": "Opus (Planung, Prüfung) + Sonnet (Prüfer in 4 Wellen, jedes Ergebnis von Opus nachgeprüft; 5 Entwürfe verworfen)"
 }

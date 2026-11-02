@@ -4,7 +4,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 ## Neu entdeckt (Runde 16, 02.11.2026)
 
-- [x] (chef-306 bis chef-323) Runde 16: Lobby-Replay-Teams Strich, Tausenderpunkte (Kachel-Knopf, Vergleich, Spielerfenster), Profil-Summenzeile, Profil-Werte-Strich, Tagesbester-Gleichstand, Power-Rankings-Suche, Regionen-Quoten-Mindestzahl, Archiv-Ausfall Events, Global-Karte Regionen, eigene Auswertung Ausfall, Replay-Damage gleich, Replay-Zonen Strich, FNCS-Rekorde-Ausfall, „3m 60s“, Titel-Pokale, Erfolge-Reihenfolge.
+- [x] (chef-306 bis chef-325) Runde 16: Power-Rankings-Strich ohne Namen, Ladeschirm Saisonwechsel, Lobby-Replay-Teams Strich, Tausenderpunkte (Kachel-Knopf, Vergleich, Spielerfenster), Profil-Summenzeile, Profil-Werte-Strich, Tagesbester-Gleichstand, Power-Rankings-Suche, Regionen-Quoten-Mindestzahl, Archiv-Ausfall Events, Global-Karte Regionen, eigene Auswertung Ausfall, Replay-Damage gleich, Replay-Zonen Strich, FNCS-Rekorde-Ausfall, „3m 60s“, Titel-Pokale, Erfolge-Reihenfolge.
 - [ ] **FNCS-Elims-Farbstufen nur aus den 80 Besten nach Total** – beim Sortieren nach einem Major werden Spieler außerhalb der 80 mit fremden Grenzen gefärbt. Gestaltungsfrage (mit allen Spielern wäre fast alles grün) – Betreiber fragen.
 - [ ] **Vergleich-Radar „HITS“ teilt durch alle Matches**, auch durch Tage ohne Trefferdaten (Kopftreffer/Bauteile teilen durch matchesVoll). Bräuchte eigenen Nenner „Matches mit Treffern“ – klein.
 - [ ] **Globals-Teams-Länderraster: gleiche Spielerzahl ohne feste Folge** – nicht nach Ländercode (alphabetisch verboten); feste Folge nach Stärke der Teams wäre richtig.
@@ -12,6 +12,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Events-Kalender: Uhrzeiten in Browser-Zeitzone**, Startseite/Solos in Europe/Brussels – Absicht? Betreiber fragen.
 - [ ] **Toter Code**: TurnierListe in StatistikSeite.tsx (~Z. 1443) nirgends genutzt; /api/br-statistik und /api/eigene-werte nirgends eingebunden (br-statistik erfindet Nullen) – aufräumen.
 - [ ] **ESLint-Fehler RanglisteNeu.tsx Z. 84** (react-hooks/preserve-manual-memoization, useMemo laendername) – schon vorher da.
+- [ ] **Statistik-Start: Quoten-Hürde aus allen Matches des Fleißigsten** (lib/szeneStats startseite, hoechsteMatches; ebenso jahresListen quoteMindest und Regionen bestenlisten) – Entwurf mit matchesFuerQuote liegt vor, aber nur gemeinsam für alle Listen umstellen, sonst neue Widersprüche; wirkt erst nach Neuberechnung (chef-106).
+- [ ] **Tierlist-Pool: Spieler ohne Power-Ranking-Platz alphabetisch** – Betreiberregel „nie alphabetisch“; Ersatz nach Kennung sähe zufällig aus. Besser nach Bekanntheit (z. B. Preisgeld) – Betreiber fragen.
 - [ ] **Profil-Verlauf Damage Ratio: Tag ohne Datum gilt als ältester** und fällt aus „Letzte 12“ – beobachten.
 
 ## Neu entdeckt (Runde 14, 01.11.2026)
