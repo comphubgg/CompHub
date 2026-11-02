@@ -10271,5 +10271,26 @@
     "ansehen": [
       "/team/clue-esports"
     ]
+  },
+  {
+    "id": "chef-463",
+    "datum": "2026-11-02T04:46:59Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Oberfläche",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Scrims: Schrift mindestens 11 Pixel",
+    "kurz": "Scrims → Session öffnen: Marken, „Not connected“, Matchzeilen jetzt 11 statt 10 Pixel.",
+    "markieren": [
+      "text:Not connected",
+      "text:Elims"
+    ],
+    "warum": "Neun Beschriftungen auf der Scrims-Seite waren nur 10 Pixel groß.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/scrims"
+    ]
   }
 ]

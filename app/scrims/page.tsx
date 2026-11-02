@@ -387,7 +387,7 @@ function Marke({ children, art }: { children: React.ReactNode; art: 'hell' | 'gr
     : art === 'gruen' ? 'border-emerald-400/70 text-emerald-300'
       : 'border-zinc-500/70 text-slate-300';
   return (
-    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase
+    <span className={`rounded border px-1.5 py-0.5 text-[11px] font-bold uppercase
                       leading-none tracking-wide ${farbe}`}>
       {children}
     </span>
@@ -410,7 +410,7 @@ function StatusMarke({ status, klein = false }: {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full bg-black/65 font-bold
                       uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${
-      klein ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'} ${
+      klein ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[11px]'} ${
       status === 'live' ? 'text-white' : status === 'laeuft' ? 'text-slate-200' : 'text-slate-400'}`}>
       {status === 'live' && (
         <span className="relative flex h-2 w-2">
@@ -493,7 +493,7 @@ function Kachel({ serie, offen, umschalten, waehle }: {
               * ein gekennzeichnetes Beispiel.
               */}
             {beispiel && (
-              <span className="rounded bg-black/80 px-2 py-0.5 text-[10px] font-bold uppercase
+              <span className="rounded bg-black/80 px-2 py-0.5 text-[11px] font-bold uppercase
                                tracking-wider text-amber-300">
                 <T>Nicht verbunden</T>
               </span>
@@ -627,7 +627,7 @@ function PunkteVerteilung({ teams }: { teams: Team[] }) {
             style={{ height: `${(e.n / max) * 100}%` }} title={`${e.n}`} />
         ))}
       </div>
-      <div className="mt-1 flex gap-2 pl-2 text-[10px] tabular-nums text-slate-500">
+      <div className="mt-1 flex gap-2 pl-2 text-[11px] tabular-nums text-slate-500">
         {eimer.map((e) => <span key={e.von} className="flex-1 text-center">{e.von}-{e.bis}</span>)}
       </div>
     </div>
@@ -740,7 +740,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
                 {serie.name}: {sitzung.name}
               </h1>
               {beispiel && (
-                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold
+                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold
                                  uppercase tracking-wider text-amber-300">
                   <T>Beispiel</T>
                 </span>
@@ -1047,7 +1047,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
                                 : sp.platz <= 3 ? 'border-zinc-700 bg-zinc-900/80'
                                   : 'border-zinc-800 bg-zinc-900/40'}`}>
                             <div>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-[11px] text-slate-500">
                                 {sp.zeitpunkt ? uhr(sp.zeitpunkt, sprache, false) : `${rundenWort === 'Lobbys' ? 'Lobby' : 'Match'} ${i + 1}`}
                               </p>
                               <p className="font-bold text-slate-100">
@@ -1055,7 +1055,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] text-slate-500">Elims</p>
+                              <p className="text-[11px] text-slate-500">Elims</p>
                               <p className="font-bold tabular-nums text-slate-100">{sp.elims}</p>
                             </div>
                           </div>
@@ -1094,7 +1094,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, 
                 {runden.map((r, i) => (
                   <div key={r.sessionId}
                     className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs">
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[11px] text-slate-500">
                       {uhr(r.zeitpunkt, sprache)} {'//'} {rundenWort === 'Lobbys' ? 'Lobby' : 'Match'} {runden.length - i}
                     </p>
                     <p className="font-semibold text-slate-200">
@@ -1538,7 +1538,7 @@ export default function ScrimsSeite() {
                               {s.sitzungen.length} <T>Sessions</T>
                             </span>
                             {s.beispiel && (
-                              <span className="text-[10px] font-bold uppercase text-amber-300"><T>Beispiel</T></span>
+                              <span className="text-[11px] font-bold uppercase text-amber-300"><T>Beispiel</T></span>
                             )}
                           </button>
                           {offeneKachel === s.id && (
