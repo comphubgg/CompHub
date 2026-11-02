@@ -69,8 +69,8 @@ function Kasten({ k, hier, kante }: { k: WegKnoten; hier?: boolean; kante?: Reac
     <div className={`flex h-full min-w-0 flex-col rounded-xl border p-3.5 ${live ? 'border-sky-500 bg-sky-500/10 shadow-[0_0_0_1px_rgba(14,165,233,.35)]' : hier ? 'border-sky-400/70 bg-zinc-900' : k.status === 'kommt' ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-800 bg-zinc-900'}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[15px] font-extrabold leading-tight text-slate-100">{t(NAME[k.id])}</p>
-        {live && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /><T>Live</T></span>}
-        {!live && k.status === 'kommt' && <span className="shrink-0 rounded-full border border-zinc-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500"><T>Kommt</T></span>}
+        {live && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /><T>Live</T></span>}
+        {!live && k.status === 'kommt' && <span className="shrink-0 rounded-full border border-zinc-700 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-500"><T>Kommt</T></span>}
       </div>
       <p className="mt-0.5 text-[11px] text-slate-500">
         {datum(k.von, k.bis)}
@@ -105,7 +105,7 @@ function Pfeil({ k, senkrecht }: { k: WegKante; senkrecht?: boolean }) {
   const farbe = k.art === 'finale' ? 'text-sky-400' : k.art === 'gesetzt' ? 'text-sky-300' : 'text-slate-500';
   const strich = k.art === 'gesetzt' ? 'border-dashed' : 'border-solid';
   const text = k.spanne ? k.text : k.text.replace(/Top (\d+)/, (_, n) => `Top ${Number(n).toLocaleString(ort)}`);
-  const beschriftung = <>{text}{k.jeHeat && <span className="block text-[9px] font-semibold normal-case opacity-80"><T>je Heat</T></span>}</>;
+  const beschriftung = <>{text}{k.jeHeat && <span className="block text-[11px] font-semibold normal-case opacity-80"><T>je Heat</T></span>}</>;
   if (senkrecht) {
     return (
       <div className={`flex h-full min-h-[2.75rem] items-stretch justify-center gap-2 ${farbe}`}>
@@ -113,13 +113,13 @@ function Pfeil({ k, senkrecht }: { k: WegKante; senkrecht?: boolean }) {
           <span className={`min-h-[1.5rem] flex-1 border-l-2 ${strich} border-current`} />
           <svg viewBox="0 0 10 10" className="-mt-1 h-2.5 w-2.5 rotate-90" fill="currentColor" aria-hidden><path d="M0 0l10 5-10 5z" /></svg>
         </span>
-        <span className="self-center text-center text-[10px] font-extrabold leading-tight">{beschriftung}</span>
+        <span className="self-center text-center text-[11px] font-extrabold leading-tight">{beschriftung}</span>
       </div>
     );
   }
   return (
     <div className={`flex h-full flex-col items-center justify-center gap-1 px-1 ${farbe}`} title={k.art === 'gesetzt' ? t('Von Epic gesetzt - ohne Marke') : undefined}>
-      <span className="text-center text-[10px] font-extrabold leading-tight">{beschriftung}</span>
+      <span className="text-center text-[11px] font-extrabold leading-tight">{beschriftung}</span>
       <span className="flex w-full items-center">
         <span className={`flex-1 border-t-2 ${strich} border-current`} />
         <svg viewBox="0 0 10 10" className="-ml-1 h-2.5 w-2.5" fill="currentColor" aria-hidden><path d="M0 0l10 5-10 5z" /></svg>
@@ -140,13 +140,13 @@ function FinaleKasten({ k, daten }: { k: WegKnoten; daten: WegDaten }) {
   const anzahl = k.spieler?.zahl ?? (daten.herkunft.length === 3 ? plaetze : null);
   return (
     <div className="flex h-full min-w-0 flex-col rounded-xl border-2 border-sky-500/70 bg-sky-500/10 p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-400"><T>Grand Finals</T></p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-400"><T>Grand Finals</T></p>
       <p className="mt-1 text-2xl font-black leading-tight text-slate-100"><T>Finale</T></p>
       <p className="mt-1 text-xs text-slate-300">{datum(k.von, k.bis)} · {k.fenster.length} {t('Tage')}</p>
       {anzahl !== null && <p className="mt-1 text-xs font-semibold text-slate-200"><span className="tabular-nums">{anzahl.toLocaleString(ort)}</span> <T>Spieler</T></p>}
       {k.preisgeld ? (
         <>
-          <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-400"><T>Preisgeld</T></p>
+          <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-400"><T>Preisgeld</T></p>
           <p className="text-2xl font-black tabular-nums text-sky-300">${k.preisgeld.toLocaleString(ort)}</p>
           {k.erster ? <p className="text-xs font-semibold text-slate-300">{t('1. Platz')} · ${k.erster.toLocaleString(ort)}</p> : null}
         </>
@@ -204,7 +204,7 @@ function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; au
   const knoten = stand?.stand ? plan.knoten.find((k) => k.id === stand.stand!.knoten) : null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm">
-      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400"><T>Du bist hier</T></span>
+      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400"><T>Du bist hier</T></span>
       {!epicId && <span className="text-slate-300"><T>Mit einem verknüpften Epic-Konto siehst du, wo du auf dem Weg stehst.</T> <Link href="/account" className="font-semibold text-sky-400 hover:underline"><T>Zum Konto</T> →</Link></span>}
       {epicId && laedt && <span className="text-slate-400"><T>Wird gesucht …</T></span>}
       {epicId && !laedt && fehler && <span className="text-slate-400">{fehler}</span>}

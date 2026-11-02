@@ -613,7 +613,7 @@ export default function GlobalsMap() {
               <div className="space-y-3">
                 {liste.map((g) => (
                   <div key={g.region || 'ohne'}>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wider
                                   text-sky-300/80">
                       {g.region || <T>Ohne Region</T>}
                       <span className="ml-1.5 font-normal text-slate-600">{g.zeilen.length}</span>

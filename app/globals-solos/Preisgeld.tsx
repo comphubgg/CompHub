@@ -107,7 +107,7 @@ export default function Preisgeld({ region }: { region: string }) {
             <span className="min-w-0 flex-1 text-lg font-bold tabular-nums text-slate-100">{geld(p.proSpieler)}</span>
             {p.spanne[0] !== p.spanne[1] && (
               <span title={`${p.spanne[0]}–${p.spanne[1]}`}
-                className="shrink-0 rounded-md border border-zinc-700 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-400">
+                className="shrink-0 rounded-md border border-zinc-700 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-400">
                 {p.spanne[0]}–{p.spanne[1]}
               </span>
             )}
