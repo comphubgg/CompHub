@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { rundenName } from '@/lib/rundenName';
+import { REGIONEN_REIHE } from '@/lib/regionFarbe';
 
 export interface Fenster {
   eventId: string; windowId: string; region: string; name: string; ende: number;
@@ -82,7 +83,9 @@ export default function MeinErgebnis(
   /** Die Regionen, in denen dieses Turnier gespielt wurde. */
   const regionen = useMemo(() => {
     if (!cup) return [];
-    return [...new Set(cup.fenster.map((f) => f.region))].sort();
+    // Europa zuerst, dann nach Spielstaerke - nie alphabetisch.
+    const rang = (r: string) => { const i = REGIONEN_REIHE.indexOf(r); return i < 0 ? REGIONEN_REIHE.length : i; };
+    return [...new Set(cup.fenster.map((f) => f.region))].sort((a, b) => rang(a) - rang(b));
   }, [cup]);
 
   const region = regionen.includes(regionWunsch) ? regionWunsch : regionen[0] ?? '';

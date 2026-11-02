@@ -9430,5 +9430,25 @@
       "/events"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T03:59:54Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-426",
+    "titel": "Mein Ergebnis: Regionen mit Europa zuerst",
+    "kurz": "Konto → Mein Ergebnis: Regionsknöpfe beginnen mit EU, nicht mehr mit ASIA.",
+    "markieren": [
+      "text:EU"
+    ],
+    "bereich": "Konto",
+    "warum": "Die Regionsknöpfe standen alphabetisch, so war Asien vorn und sogar vorausgewählt.",
+    "was": "Jetzt erst Europa, dann nach Größe der Szene; Europa ist vorausgewählt.",
+    "ansehen": [
+      "/account"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
