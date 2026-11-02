@@ -235,9 +235,9 @@ function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean })
                         ))}
                       </span>
                     </td>
-                    <td className="py-1.5 text-right font-bold tabular-nums text-sky-400">{z.punkte}</td>
-                    <td className="py-1.5 text-right tabular-nums text-slate-300">{z.siege}</td>
-                    <td className="py-1.5 text-right tabular-nums text-slate-300">{z.elims}</td>
+                    <td className="py-1.5 text-right font-bold tabular-nums text-sky-400">{zahl(z.punkte)}</td>
+                    <td className="py-1.5 text-right tabular-nums text-slate-300">{zahl(z.siege)}</td>
+                    <td className="py-1.5 text-right tabular-nums text-slate-300">{zahl(z.elims)}</td>
                   </tr>
                 ))}
               </tbody>
