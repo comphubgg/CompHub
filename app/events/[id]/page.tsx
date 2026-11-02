@@ -388,7 +388,7 @@ const SpielKachel = memo(function SpielKachel({
                   { hour: '2-digit', minute: '2-digit' })
               : '—'}
           </span>
-          <span className="block text-[10px] text-slate-600">
+          <span className="block text-[11px] text-slate-600">
             {(sp.live ? sp.beginn : sp.ende)
               ? new Date((sp.live ? sp.beginn : sp.ende)!)
                 .toLocaleDateString(ort,
@@ -401,7 +401,7 @@ const SpielKachel = memo(function SpielKachel({
       {/* Zweite Zeile: wie lange sie laeuft - und, wo es eine gibt, der Hinweis auf die Match-Seite. */}
       <p className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
         <span><T>Dauer</T> {dauerText(dauer)}</span>
-        {replay && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">Replay</span>}
+        {replay && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-300">Replay</span>}
       </p>
 
       {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
@@ -3656,7 +3656,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b
                              border-zinc-800 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100"><T>Leaderboard</T>{summenFenster && <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300"><T>Kumulativ</T> · {summenFenster.map((w, j) => `${t('Tag')} ${/Day(\d+)/i.exec(w)?.[1] ?? j + 1}`).join(' + ')}</span>}</h2>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100"><T>Leaderboard</T>{summenFenster && <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-300"><T>Kumulativ</T> · {summenFenster.map((w, j) => `${t('Tag')} ${/Day(\d+)/i.exec(w)?.[1] ?? j + 1}`).join(' + ')}</span>}</h2>
             <div className="flex flex-wrap items-center gap-3">
               {rangWahl}
               {/* Immer da - auch ohne Anmeldung oder Epic-Verknuepfung (Betreiber, 30.10.2026: "auf meinem Handy sehe ich das gar nicht"); der Hinweis
@@ -3799,7 +3799,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 .map((x, i) => ({ ...x, nr: i + 1 }));
               const kachel = (titel: string, wert: string | number, gross = false) => (
                 <div key={titel}>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></div>
                   <div className={`${gross ? 'text-2xl' : 'text-base'} font-bold tabular-nums text-slate-100`}>{wert}</div>
                 </div>
               );
@@ -3807,7 +3807,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <div className="space-y-4 p-4">
                   <div className="flex items-baseline justify-between">
                     <span className={`text-3xl font-black tabular-nums ${e.rank <= 3 ? 'text-amber-400' : 'text-slate-500'}`}>#{e.rank}</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Team-Details</T></span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Team-Details</T></span>
                   </div>
                   <div
                     onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
@@ -3823,7 +3823,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           <div className="flex items-center gap-2">
                             <span className="truncate text-base font-bold text-sky-400">{namenVon(p)}</span>
                             <a href={`/statistics?ansicht=suche&q=${encodeURIComponent(namenVon(p))}${/^[0-9a-f]{32}$/i.test(String(p.id)) ? `&id=${p.id}` : ''}`} title={t('Statistik dieses Spielers')}
-                              className="shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-sky-500 hover:text-sky-300">Stats</a>
+                              className="shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-sky-500 hover:text-sky-300">Stats</a>
                           </div>
                           {p.logo && <img src={p.logo} alt=""
                             className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
@@ -3834,7 +3834,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <p className="text-sm font-semibold text-emerald-400">
                         {betrag.toLocaleString(ort)} {waehrung}
                         {(teamGroesseAus(fenster?.playlist) ?? 1) > 1 && (
-                          <span className="ml-1 text-[10px] font-normal text-slate-500">
+                          <span className="ml-1 text-[11px] font-normal text-slate-500">
                             {preise?.proPerson === false ? t('pro Team') : t('pro Spieler')}
                           </span>
                         )}
@@ -3853,7 +3853,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {kachel('K/D', schnitt(e.kd, ort, 2, e.games > 0))}
                   </div>
                   <div className="border-t border-zinc-800 pt-4">
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                       <T>Spielverlauf</T> · {spieleListe.length}
                     </div>
                     <div className="space-y-1.5 lg:max-h-[calc(100vh-24rem)] lg:overflow-y-auto lg:pr-1">
@@ -3994,7 +3994,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               {/* Ob der Betrag je Spieler gilt oder fuer das ganze Team -
                                   Epics Tabellen nennen ihn je Spieler. */}
                               {!!betrag && (teamGroesseAus(fenster?.playlist) ?? 1) > 1 && (
-                                <span className="ml-1 text-[10px] font-normal text-slate-500">
+                                <span className="ml-1 text-[11px] font-normal text-slate-500">
                                   {preise?.proPerson === false ? t('pro Team') : t('pro Spieler')}
                                 </span>
                               )}
@@ -4024,7 +4024,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                             px-4 py-1">
                               <span aria-hidden className="h-px flex-1
                                                            bg-amber-500/30" />
-                              <span className="shrink-0 text-[10px] font-semibold
+                              <span className="shrink-0 text-[11px] font-semibold
                                                uppercase tracking-[0.14em]
                                                text-amber-400">
                                 <T>Top</T> {e.rank}{' '}
@@ -4387,7 +4387,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                   {t.ausReplay && (
                                     <span className="ml-2 rounded border
                                                      border-sky-800/70 px-1.5 py-0.5
-                                                     text-[10px] text-sky-400/90">
+                                                     text-[11px] text-sky-400/90">
                                       <T>aus dem Replay</T>
                                     </span>
                                   )}
@@ -4431,7 +4431,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                   className="border-b border-zinc-900/70 last:border-0
                                              bg-sky-950/20">
                                   <td colSpan={9} className="px-3 py-2">
-                                    <div className="mb-1 text-[10px] uppercase
+                                    <div className="mb-1 text-[11px] uppercase
                                                     tracking-wider text-sky-500/80">
                                       <T>aus deinem eigenen Replay</T>
                                     </div>

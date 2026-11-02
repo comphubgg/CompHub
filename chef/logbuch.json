@@ -8942,5 +8942,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-403",
+    "datum": "2026-11-02T03:33:56Z",
+    "titel": "Cup-Seite: Kleinschrift 11 Pixel",
+    "kurz": "Cup-Seite: Kachel-Titel, Teamdetails und Match-Karten 11 statt 9–10 Pixel.",
+    "markieren": [
+      "text:Match history"
+    ],
+    "bereich": "Statistik",
+    "warum": "12 Beschriftungen in Bestenliste, Teamdetails und Match-Liste waren zu klein.",
+    "was": "Sie stehen jetzt mit 11 Pixeln.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
