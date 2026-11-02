@@ -7017,8 +7017,8 @@
     "titel": "Replay: Damage in Tabelle, Spielerliste und Spielerfenster am Ende gleich",
     "kurz": "Replay → ans Ende springen: Damage in Liste, Fenster und Tabelle jetzt gleich.",
     "markieren": [
-      "text:Damage",
-      "text:Players"
+      "text:Players",
+      "text:Damage"
     ],
     "bereich": "Statistik",
     "warum": "Liste und Spielerfenster zählten einzeln gerundete Treffer zusammen – bei 45 von 99 Spielern (FNCS Solo Final NAW, Game 1) 1 mehr oder weniger als die Tabelle.",
@@ -7126,10 +7126,10 @@
     "id": "chef-322",
     "datum": "2026-11-02T02:04:27Z",
     "titel": "Profil-Marke: Pokale zählen FNCS- und LAN-Siege wie die Kennzahl Titel",
-    "kurz": "Profil → goldene Marke „FNCS Winner“: Pokalzahl passt jetzt zur Kennzahl „Titles“.",
+    "kurz": "Profil → goldene Marke „FNCS winner“: Pokalzahl passt jetzt zur Kennzahl „Title“.",
     "markieren": [
-      "text:FNCS Winner",
-      "text:Titles"
+      "text:FNCS winner",
+      "text:Title"
     ],
     "bereich": "Statistik",
     "warum": "Die Kennzahl „Titel“ zählt FNCS- und LAN-Siege, die Pokale der Marke nur FNCS – bei 3 FNCS + 1 LAN-Sieg stand „4 Titel“, aber 3 Pokale. Bei nur LAN-Platz 2 oder 3 erschien eine Marke ohne Pokal.",
@@ -7149,9 +7149,9 @@
     "id": "chef-323",
     "datum": "2026-11-02T02:04:27Z",
     "titel": "Erfolge-Reiter „Weitere“: feste Reihenfolge bei gleichem Platz",
-    "kurz": "Unsichtbar: Profil → Erfolge → Weitere: gleiche Plätze springen nicht mehr.",
+    "kurz": "Unsichtbar: Profil → Erfolge → „Others“: gleiche Plätze springen nicht mehr.",
     "markieren": [
-      "text:More"
+      "text:Others"
     ],
     "bereich": "Statistik",
     "warum": "Gleich platzierte LAN-Erfolge (ohne Datum) oder Cups am selben Tag standen in zufälliger Reihenfolge.",
