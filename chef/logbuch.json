@@ -10063,5 +10063,25 @@
     "ansehen": [
       "/power-rankings"
     ]
+  },
+  {
+    "id": "chef-453",
+    "datum": "2026-11-02T04:37:20Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "FNCS-Elims-Tabelle: Hinweis statt leerer Tabelle",
+    "kurz": "FNCS → All-time stats → Unsinn suchen: „No player found …“ statt leerer Tabelle.",
+    "markieren": [
+      "text:No player found for"
+    ],
+    "warum": "Ohne Treffer stand nur der Tabellenkopf da – das sah aus wie ein Ausfall.",
+    "was": "Bei null Zeilen steht jetzt, dass niemand gefunden wurde (oder keine Daten da sind).",
+    "ansehen": [
+      "/fncs"
+    ]
   }
 ]

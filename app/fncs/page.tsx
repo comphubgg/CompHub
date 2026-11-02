@@ -572,6 +572,12 @@ export default function FncsSeite() {
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Keine Zeile heisst nicht "leer": entweder trifft die Suche niemanden, oder das Archiv hat keine Zahlen - beides sagt die Tabelle. */}
+                    {zeilen.length === 0 && (
+                      <tr><td colSpan={3 + alt.events.length} className="px-3 py-6 text-center text-xs text-slate-500">
+                        {suche.trim() ? t('Kein Spieler gefunden für „{q}“.').replace('{q}', suche.trim()) : t('Keine Daten.')}
+                      </td></tr>
+                    )}
                     {zeilen.map((s) => (
                       <tr key={s.id} className="border-b border-white/[0.04] transition hover:bg-sky-500/[0.05]">
                         <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz}</td>
