@@ -3510,7 +3510,10 @@ export default function StatistikSeite() {
         if (alt?.epicId !== s.epicId) return alt;
         if (j.spieler) {
           return { ...j.spieler, ...alt, ...j.spieler,
-            bild: alt.bild ?? j.spieler.bild };
+            bild: alt.bild ?? j.spieler.bild,
+            // Ohne gepflegtes Profil bleibt der Name aus der Suche (dort: wie die Org ihn fuehrt) - der Archivname kann veraltet sein
+            // (2.11.2026: eyni oeffnete als "omni eynibot").
+            ...(!j.spieler.gepflegt && alt.anzeige ? { anzeige: alt.anzeige } : {}) };
         }
         const leer: Record<string, number> = {};
         for (const feld of ['events', 'matches', 'elims', 'assists', 'reboots',
