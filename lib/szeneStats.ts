@@ -228,6 +228,12 @@ export interface SpielerSumme {
   damageProMatch: number;
   /** Matches aus Spieltagen der Szene-Quelle - fuer Material und Bauteile je Match (eigene Tage kennen beides nicht). */
   matchesVoll?: number;
+  /** Matches aus Tagen, die Eliminierungen fuehren - Nenner fuer elimsProMatch (eigene Tage ohne gesicherte Kills zaehlen nicht mit). */
+  matchesElims?: number;
+  /** Matches aus Tagen mit Schaden - Nenner fuer damageProMatch. */
+  matchesSchaden?: number;
+  /** Matches aus Tagen mit Lebenszeit - Nenner fuer die Lebenszeit je Match. */
+  matchesZeit?: number;
   /** Nur beim Zusammenrechnen: Treffer aus Tagen mit Schusszahl. */
   hitsMitSchuss?: number;
 }
@@ -391,6 +397,14 @@ function streckeKm(p: { distanceOnFoot?: number; distanceSkydiving?: number; tim
   return zentimeter ? roh / 100_000 : roh / 1000;
 }
 
+/** Die Matches eines Tages zu den Nennern schlagen, deren Wert der Tag auch wirklich fuehrt (eigene Tage kennen nicht immer alles). */
+function zaehleNenner(s: SpielerSumme, p: { matchesPlayed?: number; eliminations?: number; damageDealt?: number; timeAlive?: number }) {
+  const m = p.matchesPlayed || 0;
+  if (typeof p.eliminations === 'number') s.matchesElims = (s.matchesElims ?? 0) + m;
+  if (typeof p.damageDealt === 'number') s.matchesSchaden = (s.matchesSchaden ?? 0) + m;
+  if (typeof p.timeAlive === 'number') s.matchesZeit = (s.matchesZeit ?? 0) + m;
+}
+
 function leereSumme(epicId: string, name: string): SpielerSumme {
   return {
     epicId, name, namen: [], regionen: [], events: 0, matches: 0,
@@ -469,6 +483,7 @@ export async function summen(filter: Filter = {}) {
       s.name = p.username || s.name;
       s.events += 1;
       s.matches += p.matchesPlayed || 0;
+      zaehleNenner(s, p);
       s.elims += p.eliminations || 0;
       s.assists += p.assists || 0;
       s.reboots += p.rebootsAndRevives || 0;
@@ -503,8 +518,8 @@ export async function summen(filter: Filter = {}) {
     s.quote = s.damageTaken > 0 ? +(s.damage / s.damageTaken).toFixed(2) : 0;
     s.genauigkeit = s.shots > 0 ? +(((s.hitsMitSchuss ?? s.hits) / s.shots) * 100).toFixed(1) : 0;
     delete s.hitsMitSchuss;
-    s.elimsProMatch = s.matches > 0 ? +(s.elims / s.matches).toFixed(2) : 0;
-    s.damageProMatch = s.matches > 0 ? Math.round(s.damage / s.matches) : 0;
+    s.elimsProMatch = (s.matchesElims ?? 0) > 0 ? +(s.elims / s.matchesElims!).toFixed(2) : 0;
+    s.damageProMatch = (s.matchesSchaden ?? 0) > 0 ? Math.round(s.damage / s.matchesSchaden!) : 0;
     s.damage = Math.round(s.damage);
     s.damageTaken = Math.round(s.damageTaken);
     s.heals = Math.round(s.heals);
@@ -1130,6 +1145,7 @@ export function summeAusVerlauf(
     s.name = p.username || s.name;
     s.events += 1;
     s.matches += p.matchesPlayed || 0;
+    zaehleNenner(s, p);
     s.elims += p.eliminations || 0;
     s.assists += p.assists || 0;
     s.reboots += p.rebootsAndRevives || 0;
@@ -1158,8 +1174,8 @@ export function summeAusVerlauf(
   s.quote = s.damageTaken > 0 ? +(s.damage / s.damageTaken).toFixed(2) : 0;
   s.genauigkeit = s.shots > 0 ? +(((s.hitsMitSchuss ?? s.hits) / s.shots) * 100).toFixed(1) : 0;
   delete s.hitsMitSchuss;
-  s.elimsProMatch = s.matches > 0 ? +(s.elims / s.matches).toFixed(2) : 0;
-  s.damageProMatch = s.matches > 0 ? Math.round(s.damage / s.matches) : 0;
+  s.elimsProMatch = (s.matchesElims ?? 0) > 0 ? +(s.elims / s.matchesElims!).toFixed(2) : 0;
+  s.damageProMatch = (s.matchesSchaden ?? 0) > 0 ? Math.round(s.damage / s.matchesSchaden!) : 0;
   s.damage = Math.round(s.damage);
   s.damageTaken = Math.round(s.damageTaken);
   s.heals = Math.round(s.heals);
