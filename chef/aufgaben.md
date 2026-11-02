@@ -434,5 +434,5 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [x] (chef-293) Quoten-Mindestzahl aus den Matches mit Wert. Offen: Tagesbester Eliminierer lässt Spieler ohne bestätigte Team-Kills weg (eigene Team-Tage) – beobachten.
 - [ ] **FNCS All-Time: Leaderboard und Rekorde zählen alle Regionen, Titel und Elims-Tabelle nur Europa** – Seitentexte sprechen von „Europa“. Betreiber fragen, ob Rekorde/Leaderboard nur EU zählen sollen (Betreiber 19.10.: „auch noch die anderen Grands“).
 - [x] (chef-300) **Startseite Cup-Tabelle: Punkte/Siege/Elims ohne Tausenderpunkt** – erst ab 1.000 sichtbar, klein.
-- [ ] **FNCS-Seite: Earnings, Current, Total, All-Time Stats fest englisch** (deutsche Ansicht) – kleine Übersetzung nachtragen. Helfer-Vorschlag „Earnings → Preisgeld“ global nicht übernommen (wirkt überall).
+- [ ] **FNCS-Seite läuft gar nicht über die Übersetzung** (ganze Seite fest englisch: Earnings, Current, Total, All-Time Stats …) – Absicht? Betreiber fragen, sonst ganze Seite umstellen. Helfer-Vorschlag „Earnings → Preisgeld“ global nicht übernommen (wirkt überall).
 - [ ] **Turniere- und Regionen-Reiter holen dieselbe Turnierliste je einzeln** (ansicht=turniere&saison=X) – ein überflüssiger Abruf beim Wechsel, klein.
