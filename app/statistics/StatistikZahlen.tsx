@@ -79,7 +79,7 @@ export default function StatistikZahlen() {
               {fertig ? <Rollzahl wert={wert} los={sichtbar} ort={ort} />
                 : <span aria-hidden className="mx-auto block h-[1em] w-24 animate-pulse rounded-md bg-white/[0.08]" />}
             </p>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>{titel}</T></p>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>{titel}</T></p>
           </div>
         ))}
       </div>
@@ -88,7 +88,7 @@ export default function StatistikZahlen() {
           <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
         </p>
       )}
-      <p className="relative mt-5 text-center text-[10px] text-slate-600">
+      <p className="relative mt-5 text-center text-[11px] text-slate-600">
         <T>Gezählt wird jeder Spieler im Archiv mit mindestens einem Match oder einem Foto.</T>
       </p>
     </div>

@@ -123,7 +123,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
         <div ref={heroRef} className="grid items-center gap-8 py-2 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]"
           onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <div key={`l${nr}`} className="sa-an px-1" style={{ animation: heroDrin ? 'sa-rein .5s cubic-bezier(.2,.8,.2,1) both' : undefined }}>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
               {nr === 0 ? <T>Letztes Turnier</T> : <T>Turnier</T>}
             </p>
             <h2 className="mt-2 text-3xl font-black leading-[1.05] tracking-tight text-slate-50 sm:text-4xl">{k.titel}</h2>
@@ -167,9 +167,9 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
             <span className="flex min-w-0 flex-1 flex-col justify-between p-5">
               <span>
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-zinc-950"><T>Tagesbester</T></span>
-                  <span className="rounded border border-sky-500/35 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-sky-300">{k.region}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{k.saisonText}</span>
+                  <span className="rounded bg-amber-400 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-zinc-950"><T>Tagesbester</T></span>
+                  <span className="rounded border border-sky-500/35 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-bold tracking-wider text-sky-300">{k.region}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{k.saisonText}</span>
                 </span>
                 <span className="mt-3 flex items-center gap-2.5">
                   <TeamFlagge groesse={22} laender={[k.spitze.land ?? undefined]} />
@@ -228,7 +228,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
             })}
           </div>
           <div className="px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500"><T>Regionen und Weltweit</T></p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500"><T>Regionen und Weltweit</T></p>
             <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-50 sm:text-4xl"><T>Sieben Regionen.</T></h3>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-400">
               <T>Alle Spieler aus dem Archiv, nach Heimatregion gezählt: die Besten jeder Region, die Bestenlisten der Saison und eine Liste für alle zusammen.</T>

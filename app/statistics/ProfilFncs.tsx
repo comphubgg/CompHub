@@ -260,7 +260,7 @@ export function KarriereBest({ tafel }: { tafel: TafelZeile[] }) {
   if (!beste.length) return null;
   return (
     <section>
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Karriere-Bestwerte</T></p>
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Karriere-Bestwerte</T></p>
       <div className="grid gap-2 sm:grid-cols-3">
         {beste.map((z) => (
           <div key={z.saison} className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5">

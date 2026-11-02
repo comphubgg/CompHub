@@ -9968,5 +9968,27 @@
     "ansehen": [
       "/statistics?bereich=spieler"
     ]
+  },
+  {
+    "id": "chef-449",
+    "datum": "2026-11-02T04:32:27Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Opus + Sonnet",
+    "titel": "Statistik-Kopf und Profil-Bestwerte: Schrift mindestens 11 Pixel",
+    "kurz": "Statistik oben (Zahlen, Aufmacher) und Profil „Career highs“: Kleinstschrift jetzt 11 statt 10 Pixel.",
+    "markieren": [
+      "text:Players",
+      "text:Regions and worldwide",
+      "text:Career highs"
+    ],
+    "warum": "Einige Beschriftungen waren noch 10 Pixel klein und schwer lesbar.",
+    "was": "Sie sind jetzt mindestens 11 Pixel groß.",
+    "ansehen": [
+      "/statistics"
+    ]
   }
 ]
