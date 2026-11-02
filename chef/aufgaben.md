@@ -12,7 +12,16 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Orgs-API: gleicher Betrag (oft kein Preisgeld) → nach Name sortiert** (app/api/orgs/route.ts ~188) – „nie alphabetisch“; Ersatzreihenfolge (Spielerzahl? Power Ranking?) mit dem Betreiber klären.
 - [ ] **Streams: getSortedStreamers wird nirgends benutzt** (Kommentar verspricht „Live nach Zuschauern“, sortiert aber nur alphabetisch) – toter Code; entfernen oder wirklich nach Zuschauern sortieren (zuschauerMap vorhanden).
 - [ ] **Vergleich → Form: wenn alle Werte beider Seiten unbekannt, leeres Diagramm ohne Hinweis** – Randfall.
-- [ ] **Statistik-Aufmacher: Regionen-Kästchen erscheinen erst nach dem Laden, Seite springt** – Platzhalter ergänzen.
+- [x] (chef-368) **Statistik-Aufmacher: Regionen-Block fehlte beim Laden/Ausfall samt Knopf „Regionen ansehen“.**
+- [x] (chef-369 bis chef-384) Kartenlink-Ausfall, Prognosen-Ausfall, Profil-Schriftgrößen, Scrims-Marken und -Ausfälle, Regionen-Turnierreihen nach Saisonwechsel, Cup-Spielerfenster (Übersetzung, Schrift, K/D bei teilweise gelesenen Replays), Globals-Karte, Globals/Solos-Schrift, toter Streams-Code, Karten-Editor-Übersetzung.
+- [ ] **Regionsmarke (RegionMarke in StatistikSeite) 9 px auf allen Reitern** – gemeinsam genutzt, vorsichtig vergrößern.
+- [ ] **Jahresbilanz/Regionen: beim Laden leerer Kasten (h-64) statt Ladeanzeige.**
+- [ ] **Cup-Spielerfenster: Kurven setzen fehlenden Match-Wert auf 0** (Einbruch statt Lücke); „Next update in 0 minutes“ bleibt nach fehlgeschlagener Auffrischung stehen.
+- [ ] **Cup-Spielerfenster: kumulierte Ansicht summiert auch Platzierung und Überlebenszeit** – Betreiber fragen, ob gewollt.
+- [ ] **Globals-Solos-Tafel: r.spieler[0] ungeprüft** (Absturz bei Zeile ohne Spieler, bisher nie gesehen); Punkte dort ohne Tausendertrennung.
+- [ ] **Prognosen: /api/spieler-laender und /api/spieler-profile fallen still aus** – Flaggen fehlen dann ohne Hinweis.
+- [ ] **Scrims Yunite-Pfad: ein einzelner Server-Ausfall ersetzt alles durch Beispiele.**
+- [ ] **Rückblick-Bild: leere Leinwand bis Schrift/Bilder geladen** – Ladeanzeige fehlt.
 
 ## Neu entdeckt (Runde 17, 02.11.2026)
 
