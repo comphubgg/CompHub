@@ -6491,5 +6491,28 @@
     "modell": "Sonnet (von Opus geprüft)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-294",
+    "datum": "2026-11-02T01:27:55Z",
+    "titel": "Verdienst: Jahr springt beim Spielerwechsel zurück",
+    "kurz": "Profil → Earnings: Jahr wählen, anderen Spieler öffnen – wieder „All time“.",
+    "markieren": [
+      "text:Period",
+      "text:All time"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer bei Spieler A das Jahr 2025 wählte und dann Spieler B öffnete, sah bei B nur 2025 – oft „$0“ und „keine Preisgelder“.",
+    "was": "Beim Öffnen eines Profils springt der Zeitraum jetzt auf „All time“, wie schon Kapitel und Saison.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [
+      "be6f476c2d92a044ab241e0a209a5ac753f87014"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]
