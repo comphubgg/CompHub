@@ -594,7 +594,9 @@ export default function EventsPage() {
    * ist die Region aus dem Filter, sonst Europa, sonst die erste des Cups.
    */
   const oeffnen = (c: Cup) => {
-    const regionen = Object.keys(c.regionen);
+    // Feste Folge (EU zuerst) statt Ladereihenfolge - sonst haengt bei gleichzeitigem Live oder Start das Ziel des Klicks vom Laden ab.
+    const rangR = (r: string) => { const i = REGIONEN.indexOf(r); return i < 0 ? REGIONEN.length : i; };
+    const regionen = Object.keys(c.regionen).sort((a, b) => rangR(a) - rangR(b));
     const basis = c.basisId ?? c.id;
     if (c.global || regionen.length <= 1) {
       const w1 = c.ausgabe !== undefined ? (regionen[0] ? c.regionen[regionen[0]] : []) : [];
@@ -609,7 +611,7 @@ export default function EventsPage() {
     const live = regionen.filter((x) => c.regionen[x].some((w) => laeuft(w, jetzt)));
     const kommend = regionen
       .map((x) => ({ x, begin: Math.min(...c.regionen[x].filter((w) => w.begin > jetzt).map((w) => w.begin)) }))
-      .filter((k) => Number.isFinite(k.begin)).sort((a, b) => a.begin - b.begin);
+      .filter((k) => Number.isFinite(k.begin)).sort((a, b) => a.begin - b.begin || rangR(a.x) - rangR(b.x));
     const r = region !== 'alle' && c.regionen[region] ? region
       : live.length ? (live.includes('EU') ? 'EU' : live[0])
       : kommend.length ? (kommend.some((k) => k.x === 'EU') ? 'EU' : kommend[0].x)

@@ -7703,5 +7703,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-348",
+    "datum": "2026-11-02T02:46:06Z",
+    "titel": "Turnier-Kachel öffnet bei Gleichstand immer dieselbe Region",
+    "kurz": "Events → Kachel ohne EU, in zwei Regionen live: Klick öffnet immer dieselbe Region.",
+    "markieren": [
+      "text:LIVE"
+    ],
+    "bereich": "Turniere",
+    "warum": "Lief ein Cup ohne Europa in zwei Regionen gleichzeitig, hing die geöffnete Region von der Ladereihenfolge ab.",
+    "was": "Die Kachel öffnet jetzt in fester Folge (EU, NAC, NAW, BR, ASIA, ME, OCE) – passend zur Marke auf der Kachel.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
