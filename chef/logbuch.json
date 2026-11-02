@@ -9907,5 +9907,25 @@
     "ansehen": [
       "/statistics"
     ]
+  },
+  {
+    "id": "chef-446",
+    "datum": "2026-11-02T04:31:52Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Orgs: Ausfall-Hinweis übersetzt",
+    "kurz": "Unsichtbar: Fällt die Org-Liste aus, steht der Hinweis jetzt auf Deutsch/Englisch passend.",
+    "markieren": [
+      "text:could not be loaded"
+    ],
+    "warum": "Bei einem Ausfall stand ein fester englischer Satz vom Server, auch auf der deutschen Seite.",
+    "was": "Es erscheint immer der übersetzte Hinweis.",
+    "ansehen": [
+      "/statistics?bereich=organisationen"
+    ]
   }
 ]

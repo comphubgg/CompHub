@@ -216,7 +216,7 @@ export default function Organisationen({ aufSpieler }: {
       .then(async (r) => {
         const j = await r.json().catch(() => null);
         if (weg) return;
-        if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? t('Die Organisationen ließen sich gerade nicht laden.')); neuVersuchen(); return; }
+        if (!r.ok || !j?.orgs) { setFehler(t('Die Organisationen ließen sich gerade nicht laden.')); neuVersuchen(); return; }
         setFehler('');
         // "Alle Jahre" noch nicht gerechnet (neu seit 30.9.2026, der
         // stuendliche Lauf legt es ab): dann das Jahr statt lauter Striche.
