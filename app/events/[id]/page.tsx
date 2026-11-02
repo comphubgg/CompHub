@@ -3845,7 +3845,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             </div>
                           </div>
                           <div className="shrink-0 text-right">
-                            <div className="text-sm font-bold tabular-nums text-slate-100">{m.elims ?? 0} Elims</div>
+                            <div className="text-sm font-bold tabular-nums text-slate-100">{typeof m.elims === 'number' ? m.elims.toLocaleString(ort) : '–'} Elims</div>
                             <div className="text-[11px] tabular-nums text-slate-500">{dauer(m.timeAlive ?? 0)}</div>
                           </div>
                         </div>
