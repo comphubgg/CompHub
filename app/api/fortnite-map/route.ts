@@ -32,6 +32,23 @@ interface Karte {
 
 let cache: Karte | null = null;
 
+/** Die neueste Kartenversion von fortnite.gg als PNG (halbe Stunde gemerkt) - oder null, wenn es keine gibt. */
+let ggMerker: { patch: string; png: Buffer; bis: number } | null = null;
+async function neuesteKartePng(frisch: boolean): Promise<{ patch: string; png: Buffer } | null> {
+  try {
+    const { neuesteKarte, kartenUpdateBild } = await import('@/lib/kartenUpdates');
+    const neu = await neuesteKarte();
+    if (!neu) return null;
+    if (!frisch && ggMerker && ggMerker.patch === neu.patch && Date.now() < ggMerker.bis) return ggMerker;
+    const r = await fetch(kartenUpdateBild(neu.img), { cache: 'no-store', signal: AbortSignal.timeout(30_000), headers: { 'User-Agent': 'Mozilla/5.0 CompHub' } });
+    if (!r.ok) return null;
+    const sharp = (await import('sharp')).default;
+    const png = await sharp(Buffer.from(await r.arrayBuffer())).png().toBuffer();
+    ggMerker = { patch: neu.patch, png, bis: Date.now() + HALTBAR };
+    return ggMerker;
+  } catch { return null; }
+}
+
 // Eine halbe Stunde. Kurz genug, dass ein neues Kartenbild am Season-Start
 // zeitnah durchkommt, lang genug um die Quelle nicht zu belasten.
 const HALTBAR = 30 * 60_000;
@@ -62,6 +79,20 @@ export async function GET(request: Request) {
   try {
     const karte = await holeKarte(frisch);
 
+    /*
+     * Die Karte ohne Namen kommt seit 2.11.2026 von fortnite.gg - die neueste Kartenversion (lib/kartenUpdates, Abgleich hoechstens
+     * stuendlich). fortnite-api.com hinkte nach dem Start von Season 43 tagelang hinterher (Betreiber: "auf fortnite.gg und ueberall ist die
+     * neue Map drauf, ausser bei uns"). Nur wenn fortnite.gg nicht antwortet, die Karte von fortnite-api.com.
+     */
+    if (bild === 'leer') {
+      const gg = await neuesteKartePng(frisch);
+      if (gg) {
+        return new NextResponse(new Uint8Array(gg.png), { headers: {
+          'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300, must-revalidate', 'CDN-Cache-Control': 'public, max-age=3600',
+          ETag: `"gg-${gg.patch}"`,
+        } });
+      }
+    }
     if (bild) {
       const url = bild === 'leer' ? karte.daten.images.blank : karte.daten.images.pois;
       const img = await fetch(url, { cache: 'no-store' });

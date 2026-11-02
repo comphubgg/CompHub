@@ -148,3 +148,25 @@ export async function sucheUndMelde(): Promise<{ neu: KartenUpdate[]; geprueft: 
   }
   return { ...r, gemeldet };
 }
+
+/** Die neueste Kartenversion, die bekannt ist (Liste + was der Abgleich gefunden hat) - nach Versionsnummer, nicht nach Fundtag. */
+export async function neuesteKarte(): Promise<KartenUpdate | null> {
+  let best: KartenUpdate | null = null; let top: [number, number] = [0, 0];
+  for (const u of await alleKartenUpdates()) {
+    const n = nummer(u.patch);
+    if (n && (n[0] > top[0] || (n[0] === top[0] && n[1] > top[1]))) { top = n; best = u; }
+  }
+  return best;
+}
+
+/*
+ * Der Abgleich nicht mehr nur einmal am Tag, sondern hoechstens einmal je Stunde aus dem Zehn-Minuten-Lauf der Kartenautomatik
+ * (Betreiber, 1.11.2026: "heute ist der 1.11. und die neue Map ist bei fortnite.gg und ueberall, ausser bei uns - automatisiert das wirklich").
+ */
+let zuletztGesucht = 0;
+export async function sucheUndMeldeHoechstensStuendlich(): Promise<{ neu: KartenUpdate[]; neueste: string } | null> {
+  if (Date.now() - zuletztGesucht < 60 * 60_000) return null;
+  zuletztGesucht = Date.now();
+  const r = await sucheUndMelde();
+  return { neu: r.neu, neueste: r.neueste };
+}

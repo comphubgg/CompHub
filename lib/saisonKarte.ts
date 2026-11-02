@@ -80,8 +80,16 @@ export async function saisonKartenPflegen(fenster: Array<{ windowId: string; beg
     const n = saisonVon(f.windowId);
     if (n && Number.isFinite(f.begin)) saisons.set(n, Math.min(saisons.get(n) ?? Infinity, f.begin));
   }
-  // Die laufende Saison: die juengste, von der schon ein Spieltag begonnen hat.
+  // Die laufende Saison: die juengste, von der schon ein Spieltag begonnen hat - ODER deren Karte fortnite.gg schon fuehrt ("<N>.00").
+  // Am 1.11.2026 begann Season 43, der erste S43-Cup aber erst am 3.11.: bis dahin blieb die alte Insel stehen (Betreiber: "ueberall drauf,
+  // ausser bei uns"). Jetzt zaehlt auch die neueste Kartenversion bei fortnite.gg (lib/kartenUpdates, hoechstens stuendlich abgeglichen).
   const begonnen = [...saisons].filter(([, b]) => b <= jetzt).map(([n]) => n);
+  try {
+    const { neuesteKarte } = await import('@/lib/kartenUpdates');
+    const neu = await neuesteKarte();
+    const haupt = neu ? Number(/^(\d+)\./.exec(neu.patch)?.[1]) : NaN;
+    if (Number.isFinite(haupt) && haupt > 0) begonnen.push(haupt);
+  } catch { /* ohne Liste wie bisher ueber die Spieltage */ }
   if (!begonnen.length) return { inseln, log };
   const laufend = Math.max(...begonnen);
   const zugeordnet = Object.keys(inseln).map((k) => /^BR:S(\d+)$/.exec(k)).filter(Boolean).map((m) => Number(m![1]));
@@ -95,12 +103,16 @@ export async function saisonKartenPflegen(fenster: Array<{ windowId: string; beg
       // Erster Lauf: die Karte von heute gehoert zur laufenden Saison.
       bild = heute; titel = `Battle Royale - S${laufend} (Stand ${new Date().toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich' })})`;
     } else {
-      const alt = await fs.readFile(path.join(ORDNER, `${inseln[brSchluessel(vorige)]}.png`)).catch(() => null) as Buffer | null;
-      if (heute && (!alt || pruef(heute) !== pruef(alt))) { bild = heute; titel = `Battle Royale - S${laufend}`; }
+      // Zuerst fortnite.gg ("<N>.00"): dort liegt die neue Insel ab dem Season-Start. fortnite-api.com lieferte am 1./2.11.2026 noch Tage
+      // spaeter ein ganz anderes Bild - ein "hat sich geaendert" hiess dort nicht "ist die neue Insel". Die Karte von heute nur, wenn
+      // fortnite.gg nichts hat.
+      bild = await patchBild(laufend);
+      if (bild) titel = `Battle Royale - S${laufend} (Update ${laufend}.00)`;
       else {
-        bild = await patchBild(laufend);
-        if (bild) titel = `Battle Royale - S${laufend} (Update ${laufend}.00)`;
-        else log.push(`S${laufend}: die neue Insel gibt es noch nirgends - bis dahin die Karte von heute`);
+        const alt = await fs.readFile(path.join(ORDNER, `${inseln[brSchluessel(vorige)]}.png`)).catch(() => null) as Buffer | null;
+        if (heute && alt && pruef(heute) !== pruef(alt) && laufend <= Math.max(...[...saisons].filter(([, b]) => b <= jetzt).map(([n]) => n), 0)) {
+          bild = heute; titel = `Battle Royale - S${laufend}`;
+        } else log.push(`S${laufend}: die neue Insel gibt es noch nirgends - bis dahin die Karte von heute`);
       }
     }
     if (bild) {
