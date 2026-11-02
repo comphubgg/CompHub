@@ -3859,7 +3859,7 @@
     "id": "chef-177",
     "datum": "2026-11-01T03:35:00Z",
     "titel": "Regionen über alle Saisons: Reiter nennen die Saison",
-    "kurz": "Regionen → alle Saisons: Reiter „Chapter 7 Season 4 · Week 4 · Finals“ statt viermal gleich.",
+    "kurz": "Regionen → alle Saisons: Reiter tragen jetzt den Saisonnamen vorn.",
     "markieren": [
       "text:Week 4"
     ],
@@ -4402,7 +4402,7 @@
     "id": "chef-201",
     "datum": "2026-11-01T03:45:00Z",
     "titel": "Verdienst: Global Championships mit LAN-Name und Endplatz",
-    "kurz": "Profil Vico → Earnings: Globals 2026 „LAN · Antwerp“, Platz 3 statt „Day 2“, Platz 7.",
+    "kurz": "Profil Vico → Earnings: Globals 2026 als „LAN · Antwerp“, echter Platz 3.",
     "markieren": [
       "text:FNCS Global Championship 2026",
       "text:LAN"
@@ -5297,7 +5297,7 @@
     "id": "chef-241",
     "datum": "2026-11-01T04:58:44Z",
     "titel": "Cup-Kachel „Alle anzeigen“ zeigt die Summe aller Tage",
-    "kurz": "Finale über mehrere Tage → Kachel öffnen: Liste zeigt jetzt die Summe, nicht einen Tag.",
+    "kurz": "Mehrtägiges Finale → Kachel öffnen: Liste zeigt die Summe aller Tage.",
     "markieren": [
       "text:Best K/D",
       "text:Longest Avg Time Alive"
@@ -5434,7 +5434,7 @@
     "id": "chef-247",
     "datum": "2026-11-01T05:09:30Z",
     "titel": "Replay: Spielerfenster zeigt dieselben Treffer wie die Tabelle",
-    "kurz": "Replay → Spieler auf der Karte anklicken: Treffer und Damage stimmen jetzt mit der Tabelle.",
+    "kurz": "Replay → Spieler auf Karte anklicken: Treffer und Damage wie in Tabelle.",
     "markieren": [
       "text:Damage",
       "text:Headshots"
@@ -5457,7 +5457,7 @@
     "id": "chef-248",
     "datum": "2026-11-01T05:09:50Z",
     "titel": "Cup-Spieler: keine halbe Summe über mehrere Tage",
-    "kurz": "Unsichtbar: Finals über mehrere Tage → Spieler: kein Schaden nur eines Tages neben Elims beider Tage.",
+    "kurz": "Unsichtbar: Mehrtägige Finals → Spieler: kein halber Schaden neben vollen Elims.",
     "markieren": [
       "text:Damage Ratio",
       "text:Time Alive"
@@ -5684,7 +5684,7 @@
     "id": "chef-258",
     "datum": "2026-11-01T06:05:00Z",
     "titel": "Power Rankings: Seitenfuß nennt echte Plätze",
-    "kurz": "Power Rankings → unter der Liste: echte Plätze statt Zählung; bei Suche „Result 1 to 3“.",
+    "kurz": "Power Rankings → unter der Liste: echte Plätze, bei Suche Trefferzahl.",
     "markieren": [
       "css:[data-tour=\"rankingsFooter\"]",
       "text:Rank"
@@ -5977,7 +5977,9 @@
     "id": "chef-271",
     "titel": "Ranked-Cup: weniger Namensabfragen",
     "kurz": "Unsichtbar: Ranked-Kopf im Spielerprofil lädt schneller (nur 25 Namen statt alle).",
-    "markieren": [],
+    "markieren": [
+      "text:Ranked"
+    ],
     "bereich": "Statistik",
     "warum": "Die Abfrage löste die Namen aller Spieler bei Epic auf, gezeigt wurden aber nur 25.",
     "was": "Jetzt werden nur die 25 gezeigten Namen geholt, doppelte nur einmal.",
@@ -6019,7 +6021,7 @@
   {
     "id": "chef-273",
     "titel": "Globals-Duo: Ausfall nicht als „nie zusammen gespielt“",
-    "kurz": "Unsichtbar: Globals → Teams → Duo öffnen: bei Ausfall „nicht ladbar“ statt „keine gemeinsamen Cups“.",
+    "kurz": "Unsichtbar: Globals → Teams → Duo: Ausfall heißt „nicht ladbar“, nicht „keine Cups“.",
     "markieren": [
       "text:Played together — this season"
     ],
@@ -6088,7 +6090,9 @@
     "id": "chef-276",
     "titel": "Spieler-Center: Ausfall ohne Server-Fehler",
     "kurz": "Unsichtbar: fällt das Archiv aus, antwortet die Spielerliste im Admin ohne Server-Fehler.",
-    "markieren": [],
+    "markieren": [
+      "css:main table"
+    ],
     "bereich": "Statistik",
     "warum": "Fiel neben der vorgerechneten Liste auch das Archiv aus, kam ein Server-Fehler (500) – der Lastverteiler macht daraus eine Fehlerseite.",
     "was": "Jetzt kommt eine geordnete Antwort „gerade nicht erreichbar“ mit neuem Versuch nach zwei Minuten.",
@@ -6176,7 +6180,7 @@
   {
     "id": "chef-280",
     "titel": "Player Stats je Platzgruppe: Schnitt nur über Spieler mit Wert",
-    "kurz": "Cup-Seite → Player Stats → „Platz 26 bis 100“: fehlender Schaden „–“, Schnitt nicht zu niedrig.",
+    "kurz": "Cup → Player Stats → „Platz 26 bis 100“: fehlender Schaden als „–“.",
     "markieren": [
       "text:Damage To Players",
       "text:Average per Player"
