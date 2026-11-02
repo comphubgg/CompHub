@@ -6468,5 +6468,28 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-293",
+    "datum": "2026-11-02T01:24:18Z",
+    "titel": "Quoten-Listen: Mindestzahl aus den Matches mit Wert",
+    "kurz": "Statistik → „Best damage ratio“: nur Quoten aus genug Matches mit Schaden.",
+    "markieren": [
+      "text:Best damage ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer 12 Matches hatte, aber nur 2 mit Schadenswerten, kam mit einer Quote aus 2 Matches über die Grenze „ab 10 Matches“.",
+    "was": "Gezählt werden jetzt nur die Matches, aus denen die Quote wirklich gerechnet ist; die Grenzen selbst bleiben gleich.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=spieler&sort=quote"
+    ],
+    "commits": [
+      "9483bb92a27e0ee4110c1eb376789dcb1b5aa50e"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "status": "wartet",
+    "runde": 1
   }
 ]

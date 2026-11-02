@@ -431,3 +431,4 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
 - [ ] **Spieltag-Bestenlisten: Quoten-Listen fehlen bei Feldern mit höchstens 2 Matches** (Mindestzahl max(3, …)) – Helfer-Vorschlag „Mindestzahl höchstens meiste Matches“ nicht übernommen (Quote aus 1 Match); Betreiber fragen.
 - [x] (chef-292) **Twitch-Tabelle: 0 Raids als „—“**, Kachel zeigt „0“ – klein, nur VIP.
 - [ ] **Replays: gleiche Startzeit zweier Games ohne feste Reihenfolge** (S42 LCQ NAC) – Reihenfolge festlegen würde Game-Nummern/Adressen verschieben; Betreiber fragen.
+- [x] (chef-293) Quoten-Mindestzahl aus den Matches mit Wert. Offen: Tagesbester Eliminierer lässt Spieler ohne bestätigte Team-Kills weg (eigene Team-Tage) – beobachten.
