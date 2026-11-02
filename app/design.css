@@ -7,7 +7,12 @@
  * data-design="alt" und bleibt, wie sie war.
  */
 
-html[data-design="neu"] body {
+/*
+ * Schrift, Groesse und Kopfzeile gelten seit 2.11.2026 auf JEDER Seite, auch auf Streams (data-design="alt"). Der Betreiber: "auf der Home-Seite
+ * sieht alles so klein aus, auf der Streams-Page alles so gross - das darf nicht passieren". Vorher hatte Streams eine andere, breitere Schrift,
+ * ignorierte die Schriftgroesse aus dem Zahnrad und zeigte die Kopfzeile im alten Kasten-Stil. Die Farben der Streams-Seite bleiben, wie sie sind.
+ */
+html body {
   font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
   line-height: 1.6;
@@ -44,21 +49,21 @@ html[data-modus="hell"] * { scrollbar-color: #9aa6ba #c9d0dc; }
  * Die Kopfzeile des neuen Designs: kein Kasten um die Leiste, sondern Text mit Unterstreichung. Der aktive Eintrag traegt einen
  * Balken im Blau der Startseite, die uebrigen bekommen ihn beim Ueberfahren.
  */
-html[data-design="neu"] .kopf-nav a { position: relative; }
-html[data-design="neu"] .kopf-nav a::after {
+html .kopf-nav a { position: relative; }
+html .kopf-nav a::after {
   content: ''; position: absolute; left: 0.9rem; right: 0.9rem; bottom: 0.2rem; height: 2px; border-radius: 2px;
   background: #0ea5e9; transform: scaleX(0); transform-origin: left; transition: transform .22s ease;
 }
-html[data-design="neu"] .kopf-nav a:hover::after,
-html[data-design="neu"] .kopf-nav a[aria-current="page"]::after { transform: scaleX(1); }
+html .kopf-nav a:hover::after,
+html .kopf-nav a[aria-current="page"]::after { transform: scaleX(1); }
 
 /*
  * Einstellungen aus dem Zahnrad unten rechts (Betreiber, 14.10.2026).
  * Schriftgroesse: Tailwind rechnet in rem, also skaliert die Grundschrift die ganze Seite mit. Gilt nur im neuen Design - die Streams-Seite
  * bleibt, wie sie ist.
  */
-html[data-design="neu"][data-groesse="klein"] { font-size: 93.75%; }
-html[data-design="neu"][data-groesse="gross"] { font-size: 112.5%; }
+html[data-groesse="klein"] { font-size: 93.75%; }
+html[data-groesse="gross"] { font-size: 112.5%; }
 
 /* Animationen aus: Uebergaenge und Bewegungen fallen weg, der Zustand wechselt sofort. */
 html[data-bewegung="aus"] *, html[data-bewegung="aus"] *::before, html[data-bewegung="aus"] *::after {
