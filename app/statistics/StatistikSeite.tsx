@@ -5355,7 +5355,8 @@ export default function StatistikSeite() {
                             setListenTiefe(50);
                             setListenSeite(1);
                           }}
-                            title={t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
+                            /* Preisgeld: die Antwort trägt nur 200 Plätze, die volle Liste holt der Klick (bei "Alle Zeit" über sechstausend) - eine Zahl am Knopf wäre falsch. */
+                            title={l.feld === 'verdienst' ? t('Alle anzeigen') : t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
                             className="grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm
                                        leading-none text-slate-400 transition hover:border-sky-500
                                        hover:text-sky-500">

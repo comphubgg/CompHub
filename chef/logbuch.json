@@ -10123,5 +10123,25 @@
     "ansehen": [
       "/globals"
     ]
+  },
+  {
+    "id": "chef-456",
+    "datum": "2026-11-02T04:42:20Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Jahresbilanz: Preisgeld-Knopf ohne falsche Zahl",
+    "kurz": "Jahresbilanz → Plus bei „Meistes Preisgeld“: sagt „Show all“ statt „Show all 200“.",
+    "markieren": [
+      "text:Show all"
+    ],
+    "warum": "Der Knopf versprach 200 Plätze, der Klick holt aber die ganze Liste (bei „Alle Zeit“ über 6.000).",
+    "was": "Beim Preisgeld steht jetzt nur „Alle anzeigen“.",
+    "ansehen": [
+      "/statistics?bereich=jahr"
+    ]
   }
 ]
