@@ -2684,9 +2684,14 @@ export default function TweetSeite() {
       if (auswahl.soloFeld) {
         const feld = auswahl.soloFeld;
         const klammer = auswahl.soloKlammer;
+        // Die Trefferquote zaehlt erst ab einer Mindestzahl an Spielen - dieselbe
+        // Regel wie in den Bestenlisten (Haelfte der meisten Spiele, 3 bis 20).
+        const meisteSpiele = einzelwerte.reduce((m, p) => Math.max(m, Number(p.matches) || 0), 0);
+        const mindestSpiele = feld === 'genauigkeit' && meisteSpiele
+          ? Math.max(3, Math.min(20, Math.round(meisteSpiele / 2))) : 0;
         const roh = einzelwerte
           .map((sp) => ({ sp, wert: Number(sp[feld] ?? 0) }))
-          .filter((x) => x.wert > 0)
+          .filter((x) => x.wert > 0 && (Number(x.sp.matches) || 0) >= mindestSpiele)
           .sort((a, b) => b.wert - a.wert)
           .slice(0, auswahl.grenze ?? 10);
 

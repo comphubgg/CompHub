@@ -7901,5 +7901,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-357",
+    "datum": "2026-11-02T02:52:03Z",
+    "titel": "Admin-Tweets: „best N accuracy“ mit Mindestspielen",
+    "kurz": "Admin → Tweets, Kurzbefehl „best 5 accuracy“: Trefferquote erst ab Mindestzahl an Spielen.",
+    "markieren": [
+      "text:Best Accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Kurzbefehl fehlte die Mindestzahl an Spielen – ein Spieler mit einem Spiel und 100 % konnte ganz oben stehen.",
+    "was": "Jetzt gilt dieselbe Regel wie in den normalen Tweet-Listen: Hälfte der meisten Spiele, mindestens 3, höchstens 20.",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
