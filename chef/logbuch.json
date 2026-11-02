@@ -9555,5 +9555,26 @@
       "/tournament-maps"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T04:05:00Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-432",
+    "titel": "Turnierkarten-Werkzeug: Meldungen und Knöpfe übersetzt",
+    "kurz": "Kartenseite (Bearbeiten): 13 Meldungen, Knöpfe und Hinweise jetzt auch auf Englisch.",
+    "markieren": [
+      "text:Upload PNG",
+      "text:Stop editing"
+    ],
+    "bereich": "Karten",
+    "warum": "Auf der englischen Seite standen Statusmeldungen, Tooltips und ein Hinweis noch auf Deutsch.",
+    "was": "Sie laufen jetzt über die Übersetzung.",
+    "ansehen": [
+      "/maps"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

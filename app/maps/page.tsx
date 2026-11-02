@@ -1417,9 +1417,9 @@ export default function KartenSeite(
     const gehoben = migriereZuordnung(treffer);
     setSpots(gehoben.spots);
     setTeams(gehoben.teams);
-    setStatus(`Gespeicherte Zuordnung von ${new Date(treffer.geaendert)
+    setStatus(uebs('Gespeicherte Zuordnung von {wann} geladen').replace('{wann}', new Date(treffer.geaendert)
       .toLocaleString(ortJetzt(), { day: '2-digit', month: '2-digit',
-        hour: '2-digit', minute: '2-digit' })} geladen`);
+        hour: '2-digit', minute: '2-digit' })));
   }
 
   /**
@@ -1514,7 +1514,7 @@ export default function KartenSeite(
         const vor = vorrundeZu(f.windowId);
         if (vor) {
           roh = await holen(vor.eventId, vor.windowId);
-          if (roh.length) woher = ` — die besten ${roh.length} der Vorrunde`;
+          if (roh.length) woher = String(roh.length);
         }
       }
       const alleTeams: KartenTeam[] = roh.map((e, i) => {
@@ -1542,7 +1542,7 @@ export default function KartenSeite(
           : begrenzeTeams(zusammen, new Set(spotsAktuell.current.flatMap((sp) => sp.teams)));
       });
       setStatus(liste.length
-        ? `${liste.length} Teams geladen${woher}`
+        ? `${liste.length} ${uebs('Teams geladen')}${woher ? ` — ${uebs('die besten {n} der Vorrunde').replace('{n}', woher)}` : ''}`
         : uebs('Noch keine Ergebnisse'));
     } catch (e) {
       setStatus((e as Error).message);
@@ -2689,8 +2689,8 @@ export default function KartenSeite(
     if (ziel) { teamAufSpot(teamId, ziel.id); setStatus(''); return; }
     // Mit Zahlen: so laesst sich unterscheiden, ob daneben abgelegt wurde
     // oder ob die Umrechnung nicht stimmt.
-    setStatus(`Dort ist keine Form — abgelegt bei ${p.x.toFixed(1)} / ${p.y.toFixed(1)}`
-      + ` (${spots.length} Formen vorhanden)`);
+    setStatus(uebs('Dort ist keine Form — abgelegt bei {x} / {y} ({n} Formen vorhanden)')
+      .replace('{x}', p.x.toFixed(1)).replace('{y}', p.y.toFixed(1)).replace('{n}', String(spots.length)));
   }
 
   /* --------------------------------------------------------- Aktionen */
@@ -2738,8 +2738,8 @@ export default function KartenSeite(
       && (k.bildId ?? '') === bildId);
     if (schonDa) {
       if (!still) {
-        setStatus(`Zu diesem Spieltag gibt es bereits eine Karte auf "${bildName}"`
-          + ` ("${schonDa.titel}"). Waehle ein anderes Kartenbild oder oeffne die vorhandene.`);
+        setStatus(uebs('Zu diesem Spieltag gibt es bereits eine Karte auf „{bild}“ („{titel}“). Wähle ein anderes Kartenbild oder öffne die vorhandene.')
+          .replace('{bild}', bildName).replace('{titel}', schonDa.titel));
       }
       return;
     }
@@ -2955,7 +2955,7 @@ export default function KartenSeite(
     setBildId(j.karte.id);
     setBildStand(Date.now());
     setNeuerTitel('');
-    setStatus(`"${j.karte.titel}" ist hinterlegt`);
+    setStatus(uebs('„{titel}“ ist hinterlegt').replace('{titel}', j.karte.titel));
   }
 
   /**
@@ -3020,7 +3020,7 @@ ${name}
     const liste = await fetch('/api/karten-bild').then((x) => x.json());
     setBilder(liste.karten ?? []);
     setBenennt(null);
-    setStatus(`heisst jetzt "${name}"`);
+    setStatus(uebs('heißt jetzt „{name}“').replace('{name}', name));
   }
 
   // Zum Loeschen eines Kartenbildes gibt es hier bewusst keinen Weg mehr.
@@ -3535,7 +3535,7 @@ ${name}
             gewaehltRef.current = gewaehlterSpot.id;
           }}
           style={{ left: `${p.x}%`, top: `${p.y}%` }}
-          title="Ecke ziehen"
+          title={uebs('Ecke ziehen')}
           className="karten-fest absolute z-20 flex h-6 w-6 cursor-grab items-center justify-center">
           {/* Die Schaltflaeche ist bewusst groesser als der sichtbare Punkt,
               damit man sie auch schnell trifft. */}
@@ -3766,7 +3766,7 @@ ${name}
                   stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
                   <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
                 </svg>
-                {bearbeitenAn ? 'Bearbeiten beenden' : 'Diese Karte bearbeiten'}
+                {uebs(bearbeitenAn ? 'Bearbeiten beenden' : 'Diese Karte bearbeiten')}
               </button>
             )}
           </div>
@@ -4336,7 +4336,7 @@ ${name}
                         eine Karte gekostet, und die Bilder sind nicht wieder
                         zu beschaffen. Umbenennen genuegt zum Aufraeumen. */}
                     <button onClick={() => { setBenennt(b.id); setBenenntTitel(b.titel); }}
-                      title="Umbenennen"
+                      title={uebs('Umbenennen')}
                       className="text-slate-500 hover:text-sky-400">✎</button>
                   </>
                 )}
@@ -4356,7 +4356,7 @@ ${name}
             <label className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] ${
               neuerTitel.trim() ? "border-sky-500 bg-sky-950/40 text-sky-400"
                                 : "border-zinc-800 text-slate-600"}`}>
-              PNG hochladen
+              {uebs('PNG hochladen')}
               <input type="file" accept="image/*" className="hidden"
                 disabled={!neuerTitel.trim()}
                 onChange={(e) => {
@@ -4408,17 +4408,14 @@ ${name}
                   <T>Gespeichert — aber noch nicht öffentlich</T>
                 </p>
                 <p className="mt-1 text-slate-300">
-                  Ohne <span className="text-slate-100">Cup</span> <T>und</T>
-                  {' '}<span className="text-slate-100"><T>Spieltag</T></span> fehlt die Zuordnung,
-                  deshalb taucht die Karte bei den Events nicht auf. Beides oben auswählen
-                  und noch einmal speichern.
+                  <T>Ohne Cup und Spieltag fehlt die Zuordnung, deshalb taucht die Karte bei den Events nicht auf. Beides oben auswählen und noch einmal speichern.</T>
                 </p>
               </>
             )}
           </div>
         )}
 
-        {status && <p className="mb-3 text-xs text-slate-500">{status}</p>}
+        {status && <p className="mb-3 text-xs text-slate-500">{uebs(status)}</p>}
 
         {/* Drei Spalten: links die Turnierkarten, in der Mitte die Karte,
             rechts die Teams. Die Karte steht damit mittig im Bild, statt an
@@ -4463,7 +4460,7 @@ ${name}
                       </a>
                       {!sichtbar && (
                         <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5
-                                         text-[10px] text-slate-400">versteckt</span>
+                                         text-[10px] text-slate-400">{uebs('versteckt')}</span>
                       )}
                       {/*
                         * Das rote Kreuz loescht - nach Rueckfrage mit dem Namen.

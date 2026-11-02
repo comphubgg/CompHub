@@ -5122,6 +5122,21 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Most Mats Used': 'Meistes verbautes Material', 'Most Chests Opened': 'Meiste geöffnete Kisten', 'Most Heals Used': 'Meiste Heilung genutzt',
   'Most Shields Used': 'Meiste Schilde genutzt', 'Most Distance Traveled': 'Längste Strecke', 'Most Time Alive': 'Längste Zeit am Leben',
   'Longest Avg Time Alive': 'Längste Ø-Lebenszeit',
+
+  // Turnierkarten (app/maps/page.tsx): Meldungen und Beschriftungen, die vorher deutsch stehen blieben.
+  'Gespeicherte Zuordnung von {wann} geladen': 'Saved assignment from {wann} loaded',
+  'Teams geladen': 'teams loaded',
+  'die besten {n} der Vorrunde': 'the best {n} of the preliminary round',
+  'Dort ist keine Form — abgelegt bei {x} / {y} ({n} Formen vorhanden)': 'There is no shape there - dropped at {x} / {y} ({n} shapes present)',
+  'Zu diesem Spieltag gibt es bereits eine Karte auf „{bild}“ („{titel}“). Wähle ein anderes Kartenbild oder öffne die vorhandene.': 'There is already a map for this match day on “{bild}” (“{titel}”). Pick a different map image or open the existing one.',
+  '„{titel}“ ist hinterlegt': '“{titel}” is saved',
+  'heißt jetzt „{name}“': 'is now called “{name}”',
+  'Name gemerkt — gilt ab jetzt in jedem Cup': 'Name saved - applies to every cup from now on',
+  'Hochladen fehlgeschlagen': 'Upload failed',
+  'Bearbeiten beenden': 'Stop editing',
+  'versteckt': 'hidden',
+  'PNG hochladen': 'Upload PNG',
+  'Ohne Cup und Spieltag fehlt die Zuordnung, deshalb taucht die Karte bei den Events nicht auf. Beides oben auswählen und noch einmal speichern.': 'Without a cup and match day the map has no assignment, so it does not appear under the events. Pick both above and save again.',
 };
 
 /**
