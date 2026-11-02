@@ -5775,7 +5775,7 @@ export default function StatistikSeite() {
               </div>
 
               {/* Die ersten Drei der gewaehlten Liste und Region, mit Foto (Betreiber, 19.10.2026) - wechselt mit Sortierung, Region und Saison. */}
-              {!spielerFehlt && !grundFehlt && !suche && gezeigteSpieler.length >= 3 && (
+              {!spielerFehlt && !grundFehlt && !suche && !laedt && gezeigteSpieler.length >= 3 && (
                 <div className="mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
                   <p className="px-5 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                     {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
@@ -5788,6 +5788,14 @@ export default function StatistikSeite() {
                       return feldText(sp, sort, nk, sprache, sort === 'genauigkeit' ? ' %' : '');
                     }} />
                 </div>
+              )}
+
+              {/* Wechselt Sortierung, Region oder Suche, steht bis zur Antwort noch die alte Liste da - ohne Hinweis sähe sie wie die neue aus. */}
+              {laedt && spieler.length > 0 && !spielerFehlt && (
+                <p className="mb-3 flex items-center gap-2 text-xs text-slate-500" role="status">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-500" />
+                  {t('Liste wird geladen …')}
+                </p>
               )}
 
               {grundFehlt || spielerFehlt ? (

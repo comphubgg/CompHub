@@ -8711,5 +8711,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-393",
+    "datum": "2026-11-02T03:27:46Z",
+    "titel": "Spielerliste: Ladehinweis beim Umsortieren",
+    "kurz": "Statistik → Spieler, Sortierung wechseln: „Liste wird geladen …“ statt alter Liste ohne Hinweis.",
+    "markieren": [
+      "text:Loading list",
+      "css:.animate-spin"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bis zur Antwort (bis 7 Sekunden) stand die alte Liste da, das Treppchen trug schon die neue Beschriftung.",
+    "was": "Während des Ladens steht ein Ladehinweis über der Liste, das Treppchen wartet.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
