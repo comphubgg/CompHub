@@ -7498,5 +7498,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-339",
+    "datum": "2026-11-02T02:38:52Z",
+    "titel": "Jahresbilanz: Ausfall zeigt Hinweis statt Liste des vorigen Jahres",
+    "kurz": "Statistik → Jahr wechseln bei Ausfall: Hinweis „nicht erreichbar“ statt alter Liste unter neuem Jahr.",
+    "markieren": [
+      "text:The numbers are not reachable right now. Trying again in a moment."
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel das Laden nach einem Wechsel von Jahr, Region oder Saison aus, blieb die vorige Liste unter der neuen Überschrift stehen.",
+    "was": "Jetzt erscheint der Hinweis, dass die Zahlen gerade nicht erreichbar sind, und es wird nach 10 Sekunden neu versucht.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2025"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

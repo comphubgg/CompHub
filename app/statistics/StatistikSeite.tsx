@@ -2943,6 +2943,8 @@ export default function StatistikSeite() {
       })
       .catch(() => {
         if (weg) return;
+        /* Das Jahr davor weg: sonst steht dessen Liste unter der neuen Wahl, und der Ausfall bliebe unsichtbar (wie bei der Region). */
+        setJahr(null);
         setJahrFehlt(true);
         nochmal = setTimeout(() => { if (!weg) setJahrVersuch((v) => v + 1); }, 10_000);
       })
