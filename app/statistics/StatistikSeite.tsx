@@ -824,7 +824,8 @@ function kapitelName(kurz: string) {
  * Chapter 6, ab S39 Chapter 7.
  */
 function kapitelVonSaison(kennung: string, name?: string): number {
-  const m = /^Chapter (\d+)/.exec(name ?? '');
+  // Nur "Chapter N Season ...": "Chapter 2 Remix" (S32) lief im Chapter 5 und zaehlt deshalb ueber die Nummer.
+  const m = /^Chapter (\d+) Season/.exec(name ?? '');
   if (m) return Number(m[1]);
   const n = Number((kennung.match(/^S(\d+)$/) ?? [])[1] ?? 0);
   if (!n) return 1;

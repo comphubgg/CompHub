@@ -9638,5 +9638,25 @@
       "/statistics?bereich=regional"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:08:34Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-436",
+    "titel": "Zeitraum-Auswahl: Chapter 2 Remix steht bei Chapter 5",
+    "kurz": "Spielerprofil → Zeitraum/Verdienst: „Remix“ steht jetzt unter Chapter 5 statt Chapter 2.",
+    "markieren": [
+      "text:Remix"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Saison „Chapter 2 Remix“ lief Ende 2024 im Chapter 5, stand aber wegen ihres Namens bei Chapter 2.",
+    "was": "Sie wird jetzt nach ihrer Zeit eingeordnet; Name und Summen bleiben gleich.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "modell": "Sonnet (Fund) + Opus (gekürzt: Umbenennung verworfen)"
   }
 ]
