@@ -42,6 +42,7 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  * Sortiert nach Bereichen, damit sich beim Nachtragen etwas finden laesst.
  */
 const AUF_ENGLISCH: Record<string, string> = {
+  'Radar': 'Radar', 'Formverlauf': 'Form over time',
   // ------------------------------------------------------------ Lieblingsspieler
   'Epic liefert gerade nichts.': 'Epic is not returning any data right now.',
   'Deine Spieler': 'Your players',
@@ -4995,6 +4996,9 @@ const AUF_ENGLISCH: Record<string, string> = {
  * die andere Richtung, damit im deutschen Modus wirklich alles deutsch ist.
  */
 const AUF_DEUTSCH: Record<string, string> = {
+  // Radar im Spielervergleich (app/statistics/Vergleich.tsx): Achsenbeschriftungen stehen dort englisch im Code.
+  'DAMAGE': 'SCHADEN', 'DMG RATIO': 'SCHADENSQUOTE', 'ACCURACY': 'TREFFERQUOTE', 'HEADSHOTS': 'KOPFTREFFER',
+  'BUILDS': 'BAUTEILE', 'MATS': 'MATERIAL', 'HITS': 'TREFFER', 'ELIMS': 'ELIMS',
   // Spielerfenster eines Cups (app/events/[id]/SpielerDetail.tsx): Zeilentitel und Beschriftungen stehen dort englisch im Code.
   'Stat': 'Wert', 'Points': 'Punkte', 'points': 'Punkte', 'Matches': 'Spiele', 'Wins': 'Siege',
   'Avg Time Alive': 'Ø Überlebenszeit', 'Avg Placement': 'Ø Platzierung', 'Avg Points': 'Ø Punkte',

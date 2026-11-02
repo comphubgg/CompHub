@@ -280,6 +280,7 @@ function Board({ links, rechts, nameL, nameR, loc }: { links: Summe; rechts: Sum
 }
 
 function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; nameL: string; nameR: string }) {
+  const t = useT();
   const n = ACHSEN.length;
   const R = 130;
   const mitteX = 240;
@@ -308,7 +309,7 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
         <span className="min-w-0 truncate text-right text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameR}</span>
       </div>
-      <svg viewBox="0 0 480 420" className="mx-auto block w-full max-w-[560px]" role="img" aria-label="Radar">
+      <svg viewBox="0 0 480 420" className="mx-auto block w-full max-w-[560px]" role="img" aria-label={t('Radar')}>
         {[0.25, 0.5, 0.75, 1].map((s) => (
           <polygon key={s} points={ACHSEN.map((_, i) => punkt(i, s).join(',')).join(' ')} fill="none" stroke="currentColor" className="text-white/[0.1]" strokeWidth="1" />
         ))}
@@ -319,7 +320,7 @@ function Radar({ links, rechts, nameL, nameR }: { links: Summe; rechts: Summe; n
               <line x1={mitteX} y1={mitteY} x2={x} y2={y} stroke="currentColor" className="text-white/[0.08]" />
               <text x={lx} y={ly} textAnchor={Math.abs(lx - mitteX) < 8 ? 'middle' : lx > mitteX ? 'start' : 'end'} dominantBaseline="middle"
                 className={anteile[i][0] === null && anteile[i][1] === null ? 'fill-slate-600' : 'fill-slate-300'} style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1 }}>
-                {a.titel}
+                <T>{a.titel}</T>
                 {anteile[i][0] === null && <tspan fill={FARBE_LINKS}> —</tspan>}
                 {anteile[i][1] === null && <tspan fill={FARBE_RECHTS}> —</tspan>}
               </text>
@@ -349,6 +350,7 @@ interface Punkt { fenster: string; event: string; datum: number; a: number | nul
 function Form({ punkte, kurve, setKurve, nameL, nameR, loc }: {
   punkte: Punkt[]; kurve: string; setKurve: (k: string) => void; nameL: string; nameR: string; loc: string;
 }) {
+  const t = useT();
   const k = KURVEN.find((x) => x.key === kurve) ?? KURVEN[0];
   const B = 760, H = 300, links = 46, rechts = 16, oben = 18, unten = 34;
   const werte = punkte.flatMap((p) => [p.a, p.b]).filter((x): x is number => x !== null);
@@ -384,7 +386,7 @@ function Form({ punkte, kurve, setKurve, nameL, nameR, loc }: {
         // Spieltage gibt es, aber keiner davon hat diesen Wert (z. B. nur Epic-Daten ohne Schaden): Hinweis statt leerer Flaeche.
         : werte.length === 0 ? <p className="py-10 text-center text-sm text-slate-500"><T>Für diesen Wert fehlen an allen Spieltagen die Daten.</T></p> : (
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${B} ${H}`} className="block w-full min-w-[560px]" role="img" aria-label="Form">
+          <svg viewBox={`0 0 ${B} ${H}`} className="block w-full min-w-[560px]" role="img" aria-label={t('Formverlauf')}>
             {[0, 0.25, 0.5, 0.75, 1].map((s) => {
               const wert = hoechst * s;
               return (

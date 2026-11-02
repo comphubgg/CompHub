@@ -9737,5 +9737,27 @@
       "/org"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:12:19Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-441",
+    "titel": "Vergleich-Radar und FNCS-Profil: Beschriftungen übersetzt",
+    "kurz": "Vergleich → Radar: Achsen jetzt auf Deutsch; Profil-FNCS: Titel und „Format“ übersetzt.",
+    "markieren": [
+      "text:DMG RATIO",
+      "text:ACCURACY",
+      "text:FNCS Grand Finals"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die acht Radar-Achsen und zwei Beschriftungen im FNCS-Teil des Profils blieben auf der deutschen Seite englisch.",
+    "was": "Sie laufen jetzt über die Übersetzung (Schaden, Schadensquote, Trefferquote …).",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]

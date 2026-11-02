@@ -105,7 +105,7 @@ export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
       <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">FNCS Grand Finals</h3>
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300"><T>FNCS Grand Finals</T></h3>
         <div className="ml-auto flex gap-1.5">
           {([['tafel', 'Tafel'], ['liste', 'Liste']] as const).map(([w, t2]) => (
             <button key={w} type="button" onClick={() => setAnsicht(w)}
@@ -169,7 +169,7 @@ export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string 
                 <th className="px-3 py-2 text-center font-medium"><T>Platz</T></th>
                 <th className="px-3 py-2 text-center font-medium"><T>Art</T></th>
                 <th className="px-3 py-2 text-left font-medium"><T>Mitspieler</T></th>
-                <th className="px-3 py-2 text-right font-medium">Format</th>
+                <th className="px-3 py-2 text-right font-medium"><T>Format</T></th>
               </tr>
             </thead>
             <tbody>
