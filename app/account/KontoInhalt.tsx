@@ -159,6 +159,8 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
   const zugang = useZugang();
   const [konto, setKonto] = useState<Konto | null>(null);
   const [laedt, setLaedt] = useState(true);
+  /** Die Kontoabfrage selbst fiel aus (Netz, Server) - dann Hinweis statt Umleitung zur Anmeldung, die wie "abgemeldet" aussaehe. */
+  const [kontoFehlt, setKontoFehlt] = useState(false);
   const [bereich, setBereich] = useState<Bereich>('konto');
   /** Der Einladungslink zum Discord-Server - null, solange keiner da ist. */
   const [discordLink, setDiscordLink] = useState<string | null>(null);
@@ -301,7 +303,9 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     if (zugang.laedt) return;
     void Promise.resolve().then(async () => {
       try {
-        const j = await (await fetch('/api/konto', { cache: 'no-store' })).json();
+        const r = await fetch('/api/konto', { cache: 'no-store' });
+        if (!r.ok) throw new Error('Konto');
+        const j = await r.json();
         if (!j?.angemeldet) {
           /*
            * Kein CompHub-Konto - aber vielleicht ein VIP-Schluessel. Dann
@@ -341,7 +345,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
             })
             .catch(() => {});
         }
-      } catch { router.replace('/sign-in'); }
+      } catch { setKontoFehlt(true); }
       finally { setLaedt(false); }
     });
   }, [router, zugang.laedt, zugang.vip, zugang.name]);
@@ -768,6 +772,15 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     return (
       <main className="min-h-screen bg-zinc-950 px-4 py-20">
         <LadeSchirm />
+      </main>
+    );
+  }
+  if (kontoFehlt) {
+    return (
+      <main className="min-h-screen bg-zinc-950 px-4 py-20 text-center">
+        <p className="text-sm text-slate-400"><T>Dein Konto ist gerade nicht erreichbar.</T></p>
+        <button type="button" onClick={() => window.location.reload()}
+          className="mt-4 rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400"><T>Neu laden</T></button>
       </main>
     );
   }

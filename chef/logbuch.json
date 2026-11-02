@@ -9779,5 +9779,26 @@
       "/account"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:15:06Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-443",
+    "titel": "Konto: Ausfall zeigt Hinweis statt Anmeldeseite",
+    "kurz": "Kontoseite bei Server-Ausfall: „Your account is unavailable right now“ statt Umleitung zur Anmeldung.",
+    "markieren": [
+      "text:Your account is unavailable right now.",
+      "text:Reload"
+    ],
+    "bereich": "Konto",
+    "warum": "Fiel die Kontoabfrage aus, wurde man zur Anmeldung geschickt – als wäre man abgemeldet.",
+    "was": "Jetzt steht ein Hinweis mit Knopf „Neu laden“; wer wirklich nicht angemeldet ist, kommt weiter zur Anmeldung.",
+    "ansehen": [
+      "/account"
+    ],
+    "modell": "Opus"
   }
 ]

@@ -407,6 +407,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Diese Seite wurde aktualisiert. Bitte neu laden.':
     'This page got updated. Please reload.',
   'Neu laden': 'Reload',
+  'Dein Konto ist gerade nicht erreichbar.': 'Your account is unavailable right now.',
   // Die Cupwahl der Team-Karte.
   'Heute läuft kein passender Cup.': 'No matching cup is running today.',
   'nur heute zeigen': 'show today only',
