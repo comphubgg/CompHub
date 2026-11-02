@@ -21,6 +21,8 @@ export default function TwitchPruefung() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const rueck = p.get('twitch');
+    // Nur zum Ansehen (Betreiber): ?twitch=vorschau zeigt das Fenster, ohne dass ein Schluessel betroffen ist.
+    if (rueck === 'vorschau') { setLage('pruefen'); return; }
     if (rueck === 'bestaetigt' || rueck === 'falsches-konto') {
       setLage(rueck === 'bestaetigt' ? 'bestaetigt' : 'falsch');
       p.delete('twitch');

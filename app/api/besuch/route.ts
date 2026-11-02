@@ -78,6 +78,15 @@ export async function POST(request: Request) {
 
     if (await istBetreiberOderAdminKonto()) return new NextResponse(null, { status: 204 });
 
+    /*
+     * Roboter-Browser zaehlen nicht (Betreiber, 2.11.2026: "auf einmal 300 am Tag ... ich glaube nicht, dass es echte Views sind"). Es waren
+     * unsere eigenen: die Screenshots des KI-Chefs (scripts/chef-bilder.mjs, Playwright ohne Fenster) und das TikTok-Tagesvideo - jeder
+     * Durchlauf startet ohne Cookie und zaehlte als neuer Besucher (31.10.: 280 von 282 "neu", 1.11.: 358 von 360).
+     */
+    if (/HeadlessChrome|Playwright|Puppeteer|Lighthouse|\bbot\b|crawler|spider|preview/i.test(request.headers.get('user-agent') ?? '')) {
+      return new NextResponse(null, { status: 204 });
+    }
+
     const neuesCookie = await zaehleAufruf(laden.get(BESUCH_COOKIE)?.value);
 
     const antwort = new NextResponse(null, { status: 204 });
