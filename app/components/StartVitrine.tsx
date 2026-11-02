@@ -433,7 +433,8 @@ interface FncsKurz { key: string; titel: string; kopf1: string; kopf2: string; b
  */
 function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFenster[] }) {
   const reload = stufen.some((s) => /reload/i.test(s.windowId));
-  const zeigen = heats.filter((h) => h.spieler.length).slice(0, 2);
+  // Nur Heats derselben Reihe (Betreiber, 2.11.2026: bei den Solos Reload standen die Heats der Battle-Royale-Solos - "ein komplett anderes Turnier").
+  const zeigen = heats.filter((h) => h.spieler.length && /reload/i.test(h.windowId) === reload).slice(0, 2);
   return (
     <Link href="/globals-solos" className="vit-glas group/karte block overflow-hidden rounded-3xl">
       <div className="relative aspect-[16/6] overflow-hidden">
@@ -511,26 +512,51 @@ function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
   );
 }
 
-/** Die ersten fuenf der Power Rankings. */
+/**
+ * Die ersten fuenf der Power Rankings - die besten drei als kleines Treppchen, darunter Platz 4 und 5 (Betreiber, 2.11.2026: "Top 3 wie ein
+ * Podest, dass unten nicht so viel Platz ist, aber klein in der Groesse lassen").
+ */
 function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
   const liste = daten?.rangliste ?? [];
+  const delta = (d: number) => (
+    <span className={`text-[10px] font-bold tabular-nums ${d > 0 ? 'text-emerald-400' : d < 0 ? 'text-rose-400' : 'text-slate-600'}`}>
+      {d > 0 ? `▲${d}` : d < 0 ? `▼${-d}` : '–'}
+    </span>
+  );
+  // Reihenfolge auf dem Treppchen: 2 - 1 - 3, der Erste in der Mitte am hoechsten.
+  const treppe = [liste[1], liste[0], liste[2]].filter(Boolean);
+  const HOEHE: Record<number, string> = { 1: 'h-14', 2: 'h-10', 3: 'h-8' };
   return (
     <Karte titel="Rankings" href="/power-rankings" symbol={SYM.rang} glas>
       {liste.length === 0 ? <Hinweis geladen={fertig} /> : (
-        <ul className="space-y-1">
-          {liste.map((r, k) => (
-            <li key={r.rang} className="vit-an flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-black/30 px-2.5 py-1.5"
-              style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              <span className="w-4 text-center text-[11px] font-black tabular-nums text-slate-500">{r.rang}</span>
-              <TeamFlagge groesse={13} laender={[r.land ?? undefined]} />
-              <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase text-slate-100">{r.name}</span>
-              <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
-              <span className={`w-6 text-right text-[10px] font-bold tabular-nums ${r.delta > 0 ? 'text-emerald-400' : r.delta < 0 ? 'text-rose-400' : 'text-slate-600'}`}>
-                {r.delta > 0 ? `▲${r.delta}` : r.delta < 0 ? `▼${-r.delta}` : '–'}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <div className="grid grid-cols-3 items-end gap-1.5">
+            {treppe.map((r, k) => (
+              <div key={r.rang} className="vit-an flex min-w-0 flex-col items-center"
+                style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <TeamFlagge groesse={16} laender={[r.land ?? undefined]} />
+                <span className="mt-1 w-full truncate text-center text-[11px] font-black uppercase text-slate-100">{r.name}</span>
+                <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
+                {delta(r.delta)}
+                <div className={`mt-1 grid w-full place-items-center rounded-t-lg border border-white/[0.06] ${r.rang === 1 ? 'bg-sky-500/25' : 'bg-black/30'} ${HOEHE[r.rang] ?? 'h-8'}`}>
+                  <span className={`text-sm font-black tabular-nums ${r.rang === 1 ? 'text-sky-300' : 'text-slate-400'}`}>{r.rang}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <ul className="mt-2 space-y-1">
+            {liste.slice(3).map((r, k) => (
+              <li key={r.rang} className="vit-an flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-black/30 px-2.5 py-1.5"
+                style={{ animation: `vit-rechts .45s ${(k + 3) * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <span className="w-4 text-center text-[11px] font-black tabular-nums text-slate-500">{r.rang}</span>
+                <TeamFlagge groesse={13} laender={[r.land ?? undefined]} />
+                <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase text-slate-100">{r.name}</span>
+                <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
+                <span className="w-6 text-right">{delta(r.delta)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </Karte>
   );
