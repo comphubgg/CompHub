@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { useT } from '@/app/components/SprachProvider';
 import TeamFlagge from '@/components/TeamFlagge';
 
@@ -516,6 +517,8 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
 
   const knopf = (an: boolean) => `rounded-lg px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
   const saisonName = saison === 'alle' ? t('Alle Saisons') : (saisonListe.find((s) => s.kennung === saison)?.name ?? saison);
+  /** Die Zeilen sind noch unterwegs - auch im ersten Augenblick, bevor der Abruf angelaufen ist. */
+  const wartet = laedt || (beideKomplett && !datenFehlt && [...mitL, ...mitR].some((x) => !daten[`${x.epicId}|${saison}`]));
   const hatDaten = beideKomplett && (summeL.matches > 0 || summeR.matches > 0);
 
   return (
@@ -610,11 +613,13 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
           </div>
 
           <div className="mt-3">
-            {datenFehlt && !laedt && !hatDaten ? (
+            {wartet && !hatDaten ? (
+              <LadeSchirm />
+            ) : datenFehlt && !laedt && !hatDaten ? (
               <p className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center text-sm text-slate-500">
                 <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
               </p>
-            ) : !hatDaten && !laedt ? (
+            ) : !hatDaten ? (
               <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center">
                 <p className="text-sm text-slate-400">
                   {n === 1 ? t('Mindestens einer der beiden ist im gewählten Zeitraum nicht angetreten.') : solo ? t('Keiner dieser Spieler ist im gewählten Zeitraum angetreten.') : t('Dieses Team hat im gewählten Zeitraum nicht zusammen gespielt.')}
