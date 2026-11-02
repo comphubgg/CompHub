@@ -8216,5 +8216,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-372",
+    "datum": "2026-11-02T03:15:33Z",
+    "titel": "Profil-FNCS: Marken und Beschriftungen größer",
+    "kurz": "Profil → FNCS: LAN/ONLINE-Marke und Kennzahl-Beschriftungen größer.",
+    "markieren": [
+      "text:LAN",
+      "text:ONLINE"
+    ],
+    "bereich": "Statistik",
+    "warum": "Marken und Beschriftungen standen mit 9 bis 10 Pixeln – zu klein zum Lesen.",
+    "was": "Sie stehen jetzt mit 11 Pixeln, die Kacheln etwas breiter.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

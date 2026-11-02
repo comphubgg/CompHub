@@ -54,7 +54,7 @@ function platzFarbe(p: number) {
 
 function Typ({ typ }: { typ: 'LAN' | 'ONLINE' }) {
   return (
-    <span className={`rounded border px-1.5 py-px text-[9px] font-bold tracking-wider ${typ === 'LAN'
+    <span className={`rounded border px-1.5 py-px text-[11px] font-bold tracking-wider ${typ === 'LAN'
       ? 'border-sky-500/60 bg-sky-500/15 text-sky-300' : 'border-zinc-700 text-slate-500'}`}>{typ}</span>
   );
 }
@@ -132,9 +132,9 @@ export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string 
             [kopf.schnitt ? platzText(kopf.schnitt, en) : '—', 'Schnitt', 'text-sky-400'],
             [kopf.lanSchnitt ? platzText(kopf.lanSchnitt, en) : '—', 'LAN-Schnitt', 'text-violet-300'],
           ] as Array<[string, string, string]>).map(([w, l, f]) => (
-            <div key={l} className="min-w-[4.5rem] rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-center">
+            <div key={l} className="min-w-[5rem] rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-center">
               <p className={`text-base font-black tabular-nums ${f}`}>{w}</p>
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500"><T>{l}</T></p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>{l}</T></p>
             </div>
           ))}
         </div>
@@ -164,7 +164,7 @@ export function FncsReiter({ tafel, name }: { tafel: TafelZeile[]; name: string 
         <div className="overflow-x-auto px-4 pb-4">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-[10px] uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-zinc-800 text-[11px] uppercase tracking-wider text-slate-500">
                 <th className="px-3 py-2 text-left font-medium"><T>Saison</T></th>
                 <th className="px-3 py-2 text-center font-medium"><T>Platz</T></th>
                 <th className="px-3 py-2 text-center font-medium"><T>Art</T></th>
