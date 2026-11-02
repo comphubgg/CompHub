@@ -6224,12 +6224,12 @@ export default function StatistikSeite() {
                       Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
                       keinen leeren Kasten. Ein Druck darauf oeffnet die Liste dahinter. */}
                   <div className="mt-5 flex flex-wrap items-stretch gap-2">
-                    {(fncsTitel > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
+                    {fncsTitel + lanSiege > 0 && (
                       <button onClick={() => setMarke('fncs')}
                         className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-amber-400 hover:bg-amber-500/20">
                         <span className="flex items-center justify-center gap-0.5 text-amber-500">
-                          {[...Array(Math.min(fncsTitel, 8))].map((_, i) => <Pokal key={i} />)}
-                          {fncsTitel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncsTitel}</span>}
+                          {[...Array(Math.min(fncsTitel + lanSiege, 8))].map((_, i) => <Pokal key={i} />)}
+                          {fncsTitel + lanSiege > 8 && <span className="ml-1 text-[11px] font-bold">×{fncsTitel + lanSiege}</span>}
                         </span>
                         <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
                       </button>

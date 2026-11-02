@@ -7121,5 +7121,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-322",
+    "datum": "2026-11-02T02:04:27Z",
+    "titel": "Profil-Marke: Pokale zählen FNCS- und LAN-Siege wie die Kennzahl Titel",
+    "kurz": "Profil → goldene Marke „FNCS Winner“: Pokalzahl passt jetzt zur Kennzahl „Titles“.",
+    "markieren": [
+      "text:FNCS Winner",
+      "text:Titles"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kennzahl „Titel“ zählt FNCS- und LAN-Siege, die Pokale der Marke nur FNCS – bei 3 FNCS + 1 LAN-Sieg stand „4 Titel“, aber 3 Pokale. Bei nur LAN-Platz 2 oder 3 erschien eine Marke ohne Pokal.",
+    "was": "Die Pokale zählen beide Arten; die Marke erscheint nur, wenn es mindestens einen Sieg gibt.",
+    "ansehen": [
+      "/statistics?bereich=spieler&spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
