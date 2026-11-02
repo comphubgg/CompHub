@@ -8030,5 +8030,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-363",
+    "datum": "2026-11-02T03:11:14Z",
+    "titel": "Teamseite: Kachel-Beschriftungen übersetzt",
+    "kurz": "Teamseite auf Deutsch: Kacheln zeigen „Verdienst“ und „Spiele“ statt englischer Wörter.",
+    "markieren": [
+      "text:Earnings",
+      "text:Matches"
+    ],
+    "bereich": "Übersetzung",
+    "warum": "Auf der Teamseite standen unter jedem Spielerfoto „Earnings“ und „Matches“ auch im deutschen Modus.",
+    "was": "Die Beschriftungen laufen jetzt über die Übersetzung, auch im Spielerfenster.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Opus",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
