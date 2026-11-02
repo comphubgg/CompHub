@@ -10251,5 +10251,25 @@
     "ansehen": [
       "/team/clue-esports"
     ]
+  },
+  {
+    "id": "chef-462",
+    "datum": "2026-11-02T04:46:36Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "bereich": "Statistik",
+    "modell": "Sonnet (von Opus geprüft)",
+    "titel": "Teamseite: Ergebnis-Datum mit Jahr und ohne Tagesverschiebung",
+    "kurz": "Teamseite → Spieler anklicken → „Latest Results“: Datum mit Jahr, in Amerika nicht mehr Vortag.",
+    "markieren": [
+      "text:Latest Results"
+    ],
+    "warum": "Das Datum stand ohne Jahr, obwohl die Liste alle Jahre umfasst, und rutschte in amerikanischen Zeitzonen auf den Vortag.",
+    "was": "Es steht jetzt mit Jahr und immer am richtigen Tag; fehlt es, steht ein Strich.",
+    "ansehen": [
+      "/team/clue-esports"
+    ]
   }
 ]

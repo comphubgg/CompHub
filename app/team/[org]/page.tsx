@@ -168,10 +168,10 @@ export default function TeamSeite() {
                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Letzte Ergebnisse</T></p>
                 {offen.recentResults?.length ? (
                   <ul className="mt-2 grid gap-1.5 text-sm">
-                    {offen.recentResults.slice(0, 5).map((r) => (
-                      <li key={`${r.date}-${r.event}`} className="flex items-center justify-between gap-3 rounded-lg bg-zinc-800/50 px-3 py-1.5">
+                    {offen.recentResults.slice(0, 5).map((r, i) => (
+                      <li key={`${i}-${r.date}-${r.event}`} className="flex items-center justify-between gap-3 rounded-lg bg-zinc-800/50 px-3 py-1.5">
                         <span className="min-w-0 truncate text-slate-200">{r.event}</span>
-                        <span className="shrink-0 tabular-nums text-slate-400">{r.date ? new Date(r.date).toLocaleDateString(ort, { day: '2-digit', month: 'short' }) : ''} · <span className="font-semibold text-slate-100">{geld(r.prize)}</span></span>
+                        <span className="shrink-0 tabular-nums text-slate-400">{r.date ? new Date(r.date).toLocaleDateString(ort, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '–'} · <span className="font-semibold text-slate-100">{geld(r.prize)}</span></span>
                       </li>
                     ))}
                   </ul>
