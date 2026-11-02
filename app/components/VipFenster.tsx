@@ -81,14 +81,26 @@ export default function VipFenster() {
         if (rueck === 'falsches-konto') { setLage('falsch'); return; }
         if (j.grund === 'twitch') { setLage('pruefung'); return; }
         // Das erste Mal auf diesem Geraet (je Zugang gemerkt) - einmal Willkommen, danach nie wieder.
-        if (j.authorized && j.user) {
-          const k = `${MERKER}${j.user.toLowerCase()}`;
-          try {
-            if (!localStorage.getItem(k)) { localStorage.setItem(k, String(Date.now())); setLage('willkommen'); }
-          } catch { /* ohne Speicher kein Willkommen - lieber keins als jedes Mal */ }
-        }
+        if (j.authorized && j.user) { willkommenEinmal(j.user); return; }
+        /*
+         * Kein Schluessel: vielleicht ein Konto - ein Pro ueber seine POV-Einladung (app/api/pov/einladung legt das Pro-Konto an), ein
+         * Manager, ein Admin oder ein VIP mit Konto. Gewoehnliche Besucher mit Konto bekommen kein Fenster.
+         */
+        return fetch('/api/konto', { cache: 'no-store' }).then((r) => r.json())
+          .then((k: { angemeldet?: boolean; konto?: { id?: string; name?: string; rolle?: string | null; vip?: boolean } | null; bild?: string | null }) => {
+            const konto = k.angemeldet ? k.konto : null;
+            if (!konto?.id || !(konto.rolle || konto.vip)) return;
+            setWer({ name: konto.name || '', bild: k.bild ?? null });
+            willkommenEinmal(`konto:${konto.id}`);
+          });
       })
       .catch(() => undefined);
+    function willkommenEinmal(wer: string) {
+      const k = `${MERKER}${wer.toLowerCase()}`;
+      try {
+        if (!localStorage.getItem(k)) { localStorage.setItem(k, String(Date.now())); setLage('willkommen'); }
+      } catch { /* ohne Speicher kein Willkommen - lieber keins als jedes Mal */ }
+    }
   }, []);
 
   useEffect(() => {

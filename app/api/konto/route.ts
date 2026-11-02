@@ -14,6 +14,7 @@ import { ueberHttps, vipAus } from '@/lib/vipCookie';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { merkeAnmeldung as merkeAnwesenheit, merkeAbmeldung } from '@/lib/anwesenheit';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
+import { vipBild } from '@/lib/vipBild';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
 //
@@ -138,7 +139,8 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ angemeldet: true, konto: oeffentlich(konto) });
+  // Foto fuer das Willkommen-Fenster (app/components/VipFenster, lib/vipBild) - Pros bekommen ihr Spielerfoto ueber das Epic-Konto.
+  return NextResponse.json({ angemeldet: true, konto: oeffentlich(konto), bild: await vipBild(konto.name, konto.epicId) });
 }
 
 export async function POST(request: Request) {
