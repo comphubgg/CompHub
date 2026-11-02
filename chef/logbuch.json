@@ -7173,6 +7173,7 @@
     "titel": "Power Rankings: Auf-/Absteiger ohne Namen zeigen Strich",
     "kurz": "Power Rankings → Aufsteiger/Absteiger: Konto ohne Namen zeigt „—“ statt leerer Zeile.",
     "markieren": [
+      "text:Climbers",
       "css:section.grid li span.truncate"
     ],
     "bereich": "Statistik",
