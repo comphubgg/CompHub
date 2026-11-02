@@ -2,6 +2,18 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 18, 02.11.2026)
+
+- [x] (chef-363, chef-364) **Teamseite: Kachel-Beschriftungen englisch, Beitrittsdatum roh „2026-04“.**
+- [x] (chef-365) **Vergleich: Ausfall nur einer Seite sah aus wie „0 Matches“.**
+- [x] (chef-366) **Statistik-Kopfzahlen: beim Laden Strich statt Platzhalter.**
+- [x] (chef-367) **Orgs: beim Wechsel Alle Jahre/2026 kurz alte Beträge unter neuem Knopf.**
+- [ ] **Orgs: Knopf „2026“ fest im Code** – muss mit ORGS_JAHR (lib/orgs.ts, nur Server) zusammen umgestellt werden; zum Jahreswechsel beides anpassen oder Jahr aus der Antwort nehmen.
+- [ ] **Orgs-API: gleicher Betrag (oft kein Preisgeld) → nach Name sortiert** (app/api/orgs/route.ts ~188) – „nie alphabetisch“; Ersatzreihenfolge (Spielerzahl? Power Ranking?) mit dem Betreiber klären.
+- [ ] **Streams: getSortedStreamers wird nirgends benutzt** (Kommentar verspricht „Live nach Zuschauern“, sortiert aber nur alphabetisch) – toter Code; entfernen oder wirklich nach Zuschauern sortieren (zuschauerMap vorhanden).
+- [ ] **Vergleich → Form: wenn alle Werte beider Seiten unbekannt, leeres Diagramm ohne Hinweis** – Randfall.
+- [ ] **Statistik-Aufmacher: Regionen-Kästchen erscheinen erst nach dem Laden, Seite springt** – Platzhalter ergänzen.
+
 ## Neu entdeckt (Runde 17, 02.11.2026)
 
 - [x] (chef-329) **Spielerliste: Kopftreffer/Material/Bauteile 0 statt Strich ohne Schussdaten** – Profil zeigte schon Strich.
