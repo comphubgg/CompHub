@@ -6943,5 +6943,26 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-314",
+    "datum": "2026-11-02T01:58:23Z",
+    "titel": "Turnierverzeichnis: Ausfall des Archivs wird gemeldet statt leerer Liste",
+    "kurz": "Unsichtbar: Events zeigt bei Archiv-Ausfall „nicht erreichbar“ statt „Keine Cups“.",
+    "markieren": [
+      "text:The archive of finished tournaments",
+      "css:p[role=alert]"
+    ],
+    "bereich": "Statistik",
+    "warum": "War das Archiv der beendeten Turniere nicht lesbar, stand dort still „Keine Cups in dieser Auswahl“ und die Archivzahl verschwand.",
+    "was": "Jetzt erscheint ein Hinweis, dass das Archiv gerade nicht erreichbar ist; die letzte gute Archivzahl bleibt stehen.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -4244,6 +4244,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Karte ließ sich nicht laden.': 'The map could not be loaded.',
   'Dieses Fenster gibt es nicht.': 'This window does not exist.',
   'Gerade nicht erreichbar.': 'Not reachable right now.',
+  'Das Archiv der beendeten Turniere ist gerade nicht erreichbar. Es fehlen eventuell beendete Cups.':
+    'The archive of finished tournaments is not reachable right now. Some finished cups may be missing.',
   'Global': 'Global',
   'Meiste Eliminierungen · Bester je Region': 'Most eliminations · best player per region',
   'Division Cup': 'Division Cup',

@@ -385,6 +385,8 @@ export default function EventsPage() {
   const [archiv, setArchiv] = useState({ turniere: 0, tage: 0 });
   const [fehler, setFehler] = useState<string | null>(null);
   const [loginNoetig, setLoginNoetig] = useState(false);
+  // Das Archiv der beendeten Turniere war gerade nicht lesbar: dann fehlen beendete Cups, und das darf nicht wie "keine" aussehen.
+  const [archivAus, setArchivAus] = useState(false);
   const [laedt, setLaedt] = useState(true);
   /*
    * Vergangene Cups kommen erst auf Wunsch (Absprache mit dem Betreiber): zuerst nur Live und Demnaechst (modus=alle-aktuell, 20 KB statt 1,3 MB).
@@ -460,7 +462,9 @@ export default function EventsPage() {
             for (const c of neu) je.set(c.id, c);
             return [...je.values()];
           });
-          setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
+          setArchivAus(Boolean(d.archivFehler));
+          // Bei Archiv-Ausfall kommt 0 aus der Antwort - dann bleibt die zuletzt gute Zahl stehen.
+          if (!d.archivFehler) setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
         }
       } catch (e) { if (!weg) setFehler((e as Error).message); }
       finally { if (!weg) { setLaedt(false); setVergLaedt(false); } }
@@ -781,6 +785,12 @@ export default function EventsPage() {
               </p>
             )}
 
+            {archivAus && !fehler && !loginNoetig && (
+              <p role="alert" className="mb-4 text-sm text-rose-400">
+                <T>Das Archiv der beendeten Turniere ist gerade nicht erreichbar. Es fehlen eventuell beendete Cups.</T>
+              </p>
+            )}
+
             {laedt || vergLaedt ? <LadeSchirm /> : reiter === 'katalog' ? (
               abschnitte.length ? (
                 <div className="space-y-8">
@@ -791,7 +801,7 @@ export default function EventsPage() {
                       oeffnen={oeffnen} />
                   ))}
                 </div>
-              ) : fehler && !cups.length ? null : (
+              ) : (fehler && !cups.length) || archivAus ? null : (
                 <p className="py-10 text-center text-sm text-slate-500"><T>Keine Cups in dieser Auswahl.</T></p>
               )
             ) : fehler && !cups.length ? null : (
