@@ -246,12 +246,14 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
 }) {
   const t = useT();
   const zeit = useZeit();
+  const ort = useSprache().sprache === 'de' ? 'de-DE' : 'en-GB';
+  const beginn = zeit(f.start ? Date.parse(f.start) : null);
   const reihen = (f.teams ?? []).filter((x) => x.rang !== null).sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0));
   return (
     <Karte2>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-base font-extrabold text-slate-100">{f.name}</h3>
-        <span className="text-[11px] text-slate-500">{zeit(f.start ? Date.parse(f.start) : null)} · {f.spieler.length} <T>Spieler</T></span>
+        <span className="text-[11px] text-slate-500">{beginn ? `${beginn} · ` : ''}{f.spieler.length} <T>Spieler</T></span>
       </div>
       {reihen.length > 0 ? (
         <div className="mt-3 max-h-[34rem] overflow-y-auto rounded-xl border border-zinc-800">
@@ -270,13 +272,13 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
                     <td className="px-3 py-2 text-sm font-black tabular-nums text-slate-400">{r.rang}</td>
                     <td className="px-3 py-2">
                       <span className="flex items-center gap-3">
-                        <span className="w-10 shrink-0"><Bild s={r.spieler[0]} /></span>
+                        {r.spieler[0] && <span className="w-10 shrink-0"><Bild s={r.spieler[0]} /></span>}
                         <TeamFlagge groesse={14} laender={r.spieler.map((s) => s.land ?? undefined)} />
                         <span className="min-w-0 truncate text-sm font-bold uppercase text-slate-100">{r.spieler.map((s) => s.anzeige).join(' · ')}</span>
                         {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? '–'}</td>
+                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte !== null && r.punkte !== undefined ? r.punkte.toLocaleString(ort) : '–'}</td>
                   </tr>
                 );
               })}

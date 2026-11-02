@@ -8982,5 +8982,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-405",
+    "datum": "2026-11-02T03:34:29Z",
+    "titel": "Solos-Tafel: Tausenderpunkte und ohne Absturzgefahr",
+    "kurz": "Globals Solos → Tafel: Punkte mit Tausenderpunkt, kein einsamer „·“ ohne Startzeit.",
+    "markieren": [
+      "text:Points"
+    ],
+    "bereich": "Globals",
+    "warum": "Punkte standen ohne Tausendertrennung, ohne Startzeit stand ein einzelner Mittelpunkt, und eine Zeile ohne Spieler hätte die Seite abstürzen lassen.",
+    "was": "Alle drei Stellen sind behoben.",
+    "ansehen": [
+      "/globals-solos"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
