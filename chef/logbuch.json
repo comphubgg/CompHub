@@ -7005,7 +7005,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet (von Opus geprüft)",
-    "commits": [],
+    "commits": [
+      "8084ca77295b2c9facf215af766b61a14c1521da"
+    ],
     "status": "wartet",
     "runde": 1
   }
