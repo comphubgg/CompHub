@@ -188,10 +188,11 @@ interface SpielZeile {
   tagesPlatz: number;
   teamId: string | null;
   spieler: Array<{ id: string; name: string }>;
-  elims: number;
-  wins: number;
-  timeAlive: number;
-  damage: number;
+  /** null = unbekannt, dann steht ein Strich. */
+  elims: number | null;
+  wins: number | null;
+  timeAlive: number | null;
+  damage: number | null;
   /** Wann dieses Team ausgeschieden ist. */
   ende?: string | null;
   /** Aus Epics Punktetabelle gerechnet - null, wenn es keine gibt. */
@@ -224,7 +225,7 @@ interface Spiel {
   fenster?: string;
   nummer: number;
   ende: string | null;
-  laengsteLebenszeit: number;
+  laengsteLebenszeit: number | null;
   sieger: string[];
   teams: SpielZeile[];
   /** Laufen die Platznummern lueckenlos von eins durch? */
@@ -248,7 +249,8 @@ interface Spiel {
 }
 
 /** "18m 13s" - so steht die Dauer auch beim Vorbild. */
-function dauerText(sekunden: number): string {
+function dauerText(sekunden: number | null): string {
+  if (sekunden === null || !Number.isFinite(sekunden)) return '—';
   const s = Math.max(0, Math.floor(sekunden));
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
@@ -333,7 +335,7 @@ const SpielKachel = memo(function SpielKachel({
   offen: boolean;
   eineLobby: boolean;
   ort: string;
-  dauer: number;
+  dauer: number | null;
   namenVon: (spieler: Spieler) => string;
   /** Flagge des Spielers (nur Profis) - fuer die Sieger. */
   landVon?: (spieler: Spieler) => string | undefined;
@@ -4196,7 +4198,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            */
           const aufstellung = (sp: Spiel) => {
             const mitPunkten = sp.teams.some((t) => typeof t.punkte === 'number');
-            const mitSchaden = sp.teams.some((t) => t.damage > 0);
+            const mitSchaden = sp.teams.some((t) => (t.damage ?? 0) > 0);
             return (
                     <div className="mt-3 rounded-lg border border-zinc-800
                                     bg-zinc-950/80">
@@ -4400,17 +4402,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-300">
-                                  {t.ausReplay ? '—' : t.elims.toLocaleString(ort)}
+                                  {t.ausReplay || t.elims === null ? '—' : t.elims.toLocaleString(ort)}
                                 </td>
                                 {mitSchaden && (
                                   <td className="px-3 py-1.5 text-right tabular-nums
                                                  text-slate-300">
-                                    {t.ausReplay ? '—' : t.damage.toLocaleString(ort)}
+                                    {t.ausReplay || t.damage === null ? '—' : t.damage.toLocaleString(ort)}
                                   </td>
                                 )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-400">
-                                  {t.ausReplay || !(t.timeAlive > 0) ? '—' : `${Math.floor(Math.round(t.timeAlive) / 60)}:${String(Math.round(t.timeAlive) % 60).padStart(2, '0')}`}
+                                  {t.ausReplay || t.timeAlive === null || !(t.timeAlive > 0) ? '—' : `${Math.floor(Math.round(t.timeAlive) / 60)}:${String(Math.round(t.timeAlive) % 60).padStart(2, '0')}`}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-600">
@@ -4500,7 +4502,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             if (sp.live && sp.beginn) {
               return Math.max(0, (jetzt - Date.parse(sp.beginn)) / 1000);
             }
-            return sp.dauer ?? sp.laengsteLebenszeit;
+            return sp.dauer ?? sp.laengsteLebenszeit ?? null;
           };
 
           return (

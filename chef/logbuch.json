@@ -9248,5 +9248,26 @@
       "/statistics?bereich=vergleich"
     ],
     "modell": "Opus"
+  },
+  {
+    "datum": "2026-11-02T03:53:40Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "mittel",
+    "id": "chef-417",
+    "titel": "Cup-Matches: unbekannte Werte als Strich statt 0",
+    "kurz": "Cup-Seite → Matches → Runde aufklappen: fehlende Elims/Schaden/Zeit zeigen „—“ statt 0.",
+    "markieren": [
+      "text:Elims",
+      "text:Matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "Meldete Epic für ein Team keine Elims, keinen Schaden oder keine Zeit, stand dort eine erfundene 0.",
+    "was": "Unbekannte Werte stehen jetzt als Strich; echte Nullen bleiben 0.",
+    "ansehen": [
+      "/events"
+    ],
+    "modell": "Sonnet (von Opus geprüft)"
   }
 ]
