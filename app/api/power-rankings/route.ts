@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { LISTE, erneuereImHintergrund, istAlt, lies } from '@/lib/powerRankings';
-import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
+import { gefaltet, namensSchluessel, vergleichbar } from '@/lib/homoglyph';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { spielerKontext } from '@/lib/globalsSolos';
 
@@ -101,7 +101,7 @@ async function holeRoh(request: Request) {
     const alle = stand.spieler;
     const gefiltert = suche
       // Gesucht wird auch im gefuehrten Namen, den die Seite gross zeigt - wer "Malibuca" tippt (Platz 3, bei Epic "big winter arc"), muss ihn finden.
-      ? alle.filter((s) => s.name.toLowerCase().includes(suche) || mit(s).anzeige.toLowerCase().includes(suche))
+      ? alle.filter((s) => vergleichbar(s.name).includes(vergleichbar(suche)) || vergleichbar(mit(s).anzeige).includes(vergleichbar(suche)))
       : alle;
 
     const seiten = Math.max(1, Math.ceil(gefiltert.length / proSeite));

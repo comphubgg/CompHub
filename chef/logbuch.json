@@ -9512,5 +9512,26 @@
       "/"
     ],
     "modell": "Sonnet (von Opus geprüft)"
+  },
+  {
+    "datum": "2026-11-02T04:01:36Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1,
+    "groesse": "klein",
+    "id": "chef-430",
+    "titel": "Cup-Seite und Power Rankings: Suche findet Namen mit fremden Buchstaben",
+    "kurz": "Cup-Seite (Leaderboard, Spieler) und Power Rankings: Suche findet auch „GоdL“ mit kyrillischem о.",
+    "markieren": [
+      "css:input[type=search]"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Suchfelder auf der Cup-Seite, bei den Cup-Spielerwerten und in den Power Rankings verglichen Buchstaben genau.",
+    "was": "Doppelgänger-Buchstaben zählen jetzt wie normale – wie in der Statistik-Suche.",
+    "ansehen": [
+      "/events",
+      "/power-rankings"
+    ],
+    "modell": "Opus"
   }
 ]

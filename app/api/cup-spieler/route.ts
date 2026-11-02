@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { vergleichbar } from '@/lib/homoglyph';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -387,7 +388,7 @@ async function holeRoh(request: Request) {
     if (kennzahl) {
       const q = (p.get('q') ?? '').trim().toLowerCase();
       return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
-        q ? (z) => String(z.name ?? '').toLowerCase().includes(q) : null) });
+        q ? (z) => vergleichbar(String(z.name ?? '')).includes(vergleichbar(q)) : null) });
     }
     return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
   }
@@ -416,7 +417,7 @@ async function holeRoh(request: Request) {
   let auswahl = rep.spieler;
   if (q) {
     const ids = new Set(rep.spieler
-      .filter((x) => (anzeige.get(x.epicId) ?? '').toLowerCase().includes(q) || x.epicId === q)
+      .filter((x) => vergleichbar(anzeige.get(x.epicId) ?? '').includes(vergleichbar(q)) || x.epicId === q)
       .map((x) => x.epicId));
     if (q.length >= 3) {
       try {

@@ -5,6 +5,7 @@
 // Bewusst schlank gehalten - keine Power Rankings, keine Match-Listen,
 // keine Streams.
 
+import { vergleichbar } from '@/lib/homoglyph';
 import {
   Fragment, memo, use, useCallback, useEffect, useDeferredValue, useMemo,
   useRef, useState, type Dispatch, type SetStateAction,
@@ -2647,8 +2648,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * wer den vollen Turniernamen kennt, soll ihn auch eingeben duerfen.
      */
     return tabelle.filter((e) => e.players.some((p) =>
-      p.name.toLowerCase().includes(q)
-      || namenVon(p).toLowerCase().includes(q)));
+      vergleichbar(p.name).includes(vergleichbar(q))
+      || vergleichbar(namenVon(p)).includes(vergleichbar(q))));
   }, [tabelle, sucheTraege, namenVon]);
 
   /**
@@ -4912,9 +4913,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       // Platz in der ganzen Liste, nicht unter den Suchtreffern: wer sucht, behält seinen Platz (vorher stand jeder Treffer als Nr. 1).
                       .map((sp, i) => ({ sp, platzGanz: i + 1 }))
                       .filter(({ sp }) => {
-                        const q = spielerSuche.trim().toLowerCase();
-                        return !q || sp.name.toLowerCase().includes(q)
-                          || sp.partner.some((x) => x.toLowerCase().includes(q));
+                        const q = vergleichbar(spielerSuche.trim());
+                        return !q || vergleichbar(sp.name).includes(q)
+                          || sp.partner.some((x) => vergleichbar(x).includes(q));
                       })
                       .map(({ sp, platzGanz }) => (
                         <tr key={sp.epicId} className="border-b border-zinc-900/70 last:border-0">
@@ -4981,10 +4982,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <tbody>
                     {(spielerTreffer ?? spielerWerte.spieler)
                       .filter((sp) => {
-                        const q = spielerSuche.trim().toLowerCase();
+                        const q = vergleichbar(spielerSuche.trim());
                         if (!q || spielerTreffer) return true;
-                        return sp.name.toLowerCase().includes(q)
-                          || sp.partner.some((x) => x.toLowerCase().includes(q));
+                        return vergleichbar(sp.name).includes(q)
+                          || sp.partner.some((x) => vergleichbar(x).includes(q));
                       })
                       .map((sp0, i) => {
                         const aus = teamAusListe.get(sp0.epicId);
