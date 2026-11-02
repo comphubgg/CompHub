@@ -1295,12 +1295,12 @@ export default function ScrimsSeite() {
     if (sitzung.archiv) {
       try {
         const d = await fetch(`/api/scrims?quelle=archiv&turnier=${encodeURIComponent(sitzung.id)}`)
-          .then((r) => r.json());
+          .then((r) => { if (!r.ok) throw new Error('Archiv'); return r.json(); });
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa || !d.teams);
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier, archiv: true } });
-      } catch { setNichtDa(true); }
+      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
       finally { setLaedtCup(false); }
       return;
     }
@@ -1310,11 +1310,14 @@ export default function ScrimsSeite() {
       if (!sitzung.live && !sitzung.vorbei) { setLaedtCup(false); return; }
       try {
         const d = await fetch(`/api/scrims?quelle=poyo&server=${encodeURIComponent(sitzung.guildId ?? '')}`
-          + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => r.json());
+          + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => {
+          if (!r.ok) throw new Error('Poyo');
+          return r.json();
+        });
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
         setNichtDa(!!d.nichtDa);
-      } catch { setNichtDa(true); }
+      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
       finally { setLaedtCup(false); }
       return;
     }
@@ -1327,16 +1330,19 @@ export default function ScrimsSeite() {
         setNichtDa(!!d.nichtDa);
         // Die Teamgroesse und die Regeln kennt erst das Leaderboard selbst.
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier } });
-      } catch { setNichtDa(true); }
+      } catch { setTeams([]); setRunden([]); setNichtDa(true); }
       finally { setLaedtCup(false); }
       return;
     }
     try {
       const d = await fetch(`/api/scrims?server=${encodeURIComponent(sitzung.guildId ?? serie.id)}`
-        + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => r.json());
+        + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => {
+        if (!r.ok) throw new Error('Yunite');
+        return r.json();
+      });
       setTeams(d.teams ?? []);
       setRunden(d.runden ?? []);
-    } catch { setNichtDa(true); }
+    } catch { setTeams([]); setRunden([]); setNichtDa(true); }
     finally { setLaedtCup(false); }
   }, []);
 

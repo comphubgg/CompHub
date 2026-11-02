@@ -9157,5 +9157,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-413",
+    "datum": "2026-11-02T03:38:30Z",
+    "titel": "Scrims: Fehlerantwort bei Archiv, Poyo, Yunite gilt als Ausfall",
+    "kurz": "Scrims → Session öffnen: Fehlerantwort zeigt Ausfall-Hinweis, alte Teams verschwinden.",
+    "markieren": [
+      "text:The source is not providing this leaderboard right now"
+    ],
+    "bereich": "Scrims",
+    "warum": "Eine Fehlerantwort sah aus wie eine leere Session, nach einem Ausfall blieben die Teams der vorigen Session stehen.",
+    "was": "Fehlerantworten gelten als Ausfall; die alte Tabelle wird geleert.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
