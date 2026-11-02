@@ -7639,5 +7639,25 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-345",
+    "datum": "2026-11-02T02:44:36Z",
+    "titel": "Turnier-Kacheln: Regionen immer in fester Folge, EU zuerst",
+    "kurz": "Events → Kachel-Marke: „LIVE · EU · NAC“ statt wechselnd „NAC · EU“.",
+    "markieren": [
+      "text:LIVE"
+    ],
+    "bereich": "Turniere",
+    "warum": "Lief ein Cup in mehreren Regionen, standen sie in der Reihenfolge, in der die Daten kamen.",
+    "was": "Die Regionen stehen jetzt immer in fester Folge mit EU vorn; bei gleichem Start zeigt die Marke zuerst EU.",
+    "ansehen": [
+      "/events"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

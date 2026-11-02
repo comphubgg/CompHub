@@ -248,10 +248,12 @@ function laeuft(f: Fenster, jetzt: number): boolean {
 
 function lageVon(c: Cup, region: string, jetzt: number): Lage {
   const f = fensterIn(c, region);
+  // Feste Folge (EU zuerst), nicht die Ladereihenfolge: "EU · NAC", nie "NAC · EU".
+  const rang = (r: string) => { const i = REGIONEN.indexOf(r); return i < 0 ? REGIONEN.length : i; };
   const live = f.filter((w) => laeuft(w, jetzt));
-  const kommend = f.filter((w) => w.begin > jetzt).sort((a, b) => a.begin - b.begin);
+  const kommend = f.filter((w) => w.begin > jetzt).sort((a, b) => a.begin - b.begin || rang(a.region) - rang(b.region));
   const gewesen = f.filter((w) => w.begin && w.begin <= jetzt).sort((a, b) => b.begin - a.begin);
-  const regionen = (liste: Fenster[]) => [...new Set(liste.map((w) => w.region))];
+  const regionen = (liste: Fenster[]) => [...new Set(liste.map((w) => w.region))].sort((a, b) => rang(a) - rang(b));
   if (live.length) {
     return { status: 'live', naechster: kommend[0]?.begin ?? null, letzter: live[0].begin,
       wo: region === 'alle' && !c.global ? regionen(live).join(' · ') : null, stufe: stufeKurz(live[0].windowId) };
