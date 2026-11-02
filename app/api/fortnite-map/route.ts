@@ -79,20 +79,6 @@ export async function GET(request: Request) {
   try {
     const karte = await holeKarte(frisch);
 
-    /*
-     * Die Karte ohne Namen kommt seit 2.11.2026 von fortnite.gg - die neueste Kartenversion (lib/kartenUpdates, Abgleich hoechstens
-     * stuendlich). fortnite-api.com hinkte nach dem Start von Season 43 tagelang hinterher (Betreiber: "auf fortnite.gg und ueberall ist die
-     * neue Map drauf, ausser bei uns"). Nur wenn fortnite.gg nicht antwortet, die Karte von fortnite-api.com.
-     */
-    if (bild === 'leer') {
-      const gg = await neuesteKartePng(frisch);
-      if (gg) {
-        return new NextResponse(new Uint8Array(gg.png), { headers: {
-          'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300, must-revalidate', 'CDN-Cache-Control': 'public, max-age=3600',
-          ETag: `"gg-${gg.patch}"`,
-        } });
-      }
-    }
     if (bild) {
       const url = bild === 'leer' ? karte.daten.images.blank : karte.daten.images.pois;
       const img = await fetch(url, { cache: 'no-store' });

@@ -97,26 +97,6 @@ export async function saisonKartenPflegen(fenster: Array<{ windowId: string; beg
 
   let bild: Buffer | null = null;
   let titel = '';
-  /*
-   * Selbstheilung: Stammt die Insel der laufenden Saison von fortnite-api.com (Titel ohne "Update"), gibt es bei fortnite.gg aber schon das
-   * Bild "<N>.00", wird sie ersetzt. Am 1.11.2026 lag als S43 eine ganz andere Insel von fortnite-api.com da.
-   */
-  if (inseln[brSchluessel(laufend)]) {
-    const titelJetzt = (await liesJson<Kartenbild[]>(VERZEICHNIS, [])).find((k) => k.id === inseln[brSchluessel(laufend)])?.titel ?? '';
-    if (!/Update|Stand/.test(titelJetzt)) {
-      const ersatz = await patchBild(laufend);
-      if (ersatz) {
-        const id = inseln[brSchluessel(laufend)];
-        await fs.writeFile(path.join(ORDNER, `${id}.png`), ersatz);
-        const karten = await liesJson<Kartenbild[]>(VERZEICHNIS, []);
-        const i = karten.findIndex((k) => k.id === id);
-        const eintrag: Kartenbild = { id, titel: `Battle Royale - S${laufend} (Update ${laufend}.00)`, datei: `${id}.png`, hochgeladen: jetzt, groesse: ersatz.length };
-        if (i >= 0) karten[i] = eintrag; else karten.push(eintrag);
-        await fs.writeFile(VERZEICHNIS, JSON.stringify(karten, null, 2), 'utf8');
-        log.push(`S${laufend}: Insel durch das Bild von fortnite.gg ersetzt (vorher fortnite-api.com)`);
-      }
-    }
-  }
   if (!inseln[brSchluessel(laufend)]) {
     const vorige = zugeordnet.filter((n) => n < laufend).sort((a, b) => b - a)[0];
     const heute = await karteVonHeute();
@@ -124,16 +104,17 @@ export async function saisonKartenPflegen(fenster: Array<{ windowId: string; beg
       // Erster Lauf: die Karte von heute gehoert zur laufenden Saison.
       bild = heute; titel = `Battle Royale - S${laufend} (Stand ${new Date().toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich' })})`;
     } else {
-      // Zuerst fortnite.gg ("<N>.00"): dort liegt die neue Insel ab dem Season-Start. fortnite-api.com lieferte am 1./2.11.2026 noch Tage
-      // spaeter ein ganz anderes Bild - ein "hat sich geaendert" hiess dort nicht "ist die neue Insel". Die Karte von heute nur, wenn
-      // fortnite.gg nichts hat.
-      bild = await patchBild(laufend);
-      if (bild) titel = `Battle Royale - S${laufend} (Update ${laufend}.00)`;
+      /*
+       * Zuerst die Karte von heute (fortnite-api.com), sobald sie sich gegenueber der vorigen Saison geaendert hat - sie ist die Insel, die auch
+       * fortnite.gg auf seiner Karte zeigt. Das Bild "<N>.00" aus fortnite.gg/map-evolution passte am 2.11.2026 NICHT zur Season-43-Insel
+       * (dort stand weiter die grosse Insel); es bleibt nur der Rueckfall, wenn sich die Karte von heute noch nicht geaendert hat.
+       */
+      const alt = await fs.readFile(path.join(ORDNER, `${inseln[brSchluessel(vorige)]}.png`)).catch(() => null) as Buffer | null;
+      if (heute && (!alt || pruef(heute) !== pruef(alt))) { bild = heute; titel = `Battle Royale - S${laufend}`; }
       else {
-        const alt = await fs.readFile(path.join(ORDNER, `${inseln[brSchluessel(vorige)]}.png`)).catch(() => null) as Buffer | null;
-        if (heute && alt && pruef(heute) !== pruef(alt) && laufend <= Math.max(...[...saisons].filter(([, b]) => b <= jetzt).map(([n]) => n), 0)) {
-          bild = heute; titel = `Battle Royale - S${laufend}`;
-        } else log.push(`S${laufend}: die neue Insel gibt es noch nirgends - bis dahin die Karte von heute`);
+        bild = await patchBild(laufend);
+        if (bild) titel = `Battle Royale - S${laufend} (Update ${laufend}.00)`;
+        else log.push(`S${laufend}: die neue Insel gibt es noch nirgends - bis dahin die Karte von heute`);
       }
     }
     if (bild) {
