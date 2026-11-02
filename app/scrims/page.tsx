@@ -1131,6 +1131,8 @@ export default function ScrimsSeite() {
   const [laedt, setLaedt] = useState(true);
   const [laedtCup, setLaedtCup] = useState(false);
   const [hinweis, setHinweis] = useState('');
+  /** Archiv und Noble live haben beide nicht geantwortet: Noble und Poyo fehlen, weil nicht erreichbar. */
+  const [echteAus, setEchteAus] = useState(false);
   /** Noble: das Leaderboard gibt es dort gerade nicht (sonst: einfach ohne Eintraege). */
   const [nichtDa, setNichtDa] = useState(false);
 
@@ -1151,6 +1153,7 @@ export default function ScrimsSeite() {
    */
   const holen = useCallback(async () => {
     setHinweis('');
+    setEchteAus(false);
     const echteHolen = async (): Promise<Serie[]> => {
       const [archiv, live] = await Promise.all([
         fetch('/api/scrims?quelle=archiv').then((r) => (r.ok ? r.json() : null)).catch(() => null),
@@ -1170,6 +1173,9 @@ export default function ScrimsSeite() {
           fehler?: boolean; sitzungen: Sitzung[]; einladung?: string | null;
         }>;
       } | null];
+
+      // Antwortet keine der beiden Quellen, fehlen Noble und Poyo - das ist kein "leer".
+      if (!archiv && !live?.serien) setEchteAus(true);
 
       // Poyo heute: was ansteht oder laeuft - das Archiv kennt nur Beendetes.
       const poyoIds = (archiv?.server ?? []).filter((s) => s.quelle === 'poyo').map((s) => s.guildId);
@@ -1445,6 +1451,13 @@ export default function ScrimsSeite() {
               </Link>
             </div>
 
+            {echteAus && (
+              <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]
+                              px-4 py-3 text-sm text-amber-200/90">
+                <T>Noble und Poyo sind gerade nicht erreichbar. Ihre Scrims fehlen deshalb hier - das heißt nicht, dass es keine gibt. Bitte lade die Seite gleich noch einmal.</T>
+              </div>
+            )}
+
             {hinweis && (
               <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]
                               px-4 py-3 text-sm text-amber-200/90">
@@ -1471,7 +1484,9 @@ export default function ScrimsSeite() {
                   <p className="rounded-xl border border-zinc-800 bg-black/40 p-8 text-center text-sm text-slate-500">
                     {art === 'community'
                       ? <T>Gerade gibt es keine Community Events.</T>
-                      : <T>In dieser Region gibt es gerade keine Scrims.</T>}
+                      : echteAus
+                        ? <T>Noble und Poyo sind gerade nicht erreichbar.</T>
+                        : <T>In dieser Region gibt es gerade keine Scrims.</T>}
                   </p>
                 ) : ansicht === 'raster' ? (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">

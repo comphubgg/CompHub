@@ -8431,5 +8431,25 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-381",
+    "datum": "2026-11-02T03:21:47Z",
+    "titel": "Scrims: Ausfall von Noble und Poyo angezeigt",
+    "kurz": "Scrims: Fallen Noble und Poyo aus, steht ein Hinweis statt stiller Lücke.",
+    "markieren": [
+      "text:Noble and Poyo cannot be reached right now."
+    ],
+    "bereich": "Scrims",
+    "warum": "Antworteten Archiv und Noble nicht, fehlten Noble- und Poyo-Scrims ohne jeden Hinweis.",
+    "was": "Ein Hinweis-Kasten sagt jetzt, dass sie gerade nicht erreichbar sind.",
+    "ansehen": [
+      "/scrims"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet (von Opus geprüft)",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -1364,6 +1364,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Raster': 'Grid',
   'Gerade gibt es keine Community Events.': 'There are no community events right now.',
   'In dieser Region gibt es gerade keine Scrims.': 'There are no scrims in this region right now.',
+  'Noble und Poyo sind gerade nicht erreichbar.': 'Noble and Poyo cannot be reached right now.',
+  'Noble und Poyo sind gerade nicht erreichbar. Ihre Scrims fehlen deshalb hier - das heißt nicht, dass es keine gibt. Bitte lade die Seite gleich noch einmal.': 'Noble and Poyo cannot be reached right now. Their scrims are missing here for that reason - it does not mean there are none. Please reload the page in a moment.',
   'Sessions': 'Sessions',
 
   // Globals-Teams: Duo-Ansicht
