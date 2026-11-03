@@ -256,6 +256,17 @@ async function holeRoh(request: Request) {
   const titelVon = new Map<string, string>();
   for (const c of cups) for (const f of (c.regionen[region] ?? [])) { artVon.set(f.windowId, c.art); titelVon.set(f.windowId, c.titel); }
   let aehnlich = false;
+  /*
+   * Runde ueber mehrere Tage: ist ein frueherer Tag derselben Runde schon gespielt, ist er die beste Vorlage fuer den naechsten - derselbe Cup,
+   * dasselbe Feld, dieselbe Wertung (Betreiber, 3.11.2026: Day 2 der FNCS Solos Reload nach dem echten Wert von Day 1). Ohne Aufschlag wie bei
+   * aehnlichen Cups (aehnlich = true), der Wert ist ja schon das Ergebnis eines Tages.
+   */
+  let vortag = false;
+  if (!frueher.length && tagRunde) {
+    const tage = alle.filter((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.begin < dieser.begin && f.status === 'vorbei'
+      && f.windowId.replace(/Day\d+/i, 'Day#') === dieser.windowId.replace(/Day\d+/i, 'Day#'));
+    if (tage.length) { frueher = tage.sort((x, y) => y.begin - x.begin).slice(0, AUSGABEN); aehnlich = true; vortag = true; }
+  }
   if (!frueher.length) {
     const art = artVon.get(dieser.windowId);
     const g = groesse(dieser);
@@ -269,7 +280,9 @@ async function holeRoh(request: Request) {
      * Betreiber, 3.11.2026: "einen Reload-Cup kann man nicht mit einem Battle-Royale-Cup vergleichen, da gibt es ein komplett anderes Punktesystem" -
      * der Solo Reload Test Cup (gleiche Wertung, 12 Spiele, 150 Minuten) traf die FNCS Solos Reload, die normalen Solos lagen weit daneben.
      */
-    const gleicherModus = dieser.playlist ? basis.filter((f) => f.playlist === dieser.playlist) : [];
+    // Elite-Cups nur mit Elite-Cups: dort spielt ein anderes Feld (Elite Kado Thorne zog die Schaetzung fuer die FNCS Solos Reload von 326 auf 341).
+    const elite = (w: string) => /elite/i.test(`${titelVon.get(w) ?? ''} ${w}`);
+    const gleicherModus = dieser.playlist ? basis.filter((f) => f.playlist === dieser.playlist && elite(f.windowId) === elite(dieser.windowId)) : [];
     const gleicheSpiele = gleicherModus.filter((f) => !dieser.matchCap || f.matchCap === dieser.matchCap);
     // Dann dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
     const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
@@ -332,6 +345,8 @@ async function holeRoh(request: Request) {
     fuerBelohnung, aehnlich, ausVorlauf,
     /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
     kumuliert: tagRunde,
+    /* Die Schaetzung kommt vom frueheren Tag derselben Runde. */
+    vortag,
     grundlage: werte.length,
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,

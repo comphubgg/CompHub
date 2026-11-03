@@ -987,7 +987,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde. */
     hergeleitet?: boolean;
     /** Schwelle = letzter Platz mit Belohnung (Skin-Cup); Ausgaben aus aehnlichen Cups statt aus demselben. */
-    fuerBelohnung?: boolean; aehnlich?: boolean; ausVorlauf?: boolean;
+    fuerBelohnung?: boolean; aehnlich?: boolean; ausVorlauf?: boolean; vortag?: boolean;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
@@ -2974,7 +2974,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ] as Array<[string, string]>).map(([l, v]) => (
               <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
-                  ? `${qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
+                  ? `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
                 <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
