@@ -261,11 +261,19 @@ async function holeRoh(request: Request) {
     const g = groesse(dieser);
     const st = stufe(dieser);
     const r1 = (w: string) => /round\s*1(?!\d)/i.test(w);
-    const kandidaten = alle.filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
-      && f.begin > dieser.begin - 60 * 864e5 && groesse(f) === g && stufe(f) === st && r1(f.windowId) === r1(dieser.windowId));
-    // Erst dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
+    const basis = alle.filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
+      && f.begin > dieser.begin - 60 * 864e5 && groesse(f) === g && stufe(f) === st);
+    const kandidaten = basis.filter((f) => r1(f.windowId) === r1(dieser.windowId));
+    /*
+     * Zuerst Cups im selben Modus (gleiche Playlist = gleiche Insel, gleiches Punktesystem) mit gleicher Spielzahl - auch ohne "Round 1" im Namen.
+     * Betreiber, 3.11.2026: "einen Reload-Cup kann man nicht mit einem Battle-Royale-Cup vergleichen, da gibt es ein komplett anderes Punktesystem" -
+     * der Solo Reload Test Cup (gleiche Wertung, 12 Spiele, 150 Minuten) traf die FNCS Solos Reload, die normalen Solos lagen weit daneben.
+     */
+    const gleicherModus = dieser.playlist ? basis.filter((f) => f.playlist === dieser.playlist) : [];
+    const gleicheSpiele = gleicherModus.filter((f) => !dieser.matchCap || f.matchCap === dieser.matchCap);
+    // Dann dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
     const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
-    frueher = (gleicheArt.length ? gleicheArt : kandidaten)
+    frueher = (gleicheSpiele.length ? gleicheSpiele : gleicherModus.length ? gleicherModus : gleicheArt.length ? gleicheArt : kandidaten)
       .sort((a, b) => b.begin - a.begin)
       .slice(0, AUSGABEN);
     aehnlich = frueher.length > 0;

@@ -47,6 +47,11 @@ const KARTEN_REGIONEN = ['EU', 'NAC'];
  * Dieselbe Zahl nimmt die Qualifikationslinie der Overlays (app/overlays/qual).
  */
 const QUAL_ZUSCHLAG = 5;
+/**
+ * Die Prognose: Schnitt + 5 bei frueheren Ausgaben desselben Cups - aus aehnlichen Cups ohne Aufschlag (Betreiber, 3.11.2026: beim Solo Reload Test
+ * Cup als Vorlage fuer die FNCS Solos Reload war "das plus 5 knapp zu hoch" - ein anderer Cup ist ohnehin eine Naeherung).
+ */
+const qualPrognose = (q: { schnitt: number | null; aehnlich?: boolean }) => (q.schnitt ?? 0) + (q.aehnlich ? 0 : QUAL_ZUSCHLAG);
 
 interface Fenster {
   status: 'live' | 'kommt' | 'vorbei';
@@ -2938,19 +2943,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
-                  // Runde ueber mehrere Tage: die Schwelle gilt fuer die Summe (FNCS Solos Reload Round 1 Day 1 + Day 2).
-                  + (qual?.kumuliert ? ` (${t('beide Tage zusammen')})` : '')
                   /*
                    * Ist der Spieltag vorbei, steht hier die Zahl, die es
                    * wirklich gekostet hat - ohne "etwa". Ein Durchschnitt
                    * frueherer Ausgaben waere dann die schlechtere Auskunft,
                    * weil das Ergebnis ja vorliegt.
+                   *
+                   * Runde ueber mehrere Tage (FNCS Solos Reload Round 1 Day 1 + Day 2): kurz und pro Tag, sonst passt es nicht in die Kachel
+                   * (Betreiber, 3.11.2026) - "Top 4,000 → Round 2 · 59 jetzt · ~326/Tag".
                    */
-                  + (typeof qual?.tatsaechlich === 'number'
+                  + (qual?.kumuliert
+                    ? (typeof qual.tatsaechlich === 'number' ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${qual.laeuft ? t('jetzt') : t('Punkte')}` : '')
+                      + (qual.schnitt ? ` · ~${qualPrognose(qual).toLocaleString(ort)}${t('/Tag')}` : '')
+                    : typeof qual?.tatsaechlich === 'number'
                     ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${t('Punkte')}`
-                      + (qual.laeuft ? ` (${t('gerade')})` + (qual.schnitt ? ` · ${t('Prognose')} ~${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)}` : '') : '')
+                      + (qual.laeuft ? ` (${t('gerade')})` + (qual.schnitt ? ` · ${t('Prognose')} ~${qualPrognose(qual).toLocaleString(ort)}` : '') : '')
                     : qual?.schnitt
-                      ? ` · ${t('etwa')} ${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} ${t('Punkte')}`
+                      ? ` · ${t('etwa')} ${qualPrognose(qual).toLocaleString(ort)} ${t('Punkte')}`
                       : '')]
                 : [soloCup ? t('Spieler') : t('Teams'),
                   (() => {
@@ -2965,7 +2974,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ] as Array<[string, string]>).map(([l, v]) => (
               <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
-                  ? `${qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt} + ${QUAL_ZUSCHLAG}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
+                  ? `${qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
                 <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
