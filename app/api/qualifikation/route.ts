@@ -126,6 +126,8 @@ async function holeRoh(request: Request) {
    * normalen Solos (Betreiber: "da steht Top 8K, aber in der Beschreibung steht was anderes").
    */
   const tagRunde = /Day\d+/i.test(dieser.windowId);
+  // Ohne Angabe in der Adresse (Overlay "automatisch") zuerst Epics eigene Zahl dieses Spieltags - sonst nahm Day 2 die 8.000 der normalen Solos.
+  if ((!Number.isFinite(schwelle) || schwelle < 1) && dieser.qualifiziert) schwelle = dieser.qualifiziert;
   if ((!Number.isFinite(schwelle) || schwelle < 1) && tagRunde) {
     const geschwister = alle.find((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.qualifiziert
       && f.windowId.replace(/Day\d+/i, 'Day#') === dieser.windowId.replace(/Day\d+/i, 'Day#'));
