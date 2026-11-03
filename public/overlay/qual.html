@@ -205,6 +205,11 @@ html, body {
     schwelle: 0,
     /** Punkte, die auf den Schnitt frueherer Ausgaben aufgeschlagen werden (Betreiber: "Durchschnitt plus etwa fuenf"). */
     zuschlag: 5,
+    /**
+     * Die geschaetzten Punkte von Hand - null heisst: CompHubs Schaetzung (Betreiber, 3.11.2026: "von Hand soll heissen, dass ich eingeben kann,
+     * wie viele Punkte es ungefaehr sein wird, wenn ich nicht mit dem einverstanden bin, was CompHub sagt"). Der Platz kommt immer aus dem Cup.
+     */
+    punkte: 0,
     wort: 'QUAL ~',
     takt: 15,
     grund: '0 0 0', deckkraft: 0.72,
@@ -238,16 +243,18 @@ html, body {
         + '&schwelle=' + encodeURIComponent(cfg.schwelle > 0 ? cfg.schwelle : '');
       const d = await (await fetch(u, { cache: 'no-store' })).json();
 
-      if (!d || (!d.schnitt && !d.tatsaechlich)) {
+      const vonHand = Number(cfg.punkte) > 0;
+      if (!d || (!d.schnitt && !d.tatsaechlich && !vonHand)) {
         return meldung(d && d.hinweis ? d.hinweis : 'No qualification data');
       }
 
       $('hinweis').hidden = true;
       $('wort').textContent = String(cfg.wort || 'QUAL ~');
 
-      // Die Schaetzung nur, wenn es fruehere Ausgaben gibt.
-      if (d.schnitt) {
-        $('schaetzung').textContent = d.schnitt + Math.max(0, Number(cfg.zuschlag) || 0);
+      // Die Schaetzung: von Hand, sonst aus frueheren Ausgaben - der Zuschlag nur bei Ausgaben desselben Cups, wie auf der Event-Seite.
+      if (vonHand || d.schnitt) {
+        $('schaetzung').textContent = vonHand ? Math.round(Number(cfg.punkte))
+          : d.schnitt + (d.aehnlich ? 0 : Math.max(0, Number(cfg.zuschlag) || 0));
         $('oben').hidden = false;
       } else {
         $('oben').hidden = true;

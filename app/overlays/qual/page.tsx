@@ -23,6 +23,8 @@ const STANDARD = {
   schwelle: 0,
   /** Punkte, die auf den Schnitt frueherer Ausgaben aufgeschlagen werden. */
   zuschlag: 5,
+  /** Die geschaetzten Punkte von Hand - null: CompHubs Schaetzung. Der Platz (Top 1.000 ...) kommt immer aus dem Cup. */
+  punkte: 0,
   wort: 'QUAL ~',
   takt: 15,
   grund: '0 0 0', deckkraft: 0.72,
@@ -144,29 +146,35 @@ export default function QualSeite() {
               <CupWahl event={cfg.event} window={cfg.window}
                 onWahl={(e, w) => setCfg((alt) => ({ ...alt, event: e, window: w }))} />
 
+              {/*
+                * Der Platz kommt immer aus dem Cup (Top 1.000 steht fest); von Hand gibt man die geschaetzten PUNKTE ein, wenn man CompHubs
+                * Schaetzung nicht teilt (Betreiber, 3.11.2026 - vorher stellte "Von Hand" den Platz ein).
+                */}
               <div>
-                <Wahlreihe titel="Wie viele kommen weiter" wert={cfg.schwelle > 0 ? 1 : 0}
+                <Wahlreihe titel="Geschätzte Punkte" wert={cfg.punkte > 0 ? 1 : 0}
                   optionen={[
-                    { wert: 0, titel: 'Automatisch aus dem Cup' },
+                    { wert: 0, titel: 'Automatisch (CompHub)' },
                     { wert: 1, titel: 'Von Hand' },
                   ]}
-                  setzen={(w) => setz('schwelle', w === 0 ? 0 : 50)} />
-                {cfg.schwelle > 0 && (
-                  <input type="number" min={1} max={5000} value={cfg.schwelle}
-                    onChange={(e) => setz('schwelle', Math.max(1, +e.target.value || 50))}
+                  setzen={(w) => setz('punkte', w === 0 ? 0 : 300)} />
+                {cfg.punkte > 0 && (
+                  <input type="number" min={1} max={5000} value={cfg.punkte}
+                    onChange={(e) => setz('punkte', Math.max(1, +e.target.value || 1))}
                     className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950
                                px-3 py-2 text-sm text-slate-100 outline-none
                                focus:border-sky-500" />
                 )}
                 <span className="mt-1 block text-[11px] text-slate-600">
-                  {cfg.schwelle > 0
-                    ? <T>Der Platz, bis zu dem es weitergeht — bei einem Divisional-Finale etwa Top 50.</T>
-                    : <T>Gezählt wird, wer in der nächsten Runde desselben Cups antritt. Ist das nicht bekannt, stell es von Hand ein.</T>}
+                  {cfg.punkte > 0
+                    ? <T>Deine eigene Schätzung in Punkten. Der Platz, bis zu dem es weitergeht, kommt weiter aus dem Cup.</T>
+                    : <T>CompHub schätzt aus früheren Ausgaben desselben Cups, sonst aus Cups mit gleichem Modus und gleicher Spielzahl.</T>}
                 </span>
               </div>
 
-              <Regler titel="Zuschlag auf die Schätzung" wert={cfg.zuschlag} von={0} bis={50}
-                einheit="Punkte" setzen={(n) => setz('zuschlag', n)} />
+              {cfg.punkte === 0 && (
+                <Regler titel="Zuschlag auf die Schätzung" wert={cfg.zuschlag} von={0} bis={50}
+                  einheit="Punkte" setzen={(n) => setz('zuschlag', n)} />
+              )}
 
               <label className="text-xs text-slate-400">
                 <T>Wort davor</T>
