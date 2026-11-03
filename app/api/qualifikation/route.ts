@@ -304,10 +304,10 @@ async function holeRoh(request: Request) {
   const werte = ausgaben.map((a) => a.punkte)
     .filter((x): x is number => typeof x === 'number' && x > 0);
   /*
-   * Keine Schaetzung aus einer anderen Reihe fuer eine Runde ueber mehrere Tage: dort zaehlt die Summe, und fremde Cups (andere Spielart, andere
-   * Schwelle) sagen darueber nichts - lieber keine Zahl als eine falsche (Betreiber, 3.11.2026: "die Schaetzungspunkte koennen ja auch nicht stimmen").
+   * Auch bei einer Runde ueber mehrere Tage aus aehnlichen Cups geschaetzt - aber am richtigen Platz (Betreiber, 3.11.2026: die Schaetzung aus den
+   * normalen Solos stimmt ungefaehr, nur eben fuer Top 4.000 statt 8.000: "was wuerdest du bei Solos nehmen, wenn es Top 4000 waere").
    */
-  const schnitt = werte.length && !(tagRunde && aehnlich)
+  const schnitt = werte.length
     ? Math.round(werte.reduce((s, x) => s + x, 0) / werte.length) : null;
 
   return NextResponse.json({
