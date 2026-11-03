@@ -120,6 +120,18 @@ async function holeRoh(request: Request) {
    * spaetere Runde - etwa weil dieser Spieltag selbst das Finale ist -,
    * bleibt es bei keiner Auskunft.
    */
+  /*
+   * Eine Runde ueber mehrere Tage (Round 1 Day 1 / Day 2): Epic fuehrt die Zahl nur am letzten Tag, und sie gilt fuer die Summe beider Tage
+   * (FNCS Solos Reload, 3.11.2026: "Top 4,000 EU" nach Day 1 + Day 2). Am ersten Tag stand sonst die Zahl einer anderen Reihe - Top 8.000 aus den
+   * normalen Solos (Betreiber: "da steht Top 8K, aber in der Beschreibung steht was anderes").
+   */
+  const tagRunde = /Day\d+/i.test(dieser.windowId);
+  if ((!Number.isFinite(schwelle) || schwelle < 1) && tagRunde) {
+    const geschwister = alle.find((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.qualifiziert
+      && f.windowId.replace(/Day\d+/i, 'Day#') === dieser.windowId.replace(/Day\d+/i, 'Day#'));
+    if (geschwister?.qualifiziert) schwelle = geschwister.qualifiziert;
+  }
+
   let hergeleitet = false;
   if (!Number.isFinite(schwelle) || schwelle < 1) {
     const spaeter = alle
@@ -291,7 +303,11 @@ async function holeRoh(request: Request) {
 
   const werte = ausgaben.map((a) => a.punkte)
     .filter((x): x is number => typeof x === 'number' && x > 0);
-  const schnitt = werte.length
+  /*
+   * Keine Schaetzung aus einer anderen Reihe fuer eine Runde ueber mehrere Tage: dort zaehlt die Summe, und fremde Cups (andere Spielart, andere
+   * Schwelle) sagen darueber nichts - lieber keine Zahl als eine falsche (Betreiber, 3.11.2026: "die Schaetzungspunkte koennen ja auch nicht stimmen").
+   */
+  const schnitt = werte.length && !(tagRunde && aehnlich)
     ? Math.round(werte.reduce((s, x) => s + x, 0) / werte.length) : null;
 
   return NextResponse.json({
@@ -306,6 +322,8 @@ async function holeRoh(request: Request) {
     hergeleitet,
     /* Die Schwelle ist der letzte Platz mit Belohnung (Skin-Cup), und die Ausgaben stammen aus aehnlichen Cups statt aus demselben. */
     fuerBelohnung, aehnlich, ausVorlauf,
+    /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
+    kumuliert: tagRunde,
     grundlage: werte.length,
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,

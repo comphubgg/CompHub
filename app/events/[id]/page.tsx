@@ -973,6 +973,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [qual, setQual] = useState<{
     schnitt: number | null; grundlage: number; schwelle?: number;
+    /** Die Schwelle gilt fuer die Summe aller Tage dieser Runde (Round 1 Day 1 + Day 2). */
+    kumuliert?: boolean;
     /** Was dieser Spieltag kostet - waehrend er laeuft der Stand von jetzt. */
     tatsaechlich?: number | null;
     /** Wahr, solange der Spieltag laeuft - dann ist "tatsaechlich" ein Zwischenstand. */
@@ -2936,6 +2938,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
+                  // Runde ueber mehrere Tage: die Schwelle gilt fuer die Summe (FNCS Solos Reload Round 1 Day 1 + Day 2).
+                  + (qual?.kumuliert ? ` (${t('beide Tage zusammen')})` : '')
                   /*
                    * Ist der Spieltag vorbei, steht hier die Zahl, die es
                    * wirklich gekostet hat - ohne "etwa". Ein Durchschnitt
