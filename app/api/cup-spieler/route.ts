@@ -92,12 +92,12 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number }>();
   let repVoll = tage.length > 0;
   for (const w of tage) {
-    const c = await liesJson<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>;
+    const c = await liesJson<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
       schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }> } | null>(`clutch/${w}.json`, null).catch(() => null);
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.dmg += d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += d.sturm ?? 0; rep.set(e, x);
+      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += d.sturm ?? 0; rep.set(e, x);
     }
     for (const [id, v] of Object.entries(c?.leben ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
@@ -428,6 +428,8 @@ async function holeRoh(request: Request) {
   type ClutchDatei = {
     summe?: Record<string, number>;
     schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }>;
+    /** Epics eigener Schaden der Top 10.000 in Solo-Cups (scripts/epic-schaden-holen.mjs) - hat Vorrang vor dem Replay-Wert, der dort rund 5 % zu hoch liegt. */
+    epicDmg?: Record<string, number>;
     /** Ueberlebenszeit je Spieler in Sekunden (scripts/clutch-leben.mjs). */
     leben?: Record<string, number>;
     /** Wie viele Spiele je Spieler gelesen sind. */
@@ -451,7 +453,7 @@ async function holeRoh(request: Request) {
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         raus.schaden![id] = {
-          dmg: da.dmg + d.dmg, erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
+          dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
           sturm: (da.sturm ?? 0) + (d.sturm ?? 0), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
         };
       }
@@ -467,7 +469,8 @@ async function holeRoh(request: Request) {
    * Umgehauene; an den Globals gegen Epics Werte geprueft: im Mittel 6 %
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
-  const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
+  const schadenVon = clutchDatei?.schaden
+    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? d.dmg }] as const)) : null;
   // Im Solo ohne Reload gibt es weder Reboot noch Wiederbeleben (Betreiber, 31.10.2026: "wie kann es in einem Solo-Cup Reboots geben?").
   const soloOhneReload = !tage.some((w) => /reload/i.test(w))
     && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));

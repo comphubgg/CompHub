@@ -182,6 +182,15 @@ jobs:
       - name: Ueberlebenszeit aus den Rohdaten
         continue-on-error: true
         run: node scripts/clutch-leben.mjs
+      # Epics eigener Schaden fuer Solo-Spieltage: unser Replay-Wert lag rund fuenf Prozent ueber Epic und Osirion (4.11.2026).
+      - name: Epics Schaden
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
+          node scripts/epic-schaden-holen.mjs 2>&1 | tail -12
+          rm -f .env.local
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
