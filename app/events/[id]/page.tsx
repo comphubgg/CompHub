@@ -2712,8 +2712,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Duo-Cup kommt und dort auf diesem Reiter stand, landete sonst auf einer
    * leeren Seite ohne Knopf zurueck.
    */
-  // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos ohne Reload; eine hinterlegte Karte).
-  const wegDa = !!cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id);
+  // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos samt Reload-Reihe; eine hinterlegte Karte).
+  const wegDa = !!cup && /fncssolos/i.test(cup.id);
   const kartenAnzahl = kartenZumZeigen.length;
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');

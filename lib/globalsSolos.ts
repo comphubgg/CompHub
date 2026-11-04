@@ -272,6 +272,7 @@ function stufeVon(windowId: string): { name: string; art: SolosStufe['art']; zie
   if (/LastChanceQualifier/i.test(windowId)) return { name: 'Last Chance Qualifier', art: 'lcq', ziel: 'lcq-finale' };
   if (/LastChanceLobby/i.test(windowId)) return { name: 'Last Chance Finals', art: 'lcq-finale', ziel: 'finale' };
   m = /Final_Day(\d)/i.exec(windowId); if (m) return { name: `Finals Day ${m[1]}`, art: 'finale', ziel: null };
+  if (/_Final_[A-Z]+$/i.test(windowId)) return { name: 'Finals', art: 'finale', ziel: null };
   m = /Qualifiers_Qual(\d)Round(\d)(?:Day(\d))?/i.exec(windowId);
   if (m) return { name: `Qualifier ${m[1]} · Round ${m[2]}${m[3] ? ` Day ${m[3]}` : ''}`, art: 'qualifier', ziel: m[2] === '3' ? 'heats' : 'naechste-runde' };
   return null;
@@ -497,6 +498,7 @@ function fensterName(windowId: string): string | null {
   if (/LastChanceQualifier/i.test(windowId)) return 'Last Chance Qualifier';
   if (/LastChanceLobby/i.test(windowId)) return 'Last Chance Finals';
   m = /Final_Day(\d)/i.exec(windowId); if (m) return `Finals Day ${m[1]}`;
+  if (/_Final_[A-Z]+$/i.test(windowId)) return 'Finals';
   return null;
 }
 

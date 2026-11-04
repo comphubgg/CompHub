@@ -137,12 +137,13 @@ function FinaleKasten({ k, daten }: { k: WegKnoten; daten: WegDaten }) {
   const ort = useOrt();
   const datum = useDatum();
   const plaetze = daten.herkunft.reduce((a, h) => a + h.zahl, 0);
-  const anzahl = k.spieler?.zahl ?? (daten.herkunft.length === 3 ? plaetze : null);
+  // Die Reload-Reihe hat keinen Fast Track: dort kommt das Feld aus zwei Quellen.
+  const anzahl = k.spieler?.zahl ?? (daten.herkunft.length >= 2 ? plaetze : null);
   return (
     <div className="flex h-full min-w-0 flex-col rounded-xl border-2 border-sky-500/70 bg-sky-500/10 p-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-400"><T>Grand Finals</T></p>
       <p className="mt-1 text-2xl font-black leading-tight text-slate-100"><T>Finale</T></p>
-      <p className="mt-1 text-xs text-slate-300">{datum(k.von, k.bis)} · {k.fenster.length} {t('Tage')}</p>
+      <p className="mt-1 text-xs text-slate-300">{datum(k.von, k.bis)}{k.fenster.length > 1 ? ` · ${k.fenster.length} ${t('Tage')}` : ''}</p>
       {anzahl !== null && <p className="mt-1 text-xs font-semibold text-slate-200"><span className="tabular-nums">{anzahl.toLocaleString(ort)}</span> <T>Spieler</T></p>}
       {k.preisgeld ? (
         <>
@@ -258,9 +259,17 @@ export default function WegPlan({ region }: { region: string }) {
   const knoten = (id: WegKennung) => plan.knoten.find((k) => k.id === id);
   const kante = (von: WegKennung, nach: WegKennung) => plan.kanten.find((e) => e.von === von && e.nach === nach);
   const gibt = (id: WegKennung) => !!knoten(id);
+  // Die Reload-Reihe hat nur einen Qualifier und keinen Fast Track: die Heats stehen dann in der ersten Zeile, die Last Chance direkt darunter.
+  const kompakt = !gibt('q2r1') && !gibt('ft');
+  const ort = (id: WegKennung): Lage => {
+    if (kompakt && id === 'heats') return { s: 7, z: 2 };
+    if (kompakt && id === 'lcq') return { s: 5, z: 5 };
+    if (kompakt && id === 'lcl') return { s: 7, z: 5 };
+    return ORT[id];
+  };
 
   // Waagerechte Pfeile liegen in der Spalte zwischen zwei Kaesten derselben Zeile.
-  const waag: Array<[WegKennung, WegKennung]> = [['q1r1', 'q1r2'], ['q1r2', 'q1r3'], ['q1r3', 'ft'], ['q2r1', 'q2r2'], ['q2r2', 'q2r3'], ['lcq', 'lcl']];
+  const waag: Array<[WegKennung, WegKennung]> = [['q1r1', 'q1r2'], ['q1r2', 'q1r3'], ['q1r3', 'ft'], ['q2r1', 'q2r2'], ['q2r2', 'q2r3'], ['lcq', 'lcl'], ...(kompakt ? [['q1r3', 'heats'] as [WegKennung, WegKennung]] : [])];
   const nachFinale: WegKennung[] = ['ft', 'heats', 'lcl'];
   const lueckeMitte = kante('ft', 'heats');
 
@@ -273,29 +282,29 @@ export default function WegPlan({ region }: { region: string }) {
         <div className="grid min-w-[1040px] gap-y-1" style={{ gridTemplateColumns: 'minmax(0,1fr) 5.2rem minmax(0,1fr) 5.2rem minmax(0,1fr) 5.2rem minmax(0,1fr) 5.2rem minmax(0,1.15fr)' }}>
           {gibt('q1r1') && <div style={{ gridColumn: 1, gridRow: 1 }}><Gruppe>Qualifier 1</Gruppe></div>}
           {gibt('q2r1') && <div style={{ gridColumn: 1, gridRow: 4 }}><Gruppe>Qualifier 2</Gruppe></div>}
-          {gibt('lcq') && <div style={{ gridColumn: 5, gridRow: 7 }}><Gruppe><T>Last Chance</T></Gruppe></div>}
+          {gibt('lcq') && <div style={{ gridColumn: 5, gridRow: kompakt ? 4 : 7 }}><Gruppe><T>Last Chance</T></Gruppe></div>}
 
           {plan.knoten.filter((k) => k.id !== 'finale').map((k) => (
-            <div key={k.id} style={{ gridColumn: ORT[k.id].s, gridRow: ORT[k.id].z }}><Kasten k={k} hier={hier === k.id} /></div>
+            <div key={k.id} style={{ gridColumn: ort(k.id).s, gridRow: ort(k.id).z }}><Kasten k={k} hier={hier === k.id} /></div>
           ))}
           {waag.map(([a, b]) => {
             const e = kante(a, b);
-            return e && gibt(a) && gibt(b) ? <div key={`${a}-${b}`} style={{ gridColumn: ORT[a].s + 1, gridRow: ORT[a].z }}><Pfeil k={e} /></div> : null;
+            return e && gibt(a) && gibt(b) ? <div key={`${a}-${b}`} style={{ gridColumn: ort(a).s + 1, gridRow: ort(a).z }}><Pfeil k={e} /></div> : null;
           })}
           {kante('q2r3', 'heats') && <div style={{ gridColumn: 6, gridRow: 5 }}><Pfeil k={kante('q2r3', 'heats')!} /></div>}
           {lueckeMitte && <div style={{ gridColumn: 7, gridRow: 3 }}><Pfeil k={lueckeMitte} senkrecht /></div>}
-          {kante('heats', 'lcl') && <div style={{ gridColumn: 7, gridRow: '6 / 8' }}><Pfeil k={kante('heats', 'lcl')!} senkrecht /></div>}
+          {kante('heats', 'lcl') && <div style={{ gridColumn: 7, gridRow: kompakt ? '3 / 5' : '6 / 8' }}><Pfeil k={kante('heats', 'lcl')!} senkrecht /></div>}
           {nachFinale.map((a) => {
             const e = kante(a, 'finale');
-            return e && gibt(a) ? <div key={`${a}-f`} style={{ gridColumn: 8, gridRow: ORT[a].z }}><Pfeil k={e} /></div> : null;
+            return e && gibt(a) ? <div key={`${a}-f`} style={{ gridColumn: 8, gridRow: ort(a).z }}><Pfeil k={e} /></div> : null;
           })}
-          {knoten('finale') && <div style={{ gridColumn: 9, gridRow: `2 / ${FINALE_ZEILEN + 2}` }}><FinaleKasten k={knoten('finale')!} daten={plan} /></div>}
+          {knoten('finale') && <div style={{ gridColumn: 9, gridRow: kompakt ? '2 / 6' : `2 / ${FINALE_ZEILEN + 2}` }}><FinaleKasten k={knoten('finale')!} daten={plan} /></div>}
         </div>
       </div>
 
       {/* Schmal: die Wege untereinander. */}
       <div className="space-y-5 lg:hidden">
-        {([['Qualifier 1', ['q1r1', 'q1r2', 'q1r3', 'ft']], ['Qualifier 2', ['q2r1', 'q2r2', 'q2r3', 'heats']], ['Last Chance', ['lcq', 'lcl']]] as Array<[string, WegKennung[]]>).map(([titel, ids]) => {
+        {([['Qualifier 1', kompakt ? ['q1r1', 'q1r2', 'q1r3', 'heats'] : ['q1r1', 'q1r2', 'q1r3', 'ft']], ['Qualifier 2', kompakt ? [] : ['q2r1', 'q2r2', 'q2r3', 'heats']], ['Last Chance', ['lcq', 'lcl']]] as Array<[string, WegKennung[]]>).map(([titel, ids]) => {
           const da = ids.filter(gibt);
           if (!da.length) return null;
           return (

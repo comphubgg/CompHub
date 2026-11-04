@@ -256,6 +256,8 @@ async function wegBauenRoh(region: string): Promise<WegDaten | null> {
     aufgaben.push(Promise.all(fenster.map((f) => sicher(`${f.name} #${rang}`, () => punkteBei(f.eventId, f.windowId, rang, vorbeiVon(k)))))
       .then((ps) => { fenster.forEach((f, i) => k.schnitt.push({ rang, punkte: ps[i], ...(welche === 'jedes' && fenster.length > 1 ? { bei: f.name } : {}) })); }));
   };
+  // Runde 1 laeuft an zwei Tagen: der Platz an der Schwelle je Tag, so wie ihn Epics Liste des Tages zeigt (die Summe beider Tage zeigt die Bestenliste unter Kumulativ).
+  schnittAn(q.q1r1, schwelle(wahl(1, 1)) ?? null, 'jedes');
   schnittAn(q.q1r2, schwelle(wahl(1, 2)) ?? null); schnittAn(q.q2r2, schwelle(wahl(2, 2)) ?? null);
   schnittAn(q.q1r3, schwelle(wahl(1, 3)) ?? null);
   schnittAn(q.ft, ftWeiter);
