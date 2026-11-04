@@ -15,6 +15,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { holeNutzerToken, warte } from '../lib/replayKern.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const SPIELTAGE = path.join(DATEN, 'epic-spieltage');
@@ -25,7 +26,9 @@ const ZIEL = path.join(DATEN, 'spieler-kreis');
  *
  * Darum eine Note je Spieler aus seinen letzten zwanzig Cups:
  *   - Jede Platzierung zaehlt nach dem Feld: 1 - log(Platz) / log(Feld). Platz 1 ist 1, Platz 100 von 30.000 etwa 0,55, Platz 1.000 etwa 0,33.
- *   - Volle Listen (10.000 Plaetze) und gekuerzte alte Listen haben ein offenes Feld, gerechnet mit 30.000. Kleinere Felder sind schon gesiebt: 0,15 dazu.
+ *   - Offene Runden (ab 3.000 Teams) und gekuerzte alte Listen zaehlen mit einem Feld von 30.000. Kleinere Felder sind schon gesiebt: 0,15 dazu.
+ *   - Listen unter zwanzig Teams zaehlen nicht, die Note ist hoechstens 1. Der erste Lauf hatte Konten mit 25 ersten Plaetzen in Mini-Listen ganz oben.
+ *   - Die Regionen sind nicht gleich stark: Top 100 in Asien ist nicht Top 100 in Europa (REGION_FAKTOR).
  *   - Das schlechteste Fuenftel faellt weg - das sind die Ausrutscher wegen Mitspielern oder eines schlechten Tages. Die Note ist der Schnitt des Rests.
  * Ins Profil kommt, wer mindestens MINDEST_CUPS sichtbare Ergebnisse und mindestens NOTE_AB hat. Ein Einzelerfolg reicht so nie.
  */
@@ -33,6 +36,8 @@ const MINDEST_CUPS = 10;
 const NOTE_AB = 0.4;
 const LETZTE = 20;
 const OFFENES_FELD = 30_000;
+const OFFEN_AB = 3000;
+const REGION_FAKTOR = { EU: 1, NAC: 1, BR: 0.95, NAW: 0.9, OCE: 0.9, ME: 0.9, ASIA: 0.85 };
 
 const lies = (p, standard) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return standard; } };
 // Neue Spieltage zuerst: was in beiden Ordnern liegt, zaehlt aus dem neueren. Das alte Archiv reicht bis 2019 zurueck (je Spieltag die besten 500).
@@ -49,11 +54,12 @@ for (const wurzel of [SPIELTAGE, path.join(DATEN, 'epic-spieltage-alt')]) {
     }
   }
 }
-const zaehlt = (tag) => tag?.windowId && Array.isArray(tag.teams) && !/ranked/i.test(`${tag.windowId} ${tag.titel ?? ''} ${tag.cupId ?? ''}`);
+const zaehlt = (tag) => tag?.windowId && Array.isArray(tag.teams) && tag.teams.length >= 20 && !/ranked/i.test(`${tag.windowId} ${tag.titel ?? ''} ${tag.cupId ?? ''}`);
 const note = (tag, platz) => {
-  const offen = tag.gekuerzt || tag.teams.length >= 9900;
+  const offen = tag.gekuerzt || tag.teams.length >= OFFEN_AB;
   const feld = offen ? OFFENES_FELD : Math.max(tag.teams.length, 50);
-  return Math.max(0, 1 - Math.log10(Math.max(platz, 1)) / Math.log10(feld)) + (offen ? 0 : 0.15);
+  const roh = Math.max(0, 1 - Math.log10(Math.max(platz, 1)) / Math.log10(feld)) + (offen ? 0 : 0.15);
+  return Math.min(1, roh) * (REGION_FAKTOR[tag.region] ?? 1);
 };
 
 // Erster Durchgang: je Konto Datum und Note jedes Ergebnisses.
@@ -113,6 +119,26 @@ for (const datei of dateien) {
 }
 
 const namen = lies(path.join(DATEN, 'epic-namen.json'), {});
+// Wer im Namensverzeichnis fehlt, wird bei Epic nachgefragt: hundert Konten je Abfrage. Ohne Namen waere das Profil nicht zu finden.
+{
+  const fehlend = [...zeilen.keys()].filter((id) => !namen[id]);
+  let gefunden = 0;
+  try {
+    const { token } = await holeNutzerToken();
+    for (let i = 0; i < fehlend.length; i += 100) {
+      const qs = fehlend.slice(i, i + 100).map((id) => `accountId=${id}`).join('&');
+      const r = await fetch(`https://account-public-service-prod.ol.epicgames.com/account/api/public/account?${qs}`, { headers: { Authorization: token }, signal: AbortSignal.timeout(20_000) }).catch(() => null);
+      if (r?.status === 429) { await warte(30_000); i -= 100; continue; }
+      if (!r?.ok) continue;
+      for (const k of await r.json()) {
+        const n = k.displayName || Object.values(k.externalAuths ?? {}).map((e) => e.externalDisplayName).find(Boolean);
+        if (n) { namen[k.id] = n; gefunden += 1; }
+      }
+      await warte(250);
+    }
+  } catch (e) { console.log(`Namen: ${e.message}`); }
+  console.log(`Namen: ${gefunden} von ${fehlend.length} fehlenden bei Epic gefunden.`);
+}
 const eimer = new Map();
 const index = [];
 for (const [id, liste] of zeilen) {

@@ -3,6 +3,7 @@ import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
+import { liesJson } from '@/lib/ablage';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
@@ -151,11 +152,23 @@ async function berechne(request: Request) {
   const nurRegion = (p.get('region') ?? '').toUpperCase();
   const mindestens = Math.max(1, Number(p.get('mindestens')) || 1);
 
-  const [alle, heimat, profile, fotos, laender] = await Promise.all([
+  const [alle, heimat, profile, fotos, laender, kreis] = await Promise.all([
     gesamtSummen(), heimatRegionen(), liesProfile(), liesFotos(), liesLaender(),
+    liesJson<Array<{ epicId: string; name: string; region: string; cups: number; matches: number; konstanz: number }>>('spieler-kreis/_index.json', []).catch(() => []),
   ]);
 
-  const spieler = alle
+  // Der Spieler-Kreis (scripts/spieler-kreis.mjs): konstant gute Spieler, die nicht im Archiv der Szene stehen. Der Schluessel bleibt die Konto-Id.
+  const imArchiv = new Set(alle.map((s) => s.epicId));
+  const ausKreis = kreis.filter((k) => k.name && !imArchiv.has(k.epicId) && k.matches >= mindestens).map((k) => {
+    const pr = profile.nachId.get(k.epicId);
+    return {
+      epicId: k.epicId, name: pr?.anzeige || pr?.name || k.name, turniername: k.name, namen: [k.name], region: k.region,
+      land: pr?.land || laender.get(k.epicId) || '', landQuelle: pr?.land ? 'gepflegt' : (laender.get(k.epicId) ? 'quelle' : ''),
+      x: pr?.x ?? '', gepflegt: Boolean(pr), foto: fotos.get(k.epicId) ?? null, matches: k.matches, events: k.cups, elims: 0, konstanz: k.konstanz,
+    };
+  }).filter((s) => !nurRegion || s.region === nurRegion);
+
+  const spieler = [...alle
     .filter((s) => s.matches >= mindestens)
     .map((s) => {
       /*
@@ -189,7 +202,7 @@ async function berechne(request: Request) {
         elims: s.elims,
       };
     })
-    .filter((s) => !nurRegion || s.region === nurRegion)
+    .filter((s) => !nurRegion || s.region === nurRegion), ...ausKreis]
     // Wer am meisten spielt, steht oben - dort lohnt die Pflege zuerst.
     .sort((a, b) => b.matches - a.matches);
 
@@ -199,6 +212,7 @@ async function berechne(request: Request) {
     const r = heimat.get(s.epicId) ?? s.regionen[0] ?? '?';
     jeRegion[r] = (jeRegion[r] ?? 0) + 1;
   }
+  for (const k of ausKreis) jeRegion[k.region] = (jeRegion[k.region] ?? 0) + 1;
 
   return NextResponse.json({
     success: true,

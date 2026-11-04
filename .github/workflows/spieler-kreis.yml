@@ -44,7 +44,11 @@ jobs:
         run: curl -fsSL "https://github.com/${{ github.repository }}/releases/download/daten-spieltage-alt/epic-spieltage-alt.tar.gz" | tar xz -C data
 
       - name: Rechnen
-        run: node --max-old-space-size=6000 scripts/spieler-kreis.mjs
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
+          node --max-old-space-size=6000 scripts/spieler-kreis.mjs
+          rm -f .env.local
 
       - name: Ans Release
         env:
