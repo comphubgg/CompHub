@@ -74,7 +74,7 @@ const NOETIGES = [
 /** Was nur am Release liegt und nie hierher gehoert - muss zu lib/ablageGithub.ts (NUR_RELEASE) passen. */
 const NUR_RELEASE = [
   /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/, /^akten\//, /^epic-spieltage\//,
-  /^platzierungen\//, /^szene-stats\//, /^szene-quelle\//, /^tournament-leaderboards\//, /^power-rankings\//,
+  /^platzierungen\//, /^szene-stats\//, /^szene-quelle\//, /^spieler-kreis\//, /^tournament-leaderboards\//, /^power-rankings\//,
   /^replays\//, /^clutch\//, /^replay-voll\//, /^replays-schlank\//, /^scrims\//, /^_/,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten|team-verlauf)\.json$/,
 ];

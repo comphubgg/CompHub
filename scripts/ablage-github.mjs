@@ -156,7 +156,7 @@ const AM_RELEASE = [
   /^epic-spieltage\//,
   /^platzierungen\//,
   /^szene-stats\//,
-  /^szene-quelle\//,
+  /^szene-quelle\//, /^spieler-kreis\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   // Die ausgewerteten Replays - seit dem 22.9.2026 nur noch hier, nicht

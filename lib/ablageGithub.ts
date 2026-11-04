@@ -68,7 +68,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^epic-spieltage\//,
   /^platzierungen\//,
   /^szene-stats\//,
-  /^szene-quelle\//,
+  /^szene-quelle\//, /^spieler-kreis\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   // Die ausgewerteten Replays (je Spieltag ein _aggregat.json, bis zu
@@ -110,7 +110,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^epic-spieltage\//,
   /^platzierungen\//,
   /^szene-stats\//,
-  /^szene-quelle\//,
+  /^szene-quelle\//, /^spieler-kreis\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   /^replays\//,

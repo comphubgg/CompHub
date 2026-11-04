@@ -282,7 +282,18 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
     const szene = await liesSzeneSpieler();
     const bildZu = await liesBilder();
     const heimat = await heimatRegionen();
-    return (await gesamtSummen()).map((x) => {
+    const kreis = await liesJson<Array<{ epicId: string; name: string; region: string; matches: number }>>('spieler-kreis/_index.json', []).catch(() => []);
+    const summen = await gesamtSummen();
+    const imArchiv = new Set(summen.map((x) => x.epicId));
+    const ausKreis = kreis.filter((k) => k.name && !imArchiv.has(k.epicId)).map((k) => {
+      const pr = gepflegt.get(k.epicId);
+      return {
+        epicId: k.epicId, name: k.name, namen: [k.name], matches: k.matches, anzeige: pr?.anzeige || pr?.name || k.name,
+        gepflegt: Boolean(pr?.anzeige || pr?.name), land: pr?.land ?? null, x: pr?.x ?? null,
+        bild: bildZu.get(k.epicId)?.pfad ?? null, echtesFoto: bildZu.get(k.epicId)?.echt ?? false, heimat: k.region,
+      };
+    }) as unknown as SuchEintrag[];
+    return [...summen.map((x) => {
       const pr = gepflegt.get(x.epicId);
       const sz = szene.get(x.epicId);
       return {
@@ -295,7 +306,7 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
         echtesFoto: bildZu.get(x.epicId)?.echt ?? false,
         heimat: heimat.get(x.epicId) ?? '',
       };
-    }) as SuchEintrag[];
+    }) as SuchEintrag[], ...ausKreis];
   });
 
   // Fuenf Minuten im Vorgang - laenger lohnt nicht, kuerzer hilft nicht.

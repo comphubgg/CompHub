@@ -2299,6 +2299,23 @@ export async function epicTurniere(filter: Filter = {}): Promise<Array<{
 }
 
 /** Eine Zeile fuer die Turnierliste - ohne Einzelwerte, mit klarer Herkunft. */
+/*
+ * Der Spieler-Kreis (scripts/spieler-kreis.mjs): wer regelmaessig gut platziert ist, aber nicht im Archiv der Szene steht, hat keine Akte - seine Spieltage
+ * liegen je ersten zwei Zeichen der Konto-Id in einer Datei. Fuenf Minuten gemerkt, hoechstens zwanzig Dateien.
+ */
+const kreisMerker = new Map<string, { bis: number; wert: Promise<Record<string, EpicZeile[]>> }>();
+async function kreisZeilen(epicId: string): Promise<EpicZeile[] | null> {
+  const k = epicId.slice(0, 2).toLowerCase();
+  const jetzt = Date.now();
+  let da = kreisMerker.get(k);
+  if (!da || da.bis <= jetzt) {
+    da = { bis: jetzt + 5 * 60_000, wert: liesJson<Record<string, EpicZeile[]>>(`spieler-kreis/${k}.json`, {}).catch(() => ({})) };
+    kreisMerker.set(k, da);
+    while (kreisMerker.size > 20) kreisMerker.delete(kreisMerker.keys().next().value as string);
+  }
+  return (await da.wert)[epicId] ?? null;
+}
+
 export interface EpicZeile {
   event: string; windowId: string; region: string; season: string;
   titel: string; datum: number | null;
@@ -2332,12 +2349,17 @@ export async function epicVerlauf(
    * bekommt eine Akte (siehe bekannteKonten); fehlt sie trotzdem, ist es
    * ein Konto, zu dem das Werkzeug nichts fuehrt.
    */
+  const passtKreis = (z: { season: string; region: string }) =>
+    (!filter.saison || z.season === filter.saison)
+    && (!filter.saisons?.length || filter.saisons.includes(z.season))
+    && (!filter.region || z.region === filter.region);
+  if (!(await akteLesen(epicId))) {
+    const kreis = await kreisZeilen(epicId);
+    if (kreis) return kreis.filter(passtKreis);
+  }
   if (ohneDateien()) {
     const akte = await akteLesen(epicId);
-    const passt = (z: { season: string; region: string }) =>
-      (!filter.saison || z.season === filter.saison)
-      && (!filter.saisons?.length || filter.saisons.includes(z.season))
-      && (!filter.region || z.region === filter.region);
+    const passt = passtKreis;
     if (akte) return akte.epic.filter(passt);
     /*
      * Ohne Akte bleibt die Verdienst-Akte: sie fuehrt je Konto jeden

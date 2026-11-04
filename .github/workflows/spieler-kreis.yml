@@ -1,0 +1,47 @@
+# Der Spieler-Kreis (scripts/spieler-kreis.mjs): alle sechs Stunden aus allen Bestenlisten ein Profil fuer jeden, der regelmaessig gut platziert ist.
+
+name: Spieler-Kreis
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 */6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/spieler-kreis.yml'
+      - 'scripts/spieler-kreis.mjs'
+
+concurrency:
+  group: spieler-kreis
+  cancel-in-progress: false
+
+jobs:
+  kreis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Bestenlisten und Namen vom Release
+        run: |
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch epic-namen.json 2>&1 | tail -3
+          du -sh data/epic-spieltage data/clutch 2>/dev/null || true
+
+      - name: Rechnen
+        run: node --max-old-space-size=6000 scripts/spieler-kreis.mjs
+
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur spieler-kreis 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
