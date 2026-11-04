@@ -430,6 +430,8 @@ async function holeRoh(request: Request) {
     schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }>;
     /** Epics eigener Schaden der Top 10.000 in Solo-Cups (scripts/epic-schaden-holen.mjs) - hat Vorrang vor dem Replay-Wert, der dort rund 5 % zu hoch liegt. */
     epicDmg?: Record<string, number>;
+    /** Dasselbe fuer Ueberlebenszeit (s), Strecke (m) und Kopftreffer - unsere Replay-Zeit lag bei Reload ueber der Dauer des Cups (3h 52m bei 2h 30m). */
+    epicZeit?: Record<string, number>; epicStrecke?: Record<string, number>; epicKopf?: Record<string, number>;
     /** Ueberlebenszeit je Spieler in Sekunden (scripts/clutch-leben.mjs). */
     leben?: Record<string, number>;
     /** Wie viele Spiele je Spieler gelesen sind. */
@@ -448,12 +450,12 @@ async function holeRoh(request: Request) {
       // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
       if (!c || c.teilweise) return a;
       const raus = a ?? { summe: {}, schaden: {}, leben: {} };
-      for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + v;
+      for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + (c.epicZeit?.[id] ?? v);
       for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         raus.schaden![id] = {
-          dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
+          dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + (c.epicKopf?.[id] ?? d.krit),
           sturm: (da.sturm ?? 0) + (d.sturm ?? 0), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
         };
       }
@@ -470,16 +472,16 @@ async function holeRoh(request: Request) {
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
   const schadenVon = clutchDatei?.schaden
-    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? d.dmg }] as const)) : null;
+    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? d.dmg, krit: clutchDatei.epicKopf?.[id] ?? d.krit }] as const)) : null;
   // Im Solo ohne Reload gibt es weder Reboot noch Wiederbeleben (Betreiber, 31.10.2026: "wie kann es in einem Solo-Cup Reboots geben?").
   const soloOhneReload = !tage.some((w) => /reload/i.test(w))
     && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));
   // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
   const teil = clutchDatei?.teilweise ?? null;
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
-  const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries(clutchDatei.leben)) : null;
+  const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries({ ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })) : null;
   // Strecke nur fuer einen einzelnen Tag (die Summe mehrerer Tage fuehrt der Zusammenbau oben nicht mit).
-  const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries(clutchDatei.strecke)) : null;
+  const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries({ ...clutchDatei.strecke, ...Object.fromEntries(Object.entries(clutchDatei.epicStrecke ?? {}).map(([id, m]) => [id, [m, 0] as [number, number]])) })) : null;
   /*
    * Plattformen des Spieltags (Betreiber, 30.10.2026: einbauen, wenn es echte Statistiken sind): aus dem Feld Platform jedes vollen Replays, je Spieler
    * einmal gezaehlt - nur wenn jedes Match gelesen ist; ein halb gelesener Spieltag zeigte ein schiefes Bild.
@@ -487,8 +489,8 @@ async function holeRoh(request: Request) {
   const plattformen = (() => {
     const p = tage.length > 1 ? null : clutchDatei?.plattform;
     if (!p || teil || !Object.keys(p).length) return null;
-    const GRUPPE: Record<string, string> = { WIN: 'PC', MAC: 'Mac', PS5: 'PlayStation', PSN: 'PlayStation', PS4: 'PlayStation', XSX: 'Xbox', XBL: 'Xbox', XB1: 'Xbox',
-      SWT: 'Switch', SWT2: 'Switch', IOS: 'iOS', AND: 'Android' };
+    const GRUPPE: Record<string, string> = { WIN: 'Windows', MAC: 'Mac', PS5: 'PlayStation 5', PSN: 'PlayStation 4', PS4: 'PlayStation 4', XSX: 'Xbox Series X', XBL: 'Xbox', XB1: 'Xbox',
+      SWT: 'Switch', SWT2: 'Switch 2', IOS: 'iOS', AND: 'Android' };
     const raus: Record<string, number> = {};
     for (const code of Object.values(p)) { const g = GRUPPE[code.toUpperCase()] ?? code; raus[g] = (raus[g] ?? 0) + 1; }
     return raus;

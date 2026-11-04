@@ -3392,7 +3392,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Ansicht Cumulative / Session wie bei Fortnite Tracker (Betreiber, 28.10.2026: "ein Button ... pro Tag oder kumulativ, und nicht, als ob es ein eigener
           * Tag ist"). Bei mehrtaegigen Finals ueber Leaderboard, Matches, Player Stats, Team Stats und Karte; Session zeigt den Tag, der oben gewaehlt ist.
           */}
-        {kumDa && ['liste', 'runden', 'spieler', 'teams', 'karte'].includes(reiter) && (
+        {kumDa && (kumAktiv || kumTage.some((x) => x.windowId === fenster?.windowId)) && ['liste', 'runden', 'spieler', 'teams', 'karte'].includes(reiter) && (
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ansicht</T></span>
             <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/70 p-0.5">

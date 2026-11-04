@@ -19,9 +19,12 @@ import path from 'node:path';
 const DATEN = path.join(process.cwd(), 'data');
 const SPIELTAGE = path.join(DATEN, 'epic-spieltage');
 const ZIEL = path.join(DATEN, 'spieler-kreis');
-/** Wer so oft unter den ersten PLATZ_GRENZE stand, bekommt ein Profil. */
-const MINDEST_CUPS = 3;
-const PLATZ_GRENZE = 500;
+/*
+ * Wer gilt als stark (Betreiber, 4.11.2026: "ein Top 500 oder Top 300 in einem normalen Cup ist gut ... Top 10 in Runde 2 der FNCS, solche Leute, die immer wieder
+ * Top 10, Top 100 kommen, suche ich"). Das haengt am Feld: ab so vielen Teams ist es eine offene Runde.
+ */
+const OFFEN_AB = 3000;
+const istStark = (x) => x.top10 >= 1 || x.spaet100 >= 2 || x.offen100 >= 2 || x.offen300 >= 3;
 
 const lies = (p, standard) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return standard; } };
 const dateien = [];
@@ -34,17 +37,23 @@ const zaehlt = (tag) => tag?.windowId && Array.isArray(tag.teams) && !/ranked/i.
 
 // Erster Durchgang: wer kommt in den Kreis?
 const stand = new Map();
+const zaehler = (id) => { let x = stand.get(id); if (!x) { x = { top10: 0, spaet100: 0, offen100: 0, offen300: 0 }; stand.set(id, x); } return x; };
 let tage = 0;
 for (const datei of dateien) {
   const tag = lies(datei, null);
   if (!zaehlt(tag)) continue;
   tage += 1;
+  const offen = tag.teams.length >= OFFEN_AB;
   for (const t of tag.teams) {
-    if (t.platz > PLATZ_GRENZE) continue;
-    for (const id of t.spieler ?? []) stand.set(id, (stand.get(id) ?? 0) + 1);
+    if (t.platz > 300) continue;
+    for (const id of t.spieler ?? []) {
+      const x = zaehler(id);
+      if (t.platz <= 10) x.top10 += 1;
+      if (offen) { x.offen300 += 1; if (t.platz <= 100) x.offen100 += 1; } else if (t.platz <= 100) x.spaet100 += 1;
+    }
   }
 }
-const kreis = new Set([...stand].filter(([, n]) => n >= MINDEST_CUPS).map(([id]) => id));
+const kreis = new Set([...stand].filter(([, x]) => istStark(x)).map(([id]) => id));
 stand.clear();
 console.log(`${tage} Spieltage ohne Ranked, ${kreis.size} Konten im Kreis.`);
 if (!kreis.size) { console.log('Kein Konto im Kreis - nichts geschrieben.'); process.exit(1); }

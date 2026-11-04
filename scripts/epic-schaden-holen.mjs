@@ -53,13 +53,18 @@ for (const w of liste) {
   const erste = await seite(d, 0);
   if (!erste) { console.log(`${w}: Bestenliste nicht erreichbar`); continue; }
   const seiten = Math.min(erste.totalPages ?? 1, 100);
-  const werte = {};
+  const werte = {}; const zeit = {}; const strecke = {}; const kopf = {};
   let team = false;
   const nehmen = (j) => {
     for (const e of j?.entries ?? []) {
       if ((e.teamAccountIds ?? []).length !== 1) { team = true; return; }
-      const summe = (e.sessionHistory ?? []).reduce((a, s) => a + (Number(s.trackedStats?.DamageDealt) || 0), 0);
-      if (summe > 0) werte[e.teamAccountIds[0].toLowerCase()] = summe;
+      const id = e.teamAccountIds[0].toLowerCase();
+      const summe = (feld) => (e.sessionHistory ?? []).reduce((a, s) => a + (Number(s.trackedStats?.[feld]) || 0), 0);
+      if (summe('DamageDealt') > 0) werte[id] = summe('DamageDealt');
+      if (summe('TIME_ALIVE_STAT') > 0) zeit[id] = summe('TIME_ALIVE_STAT');
+      // Epic zaehlt in Zentimetern.
+      if (summe('Travel_Distance_Ground') > 0) strecke[id] = Math.round(summe('Travel_Distance_Ground') / 100);
+      if (e.sessionHistory?.length) kopf[id] = summe('Headshots');
     }
   };
   nehmen(erste);
@@ -68,7 +73,7 @@ for (const w of liste) {
     while (naechste < seiten && !team) nehmen(await seite(d, naechste++));
   }));
   d.epicDmgStand = new Date().toISOString();
-  if (team) delete d.epicDmg; else d.epicDmg = werte;
+  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
   fs.writeFileSync(datei, JSON.stringify(d));
   fertig += 1;
   console.log(`${w}: ${team ? 'Team-Cup, kein Epic-Schaden' : `${Object.keys(werte).length} Spieler`}`);
