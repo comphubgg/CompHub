@@ -607,10 +607,29 @@ async function holeRoh(request: Request) {
   });
 
   /** Die Summen ueber alle Spieler des Spieltags (nicht nur die gezeigten) - fuer die Kacheln oben unter "Alle Spieler". */
-  const summen = q ? null : rep.spieler.reduce((a, x) => {
+  const summen: Record<string, number> | null = q ? null : rep.spieler.reduce<Record<string, number>>((a, x) => {
     a.spiele += x.matches || 0; a.elims += x.kills || 0; a.knocks += x.knocks || 0; a.tode += x.gestorben || 0; a.umgehauen += x.umgehauen || 0;
     return a;
   }, { spiele: 0, elims: 0, knocks: 0, tode: 0, umgehauen: 0 });
+  /*
+   * Dazu alles aus den vollen Replays - nur wenn jedes Match gelesen ist, sonst waere die Summe zu klein. Vorher fehlte das: die Kachel "Schaden" gab es
+   * unter "Alle Spieler" gar nicht, obwohl die Werte aller 48.000 Spieler vorlagen (Betreiber, 4.11.2026, Vergleich mit Osirion).
+   */
+  if (summen && !teil) {
+    if (schadenVon) {
+      const plus = (feld: string, w: number) => { summen[feld] = (summen[feld] ?? 0) + w; };
+      for (const d of schadenVon.values()) {
+        plus('damage', d.dmg); plus('damageTaken', d.erlitten); plus('hits', d.treffer); plus('headshots', d.krit);
+        if (typeof d.sturm === 'number') plus('timeInStorm', d.sturm);
+        if (!soloOhneReload) plus('reboots', (d.wiederbelebt ?? 0) + (d.rebootet ?? 0));
+      }
+      for (const k of ['damage', 'damageTaken', 'timeInStorm']) if (typeof summen[k] === 'number') summen[k] = Math.round(summen[k]);
+    }
+    if (lebenVon) summen.timeAlive = [...lebenVon.values()].reduce((a, v) => a + v, 0);
+    if (streckeVon) summen.distanz = [...streckeVon.values()].reduce((a, v) => a + (v[0] ?? 0) + (v[1] ?? 0), 0);
+  }
+  // Alle, die gespielt haben - auch ohne Kill oder Knock (die Liste oben fuehrt nur Spieler mit Kill oder Knock).
+  const alleSpieler = !teil && clutchDatei?.spiele ? Math.max(rep.spieler.length, Object.keys(clutchDatei.spiele).length) : rep.spieler.length;
 
   return NextResponse.json({
     vorhanden: true,
@@ -622,7 +641,7 @@ async function holeRoh(request: Request) {
     aktualisiert: rep.gerechnet ?? null,
     spieler,
     /** Wie viele Spieler mit Kill oder Knock es insgesamt gibt - gezeigt sind die besten. */
-    gesamt: q ? auswahl.length : rep.spieler.length,
+    gesamt: q ? auswahl.length : alleSpieler,
     gekuerzt: !q && rep.spieler.length > gezeigt.length,
     summen,
     schadenTeil: teil,
