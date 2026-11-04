@@ -2728,6 +2728,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Duo-Cup kommt und dort auf diesem Reiter stand, landete sonst auf einer
    * leeren Seite ohne Knopf zurueck.
    */
+  // Unter Kumulativ zaehlt nicht der Tag, sondern die Summe: die Punkte am Platz, der weiterkommt, ueber alle Tage der Runde (geschaetzt, app/api/cup-leaderboard).
+  const [kumGrenze, setKumGrenze] = useState<number | null>(null);
+  const kumSchwelle = qual?.schwelle ?? 0;
+  const kumEvent = fenster?.eventId ?? '';
+  useEffect(() => {
+    setKumGrenze(null);
+    if (!summenText.includes(',') || !kumSchwelle || !kumEvent) return undefined;
+    let weg = false;
+    fetch(`/api/cup-leaderboard?event=${encodeURIComponent(kumEvent)}&windows=${summenText}&grenze=${kumSchwelle}`)
+      .then((r) => r.json()).then((j: { punkte?: number | null }) => { if (!weg) setKumGrenze(j?.punkte ?? null); }).catch(() => {});
+    return () => { weg = true; };
+  }, [summenText, kumSchwelle, kumEvent]);
+
   // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos samt Reload-Reihe; eine hinterlegte Karte).
   const wegDa = !!cup && /fncssolos/i.test(cup.id);
   const kartenAnzahl = kartenZumZeigen.length;
@@ -2969,7 +2982,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                    * Runde ueber mehrere Tage (FNCS Solos Reload Round 1 Day 1 + Day 2): kurz und pro Tag, sonst passt es nicht in die Kachel
                    * (Betreiber, 3.11.2026) - "Top 4,000 → Round 2 · 59 jetzt · ~326/Tag".
                    */
-                  + (qual?.kumuliert
+                  + (kumAktiv && kumGrenze ? ` · ~${kumGrenze.toLocaleString(ort)} ${t('Punkte')}`
+                    : qual?.kumuliert
                     ? (typeof qual.tatsaechlich === 'number' ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${qual.laeuft ? t('jetzt') : t('Punkte')}` : '')
                       + (qual.schnitt ? ` · ~${qualPrognose(qual).toLocaleString(ort)}${t('/Tag')}` : '')
                     : typeof qual?.tatsaechlich === 'number'

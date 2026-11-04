@@ -125,6 +125,21 @@ async function ganzerTag(event: string, w: string) {
   return vorrat?.entries?.length ? vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string } : null;
 }
 
+/*
+ * Wie viele Punkte es ueber alle Tage einer Runde fuer einen Platz braucht (Betreiber, 4.11.2026: "wie viel wirklich Qual ist fuer diese Top 4000 in beiden Tagen
+ * zusammen"). Epic zeigt je Tag nur 10.000 Plaetze: bei Solo Reload Round 1 EU standen nur 3.580 Spieler in beiden Listen. Wem ein Tag fehlt, der lag dort unter dem
+ * letzten sichtbaren Platz - gerechnet wird er mit 80 Prozent davon. Das Ergebnis ist eine Schaetzung und steht auf der Seite mit "~" (unten 372, oben 611, hier 576).
+ */
+async function kumGrenze(event: string, windows: string[], rang: number): Promise<number | null> {
+  const tage = await Promise.all(windows.map((w) => ganzerTag(event, w)));
+  if (tage.some((d) => !d)) return null;
+  const listen = tage.map((d) => new Map(ohneDoppelte(d!.entries).map((e) => [(e.players ?? []).map((p) => p.id).sort().join('+'), e.points ?? 0])));
+  const ersatz = listen.map((m) => Math.min(...m.values()) * 0.8);
+  const summen = [...new Set(listen.flatMap((m) => [...m.keys()]))]
+    .map((id) => listen.reduce((a, m, i) => a + (m.get(id) ?? ersatz[i]), 0)).sort((a, b) => b - a);
+  return summen[rang - 1] === undefined ? null : Math.round(summen[rang - 1]);
+}
+
 async function tageGesamt(event: string, windows: string[]) {
   const tief = windows.every((w) => /Round\d+Day\d+/i.test(w));
   const tage = await Promise.all(windows.map(async (w) => {
@@ -202,6 +217,11 @@ async function holeRoh(request: Request) {
 
   try {
     // Mehrere Spieltage zusammen (Day 1 + Day 2 eines Finales).
+    const grenze = parseInt(searchParams.get('grenze') ?? '', 10);
+    if (mehrere.length > 1 && grenze > 0) {
+      const punkte = await gecacht(`kumgrenze|${event}|${mehrere.join(',')}|${grenze}`, 5 * 60_000, () => kumGrenze(event, mehrere, grenze));
+      return NextResponse.json({ punkte });
+    }
     if (mehrere.length > 1) return NextResponse.json(await ergaenzeBilder(await tageGesamt(event, mehrere)));
     if (!window_) return NextResponse.json({ error: 'window fehlt' }, { status: 400 });
     // Das Finale der Globals: beide Tage zusammen (siehe globalsGesamt).
