@@ -2313,7 +2313,9 @@ async function kreisZeilen(epicId: string): Promise<EpicZeile[] | null> {
     kreisMerker.set(k, da);
     while (kreisMerker.size > 20) kreisMerker.delete(kreisMerker.keys().next().value as string);
   }
-  return (await da.wert)[epicId] ?? null;
+  // Im alten Archiv steht als Titel nur die Kennung des Fensters.
+  return (await da.wert)[epicId]?.map((z) => (z.titel && z.titel !== z.windowId ? z
+    : { ...z, titel: [cupNameAusKennung(z.windowId), rundenName(z.windowId, false)].filter(Boolean).join(' · ') || z.windowId })) ?? null;
 }
 
 export interface EpicZeile {

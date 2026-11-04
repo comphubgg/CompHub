@@ -5,7 +5,7 @@
 // Szene, und das bekommt seit dem 10.10.2026 nichts mehr. Epics Bestenlisten liegen aber laengst hier (data/epic-spieltage), je Team mit Konto-Ids: ueber
 // 900.000 Konten. Hier wird daraus gefiltert, wer es verdient - allein ueber die Konto-Id, Ranked Cups zaehlen nicht:
 //
-//   data/spieler-kreis/_index.json   [{ epicId, name, region, cups, top500, top100, beste, matches }]  fuer die Suche
+//   data/spieler-kreis/_index.json   [{ epicId, name, konstanz, region, cups, top500, top100, beste, matches }]  fuer die Suche
 //   data/spieler-kreis/<xx>.json     { <epicId>: [Zeile je Spieltag] }  je ersten zwei Zeichen der Kennung, dieselben Zeilen wie die Akte (EpicZeile)
 //
 // Kein Name, keine Flagge und kein Foto werden erfunden: der Name ist der letzte, den Epic zu diesem Konto nannte; Schaden und Clutch stehen nur, wo ein volles
@@ -20,41 +20,71 @@ const DATEN = path.join(process.cwd(), 'data');
 const SPIELTAGE = path.join(DATEN, 'epic-spieltage');
 const ZIEL = path.join(DATEN, 'spieler-kreis');
 /*
- * Wer gilt als stark (Betreiber, 4.11.2026: "ein Top 500 oder Top 300 in einem normalen Cup ist gut ... Top 10 in Runde 2 der FNCS, solche Leute, die immer wieder
- * Top 10, Top 100 kommen, suche ich"). Das haengt am Feld: ab so vielen Teams ist es eine offene Runde.
+ * Wer ins Profil kommt, entscheidet kein fester Wert wie "dreimal Top 300" (Betreiber, 4.11.2026: "zweimal Top 100 kann jeder erreichen, indem man im Busch campt.
+ * Du musst das zusammenrechnen, fuer jeden Spieler ein bisschen anders ... er platziert zu 70, 80 Prozent gut, und dann gibt es einen kleinen Ausrutscher").
+ *
+ * Darum eine Note je Spieler aus seinen letzten zwanzig Cups:
+ *   - Jede Platzierung zaehlt nach dem Feld: 1 - log(Platz) / log(Feld). Platz 1 ist 1, Platz 100 von 30.000 etwa 0,55, Platz 1.000 etwa 0,33.
+ *   - Volle Listen (10.000 Plaetze) und gekuerzte alte Listen haben ein offenes Feld, gerechnet mit 30.000. Kleinere Felder sind schon gesiebt: 0,15 dazu.
+ *   - Das schlechteste Fuenftel faellt weg - das sind die Ausrutscher wegen Mitspielern oder eines schlechten Tages. Die Note ist der Schnitt des Rests.
+ * Ins Profil kommt, wer mindestens MINDEST_CUPS sichtbare Ergebnisse und mindestens NOTE_AB hat. Ein Einzelerfolg reicht so nie.
  */
-const OFFEN_AB = 3000;
-const istStark = (x) => x.top10 >= 1 || x.spaet100 >= 2 || x.offen100 >= 2 || x.offen300 >= 3;
+const MINDEST_CUPS = 10;
+const NOTE_AB = 0.4;
+const LETZTE = 20;
+const OFFENES_FELD = 30_000;
 
 const lies = (p, standard) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return standard; } };
+// Neue Spieltage zuerst: was in beiden Ordnern liegt, zaehlt aus dem neueren. Das alte Archiv reicht bis 2019 zurueck (je Spieltag die besten 500).
 const dateien = [];
-for (const ordner of fs.existsSync(SPIELTAGE) ? fs.readdirSync(SPIELTAGE) : []) {
-  const voll = path.join(SPIELTAGE, ordner);
-  if (!fs.statSync(voll).isDirectory()) continue;
-  for (const f of fs.readdirSync(voll)) if (f.endsWith('.json') && !f.startsWith('_')) dateien.push(path.join(voll, f));
+const schonDa = new Set();
+for (const wurzel of [SPIELTAGE, path.join(DATEN, 'epic-spieltage-alt')]) {
+  for (const ordner of fs.existsSync(wurzel) ? fs.readdirSync(wurzel) : []) {
+    const voll = path.join(wurzel, ordner);
+    if (!fs.statSync(voll).isDirectory()) continue;
+    for (const f of fs.readdirSync(voll)) {
+      if (!f.endsWith('.json') || f.startsWith('_') || schonDa.has(f)) continue;
+      schonDa.add(f);
+      dateien.push(path.join(voll, f));
+    }
+  }
 }
 const zaehlt = (tag) => tag?.windowId && Array.isArray(tag.teams) && !/ranked/i.test(`${tag.windowId} ${tag.titel ?? ''} ${tag.cupId ?? ''}`);
+const note = (tag, platz) => {
+  const offen = tag.gekuerzt || tag.teams.length >= 9900;
+  const feld = offen ? OFFENES_FELD : Math.max(tag.teams.length, 50);
+  return Math.max(0, 1 - Math.log10(Math.max(platz, 1)) / Math.log10(feld)) + (offen ? 0 : 0.15);
+};
 
-// Erster Durchgang: wer kommt in den Kreis?
-const stand = new Map();
-const zaehler = (id) => { let x = stand.get(id); if (!x) { x = { top10: 0, spaet100: 0, offen100: 0, offen300: 0 }; stand.set(id, x); } return x; };
+// Erster Durchgang: je Konto Datum und Note jedes Ergebnisses.
+const ergebnisse = new Map();
 let tage = 0;
 for (const datei of dateien) {
   const tag = lies(datei, null);
   if (!zaehlt(tag)) continue;
   tage += 1;
-  const offen = tag.teams.length >= OFFEN_AB;
   for (const t of tag.teams) {
-    if (t.platz > 300) continue;
+    const n = note(tag, t.platz);
     for (const id of t.spieler ?? []) {
-      const x = zaehler(id);
-      if (t.platz <= 10) x.top10 += 1;
-      if (offen) { x.offen300 += 1; if (t.platz <= 100) x.offen100 += 1; } else if (t.platz <= 100) x.spaet100 += 1;
+      let l = ergebnisse.get(id);
+      if (!l) { l = []; ergebnisse.set(id, l); }
+      l.push(tag.datum ?? 0, n);
     }
   }
 }
-const kreis = new Set([...stand].filter(([, x]) => istStark(x)).map(([id]) => id));
-stand.clear();
+const noten = new Map();
+for (const [id, l] of ergebnisse) {
+  if (l.length / 2 < MINDEST_CUPS) continue;
+  const paare = [];
+  for (let i = 0; i < l.length; i += 2) paare.push([l[i], l[i + 1]]);
+  paare.sort((a, b) => b[0] - a[0]);
+  const letzte = paare.slice(0, LETZTE).map((x) => x[1]).sort((a, b) => b - a);
+  const behalten = letzte.slice(0, Math.ceil(letzte.length * 0.8));
+  const wert = behalten.reduce((a, b) => a + b, 0) / behalten.length;
+  if (wert >= NOTE_AB) noten.set(id, Math.round(wert * 1000) / 1000);
+}
+ergebnisse.clear();
+const kreis = new Set(noten.keys());
 console.log(`${tage} Spieltage ohne Ranked, ${kreis.size} Konten im Kreis.`);
 if (!kreis.size) { console.log('Kein Konto im Kreis - nichts geschrieben.'); process.exit(1); }
 
@@ -94,12 +124,12 @@ for (const [id, liste] of zeilen) {
   const regionen = new Map();
   for (const z of liste) regionen.set(z.region, (regionen.get(z.region) ?? 0) + 1);
   index.push({
-    epicId: id, name: namen[id] ?? '', region: [...regionen].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '',
+    epicId: id, name: namen[id] ?? '', konstanz: noten.get(id) ?? 0, region: [...regionen].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '',
     cups: liste.length, top500: liste.filter((z) => z.platz <= 500).length, top100: liste.filter((z) => z.platz <= 100).length,
     beste: Math.min(...liste.map((z) => z.platz)), matches: liste.reduce((a, z) => a + (z.matches ?? 0), 0),
   });
 }
-index.sort((a, b) => b.top100 - a.top100 || b.top500 - a.top500);
+index.sort((a, b) => b.konstanz - a.konstanz);
 
 fs.rmSync(ZIEL, { recursive: true, force: true });
 fs.mkdirSync(ZIEL, { recursive: true });

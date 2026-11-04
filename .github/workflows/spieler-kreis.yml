@@ -38,6 +38,11 @@ jobs:
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch epic-namen.json 2>&1 | tail -3
           du -sh data/epic-spieltage data/clutch 2>/dev/null || true
 
+      # Das alte Archiv bis 2019 (je Spieltag die besten 500), einmal vom Rechner des Betreibers ans Release gelegt.
+      - name: Altes Archiv
+        continue-on-error: true
+        run: curl -fsSL "https://github.com/${{ github.repository }}/releases/download/daten-spieltage-alt/epic-spieltage-alt.tar.gz" | tar xz -C data
+
       - name: Rechnen
         run: node --max-old-space-size=6000 scripts/spieler-kreis.mjs
 
