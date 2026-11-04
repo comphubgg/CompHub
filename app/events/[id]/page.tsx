@@ -100,7 +100,7 @@ function kumTageVon(tage: Fenster[]): Fenster[] {
   if (tage.some((x) => x.anzeige === 'Kumulativ')) return [];
   const gruppen = new Map<string, Fenster[]>();
   for (const x of tage) {
-    if (!/Day\d+/i.test(x.windowId) || !(x.istFinale || /final/i.test(x.windowId))) continue;
+    if (!/Day\d+/i.test(x.windowId) || !(x.istFinale || /final|Round\d+Day\d+/i.test(x.windowId))) continue;
     const k = x.windowId.replace(/Day\d+/i, 'Day#');
     gruppen.set(k, [...(gruppen.get(k) ?? []), x]);
   }

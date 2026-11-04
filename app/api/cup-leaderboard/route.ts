@@ -93,8 +93,27 @@ async function globalsGesamt() {
  * Mehrere Spieltage eines Events zusammengerechnet (Day 1 + Day 2): Punkte, Siege, Eliminierungen und Spiele je Team addiert,
  * neu nach Punkten gereiht. Die Globals sind der Sonderfall mit eigenem Aufruf; ?windows=a,b macht es fuer jedes Finale.
  */
+/*
+ * Die ganze Liste eines Tages fuer die Gesamtwertung einer Qualifier-Runde (Round 1 Day 1 + Day 2, Top 4.000 kommen weiter). Die ersten zweihundert Plaetze
+ * je Tag reichten dort nicht (Betreiber, 4.11.2026). Hat Epic seit dem Vorrat neu gerechnet, wird im Hintergrund neu gebaut.
+ */
+async function ganzerTag(event: string, w: string) {
+  let vorrat = await ganzLesen(w);
+  if (!vorrat) {
+    await hoechstens(ganzBauen(event, w), 55_000);
+    vorrat = await ganzLesen(w);
+  } else {
+    const kopf = await gecacht(`bereich|${event}|${w}|0|1`, TTL, () => holeBereich(event, w, 0, 1)).catch(() => null) as { updated?: string } | null;
+    if (kopf?.updated && kopf.updated !== vorrat.updated) void ganzBauen(event, w);
+  }
+  return vorrat?.entries?.length ? vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string } : null;
+}
+
 async function tageGesamt(event: string, windows: string[]) {
+  const tief = windows.every((w) => /Round\d+Day\d+/i.test(w));
   const tage = await Promise.all(windows.map(async (w) => {
+    const ganz = tief ? await ganzerTag(event, w) : null;
+    if (ganz) return bereinigt(ganz, event, w);
     const d = await gecacht(`bereich|${event}|${w}|0|2`, TTL,
       () => holeBereich(event, w, 0, 2));
     return bereinigt(d, event, w);
@@ -104,7 +123,11 @@ async function tageGesamt(event: string, windows: string[]) {
    * Schaden, Kopftreffer und Lebenszeit addiert - K/D, Strecke, Heilung, Schild, Kisten, Material und die Punkteaufteilung
    * standen in der Gesamtwertung mit den Werten des ersten Tages da (Beispiel FNCS Solo Final EU: K/D 1,8 statt 2,45).
    */
-  const eintraege = summiereTage(tage.map((d) => (d.entries ?? []) as CupEintrag[]));
+  const summe = summiereTage(tage.map((d) => (d.entries ?? []) as CupEintrag[]));
+  // Wie bei der ganzen Liste eines Tages: Spielverlaeufe nur fuer die ersten 300, den Rest holt die Seite beim Anklicken.
+  const eintraege = tief
+    ? (summe.slice(0, 10_000) as unknown as Array<Record<string, unknown>>).map((x, i) => (i < 300 ? x : { ...x, matches: [], matchesWeg: true })) as unknown as typeof summe
+    : summe;
   return {
     eventId: event, windowId: 'gesamt', page: 0, totalPages: 1,
     updated: tage.map((d) => d.updated).filter(Boolean).sort().pop() ?? '',
