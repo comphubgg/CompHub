@@ -34,6 +34,7 @@ import T from '@/app/components/T';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { stufeKurz } from '@/lib/cupTitel';
 import { useSprache } from '@/app/components/SprachProvider';
+import { rundenName } from '@/lib/rundenName';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import type { Sprache } from '@/app/lib/sprache';
 
@@ -54,6 +55,8 @@ interface Cup {
   live: boolean; vorbei: boolean;
   /** Bei einer Ausgabe einer Reihe: die Kennung der ganzen Reihe (zum Oeffnen) und die Nummer der Ausgabe. */
   basisId?: string; ausgabe?: number;
+  /** Eine einzelne beendete Stufe eines Cups (siehe stufenVon) - die Kachel oeffnet genau diesen Spieltag. */
+  stufe?: boolean;
 }
 
 /* ================================================================ Einteilung */
@@ -240,6 +243,41 @@ function laeuft(f: Fenster, jetzt: number): boolean {
   if (f.end) return jetzt < f.end;
   // Ohne Endzeit (nachgetragene Turniere): Epics Stand, hoechstens vier Stunden.
   return f.status === 'live' && jetzt - f.begin < 4 * 3_600_000;
+}
+
+/** Die Kennung einer Stufe: das Fenster ohne Region - "S43_..._Qual1Round1Day1_EU" und "..._NAC" sind dieselbe Stufe. */
+const stufeSchluessel = (windowId: string) => windowId.replace(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)(?=_|$)/i, '');
+
+/*
+ * Jede beendete Stufe als eigene Kachel unter "Beendet" (Betreiber, 4.11.2026: "Day One ist wie ein einzelner Cup ... genauso wie Performance Cups, Opens
+ * und Finals - ich soll nicht auf den aktuellen gehen und den alten suchen muessen"). Vorher erschien ein Cup dort erst, wenn alle Tage vorbei waren: von
+ * Day 1 der FNCS Solos Reload war nichts zu sehen, solange Day 2 noch kam. Ein Cup mit nur einer Stufe bleibt eine Kachel; die Zahl der Karten traegt das
+ * nach und nach Zeichnen in Abschnitt.
+ */
+function stufenVon(c: Cup, region: string, jetzt: number, t: (s: string) => string): Cup[] {
+  if (c.global) return [];
+  const alle = Object.values(c.regionen).flat();
+  if (new Set(alle.map((f) => stufeSchluessel(f.windowId))).size < 2) return [];
+  const je = new Map<string, Fenster[]>();
+  for (const f of fensterIn(c, region)) {
+    if (!f.begin || f.begin > jetzt || laeuft(f, jetzt)) continue;
+    const k = stufeSchluessel(f.windowId);
+    je.set(k, [...(je.get(k) ?? []), f]);
+  }
+  return [...je.entries()].flatMap(([k, liste]) => {
+    const erste = liste[0];
+    // Was der Titel schon sagt ("· Event 2"), steht nicht noch einmal da.
+    const name = rundenName(erste.windowId, erste.istFinale, t).split(' · ')
+      .filter((teil) => !c.titel.includes(teil)).join(' · ');
+    if (!name) return [];
+    const regionen: Record<string, Fenster[]> = {};
+    for (const f of liste) (regionen[f.region] ??= []).push(f);
+    return [{
+      ...c, id: `${c.id}~s~${k}`, basisId: c.basisId ?? c.id, stufe: true,
+      titel: `${c.titel} · ${name}`, regionen,
+      naechsterStart: null, letzterStart: Math.max(...liste.map((f) => f.begin)), live: false, vorbei: true,
+    }];
+  });
 }
 
 function lageVon(c: Cup, region: string, jetzt: number): Lage {
@@ -494,7 +532,10 @@ export default function EventsPage() {
       .sort((a, b) => (von(a).letzter ?? 0) - (von(b).letzter ?? 0));
     const kommt = gefiltert.filter((c) => von(c).status === 'kommt')
       .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0));
-    const vorbeiAlle = gefiltert.filter((c) => von(c).status === 'vorbei')
+    // Beendete Stufen zaehlen einzeln, auch wenn der Cup selbst noch laeuft oder weitergeht; ein Cup, der in Stufen zerfaellt, steht nicht zusaetzlich da.
+    const stufen = gefiltert.flatMap((c) => stufenVon(c, region, jetzt, t));
+    const zerlegt = new Set(gefiltert.filter((c) => stufen.some((x) => x.id.startsWith(`${c.id}~s~`))).map((c) => c.id));
+    const vorbeiAlle = [...gefiltert.filter((c) => von(c).status === 'vorbei' && !zerlegt.has(c.id)), ...stufen]
       .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
     /*
      * Die laufende Season ist die hoechste, in der schon etwas stattgefunden hat.
@@ -519,7 +560,7 @@ export default function EventsPage() {
         mehr: zeig('vorbei') && !aeltereZeigen && !suche.trim() ? vorbeiAlle.length - vorbei.length : 0 },
     // Auch ein leerer Abschnitt bleibt, wenn hinter "Mehr anzeigen" noch etwas wartet.
     ].filter((a) => a.cups.length || ('mehr' in a && a.mehr));
-  }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen, suche]);
+  }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen, suche, t]);
 
   /** Der Kopf: was gerade laeuft, dann was als Naechstes kommt. */
   const hervor = useMemo(() => {
@@ -567,7 +608,8 @@ export default function EventsPage() {
   }, [gefiltert]);
 
   // Beendet, Kalender, Suche - oder zu wenige kommende Cups fuer die Kopfreihe (die fuellt sie mit zuletzt beendeten auf).
-  const brauchtVergangene = status === 'vorbei' || reiter === 'kalender' || suche.trim() !== '' || (!laedt && hervor.length < 4);
+  // Auch unter "Alle": dort steht "Beendet" unter "Demnaechst", und ohne den ganzen Katalog hoerte die Liste einfach auf (Betreiber, 4.11.2026).
+  const brauchtVergangene = status === 'vorbei' || (status === 'alle' && !laedt) || reiter === 'kalender' || suche.trim() !== '' || (!laedt && hervor.length < 4);
   if (brauchtVergangene && !mitVergangenen) setMitVergangenen(true);
 
   const filterZahl = [typ !== 'alle', status !== 'alle', plattform !== 'alle']
@@ -585,6 +627,13 @@ export default function EventsPage() {
   const oeffnen = (c: Cup) => {
     const regionen = Object.keys(c.regionen);
     const basis = c.basisId ?? c.id;
+    // Eine einzelne Stufe: genau dieser Spieltag - in der gewaehlten Region, sonst Europa.
+    if (c.stufe) {
+      const r = c.regionen[region] ? region : c.regionen.EU ? 'EU' : regionen[0];
+      const w = c.regionen[r]?.[0];
+      router.push(`/events/${basis}${w ? `?region=${r}&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
+      return;
+    }
     if (c.global || regionen.length <= 1) {
       const w1 = c.ausgabe !== undefined ? (regionen[0] ? c.regionen[regionen[0]] : []) : [];
       const f1 = w1.find((x) => laeuft(x, jetzt)) ?? w1.find((x) => x.begin > jetzt) ?? w1[w1.length - 1];

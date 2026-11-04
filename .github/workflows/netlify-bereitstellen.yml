@@ -23,7 +23,8 @@ on:
   # Jeden Montag fruehmorgens der aktuelle Stand (live): so ist die Seite nie lange hinter dem Code,
   # und es kostet nur vier, fuenf Baeue im Monat (je 15 von 300 Punkten).
   schedule:
-    - cron: '30 3 * * 1'
+    # Montag und Donnerstag (Betreiber, 4.11.2026: ohne seinen PC stand die Seite auf einem alten Stand) - je Konto rund 9 Baue = 135 von 300 Punkten im Monat.
+    - cron: '30 3 * * 1,4'
   workflow_dispatch:
     inputs:
       ziel:
