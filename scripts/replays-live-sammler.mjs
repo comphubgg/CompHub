@@ -27,7 +27,7 @@ const TAKT_MS = 30_000;              // so oft wird die erste Seite gefragt
 const SPAETESTENS_MS = 8 * 60_000;   // auch ohne neuen Stand alles lesen
 const HOCHLADEN_MS = 5 * 60_000;
 const VORLAUF_MS = 45 * 60_000;      // so lange vor dem Start wartet der Lauf
-const NACHLAUF_MS = 25 * 60_000;     // die letzten Spiele tragen sich nach dem Ende ein
+const NACHLAUF_MS = 200 * 60_000;    // Osirion fand am 3.11. rund 700 der 829 uns fehlenden Matches erst zwei Stunden nach Cup-Ende: so lange bleibt der Sammler dran und zeigt, ob Epics Liste dann mehr hergibt
 const LAUFZEIT_MS = 340 * 60_000;    // GitHub bricht nach sechs Stunden ab
 const GLEICHZEITIG = 5;
 
