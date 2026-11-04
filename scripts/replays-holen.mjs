@@ -834,6 +834,17 @@ function vomRelease(namen) {
   if (zeile) console.log(`  Release: ${zeile}`);
 }
 
+/** Was der Live-Sammler waehrend des Cups gesehen hat (scripts/replays-live-sammler.mjs) - ein Anhang am Release "signale", ohne API lesbar. */
+async function liveIds(windowId) {
+  try {
+    const repo = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
+    const r = await fetch(`https://github.com/${repo}/releases/download/signale/live-ids-${encodeURIComponent(windowId)}.json`, { signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return Array.isArray(j.ids) ? j.ids.filter((id) => typeof id === 'string' && /^[0-9a-f]{32}$/i.test(id)) : [];
+  } catch { return []; }
+}
+
 async function planSchreibenLauf(datei) {
   BASIS = await findeBasis();
   const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(120_000) });
@@ -894,6 +905,8 @@ async function planSchreibenLauf(datei) {
           if (!ids.length) continue;
         }
       }
+      const gesehen = await liveIds(f.windowId);
+      if (gesehen.length) ids = [...new Set([...ids, ...gesehen])];
       const offen = ids.filter((id) => {
         const m = zustand.matches?.[id];
         if (!m) return true;

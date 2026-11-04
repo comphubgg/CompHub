@@ -12,7 +12,7 @@ import { replayRegel, endrunden } from '../lib/replayRegel.mjs';
 const SEITE = (process.env.WERKZEUG_URL || 'https://www.thecomphub.com').replace(/\/+$/, '');
 const jetzt = Date.now();
 
-let frisch = 0; let grund = '';
+let frisch = 0; let grund = ''; let sammeln = false;
 try {
   const r = await fetch(`${SEITE}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(90_000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -24,6 +24,8 @@ try {
       const finals = regel === 'nurFinals' ? endrunden(liste) : null;
       for (const w of liste) {
         if (finals && !finals.has(w.windowId)) continue;
+        // Der Live-Sammler (replays-live-sammler.yml) soll schon stehen, wenn das erste Spiel endet.
+        if (!/Arena/i.test(w.windowId) && (w.status === 'live' || (w.begin > jetzt && w.begin - jetzt < 30 * 60_000))) sammeln = true;
         if (w.status === 'live' || (w.status === 'vorbei' && jetzt - (w.end ?? 0) < 6 * 3600_000)) frisch += 1;
       }
     }
@@ -36,4 +38,4 @@ try {
 const stuendlich = new Date(jetzt).getUTCMinutes() < 10;
 const ja = frisch > 0 || stuendlich;
 console.log(`Schnellspur: ${ja ? 'anstossen' : 'nicht noetig'}${grund ? ` - ${grund}` : stuendlich ? ' - stuendliche Nachschau' : ''}`);
-if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `anstossen=${ja ? 'ja' : 'nein'}\n`);
+if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `anstossen=${ja ? 'ja' : 'nein'}\nsammeln=${sammeln ? 'ja' : 'nein'}\n`);

@@ -1,0 +1,44 @@
+# Der Live-Sammler (scripts/replays-live-sammler.mjs): liest waehrend eines Cups die Bestenliste, sobald Epic sie neu rechnet - so tauchen Matches auf,
+# deren Spieler am Ende nicht in den Top 10.000 stehen. Angestossen von der Discord-Live-Kette, solange ein Cup laeuft oder gleich beginnt.
+
+name: Replays Live-Sammler
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: replays-live-sammler
+  cancel-in-progress: false
+
+jobs:
+  sammeln:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+
+      - name: Sammeln
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: node scripts/replays-live-sammler.mjs
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
