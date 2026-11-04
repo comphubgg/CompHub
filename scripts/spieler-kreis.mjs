@@ -30,10 +30,12 @@ const ZIEL = path.join(DATEN, 'spieler-kreis');
  *   - Listen unter zwanzig Teams zaehlen nicht, die Note ist hoechstens 1. Der erste Lauf hatte Konten mit 25 ersten Plaetzen in Mini-Listen ganz oben.
  *   - Die Regionen sind nicht gleich stark: Top 100 in Asien ist nicht Top 100 in Europa (REGION_FAKTOR).
  *   - Das schlechteste Fuenftel faellt weg - das sind die Ausrutscher wegen Mitspielern oder eines schlechten Tages. Die Note ist der Schnitt des Rests.
- * Ins Profil kommt, wer mindestens MINDEST_CUPS sichtbare Ergebnisse und mindestens NOTE_AB hat. Ein Einzelerfolg reicht so nie.
+ * Ins Profil kommt, wer mindestens MINDEST_CUPS sichtbare Ergebnisse und mindestens NOTE_AB hat; wer seit einem Jahr nicht mehr auftaucht, braucht NOTE_ALT.
+ * Ein Einzelerfolg reicht so nie. Mit dem Archiv bis 2019 waren es bei einer Grenze fuer alle 59.000 Konten, die meisten davon laengst nicht mehr aktiv.
  */
 const MINDEST_CUPS = 10;
 const NOTE_AB = 0.4;
+const NOTE_ALT = 0.5;
 const LETZTE = 20;
 const OFFENES_FELD = 30_000;
 const OFFEN_AB = 3000;
@@ -87,7 +89,7 @@ for (const [id, l] of ergebnisse) {
   const letzte = paare.slice(0, LETZTE).map((x) => x[1]).sort((a, b) => b - a);
   const behalten = letzte.slice(0, Math.ceil(letzte.length * 0.8));
   const wert = behalten.reduce((a, b) => a + b, 0) / behalten.length;
-  if (wert >= NOTE_AB) noten.set(id, Math.round(wert * 1000) / 1000);
+  if (wert >= (paare[0][0] >= Date.now() - 365 * 864e5 ? NOTE_AB : NOTE_ALT)) noten.set(id, Math.round(wert * 1000) / 1000);
 }
 ergebnisse.clear();
 const kreis = new Set(noten.keys());
