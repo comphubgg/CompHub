@@ -33,11 +33,11 @@ const GLEICHZEITIG = 5;
 
 const fenster = new Map();           // windowId -> { eventId, begin, end, ids, live, ... }
 
-async function hole(f, seite) {
+async function hole(f, seite, eigene = false) {
   for (let versuch = 0; versuch < 5; versuch++) {
     const { token, accountId } = await holeNutzerToken();
     const r = await fetch(`${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(f.eventId)}/${encodeURIComponent(f.windowId)}/${accountId}`
-      + `?page=${seite}&rank=0&teamAccountIds=&showLiveSessions=true`, { headers: { Authorization: token }, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+      + `?page=${seite}&rank=0&teamAccountIds=${eigene ? accountId : ''}&showLiveSessions=true`, { headers: { Authorization: token }, signal: AbortSignal.timeout(30_000) }).catch(() => null);
     if (r?.ok) return r.json();
     if (r?.status === 401) verwirfNutzerToken();
     // Zu viele Fragen: lieber eine Runde auslassen als Epic veraergern.
@@ -77,6 +77,8 @@ async function runde(f) {
   await Promise.all(Array.from({ length: GLEICHZEITIG }, async () => {
     while (naechste < seiten) neu += aufnehmen(f, await hole(f, naechste++));
   }));
+  // Das eigene Konto gibt Epic immer heraus, auch weit hinter Platz 10.000 (Betreiber am 3.11.: Platz 19.283) - seine Lobbys fehlen damit nie.
+  neu += aufnehmen(f, await hole(f, 0, true));
   f.stand = stand; f.gelesen = Date.now(); f.runden += 1;
   console.log(`${new Date().toISOString().slice(11, 19)} ${f.windowId}: ${seiten} Seiten, +${neu}, ${f.ids.size} Matches, ${f.live.size} laufend (Stand ${stand})`);
   if (f.liveBeispiel && !f.liveGezeigt) { f.liveGezeigt = true; console.log(`  liveSessions: ${f.liveBeispiel}`); }
