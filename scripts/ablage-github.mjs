@@ -346,7 +346,18 @@ const ablageName = (anhang) => anhang.replace(/-eq-/g, '=').replace(/__/g, '/');
  * bleiben draussen).
  */
 async function verzeichnisLesen(tag, vorhandene) {
-  const m = vorhandene.get('manifest.json');
+  let m = vorhandene.get('manifest.json');
+  /*
+   * Ein abgebrochenes Hochladen hinterlaesst einen Anhang im Zustand "starter": er hat keinen Inhalt, ist nicht ladbar und blockiert den Namen. Am 4.11.2026 stand
+   * das Verzeichnis von daten-replays neun Stunden so da - jedes Hochladen brach ab, Schnellspur und Nacharbeit lasen umsonst. Das Verzeichnis entsteht dann
+   * unten aus den Anhaengen neu.
+   */
+  if (m && m.state && m.state !== 'uploaded') {
+    console.log(`  ${tag}: manifest.json ist ein abgebrochenes Hochladen (${m.state}) - wird aus den Anhaengen neu aufgebaut`);
+    await api(`/repos/${REPO}/releases/assets/${m.id}`, { method: 'DELETE' });
+    vorhandene.delete('manifest.json');
+    m = undefined;
+  }
   let verzeichnis = {};
   if (m) {
     const roh = await anhangLesenApi(m) ?? await anhangLesen(m);
