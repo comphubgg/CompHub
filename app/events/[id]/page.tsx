@@ -3412,6 +3412,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ? kumTage.filter((x) => x.status !== 'kommt').map((x, j) => `${t('Tag')} ${/Day(\d+)/i.exec(x.windowId)?.[1] ?? j + 1}`).join(' + ')
                 : (() => { const i = tage.findIndex((x) => x.windowId === fenster?.windowId); return i >= 0 ? (fensterNamen[i]?.neben || fensterNamen[i]?.haupt || '') : ''; })()}
             </span>
+            {kumAktiv && /Round\d+Day\d+/i.test(kumTage[0]?.windowId ?? '') && (
+              <span className="text-xs text-slate-500"><T>Epic zeigt je Tag nur die Top 10.000 – weiter hinten fehlen vielen Spielern die Punkte eines Tages.</T></span>
+            )}
           </div>
         )}
 
