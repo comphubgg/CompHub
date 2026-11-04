@@ -96,6 +96,21 @@ interface Fenster {
  * (Betreiber, 28.10.2026: "bei den FNCS Solos Finals gibt es Day 1 und Day 2 und beide zusammen das kumulative Turnier - man muss umschalten koennen"). Die Globals haben
  * ihre eigene Kachel (anzeige "Kumulativ") und bleiben aussen vor.
  */
+/*
+ * Direkt nach einem grossen Spieltag fuehrt Epics Liste dasselbe Team mehrfach, bis Epic aufgeraeumt hat (Betreiber, 4.11.2026: "meine Friends stehen mehrmals drin").
+ * Es bleibt die Zeile mit den meisten Punkten.
+ */
+function einmalJeTeam<E extends { points?: number; players: Array<{ id?: string }> }>(liste: E[]): E[] {
+  const schluessel = (e: E) => e.players.map((p) => p.id ?? '').sort().join('+');
+  const beste = new Map<string, E>();
+  for (const e of liste) {
+    const k = schluessel(e);
+    const b = beste.get(k);
+    if (k && (!b || (e.points ?? 0) > (b.points ?? 0))) beste.set(k, e);
+  }
+  return liste.filter((e) => { const k = schluessel(e); return !k || beste.get(k) === e; });
+}
+
 function kumTageVon(tage: Fenster[]): Fenster[] {
   if (tage.some((x) => x.anzeige === 'Kumulativ')) return [];
   const gruppen = new Map<string, Fenster[]>();
@@ -711,7 +726,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const adresseVerbraucht = useRef(false);
   const [fenster, setFenster] = useState<Fenster | null>(null);
 
-  const [tabelle, setTabelle] = useState<Eintrag[]>([]);
+  const [tabelle, setTabelleRoh] = useState<Eintrag[]>([]);
+  const setTabelle = useCallback((liste: Eintrag[]) => setTabelleRoh(einmalJeTeam(liste)), []);
   const { sprache } = useSprache();
   const ort = ortVon(sprache);
   const [stand, setStand] = useState('');
@@ -2834,7 +2850,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           <div className="mb-5 flex items-stretch gap-2">
             <div className="flex flex-1 gap-2 overflow-x-auto pb-1">
             {tage.map((f, i) => {
-              const aktiv = !kumAktiv && fenster?.windowId === f.windowId;
+              // Unter Kumulativ sind alle Tage markiert, die zusammengezaehlt werden (Betreiber, 4.11.2026: "nicht einfach gar keinen mehr").
+              const aktiv = kumAktiv ? !!summenFenster?.includes(f.windowId) : fenster?.windowId === f.windowId;
               return (
                 <button key={f.windowId}
                   onClick={() => { setKumAktiv(false); setFenster(f); setSeite(1); }}

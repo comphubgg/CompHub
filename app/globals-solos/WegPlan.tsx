@@ -179,13 +179,17 @@ function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; au
     setLaedt(true);
     void (async () => {
       try {
-        const r = await fetch(`/api/solos-weg?region=${encodeURIComponent(region)}&wo=${epicId}`, { cache: 'no-store' });
+        const r = await fetch(`/api/solos-weg?region=${encodeURIComponent(region)}&wo=${epicId}`, { cache: 'no-store', signal: AbortSignal.timeout(3000) });
         const j = await r.json() as { ok?: boolean; stand?: WegStand | null; durchsucht?: number; fehler?: string };
         if (weg) return;
         if (!j.ok) { setFehler(j.fehler ?? ''); return; }
         setStand({ stand: j.stand ?? null, durchsucht: j.durchsucht ?? 0, tief: false });
         auf(j.stand?.knoten ?? null);
-      } catch { if (!weg) setFehler(t('Die Suche hat nicht geklappt.')); } finally { if (!weg) setLaedt(false); }
+      } catch (e) {
+        if (weg) return;
+        if ((e as Error).name === 'TimeoutError') setStand({ stand: null, durchsucht: 0, tief: false });
+        else setFehler(t('Die Suche hat nicht geklappt.'));
+      } finally { if (!weg) setLaedt(false); }
     })();
     return () => { weg = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -331,12 +335,9 @@ export default function WegPlan({ region }: { region: string }) {
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-sky-500 bg-sky-500/20" /><T>Läuft gerade</T></span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-zinc-700 bg-zinc-900" /><T>Vorbei oder kommt</T></span>
         <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-solid border-slate-500" /><T>Marke von Epic</T></span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dashed border-sky-300" /><T>Von Epic gesetzt (ohne Marke)</T></span>
+        {!kompakt && <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dashed border-sky-300" /><T>Von Epic gesetzt (ohne Marke)</T></span>}
         <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-solid border-sky-400" /><T>Ins Finale</T></span>
       </div>
-      <p className="text-[11px] leading-relaxed text-slate-500">
-        <T>Zahlen aus Epics Bestenlisten und Auszahlungstabellen. Gibt Epic nur die ersten 10.000 Plätze einer Liste heraus, ist die Spielerzahl daraus abgeleitet (ca.). Runde 1 zählt beide Tage zusammen; die Schwelle nach zwei Tagen lässt sich aus den Tageslisten nicht sicher bestimmen, deshalb steht dort die Spielerzahl je Tag. Gesetzt: Epic füllt die Heats auf 200 Plätze - Qualifier 2, Runde 3 stellt die Plätze, die der Fast Track übrig lässt.</T>
-      </p>
     </div>
   );
 }
