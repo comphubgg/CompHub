@@ -41,6 +41,7 @@ function ganzBauen(event: string, w: string): Promise<void> {
         if (!(d.entries ?? []).length || von + 25 >= (d.totalPages ?? 0)) break;
       }
       if (!alle.length) return;
+      alle = ohneDoppelte(alle);
       await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
       await nodeFs.writeFile(`${ganzDatei(w)}.gz`, gzipSync(JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString(), gebaut: Date.now() })));
       await nodeFs.rm(ganzDatei(w), { force: true });
@@ -48,6 +49,21 @@ function ganzBauen(event: string, w: string): Promise<void> {
   })();
   imBau.set(w, bau);
   return bau;
+}
+/*
+ * Direkt nach einem grossen Spieltag fuehrt Epics Liste dasselbe Team mehrfach: alte Zeilen bleiben stehen, bis Epic aufgeraeumt hat (Day 2 EU am 4.11.2026,
+ * acht Minuten nach dem Ende: 10.000 Zeilen, 6.804 Spieler, z. B. Platz 6 mit 402 und Platz 193 mit 324 Punkten). Es zaehlt die Zeile mit den meisten Punkten.
+ */
+function ohneDoppelte<T>(liste: T[]): T[] {
+  const zeile = (x: T) => x as unknown as { points?: number; players?: Array<{ id?: string }> };
+  const da = new Set<string>();
+  return [...liste].sort((a, b) => (zeile(b).points ?? 0) - (zeile(a).points ?? 0)).filter((x) => {
+    const k = (zeile(x).players ?? []).map((p) => p.id ?? '').sort().join('+');
+    if (!k) return true;
+    if (da.has(k)) return false;
+    da.add(k);
+    return true;
+  });
 }
 const hoechstens = (p: Promise<void>, ms: number) => Promise.race([p, new Promise<void>((r) => setTimeout(r, ms))]);
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
@@ -123,7 +139,7 @@ async function tageGesamt(event: string, windows: string[]) {
    * Schaden, Kopftreffer und Lebenszeit addiert - K/D, Strecke, Heilung, Schild, Kisten, Material und die Punkteaufteilung
    * standen in der Gesamtwertung mit den Werten des ersten Tages da (Beispiel FNCS Solo Final EU: K/D 1,8 statt 2,45).
    */
-  const summe = summiereTage(tage.map((d) => (d.entries ?? []) as CupEintrag[]));
+  const summe = summiereTage(tage.map((d) => ohneDoppelte((d.entries ?? []) as CupEintrag[])));
   // Wie bei der ganzen Liste eines Tages: Spielverlaeufe nur fuer die ersten 300, den Rest holt die Seite beim Anklicken.
   const eintraege = tief
     ? (summe.slice(0, 10_000) as unknown as Array<Record<string, unknown>>).map((x, i) => (i < 300 ? x : { ...x, matches: [], matchesWeg: true })) as unknown as typeof summe
