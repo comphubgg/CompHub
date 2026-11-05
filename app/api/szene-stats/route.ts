@@ -274,6 +274,17 @@ async function aktuelleNamen(): Promise<Record<string, string>> {
   return stand;
 }
 
+/** Die Konten des Spieler-Kreises mit Namen und Region - zehn Minuten im Vorgang. */
+type KreisKonto = { epicId: string; name: string; region: string; matches: number; cups: number };
+let kreisVorrat: { stand: Map<string, KreisKonto>; bis: number } | null = null;
+async function kreisKarte(): Promise<Map<string, KreisKonto>> {
+  if (kreisVorrat && Date.now() < kreisVorrat.bis) return kreisVorrat.stand;
+  const liste = await liesJson<KreisKonto[]>('spieler-kreis/_index.json', []).catch(() => []);
+  const stand = new Map(liste.map((k) => [k.epicId, k]));
+  kreisVorrat = { stand, bis: Date.now() + 10 * 60_000 };
+  return stand;
+}
+
 async function holeSuchIndex(): Promise<SuchEintrag[]> {
   if (suchVorrat && Date.now() < suchVorrat.bis) return suchVorrat.stand;
 
@@ -282,18 +293,7 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
     const szene = await liesSzeneSpieler();
     const bildZu = await liesBilder();
     const heimat = await heimatRegionen();
-    const kreis = await liesJson<Array<{ epicId: string; name: string; region: string; matches: number }>>('spieler-kreis/_index.json', []).catch(() => []);
-    const summen = await gesamtSummen();
-    const imArchiv = new Set(summen.map((x) => x.epicId));
-    const ausKreis = kreis.filter((k) => k.name && !imArchiv.has(k.epicId)).map((k) => {
-      const pr = gepflegt.get(k.epicId);
-      return {
-        epicId: k.epicId, name: k.name, namen: [k.name], matches: k.matches, anzeige: pr?.anzeige || pr?.name || k.name,
-        gepflegt: Boolean(pr?.anzeige || pr?.name), land: pr?.land ?? null, x: pr?.x ?? null,
-        bild: bildZu.get(k.epicId)?.pfad ?? null, echtesFoto: bildZu.get(k.epicId)?.echt ?? false, heimat: k.region,
-      };
-    }) as unknown as SuchEintrag[];
-    return [...summen.map((x) => {
+    return (await gesamtSummen()).map((x) => {
       const pr = gepflegt.get(x.epicId);
       const sz = szene.get(x.epicId);
       return {
@@ -306,12 +306,23 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
         echtesFoto: bildZu.get(x.epicId)?.echt ?? false,
         heimat: heimat.get(x.epicId) ?? '',
       };
-    }) as SuchEintrag[], ...ausKreis];
+    }) as SuchEintrag[];
   });
 
+  /*
+   * Der Spieler-Kreis (scripts/spieler-kreis.mjs) haengt hinter dem Archiv. Nicht in der aufgehobenen Antwort: die rechnet nur der stuendliche Lauf neu, und die neuen
+   * Profile fehlten deshalb in der Suche - ihr Link blieb auf "Profil wird geladen" stehen (5.11.2026).
+   */
+  const imArchiv = new Set(stand.map((x) => x.epicId));
+  const ausKreis = [...(await kreisKarte()).values()].filter((k) => k.name && !imArchiv.has(k.epicId)).map((k) => ({
+    epicId: k.epicId, name: k.name, namen: [k.name], matches: k.matches, events: k.cups, anzeige: k.name, gepflegt: false, land: null, x: null,
+    bild: null, echtesFoto: false, heimat: k.region, regionen: [k.region], elims: 0, damage: 0,
+  })) as unknown as SuchEintrag[];
+  const mitKreis = [...stand, ...ausKreis];
+
   // Fuenf Minuten im Vorgang - laenger lohnt nicht, kuerzer hilft nicht.
-  suchVorrat = { stand, bis: Date.now() + 5 * 60_000 };
-  return stand;
+  suchVorrat = { stand: mitKreis, bis: Date.now() + 5 * 60_000 };
+  return mitKreis;
 }
 
 /*
@@ -1640,9 +1651,9 @@ async function berechne(request: Request) {
       const szeneNamen = await liesSzeneSpieler();
       const grundlage = eintrag ?? (epicZeilen.length ? {
         epicId: spieler,
-        name: szeneNamen.get(spieler)?.name ?? spieler.slice(0, 8),
+        name: szeneNamen.get(spieler)?.name ?? (await kreisKarte()).get(spieler)?.name ?? (await aktuelleNamen())[spieler] ?? spieler.slice(0, 8),
         namen: [] as string[],
-        regionen: [...new Set(epicZeilen.map((z) => z.region))],
+        regionen: [...new Set(epicZeilen.map((z) => z.region).filter(Boolean))],
         events: epicZeilen.length,
         matches: epicZeilen.reduce((a, z) => a + (z.matches ?? 0), 0),
         nurEpic: true,

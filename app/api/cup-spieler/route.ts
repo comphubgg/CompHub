@@ -479,7 +479,9 @@ async function holeRoh(request: Request) {
   // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
   const teil = clutchDatei?.teilweise ?? null;
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
-  const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries({ ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })) : null;
+  const nurEpicZeit = tage.length === 1 && /reload/i.test(tage[0]) && Object.keys(clutchDatei?.epicZeit ?? {}).length > 0;
+  const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length
+    ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })) : null;
   // Strecke nur fuer einen einzelnen Tag (die Summe mehrerer Tage fuehrt der Zusammenbau oben nicht mit).
   const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries({ ...clutchDatei.strecke, ...Object.fromEntries(Object.entries(clutchDatei.epicStrecke ?? {}).map(([id, m]) => [id, [m, 0] as [number, number]])) })) : null;
   /*
@@ -519,7 +521,7 @@ async function holeRoh(request: Request) {
       return {
         damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
         // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
-        damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 ? d.dmg / d.erlitten : null,
+        damageRatio: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null,
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
         // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
         ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
@@ -577,7 +579,7 @@ async function holeRoh(request: Request) {
     const sch = (x: (typeof voll)[number]) => schadenVon?.get(x.epicId.toLowerCase());
     if (schadenVon) {
       spitze((x) => sch(x)?.dmg);
-      spitze((x) => { const d = sch(x); return d && d.erlitten > 0 ? d.dmg / d.erlitten : null; });
+      spitze((x) => { const d = sch(x); return d && d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null; });
       spitze((x) => sch(x)?.treffer);
       spitze((x) => sch(x)?.sturm);
       if (!soloOhneReload) spitze((x) => { const d = sch(x); return d ? (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) : null; });
