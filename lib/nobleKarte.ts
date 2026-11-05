@@ -43,6 +43,8 @@ interface NeuDetail {
   window?: { id: string; name?: string; region?: string; startDate?: string };
   teams?: Array<{ teamId: string; coordinates?: Array<[number, number]>; players?: Array<{ accountId: string; displayName?: string; username?: string }>; rank?: number | null; points?: number | null; wins?: number | null }>;
   map?: { withPOINames?: string; withoutPOINames?: string };
+  /** Die vorbereiteten Formen des Spieltags, auch solche ohne Team. */
+  drops?: Array<Array<[number, number]>>;
 }
 function alsDetail(n: NeuDetail & Partial<RohDetail>): RohDetail {
   if (!n.tournament) return n as RohDetail; // schon die alte Gestalt
@@ -55,6 +57,7 @@ function alsDetail(n: NeuDetail & Partial<RohDetail>): RohDetail {
         players: (t.players ?? []).map((p) => ({ accountId: p.accountId, username: p.username ?? p.displayName })),
       })),
       map: n.map ? { withPOINames: n.map.withPOINames, withoutPOINames: n.map.withoutPOINames } : undefined,
+      drops: n.drops,
     } : undefined,
   };
 }
@@ -114,6 +117,7 @@ export interface RohDetail {
     windowId: string; windowName?: string; windowFullName?: string; teams?: RohTeam[];
     /** Das Kartenbild zu dieser Spielversion - mit und ohne Ortsnamen. */
     map?: { withPOINames?: string; withoutPOINames?: string };
+    drops?: Array<Array<[number, number]>>;
   };
 }
 
@@ -251,6 +255,18 @@ export function formenAus(d: RohDetail): { formen: NobleForm[]; ohneForm: NobleK
       gruppen.set(schluessel, form);
     }
     form.teams.push(eintrag);
+  }
+
+  // Die vorbereiteten Formen ohne Team (Betreiber, 5.11.2026: "die Map soll auch schon die Formen haben, wenn keine Spieler drin sind").
+  for (const roh of d.windowData?.drops ?? []) {
+    let ecken = (roh ?? []).filter((c) => Array.isArray(c) && c.length === 2);
+    if (ecken.length > 3) {
+      const a = ecken[0]; const b = ecken[ecken.length - 1];
+      if (a[0] === b[0] && a[1] === b[1]) ecken = ecken.slice(0, -1);
+    }
+    if (ecken.length < 3) continue;
+    const schluessel = JSON.stringify(ecken);
+    if (!gruppen.has(schluessel)) gruppen.set(schluessel, { punkte: ecken.map((c) => inProzent(c)), teams: [] });
   }
 
   return { formen: [...gruppen.values()], ohneForm, anzahlTeams: teams.length };

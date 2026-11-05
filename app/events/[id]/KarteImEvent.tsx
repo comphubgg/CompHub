@@ -69,9 +69,7 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
       .map((sp) => {
         const gruppen = (sp.teams ?? []).map((id) => team.get(id)?.spieler ?? []).filter((g) => g.length);
         return { punkte: sp.punkte, spieler: gruppen.flat(), teams: gruppen.length, gruppen };
-      })
-      // Nur, wo jemand landet - leere Formen sagen auf der Seite niemandem etwas.
-      .filter((fo) => fo.teams > 0);
+      });
     return { windowId: aktuell.id, name: aktuell.titel, art: 'finale', start: null, end: null, spieler: [], formen };
   }, [aktuell, s]);
 
