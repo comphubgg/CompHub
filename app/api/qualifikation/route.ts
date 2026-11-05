@@ -307,8 +307,15 @@ async function holeRoh(request: Request) {
   const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [];
   for (const f of frueher) {
     try {
-      const board = await gecacht(`qual|${f.eventId}|${f.windowId}|${schwelle}`,
-        30 * 60_000, () => umRang(f.eventId, f.windowId, schwelle));
+      /*
+       * Das Archiv kennt mancher alte Fenster unter einer falschen Event-Kennung: S42_PerformanceEvaluation_Event9Round1_EU steht dort unter
+       * "..._PerformanceEvaluation_EU", bei Epic liegt es unter "..._PerformanceEvaluationTrios_EU". Epic antwortet dann 404, und die Prognose fiel still weg
+       * (Betreiber, 5.11.2026: "wieso sehe ich keine Prediction"). Dann gilt die Kennung des laufenden Cups mit der Saison des alten Fensters.
+       */
+      const saison = /^S\d+/.exec(f.windowId)?.[0] ?? '';
+      const zweite = dieser.eventId.replace(/S\d+/, saison);
+      const lesen = (event: string) => gecacht(`qual|${event}|${f.windowId}|${schwelle}`, 30 * 60_000, () => umRang(event, f.windowId, schwelle));
+      const board = await lesen(f.eventId).catch(async (e) => { if (zweite === f.eventId) throw e; return lesen(zweite); });
       // Genau der Rang, der noch weiterkommt.
       const treffer = board.entries.find((e) => e.rank === schwelle)
         // Reicht die Liste nicht ganz hin, gilt der letzte vorhandene Rang -
