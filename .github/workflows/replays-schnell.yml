@@ -131,7 +131,8 @@ jobs:
           MAX_REPLAY_PARSERS: '4'
           MAX_REPLAY_CHECKS: '24'
           MAX_REPLAY_SOCKETS: '128'
-        run: node scripts/replays-holen.mjs --aus-plan data/schnell-plan.json --stueck ${{ matrix.stueck }} --minuten 22 2>&1 | tail -40
+        # 12 statt 22 Minuten (5.11.2026): geschrieben wird erst nach dem letzten Leser. Kuerzere Runden heissen, dass die Stats eines laufenden Cups alle zwanzig Minuten wachsen.
+        run: node scripts/replays-holen.mjs --aus-plan data/schnell-plan.json --stueck ${{ matrix.stueck }} --minuten 12 2>&1 | tail -40
 
       # Nur die gelesenen Matches und der Teilstand - nie die Anmeldung (Artefakte oeffentlicher Projekte kann jeder Angemeldete laden).
       - name: Teilstand weitergeben

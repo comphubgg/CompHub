@@ -820,6 +820,9 @@ Fertig: ${fertig} nachgeholt, ${ohne} ohne Replay, `
 
 /** Wie viele offene Matches ein Rechner der Schnellspur etwa bekommt, und wie viele Rechner es hoechstens sind (GitHub laesst 20 Auftraege zugleich laufen). */
 const JE_STUECK = 200;
+/** Frisch heisst: laeuft oder seit hoechstens so vielen Stunden vorbei. Dann zaehlt jede Minute, die Matches verteilen sich auf mehr Rechner. */
+const HEISS_STUNDEN = 4;
+const JE_STUECK_HEISS = 40;
 const STUECKE_MAX = Math.max(1, Number(process.env.SCHNELL_STUECKE) || 5);
 
 /** Ein Teilstand: "<Saison>__<Fenster>__<Stueck>.json". */
@@ -943,8 +946,19 @@ async function planSchreibenLauf(datei) {
 
   // Angefragte zuerst, dann was gerade laeuft, dann das zuletzt Beendete.
   plan.sort((a, b) => Number(b.angefragt) - Number(a.angefragt) || Number(b.live) - Number(a.live) || b.datum - a.datum);
+  /*
+   * Das Frische zuerst und allein (Betreiber, 5.11.2026: "fast eine Stunde vorbei und nicht mal die Haelfte da"). Der Lauf schreibt erst, wenn alle Leser fertig sind: mit dem
+   * Rueckstand im Plan las jeder Leser 22 Minuten, die letzten kamen wegen voller Rechner 25 Minuten spaeter dran, und die 176 Matches des Performance Cups warteten 52 Minuten
+   * auf 10.000 alte. Hat ein frischer oder kleiner angefragter Spieltag etwas offen, bleibt alles andere bis zum naechsten Lauf liegen.
+   */
+  const heiss = plan.filter((f) => f.offen.length && (f.live || f.datum > jetzt - HEISS_STUNDEN * 3600_000 || (f.angefragt && f.offen.length <= 300)));
+  if (heiss.length) {
+    const spaeter = plan.filter((f) => f.offen.length && !heiss.includes(f));
+    if (spaeter.length) console.log(`${spaeter.length} aeltere Spieltage warten auf den naechsten Lauf: Frisches geht vor.`);
+    for (const f of spaeter) plan.splice(plan.indexOf(f), 1);
+  }
   const gesamt = plan.reduce((a, f) => a + f.offen.length, 0);
-  const stuecke = gesamt ? Math.min(STUECKE_MAX, Math.max(1, Math.ceil(gesamt / JE_STUECK))) : 0;
+  const stuecke = gesamt ? Math.min(STUECKE_MAX, Math.max(1, Math.ceil(gesamt / (heiss.length ? JE_STUECK_HEISS : JE_STUECK)))) : 0;
   for (const f of plan) {
     console.log(`  ${f.windowId.padEnd(52)} ${String(f.offen.length).padStart(5)} offen von ${f.alle}${f.live ? ' (live)' : ''}${f.angefragt ? ' (angefragt)' : ''}`);
   }
