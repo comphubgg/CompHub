@@ -377,11 +377,11 @@ function Form({ punkte, kurve, setKurve, nameL, nameR, loc }: {
 type Modus = 'solo' | 'duo' | 'trio';
 const ANZAHL: Record<Modus, number> = { solo: 1, duo: 2, trio: 3 };
 
-export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennung: string; name: string }>; sprache: string }) {
+export default function Vergleich({ saisons, sprache, start }: { saisons: Array<{ kennung: string; name: string }>; sprache: string; start?: VglSpieler | null }) {
   const t = useT();
   const loc = sprache === 'en' ? 'en-GB' : 'de-DE';
   const [modus, setModus] = useState<Modus>('solo');
-  const [links, setLinks] = useState<Array<VglSpieler | null>>([null, null, null]);
+  const [links, setLinks] = useState<Array<VglSpieler | null>>([start ?? null, null, null]);
   const [rechts, setRechts] = useState<Array<VglSpieler | null>>([null, null, null]);
   const [saison, setSaison] = useState('alle');
   const [ansicht, setAnsicht] = useState<'board' | 'radar' | 'form'>('board');

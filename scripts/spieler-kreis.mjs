@@ -76,19 +76,37 @@ for (const datei of dateien) {
     for (const id of t.spieler ?? []) {
       let l = ergebnisse.get(id);
       if (!l) { l = []; ergebnisse.set(id, l); }
-      l.push(tag.datum ?? 0, n);
+      l.push(tag.datum ?? 0, n, t.platz, tag.region ?? '');
     }
   }
 }
 const noten = new Map();
+// Das Rating im Profil und die Aufsteiger (app/api/spieler-rating): Note und Form jedes Kontos ab 0,30, nicht nur der Konten im Kreis.
+const formen = new Map();
+const aufsteiger = [];
+const schnitt = (liste) => {
+  const b = [...liste].sort((x, y) => y - x);
+  const behalten = b.slice(0, Math.ceil(b.length * 0.8));
+  return behalten.reduce((a, c) => a + c, 0) / behalten.length;
+};
+const zwei = (x) => Math.round(x * 100) / 100;
 for (const [id, l] of ergebnisse) {
-  if (l.length / 2 < MINDEST_CUPS) continue;
+  if (l.length / 4 < MINDEST_CUPS) continue;
   const paare = [];
-  for (let i = 0; i < l.length; i += 2) paare.push([l[i], l[i + 1]]);
+  for (let i = 0; i < l.length; i += 4) paare.push([l[i], l[i + 1], l[i + 2], l[i + 3]]);
   paare.sort((a, b) => b[0] - a[0]);
-  const letzte = paare.slice(0, LETZTE).map((x) => x[1]).sort((a, b) => b - a);
-  const behalten = letzte.slice(0, Math.ceil(letzte.length * 0.8));
-  const wert = behalten.reduce((a, b) => a + b, 0) / behalten.length;
+  const wert = schnitt(paare.slice(0, LETZTE).map((x) => x[1]));
+  if (wert >= 0.3) formen.set(id, { n: zwei(wert), f: paare.slice(0, LETZTE).reverse().map((x) => [zwei(x[1]), x[2]]), c: paare.length });
+  // Aufsteiger: die letzten zehn gegen die zehn davor, nur wer im letzten Monat gespielt hat und schon jetzt gut ist.
+  if (paare.length >= 15 && paare[0][0] >= Date.now() - 31 * 864e5) {
+    const jetzt = schnitt(paare.slice(0, 10).map((x) => x[1]));
+    const vorher = schnitt(paare.slice(10, 20).map((x) => x[1]));
+    if (jetzt >= NOTE_AB && jetzt > vorher) {
+      const zaehlung = new Map();
+      for (const x of paare.slice(0, 10)) zaehlung.set(x[3], (zaehlung.get(x[3]) ?? 0) + 1);
+      aufsteiger.push({ epicId: id, region: [...zaehlung].sort((a, b) => b[1] - a[1])[0][0], jetzt: zwei(jetzt), vorher: zwei(vorher), delta: zwei(jetzt - vorher), cups: paare.length });
+    }
+  }
   if (wert >= (paare[0][0] >= Date.now() - 365 * 864e5 ? NOTE_AB : NOTE_ALT)) noten.set(id, Math.round(wert * 1000) / 1000);
 }
 ergebnisse.clear();
@@ -123,7 +141,10 @@ for (const datei of dateien) {
 const namen = lies(path.join(DATEN, 'epic-namen.json'), {});
 // Wer im Namensverzeichnis fehlt, wird bei Epic nachgefragt: hundert Konten je Abfrage. Ohne Namen waere das Profil nicht zu finden.
 {
-  const fehlend = [...zeilen.keys()].filter((id) => !namen[id]);
+  aufsteiger.sort((a, b) => b.delta - a.delta);
+  const je = new Map();
+  aufsteiger.splice(0, aufsteiger.length, ...aufsteiger.filter((x) => { je.set(x.region, (je.get(x.region) ?? 0) + 1); return je.get(x.region) <= 60; }));
+  const fehlend = [...new Set([...zeilen.keys(), ...aufsteiger.map((x) => x.epicId)])].filter((id) => !namen[id]);
   let gefunden = 0;
   try {
     const { token } = await holeNutzerToken();
@@ -163,4 +184,14 @@ fs.rmSync(ZIEL, { recursive: true, force: true });
 fs.mkdirSync(ZIEL, { recursive: true });
 for (const [k, e] of eimer) fs.writeFileSync(path.join(ZIEL, `${k}.json`), JSON.stringify(e));
 fs.writeFileSync(path.join(ZIEL, '_index.json'), JSON.stringify(index));
+fs.writeFileSync(path.join(ZIEL, '_aufsteiger.json'), JSON.stringify(aufsteiger.map((x) => ({ ...x, name: namen[x.epicId] ?? '' }))));
+const notenEimer = new Map();
+for (const [id, r] of formen) {
+  const k = id.slice(0, 2);
+  const e = notenEimer.get(k) ?? {};
+  e[id] = r;
+  notenEimer.set(k, e);
+}
+for (const [k, e] of notenEimer) fs.writeFileSync(path.join(ZIEL, `n-${k}.json`), JSON.stringify(e));
+console.log(`${formen.size} Ratings, ${aufsteiger.length} Aufsteiger.`);
 console.log(`${index.length} Profile in ${eimer.size} Dateien, ${index.filter((x) => !x.name).length} ohne Namen.`);

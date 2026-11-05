@@ -29,6 +29,8 @@ import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import StatistikIntro from './StatistikIntro';
+import KonstanzKarte from './KonstanzKarte';
+import Aufsteiger from './Aufsteiger';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
 import { bildPfad } from '@/app/components/ArchivTeile';
 import type { GalerieEintrag } from '@/lib/galerieTypen';
@@ -41,7 +43,7 @@ import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
-import Vergleich from './Vergleich';
+import Vergleich, { type VglSpieler } from './Vergleich';
 import RueckblickBild from './RueckblickBild';
 /**
  * In welcher Reihenfolge die Regionen stehen.
@@ -60,7 +62,7 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
 /** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
 const JAHR = 2026;
@@ -74,7 +76,7 @@ const JAHR = 2026;
  */
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
-  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', jahr: 'alle',
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', jahr: 'alle',
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
@@ -322,6 +324,7 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['turniere', 'Cups'],
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
+  ['aufsteiger', 'Aufsteiger'],
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
   ['orgs', 'Orgs'],
@@ -366,6 +369,7 @@ function Zeichen({ art }: { art: Bereich }) {
     regional: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z M12 10.5a1.5 1.5 0 1 0 0-3'
       + 'a1.5 1.5 0 0 0 0 3z',
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+    aufsteiger: 'M4 17l6-6 4 4 6-7 M15 8h5v5',
     jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
     // Ein Wappenschild - die Organisation.
     orgs: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z M9 12l2 2 4-4',
@@ -2294,6 +2298,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   // eingewickelter Text. Die Sprache selbst wird fuer das Datum gebraucht.
   const { sprache, t } = useSprache();
   const [bereich, setBereich] = useState<Bereich>('start');
+  // Der Spieler, mit dem der Vergleich aus einem Profil heraus startet.
+  const [vergleichStart, setVergleichStart] = useState<VglSpieler | null>(null);
   const suchParameter = useSearchParams();
   const [saisons, setSaisons] = useState<Array<{ kennung: string; name: string }>>([]);
   const [regionen, setRegionen] = useState<string[]>([]);
@@ -5175,6 +5181,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
 
           {/* -------------------------------------------------- Regionen */}
           {/* ---------------------------------------- Organisationen */}
+          {bereich === 'aufsteiger' && <Aufsteiger aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
 
           {/* ------------------------------------------------ Das Jahr */}
@@ -5526,7 +5533,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
 
           {/* ------------------------------------------------ Vergleich */}
           {/* Der Vergleich ist eine eigene Komponente (Vergleich.tsx): zwei Spieler, Duos oder Trios, Board / Radar / Form. */}
-          {bereich === 'vergleich' && <Vergleich saisons={saisons} sprache={sprache} />}
+          {bereich === 'vergleich' && <Vergleich saisons={saisons} sprache={sprache} start={vergleichStart} />}
 
           {/* --------------------------------------------------- Bilder */}
           {bereich === 'bilder' && istAdmin && (() => {
@@ -6231,6 +6238,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             )}
 
             <div className="mt-4">
+              <KonstanzKarte epicId={offen.epicId} />
               {/* Die Kennzahlen des ganzen Zeitraums, nicht die eines Cups.
                   Das Vorbild fuehrt hier Rating, Power Ranking, Regional und
                   Global Ranking, Eliminierungen, Schaden und FNCS Grand
@@ -6252,7 +6260,15 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
               </div>
               {/* Das Bild zum Teilen: dieselben sechs Zahlen, für den Zeitraum, der unten gewählt ist. Erst wenn es etwas zu zeigen gibt. */}
               {!profilLaedt && !profilFehler && offen.events > 0 && (
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  {sichtbareBereiche.some(([w]) => w === 'vergleich') && (
+                    <button type="button" onClick={() => {
+                      setVergleichStart({ epicId: offen.epicId, anzeige: offen.anzeige, land: offen.land, bild: offen.bild, gepflegt: offen.gepflegt });
+                      setOffen(null); setBereich('vergleich');
+                    }} className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-300">
+                      <T>Vergleichen</T>
+                    </button>
+                  )}
                   <RueckblickBild daten={{
                     name: grossName(offen.anzeige, offen.gepflegt),
                     bild: offen.echtesFoto ? offen.bild : null,
