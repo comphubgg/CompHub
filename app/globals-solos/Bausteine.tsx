@@ -178,6 +178,36 @@ export function Karte({ f, bild, rotAb = 2 }: {
   }, []);
 
   /** Zu einem Ausschnitt gleiten - Massstab und Mitte gemeinsam, auf geradem Weg, weich an- und abfahrend. */
+  /*
+   * Beim Oeffnen auf die Insel zoomen (Betreiber, 5.11.2026: "viel zu viel blauer Rand"). Das Bild bleibt das Original, die Landepunkte liegen darauf; nur der Ausschnitt
+   * wird aus dem Bild selbst bestimmt: alles, was nicht Meer ist, in einer kleinen Kopie gesucht. Geht das nicht (fremdes Bild ohne Freigabe), bleibt die volle Karte.
+   */
+  const eingepasst = useRef(false);
+  const inselPassen = (img: HTMLImageElement) => {
+    if (eingepasst.current || !img.naturalWidth) return;
+    eingepasst.current = true;
+    try {
+      const n = 96;
+      const leinwand = document.createElement('canvas');
+      leinwand.width = n; leinwand.height = n;
+      const stift = leinwand.getContext('2d', { willReadFrequently: true });
+      if (!stift) return;
+      stift.drawImage(img, 0, 0, n, n);
+      const px = stift.getImageData(0, 0, n, n).data;
+      let x0 = n, y0 = n, x1 = -1, y1 = -1;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const i = (y * n + x) * 4;
+        const r = px[i], g = px[i + 1], b = px[i + 2];
+        if (r > 215 && g > 215 && b > 215) continue; // Wolken
+        if (r > 110 || g > b + 12) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      }
+      if (x1 < 0) return;
+      const breite = (x1 - x0 + 1) / n, hoehe = (y1 - y0 + 1) / n;
+      const z = Math.min(2.4, 0.9 / Math.max(breite, hoehe));
+      if (z < 1.15) return;
+      gleite(z, { x: ((x0 + x1 + 1) / 2 / n) * 100, y: ((y0 + y1 + 1) / 2 / n) * 100 });
+    } catch { /* dann eben die ganze Karte */ }
+  };
   const gleite = useCallback((zielZ: number, zielM: Punkt) => {
     stopp();
     const z1 = Math.max(1, Math.min(ZOOM_MAX, zielZ));
@@ -390,7 +420,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
           }}>
           <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false} onLoad={beiLaden} ref={(el) => { if (el?.complete && el.naturalWidth) messen(el); }}
+            <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false} onLoad={(ev) => { beiLaden(ev); inselPassen(ev.currentTarget); }} ref={(el) => { if (el?.complete && el.naturalWidth) { messen(el); inselPassen(el); } }}
               onError={(ev) => { const el = ev.currentTarget; if (!el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = fortniteKarte(false); } }}
               style={bildStil(voll)}
               className="pointer-events-none absolute inset-0 h-full w-full object-cover" />

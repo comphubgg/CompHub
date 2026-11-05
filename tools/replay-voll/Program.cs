@@ -570,7 +570,18 @@ class SchadenLeser : ReplayReader {
 
 /* Erkunden: welche Gruppen kommen vor, wie oft, mit welchen Werten. */
 class Erkunder : ReplayReader {
-  public Erkunder() : base(null, ParseMode.Full) { }
+  // Die Gruppen fuer gebaute Teile laedt die Bibliothek nur im Modus Debug - dort bricht sie aber bei jedem unbekannten Ereignis ab. Deshalb nach dem Aufbau zurueck auf Full.
+  public Erkunder() : base(null, Environment.GetEnvironmentVariable("LESEMODUS") == "debug" ? ParseMode.Debug : ParseMode.Full) {
+    if (Environment.GetEnvironmentVariable("LESEMODUS") != "debug") return;
+    for (var t = GetType(); t is not null; t = t.BaseType) {
+      foreach (var f in t.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) {
+        if (f.FieldType == typeof(ParseMode)) { Console.Error.WriteLine("Feld " + t.Name + "." + f.Name); f.SetValue(this, ParseMode.Full); }
+      }
+      foreach (var q in t.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) {
+        if (q.PropertyType == typeof(ParseMode) && q.CanWrite) { Console.Error.WriteLine("Eigenschaft " + t.Name + "." + q.Name); q.SetValue(this, ParseMode.Full); }
+      }
+    }
+  }
   readonly Dictionary<string, int> Zaehler = new();
   readonly Dictionary<string, List<object>> Proben = new();
   readonly Dictionary<string, Dictionary<string, double>> Stat = new();
