@@ -61,10 +61,13 @@ for (const saison of fs.existsSync(ABLAGE) ? fs.readdirSync(ABLAGE) : []) {
     if (alle.length > GROESSE) continue;
     const verdacht = alle.filter(([, m]) => m.stand === 'PARSED' && m.zeitpunkt && m.zuletzt
       && Date.parse(m.zuletzt) - Date.parse(m.zeitpunkt) < VERDACHT_MIN * 60_000);
-    const fassung = Number(lies(path.join(ABLAGE, saison, fenster, '_aggregat.json'))?.aggregatFassung) || 0;
+    const aggregat = lies(path.join(ABLAGE, saison, fenster, '_aggregat.json'));
+    const fassung = Number(aggregat?.aggregatFassung) || 0;
+    // Junge Spieltage nach der neuen Kill-Regel neu rechnen (Betreiber, 5.11.2026), ohne dass jemand daran denken muss: ab zwei Stunden nach dem Stichtag, bis drei Tage danach.
+    const regelNeu = (Number(aggregat?.killRegel) || 0) < 2 && (z.datum ?? 0) > Date.now() - 3 * 864e5 && (z.datum ?? 0) < Date.now() - 2 * 3600_000;
     const fertigZahl = alle.filter(([, m]) => m.stand === 'PARSED').length;
     if (!verdacht.length) {
-      if (fertigZahl && fassung < 5) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: 'fassung' });
+      if (fertigZahl && (fassung < 5 || regelNeu)) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: regelNeu ? 'regel' : 'fassung' });
       continue;
     }
     let teil = 0;
@@ -80,10 +83,10 @@ for (const saison of fs.existsSync(ABLAGE) ? fs.readdirSync(ABLAGE) : []) {
       });
     }
     if (teil) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: 'teil' });
-    else if (fertigZahl && fassung < 5) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: 'fassung' });
+    else if (fertigZahl && (fassung < 5 || regelNeu)) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: regelNeu ? 'regel' : 'fassung' });
   }
 }
-const rang = (k) => (k.grund === 'teil' ? 0 : 2) + wichtig(k.fenster);
+const rang = (k) => (k.grund === 'regel' ? -2 : k.grund === 'teil' ? 0 : 2) + wichtig(k.fenster);
 kandidaten.sort((a, b) => rang(a) - rang(b) || b.datum - a.datum);
 console.log(`${kandidaten.filter((k) => k.grund === 'teil').length} Spieltage mit Teil-Matches (${geprueft} Verdachtsfaelle bei Epic geprueft), ${kandidaten.filter((k) => k.grund === 'fassung').length} nach alter Kill-Regel; hoechstens ${GROESSE} Matches je Spieltag:`);
 for (const k of kandidaten) console.log(`  ${k.grund.padEnd(7)} ${k.fenster} (${k.fertig}/${k.matches})`);

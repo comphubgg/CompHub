@@ -105,7 +105,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
   /** Spieler je Plattform (PC, PlayStation, Xbox, Switch, iOS, Android) aus den vollen Replays - nur bei ganz gelesenem Spieltag. */
   plattformen?: Record<string, number> | null;
   spieler: KachelSpieler[];
@@ -123,6 +123,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
   aktualisiert?: string | null;
+  /** Wie viele Matches der Spieltag insgesamt hat - steht es ueber `matches`, ist die Auswertung noch nicht durch. */
+  rundenGesamt?: number | null;
   /** Schaden, Treffer, Kopftreffer aus den eigenen Replays gezaehlt (nicht Epics Zahl). */
   schadenAusReplay?: boolean;
   /** Werte aus der Szene-Quelle (Endstand) statt aus den eigenen Replays. */
@@ -276,6 +278,27 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
           </div>
         ))}
       </div>
+
+      {/*
+        * Betreiber, 5.11.2026: "das soll dann auch stehen fuer die Leute ... dass man checkt, das ist nicht fertig." Ein Stand von vor zwanzig Minuten ohne Damage und Clutch sah aus wie
+        * der Endstand. Nur bei jungen Spieltagen: alte, die nie voll gelesen werden, werden auch nicht mehr fertig.
+        */}
+      {!szene && !teamWerte && (() => {
+        const jung = !!endeMs && Date.now() - endeMs < 2 * 86400_000;
+        const fehlenMatches = !!rundenGesamt && rundenGesamt > (matches ?? 0);
+        if (!laeuft && !(jung && (!schadenAusReplay || fehlenMatches))) return null;
+        return (
+          <div role="status" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <p className="font-semibold text-amber-300"><T>Noch nicht fertig</T></p>
+            <p className="mt-1">
+              {laeuft ? <T>Der Cup läuft noch. Die Zahlen wachsen mit jedem ausgewerteten Match.</T> : null}
+              {laeuft ? ' ' : null}
+              {!schadenAusReplay ? <T>Eliminations, Knocks und Deaths stehen schon. Damage, Clutch Points und die übrigen Werte werden gerade aus den Replays gelesen und erscheinen von selbst.</T> : null}
+              {fehlenMatches ? ` ${t('{m} von {v} Matches ausgewertet.').replace('{m}', String(matches ?? 0)).replace('{v}', String(rundenGesamt))}` : null}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Wann zuletzt, auf die Sekunde - und wann das naechste Update kommt (siehe AktualisierungsStand). */}
       <AktualisierungsStand stand={aktualisiert} art={laeuft ? 'laeuft' : 'fertig'} />

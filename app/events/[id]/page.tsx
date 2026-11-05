@@ -4647,6 +4647,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             <SpielerStatsUebersicht
               spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
               matches={spielerWerte.runden}
+              rundenGesamt={spielerWerte.rundenGesamt ?? null}
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
               laeuft={laeuftGerade}
@@ -4669,6 +4670,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             <SpielerStatsUebersicht
               spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
               matches={spielerWerte.runden}
+              rundenGesamt={spielerWerte.rundenGesamt ?? null}
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
               laeuft={laeuftGerade}

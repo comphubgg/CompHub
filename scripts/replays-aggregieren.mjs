@@ -328,6 +328,8 @@ async function fensterRechnen(season, windowId, basis = null, nurDiese = null) {
     /** Welche Matches darin stecken - siehe ganz oben. */
     matchIds: [...matchIds].sort(),
     aggregatFassung: basis ? Math.min(Number(basis.aggregatFassung) || 0, AGGREGAT_FASSUNG) : AGGREGAT_FASSUNG,
+    // 2 = der Kill geht an den, der umhaut. Fortgeschriebene Auswertungen behalten den Wert ihres Anfangs: sie enthalten noch Matches nach der alten Zaehlung.
+    killRegel: basis ? (Number(basis.killRegel) || 0) : 2,
   };
 }
 
