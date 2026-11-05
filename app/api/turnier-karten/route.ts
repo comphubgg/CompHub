@@ -315,12 +315,13 @@ async function nurAdmin() {
 export async function POST(request: Request) {
   const abgewiesen = await nurAdmin();
   if (abgewiesen) return abgewiesen;
-  const eingang = await request.json() as Partial<Turnierkarte> & { basis?: number | null };
+  const eingang = await request.json() as Partial<Turnierkarte> & { basis?: number | null; ausQuelle?: boolean };
   if (!eingang.id || !eingang.titel) {
     return NextResponse.json({ error: 'id und titel fehlen' }, { status: 400 });
   }
 
-  const karte: Turnierkarte = {
+  const geaendert = Date.now();
+  const karte: Turnierkarte & { automatisch?: { stand: number; quelle: string } } = {
     id: eingang.id,
     titel: eingang.titel,
     cupId: eingang.cupId,
@@ -339,8 +340,10 @@ export async function POST(request: Request) {
     gesperrt: eingang.gesperrt ?? false,
     spots: eingang.spots ?? [],
     teams: eingang.teams ?? [],
-    geaendert: Date.now(),
+    geaendert,
     oeffentlich: eingang.oeffentlich ?? false,
+    // "Generate map" ist keine Handarbeit (5.11.2026: sonst blieb die Finalkarte danach stehen, waehrend Noble weiterlief).
+    ...(eingang.ausQuelle ? { automatisch: { stand: geaendert, quelle: 'auto' } } : {}),
   };
 
   const gelesen = await kartenZumSchreiben();

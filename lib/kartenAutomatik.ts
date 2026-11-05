@@ -140,6 +140,9 @@ function baueKarte(
   };
 }
 
+/** Was eine Karte zeigt: Formen, wer darauf steht, und welche Teams es gibt. */
+const kartenInhalt = (k: Pick<Turnierkarte, 'spots' | 'teams'>) => JSON.stringify([k.spots.map((s) => [s.punkte, s.teams]), k.teams.map((t) => [t.id, t.spieler])]);
+
 export interface Lauf { geprueft: number; geladen: string[]; fertig: string[]; fehlgeschlagen: string[]; uebersprungen: string[]; wartet: number }
 
 /**
@@ -181,7 +184,8 @@ export async function kartenAutomatik(
   for (const z of alle) {
     const schluessel = `${z.f.windowId}|${z.region}`;
     const s = stand[schluessel];
-    if (s && s.zustand !== 'laeuft') continue;
+    // "von-hand" wird jedes Mal neu geprueft: aus "Generate map" kann wieder eine Karte der Automatik werden (app/api/turnier-karten, POST).
+    if (s && s.zustand !== 'laeuft' && s.zustand !== 'von-hand') continue;
     if (!nachholen && jetzt < z.ab) { lauf.wartet++; continue; }
     lauf.geprueft++;
     const name = `${titelVon(z)} (${z.region})`;
@@ -189,7 +193,7 @@ export async function kartenAutomatik(
     // Eine Karte zu diesem Spieltag, die nicht von hier ist oder seither von Hand geaendert wurde, bleibt.
     const vorhanden = karten.find((k) => k.windowId === z.f.windowId && (k.region ?? z.region) === z.region);
     if (vorhanden && (!vorhanden.automatisch || vorhanden.automatisch.stand !== vorhanden.geaendert || vorhanden.gesperrt)) {
-      stand[schluessel] = { zustand: 'von-hand', versuche: s?.versuche ?? 0, zuletzt: jetzt, kartenId: vorhanden.id };
+      if (s?.zustand !== 'von-hand') stand[schluessel] = { zustand: 'von-hand', versuche: s?.versuche ?? 0, zuletzt: jetzt, kartenId: vorhanden.id };
       lauf.uebersprungen.push(name);
       continue;
     }
@@ -211,10 +215,14 @@ export async function kartenAutomatik(
     const letzterVersuch = nachholen || jetzt >= z.f.begin + ZEHN_MIN;
     if (quelle) {
       const neu = baueKarte(z, quelle, profile, bild, vorhanden);
-      karten = vorhanden ? karten.map((k) => (k.id === vorhanden.id ? neu : k)) : [...karten, neu];
-      kartenGeaendert = true;
-      lauf.geladen.push(name);
-      stand[schluessel] = { zustand: letzterVersuch ? 'fertig' : 'laeuft', versuche: (s?.versuche ?? 0) + 1, zuletzt: jetzt, kartenId: neu.id };
+      // Die Live-Route fragt alle zwanzig Sekunden: ohne echte Aenderung wird nichts geschrieben, sonst laedt jeder Zuschauer jedes Mal alles neu.
+      const gleich = !!vorhanden && kartenInhalt(vorhanden) === kartenInhalt(neu);
+      if (!gleich) {
+        karten = vorhanden ? karten.map((k) => (k.id === vorhanden.id ? neu : k)) : [...karten, neu];
+        kartenGeaendert = true;
+        lauf.geladen.push(name);
+      }
+      if (!gleich || letzterVersuch || s?.zustand !== 'laeuft') stand[schluessel] = { zustand: letzterVersuch ? 'fertig' : 'laeuft', versuche: (s?.versuche ?? 0) + 1, zuletzt: jetzt, kartenId: vorhanden?.id ?? neu.id };
       if (letzterVersuch) lauf.fertig.push(name);
     } else if (letzterVersuch) {
       // Hat es schon einmal geklappt, bleibt die letzte Karte stehen - fertig ist sie trotzdem.

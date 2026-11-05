@@ -143,9 +143,9 @@ export async function jungeTurniere(anzahl: number): Promise<RohTurnier[]> {
     .slice(0, anzahl);
 }
 
-export async function detail(id: string, region: string, windowId?: string): Promise<RohDetail> {
+export async function detail(id: string, region: string, windowId?: string, frischMs = FRIST_MS): Promise<RohDetail> {
   const q = `region=${encodeURIComponent(region)}` + (windowId ? `&windowId=${encodeURIComponent(windowId)}` : '');
-  return alsDetail(await hole<NeuDetail & Partial<RohDetail>>(`${BASIS}/tournaments/${encodeURIComponent(id)}?${q}`));
+  return alsDetail(await hole<NeuDetail & Partial<RohDetail>>(`${BASIS}/tournaments/${encodeURIComponent(id)}?${q}`, frischMs));
 }
 
 /*
@@ -323,7 +323,8 @@ export async function nobleKarte(
   }
   if (!treffer) return null;
 
-  const d = await detail(treffer.id, treffer.region, fensterKennung);
+  // Die Karte selbst nur kurz aufheben: vor einem Finale kommen die Spieler im Sekundentakt dazu, zwei Minuten alte Daten waren dem Betreiber zu langsam.
+  const d = await detail(treffer.id, treffer.region, fensterKennung, 15_000);
   if (!d.windowData || d.windowData.windowId !== fensterKennung) return null;
   const fensterName = d.windowData.windowFullName || d.windowData.windowName || fensterKennung;
 

@@ -78,9 +78,11 @@ interface KartenTeam {
  * Noble Practice), und was in der einen anders hiess als in der anderen, stand danach doppelt in der Liste. In einem Spiel treten aber hoechstens hundert Spieler an.
  * Wer schon auf einer Form steht, bleibt immer; danach gelten zuerst die Teams von Noble (das ist die echte Lobby), zuletzt die der Rangliste.
  */
-function begrenzeTeams(liste: KartenTeam[], platziert: Set<string>): KartenTeam[] {
+function begrenzeTeams(liste: KartenTeam[], platziert: Set<string>, qualifiziert = 0): KartenTeam[] {
   const groesse = Math.max(0, ...liste.map((t) => t.spieler.length));
-  const grenze = groesse ? Math.floor(100 / groesse) : 0;
+  const platz = groesse ? Math.floor(100 / groesse) : 0;
+  // Betreiber, 5.11.2026: "wenn sich 26 qualen, werden nur die 26 angezeigt" - die Lobby kann kleiner sein als hundert Spieler. Wer auf einer Form steht, bleibt trotzdem.
+  const grenze = qualifiziert > 0 ? Math.max(Math.min(qualifiziert, platz || qualifiziert), platziert.size) : platz;
   if (!grenze || liste.length <= grenze) return liste;
   const rang = (t: KartenTeam) => (platziert.has(t.id) ? 0 : t.quelle === 'noble' ? 1 : 2);
   const behalten = new Set(
@@ -89,6 +91,9 @@ function begrenzeTeams(liste: KartenTeam[], platziert: Set<string>): KartenTeam[
   );
   return liste.filter((t) => behalten.has(t.id));
 }
+
+/** Wer wo steht, als Text: gleicher Abdruck heisst gleiche Formen mit denselben Teams. */
+const kartenAbdruck = (spots: Spot[]) => JSON.stringify(spots.map((s) => [s.punkte, s.teams]));
 
 /** Dasselbe Team? Gleicher Schluessel oder ein gemeinsames Epic-Konto. */
 function gleichesTeam(a: KartenTeam, b: KartenTeam): boolean {
@@ -485,6 +490,10 @@ export default function KartenSeite(
    */
   /** 0 = automatisch: so viele Teams, wie in ein Finale passen (100 Spieler geteilt durch die Teamgroesse - bei Trios 33, bei Duos 50). */
   const [teamGrenze, setTeamGrenze] = useState(0);
+  /** Wie viele Teams sich fuer diesen Spieltag wirklich qualifizieren (Epics Auszahlungstabelle ueber /api/qualifikation); 0 = unbekannt. */
+  const qualZahl = useRef(0);
+  /** Der Abdruck der letzten Uebernahme von "Generate map": steht die Karte noch so, ist sie keine Handarbeit und die Automatik darf sie weiter nachziehen. */
+  const generiert = useRef('');
   const [status, setStatus] = useState('');
   /*
    * Kam die Kartenliste aus der Ersatzkopie? Dann steht es gross da - ein
@@ -1498,7 +1507,8 @@ export default function KartenSeite(
       };
 
       let roh = await holen(f.eventId, f.windowId);
-      let woher = '';
+      let ausVorrunde = false;
+      qualZahl.current = 0;
 
       // Hat das Finale noch keine eigene Zeile, treten die Qualifizierten der
       // Vorrunde an ihre Stelle - damit laesst sich die Karte vorbereiten,
@@ -1508,7 +1518,11 @@ export default function KartenSeite(
         const vor = vorrundeZu(f.windowId);
         if (vor) {
           roh = await holen(vor.eventId, vor.windowId);
-          if (roh.length) woher = ` — die besten ${roh.length} der Vorrunde`;
+          ausVorrunde = roh.length > 0;
+          // Wie viele weiterkommen, sagt die Auszahlungstabelle der Vorrunde - nicht die Groesse einer Lobby (Performance Cup: Top 26, nicht 33).
+          const q = await fetch(`/api/qualifikation?window=${encodeURIComponent(vor.windowId)}&region=${encodeURIComponent(vor.region ?? 'EU')}`)
+            .then((x) => x.json() as Promise<{ schwelle?: number }>).catch(() => null);
+          qualZahl.current = Number(q?.schwelle) || 0;
         }
       }
       const alleTeams: KartenTeam[] = roh.map((e, i) => {
@@ -1524,7 +1538,9 @@ export default function KartenSeite(
       }).filter((t) => t.spieler.length);
       // Betreiber, 19.10.2026: bei Trios qualifizieren sich nur 33 Teams (99 Spieler), nicht fuenfzig - erst die Teamgroesse feststellen, dann abschneiden.
       const groesse = Math.max(0, ...alleTeams.map((t) => t.spieler.length));
-      const liste = teamGrenze > 0 || !groesse ? alleTeams : alleTeams.slice(0, Math.max(1, Math.floor(100 / groesse)));
+      const platz = Math.max(1, Math.floor(100 / (groesse || 1)));
+      const liste = teamGrenze > 0 || !groesse ? alleTeams : alleTeams.slice(0, qualZahl.current > 0 ? Math.min(qualZahl.current, platz) : platz);
+      const woher = ausVorrunde ? ` — die besten ${liste.length} der Vorrunde` : '';
       // Teams von "Generate map" bleiben stehen, auch wenn sie nicht (mehr) in der Rangliste sind.
       setTeams((alt) => {
         const noble = alt.filter((t) => t.quelle === 'noble');
@@ -1533,7 +1549,7 @@ export default function KartenSeite(
         const zusammen = [...gemerkt, ...noble.filter((n) => !liste.some((t) => gleichesTeam(n, t)))];
         // Eine eigene Grenze (Feld "Teams") gilt, wie eingegeben; sonst passen hoechstens hundert Spieler ins Spiel.
         return teamGrenze > 0 ? zusammen
-          : begrenzeTeams(zusammen, new Set(spotsAktuell.current.flatMap((sp) => sp.teams)));
+          : begrenzeTeams(zusammen, new Set(spotsAktuell.current.flatMap((sp) => sp.teams)), qualZahl.current);
       });
       setStatus(liste.length
         ? `${liste.length} Teams geladen${woher}`
@@ -1647,6 +1663,7 @@ export default function KartenSeite(
       const anwenden = () => {
         merke();
         formenVomNutzer.current = false; inhaltVomNutzer.current = true;
+        generiert.current = kartenAbdruck(neueSpots);
         setSpots(neueSpots);
         // Die Teams dieser Karte sind jetzt die von Noble: alte Noble-Teams, die nicht mehr vorkommen, gehen,
         // gefundene Teams der Rangliste werden als zur Karte gehoerig vermerkt, neue kommen dazu.
@@ -1657,7 +1674,7 @@ export default function KartenSeite(
               .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
             ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
           ];
-          return teamGrenze > 0 ? zusammen : begrenzeTeams(zusammen, new Set(neueSpots.flatMap((sp) => sp.teams)));
+          return teamGrenze > 0 ? zusammen : begrenzeTeams(zusammen, new Set(neueSpots.flatMap((sp) => sp.teams)), qualZahl.current);
         });
         setNobleFrage(null);
         setNobleMeldung({
@@ -2748,6 +2765,8 @@ export default function KartenSeite(
         bildAutomatisch: bildVonHandFuer.current !== fensterId,
         spiele: spiele.trim() || undefined,
         oeffentlich: true,
+        // Nur uebernommen, nichts von Hand verschoben: die Automatik zieht die Karte weiter nach.
+        ausQuelle: generiert.current === kartenAbdruck(spots),
         // Der Stand, auf dem diese Aenderung aufbaut - siehe standVon.
         basis: standVon.current.get(id) ?? null,
       }),
