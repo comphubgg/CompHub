@@ -845,6 +845,24 @@ async function liveIds(windowId) {
   } catch { return []; }
 }
 
+/*
+ * Der Rueckstand gehoert auch in die Schnellspur (Betreiber, 5.11.2026: "ueber Nacht 2000 Replays, wie kann das sein?"). Die Schnellspur liest 9.000 Matches in wenigen
+ * Minuten, die Nacharbeiter brauchten fuer 2.000 einen Tag: sobald die Schnellspur viel offen meldet, halten sie an - und an Cup-Tagen meldet sie das stundenlang. Deshalb
+ * nimmt sie jetzt selbst die Spieltage mit, die aelter als 36 Stunden und noch offen sind, nach allem Frischen und hoechstens vier auf einmal.
+ */
+async function rueckstandFenster() {
+  try {
+    const r = await fetch(`${BASIS}/api/replays`, { signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) return new Set();
+    const fertig = new Set(['PARSED', 'NOT_AVAILABLE', 'FAILED', 'ABGELAUFEN']);
+    const liste = ((await r.json()).fenster ?? [])
+      .map((f) => ({ w: f.windowId, offen: Object.entries(f.zaehler ?? {}).reduce((a, [k, n]) => a + (fertig.has(k) ? 0 : n), 0) }))
+      .filter((f) => f.offen > 0 && !/Arena/i.test(f.w)).sort((a, b) => b.offen - a.offen).slice(0, 4);
+    if (liste.length) console.log(`Rueckstand: ${liste.map((f) => `${f.w} ${f.offen}`).join(', ')}`);
+    return new Set(liste.map((f) => f.w));
+  } catch { return new Set(); }
+}
+
 async function planSchreibenLauf(datei) {
   BASIS = await findeBasis();
   const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(120_000) });
@@ -856,6 +874,7 @@ async function planSchreibenLauf(datei) {
   const kandidaten = [];
   // Den PC-Bereich (frueher ausgelassene Spieltage) nur auslassen, solange der PC des Betreibers an ist.
   const pcAn = await pcLeserAktiv();
+  const rueckstand = await rueckstandFenster();
   for (const cup of katalog.cups ?? []) {
     const regel = replayRegel(cup, true);
     if (regel === 'nichts' && pcAn) continue;
@@ -874,7 +893,7 @@ async function planSchreibenLauf(datei) {
         const ende = live ? jetzt : (w.end ?? w.begin ?? 0);
         if (ende < jetzt - FRIST_TAGE * 864e5) continue;
         const angefragt = vorrang.has(w.windowId) || nurFenster.includes(w.windowId);
-        if (!angefragt && ende < jetzt - SCHNELL_STUNDEN * 3600_000) continue;
+        if (!angefragt && !rueckstand.has(w.windowId) && ende < jetzt - SCHNELL_STUNDEN * 3600_000) continue;
         kandidaten.push({
           season: m[1].toUpperCase(), windowId: w.windowId, eventId: w.eventId, region: w.region, titel: cup.titel,
           datum: live ? (w.begin ?? jetzt) : ende, live, angefragt, istEndrunde: endrundeHier.has(w.windowId),
