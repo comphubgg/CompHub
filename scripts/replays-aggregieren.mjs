@@ -68,6 +68,8 @@ const nurFenster = argumente.filter((a) => !a.startsWith('--'));
  *     seiner Teile - eine Ergaenzung macht aus Fassung 4 keine 5.
  */
 const AGGREGAT_FASSUNG = 5;
+/** So lange nach einem Knock gilt der Kill noch dem, der umgehauen hat; danach war das Opfer wohl wiederbelebt. */
+const KNOCK_FRIST_MS = 50_000;
 const PLATZIERUNGEN = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC_SPIELTAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
@@ -263,10 +265,26 @@ async function fensterRechnen(season, windowId, basis = null, nurDiese = null) {
     for (const e of m.elims ?? []) {
       if (!e.knock && e.opfer && e.zeit !== null && e.zeit !== undefined) letzterTod[e.opfer] = Math.max(letzterTod[e.opfer] ?? -Infinity, e.zeit);
     }
+    /*
+     * Wer umhaut, bekommt den Kill - nicht wer erledigt (Betreiber, 5.11.2026: "der Knock ... finisht ihn. Das bedeutet trotzdem, dass ich den Kill bekomme"). Ausnahme: wer sich
+     * selbst umgehauen hat (Fallschaden), dessen Kill geht an den, der ihn erledigt. Gegen Epics Elims je Team und Match (25 Teams, 184 Matches): 154 genau statt 105, Abweichung
+     * 38 statt 119. Ohne Frist zaehlte ein Knock auch nach einer Wiederbelebung; 50 Sekunden trafen am besten.
+     * Die Regel "kein Kill nach dem eigenen Tod" gilt nur ohne Knocks, also Solo: im Team zaehlt Epic den Kill trotzdem.
+     */
+    const mitKnocks = (m.elims ?? []).some((e) => e.knock);
+    const umgehauenVon = new Map();
     for (const e of m.elims ?? []) {
       elimsGesamt++;
-      const nachTod = e.zeit !== null && e.zeit !== undefined && letzterTod[e.taeter] !== undefined && e.zeit > letzterTod[e.taeter];
-      if (e.taeter && e.taeter !== e.opfer && !nachTod && spieler.has(e.taeter)) zaehle(spieler.get(e.taeter), e, 'taeter');
+      let taeter = e.taeter;
+      if (e.knock) {
+        if (e.opfer) umgehauenVon.set(e.opfer, { taeter: e.taeter, zeit: e.zeit });
+      } else {
+        const k = umgehauenVon.get(e.opfer);
+        umgehauenVon.delete(e.opfer);
+        if (k?.taeter && k.taeter !== e.opfer && e.zeit - k.zeit <= KNOCK_FRIST_MS) taeter = k.taeter;
+      }
+      const nachTod = !mitKnocks && e.zeit !== null && e.zeit !== undefined && letzterTod[taeter] !== undefined && e.zeit > letzterTod[taeter];
+      if (taeter && taeter !== e.opfer && !nachTod && spieler.has(taeter)) zaehle(spieler.get(taeter), { ...e, taeter }, 'taeter');
       if (e.opfer && spieler.has(e.opfer)) zaehle(spieler.get(e.opfer), e, 'opfer');
     }
   }
