@@ -2728,6 +2728,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Duo-Cup kommt und dort auf diesem Reiter stand, landete sonst auf einer
    * leeren Seite ohne Knopf zurueck.
    */
+  /*
+   * Vor einem Finale die Karte live nachziehen (app/api/karten-live): wer die Seite offen hat, stoesst es an, der Server fragt die Quelle hoechstens alle zwanzig Sekunden.
+   * Nur von drei Stunden vor bis zehn Minuten nach dem Start, und nur fuer die zweite Runde der Performance Cups oder ein Final-Fenster.
+   */
+  const liveFinale = useMemo(() => {
+    const jetzt = Date.now();
+    return tage.find((f) => (f.istFinale || /final|PerformanceEvaluation_Event\d+Round2/i.test(f.windowId)) && f.begin - jetzt < 3 * 3_600_000 && jetzt < f.begin + 10 * 60_000)?.windowId ?? '';
+  }, [tage]);
+  useEffect(() => {
+    if (!liveFinale) return undefined;
+    const holen = () => { void fetch(`/api/karten-live?window=${encodeURIComponent(liveFinale)}`, { cache: 'no-store' }).catch(() => {}); };
+    holen();
+    return sichtbarerTakt(holen, 20_000);
+  }, [liveFinale]);
+
   // Unter Kumulativ zaehlt nicht der Tag, sondern die Summe: die Punkte am Platz, der weiterkommt, ueber alle Tage der Runde (geschaetzt, app/api/cup-leaderboard).
   const [kumGrenze, setKumGrenze] = useState<number | null>(null);
   const kumSchwelle = qual?.schwelle ?? 0;

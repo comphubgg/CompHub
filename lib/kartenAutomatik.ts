@@ -147,7 +147,7 @@ export interface Lauf { geprueft: number; geladen: string[]; fertig: string[]; f
  * Mit `nachholen` werden vergangene Performance-Finals nachgetragen, fuer die es noch keine Karte gibt - je Spieltag genau einmal.
  */
 export async function kartenAutomatik(
-  cups: CupGruppe[], inseln: Record<string, string>, bilder: Array<{ id: string; titel: string }>, nachholen = false,
+  cups: CupGruppe[], inseln: Record<string, string>, bilder: Array<{ id: string; titel: string }>, nachholen = false, nurFenster?: string,
 ): Promise<Lauf> {
   const jetzt = Date.now();
   const lauf: Lauf = { geprueft: 0, geladen: [], fertig: [], fehlgeschlagen: [], uebersprungen: [], wartet: 0 };
@@ -172,7 +172,7 @@ export async function kartenAutomatik(
     }
   }
 
-  const alle = zieleAus(cups, nachholen).filter((z) => nachholen
+  const alle = zieleAus(cups, nachholen).filter((z) => !nurFenster || z.f.windowId === nurFenster).filter((z) => nachholen
     // Nachholen: was vorbei ist (seit hoechstens sechzig Tagen - aelter fuehren die Quellen nicht mehr).
     ? z.f.begin + ZEHN_MIN < jetzt && z.f.begin > jetzt - 60 * 86400_000
     // Sonst nur, was gerade dran ist: ab dem Ende der offenen Runde bis zum letzten Laden; was davor liegt, wartet.

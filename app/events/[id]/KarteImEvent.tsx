@@ -55,7 +55,8 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
         .catch(() => { if (!weg) setGeladen((alt) => (alt[id] ? alt : { ...alt, [id]: true })); });
     };
     holen();
-    const stopp = sichtbarerTakt(holen, 30_000);
+    // Alle zehn Sekunden: vor einem Finale kommen die Spieler laufend dazu, die Antwort ist ohne Aenderung nur ein paar Byte.
+    const stopp = sichtbarerTakt(holen, 10_000);
     return () => { weg = true; stopp(); };
   }, [aktuell]);
 
