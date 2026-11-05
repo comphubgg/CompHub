@@ -94,6 +94,8 @@ export default function ReplaySeite() {
    * nicht fuer den Reload Duo Cash Cup"). Der Schalter hebt die Auswahl auf.
    */
   const [nurWichtige, setNurWichtige] = useState(true);
+  // Die Games eines Cups in einem Fenster (Betreiber, 5.11.2026): bei 532 Games musste man sonst ganz nach unten scrollen, um einen anderen Cup zu finden.
+  const [gamesOffen, setGamesOffen] = useState(false);
   const [cupSuche, setCupSuche] = useState('');
   const [matchWahl, setMatchWahl] = useState<string | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
@@ -237,24 +239,40 @@ export default function ReplaySeite() {
               )}
               {sichtbareTage.map((x) => (
                 <div key={x.windowId} className={`rounded-xl border ${x.windowId === tagWahl ? 'border-sky-500/70 bg-sky-500/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
-                  <button onClick={() => { setTagWahl(x.windowId); setMatchWahl(null); }} className="w-full px-4 py-3 text-left">
+                  <button onClick={() => { setTagWahl(x.windowId); setMatchWahl(null); setGamesOffen(true); }} className="w-full px-4 py-3 text-left">
                     <span className="block text-sm font-bold text-slate-100">{x.titel}</span>
                     <span className="text-xs text-slate-500">{x.region} · {x.matches.length} Games · {x.matches[0]?.beginn ? new Date(x.matches[0].beginn).toLocaleDateString() : ''}</span>
                   </button>
-                  {x.windowId === tagWahl && (
-                    <div className="space-y-1 px-2 pb-2">
-                      <button onClick={() => setMatchWahl(null)}
+                  {x.windowId === tagWahl && gamesOffen && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" onClick={() => setGamesOffen(false)}>
+                    <div className="flex max-h-[80vh] w-full max-w-3xl flex-col rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-5 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-bold text-slate-100">{x.titel}</p>
+                          <p className="text-xs text-slate-500">{x.region} · {x.matches.length} Games</p>
+                        </div>
+                        <button onClick={() => setGamesOffen(false)} className="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-300"><T>Schließen</T></button>
+                      </div>
+                    <div className="grid gap-1 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <button onClick={() => { setMatchWahl(null); setGamesOffen(false); }}
                         className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${!matchWahl ? 'bg-sky-500/20 text-sky-300' : 'text-slate-400 hover:bg-zinc-900'}`}>
                         <T>Zonen aller Games</T>
                       </button>
                       {x.matches.map((m) => (
-                        <button key={m.id} onClick={() => setMatchWahl(m.id)}
+                        <button key={m.id} onClick={() => { setMatchWahl(m.id); setGamesOffen(false); }}
                           className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${matchWahl === m.id ? 'bg-sky-500/20 text-sky-300' : 'text-slate-300 hover:bg-zinc-900'}`}>
                           <b>Game {m.nr}</b>
                           <span className="block truncate text-xs text-slate-500">🏆 {(m.sieger ?? []).map(ohneVorsatz).join(' + ') || '–'}</span>
                         </button>
                       ))}
                     </div>
+                    </div>
+                    </div>
+                  )}
+                  {x.windowId === tagWahl && !gamesOffen && (
+                    <button onClick={() => setGamesOffen(true)} className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-lg bg-sky-500/15 px-3 py-2 text-left text-sm font-semibold text-sky-300 transition hover:bg-sky-500/25">
+                      {matchWahl ? `Game ${x.matches.find((m) => m.id === matchWahl)?.nr ?? ''}` : <T>Zonen aller Games</T>} · <T>Andere wählen</T>
+                    </button>
                   )}
                 </div>
               ))}

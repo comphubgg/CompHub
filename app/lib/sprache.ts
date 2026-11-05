@@ -3897,6 +3897,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
+  'Andere wählen': 'Choose another',
   'Epic zeigt je Tag nur die Top 10.000 – weiter hinten fehlen vielen Spielern die Punkte eines Tages.': 'Epic only shows the top 10,000 per day – further down, many players are missing one day of points.',
   'Geschätzte Punkte': 'Estimated points',
   'Automatisch (CompHub)': 'Automatic (CompHub)',

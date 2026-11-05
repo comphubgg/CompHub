@@ -472,14 +472,44 @@ export default function EventsPage() {
 
   // Gefiltert wird hier, nicht beim Server. Alle fuenf Minuten frisch, damit neue Fenster und Zeiten von selbst ankommen.
   // Erst nur Live und Demnaechst; mit Vergangenen ist es der ganze Katalog (eine Obermenge, daher ohne Doppelte).
+  /*
+   * Die Seite stand immer wieder mit "Die Zahlen sind gerade nicht erreichbar" da (Betreiber, 5.11.2026: "dieser Fehler darf nie mehr vorkommen"). Eine einzelne
+   * Abfrage scheitert immer mal: der Server startet neu, eine Ausweichseite ist gesperrt, die Antwort ist kein JSON. Deshalb wird mehrmals gefragt, und der letzte gute
+   * Katalog liegt im Browser: er steht sofort da und bleibt stehen. Die Meldung kommt nur noch, wenn nichts zu zeigen ist und alle Versuche gescheitert sind.
+   */
+  const hatCups = useRef(false);
+  useEffect(() => { hatCups.current = cups.length > 0; }, [cups.length]);
+  useEffect(() => {
+    try {
+      const gemerkt = localStorage.getItem('events-katalog');
+      if (gemerkt) {
+        const liste = JSON.parse(gemerkt) as Cup[];
+        if (Array.isArray(liste) && liste.length) { setCups((alt) => (alt.length ? alt : nachAusgaben(liste))); setLaedt(false); }
+      }
+    } catch { /* dann eben ohne */ }
+  }, []);
+
   useEffect(() => {
     let weg = false;
+    const fragen = async () => {
+      for (const pause of [0, 1500, 4000, 8000]) {
+        if (pause) await new Promise((fertig) => setTimeout(fertig, pause));
+        if (weg) return null;
+        try {
+          const r = await fetch(`/api/cup-catalog?modus=${mitVergangenen ? 'alle' : 'alle-aktuell'}`);
+          const d = await r.json();
+          if (r.ok || d?.needsLogin) return { r, d };
+        } catch { /* gleich noch einmal */ }
+      }
+      return null;
+    };
     const holen = async (erstesMal: boolean) => {
       if (mitVergangenen && erstesMal) setVergLaedt(true);
       try {
-        const r = await fetch(`/api/cup-catalog?modus=${mitVergangenen ? 'alle' : 'alle-aktuell'}`);
-        const d = await r.json();
+        const antwort = await fragen();
         if (weg) return;
+        if (!antwort) { if (!hatCups.current) setFehler('nicht ladbar'); return; }
+        const { r, d } = antwort;
         if (!r.ok) {
           setLoginNoetig(Boolean(d.needsLogin));
           setFehler(d.error ?? 'nicht ladbar');
@@ -487,6 +517,7 @@ export default function EventsPage() {
           // Ein spaeterer Abruf, der klappt, loescht die alte Fehlermeldung (sie blieb sonst bis zum Neuladen stehen).
           setFehler(null); setLoginNoetig(false);
           gemerkteRegion();
+          try { if (!mitVergangenen && d.cups?.length) localStorage.setItem('events-katalog', JSON.stringify(d.cups)); } catch { /* Speicher voll oder gesperrt */ }
           const neu = nachAusgaben(d.cups ?? []);
           // Schon geladene (kommende) Cups bleiben, was neu kommt, ersetzt Cups gleicher Kennung - keine Doppelten.
           setCups((alt) => {
@@ -496,7 +527,7 @@ export default function EventsPage() {
           });
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
         }
-      } catch (e) { if (!weg) setFehler((e as Error).message); }
+      } catch (e) { if (!weg && !hatCups.current) setFehler((e as Error).message); }
       finally { if (!weg) { setLaedt(false); setVergLaedt(false); } }
     };
     void holen(true);

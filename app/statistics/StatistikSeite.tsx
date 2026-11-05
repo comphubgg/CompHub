@@ -3565,6 +3565,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
    * Suche das Konto nicht, oeffnet das Profil mit Id und Namen; die Werte
    * holt es sich dann selbst.
    */
+  const introBereich = useCallback((w: string) => { setBereich(w as typeof bereich); }, []);
   const oeffneKonto = useCallback(async (epicId: string, name: string) => {
     const da = spieler.find((x) => x.epicId === epicId);
     if (da) { oeffne(da, 'verdienst'); return; }
@@ -4225,7 +4226,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     </div>
     {/* Ein "i" fuer alles: kurze Fuehrung durch die Seite (StatistikIntro) - neben der Leiste, nicht darin: am Handy laege es sonst am Ende
         der seitlich wischbaren Leiste und waere nicht zu sehen. */}
-    <StatistikIntro bereiche={sichtbareBereiche.map(([w, titel]) => [w, titel] as [string, string])} />
+    <StatistikIntro bereiche={sichtbareBereiche.map(([w, titel]) => [w, titel] as [string, string])} waehle={introBereich} />
     </div>
   );
 

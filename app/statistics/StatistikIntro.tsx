@@ -25,7 +25,7 @@ const ERKLAERUNG: Record<string, string> = {
 interface Schritt { ziel: string | null; titel: string; text: string }
 interface Rahmen { x: number; y: number; b: number; h: number }
 
-export default function StatistikIntro({ bereiche }: { bereiche: Array<[string, string]> }) {
+export default function StatistikIntro({ bereiche, waehle }: { bereiche: Array<[string, string]>; waehle?: (bereich: string) => void }) {
   const t = useT();
   const [schritt, setSchritt] = useState<number | null>(null);
   const [rahmen, setRahmen] = useState<Rahmen | null>(null);
@@ -36,6 +36,10 @@ export default function StatistikIntro({ bereiche }: { bereiche: Array<[string, 
     { ziel: 'suche', titel: 'Spielersuche', text: 'Hier tippst du den Namen eines Spielers ein. Ein Klick auf den Treffer öffnet sein Profil.' },
   ];
   const jetzt = schritt === null ? null : schritte[schritt];
+
+  // Die Seite geht mit (Betreiber, 5.11.2026): der erklaerte Reiter ist auch der geoeffnete und damit blau.
+  const zielBereich = jetzt?.ziel?.startsWith('bereich-') ? jetzt.ziel.slice(8) : null;
+  useEffect(() => { if (zielBereich) waehle?.(zielBereich); }, [zielBereich, waehle]);
 
   const messen = useCallback(() => {
     if (!jetzt?.ziel) { setRahmen(null); return; }
