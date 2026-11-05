@@ -25,7 +25,7 @@ const DATEN = process.env.COMPHUB_DATEN || path.join(process.cwd(), 'data');
 const ANFRAGEN = path.join(DATEN, 'eigene-anfragen');
 const STATS = path.join(DATEN, 'eigene-stats');
 // Zum Pruefen auf einem Rechner mit anderem Aufbau: REPLAYVOLL_DLL und DOTNET_BIN (im Ablauf nicht gesetzt).
-const WERKZEUG = process.env.REPLAYVOLL_DLL || path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+const WERKZEUG = process.env.REPLAYVOLL_DLL || path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
 const DOTNET = process.env.DOTNET_BIN || 'dotnet';
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';

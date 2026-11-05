@@ -55,7 +55,7 @@ const dotnet = promisify(execFile);
 const DATEN = path.join(process.cwd(), 'data');
 const ZIEL = path.join(DATEN, 'replay-voll');
 const INDEX = path.join(ZIEL, 'index.json');
-const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
 
 const liesJson = (p, standard) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return standard; } };
 const arg = process.argv.slice(2);

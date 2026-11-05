@@ -105,7 +105,7 @@ async function topIds(eventId, windowId, max) {
  * je Schuss nur bis zu den restlichen Lebenspunkten; die stehen im Replay
  * nicht, der Ueberschuss laesst sich deshalb nicht genau abziehen.
  */
-const SCHADEN_LESER = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+const SCHADEN_LESER = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
 /** Die volle Ausgabe des eigenen Lesers - oder null, wenn er fehlt oder scheitert. */
 function vollAus(datei) {
   if (!fs.existsSync(SCHADEN_LESER)) return null;
@@ -113,6 +113,10 @@ function vollAus(datei) {
     return JSON.parse(execFileSync('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8'));
   } catch (e) { console.log(`    Leser: ${String(e.message).slice(0, 120)}`); return null; }
 }
+
+/** Die Werte eines Spielers. Die gebauten Teile (bau*) zaehlt der Leser je Team - zuzuordnen also nur, wo ein Team aus einem Spieler besteht (Solo). */
+const neueWerte = () => ({ dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0,
+  bauHolz: 0, bauStein: 0, bauMetall: 0, bauWand: 0, bauBoden: 0, bauTreppe: 0, bauDach: 0, bauSpiele: 0 });
 
 function schadenAus(roh) {
   if (!roh) return null;
@@ -128,8 +132,18 @@ function schadenAus(roh) {
     for (const z of roh.zusatz ?? []) {
       const k = epicVon.get(z.id);
       if (!k) continue;
-      const d = raus[k] ??= { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+      const d = raus[k] ??= neueWerte();
       d.sturm += z.sturmSek ?? 0; d.wiederbelebt += z.wiederbelebt ?? 0; d.rebootet += z.rebootet ?? 0;
+    }
+    const jeTeam = new Map();
+    for (const p of roh.spieler ?? []) if (!p.bot && p.epic) jeTeam.set(p.team, [...(jeTeam.get(p.team) ?? []), p.epic]);
+    for (const b of roh.bau ?? []) {
+      const leute = jeTeam.get(b.team) ?? [];
+      if (leute.length !== 1) continue;
+      const d = raus[leute[0]] ??= neueWerte();
+      d.bauHolz = (d.bauHolz ?? 0) + b.holz; d.bauStein = (d.bauStein ?? 0) + b.stein; d.bauMetall = (d.bauMetall ?? 0) + b.metall;
+      d.bauWand = (d.bauWand ?? 0) + b.wand; d.bauBoden = (d.bauBoden ?? 0) + b.boden; d.bauTreppe = (d.bauTreppe ?? 0) + b.treppe; d.bauDach = (d.bauDach ?? 0) + b.dach;
+      d.bauSpiele = (d.bauSpiele ?? 0) + 1;
     }
     return raus;
   } catch (e) { console.log(`    Schaden: ${String(e.message).slice(0, 120)}`); return null; }
@@ -173,7 +187,7 @@ async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
       for (const [k, v] of soloMatch) solo[k] = (solo[k] ?? 0) + Math.round(v);
       const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {
-        const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+        const d = schaden[k] ?? neueWerte();
         for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
         schaden[k] = d;
       }
@@ -376,7 +390,7 @@ if (arg[0] === '--plan') {
           for (const [k, v] of c) teil.summe[k] = (teil.summe[k] ?? 0) + v;
           for (const [k, v] of soloMatch) teil.solo[k] = (teil.solo[k] ?? 0) + Math.round(v);
           for (const [k, v] of Object.entries(schadenAus(voll) ?? {})) {
-            const d = teil.schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+            const d = teil.schaden[k] ?? neueWerte();
             for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
             teil.schaden[k] = d;
           }

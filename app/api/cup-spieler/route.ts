@@ -427,7 +427,8 @@ async function holeRoh(request: Request) {
    */
   type ClutchDatei = {
     summe?: Record<string, number>;
-    schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }>;
+    schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number;
+      bauHolz?: number; bauStein?: number; bauMetall?: number; bauWand?: number; bauBoden?: number; bauTreppe?: number; bauDach?: number; bauSpiele?: number }>;
     /** Epics eigener Schaden der Top 10.000 in Solo-Cups (scripts/epic-schaden-holen.mjs) - hat Vorrang vor dem Replay-Wert, der dort rund 5 % zu hoch liegt. */
     epicDmg?: Record<string, number>;
     /** Dasselbe fuer Ueberlebenszeit (s), Strecke (m) und Kopftreffer - unsere Replay-Zeit lag bei Reload ueber der Dauer des Cups (3h 52m bei 2h 30m). */
@@ -523,6 +524,11 @@ async function holeRoh(request: Request) {
         // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
         damageRatio: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null,
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
+        // Gebaute Teile nur, wenn jedes gelesene Spiel sie mitbringt - sonst waere die Zahl zu klein. Solo, siehe scripts/clutch-berechnen.mjs.
+        ...((d.bauSpiele ?? 0) > 0 && (d.bauSpiele ?? 0) >= (clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? Infinity) ? {
+          builds: (d.bauHolz ?? 0) + (d.bauStein ?? 0) + (d.bauMetall ?? 0), bauHolz: d.bauHolz, bauStein: d.bauStein, bauMetall: d.bauMetall,
+          bauWand: d.bauWand, bauBoden: d.bauBoden, bauTreppe: d.bauTreppe, bauDach: d.bauDach,
+        } : {}),
         // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
         ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
         ...(typeof d.wiederbelebt === 'number' && !soloOhneReload ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
@@ -580,6 +586,7 @@ async function holeRoh(request: Request) {
     if (schadenVon) {
       spitze((x) => sch(x)?.dmg);
       spitze((x) => { const d = sch(x); return d && d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null; });
+      spitze((x) => { const d = sch(x); return d?.bauSpiele ? (d.bauHolz ?? 0) + (d.bauStein ?? 0) + (d.bauMetall ?? 0) : null; });
       spitze((x) => sch(x)?.treffer);
       spitze((x) => sch(x)?.sturm);
       if (!soloOhneReload) spitze((x) => { const d = sch(x); return d ? (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) : null; });

@@ -49,6 +49,14 @@ export const OSIRION_KACHELN: KachelListe[] = [
   { feld: 'reboots', titel: 'Reboots und Revives' },
   { feld: 'damageTaken', titel: 'Erlittener Schaden' },
   { feld: 'assists', titel: 'Assists' },
+  // Die Extra Stats (Betreiber, 5.11.2026): wer es genau wissen will. Aus den vollen Replays, Solo.
+  { feld: 'bauHolz', titel: 'Holz gebaut' },
+  { feld: 'bauStein', titel: 'Stein gebaut' },
+  { feld: 'bauMetall', titel: 'Metall gebaut' },
+  { feld: 'bauWand', titel: 'Wände gebaut' },
+  { feld: 'bauBoden', titel: 'Böden gebaut' },
+  { feld: 'bauTreppe', titel: 'Treppen gebaut' },
+  { feld: 'bauDach', titel: 'Dächer gebaut' },
 ];
 
 type Format = 'zahl' | 'zeit' | 'km';
@@ -227,7 +235,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
             <button type="button" onClick={() => setMehr((x) => !x)}
               className="ml-auto rounded-lg border border-zinc-700 px-3 py-1.5 text-sm font-semibold text-slate-200
                          transition hover:border-sky-500 hover:text-sky-400">
-              {mehr ? <T>Weniger anzeigen</T> : <T>Mehr anzeigen</T>}
+              {mehr ? <T>Weniger anzeigen</T> : <T>Extra Stats</T>}
             </button>
           )}
         </div>

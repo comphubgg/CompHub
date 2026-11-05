@@ -17,7 +17,7 @@ import { matchIds } from '../lib/replayKern.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
-const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
 const [eventId, windowId, hoechstensText] = process.argv.slice(2);
 const hoechstens = Number(hoechstensText) || 6;
 

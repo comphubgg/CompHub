@@ -14,6 +14,7 @@ using FortniteReplayReader;
 using FortniteReplayReader.Models;
 using FortniteReplayReader.Models.NetFieldExports.RPC;
 using Unreal.Core.Contracts;
+using Unreal.Core.Attributes;
 using Unreal.Core.Models.Enums;
 using Newtonsoft.Json;
 
@@ -197,6 +198,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
   spieler, feed, zonen, zusatz,
+  bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
   orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
@@ -214,7 +216,10 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
  */
 class SchadenLeser : ReplayReader {
   static readonly ParseMode Modus = Enum.TryParse<ParseMode>(Environment.GetEnvironmentVariable("REPLAY_MODUS"), true, out var pm) ? pm : ParseMode.Full;
-  public SchadenLeser() : base(null, Modus) { }
+  // Die Gruppen der gebauten Teile laedt die Bibliothek nur im Modus Debug; darin bricht sie aber bei jedem unbekannten Ereignis ab. Deshalb danach zurueck.
+  public SchadenLeser() : base(null, ParseMode.Debug) {
+    typeof(ReplayReader).BaseType?.GetField("_parseMode", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(this, Modus);
+  }
 
   public sealed class Schaden { public double Gemacht, Genommen, AufSchild; public int Treffer, Krit; }
   public readonly Dictionary<int, Schaden> Je = new();
@@ -291,6 +296,7 @@ class SchadenLeser : ReplayReader {
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelOpened(channelIndex, actor);
     if (actor is not null) kanalAkteur[channelIndex] = actor.Value;
+    BauMerken(channelIndex);
     // Der Bauplan hinter dem Kanal (B_SMG_BoneRattler_Athena_C, DefaultBuildingTool_C ...) - so wird aus PlayerPawn.CurrentWeapon die Waffe in der Hand.
     try {
       var ak = Channels[channelIndex]?.Actor;
@@ -301,6 +307,45 @@ class SchadenLeser : ReplayReader {
     } catch { }
   }
   readonly Dictionary<uint, string> pfadVonAkteur = new();
+
+  /*
+   * Gebaute Teile (Betreiber, 5.11.2026: "Build Placed, Holz, Metal getrennt"). Jedes Teil ist ein Akteur mit dem Bauplan PBWA_<W|S|M>1_<Form>; die Gruppen dazu liest die
+   * Bibliothek nur im Modus Debug (siehe Konstruktor). Gezaehlt wird beim ersten Export, der ein Team traegt, und nur, was ein Spieler gesetzt hat.
+   */
+  public sealed class Bau { public int Holz, Stein, Metall, Wand, Boden, Treppe, Dach, Sonst, MitBesitzer, Bearbeitet; }
+  public readonly Dictionary<int, Bau> Bauten = new();
+  readonly Dictionary<uint, (char stoff, string form)> bauKanal = new();
+  readonly HashSet<uint> bauGezaehlt = new();
+  static readonly System.Text.RegularExpressions.Regex BauMuster = new("PBWA_([WSM])1_([A-Za-z]+)");
+  void BauMerken(uint kanal) {
+    bauKanal.Remove(kanal); bauGezaehlt.Remove(kanal);
+    try {
+      var ak = Channels[kanal]?.Actor;
+      var arch = ak?.GetType().GetProperty("Archetype")?.GetValue(ak);
+      var wert = arch?.GetType().GetProperty("Value")?.GetValue(arch);
+      var karte = PfadKarte();
+      if (wert is null || karte is null || !karte.Contains(wert)) return;
+      var m = BauMuster.Match(karte[wert]?.ToString() ?? "");
+      if (m.Success) bauKanal[kanal] = (m.Groups[1].Value[0], m.Groups[2].Value);
+    } catch { }
+  }
+  void BauNotieren(uint kanal, INetFieldExportGroup g) {
+    if (!bauKanal.TryGetValue(kanal, out var teil)) return;
+    var t = g.GetType();
+    if (t.GetProperty("TeamIndex")?.GetValue(g) is not object teamWert) return;
+    var team = Convert.ToInt32(teamWert);
+    if (!Bauten.TryGetValue(team, out var b)) Bauten[team] = b = new Bau();
+    if (t.GetProperty("EditingPlayer")?.GetValue(g) is not null) b.Bearbeitet++;
+    if (!bauGezaehlt.Add(kanal)) return;
+    if (t.GetProperty("bPlayerPlaced")?.GetValue(g) is bool gesetzt && !gesetzt) return;
+    if (teil.stoff == 'W') b.Holz++; else if (teil.stoff == 'S') b.Stein++; else b.Metall++;
+    if (teil.form.Contains("Floor") || teil.form.StartsWith("Balcony")) b.Boden++;
+    else if (teil.form.StartsWith("Stair")) b.Treppe++;
+    else if (teil.form.StartsWith("Roof")) b.Dach++;
+    else if (teil.form is "Solid" or "Brace" or "HalfWall" or "HalfWallS" or "QuarterWallS" || teil.form.Contains("Window") || teil.form.Contains("Door") || teil.form.Contains("Archway")) b.Wand++;
+    else b.Sonst++;
+    if (t.GetProperty("OwnerPersistentID")?.GetValue(g) is not null) b.MitBesitzer++;
+  }
   static readonly FieldInfo CacheFeld = typeof(ReplayReader).BaseType?.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance);
   System.Collections.IDictionary PfadKarte() {
     var cache = CacheFeld?.GetValue(this);
@@ -460,6 +505,7 @@ class SchadenLeser : ReplayReader {
       }
       return;
     }
+    if (bauKanal.ContainsKey(channelIndex)) { BauNotieren(channelIndex, exportGroup); return; }
     if (exportGroup.GetType().Name == "HealthSet") { LebenNotieren(channelIndex, exportGroup); return; }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
@@ -676,3 +722,53 @@ class Erkunder : ReplayReader {
     }
   }
 }
+
+/*
+ * Gebaute Teile aus Stein und Metall: die Bibliothek bringt Gruppen nur fuer Holz und fuer Stein- und Metallwaende mit (5.11.2026 am Replay geprueft). Der Rest steht hier.
+ */
+public abstract class BauGruppe : INetFieldExportGroup {
+  [NetFieldExport("TeamIndex", RepLayoutCmdType.Enum)] public int? TeamIndex { get; set; }
+  [NetFieldExport("bPlayerPlaced", RepLayoutCmdType.PropertyBool)] public bool? bPlayerPlaced { get; set; }
+  [NetFieldExport("OwnerPersistentID", RepLayoutCmdType.PropertyUInt32)] public uint? OwnerPersistentID { get; set; }
+}
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_Archway.PBWA_M1_Archway_C", ParseMode.Full)] public class Bau_M1_Archway : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_ArchwayLarge.PBWA_M1_ArchwayLarge_C", ParseMode.Full)] public class Bau_M1_ArchwayLarge : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_ArchwayLargeSupport.PBWA_M1_ArchwayLargeSupport_C", ParseMode.Full)] public class Bau_M1_ArchwayLargeSupport : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_BalconyI.PBWA_M1_BalconyI_C", ParseMode.Full)] public class Bau_M1_BalconyI : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_BalconyO.PBWA_M1_BalconyO_C", ParseMode.Full)] public class Bau_M1_BalconyO : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_BalconyS.PBWA_M1_BalconyS_C", ParseMode.Full)] public class Bau_M1_BalconyS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_Brace.PBWA_M1_Brace_C", ParseMode.Full)] public class Bau_M1_Brace : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_DoorSide.PBWA_M1_DoorSide_C", ParseMode.Full)] public class Bau_M1_DoorSide : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_Floor.PBWA_M1_Floor_C", ParseMode.Full)] public class Bau_M1_Floor : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_HalfWall.PBWA_M1_HalfWall_C", ParseMode.Full)] public class Bau_M1_HalfWall : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofC.PBWA_M1_RoofC_C", ParseMode.Full)] public class Bau_M1_RoofC : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofD.PBWA_M1_RoofD_C", ParseMode.Full)] public class Bau_M1_RoofD : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofI.PBWA_M1_RoofI_C", ParseMode.Full)] public class Bau_M1_RoofI : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofO.PBWA_M1_RoofO_C", ParseMode.Full)] public class Bau_M1_RoofO : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofS.PBWA_M1_RoofS_C", ParseMode.Full)] public class Bau_M1_RoofS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_RoofWall.PBWA_M1_RoofWall_C", ParseMode.Full)] public class Bau_M1_RoofWall : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_StairF.PBWA_M1_StairF_C", ParseMode.Full)] public class Bau_M1_StairF : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_StairW.PBWA_M1_StairW_C", ParseMode.Full)] public class Bau_M1_StairW : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_WindowC.PBWA_M1_WindowC_C", ParseMode.Full)] public class Bau_M1_WindowC : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Metal/L1/PBWA_M1_WindowSide.PBWA_M1_WindowSide_C", ParseMode.Full)] public class Bau_M1_WindowSide : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_ArchwayLarge.PBWA_S1_ArchwayLarge_C", ParseMode.Full)] public class Bau_S1_ArchwayLarge : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_ArchwayLargeSupport.PBWA_S1_ArchwayLargeSupport_C", ParseMode.Full)] public class Bau_S1_ArchwayLargeSupport : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_BalconyI.PBWA_S1_BalconyI_C", ParseMode.Full)] public class Bau_S1_BalconyI : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_BalconyO.PBWA_S1_BalconyO_C", ParseMode.Full)] public class Bau_S1_BalconyO : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_BalconyS.PBWA_S1_BalconyS_C", ParseMode.Full)] public class Bau_S1_BalconyS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_Brace.PBWA_S1_Brace_C", ParseMode.Full)] public class Bau_S1_Brace : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_DoorC.PBWA_S1_DoorC_C", ParseMode.Full)] public class Bau_S1_DoorC : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_DoorSide.PBWA_S1_DoorSide_C", ParseMode.Full)] public class Bau_S1_DoorSide : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_Floor.PBWA_S1_Floor_C", ParseMode.Full)] public class Bau_S1_Floor : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_HalfWallS.PBWA_S1_HalfWallS_C", ParseMode.Full)] public class Bau_S1_HalfWallS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_QuarterWallS.PBWA_S1_QuarterWallS_C", ParseMode.Full)] public class Bau_S1_QuarterWallS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofC.PBWA_S1_RoofC_C", ParseMode.Full)] public class Bau_S1_RoofC : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofD.PBWA_S1_RoofD_C", ParseMode.Full)] public class Bau_S1_RoofD : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofI.PBWA_S1_RoofI_C", ParseMode.Full)] public class Bau_S1_RoofI : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofO.PBWA_S1_RoofO_C", ParseMode.Full)] public class Bau_S1_RoofO : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofS.PBWA_S1_RoofS_C", ParseMode.Full)] public class Bau_S1_RoofS : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_RoofWall.PBWA_S1_RoofWall_C", ParseMode.Full)] public class Bau_S1_RoofWall : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_StairF.PBWA_S1_StairF_C", ParseMode.Full)] public class Bau_S1_StairF : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_StairW.PBWA_S1_StairW_C", ParseMode.Full)] public class Bau_S1_StairW : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_WindowsC.PBWA_S1_WindowsC_C", ParseMode.Full)] public class Bau_S1_WindowsC : BauGruppe { }
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_WindowsSide.PBWA_S1_WindowsSide_C", ParseMode.Full)] public class Bau_S1_WindowsSide : BauGruppe { }
