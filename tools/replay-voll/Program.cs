@@ -577,8 +577,47 @@ class Erkunder : ReplayReader {
   readonly Dictionary<string, int> Cues = new();
   readonly Dictionary<string, int> Belegt = new();
   static readonly string[] Sammeln = { "PlayerDamagedResourceBuilding", "FortClientObservedStat", "BaseBuild", "WoodFloor", "WoodRoof", "StoneWall", "MetalWall", "HealthSet", "FortPlayerState", "Bandages", "Shield", "Medkit", "ChugJug", "FortInventory", "AddMapMarker", "GameplayCueExecuted" };
+  // Wie viele Akteure je Bauplan wirklich vorkommen: eine Klasse im Verzeichnis heisst noch nicht, dass sie im Strom gelesen werden kann.
+  readonly Dictionary<string, int> Akteure = new();
+  protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
+    base.OnChannelOpened(channelIndex, actor);
+    try {
+      var ak = Channels[channelIndex]?.Actor;
+      var arch = ak?.GetType().GetProperty("Archetype")?.GetValue(ak);
+      var wert = arch?.GetType().GetProperty("Value")?.GetValue(arch);
+      var cache = typeof(ReplayReader).BaseType?.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(this);
+      var karte = cache?.GetType().GetProperty("NetGuidToPathName")?.GetValue(cache) as System.Collections.IDictionary;
+      var pfad = wert is not null && karte is not null && karte.Contains(wert) ? karte[wert]?.ToString() ?? "?" : "?";
+      pfad = pfad.Split('/').Last();
+      Akteure[pfad] = Akteure.GetValueOrDefault(pfad) + 1;
+    } catch { }
+  }
+  // Was im Strom steht, auch wenn die Bibliothek es nicht auswertet: alle Klassen samt Feldern und alle Objektpfade. Der Zwischenspeicher wird am Ende geleert, deshalb unterwegs.
+  readonly Dictionary<string, List<string>> Klassen = new();
+  readonly Dictionary<string, int> Pfade = new();
+  int gelesen;
+  void Schnappschuss() {
+    var cache = typeof(ReplayReader).BaseType?.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(this);
+    if (cache is null) return;
+    if (cache.GetType().GetProperty("NetFieldExportGroupMap")?.GetValue(cache) is System.Collections.IDictionary karte) {
+      foreach (System.Collections.DictionaryEntry e in karte) {
+        var namen = new List<string>();
+        if (e.Value?.GetType().GetProperty("NetFieldExports")?.GetValue(e.Value) is System.Collections.IEnumerable felder)
+          foreach (var f in felder) { var n = f?.GetType().GetProperty("Name")?.GetValue(f)?.ToString(); if (n is not null) namen.Add(n); }
+        Klassen[e.Key.ToString()] = namen;
+      }
+    }
+    if (cache.GetType().GetProperty("NetGuidToPathName")?.GetValue(cache) is System.Collections.IDictionary pfade) {
+      Pfade.Clear();
+      foreach (System.Collections.DictionaryEntry e in pfade) {
+        var kurz = System.Text.RegularExpressions.Regex.Replace((e.Value?.ToString() ?? "").Split('/', '.').Last(), @"[_0-9]+$", "");
+        Pfade[kurz] = Pfade.GetValueOrDefault(kurz) + 1;
+      }
+    }
+  }
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     base.OnExportRead(channelIndex, exportGroup);
+    if (++gelesen % 50000 == 0) Schnappschuss();
     var n = exportGroup.GetType().Name;
     Zaehler[n] = Zaehler.GetValueOrDefault(n) + 1;
     // Welche Eigenschaften tragen wirklich Werte (nicht null) - je Gruppe gezaehlt.
@@ -605,6 +644,12 @@ class Erkunder : ReplayReader {
   }
   public void Bericht() {
     var einst = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
+    Console.WriteLine($"== AKTEURE ({Akteure.Values.Sum()})");
+    foreach (var kv in Akteure.OrderByDescending(x => x.Value).Take(150)) Console.WriteLine($"A {kv.Value} {kv.Key}");
+    Console.WriteLine($"== KLASSEN IM STROM ({Klassen.Count})");
+    foreach (var k in Klassen.OrderBy(x => x.Key)) Console.WriteLine($"K {k.Key} [{k.Value.Count}] {string.Join(",", k.Value.Take(70))}");
+    Console.WriteLine($"== OBJEKTPFADE ({Pfade.Count})");
+    foreach (var kv in Pfade.OrderByDescending(x => x.Value).Take(500)) Console.WriteLine($"P {kv.Value} {kv.Key}");
     Console.WriteLine("== GRUPPEN (Anzahl)");
     foreach (var kv in Zaehler.OrderByDescending(x => x.Value)) Console.WriteLine($"{kv.Value,8}  {kv.Key}");
     Console.WriteLine("== FortClientObservedStat (Name: Anzahl, Summe, Max)");
