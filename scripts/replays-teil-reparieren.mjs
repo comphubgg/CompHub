@@ -51,7 +51,24 @@ async function meta(id) {
 // 1. und 2.: Kandidaten
 const kandidaten = [];
 let geprueft = 0;
+/*
+ * Zuerst die jungen Spieltage nach der neuen Kill-Regel, und dann gleich an die Arbeit: die Pruefung aller alten Spieltage bei Epic dauerte am 6.11.2026 ueber fuenf Stunden, der Schritt
+ * wurde abgebrochen, bevor auch nur ein Spieltag neu gerechnet war - und weil die Ausgabe erst am Ende kam, stand nicht einmal etwas im Protokoll.
+ */
 for (const saison of fs.existsSync(ABLAGE) ? fs.readdirSync(ABLAGE) : []) {
+  if (!/^S\d+$/i.test(saison) || nurFenster.size) continue;
+  for (const fenster of fs.readdirSync(path.join(ABLAGE, saison))) {
+    const z = lies(path.join(ABLAGE, saison, fenster, '_zustand.json'));
+    if (!z?.matches || (z.datum ?? 0) <= Date.now() - 5 * 864e5 || (z.datum ?? 0) >= Date.now() - 2 * 3600_000) continue;
+    const alle = Object.entries(z.matches);
+    if (alle.length > GROESSE) continue;
+    const fertigZahl = alle.filter(([, m]) => m.stand === 'PARSED').length;
+    if (!fertigZahl || (Number(lies(path.join(ABLAGE, saison, fenster, '_aggregat.json'))?.killRegel) || 0) >= 2) continue;
+    kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: 'regel' });
+  }
+}
+const eilig = kandidaten.length > 0;
+for (const saison of !eilig && fs.existsSync(ABLAGE) ? fs.readdirSync(ABLAGE) : []) {
   if (!/^S\d+$/i.test(saison)) continue;
   for (const fenster of fs.readdirSync(path.join(ABLAGE, saison))) {
     if (nurFenster.size && !nurFenster.has(fenster)) continue;

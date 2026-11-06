@@ -60,7 +60,8 @@ jobs:
           WERKZEUG_URL: https://www.thecomphub.com
           MAX_REPLAY_DOWNLOADS: '4'
           MAX_REPLAY_PARSERS: '3'
-        run: node scripts/replays-teil-reparieren.mjs --minuten 290 2>&1 | tail -120
+        # Ohne "tail": bricht der Schritt ab, soll das Protokoll zeigen, wie weit er kam (6.11.2026).
+        run: node scripts/replays-teil-reparieren.mjs --minuten 290 2>&1 | cut -c1-220
 
       # Kein Hochladen am Ende: jeder reparierte Spieltag ist schon einzeln oben. Der Vergleich des ganzen Replay-Ordners (rund tausend Dateien) kostete zwanzig
       # Minuten und hunderte Anfragen aus dem knappen Kontingent (28.10.2026).
