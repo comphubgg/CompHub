@@ -541,6 +541,12 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<int, int?> teamVonSpieler = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
+  /*
+   * Der Schuss, der umhaut, traf einen stehenden Gegner: er steht im Replay aber fast zeitgleich mit dem Knock und galt deshalb als "am Boden" (6.11.2026). Im Trios-Match waren das 48 %
+   * der aussortierten Treffer; beim Performance Cup fehlten uns gegen Osirion genau 50 %. Solo aendert sich nicht, dort gibt es keine Knocks.
+   */
+  const double KnockSchussSek = 0.3;
+  bool AmBodenZuZeit(int id, double t) => AmBoden.TryGetValue(id, out var zeiten) && zeiten.Any(z => t > z.ab + KnockSchussSek && t <= z.bis);
   public double OhneBodenGemacht(int id) => ohneBoden.TryGetValue(id, out var v) ? v : 0;
   readonly Dictionary<int, double> ohneBoden = new();
   readonly Dictionary<int, double> ohneFatal = new();
@@ -589,7 +595,7 @@ class SchadenLeser : ReplayReader {
     foreach (var e in Liste) {
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
       var s1 = Fuer(e.von); s1.Gemacht += e.hoehe; s1.Treffer++;
-      bool amBoden = e.t is double tt && AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => tt >= z.ab && tt <= z.bis);
+      bool amBoden = e.t is double tt && AmBodenZuZeit(e.an, tt);
       if (amBoden) AufBoden++; else ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + e.hoehe;
       if (!e.fatal) ohneFatal[e.von] = (ohneFatal.TryGetValue(e.von, out var alt2) ? alt2 : 0) + e.hoehe;
       if (e.krit) s1.Krit++;
@@ -604,7 +610,7 @@ class SchadenLeser : ReplayReader {
     var raus = new List<double[]>();
     foreach (var e in Liste) {
       if (e.t is not double t || (busAb is not null && t < busAb)) continue;
-      bool amBoden = AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => t >= z.ab && t <= z.bis);
+      bool amBoden = AmBodenZuZeit(e.an, t);
       raus.Add(new[] { Math.Round(t, 1), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
     }
     return raus;

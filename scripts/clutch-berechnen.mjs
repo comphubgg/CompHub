@@ -115,6 +115,8 @@ function vollAus(datei) {
 }
 
 /** Die Werte eines Spielers. Die gebauten Teile (bau*) zaehlt der Leser je Team - zuzuordnen also nur, wo ein Team aus einem Spieler besteht (Solo). */
+/** Bis so viele gelesene Matches wird ein Spieltag nach einer neuen Schadensregel ganz neu gelesen. */
+const NEU_LESEN_BIS = 400;
 const neueWerte = () => ({ dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0,
   bauHolz: 0, bauStein: 0, bauMetall: 0, bauWand: 0, bauBoden: 0, bauTreppe: 0, bauDach: 0, bauSpiele: 0 });
 
@@ -306,11 +308,16 @@ if (arg[0] === '--plan') {
     // Arena-Matches legt Epic nicht als Server-Replay ab (folder_not_found_or_not_allowed) - zehntausende vergebliche Versuche je Spieltag.
     if (/Arena/i.test(f.windowId)) continue;
     const da = liesDatei(path.join(ZIEL, `${f.windowId}.json`));
-    const gilt = da && (da.version ?? 0) >= 4;
+    /*
+     * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
+     * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
+     */
+    const neuAnfang = !!da && !da.schadenFassung && !/solo/i.test(f.windowId) && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
-    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen });
+    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang });
   }
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
@@ -356,6 +363,7 @@ if (arg[0] === '--plan') {
     const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);
     const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, strecke: {}, roh: [] };
     teil.strecke ??= {};
+    teil.neuAnfang = !!t.neuAnfang;
     // Matches, die in diesem Lauf scheiterten (Download oder Leser) - clutch-zusammen.mjs zaehlt die Fehlversuche ueber die Laeufe.
     teil.fehler ??= [];
     teil.gesamt = Math.max(teil.gesamt ?? 0, t.gesamt);

@@ -34,10 +34,13 @@ for (const [w, dateien] of jeTag) {
   const zielDatei = path.join(ZIEL, `${w}.json`);
   const alt = liesDatei(zielDatei);
   // Vor Fassung 4 (alte Schadensregel) wird nichts weitergefuehrt - der Spieltag ist ganz neu gelesen.
-  const d = alt && (alt.version ?? 0) >= 4 ? alt : { version: 4, windowId: w, matches: [], summe: {}, spiele: {} };
+  // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt ebenfalls leer an - die alten Werte wuerden sonst doppelt zaehlen.
+  const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
+  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 2, windowId: w, matches: [], summe: {}, spiele: {} };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
   const da = new Set([...d.matches.map((m) => m.id), ...d.ohne]);
   const rohDatei = path.join(ROH, `${w}.json`);
+  if (neuAnfang) fs.rmSync(rohDatei, { force: true });
   let roh = null;
   for (const datei of dateien) {
     const t = liesDatei(datei);

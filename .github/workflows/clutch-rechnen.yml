@@ -12,6 +12,8 @@
 #   ablegen   ein einziger Rechner arbeitet die Teilstaende in den Stand vom Release ein (scripts/clutch-zusammen.mjs) und laedt hoch
 # Solange etwas offen bleibt, stoesst sich der Ablauf selbst wieder an.
 
+# 6.11.2026: kleine Team-Spieltage der letzten Woche werden einmal neu gelesen (der Schuss, der umhaut, zaehlt jetzt als Schaden), siehe scripts/clutch-berechnen.mjs.
+
 name: Clutch rechnen
 
 on:

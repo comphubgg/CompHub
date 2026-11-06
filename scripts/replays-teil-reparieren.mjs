@@ -63,8 +63,8 @@ for (const saison of fs.existsSync(ABLAGE) ? fs.readdirSync(ABLAGE) : []) {
       && Date.parse(m.zuletzt) - Date.parse(m.zeitpunkt) < VERDACHT_MIN * 60_000);
     const aggregat = lies(path.join(ABLAGE, saison, fenster, '_aggregat.json'));
     const fassung = Number(aggregat?.aggregatFassung) || 0;
-    // Junge Spieltage nach der neuen Kill-Regel neu rechnen (Betreiber, 5.11.2026), ohne dass jemand daran denken muss: ab zwei Stunden nach dem Stichtag, bis drei Tage danach.
-    const regelNeu = (Number(aggregat?.killRegel) || 0) < 2 && (z.datum ?? 0) > Date.now() - 3 * 864e5 && (z.datum ?? 0) < Date.now() - 2 * 3600_000;
+    // Junge Spieltage nach der neuen Kill-Regel neu rechnen (Betreiber, 5.11.2026), ohne dass jemand daran denken muss: ab zwei Stunden nach dem Stichtag, bis fuenf Tage danach.
+    const regelNeu = (Number(aggregat?.killRegel) || 0) < 2 && (z.datum ?? 0) > Date.now() - 5 * 864e5 && (z.datum ?? 0) < Date.now() - 2 * 3600_000;
     const fertigZahl = alle.filter(([, m]) => m.stand === 'PARSED').length;
     if (!verdacht.length) {
       if (fertigZahl && (fassung < 5 || regelNeu)) kandidaten.push({ saison, fenster, matches: alle.length, fertig: fertigZahl, datum: z.datum ?? 0, grund: regelNeu ? 'regel' : 'fassung' });
