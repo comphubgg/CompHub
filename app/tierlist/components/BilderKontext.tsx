@@ -55,7 +55,9 @@ export function BilderAnbieter({ children }: { children: React.ReactNode }) {
         for (const n of teil) {
           const img = j.bilder?.[n] ?? null;
           let datei = '';
-          if (img) { try { datei = decodeURIComponent(img.replace(/^\/spielerbilder\//, '')); } catch { datei = img.replace(/^\/spielerbilder\//, ''); } }
+          // Ohne das Kennzeichen "?v=": mit ihm passte der Name nicht mehr auf die kleine Fassung, und aus dem Fragezeichen wurde eine Adresse, die es nicht gibt (6.11.2026: leere Kacheln).
+          const pfad = (img ?? '').split('?')[0].replace(/^\/spielerbilder\//, '');
+          if (pfad) { try { datei = decodeURIComponent(pfad); } catch { datei = pfad; } }
           GEFUNDEN.set(n, datei ? spielerbildKlein(datei) : null);
         }
       } catch { /* die Namen bleiben ohne Eintrag und werden beim naechsten Zeichnen noch einmal angemeldet */ }

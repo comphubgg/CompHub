@@ -18,8 +18,8 @@ const KOPF = { 'Cache-Control': 'public, max-age=300, s-maxage=600' };
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
-  if (p.get('liste') === 'aufsteiger') {
-    const liste = await liesJson<unknown[]>('spieler-kreis/_aufsteiger.json', []).catch(() => []);
+  if (p.get('liste') === 'aufsteiger' || p.get('liste') === 'absteiger') {
+    const liste = await liesJson<unknown[]>(`spieler-kreis/_${p.get('liste')}.json`, []).catch(() => []);
     return NextResponse.json({ liste }, { headers: KOPF });
   }
   const id = (p.get('id') ?? '').replace(/-/g, '').toLowerCase();

@@ -1083,6 +1083,8 @@ async function berechne(request: Request) {
       const ohneFilter = p.get('alle') === '1';
       const gross = gefiltert.filter((t) => {
         if (ohneFilter) return true;
+        // Eigene Spieltage (lib/szeneEigen) sind schon ausgesucht und haben Werte, auch die offenen Runden.
+        if ((t as { eigen?: boolean }).eigen) return true;
         if (!istGrossesTurnier(t.name)) return false;
         return istFinaleTag(t.name,
           'istFinale' in t ? (t as { istFinale?: boolean }).istFinale : undefined,

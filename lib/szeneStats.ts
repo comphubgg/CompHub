@@ -307,7 +307,16 @@ export async function liesVerzeichnis(): Promise<ArchivEintrag[]> {
 /** Welche Saisons und Regionen ueberhaupt im Archiv liegen. */
 export async function auswahl() {
   const eintraege = await liesVerzeichnis();
-  const kennungen = [...new Set(eintraege.map((e) => e.season))].sort().reverse();
+  const imArchiv = [...new Set(eintraege.map((e) => e.season))];
+  /*
+   * Der Server sieht nur das Archiv, und das endet mit der Season 42 (die eigenen Spieltage liest nur der Stundenlauf). Die laufende Season fehlte deshalb in der Auswahl
+   * (Betreiber, 6.11.2026), obwohl ihre Antworten vorgerechnet lagen. Neuere Seasons kommen aus der Namensliste und aus den Inseln, die lib/saisonKarte von selbst anlegt.
+   */
+  const nummer = (k: string) => Number(/^S(\d+)$/.exec(k)?.[1] ?? 0);
+  const juengste = Math.max(0, ...imArchiv.map(nummer));
+  const inseln = await liesJson<Record<string, string>>('insel-bilder.json', {}).catch(() => ({} as Record<string, string>));
+  const bekannt = [...Object.keys(SAISON_NAMEN), ...Object.keys(inseln).map((k) => /^BR:(S\d+)$/.exec(k)?.[1] ?? '')];
+  const kennungen = [...new Set([...imArchiv, ...bekannt.filter((k) => nummer(k) > juengste)])].sort((a, b) => nummer(b) - nummer(a));
   const regionen = [...new Set(eintraege.map((e) => e.region))].sort();
   return {
     // Kennung fuer die Abfrage, Name fuer die Anzeige.

@@ -343,7 +343,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           <div key={i} className="bild-teil">
             {foto
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={foto} alt="" draggable={false} loading="lazy" />
+              ? <img src={foto} alt="" draggable={false} loading="lazy" decoding="async" />
               : SILHOUETTE}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="bild-flagge" src={getCountryFlag(x.land)} alt="" draggable={false} />

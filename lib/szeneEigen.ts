@@ -16,7 +16,7 @@
 import path from 'path';
 import { liesJson } from '@/lib/ablage';
 import { replayTag } from '@/lib/replaySchlank';
-import { istGrossesTurnier, istFinaleTag } from '@/lib/turnierArt';
+import { istGrossesTurnier } from '@/lib/turnierArt';
 
 export interface EigenerTag {
   eventId: string; windowId: string; region: string; season: string; titel: string; cupId: string;
@@ -27,7 +27,8 @@ export interface EigenerTag {
 /** Ab dieser Saison - davor hat die Quelle alles, was zaehlt. */
 const AB_SAISON = 42;
 /** Mehr Teilnehmer hatte kein Spieltag der Quelle (Finals: 100, LANs: 100-150). */
-const HOECHSTENS_SPIELER = 260;
+// 4.000 statt 260 (6.11.2026): auch die offenen Runden der grossen Cups gehoeren in die Statistik der Season ("vom gestrigen Cup"), die Performance Cups haben rund 2.000 Spieler.
+const HOECHSTENS_SPIELER = 4000;
 
 type Clutch = {
   schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>;
@@ -47,7 +48,7 @@ export function eigenKandidat(t: EigenerTag, imArchiv: Set<string>, jetzt = Date
   if (!spieler || spieler > HOECHSTENS_SPIELER) return false;
   const lan = /_lan$/i.test(t.cupId);
   const fastTrack = /fasttrack/i.test(t.windowId);
-  return lan || fastTrack || (istGrossesTurnier(t.titel) && istFinaleTag(t.titel, t.istFinale, t.windowId));
+  return lan || fastTrack || istGrossesTurnier(t.titel);
 }
 
 export interface EigeneSpielerZeile {
