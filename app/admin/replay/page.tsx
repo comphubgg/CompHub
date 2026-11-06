@@ -22,6 +22,7 @@ import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import { inselAusschnitt, GANZES_BILD } from '@/lib/inselAusschnitt';
 import ZonenBild from './ZonenBild';
 
 interface MatchKurz {
@@ -50,10 +51,14 @@ function Karte({ kreise, punkte, beschriftung }: {
   punkte: Array<{ x: number; y: number; farbe: string; art: 'tot' | 'unten'; titel: string }>;
   beschriftung?: string;
 }) {
+  // Bild und Kreise liegen in derselben Ebene: sie wird so vergroessert, dass die Insel den Rahmen fuellt (Betreiber, 6.11.2026: "zu viel blauer Rand").
+  const [insel, setInsel] = useState(GANZES_BILD);
+  const faktor = 1 / insel.seite;
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-zinc-800 bg-sky-950">
+      <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${faktor}) translate(${-insel.x * 100}%, ${-insel.y * 100}%)` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={fortniteKarte(false)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={fortniteKarte(false)} alt="" crossOrigin="anonymous" onLoad={(e) => setInsel(inselAusschnitt(e.currentTarget))} className="absolute inset-0 h-full w-full object-cover" />
       <svg viewBox="0 0 1000 1000" className="absolute inset-0 h-full w-full">
         {kreise.map((k, i) => (
           <g key={i}>
@@ -74,6 +79,7 @@ function Karte({ kreise, punkte, beschriftung }: {
             : <circle key={i} cx={px(p.x)} cy={px(p.y)} r={5} fill={p.farbe} stroke="#000" strokeWidth={2}><title>{p.titel}</title></circle>
         ))}
       </svg>
+      </div>
       {beschriftung && (
         <span className="absolute bottom-3 left-3 rounded-lg bg-black/70 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-slate-100">
           {beschriftung}

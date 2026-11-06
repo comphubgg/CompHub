@@ -433,6 +433,8 @@ async function holeRoh(request: Request) {
     epicDmg?: Record<string, number>;
     /** Dasselbe fuer Ueberlebenszeit (s), Strecke (m) und Kopftreffer - unsere Replay-Zeit lag bei Reload ueber der Dauer des Cups (3h 52m bei 2h 30m). */
     epicZeit?: Record<string, number>; epicStrecke?: Record<string, number>; epicKopf?: Record<string, number>;
+    /** Team-Cups: die Zeit des ganzen Teams je Spieler (scripts/epic-schaden-holen.mjs) - laenger kann niemand aus dem Team gelebt haben. */
+    epicTeamZeit?: Record<string, number>;
     /** Ueberlebenszeit je Spieler in Sekunden (scripts/clutch-leben.mjs). */
     leben?: Record<string, number>;
     /** Wie viele Spiele je Spieler gelesen sind. */
@@ -482,9 +484,16 @@ async function holeRoh(request: Request) {
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const nurEpicZeit = tage.length === 1 && /reload/i.test(tage[0]) && Object.keys(clutchDatei?.epicZeit ?? {}).length > 0;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length
-    ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })) : null;
+    ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })
+      .map(([id, s]) => [id, Math.min(s, clutchDatei.epicTeamZeit?.[id] ?? s)] as const)) : null;
   // Strecke nur fuer einen einzelnen Tag (die Summe mehrerer Tage fuehrt der Zusammenbau oben nicht mit).
   const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries({ ...clutchDatei.strecke, ...Object.fromEntries(Object.entries(clutchDatei.epicStrecke ?? {}).map(([id, m]) => [id, [m, 0] as [number, number]])) })) : null;
+  /*
+   * Bei Team-Cups nennt Epic keine Strecke, und zwischen den Positionsproben alle zehn Sekunden fehlen die Kurven. An 10.000 Spielern der FNCS Solos Reload ergaben die Proben 68,5 % von
+   * Epics Strecke (Fuss und Luft zusammen, 6.11.2026), beim Performance Cup 69,6 % von Osirion: darum hochgerechnet und auf der Seite als geschaetzt gekennzeichnet.
+   */
+  const streckeGeschaetzt = !!streckeVon && !Object.keys(clutchDatei?.epicStrecke ?? {}).length;
+  const streckeFaktor = streckeGeschaetzt ? 1 / 0.685 : 1;
   /*
    * Plattformen des Spieltags (Betreiber, 30.10.2026: einbauen, wenn es echte Statistiken sind): aus dem Feld Platform jedes vollen Replays, je Spieler
    * einmal gezaehlt - nur wenn jedes Match gelesen ist; ein halb gelesener Spieltag zeigte ein schiefes Bild.
@@ -515,7 +524,7 @@ async function holeRoh(request: Request) {
     ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
     // Strecke aus Positionsproben alle 10 s, dazwischen Luftlinie - ein Mindestwert (31.10.2026; die Reihenfolge trifft Osirion, die km liegen darunter).
     ...(streckeVon && ganzGelesen(x.epicId, x.matches) && streckeVon.has(x.epicId.toLowerCase())
-      ? { distanz: (streckeVon.get(x.epicId.toLowerCase())![0] ?? 0) + (streckeVon.get(x.epicId.toLowerCase())![1] ?? 0) } : {}),
+      ? { distanz: Math.round(((streckeVon.get(x.epicId.toLowerCase())![0] ?? 0) + (streckeVon.get(x.epicId.toLowerCase())![1] ?? 0)) * streckeFaktor) } : {}),
     ...(() => {
       const d = schadenVon?.get(x.epicId.toLowerCase());
       if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
@@ -640,7 +649,7 @@ async function holeRoh(request: Request) {
       for (const k of ['damage', 'damageTaken', 'timeInStorm']) if (typeof summen[k] === 'number') summen[k] = Math.round(summen[k]);
     }
     if (lebenVon) summen.timeAlive = [...lebenVon.values()].reduce((a, v) => a + v, 0);
-    if (streckeVon) summen.distanz = [...streckeVon.values()].reduce((a, v) => a + (v[0] ?? 0) + (v[1] ?? 0), 0);
+    if (streckeVon) summen.distanz = Math.round([...streckeVon.values()].reduce((a, v) => a + (v[0] ?? 0) + (v[1] ?? 0), 0) * streckeFaktor);
   }
   // Alle, die gespielt haben - auch ohne Kill oder Knock (die Liste oben fuehrt nur Spieler mit Kill oder Knock).
   const alleSpieler = !teil && clutchDatei?.spiele ? Math.max(rep.spieler.length, Object.keys(clutchDatei.spiele).length) : rep.spieler.length;
@@ -660,6 +669,7 @@ async function holeRoh(request: Request) {
     summen,
     schadenTeil: teil,
     plattformen,
+    streckeGeschaetzt,
     suche: q || null,
     hinweis: 'Counted from the replays of this match day, per player.',
   });

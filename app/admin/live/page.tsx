@@ -93,6 +93,8 @@ export default function LivePage() {
 
   const online = (leute ?? []).filter((p) => p.online);
   const rest = (leute ?? []).filter((p) => !p.online);
+  const verlaufAlle = (leute ?? []).flatMap((p) => (p.sitzungen ?? []).map((s) => ({ ...s, name: p.name, kennung: p.kennung })))
+    .sort((a, b) => b.von - a.von).slice(0, 80);
 
   /** "12 Min." oder "1 Std. 20 Min." - die Laenge einer Sitzung. */
   const dauer = (von: number, bis: number) => {
@@ -240,6 +242,23 @@ export default function LivePage() {
                 sich abmeldet, verschwindet sofort.</T>
               </p>
             </section>
+
+            {/* Betreiber, 6.11.2026: "nobody is live, aber den Verlauf sehe ich gar nicht". Alle letzten Sitzungen mit Geraet, ohne etwas aufzuklappen. */}
+            {verlaufAlle.length > 0 && (
+              <section className="mb-6">
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Verlauf</T></h2>
+                <ul className="divide-y divide-zinc-900 rounded-lg border border-zinc-900 bg-zinc-950/40">
+                  {verlaufAlle.map((v) => (
+                    <li key={`${v.kennung}-${v.von}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2 text-[13px]">
+                      <span className="font-medium text-slate-200">{v.name}</span>
+                      <span className="tabular-nums text-slate-400">{wann(v.von)}</span>
+                      <span className="tabular-nums text-slate-500">{dauer(v.von, v.bis)}</span>
+                      {v.geraet && <span className="text-slate-400">{geraetZeile(v.geraet)}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {rest.length > 0 && (
               <section>

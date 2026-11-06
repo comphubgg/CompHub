@@ -105,7 +105,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt, streckeGeschaetzt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
   /** Spieler je Plattform (PC, PlayStation, Xbox, Switch, iOS, Android) aus den vollen Replays - nur bei ganz gelesenem Spieltag. */
   plattformen?: Record<string, number> | null;
   spieler: KachelSpieler[];
@@ -125,6 +125,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
   aktualisiert?: string | null;
   /** Wie viele Matches der Spieltag insgesamt hat - steht es ueber `matches`, ist die Auswertung noch nicht durch. */
   rundenGesamt?: number | null;
+  /** Bei Team-Cups nennt Epic keine Strecke: sie ist aus den Positionsproben hochgerechnet. */
+  streckeGeschaetzt?: boolean;
   /** Schaden, Treffer, Kopftreffer aus den eigenen Replays gezaehlt (nicht Epics Zahl). */
   schadenAusReplay?: boolean;
   /** Werte aus der Szene-Quelle (Endstand) statt aus den eigenen Replays. */
@@ -309,6 +311,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
             <T>Diese Werte stammen direkt aus Epics Bestenliste und gelten je Team (Duo oder Trio), nicht je Spieler. Werte je einzelnem Spieler stehen nur in den Replays — zu diesem Cup liegen sie nicht vor.</T>
           </span>
         )}
+        {streckeGeschaetzt && <span className="mt-1 block text-slate-500"><T>Distance ist geschätzt: Epic nennt sie bei Team-Cups nicht, sie ist aus den Positionen im Replay hochgerechnet.</T></span>}
         {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
         {schadenTeil && (
           <span className="mt-1 block text-slate-500">

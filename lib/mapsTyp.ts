@@ -25,7 +25,7 @@ export const SAISON_TITEL: Record<string, string> = {
   S23: 'A New Beginning', S24: 'MEGA', S25: 'Wilds', S26: 'Last Resort',
   S28: 'Underground', S29: 'Myths & Mortals', S30: 'Wrecked', S31: 'Absolute Doom',
   S33: 'Hunters', S34: 'Lawless', S36: 'Super', S37: "Shock 'N Awesome", S38: 'The Simpsons',
-  S39: 'Pacific Break', S40: 'Showdown', S41: 'Runners', S42: 'Override',
+  S39: 'Pacific Break', S40: 'Showdown', S41: 'Runners', S42: 'Override', S43: 'Treasure Hunters',
 };
 
 /**

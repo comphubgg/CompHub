@@ -343,7 +343,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           <div key={i} className="bild-teil">
             {foto
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={foto} alt="" draggable={false} loading="lazy" decoding="async" />
+              // Ohne "lazy": in der scrollenden Spielerliste kamen die Fotos sonst erst spaet oder gar nicht (6.11.2026). Es sind hoechstens 200 kleine Bilder zu je rund 25 KB.
+              ? <img src={foto} alt="" draggable={false} decoding="async" />
               : SILHOUETTE}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="bild-flagge" src={getCountryFlag(x.land)} alt="" draggable={false} />

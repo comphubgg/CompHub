@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import { inselAusschnitt } from '@/lib/inselAusschnitt';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { useT } from '@/app/components/SprachProvider';
 
@@ -43,6 +44,8 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
   const [zonen, setZonen] = useState<Record<string, Zone[]>>({});
   const [bereit, setBereit] = useState(false);
   const angefragt = useRef(new Map<string, number>());
+  /** Spieltage, deren Antwort da ist - auch wenn sie leer war. Vorher stand bei fehlenden Dateien endlos "wird geladen". */
+  const [geholt, setGeholt] = useState<Set<string>>(new Set());
 
   // Die Zonen aller Games dieser Tage: je Tag eine Anfrage (nur die Zonen, alle Games zusammen) statt je Game eine ganze Antwort. Kommt ein Game dazu, wird der Tag noch einmal geholt.
   useEffect(() => {
@@ -52,7 +55,10 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
     Promise.all(noetig.map((t) => fetch(`/api/replay?zonen=${encodeURIComponent(t.windowId)}`).then((r) => r.json())
       .then((j) => (j?.zonen ?? {}) as Record<string, Zone[]>)
       .catch(() => { angefragt.current.delete(t.windowId); return {} as Record<string, Zone[]>; })))
-      .then((liste) => setZonen((alt) => Object.assign({}, alt, ...liste)));
+      .then((liste) => {
+        setZonen((alt) => Object.assign({}, alt, ...liste));
+        setGeholt((alt) => new Set([...alt, ...noetig.map((t) => t.windowId)]));
+      });
   }, [tage]);
 
   const gezeigt = useMemo(() => (wahl === 'alle' ? tage : tage.filter((t) => t.windowId === wahl)), [tage, wahl]);
@@ -76,9 +82,12 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
       c.width = n; c.height = n;
       const g = c.getContext('2d');
       if (!g) return;
-      const px = (v: number) => ((v + SPANNE) / (2 * SPANNE)) * n;
-      const pr = (r: number) => (r / (2 * SPANNE)) * n;
-      g.drawImage(bild, 0, 0, n, n);
+      // Nur die Insel: der Ausschnitt wird gemessen, Zonen und Text folgen ihm (Betreiber, 6.11.2026: "zu viel blauer Rand").
+      const a = inselAusschnitt(bild);
+      const px = (v: number) => (((v + SPANNE) / (2 * SPANNE) - a.x) / a.seite) * n;
+      const py = (v: number) => (((v + SPANNE) / (2 * SPANNE) - a.y) / a.seite) * n;
+      const pr = (r: number) => (r / (2 * SPANNE) / a.seite) * n;
+      g.drawImage(bild, a.x * n, a.y * n, a.seite * n, a.seite * n, 0, 0, n, n);
 
       // Nummern ueber alle gezeigten Tage fortlaufend (beide Tage: 1 bis 12).
       let versatz = 0;
@@ -98,12 +107,12 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
       // Erst alle gelben, dann die dunklen darueber - wie in der Vorlage.
       for (const s of games) {
         if (typeof s.klein?.x !== 'number' || typeof s.klein.y !== 'number') continue;
-        g.beginPath(); g.arc(px(s.klein.x), px(s.klein.y), pr(KLEIN), 0, Math.PI * 2);
+        g.beginPath(); g.arc(px(s.klein.x), py(s.klein.y), pr(KLEIN), 0, Math.PI * 2);
         g.fillStyle = GELB; g.fill();
       }
       for (const s of games) {
         if (typeof s.gross?.x !== 'number' || typeof s.gross.y !== 'number') continue;
-        g.beginPath(); g.arc(px(s.gross.x), px(s.gross.y), pr(GROSS), 0, Math.PI * 2);
+        g.beginPath(); g.arc(px(s.gross.x), py(s.gross.y), pr(GROSS), 0, Math.PI * 2);
         g.fillStyle = s.farbe; g.fill();
       }
       g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -111,9 +120,9 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
       for (const s of games) {
         if (typeof s.gross?.x !== 'number' || typeof s.gross.y !== 'number') continue;
         g.lineWidth = n * 0.004; g.strokeStyle = 'rgba(0,0,0,0.55)';
-        g.strokeText(`GAME ${s.nr}`, px(s.gross.x), px(s.gross.y));
+        g.strokeText(`GAME ${s.nr}`, px(s.gross.x), py(s.gross.y));
         g.fillStyle = '#ffffff';
-        g.fillText(`GAME ${s.nr}`, px(s.gross.x), px(s.gross.y));
+        g.fillText(`GAME ${s.nr}`, px(s.gross.x), py(s.gross.y));
       }
 
       // Unten links: ZONES, der Turniername im Blau der Seite, CompHub.
@@ -160,7 +169,8 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
     setTimeout(() => setMeldung(''), 4000);
   };
 
-  const fehlend = gezeigt.some((t) => t.matches.some((m) => !zonen[m.id]));
+  const laedt = gezeigt.some((t) => !geholt.has(t.windowId));
+  const fehlend = laedt || gezeigt.some((t) => t.matches.some((m) => !zonen[m.id]));
 
   return (
     <section className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -184,7 +194,8 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
           <T>Bild speichern</T>
         </button>
       </div>
-      {fehlend && <p className="text-xs text-slate-500"><T>Die Zonen der Games werden geladen …</T></p>}
+      {laedt && <p className="text-xs text-slate-500"><T>Die Zonen der Games werden geladen …</T></p>}
+      {!laedt && fehlend && <p className="text-xs text-amber-300"><T>Für diese Games liegen die Zonen noch nicht vor. Sie erscheinen von selbst, sobald die Replays voll gelesen sind.</T></p>}
       <canvas ref={leinwand} className="aspect-square w-full max-w-3xl rounded-xl border border-zinc-800 bg-sky-950" />
     </section>
   );

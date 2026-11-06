@@ -122,7 +122,8 @@ export default function VipFenster() {
 
   useEffect(() => {
     if (!lage) return undefined;
-    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setLage(null); };
+    // Die Twitch-Pruefung geht nicht mit Escape weg (Betreiber, 6.11.2026: "er kann das einfach schliessen und das Tool weiter normal usen").
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape' && lage !== 'pruefung' && lage !== 'falsch') setLage(null); };
     window.addEventListener('keydown', taste);
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', taste); document.body.style.overflow = ''; };
@@ -261,7 +262,9 @@ export default function VipFenster() {
 
             <div className="mt-6 flex items-center justify-between gap-3 text-[12.5px] text-slate-500 md:mt-auto md:pt-6">
               <span>{t('Danke, dass du CompHub nutzt')} <span className="text-rose-500">♥</span> <b className="font-semibold text-slate-400">{t('- das bedeutet uns viel.')}</b></span>
-              <button type="button" onClick={zu} className="text-[12px] font-semibold text-slate-500 transition hover:text-slate-300">{t('Schließen')}</button>
+              {lage === 'pruefung' || lage === 'falsch'
+                ? <a href="/api/auth/logout" className="shrink-0 text-[12px] font-semibold text-slate-500 transition hover:text-slate-300">{t('Abmelden')}</a>
+                : <button type="button" onClick={zu} className="text-[12px] font-semibold text-slate-500 transition hover:text-slate-300">{t('Schließen')}</button>}
             </div>
           </div>
         </section>

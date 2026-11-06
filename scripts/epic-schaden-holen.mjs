@@ -53,13 +53,21 @@ for (const w of liste) {
   const erste = await seite(d, 0);
   if (!erste) { console.log(`${w}: Bestenliste nicht erreichbar`); continue; }
   const seiten = Math.min(erste.totalPages ?? 1, 100);
-  const werte = {}; const zeit = {}; const strecke = {}; const kopf = {};
+  const werte = {}; const zeit = {}; const strecke = {}; const kopf = {}; const teamZeit = {};
   let team = false;
   const nehmen = (j) => {
     for (const e of j?.entries ?? []) {
-      if ((e.teamAccountIds ?? []).length !== 1) { team = true; return; }
-      const id = e.teamAccountIds[0].toLowerCase();
       const summe = (feld) => (e.sessionHistory ?? []).reduce((a, s) => a + (Number(s.trackedStats?.[feld]) || 0), 0);
+      /*
+       * Team-Cups fuehren nur die Zeit des Teams: niemand aus dem Team kann laenger gelebt haben. Das ist die Obergrenze fuer die Zeit aus dem Replay, dort zaehlt ein Spieler ohne
+       * Todes-Eintrag bis zum Spielende (6.11.2026: 2 Std 31 Min bei uns, Osirions Bester hatte 2 Std 7 Min).
+       */
+      if ((e.teamAccountIds ?? []).length !== 1) {
+        team = true;
+        for (const id of e.teamAccountIds ?? []) teamZeit[id.toLowerCase()] = summe('TIME_ALIVE_STAT');
+        continue;
+      }
+      const id = e.teamAccountIds[0].toLowerCase();
       if (summe('DamageDealt') > 0) werte[id] = summe('DamageDealt');
       if (summe('TIME_ALIVE_STAT') > 0) zeit[id] = summe('TIME_ALIVE_STAT');
       // Epic zaehlt in Zentimetern.
@@ -70,10 +78,10 @@ for (const w of liste) {
   nehmen(erste);
   let naechste = 1;
   await Promise.all(Array.from({ length: 5 }, async () => {
-    while (naechste < seiten && !team) nehmen(await seite(d, naechste++));
+    while (naechste < seiten) nehmen(await seite(d, naechste++));
   }));
   d.epicDmgStand = new Date().toISOString();
-  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
+  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; d.epicTeamZeit = teamZeit; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
   fs.writeFileSync(datei, JSON.stringify(d));
   fertig += 1;
   console.log(`${w}: ${team ? 'Team-Cup, kein Epic-Schaden' : `${Object.keys(werte).length} Spieler`}`);
