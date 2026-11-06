@@ -726,7 +726,7 @@ const SAISON_NAMEN_KURZ: Record<string, string> = {
   S30: 'Chapter 5 Season 3', S31: 'Chapter 5 Season 4', S33: 'Chapter 6 Season 1',
   S34: 'Chapter 6 Season 2', S36: 'Chapter 6 Season 3', S37: 'Chapter 6 Season 4',
   S39: 'Chapter 7 Season 1', S40: 'Chapter 7 Season 2', S41: 'Chapter 7 Season 3',
-  S42: 'Chapter 7 Season 4',
+  S42: 'Chapter 7 Season 4', S43: 'Treasure Hunters',
 };
 
 

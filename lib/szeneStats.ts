@@ -104,6 +104,8 @@ export const SAISON_NAMEN: Record<string, string> = {
   S40: 'Chapter 7 Season 2',
   S41: 'Chapter 7 Season 3',
   S42: 'Chapter 7 Season 4',
+  // Mini-Season ab dem 1.11.2026 (Update 43.00) - wie The Simpsons oder Galactic Battle unter ihrem eigenen Namen.
+  S43: 'Treasure Hunters',
 };
 
 /**
