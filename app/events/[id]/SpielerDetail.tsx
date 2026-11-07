@@ -61,6 +61,8 @@ interface Zeile {
   rot?: boolean;
   /** Bei diesem Wert ist weniger besser (Pfeil und Farbe drehen sich). */
   weniger?: boolean;
+  /** Nur zeigen, wenn jemand mehr als null hat (Betreiber, 7.11.2026: Clutch "wenn da was steht", sonst nicht). */
+  nurMitWert?: boolean;
 }
 const pos = (v: number | undefined | null) => (typeof v === 'number' && v > 0 ? v : null);
 const sz = (m: Mitglied, k: string): Wert => (m.szene && typeof m.szene[k] === 'number' ? m.szene[k] : null);
@@ -94,6 +96,13 @@ const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.hea
 // Im Team nie Epics Team-Zahl als Wert eines Spielers (Betreiber, 28.10.2026: "Teamstats, die bei beiden gleich sind, musst du nicht zeigen"); kills()
 // faellt nur im Solo auf die Bestenliste zurueck.
 const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c);
+/*
+ * Die Reihenfolge wie bei Osirion (Betreiber, 7.11.2026: "ganz genau die gleichen"). Was hier steht, kommt zuerst, in dieser Reihenfolge; der Rest unter "Mehr anzeigen".
+ */
+const REIHE = ['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points', 'Eliminations', 'Damage To Players', 'Damage From Players', 'Damage Ratio', 'K/D Ratio', 'Health Healed', 'Shield Healed',
+  'Player Accuracy', 'Headshots', 'Edit Accuracy', 'Avg Edit Time', 'Mats Farmed', 'Time Alive'];
+const rang = (titel: string) => { const i = REIHE.indexOf(titel); return i < 0 ? REIHE.length : i; };
+
 const KERN: Zeile[] = [
   { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => (m.punktePlatz === undefined && m.punkteElim === undefined ? undefined : (m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) },
   { titel: 'Matches', wert: (_m, c) => (c.e ? c.e.games : null), zeige: num },
@@ -105,7 +114,6 @@ const KERN: Zeile[] = [
   }, zeige: (v, ort) => dez(v, ort, 2), je: (m) => m.placement, weniger: true },
   { titel: 'Avg Points', wert: (_m, c) => (c.e && c.e.games ? c.e.points / c.e.games : null), zeige: (v, ort) => dez(v, ort, 1) },
   { titel: 'Eliminations', wert: elimsVon, zeige: num, je: (m) => m.elims },
-  { titel: 'Avg Eliminations', wert: (m, c) => { const k = elimsVon(m, c); return k !== null && c.e && c.e.games ? k / c.e.games : null; }, zeige: (v, ort) => dez(v, ort, 2) },
   { titel: 'K/D Ratio', wert: (m, c) => {
     if (m.replay && m.replay.tode !== null) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
     const k = elimsVon(m, c);
@@ -125,7 +133,7 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Hits To Players', wert: treffer, zeige: num },
   { titel: 'Headshots', wert: kopf, zeige: num },
   { titel: 'Headshot Rate', wert: (m, c) => { const a = kopf(m, c); const b = treffer(m); return a !== null && b ? (a / b) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} %` },
-  { titel: 'Solo Clutch Points', wert: (m) => m.replay?.clutch ?? null, zeige: num },
+  { titel: 'Solo Clutch Points', wert: (m) => m.replay?.clutch ?? null, zeige: num, nurMitWert: true },
   { titel: 'Time Alive', wert: (m) => m.replay?.lebenSek ?? null, zeige: (v) => dauer(v) },
   { titel: 'Distance Traveled', wert: (m) => m.replay?.streckeM ?? null, zeige: (v, ort) => `${dez(v / 1000, ort, 1)} km` },
   { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
@@ -349,8 +357,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
   const zeilen = useMemo(() => [
     ...KERN.filter((z) => !team || (!TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null))),
-    ...ZUSATZ.filter((z) => !(team && TEAM_TITEL.has(z.titel)) && mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)),
-  ],
+    ...ZUSATZ.filter((z) => !(team && TEAM_TITEL.has(z.titel)) && mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)
+      && (!z.nurMitWert || mitglieder.some((m) => (z.wert(m, ctx) ?? 0) > 0))),
+  ].sort((a, b) => rang(a.titel) - rang(b.titel)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mitglieder, e, solo]);
 
