@@ -135,6 +135,12 @@ for (const k of kandidaten) {
     neuGelesen = new Set(Object.entries(zNeu?.matches ?? {}).filter(([, m]) => m.stand === 'PARSED' && Date.parse(m.zuletzt ?? '') >= beginn - 60_000).map(([id]) => id));
     if (neuGelesen.size || versuch === 3) break;
     console.log(`  nichts gelesen (Versuch ${versuch}) - in einer Minute noch einmal`);
+    console.log(String(r.stdout ?? '').trim().split('
+').slice(-3).map((z) => `    ${z.slice(0, 160)}`).join('
+'));
+    console.log(String(r.stderr ?? '').trim().split('
+').slice(-2).map((z) => `    ${z.slice(0, 160)}`).join('
+'));
     await new Promise((res) => setTimeout(res, 60_000));
   }
   const fehlen = [...vorher].filter((id) => !neuGelesen.has(id));

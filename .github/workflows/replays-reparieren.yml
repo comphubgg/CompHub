@@ -48,7 +48,8 @@ jobs:
       - name: Epic-Anmeldung und Stand vom Release
         run: |
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
-          node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
+          # "replays" allein holt nur das alte Release: die Seasons ab 42 liegen in eigenen, ohne sie sah die Reparatur keinen einzigen neuen Spieltag (7.11.2026).
+          node scripts/ablage-github-holen.mjs --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3
 
       - name: Reparieren
