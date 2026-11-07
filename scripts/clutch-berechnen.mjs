@@ -246,11 +246,28 @@ function schadenAus(roh) {
       const alleLeben = roh.leben?.[p.id] ?? []; const ersterLeben = alleLeben.findIndex((s) => s[0] >= (roh.busAb ?? 0));
       const l = (ersterLeben < 0 ? [] : alleLeben.slice(Math.max(0, ersterLeben - 1))).filter((s) => s[0] <= spielEnde);
       const aufgehoben = (roh.feed ?? []).filter((e) => e.opfer === p.id && e.art === 'tot' && e.ursache === 50).map((e) => e.t);
-      let amBoden = false;
+      /*
+       * Ein Sprung auf 100 ist entweder der Tod (Reload: man kommt mit 100 zurueck) oder - nur in Team-Modi - das Umhauen. Beides ist keine Heilung; was davor noch
+       * da war, ging verloren. Danach zaehlt nichts, bis der Spieler zurueck ist (Kill-Feed Ursache 50). Im Solo gibt es kein Umhauen: ein Sprung ohne Tod ist
+       * echte Heilung (8.11.2026, FNCS Solo Reload: bei Focus zaehlte nach dem ersten Tod gar nichts mehr - 1.008 statt Osirions 2.237).
+       */
+      const tode = (roh.feed ?? []).filter((e) => e.opfer === p.id && e.art === 'tot' && e.ursache !== 50).map((e) => e.t);
+      const imTeam = (roh.spieler ?? []).filter((q) => q.team === p.team).length > 1;
+      let wegBis = null;
       for (let i = 1; i < l.length; i += 1) {
-        const a = l[i][1] - l[i - 1][1];
-        if (l[i][1] === 100 && a >= 11) { d.lebenWeg = (d.lebenWeg ?? 0) + l[i - 1][1]; amBoden = true; continue; }
-        if (amBoden) { if (aufgehoben.some((t) => Math.abs(t - l[i][0]) <= 0.6)) amBoden = false; continue; }
+        const a = l[i][1] - l[i - 1][1]; const t = l[i][0];
+        if (wegBis !== null) { if (t >= wegBis - 0.6) wegBis = null; continue; }
+        if (l[i][1] === 100 && a >= 11) {
+          const tod = tode.find((x) => Math.abs(x - t) <= 1.5);
+          if (tod !== undefined || imTeam) {
+            d.lebenWeg = (d.lebenWeg ?? 0) + l[i - 1][1];
+            const ab = tod ?? t;
+            wegBis = aufgehoben.find((x) => x >= ab - 0.6) ?? Infinity;
+            continue;
+          }
+        }
+        // Die Rueckkehr ins Spiel (Reload) setzt das Leben neu - auch das ist keine Heilung.
+        if (a >= 11 && aufgehoben.some((x) => Math.abs(x - t) <= 1.5)) continue;
         if (a > 0) d.heilHp = (d.heilHp ?? 0) + a; else d.lebenWeg = (d.lebenWeg ?? 0) - a;
       }
       // Der Schild steht nicht im Strom. Was an Schild verloren ging, liegt nah am Geheilten (1.262 zu 1.247 bei Darm).
@@ -457,7 +474,8 @@ if (arg[0] === '--plan') {
      * Heilung, Mats, Shots und echte Tode, und ohne die Werte je Match. Der Betreiber vergleicht genau diese Spieltage mit Osirion.
      */
     const neuAnfang = !!da && Date.now() - f.datum < 7 * 864e5 && (((da.schadenFassung ?? 0) < 8 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS)
-      || ((da.schadenFassung ?? 0) < 9 && /FNCS/i.test(f.windowId) && Date.now() - f.datum < 2 * 864e5));
+      // Fassung 10 (8.11.2026): Leben im Reload - Tod und Rueckkehr sind keine Heilung, im Solo gibt es kein Umhauen.
+      || ((da.schadenFassung ?? 0) < 10 && /FNCS/i.test(f.windowId) && Date.now() - f.datum < 2 * 864e5));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
