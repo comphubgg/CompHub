@@ -162,14 +162,19 @@ export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spiel
     return zahlen.length ? zahlen.reduce((a, b) => a + b, 0) : null;
   };
   const gemeinsam = gegner && runden ? runden[0].filter((m) => m.sessionId && runden[1].some((x) => x.sessionId === m.sessionId)).length : null;
-  const kopf = (e: AktionTeam, rechts: boolean) => {
+  // Hat nur einer ein Bild, bekommt der andere den leeren Platzhalter; haben beide keins, steht keins da (Betreiber, 7.11.2026).
+  const kopf = (e: AktionTeam, rechts: boolean, platzhalter = false) => {
     const bild = bildVon(e);
     return (
       <div className={`flex min-w-0 items-center gap-3 ${rechts ? 'flex-row-reverse text-right' : ''}`}>
         {bild
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={bild} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-white/10" />
-          : null}
+          : platzhalter ? (
+            <div className="grid h-14 w-14 shrink-0 place-items-end overflow-hidden rounded-xl bg-gradient-to-b from-zinc-700/60 to-zinc-900 ring-1 ring-white/10" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-11 w-11 text-zinc-500/70" fill="currentColor"><circle cx="12" cy="9" r="4" /><path d="M3 24c0-5 4-9 9-9s9 4 9 9z" /></svg>
+            </div>
+          ) : null}
         <div className="min-w-0">
           <div className="text-lg font-black tabular-nums text-slate-300">#{e.rank}</div>
           <div className="truncate text-base font-bold text-slate-100">{nameVon(e)}</div>
@@ -218,10 +223,10 @@ export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spiel
       ) : (
         <>
           <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            {kopf(team, false)}
+            {kopf(team, false, !!bildVon(gegner))}
             <button type="button" onClick={() => { setGegner(null); setRunden(null); }}
               className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-zinc-500"><T>Wechseln</T></button>
-            {kopf(gegner, true)}
+            {kopf(gegner, true, !!bildVon(team))}
           </div>
           <div className="divide-y divide-zinc-800">
             {REIHEN.map((r) => reihe(r.titel, r.wert(team), r.wert(gegner), r.weniger, (v) => (r.text ? r.text(v, ort) : v.toLocaleString(ort))))}

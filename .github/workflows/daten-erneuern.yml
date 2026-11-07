@@ -157,7 +157,7 @@ jobs:
         run: |
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
             --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
-            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner clutch \
+            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner clutch \
             2>&1 | tail -12
 
       # Die kleinen Staende jede Stunde: Fotos, gepflegte Profile, Namen,
@@ -230,7 +230,7 @@ jobs:
         timeout-minutes: 15
         run: |
           # Dazu Schaden und Clutch je Spieltag (Ablauf "Clutch rechnen") fuer die Akten.
-          node scripts/ablage-github-holen.mjs --ordner replays --ordner epic-spieltage --ordner clutch 2>&1 | tail -4
+          node scripts/ablage-github-holen.mjs --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner epic-spieltage --ordner clutch 2>&1 | tail -4
 
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
