@@ -158,13 +158,25 @@ jobs:
     if: always() && !cancelled() && needs.planen.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # Immer nur ein Schreiber, auch neben dem Ablauf "Clutch ablegen".
+    # Eigene Gruppe: in clutch-ablegen verdraengt jeder neue Auftrag den wartenden, und die Rechner schicken zwoelf davon. Dieser Schritt hing dort fest, der naechste Lauf kam nicht an die Reihe
+    # (7.11.2026). Damit trotzdem nur einer schreibt, wartet er unten, bis die Sofort-Ablage fertig ist: neue kommen nicht mehr nach, die Rechner sind ja durch.
     concurrency:
-      group: clutch-ablegen
+      group: clutch-abschluss
       cancel-in-progress: false
     permissions:
       contents: write
+      actions: read
     steps:
+      - name: Warten, bis die Sofort-Ablage fertig ist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 60); do
+            offen=$(gh run list -R "${{ github.repository }}" -w clutch-ablegen.yml -L 5 --json status -q '[.[] | select(.status != "completed")] | length' || echo 0)
+            [ "${offen:-0}" = "0" ] && break
+            sleep 15
+          done
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
