@@ -231,7 +231,7 @@ export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spiel
           <div className="divide-y divide-zinc-800">
             {REIHEN.map((r) => reihe(r.titel, r.wert(team), r.wert(gegner), r.weniger, (v) => (r.text ? r.text(v, ort) : v.toLocaleString(ort))))}
             {gemeinsam !== null && (
-              <p className="py-2 text-center text-sm text-slate-400"><T>Im selben Spiel</T>: <b className="tabular-nums text-slate-100">{gemeinsam.toLocaleString(ort)}</b></p>
+              <p className="py-2 text-center text-sm text-slate-400"><T>Im selben Spiel (diese Runde)</T>: <b className="tabular-nums text-slate-100">{gemeinsam.toLocaleString(ort)}</b></p>
             )}
           </div>
           {quelle && (

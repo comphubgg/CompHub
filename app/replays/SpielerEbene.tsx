@@ -20,6 +20,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import LOOT_BILDER from '@/app/replays/lootBilder.json';
+import SPIEL_SYMBOL_TABELLE from '@/app/replays/spielSymbole.json';
 
 export interface SpielerDaten {
   orte?: Record<string, number[][]>;
@@ -175,14 +176,20 @@ const SPIEL_SYMBOLE: Array<[RegExp, string, string]> = [
   [/GraftedCrunchy/i, "Zoro's Three Sword Style", 't_icon_weapons_sword_graftedcrunchy_mouth_ui_l'],
   [/Stimpulse|Shockwave_Athena_STim/i, 'Overdrive Grenade', 't_icon_br_gadget_stimpulsegrenade_l'],
   [/ZiplineDeployer/i, 'Skyline Deployer', 't_icon_br_ziplinedeployer_l'],
+  [/HeatSnake/i, "Rebecca's Guns", 't_icon_weapons_heatsnake_l'],
 ];
 /*
  * Alle anderen aus dem Fortnite-Wiki (scripts/waffen-bilder.mjs, alle sechs Stunden erneuert - neue Waffen nach einem Update kommen von selbst): je Kennung
  * Name und Bild. Bauplan und Kennung werden auf denselben Kern gebracht (B_Shotgun_CoreDPS_Athena_Weap_C und WID_Shotgun_CoreDPS_Athena -> shotgun_coredps);
  * nur ein genau gleicher Kern zaehlt.
  */
-const kern = (s: string) => s.replace(/^(B|BP|WID|AGID)_/i, '').replace(/_C$/i, '').replace(/_(C|UC|R|VR|SR|UR|X|Exotic)(_Ore_T0\d|_T0\d)?$/i, '')
-  .split('_').filter((t) => t && !/^(athena|weap|weapon|child|held)$/i.test(t)).join('_').toLowerCase();
+const kern = (s: string) => s.replace(/^(B|BP|WID|WMID|AGID|CID)_/i, '').replace(/_C$/i, '').replace(/_(C|UC|R|VR|SR|UR|X|XR|Exotic)(_Ore_T0\d|_T0\d)?$/i, '')
+  .split('_').filter((t) => t && !/^(athena|weap|weapon|child|held|spytech|figment)$/i.test(t)).join('_').toLowerCase();
+/*
+ * Alle Gegenstaende aller Pools von fortnite.gg (Battle Royale, Zero Build, Ranked, Reload, Blitz, OG und die Aenderungsliste, 7.11.2026): Kern der Kennung ->
+ * [Name, Spiel-Symbol unter public/waffen]. 200 Eintraege, darunter auch Waffen, die gerade in keinem Pool sind (Bonerattler, Rebecca's Guns, Monarch Pistol).
+ */
+const SYMBOLE = SPIEL_SYMBOL_TABELLE as unknown as Record<string, [string, string]>;
 let wiki: Map<string, { name: string; bild: string }> | null = null;
 let wikiLaedt = false;
 const wikiHoerer = new Set<() => void>();
@@ -208,6 +215,8 @@ function useWiki() {
 export function bildVon(roh: string): { name: string; bild: string } | null {
   const spiel = SPIEL_SYMBOLE.find(([m]) => m.test(roh));
   if (spiel) return { name: spiel[1], bild: `/waffen/${spiel[2]}.webp` };
+  const symbol = SYMBOLE[kern(roh)];
+  if (symbol) return { name: symbol[0], bild: `/waffen/${symbol[1]}.webp` };
   const ausWiki = wiki?.get(kern(roh));
   if (ausWiki) return ausWiki;
   if (/^(WID|AGID)_/i.test(roh)) {
