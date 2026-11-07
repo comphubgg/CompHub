@@ -284,7 +284,9 @@ if (arg[0] === '--plan') {
   const zuHolen = [...fenster.values()].filter((f) => {
     const l = listen[f.windowId];
     if (!l) return true;
-    return Date.now() - f.datum < 3 * 864e5 && Date.now() - (l.zeit ?? 0) > 60 * 60_000;
+    // Ein junger Spieltag wird oft neu gefragt: waehrend und kurz nach dem Cup kommen laufend Matches dazu.
+    const frist = Date.now() - f.datum < 6 * 3600_000 ? 10 * 60_000 : 60 * 60_000;
+    return Date.now() - f.datum < 3 * 864e5 && Date.now() - (l.zeit ?? 0) > frist;
   });
   console.log(`${fenster.size} Spieltage in der Frist, ${zuHolen.length} Bestenlisten zu holen`);
   let k = 0;

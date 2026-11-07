@@ -203,6 +203,15 @@ jobs:
           gh release view signale -R "${{ github.repository }}" >/dev/null 2>&1 || gh release create signale -R "${{ github.repository }}" --title "Signale" --notes "Kleine Steuerdateien der Ablaeufe." >/dev/null
           gh release upload signale /tmp/schnell-last.json --clobber -R "${{ github.repository }}" && cat /tmp/schnell-last.json
 
+      # Was die Schnellspur gelesen hat, geht direkt ins volle Auslesen - auch waehrend des Cups (7.11.2026: Damage und Clutch sollen nicht erst Stunden spaeter kommen). Laeuft dort schon
+      # ein Durchgang, wartet genau einer; er nimmt dann alles mit, was bis dahin da ist.
+      - name: Volles Auslesen anstossen
+        if: steps.zusammen.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run clutch-rechnen.yml -R "${{ github.repository }}" --ref main && echo "volles Auslesen angestossen"
+
       # Blieb etwas offen (ein grosser Cup braucht mehr als einen Lauf), gleich weiter - nicht erst beim naechsten Anstoss.
       - name: Weiter, solange etwas offen ist
         if: steps.zusammen.outputs.rest != '' && steps.zusammen.outputs.rest != '0'
