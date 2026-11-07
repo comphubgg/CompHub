@@ -16,6 +16,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerDetail from './SpielerDetail';
+import { MatchHistoryFenster, VergleichFenster, FolgenLeiste, folgeLesen, folgeMerken, type AktionTeam, type Folge } from './TeamAktionen';
 import { zielName } from '@/lib/cupTitel';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
@@ -2180,6 +2181,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * seinen Konten (app/api/cup-leaderboard, ids=). Gemerkt je Platz, bis der Spieltag wechselt.
    */
   const [nachMatches, setNachMatches] = useState<Record<number, Match[]>>({});
+  // Die Knoepfe im Team-Panel (./TeamAktionen).
+  const [verlaufTeam, setVerlaufTeam] = useState<Eintrag | null>(null);
+  const [vergleichTeam, setVergleichTeam] = useState<Eintrag | null>(null);
+  const [folge, setFolge] = useState<Folge | null>(null);
+  useEffect(() => { setFolge(folgeLesen()); }, []);
+  const folgeSetzen = useCallback((f: Folge | null) => { setFolge(f); folgeMerken(f); }, []);
+  const spieleVon = useCallback(async (e: AktionTeam): Promise<Match[]> => {
+    if (!e.matchesWeg) return e.matches;
+    if (nachMatches[e.rank]) return nachMatches[e.rank];
+    const ids = e.players.map((p) => p.id).filter(Boolean).join(',');
+    if (!ids || !lbFenster) return [];
+    try {
+      const j = await (await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(lbFenster.eventId)}&window=${encodeURIComponent(lbFenster.windowId)}&ids=${encodeURIComponent(ids)}`)).json() as { entries?: Eintrag[] };
+      const treffer = (j.entries ?? []).find((x) => x.rank === e.rank) ?? (j.entries ?? [])[0];
+      setNachMatches((alt) => ({ ...alt, [e.rank]: treffer?.matches ?? [] }));
+      return treffer?.matches ?? [];
+    } catch { return []; }
+  }, [nachMatches, lbFenster]);
   useEffect(() => { setNachMatches({}); }, [lbFenster?.windowId]);
   useEffect(() => {
     const e = tabelle.find((x) => x.rank === offen);
@@ -2653,6 +2672,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 ${handLaedt ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 10a6 6 0 1 1-1.8-4.3" /><path d="M16 3.5v3.7h-3.7" /></svg>
     </button>
   ) : null;
+  const teamName = useCallback((e: AktionTeam) => (e.players as Spieler[]).map(namenVon).join(' + '), [namenVon]);
+  const verlaufZu = useCallback(() => setVerlaufTeam(null), []);
+  const vergleichZu = useCallback(() => setVergleichTeam(null), []);
   const istMein = useCallback((e: { players: Array<{ id?: string }> }) =>
     Boolean(meineId) && e.players.some((p) => String(p.id ?? '').replace(/-/g, '').toLowerCase() === meineId), [meineId]);
 
@@ -3871,6 +3893,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {kachel('Elims', e.elims)}
                     {kachel('Ø Elims', schnitt(e.avgElims, ort))}
                     {kachel('K/D', schnitt(e.kd, ort))}
+                  </div>
+                  {/* Betreiber, 7.11.2026: Spielverlauf und Vergleich als Fenster in der Mitte, Live folgen nur waehrend des Cups. */}
+                  <div className="space-y-2 border-t border-zinc-800 pt-4">
+                    <button type="button" onClick={() => { void spieleVon(e); setVerlaufTeam(e); }}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
+                      <T>Spielverlauf</T>
+                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setVergleichTeam(e)}
+                        className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
+                        <T>Vergleichen</T>
+                      </button>
+                      <button type="button" disabled={!laeuftGerade || !lbFenster}
+                        title={laeuftGerade ? undefined : t('Nur während des Cups')}
+                        onClick={() => {
+                          if (!lbFenster) return;
+                          const ids = e.players.map((p) => (p as { id?: string }).id).filter((x): x is string => !!x);
+                          const wieder = folge?.windowId === lbFenster.windowId && folge.ids[0] === ids[0];
+                          folgeSetzen(wieder ? null : { windowId: lbFenster.windowId, eventId: lbFenster.eventId, ids, name: e.players.map(namenVon).join(' + '), rank: e.rank, points: e.points });
+                        }}
+                        className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${folge?.windowId === lbFenster?.windowId && folge?.ids[0] === (e.players[0] as { id?: string })?.id ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-zinc-700 bg-zinc-900/70 text-slate-200 enabled:hover:border-sky-500 enabled:hover:text-sky-300'}`}>
+                        <T>Live folgen</T>
+                      </button>
+                    </div>
                   </div>
                   <div className="border-t border-zinc-800 pt-4">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -5615,6 +5661,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </div>
           </div>
         </div>
+      )}
+      {verlaufTeam && (
+        <MatchHistoryFenster team={verlaufTeam} name={verlaufTeam.players.map(namenVon).join(' + ')}
+          spiele={verlaufTeam.matchesWeg ? (nachMatches[verlaufTeam.rank] ?? []) : verlaufTeam.matches}
+          laedt={!!verlaufTeam.matchesWeg && !nachMatches[verlaufTeam.rank]} zu={verlaufZu} />
+      )}
+      {vergleichTeam && (
+        <VergleichFenster team={vergleichTeam} alle={tabelle} nameVon={teamName} spieleVon={spieleVon} zu={vergleichZu} />
+      )}
+      {folge && laeuftGerade && folge.windowId === lbFenster?.windowId && (
+        <FolgenLeiste folge={folge} beenden={() => folgeSetzen(null)}
+          zeigen={(rank) => { setReiter('liste'); setSeite(Math.floor(Math.max(0, rank - 1) / proSeite) + 1); setOffen(rank); }} />
       )}
     </main>
   );
