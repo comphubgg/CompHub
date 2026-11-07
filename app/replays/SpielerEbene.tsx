@@ -136,7 +136,49 @@ const BAUPLAN_ZU_WID: Array<[RegExp, string]> = [
   [/CandyCorn/i, 'WID_Athena_CandyCorn'], [/HappyGhost/i, 'WID_Athena_HappyGhost'], [/WitchBroom/i, 'WID_Athena_WitchBroom_Durability'],
   [/FloppingRabbit.*HighTier/i, 'WID_Athena_FloppingRabbit_HighTier'], [/FloppingRabbit/i, 'WID_Athena_FloppingRabbit'],
 ];
+/*
+ * Die Spiel-Symbole der Waffen und Gegenstaende (Betreiber, 7.11.2026: "die richtigen Thumbnails fuer die Waffen ... dann ist es noch professioneller"). Von
+ * fortnite.gg/weapons, wo zu jedem Gegenstand die internen Kennungen (WID_...) und das Symbol aus dem Spiel stehen; die Bilder liegen bei uns unter
+ * public/waffen (160 px, durchsichtig). Zugeordnet ueber den Namen des Bauplans im Replay, der dieselbe Kennung traegt (B_Shotgun_CoreDPS_... = WID_Shotgun_CoreDPS_...).
+ * Geht vor die Wiki-Bilder.
+ */
+const SPIEL_SYMBOLE: Array<[RegExp, string, string]> = [
+  [/Assault_Flintlock/i, 'Bundlebuss Repeater Rifle', 't_icon_weapons_rifle_knockvalley_goldrepaint_l'],
+  [/Assault_Heavy_Recoil/i, 'Hammer Assault Rifle', 't-icon-weapons-recoilweapon-l'],
+  [/Shotgun_Break_Flintlock/i, 'Gilded Dragoon Shotgun', 't_icon_weapons_shotgun_dragoon_goldrepaint_l'],
+  [/Shotgun_CoreDPS/i, 'Auto Shotgun', 't-icon-weapons-corerapidfireshotgunweapon-l'],
+  [/Shotgun_Pump_FirePetal/i, 'Sentinel Pump Shotgun', 't_icon_weapons_shotgun_pump_firepetal_l'],
+  [/Pistol_PostApocalyptic|Pistol_Scavenger/i, 'Tactical Submachine Gun', 't-icon-weapons-sk-post-apocalyptic-pistol-l'],
+  [/Pistol_Machine/i, 'Machine SMG', 't-icon-weapons-sk-machinepistol-br-l'],
+  [/Delilah_Slingshot_HarmlessThrift/i, "Usopp's Slingshot", 't_icon_weapons_launcher_slingshot_harmlessthrift_l'],
+  [/Pistol_Flintlock/i, 'Flint-Knock Pistol', 't-icon-weapons-sk-flintlock-pistol-single-shot-l'],
+  [/Pistol_CorePistol/i, 'Sidearm Pistol', 't-icon-weapons-corepistolweapon-l'],
+  [/MiniShield|ShieldSmall/i, 'Small Shield Potion', 'ticonitemsathenasmallshieldl'],
+  [/HalfShield|ShieldPot/i, 'Shield Potion', 'ticonitemsmineralpowder06l'],
+  [/MeatOnStick/i, 'Meat on a Stick', 't_icon_br_consumable_meat_on_stick_ui_l'],
+  [/Medkit|MedBox/i, 'Med Kit', 't-icon-medkit-l'],
+  [/ShreddingJune/i, "Nami's Tangerine", 't_icon_br_consumable_shreddingjune_ui_l'],
+  [/Bandage/i, 'Bandage', 'ticonmedbandagel'],
+  [/SlurpJuice|PurpleStuff/i, 'Slurp Juice', 't-icon-items-purplestuff-01-l'],
+  [/ChugJug|AgileChug/i, 'Chug Jug', 't-icon-br-sm-athena-chugjug-l'],
+  [/Apple.*_X_C$|AppleExotic/i, 'Golden Apple', 't_icon_br_consumable_appleexotic_l'],
+  [/B_Apple|Athena_Apple/i, 'Apple', 't-t-icon-br-appleitem-l'],
+  [/FloppingRabbit.*HighTier/i, 'Pro Fishing Rod', 't-t-icon-br-fishingrodtt-l'],
+  [/FloppingRabbit/i, 'Fishing Rod', 't-t-icon-br-floppingrabbitgadget-l'],
+  [/JellyFish/i, 'Jellyfish', 't-t-icon-br-slurpjellyfish-l'],
+  [/ShieldFlopper|Flopper_Shield/i, 'Shield Fish', 't-t-icon-br-shieldfish-l'],
+  [/EffectiveFlopper|Flopper_Effective/i, 'Slurpfish', 't-t-icon-br-effectivefloppergadget-t-l'],
+  [/FlopperSmall/i, 'Small Fry', 't-t-icon-br-lesseffectiveflopper-l'],
+  [/B_Flopper_Weap|Athena_Flopper$/i, 'Flopper', 't-t-icon-br-floppergadget-l'],
+  [/HappyGhost/i, 'Harpoon Gun', 't-icon-weapons-happyghostgun-l'],
+  [/Pepper/i, 'Pepper', 't-t-icon-br-pepper-l'],
+  [/GraftedCrunchy/i, "Zoro's Three Sword Style", 't_icon_weapons_sword_graftedcrunchy_mouth_ui_l'],
+  [/Stimpulse|Shockwave_Athena_STim/i, 'Overdrive Grenade', 't_icon_br_gadget_stimpulsegrenade_l'],
+  [/ZiplineDeployer/i, 'Skyline Deployer', 't_icon_br_ziplinedeployer_l'],
+];
 export function bildVon(roh: string): { name: string; bild: string } | null {
+  const spiel = SPIEL_SYMBOLE.find(([m]) => m.test(roh));
+  if (spiel) return { name: spiel[1], bild: `/waffen/${spiel[2]}.webp` };
   if (/^(WID|AGID)_/i.test(roh)) {
     return BILDER[roh] ?? BILDER[roh.replace(/_(C|UC|R|VR|SR|UR|X)(_Ore_T0\d|_T0\d)?$/i, '').replace(/_Ore_T0\d$/i, '')] ?? null;
   }
