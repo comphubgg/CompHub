@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; schussEcht?: number; editOk?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -131,13 +131,29 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Damage From Players', wert: dmgT, zeige: num, je: (m) => m.damageTaken, rot: true, weniger: true },
   { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v, ort) => dez(v, ort, 2) },
   { titel: 'Hits To Players', wert: treffer, zeige: num },
-  // Geschaetzt aus dem Strom, die Seite sagt das dazu: Osirion liest diese Werte aus einem verschluesselten Teil des Replays.
+  // Geschaetzt aus dem Strom, die Seite sagt das dazu.
   { titel: 'Health Healed', wert: (m) => m.replay?.heilHp ?? null, zeige: num },
   { titel: 'Shield Healed', wert: (m) => m.replay?.schildWeg ?? null, zeige: num },
-  // Die Einschlaege zaehlen keine Fehlschuesse ins Leere: rund 27 % mehr Schuesse (Performance-Finale gegen Osirion: 7,1 / 5,6 / 5,2 % zu 7,2 / 5,7 / 4,8 %).
-  { titel: 'Player Accuracy', wert: (m) => { const s = m.replay?.schuss; const h = treffer(m); return s && h !== null ? (h / (s * 1.27)) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 2)} %` },
-  { titel: 'Avg Edit Time', wert: (m) => (m.replay?.editZahl ? (m.replay.editSek ?? 0) / m.replay.editZahl : null), zeige: (v, ort) => `${dez(v, ort, 1)} s`, weniger: true },
+  // Schuesse aus der Munition im Magazin. Aeltere Spiele kennen nur die Einschlaege, und die zaehlen keine Fehlschuesse ins Leere: dort rund 27 % mehr.
+  { titel: 'Player Accuracy', wert: (m) => { const s = m.replay?.schussEcht || (m.replay?.schuss ?? 0) * 1.27; const h = treffer(m); return s && h !== null ? (h / s) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 2)} %` },
+  { titel: 'Shots', wert: (m) => m.replay?.schussEcht ?? null, zeige: num },
+  { titel: 'Edit Accuracy', wert: (m) => (m.replay?.editZahl && m.replay.editOk !== undefined ? Math.min(100, (m.replay.editOk / m.replay.editZahl) * 100) : null), zeige: (v, ort) => `${dez(v, ort, 2)} %` },
+  // Wie Osirion: Gesamtzeit durch gelungene Edits.
+  { titel: 'Avg Edit Time', wert: (m) => { const n = m.replay?.editOk || m.replay?.editZahl; return n ? (m.replay?.editSek ?? 0) / n : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} s`, weniger: true },
+  { titel: 'Mats Farmed', wert: (m) => (m.replay?.farmHolz === undefined ? null : (m.replay.farmHolz ?? 0) + (m.replay.farmStein ?? 0) + (m.replay.farmMetall ?? 0)), zeige: num },
+  { titel: 'Wood Farmed', wert: (m) => m.replay?.farmHolz ?? null, zeige: num },
+  { titel: 'Stone Farmed', wert: (m) => m.replay?.farmStein ?? null, zeige: num },
+  { titel: 'Metal Farmed', wert: (m) => m.replay?.farmMetall ?? null, zeige: num },
+  { titel: 'Mats Collected', wert: (m) => (m.replay?.samHolz === undefined ? null : (m.replay.samHolz ?? 0) + (m.replay.samStein ?? 0) + (m.replay.samMetall ?? 0)), zeige: num },
+  { titel: 'Wood Collected', wert: (m) => m.replay?.samHolz ?? null, zeige: num },
+  { titel: 'Stone Collected', wert: (m) => m.replay?.samStein ?? null, zeige: num },
+  { titel: 'Metal Collected', wert: (m) => m.replay?.samMetall ?? null, zeige: num },
+  { titel: 'Own Builds Placed', wert: (m) => (m.replay?.selbstHolz === undefined ? null : (m.replay.selbstHolz ?? 0) + (m.replay.selbstStein ?? 0) + (m.replay.selbstMetall ?? 0)), zeige: num },
+  { titel: 'Wood Builds Placed', wert: (m) => m.replay?.selbstHolz ?? null, zeige: num },
+  { titel: 'Stone Builds Placed', wert: (m) => m.replay?.selbstStein ?? null, zeige: num },
+  { titel: 'Metal Builds Placed', wert: (m) => m.replay?.selbstMetall ?? null, zeige: num },
   { titel: 'Builds Edited', wert: (m) => m.replay?.editZahl ?? null, zeige: num },
+  { titel: 'Builds Edited Successfully', wert: (m) => m.replay?.editOk ?? null, zeige: num },
   { titel: 'Time spent Editing', wert: (m) => (m.replay?.editZahl ? m.replay.editSek ?? 0 : null), zeige: (v) => dauer(v) },
   { titel: 'Pickaxe Hits', wert: (m) => m.replay?.axt ?? null, zeige: num },
   { titel: 'Headshots', wert: kopf, zeige: num },
@@ -614,7 +630,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
               : daten.eigeneAuswertung
                 ? <><T>Schaden, Treffer und Kopftreffer sind aus den Replays deiner Lobbys gezählt; Eliminierungen, Zeit und Punkte kommen von Epic.</T> </>
               : mitglieder.some((m) => m.replay)
-                ? <><T>Eliminierungen, Tode, Schaden und Treffer sind aus den ausgewerteten Replays dieses Spieltags gezählt.</T> {mitglieder.some((m) => m.replay?.editZahl !== undefined) && <T>Health Healed, Shield Healed und Player Accuracy sind aus dem Replay geschätzt.</T>} </>
+                ? <><T>Eliminierungen, Tode, Schaden und Treffer sind aus den ausgewerteten Replays dieses Spieltags gezählt.</T> {mitglieder.some((m) => m.replay?.editZahl !== undefined) && <T>Heilung, Mats, Builds und Edit Accuracy sind aus dem Replay geschätzt und können leicht abweichen.</T>} </>
                 : <><T>Für diesen Cup liefert Epic Platz, Punkte, Eliminierungen und Überlebenszeit je Match; die übrigen Werte gibt es hier nur, wenn eine Quelle sie für diesen Spieltag führt.</T> </>}
             {team && <T>Epic zählt Punkte, Eliminierungen und Zeit je Team.</T>}
           </p>

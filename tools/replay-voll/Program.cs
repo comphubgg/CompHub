@@ -200,7 +200,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.Extra, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 
 /*
@@ -286,9 +286,8 @@ class SchadenLeser : ReplayReader {
    * Nicht uebernommen, weil die Gegenprobe es nicht traegt: Heilung (nur bei Duo-Finals passend, Solo 16 %, Trio 9 % daneben), Sturmschaden aus
    * Sturmzeit mal Rate (4,6 % mittlere Abweichung, die Raten je Phase lassen sich nicht sauber festlegen), Schaden erlitten aus HealthSet, Schild
    * (im Strom null), Assists (je nach Zeitfenster 40 bis 68 von 100 Spielern genau, keine eindeutige Zaehlweise), Weg (zu wenige Ortsangaben:
-   * die Positionen der Figuren sind in EncryptedPawnReplayData verschluesselt). Aufbau, Edits, Material und Schuesse stehen in diesen Replays nicht
-   * im lesbaren Strom (ein 3,5 MB grosser Ereignisblock "sessionG0" je Match ist nicht lesbar und unbekannten Inhalts - ihn zu entschluesseln ist nicht
-   * Sache dieses Werkzeugs).
+   * die Positionen der Figuren sind in EncryptedPawnReplayData verschluesselt). Ein 3,5 MB grosser Ereignisblock "sessionG0" je Match ist nicht lesbar und unbekannten
+   * Inhalts - ihn zu entschluesseln ist nicht Sache dieses Werkzeugs. Material, Schuesse und gelungene Edits stehen offen im Strom (siehe InventarAbschliessen).
    */
   public readonly List<(int id, double t, bool an)> SturmListe = new();
   readonly Dictionary<uint, int> figurSpieler = new();
@@ -415,7 +414,176 @@ class SchadenLeser : ReplayReader {
 
   /// Je Spieler: [frei, frei, Bauzustand 1: Anzahl, Sekunden, Bauzustand 2: Anzahl, Sekunden]. Bauzustand 1 ist das Editieren: im Performance-Finale 1,5 / 0,9 / 1,2 s je Edit, Osirion 2 / 1 / 1 s.
   public readonly Dictionary<int, double[]> Extra = new();
-  double[] ExtraVon(int id) => Extra.TryGetValue(id, out var e) ? e : (Extra[id] = new double[6]);
+  double[] ExtraVon(int id) => Extra.TryGetValue(id, out var e) ? e : (Extra[id] = new double[17]);
+
+  /*
+   * Das Inventar jedes Spielers (7.11.2026). Fortnite fuehrt es seit dem neuen Item-System nicht mehr in FortInventory, sondern in /Script/ItemizationCoreRuntime.Inventory: offen im Strom,
+   * nichts davon ist verschluesselt, die Bibliothek kennt es nur nicht. Je Gegenstand steht in DataList eine Liste von Bausteinen, jeder beginnt mit der Objekt-Kennung seines Typs:
+   * ItemComponentData_StackSize ist die Menge, FortItemComponentData_LoadedAmmo die Munition im Magazin. Die Kennungen wechseln je Replay, deshalb werden sie ueber ihren Namen gesucht.
+   */
+  public Dictionary<int, double[]> ExtraFertig() { InventarAbschliessen(); return Extra; }
+  public const int ExtraGesammelt = 6, ExtraGefarmt = 9, ExtraSchuesse = 12, ExtraEditsOk = 13, ExtraBauten = 14;
+  readonly Dictionary<uint, List<uint>> inventarFiguren = new();
+  readonly Dictionary<string, int> inventarStand = new();
+  readonly Dictionary<string, int> inventarLage = new();
+  readonly List<(uint wurzel, double t, int stoff, int menge)> matsSchritte = new();
+  readonly List<(uint wurzel, int schuesse)> schussSchritte = new();
+  uint stapelTyp, ladungTyp;
+  public int InventarEintraege, InventarOhneMenge;
+
+  static uint Bits(byte[] b, int ab, int anzahl) {
+    uint w = 0;
+    for (int k = 0; k < anzahl; k++) { int q = ab + k; if (((b[q >> 3] >> (q & 7)) & 1) != 0) w |= 1u << k; }
+    return w;
+  }
+  // Eine gepackte Zahl ab einem beliebigen Bit; Rueckgabe: gelesene Bits, 0 wenn sie nicht passt.
+  static int Gepackt(byte[] b, int ab, int ende, out uint wert) {
+    wert = 0; int p = ab;
+    for (int n = 0; n < 3; n++) {
+      if (p + 8 > ende) return 0;
+      var by = Bits(b, p, 8); p += 8; wert |= (by >> 1) << (7 * n);
+      if ((by & 1) == 0) return p - ab;
+    }
+    return 0;
+  }
+  void TypenSuchen(byte[] b, int ende) {
+    if (stapelTyp != 0 && ladungTyp != 0) return;
+    for (int i = 0; i + 8 <= ende; i++) {
+      if (Gepackt(b, i, ende, out var w) == 0 || w < 100) continue;
+      if (!_netGuidCache.TryGetPathName(w, out var pfad)) continue;
+      if (pfad == "ItemComponentData_StackSize") stapelTyp = w;
+      else if (pfad == "FortItemComponentData_LoadedAmmo") ladungTyp = w;
+    }
+  }
+  /*
+   * Der Wert hinter einer Typ-Kennung. Gesucht wird ueber alle Bitlagen, weil die Bausteine je Gegenstand anders sortiert sind; zufaellig gleiche Bitfolgen fallen durch die Obergrenze heraus.
+   * Bleiben mehrere uebrig, gilt die Stelle, an der derselbe Gegenstand zuletzt stand.
+   */
+  int? WertHinter(byte[] b, int ende, uint typ, int grenze, string schluessel) {
+    if (typ == 0) return null;
+    int? wert = null, stelle = null; var zahl = 0;
+    inventarLage.TryGetValue(schluessel, out var zuletzt);
+    for (int i = 0; i + 40 <= ende; i++) {
+      var n = Gepackt(b, i, ende, out var w);
+      if (n == 0 || w != typ || i + n + 32 > ende) continue;
+      var v = Bits(b, i + n, 32);
+      if (v > grenze) continue;
+      zahl++;
+      if (wert is null || i == zuletzt) { wert = (int)v; stelle = i; }
+    }
+    if (stelle is int s) inventarLage[schluessel] = s;
+    return wert;
+  }
+  protected override void OnNetDeltaRead(uint channelIndex, Unreal.Core.Models.NetDeltaUpdate update) {
+    base.OnNetDeltaRead(channelIndex, update);
+    if (update.Export is not InventarEintrag g || g.DataList is null) return;
+    InventarEintraege++;
+    var wurzel = Channels[channelIndex]?.Actor?.ActorNetGUID?.Value ?? 0;
+    var name = g.ItemDefinition?.Name;
+    if (wurzel == 0 || name is null) return;
+    name = name.Split('/').Last().Split('.').Last();
+    var daten = g.DataList.Bytes; var ende = g.DataList.TotalBits;
+    TypenSuchen(daten, ende);
+    var stoff = name.StartsWith("WoodItemData") ? 0 : name.StartsWith("StoneItemData") ? 1 : name.StartsWith("MetalItemData") ? 2 : -1;
+    var schluessel = wurzel + ":" + g.A + ":" + g.B;
+    if (stoff >= 0) {
+      var menge = WertHinter(daten, ende, stapelTyp, 20000, "s" + schluessel);
+      if (menge is not int m) { InventarOhneMenge++; return; }
+      inventarStand.TryGetValue("s" + schluessel, out var alt);
+      inventarStand["s" + schluessel] = m;
+      if (m != alt && Zeit() is double t) matsSchritte.Add((wurzel, t, stoff, m - alt));
+      return;
+    }
+    if (ladungTyp == 0 || !name.StartsWith("WID_")) return;
+    if (WertHinter(daten, ende, ladungTyp, 2000, "l" + schluessel) is not int ladung) return;
+    var da = inventarStand.TryGetValue("l" + schluessel, out var vor);
+    inventarStand["l" + schluessel] = ladung;
+    if (da && ladung < vor) schussSchritte.Add((wurzel, vor - ladung));
+  }
+  int? SpielerDerWurzel(uint wurzel) {
+    if (!inventarFiguren.TryGetValue(wurzel, out var l)) return null;
+    foreach (var f in l) if (spielerVonAkteur.TryGetValue(f, out var id)) return id;
+    return null;
+  }
+  bool MitSpitzhacke(int id, double t) {
+    if (!Hand.TryGetValue(id, out var l) || l.Count == 0) return false;
+    int a = 0, z = l.Count - 1;
+    while (a < z) { var m = (a + z + 1) / 2; if (l[m][0] <= t) a = m; else z = m - 1; }
+    var nr = (int)l[a][1];
+    return nr >= 0 && nr < WaffenNamen.Count && System.Text.RegularExpressions.Regex.IsMatch(WaffenNamen[nr] ?? "", "Pickaxe|Melee", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+  }
+  static bool Zwischen(List<double> l, double von, double bis) {
+    var i = l.BinarySearch(von); if (i < 0) i = ~i;
+    return i < l.Count && l[i] <= bis;
+  }
+  /*
+   * Rechnet die Inventar-Schritte auf die Spieler um; einmal nach dem Lesen, wenn alle Figuren bekannt sind. Die Regeln sind an den vier Spielen des Performance-Finales gegen Osirion geprueft
+   * (Darm, Charyy, demus; Holz, Stein, Metall je Spieler), die Mengen selbst sind exakt, nur ihre Einordnung ist geschaetzt:
+   * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt weder als Bau noch als Gewinn.
+   * - Gefarmt: das Plus liegt bis 0,5 s nach oder 0,3 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
+   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt; Gefarmt lag im Finale im Mittel 6 % daneben, je Spieler zusammen -0,3 / +3,8 / -7,8 %.
+   */
+  public void InventarAbschliessen() {
+    var axt = new Dictionary<int, List<double>>();
+    foreach (var s in Schuesse) {
+      var id = (int)s[1];
+      if (!MitSpitzhacke(id, s[0])) continue;
+      if (!axt.TryGetValue(id, out var l)) axt[id] = l = new();
+      l.Add(s[0]);
+    }
+    foreach (var l in axt.Values) l.Sort();
+    var auf = new Dictionary<(int, int), List<double>>();
+    foreach (var e in Loot) {
+      if (e[5] != 1) continue;
+      var name = LootNamen[(int)e[2]];
+      var stoff = name.Contains("WoodItem") ? 0 : name.Contains("StoneItem") ? 1 : name.Contains("MetalItem") ? 2 : -1;
+      if (stoff < 0) continue;
+      if (!auf.TryGetValue(((int)e[1], stoff), out var l)) auf[((int)e[1], stoff)] = l = new();
+      l.Add(e[0]);
+    }
+    foreach (var l in auf.Values) l.Sort();
+    var schritte = new Dictionary<(int, int), List<double[]>>();
+    foreach (var (wurzel, t, stoff, menge) in matsSchritte) {
+      if (SpielerDerWurzel(wurzel) is not int id) continue;
+      if (!schritte.TryGetValue((id, stoff), out var l)) schritte[(id, stoff)] = l = new();
+      l.Add(new[] { t, menge });
+    }
+    var leer = new List<double>();
+    foreach (var ((id, stoff), l) in schritte) {
+      for (int i = 0; i < l.Count; i++) {
+        if (l[i][1] <= 0 || l[i][1] % 10 != 0) continue;
+        for (int j = i - 1; j >= 0 && l[i][0] - l[j][0] <= 2 && l[i][1] > 0; j--) {
+          if (l[j][1] >= 0) continue;
+          var k = Math.Min(l[i][1], -l[j][1]); l[i][1] -= k; l[j][1] += k;
+        }
+      }
+      var e = ExtraVon(id);
+      var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
+      foreach (var x in l) {
+        var (t, m) = (x[0], x[1]);
+        if (m < 0) { if (-m % 10 == 0) e[ExtraBauten + stoff] += -m / 10; continue; }
+        if (m == 0) continue;
+        var gefarmt = Zwischen(schlaege, t - 0.5, t + 0.3) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4));
+        e[(gefarmt ? ExtraGefarmt : ExtraGesammelt) + stoff] += m;
+      }
+    }
+    foreach (var (wurzel, schuesse) in schussSchritte) if (SpielerDerWurzel(wurzel) is int id) ExtraVon(id)[ExtraSchuesse] += schuesse;
+  }
+
+  /*
+   * Gelungene Edits: NetMulticast_SuccessfulBuildingEdit ist ein Aufruf ohne Werte auf der Figur. Die Bibliothek ueberspringt Felder ohne Inhalt, bevor sie sie auswertet; deshalb wird er
+   * schon beim Lesen des Feldkopfs gezaehlt. Performance-Finale: 408 / 501 / 369 zu Osirions 364 / 492 / 353.
+   */
+  uint bunchKanal;
+  public override bool ReceivedReplicatorBunch(Unreal.Core.Models.DataBunch bunch, Unreal.Core.FBitArchive archive, uint? repObject, bool bHasRepLayout) {
+    bunchKanal = bunch.ChIndex;
+    return base.ReceivedReplicatorBunch(bunch, archive, repObject, bHasRepLayout);
+  }
+  public override bool ReadFieldHeaderAndPayload(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, out Unreal.Core.Models.NetFieldExport outField, out uint? payload) {
+    var weiter = base.ReadFieldHeaderAndPayload(archive, group, out outField, out payload);
+    if (weiter && outField?.Name == "NetMulticast_SuccessfulBuildingEdit" && Hole(VonFigur, bunchKanal)?.Id is int id) ExtraVon(id)[ExtraEditsOk] += 1;
+    return weiter;
+  }
   readonly Dictionary<uint, (int zustand, double seit)> bauZustand = new();
   static readonly System.Reflection.PropertyInfo? BauZustandFeld = typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty("BuildingState");
   void BauZustandNotieren(uint kanal, INetFieldExportGroup g) {
@@ -502,6 +670,13 @@ class SchadenLeser : ReplayReader {
       foreach (var f in BusFelder) {
         try { var v = exportGroup.GetType().GetProperty(f)?.GetValue(exportGroup); if (v is not null) BusWerte[f] = v; } catch { }
       }
+    }
+    if (exportGroup is InventarWurzel iw) {
+      if (iw.ReplayPawn is > 0 && Channels[channelIndex]?.Actor?.ActorNetGUID?.Value is uint wg) {
+        if (!inventarFiguren.TryGetValue(wg, out var fl)) inventarFiguren[wg] = fl = new();
+        if (!fl.Contains(iw.ReplayPawn.Value)) fl.Add(iw.ReplayPawn.Value);
+      }
+      return;
     }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
       BauZustandNotieren(channelIndex, exportGroup);
@@ -751,6 +926,21 @@ class Erkunder : ReplayReader {
     }
   }
 }
+
+/* Das neue Inventar (siehe SchadenLeser): die Gegenstaende eines Spielers und die Wurzel, die sagt, zu welcher Figur es gehoert. */
+[NetFieldExportGroup("/Script/ItemizationCoreRuntime.Inventory", ParseMode.Full)]
+public class InventarEintrag : INetFieldExportGroup {
+  [NetFieldExport("ItemDefinition", RepLayoutCmdType.Property)] public Unreal.Core.Models.ItemDefinition ItemDefinition { get; set; }
+  [NetFieldExport("A", RepLayoutCmdType.PropertyUInt32)] public uint? A { get; set; }
+  [NetFieldExport("B", RepLayoutCmdType.PropertyUInt32)] public uint? B { get; set; }
+  [NetFieldExport("DataList", RepLayoutCmdType.Property)] public Unreal.Core.Models.DebuggingObject DataList { get; set; }
+}
+[NetFieldExportGroup("/Script/FortniteGame.FortRootItemizationInventory", ParseMode.Full)]
+public class InventarWurzel : INetFieldExportGroup {
+  [NetFieldExport("ReplayPawn", RepLayoutCmdType.PropertyObject)] public uint? ReplayPawn { get; set; }
+}
+[NetFieldExportClassNetCache("Inventory_ClassNetCache", ParseMode.Full)]
+public class InventarListe { [NetFieldExportRPC("ItemEntryData", "/Script/ItemizationCoreRuntime.Inventory", false, true, false)] public InventarEintrag ItemEntryData { get; set; } }
 
 /*
  * Gebaute Teile aus Stein und Metall: die Bibliothek bringt Gruppen nur fuer Holz und fuer Stein- und Metallwaende mit (5.11.2026 am Replay geprueft). Der Rest steht hier.

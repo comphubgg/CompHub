@@ -68,7 +68,7 @@ async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: st
   return [];
 }
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; schussEcht?: number; editOk?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -179,6 +179,13 @@ export async function GET(request: Request) {
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;
             return typeof w.editZahl === 'number' ? { editZahl: w.editZahl, editSek: Math.round(w.editSek ?? 0), heilHp: Math.round(w.heilHp ?? 0), schildWeg: Math.round(w.schildWeg ?? 0), schuss: w.schuss ?? 0, axt: w.axt ?? 0 } : {};
+          })() : {}),
+          // Aus dem Inventar. Nur wenn alle Spiele dieses Spielers die Werte haben: halbe Summen stehen nicht auf der Seite.
+          ...(d ? (() => {
+            const w = d as unknown as Record<string, number | undefined>;
+            const spielZahl = (clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[i] ?? 0;
+            if (!w.invSpiele || w.invSpiele < spielZahl) return {};
+            return { farmHolz: w.farmHolz ?? 0, farmStein: w.farmStein ?? 0, farmMetall: w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
           })() : {}),
           // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.
           ...(d ? (() => {

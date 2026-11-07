@@ -144,6 +144,12 @@ function schadenAus(roh) {
       const d = raus[p.epic] ??= neueWerte();
       const x = roh.extra?.[p.id];
       if (x) { d.editZahl = (d.editZahl ?? 0) + x[2]; d.editSek = (d.editSek ?? 0) + x[3]; }
+      // Aus dem Inventar (tools/replay-voll, InventarAbschliessen). invSpiele zaehlt mit: wer auch Spiele ohne diese Werte hat, bekommt keine halben Summen angezeigt.
+      if (x?.length >= 17) {
+        d.invSpiele = (d.invSpiele ?? 0) + 1;
+        [['samHolz', 6], ['samStein', 7], ['samMetall', 8], ['farmHolz', 9], ['farmStein', 10], ['farmMetall', 11], ['schussEcht', 12], ['editOk', 13], ['selbstHolz', 14], ['selbstStein', 15], ['selbstMetall', 16]]
+          .forEach(([k, i]) => { d[k] = (d[k] ?? 0) + x[i]; });
+      }
       // Leben geheilt: Anstiege unter 50 Punkten - groessere sind das Zuruecksetzen beim Knock und beim Wiedereinstieg. Geschaetzt, im Finale rund 15 % ueber Osirion.
       const l = roh.leben?.[p.id] ?? [];
       for (let i = 1; i < l.length; i += 1) { const a = l[i][1] - l[i - 1][1]; if (a > 0 && a < 50 && l[i - 1][1] > 0) d.heilHp = (d.heilHp ?? 0) + a; }
@@ -221,7 +227,8 @@ async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
       const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {
         const d = schaden[k] ?? neueWerte();
-        for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
+        // Alle Felder von v, nicht nur die aus neueWerte: sonst gehen Edits, Heilung, Schuesse und Team-Bauten hier verloren.
+        for (const f of Object.keys(v)) d[f] = (d[f] ?? 0) + (v[f] ?? 0);
         schaden[k] = d;
       }
       const spieler = Object.fromEntries(c);
@@ -345,7 +352,7 @@ if (arg[0] === '--plan') {
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
      */
-    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 3 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 4 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
@@ -433,7 +440,7 @@ if (arg[0] === '--plan') {
           for (const [k, v] of soloMatch) teil.solo[k] = (teil.solo[k] ?? 0) + Math.round(v);
           for (const [k, v] of Object.entries(schadenAus(voll) ?? {})) {
             const d = teil.schaden[k] ?? neueWerte();
-            for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
+            for (const f of Object.keys(v)) d[f] = (d[f] ?? 0) + (v[f] ?? 0);
             teil.schaden[k] = d;
           }
           for (const p of voll.spieler ?? []) {
