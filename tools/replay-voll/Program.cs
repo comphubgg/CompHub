@@ -218,7 +218,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, killVerlauf = reader.KillVerlauf, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 }
 
@@ -679,6 +679,7 @@ class SchadenLeser : ReplayReader {
    */
   const uint LebenFeld = 1, SchildFeld = 31;
   public readonly Dictionary<int, List<double[]>> Schild = new();
+  public readonly Dictionary<int, List<double[]>> KillVerlauf = new();
   public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
     if (bauKanal.ContainsKey(channelIndex) && group.PathName.Contains("PBWA_", StringComparison.Ordinal)) { exportGroup = null; return BauLesen(archive, group, channelIndex, enablePropertyChecksum); }
     if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
@@ -772,6 +773,11 @@ class SchadenLeser : ReplayReader {
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.FortPlayerState fs && VomZustand(channelIndex)?.Id is int zustandId) {
       if (fs.bThankedBusDriver == true) ExtraVon(zustandId)[ExtraBusfahrer] = 1;
       if (fs.WorldPlayerId is short welt && welt > 0) spielerVonWelt[welt] = zustandId;
+      // Der Kill-Zaehler des Spiels selbst. Team-Summe und Spieler stimmen damit, nur Kills nach dem eigenen Aus zaehlt Osirion getrennt (siehe scripts/clutch-berechnen.mjs).
+      if (fs.KillScore is uint ks && Zeit() is double tk) {
+        if (!KillVerlauf.TryGetValue(zustandId, out var kl)) KillVerlauf[zustandId] = kl = new();
+        kl.Add(new[] { Math.Round(tk, 2), ks });
+      }
     }
     if (exportGroup is InventarWurzel iw) {
       if (iw.ReplayPawn is > 0 && Channels[channelIndex]?.Actor?.ActorNetGUID?.Value is uint wg) {

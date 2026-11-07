@@ -179,6 +179,20 @@ function schadenAus(roh) {
       const x = roh.extra?.[p.id];
       if (x) { d.editZahl = (d.editZahl ?? 0) + x[2]; d.editSek = (d.editSek ?? 0) + x[3]; }
       // Aus dem Inventar (tools/replay-voll, InventarAbschliessen). invSpiele zaehlt mit: wer auch Spiele ohne diese Werte hat, bekommt keine halben Summen angezeigt.
+      /*
+       * Elims und Deaths wie Osirion (Performance-Finale, alle drei Spieler exakt): Deaths sind die Tode ausser Wiederbelebungen; im gewonnenen Spiel zaehlt ein Eintrag ohne Ursache nicht, das ist
+       * das Spielende. Elims ist KillScore bis das ganze Team raus ist, was danach kommt, fuehrt Osirion als "Player Eliminations (After Out)". K/D ist Elims durch Deaths.
+       */
+      if (roh.killVerlauf) {
+        const todeVon = (q) => (roh.feed ?? []).filter((e) => e.opfer === q.id && e.art === 'tot' && e.ursache !== 50 && ((q.platz ?? 99) > 1 || e.ursache != null));
+        d.todeEcht = (d.todeEcht ?? 0) + todeVon(p).length;
+        const teamTode = (p.platz ?? 99) > 1 ? (roh.spieler ?? []).filter((q) => q.team === p.team).flatMap(todeVon).map((e) => e.t) : [];
+        const aus = teamTode.length ? Math.max(...teamTode) : Infinity;
+        let bisAus = 0; let alle = 0;
+        for (const [t, k] of roh.killVerlauf[p.id] ?? []) { alle = k; if (t <= aus + 0.2) bisAus = k; }
+        d.killsEcht = (d.killsEcht ?? 0) + bisAus;
+        d.killsNachAus = (d.killsNachAus ?? 0) + alle - bisAus;
+      }
       if (x?.length >= 19) { d.sturmSchaden = (d.sturmSchaden ?? 0) + x[17]; d.busDank = (d.busDank ?? 0) + x[18]; }
       if (x?.length >= 17) {
         d.invSpiele = (d.invSpiele ?? 0) + 1;
@@ -411,7 +425,7 @@ if (arg[0] === '--plan') {
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
      */
-    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 7 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 8 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
@@ -500,6 +514,8 @@ if (arg[0] === '--plan') {
             const d = teil.schaden[k] ?? neueWerte();
             for (const f of Object.keys(v)) d[f] = (d[f] ?? 0) + (v[f] ?? 0);
             teil.schaden[k] = d;
+            // Der Verlauf je Spieler und Spiel (Kurven in den Team Stats): [Match, Elims, Schaden, Schaden erlitten, Leben geheilt, Schild geheilt, Kopftreffer, Treffer, Schuesse, Mats gefarmt].
+            if (mitRoh) (teil.jeSpiel ??= {}, teil.jeSpiel[k] ??= []).push([id, v.killsEcht ?? 0, Math.round(v.dmg ?? 0), Math.round(v.erlitten ?? 0), Math.round(v.heilHp ?? 0), Math.round(v.schildHeilEcht ?? 0), v.krit ?? 0, v.treffer ?? 0, v.schussEcht ?? 0, (v.farmHolz ?? 0) + (v.farmStein ?? 0) + (v.farmMetall ?? 0)]);
           }
           for (const p of voll.spieler ?? []) {
             if (p.bot || !p.epic) continue;

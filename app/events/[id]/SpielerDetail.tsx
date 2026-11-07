@@ -21,6 +21,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { useZugang } from '@/app/lib/zugang';
 
 interface Match {
+  sessionId?: string;
   placement?: number; elims?: number; timeAlive?: number; wins?: number;
   damage?: number; damageTaken?: number; headshots?: number; heilung?: number; schild?: number; strecke?: number;
   holzGefarmt?: number; steinGefarmt?: number; metallGefarmt?: number;
@@ -32,12 +33,13 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
+  replayTeil?: { matches?: number; vonMindestens?: number } | null;
   eigeneAuswertung?: { gelesen: number; sitzungen: number; gerechnet: string; grund: string | null; fassung?: number } | null;
 }
 interface Treffer { id: string; name: string; rank: number; points: number; team: string[] }
@@ -115,9 +117,12 @@ const KERN: Zeile[] = [
   { titel: 'Avg Points', wert: (_m, c) => (c.e && c.e.games ? c.e.points / c.e.games : null), zeige: (v, ort) => dez(v, ort, 1) },
   { titel: 'Eliminations', wert: elimsVon, zeige: num, je: (m) => m.elims },
   // Wie Epic und Osirion: Tode sind die Spiele ohne Sieg (Performance-Finale: Darm 14 Elims, 2 Niederlagen, K/D 7). Wer im Spiel stirbt und vom Team zurueckgeholt wird, zaehlt nicht.
+  // Wie Osirion: Elims durch die eigenen Tode (Performance-Finale 14/2, 12/3, 5/2). Ohne volles Auslesen bleibt nur Epics Zahl der Spiele ohne Sieg.
   { titel: 'K/D Ratio', wert: (m, c) => {
     const k = elimsVon(m, c);
-    return k !== null && c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
+    if (k === null) return null;
+    if (m.replay?.killsNachAus !== undefined) return k / Math.max(1, m.replay.tode ?? 0);
+    return c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
   }, zeige: (v, ort) => dez(v, ort, 2) },
 ];
 
@@ -125,6 +130,7 @@ const KERN: Zeile[] = [
 const ZUSATZ: Zeile[] = [
   // Betreiber, 7.11.2026: "3 Statistics von 30 ... das ist peinlich". Alles, was die Replays je Spieler hergeben, steht hier.
   { titel: 'Knocks', wert: (m) => m.replay?.knocks ?? null, zeige: num },
+  { titel: 'Player Eliminations (After Out)', wert: (m) => m.replay?.killsNachAus ?? null, zeige: num, nurMitWert: true },
   { titel: 'Deaths', wert: (m) => m.replay?.tode ?? null, zeige: num, rot: true, weniger: true },
   { titel: 'Damage To Players', wert: dmg, zeige: num, je: (m) => m.damage },
   { titel: 'Damage per Match', wert: (m, c) => { const a = dmg(m, c); return a !== null && c.e?.games ? a / c.e.games : null; }, zeige: num },
@@ -372,6 +378,16 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   const nr = useMemo(() => spiele.map((_m, i) => i + 1), [spiele]);
   const mitglieder = daten?.mitglieder ?? [];
   const team = !solo && mitglieder.length > 1;
+  // Der gewaehlte Spieler (Betreiber, 7.11.2026): Klick auf eine Spalte macht sie blau, rechts stehen seine Werte je Spiel.
+  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
+  const aktiv = mitglieder.find((m) => m.id === gewaehlt) ?? mitglieder.find((m) => m.ich) ?? mitglieder[0];
+  const eigeneSpiele = aktiv?.replay?.jeSpiel;
+  const SPALTE_JE_SPIEL: Record<string, number> = { Eliminations: 1, 'Damage To Players': 2, 'Damage From Players': 3, 'Health Healed': 4, 'Shield Healed': 5, Headshots: 6, 'Hits To Players': 7, Shots: 8, 'Mats Farmed': 9 };
+  const kurve = (titel: string): Array<number | undefined> => {
+    const sp = SPALTE_JE_SPIEL[titel];
+    if (!sp || !eigeneSpiele) return [];
+    return spiele.map((m, i) => { const r = eigeneSpiele.find((x) => x[0] === m.sessionId) ?? (m.sessionId ? undefined : eigeneSpiele[i]); return r ? Number(r[sp]) : undefined; });
+  };
   const ctx: Ctx = { e, solo: !team, mitglieder, echtSolo: solo };
   const verifizieren = `/api/auth/epic/authorize?zurueck=${encodeURIComponent(rueckPfad)}`;
   const trennen = async () => {
@@ -550,6 +566,14 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
             </p>
           )}
 
+          {/* Solange das volle Auslesen laeuft, sind alle Replay-Werte Teilsummen: das muss hier stehen, sonst sehen sie falsch aus (Betreiber, 7.11.2026). */}
+          {daten.replayTeil?.matches && (
+            <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+              <p className="font-semibold text-amber-300"><T>Noch nicht fertig</T></p>
+              <p className="mt-0.5 text-amber-100/80">{daten.replayTeil.matches.toLocaleString(ort)} / {(daten.replayTeil.vonMindestens ?? 0).toLocaleString(ort)} <T>Matches ausgewertet. Damage, Heilung und die übrigen Replay-Werte sind Zwischenstände und steigen noch.</T></p>
+            </div>
+          )}
+
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {/* ------------------------------------------------ links: je Spieler eine Spalte */}
             <div>
@@ -562,8 +586,11 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                     ))}
                   </div>
                   {mitglieder.map((m, i) => (
-                    <div key={m.id} className={`min-w-[130px] flex-1 ${kasten} ${m.ich || !team ? 'border-sky-500/70' : 'border-white/[0.06]'}`}>
-                      <p className={`flex h-[40px] items-center justify-center border-b border-white/[0.06] px-2 text-center text-[13px] font-bold ${m.ich || !team ? 'text-slate-50' : 'text-slate-400'}`}>
+                    <div key={m.id} role={team ? 'button' : undefined} tabIndex={team ? 0 : undefined}
+                      onClick={team ? () => setGewaehlt(m.id) : undefined}
+                      onKeyDown={team ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setGewaehlt(m.id); } } : undefined}
+                      className={`min-w-[130px] flex-1 ${kasten} ${team ? 'cursor-pointer transition hover:border-sky-500/40' : ''} ${m.id === aktiv?.id || !team ? 'border-sky-500/70' : 'border-white/[0.06]'}`}>
+                      <p className={`flex h-[40px] items-center justify-center border-b border-white/[0.06] px-2 text-center text-[13px] font-bold ${m.id === aktiv?.id || !team ? 'text-slate-50' : 'text-slate-400'}`}>
                         <span className="truncate">{m.name}</span>
                       </p>
                       {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => {
@@ -573,7 +600,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                           <p key={z.titel} className="flex h-[34px] items-center justify-center border-b border-white/[0.03] px-2 text-[13px] last:border-b-0">
                             {w === null
                               ? <span className="text-slate-600">–</span>
-                              : <><span className={`font-bold tabular-nums ${m.ich || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w, ort)}</span>{team ? pfeil(z, werte, i) : null}</>}
+                              : <><span className={`font-bold tabular-nums ${m.id === aktiv?.id || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w, ort)}</span>{team ? pfeil(z, werte, i) : null}</>}
                           </p>
                         );
                       })}
@@ -606,6 +633,20 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                   ))}
                   <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
                 </>
+              )}
+              {team && !!eigeneSpiele?.length && spiele.length > 1 && (
+                <div className="mb-4">
+                  <div className="flex h-[40px] items-center justify-between">
+                    <span className="truncate text-[13px] font-bold text-sky-300">{aktiv?.name} · <T>je Spiel</T></span>
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-500" /> Cumulative</label>
+                  </div>
+                  {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
+                    <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
+                      <Welle werte={kurve(z.titel)} rot={z.rot} kumuliert={kumuliert} />
+                    </div>
+                  ))}
+                  <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
+                </div>
               )}
               {team && (
                 <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40">

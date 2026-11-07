@@ -1414,6 +1414,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       if (/LastChanceQualifier/i.test(w)) return { finale: false, haupt: 'Last Chance', neben: 'Qualifier' };
       // Die Finalrunde der Last Chance heisst bei Epic "Lobby" - hier Finale (Betreiber, 19.10.2026).
       if (/LastChanceLobby/i.test(w)) return { finale: true, haupt: 'Last Chance', neben: t('Finale') };
+      // Cash Cups und Co.: jeder Termin ist ein eigener Cup, kein Tag (Betreiber, 7.11.2026).
+      const ev = /_Event(\d+)(?:_|$)/i.exec(w);
+      if (ev) return { finale: false, haupt: `Cup ${ev[1]}`, neben: '' };
       const fd = /_Final_Day(\d+)/i.exec(w);
       if (fd) return { finale: true, haupt: t('Finale'), neben: `${t('Tag')} ${fd[1]}` };
       return null;
@@ -3859,18 +3862,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       </div>
                     ))}
                     </div>
-                    {/* Betreiber, 7.11.2026: ein Knopf je Team, nicht je Spieler - er fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
-                    {e.players.some((p) => /^[0-9a-f-]{32,36}$/i.test(String(p.id))) && (
-                      <button type="button" title={t('Statistik dieses Teams')}
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          const p = e.players.find((x) => /^[0-9a-f-]{32,36}$/i.test(String(x.id)))!;
-                          setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20">
-                        <T>Stats</T>
-                      </button>
-                    )}
                     </div>
                     {!!betrag && (
                       <p className="text-sm font-semibold text-emerald-400">
@@ -3896,6 +3887,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                   {/* Betreiber, 7.11.2026: Spielverlauf und Vergleich als Fenster in der Mitte, Live folgen nur waehrend des Cups. */}
                   <div className="space-y-2 border-t border-zinc-800 pt-4">
+                    {/* Betreiber, 7.11.2026: ein Knopf je Team, er fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
+                    {e.players.some((p) => /^[0-9a-f-]{32,36}$/i.test(String(p.id))) && (
+                      <button type="button" title={t('Statistik dieses Teams')}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          const p = e.players.find((x) => /^[0-9a-f-]{32,36}$/i.test(String(x.id)))!;
+                          setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2.5 text-sm font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20">
+                        <T>Stats</T>
+                      </button>
+                    )}
                     <button type="button" onClick={() => { void spieleVon(e); setVerlaufTeam(e); }}
                       className="w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
                       <T>Spielverlauf</T>
