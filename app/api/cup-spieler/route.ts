@@ -537,7 +537,15 @@ async function holeRoh(request: Request) {
         damageRatio: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null,
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
         // Gebaute Teile nur, wenn jedes gelesene Spiel sie mitbringt - sonst waere die Zahl zu klein. Solo, siehe scripts/clutch-berechnen.mjs.
-        ...((d.bauSpiele ?? 0) > 0 && (d.bauSpiele ?? 0) >= (clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? Infinity) ? {
+        /*
+         * Selbst gesetzte Teile aus dem Inventar-Leser (wie Osirions "Builds Placed"; 8.11.2026: die Kachel zeigte 10.027 - alle Teile, die einem Spieler gehoeren, auch ersetzte
+         * und bearbeitete - Osirions Bester hatte 3.903). Nur wenn jedes Spiel diesen Wert hat.
+         */
+        ...(typeof (d as { selbstHolz?: number }).selbstHolz === 'number' && ((d as { invSpiele?: number }).invSpiele ?? 0) >= (clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? Infinity) ? (() => {
+          const w = d as { selbstHolz?: number; selbstStein?: number; selbstMetall?: number };
+          return { builds: (w.selbstHolz ?? 0) + (w.selbstStein ?? 0) + (w.selbstMetall ?? 0), bauHolz: w.selbstHolz, bauStein: w.selbstStein, bauMetall: w.selbstMetall };
+        })()
+        : (d.bauSpiele ?? 0) > 0 && (d.bauSpiele ?? 0) >= (clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? Infinity) ? {
           builds: (d.bauHolz ?? 0) + (d.bauStein ?? 0) + (d.bauMetall ?? 0), bauHolz: d.bauHolz, bauStein: d.bauStein, bauMetall: d.bauMetall,
           bauWand: d.bauWand, bauBoden: d.bauBoden, bauTreppe: d.bauTreppe, bauDach: d.bauDach,
         } : {}),
