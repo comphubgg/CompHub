@@ -451,6 +451,14 @@ jobs:
         timeout-minutes: 5
         run: node scripts/tierlist-trios.mjs 2>&1 | tail -4
 
+      # Waffen und Gegenstaende fuer das Replay-HUD aus dem Fortnite-Wiki (scripts/waffen-bilder.mjs): alle sechs Stunden, so kommen neue Waffen nach einem
+      # Update von selbst dazu (Betreiber, 7.11.2026).
+      - name: Waffenbilder
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          if [ $(( 10#$(date -u +%H) % 6 )) -eq 0 ]; then node scripts/waffen-bilder.mjs 2>&1 | tail -3; else echo "nicht in dieser Stunde"; fi
+
       # Das Gerechnete sofort ans Release - noch vor dem Bau.
       #
       # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein

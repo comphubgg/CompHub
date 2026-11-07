@@ -17,7 +17,7 @@
  * Schild senken ihn, ein Treffer aufs Leben heisst: Schild leer. Die Anzeige sagt das dazu.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import LOOT_BILDER from '@/app/replays/lootBilder.json';
 
@@ -176,9 +176,40 @@ const SPIEL_SYMBOLE: Array<[RegExp, string, string]> = [
   [/Stimpulse|Shockwave_Athena_STim/i, 'Overdrive Grenade', 't_icon_br_gadget_stimpulsegrenade_l'],
   [/ZiplineDeployer/i, 'Skyline Deployer', 't_icon_br_ziplinedeployer_l'],
 ];
+/*
+ * Alle anderen aus dem Fortnite-Wiki (scripts/waffen-bilder.mjs, alle sechs Stunden erneuert - neue Waffen nach einem Update kommen von selbst): je Kennung
+ * Name und Bild. Bauplan und Kennung werden auf denselben Kern gebracht (B_Shotgun_CoreDPS_Athena_Weap_C und WID_Shotgun_CoreDPS_Athena -> shotgun_coredps);
+ * nur ein genau gleicher Kern zaehlt.
+ */
+const kern = (s: string) => s.replace(/^(B|BP|WID|AGID)_/i, '').replace(/_C$/i, '').replace(/_(C|UC|R|VR|SR|UR|X|Exotic)(_Ore_T0\d|_T0\d)?$/i, '')
+  .split('_').filter((t) => t && !/^(athena|weap|weapon|child|held)$/i.test(t)).join('_').toLowerCase();
+let wiki: Map<string, { name: string; bild: string }> | null = null;
+let wikiLaedt = false;
+const wikiHoerer = new Set<() => void>();
+function useWiki() {
+  const [, neu] = useState(0);
+  useEffect(() => {
+    if (wiki) return undefined;
+    const f = () => neu((x) => x + 1);
+    wikiHoerer.add(f);
+    if (!wikiLaedt) {
+      wikiLaedt = true;
+      fetch('/api/waffen-bilder').then((r) => r.json()).then((j: Record<string, { name: string; bild: string }>) => {
+        const m = new Map<string, { name: string; bild: string }>();
+        for (const [k, v] of Object.entries(j ?? {})) { const n = kern(k); if (!m.has(n)) m.set(n, v); }
+        wiki = m;
+        wikiHoerer.forEach((h) => h());
+      }).catch(() => { wikiLaedt = false; });
+    }
+    return () => { wikiHoerer.delete(f); };
+  }, []);
+}
+
 export function bildVon(roh: string): { name: string; bild: string } | null {
   const spiel = SPIEL_SYMBOLE.find(([m]) => m.test(roh));
   if (spiel) return { name: spiel[1], bild: `/waffen/${spiel[2]}.webp` };
+  const ausWiki = wiki?.get(kern(roh));
+  if (ausWiki) return ausWiki;
   if (/^(WID|AGID)_/i.test(roh)) {
     return BILDER[roh] ?? BILDER[roh.replace(/_(C|UC|R|VR|SR|UR|X)(_Ore_T0\d|_T0\d)?$/i, '').replace(/_Ore_T0\d$/i, '')] ?? null;
   }
@@ -187,6 +218,7 @@ export function bildVon(roh: string): { name: string; bild: string } | null {
 }
 
 function Fach({ roh, aktiv, gross = 40 }: { roh: string; aktiv?: boolean; gross?: number }) {
+  useWiki();
   const { art, name } = artVon(roh);
   const echt = bildVon(roh);
   const [kaputt, setKaputt] = useState(false);

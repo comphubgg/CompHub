@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import { inselKarte } from '@/app/replays/inselKarten';
 import { AlleSpieler, KartenHud, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
 
 export interface RSpieler {
@@ -88,11 +89,14 @@ function XZeichen({ farbe, gross = 22 }: { farbe: string; gross?: number }) {
   );
 }
 
-export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervorheben }: {
+export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben }: {
   match: RMatch; kartenBild: string | null; titel?: string; wertung?: RWertung | null;
   /** Epic-Konto, dessen Team von Anfang an markiert ist (die eigenen Spiele unter "Meine Cups"). */
   hervorheben?: string;
 }) {
+  // Reload-Inseln: Bild und geeichter Ausschnitt (app/replays/inselKarten) - die grosse Karte kommt wie bisher von der Seite.
+  const insel = useMemo(() => (/^Athena_Empty/i.test((match as { karte?: string }).karte ?? '') ? inselKarte(match.playlist) : null), [match]);
+  const kartenBild = grosseKarte ?? insel?.bild ?? null;
   const t = useT();
   const echte = useMemo(() => match.spieler.filter((s) => !s.bot), [match.spieler]);
   const feed = useMemo(() => [...match.feed].sort((a, b) => a.t - b.t), [match.feed]);
@@ -103,6 +107,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
    * anderes Mass, und ein Kartenbild gibt es dort nicht - der Ausschnitt wird dann aus den Zonen und den Orten der Eliminierungen gebildet.
    */
   const welt = useMemo(() => {
+    if (insel) return { x0: insel.x0, y0: insel.y0, spanne: insel.spanne };
     if (kartenBild) return { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE };
     const xs: number[] = []; const ys: number[] = [];
     for (const z of match.zonen) { if (typeof z.x === 'number' && typeof z.y === 'number') { const r = z.radius ?? 0; xs.push(z.x - r, z.x + r); ys.push(z.y - r, z.y + r); } }
@@ -111,7 +116,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
     const x0 = Math.min(...xs); const x1 = Math.max(...xs); const y0 = Math.min(...ys); const y1 = Math.max(...ys);
     const spanne = Math.max(x1 - x0, y1 - y0) * 1.08;
     return { x0: (x0 + x1) / 2 - spanne / 2, y0: (y0 + y1) / 2 - spanne / 2, spanne };
-  }, [kartenBild, match.zonen, match.feed]);
+  }, [kartenBild, insel, match.zonen, match.feed]);
   /** Weltkoordinate -> Prozent der Kartenbreite (x) bzw. -hoehe (y). */
   const pzx = (v: number) => ((v - welt.x0) / welt.spanne) * 100;
   const pzy = (v: number) => ((v - welt.y0) / welt.spanne) * 100;

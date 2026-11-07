@@ -1499,6 +1499,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
   'Mehr anzeigen': 'Show more',
+  'Laufende Matches zeigt Epic nur Freunden - dieser Spieler ist noch nicht mit dem CompHub-Epic-Konto befreundet. Fertige Spiele stehen unten, sobald sie vorbei sind.': 'Epic only shows running matches to friends - this player is not friends with the CompHub Epic account yet. Finished games appear below once they are over.',
   'Epic lässt für dein Konto gerade keine weitere Anmeldung zu. Versuche es in einer halben Stunde noch einmal.': 'Epic is not allowing another sign-in for your account right now. Please try again in half an hour.',
   'Epic lässt gerade keine weitere Anmeldung zu. In ein paar Minuten geht es wieder.': 'Epic is not accepting another sign-in right now. It will work again in a few minutes.',
   'Zeigt die laufende Summe über die Matches statt des Werts je Match': 'Shows the running total across matches instead of each match on its own',

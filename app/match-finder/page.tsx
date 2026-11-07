@@ -21,7 +21,7 @@ interface Treffer extends Favorit { ingame?: string | null; bild?: string | null
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
 interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund'; windowId: string | null; titel: string | null; playlist: string | null }
 interface FScrim { beendet?: boolean; session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
-interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null }
+interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null; freund?: boolean }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }
 interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[] }
 
@@ -184,7 +184,13 @@ export default function MatchFinder() {
                       </button>
                     </div>
                   ) : !s?.scrim ? (
-                    <p className="mt-3 text-xs text-slate-500">{daten ? <T>Gerade in keinem Match.</T> : <T>Wird geladen …</T>}</p>
+                    /*
+                     * Epic zeigt ein laufendes Match nur Freunden (Clix, 7.11.2026: spielte im Trios Cash Cup, die Liste laufender Matches ist leer, die Sitzungssuche
+                     * liefert fuer fremde Konten nichts). Wer nicht mit dem CompHub-Konto befreundet ist, bekommt deshalb nicht "in keinem Match", sondern den Grund.
+                     */
+                    <p className="mt-3 text-xs text-slate-500">{!daten ? <T>Wird geladen …</T>
+                      : s?.freund === false ? <T>Laufende Matches zeigt Epic nur Freunden - dieser Spieler ist noch nicht mit dem CompHub-Epic-Konto befreundet. Fertige Spiele stehen unten, sobald sie vorbei sind.</T>
+                      : <T>Gerade in keinem Match.</T>}</p>
                   ) : null}
                   {/* Laufende Scrims (Noble/Yunite): Session, Platz, Punkte, Spiele und die volle Kennung des letzten Spiels. */}
                   {s?.scrim && (
