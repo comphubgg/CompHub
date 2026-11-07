@@ -1,3 +1,5 @@
+import { bestenlisteVorrat } from '@/lib/bestenlisteVorrat';
+import { replayIndex } from '@/lib/replayVoll';
 import path from 'path';
 import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
@@ -278,7 +280,9 @@ async function holeRoh(request: Request) {
      */
     const vorher = zuletztLive.get(`${event}|${window_}`);
     const frist = vorher && Date.now() - vorher < 30 * 60_000 ? TTL_LIVE : TTL;
-    const daten = await gecacht(`matches|${event}|${window_}|${limit}`, frist,
+    // Grosse Listen aus dem Vorrat: der Weg ueber Epic sind hundert Seiten (37 Sekunden beim Trios Cash Cup am 7.11.2026).
+    const vorrat = limit > 500 && p.get('frisch') !== '1' ? await bestenlisteVorrat(window_) : null;
+    const daten = vorrat ? { entries: vorrat.slice(0, limit) } : await gecacht(`matches|${event}|${window_}|${limit}`, frist,
       () => holeTop(event, window_, limit));
 
     /*
@@ -675,8 +679,17 @@ async function holeRoh(request: Request) {
      */
     const feldGrenze = daten.entries.length >= limit;
 
+    /*
+     * Bei tausenden Lobbys zeigt die Seite nur die mit genug bekannten Spielern; der Rest kam trotzdem mit, ueber 30 MB fuer eine leere Liste. Diese Lobbys gehen nur noch als Zeile
+     * ohne Teams heraus: die Zahlen stimmen, und der Browser hat nichts zu tun.
+     */
+    const ausgedient = (sp: { id?: string; teams?: Array<{ spieler?: unknown[] }> }, seiten: Record<string, unknown>) => !seiten[String(sp.id)]
+      && (sp.teams ?? []).reduce((n, z) => n + (z.spieler?.length ?? 0), 0) < 60;
+    const seiten = (spiele as unknown[]).length > 300 ? await replayIndex().catch(() => ({})) : null;
+    const schlank = seiten ? (spiele as Array<Record<string, unknown>>).map((sp) => (ausgedient(sp as never, seiten) ? { ...sp, teams: [], sieger: undefined, schmal: true } : sp)) : spiele;
+
     return NextResponse.json({
-      spiele,
+      spiele: schlank,
       teams: daten.entries.length,
       /** Stiess die Bestenliste an ihre Grenze? Dann fehlen Plaetze unten. */
       feldGrenze,

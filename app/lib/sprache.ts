@@ -3339,7 +3339,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Du kannst mir gern auf Deutsch oder Englisch schreiben.': 'Feel free to write to me in German or English.',
   'Per Discord oder E-Mail erreichst du den Betreiber': 'Reach the operator on Discord or by email',
   'In dieser Auswertung hat niemand allein Punkte geholt.': 'Nobody won points alone in this analysis.',
-  'An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 80 bekannten Spielern oder eigenem Replay.': 'Thousands of lobbies run on this match day, and Epic only names the teams of the leaderboard for each lobby. Only lobbies with at least 80 known players or their own replay appear here.',
+  'An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 60 bekannten Spielern oder eigenem Replay.': 'Thousands of lobbies run on this match day, and Epic only names the teams of the leaderboard for each lobby. Only lobbies with at least 60 known players or their own replay appear here.',
   'Lobbys mit weniger als 80 bekannten Spielern sind ausgeblendet.': 'lobbies with fewer than 80 known players are hidden.',
   'Spieltag mit Karte': 'Match day with a map',
   'Jeder Landepunkt mit Spielern aus einem Land trägt dessen Flagge; stehen mehrere Länder darauf, bleibt er dunkel (rot, wo mehrere Teams landen).': 'Every landing spot with players from one country carries its flag; if several countries land there it stays dark (red where several teams land).',
