@@ -218,7 +218,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 }
 
@@ -644,18 +644,43 @@ class SchadenLeser : ReplayReader {
     }
   }
 
-  void LebenNotieren(uint kanal, INetFieldExportGroup g) {
-    if (Zeit() is not double t) return;
-    var id = Hole(VonFigur, kanal)?.Id ?? VomZustand(kanal)?.Id;
-    if (id is not int i) return;
-    var hp = g.GetType().GetProperty("HealthCurrentValue")?.GetValue(g);
-    if (hp is null) return;
-    var wert = Math.Round(Convert.ToDouble(hp));
+  /*
+   * Leben und Schild jedes Spielers (7.11.2026). Die Bibliothek liest FortRegenHealthSet ueber feste Feldnummern, und die stimmen nicht mehr: der Schild steht laengst in Feld 31, nicht in 19 -
+   * deshalb sah er aus wie "im Strom null". Hier werden die Felder selbst gelesen. Die Werte sind exakt, auch die Nachkommastellen (Leben 59,5).
+   */
+  const uint LebenFeld = 1, SchildFeld = 31;
+  public readonly Dictionary<int, List<double[]>> Schild = new();
+  public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
+    if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
+    exportGroup = null;
+    if (enablePropertyChecksum) archive.ReadBit();
+    double? leben = null, schild = null;
+    while (true) {
+      var feld = archive.ReadIntPacked();
+      if (feld == 0) break;
+      feld--;
+      var bits = archive.ReadIntPacked();
+      if (bits == 0) continue;
+      var daten = archive.ReadBits(bits);
+      if (bits != 32) continue;
+      if (feld == LebenFeld) leben = BitConverter.ToSingle(daten);
+      else if (feld == SchildFeld) schild = BitConverter.ToSingle(daten);
+    }
+    if ((leben is not null || schild is not null) && Zeit() is double t && (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) is int id) {
+      if (leben is double h) LebenNotieren(id, t, Math.Round(h, 2));
+      if (schild is double sc) {
+        if (!Schild.TryGetValue(id, out var l)) Schild[id] = l = new();
+        if (l.Count == 0 || l[^1][1] != Math.Round(sc, 2)) l.Add(new[] { Math.Round(t, 2), Math.Round(sc, 2) });
+      }
+    }
+    return true;
+  }
+  void LebenNotieren(int i, double t, double wert) {
     if (!Leben.TryGetValue(i, out var l)) Leben[i] = l = new();
     if (l.Count > 0 && l[^1][1] == wert) return;
     // Sturmschaden: Lebenspunkte, die im Sturm verloren gehen, je Schlag hoechstens 10 (mehr ist ein Treffer). Am Boden blutet man aus, das zaehlt nicht.
     if (l.Count > 0 && wert < l[^1][1] && l[^1][1] - wert <= 10 && imSturm.Contains(i) && !AmBodenZuZeit(i, t)) ExtraVon(i)[ExtraSturm] += l[^1][1] - wert;
-    l.Add(new[] { Math.Round(t, 1), wert });
+    l.Add(new[] { Math.Round(t, 2), wert });
   }
 
   int LootNr(string name) {
@@ -746,7 +771,6 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (bauKanal.ContainsKey(channelIndex)) { BauNotieren(channelIndex, exportGroup); return; }
-    if (exportGroup.GetType().Name == "HealthSet") { LebenNotieren(channelIndex, exportGroup); return; }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)

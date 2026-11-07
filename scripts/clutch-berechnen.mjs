@@ -185,9 +185,33 @@ function schadenAus(roh) {
         [['samHolz', 6], ['samStein', 7], ['samMetall', 8], ['farmHolz', 9], ['farmStein', 10], ['farmMetall', 11], ['schussEcht', 12], ['editOk', 13], ['selbstHolz', 14], ['selbstStein', 15], ['selbstMetall', 16]]
           .forEach(([k, i]) => { d[k] = (d[k] ?? 0) + x[i]; });
       }
-      // Leben geheilt: Anstiege unter 50 Punkten - groessere sind das Zuruecksetzen beim Knock und beim Wiedereinstieg. Geschaetzt, im Finale rund 15 % ueber Osirion.
-      const l = roh.leben?.[p.id] ?? [];
-      for (let i = 1; i < l.length; i += 1) { const a = l[i][1] - l[i - 1][1]; if (a > 0 && a < 50 && l[i - 1][1] > 0) d.heilHp = (d.heilHp ?? 0) + a; if (a < 0) d.lebenWeg = (d.lebenWeg ?? 0) - a; }
+      /*
+       * Schild: exakt, der Verlauf steht offen im Strom (tools/replay-voll, ReceiveProperties). Performance-Finale: Shield Taken 1.113,3 / 1.245,3 / 1.131,7 zu Osirions 1.113 / 1.245 / 1.131,
+       * Shield Healed ebenso. Gezaehlt ab 0 beim Bus; Werte ueber 100 vor dem ersten echten Stand sind Reste aus der Lobby.
+       */
+      const schildSpur = (roh.schild?.[p.id] ?? []).filter((s) => s[0] >= (roh.busAb ?? 0));
+      if (roh.schild) {
+        let stand = 0; let begonnen = false;
+        for (const [, w] of schildSpur) {
+          if (!begonnen && w > 100) continue;
+          begonnen = true;
+          if (w > stand) d.schildHeilEcht = (d.schildHeilEcht ?? 0) + w - stand; else d.schildWegEcht = (d.schildWegEcht ?? 0) + stand - w;
+          stand = w;
+        }
+      }
+      /*
+       * Leben: ein einzelner Sprung auf 100 ist der Knock (das Bodenleben), kein Heilen; was davor noch da war, ging verloren. Am Boden zaehlt nichts, bis jemand einen aufhebt.
+       * Finale: geheilt 461 / 553 / 582 zu Osirions 386 / 508 / 550, verloren 746 / 785 / 914 zu 766 / 868 / 932 - hier fehlt noch eine Regel.
+       */
+      const l = (roh.leben?.[p.id] ?? []).filter((s) => s[0] >= (roh.busAb ?? 0));
+      const aufgehoben = (roh.feed ?? []).filter((e) => e.opfer === p.id && e.art === 'tot' && e.ursache === 50).map((e) => e.t);
+      let amBoden = false;
+      for (let i = 1; i < l.length; i += 1) {
+        const a = l[i][1] - l[i - 1][1];
+        if (l[i][1] === 100 && a >= 11) { d.lebenWeg = (d.lebenWeg ?? 0) + l[i - 1][1]; amBoden = true; continue; }
+        if (amBoden) { if (aufgehoben.some((t) => Math.abs(t - l[i][0]) <= 0.6)) amBoden = false; continue; }
+        if (a > 0) d.heilHp = (d.heilHp ?? 0) + a; else d.lebenWeg = (d.lebenWeg ?? 0) - a;
+      }
       // Der Schild steht nicht im Strom. Was an Schild verloren ging, liegt nah am Geheilten (1.262 zu 1.247 bei Darm).
       for (const t of roh.treffer ?? []) if (t[2] === p.id && t[7]) d.schildWeg = (d.schildWeg ?? 0) + t[3];
       // Schuesse: Einschlaege mit einer Waffe in der Hand; mit der Spitzhacke sind es Farm-Schlaege.
@@ -387,7 +411,7 @@ if (arg[0] === '--plan') {
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
      */
-    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 5 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 6 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
