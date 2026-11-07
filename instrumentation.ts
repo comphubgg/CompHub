@@ -160,6 +160,18 @@ export async function register() {
     };
     setTimeout(() => { void vorbauen(); }, 60_000).unref?.();
     setInterval(() => { void vorbauen(); }, 60_000).unref?.();
+
+    /*
+     * Die Freunde des Bot-Kontos (lib/botFreunde): alle zwei Minuten die Namen aus #admin-bot-friends abarbeiten und melden, wer angenommen oder abgelehnt hat.
+     */
+    const botTakt = async () => {
+      try {
+        const { createHash } = await import('node:crypto');
+        const schluessel = createHash('sha256').update(`bot-freunde|${process.env.DISCORD_BOT_TOKEN ?? ''}`).digest('hex').slice(0, 32);
+        await fetch(`${intern}/api/bot-freunde`, { method: 'POST', headers: { 'x-intern': schluessel }, cache: 'no-store', signal: AbortSignal.timeout(110_000) }).catch(() => {});
+      } catch { /* naechster Takt */ }
+    };
+    if (process.env.DISCORD_BOT_TOKEN) setInterval(() => { void botTakt(); }, 120_000).unref?.();
   }
 
   if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
