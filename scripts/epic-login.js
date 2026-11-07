@@ -19,7 +19,12 @@ const BASIC = 'basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('
 const ACCOUNT = 'https://account-public-service-prod.ol.epicgames.com';
 const LOGIN_URL = 'https://www.epicgames.com/id/api/redirect?clientId=' +
   CLIENT_ID + '&responseType=code';
-const ZIEL = path.join(process.cwd(), 'data', 'epic-auth.json');
+/*
+ * --bot: das eigene Konto der Seite (7.11.2026, "comphub."), getrennt vom Konto des Betreibers - in data/epic-auth-bot.json. Das Browserfenster wird dann
+ * nicht von selbst geoeffnet: im normalen Browser ist der Betreiber mit seinem eigenen Konto angemeldet, der Code waere seiner.
+ */
+const BOT = process.argv.includes('--bot');
+const ZIEL = path.join(process.cwd(), 'data', BOT ? 'epic-auth-bot.json' : 'epic-auth.json');
 
 async function req(url, opts) {
   const res = await fetch(url, opts);
@@ -40,7 +45,7 @@ function findeCode(s) {
 }
 
 (async function () {
-  let code = findeCode(process.argv[2]);
+  let code = findeCode(process.argv.slice(2).find((a) => a !== '--bot'));
 
   if (!code) {
     console.log('\n=== Epic einmalig verbinden ===\n');
@@ -50,8 +55,15 @@ function findeCode(s) {
     console.log('Ganze Zeile markieren, kopieren, hier einfuegen.');
     console.log('Ich suche mir den Code selbst heraus.\n');
 
+    if (BOT) {
+      console.log('Fuer das CompHub-Bot-Konto:');
+      console.log('  1. Ein privates Fenster oeffnen (Chrome: Strg + Umschalt + N).');
+      console.log('  2. Dort bei epicgames.com mit dem Bot-Konto anmelden.');
+      console.log('  3. Im selben Fenster diese Adresse oeffnen:\n');
+      console.log('     ' + LOGIN_URL + '\n');
+    }
     // URL in Anfuehrungszeichen - sonst schneidet cmd.exe sie am & ab.
-    try {
+    if (!BOT) try {
       const cmd = process.platform === 'win32'
         ? 'start "" "' + LOGIN_URL + '"'
         : (process.platform === 'darwin' ? 'open "' : 'xdg-open "') + LOGIN_URL + '"';
@@ -89,6 +101,13 @@ function findeCode(s) {
                  'Content-Type': 'application/json' },
       body: '{}',
     });
+    // Das Bot-Konto darf nicht das des Betreibers sein (dann haette er im normalen Fenster den Code geholt).
+    if (BOT) {
+      try {
+        const haupt = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'epic-auth.json'), 'utf8'));
+        if (haupt.accountId === dev.accountId) { console.error('\nDas ist dein eigenes Konto, nicht das Bot-Konto. Bitte im privaten Fenster mit dem Bot-Konto anmelden.\n'); process.exit(1); }
+      } catch { /* ohne Hauptkonto kein Vergleich */ }
+    }
     fs.writeFileSync(ZIEL, JSON.stringify({
       mode: 'device', accountId: dev.accountId, deviceId: dev.deviceId,
       secret: dev.secret, displayName: tok.displayName,
