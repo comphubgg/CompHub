@@ -226,7 +226,7 @@ function schadenAus(roh) {
        * Schild: exakt, der Verlauf steht offen im Strom (tools/replay-voll, ReceiveProperties). Performance-Finale: Shield Taken 1.113,3 / 1.245,3 / 1.131,7 zu Osirions 1.113 / 1.245 / 1.131,
        * Shield Healed ebenso. Gezaehlt ab 0 beim Bus; Werte ueber 100 vor dem ersten echten Stand sind Reste aus der Lobby.
        */
-      const schildSpur = (roh.schild?.[p.id] ?? []).filter((s) => s[0] >= (roh.busAb ?? 0));
+      const schildSpur = (roh.schild?.[p.id] ?? []).filter((s) => s[0] >= (roh.busAb ?? 0) && s[0] <= (Number.isFinite(roh.ende) ? roh.ende : Infinity));
       if (roh.schild) {
         let stand = 0; let begonnen = false;
         for (const [, w] of schildSpur) {
@@ -240,8 +240,10 @@ function schadenAus(roh) {
        * Leben: ein einzelner Sprung auf 100 ist der Knock (das Bodenleben), kein Heilen; was davor noch da war, ging verloren. Am Boden zaehlt nichts, bis jemand einen aufhebt.
        * Finale: geheilt 461 / 553 / 582 zu Osirions 386 / 508 / 550, verloren 746 / 785 / 914 zu 766 / 868 / 932 - hier fehlt noch eine Regel.
        */
+      // Nur bis zum Spielende: nach dem Sieg heilt man noch, das zaehlt Osirion nicht (Darm, Spiel 4: 75 Punkte nach 1.834,5 s; damit Health Healed exakt 386).
+      const spielEnde = Number.isFinite(roh.ende) ? roh.ende : Infinity;
       const alleLeben = roh.leben?.[p.id] ?? []; const ersterLeben = alleLeben.findIndex((s) => s[0] >= (roh.busAb ?? 0));
-      const l = ersterLeben < 0 ? [] : alleLeben.slice(Math.max(0, ersterLeben - 1));
+      const l = (ersterLeben < 0 ? [] : alleLeben.slice(Math.max(0, ersterLeben - 1))).filter((s) => s[0] <= spielEnde);
       const aufgehoben = (roh.feed ?? []).filter((e) => e.opfer === p.id && e.art === 'tot' && e.ursache === 50).map((e) => e.t);
       let amBoden = false;
       for (let i = 1; i < l.length; i += 1) {
