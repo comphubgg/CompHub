@@ -3821,6 +3821,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
                     title={istAdmin ? 'Doppelklick: Flaggen und Twitch-Kanal dieses Duos' : undefined}
                     className={`space-y-2 ${istAdmin ? 'cursor-pointer' : ''}`}>
+                    <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
                     {e.players.map((p) => (
                       <div key={p.id} className="flex items-center gap-2.5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -3832,16 +3834,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           {p.logo && <img src={p.logo} alt=""
                             className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
                         </div>
-                        {/* Betreiber, 7.11.2026: der Knopf steht nicht direkt am Namen und fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
-                        {/^[0-9a-f-]{32,36}$/i.test(String(p.id)) && (
-                          <button type="button" onClick={() => { setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                            title={t('Statistik dieses Spielers')}
-                            className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20">
-                            <T>Stats</T>
-                          </button>
-                        )}
                       </div>
                     ))}
+                    </div>
+                    {/* Betreiber, 7.11.2026: ein Knopf je Team, nicht je Spieler - er fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
+                    {e.players.some((p) => /^[0-9a-f-]{32,36}$/i.test(String(p.id))) && (
+                      <button type="button" title={t('Statistik dieses Teams')}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          const p = e.players.find((x) => /^[0-9a-f-]{32,36}$/i.test(String(x.id)))!;
+                          setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20">
+                        <T>Stats</T>
+                      </button>
+                    )}
+                    </div>
                     {!!betrag && (
                       <p className="text-sm font-semibold text-emerald-400">
                         {betrag.toLocaleString(ort)} {waehrung}

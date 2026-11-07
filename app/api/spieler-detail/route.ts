@@ -68,7 +68,7 @@ async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: st
   return [];
 }
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -158,7 +158,7 @@ export async function GET(request: Request) {
 
     const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
-    const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+    const clutch = await liesJson<{ summe?: Record<string, number>; leben?: Record<string, number>; epicZeit?: Record<string, number>; epicTeamZeit?: Record<string, number>; strecke?: Record<string, [number, number]>; epicStrecke?: Record<string, number>; schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
 
     // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
     const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
@@ -175,6 +175,13 @@ export async function GET(request: Request) {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
+          // Aus dem vollen Auslesen: Clutch, Zeit und Strecke (dieselbe Rechnung wie in app/api/cup-spieler: Teamzeit als Obergrenze, Strecke bei Team-Cups hochgerechnet).
+          ...(d ? {
+            clutch: clutch?.summe?.[i] ?? 0,
+            ...(typeof (clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) === 'number' ? { lebenSek: Math.round(Math.min((clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) as number, clutch?.epicTeamZeit?.[i] ?? Infinity)) } : {}),
+            ...(typeof clutch?.epicStrecke?.[i] === 'number' ? { streckeM: clutch.epicStrecke[i] }
+              : clutch?.strecke?.[i] ? { streckeM: Math.round(((clutch.strecke[i][0] ?? 0) + (clutch.strecke[i][1] ?? 0)) / 0.685) } : {}),
+          } : {}),
         };
       }
       // Die eigene Auswertung fuellt, was die anderen Quellen nicht haben. Eliminierungen, Knocks und Tode nur, wenn alle bestellten Lobbys gelesen sind

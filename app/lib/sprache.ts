@@ -3897,6 +3897,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
+  'Statistik dieses Teams': 'Stats of this team',
   'steht nicht in der Bestenliste dieses Cups.': 'not on the leaderboard of this cup.',
   'Verlauf': 'History',
   'Für diese Games liegen die Zonen noch nicht vor. Sie erscheinen von selbst, sobald die Replays voll gelesen sind.': 'The zones of these games are not available yet. They appear on their own once the replays are fully read.',

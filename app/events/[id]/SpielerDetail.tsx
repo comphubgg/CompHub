@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -115,9 +115,19 @@ const KERN: Zeile[] = [
 
 /** Dazu nur, was fuer alle Spieler der Ansicht vorliegt - sonst stuenden bei dem einen Zeilen, die dem anderen fehlen. */
 const ZUSATZ: Zeile[] = [
+  // Betreiber, 7.11.2026: "3 Statistics von 30 ... das ist peinlich". Alles, was die Replays je Spieler hergeben, steht hier.
+  { titel: 'Knocks', wert: (m) => m.replay?.knocks ?? null, zeige: num },
+  { titel: 'Deaths', wert: (m) => m.replay?.tode ?? null, zeige: num, rot: true, weniger: true },
   { titel: 'Damage To Players', wert: dmg, zeige: num, je: (m) => m.damage },
+  { titel: 'Damage per Match', wert: (m, c) => { const a = dmg(m, c); return a !== null && c.e?.games ? a / c.e.games : null; }, zeige: num },
   { titel: 'Damage From Players', wert: dmgT, zeige: num, je: (m) => m.damageTaken, rot: true, weniger: true },
   { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v, ort) => dez(v, ort, 2) },
+  { titel: 'Hits To Players', wert: treffer, zeige: num },
+  { titel: 'Headshots', wert: kopf, zeige: num },
+  { titel: 'Headshot Rate', wert: (m, c) => { const a = kopf(m, c); const b = treffer(m); return a !== null && b ? (a / b) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} %` },
+  { titel: 'Solo Clutch Points', wert: (m) => m.replay?.clutch ?? null, zeige: num },
+  { titel: 'Time Alive', wert: (m) => m.replay?.lebenSek ?? null, zeige: (v) => dauer(v) },
+  { titel: 'Distance Traveled', wert: (m) => m.replay?.streckeM ?? null, zeige: (v, ort) => `${dez(v / 1000, ort, 1)} km` },
   { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
   { titel: 'Players Revived', wert: (m, c) => vomMitspieler(m, c, wiederbelebt), zeige: num },
   { titel: 'Got Revived', wert: (m, c) => (c.echtSolo ? 0 : wiederbelebt(m)), zeige: num },
