@@ -56,12 +56,16 @@ async function ganzeListe(w: string): Promise<GanzeZeile[] | null> {
 
 /** Die Konten zu einem Namen aus dem Verzeichnis der Szene - leer, wenn es keines kennt oder nicht antwortet. */
 async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: string; name: string }>> {
-  try {
-    const r = await fetch(`${origin}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
-    if (!r.ok) return [];
-    const j = await r.json() as { spieler?: Array<{ epicId?: string; name?: string }> };
-    return (j.spieler ?? []).filter((x) => x.epicId).map((x) => ({ id: x.epicId!, name: x.name ?? '' })).slice(0, 25);
-  } catch { return []; }
+  // Zuerst der Server selbst: hinter dem Tunnel fuehrt die Adresse der Anfrage ins Leere, und die Suche kannte dann keinen einzigen Spieler aus dem Verzeichnis (7.11.2026: Glubschi).
+  for (const basis of [`http://127.0.0.1:${process.env.PORT || 3100}`, origin]) {
+    try {
+      const r = await fetch(`${basis}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+      if (!r.ok) continue;
+      const j = await r.json() as { spieler?: Array<{ epicId?: string; name?: string }> };
+      if (Array.isArray(j.spieler)) return j.spieler.filter((x) => x.epicId).map((x) => ({ id: x.epicId!, name: x.name ?? '' })).slice(0, 25);
+    } catch { /* naechste Adresse */ }
+  }
+  return [];
 }
 
 export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
@@ -90,9 +94,11 @@ export async function GET(request: Request) {
       // Mit dem Vorrat ist die Antwort sofort da. Nennt das Verzeichnis jemanden, der hier nicht steht, sagt die Seite das - statt nur "nicht gefunden" (Betreiber: "Glubschi").
       if (liste) {
         const ids = new Set(kandidaten.map(normId));
-        const text = q.toLowerCase();
+        // Grosses I und kleines l sehen gleich aus und werden gern getauscht: "GIubschii" soll auch auf "glubschi" passen.
+        const glatt = (x: string) => x.toLowerCase().replace(/[il1|]/g, 'l');
+        const text = glatt(q);
         const treffer = liste.flatMap((e) => (e.players ?? [])
-          .filter((pl) => ids.has(normId(pl.id)) || (pl.name ?? '').toLowerCase().includes(text))
+          .filter((pl) => ids.has(normId(pl.id)) || glatt(pl.name ?? '').includes(text))
           .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points, team: (e.players ?? []).filter((x) => x.id !== pl.id).map((x) => x.name) })))
           .slice(0, 10);
         return NextResponse.json({ ok: true, treffer, bekannt: treffer.length ? [] : bekannt.slice(0, 3).map((x) => x.name).filter(Boolean) }, { headers: { 'Cache-Control': 'no-store' } });
