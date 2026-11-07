@@ -353,22 +353,49 @@ class SchadenLeser : ReplayReader {
       if (m.Success) bauKanal[kanal] = (m.Groups[1].Value[0], m.Groups[2].Value);
     } catch { }
   }
-  void BauNotieren(uint kanal, INetFieldExportGroup g) {
-    if (!bauKanal.TryGetValue(kanal, out var teil)) return;
-    var t = g.GetType();
-    if (t.GetProperty("TeamIndex")?.GetValue(g) is not object teamWert) return;
-    var team = Convert.ToInt32(teamWert);
-    if (!Bauten.TryGetValue(team, out var b)) Bauten[team] = b = new Bau();
-    if (t.GetProperty("EditingPlayer")?.GetValue(g) is not null) b.Bearbeitet++;
-    if (!bauGezaehlt.Add(kanal)) return;
-    if (t.GetProperty("bPlayerPlaced")?.GetValue(g) is bool gesetzt && !gesetzt) return;
+  /*
+   * Jedes gebaute Teil, roh aus dem Strom gelesen (7.11.2026): die Bibliothek kennt BuildingReplacementType nicht, und nur damit trennt man Gebautes von dem, was beim Editieren an seine Stelle tritt.
+   * OwnerPersistentID ist die WorldPlayerId des Spielers. Performance-Finale, Stein und Metall: 318/404/245 und 124/445/243 zu Osirions 314/404/235 und 123/444/240.
+   */
+  readonly Dictionary<uint, (char stoff, int besitzer, bool gesetzt, bool ersatz)> bauTeile = new();
+  readonly Dictionary<int, int> spielerVonWelt = new();
+  bool BauLesen(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint kanal, bool enablePropertyChecksum) {
+    if (enablePropertyChecksum) archive.ReadBit();
+    int? team = null, besitzer = null; bool? gesetzt = null; var ersatz = false; var bearbeitet = false;
+    while (true) {
+      var feld = archive.ReadIntPacked();
+      if (feld == 0) break;
+      feld--;
+      var bits = archive.ReadIntPacked();
+      if (bits == 0) continue;
+      var daten = archive.ReadBits(bits);
+      if (!group.IsValidIndex(feld)) continue;
+      switch (group.NetFieldExports[feld]?.Name) {
+        case "TeamIndex": team = daten[0]; break;
+        case "bPlayerPlaced": gesetzt = daten[0] != 0; break;
+        case "OwnerPersistentID": if (bits >= 16) besitzer = BitConverter.ToUInt16(daten); break;
+        case "BuildingReplacementType": ersatz = true; break;
+        case "EditingPlayer": bearbeitet = true; break;
+      }
+    }
+    if (!bauKanal.TryGetValue(kanal, out var teil)) return true;
+    if (Channels[kanal]?.Actor?.ActorNetGUID?.Value is uint akteur) {
+      bauTeile.TryGetValue(akteur, out var alt);
+      bauTeile[akteur] = (teil.stoff, besitzer ?? alt.besitzer, gesetzt ?? alt.gesetzt, ersatz || alt.ersatz);
+    }
+    if (team is not int tm) return true;
+    if (!Bauten.TryGetValue(tm, out var b)) Bauten[tm] = b = new Bau();
+    if (bearbeitet) b.Bearbeitet++;
+    if (!bauGezaehlt.Add(kanal)) return true;
+    if (gesetzt == false) return true;
     if (teil.stoff == 'W') b.Holz++; else if (teil.stoff == 'S') b.Stein++; else b.Metall++;
     if (teil.form.Contains("Floor") || teil.form.StartsWith("Balcony")) b.Boden++;
     else if (teil.form.StartsWith("Stair")) b.Treppe++;
     else if (teil.form.StartsWith("Roof")) b.Dach++;
     else if (teil.form is "Solid" or "Brace" or "HalfWall" or "HalfWallS" or "QuarterWallS" || teil.form.Contains("Window") || teil.form.Contains("Door") || teil.form.Contains("Archway")) b.Wand++;
     else b.Sonst++;
-    if (t.GetProperty("OwnerPersistentID")?.GetValue(g) is not null) b.MitBesitzer++;
+    if (besitzer is not null) b.MitBesitzer++;
+    return true;
   }
   static readonly FieldInfo CacheFeld = typeof(ReplayReader).BaseType?.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance);
   System.Collections.IDictionary PfadKarte() {
@@ -544,10 +571,10 @@ class SchadenLeser : ReplayReader {
   /*
    * Rechnet die Inventar-Schritte auf die Spieler um; einmal nach dem Lesen, wenn alle Figuren bekannt sind. Die Regeln sind an den vier Spielen des Performance-Finales gegen Osirion geprueft
    * (Darm, Charyy, demus; Holz, Stein, Metall je Spieler), die Mengen selbst sind exakt, nur ihre Einordnung ist geschaetzt:
-   * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt weder als Bau noch als Gewinn.
+   * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt nicht als Gewinn.
    * - Gefarmt: das Plus liegt bis 0,5 s nach oder 0,3 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
-   * - Ein Minus ab 70 ist Hinwerfen, kein Bau. Was das Team binnen 30 s davon wieder aufhebt, ist nur weitergereicht und zaehlt nicht als gesammelt (Darm: Holz +68 % ohne diese Regel).
-   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %, Builds 4 %.
+   * - Ein Minus ab 70 ist Hinwerfen. Was das Team binnen 30 s davon wieder aufhebt, ist nur weitergereicht und zaehlt nicht als gesammelt (Darm: Holz +68 % ohne diese Regel).
+   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %.
    */
   const double WurfAb = 70, WurfFrist = 30;
   public void InventarAbschliessen(Dictionary<int, int> teamVon) {
@@ -596,7 +623,6 @@ class SchadenLeser : ReplayReader {
         var e = ExtraVon(id);
         if (m < 0) {
           if (-m >= WurfAb) geworfen.Add(new[] { t, -m });
-          else if (-m % 10 == 0) e[ExtraBauten + stoff] += -m / 10;
           continue;
         }
         var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
@@ -611,6 +637,9 @@ class SchadenLeser : ReplayReader {
       }
     }
     foreach (var (wurzel, schuesse) in schussSchritte) if (SpielerDerWurzel(wurzel) is int id) ExtraVon(id)[ExtraSchuesse] += schuesse;
+    foreach (var (stoff, besitzer, gesetzt, ersatz) in bauTeile.Values) {
+      if (gesetzt && !ersatz && spielerVonWelt.TryGetValue(besitzer, out var id)) ExtraVon(id)[ExtraBauten + (stoff == 'W' ? 0 : stoff == 'S' ? 1 : 2)] += 1;
+    }
   }
 
   /*
@@ -651,6 +680,7 @@ class SchadenLeser : ReplayReader {
   const uint LebenFeld = 1, SchildFeld = 31;
   public readonly Dictionary<int, List<double[]>> Schild = new();
   public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
+    if (bauKanal.ContainsKey(channelIndex) && group.PathName.Contains("PBWA_", StringComparison.Ordinal)) { exportGroup = null; return BauLesen(archive, group, channelIndex, enablePropertyChecksum); }
     if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
     exportGroup = null;
     if (enablePropertyChecksum) archive.ReadBit();
@@ -739,7 +769,10 @@ class SchadenLeser : ReplayReader {
         try { var v = exportGroup.GetType().GetProperty(f)?.GetValue(exportGroup); if (v is not null) BusWerte[f] = v; } catch { }
       }
     }
-    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.FortPlayerState fs && fs.bThankedBusDriver == true && VomZustand(channelIndex)?.Id is int dankt) ExtraVon(dankt)[ExtraBusfahrer] = 1;
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.FortPlayerState fs && VomZustand(channelIndex)?.Id is int zustandId) {
+      if (fs.bThankedBusDriver == true) ExtraVon(zustandId)[ExtraBusfahrer] = 1;
+      if (fs.WorldPlayerId is short welt && welt > 0) spielerVonWelt[welt] = zustandId;
+    }
     if (exportGroup is InventarWurzel iw) {
       if (iw.ReplayPawn is > 0 && Channels[channelIndex]?.Actor?.ActorNetGUID?.Value is uint wg) {
         if (!inventarFiguren.TryGetValue(wg, out var fl)) inventarFiguren[wg] = fl = new();
@@ -770,7 +803,6 @@ class SchadenLeser : ReplayReader {
       }
       return;
     }
-    if (bauKanal.ContainsKey(channelIndex)) { BauNotieren(channelIndex, exportGroup); return; }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
