@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -129,6 +129,10 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Time Alive', wert: (m) => m.replay?.lebenSek ?? null, zeige: (v) => dauer(v) },
   { titel: 'Distance Traveled', wert: (m) => m.replay?.streckeM ?? null, zeige: (v, ort) => `${dez(v / 1000, ort, 1)} km` },
   { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
+  { titel: 'Builds Placed', wert: (m) => (m.replay?.bauHolz === undefined ? null : (m.replay.bauHolz ?? 0) + (m.replay.bauStein ?? 0) + (m.replay.bauMetall ?? 0)), zeige: num },
+  { titel: 'Wood Placed', wert: (m) => m.replay?.bauHolz ?? null, zeige: num },
+  { titel: 'Stone Placed', wert: (m) => m.replay?.bauStein ?? null, zeige: num },
+  { titel: 'Metal Placed', wert: (m) => m.replay?.bauMetall ?? null, zeige: num },
   { titel: 'Players Revived', wert: (m, c) => vomMitspieler(m, c, wiederbelebt), zeige: num },
   { titel: 'Got Revived', wert: (m, c) => (c.echtSolo ? 0 : wiederbelebt(m)), zeige: num },
   { titel: 'Players Rebooted', wert: (m, c) => vomMitspieler(m, c, reboots), zeige: num },
@@ -136,7 +140,7 @@ const ZUSATZ: Zeile[] = [
 ];
 
 /** Werte, die Epic je Team fuehrt: bei einem Team in jeder Spalte gleich - dort stehen sie einmal im Team-Kasten, mit Verlauf je Spiel. */
-const TEAM_TITEL = new Set(['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points']);
+const TEAM_TITEL = new Set(['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points', 'Builds Placed', 'Wood Placed', 'Stone Placed', 'Metal Placed']);
 
 /** Placement- und Eliminationspunkte ueber die Spiele, aufsummiert - gefuellte Flaechen wie bei Osirion, die Beschriftung am Ende der Linie. */
 function PunkteKurve({ platz, elim }: { platz: Array<number | null>; elim: Array<number | null> }) {
@@ -345,7 +349,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
   const zeilen = useMemo(() => [
     ...KERN.filter((z) => !team || (!TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null))),
-    ...ZUSATZ.filter((z) => mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)),
+    ...ZUSATZ.filter((z) => !(team && TEAM_TITEL.has(z.titel)) && mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)),
   ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mitglieder, e, solo]);
@@ -353,7 +357,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   // Laufende Summe nur ueber bekannte Werte; fehlt der Wert eines Matches, bleibt der Punkt leer (null) statt 0.
   const kumPlatz = useMemo(() => { let a = 0; return spiele.map((m) => (m.punktePlatz === undefined ? null : (a += m.punktePlatz))); }, [spiele]);
   const kumElim = useMemo(() => { let a = 0; return spiele.map((m) => (m.punkteElim === undefined ? null : (a += m.punkteElim))); }, [spiele]);
-  const teamReihen = useMemo(() => KERN.filter((z) => TEAM_TITEL.has(z.titel)), []);
+  const teamReihen = useMemo(() => [...KERN.filter((z) => TEAM_TITEL.has(z.titel)), ...ZUSATZ.filter((z) => TEAM_TITEL.has(z.titel) && !!mitglieder[0] && z.wert(mitglieder[0], ctx) !== null)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mitglieder, e]);
 
   /** Der Pfeil eines Werts im Vergleich zu den Mitspielern: vorn gruen nach oben, hinten rot nach unten (bei "weniger ist besser" andersherum). */
   const pfeil = (z: Zeile, werte: Wert[], i: number) => {

@@ -68,7 +68,7 @@ async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: st
   return [];
 }
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -175,6 +175,12 @@ export async function GET(request: Request) {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
+          // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.
+          ...(d ? (() => {
+            const w = d as unknown as Record<string, number | undefined>;
+            const holz = w.teamHolz ?? w.bauHolz; const stein = w.teamStein ?? w.bauStein; const metall = w.teamMetall ?? w.bauMetall;
+            return holz || stein || metall ? { bauHolz: holz ?? 0, bauStein: stein ?? 0, bauMetall: metall ?? 0 } : {};
+          })() : {}),
           // Aus dem vollen Auslesen: Clutch, Zeit und Strecke (dieselbe Rechnung wie in app/api/cup-spieler: Teamzeit als Obergrenze, Strecke bei Team-Cups hochgerechnet).
           ...(d ? {
             clutch: clutch?.summe?.[i] ?? 0,

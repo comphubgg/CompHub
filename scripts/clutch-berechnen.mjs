@@ -142,6 +142,14 @@ function schadenAus(roh) {
     for (const p of roh.spieler ?? []) if (!p.bot && p.epic) jeTeam.set(p.team, [...(jeTeam.get(p.team) ?? []), p.epic]);
     for (const b of roh.bau ?? []) {
       const leute = jeTeam.get(b.team) ?? [];
+      // Im Team sagt das Replay nicht, wer gebaut hat: die Summe des Teams steht bei jedem Mitglied als team* (Team-Kasten der Stats, 7.11.2026).
+      if (leute.length > 1) {
+        for (const id of leute) {
+          const d = raus[id] ??= neueWerte();
+          d.teamHolz = (d.teamHolz ?? 0) + b.holz; d.teamStein = (d.teamStein ?? 0) + b.stein; d.teamMetall = (d.teamMetall ?? 0) + b.metall;
+        }
+        continue;
+      }
       if (leute.length !== 1) continue;
       const d = raus[leute[0]] ??= neueWerte();
       d.bauHolz = (d.bauHolz ?? 0) + b.holz; d.bauStein = (d.bauStein ?? 0) + b.stein; d.bauMetall = (d.bauMetall ?? 0) + b.metall;
