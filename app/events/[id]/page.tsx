@@ -554,6 +554,23 @@ const MAX_PLAETZE = 10_000;
  * die sind ab dem zweiten Paket zum grossen Teil schon gemerkt.
  */
 const ERSTE_SEITEN = 5;
+/*
+ * Die Bestenliste beim Wiederkommen sofort (Betreiber, 7.11.2026: "du musst es wirklich 10-mal verschnellern"): die ersten Plaetze jedes gesehenen Spieltags bleiben fuer diese Sitzung
+ * gemerkt und stehen da, waehrend der frische Stand kommt. Nur eine Bequemlichkeit: fehlt der Speicher, wird eben geladen.
+ */
+const SCHNELL_PLAETZE = 100;
+const schnellSchluessel = (w: string) => `comphub-lb-${w}`;
+const SCHNELL = new Map<string, unknown[]>();
+function schnellLesen<E>(w: string): E[] | null {
+  const da = SCHNELL.get(w);
+  if (da) return da as E[];
+  try { const roh = sessionStorage.getItem(schnellSchluessel(w)); return roh ? JSON.parse(roh) as E[] : null; } catch { return null; }
+}
+function schnellMerken(w: string, liste: unknown[]) {
+  const anfang = liste.slice(0, SCHNELL_PLAETZE);
+  SCHNELL.set(w, anfang);
+  try { sessionStorage.setItem(schnellSchluessel(w), JSON.stringify(anfang)); } catch { /* voll oder gesperrt: dann bleibt es im Speicher der Seite */ }
+}
 const STUECK_SEITEN = 10;
 
 /**
@@ -959,6 +976,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   } | null>(null);
   /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
   const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
+  /** Die Stats im Hintergrund holen, wenn die Bestenliste steht. */
+  const [vorladen, setVorladen] = useState(false);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
   /** Die Spielerwerte waren nicht zu holen: Hinweis statt leerem Kasten, neuer Versuch nach 10 Sekunden. */
   const [spielerFehlt, setSpielerFehlt] = useState(false);
@@ -1138,6 +1157,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     void hole(1000).then(() => hole(10000)).finally(() => setListeLaedt(false));
   }, [lbFenster]);
   const [laedt, setLaedt] = useState(false);
+  /** Der Spieltag, dessen ganze Liste gerade in der Tabelle steht. */
+  const ganzGeladen = useRef('');
   const [suche, setSuche] = useState('');
 
   /** Laeuft gerade eine tiefere Stufe der Bestenliste? */
@@ -2188,7 +2209,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Ein Druck auf den Reload-Knopf holt die Werte noch einmal - still, ohne dass die Liste verschwindet.
     const vonHand = neuNr !== spielerNeuGesehen.current;
     // Bei einem Solo-Cup stehen die Player Stats im Reiter "teams" (dort heisst er Player Stats) - auch dort laden.
-    if ((reiter !== 'spieler' && !(soloCup && reiter === 'teams')) || !fenster || (spielerWerte && !vonHand)) return;
+    if ((reiter !== 'spieler' && !(soloCup && reiter === 'teams') && !vorladen) || !fenster || (spielerWerte && !vonHand)) return;
     spielerNeuGesehen.current = neuNr;
     let weg = false;
     if (!spielerWerte) setSpielerLaedt(true);
@@ -2210,7 +2231,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       })
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
-  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText, soloCup, spielerVersuch]);
+  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText, soloCup, spielerVersuch, vorladen]);
+
+  // Wer die Bestenliste sieht, klickt als Naechstes auf die Stats: sie werden schon geholt, sobald die Tabelle steht - der Reiter ist dann sofort da.
+  useEffect(() => {
+    setVorladen(false);
+    if (laedt || !fenster) return undefined;
+    const uhr = setTimeout(() => setVorladen(true), 600);
+    return () => clearTimeout(uhr);
+  }, [laedt, fenster]);
 
   // Solange die Replays eines Spieltags ausgewertet werden, alle zwei Minuten nachsehen - die Werte erscheinen dann ohne Neuladen.
   useEffect(() => {
@@ -2412,6 +2441,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        * Warten keine hat, geht es wie frueher in Stufen weiter.
        */
       if (!(tageListe && tageListe.length > 1)) {
+        // Was schon einmal da war, steht sofort da.
+        // Beim Nachfassen im laufenden Cup steht die ganze Tabelle schon da: dann nicht auf hundert Plaetze zurueckfallen.
+        const nachfassen = ganzGeladen.current === f.windowId;
+        const gemerkt = nachfassen ? null : schnellLesen<Eintrag>(f.windowId);
+        if (gemerkt?.length) { setTabelle(gemerkt); setLaedt(false); }
+        /*
+         * Die erste Seite laeuft neben der ganzen Liste her (7.11.2026). Bisher wartete die Tabelle auf alle 10.000 Plaetze - fehlte der Vorrat, bis zu 55 Sekunden, waehrend die
+         * ersten hundert Plaetze laengst bereitlagen. Wer zuerst kommt, steht da; die ganze Liste ersetzt die Seite, sobald sie kommt.
+         */
+        let ganzDa = false;
+        if (!nachfassen) void holeStueck(0, 1).then((e) => {
+          if (ganzDa || !nochMeins() || !e.entries?.length) return;
+          setTabelle(e.entries);
+          schnellMerken(f.windowId, e.entries);
+          setStand(`${t('Stand')} ${new Date(e.updated ?? Date.now()).toLocaleTimeString(ort)}`);
+          setLaedt(false);
+        }).catch(() => {});
         const laeuftJetzt = f.status !== 'vorbei';
         const ab = laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
         const frischHand = Date.now() < handFrischBis.current ? '&frisch=1' : '';
@@ -2419,7 +2465,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           .then((r) => r.json()).catch(() => null) as { entries?: Eintrag[]; updated?: string } | null;
         if (!nochMeins()) return;
         if (g?.entries?.length) {
+          ganzDa = true;
+          ganzGeladen.current = f.windowId;
           setTabelle(g.entries);
+          schnellMerken(f.windowId, g.entries);
           setStand(`${t('Stand')} ${new Date(g.updated ?? Date.now()).toLocaleTimeString(ort)}`);
           setLaedt(false);
           return;

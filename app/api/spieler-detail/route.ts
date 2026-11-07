@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import { promises as nodeFs } from 'fs';
+import path from 'path';
+import { gunzipSync } from 'zlib';
+import { DATEN_ORT } from '@/lib/datenOrt';
 import { findeSpieler, holeSeite, getToken, loeseNamenAuf, MAX_PAGES, type CupEintrag } from '@/lib/epicCups';
 import { szeneFenster } from '@/lib/szeneStats';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
@@ -31,13 +35,32 @@ export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
+/*
+ * Die ganze Bestenliste aus dem Vorrat (app/api/cup-leaderboard legt sie gepackt auf die Platte): die Suche braucht damit keine Abfrage bei Epic mehr. Vorher las sie bis zu sechzig Seiten
+ * bei Epic, ehe "nicht gefunden" kam (7.11.2026: 2,8 Sekunden). Die letzten drei Spieltage bleiben zwei Minuten im Speicher.
+ */
+type GanzeZeile = { rank: number; points: number; players?: Array<{ id: string; name: string }> };
+const LISTEN = new Map<string, { bis: number; zeilen: GanzeZeile[] }>();
+async function ganzeListe(w: string): Promise<GanzeZeile[] | null> {
+  const da = LISTEN.get(w);
+  if (da && da.bis > Date.now()) return da.zeilen;
+  try {
+    const datei = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz', `${w.replace(/[^\w.-]/g, '_')}.json.gz`);
+    const d = JSON.parse(gunzipSync(await nodeFs.readFile(datei)).toString('utf8')) as { entries?: GanzeZeile[] };
+    if (!d.entries?.length) return null;
+    if (LISTEN.size >= 3) LISTEN.delete(LISTEN.keys().next().value as string);
+    LISTEN.set(w, { bis: Date.now() + 120_000, zeilen: d.entries });
+    return d.entries;
+  } catch { return null; }
+}
+
 /** Die Konten zu einem Namen aus dem Verzeichnis der Szene - leer, wenn es keines kennt oder nicht antwortet. */
-async function kontenZumNamen(origin: string, q: string): Promise<string[]> {
+async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: string; name: string }>> {
   try {
     const r = await fetch(`${origin}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
     if (!r.ok) return [];
-    const j = await r.json() as { spieler?: Array<{ epicId?: string }> };
-    return (j.spieler ?? []).map((x) => x.epicId ?? '').filter(Boolean).slice(0, 25);
+    const j = await r.json() as { spieler?: Array<{ epicId?: string; name?: string }> };
+    return (j.spieler ?? []).filter((x) => x.epicId).map((x) => ({ id: x.epicId!, name: x.name ?? '' })).slice(0, 25);
   } catch { return []; }
 }
 
@@ -62,7 +85,18 @@ export async function GET(request: Request) {
        * laeuft die Suche ohne Namensaufloesung durch alle hundert Seiten in wenigen Sekunden (siehe findeSpieler). Nur wer im Verzeichnis fehlt, wird ueber den Text
        * gesucht - dann gibt es keinen anderen Weg.
        */
-      const kandidaten = await kontenZumNamen(new URL(request.url).origin, q);
+      const [bekannt, liste] = await Promise.all([kontenZumNamen(new URL(request.url).origin, q), ganzeListe(fenster)]);
+      const kandidaten = bekannt.map((x) => x.id);
+      // Mit dem Vorrat ist die Antwort sofort da. Nennt das Verzeichnis jemanden, der hier nicht steht, sagt die Seite das - statt nur "nicht gefunden" (Betreiber: "Glubschi").
+      if (liste) {
+        const ids = new Set(kandidaten.map(normId));
+        const text = q.toLowerCase();
+        const treffer = liste.flatMap((e) => (e.players ?? [])
+          .filter((pl) => ids.has(normId(pl.id)) || (pl.name ?? '').toLowerCase().includes(text))
+          .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points, team: (e.players ?? []).filter((x) => x.id !== pl.id).map((x) => x.name) })))
+          .slice(0, 10);
+        return NextResponse.json({ ok: true, treffer, bekannt: treffer.length ? [] : bekannt.slice(0, 3).map((x) => x.name).filter(Boolean) }, { headers: { 'Cache-Control': 'no-store' } });
+      }
       let r = kandidaten.length
         ? await findeSpieler(event, fenster, [], kandidaten, MAX_PAGES)
         : { entries: [] as CupEintrag[], scannedPages: 0, totalPages: 0 };
@@ -72,7 +106,7 @@ export async function GET(request: Request) {
         .filter((pl) => gesucht.has(normId(pl.id)) || pl.name.toLowerCase().includes(q.toLowerCase()))
         .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points, team: e.players.filter((x) => x.id !== pl.id).map((x) => x.name) })))
         .slice(0, 10);
-      return NextResponse.json({ ok: true, treffer, gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ ok: true, treffer, bekannt: treffer.length ? [] : bekannt.slice(0, 3).map((x) => x.name).filter(Boolean), gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     const r = await findeSpieler(event, fenster, [], [id], MAX_PAGES);

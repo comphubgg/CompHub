@@ -3897,6 +3897,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
+  'steht nicht in der Bestenliste dieses Cups.': 'not on the leaderboard of this cup.',
   'Verlauf': 'History',
   'Für diese Games liegen die Zonen noch nicht vor. Sie erscheinen von selbst, sobald die Replays voll gelesen sind.': 'The zones of these games are not available yet. They appear on their own once the replays are fully read.',
   'Distance ist geschätzt: Epic nennt sie bei Team-Cups nicht, sie ist aus den Positionen im Replay hochgerechnet.': 'Distance is estimated: Epic does not report it for team cups, so it is calculated from the positions in the replay.',
