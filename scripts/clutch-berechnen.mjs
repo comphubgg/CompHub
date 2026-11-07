@@ -28,8 +28,8 @@
 
 import { cupVorrang } from '../lib/replayRegel.mjs';
 import fs from 'node:fs';
-import { execFileSync, execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn, execFileSync } from 'node:child_process';
+import readline from 'node:readline';
 import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
@@ -116,6 +116,40 @@ function vollAus(datei) {
 }
 
 /** Die Werte eines Spielers. Die gebauten Teile (bau*) zaehlt der Leser je Team - zuzuordnen also nur, wo ein Team aus einem Spieler besteht (Solo). */
+/*
+ * Der Leser im Dauerlauf, je Kern einer (7.11.2026): ein frischer Prozess je Match brauchte das Doppelte, die Zeit ging fuer den Start drauf (tools/replay-voll, --dienst).
+ * Stirbt ein Prozess an einem kaputten Replay, scheitert nur dieses Match, und ein neuer rueckt nach.
+ */
+function leserDienst(anzahl) {
+  const frei = []; const wartend = []; let zu = false;
+  const gib = (p, a) => { p.auftrag = a; p.letzterFehler = ''; p.stdin.write(`${a.datei}\n`); };
+  const naechster = (p) => { const a = wartend.shift(); if (a) gib(p, a); else frei.push(p); };
+  const starte = () => {
+    const p = spawn('dotnet', [SCHADEN_LESER, '--dienst'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    p.auftrag = null; p.letzterFehler = '';
+    p.stdin.on('error', () => { /* das Ende meldet exit */ });
+    p.stderr.on('data', (d) => { p.letzterFehler = (p.letzterFehler + d).slice(-200); });
+    readline.createInterface({ input: p.stdout }).on('line', () => { const a = p.auftrag; p.auftrag = null; naechster(p); a?.ja(); });
+    p.on('exit', (code) => {
+      const a = p.auftrag; p.auftrag = null;
+      a?.nein(new Error(`Leser endete mit ${code}: ${p.letzterFehler}`));
+      if (!zu) naechster(starte());
+    });
+    return p;
+  };
+  for (let i = 0; i < anzahl; i += 1) frei.push(starte());
+  return {
+    async lies(datei) {
+      const ziel = `${datei}.json`;
+      try {
+        await new Promise((ja, nein) => { const a = { datei, ja, nein }; const p = frei.pop(); if (p) gib(p, a); else wartend.push(a); });
+        return JSON.parse(fs.readFileSync(ziel, 'utf8'));
+      } finally { fs.rmSync(ziel, { force: true }); }
+    },
+    ende() { zu = true; for (const p of frei) p.stdin.end(); },
+  };
+}
+
 /** Bis so viele gelesene Matches wird ein Spieltag nach einer neuen Schadensregel ganz neu gelesen. */
 const NEU_LESEN_BIS = 400;
 const neueWerte = () => ({ dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0,
@@ -379,7 +413,7 @@ if (arg[0] === '--plan') {
   const grenze = Date.now() - 31 * 864e5;
   const TEIL_ORDNER = path.join(DATEN, 'clutch-teil');
   const REPLAYS = path.join(DATEN, 'replays');
-  const lauf = promisify(execFile);
+  const leser = leserDienst(os.cpus().length);
   const hash = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 
@@ -423,8 +457,7 @@ if (arg[0] === '--plan') {
           fs.writeFileSync(datei, puffer);
           let voll = null;
           try {
-            const { stdout } = await lauf('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 });
-            voll = JSON.parse(stdout);
+            voll = await leser.lies(datei);
           } catch (e) { console.log(`    ${id}: Leser - ${String(e.message).slice(0, 100)}`); }
           if (!voll) { fehler += 1; teil.fehler.push(id); continue; }
           const roh = {
@@ -478,6 +511,7 @@ if (arg[0] === '--plan') {
     const min = (Date.now() - beginn) / 60_000;
     console.log(`    bisher ${gelesen} gelesen (${(gelesen / Math.max(min, 0.1)).toFixed(1)} je Minute), ${ohneZahl} ohne Replay, ${fehler} Fehler`);
   }
+  leser.ende();
   const rest = alleOffen - gelesen - ohneZahl;
   console.log(`Fertig: ${gelesen} gelesen, ${ohneZahl} ohne Replay, ${fehler} Fehler, ${rest > 0 ? `noch offen: ${rest}` : 'nichts mehr offen'}`);
 } else if (arg[0] === '--alle') {

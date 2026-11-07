@@ -124,8 +124,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 310
         env:
-          # 8 statt 4 (31.10.2026): ein Replay braucht ~7 s Download (220 kleine Anfragen, wartet aufs Netz) und ~2 s Leser - 4 zugleich liessen die Kerne leer.
-          CLUTCH_GLEICHZEITIG: '8'
+          # 12 (7.11.2026): ein Replay braucht ~7 s Download (220 kleine Anfragen, wartet aufs Netz); der Leser im Dauerlauf schafft auf vier Kernen rund alle 0,7 s eines. Weniger Downloads liessen ihn warten.
+          CLUTCH_GLEICHZEITIG: '12'
         run: |
           # 12 statt 295 Minuten (7.11.2026): abgelegt wird erst nach dem letzten Rechner. Der Trios Cash Cup endete um 18 Uhr, der laufende Durchgang brauchte fuer 148 alte Matches noch
           # fast eine Stunde, und erst dann kam der Cup dran. Kurze Runden heissen: frische Cups sind schnell an der Reihe, und Damage und Clutch wachsen waehrend des Lesens.

@@ -60,6 +60,24 @@ if (args.Length > 1 && args[0] == "--erkunden") {
   erk.Bericht();
   return;
 }
+/*
+ * Dauerlauf (7.11.2026): ein frisch gestarteter Leser laeuft die ersten Sekunden als ungeoptimierter Code - 5,6 s statt 2,9 s je Match. Mit --dienst bleibt der Prozess an: je Zeile auf stdin
+ * ein Replay, das Ergebnis landet in <datei>.json, und es kommt eine Zeile zurueck. Stuerzt ein Replay ab (siehe unten), endet der Prozess; der Aufrufer startet einen neuen.
+ */
+if (args.Length > 0 && args[0] == "--dienst") {
+  var ausgabe = Console.Out;
+  while (Console.In.ReadLine() is string zeile) {
+    if (zeile.Length == 0) continue;
+    using (var ziel = new StreamWriter(zeile + ".json")) { Console.SetOut(ziel); EinLauf(new[] { zeile }); }
+    Console.SetOut(ausgabe);
+    ausgabe.WriteLine("fertig");
+    ausgabe.Flush();
+  }
+  return;
+}
+EinLauf(args);
+
+static void EinLauf(string[] args) {
 var probe = args.Length > 1 && args[0] == "--probe";
 var datei = probe ? args[1] : args[0];
 /*
@@ -202,6 +220,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
   extra = reader.ExtraFertig(), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
+}
 
 /*
  * Schaden je Spieler - aus den Schadens-Ereignissen des Replays.
@@ -231,6 +250,11 @@ class SchadenLeser : ReplayReader {
   // Die Zuordnung des Lesers ist privat - ueber Reflection.
   static readonly FieldInfo BauerFeld = typeof(ReplayReader).GetField("Builder", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
   object Bauer => BauerFeld?.GetValue(this);
+  FortniteReplayBuilder bauerFest;
+  FortniteReplayBuilder BauerSchnell => bauerFest ??= Bauer as FortniteReplayBuilder;
+  delegate bool SpielerSuche(FortniteReplayBuilder b, uint wert, out PlayerData p);
+  static readonly SpielerSuche FigurSuche = VonFigur.CreateDelegate<SpielerSuche>();
+  static readonly SpielerSuche AkteurSuche = VonAkteur.CreateDelegate<SpielerSuche>();
 
   // Die Spieler, wie der Leser sie fuehrt: je Kanal des Spielerzustands (dort liegen auch HealthSet und Co.).
   static readonly FieldInfo SpielerFeld = typeof(FortniteReplayBuilder).GetField("_players", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
@@ -240,10 +264,10 @@ class SchadenLeser : ReplayReader {
     return d.TryGetValue(kanal, out var pd) ? pd : null;
   }
   PlayerData Hole(MethodInfo m, uint wert) {
-    var b = Bauer;
-    if (m is null || b is null) return null;
-    var a = new object[] { wert, null };
-    try { return (bool)m.Invoke(b, a) ? a[1] as PlayerData : null; } catch { return null; }
+    var b = BauerSchnell;
+    var suche = m == VonFigur ? FigurSuche : m == VonAkteur ? AkteurSuche : null;
+    if (suche is null || b is null) return null;
+    try { return suche(b, wert, out var p) ? p : null; } catch { return null; }
   }
   Schaden Fuer(int id) { if (!Je.TryGetValue(id, out var s)) Je[id] = s = new Schaden(); return s; }
 
@@ -397,7 +421,6 @@ class SchadenLeser : ReplayReader {
    *   Loot       FortPickup: Gegenstand (WID_..., Munition, Material), wo er lag, wer ihn aufhob (PickupTarget) und wer ihn fallen liess.
    * Schuesse sind die Treffer (TrefferListe): Schuetze, Ziel, Schaden, Kopftreffer.
    */
-  static readonly PropertyInfo PawnLocation = typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty("Location");
   public readonly Dictionary<int, List<double[]>> Orte = new();
   public readonly Dictionary<int, List<double[]>> Leben = new();
   public readonly List<double[]> Loot = new();
@@ -585,10 +608,8 @@ class SchadenLeser : ReplayReader {
     return weiter;
   }
   readonly Dictionary<uint, (int zustand, double seit)> bauZustand = new();
-  static readonly System.Reflection.PropertyInfo? BauZustandFeld = typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty("BuildingState");
-  void BauZustandNotieren(uint kanal, INetFieldExportGroup g) {
-    if (BauZustandFeld?.GetValue(g) is not object roh || Zeit() is not double t) return;
-    var neu = Convert.ToInt32(roh);
+  void BauZustandNotieren(uint kanal, FortniteReplayReader.Models.NetFieldExports.PlayerPawn g) {
+    if (g.BuildingState is not int neu || Zeit() is not double t) return;
     var id = Hole(VonFigur, kanal)?.Id;
     if (id is not int i) return;
     var e = ExtraVon(i);
@@ -679,7 +700,7 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
-      BauZustandNotieren(channelIndex, exportGroup);
+      BauZustandNotieren(channelIndex, pawn);
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);
         if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); }
@@ -692,14 +713,12 @@ class SchadenLeser : ReplayReader {
         if (wem?.Id is not null && Zeit() is double tt) { Figuren.Add((wem.Id.Value, tt)); figurGemeldet.Add(channelIndex); }
       }
       // Orte der Figur fuer die 2D-Ansicht (siehe OrtNotieren).
-      var ort = PawnLocation?.GetValue(pawn) as Unreal.Core.Models.FVector
-        ?? (pawn.ReplicatedMovement is object rm ? rm.GetType().GetProperty("Location")?.GetValue(rm) as Unreal.Core.Models.FVector : null);
+      var ort = pawn.Location ?? pawn.ReplicatedMovement?.Location;
       if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y);
       if (Zeit() is double th && Hole(VonFigur, channelIndex)?.Id is int hid) {
-        var cw = pawn.GetType().GetProperty("CurrentWeapon")?.GetValue(pawn);
-        if (cw is not null) HandNotieren(hid, th, cw);
-        var rot = pawn.GetType().GetProperty("Rotation")?.GetValue(pawn) ?? (pawn.ReplicatedMovement is object rm2 ? rm2.GetType().GetProperty("Rotation")?.GetValue(rm2) : null);
-        if (rot?.GetType().GetProperty("Yaw")?.GetValue(rot) is object yw) BlickNotieren(hid, th, Convert.ToDouble(yw));
+        if (pawn.CurrentWeapon is uint cw) HandNotieren(hid, th, cw);
+        var rot = pawn.Rotation ?? pawn.ReplicatedMovement?.Rotation;
+        if (rot is not null) BlickNotieren(hid, th, Convert.ToDouble(rot.Yaw));
       }
       return;
     }
@@ -815,7 +834,12 @@ class SchadenLeser : ReplayReader {
   }
 
   static readonly FieldInfo ZeitFeld = typeof(FortniteReplayBuilder).GetField("ReplicatedWorldTimeSecondsDouble", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-  double? Zeit() { try { return ZeitFeld?.GetValue(Bauer) as double?; } catch { return null; } }
+  static readonly Func<FortniteReplayBuilder, double?> ZeitLesen = ZeitLeser();
+  static Func<FortniteReplayBuilder, double?> ZeitLeser() {
+    var b = System.Linq.Expressions.Expression.Parameter(typeof(FortniteReplayBuilder));
+    return System.Linq.Expressions.Expression.Lambda<Func<FortniteReplayBuilder, double?>>(System.Linq.Expressions.Expression.Field(b, ZeitFeld), b).Compile();
+  }
+  double? Zeit() { var b = BauerSchnell; return b is null ? null : ZeitLesen(b); }
 }
 
 /* Erkunden: welche Gruppen kommen vor, wie oft, mit welchen Werten. */

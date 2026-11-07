@@ -12,6 +12,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Der Leser laeuft mehrfach nebeneinander, je Kern einer: ein eigener Faden fuer die Speicherbereinigung bremst dann nur. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <LeserPfad>$(MSBuildThisFileDirectory)../../node_modules/fortnite-replay-analysis/CSproj/bin/Release/net10.0/linux-x64/publish</LeserPfad>
   </PropertyGroup>
   <ItemGroup>
