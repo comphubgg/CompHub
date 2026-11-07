@@ -853,6 +853,7 @@ async function liveIds(windowId) {
  * Minuten, die Nacharbeiter brauchten fuer 2.000 einen Tag: sobald die Schnellspur viel offen meldet, halten sie an - und an Cup-Tagen meldet sie das stundenlang. Deshalb
  * nimmt sie jetzt selbst die Spieltage mit, die aelter als 36 Stunden und noch offen sind, nach allem Frischen und hoechstens vier auf einmal.
  */
+// eslint-disable-next-line no-unused-vars
 async function rueckstandFenster() {
   try {
     const r = await fetch(`${BASIS}/api/replays`, { signal: AbortSignal.timeout(60_000) });
@@ -877,7 +878,11 @@ async function planSchreibenLauf(datei) {
   const kandidaten = [];
   // Den PC-Bereich (frueher ausgelassene Spieltage) nur auslassen, solange der PC des Betreibers an ist.
   const pcAn = await pcLeserAktiv();
-  const rueckstand = await rueckstandFenster();
+  /*
+   * Aus (7.11.2026): denselben alten Spieltag las auch der Nacharbeiter, jeder schrieb seinen eigenen Stand zurueck und der zweite warf die Arbeit des ersten weg - Street Fighter ZB NAC stieg
+   * dadurch von 2.032 wieder auf 5.536 offene Matches. Alte Spieltage gehoeren jetzt nur den Nacharbeitern; die halten seit der Regel "Frisches zuerst" kaum noch an.
+   */
+  const rueckstand = new Set();
   for (const cup of katalog.cups ?? []) {
     const regel = replayRegel(cup, true);
     if (regel === 'nichts' && pcAn) continue;
