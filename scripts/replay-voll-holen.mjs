@@ -296,7 +296,7 @@ async function abarbeiten({ id, tag }) {
     const geduldAus = (vorher?.art === 'teil' ? vorher.versuche : 0) >= 6 && Date.now() - (tag.datum ?? Date.now()) > 6 * STUNDE;
     if (meta?.bIsLive && !geduldAus) throw new Error('Unvollstaendig: Epic fuehrt das Replay noch als live');
     const puffer = await mitWiederholung(`${id} herunterladen`, async () => {
-      try { return await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }); }
+      try { return await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 }); }
       catch (e) { if (fehlerArt(String(e?.message ?? e)) === 'weg') e.dauerhaft = true; throw e; }
     }, 3);
     fs.writeFileSync(tmp, puffer);

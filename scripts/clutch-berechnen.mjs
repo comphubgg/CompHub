@@ -196,7 +196,7 @@ async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
   for (const id of ids) {
     const datei = path.join(os.tmpdir(), `clutch-${id}.replay`);
     try {
-      const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
+      const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 });
       fs.writeFileSync(datei, puffer);
       const roh = await leseReplay(datei);
       // Clutch nach der Regel des Betreibers aus dem eigenen Leser (Reboots
@@ -412,7 +412,7 @@ if (arg[0] === '--plan') {
         const id = liste[naechstes++];
         const datei = path.join(os.tmpdir(), `voll-${id}.replay`);
         try {
-          const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
+          const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 });
           fs.writeFileSync(datei, puffer);
           let voll = null;
           try {

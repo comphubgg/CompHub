@@ -140,7 +140,7 @@ async function sitzungenVon(a) {
 async function leseSitzung(id) {
   const tmp = path.join(os.tmpdir(), `eigene-${id}.replay`);
   try {
-    const puffer = await mitWiederholung(() => downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }), 3);
+    const puffer = await mitWiederholung(() => downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 }), 3);
     fs.writeFileSync(tmp, puffer);
     return await mitWiederholung(async () => {
       try {

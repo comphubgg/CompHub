@@ -31,7 +31,7 @@ const summe = new Map();
 for (const id of ids) {
   const datei = path.join(os.tmpdir(), `schaden-${id}.replay`);
   try {
-    const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
+    const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 });
     fs.writeFileSync(datei, puffer);
     const erstes = !summe.size;
     const roh = JSON.parse(execFileSync('dotnet', [WERKZEUG, datei], {
