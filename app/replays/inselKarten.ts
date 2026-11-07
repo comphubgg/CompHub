@@ -9,10 +9,12 @@
  * Der Inselcode steht in der Playlist des Replays: "Playlist_ShowdownTournament_RE_SourSpawnSolo_PBM" -> SourSpawn.
  */
 
-export interface InselKarte { bild: string; x0: number; y0: number; spanne: number }
+/** bild deckt x0/y0/spanne ab; gezeigt wird der Ausschnitt - die Insel mit wenig Wasser drumherum (Betreiber, 7.11.2026: zuschneiden, die kleine Insel unten rechts bleibt drin). */
+export interface InselKarte { bild: string; x0: number; y0: number; spanne: number; ausschnitt: { x0: number; y0: number; spanne: number } }
 
 const INSELN: Record<string, InselKarte> = {
-  SourSpawn: { bild: '/api/karten-bild?id=reload-nitemare-island&datei=1', x0: -91_000, y0: -87_000, spanne: 174_000 },
+  // Land im Bild (512 px): x 108-480, y 63-463 - als Quadrat mit Rand: Bildpunkte 82-506 / 51-475.
+  SourSpawn: { bild: '/api/karten-bild?id=reload-nitemare-island&datei=1', x0: -91_000, y0: -87_000, spanne: 174_000, ausschnitt: { x0: -63_100, y0: -69_700, spanne: 144_100 } },
 };
 
 export function inselCode(playlist: string | null | undefined): string | null {

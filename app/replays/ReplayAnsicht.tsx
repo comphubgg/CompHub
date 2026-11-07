@@ -107,7 +107,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
    * anderes Mass, und ein Kartenbild gibt es dort nicht - der Ausschnitt wird dann aus den Zonen und den Orten der Eliminierungen gebildet.
    */
   const welt = useMemo(() => {
-    if (insel) return { x0: insel.x0, y0: insel.y0, spanne: insel.spanne };
+    if (insel) return insel.ausschnitt;
     if (kartenBild) return { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE };
     const xs: number[] = []; const ys: number[] = [];
     for (const z of match.zonen) { if (typeof z.x === 'number' && typeof z.y === 'number') { const r = z.radius ?? 0; xs.push(z.x - r, z.x + r); ys.push(z.y - r, z.y + r); } }
@@ -299,7 +299,11 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
     <>
       {kartenBild ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={kartenBild} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+        insel ? (
+          // Das ganze Inselbild, so verschoben und vergroessert, dass genau der Ausschnitt den Rahmen fuellt.
+          <img src={kartenBild} alt="" className="absolute max-w-none" draggable={false}
+            style={{ left: `${((insel.x0 - welt.x0) / welt.spanne) * 100}%`, top: `${((insel.y0 - welt.y0) / welt.spanne) * 100}%`, width: `${(insel.spanne / welt.spanne) * 100}%`, height: `${(insel.spanne / welt.spanne) * 100}%` }} />
+        ) : <img src={kartenBild} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
       ) : (
         <div className="absolute inset-0 bg-sky-950" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.12) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
       )}
