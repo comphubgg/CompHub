@@ -99,7 +99,6 @@ const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c);
 /*
  * Die Reihenfolge wie bei Osirion (Betreiber, 7.11.2026: "ganz genau die gleichen"). Was hier steht, kommt zuerst, in dieser Reihenfolge; der Rest unter "Mehr anzeigen".
  */
-const schuesse = (m: Mitglied) => (m.replay?.schussEcht ? m.replay.schussEcht * 1.23 : (m.replay?.schuss ?? 0) * 1.27);
 const REIHE = ['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points', 'Eliminations', 'Damage To Players', 'Damage From Players', 'Damage Ratio', 'K/D Ratio', 'Health Healed', 'Shield Healed',
   'Player Accuracy', 'Headshots', 'Edit Accuracy', 'Avg Edit Time', 'Mats Farmed', 'Time Alive'];
 const rang = (titel: string) => { const i = REIHE.indexOf(titel); return i < 0 ? REIHE.length : i; };
@@ -141,10 +140,9 @@ const ZUSATZ: Zeile[] = [
   // Geschaetzt aus dem Strom, die Seite sagt das dazu.
   { titel: 'Health Healed', wert: (m) => m.replay?.heilHp ?? null, zeige: num },
   { titel: 'Shield Healed', wert: (m) => m.replay?.schildHeilEcht ?? m.replay?.schildWeg ?? null, zeige: num },
-  // Schuesse aus der Munition im Magazin (gegen den Vorrat geprueft: stimmt). Osirion zeigt rund 23 % mehr, was dazukommt, steht nicht im lesbaren Teil; im Performance-Finale 1,20 bis 1,25.
-  // Aeltere Spiele kennen nur die Einschlaege, die zaehlen keine Fehlschuesse ins Leere: dort rund 27 % mehr.
-  { titel: 'Player Accuracy', wert: (m) => { const s = schuesse(m); const h = treffer(m); return s && h !== null ? (h / s) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 2)} %` },
-  { titel: 'Shots', wert: (m) => (m.replay?.schussEcht ? Math.round(schuesse(m)) : null), zeige: num },
+  // Schuesse sind die gemessene Munition aus dem Magazin, ohne Korrekturfaktor (Betreiber, 7.11.2026: nichts an fremde Zahlen anpassen).
+  { titel: 'Player Accuracy', wert: (m) => { const s = m.replay?.schussEcht; const h = treffer(m); return s && h !== null ? (h / s) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 2)} %` },
+  { titel: 'Shots', wert: (m) => m.replay?.schussEcht ?? null, zeige: num },
   { titel: 'Edit Accuracy', wert: (m) => (m.replay?.editZahl && m.replay.editOk !== undefined ? Math.min(100, (m.replay.editOk / m.replay.editZahl) * 100) : null), zeige: (v, ort) => `${dez(v, ort, 2)} %` },
   // Wie Osirion: Gesamtzeit durch gelungene Edits.
   { titel: 'Avg Edit Time', wert: (m) => { const n = m.replay?.editOk || m.replay?.editZahl; return n ? (m.replay?.editSek ?? 0) / n : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} s`, weniger: true },
