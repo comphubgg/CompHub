@@ -1,6 +1,9 @@
 import { liesJson, schreibJson } from '@/lib/ablage';
 import crypto from 'crypto';
 import { getToken } from '@/lib/epicCups';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { DATEN_ORT } from '@/lib/datenOrt';
 
 /*
  * Der Online-Status der Epic-Freunde des CompHub-Kontos - fuer den Match-ID-Finder (Betreiber, 29.10.2026: "irgendwie muss das moeglich sein ...
@@ -35,10 +38,32 @@ interface Zustand {
   ping?: ReturnType<typeof setInterval> | null;
 }
 
-const g = globalThis as unknown as { __epicFreunde?: Zustand };
-const zustand: Zustand = g.__epicFreunde ??= { freunde: new Map(), laeuft: false, verbunden: false, fehler: null, start: null };
+/*
+ * Zwei Konten (7.11.2026): das des Betreibers (seine bisherigen Freunde) und das Bot-Konto der Seite ("comphub.", data/epic-auth-bot.json), das den Pros
+ * Freundschaftsanfragen schickt (scripts/bot-freunde.mjs). Je Konto eine Verbindung; der Match-Finder sieht die Freunde beider.
+ */
+type Konto = 'haupt' | 'bot';
+const g = globalThis as unknown as { __epicFreunde?: Zustand; __epicFreundeBot?: Zustand };
+const neu = (): Zustand => ({ freunde: new Map(), laeuft: false, verbunden: false, fehler: null, start: null });
+const zustaende: Record<Konto, Zustand> = { haupt: g.__epicFreunde ??= neu(), bot: g.__epicFreundeBot ??= neu() };
+const zustand = zustaende.haupt;
 
-function lies(von: string, roh: string) {
+/** Die Anmeldung des Bot-Kontos (Geraete-Zugang aus data/epic-auth-bot.json) - oder null, wenn es keins gibt. */
+async function botToken(): Promise<{ token: string; accountId: string } | null> {
+  const roh = await fs.readFile(path.join(DATEN_ORT, 'epic-auth-bot.json'), 'utf8').catch(() => null);
+  if (!roh) return null;
+  const a = JSON.parse(roh) as { accountId: string; deviceId: string; secret: string };
+  const r = await fetch('https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token', {
+    method: 'POST',
+    headers: { Authorization: 'basic ' + Buffer.from('3f69e56c7649492c8cc29f1af08a8a12:b51ee9cb12234f50a69efa67ef53812e').toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'device_auth', account_id: a.accountId, device_id: a.deviceId, secret: a.secret }),
+  });
+  if (!r.ok) throw new Error(`Bot-Anmeldung: HTTP ${r.status}`);
+  const j = await r.json() as { access_token: string; account_id: string };
+  return { token: `bearer ${j.access_token}`, accountId: j.account_id };
+}
+
+function lies(von: string, roh: string, zustand: Zustand) {
   let j: { Status?: string; SessionId?: string; Properties?: Record<string, unknown> } = {};
   try { j = JSON.parse(roh); } catch { return; }
   const props = j.Properties ?? {};
@@ -56,9 +81,12 @@ function lies(von: string, roh: string) {
   });
 }
 
-async function verbinde(): Promise<void> {
+async function verbinde(konto: Konto = 'haupt'): Promise<void> {
+  const zustand = zustaende[konto];
   const { client, xml } = await import('@xmpp/client');
-  const { token, accountId } = await getToken();
+  const zugang = konto === 'bot' ? await botToken() : await getToken();
+  if (!zugang) { zustand.fehler = 'kein Bot-Konto'; return; }
+  const { token, accountId } = zugang;
   const xmpp = client({
     service: 'wss://xmpp-service-prod.ol.epicgames.com',
     domain: 'prod.ol.epicgames.com',
@@ -78,7 +106,7 @@ async function verbinde(): Promise<void> {
       return;
     }
     const status = s.getChildText('status');
-    if (status) lies(von, status);
+    if (status) lies(von, status, zustand);
   });
   xmpp.on('online', async () => {
     zustand.verbunden = true; zustand.fehler = null;
@@ -93,7 +121,7 @@ async function verbinde(): Promise<void> {
   xmpp.on('offline', () => {
     zustand.verbunden = false;
     // Neu verbinden (frischer Schluessel), mit kurzer Pause.
-    setTimeout(() => { zustand.start = verbinde().catch((e) => { zustand.fehler = (e as Error).message; }); }, 15_000);
+    setTimeout(() => { zustand.start = verbinde(konto).catch((e) => { zustand.fehler = (e as Error).message; }); }, 15_000);
   });
   await xmpp.start();
 }
@@ -134,10 +162,17 @@ async function gemerkteFreunde(epicId: string): Promise<string[] | null> {
 
 /** Startet die Verbindung, falls noch nicht geschehen - und wartet beim ersten Mal kurz, bis die ersten Status da sind. */
 export async function freundesStatus(): Promise<{ freunde: Map<string, FreundStatus>; verbunden: boolean; fehler: string | null }> {
-  if (!zustand.laeuft) {
-    zustand.laeuft = true;
-    zustand.start = verbinde().catch((e) => { zustand.fehler = (e as Error).message; zustand.laeuft = false; });
-    await Promise.race([zustand.start, new Promise((r) => setTimeout(r, 6_000))]);
+  const starts: Array<Promise<void> | null> = [];
+  for (const konto of ['haupt', 'bot'] as const) {
+    const z = zustaende[konto];
+    if (z.laeuft) continue;
+    z.laeuft = true;
+    z.start = verbinde(konto).catch((e) => { z.fehler = (e as Error).message; z.laeuft = false; });
+    starts.push(z.start);
   }
-  return { freunde: zustand.freunde, verbunden: zustand.verbunden, fehler: zustand.fehler };
+  if (starts.length) await Promise.race([Promise.all(starts), new Promise((r) => setTimeout(r, 6_000))]);
+  // Beide zusammen: wer bei einem Konto in einem Game ist, zaehlt.
+  const freunde = new Map(zustaende.haupt.freunde);
+  for (const [id, f] of zustaende.bot.freunde) { const alt = freunde.get(id); if (!alt || (!alt.sessionId && f.sessionId)) freunde.set(id, f); }
+  return { freunde, verbunden: zustaende.haupt.verbunden || zustaende.bot.verbunden, fehler: zustaende.haupt.fehler };
 }
