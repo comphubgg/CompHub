@@ -569,7 +569,7 @@ if (arg[0] === '--plan') {
           if (seitSpeichern >= 200) { speichern(); seitSpeichern = 0; }
         } catch (e) {
           // Kein Replay bei Epic (zu alt, nie abgelegt): merken, damit es nicht jeden Lauf neu versucht wird.
-          if (/folder_not_found|not_allowed|404|not ?found|no ?replay/i.test(String(e?.message))) { teil.ohne.push(id); ohneZahl += 1; } else { fehler += 1; teil.fehler.push(id); }
+          if (/folder_not_found|not_allowed|404|not ?found|no ?replay/i.test(String(e?.message))) { teil.ohne.push(id); ohneZahl += 1; } else { fehler += 1; teil.fehler.push(id); console.log(`    ${id}: Laden - ${String(e?.message).slice(0, 100)}`); }
         } finally { fs.rmSync(datei, { force: true }); }
       }
     };

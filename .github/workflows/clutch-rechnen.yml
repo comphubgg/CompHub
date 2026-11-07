@@ -130,7 +130,7 @@ jobs:
           # 12 statt 295 Minuten (7.11.2026): abgelegt wird erst nach dem letzten Rechner. Der Trios Cash Cup endete um 18 Uhr, der laufende Durchgang brauchte fuer 148 alte Matches noch
           # fast eine Stunde, und erst dann kam der Cup dran. Kurze Runden heissen: frische Cups sind schnell an der Reihe, und Damage und Clutch wachsen waehrend des Lesens.
           node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
-            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 12 2>&1 | grep -v '^    [0-9a-f]\{32\}:' | tail -60
+            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 12 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
 
       - name: Teilstand weitergeben
         if: always()
