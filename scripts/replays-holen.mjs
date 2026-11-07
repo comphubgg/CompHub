@@ -40,7 +40,7 @@ import {
   liesZustand, matchIds, matchPfad, replayVorhanden, schreibeMatch, schreibeZustand,
   warte, zustandAusOrdner,
 } from '../lib/replayKern.mjs';
-import { replayRegel, endrunden } from '../lib/replayRegel.mjs';
+import { replayRegel, endrunden, cupVorrang } from '../lib/replayRegel.mjs';
 
 /*
  * Wo antwortet das Werkzeug?
@@ -945,7 +945,7 @@ async function planSchreibenLauf(datei) {
   await Promise.all(Array.from({ length: 4 }, arbeiter));
 
   // Angefragte zuerst, dann was gerade laeuft, dann das zuletzt Beendete.
-  plan.sort((a, b) => Number(b.angefragt) - Number(a.angefragt) || Number(b.live) - Number(a.live) || b.datum - a.datum);
+  plan.sort((a, b) => Number(b.angefragt) - Number(a.angefragt) || cupVorrang(a.windowId) - cupVorrang(b.windowId) || Number(b.live) - Number(a.live) || b.datum - a.datum);
   /*
    * Das Frische zuerst und allein (Betreiber, 5.11.2026: "fast eine Stunde vorbei und nicht mal die Haelfte da"). Der Lauf schreibt erst, wenn alle Leser fertig sind: mit dem
    * Rueckstand im Plan las jeder Leser 22 Minuten, die letzten kamen wegen voller Rechner 25 Minuten spaeter dran, und die 176 Matches des Performance Cups warteten 52 Minuten

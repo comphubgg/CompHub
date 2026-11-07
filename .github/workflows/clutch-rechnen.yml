@@ -56,12 +56,14 @@ jobs:
       - name: Epic-Anmeldung und Stand vom Release
         run: |
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
-          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner replays 2>&1 | tail -3
+          # replays/S43 ausdruecklich: "replays" allein ist das alte Release. Ohne den Stand der laufenden Season kannte der Plan einen Cup erst, wenn der Stundenlauf ihn unter die
+          # Epic-Spieltage geschrieben hatte (7.11.2026: der Trios Cash Cup war eine Stunde nach dem Ende noch in keinem Plan).
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner replays --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
 
       - name: Planen
         id: plan
         env:
-          CLUTCH_RECHNER: '8'
+          CLUTCH_RECHNER: '12'
         run: node scripts/clutch-berechnen.mjs --plan data/clutch-plan.json --minuten 40 2>&1 | tail -25
 
       - name: Plan weitergeben

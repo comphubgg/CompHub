@@ -26,6 +26,7 @@
 // Tausenden Lobbys nicht (dort waeren es Hunderte Gigabyte je Spieltag).
 // Solche Tage stehen mit ihrer Matchzahl in data/clutch/_zu-gross.json.
 
+import { cupVorrang } from '../lib/replayRegel.mjs';
 import fs from 'node:fs';
 import { execFileSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -324,9 +325,10 @@ if (arg[0] === '--plan') {
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
   const frisch = (t) => Date.now() - t.datum < 2 * 864e5;
-  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? a.datum - b.datum : b.datum - a.datum));
+  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
-  const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 300)));
+  // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
+  const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 150)));
   fs.writeFileSync(ziel, JSON.stringify({ erstellt: new Date().toISOString(), fenster: raus }));
   for (const t of raus.slice(0, 15)) console.log(`  ${t.windowId.padEnd(52)} ${String(t.offen.length).padStart(6)} offen von ${t.gesamt}`);
   console.log(`Plan: ${offenGesamt} offene Matches aus ${raus.length} Spieltagen - ${offenGesamt ? rechner : 0} Rechner`);
