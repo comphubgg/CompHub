@@ -68,7 +68,7 @@ jobs:
       - name: Epic-Anmeldung und Stand vom Release
         run: |
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
-          node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
 
       # Je Durchgang: neue Spieltage anlegen (hoechstens 20 Minuten, endet sanft mit SIGTERM - der Stand je Spieltag ist gesichert), offene Matches der
       # schon angelegten nachholen (25 Minuten), rechnen, hochladen. Hochgeladen wird nur, was in der letzten Stunde geaendert wurde, und ein Durchgang dauert
