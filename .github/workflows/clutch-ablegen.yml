@@ -1,0 +1,64 @@
+# Fertige Teilstaende des vollen Auslesens sofort auf die Seite (Betreiber, 7.11.2026: "alles, was direkt fertig ist, kommt direkt in die Seite, nicht dass ich warte und alles miteinander kommt").
+#
+# Jeder Rechner von "Clutch rechnen" stoesst diesen Ablauf an, sobald er fertig ist. Geholt wird, was bis dahin von dieser Runde da ist; ein Teil, der schon eingearbeitet ist, wird von
+# scripts/clutch-zusammen.mjs uebersprungen. Es schreibt immer nur einer (Gruppe clutch-ablegen, auch der Schritt "ablegen" der Runde); laufen mehrere Rechner kurz nacheinander aus,
+# wartet genau ein weiterer Lauf und nimmt alle mit. Epics Schaden holt weiter nur der Abschluss der Runde: das dauert und aendert sich nicht je Rechner.
+
+name: Clutch ablegen
+
+on:
+  workflow_dispatch:
+    inputs:
+      lauf:
+        description: 'Lauf von "Clutch rechnen", dessen Teilstaende eingearbeitet werden'
+        required: true
+
+concurrency:
+  group: clutch-ablegen
+  cancel-in-progress: false
+
+jobs:
+  ablegen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Stand vom Release
+        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh 2>&1 | tail -3
+
+      - name: Teilstaende zusammenholen
+        uses: actions/download-artifact@v4
+        with:
+          pattern: clutch-teil-*
+          path: data/clutch-teil
+          merge-multiple: true
+          run-id: ${{ inputs.lauf }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Zusammenfuehren
+        run: node scripts/clutch-zusammen.mjs
+
+      - name: Clutch aus den Rohdaten nach der aktuellen Regel
+        continue-on-error: true
+        run: node scripts/clutch-neu-rechnen.mjs
+
+      - name: Ueberlebenszeit aus den Rohdaten
+        continue-on-error: true
+        run: node scripts/clutch-leben.mjs
+
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
