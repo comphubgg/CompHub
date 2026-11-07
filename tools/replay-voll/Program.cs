@@ -218,7 +218,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 }
 
@@ -444,7 +444,7 @@ class SchadenLeser : ReplayReader {
    * nichts davon ist verschluesselt, die Bibliothek kennt es nur nicht. Je Gegenstand steht in DataList eine Liste von Bausteinen, jeder beginnt mit der Objekt-Kennung seines Typs:
    * ItemComponentData_StackSize ist die Menge, FortItemComponentData_LoadedAmmo die Munition im Magazin. Die Kennungen wechseln je Replay, deshalb werden sie ueber ihren Namen gesucht.
    */
-  public Dictionary<int, double[]> ExtraFertig() { InventarAbschliessen(); return Extra; }
+  public Dictionary<int, double[]> ExtraFertig(Dictionary<int, int> teamVon) { InventarAbschliessen(teamVon); return Extra; }
   public const int ExtraGesammelt = 6, ExtraGefarmt = 9, ExtraSchuesse = 12, ExtraEditsOk = 13, ExtraBauten = 14;
   readonly Dictionary<uint, List<uint>> inventarFiguren = new();
   readonly Dictionary<string, int> inventarStand = new();
@@ -517,7 +517,8 @@ class SchadenLeser : ReplayReader {
       if (m != alt && Zeit() is double t) matsSchritte.Add((wurzel, t, stoff, m - alt));
       return;
     }
-    if (ladungTyp == 0 || !name.StartsWith("WID_")) return;
+    // Nur Waffen: auch Trinkbares wie Agile Chug hat eine Ladung, die beim Benutzen sinkt.
+    if (ladungTyp == 0 || !name.StartsWith("WID_") || name.Contains("Chug") || name.Contains("Consumable")) return;
     if (WertHinter(daten, ende, ladungTyp, 2000, "l" + schluessel) is not int ladung) return;
     var da = inventarStand.TryGetValue("l" + schluessel, out var vor);
     inventarStand["l" + schluessel] = ladung;
@@ -544,9 +545,11 @@ class SchadenLeser : ReplayReader {
    * (Darm, Charyy, demus; Holz, Stein, Metall je Spieler), die Mengen selbst sind exakt, nur ihre Einordnung ist geschaetzt:
    * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt weder als Bau noch als Gewinn.
    * - Gefarmt: das Plus liegt bis 0,5 s nach oder 0,3 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
-   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt; Gefarmt lag im Finale im Mittel 6 % daneben, je Spieler zusammen -0,3 / +3,8 / -7,8 %.
+   * - Ein Minus ab 70 ist Hinwerfen, kein Bau. Was das Team binnen 30 s davon wieder aufhebt, ist nur weitergereicht und zaehlt nicht als gesammelt (Darm: Holz +68 % ohne diese Regel).
+   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %, Builds 4 %.
    */
-  public void InventarAbschliessen() {
+  const double WurfAb = 70, WurfFrist = 30;
+  public void InventarAbschliessen(Dictionary<int, int> teamVon) {
     var axt = new Dictionary<int, List<double>>();
     foreach (var s in Schuesse) {
       var id = (int)s[1];
@@ -572,6 +575,7 @@ class SchadenLeser : ReplayReader {
       l.Add(new[] { t, menge });
     }
     var leer = new List<double>();
+    var jeTeam = new Dictionary<(int, int), List<(double t, double m, int id)>>();
     foreach (var ((id, stoff), l) in schritte) {
       for (int i = 0; i < l.Count; i++) {
         if (l[i][1] <= 0 || l[i][1] % 10 != 0) continue;
@@ -580,14 +584,29 @@ class SchadenLeser : ReplayReader {
           var k = Math.Min(l[i][1], -l[j][1]); l[i][1] -= k; l[j][1] += k;
         }
       }
-      var e = ExtraVon(id);
-      var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
-      foreach (var x in l) {
-        var (t, m) = (x[0], x[1]);
-        if (m < 0) { if (-m % 10 == 0) e[ExtraBauten + stoff] += -m / 10; continue; }
-        if (m == 0) continue;
-        var gefarmt = Zwischen(schlaege, t - 0.5, t + 0.3) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4));
-        e[(gefarmt ? ExtraGefarmt : ExtraGesammelt) + stoff] += m;
+      var team = teamVon.TryGetValue(id, out var tm) ? tm : -id;
+      if (!jeTeam.TryGetValue((team, stoff), out var tl)) jeTeam[(team, stoff)] = tl = new();
+      foreach (var x in l) if (x[1] != 0) tl.Add((x[0], x[1], id));
+    }
+    foreach (var ((_, stoff), l) in jeTeam) {
+      // Im Team hingeworfene Mats (je Team und Stoff), aus denen ein Aufheben kurz danach bedient wird.
+      var geworfen = new List<double[]>();
+      foreach (var (t, m, id) in l.OrderBy(x => x.t)) {
+        var e = ExtraVon(id);
+        if (m < 0) {
+          if (-m >= WurfAb) geworfen.Add(new[] { t, -m });
+          else if (-m % 10 == 0) e[ExtraBauten + stoff] += -m / 10;
+          continue;
+        }
+        var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
+        if (Zwischen(schlaege, t - 0.5, t + 0.3) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
+        var rest = m;
+        foreach (var w in geworfen) {
+          if (rest <= 0) break;
+          if (t - w[0] > WurfFrist || w[1] <= 0) continue;
+          var k = Math.Min(rest, w[1]); w[1] -= k; rest -= k;
+        }
+        e[ExtraGesammelt + stoff] += rest;
       }
     }
     foreach (var (wurzel, schuesse) in schussSchritte) if (SpielerDerWurzel(wurzel) is int id) ExtraVon(id)[ExtraSchuesse] += schuesse;

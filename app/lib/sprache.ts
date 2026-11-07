@@ -3897,7 +3897,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Archiv: FNCS Solos Season 42': 'Archive: FNCS Solos Season 42',
   'Profil wird geladen …': 'Loading profile …',
   'Ausgewertet': 'Analyzed',
-  'Heilung, Mats, Builds und Edit Accuracy sind aus dem Replay geschätzt und können leicht abweichen.': 'Healing, mats, builds and edit accuracy are estimated from the replay and may differ slightly.',
+  'Heilung, Shots, Accuracy, Mats, Builds und Edit Accuracy sind aus dem Replay geschätzt und können leicht abweichen.': 'Healing, shots, accuracy, mats, builds and edit accuracy are estimated from the replay and may differ slightly.',
   'Statistik dieses Teams': 'Stats of this team',
   'steht nicht in der Bestenliste dieses Cups.': 'not on the leaderboard of this cup.',
   'Verlauf': 'History',
