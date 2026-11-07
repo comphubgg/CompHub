@@ -193,7 +193,30 @@ function schadenAus(roh) {
         d.killsEcht = (d.killsEcht ?? 0) + bisAus;
         d.killsNachAus = (d.killsNachAus ?? 0) + alle - bisAus;
       }
-      if (x?.length >= 19) { d.sturmSchaden = (d.sturmSchaden ?? 0) + x[17]; d.busDank = (d.busDank ?? 0) + x[18]; }
+      if (x?.length >= 19) { d.busDank = (d.busDank ?? 0) + x[18]; if (!roh.sturmVerlauf) d.sturmSchaden = (d.sturmSchaden ?? 0) + x[17]; }
+      /*
+       * Sturmschaden: Lebenspunkte, die im Sturm verloren gehen, je Schritt hoechstens 15; trifft im selben Moment ein Schuss, war es der Schuss. Am Boden zaehlt nichts.
+       * Performance-Finale: 630 / 627 / 420 zu Osirions 640 / 648 / 440. Was fehlt, sind Ticks, die mit einer Heilung im selben Update ankamen.
+       */
+      if (roh.sturmVerlauf) {
+        const zeiten = roh.sturmVerlauf.filter((s) => s[0] === p.id).sort((a, b) => a[1] - b[1] || a[2] - b[2]);
+        const im = []; let ab = null;
+        for (const [, t, an] of zeiten) { if (an && ab === null) ab = t; else if (!an && ab !== null) { im.push([ab, t]); ab = null; } }
+        if (ab !== null) im.push([ab, Infinity]);
+        const getroffen = (roh.treffer ?? []).filter((h) => h[2] === p.id).map((h) => h[0]);
+        // Ab dem Bus, mit dem Wert davor - sonst fehlt der erste Schritt (je Spiel genau ein Tick).
+        const alleL = roh.leben?.[p.id] ?? []; const ersterL = alleL.findIndex((s) => s[0] >= (roh.busAb ?? 0));
+        const spur = ersterL < 0 ? [] : alleL.slice(Math.max(0, ersterL - 1));
+        let sturm = 0;
+        for (let i = 1; i < spur.length; i += 1) {
+          const [t, nach] = spur[i]; const vor = spur[i - 1][1]; const weg = vor - nach;
+          if (weg <= 0 || weg > 15 || nach === 100) continue;
+          if (!im.some(([a, b]) => t >= a && t <= b)) continue;
+          if (getroffen.some((h) => h >= t && h <= t + 0.05)) continue;
+          sturm += weg;
+        }
+        d.sturmSchaden = (d.sturmSchaden ?? 0) + sturm;
+      }
       if (x?.length >= 17) {
         d.invSpiele = (d.invSpiele ?? 0) + 1;
         [['samHolz', 6], ['samStein', 7], ['samMetall', 8], ['farmHolz', 9], ['farmStein', 10], ['farmMetall', 11], ['schussEcht', 12], ['editOk', 13], ['selbstHolz', 14], ['selbstStein', 15], ['selbstMetall', 16]]
@@ -217,7 +240,8 @@ function schadenAus(roh) {
        * Leben: ein einzelner Sprung auf 100 ist der Knock (das Bodenleben), kein Heilen; was davor noch da war, ging verloren. Am Boden zaehlt nichts, bis jemand einen aufhebt.
        * Finale: geheilt 461 / 553 / 582 zu Osirions 386 / 508 / 550, verloren 746 / 785 / 914 zu 766 / 868 / 932 - hier fehlt noch eine Regel.
        */
-      const l = (roh.leben?.[p.id] ?? []).filter((s) => s[0] >= (roh.busAb ?? 0));
+      const alleLeben = roh.leben?.[p.id] ?? []; const ersterLeben = alleLeben.findIndex((s) => s[0] >= (roh.busAb ?? 0));
+      const l = ersterLeben < 0 ? [] : alleLeben.slice(Math.max(0, ersterLeben - 1));
       const aufgehoben = (roh.feed ?? []).filter((e) => e.opfer === p.id && e.art === 'tot' && e.ursache === 50).map((e) => e.t);
       let amBoden = false;
       for (let i = 1; i < l.length; i += 1) {
