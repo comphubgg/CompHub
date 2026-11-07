@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; schussEcht?: number; editOk?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; schussEcht?: number; editOk?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -131,6 +131,12 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Damage per Match', wert: (m, c) => { const a = dmg(m, c); return a !== null && c.e?.games ? a / c.e.games : null; }, zeige: num },
   { titel: 'Damage From Players', wert: dmgT, zeige: num, je: (m) => m.damageTaken, rot: true, weniger: true },
   { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v, ort) => dez(v, ort, 2) },
+  { titel: 'Damage Done', wert: (m) => (m.replay?.schadenAlle === undefined ? null : Math.round(m.replay.schadenAlle)), zeige: num },
+  { titel: 'Damage To Knocked Players', wert: (m) => (m.replay?.schadenBoden === undefined ? null : Math.round(m.replay.schadenBoden)), zeige: num },
+  { titel: 'Health Taken', wert: (m) => (m.replay?.lebenWeg === undefined ? null : Math.round(m.replay.lebenWeg)), zeige: num, rot: true, weniger: true },
+  { titel: 'Shield Taken', wert: (m) => m.replay?.schildWeg ?? null, zeige: num, rot: true, weniger: true },
+  { titel: 'Storm Damage Taken', wert: (m) => (m.replay?.sturmSchaden === undefined ? null : Math.round(m.replay.sturmSchaden)), zeige: num, rot: true, weniger: true },
+  { titel: 'Thanked Bus Driver', wert: (m) => m.replay?.busDank ?? null, zeige: num },
   { titel: 'Hits To Players', wert: treffer, zeige: num },
   // Geschaetzt aus dem Strom, die Seite sagt das dazu.
   { titel: 'Health Healed', wert: (m) => m.replay?.heilHp ?? null, zeige: num },

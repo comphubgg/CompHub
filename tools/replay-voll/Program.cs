@@ -314,6 +314,7 @@ class SchadenLeser : ReplayReader {
    * Inhalts - ihn zu entschluesseln ist nicht Sache dieses Werkzeugs. Material, Schuesse und gelungene Edits stehen offen im Strom (siehe InventarAbschliessen).
    */
   public readonly List<(int id, double t, bool an)> SturmListe = new();
+  readonly HashSet<int> imSturm = new();
   readonly Dictionary<uint, int> figurSpieler = new();
 
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
@@ -437,7 +438,7 @@ class SchadenLeser : ReplayReader {
 
   /// Je Spieler: [frei, frei, Bauzustand 1: Anzahl, Sekunden, Bauzustand 2: Anzahl, Sekunden]. Bauzustand 1 ist das Editieren: im Performance-Finale 1,5 / 0,9 / 1,2 s je Edit, Osirion 2 / 1 / 1 s.
   public readonly Dictionary<int, double[]> Extra = new();
-  double[] ExtraVon(int id) => Extra.TryGetValue(id, out var e) ? e : (Extra[id] = new double[17]);
+  double[] ExtraVon(int id) => Extra.TryGetValue(id, out var e) ? e : (Extra[id] = new double[19]);
 
   /*
    * Das Inventar jedes Spielers (7.11.2026). Fortnite fuehrt es seit dem neuen Item-System nicht mehr in FortInventory, sondern in /Script/ItemizationCoreRuntime.Inventory: offen im Strom,
@@ -445,7 +446,7 @@ class SchadenLeser : ReplayReader {
    * ItemComponentData_StackSize ist die Menge, FortItemComponentData_LoadedAmmo die Munition im Magazin. Die Kennungen wechseln je Replay, deshalb werden sie ueber ihren Namen gesucht.
    */
   public Dictionary<int, double[]> ExtraFertig(Dictionary<int, int> teamVon) { InventarAbschliessen(teamVon); return Extra; }
-  public const int ExtraGesammelt = 6, ExtraGefarmt = 9, ExtraSchuesse = 12, ExtraEditsOk = 13, ExtraBauten = 14;
+  public const int ExtraGesammelt = 6, ExtraGefarmt = 9, ExtraSchuesse = 12, ExtraEditsOk = 13, ExtraBauten = 14, ExtraSturm = 17, ExtraBusfahrer = 18;
   readonly Dictionary<uint, List<uint>> inventarFiguren = new();
   readonly Dictionary<string, int> inventarStand = new();
   readonly Dictionary<string, int> inventarLage = new();
@@ -652,6 +653,8 @@ class SchadenLeser : ReplayReader {
     var wert = Math.Round(Convert.ToDouble(hp));
     if (!Leben.TryGetValue(i, out var l)) Leben[i] = l = new();
     if (l.Count > 0 && l[^1][1] == wert) return;
+    // Sturmschaden: Lebenspunkte, die im Sturm verloren gehen, je Schlag hoechstens 10 (mehr ist ein Treffer). Am Boden blutet man aus, das zaehlt nicht.
+    if (l.Count > 0 && wert < l[^1][1] && l[^1][1] - wert <= 10 && imSturm.Contains(i) && !AmBodenZuZeit(i, t)) ExtraVon(i)[ExtraSturm] += l[^1][1] - wert;
     l.Add(new[] { Math.Round(t, 1), wert });
   }
 
@@ -711,6 +714,7 @@ class SchadenLeser : ReplayReader {
         try { var v = exportGroup.GetType().GetProperty(f)?.GetValue(exportGroup); if (v is not null) BusWerte[f] = v; } catch { }
       }
     }
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.FortPlayerState fs && fs.bThankedBusDriver == true && VomZustand(channelIndex)?.Id is int dankt) ExtraVon(dankt)[ExtraBusfahrer] = 1;
     if (exportGroup is InventarWurzel iw) {
       if (iw.ReplayPawn is > 0 && Channels[channelIndex]?.Actor?.ActorNetGUID?.Value is uint wg) {
         if (!inventarFiguren.TryGetValue(wg, out var fl)) inventarFiguren[wg] = fl = new();
@@ -722,7 +726,7 @@ class SchadenLeser : ReplayReader {
       BauZustandNotieren(channelIndex, pawn);
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);
-        if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); }
+        if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); if (st) imSturm.Add(pid2); else imSturm.Remove(pid2); }
       }
       figurKanaele.Add(channelIndex);
       if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) { figurVonAkteur[akteur] = channelIndex; var wer0 = Hole(VonFigur, channelIndex); if (wer0?.Id is int sid) { spielerVonAkteur[akteur] = sid; teamVonSpieler[sid] = wer0.TeamIndex; } }

@@ -179,6 +179,7 @@ function schadenAus(roh) {
       const x = roh.extra?.[p.id];
       if (x) { d.editZahl = (d.editZahl ?? 0) + x[2]; d.editSek = (d.editSek ?? 0) + x[3]; }
       // Aus dem Inventar (tools/replay-voll, InventarAbschliessen). invSpiele zaehlt mit: wer auch Spiele ohne diese Werte hat, bekommt keine halben Summen angezeigt.
+      if (x?.length >= 19) { d.sturmSchaden = (d.sturmSchaden ?? 0) + x[17]; d.busDank = (d.busDank ?? 0) + x[18]; }
       if (x?.length >= 17) {
         d.invSpiele = (d.invSpiele ?? 0) + 1;
         [['samHolz', 6], ['samStein', 7], ['samMetall', 8], ['farmHolz', 9], ['farmStein', 10], ['farmMetall', 11], ['schussEcht', 12], ['editOk', 13], ['selbstHolz', 14], ['selbstStein', 15], ['selbstMetall', 16]]
@@ -186,7 +187,7 @@ function schadenAus(roh) {
       }
       // Leben geheilt: Anstiege unter 50 Punkten - groessere sind das Zuruecksetzen beim Knock und beim Wiedereinstieg. Geschaetzt, im Finale rund 15 % ueber Osirion.
       const l = roh.leben?.[p.id] ?? [];
-      for (let i = 1; i < l.length; i += 1) { const a = l[i][1] - l[i - 1][1]; if (a > 0 && a < 50 && l[i - 1][1] > 0) d.heilHp = (d.heilHp ?? 0) + a; }
+      for (let i = 1; i < l.length; i += 1) { const a = l[i][1] - l[i - 1][1]; if (a > 0 && a < 50 && l[i - 1][1] > 0) d.heilHp = (d.heilHp ?? 0) + a; if (a < 0) d.lebenWeg = (d.lebenWeg ?? 0) - a; }
       // Der Schild steht nicht im Strom. Was an Schild verloren ging, liegt nah am Geheilten (1.262 zu 1.247 bei Darm).
       for (const t of roh.treffer ?? []) if (t[2] === p.id && t[7]) d.schildWeg = (d.schildWeg ?? 0) + t[3];
       // Schuesse: Einschlaege mit einer Waffe in der Hand; mit der Spitzhacke sind es Farm-Schlaege.
