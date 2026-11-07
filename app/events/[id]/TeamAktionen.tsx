@@ -1,7 +1,7 @@
 'use client';
 
 /*
- * Die drei Knoepfe im Team-Panel neben dem Leaderboard (Betreiber, 7.11.2026): Spielverlauf und Vergleich als Fenster mitten im Bildschirm, "Live folgen" als kleine Leiste.
+ * Knoepfe im Team-Panel neben dem Leaderboard (Betreiber, 7.11.2026): Spielverlauf und Vergleich als Fenster mitten im Bildschirm.
  * Alles gilt nur fuer den gewaehlten Cup. Die Match-ID steht nicht da, sie laesst sich je Runde kopieren.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -15,16 +15,6 @@ export interface AktionTeam {
   bestPlace: number | null; timeAlive: number;
   players: Array<{ id?: string }>; matches: AktionMatch[]; matchesWeg?: boolean;
 }
-export interface Folge { windowId: string; eventId: string; ids: string[]; name: string; rank: number; points: number }
-
-const FOLGE_SPEICHER = 'comphub-cup-folge';
-export function folgeLesen(): Folge | null {
-  try { const r = localStorage.getItem(FOLGE_SPEICHER); return r ? JSON.parse(r) as Folge : null; } catch { return null; }
-}
-export function folgeMerken(f: Folge | null) {
-  try { if (f) localStorage.setItem(FOLGE_SPEICHER, JSON.stringify(f)); else localStorage.removeItem(FOLGE_SPEICHER); } catch { /* ohne Speicher gilt es nur bis zum Neuladen */ }
-}
-
 function zeit(sek: number) {
   const m = Math.floor(sek / 60);
   return `${m}:${String(Math.round(sek % 60)).padStart(2, '0')}`;
@@ -201,44 +191,5 @@ export function VergleichFenster({ team, alle, nameVon, spieleVon, zu }: {
         </>
       )}
     </Fenster>
-  );
-}
-
-/** Live folgen: eine kleine Leiste, die den Stand eines Teams im laufenden Cup jede Minute frisch holt, auch wenn die Liste gerade woanders steht. */
-export function FolgenLeiste({ folge, zeigen, beenden }: { folge: Folge; zeigen: (rank: number) => void; beenden: () => void }) {
-  const [jetzt, setJetzt] = useState<AktionTeam | null>(null);
-  const { sprache } = useSprache();
-  const ort = sprache === 'en' ? 'en-GB' : 'de-DE';
-  useEffect(() => {
-    let weg = false;
-    const holen = () => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(folge.eventId)}&window=${encodeURIComponent(folge.windowId)}&ids=${encodeURIComponent(folge.ids.join(','))}`)
-      .then((r) => r.json())
-      .then((j: { entries?: AktionTeam[] }) => { const e = j.entries?.[0]; if (!weg && e) setJetzt(e); })
-      .catch(() => { /* der letzte Stand bleibt stehen */ });
-    void holen();
-    const uhr = setInterval(() => { void holen(); }, 60_000);
-    return () => { weg = true; clearInterval(uhr); };
-  }, [folge]);
-  const rang = jetzt?.rank ?? folge.rank; const punkte = jetzt?.points ?? folge.points;
-  const auf = folge.rank - rang; const dazu = punkte - folge.points;
-  const letztes = jetzt ? nachZeit(jetzt.matches ?? []).at(-1) : undefined;
-  return (
-    <div className="fixed bottom-4 right-4 z-40 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-sky-500/40 bg-zinc-900 p-4 shadow-2xl">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-sky-300">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /><T>Live folgen</T>
-        </span>
-        <button type="button" onClick={beenden} aria-label="Close" className="text-slate-500 transition hover:text-slate-200">✕</button>
-      </div>
-      <button type="button" onClick={() => zeigen(rang)} className="mt-1 block w-full text-left">
-        <span className="block truncate font-bold text-slate-100">{folge.name}</span>
-        <span className="mt-1 flex items-baseline gap-3">
-          <span className="text-2xl font-black tabular-nums text-slate-100">#{rang.toLocaleString(ort)}</span>
-          {auf !== 0 && <span className={`text-sm font-bold tabular-nums ${auf > 0 ? 'text-emerald-400' : 'text-red-400'}`}>{auf > 0 ? `▲ ${auf}` : `▼ ${-auf}`}</span>}
-          <span className="ml-auto text-sm tabular-nums text-slate-300">{punkte.toLocaleString(ort)} <T>Punkte</T>{dazu > 0 && <span className="ml-1 text-emerald-400">+{dazu}</span>}</span>
-        </span>
-        {letztes && <span className="mt-1 block text-xs tabular-nums text-slate-500"><T>Letztes Spiel</T>: #{letztes.placement ?? '–'} · {letztes.elims ?? 0} Elims</span>}
-      </button>
-    </div>
   );
 }
