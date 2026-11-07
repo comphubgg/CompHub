@@ -11,17 +11,17 @@ import { useEffect, useState } from 'react';
  * zeigt; die Spielerfotos kommen aus /api/startvitrine.
  */
 
-const CUPS = [
-  '/tournaments/Fortnite Performance Evaluation.jpg', '/tournaments/FNCS Division 1.jpg',
-  '/cups/fncs-global-championship-2026-hd.jpg', '/tournaments/Reload Elite Series Finals.jpg',
-];
-/** Karten verschiedener Updates, verkleinert ueber den Bildweg der Seite (Dateinamen wie bei fortnite.gg). */
-const KARTEN = ['42.30.webp', '41.30.webp', '40.40.jpg', '39.51.jpg', '37.50.jpg', '34.40.jpg?3', '31.40.jpg?3', '26.30.jpg?3']
-  .map((n) => `/api/maps-bild?u=${encodeURIComponent(`https://fortnite.gg/img/maps/${n}`)}&b=420`);
+/*
+ * Kleine Kopien in public/hero (scripts/hero-bilder.mjs), je 10 bis 50 KB (7.11.2026). Vorher kamen die Karten ueber /api/maps-bild von fortnite.gg und
+ * lieferten 404, die Banner waren bis 600 KB gross - auf der Startseite liefen dadurch leere Kacheln durchs Bild.
+ */
+const CUPS = ['/hero/cup-performance.webp', '/hero/cup-division.webp', '/hero/cup-global.webp', '/hero/cup-reload.webp'];
+const KARTEN = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `/hero/karte-${n}.webp`);
 
 const kachel = (src: string, i: number) => (
   // eslint-disable-next-line @next/next/no-img-element
-  <img key={`${src}-${i}`} src={encodeURI(src).replace(/%25/g, '%')} alt="" loading="lazy" draggable={false}
+  // Nicht "lazy": die Reihen laufen schraeg ins Bild, der Browser lud die Kacheln dort oft erst, wenn sie schon sichtbar und leer waren.
+  <img key={`${src}-${i}`} src={encodeURI(src).replace(/%25/g, '%')} alt="" decoding="async" draggable={false}
     className="h-36 w-56 shrink-0 rounded-2xl object-cover shadow-lg sm:h-44 sm:w-72" />
 );
 

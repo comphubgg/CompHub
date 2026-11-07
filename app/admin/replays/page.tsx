@@ -105,6 +105,8 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
   if (!fenster.length) return null;
   const frist = Date.now() - 31 * 864e5;
   let gesamt = 0; let fertig = 0; let offenInFrist = 0; let verloren = 0; let ohneReplay = 0;
+  const stunde = fenster.reduce((n, f) => n + ((f as { fertigStunde?: number }).fertigStunde ?? 0), 0);
+  const tag = fenster.reduce((n, f) => n + ((f as { fertigTag?: number }).fertigTag ?? 0), 0);
   for (const f of fenster) {
     // Ein Spieltag, von dem kein einziges Replay da ist (die Arena-Modi haben keine Server-Replays),
     // wartet nicht auf uns - er kommt nie. Er zaehlt als "ohne Replay", nicht als offen.
@@ -143,6 +145,16 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
           was={`Älter als 31 Tage: Epic hat diese Replays gelöscht. Dazu ${zahl(ohneReplay)} Matches aus Spieltagen, für die es nie Replays gab (Arena).`} />
         <Kachel wert={zahl(fenster.length)} titel="Spieltage erfasst" farbe="text-sky-400"
           was="Jeder Spieltag mit seinen Runden, auch die offenen Qualifikationen." />
+      </div>
+      {/* Das Tempo (Betreiber, 7.11.2026): wie viele je Stunde fertig werden und wann das Offene bei diesem Tempo abgearbeitet ist. Ziel: ohne Cup steht hier 0. */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <Kachel wert={zahl(stunde)} titel="in der letzten Stunde ausgewertet" farbe="text-sky-400"
+          was={`${zahl(tag)} in den letzten 24 Stunden`} />
+        <Kachel wert={zahl(Math.round(tag / 24))} titel="im Schnitt je Stunde" farbe="text-sky-400"
+          was="Gemittelt über die letzten 24 Stunden." />
+        <Kachel wert={!offenInFrist ? '0' : stunde > 0 ? `${Math.max(1, Math.ceil(offenInFrist / stunde))} h` : tag > 0 ? `${Math.max(1, Math.ceil(offenInFrist / (tag / 24)))} h` : '–'}
+          titel="bis alles Offene fertig ist" farbe={!offenInFrist ? 'text-emerald-400' : 'text-amber-300'}
+          was="Bei dem Tempo der letzten Stunde, ohne neue Cups." />
       </div>
     </section>
   );

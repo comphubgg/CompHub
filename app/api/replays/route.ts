@@ -156,7 +156,7 @@ function standAnzeige(m: MatchZustand, fensterDatum?: number, jetzt = Date.now()
 /** Alle Fenster, die schon einmal angefasst wurden. */
 async function alleFenster() {
   const raus: Array<Fensterzustand & {
-    zaehler: Record<string, number>; gesamt: number; runde: string;
+    zaehler: Record<string, number>; gesamt: number; runde: string; fertigStunde: number; fertigTag: number;
   }> = [];
   let saisons: string[] = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { return raus; }
@@ -169,12 +169,16 @@ async function alleFenster() {
       if (!z) continue;
       const zaehler: Record<string, number> = {};
       const jetzt = Date.now();
+      // Wie viele in der letzten Stunde und den letzten 24 Stunden fertig wurden - daraus rechnet die Verwaltung, wann das Offene abgearbeitet ist (Betreiber, 7.11.2026).
+      let fertigStunde = 0; let fertigTag = 0;
       for (const m of Object.values(z.matches ?? {})) {
         const stand = standAnzeige(m, z.datum, jetzt, z.windowId ?? windowId);
         zaehler[stand] = (zaehler[stand] ?? 0) + 1;
+        const fertigUm = m.stand === 'PARSED' && (m as { zuletzt?: string }).zuletzt ? Date.parse((m as { zuletzt?: string }).zuletzt as string) : NaN;
+        if (Number.isFinite(fertigUm)) { if (jetzt - fertigUm < 3_600_000) fertigStunde += 1; if (jetzt - fertigUm < 86_400_000) fertigTag += 1; }
       }
       raus.push({
-        ...z, matches: {}, zaehler,
+        ...z, matches: {}, zaehler, fertigStunde, fertigTag,
         gesamt: Object.keys(z.matches ?? {}).length,
         runde: rundeName(z.windowId ?? windowId, z.region),
       });

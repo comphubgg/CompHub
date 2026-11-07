@@ -53,12 +53,15 @@ export default function Fusszeile() {
           </h3>
           <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-1">
             {([
+              // Wie die Kopfzeile, ohne Overlays (Betreiber, 7.11.2026).
               ['/statistics', 'Statistiken'],
               ['/events', 'Events'],
-              ['/power-rankings', 'Power Rankings'],
+              ['/power-rankings', 'Rankings'],
+              ['/fncs', 'FNCS'],
+              ['/tournament-maps', 'Maps'],
               ['/tierlist', 'Tierlist'],
               ['/streams', 'Streams'],
-              ['/overlays', 'Overlays'],
+              ['/replays', 'Replays'],
             ] as Array<[string, string]>).map(([pfad, titel]) => (
               <li key={pfad}>
                 <Link href={pfad}
@@ -150,7 +153,7 @@ export default function Fusszeile() {
           werden kann: Epics eigene Schnittstellen und die selbst ausgewerteten Turnier-Replays. */}
       <div className="mx-auto mt-4 max-w-5xl text-center text-[11px] leading-relaxed text-slate-600 sm:text-left">
         <p>
-          <T>Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Knocks und Waffe je Match selbst ausgewertet aus Epics Server-Replays. Fehlt eine Zahl bei der Quelle, bleibt sie leer — statt geschätzt zu werden.</T>
+          <T>Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Schaden, Heilung, Builds und alles Weitere je Match selbst ausgewertet aus Epics Server-Replays.</T>
         </p>
       </div>
     </footer>

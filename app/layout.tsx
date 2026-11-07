@@ -15,6 +15,7 @@ import NeuerStand from './components/NeuerStand';
 import PreviewTour from './components/PreviewTour';
 import VipFenster from './components/VipFenster';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
+import SeitenwechselWache from './components/SeitenwechselWache';
 import Besuchszaehler from './components/Besuchszaehler';
 import Fehlerfaenger from './components/Fehlerfaenger';
 import SektionSperre from './components/SektionSperre';
@@ -195,6 +196,7 @@ export default async function RootLayout({
           <MainHeader sektionenAnfang={lage} />
           <PreviewTour />
           <VipFenster />
+          <SeitenwechselWache />
           <Suspense fallback={<RouteTransitionLoader />}>
             {/*
               * Die Sperre liegt zwischen Kopfzeile und Inhalt - die Leiste
