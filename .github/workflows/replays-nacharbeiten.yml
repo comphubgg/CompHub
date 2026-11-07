@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        teil: [0, 1, 2, 3, 4, 5, 6, 7]   # 30.10.2026: acht statt fuenf - 322.000 Matches offen
+        teil: [0, 1, 2]   # 7.11.2026: drei statt acht. Offen sind nur noch rund 8.000 Matches, und GitHub erlaubt 20 Jobs zugleich: die Nacharbeiter hielten die Haelfte der Rechner frischer Cups in der Warteschlange.
     # Je Teil nie zwei Laeufe zugleich - und einen laufenden nie abwuergen.
     concurrency:
       group: replays-nacharbeiten-${{ matrix.teil }}
@@ -86,8 +86,8 @@ jobs:
         run: |
           node scripts/schleife.mjs --minuten 315 --takt 300 --halt "node scripts/schnell-vorrang.mjs" \
             --schritt "node scripts/daten-sync.mjs --herunterladen --nur replay-vorrang 2>&1 | tail -1; true" \
-            --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/8 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
-            --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/8 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
+            --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/3 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
+            --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/3 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
             --schritt "node scripts/replays-aggregieren.mjs 2>&1 | tail -6" \
             --schritt "node scripts/ablage-github.mjs --nur replays --neuer-als 60 --stempel replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8"
 
