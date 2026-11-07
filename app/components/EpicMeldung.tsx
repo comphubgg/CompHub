@@ -22,6 +22,17 @@ export default function EpicMeldung() {
   if (meldung.art === 'verbunden') {
     return <p className="mb-3 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-300"><T>Dein Epic-Konto ist verifiziert.</T></p>;
   }
+  /*
+   * Zu viele Sitzungen: Epic sperrt neue Anmeldungen eines Kontos fuer eine Weile (7.11.2026, das Konto des Betreibers - mit ihm meldeten sich auch die
+   * Rechner-Ablaeufe an). Ein Satz statt Epics Rohtext, mit dem, was zu tun ist.
+   */
+  if (/too_many_sessions|too many sessions/i.test(meldung.grund)) {
+    return (
+      <p className="mb-3 rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+        <T>Epic lässt für dein Konto gerade keine weitere Anmeldung zu. Versuche es in einer halben Stunde noch einmal.</T>
+      </p>
+    );
+  }
   return (
     <p className="mb-3 rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
       <T>Die Verifizierung mit Epic hat nicht geklappt. Bitte versuche es noch einmal.</T>

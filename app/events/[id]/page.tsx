@@ -2238,6 +2238,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * im Reload stirbt man aber oefter als einmal je Spiel, Osirion zeigt 4,72). Nur wenn alle Spieler des Teams die echten Tode haben, sonst bleibt Epics Rechnung.
    */
   const [echteKd, setEchteKd] = useState<Record<string, number>>({});
+  const [teamSchaden, setTeamSchaden] = useState<Record<string, number>>({});
   useEffect(() => {
     const e = tabelle.find((x) => x.rank === offen);
     const p = e?.players.find((x) => /^[0-9a-f-]{32,36}$/i.test(String((x as { id?: string }).id)));
@@ -2247,13 +2248,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     let weg = false;
     fetch(`/api/spieler-detail?event=${encodeURIComponent(lbFenster.eventId)}&window=${encodeURIComponent(lbFenster.windowId)}&id=${String((p as { id?: string }).id)}`)
       .then((r) => r.json())
-      .then((j: { mitglieder?: Array<{ replay?: { kills?: number | null; tode?: number | null; killsNachAus?: number } | null }> }) => {
+      .then((j: { mitglieder?: Array<{ replay?: { kills?: number | null; tode?: number | null; killsNachAus?: number; damage?: number } | null }> }) => {
         if (weg) return;
         const m = j.mitglieder ?? [];
         const echt = m.length > 0 && m.every((x) => x.replay?.killsNachAus !== undefined && typeof x.replay?.tode === 'number');
         const kills = m.reduce((s, x) => s + (x.replay?.kills ?? 0), 0);
         const tode = m.reduce((s, x) => s + (x.replay?.tode ?? 0), 0);
         setEchteKd((alt) => ({ ...alt, [key]: echt ? kills / Math.max(1, tode) : NaN }));
+        // Damage To Players im Team-Kasten statt Ø Punkte (Betreiber, 7.11.2026: "das ist schon wichtiger als Average Points").
+        const mitSchaden = m.length > 0 && m.every((x) => typeof x.replay?.damage === 'number');
+        setTeamSchaden((alt) => ({ ...alt, [key]: mitSchaden ? m.reduce((s, x) => s + (x.replay?.damage ?? 0), 0) : NaN }));
       })
       .catch(() => { /* dann Epics Rechnung */ });
     return () => { weg = true; };
@@ -3939,7 +3943,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {kachel('Punkte', e.points, true)}
                     {kachel('Spiele', e.games, true)}
                     {kachel('Siege', e.wins, true)}
-                    {kachel('Ø Punkte', schnitt(e.avgPoints, ort))}
+                    {(() => { const v = lbFenster ? teamSchaden[`${lbFenster.windowId}|${e.rank}`] : undefined; return typeof v === 'number' && Number.isFinite(v) ? kachel('Schaden an Spielern', Math.round(v).toLocaleString(ort)) : kachel('Ø Punkte', schnitt(e.avgPoints, ort)); })()}
                     {kachel('Ø Platz', schnitt(e.avgPlace, ort))}
                     {kachel('Ø Überlebenszeit', dauer(e.games ? e.timeAlive / e.games : 0))}
                     {kachel('Elims', e.elims)}

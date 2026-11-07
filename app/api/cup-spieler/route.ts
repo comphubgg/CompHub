@@ -12,6 +12,9 @@ import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsC
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
 
+/** Zeit im Sturm: alte Auswertungen hatten bei abgebrochenen Aufnahmen 1,8e308 Sekunden - so ein Wert zaehlt nicht (7.11.2026). */
+const sturmOk = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? v : 0);
+
 /*
  * Ohne Replays: die Werte der Szene-Quelle.
  *
@@ -97,7 +100,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += d.sturm ?? 0; rep.set(e, x);
+      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); rep.set(e, x);
     }
     for (const [id, v] of Object.entries(c?.leben ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
@@ -459,7 +462,7 @@ async function holeRoh(request: Request) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         raus.schaden![id] = {
           dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + (c.epicKopf?.[id] ?? d.krit),
-          sturm: (da.sturm ?? 0) + (d.sturm ?? 0), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
+          sturm: (da.sturm ?? 0) + sturmOk(d.sturm), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
         };
       }
       return raus;

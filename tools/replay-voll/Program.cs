@@ -881,7 +881,9 @@ class SchadenLeser : ReplayReader {
     Zus Z(int id) { if (!raus.TryGetValue(id, out var z)) raus[id] = z = new Zus(); return z; }
     foreach (var kv in wiederbelebt) Z(kv.Key).Wiederbelebt = kv.Value;
     foreach (var kv in rebootet) Z(kv.Key).Rebootet = kv.Value;
-    double Schluss(int id) => tod.TryGetValue(id, out var t) ? t : (ende ?? double.MaxValue);
+    // Ohne Spielende die letzte bekannte Zeit - vorher double.MaxValue: ein Spieler, der beim Abbruch der Aufnahme im Sturm stand, hatte 1,8e308 Sekunden (Seite zeigte "2,99e+306:08", 7.11.2026).
+    var letzte = SturmListe.Count > 0 ? SturmListe.Max(x => x.t) : 0;
+    double Schluss(int id) => tod.TryGetValue(id, out var t) ? t : (ende ?? letzte);
     foreach (var g in SturmListe.GroupBy(x => x.id)) {
       double? seit = null;
       foreach (var e in g.OrderBy(x => x.t)) {

@@ -243,7 +243,9 @@ export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spiel
                 !werte ? <p className="mt-2 text-center text-sm text-slate-500"><T>Wird geladen …</T></p> : (
                   <div className="mt-2 divide-y divide-zinc-800">
                     {MEHR.map((m) => ({ m, a: summe(team, m.feld), b: summe(gegner, m.feld) }))
-                      .filter(({ a, b }) => a !== null || b !== null)
+                      // Was bei beiden 0 ist (Knocks im Solo), steht nicht da; unmoegliche Werte (alte Sturmzeit 1,8e308) auch nicht.
+                      .filter(({ a, b }) => (a !== null && a !== 0) || (b !== null && b !== 0))
+                      .filter(({ a, b }) => (a === null || a < 1e7) && (b === null || b < 1e7))
                       .map(({ m, a, b }) => reihe(m.titel, a, b, m.weniger, (v) => (m.zeit ? zeit(v) : Math.round(v).toLocaleString(ort))))}
                   </div>
                 )

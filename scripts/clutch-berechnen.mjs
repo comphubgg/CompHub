@@ -171,7 +171,7 @@ function schadenAus(roh) {
       const k = epicVon.get(z.id);
       if (!k) continue;
       const d = raus[k] ??= neueWerte();
-      d.sturm += z.sturmSek ?? 0; d.wiederbelebt += z.wiederbelebt ?? 0; d.rebootet += z.rebootet ?? 0;
+      d.sturm += Number.isFinite(z.sturmSek) && z.sturmSek < 3600 ? z.sturmSek : 0; d.wiederbelebt += z.wiederbelebt ?? 0; d.rebootet += z.rebootet ?? 0;
     }
     // Die Werte, die Osirion zeigt, soweit der Strom sie hergibt (7.11.2026, an den vier Spielen des Performance-Finales gegen Osirion geprueft).
     for (const p of roh.spieler ?? []) {

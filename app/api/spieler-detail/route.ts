@@ -209,7 +209,7 @@ export async function GET(request: Request) {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           // Wie app/api/cup-spieler: bei Solo-Cups Epics eigener Schaden und Kopftreffer, wo Epic ihn fuehrt (Top 10.000) - der trifft Osirion fast genau.
           ...(d ? { damage: Math.round((clutch as unknown as { epicDmg?: Record<string, number> } | null)?.epicDmg?.[i] ?? d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: (clutch as unknown as { epicKopf?: Record<string, number> } | null)?.epicKopf?.[i] ?? d.krit } : {}),
-          ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
+          ...(d && typeof d.sturm === 'number' ? { sturmSek: d.sturm < 1e6 ? Math.round(d.sturm) : undefined, wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
           // Die Osirion-Werte aus dem vollen Auslesen (scripts/clutch-berechnen.mjs).
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;

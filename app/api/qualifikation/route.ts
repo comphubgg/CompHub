@@ -294,7 +294,32 @@ async function holeRoh(request: Request) {
     aehnlich = frueher.length > 0;
   }
 
-  if (!frueher.length) {
+  /*
+   * Ohne verwertbare Vorlage (NA West Round 2 der FNCS Solos Reload: keine fruehere Round 2, die Victory Cups hatten keinen Platz 500): dieselbe Runde in den
+   * Regionen, die sie schon gespielt haben - ihr echter Wert (Betreiber, 7.11.2026: "bei Qualifying steht einfach keine Punkte daneben ... in allen Regionen").
+   */
+  let andereRegionen = false;
+  const ausAnderenRegionen = async () => {
+    const muster = window_.replace(/_[A-Z]+$/, '');
+    const andere = new Map<string, { windowId: string; eventId: string; begin: number }>();
+    for (const c of cups) for (const [r, liste] of Object.entries(c.regionen)) {
+      if (r === region) continue;
+      for (const f of liste) if (f.windowId.replace(/_[A-Z]+$/, '') === muster && f.status === 'vorbei') andere.set(f.windowId, f);
+    }
+    const raus: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [];
+    await Promise.all([...andere.values()].map(async (f) => {
+      try {
+        const board = await gecacht(`qual|${f.eventId}|${f.windowId}|${schwelle}`, 30 * 60_000, () => umRang(f.eventId, f.windowId, schwelle));
+        const tr = board.entries.find((e) => e.rank === schwelle);
+        if (tr && tr.points > 0) raus.push({ windowId: f.windowId, datum: f.begin, punkte: tr.points, titel: 'Same round, other region' });
+      } catch { /* ohne diese Region */ }
+    }));
+    return raus;
+  };
+  const vorab = !frueher.length ? await ausAnderenRegionen() : [];
+  if (vorab.length) andereRegionen = true;
+
+  if (!frueher.length && !vorab.length) {
     // Ohne Vorgeschichte bleibt trotzdem, was dieser Spieltag gekostet hat.
     return NextResponse.json({
       vorhanden: tatsaechlich !== null, schwelle, tatsaechlich, laeuft,
@@ -304,7 +329,7 @@ async function holeRoh(request: Request) {
     });
   }
 
-  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [];
+  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [...vorab];
   for (const f of frueher) {
     try {
       /*
@@ -331,8 +356,13 @@ async function holeRoh(request: Request) {
     }
   }
 
-  const werte = ausgaben.map((a) => a.punkte)
+  let werte = ausgaben.map((a) => a.punkte)
     .filter((x): x is number => typeof x === 'number' && x > 0);
+  if (!werte.length && !andereRegionen) {
+    const nachtrag = await ausAnderenRegionen();
+    if (nachtrag.length) { andereRegionen = true; aehnlich = true; ausgaben.push(...nachtrag); werte = nachtrag.map((a) => a.punkte as number); }
+  }
+  if (andereRegionen) aehnlich = true;
   /*
    * Auch bei einer Runde ueber mehrere Tage aus aehnlichen Cups geschaetzt - aber am richtigen Platz (Betreiber, 3.11.2026: die Schaetzung aus den
    * normalen Solos stimmt ungefaehr, nur eben fuer Top 4.000 statt 8.000: "was wuerdest du bei Solos nehmen, wenn es Top 4000 waere").

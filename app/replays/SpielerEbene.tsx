@@ -31,6 +31,8 @@ export interface SpielerDaten {
   loot?: number[][];
   lootNamen?: string[];
   treffer?: number[][];
+  /** Der echte Schild [Zeit, Wert] je Spieler (tools/replay-voll, ab 7.11.2026 offen aus dem Strom gelesen) - dann wird nichts geschaetzt. */
+  schild?: Record<string, number[][]>;
 }
 
 /** Wie lange eine Schusslinie stehen bleibt (Sekunden Spielzeit). */
@@ -199,16 +201,25 @@ export function useSpielerDaten(m: SpielerDaten) {
     const waffenNamen = m.waffenNamen ?? [];
     const treffer = [...(m.treffer ?? [])].sort((a, b) => a[0] - b[0]);
     const mitSchild = treffer.some((h) => h.length > 7);
-    const schild = new Map<number, number[][]>();
-    if (mitSchild) for (const [id, l] of hand) schild.set(id, schildSchaetzen(id, l, waffenNamen, treffer));
+    let schild = new Map<number, number[][]>();
+    // Der echte Verlauf, wo das Replay ihn hat (Betreiber, 7.11.2026: "dass er nach 5 Minuten noch kein Schild hat?"). Lobby-Werte ueber 100 vor dem ersten echten Stand fallen weg.
+    const echt = m.schild && Object.keys(m.schild).length > 0;
+    if (echt) {
+      schild = new Map(Object.entries(m.schild ?? {}).map(([k, v]) => {
+        const l = [...v].sort((a, b) => a[0] - b[0]);
+        const ab = l.findIndex((x) => x[1] <= 100);
+        return [Number(k), ab < 0 ? [] : l.slice(ab)];
+      }));
+    } else if (mitSchild) for (const [id, l] of hand) schild.set(id, schildSchaetzen(id, l, waffenNamen, treffer));
     return {
+      schildEcht: !!echt,
       orte: sortiert(m.orte), leben: sortiert(m.leben), hand, blick: sortiert(m.blick), waffenNamen, schild,
       schuesse: [...(m.schuesse ?? [])].sort((a, b) => a[0] - b[0]),
       loot: [...(m.loot ?? [])].sort((a, b) => a[0] - b[0]),
       namen: m.lootNamen ?? [],
       da: Boolean(m.orte && Object.keys(m.orte).length),
     };
-  }, [m.orte, m.leben, m.hand, m.blick, m.waffenNamen, m.schuesse, m.loot, m.lootNamen, m.treffer]);
+  }, [m.orte, m.leben, m.hand, m.blick, m.waffenNamen, m.schuesse, m.loot, m.lootNamen, m.treffer, m.schild]);
 }
 export type Aufbereitet = ReturnType<typeof useSpielerDaten>;
 
@@ -288,9 +299,10 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
               {/* Namensschild wie bei Osirion: Name, darunter Schild und Leben - ohne Namen nur die Balken */}
               <span className="pointer-events-none absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 2px)' }}>
                 {(namenZeigen || an) ? (
-                  <span className="block whitespace-nowrap rounded-sm border border-black/60 bg-black/70 px-1 pb-[2px] pt-px" style={{ minWidth: 64 }}>
-                    <span className="flex items-center gap-1 text-[11px] font-bold leading-tight text-white">{hand && <Symbol art={artVon(hand).art} gross={12} />}{s.name}</span>
-                    <span className="mt-[2px] block"><Balken hp={hp} schild={schild} schmal /></span>
+                  // Schlicht (Betreiber, 7.11.2026: "der Name ist ein bisschen sehr unclean"): nur der Name, mittig, gekuerzt; die Waffe steht im HUD.
+                  <span className="block rounded-md bg-zinc-950/85 px-1.5 pb-1 pt-0.5 shadow-[0_1px_3px_rgba(0,0,0,.6)]" style={{ minWidth: 60 }}>
+                    <span className="block max-w-[110px] truncate text-center text-[10px] font-semibold leading-tight tracking-wide text-white">{s.name}</span>
+                    <span className="mt-[3px] block"><Balken hp={hp} schild={schild} schmal /></span>
                   </span>
                 ) : <span className="block" style={{ width: 34 }}><Balken hp={hp} schild={schild} schmal /></span>}
               </span>
@@ -381,7 +393,7 @@ export function SpielerFenster({ d, zeit, s, farbe, schliessen }: { d: Aufbereit
       <p className="mt-2.5 text-[11px] text-slate-400">
         <T>Treffer</T> <b className="tabular-nums text-slate-100">{meine.length}</b> · Damage <b className="tabular-nums text-slate-100">{Math.round(meine.reduce((a, x) => a + x[4], 0))}</b> · <T>Kopftreffer</T> <b className="tabular-nums text-slate-100">{meine.filter((x) => x[5] === 2).length}</b>
       </p>
-      {schild !== null && <p className="mt-1 text-[10px] text-slate-500"><T>Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.</T></p>}
+      {schild !== null && !d.schildEcht && <p className="mt-1 text-[10px] text-slate-500"><T>Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.</T></p>}
     </div>
   );
 }

@@ -492,11 +492,15 @@ export default function EventsPage() {
   useEffect(() => {
     let weg = false;
     const fragen = async () => {
-      for (const pause of [0, 1500, 4000, 8000]) {
+      /*
+       * Jeder Versuch hoechstens 12 Sekunden, und Wiederholungen ueber gut drei Minuten (Betreiber, 7.11.2026: die Seite lud "einfach legit nur"). Beim Umschalten
+       * auf einen neuen Bau ist der Server bis zu drei Minuten weg; eine Anfrage ohne Frist blieb dann haengen und der Ladeschirm fuer immer stehen.
+       */
+      for (const pause of [0, 1500, 4000, 8000, 15000, 30000, 30000, 30000, 30000, 30000]) {
         if (pause) await new Promise((fertig) => setTimeout(fertig, pause));
         if (weg) return null;
         try {
-          const r = await fetch(`/api/cup-catalog?modus=${mitVergangenen ? 'alle' : 'alle-aktuell'}`);
+          const r = await fetch(`/api/cup-catalog?modus=${mitVergangenen ? 'alle' : 'alle-aktuell'}`, { signal: AbortSignal.timeout(12_000) });
           const d = await r.json();
           if (r.ok || d?.needsLogin) return { r, d };
         } catch { /* gleich noch einmal */ }
