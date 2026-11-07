@@ -138,6 +138,28 @@ function schadenAus(roh) {
       const d = raus[k] ??= neueWerte();
       d.sturm += z.sturmSek ?? 0; d.wiederbelebt += z.wiederbelebt ?? 0; d.rebootet += z.rebootet ?? 0;
     }
+    // Die Werte, die Osirion zeigt, soweit der Strom sie hergibt (7.11.2026, an den vier Spielen des Performance-Finales gegen Osirion geprueft).
+    for (const p of roh.spieler ?? []) {
+      if (p.bot || !p.epic) continue;
+      const d = raus[p.epic] ??= neueWerte();
+      const x = roh.extra?.[p.id];
+      if (x) { d.editZahl = (d.editZahl ?? 0) + x[2]; d.editSek = (d.editSek ?? 0) + x[3]; }
+      // Leben geheilt: Anstiege unter 50 Punkten - groessere sind das Zuruecksetzen beim Knock und beim Wiedereinstieg. Geschaetzt, im Finale rund 15 % ueber Osirion.
+      const l = roh.leben?.[p.id] ?? [];
+      for (let i = 1; i < l.length; i += 1) { const a = l[i][1] - l[i - 1][1]; if (a > 0 && a < 50 && l[i - 1][1] > 0) d.heilHp = (d.heilHp ?? 0) + a; }
+      // Der Schild steht nicht im Strom. Was an Schild verloren ging, liegt nah am Geheilten (1.262 zu 1.247 bei Darm).
+      for (const t of roh.treffer ?? []) if (t[2] === p.id && t[7]) d.schildWeg = (d.schildWeg ?? 0) + t[3];
+      // Schuesse: Einschlaege mit einer Waffe in der Hand; mit der Spitzhacke sind es Farm-Schlaege.
+      const hand = roh.hand?.[p.id] ?? [];
+      let k = 0;
+      for (const s of roh.schuesse ?? []) {
+        if (s[1] !== p.id) continue;
+        while (k + 1 < hand.length && hand[k + 1][0] <= s[0]) k += 1;
+        const name = roh.waffenNamen?.[hand[k]?.[1]] ?? '';
+        if (/Pickaxe|Melee/i.test(name)) d.axt = (d.axt ?? 0) + 1;
+        else if (!/BuildingTool|EditingTool|Consumable/i.test(name)) d.schuss = (d.schuss ?? 0) + 1;
+      }
+    }
     const jeTeam = new Map();
     for (const p of roh.spieler ?? []) if (!p.bot && p.epic) jeTeam.set(p.team, [...(jeTeam.get(p.team) ?? []), p.epic]);
     for (const b of roh.bau ?? []) {
@@ -323,7 +345,7 @@ if (arg[0] === '--plan') {
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
      */
-    const neuAnfang = !!da && !da.schadenFassung && !/solo/i.test(f.windowId) && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 3 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));

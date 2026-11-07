@@ -68,7 +68,7 @@ async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: st
   return [];
 }
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -175,6 +175,11 @@ export async function GET(request: Request) {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
+          // Die Osirion-Werte aus dem vollen Auslesen (scripts/clutch-berechnen.mjs).
+          ...(d ? (() => {
+            const w = d as unknown as Record<string, number | undefined>;
+            return typeof w.editZahl === 'number' ? { editZahl: w.editZahl, editSek: Math.round(w.editSek ?? 0), heilHp: Math.round(w.heilHp ?? 0), schildWeg: Math.round(w.schildWeg ?? 0), schuss: w.schuss ?? 0, axt: w.axt ?? 0 } : {};
+          })() : {}),
           // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;

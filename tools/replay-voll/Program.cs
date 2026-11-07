@@ -200,7 +200,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.Extra, orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 
 /*
@@ -413,6 +413,28 @@ class SchadenLeser : ReplayReader {
     l.Add(new[] { Math.Round(t, 1), Math.Round(x), Math.Round(y) });
   }
 
+  /// Je Spieler: [frei, frei, Bauzustand 1: Anzahl, Sekunden, Bauzustand 2: Anzahl, Sekunden]. Bauzustand 1 ist das Editieren: im Performance-Finale 1,5 / 0,9 / 1,2 s je Edit, Osirion 2 / 1 / 1 s.
+  public readonly Dictionary<int, double[]> Extra = new();
+  double[] ExtraVon(int id) => Extra.TryGetValue(id, out var e) ? e : (Extra[id] = new double[6]);
+  readonly Dictionary<uint, (int zustand, double seit)> bauZustand = new();
+  static readonly System.Reflection.PropertyInfo? BauZustandFeld = typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty("BuildingState");
+  void BauZustandNotieren(uint kanal, INetFieldExportGroup g) {
+    if (BauZustandFeld?.GetValue(g) is not object roh || Zeit() is not double t) return;
+    var neu = Convert.ToInt32(roh);
+    var id = Hole(VonFigur, kanal)?.Id;
+    if (id is not int i) return;
+    var e = ExtraVon(i);
+    if (bauZustand.TryGetValue(kanal, out var alt) && alt.zustand != neu) {
+      if (alt.zustand == 1) e[3] += t - alt.seit;
+      if (alt.zustand == 2) e[5] += t - alt.seit;
+    }
+    if (!bauZustand.TryGetValue(kanal, out var vor) || vor.zustand != neu) {
+      if (neu == 1) e[2] += 1;
+      if (neu == 2) e[4] += 1;
+      bauZustand[kanal] = (neu, t);
+    }
+  }
+
   void LebenNotieren(uint kanal, INetFieldExportGroup g) {
     if (Zeit() is not double t) return;
     var id = Hole(VonFigur, kanal)?.Id ?? VomZustand(kanal)?.Id;
@@ -482,6 +504,7 @@ class SchadenLeser : ReplayReader {
       }
     }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
+      BauZustandNotieren(channelIndex, exportGroup);
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);
         if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); }
