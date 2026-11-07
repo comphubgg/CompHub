@@ -48,7 +48,8 @@ for (const w of liste) {
   const stand = Date.parse(d.epicDmgStand ?? '') || 0;
   if (!wunsch.length) {
     if (Date.now() - (Date.parse(d.gerechnet ?? '') || 0) > FRISCH_MS) continue;
-    if (Date.now() - stand < NEU_NACH_MS) continue;
+    // Am ersten Tag alle 30 Minuten: Epic traegt nach dem Cup-Ende noch nach, eine Kopie von mitten im Cup stand sonst sechs Stunden (Focus: 14.080 statt 25.406).
+    if (Date.now() - stand < (Date.now() - (Date.parse(d.gerechnet ?? '') || 0) < 864e5 ? 30 * 60_000 : NEU_NACH_MS)) continue;
   }
   const erste = await seite(d, 0);
   if (!erste) { console.log(`${w}: Bestenliste nicht erreichbar`); continue; }

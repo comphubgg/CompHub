@@ -197,6 +197,7 @@ export async function GET(request: Request) {
     const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
     const eigeneKomplett = !!eigene && eigene.gelesen >= eigene.sitzungen;
     const kontext = await spielerKontext().catch(() => null);
+    const soloEpic = !!eintrag && eintrag.players.length === 1;
     const je = await jeSpielHolen(fenster, clutch, ids).catch(() => ({ spalten: ALTE_SPALTEN, zeilen: new Map<string, JeZeile[]>() }));
     const mitglieder = ids.map((i) => {
       const roh = namen.get(i) ?? '';
@@ -207,8 +208,11 @@ export async function GET(request: Request) {
         const d = clutch?.schaden?.[i];
         replay = {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
-          // Wie app/api/cup-spieler: bei Solo-Cups Epics eigener Schaden und Kopftreffer, wo Epic ihn fuehrt (Top 10.000) - der trifft Osirion fast genau.
-          ...(d ? { damage: Math.round((clutch as unknown as { epicDmg?: Record<string, number> } | null)?.epicDmg?.[i] ?? d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: (clutch as unknown as { epicKopf?: Record<string, number> } | null)?.epicKopf?.[i] ?? d.krit } : {}),
+          /*
+           * Solo: der Schaden direkt aus Epics Bestenliste dieses Spielers (frisch bei jedem Abruf; Focus, FNCS Solo Reload: 25.406 zu Osirions 25.455). Die gespeicherte
+           * Kopie (epicDmg) war mitten im Cup gezogen worden und stand bei 14.080. Kopftreffer bleiben aus dem Replay: Epic zaehlt 31, Osirion 90, das Replay 89.
+           */
+          ...(d ? { damage: Math.round(soloEpic && (eintrag?.damage ?? 0) > 0 ? eintrag!.damage : d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: d.sturm < 1e6 ? Math.round(d.sturm) : undefined, wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
           // Die Osirion-Werte aus dem vollen Auslesen (scripts/clutch-berechnen.mjs).
           ...(d ? (() => {
@@ -233,7 +237,9 @@ export async function GET(request: Request) {
           ...(d ? {
             clutch: clutch?.summe?.[i] ?? 0,
             ...(typeof (clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) === 'number' ? { lebenSek: Math.round(Math.min((clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) as number, clutch?.epicTeamZeit?.[i] ?? Infinity)) } : {}),
-            ...(typeof clutch?.epicStrecke?.[i] === 'number' ? { streckeM: clutch.epicStrecke[i] }
+            // Solo: Epics Strecke am Boden (frisch, in cm) plus die Strecke in der Luft aus dem Replay - Focus 38,4 km + Luft zu Osirions 41,3 km; unsere Proben alle 10 s ergaben 21,5 km.
+            ...(soloEpic && (eintrag?.strecke ?? 0) > 0 ? { streckeM: Math.round(eintrag!.strecke / 100 + (clutch?.strecke?.[i]?.[1] ?? 0) / 0.685) }
+              : typeof clutch?.epicStrecke?.[i] === 'number' ? { streckeM: clutch.epicStrecke[i] }
               : clutch?.strecke?.[i] ? { streckeM: Math.round(((clutch.strecke[i][0] ?? 0) + (clutch.strecke[i][1] ?? 0)) / 0.685) } : {}),
           } : {}),
         };
