@@ -92,13 +92,13 @@ FortniteReplay replay;
  * Matches nacheinander blockierten so die ganze Schleife. Nach REPLAY_SEKUNDEN (Standard 150, ein gewoehnliches Match braucht 3 bis 10) endet der Prozess mit Code 3.
  */
 var grenzeSek = int.TryParse(Environment.GetEnvironmentVariable("REPLAY_SEKUNDEN"), out var gs0) && gs0 > 0 ? gs0 : 150;
-var wache = new System.Threading.Timer(_ => { Console.Error.WriteLine($"Zeitlimit: der Leser kam in {grenzeSek} s nicht zum Ende"); Environment.Exit(3); }, null, grenzeSek * 1000, Timeout.Infinite);
+var wache = new System.Threading.Timer(_ => { Console.Error.WriteLine($"Zeitlimit: der Leser kam in {grenzeSek} s nicht zum Ende (Rahmen {SchadenLeser.Rahmen}, Block {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt})"); Environment.Exit(3); }, null, grenzeSek * 1000, Timeout.Infinite);
 try {
   reader = new SchadenLeser();
   replay = reader.ReadReplay(datei);
   wache.Dispose();
 } catch (Exception e) {
-  Console.Error.WriteLine($"{e.GetType().Name}: {e.Message}");
+  Console.Error.WriteLine(Environment.GetEnvironmentVariable("LESER_STAPEL") == "1" ? e.ToString() : $"{e.GetType().Name}: {e.Message}");
   Environment.Exit(1);
   return;
 }
@@ -646,8 +646,56 @@ class SchadenLeser : ReplayReader {
    * Gelungene Edits: NetMulticast_SuccessfulBuildingEdit ist ein Aufruf ohne Werte auf der Figur. Die Bibliothek ueberspringt Felder ohne Inhalt, bevor sie sie auswertet; deshalb wird er
    * schon beim Lesen des Feldkopfs gezaehlt. Performance-Finale: 408 / 501 / 369 zu Osirions 364 / 492 / 353.
    */
+  /*
+   * Kaputte Bloecke ueberspringen statt das ganze Match zu verlieren (8.11.2026: 30 Matches der FNCS Solo Reload EU scheiterten bei jedem Versuch - die Bibliothek stuerzte in
+   * ReadNetFieldExports mit IndexOutOfRange ab, oder ein Block las sich endlos). Ein Fehler in einem Datenblock bricht nur diesen Block ab; ein Rahmen, der nicht weiterkommt,
+   * ebenso. Gezaehlt in DefekteBloecke.
+   */
+  public static int Rahmen, Bloecke, Defekt;
+  public override void ReadReplayData(Unreal.Core.FArchive archive, int fallbackChunkSize) {
+    Bloecke += 1;
+    try { base.ReadReplayData(archive, fallbackChunkSize); } catch (Exception) { Defekt += 1; }
+  }
+  Unreal.Core.FArchive? rahmenArchiv; int rahmenPos = -1; int rahmenGleich;
+  public override void ReadDemoFrameIntoPlaybackPackets(Unreal.Core.FArchive archive) {
+    if (ReferenceEquals(archive, rahmenArchiv) && archive.Position == rahmenPos) { if (++rahmenGleich > 2) throw new InvalidOperationException("Rahmen ohne Fortschritt"); }
+    else rahmenGleich = 0;
+    rahmenArchiv = archive; rahmenPos = archive.Position; Rahmen += 1;
+    rahmenStart = Environment.TickCount64;
+    base.ReadDemoFrameIntoPlaybackPackets(archive);
+  }
+  // Ein Rahmen braucht Millisekunden; haengt einer (die Bibliothek liest in einer Schleife ohne Ende), bricht nach 3 s eine Ausnahme den Block ab.
+  long rahmenStart;
+  void RahmenWache() { if (Environment.TickCount64 - rahmenStart > 3000) throw new TimeoutException("Rahmen haengt"); }
+  public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
+  public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
+  public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) { RahmenWache(); base.ReceivedPacket(bitReader); }
+  public override Unreal.Core.Models.Enums.PacketState ReadPacket(Unreal.Core.FArchive archive) { RahmenWache(); return base.ReadPacket(archive); }
+  public override Unreal.Core.Models.NetFieldExport? ReadNetFieldExport(Unreal.Core.FArchive archive) { RahmenWache(); return base.ReadNetFieldExport(archive); }
+  public override Unreal.Core.Models.NetworkGUID InternalLoadObject(Unreal.Core.FArchive archive, bool isExportingNetGUIDBunch, int internalLoadObjectRecursionCount = 0) { RahmenWache(); return base.InternalLoadObject(archive, isExportingNetGUIDBunch, internalLoadObjectRecursionCount); }
+  /*
+   * Wie die Bibliothek, aber mit Ende: ihre Schleife liest so lange, bis eine 0 kommt - in einem kaputten Block kommt keine, und der Leser hing (FNCS Solo Reload EU, 8.11.2026).
+   */
+  public override void ReadExternalData(Unreal.Core.FArchive archive) {
+    while (!archive.AtEnd()) {
+      RahmenWache();
+      uint bits = archive.ReadIntPacked();
+      if (bits == 0) break;
+      uint guid = archive.ReadIntPacked();
+      if (archive.AtEnd()) break;
+      _netGuidCache.ExternalData[guid] = new Unreal.Core.Models.ExternalData {
+        Archive = new Unreal.Core.BinaryReader(archive.ReadBytes((int)((bits + 7) >> 3))) {
+          NetworkReplayVersion = archive.NetworkReplayVersion, EngineNetworkVersion = archive.EngineNetworkVersion, ReplayHeaderFlags = archive.ReplayHeaderFlags,
+          ReplayVersion = archive.ReplayVersion, NetworkVersion = archive.NetworkVersion,
+        },
+        NetGUID = guid,
+      };
+    }
+  }
+
   uint bunchKanal;
   public override bool ReceivedReplicatorBunch(Unreal.Core.Models.DataBunch bunch, Unreal.Core.FBitArchive archive, uint? repObject, bool bHasRepLayout) {
+    RahmenWache();
     bunchKanal = bunch.ChIndex;
     return base.ReceivedReplicatorBunch(bunch, archive, repObject, bHasRepLayout);
   }

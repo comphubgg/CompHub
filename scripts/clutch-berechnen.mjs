@@ -548,6 +548,8 @@ if (arg[0] === '--plan') {
           try {
             voll = await leser.lies(datei);
           } catch (e) { console.log(`    ${id}: Leser - ${String(e.message).slice(0, 100)}`); }
+          // Ein Replay, dessen erster Block schon kaputt ist, liefert Spieler, aber weder Kill-Feed noch Treffer - das waeren lauter Nullen, also wie ein Fehler behandeln.
+          if (voll && !(voll.feed?.length) && !(voll.treffer?.length)) { console.log(`    ${id}: Leser - kein Kill-Feed und keine Treffer (Replay kaputt)`); voll = null; }
           if (!voll) { fehler += 1; teil.fehler.push(id); continue; }
           const roh = {
             id, busAb: voll.busAb ?? null,
