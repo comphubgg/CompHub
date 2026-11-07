@@ -247,8 +247,24 @@ let tokenBis = 0;
  */
 export function verwirfToken() { tokenCache = null; tokenBis = 0; }
 
+/*
+ * Gleichzeitige Anfragen teilen sich eine Anmeldung (vorher holte jeder Aufruf beim Kaltstart seine eigene - jede ist bei Epic eine Sitzung). Lehnt Epic
+ * wegen zu vieler Sitzungen ab, wird zwei Minuten nicht erneut gefragt, und auf der Seite steht ein Satz statt der Rohantwort (Betreiber, 7.11.2026).
+ */
+let tokenLaeuft: Promise<{ token: string; accountId: string; displayName?: string }> | null = null;
+let sperreBis = 0;
+const ZU_VIELE = 'Epic lässt gerade keine weitere Anmeldung zu. In ein paar Minuten geht es wieder.';
 export async function getToken() {
   if (tokenCache && Date.now() < tokenBis) return tokenCache;
+  if (Date.now() < sperreBis) throw new Error(ZU_VIELE);
+  tokenLaeuft ??= tokenHolen().catch((e) => {
+    if (/too many sessions/i.test(String((e as Error)?.message))) { sperreBis = Date.now() + 120_000; throw new Error(ZU_VIELE); }
+    throw e;
+  }).finally(() => { tokenLaeuft = null; });
+  return tokenLaeuft;
+}
+
+async function tokenHolen() {
 
   const a = await ladeAuth();
   const body = a.mode === 'refresh'
@@ -288,7 +304,7 @@ export async function getToken() {
     displayName: tok.displayName,
   };
   tokenBis = Date.now() + Math.max(60, (tok.expires_in ?? 7200) - 300) * 1000;
-  return tokenCache;
+  return tokenCache!;
 }
 
 // ---------------------------------------------------------------- Namen

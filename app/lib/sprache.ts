@@ -1499,6 +1499,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
   'Mehr anzeigen': 'Show more',
+  'Epic lässt gerade keine weitere Anmeldung zu. In ein paar Minuten geht es wieder.': 'Epic is not accepting another sign-in right now. It will work again in a few minutes.',
   'Zeigt die laufende Summe über die Matches statt des Werts je Match': 'Shows the running total across matches instead of each match on its own',
   'aus früheren Seasons': 'from earlier seasons',
   'Epics Rangliste war beim letzten Abruf nur teilweise erreichbar.': "Epic's ranking page was only partly reachable during the last update.",
