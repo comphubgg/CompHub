@@ -913,7 +913,7 @@ class SchadenLeser : ReplayReader {
     foreach (var e in Liste) {
       if (e.t is not double t || (busAb is not null && t < busAb)) continue;
       bool amBoden = AmBodenZuZeit(e.an, t);
-      raus.Add(new[] { Math.Round(t, 1), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
+      raus.Add(new[] { Math.Round(t, 3), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
     }
     return raus;
   }
