@@ -108,9 +108,24 @@ const REIHEN: Array<{ titel: string; wert: (e: AktionTeam) => number | null; wen
   { titel: 'Ø Überlebenszeit', wert: (e) => (e.games ? e.timeAlive / e.games : null), text: (v) => zeit(v) },
 ];
 
-/** Zwei Teams dieses Cups nebeneinander. Das Gegenueber wird mit dem Namen gesucht. */
-export function VergleichFenster({ team, alle, nameVon, spieleVon, zu }: {
-  team: AktionTeam; alle: AktionTeam[]; nameVon: (e: AktionTeam) => string; spieleVon: (e: AktionTeam) => Promise<AktionMatch[]>; zu: () => void;
+/** Werte aus den Replays je Spieler (app/api/cup-spieler) - fuer "More" im Vergleich, im Team als Summe. */
+interface SpielerWert { epicId?: string; damage?: number; damageTaken?: number; knocks?: number; tode?: number; hits?: number; headshots?: number; timeInStorm?: number; clutch?: number | null }
+const MEHR: Array<{ titel: string; feld: keyof SpielerWert; weniger?: boolean; zeit?: boolean }> = [
+  { titel: 'Damage To Players', feld: 'damage' },
+  { titel: 'Damage From Players', feld: 'damageTaken', weniger: true },
+  { titel: 'Knocks', feld: 'knocks' },
+  { titel: 'Deaths', feld: 'tode', weniger: true },
+  { titel: 'Hits To Players', feld: 'hits' },
+  { titel: 'Headshots', feld: 'headshots' },
+  { titel: 'Time in Storm', feld: 'timeInStorm', weniger: true, zeit: true },
+  { titel: 'Solo Clutch Points', feld: 'clutch' },
+];
+const werteCache = new Map<string, Promise<SpielerWert[]>>();
+
+/** Zwei Teams dieses Cups nebeneinander, mit Bild, Platz und Name oben (Betreiber, 7.11.2026). Gesucht wird nach dem angezeigten und dem Ingame-Namen. */
+export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spieleVon, quelle, zu }: {
+  team: AktionTeam; alle: AktionTeam[]; nameVon: (e: AktionTeam) => string; suchText: (e: AktionTeam) => string; bildVon: (e: AktionTeam) => string | null;
+  spieleVon: (e: AktionTeam) => Promise<AktionMatch[]>; quelle: string | null; zu: () => void;
 }) {
   const t = useT();
   const { sprache } = useSprache();
@@ -118,12 +133,13 @@ export function VergleichFenster({ team, alle, nameVon, spieleVon, zu }: {
   const [suche, setSuche] = useState('');
   const [gegner, setGegner] = useState<AktionTeam | null>(null);
   const [runden, setRunden] = useState<[AktionMatch[], AktionMatch[]] | null>(null);
+  const [mehr, setMehr] = useState(false);
+  const [werte, setWerte] = useState<SpielerWert[] | null>(null);
   const treffer = useMemo(() => {
     const s = suche.trim().toLowerCase();
-    const andere = alle.filter((e) => e.rank !== team.rank);
-    if (!s) return andere.filter((e) => Math.abs(e.rank - team.rank) <= 3).slice(0, 6);
-    return andere.filter((e) => nameVon(e).toLowerCase().includes(s)).slice(0, 8);
-  }, [suche, alle, team, nameVon]);
+    if (!s) return alle.filter((e) => e.rank !== team.rank && Math.abs(e.rank - team.rank) <= 3).slice(0, 6);
+    return alle.filter((e) => suchText(e).toLowerCase().includes(s)).slice(0, 8);
+  }, [suche, alle, team, suchText]);
   useEffect(() => {
     if (!gegner) return undefined;
     let weg = false;
@@ -131,56 +147,113 @@ export function VergleichFenster({ team, alle, nameVon, spieleVon, zu }: {
     void Promise.all([spieleVon(team), spieleVon(gegner)]).then(([a, b]) => { if (!weg) setRunden([nachZeit(a), nachZeit(b)]); });
     return () => { weg = true; };
   }, [gegner, team, spieleVon]);
+  useEffect(() => {
+    if (!mehr || !quelle || werte) return undefined;
+    let weg = false;
+    if (!werteCache.has(quelle)) werteCache.set(quelle, fetch(quelle).then((r) => r.json()).then((j: { spieler?: SpielerWert[] }) => j.spieler ?? []).catch(() => []));
+    void werteCache.get(quelle)!.then((l) => { if (!weg) setWerte(l); });
+    return () => { weg = true; };
+  }, [mehr, quelle, werte]);
+  const summe = (e: AktionTeam, feld: keyof SpielerWert): number | null => {
+    if (!werte) return null;
+    const ids = new Set(e.players.map((p) => String(p.id ?? '').replace(/-/g, '').toLowerCase()));
+    const eigene = werte.filter((w) => ids.has(String(w.epicId ?? '').toLowerCase()));
+    const zahlen = eigene.map((w) => w[feld]).filter((v): v is number => typeof v === 'number');
+    return zahlen.length ? zahlen.reduce((a, b) => a + b, 0) : null;
+  };
+  const gemeinsam = gegner && runden ? runden[0].filter((m) => m.sessionId && runden[1].some((x) => x.sessionId === m.sessionId)).length : null;
+  const kopf = (e: AktionTeam, rechts: boolean) => {
+    const bild = bildVon(e);
+    return (
+      <div className={`flex min-w-0 items-center gap-3 ${rechts ? 'flex-row-reverse text-right' : ''}`}>
+        {bild
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={bild} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-white/10" />
+          : null}
+        <div className="min-w-0">
+          <div className="text-lg font-black tabular-nums text-slate-300">#{e.rank}</div>
+          <div className="truncate text-base font-bold text-slate-100">{nameVon(e)}</div>
+        </div>
+      </div>
+    );
+  };
+  const reihe = (titel: string, a: number | null, b: number | null, weniger: boolean | undefined, text: (v: number) => string) => {
+    const besser = a === null || b === null || a === b ? 0 : (a > b) !== !!weniger ? 1 : 2;
+    const zeige = (v: number | null) => (v === null ? '–' : text(v));
+    return (
+      <div key={titel} className="grid grid-cols-[1fr_9rem_1fr] items-center gap-3 py-2">
+        <div className={`text-right text-base tabular-nums ${besser === 1 ? 'font-bold text-slate-50' : 'text-slate-400'}`}>{zeige(a)}</div>
+        <div className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></div>
+        <div className={`text-base tabular-nums ${besser === 2 ? 'font-bold text-slate-50' : 'text-slate-400'}`}>{zeige(b)}</div>
+      </div>
+    );
+  };
   return (
-    <Fenster breit titel={<T>Vergleichen</T>} unter={<>#{team.rank} · {nameVon(team)}</>} zu={zu}>
+    <Fenster breit titel={<T>Vergleichen</T>} zu={zu}>
       {!gegner ? (
         <>
+          <div className="mb-4">{kopf(team, false)}</div>
           <input autoFocus value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
-            className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+            className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-zinc-500" />
           <div className="mt-3 space-y-1.5">
-            {treffer.map((e) => (
-              <button key={e.rank} type="button" onClick={() => setGegner(e)}
-                className="flex w-full items-center gap-3 rounded-xl bg-zinc-800/50 px-4 py-3 text-left transition hover:bg-zinc-800">
-                <span className="w-12 shrink-0 font-bold tabular-nums text-sky-400">#{e.rank}</span>
-                <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{nameVon(e)}</span>
-                <span className="shrink-0 text-sm tabular-nums text-slate-400">{e.points.toLocaleString(ort)} <T>Punkte</T></span>
-              </button>
-            ))}
+            {treffer.map((e) => {
+              const selbst = e.rank === team.rank;
+              const bild = bildVon(e);
+              return (
+                <button key={e.rank} type="button" disabled={selbst} onClick={() => setGegner(e)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-zinc-800/50 px-4 py-3 text-left transition enabled:hover:bg-zinc-800 disabled:cursor-default disabled:opacity-60">
+                  {bild
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={bild} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                    : <span className="h-9 w-9 shrink-0" />}
+                  <span className="w-14 shrink-0 font-bold tabular-nums text-slate-300">#{e.rank}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{nameVon(e)}{selbst && <span className="ml-2 text-xs font-normal text-slate-500">(<T>dieses Team</T>)</span>}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-slate-400">{e.points.toLocaleString(ort)} <T>Punkte</T></span>
+                </button>
+              );
+            })}
             {!treffer.length && <p className="py-4 text-center text-sm text-slate-500"><T>Niemanden gefunden.</T></p>}
           </div>
         </>
       ) : (
         <>
-          <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="min-w-0 truncate text-right font-bold text-sky-400">{nameVon(team)}</div>
+          <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            {kopf(team, false)}
             <button type="button" onClick={() => { setGegner(null); setRunden(null); }}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-sky-500"><T>Wechseln</T></button>
-            <div className="min-w-0 truncate font-bold text-sky-400">{nameVon(gegner)}</div>
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-zinc-500"><T>Wechseln</T></button>
+            {kopf(gegner, true)}
           </div>
           <div className="divide-y divide-zinc-800">
-            {REIHEN.map((r) => {
-              const a = r.wert(team); const b = r.wert(gegner);
-              const besser = a === null || b === null || a === b ? 0 : (a > b) !== !!r.weniger ? 1 : 2;
-              const zeige = (v: number | null) => (v === null ? '–' : r.text ? r.text(v, ort) : v.toLocaleString(ort));
-              return (
-                <div key={r.titel} className="grid grid-cols-[1fr_9rem_1fr] items-center gap-3 py-2">
-                  <div className={`text-right text-base tabular-nums ${besser === 1 ? 'font-bold text-sky-300' : 'text-slate-300'}`}>{zeige(a)}</div>
-                  <div className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500"><T>{r.titel}</T></div>
-                  <div className={`text-base tabular-nums ${besser === 2 ? 'font-bold text-sky-300' : 'text-slate-300'}`}>{zeige(b)}</div>
-                </div>
-              );
-            })}
+            {REIHEN.map((r) => reihe(r.titel, r.wert(team), r.wert(gegner), r.weniger, (v) => (r.text ? r.text(v, ort) : v.toLocaleString(ort))))}
+            {gemeinsam !== null && reihe('Im selben Spiel', gemeinsam, gemeinsam, false, (v) => v.toLocaleString(ort))}
           </div>
+          {quelle && (
+            <div className="mt-3 border-t border-zinc-800 pt-3">
+              <button type="button" onClick={() => setMehr((x) => !x)} className="mx-auto block text-sm font-semibold text-slate-400 transition hover:text-slate-200">
+                {mehr ? <T>Weniger anzeigen</T> : <T>Mehr anzeigen</T>} {mehr ? '▲' : '▼'}
+              </button>
+              {mehr && (
+                !werte ? <p className="mt-2 text-center text-sm text-slate-500"><T>Wird geladen …</T></p> : (
+                  <div className="mt-2 divide-y divide-zinc-800">
+                    {MEHR.map((m) => ({ m, a: summe(team, m.feld), b: summe(gegner, m.feld) }))
+                      .filter(({ a, b }) => a !== null || b !== null)
+                      .map(({ m, a, b }) => reihe(m.titel, a, b, m.weniger, (v) => (m.zeit ? zeit(v) : Math.round(v).toLocaleString(ort))))}
+                  </div>
+                )
+              )}
+            </div>
+          )}
           <div className="mt-5 border-t border-zinc-800 pt-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500"><T>Spielverlauf</T></div>
             {!runden ? <p className="text-sm text-slate-500"><T>Wird geladen …</T></p> : (
               <div className="space-y-1">
                 {Array.from({ length: Math.max(runden[0].length, runden[1].length) }, (_, i) => {
                   const zelle = (m?: AktionMatch) => (m ? `#${m.placement ?? '–'} · ${m.elims ?? 0} Elims` : '–');
+                  const zusammen = !!runden[0][i]?.sessionId && runden[0][i]?.sessionId === runden[1][i]?.sessionId;
                   return (
                     <div key={i} className="grid grid-cols-[1fr_9rem_1fr] items-center gap-3 rounded-lg bg-zinc-800/40 py-1.5 text-sm">
                       <div className="text-right tabular-nums text-slate-200">{zelle(runden[0][i])}</div>
-                      <div className="text-center text-xs text-slate-500"><T>Spiel</T> {i + 1}</div>
+                      <div className="text-center text-xs text-slate-500"><T>Spiel</T> {i + 1}{zusammen && <span className="ml-1 text-slate-300">· <T>gleiche Lobby</T></span>}</div>
                       <div className="tabular-nums text-slate-200">{zelle(runden[1][i])}</div>
                     </div>
                   );

@@ -2383,7 +2383,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
   // ---- Leaderboard ---------------------------------------------------
   const laden = useCallback(async (f: Fenster, tageListe?: string[] | null) => {
-    setLaedt(true); setOffen(null);
+    // Beim Nachfassen und beim Reload bleibt die Tabelle stehen (Betreiber, 7.11.2026: nach dem Reload war sie 30 s leer) - und das offene Team bleibt offen.
+    if (ganzGeladen.current !== f.windowId) { setLaedt(true); setOffen(null); }
     /*
      * Von Hand nachgetragene Turniere haben keine Bestenliste.
      *
@@ -2479,10 +2480,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           // Solange die ganze Liste kommt, steht das dabei: Suche und Friends sehen sonst nur die ersten Plaetze.
           setVertieft(true);
         }).catch(() => {});
-        const laeuftJetzt = f.status !== 'vorbei';
-        const ab = laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
-        const frischHand = Date.now() < handFrischBis.current ? '&frisch=1' : '';
-        const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1&ab=${Math.round(ab)}${laeuftJetzt ? '&live=1' : ''}${frischHand}`)
+        /*
+         * Laufend oder seit weniger als sechs Stunden vorbei: der Vorrat darf hoechstens zwei Minuten alt sein, Epic traegt nach dem Ende noch lange nach
+         * (Betreiber, 7.11.2026: um 22:03 stand noch "as of 21:38"). Der Server schickt dann sofort den vorhandenen und baut den neuen im Hintergrund.
+         * Der Reload-Knopf verlangt einen neuen Bau, wartet aber nicht darauf: die alte Liste bleibt, die neue kommt beim naechsten Nachfassen.
+         */
+        const hand = Date.now() < handFrischBis.current;
+        const laeuftJetzt = f.status !== 'vorbei' || Date.now() - (f.end ?? 0) < 6 * 3_600_000;
+        const ab = hand ? Date.now() : laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
+        const frischHand = '';
+        if (hand && nachfassen) void holeStueck(0, 1).then((e) => {
+          if (!nochMeins() || !e.entries?.length) return;
+          // Die ersten Plaetze gleich frisch, der Rest folgt mit der ganzen Liste.
+          setTabelleRoh((alt) => [...(e.entries ?? []), ...alt.filter((x) => x.rank > Math.max(...(e.entries ?? []).map((y) => y.rank)))]);
+          setStand(`${t('Stand')} ${new Date(e.updated ?? Date.now()).toLocaleTimeString(ort)}`);
+        }).catch(() => {});
+        const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1&ab=${Math.round(ab)}${laeuftJetzt || hand ? '&live=1' : ''}${frischHand}`)
           .then((r) => r.json()).catch(() => null) as { entries?: Eintrag[]; updated?: string } | null;
         if (!nochMeins()) return;
         if (g?.entries?.length) {
@@ -2571,10 +2584,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * waere Last ohne Gewinn, seltener saehe man das Ende einer Runde erst
    * mit Verspaetung.
    */
+  // Alle 30 Sekunden, solange der Cup laeuft und noch sechs Stunden danach (Betreiber, 7.11.2026: "jede Minute oder alle 30 Sekunden").
+  const kurzVorbei = !!lbFenster && lbFenster.status === 'vorbei' && Date.now() - (lbFenster.end ?? 0) < 6 * 3_600_000;
   useEffect(() => {
-    if (!laeuftGerade || !lbFenster) return undefined;
-    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 60_000);
-  }, [laeuftGerade, lbFenster, laden, summenFenster]);
+    if ((!laeuftGerade && !kurzVorbei) || !lbFenster) return undefined;
+    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 30_000);
+  }, [laeuftGerade, kurzVorbei, lbFenster, laden, summenFenster]);
 
   useEffect(() => { if (lbFenster) laden(lbFenster, summenFenster); }, [lbFenster, laden, summenFenster]);
 
@@ -2663,6 +2678,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     setNeuNr((n) => n + 1);
     setNachladen((n) => n + 1);
     void laden(lbFenster, summenFenster).finally(() => { setHandStand(Date.now()); setHandLaedt(false); });
+    // Der neue Bau laeuft auf dem Server; nach 20 und 45 Sekunden noch einmal nachsehen.
+    setTimeout(() => { void laden(lbFenster, summenFenster); }, 20_000);
+    setTimeout(() => { void laden(lbFenster, summenFenster); }, 45_000);
   }, [lbFenster, handLaedt, laden, summenFenster]);
   const handKnopf = (zugang.vip || zugang.admin) && lbFenster && lbFenster.status !== 'kommt' ? (
     <button type="button" onClick={vonHandNeu} disabled={handLaedt}
@@ -2673,6 +2691,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     </button>
   ) : null;
   const teamName = useCallback((e: AktionTeam) => (e.players as Spieler[]).map(namenVon).join(' + '), [namenVon]);
+  // Gesucht wird nach dem angezeigten und dem Ingame-Namen (Betreiber, 7.11.2026: "Focus" fand den Ersten nicht).
+  const teamSuche = useCallback((e: AktionTeam) => (e.players as Spieler[]).map((p) => `${namenVon(p)} ${p.name ?? ''}`).join(' '), [namenVon]);
+  const teamBild = useCallback((e: AktionTeam) => (e.players as Spieler[]).find((p) => p.img)?.img ?? null, []);
   const verlaufZu = useCallback(() => setVerlaufTeam(null), []);
   const vergleichZu = useCallback(() => setVergleichTeam(null), []);
   const istMein = useCallback((e: { players: Array<{ id?: string }> }) =>
@@ -4754,6 +4775,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Solo Stats bei einem Solo-Cup, sonst Team Stats - wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
+        {/* Kommt man ueber den Stats-Knopf, steht der Spieler oben - bei Solo-Cups lag er sonst unter der ganzen Uebersicht (Betreiber, 7.11.2026). */}
+        {reiter === 'teams' && lbFenster && soloCup && !!detailStart && (
+          <div className="mb-4">
+            <SpielerDetail key={detailStart.id} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
+          </div>
+        )}
         {/* Solo-Cup: oben dieselben Player Stats wie bei Duos und Trios (Betreiber, 29.10.2026: "Playerstats und dein Solo Cup ... wie bei Osirion"). */}
         {reiter === 'teams' && soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
@@ -4775,7 +4802,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               zuDetails={(sp) => { setDetailStart(sp); }} />
           </div>
         )}
-        {reiter === 'teams' && lbFenster && (
+        {reiter === 'teams' && lbFenster && !(soloCup && detailStart) && (
           <SpielerDetail key={detailStart?.id ?? 'suche'} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
         )}
 
@@ -5657,7 +5684,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           laedt={!!verlaufTeam.matchesWeg && !nachMatches[verlaufTeam.rank]} zu={verlaufZu} />
       )}
       {vergleichTeam && (
-        <VergleichFenster team={vergleichTeam} alle={tabelle} nameVon={teamName} spieleVon={spieleVon} zu={vergleichZu} />
+        <VergleichFenster team={vergleichTeam} alle={tabelle} nameVon={teamName} suchText={teamSuche} bildVon={teamBild} spieleVon={spieleVon} zu={vergleichZu}
+          quelle={lbFenster ? `/api/cup-spieler?window=${encodeURIComponent(lbFenster.windowId)}&event=${encodeURIComponent(lbFenster.eventId)}` : null} />
       )}
     </main>
   );
