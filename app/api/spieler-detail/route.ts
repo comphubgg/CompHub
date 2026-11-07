@@ -7,7 +7,7 @@ import { findeSpieler, holeSeite, getToken, loeseNamenAuf, MAX_PAGES, type CupEi
 import { szeneFenster } from '@/lib/szeneStats';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayTag } from '@/lib/replaySchlank';
-import { liesJson } from '@/lib/ablage';
+import { liesJson, liesBereich } from '@/lib/ablage';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { fensterOk, kontoOk, leseErgebnis } from '@/lib/eigeneAuswertung';
 
@@ -68,7 +68,40 @@ async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: st
   return [];
 }
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+/** Dieselbe Streuung wie lib/jeSpiel.mjs (FNV-1a, 256 Stuecke). */
+function jeStueck(id: string): number {
+  let h = 2166136261;
+  const s = id.toLowerCase();
+  for (let i = 0; i < s.length; i += 1) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h % 256;
+}
+type JeZeile = Array<string | number | null>;
+/** Die alten Zeilen (nur kleine Spieltage, bis 7.11.2026). */
+const ALTE_SPALTEN = ['killsEcht', 'dmg', 'erlitten', 'heilHp', 'schildHeilEcht', 'krit', 'treffer', 'schussEcht', 'matsAlt'];
+/**
+ * Die Werte je Match der Spieler einer Ansicht (Kurven wie bei Osirion): aus clutch-je/<Fenster>.json nur die Stuecke dieser Spieler, als Teilanfrage.
+ */
+async function jeSpielHolen(fenster: string, clutch: unknown, ids: string[]): Promise<{ spalten: string[]; zeilen: Map<string, JeZeile[]> }> {
+  const c = clutch as { je?: { spalten: string[]; lage: Array<[number, number]> }; jeSpiel?: Record<string, JeZeile[]> } | null;
+  const zeilen = new Map<string, JeZeile[]>();
+  const je = c?.je;
+  if (je?.lage?.length) {
+    const stuecke = new Map<number, Record<string, JeZeile[]>>();
+    await Promise.all([...new Set(ids.map(jeStueck))].map(async (s) => {
+      const [a, l] = je.lage[s] ?? [0, 0];
+      if (!l) return;
+      const b = await liesBereich(`clutch-je/${fenster}.json`, a, l).catch(() => null);
+      if (!b) return;
+      try { stuecke.set(s, JSON.parse(b.toString('utf8'))); } catch { /* ohne Kurven */ }
+    }));
+    for (const i of ids) { const z = stuecke.get(jeStueck(i))?.[i]; if (z) zeilen.set(i, z); }
+    return { spalten: je.spalten, zeilen };
+  }
+  for (const i of ids) if (c?.jeSpiel?.[i]) zeilen.set(i, c.jeSpiel[i]);
+  return { spalten: ALTE_SPALTEN, zeilen };
+}
+
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number | null>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -164,6 +197,7 @@ export async function GET(request: Request) {
     const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
     const eigeneKomplett = !!eigene && eigene.gelesen >= eigene.sitzungen;
     const kontext = await spielerKontext().catch(() => null);
+    const je = await jeSpielHolen(fenster, clutch, ids).catch(() => ({ spalten: ALTE_SPALTEN, zeilen: new Map<string, JeZeile[]>() }));
     const mitglieder = ids.map((i) => {
       const roh = namen.get(i) ?? '';
       const k = kontext?.(i, roh);
@@ -187,7 +221,7 @@ export async function GET(request: Request) {
             if (!w.invSpiele || w.invSpiele < spielZahl) return {};
             return { farmHolz: w.farmHolz ?? 0, farmStein: w.farmStein ?? 0, farmMetall: w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof w.dmg === 'number' ? Math.max(0, w.dmgAlle - w.dmg) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
           })() : {}),
-          ...((clutch as unknown as { jeSpiel?: Record<string, Array<Array<string | number>>> } | null)?.jeSpiel?.[i] ? { jeSpiel: (clutch as unknown as { jeSpiel: Record<string, Array<Array<string | number>>> }).jeSpiel[i] } : {}),
+          ...(je.zeilen.get(i) ? { jeSpiel: je.zeilen.get(i) } : {}),
           // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;
@@ -231,6 +265,7 @@ export async function GET(request: Request) {
       eintrag: eintrag ?? null,
       mitglieder,
       aktualisiert, szeneStand, szeneMatches,
+      jeSpalten: je.spalten,
       replayTeil: (clutch as unknown as { teilweise?: { matches?: number; vonMindestens?: number } } | null)?.teilweise ?? null,
       eigeneAuswertung: eigene ? { gelesen: eigene.gelesen, sitzungen: eigene.sitzungen, gerechnet: eigene.gerechnet, grund: eigene.grund ?? null, fassung: eigene.version ?? 0 } : null,
     };

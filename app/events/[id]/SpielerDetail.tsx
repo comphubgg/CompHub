@@ -33,13 +33,15 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
+interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number | null>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
   replayTeil?: { matches?: number; vonMindestens?: number } | null;
+  /** Die Spalten der Zeilen je Match (lib/jeSpiel.mjs). */
+  jeSpalten?: string[];
   eigeneAuswertung?: { gelesen: number; sitzungen: number; gerechnet: string; grund: string | null; fassung?: number } | null;
 }
 interface Treffer { id: string; name: string; rank: number; points: number; team: string[] }
@@ -99,10 +101,17 @@ const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.hea
 // faellt nur im Solo auf die Bestenliste zurueck.
 const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c);
 /*
- * Die Reihenfolge wie bei Osirion (Betreiber, 7.11.2026: "ganz genau die gleichen"). Was hier steht, kommt zuerst, in dieser Reihenfolge; der Rest unter "Mehr anzeigen".
+ * Die Reihenfolge wie bei Osirion (Betreiber, 7.11.2026: "ganz genau die gleichen" - und Points, Matches, Wins "muss legit nicht stehen", die stehen oben im Kopf).
+ * Was hier steht, kommt zuerst, in dieser Reihenfolge; was Osirion nicht hat, haengt unten dran ("klatscht einfach unten dran").
  */
-const REIHE = ['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points', 'Eliminations', 'Damage To Players', 'Damage From Players', 'Damage Ratio', 'K/D Ratio', 'Health Healed', 'Shield Healed',
-  'Player Accuracy', 'Headshots', 'Edit Accuracy', 'Avg Edit Time', 'Mats Farmed', 'Time Alive'];
+const REIHE = ['Eliminations', 'Damage To Players', 'Damage From Players', 'Damage Ratio', 'K/D Ratio', 'Health Healed', 'Shield Healed',
+  'Player Accuracy', 'Headshots', 'Edit Accuracy', 'Avg Edit Time', 'Mats Farmed', 'Time Alive', 'Assists', 'Overshield Healed', 'Hits To Players', 'Shots',
+  'Overall Accuracy', 'Weakpoint Accuracy', 'Players Revived', 'Got Revived', 'Players Rebooted', 'Got Rebooted', 'Wood Farmed', 'Stone Farmed', 'Metal Farmed',
+  'Mats Collected', 'Wood Collected', 'Stone Collected', 'Metal Collected', 'Time in Storm', 'Storm Damage Taken', 'Surge Hits', 'Distance Traveled',
+  'Deaths', 'Player Eliminations (After Out)', 'Damage Done', 'Damage To Knocked Players', 'Health Taken', 'Shield Taken', 'Own Builds Placed', 'Wood Builds Placed',
+  'Stone Builds Placed', 'Metal Builds Placed', 'Builds Edited', 'Builds Edited Successfully', 'Time spent Editing', 'Thanked Bus Driver'];
+/** Nur im Kopf, nicht in der Tabelle (Solo). Im Team stehen sie im Team-Kasten. */
+const NUR_KOPF = new Set(['Points', 'Matches', 'Wins']);
 const rang = (titel: string) => { const i = REIHE.indexOf(titel); return i < 0 ? REIHE.length : i; };
 
 const KERN: Zeile[] = [
@@ -171,7 +180,8 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Headshots', wert: kopf, zeige: num },
   { titel: 'Headshot Rate', wert: (m, c) => { const a = kopf(m, c); const b = treffer(m); return a !== null && b ? (a / b) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} %` },
   { titel: 'Solo Clutch Points', wert: (m) => m.replay?.clutch ?? null, zeige: num, nurMitWert: true },
-  { titel: 'Time Alive', wert: (m) => m.replay?.lebenSek ?? null, zeige: (v) => dauer(v) },
+  // Solo: Epics Zeit (Reload: wer stirbt und zurueckkommt, lebt weiter - der Kill-Feed sah nur das erste Leben; Focus, FNCS Solo Reload: 2h 35m wie Osirion statt 1h 33m).
+  { titel: 'Time Alive', wert: (m, c) => (c.echtSolo && c.e?.timeAlive ? c.e.timeAlive : m.replay?.lebenSek ?? null), zeige: (v) => dauer(v), je: (m) => m.timeAlive },
   { titel: 'Distance Traveled', wert: (m) => m.replay?.streckeM ?? null, zeige: (v, ort) => `${dez(v / 1000, ort, 1)} km` },
   { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
   { titel: 'Builds Placed', wert: (m) => (m.replay?.bauHolz === undefined ? null : (m.replay.bauHolz ?? 0) + (m.replay.bauStein ?? 0) + (m.replay.bauMetall ?? 0)), zeige: num },
@@ -219,6 +229,52 @@ function PunkteKurve({ platz, elim }: { platz: Array<number | null>; elim: Array
     </div>
   );
 }
+
+/*
+ * Die Kurve je Stat aus den Werten je Match (lib/jeSpiel.mjs). w(Spalte) ist der Wert dieser Spalte im Match.
+ */
+type JeW = (name: string) => number | undefined;
+const teile = (a: number | undefined, b: number | undefined, mal = 1) => (a === undefined || !b ? undefined : (a / b) * mal);
+const summe = (...x: Array<number | undefined>) => (x.every((v) => v === undefined) ? undefined : x.reduce<number>((s, v) => s + (v ?? 0), 0));
+const JE_KURVE: Record<string, (w: JeW) => number | undefined> = {
+  Eliminations: (w) => w('killsEcht'),
+  'Damage To Players': (w) => w('dmg'),
+  'Damage From Players': (w) => w('erlitten'),
+  'Damage Ratio': (w) => teile(w('dmg'), w('erlitten')),
+  'K/D Ratio': (w) => (w('killsEcht') === undefined || w('todeEcht') === undefined ? undefined : (w('killsEcht') ?? 0) / Math.max(1, w('todeEcht') ?? 0)),
+  Deaths: (w) => w('todeEcht'),
+  'Player Eliminations (After Out)': (w) => w('killsNachAus'),
+  'Health Healed': (w) => w('heilHp'),
+  'Shield Healed': (w) => w('schildHeilEcht'),
+  'Player Accuracy': (w) => teile(w('treffer'), w('schussEcht'), 100),
+  Headshots: (w) => w('krit'),
+  'Headshot Rate': (w) => teile(w('krit'), w('treffer'), 100),
+  'Edit Accuracy': (w) => teile(w('editOk'), w('editZahl'), 100),
+  'Avg Edit Time': (w) => teile(w('editSek'), w('editOk')),
+  'Mats Farmed': (w) => summe(w('farmHolz'), w('farmStein'), w('farmMetall')) ?? w('matsAlt'),
+  'Wood Farmed': (w) => w('farmHolz'), 'Stone Farmed': (w) => w('farmStein'), 'Metal Farmed': (w) => w('farmMetall'),
+  'Mats Collected': (w) => summe(w('samHolz'), w('samStein'), w('samMetall')),
+  'Wood Collected': (w) => w('samHolz'), 'Stone Collected': (w) => w('samStein'), 'Metal Collected': (w) => w('samMetall'),
+  'Time Alive': (w) => w('leben'),
+  'Hits To Players': (w) => w('treffer'),
+  Shots: (w) => w('schussEcht'),
+  'Got Revived': (w) => w('wiederbelebt'),
+  'Got Rebooted': (w) => w('rebootet'),
+  'Time in Storm': (w) => w('sturm'),
+  'Storm Damage Taken': (w) => w('sturmSchaden'),
+  'Distance Traveled': (w) => w('strecke'),
+  'Damage Done': (w) => w('dmgAlle'),
+  'Damage To Knocked Players': (w) => (w('dmgAlle') === undefined || w('dmg') === undefined ? undefined : Math.max(0, (w('dmgAlle') ?? 0) - (w('dmg') ?? 0))),
+  'Health Taken': (w) => w('lebenWeg'),
+  'Shield Taken': (w) => w('schildWegEcht'),
+  'Own Builds Placed': (w) => summe(w('selbstHolz'), w('selbstStein'), w('selbstMetall')),
+  'Wood Builds Placed': (w) => w('selbstHolz'), 'Stone Builds Placed': (w) => w('selbstStein'), 'Metal Builds Placed': (w) => w('selbstMetall'),
+  'Builds Edited': (w) => w('editZahl'),
+  'Builds Edited Successfully': (w) => w('editOk'),
+  'Time spent Editing': (w) => w('editSek'),
+  'Pickaxe Hits': (w) => w('axt'),
+  'Thanked Bus Driver': (w) => w('busDank'),
+};
 
 /** Wie viele Zeilen zuerst zu sehen sind - der Rest steht hinter "More" (wie bei Osirion). */
 const ZUERST = 13;
@@ -382,11 +438,22 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
   const aktiv = mitglieder.find((m) => m.id === gewaehlt) ?? mitglieder.find((m) => m.ich) ?? mitglieder[0];
   const eigeneSpiele = aktiv?.replay?.jeSpiel;
-  const SPALTE_JE_SPIEL: Record<string, number> = { Eliminations: 1, 'Damage To Players': 2, 'Damage From Players': 3, 'Health Healed': 4, 'Shield Healed': 5, Headshots: 6, 'Hits To Players': 7, Shots: 8, 'Mats Farmed': 9 };
-  const kurve = (titel: string): Array<number | undefined> => {
-    const sp = SPALTE_JE_SPIEL[titel];
-    if (!sp || !eigeneSpiele) return [];
-    return spiele.map((m, i) => { const r = eigeneSpiele.find((x) => x[0] === m.sessionId) ?? (m.sessionId ? undefined : eigeneSpiele[i]); return r ? Number(r[sp]) : undefined; });
+  const jeSpalten = daten?.jeSpalten ?? [];
+  /*
+   * Die Kurve eines Stats ueber die Matches (Betreiber, 7.11.2026: "rechts hat ueberall so eine Art Diagramm"): aus den Werten je Match des gewaehlten Spielers;
+   * wo die fehlen, Epics Wert je Match (Solo: Elims, Zeit, Platz). Ein Match ohne Wert bleibt eine Luecke.
+   */
+  const kurve = (z: Zeile): Array<number | undefined> => {
+    const f = JE_KURVE[z.titel] as ((w: JeW) => number | undefined) | undefined;
+    const ausReplay = f && eigeneSpiele?.length ? spiele.map((m) => {
+      const r = m.sessionId ? eigeneSpiele.find((x) => x[0] === m.sessionId) : undefined;
+      if (!r) return undefined;
+      const v = f((name) => { const i = jeSpalten.indexOf(name); const x = i < 0 ? undefined : r[i + 1]; return typeof x === 'number' ? x : undefined; });
+      return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+    }) : [];
+    // Solo: Epics Zeit je Match ist genauer (siehe Time Alive).
+    if (z.je && (!ausReplay.some((v) => v !== undefined) || (!team && z.titel === 'Time Alive'))) return spiele.map((m) => z.je?.(m));
+    return ausReplay;
   };
   const ctx: Ctx = { e, solo: !team, mitglieder, echtSolo: solo };
   const verifizieren = `/api/auth/epic/authorize?zurueck=${encodeURIComponent(rueckPfad)}`;
@@ -403,7 +470,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
   // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
   const zeilen = useMemo(() => [
-    ...KERN.filter((z) => !team || (!TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null))),
+    ...KERN.filter((z) => (team ? !TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null) : !NUR_KOPF.has(z.titel))),
     ...ZUSATZ.filter((z) => !(team && TEAM_TITEL.has(z.titel)) && mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)
       && (!z.nurMitWert || mitglieder.some((m) => (z.wert(m, ctx) ?? 0) > 0))),
   ].sort((a, b) => rang(a.titel) - rang(b.titel)),
@@ -624,11 +691,11 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
               {!team && spiele.length > 1 && (
                 <>
                   <div className="flex h-[40px] items-center justify-end">
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>
+                    <label title={t('Zeigt die laufende Summe über die Matches statt des Werts je Match')} className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>
                   </div>
                   {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
                     <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
-                      <Welle werte={z.je ? spiele.map((m) => z.je?.(m)) : []} rot={z.rot} kumuliert={kumuliert} />
+                      <Welle werte={kurve(z)} rot={z.rot} kumuliert={kumuliert} />
                     </div>
                   ))}
                   <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
@@ -638,11 +705,11 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 <div className="mb-4">
                   <div className="flex h-[40px] items-center justify-between">
                     <span className="truncate text-[13px] font-bold text-sky-300">{aktiv?.name} · <T>je Spiel</T></span>
-                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-500" /> Cumulative</label>
+                    <label title={t('Zeigt die laufende Summe über die Matches statt des Werts je Match')} className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-500" /> Cumulative</label>
                   </div>
                   {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
                     <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
-                      <Welle werte={kurve(z.titel)} rot={z.rot} kumuliert={kumuliert} />
+                      <Welle werte={kurve(z)} rot={z.rot} kumuliert={kumuliert} />
                     </div>
                   ))}
                   <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
@@ -652,7 +719,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40">
                   <div className="flex h-[40px] items-center justify-between border-b border-white/[0.06] px-3">
                     <span className="text-[13px] font-bold text-slate-200"><T>Team je Spiel</T></span>
-                    {spiele.length > 1 && <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>}
+                    {spiele.length > 1 && <label title={t('Zeigt die laufende Summe über die Matches statt des Werts je Match')} className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>}
                   </div>
                   {teamReihen.map((z) => {
                     const w = z.wert(mitglieder[0], ctx);

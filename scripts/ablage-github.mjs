@@ -167,6 +167,7 @@ const AM_RELEASE = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^clutch-roh\//,
+  /^clutch-je\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf)\.json$/,
@@ -185,7 +186,7 @@ function gewuenscht(name) {
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
-  if (/^clutch(-roh)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
+  if (/^clutch(-roh|-je)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
   if (/^replay-voll\//.test(name) && process.env.OHNE_REPLAYVOLL === '1') return false;
   // Staende, Auswertungen und schlanke Fassungen der Replays schreiben die Replay-Ablaeufe (Schnellspur, Nacharbeit, schlank) - der Stundenlauf hatte alte

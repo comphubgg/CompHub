@@ -76,6 +76,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^clutch-je\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
@@ -116,6 +117,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^clutch-je\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^scrims\//,
@@ -232,6 +234,32 @@ async function lies(name: string): Promise<Buffer | null> {
   // Clutch-Dateien lagen bis zum 29.9.2026 am allgemeinen Release.
   if (!wert && /^clutch\//.test(name)) return holeAnhang(anhangName(name), 'daten');
   return wert;
+}
+
+/**
+ * Nur ein Stueck einer Datei (HTTP Range) - fuer die Werte je Match (lib/jeSpiel.mjs): von zwanzig Megabyte braucht ein Klick rund hundert Kilobyte.
+ * GitHubs Ablage beantwortet Range mit 206; ein 200 (ganze Datei) wird hier zurechtgeschnitten.
+ */
+export async function liesBereich(name: string, start: number, laenge: number): Promise<Buffer | null> {
+  if (laenge <= 0) return Buffer.alloc(0);
+  const anhang = anhangName(name);
+  const schluessel = `${anhang}#${start}+${laenge}`;
+  const jetzt = Date.now();
+  const da = vorrat.get(schluessel);
+  if (da && da.bis > jetzt) return da.wert;
+  for (const tag of tagsFuer(name)) {
+    const r = await fetch(basis(tag) + encodeURIComponent(anhang), {
+      redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS), headers: { Range: `bytes=${start}-${start + laenge - 1}` },
+    });
+    if (r.status === 404) continue;
+    if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} bei ${anhang}`);
+    let wert = Buffer.from(await r.arrayBuffer());
+    if (r.status === 200) wert = wert.subarray(start, start + laenge);
+    vorrat.set(schluessel, { bis: jetzt + VORRAT_MS, wert });
+    vorratAufraeumen(jetzt);
+    return wert;
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------ Auflisten */

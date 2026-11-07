@@ -12,11 +12,32 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { JE_SPALTEN, alteZeile, jeDatei, jeLesen } from '../lib/jeSpiel.mjs';
+import { tagFuer } from '../lib/releaseTags.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const TEILE = path.join(DATEN, 'clutch-teil');
 const ZIEL = path.join(DATEN, 'clutch');
 const ROH = path.join(DATEN, 'clutch-roh');
+const JE = path.join(DATEN, 'clutch-je');
+const REPO = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
+
+/** Die Werte je Match, die schon am Release liegen (lib/jeSpiel.mjs) - das Repo ist oeffentlich, ein einfacher Abruf genuegt. Fehlt die Datei, ist es der erste Lauf. */
+async function jeVomRelease(w) {
+  const name = `clutch-je/${w}.json`;
+  const lokal = path.join(DATEN, name);
+  if (fs.existsSync(lokal)) return fs.readFileSync(lokal);
+  const url = `https://github.com/${REPO}/releases/download/${tagFuer(name)}/${name.replace(/\//g, '__')}`;
+  for (let v = 0; v < 3; v += 1) {
+    try {
+      const r = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120_000) });
+      if (r.status === 404) return null;
+      if (r.ok) return Buffer.from(await r.arrayBuffer());
+    } catch { /* noch einmal */ }
+    await new Promise((ok) => setTimeout(ok, 3000));
+  }
+  throw new Error(`${name} nicht lesbar`);
+}
 const GROSS_MAX = 250;
 const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 const addiere = (ziel, quelle) => { for (const [k, v] of Object.entries(quelle ?? {})) ziel[k] = (ziel[k] ?? 0) + v; };
@@ -36,9 +57,20 @@ for (const [w, dateien] of jeTag) {
   // Vor Fassung 4 (alte Schadensregel) wird nichts weitergefuehrt - der Spieltag ist ganz neu gelesen.
   // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt ebenfalls leer an - die alten Werte wuerden sonst doppelt zaehlen.
   const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
-  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 8, windowId: w, matches: [], summe: {}, spiele: {} };
+  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 9, windowId: w, matches: [], summe: {}, spiele: {} };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
   const da = new Set([...d.matches.map((m) => m.id), ...d.ohne]);
+  // Die Werte je Match: erst, wenn ein Teil welche bringt, wird der alte Stand geholt. Laesst er sich nicht lesen, bleibt die Datei diesmal, wie sie ist.
+  let je = null; let jeNeu = false; let jeKaputt = false;
+  const jeLaden = async () => {
+    if (je || jeKaputt) return je;
+    try {
+      const alt = d.je && !neuAnfang ? await jeVomRelease(w) : null;
+      je = alt ? jeLesen(alt) : {};
+    } catch (e) { console.log(`  ${w}: ${e.message} - Werte je Match diesmal nicht weitergefuehrt`); jeKaputt = true; return null; }
+    if (d.jeSpiel) { for (const [k, v] of Object.entries(d.jeSpiel)) (je[k] ??= []).push(...v.map(alteZeile)); delete d.jeSpiel; jeNeu = true; }
+    return je;
+  };
   const rohDatei = path.join(ROH, `${w}.json`);
   if (neuAnfang) fs.rmSync(rohDatei, { force: true });
   let roh = null;
@@ -68,7 +100,10 @@ for (const [w, dateien] of jeTag) {
       if (d.fehlversuche[id] >= 3) { d.ohne.push(id); da.add(id); delete d.fehlversuche[id]; }
     }
     addiere(d.summe, t.summe);
-    if (t.jeSpiel) { d.jeSpiel ??= {}; for (const [k, v] of Object.entries(t.jeSpiel)) (d.jeSpiel[k] ??= []).push(...v); }
+    if (t.jeSpiel && await jeLaden()) {
+      for (const [k, v] of Object.entries(t.jeSpiel)) (je[k] ??= []).push(...(t.jeSpalten ? v : v.map(alteZeile)));
+      jeNeu = true;
+    }
     addiere(d.spiele, t.spiele);
     if (Object.keys(t.solo ?? {}).length) { d.solo ??= {}; addiere(d.solo, t.solo); }
     if (Object.keys(t.leben ?? {}).length) { d.leben ??= {}; addiere(d.leben, t.leben); }
@@ -99,6 +134,12 @@ for (const [w, dateien] of jeTag) {
   if (erledigt < (d.gesamt ?? 0)) d.teilweise = { teams: 0, matches: gelesen, vonMindestens: d.gesamt };
   else { delete d.teilweise; fertigTage += 1; }
   d.gerechnet = new Date().toISOString();
+  if (jeNeu && je) {
+    const { inhalt, lage } = jeDatei(je);
+    fs.mkdirSync(JE, { recursive: true });
+    fs.writeFileSync(path.join(JE, `${w}.json`), inhalt);
+    d.je = { spalten: JE_SPALTEN, lage, bytes: inhalt.length };
+  }
   fs.writeFileSync(zielDatei, JSON.stringify(d));
   if (roh) fs.writeFileSync(rohDatei, JSON.stringify(roh));
   tage += 1;

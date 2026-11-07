@@ -2217,6 +2217,33 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; };
   }, [offen, tabelle, lbFenster, nachMatches]);
 
+  /*
+   * K/D im Team-Kasten wie bei Osirion: Elims durch die echten Tode aus den Replays (Betreiber, 7.11.2026: Focus stand bei 21,25 - 85 Elims durch 4 Spiele ohne Sieg;
+   * im Reload stirbt man aber oefter als einmal je Spiel, Osirion zeigt 4,72). Nur wenn alle Spieler des Teams die echten Tode haben, sonst bleibt Epics Rechnung.
+   */
+  const [echteKd, setEchteKd] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const e = tabelle.find((x) => x.rank === offen);
+    const p = e?.players.find((x) => /^[0-9a-f-]{32,36}$/i.test(String((x as { id?: string }).id)));
+    if (!e || !p || !lbFenster) return undefined;
+    const key = `${lbFenster.windowId}|${e.rank}`;
+    if (key in echteKd) return undefined;
+    let weg = false;
+    fetch(`/api/spieler-detail?event=${encodeURIComponent(lbFenster.eventId)}&window=${encodeURIComponent(lbFenster.windowId)}&id=${String((p as { id?: string }).id)}`)
+      .then((r) => r.json())
+      .then((j: { mitglieder?: Array<{ replay?: { kills?: number | null; tode?: number | null; killsNachAus?: number } | null }> }) => {
+        if (weg) return;
+        const m = j.mitglieder ?? [];
+        const echt = m.length > 0 && m.every((x) => x.replay?.killsNachAus !== undefined && typeof x.replay?.tode === 'number');
+        const kills = m.reduce((s, x) => s + (x.replay?.kills ?? 0), 0);
+        const tode = m.reduce((s, x) => s + (x.replay?.tode ?? 0), 0);
+        setEchteKd((alt) => ({ ...alt, [key]: echt ? kills / Math.max(1, tode) : NaN }));
+      })
+      .catch(() => { /* dann Epics Rechnung */ });
+    return () => { weg = true; };
+  }, [offen, tabelle, lbFenster, echteKd]);
+  const kdVon = (e: { rank: number; kd: number }) => { const v = lbFenster ? echteKd[`${lbFenster.windowId}|${e.rank}`] : undefined; return typeof v === 'number' && Number.isFinite(v) ? v : e.kd; };
+
   // Vor dem Laden der Spielerwerte bestimmt - Solo-Cups zeigen die Player Stats im Reiter "teams".
   const soloCup = useMemo(() => {
     if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
@@ -3901,17 +3928,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     {kachel('Ø Überlebenszeit', dauer(e.games ? e.timeAlive / e.games : 0))}
                     {kachel('Elims', e.elims)}
                     {kachel('Ø Elims', schnitt(e.avgElims, ort))}
-                    {kachel('K/D', schnitt(e.kd, ort))}
+                    {kachel('K/D', schnitt(kdVon(e), ort))}
                   </div>
                   {/* Betreiber, 7.11.2026: Spielverlauf und Vergleich als Fenster in der Mitte, daneben Stats. */}
                   <div className="space-y-2 border-t border-zinc-800 pt-4">
                     <button type="button" onClick={() => { void spieleVon(e); setVerlaufTeam(e); }}
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-zinc-500 hover:text-white">
                       <T>Spielverlauf</T>
                     </button>
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setVergleichTeam(e)}
-                        className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
+                        className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-zinc-500 hover:text-white">
                         <T>Vergleichen</T>
                       </button>
                       {/* Betreiber, 7.11.2026: Stats statt "Live folgen" - ein Knopf je Team, er fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
@@ -3923,7 +3950,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           if (!p) return;
                           setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className="rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-2.5 text-sm font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40">
+                        className="rounded-lg border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
                         <T>Stats</T>
                       </button>
                     </div>

@@ -300,6 +300,20 @@ export async function liesJson<T>(name: string, standard: T): Promise<T> {
   }
 }
 
+/**
+ * Ein Stueck einer Datei - vom Release als Teilanfrage, sonst aus der ganzen Datei geschnitten (lib/jeSpiel.mjs).
+ */
+export async function liesBereich(name: string, start: number, laenge: number): Promise<Buffer | null> {
+  const alteAblage = (process.env.COMPHUB_ABLAGE || '').toLowerCase();
+  if (alteAblage === 'supabase' || alteAblage === 'github' || (process.env.DATEN_TOKEN || '').trim()) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const g = require('@/lib/ablageGithub') as { nurRelease: (n: string) => boolean; liesBereich: (n: string, s: number, l: number) => Promise<Buffer | null> };
+    if (g.nurRelease(name)) return g.liesBereich(name, start, laenge);
+  }
+  const roh = await speicher.lies(name);
+  return roh ? roh.subarray(start, start + laenge) : null;
+}
+
 /** Eine JSON-Datei schreiben - in derselben Form wie bisher, mit Einrueckung. */
 export async function schreibJson(name: string, wert: unknown): Promise<void> {
   await speicher.schreib(name, Buffer.from(JSON.stringify(wert, null, 1), 'utf8'));

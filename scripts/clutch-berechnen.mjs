@@ -37,6 +37,7 @@ import { holeNutzerToken, matchIds } from '../lib/replayKern.mjs';
 import { leseReplay } from '../lib/replayLeser.mjs';
 import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
 import { lebenSumme, lebenJeMatch } from '../lib/clutchLeben.mjs';
+import { JE_SPALTEN, jeZeile } from '../lib/jeSpiel.mjs';
 import { spurenAusReplay, auswerten as positionenAuswerten } from '../lib/replayPositionen.mjs';
 
 const require = createRequire(import.meta.url);
@@ -451,7 +452,12 @@ if (arg[0] === '--plan') {
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
      */
-    const neuAnfang = !!da && (da.schadenFassung ?? 0) < 8 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS && Date.now() - f.datum < 7 * 864e5;
+    /*
+     * Dazu die FNCS-Spieltage der letzten zwei Tage, egal wie gross (Fassung 9, 7.11.2026): die Solo-Qualifier waren noch mit dem alten Leser gelesen - ohne
+     * Heilung, Mats, Shots und echte Tode, und ohne die Werte je Match. Der Betreiber vergleicht genau diese Spieltage mit Osirion.
+     */
+    const neuAnfang = !!da && Date.now() - f.datum < 7 * 864e5 && (((da.schadenFassung ?? 0) < 8 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS)
+      || ((da.schadenFassung ?? 0) < 9 && /FNCS/i.test(f.windowId) && Date.now() - f.datum < 2 * 864e5));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
@@ -536,12 +542,12 @@ if (arg[0] === '--plan') {
           teil.matches.push({ id, spieler: Object.fromEntries(c) });
           for (const [k, v] of c) teil.summe[k] = (teil.summe[k] ?? 0) + v;
           for (const [k, v] of soloMatch) teil.solo[k] = (teil.solo[k] ?? 0) + Math.round(v);
+          const jeHier = new Map();
           for (const [k, v] of Object.entries(schadenAus(voll) ?? {})) {
             const d = teil.schaden[k] ?? neueWerte();
             for (const f of Object.keys(v)) d[f] = (d[f] ?? 0) + (v[f] ?? 0);
             teil.schaden[k] = d;
-            // Der Verlauf je Spieler und Spiel (Kurven in den Team Stats): [Match, Elims, Schaden, Schaden erlitten, Leben geheilt, Schild geheilt, Kopftreffer, Treffer, Schuesse, Mats gefarmt].
-            if (mitRoh) (teil.jeSpiel ??= {}, teil.jeSpiel[k] ??= []).push([id, v.killsEcht ?? 0, Math.round(v.dmg ?? 0), Math.round(v.erlitten ?? 0), Math.round(v.heilHp ?? 0), Math.round(v.schildHeilEcht ?? 0), v.krit ?? 0, v.treffer ?? 0, v.schussEcht ?? 0, (v.farmHolz ?? 0) + (v.farmStein ?? 0) + (v.farmMetall ?? 0)]);
+            jeHier.set(k, v);
           }
           for (const p of voll.spieler ?? []) {
             if (p.bot || !p.epic) continue;
@@ -549,7 +555,9 @@ if (arg[0] === '--plan') {
             // Die Plattform je Spieler (Feld Platform im Replay) - fuer die Plattform-Statistik.
             if (p.plattform) teil.plattform[p.epic] = String(p.plattform);
           }
-          for (const [k, v] of lebenJeMatch(roh)) teil.leben[k] = Math.round((teil.leben[k] ?? 0) + v);
+          const lebenHier = lebenJeMatch(roh);
+          for (const [k, v] of lebenHier) teil.leben[k] = Math.round((teil.leben[k] ?? 0) + v);
+          const streckeHier = {};
           /*
            * Laufstrecke und Landeort aus den CharacterSample-Ereignissen derselben Datei (lib/replayPositionen, 31.10.2026) - kein weiterer Abruf.
            * Strecke je Spieler: [zu Fuss, in der Luft] in Metern; der Landeort je Match nur bei kleinen Spieltagen (mit den Rohdaten).
@@ -560,11 +568,15 @@ if (arg[0] === '--plan') {
             for (const [k, v] of Object.entries(pos)) {
               const s = teil.strecke[k] ?? [0, 0];
               teil.strecke[k] = [s[0] + v.fuss, s[1] + v.luft];
+              streckeHier[k] = (v.fuss + v.luft) / 0.685;
               if (v.landung) landung[k] = [v.landung.x, v.landung.y, v.landung.t];
             }
             if (Object.keys(landung).length) roh.landung = landung;
           } catch { /* ohne Positionen bleibt der Rest */ }
           if (mitRoh) teil.roh.push(roh);
+          // Der Verlauf je Spieler und Match (lib/jeSpiel.mjs) - bei jedem Spieltag, auch den grossen: clutch-zusammen legt ihn in eine eigene Datei.
+          teil.jeSpalten = JE_SPALTEN;
+          for (const [k, v] of jeHier) (teil.jeSpiel ??= {}, teil.jeSpiel[k] ??= []).push(jeZeile(id, v, lebenHier.get(k), streckeHier[k]));
           gelesen += 1; seitSpeichern += 1;
           if (seitSpeichern >= 200) { speichern(); seitSpeichern = 0; }
         } catch (e) {
