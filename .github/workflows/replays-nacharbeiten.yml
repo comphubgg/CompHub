@@ -9,7 +9,7 @@
 # 28.10.2026, der Betreiber: "seit mehreren Tagen steht da 8473 still open ... die laufen ab ... baue Agents ein, die das gleichzeitig machen".
 # Gefunden: der Ablauf lief statt alle zwei Stunden nur dreimal am Tag (GitHub uebergeht geplante Laeufe unter Last) und arbeitete je Lauf rund achtzig
 # Minuten; 251 Spieltage der letzten 30 Tage hatten gar keine Auswertung. Jetzt:
-#   - acht Rechner, jeder reihum jeden achten Spieltag (replays-holen.mjs --teil n/8) - zwei Rechner fassen nie denselben an
+#   - drei Rechner, jeder reihum jeden dritten Spieltag (replays-holen.mjs --teil n/3) - zwei Rechner fassen nie denselben an
 #     Seit dem 29.10.2026 fuenf: frische und auf der Seite angefragte Spieltage holt die Schnellspur (replays-schnell.yml, bis zu fuenf Rechner je Cup),
 #     und GitHub laesst hoechstens zwanzig Auftraege zugleich laufen - mit acht Nacharbeitern, vier Clutch-Rechnern und den Schleifen blieb fuer die
 #     Schnellspur kaum Platz.
