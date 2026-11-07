@@ -379,6 +379,25 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
       if (fertig?.spieler?.length) { grund = fertig; break; }
     } catch { /* naechster Versuch */ }
   }
+  /*
+   * Eine Season, fuer die es noch keine Liste je Region gibt: die Liste ohne Region nehmen und hier filtern (Betreiber, 7.11.2026: unter Players stand bei S43 "The numbers are not
+   * reachable"). Der Stundenlauf legt die Regionen spaeter ab.
+   */
+  if (!grund?.spieler && region) {
+    const ohneRegion = (limit: number) => 'szene|' + [['limit', String(limit)], ...(saison ? [['saison', saison]] : []), ['sort', 'elims']].map(([k, v]) => `${k}=${v}`).join('|');
+    for (const limit of [500, 300]) {
+      try {
+        const fertig = await abgelegteAntwort<Liste>(ohneRegion(limit));
+        if (fertig?.spieler?.length) {
+          grund = { ...fertig, spieler: fertig.spieler.filter((z) => {
+            const r = z.regionen as string[] | undefined;
+            return Array.isArray(r) ? r.includes(region) : true;
+          }) };
+          break;
+        }
+      } catch { /* naechster Versuch */ }
+    }
+  }
   if (!grund?.spieler) return null;
 
   const enthaelt = (z: Zeile) => (z.namen ?? []).some((n) => n.toLowerCase().includes(suche))

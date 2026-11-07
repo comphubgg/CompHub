@@ -1,3 +1,4 @@
+import { liesJson, schreibJson } from '@/lib/ablage';
 import crypto from 'crypto';
 import { getToken } from '@/lib/epicCups';
 
@@ -114,12 +115,21 @@ export async function vollstaendigeFreunde(epicId: string | null | undefined): P
     const r = await fetch(`https://friends-public-service-prod.ol.epicgames.com/friends/api/v1/${accountId}/summary`, {
       headers: { Authorization: `Bearer ${String(token).replace(/^bearer\s+/i, '')}` }, signal: AbortSignal.timeout(15_000),
     });
-    if (!r.ok) return volleListe?.epicId === gesucht ? volleListe.ids : null;
+    if (!r.ok) return volleListe?.epicId === gesucht ? volleListe.ids : await gemerkteFreunde(gesucht);
     const j = await r.json() as { friends?: Array<{ accountId?: string }> };
     const ids = [...new Set((j.friends ?? []).map((f) => String(f.accountId ?? '').replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
+    const neu = !volleListe || volleListe.ids.length !== ids.length;
     volleListe = { epicId: gesucht, ids, bis: Date.now() + 10 * 60_000 };
+    if (neu) void schreibJson(FREUNDE_DATEI, { epicId: gesucht, ids }).catch(() => {});
     return ids;
-  } catch { return volleListe?.epicId === gesucht ? volleListe.ids : null; }
+  } catch { return volleListe?.epicId === gesucht ? volleListe.ids : await gemerkteFreunde(gesucht); }
+}
+
+/** Die zuletzt von Epic gelieferte Liste: antwortet Epic gerade nicht, ist die Freundesliste trotzdem da (nach einem Neustart war sie sonst leer). */
+const FREUNDE_DATEI = 'epic-freunde-voll.json';
+async function gemerkteFreunde(epicId: string): Promise<string[] | null> {
+  const d = await liesJson<{ epicId?: string; ids?: string[] } | null>(FREUNDE_DATEI, null).catch(() => null);
+  return d?.epicId === epicId && d.ids?.length ? d.ids : null;
 }
 
 /** Startet die Verbindung, falls noch nicht geschehen - und wartet beim ersten Mal kurz, bis die ersten Status da sind. */

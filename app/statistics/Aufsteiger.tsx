@@ -42,7 +42,8 @@ function Foto({ bild, name, gross }: { bild?: string | null; name: string; gross
   const [kaputt, setKaputt] = useState(false);
   const rahmen = gross ? 'aspect-square w-full rounded-xl' : 'h-12 w-12 shrink-0 rounded-lg';
   if (!bild || kaputt) {
-    return <span className={`${rahmen} flex items-center justify-center bg-zinc-800 font-extrabold text-slate-400 ${gross ? 'text-5xl' : 'text-lg'}`}>{name.slice(0, 1).toUpperCase()}</span>;
+    // Ohne Foto kein riesiges leeres Quadrat.
+    return <span className={`${gross ? 'h-24 w-full rounded-xl' : rahmen} flex items-center justify-center bg-zinc-800 font-extrabold text-slate-400 ${gross ? 'text-4xl' : 'text-lg'}`}>{name.slice(0, 1).toUpperCase()}</span>;
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={bild} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${rahmen} object-cover`} />;

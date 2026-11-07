@@ -2457,6 +2457,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           schnellMerken(f.windowId, e.entries);
           setStand(`${t('Stand')} ${new Date(e.updated ?? Date.now()).toLocaleTimeString(ort)}`);
           setLaedt(false);
+          // Solange die ganze Liste kommt, steht das dabei: Suche und Friends sehen sonst nur die ersten Plaetze.
+          setVertieft(true);
         }).catch(() => {});
         const laeuftJetzt = f.status !== 'vorbei';
         const ab = laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
@@ -2466,6 +2468,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         if (!nochMeins()) return;
         if (g?.entries?.length) {
           ganzDa = true;
+          setVertieft(false);
           ganzGeladen.current = f.windowId;
           setTabelle(g.entries);
           schnellMerken(f.windowId, g.entries);
@@ -2474,6 +2477,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           return;
         }
       }
+      setVertieft(false);
       const erste = await holeStueck(0, ERSTE_SEITEN);
       if (!nochMeins()) return;
       const anfang = erste.entries ?? [];
@@ -2662,10 +2666,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (!meineId) return undefined;
     let weg = false;
-    fetch('/api/auth/epic/freunde', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!weg) { if (j?.ok) setFreundeIds(new Set<string>(j.ids ?? [])); setFreundeGeladen(true); } })
-      .catch(() => { /* ohne Auskunft bleibt die Liste leer */ });
-    return () => { weg = true; };
+    let uhr: ReturnType<typeof setTimeout> | null = null;
+    /*
+     * Bis zu dreimal (Betreiber, 7.11.2026: manchmal hiess es, niemand aus der Freundesliste habe gespielt). Eine einzelne fehlgeschlagene Antwort sah bisher aus wie eine leere Liste.
+     */
+    const hole = (versuch: number) => {
+      fetch('/api/auth/epic/freunde', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        .then((j) => {
+          if (weg) return;
+          const ids: string[] = j?.ok ? j.ids ?? [] : [];
+          if (ids.length) setFreundeIds(new Set<string>(ids));
+          if (!ids.length && versuch < 3) { uhr = setTimeout(() => hole(versuch + 1), 2500 * versuch); return; }
+          setFreundeGeladen(true);
+        });
+    };
+    hole(1);
+    return () => { weg = true; if (uhr) clearTimeout(uhr); };
   }, [meineId]);
   /*
    * Freunde: nur die Freunde, dazu der Spieler selbst - und jedes Team einmal.
@@ -3811,15 +3827,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         <img src={flaggenPfad(landVon(p))} alt=""
                           title={landVon(p) ?? 'Herkunft nicht hinterlegt'}
                           className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-base font-bold text-sky-400">{namenVon(p)}</span>
-                            <a href={`/statistics?ansicht=suche&q=${encodeURIComponent(namenVon(p))}${/^[0-9a-f]{32}$/i.test(String(p.id)) ? `&id=${p.id}` : ''}`} title={t('Statistik dieses Spielers')}
-                              className="shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-sky-500 hover:text-sky-300">Stats</a>
-                          </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate text-base font-bold text-sky-400">{namenVon(p)}</span>
                           {p.logo && <img src={p.logo} alt=""
                             className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
                         </div>
+                        {/* Betreiber, 7.11.2026: der Knopf steht nicht direkt am Namen und fuehrt in die Stats-Ansicht dieses Cups, nicht ins Spielerprofil. */}
+                        {/^[0-9a-f-]{32,36}$/i.test(String(p.id)) && (
+                          <button type="button" onClick={() => { setDetailStart({ id: String(p.id), name: namenVon(p) }); setReiter('teams'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            title={t('Statistik dieses Spielers')}
+                            className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 transition hover:border-sky-400 hover:bg-sky-500/20">
+                            <T>Stats</T>
+                          </button>
+                        )}
                       </div>
                     ))}
                     {!!betrag && (
