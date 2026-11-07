@@ -839,7 +839,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [reiter, setReiter] =
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
-      | 'about' | 'archiv' | 'preis' | 'weg' | 'karte'>('liste');
+      | 'about' | 'archiv' | 'preis' | 'weg' | 'karte'>(() => {
+      const r = suchParameter?.get('reiter') ?? '';
+      return (['runden', 'spieler', 'teams', 'streams', 'about', 'archiv', 'preis', 'weg', 'karte'] as const).find((x) => x === r) ?? 'liste';
+    });
+  /*
+   * Was man auf der Seite waehlt, steht auch in der Adresse (Betreiber, 7.11.2026: "wenn ich auf Europa druecke, soll sich die URL aendern - neu laden und ich bin
+   * immer noch auf Europa"). Region, Spieltag und Reiter; ohne neuen Eintrag im Verlauf, damit "Zurueck" weiter zur vorigen Seite fuehrt.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !region) return;
+    const u = new URL(window.location.href);
+    const setze = (k: string, v: string | undefined) => { if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); };
+    setze('region', region);
+    if (fenster?.windowId && (fenster.region ?? region).toUpperCase() === region.toUpperCase()) setze('fenster', fenster.windowId);
+    setze('reiter', reiter === 'liste' ? undefined : reiter);
+    if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
+  }, [region, fenster, reiter]);
   // Spieler, der unter "Team Stats" gleich offen sein soll - aus der Vollansicht einer Kennzahl der Player Stats ("Check details").
   const [detailStart, setDetailStart] = useState<{ id: string; name: string } | null>(null);
 

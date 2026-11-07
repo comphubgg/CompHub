@@ -4901,7 +4901,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Beide Tage zusammen': 'Both days combined',
   'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
   'Nochmal versuchen': 'Try again',
-  'Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.': 'Damage, hits and headshots counted from the server replays (without hits on knocked players); compared with Epic’s own figures about 6% lower on average.',
+  'Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt. Bei Solo-Cups stehen für die besten 10.000 Spieler Epics eigener Schaden und Kopftreffer.': 'Damage, hits and headshots counted from the server replays. In solo cups the top 10,000 players show Epic’s own damage and headshots.',
   'Kumulativ': 'Cumulative',
   'Zonen & Games': 'Zones & Games',
   'Zonen-Bild bauen, Kills und Zonen je Game': 'Build the zone image, kills and zones per game',

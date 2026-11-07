@@ -11,6 +11,7 @@
 
 import KartenHintergrund, { FNCS_BILDER } from '@/app/components/KartenHintergrund';
 import { useEffect, useMemo, useState } from 'react';
+import { useAdressWert } from '@/app/lib/adressWert';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import { ortJetzt } from '@/app/lib/ort';
@@ -305,13 +306,13 @@ function Zeitstrahl({ liste, nrVon, aktuellKey }: { liste: FncsEreignis[]; nrVon
 
 export default function FncsSeite() {
   const t = useT();
-  const [tab, setTab] = useState<'events' | 'alltime'>('events');
+  const [tab, setTab] = useAdressWert<'events' | 'alltime'>('reiter', 'events', ['events', 'alltime']);
   const [liste, setListe] = useState<FncsEreignis[] | null>(null);
   const [fehler, setFehler] = useState(false);
-  const [filter, setFilter] = useState<'alle' | 'lan' | 'online'>('alle');
+  const [filter, setFilter] = useAdressWert<'alle' | 'lan' | 'online'>('art', 'alle', ['alle', 'lan', 'online']);
   /** Die Region, nach der gefiltert wird - leer heisst alle. Ein Knopf steht nur da, wo es Events gibt. */
-  const [region, setRegion] = useState('');
-  const [ansicht, setAnsicht] = useState<'board' | 'timeline'>('board');
+  const [region, setRegion] = useAdressWert<string>('region', '');
+  const [ansicht, setAnsicht] = useAdressWert<'board' | 'timeline'>('ansicht', 'board', ['board', 'timeline']);
   const [alt, setAlt] = useState<AllTime | null>(null);
   const [altFehler, setAltFehler] = useState(false);
   const [sortNach, setSortNach] = useState('gesamt');

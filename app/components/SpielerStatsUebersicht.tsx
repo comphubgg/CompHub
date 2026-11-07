@@ -322,7 +322,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
         )}
         {schadenAusReplay && (
           <span className="mt-1 block text-slate-600">
-            <T>Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.</T>
+            <T>Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt. Bei Solo-Cups stehen für die besten 10.000 Spieler Epics eigener Schaden und Kopftreffer.</T>
           </span>
         )}
       </p>

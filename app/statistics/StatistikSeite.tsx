@@ -1460,7 +1460,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
   const ohneWert = t('Zu diesem Spieltag hat die Szene-Quelle noch nichts '
     + 'veröffentlicht. Epics Bestenliste führt Schaden, Material und Bauteile '
     + 'nicht, und im Replay stehen sie ebenfalls nicht.');
-  const replayHinweis = t('Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.');
+  const replayHinweis = t('Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt. Bei Solo-Cups stehen für die besten 10.000 Spieler Epics eigener Schaden und Kopftreffer.');
 
   return (
     <div className="overflow-x-auto">

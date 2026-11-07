@@ -169,10 +169,10 @@ export function VergleichFenster({ team, alle, nameVon, suchText, bildVon, spiel
       <div className={`flex min-w-0 items-center gap-3 ${rechts ? 'flex-row-reverse text-right' : ''}`}>
         {bild
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={bild} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-white/10" />
+          ? <img src={bild} alt="" className="h-28 w-[4.5rem] shrink-0 rounded-xl object-cover object-top ring-1 ring-white/10 sm:h-32 sm:w-20" />
           : platzhalter ? (
-            <div className="grid h-14 w-14 shrink-0 place-items-end overflow-hidden rounded-xl bg-gradient-to-b from-zinc-700/60 to-zinc-900 ring-1 ring-white/10" aria-hidden>
-              <svg viewBox="0 0 24 24" className="h-11 w-11 text-zinc-500/70" fill="currentColor"><circle cx="12" cy="9" r="4" /><path d="M3 24c0-5 4-9 9-9s9 4 9 9z" /></svg>
+            <div className="flex h-28 w-[4.5rem] shrink-0 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-b from-zinc-700/60 to-zinc-900 ring-1 ring-white/10 sm:h-32 sm:w-20" aria-hidden>
+              <svg viewBox="0 0 24 34" className="w-full text-zinc-500/70" fill="currentColor"><circle cx="12" cy="12" r="5.5" /><path d="M1 34c0-7 5-13 11-13s11 6 11 13z" /></svg>
             </div>
           ) : null}
         <div className="min-w-0">
