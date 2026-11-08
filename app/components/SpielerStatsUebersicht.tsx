@@ -105,7 +105,9 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt, streckeGeschaetzt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, matches, rundenGesamt, streckeGeschaetzt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+  /** Ohne den Kasten mit den Summen - die Seite zeigt darueber die Event-Uebersicht wie bei Osirion (Betreiber, 8.11.2026: "viel zu wenig Stats"). */
+  ohneSummen?: boolean;
   /** Spieler je Plattform (PC, PlayStation, Xbox, Switch, iOS, Android) aus den vollen Replays - nur bei ganz gelesenem Spieltag. */
   plattformen?: Record<string, number> | null;
   spieler: KachelSpieler[];
@@ -227,7 +229,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+      {!ohneSummen && <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <select value={gruppe} onChange={(e) => setGruppe(e.target.value)} className={auswahl}>
             {GRUPPEN.map(([k, titel]) => <option key={k} value={k}>{t(titel)}</option>)}
@@ -254,7 +256,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* Die Spitze je Kennzahl. */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -296,7 +298,10 @@ export default function SpielerStatsUebersicht({ spieler, matches, rundenGesamt,
               {laeuft ? <T>Der Cup läuft noch. Die Zahlen wachsen mit jedem ausgewerteten Match.</T> : null}
               {laeuft ? ' ' : null}
               {!schadenAusReplay ? <T>Eliminations, Knocks und Deaths stehen schon. Damage, Clutch Points und die übrigen Werte werden gerade aus den Replays gelesen und erscheinen von selbst.</T> : null}
-              {fehlenMatches ? ` ${t('{m} von {v} Matches ausgewertet.').replace('{m}', String(matches ?? 0)).replace('{v}', String(rundenGesamt))}` : null}
+              {/* Die Zahl der VOLL gelesenen Matches - die schnelle Zaehlung (Elims, Knocks) war fast fertig und stand hier, waehrend Damage noch ganz fehlte
+                  (Betreiber, 8.11.2026: "19463 von 19643 analysiert ... gibt fuer mich keinen Sinn"). */}
+              {!schadenAusReplay || schadenTeil ? ` ${t('{m} von {v} Matches voll gelesen.').replace('{m}', (schadenTeil?.matches ?? 0).toLocaleString(ort)).replace('{v}', (schadenTeil?.vonMindestens ?? rundenGesamt ?? matches ?? 0).toLocaleString(ort))}`
+                : fehlenMatches ? ` ${t('{m} von {v} Matches ausgewertet.').replace('{m}', String(matches ?? 0)).replace('{v}', String(rundenGesamt))}` : null}
             </p>
           </div>
         );

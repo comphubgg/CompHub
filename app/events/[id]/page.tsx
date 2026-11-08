@@ -511,12 +511,13 @@ function uhr(ms: number, ort = 'de-DE') {
  */
 /** Die Event-Uebersicht ueber den Kacheln (app/api/cup-stats, ueberblick). */
 interface Ueberblick {
-  matches: number | null; gelesen: number | null; spieler: number; elims: number; damage: number; strecke: number; matsGefarmt: number | null;
+  matches: number | null; gelesen: number | null; spieler: number; elims: number; damage: number | null; strecke: number | null; matsGefarmt: number | null;
   treffer: number | null; builds: number | null; edits: number | null; editStunden: number | null; plattformen: Record<string, number>;
 }
 const PLATTFORM: Record<string, { name: string; farbe: string }> = {
   WIN: { name: 'Windows', farbe: '#38bdf8' }, PS5: { name: 'PlayStation 5', farbe: '#2563eb' }, PSN: { name: 'PlayStation 4', farbe: '#1e3a8a' },
   XSX: { name: 'Xbox Series X|S', farbe: '#22c55e' }, XBL: { name: 'Xbox One', farbe: '#15803d' }, SWT: { name: 'Switch', farbe: '#ef4444' },
+  SWT2: { name: 'Switch 2', farbe: '#f87171' },
   IOS: { name: 'iOS', farbe: '#e2e8f0' }, AND: { name: 'Android', farbe: '#84cc16' }, MAC: { name: 'Mac', farbe: '#a1a1aa' },
 };
 
@@ -526,7 +527,7 @@ function EventUebersicht({ u, ort }: { u: Ueberblick; ort: string }) {
   const felder: Array<[string, string | null]> = [
     ['Matches', zahl(u.matches)], ['Spieler', zahl(u.spieler)], ['Eliminierungen', zahl(u.elims)], ['Schaden an Spielern', zahl(u.damage)],
     ['Treffer', zahl(u.treffer)], ['Gebaute Teile', zahl(u.builds)], ['Gefarmte Mats', zahl(u.matsGefarmt)], ['Edits', zahl(u.edits)],
-    ['Zeit beim Editieren', u.editStunden === null ? null : `${zahl(u.editStunden)} h`], ['Strecke', `${zahl(u.strecke)} km`],
+    ['Zeit beim Editieren', u.editStunden === null ? null : `${zahl(u.editStunden)} h`], ['Strecke', u.strecke === null ? null : `${zahl(u.strecke)} km`],
   ];
   const plattformen = Object.entries(u.plattformen).sort((a, b) => b[1] - a[1]);
   const gesamt = plattformen.reduce((a, [, n]) => a + n, 0);
@@ -4930,9 +4931,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           <SpielerDetail key={detailStart?.id ?? 'suche'} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
         )}
 
+        {/* Oben dieselbe Uebersicht wie unter Team Stats - alle Summen und die Plattformen (Betreiber, 8.11.2026: "viel zu wenig Stats"). */}
+        {reiter === 'spieler' && !soloCup && ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
             <SpielerStatsUebersicht
+              ohneSummen={!!ueberblick}
               spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
               matches={spielerWerte.runden}
               rundenGesamt={spielerWerte.rundenGesamt ?? null}

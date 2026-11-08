@@ -248,7 +248,7 @@ async function holeRoh(request: Request) {
     // Auch kumulativ (Betreiber, 8.11.2026): die Spieltage zusammen - Matches addiert, jeder Spieler und seine Plattform nur einmal.
     if (window_ && !finale) {
       type D = { treffer?: number; editZahl?: number; editSek?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number };
-      type C = { gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string> };
+      type C = { gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string>; strecke?: Record<string, [number, number]> };
       const dateien = (await Promise.all((summe ? tageListe : [window_]).map((w) => liesJson<C | null>(`clutch/${w}.json`, null).catch(() => null))))
         .filter((x): x is C => !!x);
       const c: C | null = !dateien.length ? null : {
@@ -256,6 +256,7 @@ async function holeRoh(request: Request) {
         matches: dateien.flatMap((d) => d.matches ?? []),
         spiele: Object.assign({}, ...dateien.map((d) => d.spiele ?? {})),
         plattform: Object.assign({}, ...dateien.map((d) => d.plattform ?? {})),
+        strecke: Object.assign({}, ...dateien.map((d) => d.strecke ?? {})),
       };
       const s = dateien.flatMap((d) => Object.values(d.schaden ?? {}));
       const summeVon = (f: (d: D) => number | undefined) => s.reduce((a, d) => a + (f(d) ?? 0), 0);
@@ -263,10 +264,17 @@ async function holeRoh(request: Request) {
       for (const v of Object.values(c?.plattform ?? {})) plattformen[v] = (plattformen[v] ?? 0) + 1;
       ueberblick = {
         matches: c?.gesamt ?? null, gelesen: c?.matches?.length ?? null,
-        spieler: Math.max(Object.keys(c?.spiele ?? {}).length, eintraege.reduce((a, e) => a + e.players.length, 0)),
+        /*
+         * Spieler: alle, die in den Replays spielen, sobald (fast) alle gelesen sind - Epics Liste endet bei 10.000 Teams, im Duo also genau 20.000
+         * (Betreiber, 8.11.2026: "genau 20.000 bezweifle ich"). Vorher die groessere der beiden Zahlen.
+         */
+        spieler: c?.gesamt && (c.matches?.length ?? 0) >= c.gesamt * 0.98 ? Object.keys(c.spiele ?? {}).length
+          : Math.max(Object.keys(c?.spiele ?? {}).length, eintraege.reduce((a, e) => a + e.players.length, 0)),
         elims: eintraege.reduce((a, e) => a + (e.elims || 0), 0),
-        damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0),
-        strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000,
+        // Bei Team-Cups fuehrt Epic weder Schaden noch Strecke - dann aus den Replays; ohne gelesenes Replay leer statt 0.
+        damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0) || (s.length ? summeVon((d) => (d as { dmg?: number }).dmg) : null),
+        strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000
+          || (Object.keys(c?.strecke ?? {}).length ? Object.values(c!.strecke!).reduce((a, [f, l]) => a + (f ?? 0) + (l ?? 0), 0) / 0.685 / 1000 : null),
         // Leer, solange kein Replay gelesen ist (laufender Cup: sonst stuende "Materials Farmed 0" da); im Zero Build nach dem Lesen wirklich 0.
         matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
         treffer: s.length ? summeVon((d) => d.treffer) : null,

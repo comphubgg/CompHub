@@ -160,9 +160,10 @@ const ZUSATZ: Zeile[] = [
   // Schuesse sind die gemessene Munition aus dem Magazin, ohne Korrekturfaktor (Betreiber, 7.11.2026: nichts an fremde Zahlen anpassen).
   { titel: 'Player Accuracy', wert: (m) => { const s = m.replay?.schussEcht; const h = treffer(m); return s && h !== null ? (h / s) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 2)} %` },
   { titel: 'Shots', wert: (m) => m.replay?.schussEcht ?? null, zeige: num },
-  { titel: 'Edit Accuracy', wert: (m) => (m.replay?.editZahl && m.replay.editOk !== undefined ? Math.min(100, (m.replay.editOk / m.replay.editZahl) * 100) : null), zeige: (v, ort) => `${dez(v, ort, 2)} %` },
+  // Ohne einen Edit (Zero Build) 0 wie bei Osirion, statt die Zeile wegzulassen.
+  { titel: 'Edit Accuracy', wert: (m) => (m.replay?.editZahl === 0 ? 0 : m.replay?.editZahl && m.replay.editOk !== undefined ? Math.min(100, (m.replay.editOk / m.replay.editZahl) * 100) : null), zeige: (v, ort) => `${dez(v, ort, 2)} %` },
   // Wie Osirion: Gesamtzeit durch gelungene Edits.
-  { titel: 'Avg Edit Time', wert: (m) => { const n = m.replay?.editOk || m.replay?.editZahl; return n ? (m.replay?.editSek ?? 0) / n : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} s`, weniger: true },
+  { titel: 'Avg Edit Time', wert: (m) => { if (m.replay?.editZahl === 0) return 0; const n = m.replay?.editOk || m.replay?.editZahl; return n ? (m.replay?.editSek ?? 0) / n : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} s`, weniger: true },
   { titel: 'Mats Farmed', wert: (m) => (m.replay?.farmHolz === undefined ? null : (m.replay.farmHolz ?? 0) + (m.replay.farmStein ?? 0) + (m.replay.farmMetall ?? 0)), zeige: num },
   { titel: 'Wood Farmed', wert: (m) => m.replay?.farmHolz ?? null, zeige: num },
   { titel: 'Stone Farmed', wert: (m) => m.replay?.farmStein ?? null, zeige: num },
@@ -177,7 +178,7 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Metal Builds Placed', wert: (m) => m.replay?.selbstMetall ?? null, zeige: num },
   { titel: 'Builds Edited', wert: (m) => m.replay?.editZahl ?? null, zeige: num },
   { titel: 'Builds Edited Successfully', wert: (m) => m.replay?.editOk ?? null, zeige: num },
-  { titel: 'Time spent Editing', wert: (m) => (m.replay?.editZahl ? m.replay.editSek ?? 0 : null), zeige: (v) => dauer(v) },
+  { titel: 'Time spent Editing', wert: (m) => (typeof m.replay?.editZahl === 'number' ? (m.replay.editZahl ? m.replay.editSek ?? 0 : 0) : null), zeige: (v) => dauer(v) },
   { titel: 'Pickaxe Hits', wert: (m) => m.replay?.axt ?? null, zeige: num },
   { titel: 'Headshots', wert: kopf, zeige: num },
   { titel: 'Headshot Rate', wert: (m, c) => { const a = kopf(m, c); const b = treffer(m); return a !== null && b ? (a / b) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} %` },

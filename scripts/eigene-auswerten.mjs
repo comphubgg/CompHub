@@ -21,6 +21,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { schadenAus } from '../lib/vollSchaden.mjs';
+import { lebenJeMatch } from '../lib/clutchLeben.mjs';
 
 const DATEN = process.env.COMPHUB_DATEN || path.join(process.cwd(), 'data');
 const ANFRAGEN = path.join(DATEN, 'eigene-anfragen');
@@ -33,7 +34,8 @@ const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 /** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm; 4: dazu Wiederbelebungen und Reboots; 5: Schaden mit der dauerhaften Zuordnung Figur -> Spieler im Leser, 28.10.2026 - Median 97,7 % statt 90,9 % von Epics Wert). */
 // 6 (8.11.2026): dazu alle Werte des vollen Auslesens (lib/vollSchaden.mjs - dieselbe Rechnung wie clutch-berechnen: Schaden wie Osirion, Heilung,
 // Genauigkeit, Edits, Mats, echte Tode). Die Fassung 5 lag im Middle-East-Cup 1.100 Schaden unter Osirion. Neu gerechnet wird nur, was von der Seite bestellt ist.
-const VERSION = 6;
+// 7 (8.11.2026, abends): dazu die Ueberlebenszeit je Spieler (Feld leben).
+const VERSION = 7;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -188,11 +190,16 @@ function zaehle(m, team, summen) {
   // Alle Werte des vollen Auslesens je Teammitglied aufsummiert (Feldnamen wie clutch/<Fenster>.json "schaden") - die Seite nimmt sie, solange das volle
   // Auslesen dieses Spieltags den Spieler noch nicht hat.
   const voll = schadenAus(m) ?? {};
+  // Die Ueberlebenszeit wie im vollen Auslesen (lib/clutchLeben.mjs) - Feld "leben" in Sekunden.
+  let leben = new Map();
+  try { leben = lebenJeMatch(m); } catch { /* ohne Zeit */ }
   for (const konto of team) {
     const v = Object.entries(voll).find(([k]) => norm(k) === konto)?.[1];
     if (!v || !summen[konto]) continue;
     const z = summen[konto].voll ??= {};
     for (const [f, w] of Object.entries(v)) if (typeof w === 'number') z[f] = (z[f] ?? 0) + w;
+    const l = [...leben].find(([k]) => norm(k) === konto)?.[1];
+    if (typeof l === 'number') z.leben = (z.leben ?? 0) + l;
   }
 }
 

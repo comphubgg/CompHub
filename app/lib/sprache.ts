@@ -3940,6 +3940,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Der Cup läuft noch. Die Zahlen wachsen mit jedem ausgewerteten Match.': 'The cup is still running. The numbers grow with every analysed match.',
   'Eliminations, Knocks und Deaths stehen schon. Damage, Clutch Points und die übrigen Werte werden gerade aus den Replays gelesen und erscheinen von selbst.': 'Eliminations, knocks and deaths are in. Damage, Clutch Points and the other stats are still being read from the replays and will appear on their own.',
   '{m} von {v} Matches ausgewertet.': '{m} of {v} matches analysed.',
+  '{m} von {v} Matches voll gelesen.': '{m} of {v} matches fully read.',
   'Extra Stats': 'Extra Stats',
   'Holz gebaut': 'Wood built',
   'Stein gebaut': 'Stone built',
