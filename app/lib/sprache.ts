@@ -563,6 +563,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Live-Match': 'Live match',
   'Dauer': 'Duration',
   'Endet in': 'Ends in',
+  'Matches dieses Spielers ausgewertet. Punkte, Elims und Platz sind aktuell von Epic; Treffer, Heilung und die übrigen Replay-Werte steigen noch.': 'of this player's matches analysed. Points, elims and placement are live from Epic; hits, healing and the other replay stats are still going up.',
   'Gerade': 'Right now',
   'Qual-Grenze jetzt': 'Qual right now',
   'Qual-Grenze am Ende': 'Qual needed',

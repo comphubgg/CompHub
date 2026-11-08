@@ -71,7 +71,8 @@ interface Zeile {
 const pos = (v: number | undefined | null) => (typeof v === 'number' && v > 0 ? v : null);
 const sz = (m: Mitglied, k: string): Wert => (m.szene && typeof m.szene[k] === 'number' ? m.szene[k] : null);
 
-const kills = (m: Mitglied, c: Ctx): Wert => sz(m, 'eliminations') ?? (m.replay?.kills ?? null) ?? (c.solo && c.e ? c.e.elims : null);
+// Im Solo Epics Elims aus der Bestenliste - exakt und aktuell; die Replays hinken waehrend des Cups hinterher (8.11.2026: Chap 14 Elims, aus den Replays 3).
+const kills = (m: Mitglied, c: Ctx): Wert => (c.solo && c.e && typeof c.e.elims === 'number' ? c.e.elims : null) ?? sz(m, 'eliminations') ?? (m.replay?.kills ?? null);
 const dmg = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageDealt') ?? (m.replay?.damage ?? null) ?? (c.solo ? pos(c.e?.damage) : null);
 const dmgT = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageTakenFromPlayers') ?? (m.replay?.damageTaken ?? null) ?? (c.solo ? pos(c.e?.damageTaken) : null);
 const treffer = (m: Mitglied): Wert => sz(m, 'hitsToPlayers') ?? (m.replay?.hits ?? null);
@@ -642,6 +643,15 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
           )}
 
           {/* Solange das volle Auslesen laeuft, sind alle Replay-Werte Teilsummen: das muss hier stehen, sonst sehen sie falsch aus (Betreiber, 7.11.2026). */}
+          {/* Noch nicht alle Matches dieses Spielers gelesen: das muss ueber den Werten stehen (Betreiber, 8.11.2026: "das kannst du so nicht zeigen"). */}
+          {!daten.replayTeil?.matches && e && e.games > 0 && mitglieder.some((m) => typeof m.replay?.spiele === 'number' && (m.replay.spiele ?? 0) < e.games) && (
+            <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+              <p className="font-semibold text-amber-300"><T>Noch nicht fertig</T></p>
+              <p className="mt-0.5 text-amber-100/80">
+                {Math.min(...mitglieder.map((m) => m.replay?.spiele ?? 0))} / {e.games} <T>Matches dieses Spielers ausgewertet. Punkte, Elims und Platz sind aktuell von Epic; Treffer, Heilung und die übrigen Replay-Werte steigen noch.</T>
+              </p>
+            </div>
+          )}
           {daten.replayTeil?.matches && (
             <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
               <p className="font-semibold text-amber-300"><T>Noch nicht fertig</T></p>
