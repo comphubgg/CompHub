@@ -56,7 +56,7 @@ export const SEKTIONEN: Sektion[] = [
   // Die Globals-Seiten fuer VIPs (Teams, Karte, Prognosen, Overlays). Seit 11.10.2026 schaltbar: offline heisst fuer
   // alle ausser dem Admin weg, nicht geloescht.
   { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },
-  { schluessel: 'globals-solos', pfad: '/globals-solos', titel: 'Globals Solos' },
+  { schluessel: 'globals-solos', pfad: '/globals-solos', titel: 'FNCS Solos' },
   // Die Org-Konten (Kader pflegen). Der Betreiber (29.10.2026): "das ist so nebenbei ... kannst du deaktivieren, bis ich es mal wieder aktiviere".
   { schluessel: 'org', pfad: '/org', titel: 'Org-Konten', anfang: 'offline' },
 ];

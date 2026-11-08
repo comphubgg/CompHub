@@ -14,6 +14,7 @@ import { fokusVon } from '@/lib/fotoFokus';
 import { regionAnzeige } from '@/lib/regionFarbe';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } from '@/lib/globalsSolos';
+import type { HeatsDaten } from '@/lib/heatsPosts';
 import { Karte } from './Bausteine';
 import WegPlan from './WegPlan';
 import Preisgeld from './Preisgeld';
@@ -31,10 +32,10 @@ import Preisgeld from './Preisgeld';
  * Zwei Zeilen wie bei eucompetitive.com/grands (Betreiber, 26.10.2026: "pass die Solo-FNCS an wie dort"): oben die Stufen - Fast Tracks, Heat 1, Heat 2, Last Chance, Finals -,
  * darunter, rechts, die Ansicht dieser Stufe: Karte, Bestenliste, Spieler, Laender. Vor den Spieltagen stehen "Der Weg" und "Qualifiziert", am Ende das Preisgeld.
  */
-type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte';
+type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte' | 'heats';
 type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender';
 const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder']];
-const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld' || x === 'karte';
+const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld' || x === 'karte' || x === 'heats';
 
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
 
@@ -293,6 +294,47 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
   );
 }
 
+/* ------------------------------------------------------------------ Heats */
+
+/*
+ * Die Einteilung der Heats wie bei eucompetitive.com/heats (Betreiber, 8.11.2026): je Heat eine Tafel, darin Platz im Heat, Platz und Punkte aus der letzten
+ * Qualifier-Runde, Flagge und Name. Steht sofort nach der Runde fest (Zickzack-Regel, lib/heatsPosts) - Epics Marken bestaetigen sie spaeter.
+ */
+function HeatsPlan({ plan }: { plan: HeatsDaten }) {
+  const { sprache } = useSprache();
+  const ort = sprache === 'en' ? 'en-GB' : 'de-DE';
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-slate-500">
+        {plan.ausMarken ? <T>Einteilung von Epic bestätigt.</T> : <T>Eingeteilt nach Epics Regel aus der Platzierung der letzten Runde — Epic bestätigt sie später.</T>}
+      </p>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {plan.heats.map((h) => (
+          <section key={h.nr} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+              <h3 className="text-sm font-black uppercase tracking-[0.25em] text-slate-100">Heat {h.nr}</h3>
+              <span className="text-xs tabular-nums text-slate-500">
+                {new Date(h.begin).toLocaleDateString(ort, { weekday: 'short', day: 'numeric', month: 'short' })} · {h.spieler.length} <T>Spieler</T>
+              </span>
+            </div>
+            <ol className="columns-1 gap-0 sm:columns-2 [column-rule:1px_solid_rgb(39_39_42)]">
+              {h.spieler.map((s, i) => (
+                <li key={s.id} className="flex break-inside-avoid items-center gap-2.5 border-b border-zinc-800/60 px-4 py-2 text-sm">
+                  <span className={`w-5 shrink-0 text-right text-xs font-bold tabular-nums ${i < 3 ? 'text-slate-200' : 'text-slate-500'}`}>{i + 1}</span>
+                  <span className="shrink-0 rounded-md border border-zinc-700 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-400">{plan.quelle} #{s.rang}</span>
+                  <TeamFlagge groesse={14} laender={[s.land || undefined]} />
+                  <span className="min-w-0 flex-1 truncate font-extrabold uppercase text-slate-100">{s.name}</span>
+                  <span className="shrink-0 font-bold tabular-nums text-slate-300">{s.punkte}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ Seite */
 
 export default function SolosSeite() {
@@ -396,7 +438,9 @@ export default function SolosSeite() {
     if (!ziel && !wunsch.stufe && !wunsch.tab) {
       const laufend = spieltage.find((x) => statusVon(x) === 'live');
       const finaleMitKarte = HAT_KARTE.has(region) ? spieltage.find((x) => x.art === 'finale' && x.formen.length > 0) : undefined;
-      ziel = laufend?.name ?? finaleMitKarte?.name ?? 'weg';
+      // Stehen die Heats fest, aber keiner laeuft: zuerst die Einteilung.
+      const plan = (daten as SolosDaten & { heatsPlan?: HeatsDaten[] }).heatsPlan?.[0];
+      ziel = laufend?.name ?? (plan ? 'heats' : undefined) ?? finaleMitKarte?.name ?? 'weg';
     }
     setStufe(ziel || 'weg');
     const wunschAnsicht = (ANSICHTEN.some(([k]) => k === wunsch.ansicht) ? wunsch.ansicht : wunsch.tab === 'karte' ? 'karte' : '') as Ansicht | '';
@@ -404,6 +448,7 @@ export default function SolosSeite() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [daten, wunsch, spieltage, region, statusVon]);
 
+  const heatsPlan = (daten as (SolosDaten & { heatsPlan?: HeatsDaten[] }) | null)?.heatsPlan?.[0] ?? null;
   const finalisten = useMemo(() => new Set(daten?.qualifiziert.flatMap((g) => g.spieler.map((s) => s.id)) ?? []), [daten]);
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';
   const oeffneIn = (windowId: string) => (s: SolosSpieler) => { if (eventVon(windowId)) setPanel({ id: s.id, name: s.anzeige, windowId }); };
@@ -472,6 +517,7 @@ export default function SolosSeite() {
         <nav className="flex flex-wrap items-center gap-1 self-start rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm" aria-label={t('Stufe')}>
           <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}><T>Der Weg</T></button>
           <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}><T>Qualifiziert</T></button>
+          {!!heatsPlan && <button type="button" onClick={() => waehleStufe('heats')} className={knopf(stufe === 'heats')}><T>Heat-Einteilung</T></button>}
           {/* Vor dem ersten Spieltag: die leere Karte der Insel, auf der gespielt wird (Betreiber, 2.11.2026: "einfach mal eine leere Map da haben"). */}
           {!spieltage.length && daten?.leereKarte && <button type="button" onClick={() => waehleStufe('karte')} className={knopf(stufe === 'karte')}><T>Karte</T></button>}
           {spieltage.length > 0 && <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />}
@@ -516,6 +562,7 @@ export default function SolosSeite() {
           <Qualifiziert daten={daten} oeffne={(s, w) => { const ziel2 = daten.fenster.find((x) => x.windowId === w) ?? daten.fenster.find((x) => x.art === 'finale'); if (ziel2 && eventVon(ziel2.windowId)) setPanel({ id: s.id, name: s.anzeige, windowId: ziel2.windowId }); }} />
         )}
         {stufe === 'preisgeld' && <Preisgeld region={region} />}
+        {stufe === 'heats' && heatsPlan && <HeatsPlan plan={heatsPlan} />}
 
         {daten && aktuell && (
           <>

@@ -25,7 +25,8 @@ import { kernname } from '@/lib/homoglyph';
 import { istVitalRegion, vitalFormen, vitalFuer, vitalKarte, vitalTurniere, vitalNachStufe } from '@/lib/vitalScrims';
 
 /** Das Turnier bei Noble: "FNCS Solos" der laufenden Saison. */
-const TURNIER_NAME = /^FNCS Solos$/i;
+// Auch "FNCS Solos Reload" (Season 43) - die neueste Reihe zuerst (jungeTurniere sortiert nach Beginn).
+const TURNIER_NAME = /^FNCS Solos( Reload)?$/i;
 const REGION = 'EU';
 
 export { SOLOS_REGIONEN, type SolosRegion } from '@/lib/solosRegionen';

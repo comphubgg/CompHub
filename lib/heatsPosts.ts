@@ -25,6 +25,8 @@ export interface HeatsDaten {
   heats: Array<{ nr: number; windowId: string; begin: number; spieler: HeatSpieler[] }>;
   /** So viele vergab die Qualifikation in die Heats - und so viele tragen schon eine Heat-Marke. */
   erwartet: number; gefunden: number;
+  /** Kurzname der Runde, aus der die Plaetze stammen ("R3"), und ob Epics Marken schon da sind (sonst nach der Regel eingeteilt). */
+  quelle: string; ausMarken: boolean;
 }
 
 const flagge = (land?: string | null) => (land && /^[A-Za-z]{2}$/.test(land)
@@ -52,7 +54,8 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
     if (!heatMarke.size) continue;
     const serie = [...heatMarke.keys()][0].replace(/_Heat\d+_.*$/i, '');
     // Die Runden, die in die Heats fuehren: ihre Marke heisst "<Serie>_Heats..."
-    const zubringer = alleFenster.map(({ f }) => f).filter((f) => f.status === 'vorbei' && (f.marken ?? []).some((m) => m.token.startsWith(`${serie}_Heats`)));
+    // Erst eine halbe Stunde nach dem Ende: bis dahin koennen spaete Spiele die Plaetze noch verschieben.
+    const zubringer = alleFenster.map(({ f }) => f).filter((f) => f.status === 'vorbei' && (f.end ?? 0) < jetzt - 30 * 60_000 && (f.marken ?? []).some((m) => m.token.startsWith(`${serie}_Heats`)));
     if (!zubringer.length) continue;
     const erwartet = zubringer.reduce((a, f) => a + Math.max(...(f.marken ?? []).filter((m) => m.token.startsWith(`${serie}_Heats`)).map((m) => m.bis)), 0);
     const kandidaten = new Map<string, { name: string; rang: number; punkte: number }>();
@@ -69,12 +72,23 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
       }
     }
     if (!kandidaten.size) continue;
-    let marken: Map<string, string[]>;
-    try { marken = await holeMarken([...kandidaten.keys()]); } catch { continue; }
+    let marken: Map<string, string[]> = new Map();
+    try { marken = await holeMarken([...kandidaten.keys()]); } catch { /* dann nach der Regel */ }
     const karte = await profilKarte();
+    /*
+     * Die Regel, nach der Epic einteilt (an Noble und EU Competitive geprueft, FNCS Solos Reload S43: 40 von 40 je Heat): nach dem Platz der letzten Runde im Zickzack -
+     * Platz 1 Heat 1, Platz 2 und 3 Heat 2, Platz 4 und 5 Heat 1 ... So steht die Einteilung sofort nach der Runde fest (Betreiber, 8.11.2026: "Noble hat das schon");
+     * sobald Epic die Heat-Marken vergeben hat, gelten die Marken.
+     */
+    const heatListe = [...heatMarke.keys()].sort((a, b) => Number(/_Heat(\d+)_/i.exec(a)?.[1] ?? 0) - Number(/_Heat(\d+)_/i.exec(b)?.[1] ?? 0));
+    const n = heatListe.length;
+    const nachRegel = (rang: number) => { const block = Math.floor((rang - 1) / n); const pos = (rang - 1) % n; return heatListe[block % 2 === 0 ? pos : n - 1 - pos]; };
+    const einRunde = zubringer.length === 1;
+    const zubringerBis = einRunde ? Math.max(...(zubringer[0].marken ?? []).filter((m) => m.token.startsWith(`${serie}_Heats`)).map((m) => m.bis)) : 0;
+    const markenDa = [...kandidaten.keys()].some((id) => (marken.get(id) ?? []).some((x) => heatMarke.has(x)));
     const heats = new Map<string, HeatSpieler[]>();
     for (const [id, k] of kandidaten) {
-      const t = (marken.get(id) ?? []).find((x) => heatMarke.has(x));
+      const t = markenDa ? (marken.get(id) ?? []).find((x) => heatMarke.has(x)) : einRunde && k.rang <= zubringerBis ? nachRegel(k.rang) : undefined;
       if (!t) continue;
       const pr = karte.profile.get(id.toLowerCase()); const sz = karte.szene.get(id.toLowerCase());
       const name = ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || k.name)).trim() || k.name;
@@ -85,7 +99,8 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
     const gefunden = [...heats.values()].reduce((a, l) => a + l.length, 0);
     if (!alle && gefunden < erwartet * 0.9) continue;
     raus.push({
-      cupId: c.id, titel: c.titel, region, eventId, erwartet, gefunden,
+      cupId: c.id, titel: c.titel, region, eventId, erwartet, gefunden, ausMarken: markenDa,
+      quelle: einRunde ? `R${/Round(\d+)/i.exec(zubringer[0].windowId)?.[1] ?? ''}` : 'Q',
       heats: [...heatMarke.entries()].map(([t, f]) => ({
         nr: Number(/_Heat(\d+)_/i.exec(t)?.[1] ?? 0), windowId: f.windowId, begin: f.begin ?? 0,
         spieler: (heats.get(t) ?? []).sort((a, b) => a.rang - b.rang),

@@ -7,6 +7,8 @@ import { ueberdauernd } from '@/lib/ueberdauernd';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { inselAusPlaylist, brBildFuer } from '@/lib/inseln';
 import { eigeneKarte } from '@/lib/bildAdressen';
+import { heatsDaten } from '@/lib/heatsPosts';
+import { gecacht } from '@/lib/epicCups';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -96,7 +98,9 @@ export async function GET(request: Request) {
       const stufen = daten.stufen.map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end }));
       return NextResponse.json({ ok: true, region: daten.region, fenster: heats, stufen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
     }
-    return NextResponse.json({ ok: true, ...daten },
+    // Die Einteilung der kommenden Heats - nach der Regel, sobald die letzte Runde vorbei ist (lib/heatsPosts), wie bei EU Competitive (Betreiber, 8.11.2026).
+    const heatsPlan = await gecacht(`solos|heatsplan|${region}`, 120_000, () => heatsDaten(region, undefined, true)).catch(() => []);
+    return NextResponse.json({ ok: true, ...daten, heatsPlan: heatsPlan.filter((d) => d.gefunden > 0) },
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' } });
   } catch (e) {
     return NextResponse.json({ ok: false, error: `Noble nicht erreichbar: ${(e as Error).message}` },
