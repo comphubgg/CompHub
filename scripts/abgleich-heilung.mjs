@@ -10,6 +10,8 @@ const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
 const DLL = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
 
+const VARIANTEN = ['ohneSiphon:1', 'ohneSiphon:2', 'ohneSiphon:4', 'ohneSiphonGross:2', 'ohneRegen'];
+const varSumme = {};
 const summe = { jetzt: 0, ohneSiphon: 0, ohneRegen: 0, ohneBeides: 0, nurGross: 0 };
 for (const id of liste.split(',')) {
   const datei = path.join(os.tmpdir(), `${id}.replay`);
@@ -19,6 +21,9 @@ for (const id of liste.split(',')) {
     const p = v.spieler.find((x) => String(x.epic).toLowerCase() === konto);
     if (!p) { console.log(id, 'Spieler nicht im Match'); continue; }
     const jetzt = schadenAus(v)?.[p.epic]?.heilHp ?? 0;
+    // Varianten genau in der Regel (lib/vollSchaden.mjs, HEIL_REGEL).
+    for (const r of VARIANTEN) { process.env.HEIL_REGEL = r; varSumme[r] = (varSumme[r] ?? 0) + (schadenAus(v)?.[p.epic]?.heilHp ?? 0); }
+    delete process.env.HEIL_REGEL;
     // Die Lebenspunkte-Spruenge dieses Spielers nachrechnen - und je Sprung festhalten, ob er kurz nach einer eigenen Elimination kam (Siphon) oder ein +5-Takt ist (Regeneration).
     const elims = (v.feed ?? []).filter((e) => e.taeter === p.id && e.opfer !== p.id && e.art === 'tot' && e.ursache !== 50).map((e) => e.t);
     const knocks = (v.feed ?? []).filter((e) => e.taeter === p.id && e.opfer !== p.id && e.art === 'unten').map((e) => e.t);
@@ -36,4 +41,5 @@ for (const id of liste.split(',')) {
   } catch (e) { console.log(id, 'Fehler', String(e.message).slice(0, 120)); } finally { fs.rmSync(datei, { force: true }); }
 }
 const s = Number(soll);
+for (const [k, w] of Object.entries(varSumme)) console.log('GENAU', k.padEnd(18), Math.round(w), `${(((w - s) / s) * 100).toFixed(1)} %`);
 for (const [k, w] of Object.entries(summe)) console.log(k.padEnd(12), Math.round(w), `${(((w - s) / s) * 100).toFixed(1)} %`);
