@@ -1499,6 +1499,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
   'Mehr anzeigen': 'Show more',
+  'Ausserhalb der Top 10.000': 'Outside the top 10,000',
   'Nur dieses Team': 'Team members only',
   'ist zurück im Spiel': 'is back in the game',
   'Gefarmte Mats': 'Materials Farmed',

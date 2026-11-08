@@ -538,17 +538,20 @@ function EventUebersicht({ u, ort }: { u: Ueberblick; ort: string }) {
     return `M ${p(a0, 46)} A 46 46 0 ${gross} 1 ${p(a1, 46)} L ${p(a1, 30)} A 30 30 0 ${gross} 0 ${p(a0, 30)} Z`;
   };
   return (
-    <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3 sm:grid-cols-3 xl:grid-cols-5">
+    /* Freie Kacheln ohne Rahmen drumherum und nur leicht abgerundet - wie die Summen vorher (Betreiber, 8.11.2026: "Kaestchen in einem Kaestchen gefaellt
+       mir gar nicht ... viel zu rund"). */
+    <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 xl:grid-cols-5">
         {felder.filter(([, w]) => w !== null).map(([titel, w]) => (
-          <div key={titel} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-3 text-center">
-            <div className="text-[12px] font-semibold text-slate-400"><T>{titel}</T></div>
-            <div className="mt-1 text-xl font-black tabular-nums text-slate-50">{w}</div>
+          <div key={titel} className="rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 text-center">
+            {/* "Matches" bleibt so - die Uebersetzung kennt es als Kleinwort im Satz. */}
+            <p className="truncate text-[11px] text-slate-400">{titel === 'Matches' ? titel : <T>{titel}</T>}</p>
+            <p className="mt-0.5 truncate text-lg font-bold tabular-nums text-slate-50">{w}</p>
           </div>
         ))}
       </div>
       {gesamt > 0 && (
-        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+        <div className="flex items-center gap-4 rounded-md border border-zinc-800 bg-zinc-900/50 p-4">
           <svg viewBox="0 0 100 100" className="h-32 w-32 shrink-0" role="img" aria-label="Plattformen">
             {plattformen.length === 1
               ? <circle cx="50" cy="50" r="38" fill="none" stroke={PLATTFORM[plattformen[0][0]]?.farbe ?? '#64748b'} strokeWidth="16" />

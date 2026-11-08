@@ -148,7 +148,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, treffer, bekannt: treffer.length ? [] : bekannt.slice(0, 3).map((x) => x.name).filter(Boolean), gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
-    const r = await findeSpieler(event, fenster, [], [id], MAX_PAGES);
+    /*
+     * Epic zeigt je Spieltag nur die besten 10.000. Steht der Spieler nicht in der ganzen Liste aus dem Vorrat, waere die Suche durch hundert Seiten bei Epic
+     * nur langsam und ebenso leer - dann gleich ohne Eintrag weiter: die Werte kommen aus den Replays, die jedes Match lesen (Betreiber, 8.11.2026: "kann
+     * sein, dass ich unter Top 10.000 bin ... sollte trotzdem gehen").
+     */
+    const vorrat = await ganzeListe(fenster);
+    const imVorrat = !vorrat || vorrat.some((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
+    const r = imVorrat ? await findeSpieler(event, fenster, [], [id], MAX_PAGES) : { entries: [] as CupEintrag[] };
     const eintrag: CupEintrag | undefined = r.entries[0];
     const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
 
@@ -264,7 +271,10 @@ export async function GET(request: Request) {
     });
 
     const antwort = {
-      ok: true, id, name: mitglieder.find((m) => m.ich)?.name || name, dabei: !!eintrag,
+      // Dabei ist auch, wer unter den besten 10.000 fehlt, aber in den gelesenen Replays spielt.
+      ok: true, id, name: mitglieder.find((m) => m.ich)?.name || name,
+      dabei: !!eintrag || ((clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[id] ?? 0) > 0 || !!eigene?.spieler?.[id],
+      ausserhalbListe: !eintrag,
       rank: eintrag?.rank ?? null, gesamt,
       // Epics Perzentil (Osirion zeigt dasselbe: Rang 4200 = Top 2,3 %); Rang durch die 10.000 Plaetze der Liste ergab 42 %.
       top: eintrag && typeof eintrag.percentile === 'number' && eintrag.percentile > 0 ? +(eintrag.percentile * 100).toFixed(1)

@@ -36,7 +36,7 @@ interface Eintrag {
 interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number | null>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
-  ok: boolean; error?: string; id: string; name: string; dabei: boolean;
+  ok: boolean; error?: string; id: string; name: string; dabei: boolean; ausserhalbListe?: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
   replayTeil?: { matches?: number; vonMindestens?: number } | null;
@@ -576,7 +576,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
         </p>
       )}
 
-      {wahl && daten && !laedt && daten.dabei && e && (
+      {wahl && daten && !laedt && daten.dabei && (e || daten.ausserhalbListe) && (
         <div className="mt-4 rounded-2xl border border-white/[0.08] bg-zinc-950/70 p-4">
           {/* Oben wie bei Osirion: links der Kopf (Spieler, Rang, Punkte und ihre Aufteilung), rechts der Verlauf der Punkte (Betreiber, 28.10.2026). */}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -592,15 +592,17 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 </div>
                 <div className="mt-3 flex items-baseline justify-between gap-3">
                   <p className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
-                    {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
+                    {/* Unter den besten 10.000 zeigt Epic keinen Platz - die Werte kommen dann allein aus den Replays (Betreiber, 8.11.2026). */}
+                    {e ? <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
+                      : <span className="text-[15px] font-bold text-slate-300"><T>Ausserhalb der Top 10.000</T></span>}
+                    {e && daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
                   </p>
-                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} points</p>
+                  {e && <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points, ort)} points</p>}
                 </div>
                 <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
                   {/* Epic laesst einen Teil weg, wenn er 0 ist (8 Spieler im FNCS Solo Final EU ohne Elim-Punkte): steht der andere da, gilt der fehlende als 0, statt die Zeile zu verstecken. */}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0, ort)} points</span></p>}
-                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0, ort)} points</span></p>}
+                  {e && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0, ort)} points</span></p>}
+                  {e && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0, ort)} points</span></p>}
                 </div>
               </div>
               <p className="mt-2 flex justify-between px-1 text-[11px] text-slate-500">
@@ -608,7 +610,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 <span>Next update <b className="text-slate-300">in {naechste ?? '–'} {naechste === 1 ? 'minute' : 'minutes'}</b></span>
               </p>
             </div>
-            {spiele.length > 1 && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
+            {spiele.length > 1 && e && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
               <div className="flex flex-col justify-end">
                 <PunkteKurve platz={kumPlatz} elim={kumElim} />
                 <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>

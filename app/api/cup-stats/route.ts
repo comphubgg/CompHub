@@ -245,10 +245,19 @@ async function holeRoh(request: Request) {
      * Epics Werte, wo Epic sie fuehrt; Treffer, Bauteile und Edits aus den ausgewerteten Replays. Shots fehlen bewusst, bis die Zaehlung im Reload stimmt.
      */
     let ueberblick: Record<string, unknown> | null = null;
-    if (window_ && !summe && !finale) {
+    // Auch kumulativ (Betreiber, 8.11.2026): die Spieltage zusammen - Matches addiert, jeder Spieler und seine Plattform nur einmal.
+    if (window_ && !finale) {
       type D = { treffer?: number; editZahl?: number; editSek?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number };
-      const c = await liesJson<{ gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string> } | null>(`clutch/${window_}.json`, null).catch(() => null);
-      const s = Object.values(c?.schaden ?? {});
+      type C = { gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string> };
+      const dateien = (await Promise.all((summe ? tageListe : [window_]).map((w) => liesJson<C | null>(`clutch/${w}.json`, null).catch(() => null))))
+        .filter((x): x is C => !!x);
+      const c: C | null = !dateien.length ? null : {
+        gesamt: dateien.every((d) => typeof d.gesamt === 'number') ? dateien.reduce((a, d) => a + (d.gesamt ?? 0), 0) : undefined,
+        matches: dateien.flatMap((d) => d.matches ?? []),
+        spiele: Object.assign({}, ...dateien.map((d) => d.spiele ?? {})),
+        plattform: Object.assign({}, ...dateien.map((d) => d.plattform ?? {})),
+      };
+      const s = dateien.flatMap((d) => Object.values(d.schaden ?? {}));
       const summeVon = (f: (d: D) => number | undefined) => s.reduce((a, d) => a + (f(d) ?? 0), 0);
       const plattformen: Record<string, number> = {};
       for (const v of Object.values(c?.plattform ?? {})) plattformen[v] = (plattformen[v] ?? 0) + 1;
