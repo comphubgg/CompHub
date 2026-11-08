@@ -329,7 +329,16 @@ async function holeRoh(request: Request) {
     });
   }
 
-  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [...vorab];
+  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null; rang?: number }> = [...vorab];
+  /*
+   * Wie gross das Feld dieses Spieltags ist: bei einer spaeteren Runde so viele, wie aus der Runde davor weiterkamen. Ist das Feld einer Vorlage anders gross,
+   * gilt dort derselbe ANTEIL statt desselben Platzes (Betreiber, 8.11.2026: FNCS Solos Reload Round 3 - 500 Spieler, Top 80; die Prognose nahm Platz 80 der
+   * Round 2 mit 7.900 Spielern, 448 Punkte, ein Profi rechnete mit 320-350). An den Solo-Qualifiern der Saison 42 geprueft: Round 3, Platz 80 von ~990, lag
+   * mit dem Anteil 2 bis 8 Punkte neben dem echten Wert (293/286, 290/294, 295/287, 284/286), mit demselben Platz 57 bis 84 darueber.
+   */
+  const vorRunde = alle.filter((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.begin < dieser.begin)
+    .sort((a, b) => b.begin - a.begin)[0];
+  const feldDieser = /round\s*[2-9]/i.test(dieser.windowId) && vorRunde?.qualifiziert ? vorRunde.qualifiziert : null;
   for (const f of frueher) {
     try {
       /*
@@ -346,9 +355,23 @@ async function holeRoh(request: Request) {
         // Reicht die Liste nicht ganz hin, gilt der letzte vorhandene Rang -
         // das ist dann eine Untergrenze, keine Erfindung.
         ?? board.entries[board.entries.length - 1];
+      let punkte = treffer && treffer.rank === schwelle ? treffer.points : null;
+      let rang: number | undefined;
+      const anteil = (treffer as { percentile?: number } | undefined)?.percentile;
+      if (feldDieser && treffer && anteil && anteil > 0) {
+        const feldRef = Math.round(treffer.rank / anteil);
+        if (Math.abs(feldRef / feldDieser - 1) > 0.2) {
+          rang = Math.max(1, Math.round((schwelle / feldDieser) * feldRef));
+          try {
+            const b2 = await gecacht(`qual|${f.eventId}|${f.windowId}|${rang}`, 30 * 60_000, () => umRang(f.eventId, f.windowId, rang!));
+            const t2 = b2.entries.find((e) => e.rank === rang);
+            punkte = t2 ? t2.points : null;
+          } catch { punkte = null; }
+        }
+      }
       ausgaben.push({
-        windowId: f.windowId, datum: f.begin,
-        punkte: treffer && treffer.rank === schwelle ? treffer.points : null,
+        windowId: f.windowId, datum: f.begin, punkte,
+        ...(rang ? { rang } : {}),
         ...(aehnlich ? { titel: titelVon.get(f.windowId) ?? null } : {}),
       });
     } catch {

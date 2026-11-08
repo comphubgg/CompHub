@@ -4364,7 +4364,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            */
           const spielerIn = (sp: Spiel) => sp.teams.reduce((n, z) => n + z.spieler.length, 0);
           // 60 statt 80 (7.11.2026): eine Trios-Lobby hat seit Season 43 hoechstens 78 Spieler, mit 80 blieb die Liste immer leer.
-          const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= 60;
+          // Reload-Lobbys haben hoechstens 40 Spieler (8.11.2026: FNCS Solos Reload - "Live 10", aber keine einzige Kachel): dort reichen 30.
+          const lobbyGrenze = /reload/i.test(`${fenster.windowId} ${cup?.titel ?? ''}`) ? 30 : 60;
+          const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= lobbyGrenze;
           const ausgeblendet = eineLobby ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
           const gefiltert = eineLobby ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
           const gezeigt = gefiltert.slice(0, sichtbareSpiele);
@@ -4790,7 +4792,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 {spiele && spiele.length > 0 && !gefiltert.length && (
                   <p className="p-4 text-center text-sm text-slate-500">
                     {ausgeblendet > 0
-                      ? <T>An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 60 bekannten Spielern oder eigenem Replay.</T>
+                      ? <T>An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys, deren Spieler fast alle bekannt sind, oder mit eigenem Replay.</T>
                       : <T>Gerade läuft keine Lobby.</T>}
                   </p>
                 )}

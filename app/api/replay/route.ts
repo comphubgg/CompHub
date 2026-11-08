@@ -65,7 +65,9 @@ export async function GET(request: Request) {
       const t = liste.find((x) => x.windowId === fenster);
       const matches: Record<string, number> = {};
       // 60 statt 80 (7.11.2026): eine Trios-Lobby hat seit Season 43 hoechstens 78 Spieler.
-      for (const m of t?.matches ?? []) if ((m.spieler ?? 0) >= 60) matches[m.id] = m.nr;
+      // Reload-Lobbys haben hoechstens 40 Spieler - dort reichen 30.
+      const grenze = /reload/i.test(fenster) ? 30 : 60;
+      for (const m of t?.matches ?? []) if ((m.spieler ?? 0) >= grenze) matches[m.id] = m.nr;
       return zwischenspeichern(NextResponse.json({ windowId: fenster, matches }, { headers: { 'Cache-Control': 'no-store' } }), 120);
     }
 
