@@ -3300,7 +3300,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               const einfach = !qual?.kumuliert && !kumAktiv;
               const jetztWert = einfach && typeof qual?.tatsaechlich === 'number' ? qual.tatsaechlich : null;
               // Die Prognose bleibt auch nach dem Cup stehen, neben dem, was es am Ende gekostet hat (Betreiber, 8.11.2026).
-              const prognoseWert = einfach && qual?.schnitt ? qualPrognose(qual) : null;
+              // Kommen (fast) alle weiter - Heats mit "Top 99" bei 40 Spielern je Heat -, sagt eine Grenze von ein paar Punkten nichts (stand "~3 Points" da).
+              const prognoseRoh = einfach && qual?.schnitt ? qualPrognose(qual) : null;
+              const prognoseWert = prognoseRoh !== null && prognoseRoh >= 20 ? prognoseRoh : null;
               const kacheln: Array<[string, string, string]> = [
                 [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
                 ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
