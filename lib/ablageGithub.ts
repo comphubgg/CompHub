@@ -206,7 +206,9 @@ function vorratAufraeumen(jetzt: number) {
 const KOPIEN = path.join(DATEN_ORT, '.release-kopien');
 const kopieName = (tag: string, anhang: string) => path.join(KOPIEN, `${tag}__${anhang}`.replace(/[^A-Za-z0-9._=-]/g, '_'));
 async function letzteKopie(tag: string, anhang: string): Promise<Buffer | null> {
-  try { return await platte.readFile(kopieName(tag, anhang)); } catch { return null; }
+  try { return await platte.readFile(kopieName(tag, anhang)); } catch { /* dann der Datenordner */ }
+  // Zuletzt der Datenordner des Rechners (aelter, aber besser als Striche).
+  try { return await platte.readFile(path.join(DATEN_ORT, ablageName(anhang))); } catch { return null; }
 }
 
 async function holeAnhang(anhang: string, tag: string): Promise<Buffer | null> {
