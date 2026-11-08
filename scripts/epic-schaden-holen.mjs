@@ -70,7 +70,14 @@ for (const w of liste) {
       }
       const id = e.teamAccountIds[0].toLowerCase();
       if (summe('DamageDealt') > 0) werte[id] = summe('DamageDealt');
-      if (summe('TIME_ALIVE_STAT') > 0) zeit[id] = summe('TIME_ALIVE_STAT');
+      // Ohne doppelt gezaehlte Zeit (zwei Spiele, die sich ueberschneiden - siehe lib/epicCups lebenOhneUeberlappung).
+      if (summe('TIME_ALIVE_STAT') > 0) {
+        const iv = (e.sessionHistory ?? []).map((s) => { const ende = Date.parse(s.endTime ?? ''); const z = Number(s.trackedStats?.TIME_ALIVE_STAT) || 0; return Number.isFinite(ende) && z > 0 ? [ende - z * 1000, ende] : null; }).filter(Boolean).sort((a, b) => a[0] - b[0]);
+        let ges = 0; let akt = null;
+        for (const [x, y] of iv) { if (akt && x <= akt[1]) akt[1] = Math.max(akt[1], y); else { if (akt) ges += akt[1] - akt[0]; akt = [x, y]; } }
+        if (akt) ges += akt[1] - akt[0];
+        zeit[id] = iv.length === (e.sessionHistory ?? []).length ? Math.round(ges / 1000) : summe('TIME_ALIVE_STAT');
+      }
       // Epic zaehlt in Zentimetern.
       if (summe('Travel_Distance_Ground') > 0) strecke[id] = Math.round(summe('Travel_Distance_Ground') / 100);
       if (e.sessionHistory?.length) kopf[id] = summe('Headshots');

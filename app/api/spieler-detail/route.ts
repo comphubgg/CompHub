@@ -238,7 +238,7 @@ export async function GET(request: Request) {
             clutch: clutch?.summe?.[i] ?? 0,
             ...(typeof (clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) === 'number' ? { lebenSek: Math.round(Math.min((clutch?.epicZeit?.[i] ?? clutch?.leben?.[i]) as number, clutch?.epicTeamZeit?.[i] ?? Infinity)) } : {}),
             // Solo: Epics Strecke am Boden (frisch, in cm) plus die Strecke in der Luft aus dem Replay - Focus 38,4 km + Luft zu Osirions 41,3 km; unsere Proben alle 10 s ergaben 21,5 km.
-            ...(soloEpic && (eintrag?.strecke ?? 0) > 0 ? { streckeM: Math.round(eintrag!.strecke / 100 + (clutch?.strecke?.[i]?.[1] ?? 0) / 0.685) }
+            ...(soloEpic && (eintrag?.strecke ?? 0) > 0 ? { streckeM: Math.round(eintrag!.strecke / 100 + (clutch?.strecke?.[i]?.[1] ?? 0)) }
               : typeof clutch?.epicStrecke?.[i] === 'number' ? { streckeM: clutch.epicStrecke[i] }
               : clutch?.strecke?.[i] ? { streckeM: Math.round(((clutch.strecke[i][0] ?? 0) + (clutch.strecke[i][1] ?? 0)) / 0.685) } : {}),
           } : {}),

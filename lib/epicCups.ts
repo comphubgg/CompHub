@@ -254,6 +254,20 @@ export function verwirfToken() { tokenCache = null; tokenBis = 0; }
 let tokenLaeuft: Promise<{ token: string; accountId: string; displayName?: string }> | null = null;
 let sperreBis = 0;
 const ZU_VIELE = 'Epic lässt gerade keine weitere Anmeldung zu. In ein paar Minuten geht es wieder.';
+/*
+ * Ueberlebenszeit ohne doppelt gezaehlte Zeit (8.11.2026: R8 JUDA, FNCS Solo Reload EU, stand bei 2 Std 56 Min - Epic fuehrte zwei fast gleichzeitige Spiele, 17:46:44 und
+ * 17:46:45, und ein 4-Minuten-Spiel mitten in einem anderen; vermutlich ein Wiedereinstieg nach Verbindungsabbruch, den Epic als eigenes Spiel zaehlt). Jedes Spiel ist die
+ * Zeitspanne [Ende - Zeit, Ende]; gezaehlt wird die Vereinigung. Ohne Endzeiten null (dann gilt die Summe).
+ */
+export function lebenOhneUeberlappung(spiele: Array<{ endTime?: string; timeAlive?: number }>): number | null {
+  const iv = spiele.map((m) => { const e = Date.parse(m.endTime ?? ''); return Number.isFinite(e) && (m.timeAlive ?? 0) > 0 ? [e - (m.timeAlive ?? 0) * 1000, e] as [number, number] : null; });
+  if (!iv.length || iv.some((x) => !x)) return null;
+  const s = (iv as Array<[number, number]>).sort((a, b) => a[0] - b[0]);
+  let summe = 0; let [a, b] = s[0];
+  for (const [x, y] of s.slice(1)) { if (x <= b) b = Math.max(b, y); else { summe += b - a; [a, b] = [x, y]; } }
+  return Math.round((summe + b - a) / 1000);
+}
+
 export async function getToken() {
   if (tokenCache && Date.now() < tokenBis) return tokenCache;
   if (Date.now() < sperreBis) throw new Error(ZU_VIELE);
@@ -590,6 +604,7 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
     }
     matches.push(m);
   }
+  timeAlive = lebenOhneUeberlappung(matches) ?? timeAlive;
 
   /*
    * Punkte aus Platzierung und aus Eliminierungen.

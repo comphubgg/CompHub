@@ -627,6 +627,11 @@ class SchadenLeser : ReplayReader {
         }
         var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
         if (Zwischen(schlaege, t - 0.5, t + 0.3) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
+        /*
+         * Schlaege auf Autos, Kuehlschraenke und andere Dinge, die kein Bauteil sind, stehen nicht als Einschlag im Strom (8.11.2026: Focus, FNCS Solo Reload, Metall gefarmt
+         * 323 zu Osirions 593). Kleine Mengen mit der Spitzhacke in der Hand und ohne Aufheben in der Naehe sind deshalb auch gefarmt.
+         */
+        if (m <= 30 && MitSpitzhacke(id, t) && !Zwischen(aufgehoben, t - 1.5, t + 0.5)) { e[ExtraGefarmt + stoff] += m; continue; }
         var rest = m;
         foreach (var w in geworfen) {
           if (rest <= 0) break;
