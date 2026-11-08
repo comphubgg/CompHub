@@ -371,7 +371,12 @@ async function holeRoh(request: Request) {
       }
       if (feldDieser && feldRef) {
         if (Math.abs(feldRef / feldDieser - 1) > 0.2) {
-          rang = Math.max(1, Math.round((schwelle / feldDieser) * feldRef));
+          /*
+           * "Safe Qual" statt genau Platz der Schwelle (Betreiber, 8.11.2026: "nicht was man genau als 80. hat, sondern so dass man 60. wird"): der Anteil von drei
+           * Vierteln der Schwelle. An den S42-Solo-Qualifiern lag dieser Wert in allen vier Faellen ueber dem, was Platz 80 wirklich kostete (304/286, 306/294,
+           * 305/287, 297/286) - nie mehr als 20 Punkte.
+           */
+          rang = Math.max(1, Math.round(((schwelle * 0.75) / feldDieser) * feldRef));
           try {
             const b2 = await gecacht(`qual|${f.eventId}|${f.windowId}|${rang}`, 30 * 60_000, () => umRang(f.eventId, f.windowId, rang!));
             const t2 = b2.entries.find((e) => e.rank === rang);

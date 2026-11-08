@@ -177,7 +177,7 @@ async function tageGesamt(event: string, windows: string[]) {
 // Route Handlers sind in dieser Next-Version nicht gecacht - richtig so,
 // die Zwischenspeicherung passiert bewusst in epicCups.
 
-const TTL = 45_000;
+const TTL = 20_000;
 
 /*
  * Wie lange die Anfrage laufen darf.

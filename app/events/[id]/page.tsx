@@ -2756,7 +2756,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Plaetze brauchen hundert Abfragen bei Epic. Deshalb wird ein grosses
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
     // mit hundert Anfragen zu belegen.
-    const takt = tabelle.length > 1000 ? 180_000 : 45_000;
+    // Kleines Feld alle 20 s (Betreiber, 8.11.2026: "seit 2 Minuten nicht updated"), grosses alle 90 s.
+    const takt = tabelle.length > 1000 ? 90_000 : 20_000;
     return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, takt);
   }, [lbFenster, laden, tabelle.length, summenFenster]);
 
