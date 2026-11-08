@@ -1,3 +1,4 @@
+import { istZeroBuild } from '@/lib/zeroBuild';
 import { NextResponse } from 'next/server';
 import { promises as nodeFs } from 'fs';
 import path from 'path';
@@ -251,7 +252,9 @@ export async function GET(request: Request) {
             // Waehrend des Auslesens (teilweise) stehen die Zwischenstaende da - die Seite sagt dazu "Not final yet". Fertig nur, wenn alle Spiele sie haben.
             const teilweise = !!(clutch as unknown as { teilweise?: unknown } | null)?.teilweise;
             if (!w.invSpiele || (w.invSpiele < spielZahl && !teilweise)) return {};
-            return { farmHolz: w.farmHolz ?? 0, farmStein: w.farmStein ?? 0, farmMetall: w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof w.dmg === 'number' ? Math.max(0, w.dmgAlle - w.dmg) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
+            // Zero Build: keine Materialien (lib/zeroBuild).
+            const zb = istZeroBuild(fenster);
+            return { farmHolz: zb ? 0 : w.farmHolz ?? 0, farmStein: zb ? 0 : w.farmStein ?? 0, farmMetall: zb ? 0 : w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof w.dmg === 'number' ? Math.max(0, w.dmgAlle - w.dmg) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
           })() : {}),
           ...(je.zeilen.get(i) ? { jeSpiel: je.zeilen.get(i) } : {}),
           // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.

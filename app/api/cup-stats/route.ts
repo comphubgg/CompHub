@@ -1,3 +1,4 @@
+import { istZeroBuild } from '@/lib/zeroBuild';
 import { NextResponse } from 'next/server';
 import { gecacht, holeTop, EpicLoginNoetig, frischeFuer, lebenOhneUeberlappung, type CupEintrag } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
@@ -99,6 +100,7 @@ async function ganzeListe(w: string): Promise<CupEintrag[] | null> {
 
 /** Die Replay-Werte eines Spieltags je Team (Summe der Spieler) - null, wenn ein Spieler nicht ganz gelesen ist. */
 async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
+  const zb = istZeroBuild(w);
   type D = { erlitten?: number; treffer?: number; sturm?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
   const c = await liesJson<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
   if (!c?.schaden) return () => null;
@@ -111,7 +113,8 @@ async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
       x.erlitten += d.erlitten ?? 0; x.treffer += d.treffer ?? 0;
       x.sturm += typeof d.sturm === 'number' && d.sturm < 1e6 ? d.sturm : 0;
       x.clutch += c.summe?.[id] ?? 0;
-      if (x.farm !== null) x.farm = typeof d.farmHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.farm + (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0) : null;
+      if (zb) x.farm = 0;
+      else if (x.farm !== null) x.farm = typeof d.farmHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.farm + (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0) : null;
       if (x.builds !== null) x.builds = typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.builds + (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0) : null;
     }
     return x.erlitten === 0 && x.treffer === 0 ? null : x;
@@ -276,7 +279,7 @@ async function holeRoh(request: Request) {
         strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000
           || (Object.keys(c?.strecke ?? {}).length ? Object.values(c!.strecke!).reduce((a, [f, l]) => a + (f ?? 0) + (l ?? 0), 0) / 0.685 / 1000 : null),
         // Leer, solange kein Replay gelesen ist (laufender Cup: sonst stuende "Materials Farmed 0" da); im Zero Build nach dem Lesen wirklich 0.
-        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
+        matsGefarmt: istZeroBuild(window_) ? 0 : eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
         edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
