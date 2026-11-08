@@ -479,6 +479,7 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<string, int> inventarLage = new();
   readonly List<(uint wurzel, double t, int stoff, int menge)> matsSchritte = new();
   readonly List<(uint wurzel, int schuesse)> schussSchritte = new();
+  public int AbwurfMunition;
   uint stapelTyp, ladungTyp;
   public int InventarEintraege, InventarOhneMenge;
 
@@ -550,7 +551,11 @@ class SchadenLeser : ReplayReader {
     if (WertHinter(daten, ende, ladungTyp, 2000, "l" + schluessel) is not int ladung) return;
     var da = inventarStand.TryGetValue("l" + schluessel, out var vor);
     inventarStand["l" + schluessel] = ladung;
-    if (da && ladung < vor) schussSchritte.Add((wurzel, vor - ladung));
+    /*
+     * Faellt das Magazin auf einmal um mehr als 8 auf 0, ist das kein Schiessen, sondern ein Abwurf - im Reload bei jedem Tod das ganze Inventar
+     * (8.11.2026: Shots der FNCS Solo Reload EU 13,9 Mio. zu Osirions 9,1 Mio.).
+     */
+    if (da && ladung < vor) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung)); }
   }
   int? SpielerDerWurzel(uint wurzel) {
     if (!inventarFiguren.TryGetValue(wurzel, out var l)) return null;

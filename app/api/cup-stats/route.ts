@@ -237,7 +237,35 @@ async function holeRoh(request: Request) {
       }
     }
 
+    /*
+     * Die Event-Uebersicht ueber den Kacheln (Betreiber, 8.11.2026, nach Osirions "Event Stats"): Summen ueber den ganzen Spieltag und die Plattformen.
+     * Epics Werte, wo Epic sie fuehrt; Treffer, Bauteile und Edits aus den ausgewerteten Replays. Shots fehlen bewusst, bis die Zaehlung im Reload stimmt.
+     */
+    let ueberblick: Record<string, unknown> | null = null;
+    if (window_ && !summe && !finale) {
+      type D = { treffer?: number; editZahl?: number; editSek?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number };
+      const c = await liesJson<{ gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string> } | null>(`clutch/${window_}.json`, null).catch(() => null);
+      const s = Object.values(c?.schaden ?? {});
+      const summeVon = (f: (d: D) => number | undefined) => s.reduce((a, d) => a + (f(d) ?? 0), 0);
+      const plattformen: Record<string, number> = {};
+      for (const v of Object.values(c?.plattform ?? {})) plattformen[v] = (plattformen[v] ?? 0) + 1;
+      ueberblick = {
+        matches: c?.gesamt ?? null, gelesen: c?.matches?.length ?? null,
+        spieler: Math.max(Object.keys(c?.spiele ?? {}).length, eintraege.reduce((a, e) => a + e.players.length, 0)),
+        elims: eintraege.reduce((a, e) => a + (e.elims || 0), 0),
+        damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0),
+        strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000,
+        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0),
+        treffer: s.length ? summeVon((d) => d.treffer) : null,
+        builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
+        edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
+        editStunden: s.some((d) => typeof d.editSek === 'number') ? summeVon((d) => d.editSek) / 3600 : null,
+        plattformen,
+      };
+    }
+
     return NextResponse.json({
+      ueberblick,
       aktualisiert: aktualisiert || null,
       teams: eintraege.length,
       spiele: eintraege[0]?.games ?? 0,

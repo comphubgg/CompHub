@@ -509,6 +509,66 @@ function uhr(ms: number, ort = 'de-DE') {
  * 17,55 stehen, sieht die eine ganze Zahl aus wie ein anderes Mass.
  * Zwei Stellen, immer - dann steht die Spalte gerade.
  */
+/** Die Event-Uebersicht ueber den Kacheln (app/api/cup-stats, ueberblick). */
+interface Ueberblick {
+  matches: number | null; gelesen: number | null; spieler: number; elims: number; damage: number; strecke: number; matsGefarmt: number;
+  treffer: number | null; builds: number | null; edits: number | null; editStunden: number | null; plattformen: Record<string, number>;
+}
+const PLATTFORM: Record<string, { name: string; farbe: string }> = {
+  WIN: { name: 'Windows', farbe: '#38bdf8' }, PS5: { name: 'PlayStation 5', farbe: '#2563eb' }, PSN: { name: 'PlayStation 4', farbe: '#1e3a8a' },
+  XSX: { name: 'Xbox Series X|S', farbe: '#22c55e' }, XBL: { name: 'Xbox One', farbe: '#15803d' }, SWT: { name: 'Switch', farbe: '#ef4444' },
+  IOS: { name: 'iOS', farbe: '#e2e8f0' }, AND: { name: 'Android', farbe: '#84cc16' }, MAC: { name: 'Mac', farbe: '#a1a1aa' },
+};
+
+/** Gesamtzahlen des Spieltags und die Plattformen als Ring (Betreiber, 8.11.2026: "sieht so clean aus ... Windows, PlayStation 5 gleich nebendran"). */
+function EventUebersicht({ u, ort }: { u: Ueberblick; ort: string }) {
+  const zahl = (v: number | null, stellen = 0) => (v === null ? null : v.toLocaleString(ort, { maximumFractionDigits: stellen, minimumFractionDigits: stellen }));
+  const felder: Array<[string, string | null]> = [
+    ['Matches', zahl(u.matches)], ['Spieler', zahl(u.spieler)], ['Eliminierungen', zahl(u.elims)], ['Schaden an Spielern', zahl(u.damage)],
+    ['Treffer', zahl(u.treffer)], ['Gebaute Teile', zahl(u.builds)], ['Gefarmte Mats', zahl(u.matsGefarmt)], ['Edits', zahl(u.edits)],
+    ['Zeit beim Editieren', u.editStunden === null ? null : `${zahl(u.editStunden)} h`], ['Strecke', `${zahl(u.strecke)} km`],
+  ];
+  const plattformen = Object.entries(u.plattformen).sort((a, b) => b[1] - a[1]);
+  const gesamt = plattformen.reduce((a, [, n]) => a + n, 0);
+  let winkel = 0;
+  const bogen = (anteil: number) => {
+    const a0 = winkel; winkel += anteil * Math.PI * 2; const a1 = winkel;
+    const p = (a: number, r: number) => `${50 + r * Math.sin(a)} ${50 - r * Math.cos(a)}`;
+    const gross = a1 - a0 > Math.PI ? 1 : 0;
+    return `M ${p(a0, 46)} A 46 46 0 ${gross} 1 ${p(a1, 46)} L ${p(a1, 30)} A 30 30 0 ${gross} 0 ${p(a0, 30)} Z`;
+  };
+  return (
+    <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3 sm:grid-cols-3 xl:grid-cols-5">
+        {felder.filter(([, w]) => w !== null).map(([titel, w]) => (
+          <div key={titel} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-3 text-center">
+            <div className="text-[12px] font-semibold text-slate-400"><T>{titel}</T></div>
+            <div className="mt-1 text-xl font-black tabular-nums text-slate-50">{w}</div>
+          </div>
+        ))}
+      </div>
+      {gesamt > 0 && (
+        <div className="flex items-center gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+          <svg viewBox="0 0 100 100" className="h-32 w-32 shrink-0" role="img" aria-label="Plattformen">
+            {plattformen.length === 1
+              ? <circle cx="50" cy="50" r="38" fill="none" stroke={PLATTFORM[plattformen[0][0]]?.farbe ?? '#64748b'} strokeWidth="16" />
+              : plattformen.map(([k, n]) => <path key={k} d={bogen(n / gesamt)} fill={PLATTFORM[k]?.farbe ?? '#64748b'} />)}
+          </svg>
+          <ul className="min-w-0 flex-1 space-y-1 text-[12px]">
+            {plattformen.map(([k, n]) => (
+              <li key={k} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PLATTFORM[k]?.farbe ?? '#64748b' }} />
+                <span className="min-w-0 flex-1 truncate text-slate-300">{PLATTFORM[k]?.name ?? k}</span>
+                <span className="tabular-nums text-slate-400">{n.toLocaleString(ort)} ({((n / gesamt) * 100).toLocaleString(ort, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %)</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Sekunden wie bei Osirion: "2h 38m", unter einer Stunde "45m 12s". */
 function stdMin(sek: number): string {
   const s = Math.round(sek); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
@@ -762,6 +822,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Die Turnierstatistik - nur zu einem Finale. */
   const [statistik, setStatistik] = useState<Bestenliste[]>([]);
   const [mehrKacheln, setMehrKacheln] = useState(false);
+  const [ueberblick, setUeberblick] = useState<Ueberblick | null>(null);
   /** Wann Epic die Bestenliste zuletzt fortgeschrieben hat - "zuletzt aktualisiert". */
   const [statistikStand, setStatistikStand] = useState<string | null>(null);
   /** Die Teamwerte waren nicht zu holen: dann steht ein Hinweis da statt "leer", und nach 10 Sekunden geht es noch einmal los. */
@@ -1656,6 +1717,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         if (!Array.isArray(d?.bestenlisten)) throw new Error('keine Bestenlisten');
         setStatistikFehlt(false);
         setStatistik(d.bestenlisten);
+        setUeberblick(d.ueberblick ?? null);
         setStatistikStand(d.aktualisiert ?? null);
       })
       .catch(() => {
@@ -5391,6 +5453,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
               <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={laeuftGerade ? 'laeuft' : 'fertig'} /></div>
             )}
+            {ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => (
