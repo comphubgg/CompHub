@@ -303,14 +303,47 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
  */
 function HeatsPlan({ plan }: { plan: HeatsDaten }) {
   const { sprache } = useSprache();
+  const t = useT();
   const ort = sprache === 'en' ? 'en-GB' : 'de-DE';
+  /*
+   * Suche wie bei eucompetitive.com/heats (Betreiber, 8.11.2026): Name oder Land ("germany", "Deutschland", "DE") - Treffer bleiben hell und bekommen einen
+   * Strich, alle anderen werden blass. Dazu der Wechsel zwischen den Heats (beide / nur einer).
+   */
+  const [suche, setSuche] = useState('');
+  const [nurHeat, setNurHeat] = useState<number | null>(null);
+  const laenderNamen = useMemo(() => {
+    const namen = new Map<string, string>();
+    try {
+      const en = new Intl.DisplayNames(['en'], { type: 'region' }); const de = new Intl.DisplayNames(['de'], { type: 'region' });
+      for (const s of plan.heats.flatMap((h) => h.spieler)) if (s.land && !namen.has(s.land)) namen.set(s.land, `${s.land} ${en.of(s.land.toUpperCase()) ?? ''} ${de.of(s.land.toUpperCase()) ?? ''}`.toLowerCase());
+    } catch { /* ohne Laendernamen sucht nur der Name und das Kuerzel */ }
+    return namen;
+  }, [plan]);
+  const q = suche.trim().toLowerCase();
+  const passt = (s: { name: string; land: string }) => !q || s.name.toLowerCase().includes(q) || (!!s.land && (s.land.toLowerCase() === q || (q.length >= 3 && (laenderNamen.get(s.land) ?? '').includes(q))));
+  const treffer = q ? plan.heats.reduce((a, h) => a + h.spieler.filter(passt).length, 0) : 0;
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-500">
-        {plan.ausMarken ? <T>Einteilung von Epic bestätigt.</T> : <T>Eingeteilt nach Epics Regel aus der Platzierung der letzten Runde — Epic bestätigt sie später.</T>}
-      </p>
-      <div className="grid gap-4 xl:grid-cols-2">
-        {plan.heats.map((h) => (
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-2">
+        <label className="relative block w-full">
+          <svg viewBox="0 0 20 20" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="9" r="6" /><path d="M13.5 13.5L17 17" /></svg>
+          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler oder Land suchen …')} spellCheck={false}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none" />
+        </label>
+        <div className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1 text-xs font-bold">
+          {[null, ...plan.heats.map((h) => h.nr)].map((n) => (
+            <button key={String(n)} type="button" onClick={() => setNurHeat(n)}
+              className={`rounded-full px-3 py-1 transition ${nurHeat === n ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-100'}`}>
+              {n === null ? t('Alle Heats') : `Heat ${n}`}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">
+          {q ? t('{n} Spieler gefunden').replace('{n}', String(treffer)) : plan.ausMarken ? <T>Einteilung von Epic bestätigt.</T> : <T>Eingeteilt nach Epics Regel aus der Platzierung der letzten Runde — Epic bestätigt sie später.</T>}
+        </p>
+      </div>
+      <div className={`grid gap-4 ${nurHeat === null ? 'xl:grid-cols-2' : ''}`}>
+        {plan.heats.filter((h) => nurHeat === null || h.nr === nurHeat).map((h) => (
           <section key={h.nr} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
             <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
               <h3 className="text-sm font-black uppercase tracking-[0.25em] text-slate-100">Heat {h.nr}</h3>
@@ -320,7 +353,7 @@ function HeatsPlan({ plan }: { plan: HeatsDaten }) {
             </div>
             <ol className="columns-1 gap-0 sm:columns-2 [column-rule:1px_solid_rgb(39_39_42)]">
               {h.spieler.map((s, i) => (
-                <li key={s.id} className="flex break-inside-avoid items-center gap-2.5 border-b border-zinc-800/60 px-4 py-2 text-sm">
+                <li key={s.id} className={`flex break-inside-avoid items-center gap-2.5 border-b border-zinc-800/60 px-4 py-2 text-sm transition ${q ? (passt(s) ? 'border-l-2 border-l-slate-200 bg-white/[0.06]' : 'opacity-30') : ''}`}>
                   <span className={`w-5 shrink-0 text-right text-xs font-bold tabular-nums ${i < 3 ? 'text-slate-200' : 'text-slate-500'}`}>{i + 1}</span>
                   <span className="shrink-0 rounded-md border border-zinc-700 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-400">{plan.quelle} #{s.rang}</span>
                   <TeamFlagge groesse={14} laender={[s.land || undefined]} />
@@ -496,8 +529,11 @@ export default function SolosSeite() {
               <p className="mt-3 max-w-xl text-sm text-[#cbd5e1]"><T>Jede Stufe auf dem Weg ins Grand Final — für jede Region: Qualifier, Fast Tracks, Heats, Last Chance, Finale und die Landepunkte.</T></p>
               {/* Umschalter laufende Reihe / Archiv der Season 42 (BR-Solos). */}
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href="/globals-solos" className={`rounded-full px-3 py-1 text-xs font-bold ${!archiv ? 'bg-[#0ea5e9] text-[#fff]' : 'border border-[rgba(255,255,255,.3)] text-[#e2e8f0] hover:border-[#38bdf8]'}`}><T>Aktuelle Reihe</T></a>
-                <a href="/globals-solos?reihe=S42" className={`rounded-full px-3 py-1 text-xs font-bold ${archiv === 'S42' ? 'bg-[#0ea5e9] text-[#fff]' : 'border border-[rgba(255,255,255,.3)] text-[#e2e8f0] hover:border-[#38bdf8]'}`}><T>Archiv: FNCS Solos Season 42</T></a>
+                {/* Umschalter wie bei eucompetitive.com (Betreiber, 8.11.2026): "FNCS Reload Solo" | "FNCS Solos" (Season 42, Battle Royale). */}
+                <div className="inline-flex rounded-xl border border-[rgba(255,255,255,.2)] bg-[rgba(0,0,0,.45)] p-1">
+                  <a href="/globals-solos" className={`rounded-lg px-4 py-1.5 text-xs font-bold ${!archiv ? 'bg-[#f8fafc] text-[#0f172a]' : 'text-[#94a3b8] hover:text-[#fff]'}`}>FNCS Reload Solo</a>
+                  <a href="/globals-solos?reihe=S42" className={`rounded-lg px-4 py-1.5 text-xs font-bold ${archiv === 'S42' ? 'bg-[#f8fafc] text-[#0f172a]' : 'text-[#94a3b8] hover:text-[#fff]'}`}>FNCS Solos</a>
+                </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {live && <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#fff]"><span className="h-2 w-2 animate-pulse rounded-full bg-[#fff]" /><T>Live</T></span>}
