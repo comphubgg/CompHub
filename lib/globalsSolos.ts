@@ -412,6 +412,19 @@ async function herkunftAus(fenster: SolosFenster[], region: string, eventVon?: M
 
 export async function globalsSolos(region: string = REGION, saison?: string): Promise<SolosDaten | null> {
   if (region !== REGION) return globalsSolosEpic(region, saison);
+  /*
+   * Europa wie die anderen Regionen aus Epic, wenn Noble die laufende Reihe nicht fuehrt (8.11.2026: Noble hatte nur die Battle-Royale-Solos der Season 42 -
+   * die Seite zeigte in Europa keine Heats, keine Last Chance und kein Finale, in NA West schon).
+   */
+  const eu = await globalsSolosNoble(saison);
+  const reloadStufen = !!eu?.stufen.some((x) => /reload/i.test(x.windowId));
+  const reloadFenster = !!eu?.fenster.some((x) => /reload/i.test(x.windowId));
+  if (eu && eu.fenster.length && reloadStufen === reloadFenster) return eu;
+  const epic = await globalsSolosEpic(REGION, saison).catch(() => null);
+  return epic && epic.fenster.length ? epic : eu;
+}
+
+async function globalsSolosNoble(saison?: string): Promise<SolosDaten | null> {
   const turniere = await jungeTurniere(12);
   const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
   if (!turnier) return null;

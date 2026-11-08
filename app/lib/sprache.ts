@@ -3354,6 +3354,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 60 bekannten Spielern oder eigenem Replay.': 'Thousands of lobbies run on this match day, and Epic only names the teams of the leaderboard for each lobby. Only lobbies with at least 60 known players or their own replay appear here.',
   'An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys, deren Spieler fast alle bekannt sind, oder mit eigenem Replay.': 'Thousands of lobbies run on this match day, and Epic only names the teams of the leaderboard for each lobby. Only lobbies whose players are almost all known, or that have their own replay, appear here.',
   'Lobbys mit weniger als 80 bekannten Spielern sind ausgeblendet.': 'lobbies with fewer than 80 known players are hidden.',
+  'Lobbys sind ausgeblendet, weil Epic zu wenige ihrer Spieler nennt.': 'lobbies are hidden because Epic names too few of their players.',
+  'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.': 'places — Epic delivered no record for them, even though the whole field is loaded. The match ID above is complete.',
   'Spieltag mit Karte': 'Match day with a map',
   'Jeder Landepunkt mit Spielern aus einem Land trägt dessen Flagge; stehen mehrere Länder darauf, bleibt er dunkel (rot, wo mehrere Teams landen).': 'Every landing spot with players from one country carries its flag; if several countries land there it stays dark (red where several teams land).',
   'Karte wird geladen …': 'Loading the map …',
@@ -4814,6 +4816,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Bei einem großen Cup dauert das ein bis zwei Minuten.']:
     'On a large cup this takes a minute or two.',
   'Von dieser Lobby fehlen': 'This lobby is missing',
+  'Plätze — Epic gibt aus der Bestenliste nur die ersten zehntausend heraus. Die Match-ID oben ist vollständig.': 'places — Epic only releases the first ten thousand of the leaderboard. The match ID above is complete.',
   ['Plätze — Epic gibt aus der Bestenliste nur die ersten zehntausend '
     + 'heraus, und in dieser Runde standen Spieler dahinter. Eine halbe '
     + 'Aufstellung zeigt das Werkzeug nicht; die Match-ID oben ist '

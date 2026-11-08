@@ -2250,6 +2250,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const eineLobby = useMemo(
     () => !!spiele && gespielteRunden > 0 && spiele.length <= gespielteRunden + 1,
     [spiele, gespielteRunden]);
+  /*
+   * Welche Lobbys gezeigt werden - und gezaehlt (8.11.2026: "Live 14", aber nur eine Kachel sichtbar). Bei vielen Lobbys nur die, deren Spieler fast alle bekannt
+   * sind oder die eine eigene Replay-Seite haben; Reload-Lobbys haben hoechstens 40 Spieler, dort reichen 30.
+   */
+  const lobbyGrenze = /reload/i.test(`${fenster?.windowId ?? ''} ${cup?.titel ?? ''}`) ? 30 : 60;
+  const lobbySichtbar = (sp: Spiel) => eineLobby || !!matchSeiten[sp.id] || sp.teams.reduce((n, z) => n + z.spieler.length, 0) >= lobbyGrenze;
 
   /*
    * Die Suche in einem grossen Feld geht an den Server.
@@ -3173,12 +3179,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
         {/* Eventinfos */}
         {fenster && (
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          /* Beginn und Ende in einer Kachel, die Spielzahl schmal, das Weiterkommen breit - der lange Text brach sonst um (Betreiber, 8.11.2026). */
+          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.5fr)_minmax(0,2.2fr)]">
             {([
               // Gesamtwertung: von Beginn des ersten bis Ende des letzten Tages, alle Spiele beider Tage.
-              [t('Beginn'), summenFenster ? `${tag(kumTage[0].begin, ort)}, ${uhr(kumTage[0].begin, ort)}` : `${tag(fenster.begin, ort)}, ${uhr(fenster.begin, ort)}`],
-              [t('Ende'), typeof fenster.end === 'number'
-                ? `${tag(fenster.end, ort)}, ${uhr(fenster.end, ort)}` : '—'],
+              [t('Zeit'), (() => {
+                const b = summenFenster ? kumTage[0].begin : fenster.begin;
+                const e = typeof fenster.end === 'number' ? fenster.end : null;
+                if (e === null) return `${tag(b, ort)}, ${uhr(b, ort)}`;
+                return tag(b, ort) === tag(e, ort) ? `${tag(b, ort)} · ${uhr(b, ort)} – ${uhr(e, ort)}` : `${tag(b, ort)}, ${uhr(b, ort)} – ${tag(e, ort)}, ${uhr(e, ort)}`;
+              })()],
               // Ohne Epics Obergrenze (LANs wie die Globals) zaehlt, was
               // gespielt ist - die hoechste Matchzahl der Bestenliste. Dort
               // stand "unbegrenzt", obwohl es zwoelf Games waren.
@@ -3251,8 +3261,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       ? `${t('etwa')} ${(Math.round(letzter.rank / letzter.percentile / 100) * 100).toLocaleString(ort)}`
                       : `${(10_000).toLocaleString(ort)}+`;
                   })()],
-            ] as Array<[string, string]>).map(([l, v]) => (
-              <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
+            ] as Array<[string, string]>).map(([l, v], i) => (
+              <div key={l} className={`rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 ${i === 2 ? 'col-span-2 lg:col-span-1' : ''}`}
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
                   ? `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
@@ -4364,8 +4374,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            */
           const spielerIn = (sp: Spiel) => sp.teams.reduce((n, z) => n + z.spieler.length, 0);
           // 60 statt 80 (7.11.2026): eine Trios-Lobby hat seit Season 43 hoechstens 78 Spieler, mit 80 blieb die Liste immer leer.
-          // Reload-Lobbys haben hoechstens 40 Spieler (8.11.2026: FNCS Solos Reload - "Live 10", aber keine einzige Kachel): dort reichen 30.
-          const lobbyGrenze = /reload/i.test(`${fenster.windowId} ${cup?.titel ?? ''}`) ? 30 : 60;
           const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= lobbyGrenze;
           const ausgeblendet = eineLobby ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
           const gefiltert = eineLobby ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
@@ -4711,9 +4719,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <div className="flex gap-1 rounded-lg border border-zinc-800
                                   bg-zinc-900/60 p-1">
                     {([
-                      ['alle', t('Alle'), spiele.length],
-                      ['live', t('Live'), laufende],
-                      ['fertig', t('Beendet'), spiele.length - laufende],
+                      ['alle', t('Alle'), spiele.filter(lobbySichtbar).length],
+                      ['live', t('Live'), spiele.filter((x) => x.live && lobbySichtbar(x)).length],
+                      ['fertig', t('Beendet'), spiele.filter((x) => !x.live && lobbySichtbar(x)).length],
                     ] as const).map(([wert, titel, zahl]) => (
                       <button key={wert}
                         onClick={() => setSpielFilter(wert)}
@@ -4798,7 +4806,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 )}
                 {ausgeblendet > 0 && gefiltert.length > 0 && (
                   <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                    {ausgeblendet} <T>Lobbys mit weniger als 80 bekannten Spielern sind ausgeblendet.</T>
+                    {ausgeblendet} <T>Lobbys sind ausgeblendet, weil Epic zu wenige ihrer Spieler nennt.</T>
                   </p>
                 )}
 
