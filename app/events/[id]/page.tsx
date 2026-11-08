@@ -3314,21 +3314,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               ['liste', 'Leaderboard'],
               ['runden', 'Matches'],
               ['teams', soloCup ? 'Spieler-Stats' : 'Team-Stats'],
-              ['streams', 'Streams'],
             ]
             : soloCup
             ? [
               ['liste', 'Leaderboard'],
               ['runden', 'Matches'],
               ['teams', 'Spieler-Stats'],
-              ['streams', 'Streams'],
             ]
             : [
               ['liste', 'Leaderboard'],
               ['runden', 'Matches'],
               ['spieler', 'Spieler-Stats'],
               ['teams', 'Team-Stats'],
-              ['streams', 'Streams'],
             ]).map(([id, name]) => (
             <button key={id}
               onClick={() => setReiter(id as typeof reiter)}

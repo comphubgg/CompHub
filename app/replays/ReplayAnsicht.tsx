@@ -378,7 +378,11 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                     strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 );
               })}
-              {jetzt && <circle cx={pzx(jetzt.x)} cy={pzy(jetzt.y)} r={1.3} fill="#facc15" stroke="#000" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+              {/* Der Battlebus selbst statt eines Punkts (Betreiber, 8.11.2026), in Flugrichtung gedreht - das Bild zeigt mit der Front nach oben. */}
+              {jetzt && (
+                <image href="/replay/battlebus.webp" x={pzx(jetzt.x) - 3.2} y={pzy(jetzt.y) - 3.2} width={6.4} height={6.4}
+                  transform={`rotate(${b.yaw + 90} ${pzx(jetzt.x)} ${pzy(jetzt.y)})`} style={{ filter: 'drop-shadow(0 0 0.4px #000)' }} />
+              )}
             </g>
           );
         })}
