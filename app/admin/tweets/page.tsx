@@ -180,7 +180,7 @@ const SPIELER_KENNZAHLEN: Array<{
   { schluessel: 'genauigkeit', titel: 'Best Accuracy',       symbol: '🔎', einheit: '%',
     nachkomma: 1 },
   // Zu Fuss plus Gleiter - die Quelle fuehrt beide Strecken getrennt.
-  { schluessel: 'distanzGesamt', titel: 'Most Distance (Foot + Air)', symbol: '🧭',
+  { schluessel: 'distanzGesamt', titel: 'Most Distance Traveled', symbol: '🧭',
     einheit: 'km', nachkomma: 1 },
 ];
 
@@ -1541,7 +1541,7 @@ export default function TweetSeite() {
                 `&window=${encodeURIComponent(aktuellesFenster.windowId)}`;
       const [rs, rl] = await Promise.all([
         fetch(`/api/cup-stats?${p}&top=5`),
-        fetch(`/api/cup-leaderboard?${p}&limit=100`),
+        fetch(`/api/cup-leaderboard?${p}&limit=500`),
       ]);
       const [ds, dl] = await Promise.all([rs.json(), rl.json()]);
       if (!rs.ok) throw new Error(ds.error ?? 'Statistik nicht ladbar');
@@ -1553,10 +1553,34 @@ export default function TweetSeite() {
       // sind nicht zu jedem Spieltag vorhanden.
       // Region mitgeben: dieselbe Spieltagskennung kann in mehreren
       // Regionen vorkommen, sonst kaemen die Werte der falschen.
-      fetch(`/api/spieler-stats?window=${encodeURIComponent(aktuellesFenster.windowId)}`
-          + (aktuellesFenster.region && aktuellesFenster.region !== 'GLOBAL'
-             ? `&region=${aktuellesFenster.region}` : ''))
-        .then((r) => r.json())
+      /*
+       * Zuerst dieselben Werte wie unter Player Stats auf der Event-Seite (app/api/cup-spieler, aus den Replays: Schaden, Quote, Treffer, Strecke, Zeit ...) -
+       * Betreiber, 8.11.2026: "wieso kann ich da nur 3 Stats haben und die Usernamen werden so komisch angezeigt". Die alte Quelle (spieler-stats) nur, wenn
+       * es dort nichts gibt.
+       */
+      const fenster0 = aktuellesFenster;
+      const ausCupSpieler = async (): Promise<SpielerDaten | null> => {
+        const j = await fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster0.windowId)}&event=${encodeURIComponent(fenster0.eventId)}`).then((r) => r.json()).catch(() => null) as {
+          spieler?: Array<Record<string, unknown>>;
+        } | null;
+        const liste = (j?.spieler ?? []).filter((s) => typeof s.epicId === 'string' && Number(s.spiele) > 0);
+        if (!liste.length) return null;
+        const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+        return {
+          vorhanden: true, quelle: 'Replays', fuer: fenster0.windowId,
+          spieler: liste.map((s) => ({
+            name: String(s.name || s.epicId), epicId: String(s.epicId),
+            elims: n(s.kills), knocks: n(s.knocks), gestorben: n(s.tode), assists: n(s.assists), reboots: n(s.reboots),
+            headshots: n(s.headshots), hits: n(s.hits), damage: n(s.damage), damageTaken: n(s.damageTaken), quote: n(s.damageRatio),
+            kd: n(s.kd), heals: 0, genauigkeit: n(s.genauigkeit), shots: 0, stormDamage: 0, fallDamage: 0, mats: n(s.mats), builds: n(s.builds),
+            distanz: 0, distanzGesamt: +(n(s.distanz) / 1000).toFixed(2), timeInStorm: n(s.timeInStorm), timeAlive: n(s.timeAlive), matches: n(s.spiele),
+          })),
+        };
+      };
+      ausCupSpieler()
+        .then((d) => d ?? fetch(`/api/spieler-stats?window=${encodeURIComponent(fenster0.windowId)}`
+          + (fenster0.region && fenster0.region !== 'GLOBAL'
+             ? `&region=${fenster0.region}` : '')).then((r) => r.json()))
         .then((d: SpielerDaten) => {
           // Eine verspaetete Antwort zu einem anderen Spieltag darf die
           // aktuelle Auswahl nicht ueberschreiben.
@@ -1760,9 +1784,16 @@ export default function TweetSeite() {
    * Zuerst die Szene-Quelle: sie fuehrt mehr Kennzahlen. Fehlt der Spieltag
    * dort, springt bei einem Solo-Cup Epic ein.
    */
-  const einzelwerte = useMemo<SpielerWert[]>(
-    () => (spielerDaten?.spieler.length ? spielerDaten.spieler : epicEinzelwerte),
-    [spielerDaten, epicEinzelwerte]);
+  const einzelwerte = useMemo<SpielerWert[]>(() => {
+    if (!spielerDaten?.spieler.length) return epicEinzelwerte;
+    // Was nur Epics Wertung weiss (Punkte, Siege, Durchschnittsplatz, Heilung, Material), kommt aus der Bestenliste dazu.
+    const epic = new Map(epicEinzelwerte.map((e) => [e.epicId, e]));
+    return spielerDaten.spieler.map((s) => {
+      const e = epic.get(s.epicId);
+      if (!e) return s;
+      return { ...s, points: e.points, wins: e.wins, avgPlace: e.avgPlace, heals: s.heals || e.heals, mats: s.mats || e.mats, kd: s.kd || e.kd };
+    });
+  }, [spielerDaten, epicEinzelwerte]);
   /** Die Einzelwerte nach Konto - fuer den Zweitwert hinter jeder Zeile. */
   const einzelwerteNachId = useMemo(
     () => new Map(einzelwerte.map((p) => [p.epicId, p])), [einzelwerte]);
@@ -1782,8 +1813,11 @@ export default function TweetSeite() {
       // "Lowest Damage Ratio" greift auf dasselbe Feld zu, sortiert nur andersherum.
       const feld = (k.schluessel === 'quoteNiedrig' ? 'quote' : k.schluessel) as keyof SpielerWert;
       const wertVon = (p: SpielerWert) => Number(p[feld]);
+      // Quoten nur bei Spielern mit mindestens der Haelfte der Matches - sonst fuehrt einer mit wenigen guten Spielen (stand "3,21" statt Zynox mit 2,57).
+      const meiste = Math.max(0, ...roh.map((p) => p.matches || 0));
+      const quote = ['quote', 'quoteNiedrig', 'kd', 'genauigkeit', 'avgPlace'].includes(k.schluessel);
       const sortiert = [...roh]
-        .filter((p) => wertVon(p) > 0)
+        .filter((p) => wertVon(p) > 0 && (!quote || !meiste || (p.matches || 0) >= Math.ceil(meiste / 2)))
         .sort((a, b) => (k.kleinBesser ? wertVon(a) - wertVon(b) : wertVon(b) - wertVon(a)));
       if (!sortiert.length) return null;
       // Einmal das ganze Feld aufbereiten. Die Kachel nimmt sich die ersten
@@ -2808,7 +2842,10 @@ export default function TweetSeite() {
   // Wechselt die Ebene, passen die vorher gewaehlten Kennzahlen nicht mehr.
   useEffect(() => {
     if (ebeneEffektiv === 'spieler' && spielerListen.length) {
-      setGewaehlteListen(spielerListen.slice(0, 6).map((b) => b.schluessel));
+      // Die guten Werte zuerst, keine "schlechtesten" (Betreiber, 8.11.2026: "Most Deaths, das sind Worst-of-Statistics").
+      const VORZUG = ['damage', 'elims', 'kd', 'quote', 'timeAlive', 'distanzGesamt', 'wins', 'hits', 'headshots', 'heals', 'mats', 'damageTaken', 'builds', 'points'];
+      const da = new Set(spielerListen.map((b) => b.schluessel));
+      setGewaehlteListen(VORZUG.filter((k) => da.has(k)).slice(0, 10));
     } else if (ebeneEffektiv === 'team' && stats) {
       setGewaehlteListen(stats.bestenlisten.slice(0, 6).map((b) => b.schluessel));
     }
