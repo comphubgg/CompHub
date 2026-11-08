@@ -27,7 +27,16 @@ export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
   kills?: number; teamKills?: number; tod?: number; todX?: number; todY?: number; plattform?: string;
 }
-export interface REreignis { t: number; opfer?: number; taeter?: number; art: 'auf' | 'unten' | 'tot'; x?: number; y?: number; abstand?: number }
+export interface REreignis { t: number; opfer?: number; taeter?: number; art: 'auf' | 'unten' | 'tot'; x?: number; y?: number; abstand?: number; ursache?: number | null }
+
+/*
+ * Die Todesursache aus dem Replay (Fortnites EDeathCause) als Waffenart wie bei Osirion - am Performance-Finale (8.11.2026) Zeile fuer Zeile gegen
+ * Osirions Feed desselben Matches abgeglichen: 2 Pistol, 3 Shotgun, 4 Rifle, 5 SMG, 8 Melee, 17 DBNO Timeout. Die uebrigen nach Fortnites Liste.
+ */
+const URSACHE: Record<number, string> = {
+  0: 'Storm', 1: 'Fall Damage', 2: 'Pistol', 3: 'Shotgun', 4: 'Rifle', 5: 'SMG', 6: 'Sniper', 7: 'Sniper', 8: 'Melee', 10: 'Grenade', 11: 'C4',
+  12: 'Grenade Launcher', 13: 'Rocket Launcher', 14: 'Minigun', 15: 'Bow', 16: 'Trap', 17: 'DBNO Timeout', 23: 'Vehicle', 24: 'LMG',
+};
 export interface RZone { radius?: number; naechsterRadius?: number; x?: number; y?: number; schrumpftAb?: number; schrumpftBis?: number }
 export interface RMatch extends SpielerDaten {
   spieler: RSpieler[]; feed: REreignis[]; zonen: RZone[]; sieger?: number; ende?: number; beginn?: string; playlist?: string; runde?: number;
@@ -275,7 +284,31 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   };
 
   const wahlTeam = teams.find((x) => x.team === teamWahl) ?? null;
-  const imFeed = [...bisJetzt].reverse().slice(0, 60);
+  /*
+   * Der Feed wie bei Osirion: Waffenart (eine Elimination ohne eigene Ursache erbt die vom Knock davor), Entfernung und der laufende Elim-Zaehler dessen,
+   * dem der Kill gutgeschrieben wird (der umgehauen hat - siehe Erinnerung kill-geht-an-den-knocker). Filter: alle Spieler oder nur das Team des Gewaehlten.
+   */
+  const feedInfo = useMemo(() => {
+    const knock = new Map<number, REreignis>(); const elims = new Map<number, number>();
+    return feed.map((e) => {
+      if (e.art === 'unten' && e.opfer !== undefined) knock.set(e.opfer, e);
+      const vorKnock = e.art === 'tot' && e.opfer !== undefined ? knock.get(e.opfer) : undefined;
+      const ursache = e.ursache ?? vorKnock?.ursache ?? null;
+      const rueckkehr = e.art === 'tot' && e.ursache === 50;
+      let gutschrift: number | null = null; let zahl: number | null = null;
+      if (e.art === 'tot' && !rueckkehr) {
+        gutschrift = vorKnock && vorKnock.taeter !== undefined && e.t - vorKnock.t <= 50 ? vorKnock.taeter : e.taeter ?? null;
+        if (gutschrift !== null && gutschrift !== e.opfer) { zahl = (elims.get(gutschrift) ?? 0) + 1; elims.set(gutschrift, zahl); } else gutschrift = null;
+        if (e.opfer !== undefined) knock.delete(e.opfer);
+      }
+      return { waffe: ursache === null || ursache === 50 ? null : URSACHE[ursache] ?? null, rueckkehr, gutschrift, zahl };
+    });
+  }, [feed]);
+  const [feedNurTeam, setFeedNurTeam] = useState(false);
+  const teamVonGewaehlt = gewaehlt !== null ? nachId.get(gewaehlt)?.team : undefined;
+  const imFeed = [...bisJetzt].map((e, i) => ({ e, info: feedInfo[i] })).reverse()
+    .filter(({ e }) => !feedNurTeam || teamVonGewaehlt === undefined || [e.opfer, e.taeter].some((id) => id !== undefined && nachId.get(id)?.team === teamVonGewaehlt))
+    .slice(0, 80);
 
   const kreis = (c: Kreis | null, stil: { fuell?: string; rand: string; breite: number; strich?: string }) => (c ? (
     <circle cx={pzx(c.x)} cy={pzy(c.y)} r={pr(c.r)} fill={stil.fuell ?? 'none'} stroke={stil.rand}
@@ -609,12 +642,19 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
               <button key={k} type="button" onClick={() => setReiter(k)}
                 className={`rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>{name}</T></button>
             ))}
+            {/* Wie bei Osirion: alle Spieler oder nur das Team des gewaehlten Spielers. */}
+            {reiter === 'feed' && teamVonGewaehlt !== undefined && (
+              <button type="button" onClick={() => setFeedNurTeam((x) => !x)}
+                className={`ml-auto rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${feedNurTeam ? 'border-sky-500 text-sky-300' : 'border-white/10 text-slate-400 hover:text-slate-100'}`}>
+                {feedNurTeam ? <T>Nur dieses Team</T> : <T>Alle Spieler</T>}
+              </button>
+            )}
           </div>
           <div className="max-h-[640px] overflow-y-auto">
             {reiter === 'feed' && (
               imFeed.length ? (
                 <ul>
-                  {imFeed.map((e, i) => {
+                  {imFeed.map(({ e, info }, i) => {
                     const opfer = nachId.get(e.opfer ?? -1); const taeter = nachId.get(e.taeter ?? -1);
                     return (
                       <li key={`${e.t}-${i}`} className="border-b border-white/[0.04]">
@@ -623,11 +663,18 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                           <span className="min-w-0 flex-1 text-[12px] leading-snug text-slate-300">
                             {e.art === 'auf' ? (
                               <><b style={{ color: farbeVon(e.taeter) }}>{taeter ? nameVon(taeter) : t('Teamkamerad')}</b> <span className="text-emerald-400"><T>hilft hoch</T></span> <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b></>
+                            ) : info?.rueckkehr ? (
+                              <><b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b> <span className="text-emerald-400"><T>ist zurück im Spiel</T></span></>
                             ) : (
                               <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{nameVon(taeter)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
                                 {' '}<span className={e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}>{e.art === 'tot' ? t('eliminiert') : t('knockt')}</span>{' '}
                                 <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
-                                {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100)} m</span>}</>
+                                {(info?.waffe || (typeof e.abstand === 'number' && e.abstand > 0)) && (
+                                  <span className="ml-1 text-[11px] text-slate-500">
+                                    {info?.waffe ? <>with {info.waffe}</> : null}{typeof e.abstand === 'number' && e.abstand > 0 ? ` (${(e.abstand / 100).toLocaleString('en-GB', { maximumFractionDigits: 1 })} m)` : ''}
+                                  </span>
+                                )}
+                                {info?.zahl ? <span className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-px text-[10px] font-semibold text-slate-300">{nameVon(nachId.get(info.gutschrift ?? -1))} · {info.zahl} {info.zahl === 1 ? 'elim' : 'elims'}</span> : null}</>
                             )}
                           </span>
                         </button>
