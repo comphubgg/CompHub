@@ -238,7 +238,7 @@ export async function GET(request: Request) {
            * Solo: der Schaden direkt aus Epics Bestenliste dieses Spielers (frisch bei jedem Abruf; Focus, FNCS Solo Reload: 25.406 zu Osirions 25.455). Die gespeicherte
            * Kopie (epicDmg) war mitten im Cup gezogen worden und stand bei 14.080. Kopftreffer bleiben aus dem Replay: Epic zaehlt 31, Osirion 90, das Replay 89.
            */
-          ...(d ? { damage: Math.round(soloEpic && (eintrag?.damage ?? 0) > 0 ? eintrag!.damage : d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
+          ...(d ? { damage: Math.round(soloEpic && (eintrag?.damage ?? 0) > 0 ? eintrag!.damage : ((d as { dmgAlle?: number }).dmgAlle ?? d.dmg)), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
           ...(d && typeof d.sturm === 'number' ? { sturmSek: d.sturm < 1e6 ? Math.round(d.sturm) : undefined, wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
           // Die Osirion-Werte aus dem vollen Auslesen (scripts/clutch-berechnen.mjs).
           ...(d ? (() => {
@@ -254,7 +254,7 @@ export async function GET(request: Request) {
             if (!w.invSpiele || (w.invSpiele < spielZahl && !teilweise)) return {};
             // Zero Build: keine Materialien (lib/zeroBuild).
             const zb = istZeroBuild(fenster);
-            return { farmHolz: zb ? 0 : w.farmHolz ?? 0, farmStein: zb ? 0 : w.farmStein ?? 0, farmMetall: zb ? 0 : w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof w.dmg === 'number' ? Math.max(0, w.dmgAlle - w.dmg) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
+            return { farmHolz: zb ? 0 : w.farmHolz ?? 0, farmStein: zb ? 0 : w.farmStein ?? 0, farmMetall: zb ? 0 : w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof (w.dmgOhneBoden ?? w.dmg) === 'number' ? Math.max(0, w.dmgAlle - ((w.dmgOhneBoden ?? w.dmg) as number)) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
           })() : {}),
           ...(je.zeilen.get(i) ? { jeSpiel: je.zeilen.get(i) } : {}),
           // Gebaute Teile: Solo je Spieler, im Team die Summe des Teams.
@@ -285,7 +285,7 @@ export async function GET(request: Request) {
           // Echte Elims und Tode aus dem vollen Auslesen gehen vor (Reload: mehrere Tode je Spiel - die alte Zaehlung kannte nur Spiele ohne Sieg).
           kills: replay?.killsNachAus !== undefined ? replay.kills : eigeneKomplett ? o.kills : (replay?.kills ?? null), knocks: eigeneKomplett ? o.knocks : (replay?.knocks ?? null),
           tode: replay?.killsNachAus !== undefined ? replay.tode : eigeneKomplett ? o.tode : (replay?.tode ?? null), spiele: eigeneKomplett ? o.spiele : (replay?.spiele ?? o.spiele),
-          damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
+          damage: replay?.damage ?? Math.round(o.dmgAlle ?? o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
           hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
           ...(typeof o.sturm === 'number' ? { sturmSek: Math.round(o.sturm) } : {}),
           ...(typeof o.wiederbelebt === 'number' ? { wiederbelebt: o.wiederbelebt, rebootet: o.rebootet ?? 0 } : {}),
