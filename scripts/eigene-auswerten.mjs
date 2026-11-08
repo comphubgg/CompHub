@@ -35,7 +35,8 @@ const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 // 6 (8.11.2026): dazu alle Werte des vollen Auslesens (lib/vollSchaden.mjs - dieselbe Rechnung wie clutch-berechnen: Schaden wie Osirion, Heilung,
 // Genauigkeit, Edits, Mats, echte Tode). Die Fassung 5 lag im Middle-East-Cup 1.100 Schaden unter Osirion. Neu gerechnet wird nur, was von der Seite bestellt ist.
 // 7 (8.11.2026, abends): dazu die Ueberlebenszeit je Spieler (Feld leben).
-const VERSION = 7;
+// 8 (8.11.2026, 19 Uhr): Damage mit dem Schaden auf Umgehauene, Heilung ohne falsche Knocks (lib/vollSchaden.mjs).
+const VERSION = 8;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
