@@ -511,7 +511,7 @@ function uhr(ms: number, ort = 'de-DE') {
  */
 /** Die Event-Uebersicht ueber den Kacheln (app/api/cup-stats, ueberblick). */
 interface Ueberblick {
-  matches: number | null; gelesen: number | null; spieler: number; elims: number; damage: number; strecke: number; matsGefarmt: number;
+  matches: number | null; gelesen: number | null; spieler: number; elims: number; damage: number; strecke: number; matsGefarmt: number | null;
   treffer: number | null; builds: number | null; edits: number | null; editStunden: number | null; plattformen: Record<string, number>;
 }
 const PLATTFORM: Record<string, { name: string; farbe: string }> = {

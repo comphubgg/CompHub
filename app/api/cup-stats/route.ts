@@ -267,7 +267,8 @@ async function holeRoh(request: Request) {
         elims: eintraege.reduce((a, e) => a + (e.elims || 0), 0),
         damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0),
         strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000,
-        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0),
+        // Leer, solange kein Replay gelesen ist (laufender Cup: sonst stuende "Materials Farmed 0" da); im Zero Build nach dem Lesen wirklich 0.
+        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
         edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
