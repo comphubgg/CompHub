@@ -35,6 +35,7 @@ import { spielerbildGross } from '@/lib/spielerbildKlein';
  * Nur fuer den Admin: jede Abfrage holt Bestenlisten bei Epic und rechnet Bilder - das gehoert nicht in fremde Hand.
  */
 
+import { heatsDaten, heatTag, type HeatsDaten } from '@/lib/heatsPosts';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -381,6 +382,51 @@ function top5Plakat(d: Top5, b: Bilder) {
  * Server selbst nicht), dazu LANs, die dort noch nicht zaehlen, weil ihre Preisliste nicht ganz zugeordnet ist, wo dieser Spieler zugeordnet ist.
  * Die groessten Zahltage kommen aus der Verdienst-Akte, dem Profil und den LAN-Listen. Geschaetzt wird nichts.
  */
+/* ------------------------------------------------------------------ Heats */
+
+/** Die Heat-Einteilung: je Heat eine Spalte mit allen Spielern (Flagge, Name), nach ihrem Platz in der Qualifikation (Betreiber, 8.11.2026). */
+function heatsPlakat(d: HeatsDaten, b: Bilder) {
+  const breite = Math.floor((1504 - 24 * (d.heats.length - 1)) / Math.max(1, d.heats.length));
+  const meiste = Math.max(1, ...d.heats.map((h) => h.spieler.length));
+  const unterSpalten = d.heats.length > 2 ? 1 : meiste > 44 ? 3 : 2;
+  const proSpalte = Math.ceil(meiste / unterSpalten);
+  const zeilenH = Math.max(16, Math.min(34, Math.floor(590 / proSpalte)));
+  const schrift = Math.max(12, Math.min(22, zeilenH - 9));
+  return grund(
+    <>
+      <div style={{ position: 'absolute', left: 48, top: 40, width: 1504, height: 140, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: 1100, flexShrink: 0 }}>
+          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(d.titel, 68), fontWeight: 800, lineHeight: 1.05, whiteSpace: 'nowrap', overflow: 'hidden' }}>{kuerze(d.titel, 64)}</div>
+          <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, color: BLAU, letterSpacing: 4, textTransform: 'uppercase', marginTop: 12, whiteSpace: 'nowrap' }}>{`Heat draw · ${d.region}`}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, width: 300, justifyContent: 'flex-end' }}>{marke(b, 30)}</div>
+      </div>
+      <div style={{ position: 'absolute', left: 48, top: 196, width: 1504, display: 'flex', gap: 24 }}>
+        {d.heats.map((h) => (
+          <div key={h.nr} style={{ display: 'flex', flexDirection: 'column', width: breite, background: 'rgba(15,23,42,0.92)', borderRadius: 14, padding: '16px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 34, fontWeight: 800 }}>{`HEAT ${h.nr}`}</div>
+              <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, color: BLAU, letterSpacing: 2 }}>{`${heatTag(h.begin).toUpperCase()} · ${h.spieler.length} PLAYERS`}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {Array.from({ length: unterSpalten }, (_, i) => h.spieler.slice(i * proSpalte, (i + 1) * proSpalte)).map((sp, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', width: Math.floor((breite - 40 - 16 * (unterSpalten - 1)) / unterSpalten) }}>
+                  {sp.map((s) => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', height: zeilenH, fontSize: schrift, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                      {flagge(s.land || null, b, Math.round(schrift * 1.3), Math.round(schrift * 0.9))}
+                      <div style={{ display: 'flex' }}>{kuerze(nameGross(s.name), 18)}</div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>,
+  );
+}
+
 const ERSTES_JAHR = 2019;
 
 interface Zeitstrahl {
@@ -573,6 +619,13 @@ export async function GET(request: Request) {
       text = d.text ?? '';
       if (nurText) return Response.json({ ok: true, text });
       bild = top5Plakat({ titel: d.cupName || '', unter: `${d.spieltag ?? ''} · ${d.region ?? ''}`, gross: 'PICKS', zeilen }, b);
+    } else if (art === 'heats') {
+      const d = (await heatsDaten((p.get('region') ?? 'EU').toUpperCase(), p.get('event') ?? '', p.get('alle') === '1'))[0];
+      if (!d) return Response.json({ ok: false, fehler: 'Die Heats sind noch nicht eingeteilt - Epic hat die Heat-Marken noch nicht vergeben.' }, { status: 200 });
+      await Promise.all(d.heats.flatMap((h) => h.spieler).map(async (s) => { const l = (s.land ?? '').toLowerCase(); if (l && !b.flagge.has(l)) b.flagge.set(l, await bildDaten(`/flags/${l}.png`, ursprung, 60)); }));
+      text = `${d.titel} ${d.region} - the heats are set`;
+      if (nurText) return Response.json({ ok: true, text, daten: d });
+      bild = heatsPlakat(d, b);
     } else if (art === 'top5') {
       const jahr = Number(p.get('jahr') ?? new Date().getUTCFullYear());
       const d = await topFuenf({ region: (p.get('region') ?? '').toUpperCase(), liste: p.get('liste') ?? 'verdienst', jahr });

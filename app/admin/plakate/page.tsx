@@ -13,8 +13,8 @@ import KartenPlakat from './KartenPlakat';
  * Spieltage (mehrere Tage eines Finales rechnen sich zusammen), den Spieler oder das Team und sieht gleich das Bild. Herunterladen, als Bild kopieren oder den Text zum Beitrag nehmen.
  */
 
-type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'chancen' | 'karte';
-const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['earnings', 'Earnings-Zeitstrahl'], ['chancen', 'Chancen'], ['karte', 'Karte']];
+type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'chancen' | 'heats' | 'karte';
+const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['earnings', 'Earnings-Zeitstrahl'], ['chancen', 'Chancen'], ['heats', 'Heats'], ['karte', 'Karte']];
 
 interface Fenster { status: string; begin: number; end?: number; eventId: string; windowId: string; region: string; istFinale: boolean }
 interface Cup { id: string; titel: string; regionen: Record<string, Fenster[]> }
@@ -105,6 +105,13 @@ export default function PlakatSeite() {
     if (art === 'earnings') {
       if (spieler.trim().length < 2) return '';
       q.set('q', spieler.trim());
+      return `/api/plakat?${q.toString()}`;
+    }
+    // Heats: die Einteilung des gewaehlten Heats-Events (lib/heatsPosts) - auch bevor sie ganz feststeht, als Vorschau.
+    if (art === 'heats') {
+      const h = fenster.find((x) => /Heat\d+/i.test(x.windowId));
+      if (!h) return '';
+      q.set('event', h.eventId); q.set('region', region); q.set('alle', '1');
       return `/api/plakat?${q.toString()}`;
     }
     const f = fenster.find((x) => tage.includes(x.windowId));

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { ergebnisPostsAnlegen, zonenPostsFinden, zonenPostVermerken } from '@/lib/ergebnisPosts';
+import { heatsPostsFinden } from '@/lib/heatsPosts';
 import { zonenBild } from '@/lib/zonenBild';
 import { heuteDatum, postSeite } from '@/lib/tagesposts';
 import { schickePosts, schickeBeitragMitBild } from '@/lib/discord';
@@ -40,7 +41,21 @@ export async function GET(request: Request) {
         } catch { /* beim naechsten Lauf noch einmal */ }
       }
     }
-    if (!neu.length) return NextResponse.json({ ok: true, neu: 0, zonen });
+    // Die Heat-Einteilung, sobald Epic die Heat-Marken vergeben hat (lib/heatsPosts) - mit dem Plakat aller Heats als Bild; vermerkt erst, wenn es verschickt ist.
+    let heats = 0;
+    if (process.env.COMPHUB_NUR_LESEN !== '1') {
+      const schluesselBot = (process.env.CRON_SECRET || process.env.DISCORD_BOT_TOKEN || '').trim();
+      for (const p of await heatsPostsFinden().catch(() => [])) {
+        try {
+          const info = p.bild as { event?: string; region?: string };
+          const pl = await fetch(`https://www.thecomphub.com/api/plakat?art=heats&event=${encodeURIComponent(info.event ?? '')}&region=${encodeURIComponent(info.region ?? 'EU')}`, { headers: { Authorization: `Bearer ${schluesselBot}` }, signal: AbortSignal.timeout(90_000) });
+          if (!pl.ok || !(pl.headers.get('content-type') ?? '').startsWith('image/')) continue;
+          const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: new Uint8Array(await pl.arrayBuffer()), dateiname: `heats-${heuteDatum()}-${heats + 1}.png` });
+          if (s.ok) { heats += 1; await zonenPostVermerken(p); }
+        } catch { /* beim naechsten Lauf noch einmal */ }
+      }
+    }
+    if (!neu.length) return NextResponse.json({ ok: true, neu: 0, zonen, heats });
     // Zum Ausprobieren (COMPHUB_NUR_LESEN=1): zeigen, nichts nach Discord schicken.
     if (process.env.COMPHUB_NUR_LESEN === '1') return NextResponse.json({ ok: true, probe: true, neu: neu.length, posts: neu });
     const r = await schickePosts({
