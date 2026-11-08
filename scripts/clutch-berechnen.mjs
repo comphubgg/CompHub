@@ -534,6 +534,18 @@ if (arg[0] === '--plan') {
   fs.mkdirSync(TEIL_ORDNER, { recursive: true });
   let gelesen = 0; let ohneZahl = 0; let fehler = 0;
   const beginn = Date.now();
+  /*
+   * Notbremse (8.11.2026): ein Rechner hing fuenf Stunden an einem Match fest, und solange er lief, kam kein neuer Durchgang dran. Drei Minuten nach der
+   * Frist wird der Stand gesichert und beendet - was bis dahin gelesen ist, geht weiter wie sonst.
+   */
+  let aktuellSpeichern = null;
+  setTimeout(() => {
+    console.log('Notbremse: Frist um drei Minuten ueberschritten - Stand sichern und beenden');
+    try { aktuellSpeichern?.(); } catch { /* weiter */ }
+    process.exit(0);
+  }, Math.max(0, schluss - Date.now()) + 3 * 60_000).unref();
+  // Ein Download oder Leser, der nicht antwortet, gilt nach dieser Zeit als Fehler (das Match kommt im naechsten Durchgang wieder).
+  const mitFrist = (p, ms, was) => Promise.race([p, new Promise((_, nein) => setTimeout(() => nein(new Error(`${was}: keine Antwort nach ${ms / 1000} s`)), ms).unref())]);
   for (const t of tage) {
     if (Date.now() > schluss) break;
     const meine = t.offen.filter((id) => hash(id) % teilVon === teilNr % teilVon);
@@ -554,6 +566,7 @@ if (arg[0] === '--plan') {
     const liste = meine.filter((id) => !schonDa.has(id));
     console.log(`  ${t.windowId}: ${liste.length} von ${t.offen.length} offenen (${t.gesamt} bekannt)${frisch(t) ? ' - frisch' : ''}`);
     const speichern = () => fs.writeFileSync(teilDatei, JSON.stringify(teil));
+    aktuellSpeichern = speichern;
     let seitSpeichern = 0;
     let naechstes = 0;
     const einer = async () => {
@@ -561,11 +574,11 @@ if (arg[0] === '--plan') {
         const id = liste[naechstes++];
         const datei = path.join(os.tmpdir(), `voll-${id}.replay`);
         try {
-          const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 });
+          const puffer = await mitFrist(downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 }), 180_000, 'Download');
           fs.writeFileSync(datei, puffer);
           let voll = null;
           try {
-            voll = await leser.lies(datei);
+            voll = await mitFrist(leser.lies(datei), 240_000, 'Leser');
           } catch (e) { console.log(`    ${id}: Leser - ${String(e.message).slice(0, 100)}`); }
           // Ein Replay, dessen erster Block schon kaputt ist, liefert Spieler, aber weder Kill-Feed noch Treffer - das waeren lauter Nullen, also wie ein Fehler behandeln.
           if (voll && !(voll.feed?.length) && !(voll.treffer?.length)) { console.log(`    ${id}: Leser - kein Kill-Feed und keine Treffer (Replay kaputt)`); voll = null; }

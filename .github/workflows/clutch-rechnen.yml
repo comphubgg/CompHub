@@ -83,7 +83,9 @@ jobs:
     needs: planen
     if: needs.planen.outputs.rechner != '' && needs.planen.outputs.rechner != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    # 45 statt 330 (8.11.2026): ein Rechner hing fuenf Stunden an einem Match fest (die anderen elf waren nach 14 Minuten fertig). Solange er lief, wartete
+    # jeder neue Durchgang - und wurde vom naechsten ersetzt. Der Middle-East-Cup stand drei Stunden nach dem Ende bei 1311 von 1451 Matches.
+    timeout-minutes: 45
     permissions:
       contents: read
       actions: write
@@ -122,14 +124,15 @@ jobs:
 
       - name: Rechnen
         continue-on-error: true
-        timeout-minutes: 310
+        timeout-minutes: 30
         env:
           # 12 (7.11.2026): ein Replay braucht ~7 s Download (220 kleine Anfragen, wartet aufs Netz); der Leser im Dauerlauf schafft auf vier Kernen rund alle 0,7 s eines. Weniger Downloads liessen ihn warten.
           CLUTCH_GLEICHZEITIG: '12'
         run: |
           # 12 statt 295 Minuten (7.11.2026): abgelegt wird erst nach dem letzten Rechner. Der Trios Cash Cup endete um 18 Uhr, der laufende Durchgang brauchte fuer 148 alte Matches noch
           # fast eine Stunde, und erst dann kam der Cup dran. Kurze Runden heissen: frische Cups sind schnell an der Reihe, und Damage und Clutch wachsen waehrend des Lesens.
-          node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
+          # Hart nach 22 Minuten beenden: --minuten prueft nur zwischen den Matches, ein haengendes Match hielt den Rechner sonst fest.
+          timeout --signal=TERM --kill-after=60 22m node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
             --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 12 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
 
       - name: Teilstand weitergeben
