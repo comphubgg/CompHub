@@ -36,7 +36,8 @@ const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 // Genauigkeit, Edits, Mats, echte Tode). Die Fassung 5 lag im Middle-East-Cup 1.100 Schaden unter Osirion. Neu gerechnet wird nur, was von der Seite bestellt ist.
 // 7 (8.11.2026, abends): dazu die Ueberlebenszeit je Spieler (Feld leben).
 // 8 (8.11.2026, 19 Uhr): Damage mit dem Schaden auf Umgehauene, Heilung ohne falsche Knocks (lib/vollSchaden.mjs).
-const VERSION = 8;
+// 9 (8.11.2026, abends): Damage wie Osirion (Knock-/Kill-Schuss gekappt, ohne Umgehauene; Damage from Players ohne die Treffer im Knock), Heilung ohne Siphon, Mats-Fenster 2 s.
+const VERSION = 9;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -178,7 +179,7 @@ function zaehle(m, team, summen) {
     if (!gewonnen) s.tode += 1;
     const d = (m.schaden ?? []).find((x) => x.id === p.id);
     if (d) {
-      s.dmg += d.gemachtOhneBoden ?? d.gemacht ?? 0; s.dmgAlle += d.gemacht ?? 0; s.erlitten += d.genommen ?? 0;
+      s.dmg += d.gemachtOhneBoden ?? d.gemacht ?? 0; s.dmgAlle += d.gemacht ?? 0; s.erlitten += d.genommenOhneBoden ?? d.genommen ?? 0;
       s.treffer += d.treffer ?? 0; s.krit += d.krit ?? 0; s.schild += d.schild ?? 0;
     }
     // Zeit im Sturm in Sekunden (Leser, Feld zusatz; gegen die Szene-Werte eines Finals geprueft).

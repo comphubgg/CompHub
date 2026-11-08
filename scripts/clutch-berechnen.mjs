@@ -340,7 +340,10 @@ if (arg[0] === '--plan') {
      */
     const neuAnfang = !!da && Date.now() - f.datum < 7 * 864e5 && (((da.schadenFassung ?? 0) < 8 && (da.matches?.length ?? 0) <= NEU_LESEN_BIS)
       // Fassung 10 (8.11.2026): Leben im Reload - Tod und Rueckkehr sind keine Heilung, im Solo gibt es kein Umhauen.
-      || ((da.schadenFassung ?? 0) < 10 && /FNCS/i.test(f.windowId) && Date.now() - f.datum < 2 * 864e5));
+      || ((da.schadenFassung ?? 0) < 10 && /FNCS/i.test(f.windowId) && Date.now() - f.datum < 2 * 864e5)
+      // Fassung 11 (8.11.2026, abends): Damage wie Osirion (Knock-/Kill-Schuss gekappt, Overshield gelesen), Heilung ohne Siphon, Mats-Fenster 2 s - die Spieltage der
+      // letzten zwei Tage bis 4.500 Matches neu (die grossen offenen Runden nicht: dort waeren es zehntausende).
+      || ((da.schadenFassung ?? 0) < 11 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 4500));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));

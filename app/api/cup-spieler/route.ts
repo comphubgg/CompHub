@@ -100,7 +100,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.dmg += c?.epicDmg?.[id] ?? ((d as { dmgAlle?: number }).dmgAlle ?? d.dmg); x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); rep.set(e, x);
+      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); rep.set(e, x);
     }
     for (const [id, v] of Object.entries(c?.leben ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
@@ -461,7 +461,7 @@ async function holeRoh(request: Request) {
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         raus.schaden![id] = {
-          dmg: da.dmg + (c.epicDmg?.[id] ?? ((d as { dmgAlle?: number }).dmgAlle ?? d.dmg)), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
+          dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
           sturm: (da.sturm ?? 0) + sturmOk(d.sturm), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
         };
       }
@@ -478,7 +478,7 @@ async function holeRoh(request: Request) {
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
   const schadenVon = clutchDatei?.schaden
-    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? ((d as { dmgAlle?: number }).dmgAlle ?? d.dmg), krit: d.krit }] as const)) : null;
+    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? d.dmg, krit: d.krit }] as const)) : null;
   // Im Solo ohne Reload gibt es weder Reboot noch Wiederbeleben (Betreiber, 31.10.2026: "wie kann es in einem Solo-Cup Reboots geben?").
   const soloOhneReload = !tage.some((w) => /reload/i.test(w))
     && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));

@@ -181,7 +181,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
 var zusatz = reader.Zusatz(busAb, R(replay.GameData?.MatchEndTime), replay.PlayerData.Where(p => p.Id is not null && p.DeathTimeDouble is not null).ToDictionary(p => p.Id.Value, p => p.DeathTimeDouble.Value), wiederbelebt, rebootet)
   .Select(kv => new { id = kv.Key, sturmSek = Math.Round(kv.Value.SturmSek, 1), wiederbelebt = kv.Value.Wiederbelebt, rebootet = kv.Value.Rebootet }).ToList();
 var schaden = reader.Je.Select(kv => new {
-  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
+  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen), genommenOhneBoden = Math.Round(reader.GenommenOhneBoden.TryGetValue(kv.Key, out var gob) ? gob : 0),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
 }).ToList();
 
@@ -218,7 +218,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 }
 
@@ -737,15 +737,17 @@ class SchadenLeser : ReplayReader {
    * Leben und Schild jedes Spielers (7.11.2026). Die Bibliothek liest FortRegenHealthSet ueber feste Feldnummern, und die stimmen nicht mehr: der Schild steht laengst in Feld 31, nicht in 19 -
    * deshalb sah er aus wie "im Strom null". Hier werden die Felder selbst gelesen. Die Werte sind exakt, auch die Nachkommastellen (Leben 59,5).
    */
-  const uint LebenFeld = 1, SchildFeld = 31;
+  const uint LebenFeld = 1, SchildFeld = 31, UeberschildFeld = 51;
   public readonly Dictionary<int, List<double[]>> Schild = new();
+  /// Overshield (Feld 51 von FortRegenHealthSet, 0 bis 50) - Osirion fuehrt ihn getrennt (Overshield Taken/Healed).
+  public readonly Dictionary<int, List<double[]>> Ueberschild = new();
   public readonly Dictionary<int, List<double[]>> KillVerlauf = new();
   public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
     if (bauKanal.ContainsKey(channelIndex) && group.PathName.Contains("PBWA_", StringComparison.Ordinal)) { exportGroup = null; return BauLesen(archive, group, channelIndex, enablePropertyChecksum); }
     if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
     exportGroup = null;
     if (enablePropertyChecksum) archive.ReadBit();
-    double? leben = null, schild = null;
+    double? leben = null, schild = null, ueber = null;
     while (true) {
       var feld = archive.ReadIntPacked();
       if (feld == 0) break;
@@ -756,8 +758,13 @@ class SchadenLeser : ReplayReader {
       if (bits != 32) continue;
       if (feld == LebenFeld) leben = BitConverter.ToSingle(daten);
       else if (feld == SchildFeld) schild = BitConverter.ToSingle(daten);
+      else if (feld == UeberschildFeld) ueber = BitConverter.ToSingle(daten);
     }
-    if ((leben is not null || schild is not null) && Zeit() is double t && (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) is int id) {
+    if ((leben is not null || schild is not null || ueber is not null) && Zeit() is double t && (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) is int id) {
+      if (ueber is double us) {
+        if (!Ueberschild.TryGetValue(id, out var lu)) Ueberschild[id] = lu = new();
+        if (lu.Count == 0 || lu[^1][1] != Math.Round(us, 2)) lu.Add(new[] { Math.Round(t, 2), Math.Round(us, 2) });
+      }
       if (leben is double h) LebenNotieren(id, t, Math.Round(h, 2));
       if (schild is double sc) {
         if (!Schild.TryGetValue(id, out var l)) Schild[id] = l = new();
@@ -955,16 +962,32 @@ class SchadenLeser : ReplayReader {
     return raus;
   }
 
+  /*
+   * Der Knock- oder Kill-Schuss zaehlt nur so viel, wie der Gegner noch hatte: Leben + Schild + Overshield direkt davor (8.11.2026). So zaehlt Osirion -
+   * an zehn Matches des Betreibers (ZB Duos EU) Match fuer Match 0 bis 2 Punkte daneben, zusammen 7.327 zu 7.318; ohne die Kappung 7.826 (+7 %).
+   */
+  static double WertVor(Dictionary<int, List<double[]>> serien, int id, double t, double standard) {
+    if (!serien.TryGetValue(id, out var l) || l.Count == 0) return standard;
+    double? w = null; foreach (var x in l) { if (x[0] < t - 0.05) w = x[1]; else break; }
+    return w ?? standard;
+  }
+  public double Wirksam((int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal) e) {
+    if (!e.fatal || e.t is not double t) return e.hoehe;
+    var rest = WertVor(Leben, e.an, t, 100) + WertVor(Schild, e.an, t, 0) + WertVor(Ueberschild, e.an, t, 0);
+    return Math.Min(e.hoehe, Math.Max(0, rest));
+  }
+  public readonly Dictionary<int, double> GenommenOhneBoden = new();
   public void Zaehle(double? busAb) {
     foreach (var e in Liste) {
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
-      var s1 = Fuer(e.von); s1.Gemacht += e.hoehe; s1.Treffer++;
+      var h = Wirksam(e);
+      var s1 = Fuer(e.von); s1.Gemacht += h; s1.Treffer++;
       bool amBoden = e.t is double tt && AmBodenZuZeit(e.an, tt);
-      if (amBoden) AufBoden++; else ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + e.hoehe;
-      if (!e.fatal) ohneFatal[e.von] = (ohneFatal.TryGetValue(e.von, out var alt2) ? alt2 : 0) + e.hoehe;
+      if (amBoden) AufBoden++; else { ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + h; GenommenOhneBoden[e.an] = (GenommenOhneBoden.TryGetValue(e.an, out var g0) ? g0 : 0) + h; }
+      if (!e.fatal) ohneFatal[e.von] = (ohneFatal.TryGetValue(e.von, out var alt2) ? alt2 : 0) + h;
       if (e.krit) s1.Krit++;
-      if (e.schild) s1.AufSchild += e.hoehe;
-      Fuer(e.an).Genommen += e.hoehe;
+      if (e.schild) s1.AufSchild += h;
+      Fuer(e.an).Genommen += h;
     }
   }
 
@@ -975,7 +998,7 @@ class SchadenLeser : ReplayReader {
     foreach (var e in Liste) {
       if (e.t is not double t || (busAb is not null && t < busAb)) continue;
       bool amBoden = AmBodenZuZeit(e.an, t);
-      raus.Add(new[] { Math.Round(t, 3), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
+      raus.Add(new[] { Math.Round(t, 3), e.von, e.an, Math.Round(Wirksam(e)), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
     }
     return raus;
   }

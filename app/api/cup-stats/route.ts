@@ -275,7 +275,7 @@ async function holeRoh(request: Request) {
           : Math.max(Object.keys(c?.spiele ?? {}).length, eintraege.reduce((a, e) => a + e.players.length, 0)),
         elims: eintraege.reduce((a, e) => a + (e.elims || 0), 0),
         // Bei Team-Cups fuehrt Epic weder Schaden noch Strecke - dann aus den Replays; ohne gelesenes Replay leer statt 0.
-        damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0) || (s.length ? summeVon((d) => (d as { dmgAlle?: number }).dmgAlle ?? (d as { dmg?: number }).dmg) : null),
+        damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0) || (s.length ? summeVon((d) => (d as { dmg?: number }).dmg) : null),
         strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000
           || (Object.keys(c?.strecke ?? {}).length ? Object.values(c!.strecke!).reduce((a, [f, l]) => a + (f ?? 0) + (l ?? 0), 0) / 0.685 / 1000 : null),
         // Leer, solange kein Replay gelesen ist (laufender Cup: sonst stuende "Materials Farmed 0" da); im Zero Build nach dem Lesen wirklich 0.

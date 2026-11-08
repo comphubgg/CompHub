@@ -243,10 +243,9 @@ const teile = (a: number | undefined, b: number | undefined, mal = 1) => (a === 
 const summe = (...x: Array<number | undefined>) => (x.every((v) => v === undefined) ? undefined : x.reduce<number>((s, v) => s + (v ?? 0), 0));
 const JE_KURVE: Record<string, (w: JeW) => number | undefined> = {
   Eliminations: (w) => w('killsEcht'),
-  // Wie Epic: mit dem Schaden auf Umgehauene (8.11.2026, an 34 Matches gegen Epics End-of-Match-Werte: Trios +0,6 %, Duos -0,6 %; ohne ihn 13-20 % zu wenig).
-  'Damage To Players': (w) => w('dmgAlle') ?? w('dmg'),
+  'Damage To Players': (w) => w('dmg'),
   'Damage From Players': (w) => w('erlitten'),
-  'Damage Ratio': (w) => teile(w('dmgAlle') ?? w('dmg'), w('erlitten')),
+  'Damage Ratio': (w) => teile(w('dmg'), w('erlitten')),
   'K/D Ratio': (w) => (w('killsEcht') === undefined || w('todeEcht') === undefined ? undefined : (w('killsEcht') ?? 0) / Math.max(1, w('todeEcht') ?? 0)),
   Deaths: (w) => w('todeEcht'),
   'Player Eliminations (After Out)': (w) => w('killsNachAus'),
