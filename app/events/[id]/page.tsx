@@ -3185,7 +3185,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            * Gleich grosse, kompakte Kacheln in zwei Reihen zu vier (Betreiber, 8.11.2026: "so sieht es haesslich aus ... Map, Duration ... noch was Viertes
            * oder Fuenftes reinklatschen"): Zeit, Dauer, Spiele, Karte, Format, Region, Weiterkommen und die Punkte dafuer getrennt.
            */
-          <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-2.5 sm:flex">
             {(() => { const basis = ([
               // Gesamtwertung: von Beginn des ersten bis Ende des letzten Tages, alle Spiele beider Tage.
               [t('Zeit'), (() => {
@@ -3275,24 +3275,33 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               const ende = typeof fenster.end === 'number' ? fenster.end : null;
               const [qualTitel, qualWert] = basis[2] ?? ['', ''];
               const [qualKurz, ...qualRest] = qualWert.split(' · ');
-              const kacheln: Array<[string, string]> = [
-                basis[0],
-                ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000)] as [string, string]] : []),
-                basis[1],
-                ...(karte ? [[t('Karte'), karte] as [string, string]] : []),
-                ...(format ? [[t('Format'), `${format} · ${st.zeroBuild ? 'Zero Build' : 'Build'}`] as [string, string]] : []),
-                [t('Region'), region],
-                [qualTitel, qualKurz],
-                // Kurz, damit es in die Kachel passt: "78 jetzt · ~344".
-                ...(qualRest.length ? [[t('Punkte'), qualRest.join(' · ').replace(` ${t('Punkte')} (${t('gerade')})`, ` ${t('jetzt')}`).replace(`${t('Prognose')} `, '')] as [string, string]] : []),
+              /*
+               * Eine Zeile (Betreiber, 8.11.2026: "maximal eine Linie ... Format raus ... Region egal"): Zeit, Dauer, Spiele, Karte, Weiterkommen, der Stand jetzt und die
+               * Prognose als eigene Kachel mit Logo - getrennt statt mit Punkten aneinandergehaengt.
+               */
+              const einfach = !qual?.kumuliert && !kumAktiv;
+              const jetztWert = einfach && typeof qual?.tatsaechlich === 'number' ? qual.tatsaechlich : null;
+              const prognoseWert = einfach && qual?.schnitt && (qual.laeuft || jetztWert === null) ? qualPrognose(qual) : null;
+              const kacheln: Array<[string, string, string]> = [
+                [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
+                ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
+                [basis[1][0], basis[1][1], 'sm:flex-[0.7]'],
+                ...(karte ? [[t('Karte'), karte, 'sm:flex-[1.5]'] as [string, string, string]] : []),
+                [qualTitel, einfach ? qualKurz : qualWert, 'sm:flex-[1.3]'],
+                ...(jetztWert !== null ? [[qual?.laeuft ? t('Gerade') : t('Gekostet'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
+                ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
-              return kacheln.map(([l, v]) => (
-              <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
+              void format; void region;
+              return kacheln.map(([l, v, breite]) => (
+              <div key={l} className={`min-w-0 rounded-xl border px-3 py-2.5 ${breite} ${l === 'CompHub Prediction' ? 'border-sky-500/40 bg-sky-500/[0.07]' : 'border-zinc-800 bg-zinc-900/40'}`}
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
                   ? `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
-                <div className="mt-0.5 truncate text-sm font-semibold text-slate-100" title={v}>{v}</div>
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
+                  {l === 'CompHub Prediction' && <img src="/logos/CompHub-Logo-96.webp" alt="" className="h-3.5 w-3.5 rounded-sm" />}
+                  <span className="truncate">{l}</span>
+                </div>
+                <div className={`mt-0.5 truncate text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`} title={v}>{v}</div>
               </div>
             )); })()}
           </div>

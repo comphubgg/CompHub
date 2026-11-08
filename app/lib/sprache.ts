@@ -563,6 +563,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Live-Match': 'Live match',
   'Dauer': 'Duration',
   'Endet in': 'Ends in',
+  'Gerade': 'Right now',
+  'Gekostet': 'Needed',
   'Teams noch im Spiel': 'Teams remaining',
   'Gerade läuft keine Lobby.': 'No lobby is running right now.',
   'Spielzeit': 'Time played',
