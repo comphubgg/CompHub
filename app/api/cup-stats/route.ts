@@ -86,13 +86,14 @@ const KATEGORIEN: Kategorie[] = [
 ];
 
 /** Die ganze Bestenliste, wie sie app/api/cup-leaderboard vorgebaut ablegt - sonst zaehlten die Kacheln nur die ersten hundert (BasCB statt fa wiver bei Distance). */
-async function ganzeListe(w: string): Promise<CupEintrag[] | null> {
+// Mit dem Stand der Liste: ohne ihn stand bei Solo-Cups kein "Last update / Next update" ueber den Player Stats (Betreiber, 8.11.2026).
+async function ganzeListe(w: string): Promise<{ entries: CupEintrag[]; updated?: string } | null> {
   const datei = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz', `${w.replace(/[^\w.-]/g, '_')}.json`);
   for (const p of [`${datei}.gz`, datei]) {
     try {
       const roh = await nodeFs.readFile(p);
-      const d = JSON.parse((p.endsWith('.gz') ? gunzipSync(roh) : roh).toString('utf8')) as { entries?: CupEintrag[] };
-      if (d.entries?.length) return d.entries;
+      const d = JSON.parse((p.endsWith('.gz') ? gunzipSync(roh) : roh).toString('utf8')) as { entries?: CupEintrag[]; updated?: string; gebaut?: number };
+      if (d.entries?.length) return { entries: d.entries, updated: d.updated ?? (d.gebaut ? new Date(d.gebaut).toISOString() : undefined) };
     } catch { /* naechste */ }
   }
   return null;
@@ -166,7 +167,7 @@ async function holeRoh(request: Request) {
     const tageDaten = summe ? await Promise.all(tageListe.map((w) => gecacht(`stats|${event}|${w}|${limit}`, TTL, () => holeTop(event, w, limit)))) : null;
     // Ein einzelner Spieltag: das ganze Feld aus dem Vorrat der Bestenliste, wenn er schon gebaut ist.
     const vorgebaut = finale || summe || !window_ ? null : await ganzeListe(window_);
-    const einzeln = finale || summe || !window_ ? null : vorgebaut ? { entries: vorgebaut, totalPages: 1, updated: undefined as string | undefined }
+    const einzeln = finale || summe || !window_ ? null : vorgebaut ? { entries: vorgebaut.entries, totalPages: 1, updated: vorgebaut.updated }
       : await gecacht(`stats|${event}|${window_}|${limit}`, TTL, () => holeTop(event, window_, limit));
     const extraVon = window_ && !summe && !finale ? await extraFuer(window_) : () => null;
     const extra = new Map<CupEintrag, Extra | null>();

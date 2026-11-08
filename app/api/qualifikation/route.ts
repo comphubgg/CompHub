@@ -214,9 +214,14 @@ async function holeRoh(request: Request) {
    * gespeicherten Zustand: der Katalog ist fuenf Minuten alt, und in den
    * ersten Minuten eines Cups stuende dort noch "kommt".
    */
+  /*
+   * Bis eine halbe Stunde nach dem Ende gilt der Stand als "jetzt": das letzte Spiel darf kurz vor Schluss noch beginnen, und erst wenn es fertig ist,
+   * steht die Grenze (Betreiber, 8.11.2026: "Qual Needed kannst du erst nach einer halben Stunde nach dem Cup sagen").
+   */
+  const NACHLAUF = 30 * 60_000;
   const jetzt = Date.now();
   const laeuft = dieser.begin <= jetzt
-    && (typeof dieser.end === 'number' ? jetzt <= dieser.end : dieser.status === 'live');
+    && (typeof dieser.end === 'number' ? jetzt <= dieser.end + NACHLAUF : dieser.status === 'live');
   const vorbei = !laeuft && (dieser.status === 'vorbei'
     || (typeof dieser.end === 'number' && jetzt > dieser.end));
   let tatsaechlich: number | null = null;
@@ -224,7 +229,8 @@ async function holeRoh(request: Request) {
     try {
       const board = await gecacht(
         `qualIst|${dieser.eventId}|${dieser.windowId}|${schwelle}|${laeuft ? 'live' : 'fertig'}`,
-        laeuft ? 15_000 : 30 * 60_000,
+        // Auch nach dem Nachlauf schreibt Epic manchmal noch nach - die ersten zwei Stunden jede Minute neu, danach halbstuendlich.
+        laeuft ? 15_000 : typeof dieser.end === 'number' && jetzt - dieser.end < 2 * 3_600_000 ? 60_000 : 30 * 60_000,
         () => umRang(dieser.eventId, dieser.windowId, schwelle));
       const treffer = board.entries.find((e) => e.rank === schwelle);
       // Null Punkte auf dem Platz heisst: noch nichts gespielt, oder Epic

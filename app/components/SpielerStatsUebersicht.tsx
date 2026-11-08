@@ -308,7 +308,13 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
       })()}
 
       {/* Wann zuletzt, auf die Sekunde - und wann das naechste Update kommt (siehe AktualisierungsStand). */}
-      <AktualisierungsStand stand={aktualisiert} art={laeuft ? 'laeuft' : 'fertig'} />
+      {/* Noch eine Stunde nach dem Ende (spaete Spiele, Epic schreibt nach) und solange Replays fehlen, kommt noch etwas - erst danach "Finished". */}
+      <AktualisierungsStand stand={aktualisiert} art={(() => {
+        if (laeuft || szene) return laeuft ? 'laeuft' : 'fertig';
+        const seit = endeMs ? Date.now() - endeMs : Infinity;
+        const fehlt = !!rundenGesamt && rundenGesamt > (matches ?? 0);
+        return seit < 3_600_000 || (seit < 2 * 86400_000 && (!schadenAusReplay || fehlt || !!schadenTeil)) ? 'laeuft' : 'fertig';
+      })()} />
       <p className="text-[11px] text-slate-500">
         {szene ? <T>Endstand aus der Szene-Quelle</T> : null}
         {teamWerte && (

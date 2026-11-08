@@ -74,7 +74,13 @@ export default function AktualisierungsStand({ stand, art }: { stand: string | n
         {new Date(zeit).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}{' · '}{uhr(zeit)}
       </span>
       <span className="tabular-nums text-sky-400">{sprache === 'en' ? `${dauer(alt)} ago` : `vor ${dauer(alt)}`}</span>
-      {/* Bei einem beendeten Cup kommt nichts mehr - dann steht dazu auch nichts da. */}
+      {/* Fertig: kein "Next update" mehr, sondern ausdruecklich "Finished" (Betreiber, 8.11.2026: "Finished oder so hinschreiben"). */}
+      {naechste === null && (
+        <>
+          <span className="text-slate-700">·</span>
+          <span className="font-semibold text-slate-300"><T>Beendet</T></span>
+        </>
+      )}
       {naechste !== null && (
         <>
           <span className="text-slate-700">·</span>

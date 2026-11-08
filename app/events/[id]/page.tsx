@@ -1736,6 +1736,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
   }, [lbFenster, zeigeStatistik, neuNr, summenFenster, summenText, statistikVersuch]);
 
+  /*
+   * Die Kacheln weiter auffrischen: waehrend des Cups, noch eine Stunde danach und solange Replays fehlen (Betreiber, 8.11.2026: "musst du auch immer die
+   * Statistics ... noch eine Stunde nach dem Cup updaten"). Vorher kamen sie nur beim Oeffnen und beim Reload-Knopf neu.
+   */
+  const statistikNachlauf = (() => {
+    if (laeuftGerade) return true;
+    const ende = lbFenster?.end;
+    if (typeof ende !== 'number') return false;
+    const seit = Date.now() - ende;
+    if (seit < 0) return false;
+    if (seit < 3_600_000) return true;
+    return seit < 2 * 86_400_000 && !!ueberblick?.matches && (ueberblick.gelesen ?? 0) < ueberblick.matches;
+  })();
+  useEffect(() => {
+    if (!statistikNachlauf || !zeigeStatistik) return undefined;
+    return sichtbarerTakt(() => { setStatistikVersuch((v) => v + 1); }, 120_000);
+  }, [statistikNachlauf, zeigeStatistik]);
+
   // Die Profile einmal holen - sie aendern sich waehrend eines Cups nicht.
   useEffect(() => {
     fetch('/api/spieler-profile').then((r) => r.json())
@@ -5504,7 +5522,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </span>
             </div>
             {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
-              <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={laeuftGerade ? 'laeuft' : 'fertig'} /></div>
+              <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={statistikNachlauf ? 'laeuft' : 'fertig'} /></div>
             )}
             {ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
