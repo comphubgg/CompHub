@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { gecacht, holeTop, EpicLoginNoetig, frischeFuer, type CupEintrag } from '@/lib/epicCups';
+import { gecacht, holeTop, EpicLoginNoetig, frischeFuer, lebenOhneUeberlappung, type CupEintrag } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
@@ -50,7 +50,7 @@ interface Kategorie {
 }
 
 /** Werte aus den ausgewerteten Replays (clutch/<Fenster>.json) - je Team die Summe der Spieler; null, wenn nicht alle Spiele gelesen sind. */
-interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number }
+interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number; farm: number | null }
 
 /*
  * Reihenfolge und Titel wie bei Osirion (Betreiber, 8.11.2026: "die Beschriftung genau gleich ... die Reihenfolge genau gleich ... immer ausgeschrieben"): zuerst die zehn,
@@ -63,17 +63,19 @@ const KATEGORIEN: Kategorie[] = [
   { schluessel: 'elims', symbol: '🎯', titel: 'Eliminations', wert: (e) => e.elims },
   { schluessel: 'clutch', symbol: '🧊', titel: 'Solo Clutch Points', wert: (_e, x) => x?.clutch ?? 0 },
   { schluessel: 'sturm', symbol: '🌀', titel: 'Time In Storm', zeit: true, wert: (_e, x) => x?.sturm ?? 0 },
-  { schluessel: 'timeAlive', symbol: '⏱️', titel: 'Time Alive', zeit: true, wert: (e) => e.timeAlive },
+  // Ohne doppelt gezaehlte Zeit (zwei Spiele, die sich ueberschneiden - lib/epicCups lebenOhneUeberlappung).
+  { schluessel: 'timeAlive', symbol: '⏱️', titel: 'Time Alive', zeit: true, wert: (e) => lebenOhneUeberlappung(e.matches ?? []) ?? e.timeAlive },
   { schluessel: 'strecke', symbol: '🏃', titel: 'Distance Traveled', einheit: 'km', faktor: 1 / 100_000, nachkomma: 1, wert: (e) => e.strecke },
   { schluessel: 'treffer', symbol: '🎯', titel: 'Hits To Players', wert: (_e, x) => x?.treffer ?? 0 },
-  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Mats Farmed', wert: (e) => e.matsGefarmt },
+  // Epics Wert, wo Epic ihn fuehrt; sonst (Reload-Cups) aus den Replays.
+  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Mats Farmed', wert: (e, x) => e.matsGefarmt || x?.farm || 0 },
   { schluessel: 'builds', symbol: '🏗️', titel: 'Builds Placed', wert: (_e, x) => x?.builds ?? 0 },
   { schluessel: 'points', symbol: '🏆',      titel: 'Most Points',            wert: (e) => e.points },
   { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage Taken', mehr: true, wert: (e) => e.damageTaken },
   { schluessel: 'headshots', symbol: '💀', titel: 'Most Headshots', mehr: true, wert: (e) => e.headshots },
   { schluessel: 'wins', symbol: '👑', titel: 'Most Victory Royales', mehr: true, wert: (e) => e.wins },
-  { schluessel: 'kd', symbol: '⚔️', titel: 'Best K/D', mehr: true, nachkomma: 2, wert: (e) => e.kd },
-  { schluessel: 'avgPlace', symbol: '📍', titel: 'Best Average Placement', mehr: true, kleinBesser: true, nachkomma: 2, wert: (e) => e.avgPlace },
+  { schluessel: 'kd', symbol: '⚔️', titel: 'Best K/D', mehr: true, nachkomma: 2, jeSpiel: true, wert: (e) => e.kd },
+  { schluessel: 'avgPlace', symbol: '📍', titel: 'Best Average Placement', mehr: true, kleinBesser: true, nachkomma: 2, jeSpiel: true, wert: (e) => e.avgPlace },
   { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', mehr: true, wert: (e) => e.matsVerbaut },
   { schluessel: 'kisten', symbol: '📦', titel: 'Most Chests Opened', mehr: true, wert: (e) => e.kisten },
   { schluessel: 'heilung', symbol: '💊', titel: 'Most Heals Used', mehr: true, wert: (e) => e.heilung },
@@ -97,11 +99,11 @@ async function ganzeListe(w: string): Promise<CupEintrag[] | null> {
 
 /** Die Replay-Werte eines Spieltags je Team (Summe der Spieler) - null, wenn ein Spieler nicht ganz gelesen ist. */
 async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
-  type D = { erlitten?: number; treffer?: number; sturm?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number };
+  type D = { erlitten?: number; treffer?: number; sturm?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
   const c = await liesJson<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
   if (!c?.schaden) return () => null;
   return (e) => {
-    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0 };
+    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0 };
     for (const p of e.players) {
       const id = String(p.id ?? '').toLowerCase();
       const d = c.schaden?.[id];
@@ -109,6 +111,7 @@ async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
       x.erlitten += d.erlitten ?? 0; x.treffer += d.treffer ?? 0;
       x.sturm += typeof d.sturm === 'number' && d.sturm < 1e6 ? d.sturm : 0;
       x.clutch += c.summe?.[id] ?? 0;
+      if (x.farm !== null) x.farm = typeof d.farmHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.farm + (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0) : null;
       if (x.builds !== null) x.builds = typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.builds + (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0) : null;
     }
     return x.erlitten === 0 && x.treffer === 0 ? null : x;
@@ -255,7 +258,7 @@ async function holeRoh(request: Request) {
         elims: eintraege.reduce((a, e) => a + (e.elims || 0), 0),
         damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0),
         strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000,
-        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0),
+        matsGefarmt: eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0),
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
         edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
