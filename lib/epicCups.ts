@@ -861,8 +861,12 @@ export async function findeSpieler(
     for (const e of treffer.values()) seiten.add(e.page ?? 0);
     try {
       for (const seite of await Promise.all([...seiten].map((p) => holeSeite(eventId, windowId, p)))) {
+        // Ueber die Konto-Id, nie ueber den Platz: die Seite mit Namen kann ein anderer Stand der Liste sein, und dann stand auf "Platz 6" schon jemand
+        // anderes - Chaps Stats zeigten so MALOYACHE (Betreiber, 8.11.2026: "wie kann dort 3 Eliminations stehen, wenn ... 14 steht").
         for (const e of seite.entries) {
-          if (treffer.has(e.rank)) treffer.set(e.rank, { ...e, page: seite.page });
+          if (!e.players.some((p) => gesuchteIds.has(p.id))) continue;
+          for (const [platz, alt] of treffer) if (alt.players.some((p) => gesuchteIds.has(p.id) && e.players.some((q) => q.id === p.id))) treffer.delete(platz);
+          treffer.set(e.rank, { ...e, page: seite.page });
         }
       }
     } catch {

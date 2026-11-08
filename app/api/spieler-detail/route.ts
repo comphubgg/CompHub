@@ -173,8 +173,10 @@ export async function GET(request: Request) {
      * ich bin nicht in diesem Cup dabei, obwohl ich 70. war"). Spiele je Match fehlen dann, die Werte kommen aus den Replays.
      */
     // Der Vorrat ist Epics Liste, wie app/api/cup-leaderboard sie ablegt (lib/bestenlisteVorrat) - dieselben Felder wie bei der Suche.
-    const ausVorrat: CupEintrag | undefined = !r.entries[0] && vorratZeile ? (vorratZeile as unknown as CupEintrag) : undefined;
-    const eintrag: CupEintrag | undefined = r.entries[0] ?? ausVorrat;
+    // Nur ein Eintrag, in dem der Spieler selbst steht - nie einfach der erste Treffer (Chap bekam so die Zeile von MALOYACHE).
+    const epicZeile = r.entries.find((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
+    const ausVorrat: CupEintrag | undefined = !epicZeile && vorratZeile ? (vorratZeile as unknown as CupEintrag) : undefined;
+    const eintrag: CupEintrag | undefined = epicZeile ?? ausVorrat;
     const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
 
     // Namen: aus der Bestenliste, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
