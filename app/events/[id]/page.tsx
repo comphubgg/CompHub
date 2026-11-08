@@ -273,6 +273,10 @@ interface Bestenliste {
   einheit: string | null;
   /** Wie viele Nachkommastellen die Werte dieser Liste haben. */
   nachkomma?: number;
+  /** Sekunden - angezeigt wie bei Osirion als "2h 38m". */
+  zeit?: boolean;
+  /** Erst hinter "More" (zuerst die Kacheln, die Osirion zeigt). */
+  mehr?: boolean;
   /** Die Spitze fuer die Kachel. */
   plaetze: StatPlatz[];
   /** Das ganze Feld - dahinter steht das Pluszeichen. */
@@ -505,6 +509,12 @@ function uhr(ms: number, ort = 'de-DE') {
  * 17,55 stehen, sieht die eine ganze Zahl aus wie ein anderes Mass.
  * Zwei Stellen, immer - dann steht die Spalte gerade.
  */
+/** Sekunden wie bei Osirion: "2h 38m", unter einer Stunde "45m 12s". */
+function stdMin(sek: number): string {
+  const s = Math.round(sek); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
+}
+
 function schnitt(wert: number, ort = 'de-DE', stellen = 2) {
   if (!Number.isFinite(wert) || wert === 0) return '–';
   return wert.toLocaleString(ort, {
@@ -751,6 +761,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [stand, setStand] = useState('');
   /** Die Turnierstatistik - nur zu einem Finale. */
   const [statistik, setStatistik] = useState<Bestenliste[]>([]);
+  const [mehrKacheln, setMehrKacheln] = useState(false);
   /** Wann Epic die Bestenliste zuletzt fortgeschrieben hat - "zuletzt aktualisiert". */
   const [statistikStand, setStatistikStand] = useState<string | null>(null);
   /** Die Teamwerte waren nicht zu holen: dann steht ein Hinweis da statt "leer", und nach 10 Sekunden geht es noch einmal los. */
@@ -5382,12 +5393,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             )}
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {statistik.map((b) => (
+              {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => (
                 <div key={b.schluessel}
                   className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
                   <div className="flex items-center gap-2 px-4 pb-3 pt-4">
                     <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
-                    <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">{b.titel}</h3>
+                    {/* Ausgeschrieben, nie abgeschnitten (Betreiber, 8.11.2026: "MOST VICTORY ROYA..." darf nicht sein). */}
+                    <h3 className="min-w-0 flex-1 text-balance text-center text-[14px] font-extrabold uppercase leading-tight tracking-wide text-slate-50">{b.titel}</h3>
                     {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld - dieselbe Sortierung, nur ungekuerzt. */}
                     <button type="button" onClick={() => listeOeffnen(b)} disabled={b.alle.length <= b.plaetze.length}
                       title={`${t('Alle anzeigen')} (${b.alle.length})`}
@@ -5425,11 +5437,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         </span>
                         <span className="shrink-0 text-[12px] font-semibold tabular-nums
                                          text-slate-100">
-                          {pl.wert.toLocaleString(ort, {
+                          {b.zeit ? stdMin(pl.wert) : pl.wert.toLocaleString(ort, {
                             minimumFractionDigits: b.nachkomma ?? 0,
                             maximumFractionDigits: b.nachkomma ?? 0,
                           })}
-                          {b.einheit && <span className="ml-0.5 text-[10px]
+                          {b.einheit && !b.zeit && <span className="ml-0.5 text-[10px]
                                                         font-normal text-slate-500">
                             {b.einheit}</span>}
                         </span>
@@ -5439,6 +5451,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
               ))}
             </div>
+            {statistik.some((b) => b.mehr) && (
+              <button type="button" onClick={() => setMehrKacheln((x) => !x)}
+                className="mx-auto mt-4 block rounded-lg border border-zinc-700 bg-zinc-900/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-zinc-500 hover:text-white">
+                {mehrKacheln ? <T>Weniger anzeigen</T> : <T>Mehr anzeigen</T>} {mehrKacheln ? '▲' : '▼'}
+              </button>
+            )}
           </section>
         )}
 
@@ -5546,11 +5564,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       </span>
                       <span className="shrink-0 text-[13px] font-semibold tabular-nums
                                        text-slate-100">
-                        {pl.wert.toLocaleString(ort, {
+                        {offeneListe.zeit ? stdMin(pl.wert) : pl.wert.toLocaleString(ort, {
                           minimumFractionDigits: offeneListe.nachkomma ?? 0,
                           maximumFractionDigits: offeneListe.nachkomma ?? 0,
                         })}
-                        {offeneListe.einheit && (
+                        {offeneListe.einheit && !offeneListe.zeit && (
                           <span className="ml-0.5 text-[10px] font-normal text-slate-500">
                             {offeneListe.einheit}
                           </span>

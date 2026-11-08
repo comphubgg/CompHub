@@ -4,6 +4,11 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon } from '@/lib/cupWertung';
+import { liesJson } from '@/lib/ablage';
+import { DATEN_ORT } from '@/lib/datenOrt';
+import nodeFs from 'fs/promises';
+import path from 'path';
+import { gunzipSync } from 'zlib';
 
 // Bestenlisten je Kennzahl fuer einen Spieltag - die Grundlage fuer die
 // Turnier-Statistikseite und die Beitragsvorlagen.
@@ -37,35 +42,78 @@ interface Kategorie {
   nachkomma?: number;
   /** Ein Wert je Spiel - zaehlt nur fuer Teams mit mindestens der Haelfte der meisten Spiele, sonst fuehrt ein einziges gutes Spiel. */
   jeSpiel?: boolean;
-  wert: (e: CupEintrag) => number;
+  /** Sekunden, angezeigt als "2h 38m". */
+  zeit?: boolean;
+  /** Steht erst hinter "More" (Betreiber, 8.11.2026: zuerst genau das, was Osirion zeigt). */
+  mehr?: boolean;
+  wert: (e: CupEintrag, x: Extra | null) => number;
 }
 
+/** Werte aus den ausgewerteten Replays (clutch/<Fenster>.json) - je Team die Summe der Spieler; null, wenn nicht alle Spiele gelesen sind. */
+interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number }
+
+/*
+ * Reihenfolge und Titel wie bei Osirion (Betreiber, 8.11.2026: "die Beschriftung genau gleich ... die Reihenfolge genau gleich ... immer ausgeschrieben"): zuerst die zehn,
+ * die Osirion zeigt, dann Most Points, der Rest hinter "More". Epics Werte, wo Epic sie fuehrt (Schaden, Elims, Zeit, Strecke, Mats); Treffer, Sturm, Bauteile und
+ * Clutch aus den ausgewerteten Replays; Damage Ratio = Epics Schaden durch den Schaden von Spielern aus dem Replay (wie Osirion: Focus 3,47 zu 3,40).
+ */
 const KATEGORIEN: Kategorie[] = [
+  { schluessel: 'quote', symbol: '⚖️', titel: 'Damage Ratio', nachkomma: 2, jeSpiel: true, wert: (e, x) => (x && x.erlitten > 0 ? e.damage / x.erlitten : 0) },
+  { schluessel: 'damage', symbol: '📈', titel: 'Damage To Players', wert: (e) => e.damage },
+  { schluessel: 'elims', symbol: '🎯', titel: 'Eliminations', wert: (e) => e.elims },
+  { schluessel: 'clutch', symbol: '🧊', titel: 'Solo Clutch Points', wert: (_e, x) => x?.clutch ?? 0 },
+  { schluessel: 'sturm', symbol: '🌀', titel: 'Time In Storm', zeit: true, wert: (_e, x) => x?.sturm ?? 0 },
+  { schluessel: 'timeAlive', symbol: '⏱️', titel: 'Time Alive', zeit: true, wert: (e) => e.timeAlive },
+  { schluessel: 'strecke', symbol: '🏃', titel: 'Distance Traveled', einheit: 'km', faktor: 1 / 100_000, nachkomma: 1, wert: (e) => e.strecke },
+  { schluessel: 'treffer', symbol: '🎯', titel: 'Hits To Players', wert: (_e, x) => x?.treffer ?? 0 },
+  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Mats Farmed', wert: (e) => e.matsGefarmt },
+  { schluessel: 'builds', symbol: '🏗️', titel: 'Builds Placed', wert: (_e, x) => x?.builds ?? 0 },
   { schluessel: 'points', symbol: '🏆',      titel: 'Most Points',            wert: (e) => e.points },
-  { schluessel: 'elims', symbol: '🎯',       titel: 'Most Eliminations',    wert: (e) => e.elims },
-  { schluessel: 'damage', symbol: '📈',      titel: 'Most Damage Dealt',          wert: (e) => e.damage },
-  { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage Taken', wert: (e) => e.damageTaken },
-  { schluessel: 'headshots', symbol: '💀',   titel: 'Most Headshots',       wert: (e) => e.headshots },
-  { schluessel: 'wins', symbol: '👑',        titel: 'Most Victory Royales',             wert: (e) => e.wins },
-  { schluessel: 'kd', symbol: '⚔️',          titel: 'Best K/D',                nachkomma: 2, wert: (e) => e.kd },
-  { schluessel: 'avgPlace', symbol: '📍',    titel: 'Best Average Placement', kleinBesser: true,
-    nachkomma: 2, wert: (e) => e.avgPlace },
-  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Most Mats Farmed', wert: (e) => e.matsGefarmt },
-  { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', wert: (e) => e.matsVerbaut },
-  { schluessel: 'kisten', symbol: '📦',      titel: 'Most Chests Opened',   wert: (e) => e.kisten },
-  { schluessel: 'heilung', symbol: '💊',     titel: 'Most Heals Used',         wert: (e) => e.heilung },
-  { schluessel: 'schild', symbol: '🛡️',      titel: 'Most Shields Used', wert: (e) => e.schild },
-  { schluessel: 'strecke', symbol: '🏃',     titel: 'Most Distance Traveled',  einheit: 'km',
-    faktor: 1 / 100_000, nachkomma: 1, wert: (e) => e.strecke },
-  { schluessel: 'timeAlive', symbol: '⏱️',   titel: 'Most Time Alive',   einheit: 'min',
-    faktor: 1 / 60, nachkomma: 0, wert: (e) => e.timeAlive },
-  /*
-   * "Most Time Alive" ist die Summe ueber alle Spiele - sie belohnt, wer mehr Spiele hatte. Daneben der Schnitt je Spiel:
-   * wer im einzelnen Spiel am laengsten ueberlebt (Epics Feld avgTimeAlive, ueber mehrere Tage neu gerechnet).
-   */
-  { schluessel: 'avgTimeAlive', symbol: '⏳',  titel: 'Longest Avg Time Alive', einheit: 'min',
-    faktor: 1 / 60, nachkomma: 1, jeSpiel: true, wert: (e) => e.avgTimeAlive },
+  { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage Taken', mehr: true, wert: (e) => e.damageTaken },
+  { schluessel: 'headshots', symbol: '💀', titel: 'Most Headshots', mehr: true, wert: (e) => e.headshots },
+  { schluessel: 'wins', symbol: '👑', titel: 'Most Victory Royales', mehr: true, wert: (e) => e.wins },
+  { schluessel: 'kd', symbol: '⚔️', titel: 'Best K/D', mehr: true, nachkomma: 2, wert: (e) => e.kd },
+  { schluessel: 'avgPlace', symbol: '📍', titel: 'Best Average Placement', mehr: true, kleinBesser: true, nachkomma: 2, wert: (e) => e.avgPlace },
+  { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', mehr: true, wert: (e) => e.matsVerbaut },
+  { schluessel: 'kisten', symbol: '📦', titel: 'Most Chests Opened', mehr: true, wert: (e) => e.kisten },
+  { schluessel: 'heilung', symbol: '💊', titel: 'Most Heals Used', mehr: true, wert: (e) => e.heilung },
+  { schluessel: 'schild', symbol: '🛡️', titel: 'Most Shields Used', mehr: true, wert: (e) => e.schild },
+  // Die Summe belohnt, wer mehr Spiele hatte - daneben der Schnitt je Spiel.
+  { schluessel: 'avgTimeAlive', symbol: '⏳', titel: 'Longest Average Time Alive', mehr: true, zeit: true, jeSpiel: true, wert: (e) => e.avgTimeAlive },
 ];
+
+/** Die ganze Bestenliste, wie sie app/api/cup-leaderboard vorgebaut ablegt - sonst zaehlten die Kacheln nur die ersten hundert (BasCB statt fa wiver bei Distance). */
+async function ganzeListe(w: string): Promise<CupEintrag[] | null> {
+  const datei = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz', `${w.replace(/[^\w.-]/g, '_')}.json`);
+  for (const p of [`${datei}.gz`, datei]) {
+    try {
+      const roh = await nodeFs.readFile(p);
+      const d = JSON.parse((p.endsWith('.gz') ? gunzipSync(roh) : roh).toString('utf8')) as { entries?: CupEintrag[] };
+      if (d.entries?.length) return d.entries;
+    } catch { /* naechste */ }
+  }
+  return null;
+}
+
+/** Die Replay-Werte eines Spieltags je Team (Summe der Spieler) - null, wenn ein Spieler nicht ganz gelesen ist. */
+async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
+  type D = { erlitten?: number; treffer?: number; sturm?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number };
+  const c = await liesJson<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+  if (!c?.schaden) return () => null;
+  return (e) => {
+    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0 };
+    for (const p of e.players) {
+      const id = String(p.id ?? '').toLowerCase();
+      const d = c.schaden?.[id];
+      if (!d || (c.spiele?.[id] ?? 0) < (e.games || 0)) return null;
+      x.erlitten += d.erlitten ?? 0; x.treffer += d.treffer ?? 0;
+      x.sturm += typeof d.sturm === 'number' && d.sturm < 1e6 ? d.sturm : 0;
+      x.clutch += c.summe?.[id] ?? 0;
+      if (x.builds !== null) x.builds = typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.builds + (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0) : null;
+    }
+    return x.erlitten === 0 && x.treffer === 0 ? null : x;
+  };
+}
 
 /**
  * Vom Admin abgesagte Runden herausrechnen (lib/abgesagt), genau wie die Bestenliste (app/api/cup-leaderboard, bereinigt).
@@ -110,8 +158,13 @@ async function holeRoh(request: Request) {
     const finale = istGlobalsFinale(event, window_);
     const summe = tageListe.length > 1;
     const tageDaten = summe ? await Promise.all(tageListe.map((w) => gecacht(`stats|${event}|${w}|${limit}`, TTL, () => holeTop(event, w, limit)))) : null;
-    const einzeln = finale || summe || !window_ ? null : await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
-      () => holeTop(event, window_, limit));
+    // Ein einzelner Spieltag: das ganze Feld aus dem Vorrat der Bestenliste, wenn er schon gebaut ist.
+    const vorgebaut = finale || summe || !window_ ? null : await ganzeListe(window_);
+    const einzeln = finale || summe || !window_ ? null : vorgebaut ? { entries: vorgebaut, totalPages: 1, updated: undefined as string | undefined }
+      : await gecacht(`stats|${event}|${window_}|${limit}`, TTL, () => holeTop(event, window_, limit));
+    const extraVon = window_ && !summe && !finale ? await extraFuer(window_) : () => null;
+    const extra = new Map<CupEintrag, Extra | null>();
+    const ex = (e: CupEintrag) => { if (!extra.has(e)) extra.set(e, extraVon(e)); return extra.get(e) ?? null; };
     const eintraege = tageDaten
       ? summiereTage(await Promise.all(tageDaten.map((d, i) => ohneAbgesagteRunden(d.entries as CupEintrag[], event, tageListe[i], (d.totalPages ?? 1) <= 1))))
       : finale ? summiereTage(await globalsTage(limit))
@@ -123,25 +176,25 @@ async function holeRoh(request: Request) {
       !nurListe || k.schluessel === nurListe).map((k) => {
       const mindestSpiele = k.jeSpiel ? Math.max(1, Math.ceil(eintraege.reduce((m, e) => Math.max(m, e.games || 0), 0) / 2)) : 0;
       const mitWert = eintraege.filter((e) => {
-        const v = k.wert(e);
+        const v = k.wert(e, ex(e));
         return Number.isFinite(v) && v > 0 && (e.games || 0) >= mindestSpiele;
       });
       // Liefert das Turnier diese Kennzahl nicht, entfaellt die Kategorie.
       if (!mitWert.length) return null;
 
       const sortiert = [...mitWert].sort((a, b) =>
-        k.kleinBesser ? k.wert(a) - k.wert(b) : k.wert(b) - k.wert(a));
+        k.kleinBesser ? k.wert(a, ex(a)) - k.wert(b, ex(b)) : k.wert(b, ex(b)) - k.wert(a, ex(a)));
 
       /*
        * Platz in dieser Kennzahl: gleicher angezeigter Wert, gleicher Platz (1, 2, 2, 4). Vorher zaehlte die Kachel nur die Zeilen durch -
        * zwanzig Teams mit 13 Eliminierungen standen auf 5 bis 24, und die Siege (je 1) auf 1 bis 6. "rank" bleibt Epics Gesamtplatz des Teams.
        * Bei den Punkten entscheidet Epics Wertung auch bei gleichen Punkten (Tiebreaker), dort gilt der Gesamtplatz.
        */
-      const zeigen = (e: typeof sortiert[number]) => +(k.faktor ? k.wert(e) * k.faktor : k.wert(e)).toFixed(k.nachkomma ?? 0);
+      const zeigen = (e: typeof sortiert[number]) => +(k.faktor ? k.wert(e, ex(e)) * k.faktor : k.wert(e, ex(e))).toFixed(k.nachkomma ?? 0);
       const statPlaetze: number[] = [];
       sortiert.forEach((e, i) => { statPlaetze.push(i > 0 && zeigen(sortiert[i - 1]) === zeigen(e) ? statPlaetze[i - 1] : i + 1); });
       const platz = (e: typeof sortiert[number], i: number) => {
-        const roh = k.wert(e);
+        const roh = k.wert(e, ex(e));
         const angezeigt = k.faktor ? roh * k.faktor : roh;
         return {
           rank: e.rank,
@@ -163,6 +216,8 @@ async function holeRoh(request: Request) {
         titel: k.titel,
         symbol: k.symbol,
         einheit: k.einheit ?? null,
+        zeit: !!k.zeit,
+        mehr: !!k.mehr,
         // Wie viele Nachkommastellen dazugehoeren. Ohne diese Angabe wird
         // aus 17,00 in der Anzeige "17", und die Spalte steht schief.
         nachkomma: k.nachkomma ?? 0,
