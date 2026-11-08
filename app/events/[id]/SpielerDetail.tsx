@@ -54,7 +54,7 @@ function dauer(s: number): string {
 }
 
 type Wert = number | null;
-interface Ctx { e: Eintrag | null; solo: boolean; mitglieder: Mitglied[]; echtSolo: boolean }
+interface Ctx { e: Eintrag | null; solo: boolean; mitglieder: Mitglied[]; echtSolo: boolean; fenster?: string }
 interface Zeile {
   titel: string;
   wert: (m: Mitglied, c: Ctx) => Wert;
@@ -131,6 +131,8 @@ const KERN: Zeile[] = [
     const k = elimsVon(m, c);
     if (k === null) return null;
     if (m.replay?.killsNachAus !== undefined) return k / Math.max(1, m.replay.tode ?? 0);
+    // Im Reload stirbt man oft mehrmals je Spiel: die Spiele ohne Sieg waren als Tode viel zu wenig (Betreiber, 8.11.2026: 5,40 statt Osirions 2,25).
+    if (c.e && c.e.games && /reload/i.test(c.fenster ?? '')) return null;
     return c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
   }, zeige: (v, ort) => dez(v, ort, 2) },
 ];
@@ -455,7 +457,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     if (z.je && (!ausReplay.some((v) => v !== undefined) || (!team && z.titel === 'Time Alive'))) return spiele.map((m) => z.je?.(m));
     return ausReplay;
   };
-  const ctx: Ctx = { e, solo: !team, mitglieder, echtSolo: solo };
+  const ctx: Ctx = { e, solo: !team, mitglieder, echtSolo: solo, fenster: windowId };
   const verifizieren = `/api/auth/epic/authorize?zurueck=${encodeURIComponent(rueckPfad)}`;
   const trennen = async () => {
     setTrennFehler('');

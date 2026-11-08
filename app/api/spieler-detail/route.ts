@@ -230,7 +230,9 @@ export async function GET(request: Request) {
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;
             const spielZahl = (clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[i] ?? 0;
-            if (!w.invSpiele || w.invSpiele < spielZahl) return {};
+            // Waehrend des Auslesens (teilweise) stehen die Zwischenstaende da - die Seite sagt dazu "Not final yet". Fertig nur, wenn alle Spiele sie haben.
+            const teilweise = !!(clutch as unknown as { teilweise?: unknown } | null)?.teilweise;
+            if (!w.invSpiele || (w.invSpiele < spielZahl && !teilweise)) return {};
             return { farmHolz: w.farmHolz ?? 0, farmStein: w.farmStein ?? 0, farmMetall: w.farmMetall ?? 0, samHolz: w.samHolz ?? 0, samStein: w.samStein ?? 0, samMetall: w.samMetall ?? 0, ...(typeof w.killsEcht === 'number' ? { kills: w.killsEcht, tode: w.todeEcht ?? 0, killsNachAus: w.killsNachAus ?? 0 } : {}), schussEcht: w.schussEcht ?? 0, editOk: w.editOk ?? 0, schildHeilEcht: w.schildHeilEcht === undefined ? undefined : Math.round(w.schildHeilEcht), schildWegEcht: w.schildWegEcht === undefined ? undefined : Math.round(w.schildWegEcht), sturmSchaden: w.sturmSchaden, busDank: w.busDank, lebenWeg: w.lebenWeg, schadenAlle: w.dmgAlle, schadenBoden: typeof w.dmgAlle === 'number' && typeof w.dmg === 'number' ? Math.max(0, w.dmgAlle - w.dmg) : undefined, selbstHolz: w.selbstHolz ?? 0, selbstStein: w.selbstStein ?? 0, selbstMetall: w.selbstMetall ?? 0 };
           })() : {}),
           ...(je.zeilen.get(i) ? { jeSpiel: je.zeilen.get(i) } : {}),
