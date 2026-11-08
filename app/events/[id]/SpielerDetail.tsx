@@ -109,7 +109,7 @@ const REIHE = ['Eliminations', 'Damage To Players', 'Damage From Players', 'Dama
   'Overall Accuracy', 'Weakpoint Accuracy', 'Players Revived', 'Got Revived', 'Players Rebooted', 'Got Rebooted', 'Wood Farmed', 'Stone Farmed', 'Metal Farmed',
   'Mats Collected', 'Wood Collected', 'Stone Collected', 'Metal Collected', 'Time in Storm', 'Storm Damage Taken', 'Surge Hits', 'Distance Traveled',
   'Deaths', 'Player Eliminations (After Out)', 'Damage Done', 'Damage To Knocked Players', 'Health Taken', 'Shield Taken', 'Own Builds Placed', 'Wood Builds Placed',
-  'Stone Builds Placed', 'Metal Builds Placed', 'Builds Edited', 'Builds Edited Successfully', 'Time spent Editing', 'Thanked Bus Driver'];
+  'Stone Builds Placed', 'Metal Builds Placed', 'Builds Edited', 'Edit Attempts', 'Time spent Editing', 'Thanked Bus Driver'];
 /** Nur im Kopf, nicht in der Tabelle (Solo). Im Team stehen sie im Team-Kasten. */
 const NUR_KOPF = new Set(['Points', 'Matches', 'Wins']);
 const rang = (titel: string) => { const i = REIHE.indexOf(titel); return i < 0 ? REIHE.length : i; };
@@ -176,8 +176,9 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Wood Builds Placed', wert: (m) => m.replay?.selbstHolz ?? null, zeige: num },
   { titel: 'Stone Builds Placed', wert: (m) => m.replay?.selbstStein ?? null, zeige: num },
   { titel: 'Metal Builds Placed', wert: (m) => m.replay?.selbstMetall ?? null, zeige: num },
-  { titel: 'Builds Edited', wert: (m) => m.replay?.editZahl ?? null, zeige: num },
-  { titel: 'Builds Edited Successfully', wert: (m) => m.replay?.editOk ?? null, zeige: num },
+  // Osirion zaehlt nur gelungene Edits (8.11.2026, elf Trio-Matches: 151/151, 94/94, 86/86 ...); die Versuche stehen darunter.
+  { titel: 'Builds Edited', wert: (m) => m.replay?.editOk ?? m.replay?.editZahl ?? null, zeige: num },
+  { titel: 'Edit Attempts', wert: (m) => m.replay?.editZahl ?? null, zeige: num },
   { titel: 'Time spent Editing', wert: (m) => (typeof m.replay?.editZahl === 'number' ? (m.replay.editZahl ? m.replay.editSek ?? 0 : 0) : null), zeige: (v) => dauer(v) },
   { titel: 'Pickaxe Hits', wert: (m) => m.replay?.axt ?? null, zeige: num },
   { titel: 'Headshots', wert: kopf, zeige: num },
@@ -274,8 +275,8 @@ const JE_KURVE: Record<string, (w: JeW) => number | undefined> = {
   'Shield Taken': (w) => w('schildWegEcht'),
   'Own Builds Placed': (w) => summe(w('selbstHolz'), w('selbstStein'), w('selbstMetall')),
   'Wood Builds Placed': (w) => w('selbstHolz'), 'Stone Builds Placed': (w) => w('selbstStein'), 'Metal Builds Placed': (w) => w('selbstMetall'),
-  'Builds Edited': (w) => w('editZahl'),
-  'Builds Edited Successfully': (w) => w('editOk'),
+  'Builds Edited': (w) => w('editOk') ?? w('editZahl'),
+  'Edit Attempts': (w) => w('editZahl'),
   'Time spent Editing': (w) => w('editSek'),
   'Pickaxe Hits': (w) => w('axt'),
   'Thanked Bus Driver': (w) => w('busDank'),

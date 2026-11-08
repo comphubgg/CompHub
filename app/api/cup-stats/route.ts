@@ -282,7 +282,8 @@ async function holeRoh(request: Request) {
         matsGefarmt: istZeroBuild(window_) ? 0 : eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
-        edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
+        // Gelungene Edits wie Osirion (Builds Edited); die Versuche waeren mehr.
+        edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => (d as { editOk?: number }).editOk ?? d.editZahl) : null,
         editStunden: s.some((d) => typeof d.editSek === 'number') ? summeVon((d) => d.editSek) / 3600 : null,
         plattformen,
       };

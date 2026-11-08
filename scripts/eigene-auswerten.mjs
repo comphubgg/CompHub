@@ -37,7 +37,8 @@ const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 // 7 (8.11.2026, abends): dazu die Ueberlebenszeit je Spieler (Feld leben).
 // 8 (8.11.2026, 19 Uhr): Damage mit dem Schaden auf Umgehauene, Heilung ohne falsche Knocks (lib/vollSchaden.mjs).
 // 9 (8.11.2026, abends): Damage wie Osirion (Knock-/Kill-Schuss gekappt, ohne Umgehauene; Damage from Players ohne die Treffer im Knock), Heilung ohne Siphon, Mats-Fenster 2 s.
-const VERSION = 9;
+// 10: Health Taken ohne Verlust im Knock, Siphon nur als Sprung (im Reload auch +5-Schritte).
+const VERSION = 10;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
