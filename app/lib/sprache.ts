@@ -564,6 +564,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Dauer': 'Duration',
   'Endet in': 'Ends in',
   'Gerade': 'Right now',
+  'Qual-Grenze jetzt': 'Qual right now',
+  'Qual-Grenze am Ende': 'Qual needed',
   'Gekostet': 'Needed',
   'Teams noch im Spiel': 'Teams remaining',
   'Gerade läuft keine Lobby.': 'No lobby is running right now.',

@@ -3288,7 +3288,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 [basis[1][0], basis[1][1], 'sm:flex-[0.7]'],
                 ...(karte ? [[t('Karte'), karte, 'sm:flex-[1.5]'] as [string, string, string]] : []),
                 [qualTitel, einfach ? qualKurz : qualWert, 'sm:flex-[1.3]'],
-                ...(jetztWert !== null ? [[qual?.laeuft ? t('Gerade') : t('Gekostet'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
+                ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
               void format; void region;
