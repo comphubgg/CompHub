@@ -210,9 +210,11 @@ export async function GET(request: Request) {
       const roh = namen.get(i) ?? '';
       const k = kontext?.(i, roh);
       let replay: ReplayWerte | null = null;
-      if (rep) {
-        const e = rep.spieler.find((x) => normId(x.epicId) === i);
-        const d = clutch?.schaden?.[i];
+      if (rep || clutch?.schaden?.[i] || eigene?.spieler?.[i]?.voll) {
+        const e = rep?.spieler.find((x) => normId(x.epicId) === i);
+        // Hat das volle Auslesen den Spieler noch nicht, die Werte aus der Auswertung seiner eigenen Lobbys (gleiche Rechnung, lib/vollSchaden.mjs).
+        const ausEigenen = !clutch?.schaden?.[i] && !!eigene?.spieler?.[i]?.voll;
+        const d = clutch?.schaden?.[i] ?? (eigene?.spieler?.[i]?.voll as unknown as NonNullable<NonNullable<typeof clutch>['schaden']>[string] | undefined);
         replay = {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           /*
@@ -229,7 +231,7 @@ export async function GET(request: Request) {
           // Aus dem Inventar. Nur wenn alle Spiele dieses Spielers die Werte haben: halbe Summen stehen nicht auf der Seite.
           ...(d ? (() => {
             const w = d as unknown as Record<string, number | undefined>;
-            const spielZahl = (clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[i] ?? 0;
+            const spielZahl = ausEigenen ? (eigene?.spieler?.[i]?.spiele ?? 0) : (clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[i] ?? 0;
             // Waehrend des Auslesens (teilweise) stehen die Zwischenstaende da - die Seite sagt dazu "Not final yet". Fertig nur, wenn alle Spiele sie haben.
             const teilweise = !!(clutch as unknown as { teilweise?: unknown } | null)?.teilweise;
             if (!w.invSpiele || (w.invSpiele < spielZahl && !teilweise)) return {};
@@ -258,8 +260,11 @@ export async function GET(request: Request) {
       const o = eigene?.spieler?.[i];
       if (o) {
         replay = {
-          kills: eigeneKomplett ? o.kills : (replay?.kills ?? null), knocks: eigeneKomplett ? o.knocks : (replay?.knocks ?? null),
-          tode: eigeneKomplett ? o.tode : (replay?.tode ?? null), spiele: eigeneKomplett ? o.spiele : (replay?.spiele ?? o.spiele),
+          // Die Werte des vollen Auslesens bleiben stehen - frueher fielen sie hier weg, sobald eine eigene Auswertung da war.
+          ...(replay ?? {}),
+          // Echte Elims und Tode aus dem vollen Auslesen gehen vor (Reload: mehrere Tode je Spiel - die alte Zaehlung kannte nur Spiele ohne Sieg).
+          kills: replay?.killsNachAus !== undefined ? replay.kills : eigeneKomplett ? o.kills : (replay?.kills ?? null), knocks: eigeneKomplett ? o.knocks : (replay?.knocks ?? null),
+          tode: replay?.killsNachAus !== undefined ? replay.tode : eigeneKomplett ? o.tode : (replay?.tode ?? null), spiele: eigeneKomplett ? o.spiele : (replay?.spiele ?? o.spiele),
           damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
           hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
           ...(typeof o.sturm === 'number' ? { sturmSek: Math.round(o.sturm) } : {}),

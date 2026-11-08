@@ -20,6 +20,7 @@ import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
+import { schadenAus } from '../lib/vollSchaden.mjs';
 
 const DATEN = process.env.COMPHUB_DATEN || path.join(process.cwd(), 'data');
 const ANFRAGEN = path.join(DATEN, 'eigene-anfragen');
@@ -30,7 +31,9 @@ const DOTNET = process.env.DOTNET_BIN || 'dotnet';
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 /** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm; 4: dazu Wiederbelebungen und Reboots; 5: Schaden mit der dauerhaften Zuordnung Figur -> Spieler im Leser, 28.10.2026 - Median 97,7 % statt 90,9 % von Epics Wert). */
-const VERSION = 5;
+// 6 (8.11.2026): dazu alle Werte des vollen Auslesens (lib/vollSchaden.mjs - dieselbe Rechnung wie clutch-berechnen: Schaden wie Osirion, Heilung,
+// Genauigkeit, Edits, Mats, echte Tode). Die Fassung 5 lag im Middle-East-Cup 1.100 Schaden unter Osirion. Neu gerechnet wird nur, was von der Seite bestellt ist.
+const VERSION = 6;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -39,7 +42,7 @@ const liesJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
 const norm = (s) => String(s ?? '').replace(/-/g, '').toLowerCase();
 const ergebnisDatei = (w, id) => path.join(STATS, w, `${id}.json`);
 /** Gibt es ein Ergebnis in der heutigen Fassung? */
-const fertigDa = (w, id) => (liesJson(ergebnisDatei(w, id))?.version ?? 0) >= VERSION;
+const fertigDa = (w, id, auto = false) => (liesJson(ergebnisDatei(w, id))?.version ?? 0) >= (auto ? 5 : VERSION);
 
 /**
  * Alle Bestellungen, zu denen es noch kein Ergebnis gibt und deren Replays bei Epic noch liegen koennen.
@@ -53,7 +56,7 @@ function offene() {
     if (!a?.windowId || !a?.eventId || !/^[0-9a-f]{32}$/.test(a.epicId ?? '')) continue;
     if (!(Array.isArray(a.sitzungen) && a.sitzungen.length) && !a.auto) continue;
     if (Date.now() - Math.max(a.zeit ?? 0, a.datum ?? 0) > FRIST_MS) continue;
-    if (fertigDa(a.windowId, a.epicId)) continue;
+    if (fertigDa(a.windowId, a.epicId, !!a.auto)) continue;
     raus.push(a);
   }
   const wann = (a) => a.datum ?? a.zeit ?? 0;
@@ -181,6 +184,15 @@ function zaehle(m, team, summen) {
     // Wie oft er vom Boden wiederbelebt (gegen "rebootsAndRevives" der Szene-Quelle an drei Finals geprueft) und per Reboot zurueckgeholt wurde (Kill-Feed).
     s.wiederbelebt += zu?.wiederbelebt ?? 0;
     s.rebootet += zu?.rebootet ?? 0;
+  }
+  // Alle Werte des vollen Auslesens je Teammitglied aufsummiert (Feldnamen wie clutch/<Fenster>.json "schaden") - die Seite nimmt sie, solange das volle
+  // Auslesen dieses Spieltags den Spieler noch nicht hat.
+  const voll = schadenAus(m) ?? {};
+  for (const konto of team) {
+    const v = Object.entries(voll).find(([k]) => norm(k) === konto)?.[1];
+    if (!v || !summen[konto]) continue;
+    const z = summen[konto].voll ??= {};
+    for (const [f, w] of Object.entries(v)) if (typeof w === 'number') z[f] = (z[f] ?? 0) + w;
   }
 }
 

@@ -41,6 +41,8 @@ export interface SpielerErgebnis {
   sturm?: number;
   /** Wie oft er vom Boden wiederbelebt wurde, und wie oft per Reboot zurueckgeholt (ab Version 4). */
   wiederbelebt?: number; rebootet?: number;
+  /** Alle Werte des vollen Auslesens, Feldnamen wie clutch/<Fenster>.json "schaden" (Fassung 6, scripts/eigene-auswerten.mjs). */
+  voll?: Record<string, number>;
 }
 
 export interface Ergebnis {
