@@ -478,7 +478,9 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<string, int> inventarStand = new();
   readonly Dictionary<string, int> inventarLage = new();
   readonly List<(uint wurzel, double t, int stoff, int menge)> matsSchritte = new();
-  readonly List<(uint wurzel, int schuesse)> schussSchritte = new();
+  readonly List<(uint wurzel, int schuesse, double t)> schussSchritte = new();
+  /// Nur Schusswaffen zaehlen als Schuesse - Spraydose, Heilspray, Maske, Greifhandschuhe und Co. haben auch eine Ladung (8.11.2026: 520 "Schuesse" mit der Spraydose in zehn Matches).
+  static readonly System.Text.RegularExpressions.Regex SchussWaffe = new("Shotgun|SMG|Pistol|Assault|Rifle|Sniper|DMR|Minigun|LMG|Bow|Revolver|Burst|Crossbow|Launcher|Hunting", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
   public int AbwurfMunition;
   uint stapelTyp, ladungTyp;
   public int InventarEintraege, InventarOhneMenge;
@@ -555,12 +557,20 @@ class SchadenLeser : ReplayReader {
      * Faellt das Magazin auf einmal um mehr als 8 auf 0, ist das kein Schiessen, sondern ein Abwurf - im Reload bei jedem Tod das ganze Inventar
      * (8.11.2026: Shots der FNCS Solo Reload EU 13,9 Mio. zu Osirions 9,1 Mio.).
      */
-    if (da && ladung < vor) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung)); }
+    if (da && ladung < vor && SchussWaffe.IsMatch(name)) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung, Zeit() ?? 0)); }
   }
   int? SpielerDerWurzel(uint wurzel) {
     if (!inventarFiguren.TryGetValue(wurzel, out var l)) return null;
     foreach (var f in l) if (spielerVonAkteur.TryGetValue(f, out var id)) return id;
     return null;
+  }
+  bool WaffeInHand(int id, double t) {
+    if (!Hand.TryGetValue(id, out var l) || l.Count == 0) return false;
+    int a = 0, z = l.Count - 1;
+    while (a < z) { var m = (a + z + 1) / 2; if (l[m][0] <= t) a = m; else z = m - 1; }
+    if (l[a][0] > t) return false;
+    var nr = (int)l[a][1];
+    return nr >= 0 && nr < WaffenNamen.Count && SchussWaffe.IsMatch(WaffenNamen[nr] ?? "");
   }
   bool MitSpitzhacke(int id, double t) {
     if (!Hand.TryGetValue(id, out var l) || l.Count == 0) return false;
@@ -648,7 +658,17 @@ class SchadenLeser : ReplayReader {
         e[ExtraGesammelt + stoff] += rest;
       }
     }
-    foreach (var (wurzel, schuesse) in schussSchritte) if (SpielerDerWurzel(wurzel) is int id) ExtraVon(id)[ExtraSchuesse] += schuesse;
+    /*
+     * Schuesse (8.11.2026, an zehn Matches des Betreibers gegen Osirion: 429 zu 440): je 2 s das Groessere aus der Munition, die aus dem Magazin verschwindet, und den Einschlaegen
+     * mit einer Schusswaffe in der Hand. Der Munitionsstand fehlt bei manchen Waffen ganz (nicht im Inventar zugeordnet), die Einschlaege sehen keine Schuesse ins Leere.
+     */
+    var ammoJe = new Dictionary<(int, long), int>(); var einschlagJe = new Dictionary<(int, long), int>();
+    foreach (var (wurzel, schuesse, ts) in schussSchritte) if (SpielerDerWurzel(wurzel) is int id) { var k = (id, (long)Math.Floor(ts / 2)); ammoJe[k] = (ammoJe.TryGetValue(k, out var a0) ? a0 : 0) + schuesse; }
+    foreach (var sch in Schuesse) {
+      var id = (int)sch[1]; if (!WaffeInHand(id, sch[0])) continue;
+      var k = (id, (long)Math.Floor(sch[0] / 2)); einschlagJe[k] = (einschlagJe.TryGetValue(k, out var e0) ? e0 : 0) + 1;
+    }
+    foreach (var k in ammoJe.Keys.Union(einschlagJe.Keys)) ExtraVon(k.Item1)[ExtraSchuesse] += Math.Max(ammoJe.TryGetValue(k, out var a1) ? a1 : 0, einschlagJe.TryGetValue(k, out var e1) ? e1 : 0);
     foreach (var (stoff, besitzer, gesetzt, ersatz) in bauTeile.Values) {
       if (gesetzt && !ersatz && spielerVonWelt.TryGetValue(besitzer, out var id)) ExtraVon(id)[ExtraBauten + (stoff == 'W' ? 0 : stoff == 'S' ? 1 : 2)] += 1;
     }
