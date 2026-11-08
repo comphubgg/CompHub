@@ -47,13 +47,19 @@ const ZIEL = path.join(DATEN, 'clutch');
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 
 /** Die Wertungsregeln eines Spieltags - wie lib/cupWertung.ts (wertungVon). */
+const katalogMerker = new Map();
 async function wertung(eventId, windowId) {
   const { token, accountId } = await holeNutzerToken();
-  for (const region of ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE']) {
-    const r = await fetch(`${EVENTS}/api/v1/events/Fortnite/download/${accountId}?region=${region}&platform=Windows&teamAccountIds=${accountId}`,
-      { headers: { Authorization: token } });
-    if (!r.ok) continue;
-    const d = await r.json();
+  // Die Region des Spieltags zuerst - und jeder Katalog nur einmal je Lauf (der Planer fragt fuer alle offenen Spieltage).
+  const eigene = (windowId.match(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i)?.[1] ?? '').toUpperCase();
+  for (const region of [...new Set([eigene, 'EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].filter(Boolean))]) {
+    let d = katalogMerker.get(region);
+    if (!d) {
+      const r = await fetch(`${EVENTS}/api/v1/events/Fortnite/download/${accountId}?region=${region}&platform=Windows&teamAccountIds=${accountId}`,
+        { headers: { Authorization: token } });
+      if (!r.ok) continue;
+      d = await r.json(); katalogMerker.set(region, d);
+    }
     const schluessel = `Fortnite:${eventId}:${windowId}`;
     const satz = (d.scoreLocationScoringRuleSets ?? {})[schluessel]
       ?? Object.entries(d.scoreLocationScoringRuleSets ?? {}).find(([k]) => k.endsWith(`:${windowId}`))?.[1];
@@ -66,6 +72,15 @@ async function wertung(eventId, windowId) {
       was: NAME[x.trackedStat] ?? x.trackedStat, schwelle: st.keyValue ?? 0, regel: x.matchRule ?? '',
       punkte: st.pointsEarned ?? 0, jeStueck: Boolean(st.multiplicative),
     }))).filter((x) => x.punkte > 0);
+  }
+  return [];
+}
+
+/** wertung mit drei Versuchen bei Fehlern (etwa zu viele Anmeldungen); eine leere Tabelle heisst: Epic fuehrt den Spieltag nicht mehr - kein neuer Versuch. */
+async function wertungSicher(eventId, windowId) {
+  for (let i = 0; i < 3; i += 1) {
+    try { return await wertung(eventId, windowId); } catch (e) { console.log(`  Wertung ${windowId}: ${e.message}`); }
+    await new Promise((ok) => setTimeout(ok, 15_000 * (i + 1)));
   }
   return [];
 }
@@ -489,6 +504,9 @@ if (arg[0] === '--plan') {
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
   // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
   const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 150)));
+  // Die Punktetabelle holt der Planer einmal fuer alle Rechner - acht Rechner, die sie zugleich bei Epic holen, laufen leicht in "zu viele Anmeldungen",
+  // und ein Rechner ohne Tabelle rechnete bisher still ohne Clutch-Punkte weiter.
+  for (const t of raus) { try { t.regeln = await wertungSicher(t.eventId, t.windowId); } catch { t.regeln = []; } }
   fs.writeFileSync(ziel, JSON.stringify({ erstellt: new Date().toISOString(), fenster: raus }));
   for (const t of raus.slice(0, 15)) console.log(`  ${t.windowId.padEnd(52)} ${String(t.offen.length).padStart(6)} offen von ${t.gesamt}`);
   console.log(`Plan: ${offenGesamt} offene Matches aus ${raus.length} Spieltagen - ${offenGesamt ? rechner : 0} Rechner`);
@@ -520,8 +538,9 @@ if (arg[0] === '--plan') {
     if (Date.now() > schluss) break;
     const meine = t.offen.filter((id) => hash(id) % teilVon === teilNr % teilVon);
     if (!meine.length) continue;
-    let regeln = [];
-    try { regeln = await wertung(t.eventId, t.windowId); } catch { /* ohne Regeln nur Schaden */ }
+    // Die Tabelle aus dem Plan; fehlt sie dort, selbst holen (mit Wiederholung).
+    let regeln = Array.isArray(t.regeln) && t.regeln.length ? t.regeln : [];
+    if (!regeln.length) { try { regeln = await wertungSicher(t.eventId, t.windowId); } catch { /* ohne Regeln nur Schaden */ } }
     // Rohdaten (Kill-Feed, Figuren) nur bei kleinen Spieltagen - bei 20.000 Matches waeren es Gigabytes; die Ueberlebenszeit wird hier gleich gezaehlt.
     const mitRoh = t.gesamt <= GROSS_MAX;
     const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);

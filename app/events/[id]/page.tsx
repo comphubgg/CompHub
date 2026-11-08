@@ -827,6 +827,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [statistikStand, setStatistikStand] = useState<string | null>(null);
   /** Die Teamwerte waren nicht zu holen: dann steht ein Hinweis da statt "leer", und nach 10 Sekunden geht es noch einmal los. */
   const [statistikFehlt, setStatistikFehlt] = useState(false);
+  /** Ob die Kacheln (cup-stats) schon geantwortet haben - vorher zeigt ein Solo-Cup nicht die alte Uebersicht an ihrer Stelle. */
+  const [statistikDa, setStatistikDa] = useState(false);
   const [statistikVersuch, setStatistikVersuch] = useState(0);
   /*
    * Von Hand neu laden (Betreiber, 27.10.2026: "fuer die VIPs ein kleines Reload-Zeichen neben Alle und Freunde - da druecke ich drauf und der ganze Cup mit Statistik, Matches und
@@ -1706,7 +1708,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * verlassen kann.
    */
   useEffect(() => {
-    if (!lbFenster || !zeigeStatistik) { setStatistik([]); setStatistikFehlt(false); return; }
+    if (!lbFenster || !zeigeStatistik) { setStatistik([]); setStatistikFehlt(false); setStatistikDa(true); return; }
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
@@ -1715,14 +1717,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((d) => {
         if (weg) return;
         if (!Array.isArray(d?.bestenlisten)) throw new Error('keine Bestenlisten');
-        setStatistikFehlt(false);
+        setStatistikFehlt(false); setStatistikDa(true);
         setStatistik(d.bestenlisten);
         setUeberblick(d.ueberblick ?? null);
         setStatistikStand(d.aktualisiert ?? null);
       })
       .catch(() => {
         if (weg) return;
-        setStatistik([]);
+        setStatistik([]); setStatistikDa(true);
         setStatistikFehlt(true);
         nochmal = setTimeout(() => { if (!weg) setStatistikVersuch((v) => v + 1); }, 10_000);
       });
@@ -4899,7 +4901,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
         {/* Solo-Cup: oben dieselben Player Stats wie bei Duos und Trios (Betreiber, 29.10.2026: "Playerstats und dein Solo Cup ... wie bei Osirion"). */}
-        {reiter === 'teams' && soloCup && !!spielerWerte?.spieler.length && (
+        {/* Die alte Uebersicht nur noch, wenn die Kacheln wie bei Osirion fehlen - sie verdraengte sie sonst, sobald die Spielerwerte da waren
+            (Betreiber, 8.11.2026: "ganz kurz was da und jetzt ist es wieder weg"). */}
+        {reiter === 'teams' && soloCup && !!spielerWerte?.spieler.length && statistikDa && !statistik.length && (
           <div className="mb-4">
             <SpielerStatsUebersicht
               spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
@@ -4919,7 +4923,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               zuDetails={(sp) => { setDetailStart(sp); }} />
           </div>
         )}
-        {reiter === 'teams' && lbFenster && !(soloCup && detailStart) && (
+        {reiter === 'teams' && lbFenster && !(soloCup && (detailStart || statistik.length)) && (
           <SpielerDetail key={detailStart?.id ?? 'suche'} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
         )}
 
@@ -5428,7 +5432,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         )}
 
         {/* Turnierstatistik - nur unter einem Finale */}
-        {reiter === 'teams' && statistik.length > 0 && !(soloCup && spielerWerte?.spieler.length) && !offeneListe && (
+        {reiter === 'teams' && statistik.length > 0 && !offeneListe && (
           <section>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-sm font-semibold text-slate-100">
@@ -5518,6 +5522,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </button>
             )}
           </section>
+        )}
+        {/* Solo-Cup: die Spielersuche unter den Kacheln, oben steht wie bei Osirion die Uebersicht. */}
+        {reiter === 'teams' && lbFenster && soloCup && !detailStart && statistik.length > 0 && !offeneListe && (
+          <div className="mt-6">
+            <SpielerDetail key="suche" eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={null} />
+          </div>
         )}
 
         {/* Eine Kennzahl in voller Laenge.
