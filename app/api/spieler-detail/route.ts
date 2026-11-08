@@ -41,12 +41,17 @@ const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
  */
 type GanzeZeile = { rank: number; points: number; players?: Array<{ id: string; name: string }> };
 const LISTEN = new Map<string, { bis: number; zeilen: GanzeZeile[] }>();
+/** Wann die ganze Liste eines Spieltags zuletzt geschrieben wurde (Dateizeit) - ein frischer Vorrat ersetzt die lange Suche bei Epic. */
+const VORRAT_ZEIT = new Map<string, number>();
+const laeuftNoch = (w: string): boolean => Date.now() - (VORRAT_ZEIT.get(w) ?? 0) > 20 * 60_000;
+
 async function ganzeListe(w: string): Promise<GanzeZeile[] | null> {
   const da = LISTEN.get(w);
   if (da && da.bis > Date.now()) return da.zeilen;
   try {
     const datei = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz', `${w.replace(/[^\w.-]/g, '_')}.json.gz`);
     const d = JSON.parse(gunzipSync(await nodeFs.readFile(datei)).toString('utf8')) as { entries?: GanzeZeile[] };
+    try { VORRAT_ZEIT.set(w, (await nodeFs.stat(datei)).mtimeMs); } catch { /* ohne Zeit gilt er als alt */ }
     if (!d.entries?.length) return null;
     if (LISTEN.size >= 3) LISTEN.delete(LISTEN.keys().next().value as string);
     LISTEN.set(w, { bis: Date.now() + 120_000, zeilen: d.entries });
@@ -153,10 +158,22 @@ export async function GET(request: Request) {
      * nur langsam und ebenso leer - dann gleich ohne Eintrag weiter: die Werte kommen aus den Replays, die jedes Match lesen (Betreiber, 8.11.2026: "kann
      * sein, dass ich unter Top 10.000 bin ... sollte trotzdem gehen").
      */
+    const clutch = await liesJson<{ summe?: Record<string, number>; leben?: Record<string, number>; epicZeit?: Record<string, number>; epicTeamZeit?: Record<string, number>; strecke?: Record<string, [number, number]>; epicStrecke?: Record<string, number>; schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
     const vorrat = await ganzeListe(fenster);
-    const imVorrat = !vorrat || vorrat.some((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
-    const r = imVorrat ? await findeSpieler(event, fenster, [], [id], MAX_PAGES) : { entries: [] as CupEintrag[] };
-    const eintrag: CupEintrag | undefined = r.entries[0];
+    const vorratZeile = vorrat?.find((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
+    // Waehrend des Cups kann der Vorrat hinterherhinken: dann doch bei Epic suchen. Nur wer nach dem Ende fehlt, steht sicher nicht in Epics Liste.
+    // Fehlt er in der Liste, spielt aber in den gelesenen Replays (oder die Liste ist frisch), steht er sicher nicht unter Epics 10.000 - keine Suche durch hundert Seiten.
+    const imReplay = ((clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[id] ?? 0) > 0;
+    const sicherDraussen = !!vorrat && !vorratZeile && (imReplay || !laeuftNoch(fenster));
+    let r: { entries: CupEintrag[] } = { entries: [] };
+    if (!sicherDraussen) { try { r = await findeSpieler(event, fenster, [], [id], MAX_PAGES); } catch { /* unten der Vorrat */ } }
+    /*
+     * Antwortet Epic nicht oder findet nichts, obwohl der Spieler im Vorrat steht: sein Eintrag von dort - Platz, Punkte, Team (Betreiber, 8.11.2026: "sagt,
+     * ich bin nicht in diesem Cup dabei, obwohl ich 70. war"). Spiele je Match fehlen dann, die Werte kommen aus den Replays.
+     */
+    // Der Vorrat ist Epics Liste, wie app/api/cup-leaderboard sie ablegt (lib/bestenlisteVorrat) - dieselben Felder wie bei der Suche.
+    const ausVorrat: CupEintrag | undefined = !r.entries[0] && vorratZeile ? (vorratZeile as unknown as CupEintrag) : undefined;
+    const eintrag: CupEintrag | undefined = r.entries[0] ?? ausVorrat;
     const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
 
     // Namen: aus der Bestenliste, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
@@ -198,7 +215,6 @@ export async function GET(request: Request) {
 
     const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
-    const clutch = await liesJson<{ summe?: Record<string, number>; leben?: Record<string, number>; epicZeit?: Record<string, number>; epicTeamZeit?: Record<string, number>; strecke?: Record<string, [number, number]>; epicStrecke?: Record<string, number>; schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
 
     // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
     const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
