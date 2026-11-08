@@ -3180,9 +3180,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
         {/* Eventinfos */}
         {fenster && (
-          /* Beginn und Ende in einer Kachel, die Spielzahl schmal, das Weiterkommen breit - der lange Text brach sonst um (Betreiber, 8.11.2026). */
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.5fr)_minmax(0,2.2fr)]">
-            {([
+          /*
+           * Gleich grosse, kompakte Kacheln in zwei Reihen zu vier (Betreiber, 8.11.2026: "so sieht es haesslich aus ... Map, Duration ... noch was Viertes
+           * oder Fuenftes reinklatschen"): Zeit, Dauer, Spiele, Karte, Format, Region, Weiterkommen und die Punkte dafuer getrennt.
+           */
+          <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {(() => { const basis = ([
               // Gesamtwertung: von Beginn des ersten bis Ende des letzten Tages, alle Spiele beider Tage.
               [t('Zeit'), (() => {
                 const b = summenFenster ? kumTage[0].begin : fenster.begin;
@@ -3262,15 +3265,34 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       ? `${t('etwa')} ${(Math.round(letzter.rank / letzter.percentile / 100) * 100).toLocaleString(ort)}`
                       : `${(10_000).toLocaleString(ort)}+`;
                   })()],
-            ] as Array<[string, string]>).map(([l, v], i) => (
-              <div key={l} className={`rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 ${i === 2 ? 'col-span-2 lg:col-span-1' : ''}`}
+            ] as Array<[string, string]>);
+              const st = spieltagAus(fenster.playlist);
+              const groesse = teamGroesseAus(fenster.playlist);
+              const format = groesse ? ({ 1: 'Solo', 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[groesse] : null;
+              const karte = st.reload ? insel?.titel ?? null : st.insel.art === 'br' ? 'Battle Royale' : null;
+              const dauer = (sek: number) => { const m = Math.max(0, Math.round(sek / 60)); return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`; };
+              const ende = typeof fenster.end === 'number' ? fenster.end : null;
+              const [qualTitel, qualWert] = basis[2] ?? ['', ''];
+              const [qualKurz, ...qualRest] = qualWert.split(' · ');
+              const kacheln: Array<[string, string]> = [
+                basis[0],
+                ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000)] as [string, string]] : []),
+                basis[1],
+                ...(karte ? [[t('Karte'), karte] as [string, string]] : []),
+                ...(format ? [[t('Format'), `${format} · ${st.zeroBuild ? 'Zero Build' : 'Build'}`] as [string, string]] : []),
+                [t('Region'), region],
+                [qualTitel, qualKurz],
+                ...(qualRest.length ? [[t('Punkte'), qualRest.join(' · ')] as [string, string]] : []),
+              ];
+              return kacheln.map(([l, v]) => (
+              <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
                   ? `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
-                <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
+                <div className="mt-0.5 truncate text-sm font-semibold text-slate-100" title={v}>{v}</div>
               </div>
-            ))}
+            )); })()}
           </div>
         )}
 
