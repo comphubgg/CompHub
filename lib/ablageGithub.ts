@@ -1,4 +1,7 @@
 import type { Speicher } from '@/lib/ablage';
+import { promises as platte } from 'fs';
+import path from 'path';
+import { DATEN_ORT } from '@/lib/datenOrt';
 import { tagFuer as tagFuerRegel, tagsFuer as tagsFuerRegel } from '@/lib/releaseTags.mjs';
 
 /*
@@ -196,17 +199,45 @@ function vorratAufraeumen(jetzt: number) {
   }
 }
 
+/*
+ * Die letzte gute Kopie jedes Anhangs auf der Platte (8.11.2026: GitHubs Ablage antwortete eine Weile auf jeden Abruf mit 504, die Startseite zeigte bei Spieltagen, Saisons
+ * und Regionen nur Striche). Antwortet GitHub mit einem Fehler oder gar nicht, gilt diese Kopie - lieber ein Stand von vorhin als gar keiner. Nur bis 40 MB je Datei.
+ */
+const KOPIEN = path.join(DATEN_ORT, '.release-kopien');
+const kopieName = (tag: string, anhang: string) => path.join(KOPIEN, `${tag}__${anhang}`.replace(/[^A-Za-z0-9._=-]/g, '_'));
+async function letzteKopie(tag: string, anhang: string): Promise<Buffer | null> {
+  try { return await platte.readFile(kopieName(tag, anhang)); } catch { return null; }
+}
+
 async function holeAnhang(anhang: string, tag: string): Promise<Buffer | null> {
   const jetzt = Date.now();
   const da = vorrat.get(anhang);
   if (da && da.bis > jetzt) return da.wert;
-  const r = await fetch(basis(tag) + encodeURIComponent(anhang), {
-    redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS),
-  });
+  let r: Response;
+  try {
+    r = await fetch(basis(tag) + encodeURIComponent(anhang), {
+      redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS),
+    });
+  } catch (e) {
+    const kopie = await letzteKopie(tag, anhang);
+    if (kopie) return kopie;
+    throw e;
+  }
   let wert: Buffer | null;
   if (r.status === 404) wert = null;
-  else if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} bei ${anhang}`);
-  else wert = Buffer.from(await r.arrayBuffer());
+  else if (!r.ok) {
+    const kopie = await letzteKopie(tag, anhang);
+    if (kopie) { vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert: kopie }); return kopie; }
+    throw new Error(`GitHub-Ablage ${r.status} bei ${anhang}`);
+  } else {
+    wert = Buffer.from(await r.arrayBuffer());
+    // Hoechstens alle zehn Minuten neu schreiben - der Vorrat oben holt grosse Dateien jede Minute.
+    const neu = wert;
+    if (neu.length <= 40 * 1024 * 1024) {
+      void platte.stat(kopieName(tag, anhang)).then((st) => jetzt - st.mtimeMs > 10 * 60_000, () => true)
+        .then((schreiben) => (schreiben ? platte.mkdir(KOPIEN, { recursive: true }).then(() => platte.writeFile(kopieName(tag, anhang), neu)) : undefined)).catch(() => {});
+    }
+  }
   // Nur Gefundenes merken - was fehlt, kann im naechsten Lauf da sein.
   if (wert) {
     vorrat.delete(anhang);
