@@ -981,7 +981,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   // About: die Insel eines Reload-Spieltags mit Namen und Karte. Die Seite
   // besorgt sie selbst aus den Spieldateien, wenn es sie noch nicht gibt.
   useEffect(() => {
-    if (reiter !== 'about' || !fenster) return;
+    // Auch fuer die Kachel "Map" oben (8.11.2026), nicht nur unter About.
+    if (!fenster) return;
     const id = setTimeout(() => setAboutJetzt(Date.now()), 0);
     const code = inselAusPlaylist(fenster.playlist).schluessel;
     if (!code || code === 'BR' || insel?.code === code) return () => clearTimeout(id);
@@ -3282,7 +3283,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ...(format ? [[t('Format'), `${format} · ${st.zeroBuild ? 'Zero Build' : 'Build'}`] as [string, string]] : []),
                 [t('Region'), region],
                 [qualTitel, qualKurz],
-                ...(qualRest.length ? [[t('Punkte'), qualRest.join(' · ')] as [string, string]] : []),
+                // Kurz, damit es in die Kachel passt: "78 jetzt · ~344".
+                ...(qualRest.length ? [[t('Punkte'), qualRest.join(' · ').replace(` ${t('Punkte')} (${t('gerade')})`, ` ${t('jetzt')}`).replace(`${t('Prognose')} `, '')] as [string, string]] : []),
               ];
               return kacheln.map(([l, v]) => (
               <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
