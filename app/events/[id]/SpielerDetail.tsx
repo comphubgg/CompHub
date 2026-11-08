@@ -184,7 +184,9 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Headshot Rate', wert: (m, c) => { const a = kopf(m, c); const b = treffer(m); return a !== null && b ? (a / b) * 100 : null; }, zeige: (v, ort) => `${dez(v, ort, 1)} %` },
   { titel: 'Solo Clutch Points', wert: (m) => m.replay?.clutch ?? null, zeige: num, nurMitWert: true },
   // Solo: Epics Zeit (Reload: wer stirbt und zurueckkommt, lebt weiter - der Kill-Feed sah nur das erste Leben; Focus, FNCS Solo Reload: 2h 35m wie Osirion statt 1h 33m).
-  { titel: 'Time Alive', wert: (m, c) => (c.echtSolo && c.e?.timeAlive ? c.e.timeAlive : m.replay?.lebenSek ?? null), zeige: (v) => dauer(v), je: (m) => m.timeAlive },
+  // Auch im Team Epics Zeit aus der Bestenliste - so zeigt es Osirion (Betreiber, 8.11.2026, ME-Cup: 1h 23m = 7 Matches x 11:46; selbst gezaehlt standen 44 Minuten da,
+  // weil jede Wartezeit nach einem Tod im Reload abgezogen wurde).
+  { titel: 'Time Alive', wert: (m, c) => (c.e?.timeAlive ? c.e.timeAlive : m.replay?.lebenSek ?? null), zeige: (v) => dauer(v), je: (m) => m.timeAlive },
   { titel: 'Distance Traveled', wert: (m) => m.replay?.streckeM ?? null, zeige: (v, ort) => `${dez(v / 1000, ort, 1)} km` },
   { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: (v) => dauer(v), rot: true, weniger: true },
   { titel: 'Builds Placed', wert: (m) => (m.replay?.bauHolz === undefined ? null : (m.replay.bauHolz ?? 0) + (m.replay.bauStein ?? 0) + (m.replay.bauMetall ?? 0)), zeige: num },
