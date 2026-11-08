@@ -357,9 +357,19 @@ async function holeRoh(request: Request) {
         ?? board.entries[board.entries.length - 1];
       let punkte = treffer && treffer.rank === schwelle ? treffer.points : null;
       let rang: number | undefined;
+      // Die Groesse des Vorlage-Feldes: Epics Perzentil, wo es dabei ist, sonst aus der Zahl der Seiten der Bestenliste (die letzte Seite gezaehlt).
+      let feldRef: number | null = null;
       const anteil = (treffer as { percentile?: number } | undefined)?.percentile;
-      if (feldDieser && treffer && anteil && anteil > 0) {
-        const feldRef = Math.round(treffer.rank / anteil);
+      if (feldDieser && treffer && anteil && anteil > 0) feldRef = Math.round(treffer.rank / anteil);
+      if (feldDieser && !feldRef) {
+        try {
+          const erste = await holeSeite(f.eventId, f.windowId, 0, true);
+          const proSeite = erste.entries.length;
+          if (erste.totalPages > 1 && proSeite) feldRef = (erste.totalPages - 1) * proSeite + (await holeSeite(f.eventId, f.windowId, erste.totalPages - 1, true)).entries.length;
+          else feldRef = proSeite || null;
+        } catch { /* ohne Feldgroesse bleibt der Platz */ }
+      }
+      if (feldDieser && feldRef) {
         if (Math.abs(feldRef / feldDieser - 1) > 0.2) {
           rang = Math.max(1, Math.round((schwelle / feldDieser) * feldRef));
           try {
