@@ -577,7 +577,7 @@ class SchadenLeser : ReplayReader {
    * Rechnet die Inventar-Schritte auf die Spieler um; einmal nach dem Lesen, wenn alle Figuren bekannt sind. Die Regeln sind an den vier Spielen des Performance-Finales gegen Osirion geprueft
    * (Darm, Charyy, demus; Holz, Stein, Metall je Spieler), die Mengen selbst sind exakt, nur ihre Einordnung ist geschaetzt:
    * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt nicht als Gewinn.
-   * - Gefarmt: das Plus liegt bis 0,5 s nach oder 0,3 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
+   * - Gefarmt: das Plus liegt bis 2 s nach oder 0,6 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
    * - Ein Minus ab 70 ist Hinwerfen. Was das Team binnen 30 s davon wieder aufhebt, ist nur weitergereicht und zaehlt nicht als gesammelt (Darm: Holz +68 % ohne diese Regel).
    * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %.
    */
@@ -631,7 +631,9 @@ class SchadenLeser : ReplayReader {
           continue;
         }
         var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
-        if (Zwischen(schlaege, t - 0.5, t + 0.3) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
+        // Bis 2 s nach dem Schlag (8.11.2026): das Gefarmte kommt im Strom oft spaeter an. Mit 0,5 s fehlten Focus (FNCS Solo Reload, 10 Matches) 15 % zu Osirions
+        // Mats Farmed; mit 2 s 6.781 zu 6.824, Metall 583 zu 593.
+        if (Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
         /*
          * Schlaege auf Autos, Kuehlschraenke und andere Dinge, die kein Bauteil sind, stehen nicht als Einschlag im Strom (8.11.2026: Focus, FNCS Solo Reload, Metall gefarmt
          * 323 zu Osirions 593). Kleine Mengen mit der Spitzhacke in der Hand und ohne Aufheben in der Naehe sind deshalb auch gefarmt.
