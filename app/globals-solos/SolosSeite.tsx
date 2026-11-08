@@ -18,6 +18,7 @@ import type { HeatsDaten } from '@/lib/heatsPosts';
 import { Karte } from './Bausteine';
 import WegPlan from './WegPlan';
 import Preisgeld from './Preisgeld';
+import { useZugang } from '@/app/lib/zugang';
 
 /*
  * FNCS Solos - die Seite, komplett neu (Betreiber, 19.10.2026: "komplett neu, nicht mal aehnlich - in meinem neuen Stil, in Weiss und in Schwarz gut,
@@ -388,9 +389,9 @@ export default function SolosSeite() {
   };
 
   /** Eine Antwort, die zu einer anderen Region gehoert als der gerade gewaehlten, wird verworfen - sonst ueberschrieb die langsame Antwort der Startregion (EU) die der gewaehlten. */
-  const holen = useCallback(async (veraltet: () => boolean) => {
+  const holen = useCallback(async (veraltet: () => boolean, frisch = false) => {
     try {
-      const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}${archiv ? `&reihe=${archiv}` : ''}`, { cache: 'no-store' });
+      const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}${archiv ? `&reihe=${archiv}` : ''}${frisch ? '&frisch=1' : ''}`, { cache: 'no-store' });
       const j = await r.json() as ({ ok: true } & SolosDaten) | { ok: false; error?: string };
       if (veraltet()) return;
       if (!r.ok || !j.ok) throw new Error(('error' in j && j.error) || 'nicht ladbar');
@@ -449,6 +450,13 @@ export default function SolosSeite() {
   }, [daten, wunsch, spieltage, region, statusVon]);
 
   const heatsPlan = (daten as (SolosDaten & { heatsPlan?: HeatsDaten[] }) | null)?.heatsPlan?.[0] ?? null;
+  /*
+   * Reload fuer den Admin (Betreiber, 8.11.2026: "es gibt keinen Reload-Button, um die Map da zu holen"): holt Noble und Epic frisch (frisch=1 leert den Vorrat von
+   * Noble), statt auf den naechsten Zwei-Minuten-Takt zu warten.
+   */
+  const zugang = useZugang();
+  const [neuLaedt, setNeuLaedt] = useState(false);
+  const neuLaden = async () => { setNeuLaedt(true); try { await holen(() => false, true); } finally { setNeuLaedt(false); } };
   const finalisten = useMemo(() => new Set(daten?.qualifiziert.flatMap((g) => g.spieler.map((s) => s.id)) ?? []), [daten]);
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';
   const oeffneIn = (windowId: string) => (s: SolosSpieler) => { if (eventVon(windowId)) setPanel({ id: s.id, name: s.anzeige, windowId }); };
@@ -529,6 +537,13 @@ export default function SolosSeite() {
           ))}
           <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />
           <button type="button" onClick={() => waehleStufe('preisgeld')} className={knopf(stufe === 'preisgeld')}><T>Preisgeld</T></button>
+          {zugang.admin && (
+            <button type="button" onClick={() => { void neuLaden(); }} disabled={neuLaedt} title={t('Karten und Spieler frisch von Noble und Epic holen')}
+              className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-zinc-700 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-white disabled:opacity-50">
+              <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 ${neuLaedt ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3v4h-4" /></svg>
+              Reload
+            </button>
+          )}
         </nav>
 
         {/* Zweite Zeile: die Ansicht der gewaehlten Stufe, rechts */}

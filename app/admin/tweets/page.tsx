@@ -1605,16 +1605,29 @@ export default function TweetSeite() {
     setVerpasst({ modus, cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: true, fehler: '' });
     (async () => {
       try {
-        const rk = await fetch('/api/power-rankings?page=1&pageSize=200').then((r) => r.json());
-        const bekannte = ((rk?.players ?? []) as Array<{ id?: string; name: string; anzeige?: string }>).filter((x) => x.id);
+        /*
+         * Bekannt: die ersten 600 der Power Rankings und jeder Spieler mit gepflegtem Profil (Betreiber, 8.11.2026: Reason fehlte - er steht nicht unter den ersten 200,
+         * ist aber ein bekannter Profi). Die Reihenfolge im Post: Power Rankings zuerst, danach die Profile.
+         */
+        const seiten = await Promise.all([1, 2, 3].map((s) => fetch(`/api/power-rankings?page=${s}&pageSize=200`).then((r) => r.json()).catch(() => null)));
+        const bekannte: Array<{ id?: string; name: string; anzeige?: string }> = [];
+        const schon = new Set<string>();
+        for (const rk of seiten) for (const x of ((rk?.players ?? []) as Array<{ id?: string; name: string; anzeige?: string }>)) if (x.id && !schon.has(x.id)) { schon.add(x.id); bekannte.push(x); }
+        try {
+          const pr = await fetch('/api/spieler-profile').then((r) => r.json()) as { profile?: Array<{ id?: string; epicId?: string; name?: string; anzeige?: string }> | Record<string, { id?: string; epicId?: string; name?: string; anzeige?: string }> };
+          const liste = Array.isArray(pr.profile) ? pr.profile : Object.entries(pr.profile ?? {}).map(([k, v]) => ({ ...v, id: v.id || v.epicId || k }));
+          for (const p of liste) { const id = String(p.id || p.epicId || '').toLowerCase(); if (/^[0-9a-f]{32}$/.test(id) && !schon.has(id)) { schon.add(id); bekannte.push({ id, name: p.anzeige || p.name || id, anzeige: p.anzeige || p.name }); } }
+        } catch { /* dann nur die Power Rankings */ }
         if (!bekannte.length) throw new Error('Die Power Rankings liegen gerade nicht vor.');
-        const ids = bekannte.map((x) => x.id).join(',');
+        const idListen: string[] = [];
+        for (let i = 0; i < bekannte.length; i += 150) idListen.push(bekannte.slice(i, i + 150).map((x) => x.id).join(','));
         const nachId = new Map(bekannte.map((x) => [x.id as string, x]));
         const zeilen = new Map<string, { id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>();
         const liesListe = async (w: { eventId: string; windowId: string }) => {
-          const lb = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&ids=${ids}`)
-            .then((r) => r.json()).catch(() => null);
-          return (lb?.entries ?? []) as Eintrag[];
+          const teile = await Promise.all(idListen.map((ids) => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&ids=${ids}`)
+            .then((r) => r.json()).catch(() => null)));
+          const gesehen = new Set<number>();
+          return teile.flatMap((lb) => (lb?.entries ?? []) as Eintrag[]).filter((e) => (gesehen.has(e.rank) ? false : (gesehen.add(e.rank), true)));
         };
         let schwelleGewaehlt: number | null = null;
         for (let i = 0; i < spieltage.length; i += 3) {
@@ -3073,7 +3086,7 @@ export default function TweetSeite() {
         const r = await fetch(
           `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
           // Team Spotlight als Banner mit Logo in der Mitte (Beispielbild des Betreibers, 25.9.2026).
-          + `&anzahl=${bildAnzahl}${vorlage === 'spieler' ? '&form=banner' : ''}`, { cache: 'no-store' });
+          + `&anzahl=${bildAnzahl}${vorlage === 'spieler' ? '&form=banner' : ''}${vorlage === 'verpasst' ? '&grau=1' : ''}`, { cache: 'no-store' });
         if (!r.ok) {
           const j = await r.json().catch(() => null);
           if (!weg) { setMosaikUrl(null); setMosaikFehler(j?.hinweis ?? j?.error ?? 'kein Bild'); }

@@ -565,6 +565,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Endet in': 'Ends in',
   'Matches dieses Spielers ausgewertet. Punkte, Elims und Platz sind aktuell von Epic; Treffer, Heilung und die übrigen Replay-Werte steigen noch.': 'of this player’s matches analysed. Points, elims and placement are live from Epic; hits, healing and the other replay stats are still going up.',
   'Gerade': 'Right now',
+  'Karten und Spieler frisch von Noble und Epic holen': 'Fetch maps and players fresh from Noble and Epic',
   'Heat-Einteilung': 'Heat draw',
   'Einteilung von Epic bestätigt.': 'Draw confirmed by Epic.',
   'Eingeteilt nach Epics Regel aus der Platzierung der letzten Runde — Epic bestätigt sie später.': "Drawn by Epic's rule from the last round's placements — Epic confirms it later.",

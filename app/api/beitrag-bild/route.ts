@@ -400,7 +400,9 @@ async function baueMosaik(request: Request) {
       width: BREITE, height: gesamtHoehe, channels: 3,
       background: { r: 9, g: 9, b: 11 },
     },
-  }).composite(gelegt).png({ compressionLevel: 9 }).toBuffer();
+  }).composite(gelegt).png({ compressionLevel: 9 }).toBuffer()
+    // ?grau=1: grau und etwas dunkler - fuer "nicht qualifiziert" (Betreiber, 8.11.2026: "mit einem grauen Effekt, so auf traurig").
+    .then((b) => (p.get('grau') === '1' ? sharp(b).grayscale().modulate({ brightness: 0.8 }).png({ compressionLevel: 9 }).toBuffer() : b));
 
   return new NextResponse(new Uint8Array(png), {
     headers: {
