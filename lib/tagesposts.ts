@@ -5,6 +5,7 @@ import { GET as szeneStart } from '@/app/api/szene-stats/route';
 import { GET as fncsAlltime } from '@/app/api/fncs-alltime/route';
 import { GET as powerRankings } from '@/app/api/power-rankings/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
+import { saisonName } from '@/lib/szeneStats';
 import { kartenKandidaten } from '@/lib/postKarte';
 
 /*
@@ -71,8 +72,8 @@ interface VCup { titel: string; cup: string; typ: string; bild: string | null; d
 interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number }
 interface Vitrine { ok?: boolean; saison?: string | null; saisonName?: string | null; spieler?: VSpieler[]; cups?: VCup[]; maps?: number; rangliste?: VRang[] }
 
-interface SSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; heimat?: string; elims: number; damage: number; quote: number; headshots: number; hits: number; matches: number }
-interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }>; alle?: SSpieler[]; fncs?: Fncs; pr?: PrZeile[] }
+interface SSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; heimat?: string; elims: number; damage: number; quote: number; headshots: number; hits: number; matches: number; [feld: string]: unknown }
+interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }>; alle?: SSpieler[]; fncs?: Fncs; pr?: PrZeile[]; voll?: { saison: string; spieler: SSpieler[] } }
 interface Fncs { events?: Array<{ key: string }>; spieler?: Array<{ id: string; name: string; land: string | null; bild: string | null; je: Record<string, number> }>; titel?: Array<{ id: string; name: string }>; rekorde?: { ab?: string; spieler?: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }> } }
 interface PrZeile { rank: number; id: string; anzeige?: string; name: string; land: string; wertung: number; bestwert: number; bild?: string | null }
 type Zahlen = { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null };
@@ -88,7 +89,19 @@ async function datenLage(): Promise<{ v: Vitrine; zahlen: Zahlen; s: SStart }> {
     lies<Fncs>(() => fncsAlltime()),
     lies<{ players?: PrZeile[] }>(() => powerRankings(new Request(`${SEITE}/api/power-rankings?page=1&pageSize=200`))),
   ]);
-  return { v, zahlen, s: { ...s, alle: Array.isArray(ganz.plaetze) ? ganz.plaetze : [], fncs, pr: Array.isArray(prSeite.players) ? prSeite.players : [] } };
+  /*
+   * Fuer "Worst of" die juengste Saison, in der alle Werte gemessen sind (Elims, Headshots, Builds, Mats, Zeit am Leben ...). In einer laufenden Saison
+   * fehlen sie oft noch (9.11.2026, S43: nur Schaden und Treffer) - dann die vorige.
+   */
+  let voll: { saison: string; spieler: SSpieler[] } | undefined;
+  const nr = Number(/^S(\d+)$/.exec(v.saison ?? '')?.[1] ?? 0);
+  for (const n of nr ? [nr, nr - 1, nr - 2] : []) {
+    const l = await lies<{ spieler?: SSpieler[] }>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?saison=S${n}&sort=elims&limit=500`)));
+    const sp = Array.isArray(l.spieler) ? l.spieler : [];
+    const gemessen = (f: string) => sp.filter((x) => Number(x[f]) > 0).length >= sp.length * 0.8;
+    if (sp.length >= 50 && ['elims', 'timeAlive', 'builds', 'headshots', 'mats'].every(gemessen)) { voll = { saison: `S${n}`, spieler: sp }; break; }
+  }
+  return { v, zahlen, s: { ...s, alle: Array.isArray(ganz.plaetze) ? ganz.plaetze : [], fncs, pr: Array.isArray(prSeite.players) ? prSeite.players : [], voll } };
 }
 
 /** Wie frisch ein Cup sein muss, um einen Post zu bekommen (Betreiber, 19.10.2026: kein Post ueber einen Cup, der Tage her ist). */
@@ -165,35 +178,67 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
   }
 
   /*
-   * Worst of CompHub (Betreiber, 9.11.2026: "da stehen immer die schlechtesten Stats ... ein bisschen mehr Troll"): die Letzten einer Liste - aber nur
-   * unter Spielern, die wirklich gespielt haben (die 400 mit den meisten Elims der Saison, und davon nur, wer mindestens die Haelfte der Matches des
-   * Fleissigsten hat, wenigstens drei). Eine 0 heisst oft "nicht gemessen" (Headshots, Elims aus fehlenden Replays) und zaehlt nicht. Frech im Ton, nie beleidigend: es geht um die Zahl, nicht um den Menschen. Nichts erfunden - es steht, was die
-   * Statistikseite hergibt.
+   * Worst of CompHub (Betreiber, 9.11.2026: "da stehen immer die schlechtesten Stats ... ein bisschen mehr Troll", dann: "alle worst of statistics, nicht nur
+   * eine - worst of damage, worst of time alive, worst of kills usw, jeweils die Top 3"). Je Kennzahl ein Post mit den drei Schlechtesten - aber nur unter
+   * Spielern, die wirklich gespielt haben (mindestens die Haelfte der Matches des Fleissigsten, hoechstens 20, wie die Quoten-Listen der Statistikseite).
+   * Quelle: die juengste Saison mit allen Werten (datenLage). Frech im Ton, nie beleidigend: es geht um die Zahl, nicht um den Menschen.
    */
-  const alle = (s.alle ?? []).filter((x) => x.epicId && x.anzeige && x.matches > 0);
-  const meiste = alle.reduce((m, x) => Math.max(m, x.matches), 0);
-  const mindest = Math.max(3, Math.min(20, Math.round(meiste / 2))); // wie die Quoten-Listen der Statistikseite
-  const genug = alle.filter((x) => x.matches >= mindest);
-  const WORST: Array<{ feld: string; titel: string; wert: (x: SSpieler) => number | null; fmt: (n: number) => string; spruch: string }> = [
-    { feld: 'quote', titel: 'Worst damage ratio', wert: (x) => (Number.isFinite(x.quote) && x.quote > 0 ? x.quote : null), fmt: (n) => n.toFixed(2),
-      spruch: 'Taking more damage than they deal. Generous of them.' },
-    // Kein Elims-pro-Match: in der Saisonliste fehlen Elims ganzer Spieltage (Scroll 0, Ritual 1 in vier Finals-Matches, 9.11.2026) - das waere Spott ueber eine Datenluecke.
-    { feld: 'damageProMatch', titel: 'Least damage per match', wert: (x) => (x.damage > 0 ? x.damage / x.matches : null), fmt: (n) => zahl(n),
-      spruch: 'Their guns are purely decorative.' },
-    { feld: 'headshotQuote', titel: 'Lowest headshot rate', wert: (x) => (x.hits >= 200 && x.headshots > 0 ? x.headshots / x.hits : null), fmt: (n) => `${(n * 100).toFixed(1)}%`,
-      spruch: 'Aiming for the knees, apparently.' },
-  ];
-  if (genug.length >= 20) {
-    const saison = v.saisonName ?? 'this season';
-    for (const w of WORST) {
-      const mitWert = genug.map((x) => ({ x, n: w.wert(x) })).filter((e): e is { x: SSpieler; n: number } => e.n !== null && Number.isFinite(e.n));
-      if (mitWert.length < 20) continue;
-      const drei = mitWert.sort((a, b) => a.n - b.n).slice(0, 3);
-      raus.push({
-        art: 'worst', schluessel: `worst:${w.feld}:${drei.map((e) => e.x.epicId).join('|')}`, titel: `Worst of: ${w.titel}`,
-        text: `WORST OF COMPHUB 🧌\n\n${w.titel}, ${saison} (min. ${mindest} matches):\n\n${drei.map((e, i) => `${i + 1}. ${gross(rein(e.x.anzeige))} - ${w.fmt(e.n)}`).join('\n')}\n\n${w.spruch} 😈\n\nCheck if you made the list: ${SEITE}/statistics`,
-        bild: { art: 'rekord', worst: true, titel: w.titel, saison: `Worst of CompHub · ${saison}`, drei: drei.map((e, i) => ({ rang: i + 1, name: gross(rein(e.x.anzeige)), land: e.x.land, bild: e.x.bild, wert: w.fmt(e.n) })) },
-      });
+  const voll = s.voll;
+  if (voll) {
+    const n = (x: SSpieler, f: string) => Number(x[f]) || 0;
+    const sp = voll.spieler.filter((x) => x.epicId && x.anzeige && x.matches > 0);
+    const meiste = sp.reduce((m, x) => Math.max(m, x.matches), 0);
+    const mindest = Math.max(3, Math.min(20, Math.round(meiste / 2)));
+    const genug = sp.filter((x) => x.matches >= mindest);
+    const sName = saisonName(voll.saison);
+    const zeit = (sek: number) => `${Math.floor(sek / 60)}:${String(Math.round(sek % 60)).padStart(2, '0')}`;
+    // schlecht: 'tief' = je kleiner, desto schlechter; 'hoch' = je groesser, desto schlechter.
+    const WORST: Array<{ feld: string; titel: string; schlecht: 'tief' | 'hoch'; wert: (x: SSpieler) => number | null; fmt: (v: number) => string; spruch: string }> = [
+      { feld: 'quote', titel: 'Worst damage ratio', schlecht: 'tief', wert: (x) => (x.quote > 0 ? x.quote : null), fmt: (v) => v.toFixed(2),
+        spruch: 'Taking more damage than they deal. Generous of them.' },
+      { feld: 'elims', titel: 'Fewest kills per match', schlecht: 'tief', wert: (x) => n(x, 'elims') / x.matches, fmt: (v) => v.toFixed(2),
+        spruch: 'Pacifist run, any% category.' },
+      { feld: 'damage', titel: 'Least damage per match', schlecht: 'tief', wert: (x) => n(x, 'damage') / x.matches, fmt: (v) => zahl(v),
+        spruch: 'Their guns are purely decorative.' },
+      { feld: 'timeAlive', titel: 'Shortest time alive per match', schlecht: 'tief', wert: (x) => (n(x, 'timeAlive') > 0 ? n(x, 'timeAlive') / x.matches : null), fmt: zeit,
+        spruch: 'Hot drop enjoyers. Sometimes a little too hot.' },
+      { feld: 'genauigkeit', titel: 'Worst accuracy', schlecht: 'tief', wert: (x) => (n(x, 'shots') >= 500 ? (n(x, 'hits') / n(x, 'shots')) * 100 : null), fmt: (v) => `${v.toFixed(1)}%`,
+        spruch: 'Spraying and praying. Mostly praying.' },
+      { feld: 'headshots', titel: 'Lowest headshot rate', schlecht: 'tief', wert: (x) => (n(x, 'hits') >= 200 ? (n(x, 'headshots') / n(x, 'hits')) * 100 : null), fmt: (v) => `${v.toFixed(1)}%`,
+        spruch: 'Aiming for the knees, apparently.' },
+      { feld: 'builds', titel: 'Fewest builds per match', schlecht: 'tief', wert: (x) => n(x, 'builds') / x.matches, fmt: (v) => zahl(v),
+        spruch: 'Zero build in a build game. Respect.' },
+      { feld: 'mats', titel: 'Fewest mats farmed per match', schlecht: 'tief', wert: (x) => n(x, 'mats') / x.matches, fmt: (v) => zahl(v),
+        spruch: 'Pickaxe still in the box.' },
+      { feld: 'damageTaken', titel: 'Most damage taken per match', schlecht: 'hoch', wert: (x) => n(x, 'damageTaken') / x.matches, fmt: (v) => zahl(v),
+        spruch: 'Human shield of the lobby.' },
+      { feld: 'stormDamage', titel: 'Most storm damage per match', schlecht: 'hoch', wert: (x) => n(x, 'stormDamage') / x.matches, fmt: (v) => zahl(v),
+        spruch: 'The zone is not a suggestion.' },
+      { feld: 'fallDamage', titel: 'Most fall damage', schlecht: 'hoch', wert: (x) => n(x, 'fallDamage'), fmt: (v) => zahl(v),
+        spruch: 'Gravity: 1. Them: 0.' },
+    ];
+    if (genug.length >= 20) {
+      const kopf: Array<{ titel: string; x: SSpieler; wert: string }> = [];
+      for (const w of WORST) {
+        const mitWert = genug.map((x) => ({ x, v: w.wert(x) })).filter((e): e is { x: SSpieler; v: number } => e.v !== null && Number.isFinite(e.v));
+        if (mitWert.length < 20) continue;
+        const drei = mitWert.sort((a, b) => (w.schlecht === 'tief' ? a.v - b.v : b.v - a.v)).slice(0, 3);
+        kopf.push({ titel: w.titel, x: drei[0].x, wert: w.fmt(drei[0].v) });
+        raus.push({
+          art: 'worst', schluessel: `worst:${voll.saison}:${w.feld}`, titel: `Worst of: ${w.titel}`,
+          text: `WORST OF COMPHUB 🧌\n\n${w.titel}, ${sName} (min. ${mindest} matches):\n\n${drei.map((e, i) => `${i + 1}. ${gross(rein(e.x.anzeige))} - ${w.fmt(e.v)}`).join('\n')}\n\n${w.spruch} 😈\n\nCheck if you made the list: ${SEITE}/statistics`,
+          bild: { art: 'rekord', worst: true, titel: w.titel, saison: `Worst of CompHub · ${sName}`, drei: drei.map((e, i) => ({ rang: i + 1, name: gross(rein(e.x.anzeige)), land: e.x.land, bild: e.x.bild, wert: w.fmt(e.v) })) },
+        });
+      }
+      // Die Uebersicht: in jeder Kategorie der Letzte, alles in einem Post.
+      if (kopf.length >= 5) {
+        const mitFoto = kopf.filter((k) => k.x.bild).slice(0, 3);
+        raus.push({
+          art: 'worst', schluessel: `worst:${voll.saison}:uebersicht`, titel: `Worst of: alle Kategorien ${sName}`,
+          text: `WORST OF COMPHUB 🧌 ${sName} edition\n\n${kopf.map((k) => `${k.titel}: ${gross(rein(k.x.anzeige))} (${k.wert})`).join('\n')}\n\nAll love, all real numbers (min. ${mindest} matches) 😈\n\n${SEITE}/statistics`,
+          bild: { art: 'rekord', worst: true, titel: 'Worst of the season', saison: `Worst of CompHub · ${sName}`, drei: mitFoto.map((k, i) => ({ rang: i + 1, name: gross(rein(k.x.anzeige)), land: k.x.land, bild: k.x.bild, wert: k.wert })) },
+        });
+      }
     }
   }
 
