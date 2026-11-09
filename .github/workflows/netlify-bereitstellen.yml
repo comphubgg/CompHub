@@ -83,11 +83,10 @@ jobs:
             | while read -r D; do echo "Breche haengende Bereitstellung ab: $D"; curl -s -o /dev/null -X POST -H "$H" "$API/deploys/$D/cancel"; done
           curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s);console.log('Seite:',x.name,x.url,'Zustand:',x.state,'gesperrt:',x.disabled??x.suspended??'-',x.disabled_reason||'','Plan:',x.plan||'',x.account_slug||'')}catch{console.log(s.slice(0,400))}})"
           curl -s -H "$H" "$API/accounts" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const a of JSON.parse(s))console.log('Konto:',a.slug,a.type_name||a.type||'',JSON.stringify(a.capabilities||{}).slice(0,600))}catch{console.log(s.slice(0,400))}})"
-          # Erst bauen (mit voller Ausgabe im Log, damit ein Fehler lesbar ist), dann den fertigen Stand hochladen.
-          npx --yes netlify-cli@latest build --context production 2>&1 | tail -n 300; test "${PIPESTATUS[0]}" = 0
-          # Das Warten auf Netlify lief dreimal nach 20 Minuten ab (Bau selbst: 2 Minuten). Laenger warten und bei
-          # Fehlschlag zeigen, in welchem Zustand Netlify die letzten Bereitstellungen sieht.
-          AUS=$(timeout 1500 npx --yes netlify-cli@latest deploy --no-build --timeout 1400 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
+          # Bauen und Hochladen in EINEM Aufruf. Getrennt (build, dann deploy --no-build) fehlten am 9.11.2026 alle
+          # CSS/JS-Dateien: das Next-Plugin stellt den Ausgabeordner nach dem Bau zurueck, das Hochladen nahm dann den falschen.
+          # Netlify wartet hier hoechstens 25 Minuten, danach folgt die Zustandsausgabe.
+          AUS=$(timeout 1500 npx --yes netlify-cli@latest deploy --timeout 1400 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
             echo "$AUS" | tail -n 80
             echo "Letzte Bereitstellungen bei Netlify:"
             curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=8" \
@@ -98,6 +97,16 @@ jobs:
           echo "Entwurf: $ID"
           if [ "${{ inputs.ziel }}" != "entwurf" ]; then
             if [ -z "$ID" ]; then echo "Keine Entwurfs-Kennung gefunden"; exit 1; fi
+            # Vorher live gewesenen Stand merken: fehlen nach dem Umschalten CSS/JS, sofort dorthin zurueck.
+            ALT=$(curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).published_deploy?.id||'')}catch{console.log('')}})")
             curl -sf -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN"               "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys/$ID/restore" -o /dev/null
-            echo "Veroeffentlicht: $ID"
+            echo "Veroeffentlicht: $ID (vorher: $ALT)"
+            sleep 30
+            curl -s -o /tmp/h.html "$NEXT_PUBLIC_BASE_URL/events"; GES=0; OK=0
+            for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/h.html | sort -u | head -15); do GES=$((GES+1)); [ "$(curl -s -o /dev/null -w '%{http_code}' "$NEXT_PUBLIC_BASE_URL$C")" = 200 ] && OK=$((OK+1)); done
+            echo "Pruefung live: $OK von $GES Dateien laden"
+            if [ "$GES" = 0 ] || [ "$OK" -lt "$GES" ]; then
+              if [ -n "$ALT" ]; then curl -s -o /dev/null -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys/$ALT/restore"; echo "Zurueck auf $ALT"; fi
+              exit 1
+            fi
           fi
