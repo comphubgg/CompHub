@@ -20,7 +20,7 @@ import { ALT } from '@/lib/alteMaps';
 export interface KartenZone { punkte: Array<{ x: number; y: number }>; namen: string[]; land: string | null; anzahl: number }
 export interface KartenPost {
   schluessel: string; titel: string; text: string;
-  bild: { art: 'karte'; titel: string; region: string; karte: string | null; zonen: KartenZone[] };
+  bild: { art: 'karte'; titel: string; region: string; karte: string | null; zonen: KartenZone[]; unter?: string };
 }
 
 const SEITE = 'https://www.thecomphub.com';
@@ -99,6 +99,23 @@ export async function kartenKandidaten(): Promise<KartenPost[]> {
     }
   } catch { /* ohne Verzeichnis keine Kartenposts */ }
   return raus;
+}
+
+/*
+ * Die Drop Map eines bestimmten Spieltags (Betreiber, 9.11.2026: "einfach immer die Map tweeten, so schnell wie moeglich, fuer den passenden Tag, mit
+ * passendem Titel" - wie "EU RELOAD FNCS HEAT 2 DROP MAP"). Anders als kartenKandidaten ohne Zeitfenster: auch vor und waehrend des Spieltags, sobald
+ * Noble die Landepunkte kennt. Dazu die Spieler mit Konto-ID, damit der Tweet-Baukasten die bekannten als Key Players nennen kann.
+ */
+export async function dropMapFuer(windowId: string): Promise<{ titel: string; region: string; karte: string | null; zonen: KartenZone[]; spieler: Array<{ id: string; anzeige: string; land: string | null }>; link: string } | null> {
+  const e = (await mapsVerzeichnis()).find((x) => x.windowId === windowId);
+  if (!e) return null;
+  const r = await fensterFuer(e.turnierId, e.region, e.windowId);
+  if (!r || !r.fenster.formen.length) return null;
+  return {
+    titel: e.titel.replace(/\s*·\s*/g, ' - '), region: e.region, karte: r.fenster.bild ?? null, zonen: zonen(r.fenster),
+    spieler: r.fenster.spieler.map((x) => ({ id: x.id, anzeige: x.anzeige, land: x.land })),
+    link: `${SEITE}/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`,
+  };
 }
 
 /* ------------------------------------------------------------------ Zeichnen */

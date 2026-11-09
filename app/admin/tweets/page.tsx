@@ -184,7 +184,7 @@ const SPIELER_KENNZAHLEN: Array<{
     einheit: 'km', nachkomma: 1 },
 ];
 
-type Vorlage = 'rueckblick' | 'worst' | 'qualifiziert' | 'endstand' | 'spieler'
+type Vorlage = 'rueckblick' | 'worst' | 'dropmap' | 'livepost' | 'qualifiziert' | 'endstand' | 'spieler'
   | 'bestenliste' | 'spielerkarte' | 'auswahl'
   /* Bekannte Spieler, die den Cut verpasst haben. */
   | 'verpasst'
@@ -650,6 +650,10 @@ const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
   { wert: 'verpasst',     titel: 'Missed the cut', hinweis: 'Bekannte Spieler, die nicht weitergekommen sind' },
   // Das Gegenstueck zum Stats Recap (Betreiber, 9.11.2026): je Kennzahl der Schlechteste - nur wer mindestens die Haelfte der Spiele hatte.
   { wert: 'worst',        titel: 'Worst of CompHub', hinweis: 'Schlechtester Wert je Kennzahl' },
+  // Die Landekarte des Spieltags mit Titel und Key Players (Betreiber, 9.11.2026: "einfach immer die Map tweeten, so schnell wie moeglich").
+  { wert: 'dropmap',      titel: 'Drop Map',       hinweis: 'Landepunkte des Spieltags, Key Players' },
+  // Der Start-Post mit dem offiziellen Stream und den Co-Streamern je Land; die Markierungen kommen als Antwort darunter (Betreiber, 9.11.2026).
+  { wert: 'livepost',     titel: 'Live now',       hinweis: 'Offizieller Stream und Co-Streamer je Land' },
   // Die einzige Vorlage, die keinen Cup braucht.
   { wert: 'eigene',       titel: 'Own list',       hinweis: 'Freier Titel, Spieler von Hand' },
 ];
@@ -1613,6 +1617,13 @@ export default function TweetSeite() {
    *
    * Nichts wird geschaetzt.
    */
+  /** Die Co-Streamer je Region (/api/co-streamer) und ihre Bearbeitung als Text, eine Zeile je Streamer: "DE gripey @gripey". */
+  const [coListen, setCoListen] = useState<Record<string, Array<{ land: string; twitch: string; x?: string }>> | null>(null);
+  const [coText, setCoText] = useState('');
+  const [coGespeichert, setCoGespeichert] = useState('');
+  const [coKopiert, setCoKopiert] = useState(false);
+  /** Die Drop Map des gewaehlten Spieltags (/api/drop-map) - Titel, Region und Spieler mit Konto-ID. */
+  const [dropMap, setDropMap] = useState<{ w: string; ok: boolean; titel?: string; region?: string; spieler?: Array<{ id: string; anzeige: string; land: string | null }>; link?: string; error?: string } | null>(null);
   const [verpasst, setVerpasst] = useState<{
     modus: 'cut' | 'serie'; cut: number | null; spieltage: number; qualifiziert: string[];
     zeilen: Array<{ id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>;
@@ -1984,6 +1995,41 @@ export default function TweetSeite() {
       return { titel: oben ? b.titel : umgedreht(b.titel), symbol: b.symbol, einheit: b.einheit, p: oben ? feld[0] : feld[feld.length - 1] };
     }).filter(Boolean) as Array<{ titel: string; symbol: string; einheit: string | null; p: Platz }>;
   }, [vorlage, eintraege, einzelwerte, aktiveListen, gewaehlteListen]);
+
+  const coRegion = /^NA/.test(aktuellesFenster?.region ?? '') ? 'NA' : (aktuellesFenster?.region || 'EU');
+  useEffect(() => {
+    if (vorlage !== 'livepost' || coListen) return;
+    let weg = false;
+    fetch('/api/co-streamer', { cache: 'no-store' }).then((r) => r.json())
+      .then((j) => { if (!weg && j?.listen) setCoListen(j.listen); }).catch(() => {});
+    return () => { weg = true; };
+  }, [vorlage, coListen]);
+  const coAktiv = (coListen?.[coRegion] ?? []);
+  const coZeilenText = coAktiv.map((c) => `${c.land} ${c.twitch}${c.x ? ` @${c.x}` : ''}`).join('\n');
+  const coSpeichern = async () => {
+    const liste = coText.split('\n').map((z) => z.trim().split(/\s+/)).filter((t) => t.length >= 2)
+      .map(([land, twitch, x]) => ({ land: land.toUpperCase(), twitch, x: x?.replace(/^@/, '') }));
+    const neu = { ...(coListen ?? {}), [coRegion]: liste };
+    const r = await fetch('/api/co-streamer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listen: neu }) });
+    const j = await r.json().catch(() => null);
+    if (j?.ok) { setCoListen(j.listen); setCoGespeichert('gespeichert'); } else setCoGespeichert(j?.error ?? 'nicht gespeichert');
+    setTimeout(() => setCoGespeichert(''), 2000);
+  };
+  const flaggeVon = (land: string) => [...land.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
+  const coAntwort = coAktiv.map((c) => (c.x ? `@${c.x}` : '')).filter(Boolean).join(' ');
+
+  const dropWindow = vorlage === 'dropmap' ? (aktuellesFenster?.windowId ?? '') : '';
+  useEffect(() => {
+    if (!dropWindow) return;
+    let weg = false;
+    fetch(`/api/drop-map?w=${encodeURIComponent(dropWindow)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setDropMap({ w: dropWindow, ...j }); })
+      .catch(() => { if (!weg) setDropMap({ w: dropWindow, ok: false, error: 'nicht erreichbar' }); });
+    return () => { weg = true; };
+  }, [dropWindow]);
+  const dropTitel = dropMap?.ok && dropMap.w === dropWindow
+    ? `${dropMap.region ?? ''} ${(dropMap.titel ?? '').replace(/\s+-\s+/g, ' ')} DROP MAP`.replace(/\s+/g, ' ').trim().toUpperCase() : '';
 
   /** Die gepflegten Profile, nachgeschlagen ueber die Konto-ID. */
   const profilNachId = useMemo(() => {
@@ -2716,6 +2762,23 @@ export default function TweetSeite() {
         + zeilen.join(NL);
     }
 
+    if (vorlage === 'livepost') {
+      const name = `${coRegion} ${cupName}`.toUpperCase().replace(/\s+/g, ' ').trim();
+      const verb = /FNCS|SERIES|CUPS$/.test(name) ? 'HAVE' : 'HAS';
+      const zeilen = coAktiv.map((c) => `${flaggeVon(c.land)} https://www.twitch.tv/${c.twitch}`);
+      return `THE ${name} ${verb} OFFICIALLY STARTED 🚨${NL}${NL}WATCH LIVE:${NL}${NL}🌎 https://www.twitch.tv/Fortnite${zeilen.length ? `${NL}${NL}${zeilen.join(NL)}` : ''}`;
+    }
+
+    if (vorlage === 'dropmap') {
+      if (!dropMap || dropMap.w !== dropWindow) return 'Lädt die Landepunkte …';
+      if (!dropMap.ok) return dropMap.error ?? 'Für diesen Spieltag gibt es keine Landepunkte.';
+      // Key Players: wer ein gepflegtes Profil hat (bekannte Spieler), sonst die ersten auf der Karte.
+      const sp = dropMap.spieler ?? [];
+      const bekannt = sp.filter((x) => profilNachId.has(x.id));
+      const key = (bekannt.length >= 3 ? bekannt : sp).slice(0, 12);
+      return `🚨🚨 ${dropTitel} 👀${NL}${NL}Key Players:${NL}${NL}${key.map((x) => `- ${mitFlagge(x.anzeige, x.id)}`.replace(/\s+/g, ' ')).join(NL)}`;
+    }
+
     if (vorlage === 'worst') {
       if (!worstZeilen.length) return `${kopf}${zusatz}${NL}${NL}Kennzahlen auswählen - es braucht Werte für das ganze Feld.`;
       const zeilen = worstZeilen.map(({ titel, symbol, p, einheit }) => {
@@ -3150,14 +3213,17 @@ export default function TweetSeite() {
     let alteUrl: string | null = null;
 
     const lauf = async () => {
-      if (!mosaikIds.length) {
+      if (vorlage !== 'dropmap' && !mosaikIds.length) {
         setMosaikUrl((vorher) => { if (vorher) URL.revokeObjectURL(vorher); return null; });
         setMosaikFehler(''); setMosaikLaedt(false);
         return;
       }
       setMosaikLaedt(true); setMosaikFehler('');
       try {
-        const r = await fetch(
+        if (vorlage === 'dropmap' && !dropTitel) { setMosaikLaedt(false); return; }
+        const r = vorlage === 'dropmap'
+          ? await fetch(`/api/post-bild?dropmap=${encodeURIComponent(dropWindow)}&titel=${encodeURIComponent(dropTitel)}`, { cache: 'no-store' })
+          : await fetch(
           `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
           // Team Spotlight als Banner mit Logo in der Mitte (Beispielbild des Betreibers, 25.9.2026).
           + `&anzahl=${bildAnzahl}${vorlage === 'spieler' ? '&form=banner' : ''}${vorlage === 'verpasst' ? '&grau=1' : ''}`, { cache: 'no-store' });
@@ -3187,7 +3253,7 @@ export default function TweetSeite() {
     void Promise.resolve().then(lauf);
 
     return () => { weg = true; };
-  }, [mosaikIds, bildAnzahl, vorlage]);
+  }, [mosaikIds, bildAnzahl, vorlage, dropWindow, dropTitel]);
 
   /**
    * Das Bild in die Zwischenablage legen.
@@ -3955,6 +4021,27 @@ export default function TweetSeite() {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {vorlage === 'livepost' && (
+              <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+                <p className="text-xs text-slate-400"><T>Co-Streamer für</T> {coRegion} · <T>eine Zeile je Streamer: Land, Twitch, X-Handle</T> <span className="text-slate-600">(DE gripey @gripey)</span></p>
+                <textarea value={coText || coZeilenText} onChange={(e) => setCoText(e.target.value)} rows={Math.max(3, coAktiv.length + 1)}
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 font-mono text-xs text-slate-100 outline-none focus:border-sky-500" />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => void coSpeichern()} className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-sky-400"><T>Speichern</T></button>
+                  {coGespeichert && <span className="text-[11px] text-slate-400">{coGespeichert}</span>}
+                </div>
+                <div className="mt-3 border-t border-zinc-800 pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Antwort darunter (markiert die Streamer)</T></p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-zinc-950 px-2 py-1 text-xs text-slate-200">{coAntwort || '—'}</code>
+                    {coAntwort && <button type="button" onClick={() => { void navigator.clipboard.writeText(coAntwort).then(() => { setCoKopiert(true); setTimeout(() => setCoKopiert(false), 1500); }); }}
+                      className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-400">{coKopiert ? <T>kopiert</T> : <T>Kopieren</T>}</button>}
+                    {!coAntwort && <span className="text-[11px] text-slate-500"><T>X-Handles oben eintragen, dann erscheinen sie hier.</T></span>}
+                  </div>
+                </div>
               </div>
             )}
 

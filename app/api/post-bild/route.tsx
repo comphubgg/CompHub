@@ -4,7 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { tagesplan } from '@/lib/tagesposts';
 import { fokusVon } from '@/lib/fotoFokus';
-import { FARBE, type KartenPost } from '@/lib/postKarte';
+import { FARBE, dropMapFuer, type KartenPost } from '@/lib/postKarte';
 import { zonenBild } from '@/lib/zonenBild';
 
 /*
@@ -69,12 +69,21 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const datum = (p.get('datum') ?? '').slice(0, 10);
   const nr = Number(p.get('nr') ?? 0);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return new Response('datum fehlt', { status: 400 });
-  const plan = await tagesplan(datum, false);
-  const post = plan?.posts[nr];
-  if (!post) return new Response('kein Post', { status: 404 });
   const ursprung = new URL(request.url).origin;
-  const d = post.bild as Record<string, unknown>;
+  let d: Record<string, unknown>;
+  // Die Drop Map eines Spieltags fuer den Tweet-Baukasten (?dropmap=<windowId>&titel=...) - ohne Tagesplan.
+  const dropWindow = p.get('dropmap');
+  if (dropWindow) {
+    const dm = await dropMapFuer(dropWindow).catch(() => null);
+    if (!dm) return new Response('Keine Landepunkte fuer diesen Spieltag', { status: 404 });
+    d = { art: 'karte', titel: (p.get('titel') || dm.titel).slice(0, 80), region: dm.region, karte: dm.karte, zonen: dm.zonen, unter: `Drop map · ${dm.region}` };
+  } else {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return new Response('datum fehlt', { status: 400 });
+    const plan = await tagesplan(datum, false);
+    const post = plan?.posts[nr];
+    if (!post) return new Response('kein Post', { status: 404 });
+    d = post.bild as Record<string, unknown>;
+  }
   // Die Zonen eines Finales (lib/zonenBild) - alle Tage zusammen, wie im Admin-Werkzeug.
   if (d.art === 'zonen') {
     const z = await zonenBild(String(d.window ?? ''), { alleTage: true, ursprung }).catch(() => null);
@@ -136,7 +145,7 @@ export async function GET(request: Request) {
         {namen}
         <div style={{ position: 'absolute', left: 0, top: 0, width: G, height: 118, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 34px', background: 'linear-gradient(180deg, rgba(6,24,56,0.95) 0%, rgba(6,24,56,0.75) 70%, rgba(6,24,56,0) 100%)' }}>
           <div style={{ display: 'flex', fontFamily: familie, fontSize: 40, fontWeight: 800, lineHeight: 1.05 }}>{titel}</div>
-          <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, color: '#7dd3fc', letterSpacing: 3, marginTop: 6, textTransform: 'uppercase' }}>{`Where the teams dropped · ${k.region}`}</div>
+          <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, color: '#7dd3fc', letterSpacing: 3, marginTop: 6, textTransform: 'uppercase' }}>{k.unter ?? `Where the teams dropped · ${k.region}`}</div>
         </div>
         <div style={{ position: 'absolute', left: 0, top: G - 96, width: G, height: 96, display: 'flex', alignItems: 'center', padding: '16px 34px 0', background: 'linear-gradient(0deg, rgba(6,24,56,0.97) 0%, rgba(6,24,56,0.8) 65%, rgba(6,24,56,0) 100%)' }}>
           {logo && <img src={logo} width={62} height={44} style={{ objectFit: 'contain', marginRight: 14 }} />}
