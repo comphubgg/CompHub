@@ -7,7 +7,7 @@ import { GET as prAbruf } from '@/app/api/power-rankings/route';
 /*
  * Wer als "bekannt" gilt - fuer "Notable Players to have not qualified" (Betreiber, 8.11.2026: "kein Schwanz juckt es, ob ein Tylio da drin ist oder ein Chrisc,
  * Flobby, Joshbot, Finn"). Gemessen an seiner eigenen Liste: bekannt ist, wer ein gepflegtes Profil mit X-Konto hat oder seit 2019 mindestens 20.000 $ Preisgeld
- * gewonnen hat. Das traf 41 seiner 45 Namen und keinen der Unbekannten. Reihenfolge: Power Rankings, dann Preisgeld.
+ * gewonnen hat - mit X-Konto reichen 3.000 $ oder ein Platz unter den ersten 100 der Power Rankings. Reihenfolge: Power Rankings, dann Preisgeld.
  */
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,9 @@ export async function GET() {
         const id = String(p.id || p.epicId || '').toLowerCase();
         if (!/^[0-9a-f]{32}$/.test(id)) continue;
         const v = verdienst(id);
-        if (!p.x && v < GRENZE) continue;
+        // Ein X-Konto allein reicht nicht (chrisc, freuzii haben eins): dazu mindestens 3.000 $ oder Power Rankings Top 100.
+        const pr = prRang.get(id)?.rang ?? null;
+        if (v < GRENZE && !(p.x && (v >= 3_000 || (pr !== null && pr <= 100)))) continue;
         raus.set(id, { id, name: p.anzeige || p.name || prRang.get(id)?.name || id, x: p.x || undefined, verdienst: Math.round(v), pr: prRang.get(id)?.rang ?? null });
       }
       // Ohne Profil, aber mit viel Preisgeld und unter den Power Rankings: auch bekannt.
