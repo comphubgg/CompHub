@@ -63,7 +63,8 @@ jobs:
       - name: Planen
         id: plan
         env:
-          CLUTCH_RECHNER: '12'
+          # 20 (9.11.2026): Squads Victory Cup + zwei Duos-Reload-Ranked am selben Abend = 15.681 Matches; mit 12 Rechnern a 12 Minuten waren es rund fuenf Runden.
+          CLUTCH_RECHNER: '20'
         run: node scripts/clutch-berechnen.mjs --plan data/clutch-plan.json --minuten 40 2>&1 | tail -25
 
       - name: Plan weitergeben
@@ -85,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     # 45 statt 330 (8.11.2026): ein Rechner hing fuenf Stunden an einem Match fest (die anderen elf waren nach 14 Minuten fertig). Solange er lief, wartete
     # jeder neue Durchgang - und wurde vom naechsten ersetzt. Der Middle-East-Cup stand drei Stunden nach dem Ende bei 1311 von 1451 Matches.
-    timeout-minutes: 45
+    timeout-minutes: 50
     permissions:
       contents: read
       actions: write
@@ -124,7 +125,7 @@ jobs:
 
       - name: Rechnen
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 40
         env:
           # 12 (7.11.2026): ein Replay braucht ~7 s Download (220 kleine Anfragen, wartet aufs Netz); der Leser im Dauerlauf schafft auf vier Kernen rund alle 0,7 s eines. Weniger Downloads liessen ihn warten.
           CLUTCH_GLEICHZEITIG: '12'
@@ -132,8 +133,8 @@ jobs:
           # 12 statt 295 Minuten (7.11.2026): abgelegt wird erst nach dem letzten Rechner. Der Trios Cash Cup endete um 18 Uhr, der laufende Durchgang brauchte fuer 148 alte Matches noch
           # fast eine Stunde, und erst dann kam der Cup dran. Kurze Runden heissen: frische Cups sind schnell an der Reihe, und Damage und Clutch wachsen waehrend des Lesens.
           # Hart nach 22 Minuten beenden: --minuten prueft nur zwischen den Matches, ein haengendes Match hielt den Rechner sonst fest.
-          timeout --signal=TERM --kill-after=60 22m node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
-            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 12 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
+          timeout --signal=TERM --kill-after=60 34m node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
+            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 25 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
 
       - name: Teilstand weitergeben
         if: always()
