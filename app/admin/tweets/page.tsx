@@ -1949,11 +1949,15 @@ export default function TweetSeite() {
   // mehrere Berechnungen, die sonst jedes Mal von vorn anfingen.
   const aktiveListen = useMemo(
     () => (ebeneEffektiv === 'spieler'
-      ? spielerListen
+      // Solo-Cup: zuerst genau die Kacheln der Event-Seite (Player Stats, app/api/cup-stats - mit Hits, Mats Farmed, Builds Placed; Betreiber 9.11.2026:
+      // "Hits to Players, Mats Farmed, Builds Placed fehlen komplett"), dahinter, was nur die Einzelwerte haben.
+      ? (soloCup && stats?.bestenlisten.length
+        ? [...stats.bestenlisten, ...spielerListen.filter((s) => !stats.bestenlisten.some((b) => b.titel === s.titel || b.schluessel === s.schluessel))]
+        : spielerListen)
       // Epics sechs zuerst - sie entscheiden den Cup. Danach das Feinere aus
       // der Szene-Quelle, je Team zusammengefasst.
       : [...(stats?.bestenlisten ?? []), ...teamListenAusEinzelwerten]),
-    [ebeneEffektiv, spielerListen, stats, teamListenAusEinzelwerten]);
+    [ebeneEffektiv, spielerListen, stats, teamListenAusEinzelwerten, soloCup]);
 
   /** Die gepflegten Profile, nachgeschlagen ueber die Konto-ID. */
   const profilNachId = useMemo(() => {
@@ -2834,7 +2838,10 @@ export default function TweetSeite() {
 
   // Wechselt die Ebene, passen die vorher gewaehlten Kennzahlen nicht mehr.
   useEffect(() => {
-    if (ebeneEffektiv === 'spieler' && spielerListen.length) {
+    if (ebeneEffektiv === 'spieler' && soloCup && stats?.bestenlisten.length) {
+      // Wie die Kacheln der Event-Seite: die zehn Hauptkennzahlen (ohne die unter "Mehr anzeigen").
+      setGewaehlteListen((stats.bestenlisten as Array<Bestenliste & { mehr?: boolean }>).filter((b) => !b.mehr).slice(0, 10).map((b) => b.schluessel));
+    } else if (ebeneEffektiv === 'spieler' && spielerListen.length) {
       // Die guten Werte zuerst, keine "schlechtesten" (Betreiber, 8.11.2026: "Most Deaths, das sind Worst-of-Statistics").
       const VORZUG = ['damage', 'elims', 'kd', 'quote', 'timeAlive', 'distanzGesamt', 'wins', 'hits', 'headshots', 'heals', 'mats', 'damageTaken', 'builds', 'points'];
       const da = new Set(spielerListen.map((b) => b.schluessel));
@@ -2842,7 +2849,7 @@ export default function TweetSeite() {
     } else if (ebeneEffektiv === 'team' && stats) {
       setGewaehlteListen(stats.bestenlisten.slice(0, 6).map((b) => b.schluessel));
     }
-  }, [ebeneEffektiv, spielerListen, stats]);
+  }, [ebeneEffektiv, spielerListen, stats, soloCup]);
 
   /** Die Grafik zum Beitrag. Alles wird direkt gezeichnet, ohne Fremdcode. */
   const zeichnen = useCallback(() => {

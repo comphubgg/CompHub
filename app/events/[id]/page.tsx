@@ -5527,6 +5527,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={statistikNachlauf ? 'laeuft' : 'fertig'} /></div>
             )}
             {ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
+            {/* Die Spitze jeder Kennzahl auf einen Blick, wie Osirion unter den Event Stats (Betreiber, 9.11.2026: "wo ist das, was rot umkreist ist"). */}
+            {statistik.filter((b) => !b.mehr && b.plaetze.length).length > 0 && (
+              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {statistik.filter((b) => !b.mehr && b.plaetze.length).slice(0, 10).map((b) => {
+                  const pl = b.plaetze[0];
+                  return (
+                    <div key={b.schluessel} className="flex flex-col items-center rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-3 text-center">
+                      <span className="text-[12px] text-slate-400">Top {t(b.titel)}</span>
+                      <span className="mt-1 flex max-w-full items-center gap-1.5 truncate text-sm font-extrabold text-slate-100">
+                        <TeamFlagge groesse={14} laender={pl.spieler.map((n, k) => landVon({ name: n, id: pl.ids?.[k] }))} />
+                        <span className="truncate">{pl.spieler.map((n, k) => namenVon({ name: n, id: pl.ids?.[k] ?? '' })).join(' + ')}</span>
+                      </span>
+                      <span className="mt-0.5 text-[12px] tabular-nums text-slate-400">
+                        w/ <span className="font-semibold text-slate-200">{b.zeit ? stdMin(pl.wert) : pl.wert.toLocaleString(ort, { minimumFractionDigits: b.nachkomma ?? 0, maximumFractionDigits: b.nachkomma ?? 0 })}{b.einheit && !b.zeit ? ` ${b.einheit}` : ''}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => (

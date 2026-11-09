@@ -451,7 +451,7 @@ function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: So
         )}
       </div>
       <div className="p-5">
-        {art === 'br' && <p className="text-sm text-slate-400"><T>Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.</T></p>}
+        {art === 'br' && !stufen.length && <p className="text-sm text-slate-400"><T>Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.</T></p>}
         <ol className="grid gap-1.5 sm:grid-cols-2">
           {stufen.slice(0, 8).map((s) => (
             <li key={s.windowId} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${s.status === 'live' ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/[0.07] bg-black/25'}`}>
@@ -608,6 +608,8 @@ export default function StartVitrine() {
   const [fncs, setFncs] = useState<FncsKurz | null>(null);
   /** Alle Stufen der laufenden Solos-Reihe - auch wenn gerade nichts laeuft (fuer die Slideshow). */
   const [alleStufen, setAlleStufen] = useState<SolosStufeKurz[]>([]);
+  /** Die FNCS Solos der Season 42 aus dem Archiv - dieselbe Karte wie bei Reload (Betreiber, 9.11.2026: "FNCS Solos genau gleich wie FNCS Reload Solos"). */
+  const [br, setBr] = useState<{ stufen: SolosStufeKurz[]; heats: SolosFenster[] }>({ stufen: [], heats: [] });
   const [geladen, setGeladen] = useState(false);
   const geholt = useRef(false);
 
@@ -628,6 +630,13 @@ export default function StartVitrine() {
           || (x.art === 'finale' && x.status === 'vorbei' && x.end !== null && jetzt - x.end < 18 * 3600_000));
         setSolos(laeuft ? st : null);
       }),
+      j('/api/globals-solos?region=EU&reihe=S42').then((v: { ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }) => {
+        if (!v?.ok) return;
+        setBr({
+          stufen: (v.stufen ?? []).map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end })),
+          heats: (v.fenster ?? []).filter((f) => f.art === 'heat').map((f) => ({ ...f, spieler: f.spieler.slice(0, 8), teams: [], formen: [] })),
+        });
+      }).catch(() => { /* ohne Archiv nur das Bild */ }),
       j('/api/fncs-ereignisse').then((v: { ok?: boolean; ereignisse?: FncsKurz[] }) => { if (v?.ok && v.ereignisse?.length) setFncs(v.ereignisse[v.ereignisse.length - 1]); }),
     ]).finally(() => setGeladen(true));
   }, []);
@@ -674,7 +683,7 @@ export default function StartVitrine() {
               ...(solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={solos} heats={heats} art="reload" /> }] : []),
               { name: 'Global Championship', inhalt: <FncsKarte e={fncs} fertig={geladen} /> },
               ...(!solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={alleStufen} heats={heats} art="reload" /> }] : []),
-              { name: 'FNCS Solos', inhalt: <SoloKarte stufen={[]} heats={[]} art="br" /> },
+              { name: 'FNCS Solos', inhalt: <SoloKarte stufen={br.stufen} heats={br.heats} art="br" /> },
             ]} />
           </div>
         </div>
