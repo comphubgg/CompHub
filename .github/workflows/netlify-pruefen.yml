@@ -24,3 +24,9 @@ jobs:
           curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s);console.log('Seite:',x.name,'| Domain:',x.custom_domain||'-','| Aliase:',(x.domain_aliases||[]).join(',')||'-','| gesperrt:',x.disabled??'-',x.disabled_reason||'','| Plan:',x.plan||'','| Konto:',x.account_slug||'','| live seit:',x.published_deploy?.published_at||'-')}catch{console.log(s.slice(0,400))}})"
           curl -s -H "$H" "$API/sites?per_page=50" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const x of JSON.parse(s))console.log('  weitere Seite im Konto:',x.name,x.custom_domain||'-','gesperrt:',x.disabled??'-',x.disabled_reason||'')}catch{}})"
           curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID/deploys?per_page=5" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const d of JSON.parse(s))console.log('  ',d.created_at,d.state,d.context,d.error_message||'')}catch{}})"
+      - name: Seite abrufen
+        if: matrix.konto == '1'
+        run: |
+          for U in https://www.thecomphub.com/ https://thecomphub.com/; do echo "== $U"; curl -s -o /tmp/s.html -w "Status %{http_code} | %{size_download} Bytes | %{url_effective}\n" -L "$U"; done
+          head -c 600 /tmp/s.html; echo
+          for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/s.html | sort -u | head -8); do curl -s -o /dev/null -w "%{http_code} %{content_type} %{size_download} $C\n" "https://www.thecomphub.com$C"; done
