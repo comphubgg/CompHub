@@ -13,6 +13,7 @@ async function umRang(eventId: string, windowId: string, rang: number) {
   return seite;
 }
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { liesJson, schreibJson } from '@/lib/ablage';
 
 // Wie viele Punkte es voraussichtlich braucht, um weiterzukommen.
 //
@@ -378,11 +379,10 @@ async function holeRoh(request: Request) {
       if (feldDieser && feldRef) {
         if (Math.abs(feldRef / feldDieser - 1) > 0.2) {
           /*
-           * "Safe Qual" statt genau Platz der Schwelle (Betreiber, 8.11.2026: "nicht was man genau als 80. hat, sondern so dass man 60. wird"): der Anteil von drei
-           * Vierteln der Schwelle. An den S42-Solo-Qualifiern lag dieser Wert in allen vier Faellen ueber dem, was Platz 80 wirklich kostete (304/286, 306/294,
-           * 305/287, 297/286) - nie mehr als 20 Punkte.
+           * Derselbe Anteil wie die Schwelle. Das "Safe Qual" mit drei Vierteln (8.11.2026) lag in Round 3 der Solos Reload 37 Punkte zu hoch (344 statt 307) -
+           * Betreiber, 9.11.2026: "30 Punkte sind nicht nichts". Der genaue Anteil lag an den S42-Qualifiern 2 bis 8 Punkte daneben; den Rest lernt die Korrektur unten.
            */
-          rang = Math.max(1, Math.round(((schwelle * 0.75) / feldDieser) * feldRef));
+          rang = Math.max(1, Math.round((schwelle / feldDieser) * feldRef));
           try {
             const b2 = await gecacht(`qual|${f.eventId}|${f.windowId}|${rang}`, 30 * 60_000, () => umRang(f.eventId, f.windowId, rang!));
             const t2 = b2.entries.find((e) => e.rank === rang);
@@ -414,6 +414,26 @@ async function holeRoh(request: Request) {
   const schnitt = werte.length
     ? Math.round(werte.reduce((s, x) => s + x, 0) / werte.length) : null;
 
+  /*
+   * Aus den eigenen Fehlern lernen (Betreiber, 9.11.2026: "aus dem musst du lernen ... dass du daraus immer wieder genauer wirst"). Ist ein Spieltag fertig, wird
+   * festgehalten, was die Prognose sagte und was es wirklich kostete. Fuer kuenftige Spieltage derselben Art (gleiche Reihe ohne Saison, gleiche Runde) kommt der
+   * mittlere Fehler der letzten sechs als Korrektur dazu - so wird jede Ausgabe genauer, ohne dass jemand von Hand nachstellt.
+   */
+  const ZUSCHLAG = 5; // wie QUAL_ZUSCHLAG auf der Event-Seite
+  const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}`;
+  type Lern = { windowId: string; art: string; prognose: number; tatsaechlich: number; zeit: number };
+  let korrektur = 0; let gelernt = 0;
+  try {
+    const lern = await liesJson<Lern[]>('prognose-lernen.json', []);
+    const fertig = !laeuft && typeof dieser.end === 'number' && jetzt > dieser.end + 30 * 60_000;
+    if (fertig && tatsaechlich !== null && schnitt !== null && !aehnlich && !lern.some((l) => l.windowId === dieser.windowId)) {
+      lern.push({ windowId: dieser.windowId, art, prognose: schnitt + ZUSCHLAG, tatsaechlich, zeit: Date.now() });
+      await schreibJson('prognose-lernen.json', lern.slice(-400)).catch(() => { /* beim naechsten Aufruf */ });
+    }
+    const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
+    if (gleiche.length) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
+  } catch { /* ohne Lernstand wie bisher */ }
+
   return NextResponse.json({
     vorhanden: schnitt !== null || tatsaechlich !== null,
     /* Was dieser Spieltag tatsaechlich kostet - waehrend er laeuft der
@@ -428,6 +448,8 @@ async function holeRoh(request: Request) {
     fuerBelohnung, aehnlich, ausVorlauf,
     /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
     kumuliert: tagRunde,
+    /* Gelernte Korrektur aus frueheren Spieltagen derselben Art (Punkte) und aus wie vielen. */
+    korrektur, gelernt,
     /* Die Schaetzung kommt vom frueheren Tag derselben Runde. */
     vortag,
     grundlage: werte.length,

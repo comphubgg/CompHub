@@ -52,7 +52,8 @@ const QUAL_ZUSCHLAG = 5;
  * Die Prognose: Schnitt + 5 bei frueheren Ausgaben desselben Cups - aus aehnlichen Cups ohne Aufschlag (Betreiber, 3.11.2026: beim Solo Reload Test
  * Cup als Vorlage fuer die FNCS Solos Reload war "das plus 5 knapp zu hoch" - ein anderer Cup ist ohnehin eine Naeherung).
  */
-const qualPrognose = (q: { schnitt: number | null; aehnlich?: boolean }) => (q.schnitt ?? 0) + (q.aehnlich ? 0 : QUAL_ZUSCHLAG);
+// Dazu die gelernte Korrektur aus frueheren Spieltagen derselben Art (app/api/qualifikation, prognose-lernen.json).
+const qualPrognose = (q: { schnitt: number | null; aehnlich?: boolean; korrektur?: number }) => (q.schnitt ?? 0) + (q.aehnlich ? 0 : QUAL_ZUSCHLAG) + (q.korrektur ?? 0);
 
 interface Fenster {
   status: 'live' | 'kommt' | 'vorbei';
