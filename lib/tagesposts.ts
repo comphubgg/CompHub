@@ -168,8 +168,7 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
   const WORST: Array<{ feld: string; titel: string; wert: (x: SSpieler) => number | null; fmt: (n: number) => string; spruch: string }> = [
     { feld: 'quote', titel: 'Worst damage ratio', wert: (x) => (Number.isFinite(x.quote) && x.quote > 0 ? x.quote : null), fmt: (n) => n.toFixed(2),
       spruch: 'Taking more damage than they deal. Generous of them.' },
-    { feld: 'elimsProMatch', titel: 'Fewest eliminations per match', wert: (x) => (x.elims > 0 ? x.elims / x.matches : null), fmt: (n) => n.toFixed(2),
-      spruch: 'Pacifist run, any% category.' },
+    // Kein Elims-pro-Match: in der Saisonliste fehlen Elims ganzer Spieltage (Scroll 0, Ritual 1 in vier Finals-Matches, 9.11.2026) - das waere Spott ueber eine Datenluecke.
     { feld: 'damageProMatch', titel: 'Least damage per match', wert: (x) => (x.damage > 0 ? x.damage / x.matches : null), fmt: (n) => zahl(n),
       spruch: 'Their guns are purely decorative.' },
     { feld: 'headshotQuote', titel: 'Lowest headshot rate', wert: (x) => (x.hits >= 200 && x.headshots > 0 ? x.headshots / x.hits : null), fmt: (n) => `${(n * 100).toFixed(1)}%`,
