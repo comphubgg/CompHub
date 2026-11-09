@@ -179,8 +179,10 @@ async function holeRoh(request: Request) {
     // Wann Epic die Bestenliste zuletzt fortgeschrieben hat - fuer "zuletzt aktualisiert".
     const aktualisiert = tageDaten ? (tageDaten.map((d) => d.updated ?? '').sort().pop() || null) : finale ? await globalsStand(limit) : einzeln!.updated ?? null;
 
+    // Solo Clutch Points sind ein Wert je Spieler: bei Team-Cups gehoeren sie unter Player Stats, nicht unter Team Stats (Betreiber, 9.11.2026).
+    const teamCup = eintraege.some((e) => (e.players?.length ?? 0) > 1);
     const bestenlisten = KATEGORIEN.filter((k) =>
-      !nurListe || k.schluessel === nurListe).map((k) => {
+      (!nurListe || k.schluessel === nurListe) && !(teamCup && k.schluessel === 'clutch')).map((k) => {
       const mindestSpiele = k.jeSpiel ? Math.max(1, Math.ceil(eintraege.reduce((m, e) => Math.max(m, e.games || 0), 0) / 2)) : 0;
       const mitWert = eintraege.filter((e) => {
         const v = k.wert(e, ex(e));
