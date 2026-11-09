@@ -76,6 +76,13 @@ jobs:
           # 11.10.2026 ("Forbidden") einen Bau direkt fuer die Hauptseite, einen Entwurf nimmt es an.
           # "live" veroeffentlicht deshalb den fertigen Entwurf danach ueber die Schnittstelle (restore) -
           # derselbe Stand, ohne zweiten Bau.
+          # Haengengebliebene Bereitstellungen (Zustand "preparing" o. ae., z. B. nach abgebrochenem Lauf) zuerst abbrechen,
+          # und den Zustand von Seite und Konto ausgeben (seit 5.11.2026 blieb jede Bereitstellung in "preparing").
+          API="https://api.netlify.com/api/v1"; H="Authorization: Bearer $NETLIFY_AUTH_TOKEN"
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID/deploys?per_page=20" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const d of JSON.parse(s))if(['new','pending_review','enqueued','preparing','prepared','uploading','uploaded','processing','building'].includes(d.state))console.log(d.id)}catch{}})" \
+            | while read -r D; do echo "Breche haengende Bereitstellung ab: $D"; curl -s -o /dev/null -X POST -H "$H" "$API/deploys/$D/cancel"; done
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s);console.log('Seite:',x.name,x.url,'Zustand:',x.state,'gesperrt:',x.disabled??x.suspended??'-',x.disabled_reason||'','Plan:',x.plan||'',x.account_slug||'')}catch{console.log(s.slice(0,400))}})"
+          curl -s -H "$H" "$API/accounts" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const a of JSON.parse(s))console.log('Konto:',a.slug,a.type_name||a.type||'',JSON.stringify(a.capabilities||{}).slice(0,600))}catch{console.log(s.slice(0,400))}})"
           # Erst bauen (mit voller Ausgabe im Log, damit ein Fehler lesbar ist), dann den fertigen Stand hochladen.
           npx --yes netlify-cli@latest build --context production 2>&1 | tail -n 300; test "${PIPESTATUS[0]}" = 0
           # Das Warten auf Netlify lief dreimal nach 20 Minuten ab (Bau selbst: 2 Minuten). Laenger warten und bei
