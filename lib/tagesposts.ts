@@ -2,6 +2,8 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 import { GET as vitrine } from '@/app/api/startvitrine/route';
 import { GET as statistikZahlen } from '@/app/api/statistik-zahlen/route';
 import { GET as szeneStart } from '@/app/api/szene-stats/route';
+import { GET as fncsAlltime } from '@/app/api/fncs-alltime/route';
+import { GET as powerRankings } from '@/app/api/power-rankings/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { kartenKandidaten } from '@/lib/postKarte';
 
@@ -67,19 +69,23 @@ interface VRang { rang: number; name: string; land: string | null; wertung: numb
 interface Vitrine { ok?: boolean; saison?: string | null; saisonName?: string | null; spieler?: VSpieler[]; cups?: VCup[]; maps?: number; rangliste?: VRang[] }
 
 interface SSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; heimat?: string; elims: number; damage: number; quote: number; headshots: number; hits: number; matches: number }
-interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }>; alle?: SSpieler[] }
+interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }>; alle?: SSpieler[]; fncs?: Fncs; pr?: PrZeile[] }
+interface Fncs { events?: Array<{ key: string }>; spieler?: Array<{ id: string; name: string; land: string | null; bild: string | null; je: Record<string, number> }>; titel?: Array<{ id: string; name: string }>; rekorde?: { ab?: string; spieler?: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }> } }
+interface PrZeile { rank: number; id: string; anzeige?: string; name: string; land: string; wertung: number; bestwert: number; bild?: string | null }
 type Zahlen = { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null };
 
 async function datenLage(): Promise<{ v: Vitrine; zahlen: Zahlen; s: SStart }> {
   const lies = async <T,>(f: () => Promise<Response>): Promise<T> => { try { return await (await f()).json() as T; } catch { return {} as T; } };
-  const [v, zahlen, s, ganz] = await Promise.all([
+  const [v, zahlen, s, ganz, fncs, prSeite] = await Promise.all([
     lies<Vitrine>(() => vitrine(new Request(`${SEITE}/api/startvitrine`))),
     lies<Zahlen>(() => statistikZahlen()),
     lies<SStart>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?ansicht=start`))),
     // Die ganze Elim-Liste der Saison (bis 400 Spieler) - daraus kommen die "Worst of CompHub"-Posts.
     lies<{ plaetze?: SSpieler[] }>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?ansicht=start&liste=elims`))),
+    lies<Fncs>(() => fncsAlltime()),
+    lies<{ players?: PrZeile[] }>(() => powerRankings(new Request(`${SEITE}/api/power-rankings?page=1&pageSize=200`))),
   ]);
-  return { v, zahlen, s: { ...s, alle: Array.isArray(ganz.plaetze) ? ganz.plaetze : [] } };
+  return { v, zahlen, s: { ...s, alle: Array.isArray(ganz.plaetze) ? ganz.plaetze : [], fncs, pr: Array.isArray(prSeite.players) ? prSeite.players : [] } };
 }
 
 /** Wie frisch ein Cup sein muss, um einen Post zu bekommen (Betreiber, 19.10.2026: kein Post ueber einen Cup, der Tage her ist). */
@@ -186,6 +192,39 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
         bild: { art: 'rekord', worst: true, titel: w.titel, saison: `Worst of CompHub · ${saison}`, drei: drei.map((e, i) => ({ rang: i + 1, name: gross(rein(e.x.anzeige)), land: e.x.land, bild: e.x.bild, wert: w.fmt(e.n) })) },
       });
     }
+  }
+
+  /*
+   * Worst of CompHub, die Geschichten (Betreiber, 9.11.2026: "the only player who qualified every final but has no FNCS title ... oder the pro with the
+   * biggest glowdown - aber noch nett"). Ein Spieler, ein Foto, drei Zahlen - und ein Satz, der neckt und zugleich zeigt, wie gut er eigentlich ist.
+   */
+  const f = s.fncs;
+  const titelNamen = new Set((f?.titel ?? []).map((t) => t.name.toLowerCase()));
+  const finalSpieler = f?.spieler ?? [];
+  const ohneTitel = (f?.rekorde?.spieler ?? []).filter((x) => !titelNamen.has(x.name.toLowerCase()) && x.finals >= 4)
+    .sort((a, b) => b.punkte - a.punkte);
+  const ungekroent = ohneTitel[0];
+  const ungekroentFoto = ungekroent ? finalSpieler.find((x) => x.name.toLowerCase() === ungekroent.name.toLowerCase()) : undefined;
+  if (ungekroent && ungekroentFoto?.bild) {
+    const N = gross(rein(ungekroent.name)); const ab = f?.rekorde?.ab ?? 'Chapter 5 Season 3';
+    const zweiter = ohneTitel[1];
+    raus.push({
+      art: 'worst', schluessel: `worst:ungekroent:${ungekroentFoto.id}:${ungekroent.finals}:${ungekroent.punkte}`, titel: `Worst of: ${N} ohne FNCS-Titel`,
+      text: `WORST OF COMPHUB 🧌\n\n${N}: ${ungekroent.finals} FNCS Grand Finals since ${ab}. ${zahl(ungekroent.punkte)} points, ${ungekroent.siege} match ${ungekroent.siege === 1 ? 'win' : 'wins'}, ${zahl(ungekroent.elims)} eliminations.\n\nFNCS titles: 0.\n\nThe most points in FNCS finals without ever lifting the trophy${zweiter ? ` (next in line: ${gross(rein(zweiter.name))}, ${zahl(zweiter.punkte)})` : ''}. The uncrowned king. It's coming, we believe in you 👑😈\n\n${SEITE}/fncs`,
+      bild: { art: 'spieler', worst: true, oben: 'Worst of CompHub · Uncrowned', name: N, bild: ungekroentFoto.bild, region: ungekroentFoto.land ?? 'EU',
+        werte: [['GF played', String(ungekroent.finals)], ['Points', zahl(ungekroent.punkte)], ['Titles', '0']] },
+    });
+  }
+  // Der tiefste Fall unter den Top 200 der Power Rankings: wie weit unter der eigenen Bestwertung (Epic fuehrt beide Zahlen).
+  const fall = (s.pr ?? []).filter((x) => x.bestwert > x.wertung && x.bild).sort((a, b) => (b.bestwert - b.wertung) - (a.bestwert - a.wertung))[0];
+  if (fall) {
+    const N = gross(rein(fall.anzeige || fall.name)); const minus = fall.bestwert - fall.wertung;
+    raus.push({
+      art: 'worst', schluessel: `worst:glowdown:${fall.id}:${fall.wertung}`, titel: `Worst of: Glowdown ${N}`,
+      text: `WORST OF COMPHUB 🧌\n\nBiggest glowdown in the Power Rankings top 200: ${N}.\n\nPeak: ${zahl(fall.bestwert)}\nNow: ${zahl(fall.wertung)} (#${fall.rank})\nThat's ${zahl(minus)} points gone.\n\nStill top 200 in the world though, so we're not too worried. Comeback arc loading 📈😈\n\n${SEITE}/power-rankings`,
+      bild: { art: 'spieler', worst: true, oben: 'Worst of CompHub · Glowdown', name: N, bild: fall.bild, region: fall.land || 'Global',
+        werte: [['Peak', zahl(fall.bestwert)], ['Now', zahl(fall.wertung)], ['Lost', `-${zahl(minus)}`]] },
+    });
   }
 
   // Power Rankings: einmal je Fortschreibung der Rangliste (die Spitze und ihr Stand als Schluessel).

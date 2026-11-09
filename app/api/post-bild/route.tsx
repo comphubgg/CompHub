@@ -190,13 +190,13 @@ export async function GET(request: Request) {
         {foto && <img src={foto} width={720} height={H} style={{ position: 'absolute', left: 0, top: 0, width: 720, height: H, objectFit: 'cover', objectPosition: fokusVon(String(d.bild ?? '')) }} />}
         <div style={{ position: 'absolute', left: 0, top: 0, width: 720, height: H, display: 'flex', background: 'linear-gradient(90deg,rgba(10,19,36,0) 55%,#0a1324 100%)' }} />
         <div style={{ position: 'absolute', left: 720, top: 0, width: 880, height: H, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px' }}>
-          <div style={{ display: 'flex', fontSize: 28, color: BLAU, letterSpacing: 4, textTransform: 'uppercase' }}>{`Player · ${d.region ?? 'Global'}`}</div>
+          <div style={{ display: 'flex', fontSize: 28, color: d.worst === true ? '#f43f5e' : BLAU, letterSpacing: 4, textTransform: 'uppercase' }}>{typeof d.oben === 'string' ? d.oben : `Player · ${d.region ?? 'Global'}`}</div>
           <div style={{ display: 'flex', fontFamily: familie, fontSize: 124, fontWeight: 800, lineHeight: 1.0, marginTop: 12, textTransform: 'uppercase', maxHeight: 260, overflow: 'hidden' }}>{String(d.name ?? '')}</div>
           <div style={{ display: 'flex', gap: 18, marginTop: 52, width: 740 }}>
             {werte.map(([l, w]) => (
               <div key={l} style={{ display: 'flex', flexDirection: 'column', width: 232, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '24px 22px' }}>
                 <div style={{ display: 'flex', fontSize: 22, color: '#94a3b8', letterSpacing: 2, textTransform: 'uppercase' }}>{l}</div>
-                <div style={{ display: 'flex', fontFamily: familie, fontSize: 56, fontWeight: 800, color: l === 'Damage ratio' ? '#34d399' : '#fff', marginTop: 8 }}>{w}</div>
+                <div style={{ display: 'flex', fontFamily: familie, fontSize: 56, fontWeight: 800, color: l === 'Damage ratio' ? '#34d399' : d.worst === true && (w === '0' || w.startsWith('-')) ? '#f43f5e' : '#fff', marginTop: 8 }}>{w}</div>
               </div>
             ))}
           </div>
