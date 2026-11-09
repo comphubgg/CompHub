@@ -39,7 +39,15 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
   let katalog: { cups?: Array<Omit<KatalogCup, 'regionen'> & { regionen?: Record<string, Fenster[]> }> } = {};
   try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=alle-aktuell`))).json(); } catch { return []; }
   const jetzt = Date.now();
-  const alleFenster = (katalog.cups ?? []).flatMap((c) => (c.regionen?.[region] ?? []).map((f) => ({ c, f })));
+  /*
+   * Dazu der ganze Katalog: die beendete letzte Runde faellt nach ein paar Stunden aus "alle-aktuell" heraus (9.11.2026: die Heat-Einteilung war morgens weg,
+   * weil Round 3 dort nicht mehr stand). Doppelte Fenster zaehlen einmal.
+   */
+  let ganz: typeof katalog = {};
+  try { ganz = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=alle`))).json(); } catch { /* dann nur die aktuellen */ }
+  const gesehen = new Set<string>();
+  const alleFenster = [...(katalog.cups ?? []), ...(ganz.cups ?? [])].flatMap((c) => (c.regionen?.[region] ?? []).map((f) => ({ c, f })))
+    .filter(({ f }) => (gesehen.has(f.windowId) ? false : (gesehen.add(f.windowId), true)));
   const gruppen = new Map<string, { c: { id: string; titel: string }; fenster: Fenster[] }>();
   for (const { c, f } of alleFenster) {
     if (!/Heat\d+/i.test(f.windowId) || (nurEvent && f.eventId !== nurEvent)) continue;
