@@ -453,7 +453,8 @@ function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: So
       <div className="p-5">
         {art === 'br' && !stufen.length && <p className="text-sm text-slate-400"><T>Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.</T></p>}
         <ol className="grid gap-1.5 sm:grid-cols-2">
-          {stufen.slice(0, 8).map((s) => (
+          {/* Bei der beendeten Reihe die letzten Stufen (Heats, Last Chance, Finale) statt der ersten Qualifier. */}
+          {(art === 'br' ? stufen.slice(-8) : stufen.slice(0, 8)).map((s) => (
             <li key={s.windowId} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${s.status === 'live' ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/[0.07] bg-black/25'}`}>
               <span className={`truncate font-bold uppercase ${s.status === 'vorbei' ? 'text-slate-500' : 'text-slate-100'}`}>{s.name}</span>
               <span className="shrink-0 tabular-nums text-slate-400">{DATUM.format(new Date(s.begin))}</span>
