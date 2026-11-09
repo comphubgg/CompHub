@@ -823,7 +823,40 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [fenster, setFenster] = useState<Fenster | null>(null);
 
   const [tabelle, setTabelleRoh] = useState<Eintrag[]>([]);
-  const setTabelle = useCallback((liste: Eintrag[]) => setTabelleRoh(einmalJeTeam(liste)), []);
+  /*
+   * Namen nie als Zahlencode (Betreiber, 9.11.2026: "0c25deec + 1ac6b982" statt der Spieler, mitten im Cup ohne Neuladen). Bremst Epic die Namensabfrage,
+   * schickt der Server fuer diese Konten nur die gekuerzte Id. Was diese Seite einmal als echten Namen gesehen hat, bleibt deshalb hier gemerkt und ersetzt
+   * den Code - in der Bestenliste und in allen Statistik-Kacheln.
+   */
+  const bekannteNamen = useRef(new Map<string, string>());
+  const nurCode = (name: string | undefined, id: string | undefined) => !!id && !!name && name === id.slice(0, 8);
+  const namenFlicken = useCallback((liste: Eintrag[]) => liste.map((e) => {
+    let anders = false;
+    const players = e.players.map((p) => {
+      if (!p.id) return p;
+      if (!nurCode(p.name, p.id)) { bekannteNamen.current.set(p.id, p.name); return p; }
+      const alt = bekannteNamen.current.get(p.id);
+      if (alt) { anders = true; return { ...p, name: alt }; }
+      return p;
+    });
+    return anders ? { ...e, players } : e;
+  }), []);
+  const setTabelle = useCallback((liste: Eintrag[]) => setTabelleRoh(einmalJeTeam(namenFlicken(liste))), [namenFlicken]);
+  const statNamenFlicken = useCallback((listen: Bestenliste[]) => listen.map((b) => {
+    const flick = (pl: StatPlatz) => {
+      if (!pl.ids?.length) return pl;
+      let anders = false;
+      const spieler = pl.spieler.map((n, i) => {
+        const id = pl.ids[i];
+        if (!nurCode(n, id)) { if (id && n) bekannteNamen.current.set(id, n); return n; }
+        const alt = bekannteNamen.current.get(id);
+        if (alt) { anders = true; return alt; }
+        return n;
+      });
+      return anders ? { ...pl, spieler } : pl;
+    };
+    return { ...b, plaetze: b.plaetze.map(flick), alle: (b.alle ?? []).map(flick) };
+  }), []);
   const { sprache } = useSprache();
   const ort = ortVon(sprache);
   const [stand, setStand] = useState('');
@@ -1727,7 +1760,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         if (weg) return;
         if (!Array.isArray(d?.bestenlisten)) throw new Error('keine Bestenlisten');
         setStatistikFehlt(false); setStatistikDa(true);
-        setStatistik(d.bestenlisten);
+        setStatistik(statNamenFlicken(d.bestenlisten));
         setUeberblick(d.ueberblick ?? null);
         setStatistikStand(d.aktualisiert ?? null);
       })
