@@ -19,7 +19,7 @@ import { kartenKandidaten } from '@/lib/postKarte';
  * Die Texte sind englisch (die Szene schreibt englisch) und tragen keine Hashtags.
  */
 
-export type PostArt = 'cup' | 'ergebnis' | 'duell' | 'rekord' | 'ranking' | 'promo' | 'update' | 'karte' | 'zonen';
+export type PostArt = 'cup' | 'ergebnis' | 'duell' | 'rekord' | 'ranking' | 'promo' | 'update' | 'karte' | 'zonen' | 'worst';
 
 export interface TagesPost {
   nr: number;
@@ -67,17 +67,19 @@ interface VRang { rang: number; name: string; land: string | null; wertung: numb
 interface Vitrine { ok?: boolean; saison?: string | null; saisonName?: string | null; spieler?: VSpieler[]; cups?: VCup[]; maps?: number; rangliste?: VRang[] }
 
 interface SSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; heimat?: string; elims: number; damage: number; quote: number; headshots: number; hits: number; matches: number }
-interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }> }
+interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }>; alle?: SSpieler[] }
 type Zahlen = { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null };
 
 async function datenLage(): Promise<{ v: Vitrine; zahlen: Zahlen; s: SStart }> {
   const lies = async <T,>(f: () => Promise<Response>): Promise<T> => { try { return await (await f()).json() as T; } catch { return {} as T; } };
-  const [v, zahlen, s] = await Promise.all([
+  const [v, zahlen, s, ganz] = await Promise.all([
     lies<Vitrine>(() => vitrine(new Request(`${SEITE}/api/startvitrine`))),
     lies<Zahlen>(() => statistikZahlen()),
     lies<SStart>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?ansicht=start`))),
+    // Die ganze Elim-Liste der Saison (bis 400 Spieler) - daraus kommen die "Worst of CompHub"-Posts.
+    lies<{ plaetze?: SSpieler[] }>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?ansicht=start&liste=elims`))),
   ]);
-  return { v, zahlen, s };
+  return { v, zahlen, s: { ...s, alle: Array.isArray(ganz.plaetze) ? ganz.plaetze : [] } };
 }
 
 /** Wie frisch ein Cup sein muss, um einen Post zu bekommen (Betreiber, 19.10.2026: kein Post ueber einen Cup, der Tage her ist). */
@@ -151,6 +153,39 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
       text: `${titel}, ${saison}:\n\n${drei.map((x, i) => `${i + 1}. ${gross(rein(x.anzeige))} - ${fmt(x)}`).join('\n')}\n\nAll lists, every region: ${SEITE}/statistics`,
       bild: { art: 'rekord', titel, saison, drei: drei.map((x, i) => ({ rang: i + 1, name: gross(rein(x.anzeige)), land: x.land, bild: x.bild, wert: fmt(x) })) },
     });
+  }
+
+  /*
+   * Worst of CompHub (Betreiber, 9.11.2026: "da stehen immer die schlechtesten Stats ... ein bisschen mehr Troll"): die Letzten einer Liste - aber nur
+   * unter Spielern, die wirklich gespielt haben (die 400 mit den meisten Elims der Saison, und davon nur, wer mindestens die Haelfte der Matches des
+   * Fleissigsten hat, wenigstens zehn). Frech im Ton, nie beleidigend: es geht um die Zahl, nicht um den Menschen. Nichts erfunden - es steht, was die
+   * Statistikseite hergibt.
+   */
+  const alle = (s.alle ?? []).filter((x) => x.epicId && x.anzeige && x.matches > 0);
+  const meiste = alle.reduce((m, x) => Math.max(m, x.matches), 0);
+  const genug = alle.filter((x) => x.matches >= Math.max(10, Math.round(meiste / 2)));
+  const WORST: Array<{ feld: string; titel: string; wert: (x: SSpieler) => number | null; fmt: (n: number) => string; spruch: string }> = [
+    { feld: 'quote', titel: 'Worst damage ratio', wert: (x) => (Number.isFinite(x.quote) && x.quote > 0 ? x.quote : null), fmt: (n) => n.toFixed(2),
+      spruch: 'Taking more damage than they deal. Generous of them.' },
+    { feld: 'elimsProMatch', titel: 'Fewest eliminations per match', wert: (x) => x.elims / x.matches, fmt: (n) => n.toFixed(2),
+      spruch: 'Pacifist run, any% category.' },
+    { feld: 'damageProMatch', titel: 'Least damage per match', wert: (x) => x.damage / x.matches, fmt: (n) => zahl(n),
+      spruch: 'Their guns are purely decorative.' },
+    { feld: 'headshotQuote', titel: 'Lowest headshot rate', wert: (x) => (x.hits >= 200 ? x.headshots / x.hits : null), fmt: (n) => `${(n * 100).toFixed(1)}%`,
+      spruch: 'Aiming for the knees, apparently.' },
+  ];
+  if (genug.length >= 20) {
+    const saison = v.saisonName ?? 'this season';
+    for (const w of WORST) {
+      const mitWert = genug.map((x) => ({ x, n: w.wert(x) })).filter((e): e is { x: SSpieler; n: number } => e.n !== null && Number.isFinite(e.n));
+      if (mitWert.length < 20) continue;
+      const drei = mitWert.sort((a, b) => a.n - b.n).slice(0, 3);
+      raus.push({
+        art: 'worst', schluessel: `worst:${w.feld}:${drei.map((e) => e.x.epicId).join('|')}`, titel: `Worst of: ${w.titel}`,
+        text: `WORST OF COMPHUB 🧌\n\n${w.titel}, ${saison} (min. ${Math.max(10, Math.round(meiste / 2))} matches):\n\n${drei.map((e, i) => `${i + 1}. ${gross(rein(e.x.anzeige))} - ${w.fmt(e.n)}`).join('\n')}\n\n${w.spruch} 😈\n\nCheck if you made the list: ${SEITE}/statistics`,
+        bild: { art: 'rekord', worst: true, titel: w.titel, saison: `Worst of CompHub · ${saison}`, drei: drei.map((e, i) => ({ rang: i + 1, name: gross(rein(e.x.anzeige)), land: e.x.land, bild: e.x.bild, wert: w.fmt(e.n) })) },
+      });
+    }
   }
 
   // Power Rankings: einmal je Fortschreibung der Rangliste (die Spitze und ihr Stand als Schluessel).
@@ -227,7 +262,9 @@ export async function tagesplan(datum: string, anlegen = true): Promise<Tagespla
   // Was heute frisch ist (Cup-Ergebnis, Karte vom Cup), steht vorn; der Rest wechselt mit dem Tag.
   const alle = kandidaten(datum, v, zahlen, s, karten).filter((k) => !benutzt.has(k.schluessel));
   const frischeAuswahl = alle.filter((k) => k.art === 'cup' || k.art === 'karte');
-  const frei = [...frischeAuswahl, ...mischen(alle.filter((k) => k.art !== 'cup' && k.art !== 'karte'), datum)];
+  // Jeden Tag ein "Worst of CompHub", solange es einen neuen gibt (Betreiber, 9.11.2026).
+  const worst = mischen(alle.filter((k) => k.art === 'worst'), datum).slice(0, 1);
+  const frei = [...frischeAuswahl, ...worst, ...mischen(alle.filter((k) => k.art !== 'cup' && k.art !== 'karte' && !worst.includes(k)), datum)];
   const gewaehlt: TagesPost[] = [];
   // Erst je Art einen, dann auffuellen.
   const arten = new Set<PostArt>();

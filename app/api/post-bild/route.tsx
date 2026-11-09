@@ -242,11 +242,14 @@ export async function GET(request: Request) {
     const drei = (d.drei as Array<{ rang: number; name: string; land: string | null; bild: string; wert: string }>) ?? [];
     const fotos = await Promise.all(drei.map((x) => bildDaten(x.bild, ursprung, 700)));
     const reihe = [1, 0, 2].map((i) => ({ x: drei[i], f: fotos[i] })).filter((e) => e.x);
-    const MED: Record<number, string> = { 1: '#f5b301', 2: '#cbd5e1', 3: '#fb923c' };
+    // "Worst of CompHub": dieselbe Buehne in Rot, die Plaetze ohne Medaillenfarben.
+    const worst = d.worst === true;
+    const AKZENT = worst ? '#f43f5e' : BLAU;
+    const MED: Record<number, string> = worst ? { 1: '#f43f5e', 2: '#fb7185', 3: '#fda4af' } : { 1: '#f5b301', 2: '#cbd5e1', 3: '#fb923c' };
     bild = rahmen(
       <>
         <div style={{ position: 'absolute', left: 64, top: 52, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: 26, color: BLAU, letterSpacing: 4, textTransform: 'uppercase' }}>{String(d.saison ?? '')}</div>
+          <div style={{ display: 'flex', fontSize: 26, color: AKZENT, letterSpacing: 4, textTransform: 'uppercase' }}>{String(d.saison ?? '')}</div>
           <div style={{ display: 'flex', fontFamily: familie, fontSize: 76, fontWeight: 800, lineHeight: 1.05, marginTop: 6 }}>{String(d.titel ?? '')}</div>
         </div>
         <div style={{ position: 'absolute', left: 64, top: 220, width: B - 128, height: 560, display: 'flex', gap: 28, alignItems: 'flex-end' }}>
@@ -257,7 +260,7 @@ export async function GET(request: Request) {
               <div style={{ position: 'absolute', left: 20, top: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 58, height: 58, borderRadius: 29, background: MED[x.rang] ?? '#cbd5e1', color: '#0b1220', fontFamily: familie, fontSize: 34, fontWeight: 800 }}>{x.rang}</div>
               <div style={{ position: 'absolute', left: 26, bottom: 24, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', fontFamily: familie, fontSize: 50, fontWeight: 800, textTransform: 'uppercase', lineHeight: 1.0 }}>{x.name}</div>
-                <div style={{ display: 'flex', fontFamily: familie, fontSize: 62, fontWeight: 800, color: BLAU, marginTop: 6 }}>{x.wert}</div>
+                <div style={{ display: 'flex', fontFamily: familie, fontSize: 62, fontWeight: 800, color: AKZENT, marginTop: 6 }}>{x.wert}</div>
               </div>
             </div>
           ))}
