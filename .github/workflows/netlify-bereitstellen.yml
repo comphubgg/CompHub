@@ -78,7 +78,14 @@ jobs:
           # derselbe Stand, ohne zweiten Bau.
           # Erst bauen (mit voller Ausgabe im Log, damit ein Fehler lesbar ist), dann den fertigen Stand hochladen.
           npx --yes netlify-cli@latest build --context production 2>&1 | tail -n 300; test "${PIPESTATUS[0]}" = 0
-          AUS=$(npx --yes netlify-cli@latest deploy --no-build --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || { echo "$AUS" | tail -n 80; exit 1; }
+          # Das Warten auf Netlify lief dreimal nach 20 Minuten ab (Bau selbst: 2 Minuten). Laenger warten und bei
+          # Fehlschlag zeigen, in welchem Zustand Netlify die letzten Bereitstellungen sieht.
+          AUS=$(npx --yes netlify-cli@latest deploy --no-build --timeout 3600 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
+            echo "$AUS" | tail -n 80
+            echo "Letzte Bereitstellungen bei Netlify:"
+            curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=8" \
+              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const d of JSON.parse(s))console.log(d.created_at,d.state,d.context,d.branch||'',d.error_message||'')}catch(e){console.log(s.slice(0,500))}})"
+            exit 1; }
           echo "$AUS" | tail -n 40
           ID=$(echo "$AUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=s.match(/\"deploy_id\"\s*:\s*\"([0-9a-f]+)\"/);console.log(m?m[1]:'')})")
           echo "Entwurf: $ID"
