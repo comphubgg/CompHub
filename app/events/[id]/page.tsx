@@ -3968,21 +3968,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <a href={`/api/auth/epic/freunde?start=1&zurueck=${encodeURIComponent(`/events/${id}`)}`} className="font-semibold text-sky-300 hover:underline"><T>Jetzt freigeben</T> →</a>
             </p>
           )}
-          {!laedt && (vertieft || suchtGerade) && (
+          {/* Kein "lädt weitere … 5,885" mehr (Betreiber, 9.11.2026: "alles instant wie auf jeder anderen Seite") - die Liste waechst still im Hintergrund.
+              Nur eine laufende Suche bekommt ihr Band. */}
+          {!laedt && suchtGerade && (
             <div className="flex items-center justify-center gap-3 border-b
                             border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5">
               <span className="block h-5 w-5 shrink-0 animate-spin rounded-full
                                border-2 border-zinc-700 border-t-sky-400" />
-              <span className="text-xs text-slate-400">
-                {suchtGerade ? <T>Wird durchsucht …</T> : (
-                  <>
-                    <T>lädt weitere …</T>{' '}
-                    <span className="tabular-nums text-slate-500">
-                      {tabelle.length.toLocaleString(ort)}
-                    </span>
-                  </>
-                )}
-              </span>
+              <span className="text-xs text-slate-400"><T>Wird durchsucht …</T></span>
             </div>
           )}
 
