@@ -80,7 +80,7 @@ jobs:
           npx --yes netlify-cli@latest build --context production 2>&1 | tail -n 300; test "${PIPESTATUS[0]}" = 0
           # Das Warten auf Netlify lief dreimal nach 20 Minuten ab (Bau selbst: 2 Minuten). Laenger warten und bei
           # Fehlschlag zeigen, in welchem Zustand Netlify die letzten Bereitstellungen sieht.
-          AUS=$(npx --yes netlify-cli@latest deploy --no-build --timeout 3600 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
+          AUS=$(timeout 1500 npx --yes netlify-cli@latest deploy --no-build --timeout 1400 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
             echo "$AUS" | tail -n 80
             echo "Letzte Bereitstellungen bei Netlify:"
             curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=8" \
