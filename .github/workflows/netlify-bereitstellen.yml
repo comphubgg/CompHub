@@ -76,7 +76,7 @@ jobs:
           # 11.10.2026 ("Forbidden") einen Bau direkt fuer die Hauptseite, einen Entwurf nimmt es an.
           # "live" veroeffentlicht deshalb den fertigen Entwurf danach ueber die Schnittstelle (restore) -
           # derselbe Stand, ohne zweiten Bau.
-          AUS=$(npx --yes netlify-cli@latest deploy --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}")
+          AUS=$(npx --yes netlify-cli@latest deploy --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || { echo "Bau fehlgeschlagen - die Meldungen:"; echo "$AUS" | grep -vE "^\s*$" | grep -iE -B3 -A12 "error|failed|cannot|not supported" | head -150; exit 1; }
           echo "$AUS" | tail -n 40
           ID=$(echo "$AUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=s.match(/\"deploy_id\"\s*:\s*\"([0-9a-f]+)\"/);console.log(m?m[1]:'')})")
           echo "Entwurf: $ID"
