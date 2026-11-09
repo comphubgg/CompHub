@@ -27,6 +27,9 @@ jobs:
       - name: Seite abrufen
         if: matrix.konto == '1'
         run: |
+          # Zwischenspeicher bei Netlify leeren (kostenlos): die Seite lieferte HTML mit Verweisen auf CSS/JS, die es nicht mehr gab.
+          curl -s -o /dev/null -w "Cache leeren: %{http_code}\n" -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" -H "Content-Type: application/json" -d "{\"site_id\":\"$NETLIFY_SITE_ID\"}" https://api.netlify.com/api/v1/purge
+          sleep 20
           for U in https://www.thecomphub.com/ https://thecomphub.com/; do echo "== $U"; curl -s -o /tmp/s.html -w "Status %{http_code} | %{size_download} Bytes | %{url_effective}\n" -L "$U"; done
           head -c 600 /tmp/s.html; echo
-          for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/s.html | sort -u | head -8); do curl -s -o /dev/null -w "%{http_code} %{content_type} %{size_download} $C\n" "https://www.thecomphub.com$C"; done
+          for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/s.html | sort -u | head -8); do head -c 0 /dev/null; curl -s -o /dev/null -w "Code %{http_code} | %{content_type} %{size_download} $C\n" "https://www.thecomphub.com$C"; done
