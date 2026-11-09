@@ -2277,7 +2277,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Welche Lobbys gezeigt werden - und gezaehlt (8.11.2026: "Live 14", aber nur eine Kachel sichtbar). Bei vielen Lobbys nur die, deren Spieler fast alle bekannt
    * sind oder die eine eigene Replay-Seite haben; Reload-Lobbys haben hoechstens 40 Spieler, dort reichen 30.
    */
-  const lobbyGrenze = /reload/i.test(`${fenster?.windowId ?? ''} ${cup?.titel ?? ''}`) ? 30 : 60;
+  /*
+   * Die Grenze zaehlt Spieler, nicht Teams. Feste 60 passten nur fuer 100er-Lobbys; Squads mit hoechstens 20 Teams (80 Spieler) oder kleinere Lobbys
+   * fielen sonst durch (Betreiber, 9.11.2026). Deshalb hoechstens 60 % der groessten Lobby dieses Spieltags - bei Reload weiter hoechstens 30.
+   */
+  const groessteLobby = useMemo(() => (spiele ?? []).reduce((m, sp) => Math.max(m, sp.teams.reduce((n, z) => n + z.spieler.length, 0)), 0), [spiele]);
+  const lobbyGrenze = Math.min(/reload/i.test(`${fenster?.windowId ?? ''} ${cup?.titel ?? ''}`) ? 30 : 60, Math.max(8, Math.round(groessteLobby * 0.6)));
   const lobbySichtbar = (sp: Spiel) => eineLobby || !!matchSeiten[sp.id] || sp.teams.reduce((n, z) => n + z.spieler.length, 0) >= lobbyGrenze;
 
   /*
