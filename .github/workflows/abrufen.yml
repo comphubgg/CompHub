@@ -1,0 +1,22 @@
+name: Seite abrufen
+
+# Nur lesen: holt eine oder mehrere Adressen (z. B. /api/...) der Seite und legt die Antworten als Artefakt ab.
+on:
+  workflow_dispatch:
+    inputs:
+      pfade:
+        description: 'Pfade, durch Leerzeichen getrennt (z. B. /api/power-rankings?uebersicht=1)'
+        required: true
+
+jobs:
+  abrufen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          mkdir -p aus; i=0
+          for P in ${{ inputs.pfade }}; do i=$((i+1)); curl -s -m 60 -o "aus/$i.txt" -w "$i %{http_code} $P\n" "https://www.thecomphub.com$P"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: antworten
+          path: aus/
