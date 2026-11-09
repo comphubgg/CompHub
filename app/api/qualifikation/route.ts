@@ -426,8 +426,8 @@ async function holeRoh(request: Request) {
   try {
     const lern = await liesJson<Lern[]>('prognose-lernen.json', []);
     const fertig = !laeuft && typeof dieser.end === 'number' && jetzt > dieser.end + 30 * 60_000;
-    if (fertig && tatsaechlich !== null && schnitt !== null && !aehnlich && !lern.some((l) => l.windowId === dieser.windowId)) {
-      lern.push({ windowId: dieser.windowId, art, prognose: schnitt + ZUSCHLAG, tatsaechlich, zeit: Date.now() });
+    if (fertig && tatsaechlich !== null && schnitt !== null && !lern.some((l) => l.windowId === dieser.windowId)) {
+      lern.push({ windowId: dieser.windowId, art, prognose: schnitt + (aehnlich ? 0 : ZUSCHLAG), tatsaechlich, zeit: Date.now() });
       await schreibJson('prognose-lernen.json', lern.slice(-400)).catch(() => { /* beim naechsten Aufruf */ });
     }
     const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
