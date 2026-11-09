@@ -184,7 +184,7 @@ const SPIELER_KENNZAHLEN: Array<{
     einheit: 'km', nachkomma: 1 },
 ];
 
-type Vorlage = 'rueckblick' | 'qualifiziert' | 'endstand' | 'spieler'
+type Vorlage = 'rueckblick' | 'worst' | 'qualifiziert' | 'endstand' | 'spieler'
   | 'bestenliste' | 'spielerkarte' | 'auswahl'
   /* Bekannte Spieler, die den Cut verpasst haben. */
   | 'verpasst'
@@ -636,6 +636,11 @@ function deuteAuswahl(eingabe: string): Auswahl | null {
  * "auswahl" und "bestenliste" bleiben im Typ und im Textbau erhalten: sie
  * schalten sich ueber das Kurzbefehl-Feld selbst ein.
  */
+/** Kennzahlen, bei denen der Spitzenplatz schon der schlechteste ist ("Most Deaths") - dort zaehlt fuer Worst of der erste, sonst der letzte. */
+const OBEN_SCHLECHT = new Set(['damageTaken', 'gestorben', 'fallDamage', 'stormDamage', 'timeInStorm', 'quoteNiedrig']);
+/** "Most Eliminations" -> "Fewest Eliminations" usw. - fuer Worst of, wo der letzte Platz gemeint ist. */
+const umgedreht = (titel: string) => titel.replace(/^Most\b/, 'Fewest').replace(/^Best\b/, 'Worst').replace(/^Highest\b/, 'Lowest').replace(/^Longest\b/, 'Shortest');
+
 const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
   { wert: 'endstand',     titel: 'Standings',      hinweis: 'Die vordersten Plätze' },
   { wert: 'rueckblick',   titel: 'Stats Recap',    hinweis: 'Spitzenwert je Kennzahl' },
@@ -643,6 +648,8 @@ const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
   { wert: 'spielerkarte', titel: 'Player Card',    hinweis: 'Alle Werte eines Spielers' },
   // Bekannte Spieler (Power Rankings), die nicht weitergekommen sind - mit Flagge, wie der Betreiber es wollte (20.10.2026).
   { wert: 'verpasst',     titel: 'Missed the cut', hinweis: 'Bekannte Spieler, die nicht weitergekommen sind' },
+  // Das Gegenstueck zum Stats Recap (Betreiber, 9.11.2026): je Kennzahl der Schlechteste - nur wer mindestens die Haelfte der Spiele hatte.
+  { wert: 'worst',        titel: 'Worst of CompHub', hinweis: 'Schlechtester Wert je Kennzahl' },
   // Die einzige Vorlage, die keinen Cup braucht.
   { wert: 'eigene',       titel: 'Own list',       hinweis: 'Freier Titel, Spieler von Hand' },
 ];
@@ -1959,6 +1966,25 @@ export default function TweetSeite() {
       : [...(stats?.bestenlisten ?? []), ...teamListenAusEinzelwerten]),
     [ebeneEffektiv, spielerListen, stats, teamListenAusEinzelwerten, soloCup]);
 
+  /*
+   * Worst of CompHub: je gewaehlter Kennzahl der Schlechteste. Gezaehlt wird nur, wer mindestens die Haelfte der Spiele des Fleissigsten hatte - sonst
+   * stuende immer einer da, der nach einem Spiel raus war. Gebraucht wird die ganze Liste (alle), die Spitze allein sagt nichts ueber das Ende.
+   */
+  const worstZeilen = useMemo(() => {
+    if (vorlage !== 'worst') return [] as Array<{ titel: string; symbol: string; einheit: string | null; p: Platz }>;
+    const spiele = new Map<string, number>();
+    for (const e of eintraege) for (const sp of e.players) if (sp.id) spiele.set(sp.id, Math.max(spiele.get(sp.id) ?? 0, e.games || 0));
+    for (const sp of einzelwerte) if (sp.epicId && sp.matches) spiele.set(sp.epicId, Math.max(spiele.get(sp.epicId) ?? 0, sp.matches));
+    const meiste = Math.max(0, ...spiele.values());
+    const genug = (pl: Platz) => !meiste || (pl.ids ?? []).some((id) => (spiele.get(id) ?? 0) >= Math.ceil(meiste / 2));
+    return aktiveListen.filter((b) => gewaehlteListen.includes(b.schluessel)).map((b) => {
+      const feld = (b.alle ?? []).filter(genug);
+      if (feld.length < 10) return null;
+      const oben = OBEN_SCHLECHT.has(b.schluessel);
+      return { titel: oben ? b.titel : umgedreht(b.titel), symbol: b.symbol, einheit: b.einheit, p: oben ? feld[0] : feld[feld.length - 1] };
+    }).filter(Boolean) as Array<{ titel: string; symbol: string; einheit: string | null; p: Platz }>;
+  }, [vorlage, eintraege, einzelwerte, aktiveListen, gewaehlteListen]);
+
   /** Die gepflegten Profile, nachgeschlagen ueber die Konto-ID. */
   const profilNachId = useMemo(() => {
     const karte = new Map<string, Profil>();
@@ -2690,6 +2716,16 @@ export default function TweetSeite() {
         + zeilen.join(NL);
     }
 
+    if (vorlage === 'worst') {
+      if (!worstZeilen.length) return `${kopf}${zusatz}${NL}${NL}Kennzahlen auswählen - es braucht Werte für das ganze Feld.`;
+      const zeilen = worstZeilen.map(({ titel, symbol, p, einheit }) => {
+        const namen = p.spieler.map((n, k) => mitFlagge(n, p.ids?.[k])).join(' + ');
+        const wert = einheit ? `${p.wert} ${einheit}` : p.wert.toLocaleString('en-US');
+        return `${symbol} ${titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
+      });
+      return `WORST OF COMPHUB 🧌${NL}${kopf}${zusatz}${NL}${NL}${zeilen.join(NL)}${NL}${NL}All love 😈`;
+    }
+
     if (vorlage === 'rueckblick') {
       const zeilen = aktiveListen
         .filter((b) => gewaehlteListen.includes(b.schluessel))
@@ -3036,6 +3072,7 @@ export default function TweetSeite() {
       return eigeneWahl.map((x) => x.epicId).slice(0, 10);
     }
     if (vorlage === 'verpasst') return verpasstTreffer.map((z) => z.id);
+    if (vorlage === 'worst') return worstZeilen.flatMap((z) => (z.p.ids ?? []).slice(0, 1)).filter((id) => /^[0-9a-f]{32}$/i.test(id)).slice(0, 12);
     // Die Player Card zeigt das Foto des gewaehlten Spielers - von selbst, sobald er gewaehlt ist.
     if (vorlage === 'spielerkarte') {
       const id = karteSpieler?.id;
@@ -3095,7 +3132,7 @@ export default function TweetSeite() {
     if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
-  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer, karteSpieler]);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer, karteSpieler, worstZeilen]);
 
   /** Beim Team Spotlight so viele Gesichter, wie das Team Spieler hat. */
   const bildAnzahl = vorlage === 'spieler' || vorlage === 'spielerkarte'
@@ -3658,7 +3695,7 @@ export default function TweetSeite() {
                 * Umschaltung stand frueher unabhaengig von der Vorlage da und
                 * konnte ihr widersprechen.
                 */}
-              {!ohneCup && !soloCup && vorlage === 'rueckblick' && (
+              {!ohneCup && !soloCup && (vorlage === 'rueckblick' || vorlage === 'worst') && (
                 <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
                   <button onClick={() => setEbene('team')}
                     title={t('Werte je Team, direkt von Epic')}
@@ -3962,7 +3999,7 @@ export default function TweetSeite() {
               </div>
             )}
 
-            {(vorlage === 'rueckblick' || vorlage === 'spieler') && (
+            {(vorlage === 'rueckblick' || vorlage === 'worst' || vorlage === 'spieler') && (
               <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <p className="text-xs text-slate-400">
