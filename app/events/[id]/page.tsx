@@ -1077,7 +1077,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Team, und bei einem Duo waere nicht zu erkennen, wer die Elims geholt
    * hat. Auch das wird erst auf Verlangen geladen.
    */
-  const [spielerWerte, setSpielerWerte] = useState<{
+  const [spielerWerte, setSpielerWerteRoh] = useState<{
     vorhanden: boolean; runden: number;
     /** Wie viele Runden dieser Spieltag insgesamt hat. */
     rundenGesamt?: number | null;
@@ -1107,6 +1107,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Wann die Werte zuletzt gerechnet wurden (Replays). */
     aktualisiert?: string | null;
   } | null>(null);
+  /* Auch unter Player Stats nie einen Zahlencode als Namen (Betreiber, 9.11.2026): die gemerkten Namen (siehe namenFlicken) ersetzen die gekuerzte Id. */
+  const setSpielerWerte = useCallback((w: typeof spielerWerte) => {
+    if (!w?.spieler?.length) { setSpielerWerteRoh(w); return; }
+    const spieler = w.spieler.map((sp) => {
+      if (!sp.epicId) return sp;
+      if (sp.name && sp.name !== sp.epicId.slice(0, 8)) { bekannteNamen.current.set(sp.epicId, sp.name); return sp; }
+      const alt = bekannteNamen.current.get(sp.epicId);
+      return alt ? { ...sp, name: alt } : sp;
+    });
+    setSpielerWerteRoh({ ...w, spieler });
+  }, []);
   /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
   const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
   /** Die Stats im Hintergrund holen, wenn die Bestenliste steht. */
