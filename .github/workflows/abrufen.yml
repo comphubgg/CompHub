@@ -17,7 +17,7 @@ jobs:
           PFADE: ${{ inputs.pfade }}
         run: |
           mkdir -p aus; i=0
-          for P in $PFADE; do i=$((i+1)); curl -s -m 60 -o "aus/$i.txt" -w "$i %{http_code} $P\n" "https://www.thecomphub.com$P"; done
+          for P in $PFADE; do i=$((i+1)); curl -s -m 60 -o "aus/$i.txt" -w "$i %{http_code} $P\n" "https://www.thecomphub.com$P"; echo "=== ANTWORT $i ==="; head -c 60000 "aus/$i.txt"; echo; done
       - uses: actions/upload-artifact@v4
         with:
           name: antworten
