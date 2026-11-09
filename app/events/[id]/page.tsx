@@ -5594,8 +5594,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </div>
             )}
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => (
+            {/* Trios und Squads (Betreiber, 9.11.2026): nur Top 5, dafuer breitere Kacheln, damit alle vier Namen lesbar sind - ungekuerzt, notfalls umbrochen. */}
+            {(() => { const grossTeams = statistik.some((b) => b.plaetze.some((pl) => pl.spieler.length >= 3)); return (
+            <div className={`grid gap-4 sm:grid-cols-2 ${grossTeams ? 'xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-5'}`}>
+              {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => ({ ...b, plaetze: grossTeams ? b.plaetze.slice(0, 5) : b.plaetze })).map((b) => (
                 <div key={b.schluessel}
                   className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
                   <div className="flex items-center gap-2 px-4 pb-3 pt-4">
@@ -5629,7 +5631,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         <TeamFlagge groesse={20}
                           laender={pl.spieler.map((n, k) =>
                             landVon({ name: n, id: pl.ids?.[k] }))} />
-                        <span className="min-w-0 flex-1 truncate text-[12px] text-slate-200">
+                        <span className={`min-w-0 flex-1 text-[12px] text-slate-200 ${pl.spieler.length >= 3 ? 'break-words leading-snug' : 'truncate'}`}>
                           {/* Auch hier der gepflegte Name - sonst stuende in
                               der Turnierstatistik ein anderer als eine Zeile
                               darueber im Leaderboard. */}
@@ -5653,6 +5655,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
               ))}
             </div>
+            ); })()}
             {statistik.some((b) => b.mehr) && (
               <button type="button" onClick={() => setMehrKacheln((x) => !x)}
                 className="mx-auto mt-4 block rounded-lg border border-zinc-700 bg-zinc-900/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-zinc-500 hover:text-white">
