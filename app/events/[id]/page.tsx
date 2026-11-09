@@ -5534,7 +5534,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   const pl = b.plaetze[0];
                   return (
                     <div key={b.schluessel} className="flex flex-col items-center rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-3 text-center">
-                      <span className="text-[12px] text-slate-400">Top {t(b.titel)}</span>
+                      <span className="text-[12px] text-slate-400">Top {b.titel}</span>
                       <span className="mt-1 flex max-w-full items-center gap-1.5 truncate text-sm font-extrabold text-slate-100">
                         <TeamFlagge groesse={14} laender={pl.spieler.map((n, k) => landVon({ name: n, id: pl.ids?.[k] }))} />
                         <span className="truncate">{pl.spieler.map((n, k) => namenVon({ name: n, id: pl.ids?.[k] ?? '' })).join(' + ')}</span>
