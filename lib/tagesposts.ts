@@ -158,20 +158,21 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
   /*
    * Worst of CompHub (Betreiber, 9.11.2026: "da stehen immer die schlechtesten Stats ... ein bisschen mehr Troll"): die Letzten einer Liste - aber nur
    * unter Spielern, die wirklich gespielt haben (die 400 mit den meisten Elims der Saison, und davon nur, wer mindestens die Haelfte der Matches des
-   * Fleissigsten hat, wenigstens zehn). Frech im Ton, nie beleidigend: es geht um die Zahl, nicht um den Menschen. Nichts erfunden - es steht, was die
+   * Fleissigsten hat, wenigstens drei). Eine 0 heisst oft "nicht gemessen" (Headshots, Elims aus fehlenden Replays) und zaehlt nicht. Frech im Ton, nie beleidigend: es geht um die Zahl, nicht um den Menschen. Nichts erfunden - es steht, was die
    * Statistikseite hergibt.
    */
   const alle = (s.alle ?? []).filter((x) => x.epicId && x.anzeige && x.matches > 0);
   const meiste = alle.reduce((m, x) => Math.max(m, x.matches), 0);
-  const genug = alle.filter((x) => x.matches >= Math.max(10, Math.round(meiste / 2)));
+  const mindest = Math.max(3, Math.min(20, Math.round(meiste / 2))); // wie die Quoten-Listen der Statistikseite
+  const genug = alle.filter((x) => x.matches >= mindest);
   const WORST: Array<{ feld: string; titel: string; wert: (x: SSpieler) => number | null; fmt: (n: number) => string; spruch: string }> = [
     { feld: 'quote', titel: 'Worst damage ratio', wert: (x) => (Number.isFinite(x.quote) && x.quote > 0 ? x.quote : null), fmt: (n) => n.toFixed(2),
       spruch: 'Taking more damage than they deal. Generous of them.' },
-    { feld: 'elimsProMatch', titel: 'Fewest eliminations per match', wert: (x) => x.elims / x.matches, fmt: (n) => n.toFixed(2),
+    { feld: 'elimsProMatch', titel: 'Fewest eliminations per match', wert: (x) => (x.elims > 0 ? x.elims / x.matches : null), fmt: (n) => n.toFixed(2),
       spruch: 'Pacifist run, any% category.' },
-    { feld: 'damageProMatch', titel: 'Least damage per match', wert: (x) => x.damage / x.matches, fmt: (n) => zahl(n),
+    { feld: 'damageProMatch', titel: 'Least damage per match', wert: (x) => (x.damage > 0 ? x.damage / x.matches : null), fmt: (n) => zahl(n),
       spruch: 'Their guns are purely decorative.' },
-    { feld: 'headshotQuote', titel: 'Lowest headshot rate', wert: (x) => (x.hits >= 200 ? x.headshots / x.hits : null), fmt: (n) => `${(n * 100).toFixed(1)}%`,
+    { feld: 'headshotQuote', titel: 'Lowest headshot rate', wert: (x) => (x.hits >= 200 && x.headshots > 0 ? x.headshots / x.hits : null), fmt: (n) => `${(n * 100).toFixed(1)}%`,
       spruch: 'Aiming for the knees, apparently.' },
   ];
   if (genug.length >= 20) {
@@ -182,7 +183,7 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
       const drei = mitWert.sort((a, b) => a.n - b.n).slice(0, 3);
       raus.push({
         art: 'worst', schluessel: `worst:${w.feld}:${drei.map((e) => e.x.epicId).join('|')}`, titel: `Worst of: ${w.titel}`,
-        text: `WORST OF COMPHUB 🧌\n\n${w.titel}, ${saison} (min. ${Math.max(10, Math.round(meiste / 2))} matches):\n\n${drei.map((e, i) => `${i + 1}. ${gross(rein(e.x.anzeige))} - ${w.fmt(e.n)}`).join('\n')}\n\n${w.spruch} 😈\n\nCheck if you made the list: ${SEITE}/statistics`,
+        text: `WORST OF COMPHUB 🧌\n\n${w.titel}, ${saison} (min. ${mindest} matches):\n\n${drei.map((e, i) => `${i + 1}. ${gross(rein(e.x.anzeige))} - ${w.fmt(e.n)}`).join('\n')}\n\n${w.spruch} 😈\n\nCheck if you made the list: ${SEITE}/statistics`,
         bild: { art: 'rekord', worst: true, titel: w.titel, saison: `Worst of CompHub · ${saison}`, drei: drei.map((e, i) => ({ rang: i + 1, name: gross(rein(e.x.anzeige)), land: e.x.land, bild: e.x.bild, wert: w.fmt(e.n) })) },
       });
     }
