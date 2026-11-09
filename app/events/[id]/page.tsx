@@ -66,6 +66,9 @@ interface Fenster {
   anzeige?: string;
   /** Wie viele Teams sich qualifizieren - aus Epics Auszahlungstabelle. */
   qualifiziert?: number;
+  /** Die Marken bis zu welchem Platz (FNCS-Heats: Finalist bis 15, Last Chance Lobby bis 25) und ab welchem Punktestand sofort. */
+  marken?: Array<{ token: string; bis: number }>;
+  sofortPunkte?: number;
   matchCap?: number;
   /**
    * Ranked Cups: je Rangstufe (Bronze bis Unreal) eine eigene Bestenliste,
@@ -1717,7 +1720,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     let weg = false;
     let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
-        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
+        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=10${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
       .then((d) => {
         if (weg) return;
@@ -3309,6 +3312,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 [basis[1][0], basis[1][1], 'sm:flex-[0.7]'],
                 ...(karte ? [[t('Karte'), karte, 'sm:flex-[1.5]'] as [string, string, string]] : []),
                 [qualTitel, einfach ? qualKurz : qualWert, 'sm:flex-[1.3]'],
+                // Wer knapp dahinter landet, bekommt noch eine zweite Chance (Heats: 16-25 in die Last Chance Lobby) - und wer genug Punkte holt, ist sofort durch.
+                ...(() => {
+                  const q = fenster.qualifiziert ?? 0;
+                  const lc = (fenster.marken ?? []).find((m) => /lastchance/i.test(m.token) && m.bis > q);
+                  return lc && q ? [[t('Zweite Chance'), `${q + 1}–${lc.bis} → Last Chance`, 'sm:flex-1'] as [string, string, string]] : [];
+                })(),
+                ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
@@ -5529,12 +5539,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             {ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
             {/* Die Spitze jeder Kennzahl auf einen Blick, wie Osirion unter den Event Stats (Betreiber, 9.11.2026: "wo ist das, was rot umkreist ist"). */}
             {statistik.filter((b) => !b.mehr && b.plaetze.length).length > 0 && (
-              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
                 {statistik.filter((b) => !b.mehr && b.plaetze.length).slice(0, 10).map((b) => {
                   const pl = b.plaetze[0];
                   return (
-                    <div key={b.schluessel} className="flex flex-col items-center rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-3 text-center">
-                      <span className="text-[12px] text-slate-400">Top {b.titel}</span>
+                    // Dieselben Kacheln wie die Uebersicht darueber (Betreiber, 9.11.2026: "gleich wie die oberen"), Titel in jedem Wort gross wie bei Osirion.
+                    <div key={b.schluessel} className="flex min-w-0 flex-col items-center rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 text-center">
+                      <span className="max-w-full truncate text-[11px] text-slate-400">Top {b.titel.replace(/(^|\s)(\S)/g, (_m, a: string, c: string) => a + c.toUpperCase())}</span>
                       <span className="mt-1 flex max-w-full items-center gap-1.5 truncate text-sm font-extrabold text-slate-100">
                         <TeamFlagge groesse={14} laender={pl.spieler.map((n, k) => landVon({ name: n, id: pl.ids?.[k] }))} />
                         <span className="truncate">{pl.spieler.map((n, k) => namenVon({ name: n, id: pl.ids?.[k] ?? '' })).join(' + ')}</span>

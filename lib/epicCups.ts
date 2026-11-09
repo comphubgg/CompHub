@@ -1019,6 +1019,8 @@ export interface CupFensterDetail extends CupFenster {
    * qualifizieren gibt - etwa in einem Finale.
    */
   qualifiziert?: number;
+  /** Ab so vielen Punkten sofort weiter (Epic: Marke "rolling" ab Punktestand, FNCS-Heats: 1.000). */
+  sofortPunkte?: number;
   /**
    * Welche Marken dieses Fenster an die Besten vergibt - und bis zu
    * welchem Platz.
@@ -1235,6 +1237,19 @@ interface RohAuszahlung {
  * Gibt es mehrere, gilt die kleinste Schwelle: sie ist die engste Huerde
  * und damit die, die "Top N" meint.
  */
+/** Ab welchem Punktestand Epic sofort eine Marke vergibt (scoringType "value") - die kleinste solche Schwelle. */
+function wertSchwelle(tabelle: RohAuszahlung[] | undefined): number | null {
+  let kleinste: number | null = null;
+  for (const gruppe of tabelle ?? []) {
+    if (gruppe.scoringType !== 'value') continue;
+    for (const r of gruppe.ranks ?? []) {
+      if (!(r.payouts ?? []).some((p) => p.rewardType === 'token' && /final|qual/i.test(String(p.value ?? '')))) continue;
+      if (typeof r.threshold === 'number' && r.threshold > 0) kleinste = kleinste === null ? r.threshold : Math.min(kleinste, r.threshold);
+    }
+  }
+  return kleinste;
+}
+
 function rangSchwelle(tabelle: RohAuszahlung[] | undefined): number | null {
   let kleinste: number | null = null;
   for (const gruppe of tabelle ?? []) {
@@ -1451,8 +1466,13 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           nurTouch: (w.additionalRequirements ?? []).includes('input-touch') || undefined,
           // Wie viele weiterkommen. Nichts, wenn Epic keine Schwelle fuehrt -
           // bei einem Finale gibt es keine.
-          qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId]) ?? undefined,
-          marken: markenAus(daten.payoutTables?.[w.eventWindowId]),
+          /*
+           * Die Tabelle des Fensters - oder, wo Epic sie nur fuer das ganze Event fuehrt, die des Events (FNCS Solos Reload Heats: Top 15 ins Finale, 16-25 in die
+           * Last Chance Lobby, 1.000 Punkte sofort - die Seite zeigte "Top 99", die Groesse des Finalfelds; Betreiber 9.11.2026).
+           */
+          qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId] ?? daten.payoutTables?.[ev.eventId]) ?? undefined,
+          marken: markenAus(daten.payoutTables?.[w.eventWindowId] ?? daten.payoutTables?.[ev.eventId]),
+          sofortPunkte: wertSchwelle(daten.payoutTables?.[w.eventWindowId] ?? daten.payoutTables?.[ev.eventId]) ?? undefined,
           raenge: rangListen(w.eventWindowId,
             daten.resolvedWindowLocations?.[`Fortnite:${ev.eventId}:${w.eventWindowId}`]),
         };
@@ -1524,7 +1544,7 @@ export interface ArchivEintrag {
    * die Anzeige schreibt dort "—".
    */
   end?: number;
-  istFinale: boolean; matchCap?: number; qualifiziert?: number;
+  istFinale: boolean; matchCap?: number; qualifiziert?: number; sofortPunkte?: number;
   /** Epics Playlist - siehe CupFensterDetail.playlist. */
   playlist?: string;
   /** Plattformen und Touch-Bedingung - siehe CupFensterDetail (seit 25.9.2026). */
@@ -1683,7 +1703,7 @@ export async function archivCups(
       // Die Runde steht im Archiv nicht; sie ergibt sich unten aus der
       // zeitlichen Reihenfolge, damit die Anzeige nicht leer bleibt.
       runde: 0, istFinale: e.istFinale, tokens: e.tokens ?? [], matchCap: e.matchCap,
-      qualifiziert: e.qualifiziert, playlist: e.playlist, raenge: e.raenge,
+      qualifiziert: e.qualifiziert, sofortPunkte: e.sofortPunkte, playlist: e.playlist, raenge: e.raenge,
       marken: e.marken, plattformen: e.plattformen, nurTouch: e.nurTouch,
     });
   }
@@ -1761,6 +1781,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           begin: f.begin, end: f.end,
           istFinale: f.istFinale, matchCap: f.matchCap,
           qualifiziert: f.qualifiziert, playlist: f.playlist,
+          ...(f.sofortPunkte ? { sofortPunkte: f.sofortPunkte } : {}),
           ...(f.plattformen?.length ? { plattformen: f.plattformen, nurTouch: f.nurTouch } : {}),
           ...(f.raenge?.length ? { raenge: f.raenge } : {}),
           ...(f.tokens?.length ? { tokens: f.tokens } : {}),

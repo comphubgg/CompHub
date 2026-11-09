@@ -482,7 +482,7 @@ function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: So
  * Unter "Mehr" eine kleine Slideshow (Betreiber, 8.11.2026): Global Championship, FNCS Solos und FNCS Solos Reload wechseln sich ab - jede Seite fuehrt mit einem
  * Klick direkt dorthin ("niemand checkt es, wenn man auf FNCS und dann auf Solos klicken muss"). Wechselt alle sieben Sekunden, steht beim Darueberfahren still.
  */
-function FncsSchau({ seiten }: { seiten: Array<{ name: string; inhalt: ReactNode }> }) {
+function FncsSchau({ seiten }: { seiten: Array<{ name: string; datum?: number; inhalt: ReactNode }> }) {
   const [i, setI] = useState(0);
   const [halt, setHalt] = useState(false);
   useEffect(() => {
@@ -607,6 +607,7 @@ export default function StartVitrine() {
   /** Die Stufen der Solos - nur gesetzt, solange eine Reihe laeuft (live, bald oder bis 18 Stunden nach dem Finale). */
   const [solos, setSolos] = useState<SolosStufeKurz[] | null>(null);
   const [fncs, setFncs] = useState<FncsKurz | null>(null);
+  const [fncsAlle, setFncsAlle] = useState<FncsKurz[]>([]);
   /** Alle Stufen der laufenden Solos-Reihe - auch wenn gerade nichts laeuft (fuer die Slideshow). */
   const [alleStufen, setAlleStufen] = useState<SolosStufeKurz[]>([]);
   /** Die FNCS Solos der Season 42 aus dem Archiv - dieselbe Karte wie bei Reload (Betreiber, 9.11.2026: "FNCS Solos genau gleich wie FNCS Reload Solos"). */
@@ -638,7 +639,12 @@ export default function StartVitrine() {
           heats: (v.fenster ?? []).filter((f) => f.art === 'heat').map((f) => ({ ...f, spieler: f.spieler.slice(0, 8), teams: [], formen: [] })),
         });
       }).catch(() => { /* ohne Archiv nur das Bild */ }),
-      j('/api/fncs-ereignisse').then((v: { ok?: boolean; ereignisse?: FncsKurz[] }) => { if (v?.ok && v.ereignisse?.length) setFncs(v.ereignisse[v.ereignisse.length - 1]); }),
+      j('/api/fncs-ereignisse').then((v: { ok?: boolean; ereignisse?: FncsKurz[] }) => {
+        if (!v?.ok || !v.ereignisse?.length) return;
+        setFncs(v.ereignisse[v.ereignisse.length - 1]);
+        // Fuer die Slideshow die juengsten Endspiele (ohne die Regions-Doppel "S40|gf|NAC").
+        setFncsAlle(v.ereignisse.filter((e) => e.key.split('|').length === 2).slice(-4));
+      }),
     ]).finally(() => setGeladen(true));
   }, []);
 
@@ -680,12 +686,16 @@ export default function StartVitrine() {
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
             <TierlistKarte daten={daten} fertig={geladen} />
+            {/*
+              * Die Slideshow folgt von selbst dem Neuesten (Betreiber, 9.11.2026: "kommt ein neues FNCS, geht das aelteste raus und das neueste kommt rein ... maximal 5"):
+              * die laufende Solos-Reihe, die archivierte, die juengsten FNCS-Endspiele - nach Datum, das Neueste zuerst, hoechstens fuenf.
+              */}
             <FncsSchau seiten={[
-              ...(solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={solos} heats={heats} art="reload" /> }] : []),
-              { name: 'Global Championship', inhalt: <FncsKarte e={fncs} fertig={geladen} /> },
-              ...(!solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={alleStufen} heats={heats} art="reload" /> }] : []),
-              { name: 'FNCS Solos', inhalt: <SoloKarte stufen={br.stufen} heats={br.heats} art="br" /> },
-            ]} />
+              { name: 'FNCS Solos Reload', datum: Math.max(0, ...(solos ?? alleStufen).map((s) => s.begin)), inhalt: <SoloKarte stufen={solos ?? alleStufen} heats={heats} art="reload" /> },
+              { name: 'FNCS Solos', datum: Math.max(0, ...br.stufen.map((s) => s.begin)), inhalt: <SoloKarte stufen={br.stufen} heats={br.heats} art="br" /> },
+              ...(fncsAlle.length ? fncsAlle : fncs ? [fncs] : []).map((e) => ({ name: e.titel, datum: e.datum ?? 0, inhalt: <FncsKarte e={e} fertig={geladen} /> })),
+              ...(!fncsAlle.length && !fncs ? [{ name: 'FNCS', datum: 0, inhalt: <FncsKarte e={null} fertig={geladen} /> }] : []),
+            ].sort((a, b) => b.datum - a.datum).slice(0, 5)} />
           </div>
         </div>
       </div>
