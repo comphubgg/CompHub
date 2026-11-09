@@ -1,0 +1,26 @@
+name: Netlify pruefen
+
+# Nur lesen, baut nichts und kostet keine Punkte: zeigt fuer beide Konten, ob die Seite gesperrt ist,
+# welche Domain dort haengt, und die letzten Bereitstellungen.
+on:
+  workflow_dispatch:
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        konto: ['1', '2']
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ matrix.konto == '2' && secrets.NETLIFY_AUTH_TOKEN_2 || secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ matrix.konto == '2' && secrets.NETLIFY_SITE_ID_2 || secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Zustand
+        run: |
+          API="https://api.netlify.com/api/v1"; H="Authorization: Bearer $NETLIFY_AUTH_TOKEN"
+          echo "=== Konto ${{ matrix.konto }} ==="
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s);console.log('Seite:',x.name,'| Domain:',x.custom_domain||'-','| Aliase:',(x.domain_aliases||[]).join(',')||'-','| gesperrt:',x.disabled??'-',x.disabled_reason||'','| Plan:',x.plan||'','| Konto:',x.account_slug||'','| live seit:',x.published_deploy?.published_at||'-')}catch{console.log(s.slice(0,400))}})"
+          curl -s -H "$H" "$API/sites?per_page=50" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const x of JSON.parse(s))console.log('  weitere Seite im Konto:',x.name,x.custom_domain||'-','gesperrt:',x.disabled??'-',x.disabled_reason||'')}catch{}})"
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID/deploys?per_page=5" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{for(const d of JSON.parse(s))console.log('  ',d.created_at,d.state,d.context,d.error_message||'')}catch{}})"
