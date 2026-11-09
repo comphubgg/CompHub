@@ -1,0 +1,39 @@
+name: Netlify Staende pruefen
+
+# Kostet keine Punkte: prueft die letzten fertigen Staende von Konto 1 (laden HTML, CSS und JS?) und stellt auf
+# Wunsch einen davon als Hauptseite wieder her (restore, ohne Bau).
+on:
+  workflow_dispatch:
+    inputs:
+      wiederherstellen:
+        description: 'Deploy-ID zum Wiederherstellen (leer = nur pruefen)'
+        required: false
+        default: ''
+
+jobs:
+  staende:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Pruefen
+        run: |
+          API="https://api.netlify.com/api/v1"; H="Authorization: Bearer $NETLIFY_AUTH_TOKEN"
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s);console.log('Aktuell live:',x.published_deploy?.id,x.published_deploy?.published_at)})"
+          curl -s -H "$H" "$API/sites/$NETLIFY_SITE_ID/deploys?per_page=40" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{for(const d of JSON.parse(s))if(d.state==='ready')console.log(d.id,d.created_at,d.context,d.deploy_ssl_url)})" | head -12 > /tmp/staende.txt
+          while read -r ID ZEIT KONTEXT URL; do
+            curl -s -o /tmp/h.html "$URL/events"
+            GES=0; OK=0
+            for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/h.html | sort -u | head -15); do GES=$((GES+1)); [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL$C")" = 200 ] && OK=$((OK+1)); done
+            echo "STAND $ID $ZEIT $KONTEXT -> Dateien ok: $OK von $GES"
+          done < /tmp/staende.txt
+      - name: Wiederherstellen
+        if: inputs.wiederherstellen != ''
+        run: |
+          curl -s -o /dev/null -w "Wiederherstellen: %{http_code}\n" -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys/${{ inputs.wiederherstellen }}/restore"
+          sleep 30
+          curl -s -o /tmp/h.html https://www.thecomphub.com/events; GES=0; OK=0
+          for C in $(grep -oE '/_next/static/[^"]+\.(css|js)' /tmp/h.html | sort -u | head -15); do GES=$((GES+1)); [ "$(curl -s -o /dev/null -w '%{http_code}' "https://www.thecomphub.com$C")" = 200 ] && OK=$((OK+1)); done
+          echo "LIVE danach: Dateien ok: $OK von $GES"
