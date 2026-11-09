@@ -58,6 +58,9 @@ const NEUIGKEITEN: Array<{ id: string; ab: string; titel: string; text: string; 
   { id: 'spielerfaecher', ab: '2026-10-16', titel: 'Spielerprofile',
     text: `Open any player and see the whole career: damage ratio over time, FNCS results, teammates, titles and the teams they played for.\n\n${SEITE}/statistics`,
     kennzahl: 'Player profiles', unter: 'Careers, FNCS results, teammates' },
+  { id: 'worst-of-comphub', ab: '2026-11-09', titel: 'Worst of CompHub',
+    text: `New format: WORST OF COMPHUB 🧌\n\nEveryone posts the best stats. We'll also post the other end: worst damage ratios, the biggest glowdowns, the most FNCS finals without a title.\n\nAll real numbers, all love. Nobody is safe 😈\n\n${SEITE}/statistics`,
+    kennzahl: 'Worst of CompHub', unter: 'The other end of the leaderboard. All love.' },
 ];
 
 /* ------------------------------------------------------------------ Datenlage */
