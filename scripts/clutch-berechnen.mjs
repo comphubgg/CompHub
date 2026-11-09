@@ -459,6 +459,8 @@ if (arg[0] === '--plan') {
             teil.spiele[p.epic] = (teil.spiele[p.epic] ?? 0) + 1;
             // Die Plattform je Spieler (Feld Platform im Replay) - fuer die Plattform-Statistik.
             if (p.plattform) teil.plattform[p.epic] = String(p.plattform);
+            // Der Name aus dem Replay (9.11.2026): Ersatz, wenn Epic die Namensabfrage bremst - sonst stand auf der Seite die gekuerzte Id.
+            if (p.name && typeof p.name === 'string') (teil.namen ??= {})[p.epic] = p.name;
           }
           const lebenHier = lebenJeMatch(roh);
           for (const [k, v] of lebenHier) teil.leben[k] = Math.round((teil.leben[k] ?? 0) + v);

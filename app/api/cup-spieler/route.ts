@@ -96,7 +96,8 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   let repVoll = tage.length > 0;
   for (const w of tage) {
     const c = await liesJson<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
-      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }> } | null>(`clutch/${w}.json`, null).catch(() => null);
+      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>; namen?: Record<string, string> } | null>(`clutch/${w}.json`, null).catch(() => null);
+    replayNamenMerken(c?.namen);
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
       const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
@@ -255,8 +256,14 @@ async function letzterLauf() {
   } catch { return null; }
 }
 
+/** Namen aus den gelesenen Replays (clutch/<Fenster>.json, Feld namen) - je Konto-Id klein geschrieben. */
+const replayNamen = new Map<string, string>();
+function replayNamenMerken(namen?: Record<string, string>) { for (const [id, n] of Object.entries(namen ?? {})) if (n) replayNamen.set(id.toLowerCase(), n); }
+
 /** Namen bei Epic fuer Konten, die das Verzeichnis nicht kennt (100 je Anfrage, siehe loeseNamenAuf). */
 async function namenNachholen(ids: string[], anzeige: Map<string, string>): Promise<void> {
+  // Zuerst der Name aus dem Replay (9.11.2026): spart die Abfrage bei Epic, die bei grossen Cups gebremst wird - dann stand die gekuerzte Id da.
+  for (const id of ids) { const n = id && !anzeige.has(id) ? replayNamen.get(id.toLowerCase()) : undefined; if (n) anzeige.set(id, n); }
   const offen = [...new Set(ids)].filter((id) => id && !anzeige.has(id));
   if (!offen.length) return;
   try {
@@ -448,8 +455,9 @@ async function holeRoh(request: Request) {
     plattform?: Record<string, string>;
     /** Laufstrecke je Spieler [zu Fuss, Luft] in Metern aus den Positionsproben der Replays (lib/replayPositionen). */
     strecke?: Record<string, [number, number]>;
+    namen?: Record<string, string>;
   } | null;
-  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
+  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).then((c) => { replayNamenMerken(c?.namen); return c; }).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
   const clutchDatei: ClutchDatei = tage.length > 1
     ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {

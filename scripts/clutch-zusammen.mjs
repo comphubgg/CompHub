@@ -121,6 +121,7 @@ for (const [w, dateien] of jeTag) {
       }
     }
     if (Object.keys(t.plattform ?? {}).length) { d.plattform ??= {}; Object.assign(d.plattform, t.plattform); }
+    if (Object.keys(t.namen ?? {}).length) { d.namen ??= {}; Object.assign(d.namen, t.namen); }
     if (gross) d.ohneRohRechnung = true;
     else if ((t.roh ?? []).length) {
       roh ??= liesDatei(rohDatei) ?? { eventId: d.eventId, windowId: w, regeln: d.regeln ?? [], matches: [] };
