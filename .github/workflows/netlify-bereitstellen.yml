@@ -86,7 +86,7 @@ jobs:
           # Bauen und Hochladen in EINEM Aufruf. Getrennt (build, dann deploy --no-build) fehlten am 9.11.2026 alle
           # CSS/JS-Dateien: das Next-Plugin stellt den Ausgabeordner nach dem Bau zurueck, das Hochladen nahm dann den falschen.
           # Netlify wartet hier hoechstens 25 Minuten, danach folgt die Zustandsausgabe.
-          AUS=$(timeout 1500 npx --yes netlify-cli@latest deploy --timeout 1400 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
+          AUS=$(timeout 1500 npx --yes netlify-cli@27.16.2 deploy --timeout 1400 --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}" 2>&1) || {
             echo "$AUS" | tail -n 80
             echo "Letzte Bereitstellungen bei Netlify:"
             curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=8" \
