@@ -3282,6 +3282,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   (() => {
                     // Epic gibt hoechstens 10.000 Plaetze heraus; ist die Liste voll, die Feldgroesse aus Epics Perzentil des letzten Platzes (28.10.2026: hier stand
                     // "10,000", waehrend Osirion Rang 4200 als Top 2,3 % zeigt).
+                    // Waehrend die Liste noch tiefer laedt, keine hochzaehlende Zahl (Betreiber, 9.11.2026: "328 / 1293 / 3037 / 5000 / 8299 / 10000 soll nicht mehr da
+                    // sein - alles instant wie auf jeder anderen Seite"): die Zahl erscheint einmal, wenn die ganze Liste da ist.
+                    if (vertieft) return '–';
                     if (tabelle.length < 10_000) return tabelle.length ? tabelle.length.toLocaleString(ort) : '–';
                     const letzter = tabelle.reduce((a, x) => (x.rank > a.rank ? x : a), tabelle[0]) as { rank: number; percentile?: number };
                     return letzter.percentile && letzter.percentile > 0
