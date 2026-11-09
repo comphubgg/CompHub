@@ -1630,19 +1630,12 @@ export default function TweetSeite() {
     (async () => {
       try {
         /*
-         * Bekannt: die ersten 600 der Power Rankings und jeder Spieler mit gepflegtem Profil (Betreiber, 8.11.2026: Reason fehlte - er steht nicht unter den ersten 200,
-         * ist aber ein bekannter Profi). Die Reihenfolge im Post: Power Rankings zuerst, danach die Profile.
+         * Bekannt (app/api/bekannte-spieler): Profil mit X-Konto oder mindestens 20.000 $ Preisgeld - an der Liste des Betreibers gemessen (8.11.2026: "sehr viele
+         * unnoetige Spieler ... Tylio, Chrisc, Flobby, Joshbot, Finn kennt niemand"). Vorher die ersten 200 Power Rankings (Reason fehlte), dann 600 + alle Profile (zu viele).
          */
-        const seiten = await Promise.all([1, 2, 3].map((s) => fetch(`/api/power-rankings?page=${s}&pageSize=200`).then((r) => r.json()).catch(() => null)));
-        const bekannte: Array<{ id?: string; name: string; anzeige?: string }> = [];
-        const schon = new Set<string>();
-        for (const rk of seiten) for (const x of ((rk?.players ?? []) as Array<{ id?: string; name: string; anzeige?: string }>)) if (x.id && !schon.has(x.id)) { schon.add(x.id); bekannte.push(x); }
-        try {
-          const pr = await fetch('/api/spieler-profile').then((r) => r.json()) as { profile?: Array<{ id?: string; epicId?: string; name?: string; anzeige?: string }> | Record<string, { id?: string; epicId?: string; name?: string; anzeige?: string }> };
-          const liste = Array.isArray(pr.profile) ? pr.profile : Object.entries(pr.profile ?? {}).map(([k, v]) => ({ ...v, id: v.id || v.epicId || k }));
-          for (const p of liste) { const id = String(p.id || p.epicId || '').toLowerCase(); if (/^[0-9a-f]{32}$/.test(id) && !schon.has(id)) { schon.add(id); bekannte.push({ id, name: p.anzeige || p.name || id, anzeige: p.anzeige || p.name }); } }
-        } catch { /* dann nur die Power Rankings */ }
-        if (!bekannte.length) throw new Error('Die Power Rankings liegen gerade nicht vor.');
+        const bk = await fetch('/api/bekannte-spieler').then((r) => r.json()).catch(() => null) as { spieler?: Array<{ id: string; name: string }> } | null;
+        const bekannte: Array<{ id?: string; name: string; anzeige?: string }> = (bk?.spieler ?? []).map((s) => ({ id: s.id, name: s.name, anzeige: s.name }));
+        if (!bekannte.length) throw new Error('Die Liste der bekannten Spieler liegt gerade nicht vor.');
         const idListen: string[] = [];
         for (let i = 0; i < bekannte.length; i += 150) idListen.push(bekannte.slice(i, i + 150).map((x) => x.id).join(','));
         const nachId = new Map(bekannte.map((x) => [x.id as string, x]));

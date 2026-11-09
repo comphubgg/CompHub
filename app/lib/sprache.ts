@@ -568,6 +568,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten und Spieler frisch von Noble und Epic holen': 'Fetch maps and players fresh from Noble and Epic',
   'Spieler oder Land suchen …': 'Search player or country …',
   'Alle Heats': 'All heats',
+  'Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.': 'Season 42 · Battle Royale — heats, maps, finalists and prize money in the archive.',
   '{n} Spieler gefunden': '{n} players found',
   'Heat-Einteilung': 'Heat draw',
   'Einteilung von Epic bestätigt.': 'Draw confirmed by Epic.',

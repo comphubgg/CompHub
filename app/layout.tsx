@@ -89,14 +89,15 @@ export const metadata: Metadata = {
     title: 'CompHub — Fortnite Competitive',
     description: 'Stats, tournaments and rankings for competitive Fortnite.',
     url: WURZEL,
-    images: [{ url: '/logos/CompHub-Logo.png', width: 1200, height: 1200 }],
+    // Das Vorschaubild jedes geteilten Links: die Seite als Ganzes (app/api/link-bild?seite=start, Betreiber 8.11.2026: "ein Bild, das meine Seite repraesentiert").
+    images: [{ url: '/api/link-bild?seite=start', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     site: '@CompHub_gg',
     title: 'CompHub — Fortnite Competitive',
     description: 'Stats, tournaments and rankings for competitive Fortnite.',
-    images: ['/logos/CompHub-Logo.png'],
+    images: ['/api/link-bild?seite=start'],
   },
   // './' wird je Aufruf zur Adresse genau dieser Seite aufgeloest (Startseite: WURZEL).
   alternates: { canonical: './' },

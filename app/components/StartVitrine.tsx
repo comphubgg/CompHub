@@ -435,12 +435,12 @@ interface FncsKurz { key: string; titel: string; kopf1: string; kopf2: string; b
  * Die FNCS Solos - nur, solange eine Reihe laeuft (Betreiber, 30.10.2026: "Globals Solo kannst du auf der Home Page entfernen, ist ja zu Ende -
  * sobald es aktiv ist, also Heats usw., Solo Reload"). Oben das Bild der Reihe, darunter die Stufen mit Datum und Stand, dazu die Heats mit Spielern.
  */
-function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFenster[] }) {
-  const reload = stufen.some((s) => /reload/i.test(s.windowId));
+function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: SolosFenster[]; art?: 'reload' | 'br' }) {
+  const reload = art ? art === 'reload' : stufen.some((s) => /reload/i.test(s.windowId));
   // Nur Heats derselben Reihe (Betreiber, 2.11.2026: bei den Solos Reload standen die Heats der Battle-Royale-Solos - "ein komplett anderes Turnier").
   const zeigen = heats.filter((h) => h.spieler.length && /reload/i.test(h.windowId) === reload).slice(0, 2);
   return (
-    <Link href="/globals-solos" className="vit-glas group/karte block overflow-hidden rounded-3xl">
+    <Link href={art === 'br' ? '/globals-solos?reihe=S42' : '/globals-solos'} className="vit-glas group/karte block h-full overflow-hidden rounded-3xl">
       <div className="relative aspect-[16/6] overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={reload ? '/cups/fncs-solo-reload.webp' : '/cups/fncs-solos.jpg'} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover/karte:scale-105" />
@@ -451,6 +451,7 @@ function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFe
         )}
       </div>
       <div className="p-5">
+        {art === 'br' && <p className="text-sm text-slate-400"><T>Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.</T></p>}
         <ol className="grid gap-1.5 sm:grid-cols-2">
           {stufen.slice(0, 8).map((s) => (
             <li key={s.windowId} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${s.status === 'live' ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/[0.07] bg-black/25'}`}>
@@ -473,6 +474,34 @@ function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFe
         )}
       </div>
     </Link>
+  );
+}
+
+/*
+ * Unter "Mehr" eine kleine Slideshow (Betreiber, 8.11.2026): Global Championship, FNCS Solos und FNCS Solos Reload wechseln sich ab - jede Seite fuehrt mit einem
+ * Klick direkt dorthin ("niemand checkt es, wenn man auf FNCS und dann auf Solos klicken muss"). Wechselt alle sieben Sekunden, steht beim Darueberfahren still.
+ */
+function FncsSchau({ seiten }: { seiten: Array<{ name: string; inhalt: ReactNode }> }) {
+  const [i, setI] = useState(0);
+  const [halt, setHalt] = useState(false);
+  useEffect(() => {
+    if (halt || seiten.length < 2) return undefined;
+    const id = window.setInterval(() => setI((x) => (x + 1) % seiten.length), 7000);
+    return () => window.clearInterval(id);
+  }, [halt, seiten.length]);
+  const jetzt = seiten[i % Math.max(1, seiten.length)];
+  return (
+    <div className="relative" onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)} onFocus={() => setHalt(true)} onBlur={() => setHalt(false)}>
+      <div key={jetzt?.name} style={{ animation: 'vit-rein .5s ease both' }}>{jetzt?.inhalt}</div>
+      {seiten.length > 1 && (
+        <div className="absolute left-4 top-3 z-10 flex gap-1.5" role="tablist" aria-label="FNCS">
+          {seiten.map((s, k) => (
+            <button key={s.name} type="button" role="tab" aria-selected={k === i} aria-label={s.name} title={s.name} onClick={() => setI(k)}
+              className={`h-2 rounded-full transition-all ${k === i ? 'w-6 bg-[#38bdf8]' : 'w-2 bg-[rgba(255,255,255,.45)] hover:bg-[#fff]'}`} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -577,6 +606,8 @@ export default function StartVitrine() {
   /** Die Stufen der Solos - nur gesetzt, solange eine Reihe laeuft (live, bald oder bis 18 Stunden nach dem Finale). */
   const [solos, setSolos] = useState<SolosStufeKurz[] | null>(null);
   const [fncs, setFncs] = useState<FncsKurz | null>(null);
+  /** Alle Stufen der laufenden Solos-Reihe - auch wenn gerade nichts laeuft (fuer die Slideshow). */
+  const [alleStufen, setAlleStufen] = useState<SolosStufeKurz[]>([]);
   const [geladen, setGeladen] = useState(false);
   const geholt = useRef(false);
 
@@ -592,6 +623,7 @@ export default function StartVitrine() {
         setHeats((v.fenster ?? []).filter((f) => f.art === 'heat'));
         const jetzt = Date.now();
         const st = v.stufen ?? [];
+        setAlleStufen(st);
         const laeuft = st.some((x) => x.status === 'live' || (x.status === 'kommt' && x.begin - jetzt < 2 * 864e5)
           || (x.art === 'finale' && x.status === 'vorbei' && x.end !== null && jetzt - x.end < 18 * 3600_000));
         setSolos(laeuft ? st : null);
@@ -638,7 +670,12 @@ export default function StartVitrine() {
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
             <TierlistKarte daten={daten} fertig={geladen} />
-            {solos ? <SoloKarte stufen={solos} heats={heats} /> : <FncsKarte e={fncs} fertig={geladen} />}
+            <FncsSchau seiten={[
+              ...(solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={solos} heats={heats} art="reload" /> }] : []),
+              { name: 'Global Championship', inhalt: <FncsKarte e={fncs} fertig={geladen} /> },
+              ...(!solos ? [{ name: 'FNCS Solos Reload', inhalt: <SoloKarte stufen={alleStufen} heats={heats} art="reload" /> }] : []),
+              { name: 'FNCS Solos', inhalt: <SoloKarte stufen={[]} heats={[]} art="br" /> },
+            ]} />
           </div>
         </div>
       </div>
