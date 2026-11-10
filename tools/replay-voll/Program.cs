@@ -165,6 +165,21 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
+if (SchadenLeser.DiagId is not null) {
+  // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
+  object Feld(object o, string n) { if (o is null) return null; var t = o.GetType(); while (t != null) { var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); t = t.BaseType; } return null; }
+  var gc = Feld(reader, "GuidCache");
+  var karte = Feld(gc, "NetFieldExportGroupMap") as System.Collections.IDictionary;
+  if (karte is null) Console.Error.WriteLine("DIAGFELDER keine Karte");
+  else foreach (System.Collections.DictionaryEntry kv in karte) {
+    var name = kv.Key?.ToString() ?? "";
+    if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Damage|DamageCue", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+    var exports = Feld(kv.Value, "NetFieldExports") as System.Collections.IEnumerable;
+    var namen = new List<string>();
+    if (exports != null) foreach (var ex in exports) { var en = Feld(ex, "Name")?.ToString(); if (!string.IsNullOrEmpty(en)) namen.Add(en); }
+    Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
+  }
+}
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
