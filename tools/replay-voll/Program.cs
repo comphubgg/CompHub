@@ -1062,10 +1062,12 @@ class SchadenLeser : ReplayReader {
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
       if (DiagId is not null && ec0.Def is uint dz) { var gp = GuidPfad(dz); EffektArten[gp] = (EffektArten.TryGetValue(gp, out var ea) ? ea : 0) + 1; }
-      if (DiagId is not null && EffektCues <= 40) {
+      if (DiagId is not null && EffektDruck < 60 && ec0.Def is uint dfx && System.Text.RegularExpressions.Regex.IsMatch(GuidPfad(dfx), "Damage|Ranged|Explosive")) {
+        EffektDruck++;
         var opfer = Hole(VonFigur, channelIndex)?.Id;
         var ctx = ec0.EffectContext == null ? "-" : string.Join(",", ec0.EffectContext.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(ec0.EffectContext); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null).Take(12));
-        Console.Error.WriteLine($"DIAGEFFEKT t={Zeit()} opfer={opfer} mag={ec0.TotalMagnitude} attr={ec0.AttributeName} def={ec0.Def} ({(ec0.Def is uint dd ? GuidPfad(dd) : "?")}) ctx={ctx}");
+        var mods = ec0.ModifiedAttributes == null ? "-" : string.Join(";", ec0.ModifiedAttributes.Where(m => m != null).Select(m => $"{m.AttributeName}:{m.TotalMagnitude}:{m.AttributeOwner}"));
+        Console.Error.WriteLine($"DIAGEFFEKT t={Zeit()} opfer={opfer} def={(ec0.Def is uint dd ? GuidPfad(dd) : "?")} mods={mods} ctx={ctx}");
       }
       return;
     }
@@ -1309,6 +1311,7 @@ class SchadenLeser : ReplayReader {
    */
   public static bool EffektEingeklinkt;
   public readonly Dictionary<string, int> EffektArten = new();
+  int EffektDruck;
   string GuidPfad(uint g) {
     try {
       object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
@@ -1535,6 +1538,13 @@ public class EffektCue : INetFieldExportGroup {
   [NetFieldExport("AttributeName", RepLayoutCmdType.PropertyString)] public string AttributeName { get; set; }
   [NetFieldExport("TotalMagnitude", RepLayoutCmdType.PropertyFloat)] public float? TotalMagnitude { get; set; }
   [NetFieldExport("EffectContext", RepLayoutCmdType.Property)] public Unreal.Core.Models.FGameplayEffectContextHandle EffectContext { get; set; }
+  [NetFieldExport("ModifiedAttributes", RepLayoutCmdType.DynamicArray)] public EffektAttribut[] ModifiedAttributes { get; set; }
+}
+[NetFieldExportSubGroup("/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", ParseMode.Full)]
+public class EffektAttribut {
+  [NetFieldExport("AttributeName", RepLayoutCmdType.PropertyString)] public string AttributeName { get; set; }
+  [NetFieldExport("AttributeOwner", RepLayoutCmdType.PropertyObject)] public uint? AttributeOwner { get; set; }
+  [NetFieldExport("TotalMagnitude", RepLayoutCmdType.PropertyFloat)] public float? TotalMagnitude { get; set; }
 }
 [NetFieldExportClassNetCache("PlayerPawn_Athena_C_ClassNetCache", (ParseMode)3)]
 public class FigurCacheMitEffekt {
