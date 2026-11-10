@@ -200,9 +200,9 @@ if (SchadenLeser.DiagId is int diagId) {
     double? vor = null; int n = 0;
     foreach (var t in zeiten) {
       var w = Summe(opfer, t);
-      if (vor is double v && w < v && n < 25) {
+      if (vor is double v && w < v && n < 40 && v - w >= 15) {
         n++;
-        var nah = reader.DiagAlle.Where(h => h.t >= t - 1.5 && h.t <= t + 0.3).Take(6).Select(h => $"[{Math.Round(h.t - t, 2)}s von {h.von} {Math.Round(h.mag)} {h.art} akteur {h.akteur}]");
+        var nah = reader.DiagAlle.Where(h => h.t >= t - 0.6 && h.t <= t + 0.2).OrderBy(h => Math.Abs(h.t - t)).Take(5).Select(h => $"[{Math.Round(h.t - t, 2)}s von {h.von} {Math.Round(h.mag)} {h.art} akteur {h.akteur}]");
         var gez = reader.Liste.Where(e => e.an == opfer && e.t is double et && et >= t - 1.5 && et <= t + 0.3).Select(e => $"<gez von {e.von} {Math.Round(e.hoehe)}>");
         Console.Error.WriteLine($"DIAGOPFER {opfer} t={Math.Round(t, 2)} verlor {Math.Round(v - w)}: " + string.Join(" ", gez.Concat(nah)));
       }
