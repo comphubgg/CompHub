@@ -53,6 +53,8 @@ export function cupBild(name: string): string | null {
   if (/cash cup/.test(n)) return '/cups/cash-cup.webp';
   if (/global championship 2026/.test(n)) return null;
   if (/global championship|globals 2024/.test(n)) return '/cups/global-championship-2025.webp';
+  // FNCS Solo Reload (Heats, Qualifier, Finale) hat ein eigenes Bild - nicht das Road-to-EWC-Bild (Betreiber, 10.11.2026).
+  if (/(fncs|solo).*reload|reload.*(fncs|solo)/.test(n)) return '/cups/fncs-solo-reload.webp';
   if (/reload/.test(n)) return '/cups/reload-road-to-ewc.webp';
   if (/major/.test(n)) return '/cups/fncs-major.webp';
   return null;
