@@ -98,6 +98,25 @@ try {
   replay = reader.ReadReplay(datei);
   wache.Dispose();
   if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
+  if (SchadenLeser.DiagId is int diagId) {
+    // Passt zu einem unbekannten Treffer ein Spieler, der im selben Moment (0,25 s) Leben + Schild + Overshield verlor? Dann war das Ziel ein Spieler.
+    double Summe(int id, double t) {
+      double W(Dictionary<int, List<double[]>> d, double st) { if (!d.TryGetValue(id, out var l)) return st; double? w = null; foreach (var x in l) { if (x[0] <= t) w = x[1]; else break; } return w ?? st; }
+      return W(reader.Leben, 100) + W(reader.Schild, 0) + W(reader.Ueberschild, 0);
+    }
+    var ids = reader.Leben.Keys.Union(reader.Schild.Keys).Where(i => i != diagId).ToList();
+    var treffer = new Dictionary<string, (int n, double dmg, int passt, double passtDmg)>();
+    var akteurPasst = new Dictionary<uint, Dictionary<int, int>>();
+    foreach (var h in reader.DiagOffen) {
+      int? wer = null;
+      foreach (var id in ids) { var vor = Summe(id, h.t - 0.05); var nach = Summe(id, h.t + 0.25); if (vor - nach >= Math.Min(h.mag, vor) * 0.9 && vor - nach > 0) { wer = id; break; } }
+      treffer.TryGetValue(h.art, out var a);
+      treffer[h.art] = (a.n + 1, a.dmg + h.mag, a.passt + (wer is null ? 0 : 1), a.passtDmg + (wer is null ? 0 : h.mag));
+      if (wer is int w) { if (!akteurPasst.TryGetValue(h.akteur, out var m)) akteurPasst[h.akteur] = m = new(); m[w] = (m.TryGetValue(w, out var z) ? z : 0) + 1; }
+    }
+    foreach (var kv in treffer) Console.Error.WriteLine($"DIAGPASST {kv.Key}: {kv.Value.n} Treffer ({Math.Round(kv.Value.dmg)}) - davon {kv.Value.passt} ({Math.Round(kv.Value.passtDmg)}) mit gleichzeitigem Verlust eines Spielers");
+    foreach (var kv in akteurPasst.OrderByDescending(x => x.Value.Values.Sum()).Take(8)) Console.Error.WriteLine($"DIAGAKTEUR {kv.Key}: " + string.Join(", ", kv.Value.Select(x => $"Spieler {x.Key} x{x.Value}")));
+  }
 } catch (Exception e) {
   Console.Error.WriteLine(Environment.GetEnvironmentVariable("LESER_STAPEL") == "1" ? e.ToString() : $"{e.GetType().Name}: {e.Message}");
   Environment.Exit(1);
@@ -915,7 +934,12 @@ class SchadenLeser : ReplayReader {
     if (figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) && figurKanaele.Contains(zielKanal)) { var an0 = Hole(VonFigur, zielKanal); anId = an0?.Id; anTeam = an0?.TeamIndex; }
     else if (spielerVonAkteur.TryGetValue(c.HitActor.Value, out var sid2)) { anId = sid2; anTeam = teamVonSpieler.TryGetValue(sid2, out var tv) ? tv : null; Nachgetragen++; }
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
-    if (anId is null) { D(figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "")); return; }
+    if (anId is null) {
+      var art = figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "");
+      D(art);
+      if (diag && Zeit() is double td) DiagOffen.Add((td, c.Magnitude.Value, art, c.HitActor.Value));
+      return;
+    }
     if (von.Id == anId) { D("selbst"); return; }
     if (von.TeamIndex is not null && von.TeamIndex == anTeam) { D("eigenesTeam"); return; }
     D("gezaehlt");
@@ -939,6 +963,7 @@ class SchadenLeser : ReplayReader {
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
   readonly Dictionary<uint, string> kanalTyp = new();
+  public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
   /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
   string DiagZiel(uint akteur) {
     var klasse = pfadVonAkteur.TryGetValue(akteur, out var pf) && pf is not null ? System.Text.RegularExpressions.Regex.Replace(pf.Split('/').Last().Split('.').Last(), @"_C$", "") : "ohneKlasse";
