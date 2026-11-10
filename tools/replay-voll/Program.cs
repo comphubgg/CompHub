@@ -168,7 +168,7 @@ reader.Zaehle(busAb);
 if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
   object Feld(object o, string n) { if (o is null) return null; var t = o.GetType(); while (t != null) { var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); t = t.BaseType; } return null; }
-  var gc = Feld(reader, "GuidCache");
+  var gc = Feld(reader, "GuidCache") ?? Feld(reader, "_netGuidCache");
   var karte = Feld(gc, "NetFieldExportGroupMap") as System.Collections.IDictionary;
   if (karte is null) {
     for (var tt = reader.GetType(); tt != null; tt = tt.BaseType)
