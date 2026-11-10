@@ -137,6 +137,10 @@ const ohneBus = (m, datum) => Boolean(m) && m.mitBus !== 1 && !MASSEN.test(m.win
 // werden einmal neu gelesen, solange Epic sie hat.
 const ohneOrte = (m, datum) => Boolean(m) && m.mitOrten !== 2 && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
+// mitTruhen (10.11.2026): der Leser gibt geoeffnete Truhen und die Hoehe der Orte aus (Loot-Routen, /admin/loot-routen) - die Spiele der letzten 3 Tage
+// werden einmal neu gelesen, aeltere nicht (das waeren tausende).
+const ohneTruhen = (m, datum) => Boolean(m) && m.mitTruhen !== 1 && !MASSEN.test(m.windowId ?? '')
+  && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 3 * 864e5;
 const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 /**
@@ -269,7 +273,7 @@ async function aufgaben() {
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
     index.geprueft[tag.windowId] = Date.now();
     for (const id of ids) {
-      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum) && !ohneTreffer(index.matches[id], tag.datum) && !ohneBus(index.matches[id], tag.datum) && !ohneOrte(index.matches[id], tag.datum)) continue;
+      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum) && !ohneTreffer(index.matches[id], tag.datum) && !ohneBus(index.matches[id], tag.datum) && !ohneOrte(index.matches[id], tag.datum) && !ohneTruhen(index.matches[id], tag.datum)) continue;
       const f = index.fehler[id];
       if (f) {
         f.art ??= fehlerArt(f.fehler ?? '');
@@ -331,6 +335,7 @@ async function abarbeiten({ id, tag }) {
       // Auch ohne Bus im Replay gilt es als mit dem neuen Leser gelesen - sonst wuerde es endlos neu gelesen.
       mitBus: 1,
       ...(m.orte ? { mitOrten: m.hand ? 2 : 1 } : {}),
+      ...(Array.isArray(m.truhen) ? { mitTruhen: 1 } : {}),
     };
     delete index.fehler[id];
     speichereIndex();
