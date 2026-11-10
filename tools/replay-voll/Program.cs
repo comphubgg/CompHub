@@ -963,7 +963,14 @@ class SchadenLeser : ReplayReader {
       Diag.TryGetValue(g, out var a); Diag[g] = (a.Item1 + 1, a.Item2 + (c.Magnitude ?? 0));
       if (diag && grund != g) { Diag.TryGetValue("ALLE:" + grund, out var b); Diag["ALLE:" + grund] = (b.Item1 + 1, b.Item2 + (c.Magnitude ?? 0)); }
     }
-    if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) { D("ohneZielOderWert"); return; }
+    if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) {
+      if (DiagId is not null) {
+        string zielArt = "keinZiel";
+        if (c.HitActor is uint ha) zielArt = figurVonAkteur.TryGetValue(ha, out var zk) && figurKanaele.Contains(zk) ? "zielSpieler" : spielerVonAkteur.ContainsKey(ha) ? "zielSpielerAlt" : "zielSonst";
+        D($"ohneWert:{(c.Magnitude is null ? "null" : "0")}:{zielArt}:schild={c.bIsShield}:weg={c.bIsShieldDestroyed}:fatal={c.bIsFatal}:krit={c.bIsCritical}");
+      }
+      return;
+    }
     if (!figurKanaele.Contains(channelIndex)) { D("keinFigurKanal:" + (DiagId is null ? "" : (pfadVonAkteur.TryGetValue(kanalAkteur.TryGetValue(channelIndex, out var ka) ? ka : 0, out var kp) && kp is not null ? kp.Split('.').Last() : "ohneKlasse"))); return; }
     var von = Hole(VonFigur, channelIndex);
     int? anId = null; int? anTeam = null;
