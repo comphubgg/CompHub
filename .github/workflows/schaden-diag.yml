@@ -18,6 +18,10 @@ on:
         description: Zeitpunkte (s) fuer das Detailfenster, Komma-getrennt
         required: false
         default: ''
+      epic:
+        description: 'Epic-Gegenprobe: eventId,windowId,epicId (leer = aus)'
+        required: false
+        default: ''
 
 jobs:
   diag:
@@ -39,6 +43,13 @@ jobs:
         run: |
           printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Epic-Gegenprobe
+        if: inputs.epic != ''
+        env:
+          EPIC: ${{ inputs.epic }}
+        run: |
+          IFS=',' read -ra E <<< "$EPIC"
+          node scripts/epic-team-pruefen.mjs "${E[0]}" "${E[1]}" "${E[2]}" 2>&1 | tail -30
       - name: Leser bauen
         run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -5
       - name: Diagnose
