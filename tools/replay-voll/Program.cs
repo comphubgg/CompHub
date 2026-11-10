@@ -240,6 +240,17 @@ if (SchadenLeser.DiagId is not null) {
       }
 }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG PARSEMODE " + string.Join(",", Enum.GetValues(typeof(ParseMode)).Cast<object>().Select(v => v + "=" + (int)v)));
+if (SchadenLeser.DiagId is not null) {
+  int n = 0;
+  foreach (var asm in new[] { typeof(FortniteReplayBuilder).Assembly, typeof(Unreal.Core.Models.FHitResult).Assembly })
+  foreach (var ty in asm.GetTypes()) foreach (var pr in ty.GetProperties()) foreach (var pa in pr.GetCustomAttributesData()) {
+    if (pa.AttributeType.Name != "NetFieldExportAttribute" || n > 25) continue;
+    if (!pa.ConstructorArguments.Any(a => a.Value?.ToString() == "11" || a.Value?.ToString() == "DynamicArray") && !pr.PropertyType.IsArray) continue;
+    n++;
+    var el = pr.PropertyType.IsArray ? pr.PropertyType.GetElementType() : pr.PropertyType;
+    Console.Error.WriteLine($"DIAGARRAY {ty.Name}.{pr.Name}: {pr.PropertyType.FullName} [{string.Join(",", pa.ConstructorArguments.Select(a => a.Value))}] Element-Schnittstellen: {string.Join(",", el.GetInterfaces().Select(i => i.Name))} Attribute: {string.Join(",", el.GetCustomAttributesData().Select(x => x.AttributeType.Name + "(" + string.Join(",", x.ConstructorArguments.Select(c => c.Value)) + ")"))}");
+  }
+}
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
