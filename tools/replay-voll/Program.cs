@@ -1446,7 +1446,9 @@ class SchadenLeser : ReplayReader {
   void ProjektileEinrechnen(double? busAb) {
     var alle = ProjektilTreffer.Where(x => spielerVonAkteur.ContainsKey(x.zielAkteur)).Select(x => (x.t, x.von, an: spielerVonAkteur[x.zielAkteur], effekt: false)).ToList();
     // FirePetal-Effekte: nur wenn im selben Moment kein Treffer-Ereignis auf dieses Opfer gezaehlt ist (dann ist der Effekt schon erklaert).
-    if (Environment.GetEnvironmentVariable("SCHADEN_EFFEKT") != "0")
+    // Nur zum Testen (SCHADEN_EFFEKT=1): am Squads Victory Cup R2 (17 Matches) brachte es Calle88 nichts, und die meisten Effekte hatten keinen FirePetal-Schuss davor -
+    // die Zuordnung ist nicht bewiesen, also zaehlt sie nicht.
+    if (Environment.GetEnvironmentVariable("SCHADEN_EFFEKT") == "1")
       foreach (var (te, an0) in EffektTreffer) {
         if (Liste.Any(e => e.an == an0 && e.t is double et && et >= te - 0.3 && et <= te + 0.1)) continue;
         if (EffektSchuetze(te, an0) is int sv) { alle.Add((te, sv, an0, true)); EffektZugeordnet++; }
