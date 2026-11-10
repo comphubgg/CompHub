@@ -192,6 +192,17 @@ if (SchadenLeser.DiagId is not null) {
     Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
   }
 }
+if (SchadenLeser.DiagId is not null) {
+  foreach (var ty in typeof(FortniteReplayBuilder).Assembly.GetTypes()) {
+    foreach (var at in ty.GetCustomAttributesData()) {
+      if (!at.AttributeType.Name.Contains("ClassNetCache")) continue;
+      var nm = at.ConstructorArguments.FirstOrDefault().Value?.ToString() ?? "";
+      if (!nm.Contains("PlayerPawn_Athena")) continue;
+      Console.Error.WriteLine($"DIAGCACHE {ty.FullName} [{string.Join(", ", at.ConstructorArguments.Select(a => a.Value))}]");
+      foreach (var pr in ty.GetProperties()) foreach (var pa in pr.GetCustomAttributesData()) Console.Error.WriteLine($"DIAGCACHE   {pr.Name}: {pr.PropertyType.FullName} {pa.AttributeType.Name}({string.Join(", ", pa.ConstructorArguments.Select(a => a.Value))})");
+    }
+  }
+}
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
