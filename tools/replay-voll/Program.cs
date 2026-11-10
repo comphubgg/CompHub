@@ -260,7 +260,7 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG REPLAYOUT " +
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt} params={reader.EffektParams}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektTags.OrderByDescending(x => x.Value).Take(25)) Console.Error.WriteLine($"DIAG EFFEKTTAG {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
-if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laengster {SchadenLeser.LaengsterRahmen} ms, Bloecke {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt}");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laengster {SchadenLeser.LaengsterRahmen} ms, Bloecke {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt}, Buendel abgebrochen {SchadenLeser.BuendelAbgebrochen}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
@@ -855,6 +855,21 @@ class SchadenLeser : ReplayReader {
   int paketeImRahmen, stapelGezeigt; long laengstesPaket; long paketeGesamt;
   void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) { if (DiagId is not null && stapelGezeigt++ < 2) Console.Error.WriteLine("STAPEL " + string.Join(" | ", Environment.StackTrace.Split('\n').Skip(1).Take(30).Select(x => x.Trim()))); throw new TimeoutException($"Rahmen haengt ({d} ms, Pakete im Rahmen {paketeImRahmen}, laengstes Paket {laengstesPaket} ms, Pakete gesamt {paketeGesamt}, Rahmen {Rahmen})"); } }
 
+  /*
+   * Endlosschleife der Bibliothek (10.11.2026, Squads Victory Cup Runde 2, Match 3983b04c...: zyfos drittes Spiel fehlte ganz, ihm fehlten 49 % Schaden gegen Osirion).
+   * Ein verrutschter Inhaltsblock setzt den Fehler-Zustand des Lesers; danach liest er nichts mehr, kommt aber auch nie ans Ende - ProcessBunch drehte sich ewig, und unser
+   * Zeitwaechter warf den ganzen ersten Datenblock weg (darin stehen alle Feld-Definitionen, also war das ganze Match leer). Die neuere Bibliothek (Shiqan, 13.9.2026)
+   * bricht genau dort das eine Buendel ab - hier dasselbe: nur dieses Buendel faellt weg.
+   */
+  sealed class BuendelFehler : Exception { }
+  public static int BuendelAbgebrochen;
+  public override uint? ReadContentBlockHeader(Unreal.Core.Models.DataBunch bunch, out bool bOutHasRepLayout, out bool bObjectDeleted) {
+    if (bunch.Archive.IsError) { bOutHasRepLayout = false; bObjectDeleted = false; throw new BuendelFehler(); }
+    return base.ReadContentBlockHeader(bunch, out bOutHasRepLayout, out bObjectDeleted);
+  }
+  public override void ProcessBunch(Unreal.Core.Models.DataBunch bunch) {
+    try { base.ProcessBunch(bunch); } catch (BuendelFehler) { BuendelAbgebrochen++; }
+  }
   public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
   public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
   public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) {
