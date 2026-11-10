@@ -971,6 +971,13 @@ class SchadenLeser : ReplayReader {
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
     if (anId is null) {
       var art = figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "");
+      if (DiagId is not null) {
+        var ueberAkteur = Hole(VonAkteur, c.HitActor.Value)?.Id;
+        int? ueberKanal = null; foreach (var kv in kanalAkteur) if (kv.Value == c.HitActor.Value) { ueberKanal = Hole(VonFigur, kv.Key)?.Id ?? VomZustand(kv.Key)?.Id; if (ueberKanal is not null) break; }
+        var los = ueberAkteur is not null ? "akteur" : ueberKanal is not null ? "kanal" : "nein";
+        Diag.TryGetValue("AUFLOESBAR:" + los, out var ab); Diag["AUFLOESBAR:" + los] = (ab.Item1 + 1, ab.Item2 + c.Magnitude.Value);
+        if (los != "nein") { var wer = ueberAkteur ?? ueberKanal; var k2 = "AUFLOESBAR-BEI:" + (pfadVonAkteur.TryGetValue(c.HitActor.Value, out var pp) && pp is not null ? pp.Split('.').Last() : "ohneKlasse"); Diag.TryGetValue(k2, out var ab2); Diag[k2] = (ab2.Item1 + 1, ab2.Item2 + c.Magnitude.Value); }
+      }
       D(art);
       if (diag && Zeit() is double td) DiagOffen.Add((td, c.Magnitude.Value, art, c.HitActor.Value));
       if (DiagId is not null && Zeit() is double ta) DiagAlle.Add((ta, c.Magnitude.Value, art.StartsWith("zielUnbekannt") ? "unbekannt:" + DiagZiel(c.HitActor.Value) : art, c.HitActor.Value, von?.Id ?? -1));
