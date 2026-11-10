@@ -37,7 +37,7 @@ for (const f of dateien) {
     if (Math.abs(ist - soll) > 1) abw.push({ match: id.slice(0, 8), id: x.id, name: p.name, epic: soll, wir: ist, alle: Math.round(x.gemacht), treffer: x.treffer, diff: ist - soll });
   }
 }
-console.log(`Epic-Eintraege fuer diese Matches: ${epic.size}`);
+console.log(`Epic-Eintraege fuer diese Matches: ${epic.size}`, 'Felder:', JSON.stringify([...epic.values()][0] ?? {}));
 for (const [k, e] of Object.entries(erg)) console.log(`VARIANTE ${k}: ${e.n} Spieler-Spiele, genau (±1) ${e.gleich} (${(e.gleich / Math.max(1, e.n) * 100).toFixed(1)} %), ±1 % ${e.nah}, Summe wir ${e.wir} / Epic ${e.epic} (${((e.wir - e.epic) / Math.max(1, e.epic) * 100).toFixed(2)} %)`);
 abw.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
 for (const a of abw.slice(0, 40)) console.log('ABW', JSON.stringify(a));
