@@ -956,6 +956,11 @@ class SchadenLeser : ReplayReader {
     // Diagnose (SCHADEN_DIAG=<Spieler-Id>, 10.11.2026): wo Treffer eines Spielers verloren gehen - Osirion zeigte bei manchen Squad-Spielern doppelt so viel Schaden.
     var diagVon = DiagId is int dg ? (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) : null;
     bool diag = DiagId is int dg2 && diagVon == dg2;
+    if (diag && DiagDump < 25) {
+      DiagDump++;
+      var teile = c.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(c); } catch { v = "?"; } if (v is null) return null; if (v is System.Collections.IEnumerable en && v is not string) v = "[" + string.Join(",", en.Cast<object>().Select(x => x?.ToString())) + "]"; return pp.Name + "=" + v; }).Where(x => x is not null);
+      Console.Error.WriteLine("DIAGCUE t=" + Zeit() + " " + string.Join(" ", teile));
+    }
     void D(string grund) {
       if (DiagId is null) return;
       var g = (diag ? "" : "ALLE:") + grund;
@@ -1030,6 +1035,7 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<uint, string> kanalTyp = new();
   public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
   public readonly List<(double t, double mag, string art, uint akteur, int von)> DiagAlle = new();
+  int DiagDump;
   /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
   string DiagZiel(uint akteur) {
     var klasse = pfadVonAkteur.TryGetValue(akteur, out var pf) && pf is not null ? System.Text.RegularExpressions.Regex.Replace(pf.Split('/').Last().Split('.').Last(), @"_C$", "") : "ohneKlasse";
