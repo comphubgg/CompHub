@@ -406,6 +406,10 @@ class SchadenLeser : ReplayReader {
       var karte = PfadKarte();
       if (actor is not null && archWert is not null && karte is not null && karte.Contains(archWert)) pfadVonAkteur[actor.Value] = karte[archWert]?.ToString();
     } catch { }
+    if (DiagId is not null && Zeit() is double tco && DiagZeiten.Any(z => tco >= z - 6 && tco <= z + 1) && actor is not null) {
+      var pfo = pfadVonAkteur.TryGetValue(actor.Value, out var pq) ? pq : "?";
+      if (!pfo.Contains("PBWA_") && !pfo.Contains("Pickup")) Console.Error.WriteLine($"DIAGKANAL t={Math.Round(tco, 2)} k={channelIndex} akteur={actor.Value} {pfo}");
+    }
   }
   readonly Dictionary<uint, string> pfadVonAkteur = new();
 
