@@ -1228,6 +1228,7 @@ class SchadenLeser : ReplayReader {
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
   public int ProjektilGezaehlt; public double ProjektilSchaden;
+  static readonly double ProjektilFenster = double.TryParse(Environment.GetEnvironmentVariable("SCHADEN_FENSTER"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf) ? pf : 0.6;
   /*
    * Projektil-Treffer (Steinschleuder) als Schaden: genau der Verlust an Leben + Schild + Overshield des getroffenen Spielers im Moment des Treffers
    * (0,15 s davor bis 0,6 s danach), abzueglich dessen, was gezaehlte Treffer anderer im selben Fenster schon erklaeren. Ohne Verlust kein Schaden.
@@ -1239,11 +1240,11 @@ class SchadenLeser : ReplayReader {
       var vonTeam = teamVonSpieler.TryGetValue(von, out var tv) ? tv : null; var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
       if (vonTeam is not null && vonTeam == anTeam) continue;
       double Summe(double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
-      var verlust = Summe(t - 0.15) - Summe(t + 0.6);
-      var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= t + 0.6).Sum(e => e.hoehe);
+      var verlust = Summe(t - 0.15) - Summe(t + ProjektilFenster);
+      var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= t + ProjektilFenster).Sum(e => e.hoehe);
       var h = Math.Round(verlust - schonErklaert);
       if (h <= 0) continue;
-      var fatal = Summe(t + 0.6) <= 0;
+      var fatal = Summe(t + ProjektilFenster) <= 0;
       Liste.Add((von, an, h, false, false, t, fatal));
       ProjektilGezaehlt++; ProjektilSchaden += h;
     }

@@ -10,6 +10,10 @@ on:
       spieler:
         description: Spieler-Id(s) im Replay, gleiche Reihenfolge
         required: true
+      fenster:
+        description: Zeitfenster fuer Projektil-Verlust (s)
+        required: false
+        default: '0.6'
       zeiten:
         description: Zeitpunkte (s) fuer das Detailfenster, Komma-getrennt
         required: false
@@ -42,6 +46,7 @@ jobs:
           MATCHES: ${{ inputs.match }}
           SPIELER: ${{ inputs.spieler }}
           SCHADEN_ZEITEN: ${{ inputs.zeiten }}
+          SCHADEN_FENSTER: ${{ inputs.fenster }}
         run: |
           IFS=',' read -ra M <<< "$MATCHES"; IFS=',' read -ra S <<< "$SPIELER"
           for i in "${!M[@]}"; do
