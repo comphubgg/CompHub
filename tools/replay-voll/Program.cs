@@ -266,7 +266,8 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFER {reader.EffektTreffer.Count} Effekte, zugeordnet {reader.EffektZugeordnet}, gezaehlt {reader.EffektGezaehlt} mit {Math.Round(reader.EffektSchaden)} Schaden, ohne Schuetze {reader.EffektOhneSchuetze}, mehrdeutig {reader.EffektMehrdeutig}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.TruhenFertig().Count} geoeffnet (Kisten-Kanaele {reader.KistenKanaele}) (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.TruhenFertig().Count(k => k[5] >= 0)}, laut Spiel {reader.KistenLautSpiel}, Aufheben {reader.Loot.Count(l => l[5] == 1)}, Fallenlassen {reader.Loot.Count(l => l[5] == 0)}");
-if (SchadenLeser.DiagId is not null) foreach (var k in reader.Truhen.Where(k => k[0] > 700 && k[5] == 267).Take(12)) { var n = reader.Loot.Where(l => l[5] == 1).Select(l => (dt: l[0] - k[0], d: Math.Sqrt(Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2)), wer: l[1])).Where(x => x.dt > -5 && x.dt < 30).OrderBy(x => x.d).Take(3); Console.Error.WriteLine($"DIAGTRUHE t={k[0]} x={k[1]} y={k[2]} art={k[4]} naechste: {string.Join(" ; ", n.Select(x => $"{x.wer} dt={Math.Round(x.dt, 1)} d={Math.Round(x.d)}"))}"); }
+if (SchadenLeser.DiagId is int dgt) Console.Error.WriteLine($"DIAG TRUHEN-SPIELER {dgt}: Truhen {reader.Truhen.Count(k => k[5] == dgt && k[4] == 0)}, Munition {reader.Truhen.Count(k => k[5] == dgt && k[4] == 1)}, Boden {reader.Truhen.Count(k => k[5] == dgt && k[4] == 2)}; je Spieler im Schnitt Truhen {Math.Round(reader.Truhen.Count(k => k[4] == 0) / (double)Math.Max(1, reader.Truhen.Select(k => k[5]).Distinct().Count()), 1)}");
+if (SchadenLeser.DiagId is not null) foreach (var k in reader.Truhen.Where(k => k[0] > 700 && k[5] == SchadenLeser.DiagId).Take(12)) { var n = reader.Loot.Where(l => l[5] == 1).Select(l => (dt: l[0] - k[0], d: Math.Sqrt(Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2)), wer: l[1])).Where(x => x.dt > -5 && x.dt < 30).OrderBy(x => x.d).Take(3); Console.Error.WriteLine($"DIAGTRUHE t={k[0]} x={k[1]} y={k[2]} art={k[4]} naechste: {string.Join(" ; ", n.Select(x => $"{x.wer} dt={Math.Round(x.dt, 1)} d={Math.Round(x.d)}"))}"); }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -1021,14 +1022,20 @@ class SchadenLeser : ReplayReader {
        * zwei, drei Meter daneben), Zeit = kurz vor dem ersten Aufheben, Oeffner = er. Mit Waffe darin eine Truhe, sonst eine Munitionskiste.
        */
       var stuecke = Loot.Select((l, i) => (l, k: lootKanal[i])).Where((x) => x.l[5] == 1 && kistenKanal.Contains(x.k)).OrderBy((x) => x.l[0]).ToList();
-      var gruppen = new List<(double t, double x, double y, double z, int wer, bool waffe, double letzte)>();
+      var gruppen = new List<(double t, double x, double y, double z, int wer, int waffen, int munition, int sonst, double letzte)>();
       foreach (var (l, _) in stuecke) {
-        var waffe = LootNamen[(int)l[2]].StartsWith("WID_", StringComparison.OrdinalIgnoreCase);
+        var n = LootNamen[(int)l[2]];
+        var waffe = n.StartsWith("WID_", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        var mun = waffe == 0 && n.Contains("Ammo", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         var i = gruppen.FindLastIndex((g) => g.wer == (int)l[1] && l[0] - g.letzte < 4 && Math.Pow(g.x - l[3], 2) + Math.Pow(g.y - l[4], 2) < 700 * 700);
-        if (i >= 0) { var g = gruppen[i]; gruppen[i] = g with { waffe = g.waffe || waffe, letzte = l[0] }; continue; }
-        gruppen.Add((l[0], l[3], l[4], l.Length > 6 ? l[6] : 0, (int)l[1], waffe, l[0]));
+        if (i >= 0) { var g = gruppen[i]; gruppen[i] = g with { waffen = g.waffen + waffe, munition = g.munition + mun, sonst = g.sonst + (1 - waffe - mun), letzte = l[0] }; continue; }
+        gruppen.Add((l[0], l[3], l[4], l.Length > 6 ? l[6] : 0, (int)l[1], waffe, mun, 1 - waffe - mun, l[0]));
       }
-      foreach (var g in gruppen) Truhen.Add(new[] { Math.Round(Math.Max(0, g.t - 0.5), 1), Math.Round(g.x), Math.Round(g.y), Math.Round(g.z), g.waffe ? 0 : 1, g.wer });
+      // Truhe: eine Waffe und mindestens zwei weitere Stuecke; Munitionskiste: nur Munition (mindestens zwei Stuecke); sonst Boden-Loot (2).
+      foreach (var g in gruppen) {
+        var art = g.waffen >= 1 && g.waffen + g.munition + g.sonst >= 3 ? 0 : g.waffen == 0 && g.sonst == 0 && g.munition >= 2 ? 1 : 2;
+        Truhen.Add(new[] { Math.Round(Math.Max(0, g.t - 0.5), 1), Math.Round(g.x), Math.Round(g.y), Math.Round(g.z), art, g.wer });
+      }
     }
     return Truhen;
   }
