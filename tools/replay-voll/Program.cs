@@ -837,7 +837,7 @@ class SchadenLeser : ReplayReader {
   public static int Rahmen, Bloecke, Defekt;
   public override void ReadReplayData(Unreal.Core.FArchive archive, int fallbackChunkSize) {
     Bloecke += 1;
-    try { base.ReadReplayData(archive, fallbackChunkSize); } catch (Exception) { Defekt += 1; }
+    try { base.ReadReplayData(archive, fallbackChunkSize); } catch (Exception e) { Defekt += 1; if (Defekt <= 3) Console.Error.WriteLine($"Block {Bloecke} defekt: {e.GetType().Name}: {e.Message}\n{string.Join("\n", (e.StackTrace ?? "").Split('\n').Take(12))}"); }
   }
   Unreal.Core.FArchive? rahmenArchiv; int rahmenPos = -1; int rahmenGleich;
   public override void ReadDemoFrameIntoPlaybackPackets(Unreal.Core.FArchive archive) {
