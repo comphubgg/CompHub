@@ -82,7 +82,9 @@ for (const [w, dateien] of jeTag) {
     d.gesamt = Math.max(d.gesamt ?? 0, t.gesamt ?? 0);
     const gross = d.gesamt > GROSS_MAX;
     // Ein Teil traegt nur Matches, die der Rechner zu Beginn offen sah - schon vorhandene kommen nicht doppelt.
-    const neuHier = (t.matches ?? []).filter((m) => !da.has(m.id));
+    // Ein frueher als "ohne Replay" vermerktes Match darf nachgelesen werden - es zaehlt dann nicht als "stand schon da".
+    const ohneSet = new Set(d.ohne);
+    const neuHier = (t.matches ?? []).filter((m) => !da.has(m.id) || ohneSet.has(m.id));
     if (neuHier.length !== (t.matches ?? []).length) {
       console.log(`  ${w}: ${t.matches.length - neuHier.length} Matches standen schon da - Teil ${path.basename(datei)} uebersprungen`);
       continue;
@@ -93,6 +95,9 @@ for (const [w, dateien] of jeTag) {
      * Ein Match, das in drei Laeufen scheitert (Leser stuerzt ab, Download bricht immer wieder), gilt als ohne lesbares Replay (31.10.2026). Vorher
      * blieb ein Spieltag wegen ein, zwei solcher Matches fuer immer "teilweise" - und jeder Lauf verlor Zeit mit denselben Fehlern.
      */
+    // Erfolgreich nachgelesene Matches aus "ohne" streichen; Zeitpunkt des letzten Versuchs fuer die Wiederholung merken (scripts/clutch-berechnen.mjs).
+    if ((t.matches ?? []).length && d.ohne?.length) { const neuGelesen = new Set(t.matches.map((m) => m.id)); d.ohne = d.ohne.filter((id) => !neuGelesen.has(id)); }
+    d.ohneVersucht = new Date().toISOString();
     for (const id of t.fehler ?? []) {
       if (da.has(id)) continue;
       d.fehlversuche ??= {};

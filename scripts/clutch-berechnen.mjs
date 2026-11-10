@@ -351,7 +351,12 @@ if (arg[0] === '--plan') {
       || ((da.schadenFassung ?? 0) < 14 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 9000));
       // Fassung 14 (10.11.2026): Treffer auf schon Umgehauene zaehlen nicht, der Knock gehoert nur einem Treffer davor.
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
-    const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
+    /*
+     * "Ohne Replay" ist kein Endurteil (Betreiber, 10.11.2026: zyfos Match galt als ohne Replay und liess sich am Morgen problemlos laden). In den ersten drei Tagen
+     * wird ein solches Match alle zwei Stunden noch einmal versucht.
+     */
+    const ohneNochmal = Date.now() - f.datum < 3 * 864e5 && Date.now() - Date.parse(da?.ohneVersucht ?? da?.gerechnet ?? 0) > 2 * 3600_000;
+    const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(ohneNochmal ? [] : (da.ohne ?? []))] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
     raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang });
