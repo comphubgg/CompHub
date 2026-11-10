@@ -97,3 +97,9 @@ __pycache__/
 *.pyc
 replay-rekord.json
 epic-anmeldung.log
+
+# Intro-Aufnahme (tools/intro)
+tools/intro/three
+tools/intro/bilder/
+tools/intro/frames/
+tools/intro/*.mp4

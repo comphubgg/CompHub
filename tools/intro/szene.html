@@ -1,0 +1,223 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>CompHub Intro</title>
+<style>
+  html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:linear-gradient(180deg,#e9f1fb 0%,#d6e7f8 45%,#cfe0f4 100%);}
+  canvas{display:block}
+</style>
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const B = 1280, H = 720;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(B, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xdbe8f6, 26, 60);
+const camera = new THREE.PerspectiveCamera(34, B / H, 0.1, 200);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8cbe0, 1.6));
+const sonne = new THREE.DirectionalLight(0xffffff, 1.6); sonne.position.set(6, 14, 8); scene.add(sonne);
+
+const BLAU = 0x00a3ff, GRAU = 0x5a6478;
+const SEITEN = window.SEITEN; // [{name, bild, farbe, symbol}]
+
+// ---------- Hilfen ----------
+const lerp = (a, b, t) => a + (b - a) * t;
+const klemm = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ein = (t) => t * t * (3 - 2 * t);
+const einAus = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const federn = (t) => { const c = 1.70158, c3 = c + 1; return 1 + c3 * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+const abschnitt = (t, a, b) => klemm((t - a) / (b - a));
+function leinwand(w, h, mal) { const c = document.createElement('canvas'); c.width = w; c.height = h; mal(c.getContext('2d'), w, h); const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; return tx; }
+function rund(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+const ladeBild = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+
+// ---------- Symbole fuer das Dock ----------
+function symbol(g, art, w, h) {
+  g.save(); g.translate(w / 2, h / 2); g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = w * 0.06; g.lineCap = 'round'; g.lineJoin = 'round';
+  const s = w * 0.22;
+  if (art === 'pokal') { g.beginPath(); g.moveTo(-s, -s); g.lineTo(s, -s); g.lineTo(s * 0.8, s * 0.1); g.quadraticCurveTo(0, s * 0.7, -s * 0.8, s * 0.1); g.closePath(); g.fill(); g.fillRect(-s * 0.12, s * 0.5, s * 0.24, s * 0.5); g.fillRect(-s * 0.55, s * 0.95, s * 1.1, s * 0.22); g.beginPath(); g.arc(-s * 1.05, -s * 0.45, s * 0.35, Math.PI * 0.5, Math.PI * 1.5, false); g.stroke(); g.beginPath(); g.arc(s * 1.05, -s * 0.45, s * 0.35, Math.PI * 1.5, Math.PI * 0.5, false); g.stroke(); }
+  else if (art === 'balken') { [[-1, 0.4], [-0.33, -0.3], [0.33, 0.1], [1, -0.9]].forEach(([x, y]) => g.fillRect(x * s - s * 0.25, y * s, s * 0.5, s * 1.2 - y * s / s * s)); }
+  else if (art === 'kalender') { rund(g, -s * 1.2, -s, s * 2.4, s * 2.1, s * 0.3); g.stroke(); g.fillRect(-s * 1.2, -s, s * 2.4, s * 0.55); for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) g.fillRect(-s * 0.8 + i * s * 0.6, -s * 0.1 + j * s * 0.55, s * 0.35, s * 0.35); }
+  else if (art === 'krone') { g.beginPath(); g.moveTo(-s * 1.2, s * 0.7); g.lineTo(-s * 1.2, -s * 0.6); g.lineTo(-s * 0.6, 0); g.lineTo(0, -s); g.lineTo(s * 0.6, 0); g.lineTo(s * 1.2, -s * 0.6); g.lineTo(s * 1.2, s * 0.7); g.closePath(); g.fill(); }
+  else if (art === 'liste') { for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(-s, -s * 0.8 + i * s * 0.8, s * 0.18, 0, 7); g.fill(); g.beginPath(); g.moveTo(-s * 0.5, -s * 0.8 + i * s * 0.8); g.lineTo(s * 1.1, -s * 0.8 + i * s * 0.8); g.stroke(); } }
+  else if (art === 'stern') { g.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? s * 0.5 : s * 1.2; const a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); }
+  else if (art === 'play') { g.beginPath(); g.moveTo(-s * 0.7, -s); g.lineTo(s * 1.1, 0); g.lineTo(-s * 0.7, s); g.closePath(); g.fill(); }
+  else if (art === 'karte') { g.beginPath(); g.arc(0, -s * 0.3, s * 0.8, Math.PI, 0); g.lineTo(0, s * 1.1); g.closePath(); g.fill(); g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.arc(0, -s * 0.3, s * 0.32, 0, 7); g.fill(); }
+  else if (art === 'stufen') { [[-1, 0.2], [0, -0.6], [1, 0.6]].forEach(([x, y]) => g.fillRect(x * s * 0.75 - s * 0.36, y * s, s * 0.72, s * 1.2 - y * s)); }
+  g.restore();
+}
+
+// ---------- Dock ----------
+const dock = new THREE.Group(); scene.add(dock);
+const ICON = 1.5, ABST = 1.75;
+const sockel = new THREE.Mesh(new RoundedBoxGeometry(ABST * (SEITEN.length + 1) + 0.6, 0.55, 2.3, 6, 0.27),
+  new THREE.MeshStandardMaterial({ color: 0xf4f8fd, roughness: 0.35, metalness: 0.0, transparent: true, opacity: 0.92 }));
+sockel.position.y = -0.3; dock.add(sockel);
+const icons = [];
+const iconGeo = new RoundedBoxGeometry(ICON, 0.42, ICON, 6, 0.3);
+function iconMaterial(farbe, art, logo) {
+  const tx = leinwand(256, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, farbe[0]); gr.addColorStop(1, farbe[1]); g.fillStyle = gr; g.fillRect(0, 0, w, h); if (logo) g.drawImage(logo, w * 0.16, h * 0.2, w * 0.68, h * 0.68 * logo.height / logo.width); else symbol(g, art, w, h); });
+  const seite = new THREE.MeshStandardMaterial({ color: new THREE.Color(farbe[1]), roughness: 0.4 });
+  return [seite, seite, new THREE.MeshStandardMaterial({ map: tx, roughness: 0.35 }), seite, seite, seite];
+}
+
+// ---------- Fenster ----------
+function fenster(bild, titel) {
+  const g = new THREE.Group();
+  const W = 7.2, Hh = 4.5;
+  const rahmen = new THREE.Mesh(new RoundedBoxGeometry(W, Hh + 0.36, 0.14, 6, 0.07), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }));
+  g.add(rahmen);
+  const kopf = leinwand(1024, 52, (c, w, h) => { c.fillStyle = '#f3f5f8'; c.fillRect(0, 0, w, h); [['#ff5f57', 26], ['#febc2e', 52], ['#28c840', 78]].forEach(([f, x]) => { c.fillStyle = f; c.beginPath(); c.arc(x, 26, 9, 0, 7); c.fill(); }); c.fillStyle = '#8a94a6'; c.font = '600 22px Inter, sans-serif'; c.textAlign = 'center'; c.fillText(titel, w / 2, 34); });
+  const kopfM = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.08, 0.36), new THREE.MeshBasicMaterial({ map: kopf, toneMapped: false }));
+  kopfM.position.set(0, Hh / 2, 0.075); g.add(kopfM);
+  const tx = bild ? new THREE.Texture(bild) : null; if (tx) { tx.colorSpace = THREE.SRGBColorSpace; tx.needsUpdate = true; tx.anisotropy = 8; }
+  const inhalt = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.12, Hh - 0.1), new THREE.MeshBasicMaterial({ map: tx, color: tx ? 0xffffff : 0x0b1220, toneMapped: false }));
+  inhalt.position.set(0, -0.15, 0.075); g.add(inhalt);
+  g.userData = { W, H: Hh };
+  return g;
+}
+
+// ---------- Figur: das Logo als Voxel-Tierchen ----------
+async function figurBauen(logo) {
+  const gr = new THREE.Group(); const koerper = new THREE.Group(); gr.add(koerper);
+  const N = 30, M = Math.round(N * logo.height / logo.width);
+  const c = document.createElement('canvas'); c.width = N; c.height = M; const g = c.getContext('2d'); g.drawImage(logo, 0, 0, N, M);
+  const px = g.getImageData(0, 0, N, M).data;
+  const art = []; // 0 leer, 1 blau, 2 grau
+  for (let y = 0; y < M; y++) for (let x = 0; x < N; x++) { const i = (y * N + x) * 4; const a = px[i + 3]; if (a < 110) { art.push(0); continue; } const r = px[i], b = px[i + 2]; art.push(b > r + 60 ? 1 : 2); }
+  // Innenflaechen (vom Rand nicht erreichbar) werden zum hellen Bauch.
+  const aussen = new Uint8Array(N * M); const st = [];
+  for (let x = 0; x < N; x++) { st.push([x, 0], [x, M - 1]); } for (let y = 0; y < M; y++) { st.push([0, y], [N - 1, y]); }
+  while (st.length) { const [x, y] = st.pop(); if (x < 0 || y < 0 || x >= N || y >= M) continue; const k = y * N + x; if (aussen[k] || art[k]) continue; aussen[k] = 1; st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); }
+  const S = 0.075, TIEFE = 5;
+  const box = new THREE.BoxGeometry(S * 0.97, S * 0.97, S * 0.97);
+  const farben = { 1: new THREE.Color(BLAU), 2: new THREE.Color(GRAU), 3: new THREE.Color(0xf6f9fd) };
+  const liste = [];
+  let augeX = 0, augeY = 0, augeN = 0;
+  for (let y = 0; y < M; y++) for (let x = 0; x < N; x++) {
+    const k = y * N + x; let a = art[k]; if (!a && !aussen[k]) a = 3; if (!a) continue;
+    const tiefe = a === 3 ? TIEFE - 1 : TIEFE;
+    for (let z = 0; z < tiefe; z++) liste.push([x, y, z - (a === 3 ? 0.5 : 0), a]);
+    if (a === 3 && y < M * 0.42) { augeX += x; augeY += y; augeN++; }
+  }
+  const mesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.45 }), liste.length);
+  const m4 = new THREE.Matrix4();
+  liste.forEach(([x, y, z, a], i) => { m4.makeTranslation((x - N / 2) * S, (M - y) * S, (z - TIEFE / 2) * S); mesh.setMatrixAt(i, m4); mesh.setColorAt(i, farben[a]); });
+  koerper.add(mesh);
+  // Augen auf dem hellen Bauch des oberen Blatts
+  const ax = augeN ? (augeX / augeN - N / 2) * S : 0, ay = augeN ? (M - augeY / augeN) * S : M * S * 0.7;
+  const augeGeo = new RoundedBoxGeometry(S * 2.2, S * 3.2, S * 1.2, 3, S * 0.5);
+  const schwarz = new THREE.MeshStandardMaterial({ color: 0x141a24, roughness: 0.3 });
+  const glanz = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const augen = [];
+  for (const dx of [-3.2, 3.2]) {
+    const auge = new THREE.Mesh(augeGeo, schwarz); auge.position.set(ax + dx * S, ay, TIEFE / 2 * S + S * 0.3); koerper.add(auge); augen.push(auge);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(S * 0.7, S * 0.7, S * 0.3), glanz); p.position.set(S * 0.45, S * 0.8, S * 0.6); auge.add(p);
+  }
+  // Fuesse
+  const fussGeo = new RoundedBoxGeometry(S * 3.4, S * 2, S * 3.4, 3, S * 0.6); const fussM = new THREE.MeshStandardMaterial({ color: 0x3d4555, roughness: 0.5 });
+  const fuesse = [];
+  for (const fx of [-0.62, -0.25, 0.25, 0.62]) { const f = new THREE.Mesh(fussGeo, fussM); f.position.set(fx * N * S * 0.5, -S * 0.6, 0); gr.add(f); fuesse.push(f); }
+  koerper.position.y = S * 0.5;
+  // Schatten
+  const sch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: leinwand(128, 128, (c, w, h) => { const r = c.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(40,60,90,0.38)'); r.addColorStop(1, 'rgba(40,60,90,0)'); c.fillStyle = r; c.fillRect(0, 0, w, h); }), transparent: true, depthWrite: false }));
+  sch.rotation.x = -Math.PI / 2; scene.add(sch);
+  gr.userData = { koerper, augen, fuesse, schatten: sch, breite: N * S, hoehe: M * S };
+  return gr;
+}
+
+// ---------- Aufbau ----------
+const logo = await ladeBild('../../public/logos/CompHub-Logo-frei.png');
+const bilder = await Promise.all(SEITEN.map((s) => ladeBild(s.bild)));
+const startX = -((SEITEN.length) * ABST) / 2;
+const logoIcon = new THREE.Mesh(iconGeo, iconMaterial(['#ffffff', '#e3eefa'], null, logo)); logoIcon.position.set(startX, 0.2, 0); dock.add(logoIcon); icons.push(logoIcon);
+SEITEN.forEach((s, i) => { const m = new THREE.Mesh(iconGeo, iconMaterial(s.farbe, s.symbol)); m.position.set(startX + (i + 1) * ABST, 0.2, 0); dock.add(m); icons.push(m); });
+const fenstern = SEITEN.map((s, i) => { const f = fenster(bilder[i], s.titel); f.visible = false; scene.add(f); return f; });
+const figur = await figurBauen(logo); scene.add(figur);
+const text = leinwand(1024, 160, () => {}); const textM = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.4), new THREE.MeshBasicMaterial({ map: text, transparent: true, toneMapped: false })); scene.add(textM);
+function textMalen(s, cursor) { const c = text.image, g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.font = '500 76px "DejaVu Sans Mono", monospace'; g.fillStyle = '#00a3ff'; g.fillText('>', 20, 105); g.fillStyle = '#1d2533'; g.fillText(s, 90, 105); if (cursor) { const w = g.measureText(s).width; g.fillStyle = 'rgba(0,163,255,0.55)'; g.fillRect(100 + w, 45, 40, 76); } text.needsUpdate = true; }
+
+// ---------- Ablauf ----------
+const T_INTRO = 4.5, T_SEITE = 4.2, T_ENDE = 6.5;
+const DAUER = T_INTRO + SEITEN.length * T_SEITE + T_ENDE;
+window.DAUER = DAUER;
+const iconTop = (i) => new THREE.Vector3(icons[i].position.x, 0.42, 0);
+const fensterOrt = (i) => new THREE.Vector3(icons[i + 1].position.x * 0.35, 1.7, -3.4);
+
+function hupf(von, nach, t, hoehe) { const p = von.clone().lerp(nach, t); p.y += Math.sin(Math.PI * t) * hoehe; return p; }
+
+function figurSetzen(pos, sprung, blick, wackeln) {
+  figur.position.copy(pos); figur.scale.setScalar(0.85);
+  const k = figur.userData.koerper;
+  // Stauchen beim Landen, Strecken in der Luft
+  const sq = sprung < 0 ? 1 : 1 + 0.18 * Math.sin(Math.PI * sprung) - 0.22 * Math.max(0, 1 - sprung * 6) * (sprung > 0 ? 0 : 1);
+  k.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq));
+  figur.rotation.y = blick ?? 0; figur.rotation.z = wackeln ?? 0;
+  const s = figur.userData.schatten; s.position.set(pos.x, (window.__boden ?? 0) + 0.01, pos.z); const hoch = Math.max(0, pos.y - (window.__boden ?? 0)); s.scale.setScalar(2.4 / (1 + hoch * 0.35)); s.material.opacity = 1 / (1 + hoch * 0.5);
+  figur.userData.fuesse.forEach((f, i) => { f.position.y = -0.045 + (sprung >= 0 ? Math.sin(Math.PI * sprung) * 0.05 * (i % 2 ? 1 : -1) : 0); });
+}
+function blinzeln(t) { const b = (t % 3.1) < 0.12 ? 0.15 : 1; figur.userData.augen.forEach((a) => a.scale.y = b); }
+
+const kam = { pos: new THREE.Vector3(), ziel: new THREE.Vector3() };
+function kameraAuf(pos, ziel) { camera.position.copy(pos); camera.lookAt(ziel); }
+
+window.zeichne = function (t) {
+  blinzeln(t); window.__boden = 0.42;
+  fenstern.forEach((f) => (f.visible = false));
+  icons.forEach((m) => { m.position.y = 0.2; m.scale.setScalar(1); });
+  textM.visible = false;
+  let kp, kz;
+  if (t < T_INTRO) {
+    // Kamera faehrt am Dock entlang, die Figur faellt auf das Logo-Icon.
+    const u = einAus(abschnitt(t, 0, T_INTRO));
+    kp = new THREE.Vector3(lerp(9, startX + 3, u), lerp(1.6, 3.2, u), lerp(5.5, 7.5, u)); kz = new THREE.Vector3(lerp(3, startX + 0.5, u), 0.4, 0);
+    const f = abschnitt(t, 1.2, 2.3); const lande = iconTop(0);
+    if (t < 1.2) figurSetzen(new THREE.Vector3(lande.x, 9, 0), 0.5);
+    else if (f < 1) figurSetzen(new THREE.Vector3(lande.x, lerp(9, lande.y, f * f), 0), 0.5);
+    else { const n = abschnitt(t, 2.3, 2.6); figurSetzen(lande, -1); figur.userData.koerper.scale.set(1 + 0.25 * Math.sin(Math.PI * n), 1 - 0.3 * Math.sin(Math.PI * n), 1 + 0.25 * Math.sin(Math.PI * n)); icons[0].position.y = 0.2 - 0.1 * Math.sin(Math.PI * n); }
+    if (t > 3.2) { const u2 = abschnitt(t, 3.2, T_INTRO); figurSetzen(hupf(iconTop(0), iconTop(1), u2, 1.2), u2, -0.25 * Math.sin(Math.PI * u2)); }
+  } else if (t < T_INTRO + SEITEN.length * T_SEITE) {
+    const i = Math.floor((t - T_INTRO) / T_SEITE); const lt = t - T_INTRO - i * T_SEITE; const u = lt / T_SEITE;
+    const f = fenstern[i]; f.visible = true;
+    const ort = fensterOrt(i);
+    // Fenster waechst aus dem Icon nach oben
+    const auf = federn(abschnitt(lt, 0.05, 0.75)); const zu = einAus(abschnitt(lt, T_SEITE - 0.45, T_SEITE));
+    const von = icons[i + 1].position.clone();
+    f.position.copy(von.clone().lerp(ort, auf)); f.position.y += zu * 6; f.scale.setScalar(Math.max(0.001, lerp(0.05, 1, auf) * (1 - zu * 0.3)));
+    f.rotation.x = lerp(-0.2, -1.05, auf);
+    f.updateMatrixWorld(true);
+    icons[i + 1].position.y = 0.2 + 0.25 * Math.sin(Math.PI * abschnitt(lt, 0, 0.5));
+    // Figur: springt auf das schraeg liegende Fenster, laeuft darueber, dann aufs naechste Icon.
+    const W = f.userData.W;
+    const flaeche = (x) => f.localToWorld(new THREE.Vector3(x, -0.6, 0.1));
+    if (lt < 0.75) figurSetzen(iconTop(i + 1), -1, 0);
+    else if (lt < 1.35) { const s = abschnitt(lt, 0.75, 1.35); const z = flaeche(-W * 0.32); window.__boden = lerp(0.42, z.y, s); figurSetzen(hupf(iconTop(i + 1), z, s, 2.4), s, 0.5 * Math.sin(Math.PI * s)); }
+    else if (lt < 3.25) { const s = abschnitt(lt, 1.35, 3.25); const p = flaeche(lerp(-W * 0.32, W * 0.32, s)); window.__boden = p.y; p.y += Math.abs(Math.sin(s * Math.PI * 7)) * 0.14; figurSetzen(p, (s * 7) % 1, -Math.PI / 2 + 0.75, 0.07 * Math.sin(s * Math.PI * 14)); }
+    else { const s = abschnitt(lt, 3.25, T_SEITE); const von2 = flaeche(W * 0.32); const ziel = iconTop(Math.min(i + 2, icons.length - 1)); window.__boden = lerp(von2.y, 0.42, s); figurSetzen(hupf(von2, ziel, s, 1.8), s, -0.4); }
+    // Kamera: von schraeg oben auf das Fenster, faehrt mit der Figur
+    const fx = ort.x; const sw = Math.sin(u * Math.PI);
+    kp = new THREE.Vector3(fx + lerp(-2.6, 2.6, einAus(u)), 6.4 - sw * 0.5, 8.6 - sw * 0.9); kz = new THREE.Vector3(fx + lerp(-0.8, 0.8, u), 1.2, -2.4);
+    if (lt < 0.6) { const s = einAus(abschnitt(lt, 0, 0.6)); const vorher = new THREE.Vector3(icons[i + 1].position.x - 1.5, 2.6, 7.5); kp = vorher.lerp(kp, s); kz = new THREE.Vector3(icons[i + 1].position.x, 0.5, 0).lerp(kz, s); }
+  } else {
+    // Ende: zurueck zum Logo-Icon, Text wird getippt, Kamera faehrt hoch.
+    const lt = t - T_INTRO - SEITEN.length * T_SEITE; const u = einAus(abschnitt(lt, 0, 2.2));
+    const vonIcon = iconTop(icons.length - 1);
+    if (lt < 1.6) { const s = abschnitt(lt, 0, 1.6); figurSetzen(hupf(vonIcon, iconTop(0), s, 3.5), s, Math.PI * 2 * s); }
+    else { const n = abschnitt(lt, 1.6, 1.9); figurSetzen(iconTop(0), -1, 0.35); figur.userData.koerper.scale.set(1 + 0.2 * Math.sin(Math.PI * n), 1 - 0.25 * Math.sin(Math.PI * n), 1 + 0.2 * Math.sin(Math.PI * n)); }
+    kp = new THREE.Vector3(lerp(startX + 9, startX + 4.2, u), lerp(2.4, 4.6, u), lerp(8, 8.6, u)); kz = new THREE.Vector3(startX + 2.4, 1.2, 0);
+    textM.visible = true; textM.position.set(startX + 4.6, 2.9, -0.8); textM.lookAt(kp.x, 2.9, kp.z);
+    const zeichen = Math.floor(klemm((lt - 2.2) / 1.6) * 'thecomphub.com'.length);
+    textMalen('thecomphub.com'.slice(0, zeichen), Math.floor(lt * 2.2) % 2 === 0 || zeichen < 14);
+    textM.material.opacity = klemm((lt - 1.9) / 0.4);
+  }
+  kameraAuf(kp, kz);
+  renderer.render(scene, camera);
+};
+window.BEREIT = true;
+</script>
+</body></html>
