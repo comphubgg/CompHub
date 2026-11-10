@@ -165,6 +165,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
   // Passt zu einem unbekannten Treffer ein Spieler, der im selben Moment (0,25 s) Leben + Schild + Overshield verlor? Dann war das Ziel ein Spieler.
@@ -973,11 +974,12 @@ class SchadenLeser : ReplayReader {
      * kamen nie als PlayerPawn-Export an und galten als "unbekannt" - beim Squads Victory Cup fehlten so MrSavage 56 % Schaden gegen Osirion. Die Bibliothek kennt den
      * Spieler zum Akteur; gezaehlt wird es nur bei Figuren (Klasse mit PlayerPawn oder ohne Klasse), nicht bei Bauteilen, Fallen oder Gegenstaenden eines Spielers.
      */
+    bool unsicher = false;
     if (anId is null && Environment.GetEnvironmentVariable("SCHADEN_NEU") == "1") {
       var klasse = pfadVonAkteur.TryGetValue(c.HitActor.Value, out var kp0) ? kp0 : null;
       if (klasse is null || klasse.Contains("PlayerPawn")) {
         var ueber = Hole(VonAkteur, c.HitActor.Value);
-        if (ueber?.Id is int uid) { anId = uid; anTeam = ueber.TeamIndex ?? (teamVonSpieler.TryGetValue(uid, out var tv2) ? tv2 : null); UeberAkteur++; }
+        if (ueber?.Id is int uid) { anId = uid; anTeam = ueber.TeamIndex ?? (teamVonSpieler.TryGetValue(uid, out var tv2) ? tv2 : null); UeberAkteur++; unsicher = true; }
       }
     }
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
@@ -999,6 +1001,7 @@ class SchadenLeser : ReplayReader {
     if (von.TeamIndex is not null && von.TeamIndex == anTeam) { D("eigenesTeam"); return; }
     D("gezaehlt");
     Zugeordnet++;
+    if (unsicher) Unsicher.Add(Liste.Count);
     Liste.Add((von.Id.Value, anId.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
     if (Roh.Count < RohZeilen) {
       Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={anId}/{anTeam}");
@@ -1097,8 +1100,21 @@ class SchadenLeser : ReplayReader {
     return Math.Min(e.hoehe, Math.Max(0, rest));
   }
   public readonly Dictionary<int, double> GenommenOhneBoden = new();
+  /// Treffer, deren Ziel nur ueber den Akteur bekannt ist - sie zaehlen nur, wenn das Ziel im selben Moment wirklich Leben, Schild oder Overshield verlor.
+  public readonly HashSet<int> Unsicher = new();
+  public int UnsicherVerworfen, UnsicherBestaetigt;
+  bool Bestaetigt(int an, double t, double hoehe) {
+    double Summe(double z) => WertVor(Leben, an, z + 0.05, 100) + WertVor(Schild, an, z + 0.05, 0) + WertVor(Ueberschild, an, z + 0.05, 0);
+    var verlust = Summe(t - 0.15) - Summe(t + 0.6);
+    return verlust >= Math.Min(hoehe, 20) * 0.5;
+  }
   public void Zaehle(double? busAb) {
-    foreach (var e in Liste) {
+    for (int i = 0; i < Liste.Count; i++) {
+      var e = Liste[i];
+      if (Unsicher.Contains(i)) {
+        if (e.t is not double tu || !Bestaetigt(e.an, tu, e.hoehe)) { UnsicherVerworfen++; continue; }
+        UnsicherBestaetigt++;
+      }
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
       var h = Wirksam(e);
       var s1 = Fuer(e.von); s1.Gemacht += h; s1.Treffer++;
