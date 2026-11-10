@@ -241,6 +241,7 @@ if (SchadenLeser.DiagId is not null) {
 }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG PARSEMODE " + string.Join(",", Enum.GetValues(typeof(ParseMode)).Cast<object>().Select(v => v + "=" + (int)v)));
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
+if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
@@ -1049,10 +1050,11 @@ class SchadenLeser : ReplayReader {
     if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0); return; }
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
+      if (DiagId is not null && ec0.Def is uint dz) { var gp = GuidPfad(dz); EffektArten[gp] = (EffektArten.TryGetValue(gp, out var ea) ? ea : 0) + 1; }
       if (DiagId is not null && EffektCues <= 40) {
         var opfer = Hole(VonFigur, channelIndex)?.Id;
         var ctx = ec0.EffectContext == null ? "-" : string.Join(",", ec0.EffectContext.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(ec0.EffectContext); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null).Take(12));
-        Console.Error.WriteLine($"DIAGEFFEKT t={Zeit()} opfer={opfer} mag={ec0.TotalMagnitude} attr={ec0.AttributeName} def={ec0.Def} ({(ec0.Def is uint dd && pfadVonAkteur.TryGetValue(dd, out var dp) ? dp : "?")}) ctx={ctx}");
+        Console.Error.WriteLine($"DIAGEFFEKT t={Zeit()} opfer={opfer} mag={ec0.TotalMagnitude} attr={ec0.AttributeName} def={ec0.Def} ({(ec0.Def is uint dd ? GuidPfad(dd) : "?")}) ctx={ctx}");
       }
       return;
     }
@@ -1292,6 +1294,15 @@ class SchadenLeser : ReplayReader {
    * (NetMulticast_InvokeGameplayCueExecuted_FromSpec, mit TotalMagnitude und Verursacher) - hier wird es als vierter Eintrag ergaenzt, nach dem Vorbild der BatchedDamageCues.
    */
   public static bool EffektEingeklinkt;
+  public readonly Dictionary<string, int> EffektArten = new();
+  string GuidPfad(uint g) {
+    try {
+      object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
+      var d = F(F(this, "_netGuidCache"), "NetGuidToPathName") as System.Collections.IDictionary;
+      if (d != null) foreach (System.Collections.DictionaryEntry kv in d) { var k = kv.Key; var v = k is uint u ? u : k?.GetType().GetProperty("Value")?.GetValue(k) is uint u2 ? u2 : 0; if (v == g) return kv.Value?.ToString() ?? "?"; }
+    } catch { }
+    return "?";
+  }
   public static void EffektEinklinken(object leser) {
     try {
       object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); } return null; }
