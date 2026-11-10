@@ -214,6 +214,7 @@ if (SchadenLeser.DiagId is not null) {
           object gv = null; try { gv = g.IsStatic ? g.GetValue(null) : g.GetValue(pv); } catch { }
           var info = gv is System.Collections.IDictionary dd ? $"Dict {dd.Count}: {string.Join(" | ", dd.Keys.Cast<object>().Where(k => k.ToString().Contains("PlayerPawn_Athena_C_ClassNetCache") || k.ToString().Contains("BatchedDamage")).Take(4))}" : gv?.GetType().Name;
           Console.Error.WriteLine($"DIAGPARSER   {g.Name}: {g.FieldType.Name} -> {info}");
+          if (g.Name == "NetFieldGroups" && gv != null) { var txt = string.Join(" | ", ((System.Collections.IEnumerable)gv).Cast<object>().Select(x => x.ToString()).Where(x => x.Contains("FromSpec") || x.Contains("BatchedDamage") || x.Contains("Slingshot")).Take(5)); Console.Error.WriteLine("DIAGPARSER   NetFieldGroups mit: " + txt); }
           if (g.Name == "_classNetCacheToNetFieldGroup" && gv is System.Collections.IDictionary cd) {
             Console.Error.WriteLine("DIAGPARSER   Schluessel: " + string.Join(" | ", cd.Keys.Cast<object>()));
             var wert = cd["PlayerPawn_Athena_C_ClassNetCache"];
@@ -222,6 +223,10 @@ if (SchadenLeser.DiagId is not null) {
               object hv = null; try { hv = h.GetValue(wert); } catch { }
               var inf = hv is System.Collections.IDictionary hd ? $"Dict {hd.Count}: " + string.Join(" | ", hd.Keys.Cast<object>().Take(8)) + " ; Werttyp " + (hd.Count > 0 ? hd.Values.Cast<object>().First()?.GetType().FullName : "") : hv?.ToString();
               Console.Error.WriteLine($"DIAGPARSER     {h.Name}: {h.FieldType.Name} = {inf}");
+              if (hv is System.Collections.IDictionary pd2 && pd2.Contains("NetMulticast_Athena_BatchedDamageCues")) {
+                var pi = pd2["NetMulticast_Athena_BatchedDamageCues"];
+                for (var pt = pi.GetType(); pt != null; pt = pt.BaseType) foreach (var q in pt.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)) { object qv = null; try { qv = q.GetValue(pi); } catch { } Console.Error.WriteLine($"DIAGPARSER       {pt.Name}.{q.Name}: {q.FieldType.FullName} = {qv}"); }
+              }
             }
           }
         }
