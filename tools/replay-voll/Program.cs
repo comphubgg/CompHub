@@ -864,12 +864,16 @@ class SchadenLeser : ReplayReader {
         // Mats Farmed; mit 2 s 6.781 zu 6.824, Metall 583 zu 593.
         if (DiagId is not null) {
           // Varianten der Regel (Diagnose, 10.11.2026): [A] wie bisher, [B] Fenster 1 s, [C] ohne Kleinmengen-Regel, [D] Fenster 1 s ohne Kleinmengen, [E] nur bis 30 je Schritt.
-          if (!FarmVarianten.TryGetValue(id, out var fv)) FarmVarianten[id] = fv = new double[5];
+          if (!FarmVarianten.TryGetValue(id, out var fv)) FarmVarianten[id] = fv = new double[9];
           var aufNah = Zwischen(aufgehoben, t - 1.1, t - 0.4);
           var a2 = Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !aufNah);
           var b1 = Zwischen(schlaege, t - 1, t + 0.6) && (m <= 30 || !aufNah);
           var klein = m <= 30 && MitSpitzhacke(id, t) && !Zwischen(aufgehoben, t - 1.5, t + 0.5);
           if (a2 || klein) fv[0] += m; if (b1 || klein) fv[1] += m; if (a2) fv[2] += m; if (b1) fv[3] += m; if ((a2 || klein) && m <= 30) fv[4] += m;
+          // [F] wie D, aber kein Aufheben desselben Stoffs 3 s davor bis 1 s danach; [G] Fenster 0,6 s ohne Kleinmengen; [H] wie F mit Fenster 0,6 s; [I] wie D, Schritt hoechstens 40
+          var aufWeit = Zwischen(aufgehoben, t - 3, t + 1);
+          var c06 = Zwischen(schlaege, t - 0.6, t + 0.6) && (m <= 30 || !aufNah);
+          if (b1 && !aufWeit) fv[5] += m; if (c06) fv[6] += m; if (c06 && !aufWeit) fv[7] += m; if (b1 && m <= 40) fv[8] += m;
         }
         if (Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
         /*
