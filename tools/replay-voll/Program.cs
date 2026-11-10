@@ -632,6 +632,8 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<string, int> inventarLage = new();
   readonly List<(uint wurzel, double t, int stoff, int menge)> matsSchritte = new();
   readonly List<(uint wurzel, int schuesse, double t)> schussSchritte = new();
+  /// Jeder Schuss aus einer FirePetal-Pump (Magazin sinkt): Inventar-Wurzel und Zeit - der Schuetze fuer deren Effekt-Treffer.
+  readonly List<(uint wurzel, double t)> firePetalSchuesse = new();
   /// Nur Schusswaffen zaehlen als Schuesse - Spraydose, Heilspray, Maske, Greifhandschuhe und Co. haben auch eine Ladung (8.11.2026: 520 "Schuesse" mit der Spraydose in zehn Matches).
   static readonly System.Text.RegularExpressions.Regex SchussWaffe = new("Shotgun|SMG|Pistol|Assault|Rifle|Sniper|DMR|Minigun|LMG|Bow|Revolver|Burst|Crossbow|Launcher|Hunting", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
   public int AbwurfMunition;
@@ -710,6 +712,7 @@ class SchadenLeser : ReplayReader {
      * Faellt das Magazin auf einmal um mehr als 8 auf 0, ist das kein Schiessen, sondern ein Abwurf - im Reload bei jedem Tod das ganze Inventar
      * (8.11.2026: Shots der FNCS Solo Reload EU 13,9 Mio. zu Osirions 9,1 Mio.).
      */
+    if (da && ladung < vor && name.Contains("FirePetal") && Zeit() is double tfp) firePetalSchuesse.Add((wurzel, tfp));
     if (da && ladung < vor && SchussWaffe.IsMatch(name)) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung, Zeit() ?? 0)); }
   }
   int? SpielerDerWurzel(uint wurzel) {
@@ -1408,6 +1411,12 @@ class SchadenLeser : ReplayReader {
    */
   int? EffektSchuetze(double t, int an) {
     var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
+    // Zuerst: wer hat kurz davor (bis 1,5 s) mit der FirePetal geschossen? Das Magazin sinkt beim Schuss.
+    var geschossen = firePetalSchuesse.Where(f => f.t >= t - 1.5 && f.t <= t + 0.1).Select(f => SpielerDerWurzel(f.wurzel)).OfType<int>()
+      .Where(id => id != an && (anTeam is null || (teamVonSpieler.TryGetValue(id, out var tg) ? tg : null) != anTeam)).Distinct().ToList();
+    if (geschossen.Count == 1) return geschossen[0];
+    if (DiagId is not null) Console.Error.WriteLine($"DIAGEFFSCHUSS t={Math.Round(t, 2)} an={an} geschossen={string.Join(",", geschossen)} alle={firePetalSchuesse.Count}");
+    if (geschossen.Count > 1) { EffektMehrdeutig++; return null; }
     double? Ort(int id, int f) { if (!Orte.TryGetValue(id, out var l)) return null; double[] w = null; foreach (var x in l) { if (x[0] <= t + 0.5) w = x; else break; } return w is not null && t - w[0] <= 3 ? w[f] : null; }
     var ax = Ort(an, 1); var ay = Ort(an, 2);
     var kandidaten = new List<(int id, double dist, double winkel)>();
