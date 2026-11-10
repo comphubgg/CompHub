@@ -176,7 +176,8 @@ if (SchadenLeser.DiagId is not null) {
         if (m is FieldInfo || m is PropertyInfo) { var ty = m is FieldInfo f0 ? f0.FieldType : ((PropertyInfo)m).PropertyType; if (ty.Name.Contains("Guid") || ty.Name.Contains("Export") || m.Name.Contains("Guid") || m.Name.Contains("Export")) Console.Error.WriteLine($"DIAGFELDER Mitglied {tt.Name}.{m.Name}: {ty.FullName}"); }
     if (gc != null) foreach (var m in gc.GetType().GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) if (m is FieldInfo || m is PropertyInfo) Console.Error.WriteLine($"DIAGFELDER GC {m.Name}");
   }
-  else foreach (System.Collections.DictionaryEntry kv in karte) {
+  else Console.Error.WriteLine($"DIAGFELDER Karte mit {karte.Count} Gruppen; Beispiele: {string.Join(" | ", karte.Keys.Cast<object>().Take(5))}");
+  if (karte != null) foreach (System.Collections.DictionaryEntry kv in karte) {
     var name = kv.Key?.ToString() ?? "";
     if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Damage|DamageCue", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
     var exports = Feld(kv.Value, "NetFieldExports") as System.Collections.IEnumerable;
