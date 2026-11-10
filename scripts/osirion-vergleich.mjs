@@ -28,4 +28,13 @@ for (const [stat, liste] of Object.entries(ref)) {
     console.log(`${gut ? 'OK ' : '   '} ${name.padEnd(20)} Osirion ${String(soll).padStart(7)}  wir ${String(ist ?? '-').padStart(7)}  ${abw == null ? 'fehlt' : (abw >= 0 ? '+' : '') + abw.toFixed(2) + ' %'}`);
   }
 }
+// Summen ueber den ganzen Spieltag (Osirions "Player Stats - Total").
+if (ref.gesamt) {
+  const alleIds = Object.keys(d.schaden ?? {}); const sum = (f) => alleIds.reduce((a, id) => a + (f(id) ?? 0), 0);
+  const g = { matches: d.matches?.length, spieler: Object.keys(d.namen ?? {}).length, elims: sum(wert.elims), damage: sum(wert.damage), shots: sum((id) => s(id).schussEcht ?? s(id).schuss), hits: sum(wert.hits),
+    builds: sum(wert.builds), matsFarmed: sum(wert.matsFarmed), buildsEdited: sum((id) => s(id).editOk ?? s(id).editZahl), editStunden: Math.round(sum((id) => s(id).editSek) / 3600), streckeKm: Math.round(Object.values(d.strecke ?? {}).reduce((a, x) => a + x[0] + x[1], 0) / 100) / 10 };
+  console.log('\n== Summe Spieltag');
+  for (const [k, soll] of Object.entries(ref.gesamt)) { if (typeof soll !== 'number') continue; const ist = g[k]; const abw = ist == null ? null : (ist - soll) / soll * 100; alle++; if (abw != null && Math.abs(abw) <= 0.1) ok++;
+    console.log(`${abw != null && Math.abs(abw) <= 0.1 ? 'OK ' : '   '} ${k.padEnd(20)} Osirion ${String(soll).padStart(9)}  wir ${String(ist ?? '-').padStart(9)}  ${abw == null ? 'fehlt' : (abw >= 0 ? '+' : '') + abw.toFixed(2) + ' %'}`); }
+}
 console.log(`\n${ok} von ${alle} innerhalb 0,1 %`);
