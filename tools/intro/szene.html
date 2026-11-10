@@ -28,7 +28,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 const HOCH = window.FORMAT === 'hoch';
 const B = HOCH ? 720 : 1280, H = HOCH ? 1280 : 720;
 document.documentElement.style.cssText = HOCH
-  ? '--bw:600px;--bp:20px 24px;--bf:30px;--cl:36px;--ct:60px;--cf:24px;--ef:58px'
+  ? '--bw:640px;--bp:22px 26px;--bf:34px;--cl:36px;--ct:70px;--cf:26px;--ef:60px'
   : '--bw:560px;--bp:18px 24px;--bf:26px;--cl:36px;--ct:30px;--cf:20px;--ef:64px';
 document.body.style.width = B + 'px'; document.body.style.height = H + 'px';
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -189,7 +189,7 @@ window.zeichne = function (t) {
   const vorIcon = (() => { for (let j = idx - 1; j >= 0; j--) if (plan[j].art === 'seite') return plan[j].i + 1; return 0; })();
   if (teil.art === 'intro') {
     const e = einAus(u);
-    kp = new THREE.Vector3(lerp(9, startX + 3, e), lerp(1.8, 3.4, e), lerp(5.5, 7.8, e)).multiplyScalar(1).add(new THREE.Vector3(0, HOCH ? 2.5 : 0, HOCH ? 6 : 0)); kz = new THREE.Vector3(lerp(3, startX + 0.5, e), HOCH ? 2.2 : 0.4, 0);
+    kp = new THREE.Vector3(lerp(9, startX + 3, e), lerp(1.8, 3.4, e), lerp(5.5, 7.8, e)).multiplyScalar(1).add(new THREE.Vector3(0, HOCH ? 2.5 : 0, HOCH ? 6 : 0)); kz = new THREE.Vector3(lerp(3, startX + 0.5, e), HOCH ? 3.2 : 0.4, 0);
     const l = iconTop(0);
     if (lt < 1.0) figurSetzen(new THREE.Vector3(l.x, 9, 0), 0.5);
     else if (lt < 1.9) { const f = ab(lt, 1.0, 1.9); figurSetzen(new THREE.Vector3(l.x, lerp(9, l.y, f * f), 0), 0.5); }
@@ -218,8 +218,8 @@ window.zeichne = function (t) {
       figurSetzen(p, laeuft ? (lt * 1.8) % 1 : -1, laeuft ? -Math.PI / 2 + 0.8 : 0.15 * Math.sin(lt * 2), laeuft ? 0.07 * Math.sin(lt * Math.PI * 7.2) : 0.04 * Math.sin(lt * 5), laeuft ? 0 : 0.04 * Math.sin(lt * 9));
     } else { const s = ab(lt, lauf1, teil.dauer); const v = fl(W * 0.3); __boden = lerp(v.y, 0.42, s); figurSetzen(hupf(v, iconTop(nachIcon), s, 1.8), s, -0.4); }
     const fx = ort.x, sw = Math.sin(u * Math.PI);
-    kp = HOCH ? new THREE.Vector3(fx + lerp(-1.2, 1.2, einAus(u)), 8.5 - sw * 0.6, 11.5 - sw) : new THREE.Vector3(fx + lerp(-2.6, 2.6, einAus(u)), 6.4 - sw * 0.5, 8.6 - sw * 0.9);
-    kz = new THREE.Vector3(fx + lerp(-0.8, 0.8, u), HOCH ? 3.4 : 1.2, -2.4);
+    kp = HOCH ? new THREE.Vector3(fx + lerp(-1.2, 1.2, einAus(u)), 9.5 - sw * 0.6, 10.5 - sw) : new THREE.Vector3(fx + lerp(-2.6, 2.6, einAus(u)), 6.4 - sw * 0.5, 8.6 - sw * 0.9);
+    kz = new THREE.Vector3(fx + lerp(-0.8, 0.8, u), HOCH ? 4.1 : 1.2, -2.4);
     if (lt < 0.6) { const s = einAus(ab(lt, 0, 0.6)); kp = new THREE.Vector3(icons[i + 1].position.x - 1.5, 2.6 + (HOCH ? 3 : 0), 7.5 + (HOCH ? 4 : 0)).lerp(kp, s); kz = new THREE.Vector3(icons[i + 1].position.x, 0.5, 0).lerp(kz, s); }
     if (teil.text) { blaseText = teil.text; blaseAnteil = ab(lt, 1.5, 1.5 + lesezeit(teil.text) * 0.55); blaseSicht = Math.min(ab(lt, 1.3, 1.55), 1 - ab(lt, teil.dauer - 0.9, teil.dauer - 0.6)); }
     chipText = SEITEN[i].name; chipSicht = Math.min(ab(lt, 0.4, 0.8), 1 - ab(lt, teil.dauer - 0.5, teil.dauer - 0.2));
@@ -227,7 +227,7 @@ window.zeichne = function (t) {
     const vonIcon = iconTop(vorIcon); const e = einAus(ab(lt, 0, 2.2));
     if (lt < 1.6) { const s = ab(lt, 0, 1.6); figurSetzen(hupf(vonIcon, iconTop(0), s, 3.5), s, Math.PI * 2 * s); }
     else { const n = ab(lt, 1.6, 1.95); figurSetzen(iconTop(0), -1, 0.3, 0, 0.25 * Math.sin(Math.PI * n)); }
-    kp = new THREE.Vector3(lerp(startX + 9, startX + 2.4, e), lerp(2.4, 3.2, e) + (HOCH ? 2 : 0), lerp(8, 7.2, e) + (HOCH ? 5 : 0)); kz = new THREE.Vector3(startX + 1.2, HOCH ? 1.2 : 1.7, 0);
+    kp = new THREE.Vector3(lerp(startX + 9, startX + 2.4, e), lerp(2.4, 3.2, e) + (HOCH ? 2 : 0), lerp(8, 7.2, e) + (HOCH ? 5 : 0)); kz = new THREE.Vector3(startX + 1.2, HOCH ? 2.6 : 1.7, 0);
     const z = 'thecomphub.com', n = Math.floor(ab(lt, 2.0, 3.4) * z.length);
     el('ende').style.opacity = ab(lt, 1.8, 2.1); el('endezeile').innerHTML = `<i>&gt;</i> ${z.slice(0, n)}<span class="cursor"></span>`;
     el('endeunter').textContent = teil.text ?? 'Competitive Fortnite · Stats · Cups · Rankings';
