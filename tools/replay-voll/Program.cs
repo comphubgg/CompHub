@@ -366,7 +366,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb),
 }, Formatting.None, einst));
 }
 
@@ -1450,6 +1450,31 @@ class SchadenLeser : ReplayReader {
       if (e.schild) s1.AufSchild += h;
       Fuer(e.an).Genommen += h;
     }
+  }
+
+  /*
+   * Diagnose (10.11.2026): zaehlen wir mehr, als das Opfer noch hatte? Je Opfer der Reihe nach: der Rest (Leben + Schild + Overshield) laut Verlauf vor dem Treffer, und
+   * ist der Verlauf seit dem letzten Treffer nicht weitergelaufen, der Rest minus die Treffer seither. Was darueber liegt, ist Ueberschuss - je Schuetze summiert.
+   * Ergebnis je Schuetze: [Ueberschuss, Treffer mit Ueberschuss, Ueberschuss nur bei nicht-toedlichen Treffern].
+   */
+  public Dictionary<int, double[]> UeberschussJe(double? busAb) {
+    var raus = new Dictionary<int, double[]>();
+    foreach (var g in Liste.Where(e => e.t is double t && (busAb is null || t >= busAb) && !AmBodenZuZeit(e.an, t)).GroupBy(e => e.an)) {
+      double? letzteSerie = null; double laufend = 0;
+      foreach (var e in g.OrderBy(e => e.t)) {
+        var t = e.t.Value;
+        var serie = WertVor(Leben, e.an, t, 100) + WertVor(Schild, e.an, t, 0) + WertVor(Ueberschild, e.an, t, 0);
+        if (letzteSerie is double ls && Math.Abs(ls - serie) < 0.01) { } else laufend = serie;
+        letzteSerie = serie;
+        var h = Wirksam(e);
+        var ueber = Math.Max(0, h - Math.Max(0, laufend));
+        laufend -= h;
+        if (ueber <= 0.5) continue;
+        if (!raus.TryGetValue(e.von, out var a)) raus[e.von] = a = new double[3];
+        a[0] += ueber; a[1] += 1; if (!e.fatal) a[2] += ueber;
+      }
+    }
+    return raus;
   }
 
   /// Jeder zugeordnete Treffer nach dem Bus, kompakt fuer die Replay-Ansicht ("wer hat wen angeschossen", Betreiber 28.10.2026):
