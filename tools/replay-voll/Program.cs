@@ -263,6 +263,7 @@ if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.Order
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laengster {SchadenLeser.LaengsterRahmen} ms, Bloecke {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt}, Buendel abgebrochen {SchadenLeser.BuendelAbgebrochen}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFER {reader.EffektTreffer.Count} Effekte, zugeordnet {reader.EffektZugeordnet}, gezaehlt {reader.EffektGezaehlt} mit {Math.Round(reader.EffektSchaden)} Schaden, ohne Schuetze {reader.EffektOhneSchuetze}, mehrdeutig {reader.EffektMehrdeutig}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -1107,6 +1108,10 @@ class SchadenLeser : ReplayReader {
     }
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
+      if (ec0.Def is uint dfr && Zeit() is double tfr && Hole(VonFigur, channelIndex)?.Id is int opferR) {
+        if (!defPfad.TryGetValue(dfr, out var dp)) { dp = GuidPfad(dfr); if (dp != "?") defPfad[dfr] = dp; }
+        if (dp.Contains("GE_Ranged_GenericDamage")) EffektTreffer.Add((tfr, opferR));
+      }
       if (DiagId is not null && ec0.Def is uint dz) { var gp = GuidPfad(dz); EffektArten[gp] = (EffektArten.TryGetValue(gp, out var ea) ? ea : 0) + 1; }
       if (DiagId is not null && EffektDruck < 60 && ec0.Def is uint dfx && System.Text.RegularExpressions.Regex.IsMatch(GuidPfad(dfx), "Damage|Ranged|Explosive")) {
         EffektDruck++;
@@ -1350,7 +1355,7 @@ class SchadenLeser : ReplayReader {
     var verlust = Summe(t - 0.15) - Summe(t + 0.6);
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
-  public int ProjektilGezaehlt; public double ProjektilSchaden; public int EffektCues;
+  public int ProjektilGezaehlt, EffektGezaehlt; public double ProjektilSchaden, EffektSchaden; public int EffektCues;
   /*
    * Die Bibliothek fuehrt je Klasse eine feste Liste der RPCs (_classNetCacheToNetFieldGroup). Fuer die Spielerfigur fehlt dort das Schadens-Ereignis der Gameplay-Effekte
    * (NetMulticast_InvokeGameplayCueExecuted_FromSpec, mit TotalMagnitude und Verursacher) - hier wird es als vierter Eintrag ergaenzt, nach dem Vorbild der BatchedDamageCues.
@@ -1390,15 +1395,55 @@ class SchadenLeser : ReplayReader {
       EffektEingeklinkt = true;
     } catch (Exception e) { Console.Error.WriteLine("Effekt-Ereignis nicht eingeklinkt: " + e.Message); }
   }
+  /// Schadens-Effekte ohne Treffer-Ereignis (GE_Ranged_GenericDamage - die FirePetal-Pump): Zeit und Opfer, der Schuetze steht nicht darin.
+  public readonly List<(double t, int an)> EffektTreffer = new();
+  readonly Dictionary<uint, string> defPfad = new();
+  public int EffektZugeordnet, EffektOhneSchuetze, EffektMehrdeutig;
+  static double? WertBei(Dictionary<int, List<double[]>> d, int id, double t, int feld = 1) {
+    if (!d.TryGetValue(id, out var l)) return null; double[] w = null; foreach (var x in l) { if (x[0] <= t) w = x; else break; } return w?[feld];
+  }
+  /*
+   * Wer hat geschossen? Ein Gegner mit der FirePetal-Pump in der Hand (zuletzt gewechselt vor dem Effekt) und hoechstens 60 m vom Opfer. Ist es genau einer, gehoert ihm
+   * der Treffer; sonst der, in dessen Blickrichtung (30 Grad) das Opfer steht - und nur, wenn das genau einer ist. Sonst zaehlt er nicht (und steht in der Diagnose).
+   */
+  int? EffektSchuetze(double t, int an) {
+    var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
+    double? Ort(int id, int f) { if (!Orte.TryGetValue(id, out var l)) return null; double[] w = null; foreach (var x in l) { if (x[0] <= t + 0.5) w = x; else break; } return w is not null && t - w[0] <= 3 ? w[f] : null; }
+    var ax = Ort(an, 1); var ay = Ort(an, 2);
+    var kandidaten = new List<(int id, double dist, double winkel)>();
+    foreach (var (id, l) in Hand) {
+      if (id == an) continue;
+      var tm = teamVonSpieler.TryGetValue(id, out var tv) ? tv : null; if (anTeam is not null && tm == anTeam) continue;
+      var nr = WertBei(Hand, id, t); if (nr is not double n || n < 0 || n >= WaffenNamen.Count || !(WaffenNamen[(int)n] ?? "").Contains("FirePetal")) continue;
+      var x = Ort(id, 1); var y = Ort(id, 2);
+      double dist = ax is double && x is double ? Math.Sqrt(Math.Pow(ax.Value - x.Value, 2) + Math.Pow(ay.Value - y.Value, 2)) : double.NaN;
+      if (!double.IsNaN(dist) && dist > 6000) continue;
+      double winkel = double.NaN;
+      if (!double.IsNaN(dist) && WertBei(Blick, id, t) is double yaw) { var soll = Math.Atan2(ay.Value - y.Value, ax.Value - x.Value) * 180 / Math.PI; winkel = Math.Abs(((soll - yaw) % 360 + 540) % 360 - 180); }
+      kandidaten.Add((id, dist, winkel));
+    }
+    if (kandidaten.Count == 1) return kandidaten[0].id;
+    var blick = kandidaten.Where(k => !double.IsNaN(k.winkel) && k.winkel <= 30).ToList();
+    if (blick.Count == 1) return blick[0].id;
+    if (kandidaten.Count == 0) EffektOhneSchuetze++; else EffektMehrdeutig++;
+    if (DiagId is not null) Console.Error.WriteLine($"DIAGEFFTREFFER t={Math.Round(t, 2)} an={an} kandidaten={string.Join(",", kandidaten.Select(k => $"{k.id}:{Math.Round(k.dist)}:{Math.Round(k.winkel)}"))}");
+    return null;
+  }
   static readonly double ProjektilFenster = double.TryParse(Environment.GetEnvironmentVariable("SCHADEN_FENSTER"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf) ? pf : 0.6;
   /*
    * Projektil-Treffer (Steinschleuder) als Schaden: genau der Verlust an Leben + Schild + Overshield des getroffenen Spielers im Moment des Treffers
    * (0,15 s davor bis 0,6 s danach), abzueglich dessen, was gezaehlte Treffer anderer im selben Fenster schon erklaeren. Ohne Verlust kein Schaden.
    */
   void ProjektileEinrechnen(double? busAb) {
-    foreach (var (t, von, zielAkteur) in ProjektilTreffer.OrderBy(x => x.t)) {
+    var alle = ProjektilTreffer.Where(x => spielerVonAkteur.ContainsKey(x.zielAkteur)).Select(x => (x.t, x.von, an: spielerVonAkteur[x.zielAkteur], effekt: false)).ToList();
+    // FirePetal-Effekte: nur wenn im selben Moment kein Treffer-Ereignis auf dieses Opfer gezaehlt ist (dann ist der Effekt schon erklaert).
+    if (Environment.GetEnvironmentVariable("SCHADEN_EFFEKT") != "0")
+      foreach (var (te, an0) in EffektTreffer) {
+        if (Liste.Any(e => e.an == an0 && e.t is double et && et >= te - 0.3 && et <= te + 0.1)) continue;
+        if (EffektSchuetze(te, an0) is int sv) { alle.Add((te, sv, an0, true)); EffektZugeordnet++; }
+      }
+    foreach (var (t, von, an, effekt) in alle.OrderBy(x => x.t)) {
       if (busAb is not null && t < busAb) continue;
-      if (!spielerVonAkteur.TryGetValue(zielAkteur, out var an)) continue;
       var vonTeam = teamVonSpieler.TryGetValue(von, out var tv) ? tv : null; var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
       if (vonTeam is not null && vonTeam == anTeam) continue;
       // Schon am Boden (Knock vor dem Treffer): zaehlt nicht - Osirion zaehlt keinen Schaden auf Umgehauene.
@@ -1408,7 +1453,7 @@ class SchadenLeser : ReplayReader {
       // Nur wenn der Kill-Feed genau diesen Schuetzen als Knocker nennt.
       var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.02 && z.ab <= t + ProjektilFenster && Knocker.TryGetValue((an, Math.Round(z.ab, 2)), out var kv) && kv == von).Select(z => (double?)z.ab).FirstOrDefault() : null;
       // Der Knock gehoert dem Schuss, der ihn ausloest: kommt vor dem Knock noch ein Projektil desselben Schuetzen auf dasselbe Opfer, ist dieser hier ein gewoehnlicher Treffer.
-      if (knock is double kn && (VerbrauchteKnocks.Contains((an, kn)) || ProjektilTreffer.Any(q => q.von == von && q.t > t && q.t <= kn + 0.05 && spielerVonAkteur.TryGetValue(q.zielAkteur, out var qa) && qa == an))) knock = null;
+      if (knock is double kn && (VerbrauchteKnocks.Contains((an, kn)) || alle.Any(q => q.von == von && q.t > t && q.t <= kn + 0.05 && q.an == an))) knock = null;
       if (knock is double kn2) VerbrauchteKnocks.Add((an, kn2));
       var naechsterKnock = AmBoden.TryGetValue(an, out var bz2) ? bz2.Where(z => z.ab > t && z.ab <= t + ProjektilFenster).Select(z => (double?)z.ab).FirstOrDefault() : null;
       var ende = Math.Min(t + ProjektilFenster, (naechsterKnock ?? double.MaxValue) - 0.05);
@@ -1418,7 +1463,7 @@ class SchadenLeser : ReplayReader {
       if (h <= 0) continue;
       var fatal = knock is not null || Summe(t + ProjektilFenster) <= 0;
       Liste.Add((von, an, h, false, false, t, fatal));
-      ProjektilGezaehlt++; ProjektilSchaden += h;
+      if (effekt) { EffektGezaehlt++; EffektSchaden += h; } else { ProjektilGezaehlt++; ProjektilSchaden += h; }
       if (DiagId is int dgp && dgp == von) Console.Error.WriteLine($"DIAGPRJTREFFER t={Math.Round(t, 2)} an={an} h={h} knock={knock} vor={Math.Round(Summe(t - 0.15))} nach={Math.Round(Summe(ende))} erklaert={Math.Round(schonErklaert)} leben={WertVor(Leben, an, t - 0.15, -1)} schild={WertVor(Schild, an, t - 0.15, -1)} ueber={WertVor(Ueberschild, an, t - 0.15, -1)}");
     }
   }
