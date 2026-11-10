@@ -1333,11 +1333,13 @@ class SchadenLeser : ReplayReader {
       var vonTeam = teamVonSpieler.TryGetValue(von, out var tv) ? tv : null; var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
       if (vonTeam is not null && vonTeam == anTeam) continue;
       double Summe(double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
-      var verlust = Summe(t - 0.15) - Summe(t + ProjektilFenster);
-      var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= t + ProjektilFenster).Sum(e => e.hoehe);
+      // Haut der Treffer um, springt das Leben danach auf den Boden-Wert: dann zaehlt alles, was er bis zum Knock noch hatte (wie der Knock-Schuss bei Osirion).
+      var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.15 && z.ab <= t + ProjektilFenster).Select(z => (double?)z.ab).FirstOrDefault() : null;
+      var verlust = knock is double kab ? Summe(t - 0.15) : Summe(t - 0.15) - Summe(t + ProjektilFenster);
+      var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= (knock ?? t + ProjektilFenster)).Sum(e => e.hoehe);
       var h = Math.Round(verlust - schonErklaert);
       if (h <= 0) continue;
-      var fatal = Summe(t + ProjektilFenster) <= 0;
+      var fatal = knock is not null || Summe(t + ProjektilFenster) <= 0;
       Liste.Add((von, an, h, false, false, t, fatal));
       ProjektilGezaehlt++; ProjektilSchaden += h;
     }
