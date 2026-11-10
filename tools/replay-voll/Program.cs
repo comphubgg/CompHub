@@ -995,6 +995,11 @@ class SchadenLeser : ReplayReader {
       }
     }
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
+    if (DiagId is not null && kanalAkteur.TryGetValue(channelIndex, out var eigAk) && spielerVonAkteur.TryGetValue(eigAk, out var eigId) && eigId != von.Id) {
+      var k = "SCHUETZE-WIDERSPRUCH";
+      Diag.TryGetValue(k, out var a); Diag[k] = (a.Item1 + 1, a.Item2 + c.Magnitude.Value);
+    }
+    if (DiagId is not null) { var zv = VomZustand(channelIndex)?.Id; }
     if (anId is null) {
       var art = figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "");
       if (DiagId is not null) {
