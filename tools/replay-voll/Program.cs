@@ -203,6 +203,7 @@ if (SchadenLeser.DiagId is not null) {
     }
   }
 }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
@@ -1008,6 +1009,15 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0); return; }
+    if (exportGroup is EffektCue ec0) {
+      EffektCues++;
+      if (DiagId is not null && EffektCues <= 40) {
+        var opfer = Hole(VonFigur, channelIndex)?.Id;
+        var ctx = ec0.EffectContext == null ? "-" : string.Join(",", ec0.EffectContext.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(ec0.EffectContext); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null).Take(12));
+        Console.Error.WriteLine($"DIAGEFFEKT t={Zeit()} opfer={opfer} mag={ec0.TotalMagnitude} attr={ec0.AttributeName} def={ec0.Def} ({(ec0.Def is uint dd && pfadVonAkteur.TryGetValue(dd, out var dp) ? dp : "?")}) ctx={ctx}");
+      }
+      return;
+    }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
@@ -1238,7 +1248,7 @@ class SchadenLeser : ReplayReader {
     var verlust = Summe(t - 0.15) - Summe(t + 0.6);
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
-  public int ProjektilGezaehlt; public double ProjektilSchaden;
+  public int ProjektilGezaehlt; public double ProjektilSchaden; public int EffektCues;
   static readonly double ProjektilFenster = double.TryParse(Environment.GetEnvironmentVariable("SCHADEN_FENSTER"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf) ? pf : 0.6;
   /*
    * Projektil-Treffer (Steinschleuder) als Schaden: genau der Verlust an Leben + Schild + Overshield des getroffenen Spielers im Moment des Treffers
@@ -1418,6 +1428,25 @@ class Erkunder : ReplayReader {
       foreach (var p in kv.Value) { var j = JsonConvert.SerializeObject(p, Formatting.None, einst); Console.WriteLine("   " + (j.Length > 700 ? j[..700] + "..." : j)); }
     }
   }
+}
+
+/*
+ * Schaden ueber Gameplay-Effekte (10.11.2026): Feuer und andere Effekte melden den Schaden beim Opfer mit genauem Betrag (TotalMagnitude) und Verursacher
+ * (EffectContext). Die Bibliothek liest bei der Spielerfigur nur drei Ereignisarten - hier dieselben drei plus diese.
+ */
+[NetFieldExportGroup("/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", ParseMode.Full)]
+public class EffektCue : INetFieldExportGroup {
+  [NetFieldExport("Def", RepLayoutCmdType.PropertyObject)] public uint? Def { get; set; }
+  [NetFieldExport("AttributeName", RepLayoutCmdType.PropertyString)] public string AttributeName { get; set; }
+  [NetFieldExport("TotalMagnitude", RepLayoutCmdType.PropertyFloat)] public float? TotalMagnitude { get; set; }
+  [NetFieldExport("EffectContext", RepLayoutCmdType.Property)] public Unreal.Core.Models.FGameplayEffectContextHandle EffectContext { get; set; }
+}
+[NetFieldExportClassNetCache("PlayerPawn_Athena_C_ClassNetCache", ParseMode.Full)]
+public class FigurCacheMitEffekt {
+  [NetFieldExportRPC("ClientObservedStats", "/Script/FortniteGame.FortClientObservedStat", false, false, false)] public FortniteReplayReader.Models.NetFieldExports.FortClientObservedStat ClientObservedStats { get; set; }
+  [NetFieldExportRPC("NetMulticast_Athena_BatchedDamageCues", "/Script/FortniteGame.FortPawn:NetMulticast_Athena_BatchedDamageCues", true, true, false)] public BatchedDamageCues DamageCues { get; set; }
+  [NetFieldExportRPC("NetMulticast_InvokeGameplayCueAdded_WithParams", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueAdded_WithParams", true, true, false)] public GameplayCue InvokeGameplayCueAdded { get; set; }
+  [NetFieldExportRPC("NetMulticast_InvokeGameplayCueExecuted_FromSpec", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", true, true, false)] public EffektCue EffektCue { get; set; }
 }
 
 /*
