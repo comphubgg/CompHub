@@ -1267,7 +1267,7 @@ class SchadenLeser : ReplayReader {
         Console.Error.WriteLine($"DIAGFELDER Karte waehrend des Lesens: {karte?.Count}");
         if (karte != null) foreach (System.Collections.DictionaryEntry kv in karte) {
           var name = kv.Key?.ToString() ?? "";
-          if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Prj_|Projectile|Slingshot|GameplayCue|Damage", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+          if (!System.Text.RegularExpressions.Regex.IsMatch(name, "HitMarker|DamagedResource|BroadcastRemote", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
           var ex = F(kv.Value, "NetFieldExports") as System.Collections.IEnumerable; var namen = new List<string>();
           if (ex != null) foreach (var e in ex) { var en = F(e, "Name")?.ToString(); if (!string.IsNullOrEmpty(en)) namen.Add(en); }
           Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
