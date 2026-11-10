@@ -1,0 +1,26 @@
+# Diagnose: eine fremde Seite abrufen (z. B. Osirion als Referenz) - Antwort ins Protokoll, gefaltet.
+name: Extern abrufen
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Adresse(n), Leerzeichen-getrennt
+        required: true
+      muster:
+        description: grep-Muster fuer die Ausgabe (leer = Anfang zeigen)
+        required: false
+        default: ''
+jobs:
+  abrufen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          URLS: ${{ inputs.url }}
+          MUSTER: ${{ inputs.muster }}
+        run: |
+          for U in $URLS; do
+            echo "=== $U"
+            curl -sL -A "Mozilla/5.0" -o /tmp/a -w "Status %{http_code} %{content_type} %{size_download}\n" "$U"
+            if [ -n "$MUSTER" ]; then grep -oE "$MUSTER" /tmp/a | sort -u | head -80; else head -c 3000 /tmp/a | fold -w 3000; echo; fi
+          done
