@@ -926,9 +926,15 @@ class SchadenLeser : ReplayReader {
     // Diagnose (SCHADEN_DIAG=<Spieler-Id>, 10.11.2026): wo Treffer eines Spielers verloren gehen - Osirion zeigte bei manchen Squad-Spielern doppelt so viel Schaden.
     var diagVon = DiagId is int dg ? (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) : null;
     bool diag = DiagId is int dg2 && diagVon == dg2;
-    void D(string grund) { if (!diag) return; Diag.TryGetValue(grund, out var a); Diag[grund] = (a.Item1 + 1, a.Item2 + (c.Magnitude ?? 0)); }
+    void D(string grund) {
+      if (DiagId is null) return;
+      var g = (diag ? "" : "ALLE:") + grund;
+      if (!diag && grund == "gezaehlt") g = "ALLE:gezaehlt";
+      Diag.TryGetValue(g, out var a); Diag[g] = (a.Item1 + 1, a.Item2 + (c.Magnitude ?? 0));
+      if (diag && grund != g) { Diag.TryGetValue("ALLE:" + grund, out var b); Diag["ALLE:" + grund] = (b.Item1 + 1, b.Item2 + (c.Magnitude ?? 0)); }
+    }
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) { D("ohneZielOderWert"); return; }
-    if (!figurKanaele.Contains(channelIndex)) { D("keinFigurKanal"); return; }
+    if (!figurKanaele.Contains(channelIndex)) { D("keinFigurKanal:" + (DiagId is null ? "" : (pfadVonAkteur.TryGetValue(kanalAkteur.TryGetValue(channelIndex, out var ka) ? ka : 0, out var kp) && kp is not null ? kp.Split('.').Last() : "ohneKlasse"))); return; }
     var von = Hole(VonFigur, channelIndex);
     int? anId = null; int? anTeam = null;
     if (figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) && figurKanaele.Contains(zielKanal)) { var an0 = Hole(VonFigur, zielKanal); anId = an0?.Id; anTeam = an0?.TeamIndex; }
