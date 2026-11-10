@@ -286,7 +286,8 @@ async function holeRoh(request: Request) {
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
         // Gelungene Edits wie Osirion (Builds Edited); die Versuche waeren mehr.
-        edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => (d as { editOk?: number }).editOk ?? d.editZahl) : null,
+        // Builds Edited: die Zahl der Edits (editZahl) - gegen Osirion (Squads Victory Cup R2) 222.655 zu 235.547, die bestaetigten (editOk) nur 167.423 (Betreiber-Pruefung 10.11.2026).
+        edits: s.some((d) => typeof d.editZahl === 'number') ? summeVon((d) => d.editZahl) : null,
         editStunden: s.some((d) => typeof d.editSek === 'number') ? summeVon((d) => d.editSek) / 3600 : null,
         plattformen,
       };
