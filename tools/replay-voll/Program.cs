@@ -114,6 +114,18 @@ try {
       treffer[h.art] = (a.n + 1, a.dmg + h.mag, a.passt + (wer is null ? 0 : 1), a.passtDmg + (wer is null ? 0 : h.mag));
       if (wer is int w) { if (!akteurPasst.TryGetValue(h.akteur, out var m)) akteurPasst[h.akteur] = m = new(); m[w] = (m.TryGetValue(w, out var z) ? z : 0) + 1; }
     }
+    // Wie viel Leben + Schild + Overshield verloren die Spieler insgesamt (alle Abnahmen nach dem Bus)? Vergleich mit dem gezaehlten Schaden.
+    double verlorenAlle = 0; var verlorenJe = new Dictionary<int, double>();
+    foreach (var id in reader.Leben.Keys.Union(reader.Schild.Keys).Union(reader.Ueberschild.Keys)) {
+      var zeiten = new SortedSet<double>();
+      foreach (var d in new[] { reader.Leben, reader.Schild, reader.Ueberschild }) if (d.TryGetValue(id, out var l)) foreach (var x in l) zeiten.Add(x[0]);
+      double? vorher = null; double sum = 0;
+      foreach (var t in zeiten) { var w = Summe(id, t); if (vorher is double v && w < v) sum += v - w; vorher = w; }
+      verlorenJe[id] = sum; verlorenAlle += sum;
+    }
+    Console.Error.WriteLine($"DIAGVERLUST alle Spieler zusammen: {Math.Round(verlorenAlle)} (Leben+Schild+Overshield, inkl. Sturm/Fall); Spieler mit Verlauf: {verlorenJe.Count}");
+    var gezJe = reader.Je.ToDictionary(k => k.Key, k => k.Value.Genommen);
+    foreach (var kv in verlorenJe.OrderByDescending(x => x.Value).Take(12)) Console.Error.WriteLine($"DIAGVERLUST Spieler {kv.Key}: verloren {Math.Round(kv.Value)}, als Treffer gezaehlt {Math.Round(gezJe.TryGetValue(kv.Key, out var g) ? g : 0)}");
     foreach (var kv in treffer) Console.Error.WriteLine($"DIAGPASST {kv.Key}: {kv.Value.n} Treffer ({Math.Round(kv.Value.dmg)}) - davon {kv.Value.passt} ({Math.Round(kv.Value.passtDmg)}) mit gleichzeitigem Verlust eines Spielers");
     foreach (var kv in akteurPasst.OrderByDescending(x => x.Value.Values.Sum()).Take(8)) Console.Error.WriteLine($"DIAGAKTEUR {kv.Key}: " + string.Join(", ", kv.Value.Select(x => $"Spieler {x.Key} x{x.Value}")));
   }
