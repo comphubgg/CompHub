@@ -610,11 +610,11 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<string, int> lootIndex = new();
   readonly HashSet<string> lootGesehen = new();
 
-  void OrtNotieren(int id, double t, double x, double y) {
+  void OrtNotieren(int id, double t, double x, double y, double? z = null) {
     if (!Orte.TryGetValue(id, out var l)) Orte[id] = l = new();
     // Hoechstens ein Ort je Sekunde - die Schuebe liefern Dutzende in einer Sekunde, die Ansicht braucht davon einen.
     if (l.Count > 0 && t - l[^1][0] < 1) return;
-    l.Add(new[] { Math.Round(t, 1), Math.Round(x), Math.Round(y) });
+    l.Add(z is double zz ? new[] { Math.Round(t, 1), Math.Round(x), Math.Round(y), Math.Round(zz) } : new[] { Math.Round(t, 1), Math.Round(x), Math.Round(y) });
   }
 
   /// Je Spieler: [frei, frei, Bauzustand 1: Anzahl, Sekunden, Bauzustand 2: Anzahl, Sekunden]. Bauzustand 1 ist das Editieren: im Performance-Finale 1,5 / 0,9 / 1,2 s je Edit, Osirion 2 / 1 / 1 s.
@@ -1030,8 +1030,8 @@ class SchadenLeser : ReplayReader {
       if (!spielerVonAkteur.TryGetValue(Convert.ToUInt32(akteur), out var sid)) return;
       var schluessel = $"{kanal}|{akteur}|{auf}|{name}";
       if (!lootGesehen.Add(schluessel)) return;
-      Loot.Add(new[] { Math.Round(t, 1), sid, LootNr(name), Math.Round(lage.X), Math.Round(lage.Y), auf });
-      if (auf == 1) OrtNotieren(sid, t, lage.X, lage.Y);
+      Loot.Add(new[] { Math.Round(t, 1), sid, LootNr(name), Math.Round(lage.X), Math.Round(lage.Y), auf, Math.Round(lage.Z) });
+      if (auf == 1) OrtNotieren(sid, t, lage.X, lage.Y, lage.Z);
     }
     Eintrag(Wert("PickupTarget"), 1);
     Eintrag(Wert("PawnWhoDroppedPickup"), 0);
@@ -1049,7 +1049,7 @@ class SchadenLeser : ReplayReader {
     if (c.Location is Unreal.Core.Models.FVector pl && c.HitActor is not null && (c.Magnitude ?? 0) > 0) {
       var aufSpieler = spielerVonAkteur.TryGetValue(c.HitActor.Value, out var ziel) && ziel != von;
       Schuesse.Add(new[] { Math.Round(t, 1), von, Math.Round(pl.X), Math.Round(pl.Y), Math.Round(c.Magnitude ?? 0), aufSpieler ? (c.bIsCritical == true ? 2 : 1) : 0 });
-      if (aufSpieler) OrtNotieren(ziel, t, pl.X, pl.Y);
+      if (aufSpieler) OrtNotieren(ziel, t, pl.X, pl.Y, pl.Z);
     }
   }
 
@@ -1114,7 +1114,7 @@ class SchadenLeser : ReplayReader {
       }
       // Orte der Figur fuer die 2D-Ansicht (siehe OrtNotieren).
       var ort = pawn.Location ?? pawn.ReplicatedMovement?.Location;
-      if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y);
+      if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y, ort.Z);
       if (Zeit() is double th && Hole(VonFigur, channelIndex)?.Id is int hid) {
         if (pawn.CurrentWeapon is uint cw) HandNotieren(hid, th, cw);
         var rot = pawn.Rotation ?? pawn.ReplicatedMovement?.Rotation;
