@@ -102,6 +102,8 @@ jobs:
         run: |
           IFS=',' read -ra E <<< "$V"
           node scripts/epic-schaden-vergleich.mjs "${E[0]}" "${E[1]}" /tmp 2>&1 | tail -60
+      - name: Elims wie die Seite
+        run: node scripts/diag-elims.mjs 'MrSavage|F1SHYX|zyfo|M8 Rax|TEYYDINHO|Wozah|Calle|VeriSnow|SkyJump|Focus yhyh|demu|Monky|Quix 115' || true
       - name: Summen je Spieler (Damage ohne Boden, Treffer)
         run: |
           node -e "
