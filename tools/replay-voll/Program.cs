@@ -251,6 +251,7 @@ if (SchadenLeser.DiagId is not null) {
     Console.Error.WriteLine($"DIAGARRAY {ty.Name}.{pr.Name}: {pr.PropertyType.FullName} [{string.Join(",", pa.ConstructorArguments.Select(a => a.Value))}] Element-Schnittstellen: {string.Join(",", el.GetInterfaces().Select(i => i.Name))} Attribute: {string.Join(",", el.GetCustomAttributesData().Select(x => x.AttributeType.Name + "(" + string.Join(",", x.ConstructorArguments.Select(c => c.Value)) + ")"))}");
   }
 }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG REPLAYOUT " + string.Join(",", Enum.GetValues(typeof(RepLayoutCmdType)).Cast<object>().Select(v => v + "=" + Convert.ToInt32(v))));
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
