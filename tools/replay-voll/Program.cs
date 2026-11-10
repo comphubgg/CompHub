@@ -367,7 +367,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb),
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
 }, Formatting.None, einst));
 }
 
@@ -1161,6 +1161,11 @@ class SchadenLeser : ReplayReader {
     }
     void D(string grund) {
       if (DiagId is null) return;
+      if (diagVon is int dvn) {
+        if (!KatJe.TryGetValue(dvn, out var kj)) KatJe[dvn] = kj = new();
+        var kurz = string.Join(":", grund.Split(':').Take(3)) + (c.bWeaponActivate == true ? ":aktiv" : "");
+        kj[kurz] = (kj.TryGetValue(kurz, out var kv0) ? kv0 : 0) + 1;
+      }
       var g = (diag ? "" : "ALLE:") + grund;
       if (!diag && grund == "gezaehlt") g = "ALLE:gezaehlt";
       Diag.TryGetValue(g, out var a); Diag[g] = (a.Item1 + 1, a.Item2 + (c.Magnitude ?? 0));
@@ -1265,6 +1270,8 @@ class SchadenLeser : ReplayReader {
   public int Nachgetragen, UeberAkteur;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
+  /// Diagnose: je Schuetze, wie viele Treffer-Ereignisse in welche Kategorie fielen.
+  public readonly Dictionary<int, Dictionary<string, int>> KatJe = new();
   readonly Dictionary<uint, string> kanalTyp = new();
   public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
   public readonly List<(double t, double mag, string art, uint akteur, int von)> DiagAlle = new();

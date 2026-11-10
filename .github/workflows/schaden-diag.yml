@@ -79,7 +79,7 @@ jobs:
           node -e "
           const fs=require('fs');const sum={};
           for(const f of fs.readdirSync('/tmp').filter(f=>f.startsWith('aus-'))){const d=JSON.parse(fs.readFileSync('/tmp/'+f,'utf8'));const name=Object.fromEntries((d.spieler||[]).map(p=>[p.id,p.name]));
-            for(const x of d.schaden||[]){const n=name[x.id];if(!n)continue;const a=sum[n]??={dmg:0,alle:0,tr:0,gen:0,sp:0};a.dmg+=x.gemachtOhneBoden??x.gemacht;a.alle+=x.gemacht;a.tr+=x.treffer;a.gen+=x.genommenOhneBoden??x.genommen;a.sp++;a.trOB=(a.trOB||0)+(x.trefferOhneBoden||0);a.trGl=(a.trGl||0)+(x.trefferGleichzeitig||0);const u=(d.diagUeber||{})[x.id];if(u){a.ueber=(a.ueber||0)+Math.round(u[0]);a.ueberN=(a.ueberN||0)+u[1];a.ueberNichtTod=(a.ueberNichtTod||0)+Math.round(u[2])}}}
+            for(const x of d.schaden||[]){const n=name[x.id];if(!n)continue;const a=sum[n]??={dmg:0,alle:0,tr:0,gen:0,sp:0};a.dmg+=x.gemachtOhneBoden??x.gemacht;a.alle+=x.gemacht;a.tr+=x.treffer;a.gen+=x.genommenOhneBoden??x.genommen;a.sp++;const kt=(d.diagKat||{})[x.id]||{};a.kat=a.kat||{};for(const[k,v]of Object.entries(kt))a.kat[k]=(a.kat[k]||0)+v;a.trOB=(a.trOB||0)+(x.trefferOhneBoden||0);a.trGl=(a.trGl||0)+(x.trefferGleichzeitig||0);const u=(d.diagUeber||{})[x.id];if(u){a.ueber=(a.ueber||0)+Math.round(u[0]);a.ueberN=(a.ueberN||0)+u[1];a.ueberNichtTod=(a.ueberNichtTod||0)+Math.round(u[2])}}}
           for(const [n,a] of Object.entries(sum).filter(([n])=>/MrSavage|F1SHYX|zyfo|M8 Rax|TEYYDINHO|Wozah|Calle|VeriSnow|SkyJump|pixie|Focus|demus/i.test(n)))console.log('SUMME',n,JSON.stringify(a))"
       - name: Zugangsdaten wieder weg
         if: always()
