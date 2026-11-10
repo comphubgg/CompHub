@@ -346,7 +346,9 @@ if (arg[0] === '--plan') {
       || ((da.schadenFassung ?? 0) < 11 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 4500)
       // Fassung 12 (10.11.2026): Steinschleuder-Treffer zaehlen (Projektil statt Treffer-Ereignis; MrSavage 2.074 statt 4.687 bei Osirion, mit Fassung 12: 4.521) -
       // alle Spieltage der letzten zwei Tage bis 9.000 Matches neu.
-      || ((da.schadenFassung ?? 0) < 12 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 9000));
+      || ((da.schadenFassung ?? 0) < 12 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 9000)
+      // Fassung 13 (10.11.2026): Steinschleuder-Knock zaehlt das Rest-Leben (Knocker laut Kill-Feed), Verlustfenster endet vor einem Knock.
+      || ((da.schadenFassung ?? 0) < 13 && Date.now() - f.datum < 2 * 864e5 && f.ids.size <= 9000));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(da.ohne ?? [])] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
