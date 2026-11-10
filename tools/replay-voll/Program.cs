@@ -411,7 +411,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten, streckeVoll = reader.StreckeJe(busAb),
 }, Formatting.None, einst));
 }
 
@@ -598,6 +598,22 @@ class SchadenLeser : ReplayReader {
   System.Collections.IDictionary PfadKarte() {
     var cache = CacheFeld?.GetValue(this);
     return cache?.GetType().GetProperty("NetGuidToPathName")?.GetValue(cache) as System.Collections.IDictionary;
+  }
+  readonly Dictionary<int, (double t, double x, double y, double z)> letzterOrt = new();
+  readonly Dictionary<int, List<(double t, double d, double dz, double dt)>> Strecken = new();
+  /// Strecke je Spieler ab dem Bus in Metern: [alles, bis 60 m/s, bis 25 m/s, bis 12 m/s, Anzahl Updates] - welche Grenze Osirions "Distance Traveled" trifft, zeigt die Diagnose.
+  public Dictionary<int, double[]> StreckeJe(double? busAb) {
+    var raus = new Dictionary<int, double[]>();
+    foreach (var (id, l) in Strecken) {
+      var r = new double[5];
+      foreach (var (t, d, dz, dt) in l) {
+        if (busAb is double b && t < b) continue;
+        var v = d / Math.Max(0.05, dt);
+        r[0] += d; if (v <= 60) r[1] += d; if (v <= 25) r[2] += d; if (v <= 12) r[3] += d; r[4] += 1;
+      }
+      raus[id] = r.Select(x => Math.Round(x)).ToArray();
+    }
+    return raus;
   }
   /// Waffe in der Hand je Spieler [Zeit, Nr in WaffenNamen]; Blickrichtung [Zeit, Yaw in Grad].
   public readonly Dictionary<int, List<double[]>> Hand = new();
@@ -1220,7 +1236,16 @@ class SchadenLeser : ReplayReader {
       }
       // Orte der Figur fuer die 2D-Ansicht (siehe OrtNotieren).
       var ort = pawn.Location ?? pawn.ReplicatedMovement?.Location;
-      if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y, ort.Z);
+      if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) {
+        OrtNotieren(oid, to, ort.X, ort.Y, ort.Z);
+        // Strecke aus jedem Positions-Update (10.11.2026): die Proben alle 10 s (CharacterSample) liessen jede Kurve aus - gegen Osirion rund 35 % zu kurz.
+        if (letzterOrt.TryGetValue(oid, out var lo) && to > lo.t) {
+          var d = Math.Sqrt(Math.Pow(ort.X - lo.x, 2) + Math.Pow(ort.Y - lo.y, 2)) / 100; var dz = Math.Abs(ort.Z - lo.z) / 100; var dt = to - lo.t;
+          if (!Strecken.TryGetValue(oid, out var st)) Strecken[oid] = st = new();
+          st.Add((to, d, dz, dt));
+        }
+        letzterOrt[oid] = (to, ort.X, ort.Y, ort.Z);
+      }
       if (Zeit() is double th && Hole(VonFigur, channelIndex)?.Id is int hid) {
         if (pawn.CurrentWeapon is uint cw) HandNotieren(hid, th, cw);
         var rot = pawn.Rotation ?? pawn.ReplicatedMovement?.Rotation;
