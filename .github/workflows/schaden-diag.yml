@@ -42,9 +42,17 @@ jobs:
           for i in "${!M[@]}"; do
             echo "=== Match ${M[$i]} Spieler ${S[$i]}"
             node -e "const { downloadReplay } = require('fortnite-serverreplay-downloader'); (async () => { const b = await downloadReplay({ matchId: process.argv[1], dataCount: 100000, checkpointCount: 0, eventCount: 100000 }); require('fs').writeFileSync('/tmp/m.replay', b); console.log('geladen', b.length); })();" "${M[$i]}"
-            SCHADEN_DIAG="${S[$i]}" dotnet tools/replay-voll/bin/Release/net10.0/ReplayVollReplayReader.dll /tmp/m.replay 2>&1 >/tmp/aus.json | grep -E "DIAG|Fehler|Exception" || true
+            SCHADEN_NEU="${NEU:-1}" SCHADEN_DIAG="${S[$i]}" dotnet tools/replay-voll/bin/Release/net10.0/ReplayVollReplayReader.dll /tmp/m.replay 2>&1 >/tmp/aus.json | grep -E "DIAG|Fehler|Exception" || true
             node -e "const d=JSON.parse(require('fs').readFileSync('/tmp/aus.json','utf8'));const s=(d.schaden||[]).find(x=>x.id==process.argv[1]);const p=(d.spieler||[]).find(x=>x.id==process.argv[1]);console.log('Leser:',p&&p.name,JSON.stringify(s))" "${S[$i]}"
+            cp /tmp/aus.json "/tmp/aus-${M[$i]}.json"
           done
+      - name: Summen je Spieler (Damage ohne Boden, Treffer)
+        run: |
+          node -e "
+          const fs=require('fs');const sum={};
+          for(const f of fs.readdirSync('/tmp').filter(f=>f.startsWith('aus-'))){const d=JSON.parse(fs.readFileSync('/tmp/'+f,'utf8'));const name=Object.fromEntries((d.spieler||[]).map(p=>[p.id,p.name]));
+            for(const x of d.schaden||[]){const n=name[x.id];if(!n)continue;const a=sum[n]??={dmg:0,alle:0,tr:0,gen:0,sp:0};a.dmg+=x.gemachtOhneBoden??x.gemacht;a.alle+=x.gemacht;a.tr+=x.treffer;a.gen+=x.genommenOhneBoden??x.genommen;a.sp++}}
+          for(const [n,a] of Object.entries(sum).filter(([n])=>/MrSavage|F1SHYX|zyfo|M8 Rax|TEYYDINHO|Wozah|Calle|VeriSnow|SkyJump|pixie/i.test(n)))console.log('SUMME',n,JSON.stringify(a))"
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local

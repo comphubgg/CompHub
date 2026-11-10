@@ -968,6 +968,18 @@ class SchadenLeser : ReplayReader {
     int? anId = null; int? anTeam = null;
     if (figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) && figurKanaele.Contains(zielKanal)) { var an0 = Hole(VonFigur, zielKanal); anId = an0?.Id; anTeam = an0?.TeamIndex; }
     else if (spielerVonAkteur.TryGetValue(c.HitActor.Value, out var sid2)) { anId = sid2; anTeam = teamVonSpieler.TryGetValue(sid2, out var tv) ? tv : null; Nachgetragen++; }
+    /*
+     * Ziel ueber den Akteur aufloesen (10.11.2026): Spielerfiguren ohne Bauplan in unserer Karte und Sonderfiguren (BP_PlayerPawn_NonParticipant_*, z. B. RookGecko)
+     * kamen nie als PlayerPawn-Export an und galten als "unbekannt" - beim Squads Victory Cup fehlten so MrSavage 56 % Schaden gegen Osirion. Die Bibliothek kennt den
+     * Spieler zum Akteur; gezaehlt wird es nur bei Figuren (Klasse mit PlayerPawn oder ohne Klasse), nicht bei Bauteilen, Fallen oder Gegenstaenden eines Spielers.
+     */
+    if (anId is null && Environment.GetEnvironmentVariable("SCHADEN_NEU") == "1") {
+      var klasse = pfadVonAkteur.TryGetValue(c.HitActor.Value, out var kp0) ? kp0 : null;
+      if (klasse is null || klasse.Contains("PlayerPawn")) {
+        var ueber = Hole(VonAkteur, c.HitActor.Value);
+        if (ueber?.Id is int uid) { anId = uid; anTeam = ueber.TeamIndex ?? (teamVonSpieler.TryGetValue(uid, out var tv2) ? tv2 : null); UeberAkteur++; }
+      }
+    }
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
     if (anId is null) {
       var art = figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "");
@@ -1002,7 +1014,7 @@ class SchadenLeser : ReplayReader {
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
   public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal)> Liste = new();
-  public int Nachgetragen;
+  public int Nachgetragen, UeberAkteur;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
   readonly Dictionary<uint, string> kanalTyp = new();
