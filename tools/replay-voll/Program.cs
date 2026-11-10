@@ -938,6 +938,10 @@ class SchadenLeser : ReplayReader {
       if (wp is null) foreach (var kv in kanalAkteur) if (kv.Value == cwp && kanalTyp.TryGetValue(kv.Key, out var kt)) { wp = "typ:" + kt; break; }
       Console.Error.WriteLine($"DIAGWAFFE t={Math.Round(twp, 1)} spieler={dw} waffe={cwp} {wp}");
     }
+    if (DiagId is not null && kanalAkteur.TryGetValue(channelIndex, out var prjAk) && pfadVonAkteur.TryGetValue(prjAk, out var prjPf) && prjPf is not null && prjPf.Contains("Prj_") && Zeit() is double tpj && DiagZeiten.Any(z => tpj >= z - 6 && tpj <= z + 1)) {
+      var teile = exportGroup.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(exportGroup); } catch { return null; } if (v is null) return null; var sv = v.ToString(); return pp.Name + "=" + (sv.Length > 50 ? sv[..50] : sv); }).Where(x => x is not null).Take(15);
+      Console.Error.WriteLine($"DIAGPRJ t={Math.Round(tpj, 2)} k={channelIndex} {exportGroup.GetType().Name}: {string.Join(" ", teile)}");
+    }
     if (DiagId is not null && Zeit() is double tw && DiagZeiten.Any(z => tw >= z - 2.5 && tw <= z + 0.3)) {
       var wem = Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id;
       var nm = exportGroup.GetType().Name;
@@ -1000,7 +1004,7 @@ class SchadenLeser : ReplayReader {
     // Diagnose (SCHADEN_DIAG=<Spieler-Id>, 10.11.2026): wo Treffer eines Spielers verloren gehen - Osirion zeigte bei manchen Squad-Spielern doppelt so viel Schaden.
     var diagVon = DiagId is int dg ? (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) : null;
     bool diag = DiagId is int dg2 && diagVon == dg2;
-    if (DiagId is not null && !FelderGezeigt) {
+    if (DiagId is not null && !FelderGezeigt && Zeit() is double tfz && tfz > (DiagZeiten.Length > 0 ? DiagZeiten[0] : 0)) {
       FelderGezeigt = true;
       try {
         object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
@@ -1009,7 +1013,7 @@ class SchadenLeser : ReplayReader {
         Console.Error.WriteLine($"DIAGFELDER Karte waehrend des Lesens: {karte?.Count}");
         if (karte != null) foreach (System.Collections.DictionaryEntry kv in karte) {
           var name = kv.Key?.ToString() ?? "";
-          if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Damage|FortPawn:", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+          if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Prj_|Projectile|Slingshot|GameplayCue|Damage", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
           var ex = F(kv.Value, "NetFieldExports") as System.Collections.IEnumerable; var namen = new List<string>();
           if (ex != null) foreach (var e in ex) { var en = F(e, "Name")?.ToString(); if (!string.IsNullOrEmpty(en)) namen.Add(en); }
           Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
