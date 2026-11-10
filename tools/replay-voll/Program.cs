@@ -1112,7 +1112,16 @@ class SchadenLeser : ReplayReader {
     for (int i = 0; i < Liste.Count; i++) {
       var e = Liste[i];
       if (Unsicher.Contains(i)) {
-        if (e.t is not double tu || !Bestaetigt(e.an, tu, e.hoehe)) { UnsicherVerworfen++; continue; }
+        if (e.t is not double tu || !Bestaetigt(e.an, tu, e.hoehe)) {
+          UnsicherVerworfen++;
+          if (DiagId is not null && e.t is double tq) {
+            // Wer verlor stattdessen im selben Moment etwa so viel?
+            var wer = Leben.Keys.Union(Schild.Keys).Where(id => id != e.von && Bestaetigt(id, tq, e.hoehe)).ToList();
+            var k = $"UNSICHER-ZUGEORDNET {e.an} -> verlor: {(wer.Count == 0 ? "niemand" : wer.Count == 1 ? wer[0].ToString() : "mehrere")}";
+            Diag.TryGetValue(k, out var a); Diag[k] = (a.Item1 + 1, a.Item2 + e.hoehe);
+          }
+          continue;
+        }
         UnsicherBestaetigt++;
       }
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
