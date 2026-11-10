@@ -193,6 +193,22 @@ if (SchadenLeser.DiagId is int diagId) {
   }
   Console.Error.WriteLine($"DIAGVERLUST alle Spieler zusammen: {Math.Round(verlorenAlle)} (Leben+Schild+Overshield, inkl. Sturm/Fall); Spieler mit Verlauf: {verlorenJe.Count}");
   var gezJe = reader.Je.ToDictionary(k => k.Key, k => k.Value.Genommen);
+  {
+    var opfer = verlorenJe.OrderByDescending(x => x.Value - (gezJe.TryGetValue(x.Key, out var gg0) ? gg0 : 0)).Select(x => x.Key).FirstOrDefault();
+    var zeiten = new SortedSet<double>();
+    foreach (var d in new[] { reader.Leben, reader.Schild, reader.Ueberschild }) if (d.TryGetValue(opfer, out var l)) foreach (var x in l) zeiten.Add(x[0]);
+    double? vor = null; int n = 0;
+    foreach (var t in zeiten) {
+      var w = Summe(opfer, t);
+      if (vor is double v && w < v && n < 25) {
+        n++;
+        var nah = reader.DiagAlle.Where(h => h.t >= t - 1.5 && h.t <= t + 0.3).Take(6).Select(h => $"[{Math.Round(h.t - t, 2)}s von {h.von} {Math.Round(h.mag)} {h.art} akteur {h.akteur}]");
+        var gez = reader.Liste.Where(e => e.an == opfer && e.t is double et && et >= t - 1.5 && et <= t + 0.3).Select(e => $"<gez von {e.von} {Math.Round(e.hoehe)}>");
+        Console.Error.WriteLine($"DIAGOPFER {opfer} t={Math.Round(t, 2)} verlor {Math.Round(v - w)}: " + string.Join(" ", gez.Concat(nah)));
+      }
+      vor = w;
+    }
+  }
   foreach (var kv in verlorenJe.OrderByDescending(x => x.Value - (gezJe.TryGetValue(x.Key, out var gg) ? gg : 0)).Take(15)) Console.Error.WriteLine($"DIAGVERLUST Spieler {kv.Key}: verloren {Math.Round(kv.Value)}, als Treffer gezaehlt {Math.Round(gezJe.TryGetValue(kv.Key, out var g) ? g : 0)}");
   foreach (var kv in treffer) Console.Error.WriteLine($"DIAGPASST {kv.Key}: {kv.Value.n} Treffer ({Math.Round(kv.Value.dmg)}) - davon {kv.Value.passt} ({Math.Round(kv.Value.passtDmg)}) mit gleichzeitigem Verlust eines Spielers");
   foreach (var kv in akteurPasst.OrderByDescending(x => x.Value.Values.Sum()).Take(8)) Console.Error.WriteLine($"DIAGAKTEUR {kv.Key}: " + string.Join(", ", kv.Value.Select(x => $"Spieler {x.Key} x{x.Value}")));
@@ -957,6 +973,7 @@ class SchadenLeser : ReplayReader {
       var art = figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "");
       D(art);
       if (diag && Zeit() is double td) DiagOffen.Add((td, c.Magnitude.Value, art, c.HitActor.Value));
+      if (DiagId is not null && Zeit() is double ta) DiagAlle.Add((ta, c.Magnitude.Value, art.StartsWith("zielUnbekannt") ? "unbekannt:" + DiagZiel(c.HitActor.Value) : art, c.HitActor.Value, von?.Id ?? -1));
       return;
     }
     if (von.Id == anId) { D("selbst"); return; }
@@ -983,6 +1000,7 @@ class SchadenLeser : ReplayReader {
   public readonly Dictionary<string, (int, double)> Diag = new();
   readonly Dictionary<uint, string> kanalTyp = new();
   public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
+  public readonly List<(double t, double mag, string art, uint akteur, int von)> DiagAlle = new();
   /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
   string DiagZiel(uint akteur) {
     var klasse = pfadVonAkteur.TryGetValue(akteur, out var pf) && pf is not null ? System.Text.RegularExpressions.Regex.Replace(pf.Split('/').Last().Split('.').Last(), @"_C$", "") : "ohneKlasse";
