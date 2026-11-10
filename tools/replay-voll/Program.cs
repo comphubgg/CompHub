@@ -941,8 +941,10 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<uint, string> kanalTyp = new();
   /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
   string DiagZiel(uint akteur) {
-    foreach (var kv in kanalAkteur) if (kv.Value == akteur) return "offen:" + (kanalTyp.TryGetValue(kv.Key, out var ty) ? ty : "?") + (figurKanaele.Contains(kv.Key) ? ":figur" : "");
-    return spielerVonAkteur.ContainsKey(akteur) ? "spielerAkteur" : "geschlossen";
+    var klasse = pfadVonAkteur.TryGetValue(akteur, out var pf) && pf is not null ? System.Text.RegularExpressions.Regex.Replace(pf.Split('/').Last().Split('.').Last(), @"_C$", "") : "ohneKlasse";
+    klasse = System.Text.RegularExpressions.Regex.Replace(klasse, @"PBWA_[WSM]1_\w+", "Bauteil");
+    var offen = kanalAkteur.Values.Contains(akteur) ? "offen" : "zu";
+    return offen + ":" + klasse;
   }
   readonly Dictionary<int, int?> teamVonSpieler = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
