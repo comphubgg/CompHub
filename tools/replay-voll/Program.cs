@@ -330,7 +330,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
 var zusatz = reader.Zusatz(busAb, R(replay.GameData?.MatchEndTime), replay.PlayerData.Where(p => p.Id is not null && p.DeathTimeDouble is not null).ToDictionary(p => p.Id.Value, p => p.DeathTimeDouble.Value), wiederbelebt, rebootet)
   .Select(kv => new { id = kv.Key, sturmSek = Math.Round(kv.Value.SturmSek, 1), wiederbelebt = kv.Value.Wiederbelebt, rebootet = kv.Value.Rebootet }).ToList();
 var schaden = reader.Je.Select(kv => new {
-  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen), genommenOhneBoden = Math.Round(reader.GenommenOhneBoden.TryGetValue(kv.Key, out var gob) ? gob : 0),
+  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), trefferOhneBoden = kv.Value.TrefferOhneBoden, trefferGleichzeitig = kv.Value.TrefferGleichzeitig, genommen = Math.Round(kv.Value.Genommen), genommenOhneBoden = Math.Round(reader.GenommenOhneBoden.TryGetValue(kv.Key, out var gob) ? gob : 0),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
 }).ToList();
 
@@ -389,7 +389,7 @@ class SchadenLeser : ReplayReader {
     typeof(ReplayReader).BaseType?.GetField("_parseMode", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(this, Modus);
   }
 
-  public sealed class Schaden { public double Gemacht, Genommen, AufSchild; public int Treffer, Krit; }
+  public sealed class Schaden { public double Gemacht, Genommen, AufSchild; public int Treffer, Krit, TrefferOhneBoden, TrefferGleichzeitig; }
   public readonly Dictionary<int, Schaden> Je = new();
   public int Ereignisse, Zugeordnet;
 
@@ -1500,6 +1500,7 @@ class SchadenLeser : ReplayReader {
       var h = Wirksam(e);
       var s1 = Fuer(e.von); s1.Gemacht += h; s1.Treffer++;
       bool amBoden = e.t is double tt && AmBodenZuZeit(e.an, tt);
+      if (!amBoden) { s1.TrefferOhneBoden++; if (i > 0 && Liste[i - 1].von == e.von && Liste[i - 1].an == e.an && Liste[i - 1].t is double tv && e.t is double tn && Math.Abs(tn - tv) < 0.05) s1.TrefferGleichzeitig++; }
       if (amBoden) AufBoden++; else { ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + h; GenommenOhneBoden[e.an] = (GenommenOhneBoden.TryGetValue(e.an, out var g0) ? g0 : 0) + h; }
       if (!e.fatal) ohneFatal[e.von] = (ohneFatal.TryGetValue(e.von, out var alt2) ? alt2 : 0) + h;
       if (e.krit) s1.Krit++;
