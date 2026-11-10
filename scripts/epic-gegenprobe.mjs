@@ -3,7 +3,12 @@
 //   node scripts/epic-gegenprobe.mjs <eventId> <windowId> <clutch-roh.json>
 import fs from 'node:fs';
 import { holeNutzerToken } from '../lib/replayKern.mjs';
-const [eventId, windowId, rohDatei] = process.argv.slice(2);
+const [eventId, windowId, rohDatei, jeDatei] = process.argv.slice(2);
+// Unsere Kills je Spieler und Match, wie die Seite sie zeigt (clutch-je: [Match, killsEcht, ...]) - Epic-Konto -> Match -> Kills.
+const unsereKills = new Map();
+if (jeDatei && fs.existsSync(jeDatei)) {
+  for (const z of fs.readFileSync(jeDatei, 'utf8').split('\n')) { if (!z.trim()) continue; try { for (const [epic, zeilen] of Object.entries(JSON.parse(z))) for (const r of zeilen) unsereKills.set(`${epic.toLowerCase()}|${r[0]}`, Number(r[1]) || 0); } catch { /* */ } }
+}
 const roh = JSON.parse(fs.readFileSync(rohDatei, 'utf8'));
 const matches = new Map((roh.matches ?? []).map((m) => [m.id, m]));
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
@@ -28,7 +33,9 @@ for (const e of eintraege) {
     const sp = (Array.isArray(m.spieler) ? m.spieler : Object.values(m.spieler)).filter((p) => epics.includes(String(p.epic ?? '').toLowerCase()));
     if (!sp.length) { ohneTeam++; continue; }
     const ids = new Set(sp.map((p) => p.id));
-    const unsere = (m.feed ?? []).filter((f) => f.art === 'tot' && ids.has(f.taeter) && !ids.has(f.opfer)).length;
+    const ausFeed = (m.feed ?? []).filter((f) => f.art === 'tot' && ids.has(f.taeter) && !ids.has(f.opfer)).length;
+    const ausJe = epics.map((e) => unsereKills.get(`${e}|${m.id}`));
+    const unsere = unsereKills.size && ausJe.some((x) => x !== undefined) ? ausJe.reduce((a, x) => a + (x ?? 0), 0) : ausFeed;
     const epicKills = Number(s.trackedStats?.TEAM_ELIMS_STAT_INDEX ?? 0), epicPlatz = Number(s.trackedStats?.PLACEMENT_STAT_INDEX ?? 0);
     const unserPlatz = Math.min(...sp.map((p) => p.platz ?? 999));
     verglichen++; if (unsere === epicKills) killsGleich++; if (unserPlatz === epicPlatz) platzGleich++;
@@ -36,6 +43,7 @@ for (const e of eintraege) {
     if (unsere !== epicKills || unserPlatz !== epicPlatz) fehler.push({ match: m.id.slice(0, 8), team: sp.map((p) => p.name).join(' / ').slice(0, 60), killsEpic: epicKills, killsWir: unsere, platzEpic: epicPlatz, platzWir: unserPlatz });
   }
 }
+console.log(`Kills aus: ${unsereKills.size ? 'clutch-je (wie die Seite)' : 'Kill-Feed'}`);
 console.log(`Teams ${eintraege.length}, Team-Spiele verglichen ${verglichen} (ohne Replay ${ohneReplay}, Team im Replay nicht gefunden ${ohneTeam})`);
 console.log(`Kills gleich: ${killsGleich} von ${verglichen} (${(killsGleich / Math.max(1, verglichen) * 100).toFixed(1)} %), Platz gleich: ${platzGleich} von ${verglichen}`);
 const diffs = {}; for (const f of fehler) { const d = f.killsWir - f.killsEpic; diffs[d] = (diffs[d] ?? 0) + 1; }

@@ -61,7 +61,10 @@ jobs:
           if [ "${E[2]}" = "gegenprobe" ]; then
             ID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-clutch-roh" --jq ".assets[] | select(.name==\"clutch-roh__${E[1]}.json\") | .id")
             gh api -H "Accept: application/octet-stream" "repos/${{ github.repository }}/releases/assets/$ID" > /tmp/roh.json
-            node scripts/epic-gegenprobe.mjs "${E[0]}" "${E[1]}" /tmp/roh.json 2>&1 | tail -90
+            S=$(echo "${E[1]}" | grep -oE '^S[0-9]+' | tr 'S' 's')
+            JID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-clutch-je-$S" --jq ".assets[] | select(.name==\"clutch-je__${E[1]}.json\") | .id" 2>/dev/null)
+            [ -n "$JID" ] && gh api -H "Accept: application/octet-stream" "repos/${{ github.repository }}/releases/assets/$JID" > /tmp/je.json
+            node scripts/epic-gegenprobe.mjs "${E[0]}" "${E[1]}" /tmp/roh.json /tmp/je.json 2>&1 | tail -90
           else
             node scripts/epic-team-pruefen.mjs "${E[0]}" "${E[1]}" "${E[2]}" 2>&1 | tail -30
           fi
