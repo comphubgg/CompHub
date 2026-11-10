@@ -22,6 +22,10 @@ on:
         description: Zeitwaechter je Rahmen (ms)
         required: false
         default: '3000'
+      umgebung:
+        description: 'Zusaetzliche Schalter fuer den Leser, z. B. SCHADEN_AKTEUR=1 (Leerzeichen-getrennt)'
+        required: false
+        default: ''
       vergleich:
         description: 'Schaden je Match gegen Epic (nur Solo): eventId,windowId'
         required: false
@@ -78,6 +82,7 @@ jobs:
           SCHADEN_FENSTER: ${{ inputs.fenster }}
           RAHMEN_MS: ${{ inputs.rahmen }}
         run: |
+          for KV in ${{ inputs.umgebung }}; do export "$KV"; echo "Schalter: $KV"; done
           IFS=',' read -ra M <<< "$MATCHES"; IFS=',' read -ra S <<< "$SPIELER"
           for i in "${!M[@]}"; do
             echo "=== Match ${M[$i]} Spieler ${S[$i]}"
