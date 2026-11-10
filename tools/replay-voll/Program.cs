@@ -1241,8 +1241,8 @@ class SchadenLeser : ReplayReader {
         // Strecke aus jedem Positions-Update (10.11.2026): die Proben alle 10 s (CharacterSample) liessen jede Kurve aus - gegen Osirion rund 35 % zu kurz.
         if (letzterOrt.TryGetValue(oid, out var lo) && to > lo.t) {
           var d = Math.Sqrt(Math.Pow(ort.X - lo.x, 2) + Math.Pow(ort.Y - lo.y, 2)) / 100; var dz = Math.Abs(ort.Z - lo.z) / 100; var dt = to - lo.t;
-          if (!Strecken.TryGetValue(oid, out var st)) Strecken[oid] = st = new();
-          st.Add((to, d, dz, dt));
+          if (!Strecken.TryGetValue(oid, out var stl)) Strecken[oid] = stl = new();
+          stl.Add((to, d, dz, dt));
         }
         letzterOrt[oid] = (to, ort.X, ort.Y, ort.Z);
       }
