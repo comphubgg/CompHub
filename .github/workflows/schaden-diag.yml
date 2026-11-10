@@ -18,6 +18,10 @@ on:
         description: Zeitpunkte (s) fuer das Detailfenster, Komma-getrennt
         required: false
         default: ''
+      rahmen:
+        description: Zeitwaechter je Rahmen (ms)
+        required: false
+        default: '3000'
       epic:
         description: 'Epic-Gegenprobe: eventId,windowId,epicId (leer = aus)'
         required: false
@@ -58,6 +62,7 @@ jobs:
           SPIELER: ${{ inputs.spieler }}
           SCHADEN_ZEITEN: ${{ inputs.zeiten }}
           SCHADEN_FENSTER: ${{ inputs.fenster }}
+          RAHMEN_MS: ${{ inputs.rahmen }}
         run: |
           IFS=',' read -ra M <<< "$MATCHES"; IFS=',' read -ra S <<< "$SPIELER"
           for i in "${!M[@]}"; do

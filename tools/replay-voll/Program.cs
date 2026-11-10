@@ -260,6 +260,7 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG REPLAYOUT " +
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt} params={reader.EffektParams}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektTags.OrderByDescending(x => x.Value).Take(25)) Console.Error.WriteLine($"DIAG EFFEKTTAG {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laengster {SchadenLeser.LaengsterRahmen} ms, Bloecke {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
@@ -849,7 +850,9 @@ class SchadenLeser : ReplayReader {
   }
   // Ein Rahmen braucht Millisekunden; haengt einer (die Bibliothek liest in einer Schleife ohne Ende), bricht nach 3 s eine Ausnahme den Block ab.
   long rahmenStart;
-  void RahmenWache() { if (Environment.TickCount64 - rahmenStart > 3000) throw new TimeoutException("Rahmen haengt"); }
+  static readonly long RahmenMs = long.TryParse(Environment.GetEnvironmentVariable("RAHMEN_MS"), out var rms) ? rms : 3000;
+  public static long LaengsterRahmen;
+  void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) throw new TimeoutException($"Rahmen haengt ({d} ms)"); }
   public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
   public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
   public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) { RahmenWache(); base.ReceivedPacket(bitReader); }
