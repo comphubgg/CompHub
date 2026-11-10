@@ -214,6 +214,16 @@ if (SchadenLeser.DiagId is not null) {
           object gv = null; try { gv = g.IsStatic ? g.GetValue(null) : g.GetValue(pv); } catch { }
           var info = gv is System.Collections.IDictionary dd ? $"Dict {dd.Count}: {string.Join(" | ", dd.Keys.Cast<object>().Where(k => k.ToString().Contains("PlayerPawn_Athena_C_ClassNetCache") || k.ToString().Contains("BatchedDamage")).Take(4))}" : gv?.GetType().Name;
           Console.Error.WriteLine($"DIAGPARSER   {g.Name}: {g.FieldType.Name} -> {info}");
+          if (g.Name == "_classNetCacheToNetFieldGroup" && gv is System.Collections.IDictionary cd) {
+            Console.Error.WriteLine("DIAGPARSER   Schluessel: " + string.Join(" | ", cd.Keys.Cast<object>()));
+            var wert = cd["PlayerPawn_Athena_C_ClassNetCache"];
+            Console.Error.WriteLine($"DIAGPARSER   Wert-Typ: {wert?.GetType().FullName}");
+            if (wert != null) foreach (var h in wert.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) {
+              object hv = null; try { hv = h.GetValue(wert); } catch { }
+              var inf = hv is System.Collections.IDictionary hd ? $"Dict {hd.Count}: " + string.Join(" | ", hd.Keys.Cast<object>().Take(8)) + " ; Werttyp " + (hd.Count > 0 ? hd.Values.Cast<object>().First()?.GetType().FullName : "") : hv?.ToString();
+              Console.Error.WriteLine($"DIAGPARSER     {h.Name}: {h.FieldType.Name} = {inf}");
+            }
+          }
         }
       }
 }
