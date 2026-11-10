@@ -854,16 +854,16 @@ class SchadenLeser : ReplayReader {
   public static long LaengsterRahmen;
   int paketeImRahmen; long laengstesPaket; long paketeGesamt;
   void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) throw new TimeoutException($"Rahmen haengt ({d} ms, Pakete im Rahmen {paketeImRahmen}, laengstes Paket {laengstesPaket} ms, Pakete gesamt {paketeGesamt}, Rahmen {Rahmen})"); }
-  public override void ReceivedRawPacket(ReadOnlyMemory<byte> packet) {
-    paketeImRahmen++; paketeGesamt++;
-    var t0 = Environment.TickCount64;
-    base.ReceivedRawPacket(packet);
-    var d = Environment.TickCount64 - t0; if (d > laengstesPaket) laengstesPaket = d;
-    if (d > 1000 && DiagId is not null) Console.Error.WriteLine($"PAKET langsam {d} ms, Groesse {packet.Length}, Rahmen {Rahmen}, Block {Bloecke}");
-  }
+
   public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
   public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
-  public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) { RahmenWache(); base.ReceivedPacket(bitReader); }
+  public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) {
+    RahmenWache(); paketeImRahmen++; paketeGesamt++;
+    var t0 = Environment.TickCount64;
+    base.ReceivedPacket(bitReader);
+    var d = Environment.TickCount64 - t0; if (d > laengstesPaket) laengstesPaket = d;
+    if (d > 1000 && DiagId is not null) Console.Error.WriteLine($"PAKET langsam {d} ms, Rahmen {Rahmen}, Block {Bloecke}");
+  }
   public override Unreal.Core.Models.Enums.PacketState ReadPacket(Unreal.Core.FArchive archive) { RahmenWache(); return base.ReadPacket(archive); }
   public override Unreal.Core.Models.NetFieldExport? ReadNetFieldExport(Unreal.Core.FArchive archive) { RahmenWache(); return base.ReadNetFieldExport(archive); }
   public override Unreal.Core.Models.NetworkGUID InternalLoadObject(Unreal.Core.FArchive archive, bool isExportingNetGUIDBunch, int internalLoadObjectRecursionCount = 0) { RahmenWache(); return base.InternalLoadObject(archive, isExportingNetGUIDBunch, internalLoadObjectRecursionCount); }
