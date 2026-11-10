@@ -411,7 +411,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten,
 }, Formatting.None, einst));
 }
 
@@ -862,6 +862,15 @@ class SchadenLeser : ReplayReader {
         var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
         // Bis 2 s nach dem Schlag (8.11.2026): das Gefarmte kommt im Strom oft spaeter an. Mit 0,5 s fehlten Focus (FNCS Solo Reload, 10 Matches) 15 % zu Osirions
         // Mats Farmed; mit 2 s 6.781 zu 6.824, Metall 583 zu 593.
+        if (DiagId is not null) {
+          // Varianten der Regel (Diagnose, 10.11.2026): [A] wie bisher, [B] Fenster 1 s, [C] ohne Kleinmengen-Regel, [D] Fenster 1 s ohne Kleinmengen, [E] nur bis 30 je Schritt.
+          if (!FarmVarianten.TryGetValue(id, out var fv)) FarmVarianten[id] = fv = new double[5];
+          var aufNah = Zwischen(aufgehoben, t - 1.1, t - 0.4);
+          var a2 = Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !aufNah);
+          var b1 = Zwischen(schlaege, t - 1, t + 0.6) && (m <= 30 || !aufNah);
+          var klein = m <= 30 && MitSpitzhacke(id, t) && !Zwischen(aufgehoben, t - 1.5, t + 0.5);
+          if (a2 || klein) fv[0] += m; if (b1 || klein) fv[1] += m; if (a2) fv[2] += m; if (b1) fv[3] += m; if ((a2 || klein) && m <= 30) fv[4] += m;
+        }
         if (Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
         /*
          * Schlaege auf Autos, Kuehlschraenke und andere Dinge, die kein Bauteil sind, stehen nicht als Einschlag im Strom (8.11.2026: Focus, FNCS Solo Reload, Metall gefarmt
@@ -1066,6 +1075,7 @@ class SchadenLeser : ReplayReader {
     // Truhen stehen fest in der Karte und haben im Replay keinen Ort - gezaehlt wird hier nur, wie viele das Spiel als geoeffnet meldet (Gegenprobe zu den Kisten aus dem Loot).
     KistenLautSpiel++;
   }
+  public readonly Dictionary<int, double[]> FarmVarianten = new();
   public int KistenLautSpiel; int pickupDruck, kistenDruck; public int KistenKanaele => kistenKanal.Count;
   readonly HashSet<uint> kistenKanal = new(); readonly List<uint> lootKanal = new();
   readonly List<(double t, double x, double y, double z, string name)> kistenStuecke = new();
