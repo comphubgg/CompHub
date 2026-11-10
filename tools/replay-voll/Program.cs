@@ -1122,7 +1122,7 @@ class SchadenLeser : ReplayReader {
     var treffer = new List<Unreal.Core.Models.FHitResult>();
     if (p.PawnHitResults != null) treffer.AddRange(p.PawnHitResults.Where(h => h != null));
     if (p.SimulationStoppingHit != null) treffer.Add(p.SimulationStoppingHit);
-    if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null).Take(10)))));
+    if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null && (x.StartsWith("Actor") || x.StartsWith("Component") || x.StartsWith("BoneName") || x.StartsWith("PhysMat") || x.StartsWith("Item") || x.StartsWith("Hit") || x.StartsWith("Blocking")))))));
   }
   public int Nachgetragen, UeberAkteur;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
