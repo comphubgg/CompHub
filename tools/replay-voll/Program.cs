@@ -1017,6 +1017,13 @@ class SchadenLeser : ReplayReader {
     if (von.Id == anId) { D("selbst"); return; }
     if (von.TeamIndex is not null && von.TeamIndex == anTeam) { D("eigenesTeam"); return; }
     D("gezaehlt");
+    if (DiagId is not null) {
+      // Ziel ein Bot/NPC (PlayerData.IsBot)? Osirion zaehlt "Damage to Players" ohne Bots.
+      var zielPd = zielKanal != 0 && figurKanaele.Contains(zielKanal) ? Hole(VonFigur, zielKanal) : null;
+      var kb = zielPd?.IsBot == true ? "ZIEL-BOT" : "ZIEL-MENSCH";
+      Diag.TryGetValue(kb, out var bb); Diag[kb] = (bb.Item1 + 1, bb.Item2 + c.Magnitude.Value);
+      if (diag) { Diag.TryGetValue("EIGEN-" + kb, out var eb); Diag["EIGEN-" + kb] = (eb.Item1 + 1, eb.Item2 + c.Magnitude.Value); }
+    }
     Zugeordnet++;
     if (unsicher) Unsicher.Add(Liste.Count);
     Liste.Add((von.Id.Value, anId.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
