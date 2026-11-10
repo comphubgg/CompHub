@@ -852,6 +852,7 @@ class SchadenLeser : ReplayReader {
   static readonly string[] BusFelder = { "FlightStartLocation", "FlightStartRotation", "FlightSpeed", "TimeTillDropStart", "TimeTillDropEnd", "TimeTillFlightEnd", "AircraftStartTime" };
 
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
+    if (DiagId is not null) kanalTyp[channelIndex] = exportGroup.GetType().Name;
     base.OnExportRead(channelIndex, exportGroup);
     if (exportGroup.GetType().Name == "GameState") {
       foreach (var f in BusFelder) {
@@ -914,7 +915,7 @@ class SchadenLeser : ReplayReader {
     if (figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) && figurKanaele.Contains(zielKanal)) { var an0 = Hole(VonFigur, zielKanal); anId = an0?.Id; anTeam = an0?.TeamIndex; }
     else if (spielerVonAkteur.TryGetValue(c.HitActor.Value, out var sid2)) { anId = sid2; anTeam = teamVonSpieler.TryGetValue(sid2, out var tv) ? tv : null; Nachgetragen++; }
     if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
-    if (anId is null) { D(figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt"); return; }
+    if (anId is null) { D(figurVonAkteur.ContainsKey(c.HitActor.Value) ? "zielKanalNichtFigur" : "zielUnbekannt:" + (diag ? DiagZiel(c.HitActor.Value) : "")); return; }
     if (von.Id == anId) { D("selbst"); return; }
     if (von.TeamIndex is not null && von.TeamIndex == anTeam) { D("eigenesTeam"); return; }
     D("gezaehlt");
@@ -937,6 +938,12 @@ class SchadenLeser : ReplayReader {
   public int Nachgetragen;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
+  readonly Dictionary<uint, string> kanalTyp = new();
+  /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
+  string DiagZiel(uint akteur) {
+    foreach (var kv in kanalAkteur) if (kv.Value == akteur) return "offen:" + (kanalTyp.TryGetValue(kv.Key, out var ty) ? ty : "?") + (figurKanaele.Contains(kv.Key) ? ":figur" : "");
+    return spielerVonAkteur.ContainsKey(akteur) ? "spielerAkteur" : "geschlossen";
+  }
   readonly Dictionary<int, int?> teamVonSpieler = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
