@@ -1015,11 +1015,11 @@ class SchadenLeser : ReplayReader {
   public List<double[]> TruhenFertig() {
     if (!truhenFertig && kistenStuecke.Count > 0) {
       truhenFertig = true;
-      // Was zugleich (1 s) an einer Stelle (4 m) aus einer Kiste fliegt, kam aus derselben Kiste - ihr Ort ist der Startpunkt des Wurfs.
+      // Was zugleich (2,5 s) an einer Stelle (6,5 m) aus einer Kiste fliegt, kam aus derselben Kiste - ihr Ort ist der Startpunkt des Wurfs.
       var gruppen = new List<(double t, double x, double y, double z, bool waffe)>();
       foreach (var st in kistenStuecke.OrderBy((x) => x.t)) {
         var waffe = st.name.StartsWith("WID_", StringComparison.OrdinalIgnoreCase);
-        var i = gruppen.FindLastIndex((g) => st.t - g.t < 1.0 && Math.Pow(g.x - st.x, 2) + Math.Pow(g.y - st.y, 2) < 400 * 400);
+        var i = gruppen.FindLastIndex((g) => st.t - g.t < 2.5 && Math.Pow(g.x - st.x, 2) + Math.Pow(g.y - st.y, 2) < 650 * 650);
         if (i >= 0) { if (waffe) gruppen[i] = gruppen[i] with { waffe = true }; continue; }
         gruppen.Add((st.t, st.x, st.y, st.z, waffe));
       }
@@ -1050,7 +1050,7 @@ class SchadenLeser : ReplayReader {
     if (Wert("bTossedFromContainer") is bool raus && raus && Wert("PawnWhoDroppedPickup") is null
         && (Wert("LootInitialPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm ? rm.Location : null) ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start && kistenKanal.Add(kanal))
       kistenStuecke.Add((t, start.X, start.Y, start.Z, name ?? ""));
-    var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition")) as Unreal.Core.Models.FVector;
+    var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm2 ? rm2.Location : null)) as Unreal.Core.Models.FVector;
     if (lage is not null) lootLageVonKanal[kanal] = lage;
     else lootLageVonKanal.TryGetValue(kanal, out lage);
     void Eintrag(object figur, int auf) {
