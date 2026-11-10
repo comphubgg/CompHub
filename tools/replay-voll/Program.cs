@@ -297,6 +297,38 @@ if (SchadenLeser.DiagId is int diagId) {
     verlorenJe[id] = sum; verlorenAlle += sum;
   }
   Console.Error.WriteLine($"DIAGVERLUST alle Spieler zusammen: {Math.Round(verlorenAlle)} (Leben+Schild+Overshield, inkl. Sturm/Fall); Spieler mit Verlauf: {verlorenJe.Count}");
+  {
+    /*
+     * Bilanz (10.11.2026): jede Abnahme von Leben + Schild + Overshield nach dem Bus, die kein gezaehlter Treffer (0,6 s davor bis 0,3 s danach) erklaert - nach dem Effekt,
+     * der dem Opfer im selben Moment (0,4 s) widerfuhr. So zeigt sich, welche Schadensart uns entgeht (Explosion, Gegenstand ...).
+     */
+    var bilanz = new Dictionary<string, (int n, double v)>(); double ungeklaert = 0;
+    var imSturm = reader.SturmListe.GroupBy(x => x.id).ToDictionary(g => g.Key, g => g.OrderBy(x => x.t).ToList());
+    bool sturmBei(int id, double t) { if (!imSturm.TryGetValue(id, out var l)) return false; bool an = false; foreach (var x in l) { if (x.t <= t) an = x.an; else break; } return an; }
+    foreach (var id in verlorenJe.Keys) {
+      var zeiten = new SortedSet<double>();
+      foreach (var d in new[] { reader.Leben, reader.Schild, reader.Ueberschild }) if (d.TryGetValue(id, out var l)) foreach (var x in l) zeiten.Add(x[0]);
+      double? vor = null; double erklaertRest = 0; double letzteT = -9;
+      foreach (var t in zeiten) {
+        var w = Summe(id, t);
+        if (vor is double v && w < v - 0.5 && (busAb is null || t >= busAb)) {
+          var ab = v - w;
+          var gez = reader.Liste.Where(e => e.an == id && e.t is double et && et >= t - 0.6 && et <= t + 0.3 && et > letzteT).Sum(e => e.hoehe);
+          letzteT = t;
+          var rest = Math.Max(0, ab - gez - erklaertRest); erklaertRest = Math.Max(0, gez + erklaertRest - ab);
+          if (rest >= 1) {
+            var eff = reader.EffektAlle.Where(e => e.an == id && Math.Abs(e.t - t) <= 0.4).Select(e => System.Text.RegularExpressions.Regex.Replace(e.art.Split('.').Last(), "_C$", "")).Distinct().ToList();
+            var art = eff.FirstOrDefault(e => !e.Contains("OutsideSafeZone") && !e.Contains("Campfire") && !e.Contains("Heal") && !e.Contains("Shields")) ?? (eff.Any(e => e.Contains("OutsideSafeZone")) || sturmBei(id, t) ? "Sturm" : "ohne Effekt");
+            if (art == "ohne Effekt" && rest <= 10 && sturmBei(id, t)) art = "Sturm";
+            bilanz.TryGetValue(art, out var b); bilanz[art] = (b.n + 1, b.v + rest); if (art != "Sturm") ungeklaert += rest;
+          }
+        }
+        vor = w;
+      }
+    }
+    Console.Error.WriteLine($"BILANZ unerklaerte Abnahme (ohne Sturm): {Math.Round(ungeklaert)}");
+    foreach (var kv in bilanz.OrderByDescending(x => x.Value.v).Take(25)) Console.Error.WriteLine($"BILANZ {kv.Key}: {kv.Value.n} mal, {Math.Round(kv.Value.v)}");
+  }
   var gezJe = reader.Je.ToDictionary(k => k.Key, k => k.Value.Genommen);
   {
     var opfer = verlorenJe.OrderByDescending(x => x.Value - (gezJe.TryGetValue(x.Key, out var gg0) ? gg0 : 0)).Select(x => x.Key).FirstOrDefault();
@@ -1172,6 +1204,10 @@ class SchadenLeser : ReplayReader {
     }
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
+      if (DiagId is not null && ec0.Def is uint dfb && Zeit() is double tfb && Hole(VonFigur, channelIndex)?.Id is int ofb) {
+        if (!defPfad.TryGetValue(dfb, out var dpb)) { dpb = GuidPfad(dfb); if (dpb != "?") defPfad[dfb] = dpb; }
+        EffektAlle.Add((tfb, ofb, dpb));
+      }
       if (ec0.Def is uint dfr && Zeit() is double tfr && Hole(VonFigur, channelIndex)?.Id is int opferR) {
         if (!defPfad.TryGetValue(dfr, out var dp)) { dp = GuidPfad(dfr); if (dp != "?") defPfad[dfr] = dp; }
         if (dp.Contains("GE_Ranged_GenericDamage")) EffektTreffer.Add((tfr, opferR));
@@ -1475,6 +1511,7 @@ class SchadenLeser : ReplayReader {
   }
   /// Schadens-Effekte ohne Treffer-Ereignis (GE_Ranged_GenericDamage - die FirePetal-Pump): Zeit und Opfer, der Schuetze steht nicht darin.
   public readonly List<(double t, int an)> EffektTreffer = new();
+  public readonly List<(double t, int an, string art)> EffektAlle = new();
   readonly Dictionary<uint, string> defPfad = new();
   public int EffektZugeordnet, EffektOhneSchuetze, EffektMehrdeutig;
   static double? WertBei(Dictionary<int, List<double[]>> d, int id, double t, int feld = 1) {
