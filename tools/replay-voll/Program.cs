@@ -852,8 +852,8 @@ class SchadenLeser : ReplayReader {
   long rahmenStart;
   static readonly long RahmenMs = long.TryParse(Environment.GetEnvironmentVariable("RAHMEN_MS"), out var rms) ? rms : 3000;
   public static long LaengsterRahmen;
-  int paketeImRahmen; long laengstesPaket; long paketeGesamt;
-  void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) throw new TimeoutException($"Rahmen haengt ({d} ms, Pakete im Rahmen {paketeImRahmen}, laengstes Paket {laengstesPaket} ms, Pakete gesamt {paketeGesamt}, Rahmen {Rahmen})"); }
+  int paketeImRahmen, stapelGezeigt; long laengstesPaket; long paketeGesamt;
+  void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) { if (DiagId is not null && stapelGezeigt++ < 2) Console.Error.WriteLine("STAPEL " + string.Join(" | ", Environment.StackTrace.Split('\n').Skip(1).Take(30).Select(x => x.Trim()))); throw new TimeoutException($"Rahmen haengt ({d} ms, Pakete im Rahmen {paketeImRahmen}, laengstes Paket {laengstesPaket} ms, Pakete gesamt {paketeGesamt}, Rahmen {Rahmen})"); } }
 
   public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
   public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
