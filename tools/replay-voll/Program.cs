@@ -997,13 +997,14 @@ class SchadenLeser : ReplayReader {
   static readonly Dictionary<Type, PropertyInfo> truhenFelder = new();
   static PropertyInfo TruhenFeld(Type t) { lock (truhenFelder) { if (!truhenFelder.TryGetValue(t, out var p)) truhenFelder[t] = p = t.GetProperty("bAlreadySearched"); return p; } }
   void TruheNotieren(uint kanal, INetFieldExportGroup g, PropertyInfo feld) {
+    if (DiagId is not null && kistenDruck < 15 && Zeit() is double tk0 && tk0 > 700) { kistenDruck++; var teile = g.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(g); } catch { return null; } if (v is null) return null; var sv = v.ToString(); return pp.Name + "=" + (sv.Length > 70 ? sv[..70] : sv); }).Where(x => x is not null); var ak2 = Channels[kanal]?.Actor; Console.Error.WriteLine($"DIAGKISTE t={Math.Round(tk0, 2)} k={kanal} typ={g.GetType().Name} ort={ak2?.Location} arch={ak2?.Archetype?.Value} {string.Join(" ", teile)}"); }
     if (feld.GetValue(g) is not bool offen || !offen || Zeit() is not double t) return;
     var akteur = Channels[kanal]?.Actor; if (akteur is null) return;
     var id = akteur.ActorNetGUID?.Value ?? kanal; if (!truheGesehen.Add(id)) return;
     // Truhen stehen fest in der Karte und haben im Replay keinen Ort - gezaehlt wird hier nur, wie viele das Spiel als geoeffnet meldet (Gegenprobe zu den Kisten aus dem Loot).
     KistenLautSpiel++;
   }
-  public int KistenLautSpiel;
+  public int KistenLautSpiel; int pickupDruck, kistenDruck;
   readonly HashSet<uint> kistenKanal = new();
   readonly List<(double t, double x, double y, double z, string name)> kistenStuecke = new();
   /// Wer hat die Kiste geoeffnet? Wer binnen 6 s danach in hoechstens 8 m Entfernung als Erster etwas aufhob.
@@ -1031,6 +1032,11 @@ class SchadenLeser : ReplayReader {
   void LootNotieren(uint kanal, INetFieldExportGroup g) {
     if (Zeit() is not double t) return;
     object Wert(string k) { try { return g.GetType().GetProperty(k)?.GetValue(g); } catch { return null; } }
+    if (DiagId is not null && pickupDruck < 40 && t > 700) {
+      pickupDruck++;
+      var teile = g.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(g); } catch { return null; } if (v is null) return null; var sv = v.ToString(); return pp.Name + "=" + (sv.Length > 70 ? sv[..70] : sv); }).Where(x => x is not null);
+      Console.Error.WriteLine($"DIAGPICKUP t={Math.Round(t, 2)} k={kanal} {string.Join(" ", teile)}");
+    }
     var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
     if (name is not null) lootNameVonKanal[kanal] = name;
     else lootNameVonKanal.TryGetValue(kanal, out name);
