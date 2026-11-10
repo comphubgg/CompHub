@@ -257,7 +257,8 @@ if (SchadenLeser.DiagId is not null) {
   foreach (var pr in gt.GetProperties()) if (!pr.PropertyType.IsPrimitive && pr.PropertyType.Namespace?.StartsWith("System") != true) foreach (var q in pr.PropertyType.GetProperties()) Console.Error.WriteLine($"DIAGGC   {pr.PropertyType.Name}.{q.Name}: {q.PropertyType.Name}");
 }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG REPLAYOUT " + string.Join(",", Enum.GetValues(typeof(RepLayoutCmdType)).Cast<object>().Select(v => v + "=" + Convert.ToInt32(v))));
-if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt} params={reader.EffektParams}");
+if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektTags.OrderByDescending(x => x.Value).Take(25)) Console.Error.WriteLine($"DIAG EFFEKTTAG {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
@@ -1065,6 +1066,19 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0); return; }
+    if (exportGroup is EffektCueParam ep0) {
+      EffektParams++;
+      var gp = ep0.GameplayCueParameters;
+      var tag = ep0.GameplayCueTag?.TagName ?? "?";
+      if (DiagId is not null) { EffektTags[tag] = (EffektTags.TryGetValue(tag, out var et) ? et : 0) + 1; }
+      if (DiagId is not null && EffektParamDruck < 80 && !tag.Contains("Campfire") && !tag.Contains("Heal")) {
+        EffektParamDruck++;
+        var opfer = Hole(VonFigur, channelIndex)?.Id;
+        var ins = gp?.Instigator is uint iu && figurVonAkteur.TryGetValue(iu, out var ik) ? Hole(VonFigur, ik)?.Id : (gp?.Instigator is uint iu2 && spielerVonAkteur.TryGetValue(iu2, out var isv) ? isv : (int?)null);
+        Console.Error.WriteLine($"DIAGPARAM t={Math.Round(Zeit() ?? 0, 2)} opfer={opfer} tag={tag} raw={gp?.RawMagnitude} norm={gp?.NormalizedMagnitude} ins={gp?.Instigator}->{ins} causer={gp?.EffectCauser} src={gp?.SourceObject}");
+      }
+      return;
+    }
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
       if (DiagId is not null && ec0.Def is uint dz) { var gp = GuidPfad(dz); EffektArten[gp] = (EffektArten.TryGetValue(gp, out var ea) ? ea : 0) + 1; }
@@ -1317,7 +1331,7 @@ class SchadenLeser : ReplayReader {
    */
   public static bool EffektEingeklinkt;
   public readonly Dictionary<string, int> EffektArten = new();
-  int EffektDruck;
+  int EffektDruck, EffektParamDruck; public int EffektParams; public readonly Dictionary<string, int> EffektTags = new();
   string GuidPfad(uint g) {
     try {
       object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
@@ -1341,6 +1355,12 @@ class SchadenLeser : ReplayReader {
       Setze("Name", "NetMulticast_InvokeGameplayCueExecuted_FromSpec");
       Setze("PathName", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec");
       props["NetMulticast_InvokeGameplayCueExecuted_FromSpec"] = kopie;
+      var kopie2 = typeof(object).GetMethod("MemberwiseClone", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(vorbild, null);
+      void Setze2(string n, object v) { var pr = kopie2.GetType().GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr?.CanWrite == true) pr.SetValue(kopie2, v); else kopie2.GetType().GetField($"<{n}>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(kopie2, v); }
+      Setze2("PropertyInfo", typeof(FigurCacheMitEffekt).GetProperty(nameof(FigurCacheMitEffekt.EffektCueParam)));
+      Setze2("Name", "NetMulticast_InvokeGameplayCueExecuted_WithParams");
+      Setze2("PathName", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_WithParams");
+      props["NetMulticast_InvokeGameplayCueExecuted_WithParams"] = kopie2;
       EffektEingeklinkt = true;
     } catch (Exception e) { Console.Error.WriteLine("Effekt-Ereignis nicht eingeklinkt: " + e.Message); }
   }
@@ -1552,12 +1572,18 @@ public class EffektAttribut {
   [NetFieldExport("AttributeOwner", RepLayoutCmdType.PropertyObject)] public uint? AttributeOwner { get; set; }
   [NetFieldExport("TotalMagnitude", RepLayoutCmdType.PropertyFloat)] public float? TotalMagnitude { get; set; }
 }
+[NetFieldExportGroup("/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_WithParams", (ParseMode)3)]
+public class EffektCueParam : INetFieldExportGroup {
+  [NetFieldExport("GameplayCueTag", RepLayoutCmdType.Property)] public Unreal.Core.Models.FGameplayTag GameplayCueTag { get; set; }
+  [NetFieldExport("GameplayCueParameters", RepLayoutCmdType.Property)] public Unreal.Core.Models.FGameplayCueParameters GameplayCueParameters { get; set; }
+}
 [NetFieldExportClassNetCache("PlayerPawn_Athena_C_ClassNetCache", (ParseMode)3)]
 public class FigurCacheMitEffekt {
   [NetFieldExportRPC("ClientObservedStats", "/Script/FortniteGame.FortClientObservedStat", false, false, false)] public FortniteReplayReader.Models.NetFieldExports.FortClientObservedStat ClientObservedStats { get; set; }
   [NetFieldExportRPC("NetMulticast_Athena_BatchedDamageCues", "/Script/FortniteGame.FortPawn:NetMulticast_Athena_BatchedDamageCues", true, true, false)] public BatchedDamageCues DamageCues { get; set; }
   [NetFieldExportRPC("NetMulticast_InvokeGameplayCueAdded_WithParams", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueAdded_WithParams", true, true, false)] public GameplayCue InvokeGameplayCueAdded { get; set; }
   [NetFieldExportRPC("NetMulticast_InvokeGameplayCueExecuted_FromSpec", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", true, true, false)] public EffektCue EffektCue { get; set; }
+  [NetFieldExportRPC("NetMulticast_InvokeGameplayCueExecuted_WithParams", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_WithParams", true, true, false)] public EffektCueParam EffektCueParam { get; set; }
 }
 
 /*
