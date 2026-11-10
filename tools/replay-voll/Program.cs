@@ -170,7 +170,12 @@ if (SchadenLeser.DiagId is not null) {
   object Feld(object o, string n) { if (o is null) return null; var t = o.GetType(); while (t != null) { var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); t = t.BaseType; } return null; }
   var gc = Feld(reader, "GuidCache");
   var karte = Feld(gc, "NetFieldExportGroupMap") as System.Collections.IDictionary;
-  if (karte is null) Console.Error.WriteLine("DIAGFELDER keine Karte");
+  if (karte is null) {
+    for (var tt = reader.GetType(); tt != null; tt = tt.BaseType)
+      foreach (var m in tt.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        if (m is FieldInfo || m is PropertyInfo) { var ty = m is FieldInfo f0 ? f0.FieldType : ((PropertyInfo)m).PropertyType; if (ty.Name.Contains("Guid") || ty.Name.Contains("Export") || m.Name.Contains("Guid") || m.Name.Contains("Export")) Console.Error.WriteLine($"DIAGFELDER Mitglied {tt.Name}.{m.Name}: {ty.FullName}"); }
+    if (gc != null) foreach (var m in gc.GetType().GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) if (m is FieldInfo || m is PropertyInfo) Console.Error.WriteLine($"DIAGFELDER GC {m.Name}");
+  }
   else foreach (System.Collections.DictionaryEntry kv in karte) {
     var name = kv.Key?.ToString() ?? "";
     if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Damage|DamageCue", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
