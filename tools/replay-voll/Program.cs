@@ -95,6 +95,7 @@ var grenzeSek = int.TryParse(Environment.GetEnvironmentVariable("REPLAY_SEKUNDEN
 var wache = new System.Threading.Timer(_ => { Console.Error.WriteLine($"Zeitlimit: der Leser kam in {grenzeSek} s nicht zum Ende (Rahmen {SchadenLeser.Rahmen}, Block {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt})"); Environment.Exit(3); }, null, grenzeSek * 1000, Timeout.Infinite);
 try {
   reader = new SchadenLeser();
+  SchadenLeser.EffektEinklinken(reader);
   replay = reader.ReadReplay(datei);
   wache.Dispose();
 
@@ -239,6 +240,7 @@ if (SchadenLeser.DiagId is not null) {
       }
 }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG PARSEMODE " + string.Join(",", Enum.GetValues(typeof(ParseMode)).Cast<object>().Select(v => v + "=" + (int)v)));
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
@@ -1285,6 +1287,29 @@ class SchadenLeser : ReplayReader {
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
   public int ProjektilGezaehlt; public double ProjektilSchaden; public int EffektCues;
+  /*
+   * Die Bibliothek fuehrt je Klasse eine feste Liste der RPCs (_classNetCacheToNetFieldGroup). Fuer die Spielerfigur fehlt dort das Schadens-Ereignis der Gameplay-Effekte
+   * (NetMulticast_InvokeGameplayCueExecuted_FromSpec, mit TotalMagnitude und Verursacher) - hier wird es als vierter Eintrag ergaenzt, nach dem Vorbild der BatchedDamageCues.
+   */
+  public static bool EffektEingeklinkt;
+  public static void EffektEinklinken(object leser) {
+    try {
+      object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); } return null; }
+      var parser = F(leser, "_netFieldParser");
+      var caches = F(parser, "_classNetCacheToNetFieldGroup") as System.Collections.IDictionary;
+      var figur = caches?["PlayerPawn_Athena_C_ClassNetCache"];
+      var props = figur?.GetType().GetProperty("Properties", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(figur) as System.Collections.IDictionary;
+      if (props == null || props.Contains("NetMulticast_InvokeGameplayCueExecuted_FromSpec")) { EffektEingeklinkt = props != null; return; }
+      var vorbild = props["NetMulticast_Athena_BatchedDamageCues"];
+      var kopie = typeof(object).GetMethod("MemberwiseClone", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(vorbild, null);
+      void Setze(string n, object v) { var pr = kopie.GetType().GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr?.CanWrite == true) pr.SetValue(kopie, v); else kopie.GetType().GetField($"<{n}>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)?.SetValue(kopie, v); }
+      Setze("PropertyInfo", typeof(FigurCacheMitEffekt).GetProperty(nameof(FigurCacheMitEffekt.EffektCue)));
+      Setze("Name", "NetMulticast_InvokeGameplayCueExecuted_FromSpec");
+      Setze("PathName", "/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec");
+      props["NetMulticast_InvokeGameplayCueExecuted_FromSpec"] = kopie;
+      EffektEingeklinkt = true;
+    } catch (Exception e) { Console.Error.WriteLine("Effekt-Ereignis nicht eingeklinkt: " + e.Message); }
+  }
   static readonly double ProjektilFenster = double.TryParse(Environment.GetEnvironmentVariable("SCHADEN_FENSTER"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf) ? pf : 0.6;
   /*
    * Projektil-Treffer (Steinschleuder) als Schaden: genau der Verlust an Leben + Schild + Overshield des getroffenen Spielers im Moment des Treffers
