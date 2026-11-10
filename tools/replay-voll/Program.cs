@@ -983,6 +983,22 @@ class SchadenLeser : ReplayReader {
     // Diagnose (SCHADEN_DIAG=<Spieler-Id>, 10.11.2026): wo Treffer eines Spielers verloren gehen - Osirion zeigte bei manchen Squad-Spielern doppelt so viel Schaden.
     var diagVon = DiagId is int dg ? (Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id) : null;
     bool diag = DiagId is int dg2 && diagVon == dg2;
+    if (DiagId is not null && !FelderGezeigt) {
+      FelderGezeigt = true;
+      try {
+        object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
+        var gc = F(this, "_netGuidCache");
+        var karte = F(gc, "NetFieldExportGroupMap") as System.Collections.IDictionary;
+        Console.Error.WriteLine($"DIAGFELDER Karte waehrend des Lesens: {karte?.Count}");
+        if (karte != null) foreach (System.Collections.DictionaryEntry kv in karte) {
+          var name = kv.Key?.ToString() ?? "";
+          if (!System.Text.RegularExpressions.Regex.IsMatch(name, "Damage|FortPawn:", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+          var ex = F(kv.Value, "NetFieldExports") as System.Collections.IEnumerable; var namen = new List<string>();
+          if (ex != null) foreach (var e in ex) { var en = F(e, "Name")?.ToString(); if (!string.IsNullOrEmpty(en)) namen.Add(en); }
+          Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
+        }
+      } catch (Exception ex2) { Console.Error.WriteLine("DIAGFELDER Fehler " + ex2.Message); }
+    }
     if (diag && Zeit() is double tz0 && DiagZeiten.Any(z => tz0 >= z - 10 && tz0 <= z + 1)) {
       var zielInfo = c.HitActor is uint hz ? $"{hz}:{DiagZiel(hz)}:figur={(figurVonAkteur.TryGetValue(hz, out var fk) ? fk.ToString() : "-")}:spielerAlt={(spielerVonAkteur.TryGetValue(hz, out var sa) ? sa.ToString() : "-")}" : "kein";
       Console.Error.WriteLine($"DIAGFENSTER t={Math.Round(tz0, 2)} ziel={zielInfo} mag={c.Magnitude} npHit={c.NonPlayerHitActor} npMag={c.NonPlayerMagnitude} krit={c.bIsCritical} schild={c.bIsShield} fatal={c.bIsFatal} ball={c.bIsBallistic}");
@@ -1078,7 +1094,7 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<uint, string> kanalTyp = new();
   public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
   public readonly List<(double t, double mag, string art, uint akteur, int von)> DiagAlle = new();
-  int DiagDump;
+  int DiagDump; bool FelderGezeigt;
   static readonly double[] DiagZeiten = (Environment.GetEnvironmentVariable("SCHADEN_ZEITEN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
   /// Zu welchem Kanal ein Akteur gehoert (umgekehrt zu kanalAkteur) - nur fuer die Diagnose.
   string DiagZiel(uint akteur) {
