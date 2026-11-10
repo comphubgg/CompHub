@@ -192,6 +192,7 @@ if (SchadenLeser.DiagId is not null) {
     Console.Error.WriteLine($"DIAGFELDER {name}: {string.Join(", ", namen)}");
   }
 }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -1056,7 +1057,7 @@ class SchadenLeser : ReplayReader {
      * Spieler zum Akteur; gezaehlt wird es nur bei Figuren (Klasse mit PlayerPawn oder ohne Klasse), nicht bei Bauteilen, Fallen oder Gegenstaenden eines Spielers.
      */
     bool unsicher = false;
-    if (anId is null && Environment.GetEnvironmentVariable("SCHADEN_NEU") == "1") {
+    if (anId is null && Environment.GetEnvironmentVariable("SCHADEN_AKTEUR") == "1") {
       var klasse = pfadVonAkteur.TryGetValue(c.HitActor.Value, out var kp0) ? kp0 : null;
       if (klasse is null || klasse.Contains("PlayerPawn")) {
         var ueber = Hole(VonAkteur, c.HitActor.Value);
@@ -1122,6 +1123,15 @@ class SchadenLeser : ReplayReader {
     var treffer = new List<Unreal.Core.Models.FHitResult>();
     if (p.PawnHitResults != null) treffer.AddRange(p.PawnHitResults.Where(h => h != null));
     if (p.SimulationStoppingHit != null) treffer.Add(p.SimulationStoppingHit);
+    if (projektilSchuetze.TryGetValue(kanal, out var schuetze) && Zeit() is double tp) {
+      foreach (var h in treffer) {
+        object a = h.Actor;
+        uint? ziel = a switch { uint u => u, Unreal.Core.Models.NetworkGUID g => g.Value, _ => uint.TryParse(a?.ToString(), out var x) ? x : null };
+        // Nur Figuren von Spielern: eine Wand, ein Baum oder der Boden haben keinen Spieler.
+        if (ziel is uint z && z != 0 && spielerVonAkteur.TryGetValue(z, out var opfer) && opfer != schuetze
+            && !ProjektilTreffer.Any(q => q.zielAkteur == z && q.von == schuetze && Math.Abs(q.t - tp) < 0.05)) ProjektilTreffer.Add((tp, schuetze, z));
+      }
+    }
     if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null && (x.StartsWith("Actor") || x.StartsWith("Component") || x.StartsWith("BoneName") || x.StartsWith("PhysMat") || x.StartsWith("Item") || x.StartsWith("Hit") || x.StartsWith("Blocking")))))));
   }
   public int Nachgetragen, UeberAkteur;
@@ -1217,7 +1227,29 @@ class SchadenLeser : ReplayReader {
     var verlust = Summe(t - 0.15) - Summe(t + 0.6);
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
+  public int ProjektilGezaehlt; public double ProjektilSchaden;
+  /*
+   * Projektil-Treffer (Steinschleuder) als Schaden: genau der Verlust an Leben + Schild + Overshield des getroffenen Spielers im Moment des Treffers
+   * (0,15 s davor bis 0,6 s danach), abzueglich dessen, was gezaehlte Treffer anderer im selben Fenster schon erklaeren. Ohne Verlust kein Schaden.
+   */
+  void ProjektileEinrechnen(double? busAb) {
+    foreach (var (t, von, zielAkteur) in ProjektilTreffer.OrderBy(x => x.t)) {
+      if (busAb is not null && t < busAb) continue;
+      if (!spielerVonAkteur.TryGetValue(zielAkteur, out var an)) continue;
+      var vonTeam = teamVonSpieler.TryGetValue(von, out var tv) ? tv : null; var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
+      if (vonTeam is not null && vonTeam == anTeam) continue;
+      double Summe(double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
+      var verlust = Summe(t - 0.15) - Summe(t + 0.6);
+      var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= t + 0.6).Sum(e => e.hoehe);
+      var h = Math.Round(verlust - schonErklaert);
+      if (h <= 0) continue;
+      var fatal = Summe(t + 0.6) <= 0;
+      Liste.Add((von, an, h, false, false, t, fatal));
+      ProjektilGezaehlt++; ProjektilSchaden += h;
+    }
+  }
   public void Zaehle(double? busAb) {
+    if (Environment.GetEnvironmentVariable("SCHADEN_NEU") == "1") ProjektileEinrechnen(busAb);
     for (int i = 0; i < Liste.Count; i++) {
       var e = Liste[i];
       if (Unsicher.Contains(i)) {
