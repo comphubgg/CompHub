@@ -42,9 +42,9 @@ export const SEITEN = [
   { schluessel: 'fncs', pfad: '/fncs', name: 'FNCS', symbol: 'pokal',
     text: '<b>FNCS</b>: every final and every champion since Chapter 1.',
     lang: '<b>FNCS</b>: every final, every champion and the all-time stats - all the way back to Chapter 1.' },
-  { schluessel: 'posts', pfad: '/posts', name: 'Posts', symbol: 'liste',
-    text: '<b>Posts</b>: daily stats, records and the <b>Worst of CompHub</b>.',
-    lang: '<b>Posts</b>: daily stat posts, records and the <b>Worst of CompHub</b> - ready to share.' },
+  { schluessel: 'replays', pfad: '/replays', name: 'Replays', symbol: 'liste',
+    text: '<b>Replays</b>: every game of the finals - zones, kill feed and more.',
+    lang: '<b>Replays</b>: every game of the big finals - all zones, the full kill feed and where every fight happened.' },
 ];
 
 function drehbuch(video) {
@@ -66,7 +66,8 @@ if (process.argv.includes('--nur-screenshots')) {
     if (s.pfad.endsWith('/*')) {
       await p.goto(BASIS + s.pfad.slice(0, -2), { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
       await p.waitForTimeout(3000);
-      const href = await p.evaluate(() => [...document.querySelectorAll('a[href^="/events/"]')].map((a) => a.getAttribute('href')).find((h) => h.split('/').length === 3));
+      const href = await p.evaluate(() => [...document.querySelectorAll('a[href^="/events/"]')].map((a) => a.getAttribute('href')).find((h) => /^\/events\/[^/?#]+/.test(h ?? '')));
+      console.log('Cup-Seite:', href);
       ziel = href ? BASIS + href : BASIS + '/events';
     }
     try { await p.goto(ziel, { waitUntil: 'networkidle', timeout: 60000 }); } catch { console.log('langsam:', ziel); }
