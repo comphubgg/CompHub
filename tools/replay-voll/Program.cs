@@ -844,7 +844,7 @@ class SchadenLeser : ReplayReader {
   public override void ReadDemoFrameIntoPlaybackPackets(Unreal.Core.FArchive archive) {
     if (ReferenceEquals(archive, rahmenArchiv) && archive.Position == rahmenPos) { if (++rahmenGleich > 2) throw new InvalidOperationException("Rahmen ohne Fortschritt"); }
     else rahmenGleich = 0;
-    rahmenArchiv = archive; rahmenPos = archive.Position; Rahmen += 1;
+    rahmenArchiv = archive; rahmenPos = archive.Position; Rahmen += 1; paketeImRahmen = 0;
     rahmenStart = Environment.TickCount64;
     base.ReadDemoFrameIntoPlaybackPackets(archive);
   }
@@ -852,7 +852,15 @@ class SchadenLeser : ReplayReader {
   long rahmenStart;
   static readonly long RahmenMs = long.TryParse(Environment.GetEnvironmentVariable("RAHMEN_MS"), out var rms) ? rms : 3000;
   public static long LaengsterRahmen;
-  void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) throw new TimeoutException($"Rahmen haengt ({d} ms)"); }
+  int paketeImRahmen; long laengstesPaket; long paketeGesamt;
+  void RahmenWache() { var d = Environment.TickCount64 - rahmenStart; if (d > LaengsterRahmen) LaengsterRahmen = d; if (d > RahmenMs) throw new TimeoutException($"Rahmen haengt ({d} ms, Pakete im Rahmen {paketeImRahmen}, laengstes Paket {laengstesPaket} ms, Pakete gesamt {paketeGesamt}, Rahmen {Rahmen})"); }
+  public override void ReceivedRawPacket(ReadOnlyMemory<byte> packet) {
+    paketeImRahmen++; paketeGesamt++;
+    var t0 = Environment.TickCount64;
+    base.ReceivedRawPacket(packet);
+    var d = Environment.TickCount64 - t0; if (d > laengstesPaket) laengstesPaket = d;
+    if (d > 1000 && DiagId is not null) Console.Error.WriteLine($"PAKET langsam {d} ms, Groesse {packet.Length}, Rahmen {Rahmen}, Block {Bloecke}");
+  }
   public override void ReceivedNextBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedNextBunch(bunch); }
   public override void ReceivedRawBunch(Unreal.Core.Models.DataBunch bunch) { RahmenWache(); base.ReceivedRawBunch(bunch); }
   public override void ReceivedPacket(Unreal.Core.FBitArchive bitReader) { RahmenWache(); base.ReceivedPacket(bitReader); }
