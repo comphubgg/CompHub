@@ -214,7 +214,13 @@ if (SchadenLeser.DiagId is not null) {
           object gv = null; try { gv = g.IsStatic ? g.GetValue(null) : g.GetValue(pv); } catch { }
           var info = gv is System.Collections.IDictionary dd ? $"Dict {dd.Count}: {string.Join(" | ", dd.Keys.Cast<object>().Where(k => k.ToString().Contains("PlayerPawn_Athena_C_ClassNetCache") || k.ToString().Contains("BatchedDamage")).Take(4))}" : gv?.GetType().Name;
           Console.Error.WriteLine($"DIAGPARSER   {g.Name}: {g.FieldType.Name} -> {info}");
-          if (g.Name == "NetFieldGroups" && gv != null) { var txt = string.Join(" | ", ((System.Collections.IEnumerable)gv).Cast<object>().Select(x => x.ToString()).Where(x => x.Contains("FromSpec") || x.Contains("BatchedDamage") || x.Contains("Slingshot")).Take(5)); Console.Error.WriteLine("DIAGPARSER   NetFieldGroups mit: " + txt); }
+          if (g.Name == "NetFieldGroups" && gv != null) {
+            try {
+              foreach (var m in gv.GetType().GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) if (m is FieldInfo || m is PropertyInfo) Console.Error.WriteLine($"DIAGPARSER   KeyList.{m.Name}: {(m is FieldInfo fm ? fm.FieldType.Name : ((PropertyInfo)m).PropertyType.Name)}");
+              var schl = gv.GetType().GetField("_keys", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(gv) as System.Collections.IEnumerable;
+              if (schl != null) Console.Error.WriteLine("DIAGPARSER   NetFieldGroups mit: " + string.Join(" | ", schl.Cast<object>().Select(x => x?.ToString() ?? "").Where(x => x.Contains("FromSpec") || x.Contains("BatchedDamage") || x.Contains("Slingshot")).Take(5)));
+            } catch (Exception ex3) { Console.Error.WriteLine("DIAGPARSER   NetFieldGroups Fehler " + ex3.Message); }
+          }
           if (g.Name == "_classNetCacheToNetFieldGroup" && gv is System.Collections.IDictionary cd) {
             Console.Error.WriteLine("DIAGPARSER   Schluessel: " + string.Join(" | ", cd.Keys.Cast<object>()));
             var wert = cd["PlayerPawn_Athena_C_ClassNetCache"];
