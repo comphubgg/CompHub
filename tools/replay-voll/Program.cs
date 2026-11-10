@@ -269,6 +269,7 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFE
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.TruhenFertig().Count} geoeffnet (Kisten-Kanaele {reader.KistenKanaele}) (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.TruhenFertig().Count(k => k[5] >= 0)}, laut Spiel {reader.KistenLautSpiel}, Aufheben {reader.Loot.Count(l => l[5] == 1)}, Fallenlassen {reader.Loot.Count(l => l[5] == 0)}");
 if (SchadenLeser.DiagId is int dgt) Console.Error.WriteLine($"DIAG TRUHEN-SPIELER {dgt}: Truhen {reader.Truhen.Count(k => k[5] == dgt && k[4] == 0)}, Munition {reader.Truhen.Count(k => k[5] == dgt && k[4] == 1)}, Boden {reader.Truhen.Count(k => k[5] == dgt && k[4] == 2)}; je Spieler im Schnitt Truhen {Math.Round(reader.Truhen.Count(k => k[4] == 0) / (double)Math.Max(1, reader.Truhen.Select(k => k[5]).Distinct().Count()), 1)}");
 if (SchadenLeser.DiagId is not null) foreach (var k in reader.Truhen.Where(k => k[0] > 700 && k[5] == SchadenLeser.DiagId).Take(12)) { var n = reader.Loot.Where(l => l[5] == 1).Select(l => (dt: l[0] - k[0], d: Math.Sqrt(Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2)), wer: l[1])).Where(x => x.dt > -5 && x.dt < 30).OrderBy(x => x.d).Take(3); Console.Error.WriteLine($"DIAGTRUHE t={k[0]} x={k[1]} y={k[2]} art={k[4]} naechste: {string.Join(" ; ", n.Select(x => $"{x.wer} dt={Math.Round(x.dt, 1)} d={Math.Round(x.d)}"))}"); }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG ABBAU {reader.AbbauListe.Count} Schlaege, Kanaele {reader.AbbauListe.Select(a => a.kanal).Distinct().Count()}, Arten {string.Join(",", reader.AbbauListe.GroupBy(a => a.art).Select(g => g.Key + ":" + g.Sum(x => x.menge)))}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -409,7 +410,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
 }, Formatting.None, einst));
 }
 
@@ -756,6 +757,25 @@ class SchadenLeser : ReplayReader {
      */
     if (da && ladung < vor && name.Contains("FirePetal") && Zeit() is double tfp) firePetalSchuesse.Add((wurzel, tfp));
     if (da && ladung < vor && SchussWaffe.IsMatch(name)) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung, Zeit() ?? 0)); }
+  }
+  /*
+   * Abbau von Ressourcen (Betreiber, 10.11.2026: Mats Farmed wie Osirion): das Spiel meldet jeden Schlag auf ein Ressourcen-Objekt mit Art und Menge
+   * (FortBroadcastRemoteClientInfo:ClientRemotePlayerDamagedResourceBuilding). Der Kanal gehoert einem Spieler - welchem, zeigt das Inventar: wessen Mats binnen 1,5 s
+   * nach den Schlaegen dieses Kanals am haeufigsten steigen.
+   */
+  public readonly List<(double t, uint kanal, int art, int menge, bool zerstoert, bool schwachstelle)> AbbauListe = new();
+  public Dictionary<int, double[]> AbbauJeSpieler() {
+    var raus = new Dictionary<int, double[]>();
+    var plus = matsSchritte.Where(m => m.menge > 0).Select(m => (m.t, wer: SpielerDerWurzel(m.wurzel))).Where(m => m.wer is not null).OrderBy(m => m.t).ToList();
+    foreach (var g in AbbauListe.GroupBy(a => a.kanal)) {
+      var stimmen = new Dictionary<int, int>();
+      foreach (var a in g.Take(60)) foreach (var m in plus.Where(m => m.t >= a.t - 0.2 && m.t <= a.t + 1.5)) stimmen[m.wer.Value] = (stimmen.TryGetValue(m.wer.Value, out var v) ? v : 0) + 1;
+      if (stimmen.Count == 0) continue;
+      var wer = stimmen.OrderByDescending(x => x.Value).First().Key;
+      if (!raus.TryGetValue(wer, out var r)) raus[wer] = r = new double[4];
+      foreach (var a in g) { if (a.art >= 1 && a.art <= 3) r[a.art - 1] += a.menge; else r[3] += a.menge; }
+    }
+    return raus;
   }
   int? SpielerDerWurzel(uint wurzel) {
     if (!inventarFiguren.TryGetValue(wurzel, out var l)) return null;
@@ -1228,6 +1248,7 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.RPC.PlayerDamagedResourceBuilding prb && Zeit() is double tr0) { AbbauListe.Add((tr0, channelIndex, prb.PotentialResourceType, prb.PotentialResourceCount, prb.bDestroyed, prb.bJustHitWeakspot)); return; }
     if (TruhenFeld(exportGroup.GetType()) is PropertyInfo tf) { TruheNotieren(channelIndex, exportGroup, tf); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
