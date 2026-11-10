@@ -9,7 +9,11 @@ const unsereKills = new Map();
 if (jeDatei && fs.existsSync(jeDatei)) {
   for (const z of fs.readFileSync(jeDatei, 'utf8').split('\n')) { if (!z.trim()) continue; try { for (const [epic, zeilen] of Object.entries(JSON.parse(z))) for (const r of zeilen) unsereKills.set(`${epic.toLowerCase()}|${r[0]}`, Number(r[1]) || 0); } catch { /* */ } }
 }
-const roh = JSON.parse(fs.readFileSync(rohDatei, 'utf8'));
+// rohDatei = "aus": die Leser-Ausgaben /tmp/aus-<match>.json (mit Kill-Zaehler) statt der Rohdatei.
+const ausLeser = rohDatei === 'aus';
+const roh = ausLeser
+  ? { matches: fs.readdirSync('/tmp').filter((f) => /^aus-[0-9a-f]{32}\.json$/.test(f)).map((f) => { const d = JSON.parse(fs.readFileSync('/tmp/' + f, 'utf8')); return { id: f.slice(4, 36), spieler: d.spieler, feed: d.feed, killVerlauf: d.killVerlauf }; }) }
+  : JSON.parse(fs.readFileSync(rohDatei, 'utf8'));
 const matches = new Map((roh.matches ?? []).map((m) => [m.id, m]));
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 async function seite(nr) {
@@ -35,7 +39,8 @@ for (const e of eintraege) {
     const ids = new Set(sp.map((p) => p.id));
     const ausFeed = (m.feed ?? []).filter((f) => f.art === 'tot' && ids.has(f.taeter) && !ids.has(f.opfer)).length;
     const ausJe = epics.map((e) => unsereKills.get(`${e}|${m.id}`));
-    const unsere = unsereKills.size && ausJe.some((x) => x !== undefined) ? ausJe.reduce((a, x) => a + (x ?? 0), 0) : ausFeed;
+    const ausZaehler = m.killVerlauf ? sp.reduce((a, p) => a + (((m.killVerlauf[p.id] ?? []).slice(-1)[0] ?? [0, 0])[1]), 0) : null;
+    const unsere = ausZaehler !== null ? ausZaehler : unsereKills.size && ausJe.some((x) => x !== undefined) ? ausJe.reduce((a, x) => a + (x ?? 0), 0) : ausFeed;
     const epicKills = Number(s.trackedStats?.TEAM_ELIMS_STAT_INDEX ?? 0), epicPlatz = Number(s.trackedStats?.PLACEMENT_STAT_INDEX ?? 0);
     const unserPlatz = Math.min(...sp.map((p) => p.platz ?? 999));
     verglichen++; if (unsere === epicKills) killsGleich++; if (unserPlatz === epicPlatz) platzGleich++;

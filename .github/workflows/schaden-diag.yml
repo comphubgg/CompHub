@@ -62,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           IFS=',' read -ra E <<< "$EPIC"
-          if [ "${E[2]}" = "gegenprobe" ]; then
+          if [ "${E[2]}" = "gegenprobe-aus" ]; then echo "(nach der Diagnose)"; elif [ "${E[2]}" = "gegenprobe" ]; then
             ID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-clutch-roh" --jq ".assets[] | select(.name==\"clutch-roh__${E[1]}.json\") | .id")
             gh api -H "Accept: application/octet-stream" "repos/${{ github.repository }}/releases/assets/$ID" > /tmp/roh.json
             S=$(echo "${E[1]}" | grep -oE '^S[0-9]+' | tr 'S' 's')
@@ -102,6 +102,13 @@ jobs:
         run: |
           IFS=',' read -ra E <<< "$V"
           node scripts/epic-schaden-vergleich.mjs "${E[0]}" "${E[1]}" /tmp 2>&1 | tail -60
+      - name: Epic-Gegenprobe mit Kill-Zaehler
+        if: endsWith(inputs.epic, 'gegenprobe-aus')
+        env:
+          EPIC: ${{ inputs.epic }}
+        run: |
+          IFS=',' read -ra E <<< "$EPIC"
+          node scripts/epic-gegenprobe.mjs "${E[0]}" "${E[1]}" aus 2>&1 | tail -60
       - name: Elims wie die Seite
         run: node scripts/diag-elims.mjs 'MrSavage|F1SHYX|zyfo|M8 Rax|TEYYDINHO|Wozah|Calle|VeriSnow|SkyJump|Focus yhyh|demu|Monky|Quix 115' || true
       - name: Summen je Spieler (Damage ohne Boden, Treffer)
