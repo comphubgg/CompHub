@@ -264,6 +264,7 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laeng
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFER {reader.EffektTreffer.Count} Effekte, zugeordnet {reader.EffektZugeordnet}, gezaehlt {reader.EffektGezaehlt} mit {Math.Round(reader.EffektSchaden)} Schaden, ohne Schuetze {reader.EffektOhneSchuetze}, mehrdeutig {reader.EffektMehrdeutig}");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.Truhen.Count} geoeffnet (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.Truhen.Count(k => k[5] >= 0)}, ohne Ort {reader.TruheOhneOrt}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -367,7 +368,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   spieler, feed, zonen, zusatz,
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
+  extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe,
 }, Formatting.None, einst));
 }
 
@@ -987,6 +988,32 @@ class SchadenLeser : ReplayReader {
     return n;
   }
 
+  /*
+   * Truhen und Munitionskisten (Betreiber, 10.11.2026: Loot-Routen der Pros): wann eine Kiste geoeffnet wurde (bAlreadySearched) und wo sie steht.
+   * [Zeit, x, y, z, Art (0 Truhe, 1 Munition, 2 sonst), Oeffner (-1 = unbekannt; in TruhenFertig() aus dem ersten Aufheben daneben)].
+   */
+  public readonly List<double[]> Truhen = new();
+  readonly HashSet<uint> truheGesehen = new(); public int TruheOhneOrt;
+  static readonly Dictionary<Type, PropertyInfo> truhenFelder = new();
+  static PropertyInfo TruhenFeld(Type t) { lock (truhenFelder) { if (!truhenFelder.TryGetValue(t, out var p)) truhenFelder[t] = p = t.GetProperty("bAlreadySearched"); return p; } }
+  void TruheNotieren(uint kanal, INetFieldExportGroup g, PropertyInfo feld) {
+    if (feld.GetValue(g) is not bool offen || !offen || Zeit() is not double t) return;
+    var akteur = Channels[kanal]?.Actor; if (akteur is null) return;
+    var id = akteur.ActorNetGUID?.Value ?? kanal; if (!truheGesehen.Add(id)) return;
+    var ort = akteur.Location; if (ort is null) { TruheOhneOrt++; return; }
+    var klasse = kanalAkteur.TryGetValue(kanal, out var ak) && pfadVonAkteur.TryGetValue(ak, out var pf) ? pf ?? "" : g.GetType().Name;
+    var art = klasse.Contains("Ammo", StringComparison.OrdinalIgnoreCase) ? 1 : klasse.Contains("Chest", StringComparison.OrdinalIgnoreCase) ? 0 : 2;
+    Truhen.Add(new[] { Math.Round(t, 1), Math.Round(ort.X), Math.Round(ort.Y), Math.Round(ort.Z), art, -1 });
+  }
+  /// Wer hat die Kiste geoeffnet? Wer binnen 6 s danach in hoechstens 8 m Entfernung als Erster etwas aufhob.
+  public List<double[]> TruhenFertig() {
+    foreach (var k in Truhen) {
+      var wer = Loot.Where((l) => l[5] == 1 && l[0] >= k[0] - 0.5 && l[0] <= k[0] + 6 && Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2) < 800 * 800).OrderBy((l) => l[0]).FirstOrDefault();
+      if (wer is not null) k[5] = wer[1];
+    }
+    return Truhen;
+  }
+
   /// Aufgehoben: [Zeit, Spieler, Gegenstand, x, y, 1]; fallen gelassen: [..., 0].
   void LootNotieren(uint kanal, INetFieldExportGroup g) {
     if (Zeit() is not double t) return;
@@ -1126,6 +1153,7 @@ class SchadenLeser : ReplayReader {
       return;
     }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
+    if (TruhenFeld(exportGroup.GetType()) is PropertyInfo tf) { TruheNotieren(channelIndex, exportGroup, tf); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
     if (exportGroup is not BatchedDamageCues c) return;
