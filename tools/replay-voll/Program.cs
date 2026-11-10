@@ -995,6 +995,7 @@ class SchadenLeser : ReplayReader {
       }
       return;
     }
+    if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0); return; }
     if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
@@ -1109,6 +1110,20 @@ class SchadenLeser : ReplayReader {
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
   public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal)> Liste = new();
+  /// Schuetze je Projektil-Kanal und die Treffer der Projektile: (Zeit, Schuetze, getroffene Figur als Akteur).
+  readonly Dictionary<uint, int> projektilSchuetze = new();
+  public readonly List<(double t, int von, uint zielAkteur)> ProjektilTreffer = new();
+  void SchleuderNotieren(uint kanal, SchleuderProjektil p) {
+    if (p.Instigator is uint ins && ins != 0) {
+      var wer = figurVonAkteur.TryGetValue(ins, out var fk) ? Hole(VonFigur, fk)?.Id : null;
+      wer ??= spielerVonAkteur.TryGetValue(ins, out var sv) ? sv : null;
+      if (wer is int w) projektilSchuetze[kanal] = w;
+    }
+    var treffer = new List<Unreal.Core.Models.FHitResult>();
+    if (p.PawnHitResults != null) treffer.AddRange(p.PawnHitResults.Where(h => h != null));
+    if (p.SimulationStoppingHit != null) treffer.Add(p.SimulationStoppingHit);
+    if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null).Take(10)))));
+  }
   public int Nachgetragen, UeberAkteur;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
@@ -1358,6 +1373,19 @@ class Erkunder : ReplayReader {
       foreach (var p in kv.Value) { var j = JsonConvert.SerializeObject(p, Formatting.None, einst); Console.WriteLine("   " + (j.Length > 700 ? j[..700] + "..." : j)); }
     }
   }
+}
+
+/*
+ * Das Projektil der Steinschleuder (10.11.2026): ihr Treffer erzeugt keinen BatchedDamageCues-Eintrag - MrSavage fehlten so 56 % Damage gegen Osirion.
+ * Instigator ist die Figur des Schuetzen, PawnHitResults die getroffenen Figuren.
+ */
+[NetFieldExportGroup("/HarmlessThriftWeaponGameplay/Gameplay/HarmlessThrift_Slingshot/B_Prj_Delilah_Slingshot_HarmlessThrift_Athena.B_Prj_Delilah_Slingshot_HarmlessThrift_Athena_C", ParseMode.Full)]
+public class SchleuderProjektil : INetFieldExportGroup {
+  [NetFieldExport("Owner", RepLayoutCmdType.PropertyObject)] public uint? Owner { get; set; }
+  [NetFieldExport("Instigator", RepLayoutCmdType.PropertyObject)] public uint? Instigator { get; set; }
+  [NetFieldExport("ChargePercent", RepLayoutCmdType.PropertyFloat)] public float? ChargePercent { get; set; }
+  [NetFieldExport("PawnHitResults", RepLayoutCmdType.DynamicArray)] public Unreal.Core.Models.FHitResult[] PawnHitResults { get; set; }
+  [NetFieldExport("SimulationStoppingHit", RepLayoutCmdType.Property)] public Unreal.Core.Models.FHitResult SimulationStoppingHit { get; set; }
 }
 
 /* Das neue Inventar (siehe SchadenLeser): die Gegenstaende eines Spielers und die Wurzel, die sagt, zu welcher Figur es gehoert. */
