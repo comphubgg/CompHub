@@ -352,7 +352,9 @@ if (arg[0] === '--plan') {
       // Fassung 14 (10.11.2026): Treffer auf schon Umgehauene zaehlen nicht, der Knock gehoert nur einem Treffer davor.
       // Fassung 15 (10.11.2026): Endlosschleife der Lese-Bibliothek abgefangen - ganze Matches (zyfos drittes Spiel) oder einzelne Datenbloecke fehlten still.
       // Deshalb die ganze Woche neu (alle Spieltage bis 9.000 Matches).
-      || ((da.schadenFassung ?? 0) < 15 && f.ids.size <= 9000));
+      || ((da.schadenFassung ?? 0) < 15 && f.ids.size <= 9000)
+      // Fassung 16 (10.11.2026): wie 15 - zwischendurch lief eine nicht bewiesene FirePetal-Zuordnung mit, deshalb noch einmal sauber.
+      || ((da.schadenFassung ?? 0) < 16 && f.ids.size <= 9000));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     /*
      * "Ohne Replay" ist kein Endurteil (Betreiber, 10.11.2026: zyfos Match galt als ohne Replay und liess sich am Morgen problemlos laden). In den ersten drei Tagen
