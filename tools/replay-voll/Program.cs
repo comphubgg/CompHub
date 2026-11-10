@@ -203,6 +203,20 @@ if (SchadenLeser.DiagId is not null) {
     }
   }
 }
+if (SchadenLeser.DiagId is not null) {
+  for (var tt = reader.GetType(); tt != null; tt = tt.BaseType)
+    foreach (var f in tt.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+      if (f.FieldType.Name.Contains("Parser") || f.Name.Contains("arser")) {
+        var pv = f.IsStatic ? f.GetValue(null) : f.GetValue(reader);
+        Console.Error.WriteLine($"DIAGPARSER Feld {tt.Name}.{f.Name}: {f.FieldType.FullName}");
+        if (pv == null) continue;
+        foreach (var g in pv.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)) {
+          object gv = null; try { gv = g.IsStatic ? g.GetValue(null) : g.GetValue(pv); } catch { }
+          var info = gv is System.Collections.IDictionary dd ? $"Dict {dd.Count}: {string.Join(" | ", dd.Keys.Cast<object>().Where(k => k.ToString().Contains("PlayerPawn_Athena_C_ClassNetCache") || k.ToString().Contains("BatchedDamage")).Take(4))}" : gv?.GetType().Name;
+          Console.Error.WriteLine($"DIAGPARSER   {g.Name}: {g.FieldType.Name} -> {info}");
+        }
+      }
+}
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG PARSEMODE " + string.Join(",", Enum.GetValues(typeof(ParseMode)).Cast<object>().Select(v => v + "=" + (int)v)));
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
