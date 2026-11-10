@@ -169,7 +169,13 @@ if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
   object Feld(object o, string n) { if (o is null) return null; var t = o.GetType(); while (t != null) { var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); t = t.BaseType; } return null; }
   var gc = Feld(reader, "GuidCache") ?? Feld(reader, "_netGuidCache");
-  var karte = Feld(gc, "NetFieldExportGroupMap") as System.Collections.IDictionary;
+  if (gc != null) foreach (var m in gc.GetType().GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)) {
+    if (m is not FieldInfo && m is not PropertyInfo) continue;
+    object v = null; try { v = m is FieldInfo fx ? fx.GetValue(gc) : ((PropertyInfo)m).GetValue(gc); } catch { }
+    Console.Error.WriteLine($"DIAGFELDER GC {m.Name}: {v?.GetType().Name} {(v is System.Collections.ICollection cc ? cc.Count.ToString() : "")}");
+  }
+  System.Collections.IDictionary karte = null;
+  foreach (var kandidat in new[] { "NetFieldExportGroupMap", "NetFieldExportGroupMapPathFixed", "NetFieldExportGroupIndexToGroup" }) { var k0 = Feld(gc, kandidat) as System.Collections.IDictionary; if (k0 != null && k0.Count > 0) { karte = k0; break; } }
   if (karte is null) {
     for (var tt = reader.GetType(); tt != null; tt = tt.BaseType)
       foreach (var m in tt.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
