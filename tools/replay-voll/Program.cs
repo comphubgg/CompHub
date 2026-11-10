@@ -265,8 +265,8 @@ if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laeng
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFER {reader.EffektTreffer.Count} Effekte, zugeordnet {reader.EffektZugeordnet}, gezaehlt {reader.EffektGezaehlt} mit {Math.Round(reader.EffektSchaden)} Schaden, ohne Schuetze {reader.EffektOhneSchuetze}, mehrdeutig {reader.EffektMehrdeutig}");
-if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.TruhenFertig().Count} geoeffnet (bei t=0: {reader.Truhen.Count(k => k[0] < 1)}) (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.TruhenFertig().Count(k => k[5] >= 0)}, laut Spiel {reader.KistenLautSpiel}, Aufheben {reader.Loot.Count(l => l[5] == 1)}, Fallenlassen {reader.Loot.Count(l => l[5] == 0)}");
-if (SchadenLeser.DiagId is not null) foreach (var k in reader.Truhen.Where(k => k[0] > 700).Take(8)) { var n = reader.Loot.Where(l => l[5] == 1).Select(l => (dt: l[0] - k[0], d: Math.Sqrt(Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2)), wer: l[1])).Where(x => x.dt > -5 && x.dt < 30).OrderBy(x => x.d).Take(3); Console.Error.WriteLine($"DIAGTRUHE t={k[0]} x={k[1]} y={k[2]} art={k[4]} naechste: {string.Join(" ; ", n.Select(x => $"{x.wer} dt={Math.Round(x.dt, 1)} d={Math.Round(x.d)}"))}"); }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.TruhenFertig().Count} geoeffnet (Kisten-Kanaele {reader.KistenKanaele}) (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.TruhenFertig().Count(k => k[5] >= 0)}, laut Spiel {reader.KistenLautSpiel}, Aufheben {reader.Loot.Count(l => l[5] == 1)}, Fallenlassen {reader.Loot.Count(l => l[5] == 0)}");
+if (SchadenLeser.DiagId is not null) foreach (var k in reader.Truhen.Where(k => k[0] > 700 && k[5] == 267).Take(12)) { var n = reader.Loot.Where(l => l[5] == 1).Select(l => (dt: l[0] - k[0], d: Math.Sqrt(Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2)), wer: l[1])).Where(x => x.dt > -5 && x.dt < 30).OrderBy(x => x.d).Take(3); Console.Error.WriteLine($"DIAGTRUHE t={k[0]} x={k[1]} y={k[2]} art={k[4]} naechste: {string.Join(" ; ", n.Select(x => $"{x.wer} dt={Math.Round(x.dt, 1)} d={Math.Round(x.d)}"))}"); }
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.Diag) Console.Error.WriteLine($"DIAG {kv.Key}: {kv.Value.Item1} Treffer, {Math.Round(kv.Value.Item2)} Schaden");
 if (SchadenLeser.DiagId is int diagId) {
@@ -1006,31 +1006,29 @@ class SchadenLeser : ReplayReader {
     // Truhen stehen fest in der Karte und haben im Replay keinen Ort - gezaehlt wird hier nur, wie viele das Spiel als geoeffnet meldet (Gegenprobe zu den Kisten aus dem Loot).
     KistenLautSpiel++;
   }
-  public int KistenLautSpiel; int pickupDruck, kistenDruck;
-  readonly HashSet<uint> kistenKanal = new();
+  public int KistenLautSpiel; int pickupDruck, kistenDruck; public int KistenKanaele => kistenKanal.Count;
+  readonly HashSet<uint> kistenKanal = new(); readonly List<uint> lootKanal = new();
   readonly List<(double t, double x, double y, double z, string name)> kistenStuecke = new();
   /// Wer hat die Kiste geoeffnet? Wer binnen 6 s danach in hoechstens 8 m Entfernung als Erster etwas aufhob.
   /// Tode (Zeit, x, y): was dort zugleich herausfliegt, ist das Inventar des Toten, keine Kiste.
   public List<(double t, double x, double y)> Tode = new();
   bool truhenFertig;
   public List<double[]> TruhenFertig() {
-    if (!truhenFertig && kistenStuecke.Count > 0) {
+    if (!truhenFertig) {
       truhenFertig = true;
-      // Was zugleich (2,5 s) an einer Stelle (6,5 m) aus einer Kiste fliegt, kam aus derselben Kiste - ihr Ort ist der Startpunkt des Wurfs.
-      var gruppen = new List<(double t, double x, double y, double z, bool waffe)>();
-      foreach (var st in kistenStuecke.OrderBy((x) => x.t)) {
-        var waffe = st.name.StartsWith("WID_", StringComparison.OrdinalIgnoreCase);
-        var i = gruppen.FindLastIndex((g) => st.t - g.t < 2.5 && Math.Pow(g.x - st.x, 2) + Math.Pow(g.y - st.y, 2) < 650 * 650);
-        if (i >= 0) { if (waffe) gruppen[i] = gruppen[i] with { waffe = true }; continue; }
-        gruppen.Add((st.t, st.x, st.y, st.z, waffe));
+      /*
+       * Eine Kiste = ein Spieler hebt binnen 4 s an einer Stelle (7 m) Gegenstaende auf, die aus einer Kiste geworfen wurden. Ort = wo er sie aufhob (die Kiste steht
+       * zwei, drei Meter daneben), Zeit = kurz vor dem ersten Aufheben, Oeffner = er. Mit Waffe darin eine Truhe, sonst eine Munitionskiste.
+       */
+      var stuecke = Loot.Select((l, i) => (l, k: lootKanal[i])).Where((x) => x.l[5] == 1 && kistenKanal.Contains(x.k)).OrderBy((x) => x.l[0]).ToList();
+      var gruppen = new List<(double t, double x, double y, double z, int wer, bool waffe, double letzte)>();
+      foreach (var (l, _) in stuecke) {
+        var waffe = LootNamen[(int)l[2]].StartsWith("WID_", StringComparison.OrdinalIgnoreCase);
+        var i = gruppen.FindLastIndex((g) => g.wer == (int)l[1] && l[0] - g.letzte < 4 && Math.Pow(g.x - l[3], 2) + Math.Pow(g.y - l[4], 2) < 700 * 700);
+        if (i >= 0) { var g = gruppen[i]; gruppen[i] = g with { waffe = g.waffe || waffe, letzte = l[0] }; continue; }
+        gruppen.Add((l[0], l[3], l[4], l.Length > 6 ? l[6] : 0, (int)l[1], waffe, l[0]));
       }
-      gruppen.RemoveAll((g) => Tode.Any((d) => Math.Abs(d.t - g.t) < 3 && Math.Pow(d.x - g.x, 2) + Math.Pow(d.y - g.y, 2) < 800 * 800));
-      foreach (var g in gruppen) Truhen.Add(new[] { Math.Round(g.t, 1), Math.Round(g.x), Math.Round(g.y), Math.Round(g.z), g.waffe ? 0 : 1, -1 });
-    }
-    foreach (var k in Truhen) {
-      if (k[5] >= 0) continue;
-      var wer = Loot.Where((l) => l[5] == 1 && l[0] >= k[0] - 0.5 && l[0] <= k[0] + 6 && Math.Pow(l[3] - k[1], 2) + Math.Pow(l[4] - k[2], 2) < 800 * 800).OrderBy((l) => l[0]).FirstOrDefault();
-      if (wer is not null) k[5] = wer[1];
+      foreach (var g in gruppen) Truhen.Add(new[] { Math.Round(Math.Max(0, g.t - 0.5), 1), Math.Round(g.x), Math.Round(g.y), Math.Round(g.z), g.waffe ? 0 : 1, g.wer });
     }
     return Truhen;
   }
@@ -1047,10 +1045,8 @@ class SchadenLeser : ReplayReader {
     var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
     if (name is not null) lootNameVonKanal[kanal] = name;
     else lootNameVonKanal.TryGetValue(kanal, out name);
-    // Aus einer Kiste geworfen: der Ort, an dem es liegt (ReplicatedMovement), ist hoechstens zwei, drei Meter von der Kiste entfernt.
-    if (Wert("bTossedFromContainer") is bool raus && raus && Wert("PawnWhoDroppedPickup") is null
-        && (Wert("LootInitialPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm ? rm.Location : null) ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start && kistenKanal.Add(kanal))
-      kistenStuecke.Add((t, start.X, start.Y, start.Z, name ?? ""));
+    // Aus einer Kiste geworfen (das Kennzeichen kommt im Replay oft erst spaeter, zeitlich und oertlich unbrauchbar - nur das Kennzeichen je Kanal zaehlt).
+    if (Wert("bTossedFromContainer") is bool raus && raus) kistenKanal.Add(kanal);
     var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm2 ? rm2.Location : null)) as Unreal.Core.Models.FVector;
     if (lage is not null) lootLageVonKanal[kanal] = lage;
     else lootLageVonKanal.TryGetValue(kanal, out lage);
@@ -1060,7 +1056,7 @@ class SchadenLeser : ReplayReader {
       if (!spielerVonAkteur.TryGetValue(Convert.ToUInt32(akteur), out var sid)) return;
       var schluessel = $"{kanal}|{akteur}|{auf}|{name}";
       if (!lootGesehen.Add(schluessel)) return;
-      Loot.Add(new[] { Math.Round(t, 1), sid, LootNr(name), Math.Round(lage.X), Math.Round(lage.Y), auf, Math.Round(lage.Z) });
+      Loot.Add(new[] { Math.Round(t, 1), sid, LootNr(name), Math.Round(lage.X), Math.Round(lage.Y), auf, Math.Round(lage.Z) }); lootKanal.Add(kanal);
       if (auf == 1) OrtNotieren(sid, t, lage.X, lage.Y, lage.Z);
     }
     Eintrag(Wert("PickupTarget"), 1);
