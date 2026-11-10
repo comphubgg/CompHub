@@ -1215,6 +1215,7 @@ class SchadenLeser : ReplayReader {
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
   /// Wer hat umgehauen: (Opfer, Zeit) -> Spieler (Kill-Feed, FinisherOrDowner).
   public readonly Dictionary<(int, double), int> Knocker = new();
+  readonly HashSet<(int, double)> VerbrauchteKnocks = new();
   /*
    * Der Schuss, der umhaut, traf einen stehenden Gegner: er steht im Replay aber fast zeitgleich mit dem Knock und galt deshalb als "am Boden" (6.11.2026). Im Trios-Match waren das 48 %
    * der aussortierten Treffer; beim Performance Cup fehlten uns gegen Osirion genau 50 %. Solo aendert sich nicht, dort gibt es keine Knocks.
@@ -1338,7 +1339,12 @@ class SchadenLeser : ReplayReader {
       // Haut der Treffer um, springt das Leben danach auf den Boden-Wert: dann zaehlt alles, was er bis zum Knock noch hatte (wie der Knock-Schuss bei Osirion).
       // Nur wenn der Kill-Feed genau diesen Schuetzen als Knocker nennt.
       var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.15 && z.ab <= t + ProjektilFenster && Knocker.TryGetValue((an, Math.Round(z.ab, 2)), out var kv) && kv == von).Select(z => (double?)z.ab).FirstOrDefault() : null;
-      var verlust = knock is double kab ? Summe(t - 0.15) : Summe(t - 0.15) - Summe(t + ProjektilFenster);
+      // Der Knock gehoert dem Schuss, der ihn ausloest: kommt vor dem Knock noch ein Projektil desselben Schuetzen auf dasselbe Opfer, ist dieser hier ein gewoehnlicher Treffer.
+      if (knock is double kn && (VerbrauchteKnocks.Contains((an, kn)) || ProjektilTreffer.Any(q => q.von == von && q.t > t && q.t <= kn + 0.05 && spielerVonAkteur.TryGetValue(q.zielAkteur, out var qa) && qa == an))) knock = null;
+      if (knock is double kn2) VerbrauchteKnocks.Add((an, kn2));
+      var naechsterKnock = AmBoden.TryGetValue(an, out var bz2) ? bz2.Where(z => z.ab > t && z.ab <= t + ProjektilFenster).Select(z => (double?)z.ab).FirstOrDefault() : null;
+      var ende = Math.Min(t + ProjektilFenster, (naechsterKnock ?? double.MaxValue) - 0.05);
+      var verlust = knock is double kab ? Summe(t - 0.15) : Summe(t - 0.15) - Summe(ende);
       var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= (knock ?? t + ProjektilFenster)).Sum(e => e.hoehe);
       var h = Math.Round(verlust - schonErklaert);
       if (h <= 0) continue;
