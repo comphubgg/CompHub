@@ -103,3 +103,5 @@ tools/intro/three
 tools/intro/bilder/
 tools/intro/frames/
 tools/intro/*.mp4
+tools/intro/frames-*/
+tools/intro/fertig/
