@@ -203,6 +203,7 @@ if (SchadenLeser.DiagId is not null) {
     }
   }
 }
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG PARSEMODE " + string.Join(",", Enum.GetValues(typeof(ParseMode)).Cast<object>().Select(v => v + "=" + (int)v)));
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG UNSICHER bestaetigt {reader.UnsicherBestaetigt}, verworfen {reader.UnsicherVerworfen}");
@@ -1434,14 +1435,14 @@ class Erkunder : ReplayReader {
  * Schaden ueber Gameplay-Effekte (10.11.2026): Feuer und andere Effekte melden den Schaden beim Opfer mit genauem Betrag (TotalMagnitude) und Verursacher
  * (EffectContext). Die Bibliothek liest bei der Spielerfigur nur drei Ereignisarten - hier dieselben drei plus diese.
  */
-[NetFieldExportGroup("/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", ParseMode.Full)]
+[NetFieldExportGroup("/Script/FortniteGame.FortPawn:NetMulticast_InvokeGameplayCueExecuted_FromSpec", (ParseMode)3)]
 public class EffektCue : INetFieldExportGroup {
   [NetFieldExport("Def", RepLayoutCmdType.PropertyObject)] public uint? Def { get; set; }
   [NetFieldExport("AttributeName", RepLayoutCmdType.PropertyString)] public string AttributeName { get; set; }
   [NetFieldExport("TotalMagnitude", RepLayoutCmdType.PropertyFloat)] public float? TotalMagnitude { get; set; }
   [NetFieldExport("EffectContext", RepLayoutCmdType.Property)] public Unreal.Core.Models.FGameplayEffectContextHandle EffectContext { get; set; }
 }
-[NetFieldExportClassNetCache("PlayerPawn_Athena_C_ClassNetCache", ParseMode.Full)]
+[NetFieldExportClassNetCache("PlayerPawn_Athena_C_ClassNetCache", (ParseMode)3)]
 public class FigurCacheMitEffekt {
   [NetFieldExportRPC("ClientObservedStats", "/Script/FortniteGame.FortClientObservedStat", false, false, false)] public FortniteReplayReader.Models.NetFieldExports.FortClientObservedStat ClientObservedStats { get; set; }
   [NetFieldExportRPC("NetMulticast_Athena_BatchedDamageCues", "/Script/FortniteGame.FortPawn:NetMulticast_Athena_BatchedDamageCues", true, true, false)] public BatchedDamageCues DamageCues { get; set; }
