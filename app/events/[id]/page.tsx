@@ -1539,7 +1539,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
     // Feste Namen, wo es welche gibt - die Globals: Kumulativ, Day 1, Day 2.
     if (tage.length && tage.every((f) => f.anzeige)) {
-      return tage.map((f) => ({ finale: f.istFinale, haupt: t(f.anzeige ?? ''), neben: '' }));
+      // Die letzte Runde eines Events ist dessen Finale ("Event1Round2" bei zwei Runden) - Epic kennzeichnet das nicht (Betreiber, 10.11.2026: "sag ob Finale oder nicht").
+      const letzteRunde = new Map<string, number>();
+      for (const f of tage) { const m = /Event(\d+)Round(\d+)/i.exec(f.windowId); if (m) letzteRunde.set(m[1], Math.max(letzteRunde.get(m[1]) ?? 0, Number(m[2]))); }
+      return tage.map((f) => {
+        const m = /Event(\d+)Round(\d+)/i.exec(f.windowId);
+        const finale = f.istFinale || (!!m && Number(m[2]) > 1 && Number(m[2]) === letzteRunde.get(m[1]));
+        return { finale, haupt: t(f.anzeige ?? ''), neben: finale ? t('Finale') : '' };
+      });
     }
 
     /*

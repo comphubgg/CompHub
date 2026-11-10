@@ -1,38 +1,67 @@
-# Das CompHub-Intro als MP4 (Betreiber, 10.11.2026): das Logo als 3D-Tierchen springt durch alle Seiten.
-# Screenshots der Live-Seite, die 3D-Szene (tools/intro/szene.html) Bild fuer Bild, dann MP4 - abgelegt im Release "medien".
+# CompHub-Videos (Betreiber, 10.11.2026): das Logo-Maennchen springt durch die Seiten und erklaert sie.
+# Je Seite ein Video, dazu das Intro und ein langes Erklaervideo - jeweils quer (YouTube) und hoch (TikTok). Abgelegt im Release "medien".
 name: Intro-Video
 on:
   workflow_dispatch:
     inputs:
-      fps:
-        description: Bilder je Sekunde
+      videos:
+        description: 'Videos, Komma-getrennt (leer = alle): intro, erklaer, seite-home, seite-streams, seite-rankings, seite-events, seite-cup, seite-statistics, seite-tierlist, seite-maps, seite-fncs, seite-posts'
         required: false
-        default: '30'
+        default: ''
+      formate:
+        description: 'quer, hoch oder beide'
+        required: false
+        default: 'quer,hoch'
 permissions:
   contents: write
 jobs:
-  video:
+  screenshots:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
+    outputs:
+      liste: ${{ steps.l.outputs.liste }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
+        with: { node-version: '22', cache: npm }
+      - run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - run: node tools/intro/aufnehmen.mjs --nur-screenshots
+      - uses: actions/upload-artifact@v4
+        with: { name: bilder, path: tools/intro/bilder }
+      - id: l
+        env:
+          V: ${{ inputs.videos }}
+          F: ${{ inputs.formate }}
+        run: |
+          [ -z "$V" ] && V="intro,erklaer,seite-home,seite-streams,seite-rankings,seite-events,seite-cup,seite-statistics,seite-tierlist,seite-maps,seite-fncs,seite-posts"
+          node -e "const v=process.argv[1].split(',').map(s=>s.trim()).filter(Boolean),f=process.argv[2].split(',').map(s=>s.trim()).filter(Boolean);console.log('liste='+JSON.stringify(v.flatMap(a=>f.map(b=>({video:a,format:b})))))" "$V" "$F" >> "$GITHUB_OUTPUT"
+  video:
+    needs: screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        job: ${{ fromJSON(needs.screenshots.outputs.liste) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
       - run: npm ci --no-audit --no-fund
-      - name: three.js und Browser
+      - uses: actions/download-artifact@v4
+        with: { name: bilder, path: tools/intro/bilder }
+      - name: three.js, Browser, ffmpeg
         run: |
           mkdir -p /tmp/three && cd /tmp/three && npm init -y >/dev/null && npm i three@0.170.0 --no-audit --no-fund
           ln -sfn /tmp/three/node_modules/three "$GITHUB_WORKSPACE/tools/intro/three"
           cd "$GITHUB_WORKSPACE" && npx playwright install --with-deps chromium
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
-      - name: Aufnehmen
-        run: node tools/intro/aufnehmen.mjs --fps "${{ inputs.fps }}" --aus /tmp/comphub-intro.mp4
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - name: Rendern
+        run: node tools/intro/aufnehmen.mjs --video "${{ matrix.job.video }}" --format "${{ matrix.job.format }}" --aus "/tmp/comphub-${{ matrix.job.video }}-${{ matrix.job.format }}.mp4"
       - name: Ablegen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view medien >/dev/null 2>&1 || gh release create medien --title "Medien" --notes "Videos und Bilder fuer Posts" --prerelease
-          gh release upload medien /tmp/comphub-intro.mp4 --clobber
-          ls -la /tmp/comphub-intro.mp4
+          gh release view medien >/dev/null 2>&1 || gh release create medien --title "Medien" --notes "Videos und Bilder fuer Posts" --prerelease || true
+          gh release upload medien "/tmp/comphub-${{ matrix.job.video }}-${{ matrix.job.format }}.mp4" --clobber
