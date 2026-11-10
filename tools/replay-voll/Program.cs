@@ -1351,6 +1351,7 @@ class SchadenLeser : ReplayReader {
       var fatal = knock is not null || Summe(t + ProjektilFenster) <= 0;
       Liste.Add((von, an, h, false, false, t, fatal));
       ProjektilGezaehlt++; ProjektilSchaden += h;
+      if (DiagId is int dgp && dgp == von) Console.Error.WriteLine($"DIAGPRJTREFFER t={Math.Round(t, 2)} an={an} h={h} knock={knock} vor={Math.Round(Summe(t - 0.15))} nach={Math.Round(Summe(ende))} erklaert={Math.Round(schonErklaert)} leben={WertVor(Leben, an, t - 0.15, -1)} schild={WertVor(Schild, an, t - 0.15, -1)} ueber={WertVor(Ueberschild, an, t - 0.15, -1)}");
     }
   }
   public void Zaehle(double? busAb) {
