@@ -929,6 +929,14 @@ class SchadenLeser : ReplayReader {
 
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     if (DiagId is not null) kanalTyp[channelIndex] = exportGroup.GetType().Name;
+    if (DiagId is not null && Zeit() is double tw && DiagZeiten.Any(z => tw >= z - 2.5 && tw <= z + 0.3)) {
+      var wem = Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id;
+      var nm = exportGroup.GetType().Name;
+      if (nm != "PlayerPawn" || wem is not null) {
+        var teile = exportGroup.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(exportGroup); } catch { return null; } if (v is null || v is false || (v is int iv && iv == 0) || (v is uint uv && uv == 0)) return null; var sv = v.ToString(); return pp.Name + "=" + (sv.Length > 60 ? sv[..60] : sv); }).Where(x => x is not null).Take(12);
+        Console.Error.WriteLine($"DIAGEXPORT t={Math.Round(tw, 2)} k={channelIndex} spieler={wem} {nm}: {string.Join(" ", teile)}");
+      }
+    }
     base.OnExportRead(channelIndex, exportGroup);
     if (exportGroup.GetType().Name == "GameState") {
       foreach (var f in BusFelder) {
