@@ -167,6 +167,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
 }
 reader.Zaehle(busAb);
 if (SchadenLeser.DiagId is int pruefId) reader.Pruefbericht(pruefId, busAb);
+if (SchadenLeser.DiagId is not null) reader.FelderZeigen("ClientRemote|HitMarker|DamagedResource|Harvest|Marker");
 reader.Tode = replay.KillFeed.Where(k => !k.IsDowned && !k.IsRevived && k.DeathLocation is not null).Select(k => (k.ReplicatedWorldTimeSecondsDouble ?? 0, (double)k.DeathLocation.X, (double)k.DeathLocation.Y)).ToList();
 if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
@@ -1500,6 +1501,21 @@ class SchadenLeser : ReplayReader {
    * Die Bibliothek fuehrt je Klasse eine feste Liste der RPCs (_classNetCacheToNetFieldGroup). Fuer die Spielerfigur fehlt dort das Schadens-Ereignis der Gameplay-Effekte
    * (NetMulticast_InvokeGameplayCueExecuted_FromSpec, mit TotalMagnitude und Verursacher) - hier wird es als vierter Eintrag ergaenzt, nach dem Vorbild der BatchedDamageCues.
    */
+  /// Diagnose: alle Feld-Gruppen, die das Replay bis zum Ende angelegt hat und deren Name passt - mit ihren Feldern.
+  public void FelderZeigen(string muster) {
+    try {
+      object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
+      var karte = F(F(this, "_netGuidCache"), "NetFieldExportGroupMap") as System.Collections.IDictionary;
+      Console.Error.WriteLine($"FELDENDE Gruppen insgesamt: {karte?.Count}");
+      if (karte != null) foreach (System.Collections.DictionaryEntry kv in karte) {
+        var name = kv.Key?.ToString() ?? "";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(name, muster, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) continue;
+        var ex = F(kv.Value, "NetFieldExports") as System.Collections.IEnumerable; var namen = new List<string>();
+        if (ex != null) foreach (var e in ex) { var en = F(e, "Name")?.ToString(); if (!string.IsNullOrEmpty(en)) namen.Add(en); }
+        Console.Error.WriteLine($"FELDENDE {name}: {string.Join(", ", namen)}");
+      }
+    } catch (Exception e) { Console.Error.WriteLine("FELDENDE Fehler " + e.Message); }
+  }
   public static bool EffektEingeklinkt;
   public readonly Dictionary<string, int> EffektArten = new();
   int EffektDruck, EffektParamDruck; public int EffektParams; public readonly Dictionary<string, int> EffektTags = new();
