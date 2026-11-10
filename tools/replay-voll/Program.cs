@@ -159,7 +159,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   var liste = new List<(double, double)>(); double? ab = null;
   foreach (var k in g.OrderBy(k => k.ReplicatedWorldTimeSecondsDouble ?? 0)) {
     var t = k.ReplicatedWorldTimeSecondsDouble ?? 0;
-    if (k.IsDowned && !k.IsRevived) { ab ??= t; continue; }
+    if (k.IsDowned && !k.IsRevived) { if (ab is null && k.FinisherOrDowner is int kd) reader.Knocker[(g.Key, Math.Round(t, 2))] = kd; ab ??= t; continue; }
     if (ab is not null) { liste.Add((ab.Value, t)); ab = null; }
   }
   if (ab is not null) liste.Add((ab.Value, double.MaxValue));
@@ -1334,7 +1334,8 @@ class SchadenLeser : ReplayReader {
       if (vonTeam is not null && vonTeam == anTeam) continue;
       double Summe(double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
       // Haut der Treffer um, springt das Leben danach auf den Boden-Wert: dann zaehlt alles, was er bis zum Knock noch hatte (wie der Knock-Schuss bei Osirion).
-      var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.15 && z.ab <= t + ProjektilFenster).Select(z => (double?)z.ab).FirstOrDefault() : null;
+      // Nur wenn der Kill-Feed genau diesen Schuetzen als Knocker nennt.
+      var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.15 && z.ab <= t + ProjektilFenster && Knocker.TryGetValue((an, Math.Round(z.ab, 2)), out var kv) && kv == von).Select(z => (double?)z.ab).FirstOrDefault() : null;
       var verlust = knock is double kab ? Summe(t - 0.15) : Summe(t - 0.15) - Summe(t + ProjektilFenster);
       var schonErklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.15 && et <= (knock ?? t + ProjektilFenster)).Sum(e => e.hoehe);
       var h = Math.Round(verlust - schonErklaert);
