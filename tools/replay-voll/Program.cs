@@ -166,6 +166,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
+reader.Tode = replay.KillFeed.Where(k => !k.IsDowned && !k.IsRevived && k.DeathLocation is not null).Select(k => (k.ReplicatedWorldTimeSecondsDouble ?? 0, (double)k.DeathLocation.X, (double)k.DeathLocation.Y)).ToList();
 if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
   object Feld(object o, string n) { if (o is null) return null; var t = o.GetType(); while (t != null) { var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); t = t.BaseType; } return null; }
@@ -1008,8 +1009,12 @@ class SchadenLeser : ReplayReader {
   readonly HashSet<uint> kistenKanal = new();
   readonly List<(double t, double x, double y, double z, string name)> kistenStuecke = new();
   /// Wer hat die Kiste geoeffnet? Wer binnen 6 s danach in hoechstens 8 m Entfernung als Erster etwas aufhob.
+  /// Tode (Zeit, x, y): was dort zugleich herausfliegt, ist das Inventar des Toten, keine Kiste.
+  public List<(double t, double x, double y)> Tode = new();
+  bool truhenFertig;
   public List<double[]> TruhenFertig() {
-    if (Truhen.Count == 0 && kistenStuecke.Count > 0) {
+    if (!truhenFertig && kistenStuecke.Count > 0) {
+      truhenFertig = true;
       // Was zugleich (1 s) an einer Stelle (4 m) aus einer Kiste fliegt, kam aus derselben Kiste - ihr Ort ist der Startpunkt des Wurfs.
       var gruppen = new List<(double t, double x, double y, double z, bool waffe)>();
       foreach (var st in kistenStuecke.OrderBy((x) => x.t)) {
@@ -1018,6 +1023,7 @@ class SchadenLeser : ReplayReader {
         if (i >= 0) { if (waffe) gruppen[i] = gruppen[i] with { waffe = true }; continue; }
         gruppen.Add((st.t, st.x, st.y, st.z, waffe));
       }
+      gruppen.RemoveAll((g) => Tode.Any((d) => Math.Abs(d.t - g.t) < 3 && Math.Pow(d.x - g.x, 2) + Math.Pow(d.y - g.y, 2) < 800 * 800));
       foreach (var g in gruppen) Truhen.Add(new[] { Math.Round(g.t, 1), Math.Round(g.x), Math.Round(g.y), Math.Round(g.z), g.waffe ? 0 : 1, -1 });
     }
     foreach (var k in Truhen) {
@@ -1040,7 +1046,9 @@ class SchadenLeser : ReplayReader {
     var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
     if (name is not null) lootNameVonKanal[kanal] = name;
     else lootNameVonKanal.TryGetValue(kanal, out name);
-    if (Wert("bTossedFromContainer") is bool raus && raus && kistenKanal.Add(kanal) && (Wert("LootInitialPosition") ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start)
+    // Aus einer Kiste geworfen: der Ort, an dem es liegt (ReplicatedMovement), ist hoechstens zwei, drei Meter von der Kiste entfernt.
+    if (Wert("bTossedFromContainer") is bool raus && raus && Wert("PawnWhoDroppedPickup") is null
+        && (Wert("LootInitialPosition") ?? (Wert("ReplicatedMovement") as Unreal.Core.Models.FRepMovement)?.Location ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start && kistenKanal.Add(kanal))
       kistenStuecke.Add((t, start.X, start.Y, start.Z, name ?? ""));
     var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition")) as Unreal.Core.Models.FVector;
     if (lage is not null) lootLageVonKanal[kanal] = lage;
