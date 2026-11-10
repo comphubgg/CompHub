@@ -1375,10 +1375,12 @@ class SchadenLeser : ReplayReader {
       if (!spielerVonAkteur.TryGetValue(zielAkteur, out var an)) continue;
       var vonTeam = teamVonSpieler.TryGetValue(von, out var tv) ? tv : null; var anTeam = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
       if (vonTeam is not null && vonTeam == anTeam) continue;
+      // Schon am Boden (Knock vor dem Treffer): zaehlt nicht - Osirion zaehlt keinen Schaden auf Umgehauene.
+      if (AmBoden.TryGetValue(an, out var bzv) && bzv.Any(z => z.ab < t - 0.02 && t <= z.bis)) continue;
       double Summe(double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
       // Haut der Treffer um, springt das Leben danach auf den Boden-Wert: dann zaehlt alles, was er bis zum Knock noch hatte (wie der Knock-Schuss bei Osirion).
       // Nur wenn der Kill-Feed genau diesen Schuetzen als Knocker nennt.
-      var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.15 && z.ab <= t + ProjektilFenster && Knocker.TryGetValue((an, Math.Round(z.ab, 2)), out var kv) && kv == von).Select(z => (double?)z.ab).FirstOrDefault() : null;
+      var knock = AmBoden.TryGetValue(an, out var bz) ? bz.Where(z => z.ab >= t - 0.02 && z.ab <= t + ProjektilFenster && Knocker.TryGetValue((an, Math.Round(z.ab, 2)), out var kv) && kv == von).Select(z => (double?)z.ab).FirstOrDefault() : null;
       // Der Knock gehoert dem Schuss, der ihn ausloest: kommt vor dem Knock noch ein Projektil desselben Schuetzen auf dasselbe Opfer, ist dieser hier ein gewoehnlicher Treffer.
       if (knock is double kn && (VerbrauchteKnocks.Contains((an, kn)) || ProjektilTreffer.Any(q => q.von == von && q.t > t && q.t <= kn + 0.05 && spielerVonAkteur.TryGetValue(q.zielAkteur, out var qa) && qa == an))) knock = null;
       if (knock is double kn2) VerbrauchteKnocks.Add((an, kn2));
