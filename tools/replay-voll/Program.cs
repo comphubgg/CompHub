@@ -320,6 +320,11 @@ if (SchadenLeser.DiagId is int diagId) {
             var eff = reader.EffektAlle.Where(e => e.an == id && Math.Abs(e.t - t) <= 0.4).Select(e => System.Text.RegularExpressions.Regex.Replace(e.art.Split('.').Last(), "_C$", "")).Distinct().ToList();
             var art = eff.FirstOrDefault(e => !e.Contains("OutsideSafeZone") && !e.Contains("Campfire") && !e.Contains("Heal") && !e.Contains("Shields")) ?? (eff.Any(e => e.Contains("OutsideSafeZone")) || sturmBei(id, t) ? "Sturm" : "ohne Effekt");
             if (art == "ohne Effekt" && rest <= 10 && sturmBei(id, t)) art = "Sturm";
+            if (art == "ohne Effekt") {
+              // Passt ein nicht zugeordneter Treffer (Ziel unbekannt) mit fast gleicher Hoehe in denselben Moment?
+              var passt = reader.DiagAlle.Where(h => Math.Abs(h.t - t) <= 0.4 && Math.Abs(h.mag - rest) <= Math.Max(2, rest * 0.05)).OrderBy(h => Math.Abs(h.t - t)).FirstOrDefault();
+              art = passt.art is null ? "ohne Effekt, kein passender Treffer" : "ohne Effekt, passt zu " + passt.art;
+            }
             bilanz.TryGetValue(art, out var b); bilanz[art] = (b.n + 1, b.v + rest); if (art != "Sturm") ungeklaert += rest;
           }
         }
