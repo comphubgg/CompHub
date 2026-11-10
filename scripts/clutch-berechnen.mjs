@@ -355,7 +355,9 @@ if (arg[0] === '--plan') {
       || ((da.schadenFassung ?? 0) < 15 && f.ids.size <= 1500)
       // Fassung 16 (10.11.2026): wie 15 - zwischendurch lief eine nicht bewiesene FirePetal-Zuordnung mit, deshalb noch einmal sauber.
       // Zuerst nur Spieltage bis 1.500 Matches (Finals, Victory Cups, FNCS): die grossen Ranked-Cups mit tausenden Matches hielten die Neuauswertung stundenlang auf.
-      || ((da.schadenFassung ?? 0) < 16 && f.ids.size <= 1500));
+      || ((da.schadenFassung ?? 0) < 16 && f.ids.size <= 1500)
+      // Fassung 17 (10.11.2026, abends): Elims - der Kill-Zaehler kommt verspaetet an (zyfos Team 11 statt 17), verpasste Updates aus dem Kill-Feed.
+      || ((da.schadenFassung ?? 0) < 17 && f.ids.size <= 1500));
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
     /*
      * "Ohne Replay" ist kein Endurteil (Betreiber, 10.11.2026: zyfos Match galt als ohne Replay und liess sich am Morgen problemlos laden). In den ersten drei Tagen
