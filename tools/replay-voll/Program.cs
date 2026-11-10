@@ -1213,6 +1213,8 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<int, int?> teamVonSpieler = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
+  /// Wer hat umgehauen: (Opfer, Zeit) -> Spieler (Kill-Feed, FinisherOrDowner).
+  public readonly Dictionary<(int, double), int> Knocker = new();
   /*
    * Der Schuss, der umhaut, traf einen stehenden Gegner: er steht im Replay aber fast zeitgleich mit dem Knock und galt deshalb als "am Boden" (6.11.2026). Im Trios-Match waren das 48 %
    * der aussortierten Treffer; beim Performance Cup fehlten uns gegen Osirion genau 50 %. Solo aendert sich nicht, dort gibt es keine Knocks.
