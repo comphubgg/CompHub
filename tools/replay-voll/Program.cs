@@ -1048,7 +1048,7 @@ class SchadenLeser : ReplayReader {
     else lootNameVonKanal.TryGetValue(kanal, out name);
     // Aus einer Kiste geworfen: der Ort, an dem es liegt (ReplicatedMovement), ist hoechstens zwei, drei Meter von der Kiste entfernt.
     if (Wert("bTossedFromContainer") is bool raus && raus && Wert("PawnWhoDroppedPickup") is null
-        && (Wert("LootInitialPosition") ?? (Wert("ReplicatedMovement") as Unreal.Core.Models.FRepMovement)?.Location ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start && kistenKanal.Add(kanal))
+        && (Wert("LootInitialPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm ? rm.Location : null) ?? Wert("LootFinalPosition")) is Unreal.Core.Models.FVector start && kistenKanal.Add(kanal))
       kistenStuecke.Add((t, start.X, start.Y, start.Z, name ?? ""));
     var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition")) as Unreal.Core.Models.FVector;
     if (lage is not null) lootLageVonKanal[kanal] = lage;
