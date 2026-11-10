@@ -1239,9 +1239,9 @@ class SchadenLeser : ReplayReader {
         if (c.HitActor is uint ha) zielArt = figurVonAkteur.TryGetValue(ha, out var zk) && figurKanaele.Contains(zk) ? "zielSpieler" : spielerVonAkteur.ContainsKey(ha) ? "zielSpielerAlt" : "zielSonst";
         D($"ohneWert:{(c.Magnitude is null ? "null" : "0")}:{zielArt}:schild={c.bIsShield}:weg={c.bIsShieldDestroyed}:fatal={c.bIsFatal}:krit={c.bIsCritical}");
         // Pruefung (10.11.2026): Treffer ohne Wert auf einen Spieler - verlor das Ziel im selben Moment trotzdem etwas?
-        if (diag && c.HitActor is uint hz0 && Zeit() is double tz0 && Hole(VonFigur, channelIndex)?.Id is int vz0) {
-          int? anz = figurVonAkteur.TryGetValue(hz0, out var zk0) && figurKanaele.Contains(zk0) ? Hole(VonFigur, zk0)?.Id : spielerVonAkteur.TryGetValue(hz0, out var sz0) ? sz0 : null;
-          if (anz is int a0 && a0 != vz0) NullTreffer.Add((tz0, vz0, a0, c.bIsShield == true, c.bIsFatal == true, c.bWeaponActivate == true));
+        if (diag && c.HitActor is uint hzN && Zeit() is double tzN && Hole(VonFigur, channelIndex)?.Id is int vzN) {
+          int? anz = figurVonAkteur.TryGetValue(hzN, out var zkN) && figurKanaele.Contains(zkN) ? Hole(VonFigur, zkN)?.Id : spielerVonAkteur.TryGetValue(hzN, out var szN) ? szN : null;
+          if (anz is int aN && aN != vzN) NullTreffer.Add((tzN, vzN, aN, c.bIsShield == true, c.bIsFatal == true, c.bWeaponActivate == true));
         }
       }
       return;
