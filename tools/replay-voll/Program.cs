@@ -166,6 +166,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
+if (SchadenLeser.DiagId is int pruefId) reader.Pruefbericht(pruefId, busAb);
 reader.Tode = replay.KillFeed.Where(k => !k.IsDowned && !k.IsRevived && k.DeathLocation is not null).Select(k => (k.ReplicatedWorldTimeSecondsDouble ?? 0, (double)k.DeathLocation.X, (double)k.DeathLocation.Y)).ToList();
 if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
@@ -1237,6 +1238,11 @@ class SchadenLeser : ReplayReader {
         string zielArt = "keinZiel";
         if (c.HitActor is uint ha) zielArt = figurVonAkteur.TryGetValue(ha, out var zk) && figurKanaele.Contains(zk) ? "zielSpieler" : spielerVonAkteur.ContainsKey(ha) ? "zielSpielerAlt" : "zielSonst";
         D($"ohneWert:{(c.Magnitude is null ? "null" : "0")}:{zielArt}:schild={c.bIsShield}:weg={c.bIsShieldDestroyed}:fatal={c.bIsFatal}:krit={c.bIsCritical}");
+        // Pruefung (10.11.2026): Treffer ohne Wert auf einen Spieler - verlor das Ziel im selben Moment trotzdem etwas?
+        if (diag && c.HitActor is uint hz0 && Zeit() is double tz0 && Hole(VonFigur, channelIndex)?.Id is int vz0) {
+          int? anz = figurVonAkteur.TryGetValue(hz0, out var zk0) && figurKanaele.Contains(zk0) ? Hole(VonFigur, zk0)?.Id : spielerVonAkteur.TryGetValue(hz0, out var sz0) ? sz0 : null;
+          if (anz is int a0 && a0 != vz0) NullTreffer.Add((tz0, vz0, a0, c.bIsShield == true, c.bIsFatal == true, c.bWeaponActivate == true));
+        }
       }
       return;
     }
@@ -1331,6 +1337,7 @@ class SchadenLeser : ReplayReader {
   public int Nachgetragen, UeberAkteur;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
+  public readonly List<(double t, int von, int an, bool schild, bool fatal, bool aktiv)> NullTreffer = new();
   /// Diagnose: je Schuetze, wie viele Treffer-Ereignisse in welche Kategorie fielen.
   public readonly Dictionary<int, Dictionary<string, int>> KatJe = new();
   readonly Dictionary<uint, string> kanalTyp = new();
@@ -1600,6 +1607,30 @@ class SchadenLeser : ReplayReader {
       }
     }
     return raus;
+  }
+
+  /*
+   * Pruefbericht fuer einen Schuetzen (Diagnose, 10.11.2026): jeder seiner Treffer gegen den Verlust des Opfers im selben Moment (0,15 s davor bis 0,6 s danach).
+   *  ZUVIEL: was alle gezaehlten Treffer im Fenster erklaeren, ist mehr als das Opfer verlor (zu viel gezaehlt).
+   *  NULL:   Treffer ohne Wert - das Opfer verlor aber etwas, das kein gezaehlter Treffer erklaert (fehlt bei uns).
+   */
+  public void Pruefbericht(int wer, double? busAb) {
+    double Summe(int an, double z) => WertVor(Leben, an, z, 100) + WertVor(Schild, an, z, 0) + WertVor(Ueberschild, an, z, 0);
+    double erklaertAuf(int an, double a, double b) => Liste.Where(e => e.an == an && e.t is double et && et >= a && et <= b && !AmBodenZuZeit(an, et)).Sum(e => Wirksam(e));
+    double zuviel = 0; int nZuviel = 0;
+    foreach (var e in Liste.Where(e => e.von == wer && e.t is double t && (busAb is null || t >= busAb) && !AmBodenZuZeit(e.an, t))) {
+      var t = e.t.Value; var verlust = Summe(e.an, t - 0.15) - Summe(e.an, t + 0.6); var erkl = erklaertAuf(e.an, t - 0.15, t + 0.6);
+      var knock = AmBoden.TryGetValue(e.an, out var bz) && bz.Any(z => z.ab >= t - 0.2 && z.ab <= t + 0.6);
+      if (erkl > verlust + 5 && !knock) { zuviel += Math.Min(Wirksam(e), erkl - verlust); nZuviel++; Console.Error.WriteLine($"PRUEF ZUVIEL t={Math.Round(t, 2)} an={e.an} h={Wirksam(e)} verlust={Math.Round(verlust)} erklaert={Math.Round(erkl)} schild={e.schild} fatal={e.fatal}"); }
+    }
+    double fehlt = 0; int nFehlt = 0;
+    foreach (var n in NullTreffer.Where(n => n.von == wer && (busAb is null || n.t >= busAb) && !AmBodenZuZeit(n.an, n.t))) {
+      var verlust = Summe(n.an, n.t - 0.15) - Summe(n.an, n.t + 0.6); var erkl = erklaertAuf(n.an, n.t - 0.15, n.t + 0.6);
+      var offen = verlust - erkl;
+      Console.Error.WriteLine($"PRUEF NULL t={Math.Round(n.t, 2)} an={n.an} verlust={Math.Round(verlust)} erklaert={Math.Round(erkl)} offen={Math.Round(offen)} schild={n.schild} fatal={n.fatal} aktiv={n.aktiv}");
+      if (offen > 5) { fehlt += offen; nFehlt++; }
+    }
+    Console.Error.WriteLine($"PRUEF SUMME spieler={wer} zuviel={Math.Round(zuviel)} ({nZuviel} Treffer) fehlt-bei-Null-Treffern={Math.Round(fehlt)} ({nFehlt}) Null-Treffer={NullTreffer.Count(n => n.von == wer)}");
   }
 
   /// Jeder zugeordnete Treffer nach dem Bus, kompakt fuer die Replay-Ansicht ("wer hat wen angeschossen", Betreiber 28.10.2026):
