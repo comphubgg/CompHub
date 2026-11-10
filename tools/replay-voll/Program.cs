@@ -251,6 +251,11 @@ if (SchadenLeser.DiagId is not null) {
     Console.Error.WriteLine($"DIAGARRAY {ty.Name}.{pr.Name}: {pr.PropertyType.FullName} [{string.Join(",", pa.ConstructorArguments.Select(a => a.Value))}] Element-Schnittstellen: {string.Join(",", el.GetInterfaces().Select(i => i.Name))} Attribute: {string.Join(",", el.GetCustomAttributesData().Select(x => x.AttributeType.Name + "(" + string.Join(",", x.ConstructorArguments.Select(c => c.Value)) + ")"))}");
   }
 }
+if (SchadenLeser.DiagId is not null) {
+  var gt = typeof(FortniteReplayReader.Models.NetFieldExports.RPC.GameplayCue);
+  foreach (var pr in gt.GetProperties()) Console.Error.WriteLine($"DIAGGC GameplayCue.{pr.Name}: {pr.PropertyType.FullName} [{string.Join(";", pr.GetCustomAttributesData().Select(a => string.Join(",", a.ConstructorArguments.Select(c => c.Value))))}]");
+  foreach (var pr in gt.GetProperties()) if (!pr.PropertyType.IsPrimitive && pr.PropertyType.Namespace?.StartsWith("System") != true) foreach (var q in pr.PropertyType.GetProperties()) Console.Error.WriteLine($"DIAGGC   {pr.PropertyType.Name}.{q.Name}: {q.PropertyType.Name}");
+}
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine("DIAG REPLAYOUT " + string.Join(",", Enum.GetValues(typeof(RepLayoutCmdType)).Cast<object>().Select(v => v + "=" + Convert.ToInt32(v))));
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKT eingeklinkt={SchadenLeser.EffektEingeklinkt}");
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
