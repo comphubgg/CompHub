@@ -51,9 +51,16 @@ jobs:
         if: inputs.epic != ''
         env:
           EPIC: ${{ inputs.epic }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           IFS=',' read -ra E <<< "$EPIC"
-          node scripts/epic-team-pruefen.mjs "${E[0]}" "${E[1]}" "${E[2]}" 2>&1 | tail -30
+          if [ "${E[2]}" = "gegenprobe" ]; then
+            ID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-clutch-roh" --jq ".assets[] | select(.name==\"clutch-roh__${E[1]}.json\") | .id")
+            gh api -H "Accept: application/octet-stream" "repos/${{ github.repository }}/releases/assets/$ID" > /tmp/roh.json
+            node scripts/epic-gegenprobe.mjs "${E[0]}" "${E[1]}" /tmp/roh.json 2>&1 | tail -90
+          else
+            node scripts/epic-team-pruefen.mjs "${E[0]}" "${E[1]}" "${E[2]}" 2>&1 | tail -30
+          fi
       - name: Leser bauen
         run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -5
       - name: Diagnose
