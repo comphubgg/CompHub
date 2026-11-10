@@ -929,6 +929,11 @@ class SchadenLeser : ReplayReader {
 
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     if (DiagId is not null) kanalTyp[channelIndex] = exportGroup.GetType().Name;
+    if (DiagId is int dw && exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pw && pw.CurrentWeapon is uint cwp && Zeit() is double twp && (Hole(VonFigur, channelIndex)?.Id ?? -1) == dw) {
+      var wp = pfadVonAkteur.TryGetValue(cwp, out var wpp) ? wpp : null;
+      if (wp is null) foreach (var kv in kanalAkteur) if (kv.Value == cwp && kanalTyp.TryGetValue(kv.Key, out var kt)) { wp = "typ:" + kt; break; }
+      Console.Error.WriteLine($"DIAGWAFFE t={Math.Round(twp, 1)} spieler={dw} waffe={cwp} {wp}");
+    }
     if (DiagId is not null && Zeit() is double tw && DiagZeiten.Any(z => tw >= z - 2.5 && tw <= z + 0.3)) {
       var wem = Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id;
       var nm = exportGroup.GetType().Name;
