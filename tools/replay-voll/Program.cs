@@ -1250,7 +1250,8 @@ class SchadenLeser : ReplayReader {
     }
   }
   public void Zaehle(double? busAb) {
-    if (Environment.GetEnvironmentVariable("SCHADEN_NEU") == "1") ProjektileEinrechnen(busAb);
+    // Seit 10.11.2026 immer (Fassung 12); SCHADEN_NEU=0 schaltet es nur fuer Vergleiche ab.
+    if (Environment.GetEnvironmentVariable("SCHADEN_NEU") != "0") ProjektileEinrechnen(busAb);
     for (int i = 0; i < Liste.Count; i++) {
       var e = Liste[i];
       if (Unsicher.Contains(i)) {
