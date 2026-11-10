@@ -72,7 +72,8 @@ const frist = START + zahl('--minuten', 20) * 60_000;
 const listenFrist = START + Math.max(2, zahl('--minuten', 20) / 2) * 60_000;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Hoch setzen, wenn der Leser sich aendert (neue Bibliothek, behobener Fehler): Leser-Fehler werden dann einmal neu versucht. */
-const LESER_STAND = '2026-10-26';
+// 10.11.2026: Endlosschleife der Bibliothek abgefangen (ganze Matches blieben leer oder liefen in den Zeitwaechter) - Leser-Fehler einmal neu.
+const LESER_STAND = '2026-11-10';
 const LESER_SEKUNDEN = 150;
 const STUNDE = 3600_000;
 
