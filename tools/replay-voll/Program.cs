@@ -1951,3 +1951,13 @@ public abstract class BauGruppe : INetFieldExportGroup {
 [NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_StairW.PBWA_S1_StairW_C", ParseMode.Full)] public class Bau_S1_StairW : BauGruppe { }
 [NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_WindowsC.PBWA_S1_WindowsC_C", ParseMode.Full)] public class Bau_S1_WindowsC : BauGruppe { }
 [NetFieldExportGroup("/Game/Building/ActorBlueprints/Player/Stone/L1/PBWA_S1_WindowsSide.PBWA_S1_WindowsSide_C", ParseMode.Full)] public class Bau_S1_WindowsSide : BauGruppe { }
+
+/*
+ * Abbau-Meldungen (10.11.2026): die Bibliothek fuehrt FortBroadcastRemoteClientInfo_ClassNetCache mit ParseMode.Ignore - sie liest die Meldung nie. Hier dieselbe
+ * Klasse mit Full, nur mit der Abbau-Meldung (Art und Menge je Schlag auf ein Ressourcen-Objekt).
+ */
+[NetFieldExportClassNetCache("FortBroadcastRemoteClientInfo_ClassNetCache", ParseMode.Full)]
+public class BroadcastCacheMitAbbau {
+  [NetFieldExportRPC("ClientRemotePlayerDamagedResourceBuilding", "/Script/FortniteGame.FortBroadcastRemoteClientInfo:ClientRemotePlayerDamagedResourceBuilding", true, true, false)]
+  public FortniteReplayReader.Models.NetFieldExports.RPC.PlayerDamagedResourceBuilding PlayerDamagedResourceBuilding { get; set; }
+}
