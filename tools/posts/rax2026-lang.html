@@ -2,7 +2,7 @@
 <style>
 :root{--b:#00a3ff;--g:#8ea0bd;--gold:#f5c542}
 *{box-sizing:border-box;margin:0}
-body{width:1200px;height:2240px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e}
+body{width:1200px;height:2440px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e}
 .bg{position:absolute;inset:0;background:radial-gradient(ellipse at 80% 8%,#18366a 0%,#0a1324 32%,#05080e 60%)}
 .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,163,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(0,163,255,.06) 1px,transparent 1px);background-size:60px 60px}
 .fotobox{position:absolute;right:-10px;top:0;height:700px;-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 30%)}
@@ -14,6 +14,7 @@ h1{position:absolute;left:64px;top:120px;font-size:150px;line-height:.9;font-wei
 h1 .j{color:var(--b)}
 .sub{top:420px;display:flex;align-items:center;gap:14px;font-size:28px;font-weight:700;color:#d6e2f3}
 .sub img{height:28px;border-radius:4px}
+.chip.m8{border-color:rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.06)}
 .chip{padding:6px 14px;border-radius:999px;border:1.5px solid rgba(0,163,255,.45);color:var(--b);font-size:18px;letter-spacing:.08em}
 .claim{top:490px;width:600px;font-size:30px;font-weight:800;line-height:1.25}
 .claim b{color:var(--gold)}
@@ -26,15 +27,16 @@ h1 .j{color:var(--b)}
 .titel{font-size:22px;font-weight:800;letter-spacing:.16em;color:var(--g);text-transform:uppercase;display:flex;align-items:center;gap:12px}
 .titel:before{content:"";width:6px;height:22px;border-radius:3px;background:var(--b)}
 .diag{top:900px}
+.leg{display:flex;justify-content:flex-end;margin-bottom:4px;gap:18px;color:#8ea0bd;font-size:15px;font-weight:700}.leg i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 .karte{margin-top:16px;border-radius:24px;background:rgba(10,16,26,.92);border:1px solid rgba(255,255,255,.08);padding:24px 26px 18px}
-.ach{top:1530px}
+.ach{top:1565px}
 .liste{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .a{display:flex;align-items:center;gap:18px;padding:18px 20px;border-radius:18px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
 .a .p{min-width:86px;height:70px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:900;background:rgba(0,163,255,.14);color:var(--b)}
 .a .p.g{background:rgba(245,197,66,.16);color:var(--gold)}
 .a .t{font-size:22px;font-weight:800;line-height:1.2}
 .a .d{margin-top:4px;color:var(--g);font-size:16px;font-weight:600}
-.duo{top:1930px}
+.duo{top:2165px}
 .duos{margin-top:16px;display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px}
 .du{padding:18px 22px;border-radius:18px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
 .du .n{font-size:28px;font-weight:900}
@@ -47,8 +49,8 @@ h1 .j{color:var(--b)}
 <div class="fotobox"><img class="foto" src="../../public/spielerbilder/rax.jpg"></div>
 <div class="w kopf"><img src="../../public/logos/CompHub-Logo-frei.png">The CompHub · Year in Review</div>
 <h1><span class="j">2026</span><br>OF RAX</h1>
-<div class="w sub"><img src="../../public/flags/it.png">M8 Rax <span class="chip">EU · CHAPTER 7</span></div>
-<div class="w claim">From <b>#46 in Div 1</b> in February to <b>top 10 at the FNCS</b> and the <b>Global Championship</b>. The breakout of the year.</div>
+<div class="w sub"><img src="../../public/flags/it.png">M8 Rax <span class="chip">EU · CHAPTER 7</span><span class="chip m8">GENTLE MATES</span></div>
+<div class="w claim">From <b>#46 in Div 1</b> in February to <b>two FNCS wins</b>, a top 10 at the Major and the <b>Global Championship</b>. The breakout of the year.</div>
 
 <div class="w zahlen">
   <div class="k h"><div class="z">$39,200</div><div class="l">Prize money 2026</div></div>
@@ -58,18 +60,19 @@ h1 .j{color:var(--b)}
 </div>
 
 <div class="w diag">
-  <div class="titel">FNCS Journey · placement over the year</div>
-  <div class="karte"><svg id="chart" width="1024" height="520"></svg></div>
+  <div class="titel">FNCS & Performance Cups · placement over the year</div><div class="karte"><div class="leg"><span><i style="background:#00a3ff"></i>FNCS</span><span><i style="background:#a78bfa"></i>Performance Cup</span><span><i style="background:#f5c542"></i>Win / LAN</span></div><svg id="chart" width="1024" height="520"></svg></div>
 </div>
 
 <div class="w ach">
   <div class="titel">Best results</div>
   <div class="liste">
+    <div class="a"><div class="p g">#1</div><div><div class="t">FNCS Solos Reload Qualifier</div><div class="d">Nov 8 · Round 3 · 459 pts</div></div></div>
     <div class="a"><div class="p g">#1</div><div><div class="t">FNCS Solos Heat 2</div><div class="d">Oct 18 · 1,257 pts · Victory Royale</div></div></div>
-    <div class="a"><div class="p g">#3</div><div><div class="t">FNCS Division 1 Finals</div><div class="d">Jun 20 · with JannisZ · 26 elims · Victory Royale</div></div></div>
+    <div class="a"><div class="p g">#3</div><div><div class="t">FNCS Division 1 Finals</div><div class="d">Jun 20 · with JannisZ · 26 elims</div></div></div>
+    <div class="a"><div class="p g">#3</div><div><div class="t">Solo Reload Victory Cup</div><div class="d">Oct 2 · 83 elims · 3 Victory Royales</div></div></div>
+    <div class="a"><div class="p">#4</div><div><div class="t">Performance Cup</div><div class="d">Apr 9 · Victory Royale · also #5 (Aug) & #6 (Feb)</div></div></div>
     <div class="a"><div class="p">#8</div><div><div class="t">FNCS Solos Finals</div><div class="d">Oct 27 · 212 pts</div></div></div>
-    <div class="a"><div class="p">#9</div><div><div class="t">FNCS Major 2 Grand Finals</div><div class="d">Aug 2 · with JannisZ · 210 pts</div></div></div>
-    <div class="a"><div class="p">#11</div><div><div class="t">Reload Elite Series 4 Finals</div><div class="d">Jun 28 · with JannisZ · 32 elims</div></div></div>
+    <div class="a"><div class="p">#9</div><div><div class="t">FNCS Major 2 Grand Finals</div><div class="d">Aug 2 · with JannisZ · #7 in the Heats</div></div></div>
     <div class="a"><div class="p g">#13</div><div><div class="t">FNCS Global Championship</div><div class="d">Sep 26 · Antwerp LAN · $17,000</div></div></div>
   </div>
 </div>
@@ -86,20 +89,21 @@ h1 .j{color:var(--b)}
 
 <script>
 const P=[
- ['2026-02-28',46,'Div 1',1,0],['2026-03-14',31,'Div 1',0,8],['2026-06-20',3,'Div 1',1,0],['2026-06-27',13,'Div 1',0,-22],
- ['2026-06-28',11,'RES 4',1,26],['2026-08-02',9,'Major 2',1,0],['2026-08-14',42,'Globals LCQ',0,0],['2026-08-29',19,'Div 1',1,-6],
- ['2026-09-19',31,'Div 1',0,-10],['2026-09-26',13,'Globals',1,10],['2026-10-18',1,'Solo Heat',1,0],['2026-10-27',8,'Solo Finals',0,14]];
+ ['2026-01-15',18,'Perf Cup',0,0,'p'],['2026-02-05',6,'Perf Cup',1,0,'p'],['2026-02-28',46,'Div 1',1,-20,'f'],['2026-03-14',31,'Div 1',0,16,'f'],
+ ['2026-04-09',4,'Perf Cup',1,0,'p'],['2026-04-18',33,'Major 1 Heat',0,0,'f'],['2026-05-07',10,'Perf Cup',1,0,'p'],['2026-06-20',3,'Div 1',1,0,'f'],
+ ['2026-07-25',7,'Major 2 Heat',0,-16,'f'],['2026-08-02',9,'Major 2 GF',1,-38,'f'],['2026-08-06',5,'Perf Cup',1,34,'p'],['2026-09-26',13,'Globals',0,0,'g'],
+ ['2026-10-18',1,'Solo Heat',1,-14,'f'],['2026-10-27',8,'Solo Finals',0,0,'f'],['2026-11-08',1,'Reload Qual',1,10,'f']];
 const W=1024,H=520,L=70,R=30,T=58,B=60;
-const t0=Date.parse('2026-02-01'),t1=Date.parse('2026-11-05');
+const t0=Date.parse('2026-01-01'),t1=Date.parse('2026-11-20');
 const x=d=>L+(Date.parse(d)-t0)/(t1-t0)*(W-L-R);
 const y=p=>T+Math.log(p)/Math.log(60)*(H-T-B);
 const s=document.getElementById('chart');let h='';
 for(const p of [1,3,10,25,50]){h+=`<line x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}" stroke="rgba(255,255,255,.08)"/><text x="${L-14}" y="${y(p)+6}" fill="#6f7f99" font-size="16" font-weight="700" text-anchor="end">#${p}</text>`}
 h+=`<rect x="${L}" y="${y(1)-12}" width="${W-L-R}" height="${y(10)-y(1)+12}" fill="rgba(245,197,66,.06)"/><text x="${L+10}" y="${y(10)-10}" fill="rgba(245,197,66,.7)" font-size="15" font-weight="800" text-anchor="start">TOP 10</text>`;
-const m=['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];m.forEach((n,i)=>{const d=`2026-${String(i+2).padStart(2,'0')}-01`;h+=`<text x="${x(d)}" y="${H-24}" fill="#6f7f99" font-size="16" font-weight="700" text-anchor="middle">${n}</text>`});
+const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];m.forEach((n,i)=>{const d=`2026-${String(i+1).padStart(2,'0')}-01`;h+=`<text x="${x(d)}" y="${H-24}" fill="#6f7f99" font-size="16" font-weight="700" text-anchor="middle">${n}</text>`});
 const pts=P.map(p=>[x(p[0]),y(p[1])]);
 h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#00a3ff" stroke-width="4" stroke-linejoin="round" opacity=".9"/>`;
-P.forEach((p,i)=>{const [cx,cy]=pts[i];const top=p[1]<=10;const c=p[1]<=3?'#f5c542':top?'#00a3ff':'#5a6478';
+P.forEach((p,i)=>{const [cx,cy]=pts[i];const top=p[1]<=10;const c=p[5]==='g'?'#f5c542':p[5]==='p'?'#a78bfa':p[1]<=3?'#f5c542':top?'#00a3ff':'#5a6478';
  h+=`<circle cx="${cx}" cy="${cy}" r="${top?11:8}" fill="${c}" stroke="#05080e" stroke-width="3"/>`;
  const up=p[3]===1,dx=p[4];h+=`<text x="${cx+dx}" y="${cy+(up?-20:34)}" fill="#fff" font-size="17" font-weight="800" text-anchor="middle">#${p[1]}</text><text x="${cx+dx}" y="${cy+(up?-40:54)}" fill="#8ea0bd" font-size="13" font-weight="700" text-anchor="middle">${p[2]}</text>`});
 s.innerHTML=h;
