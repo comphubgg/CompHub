@@ -16,12 +16,13 @@ async function seite(e, w, nr) {
 const MAX = Number(process.env.JAHR_SEITEN ?? 60);
 async function einer(f) {
   const [e, w] = f.split(':');
-  let gefunden = null; let seiten = 1;
+  let gefunden = null; let seiten = 1; let anzahl = 0; let erster = null;
   for (let n = 0; n < Math.min(seiten, MAX) && !gefunden; n++) {
     const j = await seite(e, w, n); if (!j) break; seiten = j.totalPages ?? 1;
+    anzahl += (j.entries ?? []).length; erster ??= j.entries?.[0] ? { r: j.entries[0].rank, p: j.entries[0].pointsEarned, n: j.entries[0].sessionHistory?.length } : null;
     gefunden = (j.entries ?? []).find((x) => (x.teamAccountIds ?? []).some((a) => a.toLowerCase() === wer));
   }
-  if (!gefunden) return { w, nicht: true, seiten };
+  if (!gefunden) return { w, nicht: true, seiten, anzahl, erster };
   const s = gefunden.sessionHistory ?? [];
   const sum = (k) => s.reduce((a, x) => a + (Number(x.trackedStats?.[k]) || 0), 0);
   return { w, platz: gefunden.rank, punkte: gefunden.pointsEarned, spiele: s.length, elims: sum('TEAM_ELIMS_STAT_INDEX'), siege: sum('VICTORY_ROYALE_STAT'), schaden: sum('DamageDealt') || undefined, team: (gefunden.teamAccountIds ?? []).filter((a) => a.toLowerCase() !== wer) };
