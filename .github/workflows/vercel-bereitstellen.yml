@@ -1,0 +1,74 @@
+# Die Seite bei Vercel bereitstellen (Betreiber, 11.11.2026: beide Netlify-Konten wegen der Punkte gesperrt - zurueck zu Vercel, Projekt "comphub").
+# Holt die Einstellungen aus dem GitHub-Secret ENV_LOCAL in das Vercel-Projekt, baut bei Vercel und veroeffentlicht (production).
+# Braucht das Secret VERCEL_TOKEN (vercel.com -> Account Settings -> Tokens).
+name: Vercel bereitstellen
+on:
+  workflow_dispatch:
+    inputs:
+      projekt:
+        description: Name des Vercel-Projekts
+        required: false
+        default: comphub
+      domain:
+        description: 'Domain dem Projekt hinzufuegen (ja/nein)'
+        required: false
+        default: 'ja'
+concurrency:
+  group: vercel
+  cancel-in-progress: false
+jobs:
+  bereitstellen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      PROJEKT: ${{ inputs.projekt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: Projekt finden
+        id: p
+        run: |
+          [ -z "$VERCEL_TOKEN" ] && { echo "Secret VERCEL_TOKEN fehlt"; exit 1; }
+          A="https://api.vercel.com"; H="Authorization: Bearer $VERCEL_TOKEN"
+          TEAMS=$(curl -s -H "$H" "$A/v2/teams" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log((JSON.parse(s).teams||[]).map(t=>t.id).join(' '))}catch{console.log('')}})")
+          for T in "" $TEAMS; do
+            Q=""; [ -n "$T" ] && Q="?teamId=$T"
+            R=$(curl -s -H "$H" "$A/v9/projects/$PROJEKT$Q")
+            ID=$(echo "$R" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log(j.id||'')}catch{console.log('')}})")
+            if [ -n "$ID" ]; then echo "Projekt $PROJEKT: $ID (Team: ${T:-persoenlich})"; echo "id=$ID" >> "$GITHUB_OUTPUT"; echo "team=$T" >> "$GITHUB_OUTPUT"; ORG=$(echo "$R" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).accountId||''))"); echo "org=$ORG" >> "$GITHUB_OUTPUT"; exit 0; fi
+          done
+          echo "Projekt $PROJEKT nicht gefunden"; exit 1
+      - name: Einstellungen uebernehmen
+        env:
+          ENV_LOCAL: ${{ secrets.ENV_LOCAL }}
+          ID: ${{ steps.p.outputs.id }}
+          TEAM: ${{ steps.p.outputs.team }}
+        run: |
+          node -e "
+          const zeilen=process.env.ENV_LOCAL.split(/\r?\n/);const werte={};
+          for(const z of zeilen){const m=z.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);if(!m)continue;let v=m[2];if(/^\".*\"$|^'.*'$/.test(v))v=v.slice(1,-1);werte[m[1]]=v}
+          werte.NEXT_PUBLIC_BASE_URL='https://www.thecomphub.com';
+          const q=process.env.TEAM?'&teamId='+process.env.TEAM:'';
+          (async()=>{let ok=0,fehler=0;for(const [key,value] of Object.entries(werte)){
+            const r=await fetch('https://api.vercel.com/v10/projects/'+process.env.ID+'/env?upsert=true'+q,{method:'POST',headers:{Authorization:'Bearer '+process.env.VERCEL_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({key,value,type:'encrypted',target:['production','preview']})});
+            if(r.ok)ok++;else{fehler++;console.log('Fehler',key,r.status,(await r.text()).slice(0,150))}}
+            console.log('Einstellungen uebernommen:',ok,'Fehler:',fehler)})();"
+      - name: Domain
+        if: inputs.domain == 'ja'
+        env:
+          ID: ${{ steps.p.outputs.id }}
+          TEAM: ${{ steps.p.outputs.team }}
+        run: |
+          Q=""; [ -n "$TEAM" ] && Q="?teamId=$TEAM"
+          for D in www.thecomphub.com thecomphub.com; do
+            echo "== $D"; curl -s -X POST -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" -d "{\"name\":\"$D\"}" "https://api.vercel.com/v10/projects/$ID/domains$Q" | head -c 600; echo
+            curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v6/domains/$D/config$Q" | head -c 600; echo
+          done
+      - name: Bauen und veroeffentlichen
+        env:
+          VERCEL_ORG_ID: ${{ steps.p.outputs.team || steps.p.outputs.org }}
+          VERCEL_PROJECT_ID: ${{ steps.p.outputs.id }}
+        run: |
+          npx --yes vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN" 2>&1 | tail -30
