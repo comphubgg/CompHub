@@ -62,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           IFS=',' read -ra E <<< "$EPIC"
-          if [ "${E[0]}" = "jahr" ]; then node scripts/spieler-jahr.mjs "${E[1]}" "${E[@]:2}" 2>&1 | tail -80; exit 0; fi
+          if [ "${E[0]}" = "jahr" ]; then JAHR_SEITEN=10 node scripts/spieler-jahr.mjs "${E[1]}" "${E[@]:2}" 2>&1 | grep JAHR; exit 0; fi
           if [ "${E[2]}" = "gegenprobe-aus" ]; then echo "(nach der Diagnose)"; elif [ "${E[2]}" = "gegenprobe" ]; then
             ID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-clutch-roh" --jq ".assets[] | select(.name==\"clutch-roh__${E[1]}.json\") | .id")
             gh api -H "Accept: application/octet-stream" "repos/${{ github.repository }}/releases/assets/$ID" > /tmp/roh.json

@@ -13,15 +13,18 @@ async function seite(e, w, nr) {
   }
   return null;
 }
-for (const f of fenster) {
+const MAX = Number(process.env.JAHR_SEITEN ?? 60);
+async function einer(f) {
   const [e, w] = f.split(':');
   let gefunden = null; let seiten = 1;
-  for (let n = 0; n < Math.min(seiten, 60) && !gefunden; n++) {
+  for (let n = 0; n < Math.min(seiten, MAX) && !gefunden; n++) {
     const j = await seite(e, w, n); if (!j) break; seiten = j.totalPages ?? 1;
     gefunden = (j.entries ?? []).find((x) => (x.teamAccountIds ?? []).some((a) => a.toLowerCase() === wer));
   }
-  if (!gefunden) { console.log('JAHR', JSON.stringify({ w, nicht: true })); continue; }
+  if (!gefunden) return { w, nicht: true, seiten };
   const s = gefunden.sessionHistory ?? [];
   const sum = (k) => s.reduce((a, x) => a + (Number(x.trackedStats?.[k]) || 0), 0);
-  console.log('JAHR', JSON.stringify({ w, platz: gefunden.rank, punkte: gefunden.pointsEarned, spiele: s.length, elims: sum('TEAM_ELIMS_STAT_INDEX'), siege: sum('VICTORY_ROYALE_STAT'), schaden: sum('DamageDealt') || undefined, team: (gefunden.teamAccountIds ?? []).filter((a) => a.toLowerCase() !== wer) }));
+  return { w, platz: gefunden.rank, punkte: gefunden.pointsEarned, spiele: s.length, elims: sum('TEAM_ELIMS_STAT_INDEX'), siege: sum('VICTORY_ROYALE_STAT'), schaden: sum('DamageDealt') || undefined, team: (gefunden.teamAccountIds ?? []).filter((a) => a.toLowerCase() !== wer) };
 }
+let i = 0;
+await Promise.all(Array.from({ length: 5 }, async () => { while (i < fenster.length) { const f = fenster[i++]; try { console.log('JAHR', JSON.stringify(await einer(f))); } catch (e) { console.log('JAHR', JSON.stringify({ w: f, fehler: String(e.message).slice(0, 80) })); } } }));
