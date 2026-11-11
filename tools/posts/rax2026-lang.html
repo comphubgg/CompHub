@@ -1,0 +1,107 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+:root{--b:#00a3ff;--g:#8ea0bd;--gold:#f5c542}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:2240px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 80% 8%,#18366a 0%,#0a1324 32%,#05080e 60%)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,163,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(0,163,255,.06) 1px,transparent 1px);background-size:60px 60px}
+.fotobox{position:absolute;right:-10px;top:0;height:700px;-webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 30%)}
+.foto{height:700px;display:block;-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 40%)}
+.w{position:absolute;left:64px;right:64px}
+.kopf{top:56px;display:flex;align-items:center;gap:14px;color:var(--g);font-weight:700;letter-spacing:.18em;font-size:20px;text-transform:uppercase}
+.kopf img{height:32px}
+h1{position:absolute;left:64px;top:120px;font-size:150px;line-height:.9;font-weight:900;letter-spacing:-.02em}
+h1 .j{color:var(--b)}
+.sub{top:420px;display:flex;align-items:center;gap:14px;font-size:28px;font-weight:700;color:#d6e2f3}
+.sub img{height:28px;border-radius:4px}
+.chip{padding:6px 14px;border-radius:999px;border:1.5px solid rgba(0,163,255,.45);color:var(--b);font-size:18px;letter-spacing:.08em}
+.claim{top:490px;width:600px;font-size:30px;font-weight:800;line-height:1.25}
+.claim b{color:var(--gold)}
+.zahlen{top:720px;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:16px}
+.k{padding:22px 24px;border-radius:20px;background:rgba(15,22,34,.88);border:1px solid rgba(255,255,255,.08)}
+.k.h{background:linear-gradient(180deg,rgba(245,197,66,.18),rgba(245,197,66,.04));border:1.5px solid rgba(245,197,66,.45)}
+.k .z{font-size:52px;font-weight:900;line-height:1}
+.k.h .z{color:var(--gold);font-size:60px}
+.k .l{margin-top:8px;color:var(--g);font-weight:700;font-size:16px;letter-spacing:.1em;text-transform:uppercase}
+.titel{font-size:22px;font-weight:800;letter-spacing:.16em;color:var(--g);text-transform:uppercase;display:flex;align-items:center;gap:12px}
+.titel:before{content:"";width:6px;height:22px;border-radius:3px;background:var(--b)}
+.diag{top:900px}
+.karte{margin-top:16px;border-radius:24px;background:rgba(10,16,26,.92);border:1px solid rgba(255,255,255,.08);padding:24px 26px 18px}
+.ach{top:1530px}
+.liste{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.a{display:flex;align-items:center;gap:18px;padding:18px 20px;border-radius:18px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
+.a .p{min-width:86px;height:70px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:900;background:rgba(0,163,255,.14);color:var(--b)}
+.a .p.g{background:rgba(245,197,66,.16);color:var(--gold)}
+.a .t{font-size:22px;font-weight:800;line-height:1.2}
+.a .d{margin-top:4px;color:var(--g);font-size:16px;font-weight:600}
+.duo{top:1930px}
+.duos{margin-top:16px;display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px}
+.du{padding:18px 22px;border-radius:18px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
+.du .n{font-size:28px;font-weight:900}
+.du .d{margin-top:6px;color:var(--g);font-size:16px;font-weight:600;line-height:1.35}
+.du.h{border:1.5px solid rgba(0,163,255,.5);background:linear-gradient(180deg,rgba(0,163,255,.14),rgba(0,163,255,.03))}
+.fuss{bottom:34px;display:flex;justify-content:space-between;color:#6f7f99;font-size:16px;font-weight:600}
+.fuss b{color:#fff}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="fotobox"><img class="foto" src="../../public/spielerbilder/rax.jpg"></div>
+<div class="w kopf"><img src="../../public/logos/CompHub-Logo-frei.png">The CompHub · Year in Review</div>
+<h1><span class="j">2026</span><br>OF RAX</h1>
+<div class="w sub"><img src="../../public/flags/it.png">M8 Rax <span class="chip">EU · CHAPTER 7</span></div>
+<div class="w claim">From <b>#46 in Div 1</b> in February to <b>top 10 at the FNCS</b> and the <b>Global Championship</b>. The breakout of the year.</div>
+
+<div class="w zahlen">
+  <div class="k h"><div class="z">$39,200</div><div class="l">Prize money 2026</div></div>
+  <div class="k"><div class="z">410</div><div class="l">Eliminations</div></div>
+  <div class="k"><div class="z">140K</div><div class="l">Damage</div></div>
+  <div class="k"><div class="z">46</div><div class="l">Events</div></div>
+</div>
+
+<div class="w diag">
+  <div class="titel">FNCS Journey · placement over the year</div>
+  <div class="karte"><svg id="chart" width="1024" height="520"></svg></div>
+</div>
+
+<div class="w ach">
+  <div class="titel">Best results</div>
+  <div class="liste">
+    <div class="a"><div class="p g">#1</div><div><div class="t">FNCS Solos Heat 2</div><div class="d">Oct 18 · 1,257 pts · Victory Royale</div></div></div>
+    <div class="a"><div class="p g">#3</div><div><div class="t">FNCS Division 1 Finals</div><div class="d">Jun 20 · with JannisZ · 26 elims · Victory Royale</div></div></div>
+    <div class="a"><div class="p">#8</div><div><div class="t">FNCS Solos Finals</div><div class="d">Oct 27 · 212 pts</div></div></div>
+    <div class="a"><div class="p">#9</div><div><div class="t">FNCS Major 2 Grand Finals</div><div class="d">Aug 2 · with JannisZ · 210 pts</div></div></div>
+    <div class="a"><div class="p">#11</div><div><div class="t">Reload Elite Series 4 Finals</div><div class="d">Jun 28 · with JannisZ · 32 elims</div></div></div>
+    <div class="a"><div class="p g">#13</div><div><div class="t">FNCS Global Championship</div><div class="d">Sep 26 · Antwerp LAN · $17,000</div></div></div>
+  </div>
+</div>
+
+<div class="w duo">
+  <div class="titel">Duo partners 2026</div>
+  <div class="duos">
+    <div class="du h"><div class="n">JannisZ 🇩🇪</div><div class="d">Main duo since June · Div 1 #3, Major 2 #9, Globals #13, RES4 #11</div></div>
+    <div class="du"><div class="n">Settyz</div><div class="d">Div 1 Finals #31 · March</div></div>
+    <div class="du"><div class="n">samer</div><div class="d">Div 1 Finals #46 · February</div></div>
+  </div>
+</div>
+<div class="w fuss"><span>Stats from the <b>CompHub Dashboard</b> · Epic leaderboards · as of Nov 10, 2026</span><span><b>thecomphub.com</b></span></div>
+
+<script>
+const P=[
+ ['2026-02-28',46,'Div 1',1,0],['2026-03-14',31,'Div 1',0,8],['2026-06-20',3,'Div 1',1,0],['2026-06-27',13,'Div 1',0,-22],
+ ['2026-06-28',11,'RES 4',1,26],['2026-08-02',9,'Major 2',1,0],['2026-08-14',42,'Globals LCQ',0,0],['2026-08-29',19,'Div 1',1,-6],
+ ['2026-09-19',31,'Div 1',0,-10],['2026-09-26',13,'Globals',1,10],['2026-10-18',1,'Solo Heat',1,0],['2026-10-27',8,'Solo Finals',0,14]];
+const W=1024,H=520,L=70,R=30,T=58,B=60;
+const t0=Date.parse('2026-02-01'),t1=Date.parse('2026-11-05');
+const x=d=>L+(Date.parse(d)-t0)/(t1-t0)*(W-L-R);
+const y=p=>T+Math.log(p)/Math.log(60)*(H-T-B);
+const s=document.getElementById('chart');let h='';
+for(const p of [1,3,10,25,50]){h+=`<line x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}" stroke="rgba(255,255,255,.08)"/><text x="${L-14}" y="${y(p)+6}" fill="#6f7f99" font-size="16" font-weight="700" text-anchor="end">#${p}</text>`}
+h+=`<rect x="${L}" y="${y(1)-12}" width="${W-L-R}" height="${y(10)-y(1)+12}" fill="rgba(245,197,66,.06)"/><text x="${L+10}" y="${y(10)-10}" fill="rgba(245,197,66,.7)" font-size="15" font-weight="800" text-anchor="start">TOP 10</text>`;
+const m=['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'];m.forEach((n,i)=>{const d=`2026-${String(i+2).padStart(2,'0')}-01`;h+=`<text x="${x(d)}" y="${H-24}" fill="#6f7f99" font-size="16" font-weight="700" text-anchor="middle">${n}</text>`});
+const pts=P.map(p=>[x(p[0]),y(p[1])]);
+h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#00a3ff" stroke-width="4" stroke-linejoin="round" opacity=".9"/>`;
+P.forEach((p,i)=>{const [cx,cy]=pts[i];const top=p[1]<=10;const c=p[1]<=3?'#f5c542':top?'#00a3ff':'#5a6478';
+ h+=`<circle cx="${cx}" cy="${cy}" r="${top?11:8}" fill="${c}" stroke="#05080e" stroke-width="3"/>`;
+ const up=p[3]===1,dx=p[4];h+=`<text x="${cx+dx}" y="${cy+(up?-20:34)}" fill="#fff" font-size="17" font-weight="800" text-anchor="middle">#${p[1]}</text><text x="${cx+dx}" y="${cy+(up?-40:54)}" fill="#8ea0bd" font-size="13" font-weight="700" text-anchor="middle">${p[2]}</text>`});
+s.innerHTML=h;
+</script>
+</body></html>
