@@ -25,7 +25,15 @@ const bild = (id) => {
 const top = (werte, n = 5) => Object.entries(werte).filter(([, v]) => Number.isFinite(v) && v > 0).sort((a, b) => b[1] - a[1]).slice(0, n)
   .map(([id, v]) => ({ id, name: name(id), wert: v, spiele: d.spiele?.[id] ?? null, bild: bild(id) }));
 
-const elims = top(d.solo ?? {});
+// Elims je Spieler: Summe der Spalte killsEcht aus den Werten je Match (lib/jeSpiel.mjs) - "solo" in der Spieltagsdatei sind Clutch-Punkte, keine Elims.
+const { JE_SPALTEN, jeLesen } = await import('../lib/jeSpiel.mjs');
+const { tagFuer } = await import('../lib/releaseTags.mjs');
+const jeName = `clutch-je/${windowId}.json`;
+const rj = await fetch(`https://github.com/comphubgg/CompHub/releases/download/${tagFuer(jeName)}/${jeName.replace(/\//g, '__')}`);
+if (!rj.ok) { console.log(`Werte je Match fehlen (${rj.status})`); process.exit(2); }
+const je = jeLesen(await rj.text());
+const ki = 1 + JE_SPALTEN.indexOf('killsEcht');
+const elims = top(Object.fromEntries(Object.entries(je).map(([id, zeilen]) => [id, zeilen.reduce((a, z) => a + (z[ki] ?? 0), 0)])));
 const schaden = top(Object.fromEntries(Object.entries(d.schaden ?? {}).map(([id, s]) => [id, s.dmg])));
 const strecke = top(Object.fromEntries(Object.entries(d.strecke ?? {}).map(([id, s]) => [id, Math.round(s[0] ?? 0)])));
 const daten = {
