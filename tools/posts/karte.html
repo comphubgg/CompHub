@@ -22,12 +22,12 @@ const lade=src=>new Promise(ok=>{const b=new Image();b.onload=()=>ok(b);b.onerro
  const img=await lade('karte.png');
  // Eng um die Insel schneiden wie /bilder/karte-nah.png (app/bilder/[datei]/route.ts): Wasser ist deutlich blauer als rot - alles andere ist Land.
  let A={l:0,o:0,s:100};
- if(img){const N=256,h=document.createElement('canvas');h.width=N;h.height=N;const hg=h.getContext('2d');hg.drawImage(img,0,0,N,N);const d=hg.getImageData(0,0,N,N).data;
+ if(img)try{const N=256,h=document.createElement('canvas');h.width=N;h.height=N;const hg=h.getContext('2d');hg.drawImage(img,0,0,N,N);const d=hg.getImageData(0,0,N,N).data;
   let x0=N,y0=N,x1=0,y1=0;for(let y=0;y<N;y++)for(let x=0;x<N;x++){const i=(y*N+x)*4;if(d[i+2]>d[i]+25&&d[i+2]>d[i+1]-10)continue;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
   // Auch die Spots muessen ganz drin sein.
   for(const f of spots)for(const p of f.punkte){x0=Math.min(x0,p.x/100*N);x1=Math.max(x1,p.x/100*N);y0=Math.min(y0,p.y/100*N);y1=Math.max(y1,p.y/100*N);}
   if(x1>x0&&y1>y0){const seite=Math.min(N,Math.max(x1-x0,y1-y0)*1.08);const l=Math.max(0,Math.min(N-seite,(x0+x1)/2-seite/2)),o=Math.max(0,Math.min(N-seite,(y0+y1)/2-seite/2));A={l:l/N*100,o:o/N*100,s:seite/N*100};}
-  const W=img.naturalWidth,H=img.naturalHeight;g.drawImage(img,A.l/100*W,A.o/100*H,A.s/100*W,A.s/100*H,0,0,G,G);}
+  const W=img.naturalWidth,H=img.naturalHeight;g.drawImage(img,A.l/100*W,A.o/100*H,A.s/100*W,A.s/100*H,0,0,G,G);}catch(e){A={l:0,o:0,s:100};g.drawImage(img,0,0,G,G);}
  for(const f of spots)f.punkte=f.punkte.map(p=>({x:(p.x-A.l)/A.s*100,y:(p.y-A.o)/A.s*100}));
  einheitsGroesse=berechneGroesse();
  const familie="'Alata'"; try{await document.fonts.load(`600 40px ${familie}`);}catch{}
