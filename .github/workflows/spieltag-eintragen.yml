@@ -1,0 +1,40 @@
+name: Spieltag eintragen
+# Einen Spieltag aus Epics Bestenliste ans Release haengen, wenn die Seite offline ist (ohne Cup-Katalog findet replays-schnell ihn nicht).
+# Danach liest clutch-rechnen die Replays wie bei jedem anderen Spieltag.
+on:
+  workflow_dispatch:
+    inputs:
+      eventId: { description: 'eventId', required: true }
+      windowId: { description: 'windowId', required: true }
+      beginn: { description: 'Beginn in ms seit 1970', required: true }
+      titel: { description: 'Titel', required: false, default: '' }
+      runde: { description: 'Runde', required: false, default: '1' }
+      finale: { description: 'true | false', required: false, default: 'false' }
+
+jobs:
+  eintragen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Zugangsdaten
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - run: node scripts/spieltag-eintragen.mjs "${{ inputs.eventId }}" "${{ inputs.windowId }}" "${{ inputs.beginn }}" "${{ inputs.titel }}" "${{ inputs.runde }}" "${{ inputs.finale }}"
+      - name: Hochladen und rechnen lassen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          W="${{ inputs.windowId }}"; S="${W%%_*}"; T="daten-spieltage-$(echo $S | tr 'A-Z' 'a-z')"
+          cp "data/epic-spieltage/$S/$W.json" "epic-spieltage__${S}__${W}.json"
+          gh release upload "$T" "epic-spieltage__${S}__${W}.json" --clobber
+          gh workflow run clutch-rechnen.yml || true
