@@ -37,7 +37,7 @@ fetch('../../public/spielerbilder/_gesichter.json').then(r=>r.json()).catch(()=>
  for(const im of document.querySelectorAll('.k .i img')){
   const setze=()=>{const box=im.parentElement.getBoundingClientRect();const W=im.parentElement.offsetWidth,H=im.parentElement.offsetHeight;
    const g=G[im.dataset.d]||[.5,.3,.3];const nw=im.naturalWidth,nh=im.naturalHeight;
-   let s=Math.max(W/nw,H/nh,(W*0.42)/(g[2]*nw));
+   let s=Math.max(W/nw,H/nh,(W*0.42)/(g[2]*nw),W/(2*Math.max(.05,Math.min(g[0],1-g[0]))*nw));
    const x=W/2-g[0]*nw*s, y=H*0.36-g[1]*nh*s;
    im.style.width=nw*s+'px';im.style.height=nh*s+'px';im.style.left=Math.min(0,Math.max(W-nw*s,x))+'px';im.style.top=Math.min(0,Math.max(H-nh*s,y))+'px';};
   im.complete?setze():im.onload=setze;}

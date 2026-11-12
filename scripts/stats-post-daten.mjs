@@ -10,7 +10,8 @@ const d = await r.json();
 let pro = {};
 try { pro = await (await fetch('https://github.com/comphubgg/CompHub/releases/download/daten/spieler-namen.json')).json(); } catch { /* ohne */ }
 const ORDNER = new URL('../public/spielerbilder/', import.meta.url);
-const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER) : [];
+// Platzhalter (graues Symbol, rund 2 KB) zaehlen nicht als Foto.
+const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER).filter((f) => fs.statSync(new URL(f, ORDNER)).size > 4000) : [];
 let gesichter = {};
 try { gesichter = JSON.parse(fs.readFileSync(new URL('_gesichter.json', ORDNER), 'utf8')); } catch { /* ohne */ }
 const name = (id) => pro[id]?.haupt ?? d.namen?.[id] ?? id.slice(0, 8);

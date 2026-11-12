@@ -54,7 +54,8 @@ for (let i = 0; i < ids.length; i += 100) {
 const name = (id) => pro[id]?.haupt ?? anzeige[id] ?? id.slice(0, 8);
 // Foto aus public/spielerbilder: Schluessel aus spieler-namen.json, sonst der Name ohne Team-Kuerzel.
 const ORDNER = new URL('../public/spielerbilder/', import.meta.url);
-const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER) : [];
+// Platzhalter (graues Symbol, rund 2 KB) zaehlen nicht als Foto.
+const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER).filter((f) => fs.statSync(new URL(f, ORDNER)).size > 4000) : [];
 let gesichter = {};
 try { gesichter = JSON.parse(fs.readFileSync(new URL('_gesichter.json', ORDNER), 'utf8')); } catch { /* ohne */ }
 const kurz = (n) => String(n).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^(t1|roc|ag|flcn|havok|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn)\s+/i, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
