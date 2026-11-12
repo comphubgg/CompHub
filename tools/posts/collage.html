@@ -13,7 +13,7 @@ body{width:1600px;height:900px;overflow:hidden;font-family:Inter,system-ui,sans-
 .reihe{position:absolute;left:64px;right:64px;top:130px;bottom:70px;display:flex;gap:18px;justify-content:center}
 .k{position:relative;flex:1;max-width:240px;transform:skewX(-6deg);border-radius:18px;overflow:hidden;background:#0d1626;border:1px solid rgba(255,255,255,.08)}
 .k.g{border:1.5px solid rgba(245,197,66,.55)}
-.k .i{position:absolute;inset:-2px -30px;transform:skewX(6deg);background:center/cover;filter:saturate(.8) contrast(1.05)}
+.k .i{position:absolute;top:0;bottom:0;left:-50px;right:-50px;transform:skewX(6deg)}.k .i img{position:absolute;filter:saturate(.85) contrast(1.05);transform-origin:0 0}
 .k:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,14,0) 45%,rgba(5,8,14,.92) 92%),linear-gradient(180deg,rgba(0,163,255,.10),rgba(0,163,255,0) 40%)}
 .k.g:after{background:linear-gradient(180deg,rgba(5,8,14,0) 45%,rgba(5,8,14,.92) 92%),linear-gradient(180deg,rgba(245,197,66,.10),rgba(245,197,66,0) 40%)}
 .k .n{position:absolute;left:0;right:0;bottom:22px;z-index:1;transform:skewX(6deg);text-align:center;font-size:26px;font-weight:900}
@@ -31,6 +31,16 @@ const q=new URLSearchParams(location.search);
 document.getElementById('t').textContent=q.get('t')||'';
 document.getElementById('u').textContent=q.get('u')||'';
 document.getElementById('reihe').innerHTML=(q.get('b')||'').split(',').filter(Boolean).map(x=>{const [d,n,l,r]=x.split(':');
- return `<div class="k ${r==='1'?'g':''}"><div class="i" style="background-image:url('../../public/spielerbilder/${d}');background-position:50% 20%"></div>${r?`<div class="r">#${r}</div>`:''}<div class="n">${l?`<img src="../../public/flags/${l}.png">`:''}${n}</div></div>`}).join('');
+ return `<div class="k ${r==='1'?'g':''}"><div class="i"><img data-d="${d}" src="../../public/spielerbilder/${d}"></div>${r?`<div class="r">#${r}</div>`:''}<div class="n">${l?`<img src="../../public/flags/${l}.png">`:''}${n}</div></div>`}).join('');
+// Gesicht gross und mittig: Lage aus public/spielerbilder/_gesichter.json [x, y, Breite] (Anteile des Bildes).
+fetch('../../public/spielerbilder/_gesichter.json').then(r=>r.json()).catch(()=>({})).then(G=>{
+ for(const im of document.querySelectorAll('.k .i img')){
+  const setze=()=>{const box=im.parentElement.getBoundingClientRect();const W=im.parentElement.offsetWidth,H=im.parentElement.offsetHeight;
+   const g=G[im.dataset.d]||[.5,.3,.3];const nw=im.naturalWidth,nh=im.naturalHeight;
+   let s=Math.max(W/nw,H/nh,(W*0.42)/(g[2]*nw));
+   const x=W/2-g[0]*nw*s, y=H*0.36-g[1]*nh*s;
+   im.style.width=nw*s+'px';im.style.height=nh*s+'px';im.style.left=Math.min(0,Math.max(W-nw*s,x))+'px';im.style.top=Math.min(0,Math.max(H-nh*s,y))+'px';};
+  im.complete?setze():im.onload=setze;}
+ document.body.dataset.fertig=1;});
 </script>
 </body></html>
