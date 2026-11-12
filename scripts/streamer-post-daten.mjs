@@ -43,6 +43,17 @@ treffer = treffer.map((s) => ({ ...s, pro: proLogin.has(s.user_login.toLowerCase
   .sort((a, b) => b.viewer_count - a.viewer_count).slice(0, 6)
   .sort((a, b) => b.viewer_count - a.viewer_count);
 
+// Feste Auswahl (STREAMER="a,b|b2,..."; mit | getrennte Schreibweisen): diese Kanaele, live oder nicht, in dieser Reihenfolge.
+if (U.STREAMER) {
+  const gruppen = U.STREAMER.split(',').map((g) => g.split('|').map((x) => x.trim().toLowerCase()).filter(Boolean));
+  const q1 = new URLSearchParams(); for (const l of gruppen.flat()) q1.append('login', l);
+  const da = (await (await fetch(`https://api.twitch.tv/helix/users?${q1}`, { headers: H })).json()).data ?? [];
+  const wahl = gruppen.map((g) => g.map((l) => da.find((u) => u.login === l)).find(Boolean)).filter(Boolean);
+  console.log('Gefunden:', wahl.map((u) => u.login).join(', '), '| fehlt:', gruppen.filter((g) => !g.some((l) => da.some((u) => u.login === l))).map((g) => g.join('/')).join(', '));
+  const q2 = new URLSearchParams(); for (const u of wahl) q2.append('user_id', u.id);
+  const live = wahl.length ? (await (await fetch(`https://api.twitch.tv/helix/streams?${q2}&first=100`, { headers: H })).json()).data ?? [] : [];
+  treffer = wahl.map((u) => { const st = live.find((x) => x.user_id === u.id); return st ?? { user_id: u.id, user_name: u.display_name, user_login: u.login, viewer_count: null, title: '', language: '', thumbnail_url: '' }; });
+}
 const p = new URLSearchParams(); for (const s of treffer) p.append('id', s.user_id);
 const nutzer = treffer.length ? (await (await fetch(`https://api.twitch.tv/helix/users?${p}`, { headers: H })).json()).data : [];
 const bild = Object.fromEntries(nutzer.map((u) => [u.id, u.profile_image_url]));
@@ -54,7 +65,7 @@ const fotoVon = (l) => { for (const k of [l.toLowerCase(), kern(l)]) { const f =
 const echteVorschau = async (u) => {
   try { const r = await fetch(u, { redirect: 'manual' }); if (!r.ok) return null; const b = await r.arrayBuffer(); return b.byteLength > 14000 ? u : null; } catch { return null; }
 };
-for (const s of treffer) s.echt = await echteVorschau(s.thumbnail_url.replace('{width}', '640').replace('{height}', '360'));
+for (const s of treffer) s.echt = s.thumbnail_url && await echteVorschau(s.thumbnail_url.replace('{width}', '640').replace('{height}', '360'));
 const daten = {
   stand: new Date().toISOString(),
   gesamt: streams.filter((s) => re.test(s.title) && EU.has(s.language)).length,
