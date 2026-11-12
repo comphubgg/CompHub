@@ -28,7 +28,8 @@ for (let i = 0; i < 10; i++) {
   nach = j.pagination?.cursor; if (!nach) break;
 }
 const re = new RegExp(muster, 'i');
-let treffer = streams.filter((s) => re.test(s.title) && EU.has(s.language));
+const zuschauen = /watch|react|cast|co-?stream|viewing/i;
+let treffer = streams.filter((s) => re.test(s.title) && EU.has(s.language) && !zuschauen.test(s.title));
 
 // Bekannte Pros bevorzugen: Twitch-Logins aus den Spielerprofilen.
 let profile = {};
@@ -39,7 +40,7 @@ for (const [id, p] of Object.entries(profile?.profile ?? profile ?? {})) {
   if (t) proLogin.set(String(t).toLowerCase().replace(/^.*twitch\.tv\//, '').replace(/[/@]/g, ''), { id, ...p });
 }
 treffer = treffer.map((s) => ({ ...s, pro: proLogin.has(s.user_login.toLowerCase()) }))
-  .sort((a, b) => (b.pro - a.pro) || (b.viewer_count - a.viewer_count)).slice(0, 6)
+  .sort((a, b) => b.viewer_count - a.viewer_count).slice(0, 6)
   .sort((a, b) => b.viewer_count - a.viewer_count);
 
 const p = new URLSearchParams(); for (const s of treffer) p.append('id', s.user_id);
