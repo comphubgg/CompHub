@@ -39,7 +39,7 @@ h1 .j{color:var(--b)}
 <div class="bg"></div><div class="grid"></div>
 <div class="w kopf"><img src="../../public/logos/CompHub-Logo-frei.png">The CompHub<span class="r" id="chips"></span></div>
 <div id="inhalt"></div>
-<div class="w fuss"><span id="stand">EU · Trios · Fortnite Chapter 7</span><span><b>thecomphub.com</b></span></div>
+<div class="w fuss"><span id="stand">EU · Trios · Fortnite Chapter 7</span><span id="url"><b>thecomphub.com</b></span></div>
 <script src="cup-daten.js" onerror="window.DATEN=null"></script>
 <script>
 const q=new URLSearchParams(location.search), art=q.get('art')||'vorschau';
@@ -91,7 +91,7 @@ if(art==='vorschau'){
   <div class="th"><span>#</span><span>Team</span><span>Points</span><span>Elims</span><span>VR</span></div>
   ${t.map((x,i)=>`<div class="t ${i===0?'e1':''}"><div class="p">#${x.rang}</div><div class="n">${namen(x.namen)}</div><div class="v">${x.punkte}</div><div class="v">${x.elims}</div><div class="v">${x.siege}</div></div>`).join('')}
  </div>`;
- document.getElementById('stand').textContent=`Epic leaderboard · ${fin?'final standings':'end of Round 1'} · full stats & replays on CompHub`;
+ document.getElementById('stand').textContent=`Epic leaderboard · ${fin?'final standings':'end of Round 1'}`;document.getElementById('url').innerHTML='<img src="../../public/logos/CompHub-Logo-frei.png" style="height:26px;opacity:.6">';
 }
 </script>
 </body></html>
