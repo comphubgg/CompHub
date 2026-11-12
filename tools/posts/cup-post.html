@@ -1,0 +1,97 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Posts rund um einen Cup (1200x1500): ?art=vorschau | start | runde1 | finale. Ergebnis-Daten kommen aus cup-daten.js (scripts/cup-post-daten.mjs). -->
+<style>
+:root{--b:#00a3ff;--g:#8ea0bd;--gold:#f5c542;--lila:#a78bfa}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:1500px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 85% 0%,#1d2f6a 0%,#0a1324 35%,#05080e 65%)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,163,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(0,163,255,.06) 1px,transparent 1px);background-size:60px 60px}
+.w{position:absolute;left:64px;right:64px}
+.kopf{top:56px;display:flex;align-items:center;gap:14px;color:var(--g);font-weight:700;letter-spacing:.18em;font-size:20px;text-transform:uppercase}
+.kopf img{height:32px}.kopf .r{margin-left:auto;display:flex;gap:10px}
+.chip{padding:7px 16px;border-radius:999px;border:1.5px solid rgba(0,163,255,.45);color:var(--b);font-size:18px;letter-spacing:.08em;font-weight:800;text-transform:uppercase}
+.chip.live{border-color:#ff3b5c;color:#fff;background:#ff3b5c}
+.chip.live:before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;margin-right:9px;vertical-align:1px}
+h1{position:absolute;left:64px;right:64px;top:140px;font-size:118px;line-height:.92;font-weight:900;letter-spacing:-.02em}
+h1 .j{color:var(--b)}
+.sub{font-size:30px;font-weight:700;color:#d6e2f3;line-height:1.3}
+.k{padding:26px 28px;border-radius:22px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
+.k .l{color:var(--g);font-weight:800;font-size:17px;letter-spacing:.14em;text-transform:uppercase}
+.k .z{font-size:64px;font-weight:900;line-height:1;margin-top:10px}
+.k .d{margin-top:10px;color:#c4d0e3;font-size:22px;font-weight:600}
+.k.h{background:linear-gradient(180deg,rgba(0,163,255,.16),rgba(0,163,255,.03));border:1.5px solid rgba(0,163,255,.5)}
+.k.gold{background:linear-gradient(180deg,rgba(245,197,66,.18),rgba(245,197,66,.04));border:1.5px solid rgba(245,197,66,.45)}
+.k.gold .z{color:var(--gold)}
+.reihe{display:grid;gap:18px}
+.titel{font-size:22px;font-weight:800;letter-spacing:.16em;color:var(--g);text-transform:uppercase;display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.titel:before{content:"";width:6px;height:22px;border-radius:3px;background:var(--b)}
+.t{display:grid;grid-template-columns:70px 1fr 110px 90px 70px;align-items:center;gap:12px;padding:13px 20px;border-radius:16px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.07);margin-bottom:9px}
+.t .p{font-size:30px;font-weight:900;color:var(--b)}
+.t.e1 .p{color:var(--gold)}.t.e1{border-color:rgba(245,197,66,.5);background:linear-gradient(90deg,rgba(245,197,66,.14),rgba(15,22,34,.9) 60%)}
+.t .n{font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t .v{font-size:22px;font-weight:900;text-align:right}.t .v small{display:block;font-size:12px;color:var(--g);letter-spacing:.12em;font-weight:800}
+.th{display:grid;grid-template-columns:70px 1fr 110px 90px 70px;gap:12px;padding:0 20px 8px;color:var(--g);font-size:14px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.th span:nth-child(n+3){text-align:right}
+.fuss{bottom:44px;display:flex;justify-content:space-between;align-items:center;color:#6f7f99;font-size:18px;font-weight:600}
+.fuss b{color:#fff}
+.cta{display:inline-flex;align-items:center;gap:12px;padding:16px 26px;border-radius:16px;background:var(--b);color:#04121f;font-weight:900;font-size:24px}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="w kopf"><img src="../../public/logos/CompHub-Logo-frei.png">The CompHub<span class="r" id="chips"></span></div>
+<div id="inhalt"></div>
+<div class="w fuss"><span id="stand">EU · Trios · Fortnite Chapter 7</span><span><b>thecomphub.com</b></span></div>
+<script src="cup-daten.js" onerror="window.DATEN=null"></script>
+<script>
+const q=new URLSearchParams(location.search), art=q.get('art')||'vorschau';
+const D=window.DATEN||{};
+const tag=q.get('tag')||'Thursday, Nov 12';
+const r1=q.get('r1')||'18:00', fi=q.get('fi')||'21:00';
+const chips=document.getElementById('chips'), I=document.getElementById('inhalt');
+const fmt=n=>Number(n).toLocaleString('en-US');
+const namen=a=>a.join(' · ');
+if(art==='vorschau'){
+ chips.innerHTML='<span class="chip">EU</span><span class="chip">Today</span>';
+ I.innerHTML=`<h1>TRIOS<br><span class="j">PERFORMANCE</span><br>CUP</h1>
+ <div class="w sub" style="top:540px">${tag} · The best trios in Europe fight for the top spots. Every team, every match, every stat, live on CompHub.</div>
+ <div class="w reihe" style="top:700px;grid-template-columns:1fr 1fr">
+  <div class="k h"><div class="l">Round 1</div><div class="z">${r1}</div><div class="d">CET · 8 games</div></div>
+  <div class="k gold"><div class="l">Final</div><div class="z">${fi}</div><div class="d">CET · 4 games · best teams only</div></div>
+ </div>
+ <div class="w" style="top:990px"><div class="titel">What you get on CompHub</div>
+  <div class="reihe" style="grid-template-columns:1fr 1fr 1fr">
+   <div class="k"><div class="l">Live</div><div class="d" style="margin-top:8px">Leaderboard & points as they happen</div></div>
+   <div class="k"><div class="l">Stats</div><div class="d" style="margin-top:8px">Elims, damage, placements per player</div></div>
+   <div class="k"><div class="l">Replays</div><div class="d" style="margin-top:8px">Every match, every fight</div></div>
+  </div></div>
+ <div class="w" style="top:1290px"><span class="cta">Follow it live → thecomphub.com</span></div>`;
+}else if(art==='start'){
+ chips.innerHTML='<span class="chip live">Live</span><span class="chip">EU</span>';
+ I.innerHTML=`<h1>ROUND 1<br><span class="j">IS LIVE</span></h1>
+ <div class="w sub" style="top:400px">Trios Performance Cup · ${tag}<br>8 games until ${q.get('r1ende')||'20:00'} CET. The top teams move on to the final at ${fi} CET.</div>
+ <div class="w reihe" style="top:600px;grid-template-columns:1fr 1fr 1fr">
+  <div class="k h"><div class="l">Games</div><div class="z">8</div><div class="d">Round 1</div></div>
+  <div class="k"><div class="l">Final</div><div class="z">${fi}</div><div class="d">CET · 4 games</div></div>
+  <div class="k gold"><div class="l">Format</div><div class="z">3</div><div class="d">players per team</div></div>
+ </div>
+ <div class="w" style="top:880px"><div class="titel">Track it live</div>
+  <div class="k" style="font-size:28px;font-weight:700;line-height:1.45;color:#d6e2f3">Live leaderboard, points per game, elims and damage for every player, updated during the cup. Who makes it to the final? Watch it happen.</div></div>
+ <div class="w" style="top:1290px"><span class="cta">Live leaderboard → thecomphub.com</span></div>`;
+}else{
+ const fin=art==='finale';
+ chips.innerHTML=`<span class="chip">EU</span><span class="chip">${fin?'Final':'Round 1'}</span>`;
+ const t=D.top||[];
+ I.innerHTML=`<h1 style="font-size:96px">${fin?'FINAL':'ROUND 1'}<br><span class="j">RESULTS</span></h1>
+ <div class="w sub" style="top:340px;font-size:26px">Trios Performance Cup · ${tag}${fin?'':' · the final starts at '+fi+' CET'}</div>
+ <div class="w reihe" style="top:410px;grid-template-columns:1fr 1fr 1fr">
+  <div class="k gold" style="padding:20px 24px"><div class="l">${fin?'Winners':'Round 1 leader'}</div><div class="d" style="font-size:24px;font-weight:900;color:#fff;margin-top:8px;line-height:1.25">${namen(t[0]?.namen||[])}</div><div class="d" style="font-size:18px">${t[0]?.punkte??''} pts · ${t[0]?.elims??''} elims · ${t[0]?.siege??0} VR</div></div>
+  <div class="k" style="padding:20px 24px"><div class="l">Most elims</div><div class="z" style="font-size:50px">${D.meisteElims?.elims??''}</div><div class="d" style="font-size:18px">${namen(D.meisteElims?.namen||[])}</div></div>
+  <div class="k" style="padding:20px 24px"><div class="l">Best single game</div><div class="z" style="font-size:50px">${D.bestesSpiel?.elims??''}</div><div class="d" style="font-size:18px">elims · ${namen(D.bestesSpiel?.namen||[])}</div></div>
+ </div>
+ <div class="w" style="top:660px"><div class="titel">Top 10 · ${fmt(D.teams||0)} teams · ${fmt(D.elims||0)} elims · ${fmt(D.siege||0)} Victory Royales</div>
+  <div class="th"><span>#</span><span>Team</span><span>Points</span><span>Elims</span><span>VR</span></div>
+  ${t.map((x,i)=>`<div class="t ${i===0?'e1':''}"><div class="p">#${x.rang}</div><div class="n">${namen(x.namen)}</div><div class="v">${x.punkte}</div><div class="v">${x.elims}</div><div class="v">${x.siege}</div></div>`).join('')}
+ </div>`;
+ document.getElementById('stand').textContent=`Epic leaderboard · ${fin?'final standings':'end of Round 1'} · full stats & replays on CompHub`;
+}
+</script>
+</body></html>

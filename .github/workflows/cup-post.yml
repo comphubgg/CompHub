@@ -1,0 +1,37 @@
+name: Cup-Post
+# Ergebnis-Post (PNG) aus Epics Bestenliste: tools/posts/cup-post.html + scripts/cup-post-daten.mjs. Das Bild liegt danach im Release "medien".
+on:
+  workflow_dispatch:
+    inputs:
+      eventId: { description: 'eventId', required: true }
+      windowId: { description: 'windowId', required: true }
+      art: { description: 'runde1 | finale', required: true, default: 'finale' }
+      query: { description: 'weitere Parameter fuer die Vorlage (tag=...&fi=...)', required: false, default: '' }
+      name: { description: 'Dateiname im Release', required: true }
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Zugangsdaten
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Daten
+        run: node scripts/cup-post-daten.mjs "${{ inputs.eventId }}" "${{ inputs.windowId }}" tools/posts/cup-daten.js "${{ inputs.art }}"
+      - name: Bild
+        run: node tools/posts/aufnehmen.mjs "tools/posts/cup-post.html?art=${{ inputs.art }}&${{ inputs.query }}" "${{ inputs.name }}" 1200 1500
+      - name: Hochladen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload medien "${{ inputs.name }}" --clobber
