@@ -1,0 +1,32 @@
+name: Streamer-Post
+# Live-Post: wer streamt gerade den Cup (Twitch). Bild landet im Release "medien".
+on:
+  workflow_dispatch:
+    inputs:
+      muster: { description: 'Regex fuer den Streamtitel', required: false, default: 'perf|eval|cup|trio|pec|turnier|tourn' }
+      query: { description: 'Parameter fuer die Vorlage (sub=...)', required: false, default: '' }
+      name: { description: 'Dateiname im Release', required: true }
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium && sudo apt-get install -y fonts-inter >/dev/null
+      - run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Daten
+        run: node scripts/streamer-post-daten.mjs tools/posts/cup-daten.js "${{ inputs.muster }}"
+      - name: Bild
+        run: node tools/posts/aufnehmen.mjs "tools/posts/streamer-post.html?${{ inputs.query }}" "${{ inputs.name }}" 1200 1500
+      - name: Hochladen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload medien "${{ inputs.name }}" --clobber

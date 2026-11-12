@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Live-Post (1200x1500): wer streamt gerade den Cup. Daten aus cup-daten.js (scripts/streamer-post-daten.mjs). -->
+<style>
+:root{--g:#8ea0bd;--rot:#ff3b5c}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:1500px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#3a0d1c 0%,#0b1220 40%,#05080e 70%)}
+.w{position:absolute;left:56px;right:56px}
+.oben{top:58px;display:flex;gap:10px;justify-content:center}
+.chip{padding:8px 18px;border-radius:999px;font-size:20px;letter-spacing:.1em;font-weight:900;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.25);color:#d6e2f3}
+.chip.live{background:var(--rot);border-color:var(--rot);color:#fff}
+.chip.live:before{content:"";display:inline-block;width:11px;height:11px;border-radius:50%;background:#fff;margin-right:10px;vertical-align:1px}
+h1{position:absolute;left:0;right:0;top:120px;text-align:center;font-size:96px;font-weight:900;line-height:1;white-space:nowrap}
+h1 span{color:var(--rot)}
+.sub{top:236px;text-align:center;font-size:26px;font-weight:700;color:#c4d0e3}
+.grid{top:310px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.s{position:relative;height:340px;border-radius:24px;overflow:hidden;background:#111a2a;border:1.5px solid rgba(255,59,92,.35)}
+.s .v{position:absolute;inset:0;background:center/cover}
+.s:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,14,.1) 30%,rgba(5,8,14,.96) 100%)}
+.s .u{position:absolute;left:20px;right:20px;bottom:18px;z-index:1;display:flex;align-items:center;gap:14px}
+.s .a{width:70px;height:70px;border-radius:50%;background:#1a2436 center/cover;border:3px solid var(--rot);flex:none}
+.s .n{font-size:30px;font-weight:900;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s .t{font-size:16px;color:#c4d0e3;font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:380px}
+.s .z{position:absolute;top:16px;left:16px;z-index:1;background:rgba(5,8,14,.8);padding:6px 12px;border-radius:10px;font-weight:900;font-size:18px}
+.s .z:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--rot);margin-right:8px;vertical-align:1px}
+.logo{bottom:40px;display:flex;justify-content:center;opacity:.55}
+.logo img{height:30px}
+</style></head><body>
+<div class="bg"></div>
+<div id="inhalt"></div>
+<div class="w logo"><img src="../../public/logos/CompHub-Logo-frei.png"></div>
+<script src="cup-daten.js" onerror="window.DATEN=null"></script>
+<script>
+const q=new URLSearchParams(location.search), D=window.DATEN||{streamer:[]};
+const fmt=n=>Number(n).toLocaleString('en-US');
+const s=D.streamer||[];
+document.getElementById('inhalt').innerHTML=`
+<div class="w oben"><span class="chip live">Live now</span><span class="chip">EU</span></div>
+<h1>WATCH THEM <span>LIVE</span></h1>
+<div class="w sub">${q.get('sub')||'Trios Performance Cup · Round 1'}</div>
+<div class="w grid">${s.map(x=>`<div class="s"><div class="v" style="background-image:url('${x.vorschau}')"></div><div class="z">${fmt(x.zuschauer)}</div><div class="u"><div class="a" style="background-image:url('${x.foto?'../../public/spielerbilder/'+x.foto:x.avatar||''}')"></div><div><div class="n">${x.name}</div><div class="t">twitch.tv/${x.login}</div></div></div></div>`).join('')}</div>`;
+</script>
+</body></html>
