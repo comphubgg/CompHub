@@ -25,7 +25,7 @@ h1 .j{color:var(--b)}
 .reihe{display:grid;gap:18px}
 .titel{font-size:22px;font-weight:800;letter-spacing:.16em;color:var(--g);text-transform:uppercase;display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .titel:before{content:"";width:6px;height:22px;border-radius:3px;background:var(--b)}
-.t{display:grid;grid-template-columns:70px 1fr 110px 90px 70px;align-items:center;gap:12px;padding:13px 20px;border-radius:16px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.07);margin-bottom:9px}
+.t{display:grid;grid-template-columns:70px 1fr 110px 90px 70px;align-items:center;gap:12px;padding:10px 20px;border-radius:16px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.07);margin-bottom:8px}
 .t .p{font-size:30px;font-weight:900;color:var(--b)}
 .t.e1 .p{color:var(--gold)}.t.e1{border-color:rgba(245,197,66,.5);background:linear-gradient(90deg,rgba(245,197,66,.14),rgba(15,22,34,.9) 60%)}
 .t .n{font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -87,7 +87,7 @@ if(art==='vorschau'){
   <div class="k" style="padding:20px 24px"><div class="l">Most elims</div><div class="z" style="font-size:50px">${D.meisteElims?.elims??''}</div><div class="d" style="font-size:18px">${namen(D.meisteElims?.namen||[])}</div></div>
   <div class="k" style="padding:20px 24px"><div class="l">Best single game</div><div class="z" style="font-size:50px">${D.bestesSpiel?.elims??''}</div><div class="d" style="font-size:18px">elims · ${namen(D.bestesSpiel?.namen||[])}</div></div>
  </div>
- <div class="w" style="top:660px"><div class="titel">Top 10 · ${fmt(D.teams||0)} teams · ${fmt(D.elims||0)} elims · ${fmt(D.siege||0)} Victory Royales</div>
+ <div class="w" style="top:640px"><div class="titel">Top 10 · ${fmt(D.teams||0)} teams · ${fmt(D.elims||0)} elims · ${fmt(D.siege||0)} Victory Royales</div>
   <div class="th"><span>#</span><span>Team</span><span>Points</span><span>Elims</span><span>VR</span></div>
   ${t.map((x,i)=>`<div class="t ${i===0?'e1':''}"><div class="p">#${x.rang}</div><div class="n">${namen(x.namen)}</div><div class="v">${x.punkte}</div><div class="v">${x.elims}</div><div class="v">${x.siege}</div></div>`).join('')}
  </div>`;
