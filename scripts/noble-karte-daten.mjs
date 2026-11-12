@@ -15,7 +15,7 @@ try { pro = await (await fetch('https://github.com/comphubgg/CompHub/releases/do
 const name = (id, roh) => pro[id]?.haupt ?? roh;
 const daten = {
   ...k,
-  formen: k.formen.map((f) => ({ ...f, teams: f.teams.map((t) => ({ ...t, namen: t.ids.map((id, i) => name(id, t.namen[i])), bekannt: t.ids.map((id) => Boolean(pro[id])) })) })),
+  formen: k.formen.map((f) => ({ ...f, teams: f.teams.map((t) => ({ ...t, roh: t.namen, namen: t.ids.map((id, i) => name(id, t.namen[i])), bekannt: t.ids.map((id) => Boolean(pro[id])) })) })),
 };
 fs.writeFileSync(aus, `window.KARTE=${JSON.stringify(daten)};`);
 console.log(`${k.turnier.name} · ${k.fenster.name}: ${k.formen.length} Formen, ${k.anzahlTeams} Teams, ${k.ohneForm.length} ohne Form`);

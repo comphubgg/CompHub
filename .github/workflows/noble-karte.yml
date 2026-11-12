@@ -25,10 +25,14 @@ jobs:
       - run: npx playwright install --with-deps chromium && sudo apt-get install -y fonts-inter >/dev/null
       - name: Daten
         run: node --experimental-strip-types scripts/noble-karte-daten.mjs "${{ inputs.windowId }}" tools/posts/karte-daten.js "${{ inputs.titel }}" "${{ inputs.beginn }}"
-      - name: Kartenbild
-        run: curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png && file tools/posts/karte.png
+      - name: Zugang
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Namen wie auf der Kartenseite
+        run: node scripts/karte-namen.cjs tools/posts/karte-daten.js
+      - name: Kartenbild (Insel aus der Ablage, sonst Epics Karte)
+        run: node scripts/karte-insel-holen.cjs "${{ inputs.windowId }}" tools/posts/karte.png || curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png; file tools/posts/karte.png
       - name: Bild
-        run: node tools/posts/aufnehmen.mjs "tools/posts/karte.html?${{ inputs.query }}" "${{ inputs.name }}" 1600 1600
+        run: node tools/posts/aufnehmen.mjs "tools/posts/karte.html?${{ inputs.query }}" "${{ inputs.name }}" 1400 1400
       - name: Hochladen
         env:
           GH_TOKEN: ${{ github.token }}

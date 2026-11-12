@@ -1,46 +1,40 @@
 <!doctype html><html><head><meta charset="utf-8">
-<!-- Turnierkarte als Bild (1600x1600) im Stil der CompHub-Karten: ein Name je Team, Spots von Noble Practice (scripts/noble-karte-daten.mjs -> karte-daten.js). -->
-<style>
-*{box-sizing:border-box;margin:0}
-body{width:1600px;height:1600px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#0f3a73;position:relative}
-#k{position:absolute;width:2581px;height:2581px;left:-542px;top:-620px}
-#k img{position:absolute;inset:0;width:100%;height:100%}
-svg{position:absolute;inset:0;width:100%;height:100%}
-.lab{position:absolute;transform:translate(-50%,-50%);text-align:center;font-weight:900;font-size:25px;line-height:1.05;white-space:nowrap;text-transform:uppercase;letter-spacing:-.01em;
- text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 3px 6px rgba(0,0,0,.6)}
-.wz{position:absolute;inset:-400px;display:flex;flex-wrap:wrap;gap:160px 220px;transform:rotate(-24deg);opacity:.07;font-size:90px;font-weight:900;pointer-events:none;align-content:flex-start}
-.logo{position:absolute;right:40px;bottom:30px;text-align:center}
-.logo img{height:150px;display:block;margin:0 auto 6px}
-.logo b{font-size:26px;font-weight:800}
-.kopf{position:absolute;top:30px;left:36px;font-weight:900;font-size:26px;letter-spacing:.1em;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,.7)}
-.kopf span{display:block;font-size:18px;color:#cfe0ff;letter-spacing:.14em;margin-top:4px}
-</style></head><body>
-<div id="k"><img id="bild"><svg id="s" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
-<div class="wz" id="wz"></div>
-<div class="kopf" id="kopf"></div>
-<div class="logo"><img src="../../public/logos/CompHub-Logo-frei.png"><b>thecomphub.com</b></div>
+<!-- Turnierkarte als Bild (1400x1400) - Nachbau von alsBild() aus app/maps/page.tsx: Inselbild, Formen (formFarbe), Namen in Alata mit schwarzer Kontur, Wasserzeichen, Logo. -->
+<link href="https://fonts.googleapis.com/css2?family=Alata&display=block" rel="stylesheet">
+<style>*{margin:0}body{width:1400px;height:1400px;background:#0a0a0b}canvas{display:block}</style>
+</head><body><canvas id="c" width="1400" height="1400"></canvas>
 <script src="karte-daten.js" onerror="window.KARTE=null"></script>
 <script>
-const q=new URLSearchParams(location.search), K=window.KARTE||{formen:[]};
-document.getElementById('bild').src=q.get('bild')||'karte.png';
-document.getElementById('kopf').innerHTML=`${q.get('t')||''}<span>${q.get('u')||''}</span>`;
-document.getElementById('wz').innerHTML=Array.from({length:40},()=>'<span>thecomphub.com</span>').join('');
-const FARBEN=[['#e8473f',.45],['#0b0f18',.42],['#1d4f91',.45],['#c0392b',.4],['#111827',.38],['#f08a24',.42]];
-const ORGS=/^(t1|roc|ag|flcn|havok|hvk|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn|mg|gw|x6|enc|atl|atlantic|clue|detect|ast|r4c|atc|bepro|solary|lyost|sab|vl|ed|one|fatal|blz|1up|dvs|cvx|lyl|aur|armr|kos|el|ttv|twitter|fn)$/i;
-const kurz=n=>{let w=String(n).replace(/[ǃ!.]+/g,' ').trim().split(/\s+/).filter(x=>!/^(ll|le|\d+([.,]\d+)?)$/i.test(x));
- while(w.length>1&&ORGS.test(w[0]))w.shift();
- if(w.length>1&&w[0].length<=3)w.shift();
- return (w[0]||String(n)).replace(/^twitter/i,'').replace(/fnbr$/i,'');};
-const haupt=t=>{const k=t.namen.map(kurz);const i=(t.bekannt||[]).indexOf(true);return i>=0?k[i]:k.slice().sort((a,b)=>a.length-b.length)[0];};
-let svg='',lab='';
-K.formen.forEach((f,i)=>{
- const [c,o]=f.teams.length?FARBEN[i%FARBEN.length]:['#000',.15];
- svg+=`<polygon points="${f.punkte.map(p=>p.x+','+p.y).join(' ')}" fill="${c}" fill-opacity="${o}" stroke="#0a0a0a" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
- if(!f.teams.length)return;
- const mx=f.punkte.reduce((a,p)=>a+p.x,0)/f.punkte.length, my=f.punkte.reduce((a,p)=>a+p.y,0)/f.punkte.length;
- lab+=`<div class="lab" style="left:${mx}%;top:${my}%">${f.teams.map(haupt).join('<br>')}</div>`;
-});
-document.getElementById('s').innerHTML=svg;
-document.getElementById('k').insertAdjacentHTML('beforeend',lab);
-</script>
-</body></html>
+const K=window.KARTE||{formen:[]}, G=1400;
+function rahmen(p){const xs=p.map(q=>q.x),ys=p.map(q=>q.y);const links=Math.min(...xs),oben=Math.min(...ys);return{links,oben,breite:Math.max(...xs)-links,hoehe:Math.max(...ys)-oben};}
+function spanneBei(punkte,y){const s=[];for(let i=0,j=punkte.length-1;i<punkte.length;j=i++){const a=punkte[i],b=punkte[j];if((a.y>y)===(b.y>y))continue;s.push(a.x+((y-a.y)/(b.y-a.y))*(b.x-a.x));}if(s.length<2)return null;const l=Math.min(...s),r=Math.max(...s);return{mitte:(l+r)/2,breite:r-l};}
+function schriftgroesse(breite,hoehe,zeichen){const nachHoehe=hoehe*0.7;const nachBreite=(breite*0.96)/Math.max(zeichen*0.62,1);return Math.max(0.6,Math.min(nachHoehe,nachBreite,3.2));}
+function formFarbe(n){if(n>=2)return{fuellung:'rgba(255,0,0,0.4)',rand:'#d32f2f'};if(n===1)return{fuellung:'rgba(0,0,0,0.4)',rand:'#000'};return{fuellung:'rgba(0,0,0,0.14)',rand:'rgba(0,0,0,0.7)'};}
+const spots=K.formen, namenVon=t=>t.anzeige||t.namen;
+const einheitsGroesse=(()=>{const w=[];for(const s of spots){const r=rahmen(s.punkte);const a=s.teams.length||1;const hpt=r.hoehe/a;
+ const saetze=s.teams.length?s.teams.map(t=>{const n=namenVon(t);return s.teams.length===1&&n.length>1?n:[n.join(' ')];}):[];
+ for(const tx of saetze){const l=Math.max(...tx.map(t=>t.length),1);w.push(schriftgroesse(r.breite,hpt/tx.length,l));}}
+ if(!w.length)return 1.2;w.sort((a,b)=>a-b);return Math.max(1.1,Math.min(w[Math.floor(w.length/3)],2.0));})();
+const lade=src=>new Promise(ok=>{const b=new Image();b.onload=()=>ok(b);b.onerror=()=>ok(null);b.src=src;});
+(async()=>{
+ const c=document.getElementById('c'),g=c.getContext('2d');
+ g.fillStyle='#0a0a0b';g.fillRect(0,0,G,G);
+ const img=await lade('karte.png'); if(img)g.drawImage(img,0,0,G,G);
+ const familie="'Alata'"; try{await document.fonts.load(`600 40px ${familie}`);}catch{}
+ for(const s of spots){const f=formFarbe(s.teams.length);g.beginPath();s.punkte.forEach((p,i)=>{const x=p.x/100*G,y=p.y/100*G;i?g.lineTo(x,y):g.moveTo(x,y);});g.closePath();g.fillStyle=f.fuellung;g.fill();g.strokeStyle=f.rand;g.lineWidth=2;g.stroke();
+  const belegt=s.teams,r=rahmen(s.punkte);g.textAlign='center';g.textBaseline='middle';if(!belegt.length)continue;
+  const hpt=r.hoehe/belegt.length;
+  belegt.forEach((t,i)=>{const namen=namenVon(t);const allein=belegt.length===1&&namen.length>1;const zeilen=allein?namen:[namen.join(' ')];
+   const bandMitte=r.oben+hpt*(i+0.5);const gp=einheitsGroesse,px=gp/100*G;const hoch=zeilen.length*gp*1.15;const obenY=r.oben+hoch*0.62,untenY=r.oben+r.hoehe-hoch*0.62,platzY=untenY-obenY;
+   const yP=(belegt.length===1||platzY<=0)?bandMitte:obenY+platzY*(i/(belegt.length-1));const sp=spanneBei(s.punkte,yP)??{mitte:r.links+r.breite/2};
+   g.font=`600 ${px}px ${familie}, system-ui, sans-serif`;const zx=sp.mitte/100*G,mitte=yP/100*G;
+   zeilen.forEach((z,j)=>{const y=mitte+(j-(zeilen.length-1)/2)*px*1.05;g.strokeStyle='#000';g.lineWidth=px*0.14;g.lineJoin='round';g.strokeText(z,zx,y);g.fillStyle='#ffffff';g.fillText(z,zx,y);});});
+  g.textBaseline='alphabetic';}
+ g.save();g.globalAlpha=0.075;g.fillStyle='#ffffff';const wz=Math.round(G*0.055);g.font=`800 ${wz}px Segoe UI, system-ui, sans-serif`;g.textAlign='center';g.textBaseline='middle';g.translate(G/2,G/2);g.rotate(-Math.PI/9);
+ const bw=g.measureText('thecomphub.com').width,sx=bw*1.5,sy=wz*5.5;for(let y=-G;y<G;y+=sy){const v=(Math.round(y/sy)%2)*(sx/2);for(let x=-G-sx;x<G+sx;x+=sx)g.fillText('thecomphub.com',x+v,y);}g.restore();
+ const logo=await lade('../../public/logos/CompHub-Logo-frei.png');
+ if(logo&&logo.naturalWidth){const br=Math.round(G*0.155),ho=Math.round(br*(logo.naturalHeight/logo.naturalWidth)),rand=Math.round(G*0.022);g.save();g.shadowColor='rgba(0,0,0,0.55)';g.shadowBlur=12;g.globalAlpha=0.95;g.drawImage(logo,G-rand-br,G-rand-ho,br,ho);g.restore();
+  g.save();g.shadowColor='rgba(0,0,0,0.6)';g.shadowBlur=8;g.fillStyle='rgba(255,255,255,0.85)';const ap=Math.round(G*0.019);g.font=`600 ${ap}px Segoe UI, system-ui, sans-serif`;g.textAlign='right';g.textBaseline='bottom';g.fillText('thecomphub.com',G-rand,G-Math.round(rand*0.35));g.restore();}
+ document.body.dataset.fertig='1';
+})();
+</script></body></html>
