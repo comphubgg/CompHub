@@ -3,10 +3,10 @@
 <style>
 *{box-sizing:border-box;margin:0}
 body{width:1600px;height:1600px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
-#k{position:absolute;inset:0}
+#k{position:absolute;width:2581px;height:2581px;left:-542px;top:-620px}
 #k img{position:absolute;inset:0;width:100%;height:100%;filter:saturate(.75) brightness(.8)}
 svg{position:absolute;inset:0;width:100%;height:100%}
-.lab{position:absolute;transform:translate(-50%,-50%);text-align:center;font-weight:900;font-size:15px;line-height:1.15;text-shadow:0 1px 3px #000,0 0 6px #000;white-space:nowrap}
+.lab{position:absolute;transform:translate(-50%,-50%);text-align:center;font-weight:800;font-size:17px;line-height:1.25;white-space:nowrap;background:rgba(5,8,14,.72);padding:4px 9px;border-radius:9px;border:1.5px solid var(--c)}
 .kopf{position:absolute;top:28px;left:32px;display:flex;align-items:center;gap:14px;background:rgba(5,8,14,.82);padding:12px 18px;border-radius:14px;border:1px solid rgba(255,255,255,.1)}
 .kopf img{height:30px}
 .kopf b{font-size:22px;letter-spacing:.12em;text-transform:uppercase}
@@ -28,7 +28,7 @@ K.formen.forEach((f,i)=>{
  svg+=`<polygon points="${f.punkte.map(p=>p.x+','+p.y).join(' ')}" fill="${c}" fill-opacity="${f.teams.length?.28:.08}" stroke="${c}" stroke-width=".18" vector-effect="non-scaling-stroke"/>`;
  if(!f.teams.length)return;
  const mx=f.punkte.reduce((a,p)=>a+p.x,0)/f.punkte.length, my=f.punkte.reduce((a,p)=>a+p.y,0)/f.punkte.length;
- lab+=`<div class="lab" style="left:${mx}%;top:${my}%">${f.teams.map(t=>t.namen.map(kurz).join(' · ')).join('<br>')}</div>`;
+ lab+=`<div class="lab" style="--c:${c};left:${mx}%;top:${my}%">${f.teams.map(t=>t.namen.map(kurz).join(' · ')).join('<br>')}</div>`;
 });
 document.getElementById('s').innerHTML=svg;
 document.getElementById('k').insertAdjacentHTML('beforeend',lab);
