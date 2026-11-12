@@ -57,9 +57,9 @@ const ORDNER = new URL('../public/spielerbilder/', import.meta.url);
 const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER) : [];
 let gesichter = {};
 try { gesichter = JSON.parse(fs.readFileSync(new URL('_gesichter.json', ORDNER), 'utf8')); } catch { /* ohne */ }
-const kurz = (n) => String(n).toLowerCase().replace(/^(t1|roc|ag|flcn|havok|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn)\s+/i, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const kurz = (n) => String(n).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^(t1|roc|ag|flcn|havok|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn)\s+/i, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const bild = (id) => {
-  for (const k of [pro[id]?.schluessel, kurz(name(id))].filter(Boolean)) {
+  for (const k of [pro[id]?.schluessel, kurz(name(id)), kurz(name(id)).split('-')[0]].filter(Boolean)) {
     const f = bilder.find((b) => b === `${k}.jpg` || b === `${k}.png`);
     if (f) return { datei: f, gesicht: gesichter[f] ?? null };
   }
