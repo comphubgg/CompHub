@@ -73,7 +73,7 @@ const daten = {
   teams: alle.length,
   elims: alle.reduce((a, t) => a + t.elims, 0),
   siege: alle.reduce((a, t) => a + t.siege, 0),
-  top: top.map((t) => ({ ...t, namen: t.ids.map(name), bilder: t.ids.map(bild) })),
+  top: top.map((t) => ({ ...t, namen: t.ids.map(name), bilder: t.ids.map(bild), schluessel: t.ids.map((id) => pro[id]?.schluessel ?? null) })),
   meisteElims: { namen: meisteElims.ids.map(name), bilder: meisteElims.ids.map(bild), elims: meisteElims.elims, rang: meisteElims.rang },
   bestesSpiel: { namen: bestesSpiel.ids.map(name), elims: bestesSpiel.bestesSpiel, rang: bestesSpiel.rang },
 };

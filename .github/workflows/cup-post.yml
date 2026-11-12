@@ -35,4 +35,4 @@ jobs:
       - name: Hochladen
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload medien "${{ inputs.name }}" --clobber
+        run: cp tools/posts/cup-daten.js "${{ inputs.name }}.js" && gh release upload medien "${{ inputs.name }}" "${{ inputs.name }}.js" --clobber
