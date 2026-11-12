@@ -48,14 +48,20 @@ const nutzer = treffer.length ? (await (await fetch(`https://api.twitch.tv/helix
 const bild = Object.fromEntries(nutzer.map((u) => [u.id, u.profile_image_url]));
 const ORDNER = path.join('public', 'spielerbilder');
 const fotos = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER) : [];
+const kern = (l) => l.toLowerCase().replace(/^(fn|ftn|ttv)_?|_?(fn|ftn|ttv|tv|_fn)$/g, '').replace(/_/g, '');
+const fotoVon = (l) => { for (const k of [l.toLowerCase(), kern(l)]) { const f = fotos.find((x) => x.replace(/\.(jpg|png)$/, '') === k); if (f) return f; } return null; };
+// Vorschaubild pruefen: Twitch liefert bei frischem Stream einen Platzhalter oder ein schwarzes Bild (sehr klein).
+const echteVorschau = async (u) => {
+  try { const r = await fetch(u, { redirect: 'manual' }); if (!r.ok) return null; const b = await r.arrayBuffer(); return b.byteLength > 14000 ? u : null; } catch { return null; }
+};
+for (const s of treffer) s.echt = await echteVorschau(s.thumbnail_url.replace('{width}', '640').replace('{height}', '360'));
 const daten = {
   stand: new Date().toISOString(),
   gesamt: streams.filter((s) => re.test(s.title) && EU.has(s.language)).length,
   zuschauer: streams.filter((s) => re.test(s.title) && EU.has(s.language)).reduce((a, s) => a + s.viewer_count, 0),
   streamer: treffer.map((s) => ({
     name: s.user_name, login: s.user_login, zuschauer: s.viewer_count, titel: s.title, sprache: s.language,
-    vorschau: s.thumbnail_url.replace('{width}', '640').replace('{height}', '360'), avatar: bild[s.user_id] ?? null,
-    foto: fotos.find((f) => f.replace(/\.(jpg|png)$/, '') === s.user_login.toLowerCase()) ?? null,
+    vorschau: s.echt, avatar: bild[s.user_id] ?? null, foto: fotoVon(s.user_login),
   })),
 };
 fs.writeFileSync(aus, `window.DATEN=${JSON.stringify(daten)};`);

@@ -38,6 +38,6 @@ document.getElementById('inhalt').innerHTML=`
 <div class="w oben"><span class="chip live">Live now</span><span class="chip">EU</span></div>
 <h1>WATCH THEM <span>LIVE</span></h1>
 <div class="w sub">${q.get('sub')||'Trios Performance Cup · Round 1'}</div>
-<div class="w grid">${s.map(x=>`<div class="s"><div class="v" style="background-image:url('${x.vorschau}')"></div><div class="z">${fmt(x.zuschauer)}</div><div class="u"><div class="a" style="background-image:url('${x.foto?'../../public/spielerbilder/'+x.foto:x.avatar||''}')"></div><div><div class="n">${x.name}</div><div class="t">twitch.tv/${x.login}</div></div></div></div>`).join('')}</div>`;
+<div class="w grid">${s.map(x=>`<div class="s"><div class="v" style="background-image:url('${x.vorschau||(x.foto?'../../public/spielerbilder/'+x.foto:x.avatar)}');${x.vorschau?'':'background-position:50% 25%'}"></div><div class="z">${fmt(x.zuschauer)}</div><div class="u"><div class="a" style="background-image:url('${x.foto?'../../public/spielerbilder/'+x.foto:x.avatar||''}')"></div><div><div class="n">${x.name}</div><div class="t">twitch.tv/${x.login}</div></div></div></div>`).join('')}</div>`;
 </script>
 </body></html>
