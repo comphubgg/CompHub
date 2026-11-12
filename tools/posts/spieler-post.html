@@ -45,10 +45,10 @@ const fotoStil=b=>b?`background-image:url('${B}${b.datei}');background-position:
 const ini=n=>String(n).replace(/^\S+\s+(?=\S)/,'').slice(0,1).toUpperCase();
 const kurz=n=>String(n).replace(/^(T1|ROC|AG|FLCN|HAVOK|GodL|VP|XP42|S8UL|FOKUS|NSTAR|RT|FLC|GLORE|M8|CGN|MG)\s+/,'');
 const t=D.top||[], s=t[0]||{namen:[],bilder:[]};
-const titel={champs:['DEFENDING','CHAMPIONS'],runde1:['ROUND 1','LEADERS'],finale:['TRIOS','CHAMPIONS']}[art];
-const sub={champs:q.get('sub')||'Trios Performance Cup · tonight 18:00 CET',runde1:`Trios Performance Cup · ${q.get('tag')||''} · Final at 21:00 CET`,finale:`Trios Performance Cup Final · ${q.get('tag')||''}`}[art];
+const titel={opens:['ROUND 1','WINNERS'],champs:['DEFENDING','CHAMPIONS'],runde1:['ROUND 1','LEADERS'],finale:['TRIOS','CHAMPIONS']}[art];
+const sub={opens:q.get('sub')||'',champs:q.get('sub')||'Trios Performance Cup · tonight 18:00 CET',runde1:`Trios Performance Cup · ${q.get('tag')||''} · Final at 21:00 CET`,finale:`Trios Performance Cup Final · ${q.get('tag')||''}`}[art];
 document.getElementById('inhalt').innerHTML=`
-<div class="w oben"><span class="chip">${art==='runde1'?'#1 after Round 1':'#1 · Winners'}</span><span class="chip b">EU</span></div>
+<div class="w oben"><span class="chip">${q.get('chip')||(art==='runde1'?'#1 after Round 1':'#1 · Winners')}</span><span class="chip b">EU</span></div>
 <h1>${titel[0]} <span>${titel[1]}</span></h1>
 <div class="w sub">${sub}</div>
 <div class="w fotos">${s.namen.map((n,i)=>`<div class="f">${s.bilder?.[i]?`<div class="i" style="${fotoStil(s.bilder[i])}"></div>`:`<div class="ini">${ini(n)}</div>`}<div class="n">${kurz(n)}</div></div>`).join('')}</div>
