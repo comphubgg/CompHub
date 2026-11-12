@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Breiter Live-Post (1600x900): ausgewaehlte Streamer mit Profilbild und Flagge. Daten aus cup-daten.js (scripts/streamer-post-daten.mjs), Laender per ?land=login:de,... -->
+<style>
+:root{--g:#8ea0bd;--rot:#ff3b5c}
+*{box-sizing:border-box;margin:0}
+body{width:1600px;height:900px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,#4a0f22 0%,#0b1220 45%,#05080e 75%)}
+.oben{position:absolute;top:56px;left:0;right:0;display:flex;gap:10px;justify-content:center}
+.chip{padding:8px 18px;border-radius:999px;font-size:20px;letter-spacing:.1em;font-weight:900;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.25);color:#d6e2f3}
+.chip.live{background:var(--rot);border-color:var(--rot);color:#fff}
+.chip.live:before{content:"";display:inline-block;width:11px;height:11px;border-radius:50%;background:#fff;margin-right:10px;vertical-align:1px}
+h1{position:absolute;left:0;right:0;top:118px;text-align:center;font-size:92px;font-weight:900;line-height:1;white-space:nowrap}
+h1 span{color:var(--rot)}
+.sub{position:absolute;left:0;right:0;top:228px;text-align:center;font-size:26px;font-weight:700;color:#c4d0e3}
+.reihe{position:absolute;left:70px;right:70px;top:310px;display:flex;justify-content:center;gap:28px}
+.s{flex:1;max-width:340px;padding:30px 20px 26px;border-radius:28px;background:rgba(15,22,34,.9);border:1.5px solid rgba(255,59,92,.3);text-align:center;position:relative}
+.s .a{width:200px;height:200px;border-radius:50%;margin:0 auto;background:#1a2436 center/cover;border:5px solid var(--rot);box-shadow:0 0 40px rgba(255,59,92,.25)}
+.s .f{position:absolute;top:196px;left:50%;margin-left:52px;width:56px;height:38px;border-radius:8px;background:center/cover;border:3px solid #0b1220}
+.s .n{margin-top:22px;font-size:36px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s .t{margin-top:6px;font-size:18px;color:var(--g);font-weight:700}
+.s .z{display:inline-block;margin-top:16px;padding:7px 14px;border-radius:10px;background:rgba(255,59,92,.14);color:#ffd3db;font-weight:900;font-size:18px}
+.s .z:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--rot);margin-right:8px;vertical-align:1px}
+.logo{position:absolute;bottom:34px;left:0;right:0;display:flex;justify-content:center;opacity:.55}
+.logo img{height:28px}
+</style></head><body>
+<div class="bg"></div>
+<div id="inhalt"></div>
+<div class="logo"><img src="../../public/logos/CompHub-Logo-frei.png"></div>
+<script src="cup-daten.js" onerror="window.DATEN=null"></script>
+<script>
+const q=new URLSearchParams(location.search), D=window.DATEN||{streamer:[]};
+const land=Object.fromEntries((q.get('land')||'').split(',').filter(Boolean).map(x=>x.split(':')));
+const fmt=n=>Number(n).toLocaleString('en-US');
+const gross=u=>u?u.replace(/-\d+x\d+\./,'-600x600.'):'';
+document.getElementById('inhalt').innerHTML=`
+<div class="oben"><span class="chip live">Live now</span><span class="chip">${q.get('chip')||'Trios Performance Cup'}</span></div>
+<h1>WATCH THE CUP <span>LIVE</span></h1>
+<div class="sub">${q.get('sub')||''}</div>
+<div class="reihe">${(D.streamer||[]).map(x=>`<div class="s"><div class="a" style="background-image:url('${gross(x.avatar)}')"></div>${land[x.login]?`<div class="f" style="background-image:url('../../public/flags/${land[x.login]}.png')"></div>`:''}<div class="n">${x.name}</div><div class="t">twitch.tv/${x.login}</div>${x.zuschauer!=null?`<div class="z">${fmt(x.zuschauer)} watching</div>`:''}</div>`).join('')}</div>`;
+</script>
+</body></html>
