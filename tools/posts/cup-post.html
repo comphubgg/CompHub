@@ -83,7 +83,7 @@ if(art==='vorschau'){
  I.innerHTML=`<h1 style="font-size:96px">${fin?'FINAL':'ROUND 1'}<br><span class="j">${live?(q.get('nach')||'LIVE'):'RESULTS'}</span></h1>
  <div class="w sub" style="top:340px;font-size:26px">Trios Performance Cup · ${tag}${fin?'':' · the final starts at '+fi+' CET'}</div>
  <div class="w reihe" style="top:410px;grid-template-columns:1fr 1fr 1fr">
-  <div class="k gold" style="padding:20px 24px"><div class="l">${fin?'Winners':'Round 1 leader'}</div><div class="d" style="font-size:24px;font-weight:900;color:#fff;margin-top:8px;line-height:1.25">${namen(t[0]?.namen||[])}</div><div class="d" style="font-size:18px">${t[0]?.punkte??''} pts · ${t[0]?.elims??''} elims · ${t[0]?.siege??0} VR</div></div>
+  <div class="k gold" style="padding:20px 24px"><div class="l">${live?'Leader':fin?'Winners':'Round 1 leader'}</div><div class="d" style="font-size:24px;font-weight:900;color:#fff;margin-top:8px;line-height:1.25">${namen(t[0]?.namen||[])}</div><div class="d" style="font-size:18px">${t[0]?.punkte??''} pts · ${t[0]?.elims??''} elims · ${t[0]?.siege??0} VR</div></div>
   <div class="k" style="padding:20px 24px"><div class="l">Most elims</div><div class="z" style="font-size:50px">${D.meisteElims?.elims??''}</div><div class="d" style="font-size:18px">${namen(D.meisteElims?.namen||[])}</div></div>
   <div class="k" style="padding:20px 24px"><div class="l">Best single game</div><div class="z" style="font-size:50px">${D.bestesSpiel?.elims??''}</div><div class="d" style="font-size:18px">elims · ${namen(D.bestesSpiel?.namen||[])}</div></div>
  </div>
