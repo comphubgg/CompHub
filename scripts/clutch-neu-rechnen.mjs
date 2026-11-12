@@ -36,7 +36,10 @@ function istDuo(matches) {
 for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWith('.json')) : []) {
   // Grosse Spieltage aus scripts/clutch-zusammen.mjs: die Rohdaten decken nur einen Teil ab - nicht daraus neu rechnen.
   try { if (JSON.parse(fs.readFileSync(path.join(ZIEL, f), 'utf8')).ohneRohRechnung) continue; } catch { /* noch keine Datei */ }
-  const roh = JSON.parse(fs.readFileSync(path.join(ROH, f), 'utf8'));
+  // Eine kaputte Rohdatei (abgebrochener Download, 12.11.2026: S42_FNCSSoloQualifiers_Qual2Round3_NAW) darf nicht den ganzen Lauf abbrechen -
+  // sonst wird im Schritt "ablegen" nichts gespeichert und jeder neue Spieltag bleibt ewig offen.
+  let roh;
+  try { roh = JSON.parse(fs.readFileSync(path.join(ROH, f), 'utf8')); } catch (e) { console.log(`  ${f}: Rohdaten nicht lesbar (${String(e.message).slice(0, 60)}) - uebersprungen`); continue; }
   let herkunft = null;
   if (!roh.regeln?.length) {
     if (!istDuo(roh.matches)) continue;
