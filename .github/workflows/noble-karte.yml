@@ -30,6 +30,8 @@ jobs:
       - name: Namen wie auf der Kartenseite
         run: node scripts/karte-namen.cjs tools/posts/karte-daten.js
       - name: Kartenbild (Insel aus der Ablage, sonst Epics Karte)
+        env:
+          COMPHUB_ABLAGE: supabase
         run: node scripts/karte-insel-holen.cjs "${{ inputs.windowId }}" tools/posts/karte.png || curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png; file tools/posts/karte.png
       - name: Bild
         run: node tools/posts/aufnehmen.mjs "tools/posts/karte.html?${{ inputs.query }}" "${{ inputs.name }}" 1400 1400
