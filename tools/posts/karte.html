@@ -26,8 +26,12 @@ document.getElementById('bild').src=q.get('bild')||'karte.png';
 document.getElementById('kopf').innerHTML=`${q.get('t')||''}<span>${q.get('u')||''}</span>`;
 document.getElementById('wz').innerHTML=Array.from({length:40},()=>'<span>thecomphub.com</span>').join('');
 const FARBEN=[['#e8473f',.45],['#0b0f18',.42],['#1d4f91',.45],['#c0392b',.4],['#111827',.38],['#f08a24',.42]];
-const kurz=n=>String(n).replace(/^(\S+)\s+(?=\S)/,(m,a)=>/^[A-Z0-9]{1,6}$/.test(a)||/^[a-z]{2,6}$/.test(a)||/^[A-Z][a-z]+$/.test(a)&&a.length<=8?'':m).replace(/[ǃ!.]+$/,'').replace(/\s+\d+$/,'').trim();
-const haupt=t=>{const i=Math.max(0,(t.bekannt||[]).indexOf(true));return kurz(t.namen[i]||t.namen[0]||'');};
+const ORGS=/^(t1|roc|ag|flcn|havok|hvk|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn|mg|gw|x6|enc|atl|atlantic|clue|detect|ast|r4c|atc|bepro|solary|lyost|sab|vl|ed|one|fatal|blz|1up|dvs|cvx|lyl|aur|armr|kos|el|ttv|twitter|fn)$/i;
+const kurz=n=>{let w=String(n).replace(/[ǃ!.]+/g,' ').trim().split(/\s+/).filter(x=>!/^(ll|le|\d+([.,]\d+)?)$/i.test(x));
+ while(w.length>1&&ORGS.test(w[0]))w.shift();
+ if(w.length>1&&w[0].length<=3)w.shift();
+ return (w[0]||String(n)).replace(/^twitter/i,'').replace(/fnbr$/i,'');};
+const haupt=t=>{const k=t.namen.map(kurz);const i=(t.bekannt||[]).indexOf(true);return i>=0?k[i]:k.slice().sort((a,b)=>a.length-b.length)[0];};
 let svg='',lab='';
 K.formen.forEach((f,i)=>{
  const [c,o]=f.teams.length?FARBEN[i%FARBEN.length]:['#000',.15];
