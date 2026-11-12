@@ -34,7 +34,7 @@ const fmt=n=>Number(n).toLocaleString('en-US');
 const gross=u=>u?u.replace(/-\d+x\d+\./,'-600x600.'):'';
 document.getElementById('inhalt').innerHTML=`
 <div class="oben"><span class="chip live">Live now</span><span class="chip">${q.get('chip')||'Trios Performance Cup'}</span></div>
-<h1>WATCH THE CUP <span>LIVE</span></h1>
+<h1>${q.get('h1')||'WATCH THE CUP <span>LIVE</span>'}</h1>
 <div class="sub">${q.get('sub')||''}</div>
 <div class="reihe">${(D.streamer||[]).map(x=>`<div class="s"><div class="a" style="background-image:url('${gross(x.avatar)}')"></div>${land[x.login]?`<div class="f" style="background-image:url('../../public/flags/${land[x.login]}.png')"></div>`:''}<div class="n">${x.name}</div><div class="t">twitch.tv/${x.login}</div>${x.zuschauer!=null?`<div class="z">${fmt(x.zuschauer)} watching</div>`:''}</div>`).join('')}</div>`;
 </script>
