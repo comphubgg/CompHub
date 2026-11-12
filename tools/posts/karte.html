@@ -11,15 +11,25 @@ function spanneBei(punkte,y){const s=[];for(let i=0,j=punkte.length-1;i<punkte.l
 function schriftgroesse(breite,hoehe,zeichen){const nachHoehe=hoehe*0.7;const nachBreite=(breite*0.96)/Math.max(zeichen*0.62,1);return Math.max(0.6,Math.min(nachHoehe,nachBreite,3.2));}
 function formFarbe(n){if(n>=2)return{fuellung:'rgba(255,0,0,0.4)',rand:'#d32f2f'};if(n===1)return{fuellung:'rgba(0,0,0,0.4)',rand:'#000'};return{fuellung:'rgba(0,0,0,0.14)',rand:'rgba(0,0,0,0.7)'};}
 const spots=K.formen, namenVon=t=>t.anzeige||t.namen;
-const einheitsGroesse=(()=>{const w=[];for(const s of spots){const r=rahmen(s.punkte);const a=s.teams.length||1;const hpt=r.hoehe/a;
+let einheitsGroesse; const berechneGroesse=(()=>{const w=[];for(const s of spots){const r=rahmen(s.punkte);const a=s.teams.length||1;const hpt=r.hoehe/a;
  const saetze=s.teams.length?s.teams.map(t=>{const n=namenVon(t);return s.teams.length===1&&n.length>1?n:[n.join(' ')];}):[];
  for(const tx of saetze){const l=Math.max(...tx.map(t=>t.length),1);w.push(schriftgroesse(r.breite,hpt/tx.length,l));}}
- if(!w.length)return 1.2;w.sort((a,b)=>a-b);return Math.max(1.1,Math.min(w[Math.floor(w.length/3)],2.0));})();
+ if(!w.length)return 1.2;w.sort((a,b)=>a-b);return Math.max(1.1,Math.min(w[Math.floor(w.length/3)],2.0));});
 const lade=src=>new Promise(ok=>{const b=new Image();b.onload=()=>ok(b);b.onerror=()=>ok(null);b.src=src;});
 (async()=>{
  const c=document.getElementById('c'),g=c.getContext('2d');
  g.fillStyle='#0a0a0b';g.fillRect(0,0,G,G);
- const img=await lade('karte.png'); if(img)g.drawImage(img,0,0,G,G);
+ const img=await lade('karte.png');
+ // Eng um die Insel schneiden wie /bilder/karte-nah.png (app/bilder/[datei]/route.ts): Wasser ist deutlich blauer als rot - alles andere ist Land.
+ let A={l:0,o:0,s:100};
+ if(img){const N=256,h=document.createElement('canvas');h.width=N;h.height=N;const hg=h.getContext('2d');hg.drawImage(img,0,0,N,N);const d=hg.getImageData(0,0,N,N).data;
+  let x0=N,y0=N,x1=0,y1=0;for(let y=0;y<N;y++)for(let x=0;x<N;x++){const i=(y*N+x)*4;if(d[i+2]>d[i]+25&&d[i+2]>d[i+1]-10)continue;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+  // Auch die Spots muessen ganz drin sein.
+  for(const f of spots)for(const p of f.punkte){x0=Math.min(x0,p.x/100*N);x1=Math.max(x1,p.x/100*N);y0=Math.min(y0,p.y/100*N);y1=Math.max(y1,p.y/100*N);}
+  if(x1>x0&&y1>y0){const seite=Math.min(N,Math.max(x1-x0,y1-y0)*1.08);const l=Math.max(0,Math.min(N-seite,(x0+x1)/2-seite/2)),o=Math.max(0,Math.min(N-seite,(y0+y1)/2-seite/2));A={l:l/N*100,o:o/N*100,s:seite/N*100};}
+  const W=img.naturalWidth,H=img.naturalHeight;g.drawImage(img,A.l/100*W,A.o/100*H,A.s/100*W,A.s/100*H,0,0,G,G);}
+ for(const f of spots)f.punkte=f.punkte.map(p=>({x:(p.x-A.l)/A.s*100,y:(p.y-A.o)/A.s*100}));
+ einheitsGroesse=berechneGroesse();
  const familie="'Alata'"; try{await document.fonts.load(`600 40px ${familie}`);}catch{}
  for(const s of spots){const f=formFarbe(s.teams.length);g.beginPath();s.punkte.forEach((p,i)=>{const x=p.x/100*G,y=p.y/100*G;i?g.lineTo(x,y):g.moveTo(x,y);});g.closePath();g.fillStyle=f.fuellung;g.fill();g.strokeStyle=f.rand;g.lineWidth=2;g.stroke();
   const belegt=s.teams,r=rahmen(s.punkte);g.textAlign='center';g.textBaseline='middle';if(!belegt.length)continue;
