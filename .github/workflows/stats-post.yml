@@ -1,0 +1,31 @@
+name: Stats-Post
+# Spieler-Stats (Elims, Schaden, Strecke) eines Spieltags aus CompHubs Replay-Auswertung als Bild im Release "medien".
+on:
+  workflow_dispatch:
+    inputs:
+      windowId: { description: 'windowId', required: true }
+      query: { description: 'Parameter fuer die Vorlage (chip=...&runde=...&sub=...)', required: false, default: '' }
+      name: { description: 'Dateiname im Release', required: true }
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium && sudo apt-get install -y fonts-inter >/dev/null
+      - name: Daten
+        run: node scripts/stats-post-daten.mjs "${{ inputs.windowId }}" tools/posts/cup-daten.js
+      - name: Bild
+        run: node tools/posts/aufnehmen.mjs "tools/posts/stats-post.html?${{ inputs.query }}" "${{ inputs.name }}" 1600 900
+      - name: Hochladen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload medien "${{ inputs.name }}" --clobber
