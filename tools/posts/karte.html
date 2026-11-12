@@ -1,34 +1,40 @@
 <!doctype html><html><head><meta charset="utf-8">
-<!-- Turnierkarte als Bild (1600x1600): Landespots von Noble Practice (scripts/noble-karte-daten.mjs -> karte-daten.js) auf der Fortnite-Karte. -->
+<!-- Turnierkarte als Bild (1600x1600) im Stil der CompHub-Karten: ein Name je Team, Spots von Noble Practice (scripts/noble-karte-daten.mjs -> karte-daten.js). -->
 <style>
 *{box-sizing:border-box;margin:0}
-body{width:1600px;height:1600px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+body{width:1600px;height:1600px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#0f3a73;position:relative}
 #k{position:absolute;width:2581px;height:2581px;left:-542px;top:-620px}
-#k img{position:absolute;inset:0;width:100%;height:100%;filter:saturate(.75) brightness(.8)}
+#k img{position:absolute;inset:0;width:100%;height:100%}
 svg{position:absolute;inset:0;width:100%;height:100%}
-.lab{position:absolute;transform:translate(-50%,-50%);text-align:center;font-weight:800;font-size:17px;line-height:1.25;white-space:nowrap;background:rgba(5,8,14,.72);padding:4px 9px;border-radius:9px;border:1.5px solid var(--c)}
-.kopf{position:absolute;top:28px;left:32px;display:flex;align-items:center;gap:14px;background:rgba(5,8,14,.82);padding:12px 18px;border-radius:14px;border:1px solid rgba(255,255,255,.1)}
-.kopf img{height:30px}
-.kopf b{font-size:22px;letter-spacing:.12em;text-transform:uppercase}
-.kopf span{color:#8ea0bd;font-weight:700;font-size:18px}
+.lab{position:absolute;transform:translate(-50%,-50%);text-align:center;font-weight:900;font-size:25px;line-height:1.05;white-space:nowrap;text-transform:uppercase;letter-spacing:-.01em;
+ text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 3px 6px rgba(0,0,0,.6)}
+.wz{position:absolute;inset:-400px;display:flex;flex-wrap:wrap;gap:160px 220px;transform:rotate(-24deg);opacity:.07;font-size:90px;font-weight:900;pointer-events:none;align-content:flex-start}
+.logo{position:absolute;right:40px;bottom:30px;text-align:center}
+.logo img{height:150px;display:block;margin:0 auto 6px}
+.logo b{font-size:26px;font-weight:800}
+.kopf{position:absolute;top:30px;left:36px;font-weight:900;font-size:26px;letter-spacing:.1em;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+.kopf span{display:block;font-size:18px;color:#cfe0ff;letter-spacing:.14em;margin-top:4px}
 </style></head><body>
 <div id="k"><img id="bild"><svg id="s" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
-<div class="kopf"><img src="../../public/logos/CompHub-Logo-frei.png"><b id="t"></b><span id="u"></span></div>
+<div class="wz" id="wz"></div>
+<div class="kopf" id="kopf"></div>
+<div class="logo"><img src="../../public/logos/CompHub-Logo-frei.png"><b>thecomphub.com</b></div>
 <script src="karte-daten.js" onerror="window.KARTE=null"></script>
 <script>
 const q=new URLSearchParams(location.search), K=window.KARTE||{formen:[]};
 document.getElementById('bild').src=q.get('bild')||'karte.png';
-document.getElementById('t').textContent=q.get('t')||K.turnier?.name||'';
-document.getElementById('u').textContent=q.get('u')||K.fenster?.name||'';
-const FARBEN=['#00a3ff','#f5c542','#ff5d73','#3ddc97','#a78bfa','#ff9f43','#22d3ee','#f472b6'];
-const kurz=n=>String(n).replace(/^(\S+)\s+(?=\S)/,(m,a)=>/^[A-Z0-9]{1,6}$/.test(a)||/^[a-z]{2,6}$/.test(a)?'':m);
+document.getElementById('kopf').innerHTML=`${q.get('t')||''}<span>${q.get('u')||''}</span>`;
+document.getElementById('wz').innerHTML=Array.from({length:40},()=>'<span>thecomphub.com</span>').join('');
+const FARBEN=[['#e8473f',.45],['#0b0f18',.42],['#1d4f91',.45],['#c0392b',.4],['#111827',.38],['#f08a24',.42]];
+const kurz=n=>String(n).replace(/^(\S+)\s+(?=\S)/,(m,a)=>/^[A-Z0-9]{1,6}$/.test(a)||/^[a-z]{2,6}$/.test(a)||/^[A-Z][a-z]+$/.test(a)&&a.length<=8?'':m).replace(/[ǃ!.]+$/,'').replace(/\s+\d+$/,'').trim();
+const haupt=t=>{const i=Math.max(0,(t.bekannt||[]).indexOf(true));return kurz(t.namen[i]||t.namen[0]||'');};
 let svg='',lab='';
 K.formen.forEach((f,i)=>{
- const c=f.teams.length?FARBEN[i%FARBEN.length]:'#8ea0bd';
- svg+=`<polygon points="${f.punkte.map(p=>p.x+','+p.y).join(' ')}" fill="${c}" fill-opacity="${f.teams.length?.28:.08}" stroke="${c}" stroke-width=".18" vector-effect="non-scaling-stroke"/>`;
+ const [c,o]=f.teams.length?FARBEN[i%FARBEN.length]:['#000',.15];
+ svg+=`<polygon points="${f.punkte.map(p=>p.x+','+p.y).join(' ')}" fill="${c}" fill-opacity="${o}" stroke="#0a0a0a" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
  if(!f.teams.length)return;
  const mx=f.punkte.reduce((a,p)=>a+p.x,0)/f.punkte.length, my=f.punkte.reduce((a,p)=>a+p.y,0)/f.punkte.length;
- lab+=`<div class="lab" style="--c:${c};left:${mx}%;top:${my}%">${f.teams.map(t=>t.namen.map(kurz).join(' · ')).join('<br>')}</div>`;
+ lab+=`<div class="lab" style="left:${mx}%;top:${my}%">${f.teams.map(haupt).join('<br>')}</div>`;
 });
 document.getElementById('s').innerHTML=svg;
 document.getElementById('k').insertAdjacentHTML('beforeend',lab);

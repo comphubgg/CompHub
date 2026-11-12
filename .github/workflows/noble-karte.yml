@@ -26,7 +26,7 @@ jobs:
       - name: Daten
         run: node --experimental-strip-types scripts/noble-karte-daten.mjs "${{ inputs.windowId }}" tools/posts/karte-daten.js "${{ inputs.titel }}" "${{ inputs.beginn }}"
       - name: Kartenbild
-        run: curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map_en.png && file tools/posts/karte.png
+        run: curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png && file tools/posts/karte.png
       - name: Bild
         run: node tools/posts/aufnehmen.mjs "tools/posts/karte.html?${{ inputs.query }}" "${{ inputs.name }}" 1600 1600
       - name: Hochladen
