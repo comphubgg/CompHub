@@ -31,7 +31,7 @@ const q=new URLSearchParams(location.search);
 document.getElementById('t').textContent=q.get('t')||'';
 document.getElementById('u').textContent=q.get('u')||'';
 document.getElementById('reihe').innerHTML=(q.get('b')||'').split(',').filter(Boolean).map(x=>{const [d,n,l,r,gx,gy,gw]=x.split(':');
- return `<div class="k ${r==='1'?'g':''}"><div class="i"><img data-d="${d}" data-g="${gx?[gx,gy,gw].join(','):''}" src="../../public/spielerbilder/${d}"></div>${r?`<div class="r">#${r}</div>`:''}<div class="n">${l?`<img src="../../public/flags/${l}.png">`:''}${n}</div></div>`}).join('');
+ return `<div class="k ${r==='1'?'g':''}"><div class="i"><img data-d="${d}" data-g="${gx?[gx,gy,gw].join(','):''}" src="../../public/spielerbilder/${d}"></div>${r?`<div class="r">${/^\d+$/.test(r)?"#"+r:r}</div>`:''}<div class="n">${l?`<img src="../../public/flags/${l}.png">`:''}${n}</div></div>`}).join('');
 // Gesicht gross und mittig: Lage aus public/spielerbilder/_gesichter.json [x, y, Breite] (Anteile des Bildes).
 fetch('../../public/spielerbilder/_gesichter.json').then(r=>r.json()).catch(()=>({})).then(G=>{
  for(const im of document.querySelectorAll('.k .i img')){
