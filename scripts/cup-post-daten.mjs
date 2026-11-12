@@ -52,6 +52,19 @@ for (let i = 0; i < ids.length; i += 100) {
   for (const a of r?.ok ? await r.json() : []) anzeige[a.id] = a.displayName;
 }
 const name = (id) => pro[id]?.haupt ?? anzeige[id] ?? id.slice(0, 8);
+// Foto aus public/spielerbilder: Schluessel aus spieler-namen.json, sonst der Name ohne Team-Kuerzel.
+const ORDNER = new URL('../public/spielerbilder/', import.meta.url);
+const bilder = fs.existsSync(ORDNER) ? fs.readdirSync(ORDNER) : [];
+let gesichter = {};
+try { gesichter = JSON.parse(fs.readFileSync(new URL('_gesichter.json', ORDNER), 'utf8')); } catch { /* ohne */ }
+const kurz = (n) => String(n).toLowerCase().replace(/^(t1|roc|ag|flcn|havok|godl|vp|xp42|s8ul|fokus|nstar|rt|flc|glore|m8|cgn)\s+/i, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const bild = (id) => {
+  for (const k of [pro[id]?.schluessel, kurz(name(id))].filter(Boolean)) {
+    const f = bilder.find((b) => b === `${k}.jpg` || b === `${k}.png`);
+    if (f) return { datei: f, gesicht: gesichter[f] ?? null };
+  }
+  return null;
+};
 
 const meisteElims = [...alle].sort((a, b) => b.elims - a.elims)[0];
 const bestesSpiel = [...alle].sort((a, b) => b.bestesSpiel - a.bestesSpiel)[0];
@@ -60,8 +73,8 @@ const daten = {
   teams: alle.length,
   elims: alle.reduce((a, t) => a + t.elims, 0),
   siege: alle.reduce((a, t) => a + t.siege, 0),
-  top: top.map((t) => ({ ...t, namen: t.ids.map(name) })),
-  meisteElims: { namen: meisteElims.ids.map(name), elims: meisteElims.elims, rang: meisteElims.rang },
+  top: top.map((t) => ({ ...t, namen: t.ids.map(name), bilder: t.ids.map(bild) })),
+  meisteElims: { namen: meisteElims.ids.map(name), bilder: meisteElims.ids.map(bild), elims: meisteElims.elims, rang: meisteElims.rang },
   bestesSpiel: { namen: bestesSpiel.ids.map(name), elims: bestesSpiel.bestesSpiel, rang: bestesSpiel.rang },
 };
 fs.writeFileSync(aus, `window.DATEN=${JSON.stringify(daten)};`);

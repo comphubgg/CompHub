@@ -5,9 +5,10 @@ on:
     inputs:
       eventId: { description: 'eventId', required: true }
       windowId: { description: 'windowId', required: true }
-      art: { description: 'runde1 | finale', required: true, default: 'finale' }
+      art: { description: 'champs | runde1 | finale', required: true, default: 'finale' }
       query: { description: 'weitere Parameter fuer die Vorlage (tag=...&fi=...)', required: false, default: '' }
       name: { description: 'Dateiname im Release', required: true }
+      vorlage: { description: 'Vorlage in tools/posts', required: false, default: 'spieler-post.html' }
 
 jobs:
   post:
@@ -30,7 +31,7 @@ jobs:
       - name: Daten
         run: node scripts/cup-post-daten.mjs "${{ inputs.eventId }}" "${{ inputs.windowId }}" tools/posts/cup-daten.js "${{ inputs.art }}"
       - name: Bild
-        run: node tools/posts/aufnehmen.mjs "tools/posts/cup-post.html?art=${{ inputs.art }}&${{ inputs.query }}" "${{ inputs.name }}" 1200 1500
+        run: node tools/posts/aufnehmen.mjs "tools/posts/${{ inputs.vorlage }}?art=${{ inputs.art }}&${{ inputs.query }}" "${{ inputs.name }}" 1200 1500
       - name: Hochladen
         env:
           GH_TOKEN: ${{ github.token }}

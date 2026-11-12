@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Spieler-Post (1200x1500) mit Fotos aus public/spielerbilder. ?art=champs | runde1 | finale, Daten aus cup-daten.js (scripts/cup-post-daten.mjs). -->
+<style>
+:root{--b:#00a3ff;--g:#8ea0bd;--gold:#f5c542}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:1500px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,#2a2410 0%,#0b1220 40%,#05080e 70%)}
+.w{position:absolute;left:64px;right:64px}
+.oben{top:60px;display:flex;gap:10px;justify-content:center}
+.chip{padding:7px 16px;border-radius:999px;border:1.5px solid rgba(245,197,66,.5);color:var(--gold);font-size:18px;letter-spacing:.1em;font-weight:800;text-transform:uppercase}
+.chip.b{border-color:rgba(255,255,255,.25);color:#d6e2f3}
+h1{position:absolute;left:0;right:0;top:118px;text-align:center;font-size:104px;line-height:1;font-weight:900;letter-spacing:-.01em}
+h1 span{color:var(--gold)}
+.sub{top:240px;text-align:center;font-size:26px;font-weight:700;color:#c4d0e3}
+.fotos{top:310px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.f{position:relative;border-radius:26px;overflow:hidden;height:470px;background:#111a2a;border:2px solid rgba(245,197,66,.45)}
+.f .i{position:absolute;inset:0;background-size:cover}
+.f:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(5,8,14,.95) 100%)}
+.f .n{position:absolute;left:0;right:0;bottom:18px;text-align:center;font-size:30px;font-weight:900;z-index:1;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f .ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:rgba(255,255,255,.12)}
+.zahlen{top:812px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.z{text-align:center;padding:20px;border-radius:22px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08)}
+.z b{display:block;font-size:56px;font-weight:900;line-height:1}
+.z.g b{color:var(--gold)}
+.z span{display:block;margin-top:8px;color:var(--g);font-weight:800;font-size:16px;letter-spacing:.14em;text-transform:uppercase}
+.rest{top:990px}
+.r{display:flex;align-items:center;gap:18px;padding:14px 22px;border-radius:20px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08);margin-bottom:12px}
+.r .p{font-size:34px;font-weight:900;width:66px;color:var(--b)}
+.r .av{display:flex}
+.r .av i{width:62px;height:62px;border-radius:50%;background:#1a2436 center/cover;border:3px solid #05080e;margin-left:-14px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;color:rgba(255,255,255,.35);font-size:24px}
+.r .av i:first-child{margin-left:0}
+.r .n{flex:1;font-size:24px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r .s{color:#c4d0e3;font-size:20px;font-weight:700;white-space:nowrap}
+.logo{bottom:40px;display:flex;justify-content:center;opacity:.55}
+.logo img{height:30px}
+</style></head><body>
+<div class="bg"></div>
+<div id="inhalt"></div>
+<div class="w logo"><img src="../../public/logos/CompHub-Logo-frei.png"></div>
+<script src="cup-daten.js" onerror="window.DATEN=null"></script>
+<script>
+const q=new URLSearchParams(location.search), art=q.get('art')||'finale', D=window.DATEN||{top:[]};
+const B='../../public/spielerbilder/';
+const fotoStil=b=>b?`background-image:url('${B}${b.datei}');background-position:${b.gesicht?Math.round(b.gesicht[0]*100)+'% '+Math.round(Math.min(1,b.gesicht[1]*0.9)*100)+'%':'50% 20%'}`:'';
+const ini=n=>String(n).replace(/^\S+\s+(?=\S)/,'').slice(0,1).toUpperCase();
+const kurz=n=>String(n).replace(/^(T1|ROC|AG|FLCN|HAVOK|GodL|VP|XP42|S8UL|FOKUS|NSTAR|RT|FLC|GLORE|M8|CGN|MG)\s+/,'');
+const t=D.top||[], s=t[0]||{namen:[],bilder:[]};
+const titel={champs:['DEFENDING','CHAMPIONS'],runde1:['ROUND 1','LEADERS'],finale:['TRIOS','CHAMPIONS']}[art];
+const sub={champs:q.get('sub')||'Trios Performance Cup · tonight 18:00 CET',runde1:`Trios Performance Cup · ${q.get('tag')||''} · Final at 21:00 CET`,finale:`Trios Performance Cup Final · ${q.get('tag')||''}`}[art];
+document.getElementById('inhalt').innerHTML=`
+<div class="w oben"><span class="chip">${art==='runde1'?'#1 after Round 1':'#1 · Winners'}</span><span class="chip b">EU</span></div>
+<h1>${titel[0]} <span>${titel[1]}</span></h1>
+<div class="w sub">${sub}</div>
+<div class="w fotos">${s.namen.map((n,i)=>`<div class="f">${s.bilder?.[i]?`<div class="i" style="${fotoStil(s.bilder[i])}"></div>`:`<div class="ini">${ini(n)}</div>`}<div class="n">${kurz(n)}</div></div>`).join('')}</div>
+<div class="w zahlen">
+ <div class="z g"><b>${s.punkte??''}</b><span>Points</span></div>
+ <div class="z"><b>${s.elims??''}</b><span>Elims</span></div>
+ <div class="z"><b>${s.siege??0}</b><span>Victory Royales</span></div>
+</div>
+<div class="w rest">${t.slice(1,5).map(x=>`<div class="r"><div class="p">#${x.rang}</div><div class="av">${x.namen.map((n,i)=>`<i style="${fotoStil(x.bilder?.[i])}">${x.bilder?.[i]?'':ini(n)}</i>`).join('')}</div><div class="n">${x.namen.map(kurz).join(' · ')}</div><div class="s">${x.punkte} pts · ${x.elims} elims</div></div>`).join('')}</div>`;
+</script>
+</body></html>
