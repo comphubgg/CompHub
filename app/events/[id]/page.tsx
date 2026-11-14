@@ -3386,7 +3386,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   const lc = (fenster.marken ?? []).find((m) => /lastchance/i.test(m.token) && m.bis > q);
                   return lc && q ? [[t('Zweite Chance'), `${q + 1}–${lc.bis}`, 'sm:flex-1'] as [string, string, string]] : [];
                 })(),
-                ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), fenster.sofortPunkte >= 1000 ? t('Ein Sieg') : `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
+                ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), fenster.sofortPunkte >= 1000 ? t('Ein Spiel gewinnen') : `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
