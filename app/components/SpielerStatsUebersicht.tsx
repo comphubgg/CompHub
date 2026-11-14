@@ -339,7 +339,7 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
       </p>
 
       <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={10} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
-      {plattformen && <PlattformLeiste werte={plattformen} ort={ort} />}
+      {/* Die Plattformen stehen schon oben rechts als Ring (Betreiber, 14.11.2026: die zweite Box unten weg). */}
       {mitWerten.length > 10 && (
         <div className="flex justify-center">
           <button type="button" onClick={() => setAlleKacheln((x) => !x)}
@@ -352,43 +352,3 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
   );
 }
 
-/** Farbe je Plattform - eigene Toene, Blau (PC) wie der Akzent der Seite. */
-const PLATTFORM_FARBE: Record<string, string> = { Windows: '#0ea5e9', Mac: '#94a3b8', 'PlayStation 5': '#6366f1', 'PlayStation 4': '#818cf8', 'Xbox Series X': '#22c55e', Xbox: '#4ade80', Switch: '#ef4444', 'Switch 2': '#f87171', iOS: '#a1a1aa', Android: '#84cc16' };
-
-/**
- * Spieler je Plattform als eine Leiste mit Anteilen (Betreiber, 30.10.2026: Windows, PlayStation, Xbox, Switch, iOS, Android - "wenn es echte Statistiken
- * sind"). Gezaehlt aus dem Feld Platform der vollen Replays, je Spieler einmal; gezeigt nur bei ganz gelesenem Spieltag (app/api/cup-spieler).
- */
-function PlattformLeiste({ werte, ort }: { werte: Record<string, number>; ort: string }) {
-  const liste = Object.entries(werte).sort((a, b) => b[1] - a[1]);
-  const summe = liste.reduce((n, [, v]) => n + v, 0);
-  if (!summe) return null;
-  let bisher = 0;
-  const kreis = liste.map(([name, n]) => {
-    const von = (bisher / summe) * 100; bisher += n;
-    return `${PLATTFORM_FARBE[name] ?? '#64748b'} ${von}% ${(bisher / summe) * 100}%`;
-  }).join(', ');
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/85 p-5">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-300"><T>Plattformen</T></h3>
-        <span className="text-xs text-slate-500">{summe.toLocaleString(ort)} <T>Spieler, aus den Replays</T></span>
-      </div>
-      <div className="flex flex-wrap items-center gap-6">
-        <div aria-hidden className="relative h-36 w-36 shrink-0 rounded-full" style={{ background: `conic-gradient(${kreis})` }}>
-          <div className="absolute inset-[22%] rounded-full bg-zinc-900" />
-        </div>
-        <ul className="min-w-[240px] flex-1 space-y-1.5">
-          {liste.map(([name, n]) => (
-            <li key={name} className="flex items-center gap-2 text-sm">
-              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PLATTFORM_FARBE[name] ?? '#64748b' }} />
-              <span className="font-semibold text-slate-200">{name}</span>
-              <span className="ml-auto tabular-nums text-slate-200">{n.toLocaleString(ort)}</span>
-              <span className="w-14 text-right tabular-nums text-slate-500">{((n / summe) * 100).toLocaleString(ort, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
