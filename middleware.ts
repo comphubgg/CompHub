@@ -100,6 +100,14 @@ async function verwaltungErlaubt(request: NextRequest): Promise<boolean> {
 
 export async function middleware(request: NextRequest) {
   const pfad = request.nextUrl.pathname;
+  /*
+   * Eine Adresse fuer Google (14.11.2026): thecomphub.com und www.thecomphub.com standen als zwei Treffer in der Suche, einer mit altem Logo.
+   * Seiten (nicht /api - Discord und Co. folgen keiner Weiterleitung) gehen dauerhaft auf www.
+   */
+  const host = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '').split(',')[0].split(':')[0].trim().toLowerCase();
+  if (host === 'thecomphub.com' && (request.method === 'GET' || request.method === 'HEAD')) {
+    return NextResponse.redirect(`https://www.thecomphub.com${pfad}${request.nextUrl.search}`, 301);
+  }
   if (pfad === '/admin' || pfad.startsWith('/admin/')) {
     if (!(await verwaltungErlaubt(request))) {
       const ziel = new URL('/sign-in', request.url);
