@@ -21,6 +21,7 @@ jobs:
         run: |
           for U in $URLS; do
             echo "=== $U"
+            curl -sI -A "Mozilla/5.0" "$U" | grep -iE "^(server|x-nf|x-vercel|cf-ray|via|x-powered|age|cache-status)" | head -8
             curl -sL -A "Mozilla/5.0" -o /tmp/a -w "Status %{http_code} %{content_type} %{size_download}\n" "$U"
             if [ -n "$MUSTER" ]; then grep -oE "$MUSTER" /tmp/a | sort -u | head -80; else head -c 3000 /tmp/a | fold -w 3000; echo; fi
           done
