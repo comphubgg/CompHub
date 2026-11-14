@@ -76,6 +76,8 @@ const daten = {
   siege: alle.reduce((a, t) => a + t.siege, 0),
   top: top.map((t) => ({ ...t, namen: t.ids.map(name), bilder: t.ids.map(bild), schluessel: t.ids.map((id) => pro[id]?.schluessel ?? null) })),
   meisteElims: { namen: meisteElims.ids.map(name), bilder: meisteElims.ids.map(bild), elims: meisteElims.elims, rang: meisteElims.rang },
+  // Fuer die Fortnite-Tracker-Texte (scripts/ft-posts.mjs): Siege und Elims je Team, alle Teams mit Sieg oder unter den 30 mit den meisten Elims je Spiel.
+  teamWerte: [...alle.filter((t) => t.siege > 0), ...[...alle].filter((t) => t.spiele).sort((a, b) => b.elims / b.spiele - a.elims / a.spiele).slice(0, 30)].map((t) => ({ ids: t.ids, namen: t.ids.map(name), siege: t.siege, spiele: t.spiele, elims: t.elims, rang: t.rang })),
   bestesSpiel: { namen: bestesSpiel.ids.map(name), elims: bestesSpiel.bestesSpiel, rang: bestesSpiel.rang },
 };
 fs.writeFileSync(aus, `window.DATEN=${JSON.stringify(daten)};`);
