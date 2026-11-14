@@ -51,9 +51,17 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
   const gruppen = new Map<string, { c: { id: string; titel: string }; fenster: Fenster[] }>();
   for (const { c, f } of alleFenster) {
     if (!/Heat\d+/i.test(f.windowId) || (nurEvent && f.eventId !== nurEvent)) continue;
-    if (!nurEvent && (f.status === 'vorbei' || (f.begin ?? 0) < jetzt - 3_600_000)) continue;
     const g = gruppen.get(f.eventId) ?? { c, fenster: [] };
     g.fenster.push(f); gruppen.set(f.eventId, g);
+  }
+  /*
+   * Ein Event bleibt mit ALLEN seinen Heats stehen, solange einer davon noch kommt oder laeuft (14.11.2026: nach dem Start von Heat 1 war Heat 1 aus der
+   * Einteilung verschwunden, nur Heat 2 stand noch da). Vorher fiel jeder Heat einzeln heraus, eine Stunde nach seinem Beginn.
+   */
+  if (!nurEvent) {
+    for (const [e, g] of gruppen) {
+      if (!g.fenster.some((f) => f.status !== 'vorbei' || (f.begin ?? 0) >= jetzt - 3_600_000)) gruppen.delete(e);
+    }
   }
   const raus: HeatsDaten[] = [];
   for (const [eventId, { c, fenster }] of gruppen) {
