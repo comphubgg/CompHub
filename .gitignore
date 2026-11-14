@@ -113,3 +113,6 @@ tools/posts/team-daten.js
 tools/posts/cup-daten.js
 tools/posts/karte-daten.js
 tools/posts/karte.png
+
+# Arbeitskopien der Hintergrund-Agenten
+.claude/worktrees/
