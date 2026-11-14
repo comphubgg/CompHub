@@ -19,7 +19,9 @@ export default function MatchIdAnzeige({ kanal }: { kanal: string }) {
     const frag = () => fetch(`/api/streams/match-id?kanal=${encodeURIComponent(kanal)}`, { cache: 'no-store' })
       .then((r) => r.json()).then((j: { matchId?: string | null }) => { if (!weg) setId(j?.matchId ?? null); }).catch(() => {});
     setId(null); frag();
-    const uhr = setInterval(frag, 30_000);
+    // Alle 2 s (Betreiber, 14.11.2026: der Streamer hatte die Match-ID 10 s frueher). Epic meldet den Wechsel per XMPP sofort an den Server,
+    // die Verzoegerung lag nur hier im Abfragetakt (vorher 30 s). Im Hintergrund-Tab wird nicht gefragt.
+    const uhr = setInterval(() => { if (document.visibilityState === 'visible') frag(); }, 2_000);
     return () => { weg = true; clearInterval(uhr); };
   }, [kanal]);
   if (!id) return null;
