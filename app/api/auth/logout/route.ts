@@ -69,19 +69,16 @@ export async function GET(request: NextRequest) {
     status: 307,
     headers: { Location: '/login' },
   });
-  response.cookies.delete("streamer_dashboard_auth");
-  // Auch die Cookies mit Domain (siehe lib/cookieDomain): sonst bliebe die Anmeldung unter dem anderen Namen stehen.
-  for (const n of ['streamer_dashboard_auth', 'streamer_dashboard_user_login']) {
-    response.headers.append('Set-Cookie', `${n}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.thecomphub.com`);
-  }
   /*
-   * Auch das Konto abmelden.
-   *
-   * Dieser Weg raeumte nur den VIP-Schluessel ab; das CompHub-Konto (Cookie "streamer_dashboard_konto") blieb
-   * stehen. Wer ueber "Sign out" in der Kopfzeile oder im Pro-Dashboard ausloggte, war danach weiter angemeldet
-   * (Betreiber, 11.10.2026: "wenn ich auf Sign Out gehe, kann ich mich nicht ausloggen"). Abmelden heisst beides.
+   * Alle Loesch-Befehle von Hand, keiner ueber response.cookies (14.11.2026, Betreiber: "Sign Out ... immer wieder auf die gleiche Seite").
+   * response.cookies.set() schreibt bei jedem Aufruf die ganze Set-Cookie-Liste neu und warf damit die vorher von Hand angehaengten Zeilen mit
+   * Domain=.thecomphub.com wieder hinaus - genau die, unter denen die Anmeldung steht. Die Sitzung blieb, das Pausen-Fenster kam sofort wieder.
+   * Je Cookie beide Fassungen: ohne Domain (alte Anmeldungen) und mit.
    */
-  response.cookies.set('streamer_dashboard_konto', '', { path: '/', maxAge: 0 });
-  response.headers.append('Set-Cookie', 'streamer_dashboard_konto=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.thecomphub.com');
+  const weg = 'Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  for (const n of ['streamer_dashboard_auth', 'streamer_dashboard_user_login', 'streamer_dashboard_konto']) {
+    response.headers.append('Set-Cookie', `${n}=; ${weg}`);
+    response.headers.append('Set-Cookie', `${n}=; ${weg}; Domain=.thecomphub.com`);
+  }
   return response;
 }
