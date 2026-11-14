@@ -208,7 +208,16 @@ jobs:
           path: data/clutch-teil
           merge-multiple: true
 
+      # Wie in clutch-ablegen.yml: Lage und clutch-je am Release abgleichen, fehlende Matches zum Nachlesen vormerken (jeOhne).
+      - name: Werte je Match abgleichen
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/clutch-je-abgleich.mjs --heilen 2>&1 | tail -40
+
       - name: Zusammenfuehren
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/clutch-zusammen.mjs
 
       - name: Clutch aus den Rohdaten nach der aktuellen Regel
@@ -226,12 +235,18 @@ jobs:
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
           node scripts/epic-schaden-holen.mjs 2>&1 | tail -12
           rm -f .env.local
+      # Erst clutch-je, dann pruefen, dann clutch (siehe clutch-ablegen.yml): die Lage in clutch/<w>.json zeigt nie in eine Datei, die am Release nicht so liegt.
       - name: Ans Release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls data/clutch | wc -l
-          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          je=0
+          node scripts/ablage-github.mjs --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12 || je=$?
+          node scripts/clutch-je-abgleich.mjs --pruefen 2>&1 | tail -40
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          exit $je
 
   # Solange etwas offen blieb, gleich weiter.
   weiter:

@@ -3,6 +3,10 @@
 # Jeder Rechner von "Clutch rechnen" stoesst diesen Ablauf an, sobald er fertig ist. Geholt wird, was bis dahin von dieser Runde da ist; ein Teil, der schon eingearbeitet ist, wird von
 # scripts/clutch-zusammen.mjs uebersprungen. Es schreibt immer nur einer (Gruppe clutch-ablegen, auch der Schritt "ablegen" der Runde); laufen mehrere Rechner kurz nacheinander aus,
 # wartet genau ein weiterer Lauf und nimmt alle mit. Epics Schaden holt weiter nur der Abschluss der Runde: das dauert und aendert sich nicht je Rechner.
+#
+# clutch/<w>.json und clutch-je/<w>.json gehen immer zusammen ans Release, clutch-je zuerst (14.11.2026). Bis dahin lud dieser Ablauf nur clutch/ hoch: die Lage
+# der Werte je Match zeigte in eine aeltere Datei (die Seite las falsche Stuecke), und der naechste Lauf haengte die neuen Zeilen an diese aeltere Datei - die
+# Zeilen der dazwischen eingearbeiteten Teile fehlten fuer immer (70 von 118 Spieltagen, z. B. S43_TriosCashCup_Event2_BR: Zeilen zu 122 von 488 Matches).
 
 name: Clutch ablegen
 
@@ -47,7 +51,17 @@ jobs:
           run-id: ${{ inputs.lauf }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Spieltage, deren Lage nicht zu clutch-je am Release passt: Lage aus der Datei neu, fehlende Matches zum Nachlesen vormerken (jeOhne).
+      - name: Werte je Match abgleichen
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/clutch-je-abgleich.mjs --heilen 2>&1 | tail -40
+
+      # Mit Token: clutch-je kommt ueber die API, nicht ueber den Zwischenspeicher des Download-Links (die vorige Sofort-Ablage hat es eben erst ersetzt).
       - name: Zusammenfuehren
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/clutch-zusammen.mjs
 
       - name: Clutch aus den Rohdaten nach der aktuellen Regel
@@ -58,7 +72,15 @@ jobs:
         continue-on-error: true
         run: node scripts/clutch-leben.mjs
 
+      # Erst clutch-je, dann pruefen, dann clutch: ein clutch/<w>.json, dessen Lage nicht zu dem passt, was jetzt am Release liegt, bleibt zurueck (seine Teile kommen
+      # beim naechsten Ablegen noch einmal dran, doppelte Zeilen verhindert clutch-zusammen). Scheitert clutch-je, laeuft der Rest trotzdem - der Schritt meldet es am Ende.
       - name: Ans Release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: |
+          je=0
+          node scripts/ablage-github.mjs --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12 || je=$?
+          node scripts/clutch-je-abgleich.mjs --pruefen 2>&1 | tail -40
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          exit $je

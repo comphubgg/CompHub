@@ -367,6 +367,12 @@ if (arg[0] === '--plan') {
      */
     const ohneNochmal = Date.now() - f.datum < 3 * 864e5 && Date.now() - Date.parse(da?.ohneVersucht ?? da?.gerechnet ?? 0) > 2 * 3600_000;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(ohneNochmal ? [] : (da.ohne ?? []))] : []);
+    /*
+     * Gelesene Matches ohne Werte je Match (clutch-zusammen.mjs, jeOhne - 14.11.2026: die Sofort-Ablage hatte clutch-je nicht hochgeladen). Eigener Eintrag mit
+     * nurJe: der Rechner liest sie wie sonst, clutch-zusammen nimmt davon nur die Zeilen, die Summen zaehlen nicht doppelt.
+     */
+    const jeOffen = gilt ? (da.jeOhne ?? []).filter((id) => !(da.ohne ?? []).includes(id)) : [];
+    if (jeOffen.length) raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen: jeOffen, neuAnfang: false, nurJe: true });
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
     raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang });
@@ -374,7 +380,8 @@ if (arg[0] === '--plan') {
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
   const frisch = (t) => Date.now() - t.datum < 2 * 864e5;
-  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
+  // Das Nachlesen der Werte je Match (nurJe) zuletzt: neue Matches gehen vor.
+  raus.sort((a, b) => (Number(!!a.nurJe) - Number(!!b.nurJe)) || (Number(frisch(b)) - Number(frisch(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
   // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
   const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 150)));
@@ -428,11 +435,13 @@ if (arg[0] === '--plan') {
     let regeln = Array.isArray(t.regeln) && t.regeln.length ? t.regeln : [];
     if (!regeln.length) { try { regeln = await wertungSicher(t.eventId, t.windowId); } catch { /* ohne Regeln nur Schaden */ } }
     // Rohdaten (Kill-Feed, Figuren) nur bei kleinen Spieltagen - bei 20.000 Matches waeren es Gigabytes; die Ueberlebenszeit wird hier gleich gezaehlt.
-    const mitRoh = t.gesamt <= GROSS_MAX;
-    const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);
+    const mitRoh = t.gesamt <= GROSS_MAX && !t.nurJe;
+    // Eigene Datei fuer das Nachlesen der Werte je Match - der Teil desselben Spieltags mit neuen Matches bleibt davon getrennt (clutch-zusammen.mjs).
+    const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${t.nurJe ? 'je' : ''}${teilNr}.json`);
     const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, strecke: {}, roh: [] };
     teil.strecke ??= {};
     teil.neuAnfang = !!t.neuAnfang;
+    if (t.nurJe) teil.nurJe = true;
     // Matches, die in diesem Lauf scheiterten (Download oder Leser) - clutch-zusammen.mjs zaehlt die Fehlversuche ueber die Laeufe.
     teil.fehler ??= [];
     teil.gesamt = Math.max(teil.gesamt ?? 0, t.gesamt);

@@ -12,29 +12,33 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { JE_SPALTEN, alteZeile, jeDatei, jeLesen } from '../lib/jeSpiel.mjs';
-import { tagFuer } from '../lib/releaseTags.mjs';
+import { JE_SPALTEN, alteZeile, jeDatei, jeLesen, jeMatchIds, jeOhneZeilen } from '../lib/jeSpiel.mjs';
+import { releaseLeser } from '../lib/releaseStand.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const TEILE = path.join(DATEN, 'clutch-teil');
 const ZIEL = path.join(DATEN, 'clutch');
 const ROH = path.join(DATEN, 'clutch-roh');
 const JE = path.join(DATEN, 'clutch-je');
-const REPO = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
 
-/** Die Werte je Match, die schon am Release liegen (lib/jeSpiel.mjs) - das Repo ist oeffentlich, ein einfacher Abruf genuegt. Fehlt die Datei, ist es der erste Lauf. */
-async function jeVomRelease(w) {
+/**
+ * Die Werte je Match, die schon am Release liegen (lib/jeSpiel.mjs) - mit Token ueber die API (lib/releaseStand.mjs): die vorige Sofort-Ablage hat sie eben
+ * erst ersetzt, der oeffentliche Link liefert dann mitunter minutenlang die Fassung davor.
+ * Steht in clutch/<w>.json schon eine Lage (erwartet), muss es die Datei geben: ein 404 ist dann kein "erster Lauf" - mitten im Austausch eines Anhangs
+ * (erst ".neu" daneben, dann umbenennen) fehlt er kurz. Vorher fing der Lauf dann mit leeren Werten an und warf alle alten Zeilen weg.
+ */
+const leser = releaseLeser();
+async function jeVomRelease(w, erwartet) {
   const name = `clutch-je/${w}.json`;
   const lokal = path.join(DATEN, name);
   if (fs.existsSync(lokal)) return fs.readFileSync(lokal);
-  const url = `https://github.com/${REPO}/releases/download/${tagFuer(name)}/${name.replace(/\//g, '__')}`;
-  for (let v = 0; v < 3; v += 1) {
+  for (let v = 0; v < 4; v += 1) {
     try {
-      const r = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120_000) });
-      if (r.status === 404) return null;
-      if (r.ok) return Buffer.from(await r.arrayBuffer());
+      const inhalt = await leser.datei(name);
+      if (inhalt || !erwartet) return inhalt;
     } catch { /* noch einmal */ }
-    await new Promise((ok) => setTimeout(ok, 3000));
+    leser.vergessen();
+    await new Promise((ok) => setTimeout(ok, 5000 * (v + 1)));
   }
   throw new Error(`${name} nicht lesbar`);
 }
@@ -44,7 +48,8 @@ const addiere = (ziel, quelle) => { for (const [k, v] of Object.entries(quelle ?
 
 const jeTag = new Map();
 for (const f of fs.existsSync(TEILE) ? fs.readdirSync(TEILE).filter((x) => x.endsWith('.json')) : []) {
-  const w = f.replace(/__\d+\.json$/, '');
+  // <w>__<n>.json: ein Rechner; <w>__je<n>.json: nur die Werte je Match nachgelesen (nurJe, scripts/clutch-berechnen.mjs).
+  const w = f.replace(/__(?:je)?\d+\.json$/, '');
   jeTag.set(w, [...(jeTag.get(w) ?? []), path.join(TEILE, f)]);
 }
 
@@ -62,14 +67,31 @@ for (const [w, dateien] of jeTag) {
   const da = new Set([...d.matches.map((m) => m.id), ...d.ohne]);
   // Die Werte je Match: erst, wenn ein Teil welche bringt, wird der alte Stand geholt. Laesst er sich nicht lesen, bleibt die Datei diesmal, wie sie ist.
   let je = null; let jeNeu = false; let jeKaputt = false;
+  // Matches, zu denen es schon Zeilen gibt: ein Teil, der nach einer halb geglueckten Ablage noch einmal kommt, haengt sie nicht doppelt an.
+  let jeDa = new Set();
+  if (neuAnfang) { delete d.jeOhne; delete d.jeLeer; delete d.jeFehl; }
+  const nachgelesen = new Set();
   const jeLaden = async () => {
     if (je || jeKaputt) return je;
     try {
-      const alt = d.je && !neuAnfang ? await jeVomRelease(w) : null;
+      const alt = d.je && !neuAnfang ? await jeVomRelease(w, !!d.je.bytes) : null;
+      if (alt && d.je?.bytes && alt.length !== d.je.bytes) console.log(`  ${w}: clutch-je hat ${alt.length} Bytes, die Lage erwartete ${d.je.bytes} - Lage wird aus der Datei neu bestimmt, fehlende Zeilen kommen in jeOhne`);
       je = alt ? jeLesen(alt) : {};
     } catch (e) { console.log(`  ${w}: ${e.message} - Werte je Match diesmal nicht weitergefuehrt`); jeKaputt = true; return null; }
     if (d.jeSpiel) { for (const [k, v] of Object.entries(d.jeSpiel)) (je[k] ??= []).push(...v.map(alteZeile)); delete d.jeSpiel; jeNeu = true; }
+    jeDa = jeMatchIds(je);
     return je;
+  };
+  // Erst nach allen Spielern als "da" merken - sonst kaemen nur die Zeilen des ersten Spielers eines Matches hinein.
+  const zeilenDazu = (t, nur) => {
+    const neuIds = new Set();
+    for (const [k, v] of Object.entries(t.jeSpiel ?? {})) {
+      const neuZ = (t.jeSpalten ? v : v.map(alteZeile)).filter((z) => !jeDa.has(z[0]) && (!nur || nur.has(z[0])));
+      if (neuZ.length) (je[k] ??= []).push(...neuZ);
+      for (const z of neuZ) neuIds.add(z[0]);
+    }
+    for (const id of neuIds) jeDa.add(id);
+    jeNeu = true;
   };
   const rohDatei = path.join(ROH, `${w}.json`);
   if (neuAnfang) fs.rmSync(rohDatei, { force: true });
@@ -77,6 +99,25 @@ for (const [w, dateien] of jeTag) {
   for (const datei of dateien) {
     const t = liesDatei(datei);
     if (!t) continue;
+    /*
+     * Nur die Werte je Match nachgelesen (jeOhne): keine Summen, keine Matches - die stehen schon da. Nur Zeilen zu Matches, die noch keine haben.
+     */
+    if (t.nurJe) {
+      const offen = new Set(d.jeOhne ?? []);
+      const gelesenJe = new Set((t.matches ?? []).map((m) => m.id).filter((id) => offen.has(id)));
+      const ohneJe = (t.ohne ?? []).filter((id) => offen.has(id));
+      const fehlJe = (t.fehler ?? []).filter((id) => offen.has(id));
+      if (!gelesenJe.size && !ohneJe.length && !fehlJe.length) continue;
+      if (!(await jeLaden())) continue;
+      zeilenDazu(t, gelesenJe);
+      for (const id of gelesenJe) nachgelesen.add(id);
+      // Kein Replay mehr (aelter als Epics Frist) oder dreimal gescheitert: nicht ewig weiter versuchen.
+      d.jeLeer ??= [];
+      for (const id of ohneJe) d.jeLeer.push(id);
+      for (const id of fehlJe) { d.jeFehl ??= {}; d.jeFehl[id] = (d.jeFehl[id] ?? 0) + 1; if (d.jeFehl[id] >= 3) { d.jeLeer.push(id); delete d.jeFehl[id]; } }
+      console.log(`  ${w}: ${gelesenJe.size} Matches je Match nachgelesen (${path.basename(datei)})`);
+      continue;
+    }
     d.eventId ??= t.eventId;
     if (t.regeln?.length && !d.regeln?.length) d.regeln = t.regeln;
     d.gesamt = Math.max(d.gesamt ?? 0, t.gesamt ?? 0);
@@ -105,10 +146,9 @@ for (const [w, dateien] of jeTag) {
       if (d.fehlversuche[id] >= 3) { d.ohne.push(id); da.add(id); delete d.fehlversuche[id]; }
     }
     addiere(d.summe, t.summe);
-    if (t.jeSpiel && await jeLaden()) {
-      for (const [k, v] of Object.entries(t.jeSpiel)) (je[k] ??= []).push(...(t.jeSpalten ? v : v.map(alteZeile)));
-      jeNeu = true;
-    }
+    if (t.jeSpiel && await jeLaden()) zeilenDazu(t, null);
+    // Ohne lesbaren alten Stand bleiben die Zeilen dieses Teils draussen - der Planer liest sie nach.
+    else if (t.jeSpiel && jeKaputt) d.jeOhne = [...new Set([...(d.jeOhne ?? []), ...neuHier.map((m) => m.id)])];
     addiere(d.spiele, t.spiele);
     if (Object.keys(t.solo ?? {}).length) { d.solo ??= {}; addiere(d.solo, t.solo); }
     if (Object.keys(t.leben ?? {}).length) { d.leben ??= {}; addiere(d.leben, t.leben); }
@@ -145,6 +185,12 @@ for (const [w, dateien] of jeTag) {
     fs.mkdirSync(JE, { recursive: true });
     fs.writeFileSync(path.join(JE, `${w}.json`), inhalt);
     d.je = { spalten: JE_SPALTEN, lage, bytes: inhalt.length };
+    // Nachgelesen und trotzdem ohne Zeile (z. B. keine Werte aus dem Replay): nicht noch einmal.
+    for (const id of nachgelesen) if (!jeDa.has(id)) (d.jeLeer ??= []).push(id);
+    if (d.jeLeer) d.jeLeer = [...new Set(d.jeLeer)];
+    const ohne = jeOhneZeilen(d.matches, je, d.jeLeer);
+    if (ohne.length) d.jeOhne = ohne; else delete d.jeOhne;
+    if (ohne.length) console.log(`  ${w}: ${ohne.length} von ${d.matches.length} Matches ohne Werte je Match - werden nachgelesen`);
   }
   fs.writeFileSync(zielDatei, JSON.stringify(d));
   if (roh) fs.writeFileSync(rohDatei, JSON.stringify(roh));
