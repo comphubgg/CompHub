@@ -50,6 +50,8 @@ export function cupBild(name: string): string | null {
   if (/console/.test(n)) return '/cups/console-champions-cup.webp';
   if (/reload cup/.test(n)) return '/cups/reload-cup.webp';
   if (/solo series/.test(n)) return '/cups/solo-series.webp';
+  // Zero-Build- und Reload-Cash-Cups bekommen ein eigenes Bild, nicht dasselbe wie der Trios Cash Cup (Betreiber, 14.11.2026).
+  if (/cash cup/.test(n) && /(zero build|\bzb\b|reload)/.test(n)) return '/cups/zb-duos-cash-cup.webp';
   if (/cash cup/.test(n)) return '/cups/cash-cup.webp';
   if (/global championship 2026/.test(n)) return null;
   if (/global championship|globals 2024/.test(n)) return '/cups/global-championship-2025.webp';
