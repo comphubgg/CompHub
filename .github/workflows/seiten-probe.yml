@@ -1,0 +1,43 @@
+name: Seiten-Probe
+# Eine Seite als Admin im fertigen Image (wie auf dem Server) oeffnen und die Fehler ins Protokoll schreiben.
+on:
+  workflow_dispatch:
+    inputs:
+      pfade: { description: 'Pfade, mit Leerzeichen getrennt', required: true, default: '/admin/accounts' }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Umgebung
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > roh.env
+          grep -E '^[A-Za-z_][A-Za-z0-9_]*=' roh.env | sed -E 's/^([^=]+)="(.*)"\s*$/\1=\2/' > app.env
+          rm roh.env
+      - name: Starten
+        run: |
+          docker run -d --name seite -p 10000:10000 --env-file app.env -e COMPHUB_ABLAGE=supabase -e COMPHUB_KEIN_HINTERGRUND=1 ghcr.io/comphubgg/comphub-web:latest
+          for i in $(seq 1 90); do curl -s -o /dev/null http://localhost:10000/api/stand && break; sleep 2; done
+      - name: Probe
+        run: |
+          GEHEIM=$(grep -E '^AUTH_COOKIE_SECRET=' app.env | cut -d= -f2-)
+          [ -z "$GEHEIM" ] && GEHEIM=$(grep -E '^DISCORD_CLIENT_SECRET=' app.env | cut -d= -f2-)
+          KEKS=$(GEHEIM="$GEHEIM" node -e "const c=require('crypto');const w='admin-juanito:'+Date.now();process.stdout.write('streamer_dashboard_auth='+encodeURIComponent(w+':'+c.createHmac('sha256',process.env.GEHEIM).update(w).digest('hex')))")
+          KEKS="$KEKS" node scripts/seiten-probe.mjs http://localhost:10000 ${{ inputs.pfade }}
+      - name: Server-Protokoll
+        if: always()
+        run: docker logs seite 2>&1 | grep -iE "error|fehler|TypeError|at " | tail -40
