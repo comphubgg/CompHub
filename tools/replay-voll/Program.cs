@@ -827,6 +827,7 @@ class SchadenLeser : ReplayReader {
    * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %.
    */
   const double WurfAb = 70, WurfFrist = 30;
+  readonly Dictionary<(int, int), int> inventarBau = new();
   public void InventarAbschliessen(Dictionary<int, int> teamVon) {
     var axt = new Dictionary<int, List<double>>();
     foreach (var s in Schuesse) {
@@ -862,6 +863,8 @@ class SchadenLeser : ReplayReader {
           var k = Math.Min(l[i][1], -l[j][1]); l[i][1] -= k; l[j][1] += k;
         }
       }
+      // Gegenprobe Bauen (14.11.2026): jedes nach dem Rueckgabe-Abgleich verbleibende Minus in Zehnern unter WurfAb ist ein gesetztes Teil (10 Mats je Teil).
+      foreach (var x in l) if (x[1] < 0 && -x[1] < WurfAb && x[1] % 10 == 0) { inventarBau.TryGetValue((id, stoff), out var ib); inventarBau[(id, stoff)] = ib + (int)(-x[1] / 10); }
       var team = teamVon.TryGetValue(id, out var tm) ? tm : -id;
       if (!jeTeam.TryGetValue((team, stoff), out var tl)) jeTeam[(team, stoff)] = tl = new();
       foreach (var x in l) if (x[1] != 0) tl.Add((x[0], x[1], id));
@@ -917,8 +920,19 @@ class SchadenLeser : ReplayReader {
       var k = (id, (long)Math.Floor(sch[0] / 2)); einschlagJe[k] = (einschlagJe.TryGetValue(k, out var e0) ? e0 : 0) + 1;
     }
     foreach (var k in ammoJe.Keys.Union(einschlagJe.Keys)) ExtraVon(k.Item1)[ExtraSchuesse] += Math.Max(ammoJe.TryGetValue(k, out var a1) ? a1 : 0, einschlagJe.TryGetValue(k, out var e1) ? e1 : 0);
+    var bauDiag = new Dictionary<(int, int), int[]>();
     foreach (var (stoff, besitzer, gesetzt, ersatz) in bauTeile.Values) {
-      if (gesetzt && !ersatz && spielerVonWelt.TryGetValue(besitzer, out var id)) ExtraVon(id)[ExtraBauten + (stoff == 'W' ? 0 : stoff == 'S' ? 1 : 2)] += 1;
+      var st = stoff == 'W' ? 0 : stoff == 'S' ? 1 : 2;
+      if (gesetzt && !ersatz && spielerVonWelt.TryGetValue(besitzer, out var id)) ExtraVon(id)[ExtraBauten + st] += 1;
+      if (Environment.GetEnvironmentVariable("BAU_DIAG") is null) continue;
+      // [gezaehlt, gesetzt aber Ersatz, nicht gesetzt, Besitzer unbekannt]
+      var wer = spielerVonWelt.TryGetValue(besitzer, out var i2) ? i2 : -1;
+      if (!bauDiag.TryGetValue((wer, st), out var z)) bauDiag[(wer, st)] = z = new int[4];
+      if (wer < 0) z[3]++; else if (!gesetzt) z[2]++; else if (ersatz) z[1]++; else z[0]++;
+    }
+    if (Environment.GetEnvironmentVariable("BAU_DIAG") is not null) {
+      foreach (var k in bauDiag.Keys.Select(k => k.Item1).Union(inventarBau.Keys.Select(k => k.Item1)).Distinct().OrderBy(x => x))
+        Console.Error.WriteLine("DIAGBAU " + k + " " + string.Join(" ", Enumerable.Range(0, 3).Select(st => "WSM"[st] + ":" + string.Join("/", bauDiag.GetValueOrDefault((k, st)) ?? new int[4]) + "=inv" + inventarBau.GetValueOrDefault((k, st)))));
     }
   }
 
