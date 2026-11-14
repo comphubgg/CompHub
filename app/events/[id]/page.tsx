@@ -1565,9 +1565,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       // Die Finalrunde der Last Chance heisst bei Epic "Lobby" - hier Finale (Betreiber, 19.10.2026).
       if (/LastChanceLobby/i.test(w)) return { finale: true, haupt: 'Last Chance', neben: t('Finale') };
       // Cash Cups und Co.: jeder Termin ist ein eigener Cup, kein Tag (Betreiber, 7.11.2026).
+      // Events mit mehreren Runden (Performance Cup "Event2Round1", Victory Cups "Event1_Round2"): "Event 2" und darunter "Round 1" bzw. "Round 2 · Finals".
+      const er = /Event(\d+)_?Round(\d+)/i.exec(w);
+      if (er) {
+        const letzte = Math.max(...tage.map((g) => { const x = /Event(\d+)_?Round(\d+)/i.exec(g.windowId); return x && x[1] === er[1] ? Number(x[2]) : 0; }));
+        const fin = f.istFinale || (Number(er[2]) > 1 && Number(er[2]) === letzte);
+        return { finale: fin, haupt: `Event ${er[1]}`, neben: `${t('Runde')} ${er[2]}${fin ? ` · ${t('Finale')}` : ''}` };
+      }
       const ev = /_Event(\d+)(?:_|$)/i.exec(w);
-      // Benannt wie bei Fortnite Tracker ("Trios Cash Cup Finals #2"): eine Runde je Termin ist dessen Finale (Betreiber, 14.11.2026: nicht "Cup 1, Cup 2").
-      if (ev) return { finale: true, haupt: `Finals #${ev[1]}`, neben: '' };
+      // Wie bei Fortnite Tracker "Event 1", "Event 2" (Betreiber, 14.11.2026: offene Cups mit einer Runde sind keine Finals).
+      if (ev) return { finale: false, haupt: `Event ${ev[1]}`, neben: '' };
       const fd = /_Final_Day(\d+)/i.exec(w);
       if (fd) return { finale: true, haupt: t('Finale'), neben: `${t('Tag')} ${fd[1]}` };
       return null;
