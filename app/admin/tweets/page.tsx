@@ -22,6 +22,11 @@ import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useSprache } from '@/app/components/SprachProvider';
 import { speichereAdresse } from '@/app/lib/bildSpeichern';
+import { titelMit } from '@/lib/cupTitel';
+import { tweetLaenge, type FtErgebnis } from '@/lib/ftPosts';
+
+/** Antwort von /api/admin/ft-posts. */
+type FtAntwort = FtErgebnis & { teams: number };
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -1445,6 +1450,42 @@ export default function TweetSeite() {
       liste.map((f) => ({ ...f, region })));
   }, [cup]);
   const aktuellesFenster = fenster.find((f) => f.windowId === fensterId);
+
+  /*
+   * Fortnite-Tracker-Posts (Betreiber: "die Posts sollen genau so aussehen wie die von Fortnite Tracker"): Cup und Spieltag sind dieselbe Auswahl wie
+   * unten in Schritt 2, die Texte kommen fertig vom Server (/api/admin/ft-posts, lib/ftPosts.ts - dieselbe Regel wie scripts/ft-posts.mjs).
+   */
+  const [ftErgebnis, setFtErgebnis] = useState<{ windowId: string; daten: FtAntwort } | null>(null);
+  const [ftLaedt, setFtLaedt] = useState(false);
+  const [ftFehler, setFtFehler] = useState<{ windowId: string; text: string } | null>(null);
+  const [ftTitel, setFtTitel] = useState<{ windowId: string; text: string } | null>(null);
+  const [ftKopiert, setFtKopiert] = useState<string | null>(null);
+  const ftStandardTitel = cup && aktuellesFenster
+    ? `${titelMit(cup.titel, aktuellesFenster.windowId)}${aktuellesFenster.region ? ` ${aktuellesFenster.region}` : ''}`
+    : '';
+  const ftTitelText = ftTitel?.windowId === fensterId ? ftTitel.text : ftStandardTitel;
+  const ftDaten = ftErgebnis?.windowId === fensterId ? ftErgebnis.daten : null;
+  async function ftErstellen() {
+    if (!aktuellesFenster) return;
+    const w = aktuellesFenster.windowId;
+    setFtLaedt(true); setFtFehler(null);
+    try {
+      const r = await fetch(`/api/admin/ft-posts?event=${encodeURIComponent(aktuellesFenster.eventId)}&window=${encodeURIComponent(w)}`
+        + `&titel=${encodeURIComponent(ftTitelText)}`, { cache: 'no-store' });
+      const j = await r.json().catch(() => ({})) as Partial<FtAntwort> & { error?: string };
+      if (!r.ok || !j.posts) throw new Error(j.error || `HTTP ${r.status}`);
+      setFtErgebnis({ windowId: w, daten: j as FtAntwort });
+    } catch (e) {
+      setFtFehler({ windowId: w, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setFtLaedt(false);
+    }
+  }
+  async function ftKopieren(art: string, text: string) {
+    try { await navigator.clipboard.writeText(text); } catch { return; }
+    setFtKopiert(art);
+    setTimeout(() => setFtKopiert((k) => (k === art ? null : k)), 1800);
+  }
 
   /**
    * Welche Spieltage in der Liste stehen.
@@ -3456,6 +3497,127 @@ export default function TweetSeite() {
               </span>
             </button>
           } />
+
+        {/* ------------------------------------------ Fortnite-Tracker-Posts
+            Ganz oben (Betreiber: "genau so wie Fortnite Tracker"). Cup und Spieltag teilen sich den Zustand mit Schritt 2. */}
+        <section className="mb-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-[0_6px_20px_rgba(15,23,42,.12)]">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-800 px-5 py-3">
+            <h2 className="text-sm font-bold text-slate-100"><T>Fortnite-Tracker-Posts</T></h2>
+            <p className="text-[11px] text-slate-500">
+              <T>Best Stats, Most Damage Dealt und Most Eliminations – aus der Replay-Auswertung und Epics Bestenliste.</T>
+            </p>
+          </div>
+          <div className="p-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)_auto] lg:items-end">
+              <label className="text-xs text-slate-400">
+                Cup
+                <select value={cupId}
+                  onChange={(e) => { setCupId(e.target.value); setFensterId(''); setAlleSpieltage(false); }}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500">
+                  <option value="">{t('— auswählen —')}</option>
+                  {cupGruppen.live.length > 0 && (
+                    <optgroup label={t('Läuft gerade')}>
+                      {cupGruppen.live.map((c) => <option key={c.id} value={c.id}>🔴 {c.titel}</option>)}
+                    </optgroup>
+                  )}
+                  {cupGruppen.monate.map((m) => (
+                    <optgroup key={m.titel} label={m.titel}>
+                      {m.cups.map((c) => <option key={c.id} value={c.id}>{wann(c)} · {c.titel}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-slate-400">
+                <T>Spieltag</T>
+                <select value={fensterId} onChange={(e) => setFensterId(e.target.value)} disabled={!spieltage.liste.length}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500 disabled:opacity-40">
+                  <option value="">{t('— auswählen —')}</option>
+                  {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => {
+                    const runden = spieltage.liste.filter((f) => f.region === r);
+                    const namen = rundenBeschriftung(runden, t);
+                    return (
+                      <optgroup key={r} label={r}>
+                        {runden.map((f) => (
+                          <option key={f.windowId} value={f.windowId}>
+                            {f.status === 'live' ? '🔴 ' : ''}{r}{namen.get(f.windowId) ? ` · ${namen.get(f.windowId)}` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+                {spieltage.mehr > 0 && (
+                  <button type="button" onClick={() => setAlleSpieltage(true)}
+                    className="mt-1 text-[11px] text-slate-500 underline decoration-dotted underline-offset-2 hover:text-sky-400">
+                    {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
+                  </button>
+                )}
+              </label>
+              <label className="text-xs text-slate-400">
+                <T>Kopfzeile</T>
+                <input value={ftTitelText} disabled={!aktuellesFenster}
+                  onChange={(e) => setFtTitel({ windowId: fensterId, text: e.target.value })}
+                  spellCheck={false}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500 disabled:opacity-40" />
+              </label>
+              <button type="button" onClick={ftErstellen} disabled={!aktuellesFenster || ftLaedt}
+                className="h-[38px] rounded-lg bg-sky-500 px-5 text-sm font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
+                {t(ftLaedt ? 'lädt…' : 'Erstellen')}
+              </button>
+            </div>
+
+            {ftFehler?.windowId === fensterId && (
+              <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{ftFehler.text}</p>
+            )}
+
+            {ftDaten && (
+              <>
+                <p className="mt-4 text-[11px] text-slate-500">
+                  {ftDaten.stand.gelesen}/{ftDaten.stand.gesamt ?? '?'} <T>Matches ausgewertet</T>
+                  {' · '}{ftDaten.spieler} <T>Spieler</T>
+                  {' · '}{ftDaten.teams} <T>Teams aus der Bestenliste</T>
+                  {' · '}<T>Mindestspiele für Ratio und Kills/Match</T>: {ftDaten.minSpiele}
+                </p>
+                {ftDaten.stand.teilweise && (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    <T>Teilweise ausgewertet – die Werte sind noch nicht endgültig.</T>
+                  </p>
+                )}
+                <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                  {ftDaten.posts.map((p) => {
+                    const laenge = tweetLaenge(p.text);
+                    const zuLang = laenge > 280;
+                    return (
+                      <div key={p.art} className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-950">
+                        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
+                          <span className="text-xs font-semibold text-slate-300">{p.titel}</span>
+                          <span title={t('Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)')}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${zuLang
+                              ? 'bg-red-500/15 text-red-300' : 'bg-zinc-800 text-slate-400'}`}>
+                            {laenge}/280
+                          </span>
+                        </div>
+                        <p className="flex-1 whitespace-pre-wrap break-words px-4 py-3 text-sm leading-relaxed text-slate-100">{p.text}</p>
+                        {zuLang && (
+                          <p className="px-4 pb-2 text-[11px] text-red-300">
+                            <T>Länger als 280 Zeichen – X schneidet ab bzw. lässt den Post ohne Premium nicht zu.</T>
+                          </p>
+                        )}
+                        <div className="border-t border-zinc-800 px-4 py-2">
+                          <button type="button" onClick={() => ftKopieren(p.art, p.text)}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${ftKopiert === p.art
+                              ? 'border-emerald-500 text-emerald-400' : 'border-zinc-700 text-slate-300 hover:border-sky-500 hover:text-sky-400'}`}>
+                            {t(ftKopiert === p.art ? 'Kopiert' : 'Kopieren')}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
 
         {/* Schritt 1 und 2 nebeneinander (Betreiber, 20.10.2026: die Post-Section neu - weniger Scrollen): links was es werden soll, rechts der Cup. */}
         <div className="grid gap-x-4 xl:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] xl:items-start">

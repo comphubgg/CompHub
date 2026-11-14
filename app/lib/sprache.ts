@@ -5005,6 +5005,17 @@ const AUF_ENGLISCH: Record<string, string> = {
   "Spieler suchen — Namen eintippen": "Search a player — type a name",
   "Suche läuft": "Searching",
   "Suche gerade nicht erreichbar": "Search is unavailable right now",
+  // Beitragsseite: Fortnite-Tracker-Posts
+  'Fortnite-Tracker-Posts': 'Fortnite Tracker posts',
+  'Best Stats, Most Damage Dealt und Most Eliminations – aus der Replay-Auswertung und Epics Bestenliste.': 'Best Stats, Most Damage Dealt and Most Eliminations – from the replay analysis and Epic’s leaderboard.',
+  'Erstellen': 'Create',
+  'Kopfzeile': 'Header line',
+  'Teams aus der Bestenliste': 'teams from the leaderboard',
+  'Mindestspiele für Ratio und Kills/Match': 'Minimum games for ratio and kills/match',
+  'Teilweise ausgewertet – die Werte sind noch nicht endgültig.': 'Partially analysed – the values are not final yet.',
+  'Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)': 'Characters as X counts them (emoji and flags count double, links 23)',
+  'Länger als 280 Zeichen – X schneidet ab bzw. lässt den Post ohne Premium nicht zu.': 'Longer than 280 characters – X cuts it off or refuses the post without Premium.',
+  'ältere Spieltage anzeigen': 'show older match days',
 };
 
 /**
