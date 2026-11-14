@@ -53,7 +53,8 @@ const QUAL_ZUSCHLAG = 5;
  * Cup als Vorlage fuer die FNCS Solos Reload war "das plus 5 knapp zu hoch" - ein anderer Cup ist ohnehin eine Naeherung).
  */
 // Dazu die gelernte Korrektur aus frueheren Spieltagen derselben Art (app/api/qualifikation, prognose-lernen.json).
-const qualPrognose = (q: { schnitt: number | null; aehnlich?: boolean; korrektur?: number }) => (q.schnitt ?? 0) + (q.aehnlich ? 0 : QUAL_ZUSCHLAG) + (q.korrektur ?? 0);
+// mitte: einmal waehrend des Spieltags nachgestellt (app/api/qualifikation) - die gilt dann.
+const qualPrognose = (q: { schnitt: number | null; aehnlich?: boolean; korrektur?: number; mitte?: number | null }) => q.mitte ?? ((q.schnitt ?? 0) + (q.aehnlich ? 0 : QUAL_ZUSCHLAG) + (q.korrektur ?? 0));
 
 interface Fenster {
   status: 'live' | 'kommt' | 'vorbei';

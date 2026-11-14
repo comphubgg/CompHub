@@ -226,6 +226,7 @@ async function holeRoh(request: Request) {
   const vorbei = !laeuft && (dieser.status === 'vorbei'
     || (typeof dieser.end === 'number' && jetzt > dieser.end));
   let tatsaechlich: number | null = null;
+  let gespielt = 0;
   if (vorbei || laeuft) {
     try {
       const board = await gecacht(
@@ -239,6 +240,8 @@ async function holeRoh(request: Request) {
       if (treffer && typeof treffer.points === 'number' && treffer.points > 0) {
         tatsaechlich = treffer.points;
       }
+      // Wie viele Spiele schon gespielt sind: das Meiste, was ein Eintrag dieser Seite fuehrt.
+      gespielt = board.entries.reduce((a, e) => Math.max(a, (e as { matches?: unknown[] }).matches?.length ?? 0), 0);
     } catch { /* dann bleibt es beim Schnitt aus frueheren Ausgaben */ }
   }
 
@@ -434,7 +437,30 @@ async function holeRoh(request: Request) {
     if (gleiche.length) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
   } catch { /* ohne Lernstand wie bisher */ }
 
+  /*
+   * Die Prognose einmal nachstellen (Betreiber, 14.11.2026: Heat 1 stand nach sechs von acht Spielen bei 169 Punkten, die Prognose bei 172 - zu tief).
+   * Sobald gut die Haelfte der Spiele gespielt ist (bei acht: ab dem fuenften), wird die Grenze von jetzt auf alle Spiele hochgerechnet - einmal, dann
+   * bleibt der Wert fest (prognose-mitte.json), damit er nicht mit jedem Spiel springt. Liegt die alte Prognose hoechstens 3 % daneben, bleibt sie.
+   */
+  let mitte: number | null = null;
+  try {
+    const cap = dieser.matchCap ?? 0;
+    const alt = schnitt !== null ? schnitt + (aehnlich ? 0 : ZUSCHLAG) + korrektur : null;
+    const gemerkt = await liesJson<Record<string, { wert: number | null; nachSpielen: number; zeit: number }>>('prognose-mitte.json', {});
+    const da = gemerkt[dieser.windowId];
+    if (da) mitte = da.wert;
+    else if (laeuft && !tagRunde && cap >= 4 && tatsaechlich !== null && gespielt >= Math.ceil(cap * 0.6) && gespielt < cap) {
+      const hoch = Math.round(tatsaechlich * cap / gespielt);
+      const wert = alt !== null && Math.abs(hoch - alt) <= alt * 0.03 ? null : hoch;
+      gemerkt[dieser.windowId] = { wert, nachSpielen: gespielt, zeit: Date.now() };
+      await schreibJson('prognose-mitte.json', gemerkt).catch(() => { /* beim naechsten Aufruf */ });
+      mitte = wert;
+    }
+  } catch { /* dann bleibt die Prognose von vorher */ }
+
   return NextResponse.json({
+    /* Die einmal nachgestellte Prognose (null: die alte bleibt). */
+    mitte,
     vorhanden: schnitt !== null || tatsaechlich !== null,
     /* Was dieser Spieltag tatsaechlich kostet - waehrend er laeuft der
        Stand von jetzt, danach das Ergebnis. Steht das hier, ist der Schnitt
