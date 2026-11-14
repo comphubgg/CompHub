@@ -5,9 +5,9 @@
 :root{--rot:#ff3b5c}
 *{box-sizing:border-box;margin:0}
 body{width:1600px;height:600px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
-.wand{position:absolute;left:-200px;top:-260px;width:2200px;display:grid;grid-template-columns:repeat(8,250px);gap:18px;transform:rotate(-8deg)}
+.wand{position:absolute;left:-260px;top:-300px;width:2300px;display:grid;grid-template-columns:repeat(8,250px);gap:18px;transform:rotate(-8deg)}
 .wand div{height:150px;border-radius:16px;background:#111 center/cover}
-.folie{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,14,.72),rgba(5,8,14,.86)),radial-gradient(ellipse at 50% 0%,rgba(0,163,255,.18),transparent 60%)}
+.folie{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,14,.80),rgba(5,8,14,.90)),radial-gradient(ellipse at 50% 0%,rgba(0,163,255,.18),transparent 60%)}
 .oben{position:absolute;top:38px;left:0;right:0;display:flex;gap:10px;justify-content:center}
 .chip{padding:7px 16px;border-radius:999px;font-size:17px;letter-spacing:.1em;font-weight:900;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.25);color:#d6e2f3;background:rgba(5,8,14,.5)}
 .chip.live{background:var(--rot);border-color:var(--rot);color:#fff}
@@ -34,7 +34,7 @@ const land=Object.fromEntries((q.get('land')||'').split(',').filter(Boolean).map
 const gross=u=>u?u.replace(/-\d+x\d+\./,'-600x600.'):'';
 const C=['fncs-global-championship-2026-hd.jpg','fncs-grand-finals.webp','major-1-summit-2026.webp','fncs-solo-reload.webp','global-championship-2025.webp','fncs-major.webp','reload-cup.webp','solo-series.webp','elite-cup.webp','world-cup.webp'];
 const P=['rax.jpg','swizzy.jpg','chap.jpg','focus.jpg','jannisz.jpg','darm.jpg','charyy.jpg','mariuscow.jpg','scroll.jpg','sky.jpg','kaan.jpg','pixovsky.jpg'];
-let w='';for(let i=0;i<32;i++){const b=i%3===2?'../../public/spielerbilder/'+P[(i*5)%P.length]:'../../public/cups/'+C[(i*7)%C.length];w+=`<div style="background-image:url('${b}')"></div>`;}
+let w='';for(let i=0;i<56;i++){const b=i%3===2?'../../public/spielerbilder/'+P[(i*5)%P.length]:'../../public/cups/'+C[(i*7)%C.length];w+=`<div style="background-image:url('${b}')"></div>`;}
 document.getElementById('wand').innerHTML=w;
 document.getElementById('inhalt').innerHTML=`
 <div class="oben"><span class="chip live">Live now</span><span class="chip">${q.get('chip')||''}</span></div>
