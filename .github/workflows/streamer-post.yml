@@ -29,7 +29,7 @@ jobs:
           STREAMER: ${{ inputs.streamer }}
         run: node scripts/streamer-post-daten.mjs tools/posts/cup-daten.js "${{ inputs.muster }}"
       - name: Bild
-        run: node tools/posts/aufnehmen.mjs "tools/posts/${{ inputs.vorlage }}?${{ inputs.query }}" "${{ inputs.name }}" ${{ inputs.vorlage == 'streamer-banner.html' && '1600 900' || '1200 1500' }}
+        run: node tools/posts/aufnehmen.mjs "tools/posts/${{ inputs.vorlage }}?${{ inputs.query }}" "${{ inputs.name }}" ${{ inputs.vorlage == 'streamer-header.html' && '1600 600' || (inputs.vorlage == 'streamer-banner.html' && '1600 900' || '1200 1500') }}
       - name: Hochladen
         env:
           GH_TOKEN: ${{ github.token }}
