@@ -421,9 +421,11 @@ export async function PUT(request: Request) {
         { fehler: 'Die Dauer muss zwischen 0 und 730 Tagen liegen.' },
         { status: 400 });
     }
-    if (tage === null) delete daten.users[i].vipBis;
-    else if (tage === 0) daten.users[i].vipBis = 0;
-    else daten.users[i].vipBis = Date.now() + tage * 86_400_000;
+    // Mit Frist heisst: nach Ablauf Zugang loeschen, Rolle weg, Chat weg (lib/discord abgelaufeneVipsLoeschen). Vorher fehlte hier fristLoescht -
+    // eine im Admin-Tool gesetzte Dauer lief ab, ohne dass etwas geloescht wurde (Betreiber, 14.11.2026).
+    if (tage === null) { delete daten.users[i].vipBis; delete daten.users[i].fristLoescht; }
+    else if (tage === 0) { daten.users[i].vipBis = 0; delete daten.users[i].fristLoescht; }
+    else { daten.users[i].vipBis = Date.now() + tage * 86_400_000; daten.users[i].fristLoescht = true; }
   }
 
   await schreibe(daten);

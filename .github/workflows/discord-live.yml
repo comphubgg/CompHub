@@ -67,10 +67,12 @@ jobs:
           # Turnierkarten der grossen Finals von selbst (lib/kartenAutomatik): ab dem Ende der offenen Runde alle zehn Minuten neu, zehn Minuten nach Beginn ein letztes Mal - alle zehn Minuten.
           curl -s -w ' [Turnierkarten: %{http_code}]' -m 290 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/karten-automatik" || true
           echo
+          GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
+          [ -z "$GEHEIM" ] && GEHEIM=$GEHEIM_E
+          # Abgelaufene VIP-Fristen bei jedem Lauf (alle zehn Minuten) statt einmal am Morgen - war die Seite um 7 Uhr nicht erreichbar, blieb ein Zugang
+          # einen ganzen Tag laenger (Betreiber, 14.11.2026: "nach 1 Monat soll direkt deaktiviert werden und auch der Chat geloescht").
+          curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
-            GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
-            [ -z "$GEHEIM" ] && GEHEIM=$GEHEIM_E
-            curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
             # Neue Kartenversionen bei fortnite.gg suchen (lib/kartenUpdates) - taeglich, ein Fund geht als Meldung an den Admin.
             curl -s -w ' [Karten-Updates: %{http_code}]' -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/karten-updates" || true
             echo

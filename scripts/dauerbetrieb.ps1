@@ -183,6 +183,15 @@ if (-not (LauschtJemand $Port)) {
     }
 }
 
+# --------------------------------------------------------- Warm halten
+
+# Discord wartet auf eine Antwort auf einen Knopfdruck nur drei Sekunden. Laedt der Server die Route erst beim ersten Klick (nach einem Neustart oder Update),
+# dauert das laenger - Discord zeigt "Interaktion fehlgeschlagen" (Betreiber, 14.11.2026: "ein paar Mal steht einfach Fehler"). Deshalb alle zwei Minuten
+# einmal anklopfen: ohne Unterschrift antwortet die Route sofort mit 401, ist danach aber geladen.
+if (LauschtJemand $Port) {
+    try { Invoke-WebRequest -Uri "http://127.0.0.1:$Port/api/discord/interaktion" -Method Post -Body '{}' -ContentType 'application/json' -TimeoutSec 20 -UseBasicParsing -ErrorAction SilentlyContinue | Out-Null } catch { }
+}
+
 # ----------------------------------------------------------------- Der Tunnel
 
 if (-not (LauschtJemand $MessPort)) {
