@@ -82,25 +82,7 @@ function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number) {
   ctx.fillStyle = oben;
   ctx.fillRect(0, 0, W, H);
   // Raster 56 px, zur Mitte hin sichtbar (wie die Maske in der Vorlage).
-  const raster = document.createElement('canvas');
-  raster.width = W; raster.height = H;
-  const rc = raster.getContext('2d');
-  if (rc) {
-    rc.strokeStyle = `rgba(${BLAU},.06)`;
-    rc.lineWidth = 1;
-    rc.beginPath();
-    for (let x = 0.5; x < W; x += 56) { rc.moveTo(x, 0); rc.lineTo(x, H); }
-    for (let y = 0.5; y < H; y += 56) { rc.moveTo(0, y); rc.lineTo(W, y); }
-    rc.stroke();
-    rc.globalCompositeOperation = 'destination-in';
-    rc.translate(W / 2, H / 2);
-    rc.scale(1, H / W);
-    const m = rc.createRadialGradient(0, 0, 0, 0, 0, W * 0.62);
-    m.addColorStop(0, '#000'); m.addColorStop(0.35, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
-    rc.fillStyle = m;
-    rc.fillRect(-W, -W, W * 2, W * 2);
-    ctx.drawImage(raster, 0, 0);
-  }
+  // Ohne Raster (Betreiber, 14.11.2026: "Hintergrund noch cleaner", wie der Twitter-Header).
 }
 
 /** Eine Karte: schraeg, abgerundet, mit leichtem Leuchten, das Foto darin gerade (wie .k / .k .i in der Vorlage). */
@@ -130,8 +112,10 @@ function karte(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const FW = w + 100; const fx = x - 50;
     const l = ftGesichtLage(FW, h, foto.naturalWidth, foto.naturalHeight, sp.gesicht);
-    if ('filter' in ctx) ctx.filter = 'saturate(.85) contrast(1.05)';
-    ctx.drawImage(foto, fx + l.x, y + l.y, l.w, l.h);
+    if ('filter' in ctx) ctx.filter = 'saturate(.9) contrast(1.05)';
+    // Die Karte ist schraeg: auf Gesichtshoehe liegt ihre Mitte um diesen Versatz neben der Mitte des Rechtecks - das Gesicht soll genau dort sitzen.
+    const dx = SCHRAEGE * (y + h * 0.36 - cy);
+    ctx.drawImage(foto, fx + l.x + dx, y + l.y, l.w, l.h);
     ctx.restore();
   }
   // Abdunkeln nach unten (fuer den Namen) und ein Schimmer der Kartenfarbe von oben.
@@ -230,8 +214,9 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
   // Die Karten in einer Reihe, mittig unter dem Logo.
   const n = liste.length;
   if (!n) return;
-  const rand = 90; const luecke = 26;
-  const kw = Math.min(250, (W - 2 * rand - luecke * (n - 1)) / n);
+  // Breitere Karten, kaum Abstand (Betreiber, 14.11.2026: "nicht so duenn ... ruhig instant nebeneinander").
+  const rand = 40; const luecke = 10;
+  const kw = Math.min(320, (W - 2 * rand - luecke * (n - 1)) / n);
   const kh = H - (logoY + logoH + 52) - 58;
   const gesamt = n * kw + (n - 1) * luecke;
   const ky = logoY + logoH + 52;
