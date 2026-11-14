@@ -131,6 +131,31 @@ if (Test-Path $Marke) {
     Notiere (BauUmschalten $Projekt)
 }
 
+# ------------------------------------------------------- Selbst aktualisieren
+
+# Neue Staende von GitHub kommen von selbst (Betreiber, 14.11.2026: "Bitte mach das von alleine. Ich will das nicht immer selber manuell machen.").
+# Alle 10 Minuten wird nachgesehen, ob origin/main weiter ist als der Stand hier. Wenn ja, laeuft aktualisieren.ps1 im Hintergrund - dasselbe wie der
+# Doppelklick auf aktualisieren.bat: sichern, holen, bauen (neben dem laufenden Server), umschalten, nachmessen. Eine Sperrdatei verhindert, dass zwei
+# Laeufe gleichzeitig bauen. Der Waechter laeuft als Systemkonto - Git lehnt einen fremden Ordner sonst ab ("dubious ownership"), daher safe.directory.
+$env:GIT_CONFIG_COUNT = '1'; $env:GIT_CONFIG_KEY_0 = 'safe.directory'; $env:GIT_CONFIG_VALUE_0 = '*'
+$AutoMarke = Join-Path $Projekt 'auto-update-letzt.txt'
+$AutoSperre = Join-Path $Projekt 'auto-update.lock'
+$faellig = -not (Test-Path $AutoMarke) -or ((Get-Date) - (Get-Item $AutoMarke).LastWriteTime).TotalMinutes -ge 10
+$gesperrt = (Test-Path $AutoSperre) -and ((Get-Date) - (Get-Item $AutoSperre).LastWriteTime).TotalMinutes -lt 60
+if ($faellig -and -not $gesperrt -and (Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $Projekt '.git'))) {
+    Set-Content -Path $AutoMarke -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding utf8
+    & git -C $Projekt fetch --quiet origin main 2>&1 | Out-Null
+    $hier = (& git -C $Projekt rev-parse HEAD 2>$null)
+    $dort = (& git -C $Projekt rev-parse origin/main 2>$null)
+    if ($hier -and $dort -and $hier -ne $dort) {
+        Notiere "Neuer Stand auf GitHub ($($dort.Substring(0,7))) - aktualisiere selbst."
+        Set-Content -Path $AutoSperre -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding utf8
+        $log = Join-Path $Projekt 'auto-update.log'
+        $befehl = "& '$(Join-Path $PSScriptRoot 'aktualisieren.ps1')' *>> '$log'; Remove-Item -Force '$AutoSperre' -ErrorAction SilentlyContinue"
+        Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $befehl -WindowStyle Hidden
+    }
+}
+
 # ------------------------------------------------------------- Der Webserver
 
 if (-not (LauschtJemand $Port)) {

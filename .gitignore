@@ -105,3 +105,7 @@ tools/intro/frames/
 tools/intro/*.mp4
 tools/intro/frames-*/
 tools/intro/fertig/
+
+auto-update-letzt.txt
+auto-update.lock
+auto-update.log
