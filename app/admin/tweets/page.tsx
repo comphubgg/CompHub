@@ -1465,13 +1465,14 @@ export default function TweetSeite() {
     : '';
   const ftTitelText = ftTitel?.windowId === fensterId ? ftTitel.text : ftStandardTitel;
   const ftDaten = ftErgebnis?.windowId === fensterId ? ftErgebnis.daten : null;
-  async function ftErstellen() {
+  // nurEpic: "Sofort (Epic)" - nur der Standings-Post, frisch aus Epics Bestenliste (die Stat-Posts kommen immer aus den Replays).
+  async function ftErstellen(nurEpic = false) {
     if (!aktuellesFenster) return;
     const w = aktuellesFenster.windowId;
     setFtLaedt(true); setFtFehler(null);
     try {
       const r = await fetch(`/api/admin/ft-posts?event=${encodeURIComponent(aktuellesFenster.eventId)}&window=${encodeURIComponent(w)}`
-        + `&titel=${encodeURIComponent(ftTitelText)}`, { cache: 'no-store' });
+        + `&titel=${encodeURIComponent(ftTitelText)}${nurEpic ? '&quelle=epic' : ''}`, { cache: 'no-store' });
       const j = await r.json().catch(() => ({})) as Partial<FtAntwort> & { error?: string };
       if (!r.ok || !j.posts) throw new Error(j.error || `HTTP ${r.status}`);
       setFtErgebnis({ windowId: w, daten: j as FtAntwort });
@@ -3560,10 +3561,17 @@ export default function TweetSeite() {
                   spellCheck={false}
                   className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500 disabled:opacity-40" />
               </label>
-              <button type="button" onClick={ftErstellen} disabled={!aktuellesFenster || ftLaedt}
-                className="h-[38px] rounded-lg bg-sky-500 px-5 text-sm font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
-                {t(ftLaedt ? 'lädt…' : 'Erstellen')}
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => ftErstellen()} disabled={!aktuellesFenster || ftLaedt}
+                  className="h-[38px] rounded-lg bg-sky-500 px-5 text-sm font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
+                  {t(ftLaedt ? 'lädt…' : 'Erstellen')}
+                </button>
+                <button type="button" onClick={() => ftErstellen(true)} disabled={!aktuellesFenster || ftLaedt}
+                  title={t('Nur der Results-Post (Plätze 1–10 nach Punkten), frisch aus Epics Bestenliste – ohne Replays, direkt nach dem letzten Game.')}
+                  className="h-[38px] rounded-lg border border-amber-500/50 px-4 text-sm font-medium text-amber-300 transition hover:border-amber-400 hover:text-amber-200 disabled:opacity-40">
+                  {t('Sofort (Epic)')}
+                </button>
+              </div>
             </div>
 
             {ftFehler?.windowId === fensterId && (
@@ -3572,12 +3580,24 @@ export default function TweetSeite() {
 
             {ftDaten && (
               <>
-                <p className="mt-4 text-[11px] text-slate-500">
-                  {ftDaten.stand.gelesen}/{ftDaten.stand.gesamt ?? '?'} <T>Matches ausgewertet</T>
-                  {' · '}{ftDaten.spieler} <T>Spieler</T>
-                  {' · '}{ftDaten.teams} <T>Teams aus der Bestenliste</T>
-                  {' · '}<T>Mindestspiele für Ratio, Zeit am Leben und Strecke</T>: {ftDaten.minSpiele}
-                </p>
+                {ftDaten.quelle === 'replay' ? (
+                  <p className="mt-4 text-[11px] text-slate-500">
+                    {ftDaten.stand.gelesen}/{ftDaten.stand.gesamt ?? '?'} <T>Matches ausgewertet</T>
+                    {' · '}{ftDaten.spieler} <T>Spieler</T>
+                    {' · '}{ftDaten.teams} <T>Teams aus der Bestenliste</T>
+                    {' · '}<T>Mindestspiele für Ratio, Zeit am Leben und Strecke</T>: {ftDaten.minSpiele}
+                  </p>
+                ) : (
+                  <p className="mt-4 text-[11px] text-slate-500">
+                    <T>Nur der Results-Post aus Epics Bestenliste</T>
+                    {ftDaten.epicStand ? <>{' · '}<T>Stand</T> {new Date(ftDaten.epicStand).toLocaleTimeString()}</> : null}
+                  </p>
+                )}
+                {ftDaten.replayFehlt && (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    {ftDaten.replayFehlt} – <T>die Stat-Posts kommen, sobald die Replays ausgewertet sind.</T>
+                  </p>
+                )}
                 {ftDaten.stand.teilweise && (
                   <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                     <T>Teilweise ausgewertet – die Werte sind noch nicht endgültig.</T>
@@ -3590,7 +3610,13 @@ export default function TweetSeite() {
                     return (
                       <div key={p.art} className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-950">
                         <div className="flex items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
-                          <span className="text-xs font-semibold text-slate-300">{p.titel}</span>
+                          <span className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+                            {p.titel}
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${p.quelle === 'epic'
+                              ? 'bg-amber-500/15 text-amber-300' : 'bg-sky-500/15 text-sky-300'}`}>
+                              {t(p.quelle === 'epic' ? 'Sofort aus Epic' : 'Aus Replays')}
+                            </span>
+                          </span>
                           <span title={t('Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)')}
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${zuLang
                               ? 'bg-red-500/15 text-red-300' : 'bg-zinc-800 text-slate-400'}`}>

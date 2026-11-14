@@ -51,7 +51,7 @@ export interface FtClutch {
 }
 
 /** Ein Team aus Epics Bestenliste. */
-export interface FtTeam { ids: string[]; siege: number; spiele: number; elims: number; rang?: number }
+export interface FtTeam { ids: string[]; siege: number; spiele: number; elims: number; rang?: number; /** Epics Punkte (nur fuer den Standings-Post). */ punkte?: number }
 
 /** Wie ein Spieler im Text erscheint - alle Schluessel klein geschrieben. */
 export interface FtKonten {
@@ -81,13 +81,15 @@ export interface FtEingabe {
   zeroBuild?: boolean;
 }
 
-export type FtArt = 'best-stats' | 'elims' | 'damage' | 'best-game' | 'hits' | 'builds' | 'mats' | 'survival' | 'storm' | 'distance';
+export type FtArt = 'standings' | 'best-stats' | 'elims' | 'damage' | 'best-game' | 'hits' | 'builds' | 'mats' | 'survival' | 'storm' | 'distance';
 /** Ein Spieler, wie er im Bild unter dem Foto steht. */
 export interface FtKandidat { id: string; name: string; land: string | null }
 export interface FtPost {
   art: FtArt; titel: string; text: string;
   /** Die Spieler des Posts in Rangfolge (mehr als im Text, damit das Bild Spieler ohne Foto ueberspringen kann). */
   kandidaten: FtKandidat[];
+  /** Woher die Werte stammen: 'epic' nur beim Standings-Post (Epics Bestenliste, sofort nach dem letzten Game), sonst 'replay'. */
+  quelle?: 'epic' | 'replay';
 }
 export interface FtErgebnis {
   posts: FtPost[];
@@ -183,12 +185,10 @@ function passend(kopf: string[], zeilen: string[], mindestens = 3): string {
   return text();
 }
 
-/** Alle Posts des Spieltags. Posts ohne Daten fehlen in der Liste. */
-export function ftPosts(e: FtEingabe): FtErgebnis {
-  const d = e.clutch ?? {};
-  const k = e.konten;
+/** Wie ein Spieler bzw. ein Team im Text steht: Flagge und @X-Konto, sonst der Name - nie twitch.tv. */
+function schreibweise(k: FtKonten, ersatzNamen?: Record<string, string>) {
   const klein = (id: string) => id.toLowerCase();
-  const name = (id: string) => k.namen[klein(id)] ?? d.namen?.[id] ?? id.slice(0, 8);
+  const name = (id: string) => k.namen[klein(id)] ?? ersatzNamen?.[id] ?? id.slice(0, 8);
   const konto = (id: string) => {
     const i = klein(id);
     // Immer das X-Konto, nie twitch.tv (Betreiber, 14.11.2026: "immer Twitter"). twitch.tv gibt es nur im Live-Post der Streamer.
@@ -198,6 +198,58 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const wer = (id: string) => [ftFlagge(k.land[klein(id)]), konto(id)].filter(Boolean).join(' ');
   const team = (ids: string[]) => ids.map(wer).join(' + ');
   const kandidat = (id: string): FtKandidat => ({ id: klein(id), name: name(id), land: k.land[klein(id)]?.toLowerCase() ?? null });
+  return { klein, name, wer, team, kandidat };
+}
+
+/**
+ * Der Ergebnis-Post aus Epics Bestenliste (Betreiber, 14.11.2026): die Plaetze 1-10 nach Punkten, mit Punkten, Elims und Siegen, wie Epic sie zaehlt -
+ * dazu die meisten Siege, wenn die nicht beim Ersten liegen. Steht sofort nach dem letzten Game bereit, ohne Replays. Alle anderen Stat-Posts kommen nur
+ * aus der eigenen Replay-Auswertung (ftPosts), nie aus Epic.
+ *   teams: die Teams der Bestenliste mit rang und punkte (die ersten Plaetze genuegen; fuer "Most Wins" so viele wie da sind).
+ */
+export function ftStandings(e: { titel: string; teams: FtTeam[]; konten: FtKonten; namen?: Record<string, string> }): FtPost | null {
+  const { team, kandidat } = schreibweise(e.konten, e.namen);
+  const teams = e.teams.filter((t) => t.ids?.length && typeof t.rang === 'number').sort((a, b) => (a.rang as number) - (b.rang as number));
+  const medaille = ['🥇', '🥈', '🥉'];
+  const mehr = (n: number, eins: string, viele: string) => `${n} ${n === 1 ? eins : viele}`;
+  const plaetze = teams.filter((t) => Number.isFinite(t.rang)).slice(0, LISTE);
+  if (plaetze.length < 3) return null;
+  // Voll: Punkte, Elims und Siege; knapp: nur die Punkte - damit mehr der zehn Plaetze in die 280 Zeichen passen.
+  const zeilen = (voll: boolean) => plaetze.map((t, i) => {
+    const zusatz = [mehr(t.elims, 'elim', 'elims'), t.siege > 0 ? mehr(t.siege, 'win', 'wins') : ''].filter(Boolean).join(', ');
+    return `${medaille[i] ?? `${t.rang}.`} ${team(t.ids)} – ${ftZahl(t.punkte ?? 0)} pts${voll ? ` (${zusatz})` : ''}`;
+  });
+  const kopf = ['🏆 Results', e.titel.trim(), ''];
+  // Die meisten Siege, wenn sie nicht ohnehin beim Ersten stehen (auch jenseits der Plaetze, die im Post stehen).
+  const meisteSiege = Math.max(0, ...teams.map((t) => t.siege));
+  const w = meisteSiege > 0 ? teams.find((t) => t.siege === meisteSiege) : undefined;
+  const siegZeile = w && w !== teams[0] ? `🏅 Most Wins: ${team(w.ids)} – ${mehr(w.siege, 'win', 'wins')}` : null;
+  // Alle Fassungen bauen, die mit den meisten Plaetzen nehmen; bei Gleichstand die mit Most Wins, dann die volle.
+  const fassungen: Array<{ text: string; plaetze: number; siege: boolean; voll: boolean }> = [];
+  for (const voll of [true, false]) {
+    const z = zeilen(voll);
+    const ohne = passend(kopf, z);
+    fassungen.push({ text: ohne, plaetze: ohne.split('\n').length - kopf.length, siege: false, voll });
+    if (siegZeile) {
+      // Mit Most Wins: so viele Plaetze, wie daneben noch passen (mindestens fuenf).
+      const zz = [...z];
+      const text = () => [...kopf, ...zz, '', siegZeile].join('\n');
+      while (zz.length > 5 && tweetLaenge(text()) > GRENZE) zz.pop();
+      if (tweetLaenge(text()) <= GRENZE) fassungen.push({ text: text(), plaetze: zz.length, siege: true, voll });
+    }
+  }
+  const gut = fassungen.filter((f) => tweetLaenge(f.text) <= GRENZE);
+  const wahl = (gut.length ? gut : fassungen).sort((x, y) => y.plaetze - x.plaetze || Number(y.siege) - Number(x.siege) || Number(y.voll) - Number(x.voll))[0];
+  const { text } = wahl;
+  const ids = [...plaetze, ...(w ? [w] : []), ...teams.slice(LISTE, KANDIDATEN)].flatMap((t) => t.ids);
+  const kandidaten = [...new Set(ids.map((i) => i.toLowerCase()))].slice(0, KANDIDATEN).map(kandidat);
+  return { art: 'standings', titel: 'Results', text, kandidaten, quelle: 'epic' };
+}
+
+/** Alle Posts des Spieltags. Posts ohne Daten fehlen in der Liste. */
+export function ftPosts(e: FtEingabe): FtErgebnis {
+  const d = e.clutch ?? {};
+  const { klein, wer, team, kandidat } = schreibweise(e.konten, d.namen);
 
   const spalte = (n: string) => 1 + e.spalten.indexOf(n);
   const ki = spalte('killsEcht');
