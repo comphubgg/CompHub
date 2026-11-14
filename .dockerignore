@@ -22,3 +22,6 @@ __pycache__
 *.png
 !public/**/*.png
 !app/**/*.png
+# Ein lokal gebauter Leser gehoert nicht in den Kontext - die Stufe "leser" baut ihn selbst.
+tools/replay-voll/bin
+tools/replay-voll/obj

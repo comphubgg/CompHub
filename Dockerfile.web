@@ -21,12 +21,43 @@ ARG NEXT_PUBLIC_BASE_URL=https://www.thecomphub.com
 ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
 RUN NODE_OPTIONS=--max-old-space-size=6144 npx next build
 
+# Der eigene Replay-Leser (tools/replay-voll) fuer die Live-Spur auf dem
+# Server (scripts/live-spur.mjs) - gebaut wie im Ablauf "Clutch rechnen"
+# (dotnet build -c Release). Er verweist per HintPath auf die DLLs aus
+# node_modules/fortnite-replay-analysis; die kommen aus "bau" (npm ci).
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS leser
+WORKDIR /app
+COPY --from=bau /app/node_modules/fortnite-replay-analysis ./node_modules/fortnite-replay-analysis
+COPY tools/replay-voll ./tools/replay-voll
+RUN dotnet build tools/replay-voll -c Release -v q
+
+# Nur die .NET-Laufzeit fuer den Leser (kein SDK im fertigen Image).
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS dotnet
+
 # Der volle Stand fuer die Hintergrundlaeufe auf dem eigenen Server
 # (instrumentation.node.ts: Replays, Spieltage, Rangliste, Live-Takt). Die
 # brauchen die Skripte und node_modules, die im schlanken Image fehlen.
 # Gebaut mit --target voll; nach aussen erreichbar ist er nicht.
 FROM bau AS voll
 ENV NODE_ENV=production COMPHUB_ABLAGE=supabase
+# Der Leser fuer scripts/live-spur.mjs: .NET-Laufzeit samt "dotnet" im Pfad
+# (lib/vollMatch.mjs startet "dotnet <dll> --dienst") und der gebaute Leser
+# dort, wo lib/vollMatch.mjs ihn sucht (SCHADEN_LESER). Im node-slim fehlen
+# zwei Bibliotheken, ohne die der Leser sofort abbricht (in einem Probe-Image
+# nachgesehen, 14.11.2026): ICU ("Couldn't find a valid ICU package") und
+# OpenSSL ("No usable version of libssl was found"). Welche Fassung, haengt am
+# Debian des Basis-Images (bookworm: libicu72, libssl3) - deshalb gesucht.
+COPY --from=dotnet /usr/share/dotnet /usr/share/dotnet
+RUN ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet \
+ && apt-get update \
+ && ICU="$(apt-cache search --names-only '^libicu[0-9]+$' | cut -d' ' -f1 | head -1)" && test -n "$ICU" \
+ && SSL="$(apt-cache search --names-only '^libssl3(t64)?$' | cut -d' ' -f1 | head -1)" && test -n "$SSL" \
+ && apt-get install -y --no-install-recommends "$ICU" "$SSL" \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=leser /app/tools/replay-voll/bin/Release/net10.0 ./tools/replay-voll/bin/Release/net10.0
+# Der Stand des Codes, mit dem die Live-Spur ihre Teile stempelt (im Image fehlt .git) - ganz am Ende, damit er den Zwischenspeicher der Stufen nicht bricht.
+ARG COMPHUB_SHA=""
+ENV COMPHUB_SHA=$COMPHUB_SHA
 EXPOSE 3200
 CMD ["node", "node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", "3200"]
 

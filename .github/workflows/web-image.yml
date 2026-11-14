@@ -65,6 +65,9 @@ jobs:
           file: Dockerfile.web
           target: voll
           push: true
+          # Damit scripts/live-spur.mjs seine Teile mit dem Code-Stand stempeln kann.
+          build-args: |
+            COMPHUB_SHA=${{ github.sha }}
           tags: |
             ghcr.io/comphubgg/comphub-web:voll
           labels: |
