@@ -1566,7 +1566,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       if (/LastChanceLobby/i.test(w)) return { finale: true, haupt: 'Last Chance', neben: t('Finale') };
       // Cash Cups und Co.: jeder Termin ist ein eigener Cup, kein Tag (Betreiber, 7.11.2026).
       const ev = /_Event(\d+)(?:_|$)/i.exec(w);
-      if (ev) return { finale: false, haupt: `Cup ${ev[1]}`, neben: '' };
+      // Benannt wie bei Fortnite Tracker ("Trios Cash Cup Finals #2"): eine Runde je Termin ist dessen Finale (Betreiber, 14.11.2026: nicht "Cup 1, Cup 2").
+      if (ev) return { finale: true, haupt: `Finals #${ev[1]}`, neben: '' };
       const fd = /_Final_Day(\d+)/i.exec(w);
       if (fd) return { finale: true, haupt: t('Finale'), neben: `${t('Tag')} ${fd[1]}` };
       return null;
