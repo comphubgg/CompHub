@@ -64,25 +64,54 @@ export function ftGesichtLage(W: number, H: number, nw: number, nh: number, gesi
 }
 
 /** Der Hintergrund: Verlauf von unten, ein feines Raster, das zum Rand hin verschwindet. */
-function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number) {
+/** Die Bilder der Wand im Hintergrund (wie das Live-Banner tools/posts/streamer-header.html): Cup-Kacheln. */
+const WAND_BILDER = ['fncs-global-championship-2026-hd.jpg', 'fncs-grand-finals.webp', 'major-1-summit-2026.webp', 'fncs-solo-reload.webp',
+  'global-championship-2025.webp', 'fncs-major.webp', 'reload-cup.webp', 'solo-series.webp', 'elite-cup.webp', 'world-cup.webp'];
+
+function deckend(ctx: CanvasRenderingContext2D, b: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  const s = Math.max(w / b.naturalWidth, h / b.naturalHeight);
+  const sw = w / s; const sh = h / s;
+  ctx.drawImage(b, (b.naturalWidth - sw) / 2, (b.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
+}
+
+/*
+ * Hintergrund wie das Live-Banner (Betreiber, 14.11.2026: "mehr im CompHub-Stil ... einfach noch fett abgedunkelter"): eine schraege Wand aus
+ * Cup-Kacheln und eine dunkle Folie darueber, oben ein Hauch Blau.
+ */
+function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number, wand: Array<HTMLImageElement | null>) {
   ctx.fillStyle = '#05080e';
   ctx.fillRect(0, 0, W, H);
-  // radial-gradient(ellipse at 50% 120%, ...): ein Kreis, in der Hoehe gestaucht.
-  ctx.save();
-  ctx.translate(W / 2, H * 1.2);
-  ctx.scale(1, 0.62);
-  const r = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.75);
-  r.addColorStop(0, '#0f2a55'); r.addColorStop(0.4, '#081226'); r.addColorStop(0.7, '#05080e'); r.addColorStop(1, '#05080e');
-  ctx.fillStyle = r;
-  ctx.fillRect(-W, -H * 3, W * 2, H * 4);
-  ctx.restore();
-  // Ein Hauch Blau von oben.
+  const da = wand.filter((b): b is HTMLImageElement => !!b);
+  if (da.length) {
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate((-8 * Math.PI) / 180);
+    const kw = 250; const kh = 150; const l = 18;
+    const spalten = Math.ceil((W * 1.5) / (kw + l)); const reihen = Math.ceil((H * 1.9) / (kh + l));
+    let i = 0;
+    for (let r = 0; r < reihen; r++) {
+      for (let c = 0; c < spalten; c++) {
+        const x = -((spalten * (kw + l)) / 2) + c * (kw + l) + (r % 2 ? (kw + l) / 2 : 0);
+        const y = -((reihen * (kh + l)) / 2) + r * (kh + l);
+        ctx.save();
+        rundesRechteck(ctx, x, y, kw, kh, 16);
+        ctx.clip();
+        deckend(ctx, da[(i * 7 + r) % da.length], x, y, kw, kh);
+        ctx.restore();
+        i += 1;
+      }
+    }
+    ctx.restore();
+  }
+  // Die Folie: kraeftig abgedunkelt, damit die Karten vorne stehen.
+  const folie = ctx.createLinearGradient(0, 0, 0, H);
+  folie.addColorStop(0, 'rgba(5,8,14,.91)'); folie.addColorStop(1, 'rgba(5,8,14,.95)');
+  ctx.fillStyle = folie;
+  ctx.fillRect(0, 0, W, H);
   const oben = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, W * 0.55);
-  oben.addColorStop(0, `rgba(${BLAU},.13)`); oben.addColorStop(1, `rgba(${BLAU},0)`);
+  oben.addColorStop(0, `rgba(${BLAU},.12)`); oben.addColorStop(1, `rgba(${BLAU},0)`);
   ctx.fillStyle = oben;
   ctx.fillRect(0, 0, W, H);
-  // Raster 56 px, zur Mitte hin sichtbar (wie die Maske in der Vorlage).
-  // Ohne Raster (Betreiber, 14.11.2026: "Hintergrund noch cleaner", wie der Twitter-Header).
 }
 
 /** Eine Karte: schraeg, abgerundet, mit leichtem Leuchten, das Foto darin gerade (wie .k / .k .i in der Vorlage). */
@@ -187,17 +216,18 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
   if (!ctx) return;
 
   const liste = spieler.slice(0, 6);
-  const [logo, fotos, flaggen] = await Promise.all([
+  const [logo, fotos, flaggen, wand] = await Promise.all([
     ladeBild(`${basis}/logos/CompHub-Logo-frei.png`),
     Promise.all(liste.map((s) => ladeBild(`${basis}/spielerbilder/${encodeURIComponent(s.datei)}`))),
     Promise.all(liste.map((s) => (s.land && /^[a-z]{2}$/i.test(s.land) ? ladeBild(`${basis}/flags/${s.land.toLowerCase()}.png`) : Promise.resolve(null)))),
+    Promise.all(WAND_BILDER.map((d) => ladeBild(`${basis}/cups/${d}`))),
   ]);
   try {
     await document.fonts?.load(`900 28px ${familie}`);
     await document.fonts?.ready;
   } catch { /* dann die Ersatzschrift */ }
 
-  hintergrund(ctx, W, H);
+  hintergrund(ctx, W, H, wand);
 
   // Das Logo oben in der Mitte, mit einem leisen blauen Hof.
   const logoH = 118;
