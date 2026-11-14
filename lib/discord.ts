@@ -573,7 +573,10 @@ export async function schickeSchluessel(
    *
    * Der angepinnte Leitfaden oben im Kanal bleibt dabei stehen.
    */
-  await leerRaeumen(kanal, 20, true);
+  /*
+   * Erst die neue Nachricht, dann aufraeumen (14.11.2026, Betreiber: "das geht viel zu lange") - der neue Schluessel steht sofort da, das Loeschen der alten
+   * Nachrichten (je 350 ms Abstand wegen Discords Takt) laeuft danach.
+   */
 
   /*
    * Der Text bleibt knapp und englisch, wie alles, was nach aussen geht.
@@ -582,6 +585,8 @@ export async function schickeSchluessel(
    * daraus.
    */
   const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
+    // Ohne Vorschaukarte der Seite unter dem Link (Betreiber, 14.11.2026: "nicht mehr so clean wie vorher").
+    flags: 4,
     content: [
       `**Your CompHub access key**`,
       /*
@@ -658,6 +663,7 @@ export async function schickeSchluessel(
 
   const id = idAus(gesendet);
   if (!id) return { ok: false, grund: 'abgelehnt' };
+  await leerRaeumen(kanal, 20, true, id);
 
   /*
    * Gemerkt wird unter demselben Schluessel, unter dem der Kanal steht.
@@ -874,7 +880,7 @@ async function anpinnen(kanal: string, nachricht: string): Promise<void> {
  * begrenzt.
  */
 async function leerRaeumen(
-  kanal: string, hoechstens = 50, angepinnteBehalten = false,
+  kanal: string, hoechstens = 50, angepinnteBehalten = false, ausser = '',
 ): Promise<number> {
   const n = await ruf(`/channels/${kanal}/messages?limit=${hoechstens}`, 'GET');
   if (!Array.isArray(n)) return 0;
@@ -889,6 +895,7 @@ async function leerRaeumen(
      * ersetzt wird.
      */
     if (angepinnteBehalten && m.pinned) continue;
+    if (m.id === ausser) continue;
     const ok = await ruf(`/channels/${kanal}/messages/${m.id}`, 'DELETE');
     if (ok || letzterStatus === 404) weg += 1;
     await new Promise((r) => setTimeout(r, 350));
