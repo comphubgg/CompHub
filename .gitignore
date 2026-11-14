@@ -109,3 +109,7 @@ tools/intro/fertig/
 auto-update-letzt.txt
 auto-update.lock
 auto-update.log
+tools/posts/team-daten.js
+tools/posts/cup-daten.js
+tools/posts/karte-daten.js
+tools/posts/karte.png
