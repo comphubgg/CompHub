@@ -21,6 +21,8 @@ export interface FtBildOptionen {
   basis?: string;
   /** Schriftfamilie fuer die Namen (Standard: die Schrift der Seite). */
   schrift?: string;
+  /** Schrift fuer die Adresse unter dem Logo (sonst die Anzeigeschrift der Seite). */
+  anzeige?: string;
 }
 
 function ladeBild(src: string): Promise<HTMLImageElement | null> {
@@ -222,7 +224,19 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
     Promise.all(liste.map((s) => (s.land && /^[a-z]{2}$/i.test(s.land) ? ladeBild(`${basis}/flags/${s.land.toLowerCase()}.png`) : Promise.resolve(null)))),
     Promise.all(WAND_BILDER.map((d) => ladeBild(`${basis}/cups/${d}`))),
   ]);
+  // Die Anzeigeschrift der Seite (Bricolage Grotesque, app/layout.tsx --font-anzeige) - aus einem Element mit derselben Klasse wie auf der Seite.
+  let anzeige = opt.anzeige ?? '';
+  if (!anzeige && typeof document !== 'undefined') {
+    const probe = document.createElement('span');
+    probe.className = 'schrift-anzeige';
+    probe.style.position = 'absolute'; probe.style.visibility = 'hidden';
+    document.body.appendChild(probe);
+    anzeige = getComputedStyle(probe).fontFamily;
+    probe.remove();
+  }
+  anzeige = anzeige || `'Bricolage Grotesque', ${familie}`;
   try {
+    await document.fonts?.load(`700 26px ${anzeige}`);
     await document.fonts?.load(`900 28px ${familie}`);
     await document.fonts?.ready;
   } catch { /* dann die Ersatzschrift */ }
@@ -230,16 +244,30 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
   hintergrund(ctx, W, H, wand);
 
   // Das Logo oben in der Mitte, mit einem leisen blauen Hof.
-  const logoH = 118;
-  const logoY = 44;
+  // Kleiner und leuchtender, darunter die Adresse in der Schrift der Seite (Betreiber, 14.11.2026).
+  const logoH = 78;
+  const logoY = 34;
   if (logo) {
     const lw = (logo.naturalWidth / logo.naturalHeight) * logoH;
     ctx.save();
-    ctx.shadowColor = `rgba(${BLAU},.45)`;
-    ctx.shadowBlur = 40;
+    ctx.shadowColor = `rgba(${BLAU},.95)`;
+    ctx.shadowBlur = 48;
+    ctx.drawImage(logo, (W - lw) / 2, logoY, lw, logoH);
+    ctx.shadowBlur = 18;
     ctx.drawImage(logo, (W - lw) / 2, logoY, lw, logoH);
     ctx.restore();
   }
+  ctx.save();
+  ctx.font = `700 26px ${anzeige}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  if ('letterSpacing' in ctx) (ctx as unknown as { letterSpacing: string }).letterSpacing = '1px';
+  ctx.fillStyle = '#c9d8ec';
+  ctx.shadowColor = `rgba(${BLAU},.55)`;
+  ctx.shadowBlur = 14;
+  ctx.fillText('thecomphub.com', W / 2, logoY + logoH + 40);
+  ctx.restore();
+  const kopf = logoH + 40 + 2; // Logo + Adresse
 
   // Die Karten in einer Reihe, mittig unter dem Logo.
   const n = liste.length;
@@ -247,9 +275,9 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
   // Breitere Karten, kaum Abstand (Betreiber, 14.11.2026: "nicht so duenn ... ruhig instant nebeneinander").
   const rand = 40; const luecke = 10;
   const kw = Math.min(320, (W - 2 * rand - luecke * (n - 1)) / n);
-  const kh = H - (logoY + logoH + 52) - 58;
+  const kh = H - (logoY + kopf + 38) - 58;
   const gesamt = n * kw + (n - 1) * luecke;
-  const ky = logoY + logoH + 52;
+  const ky = logoY + kopf + 38;
   let kx = (W - gesamt) / 2;
   liste.forEach((sp, i) => {
     karte(ctx, kx, ky, kw, kh, fotos[i], sp, flaggen[i], i === 0, familie);
