@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Team-Stats als Bild fuer Antworten unter Tweets (1600x900): drei Spieler mit Foto und ihren Werten aus der Replay-Auswertung. Daten in team-daten.js. -->
+<style>
+:root{--b:#00a3ff;--gold:#f5c542;--g:#8ea0bd}
+*{box-sizing:border-box;margin:0}
+body{width:1600px;height:900px;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#fff;background:#05080e;position:relative}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% -10%,#16305e 0%,#0b1220 45%,#05080e 75%)}
+.kopf{position:absolute;top:36px;left:56px;right:56px;display:flex;align-items:center;gap:16px}
+.kopf img{height:34px}
+.kopf .t{font-size:20px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#d6e2f3}
+.kopf .r{margin-left:auto;display:flex;gap:10px}
+.chip{padding:7px 16px;border-radius:999px;font-size:16px;letter-spacing:.08em;font-weight:900;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.22);color:#d6e2f3}
+.chip.g{border-color:rgba(245,197,66,.6);color:var(--gold)}
+.team{position:absolute;top:96px;left:56px;right:56px;display:flex;gap:18px}
+.team .z{flex:1;padding:14px 18px;border-radius:16px;background:rgba(15,22,34,.9);border:1px solid rgba(255,255,255,.08);text-align:center}
+.team .z b{display:block;font-size:34px;font-weight:900;line-height:1}
+.team .z span{display:block;margin-top:6px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--g);font-weight:800}
+.team .z.g b{color:var(--gold)}
+.sp{position:absolute;top:208px;left:56px;right:56px;bottom:62px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.k{border-radius:20px;overflow:hidden;background:rgba(15,22,34,.92);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column}
+.k .f{height:340px;position:relative;overflow:hidden;background:#111a2a}
+.k .f img{position:absolute}
+.k .f:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(15,22,34,.95))}
+.k .n{position:absolute;left:18px;bottom:12px;z-index:1;font-size:28px;font-weight:900;display:flex;align-items:center;gap:10px}
+.k .n img{position:static;height:20px;border-radius:3px}
+.k .w{padding:14px 20px 16px;display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+.k .w div{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0}
+.k .w span{font-size:16px;color:var(--g);font-weight:700}
+.k .w b{font-size:23px;font-weight:900}
+.fuss{position:absolute;bottom:22px;left:56px;right:56px;display:flex;justify-content:space-between;color:#6f7f99;font-size:15px;font-weight:700}
+.fuss b{color:#fff}
+</style></head><body>
+<div class="bg"></div>
+<div id="inhalt"></div>
+<script src="team-daten.js"></script>
+<script>
+const D=window.TEAM, fmt=n=>Number(n).toLocaleString('en-US');
+document.getElementById('inhalt').innerHTML=`
+<div class="kopf"><img src="../../public/logos/CompHub-Logo-frei.png"><span class="t">${D.titel}</span><span class="r"><span class="chip g">#${D.rang}</span><span class="chip">${D.region}</span></span></div>
+<div class="team">${D.team.map(z=>`<div class="z ${z.g?'g':''}"><b>${z.w}</b><span>${z.l}</span></div>`).join('')}</div>
+<div class="sp">${D.spieler.map((s,i)=>`<div class="k"><div class="f"><img data-i="${i}" src="../../public/spielerbilder/${s.foto}"><div class="n">${s.land?`<img src="../../public/flags/${s.land}.png">`:''}${s.name}</div></div>
+<div class="w">${s.werte.map(([l,w])=>`<div><span>${l}</span><b>${w}</b></div>`).join('')}</div></div>`).join('')}</div>
+<div class="fuss"><span>Stats from every lobby, analysed from the server replays</span><span><b>thecomphub.com</b></span></div>`;
+for(const im of document.querySelectorAll('.f > img[data-i]')){const s=D.spieler[+im.dataset.i];const set=()=>{const W=im.parentElement.offsetWidth,H=im.parentElement.offsetHeight,nw=im.naturalWidth,nh=im.naturalHeight,g=s.g||[.5,.3,.25];
+ const sc=Math.max(W/nw,H/nh,(W*.3)/(g[2]*nw));let x=W/2-g[0]*nw*sc,y=H*.42-g[1]*nh*sc;x=Math.min(0,Math.max(W-nw*sc,x));y=Math.min(0,Math.max(H-nh*sc,y));
+ Object.assign(im.style,{width:nw*sc+'px',height:nh*sc+'px',left:x+'px',top:y+'px'});};im.complete?set():im.onload=set;}
+document.body.dataset.fertig='1';
+</script></body></html>
