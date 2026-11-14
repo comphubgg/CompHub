@@ -15,7 +15,9 @@
  */
 export function zwischenspeichern(antwort: Response, sekunden: number): Response {
   if (antwort.status !== 200) return antwort;
-  const wert = `max-age=${sekunden}, stale-while-revalidate=${sekunden * 6}`;
+  // Hoechstens einmal die Frist zusaetzlich veraltet (14.11.2026: mit dem Sechsfachen sah ein Besucher die Runden-Liste bis zu zwei Minuten alt,
+  // waehrend Fortnite Tracker das neue Match schon zeigte). Der eigene Server haelt die Last.
+  const wert = `max-age=${sekunden}, stale-while-revalidate=${sekunden}`;
   // Vercels Netz liest den eigenen Kopf, Cloudflare (vor einem eigenen Host)
   // den allgemeinen "CDN-Cache-Control". Der Browser sieht keinen von beiden.
   try {

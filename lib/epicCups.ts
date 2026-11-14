@@ -666,7 +666,8 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
  * schreibt Epic seine Bestenliste nach jeder Runde fort, und die Runden
  * dauern rund zwanzig Minuten.
  */
-const SEITE_TTL = 60_000;
+// 10 s statt 60 s (14.11.2026): die Runden-Liste haengt an diesen Seiten; mit einer Minute kam ein neues Match bis zu einer Minute zu spaet.
+const SEITE_TTL = 10_000;
 
 /*
  * ohneNamen: nur die Konto-Ids, keine Namensaufloesung.

@@ -62,7 +62,7 @@ const TTL = 60_000;
  * Fuenfzehn Sekunden. Kuerzer waere Unfug: Epic aktualisiert die Bestenliste
  * selbst nicht schneller, und jede Anfrage kostet dort mehrere Seiten.
  */
-const TTL_LIVE = 15_000;
+const TTL_LIVE = 8_000;
 
 /**
  * Der beste bekannte Stand je Runde.
@@ -786,5 +786,11 @@ export async function GET(request: Request) {
   if (istGlobalsFinale(p.get('event'), p.get('window'))) {
     return zwischenspeichern(await globalsMatches(request), 60);
   }
-  return zwischenspeichern(await holeRoh(request), 20);
+  // Der Reload-Knopf (frisch=1) geht nie an einen Zwischenspeicher: wer drueckt, will den Stand von Epic jetzt.
+  if (new URL(request.url).searchParams.get('frisch') === '1') {
+    const r = await holeRoh(request);
+    try { r.headers.set('Cache-Control', 'no-store'); r.headers.set('CDN-Cache-Control', 'no-store'); } catch { /* unveraenderlich */ }
+    return r;
+  }
+  return zwischenspeichern(await holeRoh(request), 10);
 }
