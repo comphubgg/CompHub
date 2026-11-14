@@ -1,11 +1,12 @@
-// Tweets im Stil von Fortnite Tracker aus CompHubs Replay-Auswertung: "Best Stats", "Most Damage Dealt (Ratio)", "Most Eliminations (Damage)".
+// Stat-Posts im CompHub-Stil aus der Replay-Auswertung: Best Stats, Elims, Damage, Best Game, Hits, Builds, Mats, Time Alive, Distance, Storm.
 //   node --experimental-strip-types scripts/ft-posts.mjs <windowId> <titel> <cup-daten.js aus cup-post.yml> [minSpiele]
-// Werte je Spieler aus clutch/<w>.json (Schaden, erlitten) und clutch-je (Elims = killsEcht), Sieger und Siege aus Epics Bestenliste.
+// Werte je Spieler aus clutch/<w>.json (Schaden, Treffer, Inventar, Leben, Strecke, Sturm) und clutch-je (Elims = killsEcht), Sieger und Siege aus Epics Bestenliste.
 // Die Texte baut lib/ftPosts.ts - dieselbe Regel wie in der Beitragsseite (/api/admin/ft-posts). Dieses Werkzeug holt nur die Dateien vom Release.
 import fs from 'node:fs';
 import { JE_SPALTEN, jeLesen } from '../lib/jeSpiel.mjs';
 import { tagFuer } from '../lib/releaseTags.mjs';
-import { ftKonten, ftPosts } from '../lib/ftPosts.ts';
+import { ftKonten, ftPosts, tweetLaenge } from '../lib/ftPosts.ts';
+import { istZeroBuild } from '../lib/zeroBuild.ts';
 
 const [windowId, titel, cupDaten, minSpieleArg] = process.argv.slice(2);
 const R = 'https://github.com/comphubgg/CompHub/releases/download';
@@ -17,7 +18,7 @@ if (d.je) {
   const jeName = `clutch-je/${windowId}.json`;
   je = jeLesen(await hole(`${R}/${tagFuer(jeName)}/${jeName.replace(/\//g, '__')}`, false));
 } else if (d.jeSpiel) {
-  je = d.jeSpiel; spalten = ['killsEcht'];
+  je = d.jeSpiel; spalten = ['killsEcht', 'dmg', 'erlitten', 'heilHp', 'schildHeilEcht', 'krit', 'treffer', 'schussEcht', 'matsAlt'];
 }
 const pro = await hole(`${R}/daten/spieler-namen.json`).catch(() => ({}));
 const profile = await hole(`${R}/daten/spieler-profile.json`).catch(() => ({}));
@@ -35,6 +36,7 @@ for (const t of [...(C?.top?.slice(0, 1) ?? []), ...(C?.teamWerte ?? [])]) {
   teams.push({ ids: t.ids, rang: t.rang, siege: t.siege ?? 0, spiele: t.spiele ?? 0, elims: t.elims ?? 0 });
 }
 
-const erg = ftPosts({ titel, clutch: d, je, spalten, teams, konten: ftKonten(profile, liste, streamer, pro), minSpiele: Number(minSpieleArg) || undefined });
+const erg = ftPosts({ titel, clutch: d, je, spalten, teams, konten: ftKonten(profile, liste, streamer, pro), minSpiele: Number(minSpieleArg) || undefined,
+  fenster: windowId, zeroBuild: istZeroBuild(windowId) });
 console.log(`STAND ${erg.stand.gelesen}/${erg.stand.gesamt ?? '?'} Matches gelesen${erg.stand.teilweise ? ' - TEILWEISE, Werte noch nicht endgueltig' : ''}`);
-console.log(`\n${erg.posts.map((p) => p.text).join('\n\n=====\n\n')}\n`);
+console.log(`\n${erg.posts.map((p) => `${p.text}\n(${tweetLaenge(p.text)}/280)`).join('\n\n=====\n\n')}\n`);

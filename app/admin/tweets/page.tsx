@@ -23,10 +23,9 @@ import SeitenKopf from '@/app/components/SeitenKopf';
 import { useSprache } from '@/app/components/SprachProvider';
 import { speichereAdresse } from '@/app/lib/bildSpeichern';
 import { titelMit } from '@/lib/cupTitel';
-import { tweetLaenge, type FtErgebnis } from '@/lib/ftPosts';
-
-/** Antwort von /api/admin/ft-posts. */
-type FtAntwort = FtErgebnis & { teams: number };
+import { tweetLaenge } from '@/lib/ftPosts';
+import type { FtAntwort } from '@/lib/ftPostsDaten';
+import FtBild from './FtBild';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -1452,8 +1451,9 @@ export default function TweetSeite() {
   const aktuellesFenster = fenster.find((f) => f.windowId === fensterId);
 
   /*
-   * Fortnite-Tracker-Posts (Betreiber: "die Posts sollen genau so aussehen wie die von Fortnite Tracker"): Cup und Spieltag sind dieselbe Auswahl wie
-   * unten in Schritt 2, die Texte kommen fertig vom Server (/api/admin/ft-posts, lib/ftPosts.ts - dieselbe Regel wie scripts/ft-posts.mjs).
+   * Stat-Posts im CompHub-Stil (Betreiber, 14.11.2026: nicht 1:1 Fortnite Tracker, eigener Stil, mehr Posts, je Post ein Bild): Cup und Spieltag sind dieselbe
+   * Auswahl wie unten in Schritt 2, Texte und Fotos kommen fertig vom Server (/api/admin/ft-posts, lib/ftPosts.ts - dieselbe Regel wie scripts/ft-posts.mjs),
+   * das Bild zeichnet lib/ftBild.ts im Browser.
    */
   const [ftErgebnis, setFtErgebnis] = useState<{ windowId: string; daten: FtAntwort } | null>(null);
   const [ftLaedt, setFtLaedt] = useState(false);
@@ -3498,13 +3498,13 @@ export default function TweetSeite() {
             </button>
           } />
 
-        {/* ------------------------------------------ Fortnite-Tracker-Posts
-            Ganz oben (Betreiber: "genau so wie Fortnite Tracker"). Cup und Spieltag teilen sich den Zustand mit Schritt 2. */}
+        {/* ------------------------------------------ Stat-Posts
+            Ganz oben. Cup und Spieltag teilen sich den Zustand mit Schritt 2. */}
         <section className="mb-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-[0_6px_20px_rgba(15,23,42,.12)]">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-800 px-5 py-3">
-            <h2 className="text-sm font-bold text-slate-100"><T>Fortnite-Tracker-Posts</T></h2>
+            <h2 className="text-sm font-bold text-slate-100"><T>Stat-Posts</T></h2>
             <p className="text-[11px] text-slate-500">
-              <T>Best Stats, Most Damage Dealt und Most Eliminations – aus der Replay-Auswertung und Epics Bestenliste.</T>
+              <T>Best Stats, Elims, Damage, bestes Spiel, Treffer, Builds, Mats, Zeit am Leben, Strecke und Sturm – aus der Replay-Auswertung und Epics Bestenliste, je Post mit Bild.</T>
             </p>
           </div>
           <div className="p-5">
@@ -3576,14 +3576,14 @@ export default function TweetSeite() {
                   {ftDaten.stand.gelesen}/{ftDaten.stand.gesamt ?? '?'} <T>Matches ausgewertet</T>
                   {' · '}{ftDaten.spieler} <T>Spieler</T>
                   {' · '}{ftDaten.teams} <T>Teams aus der Bestenliste</T>
-                  {' · '}<T>Mindestspiele für Ratio und Kills/Match</T>: {ftDaten.minSpiele}
+                  {' · '}<T>Mindestspiele für Ratio, Zeit am Leben und Strecke</T>: {ftDaten.minSpiele}
                 </p>
                 {ftDaten.stand.teilweise && (
                   <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                     <T>Teilweise ausgewertet – die Werte sind noch nicht endgültig.</T>
                   </p>
                 )}
-                <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {ftDaten.posts.map((p) => {
                     const laenge = tweetLaenge(p.text);
                     const zuLang = laenge > 280;
@@ -3610,6 +3610,7 @@ export default function TweetSeite() {
                             {t(ftKopiert === p.art ? 'Kopiert' : 'Kopieren')}
                           </button>
                         </div>
+                        <FtBild spieler={p.bild ?? []} dateiname={`${aktuellesFenster?.windowId ?? 'cup'}-${p.art}`} />
                       </div>
                     );
                   })}

@@ -3,11 +3,12 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { FtDatenFehlen, ftPostsFuer } from '@/lib/ftPostsDaten';
 
 /*
- * Die Fortnite-Tracker-Posts eines Spieltags fuer die Beitragsseite (app/admin/tweets): "Best Stats", "Most Damage Dealt (Ratio)",
- * "Most Eliminations (Damage)" - dieselben Texte wie scripts/ft-posts.mjs (lib/ftPosts.ts).
+ * Die Stat-Posts eines Spieltags fuer die Beitragsseite (app/admin/tweets): Best Stats, Elims, Damage, Best Game, Hits, Builds, Mats, Time Alive,
+ * Distance, Storm - dieselben Texte wie scripts/ft-posts.mjs (lib/ftPosts.ts). Je Post dazu die Fotos fuer das Bild darunter (lib/ftBild.ts zeichnet es im Browser).
  *
  *   GET ?event=<eventId>&window=<windowId>&titel=<Kopfzeile>[&min=<Mindestspiele>]
- *     -> { posts: [{ art, titel, text }], stand: { gelesen, gesamt, teilweise }, minSpiele, spieler, teams }
+ *     -> { posts: [{ art, titel, text, kandidaten: [{ id, name, land }], bild: [{ id, name, land, datei, gesicht: [x, y, w] | null }] }],
+ *          stand: { gelesen, gesamt, teilweise }, minSpiele, spieler, teams }
  *
  * Nur fuer den Admin.
  */

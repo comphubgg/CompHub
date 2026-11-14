@@ -1,25 +1,49 @@
 /*
- * Tweets im Stil von Fortnite Tracker aus CompHubs Replay-Auswertung (Betreiber: "die Posts sollen genau so aussehen wie die von Fortnite Tracker"):
- * "Best Stats", "Most Damage Dealt (Ratio)" und "Most Eliminations (Damage)".
+ * Stat-Posts fuer X aus CompHubs Replay-Auswertung - im eigenen CompHub-Stil (Betreiber, 14.11.2026: "nicht 1:1 Fortnite Tracker kopieren, das ist
+ * sass - eigener Stil, andere passende Emojis, sauberes Layout, mehr Posts und Stats"). Englisch, mit Flagge und @-Konto bzw. twitch.tv, jeder Post
+ * unter 280 Zeichen, wie X sie zaehlt (tweetLaenge): Listen werden von hinten gekuerzt, bis sie passen.
  *
  * Nur das Bauen der Texte - ohne Datei- oder Netzzugriff, damit dieselbe Regel in der Seite (lib/ftPostsDaten.ts, /api/admin/ft-posts) und im
  * Kommandozeilen-Werkzeug (scripts/ft-posts.mjs, mit node --experimental-strip-types) gilt. Deshalb hier keine "@/"-Importe und nur reine Typen.
  *
- * Woher die Werte kommen:
- *   - Schaden und erlittener Schaden je Spieler: clutch/<Fenster>.json, Feld "schaden" (scripts/clutch-berechnen.mjs).
- *   - Elims je Spieler: clutch-je/<Fenster>.json, Spalte "killsEcht" je Match aufsummiert. NICHT das Feld "solo" - das sind Clutch-Punkte.
+ * Woher die Werte kommen (clutch/<Fenster>.json, scripts/clutch-berechnen.mjs, lib/vollSchaden.mjs) - dieselben Regeln wie die Statistikseite
+ * (app/api/cup-spieler, app/api/spieler-detail):
+ *   - Elims: clutch-je/<Fenster>.json, Spalte "killsEcht" je Match aufsummiert. NICHT das Feld "solo" - das sind Clutch-Punkte.
+ *   - Schaden, erlitten, Treffer, Kopftreffer (krit), Zeit im Sturm (sturm, Sekunden): "schaden".
+ *   - Gebaute Teile (selbstHolz/-Stein/-Metall) und gefarmte Mats (farmHolz/-Stein/-Metall) nur, wenn jedes gelesene Spiel sie hat (invSpiele >= spiele);
+ *     Mats im Zero Build gar nicht (dort 0, lib/zeroBuild).
+ *   - Ueberlebenszeit: epicZeit vor leben, hoechstens die Teamzeit (epicTeamZeit); bei Reload nur epicZeit, wenn es sie gibt.
+ *   - Strecke: epicStrecke (Meter, von Epic) vor strecke ([Fuss, Luft] aus Positionsproben, ohne Epic-Werte auf 68,5 % hochgerechnet und als "est." markiert).
+ *   - Bestes Spiel: die meisten killsEcht in einem Match (Zeilen aus clutch-je), bei Gleichstand der Schaden dieses Matches.
  *   - Sieger, Siege und Elims je Team: Epics Bestenliste des Spieltags.
  *   - Flagge und @-Konto: spieler-profile.json (id -> x / land), Land ersatzweise aus szene-quelle/spielerliste.json.
  *   - Streamer (Twitch-Kanal aus dem Profil, der in streamers.json steht) erscheinen als twitch.tv/<kanal> statt mit @.
+ * Quoten (Damage Ratio, Kills/Match) und die Summen, die mit der Zahl der Spiele wachsen (Zeit am Leben), nur ab der Mindestzahl Spiele.
+ * Fehlt ein Wert fuer alle (z. B. kein Inventar gelesen), entfaellt der Post - es wird nichts geschaetzt, was nicht als Schaetzung dasteht.
  */
 
 export type FtJeZeile = Array<string | number | null>;
 
+/** Die Werte eines Spielers in clutch/<Fenster>.json, Feld "schaden" (alle optional - aeltere Dateien haben nicht alles). */
+export interface FtSpielerWerte {
+  dmg?: number; erlitten?: number; treffer?: number; krit?: number; sturm?: number; invSpiele?: number;
+  farmHolz?: number; farmStein?: number; farmMetall?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number;
+}
+
 /** Was aus clutch/<Fenster>.json gebraucht wird. */
 export interface FtClutch {
-  schaden?: Record<string, { dmg?: number; erlitten?: number } | undefined>;
+  schaden?: Record<string, FtSpielerWerte | undefined>;
   spiele?: Record<string, number>;
   namen?: Record<string, string>;
+  /** Zeit am Leben in Sekunden (lib/clutchLeben.mjs). */
+  leben?: Record<string, number>;
+  /** Epics Zeit am Leben (Sekunden) und die des Teams als Obergrenze. */
+  epicZeit?: Record<string, number>;
+  epicTeamZeit?: Record<string, number>;
+  /** Strecke aus den Positionsproben: [zu Fuss, in der Luft] in Metern. */
+  strecke?: Record<string, [number, number] | number[]>;
+  /** Epics Strecke in Metern. */
+  epicStrecke?: Record<string, number>;
   matches?: unknown[];
   gesamt?: number;
   teilweise?: unknown;
@@ -49,12 +73,22 @@ export interface FtEingabe {
   /** Teams aus Epics Bestenliste; ohne sie fehlen Winner, Most Wins und Most Kills/Match. */
   teams?: FtTeam[] | null;
   konten: FtKonten;
-  /** Mindestzahl Spiele fuer Ratio und Kills/Match - sonst die Haelfte der meisten Spiele eines Spielers. */
+  /** Mindestzahl Spiele fuer Quoten und Zeit am Leben - sonst die Haelfte der meisten Spiele eines Spielers. */
   minSpiele?: number;
+  /** Die Fenster-Id (fuer die Reload-Regel der Ueberlebenszeit). */
+  fenster?: string;
+  /** Zero Build (lib/zeroBuild): keine Mats. */
+  zeroBuild?: boolean;
 }
 
-export type FtArt = 'best-stats' | 'damage' | 'elims';
-export interface FtPost { art: FtArt; titel: string; text: string }
+export type FtArt = 'best-stats' | 'elims' | 'damage' | 'best-game' | 'hits' | 'builds' | 'mats' | 'survival' | 'storm' | 'distance';
+/** Ein Spieler, wie er im Bild unter dem Foto steht. */
+export interface FtKandidat { id: string; name: string; land: string | null }
+export interface FtPost {
+  art: FtArt; titel: string; text: string;
+  /** Die Spieler des Posts in Rangfolge (mehr als im Text, damit das Bild Spieler ohne Foto ueberspringen kann). */
+  kandidaten: FtKandidat[];
+}
 export interface FtErgebnis {
   posts: FtPost[];
   stand: { gelesen: number; gesamt: number | null; teilweise: boolean };
@@ -62,14 +96,14 @@ export interface FtErgebnis {
   spieler: number;
 }
 
-export const FT_PLATZ = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+/** Ein Foto fuer das Bild unter einem Post (lib/ftBild.ts): Datei in public/spielerbilder, Gesicht [x, y, Breite] als Anteile (_gesichter.json). */
+export interface FtBildSpieler extends FtKandidat { datei: string; gesicht: [number, number, number] | null }
 
 export const ftFlagge = (c?: string | null): string => {
   const k = (c ?? '').trim().toUpperCase();
   return /^[A-Z]{2}$/.test(k) ? String.fromCodePoint(...[...k].map((b) => 0x1f1a5 + b.charCodeAt(0))) : '';
 };
 
-const ftZahl = (n: number) => Math.round(n).toLocaleString('en-US');
 const ohneAt = (s: string) => s.trim().replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i, '').replace(/^@/, '').replace(/[/?].*$/, '');
 const ohneTwitch = (s: string) => s.trim().replace(/^https?:\/\/(www\.)?twitch\.tv\//i, '').replace(/[/?].*$/, '');
 
@@ -124,7 +158,32 @@ export function ftKonten(
   return k;
 }
 
-/** Die drei Texte. */
+const ftZahl = (n: number) => Math.round(n).toLocaleString('en-US');
+const ftKm = (m: number) => `${(m / 1000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
+/** Sekunden als "1h 05m" bzw. "12m 34s". */
+export const ftDauer = (sek: number): string => {
+  const s = Math.max(0, Math.round(sek));
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(s % 60).padStart(2, '0')}s`;
+};
+
+const GRENZE = 280;
+/** Wie viele Spieler je Post hoechstens im Text stehen und wie viele als Kandidaten fuers Bild mitgehen. */
+const LISTE = 10;
+const KANDIDATEN = 20;
+
+/**
+ * Ein Post aus Kopf und Zeilen: von hinten gekuerzt, bis er unter die Grenze passt - aber nie unter `mindestens` Zeilen
+ * (dann zeigt die Seite die Laenge rot an, statt still einen Post ohne Inhalt zu machen).
+ */
+function passend(kopf: string[], zeilen: string[], mindestens = 3): string {
+  const z = [...zeilen];
+  const text = () => [...kopf, ...z].join('\n');
+  while (z.length > mindestens && tweetLaenge(text()) > GRENZE) z.pop();
+  return text();
+}
+
+/** Alle Posts des Spieltags. Posts ohne Daten fehlen in der Liste. */
 export function ftPosts(e: FtEingabe): FtErgebnis {
   const d = e.clutch ?? {};
   const k = e.konten;
@@ -138,50 +197,122 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   };
   const wer = (id: string) => [ftFlagge(k.land[klein(id)]), konto(id)].filter(Boolean).join(' ');
   const team = (ids: string[]) => ids.map(wer).join(' + ');
+  const kandidat = (id: string): FtKandidat => ({ id: klein(id), name: name(id), land: k.land[klein(id)]?.toLowerCase() ?? null });
 
-  const ki = 1 + e.spalten.indexOf('killsEcht');
+  const spalte = (n: string) => 1 + e.spalten.indexOf(n);
+  const ki = spalte('killsEcht');
+  const di = spalte('dmg');
   const spiele = d.spiele ?? {};
   const meiste = Math.max(0, ...Object.values(spiele));
   const minSpiele = e.minSpiele && e.minSpiele > 0 ? e.minSpiele : Math.max(1, Math.round(meiste / 2));
-  const spieler = Object.keys(d.schaden ?? {}).map((id) => ({
-    id,
-    dmg: d.schaden?.[id]?.dmg ?? 0,
-    erlitten: d.schaden?.[id]?.erlitten ?? 0,
-    spiele: spiele[id] ?? 0,
-    elims: ki > 0 ? (e.je[id] ?? []).reduce((a, z) => a + (Number(z[ki]) || 0), 0) : 0,
-  }));
+  const zahl = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+  // Ueberlebenszeit wie app/api/cup-spieler: Epics Zeit vor der eigenen, die Teamzeit als Obergrenze; bei Reload nur Epics Zeit, wenn es sie gibt.
+  const nurEpicZeit = /reload/i.test(e.fenster ?? '') && Object.keys(d.epicZeit ?? {}).length > 0;
+  const lebenVon = (id: string) => {
+    const s = zahl(d.epicZeit?.[id]) ?? (nurEpicZeit ? null : zahl(d.leben?.[id]));
+    return s === null ? null : Math.min(s, zahl(d.epicTeamZeit?.[id]) ?? Infinity);
+  };
+  // Strecke wie app/api/cup-spieler: Epics Meter, sonst die Proben (ohne Epic-Werte hochgerechnet - die Proben alle 10 s ergeben rund 68,5 %).
+  const streckeGeschaetzt = !Object.keys(d.epicStrecke ?? {}).length;
+  const streckeVon = (id: string) => {
+    const epic = zahl(d.epicStrecke?.[id]);
+    if (epic !== null) return epic;
+    const p = d.strecke?.[id];
+    if (!p) return null;
+    const m = (zahl(p[0]) ?? 0) + (zahl(p[1]) ?? 0);
+    return m > 0 ? (streckeGeschaetzt ? m / 0.685 : m) : null;
+  };
+
+  const spieler = Object.keys(d.schaden ?? {}).map((id) => {
+    const w = d.schaden?.[id] ?? {};
+    const sp = spiele[id] ?? 0;
+    const zeilen = e.je[id] ?? [];
+    // Inventarwerte nur, wenn jedes gelesene Spiel sie mitbringt - halbe Summen stehen nirgends.
+    const inv = (w.invSpiele ?? 0) >= sp && sp > 0;
+    let bestes: { elims: number; dmg: number } | null = null;
+    if (ki > 0) for (const z of zeilen) {
+      const el = Number(z[ki]) || 0; const dm = di > 0 ? Number(z[di]) || 0 : 0;
+      if (!bestes || el > bestes.elims || (el === bestes.elims && dm > bestes.dmg)) bestes = { elims: el, dmg: dm };
+    }
+    return {
+      id,
+      dmg: w.dmg ?? 0,
+      erlitten: w.erlitten ?? 0,
+      treffer: zahl(w.treffer),
+      krit: zahl(w.krit),
+      sturm: zahl(w.sturm) !== null && (w.sturm as number) < 1e6 ? (w.sturm as number) : null,
+      bauten: inv && typeof w.selbstHolz === 'number' ? (w.selbstHolz ?? 0) + (w.selbstStein ?? 0) + (w.selbstMetall ?? 0) : null,
+      mats: !e.zeroBuild && inv && typeof w.farmHolz === 'number' ? (w.farmHolz ?? 0) + (w.farmStein ?? 0) + (w.farmMetall ?? 0) : null,
+      leben: lebenVon(id),
+      strecke: streckeVon(id),
+      spiele: sp,
+      elims: ki > 0 ? zeilen.reduce((a, z) => a + (Number(z[ki]) || 0), 0) : 0,
+      bestes,
+    };
+  });
   type S = (typeof spieler)[number];
   const ratio = (s: S) => (s.erlitten ? s.dmg / s.erlitten : 0);
-  const top = (f: (s: S) => number, n = 10, filt: (s: S) => boolean = () => true) => spieler.filter(filt).sort((a, b) => f(b) - f(a)).slice(0, n);
+  const top = (f: (s: S) => number, n = LISTE, filt: (s: S) => boolean = () => true) => spieler.filter(filt).sort((a, b) => f(b) - f(a)).slice(0, n);
   const nachElims = (s: S) => s.elims * 1e6 + s.dmg;
+  const hatElims = ki > 0 && spieler.some((s) => s.elims > 0);
+  const titel = e.titel.trim();
 
-  const kopf = `🏆 ${e.titel.trim()}`;
-  const dmgText = [kopf, '💥 Most Damage Dealt (Ratio)', '',
-    ...top((s) => s.dmg).map((s, i) => `${FT_PLATZ[i]} ${wer(s.id)}: ${ftZahl(s.dmg)} (${ratio(s).toFixed(2)})`)].join('\n');
-  const elimText = [kopf, '📊 Most Eliminations (Damage)', '',
-    ...top(nachElims).map((s, i) => `${FT_PLATZ[i]} ${wer(s.id)}: ${s.elims} (${ftZahl(s.dmg)})`)].join('\n');
+  const posts: FtPost[] = [];
+  /**
+   * Eine Rangliste: Kopf (Emoji, Ueberschrift, Spieltag), dann "1. Flagge @konto – Wert". Nur Spieler mit Wert ueber 0 - haben weniger als drei einen, entfaellt der Post.
+   */
+  const liste = (art: FtArt, emoji: string, ueberschrift: string, wert: (s: S) => number | null, zeige: (s: S) => string,
+    filt: (s: S) => boolean = () => true, ordnung?: (s: S) => number) => {
+    const mit = (s: S) => filt(s) && (wert(s) ?? 0) > 0;
+    const rang = top(ordnung ?? ((s) => wert(s) ?? 0), KANDIDATEN, mit);
+    // Unter drei Spielern mit Wert ist es keine Rangliste - dann fehlen die Daten (z. B. nur Epics Zeit fuer einen Teil der Spieler).
+    if (rang.length < 3) return;
+    const zeilen = rang.slice(0, LISTE).map((s, i) => `${i + 1}. ${wer(s.id)} – ${zeige(s)}`);
+    posts.push({ art, titel: ueberschrift, text: passend([`${emoji} ${ueberschrift}`, titel, ''], zeilen), kandidaten: rang.map((s) => kandidat(s.id)) });
+  };
 
+  // ---- Best Stats: je Kategorie der Beste, wichtigste zuerst (gekuerzt wird von hinten).
   const teams = [...(e.teams ?? [])].filter((t) => t.ids?.length).sort((a, b) => (a.rang ?? Infinity) - (b.rang ?? Infinity));
-  const zeilen = [kopf, '⭐ Best Stats', ''];
-  if (teams[0]) zeilen.push(`🥇 Winner: ${team(teams[0].ids)}`);
-  const [e1] = top(nachElims, 1); if (e1) zeilen.push(`⚔️ Most Eliminations: ${wer(e1.id)} - ${e1.elims}`);
-  const [d1] = top((s) => s.dmg, 1); if (d1) zeilen.push(`💥 Most Dmg Dealt: ${wer(d1.id)} - ${ftZahl(d1.dmg)}`);
-  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) zeilen.push(`📊 Best Dmg Ratio: ${wer(r1.id)} - ${ratio(r1).toFixed(2)}`);
-  const [g1] = top((s) => s.erlitten, 1); if (g1) zeilen.push(`🛡️ Most Dmg Received: ${wer(g1.id)} - ${ftZahl(g1.erlitten)}`);
+  const beste: string[] = [];
+  const besteIds: string[] = [];
+  const merke = (...ids: string[]) => { for (const i of ids) if (!besteIds.includes(klein(i))) besteIds.push(klein(i)); };
+  if (teams[0]) { beste.push(`👑 Winner: ${team(teams[0].ids)}`); merke(...teams[0].ids); }
+  const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Elims: ${wer(e1.id)} – ${e1.elims}`); merke(e1.id); }
+  const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Damage: ${wer(d1.id)} – ${ftZahl(d1.dmg)}`); merke(d1.id); }
+  const [g1] = top((s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0), 1, (s) => (s.bestes?.elims ?? 0) > 0);
+  if (g1?.bestes) { beste.push(`🔥 Best Game: ${wer(g1.id)} – ${g1.bestes.elims} elims`); merke(g1.id); }
+  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) { beste.push(`📈 Dmg Ratio: ${wer(r1.id)} – ${ratio(r1).toFixed(2)}`); merke(r1.id); }
   if (teams.length) {
     const meisteSiege = Math.max(...teams.map((t) => t.siege));
     const w = teams.find((t) => t.siege === meisteSiege && meisteSiege > 0);
-    if (w) zeilen.push(`👑 Most Wins: ${team(w.ids)} - ${w.siege}`);
-    const kpm = teams.filter((t) => t.spiele >= minSpiele && t.spiele > 0).sort((a, b) => b.elims / b.spiele - a.elims / a.spiele)[0];
-    if (kpm) zeilen.push(`🎯 Most Kills/Match: ${team(kpm.ids)} - ${(kpm.elims / kpm.spiele).toFixed(1)}`);
+    if (w && w !== teams[0]) { beste.push(`🏅 Most Wins: ${team(w.ids)} – ${w.siege}`); merke(...w.ids); }
+    else if (w) beste[0] += ` (${w.siege} ${w.siege === 1 ? 'win' : 'wins'})`;
+  }
+  const [h1] = top((s) => s.treffer ?? 0, 1, (s) => (s.treffer ?? 0) > 0); if (h1) { beste.push(`🎯 Hits: ${wer(h1.id)} – ${ftZahl(h1.treffer ?? 0)}`); merke(h1.id); }
+  const [b1] = top((s) => s.bauten ?? 0, 1, (s) => (s.bauten ?? 0) > 0); if (b1) { beste.push(`🧱 Builds: ${wer(b1.id)} – ${ftZahl(b1.bauten ?? 0)}`); merke(b1.id); }
+  const [m1] = top((s) => s.mats ?? 0, 1, (s) => (s.mats ?? 0) > 0); if (m1) { beste.push(`🪓 Mats: ${wer(m1.id)} – ${ftZahl(m1.mats ?? 0)}`); merke(m1.id); }
+  if (beste.length) {
+    // Fuers Bild: erst die Besten der Zeilen, dann nach Schaden aufgefuellt.
+    for (const s of top((x) => x.dmg, KANDIDATEN)) merke(s.id);
+    posts.push({ art: 'best-stats', titel: 'Best Stats', text: passend(['⭐ Best Stats', titel, ''], beste), kandidaten: besteIds.slice(0, KANDIDATEN).map(kandidat) });
   }
 
+  // ---- Die Ranglisten.
+  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} (${ftZahl(s.dmg)} dmg)`, undefined, nachElims);
+  liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} (${ratio(s).toFixed(2)} ratio)` : ftZahl(s.dmg)));
+  liste('best-game', '🔥', 'Best Single Game', (s) => s.bestes?.elims ?? null,
+    (s) => `${s.bestes?.elims} ${s.bestes?.elims === 1 ? 'elim' : 'elims'}${s.bestes?.dmg ? ` (${ftZahl(s.bestes.dmg)} dmg)` : ''}`,
+    undefined, (s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0));
+  liste('hits', '🎯', 'Most Hits', (s) => s.treffer, (s) => `${ftZahl(s.treffer ?? 0)}${s.krit !== null ? ` (${ftZahl(s.krit)} headshots)` : ''}`);
+  liste('builds', '🧱', 'Most Builds Placed', (s) => s.bauten, (s) => ftZahl(s.bauten ?? 0));
+  liste('mats', '🪓', 'Most Mats Farmed', (s) => s.mats, (s) => ftZahl(s.mats ?? 0));
+  liste('survival', '⏱️', 'Most Time Alive', (s) => s.leben, (s) => ftDauer(s.leben ?? 0), (s) => s.spiele >= minSpiele);
+  liste('distance', '🏃', streckeGeschaetzt ? 'Distance Traveled (est.)' : 'Distance Traveled', (s) => s.strecke, (s) => ftKm(s.strecke ?? 0), (s) => s.spiele >= minSpiele);
+  liste('storm', '🌪️', 'Most Time in Storm', (s) => s.sturm, (s) => ftDauer(s.sturm ?? 0));
+
   return {
-    posts: [
-      { art: 'best-stats', titel: 'Best Stats', text: zeilen.join('\n') },
-      { art: 'damage', titel: 'Most Damage Dealt (Ratio)', text: dmgText },
-      { art: 'elims', titel: 'Most Eliminations (Damage)', text: elimText },
-    ],
+    posts,
     stand: { gelesen: d.matches?.length ?? 0, gesamt: typeof d.gesamt === 'number' ? d.gesamt : null, teilweise: !!d.teilweise },
     minSpiele,
     spieler: spieler.length,
