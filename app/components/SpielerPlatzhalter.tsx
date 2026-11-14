@@ -10,7 +10,8 @@
  *   - PlatzhalterRund ist ein eigenes Rund oder Quadrat in fester Groesse - fuer kleine Bilder in Listen
  */
 
-const TON = ['from-sky-800/55 to-zinc-900', 'from-blue-800/55 to-zinc-900', 'from-indigo-800/50 to-zinc-900', 'from-cyan-800/45 to-zinc-900', 'from-slate-600/55 to-zinc-900'];
+// Ein einheitliches Standardbild (Betreiber, 14.11.2026: "das schwarze mit dem Fake-Kopf, das normale Standardbild ... alle sehen gleich aus").
+const TON = ['from-zinc-800 to-zinc-950'];
 
 /** Ein Blauton je Name - jeder Spieler sieht anders aus, keiner fremd. */
 const tonVon = (name: string) => TON[Array.from(name).reduce((a, c) => a + c.charCodeAt(0), 0) % TON.length];
@@ -27,7 +28,7 @@ function Zeichen({ klasse }: { klasse: string }) {
 export default function SpielerPlatzhalter({ name = '' }: { name?: string }) {
   return (
     <span aria-hidden className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${tonVon(name)}`}>
-      <Zeichen klasse="h-1/2 w-1/2 text-white/[0.12]" />
+      <Zeichen klasse="h-3/5 w-3/5 translate-y-[12%] text-zinc-500/40" />
     </span>
   );
 }
@@ -36,7 +37,7 @@ export function PlatzhalterRund({ name = '', groesse = 28, eckig = false, classN
   return (
     <span aria-hidden style={{ width: groesse, height: groesse }}
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tonVon(name)} ${eckig ? 'rounded-lg' : 'rounded-full'} ${className}`}>
-      <Zeichen klasse="h-3/5 w-3/5 translate-y-[8%] text-white/[0.14]" />
+      <Zeichen klasse="h-3/5 w-3/5 translate-y-[8%] text-zinc-500/40" />
     </span>
   );
 }

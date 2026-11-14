@@ -84,42 +84,19 @@ function Kachel({ s, unter, auf, klein }: { s: SolosSpieler; unter?: string; auf
 /** Das Raster fuer Kacheln - je breiter die Seite, desto mehr in einer Reihe. */
 const RASTER = 'grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
 
-/** Ein Spieler ohne Foto: der Name zuerst, mit Flagge und - wo es sie gibt - Platz und Punkten; kein leeres Quadrat. */
-function NurName({ s, unter, auf }: { s: SolosSpieler; unter?: string; auf?: () => void }) {
-  const inhalt = (
-    <>
-      <PlatzhalterRund name={s.anzeige} groesse={36} eckig />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5"><TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span></span>
-        {unter && <span className="block text-[11px] font-semibold tabular-nums text-slate-500">{unter}</span>}
-      </span>
-    </>
-  );
-  const klasse = 'flex min-w-0 items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-left';
-  return auf
-    ? <button type="button" onClick={auf} title={s.anzeige} className={`${klasse} transition hover:border-sky-500/50`}>{inhalt}</button>
-    : <div title={s.anzeige} className={klasse}>{inhalt}</div>;
-}
-
 /**
  * Die Spielerliste einer Stufe: wer ein Foto hat, steht als grosse Kachel vorn; die uebrigen darunter als Namensfelder.
  * So sieht man jedes Foto gross, und ein Spieler ohne Foto wird nicht zu einem leeren Quadrat (Betreiber, 19.10.2026: "man erkennt die Spieler nicht").
  */
 function Spielerliste<S extends SolosSpieler>({ spieler, auf, unter, klein }: { spieler: S[]; auf?: (s: S) => void; unter?: (s: S) => string | undefined; klein?: boolean }) {
-  const mit = spieler.filter((x) => x.bild);
-  const ohne = spieler.filter((x) => !x.bild);
+  /*
+   * Alle als gleich grosse Kachel (Betreiber, 14.11.2026: "alle Bilder gleich gross ... die ohne Bild mit dem Standardbild, nicht unten anders") - wer ein Foto hat,
+   * steht vorn, die uebrigen folgen mit dem Platzhalter (schwarz mit Kopf-Zeichen) im selben Raster.
+   */
+  const reihe = [...spieler.filter((x) => x.bild), ...spieler.filter((x) => !x.bild)];
   return (
-    <div className="space-y-5">
-      {mit.length > 0 && (
-        <div className={klein ? 'grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 lg:grid-cols-5' : RASTER}>
-          {mit.map((x) => <Kachel key={x.id} s={x} klein={klein} auf={auf ? () => auf(x) : undefined} unter={unter?.(x)} />)}
-        </div>
-      )}
-      {ohne.length > 0 && (
-        <div className={`grid gap-1.5 ${klein ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} ${mit.length ? 'border-t border-zinc-800 pt-4' : ''}`}>
-          {ohne.map((x) => <NurName key={x.id} s={x} auf={auf ? () => auf(x) : undefined} unter={unter?.(x)} />)}
-        </div>
-      )}
+    <div className={klein ? 'grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 lg:grid-cols-5' : RASTER}>
+      {reihe.map((x) => <Kachel key={x.id} s={x} klein={klein} auf={auf ? () => auf(x) : undefined} unter={unter?.(x)} />)}
     </div>
   );
 }
