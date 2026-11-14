@@ -3794,11 +3794,10 @@ export default function TweetSeite() {
                   niemand - dort steht nur ein durchgestrichener Zeiger. */}
               {!spielerListen.length && !ohneCup && !!stats && (
                 <span className="text-xs text-amber-500/80">
-                  Player Stats gesperrt: Einzelwerte kommen von
-                  {' '}{spielerDaten?.quelle ?? 'eucompetitive.com'}, und dort
-                  ist dieser Spieltag nicht geführt. Epic selbst liefert je
-                  Eintrag — bei einem Duo also Teamsummen, die sich nicht auf
-                  zwei Köpfe aufteilen lassen.
+                  {/* Die Einzelwerte kommen aus CompHubs Replay-Auswertung (app/api/cup-spieler) - nicht von eucompetitive (Betreiber, 14.11.2026). */}
+                  Noch keine Player Stats: die Replays dieses Spieltags sind noch nicht
+                  ganz ausgewertet. Das läuft nach dem Cup von selbst (meist innerhalb
+                  einer Stunde) - danach stehen hier die Werte je Spieler.
                 </span>
               )}
 
