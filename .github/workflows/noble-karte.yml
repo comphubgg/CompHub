@@ -8,6 +8,7 @@ on:
       beginn: { description: 'Beginn in ms', required: false, default: '' }
       query: { description: 'Parameter fuer die Vorlage (t=...&u=...)', required: false, default: '' }
       name: { description: 'Dateiname im Release', required: true }
+      insel: { description: 'Inselschluessel (z. B. SourSpawn bei Reload), leer = BR der Saison', required: false, default: '' }
 
 jobs:
   karte:
@@ -32,10 +33,10 @@ jobs:
       - name: Kartenbild (Insel aus der Ablage, sonst Epics Karte)
         env:
           COMPHUB_ABLAGE: supabase
-        run: node scripts/karte-insel-holen.cjs "${{ inputs.windowId }}" tools/posts/karte.png || curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png; file tools/posts/karte.png
+        run: node scripts/karte-insel-holen.cjs "${{ inputs.windowId }}" tools/posts/karte.png "${{ inputs.insel }}" || curl -sL -o tools/posts/karte.png https://fortnite-api.com/images/map.png; file tools/posts/karte.png
       - name: Bild
         run: node tools/posts/aufnehmen.mjs "tools/posts/karte.html?${{ inputs.query }}" "${{ inputs.name }}" 1400 1400
       - name: Hochladen
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload medien "${{ inputs.name }}" --clobber
+        run: cp tools/posts/karte-daten.js "${{ inputs.name }}.js" && gh release upload medien "${{ inputs.name }}" "${{ inputs.name }}.js" --clobber
