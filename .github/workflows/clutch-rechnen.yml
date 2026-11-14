@@ -35,11 +35,32 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      actions: write
     outputs:
       rechner: ${{ steps.plan.outputs.rechner }}
       anzahl: ${{ steps.plan.outputs.anzahl }}
       offen: ${{ steps.plan.outputs.offen }}
     steps:
+      # Vorrang fuer frische Cups (Betreiber, 14.11.2026: "eine Warteschlange darf nicht sein ... instant nach dem Cup"). GitHub laesst hoechstens 20 Rechner
+      # gleichzeitig laufen; nach Heat 1 wartete die Auswertung, weil Nacharbeit, Stundenlauf & Co. die Plaetze belegten. Laeuft gerade ein Cup oder ging
+      # vor kurzem zu Ende (Katalog, scripts/frischer-cup.mjs), werden diese Nebenlaeufe abgebrochen - sie starten nach Zeitplan von selbst neu und holen nach.
+      - name: Platz schaffen fuer frische Cups
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          frisch=$(curl -sfL --max-time 20 "https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/frischer-cup.mjs" -o /tmp/frisch.mjs && node /tmp/frisch.mjs || echo 0)
+          echo "Frische Spieltage (laufend oder bis 3 h vorbei): $frisch"
+          if [ "${frisch:-0}" -gt 0 ]; then
+            for wf in replays-nacharbeiten.yml replays-schlank.yml daten-erneuern.yml eigene-auswerten.yml twitch-statistik.yml; do
+              for id in $(gh run list -R "${{ github.repository }}" -w "$wf" -s in_progress --json databaseId -q '.[].databaseId' 2>/dev/null); do
+                gh run cancel -R "${{ github.repository }}" "$id" && echo "Platz geschaffen: $wf ($id)"
+              done
+            done
+          else
+            echo "Kein frischer Cup - Nebenlaeufe bleiben."
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
