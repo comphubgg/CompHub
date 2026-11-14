@@ -920,6 +920,16 @@ class SchadenLeser : ReplayReader {
       var k = (id, (long)Math.Floor(sch[0] / 2)); einschlagJe[k] = (einschlagJe.TryGetValue(k, out var e0) ? e0 : 0) + 1;
     }
     foreach (var k in ammoJe.Keys.Union(einschlagJe.Keys)) ExtraVon(k.Item1)[ExtraSchuesse] += Math.Max(ammoJe.TryGetValue(k, out var a1) ? a1 : 0, einschlagJe.TryGetValue(k, out var e1) ? e1 : 0);
+    /*
+     * WorldPlayerId 0 (14.11.2026): Unreal schickt nur Werte, die vom Standard abweichen - der Spieler mit der Welt-Nummer 0 meldet sie nie, und seine Bauteile tragen keinen
+     * OwnerPersistentID. Dadurch hatte er immer 0 Builds (Performance-Finale: HvK SwizzY 0 statt 72 Holz laut Inventar, die 77 Teile standen "ohne Besitzer").
+     * Fehlt genau ein Spieler mit Figur in der Zuordnung, ist er die Nummer 0.
+     */
+    if (!spielerVonWelt.ContainsKey(0)) {
+      var zugeordnet = spielerVonWelt.Values.ToHashSet();
+      var offen = spielerVonAkteur.Values.Distinct().Where(i => !zugeordnet.Contains(i)).ToList();
+      if (offen.Count == 1) spielerVonWelt[0] = offen[0];
+    }
     var bauDiag = new Dictionary<(int, int), int[]>();
     foreach (var (stoff, besitzer, gesetzt, ersatz) in bauTeile.Values) {
       var st = stoff == 'W' ? 0 : stoff == 'S' ? 1 : 2;
