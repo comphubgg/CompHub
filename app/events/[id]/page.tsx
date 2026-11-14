@@ -1315,6 +1315,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * die Erklaerung im Ladevorgang selbst.
    */
   const laufNr = useRef(0);
+  /** Der neueste Stand, den die Tabelle je Spieltag schon zeigte - aeltere Antworten (Zwischenspeicher) duerfen ihn nie ueberschreiben. */
+  const neuesterStand = useRef<{ w: string; t: number }>({ w: '', t: 0 });
   /**
    * Die gepflegten Spielerprofile.
    *
@@ -2676,6 +2678,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     laufNr.current += 1;
     const meiner = laufNr.current;
     const nochMeins = () => laufNr.current === meiner;
+    /*
+     * Nie rueckwaerts (Betreiber, 14.11.2026: "steht 21:54, dann Reload und es geht auf 53 zurueck"). Die frische erste Seite und die ganze Liste aus dem
+     * Vorrat kommen getrennt an; der Vorrat kann eine Minute aelter sein. Eine Antwort, die aelter ist als das, was schon dasteht, wird verworfen.
+     */
+    const nichtAelter = (updated?: string) => {
+      const zeit = Date.parse(updated ?? '') || 0;
+      if (neuesterStand.current.w === f.windowId && zeit && zeit < neuesterStand.current.t) return false;
+      if (zeit) neuesterStand.current = { w: f.windowId, t: zeit };
+      return true;
+    };
 
     try {
       /*
@@ -2695,7 +2707,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
          */
         let ganzDa = false;
         if (!nachfassen) void holeStueck(0, 1).then((e) => {
-          if (ganzDa || !nochMeins() || !e.entries?.length) return;
+          if (ganzDa || !nochMeins() || !e.entries?.length || !nichtAelter(e.updated)) return;
           setTabelle(e.entries);
           schnellMerken(f.windowId, e.entries);
           setStand(`${t('Stand')} ${new Date(e.updated ?? Date.now()).toLocaleTimeString(ort)}`);
@@ -2713,7 +2725,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         const ab = hand ? Date.now() : laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
         const frischHand = '';
         if (hand && nachfassen) void holeStueck(0, 1).then((e) => {
-          if (!nochMeins() || !e.entries?.length) return;
+          if (!nochMeins() || !e.entries?.length || !nichtAelter(e.updated)) return;
           // Die ersten Plaetze gleich frisch, der Rest folgt mit der ganzen Liste.
           setTabelleRoh((alt) => [...(e.entries ?? []), ...alt.filter((x) => x.rank > Math.max(...(e.entries ?? []).map((y) => y.rank)))]);
           setStand(`${t('Stand')} ${new Date(e.updated ?? Date.now()).toLocaleTimeString(ort)}`);
@@ -2721,6 +2733,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1&ab=${Math.round(ab)}${laeuftJetzt || hand ? '&live=1' : ''}${frischHand}`)
           .then((r) => r.json()).catch(() => null) as { entries?: Eintrag[]; updated?: string } | null;
         if (!nochMeins()) return;
+        if (g?.entries?.length && !nichtAelter(g.updated)) {
+          // Aelter als die frische erste Seite, die schon dasteht: die frischen Plaetze bleiben, nur dahinter kommt der Rest aus der ganzen Liste.
+          // Der Stand bleibt der neuere; beim naechsten Nachfassen kommt alles frisch.
+          ganzDa = true;
+          setTabelleRoh((alt) => {
+            const bis = alt.length ? Math.max(...alt.map((y) => y.rank)) : 0;
+            return [...alt, ...(g.entries ?? []).filter((x) => x.rank > bis)];
+          });
+          ganzGeladen.current = f.windowId;
+          setVertieft(false); setLaedt(false);
+          return;
+        }
         if (g?.entries?.length) {
           ganzDa = true;
           setVertieft(false);
@@ -2734,7 +2758,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       }
       setVertieft(false);
       const erste = await holeStueck(0, ERSTE_SEITEN);
-      if (!nochMeins()) return;
+      if (!nochMeins() || !nichtAelter(erste.updated)) return;
       const anfang = erste.entries ?? [];
       setTabelle(anfang);
       // Ohne die Zahl - die steht daneben, mit dem passenden Wort. Zweimal
