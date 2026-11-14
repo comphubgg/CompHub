@@ -279,6 +279,16 @@ async function holeRoh(request: Request) {
       && f.windowId.replace(/Day\d+/i, 'Day#') === dieser.windowId.replace(/Day\d+/i, 'Day#'));
     if (tage.length) { frueher = tage.sort((x, y) => y.begin - x.begin).slice(0, AUSGABEN); aehnlich = true; vortag = true; }
   }
+  /*
+   * Heats desselben Events (Betreiber, 14.11.2026: "wie kann morgen deine Prediction bei 284 liegen, wenn heute 228 Qual war"): ist ein anderer Heat
+   * desselben Events schon gespielt, ist er die beste Vorlage - dasselbe Feld, dieselbe Insel, dieselbe Wertung. Er geht vor frueheren Saisons.
+   */
+  let heatVorlage = false;
+  if (/Heat\d+/i.test(dieser.windowId)) {
+    const heats = alle.filter((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.status === 'vorbei'
+      && f.windowId.replace(/Heat\d+/i, 'Heat#') === dieser.windowId.replace(/Heat\d+/i, 'Heat#'));
+    if (heats.length) { frueher = heats.sort((x, y) => y.begin - x.begin).slice(0, AUSGABEN); aehnlich = true; vortag = true; heatVorlage = true; }
+  }
   if (!frueher.length) {
     const art = artVon.get(dieser.windowId);
     const g = groesse(dieser);
@@ -434,7 +444,8 @@ async function holeRoh(request: Request) {
       await schreibJson('prognose-lernen.json', lern.slice(-400)).catch(() => { /* beim naechsten Aufruf */ });
     }
     const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
-    if (gleiche.length) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
+    // Mit einem schon gespielten Heat als Vorlage keine Korrektur obendrauf - der Wert ist bereits das echte Ergebnis.
+    if (gleiche.length && !heatVorlage) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
   } catch { /* ohne Lernstand wie bisher */ }
 
   /*
