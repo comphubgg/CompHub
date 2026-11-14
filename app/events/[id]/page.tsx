@@ -2480,8 +2480,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [laedt, fenster]);
 
   // Solange die Replays eines Spieltags ausgewertet werden, alle zwei Minuten nachsehen - die Werte erscheinen dann ohne Neuladen.
+  // Waehrend der Spieltag laeuft (oder eben zu Ende ging) alle 45 s, auch wenn schon Werte da sind (14.11.2026: vorher blieben die Werte nach dem
+  // ersten Laden stehen, bis jemand neu lud - "6 Matches gespielt, 3 ausgewertet").
+  const spielerLive = !!fenster && (fenster.status === 'live' || (typeof fenster.end === 'number' && Date.now() - fenster.end < 3 * 3_600_000));
   useEffect(() => {
-    if (reiter !== 'spieler' || !fenster || !spielerWerte || spielerWerte.vorhanden) return undefined;
+    if (reiter !== 'spieler' || !fenster || !spielerWerte || (spielerWerte.vorhanden && !spielerLive)) return undefined;
     const ende = fenster.end ?? fenster.begin ?? null;
     if (typeof ende === 'number' && Date.now() - ende > 31 * 86_400_000) return undefined;
     let weg = false;
@@ -2490,9 +2493,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         .then((r) => r.json())
         .then((j) => { if (!weg && j && !j.error) setSpielerWerte(j); })
         .catch(() => { /* beim naechsten Mal */ });
-    }, 120_000);
+    }, spielerLive ? 45_000 : 120_000);
     return () => { weg = true; clearInterval(uhr); };
-  }, [reiter, fenster, spielerWerte, summenFenster, summenText]);
+  }, [reiter, fenster, spielerWerte, summenFenster, summenText, spielerLive]);
 
   /*
    * Zu jedem Team dieses Spieltags der gepflegte Twitch-Kanal.
