@@ -109,6 +109,22 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
  * hinzufuegen und (mit Recht) entfernen. Der Betreiber (11.10.2026): "wenn ich auf den Ordner druecke,
  * oeffnet sich darunter direkt die Liste mit den Spielern."
  */
+/** Die Kapsel zu einem Cup: kurzer Name und die Woerter, nach denen im Streamtitel gesucht wird. */
+function kapselFuerCup(titel: string): { name: string; woerter: string[] } | null {
+  const t = titel.toLowerCase();
+  const modus = /\bsolo/.test(t) ? 'Solo' : /\bduo/.test(t) ? 'Duo' : /\btrio/.test(t) ? 'Trio' : /\bsquad/.test(t) ? 'Squad' : '';
+  const m = (n: string) => (modus ? `${modus} ${n}` : n);
+  if (/fncs|global championship|major/.test(t) && !/division/.test(t)) return { name: m('FNCS'), woerter: ['fncs', 'heat', 'lcq', 'last chance', 'major', 'grand final'] };
+  if (/division/.test(t)) return { name: 'Division Cup', woerter: ['div'] };
+  if (/performance|evaluation/.test(t)) return { name: m('Perf Cup'), woerter: ['perf', 'eval'] };
+  if (/cash cup/.test(t)) return { name: m('Cash Cup'), woerter: ['cash'] };
+  if (/victory cup/.test(t)) return { name: m('Victory Cup'), woerter: ['victory', ' vc'] };
+  if (/ranked/.test(t)) return { name: m('Ranked Cup'), woerter: ['ranked'] };
+  if (/elite/.test(t)) return { name: 'Elite Series', woerter: ['elite'] };
+  const kurz = titel.replace(/battle royale|zero build|\(.*?\)/gi, '').trim();
+  return kurz ? { name: kurz.slice(0, 24), woerter: [kurz.toLowerCase().split(/\s+/)[0]] } : null;
+}
+
 function OrdnerAbschnitt({ p }: { p: Props }) {
   const t = useT();
   const a = p.aktionen;
@@ -131,6 +147,28 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   const [filter, setFilter] = useState<string[]>([]);
   const [eingabe, setEingabe] = useState('');
   const [filterAuf, setFilterAuf] = useState(true);
+  /*
+   * Nur die Kapseln der Cups, die gerade laufen oder gleich beginnen (Betreiber, 14.11.2026: "immer nur der Cup, der gerade da ist ... 1 bis 2 Tags, dass es so clean
+   * aussieht"). Aus dem Cup-Katalog: ein Trio Cash Cup wird "Trio Cash Cup", die FNCS Solos "Solo FNCS" - gesucht wird im Streamtitel nach den passenden Woertern.
+   */
+  const [cupKapseln, setCupKapseln] = useState<Array<{ name: string; woerter: string[] }>>([]);
+  useEffect(() => {
+    let weg = false;
+    const holen = () => fetch('/api/cup-catalog?modus=aktuell', { cache: 'no-store' }).then((r) => r.json()).then((j: { cups?: Array<{ titel?: string; live?: boolean; naechsterStart?: number | null }> }) => {
+      if (weg) return;
+      const bald = Date.now() + 90 * 60_000;
+      const liste: Array<{ name: string; woerter: string[] }> = [];
+      for (const c of j.cups ?? []) {
+        if (!c.titel || !(c.live || (c.naechsterStart && c.naechsterStart < bald))) continue;
+        const k = kapselFuerCup(c.titel);
+        if (k && !liste.some((x) => x.name === k.name)) liste.push(k);
+      }
+      setCupKapseln(liste.slice(0, 3));
+    }).catch(() => {});
+    holen();
+    const takt = setInterval(holen, 5 * 60_000);
+    return () => { weg = true; clearInterval(takt); };
+  }, []);
   const anzeige = (k: string) => p.namen[k] || k;
   const angeheftet = (k: string) => p.favoriten.includes(k);
 
@@ -143,7 +181,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   const ALIAS: Record<string, string[]> = {
     lcq: ['lcq', 'last chance'], finals: ['final'], 'fast track': ['fast track', 'fasttrack'], solo: ['solo'], duo: ['duo'], trio: ['trio'],
   };
-  const begriffe = (w: string) => ALIAS[w.trim().toLowerCase()] ?? [w.trim().toLowerCase()];
+  const begriffe = (w: string) => cupKapseln.find((c) => c.name.toLowerCase() === w.trim().toLowerCase())?.woerter ?? ALIAS[w.trim().toLowerCase()] ?? [w.trim().toLowerCase()];
   const titelPasst = (k: string, w: string) => { const ti = (p.live[k]?.title ?? '').toLowerCase(); return begriffe(w).some((b) => b && ti.includes(b)); };
   /** Die gerade wirksamen Filter: die Kapseln plus das, was noch im Feld steht. */
   const aktive = [...filter, ...(eingabe.trim() ? [eingabe.trim()] : [])];
@@ -202,7 +240,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
               placeholder={t('Im Stream-Titel suchen … (Enter = eigener Filter)')}
               className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
             <div className="mt-1 flex flex-wrap gap-1">
-              {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Trio', 'Reload', 'Performance', 'Division', 'Cash', ...filter.filter((w) => !['lcq', 'heat', 'fast track', 'finals', 'solo', 'duo', 'trio', 'reload', 'performance', 'division', 'cash'].includes(w.toLowerCase()))].map((w) => {
+              {[...cupKapseln.map((c) => c.name), ...filter.filter((w) => !cupKapseln.some((c) => c.name.toLowerCase() === w.toLowerCase()))].map((w) => {
                 const an = gewaehlteWoerter.has(w.toLowerCase());
                 return (
                   <button key={w} type="button" onClick={(e) => kapselKlick(w, e.shiftKey || e.ctrlKey || e.metaKey)}
