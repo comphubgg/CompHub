@@ -57,6 +57,8 @@ interface Zugang {
   rechte?: string[];
   epicId?: string;
   vipBis?: number;
+  /** Nach Ablauf von vipBis Zugang loeschen (lib/discord abgelaufeneVipsLoeschen). */
+  fristLoescht?: boolean;
   /** Darf dieser VIP seinen Schluessel selbst wechseln? Siehe lib/vipZugaenge.ts. */
   darfSchluessel?: boolean;
   /** Fuer wen dieser Zugang die Overlays verwaltet. Siehe lib/vipZugaenge.ts. */
