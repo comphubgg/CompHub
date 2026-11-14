@@ -46,8 +46,9 @@ export async function generateMetadata(
     const s = await ladeSpieler(id);
     if (!s) return {};
     const name = (s.anzeige || s.name || '').replace(/\s+/g, ' ').trim();
-    const titel = `${name} - Player Profile`;
-    const beschreibung = `Stats, results and career of ${name} in competitive Fortnite on CompHub.`;
+    // So, wie gesucht wird: "<Name> Fortnite stats" (SEO, 14.11.2026).
+    const titel = `${name} Fortnite Stats & Tournament Results`;
+    const beschreibung = `${name}'s competitive Fortnite stats: FNCS and cup results, placements, eliminations, damage and earnings - updated after every tournament on CompHub.`;
 
     const bild = s.bild && /^(https?:\/\/|\/)/.test(s.bild) ? s.bild : null;
     const bilder = bild ? [bild] : ['/logos/CompHub-Logo.png'];

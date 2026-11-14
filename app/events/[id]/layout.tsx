@@ -62,7 +62,8 @@ export async function generateMetadata(
     const bilder = bild ? [bild] : ['/logos/CompHub-Logo.png'];
 
     return {
-      title: titel,
+      // "<Cup> Results" ist die Suche nach jedem Cup (SEO, 14.11.2026).
+      title: `${titel} Results & Leaderboard`,
       description: beschreibung,
       alternates: { canonical: `/events/${encodeURIComponent(id)}` },
       openGraph: {

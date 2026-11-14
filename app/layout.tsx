@@ -191,6 +191,16 @@ export default async function RootLayout({
       <head>
         <link rel="stylesheet" href="/fonts/fonts.css" />
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@300;400;700&display=swap" rel="stylesheet" />
+        {/* Fuer Google (14.11.2026, SEO): wer CompHub ist, und welches Logo zu den Treffern gehoert. */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([
+          {
+            '@context': 'https://schema.org', '@type': 'Organization', name: 'CompHub', url: WURZEL,
+            logo: `${WURZEL}/favicon-192.png`, sameAs: ['https://x.com/CompHub_gg'],
+          },
+          {
+            '@context': 'https://schema.org', '@type': 'WebSite', name: 'CompHub', alternateName: 'The CompHub', url: WURZEL,
+          },
+        ]) }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* Die Sprache umschliesst alles - Kopfzeile, Seite und den
