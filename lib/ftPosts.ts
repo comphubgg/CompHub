@@ -278,20 +278,20 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const besteIds: string[] = [];
   const merke = (...ids: string[]) => { for (const i of ids) if (!besteIds.includes(klein(i))) besteIds.push(klein(i)); };
   if (teams[0]) { beste.push(`👑 Winner: ${team(teams[0].ids)}`); merke(...teams[0].ids); }
-  const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Elims: ${wer(e1.id)} – ${e1.elims}`); merke(e1.id); }
-  const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Damage: ${wer(d1.id)} – ${ftZahl(d1.dmg)}`); merke(d1.id); }
+  const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Most Elims: ${wer(e1.id)} – ${e1.elims} elims`); merke(e1.id); }
+  const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Most Dmg: ${wer(d1.id)} – ${ftZahl(d1.dmg)} dmg`); merke(d1.id); }
   const [g1] = top((s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0), 1, (s) => (s.bestes?.elims ?? 0) > 0);
   if (g1?.bestes) { beste.push(`🔥 Best Game: ${wer(g1.id)} – ${g1.bestes.elims} elims`); merke(g1.id); }
-  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) { beste.push(`📈 Dmg Ratio: ${wer(r1.id)} – ${ratio(r1).toFixed(2)}`); merke(r1.id); }
+  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) { beste.push(`📈 Best Dmg Ratio: ${wer(r1.id)} – ${ratio(r1).toFixed(2)} ratio`); merke(r1.id); }
   if (teams.length) {
     const meisteSiege = Math.max(...teams.map((t) => t.siege));
     const w = teams.find((t) => t.siege === meisteSiege && meisteSiege > 0);
-    if (w && w !== teams[0]) { beste.push(`🏅 Most Wins: ${team(w.ids)} – ${w.siege}`); merke(...w.ids); }
+    if (w && w !== teams[0]) { beste.push(`🏅 Most Wins: ${team(w.ids)} – ${w.siege} ${w.siege === 1 ? 'win' : 'wins'}`); merke(...w.ids); }
     else if (w) beste[0] += ` (${w.siege} ${w.siege === 1 ? 'win' : 'wins'})`;
   }
-  const [h1] = top((s) => s.treffer ?? 0, 1, (s) => (s.treffer ?? 0) > 0); if (h1) { beste.push(`🎯 Hits: ${wer(h1.id)} – ${ftZahl(h1.treffer ?? 0)}`); merke(h1.id); }
-  const [b1] = top((s) => s.bauten ?? 0, 1, (s) => (s.bauten ?? 0) > 0); if (b1) { beste.push(`🧱 Builds: ${wer(b1.id)} – ${ftZahl(b1.bauten ?? 0)}`); merke(b1.id); }
-  const [m1] = top((s) => s.mats ?? 0, 1, (s) => (s.mats ?? 0) > 0); if (m1) { beste.push(`🪓 Mats: ${wer(m1.id)} – ${ftZahl(m1.mats ?? 0)}`); merke(m1.id); }
+  const [h1] = top((s) => s.treffer ?? 0, 1, (s) => (s.treffer ?? 0) > 0); if (h1) { beste.push(`🎯 Most Hits: ${wer(h1.id)} – ${ftZahl(h1.treffer ?? 0)} hits`); merke(h1.id); }
+  const [b1] = top((s) => s.bauten ?? 0, 1, (s) => (s.bauten ?? 0) > 0); if (b1) { beste.push(`🧱 Most Builds: ${wer(b1.id)} – ${ftZahl(b1.bauten ?? 0)} builds`); merke(b1.id); }
+  const [m1] = top((s) => s.mats ?? 0, 1, (s) => (s.mats ?? 0) > 0); if (m1) { beste.push(`🪓 Most Mats: ${wer(m1.id)} – ${ftZahl(m1.mats ?? 0)} mats`); merke(m1.id); }
   if (beste.length) {
     // Fuers Bild: erst die Besten der Zeilen, dann nach Schaden aufgefuellt.
     for (const s of top((x) => x.dmg, KANDIDATEN)) merke(s.id);
@@ -299,14 +299,14 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   }
 
   // ---- Die Ranglisten.
-  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} (${ftZahl(s.dmg)} dmg)`, undefined, nachElims);
-  liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} (${ratio(s).toFixed(2)} ratio)` : ftZahl(s.dmg)));
+  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} elims (${ftZahl(s.dmg)} dmg)`, undefined, nachElims);
+  liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} dmg (${ratio(s).toFixed(2)} ratio)` : `${ftZahl(s.dmg)} dmg`));
   liste('best-game', '🔥', 'Best Single Game', (s) => s.bestes?.elims ?? null,
     (s) => `${s.bestes?.elims} ${s.bestes?.elims === 1 ? 'elim' : 'elims'}${s.bestes?.dmg ? ` (${ftZahl(s.bestes.dmg)} dmg)` : ''}`,
     undefined, (s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0));
-  liste('hits', '🎯', 'Most Hits', (s) => s.treffer, (s) => `${ftZahl(s.treffer ?? 0)}${s.krit !== null ? ` (${ftZahl(s.krit)} headshots)` : ''}`);
-  liste('builds', '🧱', 'Most Builds Placed', (s) => s.bauten, (s) => ftZahl(s.bauten ?? 0));
-  liste('mats', '🪓', 'Most Mats Farmed', (s) => s.mats, (s) => ftZahl(s.mats ?? 0));
+  liste('hits', '🎯', 'Most Hits', (s) => s.treffer, (s) => `${ftZahl(s.treffer ?? 0)} hits${s.krit !== null ? ` (${ftZahl(s.krit)} headshots)` : ''}`);
+  liste('builds', '🧱', 'Most Builds Placed', (s) => s.bauten, (s) => `${ftZahl(s.bauten ?? 0)} builds`);
+  liste('mats', '🪓', 'Most Mats Farmed', (s) => s.mats, (s) => `${ftZahl(s.mats ?? 0)} mats`);
   liste('survival', '⏱️', 'Most Time Alive', (s) => s.leben, (s) => ftDauer(s.leben ?? 0), (s) => s.spiele >= minSpiele);
   liste('distance', '🏃', streckeGeschaetzt ? 'Distance Traveled (est.)' : 'Distance Traveled', (s) => s.strecke, (s) => ftKm(s.strecke ?? 0), (s) => s.spiele >= minSpiele);
   liste('storm', '🌪️', 'Most Time in Storm', (s) => s.sturm, (s) => ftDauer(s.sturm ?? 0));
