@@ -28,18 +28,16 @@
 
 import { cupVorrang } from '../lib/replayRegel.mjs';
 import fs from 'node:fs';
-import { spawn, execFileSync } from 'node:child_process';
-import readline from 'node:readline';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { holeNutzerToken, matchIds } from '../lib/replayKern.mjs';
 import { leseReplay } from '../lib/replayLeser.mjs';
 import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
-import { lebenSumme, lebenJeMatch } from '../lib/clutchLeben.mjs';
-import { JE_SPALTEN, jeZeile } from '../lib/jeSpiel.mjs';
+import { lebenSumme } from '../lib/clutchLeben.mjs';
 import { neueWerte, schadenAus } from '../lib/vollSchaden.mjs';
-import { spurenAusReplay, auswerten as positionenAuswerten } from '../lib/replayPositionen.mjs';
+import { SCHADEN_LESER, leserDienst, leserAnzahl, neuerTeil, vollMatch, einarbeiten } from '../lib/vollMatch.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -123,7 +121,7 @@ async function topIds(eventId, windowId, max) {
  * je Schuss nur bis zu den restlichen Lebenspunkten; die stehen im Replay
  * nicht, der Ueberschuss laesst sich deshalb nicht genau abziehen.
  */
-const SCHADEN_LESER = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVollReplayReader.dll');
+// Der Pfad steht in lib/vollMatch.mjs (dort auch fuer den Dauerlauf und den Server) - im Ablauf derselbe wie frueher: tools/replay-voll/bin/Release/net10.0.
 /** Die volle Ausgabe des eigenen Lesers - oder null, wenn er fehlt oder scheitert. */
 function vollAus(datei) {
   if (!fs.existsSync(SCHADEN_LESER)) return null;
@@ -132,40 +130,10 @@ function vollAus(datei) {
   } catch (e) { console.log(`    Leser: ${String(e.message).slice(0, 120)}`); return null; }
 }
 
-/** Die Werte eines Spielers. Die gebauten Teile (bau*) zaehlt der Leser je Team - zuzuordnen also nur, wo ein Team aus einem Spieler besteht (Solo). */
 /*
- * Der Leser im Dauerlauf, je Kern einer (7.11.2026): ein frischer Prozess je Match brauchte das Doppelte, die Zeit ging fuer den Start drauf (tools/replay-voll, --dienst).
- * Stirbt ein Prozess an einem kaputten Replay, scheitert nur dieses Match, und ein neuer rueckt nach.
+ * Der Leser im Dauerlauf (leserDienst) und die Arbeit je Match stehen seit dem 14.11.2026 in lib/vollMatch.mjs - dort laeuft derselbe Code auch auf dem
+ * eigenen Server (scripts/live-spur.mjs).
  */
-function leserDienst(anzahl) {
-  const frei = []; const wartend = []; let zu = false;
-  const gib = (p, a) => { p.auftrag = a; p.letzterFehler = ''; p.stdin.write(`${a.datei}\n`); };
-  const naechster = (p) => { const a = wartend.shift(); if (a) gib(p, a); else frei.push(p); };
-  const starte = () => {
-    const p = spawn('dotnet', [SCHADEN_LESER, '--dienst'], { stdio: ['pipe', 'pipe', 'pipe'] });
-    p.auftrag = null; p.letzterFehler = '';
-    p.stdin.on('error', () => { /* das Ende meldet exit */ });
-    p.stderr.on('data', (d) => { p.letzterFehler = (p.letzterFehler + d).slice(-200); });
-    readline.createInterface({ input: p.stdout }).on('line', () => { const a = p.auftrag; p.auftrag = null; naechster(p); a?.ja(); });
-    p.on('exit', (code) => {
-      const a = p.auftrag; p.auftrag = null;
-      a?.nein(new Error(`Leser endete mit ${code}: ${p.letzterFehler}`));
-      if (!zu) naechster(starte());
-    });
-    return p;
-  };
-  for (let i = 0; i < anzahl; i += 1) frei.push(starte());
-  return {
-    async lies(datei) {
-      const ziel = `${datei}.json`;
-      try {
-        await new Promise((ja, nein) => { const a = { datei, ja, nein }; const p = frei.pop(); if (p) gib(p, a); else wartend.push(a); });
-        return JSON.parse(fs.readFileSync(ziel, 'utf8'));
-      } finally { fs.rmSync(ziel, { force: true }); }
-    },
-    ende() { zu = true; for (const p of frei) p.stdin.end(); },
-  };
-}
 
 /** Bis so viele gelesene Matches wird ein Spieltag nach einer neuen Schadensregel ganz neu gelesen. */
 const NEU_LESEN_BIS = 400;
@@ -402,7 +370,8 @@ if (arg[0] === '--plan') {
   const grenze = Date.now() - 31 * 864e5;
   const TEIL_ORDNER = path.join(DATEN, 'clutch-teil');
   const REPLAYS = path.join(DATEN, 'replays');
-  const leser = leserDienst(os.cpus().length);
+  // Wie viele Leser nebeneinander: LIVE_LESER / LESER_ANZAHL, sonst je Kern einer (lib/vollMatch.mjs leserAnzahl).
+  const leser = leserDienst(leserAnzahl());
   const hash = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
   const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 
@@ -414,7 +383,7 @@ if (arg[0] === '--plan') {
   console.log(`Offen fuer diesen Rechner: ${alleOffen} Matches aus ${tage.length} Spieltagen - Rechner ${teilNr + 1} von ${teilVon}, je ${GLEICHZEITIG} zugleich`);
 
   fs.mkdirSync(TEIL_ORDNER, { recursive: true });
-  let gelesen = 0; let ohneZahl = 0; let fehler = 0;
+  let gelesen = 0; let ohneZahl = 0; let fehler = 0; let spaeterZahl = 0;
   const beginn = Date.now();
   /*
    * Notbremse (8.11.2026): ein Rechner hing fuenf Stunden an einem Match fest, und solange er lief, kam kein neuer Durchgang dran. Drei Minuten nach der
@@ -426,8 +395,7 @@ if (arg[0] === '--plan') {
     try { aktuellSpeichern?.(); } catch { /* weiter */ }
     process.exit(0);
   }, Math.max(0, schluss - Date.now()) + 3 * 60_000).unref();
-  // Ein Download oder Leser, der nicht antwortet, gilt nach dieser Zeit als Fehler (das Match kommt im naechsten Durchgang wieder).
-  const mitFrist = (p, ms, was) => Promise.race([p, new Promise((_, nein) => setTimeout(() => nein(new Error(`${was}: keine Antwort nach ${ms / 1000} s`)), ms).unref())]);
+  // Download und Leser haben ihre Fristen in lib/vollMatch.mjs (mitFrist).
   for (const t of tage) {
     if (Date.now() > schluss) break;
     const meine = t.offen.filter((id) => hash(id) % teilVon === teilNr % teilVon);
@@ -438,7 +406,7 @@ if (arg[0] === '--plan') {
     // Rohdaten (Kill-Feed, Figuren) nur bei kleinen Spieltagen - bei 20.000 Matches waeren es Gigabytes; die Ueberlebenszeit wird hier gleich gezaehlt.
     const mitRoh = t.gesamt <= GROSS_MAX;
     const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);
-    const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, strecke: {}, roh: [] };
+    const teil = liesDatei(teilDatei) ?? neuerTeil({ eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt });
     teil.strecke ??= {};
     teil.neuAnfang = !!t.neuAnfang;
     // Matches, die in diesem Lauf scheiterten (Download oder Leser) - clutch-zusammen.mjs zaehlt die Fehlversuche ueber die Laeufe.
@@ -454,81 +422,26 @@ if (arg[0] === '--plan') {
     const einer = async () => {
       while (naechstes < liste.length && Date.now() < schluss) {
         const id = liste[naechstes++];
-        const datei = path.join(os.tmpdir(), `voll-${id}.replay`);
-        try {
-          const puffer = await mitFrist(downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 0, eventCount: 100000 }), 180_000, 'Download');
-          fs.writeFileSync(datei, puffer);
-          let voll = null;
-          try {
-            voll = await mitFrist(leser.lies(datei), 240_000, 'Leser');
-          } catch (e) { console.log(`    ${id}: Leser - ${String(e.message).slice(0, 100)}`); }
-          // Ein Replay, dessen erster Block schon kaputt ist, liefert Spieler, aber weder Kill-Feed noch Treffer - das waeren lauter Nullen, also wie ein Fehler behandeln.
-          if (voll && !(voll.feed?.length) && !(voll.treffer?.length)) { console.log(`    ${id}: Leser - kein Kill-Feed und keine Treffer (Replay kaputt)`); voll = null; }
-          if (!voll) { fehler += 1; teil.fehler.push(id); continue; }
-          const roh = {
-            id, busAb: voll.busAb ?? null,
-            spieler: (voll.spieler ?? []).map((p) => ({ id: p.id, epic: p.epic, name: p.name, team: p.team, platz: p.platz, bot: p.bot })),
-            feed: (voll.feed ?? []).map((f) => ({ t: f.t, opfer: f.opfer, taeter: f.taeter, art: f.art })),
-            figuren: voll.figuren ?? [],
-          };
-          const soloMatch = new Map();
-          const c = regeln.length ? clutchAusVoll(voll, regeln, { solo: soloMatch }) : new Map();
-          teil.matches.push({ id, spieler: Object.fromEntries(c) });
-          for (const [k, v] of c) teil.summe[k] = (teil.summe[k] ?? 0) + v;
-          for (const [k, v] of soloMatch) teil.solo[k] = (teil.solo[k] ?? 0) + Math.round(v);
-          const jeHier = new Map();
-          for (const [k, v] of Object.entries(schadenAus(voll) ?? {})) {
-            const d = teil.schaden[k] ?? neueWerte();
-            for (const f of Object.keys(v)) d[f] = (d[f] ?? 0) + (v[f] ?? 0);
-            teil.schaden[k] = d;
-            jeHier.set(k, v);
-          }
-          for (const p of voll.spieler ?? []) {
-            if (p.bot || !p.epic) continue;
-            teil.spiele[p.epic] = (teil.spiele[p.epic] ?? 0) + 1;
-            // Die Plattform je Spieler (Feld Platform im Replay) - fuer die Plattform-Statistik.
-            if (p.plattform) teil.plattform[p.epic] = String(p.plattform);
-            // Der Name aus dem Replay (9.11.2026): Ersatz, wenn Epic die Namensabfrage bremst - sonst stand auf der Seite die gekuerzte Id.
-            if (p.name && typeof p.name === 'string') (teil.namen ??= {})[p.epic] = p.name;
-          }
-          const lebenHier = lebenJeMatch(roh);
-          for (const [k, v] of lebenHier) teil.leben[k] = Math.round((teil.leben[k] ?? 0) + v);
-          const streckeHier = {};
-          /*
-           * Laufstrecke und Landeort aus den CharacterSample-Ereignissen derselben Datei (lib/replayPositionen, 31.10.2026) - kein weiterer Abruf.
-           * Strecke je Spieler: [zu Fuss, in der Luft] in Metern; der Landeort je Match nur bei kleinen Spieltagen (mit den Rohdaten).
-           */
-          try {
-            const pos = positionenAuswerten(spurenAusReplay(puffer));
-            const landung = {};
-            for (const [k, v] of Object.entries(pos)) {
-              const s = teil.strecke[k] ?? [0, 0];
-              teil.strecke[k] = [s[0] + v.fuss, s[1] + v.luft];
-              streckeHier[k] = (v.fuss + v.luft) / 0.685;
-              if (v.landung) landung[k] = [v.landung.x, v.landung.y, v.landung.t];
-            }
-            if (Object.keys(landung).length) roh.landung = landung;
-          } catch { /* ohne Positionen bleibt der Rest */ }
-          if (mitRoh) teil.roh.push(roh);
-          // Der Verlauf je Spieler und Match (lib/jeSpiel.mjs) - bei jedem Spieltag, auch den grossen: clutch-zusammen legt ihn in eine eigene Datei.
-          teil.jeSpalten = JE_SPALTEN;
-          for (const [k, v] of jeHier) (teil.jeSpiel ??= {}, teil.jeSpiel[k] ??= []).push(jeZeile(id, v, lebenHier.get(k), streckeHier[k]));
+        // Laden, lesen, rechnen: lib/vollMatch.mjs (derselbe Code wie auf dem Server). Eingetragen wird hier, Schritt fuer Schritt wie bisher.
+        const r = await vollMatch(id, { leser, regeln });
+        if (r.art === 'gelesen') {
+          einarbeiten(teil, r.beitrag, { mitRoh });
           gelesen += 1; seitSpeichern += 1;
           if (seitSpeichern >= 200) { speichern(); seitSpeichern = 0; }
-        } catch (e) {
-          // Kein Replay bei Epic (zu alt, nie abgelegt): merken, damit es nicht jeden Lauf neu versucht wird.
-          if (/folder_not_found|not_allowed|404|not ?found|no ?replay/i.test(String(e?.message))) { teil.ohne.push(id); ohneZahl += 1; } else { fehler += 1; teil.fehler.push(id); console.log(`    ${id}: Laden - ${String(e?.message).slice(0, 100)}`); }
-        } finally { fs.rmSync(datei, { force: true }); }
+        } else if (r.art === 'ohne') { teil.ohne.push(id); ohneZahl += 1; }
+        // Noch live bei Epic oder kuerzer als das Spiel: kein Fehler - bleibt offen und kommt mit dem naechsten Plan wieder.
+        else if (r.art === 'spaeter') { spaeterZahl += 1; console.log(`    ${id}: spaeter - ${r.grund}`); }
+        else { fehler += 1; teil.fehler.push(id); }
       }
     };
     await Promise.all(Array.from({ length: GLEICHZEITIG }, einer));
     speichern();
     const min = (Date.now() - beginn) / 60_000;
-    console.log(`    bisher ${gelesen} gelesen (${(gelesen / Math.max(min, 0.1)).toFixed(1)} je Minute), ${ohneZahl} ohne Replay, ${fehler} Fehler`);
+    console.log(`    bisher ${gelesen} gelesen (${(gelesen / Math.max(min, 0.1)).toFixed(1)} je Minute), ${ohneZahl} ohne Replay, ${fehler} Fehler${spaeterZahl ? `, ${spaeterZahl} spaeter (noch live)` : ''}`);
   }
   leser.ende();
   const rest = alleOffen - gelesen - ohneZahl;
-  console.log(`Fertig: ${gelesen} gelesen, ${ohneZahl} ohne Replay, ${fehler} Fehler, ${rest > 0 ? `noch offen: ${rest}` : 'nichts mehr offen'}`);
+  console.log(`Fertig: ${gelesen} gelesen, ${ohneZahl} ohne Replay, ${fehler} Fehler, ${spaeterZahl} spaeter, ${rest > 0 ? `noch offen: ${rest}` : 'nichts mehr offen'}`);
 } else if (arg[0] === '--alle') {
   const [teilNr, teilVon] = (wert('--teil') ?? '0/1').split('/').map(Number);
   const schluss = Date.now() + Number(wert('--minuten') ?? 50) * 60_000;
