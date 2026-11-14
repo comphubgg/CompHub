@@ -17,7 +17,7 @@
  *   - Bestes Spiel: die meisten killsEcht in einem Match (Zeilen aus clutch-je), bei Gleichstand der Schaden dieses Matches.
  *   - Sieger, Siege und Elims je Team: Epics Bestenliste des Spieltags.
  *   - Flagge und @-Konto: spieler-profile.json (id -> x / land), Land ersatzweise aus szene-quelle/spielerliste.json.
- *   - Streamer (Twitch-Kanal aus dem Profil, der in streamers.json steht) erscheinen als twitch.tv/<kanal> statt mit @.
+ *   - Immer @X-Konto, sonst der Name - nie twitch.tv (das gehoert nur in den Live-Post der Streamer).
  * Quoten (Damage Ratio, Kills/Match) und die Summen, die mit der Zahl der Spiele wachsen (Zeit am Leben), nur ab der Mindestzahl Spiele.
  * Fehlt ein Wert fuer alle (z. B. kein Inventar gelesen), entfaellt der Post - es wird nichts geschaetzt, was nicht als Schaetzung dasteht.
  */
@@ -191,7 +191,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const name = (id: string) => k.namen[klein(id)] ?? d.namen?.[id] ?? id.slice(0, 8);
   const konto = (id: string) => {
     const i = klein(id);
-    if (k.twitch[i]) return `twitch.tv/${k.twitch[i]}`;
+    // Immer das X-Konto, nie twitch.tv (Betreiber, 14.11.2026: "immer Twitter"). twitch.tv gibt es nur im Live-Post der Streamer.
     if (k.x[i]) return `@${k.x[i]}`;
     return name(id);
   };
