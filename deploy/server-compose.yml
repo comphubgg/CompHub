@@ -1,0 +1,44 @@
+# Was auf dem CompHub-Server (Contabo VPS) laeuft. Der Server holt diese Datei
+# jede Minute von GitHub (scripts/server-einrichten.sh, /usr/local/bin/comphub-update)
+# - eine Aenderung hier ist also nach dem Push binnen einer Minute dort.
+services:
+  # Die Seite: schlankes Image, ohne Hintergrundlaeufe.
+  web:
+    image: ghcr.io/comphubgg/comphub-web:latest
+    restart: always
+    env_file: web.env
+    environment:
+      COMPHUB_ABLAGE: supabase
+      COMPHUB_KEIN_HINTERGRUND: "1"
+      NODE_OPTIONS: --max-old-space-size=6144
+    ports:
+      - "127.0.0.1:3100:10000"
+
+  # Die Hintergrundlaeufe wie frueher auf dem PC (instrumentation.node.ts):
+  # Live-Takt alle 5 Minuten, Replays stuendlich, Spieltage, Rangliste, Nachtlauf.
+  # Fragt den Cup-Katalog bei "web" (WERKZEUG_URL). Nicht von aussen erreichbar.
+  hintergrund:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    network_mode: host
+    env_file: web.env
+    environment:
+      COMPHUB_ABLAGE: supabase
+      COMPHUB_KEIN_HINTERGRUND: ""
+      WERKZEUG_URL: http://127.0.0.1:3100
+      PORT: "3200"
+      TZ: Europe/Berlin
+      # Den Bot-Takt macht schon "web" - nicht doppelt.
+      DISCORD_BOT_TOKEN: ""
+      NODE_OPTIONS: --max-old-space-size=6144
+    volumes:
+      - ./daten:/app/data
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    network_mode: host
+    user: root
+    volumes:
+      - /etc/cloudflared:/etc/cloudflared:ro
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run

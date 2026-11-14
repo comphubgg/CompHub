@@ -48,10 +48,25 @@ jobs:
         with:
           context: .
           file: Dockerfile.web
+          target: web
           push: true
           tags: |
             ghcr.io/comphubgg/comphub-web:latest
             ghcr.io/comphubgg/comphub-web:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/comphubgg/CompHub
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Vollen Stand fuer die Hintergrundlaeufe veroeffentlichen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.web
+          target: voll
+          push: true
+          tags: |
+            ghcr.io/comphubgg/comphub-web:voll
           labels: |
             org.opencontainers.image.source=https://github.com/comphubgg/CompHub
           cache-from: type=gha

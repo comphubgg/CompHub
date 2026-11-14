@@ -41,37 +41,29 @@ sed -e 's/\r$//' -e 's#^\(\s*credentials-file:\s*\).*[\\/]\([^\\/]*\.json\)\s*$#
     /root/.cloudflared/config.yml > /etc/cloudflared/config.yml
 grep -E "tunnel:|credentials-file:|service:" /etc/cloudflared/config.yml || true
 
-cat > "$D/docker-compose.yml" <<'EOF'
-services:
-  web:
-    image: ghcr.io/comphubgg/comphub-web:latest
-    restart: always
-    env_file: web.env
-    environment:
-      COMPHUB_ABLAGE: supabase
-      COMPHUB_KEIN_HINTERGRUND: "1"
-      NODE_OPTIONS: --max-old-space-size=6144
-    ports:
-      - "127.0.0.1:3100:10000"
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    restart: always
-    network_mode: host
-    user: root
-    volumes:
-      - /etc/cloudflared:/etc/cloudflared:ro
-    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
-EOF
+RAW=https://raw.githubusercontent.com/comphubgg/CompHub/main
+curl -fsSL "$RAW/deploy/server-compose.yml" -o "$D/docker-compose.yml"
+mkdir -p "$D/daten"
 
 echo "== Starten"
 cd "$D"
 docker compose pull -q
-docker compose up -d
+docker compose up -d --remove-orphans
 
 echo "== Auto-Update (jede Minute)"
+# Holt jede Minute deploy/server-compose.yml und die Images von GitHub - jede
+# Aenderung am Server laeuft damit ueber einen Push, ohne dass jemand einloggt.
 cat > /usr/local/bin/comphub-update <<'EOF'
 #!/bin/sh
-cd /opt/comphub && docker compose pull -q web && docker compose up -d web >/dev/null 2>&1 && docker image prune -f >/dev/null 2>&1
+cd /opt/comphub || exit 0
+[ -f update.lock ] && [ $(( $(date +%s) - $(stat -c %Y update.lock) )) -lt 900 ] && exit 0
+touch update.lock
+curl -fsSL https://raw.githubusercontent.com/comphubgg/CompHub/main/deploy/server-compose.yml -o compose.neu \
+  && [ -s compose.neu ] && docker compose -f compose.neu config -q 2>/dev/null && mv compose.neu docker-compose.yml
+docker compose pull -q >/dev/null 2>&1
+docker compose up -d --remove-orphans 2>&1 | grep -v "Running\|up-to-date" || true
+docker image prune -f >/dev/null 2>&1
+rm -f update.lock compose.neu
 EOF
 chmod +x /usr/local/bin/comphub-update
 echo '* * * * * root /usr/local/bin/comphub-update >> /var/log/comphub-update.log 2>&1' > /etc/cron.d/comphub-update

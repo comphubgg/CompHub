@@ -21,7 +21,16 @@ ARG NEXT_PUBLIC_BASE_URL=https://www.thecomphub.com
 ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
 RUN NODE_OPTIONS=--max-old-space-size=6144 npx next build
 
-FROM node:24-slim
+# Der volle Stand fuer die Hintergrundlaeufe auf dem eigenen Server
+# (instrumentation.node.ts: Replays, Spieltage, Rangliste, Live-Takt). Die
+# brauchen die Skripte und node_modules, die im schlanken Image fehlen.
+# Gebaut mit --target voll; nach aussen erreichbar ist er nicht.
+FROM bau AS voll
+ENV NODE_ENV=production COMPHUB_ABLAGE=supabase
+EXPOSE 3200
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", "3200"]
+
+FROM node:24-slim AS web
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 PORT=10000 COMPHUB_INTERN_URL=http://127.0.0.1:10000 \
