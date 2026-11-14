@@ -34,6 +34,18 @@ services:
     volumes:
       - ./daten:/app/data
 
+  # Die Replay-Uebersicht (Startseite "Matches ausgewertet", /admin/replays) alle 10 Minuten neu, aus den Zustaenden am Release
+  # (14.11.2026: seit der PC aus ist, rechnete sie niemand mehr oft genug - die Zahl stand stundenlang bei 1.459.064).
+  uebersicht:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    env_file: web.env
+    environment:
+      TZ: Europe/Berlin
+    mem_limit: 2g
+    entrypoint: ["sh", "-c"]
+    command: ["while true; do nice -n 10 node scripts/replay-uebersicht.mjs --vom-release 2>&1 | tail -2 && node scripts/ablage-github.mjs --nur antworten/replays_uebersicht.json 2>&1 | tail -2; sleep 600; done"]
+
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: always
