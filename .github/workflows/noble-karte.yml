@@ -8,6 +8,7 @@ on:
       beginn: { description: 'Beginn in ms', required: false, default: '' }
       query: { description: 'Parameter fuer die Vorlage (t=...&u=...)', required: false, default: '' }
       name: { description: 'Dateiname im Release', required: true }
+      speichern: { description: 'Als Turnierkarte auf der Seite speichern: eventId|Titel|bildId|bildTitel (leer = nicht)', required: false, default: '' }
       insel: { description: 'Inselschluessel (z. B. SourSpawn bei Reload), leer = BR der Saison', required: false, default: '' }
 
 jobs:
@@ -40,3 +41,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: cp tools/posts/karte-daten.js "${{ inputs.name }}.js" && gh release upload medien "${{ inputs.name }}" "${{ inputs.name }}.js" --clobber
+      - name: Als Turnierkarte speichern
+        if: inputs.speichern != ''
+        env:
+          COMPHUB_ABLAGE: supabase
+          SPEICHERN: ${{ inputs.speichern }}
+        run: |
+          IFS='|' read -r E T B BT <<< "$SPEICHERN"
+          node scripts/karte-speichern.cjs tools/posts/karte-daten.js "$E" "$T" "$B" "$BT"
