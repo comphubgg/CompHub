@@ -3387,7 +3387,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ...(() => {
                   const q = fenster.qualifiziert ?? 0;
                   const lc = (fenster.marken ?? []).find((m) => /lastchance/i.test(m.token) && m.bis > q);
-                  return lc && q ? [[t('Zweite Chance'), `${q + 1}–${lc.bis}`, 'sm:flex-1'] as [string, string, string]] : [];
+                  return lc && q ? [[t('Last Chance Qualifier'), `${q + 1}–${lc.bis}`, 'sm:flex-1'] as [string, string, string]] : [];
                 })(),
                 ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), fenster.sofortPunkte >= 1000 ? t('Ein Spiel gewinnen') : `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
@@ -4374,6 +4374,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </td>
                         </tr>
                       )}
+                      {/* Die zweite Linie (14.11.2026, wie Fortnite Tracker): wer hinter den Qualifizierten bis zu dieser Grenze landet, kommt in den Last Chance Qualifier. */}
+                      {(() => {
+                        const q = fenster?.qualifiziert ?? 0;
+                        const lc = (fenster?.marken ?? []).find((m) => /lastchance/i.test(m.token) && m.bis > q);
+                        if (!q || !lc || lc.bis !== e.rank) return null;
+                        return (
+                          <tr>
+                            <td colSpan={7} className="p-0">
+                              <div className="flex items-center gap-3 border-y border-sky-500/30 bg-sky-500/[0.06] px-4 py-1">
+                                <span aria-hidden className="h-px flex-1 bg-sky-500/25" />
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">
+                                  <T>Top</T> {e.rank} <T>qualifizieren sich für den Last Chance Qualifier</T>
+                                </span>
+                                <span aria-hidden className="h-px flex-1 bg-sky-500/25" />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
                     </Fragment>
                   ))}
                 </tbody>

@@ -569,6 +569,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Spieler oder Land suchen …': 'Search player or country …',
   'Alle Heats': 'All heats',
   'Zweite Chance': 'Second chance',
+  'Last Chance Qualifier': 'Last Chance Qualifier',
+  'qualifizieren sich für den Last Chance Qualifier': 'qualify for the Last Chance Qualifier',
   'Sofort qualifiziert': 'Instant qualify',
   'Ein Spiel gewinnen': 'Win a match',
   'Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.': 'Season 42 · Battle Royale — heats, maps, finalists and prize money in the archive.',
