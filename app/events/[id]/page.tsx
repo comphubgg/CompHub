@@ -3384,9 +3384,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ...(() => {
                   const q = fenster.qualifiziert ?? 0;
                   const lc = (fenster.marken ?? []).find((m) => /lastchance/i.test(m.token) && m.bis > q);
-                  return lc && q ? [[t('Zweite Chance'), `${q + 1}–${lc.bis} → Last Chance`, 'sm:flex-1'] as [string, string, string]] : [];
+                  return lc && q ? [[t('Zweite Chance'), `${q + 1}–${lc.bis}`, 'sm:flex-1'] as [string, string, string]] : [];
                 })(),
-                ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
+                ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), fenster.sofortPunkte >= 1000 ? t('Ein Sieg') : `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
@@ -3398,9 +3398,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   : undefined}>
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
                   {l === 'CompHub Prediction' && <img src="/logos/CompHub-Logo-96.webp" alt="" className="h-3.5 w-3.5 rounded-sm" />}
-                  <span className="truncate">{l}</span>
+                  <span>{l}</span>
                 </div>
-                <div className={`mt-0.5 truncate text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`} title={v}>{v}</div>
+                <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`} title={v}>{v}</div>
               </div>
             )); })()}
           </div>

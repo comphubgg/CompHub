@@ -570,6 +570,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Alle Heats': 'All heats',
   'Zweite Chance': 'Second chance',
   'Sofort qualifiziert': 'Instant qualify',
+  'Ein Sieg': 'Win',
   'Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.': 'Season 42 · Battle Royale — heats, maps, finalists and prize money in the archive.',
   '{n} Spieler gefunden': '{n} players found',
   'Heat-Einteilung': 'Heat draw',
