@@ -213,10 +213,18 @@ export async function POST(request: NextRequest) {
         antwort = { content: 'Something went wrong while loading the stats - please try again in a minute.' };
       }
       if (!d.application_id || !d.token) return;
-      await fetch(`https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`, {
+      const nachtragen = (inhalt: Antwort) => fetch(`https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: '', embeds: [], components: [], ...antwort, allowed_mentions: { parse: [] } }),
+        body: JSON.stringify({ content: '', embeds: [], components: [], ...inhalt, allowed_mentions: { parse: [] } }),
       }).catch(() => null);
+      const r = await nachtragen(antwort);
+      // Lehnt Discord die Antwort ab (z. B. ein Bild, das es nicht laden will), bleibt sonst "is thinking..." stehen: dann ohne Bilder, notfalls nur ein Satz.
+      if (r && !r.ok) {
+        console.error(`[discord] /${befehl}: Antwort abgelehnt (HTTP ${r.status}) ${(await r.text().catch(() => '')).slice(0, 300)}`);
+        const ohneBild = { ...antwort, embeds: (antwort.embeds ?? []).map((e) => ({ ...e, thumbnail: undefined })) };
+        const r2 = await nachtragen(ohneBild);
+        if (r2 && !r2.ok) await nachtragen({ content: 'The answer could not be shown here - please open thecomphub.com/statistics.', components: antwort.components });
+      }
     });
     // Nur fuer den Fragenden (Betreiber, 15.11.2026): niemand sonst in #check-stats sieht fremde Ergebnisse - auch keine Fehler.
     return NextResponse.json({ type: 5, data: { flags: 64 } });
