@@ -30,6 +30,7 @@ import { useLiveFenster, type LiveTeil } from '@/app/lib/useLiveFenster';
 import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import TurnierLeader from '@/app/components/TurnierLeader';
+import PlatzVerlauf from './PlatzVerlauf';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
@@ -4159,6 +4160,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </span>
             </div>
           </header>
+          {/* Placement Progression der besten zehn und "Top 10 als CSV" (Betreiber, 15.11.2026) - nur wenn Epics Wertung des Cups die Punkte genau ergibt (./PlatzVerlauf). */}
+          {!!preise?.wertung?.length && tabelle.length >= 10 && (
+            <PlatzVerlauf tabelle={tabelle} wertung={preise.wertung} name={lbFenster?.windowId ?? id} />
+          )}
 
           {/*
             * Das Ladezeichen der Bestenliste.
