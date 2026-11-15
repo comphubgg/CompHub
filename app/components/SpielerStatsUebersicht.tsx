@@ -47,7 +47,7 @@ export const OSIRION_KACHELN: KachelListe[] = [
   { feld: 'kd', titel: 'K/D', nachkomma: 2 },
   { feld: 'headshots', titel: 'Kopftreffer' },
   { feld: 'reboots', titel: 'Reboots und Revives' },
-  { feld: 'damageTaken', titel: 'Erlittener Schaden' },
+  { feld: 'damageTaken', titel: 'Schaden von Spielern' },
   { feld: 'assists', titel: 'Assists' },
   // Die Extra Stats (Betreiber, 5.11.2026): wer es genau wissen will. Aus den vollen Replays, Solo.
   { feld: 'bauHolz', titel: 'Holz gebaut' },
@@ -78,7 +78,7 @@ const SUMMEN: Array<{ feld: string; titel: string; format?: Format }> = [
   { feld: 'stormDamage', titel: 'Sturmschaden' },
   { feld: 'healthHealed', titel: 'Leben geheilt' },
   { feld: 'shieldHealed', titel: 'Schild geheilt' },
-  { feld: 'damageTaken', titel: 'Erlittener Schaden' },
+  { feld: 'damageTaken', titel: 'Schaden von Spielern' },
   { feld: 'knocks', titel: 'Knocks' },
   { feld: 'tode', titel: 'Tode' },
 ];

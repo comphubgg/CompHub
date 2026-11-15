@@ -4969,6 +4969,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Leben geheilt': 'Health Healed',
   'Schild geheilt': 'Shield Healed',
   'Erlittener Schaden': 'Damage Taken',
+  // Nur Treffer anderer Spieler - ohne Sturm, Fall und eigenen Schaden (app/api/cup-spieler, Feld erlitten); dieselbe Zahl, durch die die Damage Ratio teilt (15.11.2026).
+  'Schaden von Spielern': 'Damage From Players',
   'Reboots und Revives': 'Reboots & Revives',
   '1. Platz': '1st place',
   '2. bis 5. Platz': '2nd place - 5th place',
