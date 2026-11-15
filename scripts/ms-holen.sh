@@ -6,6 +6,7 @@
 set -u
 REL=diag-ms-roh
 gh release view "$REL" >/dev/null 2>&1 || gh release create "$REL" --draft --title "Diagnose Mats/Strecke (Entwurf)" --notes "Nur Diagnose, wird geloescht." >/dev/null
+if [ "${MS_EPIC:-}" = "schluessel" ]; then node scripts/diag-epic-schluessel.mjs EU,NAC 2>&1 | grep SCHLUESSEL | cut -c1-3000; for f in /tmp/epic-schluessel.json /tmp/katalog-EU.json; do gzip -f $f; gh release upload "$REL" $f.gz --clobber; done; exit 0; fi
 IFS=';' read -ra EP <<< "${MS_EPIC:-}"
 for e in "${EP[@]}"; do
   [ -z "$e" ] && continue
