@@ -293,7 +293,11 @@ if (arg[0] === '--plan') {
       // Fassung 17 (10.11.2026, abends): Elims - der Kill-Zaehler kommt verspaetet an (zyfos Team 11 statt 17), verpasste Updates aus dem Kill-Feed.
       || ((da.schadenFassung ?? 0) < 17 && f.ids.size <= 1500)
       // Fassung 18 (14.11.2026): Builds - der Spieler mit WorldPlayerId 0 bekam keine Bauteile (je Match einer, z. B. HvK SwizzY 0 statt 72 Holz).
-      || ((da.schadenFassung ?? 0) < 18 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 14, 23)));  // erst nach Heat 1, damit die Live-Auswertung nicht wartet
+      || ((da.schadenFassung ?? 0) < 18 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 14, 23))  // erst nach Heat 1, damit die Live-Auswertung nicht wartet
+      // Fassung 19 (15.11.2026): Elims nur aus dem Kill-Zaehler, am Aus des Teams nach dessen eigenen Zeitstempeln geschnitten - kein Auffuellen aus dem Kill-Feed
+      // mehr (Bot-Kills, Kills nach dem Aus; gegen Epics TEAM_ELIMS geprueft, lib/vollSchaden.mjs). Der Zaehler steht nicht in den Rohdaten, deshalb neu lesen:
+      // die Spieltage der Woche bis 3.000 Matches, erst nach FNCS Heat 2 (bis 21:00 UTC) und ihrer Auswertung.
+      || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 22, 30)));
     /*
      * Werte je Match verloren (15.11.2026): "Clutch ablegen" lud clutch-je/ nicht hoch, der naechste Lauf verwarf die Zeilen des vorigen (scripts/clutch-je-abgleich.mjs zaehlt
      * sie als jeFehlt). Solche Spieltage einmal ganz neu lesen - nur die der letzten 14 Tage (Epic haelt Replays 31 Tage, mit Abstand) bis 3.000 Matches, nicht, wenn sie
