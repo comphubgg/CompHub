@@ -3,11 +3,12 @@
 //
 //   node tools/replays-video/seite-aufnehmen.mjs --format quer|hoch [--basis https://www.thecomphub.com] [--tag FENSTER] [--nr 3] [--aus ordner]
 //
-// Ablauf wie ein Besucher: /replays -> Spieltag -> ein Game abspielen (Kill-Feed, Kampf-Orte mit Fenster, Zonen, Spieler wechseln, 3D, Kurve,
-// Zonen-Tabelle, Spielerwerte) -> Cup-Seite, Reiter "Matches" mit den REPLAY-Marken.
-// Aufgenommen wird doppelt: CDP-Screencast (JPEG-Bilder mit Zeitstempel -> seite.mp4, scharf) und Playwrights recordVideo (webm, Rueckfall).
-// Dazu marken.json (Sekunde je Schritt im Video), Standbilder je Schritt und auswahl.json (welcher Cup/Game und warum).
-// quer: Ansicht 1440x810 mit Faktor 4/3 = 1920x1080 Bildpunkte. hoch: 540x960 mit Faktor 2 = 1080x1920 (die Handy-Ansicht der Seite).
+// Ablauf wie ein Besucher: /replays -> Spieltag -> ein Game abspielen (Kampf-Orte mit Fenster, Spieler waehlen und wechseln, Zonen, 3D, Kill-Feed,
+// Reiter, Kurve, Zonen-Tabelle, Spielerwerte) -> Cup-Seite, Reiter "Matches" mit den REPLAY-Marken.
+// Aufgenommen wird Bild fuer Bild mit angehaltener Uhr der Seite (Playwright clock): je Bild 1/30 s weiter, dann ein Screenshot -> seite.mp4 mit echten 30 Bildern/s.
+// Dazu marken.json (Bild/Sekunde je Schritt im Video), ein Standbild je Marke und auswahl.json (welcher Cup/Game und warum).
+// quer: Ansicht 1920x1280 mit Faktor 1,25 = 2400x1600 Bildpunkte (die Karte passt ganz hinein; Platz zum Hineinzoomen im Schnitt).
+// hoch: 540x960 mit Faktor 2 = 1080x1920 (die Handy-Ansicht der Seite).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -20,8 +21,8 @@ const BASIS = arg('--basis', 'https://www.thecomphub.com').replace(/\/$/, '');
 const AUS = path.resolve(arg('--aus', `aufnahme-${FORMAT}`));
 const TAG_WUNSCH = arg('--tag', '');
 const NR_WUNSCH = Number(arg('--nr', '0')) || 0;
-const [VB, VH, DSF] = HOCH ? [540, 960, 2] : [1440, 810, 4 / 3];
-const [PB, PH] = HOCH ? [1080, 1920] : [1920, 1080];
+const [VB, VH, DSF] = HOCH ? [540, 960, 2] : [1920, 1280, 1.25];
+const [PB, PH] = [Math.round(VB * DSF), Math.round(VH * DSF)];
 fs.rmSync(AUS, { recursive: true, force: true });
 const BILDER = path.join(AUS, 'bilder'); const STILL = path.join(AUS, 'standbilder');
 for (const d of [AUS, BILDER, STILL]) fs.mkdirSync(d, { recursive: true });
@@ -88,318 +89,341 @@ auswahl.gewaehlt = { windowId: TAG.windowId, eventId: TAG.eventId, titel: TAG.ti
 fs.writeFileSync(path.join(AUS, 'auswahl.json'), JSON.stringify(auswahl, null, 1));
 log('Auswahl:', JSON.stringify(auswahl.gewaehlt), JSON.stringify(auswahl.games.find((g) => g.nr === NR)));
 
-// ------------------------------------------------------------------ Browser, Screencast
+// Die Cup-Seite zum Reiter "Matches": im Katalog den Cup suchen, der einen der Spieltage fuehrt (zuerst den gewaehlten, dann die Kandidaten).
+const katalog = await holeJson(`${BASIS}/api/cup-catalog?modus=alle`, 2);
+let EVENT = null;
+for (const w of [TAG.windowId, ...auswahl.kandidaten.map((k) => k.windowId)]) {
+  const c = (katalog?.cups ?? []).find((x) => JSON.stringify(x).includes(`"${w}"`));
+  if (c) { EVENT = { id: c.id, windowId: w, region: (tage.find((d) => d.windowId === w)?.region) ?? TAG.region }; break; }
+}
+auswahl.event = EVENT;
+fs.writeFileSync(path.join(AUS, 'auswahl.json'), JSON.stringify(auswahl, null, 1));
+log('Cup-Seite:', JSON.stringify(EVENT));
+
+// ------------------------------------------------------------------ Browser
 const browser = await chromium.launch({ args: ['--hide-scrollbars', '--force-color-profile=srgb'] });
 const context = await browser.newContext({
   viewport: { width: VB, height: VH }, deviceScaleFactor: DSF, isMobile: HOCH, hasTouch: false, colorScheme: 'dark', locale: 'en-GB',
-  recordVideo: { dir: path.join(AUS, 'webm'), size: { width: PB, height: PH } },
   userAgent: HOCH
     ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 });
-const domain = new URL(BASIS).hostname;
-await context.addCookies([{ name: 'multihub_sprache', value: 'en', domain, path: '/' }]);
-// Ein sichtbarer Mauszeiger (headless zeichnet keinen) - folgt den echten Maus-Ereignissen, Klick als Ring.
+await context.addCookies([{ name: 'multihub_sprache', value: 'en', domain: new URL(BASIS).hostname, path: '/' }]);
+// Ein sichtbarer Mauszeiger (headless zeichnet keinen) - folgt den echten Maus-Ereignissen, ein Klick zeigt einen Ring.
 await context.addInitScript(() => {
   const an = () => {
     if (document.getElementById('__zeiger')) return;
     const z = document.createElement('div'); z.id = '__zeiger';
     z.innerHTML = '<svg width="26" height="26" viewBox="0 0 26 26"><path d="M3 2 L3 21 L8 16.5 L11.5 24 L15 22.5 L11.6 15.2 L18 15.2 Z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>';
-    Object.assign(z.style, { position: 'fixed', left: '-100px', top: '-100px', zIndex: 2147483647, pointerEvents: 'none', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))', transition: 'transform .08s' });
+    Object.assign(z.style, { position: 'fixed', left: '-100px', top: '-100px', zIndex: 2147483647, pointerEvents: 'none', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))' });
     document.documentElement.appendChild(z);
     addEventListener('mousemove', (e) => { z.style.left = `${e.clientX - 3}px`; z.style.top = `${e.clientY - 2}px`; }, true);
     addEventListener('mousedown', (e) => {
-      z.style.transform = 'scale(.85)';
-      const r = document.createElement('div');
-      Object.assign(r.style, { position: 'fixed', left: `${e.clientX - 18}px`, top: `${e.clientY - 18}px`, width: '36px', height: '36px', borderRadius: '50%', border: '3px solid #38bdf8', zIndex: 2147483646, pointerEvents: 'none', transition: 'transform .45s ease-out, opacity .45s ease-out', opacity: '1' });
+      const r = document.createElement('div'); r.className = '__ring';
+      Object.assign(r.style, { position: 'fixed', left: `${e.clientX - 18}px`, top: `${e.clientY - 18}px`, width: '36px', height: '36px', borderRadius: '50%', border: '3px solid #38bdf8', zIndex: 2147483646, pointerEvents: 'none' });
+      r.dataset.t0 = String(performance.now());
       document.documentElement.appendChild(r);
-      requestAnimationFrame(() => { r.style.transform = 'scale(1.9)'; r.style.opacity = '0'; });
-      setTimeout(() => r.remove(), 600);
+      const f = () => { const q = Math.min(1, (performance.now() - Number(r.dataset.t0)) / 450); r.style.transform = `scale(${1 + 0.9 * q})`; r.style.opacity = String(1 - q); if (q < 1) requestAnimationFrame(f); else r.remove(); };
+      requestAnimationFrame(f);
     }, true);
-    addEventListener('mouseup', () => { z.style.transform = ''; }, true);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', an); else an();
 });
 const page = await context.newPage();
 page.on('pageerror', (e) => log('Seitenfehler:', e.message));
+page.setDefaultTimeout(20000);
+await page.clock.install();
 
-const cdp = await context.newCDPSession(page);
-const bilder = []; let t0Wand = null;
-cdp.on('Page.screencastFrame', async (f) => {
-  const n = bilder.length;
-  fs.writeFileSync(path.join(BILDER, `${String(n).padStart(6, '0')}.jpg`), Buffer.from(f.data, 'base64'));
-  bilder.push(f.metadata.timestamp ?? Date.now() / 1000);
-  if (t0Wand === null) t0Wand = f.metadata.timestamp ?? Date.now() / 1000;
-  try { await cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch { /* Seite wechselt */ }
-});
-const starteCast = () => cdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, maxWidth: PB, maxHeight: PH, everyNthFrame: 1 });
-
-const marken = []; const tStart = Date.now();
-const jetzt = () => (t0Wand === null ? 0 : Date.now() / 1000 - t0Wand);
-const fehler = [];
-let schritt = 0;
-async function marke(name, info = {}) {
-  schritt += 1;
-  marken.push({ name, t: +jetzt().toFixed(2), url: page.url(), ...info });
-  try { await page.screenshot({ path: path.join(STILL, `${String(schritt).padStart(2, '0')}-${name}.png`) }); } catch (e) { log('Standbild', name, e.message); }
-  log('Marke', name, jetzt().toFixed(1));
+/*
+ * Bild fuer Bild: die Uhr der Seite steht; je Bild laeuft sie 1/30 s weiter (requestAnimationFrame, Timer, Date), dann ein Screenshot. So laeuft das Abspielen
+ * der Karte im Video fluessig mit 30 Bildern/s, egal wie langsam der Runner ist (ein Screencast schaffte dort nur etwa 10).
+ */
+let N = 0; let aufnahme = false;
+const kanal = () => page.evaluate(() => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); }));
+async function bild() {
+  await page.clock.runFor(1000 / 30);
+  await kanal().catch(() => {});
+  await page.screenshot({ path: path.join(BILDER, `${String(N).padStart(6, '0')}.jpg`), type: 'jpeg', quality: 90 });
+  N += 1;
+  if (N % 300 === 0) log(`Bild ${N} (${((Date.now() - T0) / 1000).toFixed(0)} s)`);
+}
+async function laufe(ms) { for (let i = Math.round(ms * 30 / 1000); i > 0; i -= 1) await bild(); }
+async function starte() { const j = await page.evaluate(() => Date.now()); await page.clock.pauseAt(j + 20); aufnahme = true; }
+async function halte() { await page.clock.resume(); aufnahme = false; }
+const T0 = Date.now();
+const marken = []; const fehler = [];
+function marke(name, info = {}) {
+  marken.push({ name, bild: N, t: +(N / 30).toFixed(3), url: page.url(), ...info });
+  log('Marke', name, (N / 30).toFixed(1));
 }
 async function versuch(name, f) {
   try { await f(); } catch (e) { fehler.push({ name, fehler: e.message.split('\n')[0] }); log('NICHT geklappt:', name, e.message.split('\n')[0]); }
 }
+/** Bilder aufnehmen, bis das Element sichtbar ist (Laden nach einem Klick). */
+async function bisDa(loc, maxS = 60) {
+  const ende = Date.now() + maxS * 1000;
+  while (Date.now() < ende) { if (await loc.first().isVisible().catch(() => false)) return; await bild(); }
+  throw new Error('nicht erschienen');
+}
 
-// ------------------------------------------------------------------ Bewegungen wie ein Mensch
-let maus = { x: VB / 2, y: VH / 2 };
+// ------------------------------------------------------------------ Bewegungen wie ein Mensch (je Bild ein Schritt)
+let maus = { x: VB * 0.55, y: VH * 0.5 };
+const glatt = (q) => (q < 0.5 ? 4 * q * q * q : 1 - (-2 * q + 2) ** 3 / 2);
 async function zeigerNach(x, y, ms = 700) {
-  const n = Math.max(8, Math.round(ms / 16));
-  const a = { ...maus };
-  for (let i = 1; i <= n; i += 1) {
-    const q = i / n; const e = q < 0.5 ? 2 * q * q : 1 - (-2 * q + 2) ** 2 / 2;
-    await page.mouse.move(a.x + (x - a.x) * e, a.y + (y - a.y) * e);
-    await warte(ms / n);
-  }
+  const n = Math.max(2, Math.round(ms * 30 / 1000)); const a = { ...maus };
+  for (let i = 1; i <= n; i += 1) { const e = glatt(i / n); await page.mouse.move(a.x + (x - a.x) * e, a.y + (y - a.y) * e); await bild(); }
   maus = { x, y };
 }
-async function mitte(loc) {
-  const b = await loc.boundingBox();
-  if (!b) throw new Error('nicht sichtbar');
-  return { x: b.x + b.width / 2, y: b.y + b.height / 2, b };
+async function klick() { await page.mouse.down(); await bild(); await page.mouse.up(); await bild(); }
+async function box(loc) { const b = await loc.first().boundingBox(); if (!b) throw new Error('nicht sichtbar'); return b; }
+async function mitteVon(loc) { const b = await box(loc); return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }; }
+async function scrolleUm(dy, ms = 1200) {
+  const [a, max] = await page.evaluate(() => [scrollY, document.documentElement.scrollHeight - innerHeight]);
+  const z = Math.max(0, Math.min(max, a + dy)); const n = Math.max(2, Math.round(ms * 30 / 1000));
+  for (let i = 1; i <= n; i += 1) { await page.evaluate((y) => scrollTo(0, y), a + (z - a) * glatt(i / n)); await bild(); }
 }
-async function hinUndKlick(loc, { ms = 700, pause = 250 } = {}) {
-  await sichtbarMachen(loc);
-  const { x, y } = await mitte(loc);
-  await zeigerNach(x, y, ms); await warte(pause);
-  await page.mouse.down(); await warte(70); await page.mouse.up();
-}
-async function hin(loc, ms = 700) { await sichtbarMachen(loc); const { x, y } = await mitte(loc); await zeigerNach(x, y, ms); }
-/** Weich scrollen, bis das Element bei "oben" (Anteil der Hoehe) steht. */
-async function scrolleZu(loc, oben = 0.12, ms = 1400) {
-  const b = await loc.boundingBox(); if (!b) throw new Error('kein Ziel zum Scrollen');
-  await scrolleUm(b.y - VH * oben, ms);
-}
-async function scrolleUm(dy, ms = 1400) {
-  await page.evaluate(([dy, ms]) => new Promise((ok) => {
-    const a = scrollY; const z = Math.max(0, Math.min(document.documentElement.scrollHeight - innerHeight, a + dy)); const t0 = performance.now();
-    const f = (n) => { const q = Math.min(1, (n - t0) / ms); const e = q < 0.5 ? 4 * q * q * q : 1 - (-2 * q + 2) ** 3 / 2; scrollTo(0, a + (z - a) * e); if (q < 1) requestAnimationFrame(f); else ok(); };
-    requestAnimationFrame(f);
-  }), [dy, ms]);
-}
-async function sichtbarMachen(loc) {
-  const b = await loc.boundingBox(); if (!b) throw new Error('Element ohne Box');
-  if (b.y < 40 || b.y + b.height > VH - 40) await scrolleUm(b.y - VH * 0.35, 900);
-}
+async function scrolleZu(loc, oben = 0.1, ms = 1200) { const b = await box(loc); await scrolleUm(b.y - VH * oben, ms); }
+async function insBild(loc) { const b = await box(loc); if (b.y < 70 || b.y + b.height > VH - 30) await scrolleUm(b.y - VH * 0.4, 800); }
+async function hin(loc, ms = 700) { await insBild(loc); const { x, y } = await mitteVon(loc); await zeigerNach(x, y, ms); }
+async function hinUndKlick(loc, ms = 700, pause = 200) { await hin(loc, ms); await laufe(pause); await klick(); }
 
 // ------------------------------------------------------------------ Drehbuch
-await starteCast();
 const tagUrl = `/replays/${encodeURIComponent(TAG.windowId)}`;
+const knopf = (re) => page.locator('button').filter({ hasText: re }).first();
+const karte = page.locator('div[style*="perspective"]').first();
+const hud = page.locator('div[style*="perspective"] [data-knopf].pointer-events-auto').first();
+const hudPlay = page.locator('div[style*="perspective"] button[data-knopf][aria-label="Play"], div[style*="perspective"] button[data-knopf][aria-label="Pause"]').first();
+const hudPlus = page.locator('div[style*="perspective"] button[data-knopf][aria-label="+"]').first();
+const hudMinus = page.locator('div[style*="perspective"] button[data-knopf][aria-label="-"]').first();
+const steuerPlay = page.locator('button.bg-sky-500').filter({ hasText: /Play|Pause/ }).first();
+const elimZeichen = page.locator('div[style*="perspective"] button[data-marker][aria-label="Eliminated"]');
+const spielerPfeile = page.locator('div[style*="perspective"] button[data-marker]:not([aria-label="Eliminated"]):not([aria-label="Knocked"])');
+const play = async () => { if (await hudPlay.isVisible().catch(() => false)) await hinUndKlick(hudPlay, 600); else await hinUndKlick(steuerPlay, 600); };
+async function tempo(ziel) {
+  // Tempo ueber das HUD in der Karte (1, 4, 16, 64): so oft + oder -, bis es stimmt.
+  for (let i = 0; i < 4; i += 1) {
+    const t = Number((await hud.innerText().catch(() => '')).match(/(\d+)×/)?.[1] ?? 0);
+    if (t === ziel || !t) { if (!t) await hinUndKlick(knopf(new RegExp(`^${ziel}×$`)), 600); return; }
+    await hinUndKlick(t < ziel ? hudPlus : hudMinus, i ? 250 : 600, 100);
+  }
+}
+async function karteZeigen(ms = 1200) { await scrolleZu(karte, HOCH ? 0.075 : 0.052, ms); }
 
 // 1) Uebersicht
 await page.goto(`${BASIS}/replays`, { waitUntil: 'domcontentloaded' });
-await versuch('cookie-banner', async () => { const b = page.getByRole('button', { name: /^(accept|accept all|ok|got it|agree)$/i }).first(); if (await b.isVisible({ timeout: 2500 })) await b.click(); });
-await page.locator('section a[href^="/replays/"]').first().waitFor({ timeout: 60000 });
-await warte(1800);
-await marke('uebersicht');
-await zeigerNach(VB * 0.5, VH * 0.45, 900);
-await versuch('uebersicht-scroll', async () => { await scrolleUm(VH * 0.45, 2200); await warte(900); await scrolleUm(-VH * 0.45, 1600); });
-await versuch('uebersicht-region', async () => {
-  const eu = page.getByRole('button', { name: new RegExp(`^${TAG.region}$`) }).first();
-  await hinUndKlick(eu); await warte(1500);
-});
-await marke('uebersicht-region');
+await page.locator('section a[href^="/replays/"]').first().waitFor({ timeout: 90000 });
+await page.waitForTimeout(1500);
+await starte();
+await page.mouse.move(maus.x, maus.y);
+marke('uebersicht');
+await laufe(1200);
+await zeigerNach(VB * 0.45, VH * 0.55, 800);
+await versuch('uebersicht-scroll', async () => { await scrolleUm(VH * 0.5, 2000); await laufe(500); await scrolleUm(-VH * 0.5, 1400); });
+await versuch('uebersicht-region', async () => { await hinUndKlick(page.getByRole('button', { name: new RegExp(`^${TAG.region}$`) }), 800); await laufe(900); });
+marke('uebersicht-region');
 await versuch('uebersicht-tag', async () => {
   const link = page.locator(`a[href="${tagUrl}"]`).first();
-  await hin(link, 900); await warte(1100); await marke('uebersicht-hover');
-  await hinUndKlick(link, { ms: 200 });
+  await hin(link, 900); await laufe(900); marke('uebersicht-hover');
+  await klick();
 });
-if (!page.url().includes(tagUrl)) await page.goto(`${BASIS}${tagUrl}`, { waitUntil: 'domcontentloaded' });
+if (!page.url().includes(tagUrl)) { await halte(); await page.goto(`${BASIS}${tagUrl}`, { waitUntil: 'domcontentloaded' }); await starte(); }
 
 // 2) Spieltag
-await page.locator(`a[href^="${tagUrl}/"]`).first().waitFor({ timeout: 60000 });
-await warte(1600);
-await marke('spieltag');
+await bisDa(page.locator(`a[href^="${tagUrl}/"]`));
+await laufe(400);
+marke('spieltag');
+await laufe(1000);
 await versuch('spieltag-game', async () => {
   const kachel = page.locator(`a[href="${tagUrl}/${NR}"]`).first();
-  await hin(kachel, 1000); await warte(1200);
-  await hinUndKlick(kachel, { ms: 200 });
+  await hin(kachel, 1000); await laufe(900); await klick();
 });
-if (!page.url().includes(`${tagUrl}/${NR}`)) await page.goto(`${BASIS}${tagUrl}/${NR}`, { waitUntil: 'domcontentloaded' });
+if (!page.url().includes(`${tagUrl}/${NR}`)) { await halte(); await page.goto(`${BASIS}${tagUrl}/${NR}`, { waitUntil: 'domcontentloaded' }); await starte(); }
 
 // 3) Das Game
-const karte = page.locator('div[style*="perspective"]').first();
-await karte.waitFor({ timeout: 90000 });
-await page.locator('h1').first().waitFor();
-await warte(2500);
-await marke('match-kopf');
-const knopf = (re) => page.locator('button').filter({ hasText: re }).first();
-const steuerPlay = page.locator('button.bg-sky-500').filter({ hasText: /Play|Pause|▶|❚❚/ }).first();
-await versuch('karte-zeigen', async () => { await scrolleZu(karte, HOCH ? 0.06 : 0.04, 1600); await warte(1200); });
-await marke('karte');
+marke('match-laden');
+await bisDa(karte, 120);
+await laufe(300);
+marke('match-kopf');
+await laufe(1300);
+await versuch('karte-zeigen', async () => { await karteZeigen(1400); await laufe(500); });
+marke('karte');
 
-// 3a) Abspielen: die ersten Kaempfe nach der Landung, Feed fuellt sich
+// 3a) Abspielen mit 16x: die Landung, erste Kaempfe
 await versuch('abspielen', async () => {
-  await hinUndKlick(knopf(/^16×$/), { ms: 900 }); await warte(300);
-  await hinUndKlick(steuerPlay, { ms: 600 });
-  await marke('abspielen');
-  await warte(9000);
-  await hinUndKlick(steuerPlay, { ms: 500 });
-});
-await marke('nach-abspielen');
-
-// 3b) Ein Kampf auf der Karte: zum dichtesten Eliminierungs-Zeichen zoomen und drueberfahren
-await versuch('kampf-hover', async () => {
-  if (HOCH) await scrolleZu(karte, 0.06, 600);
-  const xs = page.locator('div[style*="perspective"] button[data-marker][aria-label="Eliminated"], div[style*="perspective"] button[data-marker][aria-label="Eliminiert"]');
-  const n = await xs.count(); if (!n) throw new Error('keine Eliminierungs-Zeichen');
-  // das Zeichen mit den meisten Nachbarn (ein Kampf)
-  const boxen = []; for (let i = 0; i < Math.min(n, 120); i += 1) { const b = await xs.nth(i).boundingBox(); if (b) boxen.push({ i, x: b.x + b.width / 2, y: b.y + b.height / 2 }); }
-  const kb = (await karte.boundingBox());
-  const innen = boxen.filter((p) => p.x > kb.x + 40 && p.x < kb.x + kb.width - 40 && p.y > kb.y + 60 && p.y < kb.y + kb.height - 120);
-  const nach = (p) => innen.filter((q) => Math.hypot(q.x - p.x, q.y - p.y) < 50).length;
-  const ziel = (innen.length ? innen : boxen).sort((a, b) => nach(b) - nach(a))[0];
-  await zeigerNach(ziel.x, ziel.y, 1000); await warte(400);
-  for (let k = 0; k < 7; k += 1) { await page.mouse.wheel(0, -160); await warte(160); }
-  await warte(900);
-  await marke('kampf-zoom');
-  // nach dem Zoom das naechste Zeichen am Zeiger suchen
-  let best = null;
-  const n2 = await xs.count();
-  for (let i = 0; i < Math.min(n2, 160); i += 1) { const b = await xs.nth(i).boundingBox(); if (!b) continue; const d = Math.hypot(b.x + b.width / 2 - maus.x, b.y + b.height / 2 - maus.y); if (b.x > kb.x && b.x < kb.x + kb.width && b.y > kb.y && b.y < kb.y + kb.height && (!best || d < best.d)) best = { d, x: b.x + b.width / 2, y: b.y + b.height / 2 }; }
-  if (best) { await zeigerNach(best.x, best.y, 800); await warte(2600); await marke('kampf-fenster'); }
-  // ein zweites Zeichen in der Naehe
-  let zweit = null;
-  for (let i = 0; i < Math.min(n2, 160); i += 1) { const b = await xs.nth(i).boundingBox(); if (!b) continue; const x = b.x + b.width / 2; const y = b.y + b.height / 2; const d = Math.hypot(x - maus.x, y - maus.y); if (d > 30 && x > kb.x + 30 && x < kb.x + kb.width - 30 && y > kb.y + 60 && y < kb.y + kb.height - 60 && (!zweit || d < zweit.d)) zweit = { d, x, y }; }
-  if (zweit) { await zeigerNach(zweit.x, zweit.y, 900); await warte(2400); }
+  await tempo(16);
+  await play();
+  marke('abspielen');
+  await zeigerNach(VB * 0.8, VH * 0.35, 900);
+  await laufe(8000);
+  await play();
+  marke('abspielen-ende');
 });
 
-// 3c) Kill-Feed: durchscrollen, einen Eintrag anklicken (springt zu diesem Moment)
-await versuch('killfeed', async () => {
-  const reiterFeed = knopf(/^Kill feed$|^Kill-Feed$/i);
-  await scrolleZu(reiterFeed, HOCH ? 0.1 : 0.06, 1400);
-  await hinUndKlick(reiterFeed, { ms: 700 });
-  await warte(600);
-  await marke('killfeed');
-  const liste = page.locator('aside div.overflow-y-auto').last();
-  const { x, y } = await mitte(liste);
-  await zeigerNach(x, Math.min(y, VH * 0.7), 800);
-  for (let k = 0; k < 10; k += 1) { await page.mouse.wheel(0, 90); await warte(110); }
-  await warte(700);
-  for (let k = 0; k < 6; k += 1) { await page.mouse.wheel(0, -90); await warte(110); }
-  await warte(500);
-  const eintrag = liste.locator('li button').nth(2);
-  await hin(eintrag, 700); await warte(900);
-  await hinUndKlick(eintrag, { ms: 150 });
-  await warte(1500);
-  await marke('killfeed-klick');
+// 3b) Ein Kampf: zum dichtesten Eliminierungs-Zeichen zoomen und drueberfahren (Fenster: wer, Platz, Punkte, durch wen, Entfernung)
+await versuch('kampf', async () => {
+  const kb = await box(karte);
+  const n = await elimZeichen.count(); if (!n) throw new Error('keine Eliminierungs-Zeichen');
+  const pkte = [];
+  for (let i = 0; i < Math.min(n, 150); i += 1) { const b = await elimZeichen.nth(i).boundingBox(); if (b) pkte.push({ x: b.x + b.width / 2, y: b.y + b.height / 2 }); }
+  const innen = pkte.filter((p) => p.x > kb.x + 60 && p.x < kb.x + kb.width - 60 && p.y > Math.max(kb.y, 70) + 60 && p.y < Math.min(kb.y + kb.height, VH) - 140);
+  const nachbarn = (p) => innen.filter((q) => Math.hypot(q.x - p.x, q.y - p.y) < 45).length;
+  const ziel = (innen.length ? innen : pkte).sort((a, b) => nachbarn(b) - nachbarn(a))[0];
+  await zeigerNach(ziel.x, ziel.y, 1000); await laufe(300);
+  marke('kampf-zoom');
+  for (let k = 0; k < 9; k += 1) { await page.mouse.wheel(0, -150); await bild(); await bild(); }
+  await laufe(500);
+  const naechstes = async (ausser = null) => {
+    let best = null; const m = await elimZeichen.count();
+    for (let i = 0; i < Math.min(m, 200); i += 1) {
+      const b = await elimZeichen.nth(i).boundingBox(); if (!b) continue;
+      const x = b.x + b.width / 2; const y = b.y + b.height / 2; const d = Math.hypot(x - maus.x, y - maus.y);
+      if (x < kb.x + 40 || x > kb.x + kb.width - 40 || y < 120 || y > VH - 120) continue;
+      if (ausser && Math.hypot(x - ausser.x, y - ausser.y) < 20) continue;
+      if (!best || d < best.d) best = { d, x, y };
+    }
+    return best;
+  };
+  const a = await naechstes(); if (!a) throw new Error('kein Zeichen nach dem Zoom');
+  await zeigerNach(a.x, a.y, 700); await laufe(400);
+  marke('kampf-fenster');
+  await laufe(2400);
+  const b = await naechstes(a);
+  if (b) { await zeigerNach(b.x, b.y, 800); await laufe(400); marke('kampf-fenster2'); await laufe(2200); }
 });
 
-// 3d) Spieler wechseln (wo das Replay die Orte fuehrt)
+// 3c) Spieler: einen Pfeil auf der Karte anklicken (HUD zeigt Leben, Schild, Inventar), ein Stueck mitlaufen, dann wechseln
 await versuch('spieler', async () => {
-  const zu = page.locator('aside button[aria-label="Close"]').first();
-  if (!(await zu.count())) throw new Error('kein Spieler-Fenster (Replay ohne Orte?)');
-  await scrolleZu(page.locator('aside').first(), HOCH ? 0.08 : 0.03, 1200);
-  await marke('spieler-fenster');
-  await hinUndKlick(zu, { ms: 800 }); await warte(1000);
-  const knoepfe = page.locator('aside div.grid button');
-  await knoepfe.first().waitFor({ timeout: 6000 }).catch(() => {});
-  const n = await knoepfe.count(); if (!n) throw new Error('keine Spielerliste');
-  await marke('spieler-liste');
-  await hinUndKlick(knoepfe.nth(Math.min(3, n - 1)), { ms: 800 }); await warte(1800);
-  await marke('spieler-gewaehlt');
-  // auf der Karte zeigen, wo er steht; ein Stueck abspielen
-  if (HOCH) await scrolleZu(karte, 0.06, 1200); else await scrolleZu(karte, 0.04, 900);
-  await hinUndKlick(knopf(/^4×$/), { ms: 700 }).catch(() => {});
-  await hinUndKlick(steuerPlay, { ms: 600 }).catch(async () => { await hinUndKlick(page.locator('button[aria-label="Play"]').first()); });
-  await warte(6000);
-  await marke('spieler-laeuft');
-  await hinUndKlick(steuerPlay, { ms: 500 }).catch(() => {});
+  await laufe(200);
+  const kb = await box(karte);
+  const n = await spielerPfeile.count(); if (!n) throw new Error('keine Spielerpfeile');
+  const ok = [];
+  for (let i = 0; i < Math.min(n, 120); i += 1) { const b = await spielerPfeile.nth(i).boundingBox(); if (b && b.x > kb.x + 60 && b.x < kb.x + kb.width - 80 && b.y > 140 && b.y < VH - 260) ok.push({ i, x: b.x + b.width / 2, y: b.y + b.height / 2 }); }
+  if (!ok.length) throw new Error('kein Pfeil im Bild');
+  ok.sort((p, q) => Math.hypot(p.x - maus.x, p.y - maus.y) - Math.hypot(q.x - maus.x, q.y - maus.y));
+  await zeigerNach(ok[0].x, ok[0].y, 900); await laufe(300); await klick();
+  marke('spieler-gewaehlt');
+  await laufe(1500);
+  await tempo(4); await play();
+  await zeigerNach(VB * 0.85, VH * 0.3, 900);
+  await laufe(4500);
+  marke('spieler-laeuft');
+  await play();
+  const p2 = ok.find((p, k) => k > 0 && Math.hypot(p.x - ok[0].x, p.y - ok[0].y) > 60) ?? ok[1];
+  if (p2) {
+    // Position neu lesen (der Pfeil ist gelaufen)
+    const b = await spielerPfeile.nth(p2.i).boundingBox();
+    if (b) { await zeigerNach(b.x + b.width / 2, b.y + b.height / 2, 900); await laufe(300); await klick(); marke('spieler-wechsel'); await laufe(2200); }
+  }
 });
 
-// 3e) Zonen: Zoom zuruecksetzen, "Next zone" mehrmals, dann schnell abspielen
+// 3d) Zonen: Zoom zuruecksetzen, "Next zone" mehrmals, dann mit 64x die Zone ziehen sehen
 await versuch('zonen', async () => {
-  await scrolleZu(karte, HOCH ? 0.06 : 0.04, 900);
-  const kb = await karte.boundingBox();
-  await zeigerNach(kb.x + kb.width * 0.5, kb.y + kb.height * 0.45, 700);
-  await page.mouse.dblclick(kb.x + kb.width * 0.5, kb.y + kb.height * 0.45); await warte(900);
-  const naechsteZone = knopf(/^Next zone$|^Nächste Zone$/);
-  for (let k = 0; k < 4; k += 1) { await hinUndKlick(naechsteZone, { ms: k ? 250 : 900 }); await warte(1300); }
-  await marke('zonen');
-  await hinUndKlick(knopf(/^64×$/), { ms: 700 });
-  await hinUndKlick(steuerPlay, { ms: 600 });
-  await warte(9000);
-  await marke('zonen-ende');
-  await hinUndKlick(steuerPlay, { ms: 500 }).catch(() => {});
+  const kb = await box(karte);
+  await zeigerNach(kb.x + kb.width * 0.5, Math.min(kb.y + kb.height * 0.4, VH * 0.45), 700);
+  await page.mouse.dblclick(maus.x, maus.y); await laufe(900);
+  const nz = knopf(/^Next zone$/);
+  await scrolleZu(nz, HOCH ? 0.55 : 0.8, 1200);
+  marke('zonen-knopf');
+  for (let k = 0; k < 4; k += 1) { await hinUndKlick(nz, k ? 250 : 800, 150); await laufe(900); }
+  marke('zonen');
+  await karteZeigen(1000);
+  await tempo(64); await play();
+  marke('zonen-laufen');
+  await zeigerNach(VB * 0.88, VH * 0.25, 900);
+  await laufe(8000);
+  await play();
+  marke('zonen-ende');
 });
 
-// 3f) 3D
+// 3e) 3D
 await versuch('dreid', async () => {
-  await hinUndKlick(knopf(/^3D$/), { ms: 800 }); await warte(2600);
-  await marke('dreid');
-  await hinUndKlick(knopf(/^2D$/), { ms: 700 }); await warte(1200);
+  const d3 = knopf(/^3D$/);
+  await scrolleZu(d3, HOCH ? 0.6 : 0.85, 1000);
+  await hinUndKlick(d3, 800); await laufe(400);
+  await karteZeigen(1100);
+  marke('dreid');
+  await laufe(2500);
+  await hinUndKlick(knopf(/^2D$/), 900); await laufe(800);
 });
 
-// 3g) Kurve "Players alive", Zonen-Tabelle, Spielerwerte
+// 3f) Kill-Feed in der Seitenleiste: Reiter, durchscrollen, Eintrag anklicken (springt dorthin)
+await versuch('killfeed', async () => {
+  const reiter = knopf(/^Kill feed$/i);
+  await scrolleZu(reiter, HOCH ? 0.12 : 0.08, 1500);
+  await hinUndKlick(reiter, 800); await laufe(500);
+  marke('killfeed');
+  const liste = page.locator('aside div.overflow-y-auto').last();
+  const { x, b } = await mitteVon(liste);
+  await zeigerNach(x, Math.min(b.y + 160, VH * 0.6), 800);
+  for (let k = 0; k < 14; k += 1) { await page.mouse.wheel(0, 70); await bild(); await bild(); }
+  await laufe(600);
+  for (let k = 0; k < 14; k += 1) { await page.mouse.wheel(0, -70); await bild(); }
+  await laufe(400);
+  const eintrag = liste.locator('li button').nth(3);
+  await hin(eintrag, 700); await laufe(700); await klick();
+  marke('killfeed-klick');
+  await laufe(1500);
+});
+
+// 3g) Reiter Hits, Teams, Players
+await versuch('reiter', async () => {
+  for (const [re, name] of [[/^Hits$/, 'reiter-hits'], [/^Teams$/, 'reiter-teams'], [/^Players$/, 'reiter-spieler']]) {
+    const k = knopf(re); if (!(await k.count())) continue;
+    await hinUndKlick(k, 700); await laufe(400); marke(name); await laufe(1600);
+  }
+});
+
+// 3h) Kurve, Zonen-Tabelle, Spielerwerte
 await versuch('kurve', async () => {
   const kurve = page.locator('svg.cursor-pointer').first();
-  await scrolleZu(kurve, HOCH ? 0.35 : 0.4, 1600);
-  const { b } = await mitte(kurve);
-  await zeigerNach(b.x + b.width * 0.25, b.y + b.height * 0.5, 900); await warte(400);
-  await page.mouse.down(); await page.mouse.up(); await warte(1400);
-  await marke('kurve');
+  await scrolleZu(kurve, HOCH ? 0.35 : 0.45, 1600);
+  const { b } = await mitteVon(kurve);
+  marke('kurve');
+  await zeigerNach(b.x + b.width * 0.62, b.y + b.height * 0.5, 900); await laufe(300); await klick(); await laufe(1300);
 });
 await versuch('zonen-tabelle', async () => {
-  const kopf = page.locator('p').filter({ hasText: /^Zones$|^Zonen$/ }).first();
-  await scrolleZu(kopf, 0.08, 1800); await warte(1800);
-  await marke('zonen-tabelle');
+  const kopf = page.locator('p').filter({ hasText: /^Zones$/ }).first();
+  await scrolleZu(kopf, 0.08, 1600); marke('zonen-tabelle'); await laufe(2200);
 });
 await versuch('spielerwerte', async () => {
-  const kopf = page.locator('p').filter({ hasText: /Player stats of the match|Spielerwerte des Matches/ }).first();
-  await scrolleZu(kopf, 0.06, 1800); await warte(1500);
-  await marke('spielerwerte');
-  await scrolleUm(VH * 0.5, 2600); await warte(1200);
-  await marke('spielerwerte-unten');
-});
-// 3h) Reiter der Seitenleiste: Hits, Teams, Players
-await versuch('reiter', async () => {
-  const hits = knopf(/^Hits$|^Treffer$/);
-  await scrolleZu(hits, HOCH ? 0.1 : 0.05, 2000);
-  if (await hits.count()) { await hinUndKlick(hits, { ms: 700 }); await warte(1800); await marke('reiter-hits'); }
-  await hinUndKlick(knopf(/^Teams$/), { ms: 700 }); await warte(1800); await marke('reiter-teams');
-  await hinUndKlick(knopf(/^Players$|^Spieler$/), { ms: 700 }); await warte(1800); await marke('reiter-spieler');
+  const kopf = page.locator('p').filter({ hasText: /Player stats of the match/ }).first();
+  await scrolleZu(kopf, 0.06, 1600); marke('spielerwerte'); await laufe(1800);
+  const tab = page.locator('section div.max-h-\\[32rem\\]').last();
+  const { x, y } = await mitteVon(tab);
+  await zeigerNach(x, Math.min(y, VH * 0.6), 800);
+  for (let k = 0; k < 16; k += 1) { await page.mouse.wheel(0, 60); await bild(); await bild(); }
+  marke('spielerwerte-unten'); await laufe(1200);
 });
 
-// 4) Cup-Seite, Reiter Matches
+// 4) Cup-Seite, Reiter Matches mit den REPLAY-Marken
 await versuch('event', async () => {
-  const q = new URLSearchParams({ region: TAG.region, fenster: TAG.windowId, reiter: 'runden' });
-  await page.goto(`${BASIS}/events/${encodeURIComponent(TAG.eventId)}?${q}`, { waitUntil: 'domcontentloaded' });
-  await warte(4000);
-  await marke('event-geladen');
-  await page.locator('span').filter({ hasText: /^Replay$/ }).first().waitFor({ timeout: 90000 });
-  await warte(2000);
-  await marke('event-matches');
-  const marken2 = page.locator('span').filter({ hasText: /^Replay$/ });
-  const erste = marken2.first();
-  await scrolleZu(erste, HOCH ? 0.3 : 0.35, 1600); await warte(600);
-  await hin(erste, 1000); await warte(1500);
-  await marke('event-replay-marke');
-  await scrolleUm(VH * 0.35, 1800); await warte(1200);
+  if (!EVENT) throw new Error('kein Cup im Katalog gefunden');
+  await halte();
+  const q = new URLSearchParams({ region: EVENT.region, fenster: EVENT.windowId, reiter: 'runden' });
+  await page.goto(`${BASIS}/events/${encodeURIComponent(EVENT.id)}?${q}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('span').filter({ hasText: /^Replay$/ }).first().waitFor({ timeout: 120000 });
+  await page.waitForTimeout(1500);
+  await starte();
+  await page.mouse.move(VB * 0.5, VH * 0.4); maus = { x: VB * 0.5, y: VH * 0.4 };
+  marke('event-matches', { event: EVENT });
+  await laufe(1500);
+  const erste = page.locator('span').filter({ hasText: /^Replay$/ }).first();
+  await scrolleZu(erste, HOCH ? 0.3 : 0.35, 1600);
+  await hin(erste, 1000); await laufe(400);
+  marke('event-replay-marke');
+  await laufe(2000);
+  await scrolleUm(VH * 0.3, 1600); await laufe(800);
 });
-await warte(800);
-await marke('ende');
+marke('ende');
+await laufe(300);
 
-// ------------------------------------------------------------------ Abschluss
-await cdp.send('Page.stopScreencast').catch(() => {});
-await warte(500);
-const video = page.video();
+// ------------------------------------------------------------------ Abschluss: Bilder -> MP4 (30 Bilder/s), Standbild je Marke
 await context.close(); await browser.close();
-if (video) { try { fs.renameSync(await video.path(), path.join(AUS, 'seite.webm')); } catch (e) { log('webm', e.message); } }
-fs.rmSync(path.join(AUS, 'webm'), { recursive: true, force: true });
-
-// Screencast -> MP4 mit festen 30 Bildern/s (jedes Bild so lange, bis das naechste kam)
-const liste = bilder.map((ts, i) => `file 'bilder/${String(i).padStart(6, '0')}.jpg'\nduration ${Math.max(0.001, ((bilder[i + 1] ?? ts + 0.5) - ts)).toFixed(4)}`).join('\n')
-  + `\nfile 'bilder/${String(bilder.length - 1).padStart(6, '0')}.jpg'\n`;
-fs.writeFileSync(path.join(AUS, 'bilder.txt'), liste);
-execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', 'bilder.txt', '-vf', `scale=${PB}:${PH}:flags=lanczos,fps=30`, '-c:v', 'libx264', '-crf', '15', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', 'seite.mp4'], { cwd: AUS, stdio: 'inherit' });
-fs.rmSync(BILDER, { recursive: true, force: true }); fs.rmSync(path.join(AUS, 'bilder.txt'));
-const dauer = bilder.length ? bilder[bilder.length - 1] - bilder[0] : 0;
-fs.writeFileSync(path.join(AUS, 'marken.json'), JSON.stringify({ format: FORMAT, viewport: [VB, VH, DSF], bilder: bilder.length, dauer: +dauer.toFixed(2), fps: +(bilder.length / Math.max(1, dauer)).toFixed(1), marken, fehler, sekunden: (Date.now() - tStart) / 1000 }, null, 1));
-log('Fertig:', bilder.length, 'Bilder in', dauer.toFixed(1), 's; Fehler:', JSON.stringify(fehler));
+for (const [i, m] of marken.entries()) {
+  const q = path.join(BILDER, `${String(Math.min(m.bild, N - 1)).padStart(6, '0')}.jpg`);
+  if (fs.existsSync(q)) fs.copyFileSync(q, path.join(STILL, `${String(i + 1).padStart(2, '0')}-${m.name}.jpg`));
+}
+execFileSync('ffmpeg', ['-y', '-v', 'error', '-framerate', '30', '-i', path.join(BILDER, '%06d.jpg'), '-c:v', 'libx264', '-crf', '15', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', path.join(AUS, 'seite.mp4')], { stdio: 'inherit' });
+fs.rmSync(BILDER, { recursive: true, force: true });
+fs.writeFileSync(path.join(AUS, 'marken.json'), JSON.stringify({ format: FORMAT, viewport: [VB, VH, DSF], pixel: [PB, PH], bilder: N, dauer: +(N / 30).toFixed(2), fps: 30, marken, fehler, auswahl: auswahl.gewaehlt, event: EVENT, sekunden: (Date.now() - T0) / 1000 }, null, 1));
+log('Fertig:', N, 'Bilder; Fehler:', JSON.stringify(fehler));
