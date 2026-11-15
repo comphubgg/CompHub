@@ -1,6 +1,7 @@
 import { inProzentVital } from '@/lib/vitalKoordinaten';
 import type { NobleForm, NobleKarte } from '@/lib/nobleKarte';
 import { liesJson, schreibJson } from '@/lib/ablage';
+import { formenGlaetten } from '@/lib/formenGlaetten';
 
 /*
  * Die Landepunkte der Regionen, die Noble Practice nicht fuehrt - von Vital Scrims (vitalscrims.com/competitive).
@@ -255,7 +256,8 @@ export function vitalFormen(k: VitalKarte, namenVon?: (id: string, roh: string) 
     if (!form) { form = { punkte: ecken.map((c) => inProzentVital(c)), teams: [] }; gruppen.set(schluessel, form); }
     form.teams.push(eintrag);
   }
-  return { formen: [...gruppen.values()], ohneForm, anzahlTeams: k.teams.length };
+  // Leicht schiefe Vierecke und Vielecke mit abgeschnittenen Ecken werden saubere Rechtecke, unregelmaessige Formen bleiben (lib/formenGlaetten).
+  return { formen: formenGlaetten([...gruppen.values()]).formen, ohneForm, anzahlTeams: k.teams.length };
 }
 
 /**
