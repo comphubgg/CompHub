@@ -132,6 +132,7 @@ pruefe(Boolean(patch?.koerper?.content?.includes(`<t:${Math.floor((jetzt + 2 * T
 const alarm = aufrufe.find((a) => a.art === 'POST' && a.weg === '/channels/ALARM/messages');
 pruefe(Boolean(alarm?.koerper?.embeds?.[0]?.description?.includes('abgelaufen')), 'Alarmkanal: Meldung, was entfernt wurde');
 pruefe(!JSON.stringify(alarm?.koerper ?? {}).includes('KEY-'), 'Alarmkanal: kein Schluesselwert in der Meldung');
+pruefe(Boolean(alarm?.koerper?.embeds?.[0]?.description?.match(/bald \(<#K-bald>\): <t:\d+:f>/)), 'Alarmkanal: wo der Countdown nachgetragen wurde, mit Kanal und Frist');
 
 kanalLoeschenScheitert = new Set();
 aufrufe.length = 0;

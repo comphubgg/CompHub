@@ -3253,13 +3253,21 @@ export async function vipAblaufLauf(jetzt = Date.now()): Promise<AblaufBericht> 
   }
   if (geaendert) await schreibe(ablage);
 
-  if (bericht.geloescht.length || bericht.offen.length || bericht.erinnert.length) {
+  // Wo der Countdown nachgetragen wurde - mit der Frist, damit der Betreiber sieht, welcher Kanal was zeigt (nie der Schluessel selbst).
+  const nachgetragen = bericht.nachgezogen.map((n) => {
+    const z = alle.find((x) => x.username === n);
+    const bis = fristVon(z);
+    const kanal = z ? ablage[merkschluesselVon(z).schluessel]?.kanal : undefined;
+    return `${n}${kanal ? ` (<#${kanal}>)` : ''}: ${bis ? `<t:${Math.floor(bis / 1000)}:f> · <t:${Math.floor(bis / 1000)}:R>` : 'no expiry'}`;
+  });
+  if (bericht.geloescht.length || bericht.offen.length || bericht.erinnert.length || nachgetragen.length) {
     await schickeAlarm({
-      titel: 'VIP-Ablauf',
+      titel: bericht.geloescht.length || bericht.offen.length ? 'VIP-Ablauf' : 'VIP-Ablauf · Countdown',
       text: [
         bericht.geloescht.length ? `Abgelaufen und entfernt (Zugang, Kanal, Rolle): ${bericht.geloescht.join(', ')}` : '',
         ...bericht.offen.map((o) => `Abgelaufen, noch nicht entfernt (naechster Lauf versucht es wieder): ${o.name} - ${o.grund}`),
         bericht.erinnert.length ? `Erinnerung (3 Tage vorher) im Kanal: ${bericht.erinnert.join(', ')}` : '',
+        nachgetragen.length ? `Ablauf in die Schluesselnachricht eingetragen:\n${nachgetragen.join('\n')}` : '',
       ].filter(Boolean).join('\n'),
     }).catch(() => null);
   }
