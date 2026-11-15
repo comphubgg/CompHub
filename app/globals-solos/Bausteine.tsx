@@ -198,7 +198,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const versatz = useMemo(() => beschriftungsVersatz(spots.filter((sp) => sp.spieler.length).map((sp): Beschriftung => {
     const r = formRahmen(sp.punkte);
     return {
-      id: sp.id, oben: r.oben, hoehe: r.hoehe, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
+      id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
       zeilen: sp.spieler.map((n, i) => {
         const tx = kartenName(n);
         // Ungemessen: gut 0,68 je Grossbuchstabe (etwas mehr als die Schaetzung in schriftgroesse - lieber zu breit als ueberdeckt).
@@ -402,10 +402,10 @@ export function Karte({ f, bild, rotAb = 2 }: {
       g.font = `700 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.lineWidth = Math.max(2, px * 0.18); g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#fff';
       const n = sp.spieler.length; const gedraengt = sp.teams <= 1 || n === 1;
-      const v = versatz[sp.id] ?? { dx: 0, dy: 0 };
+      const v = versatz[sp.id] ?? { mx: 0, my: 0, dx: 0, dy: 0 };
       sp.spieler.forEach((name, i) => {
         const yProz = gedraengt ? r.oben + r.hoehe / 2 + (i - (n - 1) / 2) * groesse * 1.12 : r.oben + r.hoehe * (0.1 + 0.8 * (i / (n - 1)));
-        const x = ((r.links + r.breite / 2 + v.dx) / 100) * G; const y = ((yProz + v.dy) / 100) * G;
+        const x = ((r.links + r.breite / 2 + v.mx + v.dx) / 100) * G; const y = ((yProz + v.my + v.dy) / 100) * G;
         g.strokeText(kartenName(name), x, y); g.fillText(kartenName(name), x, y);
       });
     }
@@ -508,7 +508,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                     // Weg von der Nachbarstelle, wenn sich die Namen sonst ueberdecken - in Bildschirmmass, wie die Schrift (translate setzt sich zum
                     // transform von .ist-hover dazu, statt es zu ersetzen).
-                    ...(v ? { translate: `calc(${v.dx.toFixed(3)}cqw / var(--z, 1)) calc(${v.dy.toFixed(3)}cqw / var(--z, 1))` } : {}),
+                    // mx/my sitzt fest auf der Karte (eine Gruppe nebeneinander bleibt beim Zoomen ausgerichtet), dx/dy in Bildschirmmass.
+                    ...(v ? { translate: `calc(${v.mx.toFixed(3)}cqw + ${v.dx.toFixed(3)}cqw / var(--z, 1)) calc(${v.my.toFixed(3)}cqw + ${v.dy.toFixed(3)}cqw / var(--z, 1))` } : {}),
                   }}>
                   {sp.spieler.map((name, i) => {
                     const zx = zeilenLage[sp.id]?.[i] ?? mitteX;
