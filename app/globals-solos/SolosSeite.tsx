@@ -17,6 +17,8 @@ import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } 
 import type { HeatsDaten } from '@/lib/heatsPosts';
 import { Karte } from './Bausteine';
 import WegPlan from './WegPlan';
+import Bestenliste from './Bestenliste';
+import { zielName } from '@/lib/cupTitel';
 import Preisgeld from './Preisgeld';
 import { useZugang } from '@/app/lib/zugang';
 
@@ -41,18 +43,6 @@ const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' ||
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
 
 /* ------------------------------------------------------------------ kleine Bausteine */
-
-/** Das Bild eines Spielers als abgerundetes Quadrat in der Breite des Elternelements. */
-function Bild({ s }: { s: SolosSpieler }) {
-  return (
-    <span className="relative block aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
-      {s.bild
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
-        : <SpielerPlatzhalter name={s.anzeige} />}
-    </span>
-  );
-}
 
 /**
  * Ein Spieler als Kachel: grosses, sauberes Quadrat - und der Name steht immer darunter, auch ohne Foto
@@ -214,61 +204,6 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
         </Karte2>
       )}
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ Bestenlisten eines Spieltags */
-
-function Tafel({ f, finalisten, ziel, oeffne }: {
-  f: SolosFenster; finalisten?: Set<string>; ziel?: string; oeffne?: (s: SolosSpieler) => void;
-}) {
-  const t = useT();
-  const zeit = useZeit();
-  const reihen = (f.teams ?? []).filter((x) => x.rang !== null).sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0));
-  return (
-    <Karte2>
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-extrabold text-slate-100">{f.name}</h3>
-        <span className="text-[11px] text-slate-500">{zeit(f.start ? Date.parse(f.start) : null)} · {f.spieler.length} <T>Spieler</T></span>
-      </div>
-      {reihen.length > 0 ? (
-        <div className="mt-3 max-h-[34rem] overflow-y-auto rounded-xl border border-zinc-800">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-zinc-900 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              <tr><th className="w-12 px-3 py-2 text-left">#</th><th className="px-3 py-2 text-left"><T>Spieler</T></th><th className="w-20 px-3 py-2 text-right"><T>Punkte</T></th></tr>
-            </thead>
-            <tbody>
-              {reihen.map((r) => {
-                const drin = !!finalisten && r.spieler.length > 0 && r.spieler.every((s) => finalisten.has(s.id));
-                return (
-                  <tr key={r.id} onClick={oeffne && r.spieler[0] ? () => oeffne(r.spieler[0]) : undefined}
-                    tabIndex={oeffne && r.spieler[0] ? 0 : undefined} role={oeffne && r.spieler[0] ? 'button' : undefined}
-                    onKeyDown={oeffne && r.spieler[0] ? (ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); oeffne(r.spieler[0]); } } : undefined}
-                    className={`border-t border-zinc-800/70 transition hover:bg-sky-500/[0.06] ${oeffne ? 'cursor-pointer' : ''}`}>
-                    <td className="px-3 py-2 text-sm font-black tabular-nums text-slate-400">{r.rang}</td>
-                    <td className="px-3 py-2">
-                      <span className="flex items-center gap-3">
-                        <span className="w-10 shrink-0"><Bild s={r.spieler[0]} /></span>
-                        <TeamFlagge groesse={14} laender={r.spieler.map((s) => s.land ?? undefined)} />
-                        <span className="min-w-0 truncate text-sm font-bold uppercase text-slate-100">{r.spieler.map((s) => s.anzeige).join(' · ')}</span>
-                        {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? ''}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : f.spieler.length > 0 ? (
-        <div className="mt-3 max-h-[34rem] overflow-y-auto">
-          <Spielerliste spieler={f.spieler} auf={oeffne} klein />
-        </div>
-      ) : (
-        <p className="mt-3 rounded-xl border border-zinc-800 px-4 py-8 text-center text-sm text-slate-500">{t('Noch keine Spieler eingetragen.')}</p>
-      )}
-    </Karte2>
   );
 }
 
@@ -467,7 +402,6 @@ export default function SolosSeite() {
   const zugang = useZugang();
   const [neuLaedt, setNeuLaedt] = useState(false);
   const neuLaden = async () => { setNeuLaedt(true); try { await holen(() => false, true); } finally { setNeuLaedt(false); } };
-  const finalisten = useMemo(() => new Set(daten?.qualifiziert.flatMap((g) => g.spieler.map((s) => s.id)) ?? []), [daten]);
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';
   const oeffneIn = (windowId: string) => (s: SolosSpieler) => { if (eventVon(windowId)) setPanel({ id: s.id, name: s.anzeige, windowId }); };
   const live = daten?.stufen.some((s) => s.status === 'live');
@@ -477,7 +411,25 @@ export default function SolosSeite() {
   const aktuell = spieltage.find((x) => x.name === stufe);
   const f = aktuell;
   const panelStufe = panel ? daten?.stufen.find((s) => s.windowId === panel.windowId) : null;
-  const ziel = aktuell && aktuell.art !== 'finale' ? t('Grand Finals') : undefined;
+  /*
+   * Epics Stufe zum gewaehlten Spieltag - dieselbe Kennung oder (Noble nennt die Fenster anders) die zeitlich naechste, bei der Last Chance unter den Last-Chance-Stufen.
+   * Daraus kommen Event, Fenster, Status und die Schwellen der Qualifikationslinien in der Bestenliste.
+   */
+  const stufeZu = (x: SolosFenster | undefined): SolosStufe | undefined => {
+    if (!x || !daten) return undefined;
+    const genau = daten.stufen.find((y) => y.windowId === x.windowId);
+    if (genau) return genau;
+    const beginn = Date.parse(x.start ?? '');
+    if (!Number.isFinite(beginn)) return undefined;
+    const lc = /last chance|lcq/i.test(x.name);
+    return daten.stufen.filter((y) => y.art !== 'qualifier' && (lc ? y.art === 'lcq' || y.art === 'lcq-finale' : true))
+      .sort((a, b) => Math.abs(a.begin - beginn) - Math.abs(b.begin - beginn)).find((y) => Math.abs(y.begin - beginn) < 4 * 3_600_000);
+  };
+  const aktuelleStufe = stufeZu(aktuell);
+  // Wohin die Top N kommen, so wie die Runde in unseren Daten heisst ("FNCS Solos Reload Grand Finals"), und die Last Chance dahinter.
+  const zielRunde = aktuelleStufe ? zielName(aktuelleStufe.windowId) : null;
+  const zielText = zielRunde ? `FNCS Solos${reihe === 'reload' ? ' Reload' : ''} ${zielRunde}` : undefined;
+  const lcqText = daten?.stufen.find((y) => y.art === 'lcq')?.name;
   // Wie viele der Spieler auf der Karte stehen - wie "Teams 100/100" bei eucompetitive.
   const aufKarte = f ? new Set(f.formen.flatMap((fo) => fo.spieler)).size : 0;
 
@@ -617,7 +569,7 @@ export default function SolosSeite() {
               </section>
             )}
             {ansicht === 'bestenliste' && (f
-              ? <Tafel key={f.windowId} f={f} finalisten={ziel ? finalisten : undefined} ziel={ziel} oeffne={oeffneIn(f.windowId)} />
+              ? <Bestenliste key={f.windowId} f={f} stufe={aktuelleStufe} region={region} zielText={zielText} lcqText={lcqText} />
               : <Karte2><p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Spieler eingetragen.</T></p></Karte2>)}
             {ansicht === 'spieler' && (
               <Karte2>

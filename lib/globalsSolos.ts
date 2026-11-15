@@ -97,6 +97,10 @@ export interface SolosStufe {
   qualifiziert?: number;
   /** Wohin es weitergeht. */
   ziel: 'finale' | 'heats' | 'naechste-runde' | 'lcq-finale' | null;
+  /** Die Kennung des Cups im Katalog - die Adresse unserer Event-Seite (/events/<cupId>). */
+  cupId?: string;
+  /** Epics Marken bis zu welchem Platz (Heats: Finalist bis 15, Last Chance bis 25) - dieselben wie auf der Event-Seite (Qualifikationslinien). */
+  marken?: Array<{ token: string; bis: number }>;
 }
 
 export interface SolosDaten {
@@ -283,7 +287,7 @@ function stufeVon(windowId: string): { name: string; art: SolosStufe['art']; zie
 async function stufenFuer(region: string, saison?: string): Promise<SolosStufe[]> {
   try {
     // Der Katalog des Werkzeugs (Epics aktuelle Events + das Archiv): auch die Fast Tracks und Qualifier, die Epic selbst nicht mehr fuehrt.
-    type KatalogFenster = { windowId: string; eventId: string; status: 'live' | 'kommt' | 'vorbei'; begin: number; end?: number; qualifiziert?: number };
+    type KatalogFenster = { windowId: string; eventId: string; status: 'live' | 'kommt' | 'vorbei'; begin: number; end?: number; qualifiziert?: number; marken?: Array<{ token: string; bis: number }> };
     const katalog = await gecacht('solos|katalog-gesamt', 10 * 60_000, async () => (await (await katalogAbruf(new Request('http://localhost/api/cup-catalog?modus=standard'))).json()) as { cups?: Array<{ id: string; regionen?: Record<string, KatalogFenster[]> }> });
     const raus = new Map<string, SolosStufe>();
     const ende = new RegExp(`_${region}$`);
@@ -293,7 +297,7 @@ async function stufenFuer(region: string, saison?: string): Promise<SolosStufe[]
         if (!/FNCSSolo/i.test(f.windowId) || !ende.test(f.windowId) || raus.has(f.windowId)) continue;
         const s = stufeVon(f.windowId);
         if (!s) continue;
-        raus.set(f.windowId, { windowId: f.windowId, eventId: f.eventId, ...s, status: f.status, begin: f.begin, end: f.end ?? null, qualifiziert: f.qualifiziert });
+        raus.set(f.windowId, { windowId: f.windowId, eventId: f.eventId, ...s, status: f.status, begin: f.begin, end: f.end ?? null, qualifiziert: f.qualifiziert, cupId: c.id, ...(f.marken?.length ? { marken: f.marken } : {}) });
       }
     }
     const alle = [...raus.values()].sort((a, b) => a.begin - b.begin);

@@ -5030,6 +5030,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Plätze anzeigen': 'Show ranks',
   'Die Plätze im Feld am Ende jeder Zeile, z. B. „(#1)“ – im Text und im Bild.': 'The rank in the field at the end of each line, e.g. “(#1)” – in the text and in the image.',
   'Erst einen Spieler oder ein Team wählen – dann entsteht hier das Bild.': 'Pick a player or a team first – the image appears here.',
+  // FNCS Solos: Bestenliste als Tabelle (app/globals-solos/Bestenliste.tsx)
+  'Top {n} qualifizieren sich für die {ziel}': 'Top {n} qualify for the {ziel}',
+  'Top {n} qualifizieren sich für den {ziel}': 'Top {n} qualify for the {ziel}',
+  'Noch nicht gestartet': 'Not started yet',
+  '{n} Sieg': '{n} Win',
+  '{n} Siege': '{n} Wins',
+  'Details ansehen': 'Check details',
+  'Die Matches erscheinen hier, sobald gespielt wird.': 'Matches appear here once play starts.',
+  'Noch keine Matches.': 'No matches yet.',
+  'nächste Runde': 'next round',
 };
 
 /**

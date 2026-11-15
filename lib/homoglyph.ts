@@ -72,6 +72,12 @@ export function kernname(name: string): string {
   return teile.join(' ');
 }
 
+/** Der Orgtag vor dem Namen ("AURA shxrk" -> "AURA") - nur ein erkannter Orgtag, sonst null (fuer die kleine Team-Angabe neben dem Namen). */
+export function orgtagVon(name: string): string | null {
+  const teile = name.trim().split(/\s+/).filter((t) => !/^\[.*\]$/.test(t)).filter((t) => !/^\d+[!ǃ.]?$/.test(t));
+  return teile.length > 1 && istOrgtag(teile[0]) ? teile[0].replace(/[.!]$/, '') : null;
+}
+
 /** Kernname in vergleichbarer Schreibweise - die Grundlage jeder Zuordnung. */
 export function namensSchluessel(name: string): string {
   return vergleichbar(kernname(name)).replace(/[^a-z0-9]/g, '');
