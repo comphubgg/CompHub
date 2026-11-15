@@ -46,8 +46,8 @@ const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Aus jeder Schreibweise die Beitrags-Nummer (wie app/api/tweet-holen). */
 function nummer(roh) {
   const t = String(roh ?? '').trim();
-  if (/^\d{5,25}$/.test(t)) return t;
-  const m = t.match(/(?:twitter|x|fxtwitter|vxtwitter|fixupx)\.com\/[^/]+\/status(?:es)?\/(\d{5,25})/i);
+  if (/^\d{1,25}$/.test(t)) return t;
+  const m = t.match(/(?:twitter|x|fxtwitter|vxtwitter|fixupx)\.com\/[^/]+\/status(?:es)?\/(\d{1,25})/i);
   return m ? m[1] : null;
 }
 
