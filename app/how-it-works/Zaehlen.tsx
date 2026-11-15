@@ -17,7 +17,10 @@
  *   Builds Placed  app/api/cup-spieler (selbst gesetzte Teile, ohne ersetzte, nur wenn jedes Spiel sie hat); Program.cs BuildingReplacementType
  *   Time in Storm  Program.cs bIsInAnyStorm, ab Busstart bis Tod oder Ende
  *   Zeitpunkt      app/components/SpielerStatsUebersicht.tsx ("Noch nicht fertig"), app/events/[id]/SpielerDetail.tsx (Zwischenstaende)
- * Mats Farmed und Distance Traveled stehen hier (noch) nicht (Betreiber, 15.11.2026) - sie kommen dazu, sobald sie nachweislich genau sind.
+ *   Mats Farmed / Mats Collected  Program.cs MatsExakt (jede Zunahme im Inventar nach Quelle: Pickup mit Menge, Wiedereinstieg, Spitzhacke, Rueckgabe; Lobby nicht),
+ *                  app/api/cup-stats 'Mats Farmed' / 'Mats Collected' (Fassung 20, 15.11.2026)
+ *   Distance       Program.cs StreckeBoden (3D, 1-s-Takt, ohne Skydiving/Gleiten, nur lebend, ab Absprung - wie Epics Travel_Distance_Ground, Heat 1 EU: Summe -0,06 %);
+ *                  app/api/spieler-detail (Solo: Epics Wert)
  */
 
 type Quelle = 'epic' | 'replay' | 'beide';
@@ -44,7 +47,8 @@ export const ZAEHLEN_EN: ZaehlText = {
   epicTitel: 'Epic\'s official leaderboard',
   epicText: 'Placements, points, wins, team eliminations and time alive. In solo cups also eliminations and damage.',
   replayTitel: 'Match replays',
-  replayText: 'Everything else, per player: eliminations in team cups, knocks, deaths, damage, hits, headshots, shots, builds and time in storm.',
+  replayText: 'Everything else, per player: eliminations in team cups, knocks, deaths, damage, hits, headshots, shots, builds, materials, '
+    + 'time in storm and, where Epic does not list it, distance.',
   lanText: 'LAN events have no replays. There, per-player values come from a public community stats archive.',
   marke: { epic: 'Epic', replay: 'Replay', beide: 'Epic + Replay' },
   gruppen: [
@@ -84,6 +88,16 @@ export const ZAEHLEN_EN: ZaehlText = {
           + 'count. Only shown once every match of the player has this value.' },
         { name: 'Time in Storm', quelle: 'replay', text: 'Time spent inside the storm, read from the game\'s own "in storm" flag in the replay, from the '
           + 'moment the bus starts until you are eliminated or the match ends.' },
+        { name: 'Mats Farmed', quelle: 'replay', text: 'Wood, stone and metal you harvested with your pickaxe: trees and bushes, rocks, cars and other '
+          + 'metal objects, buildings, walls and floors. Every material gain in the replay is traced to its source, so mats from chests, the floor and '
+          + 'eliminated players are not counted here. Nothing from the pre-game lobby counts.' },
+        { name: 'Mats Collected', quelle: 'replay', text: 'All materials you gained: mats farmed plus mats from chests, the floor, eliminated players and, '
+          + 'in Reload, the mats you get when you return. Mats a teammate passed to you and your own mats picked up again are not counted, since they '
+          + 'are not new.' },
+        { name: 'Distance Traveled', quelle: 'beide', text: 'Distance on the ground, counted the way Epic counts it: your position once per second, '
+          + 'while you are alive, from the moment you jump off the bus, not while skydiving or gliding. Walking, running, jumping, sliding and '
+          + 'teleporting count. Where Epic\'s leaderboard lists it (FNCS solo cups), this is Epic\'s own number; everywhere else we calculate it the same way from the replay. On a full FNCS '
+          + 'heat our total was within 0.1% of Epic\'s, and a single match is usually within about 0.5%.' },
       ],
     },
   ],
@@ -112,7 +126,8 @@ export const ZAEHLEN_DE: ZaehlText = {
   epicTitel: 'Epics offizielle Bestenliste',
   epicText: 'Platzierungen, Punkte, Siege, Team-Eliminierungen und Überlebenszeit. In Solo-Cups auch Eliminierungen und Schaden.',
   replayTitel: 'Match-Replays',
-  replayText: 'Alles Weitere, je Spieler: Eliminierungen in Team-Cups, Knocks, Tode, Schaden, Treffer, Kopftreffer, Schüsse, Bauteile und Zeit im Sturm.',
+  replayText: 'Alles Weitere, je Spieler: Eliminierungen in Team-Cups, Knocks, Tode, Schaden, Treffer, Kopftreffer, Schüsse, Bauteile, Material, '
+    + 'Zeit im Sturm und, wo Epic sie nicht führt, die Strecke.',
   lanText: 'Bei LAN-Events gibt es keine Replays. Dort kommen die Werte je Spieler aus einem öffentlichen Statistik-Archiv der Szene.',
   marke: { epic: 'Epic', replay: 'Replay', beide: 'Epic + Replay' },
   gruppen: [
@@ -152,6 +167,16 @@ export const ZAEHLEN_DE: ZaehlText = {
           + 'zählt nicht. Steht erst da, wenn jedes Match des Spielers diesen Wert hat.' },
         { name: 'Zeit im Sturm', quelle: 'replay', text: 'Zeit im Sturm, gelesen aus der Sturm-Markierung des Spiels im Replay, vom Start des Busses bis zu '
           + 'deinem Ausscheiden oder dem Ende des Matches.' },
+        { name: 'Gefarmte Mats', quelle: 'replay', text: 'Holz, Stein und Metall, das du mit der Spitzhacke abgebaut hast: Bäume und Büsche, Steine, Autos und '
+          + 'andere Metallgegenstände, Gebäude, Wände und Böden. Jede Zunahme im Replay wird ihrer Quelle zugeordnet, Mats aus Kisten, vom Boden und von '
+          + 'eliminierten Spielern zählen hier also nicht. Aus der Lobby vor dem Spiel zählt nichts.' },
+        { name: 'Gesammelte Mats', quelle: 'replay', text: 'Alles Material, das du bekommen hast: gefarmte Mats plus Mats aus Kisten, vom Boden, von '
+          + 'eliminierten Spielern und im Reload die Mats beim Wiedereinstieg. Was dir ein Mitspieler weitergibt und eigene, wieder aufgehobene Mats zählen '
+          + 'nicht, denn sie sind nicht neu.' },
+        { name: 'Zurückgelegte Strecke', quelle: 'beide', text: 'Strecke am Boden, so gezählt wie bei Epic: deine Position einmal pro Sekunde, solange du lebst, '
+          + 'ab dem Absprung aus dem Bus, nicht beim Fallen oder Gleiten. Gehen, Laufen, Springen, Rutschen und Teleportieren zählen. Wo Epics Bestenliste sie führt (FNCS-Solo-Cups), ist '
+          + 'es Epics eigene Zahl, sonst rechnen wir sie genauso aus dem Replay. Über eine ganze FNCS-Heat lag unsere Summe weniger als 0,1 % neben '
+          + 'Epic, ein einzelnes Match meist um etwa 0,5 %.' },
       ],
     },
   ],
