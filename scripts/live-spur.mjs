@@ -443,7 +443,7 @@ setInterval(() => { katalog().catch((e) => log(`Katalog: ${e.message}`)); }, KAT
 setInterval(() => {
   const offen = [...fenster.values()].reduce((n, f) => n + f.offen.length + f.zurueck.size, 0);
   const laufend = [...fenster.values()].reduce((n, f) => n + f.laeuft.size, 0);
-  const aktiv = [...fenster.values()].filter((f) => f.aktiv).map((f) => `${f.windowId} ${f.fertig.size}/${f.ids.size}`).join(', ');
+  const aktiv = [...fenster.values()].filter((f) => f.aktiv).map((f) => `${f.windowId} ${[...f.ids].filter((id) => f.fertig.has(id) || f.auth.ids.has(id)).length}/${f.ids.size} (hier ${f.fertig.size})`).join(', ');
   log(`Takt: ${zahl.gelesen} Matches/min gelesen, ${zahl.spaeter} spaeter, ${zahl.ohne} ohne Replay, ${zahl.fehler} Fehler - ${offen} offen, ${laufend} laufen${aktiv ? ` | ${aktiv}` : ''} | ${messung()}`);
   zahl.gelesen = 0; zahl.spaeter = 0; zahl.ohne = 0; zahl.fehler = 0;
   if (dauern.length > 2000) dauern.splice(0, dauern.length - 1000);
