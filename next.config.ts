@@ -124,10 +124,15 @@ const nextConfig: NextConfig = {
     };
   },
   async redirects() {
-    return ALTE_ADRESSEN.flatMap(([alt, neu]) => [
-      { source: alt, destination: neu, permanent: true },
-      { source: `${alt}/:pfad*`, destination: `${neu}/:pfad*`, permanent: true },
-    ]);
+    return [
+      // Die eigene Discord-Adresse (Betreiber, 15.11.2026: "discord.gg/eGGdNYCC ist nicht professionell"). Vorlaeufig, nicht dauerhaft: das Ziel kann
+      // sich aendern (neuer Einladungslink, spaeter vielleicht discord.gg/comphub).
+      { source: '/discord', destination: 'https://discord.gg/eGGdNYCC', permanent: false },
+      ...ALTE_ADRESSEN.flatMap(([alt, neu]) => [
+        { source: alt, destination: neu, permanent: true },
+        { source: `${alt}/:pfad*`, destination: `${neu}/:pfad*`, permanent: true },
+      ]),
+    ];
   },
   webpack(config, { dev }) {
     if (dev) {
