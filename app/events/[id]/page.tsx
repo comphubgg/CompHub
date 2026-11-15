@@ -29,6 +29,7 @@ import { rundenMischen } from '@/app/lib/rundenStand';
 import { useLiveFenster, type LiveTeil } from '@/app/lib/useLiveFenster';
 import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
+import TurnierLeader from '@/app/components/TurnierLeader';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
@@ -5122,6 +5123,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Solo Stats bei einem Solo-Cup, sonst Team Stats - wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
+        {/* Tournament Leaders ganz oben in den Player Stats (Betreiber, 15.11.2026): Event MVP und die besten fuenf je Kennzahl - je Spieltag, bei mehrtaegigen Finals ueber
+            die gewaehlten Tage (app/components/TurnierLeader.tsx). Solo-Cups zeigen ihre Player Stats im Reiter "teams". */}
+        {lbFenster && ((reiter === 'teams' && soloCup && !detailStart) || (reiter === 'spieler' && !soloCup)) && (
+          <TurnierLeader key={`${lbFenster.windowId}|${summenText}`} eventId={lbFenster.eventId} windowId={lbFenster.windowId} windows={summenFenster} />
+        )}
         {/* Kommt man ueber den Stats-Knopf, steht der Spieler oben - bei Solo-Cups lag er sonst unter der ganzen Uebersicht (Betreiber, 7.11.2026). */}
         {reiter === 'teams' && lbFenster && soloCup && !!detailStart && (
           <div className="mb-4">

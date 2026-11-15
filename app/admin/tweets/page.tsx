@@ -27,6 +27,8 @@ import { tweetLaenge } from '@/lib/ftPosts';
 import type { FtAntwort } from '@/lib/ftPostsDaten';
 import FtBild from './FtBild';
 import StatKarte, { type StatKartePerson } from './StatKarte';
+import LeaderBild from './LeaderBild';
+import { kumulativeTage } from '@/lib/kumulativ';
 import { einzelZeile, fuerEinzelne, spaltenName, vereinheitlichen, wertText, dauer } from './kennzahlen';
 import type { StatKarteWert } from '@/lib/statKarteBild';
 import { STAT_KARTE_WERTE } from '@/lib/statKarteBild';
@@ -3692,6 +3694,24 @@ export default function TweetSeite() {
             )}
           </div>
         </section>
+
+        {/* ------------------------------------------ Tournament Leaders (Betreiber, 15.11.2026)
+            Event MVP und die besten fuenf je Kennzahl als teilbares Bild (2000 x 1213, lib/turnierLeaderBild.ts) - fuer den Spieltag oben, bei mehrtaegigen
+            Finals auch alle Tage zusammen. Dieselben Zahlen wie der Abschnitt in den Player Stats. */}
+        {aktuellesFenster && (
+          <section className="mb-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-[0_6px_20px_rgba(15,23,42,.12)]">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-800 px-5 py-3">
+              <h2 className="text-sm font-bold text-slate-100">Tournament Leaders</h2>
+              <p className="text-[11px] text-slate-500"><T>Event MVP und Top 5 je Kennzahl – Bild für X</T> (2000 × 1213)</p>
+            </div>
+            <div className="p-5">
+              <LeaderBild key={aktuellesFenster.windowId} eventId={aktuellesFenster.eventId} windowId={aktuellesFenster.windowId}
+                tage={kumulativeTage(fenster.filter((f) => f.region === aktuellesFenster.region)).map((f) => f.windowId)}
+                titel={ftStandardTitel || aktuellesFenster.windowId}
+                dateiname={`${aktuellesFenster.windowId.toLowerCase()}-leaders.png`} />
+            </div>
+          </section>
+        )}
 
         {/* Schritt 1 und 2 nebeneinander (Betreiber, 20.10.2026: die Post-Section neu - weniger Scrollen): links was es werden soll, rechts der Cup. */}
         <div className="grid gap-x-4 xl:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] xl:items-start">
