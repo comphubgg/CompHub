@@ -58,7 +58,14 @@ jobs:
         continue-on-error: true
         run: node scripts/clutch-leben.mjs
 
+      # Lage der Werte je Match (clutch/<w>.json, "je") gegen die Datei am Release pruefen und reparieren - bis zum 15.11.2026 kam clutch-je/ von hier nie an.
+      - name: Werte je Match abgleichen
+        continue-on-error: true
+        run: node scripts/clutch-je-abgleich.mjs --hoechstens 15 2>&1 | tail -40
+
+      # clutch-je ausdruecklich: --nur clutch trifft nur "clutch" und "clutch/...", nicht "clutch-je/..." (scripts/ablage-github.mjs, gewuenscht). Ohne die Datei
+      # zeigte die Lage in clutch/<w>.json auf eine Datei, die es am Release nicht gab, und der naechste Lauf verwarf die Zeilen dieses Laufs (15.11.2026).
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12

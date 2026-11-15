@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { JE_SPALTEN, alteZeile, jeDatei, jeLesen } from '../lib/jeSpiel.mjs';
+import { JE_SPALTEN, alteZeile, jeDatei, jeFehltVon, jeLesen } from '../lib/jeSpiel.mjs';
 import { tagFuer } from '../lib/releaseTags.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
@@ -57,7 +57,8 @@ for (const [w, dateien] of jeTag) {
   // Vor Fassung 4 (alte Schadensregel) wird nichts weitergefuehrt - der Spieltag ist ganz neu gelesen.
   // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt ebenfalls leer an - die alten Werte wuerden sonst doppelt zaehlen.
   const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
-  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 18, windowId: w, matches: [], summe: {}, spiele: {} };
+  // jeFrisch: ganz nach dem 15.11.2026 gelesen - die Werte je Match koennen nicht mehr verloren sein (der Planer liest so einen Spieltag wegen jeFehlt nicht noch einmal).
+  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 18, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
   const da = new Set([...d.matches.map((m) => m.id), ...d.ohne]);
   // Die Werte je Match: erst, wenn ein Teil welche bringt, wird der alte Stand geholt. Laesst er sich nicht lesen, bleibt die Datei diesmal, wie sie ist.
@@ -89,6 +90,9 @@ for (const [w, dateien] of jeTag) {
       console.log(`  ${w}: ${t.matches.length - neuHier.length} Matches standen schon da - Teil ${path.basename(datei)} uebersprungen`);
       continue;
     }
+    // Ohne lesbaren alten Stand der Werte je Match nicht einarbeiten: sonst stuenden die Matches da, ihre Zeilen waeren fuer immer weg (15.11.2026). So bleiben sie offen
+    // und kommen im naechsten Lauf wieder.
+    if (t.jeSpiel && !(await jeLaden())) { console.log(`  ${w}: Teil ${path.basename(datei)} zurueckgestellt - Werte je Match nicht lesbar`); continue; }
     for (const m of neuHier) { d.matches.push(m); da.add(m.id); }
     for (const id of t.ohne ?? []) if (!da.has(id)) { d.ohne.push(id); da.add(id); }
     /*
@@ -145,6 +149,10 @@ for (const [w, dateien] of jeTag) {
     fs.mkdirSync(JE, { recursive: true });
     fs.writeFileSync(path.join(JE, `${w}.json`), inhalt);
     d.je = { spalten: JE_SPALTEN, lage, bytes: inhalt.length };
+    // Ob gelesene Matches ohne eine einzige Zeile dastehen (bis 15.11.2026 gingen Zeilen verloren, siehe scripts/clutch-je-abgleich.mjs) - der Planer liest sie neu.
+    d.jeGeprueft = inhalt.length;
+    const fehlt = jeFehltVon(d, je);
+    if (fehlt) d.jeFehlt = fehlt; else delete d.jeFehlt;
   }
   fs.writeFileSync(zielDatei, JSON.stringify(d));
   if (roh) fs.writeFileSync(rohDatei, JSON.stringify(roh));

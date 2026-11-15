@@ -247,6 +247,10 @@ jobs:
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
           node scripts/epic-schaden-holen.mjs 2>&1 | tail -12
           rm -f .env.local
+      # Lage der Werte je Match gegen die Datei am Release (scripts/clutch-je-abgleich.mjs, 15.11.2026).
+      - name: Werte je Match abgleichen
+        continue-on-error: true
+        run: node scripts/clutch-je-abgleich.mjs 2>&1 | tail -40
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

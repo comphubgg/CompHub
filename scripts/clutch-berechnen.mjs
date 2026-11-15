@@ -360,7 +360,15 @@ if (arg[0] === '--plan') {
       || ((da.schadenFassung ?? 0) < 17 && f.ids.size <= 1500)
       // Fassung 18 (14.11.2026): Builds - der Spieler mit WorldPlayerId 0 bekam keine Bauteile (je Match einer, z. B. HvK SwizzY 0 statt 72 Holz).
       || ((da.schadenFassung ?? 0) < 18 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 14, 23)));  // erst nach Heat 1, damit die Live-Auswertung nicht wartet
-    const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang;
+    /*
+     * Werte je Match verloren (15.11.2026): "Clutch ablegen" lud clutch-je/ nicht hoch, der naechste Lauf verwarf die Zeilen des vorigen (scripts/clutch-je-abgleich.mjs zaehlt
+     * sie als jeFehlt). Solche Spieltage einmal ganz neu lesen - nur die der letzten 14 Tage (Epic haelt Replays 31 Tage, mit Abstand) bis 3.000 Matches, nicht, wenn sie
+     * nach dem Fix schon frisch gelesen sind (jeFrisch), und erst nach der FNCS-Heat vom 15.11. (17:30-21:30 UTC), damit die Live-Auswertung nicht wartet.
+     */
+    const jeNeu = !!da && !neuAnfang && (da.jeFehlt ?? 0) > 0 && !da.jeFrisch && Date.now() - f.datum < 14 * 864e5 && f.ids.size <= 3000
+      && Date.now() > Date.UTC(2026, 10, 15, 22, 30);
+    if (jeNeu) console.log(`  ${f.windowId}: ${da.jeFehlt} Matches ohne Werte je Match - ganz neu lesen`);
+    const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang && !jeNeu;
     /*
      * "Ohne Replay" ist kein Endurteil (Betreiber, 10.11.2026: zyfos Match galt als ohne Replay und liess sich am Morgen problemlos laden). In den ersten drei Tagen
      * wird ein solches Match alle zwei Stunden noch einmal versucht.
@@ -369,7 +377,7 @@ if (arg[0] === '--plan') {
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(ohneNochmal ? [] : (da.ohne ?? []))] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
-    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang });
+    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang: neuAnfang || jeNeu });
   }
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
