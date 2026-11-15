@@ -14,6 +14,7 @@ import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import ReplayUmschalter from './ReplayUmschalter';
+import StartKopf from './StartKopf';
 import { replayDatum as datum, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 
 interface TagKurz { windowId: string; region: string; beginn: string; games: number; sieger: string[] }
@@ -50,9 +51,11 @@ export default function ReplaysSeite() {
       <div className="mx-auto max-w-[1400px] px-4 py-8">
         <ReplayUmschalter aktiv="alle" />
         <SeitenKopf className="mt-4" marke={<T>Alle Cups</T>} titel={<T>Replays</T>}
-          text={<T>Jedes Game eines ausgewerteten Cups mit Zone, Eliminierungen, Knocks und der Zahl der Lebenden - zum Abspielen, in 2D und 3D. Die Adressen bleiben dauerhaft gleich.</T>} />
+          text={<T>Every game of an analysed cup on the map: players from the bus on, zones, knocks and eliminations - to play back and analyse. The addresses never change.</T>} />
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <StartKopf cups={cups} />
+
+        <div className="mt-8 flex flex-wrap items-center gap-3" id="cups">
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
             className="w-full max-w-xs rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
           <div className="inline-flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">

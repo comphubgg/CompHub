@@ -356,17 +356,44 @@ interface EbeneProps {
   gewaehlt: number | null; waehle: (id: number | null) => void; namenZeigen: boolean;
   /** Einstellungen der Karte (app/replays/Werkzeuge): Balken und Pfeil abschaltbar. */
   balken?: boolean; pfeil?: boolean;
+  /** Zoom und Breite des Kartenrahmens (Bildpunkte) - fuer das Ausweichen der Namensschilder. */
+  zoom?: number; rahmenBreite?: number;
+}
+
+/*
+ * Namensschilder immer sichtbar (Betreiber, 15.11.2026), aber leicht ausweichend: wo sich zwei Schilder auf dem Bildschirm ueberdecken, rueckt das
+ * spaetere bis zu zwei Stufen nach oben; passt es dann noch nicht, steht nur der Balken da (der Gewaehlte hat immer Vorrang).
+ */
+const SCHILD_H = 27;
+function schilderVerteilen(punkte: Array<{ id: number; x: number; y: number; name: string; an: boolean }>, zs: number): Map<number, number | null> {
+  const raus = new Map<number, number | null>();
+  const belegt: Array<{ x0: number; x1: number; y0: number; y1: number }> = [];
+  const reihe = [...punkte].sort((a, b) => Number(b.an) - Number(a.an) || a.y - b.y);
+  for (const p of reihe) {
+    const b = Math.max(60, Math.min(110, p.name.length * 5.6 + 14)) * zs; const h = SCHILD_H * zs;
+    let gesetzt: number | null = null;
+    for (let stufe = 0; stufe < 3; stufe += 1) {
+      const y1 = p.y - 14 * zs - stufe * h; const box = { x0: p.x - b / 2, x1: p.x + b / 2, y0: y1 - h, y1 };
+      if (!belegt.some((q) => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) { belegt.push(box); gesetzt = stufe; break; }
+    }
+    raus.set(p.id, p.an && gesetzt === null ? 0 : gesetzt);
+  }
+  return raus;
 }
 
 /** Spieler als Pfeil wie in Fortnite (Blick- oder Laufrichtung), darueber Schild und Leben - als HTML ueber der Karte, gegen den Zoom gegengerechnet. */
-export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, gewaehlt, waehle, namenZeigen, balken = true, pfeil = true }: EbeneProps) {
+export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, gewaehlt, waehle, namenZeigen, balken = true, pfeil = true, zoom = 1, rahmenBreite = 800 }: EbeneProps) {
   if (!d.da) return null;
+  const zs = Math.pow(zoom, 0.65);
+  const da = spieler.map((s) => ({ s, o: typeof s.tod === 'number' && s.tod <= zeit ? null : ortBei(d.orte.get(s.id), zeit) }));
+  const stufen = namenZeigen
+    ? schilderVerteilen(da.filter((x) => x.o).map(({ s, o }) => ({ id: s.id, name: s.name, an: s.id === gewaehlt, x: (pzx(o!.x) / 100) * rahmenBreite * zoom, y: (pzy(o!.y) / 100) * rahmenBreite * zoom })), zs)
+    : new Map<number, number | null>();
   return (
     <>
-      {spieler.map((s) => {
-        if (typeof s.tod === 'number' && s.tod <= zeit) return null;
-        const o = ortBei(d.orte.get(s.id), zeit);
+      {da.map(({ s, o }) => {
         if (!o) return null;
+        const stufe = s.id === gewaehlt ? stufen.get(s.id) ?? 0 : stufen.get(s.id) ?? null;
         const hp = hpBei(d.leben.get(s.id), zeit);
         const schild = d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null;
         const blick = d.blick.get(s.id);
@@ -382,8 +409,8 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
             style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: `translate(-50%, -50%) scale(calc(${an ? 1.2 : 1} * var(--zs, 1) / var(--z, 1)))`, opacity: sichtbar(s.id) ? 1 : 0.45, zIndex: an ? 26 : undefined }}>
             <span className="relative block">
               {/* Namensschild wie bei Osirion: Name, darunter Schild und Leben - ohne Namen nur die Balken */}
-              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 2px)' }}>
-                {(namenZeigen || an) ? (
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2" style={{ bottom: `calc(100% + ${2 + (stufe ?? 0) * SCHILD_H}px)` }}>
+                {((namenZeigen && stufe !== null) || an) ? (
                   // Schlicht (Betreiber, 7.11.2026: "der Name ist ein bisschen sehr unclean"): nur der Name, mittig, gekuerzt; die Waffe steht im HUD.
                   <span className="block rounded-md bg-zinc-950/85 px-1.5 pb-1 pt-0.5 shadow-[0_1px_3px_rgba(0,0,0,.6)]" style={{ minWidth: 60 }}>
                     <span className="block max-w-[110px] truncate text-center text-[10px] font-semibold leading-tight tracking-wide text-white">{s.name}</span>

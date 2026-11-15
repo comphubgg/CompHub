@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-interface GameZeile { tag: string; nr: number; match: string; glueck: number; zonen: number; gegen: number | null; platz: number | null; punkte: number | null; swing: { wert: number; zone: number } | null; throw: { wert: number; zone: number } | null }
+interface GameZeile { tag: string; nr: number; match: string; glueck: number; zonen: number; drin: number; abstand: number | null; gegen: number | null; platz: number | null; punkte: number | null; swing: { wert: number; zone: number } | null; throw: { wert: number; zone: number } | null }
 interface Je { epic: string; name: string; games: GameZeile[] }
 const JE_MATCH = new Map<string, Array<{ epic: string; name: string; zeile: GameZeile }>>();
 
@@ -61,7 +61,8 @@ export async function GET(request: Request) {
               if (!gl && !es) continue;
               const platz = s.platz && s.platz < 999 ? s.platz : null;
               zeilen.push({ epic: s.epic.toLowerCase(), name: String(s.name ?? '?').replace(/^\s*\[[^\]]*\]\s*/, ''), zeile: {
-                tag, nr: m.nr, match: m.id, glueck: gl?.summe ?? 0, zonen: gl?.zonen ?? 0, gegen: es?.gegen ?? null, platz,
+                tag, nr: m.nr, match: m.id, glueck: gl?.summe ?? 0, zonen: gl?.zonen ?? 0, drin: gl?.drin ?? 0,
+                abstand: gl?.einzeln.length ? gl.einzeln.reduce((a, x) => a + x.d, 0) / gl.einzeln.length : null, gegen: es?.gegen ?? null, platz,
                 punkte: punkteVon(wertung, platz, s.teamKills ?? s.kills ?? 0), swing: es?.swing ?? null, throw: es?.throw ?? null,
               } });
             }

@@ -250,3 +250,38 @@ export function schaetzung(m: RMatch & { leben?: Record<string, number[][]>; sch
   }
   return raus;
 }
+
+/* ------------------------------------------------------------------ Start im Bus */
+
+/**
+ * Orte ab dem Bus (Betreiber, 15.11.2026): was vor dem Abflug liegt (Startinsel), faellt weg. Jeder Spieler beginnt am Bus im Augenblick seines Absprungs -
+ * aus "figuren" (die neue Figur nach dem Abflug ist der Absprung), sonst der Punkt der Route, der seinem ersten Ort am naechsten liegt (im Absprungfenster).
+ * Vom Absprung gleitet er geradlinig bis zu seinem ersten Ort am Boden.
+ */
+export function mitBusStart<T extends RMatch>(m: T): T {
+  const roh = (m as { orte?: Record<string, number[][]> }).orte;
+  const bus = m.bus?.[0]; const ab = m.busAb;
+  if (!roh || !bus || typeof ab !== 'number' || typeof bus.x !== 'number' || typeof bus.y !== 'number' || typeof bus.yaw !== 'number' || !bus.tempo) return m;
+  const rad = (bus.yaw * Math.PI) / 180; const c = Math.cos(rad); const sn = Math.sin(rad);
+  const bei = (s: number) => ({ x: bus.x! + c * bus.tempo! * s, y: bus.y! + sn * bus.tempo! * s });
+  const figuren = ((m as { figuren?: Array<{ id: number; t: number }> }).figuren ?? []);
+  const vonS = (bus.sprungAb ?? 0) - 2; const bisS = (bus.flugBis ?? 60) + 2;
+  const orte: Record<string, number[][]> = {};
+  for (const [k, l] of Object.entries(roh)) {
+    const id = Number(k);
+    const nach = [...l].sort((a, b) => a[0] - b[0]).filter((o) => o[0] >= ab);
+    if (!nach.length) { orte[k] = []; continue; }
+    const erst = nach[0];
+    const fig = figuren.find((f) => f.id === id && f.t - ab >= vonS && f.t - ab <= bisS);
+    let s: number;
+    if (fig && fig.t < erst[0]) s = fig.t - ab;
+    else {
+      const proj = ((erst[1] - bus.x) * c + (erst[2] - bus.y) * sn) / bus.tempo;
+      s = Math.min(Math.max(proj, bus.sprungAb ?? 0), Math.min(bus.sprungBis ?? proj, erst[0] - ab - 3));
+    }
+    if (!(s >= 0) || ab + s >= erst[0]) { orte[k] = nach; continue; }
+    const b = bei(s);
+    orte[k] = [[ab + s, b.x, b.y, typeof erst[3] === 'number' ? erst[3] : 0], ...nach];
+  }
+  return { ...m, orte };
+}
