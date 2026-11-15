@@ -7,6 +7,8 @@ for (const z of (() => { try { return fs.readFileSync(path.join(process.cwd(), '
   const m = z.match(/^([A-Za-z_0-9]+)=(.*)$/); if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].trim().replace(/^"|"$/g, '');
 }
 process.env.COMPHUB_KEIN_HINTERGRUND = '1';
+// Keine Meldungen in #admin-alarm aus der Probe (15.11.2026: die Laeufe hier ohne Szene-Daten meldeten "/stats ohne Profil" wie echte Ausfaelle).
+delete process.env.DISCORD_BOT_TOKEN;
 const jiti = require('jiti')(__filename, { alias: { '@': process.cwd() }, interopDefault: true });
 (async () => {
   const [spieler, cup, eventId] = process.argv.slice(2);
