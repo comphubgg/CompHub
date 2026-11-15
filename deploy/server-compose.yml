@@ -80,6 +80,22 @@ services:
     entrypoint: ["sh", "-c"]
     command: ["while true; do node scripts/discord-tweets.mjs --aus-admin-posts --anwenden 2>&1 | grep -v 'Keine (neuen)' | tail -5; sleep 60; done"]
 
+  # Der Ergebnis-Post binnen einer Minute nach dem Ende eines Spieltags (scripts/ergebnis-sofort.mjs, lib/ergebnisSofort.ts): fragt "web" alle 15 s, solange
+  # ein Spieltag laeuft, zeichnet das Bild (lib/ftBild.ts im kopflosen Chromium, wird beim Start einmal geholt) und postet Text + Bild nach #admin-posts
+  # (🔔 an ERGEBNIS_PING_DISCORD_ID aus web.env) und nach #results. Nie nach X. Ein Post je Spieltag (ergebnis-sofort.json in der Ablage).
+  # Protokoll: docker compose logs -f ergebnis.
+  ergebnis:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    network_mode: host
+    env_file: web.env
+    environment:
+      WERKZEUG_URL: http://127.0.0.1:3100
+      TZ: Europe/Berlin
+    mem_limit: 1g
+    entrypoint: ["sh", "-c"]
+    command: ["npx playwright install --with-deps chromium 2>&1 | tail -2; exec node scripts/ergebnis-sofort.mjs --anwenden"]
+
   # Abgelaufene VIP-Schluessel alle zehn Minuten (app/api/cron/vip-ablauf, lib/discord vipAblaufLauf): Kanal, Rolle und Zugang weg, Erinnerung
   # drei Tage vorher, Countdown in den Schluesselnachrichten, Meldung an #admin-alarm. Gerechnet wird in "web" (dort ist der Bot-Token) - hier
   # nur der Anstoss. Vorher tat das allein die GitHub-Kette in discord-live.yml; die riss am 15.11.2026 um 15:06 UTC ab (API-Grenze) und bekam

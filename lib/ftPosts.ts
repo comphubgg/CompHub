@@ -404,3 +404,65 @@ export function tweetLaenge(text: string): number {
   }
   return n;
 }
+
+/*
+ * Der Ergebnis-Post sofort nach dem Ende (Betreiber, 15.11.2026: "ich verliere das Rennen gegen die anderen Stats-Accounts, weil ich den Post von Hand baue").
+ * Genau im Format seiner eigenen Posts (X Premium, ohne 280-Grenze):
+ *   Qualifier/Heat:  "🏆 <Cup> <Region> – Qualified for the <naechste Stufe> ✅", die Sieger (sofort weiter), dann die ueber Punkte, die Grenze und unsere Vorab-Prognose.
+ *   sonst:           "🏆 <Cup> <Region> – Results", die ersten zehn.
+ * Flagge nur aus dem Profil (konten.land - der Aufrufer gibt nur die Profil-Laender), @X-Konto aus dem Profil, sonst der Name (konten.namen) - nie twitch.tv.
+ * Fuss immer "Full results 👉 thecomphub.com".
+ */
+export interface FtErgebnisEingabe {
+  /** "FNCS Solos Reload Heat 2" - ohne Region. */
+  cup: string;
+  region: string;
+  /** Teams aus Epics Bestenliste mit rang und punkte. */
+  teams: FtTeam[];
+  konten: FtKonten;
+  /** So viele kommen weiter (Epics Rangschwelle) - ohne: der Results-Post. */
+  schwelle?: number | null;
+  /** Ab so vielen Punkten sofort weiter (FNCS-Heats: Sieg = 1.000 Punkte). */
+  sofortPunkte?: number | null;
+  /** "Grand Finals", "Heats" ... */
+  naechste?: string | null;
+  /** Unsere Prognose der Grenze vor dem Cup. */
+  prognose?: number | null;
+}
+
+export const FT_FUSS = 'Full results 👉 thecomphub.com';
+
+export function ftErgebnisPost(e: FtErgebnisEingabe): FtPost | null {
+  const { team, kandidat } = schreibweise(e.konten);
+  const teams = e.teams.filter((t) => t.ids?.length && Number.isFinite(t.rang)).sort((a, b) => (a.rang as number) - (b.rang as number));
+  if (teams.length < 3) return null;
+  const pts = (t: FtTeam) => `${Math.round(t.punkte ?? 0)} pts`;
+  const region = e.region ? ` ${e.region}` : '';
+  const schwelle = e.schwelle && e.schwelle > 0 ? e.schwelle : 0;
+  const grenzTeam = schwelle ? teams.find((t) => t.rang === schwelle) ?? null : null;
+  const grenze = grenzTeam ? grenzTeam.punkte ?? 0 : null;
+  const linie = grenze !== null
+    ? `📏 Line: ${Math.round(grenze)} pts${typeof e.prognose === 'number' && e.prognose > 0 ? ` (we predicted ${Math.round(e.prognose)} 🔮)` : ''}`
+    : null;
+  // Qualifier/Heat mit ueberschaubarem Feld der Qualifizierten: Sieger + ueber Punkte.
+  if (schwelle && schwelle <= 100 && e.naechste) {
+    const drin = teams.filter((t) => (t.rang as number) <= schwelle);
+    const sofort = e.sofortPunkte && e.sofortPunkte > 0 ? e.sofortPunkte : 0;
+    const siege = sofort ? drin.filter((t) => (t.punkte ?? 0) >= sofort) : [];
+    const punkte = drin.filter((t) => !siege.includes(t));
+    const zeilen = [`🏆 ${e.cup}${region} – Qualified for the ${e.naechste} ✅`, ''];
+    if (siege.length) zeilen.push(`👑 Qualified by win (${siege.length}):`, ...siege.map((t) => `${team(t.ids)} – ${pts(t)}`), '');
+    if (punkte.length) zeilen.push(`${siege.length ? '📊 Qualified on points' : '📊 Qualified'} (${punkte.length}):`, ...punkte.map((t) => `${team(t.ids)} – ${pts(t)}`), '');
+    if (linie) zeilen.push(linie, '');
+    zeilen.push(FT_FUSS);
+    const kandidaten = [...new Set(drin.flatMap((t) => t.ids).map((i) => i.toLowerCase()))].slice(0, KANDIDATEN).map(kandidat);
+    return { art: 'standings', titel: 'Qualified', text: zeilen.join('\n'), kandidaten, quelle: 'epic' };
+  }
+  const medaille = ['🥇', '🥈', '🥉'];
+  const zehn = teams.slice(0, LISTE);
+  const zeilen = [`🏆 ${e.cup}${region} – Results`, '', ...zehn.map((t, i) => `${medaille[i] ?? `${t.rang}.`} ${team(t.ids)} – ${pts(t)}`), ''];
+  if (linie && schwelle) zeilen.push(linie.replace('Line:', `Top ${ftZahl(schwelle)} line:`), '');
+  zeilen.push(FT_FUSS);
+  const kandidaten = [...new Set(teams.slice(0, KANDIDATEN).flatMap((t) => t.ids).map((i) => i.toLowerCase()))].slice(0, KANDIDATEN).map(kandidat);
+  return { art: 'standings', titel: 'Results', text: zeilen.join('\n'), kandidaten, quelle: 'epic' };
+}

@@ -107,6 +107,19 @@ async function mitBildern(posts: FtPost[], schluessel: Record<string, string | u
   });
 }
 
+/** Die Fotos fuer ein Bild aus einer Kandidatenliste (lib/ergebnisSofort) - dieselbe Suche wie fuer die Posts hier. */
+export async function ftBilderFuer(kandidaten: FtKandidat[]): Promise<FtBildSpieler[]> {
+  const [namen, bildListe] = await Promise.all([
+    liesJson<Record<string, { schluessel?: string }>>('spieler-namen.json', {}).catch(() => ({})),
+    liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
+  ]);
+  const nachKonto = new Map<string, string>();
+  for (const b of Array.isArray(bildListe) ? bildListe : []) if (b?.epicId && b.datei && b.echtesFoto) nachKonto.set(String(b.epicId).toLowerCase(), String(b.datei));
+  const schluessel = Object.fromEntries(Object.entries(namen).map(([id, n]) => [id.toLowerCase(), n?.schluessel]));
+  const [p] = await mitBildern([{ art: 'standings', titel: '', text: '', kandidaten }], schluessel, nachKonto);
+  return p.bild;
+}
+
 export class FtDatenFehlen extends Error {}
 
 /** Was die Schnittstelle je Post liefert: der Text und die Fotos fuers Bild. */
