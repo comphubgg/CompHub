@@ -21,6 +21,8 @@
  */
 
 import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -190,6 +192,37 @@ async function saisons() {
 
 const zeit = (ms) => `${(ms / 1000).toFixed(1)}s`;
 
+/*
+ * Eine Abfrage ohne die versteckte Fuenf-Minuten-Grenze von fetch (15.11.2026).
+ *
+ * Das eingebaute fetch von Node (undici) bricht jede Antwort ab, deren Kopfzeilen nicht binnen 300 Sekunden kommen
+ * (headersTimeout) - egal, was AbortSignal.timeout sagt. Die 900 Sekunden fuer die schweren Abfragen galten deshalb nie: die
+ * Akten, die Startansicht und "saison=alle" endeten seit Wochen in jedem Teil nach genau 300,9 s mit "fetch failed". Der Server
+ * rechnete die abgebrochene Abfrage aber weiter, waehrend schon die naechste schwere lief - in Teil 1 Akten, Startansicht und
+ * Clutch-Liste gleichzeitig. Er wuchs auf 15 GB plus 7 GB Auslagerung, starb, und die uebrigen Abfragen des Teils (alle Saison-
+ * listen von S43 bis S30) scheiterten in 0,0 s. Die Liste der laufenden Saison blieb deshalb beim Stand vom 6.11. stehen, und seit
+ * dem 7.11. kam keine Akte mehr ans Release. node:http kennt diese Grenze nicht; es gilt nur die eigene Frist.
+ */
+function hole(weg, ms) {
+  return new Promise((fertig, fehler) => {
+    const url = new URL(SERVER + weg);
+    const mod = url.protocol === 'https:' ? https : http;
+    let bytes = 0;
+    const anfrage = mod.get(url, { agent: false }, (antwort) => {
+      antwort.on('data', (stueck) => { bytes += stueck.length; });
+      antwort.on('end', () => { clearTimeout(uhr); fertig({ status: antwort.statusCode ?? 0, bytes }); });
+      antwort.on('error', (e) => { clearTimeout(uhr); fehler(e); });
+    });
+    const uhr = setTimeout(() => anfrage.destroy(new Error(`nach ${Math.round(ms / 1000)} s abgebrochen`)), ms);
+    anfrage.on('error', (e) => { clearTimeout(uhr); fehler(e); });
+  });
+}
+
+/** Ob der Server noch antwortet - nach einem Fehler, um nicht siebzig Abfragen gegen einen toten Server zu werfen. */
+async function lebt() {
+  try { const r = await hole('/api/stand', 15_000); return r.status > 0; } catch { return false; }
+}
+
 async function los() {
   console.log('');
   console.log(`  Server: ${SERVER}`);
@@ -203,20 +236,37 @@ async function los() {
    */
   const teilArg = process.argv.find((a) => /^--teil=\d+\/\d+$/.test(a));
   const [teil, teile] = teilArg ? teilArg.slice(7).split('/').map(Number) : [1, 1];
-  const alle = wege(s);
-  const je = Math.ceil(alle.length / teile);
-  // Die Akten in Schalen: jede Portion schreibt ihr n-tel (lib/szeneStats aktenSchreiben) - allein und als Erstes,
-  // solange der Server noch leer ist. Ohne Portionen (ein Lauf) in einem Zug.
-  const liste = [`/api/szene-stats?ansicht=akten${teile > 1 ? `&teil=${teil}/${teile}` : ''}`,
-    ...alle.slice((teil - 1) * je, teil * je)];
-  console.log(`  Saisons: ${s.length ? s.join(', ') : '(keine gefunden)'}`);
-  console.log(`  Abfragen: ${liste.length}${teile > 1 ? ` (Teil ${teil} von ${teile}, zusammen ${alle.length})` : ''}`);
+  /*
+   * Die Akten getrennt von den Listen (15.11.2026): "--akten=3/8" schreibt nur diese Schale der Akten, "--teil=3/8" rechnet nur
+   * die Listen dieser Portion. Der Ablauf startet fuer beides einen eigenen, frischen Server - so rechnet nie eine Akte neben
+   * einer Saisonliste, und eine lange Akte nimmt keiner Liste die Zeit. Ohne beides (ein Lauf von Hand) alles in einem Zug.
+   */
+  const aktenArg = process.argv.find((a) => /^--akten=\d+\/\d+$/.test(a));
+  // "--frist=<Sekunden>": so lange darf dieser Aufruf hoechstens dauern (der Ablauf teilt seine Zeit auf).
+  const fristArg = process.argv.find((a) => /^--frist=\d+$/.test(a));
+  const ende = fristArg ? Date.now() + Number(fristArg.slice(8)) * 1000 : Infinity;
+  let liste;
+  if (aktenArg) {
+    liste = [`/api/szene-stats?ansicht=akten&teil=${aktenArg.slice(8)}`];
+  } else {
+    const alle = wege(s);
+    const je = Math.ceil(alle.length / teile);
+    liste = [...(teilArg ? [] : ['/api/szene-stats?ansicht=akten']), ...alle.slice((teil - 1) * je, teil * je)];
+    console.log(`  Saisons: ${s.length ? s.join(', ') : '(keine gefunden)'}`);
+    console.log(`  Abfragen: ${liste.length}${teile > 1 ? ` (Teil ${teil} von ${teile}, zusammen ${alle.length})` : ''}`);
+  }
   console.log('');
 
   let ok = 0;
   let schief = 0;
-  for (const weg of liste) {
+  for (const [i, weg] of liste.entries()) {
     const start = Date.now();
+    const rest = ende - start;
+    if (rest < 5_000) {
+      schief += liste.length - i;
+      console.log(`  FRIST  ${liste.length - i} Abfragen ohne Zeit uebrig, ab ${weg}`);
+      break;
+    }
     try {
       /*
        * Drei Minuten Geduld je Abfrage. Frueher waren es zehn - ein Abbruch
@@ -225,21 +275,23 @@ async function los() {
        * alles danach fehlte. Eine fehlende Antwort rechnet spaeter der erste
        * Besucher; eine verlorene Portion niemand.
        */
-      // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv) duerfen laenger: abgebrochen rechnet der Server
-      // trotzdem weiter und blockiert die naechste - am 12.10.2026 liefen so Akten und Startansicht beide in die Frist.
-      const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)/.test(weg);
-      const r = await fetch(SERVER + weg, {
-        // Drei Minuten: eine haengende Abfrage hielt sonst die ganze
-        // letzte Portion bis in die Zeitgrenze auf.
-        signal: AbortSignal.timeout(schwer ? 900_000 : 180_000),
-      });
-      const bytes = (await r.arrayBuffer()).byteLength;
-      if (!r.ok) throw new Error(String(r.status));
+      // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv, das Preisgeld der Orgs) duerfen laenger - und zwar
+      // wirklich (siehe hole): abgebrochen rechnet der Server trotzdem weiter und blockiert die naechste.
+      const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)|orgs\?ansicht=verdienst/.test(weg);
+      const r = await hole(weg, Math.min(rest, schwer ? 900_000 : 180_000));
+      if (r.status < 200 || r.status >= 300) throw new Error(String(r.status));
       ok += 1;
-      console.log(`  ok    ${zeit(Date.now() - start).padStart(7)}  ${String(bytes).padStart(9)} B  ${weg}`);
+      console.log(`  ok    ${zeit(Date.now() - start).padStart(7)}  ${String(r.bytes).padStart(9)} B  ${weg}`);
     } catch (e) {
       schief += 1;
-      console.log(`  FEHLT ${zeit(Date.now() - start).padStart(7)}  ${' '.repeat(11)}${weg}  (${e.message})`);
+      console.log(`  FEHLT ${zeit(Date.now() - start).padStart(7)}  ${' '.repeat(11)}${weg}  (${e.code ?? e.message})`);
+      // Antwortet der Server gar nicht mehr, ist der Rest verloren - abbrechen, damit der Ablauf die Portion neu startet.
+      if (!(await lebt())) {
+        schief += liste.length - i - 1;
+        console.log(`  SERVER TOT nach ${weg} - ${liste.length - i - 1} Abfragen nicht versucht`);
+        process.exitCode = 3;
+        break;
+      }
     }
   }
 
@@ -255,7 +307,7 @@ async function los() {
    * eine halbe Stunde - am 29.9.2026 lief der Schritt damit in seine Frist,
    * und alles danach fiel aus. Mit COMPHUB_PROFILE_VORRECHNEN=1 wieder an.
    */
-  const profile = teil === teile && process.env.COMPHUB_PROFILE_VORRECHNEN === '1' ? await profileDerListen() : [];
+  const profile = !aktenArg && teil === teile && process.env.COMPHUB_PROFILE_VORRECHNEN === '1' ? await profileDerListen() : [];
   console.log(`  Profile: ${profile.length}`);
   let profileOk = 0;
   for (let i = 0; i < profile.length; i += 4) {

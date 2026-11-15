@@ -590,6 +590,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=7168
         run: |
           set +e
+          # Bis hierhin darf gerechnet werden: die Frist des Schritts (110 min) minus Zeit fuer den Schluss (Discord, Protokoll).
+          ENDE=$(( $(date +%s) + 100 * 60 ))
           # Auslagerungsdatei: faengt Spitzen ab, statt dass der Laufrechner
           # bei vollem Speicher stehen bleibt. Auf /mnt liegt die grosse,
           # fluechtige Platte des Laufrechners.
@@ -639,20 +641,45 @@ jobs:
           node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
           node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
           stoppen
+          # 15.11.2026: die Listen zuerst, alle acht Portionen; die Akten danach, jede Schale auf eigenem frischen Server und
+          # mit der Zeit, die bleibt (scripts/antworten-vorrechnen.mjs, hole()). Vorher lief die Akte als erste Abfrage jeder
+          # Portion, fetch brach sie nach 300 s ab, der Server rechnete sie neben den Saisonlisten weiter und starb in Teil 1
+          # jedes Laufs (15 GB, 7 GB Auslagerung) - 72 von 77 Abfragen "fetch failed", die Liste von S43 blieb beim 6.11.
+          # Die Frist des Schritts (110 min) wird hier eingeteilt, damit nichts mehr in sie hineinlaeuft.
+          rest() { echo $(( ENDE - $(date +%s) )); }
+          # Ein Aufruf mit frischem Server. $1 = Beschriftung, Rest = Angaben fuer das Skript. Setzt LEBT.
+          portion() {
+            local NAME=$1; shift
+            local FRIST=$1; shift
+            starten
+            timeout $((FRIST + 30)) node scripts/antworten-vorrechnen.mjs http://localhost:3000 "$@" --frist=$FRIST 2>&1 | tee /tmp/teil.log | sed -u 's/^/  ['"$NAME"'] /'
+            local CODE=${PIPESTATUS[0]}
+            LEBT=ja
+            { [ "$CODE" = 3 ] || [ "$CODE" = 124 ] || ! curl -sf -m 10 -o /dev/null http://localhost:3000/api/stand; } && LEBT=nein
+            stoppen
+            cat /tmp/teil.log >> /tmp/vorrechnen.log
+            echo "$NAME, Versuch $VERSUCH (Frist ${FRIST}s, Ende $CODE): $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
+            if [ "$LEBT" = nein ]; then echo "::warning::Server in $NAME abgestuerzt oder Frist erreicht:"; tail -n 8 /tmp/server.log; fi
+          }
           for TEIL in 1 2 3 4 5 6 7 8; do
             for VERSUCH in 1 2; do
-              starten
-              # Das Protokoll laeuft live mit (tee): wird der Teil abgeschossen,
-              # steht im Lauf trotzdem, welche Abfrage zuletzt dran war.
-              timeout 1200 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/8 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
-              LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
-              stoppen
-              cat /tmp/teil.log >> /tmp/vorrechnen.log
-              echo "Teil $TEIL/8, Versuch $VERSUCH: $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
+              # Je Portion hoechstens zwanzig Minuten, und fuer jede spaetere Portion bleiben vier Minuten uebrig (gemessen
+              # brauchen die Teile 3 bis 8 je unter einer Minute, wenn keine Akte nebenher laeuft). Die Akten bekommen den Rest.
+              FRIST=$(( $(rest) - 240 * (8 - TEIL) )); [ $FRIST -gt 1200 ] && FRIST=1200
+              [ $FRIST -lt 60 ] && { echo "::warning::Keine Zeit mehr fuer Teil $TEIL"; break; }
+              portion "teil $TEIL" $FRIST --teil=$TEIL/8
               [ "$LEBT" = ja ] && break
-              echo "::warning::Server in Teil $TEIL abgestuerzt:"
-              tail -n 8 /tmp/server.log
             done
+          done
+          # Die Akten: je Schale ein frischer Server. Reicht die Zeit nicht fuer alle acht, faengt der naechste Lauf mit der
+          # Schale an, die diesmal zu kurz kam (nach der Stunde gedreht).
+          ERSTE=$(( 10#$(date -u +%H) % 8 ))
+          for I in 0 1 2 3 4 5 6 7; do
+            SCHALE=$(( (ERSTE + I) % 8 + 1 ))
+            VERSUCH=1
+            FRIST=$(( $(rest) - 30 )); [ $FRIST -gt 1500 ] && FRIST=1500
+            [ $FRIST -lt 120 ] && { echo "::warning::Keine Zeit mehr fuer Akten-Schale $SCHALE und folgende"; break; }
+            portion "akten $SCHALE" $FRIST --akten=$SCHALE/8
           done
           starten
           # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
