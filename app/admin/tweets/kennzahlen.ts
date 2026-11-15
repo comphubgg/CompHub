@@ -66,10 +66,10 @@ const KANON: Record<string, Kanon> = {
   matsVerbaut:  { id: 'matsVerbaut', titel: 'Most Mats Used',          symbol: '🧱' },
   builds:       { id: 'builds',     titel: 'Most Builds Placed',       symbol: '🏗️' },
   kisten:       { id: 'kisten',     titel: 'Most Chests Opened',       symbol: '📦' },
-  // Epic zaehlt Heil- und Schildvorgaenge (GainedHealthTimes / GainedShieldTimes), keine Lebenspunkte. "heals" der Einzelwerte ist bei Epic die Summe
-  // beider - neben den zwei Einzelzeilen also doppelt gezaehlt und faelschlich "Healing Done" genannt.
-  heilung:      { id: 'heilung',    titel: 'Most Times Healed',        symbol: '💊' },
-  schild:       { id: 'schild',     titel: 'Most Times Shield Gained', symbol: '🛡️' },
+  // Geheilte Lebens- und Schildpunkte aus dem Replay (app/api/cup-stats: heilHp, schildHeilEcht) - seit 15.11.2026 keine Vorgangs-Zaehler mehr, darum
+  // "Health Healed" / "Shield Healed" statt "Times Healed". "heals" der Einzelwerte (Epics Vorgaenge, Summe beider) faellt neben den zweien weg.
+  heilung:      { id: 'heilung',    titel: 'Most Health Healed',       symbol: '💊' },
+  schild:       { id: 'schild',     titel: 'Most Shield Healed',       symbol: '🛡️' },
   heals:        { id: 'heals',      titel: 'Most Heals & Shield Gains', symbol: '❤️‍🩹', verdraengtVon: ['heilung', 'schild'] },
   // Eine Strecke: Epics Wert (zu Fuss plus Gleiter, wie Osirion) vor den Replay-Proben, die nur alle 10 s messen und darunter liegen.
   strecke:      { id: 'distanz',    titel: 'Most Distance Traveled',   symbol: '🏃', einheit: 'km', nachkomma: 1, vorrang: 0 },
@@ -113,6 +113,50 @@ export function vereinheitlichen<T extends KennzahlListe>(listen: T[]): T[] {
 /** Was auf einer Karte ueber EINEN Spieler / EIN Team stehen darf: ohne "Lowest Damage Ratio" (dieselbe Zahl wie die Damage Ratio). */
 export function fuerEinzelne<T extends KennzahlListe>(listen: T[]): T[] {
   return listen.filter((b) => b.schluessel !== 'quoteNiedrig');
+}
+
+/** Die einheitliche Kennung einer Liste ("treffer" und "hits" -> "hits"). */
+export function kennzahlId(schluessel: string): string {
+  return KANON[schluessel]?.id ?? schluessel;
+}
+
+/*
+ * Player Card (Betreiber, 15.11.2026): Strecke und gefarmtes Material bleiben aus dem Text, bis sie Spieler fuer Spieler gegen Osirion stimmen.
+ */
+const NICHT_IN_SPIELERKARTE = new Set(['distanz', 'mats']);
+export function fuerSpielerKarte<T extends KennzahlListe>(listen: T[]): T[] {
+  return listen.filter((b) => !NICHT_IN_SPIELERKARTE.has(kennzahlId(b.schluessel)));
+}
+
+/*
+ * Die acht Kacheln im Bild der Player Card, feste Reihenfolge (Betreiber, 15.11.2026). Ohne K/D, Durchschnittsplatz und Lebenszeit.
+ * Fehlt die Genauigkeit, steht dort der erlittene Schaden.
+ */
+export const SPIELERKARTE_KACHELN: Array<{ ids: string[]; titel: string[] }> = [
+  { ids: ['quote'], titel: ['Damage Ratio'] },
+  { ids: ['points'], titel: ['Points'] },
+  { ids: ['wins'], titel: ['Victory Royales'] },
+  { ids: ['headshots'], titel: ['Headshots'] },
+  { ids: ['damage'], titel: ['Damage to Players'] },
+  { ids: ['elims'], titel: ['Eliminations'] },
+  { ids: ['hits'], titel: ['Hits to Players'] },
+  { ids: ['genauigkeit', 'damageTaken'], titel: ['Accuracy', 'Damage Taken'] },
+];
+
+/** Aus den Werten eines Spielers die Kacheln der Player Card: je Kachel der erste vorhandene Wert, sonst faellt die Kachel weg. */
+export function spielerKarteKacheln<W extends { liste: KennzahlListe; wert: number }>(werte: W[]): Array<{ titel: string; w: W }> {
+  const nachId = new Map<string, W>();
+  for (const w of werte) {
+    const id = kennzahlId(w.liste.schluessel);
+    if (!nachId.has(id)) nachId.set(id, w);
+  }
+  const aus: Array<{ titel: string; w: W }> = [];
+  for (const k of SPIELERKARTE_KACHELN) {
+    // Mit Ersatz zaehlt nur ein echter Wert: eine Genauigkeit von 0 % heisst "nicht gemessen".
+    const i = k.ids.findIndex((id, j) => nachId.has(id) && (j === k.ids.length - 1 || nachId.get(id)!.wert > 0));
+    if (i >= 0) aus.push({ titel: k.titel[i], w: nachId.get(k.ids[i])! });
+  }
+  return aus;
 }
 
 /** Sekunden lesbar: "1h 58m", "7m 55s", "42s". */

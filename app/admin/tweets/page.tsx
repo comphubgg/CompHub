@@ -27,7 +27,7 @@ import { tweetLaenge } from '@/lib/ftPosts';
 import type { FtAntwort } from '@/lib/ftPostsDaten';
 import FtBild from './FtBild';
 import StatKarte, { type StatKartePerson } from './StatKarte';
-import { einzelZeile, fuerEinzelne, spaltenName, vereinheitlichen, wertText, dauer } from './kennzahlen';
+import { einzelZeile, fuerEinzelne, fuerSpielerKarte, spaltenName, spielerKarteKacheln, vereinheitlichen, wertText, dauer } from './kennzahlen';
 import type { StatKarteWert } from '@/lib/statKarteBild';
 import { STAT_KARTE_WERTE } from '@/lib/statKarteBild';
 interface Fenster {
@@ -2751,7 +2751,9 @@ export default function TweetSeite() {
       // Ohne "Most" und "Best": auf einer Karte ueber einen einzelnen Spieler
       // liest sich "Most Eliminations: 43" so, als fuehre er die Wertung an -
       // der Platz dahinter sagt ohnehin genauer, wo er steht.
-      const zeilen = karteWerte.map((k) => einzelZeile(k.liste, k.wert, k.platz));
+      // Ohne Strecke und gefarmtes Material, bis sie nachweislich stimmen (fuerSpielerKarte).
+      const imText = new Set(fuerSpielerKarte(karteWerte.map((k) => k.liste)));
+      const zeilen = karteWerte.filter((k) => imText.has(k.liste)).map((k) => einzelZeile(k.liste, k.wert, k.platz));
       return `${mitFlagge(karteSpieler.name, karteSpieler.id)}: ${kopf}${zusatz}`.trim()
         + NL + NL + zeilen.join(NL);
     }
@@ -2996,7 +2998,8 @@ export default function TweetSeite() {
       if (!karteSpieler) return null;
       return {
         titel, untertitel: 'Player Card', personen: [person(karteSpieler.name, karteSpieler.id)],
-        werte: karteWerte.slice(0, STAT_KARTE_WERTE).map((k) => ({ titel: spaltenName(k.liste.titel), wert: zahl(k.wert, k.liste), platz: k.platz })),
+        // Feste acht Kacheln (kennzahlen.ts, SPIELERKARTE_KACHELN) - nicht die acht besten Plaetze.
+        werte: spielerKarteKacheln(karteWerte).slice(0, STAT_KARTE_WERTE).map(({ titel: t, w: k }) => ({ titel: t, wert: zahl(k.wert, k.liste), platz: k.platz })),
       };
     }
     if (vorlage === 'spieler') {
