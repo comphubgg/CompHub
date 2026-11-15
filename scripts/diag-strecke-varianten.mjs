@@ -58,10 +58,10 @@ for (const p of d.spieler ?? []) {
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1], b = pts[i];
     if (b[0] < busAb || a[7] !== b[7]) continue;
-    if (b[7] !== kanal) { kanal = b[7]; leben.push([Math.round(b[0]), 0]); }
+    if (b[7] !== kanal) { kanal = b[7]; leben.push([Math.round(b[0]), 0]); gelandet = false; }
     leben[leben.length - 1][1] = Math.round(b[0]);
     const d2 = Math.hypot(b[1] - a[1], b[2] - a[2]) / 100; const d3 = Math.hypot(b[1] - a[1], b[2] - a[2], b[3] - a[3]) / 100;
-    if (d3 > 30) { sprung++; sprungM += d2; if (spr.length < 25) spr.push([Math.round(a[0]), Math.round((b[0] - a[0]) * 100) / 100, Math.round(d2), String(z('ReplicatedMovementMode', a[0]) ?? '?')]); continue; }
+    if (d3 > 30) { sprung++; sprungM += d2; if (spr.length < 25) spr.push([Math.round(a[0]), Math.round((b[0] - a[0]) * 100) / 100, Math.round(d2), String(z('ReplicatedMovementMode', a[0]) ?? '?')]); const jk = 'J' + (gelandet ? 'n' : 'v') + String(z('ReplicatedMovementMode', a[0]) ?? '?'); const jx = k[jk] ??= [0, 0]; jx[0] += d2; jx[1] += d3; continue; }
     const modus = String(z('ReplicatedMovementMode', a[0]) ?? '?');
     if (modus === '1') gelandet = true;
     const fz = (z('Vehicle', a[0]) ?? '0') !== '0' ? 'F' : '';

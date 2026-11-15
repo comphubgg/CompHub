@@ -55,7 +55,7 @@ const axt = {};
 for (const s of d.schuesse ?? []) {
   const h = d.hand?.[s[1]] ?? []; let k = -1; for (let i = 0; i < h.length && h[i][0] <= s[0]; i++) k = i;
   const wn = k >= 0 ? d.waffenNamen[h[k][1]] ?? '' : '';
-  if (/Pickaxe|Melee/i.test(wn)) (axt[s[1]] ??= []).push(s[0]);
+  if (/Pickaxe|Melee/i.test(wn) || (k < 0 && s[5] === 0)) (axt[s[1]] ??= []).push(s[0]);
 }
 const nahe = (l, a, b) => (l ?? []).some((x) => x >= a && x <= b);
 const sum = {};
@@ -124,3 +124,15 @@ console.log('EXAKT-SUMME', JSON.stringify(gesamt));
 for (const e of ergebnis.slice(0, 50)) { const x = d.extra?.[e.sid]; if (x) console.log('HEUTE', (e.name ?? e.sid).padEnd(20), 'farm', [9, 10, 11].map((i) => x[i]).join('/'), 'sam', [6, 7, 8].map((i) => x[i]).join('/'), 'bauten', [14, 15, 16].map((i) => x[i]).join('/')); }
 console.log('FELDER', JSON.stringify(m.felder));
 console.log('RM Proben', JSON.stringify((m.rmProben ?? []).slice(0, 12)));
+
+// 5) Bauen: gesetzte Teile je Stoff (Bauteil-Akteure, extra 14-16) gegen die Minus-Schritte im Inventar (je Teil 10 Mats; groessere Minus = Hinwerfen/Tod).
+let bauGleich = 0, bauAlle = 0; const bauAb = [];
+for (const [sid, l] of Object.entries(schritte)) {
+  const x = d.extra?.[sid]; if (!x) continue;
+  const inv = [0, 0, 0]; for (const y of l) if (y.d < 0 && -y.d < 70 && y.d % 10 === 0) inv[y.s] += -y.d / 10;
+  // Rueckgaben (+10er binnen 2 s nach einem Minus) heben ein Teil auf
+  for (let i = 0; i < l.length; i++) { const y = l[i]; if (y.d > 0 && y.d % 10 === 0 && l.slice(Math.max(0, i - 8), i).some((w) => w.s === y.s && w.d < 0 && y.t - w.t <= 2)) inv[y.s] -= y.d / 10; }
+  const teile = [x[14], x[15], x[16]];
+  for (let s = 0; s < 3; s++) { bauAlle++; if (teile[s] === inv[s]) bauGleich++; else if (bauAb.length < 30) bauAb.push(`${name[sid]} ${STOFF[s]} teile=${teile[s]} inv=${inv[s]}`); }
+}
+console.log('BAU gleich', bauGleich, 'von', bauAlle, 'Abweichungen', JSON.stringify(bauAb));
