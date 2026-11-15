@@ -26,6 +26,10 @@ interface Fenster {
   erschlossen?: boolean;
   /** Der Sammler hat dieses Fenster noch nicht begonnen. */
   wartet?: boolean;
+  /** Je Fehlermeldung, wie viele FAILED sie tragen (scripts/replay-uebersicht.mjs, /api/replays). */
+  fehlerArten?: Record<string, number>;
+  /** In der letzten Stunde / den letzten 24 Stunden ausgewertet (nur /api/replays). */
+  fertigStunde?: number; fertigTag?: number;
 }
 
 interface Match {
@@ -456,9 +460,21 @@ export default function ReplayVerwaltung() {
         {/* Der Sammler, live */}
           {live && (() => {
             const jetzt = live.jetzt ?? Date.now();
-            const letzte = live.schleife?.verlauf?.[live.schleife.verlauf.length - 1];
+            /*
+             * 15.11.2026: hier stand "Sammler wartet · letzter Durchgang 26409 min her · 181 Durchgänge" - das Protokoll replays/_live-lauf.json schrieb
+             * nur die alte Live-Schleife (replays-live.yml), zuletzt am 28.10.2026 ("beendet"). Gesammelt wird seitdem von der Schnellspur und den
+             * Nacharbeitern (GitHub Actions) und vom Server; die Schleife zeigt sich nur noch, wenn ihr Protokoll frisch ist. Ob gesammelt wird, sagt
+             * jetzt, was wirklich fertig wurde (PARSED in der letzten Stunde, aus den Zuständen) und der letzte Lauf der Nacharbeiter (replays/_lauf.json).
+             */
+            const schleifeZeit = Date.parse(String(live.schleife?.zeit ?? ''));
+            const schleifeFrisch = Number.isFinite(schleifeZeit) && jetzt - schleifeZeit < 30 * 60_000 && !live.schleife?.beendet;
+            const letzte = schleifeFrisch ? live.schleife?.verlauf?.[live.schleife.verlauf.length - 1] : undefined;
             const vorS = letzte ? Math.round((jetzt - Date.parse(letzte.zeit)) / 1000) : null;
-            const aktiv = vorS !== null && vorS < 180 && !live.schleife?.beendet;
+            const laufZeit = Date.parse(String(live.lauf?.zeitpunkt ?? ''));
+            const laufVorMin = Number.isFinite(laufZeit) ? Math.round((jetzt - laufZeit) / 60_000) : null;
+            const stunde = fenster.reduce((n, f) => n + (f.fertigStunde ?? 0), 0);
+            const tag = fenster.reduce((n, f) => n + (f.fertigTag ?? 0), 0);
+            const aktiv = (vorS !== null && vorS < 180) || stunde > 0 || (laufVorMin !== null && laufVorMin < 30);
             return (
               <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl
                               border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-xs">
@@ -473,13 +489,19 @@ export default function ReplayVerwaltung() {
                     · {letzte.live ?? '?'} <T>laufende Cups</T>
                   </span>
                 )}
+                {(stunde > 0 || tag > 0) && (
+                  <span className="text-slate-500">
+                    {zahl(stunde)} <T>in der letzten Stunde ausgewertet</T> · {zahl(tag)} <T>in 24 Stunden</T>
+                  </span>
+                )}
                 {live.lauf && (
                   <span className="text-slate-500">
-                    <T>zuletzt</T>: {live.lauf.fenster ?? 0} <T>Fenster</T>, {live.lauf.neu ?? 0} <T>neu ausgewertet</T>
+                    <T>Nacharbeit</T>{laufVorMin !== null ? ` (${laufVorMin < 60 ? `${laufVorMin} min` : `${Math.round(laufVorMin / 60)} h`} ` : ' ('}<T>her</T>)
+                    : {live.lauf.fenster ?? 0} <T>Fenster</T>, {live.lauf.neu ?? 0} <T>neu ausgewertet</T>
                     {live.lauf.angefasst?.length ? ` · ${live.lauf.angefasst.map((w) => w.replace(/^S\d+_/, '')).join(', ')}` : ''}
                   </span>
                 )}
-                {!letzte && !live.lauf && <span className="text-slate-600"><T>noch kein Protokoll</T></span>}
+                {!letzte && !live.lauf && !tag && <span className="text-slate-600"><T>noch kein Protokoll</T></span>}
                 <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-slate-600">
                   <T>alle 10 Sekunden</T>
                 </span>
@@ -591,7 +613,11 @@ export default function ReplayVerwaltung() {
                           // sonst wechselt die Reihenfolge von Zeile zu Zeile.
                           .sort((a, b) => a[0].localeCompare(b[0]))
                           .map(([stand, n]) => (
-                            <span key={stand} className="flex items-center gap-1.5">
+                            <span key={stand} className="flex items-center gap-1.5"
+                              // Woran es scheiterte, ohne das Fenster aufzuklappen (15.11.2026: der Betreiber sah nur "FAILED 6").
+                              title={stand === 'FAILED' && f.fehlerArten
+                                ? Object.entries(f.fehlerArten).sort((a, b) => b[1] - a[1]).map(([msg, k]) => `${k}× ${msg}`).join('\n')
+                                : undefined}>
                               <Marke stand={stand} />
                               <span className="text-xs tabular-nums text-slate-400">
                                 {n}

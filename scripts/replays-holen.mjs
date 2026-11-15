@@ -41,6 +41,7 @@ import {
   warte, zustandAusOrdner,
 } from '../lib/replayKern.mjs';
 import { replayRegel, endrunden, cupVorrang } from '../lib/replayRegel.mjs';
+import { nachzuegler as nachzueglerAuswahl } from '../lib/replayNachzuegler.mjs';
 
 /*
  * Wo antwortet das Werkzeug?
@@ -608,7 +609,15 @@ async function verarbeite(f, matchId, zustand) {
     return 'fertig';
   } catch (e) {
     const bisher = zustand.matches[matchId]?.versuche ?? 0;
-    setze(ZUSTAND.FEHLGESCHLAGEN, { fehler: e.message, versuche: bisher + 1 });
+    /*
+     * Mit HTTP-Code und Schritt (15.11.2026): im One Piece Buggy Cup NAC standen 6 FAILED mit nur "request failed" - so wirft der Downloader eine
+     * Absage von Epic ohne Text (UnsuccessfulRequestException, der Code steht in e.code). Ohne Code und Schritt (Pruefen, Laden, Lesen) war nicht zu
+     * sagen, ob es eine Absage, ein noch nicht abgelegter Teil oder ein Leserfehler war.
+     */
+    const schritt = zustand.matches[matchId]?.stand;
+    const code = e?.code ?? e?.statusCode;
+    const fehler = `${e?.message || String(e)}${code && !String(e?.message).includes(String(code)) ? ` (${/^\d+$/.test(String(code)) ? 'HTTP ' : ''}${code})` : ''}`;
+    setze(ZUSTAND.FEHLGESCHLAGEN, { fehler, schritt, versuche: bisher + 1 });
     return 'fehler';
   }
 }
@@ -944,7 +953,7 @@ async function planSchreibenLauf(datei) {
       if (!offen.length && !neu.length && !idsStand) continue;
       // Die bisherigen Eintraege der offenen Matches (seit wann "nicht da", wie viele Versuche) - die Leser brauchen sie fuer nochmalFragen.
       const vorher = Object.fromEntries(offen.filter((id) => zustand.matches?.[id]).map((id) => [id, zustand.matches[id]]));
-      plan.push({ ...f, offen, neu, vorher, idsStand, ...(idsStand ? { idsAlle: idsStand } : {}), alle: ids.length });
+      plan.push({ ...f, offen, neu, vorher, idsStand, ...(idsStand ? { idsAlle: idsStand } : {}), alle: ids.length, standDatum: zustand.datum ?? null });
     }
   };
   await Promise.all(Array.from({ length: 4 }, arbeiter));
@@ -959,8 +968,11 @@ async function planSchreibenLauf(datei) {
   const heiss = plan.filter((f) => f.offen.length && (f.live || f.datum > jetzt - HEISS_STUNDEN * 3600_000 || (f.angefragt && f.offen.length <= 300)));
   if (heiss.length) {
     const spaeter = plan.filter((f) => f.offen.length && !heiss.includes(f));
-    if (spaeter.length) console.log(`${spaeter.length} aeltere Spieltage warten auf den naechsten Lauf: Frisches geht vor.`);
-    for (const f of spaeter) plan.splice(plan.indexOf(f), 1);
+    const mit = nachzueglerAuswahl(spaeter, jetzt, { stunden: SCHNELL_STUNDEN });
+    if (mit.length) console.log(`Nachzuegler (Fehlversuche und noch nicht abgelegte): ${mit.map((f) => `${f.windowId} ${f.offen.length}`).join(', ')}`);
+    const warten = spaeter.filter((f) => !mit.includes(f));
+    if (warten.length) console.log(`${warten.length} aeltere Spieltage warten auf den naechsten Lauf: Frisches geht vor.`);
+    for (const f of warten) plan.splice(plan.indexOf(f), 1);
   }
   const gesamt = plan.reduce((a, f) => a + f.offen.length, 0);
   const stuecke = gesamt ? Math.min(STUECKE_MAX, Math.max(1, Math.ceil(gesamt / (heiss.length ? JE_STUECK_HEISS : JE_STUECK)))) : 0;

@@ -158,6 +158,12 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
     'Collector idle',
   'Sammler läuft':
     'Collector running',
+  'in der letzten Stunde ausgewertet':
+    'parsed in the last hour',
+  'in 24 Stunden':
+    'in 24 hours',
+  'Nacharbeit':
+    'Backlog run',
   'Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.':
     'Counted by seasons (a chapter starts in late November of the previous year): 2024 = Chapter 5 Season 3 and 4, 2025 = Chapter 6, 2026 = Chapter 7. The archive has no dates for older match days.',
   'Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.':

@@ -107,13 +107,16 @@ async function main() {
       if (!Object.keys(z.matches ?? {}).length) z = await zustandAusOrdner(season, windowId) ?? z;
       if (!z?.windowId && !Object.keys(z?.matches ?? {}).length) continue;
       const zaehler = {};
+      // Je Fehlermeldung, wie viele FAILED sie tragen - fuer den Hinweis an der Marke in /admin/replays (15.11.2026).
+      const fehlerArten = {};
       const jetzt = Date.now();
       for (const m of Object.values(z.matches ?? {})) {
         const stand = standAnzeige(m, z.datum, jetzt, z.windowId ?? windowId);
         zaehler[stand] = (zaehler[stand] ?? 0) + 1;
+        if (stand === 'FAILED') { const k = String(m.fehler || '(ohne Meldung)').slice(0, 200); fehlerArten[k] = (fehlerArten[k] ?? 0) + 1; }
       }
       fenster.push({
-        ...z, matches: {}, zaehler,
+        ...z, matches: {}, zaehler, ...(Object.keys(fehlerArten).length ? { fehlerArten } : {}),
         gesamt: Object.keys(z.matches ?? {}).length,
         runde: rundeName(z.windowId ?? windowId, z.region),
       });

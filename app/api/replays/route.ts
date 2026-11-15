@@ -171,14 +171,20 @@ async function alleFenster() {
       const jetzt = Date.now();
       // Wie viele in der letzten Stunde und den letzten 24 Stunden fertig wurden - daraus rechnet die Verwaltung, wann das Offene abgearbeitet ist (Betreiber, 7.11.2026).
       let fertigStunde = 0; let fertigTag = 0;
+      // Je Fehlermeldung, wie viele FAILED sie tragen - der Hinweis an der Marke in /admin/replays (15.11.2026).
+      const fehlerArten: Record<string, number> = {};
       for (const m of Object.values(z.matches ?? {})) {
         const stand = standAnzeige(m, z.datum, jetzt, z.windowId ?? windowId);
         zaehler[stand] = (zaehler[stand] ?? 0) + 1;
+        if (stand === 'FAILED') {
+          const k = String((m as { fehler?: string | null }).fehler || '(ohne Meldung)').slice(0, 200);
+          fehlerArten[k] = (fehlerArten[k] ?? 0) + 1;
+        }
         const fertigUm = m.stand === 'PARSED' && (m as { zuletzt?: string }).zuletzt ? Date.parse((m as { zuletzt?: string }).zuletzt as string) : NaN;
         if (Number.isFinite(fertigUm)) { if (jetzt - fertigUm < 3_600_000) fertigStunde += 1; if (jetzt - fertigUm < 86_400_000) fertigTag += 1; }
       }
       raus.push({
-        ...z, matches: {}, zaehler, fertigStunde, fertigTag,
+        ...z, matches: {}, zaehler, fertigStunde, fertigTag, ...(Object.keys(fehlerArten).length ? { fehlerArten } : {}),
         gesamt: Object.keys(z.matches ?? {}).length,
         runde: rundeName(z.windowId ?? windowId, z.region),
       });
