@@ -3,6 +3,7 @@ import { liesJson } from '@/lib/ablage';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayIndex, nachSpieltag, cupKurz, meineCups } from '@/lib/replayVoll';
 import { holeSeite } from '@/lib/epicCups';
+import { profilKarte } from '@/lib/ergebnisPosts';
 
 /*
  * Die voll ausgelesenen Replays (scripts/replay-voll-holen.mjs) fuer die Seiten /replays und /admin/replay.
@@ -47,7 +48,16 @@ export async function GET(request: Request) {
         const s = await holeSeite(e.eventId, e.windowId, 0, true);
         if (Object.keys(s.wertung.platz).length || s.wertung.elim) wertung = s.wertung;
       } catch { /* ohne Wertung zeigt die Karte keine Punkte */ }
-      return zwischenspeichern(NextResponse.json({ ...daten, info: e, wertung }, { headers: { 'Cache-Control': 'public, max-age=3600' } }), 86_400);
+      // Flaggen nur aus unseren eigenen Profilen (spieler-profile.json): Epic-Konto -> Laenderkuerzel.
+      const laender: Record<string, string> = {};
+      try {
+        const { profile } = await profilKarte();
+        for (const s of (daten.spieler as Array<{ epic?: string }> | undefined) ?? []) {
+          const land = s.epic ? profile.get(s.epic.toLowerCase())?.land : undefined;
+          if (s.epic && land && /^[A-Za-z]{2}$/.test(land)) laender[s.epic.toLowerCase()] = land.toLowerCase();
+        }
+      } catch { /* ohne Profile keine Flaggen */ }
+      return zwischenspeichern(NextResponse.json({ ...daten, info: e, wertung, laender }, { headers: { 'Cache-Control': 'public, max-age=3600' } }), 86_400);
     }
     // Meine Cups: die Games, in denen dieses Epic-Konto steht (Seite /replays/meine).
     const meine = (p.get('meine') ?? '').replace(/-/g, '').toLowerCase();

@@ -116,7 +116,7 @@ export default function MatchSeite() {
               {(game.sieger ?? []).length > 0 && <span className="text-amber-300">🏆 {(game.sieger ?? []).map(ohneMarke).join(' · ')}</span>}
             </p>
             <div className="mt-5">
-              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} wertung={match.wertung} />
+              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} />
             </div>
           </>
         )}

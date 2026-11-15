@@ -42,7 +42,7 @@ const SCHUSS_DAUER = 1.4;
 const LOOT_DAUER = 5;
 
 /** Der letzte Eintrag mit Zeit <= t (binaere Suche) - Index oder -1. */
-function bisIndex(liste: number[][], t: number): number {
+export function bisIndex(liste: number[][], t: number): number {
   let lo = 0; let hi = liste.length - 1; let r = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (liste[m][0] <= t) { r = m; lo = m + 1; } else hi = m - 1; }
   return r;
@@ -63,7 +63,7 @@ export function ortBei(liste: number[][] | undefined, t: number): { x: number; y
 }
 
 /** Der letzte Wert vor t. */
-function wertBei(liste: number[][] | undefined, t: number): number | null {
+export function wertBei(liste: number[][] | undefined, t: number): number | null {
   if (!liste?.length) return null;
   const i = bisIndex(liste, t);
   return i < 0 ? null : liste[i][1];
@@ -92,7 +92,7 @@ export function seltenheit(roh: string): string {
   const m = roh.match(/_(C|UC|R|VR|SR|UR)(?:_|$)/);
   return ({ C: '#6b7280', UC: '#16a34a', R: '#0284c7', VR: '#9333ea', SR: '#d97706', UR: '#d97706' } as Record<string, string>)[m?.[1] ?? ''] ?? '#475569';
 }
-const istVorrat = (roh: string) => ['munition', 'material'].includes(artVon(roh).art);
+export const istVorrat = (roh: string) => ['munition', 'material'].includes(artVon(roh).art);
 
 /** Eigene Symbole je Art (kein fremdes Bild): weisse Umrisse auf der Farbe der Seltenheit. */
 export function Symbol({ art, gross = 28 }: { art: Art; gross?: number }) {
@@ -226,7 +226,7 @@ export function bildVon(roh: string): { name: string; bild: string } | null {
   return w ? BILDER[w[1]] ?? null : null;
 }
 
-function Fach({ roh, aktiv, gross = 40 }: { roh: string; aktiv?: boolean; gross?: number }) {
+export function Fach({ roh, aktiv, gross = 40 }: { roh: string; aktiv?: boolean; gross?: number }) {
   useWiki();
   const { art, name } = artVon(roh);
   const echt = bildVon(roh);
@@ -315,7 +315,7 @@ function zwischen(liste: number[][], a: number, b: number): number[][] {
 }
 
 /** Was ein Spieler zur Zeit t bei sich hat (aufgehoben minus fallen gelassen) und was er in der Hand haelt. */
-function ausruestung(d: Aufbereitet, id: number, zeit: number) {
+export function ausruestung(d: Aufbereitet, id: number, zeit: number) {
   const bestand = new Map<string, number>();
   for (const l of d.loot) {
     if (l[0] > zeit) break;
@@ -354,10 +354,12 @@ interface EbeneProps {
   pzx: (v: number) => number; pzy: (v: number) => number;
   farbeVon: (id?: number) => string; sichtbar: (id?: number) => boolean;
   gewaehlt: number | null; waehle: (id: number | null) => void; namenZeigen: boolean;
+  /** Einstellungen der Karte (app/replays/Werkzeuge): Balken und Pfeil abschaltbar. */
+  balken?: boolean; pfeil?: boolean;
 }
 
 /** Spieler als Pfeil wie in Fortnite (Blick- oder Laufrichtung), darueber Schild und Leben - als HTML ueber der Karte, gegen den Zoom gegengerechnet. */
-export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, gewaehlt, waehle, namenZeigen }: EbeneProps) {
+export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, gewaehlt, waehle, namenZeigen, balken = true, pfeil = true }: EbeneProps) {
   if (!d.da) return null;
   return (
     <>
@@ -385,12 +387,13 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
                   // Schlicht (Betreiber, 7.11.2026: "der Name ist ein bisschen sehr unclean"): nur der Name, mittig, gekuerzt; die Waffe steht im HUD.
                   <span className="block rounded-md bg-zinc-950/85 px-1.5 pb-1 pt-0.5 shadow-[0_1px_3px_rgba(0,0,0,.6)]" style={{ minWidth: 60 }}>
                     <span className="block max-w-[110px] truncate text-center text-[10px] font-semibold leading-tight tracking-wide text-white">{s.name}</span>
-                    <span className="mt-[3px] block"><Balken hp={hp} schild={schild} schmal /></span>
+                    {balken && <span className="mt-[3px] block"><Balken hp={hp} schild={schild} schmal /></span>}
                   </span>
-                ) : <span className="block" style={{ width: 34 }}><Balken hp={hp} schild={schild} schmal /></span>}
+                ) : balken ? <span className="block" style={{ width: 34 }}><Balken hp={hp} schild={schild} schmal /></span> : null}
               </span>
-              <svg viewBox="0 0 20 20" width={24} height={24} className="block" style={{ transform: `rotate(${winkel}deg)`, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
-                <path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="2" strokeLinejoin="round" />
+              <svg viewBox="0 0 20 20" width={24} height={24} className="block" style={{ transform: pfeil ? `rotate(${winkel}deg)` : undefined, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
+                {pfeil ? <path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="2" strokeLinejoin="round" />
+                  : <circle cx="10" cy="10" r="6" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="2" />}
               </svg>
             </span>
           </button>
@@ -401,14 +404,14 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
 }
 
 /** Schuesse der letzten Augenblicke: Linie vom Schuetzen zum Einschlag, Schaden an der Stelle; dazu frisch aufgehobener Loot als Symbol. */
-export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<EbeneProps, 'd' | 'zeit' | 'pzx' | 'pzy' | 'sichtbar' | 'gewaehlt'>) {
+export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt, linien = true, zahlen = true }: Pick<EbeneProps, 'd' | 'zeit' | 'pzx' | 'pzy' | 'sichtbar' | 'gewaehlt'> & { linien?: boolean; zahlen?: boolean }) {
   if (!d.da) return null;
   const jetzt = zwischen(d.schuesse, zeit - SCHUSS_DAUER, zeit);
   const loot = zwischen(d.loot, zeit - LOOT_DAUER, zeit).filter((l) => l[5] === 1 && !istVorrat(d.namen[l[2]] ?? ''));
   return (
     <>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[15] h-full w-full">
-        {jetzt.map((s, i) => {
+        {linien && jetzt.map((s, i) => {
           if (!sichtbar(s[1]) && gewaehlt === null) return null;
           /*
            * Die Linie endet am Einschlag. Wo der Schuetze stand, ist nur nahe an einem bekannten Ort sicher (Betreiber, 30.10.2026: "Schussrichtungen
@@ -430,7 +433,7 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
           );
         })}
       </svg>
-      {jetzt.filter((s) => s[5] > 0).map((s, i) => (
+      {zahlen && jetzt.filter((s) => s[5] > 0).map((s, i) => (
         <span key={`z${i}`} className="pointer-events-none absolute z-30 font-black tabular-nums"
           style={{
             left: `${pzx(s[2])}%`, top: `${pzy(s[3])}%`, fontSize: 11, color: s[5] === 2 ? '#facc15' : '#fff', textShadow: '0 0 3px #000, 0 0 2px #000',
@@ -444,6 +447,35 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
         </span>
       ))}
     </>
+  );
+}
+
+/** Laufspuren der letzten Sekunden je Spieler; mit "Ereignisse" dazu Punkte, wo er Loot aufhob (gruen) oder traf (rot). */
+export function SpurEbene({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, ereignisse, dauer = 45 }: Pick<EbeneProps, 'd' | 'zeit' | 'spieler' | 'pzx' | 'pzy' | 'farbeVon' | 'sichtbar'> & { ereignisse: boolean; dauer?: number }) {
+  if (!d.da) return null;
+  const ab = zeit - dauer;
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[14] h-full w-full">
+      {spieler.map((s) => {
+        if (typeof s.tod === 'number' && s.tod <= zeit) return null;
+        const l = d.orte.get(s.id);
+        if (!l?.length) return null;
+        const bis = bisIndex(l, zeit);
+        if (bis < 0) return null;
+        const pkt: string[] = [];
+        for (let i = bis; i >= 0 && l[i][0] >= ab; i -= 1) pkt.push(`${pzx(l[i][1])},${pzy(l[i][2])}`);
+        const o = ortBei(l, zeit);
+        if (o) pkt.unshift(`${pzx(o.x)},${pzy(o.y)}`);
+        if (pkt.length < 2) return null;
+        return <polyline key={s.id} points={pkt.join(' ')} fill="none" stroke={farbeVon(s.id)} strokeOpacity={sichtbar(s.id) ? 0.75 : 0.15} strokeWidth={1.6} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
+      })}
+      {ereignisse && zwischen(d.loot, ab, zeit).filter((x) => x[5] === 1 && sichtbar(x[1]) && !istVorrat(d.namen[x[2]] ?? '')).map((x, i) => (
+        <circle key={`l${i}`} cx={pzx(x[3])} cy={pzy(x[4])} r={0.25} fill="#34d399" stroke="#000" strokeWidth={0.6} vectorEffect="non-scaling-stroke" />
+      ))}
+      {ereignisse && zwischen(d.schuesse, ab, zeit).filter((x) => x[5] > 0 && sichtbar(x[1])).map((x, i) => (
+        <circle key={`s${i}`} cx={pzx(x[2])} cy={pzy(x[3])} r={0.18} fill="#f43f5e" stroke="#000" strokeWidth={0.5} vectorEffect="non-scaling-stroke" />
+      ))}
+    </svg>
   );
 }
 
@@ -508,7 +540,7 @@ export function AlleSpieler({ d, zeit, spieler, farbeVon, waehle }: { d: Aufbere
 }
 
 /** Das HUD unten in der Karte wie bei Osirion: Steuerung, Name, Schild und Leben breit mit Zahl, die Faecher mit Bildern. */
-export function KartenHud({ d, zeit, s, farbe, steuerung }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null } | null; farbe: string; steuerung: ReactNode }) {
+export function KartenHud({ d, zeit, s, farbe, steuerung, inventar = true }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null } | null; farbe: string; steuerung: ReactNode; inventar?: boolean }) {
   const tot = s ? typeof s.tod === 'number' && s.tod <= zeit : false;
   const hp = s ? (tot ? 0 : hpBei(d.leben.get(s.id), zeit)) : null;
   const schild = s ? (tot ? 0 : d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null) : null;
@@ -516,7 +548,7 @@ export function KartenHud({ d, zeit, s, farbe, steuerung }: { d: Aufbereitet; ze
   return (
     <div className="pointer-events-auto absolute bottom-2 left-1/2 z-40 w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-lg border border-white/15 bg-black/75 p-1.5 text-white shadow-2xl backdrop-blur-sm" data-knopf>
       {steuerung}
-      {s && aus && (
+      {inventar && s && aus && (
         <>
           <p className="mt-1.5 flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-base font-bold leading-tight">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: farbe }} />
