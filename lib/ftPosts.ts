@@ -8,7 +8,7 @@
  *
  * Woher die Werte kommen (clutch/<Fenster>.json, scripts/clutch-berechnen.mjs, lib/vollSchaden.mjs) - dieselben Regeln wie die Statistikseite
  * (app/api/cup-spieler, app/api/spieler-detail):
- *   - Elims: clutch-je/<Fenster>.json, Spalte "killsEcht" je Match aufsummiert. NICHT das Feld "solo" - das sind Clutch-Punkte.
+ *   - Elims: killsEcht aus clutch/<Fenster>.json (Summe, wenn jedes Spiel den Kill-Zaehler hat), sonst Spalte "killsEcht" aus clutch-je aufsummiert. NICHT das Feld "solo" - das sind Clutch-Punkte.
  *   - Schaden, erlitten, Treffer, Kopftreffer (krit), Zeit im Sturm (sturm, Sekunden): "schaden".
  *   - Gebaute Teile (selbstHolz/-Stein/-Metall) und gefarmte Mats (farmHolz/-Stein/-Metall) nur, wenn jedes gelesene Spiel sie hat (invSpiele >= spiele);
  *     Mats im Zero Build gar nicht (dort 0, lib/zeroBuild).
@@ -26,7 +26,7 @@ export type FtJeZeile = Array<string | number | null>;
 
 /** Die Werte eines Spielers in clutch/<Fenster>.json, Feld "schaden" (alle optional - aeltere Dateien haben nicht alles). */
 export interface FtSpielerWerte {
-  dmg?: number; erlitten?: number; treffer?: number; krit?: number; sturm?: number; invSpiele?: number;
+  dmg?: number; erlitten?: number; treffer?: number; krit?: number; sturm?: number; invSpiele?: number; killsEcht?: number;
   farmHolz?: number; farmStein?: number; farmMetall?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number;
 }
 
@@ -299,7 +299,11 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
       leben: lebenVon(id),
       strecke: streckeVon(id),
       spiele: sp,
-      elims: ki > 0 ? zeilen.reduce((a, z) => a + (Number(z[ki]) || 0), 0) : 0,
+      /*
+       * Die Summe killsEcht aus clutch/<Fenster>.json, wenn jedes gelesene Spiel den Kill-Zaehler hat (inv) - dieselbe Zahl wie die Player Stats (app/api/cup-spieler).
+       * Die Zeilen je Match nur als Rueckfall: bis zum 15.11.2026 gingen dort Zeilen verloren (scripts/clutch-je-abgleich.mjs), die Summe waere zu klein.
+       */
+      elims: inv && typeof w.killsEcht === 'number' ? w.killsEcht : ki > 0 ? zeilen.reduce((a, z) => a + (Number(z[ki]) || 0), 0) : 0,
       bestes,
     };
   });
@@ -307,7 +311,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const ratio = (s: S) => (s.erlitten ? s.dmg / s.erlitten : 0);
   const top = (f: (s: S) => number, n = LISTE, filt: (s: S) => boolean = () => true) => spieler.filter(filt).sort((a, b) => f(b) - f(a)).slice(0, n);
   const nachElims = (s: S) => s.elims * 1e6 + s.dmg;
-  const hatElims = ki > 0 && spieler.some((s) => s.elims > 0);
+  const hatElims = spieler.some((s) => s.elims > 0);
   const titel = e.titel.trim();
 
   const posts: FtPost[] = [];

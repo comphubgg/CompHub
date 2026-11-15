@@ -463,14 +463,20 @@ async function holeRoh(request: Request) {
     ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
       // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
       if (!c || c.teilweise) return a;
-      const raus = a ?? { summe: {}, schaden: {}, leben: {} };
+      const raus = a ?? { summe: {}, schaden: {}, leben: {}, spiele: {} };
       for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + (c.epicZeit?.[id] ?? v);
+      // Spiele je Spieler mit: ohne sie gelten Elims aus dem vollen Auslesen (killsEcht) ueber mehrere Tage nicht als ganz gelesen.
+      for (const [id, v] of Object.entries(c.spiele ?? {})) raus.spiele![id] = (raus.spiele![id] ?? 0) + v;
       for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         raus.schaden![id] = {
           dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
           sturm: (da.sturm ?? 0) + sturmOk(d.sturm), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
+          ...(() => {
+            const e = d as { killsEcht?: number; todeEcht?: number; invSpiele?: number }; const f = da as typeof e;
+            return typeof e.killsEcht === 'number' ? { killsEcht: (f.killsEcht ?? 0) + e.killsEcht, todeEcht: (f.todeEcht ?? 0) + (e.todeEcht ?? 0), invSpiele: (f.invSpiele ?? 0) + (e.invSpiele ?? 0) } : {};
+          })(),
         };
       }
       return raus;
@@ -519,8 +525,25 @@ async function holeRoh(request: Request) {
     return raus;
   })();
 
+  /*
+   * Elims und Tode aus dem vollen Auslesen (killsEcht / todeEcht, lib/vollSchaden.mjs) statt aus dem Kill-Feed der schlanken Replay-Werte (15.11.2026).
+   * Der Kill-Feed schreibt eine Elim oft dem falschen Mitspieler zu: Trios Cash Cup Event 2 EU, iL juanit0 / mysëlf rev0ked / youngster Bane - Feed 24 / 20 / 14,
+   * killsEcht 24 / 20 / 13 = 57, genau Epics Elimination-Punkte. Nur wenn das volle Auslesen dieselbe Zahl Spiele kennt und jedes davon den Kill-Zaehler
+   * hat (invSpiele, dieselbe Regel wie app/api/spieler-detail) - sonst bleibt es beim Feed.
+   */
+  const mitEcht = <T extends { epicId: string; matches: number; kills: number; gestorben: number }>(x: T): T => {
+    const id = x.epicId.toLowerCase();
+    const d = clutchDatei?.schaden?.[id] as { killsEcht?: number; todeEcht?: number; invSpiele?: number } | undefined;
+    const sp = clutchDatei?.spiele?.[id] ?? 0;
+    if (typeof d?.killsEcht !== 'number' || !sp || sp !== x.matches || (d.invSpiele ?? 0) < sp || !ganzGelesen(x.epicId, x.matches)) return x;
+    return { ...x, kills: d.killsEcht, gestorben: typeof d.todeEcht === 'number' ? d.todeEcht : x.gestorben };
+  };
+  const spielerEcht = rep.spieler.map(mitEcht).sort((a, b) => b.kills - a.kills || b.knocks - a.knocks);
+  if (!q) auswahl = spielerEcht;
+  else auswahl = auswahl.map(mitEcht);
+
   /** Alle Werte eines Spielers aus Replays und vollen Replays - ohne Namen und Team (die kommen nur fuer gezeigte Zeilen dazu). */
-  const werte = (x: (typeof rep.spieler)[number]) => ({
+  const werte = (x0: (typeof rep.spieler)[number]) => { const x = mitEcht(x0); return {
     epicId: x.epicId,
     spiele: x.matches,
     kills: x.kills,
@@ -562,7 +585,8 @@ async function holeRoh(request: Request) {
         ...(typeof d.wiederbelebt === 'number' && !soloOhneReload ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
       };
     })(),
-  });
+    ...(x !== x0 ? { elimsAusReplay: true } : {}),
+  }; };
 
   /** Team (Platz, Mitspieler) fuer eine Menge Spieler. */
   const teamsFuer = (ids: Set<string>) => {
@@ -575,6 +599,7 @@ async function holeRoh(request: Request) {
     }
     return raus;
   };
+
 
   // Eine Kennzahl ganz, seitenweise - ueber alle Spieler des Spieltags, nicht nur die gezeigten.
   if (kennzahl) {
@@ -599,15 +624,15 @@ async function holeRoh(request: Request) {
     if (q) return basis;
     const drin = new Set(basis.map((x) => x.epicId));
     const mit = (liste: typeof auswahl) => { for (const x of liste) if (!drin.has(x.epicId)) { drin.add(x.epicId); basis.push(x); } };
-    const genug = rep.spieler.filter((x) => x.matches >= 5);
-    mit([...rep.spieler].sort((a, b) => b.knocks - a.knocks).slice(0, 25));
+    const genug = spielerEcht.filter((x) => x.matches >= 5);
+    mit([...spielerEcht].sort((a, b) => b.knocks - a.knocks).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / b.matches - a.kills / a.matches).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / Math.max(1, b.gestorben) - a.kills / Math.max(1, a.gestorben)).slice(0, 25));
     /*
      * Die Spitze jeder Kennzahl aus den vollen Replays (Betreiber, 29.10.2026: "wieso sind die einzigen Stats Elimination, Knocks ... und KD?").
      * Bei grossen Tagen sind nur die besten Teams voll gelesen; die Liste oben (nach Kills) traf deren Spieler oft nicht, und die Kacheln blieben leer.
      */
-    const voll = rep.spieler.filter((x) => ganzGelesen(x.epicId, x.matches));
+    const voll = spielerEcht.filter((x) => ganzGelesen(x.epicId, x.matches));
     const spitze = (wert: (x: (typeof voll)[number]) => number | null | undefined) =>
       mit(voll.filter((x) => (wert(x) ?? 0) > 0).sort((a, b) => (wert(b) ?? 0) - (wert(a) ?? 0)).slice(0, 25));
     const sch = (x: (typeof voll)[number]) => schadenVon?.get(x.epicId.toLowerCase());
@@ -635,7 +660,7 @@ async function holeRoh(request: Request) {
   await namenNachholen(offen, anzeige);
 
   // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
-  const rangVon = new Map(rep.spieler.map((x, i) => [x.epicId, i + 1]));
+  const rangVon = new Map(spielerEcht.map((x, i) => [x.epicId, i + 1]));
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
@@ -649,7 +674,7 @@ async function holeRoh(request: Request) {
   });
 
   /** Die Summen ueber alle Spieler des Spieltags (nicht nur die gezeigten) - fuer die Kacheln oben unter "Alle Spieler". */
-  const summen: Record<string, number> | null = q ? null : rep.spieler.reduce<Record<string, number>>((a, x) => {
+  const summen: Record<string, number> | null = q ? null : spielerEcht.reduce<Record<string, number>>((a, x) => {
     a.spiele += x.matches || 0; a.elims += x.kills || 0; a.knocks += x.knocks || 0; a.tode += x.gestorben || 0; a.umgehauen += x.umgehauen || 0;
     return a;
   }, { spiele: 0, elims: 0, knocks: 0, tode: 0, umgehauen: 0 });
