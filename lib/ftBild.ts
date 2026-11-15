@@ -13,8 +13,11 @@ export const FT_BILD_BREITE = 1600;
 export const FT_BILD_HOEHE = 900;
 
 const SCHRAEGE = Math.tan((-6 * Math.PI) / 180);
-const BLAU = '0,163,255';
-const GOLD = '245,197,66';
+/** Die Farben der Bilder (auch fuer lib/statKarteBild.ts). */
+export const FT_BLAU = '0,163,255';
+export const FT_GOLD = '245,197,66';
+const BLAU = FT_BLAU;
+const GOLD = FT_GOLD;
 
 export interface FtBildOptionen {
   /** Vor die Adressen, z. B. "" (dieselbe Herkunft) oder "/public" in einer Testseite. */
@@ -25,7 +28,7 @@ export interface FtBildOptionen {
   anzeige?: string;
 }
 
-function ladeBild(src: string): Promise<HTMLImageElement | null> {
+export function ladeBild(src: string): Promise<HTMLImageElement | null> {
   return new Promise((fertig) => {
     const b = new Image();
     b.decoding = 'async';
@@ -35,7 +38,7 @@ function ladeBild(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-function rundesRechteck(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function rundesRechteck(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -46,7 +49,7 @@ function rundesRechteck(ctx: CanvasRenderingContext2D, x: number, y: number, w: 
 }
 
 /** Text auf eine Breite kuerzen (mit "…"). */
-function gekuerzt(ctx: CanvasRenderingContext2D, text: string, breite: number): string {
+export function gekuerzt(ctx: CanvasRenderingContext2D, text: string, breite: number): string {
   if (ctx.measureText(text).width <= breite) return text;
   let t = text;
   while (t.length > 1 && ctx.measureText(`${t}…`).width > breite) t = t.slice(0, -1);
@@ -67,7 +70,7 @@ export function ftGesichtLage(W: number, H: number, nw: number, nh: number, gesi
 
 /** Der Hintergrund: Verlauf von unten, ein feines Raster, das zum Rand hin verschwindet. */
 /** Die Bilder der Wand im Hintergrund (wie das Live-Banner tools/posts/streamer-header.html): Cup-Kacheln. */
-const WAND_BILDER = ['fncs-global-championship-2026-hd.jpg', 'fncs-grand-finals.webp', 'major-1-summit-2026.webp', 'fncs-solo-reload.webp',
+export const WAND_BILDER = ['fncs-global-championship-2026-hd.jpg', 'fncs-grand-finals.webp', 'major-1-summit-2026.webp', 'fncs-solo-reload.webp',
   'global-championship-2025.webp', 'fncs-major.webp', 'reload-cup.webp', 'solo-series.webp', 'elite-cup.webp', 'world-cup.webp'];
 
 function deckend(ctx: CanvasRenderingContext2D, b: HTMLImageElement, x: number, y: number, w: number, h: number) {
@@ -80,7 +83,7 @@ function deckend(ctx: CanvasRenderingContext2D, b: HTMLImageElement, x: number, 
  * Hintergrund wie das Live-Banner (Betreiber, 14.11.2026: "mehr im CompHub-Stil ... einfach noch fett abgedunkelter"): eine schraege Wand aus
  * Cup-Kacheln und eine dunkle Folie darueber, oben ein Hauch Blau.
  */
-function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number, wand: Array<HTMLImageElement | null>) {
+export function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number, wand: Array<HTMLImageElement | null>) {
   ctx.fillStyle = '#05080e';
   ctx.fillRect(0, 0, W, H);
   const da = wand.filter((b): b is HTMLImageElement => !!b);
@@ -116,9 +119,44 @@ function hintergrund(ctx: CanvasRenderingContext2D, W: number, H: number, wand: 
   ctx.fillRect(0, 0, W, H);
 }
 
-/** Eine Karte: schraeg, abgerundet, mit leichtem Leuchten, das Foto darin gerade (wie .k / .k .i in der Vorlage). */
-function karte(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, foto: HTMLImageElement | null,
-  sp: FtBildSpieler, flagge: HTMLImageElement | null, erster: boolean, schrift: string) {
+/*
+ * Der Platzhalter ohne Foto - wie app/components/SpielerPlatzhalter.tsx (Betreiber, 14.11.2026: "das schwarze mit dem Fake-Kopf, das normale Standardbild"):
+ * Verlauf zinc-800 -> zinc-950 nach rechts unten, darin Kopf und Schultern in zinc-500 bei 40 %, 60 % der kurzen Seite gross und um 12 % nach unten versetzt.
+ * mitte: die waagrechte Mitte (bei einer schraegen Karte auf Hoehe des Zeichens).
+ */
+export function ftPlatzhalter(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, mitte = x + w / 2) {
+  ctx.save();
+  const v = ctx.createLinearGradient(x, y, x + w, y + h);
+  v.addColorStop(0, '#27272a'); v.addColorStop(1, '#09090b');
+  ctx.fillStyle = v;
+  ctx.fillRect(x, y, w, h);
+  const s = Math.min(w, h) * 0.6;
+  const zx = mitte - s / 2; const zy = y + h / 2 - s / 2 + s * 0.12;
+  ctx.translate(zx, zy);
+  ctx.scale(s / 100, s / 100);
+  ctx.fillStyle = 'rgba(113,113,122,.4)';
+  ctx.beginPath();
+  ctx.arc(50, 36, 17, 0, Math.PI * 2);
+  ctx.fill();
+  // M16 92c0-19 15-33 34-33s34 14 34 33z
+  ctx.beginPath();
+  ctx.moveTo(16, 92);
+  ctx.bezierCurveTo(16, 73, 31, 59, 50, 59);
+  ctx.bezierCurveTo(69, 59, 84, 73, 84, 92);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Was eine Karte vom Spieler braucht: Name und Lage des Gesichts. */
+export type FtKartenSpieler = Pick<FtBildSpieler, 'name' | 'gesicht'>;
+
+/**
+ * Eine Karte: schraeg, abgerundet, mit leichtem Leuchten, das Foto darin gerade (wie .k / .k .i in der Vorlage).
+ * Ohne Foto der Platzhalter (ftPlatzhalter) - die Karte bleibt nie leer.
+ */
+export function karte(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, foto: HTMLImageElement | null,
+  sp: FtKartenSpieler, flagge: HTMLImageElement | null, erster: boolean, schrift: string) {
   const farbe = erster ? GOLD : BLAU;
   const cx = x + w / 2; const cy = y + h / 2;
   const schraeg = () => ctx.setTransform(1, 0, SCHRAEGE, 1, -SCHRAEGE * cy, 0);
@@ -147,6 +185,12 @@ function karte(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
     // Die Karte ist schraeg: auf Gesichtshoehe liegt ihre Mitte um diesen Versatz neben der Mitte des Rechtecks - das Gesicht soll genau dort sitzen.
     const dx = SCHRAEGE * (y + h * 0.36 - cy);
     ctx.drawImage(foto, fx + l.x + dx, y + l.y, l.w, l.h);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Wie das Foto: ungeschraegt, so breit, dass die schraege Karte ganz gefuellt ist; das Zeichen sitzt auf der Mitte der Karte in seiner Hoehe.
+    ftPlatzhalter(ctx, x - 50, y, w + 100, h, cx + SCHRAEGE * (y + h * 0.55 - cy));
     ctx.restore();
   }
   // Abdunkeln nach unten (fuer den Namen) und ein Schimmer der Kartenfarbe von oben.
@@ -224,8 +268,34 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
     Promise.all(liste.map((s) => (s.land && /^[a-z]{2}$/i.test(s.land) ? ladeBild(`${basis}/flags/${s.land.toLowerCase()}.png`) : Promise.resolve(null)))),
     Promise.all(WAND_BILDER.map((d) => ladeBild(`${basis}/cups/${d}`))),
   ]);
-  // Die Anzeigeschrift der Seite (Bricolage Grotesque, app/layout.tsx --font-anzeige) - aus einem Element mit derselben Klasse wie auf der Seite.
-  let anzeige = opt.anzeige ?? '';
+  const anzeige = await ftSchriften(familie, opt.anzeige);
+
+  hintergrund(ctx, W, H, wand);
+  const { logoY, kopf } = ftKopf(ctx, W, logo, anzeige);
+
+  // Die Karten in einer Reihe, mittig unter dem Logo.
+  const n = liste.length;
+  if (!n) return;
+  // Breitere Karten, kaum Abstand (Betreiber, 14.11.2026: "nicht so duenn ... ruhig instant nebeneinander").
+  const rand = 40; const luecke = 10;
+  const kw = Math.min(320, (W - 2 * rand - luecke * (n - 1)) / n);
+  const kh = H - (logoY + kopf + 38) - 58;
+  const gesamt = n * kw + (n - 1) * luecke;
+  const ky = logoY + kopf + 38;
+  let kx = (W - gesamt) / 2;
+  liste.forEach((sp, i) => {
+    karte(ctx, kx, ky, kw, kh, fotos[i], sp, flaggen[i], i === 0, familie);
+    kx += kw + luecke;
+  });
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/**
+ * Die Anzeigeschrift der Seite (Bricolage Grotesque, app/layout.tsx --font-anzeige) - aus einem Element mit derselben Klasse wie auf der Seite -
+ * und warten, bis beide Schriften geladen sind.
+ */
+export async function ftSchriften(familie: string, vorgabe?: string): Promise<string> {
+  let anzeige = vorgabe ?? '';
   if (!anzeige && typeof document !== 'undefined') {
     const probe = document.createElement('span');
     probe.className = 'schrift-anzeige';
@@ -240,10 +310,14 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
     await document.fonts?.load(`900 28px ${familie}`);
     await document.fonts?.ready;
   } catch { /* dann die Ersatzschrift */ }
+  return anzeige;
+}
 
-  hintergrund(ctx, W, H, wand);
-
-  // Das Logo oben in der Mitte, mit einem leisen blauen Hof.
+/**
+ * Der Kopf: das Logo oben in der Mitte mit einem leisen blauen Hof, darunter "thecomphub.com".
+ * Gibt zurueck, wo das Logo steht (logoY) und wie hoch der Kopf ab dort ist (kopf) - die Karten beginnen bei logoY + kopf + 38.
+ */
+export function ftKopf(ctx: CanvasRenderingContext2D, W: number, logo: HTMLImageElement | null, anzeige: string) {
   // Kleiner und leuchtender, darunter die Adresse in der Schrift der Seite (Betreiber, 14.11.2026).
   const logoH = 78;
   const logoY = 34;
@@ -267,23 +341,7 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
   ctx.shadowBlur = 14;
   ctx.fillText('thecomphub.com', W / 2, logoY + logoH + 40);
   ctx.restore();
-  const kopf = logoH + 40 + 2; // Logo + Adresse
-
-  // Die Karten in einer Reihe, mittig unter dem Logo.
-  const n = liste.length;
-  if (!n) return;
-  // Breitere Karten, kaum Abstand (Betreiber, 14.11.2026: "nicht so duenn ... ruhig instant nebeneinander").
-  const rand = 40; const luecke = 10;
-  const kw = Math.min(320, (W - 2 * rand - luecke * (n - 1)) / n);
-  const kh = H - (logoY + kopf + 38) - 58;
-  const gesamt = n * kw + (n - 1) * luecke;
-  const ky = logoY + kopf + 38;
-  let kx = (W - gesamt) / 2;
-  liste.forEach((sp, i) => {
-    karte(ctx, kx, ky, kw, kh, fotos[i], sp, flaggen[i], i === 0, familie);
-    kx += kw + luecke;
-  });
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return { logoY, kopf: logoH + 40 + 2 }; // Logo + Adresse
 }
 
 /** Die Leinwand als PNG. */

@@ -5026,6 +5026,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)': 'Characters as X counts them (emoji and flags count double, links 23)',
   'Länger als 280 Zeichen – X schneidet ab bzw. lässt den Post ohne Premium nicht zu.': 'Longer than 280 characters – X cuts it off or refuses the post without Premium.',
   'ältere Spieltage anzeigen': 'show older match days',
+  // Beitragsseite: Plätze im Text, Bild unter Player Card / Team Spotlight (lib/statKarteBild.ts)
+  'Plätze anzeigen': 'Show ranks',
+  'Die Plätze im Feld am Ende jeder Zeile, z. B. „(#1)“ – im Text und im Bild.': 'The rank in the field at the end of each line, e.g. “(#1)” – in the text and in the image.',
+  'Erst einen Spieler oder ein Team wählen – dann entsteht hier das Bild.': 'Pick a player or a team first – the image appears here.',
 };
 
 /**

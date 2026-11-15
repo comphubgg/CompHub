@@ -17,7 +17,9 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 // Erfunden wird nichts: Es kommen nur Konten hinein, zu denen ein echtes Foto
 // vorliegt. Wer keins hat, faellt weg, statt mit einer Silhouette aufgefuellt
 // zu werden - ein Platzhalter neben vier Portraits sieht aus wie ein Fehler
-// und waere in einem oeffentlichen Beitrag peinlich.
+// und waere in einem oeffentlichen Beitrag peinlich. Ein einziges Foto
+// reicht aber; nur wenn zu KEINEM ein Foto vorliegt, stehen Platzhalter da,
+// damit unter jedem Beitrag ein Bild steht (Betreiber, 15.11.2026).
 //
 // Bis zu fuenf stehen nebeneinander. Darueber wird umgebrochen: sechs
 // ergeben drei mal zwei, neun drei mal drei, zehn fuenf mal zwei. Mehr als
@@ -109,8 +111,11 @@ const HOEHE = 1250;
 const SCHMALSTE_KACHEL = 0.62;
 const BREITESTE_KACHEL = 1.0;
 
-/** Weniger als zwei sind kein Mosaik, mehr als zehn kein Gesicht mehr. */
-const MIN = 2;
+/*
+ * Schon ein einziges echtes Foto reicht (Betreiber, 15.11.2026: "IMMER ein Bild unter dem Text") - vorher hiess es "mindestens 2 echte Fotos", und unter
+ * vielen Posts stand gar kein Bild. Mehr als zehn: kein Gesicht mehr.
+ */
+const MIN = 1;
 const MAX = 10;
 
 /**
@@ -156,6 +161,28 @@ function raster(n: number): { spalten: number; reihen: number; nutze: number } {
 
 interface Eintrag {
   datei: string; epicId: string; name: string; echtesFoto?: boolean;
+  /** Kein echtes Foto: die Kachel zeigt den Platzhalter (siehe kachelBild). */
+  platzhalter?: boolean;
+}
+
+/*
+ * Der Platzhalter ohne Foto - wie app/components/SpielerPlatzhalter.tsx: Verlauf zinc-800 -> zinc-950 nach rechts unten, darin Kopf und Schultern in
+ * zinc-500 bei 40 %, 60 % der kurzen Seite gross, um 12 % nach unten versetzt. Nur, wenn zu KEINEM der Spieler ein Foto vorliegt - sonst bleibt es dabei,
+ * dass wer kein Foto hat, uebersprungen wird.
+ */
+function platzhalterSvg(b: number, h: number): Buffer {
+  const s = Math.min(b, h) * 0.6;
+  const x = (b - s) / 2; const y = (h - s) / 2 + s * 0.12;
+  return Buffer.from(`<svg width="${b}" height="${h}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="v" x1="0" y1="0" x2="1" y2="1">`
+    + '<stop offset="0" stop-color="#27272a"/><stop offset="1" stop-color="#09090b"/></linearGradient></defs>'
+    + `<rect width="${b}" height="${h}" fill="url(#v)"/><g transform="translate(${x} ${y}) scale(${s / 100})" fill="#71717a" fill-opacity="0.4">`
+    + '<circle cx="50" cy="36" r="17"/><path d="M16 92c0-19 15-33 34-33s34 14 34 33z"/></g></svg>');
+}
+
+/** Eine Kachel b x h: das Foto von oben zugeschnitten, sonst der Platzhalter. */
+async function kachelBild(e: Eintrag, b: number, h: number): Promise<Buffer> {
+  if (e.platzhalter) return sharp(platzhalterSvg(b, h)).png().toBuffer();
+  return sharp(path.join(BILDER, e.datei)).resize(b, h, { fit: 'cover', position: 'top' }).toBuffer();
 }
 
 async function verzeichnis(): Promise<Map<string, Eintrag>> {
@@ -197,9 +224,7 @@ async function banner(gewaehlt: Eintrag[], namen: Map<string, string>, ueberspru
   const n = gewaehlt.length;
   const breite = Math.floor(BANNER_BREITE / n);
   const lagen: sharp.OverlayOptions[] = await Promise.all(gewaehlt.map(async (e, i) => ({
-    input: await sharp(path.join(BILDER, e.datei))
-      .resize(i === n - 1 ? BANNER_BREITE - breite * (n - 1) : breite, BANNER_HOEHE, { fit: 'cover', position: 'top' })
-      .toBuffer(),
+    input: await kachelBild(e, i === n - 1 ? BANNER_BREITE - breite * (n - 1) : breite, BANNER_HOEHE),
     left: i * breite, top: 0,
   })));
   const ungerade = n % 2 === 1;
@@ -312,12 +337,27 @@ async function baueMosaik(request: Request) {
     }
   }
 
+  /*
+   * Zu keinem ein Foto: dann eben Platzhalter fuer die ersten Spieler (je Team einer), damit trotzdem ein Bild entsteht. Die Namen stehen darunter.
+   */
+  if (!gewaehlt.length) {
+    const ohne = new Set<string>();
+    for (const g of gruppen) {
+      if (ohne.size >= zahl) break;
+      const id = g[0];
+      if (!ohne.has(id)) ohne.add(id);
+    }
+    for (const id of ohne) {
+      const e = karte.get(id);
+      gewaehlt.push({ datei: '', epicId: id, name: e?.name ?? namen.get(id) ?? '', platzhalter: true });
+    }
+  }
+
   if (gewaehlt.length < MIN) {
     return NextResponse.json({
       error: 'zu wenige Fotos',
       gefunden: gewaehlt.length,
-      hinweis: `Für ein Mosaik braucht es mindestens ${MIN} echte Fotos. `
-        + 'Wer keins hat, wird nicht durch einen Platzhalter ersetzt.'
+      hinweis: 'Zu diesen Spielern gibt es weder ein Foto noch eine Konto-Id.'
         + (uebersprungen.length
           ? ` Nicht lesbar: ${uebersprungen.join(', ')}.` : ''),
     }, { status: 422 });
@@ -384,12 +424,10 @@ async function baueMosaik(request: Request) {
     const b = kachelBreite + (spalte === spalten - 1 ? restBreite : 0);
     const h = kachelHoehe;
     return {
-      input: await sharp(path.join(BILDER, e.datei))
-        // Von oben, nicht aus der Mitte: bei einem sitzenden Spieler sitzt
-        // der Kopf im oberen Drittel. Dieselbe Regel wie ueberall sonst in
-        // der Oberflaeche, wo die Fotos mit "object-top" stehen.
-        .resize(b, h, { fit: 'cover', position: 'top' })
-        .toBuffer(),
+      // Von oben, nicht aus der Mitte: bei einem sitzenden Spieler sitzt
+      // der Kopf im oberen Drittel. Dieselbe Regel wie ueberall sonst in
+      // der Oberflaeche, wo die Fotos mit "object-top" stehen.
+      input: await kachelBild(e, b, h),
       left: spalte * kachelBreite,
       top: reihe * kachelHoehe,
     };

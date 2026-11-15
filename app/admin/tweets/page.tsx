@@ -7,7 +7,7 @@
 // Turnier nicht mitschickt, tauchen hier gar nicht erst auf - es wird nichts
 // geschaetzt und nichts ergaenzt.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { rundenBeschriftung } from '@/lib/overlayCups';
 import { MARKE } from '@/lib/marke';
 
@@ -26,6 +26,9 @@ import { titelMit } from '@/lib/cupTitel';
 import { tweetLaenge } from '@/lib/ftPosts';
 import type { FtAntwort } from '@/lib/ftPostsDaten';
 import FtBild from './FtBild';
+import StatKarte, { type StatKartePerson } from './StatKarte';
+import type { StatKarteWert } from '@/lib/statKarteBild';
+import { STAT_KARTE_WERTE } from '@/lib/statKarteBild';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -187,6 +190,31 @@ const SPIELER_KENNZAHLEN: Array<{
   { schluessel: 'distanzGesamt', titel: 'Most Distance Traveled', symbol: '🧭',
     einheit: 'km', nachkomma: 1 },
 ];
+
+/*
+ * "Plätze anzeigen" (Betreiber, 15.11.2026): in Texten ueber einen Spieler endet jede Zeile mit seinem Platz im Feld - "Points: 1,252 (#1)". Ein Schalter
+ * nimmt die " (#n)" heraus (und aus den Kacheln im Bild). Gemerkt im Browser; geht das nicht (privates Fenster, gesperrter Speicher), gilt der Wert
+ * nur bis zum Neuladen.
+ */
+const PLAETZE_SCHLUESSEL = 'comphub.beitrag.plaetze';
+const plaetzeHoerer = new Set<() => void>();
+let plaetzeWert: boolean | null = null;
+function plaetzeLesen(): boolean {
+  if (plaetzeWert !== null) return plaetzeWert;
+  try { plaetzeWert = localStorage.getItem(PLAETZE_SCHLUESSEL) !== '0'; } catch { plaetzeWert = true; }
+  return plaetzeWert;
+}
+function plaetzeSetzen(an: boolean) {
+  plaetzeWert = an;
+  try { localStorage.setItem(PLAETZE_SCHLUESSEL, an ? '1' : '0'); } catch { /* nur fuer diese Sitzung */ }
+  for (const f of plaetzeHoerer) f();
+}
+function plaetzeAbo(f: () => void) {
+  plaetzeHoerer.add(f);
+  return () => { plaetzeHoerer.delete(f); };
+}
+/** Die Platz-Anhaengsel am Zeilenende: "Damage Taken: 6,528 (#9)" -> "Damage Taken: 6,528". */
+const PLATZ_ENDE = / \(#\d[\d,]*\)$/gm;
 
 type Vorlage = 'rueckblick' | 'worst' | 'dropmap' | 'livepost' | 'qualifiziert' | 'endstand' | 'spieler'
   | 'bestenliste' | 'spielerkarte' | 'auswahl'
@@ -2951,7 +2979,48 @@ export default function TweetSeite() {
    * Turnierwerte geladen sind - und genau das ist hier ja der Punkt.
    */
   const ohneCup = vorlage === 'eigene';
-  const text = eigenerText ?? vorlagenText;
+  const statKarteVorlage = vorlage === 'spielerkarte' || vorlage === 'spieler';
+  const plaetzeAnzeigen = useSyncExternalStore(plaetzeAbo, plaetzeLesen, () => true);
+  // Der Schalter steht nur da, wo der Text solche Plaetze traegt (heute die Player Card) - er gilt aber fuer jede Vorlage, die welche hat.
+  const hatPlaetze = new RegExp(PLATZ_ENDE.source, 'm').test(vorlagenText);
+  const text = eigenerText ?? (plaetzeAnzeigen ? vorlagenText : vorlagenText.replace(PLATZ_ENDE, ''));
+
+  /*
+   * Das Bild unter einer Player Card und einem Team Spotlight (Betreiber, 15.11.2026): links das Foto (beim Team die Fotos), rechts die wichtigsten
+   * Werte des Posts - dieselben Zahlen wie im Text, englisch, mit dem Platz im Feld, solange "Plätze anzeigen" an ist (lib/statKarteBild.ts).
+   */
+  const statKarte = useMemo((): { titel: string; untertitel?: string; personen: StatKartePerson[]; werte: StatKarteWert[] } | null => {
+    if (!stats) return null;
+    const titel = `${cupName}${tagName ? ` · ${tagName}` : ''}`;
+    const person = (name: string, id?: string): StatKartePerson => ({
+      id, name: kurzName(findeProfil(name, id)?.anzeige || name), land: landFuer(name, id) || null,
+    });
+    const zahl = (wert: number, einheit?: string | null) => (einheit ? `${wert} ${einheit}` : wert.toLocaleString('en-US'));
+    if (vorlage === 'spielerkarte') {
+      if (!karteSpieler) return null;
+      return {
+        titel, untertitel: 'Player Card', personen: [person(karteSpieler.name, karteSpieler.id)],
+        werte: karteWerte.slice(0, STAT_KARTE_WERTE).map((k) => ({ titel: spaltenName(k.liste.titel), wert: zahl(k.wert, k.liste.einheit), platz: k.platz })),
+      };
+    }
+    if (vorlage === 'spieler') {
+      const e = eintraege.find((x) => x.rank === spotlight);
+      if (!e) return null;
+      const werte: StatKarteWert[] = [{ titel: 'Points', wert: e.points.toLocaleString('en-US'), platz: e.rank }];
+      // Dieselben Kennzahlen wie im Text, nach dem Platz sortiert - die besten zuerst.
+      const zeilen = tabellenSpalten.filter((b) => gewaehlteListen.includes(b.schluessel)).map((b) => {
+        const feld = b.alle ?? b.plaetze;
+        const i = feld.findIndex((pl) => pl.rank === e.rank);
+        return i < 0 ? null : { titel: spaltenName(b.titel), wert: zahl(feld[i].wert, b.einheit), platz: i + 1 };
+      }).filter((x): x is NonNullable<typeof x> => Boolean(x)).sort((a, b) => a.platz - b.platz);
+      werte.push(...zeilen);
+      return {
+        titel, untertitel: `Finished #${e.rank} · ${e.points.toLocaleString('en-US')} pts`,
+        personen: e.players.slice(0, 4).map((p) => person(p.name, p.id)), werte: werte.slice(0, STAT_KARTE_WERTE),
+      };
+    }
+    return null;
+  }, [stats, cupName, tagName, vorlage, karteSpieler, karteWerte, eintraege, spotlight, tabellenSpalten, gewaehlteListen, findeProfil, landFuer]);
 
   /**
    * Welche Kennzahlen in der Auswahl stehen.
@@ -3178,25 +3247,8 @@ export default function TweetSeite() {
     }
     if (vorlage === 'verpasst') return verpasstTreffer.map((z) => z.id);
     if (vorlage === 'worst') return worstZeilen.flatMap((z) => (z.p.ids ?? []).slice(0, 1)).filter((id) => /^[0-9a-f]{32}$/i.test(id)).slice(0, 12);
-    // Die Player Card zeigt das Foto des gewaehlten Spielers - von selbst, sobald er gewaehlt ist.
-    if (vorlage === 'spielerkarte') {
-      const id = karteSpieler?.id;
-      return id && /^[0-9a-f]{32}$/i.test(id) ? [id] : [];
-    }
-
-    /*
-     * Beim Team Spotlight genau die Spieler dieses Teams, jeder fuer sich.
-     *
-     * Der Betreiber (26.9.2026): "ein Team Spotlight ist ja oft nur zwei
-     * Personen". Vorher kam das Bild aus der Bestenliste - fuenf fremde
-     * Teams statt des einen, um das es geht. Und als eine Gruppe
-     * geschickt, haette die Schnittstelle von einem Duo nur einen gezeigt.
-     */
-    if (vorlage === 'spieler') {
-      const e = eintraege.find((x) => x.rank === spotlight);
-      return (e?.players ?? []).map((x) => x.id)
-        .filter((id): id is string => Boolean(id) && /^[0-9a-f]{32}$/i.test(id!));
-    }
+    // Player Card und Team Spotlight haben ihr eigenes Bild (StatKarte, lib/statKarteBild.ts) - kein Mosaik.
+    if (vorlage === 'spielerkarte' || vorlage === 'spieler') return [];
 
     /*
      * Je Team eine Gruppe, mit senkrechtem Strich verbunden.
@@ -3237,11 +3289,10 @@ export default function TweetSeite() {
     if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
-  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer, karteSpieler, worstZeilen]);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, verpasstTreffer, worstZeilen]);
 
-  /** Beim Team Spotlight so viele Gesichter, wie das Team Spieler hat. */
-  const bildAnzahl = vorlage === 'spieler' || vorlage === 'spielerkarte'
-    ? Math.max(2, mosaikIds.length) : mosaikAnzahl;
+  /** Wie viele Gesichter ins Mosaik (Player Card und Team Spotlight haben ihr eigenes Bild). */
+  const bildAnzahl = mosaikAnzahl;
 
   /**
    * Das Mosaik holen, sobald sich die Auswahl aendert.
@@ -4598,8 +4649,19 @@ export default function TweetSeite() {
             </div>
 
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <h2 className="text-sm font-semibold text-slate-100">Text</h2>
+                  {/* Die Plaetze im Feld am Zeilenende ("(#1)") ein- und ausblenden - im Text und im Bild. */}
+                  {hatPlaetze && (
+                    <button type="button" onClick={() => plaetzeSetzen(!plaetzeAnzeigen)}
+                      role="switch" aria-checked={plaetzeAnzeigen}
+                      title={t('Die Plätze im Feld am Ende jeder Zeile, z. B. „(#1)“ – im Text und im Bild.')}
+                      className={`ml-auto rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${plaetzeAnzeigen
+                        ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                        : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                      <T>Plätze anzeigen</T>{' · '}{plaetzeAnzeigen ? t('an') : t('aus')}
+                    </button>
+                  )}
                   <button onClick={kopieren}
                     className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white
                                transition hover:bg-sky-400">
@@ -4646,7 +4708,7 @@ export default function TweetSeite() {
                     */}
                   {/* Beim Team Spotlight gibt die Teamgroesse die Zahl vor -
                       dort gibt es nichts zu waehlen. */}
-                  {vorlage !== 'spieler' && (
+                  {!statKarteVorlage && (
                   <span className="flex flex-wrap items-center gap-1">
                     {[2, 3, 4, 5, 6, 9, 10].map((n) => (
                       <button key={n} onClick={() => setMosaikAnzahl(n)}
@@ -4660,6 +4722,7 @@ export default function TweetSeite() {
                   </span>
                   )}
 
+                  {!statKarteVorlage && (
                   <span className="ml-auto flex items-center gap-2">
                     <button onClick={mosaikKopieren} disabled={!mosaikUrl}
                       className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium
@@ -4674,9 +4737,15 @@ export default function TweetSeite() {
                       <T>speichern</T>
                     </button>
                   </span>
+                  )}
                 </div>
 
-                {mosaikLaedt && !mosaikUrl ? (
+                {/* Player Card und Team Spotlight: Foto(s) links, Werte rechts (StatKarte) - immer ein Bild, ohne Foto mit Platzhalter. */}
+                {statKarteVorlage ? (
+                  <StatKarte titel={statKarte?.titel ?? ''} untertitel={statKarte?.untertitel}
+                    personen={statKarte?.personen ?? []} werte={statKarte?.werte ?? []} plaetze={plaetzeAnzeigen}
+                    dateiname={`${(cupName || 'cup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${vorlage === 'spieler' ? 'team' : 'spieler'}.png`} />
+                ) : mosaikLaedt && !mosaikUrl ? (
                   <p className="py-6 text-center text-xs text-slate-600">
                     <T>Bild wird gebaut …</T>
                   </p>
@@ -4695,7 +4764,7 @@ export default function TweetSeite() {
                   </p>
                 )}
 
-                {mosaikUrl && mosaikFehler && (
+                {!statKarteVorlage && mosaikUrl && mosaikFehler && (
                   <p className="mt-2 text-[11px] text-amber-400/90">{mosaikFehler}</p>
                 )}
               </div>
