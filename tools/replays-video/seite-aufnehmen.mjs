@@ -283,11 +283,32 @@ await versuch('kampf', async () => {
     }
     return best;
   };
-  const a = await naechstes(); if (!a) throw new Error('kein Zeichen nach dem Zoom');
+  // Nur Zeichen, deren Fenster einen echten Spieler nennt (15.11.2026: im Video stand "Bot" - die KI-Gegner der Lobby haben keinen Namen).
+  // Unsichtbar pruefen (Maus hin, ohne Bild), erst ein Treffer wird gefilmt.
+  const fensterName = () => page.locator('div[style*="perspective"] div.pointer-events-none.absolute.z-30 p').first().innerText().catch(() => '');
+  const echtesZeichen = async (ausser = []) => {
+    const m = await elimZeichen.count(); const kand = [];
+    for (let i = 0; i < Math.min(m, 250); i += 1) {
+      const b = await elimZeichen.nth(i).boundingBox(); if (!b) continue;
+      const x = b.x + b.width / 2; const y = b.y + b.height / 2;
+      if (x < kb.x + 40 || x > kb.x + kb.width - 40 || y < 160 || y > VH - 160) continue;
+      if (ausser.some((q) => Math.hypot(x - q.x, y - q.y) < 20)) continue;
+      kand.push({ d: Math.hypot(x - maus.x, y - maus.y), x, y });
+    }
+    kand.sort((p, q) => p.d - q.d);
+    for (const k of kand.slice(0, 40)) {
+      await page.mouse.move(k.x, k.y); await page.clock.runFor(60).catch(() => {}); await page.waitForTimeout(60);
+      const n = (await fensterName()).trim();
+      if (n && !/^Bot$/i.test(n) && n !== '?') { await page.mouse.move(maus.x, maus.y); await page.clock.runFor(40).catch(() => {}); log('Zeichen mit Spieler:', n); return k; }
+    }
+    await page.mouse.move(maus.x, maus.y);
+    return null;
+  };
+  const a = (await echtesZeichen()) ?? await naechstes(); if (!a) throw new Error('kein Zeichen nach dem Zoom');
   await zeigerNach(a.x, a.y, 700); await laufe(400);
   marke('kampf-fenster');
   await laufe(2400);
-  const b = await naechstes(a);
+  const b = await echtesZeichen([a]);
   if (b) { await zeigerNach(b.x, b.y, 800); await laufe(400); marke('kampf-fenster2'); await laufe(2200); }
 });
 
