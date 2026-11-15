@@ -55,6 +55,21 @@ services:
     entrypoint: ["sh", "-c"]
     command: ["while true; do node scripts/discord-tweets.mjs --aus-admin-posts --anwenden 2>&1 | grep -v 'Keine (neuen)' | tail -5; sleep 60; done"]
 
+  # Abgelaufene VIP-Schluessel alle zehn Minuten (app/api/cron/vip-ablauf, lib/discord vipAblaufLauf): Kanal, Rolle und Zugang weg, Erinnerung
+  # drei Tage vorher, Countdown in den Schluesselnachrichten, Meldung an #admin-alarm. Gerechnet wird in "web" (dort ist der Bot-Token) - hier
+  # nur der Anstoss. Vorher tat das allein die GitHub-Kette in discord-live.yml; die riss am 15.11.2026 um 15:06 UTC ab (API-Grenze) und bekam
+  # ohnehin 401. Ein zweiter Anstoss schadet nicht: der Lauf ist idempotent.
+  vip-ablauf:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    network_mode: host
+    env_file: web.env
+    mem_limit: 256m
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while true; do node -e 'const k=(process.env.CRON_SECRET||process.env.DISCORD_BOT_TOKEN||"").trim(); fetch("http://127.0.0.1:3100/api/cron/vip-ablauf",{headers:{authorization:"Bearer "+k},signal:AbortSignal.timeout(170000)}).then(async(r)=>console.log(new Date().toISOString(),"VIP-Ablauf",r.status,(await r.text()).slice(0,400))).catch((e)=>console.log(new Date().toISOString(),"VIP-Ablauf Fehler",e.message))'; sleep 600; done
+
   # Die Live-Spur (scripts/live-spur.mjs): volle Replays laufender Cups Match fuer Match, sobald Epic sie fertig abgelegt hat - gleich nach dem Spiel
   # statt 10 bis 20 Minuten spaeter (GitHub "Clutch rechnen" bleibt massgeblich und der einzige, der clutch/, clutch-je/, replays/ ans Release schreibt).
   # SCHATTENBETRIEB: geschrieben wird nur unter ./live (Teile je Match, Live-Stand clutch/<w>.json + clutch-je/<w>.json); die Seite liest davon noch nichts.
