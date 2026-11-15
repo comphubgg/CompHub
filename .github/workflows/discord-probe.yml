@@ -56,6 +56,8 @@ jobs:
           curl -s -m 60 "https://www.thecomphub.com/api/cup-spieler?window=S43_TriosCashCup_Event2_EU&event=epicgames_S43_TriosCashCup_EU&raenge=8224fc7512ad42818f381e262e4a6a2b" \
             | head -c 400; echo
           curl -s -m 30 https://www.thecomphub.com/api/stand | head -c 300; echo
+          # Neuer Stand von /link-account? (authorize loescht dann auch das Cookie epic_discord)
+          curl -s -m 30 -o /dev/null -D - "https://www.thecomphub.com/api/auth/epic/authorize?discord=x" | grep -i -E "^set-cookie: epic_(discord|oauth_art)" | sed 's/^/AUTHORIZE /' || echo 'AUTHORIZE ohne epic_discord'
           # Das Profil, das /stats auf dem Server liest (szene-stats) - mit Zeit.
           for ID in 30dda2a78184451f8e7f85530e34e7af 30dda2a78184451f8e7f85530e34e7af 8224fc7512ad42818f381e262e4a6a2b; do
             curl -s -m 60 -o /tmp/p.json -w "szene-stats $ID: HTTP %{http_code} %{time_total}s %{size_download}B\n" "https://www.thecomphub.com/api/szene-stats?spieler=$ID"
