@@ -1,6 +1,11 @@
 // Schaden je Spieler und Match gegen Epic (10.11.2026): in Solo-Cups fuehrt Epics Bestenliste "DamageDealt" je Spiel (sessionHistory). Damit laesst sich
 // unsere Zaehlung aus dem Replay Match fuer Match pruefen - fuer jeden Spieler, nicht nur die auf Osirions Screenshots.
 //   node scripts/epic-schaden-vergleich.mjs <eventId> <windowId> <ordner mit aus-<match>.json>
+//
+// Stand 15.11.2026, FNCS Solo Reload Heat 1 EU (8 Matches, 40 Spieler, 284 Spieler-Spiele): 236 genau (±1), Summe 120.943 zu Epics 123.663 (-2,2 %). Die Abweichung sitzt
+// in rund 20 Spieler-Spielen, fast nur zu wenig (JUU IY11 in d987c982: 407 statt 768) - Treffer, deren Ziel der Leser nicht zuordnet. Drei Versuche, sie ueber den Akteur
+// (SCHADEN_AKTEUR=1: 0 von 449 bestaetigt) oder ueber den zeitgleichen Lebensverlust zuzuordnen (lose: Abweichung 3.056 -> 6.796, streng: 3.056 -> 2.939, zwei Spieler
+// darueber), schlossen die Luecke nicht - der Leser blieb unveraendert. Epics DamageReceived zaehlt den Sturm mit (frxstyy: Epic 5.352, von Spielern 2.977, Sturm 2.038).
 import fs from 'node:fs';
 import path from 'node:path';
 import { holeNutzerToken } from '../lib/replayKern.mjs';

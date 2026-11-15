@@ -108,7 +108,7 @@ jobs:
           V: ${{ inputs.vergleich }}
         run: |
           IFS=',' read -ra E <<< "$V"
-          node scripts/epic-schaden-vergleich.mjs "${E[0]}" "${E[1]}" /tmp 2>&1 | tail -60
+          node scripts/epic-schaden-vergleich.mjs "${E[0]}" "${E[1]}" /tmp 2>&1 | tail -200
       - name: Epic-Gegenprobe mit Kill-Zaehler
         if: endsWith(inputs.epic, 'gegenprobe-aus')
         env:
