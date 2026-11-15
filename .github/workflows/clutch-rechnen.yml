@@ -52,7 +52,9 @@ jobs:
           frisch=$(curl -sfL --max-time 20 "https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/frischer-cup.mjs" -o /tmp/frisch.mjs && node /tmp/frisch.mjs || echo 0)
           echo "Frische Spieltage (laufend oder bis 3 h vorbei): $frisch"
           if [ "${frisch:-0}" -gt 0 ]; then
-            for wf in replays-nacharbeiten.yml replays-schlank.yml daten-erneuern.yml eigene-auswerten.yml twitch-statistik.yml; do
+            # daten-erneuern NICHT (15.11.2026): fast immer laeuft irgendwo ein Cup, der Stundenlauf wurde so zehn Stunden lang jedes Mal abgebrochen
+            # und die Seite bekam keine neuen Statistiken (Alarm "Datenlauf steht seit 10 Stunden").
+            for wf in replays-nacharbeiten.yml replays-schlank.yml eigene-auswerten.yml twitch-statistik.yml; do
               for id in $(gh run list -R "${{ github.repository }}" -w "$wf" -s in_progress --json databaseId -q '.[].databaseId' 2>/dev/null); do
                 gh run cancel -R "${{ github.repository }}" "$id" && echo "Platz geschaffen: $wf ($id)"
               done
