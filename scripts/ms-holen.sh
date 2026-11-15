@@ -7,6 +7,17 @@ set -u
 REL=diag-ms-roh
 gh release view "$REL" >/dev/null 2>&1 || gh release create "$REL" --draft --title "Diagnose Mats/Strecke (Entwurf)" --notes "Nur Diagnose, wird geloescht." >/dev/null
 if [ "${MS_EPIC:-}" = "schluessel" ]; then node scripts/diag-epic-schluessel.mjs EU,NAC 2>&1 | grep SCHLUESSEL | cut -c1-3000; for f in /tmp/epic-schluessel.json /tmp/katalog-EU.json; do gzip -f $f; gh release upload "$REL" $f.gz --clobber; done; exit 0; fi
+if [ "${MS_EPIC:-}" = "alt" ]; then
+  : > /tmp/alt.tsv
+  for TAG in daten-spieltage daten-spieltage-s42 daten-spieltage-alt daten-spieltage-s43; do
+    gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.assets[] | select(.name|test("_EU\\.json$")) | "\(.id)"' 2>/dev/null | while read ID; do
+      gh api -H "Accept: application/octet-stream" "repos/$GITHUB_REPOSITORY/releases/assets/$ID" 2>/dev/null | head -c 600 | grep -oE '"(eventId|windowId)": *"[^"]+"' | sed -E 's/.*: *"([^"]+)"/\1/' | paste -sd '\t' >> /tmp/alt.tsv
+    done
+  done
+  wc -l /tmp/alt.tsv
+  node scripts/diag-epic-alt.mjs /tmp/alt.tsv 2>&1 | grep ALT
+  gzip -f /tmp/epic-alt.json; gh release upload "$REL" /tmp/epic-alt.json.gz --clobber; exit 0
+fi
 IFS=';' read -ra EP <<< "${MS_EPIC:-}"
 for e in "${EP[@]}"; do
   [ -z "$e" ] && continue
