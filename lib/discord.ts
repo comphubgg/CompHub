@@ -2,7 +2,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 import { BEITRAEGE, FARBE, type Sprache, type Sichtbar } from './discordTexte';
-import { willkommen, WILLKOMMEN_MARKE } from './discordVorlagen.mjs';
+import { willkommen, WILLKOMMEN_MARKE, STATS_BEFEHLE } from './discordVorlagen.mjs';
 import { alleZugaenge } from './vipZugaenge';
 import { MARKE } from './marke';
 
@@ -3224,9 +3224,11 @@ export async function befehleEinrichten(): Promise<{ ok: boolean; text: string }
       },
       { type: 3, name: 'period', description: 'For templates: until a date (25.10.2026) or a duration (1 month)', required: false },
     ],
-  }]);
+  },
+  // Die oeffentlichen Befehle fuer #check-stats - PUT ersetzt alle Gildenbefehle, also muessen sie mit hinein.
+  ...STATS_BEFEHLE]);
   return Array.isArray(antwort)
-    ? { ok: true, text: '/comphub registered' }
+    ? { ok: true, text: `/comphub, ${STATS_BEFEHLE.map((b) => `/${b.name}`).join(', ')} registered` }
     : { ok: false, text: `registering /comphub failed (${letzterStatus})` };
 }
 

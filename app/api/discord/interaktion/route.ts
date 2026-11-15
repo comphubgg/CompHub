@@ -14,6 +14,9 @@ import {
   chatErstellen, nachrichtAnMitglied, dmsSpiegeln, alsCompHub, vorlagenText, zeitraumVon, VORLAGEN,
   type KnopfNachricht, proPanel, proPanelInhalt,
 } from '@/lib/discord';
+import {
+  STATS_KANAL, STATS_NAMEN, statsAntwort, cupAntwort, hilfeAntwort, cupVorschlaege, spielerVorschlaege, type Antwort,
+} from '@/lib/discordStats';
 
 /*
  * Knopfdruecke aus Discord.
@@ -122,6 +125,8 @@ export async function POST(request: NextRequest) {
     application_id?: string;
     token?: string;
     channel_id?: string;
+    /** Der Kanal, in dem der Befehl kam (Discord schickt ihn mit - Name fuer die Pruefung auf #check-stats). */
+    channel?: { id?: string; name?: string; parent_id?: string };
     guild_id?: string;
     /*
      * Wer gedrueckt hat.
@@ -138,7 +143,7 @@ export async function POST(request: NextRequest) {
       custom_id?: string;
       /** Slash-Befehl: Name und Optionen. */
       name?: string;
-      options?: Array<{ name: string; value?: string }>;
+      options?: Array<{ name: string; value?: string; focused?: boolean }>;
       /*
        * Was in einem Eingabefenster stand.
        *
@@ -158,6 +163,52 @@ export async function POST(request: NextRequest) {
 
   // Typ 1: Discord klopft nur an.
   if (d.type === 1) return NextResponse.json({ type: 1 });
+
+  /* ------------------------------------- /stats, /cup, /help (oeffentlich, #check-stats) */
+  /*
+   * Vorschlaege beim Tippen (Typ 4): muessen innerhalb von drei Sekunden da sein - lib/discordStats gibt sich
+   * dafuer selbst eine Frist und antwortet notfalls mit einer leeren Liste.
+   */
+  if (d.type === 4 && STATS_NAMEN.has(String(d.data?.name ?? ''))) {
+    const feld = (d.data?.options ?? []).find((o) => o.focused);
+    const q = String(feld?.value ?? '');
+    let choices: Array<{ name: string; value: string }> = [];
+    try {
+      choices = feld?.name === 'player' ? await spielerVorschlaege(q) : await cupVorschlaege(q);
+    } catch { /* leere Liste */ }
+    return NextResponse.json({ type: 8, data: { choices } });
+  }
+  if (d.type === 2 && STATS_NAMEN.has(String(d.data?.name ?? ''))) {
+    /*
+     * Nur in #check-stats (der Kanal ist nur fuer Befehle da); Admins ueberall. Gesucht wird ueber den Kern
+     * des Namens - "📈-check-stats" und "check-stats" sind derselbe Kanal.
+     */
+    const kanalName = String(d.channel?.name ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '');
+    let admin = false;
+    try { admin = (BigInt(d.member?.permissions ?? '0') & 8n) === 8n; } catch { /* kein Admin */ }
+    if (!admin && kanalName !== STATS_KANAL) return nurFuerIhn(`Use this in #📈-${STATS_KANAL}.`);
+    if (d.data?.name === 'help') return NextResponse.json({ type: 4, data: { ...hilfeAntwort(), allowed_mentions: { parse: [] } } });
+
+    const opt = Object.fromEntries((d.data?.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
+    const befehl = d.data?.name;
+    // Erst bestaetigen (sichtbar fuer alle im Kanal: "CompHub is thinking ..."), dann die Antwort nachtragen.
+    after(async () => {
+      let antwort: Antwort;
+      try {
+        antwort = befehl === 'stats' ? await statsAntwort(opt.player ?? '', opt.cup || undefined)
+          : await cupAntwort(opt.name ?? '', opt.region || undefined);
+      } catch (e) {
+        console.error('[discord] /' + befehl + ' gescheitert:', (e as Error).message);
+        antwort = { content: 'Something went wrong while loading the stats - please try again in a minute.' };
+      }
+      if (!d.application_id || !d.token) return;
+      await fetch(`https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '', embeds: [], components: [], ...antwort, allowed_mentions: { parse: [] } }),
+      }).catch(() => null);
+    });
+    return NextResponse.json({ type: 5 });
+  }
 
   /* ------------------------------------------------ /comphub (Typ 2) */
   /*

@@ -31,7 +31,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { FOREN, willkommen, WILLKOMMEN_MARKE } from '../lib/discordVorlagen.mjs';
+import { FOREN, willkommen, WILLKOMMEN_MARKE, STATS_BEFEHLE } from '../lib/discordVorlagen.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';
@@ -434,13 +434,34 @@ if (plan.some((p) => ['anlegen', 'verschieben'].includes(p.art)) || ordnung(kana
   }
 }
 
+// --- Die oeffentlichen Slash-Befehle fuer #check-stats (/stats, /cup, /help) als Gildenbefehle.
+// Einzeln angelegt (POST ersetzt nur den gleichnamigen) - /comphub und andere bleiben, wie sie sind.
+{
+  const app = await ruf('/applications/@me').catch(() => null);
+  const appId = app?.id ?? ich.id;
+  const da = await ruf(`/applications/${appId}/guilds/${SERVER}/commands`).catch(() => []);
+  const fingerabdruck = (b) => JSON.stringify([b.name, b.description, (b.options ?? []).map((o) => [o.type, o.name, o.description,
+    Boolean(o.required), Boolean(o.autocomplete), o.max_length ?? null, (o.choices ?? []).map((c) => c.value)])]);
+  for (const b of STATS_BEFEHLE) {
+    const vorhanden = da.find((x) => x.name === b.name);
+    if (vorhanden && fingerabdruck(vorhanden) === fingerabdruck(b)) continue;
+    schritt('befehle', `Slash-Befehl /${b.name} ${vorhanden ? 'aktualisieren' : 'anmelden'} (Gildenbefehl, Antworten: app/api/discord/interaktion)`,
+      () => ruf(`/applications/${appId}/guilds/${SERVER}/commands`, 'POST', b));
+  }
+}
+
 // --- Willkommensnachricht in #welcome.
 const loeschBotNachrichten = [];
 if (WILLKOMMEN) {
   const wk = idVon.get('welcome');
   const verlauf = wk ? await ruf(`/channels/${wk}/messages?limit=50`).catch(() => []) : [];
   const eigene = verlauf.filter((m) => m.author?.id === ich.id);
-  const unsere = eigene.find((m) => m.embeds?.[0]?.footer?.text === WILLKOMMEN_MARKE);
+  const markiert = eigene.find((m) => m.embeds?.[0]?.footer?.text === WILLKOMMEN_MARKE);
+  // Noch keine neue? Dann den alten Aushang von "Server einrichten" (gleicher Titel, angepinnt) umschreiben - der Pin bleibt,
+  // der Knopf "Read in German" faellt weg (die neue Fassung ist nur englisch).
+  const alterAushang = markiert ? null
+    : eigene.filter((m) => m.embeds?.[0]?.title === 'Welcome to CompHub').sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)))[0] ?? null;
+  const unsere = markiert ?? alterAushang;
   const verweis = (zuletzt) => (n) => {
     const k = zuletzt.find((x) => x.type !== 4 && (kern(x.name) === n || (n === 'comphub-updates' && kern(x.name) === 'updates')));
     return k ? `<#${k.id}>` : `#${n}`;
@@ -450,7 +471,7 @@ if (WILLKOMMEN) {
     const soll = willkommen(verweis(kanaele));
     // Kanalverweise auf noch nicht angelegte Kanaele aendern den Text - dann neu schreiben.
     if (vergleich(unsere.embeds[0]) !== vergleich(soll) || ZIEL.some((g) => g.kanaele.some((z) => !z.code && !idVon.has(z.kern)))) {
-      schritt('willkommen', '#welcome: unsere Willkommensnachricht auf den neuen Stand bringen (bearbeiten, Pin bleibt)', async () => {
+      schritt('willkommen', `#welcome: ${alterAushang ? 'den alten Aushang von "Server einrichten" durch die neue Willkommensnachricht ersetzen' : 'unsere Willkommensnachricht auf den neuen Stand bringen'} (bearbeiten, Pin bleibt)`, async () => {
         const frisch = await ruf(`/guilds/${SERVER}/channels`);
         await ruf(`/channels/${wk}/messages/${unsere.id}`, 'PATCH', { embeds: [willkommen(verweis(frisch))], components: [] });
       });
@@ -508,7 +529,7 @@ for (const g of ZIEL) {
   }
 }
 
-const reihenfolge = ['anlegen', 'umbenennen', 'verschieben', 'rechte', 'thema', 'tags', 'systemkanal', 'willkommen', 'ordnen', 'loesch-kandidat'];
+const reihenfolge = ['anlegen', 'umbenennen', 'verschieben', 'rechte', 'thema', 'tags', 'systemkanal', 'befehle', 'willkommen', 'ordnen', 'loesch-kandidat'];
 plan.sort((a, b) => reihenfolge.indexOf(a.art) - reihenfolge.indexOf(b.art));
 console.log(`\nPlan (${plan.filter((p) => p.art !== 'ordnen').length} Schritte${plan.some((p) => p.art === 'ordnen') ? ' + Reihenfolge' : ''}):`);
 for (const p of plan) console.log(`  [${p.art}] ${p.was}`);
