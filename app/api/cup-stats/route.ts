@@ -84,8 +84,10 @@ const KATEGORIEN: Kategorie[] = [
   { schluessel: 'avgPlace', symbol: '📍', titel: 'Best Average Placement', mehr: true, kleinBesser: true, nachkomma: 2, jeSpiel: true, wert: (e) => e.avgPlace },
   { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', mehr: true, wert: (e) => e.matsVerbaut },
   { schluessel: 'kisten', symbol: '📦', titel: 'Most Chests Opened', mehr: true, wert: (e) => e.kisten },
-  { schluessel: 'heilung', symbol: '💊', titel: 'Most Heals Used', mehr: true, wert: (e) => e.heilung },
-  { schluessel: 'schild', symbol: '🛡️', titel: 'Most Shields Used', mehr: true, wert: (e) => e.schild },
+  // Epics GainedHealthTimes / GainedShieldTimes: wie OFT Leben bzw. Schild dazukam (jeder Schub zaehlt - Slurp, Siphon, Chug Splash ...), nicht wie viele Items
+  // benutzt wurden (Betreiber, 15.11.2026: "60 Shields nach einem Game kann nicht sein").
+  { schluessel: 'heilung', symbol: '💊', titel: 'Most Times Healed', mehr: true, wert: (e) => e.heilung },
+  { schluessel: 'schild', symbol: '🛡️', titel: 'Most Times Shield Gained', mehr: true, wert: (e) => e.schild },
   // Die Summe belohnt, wer mehr Spiele hatte - daneben der Schnitt je Spiel.
   { schluessel: 'avgTimeAlive', symbol: '⏳', titel: 'Longest Average Time Alive', mehr: true, zeit: true, jeSpiel: true, wert: (e) => e.avgTimeAlive },
 ];

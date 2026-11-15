@@ -68,9 +68,9 @@ const KANON: Record<string, Kanon> = {
   kisten:       { id: 'kisten',     titel: 'Most Chests Opened',       symbol: '📦' },
   // Epic zaehlt Heil- und Schildvorgaenge (GainedHealthTimes / GainedShieldTimes), keine Lebenspunkte. "heals" der Einzelwerte ist bei Epic die Summe
   // beider - neben den zwei Einzelzeilen also doppelt gezaehlt und faelschlich "Healing Done" genannt.
-  heilung:      { id: 'heilung',    titel: 'Most Heals Used',          symbol: '💊' },
-  schild:       { id: 'schild',     titel: 'Most Shields Used',        symbol: '🛡️' },
-  heals:        { id: 'heals',      titel: 'Most Heals & Shields Used', symbol: '❤️‍🩹', verdraengtVon: ['heilung', 'schild'] },
+  heilung:      { id: 'heilung',    titel: 'Most Times Healed',        symbol: '💊' },
+  schild:       { id: 'schild',     titel: 'Most Times Shield Gained', symbol: '🛡️' },
+  heals:        { id: 'heals',      titel: 'Most Heals & Shield Gains', symbol: '❤️‍🩹', verdraengtVon: ['heilung', 'schild'] },
   // Eine Strecke: Epics Wert (zu Fuss plus Gleiter, wie Osirion) vor den Replay-Proben, die nur alle 10 s messen und darunter liegen.
   strecke:      { id: 'distanz',    titel: 'Most Distance Traveled',   symbol: '🏃', einheit: 'km', nachkomma: 1, vorrang: 0 },
   distanz:      { id: 'distanz',    titel: 'Most Distance Traveled',   symbol: '🏃', einheit: 'km', nachkomma: 1, vorrang: 1 },
