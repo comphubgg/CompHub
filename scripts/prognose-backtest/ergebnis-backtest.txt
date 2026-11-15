@@ -1,0 +1,43 @@
+Prior RMSE je Familie {'S42heat': 8.1, 'S43heat': 16.9, 'S43r3': 10.0}
+
+== S42heat (12 Fenster) - MAE in Punkten, Zeitmittel waehrend Stand k (Heats: k fertige Spiele; Round 3: k = Spielzahl auf der Seite)
+Methode                    0     1     2     3     4     5     6   Mittel
+lock (heute)             6.5   6.5   6.5  33.2  34.9  34.9  34.9    22.5
+prior                    6.5   6.5   6.5   6.5   6.5   6.5   6.5     6.5
+linear L*C/k           108.2  54.3  35.1  28.2  23.6  19.0   0.8    38.5
+ratio(e)                33.3  40.6   7.5   8.9   5.7   5.7   8.4    15.7
+blend w=(e/C)^2          6.6   6.6   5.8   6.6   5.0   5.0   8.3     6.3
+ivw prior+ratio          6.6   6.7   5.5   6.8   4.8   4.5   5.2     5.7
+lock+floor               6.5   6.5   6.5  33.2  33.3  19.5   0.8    15.2
+prior+floor              6.5   6.5   6.5   6.5   6.5   6.2   3.8     6.1
+ratio+floor             33.3  40.6   7.5   8.9   5.7   5.7   8.4    15.7
+blend2+floor             6.6   6.6   5.8   6.6   5.0   5.0   8.3     6.3
+ivw+floor                6.6   6.7   5.5   6.8   4.8   4.5   5.3     5.7
+
+== S43r3 (7 Fenster) - MAE in Punkten, Zeitmittel waehrend Stand k (Heats: k fertige Spiele; Round 3: k = Spielzahl auf der Seite)
+Methode                    1     2     3     4     5     6     7     8     9    10    11    12   Mittel
+lock (heute)             1.7   7.3   7.3   7.3   7.3   7.3  13.9  57.6  57.6  57.6  57.6  61.0    28.6
+prior                    1.7   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   5.2     6.6
+linear L*C/k           118.6 174.4  94.0  68.1  60.2  45.7  39.6  33.8  27.0  22.9  20.7  25.0    60.8
+ratio(e)               149.3 142.6  14.9   9.6   9.2   7.1   5.0   5.0   3.7   5.1   5.8   6.2    30.3
+blend w=(e/C)^2          1.6   7.3   7.3   7.4   7.3   7.0   6.3   5.7   5.4   5.7   5.8   4.9     6.0
+ivw prior+ratio          1.5   7.3   7.3   8.1   7.6   6.6   4.7   4.9   3.7   5.3   5.9   5.4     5.7
+lock+floor               1.7   7.3   7.3   7.3   7.3   7.3  13.9  57.6  57.6  56.6  41.1  25.0    24.2
+prior+floor              1.7   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   7.3   4.6     6.6
+ratio+floor            149.3 142.6  14.9   9.6   9.2   7.1   5.0   5.0   3.7   5.1   5.8   6.2    30.3
+blend2+floor             1.6   7.3   7.3   7.4   7.3   7.0   6.3   5.7   5.4   5.7   5.8   4.9     6.0
+ivw+floor                1.5   7.3   7.3   8.1   7.6   6.6   4.7   4.9   3.7   5.3   5.9   5.4     5.7
+
+== S43heat (6 Fenster) - MAE in Punkten, Zeitmittel waehrend Stand k (Heats: k fertige Spiele; Round 3: k = Spielzahl auf der Seite)
+Methode                    0     1     2     3     4     5     6     7     8   Mittel
+lock (heute)            15.0  15.0  15.0  15.0  67.5  70.0  70.0  70.0  70.0    45.3
+prior                   15.0  15.0  15.0  15.0  15.0  15.0  15.0  15.0  15.0    15.0
+linear L*C/k           186.9 111.9  82.6  67.2  56.5  47.5  43.7  26.9   2.7    69.6
+ratio(e)                88.4  75.4  21.5  14.3  12.0  12.7  11.3  14.0  10.9    29.0
+blend w=(e/C)^2         14.9  14.3  13.2  12.3  11.7  10.7   7.6  10.4  10.9    11.8
+ivw prior+ratio         14.9  14.5  11.8  11.2  11.1  11.2   7.4   7.8   8.1    10.9
+lock+floor              15.0  15.0  15.0  15.0  67.5  70.0  66.8  30.9   2.7    33.1
+prior+floor             15.0  15.0  15.0  15.0  15.0  15.0  15.0  14.7   9.3    14.3
+ratio+floor             88.4  75.4  21.5  14.3  12.0  12.7  11.3  14.0  10.9    29.0
+blend2+floor            14.9  14.3  13.2  12.3  11.7  10.7   7.6  10.4  10.9    11.8
+ivw+floor               14.9  14.5  11.8  11.2  11.1  11.2   7.4   7.8   7.6    10.8

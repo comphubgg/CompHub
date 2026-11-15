@@ -1,0 +1,4 @@
+S42heat prod(ivw, Anteil-Kurve, Boden): 0:6.7 1:6.6 2:5.4 3:6.7 4:4.7 5:4.7 6:3.8  Mittel 5.5
+S43r3 prod(ivw, Anteil-Kurve, Boden): 1:2.3 2:7.9 3:7.5 4:9.2 5:8.3 6:7.0 7:4.3 8:5.0 9:4.2 10:5.1 11:6.1 12:5.3  Mittel 6.0
+S43heat prod(ivw, Anteil-Kurve, Boden): 0:15.0 1:14.9 2:12.7 3:10.0 4:11.3 5:10.5 6:8.7 7:6.9 8:2.7  Mittel 10.3
+groesste Rueckgaenge zwischen zwei Staenden [(35.2, 'oloReload_HeatsStage_Heat2_OCE', 8), (15.2, 'loReload_HeatsStage_Heat1_ASIA', 8), (15.1, 'SoloReload_HeatsStage_Heat2_ME', 8), (8.2, 'loReload_HeatsStage_Heat2_ASIA', 8), (7.6, '_FNCSSolo_HeatsStage_Heat1_NAW', 6), (6.3, 'oloReload_HeatsStage_Heat1_OCE', 3)]
