@@ -128,6 +128,8 @@ const nextConfig: NextConfig = {
       // Die eigene Discord-Adresse (Betreiber, 15.11.2026: "discord.gg/eGGdNYCC ist nicht professionell"). Vorlaeufig, nicht dauerhaft: das Ziel kann
       // sich aendern (neuer Einladungslink, spaeter vielleicht discord.gg/comphub).
       { source: '/discord', destination: 'https://discord.gg/8jQ3tf37sQ', permanent: false },  // dieselbe Einladung wie lib/marke.ts (laeuft nie ab)
+      // How we count ist seit dem 15.11.2026 ein Abschnitt von How it works (app/how-it-works).
+      { source: '/how-we-count', destination: '/how-it-works#how-we-count', permanent: true },
       ...ALTE_ADRESSEN.flatMap(([alt, neu]) => [
         { source: alt, destination: neu, permanent: true },
         { source: `${alt}/:pfad*`, destination: `${neu}/:pfad*`, permanent: true },

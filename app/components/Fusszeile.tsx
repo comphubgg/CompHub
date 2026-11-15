@@ -43,6 +43,11 @@ export default function Fusszeile() {
             <T>Statistiken, Turniere und Streams der kompetitiven
             Fortnite-Szene — an einem Ort, aus einem Archiv.</T>
           </p>
+          {/* Wie die Zahlen entstehen und was jede Seite zeigt (Betreiber, 15.11.2026: gut sichtbar unten auf jeder Seite). */}
+          <Link href="/how-it-works"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-sky-500 transition hover:text-sky-400">
+            <T>So funktioniert es</T> →
+          </Link>
         </div>
 
         {/* --------------------------------------------------- Bereiche */}
@@ -143,7 +148,7 @@ export default function Fusszeile() {
           <span>© {new Date().getFullYear()} CompHub</span>
           <Link href="/privacy" className="transition hover:text-sky-400"><T>Datenschutz</T></Link>
           <Link href="/terms" className="transition hover:text-sky-400"><T>Nutzungsbedingungen</T></Link>
-          <Link href="/how-we-count" className="transition hover:text-sky-400"><T>So zählen wir</T></Link>
+          <Link href="/how-it-works" className="transition hover:text-sky-400"><T>So funktioniert es</T></Link>
         </p>
         <p className="text-[11px] text-slate-700">
           <T>Nicht mit Epic Games verbunden. Alle Marken gehören ihren

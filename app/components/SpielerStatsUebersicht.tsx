@@ -230,9 +230,9 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
 
   return (
     <div className="space-y-4">
-      {/* Woher jede Zahl kommt (app/how-we-count). */}
+      {/* Woher jede Zahl kommt (app/how-it-works, Abschnitt #how-we-count). */}
       <div className="-mb-2 flex justify-end">
-        <Link href="/how-we-count" className="text-[11px] text-slate-500 underline-offset-2 transition hover:text-sky-400 hover:underline">
+        <Link href="/how-it-works#how-we-count" className="text-[11px] text-slate-500 underline-offset-2 transition hover:text-sky-400 hover:underline">
           <T>So zählen wir</T>
         </Link>
       </div>

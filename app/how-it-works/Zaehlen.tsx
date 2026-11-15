@@ -1,11 +1,6 @@
-'use client';
-
-import Link from 'next/link';
-import { useSprache } from '@/app/components/SprachProvider';
-import { useDiscordEinladung } from '@/app/components/DiscordKnopf';
-import Fusszeile from '@/app/components/Fusszeile';
-
 /*
+ * Der Abschnitt "How we count" der Seite /how-it-works (bis 15.11.2026 eine eigene Seite /how-we-count, die jetzt dorthin umleitet).
+ *
  * Der Text je Sprache vollstaendig (wie Datenschutz und Nutzungsbedingungen, app/components/RechtsSeite): eine Erklaerung wird als Ganzes gelesen.
  *
  * Woher jede Aussage stammt - wer eine Rechnung aendert, aendert hier den Satz mit:
@@ -22,13 +17,13 @@ import Fusszeile from '@/app/components/Fusszeile';
  *   Builds Placed  app/api/cup-spieler (selbst gesetzte Teile, ohne ersetzte, nur wenn jedes Spiel sie hat); Program.cs BuildingReplacementType
  *   Time in Storm  Program.cs bIsInAnyStorm, ab Busstart bis Tod oder Ende
  *   Zeitpunkt      app/components/SpielerStatsUebersicht.tsx ("Noch nicht fertig"), app/events/[id]/SpielerDetail.tsx (Zwischenstaende)
- * Bewusst nicht erklaert: Mats Farmed und Distance Traveled - ihre Einordnung bzw. Hochrechnung ist im Code als geschaetzt markiert.
+ * Mats Farmed und Distance Traveled stehen hier (noch) nicht (Betreiber, 15.11.2026) - sie kommen dazu, sobald sie nachweislich genau sind.
  */
 
 type Quelle = 'epic' | 'replay' | 'beide';
 interface Wert { name: string; quelle: Quelle; text: string }
 interface Gruppe { titel: string; werte: Wert[] }
-interface Text {
+export interface ZaehlText {
   titel: string; stand: string; einleitung: string;
   quellenTitel: string; epicTitel: string; epicText: string; replayTitel: string; replayText: string; lanText: string;
   marke: Record<Quelle, string>;
@@ -38,9 +33,9 @@ interface Text {
   fehlerTitel: string; fehlerText: string; mailVor: string; discordVor: string; discordKanal: string; fehlerSchluss: string;
 }
 
-const MAIL = 'contact@thecomphub.com';
+export const MAIL = 'contact@thecomphub.com';
 
-const EN: Text = {
+export const ZAEHLEN_EN: ZaehlText = {
   titel: 'How we count',
   stand: 'Last updated: 15 November 2026',
   einleitung: 'Every number in Player Stats comes from one of two places: Epic\'s official tournament leaderboard, or the match replays, '
@@ -110,7 +105,7 @@ const EN: Text = {
   fehlerSchluss: 'and we\'ll look into it.',
 };
 
-const DE: Text = {
+export const ZAEHLEN_DE: ZaehlText = {
   titel: 'So zählen wir',
   stand: 'Stand: 15. November 2026',
   einleitung: 'Jede Zahl in den Spieler-Stats kommt aus einer von zwei Quellen: aus Epics offizieller Turnier-Bestenliste oder aus den Match-Replays, '
@@ -181,84 +176,53 @@ const DE: Text = {
   fehlerSchluss: '– wir sehen es uns an.',
 };
 
-const MARKE_STIL: Record<Quelle, string> = {
+export const MARKE_STIL: Record<Quelle, string> = {
   epic: 'border-zinc-700 text-slate-300',
   replay: 'border-sky-500/40 text-sky-300',
   beide: 'border-zinc-700 text-slate-400',
 };
 
-export default function ZaehlSeite() {
-  const { sprache } = useSprache();
-  const text = sprache === 'de' ? DE : EN;
-  const discord = useDiscordEinladung();
+/** Der Inhalt des Abschnitts - Ueberschrift und Rahmen setzt die Seite (SoFunktioniertEs.tsx). */
+export function ZaehlInhalt({ text }: { text: ZaehlText }) {
   return (
     <>
-      <main className="flex-1 bg-zinc-950 px-4 py-12 text-slate-300">
-        <article className="mx-auto max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-50">{text.titel}</h1>
-          <p className="mt-2 text-xs text-slate-500">{text.stand}</p>
-          <p className="mt-6 text-sm leading-relaxed">{text.einleitung}</p>
+      <p className="mt-3 text-sm leading-relaxed">{text.einleitung}</p>
 
-          <section className="mt-10">
-            <h2 className="text-lg font-semibold text-slate-100">{text.quellenTitel}</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-sm font-semibold text-slate-100">{text.epicTitel}</p>
-                <p className="mt-1.5 text-sm leading-relaxed">{text.epicText}</p>
+      <h3 className="mt-6 text-base font-semibold text-slate-100">{text.quellenTitel}</h3>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+          <p className="text-sm font-semibold text-slate-100">{text.epicTitel}</p>
+          <p className="mt-1.5 text-sm leading-relaxed">{text.epicText}</p>
+        </div>
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+          <p className="text-sm font-semibold text-sky-300">{text.replayTitel}</p>
+          <p className="mt-1.5 text-sm leading-relaxed">{text.replayText}</p>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-slate-500">{text.lanText}</p>
+
+      {text.gruppen.map((g) => (
+        <div key={g.titel} className="mt-8">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{g.titel}</h3>
+          <div className="mt-3 divide-y divide-zinc-800/80 rounded-xl border border-zinc-800 bg-zinc-900/30">
+            {g.werte.map((w) => (
+              <div key={w.name} className="px-4 py-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <h4 className="text-sm font-semibold text-slate-100">{w.name}</h4>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${MARKE_STIL[w.quelle]}`}>
+                    {text.marke[w.quelle]}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-slate-400">{w.text}</p>
               </div>
-              <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-                <p className="text-sm font-semibold text-sky-300">{text.replayTitel}</p>
-                <p className="mt-1.5 text-sm leading-relaxed">{text.replayText}</p>
-              </div>
-            </div>
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">{text.lanText}</p>
-          </section>
+            ))}
+          </div>
+        </div>
+      ))}
+      <p className="mt-3 text-xs text-slate-500">{text.fehltText}</p>
 
-          {text.gruppen.map((g) => (
-            <section key={g.titel} className="mt-10">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{g.titel}</h2>
-              <div className="mt-3 divide-y divide-zinc-800/80 rounded-xl border border-zinc-800 bg-zinc-900/30">
-                {g.werte.map((w) => (
-                  <div key={w.name} className="px-4 py-3.5">
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                      <h3 className="text-sm font-semibold text-slate-100">{w.name}</h3>
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${MARKE_STIL[w.quelle]}`}>
-                        {text.marke[w.quelle]}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-400">{w.text}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-          <p className="mt-3 text-xs text-slate-500">{text.fehltText}</p>
-
-          <section className="mt-10">
-            <h2 className="text-lg font-semibold text-slate-100">{text.zeitTitel}</h2>
-            {text.zeitAbsaetze.map((p) => <p key={p} className="mt-3 text-sm leading-relaxed">{p}</p>)}
-          </section>
-
-          <section className="mt-10 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h2 className="text-lg font-semibold text-slate-100">{text.fehlerTitel}</h2>
-            <p className="mt-2 text-sm leading-relaxed">
-              {text.fehlerText}{' '}
-              {text.mailVor}{' '}
-              <a href={`mailto:${MAIL}`} className="text-sky-400 hover:text-sky-300">{MAIL}</a>{' '}
-              {text.discordVor}{' '}
-              <a href={discord} target="_blank" rel="noreferrer" className="text-sky-400 hover:text-sky-300">{text.discordKanal}</a>{' '}
-              {text.fehlerSchluss}
-            </p>
-          </section>
-
-          <p className="mt-12 border-t border-zinc-900 pt-6 text-xs text-slate-500">
-            <Link href="/statistics" className="text-sky-400 hover:text-sky-300">{sprache === 'de' ? 'Statistiken →' : 'Statistics →'}</Link>
-            {' · '}
-            <Link href="/" className="text-slate-500 hover:text-sky-400">CompHub</Link>
-          </p>
-        </article>
-      </main>
-      <Fusszeile />
+      <h3 className="mt-8 text-base font-semibold text-slate-100">{text.zeitTitel}</h3>
+      {text.zeitAbsaetze.map((p) => <p key={p} className="mt-3 text-sm leading-relaxed">{p}</p>)}
     </>
   );
 }
