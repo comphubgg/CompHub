@@ -1,0 +1,383 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Match Replays</title>
+<!-- Promo-Video "Introducing: Match Replays". Gerendert mit tools/stats-agent-video/aufnehmen.mjs --szene tools/replays-video/szene.html --medien <Aufnahmen>,
+     Ton aus ton.py. Die Bilder im Rahmen sind ECHTE Aufnahmen der Live-Seite (tools/replays-video/seite-aufnehmen.mjs im Runner, Workflow "Seite aufnehmen"),
+     als Einzelbilder unter /medien/<format>/f/ (tools/replays-video/vorbereiten.sh). Zeitpunkte kommen aus /medien/<format>/marken.json.
+     Nur Fakten aus app/replays (ReplayAnsicht, SpielerEbene, page.tsx) und app/events/[id]/page.tsx (REPLAY-Marke im Reiter Matches). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+:root{--bg:#05080e;--blau:#00a3ff;--hell:#5cc8ff;--sky:#7dd3fc;--text:#eef4ff;--grau:#8fa3c2;--rand:rgba(120,170,230,.16)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);overflow:hidden;font-family:Inter,system-ui,sans-serif;color:var(--text)}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+.hoch #stage{width:1080px;height:1920px}
+.bri{font-family:"Bricolage Grotesque",Inter,sans-serif}
+.blau{color:var(--blau)}
+.glow{text-shadow:0 0 28px rgba(0,163,255,.55),0 0 70px rgba(0,163,255,.25)}
+.a{will-change:transform,opacity;visibility:hidden}
+.nw{white-space:nowrap}
+#wand{position:absolute;inset:0;perspective:1500px;overflow:hidden;z-index:0;isolation:isolate}
+#wandin{position:absolute;left:50%;top:50%;width:3400px;display:grid;grid-template-columns:repeat(9,360px);gap:18px;transform-style:preserve-3d}
+#wandin div{width:360px;height:203px;border-radius:14px;background-size:cover;background-position:center top;outline:1px solid rgba(0,163,255,.25)}
+#schatten{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 60% 50% at 50% 45%,rgba(0,110,200,.10),rgba(0,0,0,0) 70%),rgba(5,8,14,.92)}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:6}
+#schwarz{position:absolute;inset:0;background:#000;pointer-events:none;z-index:10}
+.szene{position:absolute;inset:0;z-index:3}
+.kicker{font-weight:700;font-size:24px;letter-spacing:.28em;text-transform:uppercase;color:var(--blau);display:flex;align-items:center;gap:14px}
+.kicker:before{content:"";width:36px;height:3px;background:var(--blau);box-shadow:0 0 12px var(--blau)}
+.kicker.mitte{justify-content:center}
+/* Intro */
+#s1{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#s1logo{width:150px;filter:drop-shadow(0 0 18px rgba(0,163,255,.8)) drop-shadow(0 0 50px rgba(0,163,255,.4));margin-bottom:34px}
+#s1kick{font-weight:600;font-size:34px;letter-spacing:.34em;text-transform:uppercase;color:#a9bddb}
+#s1kick b{color:#fff;font-weight:800}
+#s1titel{font-weight:800;font-size:220px;line-height:.95;letter-spacing:-.02em;margin-top:30px;background:linear-gradient(180deg,#ffffff 0%,#9fe0ff 38%,#00a3ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 22px rgba(0,163,255,.55)) drop-shadow(0 0 60px rgba(0,163,255,.3));padding:0 20px 24px}
+.hoch #s1titel{font-size:176px;line-height:.92}
+.hoch #s1kick{font-size:30px;letter-spacing:.22em}
+/* Rahmen um die echte Aufnahme */
+#rahmen{position:absolute;left:0;top:0;z-index:4;transform-origin:0 0;visibility:hidden}
+#rahmenin{position:relative;border-radius:22px;background:#0b111c;border:1.5px solid rgba(120,170,230,.28);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 60px rgba(0,163,255,.28),0 0 140px rgba(0,163,255,.14),0 40px 120px rgba(0,0,0,.65);overflow:hidden}
+#leiste{height:52px;display:flex;align-items:center;gap:12px;padding:0 20px;background:linear-gradient(180deg,#141c2a,#0e1522);border-bottom:1px solid rgba(120,170,230,.14)}
+#leiste i{width:13px;height:13px;border-radius:50%;background:#2a3446;display:block}
+#leiste i:nth-child(1){background:#ff5f57}#leiste i:nth-child(2){background:#febc2e}#leiste i:nth-child(3){background:#28c840}
+#adresse{margin-left:16px;flex:1;height:32px;border-radius:9px;background:#070b13;border:1px solid rgba(120,170,230,.14);display:flex;align-items:center;padding:0 14px;font-size:17px;color:#9fb2cf;font-weight:500;white-space:nowrap;overflow:hidden}
+#adresse b{color:#e6efff;font-weight:600}
+#adresse svg{margin-right:10px;flex:none}
+#schirm{position:relative;overflow:hidden;background:#09090b}
+#welt{position:absolute;left:0;top:0;transform-origin:0 0}
+#welt img{display:block}
+#ringe{position:absolute;left:0;top:0;overflow:visible}
+#echt{position:absolute;right:16px;top:9px;z-index:2;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#bfe6ff;background:rgba(0,163,255,.14);border:1px solid rgba(0,163,255,.45);border-radius:999px;padding:6px 12px}
+#echt:before{content:"";width:9px;height:9px;border-radius:50%;background:#ff5a6a;box-shadow:0 0 10px #ff5a6a}
+/* Handy-Rahmen */
+.hoch #rahmenin{border-radius:64px;border:3px solid #2b3648;padding:16px;background:#05070c}
+.hoch #leiste{display:none}
+.hoch #schirm{border-radius:48px}
+.hoch #echt{right:auto;left:50%;transform:translateX(-50%);top:-54px}
+#blitz{position:absolute;inset:0;background:#bfe8ff;opacity:0;pointer-events:none;z-index:3}
+/* Texte */
+.cap{position:absolute;z-index:5}
+.cap .h{font-family:"Bricolage Grotesque";font-weight:800;font-size:70px;line-height:1.02;letter-spacing:-.012em;margin-top:20px}
+.cap .p{font-weight:500;font-size:30px;line-height:1.38;color:#b1c3de;margin-top:22px}
+.cap .p b{color:#fff;font-weight:700}
+.cap .tg{display:inline-block;margin-top:24px;font-weight:700;font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:#ffd27a;border:1px solid rgba(255,200,90,.45);background:rgba(255,190,60,.08);border-radius:999px;padding:7px 14px}
+.hoch .cap .h{font-size:74px}
+.hoch .cap .p{font-size:33px}
+/* Outro */
+#s9{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#s9logo{width:240px;filter:drop-shadow(0 0 24px rgba(0,163,255,.85)) drop-shadow(0 0 80px rgba(0,163,255,.45))}
+#s9titel{font-weight:700;font-size:40px;letter-spacing:.2em;text-transform:uppercase;color:#a9bddb;margin-top:40px}
+#s9url{font-weight:800;font-size:110px;margin-top:22px;letter-spacing:-.015em;line-height:1}
+.hoch #s9url{font-size:96px}
+#s9pfad{font-weight:600;font-size:34px;color:#7f93b3;margin-top:18px}
+#s9links{display:flex;gap:56px;margin-top:40px}
+.hoch #s9links{flex-direction:column;gap:22px;align-items:center}
+.s9l{display:flex;align-items:center;gap:16px;font-weight:700;font-size:40px;color:#cfe0f7}
+.s9l img{width:38px;height:38px}
+</style>
+</head><body>
+<div id="stage">
+  <div id="wand"><div id="wandin"></div></div>
+  <div id="schatten"></div>
+
+  <div class="szene" id="s1">
+    <img id="s1logo" class="a" src="../../public/logos/CompHub-Logo-frei.png">
+    <div id="s1kick" class="a">The <b>CompHub</b> introduces</div>
+    <div id="s1titel" class="a bri">Match<br>Replays</div>
+  </div>
+
+  <div id="rahmen"><div id="echt">Live site · real footage</div><div id="rahmenin">
+    <div id="leiste"><i></i><i></i><i></i><div id="adresse"><svg width="14" height="16" viewBox="0 0 14 16"><rect x="1" y="7" width="12" height="8" rx="2" fill="#7f93b3"/><path d="M4 7V5a3 3 0 0 1 6 0v2" stroke="#7f93b3" stroke-width="2" fill="none"/></svg><span id="url"></span></div></div>
+    <div id="schirm"><div id="welt"><img id="fimg"><svg id="ringe"></svg></div><div id="blitz"></div></div>
+  </div></div>
+
+  <div id="caps"></div>
+
+  <div class="szene" id="s9">
+    <img id="s9logo" class="a" src="../../public/logos/CompHub-Logo-frei.png">
+    <div id="s9titel" class="a">Match Replays</div>
+    <div id="s9url" class="a bri">thecomphub<span class="blau">.com</span></div>
+    <div id="s9pfad" class="a">thecomphub.com/replays</div>
+    <div id="s9links">
+      <div class="s9l a" id="s9x"><img src="../../public/icons/twitter.svg">@CompHub_gg</div>
+      <div class="s9l a" id="s9d"><img src="../../public/icons/discord.png">thecomphub.com/discord</div>
+    </div>
+  </div>
+
+  <canvas id="fx"></canvas>
+  <div id="schwarz"></div>
+</div>
+
+<script src="schnitt.js"></script>
+<script>
+const HOCH = new URLSearchParams(location.search).get('f') === 'hoch';
+const F = HOCH ? 'hoch' : 'quer';
+if (HOCH) document.body.classList.add('hoch');
+const W = HOCH ? 1080 : 1920, H = HOCH ? 1920 : 1080;
+let PB = HOCH ? 1080 : 2400, PH = HOCH ? 1920 : 1600;   // Bildpunkte der Aufnahme (aus marken.json)
+const $ = (id) => document.getElementById(id);
+const klemm = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ab = (t, a, d) => klemm((t - a) / d);
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const zuf = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+// ---------- Zeitplan (125 BPM: Takt = 1,92 s) ----------
+const BAR = 1.92;
+const SFX = []; const sfx = (t, k, x = {}) => SFX.push({ t: +t.toFixed(3), k, ...x });
+window.SFX = SFX;
+
+/*
+ * Der Schnitt. Je Abschnitt: Takte [von, bis], Quelle (Marke in marken.json + Versatz in Sekunden, v = Tempo), Rahmen-Lage, Kamerafahrt (Zoom auf
+ * Bildpunkte der Aufnahme), Ringe (Hervorhebung) und der Text. Getrennt fuer quer und hoch, weil die Seite dort anders aussieht.
+ * k: [Sekunde im Abschnitt, x, y, Zoom] - x/y = Mitte des Ausschnitts in Bildpunkten der Aufnahme.
+ */
+const SCHNITT = window.SCHNITT_DATEN[F];
+const T = { intro: 0, ende: SCHNITT.ende * BAR };
+window.DAUER = T.ende;
+
+// ---------- Element-Animation ----------
+function setze(el, op, tf, blur) {
+  el.style.opacity = op.toFixed(4);
+  el.style.visibility = op <= 0.002 ? 'hidden' : 'visible';
+  el.style.transform = tf;
+  el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : '';
+}
+function zeige(el, t, a, b, o = {}) {
+  if (typeof el === 'string') el = $(el);
+  const pi = (o.e || eOut)(ab(t, a, o.d ?? 0.7));
+  const po = eInOut(ab(t, b, o.od ?? 0.45));
+  const dx = (o.x ?? 0) * (1 - pi) + (o.ox ?? 0) * po;
+  const dy = (o.y ?? 36) * (1 - pi) + (o.oy ?? -20) * po;
+  const s = (1 + ((o.s ?? 1) - 1) * (1 - pi)) * (1 + ((o.os ?? 1) - 1) * po);
+  const blur = (o.blur ?? 6) * (1 - pi) + (o.oblur ?? 4) * po;
+  const op = pi * (1 - po);
+  setze(el, op, `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) scale(${s.toFixed(4)})`, blur);
+  return op;
+}
+const lade = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---------- Aufnahme ----------
+let MARKEN = null;
+const marke = (n) => { const m = MARKEN.marken.find((x) => x.name === n); if (!m) throw new Error(`Marke ${n} fehlt (${F})`); return m; };
+const bildPfad = (i) => `/medien/${F}/f/${String(Math.max(0, Math.min(MARKEN.letztes, i))).padStart(6, '0')}.jpg`;
+let aktBild = '';
+async function setzeBild(src) {
+  if (src === aktBild) return;
+  const img = $('fimg'); img.src = src; aktBild = src;
+  try { await img.decode(); } catch { /* naechstes Bild */ }
+}
+
+// ---------- Texte bauen ----------
+function baueTexte() {
+  const box = $('caps');
+  SCHNITT.abschnitte.forEach((a, i) => {
+    if (!a.text) return;
+    const d = document.createElement('div'); d.className = 'cap'; d.id = `cap${i}`;
+    const L = a.text.lage; Object.assign(d.style, { left: L[0] + 'px', top: L[1] + 'px', width: L[2] + 'px', textAlign: L[3] || 'left' });
+    d.innerHTML = `<div class="kicker a${L[3] === 'center' ? ' mitte' : ''}" id="cap${i}k">${a.text.k}</div><div class="h a" id="cap${i}h">${a.text.h}</div>`
+      + (a.text.p ? `<div class="p a" id="cap${i}p">${a.text.p}</div>` : '') + (a.text.tg ? `<div class="tg a" id="cap${i}t">${a.text.tg}</div>` : '');
+    box.appendChild(d);
+  });
+}
+
+async function aufbau() {
+  MARKEN = await (await fetch(`/medien/${F}/marken.json`)).json();
+  MARKEN.letztes = MARKEN.bilderAus - 1;
+  if (MARKEN.pixel) [PB, PH] = MARKEN.pixel;
+  // Hintergrund: Standbilder der echten Seite
+  const still = MARKEN.standbilder ?? [];
+  const wi = $('wandin');
+  for (let i = 0; i < 126; i++) { const d = document.createElement('div'); if (still.length) d.style.backgroundImage = `url(/medien/${F}/wand/${still[(i * 5 + Math.floor(i / 9) * 4) % still.length]})`; wi.appendChild(d); }
+  await Promise.all(still.map((c) => lade(`/medien/${F}/wand/${c}`)));
+  baueTexte();
+  const sr = $('ringe'); sr.setAttribute('width', PB); sr.setAttribute('height', PH); sr.setAttribute('viewBox', `0 0 ${PB} ${PH}`);
+  let vorige = null;
+  for (const a of SCHNITT.abschnitte) {
+    if (a.quelle && vorige && !a.lageVon) a.lageVon = vorige.lage;
+    if (a.quelle) vorige = a;
+    a.t0 = a.takte[0] * BAR; a.t1 = a.takte[1] * BAR;
+    if (a.quelle) a.q0 = marke(a.quelle.m).t + (a.quelle.ab ?? 0);
+    a.ringEl = (a.ringe ?? []).map(() => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('fill', 'none'); c.setAttribute('stroke', '#38bdf8'); sr.appendChild(c); return c; });
+    a.url = a.quelle ? (a.quelle.url ?? marke(a.quelle.m).url) : '';
+  }
+  await Promise.all([...document.images].map((i) => i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; })));
+  await document.fonts.ready;
+  for (const f of ["800 100px 'Bricolage Grotesque'", "700 100px 'Bricolage Grotesque'", "500 30px Inter", "600 30px Inter", "700 30px Inter", "800 30px Inter"]) { try { await document.fonts.load(f, 'CompHub Match Replays 0123456789'); } catch {} }
+  planeSfx();
+  window.ABSCHNITTE = SCHNITT.musik;
+  window.BEREIT = true;
+}
+
+function planeSfx() {
+  sfx(0.0, 'riser', { d: 2.88 }); sfx(0.5, 'whoosh', { v: 0.5 });
+  sfx(2.88, 'hit');
+  sfx(3.4, 'whoosh', { v: 0.45 });
+  SCHNITT.abschnitte.forEach((a, i) => {
+    if (i === 0 || !a.quelle) return;
+    sfx(a.t0 - 0.1, 'whoosh', { v: 0.7 });
+    if (a.text) sfx(a.t0 + 0.5, 'blip', { v: 0.6 });
+    for (const r of a.ringe ?? []) sfx(a.t0 + r[0], 'ping', { v: 0.45 });
+    for (const c of a.klicks ?? []) sfx(a.t0 + c, 'click', { v: 0.7 });
+  });
+  const O = SCHNITT.outro * BAR;
+  sfx(O - 2.4, 'riser', { d: 2.4 });
+  sfx(O, 'impact');
+  sfx(O + 1.2, 'whoosh', { v: 0.5 }); sfx(O + 1.8, 'whoosh', { v: 0.4 }); sfx(O + 2.4, 'whoosh', { v: 0.35 });
+}
+
+// ---------- Effekt-Ebene ----------
+const fx = $('fx'); fx.width = W; fx.height = H; const g = fx.getContext('2d');
+function streifen(t, staerke, seed = 0) {
+  if (staerke <= 0.002) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 14; i++) {
+    const z = zuf(i + seed * 31), sp = 0.35 + zuf(i * 3 + 1) * 0.6;
+    const u = ((t * sp * 0.6 + z) % 1.4) - 0.2;
+    const y0 = zuf(i * 7 + 2) * H * 1.2 - H * 0.1;
+    const len = 300 + zuf(i * 5) * 700, x = u * (W + len) - len;
+    const x2 = x + len, y2 = y0 + Math.tan(-0.18) * len;
+    const gr = g.createLinearGradient(x, y0, x2, y2);
+    gr.addColorStop(0, 'rgba(0,163,255,0)'); gr.addColorStop(0.85, `rgba(92,200,255,${0.55 * staerke})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = gr; g.lineWidth = 1 + zuf(i * 11) * 2.5; g.beginPath(); g.moveTo(x, y0); g.lineTo(x2, y2); g.stroke();
+  }
+  g.restore();
+}
+function staub(t, a) {
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 60; i++) {
+    const x = zuf(i) * W + Math.sin(t * 0.3 + i) * 20, y = ((zuf(i + 99) * H - t * (8 + zuf(i + 5) * 18)) % H + H) % H;
+    const r = 0.8 + zuf(i + 7) * 1.8, o = (0.15 + 0.25 * zuf(i + 3)) * a * (0.6 + 0.4 * Math.sin(t * 1.3 + i));
+    g.fillStyle = `rgba(120,200,255,${o})`; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  g.restore();
+}
+function blitzRing(x, y, p, rmax, a = 1) {
+  if (p <= 0 || p >= 1) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = `rgba(92,200,255,${(1 - p) * 0.8 * a})`; g.lineWidth = 3 + 10 * (1 - p); g.shadowColor = '#00a3ff'; g.shadowBlur = 30;
+  g.beginPath(); g.arc(x, y, rmax * eOut(p), 0, 7); g.stroke(); g.restore();
+}
+function lichtfleck(x, y, r, a) {
+  if (a <= 0.002) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,163,255,${0.35 * a})`); gr.addColorStop(1, 'rgba(0,163,255,0)');
+  g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); g.restore();
+}
+
+// Rahmen-Lage: [Mitte x, Mitte y, Breite des Schirms, Drehung Y (Grad), Drehung X (Grad)]
+function lageBei(a, t) {
+  const L = a.lage;
+  if (!a.lageVon || t - a.t0 >= 0.8) return L;
+  const q = eInOut(ab(t, a.t0, 0.8));
+  return L.map((v, i) => lerp(a.lageVon[i], v, q));
+}
+function kameraBei(a, lt) {
+  const k = a.kamera ?? [[0, PB / 2, PH / 2, 1]];
+  if (lt <= k[0][0]) return k[0].slice(1);
+  for (let i = 0; i < k.length - 1; i++) {
+    if (lt < k[i + 1][0]) { const q = eInOut((lt - k[i][0]) / (k[i + 1][0] - k[i][0])); return [1, 2, 3].map((j) => lerp(k[i][j], k[i + 1][j], q)); }
+  }
+  return k[k.length - 1].slice(1);
+}
+
+// ---------- Zeichnen ----------
+window.zeichne = async function (t) {
+  g.clearRect(0, 0, W, H);
+  const pan = (t - 40) * 8, zoomPuls = 1 + 0.04 * Math.sin(t * 0.21);
+  $('wandin').style.transform = `translate(-50%,-50%) rotateX(32deg) rotateZ(-13deg) scale(${(zoomPuls * (HOCH ? 1.35 : 1)).toFixed(4)}) translate(${(-pan * 0.6).toFixed(2)}px,${(-pan).toFixed(2)}px)`;
+  $('schwarz').style.opacity = (Math.max(1 - eOut(ab(t, 0, 1.4)), eInOut(ab(t, T.ende - 1.4, 1.3)))).toFixed(4);
+  staub(t, 1);
+
+  // ===== Intro =====
+  const s1b = 4 * BAR - 0.5;
+  zeige('s1logo', t, 0.2, s1b, { y: 0, s: 0.6, blur: 12, d: 1.1, os: 0.7, oy: -30 });
+  zeige('s1kick', t, 0.5, s1b, { y: 30, d: 0.9, oy: -40 });
+  zeige('s1titel', t, 2.88, s1b, { y: 0, s: 1.35, blur: 24, d: 0.75, e: eExpo, os: 1.25, oy: 0, oblur: 18 });
+  blitzRing(W / 2, H / 2, ab(t, 2.88, 1.1), W * 0.55);
+  streifen(t, klemm(1 - Math.abs(t - 3.0) / 1.6), 1);
+  lichtfleck(W / 2, H / 2, 700, klemm(ab(t, 2.88, 0.4)) * (1 - ab(t, 4.5, 1.2)));
+
+  // ===== Abschnitte mit der echten Seite =====
+  const r = $('rahmen');
+  const akt = SCHNITT.abschnitte.find((a) => a.quelle && t >= a.t0 && t < a.t1);
+  const ersteQ = SCHNITT.abschnitte.find((a) => a.quelle), letzteQ = [...SCHNITT.abschnitte].reverse().find((a) => a.quelle);
+  if (akt) {
+    const lt = t - akt.t0;
+    // Quelle: Bild aus der Aufnahme (Zeit-Umrechnung mit Tempo; v kann eine Liste [[ab Sekunde, Tempo], ...] sein)
+    let qs = akt.q0;
+    const v = akt.quelle.v ?? 1;
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const von = v[i][0], bis = v[i + 1]?.[0] ?? Infinity; if (lt > von) qs += (Math.min(lt, bis) - von) * v[i][1]; } }
+    else qs += lt * v;
+    await setzeBild(bildPfad(Math.round(qs * 30)));
+    // Rahmen
+    const [cx, cy, bw, ry, rx] = lageBei(akt, t);
+    const sch = bw / PB; const bh = PH * sch;
+    const ein = eOut(ab(t, ersteQ.t0, 0.9)), aus = 1 - eInOut(ab(t, letzteQ.t1 - 0.6, 0.6));
+    const op = Math.min(ein, aus);
+    const sk = (0.86 + 0.14 * ein) * (1 - 0.06 * (1 - aus));
+    $('schirm').style.width = bw + 'px'; $('schirm').style.height = bh + 'px';
+    const rb = r.offsetWidth, rh = r.offsetHeight;
+    r.style.visibility = op > 0.002 ? 'visible' : 'hidden'; r.style.opacity = op.toFixed(4);
+    r.style.transform = `translate(${(cx - rb / 2).toFixed(1)}px,${(cy - rh / 2).toFixed(1)}px) perspective(2400px) rotateY(${ry.toFixed(2)}deg) rotateX(${(rx ?? 0).toFixed(2)}deg) scale(${sk.toFixed(4)})`;
+    r.style.transformOrigin = `${rb / 2}px ${rh / 2}px`;
+    r.style.filter = op < 0.999 ? `blur(${((1 - op) * 10).toFixed(2)}px)` : '';
+    // Kamera
+    let [fx_, fy_, z] = kameraBei(akt, lt);
+    z = Math.max(1, z);
+    const hw = PB / (2 * z), hh = PH / (2 * z);
+    fx_ = klemm(fx_, hw, PB - hw); fy_ = klemm(fy_, hh, PH - hh);
+    const k = sch * z;
+    $('welt').style.transform = `translate(${(bw / 2 - fx_ * k).toFixed(2)}px,${(bh / 2 - fy_ * k).toFixed(2)}px) scale(${k.toFixed(5)})`;
+    // Ringe
+    (akt.ringe ?? []).forEach((ri, i) => {
+      const [a0, a1, x, y, rr] = ri; const c = akt.ringEl[i];
+      const q = ab(lt, a0, 0.5), qa = 1 - ab(lt, a1, 0.4);
+      const o = Math.min(q, qa);
+      c.style.visibility = o > 0.01 ? 'visible' : 'hidden';
+      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', (rr * (1.5 - 0.5 * eOut(q))).toFixed(1));
+      c.setAttribute('stroke-width', (5 / k).toFixed(2)); c.setAttribute('opacity', o.toFixed(3));
+      c.style.filter = `drop-shadow(0 0 ${(8 / k).toFixed(1)}px #00a3ff)`;
+    });
+    for (const a of SCHNITT.abschnitte) if (a !== akt) for (const c of a.ringEl) c.style.visibility = 'hidden';
+    // Schnitt-Blitz
+    $('blitz').style.opacity = (akt !== ersteQ ? 0.35 * (1 - ab(lt, 0, 0.25)) : 0).toFixed(3);
+    $('url').innerHTML = (() => { const u = new URL(akt.url); return `${u.host.replace(/^www\./, '')}<b>${decodeURIComponent(u.pathname)}</b>`; })();
+    $('echt').style.opacity = '1';
+    if (lt < 0.5 && akt !== ersteQ) streifen(t * 2.2, (1 - lt / 0.5) * 0.9, 3);
+  } else { r.style.visibility = 'hidden'; for (const a of SCHNITT.abschnitte) for (const c of a.ringEl ?? []) c.style.visibility = 'hidden'; }
+
+  // Texte
+  SCHNITT.abschnitte.forEach((a, i) => {
+    if (!a.text) return;
+    const A = a.t0 + (a.text.ab ?? 0.25), B = a.t1 - 0.4;
+    const o = { x: a.text.dx ?? -50, y: a.text.dy ?? 0, d: 0.6 };
+    zeige(`cap${i}k`, t, A, B, o); zeige(`cap${i}h`, t, A + 0.12, B, { ...o, d: 0.75 });
+    if (a.text.p) zeige(`cap${i}p`, t, A + (a.text.pab ?? 0.9), B, o);
+    if (a.text.tg) zeige(`cap${i}t`, t, A + (a.text.tab ?? 1.4), B, o);
+  });
+
+  // ===== Outro =====
+  { const O = SCHNITT.outro * BAR;
+    zeige('s9logo', t, O, 999, { y: 0, s: 1.8, d: 0.6, blur: 20, e: eExpo });
+    { const l = $('s9logo'); if (t > O + 0.7) l.style.transform = `scale(${1 + 0.015 * Math.sin((t - O) * 2.2)})`; }
+    blitzRing(W / 2, H * 0.34, ab(t, O, 1.2), W * 0.7);
+    blitzRing(W / 2, H * 0.34, ab(t, O + 0.15, 1.4), W * 0.45);
+    lichtfleck(W / 2, H * 0.34, 900, klemm(ab(t, O, 0.15)) * (0.5 + 0.5 * (1 - ab(t, O + 0.2, 2.5))));
+    streifen(t, klemm(1 - Math.abs(t - O) / 1.2) * 1.4, 4);
+    zeige('s9titel', t, O + 0.9, 999, { y: 30, d: 0.6 });
+    zeige('s9url', t, O + 1.2, 999, { y: 40, d: 0.7 });
+    zeige('s9pfad', t, O + 1.5, 999, { y: 30, d: 0.6 });
+    zeige('s9x', t, O + 1.9, 999, { y: 30, d: 0.6 });
+    zeige('s9d', t, O + 2.3, 999, { y: 30, d: 0.6 });
+  }
+};
+</script>
+<script>
+window.addEventListener('load', () => { aufbau().catch((e) => { console.error(e); window.FEHLER = String(e); }); });
+</script>
+</body></html>

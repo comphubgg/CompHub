@@ -1,6 +1,7 @@
 // CompHub Promo-Videos rendern (Szene Bild fuer Bild mit Playwright, dann ffmpeg). Gemeinsam fuer alle Videos unter tools/*-video.
 //   node tools/stats-agent-video/aufnehmen.mjs --format quer|hoch [--szene tools/prediction-video/szene.html] [--name comphub-prediction]
-//        [--aus datei.mp4] [--nur 10-20] [--jobs 4] [--standbilder 0,10,20] [--musik-db -5]
+//        [--aus datei.mp4] [--nur 10-20] [--jobs 4] [--standbilder 0,10,20] [--musik-db -5] [--medien ordner]
+// --medien: ein Ordner ausserhalb des Repos (z. B. echte Seitenaufnahmen als Einzelbilder), den die Szene unter /medien/... laedt.
 // Ablauf: Szene laden -> SFX-Zeitplan (+ window.ABSCHNITTE fuer die Musik) als JSON speichern -> Audio (ton.py) -> Bilder rendern -> ffmpeg (H.264 + AAC).
 // Ohne --szene: das Stats-Agent-Video.
 import fs from 'node:fs';
@@ -34,10 +35,13 @@ const { chromium } = ladePlaywright();
 const SB = path.join(ROOT, 'public/spielerbilder');
 const GROESSEN = Object.fromEntries(fs.readdirSync(SB).map((f) => [f, fs.statSync(path.join(SB, f)).size]));
 
-const typen = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.json': 'application/json', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const typen = { '.mp4': 'video/mp4', '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.json': 'application/json', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const MEDIEN = arg('--medien', '') ? path.resolve(arg('--medien')) : null;
 const server = http.createServer((q, r) => {
-  const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]));
-  if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
+  const u = decodeURIComponent(q.url.split('?')[0]);
+  const basis = MEDIEN && u.startsWith('/medien/') ? MEDIEN : ROOT;
+  const f = path.join(basis, basis === MEDIEN ? u.slice('/medien/'.length) : u);
+  if (!f.startsWith(basis) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { 'Content-Type': typen[path.extname(f).toLowerCase()] ?? 'application/octet-stream' }); fs.createReadStream(f).pipe(r);
 });
 await new Promise((ok) => server.listen(0, ok));
