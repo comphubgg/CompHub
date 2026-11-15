@@ -80,6 +80,8 @@ async function json(url) {
  * ohnehin nicht mehr heraus.
  */
 const RUECKBLICK_MS = 14 * 24 * 60 * 60 * 1000;
+/** Ab wann Epics Liste nach dem Ende eines Spieltags als Endstand gilt. */
+const ENDSTAND_MS = 30 * 60 * 1000;
 
 async function main() {
   const katalog = await json(`${BASIS}/api/cup-catalog?modus=alle`);
@@ -113,13 +115,26 @@ async function main() {
   offen.sort((a, b) => Number(Boolean(b.istFinale)) - Number(Boolean(a.istFinale)) || (b.begin ?? 0) - (a.begin ?? 0));
 
   console.log(`${offen.length} vergangene Fenster ohne Datei der Quelle`);
-  let geholt = 0; let vorhanden = 0; let leer = 0; let zurueck = 0; const fehler = [];
+  let geholt = 0; let vorhanden = 0; let nachgeholt = 0; let leer = 0; let zurueck = 0; const fehler = [];
 
   async function bearbeite(w) {
     const ordner = path.join(ABLAGE, w.season);
     const datei = path.join(ordner, `${w.windowId}.json`);
     if (!neu) {
-      try { await fs.access(datei); vorhanden++; return; } catch { /* fehlt */ }
+      /*
+       * Eine Liste, die waehrend des Cups oder kurz nach dem Ende geholt wurde, ist nicht der Endstand (Betreiber, 15.11.2026: Trios Cash Cup Event 2 EU,
+       * geholt 27 Minuten nach dem Ende - 7.400 Teams, iL juanit0s Team auf #1,961; Epics Endstand: #2,038 bei gleichen 281 Punkten). Epic rechnet nach
+       * dem Ende noch eine Weile nach. Darum: liegt die Datei vor, wurde aber vor Ende + 30 Minuten geholt, einmal neu holen - danach ist sie spaeter
+       * geholt und bleibt liegen.
+       */
+      let alt = null;
+      try { alt = JSON.parse(await fs.readFile(datei, 'utf8')); } catch { /* fehlt */ }
+      if (alt) {
+        const geholt = Date.parse(alt.geholt ?? '') || 0;
+        const endstandAb = (w.end ?? 0) + ENDSTAND_MS;
+        if (!w.end || geholt >= endstandAb || Date.now() < endstandAb) { vorhanden++; return; }
+        nachgeholt++;
+      }
     }
     const adresse = `${BASIS}/api/cup-leaderboard`
       + `?event=${encodeURIComponent(w.eventId)}`
@@ -179,7 +194,7 @@ async function main() {
   await Promise.all(Array.from({ length: GLEICHZEITIG }, arbeiter));
   if (zurueck) console.log(`Zeitrahmen aufgebraucht - ${zurueck} Fenster kommen im naechsten Lauf dran.`);
 
-  console.log(`\nFertig: ${geholt} geholt, ${vorhanden} lagen schon,`
+  console.log(`\nFertig: ${geholt} geholt (davon ${nachgeholt} als Endstand neu), ${vorhanden} lagen schon,`
     + ` ${leer} ohne Bestenliste`);
   if (fehler.length) {
     console.log(`${fehler.length} Fehler, die ersten fuenf:`);
