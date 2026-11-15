@@ -698,9 +698,11 @@ export async function verknuepfenAnleitung(nutzer: string): Promise<Antwort> {
         '**2.** Press the button below. Epic shows a line like `{"redirectUrl":...,"authorizationCode":"a1b2c3...",...}`.',
         '**3.** Copy the 32-character `authorizationCode` and run `/link-account code:<code>` here within 5 minutes (pasting the whole line works too).',
         '',
-        '🔒 **Privacy:** only you see these replies. CompHub turns the code into a device login for your account, stores it encrypted and uses it only '
-          + 'to read your own tournament placements for `/stats`. Never give the code to anyone else. `/unlink-account` deletes it and revokes it at Epic.',
-      ].join('\n'),
+        '🔒 **Privacy - please read:** Epic shows a warning not to share this code, because it signs in as you. CompHub turns it into a device login '
+          + 'for your account, stores that encrypted and uses it only to read your own tournament placements for `/stats` - nothing else. '
+          + 'Only you see these replies. Never give the code to anyone else. `/unlink-account` deletes the login and revokes it at Epic; '
+          + 'changing your Epic password also ends it.',
+      ].filter((z, i) => i > 0 || z).join('\n'),
       footer: { text: 'thecomphub.com · stats' },
     }],
     components: [knopf('Get the code at epicgames.com', LOGIN_URL)],
