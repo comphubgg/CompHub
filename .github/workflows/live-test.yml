@@ -23,15 +23,19 @@ on:
         description: 'auch im Image voll pruefen (dauert rund 20 Minuten)'
         required: false
         default: 'ja'
+      dauerlauf:
+        description: 'danach so viele Minuten den Dauerlauf wie auf dem Server (Katalog der Seite, alle frischen Spieltage); 0 = nicht'
+        required: false
+        default: '0'
 
 concurrency:
-  group: live-test-${{ github.ref }}
+  group: live-test-${{ inputs.fenster }}
   cancel-in-progress: false
 
 jobs:
   direkt:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     permissions:
       contents: read
     steps:
@@ -72,7 +76,27 @@ jobs:
         env:
           COMPHUB_LIVE_ORT: ${{ runner.temp }}/live
           FENSTER: ${{ inputs.fenster }}
-        run: node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10
+        run: |
+          # Rueckgabe 3: das Release ist gerade ein Zwischenstand einer laufenden Runde - bis zu 40 Minuten lang alle 2 Minuten wieder.
+          for i in $(seq 1 20); do
+            set +e; node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10; rc=$?; set -e
+            [ "$rc" != 3 ] && exit "$rc"
+            sleep 120
+          done
+          exit 3
+
+      - name: Dauerlauf wie auf dem Server
+        if: always() && inputs.dauerlauf != '0'
+        env:
+          COMPHUB_LIVE_ORT: ${{ runner.temp }}/live-dauer
+          LIVE_LESER: '3'
+          LIVE_LADEN: '6'
+          MINUTEN: ${{ inputs.dauerlauf }}
+        run: |
+          set +e
+          timeout --signal=TERM "${MINUTEN}m" nice -n 10 node scripts/live-spur.mjs 2>&1 | grep -v ': gelesen in ' | tail -120
+          echo "Ende nach ${MINUTEN} Minuten"; ls -R "$COMPHUB_LIVE_ORT" | grep -c '\.json' ; ls "$COMPHUB_LIVE_ORT/clutch" 2>/dev/null
+          exit 0
 
       - name: Teile weitergeben
         if: always()
@@ -90,7 +114,7 @@ jobs:
   image:
     if: inputs.image == 'ja'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 100
     permissions:
       contents: read
     steps:
@@ -131,7 +155,7 @@ jobs:
               dotnet --list-runtimes && ls tools/replay-voll/bin/Release/net10.0/ReplayVollReplayReader.dll && echo "COMPHUB_SHA=$COMPHUB_SHA" &&
               node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2 &&
               nice -n 10 node scripts/live-spur.mjs --einmal --fenster "$FENSTER" ${EVENT:+--event "$EVENT"} 2>&1 | tail -60;
-              node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10'
+              for i in $(seq 1 20); do node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10; rc=$?; [ "$rc" != 3 ] && exit "$rc"; sleep 120; done; exit 3'
 
       - name: Zugangsdaten wieder weg
         if: always()

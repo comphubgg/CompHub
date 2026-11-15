@@ -37,7 +37,7 @@ import { leseReplay } from '../lib/replayLeser.mjs';
 import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
 import { lebenSumme } from '../lib/clutchLeben.mjs';
 import { neueWerte, schadenAus } from '../lib/vollSchaden.mjs';
-import { SCHADEN_LESER, leserDienst, leserAnzahl, neuerTeil, vollMatch, einarbeiten } from '../lib/vollMatch.mjs';
+import { SCHADEN_LESER, leserDienst, leserAnzahl, neuerTeil, vollMatch, einarbeiten, wertung as wertungLesen, wertungSicher as wertungLesenSicher } from '../lib/vollMatch.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -45,44 +45,10 @@ const DATEN = path.join(process.cwd(), 'data');
 const ZIEL = path.join(DATEN, 'clutch');
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 
-/** Die Wertungsregeln eines Spieltags - wie lib/cupWertung.ts (wertungVon). */
+/** Die Wertungsregeln eines Spieltags (lib/vollMatch.mjs, dort auch fuer den Server) - jeder Katalog nur einmal je Lauf. */
 const katalogMerker = new Map();
-async function wertung(eventId, windowId) {
-  const { token, accountId } = await holeNutzerToken();
-  // Die Region des Spieltags zuerst - und jeder Katalog nur einmal je Lauf (der Planer fragt fuer alle offenen Spieltage).
-  const eigene = (windowId.match(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i)?.[1] ?? '').toUpperCase();
-  for (const region of [...new Set([eigene, 'EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].filter(Boolean))]) {
-    let d = katalogMerker.get(region);
-    if (!d) {
-      const r = await fetch(`${EVENTS}/api/v1/events/Fortnite/download/${accountId}?region=${region}&platform=Windows&teamAccountIds=${accountId}`,
-        { headers: { Authorization: token } });
-      if (!r.ok) continue;
-      d = await r.json(); katalogMerker.set(region, d);
-    }
-    const schluessel = `Fortnite:${eventId}:${windowId}`;
-    const satz = (d.scoreLocationScoringRuleSets ?? {})[schluessel]
-      ?? Object.entries(d.scoreLocationScoringRuleSets ?? {}).find(([k]) => k.endsWith(`:${windowId}`))?.[1];
-    const fenster = (d.events ?? []).flatMap((e) => e.eventWindows ?? []).find((w) => w.eventWindowId === windowId);
-    const vorlage = (d.templates ?? []).find((t) => t.eventTemplateId === fenster?.eventTemplateId);
-    const regeln = (satz ? (d.scoringRuleSets ?? {})[satz] : null) ?? vorlage?.scoringRules ?? [];
-    if (!regeln.length) continue;
-    const NAME = { PLACEMENT_STAT_INDEX: 'Placement', TEAM_ELIMS_STAT_INDEX: 'Elimination', VICTORY_ROYALE_STAT: 'Victory Royale', MATCH_PLAYED_STAT: 'Match played' };
-    return regeln.flatMap((x) => (x.rewardTiers ?? []).map((st) => ({
-      was: NAME[x.trackedStat] ?? x.trackedStat, schwelle: st.keyValue ?? 0, regel: x.matchRule ?? '',
-      punkte: st.pointsEarned ?? 0, jeStueck: Boolean(st.multiplicative),
-    }))).filter((x) => x.punkte > 0);
-  }
-  return [];
-}
-
-/** wertung mit drei Versuchen bei Fehlern (etwa zu viele Anmeldungen); eine leere Tabelle heisst: Epic fuehrt den Spieltag nicht mehr - kein neuer Versuch. */
-async function wertungSicher(eventId, windowId) {
-  for (let i = 0; i < 3; i += 1) {
-    try { return await wertung(eventId, windowId); } catch (e) { console.log(`  Wertung ${windowId}: ${e.message}`); }
-    await new Promise((ok) => setTimeout(ok, 15_000 * (i + 1)));
-  }
-  return [];
-}
+const wertung = (eventId, windowId) => wertungLesen(eventId, windowId, katalogMerker);
+const wertungSicher = (eventId, windowId) => wertungLesenSicher(eventId, windowId, katalogMerker);
 
 // Bis 250 Matches: Finals, Division 1 bis 4 und Cash-Cup-Finals (mehrere
 // Lobbys). Offene Runden mit 400 bis 2000 Lobbys bleiben aussen vor.
