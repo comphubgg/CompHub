@@ -5,7 +5,7 @@
  *
  * Woher jede Aussage stammt - wer eine Rechnung aendert, aendert hier den Satz mit:
  *   Quellen        app/api/spieler-detail/route.ts (Kopf), app/api/cup-spieler/route.ts (ausSzene: LAN ohne Replays)
- *   Eliminations   lib/vollSchaden.mjs killsMitFeed (Kill-Zaehler, Feed nur bis zur Team-Summe); app/api/cup-spieler (killsEcht nur bei ganz gelesenen Spielen,
+ *   Eliminations   lib/vollSchaden.mjs killsAusZaehler (nur Kill-Zaehler, bis zum Aus des Teams nach seinen Zeitstempeln); app/api/cup-spieler (killsEcht nur bei ganz gelesenen Spielen,
  *                  sonst Kill-Feed); app/events/[id]/SpielerDetail.tsx kills() (Solo: Epics Bestenliste)
  *   K/D            SpielerDetail.tsx 'K/D Ratio'
  *   Time Alive     app/api/cup-stats lebenOhneUeberlappung (lib/epicCups)
@@ -54,8 +54,8 @@ export const ZAEHLEN_EN: ZaehlText = {
         { name: 'Points & Placement', quelle: 'epic', text: 'Straight from Epic\'s leaderboard, including the split into placement points and elimination points.' },
         { name: 'Wins', quelle: 'epic', text: 'Victory Royales as Epic\'s leaderboard lists them.' },
         { name: 'Eliminations', quelle: 'beide', text: 'In solo cups: Epic\'s official count. In team cups: the game\'s own kill counter from the replay, '
-          + 'when every match of the player has been fully read; otherwise the replay\'s kill feed. If the kill counter missed an update, the kill feed '
-          + 'fills the gap, but only up to the team\'s total, so one elimination is never counted twice within a team.' },
+          + 'when every match of the player has been fully read; otherwise the replay\'s kill feed. Like Epic, only eliminations up to the moment the '
+          + 'whole team is out count, and the kill feed does not top the counter up (it also lists bot kills, which Epic does not count).' },
         { name: 'K/D', quelle: 'beide', text: 'Eliminations divided by deaths. When every match is fully read, deaths come from the replay, so in Reload '
           + 'every death counts. Otherwise deaths are the matches without a win; in Reload cups K/D is then left out, because players can die more than once per match.' },
         { name: 'Time Alive', quelle: 'epic', text: 'Epic\'s time from the leaderboard. If two of a player\'s matches overlap in time, the overlap is counted once.' },
