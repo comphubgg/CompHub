@@ -6,7 +6,7 @@ import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
-import { rahmen as formRahmen, spanneBei, einheitsGroesse, beschriftungsVersatz, type Beschriftung, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { rahmen as formRahmen, spanneBei, einheitsGroesse, beschriftungsVersatz, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
@@ -61,6 +61,30 @@ function imPolygon(p: Punkt, ecken: Punkt[]) {
       && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) drin = !drin;
   }
   return drin;
+}
+
+/**
+ * Wo im Kartenbild die Insel liegt (alles, was nicht Meer oder Wolke ist), in Prozent - aus einer kleinen Kopie gesucht. Fuer das Einpassen beim
+ * Oeffnen und fuer das kopierte Kartenbild. null, wenn das Bild sich nicht auslesen laesst (fremder Server ohne Freigabe) oder nichts gefunden wird.
+ */
+function inselRahmen(img: HTMLImageElement, n = 96): { x0: number; y0: number; x1: number; y1: number } | null {
+  try {
+    const leinwand = document.createElement('canvas');
+    leinwand.width = n; leinwand.height = n;
+    const stift = leinwand.getContext('2d', { willReadFrequently: true });
+    if (!stift) return null;
+    stift.drawImage(img, 0, 0, n, n);
+    const px = stift.getImageData(0, 0, n, n).data;
+    let x0 = n, y0 = n, x1 = -1, y1 = -1;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const i = (y * n + x) * 4;
+      const r = px[i], g = px[i + 1], b = px[i + 2];
+      if (r > 215 && g > 215 && b > 215) continue; // Wolken
+      if (r > 110 || g > b + 12) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    }
+    if (x1 < 0) return null;
+    return { x0: (x0 / n) * 100, y0: (y0 / n) * 100, x1: ((x1 + 1) / n) * 100, y1: ((y1 + 1) / n) * 100 };
+  } catch { return null; }
 }
 
 /** Den Blickpunkt so einfangen, dass der Ausschnitt am Bildrand haelt. */
@@ -236,27 +260,11 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const inselPassen = (img: HTMLImageElement) => {
     if (eingepasst.current || !img.naturalWidth) return;
     eingepasst.current = true;
-    try {
-      const n = 96;
-      const leinwand = document.createElement('canvas');
-      leinwand.width = n; leinwand.height = n;
-      const stift = leinwand.getContext('2d', { willReadFrequently: true });
-      if (!stift) return;
-      stift.drawImage(img, 0, 0, n, n);
-      const px = stift.getImageData(0, 0, n, n).data;
-      let x0 = n, y0 = n, x1 = -1, y1 = -1;
-      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-        const i = (y * n + x) * 4;
-        const r = px[i], g = px[i + 1], b = px[i + 2];
-        if (r > 215 && g > 215 && b > 215) continue; // Wolken
-        if (r > 110 || g > b + 12) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-      }
-      if (x1 < 0) return;
-      const breite = (x1 - x0 + 1) / n, hoehe = (y1 - y0 + 1) / n;
-      const z = Math.min(2.4, 0.9 / Math.max(breite, hoehe));
-      if (z < 1.15) return;
-      gleite(z, { x: ((x0 + x1 + 1) / 2 / n) * 100, y: ((y0 + y1 + 1) / 2 / n) * 100 });
-    } catch { /* dann eben die ganze Karte */ }
+    const ri = inselRahmen(img);
+    if (!ri) return;
+    const z = Math.min(2.4, 90 / Math.max(ri.x1 - ri.x0, ri.y1 - ri.y0));
+    if (z < 1.15) return;
+    gleite(z, { x: (ri.x0 + ri.x1) / 2, y: (ri.y0 + ri.y1) / 2 });
   };
   const gleite = useCallback((zielZ: number, zielM: Punkt) => {
     stopp();
@@ -380,7 +388,14 @@ export function Karte({ f, bild, rotAb = 2 }: {
   // Ohne Landepunkte steht trotzdem die Insel da - der Hinweis kommt klein darunter (Betreiber, 12.10.2026: "die Map zumindest").
   const kennzeichen = (sp: { id: string }) => (trefferSpots.has(sp.id) || leuchte === sp.id ? ' ist-treffer' : '');
   const hatNamen = spots.some((sp) => sp.spieler.length);
-  /** Die Karte als Bild in die Zwischenablage (sonst Download) - nur fuer den Admin (Betreiber, 30.10.2026: "bei jeder Map diese Copy-Funktion am Rand"). */
+  /**
+   * Die Karte als Bild in die Zwischenablage (sonst Download) - nur fuer den Admin (Betreiber, 30.10.2026: "bei jeder Map diese Copy-Funktion am Rand").
+   *
+   * Betreiber, 15.11.2026 (Heat 2 EU): eng auf die Insel geschnitten wie bei der Referenz - die Insel fuellt das Bild, kleiner Rand -, mit dem
+   * Wasserzeichen wie auf der Seite (KartenWasserzeichen dicht) und dem Logo unten rechts. Die Namen stehen in Bildschirmmass wie auf der Karte
+   * (Schrift groesse cqw, nicht mitgezoomt), und der Loeser aus lib/prognoseKarte laeuft fuer genau diesen Ausschnitt und die im Bild gemessenen
+   * Breiten - sonst lagen "LXRS"/"NOVA", "PHANTOM"/"ZYNOX", "DEMUS"/"KAMI" im Bild ineinander, obwohl sie auf dem Bildschirm getrennt waren.
+   */
   async function alsBild() {
     const G = 1400;
     const c = document.createElement('canvas'); c.width = G; c.height = G;
@@ -388,27 +403,76 @@ export function Karte({ f, bild, rotAb = 2 }: {
     const lade = (src: string) => new Promise<HTMLImageElement | null>((fertig) => { const b = new Image(); b.crossOrigin = 'anonymous'; b.onload = () => fertig(b); b.onerror = () => fertig(null); b.src = src; });
     g.fillStyle = meer || '#0b4a9c'; g.fillRect(0, 0, G, G);
     const karte = await lade(kartenQuelle(bild));
-    if (karte) g.drawImage(karte, 0, 0, G, G);
+    // Der Ausschnitt: die Insel (fein gesucht) mit kleinem Rand, quadratisch; laesst sich das Bild nicht auslesen, die ganze Karte.
+    const insel = karte ? inselRahmen(karte, 320) : null;
+    let links = 0, oben = 0, seite = 100;
+    if (insel) {
+      seite = Math.min(100, Math.max(insel.x1 - insel.x0, insel.y1 - insel.y0) * 1.06 + 1);
+      links = Math.min(100 - seite, Math.max(0, (insel.x0 + insel.x1) / 2 - seite / 2));
+      oben = Math.min(100 - seite, Math.max(0, (insel.y0 + insel.y1) / 2 - seite / 2));
+    }
+    const ze = 100 / seite;
+    /** Kartenprozent -> Bildpunkte. */
+    const bx = (x: number) => ((x - links) / seite) * G, by = (y: number) => ((y - oben) / seite) * G;
+    if (karte) {
+      const nw = karte.naturalWidth, nh = karte.naturalHeight;
+      g.drawImage(karte, (links / 100) * nw, (oben / 100) * nh, (seite / 100) * nw, (seite / 100) * nh, 0, 0, G, G);
+    }
     const familie = kartenSchrift.style.fontFamily;
-    try { await document.fonts.load(`700 40px ${familie}`); } catch { /* Ersatzschrift */ }
+    try { await document.fonts.load(`600 40px ${familie}`); } catch { /* Ersatzschrift */ }
     for (const sp of spots) {
       const farbe = formFarbe(sp.teams >= rotAb ? 2 : sp.spieler.length ? 1 : 0);
       g.beginPath();
-      sp.punkte.forEach((q, i) => { const x = (q.x / 100) * G; const y = (q.y / 100) * G; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+      sp.punkte.forEach((q, i) => { if (i) g.lineTo(bx(q.x), by(q.y)); else g.moveTo(bx(q.x), by(q.y)); });
       g.closePath(); g.fillStyle = farbe.fuellung; g.fill(); g.strokeStyle = farbe.rand; g.lineWidth = 2; g.stroke();
-      if (!sp.spieler.length) continue;
+    }
+
+    // Namen: Schrift in Bildmass (groesse Prozent der Bildbreite, wie groesse cqw auf dem Bildschirm), Breiten in genau dieser Schrift gemessen.
+    const px = (groesse / 100) * G;
+    const kontur = Math.max(2, px * 0.14);
+    g.font = `600 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const kastenBild = (() => { const m = g.measureText('M'); return m.fontBoundingBoxAscent > 0 ? Math.max(1.12, (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) / px) : kastenEm; })();
+    const beschriftungen = spots.filter((sp) => sp.spieler.length).map((sp): Beschriftung => {
       const r = formRahmen(sp.punkte);
-      const px = (groesse / 100) * G;
-      g.font = `700 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.lineWidth = Math.max(2, px * 0.18); g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#fff';
-      const n = sp.spieler.length; const gedraengt = sp.teams <= 1 || n === 1;
-      const v = versatz[sp.id] ?? { mx: 0, my: 0, dx: 0, dy: 0 };
-      sp.spieler.forEach((name, i) => {
-        const yProz = gedraengt ? r.oben + r.hoehe / 2 + (i - (n - 1) / 2) * groesse * 1.12 : r.oben + r.hoehe * (0.1 + 0.8 * (i / (n - 1)));
-        const x = ((r.links + r.breite / 2 + v.mx + v.dx) / 100) * G; const y = ((yProz + v.my + v.dy) / 100) * G;
-        g.strokeText(kartenName(name), x, y); g.fillText(kartenName(name), x, y);
+      return {
+        id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
+        zeilen: sp.spieler.map((n, i) => ({ x: zeilenLage[sp.id][i], breite: ((g.measureText(kartenName(n)).width + kontur) / G) * 100 })),
+      };
+    });
+    const vBild = beschriftungsVersatz(beschriftungen, groesse, kastenBild, [ze]);
+    const kaesten: Array<{ id: string; x: number; y: number; w: number; hk: number; text: string }> = [];
+    g.lineJoin = 'round'; g.lineWidth = kontur; g.strokeStyle = 'rgba(0,0,0,0.9)'; g.fillStyle = '#fff';
+    for (const b of beschriftungen) {
+      const sp = spots.find((s) => s.id === b.id)!;
+      const v = vBild[b.id] ?? { mx: 0, my: 0, dx: 0, dy: 0 };
+      zeilenMitten(b, groesse, ze).forEach((p, i) => {
+        // Bildschirm-Einheiten (Prozent der Bildbreite): z * (Kartenpunkt - Ausschnitt) + fester Versatz * z + Versatz in Bildschirmmass.
+        const x = p.x - ze * links + ze * v.mx + v.dx, y = p.y - ze * oben + ze * v.my + v.dy;
+        const tx = kartenName(sp.spieler[i]);
+        kaesten.push({ id: b.id, x, y, w: p.w, hk: groesse * kastenBild, text: tx });
+        g.strokeText(tx, (x / 100) * G, (y / 100) * G); g.fillText(tx, (x / 100) * G, (y / 100) * G);
       });
     }
+    (window as unknown as { __kartenBild?: unknown }).__kartenBild = { kaesten, ueberdeckt: ueberdeckungen(kaesten), ausschnitt: { links, oben, seite } };
+
+    // Das Wasserzeichen wie auf der Seite (KartenWasserzeichen dicht): 14 x 22 Schriftzuege, 11px, Luecken 40/36px, -20 Grad, 7 %, jede zweite
+    // Reihe um eine halbe Breite versetzt - auf die Breite der Karte auf dem Bildschirm umgerechnet, damit es im Bild genauso dicht steht.
+    {
+      const s = G / Math.max(320, flaeche.current?.getBoundingClientRect().width || 900);
+      const schrift = getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif';
+      g.save();
+      g.globalAlpha = 0.07; g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.font = `800 ${11 * s}px ${schrift}`;
+      (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${0.025 * 11 * s}px`;
+      const w = g.measureText('thecomphub.com').width, zeile = 16.5 * s, gx = 40 * s, gy = 36 * s;
+      const breit = 14 * w + 13 * gx, hoch = 22 * zeile + 21 * gy;
+      g.translate(G / 2, G / 2); g.rotate((-20 * Math.PI) / 180);
+      for (let r = 0; r < 22; r++) for (let k = 0; k < 14; k++) {
+        g.fillText('thecomphub.com', -breit / 2 + k * (w + gx) + (r % 2 ? w / 2 : 0), -hoch / 2 + r * (zeile + gy) + zeile / 2);
+      }
+      g.restore();
+    }
+
     const logo = await lade(MARKE.logoFrei);
     if (logo?.naturalWidth) {
       const breite = Math.round(G * 0.13); const hoehe = Math.round(breite * (logo.naturalHeight / logo.naturalWidth)); const rand = Math.round(G * 0.022);

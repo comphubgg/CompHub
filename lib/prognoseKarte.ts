@@ -103,6 +103,32 @@ export interface Versatz { mx: number; my: number; dx: number; dy: number }
 const PRUEF_ZOOM = [1, 1.12, 1.25, 1.4, 1.6, 1.8, 2, 2.4, 2.8, 3.4, 4, 5, 6.5, 8];
 
 /**
+ * Die Mitten der Zeilen einer Beschriftung auf Zoomstufe z, in Bildschirm-Einheiten (z * Kartenprozent), ohne Versatz - wie die Karte sie setzt
+ * (line-height 1.12, paddingBlock 0.45cqw / var(--z)). Geteilt zwischen dem Loeser und dem kopierten Kartenbild (Bausteine.Karte, alsBild).
+ */
+export function zeilenMitten(b: Beschriftung, groesse: number, z: number): Array<{ x: number; y: number; w: number }> {
+  const h = groesse * 1.12, pad = 0.45;
+  const n = b.zeilen.length;
+  return b.zeilen.map((zl, i) => {
+    let y: number;
+    if (!b.verteilt || n === 1) y = z * (b.oben + b.hoehe / 2) + (i - (n - 1) / 2) * h;
+    else y = z * b.oben + pad + h / 2 + i * (h + Math.max(0, z * b.hoehe - 2 * pad - n * h) / (n - 1));
+    return { x: z * zl.x, y, w: zl.breite };
+  });
+}
+
+/** Wie viele Paare von Namenskaesten (Mitte x/y, Breite w, Hoehe hk) verschiedener Stellen sich ueberdecken - zum Pruefen des Kartenbilds. */
+export function ueberdeckungen(kaesten: Array<{ id: string; x: number; y: number; w: number; hk: number }>): Array<[string, string]> {
+  const raus: Array<[string, string]> = [];
+  for (let a = 0; a < kaesten.length; a++) for (let b = a + 1; b < kaesten.length; b++) {
+    const p = kaesten[a], q = kaesten[b];
+    if (p.id === q.id) continue;
+    if (Math.abs(p.x - q.x) < (p.w + q.w) / 2 && Math.abs(p.y - q.y) < (p.hk + q.hk) / 2) raus.push([p.id, q.id]);
+  }
+  return raus;
+}
+
+/**
  * Wo die Namen verschiedener Stellen einander ueberdecken, werden die Beschriftungen auseinandergesetzt (Betreiber, 15.11.2026: "KING NOVA" und
  * "LXRS" lagen auf zwei benachbarten Stellen genau uebereinander - "ein bisschen auseinander wie bei Noble"; danach zu T3ENY / CHICO: "da koennen
  * die Spieler schon nebeneinander sein. Mittig. Das sieht sogar clean aus" - also nicht schraeg versetzt).
@@ -124,23 +150,14 @@ const PRUEF_ZOOM = [1, 1.12, 1.25, 1.4, 1.6, 1.8, 2, 2.4, 2.8, 3.4, 4, 5, 6.5, 8
 export function beschriftungsVersatz(
   beschriftungen: Beschriftung[], groesse: number, kastenEm = 1.45, zoomStufen: number[] = PRUEF_ZOOM,
 ): Record<string, Versatz> {
-  const h = groesse * 1.12; // line-height der .karten-name (bestimmt, wo die Zeilen stehen)
+
   // Der Kasten der Schrift selbst (Ober- bis Unterlaenge) ist hoeher als die Zeile - er darf den der Nachbarstelle nicht beruehren.
   const kasten = groesse * kastenEm;
-  const pad = 0.45; // paddingBlock der Beschriftung (calc(0.45cqw / var(--z)))
   const abstandY = groesse * 0.18, abstandX = groesse * 0.45;
   const brauchtY = kasten + abstandY;
   const liste = beschriftungen.filter((b) => b.zeilen.length);
   /** Mitten der Zeilen auf Zoomstufe z, in Bildschirm-Einheiten (z * Kartenprozent), ohne Versatz. */
-  const mitten = liste.map((b) => zoomStufen.map((z) => {
-    const n = b.zeilen.length;
-    return b.zeilen.map((zl, i) => {
-      let y: number;
-      if (!b.verteilt || n === 1) y = z * (b.oben + b.hoehe / 2) + (i - (n - 1) / 2) * h;
-      else y = z * b.oben + pad + h / 2 + i * (h + Math.max(0, z * b.hoehe - 2 * pad - n * h) / (n - 1));
-      return { x: z * zl.x, y, w: zl.breite };
-    });
-  }));
+  const mitten = liste.map((b) => zoomStufen.map((z) => zeilenMitten(b, groesse, z)));
   const fest = liste.map(() => ({ x: 0, y: 0 }));
   const d = liste.map(() => ({ dx: 0, dy: 0 }));
   const trifft = (p: { x: number; y: number; w: number }, q: { x: number; y: number; w: number }) =>
