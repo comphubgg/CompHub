@@ -165,36 +165,62 @@ export function KartenFeed({ zeilen, zeit, dauer }: { zeilen: FeedZeile[]; zeit:
 
 /* ------------------------------------------------------------------ Zeichnen */
 
-/** Freihand auf der Karte: eine Leinwand ueber allem, nur aktiv, solange "Zeichnen" an ist. */
-export function Zeichenflaeche({ an, leeren }: { an: boolean; leeren: number }) {
-  const ref = useRef<HTMLCanvasElement | null>(null);
+type Werkzeug = 'stift' | 'pfeil' | 'kreis';
+interface Form { art: Werkzeug; farbe: string; p: Array<[number, number]> }
+const STIFTFARBEN = ['#38bdf8', '#f8fafc', '#fbbf24', '#f43f5e'];
+
+/** Zeichnen ueber der Karte: Stift, Pfeil, Kreis in vier Farben; Rueckgaengig (Strg+Z), Loeschen, Beenden. Koordinaten in Prozent des Rahmens. */
+export function Zeichenflaeche({ an, leeren, beenden }: { an: boolean; leeren: number; beenden: () => void }) {
+  const [formen, setFormen] = useState<Form[]>([]);
+  const [werkzeug, setWerkzeug] = useState<Werkzeug>('stift');
+  const [farbe, setFarbe] = useState(STIFTFARBEN[0]);
   const zieht = useRef(false);
+  useEffect(() => { setFormen([]); }, [leeren]);
   useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const r = c.getBoundingClientRect();
-    c.width = Math.round(r.width * (window.devicePixelRatio || 1)); c.height = Math.round(r.height * (window.devicePixelRatio || 1));
-  }, [leeren]);
-  const punkt = (ev: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = ev.currentTarget; const r = c.getBoundingClientRect();
-    return { x: ((ev.clientX - r.left) / r.width) * c.width, y: ((ev.clientY - r.top) / r.height) * c.height };
+    if (!an) return undefined;
+    const taste = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); setFormen((f) => f.slice(0, -1)); } };
+    document.addEventListener('keydown', taste);
+    return () => document.removeEventListener('keydown', taste);
+  }, [an]);
+  const punkt = (ev: React.PointerEvent<SVGSVGElement>): [number, number] => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    return [((ev.clientX - r.left) / r.width) * 100, ((ev.clientY - r.top) / r.height) * 100];
   };
+  const zeichne = (f: Form, i: number) => {
+    const [a, b] = [f.p[0], f.p[f.p.length - 1]];
+    const strich = { stroke: f.farbe, strokeWidth: 3, fill: 'none', vectorEffect: 'non-scaling-stroke' as const, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, style: { filter: 'drop-shadow(0 0 1px #000)' } };
+    if (f.art === 'stift') return <polyline key={i} points={f.p.map((q) => q.join(',')).join(' ')} {...strich} />;
+    if (f.art === 'kreis') return <ellipse key={i} cx={a[0]} cy={a[1]} rx={Math.hypot(b[0] - a[0], b[1] - a[1])} ry={Math.hypot(b[0] - a[0], b[1] - a[1])} {...strich} />;
+    const w = Math.atan2(b[1] - a[1], b[0] - a[0]); const l = 2.4;
+    const s1 = [b[0] - l * Math.cos(w - 0.5), b[1] - l * Math.sin(w - 0.5)]; const s2 = [b[0] - l * Math.cos(w + 0.5), b[1] - l * Math.sin(w + 0.5)];
+    return <g key={i}><line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} {...strich} /><polyline points={`${s1.join(',')} ${b.join(',')} ${s2.join(',')}`} {...strich} /></g>;
+  };
+  const knopf = (aktiv: boolean) => `grid h-8 min-w-8 place-items-center rounded-md px-1.5 text-[11px] font-bold transition ${aktiv ? 'bg-sky-500 text-white' : 'text-slate-200 hover:bg-white/10'}`;
   return (
-    <canvas ref={ref} data-knopf className={`absolute inset-0 z-[35] h-full w-full ${an ? 'cursor-crosshair' : 'pointer-events-none'}`}
-      onPointerDown={(ev) => {
-        if (!an) return;
-        const g = ev.currentTarget.getContext('2d'); if (!g) return;
-        zieht.current = true; ev.currentTarget.setPointerCapture(ev.pointerId);
-        const p = punkt(ev);
-        g.strokeStyle = '#38bdf8'; g.lineWidth = 4 * (window.devicePixelRatio || 1); g.lineCap = 'round'; g.lineJoin = 'round';
-        g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 3;
-        g.beginPath(); g.moveTo(p.x, p.y);
-      }}
-      onPointerMove={(ev) => {
-        if (!zieht.current) return;
-        const g = ev.currentTarget.getContext('2d'); if (!g) return;
-        const p = punkt(ev); g.lineTo(p.x, p.y); g.stroke();
-      }}
-      onPointerUp={() => { zieht.current = false; }} onPointerCancel={() => { zieht.current = false; }} />
+    <>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" data-knopf className={`absolute inset-0 z-[35] h-full w-full touch-none ${an ? 'cursor-crosshair' : 'pointer-events-none'}`}
+        onPointerDown={(ev) => { if (!an) return; zieht.current = true; ev.currentTarget.setPointerCapture(ev.pointerId); const q = punkt(ev); setFormen((f) => [...f, { art: werkzeug, farbe, p: [q, q] }]); }}
+        onPointerMove={(ev) => {
+          if (!zieht.current) return;
+          const q = punkt(ev);
+          setFormen((f) => { const n = [...f]; const l = n[n.length - 1]; if (!l) return f; n[n.length - 1] = { ...l, p: l.art === 'stift' ? [...l.p, q] : [l.p[0], q] }; return n; });
+        }}
+        onPointerUp={() => { zieht.current = false; }} onPointerCancel={() => { zieht.current = false; }}>
+        {formen.map(zeichne)}
+      </svg>
+      {an && (
+        <div className="absolute bottom-3 left-3 z-40 flex flex-wrap items-center gap-0.5 rounded-lg border border-white/15 bg-zinc-950/90 p-1 shadow-xl" data-knopf>
+          {([['stift', 'Pen', '✎'], ['pfeil', 'Arrow', '➚'], ['kreis', 'Circle', '◯']] as const).map(([k, n, z]) => (
+            <button key={k} type="button" data-knopf title={n} aria-label={n} onClick={() => setWerkzeug(k)} className={knopf(werkzeug === k)}>{z}</button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-white/15" />
+          {STIFTFARBEN.map((f) => <button key={f} type="button" data-knopf aria-label={f} onClick={() => setFarbe(f)} className={`h-6 w-6 rounded-full border-2 ${farbe === f ? 'border-white' : 'border-transparent'}`} style={{ background: f }} />)}
+          <span className="mx-1 h-5 w-px bg-white/15" />
+          <button type="button" data-knopf title="Ctrl+Z" onClick={() => setFormen((f) => f.slice(0, -1))} className={knopf(false)}><T>Undo</T></button>
+          <button type="button" data-knopf onClick={() => setFormen([])} className={knopf(false)}><T>Clear</T></button>
+          <button type="button" data-knopf onClick={beenden} className={knopf(true)}><T>Stop</T></button>
+        </div>
+      )}
+    </>
   );
 }

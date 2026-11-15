@@ -451,9 +451,12 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt, linien = tr
 }
 
 /** Laufspuren der letzten Sekunden je Spieler; mit "Ereignisse" dazu Punkte, wo er Loot aufhob (gruen) oder traf (rot). */
-export function SpurEbene({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, ereignisse, dauer = 45 }: Pick<EbeneProps, 'd' | 'zeit' | 'spieler' | 'pzx' | 'pzy' | 'farbeVon' | 'sichtbar'> & { ereignisse: boolean; dauer?: number }) {
+export function SpurEbene({ d, zeit, spieler: alle, pzx, pzy, farbeVon, sichtbar: sichtbarAlle, ereignisse, dauer = 45, gewaehlt = null }: Pick<EbeneProps, 'd' | 'zeit' | 'spieler' | 'pzx' | 'pzy' | 'farbeVon' | 'sichtbar'> & { ereignisse: boolean; dauer?: number; gewaehlt?: number | null }) {
   if (!d.da) return null;
-  const ab = zeit - dauer;
+  // Mit gewaehltem Spieler: nur sein ganzer Weg seit der Landung; sonst die letzten Sekunden aller.
+  const spieler = gewaehlt !== null ? alle.filter((s) => s.id === gewaehlt) : alle;
+  const sichtbar = gewaehlt !== null ? (id?: number) => id === gewaehlt : sichtbarAlle;
+  const ab = gewaehlt !== null ? -Infinity : zeit - dauer;
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[14] h-full w-full">
       {spieler.map((s) => {
@@ -540,7 +543,7 @@ export function AlleSpieler({ d, zeit, spieler, farbeVon, waehle }: { d: Aufbere
 }
 
 /** Das HUD unten in der Karte wie bei Osirion: Steuerung, Name, Schild und Leben breit mit Zahl, die Faecher mit Bildern. */
-export function KartenHud({ d, zeit, s, farbe, steuerung, inventar = true }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null } | null; farbe: string; steuerung: ReactNode; inventar?: boolean }) {
+export function KartenHud({ d, zeit, s, farbe, steuerung, inventar = true, zusatz, vorName }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null } | null; farbe: string; steuerung: ReactNode; inventar?: boolean; zusatz?: ReactNode; vorName?: ReactNode }) {
   const tot = s ? typeof s.tod === 'number' && s.tod <= zeit : false;
   const hp = s ? (tot ? 0 : hpBei(d.leben.get(s.id), zeit)) : null;
   const schild = s ? (tot ? 0 : d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null) : null;
@@ -548,18 +551,22 @@ export function KartenHud({ d, zeit, s, farbe, steuerung, inventar = true }: { d
   return (
     <div className="pointer-events-auto absolute bottom-2 left-1/2 z-40 w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-lg border border-white/15 bg-black/75 p-1.5 text-white shadow-2xl backdrop-blur-sm" data-knopf>
       {steuerung}
-      {inventar && s && aus && (
+      {s && aus && (
         <>
           <p className="mt-1.5 flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-base font-bold leading-tight">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: farbe }} />
+            {vorName}
             <span className="truncate">{s.name}</span>
             {tot && <span className="ml-auto text-[10px] font-bold uppercase text-rose-400"><T>Ausgeschieden</T></span>}
           </p>
           <div className="mt-1"><Balken hp={hp} schild={schild} /></div>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {aus.faecher.map((roh) => <Fach key={roh} roh={roh} gross={44} aktiv={aus.handArt !== null && artVon(roh).art === aus.handArt} />)}
-            {(aus.handArt === 'bauen' || aus.handArt === 'edit' || aus.handArt === 'hacke') && aus.hand && <Fach roh={aus.hand} gross={44} aktiv />}
-          </div>
+          {zusatz}
+          {inventar && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {aus.faecher.map((roh) => <Fach key={roh} roh={roh} gross={44} aktiv={aus.handArt !== null && artVon(roh).art === aus.handArt} />)}
+              {(aus.handArt === 'bauen' || aus.handArt === 'edit' || aus.handArt === 'hacke') && aus.hand && <Fach roh={aus.hand} gross={44} aktiv />}
+            </div>
+          )}
         </>
       )}
     </div>

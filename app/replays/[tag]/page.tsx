@@ -12,6 +12,8 @@ import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import ZonenBild from '@/app/admin/replay/ZonenBild';
 import { useZugang } from '@/app/lib/zugang';
+import TagesAuswertung from '../TagesAuswertung';
+import LadenDialog from '../LadenDialog';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 
 interface Game { id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number }
@@ -28,6 +30,7 @@ export default function SpieltagSeite() {
   const [zonenTage, setZonenTage] = useState<ZonenTag[]>([]);
   const [zonenFrei, setZonenFrei] = useState<string[]>([]);
   const [fehler, setFehler] = useState('');
+  const [laden, setLaden] = useState(false);
 
   useEffect(() => {
     if (!tagId) return undefined;
@@ -57,6 +60,8 @@ export default function SpieltagSeite() {
         <Link href="/replays" className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">
           ← <T>Alle Replays</T>
         </Link>
+        <button type="button" onClick={() => setLaden(true)} className="ml-2 rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-sky-400"><T>Load replay</T></button>
+        <LadenDialog offen={laden} schliessen={() => setLaden(false)} />
         {fehler && <p className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>{fehler}</T></p>}
         {!tag && !fehler && <div className="mt-6"><LadeSchirm /></div>}
         {tag && (
@@ -100,6 +105,11 @@ export default function SpieltagSeite() {
                   </p>
                 </Link>
               ))}
+            </div>
+            {/* Alle Games des Tages zusammen: Zonen-Glueck und Glueck gegen Leistung (/api/replay-auswertung) */}
+            <div className="mt-8" id="auswertung">
+              <h2 className="mb-3 text-xl font-black tracking-tight"><T>All games analysed</T></h2>
+              <TagesAuswertung tage={[tag.windowId]} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}</code></p>
           </>

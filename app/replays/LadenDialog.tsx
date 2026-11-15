@@ -1,8 +1,9 @@
 'use client';
 
 /*
- * "Replay laden" (Betreiber, 15.11.2026): Season-Reiter, Region, Sortierung nach Datum oder Name, die Cups mit ihren Tagen und Games -
- * ein Game waehlen und "Analysieren" oeffnet /replays/<Tag>/<Game>. Daten: /api/replay?uebersicht=1 und ?tag=.
+ * "Replay laden" (Betreiber, 15.11.2026): Season-Reiter, Region (nur Regionen mit Replays), Sortierung nach Datum oder Name. Je Cup-Tag eine Zeile mit
+ * Haken, "Games" (die Games klappen auf und laden sofort) und "Analysieren" (alle Games des Tages). Mehrere angehakte Tage zusammen:
+ * "Auswahl analysieren (n)" -> /replays/auswertung?tage=... Daten: /api/replay?uebersicht=1 und ?tag=.
  */
 
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,9 @@ import { replayDatum, replayUhrzeit, schoenerTitel, tagName, ohneMarke } from '@
 interface TagKurz { windowId: string; region: string; beginn: string; games: number; sieger: string[] }
 interface CupKurz { eventId: string; kurz: string; titel: string; season: string; beginn: string; tage: TagKurz[] }
 interface Game { id: string; nr: number; beginn?: string; sieger?: string[]; spieler?: number }
+interface Zeile { cup: CupKurz; tag: TagKurz; name: string }
+
+export const HOECHSTENS = 4;
 
 export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boolean; schliessen: () => void; aktuell?: string }) {
   const t = useT();
@@ -24,9 +28,9 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
   const [region, setRegion] = useState('alle');
   const [sort, setSort] = useState<'datum' | 'name'>('datum');
   const [suche, setSuche] = useState('');
-  const [tag, setTag] = useState<string | null>(null);
-  const [games, setGames] = useState<Game[] | null>(null);
-  const [wahl, setWahl] = useState<number | null>(null);
+  const [offenerTag, setOffenerTag] = useState<string | null>(null);
+  const [games, setGames] = useState<Record<string, Game[]>>({});
+  const [haken, setHaken] = useState<string[]>([]);
 
   useEffect(() => {
     if (!offen || cups) return undefined;
@@ -38,14 +42,13 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
   }, [offen, cups]);
 
   useEffect(() => {
-    if (!tag) { setGames(null); return undefined; }
+    if (!offenerTag || games[offenerTag]) return undefined;
     let weg = false;
-    setGames(null); setWahl(null);
-    fetch(`/api/replay?tag=${encodeURIComponent(tag)}`).then((r) => r.json())
-      .then((j) => { if (!weg) setGames(Array.isArray(j?.tag?.matches) ? j.tag.matches : []); })
-      .catch(() => { if (!weg) setGames([]); });
+    fetch(`/api/replay?tag=${encodeURIComponent(offenerTag)}`).then((r) => r.json())
+      .then((j) => { if (!weg) setGames((g) => ({ ...g, [offenerTag]: Array.isArray(j?.tag?.matches) ? j.tag.matches : [] })); })
+      .catch(() => { if (!weg) setGames((g) => ({ ...g, [offenerTag]: [] })); });
     return () => { weg = true; };
-  }, [tag]);
+  }, [offenerTag, games]);
 
   useEffect(() => {
     if (!offen) return undefined;
@@ -55,21 +58,26 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
   }, [offen, schliessen]);
 
   const seasons = useMemo(() => [...new Set((cups ?? []).map((c) => c.season))].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })), [cups]);
-  const regionen = useMemo(() => [...new Set((cups ?? []).flatMap((c) => c.tage.map((d) => d.region)))].sort(), [cups]);
-  const liste = useMemo(() => {
+  // Nur Regionen, die in dieser Season Replays haben.
+  const regionen = useMemo(() => [...new Set((cups ?? []).filter((c) => !season || c.season === season).flatMap((c) => c.tage.map((d) => d.region)))].sort(), [cups, season]);
+  const zeilen = useMemo<Zeile[]>(() => {
     const q = suche.trim().toLowerCase();
-    const l = (cups ?? []).filter((c) => !season || c.season === season)
-      .map((c) => ({ ...c, tage: c.tage.filter((d) => region === 'alle' || d.region === region) }))
-      .filter((c) => c.tage.length && (!q || schoenerTitel(c.titel).toLowerCase().includes(q)));
-    return sort === 'name' ? l.sort((a, b) => schoenerTitel(a.titel).localeCompare(schoenerTitel(b.titel))) : l.sort((a, b) => b.beginn.localeCompare(a.beginn));
+    const l: Zeile[] = [];
+    for (const c of cups ?? []) {
+      if (season && c.season !== season) continue;
+      if (q && !schoenerTitel(c.titel).toLowerCase().includes(q)) continue;
+      c.tage.forEach((d, i) => { if (region === 'alle' || d.region === region) l.push({ cup: c, tag: d, name: `${schoenerTitel(c.titel)} · ${tagName(d.windowId, i)}` }); });
+    }
+    return sort === 'name' ? l.sort((a, b) => a.name.localeCompare(b.name) || a.tag.region.localeCompare(b.tag.region)) : l.sort((a, b) => b.tag.beginn.localeCompare(a.tag.beginn));
   }, [cups, season, region, sort, suche]);
 
   if (!offen) return null;
   const chip = (an: boolean) => `rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
-  const game = games?.find((g) => g.nr === wahl);
+  const geh = (href: string) => { router.push(href); schliessen(); };
+  const hake = (w: string) => setHaken((h) => (h.includes(w) ? h.filter((x) => x !== w) : h.length >= HOECHSTENS ? h : [...h, w]));
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-3 backdrop-blur-sm" onClick={schliessen} role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-3 backdrop-blur-sm" onClick={schliessen} role="dialog" aria-modal="true" aria-label={t('Load replay')}>
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
           <h2 className="text-lg font-black text-slate-50"><T>Load replay</T></h2>
@@ -77,61 +85,62 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
         </div>
         <div className="space-y-2 border-b border-white/[0.08] px-4 py-3">
           <div className="flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
-            {seasons.map((s) => <button key={s} type="button" onClick={() => setSeason(s)} className={chip(season === s)}>{s}</button>)}
+            {seasons.map((s) => <button key={s} type="button" onClick={() => { setSeason(s); setRegion('alle'); }} className={chip(season === s)}>{s}</button>)}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Search cup …')}
               className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[12px] text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-            <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[12px] text-slate-100">
+            <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[12px] text-slate-100" aria-label={t('Region')}>
               <option value="alle">{t('All regions')}</option>
               {regionen.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <select value={sort} onChange={(e) => setSort(e.target.value as 'datum' | 'name')} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[12px] text-slate-100">
+            <select value={sort} onChange={(e) => setSort(e.target.value as 'datum' | 'name')} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[12px] text-slate-100" aria-label={t('Sort')}>
               <option value="datum">{t('Newest first')}</option>
               <option value="name">{t('Name A–Z')}</option>
             </select>
           </div>
         </div>
-        <div className="grid min-h-0 flex-1 overflow-hidden sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <ul className="max-h-[50vh] overflow-y-auto border-b border-white/[0.08] p-2 sm:max-h-none sm:border-b-0 sm:border-r">
-            {fehler && <li className="p-3 text-sm text-rose-300"><T>The replays could not be loaded right now.</T></li>}
-            {!cups && !fehler && <li className="p-3 text-sm text-slate-500"><T>Loading …</T></li>}
-            {cups && !liste.length && <li className="p-3 text-sm text-slate-500"><T>No replays in this selection.</T></li>}
-            {liste.map((c) => (
-              <li key={c.eventId} className="mb-2">
-                <p className="px-1 text-[12px] font-bold text-slate-100">{schoenerTitel(c.titel)} <span className="font-normal text-slate-500">· {replayDatum(c.beginn)}</span></p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {c.tage.map((d, i) => (
-                    <button key={d.windowId} type="button" onClick={() => setTag(d.windowId)}
-                      className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition ${tag === d.windowId ? 'border-sky-500 bg-sky-500/15 text-sky-200' : 'border-white/10 text-slate-300 hover:border-sky-500/50'}`}>
-                      <span className="mr-1 rounded bg-white/10 px-1 text-[9px] font-black">{d.region}</span>{tagName(d.windowId, i)} · {d.games}
-                    </button>
-                  ))}
+        <ul className="min-h-0 flex-1 overflow-y-auto p-2">
+          {fehler && <li className="p-3 text-sm text-rose-300"><T>The replays could not be loaded right now.</T></li>}
+          {!cups && !fehler && <li className="p-3 text-sm text-slate-500"><T>Loading …</T></li>}
+          {cups && !zeilen.length && <li className="p-3 text-sm text-slate-500"><T>No replays in this selection.</T></li>}
+          {zeilen.map(({ tag: d, name }) => {
+            const w = d.windowId; const auf = offenerTag === w; const an = haken.includes(w);
+            return (
+              <li key={w} className={`mb-1 rounded-xl border transition ${an ? 'border-sky-500/60 bg-sky-500/[0.06]' : 'border-white/[0.06]'}`}>
+                <div className="flex flex-wrap items-center gap-2 px-2.5 py-2">
+                  <input type="checkbox" checked={an} onChange={() => hake(w)} disabled={!an && haken.length >= HOECHSTENS} className="h-4 w-4 accent-sky-500" aria-label={name} />
+                  <span className="rounded bg-white/10 px-1.5 py-px text-[9px] font-black text-slate-200">{d.region}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-bold text-slate-100">{name}</span>
+                    <span className="block truncate text-[10px] text-slate-500">{replayDatum(d.beginn)} · {d.games} Games{d.sieger.length ? ` · ${d.sieger.map(ohneMarke).join(' · ')}` : ''}</span>
+                  </span>
+                  <button type="button" onClick={() => setOffenerTag(auf ? null : w)} aria-expanded={auf}
+                    className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60">Games {auf ? '▴' : '▾'}</button>
+                  <button type="button" onClick={() => geh(`/replays/${encodeURIComponent(w)}#auswertung`)} className="rounded-lg bg-sky-500/90 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-sky-400"><T>Analyze</T></button>
                 </div>
+                {auf && (
+                  <div className="flex flex-wrap gap-1 border-t border-white/[0.06] px-2.5 py-2">
+                    {!games[w] && <span className="text-[11px] text-slate-500"><T>Loading …</T></span>}
+                    {(games[w] ?? []).map((g) => (
+                      <button key={g.id} type="button" onClick={() => geh(`/replays/${encodeURIComponent(w)}/${g.nr}`)}
+                        className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition hover:border-sky-500 ${aktuell === g.id ? 'border-amber-400/70 text-amber-200' : 'border-white/10 text-slate-200'}`}
+                        title={`${replayUhrzeit(g.beginn)} · ${(g.sieger ?? []).map(ohneMarke).join(' · ')}`}>Game {g.nr}</button>
+                    ))}
+                  </div>
+                )}
               </li>
-            ))}
-          </ul>
-          <div className="flex min-h-0 flex-col p-2">
-            {!tag && <p className="p-3 text-sm text-slate-500"><T>Pick a cup day on the left.</T></p>}
-            {tag && !games && <p className="p-3 text-sm text-slate-500"><T>Loading …</T></p>}
-            {games && (
-              <ul className="grid max-h-[40vh] grid-cols-2 gap-1.5 overflow-y-auto sm:max-h-[48vh]">
-                {games.map((g) => (
-                  <li key={g.id}>
-                    <button type="button" onClick={() => setWahl(g.nr)} onDoubleClick={() => router.push(`/replays/${encodeURIComponent(tag!)}/${g.nr}`)}
-                      className={`w-full rounded-lg border p-2 text-left transition ${wahl === g.nr ? 'border-sky-500 bg-sky-500/15' : 'border-white/10 hover:border-sky-500/50'} ${aktuell === g.id ? 'ring-1 ring-amber-400/60' : ''}`}>
-                      <span className="flex justify-between text-[13px] font-black text-slate-50">Game {g.nr}<span className="text-[10px] font-normal text-slate-500">{replayUhrzeit(g.beginn)}</span></span>
-                      <span className="block truncate text-[10px] uppercase text-amber-300/90">{(g.sieger ?? []).map(ohneMarke).join(' · ') || '–'}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button type="button" disabled={!game} onClick={() => { if (game && tag) { router.push(`/replays/${encodeURIComponent(tag)}/${game.nr}`); schliessen(); } }}
-              className="mt-auto w-full rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
-              <T>Analyze</T>
-            </button>
-          </div>
+            );
+          })}
+        </ul>
+        <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] px-4 py-3">
+          <button type="button" onClick={() => setHaken(zeilen.slice(0, HOECHSTENS).map((z) => z.tag.windowId))} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60"><T>Select all</T></button>
+          <button type="button" onClick={() => setHaken([])} disabled={!haken.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60 disabled:opacity-40"><T>Reset</T></button>
+          <span className="text-[10px] text-slate-500"><T>Up to 4 cup days together.</T></span>
+          <button type="button" disabled={!haken.length} onClick={() => geh(haken.length === 1 ? `/replays/${encodeURIComponent(haken[0])}#auswertung` : `/replays/auswertung?tage=${haken.map(encodeURIComponent).join(',')}`)}
+            className="ml-auto rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+            <T>Analyze selected</T> ({haken.length})
+          </button>
         </div>
       </div>
     </div>
