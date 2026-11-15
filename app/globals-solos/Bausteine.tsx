@@ -495,6 +495,12 @@ export function Karte({ f, bild, rotAb = 2 }: {
       g.save(); g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = `600 ${Math.round(G * 0.016)}px Segoe UI, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'bottom';
       g.fillText('thecomphub.com', G - rand, G - Math.round(rand * 0.5)); g.restore();
     }
+    // Quelle der Landepunkte nennen (Betreiber, 15.11.2026).
+    if (f.kartenQuelle === 'noble' && f.formen.length) {
+      const rand = Math.round(G * 0.022);
+      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(G * 0.014)}px Segoe UI, system-ui, sans-serif`; g.textAlign = 'left'; g.textBaseline = 'bottom';
+      g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6; g.fillText('Drop spots: Noble Practice (nobleprac.com)', rand, G - Math.round(rand * 0.5)); g.restore();
+    }
     try {
       const wie = await speichereLeinwand(c, `${(f.name || 'karte').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`);
       setKopiert(wie === 'kopiert' ? t('Bild kopiert') : t('Bild gespeichert'));
@@ -653,6 +659,12 @@ export function Karte({ f, bild, rotAb = 2 }: {
           * "wie bei Noble", "mein Logo ganz rechts am Rand"). Beides zoomt nicht mit.
           */}
         <div className="pointer-events-none absolute inset-0 z-20"><KartenWasserzeichen dicht /></div>
+        {f.kartenQuelle === 'noble' && f.formen.length > 0 && (
+          <a href="https://nobleprac.com" target="_blank" rel="noopener noreferrer"
+            className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
+            Drop spots: Noble Practice ↗
+          </a>
+        )}
         <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />

@@ -55,6 +55,8 @@ export interface SolosFenster {
   bild?: string | null;
   /** Nur bei den alten Karten (lib/alteMaps): kommen die Teams von Epics Bestenliste oder hat der Admin sie angelegt? */
   quelle?: 'epic' | 'hand';
+  /** Woher die Landepunkte stammen - fuer den Hinweis auf der Karte (Betreiber, 15.11.2026: Quelle immer nennen). */
+  kartenQuelle?: 'noble';
   /** Die Landepunkte, mit den Anzeigenamen der Spieler darauf - Ecken in Prozent des Kartenbildes. */
   formen: Array<{
     punkte: Array<{ x: number; y: number }>; spieler: string[];
@@ -239,6 +241,7 @@ function fensterAus(w: { windowId: string; name: string; startDate?: string; end
     spieler,
     teams: teamListe,
     bild: saubereKarte(d?.windowData?.map?.withoutPOINames),
+    ...(formen.length ? { kartenQuelle: 'noble' as const } : {}),
     formen: formen.map((f) => ({
       punkte: f.punkte,
       spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
