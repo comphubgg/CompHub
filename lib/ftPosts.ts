@@ -269,10 +269,14 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
     return s === null ? null : Math.min(s, zahl(d.epicTeamZeit?.[id]) ?? Infinity);
   };
   // Strecke wie app/api/cup-spieler: Epics Meter, sonst die Proben (ohne Epic-Werte hochgerechnet - die Proben alle 10 s ergeben rund 68,5 %).
-  const streckeGeschaetzt = !Object.keys(d.epicStrecke ?? {}).length;
+  // Fassung 19: die Strecke am Boden aus dem Leser (wie Epic gerechnet) ist exakt, nur die alten Proben sind hochgerechnet.
+  const mitBoden = Object.values(d.schaden ?? {}).some((w) => typeof (w as { streckeBoden?: number }).streckeBoden === 'number');
+  const streckeGeschaetzt = !Object.keys(d.epicStrecke ?? {}).length && !mitBoden;
   const streckeVon = (id: string) => {
     const epic = zahl(d.epicStrecke?.[id]);
     if (epic !== null) return epic;
+    const boden = zahl((d.schaden?.[id] as { streckeBoden?: number } | undefined)?.streckeBoden);
+    if (boden !== null) return Math.round(boden);
     const p = d.strecke?.[id];
     if (!p) return null;
     const m = (zahl(p[0]) ?? 0) + (zahl(p[1]) ?? 0);

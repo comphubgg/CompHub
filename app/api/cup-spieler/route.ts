@@ -545,12 +545,14 @@ async function holeRoh(request: Request) {
     ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })
       .map(([id, s]) => [id, Math.min(s, clutchDatei.epicTeamZeit?.[id] ?? s)] as const)) : null;
   // Strecke nur fuer einen einzelnen Tag (die Summe mehrerer Tage fuehrt der Zusammenbau oben nicht mit).
-  const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries({ ...clutchDatei.strecke, ...Object.fromEntries(Object.entries(clutchDatei.epicStrecke ?? {}).map(([id, m]) => [id, [m, 0] as [number, number]])) })) : null;
+  // Fassung 19 (15.11.2026): die Strecke am Boden aus dem Leser (schaden[id].streckeBoden, wie Epic gerechnet) vor den alten Proben; Epics eigener Wert zuerst.
+  const streckeBoden = Object.fromEntries(Object.entries(clutchDatei?.schaden ?? {}).flatMap(([id, w]) => typeof (w as unknown as { streckeBoden?: number }).streckeBoden === 'number' ? [[id, [(w as unknown as { streckeBoden: number }).streckeBoden, 0] as [number, number]]] : []));
+  const streckeVon = tage.length === 1 && ((clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length) || Object.keys(streckeBoden).length) ? new Map(Object.entries({ ...(clutchDatei?.strecke ?? {}), ...streckeBoden, ...Object.fromEntries(Object.entries(clutchDatei?.epicStrecke ?? {}).map(([id, m]) => [id, [m, 0] as [number, number]])) })) : null;
   /*
    * Bei Team-Cups nennt Epic keine Strecke, und zwischen den Positionsproben alle zehn Sekunden fehlen die Kurven. An 10.000 Spielern der FNCS Solos Reload ergaben die Proben 68,5 % von
    * Epics Strecke (Fuss und Luft zusammen, 6.11.2026), beim Performance Cup 69,6 % von Osirion: darum hochgerechnet und auf der Seite als geschaetzt gekennzeichnet.
    */
-  const streckeGeschaetzt = !!streckeVon && !Object.keys(clutchDatei?.epicStrecke ?? {}).length;
+  const streckeGeschaetzt = !!streckeVon && !Object.keys(clutchDatei?.epicStrecke ?? {}).length && !Object.keys(streckeBoden).length;
   const streckeFaktor = streckeGeschaetzt ? 1 / 0.685 : 1;
   /*
    * Plattformen des Spieltags (Betreiber, 30.10.2026: einbauen, wenn es echte Statistiken sind): aus dem Feld Platform jedes vollen Replays, je Spieler

@@ -24,7 +24,7 @@ interface Match {
   sessionId?: string;
   placement?: number; elims?: number; timeAlive?: number; wins?: number;
   damage?: number; damageTaken?: number; headshots?: number; heilung?: number; schild?: number; strecke?: number;
-  holzGefarmt?: number; steinGefarmt?: number; metallGefarmt?: number;
+  holzErhalten?: number; steinErhalten?: number; metallErhalten?: number;
   punktePlatz?: number; punkteElim?: number;
 }
 interface Eintrag {

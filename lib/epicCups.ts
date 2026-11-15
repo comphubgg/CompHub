@@ -70,10 +70,14 @@ export interface CupMatch {
   kisten?: number;
   heilung?: number;
   schild?: number;
-  holzGefarmt?: number;
-  steinGefarmt?: number;
-  metallGefarmt?: number;
-  zutatGefarmt?: number;
+  /*
+   * WoodAcquired/StoneAcquired/MetalAcquired/IngredientAcquired (15.11.2026): "erhalten", nicht "gefarmt" - Epic sagt nicht, woher. Geprueft: 248 EU-Fenster S30-S43,
+   * 150.223 Sitzungen, kein einziges Mal mitgeschickt (scripts/diag-epic-alt.mjs). Mats Farmed kommt deshalb immer aus den Replays.
+   */
+  holzErhalten?: number;
+  steinErhalten?: number;
+  metallErhalten?: number;
+  zutatErhalten?: number;
   holzVerbaut?: number;
   steinVerbaut?: number;
   metallVerbaut?: number;
@@ -100,7 +104,10 @@ export interface CupEintrag {
   timeAlive: number;
   /** Schaden des gesamten Teams, sofern das Turnier ihn mitschickt. */
   damageSquad: number;
+  /** Gefarmte Mats laut Epic: Epic fuehrt keinen solchen Wert, immer 0 - Mats Farmed kommt aus den Replays (app/api/cup-stats). */
   matsGefarmt: number;
+  /** Erhaltenes Material laut Epic (WoodAcquired usw.), falls ein Turnier es je mitschickt - Quelle unbekannt, also hoechstens "Collected", nie "Farmed". */
+  matsErhalten?: number;
   /** Verbautes Material. Nicht dasselbe wie gesetzte Bauteile. */
   matsVerbaut: number;
   /** Zu Fuss zurueckgelegte Strecke in Zentimetern. */
@@ -523,10 +530,10 @@ const STAT_NAMEN: Record<string, string> = {
   GainedHealthTimes: 'heilung',
   GainedShieldTimes: 'schild',
   Travel_Distance_Ground: 'strecke',
-  WoodAcquired: 'holzGefarmt',
-  StoneAcquired: 'steinGefarmt',
-  MetalAcquired: 'metallGefarmt',
-  IngredientAcquired: 'zutatGefarmt',
+  WoodAcquired: 'holzErhalten',
+  StoneAcquired: 'steinErhalten',
+  MetalAcquired: 'metallErhalten',
+  IngredientAcquired: 'zutatErhalten',
   WoodExpended: 'holzVerbaut',
   StoneExpended: 'steinVerbaut',
   MetalExpended: 'metallVerbaut',
@@ -571,7 +578,8 @@ export function wertungAus(eintraege: RohEintrag[]): { platz: Record<string, num
 function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag {
   const hist = e.sessionHistory ?? [];
   let elims = 0, wins = 0, damage = 0, damageTaken = 0, timeAlive = 0, headshots = 0;
-  let damageSquad = 0, matsGefarmt = 0, matsVerbaut = 0, strecke = 0, kisten = 0;
+  let damageSquad = 0, matsErhalten = 0, matsVerbaut = 0, strecke = 0, kisten = 0;
+  const matsGefarmt = 0;
   let heilung = 0, schild = 0;
   let bestPlace: number | null = null;
   let platzSumme = 0, platzAnzahl = 0;
@@ -596,9 +604,9 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
     kisten += m.kisten ?? 0;
     heilung += m.heilung ?? 0;
     schild += m.schild ?? 0;
-    // Material zaehlt Epic getrennt nach Holz, Stein, Metall und Zutaten.
-    matsGefarmt += (m.holzGefarmt ?? 0) + (m.steinGefarmt ?? 0)
-                 + (m.metallGefarmt ?? 0) + (m.zutatGefarmt ?? 0);
+    // Erhaltenes Material zaehlt Epic (falls ueberhaupt) getrennt nach Holz, Stein, Metall und Zutaten - ohne Quelle, darum nicht "gefarmt".
+    matsErhalten += (m.holzErhalten ?? 0) + (m.steinErhalten ?? 0)
+                  + (m.metallErhalten ?? 0) + (m.zutatErhalten ?? 0);
     matsVerbaut += (m.holzVerbaut ?? 0) + (m.steinVerbaut ?? 0)
                  + (m.metallVerbaut ?? 0) + (m.zutatVerbaut ?? 0);
     if (typeof m.placement === 'number') {
@@ -641,7 +649,7 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
   return {
     rank: e.rank, ...(typeof e.percentile === 'number' ? { percentile: e.percentile } : {}), points: punkte, elims, games, wins, bestPlace,
     damage, damageTaken, headshots, timeAlive,
-    damageSquad, matsGefarmt, matsVerbaut, strecke, kisten, heilung, schild,
+    damageSquad, matsGefarmt, ...(matsErhalten ? { matsErhalten } : {}), matsVerbaut, strecke, kisten, heilung, schild,
     avgPoints: games ? +(punkte / games).toFixed(2) : 0,
     avgPlace: platzAnzahl ? +(platzSumme / platzAnzahl).toFixed(2) : 0,
     avgElims: games ? +(elims / games).toFixed(2) : 0,

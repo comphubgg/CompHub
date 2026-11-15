@@ -58,7 +58,7 @@ for (const [w, dateien] of jeTag) {
   // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt ebenfalls leer an - die alten Werte wuerden sonst doppelt zaehlen.
   const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
   // jeFrisch: ganz nach dem 15.11.2026 gelesen - die Werte je Match koennen nicht mehr verloren sein (der Planer liest so einen Spieltag wegen jeFehlt nicht noch einmal).
-  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 19, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true };
+  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 20, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
   const da = new Set([...d.matches.map((m) => m.id), ...d.ohne]);
   // Die Werte je Match: erst, wenn ein Teil welche bringt, wird der alte Stand geholt. Laesst er sich nicht lesen, bleibt die Datei diesmal, wie sie ist.
