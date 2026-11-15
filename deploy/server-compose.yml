@@ -46,6 +46,15 @@ services:
     entrypoint: ["sh", "-c"]
     command: ["while true; do nice -n 10 node scripts/replay-uebersicht.mjs --vom-release 2>&1 | tail -2 && node scripts/ablage-github.mjs --nur antworten/replays_uebersicht.json 2>&1 | tail -2; sleep 600; done"]
 
+  # X-Links aus #admin-posts jede Minute als CompHub-Bot nach #social-posts (mit @everyone), Quelle mit ✅ abgehakt (scripts/discord-tweets.mjs).
+  tweets:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    env_file: web.env
+    mem_limit: 512m
+    entrypoint: ["sh", "-c"]
+    command: ["while true; do node scripts/discord-tweets.mjs --aus-admin-posts --anwenden 2>&1 | grep -v 'Keine (neuen)' | tail -5; sleep 60; done"]
+
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: always

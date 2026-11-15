@@ -100,12 +100,32 @@ function einbettung(id, tw) {
   };
 }
 
-const ids = [...new Set(LINKS.split(/[\s,]+/).map(nummer).filter(Boolean))].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
-if (!ids.length) { console.log('Keine Beitrags-Links (--links "https://x.com/CompHub_gg/status/...,...").'); process.exit(0); }
+/*
+ * --aus-admin-posts (15.11.2026): der Betreiber schickt den Link einfach nach #admin-posts. Der Server fragt jede Minute (deploy/server-compose.yml,
+ * Dienst "tweets"), findet neue X-Links von @CompHub_gg, postet sie mit @everyone nach #social-posts und hakt die Nachricht mit ✅ ab.
+ */
+const AUS_ADMIN = process.argv.includes('--aus-admin-posts');
+const PING = AUS_ADMIN || process.argv.includes('--ping');
 if (!TOKEN) { console.error('DISCORD_BOT_TOKEN fehlt (.env.local oder Umgebung).'); process.exit(1); }
-
 const kern = (s) => String(s ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '').trim();
 const [kanaele, ich] = await Promise.all([ruf(`/guilds/${SERVER}/channels`), ruf('/users/@me')]);
+const quellen = new Map();
+let linkText = LINKS;
+if (AUS_ADMIN) {
+  const admin = kanaele.find((k) => (k.type === 0 || k.type === 5) && kern(k.name) === 'admin-posts');
+  if (!admin) { console.error('#admin-posts fehlt'); process.exit(1); }
+  const nachrichten = await ruf(`/channels/${admin.id}/messages?limit=30`).catch(() => []);
+  for (const m of nachrichten) {
+    if (m.author?.bot) continue;
+    if ((m.reactions ?? []).some((r) => r.emoji?.name === '✅' && r.me)) continue;
+    for (const t of String(m.content ?? '').match(/https?:\/\/(?:www\.)?(?:x|twitter)\.com\/CompHub_gg\/status\/\d+/gi) ?? []) {
+      const n = nummer(t); if (n) quellen.set(n, { kanal: admin.id, nachricht: m.id });
+      linkText += `,${t}`;
+    }
+  }
+}
+const ids = [...new Set(linkText.split(/[\s,]+/).map(nummer).filter(Boolean))].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+if (!ids.length) { console.log('Keine (neuen) Beitrags-Links.'); process.exit(0); }
 const kanal = kanaele.find((k) => (k.type === 0 || k.type === 5) && kern(k.name) === 'social-posts');
 if (!kanal) { console.error('#social-posts fehlt - erst den Umbau (modus anwenden) laufen lassen.'); process.exit(1); }
 const verlauf = await ruf(`/channels/${kanal.id}/messages?limit=100`).catch(() => []);
@@ -115,15 +135,20 @@ const schon = new Set(verlauf.filter((m) => m.author?.id === ich.id)
 console.log(`Kanal #${kanal.name} · ${ids.length} Link(s) · ${ANWENDEN ? 'POSTEN' : 'nur zeigen'}`);
 let fehler = 0;
 for (const id of ids) {
-  if (schon.has(id)) { console.log(`  = ${id} steht schon im Kanal - uebersprungen`); continue; }
+  const abhaken = async () => { const q = quellen.get(id); if (q && ANWENDEN) await ruf(`/channels/${q.kanal}/messages/${q.nachricht}/reactions/${encodeURIComponent('✅')}/@me`, 'PUT').catch(() => null); };
+  if (schon.has(id)) { console.log(`  = ${id} steht schon im Kanal - uebersprungen`); await abhaken(); continue; }
   const tw = await beitrag(id);
   if (!tw) { fehler += 1; console.log(`  ✗ ${id}: FixTweet lieferte nichts (geloescht, privat oder gesperrt?)`); continue; }
   const { embed, knopf } = einbettung(id, tw);
   console.log(`  ${ANWENDEN ? '→' : '·'} ${id} @${tw.author?.screen_name ?? '?'} ${embed.timestamp ?? ''}${embed.image ? ' [Bild]' : ''}\n      ${String(tw.text ?? '').replace(/\s+/g, ' ').slice(0, 140)}`);
   if (!ANWENDEN) continue;
   try {
-    await ruf(`/channels/${kanal.id}/messages`, 'POST', { embeds: [embed], components: [knopf], allowed_mentions: { parse: [] } });
+    await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+      ...(PING ? { content: '@everyone' } : {}), embeds: [embed], components: [knopf],
+      allowed_mentions: { parse: PING ? ['everyone'] : [] },
+    });
     schon.add(id);
+    await abhaken();
   } catch (e) { fehler += 1; console.log(`      ${e.message}`); }
   await warte(600);
 }
