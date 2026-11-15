@@ -294,6 +294,8 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
       erlitten: w.erlitten ?? 0,
       treffer: zahl(w.treffer),
       krit: zahl(w.krit),
+      heilHp: zahl((w as { heilHp?: unknown }).heilHp),
+      schildHeil: zahl((w as { schildHeilEcht?: unknown }).schildHeilEcht),
       sturm: zahl(w.sturm) !== null && (w.sturm as number) < 1e6 ? (w.sturm as number) : null,
       bauten: inv && typeof w.selbstHolz === 'number' ? (w.selbstHolz ?? 0) + (w.selbstStein ?? 0) + (w.selbstMetall ?? 0) : null,
       mats: !e.zeroBuild && inv && typeof w.farmHolz === 'number' ? (w.farmHolz ?? 0) + (w.farmStein ?? 0) + (w.farmMetall ?? 0) : null,
@@ -349,6 +351,13 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const [h1] = top((s) => s.treffer ?? 0, 1, (s) => (s.treffer ?? 0) > 0); if (h1) { beste.push(`🎯 Most Hits: ${wer(h1.id)} – ${ftZahl(h1.treffer ?? 0)} hits`); merke(h1.id); }
   const [b1] = top((s) => s.bauten ?? 0, 1, (s) => (s.bauten ?? 0) > 0); if (b1) { beste.push(`🧱 Most Builds: ${wer(b1.id)} – ${ftZahl(b1.bauten ?? 0)} builds`); merke(b1.id); }
   const [m1] = top((s) => s.mats ?? 0, 1, (s) => (s.mats ?? 0) > 0); if (m1) { beste.push(`🪓 Most Mats: ${wer(m1.id)} – ${ftZahl(m1.mats ?? 0)} mats`); merke(m1.id); }
+  // Mehr Kategorien (Betreiber, 15.11.2026: "fehlen richtig viele Statistics").
+  const [k1] = top((s) => s.krit ?? 0, 1, (s) => (s.krit ?? 0) > 0); if (k1) { beste.push(`💀 Most Headshots: ${wer(k1.id)} – ${ftZahl(k1.krit ?? 0)} headshots`); merke(k1.id); }
+  const [t1] = top((s) => s.erlitten, 1, (s) => s.erlitten > 0); if (t1) { beste.push(`🩸 Most Dmg Taken: ${wer(t1.id)} – ${ftZahl(t1.erlitten)} dmg`); merke(t1.id); }
+  const [hp1] = top((s) => s.heilHp ?? 0, 1, (s) => (s.heilHp ?? 0) > 0); if (hp1) { beste.push(`💊 Most Health Healed: ${wer(hp1.id)} – ${ftZahl(hp1.heilHp ?? 0)} HP`); merke(hp1.id); }
+  const [sh1] = top((s) => s.schildHeil ?? 0, 1, (s) => (s.schildHeil ?? 0) > 0); if (sh1) { beste.push(`🛡️ Most Shield Healed: ${wer(sh1.id)} – ${ftZahl(sh1.schildHeil ?? 0)} shield`); merke(sh1.id); }
+  const [l1] = top((s) => s.leben ?? 0, 1, (s) => (s.leben ?? 0) > 0); if (l1) { beste.push(`⏱️ Longest Time Alive: ${wer(l1.id)} – ${ftDauer(l1.leben ?? 0)}`); merke(l1.id); }
+  const [st1] = top((s) => s.sturm ?? 0, 1, (s) => (s.sturm ?? 0) > 0); if (st1) { beste.push(`🌪️ Most Time in Storm: ${wer(st1.id)} – ${ftDauer(st1.sturm ?? 0)}`); merke(st1.id); }
   if (beste.length) {
     // Fuers Bild: erst die Besten der Zeilen, dann nach Schaden aufgefuellt.
     for (const s of top((x) => x.dmg, KANDIDATEN)) merke(s.id);
