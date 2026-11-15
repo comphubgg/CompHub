@@ -17,6 +17,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
 import { useSprache } from '@/app/components/SprachProvider';
@@ -229,6 +230,12 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
 
   return (
     <div className="space-y-4">
+      {/* Woher jede Zahl kommt (app/how-we-count). */}
+      <div className="-mb-2 flex justify-end">
+        <Link href="/how-we-count" className="text-[11px] text-slate-500 underline-offset-2 transition hover:text-sky-400 hover:underline">
+          <T>So zählen wir</T>
+        </Link>
+      </div>
       {!ohneSummen && <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <select value={gruppe} onChange={(e) => setGruppe(e.target.value)} className={auswahl}>

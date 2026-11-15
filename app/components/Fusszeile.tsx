@@ -143,6 +143,7 @@ export default function Fusszeile() {
           <span>© {new Date().getFullYear()} CompHub</span>
           <Link href="/privacy" className="transition hover:text-sky-400"><T>Datenschutz</T></Link>
           <Link href="/terms" className="transition hover:text-sky-400"><T>Nutzungsbedingungen</T></Link>
+          <Link href="/how-we-count" className="transition hover:text-sky-400"><T>So zählen wir</T></Link>
         </p>
         <p className="text-[11px] text-slate-700">
           <T>Nicht mit Epic Games verbunden. Alle Marken gehören ihren

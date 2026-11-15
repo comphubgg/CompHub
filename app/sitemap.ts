@@ -65,6 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ['/replays', 0.6, 'daily'],
     ['/privacy', 0.2, 'yearly'],
     ['/terms', 0.2, 'yearly'],
+    ['/how-we-count', 0.3, 'monthly'],
   ];
 
   const [spieler, cups] = await Promise.all([spielerSeiten(w), cupSeiten(w)]);

@@ -4399,6 +4399,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Position der Statistik': 'Stats position',
   'Größe der Statistik': 'Stats size',
   'Mitte': 'Middle',
+  'So zählen wir': 'How we count',
   'Wartet auf das erste Match': 'Waiting for the first match',
   'Spielt gerade in keinem Cup': 'Not playing in a cup right now',
   'Nicht angemeldet.': 'Not signed in.',
