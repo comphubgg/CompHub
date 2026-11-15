@@ -105,10 +105,15 @@ export const TAFELN: Array<{ schluessel: string; feld: string; titel: string; na
   { schluessel: 'builds', feld: 'builds', titel: 'Most Builds Placed', nachkomma: 0 },
   { schluessel: 'hits', feld: 'hits', titel: 'Most Hits to Players', nachkomma: 0 },
   { schluessel: 'damageTaken', feld: 'damageTaken', titel: 'Most Damage Taken', nachkomma: 0 },
+  // Nach den neun der Grundansicht (das Bild zeigt nur diese neun): Reboots und Wiederbeleben (nur Reload/Teams - im Solo ohne Reload liefert cup-spieler keinen Wert),
+  // und die niedrigsten Ratings - nur, wenn der Kreis das ganze Feld abdeckt (sonst waere es nur das Ende der Besten).
+  { schluessel: 'reboots', feld: 'reboots', titel: 'Most Reboots & Revives', nachkomma: 0 },
+  { schluessel: 'lowest', feld: 'lowest', titel: 'Lowest Rated', nachkomma: 1 },
 ];
 
 type Roh = Record<string, unknown> & { epicId: string };
-type Holer = (kennzahl: string, pro: number) => Promise<Roh[]>;
+/** Die besten Zeilen einer Kennzahl; `gesamt` = wie viele Spieler diese Kennzahl im ganzen Feld haben (fuer Lowest Rated). */
+type Holer = (kennzahl: string, pro: number) => Promise<Roh[] & { gesamt?: number }>;
 
 const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const spieleVon = (z: Roh) => zahl(z.matches) ?? zahl(z.spiele) ?? 0;
@@ -144,8 +149,8 @@ export async function fotoFuerKonto(epicId: string): Promise<{ datei: string | n
  * Die Leaders aus den Seiten der Player Stats. `hole(kennzahl, pro)` liefert die besten Zeilen einer Kennzahl (app/api/cup-spieler ?kennzahl=).
  * Der Kreis fuer das Rating: die besten 50 jeder Kennzahl zusammen - wer in keiner davon unter den besten 50 steht, kann das Rating nicht anfuehren.
  */
-export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
-  const listen = await Promise.all(TAFELN.filter((t) => t.feld !== 'rating').map(async (t) => [t, await hole(t.feld === 'kills' ? 'elims' : t.feld, 50).catch(() => [])] as const));
+export async function baueLeader(hole: Holer, opt: { replayHinten?: () => boolean } = {}): Promise<LeaderAntwort> {
+  const listen = await Promise.all(TAFELN.filter((t) => t.feld !== 'rating' && t.feld !== 'lowest').map(async (t) => [t, await hole(t.feld === 'kills' ? 'elims' : t.feld, 50).catch(() => [])] as const));
   const kreis = new Map<string, Roh>();
   for (const [, zeilen] of listen) for (const z of zeilen) if (z?.epicId && !kreis.has(z.epicId)) kreis.set(z.epicId, z);
   const alle = [...kreis.values()];
@@ -163,7 +168,8 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
    * Liegt die volle Replay-Auswertung noch hinter Epic (Treffer und Ratio nur bei einem Teil der Spieler), zaehlen Treffer und Ratio fuer niemanden - sonst
    * stuende vorn, wer zufaellig schon ganz gelesen ist. Dann: Rating = 100 x (0.30 Elims + 0.25 Damage + 0.20 Platz) / 0.75.
    */
-  const ohneReplay = gewertet.filter((z) => zahl(z.hits) !== null).length < gewertet.length * 0.9;
+  // Nur wenn die volle Auswertung hinter Epic liegt (cup-spieler: replayStand) - bei grossen offenen Cups sind bewusst nur die besten Teams ganz gelesen, das bleibt wie in den Player Stats.
+  const ohneReplay = !!opt.replayHinten?.() && gewertet.filter((z) => zahl(z.hits) !== null).length < gewertet.length * 0.9;
   const rating = new Map(gewertet.map((z) => {
     const r = ratingVon(z, beste, ohneReplay);
     const g = RATING_GEWICHTE;
@@ -175,8 +181,8 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
     epicId: z.epicId, name: String(z.name ?? z.epicId.slice(0, 8)), land: String(z.land ?? ''), wert, rang, platz: zahl(z.platz), spiele: spieleVon(z),
   });
   /** Die ersten fuenf - gleicher (angezeigter) Wert, gleicher Rang. */
-  const fuenf = (liste: Array<{ z: Roh; w: number }>, nachkomma: number) => {
-    const sortiert = liste.filter((x) => Number.isFinite(x.w) && x.w > 0).sort((a, b) => b.w - a.w);
+  const fuenf = (liste: Array<{ z: Roh; w: number }>, nachkomma: number, aufsteigend = false) => {
+    const sortiert = liste.filter((x) => Number.isFinite(x.w) && (aufsteigend ? x.w >= 0 : x.w > 0)).sort((a, b) => (aufsteigend ? a.w - b.w : b.w - a.w));
     const raus: LeaderZeile[] = [];
     sortiert.slice(0, 5).forEach((x, i) => {
       const gleich = i > 0 && +sortiert[i - 1].w.toFixed(nachkomma) === +x.w.toFixed(nachkomma);
@@ -191,7 +197,12 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
   for (const t of TAFELN) {
     if (ohneReplay && !NUR_EPIC.has(t.schluessel)) continue;
     let zeilen: LeaderZeile[];
-    if (t.feld === 'rating') zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma);
+    if (t.feld === 'lowest') {
+      // Nur wenn der Kreis jeden Spieler mit Elims kennt (kleine Felder: Heats, Finals) - sonst fehlen die Schwaechsten im Kreis.
+      const feldGesamt = Math.max(0, ...listen.map(([, l]) => (l as { gesamt?: number }).gesamt ?? 0));
+      if (!feldGesamt || kreis.size < feldGesamt) continue;
+      zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma, true);
+    } else if (t.feld === 'rating') zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma);
     // Je-Spiel-Werte (Ratio) nur fuer Gewertete - sonst fuehrt einer mit wenigen Spielen.
     else if (t.feld === 'quote') zeilen = fuenf(gewertet.map((z) => ({ z, w: zahl(z.quote) ?? zahl(z.damageRatio) ?? 0 })), t.nachkomma);
     else zeilen = fuenf(alle.map((z) => ({ z, w: t.feld === 'kills' ? kills(z) : zahl(z[t.feld]) ?? 0 })), t.nachkomma);

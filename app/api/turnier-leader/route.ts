@@ -95,10 +95,11 @@ async function holeRoh(request: Request) {
     if (j?.replayStand) replayStand = j.replayStand;
     const platz = await epicPlatz;
     // Fehlt der Platz in den Replay-Werten (Auswertung laeuft noch), Epics Endplatz aus dem abgelegten Spieltag (epic-spieltage/<Saison>/<window>.json).
-    return (j?.zeilen ?? []).map((z) => (typeof z.platz === 'number' ? z : { ...z, platz: platz.get(z.epicId.toLowerCase()) ?? null }));
+    const zeilen = (j?.zeilen ?? []).map((z) => (typeof z.platz === 'number' ? z : { ...z, platz: platz.get(z.epicId.toLowerCase()) ?? null }));
+    return Object.assign(zeilen, { gesamt: (j as { gesamt?: number } | null)?.gesamt });
   };
   try {
-    const [d, kopf] = await Promise.all([baueLeader(hole), kopfVon(fenster, windows)]);
+    const [d, kopf] = await Promise.all([baueLeader(hole, { replayHinten: () => !!replayStand }), kopfVon(fenster, windows)]);
     return NextResponse.json({ ...d, kopf, replayStand, window: fenster, windows: windows.length > 1 ? windows : null });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
