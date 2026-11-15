@@ -4427,6 +4427,17 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
+              {/* Event MVP und Tournament Leaders des juengsten Turniers (Betreiber, 15.11.2026) - dieselbe Ansicht wie in den Player Stats. */}
+              {(() => {
+                const neu = [...kacheln].filter((kk) => kk.turnier.windowId && !kk.turnier.gesamt).sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0))
+                  .find((kk) => kk.turnier.region === 'EU') ?? kacheln[0];
+                return neu?.turnier.windowId ? (
+                  <div className="mt-8">
+                    <TurnierLeader key={neu.turnier.windowId} eventId={neu.turnier.eventId ?? ''} windowId={neu.turnier.windowId} />
+                  </div>
+                ) : null;
+              })()}
+
               {startFehlt && !listen.length && (
                 <p className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
                   <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
