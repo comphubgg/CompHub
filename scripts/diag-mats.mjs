@@ -74,3 +74,32 @@ for (const [sid, l] of Object.entries(schritte)) {
 for (const [sid, z] of Object.entries(sum)) console.log('SPIELER', (name[sid] ?? sid).padEnd(20), 'plus', z.plus.join('/'), 'minus', z.minus.join('/'), '| auf', z.auf.join('/'), 'axt', z.axt.join('/'), 'beides', z.beides.join('/'), 'rest', z.rest.join('/'), JSON.stringify(z.restListe));
 console.log('PAWN je Spieler [Updates, Location, RepMovement, Enc, EncBytes, LinVel, ReplayTS]', JSON.stringify(Object.entries(m.pawnZahl).slice(0, 6)));
 console.log('ENC Proben', JSON.stringify(m.encProben.slice(0, 6)));
+
+// 4) Exakte Pickup-Mengen (DataList des Pickups, MS_DIAG pickupMenge): je aufgehobenem Pickup die letzte Menge vor dem Aufheben, Abgleich mit dem Inventar.
+const lesungen = new Map();
+for (const r of m.pickupMenge ?? []) { if (typeof r[3] !== 'number') continue; (lesungen.get(r[1]) ?? lesungen.set(r[1], []).get(r[1])).push(r); }
+const fehlend = (m.pickupMenge ?? []).filter((r) => typeof r[3] !== 'number').length;
+console.log('MENGE Lesungen', (m.pickupMenge ?? []).length, 'ohne Menge', fehlend, 'Beispiele', JSON.stringify((m.pickupMenge ?? []).slice(0, 4)));
+const STOFFNAME = ['Wood', 'Stone', 'Metal'];
+const ergebnis = [];
+for (const [sid, l] of Object.entries(schritte)) {
+  const auf = aufgehoben.filter((e) => e.ziel === Number(sid));
+  const P = [0, 0, 0], C = [0, 0, 0], ohneMenge = [0, 0, 0], passt = [0, 0], verbraucht = new Set();
+  for (const e of auf) {
+    const s = STOFFNAME.findIndex((x) => e.nm.startsWith(x)); if (s < 0) continue;
+    const ls = (lesungen.get(e.kanal) ?? []).filter((r) => r[0] >= e.t0 - 0.05 && r[0] <= e.tAuf + 0.05);
+    if (!ls.length) { ohneMenge[s]++; continue; }
+    const menge = ls[ls.length - 1][3]; P[s] += menge;
+    // Gegenprobe: steigt das Inventar desselben Stoffs binnen -0,3..1,5 s um genau diese Menge (allein oder zusammen mit anderen Aufnahmen)?
+    const kand = l.filter((x, i) => x.s === s && x.d > 0 && x.t - e.tAuf >= -0.3 && x.t - e.tAuf <= 1.5 && !verbraucht.has(i));
+    const genau = l.findIndex((x, i) => x.s === s && x.d === menge && x.t - e.tAuf >= -0.3 && x.t - e.tAuf <= 1.5 && !verbraucht.has(i));
+    if (genau >= 0) { verbraucht.add(genau); passt[0]++; } else passt[1]++;
+  }
+  for (const x of l) if (x.d > 0) C[x.s] += x.d;
+  ergebnis.push({ sid, name: name[sid], C, P, F: C.map((c, i) => c - P[i]), ohneMenge, passt });
+}
+for (const e of ergebnis.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))) console.log('EXAKT', (e.name ?? e.sid).padEnd(20), 'gesammelt', e.C.join('/'), 'aufgehoben', e.P.join('/'), 'gefarmt(=Rest)', e.F.join('/'), 'Pickups ohne Menge', e.ohneMenge.join('/'), 'Inventar passt genau', e.passt.join(' von ').replace(' von ', ' ja, nein '));
+// Leser-Werte von heute zum Vergleich (extra: Gesammelt 6-8, Gefarmt 9-11, Bauten 14-16)
+for (const e of ergebnis.slice(0, 50)) { const x = d.extra?.[e.sid]; if (x) console.log('HEUTE', (e.name ?? e.sid).padEnd(20), 'farm', [9, 10, 11].map((i) => x[i]).join('/'), 'sam', [6, 7, 8].map((i) => x[i]).join('/'), 'bauten', [14, 15, 16].map((i) => x[i]).join('/')); }
+console.log('FELDER', JSON.stringify(m.felder));
+console.log('RM Proben', JSON.stringify((m.rmProben ?? []).slice(0, 12)));
