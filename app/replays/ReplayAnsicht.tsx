@@ -22,7 +22,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { inselKarte } from '@/app/replays/inselKarten';
 import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, ortBei, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
-import { EinstellungenKnopf, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
+import { EinstellungenKnopf, Flagge, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
 import SeitenPanel from '@/app/replays/SeitenPanel';
 import Analysen from '@/app/replays/Analysen';
 
@@ -64,7 +64,7 @@ const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/
 /** Bots (die KI-Gegner, die die Lobby auffuellen) haben keinen Namen und keine Werte - sie stehen als "Bot" da, nicht als Fragezeichen. */
 const nameVon = (p?: { bot?: boolean; name?: string }) => (p?.bot ? 'Bot' : ohneVorsatz(p?.name));
 const uhr = (s: number) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
-const GESCHWINDIGKEIT = [1, 4, 16, 64];
+const GESCHWINDIGKEIT = [1, 2, 5, 10, 20, 50];
 // 16-fach, darueber wird das Kartenbild nur Pixel (Betreiber, 30.10.2026: "zu wenig Zoom ... man erkennt die Spieler gar nicht") - die Zeichen bleiben dabei gleich gross.
 const MAX_ZOOM = 16;
 /** Wie lange der Kreis eines Knocks stehen bleibt (Sekunden). */
@@ -101,10 +101,12 @@ function XZeichen({ farbe, gross = 22 }: { farbe: string; gross?: number }) {
   );
 }
 
-export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf }: {
+export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf, games }: {
   match: RMatch; kartenBild: string | null; titel?: string; wertung?: RWertung | null;
   /** Kopf der rechten Leiste: Cup und Game */
   kopf?: string;
+  /** die Games des Spieltags (Auswahl unter der Karte) */
+  games?: Array<{ nr: number; href: string; aktiv: boolean }>;
   /** Epic-Konto, dessen Team von Anfang an markiert ist (die eigenen Spiele unter "Meine Cups"). */
   hervorheben?: string;
 }) {
@@ -159,7 +161,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
 
   const [zeit, setZeit] = useState(tStart);
   const [laeuft, setLaeuft] = useState(false);
-  const [tempo, setTempo] = useState(4);
+  const [tempo, setTempo] = useState(5);
   const [dreiD, setDreiD] = useState(false);
   const [knocks, setKnocks] = useState(true);
   const [teamWahl, setTeamWahl] = useState<number | null>(null);
@@ -168,6 +170,14 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   const [zeichnen, setZeichnen] = useState(false);
   const [leeren, setLeeren] = useState(0);
   const [legende, setLegende] = useState(false);
+  // Auge: Spielerleiste und Kill-Feed ausblenden. Vollbild fuer den Kartenrahmen.
+  const [ruhig, setRuhig] = useState(false);
+  const [vollbild, setVollbild] = useState(false);
+  useEffect(() => {
+    const f = () => setVollbild(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', f);
+    return () => document.removeEventListener('fullscreenchange', f);
+  }, []);
   // Flaggen nur aus unseren Profilen (die Antwort von /api/replay?match= bringt sie als laender: Epic-Konto -> Kuerzel).
   const laender = (match as { laender?: Record<string, string> }).laender;
   const landVon = useCallback((id?: number) => { const e = nachId.get(id ?? -1)?.epic; return e ? laender?.[e.toLowerCase()] : undefined; }, [nachId, laender]);
@@ -349,6 +359,26 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
       return klemme(z, r.width / 2 - (pzx(o.x) / 100) * r.width * z, r.height / 2 - (pzy(o.y) / 100) * r.height * z, r.width, r.height);
     });
   }, [ein.folgen, gewaehlt, zeit, sd.orte]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Leertaste: Abspielen / Pause (nicht in Eingabefeldern).
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || (e.target as HTMLElement | null)?.closest('input, textarea, select, button')) return;
+      e.preventDefault();
+      setLaeuft((l) => { if (!l && zeit >= tEnde) setZeit(tStart); return !l; });
+    };
+    document.addEventListener('keydown', taste);
+    return () => document.removeEventListener('keydown', taste);
+  }, [zeit, tEnde, tStart]);
+  /** Zu einem Ort auf der Karte heranfahren (Verlauf in der rechten Leiste). */
+  const zeigeOrt = (x: number, y: number) => {
+    const r = kartenRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setAnsicht((a) => { const z = Math.max(a.z, 4); return klemme(z, r.width / 2 - (pzx(x) / 100) * r.width * z, r.height / 2 - (pzy(y) / 100) * r.height * z, r.width, r.height); });
+  };
+  // Hoehe des Gewaehlten (Meter ueber dem Meer) und ob er noch im Bus sitzt.
+  const gewOrte = gewaehlt !== null ? sd.orte.get(gewaehlt) : undefined;
+  const gewHoehe = (() => { if (!gewOrte?.length) return null; let lo = 0; let hi = gewOrte.length - 1; let r = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (gewOrte[m][0] <= zeit) { r = m; lo = m + 1; } else hi = m - 1; } return r >= 0 && typeof gewOrte[r][3] === 'number' ? gewOrte[r][3] / 100 : null; })();
+  const imBus = gewaehlt !== null && typeof match.busAb === 'number' && zeit >= match.busAb && gewOrte?.length ? zeit < gewOrte[0][0] : false;
 
   const kreis = (c: Kreis | null, stil: { fuell?: string; rand: string; breite: number; strich?: string }) => (c ? (
     <circle cx={pzx(c.x)} cy={pzy(c.y)} r={pr(c.r)} fill={stil.fuell ?? 'none'} stroke={stil.rand}
@@ -512,7 +542,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                     style={{ left: `${pzx(e.x as number)}%`, top: `${pzy(e.y as number)}%`, width: 16, height: 16, background: farbeVon(e.opfer), transform: 'translate(-50%, -50%) scale(calc(1 / var(--z, 1)))', opacity: sichtbarTeam(e.opfer) ? Math.max(0.25, 1 - (zeit - e.t) / KNOCK_DAUER) : 0.1 }} />
                 ))}
 
-                {ein.spuren && <SpurEbene d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} pzx={pzx} pzy={pzy} farbeVon={farbeVon} sichtbar={sichtbarSpieler} ereignisse={ein.spurEreignisse} />}
+                {ein.spuren && <SpurEbene d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} pzx={pzx} pzy={pzy} farbeVon={farbeVon} sichtbar={sichtbarSpieler} ereignisse={ein.spurEreignisse} gewaehlt={gewaehlt} />}
                 {ortsnamenDa && ein.orte && ortsnamen.map((o) => (
                   <span key={o.name} className="pointer-events-none absolute z-[12] whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-white/85"
                     style={{ left: `${pzx(-BR_SPANNE + (o.links / 100) * 2 * BR_SPANNE)}%`, top: `${pzy(-BR_SPANNE + (o.oben / 100) * 2 * BR_SPANNE)}%`, transform: 'translate(-50%, -50%) scale(calc(var(--zs, 1) / var(--z, 1)))', textShadow: '0 0 3px #000, 0 0 2px #000' }}>{o.name}</span>
@@ -546,14 +576,23 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><path d="M10 1l3 7-3 2 4 9-9-11 4-2-3-5z" /></svg>{zone.phase}/{match.zonen.length}</span>
                   <span className={pille + ' !font-semibold'}>{zone.schrumpft ? <span className="text-violet-300"><T>Sturm zieht</T></span> : naechste ? <><T>Sturm in</T> {uhr((naechste.schrumpftAb ?? 0) - zeit)}</> : <T>Letzte Zone</T>}</span>
                 </div>
-                {ein.feed && <KartenFeed zeilen={kartenFeed} zeit={zeit} dauer={feedDauer} />}
+                {ein.feed && !ruhig && <KartenFeed zeilen={kartenFeed} zeit={zeit} dauer={feedDauer} />}
                 </div>
               );
             })()}
 
             {sd.da && (
               <KartenHud d={sd} zeit={zeit} s={gewaehlt !== null && nachId.get(gewaehlt) ? { id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod } : null}
-                farbe={farbeVon(gewaehlt ?? -1)} inventar={ein.inventar}
+                farbe={farbeVon(gewaehlt ?? -1)} inventar={ein.inventar && !ruhig}
+                vorName={gewaehlt !== null ? <Flagge land={landVon(gewaehlt)} /> : null}
+                zusatz={gewaehlt !== null && !ruhig ? (
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 text-[11px] font-semibold text-slate-300">
+                    {imBus && <span className="rounded bg-amber-400 px-1.5 text-[10px] font-black uppercase text-black"><T>On the bus</T> · <T>jumps at</T> {uhr((gewOrte?.[0]?.[0] ?? zeit) - tStart)}</span>}
+                    <span>Elims <b className="tabular-nums text-white">{feedEintraege.filter((f) => f.e.t <= zeit && f.gutschrift === gewaehlt).length}</b></span>
+                    {(() => { const pl = nachId.get(gewaehlt)?.platz; return pl && pl < 999 ? <span><T>Placement</T> <b className="tabular-nums text-white">#{pl}</b></span> : null; })()}
+                    {gewHoehe !== null && <span title={t('Height above sea level')}>▲ <b className="tabular-nums text-white">{Math.round(gewHoehe)} m</b></span>}
+                  </p>
+                ) : null}
                 steuerung={(
                   <div className="flex items-center gap-1.5 text-xs font-bold">
                     <button type="button" data-knopf onClick={() => { if (zeit >= tEnde) setZeit(tStart); setLaeuft((l) => !l); }} className="grid h-7 w-7 place-items-center rounded bg-white/15 hover:bg-white/25" aria-label={laeuft ? t('Pause') : t('Abspielen')}>{laeuft ? '❚❚' : '▶'}</button>
@@ -568,15 +607,18 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
             )}
 
             {/* Zeichnen: Leinwand ueber der Karte */}
-            <Zeichenflaeche an={zeichnen} leeren={leeren} />
-            {zeichnen && (
-              <div className="absolute bottom-3 left-3 z-40 flex gap-1" data-knopf>
-                <button type="button" data-knopf onClick={() => setLeeren((n) => n + 1)} className="rounded-lg border border-white/15 bg-black/75 px-2.5 py-1.5 text-[11px] font-bold text-slate-100 hover:border-sky-500"><T>Clear drawing</T></button>
-                <button type="button" data-knopf onClick={() => setZeichnen(false)} className="rounded-lg bg-sky-500 px-2.5 py-1.5 text-[11px] font-bold text-white"><T>Done</T></button>
-              </div>
-            )}
+            <Zeichenflaeche an={zeichnen} leeren={leeren} beenden={() => setZeichnen(false)} />
             {/* Einstellungen (Zahnrad) und Zoom */}
-            <div className="absolute right-3 top-3 z-[45]" data-knopf>
+            <div className="absolute right-3 top-3 z-[45] flex gap-1" data-knopf>
+              <button type="button" data-knopf onClick={() => setRuhig((x) => !x)} aria-label={t('Hide player bar and kill feed')} title={t('Hide player bar and kill feed')}
+                className={`grid h-9 w-9 place-items-center rounded-lg border bg-black/70 text-slate-100 transition hover:bg-white/10 ${ruhig ? 'border-sky-500 text-sky-300' : 'border-white/15'}`}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />{ruhig && <path d="M3 3l18 18" />}</svg>
+              </button>
+              <button type="button" data-knopf aria-label={t('Fullscreen')} title={t('Fullscreen')}
+                onClick={() => { try { if (document.fullscreenElement) void document.exitFullscreen(); else void kartenRef.current?.requestFullscreen(); } catch { /* ohne Vollbild */ } }}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 bg-black/70 text-slate-100 transition hover:bg-white/10">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{vollbild ? <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" /> : <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />}</svg>
+              </button>
               <EinstellungenKnopf e={ein} setze={setzeEin} ortsnamenDa={ortsnamenDa} spielerDa={sd.da}
                 zeichnen={zeichnen} setZeichnen={setZeichnen} zuruecksetzen={() => { setAnsicht({ z: 1, x: 0, y: 0 }); setLeeren((n) => n + 1); }}
                 legende={legende} setLegende={setLegende} />
@@ -708,14 +750,14 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
           {sd.da && (
             <div className="mt-3">
               <Analysen match={match} orte={sd.orte} tStart={tStart} tEnde={tEnde} zeit={zeit} echte={echte} nameVon={nameVon} landVon={landVon} farbeVon={farbeVon}
-                springe={springe} waehle={setGewaehlt} gewaehlt={gewaehlt} wertung={wertung} />
+                springe={springe} waehle={setGewaehlt} gewaehlt={gewaehlt} wertung={wertung} games={games} />
             </div>
           )}
         </div>
 
         {/* ------------------------------------------------ Seitenleiste: Spieler | Kill-Feed (app/replays/SeitenPanel) */}
         <SeitenPanel match={match} sd={sd} zeit={zeit} tStart={tStart} nachId={nachId} echte={echte} farbeVon={farbeVon} nameVon={nameVon} landVon={landVon}
-          feed={feedEintraege} schadenBis={schadenBis} gewaehlt={gewaehlt} waehle={setGewaehlt} springe={springe} kopf={kopf ?? titel} matchId={(match as { match?: string }).match}
+          feed={feedEintraege} schadenBis={schadenBis} zeigeOrt={zeigeOrt} gewaehlt={gewaehlt} waehle={setGewaehlt} springe={springe} kopf={kopf ?? titel} matchId={(match as { match?: string }).match}
           extraReiter={[
             ...(treffer.length ? [{ k: 'treffer', name: 'Hits', inhalt: (
               trefferBis.length ? (

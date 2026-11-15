@@ -9,7 +9,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { Fach, artVon, bildVon, istVorrat, wertBei, type Aufbereitet } from '@/app/replays/SpielerEbene';
+import { Fach, artVon, bildVon, hpBei, istVorrat, ortBei, wertBei, type Aufbereitet } from '@/app/replays/SpielerEbene';
 import { Flagge, ElimSymbol, KnockSymbol, WaffenSymbol } from '@/app/replays/Werkzeuge';
 import type { RMatch, RSpieler, REreignis } from '@/app/replays/ReplayAnsicht';
 
@@ -24,6 +24,8 @@ interface Props {
   farbeVon: (id?: number) => string; nameVon: (p?: RSpieler) => string; landVon: (id?: number) => string | undefined;
   feed: FeedEintrag[]; schadenBis: Map<number, number>;
   gewaehlt: number | null; waehle: (id: number | null) => void; springe: (t: number) => void;
+  /** zu einem Ort heranfahren */
+  zeigeOrt?: (x: number, y: number) => void;
   kopf?: string; matchId?: string;
   /** weitere Reiter (Treffer, Teams) aus der Ansicht */
   extraReiter: Array<{ k: string; name: string; inhalt: ReactNode }>;
@@ -111,7 +113,10 @@ export default function SeitenPanel(p: Props) {
                           <span className="flex min-w-0 items-center gap-2">
                             <span title={z} className={`h-2 w-2 shrink-0 rounded-full ${z === 'tot' ? 'bg-rose-500' : z === 'unten' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                             <Flagge land={p.landVon(s.id)} />
-                            <span className={`truncate text-[12px] font-semibold ${z === 'tot' ? 'text-slate-500' : 'text-slate-100'}`}>{p.nameVon(s)}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block truncate text-[12px] font-semibold ${z === 'tot' ? 'text-slate-500' : 'text-slate-100'}`}>{p.nameVon(s)}</span>
+                              {z !== 'tot' && p.sd.da && <MiniBalken hp={hpBei(p.sd.leben.get(s.id), p.zeit)} schild={p.sd.schild.size ? wertBei(p.sd.schild.get(s.id), p.zeit) ?? 0 : null} />}
+                            </span>
                           </span>
                           <span className="text-right text-[12px] font-bold tabular-nums text-slate-200">{elimsBis.get(s.id) ?? 0}</span>
                           <span className="text-right text-[12px] tabular-nums text-slate-400">{Math.round(p.schadenBis.get(s.id) ?? 0)}</span>
@@ -131,41 +136,78 @@ export default function SeitenPanel(p: Props) {
   );
 }
 
+/** Was der Taeter beim Knock/Kill in der Hand hielt (Bauplan -> Gegenstand mit Seltenheit). */
+function waffeBei(p: Props, id: number | undefined, t: number): string | null {
+  if (id === undefined) return null;
+  const nr = wertBei(p.sd.hand.get(id), t);
+  const roh = nr === null ? null : p.sd.waffenNamen[nr] ?? null;
+  return roh && !/BuildingTool|EditingTool/i.test(roh) ? roh : null;
+}
+
 function FeedListe(p: Props) {
-  const zeilen = p.feed.filter((f) => f.e.t <= p.zeit && f.e.art !== 'auf' && !f.rueckkehr).reverse().slice(0, 120);
+  // Wie oft ein Spieler bis zu diesem Eintrag gutgeschrieben bekam (laufender Elim-Zaehler) - in Spielreihenfolge gerechnet.
+  const zaehler = new Map<number, number>(); const nr = new Map<FeedEintrag, number>();
+  for (const f of p.feed) if (f.gutschrift !== null) { const n = (zaehler.get(f.gutschrift) ?? 0) + 1; zaehler.set(f.gutschrift, n); nr.set(f, n); }
+  const alle = p.feed.filter((f) => f.e.art !== 'auf' && !f.rueckkehr);
+  const elims = alle.filter((f) => f.e.art === 'tot' && f.e.t <= p.zeit).length;
+  const zeilen = [...alle].reverse().slice(0, 200);
   if (!zeilen.length) return <p className="px-4 py-6 text-sm text-slate-500"><T>Nothing has happened yet. Press play.</T></p>;
   return (
+    <>
+    <p className="border-b border-white/[0.06] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{elims} Elims</p>
     <ul>
       {zeilen.map((f, i) => {
         const von = f.e.taeter !== undefined && f.e.taeter !== f.e.opfer ? p.nachId.get(f.e.taeter) : undefined;
         const an = p.nachId.get(f.e.opfer ?? -1);
+        const waffe = von ? waffeBei(p, von.id, f.e.t) : null;
         return (
-          <li key={`${f.e.t}-${i}`}>
-            <button type="button" onClick={() => p.springe(f.e.t)} className="flex w-full items-center gap-1.5 border-b border-white/[0.04] px-3 py-1.5 text-left text-[12px] transition hover:bg-sky-500/[0.06]">
+          <li key={`${f.e.t}-${i}`} className={f.e.t > p.zeit ? 'opacity-40' : ''}>
+            <button type="button" onClick={() => { p.springe(f.e.t); if (typeof f.e.x === 'number' && typeof f.e.y === 'number' && (f.e.x || f.e.y)) p.zeigeOrt?.(f.e.x, f.e.y); }} className="flex w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 border-b border-white/[0.04] px-3 py-1.5 text-left text-[12px] transition hover:bg-sky-500/[0.06]">
               <span className="w-9 shrink-0 text-[10px] tabular-nums text-slate-500">{uhr(f.e.t - p.tStart)}</span>
               {von ? <><Flagge land={p.landVon(von.id)} klein /><b className="max-w-[34%] truncate" style={{ color: p.farbeVon(von.id) }}>{p.nameVon(von)}</b></> : <span className="text-slate-500"><T>Storm</T></span>}
               {f.e.art === 'tot' ? <ElimSymbol /> : <KnockSymbol />}
               <WaffenSymbol waffe={f.waffe} gross={15} />
               <Flagge land={p.landVon(an?.id)} klein /><b className="min-w-0 truncate" style={{ color: p.farbeVon(an?.id) }}>{p.nameVon(an)}</b>
               {typeof f.e.abstand === 'number' && f.e.abstand > 0 && <span className="ml-auto shrink-0 text-[10px] tabular-nums text-slate-500">{Math.round(f.e.abstand / 100)} m</span>}
+              {(waffe || nr.get(f)) && (
+                <span className="flex w-full items-center gap-1.5 pl-[42px] text-[10px] text-slate-500">
+                  {waffe && <><Fach roh={waffe} gross={16} /><span style={{ color: seltenFarbe(waffe) }}>{bildVon(waffe)?.name ?? artVon(waffe).name}</span></>}
+                  {nr.get(f) ? <span className="ml-auto rounded bg-white/[0.06] px-1.5 font-semibold text-slate-300">{p.nameVon(p.nachId.get(f.gutschrift ?? -1))} · {nr.get(f)}</span> : null}
+                </span>
+              )}
             </button>
           </li>
         );
       })}
     </ul>
+    </>
+  );
+}
+
+const SELTEN: Record<string, string> = { C: '#cbd5e1', UC: '#4ade80', R: '#38bdf8', VR: '#c084fc', SR: '#fbbf24', UR: '#fbbf24' };
+function seltenFarbe(roh: string) { const m = roh.match(/_(C|UC|R|VR|SR|UR)(?:_|$)/); return SELTEN[m?.[1] ?? ''] ?? '#cbd5e1'; }
+
+function MiniBalken({ hp, schild }: { hp: number | null; schild: number | null }) {
+  return (
+    <span className="mt-0.5 flex w-24 gap-[2px]">
+      {schild !== null && <span className="h-1 flex-1 overflow-hidden rounded-sm bg-white/10"><span className="block h-full bg-blue-500" style={{ width: `${Math.max(0, Math.min(100, schild))}%` }} /></span>}
+      <span className="h-1 flex-1 overflow-hidden rounded-sm bg-white/10"><span className="block h-full bg-lime-600" style={{ width: `${Math.max(0, Math.min(100, hp ?? 0))}%` }} /></span>
+    </span>
   );
 }
 
 /* ------------------------------------------------------------------ Spieler-Seite */
 
 type Art = 'damage' | 'loot' | 'heal' | 'zone' | 'kampf' | 'sonst';
-interface VerlaufZeile { t: number; art: Art; text: ReactNode; wert?: ReactNode; bild?: string }
+interface VerlaufZeile { t: number; art: Art; text: ReactNode; wert?: ReactNode; bild?: string; ort?: { x: number; y: number }; trenner?: boolean }
 
 function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
   const [reiter, setReiter] = useState<'verlauf' | 'waffen'>('verlauf');
-  const [filter, setFilter] = useState<'alle' | 'damage' | 'loot' | 'heal' | 'zone'>('alle');
+  const [filter, setFilter] = useState<'alle' | 'damage' | 'loot' | 'heal'>('alle');
+  const [zonenZeigen, setZonenZeigen] = useState(true);
   const { s, sd, match } = p;
-  const sch = match.schaden?.find((x) => x.id === s.id);
+  // Bis zur aktuellen Zeit (wie die Kacheln): eingesteckter Schaden ohne Treffer auf den schon Umgehauenen.
+  const genommenBis = useMemo(() => (match.treffer ?? []).reduce((a, h) => (h[2] === s.id && h[1] !== s.id && h[0] <= p.zeit && !h[5] ? a + h[3] : a), 0), [match.treffer, s.id, p.zeit]);
 
   const verlauf = useMemo<VerlaufZeile[]>(() => {
     const z: VerlaufZeile[] = [];
@@ -183,8 +225,10 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
       if (l[1] !== s.id || l[5] !== 1) continue;
       const roh = sd.namen[l[2]] ?? '';
       if (istVorrat(roh)) continue;
-      const ausTruhe = truhen.some((x) => l[0] - x[0] >= -0.5 && l[0] - x[0] <= 5 && Math.hypot(x[1] - l[3], x[2] - l[4]) < 600);
-      z.push({ t: l[0], art: 'loot', bild: roh, text: <><T>Picked up</T> <b className="text-slate-100">{bildVon(roh)?.name ?? artVon(roh).name}</b></>, wert: <span className="text-[10px] text-slate-500"><T>{ausTruhe ? 'container' : 'floor'}</T></span> });
+      // Herkunft: eine Kiste, die er kurz davor ganz in der Naehe geoeffnet hat (Art 0 Truhe, 1 Munitionskiste), sonst Boden.
+      const kiste = truhen.find((x) => x[4] !== 2 && l[0] - x[0] >= -0.5 && l[0] - x[0] <= 5 && Math.hypot(x[1] - l[3], x[2] - l[4]) < 600);
+      const herkunft = kiste ? (kiste[4] === 1 ? 'ammo box' : 'chest') : 'floor';
+      z.push({ t: l[0], art: 'loot', bild: roh, ort: { x: l[3], y: l[4] }, text: <><T>Picked up</T> <b style={{ color: seltenFarbe(roh) }}>{bildVon(roh)?.name ?? artVon(roh).name}</b></>, wert: <span className="text-[10px] text-slate-500"><T>{herkunft}</T></span> });
     }
     // Treffer: aufeinanderfolgende auf/von denselben Gegner innerhalb von 3 s zusammengefasst.
     const treffer = (match.treffer ?? []).filter((h) => h[1] === s.id || h[2] === s.id).sort((a, b) => a[0] - b[0]);
@@ -192,8 +236,9 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
     const schliesse = () => {
       if (!grp) return;
       const g = grp;
+      const o = ortBei(sd.orte.get(g.gegner), g.t);
       z.push({
-        t: g.t, art: 'damage',
+        t: g.t, art: 'damage', ort: o ? { x: o.x, y: o.y } : undefined,
         text: g.gemacht ? <><T>Damage dealt to</T> {name(g.gegner)}{g.n > 1 ? <span className="text-slate-500"> (x{g.n})</span> : null}</> : <><T>Damage taken from</T> {name(g.gegner)}{g.n > 1 ? <span className="text-slate-500"> (x{g.n})</span> : null}</>,
         wert: <b className={g.gemacht ? (g.schild >= g.summe / 2 ? 'text-sky-300' : 'text-emerald-300') : 'text-rose-400'}>{g.gemacht ? '+' : '−'}{Math.round(g.summe)}</b>,
       });
@@ -211,8 +256,9 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
       const e = f.e;
       if (e.art === 'auf' || f.rueckkehr) continue;
       const m = typeof e.abstand === 'number' && e.abstand > 0 ? <span className="text-slate-500"> ({Math.round(e.abstand / 100)} m)</span> : null;
-      if (e.taeter === s.id && e.opfer !== s.id) z.push({ t: e.t, art: 'kampf', text: <>{e.art === 'tot' ? <T>Eliminated</T> : <T>Knocked</T>} {name(e.opfer)}{m}</>, wert: e.art === 'tot' ? <ElimSymbol gross={14} /> : <KnockSymbol gross={14} /> });
-      else if (e.opfer === s.id) z.push({ t: e.t, art: 'kampf', text: <>{e.art === 'tot' ? <T>Eliminated by</T> : <T>Knocked by</T>} {e.taeter !== undefined && e.taeter !== s.id ? name(e.taeter) : <T>storm / fall</T>}{m}</>, wert: e.art === 'tot' ? <ElimSymbol gross={14} /> : <KnockSymbol gross={14} /> });
+      const ort = typeof e.x === 'number' && typeof e.y === 'number' && (e.x || e.y) ? { x: e.x, y: e.y } : undefined;
+      if (e.taeter === s.id && e.opfer !== s.id) z.push({ t: e.t, art: 'kampf', ort, text: <>{e.art === 'tot' ? <T>Eliminated</T> : <T>Knocked</T>} {name(e.opfer)}{m}</>, wert: e.art === 'tot' ? <ElimSymbol gross={14} /> : <KnockSymbol gross={14} /> });
+      else if (e.opfer === s.id) z.push({ t: e.t, art: 'kampf', ort, text: <>{e.art === 'tot' ? <T>Eliminated by</T> : <T>Knocked by</T>} {e.taeter !== undefined && e.taeter !== s.id ? name(e.taeter) : <T>storm / fall</T>}{m}</>, wert: e.art === 'tot' ? <ElimSymbol gross={14} /> : <KnockSymbol gross={14} /> });
     }
     // Heilung: Anstiege von Schild und Leben, innerhalb von 4 s zusammengefasst.
     const heil = (l: number[][] | undefined, was: string, farbe: string) => {
@@ -239,10 +285,12 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
       drin = neu; seit = x[1];
       z.push({ t: x[1], art: 'zone', text: <T>{neu ? 'Entered the storm' : 'Left the storm'}</T> });
     }
+    // Zonen als Trenner: "Zone n schliesst" zum Beginn jedes Schrumpfens.
+    match.zonen.forEach((zo, i) => { if (typeof zo.schrumpftAb === 'number') z.push({ t: zo.schrumpftAb, art: 'zone', trenner: true, text: <>Zone {i + 1} <T>closing</T></> }); });
     return z.sort((a, b) => a.t - b.t);
   }, [s.id, sd, match, p]);
 
-  const gezeigt = verlauf.filter((v) => filter === 'alle' || v.art === filter || (filter === 'damage' && v.art === 'kampf'));
+  const gezeigt = verlauf.filter((v) => (v.art === 'zone' ? zonenZeigen : filter === 'alle' || v.art === filter || (filter === 'damage' && v.art === 'kampf')));
 
   // Waffen: jeder Treffer der Waffe zugeordnet, die er da in der Hand hielt.
   const waffen = useMemo(() => {
@@ -279,9 +327,9 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
         </p>
         <div className="mt-2.5 grid grid-cols-4 gap-1.5">
           {kachel('Placement', s.platz && s.platz < 999 ? `#${s.platz}` : '–')}
-          {kachel('Elims', s.kills ?? p.elims)}
-          {kachel('Dmg dealt', Math.round(sch?.gemachtOhneBoden ?? sch?.gemacht ?? 0))}
-          {kachel('Dmg taken', Math.round(sch?.genommen ?? 0))}
+          {kachel('Elims', p.elims)}
+          {kachel('Dmg dealt', Math.round(p.schadenBis.get(s.id) ?? 0))}
+          {kachel('Dmg taken', Math.round(genommenBis))}
         </div>
       </div>
       <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
@@ -292,14 +340,19 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
       {reiter === 'verlauf' ? (
         <>
           <div className="flex flex-wrap gap-1 p-2">
-            {([['alle', 'All'], ['damage', 'Damage'], ['loot', 'Loot'], ['heal', 'Heals'], ['zone', 'Zone']] as const).map(([k, n]) => (
+            {([['alle', 'All'], ['damage', 'Damage'], ['loot', 'Loot'], ['heal', 'Heals']] as const).map(([k, n]) => (
               <button key={k} type="button" onClick={() => setFilter(k)} className={chip(filter === k)}><T>{n}</T></button>
             ))}
+            <button type="button" onClick={() => setZonenZeigen((x) => !x)} className={`ml-auto ${chip(zonenZeigen)}`} aria-pressed={zonenZeigen}><T>Zone</T></button>
           </div>
           <ul className="max-h-[520px] overflow-y-auto">
-            {gezeigt.map((v, i) => (
+            {gezeigt.map((v, i) => (v.trenner ? (
+              <li key={i} className={`border-y border-violet-500/20 bg-violet-500/[0.07] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-300 ${v.t > p.zeit ? 'opacity-45' : ''}`}>
+                <button type="button" onClick={() => p.springe(v.t)} className="w-full text-left">{v.text} · {uhr(v.t - p.tStart)}</button>
+              </li>
+            ) : (
               <li key={i}>
-                <button type="button" onClick={() => p.springe(v.t)}
+                <button type="button" onClick={() => { p.springe(v.t); if (v.ort) p.zeigeOrt?.(v.ort.x, v.ort.y); }}
                   className={`flex w-full items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 text-left text-[12px] transition hover:bg-sky-500/[0.06] ${v.t > p.zeit ? 'opacity-45' : ''}`}>
                   <span className="w-9 shrink-0 text-[10px] tabular-nums text-slate-500">{uhr(v.t - p.tStart)}</span>
                   {v.bild ? <Fach roh={v.bild} gross={22} /> : null}
@@ -307,7 +360,7 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
                   {v.wert && <span className="shrink-0 tabular-nums">{v.wert}</span>}
                 </button>
               </li>
-            ))}
+            )))}
             {!gezeigt.length && <li className="px-4 py-6 text-sm text-slate-500"><T>No events.</T></li>}
           </ul>
         </>
@@ -317,9 +370,9 @@ function SpielerSeite(p: Props & { s: RSpieler; elims: number }) {
             <li key={w.roh} className="mb-1.5 flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-black/30 p-2">
               {w.roh !== '?' ? <Fach roh={w.roh} gross={32} /> : <span className="h-8 w-8 rounded-md bg-white/5" />}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-bold text-slate-100">{w.roh === '?' ? <T>Unknown</T> : bildVon(w.roh)?.name ?? artVon(w.roh).name}</span>
+                <span className="block truncate text-[12px] font-bold" style={{ color: w.roh === '?' ? '#e2e8f0' : seltenFarbe(w.roh) }}>{w.roh === '?' ? <T>Unknown</T> : bildVon(w.roh)?.name ?? artVon(w.roh).name}</span>
                 <span className="mt-1 block h-1.5 overflow-hidden rounded bg-white/5"><span className="block h-full bg-sky-500" style={{ width: `${(w.schaden / maxSchaden) * 100}%` }} /></span>
-                <span className="mt-1 block text-[10px] text-slate-500">{w.treffer} <T>hits</T> · {w.kopf} <T>headshots</T>{w.knocks ? <> · {w.knocks} <T>finishing hits</T></> : null}</span>
+                <span className="mt-1 block text-[10px] text-slate-500">{w.treffer} <T>hits to players</T> · {w.kopf} <T>headshots</T>{w.knocks ? <> · {w.knocks} <T>finishing hits</T></> : null}</span>
               </span>
               <span className="shrink-0 text-[13px] font-black tabular-nums text-slate-50">{Math.round(w.schaden)}</span>
             </li>
