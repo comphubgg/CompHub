@@ -506,8 +506,11 @@ export async function statsAntwort(spielerEingabe: string, cupWahl?: string, fra
       const c = katalogCups.find((x) => x.id === cupWahl)
         ?? katalogCups.filter((x) => x.titel.toLowerCase().includes(cupWahl.toLowerCase())).sort((a, b) => zuletzt(b) - zuletzt(a))[0];
       const fenster = new Set(c ? fensterVon(c).map((f) => f.windowId) : []);
-      zielFenster = alle.find((e) => fenster.has(e.windowId))?.windowId ?? null;
-    } else zielFenster = alle[0]?.windowId ?? null;
+      zielFenster = (alle.find((e) => fenster.has(e.windowId) && e.platz) ?? alle.find((e) => fenster.has(e.windowId)))?.windowId ?? null;
+    } else {
+      // Der juengste Spieltag mit Platz (Probe 15.11.2026, "Focus yhyh": das Profil fuehrte den Trios Cash Cup Event 2 EU ohne Platz - dort spielte er nicht).
+      zielFenster = (alle.find((e) => e.platz) ?? alle[0])?.windowId ?? null;
+    }
     const karte = zielFenster ? await einCup(konto.epicId, zielFenster, alle, katalogCups, fragender).catch((e) => {
       console.error('[discord] /stats Einzelansicht:', (e as Error).message);
       return null;

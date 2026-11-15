@@ -100,6 +100,8 @@ export async function spielerKarte(wahl: KartenWahl): Promise<{ embeds: Einbettu
       for (const x of dazu) for (const m of x?.ok ? x.mitglieder : []) if (!d.mitglieder.some((y) => y.id === m.id)) d.mitglieder.push({ ...m, ich: false });
     }
   }
+  // Weder bei Epic noch in den Replays dabei und kein gespeicherter Platz: nicht so tun, als haette er gespielt - der Aufrufer zeigt die Liste.
+  if (!d.dabei && !d.eintrag && !w.verknuepft && !w.gespeichert) return null;
   const mitglieder = [...d.mitglieder].sort((a, b) => Number(b.ich) - Number(a.ich));
   const solo = mitglieder.length === 1;
   const [raengeAntwort, kontext] = await Promise.all([
