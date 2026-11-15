@@ -168,6 +168,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
 reader.Zaehle(busAb);
 if (SchadenLeser.DiagId is int pruefId) reader.Pruefbericht(pruefId, busAb);
 if (SchadenLeser.DiagId is not null) reader.FelderZeigen("ClientRemote|HitMarker|DamagedResource|Harvest|Marker");
+if (SchadenLeser.MsDiag) reader.FelderZeigen("FortPickup|ItemizationCoreRuntime|RootItemization|PlayerPawn_Athena|BroadcastRemote|Harvest|ResourceBuilding|PawnReplay|FortInventory");
 reader.Tode = replay.KillFeed.Where(k => !k.IsDowned && !k.IsRevived && k.DeathLocation is not null).Select(k => (k.ReplicatedWorldTimeSecondsDouble ?? 0, (double)k.DeathLocation.X, (double)k.DeathLocation.Y)).ToList();
 if (SchadenLeser.DiagId is not null) {
   // Welche Felder hat die Treffer-Ereignisart in diesem Replay? (Epic kann Felder ergaenzen, die das Modell der Bibliothek nicht kennt.)
@@ -412,6 +413,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   bau = reader.Bauten.Count > 0 ? reader.Bauten.Select(kv => new { team = kv.Key, holz = kv.Value.Holz, stein = kv.Value.Stein, metall = kv.Value.Metall, wand = kv.Value.Wand, boden = kv.Value.Boden, treppe = kv.Value.Treppe, dach = kv.Value.Dach, sonst = kv.Value.Sonst, besitzer = kv.Value.MitBesitzer, bearbeitet = kv.Value.Bearbeitet }).ToList() : null,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
   extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten, streckeVoll = reader.StreckeJe(busAb),
+  msDiag = SchadenLeser.MsDiag ? reader.MsDiagFertig() : null,
 }, Formatting.None, einst));
 }
 
@@ -760,6 +762,7 @@ class SchadenLeser : ReplayReader {
       if (menge is not int m) { InventarOhneMenge++; return; }
       inventarStand.TryGetValue("s" + schluessel, out var alt);
       inventarStand["s" + schluessel] = m;
+      if (MsDiag && Zeit() is double tmd) MsInv.Add(new object[] { Math.Round(tmd, 2), wurzel, g.A, g.B, stoff, m, pfadVonAkteur.GetValueOrDefault(wurzel) });
       if (m != alt && Zeit() is double t) matsSchritte.Add((wurzel, t, stoff, m - alt));
       return;
     }
@@ -1165,6 +1168,7 @@ class SchadenLeser : ReplayReader {
     var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
     if (name is not null) lootNameVonKanal[kanal] = name;
     else lootNameVonKanal.TryGetValue(kanal, out name);
+    if (MsDiag) MsPickupNotieren(kanal, g, name, t);
     // Aus einer Kiste geworfen (das Kennzeichen kommt im Replay oft erst spaeter, zeitlich und oertlich unbrauchbar - nur das Kennzeichen je Kanal zaehlt).
     if (Wert("bTossedFromContainer") is bool raus && raus) kistenKanal.Add(kanal);
     var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition") ?? (Wert("ReplicatedMovement") is Unreal.Core.Models.FRepMovement rm2 ? rm2.Location : null)) as Unreal.Core.Models.FVector;
@@ -1182,6 +1186,36 @@ class SchadenLeser : ReplayReader {
     Eintrag(Wert("PickupTarget"), 1);
     Eintrag(Wert("PawnWhoDroppedPickup"), 0);
   }
+  /*
+   * Diagnose MS_DIAG (15.11.2026, Zweig exakt-mats-strecke): was der Strom fuer exakte Mats und exakte Strecke wirklich hergibt.
+   * MsPickups: jedes Update eines Mats-Pickups mit allen belegten Feldern; MsInv: jede Mengen-Aenderung von Holz/Stein/Metall in jedem Inventar (auch ohne Spieler);
+   * MsPawnZahl je Spieler: [Updates, mit Location, mit ReplicatedMovement, mit EncryptedPawnReplayData, Bytes darin, mit LinearVelocity, mit ReplayLastTransformUpdateTimeStamp].
+   */
+  public readonly List<object[]> MsPickups = new();
+  public readonly List<object[]> MsInv = new();
+  readonly Dictionary<int, double[]> msPawnZahl = new();
+  readonly List<object[]> msEncProben = new();
+  void MsPickupNotieren(uint kanal, INetFieldExportGroup g, string name, double t) {
+    if (name is null || !System.Text.RegularExpressions.Regex.IsMatch(name, "^(Wood|Stone|Metal)ItemData")) return;
+    object W(string k) { try { var v = g.GetType().GetProperty(k)?.GetValue(g); if (v is null) return null; var vv = v.GetType().GetProperty("Value")?.GetValue(v); return vv ?? (v is ValueType || v is string ? v : v.ToString()); } catch { return null; } }
+    var akteur = kanalAkteur.TryGetValue(kanal, out var ak) ? ak : 0u;
+    object Wer(object a) { if (a is null) return null; try { var u = Convert.ToUInt32(a); return spielerVonAkteur.TryGetValue(u, out var sid) ? sid : -(long)u; } catch { return null; } }
+    MsPickups.Add(new object[] { Math.Round(t, 2), kanal, akteur, name, W("Count"), W("A"), W("B"), W("C"), W("D"), Wer(W("PickupTarget")), W("bPickedUp"), W("bTossedFromContainer"), Wer(W("PawnWhoDroppedPickup")), W("Owner"), W("ItemOwner"), W("OptionalOwnerID"), W("bCombinePickupsWhenTossCompletes"), W("CombineTarget") });
+  }
+  void MsPawn(uint kanal, FortniteReplayReader.Models.NetFieldExports.PlayerPawn p) {
+    if (Hole(VonFigur, kanal)?.Id is not int id) return;
+    if (!msPawnZahl.TryGetValue(id, out var z)) msPawnZahl[id] = z = new double[7];
+    z[0]++; if (p.Location is not null) z[1]++; if (p.ReplicatedMovement is not null) z[2]++;
+    if (p.EncryptedPawnReplayData is not null) {
+      z[3]++;
+      var mem = (ReadOnlyMemory<byte>?)p.EncryptedPawnReplayData.GetType().GetProperty("EncryptedReplayData")?.GetValue(p.EncryptedPawnReplayData);
+      var len = mem?.Length ?? -1; z[4] += Math.Max(0, len);
+      if (msEncProben.Count < 40 && mem is ReadOnlyMemory<byte> mm) msEncProben.Add(new object[] { Math.Round(Zeit() ?? 0, 2), id, len, Convert.ToHexString(mm.Span[..Math.Min(64, mm.Length)]) });
+    }
+    if (p.LinearVelocity is not null) z[5]++; if (p.ReplayLastTransformUpdateTimeStamp is not null) z[6]++;
+  }
+  public object MsDiagFertig() => new { pickups = MsPickups, inv = MsInv, pawnZahl = msPawnZahl, encProben = msEncProben,
+    wurzelFigur = inventarFiguren.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value.Select(f => spielerVonAkteur.TryGetValue(f, out var sid) ? sid : -1).ToList()) };
   /*
    * Wohin jemand schiesst: jeder Einschlag mit Ort - auf Spieler (Location, dort steht in dem Moment auch das Ziel) und auf Bauteile, Baeume, Autos
    * (NonPlayerLocation). [Zeit, Schuetze, x, y, Schaden, Art: 0 Bauteil/Umgebung, 1 Spieler, 2 Spieler Kopftreffer].
@@ -1247,6 +1281,7 @@ class SchadenLeser : ReplayReader {
     }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
       BauZustandNotieren(channelIndex, pawn);
+      if (MsDiag) MsPawn(channelIndex, pawn);
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);
         if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); if (st) imSturm.Add(pid2); else imSturm.Remove(pid2); }
@@ -1461,6 +1496,7 @@ class SchadenLeser : ReplayReader {
     if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null && (x.StartsWith("Actor") || x.StartsWith("Component") || x.StartsWith("BoneName") || x.StartsWith("PhysMat") || x.StartsWith("Item") || x.StartsWith("Hit") || x.StartsWith("Blocking")))))));
   }
   public int Nachgetragen, UeberAkteur;
+  public static readonly bool MsDiag = Environment.GetEnvironmentVariable("MS_DIAG") is not null;
   public static readonly int? DiagId = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_DIAG"), out var dgi) ? dgi : null;
   public readonly Dictionary<string, (int, double)> Diag = new();
   public readonly List<(double t, int von, int an, bool schild, bool fatal, bool aktiv)> NullTreffer = new();
