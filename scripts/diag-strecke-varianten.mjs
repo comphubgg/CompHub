@@ -28,7 +28,7 @@ for (const p of d.spieler ?? []) {
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1], b = pts[i];
     if (b[0] < busAb || a[7] !== b[7]) continue;
-    const dt = b[0] - a[0]; if (dt <= 0) continue;
+    const dt = Math.max(b[0] - a[0], 0.001);
     const d2 = Math.hypot(b[1] - a[1], b[2] - a[2]) / 100; const d3 = Math.hypot(b[1] - a[1], b[2] - a[2], b[3] - a[3]) / 100;
     if (d2 / dt > 120) { spruenge++; continue; }
     const modus = String(z('ReplicatedMovementMode', a[0]) ?? '?');
@@ -50,5 +50,22 @@ for (let k = 0; k < VAR.length; k++) {
   if (!r.length) continue;
   const ab = r.map((x) => Math.abs(1 - x));
   console.log('VARIANTE', VAR[k].padEnd(26), 'Spieler', r.length, 'Median', r[r.length >> 1].toFixed(4), 'min', r[0].toFixed(4), 'max', r[r.length - 1].toFixed(4), 'mittl.|Abw|', (ab.reduce((s, x) => s + x, 0) / ab.length * 100).toFixed(2) + '%', '<=0,1%', ab.filter((x) => x <= 0.001).length, '<=1%', ab.filter((x) => x <= 0.01).length);
+}
+// Fuer die Anpassung: je Spieler die Strecke je Modus (2D/3D), vor und nach der ersten Landung, dt = 0 mitgezaehlt, Spruenge ueber 30 m je Update getrennt.
+for (const p of d.spieler ?? []) {
+  const e = epicVon[String(p.epic).toLowerCase()]; const pts = spur[p.id]; if (e == null || !pts?.length) continue;
+  const z = zustandsLeser(zust[p.id]); const k = {}; let gelandet = false; let sprung = 0, sprungM = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    if (b[0] < busAb || a[7] !== b[7]) continue;
+    const d2 = Math.hypot(b[1] - a[1], b[2] - a[2]) / 100; const d3 = Math.hypot(b[1] - a[1], b[2] - a[2], b[3] - a[3]) / 100;
+    if (d3 > 30) { sprung++; sprungM += d2; continue; }
+    const modus = String(z('ReplicatedMovementMode', a[0]) ?? '?');
+    if (modus === '1') gelandet = true;
+    const fz = (z('Vehicle', a[0]) ?? '0') !== '0' ? 'F' : '';
+    const key = (gelandet ? 'n' : 'v') + modus + fz;
+    const x = k[key] ??= [0, 0]; x[0] += d2; x[1] += d3;
+  }
+  console.log('FIT', JSON.stringify({ m: match.slice(0, 6), n: p.name, e: Math.round(e * 10) / 10, sprung, sprungM: Math.round(sprungM), k: Object.fromEntries(Object.entries(k).map(([a, b]) => [a, b.map((y) => Math.round(y * 10) / 10)])) }));
 }
 for (const x of ergebnis.slice(0, 40)) console.log('VARIANTE-SPIELER', x.name, 'epic', Math.round(x.e), x.v.map((y, i) => `${i}:${(y / x.e).toFixed(4)}`).join(' '), 'spruenge', x.spruenge, 'n', x.n);

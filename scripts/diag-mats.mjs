@@ -95,6 +95,8 @@ for (const [sid, l] of Object.entries(schritte)) {
     pool.push({ s, t: e.tAuf, rest: vor ? vor[3] - (nach ? nach[3] : 0) : null, quelle });
   }
   const C = [0, 0, 0], P = [0, 0, 0], H = [0, 0, 0], R = [0, 0, 0], O = [0, 0, 0], q = {}, ohne = pool.filter((x) => x.rest == null).length, oListe = [];
+  const K = [0, 0, 0], HH = [0, 0, 0]; const figurAb = (d.figuren ?? []).filter((f) => f.id === Number(sid)).map((f) => f.t).slice(1);
+  const handName = (t) => { const h = d.hand?.[sid] ?? []; let k = -1; for (let i = 0; i < h.length && h[i][0] <= t; i++) k = i; return k >= 0 ? String(d.waffenNamen[h[k][1]] ?? '').split('/').pop().slice(0, 40) : '-'; };
   for (let i = 0; i < l.length; i++) {
     const x = l[i]; if (x.d <= 0) continue;
     C[x.s] += x.d; let rest = x.d;
@@ -104,16 +106,19 @@ for (const [sid, l] of Object.entries(schritte)) {
       const k = Math.min(rest, pk.rest); pk.rest -= k; rest -= k; P[x.s] += k; q[pk.quelle] = (q[pk.quelle] ?? 0) + k;
     }
     if (rest <= 0) continue;
+    // Reload: wer zurueckkommt (neue Figur), bekommt Mats mit - genau im Moment der neuen Figur.
+    if (figurAb.some((f) => x.t - f >= -0.3 && x.t - f <= 1)) { K[x.s] += rest; continue; }
     if (nahe(axt[sid], x.t - 2, x.t + 0.6)) { H[x.s] += rest; continue; }
+    if (/Pickaxe|Melee/i.test(handName(x.t))) { HH[x.s] += rest; continue; }
     const rueck = rest % 10 === 0 && l.slice(Math.max(0, i - 8), i).some((y) => y.s === x.s && y.d < 0 && x.t - y.t <= 2);
     if (rueck) { R[x.s] += rest; continue; }
-    O[x.s] += rest; if (oListe.length < 8) oListe.push([x.t, STOFFNAME[x.s], rest, x.neu]);
+    O[x.s] += rest; if (oListe.length < 8) oListe.push([x.t, STOFFNAME[x.s], rest, x.neu, handName(x.t)]);
   }
-  ergebnis.push({ sid, name: name[sid], C, P, H, R, O, q, ohne, oListe });
-  for (const k of ['C', 'P', 'H', 'R', 'O']) for (let s = 0; s < 3; s++) gesamt[k][s] += ({ C, P, H, R, O })[k][s];
+  ergebnis.push({ sid, name: name[sid], C, P, H, R, O, K, HH, q, ohne, oListe });
+  for (const k of ['C', 'P', 'H', 'R', 'O', 'K', 'HH']) for (let s = 0; s < 3; s++) (gesamt[k] ??= [0, 0, 0])[s] += ({ C, P, H, R, O, K, HH })[k][s];
   for (const [k, v] of Object.entries(q)) gesamt.quelle[k] = (gesamt.quelle[k] ?? 0) + v;
 }
-for (const e of ergebnis.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))) console.log('EXAKT', (e.name ?? e.sid).padEnd(20), 'gesammelt', e.C.join('/'), 'aufgehoben', e.P.join('/'), 'spitzhacke', e.H.join('/'), 'rueckgabe', e.R.join('/'), 'unerklaert', e.O.join('/'), 'quellen', JSON.stringify(e.q), 'ohneMenge', e.ohne, JSON.stringify(e.oListe));
+for (const e of ergebnis.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))) console.log('EXAKT', (e.name ?? e.sid).padEnd(20), 'gesammelt', e.C.join('/'), 'aufgehoben', e.P.join('/'), 'spitzhacke', e.H.join('/'), 'rueckgabe', e.R.join('/'), 'respawn', e.K.join('/'), 'hackeInHand', e.HH.join('/'), 'unerklaert', e.O.join('/'), 'quellen', JSON.stringify(e.q), 'ohneMenge', e.ohne, JSON.stringify(e.oListe));
 console.log('EXAKT-SUMME', JSON.stringify(gesamt));
 // Leser-Werte von heute zum Vergleich (extra: Gesammelt 6-8, Gefarmt 9-11, Bauten 14-16)
 for (const e of ergebnis.slice(0, 50)) { const x = d.extra?.[e.sid]; if (x) console.log('HEUTE', (e.name ?? e.sid).padEnd(20), 'farm', [9, 10, 11].map((i) => x[i]).join('/'), 'sam', [6, 7, 8].map((i) => x[i]).join('/'), 'bauten', [14, 15, 16].map((i) => x[i]).join('/')); }
