@@ -29,10 +29,10 @@ const log = (...a) => console.log(`[${FORMAT}]`, ...a);
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ------------------------------------------------------------------ Auswahl: welcher Cup, welches Game
-async function holeJson(url) {
-  for (let v = 0; v < 4; v += 1) {
-    try { const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 CompHub-Aufnahme' } }); if (r.ok) return await r.json(); log('HTTP', r.status, url); } catch (e) { log('Fehler', url, e.message); }
-    await warte(1500 * (v + 1));
+async function holeJson(url, versuche = 4) {
+  for (let v = 0; v < versuche; v += 1) {
+    try { const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 CompHub-Aufnahme' }, signal: AbortSignal.timeout(90000) }); if (r.ok) return await r.json(); log('HTTP', r.status, url); } catch (e) { log('Fehler', url, e.message); }
+    if (v < versuche - 1) await warte(1500 * (v + 1));
   }
   return null;
 }
@@ -45,22 +45,26 @@ const punkte = (d) => {
   let p = 0;
   if (/fncs/i.test(n)) p += 40;
   if (/reload/i.test(n) && /solo/i.test(n)) p += 30;
-  if (/major|grand\s*final|final/i.test(n)) p += 15;
-  if (/heat\s*_?1|round\s*_?1|day\s*_?1/i.test(n)) p += 8;
+  if (/heat\s*_?1(?!\d)/i.test(n)) p += 45;
+  if (/major|grand\s*final/i.test(n)) p += 35;
+  if (/qualif/i.test(n)) p -= 90;   // Qualifikationen haben hunderte Lobbys - gesucht ist ein Finale/Heat
+  if (d.games > 30) p -= 60;
   if (d.region === 'EU') p += 20;
   p += Math.min(d.games, 12);
   return p;
 };
 auswahl.kandidaten = tage.map((d) => ({ windowId: d.windowId, titel: d.titel, region: d.region, beginn: d.beginn, games: d.games, punkte: punkte(d) }))
-  .sort((a, b) => b.punkte - a.punkte || String(b.beginn).localeCompare(String(a.beginn))).slice(0, 25);
+  .sort((a, b) => b.punkte - a.punkte || String(b.beginn).localeCompare(String(a.beginn))).slice(0, 60);
 const tagId = TAG_WUNSCH || auswahl.kandidaten[0]?.windowId;
 const tagJ = await holeJson(`${BASIS}/api/replay?tag=${encodeURIComponent(tagId)}`);
 if (!tagJ?.tag) throw new Error(`Spieltag ${tagId} nicht lesbar`);
 const TAG = tagJ.tag;
 // Die Games pruefen: Laufwege (orte), Eliminierungen, Zonen, Spieler - genommen wird, was am meisten zeigt.
 auswahl.games = [];
-for (const m of TAG.matches) {
-  const j = await holeJson(`${BASIS}/api/replay?match=${encodeURIComponent(m.id)}&v=4`);
+// Hoechstens 12 Games pruefen (ein Finale/Heat hat 6-12); mit --nr nur dieses eine.
+const zuPruefen = NR_WUNSCH ? TAG.matches.filter((m) => m.nr === NR_WUNSCH) : TAG.matches.slice(-12);
+for (const m of zuPruefen) {
+  const j = await holeJson(`${BASIS}/api/replay?match=${encodeURIComponent(m.id)}&v=4`, 2);
   if (!j) { auswahl.games.push({ nr: m.nr, id: m.id, lesbar: false }); continue; }
   const echte = (j.spieler ?? []).filter((s) => !s.bot);
   const g = {
@@ -291,6 +295,7 @@ await versuch('spieler', async () => {
   await marke('spieler-fenster');
   await hinUndKlick(zu, { ms: 800 }); await warte(1000);
   const knoepfe = page.locator('aside div.grid button');
+  await knoepfe.first().waitFor({ timeout: 6000 }).catch(() => {});
   const n = await knoepfe.count(); if (!n) throw new Error('keine Spielerliste');
   await marke('spieler-liste');
   await hinUndKlick(knoepfe.nth(Math.min(3, n - 1)), { ms: 800 }); await warte(1800);
@@ -361,7 +366,9 @@ await versuch('reiter', async () => {
 await versuch('event', async () => {
   const q = new URLSearchParams({ region: TAG.region, fenster: TAG.windowId, reiter: 'runden' });
   await page.goto(`${BASIS}/events/${encodeURIComponent(TAG.eventId)}?${q}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('span').filter({ hasText: /^Replay$/ }).first().waitFor({ timeout: 60000 });
+  await warte(4000);
+  await marke('event-geladen');
+  await page.locator('span').filter({ hasText: /^Replay$/ }).first().waitFor({ timeout: 90000 });
   await warte(2000);
   await marke('event-matches');
   const marken2 = page.locator('span').filter({ hasText: /^Replay$/ });
@@ -386,7 +393,7 @@ fs.rmSync(path.join(AUS, 'webm'), { recursive: true, force: true });
 const liste = bilder.map((ts, i) => `file 'bilder/${String(i).padStart(6, '0')}.jpg'\nduration ${Math.max(0.001, ((bilder[i + 1] ?? ts + 0.5) - ts)).toFixed(4)}`).join('\n')
   + `\nfile 'bilder/${String(bilder.length - 1).padStart(6, '0')}.jpg'\n`;
 fs.writeFileSync(path.join(AUS, 'bilder.txt'), liste);
-execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', 'bilder.txt', '-vf', `scale=${PB}:${PH}:flags=lanczos,fps=30`, '-c:v', 'libx264', '-crf', '15', '-preset', 'medium', '-pix_fmt', 'yuv420p', 'seite.mp4'], { cwd: AUS, stdio: 'inherit' });
+execFileSync('ffmpeg', ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', 'bilder.txt', '-vf', `scale=${PB}:${PH}:flags=lanczos,fps=30`, '-c:v', 'libx264', '-crf', '15', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', 'seite.mp4'], { cwd: AUS, stdio: 'inherit' });
 fs.rmSync(BILDER, { recursive: true, force: true }); fs.rmSync(path.join(AUS, 'bilder.txt'));
 const dauer = bilder.length ? bilder[bilder.length - 1] - bilder[0] : 0;
 fs.writeFileSync(path.join(AUS, 'marken.json'), JSON.stringify({ format: FORMAT, viewport: [VB, VH, DSF], bilder: bilder.length, dauer: +dauer.toFixed(2), fps: +(bilder.length / Math.max(1, dauer)).toFixed(1), marken, fehler, sekunden: (Date.now() - tStart) / 1000 }, null, 1));

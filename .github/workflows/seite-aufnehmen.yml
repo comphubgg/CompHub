@@ -23,10 +23,17 @@ jobs:
       - id: f
         env: { F: '${{ inputs.formate }}' }
         run: node -e "console.log('formate='+JSON.stringify(process.argv[1].split(',').map(s=>s.trim()).filter(Boolean)))" "$F" >> "$GITHUB_OUTPUT"
+      - name: Uebersicht der Replays sichern (zum Auswaehlen)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASIS: ${{ inputs.basis }}
+        run: |
+          curl -sf --retry 3 "$BASIS/api/replay?uebersicht=1" -o replays-uebersicht.json || exit 0
+          gh release upload medien replays-uebersicht.json --clobber -R "$GITHUB_REPOSITORY"
   aufnehmen:
     needs: liste
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
