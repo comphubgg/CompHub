@@ -435,6 +435,15 @@ interface FncsKurz { key: string; titel: string; kopf1: string; kopf2: string; b
  * Die FNCS Solos - nur, solange eine Reihe laeuft (Betreiber, 30.10.2026: "Globals Solo kannst du auf der Home Page entfernen, ist ja zu Ende -
  * sobald es aktiv ist, also Heats usw., Solo Reload"). Oben das Bild der Reihe, darunter die Stufen mit Datum und Stand, dazu die Heats mit Spielern.
  */
+/** Vier Stufen um die laufende (oder naechste) herum: eine davor, sie selbst, zwei danach. */
+function umLaufende(stufen: SolosStufeKurz[], n: number) {
+  let i = stufen.findIndex((s) => s.status === 'live');
+  if (i < 0) i = stufen.findIndex((s) => s.status !== 'vorbei');
+  if (i < 0) return stufen.slice(-n);
+  const ab = Math.max(0, Math.min(i - 1, stufen.length - n));
+  return stufen.slice(ab, ab + n);
+}
+
 function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: SolosFenster[]; art?: 'reload' | 'br' }) {
   const reload = art ? art === 'reload' : stufen.some((s) => /reload/i.test(s.windowId));
   // Nur Heats derselben Reihe (Betreiber, 2.11.2026: bei den Solos Reload standen die Heats der Battle-Royale-Solos - "ein komplett anderes Turnier").
@@ -454,7 +463,8 @@ function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: So
         {art === 'br' && !stufen.length && <p className="text-sm text-slate-400"><T>Season 42 · Battle Royale — Heats, Karten, Finalisten und Preisgeld im Archiv.</T></p>}
         <ol className="grid gap-1.5 sm:grid-cols-2">
           {/* Bei der beendeten Reihe die letzten Stufen (Heats, Last Chance, Finale) statt der ersten Qualifier. */}
-          {(art === 'br' ? stufen.slice(-8) : stufen.slice(0, 8)).map((s) => (
+          {/* Mit Heats darunter nur vier Stufen - um die laufende herum (Betreiber, 15.11.2026: sonst wurde die Karte hoeher als die Tierlist daneben). */}
+          {(art === 'br' ? stufen.slice(-8) : zeigen.length ? umLaufende(stufen, 4) : stufen.slice(0, 8)).map((s) => (
             <li key={s.windowId} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${s.status === 'live' ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/[0.07] bg-black/25'}`}>
               <span className={`truncate font-bold uppercase ${s.status === 'vorbei' ? 'text-slate-500' : 'text-slate-100'}`}>{s.name}</span>
               <span className="shrink-0 tabular-nums text-slate-400">{DATUM.format(new Date(s.begin))}</span>
@@ -466,7 +476,7 @@ function SoloKarte({ stufen, heats, art }: { stufen: SolosStufeKurz[]; heats: So
             {zeigen.map((h) => (
               <div key={h.windowId} className="rounded-xl border border-white/[0.07] bg-black/25 p-2.5">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">{h.name}</p>
-                {h.spieler.slice(0, 5).map((p) => (
+                {h.spieler.slice(0, 3).map((p) => (
                   <p key={p.id} className="flex items-center gap-1.5 truncate py-0.5 text-[11px] font-bold uppercase text-slate-200"><TeamFlagge groesse={12} laender={[p.land ?? undefined]} /><span className="truncate">{p.anzeige}</span></p>
                 ))}
               </div>
