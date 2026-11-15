@@ -38,9 +38,9 @@ on:
 jobs:
   diag:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,8 +55,16 @@ jobs:
         run: |
           printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      # Nur holen (15.11.2026, exakt-mats-strecke): Replays und Epics Werte je Match in den Entwurf diag-ms-roh, dann Schluss (scripts/ms-holen.sh).
+      - name: MS holen
+        if: contains(inputs.umgebung, 'MS_HOLEN')
+        env:
+          MS_MATCHES: ${{ inputs.match }}
+          MS_EPIC: ${{ inputs.epic }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ms-holen.sh
       - name: Epic-Gegenprobe
-        if: inputs.epic != ''
+        if: inputs.epic != '' && !contains(inputs.umgebung, 'MS_HOLEN')
         env:
           EPIC: ${{ inputs.epic }}
           GH_TOKEN: ${{ github.token }}
@@ -77,8 +85,10 @@ jobs:
             node scripts/epic-team-pruefen.mjs "${E[0]}" "${E[1]}" "${E[2]}" 2>&1 | tail -30
           fi
       - name: Leser bauen
+        if: "!contains(inputs.umgebung, 'MS_HOLEN')"
         run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -5
       - name: Diagnose
+        if: "!contains(inputs.umgebung, 'MS_HOLEN')"
         env:
           MATCHES: ${{ inputs.match }}
           SPIELER: ${{ inputs.spieler }}
@@ -121,8 +131,10 @@ jobs:
           IFS=',' read -ra E <<< "$EPIC"
           node scripts/epic-gegenprobe.mjs "${E[0]}" "${E[1]}" aus 2>&1 | tail -60
       - name: Elims wie die Seite
+        if: "!contains(inputs.umgebung, 'MS_HOLEN')"
         run: node scripts/diag-elims.mjs 'MrSavage|F1SHYX|zyfo|M8 Rax|TEYYDINHO|Wozah|Calle|VeriSnow|SkyJump|Focus yhyh|demu|Monky|Quix 115' || true
       - name: Summen je Spieler (Damage ohne Boden, Treffer)
+        if: "!contains(inputs.umgebung, 'MS_HOLEN')"
         run: |
           node -e "
           const fs=require('fs');const sum={};
