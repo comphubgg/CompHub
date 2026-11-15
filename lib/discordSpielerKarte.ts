@@ -15,7 +15,6 @@ import { GET as detailAbruf } from '@/app/api/spieler-detail/route';
 import { GET as cupSpielerAbruf } from '@/app/api/cup-spieler/route';
 import { vereinheitlichen, einzelZeile, type KennzahlListe } from '@/app/admin/tweets/kennzahlen';
 import { spielerKontext } from '@/lib/globalsSolos';
-import { genauerEintrag } from '@/lib/discordEpicKonto';
 
 const SEITE = 'https://www.thecomphub.com';
 const FARBE = 0x0ea5e9;
@@ -45,12 +44,8 @@ export interface KartenWahl {
   cupId: string | null; cupTitel: string; tag: string; region: string; datum: number;
   /** Platz/Punkte aus der gespeicherten Bestenliste - nur, wenn Epic selbst nichts liefert. */
   gespeichert?: { platz: number; punkte: number; matches: number; endstand: boolean } | null;
-  /** Genauer Eintrag ueber ein verknuepftes Epic-Konto (auch hinter Platz 10.000). */
-  verknuepft?: { rank: number; points: number; games?: number; wins?: number; punktePlatz?: number; punkteElims?: number; placements?: number[] } | null;
   /** "Other recent cups" - schon fertig formatiert. */
   andere?: string[];
-  /** Wer fragt (Discord-Id) - ist sein Epic-Konto verknuepft und im Team, zaehlt sein genauer Eintrag. */
-  fragender?: string | null;
 }
 
 async function json<T>(antwort: Response | Promise<Response>): Promise<T | null> {
@@ -76,7 +71,7 @@ export function eventLink(cupId: string | null, region: string, windowId: string
  * Die Antwort fuer einen Spieler in einem Spieltag - oder null, wenn die Team Stats nicht antworten (dann nimmt der Aufrufer die kurze Liste).
  */
 export async function spielerKarte(wahl: KartenWahl): Promise<{ embeds: Einbettung[]; components: unknown[] } | null> {
-  let w = wahl;
+  const w = wahl;
   const id = w.epicId.toLowerCase();
   const adresse = `${SEITE}/api/spieler-detail?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&id=${id}`;
   let d: Detail | null = null;
@@ -86,22 +81,8 @@ export async function spielerKarte(wahl: KartenWahl): Promise<{ embeds: Einbettu
   }
   if (!d?.ok || !d.mitglieder?.length) return null;
 
-  /*
-   * Kein Eintrag in Epics oeffentlicher Liste (hinter Platz 10.000): ist jemand aus dem Team (oder der Fragende) verknuepft, holt sein eigenes
-   * Konto den genauen Eintrag (lib/discordEpicKonto). Die Mitspieler kennt dann nur dieser Eintrag - ihre Werte kommen je Konto aus denselben Team Stats.
-   */
-  if (!d.eintrag && !w.verknuepft) {
-    const g = await genauerEintrag(w.eventId, w.windowId, d.mitglieder.map((m) => m.id), w.fragender).catch(() => null);
-    if (g) {
-      w = { ...w, verknuepft: { rank: g.rank, points: g.points, games: g.games, wins: g.wins, placements: g.placements } };
-      const fehlen = g.teamAccountIds.filter((t) => !d!.mitglieder.some((m) => m.id === t));
-      const dazu = await Promise.all(fehlen.slice(0, 3).map((t) => json<Detail>(detailAbruf(new Request(
-        `${SEITE}/api/spieler-detail?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&id=${t}`)))));
-      for (const x of dazu) for (const m of x?.ok ? x.mitglieder : []) if (!d.mitglieder.some((y) => y.id === m.id)) d.mitglieder.push({ ...m, ich: false });
-    }
-  }
   // Weder bei Epic noch in den Replays dabei und kein gespeicherter Platz: nicht so tun, als haette er gespielt - der Aufrufer zeigt die Liste.
-  if (!d.dabei && !d.eintrag && !w.verknuepft && !w.gespeichert) return null;
+  if (!d.dabei && !d.eintrag && !w.gespeichert) return null;
   const mitglieder = [...d.mitglieder].sort((a, b) => Number(b.ich) - Number(a.ich));
   const solo = mitglieder.length === 1;
   const [raengeAntwort, kontext] = await Promise.all([
@@ -113,16 +94,15 @@ export async function spielerKarte(wahl: KartenWahl): Promise<{ embeds: Einbettu
 
   /* ------------------------------------------------ Team: Platz, Punkte, Siege (fuer alle gleich) */
   const e = d.eintrag;
-  const v = w.verknuepft;
-  const platz = e?.rank ?? v?.rank ?? w.gespeichert?.platz ?? null;
-  const punkte = e?.points ?? v?.points ?? w.gespeichert?.punkte ?? null;
-  const spiele = e?.games ?? v?.games ?? w.gespeichert?.matches ?? null;
-  const siege = e?.wins ?? v?.wins ?? null;
-  const pp = e?.punktePlatz ?? v?.punktePlatz; const pe = e?.punkteElims ?? v?.punkteElims;
+  const platz = e?.rank ?? w.gespeichert?.platz ?? null;
+  const punkte = e?.points ?? w.gespeichert?.punkte ?? null;
+  const spiele = e?.games ?? w.gespeichert?.matches ?? null;
+  const siege = e?.wins ?? null;
+  const pp = e?.punktePlatz; const pe = e?.punkteElims;
   const plaetze = (e?.matches ?? []).map((m) => m.placement).filter((x): x is number => typeof x === 'number' && x > 0);
-  const plaetzeV = plaetze.length ? plaetze : (v?.placements ?? []).filter((x) => x > 0);
+  const plaetzeV = plaetze;
   const schnitt = plaetzeV.length ? plaetzeV.reduce((a, x) => a + x, 0) / plaetzeV.length : null;
-  const quelle = e ? null : v ? 'exact rank via linked Epic account' : w.gespeichert ? 'Epic did not answer - rank from our saved leaderboard (may differ slightly)' : null;
+  const quelle = e ? null : w.gespeichert ? 'Epic did not answer - rank from our saved leaderboard (may differ slightly)' : null;
 
   const kopfZeilen: string[] = [];
   const tagText = [w.tag, w.region].filter(Boolean).join(' · ');
@@ -132,7 +112,7 @@ export async function spielerKarte(wahl: KartenWahl): Promise<{ embeds: Einbettu
     const top = d.top !== null && d.top !== undefined && e ? ` (top ${d.top}%)` : '';
     kopfZeilen.push(`🏅 Place: **#${zahl(platz)}**${von}${top}`);
   } else if (d.dabei) {
-    kopfZeilen.push('🏅 Place: outside Epic\'s public top 10,000 - link your Epic account with `/link-account` to see your exact rank');
+    kopfZeilen.push('🏅 Place: outside Epic\'s public top 10,000 (Epic only publishes the top 10,000)');
   }
   if (punkte !== null) {
     kopfZeilen.push(`${einzelZeile(kennzahl('points'), punkte)} pts${typeof pp === 'number' && typeof pe === 'number' ? ` (${zahl(pp)} placement + ${zahl(pe)} elims)` : ''}`);

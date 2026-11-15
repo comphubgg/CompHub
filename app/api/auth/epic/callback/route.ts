@@ -13,6 +13,7 @@ import { merkeKonto } from '@/lib/eigeneAuswertung';
 import { vipAus } from '@/lib/vipCookie';
 import { zugangEpicSetzen } from '@/lib/vipZugaenge';
 import { vollstaendigeFreunde } from '@/lib/epicFreundeStatus';
+import { verknuepfeAusEpic, discordSeite } from '@/lib/discordEpicKonto';
 
 // Der Rueckweg von Epic Games - die Verknuepfung wird hier festgemacht.
 //
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
   const heim = rueckCookie.startsWith('/') && !rueckCookie.startsWith('//') && rueckCookie.split('').every((c) => /[a-z0-9/_-]/i.test(c)) ? rueckCookie : '/account';
   const aufraeumen = (a: NextResponse) => {
     // Beide Fassungen loeschen: nur fuer diese Adresse und fuer beide (mit/ohne www, app/api/auth/epic/freunde).
-    for (const k of ['epic_oauth_state', 'epic_oauth_art', 'epic_rueck']) {
+    for (const k of ['epic_oauth_state', 'epic_oauth_art', 'epic_rueck', 'epic_discord']) {
       a.cookies.set(k, '', { ...sitzungsDomain(req), path: '/', maxAge: 0 });
       if (sitzungsDomain(req).domain) a.headers.append('Set-Cookie', `${k}=; Path=/; Max-Age=0`);
     }
@@ -135,6 +136,15 @@ export async function GET(req: NextRequest) {
         const info = await fetch('https://api.epicgames.dev/epic/oauth/v2/userInfo', { headers: { Authorization: `Bearer ${token.access_token}` } });
         if (info.ok) epicName = String(((await info.json()) as { preferred_username?: string }).preferred_username ?? '').slice(0, 60);
       } catch { /* dann bleibt der Name aus dem Verzeichnis */ }
+    }
+
+    /*
+     * Vom Discord-Bot (/link-account, lib/discordEpicKonto): nur Discord-Id -> Epic-Id speichern, sonst nichts - kein CompHub-Konto, kein Cookie der
+     * Seite, keine Freundesliste. Die Marke kommt aus dem Cookie, das authorize nur bei gueltiger Unterschrift gesetzt hat; geprueft wird sie hier erneut.
+     */
+    if (req.cookies.get('epic_oauth_art')?.value === 'discord') {
+      const r = await verknuepfeAusEpic(req.cookies.get('epic_discord')?.value ?? '', epicId, epicName);
+      return aufraeumen(discordSeite(r.ok ? 'ok' : r.grund, epicName));
     }
 
     // Der Weg "Freunde freigeben" (app/api/auth/epic/freunde): dasselbe Epic-Konto, dazu die Freundesliste mit Epics Zustimmung.

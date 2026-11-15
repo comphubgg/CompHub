@@ -23,7 +23,7 @@ import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { POST as echteNamenAbruf } from '@/app/api/echte-namen/route';
 import { finale as istFinaleFenster, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 import { STATS_BEFEHLE, STATS_KANAL, UEBERALL_BEFEHLE, statsAnleitung } from '@/lib/discordVorlagen.mjs';
-import { verknuepfen, trennen, verknuepfungVon, verknuepfungMoeglich, gespielteFenster, LOGIN_URL } from '@/lib/discordEpicKonto';
+import { trennen, verknuepfungVon, verknuepfungMoeglich, verlinkeMarke } from '@/lib/discordEpicKonto';
 import { namensKey, namenVorschlaege, namenVorwaermen, kontoZuName, kontoErgebnisse, kontoSpieltageSofort, bestandVorwaermen, bekannterName, type KontoSuche } from '@/lib/discordSpielerSuche';
 import { schickeAlarm } from '@/lib/discord';
 import { spielerKarte, type KartenWahl } from '@/lib/discordSpielerKarte';
@@ -412,7 +412,7 @@ async function andereZeilen(epicId: string, zeilen: Ergebnis[], katalogCups: Cup
  * dort stand iL juanit0s Team auf #1,961, im Endstand auf #2,038 (gleiche 281 Punkte). Als Endstand gilt eine gespeicherte Liste erst, wenn sie
  * mindestens 30 Minuten nach dem Ende des Spieltags geholt wurde.
  */
-async function einCup(epicId: string, windowId: string, alle: Ergebnis[], katalogCups: Cup[], fragender: string | null): Promise<Antwort | null> {
+async function einCup(epicId: string, windowId: string, alle: Ergebnis[], katalogCups: Cup[]): Promise<Antwort | null> {
   let cup: Cup | undefined; let fenster: Fenster | undefined; let regionKey = '';
   for (const c of katalogCups) {
     for (const [r, liste] of Object.entries(c.regionen ?? {})) {
@@ -439,7 +439,6 @@ async function einCup(epicId: string, windowId: string, alle: Ergebnis[], katalo
       endstand: zeile.geholt === undefined || (!!zeile.geholt && !!ende && zeile.geholt >= ende + 30 * 60_000),
     } : null,
     andere: await andereZeilen(epicId, alle.filter((e) => e.windowId !== windowId).slice(0, 3), katalogCups),
-    fragender,
   };
   return spielerKarte(wahl);
 }
@@ -447,7 +446,13 @@ async function einCup(epicId: string, windowId: string, alle: Ergebnis[], katalo
 /** /stats - die Antwort fertig zum Nachtragen (Einbettung und Link-Knopf). */
 export async function statsAntwort(spielerEingabe: string, cupWahl?: string, fragender: string | null = null): Promise<Antwort> {
   namenVorwaermen();
-  const q = spielerEingabe.trim().replace(/\s+/g, ' ');
+  let q = spielerEingabe.trim().replace(/\s+/g, ' ');
+  // Ohne player: das verknuepfte Epic-Konto des Fragenden ("ich", /link-account).
+  if (!q) {
+    const ich = fragender ? await verknuepfungVon(fragender).catch(() => null) : null;
+    if (!ich) return { content: 'Add `player:` - or link your Epic account once with `/link-account`, then `/stats` without a name shows your own stats.' };
+    q = ich.epicId;
+  }
   if (q.length < 2) return { content: 'Type at least two letters of the player name.' };
 
   const konto = await kontoFinden(q);
@@ -475,20 +480,11 @@ export async function statsAntwort(spielerEingabe: string, cupWahl?: string, fra
   const alle = daten.ergebnisse;
 
   /*
-   * Keine Zeile in unseren Listen (hinter Platz 10.000 in jedem Cup) - aber ein Cup ist gewaehlt: mit einem verknuepften Konto kennt Epic den Eintrag
-   * trotzdem (lib/discordEpicKonto). Dann gleich die Einzelansicht dieses Spieltags.
+   * Keine Zeile in unseren Listen (hinter Platz 10.000 in jedem Cup), aber ein Spieltag ist gewaehlt: die Replays kennen ihn vielleicht trotzdem
+   * (app/api/spieler-detail zaehlt auch, wer nur in den gelesenen Replays steht). Einen Platz hinter 10.000 gibt es dann nicht.
    */
-  if (!alle.length && cupWahl) {
-    const katalogCups = await cups();
-    let fenster: string | null = cupWahl.startsWith('w:') ? cupWahl.slice(2) : null;
-    if (!fenster) {
-      const c = katalogCups.find((x) => x.id === cupWahl);
-      const events = c ? fensterVon(c).filter((f) => f.status === 'vorbei' || f.status === 'live').map((f) => f.eventId) : [];
-      const gespielt = c ? await gespielteFenster(konto.epicId, events, fragender).catch(() => []) : [];
-      const imCup = new Set(c ? fensterVon(c).map((f) => f.windowId) : []);
-      fenster = gespielt.find((x) => imCup.has(x)) ?? null;
-    }
-    const karte = fenster ? await einCup(konto.epicId, fenster, alle, katalogCups, fragender).catch(() => null) : null;
+  if (!alle.length && cupWahl?.startsWith('w:')) {
+    const karte = await einCup(konto.epicId, cupWahl.slice(2), alle, await cups()).catch(() => null);
     if (karte) return karte;
   }
   if (!alle.length && daten.profilFehlt) return langsam(q, 'Das Profil (szene-stats) antwortete nicht, und in den Bestenlisten stand nichts.', konto.epicId);
@@ -530,7 +526,7 @@ export async function statsAntwort(spielerEingabe: string, cupWahl?: string, fra
       // Der juengste Spieltag mit Platz (Probe 15.11.2026, "Focus yhyh": das Profil fuehrte den Trios Cash Cup Event 2 EU ohne Platz - dort spielte er nicht).
       zielFenster = (alle.find((e) => e.platz) ?? alle[0])?.windowId ?? null;
     }
-    const karte = zielFenster ? await einCup(konto.epicId, zielFenster, alle, katalogCups, fragender).catch((e) => {
+    const karte = zielFenster ? await einCup(konto.epicId, zielFenster, alle, katalogCups).catch((e) => {
       console.error('[discord] /stats Einzelansicht:', (e as Error).message);
       return null;
     }) : null;
@@ -706,58 +702,29 @@ if (process.env.NEXT_PHASE !== 'phase-production-build' && !process.env.COMPHUB_
 
 /* ------------------------------------------------------- /link-account, /unlink-account */
 
-/** /link-account ohne Code: wie es geht, mit dem Knopf zu Epic. */
+/**
+ * /link-account: der Knopf zur offiziellen Epic-Anmeldung der Seite (wie "Verify with Epic Games"), mit einer unterschriebenen Marke fuer diesen
+ * Discord-Nutzer (10 Minuten, einmal - lib/discordEpicKonto). Kein Code zum Kopieren.
+ */
 export async function verknuepfenAnleitung(nutzer: string): Promise<Antwort> {
-  if (!verknuepfungMoeglich()) return { content: 'Linking accounts is not switched on yet - please try again later.' };
-  const da = nutzer ? await verknuepfungVon(nutzer).catch(() => null) : null;
+  const marke = nutzer ? verlinkeMarke(nutzer) : null;
+  if (!verknuepfungMoeglich() || !marke) return { content: 'Linking accounts is not switched on yet - please try again later.' };
+  const da = await verknuepfungVon(nutzer).catch(() => null);
   return {
     embeds: [{
       title: '🔗 Link your Epic account',
       color: FARBE,
       description: [
         da ? `You are linked as **${da.displayName || 'your Epic account'}**. Linking again replaces it.\n` : '',
-        '**1.** Sign in at epicgames.com in your browser (with the account you play tournaments on).',
-        '**2.** Press the button below. Epic shows a line like `{"redirectUrl":...,"authorizationCode":"a1b2c3...",...}`.',
-        '**3.** Copy the 32-character `authorizationCode` and run `/link-account code:<code>` here within 5 minutes (pasting the whole line works too).',
+        'Press the button, sign in with Epic Games and allow CompHub. Then `/stats` without a name shows your own stats.',
         '',
-        '🔒 **Privacy - please read:** Epic shows a warning not to share this code, because it signs in as you. CompHub turns it into a device login '
-          + 'for your account, stores that encrypted and uses it only to read your own tournament placements for `/stats` - nothing else. '
-          + 'Only you see these replies. Never give the code to anyone else. `/unlink-account` deletes the login and revokes it at Epic; '
-          + 'changing your Epic password also ends it.',
+        '🔒 This is completely safe: we never get access to your Epic account or password, only your Epic id and display name (public info).',
+        'The button works once and for 10 minutes. `/unlink-account` removes the link any time.',
       ].filter((z, i) => i > 0 || z).join('\n'),
       footer: { text: 'thecomphub.com · stats' },
     }],
-    components: [knopf('Get the code at epicgames.com', LOGIN_URL)],
+    components: [knopf('Link your Epic Account', `${SEITE}/api/auth/epic/authorize?discord=${encodeURIComponent(marke)}`)],
   };
-}
-
-/** /link-account code:<Code> */
-export async function verknuepfenAntwort(nutzer: string, code: string): Promise<Antwort> {
-  if (!nutzer) return { content: 'I could not tell who you are - please try again.' };
-  const r = await verknuepfen(nutzer, code);
-  if (r.ok) {
-    return {
-      embeds: [{
-        title: '✅ Epic account linked',
-        color: FARBE,
-        description: `Linked to **${r.displayName || r.accountId.slice(0, 8)}**${r.ersetzt ? ' (your previous link was replaced and revoked)' : ''}.\n\n`
-          + '`/stats` now shows the exact rank of your team in every tournament - also beyond the public top 10,000. '
-          + 'Remove it any time with `/unlink-account`.',
-        footer: { text: 'thecomphub.com · stats' },
-      }],
-    };
-  }
-  const text: Record<typeof r.grund, string> = {
-    aus: 'Linking accounts is not switched on yet - please try again later.',
-    code: 'That does not look like a code. Run `/link-account` without a code to get the link, then copy the 32-character `authorizationCode`.',
-    abgelaufen: 'Epic did not accept this code - it is valid for a few minutes and only once. Press the button from `/link-account` again for a new one.',
-    epic: 'Epic did not answer as expected - please try again in a minute.',
-    speichern: 'Your account could not be saved just now (nothing was kept, and the login was revoked again) - please try again in a minute.',
-  };
-  if (r.grund === 'epic' || r.grund === 'speichern') {
-    void schickeAlarm({ titel: '/link-account gescheitert', text: `Grund: ${r.grund}${r.text ? ` (${String(r.text).slice(0, 80)})` : ''}` }).catch(() => null);
-  }
-  return { content: text[r.grund] };
 }
 
 /** /unlink-account */
@@ -767,10 +734,5 @@ export async function trennenAntwort(nutzer: string): Promise<Antwort> {
   const r = await trennen(nutzer).catch(() => null);
   if (!r) return { content: 'That did not work just now - please try again in a minute.' };
   if (!r.war) return { content: 'You have no linked Epic account.' };
-  return {
-    content: r.widerrufen
-      ? `Unlinked${r.displayName ? ` **${r.displayName}**` : ''}: the stored login is deleted and revoked at Epic.`
-      : `Unlinked${r.displayName ? ` **${r.displayName}**` : ''}: the stored login is deleted. Epic did not confirm the revoke - to be sure, `
-        + 'change your Epic password (that ends every device login).',
-  };
+  return { content: `Unlinked${r.displayName ? ` **${r.displayName}**` : ''} - CompHub no longer knows which Epic account is yours.` };
 }

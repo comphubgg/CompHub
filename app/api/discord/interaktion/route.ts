@@ -14,8 +14,9 @@ import {
   chatErstellen, nachrichtAnMitglied, dmsSpiegeln, alsCompHub, vorlagenText, zeitraumVon, VORLAGEN,
   type KnopfNachricht, proPanel, proPanelInhalt,
 } from '@/lib/discord';
+import { verknuepfungVon } from '@/lib/discordEpicKonto';
 import {
-  STATS_KANAL, STATS_NAMEN, statsAntwort, cupAntwort, hilfeAntwort, cupVorschlaege, spielerVorschlaege, verknuepfenAntwort, trennenAntwort,
+  STATS_KANAL, STATS_NAMEN, statsAntwort, cupAntwort, hilfeAntwort, cupVorschlaege, spielerVorschlaege, trennenAntwort,
   verknuepfenAnleitung, UEBERALL_BEFEHLE, type Antwort,
 } from '@/lib/discordStats';
 
@@ -175,7 +176,13 @@ export async function POST(request: NextRequest) {
     const q = String(feld?.value ?? '');
     let choices: Array<{ name: string; value: string }> = [];
     try {
-      const spieler = d.data?.name === 'stats' ? String((d.data?.options ?? []).find((o) => o.name === 'player')?.value ?? '') : '';
+      let spieler = d.data?.name === 'stats' ? String((d.data?.options ?? []).find((o) => o.name === 'player')?.value ?? '') : '';
+      // Ohne player: die Cups des verknuepften Epic-Kontos (/link-account) - mit kurzer Frist, die Vorschlaege haben drei Sekunden.
+      const wer = String((d.member?.user ?? d.user)?.id ?? '');
+      if (d.data?.name === 'stats' && !spieler.trim() && wer && feld?.name === 'cup') {
+        const ich = await Promise.race([verknuepfungVon(wer).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 400))]);
+        if (ich) spieler = ich.epicId;
+      }
       choices = feld?.name === 'player' ? await spielerVorschlaege(q) : await cupVorschlaege(q, spieler);
     } catch { /* leere Liste */ }
     return NextResponse.json({ type: 8, data: { choices } });
@@ -195,21 +202,19 @@ export async function POST(request: NextRequest) {
     const opt = Object.fromEntries((d.data?.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
     const befehl = d.data?.name;
     const nutzer = String((d.member?.user ?? d.user)?.id ?? '');
-    // /link-account ohne Code: sofort die Anleitung mit dem Epic-Link (nur fuer den Fragenden).
-    if (befehl === 'link-account' && !(opt.code ?? '').trim()) {
+    // /link-account: sofort der Knopf zur Epic-Anmeldung (nur fuer den Fragenden).
+    if (befehl === 'link-account') {
       return NextResponse.json({ type: 4, data: { ...(await verknuepfenAnleitung(nutzer)), flags: 64, allowed_mentions: { parse: [] } } });
     }
     // Erst bestaetigen ("CompHub is thinking ...", nur fuer den Fragenden), dann die Antwort nachtragen - sie bleibt ephemer.
     after(async () => {
       let antwort: Antwort;
       try {
-        // Der Code von /link-account wird nie geloggt - nur an Epic weitergegeben (lib/discordEpicKonto).
         antwort = befehl === 'stats' ? await statsAntwort(opt.player ?? '', opt.cup || undefined, nutzer || null)
-          : befehl === 'link-account' ? await verknuepfenAntwort(nutzer, opt.code ?? '')
-            : befehl === 'unlink-account' ? await trennenAntwort(nutzer)
-              : await cupAntwort(opt.name ?? '', opt.region || undefined);
+          : befehl === 'unlink-account' ? await trennenAntwort(nutzer)
+            : await cupAntwort(opt.name ?? '', opt.region || undefined);
       } catch (e) {
-        console.error('[discord] /' + befehl + ' gescheitert:', befehl === 'link-account' ? '(ohne Einzelheiten)' : (e as Error).message);
+        console.error('[discord] /' + befehl + ' gescheitert:', (e as Error).message);
         antwort = { content: 'Something went wrong while loading the stats - please try again in a minute.' };
       }
       if (!d.application_id || !d.token) return;
