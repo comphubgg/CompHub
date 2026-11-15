@@ -51,7 +51,7 @@ interface Kategorie {
 }
 
 /** Werte aus den ausgewerteten Replays (clutch/<Fenster>.json) - je Team die Summe der Spieler; null, wenn nicht alle Spiele gelesen sind. */
-interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number; farm: number | null }
+interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number; farm: number | null; heilHp: number; schildHeil: number }
 
 /*
  * Reihenfolge und Titel wie bei Osirion (Betreiber, 8.11.2026: "die Beschriftung genau gleich ... die Reihenfolge genau gleich ... immer ausgeschrieben"): zuerst die zehn,
@@ -84,10 +84,12 @@ const KATEGORIEN: Kategorie[] = [
   { schluessel: 'avgPlace', symbol: '📍', titel: 'Best Average Placement', mehr: true, kleinBesser: true, nachkomma: 2, jeSpiel: true, wert: (e) => e.avgPlace },
   { schluessel: 'matsVerbaut', symbol: '🔨', titel: 'Most Mats Used', mehr: true, wert: (e) => e.matsVerbaut },
   { schluessel: 'kisten', symbol: '📦', titel: 'Most Chests Opened', mehr: true, wert: (e) => e.kisten },
-  // Epics GainedHealthTimes / GainedShieldTimes: wie OFT Leben bzw. Schild dazukam (jeder Schub zaehlt - Slurp, Siphon, Chug Splash ...), nicht wie viele Items
-  // benutzt wurden (Betreiber, 15.11.2026: "60 Shields nach einem Game kann nicht sein").
-  { schluessel: 'heilung', symbol: '💊', titel: 'Most Times Healed', mehr: true, wert: (e) => e.heilung },
-  { schluessel: 'schild', symbol: '🛡️', titel: 'Most Times Shield Gained', mehr: true, wert: (e) => e.schild },
+  /*
+   * Geheilt in HP aus dem Replay (Betreiber, 15.11.2026): ein Mini = 25, ein Big = 50, ein abgebrochenes Big weniger - gezaehlt wird jede Zunahme von Leben bzw.
+   * Schild (lib/vollSchaden: heilHp, schildHeilEcht). Epics GainedHealthTimes/GainedShieldTimes zaehlen nur, WIE OFT etwas dazukam, und stehen nicht mehr hier.
+   */
+  { schluessel: 'heilung', symbol: '💊', titel: 'Most Health Healed', mehr: true, wert: (_e, x) => x?.heilHp ?? 0 },
+  { schluessel: 'schild', symbol: '🛡️', titel: 'Most Shield Healed', mehr: true, wert: (_e, x) => x?.schildHeil ?? 0 },
   // Die Summe belohnt, wer mehr Spiele hatte - daneben der Schnitt je Spiel.
   { schluessel: 'avgTimeAlive', symbol: '⏳', titel: 'Longest Average Time Alive', mehr: true, zeit: true, jeSpiel: true, wert: (e) => e.avgTimeAlive },
 ];
@@ -109,11 +111,11 @@ async function ganzeListe(w: string): Promise<{ entries: CupEintrag[]; updated?:
 /** Die Replay-Werte eines Spieltags je Team (Summe der Spieler) - null, wenn ein Spieler nicht ganz gelesen ist. */
 async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
   const zb = istZeroBuild(w);
-  type D = { erlitten?: number; treffer?: number; sturm?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
+  type D = { erlitten?: number; treffer?: number; sturm?: number; heilHp?: number; schildHeilEcht?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
   const c = await liesJson<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
   if (!c?.schaden) return () => null;
   return (e) => {
-    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0 };
+    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0, heilHp: 0, schildHeil: 0 };
     for (const p of e.players) {
       const id = String(p.id ?? '').toLowerCase();
       const d = c.schaden?.[id];
@@ -121,6 +123,7 @@ async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
       x.erlitten += d.erlitten ?? 0; x.treffer += d.treffer ?? 0;
       x.sturm += typeof d.sturm === 'number' && d.sturm < 1e6 ? d.sturm : 0;
       x.clutch += c.summe?.[id] ?? 0;
+      x.heilHp += d.heilHp ?? 0; x.schildHeil += d.schildHeilEcht ?? 0;
       if (zb) x.farm = 0;
       else if (x.farm !== null) x.farm = typeof d.farmHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.farm + (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0) : null;
       if (x.builds !== null) x.builds = typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.builds + (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0) : null;
