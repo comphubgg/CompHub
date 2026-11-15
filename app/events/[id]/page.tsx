@@ -5117,6 +5117,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
               schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil ?? null}
               plattformen={(spielerWerte as { plattformen?: Record<string, number> | null }).plattformen ?? null}
+              liveVorlaeufig={!!(spielerWerte as { liveVorlaeufig?: boolean }).liveVorlaeufig}
               quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}
               zuDetails={(sp) => { setDetailStart(sp); }} />
           </div>
@@ -5144,6 +5145,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
               schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil ?? null}
               plattformen={(spielerWerte as { plattformen?: Record<string, number> | null }).plattformen ?? null}
+              liveVorlaeufig={!!(spielerWerte as { liveVorlaeufig?: boolean }).liveVorlaeufig}
               quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}
               zuDetails={(s) => { setDetailStart(s); setReiter('teams'); }} />
           </div>

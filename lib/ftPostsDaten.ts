@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { liesJson, speicher } from '@/lib/ablage';
+import { liesJson } from '@/lib/ablage';
+import { liesClutch, liesClutchJe } from '@/lib/clutchLive';
 import { istZeroBuild } from '@/lib/zeroBuild';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { JE_SPALTEN, jeLesen } from '@/lib/jeSpiel.mjs';
@@ -164,13 +165,13 @@ export async function ftPostsFuer(eventId: string, windowId: string, titel: stri
     };
   }
 
-  const clutch = await liesJson<(FtClutch & { jeSpiel?: Record<string, FtJeZeile[]> }) | null>(`clutch/${windowId}.json`, null).catch(() => null);
+  const clutch = await liesClutch<FtClutch & { jeSpiel?: Record<string, FtJeZeile[]> }>(windowId).catch(() => null);
   let fehlt: string | null = null;
   let je: Record<string, FtJeZeile[]> = {};
   let spalten: string[] = clutch?.je?.spalten ?? JE_SPALTEN;
   if (!clutch?.schaden || !Object.keys(clutch.schaden).length) fehlt = `Keine Replay-Auswertung fuer ${windowId} (clutch/${windowId}.json)`;
   else if (clutch.je) {
-    const roh = await speicher.lies(`clutch-je/${windowId}.json`).catch(() => null);
+    const roh = await liesClutchJe(windowId, clutch).catch(() => null);
     if (!roh) fehlt = `Werte je Match fehlen (clutch-je/${windowId}.json) - ohne sie keine Elims`;
     else je = jeLesen(roh.toString('utf8')) as Record<string, FtJeZeile[]>;
   } else if (clutch.jeSpiel) {

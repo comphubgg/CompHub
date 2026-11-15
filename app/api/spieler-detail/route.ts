@@ -8,7 +8,7 @@ import { findeSpieler, holeSeite, getToken, loeseNamenAuf, MAX_PAGES, type CupEi
 import { szeneFenster } from '@/lib/szeneStats';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayTag } from '@/lib/replaySchlank';
-import { liesJson, liesBereich } from '@/lib/ablage';
+import { liesClutch, liesClutchJeBereich } from '@/lib/clutchLive';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { fensterOk, kontoOk, leseErgebnis } from '@/lib/eigeneAuswertung';
 
@@ -96,7 +96,7 @@ async function jeSpielHolen(fenster: string, clutch: unknown, ids: string[]): Pr
     await Promise.all([...new Set(ids.map(jeStueck))].map(async (s) => {
       const [a, l] = je.lage[s] ?? [0, 0];
       if (!l) return;
-      const b = await liesBereich(`clutch-je/${fenster}.json`, a, l).catch(() => null);
+      const b = await liesClutchJeBereich(fenster, clutch, a, l).catch(() => null);
       if (!b) return;
       try { stuecke.set(s, JSON.parse(b.toString('utf8'))); } catch { /* ohne Kurven */ }
     }));
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
      * nur langsam und ebenso leer - dann gleich ohne Eintrag weiter: die Werte kommen aus den Replays, die jedes Match lesen (Betreiber, 8.11.2026: "kann
      * sein, dass ich unter Top 10.000 bin ... sollte trotzdem gehen").
      */
-    const clutch = await liesJson<{ summe?: Record<string, number>; leben?: Record<string, number>; epicZeit?: Record<string, number>; epicTeamZeit?: Record<string, number>; strecke?: Record<string, [number, number]>; epicStrecke?: Record<string, number>; schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+    const clutch = await liesClutch<{ summe?: Record<string, number>; leben?: Record<string, number>; epicZeit?: Record<string, number>; epicTeamZeit?: Record<string, number>; strecke?: Record<string, [number, number]>; epicStrecke?: Record<string, number>; schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> }>(fenster).catch(() => null);
     const vorrat = await ganzeListe(fenster);
     const vorratZeile = vorrat?.find((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
     // Waehrend des Cups kann der Vorrat hinterherhinken: dann doch bei Epic suchen. Nur wer nach dem Ende fehlt, steht sicher nicht in Epics Liste.

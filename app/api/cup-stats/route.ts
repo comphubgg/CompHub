@@ -5,7 +5,7 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon } from '@/lib/cupWertung';
-import { liesJson } from '@/lib/ablage';
+import { liesClutch } from '@/lib/clutchLive';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import nodeFs from 'fs/promises';
 import path from 'path';
@@ -112,7 +112,7 @@ async function ganzeListe(w: string): Promise<{ entries: CupEintrag[]; updated?:
 async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
   const zb = istZeroBuild(w);
   type D = { erlitten?: number; treffer?: number; sturm?: number; heilHp?: number; schildHeilEcht?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
-  const c = await liesJson<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+  const c = await liesClutch<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> }>(w).catch(() => null);
   if (!c?.schaden) return () => null;
   return (e) => {
     const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0, heilHp: 0, schildHeil: 0 };
@@ -265,7 +265,7 @@ async function holeRoh(request: Request) {
     if (window_ && !finale) {
       type D = { treffer?: number; editZahl?: number; editSek?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number };
       type C = { gesamt?: number; matches?: unknown[]; spiele?: Record<string, number>; schaden?: Record<string, D>; plattform?: Record<string, string>; strecke?: Record<string, [number, number]> };
-      const dateien = (await Promise.all((summe ? tageListe : [window_]).map((w) => liesJson<C | null>(`clutch/${w}.json`, null).catch(() => null))))
+      const dateien = (await Promise.all((summe ? tageListe : [window_]).map((w) => liesClutch<C>(w).catch(() => null))))
         .filter((x): x is C => !!x);
       const c: C | null = !dateien.length ? null : {
         gesamt: dateien.every((d) => typeof d.gesamt === 'number') ? dateien.reduce((a, d) => a + (d.gesamt ?? 0), 0) : undefined,

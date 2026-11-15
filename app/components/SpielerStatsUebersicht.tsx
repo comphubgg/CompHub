@@ -106,7 +106,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, matches, rundenGesamt, streckeGeschaetzt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, matches, rundenGesamt, streckeGeschaetzt, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails, liveVorlaeufig = false }: {
   /** Ohne den Kasten mit den Summen - die Seite zeigt darueber die Event-Uebersicht wie bei Osirion (Betreiber, 8.11.2026: "viel zu wenig Stats"). */
   ohneSummen?: boolean;
   /** Spieler je Plattform (PC, PlayStation, Xbox, Switch, iOS, Android) aus den vollen Replays - nur bei ganz gelesenem Spieltag. */
@@ -122,6 +122,8 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
   summen?: Record<string, number> | null;
   /** Noch nicht jedes Match voll gelesen: Schaden & Co. nur bei Spielern, deren Spiele alle gelesen sind. */
   schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null;
+  /** Die Replay-Werte stammen aus dem Live-Stand des Servers (lib/clutchLive) - vorlaeufig, bis GitHub sie bestaetigt. */
+  liveVorlaeufig?: boolean;
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
@@ -297,7 +299,7 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
       {!szene && !teamWerte && (() => {
         const jung = !!endeMs && Date.now() - endeMs < 2 * 86400_000;
         const fehlenMatches = !!rundenGesamt && rundenGesamt > (matches ?? 0);
-        if (!laeuft && !(jung && (!schadenAusReplay || fehlenMatches))) return null;
+        if (!laeuft && !liveVorlaeufig && !(jung && (!schadenAusReplay || fehlenMatches))) return null;
         return (
           <div role="status" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             <p className="font-semibold text-amber-300"><T>Noch nicht fertig</T></p>
@@ -310,6 +312,7 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
               {!schadenAusReplay || schadenTeil ? ` ${t('{m} von {v} Matches voll gelesen.').replace('{m}', (schadenTeil?.matches ?? 0).toLocaleString(ort)).replace('{v}', (schadenTeil?.vonMindestens ?? rundenGesamt ?? matches ?? 0).toLocaleString(ort))}`
                 : fehlenMatches ? ` ${t('{m} von {v} Matches ausgewertet.').replace('{m}', String(matches ?? 0)).replace('{v}', String(rundenGesamt))}` : null}
             </p>
+            {liveVorlaeufig && <p className="mt-1 text-amber-200"><T>Live – vorläufig: Damage und die übrigen Replay-Werte kommen direkt vom Server, gleich nach jedem Match. Die bestätigte Auswertung folgt von selbst.</T></p>}
           </div>
         );
       })()}

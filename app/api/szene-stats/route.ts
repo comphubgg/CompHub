@@ -17,6 +17,7 @@ import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
+import { liesClutch } from '@/lib/clutchLive';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 import { spielerbildKlein, spielerbildGross, standAnhaengen } from '@/lib/spielerbildKlein';
 
@@ -1775,7 +1776,7 @@ async function berechne(request: Request) {
       const lan = await liesLanKonten();
       const je = new Map<string, number>();
       for (const w of clutchFenster) {
-        const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+        const c = await liesClutch<{ summe?: Record<string, number> }>(w).catch(() => null);
         if (!c?.summe) continue;
         clutchDa = true;
         for (const [id, pkt] of Object.entries(c.summe)) {

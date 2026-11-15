@@ -3977,6 +3977,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Spieler in der Liste': 'Players on the list',
   'Stärkste Form': 'Strongest form',
   'Noch nicht fertig': 'Not final yet',
+  'Live – vorläufig: Damage und die übrigen Replay-Werte kommen direkt vom Server, gleich nach jedem Match. Die bestätigte Auswertung folgt von selbst.': 'Live – provisional: damage and the other replay values come straight from our server right after each match. The confirmed analysis follows automatically.',
   'Matches ausgewertet. Damage, Heilung und die übrigen Replay-Werte sind Zwischenstände und steigen noch.': 'matches analyzed. Damage, healing and the other replay stats are interim values and will still go up.',
   'je Spiel': 'per match',
   'Der Cup läuft noch. Die Zahlen wachsen mit jedem ausgewerteten Match.': 'The cup is still running. The numbers grow with every analysed match.',

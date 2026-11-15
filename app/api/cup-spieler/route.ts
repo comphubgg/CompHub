@@ -7,7 +7,7 @@ import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstan
 import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
 import { liesLanKonten } from '@/lib/lanKonten';
-import { liesJson } from '@/lib/ablage';
+import { liesClutch, istLive } from '@/lib/clutchLive';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
@@ -95,8 +95,8 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number }>();
   let repVoll = tage.length > 0;
   for (const w of tage) {
-    const c = await liesJson<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
-      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>; namen?: Record<string, string> } | null>(`clutch/${w}.json`, null).catch(() => null);
+    const c = await liesClutch<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
+      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>; namen?: Record<string, string> }>(w).catch(() => null);
     replayNamenMerken(c?.namen);
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
@@ -486,7 +486,9 @@ async function holeRoh(request: Request) {
     strecke?: Record<string, [number, number]>;
     namen?: Record<string, string>;
   } | null;
-  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).then((c) => { replayNamenMerken(c?.namen); return c; }).catch(() => null);
+  // Ob ein Tag aus dem Live-Stand des Servers kommt (lib/clutchLive) - dann steht auf der Seite "live - vorlaeufig".
+  let ausLiveStand = false;
+  const clutchEinzeln = (w: string) => liesClutch<NonNullable<ClutchDatei>>(w).then((c) => { replayNamenMerken(c?.namen); if (istLive(c)) ausLiveStand = true; return c; }).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
   const clutchDatei: ClutchDatei = tage.length > 1
     ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
@@ -745,6 +747,7 @@ async function holeRoh(request: Request) {
     plattformen,
     streckeGeschaetzt,
     suche: q || null,
+    ...(ausLiveStand ? { liveVorlaeufig: true } : {}),
     hinweis: 'Counted from the replays of this match day, per player.',
   });
 }

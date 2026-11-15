@@ -13,6 +13,10 @@ services:
       NODE_OPTIONS: --max-old-space-size=6144
     ports:
       - "127.0.0.1:3100:10000"
+    # Der Live-Stand der vollen Replays (Dienst "live", scripts/live-spur.mjs) - nur lesend. lib/clutchLive nimmt ihn statt des Release, solange er mehr
+    # Matches kennt; fehlt er oder ist er kaputt, bleibt es beim Release.
+    volumes:
+      - ./live:/app/live:ro
 
   # Die Hintergrundlaeufe wie frueher auf dem PC (instrumentation.node.ts):
   # Live-Takt alle 5 Minuten, Replays stuendlich, Spieltage, Rangliste, Nachtlauf.
@@ -72,7 +76,8 @@ services:
 
   # Die Live-Spur (scripts/live-spur.mjs): volle Replays laufender Cups Match fuer Match, sobald Epic sie fertig abgelegt hat - gleich nach dem Spiel
   # statt 10 bis 20 Minuten spaeter (GitHub "Clutch rechnen" bleibt massgeblich und der einzige, der clutch/, clutch-je/, replays/ ans Release schreibt).
-  # SCHATTENBETRIEB: geschrieben wird nur unter ./live (Teile je Match, Live-Stand clutch/<w>.json + clutch-je/<w>.json); die Seite liest davon noch nichts.
+  # Geschrieben wird nur unter ./live (Teile je Match, Live-Stand clutch/<w>.json + clutch-je/<w>.json). Seit 15.11.2026 liest "web" den Live-Stand
+  # (lib/clutchLive.ts), solange er mehr Matches kennt als das Release - sonst das Release.
   # Gebremst, damit "web" und "hintergrund" Vorrang haben: nice 10, hoechstens 3,5 Kerne, geringes CPU-Gewicht, 5 GB.
   # Die Epic-Anmeldung holt er sich wie die GitHub-Ablaeufe (daten-sync, Schluessel aus web.env) in sein eigenes /app/data; klappt das nicht, nimmt er die
   # von "hintergrund" (./daten, nur lesend eingehaengt - er schreibt dort nie).
