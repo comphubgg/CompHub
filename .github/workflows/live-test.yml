@@ -1,0 +1,138 @@
+# Probe der Live-Spur (scripts/live-spur.mjs) an einem fertigen Spieltag - der Beweis, bevor der Dienst "live" auf dem Server etwas zeigt.
+#
+# Zwei Wege, beide mit demselben Ablauf: Einmal-Lauf (--einmal --fenster <w>: jedes Match der Bestenliste mit lib/vollMatch.mjs lesen, Teile ablegen,
+# Live-Stand bauen), danach scripts/live-abgleich.mjs <w> (Teile auf leerer Grundlage gegen clutch/ + clutch-je/ vom Release, dazu die Stufenprobe).
+#   direkt   auf dem Rechner, Leser gebaut wie in "Clutch rechnen"
+#   image    im Image comphub-web:voll (Dockerfile.web, Stufe voll), genau wie der Dienst "live" in deploy/server-compose.yml - nur gebaut, nicht veroeffentlicht
+# Schreibt nichts ans Release, nichts in die Ablage.
+
+name: Live-Spur pruefen
+
+on:
+  workflow_dispatch:
+    inputs:
+      fenster:
+        description: 'windowId eines fertigen Spieltags'
+        required: true
+        default: 'S43_FNCSSoloReload_HeatsStage_Heat1_EU'
+      event:
+        description: 'eventId (leer: aus dem Release)'
+        required: false
+        default: ''
+      image:
+        description: 'auch im Image voll pruefen (dauert rund 20 Minuten)'
+        required: false
+        default: 'ja'
+
+concurrency:
+  group: live-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  direkt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Leser bauen
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+
+      - name: Live-Spur einmal
+        env:
+          COMPHUB_LIVE_ORT: ${{ runner.temp }}/live
+          LIVE_LESER: '3'
+          LIVE_LADEN: '6'
+          FENSTER: ${{ inputs.fenster }}
+          EVENT: ${{ inputs.event }}
+        run: |
+          nproc; free -g | head -2
+          nice -n 10 node scripts/live-spur.mjs --einmal --fenster "$FENSTER" ${EVENT:+--event "$EVENT"} 2>&1 | tail -80
+
+      - name: Abgleich gegen das Release
+        env:
+          COMPHUB_LIVE_ORT: ${{ runner.temp }}/live
+          FENSTER: ${{ inputs.fenster }}
+        run: node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10
+
+      - name: Teile weitergeben
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-direkt
+          path: ${{ runner.temp }}/live/
+          if-no-files-found: ignore
+          retention-days: 5
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+
+  image:
+    if: inputs.image == 'ja'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Image voll bauen (nicht veroeffentlichen)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.web
+          target: voll
+          load: true
+          push: false
+          build-args: |
+            COMPHUB_SHA=${{ github.sha }}
+          tags: comphub-web:voll-probe
+          cache-from: type=gha
+
+      - name: Wie auf dem Server (web.env aus den Zugangsdaten, wie scripts/server-einrichten.sh)
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > env.local
+          sed -e 's/\r$//' -e '/^\s*#/d' -e '/^\s*$/d' -e 's/^export //' \
+              -e "s/^\([A-Za-z_][A-Za-z0-9_]*\)=\"\(.*\)\"$/\1=\2/" \
+              -e "s/^\([A-Za-z_][A-Za-z0-9_]*\)='\(.*\)'$/\1=\2/" env.local > web.env
+          rm -f env.local
+          mkdir -p live
+
+      - name: Im Image - Live-Spur einmal, dann Abgleich
+        env:
+          FENSTER: ${{ inputs.fenster }}
+          EVENT: ${{ inputs.event }}
+        run: |
+          docker run --rm --env-file web.env -e COMPHUB_LIVE_ORT=/app/live -e LIVE_LESER=3 -e LIVE_LADEN=6 \
+            -e FENSTER="$FENSTER" -e EVENT="$EVENT" -v "$PWD/live:/app/live" --cpus 3.5 --memory 5g \
+            --entrypoint sh comphub-web:voll-probe -c '
+              dotnet --list-runtimes && ls tools/replay-voll/bin/Release/net10.0/ReplayVollReplayReader.dll && echo "COMPHUB_SHA=$COMPHUB_SHA" &&
+              node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2 &&
+              nice -n 10 node scripts/live-spur.mjs --einmal --fenster "$FENSTER" ${EVENT:+--event "$EVENT"} 2>&1 | tail -60;
+              node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10'
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f web.env
