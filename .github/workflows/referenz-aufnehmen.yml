@@ -1,6 +1,9 @@
 # Interne Referenz-Aufnahme einer fremden Replay-Seite (Screenshots + JSON), nur zur Funktionsanalyse. Ergebnis als tar im Release "medien".
 name: Referenz aufnehmen
 on:
+  push:
+    branches: [replay-ausbau]
+    paths: ['tools/referenz/**', '.github/workflows/referenz-aufnehmen.yml']
   workflow_dispatch:
     inputs:
       url: { description: 'Seite', required: true }
@@ -17,13 +20,13 @@ jobs:
         with: { node-version: '22' }
       - run: npm i --no-save --no-audit --no-fund playwright@1.49.1 && npx playwright install --with-deps chromium
       - name: Aufnehmen
-        env: { URL: '${{ inputs.url }}' }
+        env: { URL: "${{ inputs.url || 'https://eucompetitive.com/gametool/replay' }}" }
         run: node tools/referenz/aufnehmen.mjs "$URL" referenz || true
       - name: Hochladen
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          NAME: ${{ inputs.name }}
+          NAME: ${{ inputs.name || 'referenz-replay' }}
         run: |
           ls -la referenz || exit 0
           cat referenz/log.txt | head -100 || true
