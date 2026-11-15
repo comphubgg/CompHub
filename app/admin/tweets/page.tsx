@@ -27,6 +27,7 @@ import { tweetLaenge } from '@/lib/ftPosts';
 import type { FtAntwort } from '@/lib/ftPostsDaten';
 import FtBild from './FtBild';
 import StatKarte, { type StatKartePerson } from './StatKarte';
+import { einzelZeile, fuerEinzelne, spaltenName, vereinheitlichen, wertText, dauer } from './kennzahlen';
 import type { StatKarteWert } from '@/lib/statKarteBild';
 import { STAT_KARTE_WERTE } from '@/lib/statKarteBild';
 interface Fenster {
@@ -56,10 +57,15 @@ interface Platz {
   rank: number; spieler: string[]; wert: number; roh: number;
   /** Epic-Konto-IDs in derselben Reihenfolge wie die Namen. */
   ids?: string[];
+  /** Platz in dieser Kennzahl mit Gleichstand - liefert app/api/cup-stats. */
+  statPlatz?: number;
 }
 interface Bestenliste {
   schluessel: string; titel: string; symbol: string;
   einheit: string | null;
+  /** Werte in Sekunden - angezeigt als "1h 58m" / "7m 55s" (app/api/cup-stats schickt das mit). */
+  zeit?: boolean;
+  nachkomma?: number;
   /** Die Spitze - das, was auf der Kachel steht. */
   plaetze: Platz[];
   /** Das ganze Feld in derselben Sortierung. Fuellt die Vollansicht. */
@@ -140,6 +146,8 @@ interface SpielerDaten {
 const SPIELER_KENNZAHLEN: Array<{
   schluessel: keyof SpielerWert | 'quoteNiedrig'; titel: string; symbol: string;
   einheit?: string; nachkomma?: number;
+  /** Sekunden - als Dauer angezeigt. */
+  zeit?: boolean;
   /** Bei "Lowest Rated" gewinnt der kleinste Wert. */
   kleinBesser?: boolean;
 }> = [
@@ -181,8 +189,8 @@ const SPIELER_KENNZAHLEN: Array<{
   { schluessel: 'kisten',      titel: 'Most Chests Opened',  symbol: '📦' },
   { schluessel: 'heals',       titel: 'Most Healing Done',   symbol: '💊' },
   { schluessel: 'distanz',     titel: 'Most Distance on Foot', symbol: '🏃', einheit: 'km', nachkomma: 1 },
-  { schluessel: 'timeInStorm', titel: 'Most Time in Storm',  symbol: '🌪️', einheit: 'min' },
-  { schluessel: 'timeAlive',   titel: 'Most Time Alive',     symbol: '⏱️', einheit: 'min' },
+  { schluessel: 'timeInStorm', titel: 'Most Time in Storm',  symbol: '🌪️', zeit: true },
+  { schluessel: 'timeAlive',   titel: 'Most Time Alive',     symbol: '⏱️', zeit: true },
   { schluessel: 'stormDamage', titel: 'Most Storm Damage',   symbol: '⛈️' },
   { schluessel: 'genauigkeit', titel: 'Best Accuracy',       symbol: '🔎', einheit: '%',
     nachkomma: 1 },
@@ -741,13 +749,7 @@ function kurzName(name: string) {
   return kernname(name).slice(0, 18);
 }
 
-/**
- * Der Kachelname als Spaltenkopf. "Most Damage Dealt" wird zu "Damage Dealt" -
- * in einer Tabelle mit zwanzig Spalten steht das Wort "Most" ohnehin ueberall.
- */
-function spaltenName(titel: string) {
-  return titel.replace(/^(Most|Best|Lowest|Highest)\s+/i, '');
-}
+// spaltenName ("Most Damage Dealt" -> "Damage Dealt") steht in ./kennzahlen.
 
 /**
  * Wie viele Zeichen muessten geaendert werden, um aus a b zu machen?
@@ -1905,8 +1907,8 @@ export default function TweetSeite() {
       // fuenf, die Vollansicht hinter dem Pluszeichen bekommt den Rest.
       const alle = sortiert.map((p, i) => {
         const roher = wertVon(p);
-        // Sekunden in Minuten, wo die Einheit es verlangt.
-        const wert = k.einheit === 'min' ? Math.round(roher / 60) : roher;
+        // Zeiten bleiben Sekunden - formatiert wird beim Schreiben (kennzahlen.ts, "7m 55s").
+        const wert = roher;
         return {
           rank: i + 1,
           spieler: [p.name],
@@ -1920,6 +1922,7 @@ export default function TweetSeite() {
         titel: k.titel,
         symbol: k.symbol,
         einheit: k.einheit ?? null,
+        zeit: !!k.zeit, nachkomma: k.nachkomma,
         plaetze: alle.slice(0, 5),
         alle,
       };
@@ -1999,17 +2002,17 @@ export default function TweetSeite() {
         || (a.e.rank - b.e.rank));
 
       const alle = zeilen.map((z, i) => {
-        const wert = k.einheit === 'min' ? Math.round(z.roh / 60) : z.roh;
+        // rank ist wie bei app/api/cup-stats Epics Gesamtplatz des Teams - daran findet das Team Spotlight seine Zeile (vorher i + 1: fremde Werte).
         return {
-          rank: i + 1, spieler: z.spieler, ids: z.ids,
-          wert: +wert.toFixed(k.nachkomma ?? 0), roh: z.roh,
+          rank: z.e.rank, statPlatz: i + 1, spieler: z.spieler, ids: z.ids,
+          wert: +z.roh.toFixed(k.nachkomma ?? 0), roh: z.roh,
         };
       });
 
       return {
         schluessel: String(k.schluessel),
         titel: k.titel, symbol: k.symbol,
-        einheit: k.einheit ?? null,
+        einheit: k.einheit ?? null, zeit: !!k.zeit, nachkomma: k.nachkomma,
         plaetze: alle.slice(0, 5), alle,
       };
     }).filter(Boolean) as Bestenliste[];
@@ -2035,8 +2038,9 @@ export default function TweetSeite() {
   /** Was gerade gilt: Teamwerte von Epic oder Einzelwerte. */
   // Gemerkt statt bei jedem Rendern neu: an dieser Liste haengen inzwischen
   // mehrere Berechnungen, die sonst jedes Mal von vorn anfingen.
+  // vereinheitlichen: jede Kennzahl einmal (Epic, Replays und Szene-Quelle fuehren manche doppelt), mit einem Namen, Zeichen und Format.
   const aktiveListen = useMemo(
-    () => (ebeneEffektiv === 'spieler'
+    () => vereinheitlichen(ebeneEffektiv === 'spieler'
       // Solo-Cup: zuerst genau die Kacheln der Event-Seite (Player Stats, app/api/cup-stats - mit Hits, Mats Farmed, Builds Placed; Betreiber 9.11.2026:
       // "Hits to Players, Mats Farmed, Builds Placed fehlen komplett"), dahinter, was nur die Einzelwerte haben.
       ? (soloCup && stats?.bestenlisten.length
@@ -2052,7 +2056,7 @@ export default function TweetSeite() {
    * stuende immer einer da, der nach einem Spiel raus war. Gebraucht wird die ganze Liste (alle), die Spitze allein sagt nichts ueber das Ende.
    */
   const worstZeilen = useMemo(() => {
-    if (vorlage !== 'worst') return [] as Array<{ titel: string; symbol: string; einheit: string | null; p: Platz }>;
+    if (vorlage !== 'worst') return [] as Array<{ titel: string; symbol: string; einheit: string | null; zeit?: boolean; nachkomma?: number; p: Platz }>;
     const spiele = new Map<string, number>();
     for (const e of eintraege) for (const sp of e.players) if (sp.id) spiele.set(sp.id, Math.max(spiele.get(sp.id) ?? 0, e.games || 0));
     for (const sp of einzelwerte) if (sp.epicId && sp.matches) spiele.set(sp.epicId, Math.max(spiele.get(sp.epicId) ?? 0, sp.matches));
@@ -2062,8 +2066,8 @@ export default function TweetSeite() {
       const feld = (b.alle ?? []).filter(genug);
       if (feld.length < 10) return null;
       const oben = OBEN_SCHLECHT.has(b.schluessel);
-      return { titel: oben ? b.titel : umgedreht(b.titel), symbol: b.symbol, einheit: b.einheit, p: oben ? feld[0] : feld[feld.length - 1] };
-    }).filter(Boolean) as Array<{ titel: string; symbol: string; einheit: string | null; p: Platz }>;
+      return { titel: oben ? b.titel : umgedreht(b.titel), symbol: b.symbol, einheit: b.einheit, zeit: b.zeit, nachkomma: b.nachkomma, p: oben ? feld[0] : feld[feld.length - 1] };
+    }).filter(Boolean) as Array<{ titel: string; symbol: string; einheit: string | null; zeit?: boolean; nachkomma?: number; p: Platz }>;
   }, [vorlage, eintraege, einzelwerte, aktiveListen, gewaehlteListen]);
 
   const coRegion = /^NA/.test(aktuellesFenster?.region ?? '') ? 'NA' : (aktuellesFenster?.region || 'EU');
@@ -2324,9 +2328,11 @@ export default function TweetSeite() {
    * frueheren decken.
    */
   const tabellenSpalten = useMemo(() => {
-    if (!gesamtTabelle.length) return aktiveListen;
+    // "Lowest Damage Ratio" nie neben der Damage Ratio - auf einer Karte stuende sonst dieselbe Kennzahl zweimal.
+    const einzeln = fuerEinzelne(aktiveListen);
+    if (!gesamtTabelle.length) return einzeln;
     const behalten: Bestenliste[] = [];
-    for (const b of aktiveListen) {
+    for (const b of einzeln) {
       const doppelt = behalten.some((a) => gesamtTabelle.every(
         (z) => z.werte[a.schluessel] === z.werte[b.schluessel]));
       if (!doppelt) behalten.push(b);
@@ -2352,7 +2358,7 @@ export default function TweetSeite() {
           ? pl.ids[0] === karteSpieler.id
           : namensSchluessel(pl.spieler[0] ?? '') === namensSchluessel(karteSpieler.name)));
       if (i < 0) return null;
-      return { liste: b, platz: i + 1, wert: feld[i].wert, von: feld.length };
+      return { liste: b, platz: feld[i].statPlatz ?? i + 1, wert: feld[i].wert, von: feld.length };
     }).filter(Boolean).sort((a, b) => a!.platz - b!.platz) as Array<{
       liste: Bestenliste; platz: number; wert: number; von: number;
     }>;
@@ -2745,12 +2751,7 @@ export default function TweetSeite() {
       // Ohne "Most" und "Best": auf einer Karte ueber einen einzelnen Spieler
       // liest sich "Most Eliminations: 43" so, als fuehre er die Wertung an -
       // der Platz dahinter sagt ohnehin genauer, wo er steht.
-      const zeilen = karteWerte.map((k) => {
-        const wert = k.liste.einheit
-          ? `${k.wert} ${k.liste.einheit}`
-          : k.wert.toLocaleString('en-US');
-        return `${k.liste.symbol} ${spaltenName(k.liste.titel)}: ${wert} (#${k.platz})`;
-      });
+      const zeilen = karteWerte.map((k) => einzelZeile(k.liste, k.wert, k.platz));
       return `${mitFlagge(karteSpieler.name, karteSpieler.id)}: ${kopf}${zusatz}`.trim()
         + NL + NL + zeilen.join(NL);
     }
@@ -2787,9 +2788,7 @@ export default function TweetSeite() {
       const zeilen = roh.map(({ pl, i, zweit }) => {
         // Bei den Einzelwerten steht die Konto-ID im Platz mit drin.
         const namen = pl.spieler.map((n, k) => mitFlagge(n, pl.ids?.[k])).join(' + ');
-        const wert = liste.einheit
-          ? `${pl.wert} ${liste.einheit}`
-          : pl.wert.toLocaleString('en-US');
+        const wert = wertText(liste, pl.wert);
         const marke = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}`;
         const klammer = mitKlammer && zweit
           ? ` (${Math.round(zweit).toLocaleString('en-US')})` : '';
@@ -2817,13 +2816,10 @@ export default function TweetSeite() {
           const feld = b.alle ?? b.plaetze;
           const i = feld.findIndex((pl) => pl.rank === e.rank);
           if (i < 0) return null;
-          const wert = b.einheit
-            ? `${feld[i].wert} ${b.einheit}`
-            : feld[i].wert.toLocaleString('en-US');
           // Ohne den Rang in Klammern: die Zeilen stehen ohnehin nach ihm
           // sortiert, "Eliminierungen: 21 (#1)" sagt also zweimal dasselbe.
-          return { text: `${b.symbol} ${spaltenName(b.titel)}: ${wert}`,
-            platz: i + 1 };
+          return { text: einzelZeile(b, feld[i].wert),
+            platz: feld[i].statPlatz ?? i + 1 };
         }).filter(Boolean)
         .sort((a, b) => a!.platz - b!.platz)
         .map((x) => x!.text);
@@ -2851,9 +2847,9 @@ export default function TweetSeite() {
 
     if (vorlage === 'worst') {
       if (!worstZeilen.length) return `${kopf}${zusatz}${NL}${NL}Kennzahlen auswählen - es braucht Werte für das ganze Feld.`;
-      const zeilen = worstZeilen.map(({ titel, symbol, p, einheit }) => {
+      const zeilen = worstZeilen.map(({ titel, symbol, p, einheit, zeit, nachkomma }) => {
         const namen = p.spieler.map((n, k) => mitFlagge(n, p.ids?.[k])).join(' + ');
-        const wert = einheit ? `${p.wert} ${einheit}` : p.wert.toLocaleString('en-US');
+        const wert = wertText({ einheit, zeit, nachkomma }, p.wert);
         return `${symbol} ${titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
       });
       return `WORST OF COMPHUB 🧌${NL}${kopf}${zusatz}${NL}${NL}${zeilen.join(NL)}${NL}${NL}All love 😈`;
@@ -2866,7 +2862,7 @@ export default function TweetSeite() {
           const p = b.plaetze[0];
           if (!p) return null;
           const namen = p.spieler.map((n, k) => mitFlagge(n, p.ids?.[k])).join(' + ');
-          const wert = b.einheit ? `${p.wert} ${b.einheit}` : p.wert.toLocaleString('en-US');
+          const wert = wertText(b, p.wert);
           return `${b.symbol} ${b.titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
         }).filter(Boolean);
       return `${kopf}: Stats Recap${zusatz}${NL}${NL}${zeilen.join(NL)}`;
@@ -2995,12 +2991,12 @@ export default function TweetSeite() {
     const person = (name: string, id?: string): StatKartePerson => ({
       id, name: kurzName(findeProfil(name, id)?.anzeige || name), land: landFuer(name, id) || null,
     });
-    const zahl = (wert: number, einheit?: string | null) => (einheit ? `${wert} ${einheit}` : wert.toLocaleString('en-US'));
+    const zahl = (wert: number, b: Bestenliste) => wertText(b, wert);
     if (vorlage === 'spielerkarte') {
       if (!karteSpieler) return null;
       return {
         titel, untertitel: 'Player Card', personen: [person(karteSpieler.name, karteSpieler.id)],
-        werte: karteWerte.slice(0, STAT_KARTE_WERTE).map((k) => ({ titel: spaltenName(k.liste.titel), wert: zahl(k.wert, k.liste.einheit), platz: k.platz })),
+        werte: karteWerte.slice(0, STAT_KARTE_WERTE).map((k) => ({ titel: spaltenName(k.liste.titel), wert: zahl(k.wert, k.liste), platz: k.platz })),
       };
     }
     if (vorlage === 'spieler') {
@@ -3011,7 +3007,7 @@ export default function TweetSeite() {
       const zeilen = tabellenSpalten.filter((b) => gewaehlteListen.includes(b.schluessel)).map((b) => {
         const feld = b.alle ?? b.plaetze;
         const i = feld.findIndex((pl) => pl.rank === e.rank);
-        return i < 0 ? null : { titel: spaltenName(b.titel), wert: zahl(feld[i].wert, b.einheit), platz: i + 1 };
+        return i < 0 ? null : { titel: spaltenName(b.titel), wert: zahl(feld[i].wert, b), platz: feld[i].statPlatz ?? i + 1 };
       }).filter((x): x is NonNullable<typeof x> => Boolean(x)).sort((a, b) => a.platz - b.platz);
       werte.push(...zeilen);
       return {
@@ -5074,8 +5070,8 @@ export default function TweetSeite() {
                             </td>
                             <td className="w-20 py-1.5 pr-3 text-right align-middle
                                            font-semibold tabular-nums text-sky-400">
-                              {p.wert.toLocaleString('de-DE')}
-                              {b.einheit && <span className="ml-0.5 text-[10px]
+                              {b.zeit ? dauer(p.wert) : p.wert.toLocaleString('de-DE')}
+                              {!b.zeit && b.einheit && <span className="ml-0.5 text-[10px]
                                                    font-normal text-slate-500">{b.einheit}</span>}
                             </td>
                           </tr>
@@ -5203,7 +5199,7 @@ export default function TweetSeite() {
                                     sein, und dann bleibt ein Strich stehen,
                                     statt eine Null zu behaupten. */}
                                 {w !== undefined
-                                  ? w.toLocaleString('de-DE')
+                                  ? (b.zeit ? dauer(w) : w.toLocaleString('de-DE'))
                                   : ebeneEffektiv === 'spieler'
                                     ? <span className="text-slate-600">0</span>
                                     : <span className="text-slate-700"
@@ -5244,8 +5240,8 @@ export default function TweetSeite() {
                           </td>
                           <td className="w-24 py-2 pr-4 text-right align-middle
                                          font-semibold tabular-nums text-sky-400">
-                            {pl.wert.toLocaleString('de-DE')}
-                            {offeneListe?.einheit && (
+                            {offeneListe?.zeit ? dauer(pl.wert) : pl.wert.toLocaleString('de-DE')}
+                            {!offeneListe?.zeit && offeneListe?.einheit && (
                               <span className="ml-0.5 text-[10px] font-normal
                                                text-slate-500">
                                 {offeneListe.einheit}
