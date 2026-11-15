@@ -2,7 +2,8 @@
 <html><head><meta charset="utf-8"><title>CompHub Prediction</title>
 <!-- Promo-Video "Introducing: CompHub Prediction". Gerendert mit tools/stats-agent-video/aufnehmen.mjs (siehe README-Kopf dort), Ton aus ton.py.
      Nur Fakten aus app/api/qualifikation/route.ts und app/events/[id]/page.tsx (qualPrognose). Werte mit "Example"/"Illustration" sind Beispiele,
-     echte Zahlen nur beim Heat-Beispiel (FNCS Solos Reload Heat 1 EU, 14.11.2026: Prognose vorher ~217, echte Grenze Top 15 = 228). -->
+     echte Zahlen nur beim Heat-Beispiel (FNCS Solos Reload Heat 1 EU, 14.11.2026: echte Grenze Top 15 = 228 -> Heat 2 startet bei 228).
+     Bewusst ohne Vorher/Nachher-Vergleich fuer Heat 1 (Prognose dort ~172, waehrend des Heats auf ~217 nachgestellt - keine Genauigkeitsaussage). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
 <style>
@@ -102,15 +103,16 @@ svg text{font-family:Inter,sans-serif}
 #s5kopf{position:absolute;left:0;right:0;top:250px;text-align:center}
 .hoch #s5kopf{top:330px;padding:0 70px}
 #s5h{font-weight:800;font-size:80px;line-height:1.05;margin-top:22px;letter-spacing:-.01em}
+#s5p b{color:#fff;font-weight:700}
 #s5p{font-weight:500;font-size:32px;color:#a3b6d3;margin-top:22px}
 .hoch #s5p{font-size:34px;line-height:1.35}
-#s5seite{position:absolute;left:130px;right:130px;top:600px;padding:44px 46px 40px;border-radius:30px;background:#09090b;border:1.5px solid #1f1f23;box-shadow:0 40px 100px rgba(0,0,0,.6)}
+#s5seite{position:absolute;left:330px;right:330px;top:600px;padding:44px 46px 40px;border-radius:30px;background:#09090b;border:1.5px solid #1f1f23;box-shadow:0 40px 100px rgba(0,0,0,.6)}
 .hoch #s5seite{left:70px;right:70px;top:860px}
 #s5seite .zeile{display:flex;gap:26px}
 .hoch #s5seite .zeile{flex-direction:column;gap:26px}
 #s5seite .kachel{flex:1}
-#s5seite #u1{flex:1.45}
-#s5seite .kachel.prog{flex:1.15}
+#s5seite #u1{flex:1.3}
+#s5seite .kachel.prog{flex:1}
 #s5seite .kachel .v{font-size:46px}
 .hoch #s5seite .kachel .v{font-size:52px}
 #s5tag{position:absolute;right:46px;bottom:-52px}
@@ -211,8 +213,7 @@ svg text{font-family:Inter,sans-serif}
         <div class="ht">FNCS Solos Reload · EU</div>
         <div class="hn">Heat 1</div>
         <div class="hd">14 Nov 2026 · Top 15 → Grand Finals</div>
-        <div class="zeile a" id="h1z1"><div class="zl">Prediction before the cup</div><div class="zw">~217<small>Points</small></div></div>
-        <div class="zeile a" id="h1z2"><div class="zl">Real qualifying line</div><div class="zw"><span id="h1w">228</span><small>Points</small></div></div>
+        <div class="zeile a" id="h1z2"><div class="zl">Qualified at (Top 15)</div><div class="zw"><span id="h1w">228</span><small>Points</small></div></div>
       </div>
       <div class="panel heat a" id="h2">
         <div class="ht">FNCS Solos Reload · EU</div>
@@ -222,23 +223,22 @@ svg text{font-family:Inter,sans-serif}
       </div>
     </div>
     <svg id="s4pfeil" class="a" viewBox="0 0 130 60" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 30h108M92 8l24 22-24 22"/></svg>
-    <div id="s4fuss" class="a">Heat 1 qualified at 228 points — so Heat 2's prediction starts from 228.</div>
+    <div id="s4fuss" class="a">Heat 1 EU qualified at 228 points (Top 15) → Heat 2's prediction starts from 228.</div>
   </div>
 
   <!-- 5: Auf der Seite -->
   <div class="szene" id="s5">
     <div id="s5kopf">
-      <div class="kicker mitte a" id="s5k">On every cup page</div>
-      <div id="s5h" class="a bri">Right next to <span class="blau glow nw">Qual right now.</span></div>
-      <div id="s5p" class="a">The live qualifying line from Epic, <span class="nw">refreshed during the cup.</span></div>
+      <div class="kicker mitte a" id="s5k">On cup pages</div>
+      <div id="s5h" class="a bri">Right on the <span class="blau glow nw">cup page.</span></div>
+      <div id="s5p" class="a">Next to <b>Qual right now</b> — the live qualifying line from Epic, <span class="nw">refreshed during the cup.</span></div>
     </div>
     <div id="s5seite" class="a">
       <div class="zeile">
         <div class="kachel a" id="u1"><div class="l">Qualifying</div><div class="v">Top 15 → Grand Finals</div></div>
-        <div class="kachel a" id="u2"><div class="l"><span class="live" id="u2live"></span>Qual right now</div><div class="v"><span id="u2w">0</span> Points</div></div>
-        <div class="kachel prog a" id="u3"><div class="l"><img src="../../public/logos/CompHub-Logo-96.webp">CompHub Prediction</div><div class="v">~217 Points</div></div>
+        <div class="kachel prog a" id="u3"><div class="l"><img src="../../public/logos/CompHub-Logo-96.webp">CompHub Prediction</div><div class="v">~228 Points</div></div>
       </div>
-      <div class="tag" id="s5tag">Site UI, recreated</div>
+      <div class="tag" id="s5tag">Heat 2 · Site UI, recreated</div>
     </div>
   </div>
 
@@ -452,10 +452,10 @@ function planeSfx() {
   sfx(L.g1 + NACH * L.gd + 2.2, 'hit', { v: 0.7 });
   // Heats
   sfx(T.s4, 'whoosh'); sfx(T.s4 + 0.6, 'whoosh', { v: 0.5 });
-  sfx(T.s4 + 2.2, 'click'); sfx(T.s4 + 3.0, 'ticks', { d: 1.2 }); sfx(T.s4 + 4.6, 'whoosh', { v: 0.6 }); sfx(T.s4 + 5.4, 'ping');
+  sfx(T.s4 + 2.4, 'ticks', { d: 1.2 }); sfx(T.s4 + 4.6, 'whoosh', { v: 0.6 }); sfx(T.s4 + 5.4, 'ping');
   // Seite
   sfx(T.s5 - 0.3, 'whoosh', { v: 1.1 }); sfx(T.s5 + 0.2, 'whoosh');
-  sfx(T.s5 + 2.0, 'click'); sfx(T.s5 + 2.3, 'ticks', { d: 1.6 }); sfx(T.s5 + 2.6, 'click'); sfx(T.s5 + 4.2, 'blip');
+  sfx(T.s5 + 2.0, 'click'); sfx(T.s5 + 2.6, 'click'); sfx(T.s5 + 4.2, 'blip');
   // Outro
   sfx(T.s6 - 2.4, 'riser', { d: 2.4 });
   sfx(T.s6, 'impact');
@@ -614,9 +614,8 @@ window.zeichne = function (t) {
   { const A = T.s4, B = T.s5 - 0.5;
     zeige('s4k', t, A + 0.3, B, { y: 20 }); zeige('s4h', t, A + 0.45, B, { y: 30, d: 0.8 });
     zeige('h1', t, A + 1.2, B, { x: HOCH ? 0 : -100, y: HOCH ? 60 : 0, d: 0.8 });
-    zeige('h1z1', t, A + 2.2, B, { y: 14, d: 0.4, blur: 0 });
-    zeige('h1z2', t, A + 3.0, B, { y: 14, d: 0.4, blur: 0 });
-    $('h1w').textContent = Math.round(lerp(0, 228, eExpo(ab(t, A + 3.0, 1.2))));
+    zeige('h1z2', t, A + 2.4, B, { y: 14, d: 0.4, blur: 0 });
+    $('h1w').textContent = Math.round(lerp(0, 228, eExpo(ab(t, A + 2.4, 1.2))));
     const pf = zeige('s4pfeil', t, A + 4.4, B, { x: HOCH ? 0 : -40, y: HOCH ? -30 : 0, d: 0.5, blur: 0 });
     zeige('h2', t, A + 4.6, B, { x: HOCH ? 0 : 100, y: HOCH ? 60 : 0, d: 0.8 });
     zeige('h2z1', t, A + 5.3, B, { y: 14, d: 0.4, blur: 0 });
@@ -637,9 +636,6 @@ window.zeichne = function (t) {
     zeige('s5p', t, A + 1.0, B, { y: 24 });
     zeige('s5seite', t, A + 1.4, B, { y: 80, s: 0.96, d: 0.8 });
     zeige('u1', t, A + 1.9, B, { y: 30, d: 0.5, blur: 0 });
-    zeige('u2', t, A + 2.2, B, { y: 30, d: 0.5, blur: 0 });
-    $('u2w').textContent = Math.round(228 * eExpo(ab(t, A + 2.3, 1.6)));
-    $('u2live').style.opacity = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 6));
     const u3 = zeige('u3', t, A + 2.6, B, { y: 30, s: 0.9, d: 0.6, blur: 0, e: eBack });
     if (u3 > 0) { $('u3').style.boxShadow = `0 0 ${40 + 20 * Math.sin(t * 3)}px rgba(14,165,233,${0.25 * u3})`; }
     if (t > A + 2.6) { const [cx, cy] = mitte('u3'); blitzRing(cx, cy, ab(t, A + 2.7, 1.0), 380); }
