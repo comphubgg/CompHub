@@ -79,6 +79,18 @@ async function eine(name, tag, manifest) {
   if (hier && pruefsumme(daten) === hier) return 'gleich';
   fs.mkdirSync(path.dirname(ziel), { recursive: true });
   fs.writeFileSync(ziel, daten);
+  /*
+   * Geholt ist nicht geaendert (15.11.2026). Bisher trug jede geholte Datei die Uhrzeit des Holens, und "ablage-github.mjs --neuer-als 60" hielt sie eine
+   * Stunde lang fuer frisch: hatte ein anderer Rechner sie inzwischen neu hochgeladen, ging die alte Kopie wieder hoch. So geschehen bei One Piece Buggy Cup
+   * NAC und ZB NAC: Nacharbeiter Teil 1 wertete um 12:22 UTC alle 586 offenen Matches aus (darunter die 9 FAILED), Teil 2 - der an diesen Spieltagen nichts
+   * tat - lud um 12:36 seine um 12:16 geholten Fassungen von _zustand.json und _aggregat.json darueber; am Release standen wieder 2670 Matches und die FAILED.
+   * Jetzt bekommt die Datei die Zeit aus dem Verzeichnis des Releases, einen Tag zurueckgesetzt - die Reihenfolge untereinander bleibt (replays-schlank
+   * vergleicht Zeiten), und hochgeladen wird nur, was hier wirklich neu geschrieben wurde.
+   */
+  try {
+    const zeit = (Date.parse(manifest[anhang]?.zeit ?? '') || Date.now()) - 864e5;
+    fs.utimesSync(ziel, new Date(zeit), new Date(zeit));
+  } catch { /* dann eben mit der Zeit des Holens */ }
   return daten.length;
 }
 
