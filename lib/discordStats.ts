@@ -23,7 +23,7 @@ import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { POST as echteNamenAbruf } from '@/app/api/echte-namen/route';
 import { finale as istFinaleFenster, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 import { STATS_BEFEHLE, STATS_KANAL, statsAnleitung } from '@/lib/discordVorlagen.mjs';
-import { namensKey, namenVorschlaege, namenVorwaermen, kontoZuName, kontoErgebnisse, bekannterName, type KontoSuche } from '@/lib/discordSpielerSuche';
+import { namensKey, namenVorschlaege, namenVorwaermen, kontoZuName, kontoErgebnisse, kontoSpieltageSofort, bestandVorwaermen, bekannterName, type KontoSuche } from '@/lib/discordSpielerSuche';
 import { schickeAlarm } from '@/lib/discord';
 
 const SEITE = 'https://www.thecomphub.com';
@@ -86,8 +86,8 @@ const zuletzt = (c: Cup) => Math.max(0, ...fensterVon(c)
   .filter((f) => f.status === 'vorbei' || f.status === 'live').map((f) => f.end ?? f.begin ?? 0));
 
 /** Vorschlaege fuer "cup:" / "name:" - die juengsten Cups zuerst, passend zum Getippten. */
-async function katalogVorschlaege(q: string): Promise<Array<{ name: string; value: string }>> {
-  const liste = await cups(2_000);
+async function katalogVorschlaege(q: string, warten = 1_500): Promise<Array<{ name: string; value: string }>> {
+  const liste = await cups(Math.max(100, warten));
   const t = q.trim().toLowerCase();
   return liste
     .filter((c) => c.id.length <= 100 && zuletzt(c) > 0)
@@ -106,17 +106,34 @@ const kurzDatum = (ms: number) => (ms ? new Date(ms).toLocaleDateString('en-GB',
  * "cup:" bei /stats: ist der Spieler schon gewaehlt, nur die Spieltage, an denen er wirklich Ergebnisse hat (neueste zuerst,
  * "FNCS Solos Reload · Heat 1 · EU · 14 Nov") - Betreiber, 15.11.2026, wie beim Mitbewerber "erst Spieler, dann Turnier".
  * Der Wert ist dann "w:<Fenster>". Ohne Spieler (oder solange seine Ergebnisse noch laden) die juengsten Cups des Katalogs.
- * Discord verwirft Vorschlaege nach drei Sekunden - geladen wird darum im Hintergrund, hier nur gewartet, solange es reicht.
+ *
+ * Discord verwirft Vorschlaege nach drei Sekunden ("Optionen koennen nicht geladen werden"; Betreiber, 15.11.2026, nach "iL juanit0 · Epic account").
+ * Vorher wartete diese Stelle zwei Sekunden auf das Profil und danach noch einmal bis zu zwei auf den Katalog - und fuer ein Konto ohne Szene-Profil
+ * las das Profil 160 Bestenlisten vom Release, was Minuten dauerte. Jetzt: hoechstens 1,5 Sekunden insgesamt. Die Spieltage kommen sofort aus dem
+ * Bestand im Speicher (lib/discordSpielerSuche, alle Bestenlisten der letzten drei Wochen), dazu das Profil, falls es schon geladen ist; das Profil
+ * wird beim ersten Mal im Hintergrund angeworfen und ist beim naechsten Tastendruck da.
  */
 export async function cupVorschlaege(q: string, spielerEingabe?: string): Promise<Array<{ name: string; value: string }>> {
+  const frist = Date.now() + 1_500;
+  bestandVorwaermen();
   const s = String(spielerEingabe ?? '').trim();
   if (s.length >= 2) {
     const id = /^[0-9a-f]{32}$/i.test(s) ? s.toLowerCase() : idGemerkt.get(namensKey(s)) ?? null;
     if (id) {
-      const daten = await Promise.race([spielerDaten(id).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 2_000))]);
-      if (daten?.ergebnisse.length) {
+      const profil = spielerDaten(id).catch(() => null);
+      // Liegt der Bestand schon vor, nur kurz auf das Profil warten - sonst etwas laenger (es ist dann die einzige Quelle).
+      const schnell = kontoSpieltageSofort(id) ?? [];
+      const daten = await Promise.race([profil, new Promise<null>((r) => setTimeout(() => r(null), schnell.length ? 250 : 700))]);
+      const alle = new Map<string, { windowId: string; titel: string; region: string; datum: number }>();
+      for (const e of daten?.ergebnisse ?? []) alle.set(e.windowId, e);
+      for (const z of schnell) {
+        if (alle.has(z.windowId)) continue;
+        alle.set(z.windowId, { windowId: z.windowId, region: z.region, datum: z.datum, titel: ausBestenlisten({ zeilen: [z], gesucht: 1, gelesen: 1, tage: 0 })[0].titel });
+      }
+      if (alle.size) {
         const t = q.trim().toLowerCase();
-        const raus = daten.ergebnisse
+        const raus = [...alle.values()]
+          .sort((a, b) => b.datum - a.datum)
           .map((e) => ({ e, name: `${e.titel} · ${e.region}${e.datum ? ` · ${kurzDatum(e.datum)}` : ''}` }))
           .filter(({ name, e }) => !t || name.toLowerCase().includes(t) || e.windowId.toLowerCase().includes(t))
           .slice(0, 25)
@@ -125,7 +142,7 @@ export async function cupVorschlaege(q: string, spielerEingabe?: string): Promis
       }
     }
   }
-  return katalogVorschlaege(q);
+  return katalogVorschlaege(q, frist - Date.now());
 }
 
 /* --------------------------------------------------------------- Spieler */
@@ -210,6 +227,8 @@ interface Ergebnis {
   platz: number | null; punkte: number | null; elims: number | null; schaden: number | null; matches: number | null;
   /** Nur Team-Elims bekannt (Epic zaehlt Elims je Team; kein Replay ausgewertet). */
   teamElims?: number | null;
+  /** Aus der gespeicherten Bestenliste: das Event und wann die Liste geholt wurde (ms). */
+  eventId?: string; geholt?: number | null;
 }
 
 function ergebnisse(p: Profil): Ergebnis[] {
@@ -244,6 +263,7 @@ function ausBestenlisten(s: KontoSuche): Ergebnis[] {
     titel: [z.titel, fensterName(z.windowId, false) || (/Event(\d+)/i.exec(z.windowId) ? `Event ${/Event(\d+)/i.exec(z.windowId)![1]}` : '')].filter(Boolean).join(' · '),
     platz: z.platz, punkte: z.punkte, elims: z.elims, schaden: null, matches: z.matches || null,
     teamElims: z.elims === null ? z.teamElims : null,
+    eventId: z.eventId, geholt: z.geholt,
   }));
 }
 
@@ -391,6 +411,8 @@ export async function statsAntwort(spielerEingabe: string, cupWahl?: string): Pr
   const katalogCups = await cups();
   const cupVon = new Map<string, Cup>();
   for (const c of katalogCups) for (const f of fensterVon(c)) cupVon.set(f.windowId, c);
+
+
   let gewaehlt: Ergebnis[];
   let cupTitel = '';
   if (cupWahl?.startsWith('w:')) {
@@ -548,4 +570,12 @@ export function hilfeAntwort(): Antwort {
     embeds: [statsAnleitung()],
     components: [knopf('Open thecomphub.com', `${SEITE}/statistics`)],
   };
+}
+
+/*
+ * Beim Laden des Moduls (der Waechter klopft alle zwei Minuten an die Route, scripts/dauerbetrieb.ps1) gleich den Namensvorrat und den Bestand der
+ * Bestenlisten anwerfen - sonst ist die erste Vorschlagsliste nach einem Neustart kalt. Nicht beim Bauen (next build laedt die Module auch).
+ */
+if (process.env.NEXT_PHASE !== 'phase-production-build' && !process.env.COMPHUB_KEIN_HINTERGRUND) {
+  setTimeout(() => { try { namenVorwaermen(); bestandVorwaermen(); void cups(0).catch(() => null); } catch { /* beim naechsten Befehl */ } }, 5_000).unref?.();
 }

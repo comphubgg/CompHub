@@ -153,8 +153,10 @@ export interface KontoZeile {
   platz: number; punkte: number; matches: number;
   /** Eigene Elims aus dem Replay - sonst bei Solo die Team-Elims (= die eigenen), bei Teams null. */
   elims: number | null; teamElims: number; teamGroesse: number;
+  /** Wann die Liste bei Epic geholt wurde (ms) - eine waehrend des Cups geholte Liste ist nicht der Endstand. */
+  geholt: number | null;
 }
-interface Manifest { [anhang: string]: { groesse?: number; zeit?: string } }
+interface Manifest { [anhang: string]: { groesse?: number; zeit?: string; summe?: string } }
 
 const manifestVorrat = new Map<string, { bis: number; wert: Manifest }>();
 async function manifest(tag: string): Promise<Manifest> {
@@ -175,11 +177,11 @@ async function manifest(tag: string): Promise<Manifest> {
   return wert;
 }
 
-/** Die juengsten Spieltage am Release: [Release, Anhang, Zeit], neueste zuerst. */
-async function juengsteSpieltage(tage: number, hoechstens: number): Promise<Array<{ tag: string; anhang: string; zeit: number }>> {
+/** Die juengsten Spieltage am Release: [Release, Anhang, Zeit, Pruefsumme], neueste zuerst. */
+async function juengsteSpieltage(tage: number, hoechstens: number): Promise<Array<{ tag: string; anhang: string; zeit: number; summe: string }>> {
   const tags = tagsFuer('epic-spieltage/') as string[];
   const ab = Date.now() - tage * 86_400_000;
-  const raus: Array<{ tag: string; anhang: string; zeit: number }> = [];
+  const raus: Array<{ tag: string; anhang: string; zeit: number; summe: string }> = [];
   const gesehen = new Set<string>();
   for (const [i, m] of (await Promise.all(tags.map((t) => manifest(t)))).entries()) {
     for (const [anhang, a] of Object.entries(m)) {
@@ -189,14 +191,14 @@ async function juengsteSpieltage(tage: number, hoechstens: number): Promise<Arra
       const zeit = Date.parse(a.zeit ?? '') || 0;
       if (zeit < ab) continue;
       gesehen.add(anhang);
-      raus.push({ tag: tags[i], anhang, zeit });
+      raus.push({ tag: tags[i], anhang, zeit, summe: a.summe ?? String(a.groesse ?? '') });
     }
   }
   return raus.sort((a, b) => b.zeit - a.zeit).slice(0, hoechstens);
 }
 
 interface RohSpieltag {
-  eventId: string; windowId: string; region: string; season: string; titel: string; datum: number | null;
+  eventId: string; windowId: string; region: string; season: string; titel: string; datum: number | null; geholt?: string;
   teams: Array<{ platz: number; punkte: number; matches: number; teamElims: number; spieler: string[] }>;
 }
 
@@ -214,41 +216,132 @@ async function holeDatei(tag: string, anhang: string): Promise<Buffer | null> {
 
 export interface KontoSuche { zeilen: KontoZeile[]; gesucht: number; gelesen: number; tage: number }
 
-const kontoVorrat = new Map<string, { bis: number; wert: Promise<KontoSuche> }>();
 const TAGE = 21;
 const DATEIEN = 160;
 
+/*
+ * Der Bestand: alle Spieltage der letzten drei Wochen einmal gelesen und im Speicher (Betreiber, 15.11.2026: nach der Wahl von "iL juanit0 · Epic account"
+ * zeigte "cup:" nur "Optionen koennen nicht geladen werden"). Vorher las JEDE Suche nach einem Konto bis zu 160 Dateien (je ein bis zwei Megabyte) vom
+ * Release - fuer ein Konto ohne Szene-Profil dauerte das Minuten, und die Vorschlagsliste hat drei Sekunden. Jetzt liegt je Spieltag nur, was die Suche
+ * braucht: die Konto-Ids aneinander (32 Zeichen je Spieler, als Buffer ausserhalb des JS-Speichers) und je Team Platz, Punkte, Matches, Team-Elims.
+ * Ein Konto ist damit in Millisekunden gefunden. Erneuert wird alle 15 Minuten - nur, was am Release neu ist oder sich geaendert hat (Pruefsumme).
+ */
+interface BestandDatei {
+  summe: string;
+  kopf: { eventId: string; windowId: string; region: string; season: string; titel: string; datum: number; geholt: number | null };
+  /** Die Konto-Ids aller Spieler, je 32 Zeichen, aneinander. */
+  ids: Buffer;
+  /** Je Spieler (Stelle in ids / 32) der Index seines Teams. */
+  team: Int32Array;
+  platz: Int32Array; punkte: Int32Array; matches: Int32Array; teamElims: Int32Array; groesse: Int32Array;
+}
+const bestand = new Map<string, BestandDatei>();
+let bestandGesucht = 0;
+let bestandBis = 0;
+let bestandErsterLauf: Promise<void> | null = null;
+let bestandLaeuft: Promise<void> | null = null;
+
+function bestandDatei(roh: Buffer, summe: string): BestandDatei | null {
+  try {
+    const d = JSON.parse(roh.toString('utf8')) as RohSpieltag;
+    const teams = d.teams ?? [];
+    const ids: string[] = []; const team: number[] = [];
+    const platz = new Int32Array(teams.length); const punkte = new Int32Array(teams.length); const matches = new Int32Array(teams.length);
+    const teamElims = new Int32Array(teams.length); const groesse = new Int32Array(teams.length);
+    teams.forEach((t, i) => {
+      platz[i] = t.platz; punkte[i] = t.punkte ?? 0; matches[i] = t.matches ?? 0; teamElims[i] = t.teamElims ?? 0;
+      const echte = (t.spieler ?? []).map((s) => String(s).toLowerCase()).filter((s) => /^[0-9a-f]{32}$/.test(s));
+      groesse[i] = echte.length;
+      for (const s of echte) { ids.push(s); team.push(i); }
+    });
+    return {
+      summe,
+      kopf: {
+        eventId: d.eventId, windowId: d.windowId, region: d.region, season: d.season, titel: d.titel, datum: d.datum ?? 0,
+        geholt: Date.parse(d.geholt ?? '') || null,
+      },
+      ids: Buffer.from(ids.join(''), 'latin1'), team: Int32Array.from(team), platz, punkte, matches, teamElims, groesse,
+    };
+  } catch { return null; }
+}
+
+function bestandErneuern(): Promise<void> {
+  bestandLaeuft ??= (async () => {
+    const liste = await juengsteSpieltage(TAGE, DATEIEN);
+    if (!liste.length) { bestandBis = Date.now() + 60_000; return; }
+    const offen = liste.filter((x) => bestand.get(x.anhang)?.summe !== x.summe);
+    for (let i = 0; i < offen.length; i += 6) {
+      await Promise.all(offen.slice(i, i + 6).map(async ({ tag, anhang, summe }) => {
+        const roh = await holeDatei(tag, anhang);
+        const d = roh ? bestandDatei(roh, summe) : null;
+        if (d) bestand.set(anhang, d);
+      }));
+    }
+    const drin = new Set(liste.map((x) => x.anhang));
+    for (const k of [...bestand.keys()]) if (!drin.has(k)) bestand.delete(k);
+    bestandGesucht = liste.length;
+    // Kam ein Teil nicht, bald noch einmal (Hauptregel: ein Fehlschlag ist kein "fehlt").
+    bestandBis = Date.now() + (bestand.size < liste.length ? 2 * 60_000 : 15 * 60_000);
+  })().catch(() => { bestandBis = Date.now() + 60_000; }).finally(() => { bestandLaeuft = null; });
+  return bestandLaeuft;
+}
+
+/** Den Bestand anwerfen bzw. erneuern, wenn er alt ist - ohne zu warten. */
+export function bestandVorwaermen(): void {
+  if (Date.now() < bestandBis) return;
+  const lauf = bestandErneuern();
+  bestandErsterLauf ??= lauf;
+}
+/** Ist der Bestand einmal ganz gelesen? */
+export function bestandBereit(): boolean { return bestandGesucht > 0 && bestand.size > 0; }
+
+/** Die Zeilen eines Kontos aus dem Bestand - sofort, ohne Netz. */
+function imBestand(id: string): KontoZeile[] {
+  const nadel = Buffer.from(id, 'latin1');
+  const zeilen: KontoZeile[] = [];
+  for (const d of bestand.values()) {
+    let ab = 0;
+    for (;;) {
+      const stelle = d.ids.indexOf(nadel, ab);
+      if (stelle < 0) break;
+      ab = stelle + 1;
+      if (stelle % 32) continue;
+      const t = d.team[stelle / 32];
+      zeilen.push({
+        windowId: d.kopf.windowId, eventId: d.kopf.eventId, region: d.kopf.region, season: d.kopf.season, titel: d.kopf.titel,
+        datum: d.kopf.datum, platz: d.platz[t], punkte: d.punkte[t], matches: d.matches[t],
+        elims: d.groesse[t] === 1 ? d.teamElims[t] : null, teamElims: d.teamElims[t], teamGroesse: d.groesse[t], geholt: d.kopf.geholt,
+      });
+      break;
+    }
+  }
+  return zeilen.sort((a, b) => b.datum - a.datum);
+}
+
 /**
- * Wo steht dieses Konto in den Bestenlisten der letzten drei Wochen? Gelesen werden hoechstens 160 Spieltage
- * (alle Regionen), sechs gleichzeitig. "gelesen" < "gesucht" heisst: einige Dateien kamen nicht - dann ehrlich sagen.
+ * Die Spieltage eines Kontos sofort - nur aus dem schon gelesenen Bestand (fuer die Vorschlagsliste, die nicht warten kann).
+ * null: der Bestand ist noch nicht gelesen (er wird dabei angeworfen).
+ */
+export function kontoSpieltageSofort(epicId: string): KontoZeile[] | null {
+  bestandVorwaermen();
+  return bestandBereit() ? imBestand(epicId.toLowerCase()) : null;
+}
+
+const kontoVorrat = new Map<string, { bis: number; wert: Promise<KontoSuche> }>();
+
+/**
+ * Wo steht dieses Konto in den Bestenlisten der letzten drei Wochen (hoechstens 160 Spieltage, alle Regionen)? Aus dem Bestand; ist er noch nicht
+ * gelesen, wird auf den ersten Lauf gewartet. "gelesen" < "gesucht" heisst: einige Dateien kamen nicht - dann ehrlich sagen.
  */
 export function kontoErgebnisse(epicId: string): Promise<KontoSuche> {
   const id = epicId.toLowerCase();
   const da = kontoVorrat.get(id);
   if (da && da.bis > Date.now()) return da.wert;
   const wert = (async (): Promise<KontoSuche> => {
-    const liste = await juengsteSpieltage(TAGE, DATEIEN);
-    const zeilen: KontoZeile[] = [];
-    let gelesen = 0;
-    const nadel = Buffer.from(id);
-    for (let i = 0; i < liste.length; i += 6) {
-      await Promise.all(liste.slice(i, i + 6).map(async ({ tag, anhang }) => {
-        const roh = await holeDatei(tag, anhang);
-        if (!roh) return;
-        gelesen += 1;
-        if (roh.indexOf(nadel) < 0) return;
-        try {
-          const d = JSON.parse(roh.toString('utf8')) as RohSpieltag;
-          const t = d.teams.find((x) => x.spieler.some((s) => s.toLowerCase() === id));
-          if (!t) return;
-          zeilen.push({
-            windowId: d.windowId, eventId: d.eventId, region: d.region, season: d.season, titel: d.titel,
-            datum: d.datum ?? 0, platz: t.platz, punkte: t.punkte, matches: t.matches,
-            elims: t.spieler.length === 1 ? t.teamElims : null, teamElims: t.teamElims, teamGroesse: t.spieler.length,
-          });
-        } catch { /* unlesbare Datei */ }
-      }));
-    }
+    bestandVorwaermen();
+    if (!bestandBereit()) await (bestandErsterLauf ?? bestandErneuern());
+    if (!bestandBereit()) await bestandErneuern();
+    const zeilen = imBestand(id);
     // Eigene Elims aus dem Replay (nur fuer Teams noetig) - mit Frist, das Replay ist ein Zusatz.
     await Promise.race([
       Promise.all(zeilen.filter((z) => z.teamGroesse > 1).slice(0, 10).map(async (z) => {
@@ -256,8 +349,7 @@ export function kontoErgebnisse(epicId: string): Promise<KontoSuche> {
       })),
       new Promise((r) => setTimeout(r, 8_000)),
     ]);
-    zeilen.sort((a, b) => b.datum - a.datum);
-    return { zeilen, gesucht: liste.length, gelesen, tage: TAGE };
+    return { zeilen, gesucht: bestandGesucht, gelesen: bestand.size, tage: TAGE };
   })();
   kontoVorrat.set(id, { bis: Date.now() + 10 * 60_000, wert });
   // Ein Fehlschlag soll nicht zehn Minuten haengen bleiben.
