@@ -2,6 +2,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 import { BEITRAEGE, FARBE, type Sprache, type Sichtbar } from './discordTexte';
+import { willkommen, WILLKOMMEN_MARKE } from './discordVorlagen.mjs';
 import { alleZugaenge } from './vipZugaenge';
 import { MARKE } from './marke';
 
@@ -235,7 +236,7 @@ async function kategorieFuer(name: string): Promise<string | null> {
   const kanaele = await ruf(`/guilds/${SERVER}/channels`, 'GET');
   if (Array.isArray(kanaele)) {
     const schon = (kanaele as Array<{ id: string; name: string; type: number }>)
-      .find((k) => k.type === 4 && k.name.toLowerCase() === name.toLowerCase());
+      .find((k) => k.type === 4 && gleich(k.name, name));
     if (schon) return schon.id;
   }
   const ich = await werBinIch();
@@ -807,7 +808,22 @@ async function alleKanaele(): Promise<RoherKanal[]> {
   return Array.isArray(k) ? (k as RoherKanal[]) : [];
 }
 
-const gleich = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+/**
+ * Der Kern eines Kanal- oder Kategorienamens: klein, ohne Emoji und Trennzeichen vorne.
+ *
+ * Seit dem Server-Umbau (15.11.2026, scripts/discord-umbau.mjs) duerfen Kanaele ein Emoji vorne
+ * tragen ("📰-news", "📘 Information"). Gesucht wird weiter ueber den alten Namen - "🏠-welcome"
+ * und "welcome" sind derselbe Kanal, sonst legte der Code beim naechsten Lauf Doppelte an.
+ * "comphub-updates" ist der neue Name von #updates (Changelog).
+ */
+function namensKern(s: string): string {
+  const k = String(s ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '').trim();
+  return k === 'comphub-updates' ? 'updates' : k;
+}
+
+function gleich(a: string, b: string): boolean {
+  return namensKern(a) === namensKern(b);
+}
 
 /**
  * Die Nachricht zu einem Beitrag - als Einbettung, nicht als blosser Text.
@@ -940,11 +956,15 @@ async function infoKanal(
     regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
   }
 
-  const schon = vorhandene.find((k) => k.type === 0 && gleich(k.name, name));
+  const schon = vorhandene.find((k) => (k.type === 0 || k.type === 5) && gleich(k.name, name));
   if (schon) {
+    /*
+     * Die Kategorie nur beim Anlegen. Ein vorhandener Kanal bleibt, wo er liegt: der Server-Umbau
+     * (scripts/discord-umbau.mjs) hat #announcements, #updates, #news ... nach "Information" und
+     * "Community" sortiert, und "Server einrichten" schob sie vorher jedes Mal zurueck.
+     */
     await ruf(`/channels/${schon.id}`, 'PATCH', {
       topic: thema,
-      ...(kategorie ? { parent_id: kategorie } : {}),
       permission_overwrites: regeln,
     });
     return schon.id;
@@ -1146,6 +1166,43 @@ export async function richteServerEin(
      * den Aufbau ohne Loeschen laufen laesst, bekommt den neuen Text
      * darunter gestellt und raeumt selbst auf.
      */
+    /*
+     * #welcome: dieselbe Nachricht wie der Server-Umbau (lib/discordVorlagen.mjs). Steht sie schon
+     * da (erkannt an der Fusszeile), wird sie nur auf den Stand gebracht - kein Leerraeumen, der Pin
+     * bleibt, und der Umbau findet beim naechsten Lauf nichts zu tun.
+     */
+    if (schluessel === 'welcome') {
+      const frisch = await alleKanaele();
+      const einbettung = willkommen(kanalVerweis(frisch));
+      const ich = await werBinIch();
+      const verlauf = await ruf(`/channels/${kanal}/messages?limit=50`, 'GET');
+      const liste = Array.isArray(verlauf)
+        ? (verlauf as Array<{ id: string; author?: { id: string }; embeds?: Array<{ footer?: { text?: string } }> }>) : [];
+      const unsere = liste.find((m) => m.author?.id === ich && m.embeds?.[0]?.footer?.text === WILLKOMMEN_MARKE);
+      if (unsere) {
+        const ok = await ruf(`/channels/${kanal}/messages/${unsere.id}`, 'PATCH', { embeds: [einbettung], components: [] });
+        if (altesLoeschen) {
+          const weg = await leerRaeumen(kanal, 50, false, unsere.id);
+          if (weg) schritte.push({ text: 'Alte Nachrichten entfernt', wert: `#${b.kanal} (${weg})` });
+        }
+        if (ok) {
+          ablage[`post:${schluessel}`] = { kanal, nachricht: unsere.id };
+          schritte.push({ text: 'Aushang steht', wert: `#${b.kanal}` });
+        } else fehler.push({ text: 'Der Text wurde abgelehnt', wert: `#${b.kanal}` });
+        continue;
+      }
+      if (altesLoeschen) {
+        const weg = await leerRaeumen(kanal);
+        if (weg) schritte.push({ text: 'Alte Nachrichten entfernt', wert: `#${b.kanal} (${weg})` });
+      }
+      const neu = idAus(await ruf(`/channels/${kanal}/messages`, 'POST', { embeds: [einbettung] }));
+      if (!neu) { fehler.push({ text: 'Der Text wurde abgelehnt', wert: `#${b.kanal}` }); continue; }
+      await anpinnen(kanal, neu);
+      ablage[`post:${schluessel}`] = { kanal, nachricht: neu };
+      schritte.push({ text: 'Aushang steht', wert: `#${b.kanal}` });
+      continue;
+    }
+
     if (altesLoeschen) {
       const weg = await leerRaeumen(kanal);
       if (weg) {
@@ -2141,7 +2198,7 @@ export async function richteCommunityEin(
   ];
   for (const [k, sichtbar, darf, chat] of plan) {
     const name = COMMUNITY_KANAELE[k];
-    const neu = !kanaele.some((x) => x.type === 0 && gleich(x.name, name));
+    const neu = !kanaele.some((x) => (x.type === 0 || x.type === 5) && gleich(x.name, name));
     const id = await infoKanal(name, COMMUNITY_TEXTE[k].thema, kategorie, kanaele, sichtbar, darf);
     if (!id) { fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${name}` }); continue; }
     // In den beiden Chats darf die Rolle schreiben - ein Aushang sind sie nicht.
@@ -3541,7 +3598,8 @@ export function willkommenText(name: string, kanal: (n: string) => string) {
 
 function kanalVerweis(kanaele: RoherKanal[]) {
   return (n: string) => {
-    const k = kanaele.find((x) => x.type === 0 && gleich(x.name, n));
+    // Auch Foren (#get-support, #give-feedback) und Ankuendigungskanaele - nur keine Kategorien.
+    const k = kanaele.find((x) => x.type !== 4 && gleich(x.name, n));
     return k ? `<#${k.id}>` : `#${n}`;
   };
 }
@@ -3556,9 +3614,9 @@ export async function willkommenKanalFuellen(): Promise<{ ok: boolean; text: str
   if (!kanal) return { ok: false, text: '#welcome does not exist' };
   const da = await ruf(`/channels/${kanal.id}/messages?limit=5`, 'GET');
   if (Array.isArray(da) && da.length) return { ok: true, text: '#welcome already has a message - left as it is' };
-  const t = willkommenText('traveller', kanalVerweis(kanaele));
+  // Dieselbe Nachricht wie "Server einrichten" und der Server-Umbau (lib/discordVorlagen.mjs).
   const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
-    embeds: [{ ...t, title: 'Welcome to CompHub', description: t.description + '\n\nNew here? Have a look at the channels below - the bot also sends you a short guide by direct message when you join.' }],
+    embeds: [willkommen(kanalVerweis(kanaele))],
   });
   return idAus(gesendet) ? { ok: true, text: 'Welcome text posted in #welcome' } : { ok: false, text: 'The welcome text could not be posted' };
 }
@@ -3682,7 +3740,7 @@ async function proSichtEinrichten(proRolle: string, newsRolle: string): Promise<
   let n = 0;
   for (const k of kanaele as Array<RoherKanal & { permission_overwrites?: Array<{ id: string; deny: string }> }>) {
     if (k.type !== 0 && k.type !== 5) continue;
-    if (PRO_IMMER_SICHTBAR.includes(k.name.toLowerCase())) continue;
+    if (PRO_IMMER_SICHTBAR.some((n) => gleich(k.name, n))) continue;
     const ueber = k.permission_overwrites ?? [];
     const fuerAlle = ueber.find((o) => o.id === SERVER);
     if (fuerAlle && (BigInt(fuerAlle.deny) & 1024n) !== 0n) continue;

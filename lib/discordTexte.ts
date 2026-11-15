@@ -19,6 +19,8 @@
  * Betreiber genau die Nachfragen, die er sich damit ersparen wollte.
  */
 
+import { willkommen, willkommenAlsText } from './discordVorlagen.mjs';
+
 export type Sprache = 'en' | 'de';
 
 /**
@@ -46,86 +48,24 @@ export interface Beitrag {
 /** Das Blau der Startseite - Sky 500. */
 export const FARBE = 0x0ea5e9;
 
+/*
+ * Die Willkommensnachricht kommt aus lib/discordVorlagen.mjs - derselben Quelle, die
+ * scripts/discord-umbau.mjs benutzt (Betreiber, 15.11.2026: Server neu geordnet). Vorher stand hier
+ * ein eigener, aelterer Text, und "Server einrichten" im Admin stellte ihn nach jedem Umbau wieder hin.
+ * richteServerEin postet die echte Einbettung (mit Kanalverweisen und Fusszeile); dieser Eintrag
+ * liefert Titel und Text fuer den Rest (Kanalbeschreibung, Knopf "Read in German" alter Nachrichten -
+ * die neue Fassung ist nur englisch, alles Oeffentliche ist englisch).
+ */
+const WILLKOMMEN_TEXT = willkommenAlsText();
 const WILLKOMMEN: Beitrag = {
   kanal: 'welcome',
   sichtbar: 'alle',
   thema: 'What CompHub is and how to get started',
   titel: {
-    en: 'Welcome to CompHub',
-    de: 'Willkommen bei CompHub',
+    en: willkommen((n: string) => `#${n}`).title,
+    de: willkommen((n: string) => `#${n}`).title,
   },
-  text: {
-    en: [
-      'CompHub is a tool for competitive Fortnite: live cup leaderboards, '
-      + 'match history with match IDs, prize pools, player and team stats, '
-      + 'power rankings, a multiview for several streams at once — and stream '
-      + 'overlays you can drop straight into OBS.',
-      '',
-      '**Website** — https://thecomphub.com',
-      '',
-      '__Who this server is for__',
-      'It is the back office for the streamers and creators who use CompHub. '
-      + 'Everyone with access has their own private channel here. That channel '
-      + 'holds exactly one message: the access key that is currently valid.',
-      '',
-      '__How to sign in__',
-      '1. Open https://www.thecomphub.com/sign-in/vip',
-      '2. Type the **name** of your access (the channel is named after it) '
-      + 'and the **key** from your channel.',
-      '3. That is it — no e-mail, no password. The key is compared character '
-      + 'by character, so upper and lower case matter.',
-      '',
-      '__Your key__',
-      'Treat it like a password. It is the only thing between your name and '
-      + 'your overlays. Whenever a new key is generated, the old message in '
-      + 'your channel is deleted and a new one takes its place — so the key '
-      + 'you see there is always the valid one. It is hidden behind a grey '
-      + 'bar; click it to reveal. That way it stays off screen while you are '
-      + 'live.',
-      '',
-      '__Need something?__',
-      'Open a ticket in the support channel. Anything is fair game: a bug, a '
-      + 'missing number, an overlay that should look different, a page only '
-      + 'for you. Not everything is possible and nothing is instant, but you '
-      + 'will always get a straight yes or no.',
-    ].join('\n'),
-    de: [
-      'CompHub ist ein Werkzeug für kompetitives Fortnite. Leaderboards '
-      + 'von laufenden Cups, der komplette Matchverlauf samt Match-IDs, '
-      + 'Preispools, Spieler- und Teamstatistiken, Power Rankings und ein '
-      + 'Multiview für mehrere Streams gleichzeitig. Dazu Overlays, die du '
-      + 'direkt in OBS einbinden kannst.',
-      '',
-      '**Webseite:** https://thecomphub.com',
-      '',
-      '__Für wen dieser Server ist__',
-      'Er ist der Maschinenraum für die Streamer und Creator, die CompHub '
-      + 'benutzen. Jeder mit Zugang hat hier seinen eigenen privaten Kanal, '
-      + 'und darin steht genau eine Nachricht: der Schlüssel, der gerade '
-      + 'gilt.',
-      '',
-      '__So meldest du dich an__',
-      '1. Öffne https://www.thecomphub.com/sign-in/vip',
-      '2. Tippe den Namen deines Zugangs ein. Der Kanal hier ist danach '
-      + 'benannt. Dazu den Schlüssel, der in diesem Kanal steht.',
-      '3. Mehr braucht es nicht, keine E-Mail und kein Passwort. Achte '
-      + 'auf Groß- und Kleinschreibung, die zählt mit.',
-      '',
-      '__Dein Schlüssel__',
-      'Behandle ihn wie ein Passwort. Er ist das Einzige, was zwischen '
-      + 'deinem Namen und deinen Overlays steht. Sobald ein neuer erzeugt '
-      + 'wird, verschwindet die alte Nachricht und eine neue nimmt ihren '
-      + 'Platz ein. Was hier steht, gilt. Der Schlüssel liegt hinter einem '
-      + 'grauen Balken, zum Aufdecken klickst du einfach drauf. So bleibt '
-      + 'er beim Streamen aus dem Bild.',
-      '',
-      '__Du brauchst etwas?__',
-      'Mach ein Ticket im Support auf. Alles ist erlaubt: ein Fehler, '
-      + 'eine fehlende Zahl, ein Overlay, das anders aussehen soll, eine '
-      + 'Seite nur für dich. Nicht alles ist möglich und nichts geht '
-      + 'sofort, aber du bekommst immer eine klare Antwort.',
-    ].join('\n'),
-  },
+  text: { en: WILLKOMMEN_TEXT, de: WILLKOMMEN_TEXT },
 };
 
 const VIP_LEITFADEN: Beitrag = {

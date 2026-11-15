@@ -40,7 +40,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
-import { FARBE } from './discord-vorlagen.mjs';
+import { FARBE } from '../lib/discordVorlagen.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';

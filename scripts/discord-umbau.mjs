@@ -31,7 +31,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { FOREN, willkommen, WILLKOMMEN_MARKE } from './discord-vorlagen.mjs';
+import { FOREN, willkommen, WILLKOMMEN_MARKE } from '../lib/discordVorlagen.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';
@@ -101,15 +101,21 @@ const CHAT = R.VIEW | R.HISTORY | R.SEND | R.EMBED | R.ATTACH | R.REACT;
 /*
  * code: der Code sucht den Kanal ueber den Namen (Name bleibt ohne --emoji-namen), legt ihn an und
  *       setzt seine Rechte selbst - der Umbau verschiebt und ordnet ihn nur.
- * wache: Wer ihn beim naechsten "Server einrichten" (Admin) in seine alte Kategorie zurueckschiebt.
+ * (Seit 15.11.2026 schiebt "Server einrichten" vorhandene Kanaele nicht mehr in ihre alte Kategorie
+ *  zurueck und stellt in #welcome dieselbe Willkommensnachricht - lib/discord.ts infoKanal, richteServerEin.)
  */
+/** Die Beschreibung von #check-stats - die Befehle aus app/api/discord/interaktion/route.ts (oeffentlich). */
+const STATS_THEMA = 'Commands only - type / to start. /stats player:<name> shows a player\'s latest results '
+  + '(add cup: for a specific cup) · /cup name:<cup> shows the top 10 of a cup · /help lists everything. '
+  + 'Full stats: thecomphub.com/statistics';
+
 const ZIEL = [
   {
     schluessel: 'info', name: '📘 Information',
     kanaele: [
       { kern: 'welcome', code: true, emoji: '🏠-welcome' },
-      { kern: 'announcements', code: true, emoji: '📢-announcements', wache: 'richteCommunityEin (Kategorie "Community")' },
-      { kern: 'updates', aliase: ['comphub-updates'], code: true, emoji: '🛠️-comphub-updates', wache: 'richteUpdatesEin (Kategorie "Updates")' },
+      { kern: 'announcements', code: true, emoji: '📢-announcements' },
+      { kern: 'updates', aliase: ['comphub-updates'], code: true, emoji: '🛠️-comphub-updates' },
       { kern: 'social-posts', name: '🐦-social-posts', rechte: 'aushang', thema: 'Every post from @CompHub_gg on X - posted automatically' },
       { kern: 'vip-guide', code: true, optional: true },
       { kern: 'manager-guide', code: true, optional: true },
@@ -120,7 +126,7 @@ const ZIEL = [
     kanaele: [
       { kern: 'system-messages', name: '🔔-system-messages', rechte: 'aushang', thema: 'Who joins the server - posted by Discord' },
       { kern: 'general-chat', aliase: ['general', 'chat'], name: '💬-general-chat', rechte: 'chat', thema: 'Talk competitive Fortnite - English please' },
-      { kern: 'check-stats', aliase: ['stats'], name: '📈-check-stats', rechte: 'befehle', thema: 'Look up players and cups with the CompHub bot' },
+      { kern: 'check-stats', aliase: ['stats'], name: '📈-check-stats', rechte: 'befehle', thema: STATS_THEMA },
       { kern: 'get-support', name: '🆘-get-support', typ: 15, rechte: 'forum' },
       { kern: 'give-feedback', aliase: ['feedback'], name: '📝-give-feedback', typ: 15, rechte: 'forum' },
       { kern: 'news', code: true, emoji: '📰-news' },
@@ -228,7 +234,8 @@ function zielRechte(art, typ) {
   const s = (x) => String(x);
   if (art === 'aushang') ow.push({ id: SERVER, type: 0, allow: s(LESEN), deny: s(NICHT_SCHREIBEN) });
   if (art === 'chat') ow.push({ id: SERVER, type: 0, allow: s(CHAT), deny: s(R.MENTION_ALL) });
-  if (art === 'befehle') ow.push({ id: SERVER, type: 0, allow: s(CHAT | R.CMDS), deny: s(R.MENTION_ALL) });
+  // Nur Befehle: lesen und Slash-Befehle ja, schreiben, Threads und Anhaenge nein (die Antworten schreibt der Bot).
+  if (art === 'befehle') ow.push({ id: SERVER, type: 0, allow: s(LESEN | R.CMDS), deny: s(NICHT_SCHREIBEN | R.ATTACH | R.MENTION_ALL) });
   if (art === 'forum') ow.push({ id: SERVER, type: 0, allow: s(CHAT | R.SEND_THREADS), deny: s(R.MENTION_ALL) });
   ow.push({ id: ich.id, type: 1, allow: s(VOLL | (typ === 15 ? R.MANAGE_THREADS : 0n)), deny: '0' });
   if (adminRolle) ow.push({ id: adminRolle.id, type: 0, allow: s(VOLL | R.MANAGE_THREADS), deny: '0' });
@@ -465,10 +472,6 @@ if (WILLKOMMEN) {
     schritt('loesch-kandidat', `#welcome: alte Bot-Nachricht "${m.embeds?.[0]?.title ?? m.content?.slice(0, 40) ?? m.id}" (${wann(m.id)})`, async () => {
       if (LOESCHEN) await ruf(`/channels/${wk}/messages/${m.id}`, 'DELETE');
     });
-  }
-  if (loeschBotNachrichten.length) {
-    hinweise.push('Achtung: "Server einrichten" im Admin (richteServerEin) raeumt #welcome leer und stellt den alten Aushang '
-      + '(lib/discordTexte.ts BEITRAEGE.welcome) wieder hin. Danach diesen Umbau erneut laufen lassen - oder den Text dort angleichen.');
   }
 }
 

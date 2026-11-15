@@ -30,6 +30,9 @@ const ROT = 0xef4444;
 const GRAU = 0x52525b;
 const PROBE = process.argv.includes('--probe');
 
+/** Kanalname ohne Emoji vorne ("📺-live-now" = "live-now", Server-Umbau 15.11.2026; "comphub-updates" = "updates"). */
+const namensKern = (s) => { const k = String(s ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '').trim(); return k === 'comphub-updates' ? 'updates' : k; };
+
 function umgebung() {
   const raus = {};
   try {
@@ -90,7 +93,7 @@ async function main() {
   const live = await twitchLive(streamer.map((s) => s.login));
 
   const kanaele = await ruf(`/guilds/${SERVER_ID}/channels`);
-  const kanal = kanaele.find((k) => k.type === 0 && k.name === KANAL);
+  const kanal = kanaele.find((k) => (k.type === 0 || k.type === 5) && namensKern(k.name) === KANAL);
   if (!kanal) { console.log(`#${KANAL} fehlt - erst den Community-Aufbau laufen lassen.`); return; }
   const ich = await ruf('/users/@me');
   const verlauf = (await ruf(`/channels/${kanal.id}/messages?limit=100`))

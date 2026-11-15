@@ -44,6 +44,9 @@ const KANAELE = {
 };
 const FARBE = 0x0ea5e9;
 
+/** Kanalname ohne Emoji vorne ("📺-live-now" = "live-now", Server-Umbau 15.11.2026; "comphub-updates" = "updates"). */
+const namensKern = (s) => { const k = String(s ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '').trim(); return k === 'comphub-updates' ? 'updates' : k; };
+
 function umgebung() {
   const raus = {};
   try {
@@ -88,7 +91,7 @@ const VOLLZUGRIFF = '76800';
 async function kanalFinden() {
   const kanaele = await ruf(`/guilds/${SERVER}/channels`);
   const name = KANAELE[ziel];
-  const da = kanaele.find((k) => k.type === 0 && k.name.toLowerCase() === name);
+  const da = kanaele.find((k) => (k.type === 0 || k.type === 5) && namensKern(k.name) === name);
   if (da) return da.id;
 
   // Nachholen: Kategorie "Updates", Rollen fuer VIP und Manager, Admin-Rolle.
@@ -104,7 +107,7 @@ async function kanalFinden() {
 
   const istAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo' || ziel === 'projekt';
   const kategorieName = istAdmin ? 'Admin' : 'Updates';
-  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === kategorieName.toLowerCase())?.id ?? null;
+  let kategorie = kanaele.find((k) => k.type === 4 && namensKern(k.name) === kategorieName.toLowerCase())?.id ?? null;
   if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: kategorieName, type: 4 })).id;
 
   const regeln = ziel === 'alle'

@@ -1,5 +1,5 @@
 /*
- * Eine Ankuendigung nach #announcements - aus den Vorlagen in scripts/discord-vorlagen.mjs (englisch).
+ * Eine Ankuendigung nach #announcements - aus den Vorlagen in lib/discordVorlagen.mjs (englisch).
  *
  *   node scripts/discord-ansage.mjs --vorlage wartung                 zeigen, was gepostet wuerde
  *   node scripts/discord-ansage.mjs --vorlage wartung --anwenden      posten
@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { ANSAGEN, ansage } from './discord-vorlagen.mjs';
+import { ANSAGEN, ansage } from '../lib/discordVorlagen.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const U = (() => {
