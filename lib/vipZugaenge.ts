@@ -136,7 +136,9 @@ export function zugangAbgelaufen(z: Pick<Zugang, 'vipBis' | 'fristLoescht'> | nu
 
 /** Wartet dieser Zugang noch auf die Bestaetigung mit Twitch? */
 export function wartetAufTwitch(z: Zugang | null): boolean {
-  return !!z && !!(z.twitchPflicht ?? '').trim() && !z.twitchBestaetigt;
+  // Abgeschaltet (Betreiber, 15.11.2026: "mach das komplett weg") - kein Schluessel ruht mehr wegen Twitch; die gespeicherte twitchPflicht bleibt unbeachtet.
+  void z;
+  return false;
 }
 
 /** Die Bestaetigung mit Twitch eintragen - nur, wenn das Twitch-Konto das verlangte ist. */
