@@ -782,9 +782,10 @@ async function tageMatches(request: Request, event: string, windows: string[]) {
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
-  if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 60);
+  // 60 s im CDN liessen nach einem Neuladen ein schon gesehenes Game wieder verschwinden (Betreiber, Heat 2, 15.11.2026) - jetzt hoechstens 5 s.
+  if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 5);
   if (istGlobalsFinale(p.get('event'), p.get('window'))) {
-    return zwischenspeichern(await globalsMatches(request), 60);
+    return zwischenspeichern(await globalsMatches(request), 5);
   }
   // Der Reload-Knopf (frisch=1) geht nie an einen Zwischenspeicher: wer drueckt, will den Stand von Epic jetzt.
   if (new URL(request.url).searchParams.get('frisch') === '1') {
@@ -792,5 +793,5 @@ export async function GET(request: Request) {
     try { r.headers.set('Cache-Control', 'no-store'); r.headers.set('CDN-Cache-Control', 'no-store'); } catch { /* unveraenderlich */ }
     return r;
   }
-  return zwischenspeichern(await holeRoh(request), 10);
+  return zwischenspeichern(await holeRoh(request), 5);
 }
