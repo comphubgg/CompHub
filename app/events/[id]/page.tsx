@@ -668,6 +668,12 @@ const STUECK_SEITEN = 10;
  */
 const ERSTE_SPIELE = 30;
 
+/*
+ * Die zuletzt geholten Runden je Spieltag (Event|Fenster bzw. Event|Tage) - bleibt beim Wechsel zwischen Seiten im Browser stehen, damit der
+ * Matches-Reiter beim Zurueckkommen sofort etwas zeigt (Betreiber, 15.11.2026: "Matches sofort, nicht erst eine leere Box").
+ */
+const RUNDEN_VORRAT = new Map<string, Spiel[]>();
+
 /**
  * Wie schnell die Rundenliste weiterwaechst - bis zum Ende, ohne Deckel.
  *
@@ -2117,11 +2123,58 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * bleibt stehen, bis die neue Antwort es ersetzt.
    */
   const [nachladen, setNachladen] = useState(0);
+  /** Zaehlt fertige Vorab-Abrufe - stoesst den Abruf darunter an, wenn der Vorab-Abruf nichts lieferte. */
+  const [vorabFertig, setVorabFertig] = useState(0);
   /** Welcher Stand des Zaehlers zuletzt geholt wurde. */
   const zuletztNachgeladen = useRef(0);
 
+  /*
+   * Vorab (Betreiber, 15.11.2026: der Matches-Reiter zeigte 1-5 s eine leere Box mit "dauert ein bis zwei Minuten"): die ersten Runden gleich beim Laden
+   * der Seite holen - ohne auf den Reiter und ohne auf die Bestenliste zu warten, mit dem kleinsten Feld (500 Plaetze). Wer den Reiter oeffnet, sieht sie
+   * sofort; der Abruf unten vervollstaendigt dann still mit dem vollen Feld. Schon einmal geholte Runden kommen aus RUNDEN_VORRAT.
+   */
+  const rundenSchluessel = lbFenster ? `${lbFenster.eventId}|${summenText || lbFenster.windowId}` : '';
+  const vorabLaeuft = useRef(false);
+  useEffect(() => {
+    // Ein Spieltag, der noch kommt, hat keine Runden - dort fragt erst der geoeffnete Reiter.
+    if (!lbFenster || !rundenSchluessel || lbFenster.status === 'kommt') return;
+    const da = RUNDEN_VORRAT.get(rundenSchluessel);
+    if (da) { setSpiele(da); return; }
+    let weg = false;
+    vorabLaeuft.current = true;
+    setSpieleLaedt(true);
+    fetch(`/api/cup-matches?event=${encodeURIComponent(lbFenster.eventId)}`
+      + (summenFenster ? `&windows=${summenText}` : `&window=${encodeURIComponent(lbFenster.windowId)}`)
+      + '&limit=500'
+      + (liveV.current ? `&sv=${liveV.current}` : ''))
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        setSpiele((alt) => {
+          const neu = rundenMischen(alt, (j?.spiele ?? []) as Spiel[]);
+          RUNDEN_VORRAT.set(rundenSchluessel, neu);
+          return neu;
+        });
+        // Das Feld bis 500 ist damit abgedeckt - erst eine groessere Bestenliste holt noch einmal.
+        setSpieleBasis(500);
+        setSpieleFeldGrenze(Boolean(j?.feldGrenze));
+      })
+      .catch(() => { /* der Abruf unten versucht es mit der Bestenliste noch einmal */ })
+      .finally(() => {
+        if (weg) return;
+        vorabLaeuft.current = false;
+        setSpieleLaedt(false);
+        setVorabFertig((n) => n + 1);
+      });
+    return () => { weg = true; vorabLaeuft.current = false; };
+    // Nur je Spieltag - nicht bei jeder neuen Seite der Bestenliste.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rundenSchluessel]);
+
   useEffect(() => {
     if (reiter !== 'runden' || !lbFenster || !tabelle.length) return;
+    // Der Vorab-Abruf laeuft noch - nicht dieselbe Anfrage ein zweites Mal.
+    if (!spiele && vorabLaeuft.current) return;
     /*
      * Schon geholt, und der Unterbau ist seither nicht groesser geworden.
      *
@@ -2159,7 +2212,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
          * aelteren Quelle kommen (Vorrat, CDN-Kopie). Jede Runde wird deshalb teamweise mit dem vereinigt, was schon dasteht; Ueberschrift und Zeilen
          * werden aus derselben Aufstellung gerechnet, ein bekannter Name bleibt (app/lib/rundenStand).
          */
-        setSpiele((alt) => rundenMischen(alt, (j?.spiele ?? []) as Spiel[]));
+        setSpiele((alt) => {
+          const neu = rundenMischen(alt, (j?.spiele ?? []) as Spiel[]);
+          RUNDEN_VORRAT.set(rundenSchluessel, neu);
+          return neu;
+        });
         setSpieleFeldGrenze(Boolean(j?.feldGrenze));
       })
       /*
@@ -2171,7 +2228,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg && !spiele) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen, summenFenster, summenText]);
+  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen, summenFenster, summenText, rundenSchluessel, vorabFertig]);
 
   /*
    * Welche Matches eine eigene Seite haben (Replay-Auswertung mit allen Spielern, Zonen, Kill-Feed). Gefragt wird, wenn die Runden da sind
