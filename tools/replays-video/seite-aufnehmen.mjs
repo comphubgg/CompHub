@@ -46,7 +46,7 @@ const punkte = (d) => {
   if (/fncs/i.test(n)) p += 40;
   if (/reload/i.test(n) && /solo/i.test(n)) p += 30;
   if (/heat\s*_?1(?!\d)/i.test(n)) p += 45;
-  if (/major|grand\s*final/i.test(n)) p += 35;
+  if (/major|final/i.test(n) && !/qualif/i.test(n)) p += 35;
   if (/qualif/i.test(n)) p -= 90;   // Qualifikationen haben hunderte Lobbys - gesucht ist ein Finale/Heat
   if (d.games > 30) p -= 60;
   if (d.region === 'EU') p += 20;
@@ -55,29 +55,34 @@ const punkte = (d) => {
 };
 auswahl.kandidaten = tage.map((d) => ({ windowId: d.windowId, titel: d.titel, region: d.region, beginn: d.beginn, games: d.games, punkte: punkte(d) }))
   .sort((a, b) => b.punkte - a.punkte || String(b.beginn).localeCompare(String(a.beginn))).slice(0, 60);
-const tagId = TAG_WUNSCH || auswahl.kandidaten[0]?.windowId;
-const tagJ = await holeJson(`${BASIS}/api/replay?tag=${encodeURIComponent(tagId)}`);
-if (!tagJ?.tag) throw new Error(`Spieltag ${tagId} nicht lesbar`);
-const TAG = tagJ.tag;
-// Die Games pruefen: Laufwege (orte), Eliminierungen, Zonen, Spieler - genommen wird, was am meisten zeigt.
+// Spieltage der Reihe nach pruefen, bis einer ein lesbares Game hat (eine 424 der Ablage ist oft nur ein Augenblick - je Game zwei Versuche).
+const reihe = [...new Set([TAG_WUNSCH, ...auswahl.kandidaten.slice(0, 6).map((k) => k.windowId)].filter(Boolean))];
+let TAG = null;
 auswahl.games = [];
-// Hoechstens 12 Games pruefen (ein Finale/Heat hat 6-12); mit --nr nur dieses eine.
-const zuPruefen = NR_WUNSCH ? TAG.matches.filter((m) => m.nr === NR_WUNSCH) : TAG.matches.slice(-12);
-for (const m of zuPruefen) {
-  const j = await holeJson(`${BASIS}/api/replay?match=${encodeURIComponent(m.id)}&v=4`, 2);
-  if (!j) { auswahl.games.push({ nr: m.nr, id: m.id, lesbar: false }); continue; }
-  const echte = (j.spieler ?? []).filter((s) => !s.bot);
-  const g = {
-    nr: m.nr, id: m.id, lesbar: true, spieler: echte.length, bots: (j.spieler ?? []).length - echte.length,
-    elims: (j.feed ?? []).filter((e) => e.art === 'tot').length, knocks: (j.feed ?? []).filter((e) => e.art === 'unten').length,
-    zonen: (j.zonen ?? []).length, orte: j.orte ? Object.keys(j.orte).length : 0, treffer: (j.treffer ?? []).length,
-    schaden: (j.schaden ?? []).length, zusatz: (j.zusatz ?? []).length, karte: j.karte ?? null, playlist: j.playlist ?? null,
-    sieger: m.sieger ?? [], beginn: m.beginn ?? null, wertung: !!j.wertung,
-  };
-  g.wert = (g.orte ? 1000 : 0) + g.elims * 3 + g.knocks + g.zonen * 5 + (g.treffer ? 50 : 0);
-  auswahl.games.push(g);
+for (const tagId of reihe) {
+  const tagJ = await holeJson(`${BASIS}/api/replay?tag=${encodeURIComponent(tagId)}`);
+  if (!tagJ?.tag) { log('Spieltag nicht lesbar:', tagId); continue; }
+  // Hoechstens 12 Games pruefen (ein Finale/Heat hat 6-12); mit --nr nur dieses eine.
+  const zuPruefen = NR_WUNSCH && tagId === TAG_WUNSCH ? tagJ.tag.matches.filter((m) => m.nr === NR_WUNSCH) : tagJ.tag.matches.slice(-12);
+  for (const m of zuPruefen) {
+    const j = await holeJson(`${BASIS}/api/replay?match=${encodeURIComponent(m.id)}&v=4`, 2);
+    if (!j) { auswahl.games.push({ tag: tagId, nr: m.nr, id: m.id, lesbar: false }); continue; }
+    const echte = (j.spieler ?? []).filter((s) => !s.bot);
+    const g = {
+      tag: tagId, nr: m.nr, id: m.id, lesbar: true, spieler: echte.length, bots: (j.spieler ?? []).length - echte.length,
+      elims: (j.feed ?? []).filter((e) => e.art === 'tot').length, knocks: (j.feed ?? []).filter((e) => e.art === 'unten').length,
+      zonen: (j.zonen ?? []).length, orte: j.orte ? Object.keys(j.orte).length : 0, treffer: (j.treffer ?? []).length,
+      schaden: (j.schaden ?? []).length, zusatz: (j.zusatz ?? []).length, karte: j.karte ?? null, playlist: j.playlist ?? null,
+      sieger: m.sieger ?? [], beginn: m.beginn ?? null, wertung: !!j.wertung,
+    };
+    g.wert = (g.orte ? 1000 : 0) + g.elims * 3 + g.knocks + g.zonen * 5 + (g.treffer ? 50 : 0);
+    auswahl.games.push(g);
+  }
+  if (auswahl.games.some((g) => g.tag === tagId && g.lesbar)) { TAG = tagJ.tag; break; }
+  log('Kein Game lesbar in', tagId, '- naechster Spieltag');
 }
-const besteGames = auswahl.games.filter((g) => g.lesbar).sort((a, b) => b.wert - a.wert);
+if (!TAG) { fs.writeFileSync(path.join(AUS, 'auswahl.json'), JSON.stringify(auswahl, null, 1)); throw new Error('kein lesbares Game'); }
+const besteGames = auswahl.games.filter((g) => g.lesbar && g.tag === TAG.windowId).sort((a, b) => b.wert - a.wert);
 const NR = NR_WUNSCH || besteGames[0]?.nr || 1;
 auswahl.gewaehlt = { windowId: TAG.windowId, eventId: TAG.eventId, titel: TAG.titel, region: TAG.region, season: TAG.season, nr: NR, games: TAG.matches.length };
 fs.writeFileSync(path.join(AUS, 'auswahl.json'), JSON.stringify(auswahl, null, 1));
