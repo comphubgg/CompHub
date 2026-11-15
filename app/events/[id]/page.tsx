@@ -1177,6 +1177,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     hergeleitet?: boolean;
     /** Schwelle = letzter Platz mit Belohnung (Skin-Cup); Ausgaben aus aehnlichen Cups statt aus demselben. */
     fuerBelohnung?: boolean; aehnlich?: boolean; ausVorlauf?: boolean; vortag?: boolean;
+    /** Die Prognose waehrend des Spieltags und woraus sie besteht (app/api/qualifikation, mitteRechnen). */
+    mitte?: number | null;
+    mitteGrund?: { grenze: number; stand: number; spiele: number; vorab: number | null; hochgerechnet: number | null; anteil: number | null; gewicht: number; fertig: boolean } | null;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
@@ -3443,6 +3446,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               // Kommen (fast) alle weiter - Heats mit "Top 99" bei 40 Spielern je Heat -, sagt eine Grenze von ein paar Punkten nichts (stand "~3 Points" da).
               const prognoseRoh = einfach && qual?.schnitt ? qualPrognose(qual) : null;
               const prognoseWert = prognoseRoh !== null && prognoseRoh >= 20 ? prognoseRoh : null;
+              /*
+               * Woraus die Prognose waehrend des Spieltags besteht (Betreiber, 15.11.2026: die alte Sperre sprang ohne Erklaerung von 228 auf 173): Vorab-Prognose,
+               * Grenze jetzt nach wie vielen Spielen, Hochrechnung und wie stark sie zaehlt - als Zeile unter der Zahl und ausfuehrlich beim Darueberfahren.
+               */
+              const mg = qual?.mitte != null ? qual.mitteGrund ?? null : null;
+              const prognoseGrund = mg ? [
+                mg.vorab !== null ? `${t('Vorab')} ${mg.vorab}` : null,
+                `${t('Grenze jetzt')} ${mg.grenze} ${t('nach')} ${mg.stand.toLocaleString(ort, { maximumFractionDigits: 1 })}/${mg.spiele} ${t('Spielen')}`,
+                mg.fertig ? t('alle Spiele gespielt')
+                  : mg.hochgerechnet !== null ? `${t('hochgerechnet')} ${mg.hochgerechnet} (${t('zählt')} ${Math.round(mg.gewicht * 100)} %)` : t('nie unter der Grenze von jetzt'),
+              ].filter(Boolean).join(' · ') : null;
               const kacheln: Array<[string, string, string]> = [
                 [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
                 ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
@@ -3469,7 +3483,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   {l === 'CompHub Prediction' && <img src="/logos/CompHub-Logo-96.webp" alt="" className="h-3.5 w-3.5 rounded-sm" />}
                   <span>{l}</span>
                 </div>
-                <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`} title={v}>{v}</div>
+                <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`}
+                  title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}` : v}>{v}</div>
+                {l === 'CompHub Prediction' && prognoseGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{prognoseGrund}</div>}
               </div>
             )); })()}
           </div>

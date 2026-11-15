@@ -22,7 +22,7 @@ import { ZAEHLEN_DE, ZAEHLEN_EN, ZaehlInhalt, MAIL } from './Zaehlen';
  *   streams                app/streams/page.tsx (Ordner, Live-Status von Twitch, Titelfilter, Benachrichtigung, POV), Multiview.tsx
  *   fncs                   app/fncs/FncsSeite.tsx, app/globals-solos/SolosSeite.tsx (Landepunkte nur, wo eine Quelle sie fuehrt; Brasilien/Asien ohne)
  *   predictions            app/api/qualifikation/route.ts (Schwelle, Schnitt der letzten 3 Ausgaben, Vorlagen, Anteil, Lernen aus 6, live alle 15 s,
- *                          30 min Nachlauf, einmalige Hochrechnung ab 60 % der Spiele, 3 %), app/predictions/Tippen.tsx (Call the Final)
+ *                          30 min Nachlauf, Hochrechnung ueber KURVEN + Gewicht gegen die Vorab-Prognose, nie unter der Grenze), app/predictions/Tippen.tsx (Call the Final)
  *   maps                   app/tournament-maps/page.tsx, app/api/maps-karte (Day 1 / Day 2 / Combined, Formen des Admins), app/maps
  *   overlays-discord       app/overlays (VipVorhang), lib/discordStats.ts (/stats, /cup, /help), lib/discordEpicKonto.ts (/link-account: nur Konto-Id und Name)
  * Keine anderen Seiten oder Marken als Quelle oder Vergleich nennen (Betreiber, 15.11.2026).
@@ -320,8 +320,8 @@ const DE: Text = {
         + '(gleiche Art, Teamgröße, Modus und Region). Ist das Feld anders groß, zählt derselbe Anteil des Feldes, nicht derselbe Platz.',
         'Sie lernt: Nach jedem Cup halten wir fest, was wir vorhergesagt haben und was es wirklich brauchte; der mittlere Fehler der letzten sechs Cups derselben Art korrigiert die nächste Prognose.',
         'Während des Cups: die Punkte auf diesem Platz live, alle 15 Sekunden neu.',
-        'Feststellen zur Halbzeit: Sind etwa 60 % der Spiele gespielt, wird die Linie von jetzt einmal auf alle Spiele hochgerechnet und bleibt dann fest, '
-        + 'damit sie nicht mit jedem Spiel springt. Lag die frühere Prognose höchstens 3 % daneben, bleibt sie.',
+        'Nachstellen während des Cups: Die Linie von jetzt wird über den Verlauf ähnlicher Cups hochgerechnet (wie weit war die Linie dort an derselben Stelle) '
+        + 'und mit der Vorab-Prognose gewichtet - je weiter der Cup, desto stärker zählt die Hochrechnung. Nie unter der Linie von jetzt; woraus die Zahl besteht, steht darunter.',
         'Nach dem Cup: das echte Ergebnis. Es gilt 30 Minuten nach dem Ende als fertig.',
       ],
       video: 'hiw-prediction',

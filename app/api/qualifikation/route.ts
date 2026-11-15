@@ -67,6 +67,66 @@ function reihe(windowId: string): string {
     .toLowerCase();
 }
 
+/**
+ * Wie weit die Grenze (Punkte auf dem letzten Qualifikationsplatz) im Mittel schon ist, gemessen am Endwert - nach dem Anteil x = mittlere Spielzahl bis zur
+ * Grenze / Spiele insgesamt. Gemessen an abgeschlossenen Spieltagen (Verlauf aus den vollen Replays, je Spieler gegen Epics Endstand geprueft, 15.11.2026):
+ *   lobby: FNCS Heats, alle in einer Lobby (S42 Solo Heats 1+2, 6 Spiele, Top 35; S43 Solos Reload Heats, 8 Spiele, Top 15, Sieg = sofort weiter), 18 Fenster
+ *   offen: viele Lobbys (S43 Solos Reload Round 3, 12 Spiele, Top 80, alle Regionen), 7 Fenster
+ * streu: relativer Fehler (RMS) der Hochrechnung an dieser Stelle, aus denselben Fenstern (je Fenster ohne sich selbst gerechnet).
+ */
+const KURVEN: Record<'lobby' | 'offen', { kurve: Array<[number, number]>; streu: Array<[number, number]> }> = {
+  lobby: {
+    kurve: [[0.1, 0.042], [0.15, 0.048], [0.2, 0.146], [0.25, 0.168], [0.3, 0.229], [0.35, 0.321], [0.4, 0.336], [0.45, 0.371], [0.5, 0.462], [0.55, 0.484],
+      [0.6, 0.506], [0.65, 0.6], [0.7, 0.633], [0.75, 0.658], [0.8, 0.717], [0.85, 0.804], [0.9, 0.827], [0.95, 0.87], [1.0, 0.95]],
+    streu: [[0.2, 0.644], [0.3, 0.137], [0.4, 0.065], [0.5, 0.094], [0.6, 0.078], [0.7, 0.054], [0.8, 0.065], [0.9, 0.054], [1.0, 0.057]],
+  },
+  offen: {
+    kurve: [[0.1, 0.091], [0.15, 0.194], [0.2, 0.249], [0.25, 0.313], [0.3, 0.365], [0.35, 0.423], [0.4, 0.476], [0.45, 0.537], [0.5, 0.598], [0.55, 0.655],
+      [0.6, 0.723], [0.65, 0.78], [0.7, 0.843], [0.75, 0.906], [0.8, 0.968]],
+    streu: [[0.1, 0.56], [0.2, 0.042], [0.3, 0.03], [0.4, 0.03], [0.5, 0.03], [0.6, 0.03], [0.7, 0.03], [0.8, 0.03]],
+  },
+};
+/** Relativer Fehler der Vorab-Prognose (gemessen: Reload-Heats 6,8 %, S42-Heats 6,4 %, Round 3 3,3 % - genommen wird der vorsichtigere Wert). */
+const STREU_VORAB = 0.06;
+
+function linear(pts: Array<[number, number]>, x: number): number {
+  if (x <= pts[0][0]) return pts[0][0] > 0 ? pts[0][1] * (x / pts[0][0]) : pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1]; const [x1, y1] = pts[i];
+    if (x <= x1) return x1 > x0 ? y0 + (y1 - y0) * (x - x0) / (x1 - x0) : y0;
+  }
+  return pts[pts.length - 1][1];
+}
+
+/** Woraus die Prognose waehrend des Spieltags besteht - die Seite zeigt es neben der Zahl. */
+export type MitteGrund = {
+  /** Die Grenze von jetzt und die mittlere Spielzahl bis zur Grenze. */
+  grenze: number; stand: number; spiele: number;
+  /** Die Vorab-Prognose (null: keine). */
+  vorab: number | null;
+  /** Die Grenze hochgerechnet ueber den Anteil aehnlicher Spieltage, und dieser Anteil (0..1). */
+  hochgerechnet: number | null; anteil: number | null;
+  /** Wie stark die Hochrechnung zaehlt (0..1); der Rest ist die Vorab-Prognose. */
+  gewicht: number;
+  /** Alle bis zur Grenze haben alle Spiele gespielt - die Grenze ist (fast) das Ergebnis. */
+  fertig: boolean;
+};
+
+/** Die Prognose aus Grenze, Stand und Vorab-Prognose - nie unter der Grenze von jetzt. */
+function mitteRechnen(art: 'lobby' | 'offen', grenze: number, stand: number, spiele: number, vorab: number | null): { wert: number; grund: MitteGrund } | null {
+  const basis = { grenze, stand: Math.round(stand * 100) / 100, spiele, vorab };
+  if (stand >= spiele) return { wert: grenze, grund: { ...basis, hochgerechnet: grenze, anteil: 1, gewicht: 1, fertig: true } };
+  const x = Math.max(0, stand / spiele);
+  const anteil = linear(KURVEN[art].kurve, x);
+  if (anteil < 0.05) return vorab !== null ? { wert: Math.max(vorab, grenze), grund: { ...basis, hochgerechnet: null, anteil: null, gewicht: 0, fertig: false } } : null;
+  const hoch = grenze / anteil;
+  if (vorab === null) return { wert: Math.round(Math.max(hoch, grenze)), grund: { ...basis, hochgerechnet: Math.round(hoch), anteil, gewicht: 1, fertig: false } };
+  const sH = linear(KURVEN[art].streu, x) * vorab; const sV = STREU_VORAB * vorab;
+  const gewicht = (1 / sH ** 2) / (1 / sH ** 2 + 1 / sV ** 2);
+  const wert = Math.round(Math.max(gewicht * hoch + (1 - gewicht) * vorab, grenze));
+  return { wert, grund: { ...basis, hochgerechnet: Math.round(hoch), anteil: Math.round(anteil * 1000) / 1000, gewicht: Math.round(gewicht * 100) / 100, fertig: false } };
+}
+
 async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const window_ = p.get('window');
@@ -227,6 +287,8 @@ async function holeRoh(request: Request) {
     || (typeof dieser.end === 'number' && jetzt > dieser.end));
   let tatsaechlich: number | null = null;
   let gespielt = 0;
+  /** Mittlere Spielzahl bis zur Grenze (ohne sofort Qualifizierte) - der Fortschritt fuer die Hochrechnung; null, wo die Seite ihn nicht hergibt. */
+  let stand: number | null = null;
   if (vorbei || laeuft) {
     try {
       const board = await gecacht(
@@ -242,6 +304,18 @@ async function holeRoh(request: Request) {
       }
       // Wie viele Spiele schon gespielt sind: das Meiste, was ein Eintrag dieser Seite fuehrt.
       gespielt = board.entries.reduce((a, e) => Math.max(a, (e as { matches?: unknown[] }).matches?.length ?? 0), 0);
+      /*
+       * Wie weit der Spieltag an der Grenze wirklich ist: die mittlere Spielzahl der Eintraege bis zur Grenze, ohne die sofort Qualifizierten (FNCS-Heats:
+       * ein Sieg = 1.000 Punkte, der Sieger hoert auf). "gespielt" (das Meiste auf der Seite) springt schon, sobald im naechsten Spiel der Erste ausscheidet -
+       * die Grenze steht dann noch auf dem Stand davor (Heat 2 EU, 15.11.2026: gespielt 5, Grenze 107 = Stand nach vier Spielen, hochgerechnet 171).
+       */
+      if (schwelle <= 300) {
+        const bis = board.entries.filter((e) => e.rank <= schwelle);
+        const sofort = dieser.sofortPunkte ?? 0;
+        const offen = bis.filter((e) => !(sofort > 0 && e.points >= sofort));
+        const nimm = offen.length ? offen : bis;
+        if (nimm.length) stand = nimm.reduce((s, e) => s + ((e as { matches?: unknown[] }).matches?.length ?? 0), 0) / nimm.length;
+      }
     } catch { /* dann bleibt es beim Schnitt aus frueheren Ausgaben */ }
   }
 
@@ -449,29 +523,44 @@ async function holeRoh(request: Request) {
   } catch { /* ohne Lernstand wie bisher */ }
 
   /*
-   * Die Prognose einmal nachstellen (Betreiber, 14.11.2026: Heat 1 stand nach sechs von acht Spielen bei 169 Punkten, die Prognose bei 172 - zu tief).
-   * Sobald gut die Haelfte der Spiele gespielt ist (bei acht: ab dem fuenften), wird die Grenze von jetzt auf alle Spiele hochgerechnet - einmal, dann
-   * bleibt der Wert fest (prognose-mitte.json), damit er nicht mit jedem Spiel springt. Liegt die alte Prognose hoechstens 3 % daneben, bleibt sie.
+   * Die Prognose waehrend des Spieltags (Betreiber, 15.11.2026, FNCS Solos Reload Heat 2 EU: vorab 228, mitten im Cup sprang die Prognose auf 173 - die
+   * Grenze stand bald bei 193 und endete um 220). Bis dahin wurde die Grenze einmal linear hochgerechnet (Grenze x Spiele / gespielt) und festgehalten. Das lag
+   * aus zwei Gruenden zu tief: "gespielt" springt schon, sobald im naechsten Spiel der Erste ausscheidet (die Grenze stand noch auf dem Stand davor), und die
+   * Grenze waechst nicht linear - in den Heats verlassen die Sieger das Rennen, und spaete Spiele bringen mehr Punkte an der Grenze.
+   *
+   * Jetzt, an 25 abgeschlossenen Spieltagen nachgerechnet (FNCS Heats S42/S43 und Round 3 S43, Verlauf aus den vollen Replays, je Spieler gegen Epics Endstand
+   * geprueft; Skript und Tabelle im Commit): die Grenze von jetzt geteilt durch den Anteil, den aehnliche Spieltage an diesem Punkt im Mittel schon erreicht hatten
+   * (KURVEN), und diese Hochrechnung mit der Vorab-Prognose gewichtet - je nachdem, wie genau beide an diesem Punkt waren (inverse Varianz). Nie unter der Grenze
+   * von jetzt (Punkte gehen nicht verloren, die Grenze kann nur steigen). Mittlerer Fehler bei den Reload-Heats: 10 statt 45 Punkte mit der alten Sperre.
    */
   let mitte: number | null = null;
+  let mitteGrund: MitteGrund | null = null;
   try {
     const cap = dieser.matchCap ?? 0;
     const alt = schnitt !== null ? schnitt + (aehnlich ? 0 : ZUSCHLAG) + korrektur : null;
-    const gemerkt = await liesJson<Record<string, { wert: number | null; nachSpielen: number; zeit: number }>>('prognose-mitte.json', {});
+    const gemerkt = await liesJson<Record<string, { wert: number | null; nachSpielen: number; zeit: number; fassung?: number; grund?: MitteGrund }>>('prognose-mitte.json', {});
     const da = gemerkt[dieser.windowId];
-    if (da) mitte = da.wert;
-    else if (laeuft && !tagRunde && cap >= 4 && tatsaechlich !== null && gespielt >= Math.ceil(cap * 0.6) && gespielt < cap) {
-      const hoch = Math.round(tatsaechlich * cap / gespielt);
-      const wert = alt !== null && Math.abs(hoch - alt) <= alt * 0.03 ? null : hoch;
-      gemerkt[dieser.windowId] = { wert, nachSpielen: gespielt, zeit: Date.now() };
-      await schreibJson('prognose-mitte.json', gemerkt).catch(() => { /* beim naechsten Aufruf */ });
-      mitte = wert;
-    }
+    if (laeuft && !tagRunde && cap >= 4 && tatsaechlich !== null && stand !== null) {
+      const r = mitteRechnen(/Heat\d+/i.test(dieser.windowId) ? 'lobby' : 'offen', tatsaechlich, stand, cap, alt);
+      if (r) {
+        mitte = r.wert; mitteGrund = r.grund;
+        // Gemerkt wird je neuem Spielstand (hoechstens einmal je Spiel), damit nach dem Cup die letzte Prognose stehen bleibt.
+        if (!da || da.fassung !== 2 || da.nachSpielen !== gespielt) {
+          gemerkt[dieser.windowId] = { wert: r.wert, nachSpielen: gespielt, zeit: Date.now(), fassung: 2, grund: r.grund };
+          await schreibJson('prognose-mitte.json', gemerkt).catch(() => { /* beim naechsten Aufruf */ });
+        }
+      }
+    } else if (laeuft && tatsaechlich !== null && alt !== null && tatsaechlich > alt) {
+      // Ohne gemessene Kurve fuer diesen Fall (Grenze tiefer als Platz 300, Runde ueber mehrere Tage): nur der Boden - nie unter der Grenze von jetzt.
+      mitte = tatsaechlich;
+      mitteGrund = { grenze: tatsaechlich, stand: stand ?? gespielt, spiele: cap, vorab: alt, hochgerechnet: null, anteil: null, gewicht: 1, fertig: false };
+    } else if (!laeuft && da && da.fassung === 2) { mitte = da.wert; mitteGrund = da.grund ?? null; }
+    // Werte der alten Sperre (ohne fassung) gelten nicht mehr - sie lagen nachweislich daneben.
   } catch { /* dann bleibt die Prognose von vorher */ }
 
   return NextResponse.json({
-    /* Die einmal nachgestellte Prognose (null: die alte bleibt). */
-    mitte,
+    /* Die Prognose waehrend des Spieltags (null: die Vorab-Prognose bleibt) und woraus sie besteht - die Seite zeigt es an. */
+    mitte, mitteGrund,
     vorhanden: schnitt !== null || tatsaechlich !== null,
     /* Was dieser Spieltag tatsaechlich kostet - waehrend er laeuft der
        Stand von jetzt, danach das Ergebnis. Steht das hier, ist der Schnitt
