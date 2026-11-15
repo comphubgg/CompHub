@@ -1,0 +1,45 @@
+# /stats-Probe (scripts/discord-stats-probe.cjs): die Antwort des Discord-Bots mit echten Daten bauen und ausgeben - aendert nichts, postet nichts.
+name: Discord Stats Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      spieler:
+        description: 'Spielername oder Epic-Konto-Id'
+        required: true
+        default: '8224fc7512ad42818f381e262e4a6a2b'
+      cup:
+        description: 'w:<Fenster> oder Cup-Id (leer = juengster Cup)'
+        required: false
+        default: 'w:S43_TriosCashCup_Event2_EU'
+      event:
+        description: 'eventId fuer die Epic-Gegenprobe (nur mit w:<Fenster> und Konto-Id)'
+        required: false
+        default: 'epicgames_S43_TriosCashCup_EU'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Zugangsdaten
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Probe
+        env:
+          SPIELER: ${{ inputs.spieler }}
+          CUP: ${{ inputs.cup }}
+          EVENT: ${{ inputs.event }}
+        run: node scripts/discord-stats-probe.cjs "$SPIELER" "$CUP" "$EVENT" 2>&1 | grep -E "PROBE|Error|error" | head -400
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local data/epic-auth.json
