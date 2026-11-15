@@ -1,10 +1,15 @@
 // Spieler-Stats eines Spieltags fuer einen Post (tools/posts/stats-post.html): Top 5 bei Elims, Schaden und Laufstrecke aus CompHubs Replay-Auswertung.
 //   node scripts/stats-post-daten.mjs <windowId> <aus.js>
 import fs from 'node:fs';
+import { tagsFuer } from '../lib/releaseTags.mjs';
 
 const [windowId, aus] = process.argv.slice(2);
-const url = `https://github.com/comphubgg/CompHub/releases/download/daten-clutch/clutch__${windowId}.json`;
-const r = await fetch(url);
+// daten-clutch, dann seine Ueberlauf-Releases (lib/releaseTags.mjs).
+let r = null;
+for (const tag of tagsFuer(`clutch/${windowId}.json`)) {
+  r = await fetch(`https://github.com/comphubgg/CompHub/releases/download/${tag}/clutch__${windowId}.json`);
+  if (r.status !== 404) break;
+}
 if (!r.ok) { console.log(`Noch keine Auswertung fuer ${windowId} (${r.status})`); process.exit(2); }
 const d = await r.json();
 let pro = {};

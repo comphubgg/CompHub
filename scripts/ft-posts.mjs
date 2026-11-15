@@ -4,7 +4,7 @@
 // Die Texte baut lib/ftPosts.ts - dieselbe Regel wie in der Beitragsseite (/api/admin/ft-posts). Dieses Werkzeug holt nur die Dateien vom Release.
 import fs from 'node:fs';
 import { JE_SPALTEN, jeLesen } from '../lib/jeSpiel.mjs';
-import { tagFuer } from '../lib/releaseTags.mjs';
+import { tagFuer, tagsFuer } from '../lib/releaseTags.mjs';
 import { ftKonten, ftPosts, tweetLaenge } from '../lib/ftPosts.ts';
 import { istZeroBuild } from '../lib/zeroBuild.ts';
 
@@ -12,7 +12,12 @@ const [windowId, titel, cupDaten, minSpieleArg] = process.argv.slice(2);
 const R = 'https://github.com/comphubgg/CompHub/releases/download';
 const hole = async (url, json = true) => { const r = await fetch(url); if (!r.ok) throw new Error(`${url}: ${r.status}`); return json ? r.json() : r.text(); };
 const lokal = (datei) => { try { return JSON.parse(fs.readFileSync(new URL(`../data/${datei}`, import.meta.url), 'utf8')); } catch { return null; } };
-const d = await hole(`${R}/daten-clutch/clutch__${windowId}.json`);
+// daten-clutch, dann seine Ueberlauf-Releases (lib/releaseTags.mjs) - die erste Fundstelle gilt.
+const holeClutch = async () => {
+  for (const tag of tagsFuer(`clutch/${windowId}.json`)) { const r = await fetch(`${R}/${tag}/clutch__${windowId}.json`); if (r.ok) return r.json(); if (r.status !== 404) throw new Error(`${tag}/clutch__${windowId}.json: ${r.status}`); }
+  throw new Error(`clutch__${windowId}.json: 404 in ${tagsFuer(`clutch/${windowId}.json`).join(', ')}`);
+};
+const d = await holeClutch();
 let je = {}; let spalten = d.je?.spalten ?? JE_SPALTEN;
 if (d.je) {
   const jeName = `clutch-je/${windowId}.json`;

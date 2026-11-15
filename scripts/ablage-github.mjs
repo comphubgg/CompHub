@@ -30,7 +30,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { schreibTagsFuer, tagsFuer } from '../lib/releaseTags.mjs';
+import { schreibGrenze, schreibTagsFuer, schreibZiel, tagsFuer } from '../lib/releaseTags.mjs';
 
 const PROJEKT = process.cwd();
 const DATEN = path.join(PROJEKT, 'data');
@@ -39,6 +39,8 @@ const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
 const API = 'https://api.github.com';
 /** Ab so vielen Anhaengen gilt ein Release als voll (die Obergrenze liegt bei tausend, das Verzeichnis zaehlt mit). */
 const VOLL = 998;
+/** Die Grenze eines Releases zum Schreiben neuer Dateien: die eigene aus lib/releaseTags.mjs (Clutch: 980, Platz fuers Ersetzen), sonst VOLL. */
+const grenzeVon = (tag) => Math.min(VOLL, schreibGrenze(tag) ?? VOLL);
 const GLEICHZEITIG = 4;
 /*
  * Abstand zwischen zwei Anfragen, die etwas anlegen oder loeschen.
@@ -384,7 +386,7 @@ async function verzeichnisLesen(tag, vorhandene) {
  * die Jahreslisten neu hochkamen. Ein Rest ".neu" von einem abgebrochenen
  * Lauf wird beim naechsten Mal ueberschrieben.
  */
-async function hochladen(releaseId, vorhandene, name, daten) {
+async function hochladen(releaseId, vorhandene, name, daten, nochmal = false) {
   let alt = vorhandene.get(name);
   /*
    * Ein volles Release (tausend Anhaenge, GitHubs Obergrenze) hat keinen Platz
@@ -413,7 +415,20 @@ async function hochladen(releaseId, vorhandene, name, daten) {
                  'Content-Length': String(daten.length) },
       body: daten,
     });
-  if (!r.ok) throw new Error(`hochladen ${name}: ${r.status} ${(await r.text()).slice(0, 600)}`);
+  if (!r.ok) {
+    const text = (await r.text()).slice(0, 600);
+    /*
+     * 422 "already_exists": ein anderer Schreiber hat den Namen angelegt, seit die Liste geholt wurde (15.11.2026: clutch-roh__S42_PerformanceEvaluation_
+     * Event8Round1_NAC/_EU scheiterten so im Ablauf clutch-ablegen, waehrend der Abschluss von clutch-rechnen sie hochlud). Einmal die Liste neu holen und
+     * als Ersetzen wiederholen, statt die Datei liegen zu lassen.
+     */
+    if (r.status === 422 && /already_exists/.test(text) && !nochmal) {
+      const frisch = await anhaenge(releaseId);
+      for (const k of [name, `${name}.neu`]) { if (frisch.has(k)) vorhandene.set(k, frisch.get(k)); else vorhandene.delete(k); }
+      return hochladen(releaseId, vorhandene, name, daten, true);
+    }
+    throw new Error(`hochladen ${name}: ${r.status} ${text}`);
+  }
   let neu = await r.json();
   if (alt) {
     await gedrosselt();
@@ -491,7 +506,7 @@ async function main() {
   // Was hochgeladen wird: Name des Anhangs -> Bytes, je Release.
   const aufgaben = [];
   /** Was schon beim Planen scheitert (alle Ziel-Releases voll) - zaehlt mit, damit der Lauf das nicht als geglueckt abhakt. */
-  const volleZiele = new Set(); const planFehler = [];
+  const volleZiele = new Set(); const planFehler = []; const umgeleitet = new Set();
   for (const name of einzeln) {
     const daten = fs.readFileSync(path.join(DATEN, name));
     const anhang = anhangName(name);
@@ -502,15 +517,15 @@ async function main() {
      */
     const ziele = schreibTagsFuer(name);
     let rel = null;
-    for (const tag of ziele) {
+    // Die Wahl selbst steht in lib/releaseTags.mjs (schreibZiel) - dort geprueft von scripts/clutch-ueberlauf-test.mjs.
+    const ziel = await schreibZiel(name, async (tag) => {
       const r = await releaseFuer(tag, { anlegen: false });
-      if (r.vorhandene.has(anhang)) { rel = r; break; }
-    }
-    if (!rel) {
-      for (const tag of ziele) {
-        const r = await releaseFuer(tag, { anlegen: false });
-        if (r.vorhandene.size + (r.geplant ?? 0) < VOLL) { if (r.leer) { fehlend.delete(tag); rel = await releaseFuer(tag); } else rel = r; break; }
-      }
+      return { hat: r.vorhandene.has(anhang), anzahl: r.vorhandene.size + (r.geplant ?? 0) };
+    }, grenzeVon);
+    if (ziel) {
+      rel = await releaseFuer(ziel, { anlegen: false });
+      if (rel.leer) { fehlend.delete(ziel); rel = await releaseFuer(ziel); }
+      if (ziel !== ziele[0] && !rel.vorhandene.has(anhang) && !umgeleitet.has(ziel)) { umgeleitet.add(ziel); console.log(`  ${ziele[0]} voll - neue Dateien gehen nach ${ziel}`); }
     }
     if (!rel) {
       volleZiele.add(ziele.join(', '));
