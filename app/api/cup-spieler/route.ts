@@ -92,19 +92,23 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
    * Osirion beim FNCS-Solos-Finale EU: die Replays treffen Osirions Reihenfolge fast genau - Quote tjino 2,10 zu Osirions 2,03, die Quelle hatte ghonzo
    * 1,55 vorn; Sturmzeit ghxstyah 1h 36m wie Osirion). Nur wenn jeder Tag ganz gelesen ist; Material, Bauteile, Strecke, Assists bleiben aus der Quelle.
    */
-  const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number }>();
+  const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number; spiele: number }>();
   let repVoll = tage.length > 0;
   for (const w of tage) {
     const c = await liesClutch<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
+      epicSpiele?: Record<string, number>; spiele?: Record<string, number>;
       schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>; namen?: Record<string, string> }>(w).catch(() => null);
     replayNamenMerken(c?.namen);
     if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
     for (const [id, d] of Object.entries(c?.schaden ?? {})) {
-      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); rep.set(e, x);
+      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0, spiele: 0 };
+      // Epics Schaden nur, wenn er ueber dieselben Spiele geht wie das Replay (epicSpiele, scripts/epic-schaden-holen.mjs) - sonst der Replay-Wert.
+      const epic = c?.epicDmg?.[id]; const epicN = c?.epicSpiele?.[id];
+      x.dmg += typeof epic === 'number' && (typeof epicN !== 'number' || epicN === c?.spiele?.[id]) ? epic : d.dmg;
+      x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); x.spiele += c?.spiele ? (c.spiele[id] ?? 0) : Infinity; rep.set(e, x);
     }
     for (const [id, v] of Object.entries(c?.leben ?? {})) {
-      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
+      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0, spiele: 0 };
       x.leben += v; rep.set(e, x);
     }
     if (!c?.summe) continue;
@@ -121,7 +125,9 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const spieler = sz.spieler.map((x) => {
     const t = teamVon.get(x.epicId);
     const spiele = x.matchesPlayed || sz.matches || 0;
-    const r = ausRep(x.epicId);
+    // Nur wenn die vollen Replays jedes Spiel dieses Spielers kennen - sonst die Werte der Quelle (alle Spiele), nie eine Mischung aus beiden Zaehlungen.
+    const r0 = ausRep(x.epicId);
+    const r = r0 && r0.spiele >= spiele ? r0 : undefined;
     return {
       epicId: x.epicId,
       name: nameVon(x.epicId),
@@ -470,6 +476,12 @@ async function holeRoh(request: Request) {
       bauHolz?: number; bauStein?: number; bauMetall?: number; bauWand?: number; bauBoden?: number; bauTreppe?: number; bauDach?: number; bauSpiele?: number }>;
     /** Epics eigener Schaden der Top 10.000 in Solo-Cups (scripts/epic-schaden-holen.mjs) - hat Vorrang vor dem Replay-Wert, der dort rund 5 % zu hoch liegt. */
     epicDmg?: Record<string, number>;
+    /** Ueber wie viele Spiele Epics Werte je Spieler gehen (sessionHistory, scripts/epic-schaden-holen.mjs) - fehlt in Dateien vor dem 15.11.2026. */
+    epicSpiele?: Record<string, number>;
+    /** Gelesene Matches (und solche ohne lesbares Replay) - daraus "m von n Spielen gelesen", auch wenn die Datei nichts von weiteren Matches weiss. */
+    matches?: unknown[]; ohne?: unknown[];
+    /** Nur beim Zusammenfassen mehrerer Tage: so viele Matches sind gelesen. */
+    gelesen?: number;
     /** Dasselbe fuer Ueberlebenszeit (s), Strecke (m) und Kopftreffer - unsere Replay-Zeit lag bei Reload ueber der Dauer des Cups (3h 52m bei 2h 30m). */
     epicZeit?: Record<string, number>; epicStrecke?: Record<string, number>; epicKopf?: Record<string, number>;
     /** Team-Cups: die Zeit des ganzen Teams je Spieler (scripts/epic-schaden-holen.mjs) - laenger kann niemand aus dem Team gelebt haben. */
@@ -494,15 +506,18 @@ async function holeRoh(request: Request) {
     ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
       // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
       if (!c || c.teilweise) return a;
-      const raus = a ?? { summe: {}, schaden: {}, leben: {}, spiele: {} };
+      const raus = a ?? { summe: {}, schaden: {}, leben: {}, spiele: {}, gelesen: 0 };
+      raus.gelesen = (raus.gelesen ?? 0) + (c.matches?.length ?? 0) + (c.ohne?.length ?? 0);
       for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + (c.epicZeit?.[id] ?? v);
       // Spiele je Spieler mit: ohne sie gelten Elims aus dem vollen Auslesen (killsEcht) ueber mehrere Tage nicht als ganz gelesen.
       for (const [id, v] of Object.entries(c.spiele ?? {})) raus.spiele![id] = (raus.spiele![id] ?? 0) + v;
       for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
         const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+        // Epics Schaden nur, wenn er dieselben Spiele zaehlt wie das Replay dieses Tages - sonst mischte die Summe zwei Zaehlungen.
+        const epic = c.epicDmg?.[id]; const epicN = c.epicSpiele?.[id];
         raus.schaden![id] = {
-          dmg: da.dmg + (c.epicDmg?.[id] ?? d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
+          dmg: da.dmg + (typeof epic === 'number' && (typeof epicN !== 'number' || epicN === c.spiele?.[id]) ? epic : d.dmg), erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
           sturm: (da.sturm ?? 0) + sturmOk(d.sturm), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
           ...(() => {
             const e = d as { killsEcht?: number; todeEcht?: number; invSpiele?: number }; const f = da as typeof e;
@@ -522,14 +537,41 @@ async function holeRoh(request: Request) {
    * Umgehauene; an den Globals gegen Epics Werte geprueft: im Mittel 6 %
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
-  const schadenVon = clutchDatei?.schaden
-    ? new Map(Object.entries(clutchDatei.schaden).map(([id, d]) => [id, { ...d, dmg: clutchDatei.epicDmg?.[id] ?? d.dmg, krit: d.krit }] as const)) : null;
+  // Die Replay-Werte, wie gelesen; Epics Schaden kommt erst je Spieler dazu (dmgFuer), wenn seine Spielzahl passt.
+  const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
   // Im Solo ohne Reload gibt es weder Reboot noch Wiederbeleben (Betreiber, 31.10.2026: "wie kann es in einem Solo-Cup Reboots geben?").
   const soloOhneReload = !tage.some((w) => /reload/i.test(w))
     && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));
-  // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
-  const teil = clutchDatei?.teilweise ?? null;
-  const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
+  /*
+   * Ein Wert aus den vollen Replays zaehlt nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig, und neben Epics Schaden ueber alle
+   * Spiele stuende eine Quote aus zwei Zaehlungen (15.11.2026, FNCS Solos Reload Heat 2 EU, ~21:25 UTC: schlanke Replays 8 Matches, clutch-Datei 7 mit gesamt 7
+   * und ohne "teilweise" - Solary Zangi Damage 5.442 von Epic ueber 8 Spiele, erlitten 2.088, 114 Treffer, 16 Kopftreffer aus 7). Bis dahin galt ohne
+   * "teilweise" jeder als ganz gelesen; "teilweise" kennt aber nur die Matches, die beim Rechnen schon in Epics Liste standen. Darum immer die Spiele je Spieler
+   * gegen die schlanken Replays. Nur Dateien ganz ohne Spiele je Spieler (sehr alt) bleiben bei der alten Regel.
+   */
+  const gelesenMatches = tage.length > 1 ? clutchDatei?.gelesen : clutchDatei ? (clutchDatei.matches?.length ?? 0) + (clutchDatei.ohne?.length ?? 0) : undefined;
+  const teil = clutchDatei?.teilweise
+    ?? (clutchDatei?.schaden && typeof gelesenMatches === 'number' && gelesenMatches > 0 && (rep.matches ?? 0) > gelesenMatches
+      ? { teams: 0, matches: gelesenMatches, vonMindestens: rep.matches ?? 0 } : null);
+  const gelesenVon = (id: string) => clutchDatei?.spiele?.[id.toLowerCase()] ?? 0;
+  const ganzGelesen = (id: string, spiele: number) => (clutchDatei?.spiele ? gelesenVon(id) >= spiele : !teil);
+  /*
+   * Ausgeteilter Schaden: Epics Wert (Solo, Top 10.000) nur, wenn er ueber genau die Spiele des Spielers geht - dann auch, wenn das Replay noch nicht jedes Spiel
+   * kennt. Ohne epicSpiele (aeltere Dateien) nur bei ganz gelesenem Spieler, wie bisher. Sonst der Replay-Wert - und der nur, wenn jedes Spiel gelesen ist.
+   */
+  const epicDmgVon = tage.length === 1 ? clutchDatei?.epicDmg : undefined;
+  const epicDmgFuer = (id: string, spiele: number): number | null => {
+    const k = id.toLowerCase(); const v = epicDmgVon?.[k];
+    if (typeof v !== 'number') return null;
+    const n = clutchDatei?.epicSpiele?.[k];
+    return (typeof n === 'number' ? n === spiele : ganzGelesen(id, spiele)) ? v : null;
+  };
+  const dmgFuer = (id: string, spiele: number): number | null => {
+    const e = epicDmgFuer(id, spiele);
+    if (e !== null) return e;
+    const d = schadenVon?.get(id.toLowerCase());
+    return d && ganzGelesen(id, spiele) ? d.dmg : null;
+  };
   const nurEpicZeit = tage.length === 1 && /reload/i.test(tage[0]) && Object.keys(clutchDatei?.epicZeit ?? {}).length > 0;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length
     ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })
@@ -592,11 +634,20 @@ async function holeRoh(request: Request) {
       ? { distanz: Math.round(((streckeVon.get(x.epicId.toLowerCase())![0] ?? 0) + (streckeVon.get(x.epicId.toLowerCase())![1] ?? 0)) * streckeFaktor) } : {}),
     ...(() => {
       const d = schadenVon?.get(x.epicId.toLowerCase());
-      if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
+      if (!d) return {};
+      const dmg = dmgFuer(x.epicId, x.matches);
+      if (!ganzGelesen(x.epicId, x.matches)) {
+        /*
+         * Nicht jedes Spiel gelesen: keine Treffer, Kopftreffer, Bauteile, erlittener Schaden, Quote, Sturm- oder Ueberlebenszeit - nur der Hinweis, wie viele
+         * Spiele gelesen sind (gelesenSpiele von spiele). Epics Schaden bleibt, wenn er ueber genau diese Spiele geht.
+         */
+        return { ...(dmg !== null ? { damage: Math.round(dmg), schadenVonEpic: true } : {}), gelesenSpiele: gelesenVon(x.epicId) };
+      }
+      const dm = dmg ?? d.dmg;
       return {
-        damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
+        damage: Math.round(dm), damageTaken: Math.round(d.erlitten),
         // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
-        damageRatio: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null,
+        damageRatio: d.erlitten > 0 && x.matches >= 3 ? dm / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? dm / d.erlitten : null,
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
         // Gebaute Teile nur, wenn jedes gelesene Spiel sie mitbringt - sonst waere die Zahl zu klein. Solo, siehe scripts/clutch-berechnen.mjs.
         /*
@@ -669,8 +720,11 @@ async function holeRoh(request: Request) {
       mit(voll.filter((x) => (wert(x) ?? 0) > 0).sort((a, b) => (wert(b) ?? 0) - (wert(a) ?? 0)).slice(0, 25));
     const sch = (x: (typeof voll)[number]) => schadenVon?.get(x.epicId.toLowerCase());
     if (schadenVon) {
-      spitze((x) => sch(x)?.dmg);
-      spitze((x) => { const d = sch(x); return d && d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null; });
+      spitze((x) => dmgFuer(x.epicId, x.matches));
+      // Epics Schaden gilt auch bei noch nicht ganz gelesenen Spielern (gleiche Spielzahl) - die gehoeren in die Spitze beim Schaden.
+      mit(spielerEcht.filter((x) => (dmgFuer(x.epicId, x.matches) ?? 0) > 0)
+        .sort((a, b) => (dmgFuer(b.epicId, b.matches) ?? 0) - (dmgFuer(a.epicId, a.matches) ?? 0)).slice(0, 25));
+      spitze((x) => { const d = sch(x); const dm = dmgFuer(x.epicId, x.matches); return d && dm !== null && d.erlitten > 0 && x.matches >= 3 ? dm / d.erlitten : null; });
       spitze((x) => { const d = sch(x); return d?.bauSpiele ? (d.bauHolz ?? 0) + (d.bauStein ?? 0) + (d.bauMetall ?? 0) : null; });
       spitze((x) => sch(x)?.treffer);
       spitze((x) => sch(x)?.sturm);
@@ -717,8 +771,10 @@ async function holeRoh(request: Request) {
   if (summen && !teil) {
     if (schadenVon) {
       const plus = (feld: string, w: number) => { summen[feld] = (summen[feld] ?? 0) + w; };
-      for (const d of schadenVon.values()) {
-        plus('damage', d.dmg); plus('damageTaken', d.erlitten); plus('hits', d.treffer); plus('headshots', d.krit);
+      // Spiele je Spieler fuer Epics Schaden; wer nicht in den schlanken Replays steht (ohne Kill und Knock), zaehlt mit seinen gelesenen Spielen.
+      const spieleVon = new Map(rep.spieler.map((x) => [x.epicId.toLowerCase(), x.matches] as const));
+      for (const [id, d] of schadenVon) {
+        plus('damage', epicDmgFuer(id, spieleVon.get(id) ?? gelesenVon(id)) ?? d.dmg); plus('damageTaken', d.erlitten); plus('hits', d.treffer); plus('headshots', d.krit);
         if (typeof d.sturm === 'number') plus('timeInStorm', d.sturm);
         if (!soloOhneReload) plus('reboots', (d.wiederbelebt ?? 0) + (d.rebootet ?? 0));
       }

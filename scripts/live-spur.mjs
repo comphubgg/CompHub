@@ -308,7 +308,7 @@ async function einMatch(job) {
 
 /* ------------------------------------------------------------- Live-Stand */
 
-const EPIC_FELDER = ['epicDmg', 'epicZeit', 'epicStrecke', 'epicKopf', 'epicTeamZeit'];
+const EPIC_FELDER = ['epicDmg', 'epicZeit', 'epicStrecke', 'epicKopf', 'epicTeamZeit', 'epicSpiele'];
 
 /*
  * Den Live-Stand eines Spieltags bauen: der Stand vom Release plus die Teile, deren Match dort noch fehlt - zusammengefuehrt mit dem unveraenderten

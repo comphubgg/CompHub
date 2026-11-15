@@ -54,7 +54,7 @@ for (const w of liste) {
   const erste = await seite(d, 0);
   if (!erste) { console.log(`${w}: Bestenliste nicht erreichbar`); continue; }
   const seiten = Math.min(erste.totalPages ?? 1, 100);
-  const werte = {}; const zeit = {}; const strecke = {}; const kopf = {}; const teamZeit = {};
+  const werte = {}; const zeit = {}; const strecke = {}; const kopf = {}; const teamZeit = {}; const spiele = {};
   let team = false;
   const nehmen = (j) => {
     for (const e of j?.entries ?? []) {
@@ -70,6 +70,8 @@ for (const w of liste) {
       }
       const id = e.teamAccountIds[0].toLowerCase();
       if (summe('DamageDealt') > 0) werte[id] = summe('DamageDealt');
+      // Ueber wie viele Spiele Epics Werte gehen: die Seite nimmt Epics Schaden nur, wenn das zur Spielzahl des Spielers passt (app/api/cup-spieler, 15.11.2026).
+      if (e.sessionHistory?.length) spiele[id] = e.sessionHistory.length;
       // Ohne doppelt gezaehlte Zeit (zwei Spiele, die sich ueberschneiden - siehe lib/epicCups lebenOhneUeberlappung).
       if (summe('TIME_ALIVE_STAT') > 0) {
         const iv = (e.sessionHistory ?? []).map((s) => { const ende = Date.parse(s.endTime ?? ''); const z = Number(s.trackedStats?.TIME_ALIVE_STAT) || 0; return Number.isFinite(ende) && z > 0 ? [ende - z * 1000, ende] : null; }).filter(Boolean).sort((a, b) => a[0] - b[0]);
@@ -89,7 +91,7 @@ for (const w of liste) {
     while (naechste < seiten) nehmen(await seite(d, naechste++));
   }));
   d.epicDmgStand = new Date().toISOString();
-  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; d.epicTeamZeit = teamZeit; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
+  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; delete d.epicSpiele; d.epicTeamZeit = teamZeit; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; d.epicSpiele = spiele; }
   fs.writeFileSync(datei, JSON.stringify(d));
   fertig += 1;
   console.log(`${w}: ${team ? 'Team-Cup, kein Epic-Schaden' : `${Object.keys(werte).length} Spieler`}`);
