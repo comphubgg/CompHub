@@ -297,14 +297,14 @@ if (arg[0] === '--plan') {
       // Fassung 19 (15.11.2026): Elims nur aus dem Kill-Zaehler, am Aus des Teams nach dessen eigenen Zeitstempeln geschnitten - kein Auffuellen aus dem Kill-Feed
       // mehr (Bot-Kills, Kills nach dem Aus; gegen Epics TEAM_ELIMS geprueft, lib/vollSchaden.mjs). Der Zaehler steht nicht in den Rohdaten, deshalb neu lesen:
       // die Spieltage der Woche bis 3.000 Matches, erst nach FNCS Heat 2 (bis 21:00 UTC) und ihrer Auswertung.
-      || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 22, 30)));
+      || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 21, 25)));
     /*
      * Werte je Match verloren (15.11.2026): "Clutch ablegen" lud clutch-je/ nicht hoch, der naechste Lauf verwarf die Zeilen des vorigen (scripts/clutch-je-abgleich.mjs zaehlt
      * sie als jeFehlt). Solche Spieltage einmal ganz neu lesen - nur die der letzten 14 Tage (Epic haelt Replays 31 Tage, mit Abstand) bis 3.000 Matches, nicht, wenn sie
      * nach dem Fix schon frisch gelesen sind (jeFrisch), und erst nach der FNCS-Heat vom 15.11. (17:30-21:30 UTC), damit die Live-Auswertung nicht wartet.
      */
     const jeNeu = !!da && !neuAnfang && (da.jeFehlt ?? 0) > 0 && !da.jeFrisch && Date.now() - f.datum < 14 * 864e5 && f.ids.size <= 3000
-      && Date.now() > Date.UTC(2026, 10, 15, 22, 30);
+      && Date.now() > Date.UTC(2026, 10, 15, 21, 25);
     if (jeNeu) console.log(`  ${f.windowId}: ${da.jeFehlt} Matches ohne Werte je Match - ganz neu lesen`);
     /*
      * Haengengebliebene kleine Spieltage (15.11.2026): mit Fassung 3 fing clutch-zusammen.mjs bei jeder Sofort-Ablage leer an, behielt aber die Rohdaten - und
@@ -314,7 +314,7 @@ if (arg[0] === '--plan') {
      * mehr; die schon haengenden einmal ganz neu lesen. Frische (2 Tage) sofort - sie sind klein -, aeltere nach der Heat.
      */
     const haengt = !!da && !neuAnfang && !jeNeu && !da.ohneRohRechnung && (da.matches?.length ?? 0) > (da.teilweise?.matches ?? Infinity)
-      && Date.now() - f.datum < 14 * 864e5 && (Date.now() - f.datum < 2 * 864e5 || Date.now() > Date.UTC(2026, 10, 15, 22, 30));
+      && Date.now() - f.datum < 14 * 864e5 && (Date.now() - f.datum < 2 * 864e5 || Date.now() > Date.UTC(2026, 10, 15, 21, 25));
     if (haengt) console.log(`  ${f.windowId}: ${da.matches.length} Matches, aber teilweise ${da.teilweise.matches} - Zwischenstand haengt, ganz neu lesen`);
     const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang && !jeNeu && !haengt;
     /*
