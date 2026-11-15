@@ -398,6 +398,7 @@ if (bus.Count == 0 && reader.BusWerte.TryGetValue("FlightStartLocation", out var
 }
 var gd = replay.GameData;
 reader.BusAbFuerMs = busAb;
+reader.MsSpurSchreiben();
 Console.WriteLine(JsonConvert.SerializeObject(new {
   bus = bus.Count > 0 ? bus : null,
   version = 3,
@@ -1211,6 +1212,18 @@ class SchadenLeser : ReplayReader {
     if (Hole(VonFigur, kanal)?.Id is not int id) return;
     if (!msPawnZahl.TryGetValue(id, out var z)) msPawnZahl[id] = z = new double[7];
     { var zs = msZustand.GetValueOrDefault(id); var luft = p.bIsSkydiving ?? (p.bIsParachuteOpen is bool po ? (po || zs.luft) : zs.luft); if (p.bIsParachuteOpen == true) luft = true; if (p.bIsSkydiving == false && p.bIsParachuteOpen == false) luft = false; var fz = p.Vehicle is not null ? (p.Vehicle.Value != 0) : zs.fahrzeug; msZustand[id] = (luft, fz); }
+    if (MsSpurDatei is not null && Zeit() is double tzs) {
+      foreach (var pi in MsZustandFelder) {
+        object v; try { v = pi.GetValue(p); } catch { continue; }
+        if (v is null) continue;
+        var vv = v.GetType().GetProperty("Value")?.GetValue(v) ?? v; var txt = vv is bool b ? (b ? "1" : "0") : vv.ToString();
+        var k = id + ":" + pi.Name;
+        if (msZustandAlt.TryGetValue(k, out var alt) && alt == txt) continue;
+        msZustandAlt[k] = txt;
+        if (!MsZust.TryGetValue(id, out var zl)) MsZust[id] = zl = new();
+        zl.Add(new object[] { Math.Round(tzs, 3), pi.Name, txt, kanal });
+      }
+    }
     z[0]++; if (p.Location is not null) z[1]++; if (p.ReplicatedMovement is not null) z[2]++;
     if (p.EncryptedPawnReplayData is not null) {
       z[3]++;
@@ -1281,6 +1294,16 @@ class SchadenLeser : ReplayReader {
       } catch (Exception e) { orte[v * 3] = double.NaN; if (MsRmProben.Count < 60) MsRmProben.Add(new object[] { "rmfehler", v, e.Message }); }
     }
     if (id is not int pid || t is not double tt) return;
+    if (MsSpurDatei is not null) {
+      try {
+        var r0 = new Unreal.Core.NetBitReader(daten, bits) { EngineNetworkVersion = archive.EngineNetworkVersion, NetworkVersion = archive.NetworkVersion, ReplayHeaderFlags = archive.ReplayHeaderFlags, ReplayVersion = archive.ReplayVersion, NetworkReplayVersion = archive.NetworkReplayVersion };
+        var rm0 = r0.SerializeRepMovement(MsVarianten[0].l, MsVarianten[0].r, MsVarianten[0].v);
+        if (rm0.Location is not null) {
+          if (!MsSpur.TryGetValue(pid, out var sp)) MsSpur[pid] = sp = new();
+          sp.Add(new double[] { Math.Round(tt, 3), Math.Round(rm0.Location.X, 1), Math.Round(rm0.Location.Y, 1), Math.Round(rm0.Location.Z, 1), Math.Round(rm0.LinearVelocity?.X ?? 0), Math.Round(rm0.LinearVelocity?.Y ?? 0), Math.Round(rm0.LinearVelocity?.Z ?? 0), kanal });
+        }
+      } catch { }
+    }
     if (!MsBewegung.TryGetValue(pid, out var l)) MsBewegung[pid] = l = new();
     var zs = msZustand.GetValueOrDefault(pid);
     var e2 = new double[3 + orte.Length]; e2[0] = Math.Round(tt, 3); e2[1] = zs.luft ? 1 : 0; e2[2] = zs.fahrzeug ? 1 : 0; Array.Copy(orte, 0, e2, 3, orte.Length);
@@ -1311,6 +1334,13 @@ class SchadenLeser : ReplayReader {
     }
     return raus;
   }
+  public static readonly string MsSpurDatei = Environment.GetEnvironmentVariable("MS_SPUR");
+  public readonly Dictionary<int, List<double[]>> MsSpur = new();
+  public readonly Dictionary<int, List<object[]>> MsZust = new();
+  readonly Dictionary<string, string> msZustandAlt = new();
+  static readonly PropertyInfo[] MsZustandFelder = new[] { "ReplicatedMovementMode", "bIsSkydiving", "bIsParachuteOpen", "bIsSkydivingFromBus", "bIsSkydivingFromLaunchPad", "bInGliderRedeploy", "Vehicle", "SeatIndex", "bIsZiplining", "bIsSlopeSliding", "bIsDBNO", "bIsCrouched", "bIsSprinting", "bIsTacticalSprinting", "MovementBase", "bReplicatedIsInVortex", "bIsWaterJump", "bIsWaterSprintBoost", "CurrentMovementStyle", "TeleportCounter", "bIsDying", "bIsInWaterVolume", "bIsSwimming" }
+    .Select(n => typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty(n)).Where(p => p is not null).ToArray();
+  public void MsSpurSchreiben() { if (MsSpurDatei is null) return; File.WriteAllText(MsSpurDatei, JsonConvert.SerializeObject(new { spur = MsSpur, zust = MsZust })); }
   public object MsDiagFertig() => new { felder = MsFelder, rmProben = MsRmProben, pickupMenge = MsPickupMengeListe, pickupMengeKanal = MsPickupMenge, strecke = MsStrecke(BusAbFuerMs),
  pickups = MsPickups, inv = MsInv, pawnZahl = msPawnZahl, encProben = msEncProben,
     wurzelFigur = inventarFiguren.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value.Select(f => spielerVonAkteur.TryGetValue(f, out var sid) ? sid : -1).ToList()) };

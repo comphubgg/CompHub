@@ -82,23 +82,39 @@ const fehlend = (m.pickupMenge ?? []).filter((r) => typeof r[3] !== 'number').le
 console.log('MENGE Lesungen', (m.pickupMenge ?? []).length, 'ohne Menge', fehlend, 'Beispiele', JSON.stringify((m.pickupMenge ?? []).slice(0, 4)));
 const STOFFNAME = ['Wood', 'Stone', 'Metal'];
 const ergebnis = [];
+const gesamt = { C: [0, 0, 0], P: [0, 0, 0], H: [0, 0, 0], R: [0, 0, 0], O: [0, 0, 0], quelle: {} };
 for (const [sid, l] of Object.entries(schritte)) {
-  const auf = aufgehoben.filter((e) => e.ziel === Number(sid));
-  const P = [0, 0, 0], C = [0, 0, 0], ohneMenge = [0, 0, 0], passt = [0, 0], verbraucht = new Set();
-  for (const e of auf) {
+  // Pickups dieses Spielers mit uebertragener Menge = Stapel davor - Stapel danach (0, wenn der Pickup weg ist).
+  const pool = [];
+  for (const e of aufgehoben.filter((x) => x.ziel === Number(sid))) {
     const s = STOFFNAME.findIndex((x) => e.nm.startsWith(x)); if (s < 0) continue;
-    const ls = (lesungen.get(e.kanal) ?? []).filter((r) => r[0] >= e.t0 - 0.05 && r[0] <= e.tAuf + 0.05);
-    if (!ls.length) { ohneMenge[s]++; continue; }
-    const menge = ls[ls.length - 1][3]; P[s] += menge;
-    // Gegenprobe: steigt das Inventar desselben Stoffs binnen -0,3..1,5 s um genau diese Menge (allein oder zusammen mit anderen Aufnahmen)?
-    const kand = l.filter((x, i) => x.s === s && x.d > 0 && x.t - e.tAuf >= -0.3 && x.t - e.tAuf <= 1.5 && !verbraucht.has(i));
-    const genau = l.findIndex((x, i) => x.s === s && x.d === menge && x.t - e.tAuf >= -0.3 && x.t - e.tAuf <= 1.5 && !verbraucht.has(i));
-    if (genau >= 0) { verbraucht.add(genau); passt[0]++; } else passt[1]++;
+    const ls = lesungen.get(e.kanal) ?? [];
+    const vor = ls.filter((r) => r[0] >= e.t0 - 0.05 && r[0] <= e.tAuf + 0.05).pop();
+    const nach = ls.find((r) => r[0] > e.tAuf + 0.05 && r[0] <= e.tAuf + 3 && r[2] === e.akteur);
+    const quelle = e.kiste ? 'kiste' : e.fallen == null ? 'boden' : e.fallen === Number(sid) ? 'selbst' : (typeof e.fallen === 'number' && e.fallen >= 0 ? 'andere' : 'fallenUnbekannt');
+    pool.push({ s, t: e.tAuf, rest: vor ? vor[3] - (nach ? nach[3] : 0) : null, quelle });
   }
-  for (const x of l) if (x.d > 0) C[x.s] += x.d;
-  ergebnis.push({ sid, name: name[sid], C, P, F: C.map((c, i) => c - P[i]), ohneMenge, passt });
+  const C = [0, 0, 0], P = [0, 0, 0], H = [0, 0, 0], R = [0, 0, 0], O = [0, 0, 0], q = {}, ohne = pool.filter((x) => x.rest == null).length, oListe = [];
+  for (let i = 0; i < l.length; i++) {
+    const x = l[i]; if (x.d <= 0) continue;
+    C[x.s] += x.d; let rest = x.d;
+    for (const pk of pool) {
+      if (rest <= 0) break;
+      if (pk.s !== x.s || !(pk.rest > 0) || x.t - pk.t < -0.3 || x.t - pk.t > 1.5) continue;
+      const k = Math.min(rest, pk.rest); pk.rest -= k; rest -= k; P[x.s] += k; q[pk.quelle] = (q[pk.quelle] ?? 0) + k;
+    }
+    if (rest <= 0) continue;
+    if (nahe(axt[sid], x.t - 2, x.t + 0.6)) { H[x.s] += rest; continue; }
+    const rueck = rest % 10 === 0 && l.slice(Math.max(0, i - 8), i).some((y) => y.s === x.s && y.d < 0 && x.t - y.t <= 2);
+    if (rueck) { R[x.s] += rest; continue; }
+    O[x.s] += rest; if (oListe.length < 8) oListe.push([x.t, STOFFNAME[x.s], rest, x.neu]);
+  }
+  ergebnis.push({ sid, name: name[sid], C, P, H, R, O, q, ohne, oListe });
+  for (const k of ['C', 'P', 'H', 'R', 'O']) for (let s = 0; s < 3; s++) gesamt[k][s] += ({ C, P, H, R, O })[k][s];
+  for (const [k, v] of Object.entries(q)) gesamt.quelle[k] = (gesamt.quelle[k] ?? 0) + v;
 }
-for (const e of ergebnis.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))) console.log('EXAKT', (e.name ?? e.sid).padEnd(20), 'gesammelt', e.C.join('/'), 'aufgehoben', e.P.join('/'), 'gefarmt(=Rest)', e.F.join('/'), 'Pickups ohne Menge', e.ohneMenge.join('/'), 'Inventar passt genau', e.passt.join(' von ').replace(' von ', ' ja, nein '));
+for (const e of ergebnis.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))) console.log('EXAKT', (e.name ?? e.sid).padEnd(20), 'gesammelt', e.C.join('/'), 'aufgehoben', e.P.join('/'), 'spitzhacke', e.H.join('/'), 'rueckgabe', e.R.join('/'), 'unerklaert', e.O.join('/'), 'quellen', JSON.stringify(e.q), 'ohneMenge', e.ohne, JSON.stringify(e.oListe));
+console.log('EXAKT-SUMME', JSON.stringify(gesamt));
 // Leser-Werte von heute zum Vergleich (extra: Gesammelt 6-8, Gefarmt 9-11, Bauten 14-16)
 for (const e of ergebnis.slice(0, 50)) { const x = d.extra?.[e.sid]; if (x) console.log('HEUTE', (e.name ?? e.sid).padEnd(20), 'farm', [9, 10, 11].map((i) => x[i]).join('/'), 'sam', [6, 7, 8].map((i) => x[i]).join('/'), 'bauten', [14, 15, 16].map((i) => x[i]).join('/')); }
 console.log('FELDER', JSON.stringify(m.felder));
