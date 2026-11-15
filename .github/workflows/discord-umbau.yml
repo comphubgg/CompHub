@@ -24,7 +24,7 @@ on:
         type: boolean
         default: false
       links:
-        description: 'Nur fuer tweets: Links zu X-Beitraegen, mit Komma getrennt'
+        description: 'tweets: Links zu X-Beitraegen, mit Komma getrennt | notiz: Nummer einer eigenen Mitteilung, die ersetzt wird'
         type: string
         default: ''
       titel:
@@ -106,6 +106,7 @@ jobs:
         env:
           TITEL: ${{ inputs.titel }}
           TEXT: ${{ inputs.text }}
+          NACHRICHT: ${{ inputs.links }}
         run: |
           printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
           set +e

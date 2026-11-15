@@ -3,6 +3,8 @@
  *
  *   TEXT="..." TITEL="..." node scripts/discord-notiz.mjs              nur zeigen
  *   ... --anwenden                                                     posten
+ *   NACHRICHT=<id> ... --anwenden                                      eine eigene Mitteilung ersetzen
+ *   <#name> im Text wird zur Kanal-Erwaehnung (z. B. <#feedback>).
  *
  * Gestartet ueber .github/workflows/discord-umbau.yml (modus notiz-plan / notiz-posten). Ohne Ping.
  */
@@ -53,9 +55,19 @@ const kanal = kanaele.find((k) => (k.type === 0 || k.type === 5) && kern(k.name)
   ?? kanaele.find((k) => (k.type === 0 || k.type === 5) && kern(k.name) === 'updates');
 if (!kanal) { console.error('#comphub-updates fehlt.'); process.exit(1); }
 
-const embed = { ...(TITEL ? { title: TITEL } : {}), description: TEXT, color: FARBE, timestamp: new Date().toISOString() };
-console.log(`Kanal #${kanal.name} · ${ANWENDEN ? 'POSTEN' : 'nur zeigen'}\n${TITEL}\n${TEXT}`);
-if (ANWENDEN) {
+// <#name> -> echte Kanal-Erwaehnung (Discord braucht die Nummer); gesucht wird der Kanal, dessen Name den Text enthaelt.
+const text = TEXT.replace(/<#([a-z0-9-]+)>/gi, (ganz, n) => {
+  if (/^\d+$/.test(n)) return ganz;
+  const k = kanaele.find((x) => x.type !== 4 && kern(x.name).includes(n.toLowerCase()));
+  return k ? `<#${k.id}>` : `#${n}`;
+});
+const BEARBEITEN = String(U.NACHRICHT || '').trim();
+const embed = { ...(TITEL ? { title: TITEL } : {}), description: text, color: FARBE, timestamp: new Date().toISOString() };
+console.log(`Kanal #${kanal.name} · ${ANWENDEN ? (BEARBEITEN ? 'BEARBEITEN' : 'POSTEN') : 'nur zeigen'}\n${TITEL}\n${text}`);
+if (ANWENDEN && /^\d+$/.test(BEARBEITEN)) {
+  await ruf(`/channels/${kanal.id}/messages/${BEARBEITEN}`, 'PATCH', { embeds: [embed], allowed_mentions: { parse: [] } });
+  console.log(`bearbeitet: ${BEARBEITEN}`);
+} else if (ANWENDEN) {
   const m = await ruf(`/channels/${kanal.id}/messages`, 'POST', { embeds: [embed], allowed_mentions: { parse: [] } });
   console.log(`gepostet: ${m.id}`);
 }
