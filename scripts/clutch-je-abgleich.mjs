@@ -78,7 +78,6 @@ const HOECHSTENS = Number(process.argv[process.argv.indexOf('--hoechstens') + 1]
  * des Jobs (40 Minuten), und der ganze Abschluss wurde abgebrochen.
  */
 const MINUTEN = Number(process.argv[process.argv.indexOf('--minuten') + 1]) || 3;
-const schluss = Date.now() + MINUTEN * 60_000;
 let geprueft = 0; let repariert = 0; let ohneDatei = 0; let ok = 0; let mitLuecke = 0; let aufgeschoben = 0;
 // Erst alle Kandidaten (Text, ohne ganzes Einlesen) und ihre Groesse am Release - die Anfragen zu acht zugleich.
 const kandidaten = [];
@@ -97,6 +96,8 @@ for (const f of dateien) {
   let i = 0;
   await Promise.all(Array.from({ length: 8 }, async () => { while (i < kandidaten.length) { const k = kandidaten[i++]; k.groesse = await groesseAmRelease(`clutch-je/${k.w}.json`); } }));
 }
+// Die Minuten gelten fuer das Holen und Neuschreiben (das Durchsehen oben dauert bei 900 Dateien rund eine Minute).
+const schluss = Date.now() + MINUTEN * 60_000;
 for (const { f, w, bytesText, gepruefText, groesse } of kandidaten) {
   const datei = path.join(ZIEL, f);
   const name = `clutch-je/${w}.json`;
