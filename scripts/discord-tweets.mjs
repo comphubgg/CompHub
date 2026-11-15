@@ -16,12 +16,16 @@
  * Kanal in der richtigen Reihenfolge steht.
  *
  * Bot-Token aus .env.local oder der Umgebung (DISCORD_BOT_TOKEN), Server DISCORD_SERVER_ID.
+ *
+ * Nach jedem geposteten Beitrag: die @-Konten darin den Spielern zuordnen und in leere Felder von spieler-profile.json schreiben (lib/xHandles.mjs,
+ * Schluessel DATEN_TOKEN oder GITHUB_TOKEN). Ein Fehler dabei haelt das Posten nie auf.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { FARBE } from '../lib/discordVorlagen.mjs';
+import { ernte } from '../lib/xHandles.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';
@@ -150,6 +154,11 @@ for (const id of ids) {
     schon.add(id);
     await abhaken();
   } catch (e) { fehler += 1; console.log(`      ${e.message}`); }
+  // Die @-Konten aus dem Post den Spielern zuordnen und in leere Profilfelder eintragen (lib/xHandles.mjs) - damit der Betreiber sie beim naechsten
+  // Post nicht wieder nachschlagen muss. Was jetzt noch nicht eindeutig ist (Cup noch nicht am Release), holt der taegliche Lauf x-handles.yml nach.
+  if (ANWENDEN) {
+    try { await ernte(U, [{ ...tw, id }], { anwenden: true, log: (z) => console.log(`    X-Handles${z}`) }); } catch (e) { console.log(`    X-Handles: ${e.message}`); }
+  }
   await warte(600);
 }
 process.exitCode = fehler ? 1 : 0;

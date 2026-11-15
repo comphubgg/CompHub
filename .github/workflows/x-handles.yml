@@ -1,0 +1,58 @@
+# X-Handles aus den eigenen Posts von @CompHub_gg ernten (scripts/x-handles.mjs, lib/xHandles.mjs) und in leere Felder von spieler-profile.json schreiben.
+#
+#   plan      sammeln und zuordnen, zeigen was ginge (schreibt nichts)
+#   anwenden  dasselbe und eintragen - nur, wo noch kein X-Konto steht
+#   sammeln   nur die Beitraege holen (ohne Zuordnung)
+# Zeitplan: taeglich 04:17 UTC mit "anwenden".
+# Das Ergebnis steht als JSON im Protokoll (Zeile ERGEBNIS_B64, gzip + base64).
+#
+# Taeglich als Nachlauf: neue Posts erntet scripts/discord-tweets.mjs sofort beim Weiterleiten; was dort noch nicht eindeutig war (Cup noch nicht
+# am Release), holt dieser Lauf nach. Quellen: #social-posts, #admin-posts, Wayback-Archiv, dazu "ids".
+
+name: X-Handles
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      modus:
+        description: 'plan | anwenden | sammeln'
+        type: choice
+        default: plan
+        options: [plan, anwenden, sammeln]
+      ids:
+        description: 'Weitere Beitrags-Nummern, mit Komma getrennt'
+        type: string
+        default: ''
+
+concurrency:
+  group: x-handles
+  cancel-in-progress: false
+
+jobs:
+  ernten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ernten
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          mkdir -p aus
+          MODUS="${{ inputs.modus || 'anwenden' }}"
+          ARGS="--sammeln --entdecken --konten"
+          [ "$MODUS" = "plan" ] && ARGS="$ARGS --abgleich"
+          [ "$MODUS" = "anwenden" ] && ARGS="$ARGS --abgleich --anwenden"
+          echo "Modus $MODUS"
+          set +e
+          node scripts/x-handles.mjs $ARGS --ids "${{ inputs.ids }}" > aus/ergebnis.json
+          rc=$?
+          rm -f .env.local
+          echo "ERGEBNIS_B64 $(gzip -9c aus/ergebnis.json | base64 -w0)"
+          exit $rc
