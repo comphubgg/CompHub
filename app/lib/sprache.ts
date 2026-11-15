@@ -4937,6 +4937,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Solange die Replays nicht ganz gelesen sind: Rating = 100 × (0.30·Elims + 0.25·Damage + 0.20·Placement) / 0.75.': 'While the replays are not fully read: rating = 100 × (0.30·elims + 0.25·damage + 0.20·placement) / 0.75.',
   'Alle gewerteten Spieler': 'All rated players',
   'Top 10 als CSV': 'Top 10 as CSV',
+  'nicht gespielt': 'did not play',
+  'beide Endspieltage zusammen': 'both final days combined',
   'Je Spiel: Platz im Match · Punkte. Linie: Stand in der Wertung nach dem jeweiligen Spiel des Teams.': 'Per game: place in the match · points. Line: standing after that game of the team.',
   'Die gewerteten Spitzenspieler': 'The rated top players',
   'Land aus unseren Profilen': 'country from our profiles',

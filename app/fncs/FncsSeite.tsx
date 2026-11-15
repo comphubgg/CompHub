@@ -27,6 +27,12 @@ import FncsLeader from './FncsLeader';
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
 
+/** Bestes, schlechtestes und mittleres Grand Final je Spieler (nur gespielte). */
+const kennzahlen = (s: Sp) => {
+  const w = Object.values(s.je);
+  return w.length ? { best: Math.max(...w), schlecht: Math.min(...w), schnitt: w.reduce((a, x) => a + x, 0) / w.length, n: w.length } : null;
+};
+
 interface Titel { id: string; name: string; land: string | null; titel: number }
 export type AllTime = { events: Ev[]; spieler: Sp[]; ab: string; titel: Titel[]; laender: Array<{ land: string; titel: number }>; rekorde: FncsRekorde | null };
 
@@ -372,29 +378,18 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { an
     const q = suche.trim().toLowerCase();
     // Der Platz kommt aus der ganzen Liste, nicht aus den Treffern: wer "Tjino" sucht, sieht seinen echten Platz, nicht die 1.
     return [...alt.spieler]
-      .sort(sortNach === 'gesamt' ? vglElims : vglElimsMajor(sortNach))
+      .sort(sortNach === 'gesamt' ? vglElims : sortNach === 'best' || sortNach === 'schnitt'
+        ? (a, b) => (kennzahlen(b)?.[sortNach as 'best' | 'schnitt'] ?? 0) - (kennzahlen(a)?.[sortNach as 'best' | 'schnitt'] ?? 0) || vglElims(a, b)
+        : vglElimsMajor(sortNach))
       .map((s, i) => ({ ...s, platz: i + 1 }))
       .filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [alt, sortNach, suche]);
-  /**
-   * Die Farbe einer Zelle - wie auf dem Vorbild: je Major in vier Stufen, rot (wenige Eliminierungen) bis dunkelgruen (viele).
-   * Die Grenzen sind die Viertel der Werte dieses Majors, nicht feste Zahlen: ein Major mit kurzen Finals faerbt sich
-   * genauso aussagekraeftig wie einer mit langen.
+  /*
+   * Die Farbe einer Zelle (Betreiber, 15.11.2026: feste Stufen in unseren Blautoenen statt Rot/Gelb/Gruen je Viertel): 20+, 12-19, 8-11, 4-7, 0-3 Eliminierungen
+   * in einem Grand Final (beide Tage zusammen).
    */
-  const grenzen = useMemo(() => {
-    const m: Record<string, [number, number, number]> = {};
-    for (const ev of alt?.events ?? []) {
-      const w = (alt?.spieler ?? []).map((s) => s.je[ev.key]).filter((x): x is number => x !== undefined).sort((a, b) => a - b);
-      const q = (p: number) => w[Math.min(w.length - 1, Math.floor(w.length * p))] ?? 0;
-      m[ev.key] = [q(0.25), q(0.5), q(0.75)];
-    }
-    return m;
-  }, [alt]);
-  const zellFarbe = (key: string, v: number) => {
-    const [a, b, c] = grenzen[key] ?? [0, 0, 0];
-    return v >= c ? 'bg-emerald-800 text-white' : v >= b ? 'bg-emerald-500/80 text-white' : v >= a ? 'bg-amber-400/90 text-zinc-950' : 'bg-rose-500/80 text-white';
-  };
-
+  const zellFarbe = (_key: string, v: number) => (v >= 20 ? 'bg-sky-400 text-zinc-950' : v >= 12 ? 'bg-sky-600 text-white' : v >= 8 ? 'bg-sky-800 text-sky-50'
+    : v >= 4 ? 'bg-sky-950 text-sky-200 ring-1 ring-inset ring-sky-800/60' : 'bg-zinc-800 text-slate-400');
   const reiter = (an: boolean) => `rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
@@ -572,11 +567,11 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { an
             {!alt && !altFehler && <LadeSchirm />}
             {alt && (
               <p className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded bg-rose-500/80" /> <T>wenige</T></span>
-                <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded bg-amber-400/90" /></span>
-                <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded bg-emerald-500/80" /></span>
-                <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded bg-emerald-800" /> <T>viele</T></span>
-                <span className="text-slate-600"><T>(je Major in Vierteln)</T></span>
+                {([['bg-sky-400', '20+'], ['bg-sky-600', '12–19'], ['bg-sky-800', '8–11'], ['bg-sky-950 ring-1 ring-inset ring-sky-800/60', '4–7'], ['bg-zinc-800', '0–3']] as const).map(([k, txt]) => (
+                  <span key={txt} className="flex items-center gap-1.5"><i className={`inline-block h-3 w-3 rounded ${k}`} /> {txt}</span>
+                ))}
+                <span className="flex items-center gap-1.5"><span className="text-slate-700">–</span> <T>nicht gespielt</T></span>
+                <span className="text-slate-600">Elims · <T>beide Endspieltage zusammen</T></span>
               </p>
             )}
             {alt && (
@@ -587,6 +582,9 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { an
                       <th className="w-12 px-3 py-2 text-left">#</th>
                       <th className="px-3 py-2 text-left"><T>Spieler</T></th>
                       <th className="px-3 py-2 text-right"><button type="button" onClick={() => setSortNach('gesamt')} className={sortNach === 'gesamt' ? 'text-sky-400' : 'hover:text-slate-200'}>Total</button></th>
+                      <th className="px-2 py-2 text-right"><button type="button" onClick={() => setSortNach('best')} className={sortNach === 'best' ? 'text-sky-400' : 'hover:text-slate-200'}>Best</button></th>
+                      <th className="px-2 py-2 text-right">Worst</th>
+                      <th className="px-2 py-2 text-right"><button type="button" onClick={() => setSortNach('schnitt')} className={sortNach === 'schnitt' ? 'text-sky-400' : 'hover:text-slate-200'}>Avg</button></th>
                       {alt.events.map((ev) => (
                         <th key={ev.key} className="px-2 py-2 text-center">
                           <button type="button" onClick={() => setSortNach(ev.key)} title={ev.saisonName} className={`whitespace-nowrap ${sortNach === ev.key ? 'text-sky-400' : 'hover:text-slate-200'}`}>
@@ -611,6 +609,11 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { an
                           </span>
                         </td>
                         <td className="px-3 py-1.5 text-right text-sm font-black tabular-nums text-slate-50">{s.gesamt}</td>
+                        {(() => { const k = kennzahlen(s); return (<>
+                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-sky-300">{k?.best ?? '–'}</td>
+                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-400">{k?.schlecht ?? '–'}</td>
+                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-300">{k ? `${k.schnitt.toLocaleString(ort, { maximumFractionDigits: 1 })} (${k.n})` : '–'}</td>
+                        </>); })()}
                         {alt.events.map((ev) => {
                           const v = s.je[ev.key];
                           return (
