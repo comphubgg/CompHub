@@ -176,6 +176,63 @@ function PerformanceBoard({ feld, mvp, ort }: { feld: NonNullable<LeaderAntwort[
   );
 }
 
+const landName = (code: string, ort: string) => { try { return new Intl.DisplayNames([ort], { type: 'region' }).of(code) ?? code; } catch { return code; } };
+
+/** Country Summary: je Land Spieler, mittleres Rating und Summen - Land nur aus unseren Profilen, der Rest als "Unknown". */
+function Laender({ laender, ganz, ort }: { laender: NonNullable<LeaderAntwort['laender']>; ganz: boolean; ort: string }) {
+  const { t } = useSprache();
+  const [alle, setAlle] = useState(false);
+  const bekannt = laender.filter((l) => l.land);
+  const zahl = (v: number | null, n = 0) => (v == null ? '–' : v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n }));
+  const zeilen = alle ? laender : laender.slice(0, 8);
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-zinc-900/80 p-3">
+      <p className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Country Summary</span>
+        <span className="text-[11px] text-slate-500">{ganz ? t('Alle gewerteten Spieler') : t('Die gewerteten Spitzenspieler')} · <T>Land aus unseren Profilen</T></span>
+      </p>
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[...bekannt].sort((a, b) => b.spieler - a.spieler || b.rating - a.rating).slice(0, 4).map((l) => (
+          <div key={l.land} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+            <TeamFlagge laender={[l.land]} groesse={28} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-100">{landName(l.land, ort)}</p>
+              <p className="text-[11px] text-slate-400">{l.spieler} <T>Spieler</T> · Ø {zahl(l.rating, 1)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-xs">
+          <thead className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
+            <tr>{['Country', 'Players', 'Avg Rating', 'Elims', 'Damage', 'Hits', 'Builds', 'Reboots', 'Highest Rated'].map((h) => <th key={h} className="px-2 py-1.5 font-semibold">{h}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.04] tabular-nums text-slate-300">
+            {zeilen.map((l) => (
+              <tr key={l.land || 'x'}>
+                <td className="px-2 py-1.5"><span className="flex items-center gap-2"><TeamFlagge laender={[l.land || null]} groesse={16} /><span className="truncate">{l.land ? landName(l.land, ort) : 'Unknown'}</span></span></td>
+                <td className="px-2 py-1.5">{l.spieler}</td>
+                <td className="px-2 py-1.5 font-semibold text-sky-300">{zahl(l.rating, 1)}</td>
+                <td className="px-2 py-1.5">{zahl(l.elims)}</td>
+                <td className="px-2 py-1.5">{zahl(l.damage)}</td>
+                <td className="px-2 py-1.5">{zahl(l.hits)}</td>
+                <td className="px-2 py-1.5">{zahl(l.builds)}</td>
+                <td className="px-2 py-1.5">{zahl(l.reboots)}</td>
+                <td className="px-2 py-1.5 text-slate-200">{l.bester ? `${l.bester.name} (${zahl(l.bester.rating, 1)})` : '–'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {laender.length > 8 && (
+        <button type="button" onClick={() => setAlle((a) => !a)} className="mt-2 text-[11px] font-semibold text-sky-400 hover:text-sky-300">
+          {alle ? t('Weniger') : `${t('Alle')} (${laender.length})`}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function TurnierLeader({ eventId, windowId, windows, titel, kompakt = false }: {
   eventId: string; windowId: string; windows?: string[] | null; titel?: string;
   /** Ohne eigene Ueberschrift (z. B. auf /fncs, wo die Auswahl darueber steht). */
@@ -236,6 +293,7 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
           <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {daten.tafeln.map((t) => <Tafel key={t.schluessel} t={t} ort={ort} />)}
           </div>
+          {(daten.laender?.length ?? 0) > 0 && <div className="lg:col-span-2"><Laender laender={daten.laender!} ganz={!!daten.ganzesFeld} ort={ort} /></div>}
           {(daten.feld?.length ?? 0) >= 5 && <div className="lg:col-span-2"><PerformanceBoard feld={daten.feld!} mvp={daten.mvp?.epicId ?? null} ort={ort} /></div>}
         </div>
       )}

@@ -69,6 +69,12 @@ export interface LeaderMvp {
   gesicht: [number, number, number] | null;
 }
 
+export interface LeaderLand {
+  land: string; spieler: number; rating: number; elims: number; damage: number;
+  hits: number | null; builds: number | null; reboots: number | null;
+  bester: { name: string; rating: number } | null;
+}
+
 export interface LeaderKopf { titel: string; saison: string; region: string; datum: number | null; bild: string | null }
 
 export interface LeaderAntwort {
@@ -86,6 +92,10 @@ export interface LeaderAntwort {
   gewertet: number;
   /** Die gewerteten Spieler fuer das Performance Board (Elims x Damage) - nur der Kreis der besten 50 je Kennzahl. */
   feld?: Array<{ epicId: string; name: string; land: string; elims: number; damage: number; platz: number | null; rating: number }>;
+  /** Laenderuebersicht ueber die gewerteten Spieler (Land nur aus unseren Profilen; '' = unbekannt). */
+  laender?: LeaderLand[];
+  /** Ob der Kreis das ganze Feld abdeckt - sonst gilt die Laenderuebersicht nur fuer die gewerteten Spitzenspieler. */
+  ganzesFeld?: boolean;
   /** Keine Platzierung bekannt - das Rating ohne den Platz-Anteil (hochgerechnet). */
   ohnePlatz?: boolean;
   /** Treffer und Ratio fehlen bei mehr als 10 % der Gewerteten - das Rating ohne diese beiden Teile. */
@@ -209,6 +219,22 @@ export async function baueLeader(hole: Holer, opt: { replayHinten?: () => boolea
     if (zeilen.length) tafeln.push({ schluessel: t.schluessel, titel: t.titel, nachkomma: t.nachkomma, ...(t.zeit ? { zeit: true } : {}), zeilen });
   }
 
+  // Laender: je Land Anzahl, mittleres Rating, Summen; Treffer/Bauteile/Reboots nur, wenn jeder Spieler des Landes sie hat (sonst eine halbe Summe).
+  const feldGesamt0 = Math.max(0, ...listen.map(([, l]) => (l as { gesamt?: number }).gesamt ?? 0));
+  const nachLand = new Map<string, Roh[]>();
+  for (const x of gewertet) { const l = String(x.land ?? '').toUpperCase(); nachLand.set(l, [...(nachLand.get(l) ?? []), x]); }
+  const summeOderNull = (xs: Roh[], f: string) => (xs.every((x) => zahl(x[f]) !== null) ? xs.reduce((a, x) => a + (zahl(x[f]) ?? 0), 0) : null);
+  const laender: LeaderLand[] = [...nachLand].map(([land, xs]) => {
+    const best = [...xs].sort((a, b) => (rating.get(b.epicId) ?? 0) - (rating.get(a.epicId) ?? 0))[0];
+    return {
+      land, spieler: xs.length,
+      rating: +(xs.reduce((a, x) => a + (rating.get(x.epicId) ?? 0), 0) / xs.length).toFixed(1),
+      elims: xs.reduce((a, x) => a + kills(x), 0), damage: xs.reduce((a, x) => a + (zahl(x.damage) ?? 0), 0),
+      hits: ohneReplay ? null : summeOderNull(xs, 'hits'), builds: ohneReplay ? null : summeOderNull(xs, 'builds'), reboots: summeOderNull(xs, 'reboots'),
+      bester: best ? { name: String(best.name ?? best.epicId.slice(0, 8)), rating: +(rating.get(best.epicId) ?? 0).toFixed(1) } : null,
+    };
+  }).sort((a, b) => (a.land === '' ? 1 : 0) - (b.land === '' ? 1 : 0) || b.spieler - a.spieler || b.rating - a.rating);
+
   const erster = tafeln.find((t) => t.schluessel === 'rating')?.zeilen[0];
   const z = erster ? kreis.get(erster.epicId) : null;
   const mvp: LeaderMvp | null = z ? {
@@ -218,7 +244,7 @@ export async function baueLeader(hole: Holer, opt: { replayHinten?: () => boolea
     ...(await fotoFuerKonto(z.epicId)),
   } : null;
 
-  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}), ...(ohneReplay ? { ohneReplay: true } : {}),
+  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}), ...(ohneReplay ? { ohneReplay: true } : {}), laender, ganzesFeld: !!feldGesamt0 && kreis.size >= feldGesamt0,
     feld: gewertet.map((x) => ({ epicId: x.epicId, name: String(x.name ?? x.epicId.slice(0, 8)), land: String(x.land ?? ''), elims: kills(x), damage: zahl(x.damage) ?? 0, platz: zahl(x.platz), rating: +(rating.get(x.epicId) ?? 0).toFixed(1) }))
       .filter((x) => x.elims > 0 || x.damage > 0) };
 }
