@@ -38,5 +38,35 @@ const jiti = require('jiti')(__filename, { alias: { '@': process.cwd() }, intero
     const x = r.entries[0];
     console.log('PROBE epic', Date.now() - t, 'ms', x ? `rang ${x.rank} punkte ${x.points} (platz ${x.punktePlatz} + elims ${x.punkteElims}) spiele ${x.games} siege ${x.wins} team ${x.players.map((p) => p.name).join(' + ')}` : 'nicht gefunden');
   }
+  // Der Weg fuer verknuepfte Konten (lib/discordEpicKonto) mit der Geraete-Anmeldung des Werkzeugs selbst - nur lesen, nichts speichern, nichts widerrufen.
+  if (eventId && cup?.startsWith('w:')) {
+    try {
+      const auth = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'epic-auth.json'), 'utf8'));
+      const V = jiti('../lib/discordEpicKonto.ts');
+      t = Date.now();
+      const g = await V.probeEintrag(auth, eventId, cup.slice(2));
+      console.log('PROBE eigenes Konto', Date.now() - t, 'ms', g ? `rang ${g.rank} punkte ${g.points} spiele ${g.games}` : 'kein Eintrag in diesem Spieltag (Konto hat nicht gespielt?)');
+      const E = jiti('../lib/epicCups.ts');
+      const { token, accountId } = await E.getToken();
+      const h = await fetch(`${E.EVENTS}/api/v1/events/Fortnite/${encodeURIComponent(eventId)}/history/${accountId}`, { headers: { Authorization: token } });
+      const hj = await h.json().catch(() => null);
+      console.log('PROBE history eigenes Konto', h.status, Array.isArray(hj) ? `${hj.length} Eintraege, Fenster: ${hj.slice(0, 5).map((x) => x.scoreKey?.eventWindowId + ' #' + x.rank).join(', ')}` : JSON.stringify(hj).slice(0, 200));
+      const l = await fetch(`${E.EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(eventId)}/${encodeURIComponent(cup.slice(2))}/${accountId}?page=0&rank=0&teamAccountIds=${accountId}`, { headers: { Authorization: token } });
+      const lj = await l.json().catch(() => null);
+      console.log('PROBE bestenliste eigenes Team', l.status, lj?.entries ? `${lj.entries.length} Eintraege, erster #${lj.entries[0]?.rank}` : JSON.stringify(lj).slice(0, 200));
+    } catch (e) { console.log('PROBE eigenes Konto Fehler', String(e).slice(0, 200)); }
+  }
+  try { console.log('PROBE ablage', await jiti('../lib/discordEpicKonto.ts').probeAblage()); } catch (e) { console.log('PROBE ablage Fehler', String(e).slice(0, 200)); }
+  try {
+    const S2 = jiti('../lib/discordStats.ts');
+    const a2 = await S2.verknuepfenAnleitung('0');
+    console.log('PROBE link-anleitung', JSON.stringify(a2).slice(0, 300));
+    const a3 = await S2.verknuepfenAntwort('0', 'kein code');
+    console.log('PROBE link ohne code', JSON.stringify(a3).slice(0, 200));
+    const a4 = await S2.verknuepfenAntwort('0', '0123456789abcdef0123456789abcdef');
+    console.log('PROBE link falscher code', JSON.stringify(a4).slice(0, 200));
+    const a5 = await S2.trennenAntwort('0');
+    console.log('PROBE unlink ohne link', JSON.stringify(a5).slice(0, 200));
+  } catch (e) { console.log('PROBE link Fehler', String(e).slice(0, 200)); }
   process.exit(0);
 })().catch((e) => { console.error('PROBE Fehler', e); process.exit(1); });

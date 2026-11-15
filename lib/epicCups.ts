@@ -22,6 +22,8 @@ const CLIENT_ID = '3f69e56c7649492c8cc29f1af08a8a12';
 const CLIENT_SECRET = 'b51ee9cb12234f50a69efa67ef53812e';
 const BASIC =
   'basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+/** Derselbe Client fuer die Verknuepfung eines Nutzerkontos (lib/discordEpicKonto, /link-account). */
+export const SPIEL_BASIC = BASIC;
 
 export const ACCOUNT = 'https://account-public-service-prod.ol.epicgames.com';
 export const EVENTS = 'https://events-public-service-live.ol.epicgames.com';

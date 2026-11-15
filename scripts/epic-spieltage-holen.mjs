@@ -80,8 +80,8 @@ async function json(url) {
  * ohnehin nicht mehr heraus.
  */
 const RUECKBLICK_MS = 14 * 24 * 60 * 60 * 1000;
-/** Ab wann Epics Liste nach dem Ende eines Spieltags als Endstand gilt. */
-const ENDSTAND_MS = 30 * 60 * 1000;
+/** Wann eine frueh geholte Liste nach dem Ende eines Spieltags neu geholt wird. */
+const NACHHOLEN_MS = [30 * 60 * 1000, 24 * 60 * 60 * 1000];
 
 async function main() {
   const katalog = await json(`${BASIS}/api/cup-catalog?modus=alle`);
@@ -131,8 +131,10 @@ async function main() {
       try { alt = JSON.parse(await fs.readFile(datei, 'utf8')); } catch { /* fehlt */ }
       if (alt) {
         const geholt = Date.parse(alt.geholt ?? '') || 0;
-        const endstandAb = (w.end ?? 0) + ENDSTAND_MS;
-        if (!w.end || geholt >= endstandAb || Date.now() < endstandAb) { vorhanden++; return; }
+        // Zweimal nachholen: 30 Minuten nach dem Ende (Epic rechnet noch) und einen Tag danach (Epic streicht noch Teams - Event 1 EU, 2,5 Stunden
+        // nach dem Ende geholt: #997, eine Woche spaeter bei Epic: #991).
+        const faellig = !!w.end && NACHHOLEN_MS.some((t) => geholt < w.end + t && Date.now() >= w.end + t);
+        if (!faellig) { vorhanden++; return; }
         nachgeholt++;
       }
     }

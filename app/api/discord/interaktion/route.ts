@@ -15,7 +15,8 @@ import {
   type KnopfNachricht, proPanel, proPanelInhalt,
 } from '@/lib/discord';
 import {
-  STATS_KANAL, STATS_NAMEN, statsAntwort, cupAntwort, hilfeAntwort, cupVorschlaege, spielerVorschlaege, type Antwort,
+  STATS_KANAL, STATS_NAMEN, statsAntwort, cupAntwort, hilfeAntwort, cupVorschlaege, spielerVorschlaege, verknuepfenAntwort, trennenAntwort,
+  verknuepfenAnleitung, UEBERALL_BEFEHLE, type Antwort,
 } from '@/lib/discordStats';
 
 /*
@@ -187,20 +188,28 @@ export async function POST(request: NextRequest) {
     const kanalName = String(d.channel?.name ?? '').toLowerCase().replace(/^[^a-z0-9]+/, '');
     let admin = false;
     try { admin = (BigInt(d.member?.permissions ?? '0') & 8n) === 8n; } catch { /* kein Admin */ }
-    if (!admin && kanalName !== STATS_KANAL) return nurFuerIhn(`Use this in #📈-${STATS_KANAL}.`);
+    if (!admin && kanalName !== STATS_KANAL && !UEBERALL_BEFEHLE.includes(String(d.data?.name))) return nurFuerIhn(`Use this in #📈-${STATS_KANAL}.`);
     // /help: derselbe Leitfaden, der in #check-stats angeheftet ist - nur fuer den Fragenden (flags 64).
     if (d.data?.name === 'help') return NextResponse.json({ type: 4, data: { ...hilfeAntwort(), flags: 64, allowed_mentions: { parse: [] } } });
 
     const opt = Object.fromEntries((d.data?.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
     const befehl = d.data?.name;
+    const nutzer = String((d.member?.user ?? d.user)?.id ?? '');
+    // /link-account ohne Code: sofort die Anleitung mit dem Epic-Link (nur fuer den Fragenden).
+    if (befehl === 'link-account' && !(opt.code ?? '').trim()) {
+      return NextResponse.json({ type: 4, data: { ...(await verknuepfenAnleitung(nutzer)), flags: 64, allowed_mentions: { parse: [] } } });
+    }
     // Erst bestaetigen ("CompHub is thinking ...", nur fuer den Fragenden), dann die Antwort nachtragen - sie bleibt ephemer.
     after(async () => {
       let antwort: Antwort;
       try {
-        antwort = befehl === 'stats' ? await statsAntwort(opt.player ?? '', opt.cup || undefined)
-          : await cupAntwort(opt.name ?? '', opt.region || undefined);
+        // Der Code von /link-account wird nie geloggt - nur an Epic weitergegeben (lib/discordEpicKonto).
+        antwort = befehl === 'stats' ? await statsAntwort(opt.player ?? '', opt.cup || undefined, nutzer || null)
+          : befehl === 'link-account' ? await verknuepfenAntwort(nutzer, opt.code ?? '')
+            : befehl === 'unlink-account' ? await trennenAntwort(nutzer)
+              : await cupAntwort(opt.name ?? '', opt.region || undefined);
       } catch (e) {
-        console.error('[discord] /' + befehl + ' gescheitert:', (e as Error).message);
+        console.error('[discord] /' + befehl + ' gescheitert:', befehl === 'link-account' ? '(ohne Einzelheiten)' : (e as Error).message);
         antwort = { content: 'Something went wrong while loading the stats - please try again in a minute.' };
       }
       if (!d.application_id || !d.token) return;

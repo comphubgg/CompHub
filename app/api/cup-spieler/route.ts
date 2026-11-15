@@ -284,6 +284,33 @@ async function namenNachholen(ids: string[], anzeige: Map<string, string>): Prom
 }
 
 /*
+ * Die Plaetze einzelner Spieler in jeder Kennzahl (?raenge=<id>,<id>; Betreiber, 15.11.2026: /stats im Discord zeigt je Wert "(#n)" wie die Player Stats).
+ * Dieselbe Rechnung wie seiteVon (gleicher Wert, gleicher Platz; nur Spieler mit einem Wert > 0 zaehlen) - ueber alle Spieler des Spieltags.
+ */
+const RANG_FELDER = ['kills', 'damage', 'damageTaken', 'quote', 'hits', 'headshots', 'genauigkeit', 'builds', 'mats', 'timeAlive', 'distanz', 'timeInStorm', 'knocks', 'clutch'];
+function raengeVon(alle: Zeile[], ids: string[]) {
+  const raus: Record<string, Record<string, { wert: number; rang: number; von: number }>> = {};
+  const gesucht = new Set(ids.map((i) => i.toLowerCase()));
+  for (const feld of RANG_FELDER) {
+    const werte: number[] = [];
+    const eigene = new Map<string, number>();
+    for (const z of alle) {
+      const v = Number(z[feld]);
+      if (!Number.isFinite(v) || v <= 0) continue;
+      werte.push(v);
+      const id = z.epicId.toLowerCase();
+      if (gesucht.has(id)) eigene.set(id, v);
+    }
+    for (const [id, v] of eigene) {
+      let besser = 0;
+      for (const w of werte) if (w > v) besser += 1;
+      (raus[id] ??= {})[feld] = { wert: v, rang: besser + 1, von: werte.length };
+    }
+  }
+  return raus;
+}
+
+/*
  * Eine Kennzahl ganz (Betreiber, 29.10.2026: "wenn ich Fullscreen gehe und auf All druecke, soll es wirklich alle laden, also bei Open Cups ...
  * alle 10.000 Spieler"). Sortiert wird ueber alle Spieler mit einem Wert; heraus geht eine Seite, mit dem Platz in dieser Kennzahl.
  */
@@ -320,6 +347,7 @@ async function holeRoh(request: Request) {
   const kennzahl = (p.get('kennzahl') ?? '').trim();
   const seite = Number(p.get('seite')) || 1;
   const pro = Math.min(Math.max(Number(p.get('pro')) || 50, 10), 200);
+  const raengeIds = (p.get('raenge') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)).slice(0, 4);
   // Mehrere Tage eines Finales zusammen (?windows=a,b, Betreiber 28.10.2026: kumulatives Turnier); sonst nur der Spieltag - oder bei den Globals ihre zwei Tage.
   const tageWunsch = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
   const tage = tageWunsch.length > 1 ? tageWunsch : istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
@@ -382,6 +410,7 @@ async function holeRoh(request: Request) {
         if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(r ? { kd: x.kills / Math.max(1, r.gestorben) } : {}) });
       }
     }
+    if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(szene.spieler, raengeIds), quelle: 'szene' });
     if (kennzahl) {
       const q = (p.get('q') ?? '').trim().toLowerCase();
       return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
@@ -600,6 +629,7 @@ async function holeRoh(request: Request) {
     return raus;
   };
 
+  if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(rep.spieler.map(werte), raengeIds), quelle: 'replay' });
 
   // Eine Kennzahl ganz, seitenweise - ueber alle Spieler des Spieltags, nicht nur die gezeigten.
   if (kennzahl) {

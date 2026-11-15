@@ -957,6 +957,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
       | 'about' | 'archiv' | 'preis' | 'weg' | 'karte'>(() => {
       const r = suchParameter?.get('reiter') ?? '';
+      // Ein Spieler aus der Adresse (?spieler=<Konto>, z. B. vom Discord-Knopf "Open on thecomphub.com") oeffnet gleich seine Team Stats.
+      if (/^[0-9a-f]{32}$/i.test(suchParameter?.get('spieler') ?? '')) return 'teams';
       return (['runden', 'spieler', 'teams', 'streams', 'about', 'archiv', 'preis', 'weg', 'karte'] as const).find((x) => x === r) ?? 'liste';
     });
   /*
@@ -973,7 +975,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
   }, [region, fenster, reiter]);
   // Spieler, der unter "Team Stats" gleich offen sein soll - aus der Vollansicht einer Kennzahl der Player Stats ("Check details").
-  const [detailStart, setDetailStart] = useState<{ id: string; name: string } | null>(null);
+  const [detailStart, setDetailStart] = useState<{ id: string; name: string } | null>(() => {
+    const sp = suchParameter?.get('spieler') ?? '';
+    return /^[0-9a-f]{32}$/i.test(sp) ? { id: sp.toLowerCase(), name: suchParameter?.get('name') ?? '' } : null;
+  });
 
   /*
    * Das Archiv zu diesem Cup - Fotos und Videos vom Event (lib/galerie).

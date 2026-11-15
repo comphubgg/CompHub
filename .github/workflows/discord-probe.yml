@@ -34,6 +34,15 @@ jobs:
         run: |
           printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      # Wie auf dem Server liegt das Gerechnete des Spieltags im Datenordner (der Server liest es von der Platte): hier vom Release geholt.
+      - name: Daten des Spieltags
+        env:
+          CUP: ${{ inputs.cup }}
+        run: |
+          W="${CUP#w:}"; S=$(echo "$W" | grep -oE '^S[0-9]+' || true)
+          NAMEN="epic-namen.json spieler-profile.json spielerbilder.json szene-quelle/spielerliste.json"
+          if [ -n "$S" ] && [ "$W" != "$CUP" ]; then NAMEN="$NAMEN clutch/$W.json clutch-je/$W.json replays-schlank/$S/$W.json epic-spieltage/$S/$W.json"; fi
+          node scripts/ablage-github-holen.mjs $NAMEN 2>&1 | tail -12
       - name: Probe
         env:
           SPIELER: ${{ inputs.spieler }}
