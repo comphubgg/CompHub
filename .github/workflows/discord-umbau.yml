@@ -15,16 +15,24 @@ on:
   workflow_dispatch:
     inputs:
       modus:
-        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe | tweets-plan | tweets'
+        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe | tweets-plan | tweets | notiz-plan | notiz-posten'
         type: choice
         default: plan
-        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe, tweets-plan, tweets]
+        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe, tweets-plan, tweets, notiz-plan, notiz-posten]
       emoji_namen:
         description: 'Auch Kanaele umbenennen, die der Code ueber den Namen sucht (nur nach dem Code-Patch!)'
         type: boolean
         default: false
       links:
         description: 'Nur fuer tweets: Links zu X-Beitraegen, mit Komma getrennt'
+        type: string
+        default: ''
+      titel:
+        description: 'Nur fuer notiz: Titel der Mitteilung'
+        type: string
+        default: ''
+      text:
+        description: 'Nur fuer notiz: Text der Mitteilung (\\n = neue Zeile)'
         type: string
         default: ''
 
@@ -88,6 +96,22 @@ jobs:
           ARGS=""
           [ "${{ inputs.modus }}" = "tweets" ] && ARGS="--anwenden"
           node scripts/discord-tweets.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
+
+      # Eine Mitteilung nach #comphub-updates (scripts/discord-notiz.mjs), z. B. "wir sind am Updaten".
+      - name: Notiz
+        if: startsWith(inputs.modus, 'notiz')
+        env:
+          TITEL: ${{ inputs.titel }}
+          TEXT: ${{ inputs.text }}
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          ARGS=""
+          [ "${{ inputs.modus }}" = "notiz-posten" ] && ARGS="--anwenden"
+          node scripts/discord-notiz.mjs $ARGS
           rc=$?
           rm -f .env.local
           exit $rc
