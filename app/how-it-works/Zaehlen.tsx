@@ -11,7 +11,7 @@
  *   Time Alive     app/api/cup-stats lebenOhneUeberlappung (lib/epicCups)
  *   Damage         tools/replay-voll/Program.cs SchadenLeser (selbst, eigenes Team, Nicht-Figuren raus; Wirksam: Kappung beim Knock/Kill), lib/vollSchaden.mjs
  *                  (ohne Boden), app/api/spieler-detail (Solo: Epics Schaden)
- *   Damage Taken   app/api/cup-stats 'Most Damage Taken (incl. Storm)' = Epics damageTaken; Damage Ratio = Schaden / Schaden von Spielern
+ *   Damage Taken   app/api/cup-stats 'Most Damage Taken' = Schaden von Spielern (ohne Sturm); Damage Ratio = Schaden / Schaden von Spielern
  *   Knocks         Kill-Feed, art 'unten' (scripts/replays-aggregieren.mjs, scripts/eigene-auswerten.mjs)
  *   Accuracy       SpielerDetail.tsx 'Player Accuracy'; Schuesse Program.cs (je 2 s das Groessere aus Munition und Einschlaegen)
  *   Builds Placed  app/api/cup-spieler (selbst gesetzte Teile, ohne ersetzte, nur wenn jedes Spiel sie hat); Program.cs BuildingReplacementType
@@ -69,8 +69,6 @@ export const ZAEHLEN_EN: ZaehlText = {
           + 'players are not included. In solo cups we show Epic\'s official value.' },
         { name: 'Damage From Players', quelle: 'replay', text: 'Damage you take from opponents\' hits, counted the same way. No storm, no fall damage, '
           + 'no self- or team damage, and no hits taken while you are knocked.' },
-        { name: 'Damage Taken (incl. Storm)', quelle: 'epic', text: 'Epic\'s own "damage received" figure. It includes storm damage, which is why it can be '
-          + 'much higher than Damage From Players. We show both, each under its own name.' },
         { name: 'Damage Ratio', quelle: 'beide', text: 'Damage To Players divided by Damage From Players.' },
         { name: 'Knocks', quelle: 'replay', text: 'How often you knocked an opponent, from the replay\'s kill feed.' },
         { name: 'Hits To Players', quelle: 'replay', text: 'Your hits on opponents. Hits on yourself, teammates and builds don\'t count.' },
@@ -139,8 +137,6 @@ export const ZAEHLEN_DE: ZaehlText = {
           + 'auf schon umgehauene Spieler zählen nicht. In Solo-Cups zeigen wir Epics offiziellen Wert.' },
         { name: 'Schaden von Spielern', quelle: 'replay', text: 'Schaden, den du durch Treffer von Gegnern nimmst, genauso gezählt. Kein Sturm, kein Fallschaden, '
           + 'kein Eigen- oder Teamschaden und keine Treffer, während du umgehauen bist.' },
-        { name: 'Erlittener Schaden (inkl. Sturm)', quelle: 'epic', text: 'Epics eigener Wert für erlittenen Schaden. Er enthält Sturmschaden und kann deshalb '
-          + 'deutlich höher sein als „Schaden von Spielern“. Wir zeigen beide, jeden unter eigenem Namen.' },
         { name: 'Schadensquote', quelle: 'beide', text: 'Schaden an Spielern geteilt durch Schaden von Spielern.' },
         { name: 'Knocks', quelle: 'replay', text: 'Wie oft du einen Gegner umgehauen hast, aus dem Kill-Feed des Replays.' },
         { name: 'Treffer an Spielern', quelle: 'replay', text: 'Deine Treffer auf Gegner. Treffer auf dich selbst, Mitspieler und Bauteile zählen nicht.' },

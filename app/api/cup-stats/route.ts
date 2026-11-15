@@ -76,8 +76,8 @@ const KATEGORIEN: Kategorie[] = [
    * Erlittener Schaden (15.11.2026): Epics DamageReceived zaehlt den Sturm mit (FNCS Solo Reload Heat 1 EU, frxstyy in 8 Matches: Epic 5.352, von Spielern laut Replay
    * 2.977, Sturm 2.038). Die Damage Ratio oben teilt durch den Schaden von Spielern - darum steht genau der als "Damage From Players" da, Epics Zahl getrennt und benannt.
    */
-  { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage From Players', mehr: true, wert: (_e, x) => x?.erlitten ?? 0 },
-  { schluessel: 'damageTakenAlle', symbol: '🌀', titel: 'Most Damage Taken (incl. Storm)', mehr: true, wert: (e) => e.damageTaken },
+  // Betreiber (15.11.2026, Heat 2): "nicht inklusive Storm - Storm soll einzeln sein". Erlittener Schaden = nur von Spielern; der Sturm steht getrennt als "Time In Storm".
+  { schluessel: 'damageTaken', symbol: '📉', titel: 'Most Damage Taken', mehr: true, wert: (_e, x) => x?.erlitten ?? 0 },
   { schluessel: 'headshots', symbol: '💀', titel: 'Most Headshots', mehr: true, wert: (e) => e.headshots },
   { schluessel: 'wins', symbol: '👑', titel: 'Most Victory Royales', mehr: true, wert: (e) => e.wins },
   { schluessel: 'kd', symbol: '⚔️', titel: 'Best K/D', mehr: true, nachkomma: 2, jeSpiel: true, wert: (e) => e.kd },
