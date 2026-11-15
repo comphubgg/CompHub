@@ -4927,6 +4927,16 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'are swapped for equivalent ones and the punctuation is calmed '
     + 'down. Words, names and numbers stay as they are.',
   'Spieler-Stats': 'Player Stats',
+  // Tournament Leaders (app/components/TurnierLeader.tsx)
+  'Die Besten dieses Spieltags': 'The best of this match day',
+  'So entsteht das Rating': 'How the rating works',
+  'Für diesen Spieltag liegen noch keine Werte je Spieler vor.': 'No per-player stats for this match day yet.',
+  ['Placement = max(0, (101 − Platz) / 100). „max“ ist der beste Wert unter den gewerteten Spielern dieses Spieltags. Gewertet wird, wer mindestens die Hälfte der meisten Spiele gespielt hat']:
+    'Placement = max(0, (101 − place) / 100). "max" is the best value among the rated players of this match day. Rated: everyone who played at least half of the most matches played',
+  'Ohne bekannte Platzierung: Rating = Summe der übrigen Teile / 0,80.': 'No placement known: rating = sum of the other parts / 0.80.',
+  'Alle Zahlen wie in den Player Stats; Damage Taken nur durch Spieler, ohne Sturm.': 'All numbers as in Player Stats; Damage Taken from players only, no storm.',
+  'FNCS-Spieltag': 'FNCS match day',
+  'Event MVP und Top 5 je Kennzahl – Bild für X': 'Event MVP and top 5 per stat – image for X',
   'Team-Stats': 'Team Stats',
   ['Dieser Spieltag hat noch nicht stattgefunden.']:
     'This match day has not taken place yet.',
