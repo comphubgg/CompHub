@@ -149,7 +149,7 @@ export async function cupVorschlaege(q: string, spielerEingabe?: string): Promis
 
 /* --------------------------------------------------------------- Spieler */
 
-interface Treffer { epicId: string; anzeige: string; name: string; land: string | null; matches: number; aktuell?: string | null }
+interface Treffer { epicId: string; anzeige: string; name: string; land: string | null; matches: number; aktuell?: string | null; namen?: string[] }
 
 /** Name (vergleichbar) -> Konto, aus den letzten Suchen - damit "cup:" den Spieler kennt, auch wenn er getippt statt gewaehlt wurde. */
 const idGemerkt = new Map<string, string>();
@@ -348,12 +348,31 @@ function langsam(eingabe: string, grund: string, epicId?: string): Antwort {
   };
 }
 
+/*
+ * Der Treffer der Seitensuche, der zum Getippten passt (15.11.2026: "/stats player:Focus yhyh" landete beim Konto a5ed0e81..., das heute bei Epic so
+ * heisst - ohne Profil, ohne Ergebnisse, "loading slower than usual". Der Profi Focus (30dda2a7...) heisst heute "KoS Focus yhyh", fuehrt "Focus yhyh"
+ * aber unter seinen frueheren Namen). Reihenfolge: heutiger Name/Anzeige genau, dann ohne Orgtag vorn, dann ein frueherer Name - bei mehreren der mit
+ * den meisten Matches. Erst wenn die Seite nichts davon kennt, zaehlt der genaue Epic-Name (kontoZuName).
+ */
+export function besterTreffer<T extends Treffer>(q: string, t: T[]): T | null {
+  const key = namensKey(q);
+  if (!key) return null;
+  const ohneTag = (n: string) => { const teile = n.trim().split(/\s+/); return teile.length > 1 ? teile.slice(1).join(' ') : ''; };
+  const meiste = (liste: T[]) => [...liste].sort((a, b) => (b.matches ?? 0) - (a.matches ?? 0))[0] ?? null;
+  const stufen: Array<(s: T) => boolean> = [
+    (s) => [s.anzeige, s.name, s.aktuell ?? ''].some((n) => n && namensKey(n) === key),
+    (s) => [s.name, s.aktuell ?? ''].some((n) => n && ohneTag(n) && namensKey(ohneTag(n)) === key),
+    (s) => (s.namen ?? []).some((n) => n && namensKey(n) === key),
+  ];
+  for (const passt of stufen) { const x = meiste(t.filter(passt)); if (x) return x; }
+  return null;
+}
+
 /** Welches Konto ist gemeint? Die Suche der Seite, dann alle Epic-Namen, die CompHub kennt, dann Epic selbst. */
 async function kontoFinden(q: string): Promise<{ epicId: string; name: string } | null | 'fehler'> {
   if (/^[0-9a-f]{32}$/i.test(q)) return { epicId: q.toLowerCase(), name: (await bekannterName(q).catch(() => null)) ?? q.slice(0, 8) };
   const t = await nochmal(() => sucheGemerkt(q));
-  const key = namensKey(q);
-  const genau = (t ?? []).find((s) => [s.anzeige, s.name, s.aktuell ?? ''].some((n) => n && namensKey(n) === key));
+  const genau = besterTreffer(q, t ?? []);
   if (genau) return { epicId: genau.epicId, name: genau.anzeige };
   // Kein genauer Treffer auf der Seite: der genaue Epic-Name schlaegt einen bloss aehnlichen Szene-Spieler.
   const k = await kontoZuName(q);
