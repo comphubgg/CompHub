@@ -1,6 +1,8 @@
-// CompHub "Stats Agent" Promo-Video rendern (Szene Bild fuer Bild mit Playwright, dann ffmpeg).
-//   node tools/stats-agent-video/aufnehmen.mjs --format quer|hoch [--aus datei.mp4] [--nur 10-20] [--jobs 4] [--standbilder 0,10,20]
-// Ablauf: Szene laden -> SFX-Zeitplan als JSON speichern -> Audio (ton.py) erzeugen -> Bilder rendern -> ffmpeg (H.264 + AAC).
+// CompHub Promo-Videos rendern (Szene Bild fuer Bild mit Playwright, dann ffmpeg). Gemeinsam fuer alle Videos unter tools/*-video.
+//   node tools/stats-agent-video/aufnehmen.mjs --format quer|hoch [--szene tools/prediction-video/szene.html] [--name comphub-prediction]
+//        [--aus datei.mp4] [--nur 10-20] [--jobs 4] [--standbilder 0,10,20] [--musik-db -5]
+// Ablauf: Szene laden -> SFX-Zeitplan (+ window.ABSCHNITTE fuer die Musik) als JSON speichern -> Audio (ton.py) -> Bilder rendern -> ffmpeg (H.264 + AAC).
+// Ohne --szene: das Stats-Agent-Video.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -12,8 +14,10 @@ const ORDNER = path.join(ROOT, 'tools/stats-agent-video');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const FPS = 30, FORMAT = arg('--format', 'quer'), JOBS = Number(arg('--jobs', 4));
 const HOCH = FORMAT === 'hoch';
-const ARBEIT = arg('--arbeit', path.join(process.env.TMPDIR || '/tmp', 'stats-agent-video'));
-const AUS = arg('--aus', path.join(ARBEIT, `comphub-stats-agent${HOCH ? '-hoch' : ''}.mp4`));
+const SZENE = arg('--szene', 'tools/stats-agent-video/szene.html');
+const NAME = arg('--name', 'comphub-stats-agent');
+const ARBEIT = arg('--arbeit', path.join(process.env.TMPDIR || '/tmp', NAME));
+const AUS = arg('--aus', path.join(ARBEIT, `${NAME}${HOCH ? '-hoch' : ''}.mp4`));
 fs.mkdirSync(ARBEIT, { recursive: true });
 
 // Playwright: globale Installation bevorzugen (passt zu den vorinstallierten Browsern)
@@ -38,7 +42,7 @@ const server = http.createServer((q, r) => {
 });
 await new Promise((ok) => server.listen(0, ok));
 const PORT = server.address().port;
-const URL_ = `http://localhost:${PORT}/tools/stats-agent-video/szene.html?f=${FORMAT}`;
+const URL_ = `http://localhost:${PORT}/${SZENE}?f=${FORMAT}`;
 const [B, H] = HOCH ? [1080, 1920] : [1920, 1080];
 
 const browser = await chromium.launch();
@@ -56,7 +60,8 @@ async function seite() {
 const erste = await seite();
 const DAUER = await erste.evaluate(() => window.DAUER);
 const SFX = await erste.evaluate(() => window.SFX);
-fs.writeFileSync(path.join(ARBEIT, 'sfx.json'), JSON.stringify({ dauer: DAUER, sfx: SFX }, null, 1));
+const ABSCHNITTE = await erste.evaluate(() => window.ABSCHNITTE ?? null);
+fs.writeFileSync(path.join(ARBEIT, 'sfx.json'), JSON.stringify({ dauer: DAUER, sfx: SFX, ...(ABSCHNITTE ? { abschnitte: ABSCHNITTE } : {}) }, null, 1));
 
 // Nur Standbilder?
 const still = arg('--standbilder', '');
@@ -86,7 +91,7 @@ await browser.close(); server.close();
 
 // Audio erzeugen (gleicher Zeitplan)
 const WAV = path.join(ARBEIT, 'ton.wav');
-execFileSync('python3', [path.join(ORDNER, 'ton.py'), path.join(ARBEIT, 'sfx.json'), WAV], { stdio: 'inherit' });
+execFileSync('python3', [path.join(ORDNER, 'ton.py'), path.join(ARBEIT, 'sfx.json'), WAV, ...(arg('--musik-db') ? ['--musik-db', arg('--musik-db')] : [])], { stdio: 'inherit' });
 
 execFileSync('ffmpeg', ['-y', '-v', 'error', '-framerate', String(FPS), '-i', path.join(FRAMES, '%05d.jpg'), '-ss', String(von), '-t', String(bis - von), '-i', WAV,
   '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '17', '-preset', 'slow', '-profile:v', 'high', '-r', String(FPS),

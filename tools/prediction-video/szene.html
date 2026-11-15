@@ -1,0 +1,665 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>CompHub Prediction</title>
+<!-- Promo-Video "Introducing: CompHub Prediction". Gerendert mit tools/stats-agent-video/aufnehmen.mjs (siehe README-Kopf dort), Ton aus ton.py.
+     Nur Fakten aus app/api/qualifikation/route.ts und app/events/[id]/page.tsx (qualPrognose). Werte mit "Example"/"Illustration" sind Beispiele,
+     echte Zahlen nur beim Heat-Beispiel (FNCS Solos Reload Heat 1 EU, 14.11.2026: Prognose vorher ~217, echte Grenze Top 15 = 228). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+:root{--bg:#05080e;--blau:#00a3ff;--hell:#5cc8ff;--sky:#7dd3fc;--text:#eef4ff;--grau:#8fa3c2;--rand:rgba(120,170,230,.16);--rot:#ff5a6a;--gruen:#2fe37a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);overflow:hidden;font-family:Inter,system-ui,sans-serif;color:var(--text)}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+.hoch #stage{width:1080px;height:1920px}
+.bri{font-family:"Bricolage Grotesque",Inter,sans-serif}
+.blau{color:var(--blau)}
+.glow{text-shadow:0 0 28px rgba(0,163,255,.55),0 0 70px rgba(0,163,255,.25)}
+.a{will-change:transform,opacity;visibility:hidden}
+.nw{white-space:nowrap}
+/* Hintergrund */
+#wand{position:absolute;inset:0;perspective:1500px;overflow:hidden;z-index:0;isolation:isolate}
+#wandin{position:absolute;left:50%;top:50%;width:3400px;display:grid;grid-template-columns:repeat(9,360px);gap:18px;transform-style:preserve-3d}
+#wandin div{width:360px;height:203px;border-radius:14px;background-size:cover;background-position:center;outline:1px solid rgba(0,163,255,.25)}
+#schatten{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 60% 50% at 50% 45%,rgba(0,110,200,.10),rgba(0,0,0,0) 70%),rgba(5,8,14,.91)}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:2}
+#schwarz{position:absolute;inset:0;background:#000;pointer-events:none;z-index:10}
+.szene{position:absolute;inset:0;z-index:3}
+.kicker{font-weight:700;font-size:24px;letter-spacing:.28em;text-transform:uppercase;color:var(--blau);display:flex;align-items:center;gap:14px}
+.kicker:before{content:"";width:36px;height:3px;background:var(--blau);box-shadow:0 0 12px var(--blau)}
+.kicker.mitte{justify-content:center}
+.panel{background:linear-gradient(180deg,rgba(16,26,42,.96),rgba(9,15,26,.96));border:1.5px solid var(--rand);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.ptitel{font-weight:800;font-size:18px;letter-spacing:.18em;text-transform:uppercase;color:var(--grau)}
+.tag{font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#6f83a3;border:1px solid rgba(120,170,230,.25);border-radius:999px;padding:5px 12px}
+.pkopf{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 30px 0}
+svg text{font-family:Inter,sans-serif}
+/* Szene 1 */
+#s1{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#s1logo{width:150px;filter:drop-shadow(0 0 18px rgba(0,163,255,.8)) drop-shadow(0 0 50px rgba(0,163,255,.4));margin-bottom:34px}
+#s1kick{font-weight:600;font-size:34px;letter-spacing:.34em;text-transform:uppercase;color:#a9bddb}
+#s1kick b{color:#fff;font-weight:800}
+#s1own{font-weight:700;font-size:96px;margin-top:40px;line-height:1;color:#dfe9fb}
+#s1titel{font-weight:800;font-size:210px;line-height:.95;letter-spacing:-.02em;margin-top:0;background:linear-gradient(180deg,#ffffff 0%,#9fe0ff 38%,#00a3ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 22px rgba(0,163,255,.55)) drop-shadow(0 0 60px rgba(0,163,255,.3));padding:0 20px 24px}
+.hoch #s1titel{font-size:168px}
+.hoch #s1kick{font-size:30px;letter-spacing:.22em}
+/* Szene 2 */
+#s2text{position:absolute;left:140px;top:320px;width:860px}
+.hoch #s2text{left:80px;top:420px;width:920px}
+#s2h{font-weight:800;font-size:96px;line-height:1.02;margin:26px 0 0;letter-spacing:-.015em}
+.hoch #s2h{font-size:100px}
+#s2p1,#s2p2{font-weight:700;font-size:44px;line-height:1.15}
+#s2p1{margin-top:52px;color:#c9d6ea}
+#s2p2{color:var(--hell);text-shadow:0 0 26px rgba(0,163,255,.35)}
+#s2tiles{position:absolute;left:1110px;top:380px;width:680px;display:flex;flex-direction:column;gap:30px}
+.hoch #s2tiles{left:90px;top:1060px;width:900px}
+/* Kacheln wie auf der Cup-Seite (app/events/[id]/page.tsx), vergroessert */
+.kachel{border-radius:30px;border:2.5px solid #27272a;background:rgba(24,24,27,.72);padding:28px 36px 30px;min-width:0}
+.kachel .l{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:#64748b}
+.kachel .l img{width:34px;height:34px;border-radius:5px}
+.kachel .v{margin-top:6px;font-size:52px;font-weight:600;color:#f1f5f9;white-space:nowrap}
+.kachel.prog{border-color:rgba(14,165,233,.4);background:rgba(14,165,233,.07)}
+.kachel.prog .v{color:var(--sky)}
+.kachel .live{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--rot);box-shadow:0 0 12px var(--rot)}
+#k2frage .v{color:#475569;font-size:72px;line-height:1}
+#k2frage .v b{color:#cbd5e1;font-weight:700;display:inline-block}
+/* Szene 3 Titel */
+#s3titel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 60px}
+#s3h{font-weight:800;font-size:120px;margin-top:24px;line-height:1.02;letter-spacing:-.015em}
+.hoch #s3h{font-size:104px}
+/* Schritte */
+.cap{position:absolute;left:130px;top:270px;width:640px}
+.hoch .cap{left:80px;top:300px;width:920px}
+.cap h3{font-family:"Bricolage Grotesque";font-weight:800;font-size:64px;line-height:1.04;margin:22px 0 0;letter-spacing:-.01em}
+.hoch .cap h3{font-size:66px}
+.cap p{font-weight:500;font-size:31px;line-height:1.38;color:#a3b6d3;margin:24px 0 0}
+.hoch .cap p{font-size:33px;margin-top:18px}
+.cap p b{color:#fff}
+.cap .klein{font-size:24px;color:#7f93b3;margin-top:30px;padding-left:18px;border-left:3px solid rgba(0,163,255,.5)}
+.hoch .cap .klein{font-size:27px}
+.vis{position:absolute;left:830px;top:225px;width:980px}
+.hoch .vis{left:70px;top:960px;width:940px}
+.vis svg{display:block;width:100%;height:auto}
+/* Heats */
+#s4kopf{position:absolute;left:0;right:0;top:140px;text-align:center}
+.hoch #s4kopf{top:260px;padding:0 70px}
+#s4h{font-weight:800;font-size:74px;line-height:1.05;margin-top:22px;letter-spacing:-.01em}
+.hoch #s4h{font-size:76px}
+#s4reihe{position:absolute;left:0;right:0;top:420px;display:flex;justify-content:center;align-items:center;gap:130px}
+.hoch #s4reihe{top:720px;flex-direction:column;gap:120px}
+.heat{width:660px;padding:34px 40px 36px}
+.heat .ht{font-weight:800;font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--grau)}
+.heat .hn{font-family:"Bricolage Grotesque";font-weight:800;font-size:58px;margin-top:6px;line-height:1}
+.heat .hd{font-size:22px;color:#7f93b3;margin-top:8px}
+.heat .zeile{display:flex;justify-content:space-between;align-items:baseline;gap:20px;margin-top:26px;padding-top:22px;border-top:1px solid rgba(120,170,230,.12)}
+.heat .zeile .zl{font-size:25px;color:#a3b6d3;font-weight:600}
+.heat .zeile .zw{font-family:"Bricolage Grotesque";font-weight:800;font-size:56px;line-height:1;white-space:nowrap}
+.heat .zeile .zw small{font-family:Inter;font-size:22px;font-weight:600;color:#7f93b3;margin-left:8px}
+#h2{border-color:rgba(0,163,255,.55);box-shadow:0 0 60px rgba(0,163,255,.18),0 30px 80px rgba(0,0,0,.5)}
+#h2 .zw{color:var(--sky)}
+#s4pfeil{position:absolute;width:130px;height:60px;color:var(--blau)}
+#s4fuss{position:absolute;left:0;right:0;top:900px;text-align:center;font-size:26px;color:#7f93b3}
+.hoch #s4fuss{top:1560px;padding:0 90px;line-height:1.4}
+/* UI */
+#s5kopf{position:absolute;left:0;right:0;top:250px;text-align:center}
+.hoch #s5kopf{top:330px;padding:0 70px}
+#s5h{font-weight:800;font-size:80px;line-height:1.05;margin-top:22px;letter-spacing:-.01em}
+#s5p{font-weight:500;font-size:32px;color:#a3b6d3;margin-top:22px}
+.hoch #s5p{font-size:34px;line-height:1.35}
+#s5seite{position:absolute;left:130px;right:130px;top:600px;padding:44px 46px 40px;border-radius:30px;background:#09090b;border:1.5px solid #1f1f23;box-shadow:0 40px 100px rgba(0,0,0,.6)}
+.hoch #s5seite{left:70px;right:70px;top:860px}
+#s5seite .zeile{display:flex;gap:26px}
+.hoch #s5seite .zeile{flex-direction:column;gap:26px}
+#s5seite .kachel{flex:1}
+#s5seite #u1{flex:1.45}
+#s5seite .kachel.prog{flex:1.15}
+#s5seite .kachel .v{font-size:46px}
+.hoch #s5seite .kachel .v{font-size:52px}
+#s5tag{position:absolute;right:46px;bottom:-52px}
+.hoch #s5tag{bottom:-56px}
+/* Outro */
+#s6{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#s6logo{width:250px;filter:drop-shadow(0 0 24px rgba(0,163,255,.85)) drop-shadow(0 0 80px rgba(0,163,255,.45))}
+#s6titel{font-weight:700;font-size:40px;letter-spacing:.2em;text-transform:uppercase;color:#a9bddb;margin-top:40px}
+#s6url{font-weight:800;font-size:110px;margin-top:22px;letter-spacing:-.015em;line-height:1}
+.hoch #s6url{font-size:96px}
+#s6links{display:flex;gap:56px;margin-top:40px}
+.hoch #s6links{flex-direction:column;gap:22px;align-items:center}
+.s6l{display:flex;align-items:center;gap:16px;font-weight:700;font-size:40px;color:#cfe0f7}
+.s6l img{width:38px;height:38px}
+</style>
+</head><body>
+<div id="stage">
+  <div id="wand"><div id="wandin"></div></div>
+  <div id="schatten"></div>
+  <canvas id="fx"></canvas>
+
+  <!-- 1: Kaltstart -->
+  <div class="szene" id="s1">
+    <img id="s1logo" class="a" src="../../public/logos/CompHub-Logo-frei.png">
+    <div id="s1kick" class="a">The <b>CompHub</b> introduces</div>
+    <div id="s1own" class="a bri">CompHub</div>
+    <div id="s1titel" class="a bri">Prediction</div>
+  </div>
+
+  <!-- 2: Die Frage -->
+  <div class="szene" id="s2">
+    <div id="s2text">
+      <div class="kicker a" id="s2k">The question</div>
+      <div id="s2h" class="a bri">How many points do I need?</div>
+      <div id="s2p1" class="a">Epic tells you how many qualify.</div>
+      <div id="s2p2" class="a">Not how many points it takes.</div>
+    </div>
+    <div id="s2tiles">
+      <div class="kachel a" id="k2qual"><div class="l">Qualifying</div><div class="v">Top 15 → Grand Finals</div></div>
+      <div class="kachel a" id="k2frage"><div class="l">Points needed</div><div class="v"><b id="k2fz">?</b></div></div>
+    </div>
+  </div>
+
+  <!-- 3: Antwort -->
+  <div class="szene" id="s3">
+    <div id="s3titel" class="a">
+      <div class="kicker mitte">CompHub Prediction</div>
+      <div id="s3h" class="bri">It estimates the <span class="blau glow nw">points needed.</span></div>
+    </div>
+
+    <!-- Schritt 1: Verlauf -->
+    <div class="cap" id="c1">
+      <div class="kicker a" id="c1k">Step 1 · History</div>
+      <h3 class="a" id="c1h">It starts with past editions.</h3>
+      <p class="a" id="c1p">The points at <b>exactly the qualifying rank</b> in the last editions of the same cup — up to 3.</p>
+      <p class="a" id="c1q">Averaged, plus a small <b>5-point safety margin</b>.</p>
+      <p class="a klein" id="c1n">No earlier edition? It uses similar cups instead — same mode, team size and match count.</p>
+    </div>
+    <div class="vis panel a" id="v1">
+      <div class="pkopf"><div class="ptitel">Points at the qualifying rank</div><div class="tag">Example values</div></div>
+      <svg id="g1" viewBox="0 0 900 500"></svg>
+    </div>
+
+    <!-- Schritt 2: Lernen -->
+    <div class="cap" id="c2">
+      <div class="kicker a" id="c2k">Step 2 · Learning</div>
+      <h3 class="a" id="c2h">It learns from its own mistakes.</h3>
+      <p class="a" id="c2p">After every cup it stores <b>prediction vs. real result</b>.</p>
+      <p class="a" id="c2q">The average error of the <b>last 6 cups of the same type</b> is applied as a correction.</p>
+    </div>
+    <div class="vis panel a" id="v2">
+      <div class="pkopf"><div class="ptitel">Prediction vs. real result</div><div class="tag">Example values</div></div>
+      <svg id="g2" viewBox="0 0 900 500"></svg>
+    </div>
+
+    <!-- Schritt 3: Live -->
+    <div class="cap" id="c3">
+      <div class="kicker a" id="c3k">Step 3 · Live</div>
+      <h3 class="a" id="c3h">It updates during the cup.</h3>
+      <p class="a" id="c3p">Once about <b>60 % of the games</b> are played (game 5 of 8),</p>
+      <p class="a" id="c3q">it projects the current qualifying line to the full cup <b>once</b>, and locks it.</p>
+      <p class="a klein" id="c3n">If the old prediction was already within 3 %, it stays as it is.</p>
+    </div>
+    <div class="vis panel a" id="v3">
+      <div class="pkopf"><div class="ptitel">Qualifying line, game by game</div><div class="tag">Illustration</div></div>
+      <svg id="g3" viewBox="0 0 900 520"></svg>
+    </div>
+  </div>
+
+  <!-- 4: Heats -->
+  <div class="szene" id="s4">
+    <div id="s4kopf">
+      <div class="kicker mitte a" id="s4k">Heats</div>
+      <div id="s4h" class="a bri">A finished heat is the base for the next one.</div>
+    </div>
+    <div id="s4reihe">
+      <div class="panel heat a" id="h1">
+        <div class="ht">FNCS Solos Reload · EU</div>
+        <div class="hn">Heat 1</div>
+        <div class="hd">14 Nov 2026 · Top 15 → Grand Finals</div>
+        <div class="zeile a" id="h1z1"><div class="zl">Prediction before the cup</div><div class="zw">~217<small>Points</small></div></div>
+        <div class="zeile a" id="h1z2"><div class="zl">Real qualifying line</div><div class="zw"><span id="h1w">228</span><small>Points</small></div></div>
+      </div>
+      <div class="panel heat a" id="h2">
+        <div class="ht">FNCS Solos Reload · EU</div>
+        <div class="hn">Heat 2</div>
+        <div class="hd">Same event · same field · same scoring</div>
+        <div class="zeile a" id="h2z1"><div class="zl">Prediction starts from</div><div class="zw"><span id="h2w">228</span><small>Points</small></div></div>
+      </div>
+    </div>
+    <svg id="s4pfeil" class="a" viewBox="0 0 130 60" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 30h108M92 8l24 22-24 22"/></svg>
+    <div id="s4fuss" class="a">Heat 1 qualified at 228 points — so Heat 2's prediction starts from 228.</div>
+  </div>
+
+  <!-- 5: Auf der Seite -->
+  <div class="szene" id="s5">
+    <div id="s5kopf">
+      <div class="kicker mitte a" id="s5k">On every cup page</div>
+      <div id="s5h" class="a bri">Right next to <span class="blau glow nw">Qual right now.</span></div>
+      <div id="s5p" class="a">The live qualifying line from Epic, <span class="nw">refreshed during the cup.</span></div>
+    </div>
+    <div id="s5seite" class="a">
+      <div class="zeile">
+        <div class="kachel a" id="u1"><div class="l">Qualifying</div><div class="v">Top 15 → Grand Finals</div></div>
+        <div class="kachel a" id="u2"><div class="l"><span class="live" id="u2live"></span>Qual right now</div><div class="v"><span id="u2w">0</span> Points</div></div>
+        <div class="kachel prog a" id="u3"><div class="l"><img src="../../public/logos/CompHub-Logo-96.webp">CompHub Prediction</div><div class="v">~217 Points</div></div>
+      </div>
+      <div class="tag" id="s5tag">Site UI, recreated</div>
+    </div>
+  </div>
+
+  <!-- 6: Outro -->
+  <div class="szene" id="s6">
+    <img id="s6logo" class="a" src="../../public/logos/CompHub-Logo-frei.png">
+    <div id="s6titel" class="a">CompHub Prediction</div>
+    <div id="s6url" class="a bri">thecomphub<span class="blau">.com</span></div>
+    <div id="s6links">
+      <div class="s6l a" id="s6x"><img src="../../public/icons/twitter.svg">@CompHub_gg</div>
+      <div class="s6l a" id="s6d"><img src="../../public/icons/discord.png">thecomphub.com/discord</div>
+    </div>
+  </div>
+
+  <div id="schwarz"></div>
+</div>
+
+<script>
+const HOCH = new URLSearchParams(location.search).get('f') === 'hoch';
+if (HOCH) document.body.classList.add('hoch');
+const W = HOCH ? 1080 : 1920, H = HOCH ? 1920 : 1080;
+const $ = (id) => document.getElementById(id);
+const klemm = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ab = (t, a, d) => klemm((t - a) / d);
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eBack = (x) => { const c = 1.70158, c3 = c + 1; return 1 + c3 * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const zuf = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+// ---------- Zeitplan (125 BPM: Takt = 1,92 s) ----------
+const BAR = 1.92;
+const T = { s2: 4 * BAR, s3: 8 * BAR, st1: 9 * BAR, st2: 15 * BAR, st3: 20 * BAR, s4: 27 * BAR, s5: 32 * BAR, s6: 36 * BAR, ende: 41 * BAR };
+window.DAUER = T.ende;
+// Musik-Abschnitte fuer ton.py (Drop, volle Drums, Arp-Strecke, Breakdown, Wiedereinstieg, Outro)
+window.ABSCHNITTE = { S2: T.s2, S3: T.s3, STEP0: T.st1, STEP_END: T.s4, S4: T.s4, S5: T.s5, S6: T.s6 };
+const SFX = []; const sfx = (t, k, x = {}) => SFX.push({ t: +t.toFixed(3), k, ...x });
+window.SFX = SFX;
+
+// ---------- Element-Animation (wie im Stats-Agent-Video) ----------
+function setze(el, op, tf, blur) {
+  el.style.opacity = op.toFixed(4);
+  el.style.visibility = op <= 0.002 ? 'hidden' : 'visible';
+  el.style.transform = tf;
+  el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : '';
+}
+function zeige(el, t, a, b, o = {}) {
+  if (typeof el === 'string') el = $(el);
+  const pi = (o.e || eOut)(ab(t, a, o.d ?? 0.7));
+  const po = eInOut(ab(t, b, o.od ?? 0.45));
+  const dx = (o.x ?? 0) * (1 - pi) + (o.ox ?? 0) * po;
+  const dy = (o.y ?? 36) * (1 - pi) + (o.oy ?? -20) * po;
+  const s = (1 + ((o.s ?? 1) - 1) * (1 - pi)) * (1 + ((o.os ?? 1) - 1) * po);
+  const blur = (o.blur ?? 6) * (1 - pi) + (o.oblur ?? 4) * po;
+  const op = pi * (1 - po);
+  setze(el, op, `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) scale(${s.toFixed(4)})`, blur);
+  return op;
+}
+const lade = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+const NS = 'http://www.w3.org/2000/svg';
+function el(svg, tag, attr = {}, text) { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attr)) e.setAttribute(k, v); if (text !== undefined) e.textContent = text; svg.appendChild(e); return e; }
+function sichtbar(e, op, tf = '') { e.style.opacity = op.toFixed(4); e.style.visibility = op <= 0.002 ? 'hidden' : 'visible'; if (tf) { e.style.transform = tf; } }
+
+// ---------- Beispielwerte (klar als "Example"/"Illustration" beschriftet) ----------
+const ED = [301, 288, 295];                           // Punkte am Qual-Platz, letzte 3 Ausgaben
+const SCHNITT = Math.round(ED.reduce((a, b) => a + b, 0) / ED.length); // 295
+const ZUSCHLAG = 5;                                   // QUAL_ZUSCHLAG
+const FEHLER = [6, -2, 4, 3, -1, 8];                  // tatsaechlich - Prognose, letzte 6 Cups
+const KORR = Math.round(FEHLER.reduce((a, b) => a + b, 0) / FEHLER.length); // +3
+const LIVE = [0, 41, 83, 122, 160, 196];              // Qual-Grenze nach Spiel 0..5 (von 8)
+const CAP = 8, NACH = 5;                              // ceil(8 * 0.6) = 5
+const HOCHGER = Math.round(LIVE[NACH] * CAP / NACH);  // 314
+const VORHER = 300;
+
+const G = {};
+function baueG1() {
+  const s = $('g1');
+  const y = (v) => 440 - (v - 260) * 6;
+  for (const v of [260, 280, 300, 320]) { el(s, 'line', { x1: 70, x2: 860, y1: y(v), y2: y(v), stroke: 'rgba(120,170,230,.10)', 'stroke-width': 2 }); el(s, 'text', { x: 56, y: y(v) + 7, 'text-anchor': 'end', fill: '#5d6f8c', 'font-size': 19, 'font-weight': 600 }, v); }
+  // Achsenbruch (die Achse beginnt bei 260)
+  el(s, 'path', { d: 'M62 452l16-8M62 462l16-8', stroke: '#5d6f8c', 'stroke-width': 2.5 });
+  const xs = [100, 255, 410], bw = 110;
+  const namen = ['3rd last', '2nd last', 'Last'];
+  G.bars = ED.map((v, i) => {
+    const r = el(s, 'rect', { x: xs[i], y: 440, width: bw, height: 0, rx: 10, fill: 'url(#gb)' });
+    const tx = el(s, 'text', { x: xs[i] + bw / 2, y: y(v) - 16, 'text-anchor': 'middle', fill: '#eef4ff', 'font-size': 30, 'font-weight': 800 }, v);
+    el(s, 'text', { x: xs[i] + bw / 2, y: 478, 'text-anchor': 'middle', fill: '#8fa3c2', 'font-size': 21, 'font-weight': 600 }, namen[i]);
+    return { r, tx, v };
+  });
+  const defs = el(s, 'defs');
+  const lg = el(defs, 'linearGradient', { id: 'gb', x1: 0, y1: 0, x2: 0, y2: 1 }); el(lg, 'stop', { offset: 0, 'stop-color': '#3a5578' }); el(lg, 'stop', { offset: 1, 'stop-color': '#1a2940' });
+  const lg2 = el(defs, 'linearGradient', { id: 'gp', x1: 0, y1: 0, x2: 0, y2: 1 }); el(lg2, 'stop', { offset: 0, 'stop-color': '#0b4f86' }); el(lg2, 'stop', { offset: 1, 'stop-color': '#0a2a4a' });
+  // Schnitt-Linie
+  G.sl = el(s, 'line', { x1: 90, x2: 90, y1: y(SCHNITT), y2: y(SCHNITT), stroke: '#5cc8ff', 'stroke-width': 3, 'stroke-dasharray': '10 8' });
+  G.st = el(s, 'text', { x: 595, y: y(SCHNITT) + 36, 'text-anchor': 'middle', fill: '#9fdcff', 'font-size': 21, 'font-weight': 700 });
+  el(G.st, 'tspan', { x: 595 }, 'Average'); el(G.st, 'tspan', { x: 595, dy: 28, 'font-size': 28, 'font-weight': 800 }, SCHNITT);
+  // Prognose-Saeule: Schnitt + Zuschlag
+  const px = 680, pw = 150;
+  G.pb = el(s, 'rect', { x: px, y: 440, width: pw, height: 0, rx: 10, fill: 'url(#gp)', stroke: 'rgba(0,163,255,.45)', 'stroke-width': 2 });
+  G.pm = el(s, 'rect', { x: px, y: y(SCHNITT), width: pw, height: 0, rx: 6, fill: '#00a3ff' });
+  G.pmt = el(s, 'text', { x: px + pw / 2, y: y(SCHNITT) - 6, 'text-anchor': 'middle', fill: '#03111f', 'font-size': 21, 'font-weight': 800 }, `+${ZUSCHLAG}`);
+  G.pt = el(s, 'text', { x: px + pw / 2, y: y(SCHNITT + ZUSCHLAG) - 18, 'text-anchor': 'middle', fill: '#7dd3fc', 'font-size': 34, 'font-weight': 800 }, `~${SCHNITT + ZUSCHLAG}`);
+  G.pl = el(s, 'text', { x: px + pw / 2, y: 478, 'text-anchor': 'middle', fill: '#7dd3fc', 'font-size': 21, 'font-weight': 700 }, 'Prediction');
+  G.y1 = y;
+}
+function baueG2() {
+  const s = $('g2');
+  const cx = 250, cy = 262, r = 160;
+  G.kreis = { cx, cy, r };
+  el(s, 'circle', { cx, cy, r, fill: 'none', stroke: 'rgba(0,163,255,.16)', 'stroke-width': 5 });
+  G.bogen = el(s, 'circle', { cx, cy, r, fill: 'none', stroke: '#00a3ff', 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-dasharray': `${2 * Math.PI * r}`, 'stroke-dashoffset': `${2 * Math.PI * r}`, transform: `rotate(-90 ${cx} ${cy})`, style: 'filter:drop-shadow(0 0 8px #00a3ff)' });
+  G.punkt = el(s, 'circle', { cx, cy: cy - r, r: 11, fill: '#fff', style: 'filter:drop-shadow(0 0 10px #5cc8ff)' });
+  const kn = [['Predict', 0], ['Cup is played', 90], ['Compare with', 180, 'real result'], ['Correct', 270]];
+  G.kn = kn.map(([a, w, b], i) => {
+    const rad = (w - 90) * Math.PI / 180, x = cx + r * Math.cos(rad), y = cy + r * Math.sin(rad);
+    const g = el(s, 'g', {}); g.style.visibility = 'hidden';
+    const bw = b ? 200 : (a.length > 8 ? 196 : 150), bh = b ? 74 : 52;
+    el(g, 'rect', { x: x - bw / 2, y: y - bh / 2, width: bw, height: bh, rx: bh / 2, fill: '#0b2440', stroke: '#00a3ff', 'stroke-width': 2.5 });
+    el(g, 'text', { x, y: y + (b ? -6 : 8), 'text-anchor': 'middle', fill: '#eef4ff', 'font-size': 22, 'font-weight': 700 }, a);
+    if (b) el(g, 'text', { x, y: y + 22, 'text-anchor': 'middle', fill: '#eef4ff', 'font-size': 22, 'font-weight': 700 }, b);
+    return g;
+  });
+  // Fehlerliste
+  const lx = 520;
+  G.fz = FEHLER.map((f, i) => {
+    const g = el(s, 'g', {}); g.style.visibility = 'hidden';
+    const y = 70 + i * 50;
+    el(g, 'rect', { x: lx, y: y - 30, width: 340, height: 42, rx: 10, fill: 'rgba(120,170,230,.06)' });
+    el(g, 'text', { x: lx + 18, y: y - 2, fill: '#8fa3c2', 'font-size': 21, 'font-weight': 600 }, `Cup ${i + 1}`);
+    el(g, 'text', { x: lx + 320, y: y - 2, 'text-anchor': 'end', fill: f >= 0 ? '#bff5d4' : '#ffc2c8', 'font-size': 23, 'font-weight': 800 }, `${f > 0 ? '+' : f < 0 ? '−' : ''}${Math.abs(f)}`);
+    return g;
+  });
+  G.kz = el(s, 'g', {}); G.kz.style.visibility = 'hidden';
+  el(G.kz, 'rect', { x: lx, y: 382, width: 340, height: 62, rx: 14, fill: 'rgba(0,163,255,.14)', stroke: '#00a3ff', 'stroke-width': 2 });
+  el(G.kz, 'text', { x: lx + 18, y: 422, fill: '#cfe9ff', 'font-size': 22, 'font-weight': 700 }, 'Average error');
+  el(G.kz, 'text', { x: lx + 320, y: 424, 'text-anchor': 'end', fill: '#7dd3fc', 'font-size': 30, 'font-weight': 800 }, `${KORR >= 0 ? '+' : '−'}${Math.abs(KORR)}`);
+  G.kzt = el(s, 'text', { x: lx + 170, y: 478, 'text-anchor': 'middle', fill: '#8fa3c2', 'font-size': 20, 'font-weight': 600 }, '→ added to the next prediction');
+  G.kzt.style.visibility = 'hidden';
+}
+function baueG3() {
+  const s = $('g3');
+  const X0 = 100, X1 = 860, Y0 = 470, Y1 = 50, VMAX = 400;
+  const x = (g) => X0 + g * (X1 - X0) / CAP, y = (v) => Y0 - v * (Y0 - Y1) / VMAX;
+  G.x3 = x; G.y3 = y;
+  for (const v of [0, 100, 200, 300, 400]) { el(s, 'line', { x1: X0, x2: X1, y1: y(v), y2: y(v), stroke: 'rgba(120,170,230,.10)', 'stroke-width': 2 }); el(s, 'text', { x: X0 - 16, y: y(v) + 7, 'text-anchor': 'end', fill: '#5d6f8c', 'font-size': 19, 'font-weight': 600 }, v); }
+  for (let gi = 1; gi <= CAP; gi++) el(s, 'text', { x: x(gi), y: 505, 'text-anchor': 'middle', fill: '#5d6f8c', 'font-size': 19, 'font-weight': 600 }, `G${gi}`);
+  // 60-%-Marke
+  G.m60 = el(s, 'g', {}); G.m60.style.visibility = 'hidden';
+  el(G.m60, 'rect', { x: x(NACH) - 1.5, y: Y1 + 40, width: 3, height: Y0 - Y1 - 40, fill: 'rgba(255,255,255,.35)' });
+  el(G.m60, 'rect', { x: x(NACH) - 96, y: Y1 + 2, width: 192, height: 36, rx: 18, fill: '#132238', stroke: 'rgba(255,255,255,.35)', 'stroke-width': 1.5 });
+  el(G.m60, 'text', { x: x(NACH), y: Y1 + 27, 'text-anchor': 'middle', fill: '#eef4ff', 'font-size': 18, 'font-weight': 700 }, '60 % · game 5 of 8');
+  // Prognose-Linie
+  G.pl3 = el(s, 'line', { x1: X0, x2: X1, y1: y(VORHER), y2: y(VORHER), stroke: '#00a3ff', 'stroke-width': 3, 'stroke-dasharray': '12 9', opacity: 0 });
+  G.pt3 = el(s, 'text', { x: X0 + 10, y: y(VORHER) - 14, fill: '#7dd3fc', 'font-size': 22, 'font-weight': 800, opacity: 0 }, `CompHub Prediction ~${VORHER}`);
+  // Hochrechnung
+  G.proj = el(s, 'line', { x1: x(NACH), y1: y(LIVE[NACH]), x2: x(NACH), y2: y(LIVE[NACH]), stroke: '#5cc8ff', 'stroke-width': 3.5, 'stroke-dasharray': '4 9', 'stroke-linecap': 'round' });
+  // Live-Linie
+  G.live = el(s, 'polyline', { points: '', fill: 'none', stroke: '#eef4ff', 'stroke-width': 4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+  G.lp = LIVE.map((v, i) => el(s, 'circle', { cx: x(i), cy: y(v), r: 0, fill: '#eef4ff' }));
+  G.lt = el(s, 'text', { x: 0, y: 0, fill: '#eef4ff', 'font-size': 21, 'font-weight': 700, opacity: 0 }, 'Qual right now');
+  G.lw = el(s, 'text', { x: 0, y: 0, fill: '#eef4ff', 'font-size': 26, 'font-weight': 800, opacity: 0 }, '');
+  // Schloss
+  G.lock = el(s, 'g', {}); G.lock.style.visibility = 'hidden';
+  const lx = x(CAP) - 180, ly = y(HOCHGER) - 58;
+  el(G.lock, 'rect', { x: lx, y: ly - 4, width: 190, height: 46, rx: 23, fill: '#00a3ff' });
+  el(G.lock, 'path', { d: `M${lx + 22} ${ly + 16}h20v16h-20z M${lx + 26} ${ly + 16}v-5a6 6 0 0 1 12 0v5`, fill: 'none', stroke: '#03111f', 'stroke-width': 3, 'stroke-linejoin': 'round' });
+  el(G.lock, 'text', { x: lx + 54, y: ly + 28, fill: '#03111f', 'font-size': 21, 'font-weight': 800 }, `Locked ~${HOCHGER}`);
+  G.x3s = { X0, X1 };
+}
+
+async function aufbau() {
+  const cups = ['arenas-fight-night.webp','cash-cup.webp','console-champions-cup.webp','elite-cup.webp','fncs-global-championship-2026.jpg','fncs-grand-finals.webp','fncs-invitational-2022.webp','fncs-major.webp','fncs-solo-reload.webp','fncs-solos.jpg','gamers8.webp','global-championship-2025.webp','major-1-summit-2026.webp','mobile-test-cup.jpg','reload-cup.webp','reload-road-to-ewc.webp','solo-series.webp','world-cup.webp','zb-duos-cash-cup.webp'];
+  const wi = $('wandin');
+  for (let i = 0; i < 126; i++) { const d = document.createElement('div'); d.style.backgroundImage = `url(../../public/cups/${cups[(i * 5 + Math.floor(i / 9) * 4) % cups.length]})`; wi.appendChild(d); }
+  await Promise.all(cups.map((c) => lade('../../public/cups/' + c)));
+  baueG1(); baueG2(); baueG3();
+  await Promise.all([...document.images].map((i) => i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; })));
+  await document.fonts.ready;
+  for (const f of ["800 100px 'Bricolage Grotesque'", "700 100px 'Bricolage Grotesque'", "500 30px Inter", "600 30px Inter", "700 30px Inter", "800 30px Inter"]) { try { await document.fonts.load(f, 'CompHub Prediction 0123456789'); } catch {} }
+  planeSfx();
+  window.BEREIT = true;
+}
+
+// ---------- SFX-Plan ----------
+const L = { g1: T.st3 + 1.6, gd: 0.9 };
+function planeSfx() {
+  sfx(0.0, 'riser', { d: 2.88 }); sfx(0.5, 'whoosh', { v: 0.5 });
+  sfx(2.88, 'hit');
+  sfx(3.4, 'whoosh', { v: 0.45 });
+  // Frage
+  sfx(T.s2, 'whoosh'); sfx(T.s2 + 0.5, 'whoosh', { v: 0.5 });
+  sfx(T.s2 + 1.4, 'blip'); sfx(T.s2 + 2.6, 'click'); sfx(T.s2 + 4.6, 'glitch', { v: 0.7 }); sfx(T.s2 + 5.6, 'whoosh', { v: 0.45 });
+  // Antwort
+  sfx(T.s3, 'whoosh'); sfx(T.s3 + 0.1, 'hit', { v: 0.55 });
+  // Schritt 1
+  sfx(T.st1, 'whoosh'); sfx(T.st1 + 0.75, 'blip');
+  ED.forEach((_, i) => sfx(T.st1 + 1.6 + i * 0.5, 'click'));
+  sfx(T.st1 + 1.6, 'ticks', { d: 1.6 });
+  sfx(T.st1 + 4.2, 'whoosh', { v: 0.5 }); sfx(T.st1 + 5.6, 'blip', { v: 0.8 }); sfx(T.st1 + 6.4, 'ping');
+  // Schritt 2
+  sfx(T.st2, 'whoosh'); sfx(T.st2 + 0.75, 'blip');
+  [0, 1, 2, 3].forEach((i) => sfx(T.st2 + 1.3 + i * 0.6, 'click', { v: 0.8 }));
+  FEHLER.forEach((_, i) => sfx(T.st2 + 4.2 + i * 0.22, 'click', { v: 0.6 }));
+  sfx(T.st2 + 6.0, 'ping');
+  // Schritt 3
+  sfx(T.st3, 'whoosh'); sfx(T.st3 + 0.75, 'blip');
+  for (let i = 1; i <= NACH; i++) sfx(L.g1 + (i - 1) * L.gd, 'click', { v: 0.8 });
+  sfx(L.g1 + NACH * L.gd + 0.1, 'blip');
+  sfx(L.g1 + NACH * L.gd + 0.7, 'stream', { d: 1.2, v: 0.6 });
+  sfx(L.g1 + NACH * L.gd + 2.2, 'hit', { v: 0.7 });
+  // Heats
+  sfx(T.s4, 'whoosh'); sfx(T.s4 + 0.6, 'whoosh', { v: 0.5 });
+  sfx(T.s4 + 2.2, 'click'); sfx(T.s4 + 3.0, 'ticks', { d: 1.2 }); sfx(T.s4 + 4.6, 'whoosh', { v: 0.6 }); sfx(T.s4 + 5.4, 'ping');
+  // Seite
+  sfx(T.s5 - 0.3, 'whoosh', { v: 1.1 }); sfx(T.s5 + 0.2, 'whoosh');
+  sfx(T.s5 + 2.0, 'click'); sfx(T.s5 + 2.3, 'ticks', { d: 1.6 }); sfx(T.s5 + 2.6, 'click'); sfx(T.s5 + 4.2, 'blip');
+  // Outro
+  sfx(T.s6 - 2.4, 'riser', { d: 2.4 });
+  sfx(T.s6, 'impact');
+  sfx(T.s6 + 1.2, 'whoosh', { v: 0.5 }); sfx(T.s6 + 1.8, 'whoosh', { v: 0.4 }); sfx(T.s6 + 2.4, 'whoosh', { v: 0.35 });
+}
+
+// ---------- Effekt-Ebene ----------
+const fx = $('fx'); fx.width = W; fx.height = H; const g = fx.getContext('2d');
+function streifen(t, staerke, seed = 0) {
+  if (staerke <= 0.002) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 14; i++) {
+    const z = zuf(i + seed * 31), sp = 0.35 + zuf(i * 3 + 1) * 0.6;
+    const u = ((t * sp * 0.6 + z) % 1.4) - 0.2;
+    const y0 = zuf(i * 7 + 2) * H * 1.2 - H * 0.1;
+    const len = 300 + zuf(i * 5) * 700, x = u * (W + len) - len;
+    const x2 = x + len, y2 = y0 + Math.tan(-0.18) * len;
+    const gr = g.createLinearGradient(x, y0, x2, y2);
+    gr.addColorStop(0, 'rgba(0,163,255,0)'); gr.addColorStop(0.85, `rgba(92,200,255,${0.55 * staerke})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = gr; g.lineWidth = 1 + zuf(i * 11) * 2.5; g.beginPath(); g.moveTo(x, y0); g.lineTo(x2, y2); g.stroke();
+  }
+  g.restore();
+}
+function staub(t, a) {
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 70; i++) {
+    const x = zuf(i) * W + Math.sin(t * 0.3 + i) * 20, y = ((zuf(i + 99) * H - t * (8 + zuf(i + 5) * 18)) % H + H) % H;
+    const r = 0.8 + zuf(i + 7) * 1.8, o = (0.15 + 0.25 * zuf(i + 3)) * a * (0.6 + 0.4 * Math.sin(t * 1.3 + i));
+    g.fillStyle = `rgba(120,200,255,${o})`; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  g.restore();
+}
+function blitzRing(x, y, p, rmax, a = 1) {
+  if (p <= 0 || p >= 1) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = `rgba(92,200,255,${(1 - p) * 0.8 * a})`; g.lineWidth = 3 + 10 * (1 - p); g.shadowColor = '#00a3ff'; g.shadowBlur = 30;
+  g.beginPath(); g.arc(x, y, rmax * eOut(p), 0, 7); g.stroke(); g.restore();
+}
+function lichtfleck(x, y, r, a) {
+  if (a <= 0.002) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,163,255,${0.35 * a})`); gr.addColorStop(1, 'rgba(0,163,255,0)');
+  g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); g.restore();
+}
+function mitte(id) { const s = $('stage').getBoundingClientRect(), b = $(id).getBoundingClientRect(); return [b.left - s.left + b.width / 2, b.top - s.top + b.height / 2]; }
+
+// ---------- Zeichnen ----------
+window.zeichne = function (t) {
+  g.clearRect(0, 0, W, H);
+  const pan = (t - 40) * 8, zoomPuls = 1 + 0.04 * Math.sin(t * 0.21);
+  $('wandin').style.transform = `translate(-50%,-50%) rotateX(32deg) rotateZ(-13deg) scale(${(zoomPuls * (HOCH ? 1.35 : 1)).toFixed(4)}) translate(${(-pan * 0.6).toFixed(2)}px,${(-pan).toFixed(2)}px)`;
+  $('schwarz').style.opacity = (Math.max(1 - eOut(ab(t, 0, 1.4)), eInOut(ab(t, T.ende - 1.4, 1.3)))).toFixed(4);
+  staub(t, 1);
+
+  // ===== 1 Kaltstart =====
+  const s1b = T.s2 - 0.5;
+  zeige('s1logo', t, 0.2, 2.5, { y: 0, s: 0.6, blur: 12, d: 1.1, os: 0.7, oy: -30 });
+  zeige('s1kick', t, 0.5, s1b, { y: 30, d: 0.9, oy: -40 });
+  zeige('s1own', t, 2.5, s1b, { y: 40, d: 0.6, oy: -40 });
+  zeige('s1titel', t, 2.88, s1b, { y: 0, s: 1.35, blur: 24, d: 0.75, e: eExpo, os: 1.25, oy: 0, oblur: 18 });
+  if (t > 2.3 && t < T.s2) { const q = eInOut(ab(t, 2.3, 0.5)); $('s1logo').style.marginBottom = lerp(34, -150 + 34, q) + 'px'; $('s1logo').style.width = lerp(150, 0.01, q) + 'px'; }
+  else if (t <= 2.3) { $('s1logo').style.width = '150px'; $('s1logo').style.marginBottom = '34px'; }
+  blitzRing(W / 2, H / 2, ab(t, 2.88, 1.1), W * 0.55);
+  streifen(t, klemm(1 - Math.abs(t - 3.0) / 1.6), 1);
+  lichtfleck(W / 2, H / 2, 700, klemm(ab(t, 2.88, 0.4)) * (1 - ab(t, 4.5, 1.2)));
+
+  // ===== 2 Frage =====
+  const a2 = T.s2, b2 = T.s3 - 0.45;
+  zeige('s2k', t, a2 + 0.2, b2, { x: -60, y: 0 });
+  zeige('s2h', t, a2 + 0.35, b2, { x: -80, y: 0, d: 0.8 });
+  zeige('k2qual', t, a2 + 1.4, b2, { x: HOCH ? 0 : 120, y: HOCH ? 80 : 0, s: 0.95, d: 0.8 });
+  zeige('s2p1', t, a2 + 2.4, b2, { x: -60, y: 0 });
+  zeige('k2frage', t, a2 + 2.6, b2, { x: HOCH ? 0 : 120, y: HOCH ? 80 : 0, s: 0.95, d: 0.8 });
+  zeige('s2p2', t, a2 + 4.4, b2, { x: -60, y: 0 });
+  { const fz = $('k2fz'); const gl = t > a2 + 4.6 && t < a2 + 5.1; fz.style.transform = `scale(${1 + 0.12 * Math.max(0, Math.sin((t - a2) * 5))}) translateX(${gl ? Math.sin(t * 97) * 8 : 0}px)`; fz.style.color = gl ? '#ff5a6a' : ''; }
+
+  // ===== 3 Antwort-Titel =====
+  zeige('s3titel', t, T.s3, T.st1 - 0.35, { y: 0, s: 1.2, blur: 16, d: 0.6, os: 0.85, oy: 0 });
+  streifen(t, klemm(1 - Math.abs(t - T.s3) / 0.9) * 0.9, 2);
+  lichtfleck(W / 2, H / 2, 800, klemm(ab(t, T.s3, 0.3)) * (1 - ab(t, T.s3 + 0.6, 1.2)));
+
+  const capO = { x: HOCH ? 0 : -50, y: HOCH ? 24 : 0, d: 0.6 };
+  const visO = { x: HOCH ? 0 : 100, y: HOCH ? 80 : 0, s: 0.95, d: 0.9 };
+
+  // ===== Schritt 1: Verlauf =====
+  { const A = T.st1, B = T.st2 - 0.45;
+    zeige('c1k', t, A + 0.1, B, capO); zeige('c1h', t, A + 0.2, B, capO);
+    zeige('c1p', t, A + 1.0, B, capO); zeige('c1q', t, A + 4.2, B, capO); zeige('c1n', t, A + 7.4, B, capO);
+    const v = zeige('v1', t, A + 0.5, B, visO);
+    if (v > 0) {
+      const y = G.y1;
+      G.bars.forEach((b, i) => { const p = eOut(ab(t, A + 1.6 + i * 0.5, 0.8)); const top = lerp(440, y(b.v), p); b.r.setAttribute('y', top); b.r.setAttribute('height', 440 - top); b.tx.setAttribute('opacity', ab(t, A + 2.0 + i * 0.5, 0.4)); b.tx.textContent = Math.round(lerp(260, b.v, p)); });
+      const ls = eInOut(ab(t, A + 4.2, 0.9)); G.sl.setAttribute('x2', lerp(90, 860, ls)); G.sl.setAttribute('opacity', ls > 0 ? 1 : 0); G.st.setAttribute('opacity', ab(t, A + 4.8, 0.4));
+      const pb = eOut(ab(t, A + 5.0, 0.7)); const ytop = lerp(440, y(SCHNITT), pb); G.pb.setAttribute('y', ytop); G.pb.setAttribute('height', 440 - ytop);
+      const pm = eBack(ab(t, A + 5.6, 0.5)); const mh = (y(SCHNITT) - y(SCHNITT + ZUSCHLAG)) * Math.max(0, pm); G.pm.setAttribute('y', y(SCHNITT) - mh); G.pm.setAttribute('height', Math.max(0, mh));
+      G.pmt.setAttribute('opacity', ab(t, A + 5.9, 0.3)); G.pmt.setAttribute('y', y(SCHNITT) - 6 + 0);
+      G.pmt.setAttribute('fill', '#03111f');
+      G.pt.setAttribute('opacity', ab(t, A + 6.4, 0.4)); G.pl.setAttribute('opacity', ab(t, A + 5.0, 0.5));
+      if (t > A + 6.4) { const [cx, cy] = mitte('v1'); const r = $('v1').getBoundingClientRect(); blitzRing(cx + r.width * 0.33, cy - r.height * 0.12, ab(t, A + 6.4, 0.9), 200, v); }
+    }
+  }
+  // ===== Schritt 2: Lernen =====
+  { const A = T.st2, B = T.st3 - 0.45;
+    zeige('c2k', t, A + 0.1, B, capO); zeige('c2h', t, A + 0.2, B, capO);
+    zeige('c2p', t, A + 1.2, B, capO); zeige('c2q', t, A + 4.0, B, capO);
+    const v = zeige('v2', t, A + 0.5, B, visO);
+    if (v > 0) {
+      const { cx, cy, r } = G.kreis; const U = 2 * Math.PI * r;
+      const p = eInOut(ab(t, A + 1.2, 2.4)); G.bogen.setAttribute('stroke-dashoffset', (U * (1 - p)).toFixed(1));
+      G.kn.forEach((k, i) => { const q = ab(t, A + 1.3 + i * 0.6, 0.4); k.style.visibility = q > 0 ? 'visible' : 'hidden'; k.style.opacity = q; k.style.transformOrigin = 'center'; k.style.transformBox = 'fill-box'; k.style.transform = `scale(${q > 0 ? eBack(q) : 0})`; });
+      const w = (t - A - 1.2) * 1.4 - Math.PI / 2; const umlauf = p >= 1 ? w : -Math.PI / 2 + p * 2 * Math.PI;
+      G.punkt.setAttribute('cx', cx + r * Math.cos(umlauf)); G.punkt.setAttribute('cy', cy + r * Math.sin(umlauf)); G.punkt.setAttribute('opacity', ab(t, A + 1.2, 0.3));
+      G.fz.forEach((f, i) => { const q = ab(t, A + 4.2 + i * 0.22, 0.35); f.style.visibility = q > 0 ? 'visible' : 'hidden'; f.style.opacity = q; f.style.transform = `translateX(${(1 - eOut(q)) * 30}px)`; });
+      const q = ab(t, A + 6.0, 0.4); G.kz.style.visibility = q > 0 ? 'visible' : 'hidden'; G.kz.style.opacity = q;
+      const q2 = ab(t, A + 6.6, 0.4); G.kzt.style.visibility = q2 > 0 ? 'visible' : 'hidden'; G.kzt.style.opacity = q2;
+    }
+  }
+  // ===== Schritt 3: Live =====
+  { const A = T.st3, B = T.s4 - 0.45;
+    zeige('c3k', t, A + 0.1, B, capO); zeige('c3h', t, A + 0.2, B, capO);
+    const tSperr = L.g1 + NACH * L.gd;
+    zeige('c3p', t, tSperr - 1.4, B, capO); zeige('c3q', t, tSperr + 0.6, B, capO); zeige('c3n', t, tSperr + 3.4, B, capO);
+    const v = zeige('v3', t, A + 0.5, B, visO);
+    if (v > 0) {
+      const x = G.x3, y = G.y3;
+      // Prognose vorher
+      const po = ab(t, A + 1.0, 0.5); const lockP = eInOut(ab(t, tSperr + 2.2, 0.7));
+      const pv = lerp(VORHER, HOCHGER, lockP);
+      G.pl3.setAttribute('opacity', po); G.pl3.setAttribute('y1', y(pv)); G.pl3.setAttribute('y2', y(pv));
+      G.pt3.setAttribute('opacity', po * (1 - lockP)); G.pt3.setAttribute('y', y(pv) - 14);
+      G.pl3.setAttribute('stroke-width', 3 + 2 * lockP); G.pl3.setAttribute('stroke-dasharray', lockP >= 1 ? 'none' : '12 9');
+      // Live-Linie Spiel fuer Spiel
+      const fort = klemm((t - L.g1 + L.gd) / L.gd, 0, NACH);
+      const pts = []; const n = Math.floor(fort);
+      for (let i = 0; i <= n; i++) pts.push([x(i), y(LIVE[i])]);
+      if (n < NACH) { const q = eInOut(fort - n); pts.push([lerp(x(n), x(n + 1), q), lerp(y(LIVE[n]), y(LIVE[n + 1]), q)]); }
+      G.live.setAttribute('points', pts.map((p) => p.join(',')).join(' '));
+      G.lp.forEach((c, i) => c.setAttribute('r', i === 0 ? 0 : (fort >= i ? 7 * eBack(klemm((fort - i) * 3)) : 0)));
+      const kopf = pts[pts.length - 1];
+      const lo = ab(t, L.g1 - 0.4, 0.4);
+      const curV = n >= NACH ? LIVE[NACH] : Math.round(lerp(LIVE[n], LIVE[n + 1] ?? LIVE[n], eInOut(fort - n)));
+      G.lt.setAttribute('opacity', lo); G.lt.setAttribute('x', kopf[0] + 16); G.lt.setAttribute('y', kopf[1] + 62);
+      G.lw.setAttribute('opacity', lo); G.lw.setAttribute('x', kopf[0] + 16); G.lw.setAttribute('y', kopf[1] + 36); G.lw.textContent = curV;
+      // 60-%-Marke
+      const mq = ab(t, tSperr + 0.1, 0.4); G.m60.style.visibility = mq > 0 ? 'visible' : 'hidden'; G.m60.style.opacity = mq;
+      // Hochrechnung bis Spiel 8
+      const pq = eInOut(ab(t, tSperr + 0.7, 1.2));
+      G.proj.setAttribute('x2', lerp(x(NACH), x(CAP), pq)); G.proj.setAttribute('y2', lerp(y(LIVE[NACH]), y(HOCHGER), pq));
+      // Schloss
+      const lq = ab(t, tSperr + 2.2, 0.45); G.lock.style.visibility = lq > 0 ? 'visible' : 'hidden'; G.lock.style.opacity = lq; G.lock.style.transformOrigin = 'center'; G.lock.style.transformBox = 'fill-box'; G.lock.style.transform = `scale(${lq > 0 ? eBack(lq) : 0})`;
+      if (lq > 0) { const r = $('g3').getBoundingClientRect(), s = $('stage').getBoundingClientRect(); const k = r.width / 900; blitzRing(r.left - s.left + x(CAP) * k, r.top - s.top + y(HOCHGER) * k, ab(t, tSperr + 2.2, 0.9), 180, v); }
+    }
+  }
+
+  // ===== 4 Heats =====
+  { const A = T.s4, B = T.s5 - 0.5;
+    zeige('s4k', t, A + 0.3, B, { y: 20 }); zeige('s4h', t, A + 0.45, B, { y: 30, d: 0.8 });
+    zeige('h1', t, A + 1.2, B, { x: HOCH ? 0 : -100, y: HOCH ? 60 : 0, d: 0.8 });
+    zeige('h1z1', t, A + 2.2, B, { y: 14, d: 0.4, blur: 0 });
+    zeige('h1z2', t, A + 3.0, B, { y: 14, d: 0.4, blur: 0 });
+    $('h1w').textContent = Math.round(lerp(0, 228, eExpo(ab(t, A + 3.0, 1.2))));
+    const pf = zeige('s4pfeil', t, A + 4.4, B, { x: HOCH ? 0 : -40, y: HOCH ? -30 : 0, d: 0.5, blur: 0 });
+    zeige('h2', t, A + 4.6, B, { x: HOCH ? 0 : 100, y: HOCH ? 60 : 0, d: 0.8 });
+    zeige('h2z1', t, A + 5.3, B, { y: 14, d: 0.4, blur: 0 });
+    zeige('s4fuss', t, A + 6.4, B, { y: 20 });
+    // Pfeil zwischen die Karten setzen
+    if (pf > 0) {
+      const s = $('stage').getBoundingClientRect(), r1 = $('h1').getBoundingClientRect(), r2 = $('h2').getBoundingClientRect(), p = $('s4pfeil');
+      if (HOCH) { p.style.left = (W / 2 - 65) + 'px'; p.style.top = ((r1.bottom + r2.top) / 2 - s.top - 30) + 'px'; p.style.transform += ' rotate(90deg)'; }
+      else { p.style.left = ((r1.right + r2.left) / 2 - s.left - 65) + 'px'; p.style.top = (r1.top + r1.height / 2 - s.top - 30) + 'px'; }
+    }
+    if (t > A + 5.3) { const [cx, cy] = mitte('h2'); blitzRing(cx, cy, ab(t, A + 5.4, 1.0), 420); lichtfleck(cx, cy, 500, (1 - ab(t, A + 5.4, 1.6)) * 0.8); }
+  }
+
+  // ===== 5 Seite =====
+  { const A = T.s5, B = T.s6 - 0.35;
+    streifen(t * 2.2, klemm(ab(t, A - 0.4, 0.5)) * (1 - ab(t, A + 0.8, 0.6)) * 1.4, 3);
+    zeige('s5k', t, A + 0.2, B, { y: 20 }); zeige('s5h', t, A + 0.3, B, { x: HOCH ? 160 : 260, y: 0, d: 0.6, blur: 14, e: eExpo });
+    zeige('s5p', t, A + 1.0, B, { y: 24 });
+    zeige('s5seite', t, A + 1.4, B, { y: 80, s: 0.96, d: 0.8 });
+    zeige('u1', t, A + 1.9, B, { y: 30, d: 0.5, blur: 0 });
+    zeige('u2', t, A + 2.2, B, { y: 30, d: 0.5, blur: 0 });
+    $('u2w').textContent = Math.round(228 * eExpo(ab(t, A + 2.3, 1.6)));
+    $('u2live').style.opacity = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 6));
+    const u3 = zeige('u3', t, A + 2.6, B, { y: 30, s: 0.9, d: 0.6, blur: 0, e: eBack });
+    if (u3 > 0) { $('u3').style.boxShadow = `0 0 ${40 + 20 * Math.sin(t * 3)}px rgba(14,165,233,${0.25 * u3})`; }
+    if (t > A + 2.6) { const [cx, cy] = mitte('u3'); blitzRing(cx, cy, ab(t, A + 2.7, 1.0), 380); }
+  }
+
+  // ===== 6 Outro =====
+  { const O = T.s6;
+    zeige('s6logo', t, O, 99, { y: 0, s: 1.8, d: 0.6, blur: 20, e: eExpo });
+    { const l = $('s6logo'); if (t > O + 0.7) l.style.transform = `scale(${1 + 0.015 * Math.sin((t - O) * 2.2)})`; }
+    blitzRing(W / 2, H * 0.34, ab(t, O, 1.2), W * 0.7);
+    blitzRing(W / 2, H * 0.34, ab(t, O + 0.15, 1.4), W * 0.45);
+    lichtfleck(W / 2, H * 0.34, 900, klemm(ab(t, O, 0.15)) * (0.5 + 0.5 * (1 - ab(t, O + 0.2, 2.5))));
+    streifen(t, klemm(1 - Math.abs(t - O) / 1.2) * 1.4, 4);
+    zeige('s6titel', t, O + 0.9, 99, { y: 30, d: 0.6 });
+    zeige('s6url', t, O + 1.2, 99, { y: 40, d: 0.7 });
+    zeige('s6x', t, O + 1.8, 99, { y: 30, d: 0.6 });
+    zeige('s6d', t, O + 2.2, 99, { y: 30, d: 0.6 });
+  }
+};
+
+window.addEventListener('load', () => { aufbau().catch((e) => { console.error(e); window.FEHLER = String(e); }); });
+</script>
+</body></html>
