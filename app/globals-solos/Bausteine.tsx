@@ -1,12 +1,12 @@
 'use client';
 
 import { ortJetzt } from '@/app/lib/ort';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
-import { rahmen as formRahmen, spanneBei, einheitsGroesse, beschriftungsVersatz, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { rahmen as formRahmen, spanneBei, einheitsGroesse, anker, versatzBei, versatzTabelle, versatzFuer, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot, type VersatzTabelle } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
@@ -205,31 +205,50 @@ export function Karte({ f, bild, rotAb = 2 }: {
     document.fonts?.load(`600 100px ${familie}`).then(miss, () => { /* Ersatzschrift bleibt gemessen */ });
     return () => { weg = true; };
   }, [alleZeilen]);
-  /** Je Stelle mit Namen: die waagrechte Mitte jeder Zeile (bei schraegen Formen je Zeile verschieden) - fuer die Anzeige und den Versatz. */
+  /**
+   * Die sichtbare Mitte jeder Stelle (lib/prognoseKarte anker: Rechteck genau mittig, sonst Schwerpunkt oder der Punkt mit dem groessten Abstand
+   * zum Rand) - dort steht ihr Name, wenn nichts im Weg ist (Betreiber, 15.11.2026: "CHAP" sass unten links, "KAAN" am Rand seiner L-Form).
+   */
+  const ankerJe = useMemo(() => Object.fromEntries(spots.map((sp) => [sp.id, anker(sp.punkte)])) as Record<string, Punkt>, [spots]);
+  /** Je Stelle mit Namen: die waagrechte Mitte jeder Zeile - dicht gesetzte Zeilen auf der Mitte der Stelle, verteilte je Zeile mittig in der Form. */
   const zeilenLage = useMemo(() => Object.fromEntries(spots.filter((sp) => sp.spieler.length).map((sp) => {
     const r = formRahmen(sp.punkte);
     const anzahl = sp.spieler.length;
-    const mitteX = r.links + r.breite / 2;
     const gedraengt = sp.teams <= 1 || anzahl === 1;
     return [sp.id, sp.spieler.map((_, i) => {
-      const yProz = gedraengt
-        ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
-        : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+      if (gedraengt) return ankerJe[sp.id].x;
+      const yProz = r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
       const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-      return spanne && r.breite > 0 ? spanne.mitte : mitteX;
+      return spanne && r.breite > 0 ? spanne.mitte : r.links + r.breite / 2;
     })];
-  })) as Record<string, number[]>, [spots, groesse]);
-  const versatz = useMemo(() => beschriftungsVersatz(spots.filter((sp) => sp.spieler.length).map((sp): Beschriftung => {
+  })) as Record<string, number[]>, [spots, ankerJe]);
+  /** Die Beschriftungen fuer den Loeser - mit Breiten je Zeile (Prozent der Kartenbreite bei Zoom 1). */
+  const beschriftungenFuer = useCallback((breite: (tx: string) => number): Beschriftung[] => spots.filter((sp) => sp.spieler.length).map((sp) => {
     const r = formRahmen(sp.punkte);
     return {
-      id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
-      zeilen: sp.spieler.map((n, i) => {
-        const tx = kartenName(n);
-        // Ungemessen: gut 0,68 je Grossbuchstabe (etwas mehr als die Schaetzung in schriftgroesse - lieber zu breit als ueberdeckt).
-        return { x: zeilenLage[sp.id][i], breite: (emBreite[tx] ?? tx.length * 0.68) * groesse };
-      }),
+      id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, ax: ankerJe[sp.id].x, ay: ankerJe[sp.id].y, punkte: sp.punkte,
+      verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
+      zeilen: sp.spieler.map((n, i) => ({ x: zeilenLage[sp.id][i], breite: breite(kartenName(n)) })),
     };
-  }), groesse, kastenEm), [spots, zeilenLage, emBreite, groesse, kastenEm]);
+  }), [spots, ankerJe, zeilenLage]);
+  /*
+   * Der Versatz je Zoomstufe: nur, wo sich Namen auf der Stufe, die gerade zu sehen ist, wirklich ueberdecken. Hineingezoomt, wo Platz ist, ist er 0
+   * und jeder Name steht wieder genau auf der Mitte seiner Stelle. male() setzt beim Zoomen den Wert der aktuellen Stufe (versatzFuer).
+   * Ungemessen: gut 0,68 je Grossbuchstabe (etwas mehr als die Schaetzung in schriftgroesse - lieber zu breit als ueberdeckt).
+   */
+  const versatz = useMemo(() => versatzTabelle(beschriftungenFuer((tx) => (emBreite[tx] ?? tx.length * 0.68) * groesse), groesse, kastenEm, ZOOM_MAX),
+    [beschriftungenFuer, emBreite, groesse, kastenEm]);
+  const versatzRef = useRef<VersatzTabelle>(versatz);
+  /** Den Versatz der Stufe z an die Beschriftungen schreiben (translate in cqw / z: auf dem Bildschirm genau x cqw, wie die Schrift). */
+  const setzeVersatz = useCallback((z: number) => {
+    const el = ebene.current;
+    if (!el) return;
+    el.querySelectorAll<HTMLElement>('.karten-beschriftung[data-form]').forEach((b) => {
+      const v = versatzFuer(versatzRef.current, b.dataset.form ?? '', z);
+      b.style.translate = v.x || v.y ? `${(v.x / z).toFixed(4)}cqw ${(v.y / z).toFixed(4)}cqw` : '';
+    });
+  }, []);
+  useLayoutEffect(() => { versatzRef.current = versatz; setzeVersatz(zoomRef.current); }, [versatz, setzeVersatz]);
 
   /** Den Ausschnitt direkt ans Element schreiben, einmal je Bildaufbau. */
   const male = useCallback(() => {
@@ -241,9 +260,10 @@ export function Karte({ f, bild, rotAb = 2 }: {
       const z = zoomRef.current, m = mitteRef.current;
       el.style.transform = `scale(${z}) translate(${50 / z - m.x}%, ${50 / z - m.y}%)`;
       el.style.setProperty('--z', String(z));
+      setzeVersatz(z);
       setGezoomt(z > 1.02);
     });
-  }, []);
+  }, [setzeVersatz]);
 
   const stopp = useCallback(() => {
     if (bewegung.current !== null) { cancelAnimationFrame(bewegung.current); bewegung.current = null; }
@@ -432,22 +452,17 @@ export function Karte({ f, bild, rotAb = 2 }: {
     const kontur = Math.max(2, px * 0.14);
     g.font = `600 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     const kastenBild = (() => { const m = g.measureText('M'); return m.fontBoundingBoxAscent > 0 ? Math.max(1.12, (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) / px) : kastenEm; })();
-    const beschriftungen = spots.filter((sp) => sp.spieler.length).map((sp): Beschriftung => {
-      const r = formRahmen(sp.punkte);
-      return {
-        id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
-        zeilen: sp.spieler.map((n, i) => ({ x: zeilenLage[sp.id][i], breite: ((g.measureText(kartenName(n)).width + kontur) / G) * 100 })),
-      };
-    });
-    const vBild = beschriftungsVersatz(beschriftungen, groesse, kastenBild, [ze]);
+    const beschriftungen = beschriftungenFuer((tx) => ((g.measureText(tx).width + kontur) / G) * 100);
+    // Derselbe Loeser wie auf dem Bildschirm, fuer genau die Zoomstufe des Ausschnitts: Versatz nur, wo sich Namen im Bild ueberdecken.
+    const vBild = versatzBei(beschriftungen, groesse, kastenBild, ze);
     const kaesten: Array<{ id: string; x: number; y: number; w: number; hk: number; text: string }> = [];
     g.lineJoin = 'round'; g.lineWidth = kontur; g.strokeStyle = 'rgba(0,0,0,0.9)'; g.fillStyle = '#fff';
     for (const b of beschriftungen) {
       const sp = spots.find((s) => s.id === b.id)!;
-      const v = vBild[b.id] ?? { mx: 0, my: 0, dx: 0, dy: 0 };
+      const v = vBild[b.id] ?? { x: 0, y: 0 };
       zeilenMitten(b, groesse, ze).forEach((p, i) => {
-        // Bildschirm-Einheiten (Prozent der Bildbreite): z * (Kartenpunkt - Ausschnitt) + fester Versatz * z + Versatz in Bildschirmmass.
-        const x = p.x - ze * links + ze * v.mx + v.dx, y = p.y - ze * oben + ze * v.my + v.dy;
+        // Bildschirm-Einheiten (Prozent der Bildbreite): z * (Kartenpunkt - Ausschnitt) + Versatz in Bildschirmmass.
+        const x = p.x - ze * links + v.x, y = p.y - ze * oben + v.y;
         const tx = kartenName(sp.spieler[i]);
         kaesten.push({ id: b.id, x, y, w: p.w, hk: groesse * kastenBild, text: tx });
         g.strokeText(tx, (x / 100) * G, (y / 100) * G); g.fillText(tx, (x / 100) * G, (y / 100) * G);
@@ -559,21 +574,21 @@ export function Karte({ f, bild, rotAb = 2 }: {
               if (!sp.spieler.length) return null;
               const r = formRahmen(sp.punkte);
               const anzahl = sp.spieler.length;
-              const mitteX = r.links + r.breite / 2;
-              const v = versatz[sp.id];
+              const gedraengt = sp.teams <= 1 || anzahl === 1;
+              // Dicht gesetzte Namen: der Kasten (so gross wie der Rahmen der Form) steht mit seiner Mitte auf der Mitte der Stelle; verteilte im Rahmen.
+              const kx = gedraengt ? ankerJe[sp.id].x - r.breite / 2 : r.links, ky = gedraengt ? ankerJe[sp.id].y - r.hoehe / 2 : r.oben;
+              const mitteX = kx + r.breite / 2;
               return (
                 <div key={sp.id} data-form={sp.id}
                   className={`karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center${kennzeichen(sp)}`}
                   style={{
-                    left: `${r.links}%`, top: `${r.oben}%`,
+                    left: `${kx}%`, top: `${ky}%`,
                     width: `${r.breite}%`, height: `${r.hoehe}%`,
                     // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
-                    justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
+                    justifyContent: gedraengt ? 'center' : 'space-between',
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
-                    // Weg von der Nachbarstelle, wenn sich die Namen sonst ueberdecken - in Bildschirmmass, wie die Schrift (translate setzt sich zum
-                    // transform von .ist-hover dazu, statt es zu ersetzen).
-                    // mx/my sitzt fest auf der Karte (eine Gruppe nebeneinander bleibt beim Zoomen ausgerichtet), dx/dy in Bildschirmmass.
-                    ...(v ? { translate: `calc(${v.mx.toFixed(3)}cqw + ${v.dx.toFixed(3)}cqw / var(--z, 1)) calc(${v.my.toFixed(3)}cqw + ${v.dy.toFixed(3)}cqw / var(--z, 1))` } : {}),
+                    // Weg von der Nachbarstelle, wenn sich die Namen auf der aktuellen Zoomstufe sonst ueberdecken: translate setzt setzeVersatz()
+                    // beim Zoomen direkt am Element (es setzt sich zum transform von .ist-hover dazu, statt es zu ersetzen).
                   }}>
                   {sp.spieler.map((name, i) => {
                     const zx = zeilenLage[sp.id]?.[i] ?? mitteX;
