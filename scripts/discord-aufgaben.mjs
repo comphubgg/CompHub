@@ -113,7 +113,7 @@ if (!kanal) {
   const rollen = await ruf(`/guilds/${SERVER}/roles`);
   const admin = rollen.find((r) => (BigInt(r.permissions) & 8n) === 8n && !r.managed)?.id ?? null;
   const ich = (await ruf('/users/@me')).id;
-  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === 'admin')?.id ?? null;
+  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase().replace(/^[^a-z0-9]+/, '').trim() === 'admin')?.id ?? null;
   if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: 'Admin', type: 4 })).id;
   const NICHT_SCHREIBEN = String(2048 + 2 ** 35 + 2 ** 36 + 2 ** 38);
   const regeln = [{ id: SERVER, type: 0, allow: '0', deny: String(1024 + Number(NICHT_SCHREIBEN)) }, { id: ich, type: 1, allow: '76800', deny: '0' }];

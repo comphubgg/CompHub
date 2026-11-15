@@ -6,6 +6,8 @@
 #   updates-plan    den naechsten Changelog-Post fuer #comphub-updates zeigen (scripts/discord-updates.mjs)
 #   updates-posten  ihn posten
 #   x-probe         pruefen, welche kostenlosen Wege an die Posts von @CompHub_gg herankommen (aendert nichts)
+#   tweets-plan     die Beitraege aus "links" holen und zeigen, was nach #social-posts ginge (scripts/discord-tweets.mjs)
+#   tweets          sie posten (schon gepostete werden uebersprungen)
 
 name: Discord Umbau
 
@@ -13,14 +15,18 @@ on:
   workflow_dispatch:
     inputs:
       modus:
-        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe'
+        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe | tweets-plan | tweets'
         type: choice
         default: plan
-        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe]
+        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe, tweets-plan, tweets]
       emoji_namen:
         description: 'Auch Kanaele umbenennen, die der Code ueber den Namen sucht (nur nach dem Code-Patch!)'
         type: boolean
         default: false
+      links:
+        description: 'Nur fuer tweets: Links zu X-Beitraegen, mit Komma getrennt'
+        type: string
+        default: ''
 
 concurrency:
   group: discord-umbau
@@ -68,6 +74,20 @@ jobs:
           ARGS=""
           [ "${{ inputs.modus }}" = "updates-posten" ] && ARGS="--anwenden"
           node scripts/discord-updates.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
+
+      - name: Tweets
+        if: startsWith(inputs.modus, 'tweets')
+        env:
+          LINKS: ${{ inputs.links }}
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          ARGS=""
+          [ "${{ inputs.modus }}" = "tweets" ] && ARGS="--anwenden"
+          node scripts/discord-tweets.mjs $ARGS
           rc=$?
           rm -f .env.local
           exit $rc

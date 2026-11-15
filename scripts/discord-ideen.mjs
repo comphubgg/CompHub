@@ -92,7 +92,7 @@ async function kanalFinden() {
   const rollen = await ruf(`/guilds/${SERVER}/roles`);
   const admin = rollen.find((r) => (BigInt(r.permissions) & 8n) === 8n && !r.managed)?.id ?? null;
   const ich = (await ruf('/users/@me')).id;
-  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === 'admin')?.id ?? null;
+  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase().replace(/^[^a-z0-9]+/, '').trim() === 'admin')?.id ?? null;
   if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: 'Admin', type: 4 })).id;
 
   // Fuer alle anderen unsichtbar; Betreiber-Rolle und Bot sehen und schreiben.

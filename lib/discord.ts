@@ -2191,7 +2191,7 @@ export async function richteCommunityEin(
   const plan: Array<[keyof typeof COMMUNITY_KANAELE, Sichtbar, string[], boolean]> = [
     ['ankuendigungen', 'alle', [], false],
     ['news', 'alle', [], false],
-    ['live', 'alle', [], false],
+    // #live-now nicht mehr (Betreiber, 15.11.2026: geloescht) - scripts/live-discord.mjs tut nichts, solange er fehlt.
     ['ergebnisse', 'alle', [], false],
     ['lounge', 'vip', rollen.vip, true],
     ['manager', 'manager', rollen.manager, true],

@@ -174,7 +174,8 @@ export async function POST(request: NextRequest) {
     const q = String(feld?.value ?? '');
     let choices: Array<{ name: string; value: string }> = [];
     try {
-      choices = feld?.name === 'player' ? await spielerVorschlaege(q) : await cupVorschlaege(q);
+      const spieler = d.data?.name === 'stats' ? String((d.data?.options ?? []).find((o) => o.name === 'player')?.value ?? '') : '';
+      choices = feld?.name === 'player' ? await spielerVorschlaege(q) : await cupVorschlaege(q, spieler);
     } catch { /* leere Liste */ }
     return NextResponse.json({ type: 8, data: { choices } });
   }
@@ -187,11 +188,12 @@ export async function POST(request: NextRequest) {
     let admin = false;
     try { admin = (BigInt(d.member?.permissions ?? '0') & 8n) === 8n; } catch { /* kein Admin */ }
     if (!admin && kanalName !== STATS_KANAL) return nurFuerIhn(`Use this in #📈-${STATS_KANAL}.`);
-    if (d.data?.name === 'help') return NextResponse.json({ type: 4, data: { ...hilfeAntwort(), allowed_mentions: { parse: [] } } });
+    // /help: derselbe Leitfaden, der in #check-stats angeheftet ist - nur fuer den Fragenden (flags 64).
+    if (d.data?.name === 'help') return NextResponse.json({ type: 4, data: { ...hilfeAntwort(), flags: 64, allowed_mentions: { parse: [] } } });
 
     const opt = Object.fromEntries((d.data?.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
     const befehl = d.data?.name;
-    // Erst bestaetigen (sichtbar fuer alle im Kanal: "CompHub is thinking ..."), dann die Antwort nachtragen.
+    // Erst bestaetigen ("CompHub is thinking ...", nur fuer den Fragenden), dann die Antwort nachtragen - sie bleibt ephemer.
     after(async () => {
       let antwort: Antwort;
       try {
@@ -207,7 +209,8 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({ content: '', embeds: [], components: [], ...antwort, allowed_mentions: { parse: [] } }),
       }).catch(() => null);
     });
-    return NextResponse.json({ type: 5 });
+    // Nur fuer den Fragenden (Betreiber, 15.11.2026): niemand sonst in #check-stats sieht fremde Ergebnisse - auch keine Fehler.
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
 
   /* ------------------------------------------------ /comphub (Typ 2) */

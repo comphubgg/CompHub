@@ -94,7 +94,7 @@ async function main() {
 
   const kanaele = await ruf(`/guilds/${SERVER_ID}/channels`);
   const kanal = kanaele.find((k) => (k.type === 0 || k.type === 5) && namensKern(k.name) === KANAL);
-  if (!kanal) { console.log(`#${KANAL} fehlt - erst den Community-Aufbau laufen lassen.`); return; }
+  if (!kanal) { console.log(`#${KANAL} gibt es nicht (vom Betreiber am 15.11.2026 geloescht) - nichts zu tun, nichts wird angelegt.`); return; }
   const ich = await ruf('/users/@me');
   const verlauf = (await ruf(`/channels/${kanal.id}/messages?limit=100`))
     .filter((m) => m.author?.id === ich.id && m.embeds?.[0]?.footer?.text?.startsWith('live:'));

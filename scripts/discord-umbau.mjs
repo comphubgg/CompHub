@@ -10,10 +10,11 @@
  *   node scripts/discord-umbau.mjs --anwenden          Plan ausfuehren (ohne Loeschen)
  *   node scripts/discord-umbau.mjs --anwenden --loeschen
  *                                                      dazu die Loesch-Kandidaten entfernen
- *   --emoji-namen   auch die Kanaele umbenennen, die der Code ueber ihren Namen sucht (#welcome,
- *                   #announcements, #updates, #news, #results, #live-now, Kategorie "Community").
- *                   NUR, wenn die Namenssuche im Code vorher tolerant gemacht wurde - sonst legen
- *                   lib/discord.ts und die Skripte beim naechsten Lauf Doppelte an (siehe unten).
+ *   --emoji-namen   auch die Kanaele und Kategorien mit Emoji versehen, die der Code ueber ihren Namen sucht
+ *                   (#welcome, #announcements, #updates, #news, #results, #vip-guide, #manager-guide, #vip-lounge,
+ *                   #manager-chat; Kategorien Community, Access, Access Keys, Support, Chats, Admin ...). Sicher seit
+ *                   15.11.2026: jede Suche im Code vergleicht den Kern des Namens (ohne Emoji vorne).
+ *                   (#live-now hat der Betreiber am 15.11.2026 geloescht - er steht nicht mehr im Ziel.)
  *   --ohne-willkommen  die Willkommensnachricht nicht anfassen
  *
  * Beliebig oft gangbar: gefunden wird ueber den "Kern" des Namens (ohne Emoji und Trennzeichen vorne -
@@ -31,7 +32,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { FOREN, willkommen, WILLKOMMEN_MARKE, STATS_BEFEHLE } from '../lib/discordVorlagen.mjs';
+import { FOREN, willkommen, WILLKOMMEN_MARKE, STATS_BEFEHLE, statsAnleitung, STATS_MARKE } from '../lib/discordVorlagen.mjs';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';
@@ -117,8 +118,8 @@ const ZIEL = [
       { kern: 'announcements', code: true, emoji: '📢-announcements' },
       { kern: 'updates', aliase: ['comphub-updates'], code: true, emoji: '🛠️-comphub-updates' },
       { kern: 'social-posts', name: '🐦-social-posts', rechte: 'aushang', thema: 'Every post from @CompHub_gg on X - posted automatically' },
-      { kern: 'vip-guide', code: true, optional: true },
-      { kern: 'manager-guide', code: true, optional: true },
+      { kern: 'vip-guide', code: true, optional: true, emoji: '⭐-vip-guide' },
+      { kern: 'manager-guide', code: true, optional: true, emoji: '📋-manager-guide' },
     ],
   },
   {
@@ -131,9 +132,8 @@ const ZIEL = [
       { kern: 'give-feedback', aliase: ['feedback'], name: '📝-give-feedback', typ: 15, rechte: 'forum' },
       { kern: 'news', code: true, emoji: '📰-news' },
       { kern: 'results', code: true, emoji: '🏆-results' },
-      { kern: 'live-now', code: true, emoji: '📺-live-now' },
-      { kern: 'vip-lounge', code: true, optional: true },
-      { kern: 'manager-chat', code: true, optional: true },
+      { kern: 'vip-lounge', code: true, optional: true, emoji: '💎-vip-lounge' },
+      { kern: 'manager-chat', code: true, optional: true, emoji: '🗨️-manager-chat' },
     ],
   },
 ];
@@ -363,7 +363,7 @@ for (const gruppe of ZIEL) {
     idVon.set(z.kern, k.id);
     if (k.name !== sollName) {
       if (z.code && !EMOJI) { /* Name bleibt - der Code sucht ihn */ } else {
-        schritt('umbenennen', `#${k.name} -> #${sollName}${z.code ? '  ⚠ Code sucht den alten Namen (nur mit Patch!)' : ''}`,
+        schritt('umbenennen', `#${k.name} -> #${sollName}${z.code ? '  (Code sucht tolerant ueber den Kern des Namens)' : ''}`,
           () => ruf(`/channels/${k.id}`, 'PATCH', { name: sollName }));
       }
     }
@@ -496,6 +496,93 @@ if (WILLKOMMEN) {
   }
 }
 
+// --- Weitere Kategorien mit Emoji (--emoji-namen; Betreiber, 15.11.2026: "ueberall Emojis, eigene, sauber").
+// Sicher, weil jede Suche im Code tolerant ist: lib/discord.ts kategorieFuer/gleich (namensKern), die Skripte ueber den
+// Kern des Namens, die VIP-Schluessel-Kategorie ueber ihre Id (KATEGORIE / DISCORD_KATEGORIE_ID).
+const KATEGORIE_EMOJI = {
+  welcome: '👋 Welcome', access: '🔑 Access', 'access keys': '🗝️ Access Keys', 'manager access keys': '🧾 Manager Access Keys',
+  'pro access keys': '🎟️ Pro Access Keys', support: '🎫 Support', updates: '🛠️ Updates', chats: '💬 Chats', admin: '🛡️ Admin',
+  tickets: '🎫 Tickets',
+};
+if (EMOJI) {
+  for (const k of kategorien()) {
+    if ([...katId.values()].includes(k.id)) continue;
+    const soll = KATEGORIE_EMOJI[kern(k.name)];
+    if (!soll || k.name === soll) continue;
+    schritt('umbenennen', `Kategorie "${k.name}" -> "${soll}" (der Code sucht tolerant${k.id === VIP_KATEGORIE ? ', die VIP-Kategorie ueber die Id' : ''})`,
+      () => ruf(`/channels/${k.id}`, 'PATCH', { name: soll }));
+  }
+}
+
+// --- Der angeheftete Leitfaden in #check-stats (gefunden ueber die Fusszeile; bearbeiten statt neu posten).
+const vergleichE = (e) => JSON.stringify([e?.title, e?.description, (e?.fields ?? []).map((f) => [f.name, f.value]), e?.footer?.text]);
+{
+  const sk = idVon.get('check-stats');
+  const verlauf = sk ? await ruf(`/channels/${sk}/messages?limit=50`).catch(() => []) : [];
+  const gepinnt = sk ? await ruf(`/channels/${sk}/pins`).catch(() => []) : [];
+  const soll = statsAnleitung();
+  const da = [...gepinnt, ...verlauf].find((m) => m.author?.id === ich.id && m.embeds?.[0]?.footer?.text === STATS_MARKE);
+  if (!da) {
+    schritt('leitfaden', '#check-stats: Leitfaden "📊 CompHub Stats Bot — Guide" posten und anheften', async () => {
+      const ziel = idVon.get('check-stats');
+      const neu = await ruf(`/channels/${ziel}/messages`, 'POST', { embeds: [soll] });
+      await ruf(`/channels/${ziel}/pins/${neu.id}`, 'PUT');
+      const neueste = await ruf(`/channels/${ziel}/messages?limit=3`);
+      for (const m of neueste) if (m.type === 6) await ruf(`/channels/${ziel}/messages/${m.id}`, 'DELETE');
+    });
+  } else {
+    if (vergleichE(da.embeds[0]) !== vergleichE(soll)) {
+      schritt('leitfaden', '#check-stats: Leitfaden auf den neuen Stand bringen (bearbeiten)',
+        () => ruf(`/channels/${sk}/messages/${da.id}`, 'PATCH', { embeds: [soll] }));
+    }
+    if (!gepinnt.some((m) => m.id === da.id)) {
+      schritt('leitfaden', '#check-stats: Leitfaden anheften', async () => {
+        await ruf(`/channels/${sk}/pins/${da.id}`, 'PUT');
+        const neueste = await ruf(`/channels/${sk}/messages?limit=3`);
+        for (const m of neueste) if (m.type === 6) await ruf(`/channels/${sk}/messages/${m.id}`, 'DELETE');
+      });
+    }
+  }
+}
+
+// --- Die Foren: Standard-Reaktion 👍 und je ein angehefteter, gesperrter Leitfaden-Beitrag (gefunden ueber Titel und Bot).
+{
+  const aktiv = await ruf(`/guilds/${SERVER}/threads/active`).catch(() => ({ threads: [] }));
+  for (const kernName of ['get-support', 'give-feedback']) {
+    const f = FOREN[kernName];
+    const fid = idVon.get(kernName);
+    const forum = fid ? kanaele.find((k) => k.id === fid) : null;
+    if (forum && forum.type === 15 && forum.default_reaction_emoji?.emoji_name !== f.reaktion) {
+      schritt('reaktion', `#${forum.name}: Standard-Reaktion ${f.reaktion}`,
+        () => ruf(`/channels/${fid}`, 'PATCH', { default_reaction_emoji: { emoji_id: null, emoji_name: f.reaktion } }));
+    }
+    const archiv = fid ? await ruf(`/channels/${fid}/threads/archived/public?limit=100`).catch(() => ({ threads: [] })) : { threads: [] };
+    const beitraege = [...(aktiv.threads ?? []).filter((x) => x.parent_id === fid), ...(archiv.threads ?? [])];
+    const da = beitraege.find((x) => x.owner_id === ich.id && x.name === f.anleitung.titel);
+    if (!da) {
+      schritt('leitfaden', `${forum ? `#${forum.name}` : kernName}: angehefteten Beitrag "${f.anleitung.titel}" anlegen (gesperrt - Antworten nur vom Team)`, async () => {
+        const ziel = idVon.get(kernName);
+        const neu = await ruf(`/channels/${ziel}/threads`, 'POST', {
+          name: f.anleitung.titel, auto_archive_duration: 10080, message: { content: f.anleitung.text, allowed_mentions: { parse: [] } },
+        });
+        await ruf(`/channels/${neu.id}`, 'PATCH', { flags: 2, locked: true });
+      });
+      continue;
+    }
+    const start = await ruf(`/channels/${da.id}/messages/${da.id}`).catch(() => null);
+    if (start && start.content !== f.anleitung.text) {
+      schritt('leitfaden', `#${forum?.name ?? kernName}: Beitrag "${f.anleitung.titel}" auf den neuen Stand bringen`, async () => {
+        if (da.thread_metadata?.archived) await ruf(`/channels/${da.id}`, 'PATCH', { archived: false });
+        await ruf(`/channels/${da.id}/messages/${da.id}`, 'PATCH', { content: f.anleitung.text, allowed_mentions: { parse: [] } });
+      });
+    }
+    if (!((da.flags ?? 0) & 2) || !da.thread_metadata?.locked || da.thread_metadata?.archived) {
+      schritt('leitfaden', `#${forum?.name ?? kernName}: Beitrag "${f.anleitung.titel}" anheften und sperren`,
+        () => ruf(`/channels/${da.id}`, 'PATCH', { archived: false, flags: 2, locked: true }));
+    }
+  }
+}
+
 // --- Doppelte Kategorien (15.11.2026: zwei "Admin" - die zweite leer). Gleicher Name ohne Emoji: die leere geht, eine mit Kanaelen wird nur gemeldet.
 {
   const norm = (n) => String(n).replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase();
@@ -549,16 +636,16 @@ for (const g of ZIEL) {
   }
 }
 
-const reihenfolge = ['anlegen', 'umbenennen', 'verschieben', 'rechte', 'thema', 'tags', 'systemkanal', 'befehle', 'willkommen', 'ordnen', 'loesch-kandidat'];
+const reihenfolge = ['anlegen', 'umbenennen', 'verschieben', 'rechte', 'thema', 'tags', 'reaktion', 'systemkanal', 'befehle', 'willkommen', 'leitfaden', 'ordnen', 'loesch-kandidat'];
 plan.sort((a, b) => reihenfolge.indexOf(a.art) - reihenfolge.indexOf(b.art));
 console.log(`\nPlan (${plan.filter((p) => p.art !== 'ordnen').length} Schritte${plan.some((p) => p.art === 'ordnen') ? ' + Reihenfolge' : ''}):`);
 for (const p of plan) console.log(`  [${p.art}] ${p.was}`);
 if (hinweise.length) { console.log('\nHinweise:'); for (const h of hinweise) console.log(`  - ${h}`); }
 
 if (EMOJI) {
-  console.log('\n⚠ --emoji-namen: lib/discord.ts (gleich(), kategorieFuer(), PRO_IMMER_SICHTBAR), scripts/live-discord.mjs,\n'
-    + '  ergebnisse-discord.mjs und discord-update.mjs suchen die Namen genau. Ohne toleranten Abgleich legen sie\n'
-    + '  beim naechsten Lauf #news, #results, #live-now, #updates und die Kategorie "Community" doppelt an.');
+  console.log('\n--emoji-namen: seit 15.11.2026 suchen lib/discord.ts (gleich/namensKern, kategorieFuer), scripts/live-discord.mjs,\n'
+    + '  ergebnisse-discord.mjs, discord-update(s).mjs, discord-ansage.mjs und die Admin-Skripte ueber den Kern des Namens -\n'
+    + '  "📰-news" ist "news", "🛡️ Admin" ist "admin". Die VIP-Schluessel-Kategorie wird ueber ihre Id gefunden.');
 }
 
 if (!ANWENDEN) {

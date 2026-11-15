@@ -22,7 +22,9 @@ import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { POST as echteNamenAbruf } from '@/app/api/echte-namen/route';
 import { finale as istFinaleFenster, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
-import { STATS_BEFEHLE, STATS_KANAL } from '@/lib/discordVorlagen.mjs';
+import { STATS_BEFEHLE, STATS_KANAL, statsAnleitung } from '@/lib/discordVorlagen.mjs';
+import { namensKey, namenVorschlaege, namenVorwaermen, kontoZuName, kontoErgebnisse, bekannterName, type KontoSuche } from '@/lib/discordSpielerSuche';
+import { schickeAlarm } from '@/lib/discord';
 
 const SEITE = 'https://www.thecomphub.com';
 /** Das Blau der Seite (Sky 500) - kein Gruen (Betreiber: nichts von Osirion). */
@@ -84,8 +86,8 @@ const zuletzt = (c: Cup) => Math.max(0, ...fensterVon(c)
   .filter((f) => f.status === 'vorbei' || f.status === 'live').map((f) => f.end ?? f.begin ?? 0));
 
 /** Vorschlaege fuer "cup:" / "name:" - die juengsten Cups zuerst, passend zum Getippten. */
-export async function cupVorschlaege(q: string): Promise<Array<{ name: string; value: string }>> {
-  const liste = await cups(2_200);
+async function katalogVorschlaege(q: string): Promise<Array<{ name: string; value: string }>> {
+  const liste = await cups(2_000);
   const t = q.trim().toLowerCase();
   return liste
     .filter((c) => c.id.length <= 100 && zuletzt(c) > 0)
@@ -98,23 +100,96 @@ export async function cupVorschlaege(q: string): Promise<Array<{ name: string; v
     });
 }
 
+const kurzDatum = (ms: number) => (ms ? new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
+
+/*
+ * "cup:" bei /stats: ist der Spieler schon gewaehlt, nur die Spieltage, an denen er wirklich Ergebnisse hat (neueste zuerst,
+ * "FNCS Solos Reload · Heat 1 · EU · 14 Nov") - Betreiber, 15.11.2026, wie beim Mitbewerber "erst Spieler, dann Turnier".
+ * Der Wert ist dann "w:<Fenster>". Ohne Spieler (oder solange seine Ergebnisse noch laden) die juengsten Cups des Katalogs.
+ * Discord verwirft Vorschlaege nach drei Sekunden - geladen wird darum im Hintergrund, hier nur gewartet, solange es reicht.
+ */
+export async function cupVorschlaege(q: string, spielerEingabe?: string): Promise<Array<{ name: string; value: string }>> {
+  const s = String(spielerEingabe ?? '').trim();
+  if (s.length >= 2) {
+    const id = /^[0-9a-f]{32}$/i.test(s) ? s.toLowerCase() : idGemerkt.get(namensKey(s)) ?? null;
+    if (id) {
+      const daten = await Promise.race([spielerDaten(id).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 2_000))]);
+      if (daten?.ergebnisse.length) {
+        const t = q.trim().toLowerCase();
+        const raus = daten.ergebnisse
+          .map((e) => ({ e, name: `${e.titel} · ${e.region}${e.datum ? ` · ${kurzDatum(e.datum)}` : ''}` }))
+          .filter(({ name, e }) => !t || name.toLowerCase().includes(t) || e.windowId.toLowerCase().includes(t))
+          .slice(0, 25)
+          .map(({ e, name }) => ({ name: name.slice(0, 100), value: `w:${e.windowId}`.slice(0, 100) }));
+        if (raus.length) return raus;
+      }
+    }
+  }
+  return katalogVorschlaege(q);
+}
+
 /* --------------------------------------------------------------- Spieler */
 
 interface Treffer { epicId: string; anzeige: string; name: string; land: string | null; matches: number; aktuell?: string | null }
 
-async function suche(q: string): Promise<Treffer[]> {
-  const j = await json<{ spieler?: Treffer[] }>(szeneAbruf(new Request(`${SEITE}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)));
-  return j?.spieler ?? [];
+/** Name (vergleichbar) -> Konto, aus den letzten Suchen - damit "cup:" den Spieler kennt, auch wenn er getippt statt gewaehlt wurde. */
+const idGemerkt = new Map<string, string>();
+const merke = (name: string, id: string) => {
+  const k = namensKey(name);
+  if (!k) return;
+  idGemerkt.delete(k); idGemerkt.set(k, id);
+  while (idGemerkt.size > 2_000) idGemerkt.delete(idGemerkt.keys().next().value as string);
+};
+
+/** Zwei, drei Versuche mit kurzer Pause - fuer alles, was intern ueber eine Route oder das Netz geht. */
+async function nochmal<T>(f: () => Promise<T | null>, versuche = 3): Promise<T | null> {
+  for (let i = 0; i < versuche; i += 1) {
+    const w = await f().catch(() => null);
+    if (w !== null) return w;
+    if (i < versuche - 1) await new Promise((r) => setTimeout(r, 400 * 3 ** i));
+  }
+  return null;
 }
 
-/** Vorschlaege fuer "player:" - die Suche der Seite, mit Frist (Discord gibt drei Sekunden). */
+async function suche(q: string): Promise<Treffer[] | null> {
+  const j = await json<{ spieler?: Treffer[] }>(szeneAbruf(new Request(`${SEITE}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)));
+  return j ? j.spieler ?? [] : null;
+}
+/** Die Suche der Seite, gemerkt fuer eine Minute (beim Tippen kommt dieselbe Anfrage mehrmals). */
+const sucheVorrat = new Map<string, { bis: number; wert: Promise<Treffer[] | null> }>();
+function sucheGemerkt(q: string): Promise<Treffer[] | null> {
+  const k = q.toLowerCase();
+  const da = sucheVorrat.get(k);
+  if (da && da.bis > Date.now()) return da.wert;
+  const wert = suche(q);
+  sucheVorrat.set(k, { bis: Date.now() + 60_000, wert });
+  wert.then((w) => { if (w === null) sucheVorrat.delete(k); }).catch(() => sucheVorrat.delete(k));
+  while (sucheVorrat.size > 300) sucheVorrat.delete(sucheVorrat.keys().next().value as string);
+  return wert;
+}
+
+/** Vorschlaege fuer "player:" - die Suche der Seite, dazu alle Epic-Namen, die CompHub kennt. Mit Frist (Discord gibt drei Sekunden). */
 export async function spielerVorschlaege(q: string): Promise<Array<{ name: string; value: string }>> {
+  namenVorwaermen();
   if (q.trim().length < 2) return [];
-  const treffer = await Promise.race([suche(q.trim()), new Promise<Treffer[]>((r) => setTimeout(() => r([]), 2_200))]);
-  return treffer.slice(0, 25).map((s) => ({
-    name: `${s.anzeige}${s.aktuell && s.aktuell !== s.anzeige ? ` (${s.aktuell})` : ''}`.slice(0, 100),
-    value: s.epicId,
-  }));
+  const frist = <T,>(p: Promise<T>, leer: T, ms: number) => Promise.race([p.catch(() => leer), new Promise<T>((r) => setTimeout(() => r(leer), ms))]);
+  const [seite, namen] = await Promise.all([
+    frist(sucheGemerkt(q.trim()).then((t) => t ?? []), [] as Treffer[], 2_000),
+    frist(namenVorschlaege(q, 15, 1_800), [], 2_000),
+  ]);
+  const raus: Array<{ name: string; value: string }> = [];
+  const da = new Set<string>();
+  for (const s of seite) {
+    if (da.has(s.epicId)) continue;
+    da.add(s.epicId); merke(s.anzeige, s.epicId);
+    raus.push({ name: `${s.anzeige}${s.aktuell && s.aktuell !== s.anzeige ? ` (${s.aktuell})` : ''}`.slice(0, 100), value: s.epicId });
+  }
+  for (const n of namen) {
+    if (da.has(n.epicId)) continue;
+    da.add(n.epicId); merke(n.name, n.epicId);
+    raus.push({ name: `${n.name} · Epic account`.slice(0, 100), value: n.epicId });
+  }
+  return raus.slice(0, 25);
 }
 
 interface Werte { eliminations?: number; damageDealt?: number; matchesPlayed?: number }
@@ -133,6 +208,8 @@ interface Profil {
 interface Ergebnis {
   windowId: string; region: string; season: string; datum: number; titel: string;
   platz: number | null; punkte: number | null; elims: number | null; schaden: number | null; matches: number | null;
+  /** Nur Team-Elims bekannt (Epic zaehlt Elims je Team; kein Replay ausgewertet). */
+  teamElims?: number | null;
 }
 
 function ergebnisse(p: Profil): Ergebnis[] {
@@ -160,80 +237,198 @@ function ergebnisse(p: Profil): Ergebnis[] {
   return [...raus.values()].sort((a, b) => b.datum - a.datum);
 }
 
+/** Die Zeilen aus den gespeicherten Bestenlisten (lib/discordSpielerSuche) als Ergebnisse. */
+function ausBestenlisten(s: KontoSuche): Ergebnis[] {
+  return s.zeilen.map((z) => ({
+    windowId: z.windowId, region: z.region, season: z.season, datum: z.datum,
+    titel: [z.titel, fensterName(z.windowId, false) || (/Event(\d+)/i.exec(z.windowId) ? `Event ${/Event(\d+)/i.exec(z.windowId)![1]}` : '')].filter(Boolean).join(' · '),
+    platz: z.platz, punkte: z.punkte, elims: z.elims, schaden: null, matches: z.matches || null,
+    teamElims: z.elims === null ? z.teamElims : null,
+  }));
+}
+
+interface SpielerDaten {
+  epicId: string;
+  /** null: die Seite kennt das Konto nicht (kein Profil). */
+  profil: Profil | null;
+  ergebnisse: Ergebnis[];
+  /** Was die Suche in den Bestenlisten ergab (nur fuer Konten ohne Szene-Archiv). */
+  bestenlisten: KontoSuche | null;
+  /** Das Profil der Seite antwortete nicht (nur die Bestenlisten zaehlen). */
+  profilFehlt?: boolean;
+}
+
+/*
+ * Alles zu einem Konto, zehn Minuten gemerkt (Autocomplete und Antwort fragen oft kurz hintereinander).
+ * Das Profil der Seite zuerst; wer kein Szene-Archiv hat (nur Epic-Zeilen oder gar nichts), wird zusaetzlich in den
+ * gespeicherten Bestenlisten der letzten drei Wochen gesucht - sonst fehlten gerade die frischen Cups.
+ * null: die Seite antwortete auch nach drei Versuchen nicht.
+ */
+const datenVorrat = new Map<string, { bis: number; wert: Promise<SpielerDaten | null> }>();
+function spielerDaten(epicId: string): Promise<SpielerDaten | null> {
+  const id = epicId.toLowerCase();
+  const da = datenVorrat.get(id);
+  if (da && da.bis > Date.now()) return da.wert;
+  const wert = (async (): Promise<SpielerDaten | null> => {
+    const p = await nochmal(() => json<Profil>(szeneAbruf(new Request(`${SEITE}/api/szene-stats?spieler=${id}`))));
+    const aufSeite = p?.spieler ? ergebnisse(p) : [];
+    let bestenlisten: KontoSuche | null = null;
+    let liste = aufSeite;
+    // Ohne Szene-Archiv - oder wenn das Profil gar nicht antwortet - die gespeicherten Bestenlisten.
+    if (!(p?.verlauf ?? []).length) {
+      bestenlisten = await kontoErgebnisse(id).catch(() => null);
+      if (bestenlisten) {
+        const schon = new Set(aufSeite.map((e) => `${e.windowId}|${e.region}`));
+        liste = [...aufSeite, ...ausBestenlisten(bestenlisten).filter((e) => !schon.has(`${e.windowId}|${e.region}`))]
+          .sort((a, b) => b.datum - a.datum);
+      }
+    }
+    // Weder Profil noch Bestenlisten lesbar: nicht "keine Ergebnisse" behaupten.
+    if (!p && !bestenlisten?.gelesen) return null;
+    return { epicId: id, profil: p?.spieler ? p : null, ergebnisse: liste, bestenlisten, profilFehlt: !p };
+  })();
+  datenVorrat.set(id, { bis: Date.now() + 10 * 60_000, wert });
+  wert.then((w) => { if (!w) datenVorrat.delete(id); }).catch(() => datenVorrat.delete(id));
+  while (datenVorrat.size > 200) datenVorrat.delete(datenVorrat.keys().next().value as string);
+  return wert;
+}
+
 function zeileText(e: Ergebnis): string {
+  const elims = e.elims !== null ? `${zahl(e.elims)} elims`
+    : typeof e.teamElims === 'number' ? `${zahl(e.teamElims)} team elims` : '– elims';
   const teile = [
     e.punkte !== null ? `${zahl(e.punkte)} pts` : null,
-    `${e.elims !== null ? zahl(e.elims) : '–'} elims`,
+    elims,
     e.schaden !== null ? `${kurz(e.schaden)} dmg` : null,
+    e.matches ? `${e.matches} ${e.matches === 1 ? 'match' : 'matches'}` : null,
   ].filter(Boolean);
   const wann = e.datum ? ` · <t:${Math.floor(e.datum / 1000)}:d>` : '';
-  return `\`${e.platz ? `#${e.platz}`.padStart(6) : '     –'}\` **${e.titel}** (${e.region})${wann}\n${teile.join(' · ')}`;
+  return `\`${e.platz ? `#${zahl(e.platz)}`.padStart(7) : '      –'}\` **${e.titel}** (${e.region})${wann}\n${teile.join(' · ')}`;
 }
 
 const profilLink = (id: string) => `${SEITE}/statistics?spieler=${encodeURIComponent(id)}`;
 
-/** /stats - die Antwort fertig zum Nachtragen (Einbettung und Link-Knopf). */
-export async function statsAntwort(spielerEingabe: string, cupId?: string): Promise<Antwort> {
-  const q = spielerEingabe.trim();
-  if (q.length < 2) return { content: 'Type at least two letters of the player name.' };
-  const istId = /^[0-9a-f]{32}$/i.test(q);
-  let epicId = istId ? q.toLowerCase() : '';
-  if (!epicId) {
-    const t = await suche(q);
-    const genau = t.find((s) => [s.anzeige, s.name, s.aktuell ?? ''].some((n) => n.toLowerCase() === q.toLowerCase()));
-    epicId = (genau ?? t[0])?.epicId ?? '';
-  }
-  if (!epicId) return { content: `No player found for "${q}". Try the Epic name or pick a suggestion.` };
+/** Wenn intern etwas nicht antwortet: nie ein nackter Fehler, sondern ein Satz und der Link - und eine Zeile in #admin-alarm. */
+function langsam(eingabe: string, grund: string, epicId?: string): Antwort {
+  void schickeAlarm({
+    titel: '/stats laedt nicht',
+    text: `Eingabe: "${eingabe.slice(0, 80)}"${epicId ? ` · Konto ${epicId}` : ''}\n${grund}\nDer Nutzer bekam "loading slower than usual".`,
+  }).catch(() => null);
+  return {
+    embeds: [{
+      title: 'Stats are loading slower than usual',
+      description: `We could not load the stats for **${eingabe.slice(0, 64)}** just now - please try again in a minute.`
+        + (epicId ? '\nIn the meantime, the full profile is on thecomphub.com.' : ''),
+      color: FARBE,
+      footer: { text: 'thecomphub.com · stats' },
+    }],
+    components: [knopf(epicId ? 'Open profile → thecomphub.com' : 'Open thecomphub.com', epicId ? profilLink(epicId) : `${SEITE}/statistics`)],
+  };
+}
 
-  const p = await json<Profil>(szeneAbruf(new Request(`${SEITE}/api/szene-stats?spieler=${epicId}`)));
-  if (!p?.spieler) {
+/** Welches Konto ist gemeint? Die Suche der Seite, dann alle Epic-Namen, die CompHub kennt, dann Epic selbst. */
+async function kontoFinden(q: string): Promise<{ epicId: string; name: string } | null | 'fehler'> {
+  if (/^[0-9a-f]{32}$/i.test(q)) return { epicId: q.toLowerCase(), name: (await bekannterName(q).catch(() => null)) ?? q.slice(0, 8) };
+  const t = await nochmal(() => sucheGemerkt(q));
+  const key = namensKey(q);
+  const genau = (t ?? []).find((s) => [s.anzeige, s.name, s.aktuell ?? ''].some((n) => n && namensKey(n) === key));
+  if (genau) return { epicId: genau.epicId, name: genau.anzeige };
+  // Kein genauer Treffer auf der Seite: der genaue Epic-Name schlaegt einen bloss aehnlichen Szene-Spieler.
+  const k = await kontoZuName(q);
+  if (k && k !== 'fehler') return { epicId: k.epicId, name: k.name };
+  if (t?.length) return { epicId: t[0].epicId, name: t[0].anzeige };
+  return t === null || k === 'fehler' ? 'fehler' : null;
+}
+
+/** /stats - die Antwort fertig zum Nachtragen (Einbettung und Link-Knopf). */
+export async function statsAntwort(spielerEingabe: string, cupWahl?: string): Promise<Antwort> {
+  namenVorwaermen();
+  const q = spielerEingabe.trim().replace(/\s+/g, ' ');
+  if (q.length < 2) return { content: 'Type at least two letters of the player name.' };
+
+  const konto = await kontoFinden(q);
+  if (konto === 'fehler') return langsam(q, 'Spielersuche und Epic-Namensdienst antworteten nicht.');
+  if (!konto) {
     return {
-      content: p ? `No results on record for "${q}" yet.` : 'The stats are not answering right now - please try again in a minute.',
-      components: [knopf('Full profile', profilLink(epicId))],
+      embeds: [{
+        title: 'No player found',
+        description: `There is no Epic account named **${q.slice(0, 64)}**. Check the spelling (spaces and numbers count) `
+          + 'or pick a suggestion while typing.',
+        color: FARBE,
+        footer: { text: 'thecomphub.com · stats' },
+      }],
     };
   }
-  const s = p.spieler;
-  const alle = ergebnisse(p);
+  merke(q, konto.epicId); merke(konto.name, konto.epicId);
 
-  // Welche Spieltage: die des gewaehlten Cups, sonst die des letzten Cups des Spielers.
+  const daten = await spielerDaten(konto.epicId);
+  if (!daten) return langsam(q, 'Das Profil (szene-stats) und die Bestenlisten am Release antworteten nach drei Versuchen nicht.', konto.epicId);
+  if (daten.profilFehlt) {
+    void schickeAlarm({ titel: '/stats ohne Profil', text: `Konto ${konto.epicId}: szene-stats antwortete nicht - Antwort nur aus den Bestenlisten.` }).catch(() => null);
+  }
+  const p = daten.profil;
+  const name = p?.spieler?.anzeige ?? konto.name;
+  const alle = daten.ergebnisse;
+
+  if (!alle.length && daten.profilFehlt) return langsam(q, 'Das Profil (szene-stats) antwortete nicht, und in den Bestenlisten stand nichts.', konto.epicId);
+  if (!alle.length) {
+    const s = daten.bestenlisten;
+    return {
+      embeds: [{
+        title: name.slice(0, 256),
+        url: profilLink(konto.epicId),
+        color: FARBE,
+        description: 'We know this Epic account but have no tournament results for it yet '
+          + '(only the top 10,000 of each cup are public).'
+          + (s ? `\n\nSearched the ${zahl(s.gelesen)} most recent cup sessions (last ${s.tage} days, all regions).` : ''),
+        footer: { text: 'thecomphub.com · stats' },
+      }],
+      components: [knopf('Full profile → thecomphub.com', profilLink(konto.epicId))],
+    };
+  }
+
+  // Welche Spieltage: ein gewaehlter Spieltag ("w:"), ein Cup des Katalogs, sonst der letzte Cup des Spielers.
   const katalogCups = await cups();
   const cupVon = new Map<string, Cup>();
   for (const c of katalogCups) for (const f of fensterVon(c)) cupVon.set(f.windowId, c);
   let gewaehlt: Ergebnis[];
   let cupTitel = '';
-  if (cupId) {
-    const c = katalogCups.find((x) => x.id === cupId);
+  if (cupWahl?.startsWith('w:')) {
+    const w = cupWahl.slice(2);
+    gewaehlt = alle.filter((e) => e.windowId === w);
+    cupTitel = gewaehlt[0]?.titel ?? cupVon.get(w)?.titel ?? w;
+    if (!gewaehlt.length) {
+      return { content: `${name} has no result in ${cupTitel}.`, components: [knopf('Full profile', profilLink(konto.epicId))] };
+    }
+  } else if (cupWahl) {
+    const c = katalogCups.find((x) => x.id === cupWahl)
+      ?? katalogCups.filter((x) => x.titel.toLowerCase().includes(cupWahl.toLowerCase())).sort((a, b) => zuletzt(b) - zuletzt(a))[0];
     const fenster = new Set(c ? fensterVon(c).map((f) => f.windowId) : []);
     gewaehlt = alle.filter((e) => fenster.has(e.windowId));
-    cupTitel = c?.titel ?? cupId;
+    cupTitel = c?.titel ?? cupWahl;
     if (!gewaehlt.length) {
-      return {
-        content: `${s.anzeige} has no results in ${cupTitel}.`,
-        components: [knopf('Full profile', profilLink(s.epicId))],
-      };
+      return { content: `${name} has no results in ${cupTitel}.`, components: [knopf('Full profile', profilLink(konto.epicId))] };
     }
-  } else if (alle.length) {
+  } else {
     const c = cupVon.get(alle[0].windowId);
     if (c) {
       const fenster = new Set(fensterVon(c).map((f) => f.windowId));
       gewaehlt = alle.filter((e) => fenster.has(e.windowId));
       cupTitel = c.titel;
     } else {
-      // Nicht im Katalog (alte Saison): die juengsten Spieltage.
-      gewaehlt = alle.slice(0, 5);
+      // Nicht im Katalog (alte Saison, oder nur aus den Bestenlisten): die juengsten Spieltage.
+      gewaehlt = alle.slice(0, 6);
     }
-  } else gewaehlt = [];
+  }
   gewaehlt = gewaehlt.slice(0, 8);
 
   const felder: Array<{ name: string; value: string; inline?: boolean }> = [];
-  if (gewaehlt.length) {
-    felder.push({
-      name: cupTitel ? `Latest results · ${cupTitel}`.slice(0, 256) : 'Latest results',
-      value: gewaehlt.map(zeileText).join('\n').slice(0, 1024),
-    });
-  }
+  felder.push({
+    name: cupTitel && !cupWahl?.startsWith('w:') ? `Latest results · ${cupTitel}`.slice(0, 256) : cupWahl?.startsWith('w:') ? 'Result' : 'Latest results',
+    value: gewaehlt.map(zeileText).join('\n').slice(0, 1024),
+  });
 
-  // Saisonbilanz: die Saison des juengsten Spieltags, ueber alle Tage, die das Archiv kennt.
+  // Saisonbilanz: die Saison des juengsten Spieltags, ueber alle Tage, die wir kennen.
   const saison = alle[0]?.season;
   if (saison) {
     const tage = alle.filter((e) => e.season === saison);
@@ -246,31 +441,40 @@ export async function statsAntwort(spielerEingabe: string, cupId?: string): Prom
       `**${tage.length}** ${tage.length === 1 ? 'day' : 'days'}${matches ? ` · **${zahl(matches)}** matches` : ''}`,
       mitElims.length ? `**${zahl(elims)}** elims${mitElims.length < tage.length ? ` (from ${mitElims.length} of ${tage.length} days)` : ''}`
         + (schaden ? ` · **${kurz(schaden)}** damage` : '') : null,
-      bester ? `Best: **#${bester.platz}** · ${bester.titel} (${bester.region})` : null,
+      bester ? `Best: **#${zahl(bester.platz ?? 0)}** · ${bester.titel} (${bester.region})` : null,
     ].filter(Boolean);
-    felder.push({ name: `Season · ${p.saisonNamen?.[saison] ?? saison}`.slice(0, 256), value: zeilen.join('\n').slice(0, 1024) });
+    felder.push({ name: `Season · ${p?.saisonNamen?.[saison] ?? saison}`.slice(0, 256), value: zeilen.join('\n').slice(0, 1024) });
   }
-  if (p.rang?.global) {
+  if (p?.rang?.global) {
     felder.push({
       name: 'Ranking (elims, all seasons)',
       value: `Global **#${zahl(p.rang.global)}** of ${zahl(p.rang.globalVon)}`
         + (p.rang.regional && p.rang.region ? ` · ${p.rang.region} **#${zahl(p.rang.regional)}** of ${zahl(p.rang.regionalVon)}` : ''),
     });
   }
-  if (!felder.length) felder.push({ name: 'Results', value: 'No results on record yet.' });
 
+  // Ehrlich sagen, woher die Zahlen kommen, wenn die Seite das Konto nicht fuehrt.
+  const s = daten.bestenlisten;
+  const ausListen = s?.zeilen.length ?? 0;
+  const beschreibung = !p && s
+    ? `Found in **${ausListen}** ${ausListen === 1 ? 'cup session' : 'cup sessions'} of the last ${s.tage} days `
+      + `(searched ${zahl(s.gelesen)} sessions, all regions). Own elims come from replays where we have them - otherwise Epic only counts elims per team.`
+    : undefined;
+
+  const sp = p?.spieler;
   // Nur echte Fotos (szene-stats liefert bild nur dann) - als volle Adresse, Discord laedt sie selbst.
-  const bild = s.bild && s.bild.startsWith('/') ? `${SEITE}${s.bild}` : null;
+  const bild = sp?.bild && sp.bild.startsWith('/') ? `${SEITE}${sp.bild}` : null;
   return {
     embeds: [{
-      title: `${flagge(s.land)} ${s.anzeige}`.trim().slice(0, 256),
-      url: profilLink(s.epicId),
+      title: `${flagge(sp?.land)} ${name}`.trim().slice(0, 256),
+      url: profilLink(konto.epicId),
       color: FARBE,
+      ...(beschreibung ? { description: beschreibung } : {}),
       ...(bild ? { thumbnail: { url: bild } } : {}),
       fields: felder,
       footer: { text: 'thecomphub.com · stats' },
     }],
-    components: [knopf('Full profile → thecomphub.com', profilLink(s.epicId))],
+    components: [knopf('Full profile → thecomphub.com', profilLink(konto.epicId))],
   };
 }
 
@@ -294,8 +498,15 @@ export async function cupAntwort(cupId: string, regionWunsch?: string): Promise<
   const link = `${SEITE}/events/${encodeURIComponent(c.id)}`;
   if (!f) return { content: `${c.titel} (${region}) has not started yet.`, components: [knopf('Open on CompHub', link)] };
 
-  const lb = await json<{ entries?: Platz[] }>(bestenlisteAbruf(new Request(
-    `${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`)));
+  const lb = await nochmal(() => json<{ entries?: Platz[] }>(bestenlisteAbruf(new Request(
+    `${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`))));
+  if (!lb) {
+    void schickeAlarm({ titel: '/cup laedt nicht', text: `${c.titel} (${region}) · ${f.windowId}: cup-leaderboard antwortete nach drei Versuchen nicht.` }).catch(() => null);
+    return {
+      embeds: [{ title: 'Standings are loading slower than usual', description: `We could not load **${c.titel}** (${region}) just now - please try again in a minute.`, color: FARBE }],
+      components: [knopf('Open on CompHub', link)],
+    };
+  }
   const zehn = (lb?.entries ?? []).slice(0, 10);
   if (!zehn.length) return { content: `No standings for ${c.titel} (${region}) yet.`, components: [knopf('Open on CompHub', link)] };
 
@@ -334,19 +545,7 @@ export async function cupAntwort(cupId: string, regionWunsch?: string): Promise<
 
 export function hilfeAntwort(): Antwort {
   return {
-    embeds: [{
-      title: 'CompHub bot · commands',
-      color: FARBE,
-      description: [
-        '**/stats** `player:` `cup:` - a player\'s latest results (place, points, elims, damage), season summary and ranking. '
-          + '`cup:` is optional - without it you get the player\'s latest cup.',
-        '**/cup** `name:` `region:` - the top 10 of a cup (latest finals or session). Region defaults to EU.',
-        '**/help** - this list.',
-        '',
-        `Use the commands in #📈-${STATS_KANAL}. Full stats, leaderboards and drop maps: **${SEITE}**`,
-      ].join('\n'),
-      footer: { text: 'thecomphub.com' },
-    }],
+    embeds: [statsAnleitung()],
     components: [knopf('Open thecomphub.com', `${SEITE}/statistics`)],
   };
 }
