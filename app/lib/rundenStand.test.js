@@ -62,3 +62,12 @@ test('Id-Namen werden erkannt', () => {
   assert.equal(istIdName('dxnx 19!', DXNX), false);
   assert.equal(istIdName('', DXNX), true);
 });
+
+test('Platz 1 als "b830d2ba": ein aus einer Quelle bekannter Name wird eingesetzt', () => {
+  const { namenEinsetzen } = require('./rundenStand.ts');
+  const id = 'b830d2bafeb94de48b4c820cada5284e';
+  const karte = new Map([[id, 'covx 8ǃ']]);
+  const t = namenEinsetzen({ platz: 1, spieler: [{ id, name: 'b830d2ba' }] }, karte);
+  assert.equal(t.spieler[0].name, 'covx 8ǃ');
+  assert.equal(istIdName('b830d2ba', id), true);
+});

@@ -324,6 +324,8 @@ async function tokenHolen() {
 // ---------------------------------------------------------------- Namen
 
 const nameCache = new Map<string, string>();
+/** Konten, zu denen Epic gerade keinen Namen nannte - kurz nicht neu fragen. */
+const ohneNamenBis = new Map<string, number>();
 
 /*
  * Aufgeloeste Namen ueberdauern den Vorgang.
@@ -357,7 +359,8 @@ async function namenLaden(): Promise<void> {
     const { liesJson } = await import('@/lib/ablage');
     const gespeichert = await liesJson<Record<string, string>>(NAMEN_ABLAGE, {});
     for (const [id, name] of Object.entries(gespeichert)) {
-      if (!nameCache.has(id)) nameCache.set(id, name);
+      // Fruehere Fassungen legten auch gekuerzte Ids ab - die sind kein Name.
+      if (!nameCache.has(id) && name && name !== id.slice(0, 8)) nameCache.set(id, name);
     }
   } catch { /* ohne Vorrat wird eben neu aufgeloest */ }
 }
@@ -387,7 +390,7 @@ export async function loeseNamenAuf(ids: string[], token: string) {
   const fehlend: string[] = [];
   for (const id of new Set(ids)) {
     const c = nameCache.get(id);
-    if (c) out[id] = c; else fehlend.push(id);
+    if (c && c !== id.slice(0, 8)) out[id] = c; else if ((ohneNamenBis.get(id) ?? 0) > Date.now()) out[id] = id.slice(0, 8); else fehlend.push(id);
   }
 
   /*
@@ -450,8 +453,9 @@ export async function loeseNamenAuf(ids: string[], token: string) {
        * es geloescht wurde. Waere sie im Vorrat, staende sie dort fuer immer,
        * auch wenn Epic den Namen spaeter wieder kennt.
        */
-      if (name !== acc.id.slice(0, 8)) namenSchmutzig = true;
-      nameCache.set(acc.id, name);
+      // Auch nicht im Speicher des Vorgangs (15.11.2026: sonst blieb ein Konto bis zum Neustart "b830d2ba"); nur eine Minute nicht neu fragen.
+      if (name !== acc.id.slice(0, 8)) { namenSchmutzig = true; nameCache.set(acc.id, name); } else ohneNamenBis.set(acc.id, Date.now() + 60_000);
+      if (ohneNamenBis.size > 50_000) ohneNamenBis.clear();
       out[acc.id] = name;
     }
   }

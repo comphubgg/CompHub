@@ -11,7 +11,8 @@ import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
 } from '@/lib/cupWertung';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { namenEinsetzen, namenSammeln, spaeter, teamsVereinigen } from '@/app/lib/rundenStand';
+import { istIdName, namenEinsetzen, namenSammeln, spaeter, teamsVereinigen } from '@/app/lib/rundenStand';
+import { namenNachtragen } from '@/lib/namenNachtragen';
 import { abgesagtFuer } from '@/lib/abgesagt';
 import { replayTag } from '@/lib/replaySchlank';
 import { ohneDateien } from '@/lib/antwortSpeicher';
@@ -519,6 +520,18 @@ async function holeRoh(request: Request) {
     for (const [sitzung, r] of runden) runden.set(sitzung, rundeVereinigen(sitzung, r));
     for (const r of runden.values()) namenSammeln(r.teams, bekannteNamen);
     if (bekannteNamen.size > 200_000) bekannteNamen.clear();
+    /*
+     * Wer dann noch als Id dasteht, bekommt seinen Namen aus Heat-Aufstellung, eigenen Daten oder Epic (lib/namenNachtragen) - fuer ALLE Zeilen,
+     * die laufende und die juengste Runde zuerst (Betreiber, Heat 2: Platz 1 stand als "b830d2ba").
+     */
+    const ohneName: string[] = [];
+    for (const r of [...runden.values()].sort((a, b) => (b.ende ?? '').localeCompare(a.ende ?? ''))) {
+      for (const t of r.teams) for (const sp of t.spieler) if (istIdName(sp.name, sp.id) && !bekannteNamen.has(kennung(sp.id))) ohneName.push(sp.id);
+    }
+    if (ohneName.length) {
+      const gefunden = await namenNachtragen(ohneName, { region: regionAus(window_), heat: /Heat\d+/i.test(window_) });
+      for (const [id, n] of gefunden) bekannteNamen.set(id, n);
+    }
     for (const r of runden.values()) r.teams = r.teams.map((t) => namenEinsetzen(t, bekannteNamen));
 
     const eigene = await eigeneWerte();
