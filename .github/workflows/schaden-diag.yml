@@ -62,6 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           IFS=',' read -ra E <<< "$EPIC"
+          if [ "${E[0]}" = "probe" ]; then node scripts/team-probe.mjs "${E[1]}" "${E[2]}" 2>&1 | grep PROBE; exit 0; fi
           if [ "${E[0]}" = "rangliste" ]; then node scripts/rangliste.mjs "${E[1]}" "${E[2]}" 2>&1 | grep RANG; exit 0; fi
           if [ "${E[0]}" = "jahr" ]; then JAHR_SEITEN=10 node scripts/spieler-jahr.mjs "${E[1]}" "${E[@]:2}" 2>&1 | grep JAHR; exit 0; fi
           if [ "${E[2]}" = "gegenprobe-aus" ]; then echo "(nach der Diagnose)"; elif [ "${E[2]}" = "gegenprobe" ]; then
