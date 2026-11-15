@@ -348,8 +348,14 @@ async function nobleKartenbildNahe(datum: number): Promise<string | null> {
  * mit Land und Foto wie bei Noble. Das Kartenbild ist das saubere von Noble zur selben Zeit - Vitals eigenes traegt ein Wasserzeichen.
  */
 export async function vitalFenster(o: { windowId: string; name: string; region: string; begin: number; ende?: number | null; vitalId?: string }): Promise<{ turnier: string; fenster: SolosFenster } | null> {
+  const v = await vitalFensterMitIds(o);
+  return v && { turnier: v.turnier, fenster: v.fenster };
+}
+
+/** Wie vitalFenster, dazu je Form die Konto-Ids der Spieler (gleich aufgebaut wie formen[].gruppen) - fuer den Abgleich mit Epics Bestenliste. */
+async function vitalFensterMitIds(o: { windowId: string; name: string; region: string; begin: number; ende?: number | null; vitalId?: string }): Promise<{ turnier: string; fenster: SolosFenster; idGruppen: string[][][] } | null> {
   const liste = await vitalTurniere();
-  const v = o.vitalId ? (liste.find((t) => t.id === o.vitalId) ?? null) : (await vitalFuer(o.region, o.begin, o.ende) ?? await vitalNachStufe(o.region, o.windowId, o.begin));
+  const v = o.vitalId ? (liste.find((t) => t.id === o.vitalId) ?? null) : (await vitalFuer(o.region, o.begin, o.ende, o.windowId) ?? await vitalNachStufe(o.region, o.windowId, o.begin));
   if (!v) return null;
   const karte = await vitalKarte(v.id, v.ende < Date.now());
   if (!karte) return null;
@@ -372,6 +378,7 @@ export async function vitalFenster(o: { windowId: string; name: string; region: 
       spieler, teams, bild: await nobleKartenbildNahe(o.begin),
       formen: formen.map((fo) => ({ punkte: fo.punkte, spieler: fo.teams.flatMap((t) => t.namen), teams: fo.teams.length, gruppen: fo.teams.map((t) => t.namen) })),
     },
+    idGruppen: formen.map((fo) => fo.teams.map((t) => t.ids)),
   };
 }
 
@@ -572,18 +579,32 @@ async function globalsSolosEpic(region: string, saison?: string): Promise<SolosD
   if (istVitalRegion(region)) {
     await Promise.all(fenster.map(async (f, i) => {
       try {
-        const v = await vitalFenster({ windowId: f.windowId, name: f.name, region, begin: fenster0[i].begin, ende: fenster0[i].end });
+        const v = await vitalFensterMitIds({ windowId: f.windowId, name: f.name, region, begin: fenster0[i].begin, ende: fenster0[i].end });
         if (!v) return;
-        // Vital fuehrt alle Angemeldeten (auch Nachrueckende, die nie spielten): steht fuer den Spieltag schon Epics Bestenliste da, bleiben auf der Karte nur deren Spieler -
-        // sonst standen bei der Lobby mit hundert Plaetzen 130 Namen auf der Karte (Betreiber, 20.10.2026).
-        const norm = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '');
-        const echt = new Set(f.spieler.map((x) => norm(x.anzeige)));
+        /*
+         * Vital fuehrt alle Angemeldeten (auch Nachrueckende, die nie spielten): steht fuer den Spieltag schon Epics Bestenliste da, bleiben auf der Karte nur deren Spieler -
+         * sonst standen bei der Lobby mit hundert Plaetzen 130 Namen auf der Karte (Betreiber, 20.10.2026).
+         * Verglichen wird ueber die Konto-Id (Vital fuehrt bei Solos Epics Konto-Ids), nicht ueber den Namen: Epics Bestenliste liefert oft keine Namen (dann steht
+         * dort der Anfang der Id, "09fe3dab"), und Vital schreibt Namen anders ("bingle " / "Bingle"). Ueber den Namen blieben am 15.11.2026 in Ozeanien
+         * von 40 Spielern im Heat 1 einer stehen (Rainy), im Heat 2 keiner.
+         */
+        const echt = new Set(f.spieler.map((x) => x.id));
+        const vitalNach = new Map(v.fenster.spieler.map((x) => [x.id, x]));
+        const treffer = [...vitalNach.keys()].filter((id) => echt.has(id)).length;
+        // Kein einziger Spieler gemeinsam: das ist eine andere Lobby - lieber keine Landepunkte als fremde.
+        if (f.spieler.length && f.formen.length === 0 && treffer === 0) return;
         f.formen = f.spieler.length && f.formen.length === 0
-          ? v.fenster.formen.map((fo) => {
-            const behalten = (n: string) => echt.has(norm(n));
-            return { ...fo, spieler: fo.spieler.filter(behalten), gruppen: fo.gruppen?.map((g) => g.filter(behalten)).filter((g) => g.length), teams: Math.max(1, fo.gruppen?.map((g) => g.filter(behalten)).filter((g) => g.length).length ?? fo.teams ?? 1) };
+          ? v.fenster.formen.flatMap((fo, j) => {
+            const ids = v.idGruppen[j] ?? [];
+            const gruppen = (fo.gruppen ?? []).map((g, k) => g.filter((_, n) => echt.has(ids[k]?.[n] ?? ''))).filter((g) => g.length);
+            return gruppen.length ? [{ ...fo, spieler: gruppen.flat(), gruppen, teams: gruppen.length }] : [];
           })
           : v.fenster.formen;
+        // Wo Epic keinen Namen kennt (nur den Anfang der Id), gilt der Name, den Vital fuer dasselbe Konto fuehrt - bereinigt wie jeder andere.
+        const ohneNamen = (x: SolosSpieler) => !x.anzeige || x.anzeige === x.id.slice(0, 8) || /^[0-9a-f]{32}$/i.test(x.anzeige);
+        const ersetzt = (x: SolosSpieler) => (ohneNamen(x) && vitalNach.get(x.id)?.anzeige ? vitalNach.get(x.id)! : x);
+        f.spieler = f.spieler.map(ersetzt);
+        if (f.teams) f.teams = f.teams.map((t) => ({ ...t, spieler: t.spieler.map(ersetzt) }));
         f.bild = v.fenster.bild;
         // Ein Fenster, das Epic noch nicht fuehrt (der Heat laeuft noch nicht), zeigt trotzdem die Spieler, die Vital schon eingeteilt hat.
         if (!f.spieler.length) { f.spieler = v.fenster.spieler; f.teams = v.fenster.teams; }

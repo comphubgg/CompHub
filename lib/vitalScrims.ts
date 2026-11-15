@@ -181,9 +181,10 @@ export const regionAusKennung = (windowId: string): string => /_([A-Z]{2,4})$/.e
  * Welches Vital-Turnier zu einem Spieltag gehoert: dieselbe Region, und der Spieltag liegt im Zeitraum des Turniers (eine halbe Stunde Spielraum).
  * Gibt es keinen solchen, gilt das juengste Turnier der Region, das hoechstens 36 Stunden vorher begann (ein zweiter Finaltag nutzt die Karte des ersten).
  */
-export async function vitalFuer(region: string, begin: number, ende?: number | null): Promise<VitalTurnier | null> {
+export async function vitalFuer(region: string, begin: number, ende?: number | null, kennung?: string): Promise<VitalTurnier | null> {
   if (!istVitalRegion(region) || !Number.isFinite(begin)) return null;
-  const liste = (await vitalTurniere()).filter((t) => t.region === region);
+  // Ein Turnier einer anderen Stufe gehoert nie dazu, auch wenn es zur selben Zeit laeuft (siehe stufenWiderspruch).
+  const liste = (await vitalTurniere()).filter((t) => t.region === region && !(kennung && stufenWiderspruch(t.name, kennung)));
   const bis = ende && ende > begin ? ende : begin + 3_600_000;
   const drin = liste.filter((t) => t.start - 1_800_000 <= bis && t.ende + 1_800_000 >= begin);
   const ausw = (l: VitalTurnier[]) => [...l].sort((a, b) => Math.abs(a.start - begin) - Math.abs(b.start - begin))[0] ?? null;
@@ -199,6 +200,25 @@ export function solosStufe(text: string): string {
   if (/fast\s*tracks?/i.test(t)) return 'fast';
   const h = /heats?\s*(\d)/i.exec(t);
   return h ? `heat${h[1]}` : '';
+}
+
+/** Die Stufe eines Spieltags grob: Fast Track, Heat N, Last Chance, Finale - sonst leer. Last Chance vor Finale ("LCQ Finals" ist eine Last-Chance-Runde). */
+export function stufeGrob(text: string): string {
+  const t = text.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+  if (/last\s*chance|\blcq\b/i.test(t)) return 'lcq';
+  const s = solosStufe(t);
+  if (s) return s;
+  return /final/i.test(t) ? 'final' : '';
+}
+
+/**
+ * Nennen Vital und Epic verschiedene Stufen? Dann ist es nicht derselbe Spieltag, auch zur selben Zeit. Belegt am 15.11.2026 (OCE, FNCS Solos Reload):
+ * Vitals "Solo Reload LCQ Finals" (14.11., 07:00) lief zur selben Zeit wie Epics Heat 1, hat aber 20 Spieler, je 10 aus Heat 1 und Heat 2 - Epics 40
+ * Heat-1-Spieler stehen alle (40 von 40 Konto-Ids) in Vitals "Solo Reload FNCS Heat 1", das Vital auf den 8.11. datiert.
+ */
+export function stufenWiderspruch(a: string, b: string): boolean {
+  const x = stufeGrob(a); const y = stufeGrob(b);
+  return !!x && !!y && x !== y;
 }
 
 /**
@@ -244,7 +264,7 @@ export function vitalFormen(k: VitalKarte, namenVon?: (id: string, roh: string) 
 export async function vitalAlsNoble(windowId: string, begin: number | undefined, ende: number | null | undefined, regionWunsch?: string): Promise<(NobleKarte & { zugeordnet: 'datum'; quelle: 'vital' }) | null> {
   const region = regionWunsch && istVitalRegion(regionWunsch) ? regionWunsch : regionAusKennung(windowId);
   if (!istVitalRegion(region) || !begin) return null;
-  const t = await vitalFuer(region, begin, ende);
+  const t = await vitalFuer(region, begin, ende, windowId);
   if (!t) return null;
   const k = await vitalKarte(t.id, t.ende < Date.now());
   if (!k) return null;

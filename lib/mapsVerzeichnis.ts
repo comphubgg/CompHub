@@ -4,7 +4,7 @@ import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
 import { titelMit } from '@/lib/cupTitel';
 import { alteEintraege } from '@/lib/alteMaps';
-import { istVitalRegion, regionAusKennung, solosStufe, vitalTurniere } from '@/lib/vitalScrims';
+import { istVitalRegion, regionAusKennung, solosStufe, stufenWiderspruch, vitalTurniere } from '@/lib/vitalScrims';
 import { gecacht } from '@/lib/epicCups';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 
@@ -178,7 +178,7 @@ async function vitalEintraege(noble: MapEintrag[], archiv: ArchivEintrag[]): Pro
     const imZeitraum = [...epic.values()].filter((x) => regionAusKennung(x.windowId as string) === v.region
       && (zeiten.get(x.windowId as string) ?? []).some((z) => z >= v.start - 1_800_000 && z <= v.ende + 1_800_000) && !benutzt.has(x.windowId as string));
     const bewertet = imZeitraum.map((x) => ({ x, ...wertung(v, x), abstand: Math.abs((x.begin as number) - v.start) }))
-      .filter((k) => k.treffer >= 2 && k.treffer >= k.von / 2)
+      .filter((k) => k.treffer >= 2 && k.treffer >= k.von / 2 && !stufenWiderspruch(v.name, k.x.windowId as string))
       .sort((p, q) => q.treffer - p.treffer || p.abstand - q.abstand);
     const beste = bewertet[0];
     if (!beste) { raus.push(eintrag(v, null, null)); offen.push(v); continue; }
