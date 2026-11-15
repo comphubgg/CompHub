@@ -15,7 +15,7 @@ for e in "${EP[@]}"; do
 done
 IFS=',' read -ra M <<< "${MS_MATCHES:-}"
 for m in "${M[@]}"; do
-  [ -z "$m" ] && continue
+  { [ -z "$m" ] || [ "$m" = "-" ]; } && continue
   for v in 1 2 3; do
     node -e "const { downloadReplay } = require('fortnite-serverreplay-downloader'); (async () => { const b = await downloadReplay({ matchId: process.argv[1], dataCount: 100000, checkpointCount: 0, eventCount: 100000 }); require('fs').writeFileSync(process.argv[2], b); console.log('geladen', process.argv[1], b.length); })().catch((e) => { console.log('FEHLER', process.argv[1], e.message); process.exit(1); });" "$m" "/tmp/$m.replay" && break
     sleep 10
