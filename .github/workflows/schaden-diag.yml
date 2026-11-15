@@ -102,6 +102,7 @@ jobs:
             grep -E "^DIAGBAU" /tmp/err.txt > /tmp/bau.txt || true
             node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/aus.json','utf8'));const n={};for(const p of d.spieler||[])n[p.id]=p.name;for(const z of fs.readFileSync('/tmp/bau.txt','utf8').split('\\n').filter(Boolean)){const [, id, ...r]=z.split(' ');console.log('BAU',(n[id]||id).padEnd(22),r.join('  '))}" || true
             node scripts/diag-strecke.mjs /tmp/m.replay /tmp/aus.json 'Focus yhyh|Scroll 10|Toose|Nxthan|hyrax|pixie|Auvahalo|SwizzY|MaxDMG|Propz' || true
+            if [ -n "$MS_DIAG" ]; then node scripts/diag-mats.mjs /tmp/aus.json 2>&1 | cut -c1-1500 | head -80 || true; [ -f /tmp/epic-sitzungen.json ] && node scripts/diag-strecke-epic.mjs /tmp/aus.json /tmp/epic-sitzungen.json /tmp/m.replay 2>&1 | head -60 || true; fi
             cp /tmp/aus.json "/tmp/aus-${M[$i]}.json"
             gzip -c /tmp/err.txt > "/tmp/err-${M[$i]}.txt.gz" || true
           done
