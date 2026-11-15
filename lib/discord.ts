@@ -234,11 +234,11 @@ const MANAGER_KATEGORIE = 'Manager Access Keys';
  */
 async function kategorieFuer(name: string): Promise<string | null> {
   const kanaele = await ruf(`/guilds/${SERVER}/channels`, 'GET');
-  if (Array.isArray(kanaele)) {
-    const schon = (kanaele as Array<{ id: string; name: string; type: number }>)
-      .find((k) => k.type === 4 && gleich(k.name, name));
-    if (schon) return schon.id;
-  }
+  // Liste nicht lesbar (Discord bremst, 429): nicht blind neu anlegen - so entstand am 15.11.2026 eine zweite, leere Kategorie "Admin".
+  if (!Array.isArray(kanaele)) return null;
+  const schon = (kanaele as Array<{ id: string; name: string; type: number }>)
+    .find((k) => k.type === 4 && gleich(k.name, name));
+  if (schon) return schon.id;
   const ich = await werBinIch();
   const regeln: Array<Record<string, string | number>> = [
     { id: SERVER, type: 0, allow: '0', deny: '1024' },

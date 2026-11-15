@@ -496,6 +496,26 @@ if (WILLKOMMEN) {
   }
 }
 
+// --- Doppelte Kategorien (15.11.2026: zwei "Admin" - die zweite leer). Gleicher Name ohne Emoji: die leere geht, eine mit Kanaelen wird nur gemeldet.
+{
+  const norm = (n) => String(n).replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase();
+  const gruppen = new Map();
+  for (const k of kategorien()) { const g = gruppen.get(norm(k.name)) ?? []; g.push(k); gruppen.set(norm(k.name), g); }
+  for (const [n, g] of gruppen) {
+    if (g.length < 2) continue;
+    const kinder = (k) => kanaele.filter((c) => c.parent_id === k.id);
+    const voll = g.filter((k) => kinder(k).length);
+    for (const k of g) {
+      const z = kinder(k);
+      console.log(`Doppelte Kategorie "${k.name}" (${k.id}): ${z.length} Kanaele${z.length ? ` - ${z.map((c) => c.name).join(', ')}` : ''}`);
+      if (!z.length && voll.length) {
+        schritt('loesch-kandidat', `leere doppelte Kategorie "${k.name}" (${k.id}) - die andere "${n}" hat die Kanaele`,
+          async () => { if (LOESCHEN) await ruf(`/channels/${k.id}`, 'DELETE'); });
+      }
+    }
+  }
+}
+
 // --- Was sonst noch oeffentlich herumsteht und niemand braucht.
 for (const k of kanaele) {
   if (imZiel.has(k.id) || [...katId.values()].includes(k.id)) continue;
