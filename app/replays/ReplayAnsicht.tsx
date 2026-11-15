@@ -21,7 +21,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { inselKarte } from '@/app/replays/inselKarten';
-import { AlleSpieler, KartenHud, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
+import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, ortBei, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
+import { EinstellungenKnopf, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
+import SeitenPanel from '@/app/replays/SeitenPanel';
+import Analysen from '@/app/replays/Analysen';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -98,8 +101,10 @@ function XZeichen({ farbe, gross = 22 }: { farbe: string; gross?: number }) {
   );
 }
 
-export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben }: {
+export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf }: {
   match: RMatch; kartenBild: string | null; titel?: string; wertung?: RWertung | null;
+  /** Kopf der rechten Leiste: Cup und Game */
+  kopf?: string;
   /** Epic-Konto, dessen Team von Anfang an markiert ist (die eigenen Spiele unter "Meine Cups"). */
   hervorheben?: string;
 }) {
@@ -140,6 +145,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
    * einzelner Abschuss oft Minuten vor dem eigentlichen Spiel (an Globals Day 2, Game 6 ein Ausreisser bei 24:15 statt 30:55).
    */
   const tStart = useMemo(() => {
+    // Volles Replay mit Bus: die Zeitleiste beginnt mit dem Abflug des Busses (Landung und erster Loot sind dann im Verlauf).
+    if (typeof match.busAb === 'number' && match.orte && Object.keys(match.orte).length) return Math.max(0, Math.floor(match.busAb));
     const innen = feed.filter(aufKarte);
     for (let i = 0; i < innen.length; i += 1) {
       const dicht = innen.filter((e) => e.t >= innen[i].t && e.t <= innen[i].t + 60).length;
@@ -147,7 +154,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
     }
     const erster = Math.min(innen[0]?.t ?? Infinity, match.zonen[0]?.schrumpftAb ?? Infinity);
     return Number.isFinite(erster) ? Math.max(0, Math.floor(erster - 45)) : 0;
-  }, [feed, match.zonen, aufKarte]);
+  }, [feed, match.zonen, aufKarte, match.busAb, match.orte]);
   const tEnde = useMemo(() => Math.ceil(Math.max(match.ende ?? 0, feed[feed.length - 1]?.t ?? 0, match.zonen[match.zonen.length - 1]?.schrumpftBis ?? 0)), [match.ende, feed, match.zonen]);
 
   const [zeit, setZeit] = useState(tStart);
@@ -156,14 +163,19 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   const [dreiD, setDreiD] = useState(false);
   const [knocks, setKnocks] = useState(true);
   const [teamWahl, setTeamWahl] = useState<number | null>(null);
-  const [reiter, setReiter] = useState<'feed' | 'treffer' | 'teams' | 'spieler'>('feed');
+  // Einstellungen der Karte (Zahnrad), Zeichnen, Legende - app/replays/Werkzeuge.
+  const [ein, setzeEin] = useEinstellungen();
+  const [zeichnen, setZeichnen] = useState(false);
+  const [leeren, setLeeren] = useState(0);
+  const [legende, setLegende] = useState(false);
+  // Flaggen nur aus unseren Profilen (die Antwort von /api/replay?match= bringt sie als laender: Epic-Konto -> Kuerzel).
+  const laender = (match as { laender?: Record<string, string> }).laender;
+  const landVon = useCallback((id?: number) => { const e = nachId.get(id ?? -1)?.epic; return e ? laender?.[e.toLowerCase()] : undefined; }, [nachId, laender]);
   // Der angeklickte Spieler (Lebenspunkte, Inventar, Treffer) - die Spieler laufen ueber die Karte, wo das Replay ihre Orte fuehrt (app/replays/SpielerEbene).
   const [gewaehlt, setGewaehlt] = useState<number | null>(null);
   const sd = useSpielerDaten(match);
-  useEffect(() => {
-    const sieger = match.spieler.find((s) => !s.bot && s.platz === 1);
-    setGewaehlt(match.orte && sieger ? sieger.id : null);
-  }, [match]);
+  // Anfangs niemand gewaehlt: rechts steht die Spielerliste (Betreiber, 15.11.2026).
+  useEffect(() => { setGewaehlt(null); }, [match]);
   useEffect(() => {
     setZeit(tStart); setLaeuft(false);
     const eigen = hervorheben ? match.spieler.find((s) => s.epic === hervorheben)?.team : undefined;
@@ -304,11 +316,39 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
       return { waffe: ursache === null || ursache === 50 ? null : URSACHE[ursache] ?? null, rueckkehr, gutschrift, zahl };
     });
   }, [feed]);
-  const [feedNurTeam, setFeedNurTeam] = useState(false);
-  const teamVonGewaehlt = gewaehlt !== null ? nachId.get(gewaehlt)?.team : undefined;
-  const imFeed = [...bisJetzt].map((e, i) => ({ e, info: feedInfo[i] })).reverse()
-    .filter(({ e }) => !feedNurTeam || teamVonGewaehlt === undefined || [e.opfer, e.taeter].some((id) => id !== undefined && nachId.get(id)?.team === teamVonGewaehlt))
-    .slice(0, 80);
+  const feedEintraege = useMemo(() => feed.map((e, i) => ({ e, waffe: feedInfo[i]?.waffe ?? null, gutschrift: feedInfo[i]?.gutschrift ?? null, rueckkehr: Boolean(feedInfo[i]?.rueckkehr) })), [feed, feedInfo]);
+  // Kill-Feed oben links auf der Karte: verblasst nach 6 s Spielzeit, bei schnellem Abspielen entsprechend laenger.
+  const kartenFeed = useMemo<FeedZeile[]>(() => feedEintraege.filter((f) => (f.e.art === 'tot' || f.e.art === 'unten') && !f.rueckkehr && f.e.opfer !== undefined).map((f, i) => {
+    const an = nachId.get(f.e.opfer ?? -1); const von = f.e.taeter !== undefined && f.e.taeter !== f.e.opfer ? nachId.get(f.e.taeter) : undefined;
+    return {
+      schluessel: `${f.e.t}-${i}`, t: f.e.t, art: f.e.art as 'unten' | 'tot', waffe: f.waffe,
+      von: von ? { name: nameVon(von), land: landVon(von.id), farbe: farbeVon(von.id) } : null,
+      an: { name: nameVon(an), land: landVon(an?.id), farbe: farbeVon(an?.id) },
+    };
+  }), [feedEintraege, nachId, landVon]); // eslint-disable-line react-hooks/exhaustive-deps
+  const feedDauer = 6 * Math.max(1, tempo / 4);
+  // Ortsnamen: nur fuer die grosse Insel (aktuelle Karte, /api/fortnite-map) - die Reload-Inseln haben keine.
+  const [ortsnamen, setOrtsnamen] = useState<Array<{ name: string; links: number; oben: number }>>([]);
+  const ortsnamenDa = Boolean(kartenBild && !insel);
+  useEffect(() => {
+    if (!ortsnamenDa) return undefined;
+    let weg = false;
+    fetch('/api/fortnite-map').then((r) => r.json()).then((j) => { if (!weg && Array.isArray(j?.orte)) setOrtsnamen(j.orte); }).catch(() => {});
+    return () => { weg = true; };
+  }, [ortsnamenDa]);
+  // Fokus: nur der gewaehlte Spieler kraeftig. Folgen: die Karte haelt ihn in der Mitte.
+  const fokusAn = ein.fokus && gewaehlt !== null;
+  const sichtbarSpieler = (id?: number) => (fokusAn ? id === gewaehlt : sichtbarTeam(id));
+  useEffect(() => {
+    if (!ein.folgen || gewaehlt === null) return;
+    const o = ortBei(sd.orte.get(gewaehlt), zeit);
+    const r = kartenRef.current?.getBoundingClientRect();
+    if (!o || !r) return;
+    setAnsicht((a) => {
+      const z = Math.max(a.z, 3);
+      return klemme(z, r.width / 2 - (pzx(o.x) / 100) * r.width * z, r.height / 2 - (pzy(o.y) / 100) * r.height * z, r.width, r.height);
+    });
+  }, [ein.folgen, gewaehlt, zeit, sd.orte]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const kreis = (c: Kreis | null, stil: { fuell?: string; rand: string; breite: number; strich?: string }) => (c ? (
     <circle cx={pzx(c.x)} cy={pzy(c.y)} r={pr(c.r)} fill={stil.fuell ?? 'none'} stroke={stil.rand}
@@ -335,8 +375,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
         insel ? (
           // Das ganze Inselbild, so verschoben und vergroessert, dass genau der Ausschnitt den Rahmen fuellt.
           <img src={kartenBild} alt="" className="absolute max-w-none" draggable={false}
-            style={{ left: `${((insel.x0 - welt.x0) / welt.spanne) * 100}%`, top: `${((insel.y0 - welt.y0) / welt.spanne) * 100}%`, width: `${(insel.spanne / welt.spanne) * 100}%`, height: `${(insel.spanne / welt.spanne) * 100}%` }} />
-        ) : <img src={kartenBild} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+            style={{ filter: ein.grau ? 'grayscale(1) brightness(.8)' : undefined, left: `${((insel.x0 - welt.x0) / welt.spanne) * 100}%`, top: `${((insel.y0 - welt.y0) / welt.spanne) * 100}%`, width: `${(insel.spanne / welt.spanne) * 100}%`, height: `${(insel.spanne / welt.spanne) * 100}%` }} />
+        ) : <img src={kartenBild} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} style={ein.grau ? { filter: 'grayscale(1) brightness(.8)' } : undefined} />
       ) : (
         <div className="absolute inset-0 bg-sky-950" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.12) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
       )}
@@ -352,7 +392,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
         {kreis(zone.ziel, { rand: '#ffffff', breite: 1.5, strich: '4 4' })}
         {/* Die Busroute wie im Spiel (Betreiber, 29.10.2026: "so wie in Fortnite, mit so Pfeilen, nicht einfach eine Linie"): eine Kette von
             Pfeilspitzen in Flugrichtung - kraeftig gelb, wo man abspringen kann, sonst blass -, und waehrend des Flugs der Bus selbst. */}
-        {(match.bus ?? []).map((b, i) => {
+        {(ein.bus ? match.bus ?? [] : []).map((b, i) => {
           if (typeof b.x !== 'number' || typeof b.y !== 'number' || typeof b.yaw !== 'number' || !b.tempo) return null;
           const rad = (b.yaw * Math.PI) / 180;
           const bei = (s: number) => ({ x: b.x! + Math.cos(rad) * b.tempo! * s, y: b.y! + Math.sin(rad) * b.tempo! * s });
@@ -422,7 +462,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
         ))}
       </div>
 
-      <div className={sd.da ? 'grid gap-5' : 'grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)] lg:items-start'}>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] lg:items-start">
         {/* ------------------------------------------------ Karte */}
         <div>
           <div ref={kartenRef}
@@ -457,7 +497,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                 ))}
 
                 {/* Eliminierungen: ein X in der Farbe des Teams - bleibt stehen */}
-                {tote.map((e, i) => (
+                {ein.elims && tote.map((e, i) => (
                   <button key={`t${i}`} type="button" data-marker aria-label={t('Eliminiert')} {...marker(e)}
                     className="absolute z-10 block cursor-pointer border-0 bg-transparent p-0"
                     style={{ left: `${pzx(e.x as number)}%`, top: `${pzy(e.y as number)}%`, width: 22, height: 22, transform: 'translate(-50%, -50%) scale(calc(1 / var(--z, 1)))', opacity: sichtbarTeam(e.opfer) ? 1 : 0.2 }}>
@@ -472,10 +512,15 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                     style={{ left: `${pzx(e.x as number)}%`, top: `${pzy(e.y as number)}%`, width: 16, height: 16, background: farbeVon(e.opfer), transform: 'translate(-50%, -50%) scale(calc(1 / var(--z, 1)))', opacity: sichtbarTeam(e.opfer) ? Math.max(0.25, 1 - (zeit - e.t) / KNOCK_DAUER) : 0.1 }} />
                 ))}
 
-                <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarTeam} gewaehlt={gewaehlt} />
+                {ein.spuren && <SpurEbene d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} pzx={pzx} pzy={pzy} farbeVon={farbeVon} sichtbar={sichtbarSpieler} ereignisse={ein.spurEreignisse} />}
+                {ortsnamenDa && ein.orte && ortsnamen.map((o) => (
+                  <span key={o.name} className="pointer-events-none absolute z-[12] whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-white/85"
+                    style={{ left: `${pzx(-BR_SPANNE + (o.links / 100) * 2 * BR_SPANNE)}%`, top: `${pzy(-BR_SPANNE + (o.oben / 100) * 2 * BR_SPANNE)}%`, transform: 'translate(-50%, -50%) scale(calc(var(--zs, 1) / var(--z, 1)))', textShadow: '0 0 3px #000, 0 0 2px #000' }}>{o.name}</span>
+                ))}
+                <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarSpieler} gewaehlt={fokusAn ? null : gewaehlt} linien={ein.schuesse} zahlen={ein.schaden} />
                 <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}
-                  farbeVon={farbeVon} sichtbar={sichtbarTeam}
-                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ansicht.z >= 1.8 || teamWahl !== null} />
+                  farbeVon={farbeVon} sichtbar={sichtbarSpieler} balken={ein.hp} pfeil={ein.richtung}
+                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ein.namen && (ansicht.z >= 1.8 || teamWahl !== null || ein.folgen)} />
 
                 {/* 3D: Pfosten fuer die Eliminierungen */}
                 {dreiD && tote.slice(-80).map((e, i) => (
@@ -492,7 +537,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
               const naechste = match.zonen.find((z) => (z.schrumpftAb ?? 0) > zeit);
               const pille = 'flex items-center gap-1.5 rounded bg-black/75 px-2 py-1 text-[13px] font-bold tabular-nums text-white';
               return (
-                <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] flex-wrap gap-1">
+                <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] flex-col items-start gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {sd.da && <span className="flex items-center rounded bg-amber-400 px-2 py-1 text-[12px] font-black tracking-wider text-black">BETA</span>}
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="10" cy="6" r="4" /><path d="M2 19c0-5 4-7 8-7s8 2 8 7z" /></svg>{lebende}/{echte.length}</span>
                   {mitTeams && <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="6" cy="7" r="3" /><circle cx="14" cy="7" r="3" /><path d="M0 18c0-4 3-6 6-6s6 2 6 6zM8 18c0-4 3-6 6-6s6 2 6 6z" /></svg>{teamsLeben}/{teams.length}</span>}
@@ -500,12 +546,14 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><path d="M10 1l3 7-3 2 4 9-9-11 4-2-3-5z" /></svg>{zone.phase}/{match.zonen.length}</span>
                   <span className={pille + ' !font-semibold'}>{zone.schrumpft ? <span className="text-violet-300"><T>Sturm zieht</T></span> : naechste ? <><T>Sturm in</T> {uhr((naechste.schrumpftAb ?? 0) - zeit)}</> : <T>Letzte Zone</T>}</span>
                 </div>
+                {ein.feed && <KartenFeed zeilen={kartenFeed} zeit={zeit} dauer={feedDauer} />}
+                </div>
               );
             })()}
 
             {sd.da && (
               <KartenHud d={sd} zeit={zeit} s={gewaehlt !== null && nachId.get(gewaehlt) ? { id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod } : null}
-                farbe={farbeVon(gewaehlt ?? -1)}
+                farbe={farbeVon(gewaehlt ?? -1)} inventar={ein.inventar}
                 steuerung={(
                   <div className="flex items-center gap-1.5 text-xs font-bold">
                     <button type="button" data-knopf onClick={() => { if (zeit >= tEnde) setZeit(tStart); setLaeuft((l) => !l); }} className="grid h-7 w-7 place-items-center rounded bg-white/15 hover:bg-white/25" aria-label={laeuft ? t('Pause') : t('Abspielen')}>{laeuft ? '❚❚' : '▶'}</button>
@@ -519,8 +567,36 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                 )} />
             )}
 
-            {/* Zoom */}
-            <div className="absolute right-3 top-3 z-20 flex flex-col overflow-hidden rounded-lg border border-white/15 bg-black/70 text-slate-100" data-knopf>
+            {/* Zeichnen: Leinwand ueber der Karte */}
+            <Zeichenflaeche an={zeichnen} leeren={leeren} />
+            {zeichnen && (
+              <div className="absolute bottom-3 left-3 z-40 flex gap-1" data-knopf>
+                <button type="button" data-knopf onClick={() => setLeeren((n) => n + 1)} className="rounded-lg border border-white/15 bg-black/75 px-2.5 py-1.5 text-[11px] font-bold text-slate-100 hover:border-sky-500"><T>Clear drawing</T></button>
+                <button type="button" data-knopf onClick={() => setZeichnen(false)} className="rounded-lg bg-sky-500 px-2.5 py-1.5 text-[11px] font-bold text-white"><T>Done</T></button>
+              </div>
+            )}
+            {/* Einstellungen (Zahnrad) und Zoom */}
+            <div className="absolute right-3 top-3 z-[45]" data-knopf>
+              <EinstellungenKnopf e={ein} setze={setzeEin} ortsnamenDa={ortsnamenDa} spielerDa={sd.da}
+                zeichnen={zeichnen} setZeichnen={setZeichnen} zuruecksetzen={() => { setAnsicht({ z: 1, x: 0, y: 0 }); setLeeren((n) => n + 1); }}
+                legende={legende} setLegende={setLegende} />
+            </div>
+            {legende && (
+              <div className="absolute right-3 top-14 z-40 w-64 rounded-xl border border-white/15 bg-zinc-950/95 p-3 text-[11px] text-slate-300 shadow-2xl" data-knopf>
+                <p className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300/80"><T>Icon legend</T><button type="button" data-knopf onClick={() => setLegende(false)} className="text-base leading-none text-slate-400 hover:text-white">×</button></p>
+                <ul className="space-y-1.5">
+                  <li className="flex items-center gap-2"><svg viewBox="0 0 20 20" width="16" height="16"><path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill="#38bdf8" stroke="#000" strokeWidth="2" /></svg><T>Player and view direction</T></li>
+                  <li className="flex items-center gap-2"><XZeichen farbe="#38bdf8" gross={16} /><T>Elimination</T></li>
+                  <li className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full border-2 border-black bg-amber-400" /><T>Knock (12 s)</T></li>
+                  <li className="flex items-center gap-2"><span className="h-0.5 w-4 bg-rose-400" /><T>Bullet trace (hit)</T></li>
+                  <li className="flex items-center gap-2"><span className="h-0.5 w-4 bg-yellow-400" /><T>Headshot</T></li>
+                  <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400" /><T>Trail event: loot picked up</T></li>
+                  <li className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full border-2 border-white" /><T>Zone now / dashed: next zone</T></li>
+                  <li className="flex items-center gap-2"><span className="h-1 w-4 rounded bg-yellow-400" /><T>Bus route (yellow: jump window)</T></li>
+                </ul>
+              </div>
+            )}
+            <div className={`absolute right-3 z-20 flex flex-col overflow-hidden rounded-lg border border-white/15 bg-black/70 text-slate-100 ${legende ? 'top-[300px]' : 'top-14'}`} data-knopf>
               <button type="button" data-knopf onClick={() => zoomUm(1.6)} className="px-3 py-1.5 text-base font-bold transition hover:bg-white/10" aria-label="Zoom in">+</button>
               <button type="button" data-knopf onClick={() => zoomUm(1 / 1.6)} className="border-t border-white/10 px-3 py-1.5 text-base font-bold transition hover:bg-white/10" aria-label="Zoom out">−</button>
               <button type="button" data-knopf onClick={() => setAnsicht({ z: 1, x: 0, y: 0 })} disabled={ansicht.z === 1} className="border-t border-white/10 px-3 py-1.5 text-[11px] font-bold tabular-nums transition hover:bg-white/10 disabled:opacity-40">{ansicht.z === 1 ? '1×' : `${ansicht.z.toFixed(1)}×`}</button>
@@ -627,69 +703,21 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
             </svg>
             <p className="mt-1 text-[11px] text-slate-500"><T>Die violetten Streifen sind die Zeiten, in denen die Zone schrumpft. Ein Klick springt dorthin.</T></p>
           </div>
+
+          {/* ------------------------------------------------ Auswertungen: Hoehe, Zonen-Glueck, Glueck gegen Leistung */}
+          {sd.da && (
+            <div className="mt-3">
+              <Analysen match={match} orte={sd.orte} tStart={tStart} tEnde={tEnde} zeit={zeit} echte={echte} nameVon={nameVon} landVon={landVon} farbeVon={farbeVon}
+                springe={springe} waehle={setGewaehlt} gewaehlt={gewaehlt} wertung={wertung} />
+            </div>
+          )}
         </div>
 
-        {/* ------------------------------------------------ Seitenleiste */}
-        <aside className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 lg:sticky lg:top-4">
-          {gewaehlt !== null && nachId.get(gewaehlt) && (
-            <div className="border-b border-white/[0.08] p-1.5">
-              <SpielerFenster d={sd} zeit={zeit} s={{ id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod, kills: nachId.get(gewaehlt)?.kills }} farbe={farbeVon(gewaehlt)} schliessen={() => setGewaehlt(null)} />
-            </div>
-          )}
-          {sd.da && gewaehlt === null && (
-            <div className="border-b border-white/[0.08]">
-              <AlleSpieler d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} farbeVon={farbeVon} waehle={setGewaehlt} />
-            </div>
-          )}
-          <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
-            {([['feed', 'Kill-Feed'], ...(treffer.length ? [['treffer', 'Treffer'] as const] : []), ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (
-              <button key={k} type="button" onClick={() => setReiter(k)}
-                className={`rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>{name}</T></button>
-            ))}
-            {/* Wie bei Osirion: alle Spieler oder nur das Team des gewaehlten Spielers. */}
-            {reiter === 'feed' && teamVonGewaehlt !== undefined && (
-              <button type="button" onClick={() => setFeedNurTeam((x) => !x)}
-                className={`ml-auto rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${feedNurTeam ? 'border-sky-500 text-sky-300' : 'border-white/10 text-slate-400 hover:text-slate-100'}`}>
-                {feedNurTeam ? <T>Nur dieses Team</T> : <T>Alle Spieler</T>}
-              </button>
-            )}
-          </div>
-          <div className="max-h-[640px] overflow-y-auto">
-            {reiter === 'feed' && (
-              imFeed.length ? (
-                <ul>
-                  {imFeed.map(({ e, info }, i) => {
-                    const opfer = nachId.get(e.opfer ?? -1); const taeter = nachId.get(e.taeter ?? -1);
-                    return (
-                      <li key={`${e.t}-${i}`} className="border-b border-white/[0.04]">
-                        <button type="button" onClick={() => springe(e.t)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-sky-500/[0.06]">
-                          <span className="w-10 shrink-0 text-[11px] tabular-nums text-slate-500">{uhr(e.t - tStart)}</span>
-                          <span className="min-w-0 flex-1 text-[12px] leading-snug text-slate-300">
-                            {e.art === 'auf' ? (
-                              <><b style={{ color: farbeVon(e.taeter) }}>{taeter ? nameVon(taeter) : t('Teamkamerad')}</b> <span className="text-emerald-400"><T>hilft hoch</T></span> <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b></>
-                            ) : info?.rueckkehr ? (
-                              <><b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b> <span className="text-emerald-400"><T>ist zurück im Spiel</T></span></>
-                            ) : (
-                              <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{nameVon(taeter)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
-                                {' '}<span className={e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}>{e.art === 'tot' ? t('eliminiert') : t('knockt')}</span>{' '}
-                                <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
-                                {(info?.waffe || (typeof e.abstand === 'number' && e.abstand > 0)) && (
-                                  <span className="ml-1 text-[11px] text-slate-500">
-                                    {info?.waffe ? <>with {info.waffe}</> : null}{typeof e.abstand === 'number' && e.abstand > 0 ? ` (${(e.abstand / 100).toLocaleString('en-GB', { maximumFractionDigits: 1 })} m)` : ''}
-                                  </span>
-                                )}
-                                {info?.zahl ? <span className="ml-1.5 rounded bg-white/[0.06] px-1.5 py-px text-[10px] font-semibold text-slate-300">{nameVon(nachId.get(info.gutschrift ?? -1))} · {info.zahl} {info.zahl === 1 ? 'elim' : 'elims'}</span> : null}</>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : <p className="px-4 py-6 text-sm text-slate-500"><T>Bis hierhin ist noch nichts passiert. Drück auf Abspielen.</T></p>
-            )}
-
-            {reiter === 'treffer' && (
+        {/* ------------------------------------------------ Seitenleiste: Spieler | Kill-Feed (app/replays/SeitenPanel) */}
+        <SeitenPanel match={match} sd={sd} zeit={zeit} tStart={tStart} nachId={nachId} echte={echte} farbeVon={farbeVon} nameVon={nameVon} landVon={landVon}
+          feed={feedEintraege} schadenBis={schadenBis} gewaehlt={gewaehlt} waehle={setGewaehlt} springe={springe} kopf={kopf ?? titel} matchId={(match as { match?: string }).match}
+          extraReiter={[
+            ...(treffer.length ? [{ k: 'treffer', name: 'Hits', inhalt: (
               trefferBis.length ? (
                 <ul>
                   {[...trefferBis].reverse().slice(0, 120).map((h, i) => {
@@ -711,9 +739,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                   })}
                 </ul>
               ) : <p className="px-4 py-6 text-sm text-slate-500"><T>Bis hierhin ist noch nichts passiert. Drück auf Abspielen.</T></p>
-            )}
-
-            {reiter === 'teams' && (
+            ) }] : []),
+            { k: 'teams', name: 'Teams', inhalt: (
               <ul>
                 {teams.map((x) => {
                   const lebt = x.spieler.some((s) => lebtBei(s, zeit));
@@ -733,30 +760,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                   );
                 })}
               </ul>
-            )}
-
-            {reiter === 'spieler' && (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    <th className="w-9 px-3 py-2">#</th><th className="px-2 py-2"><T>Spieler</T></th><th className="px-2 py-2 text-right">Elims</th>{treffer.length > 0 && <th className="px-2 py-2 text-right">Damage</th>}<th className="px-3 py-2 text-right"><T>Ausgeschieden</T></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...echte].sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999) || (b.kills ?? 0) - (a.kills ?? 0)).map((s) => (
-                    <tr key={s.id} className="border-b border-white/[0.04]" style={{ opacity: lebtBei(s, zeit) ? 1 : 0.5 }}>
-                      <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '–'}</td>
-                      <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
-                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString()}</td>}
-                      <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : <T>Sieger</T>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </aside>
+            ) },
+          ]} />
       </div>
 
       {/* ------------------------------------------------ Zonen */}

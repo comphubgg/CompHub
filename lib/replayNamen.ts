@@ -13,6 +13,10 @@ export function tagName(windowId: string, i: number): string {
   if (tag) return `Day ${tag[1]}`;
   const woche = /Week\s*_?(\d+)/i.exec(windowId);
   if (woche) return `Week ${woche[1]}`;
+  const heat = /Heat\s*_?(\d+)/i.exec(windowId);
+  if (heat) return `Heat ${heat[1]}`;
+  const runde = /Round\s*_?(\d+)/i.exec(windowId);
+  if (runde) return `Round ${runde[1]}`;
   return `#${i + 1}`;
 }
 

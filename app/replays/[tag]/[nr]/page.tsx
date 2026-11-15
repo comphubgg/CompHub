@@ -13,6 +13,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import { saisonKarte } from '@/lib/bildAdressen';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 import ReplayAnsicht, { type RMatch, type RWertung } from '../../ReplayAnsicht';
+import LadenDialog from '../../LadenDialog';
 
 interface Game { id: string; nr: number; beginn?: string; sieger?: string[] }
 interface Tag { windowId: string; titel: string; region: string; season: string; matches: Game[] }
@@ -26,6 +27,7 @@ export default function GameSeite() {
   const [geschwister, setGeschwister] = useState<Geschwister[]>([]);
   const [match, setMatch] = useState<(RMatch & { karte?: string; wertung?: RWertung | null }) | null>(null);
   const [fehler, setFehler] = useState('');
+  const [laden, setLaden] = useState(false);
   /** Aus "Meine Cups": das Epic-Konto, dessen Team in dieser Ansicht von Anfang an markiert ist (?spieler=...). */
   const [hervorheben, setHervorheben] = useState('');
   useEffect(() => {
@@ -77,6 +79,12 @@ export default function GameSeite() {
           <Link href={`/replays/${encodeURIComponent(tagId)}`} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">
             ← {tag ? schoenerTitel(tag.titel) : <T>Spieltag</T>}
           </Link>
+          <button type="button" onClick={() => setLaden(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-sky-400">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" /></svg>
+            <T>Load replay</T>
+          </button>
+          <LadenDialog offen={laden} schliessen={() => setLaden(false)} aktuell={game?.id} />
           {tag && (
             <div className="ml-auto flex items-center gap-1.5">
               {nr > 1 && <Link href={href(nr - 1)} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">← Game {nr - 1}</Link>}
@@ -99,7 +107,7 @@ export default function GameSeite() {
               {(game.sieger ?? []).length > 0 && <span className="text-amber-300">🏆 {(game.sieger ?? []).map(ohneMarke).join(' · ')}</span>}
             </p>
             <div className="mt-5">
-              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined} />
+              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}/{game.nr}</code></p>
           </>
