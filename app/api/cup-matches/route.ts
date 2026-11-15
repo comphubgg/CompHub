@@ -11,6 +11,7 @@ import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
 } from '@/lib/cupWertung';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { namenEinsetzen, namenSammeln, spaeter, teamsVereinigen } from '@/app/lib/rundenStand';
 import { abgesagtFuer } from '@/lib/abgesagt';
 import { replayTag } from '@/lib/replaySchlank';
 import { ohneDateien } from '@/lib/antwortSpeicher';
@@ -65,35 +66,34 @@ const TTL = 60_000;
 const TTL_LIVE = 8_000;
 
 /**
- * Der beste bekannte Stand je Runde.
+ * Der beste bekannte Stand je Runde - teamweise vereinigt (app/lib/rundenStand).
  *
- * Die Zahl der verbleibenden Teams darf nur fallen. Sie kam aber aus
- * verschiedenen Abfragen, und eine aeltere Antwort machte aus vierzig wieder
- * einundvierzig - der Betreiber: "und wenn ich dann meine Seite reloade, ist
- * auf einmal wieder Top einundvierzig. Das kann ja nicht sein."
+ * Bis 15.11.2026 wurde hier nur der niedrigste je gesehene Platz gemerkt und "noch im Spiel" daraus gerechnet, die Zeilen aber aus der gerade
+ * beantworteten Abfrage. Kam die aus einer aelteren Quelle (Vorrat auf der Platte bei limit > 500, anderer limit-Schluessel), stand "30 / 39" ueber
+ * einer Tabelle mit den Plaetzen 36-39 (Betreiber, FNCS Heat 2). Ausserdem flog bei mehr als 200 Runden die Haelfte der Eintraege in
+ * Einfuegereihenfolge heraus - auch gerade laufende -, und die Zahl sprang wieder nach oben.
  *
- * Deshalb wird der niedrigste je gesehene Platz je Runde gemerkt und nie
- * wieder nach oben gelassen. Der Vorrat lebt im laufenden Vorgang; startet
- * er neu, faengt die Zahl beim aktuellen Stand an - schlimmer als vorher
- * wird es dadurch nie.
+ * Jetzt wird die ganze Aufstellung gemerkt und mit jeder neuen vereinigt: ein vergebener Platz bleibt, ein Team aus einem aelteren Stand geht nicht
+ * verloren. Verbleibend, Lobby und Luecken werden danach aus genau dieser Aufstellung gerechnet. Zuletzt benutzte Runden bleiben (LRU).
  */
-const bestenStand = new Map<string, number>();
+const besteRunde = new Map<string, Runde>();
+const BESTE_HOECHSTENS = 30_000;
 
-/** Den niedrigsten je gesehenen Platz einer Runde - und nie wieder hoeher. */
-function merkeStand(runde: string, jetzt: number): number {
-  const alt = bestenStand.get(runde);
-  const wert = alt === undefined ? jetzt : Math.min(alt, jetzt);
-  bestenStand.set(runde, wert);
-  /*
-   * Der Vorrat waechst mit jeder Runde. Bei zweihundert Eintraegen fliegt
-   * die Haelfte heraus - eine Runde von gestern interessiert niemanden mehr.
-   */
-  if (bestenStand.size > 200) {
-    const raus = [...bestenStand.keys()].slice(0, 100);
-    for (const k of raus) bestenStand.delete(k);
+function rundeVereinigen(id: string, r: Runde): Runde {
+  const alt = besteRunde.get(id);
+  const neu: Runde = alt
+    ? { ende: spaeter(alt.ende, r.ende), beginne: r.beginne.length ? r.beginne : alt.beginne, teams: teamsVereinigen(alt.teams, r.teams) }
+    : r;
+  besteRunde.delete(id);
+  besteRunde.set(id, neu);
+  if (besteRunde.size > BESTE_HOECHSTENS) {
+    for (const k of besteRunde.keys()) { if (besteRunde.size <= BESTE_HOECHSTENS) break; besteRunde.delete(k); }
   }
-  return wert;
+  return neu;
 }
+
+/** Einmal aufgeloeste Namen: eine Antwort, in der Epic gerade drosselte (429), zeigt sonst "142a7f94" statt des Namens. */
+const bekannteNamen = new Map<string, string>();
 
 /** Wann zu diesem Spieltag zuletzt eine laufende Runde gesehen wurde. */
 const zuletztLive = new Map<string, number>();
@@ -512,6 +512,15 @@ async function holeRoh(request: Request) {
      * des eigenen Teams; alle anderen bleiben, wie Epic sie liefert - fuer
      * sie existieren diese Zahlen schlicht nicht.
      */
+    /*
+     * Mit dem besten bekannten Stand jeder Runde vereinigen (siehe besteRunde) und bekannte Namen einsetzen - vor allem anderen, damit alles
+     * Weitere aus derselben Aufstellung kommt.
+     */
+    for (const [sitzung, r] of runden) runden.set(sitzung, rundeVereinigen(sitzung, r));
+    for (const r of runden.values()) namenSammeln(r.teams, bekannteNamen);
+    if (bekannteNamen.size > 200_000) bekannteNamen.clear();
+    for (const r of runden.values()) r.teams = r.teams.map((t) => namenEinsetzen(t, bekannteNamen));
+
     const eigene = await eigeneWerte();
     let mitEigenen = 0;
     if (eigene.size) {
@@ -630,11 +639,9 @@ async function holeRoh(request: Request) {
           /**
            * Wie viele Teams noch im Spiel sind.
            *
-           * Nur abwaerts: eine aeltere Antwort darf die Zahl nicht wieder
-           * anheben. Siehe bestenStand oben.
+           * Aus derselben Aufstellung wie die Zeilen (vereinigt, siehe besteRunde) - nie aus einer anderen Abfrage.
            */
-          verbleibend: live
-            ? Math.max(0, merkeStand(s.id, niedrigster) - 1) : 0,
+          verbleibend: live ? Math.max(0, niedrigster - 1) : 0,
           /** Wie viele Teams wir zu dieser Runde ueberhaupt sehen. */
           gesehen: s.teams.length,
           vollstaendig,
@@ -689,7 +696,7 @@ async function holeRoh(request: Request) {
     const seiten = (spiele as unknown[]).length > 300 ? await replayIndex().catch(() => ({})) : null;
     const schlank = seiten ? (spiele as Array<Record<string, unknown>>).map((sp) => (ausgedient(sp as never, seiten) ? { ...sp, teams: [], sieger: undefined, schmal: true } : sp)) : spiele;
 
-    return NextResponse.json({
+    const antwort = NextResponse.json({
       spiele: schlank,
       teams: daten.entries.length,
       /** Stiess die Bestenliste an ihre Grenze? Dann fehlen Plaetze unten. */
@@ -704,6 +711,9 @@ async function holeRoh(request: Request) {
       mitPunkten: wertung.length > 0,
       hinweis: 'Values are per team, the way Epic reports them.',
     });
+    // Fuer GET: eine laufende Runde bekommt im CDN keine veraltete Kopie (siehe cdnSpeichern).
+    if (spiele.some((x) => x.live)) antwort.headers.set(LIVE_KOPF, '1');
+    return antwort;
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(
@@ -744,7 +754,7 @@ async function globalsMatches(request: Request) {
     mitEigenen: zahl('mitEigenen'),
     mitPunkten: teile.every((x) => x.j.mitPunkten === true),
     zusammengerechnet: GLOBALS_TAGE.map((t) => t.windowId),
-  });
+  }, { headers: teile.some((x) => x.r.headers.get(LIVE_KOPF)) ? { [LIVE_KOPF]: '1' } : {} });
 }
 
 /**
@@ -776,7 +786,18 @@ async function tageMatches(request: Request, event: string, windows: string[]) {
     mitEigenen: zahl('mitEigenen'),
     mitPunkten: teile.every((x) => x.j.mitPunkten === true),
     zusammengerechnet: windows,
-  });
+  }, { headers: teile.some((x) => x.r.headers.get(LIVE_KOPF)) ? { [LIVE_KOPF]: '1' } : {} });
+}
+
+/** Kopf der Antwort: mindestens eine Runde laeuft gerade. */
+const LIVE_KOPF = 'X-Runde-Live';
+
+/*
+ * Laeuft eine Runde, haelt das CDN die Antwort hoechstens 2 s und gibt danach KEINE veraltete Kopie mehr heraus (kein stale-while-revalidate):
+ * mit swr bekam ein Besucher nach einem neueren Stand wieder einen aelteren - "30 / 39", dann "35 / 39" (Betreiber, FNCS Heat 2, 15.11.2026).
+ */
+function cdnSpeichern(r: Response): Response {
+  return r.headers.get(LIVE_KOPF) ? zwischenspeichern(r, 2, 0) : zwischenspeichern(r, 5);
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
@@ -784,9 +805,9 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
   // 60 s im CDN liessen nach einem Neuladen ein schon gesehenes Game wieder verschwinden (Betreiber, Heat 2, 15.11.2026) - jetzt hoechstens 5 s.
-  if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 5);
+  if (tageListe.length > 1 && p.get('event')) return cdnSpeichern(await tageMatches(request, p.get('event') as string, tageListe));
   if (istGlobalsFinale(p.get('event'), p.get('window'))) {
-    return zwischenspeichern(await globalsMatches(request), 5);
+    return cdnSpeichern(await globalsMatches(request));
   }
   // Der Reload-Knopf (frisch=1) geht nie an einen Zwischenspeicher: wer drueckt, will den Stand von Epic jetzt.
   if (new URL(request.url).searchParams.get('frisch') === '1') {
@@ -794,5 +815,5 @@ export async function GET(request: Request) {
     try { r.headers.set('Cache-Control', 'no-store'); r.headers.set('CDN-Cache-Control', 'no-store'); } catch { /* unveraenderlich */ }
     return r;
   }
-  return zwischenspeichern(await holeRoh(request), 5);
+  return cdnSpeichern(await holeRoh(request));
 }

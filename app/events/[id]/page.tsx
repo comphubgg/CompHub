@@ -25,6 +25,7 @@ import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent, GLOBALS_CUP_ALIAS, GLOBALS_CUP_ID } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import { rundenMischen } from '@/app/lib/rundenStand';
 import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
@@ -2124,7 +2125,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
-        setSpiele(j?.spiele ?? []);
+        /*
+         * Nie rueckwaerts (Betreiber, FNCS Heat 2, 15.11.2026: "30 / 39", dann wieder "35 / 39", ein Name wechselte zur Id): die Antwort kann aus einer
+         * aelteren Quelle kommen (Vorrat, CDN-Kopie). Jede Runde wird deshalb teamweise mit dem vereinigt, was schon dasteht; Ueberschrift und Zeilen
+         * werden aus derselben Aufstellung gerechnet, ein bekannter Name bleibt (app/lib/rundenStand).
+         */
+        setSpiele((alt) => rundenMischen(alt, (j?.spiele ?? []) as Spiel[]));
         setSpieleFeldGrenze(Boolean(j?.feldGrenze));
       })
       /*

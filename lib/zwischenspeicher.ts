@@ -13,11 +13,12 @@
  * Route es setzt). Nur fuer Antworten ohne Bezug zum Besucher - nie fuer
  * etwas, das vom Konto oder Admin-Cookie abhaengt.
  */
-export function zwischenspeichern(antwort: Response, sekunden: number): Response {
+export function zwischenspeichern(antwort: Response, sekunden: number, veraltetSekunden = sekunden): Response {
   if (antwort.status !== 200) return antwort;
   // Hoechstens einmal die Frist zusaetzlich veraltet (14.11.2026: mit dem Sechsfachen sah ein Besucher die Runden-Liste bis zu zwei Minuten alt,
   // waehrend Fortnite Tracker das neue Match schon zeigte). Der eigene Server haelt die Last.
-  const wert = `max-age=${sekunden}, stale-while-revalidate=${sekunden}`;
+  // veraltetSekunden = 0: nie eine veraltete Kopie (laufende Runden, app/api/cup-matches).
+  const wert = veraltetSekunden > 0 ? `max-age=${sekunden}, stale-while-revalidate=${veraltetSekunden}` : `max-age=${sekunden}`;
   // Vercels Netz liest den eigenen Kopf, Cloudflare (vor einem eigenen Host)
   // den allgemeinen "CDN-Cache-Control". Der Browser sieht keinen von beiden.
   try {
