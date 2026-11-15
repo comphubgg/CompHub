@@ -1225,7 +1225,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             if (!weg) holen();
           };
           document.addEventListener('visibilitychange', zurueck);
-        }, 30_000);
+        }, 10_000);
       })
       .catch(() => {});
     holen();
@@ -2321,7 +2321,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * Sekunden neu heraus; alle zwanzig zu fragen holt das ab, ohne sie zu
      * ueberrennen.
      */
-    return sichtbarerTakt(() => setNachladen((n) => n + 1), 20_000);
+    return sichtbarerTakt(() => setNachladen((n) => n + 1), 5_000);
   }, [reiter, laufende, fenster]);
 
   /*
@@ -2840,7 +2840,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const kurzVorbei = !!lbFenster && lbFenster.status === 'vorbei' && Date.now() - (lbFenster.end ?? 0) < 6 * 3_600_000;
   useEffect(() => {
     if ((!laeuftGerade && !kurzVorbei) || !lbFenster) return undefined;
-    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 30_000);
+    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 10_000);
   }, [laeuftGerade, kurzVorbei, lbFenster, laden, summenFenster]);
 
   useEffect(() => { if (lbFenster) laden(lbFenster, summenFenster); }, [lbFenster, laden, summenFenster]);
@@ -2877,7 +2877,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
     // mit hundert Anfragen zu belegen.
     // Kleines Feld alle 20 s (Betreiber, 8.11.2026: "seit 2 Minuten nicht updated"), grosses alle 90 s.
-    const takt = tabelle.length > 1000 ? 90_000 : 20_000;
+    const takt = tabelle.length > 1000 ? 90_000 : 5_000;
     return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, takt);
   }, [lbFenster, laden, tabelle.length, summenFenster]);
 

@@ -88,7 +88,7 @@ export default function Bestenliste({ f, stufe, region, zielText, lcqText }: {
       } catch { /* bei einem Fehler bleibt stehen, was da ist */ }
     };
     void holen();
-    const ende2 = laeuft ? sichtbarerTakt(() => { void holen(); }, 30_000) : undefined;
+    const ende2 = laeuft ? sichtbarerTakt(() => { void holen(); }, 5_000) : undefined;
     return () => { weg = true; if (ende2) ende2(); };
   }, [abrufbar, laeuft, stufe]);
 
