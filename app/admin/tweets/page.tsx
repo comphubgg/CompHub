@@ -3653,7 +3653,7 @@ export default function TweetSeite() {
                 <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {ftDaten.posts.map((p) => {
                     const laenge = tweetLaenge(p.text);
-                    const zuLang = laenge > 280;
+                    const zuLang = laenge > 4000;
                     return (
                       <div key={p.art} className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-950">
                         <div className="flex items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
@@ -3667,7 +3667,7 @@ export default function TweetSeite() {
                           <span title={t('Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)')}
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${zuLang
                               ? 'bg-red-500/15 text-red-300' : 'bg-zinc-800 text-slate-400'}`}>
-                            {laenge}/280
+                            {laenge}/4000
                           </span>
                         </div>
                         <p className="flex-1 whitespace-pre-wrap break-words px-4 py-3 text-sm leading-relaxed text-slate-100">{p.text}</p>

@@ -169,9 +169,10 @@ export const ftDauer = (sek: number): string => {
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(s % 60).padStart(2, '0')}s`;
 };
 
-const GRENZE = 280;
+// X Premium (Betreiber, 15.11.2026): laengere Posts erlaubt - die Liste soll alle Qualifizierten tragen, nicht nach 280 Zeichen abbrechen.
+const GRENZE = 4000;
 /** Wie viele Spieler je Post hoechstens im Text stehen und wie viele als Kandidaten fuers Bild mitgehen. */
-const LISTE = 10;
+const LISTE = 15;
 const KANDIDATEN = 20;
 
 /**
