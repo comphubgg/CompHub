@@ -55,6 +55,33 @@ services:
     entrypoint: ["sh", "-c"]
     command: ["while true; do node scripts/discord-tweets.mjs --aus-admin-posts --anwenden 2>&1 | grep -v 'Keine (neuen)' | tail -5; sleep 60; done"]
 
+  # Die Live-Spur (scripts/live-spur.mjs): volle Replays laufender Cups Match fuer Match, sobald Epic sie fertig abgelegt hat - gleich nach dem Spiel
+  # statt 10 bis 20 Minuten spaeter (GitHub "Clutch rechnen" bleibt massgeblich und der einzige, der clutch/, clutch-je/, replays/ ans Release schreibt).
+  # SCHATTENBETRIEB: geschrieben wird nur unter ./live (Teile je Match, Live-Stand clutch/<w>.json + clutch-je/<w>.json); die Seite liest davon noch nichts.
+  # Gebremst, damit "web" und "hintergrund" Vorrang haben: nice 10, hoechstens 3,5 Kerne, geringes CPU-Gewicht, 5 GB.
+  # Die Epic-Anmeldung holt er sich wie die GitHub-Ablaeufe (daten-sync, Schluessel aus web.env) in sein eigenes /app/data; klappt das nicht, nimmt er die
+  # von "hintergrund" (./daten, nur lesend eingehaengt - er schreibt dort nie).
+  live:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: always
+    network_mode: host
+    env_file: web.env
+    environment:
+      WERKZEUG_URL: http://127.0.0.1:3100
+      LIVE_LESER: "3"
+      LIVE_LADEN: "6"
+      COMPHUB_LIVE_ORT: /app/live
+      TZ: Europe/Berlin
+      NODE_OPTIONS: --max-old-space-size=3072
+    cpus: 3.5
+    cpu_shares: 256
+    mem_limit: 5g
+    volumes:
+      - ./live:/app/live
+      - ./daten:/app/daten-hintergrund:ro
+    entrypoint: ["sh", "-c"]
+    command: ["node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2; [ -s data/epic-auth.json ] || cp /app/daten-hintergrund/epic-auth.json data/ 2>/dev/null; exec nice -n 10 node scripts/live-spur.mjs"]
+
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: always
