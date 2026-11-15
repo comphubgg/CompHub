@@ -17,6 +17,7 @@ for (const p of d.spieler ?? []) {
   const sv = d.streckeVoll?.[p.id] ?? [0, 0, 0, 0, 0]; const pz = d.msDiag?.pawnZahl?.[p.id] ?? [];
   let fuss = 0; const t = spuren[String(p.epic).toLowerCase()] ?? [];
   for (let i = 1; i < t.length; i++) { const a = t[i], b = t[i - 1]; const m = Math.hypot(a[1] - b[1], a[2] - b[2]) / 100; if (a[4] !== 5 && b[4] !== 5 && m / Math.max(1, a[0] - b[0]) < 120) fuss += m; }
-  zeilen.push([p.name, Math.round(e / 100), sv[0], (sv[0] / (e / 100)).toFixed(3), Math.round(fuss), (fuss / (e / 100)).toFixed(3), sv[4], t.length, pz.join('/')]);
+  const ms = d.msDiag?.strecke?.[p.id] ?? [];
+  zeilen.push([p.name, Math.round(e / 100), sv[0], (sv[0] / (e / 100)).toFixed(3), Math.round(fuss), (fuss / (e / 100)).toFixed(3), sv[4], t.length, pz.join('/'), ...ms.map((v) => `${v.join('/')} =${(v[0] / (e / 100)).toFixed(4)}|${(v[1] / (e / 100)).toFixed(4)}`)]);
 }
 for (const z of zeilen.slice(0, 40)) console.log('STRECKE-EPIC', JSON.stringify(z));

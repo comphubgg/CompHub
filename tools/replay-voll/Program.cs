@@ -397,6 +397,7 @@ if (bus.Count == 0 && reader.BusWerte.TryGetValue("FlightStartLocation", out var
   });
 }
 var gd = replay.GameData;
+reader.BusAbFuerMs = busAb;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   bus = bus.Count > 0 ? bus : null,
   version = 3,
@@ -1064,6 +1065,7 @@ class SchadenLeser : ReplayReader {
   public readonly Dictionary<int, List<double[]>> KillVerlauf = new();
   public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
     if (bauKanal.ContainsKey(channelIndex) && group.PathName.Contains("PBWA_", StringComparison.Ordinal)) { exportGroup = null; return BauLesen(archive, group, channelIndex, enablePropertyChecksum); }
+    if (MsDiag && (group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal) || group.PathName.EndsWith("FortPickupAthena", StringComparison.Ordinal))) MsRohLesen(archive, group, channelIndex, enablePropertyChecksum);
     if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
     exportGroup = null;
     if (enablePropertyChecksum) archive.ReadBit();
@@ -1192,6 +1194,7 @@ class SchadenLeser : ReplayReader {
    * MsPawnZahl je Spieler: [Updates, mit Location, mit ReplicatedMovement, mit EncryptedPawnReplayData, Bytes darin, mit LinearVelocity, mit ReplayLastTransformUpdateTimeStamp].
    */
   public readonly List<object[]> MsPickups = new();
+  public double? BusAbFuerMs;
   public readonly List<object[]> MsInv = new();
   readonly Dictionary<int, double[]> msPawnZahl = new();
   readonly List<object[]> msEncProben = new();
@@ -1207,6 +1210,7 @@ class SchadenLeser : ReplayReader {
     if (!msFelder && Zeit() is double tf && tf > 400) { msFelder = true; FelderZeigen("FortPickup|ItemizationCoreRuntime|RootItemization|PlayerPawn_Athena|BroadcastRemote|Harvest|ResourceBuilding|PawnReplay|FortInventory|Vehicle"); }
     if (Hole(VonFigur, kanal)?.Id is not int id) return;
     if (!msPawnZahl.TryGetValue(id, out var z)) msPawnZahl[id] = z = new double[7];
+    { var zs = msZustand.GetValueOrDefault(id); var luft = p.bIsSkydiving ?? (p.bIsParachuteOpen is bool po ? (po || zs.luft) : zs.luft); if (p.bIsParachuteOpen == true) luft = true; if (p.bIsSkydiving == false && p.bIsParachuteOpen == false) luft = false; var fz = p.Vehicle is not null ? (p.Vehicle.Value != 0) : zs.fahrzeug; msZustand[id] = (luft, fz); }
     z[0]++; if (p.Location is not null) z[1]++; if (p.ReplicatedMovement is not null) z[2]++;
     if (p.EncryptedPawnReplayData is not null) {
       z[3]++;
@@ -1216,7 +1220,99 @@ class SchadenLeser : ReplayReader {
     }
     if (p.LinearVelocity is not null) z[5]++; if (p.ReplayLastTransformUpdateTimeStamp is not null) z[6]++;
   }
-  public object MsDiagFertig() => new { pickups = MsPickups, inv = MsInv, pawnZahl = msPawnZahl, encProben = msEncProben,
+  /*
+   * Roh gelesen (MS_DIAG): welche Felder eine Figur je Update schickt, ReplicatedMovement selbst entpackt (die Bibliothek liefert es nie), und die DataList der Pickups
+   * (darin die Menge, wie im Inventar). Danach zurueck an den Anfang, damit die Bibliothek dasselbe noch einmal normal liest.
+   */
+  public readonly Dictionary<string, long[]> MsFelder = new();
+  public readonly List<object[]> MsRmProben = new();
+  public readonly Dictionary<int, List<double[]>> MsBewegung = new();
+  public readonly Dictionary<uint, int> MsPickupMenge = new();
+  public readonly List<object[]> MsPickupMengeListe = new();
+  public readonly Dictionary<int, (bool luft, bool fahrzeug)> msZustand = new();
+  static readonly (Unreal.Core.Models.Enums.VectorQuantization l, Unreal.Core.Models.Enums.RotatorQuantization r, Unreal.Core.Models.Enums.VectorQuantization v)[] MsVarianten = {
+    (Unreal.Core.Models.Enums.VectorQuantization.RoundTwoDecimals, Unreal.Core.Models.Enums.RotatorQuantization.ShortComponents, Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber),
+    (Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber, Unreal.Core.Models.Enums.RotatorQuantization.ByteComponents, Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber),
+    (Unreal.Core.Models.Enums.VectorQuantization.RoundTwoDecimals, Unreal.Core.Models.Enums.RotatorQuantization.ByteComponents, Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber),
+    (Unreal.Core.Models.Enums.VectorQuantization.RoundOneDecimal, Unreal.Core.Models.Enums.RotatorQuantization.ShortComponents, Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber),
+  };
+  static readonly MethodInfo PosSetzer = typeof(Unreal.Core.FArchive).GetProperty("Position").GetSetMethod(true);
+  static readonly MethodInfo FehlerSetzer = typeof(Unreal.Core.FArchive).GetProperty("IsError").GetSetMethod(true);
+  void MsRohLesen(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint kanal, bool pruef) {
+    var pos = archive.Position;
+    var pawn = group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal);
+    try {
+      if (pruef) archive.ReadBit();
+      while (true) {
+        var feld = archive.ReadIntPacked();
+        if (feld == 0 || archive.IsError) break;
+        feld--;
+        var bits = archive.ReadIntPacked();
+        if (bits == 0) continue;
+        var daten = archive.ReadBits(bits).ToArray();
+        if (archive.IsError) break;
+        var ex = feld < group.NetFieldExports.Length ? group.NetFieldExports[feld] : null;
+        var nm = (pawn ? "P:" : "K:") + (ex?.Name ?? ("#" + feld));
+        if (!MsFelder.TryGetValue(nm, out var z)) MsFelder[nm] = z = new long[3];
+        z[0]++; z[1] += bits; z[2] = Math.Max(z[2], bits);
+        if (pawn && ex?.Name == "ReplicatedMovement") MsBewegungLesen(archive, kanal, daten, (int)bits);
+        if (!pawn && ex?.Name == "DataList") {
+          TypenSuchen(daten, (int)bits);
+          var akteur = kanalAkteur.TryGetValue(kanal, out var ak) ? ak : 0u;
+          var menge = WertHinter(daten, (int)bits, stapelTyp, 20000, "p" + kanal);
+          var pnm = lootNameVonKanal.GetValueOrDefault(kanal) ?? "";
+          var istMats = System.Text.RegularExpressions.Regex.IsMatch(pnm, "^(Wood|Stone|Metal)ItemData");
+          if (menge is int mg) { MsPickupMenge[kanal] = mg; MsPickupMengeListe.Add(new object[] { Math.Round(Zeit() ?? 0, 2), kanal, akteur, mg, pnm }); }
+          else if (MsPickupMengeListe.Count < 300 || istMats) MsPickupMengeListe.Add(new object[] { Math.Round(Zeit() ?? 0, 2), kanal, akteur, null, lootNameVonKanal.GetValueOrDefault(kanal), bits, Convert.ToHexString(daten[..Math.Min(48, daten.Length)]) });
+        }
+      }
+    } catch (Exception e) { if (MsRmProben.Count < 60) MsRmProben.Add(new object[] { "fehler", e.Message }); }
+    PosSetzer.Invoke(archive, new object[] { pos }); FehlerSetzer.Invoke(archive, new object[] { false });
+  }
+  void MsBewegungLesen(Unreal.Core.FBitArchive archive, uint kanal, byte[] daten, int bits) {
+    var t = Zeit(); var id = Hole(VonFigur, kanal)?.Id;
+    var orte = new double[MsVarianten.Length * 3];
+    for (int v = 0; v < MsVarianten.Length; v++) {
+      try {
+        var r = new Unreal.Core.NetBitReader(daten, bits) { EngineNetworkVersion = archive.EngineNetworkVersion, NetworkVersion = archive.NetworkVersion, ReplayHeaderFlags = archive.ReplayHeaderFlags, ReplayVersion = archive.ReplayVersion, NetworkReplayVersion = archive.NetworkReplayVersion };
+        var rm = r.SerializeRepMovement(MsVarianten[v].l, MsVarianten[v].r, MsVarianten[v].v);
+        orte[v * 3] = rm.Location?.X ?? double.NaN; orte[v * 3 + 1] = rm.Location?.Y ?? double.NaN; orte[v * 3 + 2] = rm.Location?.Z ?? double.NaN;
+        if (MsRmProben.Count < 40 && v == 0) MsRmProben.Add(new object[] { Math.Round(t ?? 0, 2), id, bits, r.IsError, r.Position, rm.Location?.ToString(), rm.LinearVelocity?.ToString(), rm.bRepPhysics, rm.ServerFrame, Convert.ToHexString(daten[..Math.Min(32, daten.Length)]) });
+      } catch (Exception e) { orte[v * 3] = double.NaN; if (MsRmProben.Count < 60) MsRmProben.Add(new object[] { "rmfehler", v, e.Message }); }
+    }
+    if (id is not int pid || t is not double tt) return;
+    if (!MsBewegung.TryGetValue(pid, out var l)) MsBewegung[pid] = l = new();
+    var zs = msZustand.GetValueOrDefault(pid);
+    var e2 = new double[3 + orte.Length]; e2[0] = Math.Round(tt, 3); e2[1] = zs.luft ? 1 : 0; e2[2] = zs.fahrzeug ? 1 : 0; Array.Copy(orte, 0, e2, 3, orte.Length);
+    l.Add(e2);
+  }
+  /// Strecke je Spieler und Variante ab dem Bus in Metern: [alles, am Boden (nicht Fallen/Gleiten, nicht im Fahrzeug), im Fahrzeug, in der Luft, Updates, Spruenge ueber 50 m].
+  public Dictionary<int, double[][]> MsStrecke(double? busAb) {
+    var raus = new Dictionary<int, double[][]>();
+    foreach (var (id, l) in MsBewegung) {
+      var r = new double[MsVarianten.Length][];
+      for (int v = 0; v < MsVarianten.Length; v++) {
+        var a = r[v] = new double[6]; double[] vor = null;
+        foreach (var e in l) {
+          if (busAb is double b && e[0] < b) continue;
+          var x = e[3 + v * 3]; var y = e[4 + v * 3];
+          if (double.IsNaN(x) || Math.Abs(x) > 400000 || Math.Abs(y) > 400000) continue;
+          if (vor is not null) {
+            var d = Math.Sqrt(Math.Pow(x - vor[3 + v * 3], 2) + Math.Pow(y - vor[4 + v * 3], 2)) / 100;
+            a[4]++;
+            if (d > 50) { a[5] += 1; vor = e; continue; }
+            a[0] += d; if (e[1] == 0 && vor[1] == 0 && e[2] == 0 && vor[2] == 0) a[1] += d; else if (e[2] == 1) a[2] += d; else a[3] += d;
+          }
+          vor = e;
+        }
+        for (int i = 0; i < 6; i++) a[i] = Math.Round(a[i], 1);
+      }
+      raus[id] = r;
+    }
+    return raus;
+  }
+  public object MsDiagFertig() => new { felder = MsFelder, rmProben = MsRmProben, pickupMenge = MsPickupMengeListe, pickupMengeKanal = MsPickupMenge, strecke = MsStrecke(BusAbFuerMs),
+ pickups = MsPickups, inv = MsInv, pawnZahl = msPawnZahl, encProben = msEncProben,
     wurzelFigur = inventarFiguren.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value.Select(f => spielerVonAkteur.TryGetValue(f, out var sid) ? sid : -1).ToList()) };
   /*
    * Wohin jemand schiesst: jeder Einschlag mit Ort - auf Spieler (Location, dort steht in dem Moment auch das Ziel) und auf Bauteile, Baeume, Autos
