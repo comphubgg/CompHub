@@ -4938,6 +4938,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Alle gewerteten Spieler': 'All rated players',
   'Top 10 als CSV': 'Top 10 as CSV',
   'Konstanz': 'Consistency',
+  'Derselbe Spieltag in allen Regionen – je Region der beste im Rating, je Kennzahl die besten fünf weltweit.': 'The same match day in every region – the best rated per region, the top five worldwide per stat.',
+  'Alle Regionen vergleichen': 'Compare all regions',
+  'Noch keine Werte je Spieler.': 'No per-player stats yet.',
   'Konstantester': 'Most consistent',
   'Anzahl': 'Count',
   'Je Cup ein Punkt: wie weit vorn der Spieler war. Die Note ist unsere Konstanz-Note aus den letzten zwanzig Cups – jede Platzierung zählt nach der Größe des Feldes, das schlechteste Fünftel fällt weg.':

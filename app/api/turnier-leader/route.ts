@@ -75,6 +75,40 @@ async function holeRoh(request: Request) {
   const event = p.get('event') ?? '';
   const windows = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
   const basis = new URL(request.url);
+  try {
+    // Alle Regionen desselben Spieltags (Betreiber, 15.11.2026: Region MVPs und Regionenvergleich): die Regionskennung am Ende austauschen.
+    if (p.get('regionen') === '1') {
+      const REG = /_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i;
+      if (!REG.test(fenster)) return NextResponse.json({ error: 'Spieltag ohne Region' }, { status: 400 });
+      const regionen = await Promise.all(['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].map(async (r) => {
+        const w = fenster.replace(REG, `_${r}`);
+        const e = REG.test(event) ? event.replace(REG, `_${r}`) : event;
+        const ws = windows.map((x) => x.replace(REG, `_${r}`));
+        const x = await leaderFuer(basis, w, e, ws).catch(() => null);
+        return { region: r, window: w, vorhanden: !!x?.d.vorhanden, mvp: x?.d.mvp ?? null, tafeln: x?.d.tafeln ?? [], replayStand: x?.replayStand ?? null, gewertet: x?.d.gewertet ?? 0 };
+      }));
+      // Regionenvergleich: je Kennzahl die besten fuenf ueber alle Regionen (rohe Werte - das Rating ist je Spieltag normiert und taugt dafuer nicht).
+      const VERGLEICH = ['elims', 'damage', 'quote', 'headshots', 'hits', 'builds', 'timeAlive', 'damageTaken', 'reboots'];
+      const vergleich = VERGLEICH.map((k) => {
+        const zeilen = regionen.flatMap((r) => (r.tafeln.find((t) => t.schluessel === k)?.zeilen ?? []).map((z) => ({ ...z, region: r.region })));
+        const t0 = regionen.flatMap((r) => r.tafeln).find((t) => t.schluessel === k);
+        if (!t0 || !zeilen.length) return null;
+        const top = zeilen.sort((a, b2) => b2.wert - a.wert).slice(0, 5);
+        const raenge: number[] = [];
+        top.forEach((z, i) => raenge.push(i > 0 && top[i - 1].wert === z.wert ? raenge[i - 1] : i + 1));
+        return { schluessel: k, titel: t0.titel, nachkomma: t0.nachkomma, zeit: t0.zeit ?? false, zeilen: top.map((z, i) => ({ ...z, rang: raenge[i] })) };
+      }).filter(Boolean);
+      return NextResponse.json({ regionen: regionen.map((r) => ({ ...r, tafeln: undefined })), vergleich });
+    }
+    const { d, kopf, replayStand } = await leaderFuer(basis, fenster, event, windows);
+    return NextResponse.json({ ...d, kopf, replayStand, window: fenster, windows: windows.length > 1 ? windows : null });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  }
+}
+
+/** Die Leaders eines Spieltags (oder mehrerer Tage) - Zahlen aus app/api/cup-spieler, Platz notfalls aus Epics abgelegtem Spieltag. */
+async function leaderFuer(basis: URL, fenster: string, event: string, windows: string[]) {
   const epicPlatz = (async () => {
     const m = new Map<string, number>();
     if (windows.length > 1) return m;
@@ -85,6 +119,7 @@ async function holeRoh(request: Request) {
   let replayStand: { gelesen: number; gesamt: number } | null = null;
   const hole = async (kennzahl: string, pro: number) => {
     const u = new URL('/api/cup-spieler', basis);
+    u.search = '';
     u.searchParams.set('window', fenster);
     if (event) u.searchParams.set('event', event);
     if (windows.length > 1) u.searchParams.set('windows', windows.join(','));
@@ -98,12 +133,8 @@ async function holeRoh(request: Request) {
     const zeilen = (j?.zeilen ?? []).map((z) => (typeof z.platz === 'number' ? z : { ...z, platz: platz.get(z.epicId.toLowerCase()) ?? null }));
     return Object.assign(zeilen, { gesamt: (j as { gesamt?: number } | null)?.gesamt });
   };
-  try {
-    const [d, kopf] = await Promise.all([baueLeader(hole, { replayHinten: () => !!replayStand }), kopfVon(fenster, windows)]);
-    return NextResponse.json({ ...d, kopf, replayStand, window: fenster, windows: windows.length > 1 ? windows : null });
-  } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
-  }
+  const [d, kopf] = await Promise.all([baueLeader(hole, { replayHinten: () => !!replayStand }), kopfVon(fenster, windows)]);
+  return { d, kopf, replayStand };
 }
 
 export async function GET(request: Request) {

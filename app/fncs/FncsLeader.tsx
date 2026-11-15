@@ -14,6 +14,7 @@ import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import { REGIONEN_REIHE } from '@/lib/regionFarbe';
 import TurnierLeader from '@/app/components/TurnierLeader';
+import RegionVergleich from '@/app/components/RegionVergleich';
 
 interface Fenster { schluessel: string; titel: string; cup: string; event: string; window: string; windows?: string[]; begin: number; region: string }
 
@@ -60,6 +61,7 @@ export default function FncsLeader() {
         <>
           <TurnierLeader key={gewaehlt.schluessel} kompakt eventId={gewaehlt.event} windowId={gewaehlt.window} windows={gewaehlt.windows ?? null}
             titel={`${gewaehlt.titel} · ${gewaehlt.region}`} />
+          <RegionVergleich key={`rv-${gewaehlt.schluessel}`} eventId={gewaehlt.event} windowId={gewaehlt.window} windows={gewaehlt.windows ?? null} />
           {gewaehlt.cup && <p className="mt-2 text-right text-xs">
             <Link href={`/events/${encodeURIComponent(gewaehlt.cup)}?region=${encodeURIComponent(gewaehlt.region)}&fenster=${encodeURIComponent(gewaehlt.window)}`} className="text-sky-400 hover:text-sky-300">
               Player Stats →
