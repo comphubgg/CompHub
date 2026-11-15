@@ -5,7 +5,7 @@
 // mit hoechstens ein paar hundert Spielern), dieselbe Art Datei aus unseren eigenen Daten - sofort nach dem Spieltag, und sie fuellt sich auf:
 //
 //   * Matches je Team und die Teilnehmer aus Epics Bestenliste (epic-spieltage),
-//   * Eliminierungen: bei Solos aus Epics Bestenliste, bei Teams aus den Server-Replays, wenn sie je Team zu Epic passen,
+//   * Eliminierungen: bei Solos aus Epics Bestenliste, bei Teams aus dem vollen Auslesen (killsEcht) oder den Server-Replays, wenn sie je Team zu Epic passen,
 //   * Schaden, erlittener Schaden, Treffer, Sturmschaden und Ueberlebenszeit aus den vollen Replays (clutch/<w>.json, tools/replay-voll).
 //
 // Was wir nicht haben, steht nicht drin - Schuesse, Assists, Heilung, Material, Bauteile, Strecke gab es nur bei der Quelle; Kopftreffer zaehlen die
@@ -31,7 +31,8 @@ const AB_SAISON = 42;
 const HOECHSTENS_SPIELER = 4000;
 
 type Clutch = {
-  schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>;
+  /** killsEcht: der Kill-Zaehler des vollen Auslesens, am Aus des Teams geschnitten (Fassung 19) - je Spieler ueber alle gelesenen Spiele. */
+  schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number; killsEcht?: number }>;
   leben?: Record<string, number>;
   spiele?: Record<string, number>;
   /** [zu Fuss, Luft] in Metern (lib/replayPositionen). */
@@ -79,20 +80,44 @@ export async function eigeneSpieler(t: EigenerTag): Promise<{ players: EigeneSpi
   const solo = t.teams.every((x) => x.spieler.length === 1);
   const players: EigeneSpielerZeile[] = [];
   let matches = 0;
+  /*
+   * Kills je Spieler fuer Team-Spieltage aus zwei Quellen (15.11.2026): dem vollen Auslesen (clutch killsEcht, Fassung 19 - nur wenn jedes Spiel des
+   * Spielers gelesen ist) und den Server-Replays (Aggregat). Eine Quelle zaehlt fuer ein Team nur, wenn sie es wirklich kennt. Vorher galt ein fehlendes
+   * Replay als "0 Kills": lag das Aggregat dem Lauf nicht vor, passten nur Teams mit 0 oder 1 Epic-Elim (|0 - 1| <= 1), und alle anderen standen ohne Elims -
+   * die S43-Liste (Performance Evaluation Trios EU, gerechnet am 6.11.) zeigte 0 Elims fuer alle 78, nur 9 Spieler mit Elim-Nenner, einer davon falsch 0 statt 1.
+   */
+  const killsVoll = (k: string, m: number): number | undefined =>
+    (clutch?.spiele?.[k] ?? 0) >= m && typeof schaden[k]?.killsEcht === 'number' ? schaden[k].killsEcht : undefined;
+  const killsRep = (k: string): number | undefined => (rep?.spieler?.length ? (ausRep.get(k)?.kills ?? 0) : undefined);
+  /** Die Kills je Spieler des Teams aus der Quelle, deren Summe Epics Team-Elims am naechsten liegt (hoechstens 1 daneben) - sonst null. */
+  const teamKills = (team: EigenerTag['teams'][number]): Map<string, number> | null => {
+    let beste: { abstand: number; je: Map<string, number> } | null = null;
+    for (const quelle of [(k: string) => killsVoll(k, team.matches), killsRep]) {
+      const je = new Map<string, number>();
+      for (const id of team.spieler) {
+        const v = quelle(id.toLowerCase());
+        if (typeof v !== 'number') break;
+        je.set(id.toLowerCase(), v);
+      }
+      if (je.size !== team.spieler.length) continue;
+      const abstand = Math.abs([...je.values()].reduce((a, b) => a + b, 0) - (team.teamElims ?? 0));
+      if (abstand <= 1 && (!beste || abstand < beste.abstand)) beste = { abstand, je };
+    }
+    return beste?.je ?? null;
+  };
   for (const team of t.teams) {
     matches = Math.max(matches, team.matches);
-    const elimsStimmen = solo
-      || Math.abs(team.spieler.reduce((n, id) => n + (ausRep.get(id.toLowerCase())?.kills ?? 0), 0) - (team.teamElims ?? 0)) <= 1;
+    const kills = solo ? null : teamKills(team);
+    const elimsStimmen = solo || kills !== null;
     for (const id of team.spieler) {
       const k = id.toLowerCase();
-      const r = ausRep.get(k);
       const d = schaden[k];
       // Nur wenn jedes Spiel dieses Spielers gelesen ist - sonst waeren Schaden und Zeit zu niedrig.
       const voll = (clutch?.spiele?.[k] ?? 0) >= team.matches;
       players.push({
         username: namen[id] ?? namen[k] ?? id,
         epicId: id,
-        ...(elimsStimmen ? { eliminations: solo ? (team.teamElims ?? 0) : (r?.kills ?? 0) } : {}),
+        ...(elimsStimmen ? { eliminations: solo ? (team.teamElims ?? 0) : (kills!.get(k) ?? 0) } : {}),
         matchesPlayed: team.matches,
         ...(d && voll ? {
           damageDealt: Math.round(d.dmg * 100) / 100,
