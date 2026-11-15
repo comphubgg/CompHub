@@ -57,7 +57,7 @@ jobs:
             | head -c 400; echo
           curl -s -m 30 https://www.thecomphub.com/api/stand | head -c 300; echo
           # Das Profil, das /stats auf dem Server liest (szene-stats) - mit Zeit.
-          for ID in 30dda2a78184451f8e7f85530e34e7af a5ed0e8113bb4cb3955630dfdace3fe4 8224fc7512ad42818f381e262e4a6a2b; do
+          for ID in 30dda2a78184451f8e7f85530e34e7af 30dda2a78184451f8e7f85530e34e7af 8224fc7512ad42818f381e262e4a6a2b; do
             curl -s -m 60 -o /tmp/p.json -w "szene-stats $ID: HTTP %{http_code} %{time_total}s %{size_download}B\n" "https://www.thecomphub.com/api/szene-stats?spieler=$ID"
             node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/p.json','utf8'));console.log('  ', j.spieler?.anzeige, 'verlauf', (j.verlauf||[]).length, 'epicZeilen', (j.epicZeilen||[]).length, 'juengster', JSON.stringify((j.verlauf||[]).concat(j.epicZeilen||[]).sort((a,b)=>(b.datum||0)-(a.datum||0))[0]||null).slice(0,200))" || true
           done
