@@ -17,6 +17,7 @@
 //
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
+import TurnierLeader from '@/app/components/TurnierLeader';
 import MerkStern from '@/app/components/MerkStern';
 import Lieblinge from '@/app/components/Lieblinge';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
@@ -4649,6 +4650,13 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     <T>Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.</T>
                   </span>
                 </div>
+              )}
+
+              {/* Tournament Leaders des Cups (Betreiber, 15.11.2026): Event MVP und die besten fuenf je Kennzahl - je Tag oder alle Tage zusammen. */}
+              {cup.windowId && (
+                <TurnierLeader key={`${cup.windowId}|${tagWahl}`} eventId={cup.eventId ?? ''}
+                  windowId={tagWahl !== 'gesamt' ? tagWahl : (cup.tage?.length ? cup.tage[cup.tage.length - 1].windowId : cup.windowId)}
+                  windows={tagWahl === 'gesamt' && (cup.tage?.length ?? 0) > 1 ? cup.tage!.map((x) => x.windowId) : null} />
               )}
 
               {cupLaedt && !cupFeld.length ? (

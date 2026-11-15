@@ -136,6 +136,46 @@ function Tafel({ t, ort }: { t: LeaderTafel; ort: string }) {
   );
 }
 
+/** Performance Board: jeder gewertete Spieler als Punkt, Eliminierungen gegen Damage Dealt; die besten zehn im Rating beschriftet, der MVP hervorgehoben. */
+function PerformanceBoard({ feld, mvp, ort }: { feld: NonNullable<LeaderAntwort['feld']>; mvp: string | null; ort: string }) {
+  const [hover, setHover] = useState<string | null>(null);
+  const W = 1200; const H = 380; const l = 56; const r = 18; const o = 16; const u = 40;
+  const maxE = Math.max(1, ...feld.map((x) => x.elims)); const maxD = Math.max(1, ...feld.map((x) => x.damage));
+  const sx = (v: number) => l + (v / (maxE * 1.05)) * (W - l - r);
+  const sy = (v: number) => H - u - (v / (maxD * 1.08)) * (H - u - o);
+  const schnittE = feld.reduce((a, x) => a + x.elims, 0) / feld.length; const schnittD = feld.reduce((a, x) => a + x.damage, 0) / feld.length;
+  const zehn = new Set([...feld].sort((a, b) => b.rating - a.rating).slice(0, 10).map((x) => x.epicId));
+  const ticksE = Array.from({ length: 6 }, (_, i) => Math.round((maxE * 1.05 * i) / 5));
+  const ticksD = Array.from({ length: 5 }, (_, i) => Math.round((maxD * 1.08 * i) / 4 / 100) * 100);
+  const h = feld.find((x) => x.epicId === hover);
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-zinc-900/80 p-3">
+      <p className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Performance Board</span>
+        <span className="text-[11px] text-slate-500">Eliminations × Damage Dealt · {feld.length} <T>Spieler</T>{h ? ` · ${h.name}: ${h.elims} / ${h.damage.toLocaleString(ort)}` : ''}</span>
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Eliminations vs damage dealt">
+        {ticksD.map((t) => <g key={`d${t}`}><line x1={l} x2={W - r} y1={sy(t)} y2={sy(t)} stroke="rgba(255,255,255,.06)" /><text x={l - 8} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="#64748b">{t.toLocaleString(ort)}</text></g>)}
+        {ticksE.map((t) => <g key={`e${t}`}><line y1={o} y2={H - u} x1={sx(t)} x2={sx(t)} stroke="rgba(255,255,255,.04)" /><text x={sx(t)} y={H - u + 16} textAnchor="middle" fontSize="11" fill="#64748b">{t}</text></g>)}
+        <line x1={sx(schnittE)} x2={sx(schnittE)} y1={o} y2={H - u} stroke="rgba(56,189,248,.35)" strokeDasharray="4 4" />
+        <line x1={l} x2={W - r} y1={sy(schnittD)} y2={sy(schnittD)} stroke="rgba(56,189,248,.35)" strokeDasharray="4 4" />
+        <text x={W - r} y={H - 6} textAnchor="end" fontSize="11" fill="#94a3b8">Eliminations →</text>
+        <text x={12} y={o + 4} fontSize="11" fill="#94a3b8" transform={`rotate(-90 12 ${o + 4})`} textAnchor="end">Damage ↑</text>
+        {feld.map((x) => {
+          const ist = x.epicId === mvp; const an = hover === x.epicId;
+          return <circle key={x.epicId} cx={sx(x.elims)} cy={sy(x.damage)} r={ist ? 8 : an ? 7 : zehn.has(x.epicId) ? 5.5 : 4}
+            fill={ist ? '#38bdf8' : zehn.has(x.epicId) ? 'rgba(125,211,252,.85)' : 'rgba(148,163,184,.45)'} stroke={ist || an ? '#fff' : 'none'} strokeWidth={1.5}
+            onMouseEnter={() => setHover(x.epicId)} onMouseLeave={() => setHover(null)}><title>{`${x.name} · ${x.elims} elims · ${x.damage.toLocaleString(ort)} dmg${x.platz ? ` · #${x.platz}` : ''}`}</title></circle>;
+        })}
+        {feld.filter((x) => zehn.has(x.epicId)).map((x) => (
+          <text key={`t${x.epicId}`} x={sx(x.elims) + (sx(x.elims) > W * 0.82 ? -9 : 9)} textAnchor={sx(x.elims) > W * 0.82 ? 'end' : 'start'} y={sy(x.damage) + 4} fontSize="12" fill={x.epicId === mvp ? '#e0f2fe' : '#cbd5e1'} style={{ pointerEvents: 'none' }}>{x.name.length > 16 ? `${x.name.slice(0, 15)}…` : x.name}</text>
+        ))}
+      </svg>
+      <p className="mt-1 text-[10px] text-slate-600"><T>Gestrichelt: Schnitt der gewerteten Spieler. Beschriftet: die besten zehn im Rating.</T></p>
+    </section>
+  );
+}
+
 export default function TurnierLeader({ eventId, windowId, windows, titel, kompakt = false }: {
   eventId: string; windowId: string; windows?: string[] | null; titel?: string;
   /** Ohne eigene Ueberschrift (z. B. auf /fncs, wo die Auswahl darueber steht). */
@@ -189,6 +229,7 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
           <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {daten.tafeln.map((t) => <Tafel key={t.schluessel} t={t} ort={ort} />)}
           </div>
+          {(daten.feld?.length ?? 0) >= 5 && <div className="lg:col-span-2"><PerformanceBoard feld={daten.feld!} mvp={daten.mvp?.epicId ?? null} ort={ort} /></div>}
         </div>
       )}
     </section>

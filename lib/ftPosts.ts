@@ -39,6 +39,8 @@ export interface FtClutch {
   leben?: Record<string, number>;
   /** Epics Zeit am Leben (Sekunden) und die des Teams als Obergrenze. */
   epicZeit?: Record<string, number>;
+  /** Epics DamageDealt je Konto (Solo-Cups, scripts/clutch-berechnen) - geht im Solo dem Replay-Wert vor, wie in app/api/cup-spieler. */
+  epicDmg?: Record<string, number>;
   epicTeamZeit?: Record<string, number>;
   /** Strecke aus den Positionsproben: [zu Fuss, in der Luft] in Metern. */
   strecke?: Record<string, [number, number] | number[]>;
@@ -289,7 +291,8 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
     }
     return {
       id,
-      dmg: w.dmg ?? 0,
+      // Im Solo Epics DamageDealt, wo es ihn gibt (Betreiber, 15.11.2026) - dieselbe Regel wie app/api/cup-spieler und die Tournament Leaders.
+      dmg: zahl(d.epicDmg?.[id]) ?? w.dmg ?? 0,
       erlitten: w.erlitten ?? 0,
       treffer: zahl(w.treffer),
       krit: zahl(w.krit),
