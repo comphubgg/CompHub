@@ -23,8 +23,9 @@ const CLIENT_SECRET = 'b51ee9cb12234f50a69efa67ef53812e';
 const BASIC =
   'basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
 
-export const ACCOUNT = 'https://account-public-service-prod.ol.epicgames.com';
-export const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
+// EPIC_ACCOUNT_URL / EPIC_EVENTS_URL nur fuer den Test gegen eine nachgebaute Epic-Schnittstelle (scripts/sofort-test) - im Betrieb nie gesetzt.
+export const ACCOUNT = process.env.EPIC_ACCOUNT_URL || 'https://account-public-service-prod.ol.epicgames.com';
+export const EVENTS = process.env.EPIC_EVENTS_URL || 'https://events-public-service-live.ol.epicgames.com';
 export const LOGIN_URL =
   `https://www.epicgames.com/id/api/redirect?clientId=${CLIENT_ID}&responseType=code`;
 
@@ -2076,14 +2077,51 @@ export function frischeFuer(fenster: string): boolean {
   return true;
 }
 
+/*
+ * Der Live-Abruf eines laufenden Spieltags (lib/liveFenster) holt die Seiten selbst frisch und legt sie hier ab; alles, was daraus abgeleitet ist
+ * (top|, bereich|, matches|, qualIst| ... desselben Fensters), wird danach verworfen, damit die naechste Anfrage der Seite den neuen Stand rechnet.
+ * Eine Abfrage, die VOR dem Verwerfen losging und erst danach ankommt, darf ihr aelteres Ergebnis nicht mehr ablegen (verworfenAb).
+ */
+const verworfenAb = new Map<string, number>();
+function istVerworfen(key: string, start: number): boolean {
+  for (const [w, t] of verworfenAb) if (start < t && key.includes(`|${w}|`)) return true;
+  return false;
+}
+/** Einen frisch geholten Wert ablegen (wie gecacht, nur ohne zu holen). */
+export function legeAb(key: string, data: unknown, ttl: number) {
+  aufraeumen();
+  cache.set(key, { data, bis: Date.now() + ttl });
+}
+/** Alles zu einem Spieltag verwerfen ausser den Seiten selbst (seite|...). */
+export function verwirfAbgeleitete(fenster: string) {
+  if (!fenster) return;
+  verworfenAb.set(fenster, Date.now());
+  if (verworfenAb.size > 50) verworfenAb.delete(verworfenAb.keys().next().value as string);
+  for (const k of [...cache.keys()]) if (!k.startsWith('seite|') && k.includes(`|${fenster}|`)) cache.delete(k);
+}
+/**
+ * Eine Seite an Epic vorbei frisch holen und als holeSeite-Ergebnis ablegen (mit und ohne Namen - dieselben Daten), haltbar `ttl` ms.
+ * Nur fuer den Live-Abruf: er bestimmt den Takt, die Seite liest danach nur noch aus dem Speicher.
+ */
+export async function holeSeiteFrisch(eventId: string, windowId: string, page: number, ttl: number) {
+  const d = await holeSeiteRoh(eventId, windowId, page, false);
+  legeAb(`seite|${eventId}|${windowId}|${page}|namen`, d, ttl);
+  legeAb(`seite|${eventId}|${windowId}|${page}|ids`, d, ttl);
+  return d;
+}
+
 export async function gecacht<T>(key: string, ttl: number, hole: () => Promise<T>): Promise<T> {
   aufraeumen();
   const hit = cache.get(key);
   if (hit && hit.bis > Date.now()) return hit.data as T;
   if (hit?.pending) return hit.pending as Promise<T>;
 
+  const start = Date.now();
   const pending = hole()
-    .then((data) => { cache.set(key, { data, bis: Date.now() + ttl }); return data; })
+    .then((data) => {
+      if (istVerworfen(key, start)) { if (cache.get(key)?.pending === pending) cache.delete(key); return data; }
+      cache.set(key, { data, bis: Date.now() + ttl }); return data;
+    })
     .catch((err) => {
       cache.delete(key);
       // Alte Daten sind besser als gar keine, falls Epic kurz zickt.

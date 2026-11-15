@@ -1,14 +1,17 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import TeamFlagge from '@/components/TeamFlagge';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { useZugang } from '@/app/lib/zugang';
+import { useLiveFenster, type LiveTeil } from '@/app/lib/useLiveFenster';
 import { kernname, orgtagVon } from '@/lib/homoglyph';
 import type { SolosFenster, SolosSpieler, SolosStufe } from '@/lib/globalsSolos';
+
+const NUR_LEADERBOARD: LiveTeil[] = ['leaderboard'];
 
 /*
  * Die Bestenliste eines Spieltags als echte Tabelle (Betreiber, 15.11.2026: "der Leaderboard-Reiter soll eine richtige Tabelle sein, keine Foto-Kacheln"):
@@ -69,13 +72,21 @@ export default function Bestenliste({ f, stufe, region, zielText, lcqText }: {
   const [eintraege, setEintraege] = useState<Eintrag[] | null>(null);
   const [stand, setStand] = useState<number>(0);
   const neuester = useRef<{ w: string; zeit: number }>({ w: '', zeit: 0 });
+  /*
+   * Sofort statt alle 5 s (Betreiber, 15.11.2026: "within 1 second"): solange der Heat laeuft, haengt die Tabelle am Datenstrom des Spieltags
+   * (app/lib/useLiveFenster); jeder neue Stand loest sofort ein Nachladen aus (nr). Steht der Strom nicht, gilt wieder der 5-s-Takt.
+   */
+  const [nr, setNr] = useState(0);
+  const sv = useRef(0);
+  const strom = useLiveFenster(stufe?.eventId, stufe?.windowId, laeuft && abrufbar, NUR_LEADERBOARD,
+    useCallback((_t: LiveTeil, v: number) => { sv.current = v; setNr((n) => n + 1); }, []));
   useEffect(() => {
     if (!abrufbar || !stufe) return undefined;
     let weg = false;
     if (neuester.current.w !== stufe.windowId) { neuester.current = { w: stufe.windowId, zeit: 0 }; setEintraege(null); setStand(0); }
     const holen = async () => {
       try {
-        const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(stufe.eventId)}&window=${encodeURIComponent(stufe.windowId)}&limit=100`, { cache: 'no-store' });
+        const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(stufe.eventId)}&window=${encodeURIComponent(stufe.windowId)}&limit=100${sv.current ? `&sv=${sv.current}` : ''}`, { cache: 'no-store' });
         if (!r.ok) return;
         const d = await r.json() as { entries?: Eintrag[]; updated?: string };
         if (weg || !d.entries?.length) return;
@@ -88,9 +99,9 @@ export default function Bestenliste({ f, stufe, region, zielText, lcqText }: {
       } catch { /* bei einem Fehler bleibt stehen, was da ist */ }
     };
     void holen();
-    const ende2 = laeuft ? sichtbarerTakt(() => { void holen(); }, 5_000) : undefined;
+    const ende2 = laeuft && !strom.live ? sichtbarerTakt(() => { void holen(); }, 5_000) : undefined;
     return () => { weg = true; if (ende2) ende2(); };
-  }, [abrufbar, laeuft, stufe]);
+  }, [abrufbar, laeuft, stufe, strom.live, nr]);
 
   /* -------------------------------------------------- Welche Matches eine eigene Replay-Seite haben (nur fuer die, die sie oeffnen duerfen) */
   const rundenZahl = useMemo(() => Math.max(0, ...(eintraege ?? []).map((e) => e.games ?? 0)), [eintraege]);

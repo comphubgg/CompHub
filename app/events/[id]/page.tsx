@@ -26,6 +26,7 @@ import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent, GLOBALS_CUP_ALIAS, GLOBALS_CUP_ID } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { rundenMischen } from '@/app/lib/rundenStand';
+import { useLiveFenster, type LiveTeil } from '@/app/lib/useLiveFenster';
 import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
@@ -635,6 +636,8 @@ const MAX_PLAETZE = 10_000;
  * die sind ab dem zweiten Paket zum grossen Teil schon gemerkt.
  */
 const ERSTE_SEITEN = 5;
+/** Was die Seite vom Datenstrom eines laufenden Spieltags hoeren will (app/lib/useLiveFenster). */
+const LIVE_TEILE: LiveTeil[] = ['leaderboard', 'matches', 'qual'];
 /*
  * Die Bestenliste beim Wiederkommen sofort (Betreiber, 7.11.2026: "du musst es wirklich 10-mal verschnellern"): die ersten Plaetze jedes gesehenen Spieltags bleiben fuer diese Sitzung
  * gemerkt und stehen da, waehrend der frische Stand kommt. Nur eine Bequemlichkeit: fehlt der Speicher, wird eben geladen.
@@ -1186,6 +1189,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return g[0]?.name ?? null;
   }, [preise, belohnungsRang]);
 
+  /*
+   * Sofort statt Abfragetakt (Betreiber, 15.11.2026: "When the server has it, I want to see it on the page within 1 second"). Laeuft der Spieltag, haengt
+   * die Seite am Datenstrom /api/live/stream (app/lib/useLiveFenster, lib/liveFenster): EIN Abruf im Server fragt Epic, und sobald er einen neuen Stand
+   * hat, laedt die Seite Bestenliste, Matches und Quali-Linie nach - aus dem Speicher des Servers, ohne Anfrage bei Epic. Solange der Strom steht, ruhen
+   * die Abfragetakte unten (5/10/60 s); bricht er ab, laufen sie wie bisher. liveV ist die Stand-Nummer (&sv=, gegen Zwischenspeicher auf dem Weg).
+   */
+  const [liveAn, setLiveAn] = useState(false);
+  const [liveQualNr, setLiveQualNr] = useState(0);
+  const liveV = useRef(0);
+  const liveLaden = useRef<() => void>(() => {});
+  const liveMatches = useRef<() => void>(() => {});
+
   useEffect(() => {
     let weg = false;
     /*
@@ -1211,14 +1226,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       `/api/qualifikation?window=${encodeURIComponent(fenster.windowId)}`
       + `&region=${encodeURIComponent(fenster.region)}`
       + (fenster.qualifiziert ? `&schwelle=${fenster.qualifiziert}` : '')
-      + (belohnungsRang ? `&belohnung=${belohnungsRang}` : ''),
+      + (belohnungsRang ? `&belohnung=${belohnungsRang}` : '')
+      + (liveV.current ? `&sv=${liveV.current}` : ''),
       { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
         setQual(j?.vorhanden ? j : null);
         // Ein verborgener Tab fragt nicht - er holt beim Zurueckkommen nach.
-        if (j?.laeuft) uhr = window.setTimeout(() => {
+        // Am Datenstrom: kein eigener Takt - der Strom meldet jeden neuen Stand (liveQualNr).
+        if (j?.laeuft && !liveAn) uhr = window.setTimeout(() => {
           if (!document.hidden) { holen(); return; }
           const zurueck = () => {
             if (document.hidden) return;
@@ -1231,7 +1248,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => {});
     holen();
     return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
-  }, [fenster, belohnungsRang]);
+  }, [fenster, belohnungsRang, liveAn, liveQualNr]);
 
   /** Welcher Reiter im Preis-Block offen ist. */
   const [preisReiter, setPreisReiter] = useState<'preis' | 'wertung'>('preis');
@@ -1270,6 +1287,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       ?? fenster.raenge[fenster.raenge.length - 1];
     return { ...fenster, windowId: stufe.kennung };
   }, [fenster, rang]);
+
+  const liveStrom = useLiveFenster(lbFenster?.eventId, lbFenster?.windowId, lbFenster?.status === 'live', LIVE_TEILE,
+    useCallback((teil: LiveTeil, v: number) => {
+      liveV.current = v;
+      if (teil === 'leaderboard') liveLaden.current();
+      else if (teil === 'matches') liveMatches.current();
+      else setLiveQualNr((n) => n + 1);
+    }, []), setLiveAn);
 
   /**
    * Eine Kennzahl oeffnen und dabei das ganze Feld nachladen.
@@ -1751,14 +1776,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .filter((g) => g.art === 'rank').map((g) => g.schwelle))].filter((n) => n >= 1 && n <= 10_000);
     if (!fenster || !raenge.length || fenster.status === 'kommt') { setSchwellen({}); return undefined; }
     let weg = false;
-    const holen = () => fetch(`/api/cup-schwellen?event=${encodeURIComponent(fenster.eventId)}&window=${encodeURIComponent(fenster.windowId)}&raenge=${raenge.join(',')}`)
+    const holen = () => fetch(`/api/cup-schwellen?event=${encodeURIComponent(fenster.eventId)}&window=${encodeURIComponent(fenster.windowId)}&raenge=${raenge.join(',')}` + (liveV.current ? `&sv=${liveV.current}` : ''))
       .then((r) => r.json())
       .then((j) => { if (!weg && j?.ok) setSchwellen(j.stand ?? {}); })
       .catch(() => { /* ohne Auskunft steht keine Zahl da */ });
     void holen();
-    const uhr = fenster.status === 'live' ? setInterval(() => { void holen(); }, 60_000) : undefined;
+    const uhr = fenster.status === 'live' && !liveAn ? setInterval(() => { void holen(); }, 60_000) : undefined;
     return () => { weg = true; if (uhr) clearInterval(uhr); };
-  }, [fenster, preise]);
+  }, [fenster, preise, liveAn, liveQualNr]);
 
   /*
    * Bei einem mehrtaegigen Finale in der Gesamtwertung die Punkte je Platz aus der Gesamttabelle (Idee 27, 30.10.2026): Epics Fenster von Tag 2 kennt
@@ -2121,7 +2146,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        */
       + (summenFenster ? `&windows=${summenText}` : `&window=${encodeURIComponent(lbFenster.windowId)}`)
       + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`
-      + (Date.now() < handFrischBis.current ? '&frisch=1' : ''))
+      + (Date.now() < handFrischBis.current ? '&frisch=1' : '')
+      + (liveV.current ? `&sv=${liveV.current}` : ''))
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
@@ -2318,8 +2344,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * sind, weiss nur Epic. Die Schnittstelle merkt sich ihre Antwort ohnehin
    * eine Minute - oefter zu fragen brächte nichts.
    */
+  // Am Datenstrom meldet der Server jedes neue Match sofort (liveMatches) - dann ruht dieser Takt.
+  useEffect(() => { liveMatches.current = () => setNachladen((n) => n + 1); }, []);
   useEffect(() => {
-    if (reiter !== 'runden' || !laufende || !fenster) return;
+    if (reiter !== 'runden' || !laufende || !fenster || liveStrom.live) return;
     /*
      * Waehrend eines Spieltags haeufiger.
      *
@@ -2328,7 +2356,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * ueberrennen.
      */
     return sichtbarerTakt(() => setNachladen((n) => n + 1), 5_000);
-  }, [reiter, laufende, fenster]);
+  }, [reiter, laufende, fenster, liveStrom.live]);
 
   /*
    * Ist das ein einzelner Spielraum oder ein ganzer Qualifikationstag?
@@ -2671,7 +2699,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       const r = await fetch(tageListe && tageListe.length > 1
         ? `/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&windows=${tageListe.map(encodeURIComponent).join(',')}${frisch}`
         : `/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
-          + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}${frisch}`);
+          + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}${frisch}` + (liveV.current ? `&sv=${liveV.current}` : ''));
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
       return d as { entries?: Eintrag[]; updated?: string; totalPages?: number };
@@ -2845,11 +2873,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   // Alle 30 Sekunden, solange der Cup laeuft und noch sechs Stunden danach (Betreiber, 7.11.2026: "jede Minute oder alle 30 Sekunden").
   const kurzVorbei = !!lbFenster && lbFenster.status === 'vorbei' && Date.now() - (lbFenster.end ?? 0) < 6 * 3_600_000;
   useEffect(() => {
-    if ((!laeuftGerade && !kurzVorbei) || !lbFenster) return undefined;
+    if ((!laeuftGerade && !kurzVorbei) || !lbFenster || liveStrom.live) return undefined;
     return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 10_000);
-  }, [laeuftGerade, kurzVorbei, lbFenster, laden, summenFenster]);
+  }, [laeuftGerade, kurzVorbei, lbFenster, laden, summenFenster, liveStrom.live]);
 
   useEffect(() => { if (lbFenster) laden(lbFenster, summenFenster); }, [lbFenster, laden, summenFenster]);
+  // Der Datenstrom meldet einen neuen Stand: sofort nachfassen (useLiveFenster oben).
+  useEffect(() => { liveLaden.current = () => { if (lbFenster) void laden(lbFenster, summenFenster); }; }, [lbFenster, laden, summenFenster]);
 
   /**
    * Ein Match absagen oder die Absage zuruecknehmen - nur der Admin, mit
@@ -2877,7 +2907,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   };
 
   useEffect(() => {
-    if (!lbFenster || lbFenster.status !== 'live') return;
+    if (!lbFenster || lbFenster.status !== 'live' || liveStrom.live) return;
     // Ein kleines Feld ist in einem Wimpernschlag geholt, zehntausend
     // Plaetze brauchen hundert Abfragen bei Epic. Deshalb wird ein grosses
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
@@ -2885,7 +2915,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Kleines Feld alle 20 s (Betreiber, 8.11.2026: "seit 2 Minuten nicht updated"), grosses alle 90 s.
     const takt = tabelle.length > 1000 ? 90_000 : 5_000;
     return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, takt);
-  }, [lbFenster, laden, tabelle.length, summenFenster]);
+  }, [lbFenster, laden, tabelle.length, summenFenster, liveStrom.live]);
 
   /*
    * Getippt wird sofort, gefiltert eine Spur spaeter.

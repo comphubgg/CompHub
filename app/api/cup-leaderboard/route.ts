@@ -3,68 +3,14 @@ import {
   gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig, frischeFuer,
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import nodeFs from 'fs/promises';
-import { gzipSync, gunzipSync } from 'zlib';
-import path from 'path';
-import { DATEN_ORT } from '@/lib/datenOrt';
+// Vorrat der ganzen Liste (Lesen, Bauen, Doppelte) liegt seit 15.11.2026 in lib/bestenlisteVorrat - der Live-Abruf (lib/liveFenster) schreibt ihn mit.
+import { ganzLesen, ganzBauen, ohneDoppelte, imBau } from '@/lib/bestenlisteVorrat';
 
 /*
  * Die ganze Bestenliste eines fertigen Spieltags auf einmal (Betreiber, 30.10.2026: "dass direkt mindestens die Top 10.000 angezeigt werden ... nicht
  * loaded 1000, loaded 1500, loaded 2500"). Ein vorbei gegangener Spieltag aendert sich nicht mehr: einmal ganz geholt (hundert Seiten bei Epic, im
  * Hintergrund), liegt er als Datei auf der Platte des Servers und kommt danach in einer einzigen Antwort. Laufende Spieltage laden weiter in Stufen.
  */
-const GANZ_ORDNER = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz');
-const imBau = new Map<string, Promise<void>>();
-const ganzDatei = (w: string) => path.join(GANZ_ORDNER, `${w.replace(/[^\w.-]/g, '_')}.json`);
-async function ganzLesen(w: string) {
-  try {
-    // Gepackt (seit 30.10.2026 - jeder Spieltag der 31 Tage liegt vorgebaut), aeltere Dateien noch ungepackt.
-    const gz = `${ganzDatei(w)}.gz`;
-    const p = await nodeFs.access(gz).then(() => gz, () => ganzDatei(w));
-    const roh = await nodeFs.readFile(p);
-    const d = JSON.parse((p === gz ? gunzipSync(roh) : roh).toString('utf8')) as { entries: unknown[]; updated?: string; totalPages?: number; gebaut?: number };
-    d.gebaut ??= (await nodeFs.stat(p)).mtimeMs;
-    return d;
-  } catch { return null; }
-}
-/** Die ganze Liste neu holen - laeuft schon ein Bau fuer diesen Spieltag, wird auf ihn gewartet statt einen zweiten zu starten. */
-function ganzBauen(event: string, w: string): Promise<void> {
-  const laufend = imBau.get(w);
-  if (laufend) return laufend;
-  const bau = (async () => {
-    try {
-      let alle: unknown[] = []; let gesamt = 0; let updated: string | undefined;
-      for (let von = 0; von < 100; von += 25) {
-        const d = await holeBereich(event, w, von, 25) as { entries?: unknown[]; totalPages?: number; updated?: string };
-        alle = alle.concat(d.entries ?? []);
-        gesamt = d.totalPages ?? gesamt; updated ??= d.updated;
-        if (!(d.entries ?? []).length || von + 25 >= (d.totalPages ?? 0)) break;
-      }
-      if (!alle.length) return;
-      alle = ohneDoppelte(alle);
-      await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
-      await nodeFs.writeFile(`${ganzDatei(w)}.gz`, gzipSync(JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString(), gebaut: Date.now() })));
-      await nodeFs.rm(ganzDatei(w), { force: true });
-    } catch { /* naechster Aufruf versucht es wieder */ } finally { imBau.delete(w); }
-  })();
-  imBau.set(w, bau);
-  return bau;
-}
-/*
- * Direkt nach einem grossen Spieltag fuehrt Epics Liste dasselbe Team mehrfach: alte Zeilen bleiben stehen, bis Epic aufgeraeumt hat (Day 2 EU am 4.11.2026,
- * acht Minuten nach dem Ende: 10.000 Zeilen, 6.804 Spieler, z. B. Platz 6 mit 402 und Platz 193 mit 324 Punkten). Es zaehlt die Zeile mit den meisten Punkten.
- */
-function ohneDoppelte<T>(liste: T[]): T[] {
-  const zeile = (x: T) => x as unknown as { points?: number; players?: Array<{ id?: string }> };
-  const da = new Set<string>();
-  return [...liste].sort((a, b) => (zeile(b).points ?? 0) - (zeile(a).points ?? 0)).filter((x) => {
-    const k = (zeile(x).players ?? []).map((p) => p.id ?? '').sort().join('+');
-    if (!k) return true;
-    if (da.has(k)) return false;
-    da.add(k);
-    return true;
-  });
-}
 const hoechstens = (p: Promise<void>, ms: number) => Promise.race([p, new Promise<void>((r) => setTimeout(r, ms))]);
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cupWertung';
