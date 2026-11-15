@@ -142,8 +142,8 @@ export async function turnierLeaderZeichnen(leinwand: HTMLCanvasElement, d: Lead
 
     const werte: Array<[string, string]> = [
       ['RATING', zahl(m.rating, 1)], ['DAMAGE DEALT', zahl(m.damage)],
-      ['DAMAGE RATIO', m.quote != null ? zahl(m.quote, 2) : '–'], ['HITS TO PLAYERS', zahl(m.hits)],
-      ['HEADSHOTS', zahl(m.headshots)], ['PLACEMENT', m.platz ? `#${m.platz}` : '–'],
+      ['DAMAGE RATIO', m.quote != null ? zahl(m.quote, 2) : '–'], ['HITS TO PLAYERS', m.hits != null ? zahl(m.hits) : '–'],
+      ['HEADSHOTS', m.headshots != null ? zahl(m.headshots) : '–'], ['PLACEMENT', m.platz ? `#${m.platz}` : '–'],
     ];
     const ty = oben + kartenH + 24;
     const gap = 12;
@@ -170,7 +170,8 @@ export async function turnierLeaderZeichnen(leinwand: HTMLCanvasElement, d: Lead
   const rb = W - rand - rx;
   const sp = 3; const gap = 20;
   const tb = (rb - gap * (sp - 1)) / sp;
-  const reihen = Math.max(1, Math.ceil(Math.min(9, d.tafeln.length) / sp));
+  // Immer drei Reihen: fehlen Tafeln (Replay-Auswertung laeuft noch), bleibt der Platz mit einem Hinweis statt riesiger Tafeln.
+  const reihen = 3;
   const th = (unten - oben - gap * (reihen - 1)) / reihen;
   d.tafeln.slice(0, 9).forEach((t, i) => {
     const x = rx + (i % sp) * (tb + gap); const y = oben + Math.floor(i / sp) * (th + gap);
@@ -222,6 +223,17 @@ export async function turnierLeaderZeichnen(leinwand: HTMLCanvasElement, d: Lead
     });
     ctx.restore();
   });
+
+  if (d.tafeln.length <= 6 && d.replayStand) {
+    ctx.save();
+    const y0 = oben + Math.ceil(d.tafeln.length / sp) * (th + gap);
+    flaeche(ctx, rx, y0, rb, Math.min(160, unten - y0), false);
+    ctx.fillStyle = '#9fb3cc';
+    ctx.font = `600 24px ${familie}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Replay ${d.replayStand.gelesen}/${d.replayStand.gesamt} games read – hits, headshots, builds, damage taken and ratio follow.`, rx + 30, y0 + Math.min(160, unten - y0) / 2);
+    ctx.restore();
+  }
 
   // Fusszeile: woher die Zahlen kommen und wie das Rating entsteht.
   ctx.save();

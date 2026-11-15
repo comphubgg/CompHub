@@ -5224,7 +5224,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay}
               gesamt={(spielerWerte as { gesamt?: number }).gesamt ?? null}
               summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
-              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil ?? null}
+              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil
+                ?? ((r) => (r ? { teams: 0, matches: r.gelesen, vonMindestens: r.gesamt } : null))((spielerWerte as { replayStand?: { gelesen: number; gesamt: number } | null }).replayStand)}
               plattformen={(spielerWerte as { plattformen?: Record<string, number> | null }).plattformen ?? null}
               liveVorlaeufig={!!(spielerWerte as { liveVorlaeufig?: boolean }).liveVorlaeufig}
               quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}
@@ -5252,7 +5253,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay}
               gesamt={(spielerWerte as { gesamt?: number }).gesamt ?? null}
               summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
-              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil ?? null}
+              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null }).schadenTeil
+                ?? ((r) => (r ? { teams: 0, matches: r.gelesen, vonMindestens: r.gesamt } : null))((spielerWerte as { replayStand?: { gelesen: number; gesamt: number } | null }).replayStand)}
               plattformen={(spielerWerte as { plattformen?: Record<string, number> | null }).plattformen ?? null}
               liveVorlaeufig={!!(spielerWerte as { liveVorlaeufig?: boolean }).liveVorlaeufig}
               quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}

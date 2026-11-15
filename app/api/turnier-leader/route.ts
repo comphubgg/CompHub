@@ -82,6 +82,7 @@ async function holeRoh(request: Request) {
     for (const t of tag?.teams ?? []) for (const id of t.spieler ?? []) if (typeof t.platz === 'number') m.set(String(id).toLowerCase(), t.platz);
     return m;
   })();
+  let replayStand: { gelesen: number; gesamt: number } | null = null;
   const hole = async (kennzahl: string, pro: number) => {
     const u = new URL('/api/cup-spieler', basis);
     u.searchParams.set('window', fenster);
@@ -90,14 +91,15 @@ async function holeRoh(request: Request) {
     u.searchParams.set('kennzahl', kennzahl);
     u.searchParams.set('pro', String(pro));
     const r = await cupSpieler(new Request(u));
-    const j = await r.json().catch(() => null) as { zeilen?: Array<Record<string, unknown> & { epicId: string }> } | null;
+    const j = await r.json().catch(() => null) as { zeilen?: Array<Record<string, unknown> & { epicId: string }>; replayStand?: { gelesen: number; gesamt: number } | null } | null;
+    if (j?.replayStand) replayStand = j.replayStand;
     const platz = await epicPlatz;
     // Fehlt der Platz in den Replay-Werten (Auswertung laeuft noch), Epics Endplatz aus dem abgelegten Spieltag (epic-spieltage/<Saison>/<window>.json).
     return (j?.zeilen ?? []).map((z) => (typeof z.platz === 'number' ? z : { ...z, platz: platz.get(z.epicId.toLowerCase()) ?? null }));
   };
   try {
     const [d, kopf] = await Promise.all([baueLeader(hole), kopfVon(fenster, windows)]);
-    return NextResponse.json({ ...d, kopf, window: fenster, windows: windows.length > 1 ? windows : null });
+    return NextResponse.json({ ...d, kopf, replayStand, window: fenster, windows: windows.length > 1 ? windows : null });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

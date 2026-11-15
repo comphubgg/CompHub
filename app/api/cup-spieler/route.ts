@@ -529,7 +529,17 @@ async function holeRoh(request: Request) {
     && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));
   // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
   const teil = clutchDatei?.teilweise ?? null;
-  const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
+  /*
+   * Nie Zahlen aus verschieden vielen Spielen mischen (Betreiber, 15.11.2026, FNCS Solos Reload Heat 2 EU): die schlanken Replay-Werte (Elims, Spiele) kannten schon
+   * 8 Spiele, die volle Auswertung (Schaden, Treffer, Kopftreffer, Bauteile, erlittener Schaden) erst 7 - die Ratio teilte Epics 8-Spiele-Schaden durch 7 Spiele
+   * erlittenen Schaden. Darum gilt ein Spieler nur als ganz gelesen, wenn die volle Auswertung so viele seiner Spiele kennt wie die Elims - auch ohne "teilweise".
+   * Alte Dateien ohne Spiele je Spieler bleiben bei der alten Regel.
+   */
+  const spieleBekannt = !!clutchDatei?.spiele && Object.keys(clutchDatei.spiele).length > 0;
+  const ganzGelesen = (id: string, spiele: number) => (!teil && !spieleBekannt) || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
+  /** Wie weit die volle Auswertung ist, wenn sie hinter den Elims (schlanke Werte) liegt: "Replay 7/8 Spiele" auf der Seite. */
+  const gelesenSpiele = tage.length === 1 && typeof (clutchDatei as { gesamt?: number } | null)?.gesamt === 'number' ? (clutchDatei as { gesamt: number }).gesamt : null;
+  const replayStand = gelesenSpiele !== null && (rep?.matches ?? 0) > gelesenSpiele ? { gelesen: gelesenSpiele, gesamt: rep!.matches ?? 0 } : null;
   const nurEpicZeit = tage.length === 1 && /reload/i.test(tage[0]) && Object.keys(clutchDatei?.epicZeit ?? {}).length > 0;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length
     ? new Map(Object.entries(nurEpicZeit ? clutchDatei.epicZeit! : { ...clutchDatei.leben, ...(clutchDatei.epicZeit ?? {}) })
@@ -592,7 +602,12 @@ async function holeRoh(request: Request) {
       ? { distanz: Math.round(((streckeVon.get(x.epicId.toLowerCase())![0] ?? 0) + (streckeVon.get(x.epicId.toLowerCase())![1] ?? 0)) * streckeFaktor) } : {}),
     ...(() => {
       const d = schadenVon?.get(x.epicId.toLowerCase());
-      if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
+      if (!d) return {};
+      if (!ganzGelesen(x.epicId, x.matches)) {
+        // Epics Schaden gilt fuer alle Spiele, die Epic zaehlt - der darf stehen; alles aus der vollen Auswertung (und die Ratio) erst, wenn sie aufgeholt hat.
+        const epic = clutchDatei?.epicDmg?.[x.epicId.toLowerCase()];
+        return typeof epic === 'number' ? { damage: Math.round(epic), damageAusEpic: true, replaySpiele: clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? 0 } : {};
+      }
       return {
         damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
         // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
@@ -641,7 +656,7 @@ async function holeRoh(request: Request) {
     const teams = teamsFuer(ids);
     await namenNachholen([...ids, ...[...ids].flatMap((id) => teams.get(id)?.partner ?? [])], anzeige);
     return NextResponse.json({
-      kennzahl, ...s1, schadenTeil: teil,
+      kennzahl, ...s1, schadenTeil: teil, replayStand,
       zeilen: s1.zeilen.map((z) => ({
         ...z, name: anzeige.get(z.epicId) ?? z.epicId.slice(0, 8), land: land.get(z.epicId) ?? '',
         platz: teams.get(z.epicId)?.platz ?? null,
@@ -714,7 +729,7 @@ async function holeRoh(request: Request) {
    * Dazu alles aus den vollen Replays - nur wenn jedes Match gelesen ist, sonst waere die Summe zu klein. Vorher fehlte das: die Kachel "Schaden" gab es
    * unter "Alle Spieler" gar nicht, obwohl die Werte aller 48.000 Spieler vorlagen (Betreiber, 4.11.2026, Vergleich mit Osirion).
    */
-  if (summen && !teil) {
+  if (summen && !teil && !replayStand) {
     if (schadenVon) {
       const plus = (feld: string, w: number) => { summen[feld] = (summen[feld] ?? 0) + w; };
       for (const d of schadenVon.values()) {
@@ -744,6 +759,7 @@ async function holeRoh(request: Request) {
     gekuerzt: !q && rep.spieler.length > gezeigt.length,
     summen,
     schadenTeil: teil,
+    replayStand,
     plattformen,
     streckeGeschaetzt,
     suche: q || null,

@@ -21,7 +21,8 @@ import { liesJson } from '@/lib/ablage';
  *   "bestes ..." = der beste Wert unter den gewerteten Spielern dieses Spieltags/Events.
  *   Gewertet wird, wer mindestens die Haelfte der Spiele des Spielers mit den meisten Spielen gespielt hat (wie die Je-Spiel-Kacheln der Player Stats);
  *   die Damage Ratio zaehlt dieselbe Regel. Fehlt ein Wert (z. B. die Ratio), zaehlt dieser Teil 0. Kennt der Spieltag keine Platzierung,
- *   gilt Rating = (Summe der vier uebrigen Teile) / 0,80.
+ *   gilt Rating = (Summe der vier uebrigen Teile) / 0,80. Fehlen Treffer/Ratio bei mehr als 10 % der Gewerteten (Replay-Auswertung laeuft noch),
+ *   gilt Rating = 100 x (0.30 Elims + 0.25 Damage + 0.20 Platz) / 0.75.
  *
  * Der Event MVP ist Platz 1 im Rating. Sein Foto nur, wenn es nachweislich zu genau diesem Epic-Konto gehoert (spielerbilder.json, Eintrag mit der
  * Konto-Id) - kein Abgleich ueber den Namen; sonst der Platzhalter. Die Flagge nur aus unseren gepflegten Profilen (cup-spieler: land).
@@ -59,10 +60,10 @@ export interface LeaderMvp {
   elims: number;
   damage: number;
   quote: number | null;
-  hits: number;
-  headshots: number;
+  hits: number | null;
+  headshots: number | null;
   builds: number | null;
-  damageTaken: number;
+  damageTaken: number | null;
   /** Datei in public/spielerbilder - nur bei nachgewiesener Zuordnung zur Konto-Id. */
   datei: string | null;
   gesicht: [number, number, number] | null;
@@ -74,6 +75,8 @@ export interface LeaderAntwort {
   vorhanden: boolean;
   /** Von der Route ergaenzt (app/api/turnier-leader). */
   kopf?: LeaderKopf;
+  /** Die volle Replay-Auswertung liegt hinter Epic (z. B. 7 von 8 Spielen) - Treffer, Kopftreffer, Bauteile, erlittener Schaden und Ratio erst danach. */
+  replayStand?: { gelesen: number; gesamt: number } | null;
   mvp: LeaderMvp | null;
   tafeln: LeaderTafel[];
   formel: string;
@@ -85,6 +88,8 @@ export interface LeaderAntwort {
   feld?: Array<{ epicId: string; name: string; land: string; elims: number; damage: number; platz: number | null; rating: number }>;
   /** Keine Platzierung bekannt - das Rating ohne den Platz-Anteil (hochgerechnet). */
   ohnePlatz?: boolean;
+  /** Treffer und Ratio fehlen bei mehr als 10 % der Gewerteten - das Rating ohne diese beiden Teile. */
+  ohneReplay?: boolean;
   hinweis?: string;
 }
 
@@ -110,13 +115,14 @@ const spieleVon = (z: Roh) => zahl(z.matches) ?? zahl(z.spiele) ?? 0;
 const kills = (z: Roh) => zahl(z.kills) ?? zahl(z.elims) ?? 0;
 
 /** Rating einer Zeile gegen die Bestwerte - siehe Formel oben. */
-export function ratingVon(z: Roh, beste: { elims: number; damage: number; quote: number; hits: number }): number {
+export function ratingVon(z: Roh, beste: { elims: number; damage: number; quote: number; hits: number }, ohneReplay = false): number {
   const teil = (v: number | null, max: number) => (v && max > 0 ? Math.min(1, v / max) : 0);
   const platz = zahl(z.platz);
   const p = platz && platz > 0 ? Math.max(0, (101 - platz) / 100) : 0;
   const g = RATING_GEWICHTE;
-  return 100 * (g.elims * teil(kills(z), beste.elims) + g.damage * teil(zahl(z.damage), beste.damage)
-    + g.quote * teil(zahl(z.quote) ?? zahl(z.damageRatio), beste.quote) + g.hits * teil(zahl(z.hits), beste.hits) + g.platz * p);
+  const basis = g.elims * teil(kills(z), beste.elims) + g.damage * teil(zahl(z.damage), beste.damage) + g.platz * p;
+  if (ohneReplay) return (100 * basis) / (g.elims + g.damage + g.platz);
+  return 100 * (basis + g.quote * teil(zahl(z.quote) ?? zahl(z.damageRatio), beste.quote) + g.hits * teil(zahl(z.hits), beste.hits));
 }
 
 /** Foto nur ueber die Konto-Id (kein Namensabgleich) - Datei ueber 4.000 Byte, sonst ist es die graue Silhouette. */
@@ -153,7 +159,17 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
   const beste = { elims: max(kills), damage: max((z) => zahl(z.damage)), quote: max((z) => zahl(z.quote) ?? zahl(z.damageRatio)), hits: max((z) => zahl(z.hits)) };
   // Kennt der Spieltag (noch) keine Platzierung, faellt dieser Teil weg und die uebrigen 80 % werden auf 100 hochgerechnet - sonst laege jeder um 20 Punkte zu tief.
   const ohnePlatz = !gewertet.some((z) => (zahl(z.platz) ?? 0) > 0);
-  const rating = new Map(gewertet.map((z) => [z.epicId, ohnePlatz ? ratingVon(z, beste) / (1 - RATING_GEWICHTE.platz) : ratingVon(z, beste)]));
+  /*
+   * Liegt die volle Replay-Auswertung noch hinter Epic (Treffer und Ratio nur bei einem Teil der Spieler), zaehlen Treffer und Ratio fuer niemanden - sonst
+   * stuende vorn, wer zufaellig schon ganz gelesen ist. Dann: Rating = 100 x (0.30 Elims + 0.25 Damage + 0.20 Platz) / 0.75.
+   */
+  const ohneReplay = gewertet.filter((z) => zahl(z.hits) !== null).length < gewertet.length * 0.9;
+  const rating = new Map(gewertet.map((z) => {
+    const r = ratingVon(z, beste, ohneReplay);
+    const g = RATING_GEWICHTE;
+    const ohneP = ohneReplay ? (g.elims + g.damage) / (g.elims + g.damage + g.platz) : 1 - g.platz;
+    return [z.epicId, ohnePlatz ? r / ohneP : r];
+  }));
 
   const zeile = (z: Roh, wert: number, rang: number): LeaderZeile => ({
     epicId: z.epicId, name: String(z.name ?? z.epicId.slice(0, 8)), land: String(z.land ?? ''), wert, rang, platz: zahl(z.platz), spiele: spieleVon(z),
@@ -170,7 +186,10 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
   };
 
   const tafeln: LeaderTafel[] = [];
+  // Waehrend die Replay-Auswertung hinter Epic liegt, nur die Tafeln, die fuer alle gelten (Rating, Elims, Damage) - eine Top 5 aus den wenigen schon ganz Gelesenen waere falsch.
+  const NUR_EPIC = new Set(['rating', 'elims', 'damage']);
   for (const t of TAFELN) {
+    if (ohneReplay && !NUR_EPIC.has(t.schluessel)) continue;
     let zeilen: LeaderZeile[];
     if (t.feld === 'rating') zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma);
     // Je-Spiel-Werte (Ratio) nur fuer Gewertete - sonst fuehrt einer mit wenigen Spielen.
@@ -184,11 +203,11 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
   const mvp: LeaderMvp | null = z ? {
     epicId: z.epicId, name: String(z.name ?? z.epicId.slice(0, 8)), land: String(z.land ?? ''), platz: zahl(z.platz), spiele: spieleVon(z),
     rating: +(rating.get(z.epicId) ?? 0).toFixed(1), elims: kills(z), damage: zahl(z.damage) ?? 0, quote: zahl(z.quote) ?? zahl(z.damageRatio),
-    hits: zahl(z.hits) ?? 0, headshots: zahl(z.headshots) ?? 0, builds: zahl(z.builds), damageTaken: zahl(z.damageTaken) ?? 0,
+    hits: zahl(z.hits), headshots: zahl(z.headshots), builds: zahl(z.builds), damageTaken: zahl(z.damageTaken),
     ...(await fotoFuerKonto(z.epicId)),
   } : null;
 
-  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}),
+  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}), ...(ohneReplay ? { ohneReplay: true } : {}),
     feld: gewertet.map((x) => ({ epicId: x.epicId, name: String(x.name ?? x.epicId.slice(0, 8)), land: String(x.land ?? ''), elims: kills(x), damage: zahl(x.damage) ?? 0, platz: zahl(x.platz), rating: +(rating.get(x.epicId) ?? 0).toFixed(1) }))
       .filter((x) => x.elims > 0 || x.damage > 0) };
 }

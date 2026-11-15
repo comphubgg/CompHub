@@ -86,8 +86,8 @@ function MvpKarte({ m, ort }: { m: LeaderMvp; ort: string }) {
     ['Rating', zahl(m.rating, 1)],
     ['Damage Dealt', zahl(m.damage)],
     ['Damage Ratio', m.quote != null ? zahl(m.quote, 2) : '–'],
-    ['Hits to Players', zahl(m.hits)],
-    ['Headshots', zahl(m.headshots)],
+    ['Hits to Players', m.hits != null ? zahl(m.hits) : '–'],
+    ['Headshots', m.headshots != null ? zahl(m.headshots) : '–'],
     ['Placement', m.platz ? `#${m.platz}` : '–'],
   ];
   return (
@@ -211,9 +211,16 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
           <T>So entsteht das Rating</T>
         </button>
       </header>
+      {daten?.replayStand && (
+        <p className="mb-3 flex items-center gap-2 rounded-lg border border-sky-500/25 bg-sky-500/[0.06] px-3 py-2 text-xs text-sky-200">
+          <span aria-hidden className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-400" />
+          <span>Replay {daten.replayStand.gelesen}/{daten.replayStand.gesamt} <T>Spiele gelesen – Treffer, Kopftreffer, Bauteile, erlittener Schaden und Ratio nur bei Spielern, deren Spiele alle gelesen sind.</T></span>
+        </p>
+      )}
       {formel && daten && (
         <div className="mb-4 rounded-xl border border-sky-500/20 bg-sky-500/[0.04] p-3 text-xs leading-relaxed text-slate-300">
           <p className="font-mono text-[11px] text-sky-200">Rating = 100 × (0.30·Elims/max + 0.25·Damage/max + 0.15·Ratio/max + 0.10·Hits/max + 0.20·Placement)</p>
+          {daten.ohneReplay && <p className="mt-1 text-slate-400"><T>Solange die Replays nicht ganz gelesen sind: Rating = 100 × (0.30·Elims + 0.25·Damage + 0.20·Placement) / 0.75.</T></p>}
           {daten.ohnePlatz && <p className="mt-1 text-slate-400"><T>Ohne bekannte Platzierung: Rating = Summe der übrigen Teile / 0,80.</T></p>}
           <p className="mt-1.5 text-slate-400"><T>Placement = max(0, (101 − Platz) / 100). „max“ ist der beste Wert unter den gewerteten Spielern dieses Spieltags. Gewertet wird, wer mindestens die Hälfte der meisten Spiele gespielt hat</T> ({daten.mindestSpiele}/{daten.spieleMax}). <T>Alle Zahlen wie in den Player Stats; Damage Taken nur durch Spieler, ohne Sturm.</T></p>
         </div>
