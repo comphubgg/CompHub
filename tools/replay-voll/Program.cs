@@ -1195,6 +1195,7 @@ class SchadenLeser : ReplayReader {
   public readonly List<object[]> MsInv = new();
   readonly Dictionary<int, double[]> msPawnZahl = new();
   readonly List<object[]> msEncProben = new();
+  bool msFelder;
   void MsPickupNotieren(uint kanal, INetFieldExportGroup g, string name, double t) {
     if (name is null || !System.Text.RegularExpressions.Regex.IsMatch(name, "^(Wood|Stone|Metal)ItemData")) return;
     object W(string k) { try { var v = g.GetType().GetProperty(k)?.GetValue(g); if (v is null) return null; var vv = v.GetType().GetProperty("Value")?.GetValue(v); return vv ?? (v is ValueType || v is string ? v : v.ToString()); } catch { return null; } }
@@ -1203,6 +1204,7 @@ class SchadenLeser : ReplayReader {
     MsPickups.Add(new object[] { Math.Round(t, 2), kanal, akteur, name, W("Count"), W("A"), W("B"), W("C"), W("D"), Wer(W("PickupTarget")), W("bPickedUp"), W("bTossedFromContainer"), Wer(W("PawnWhoDroppedPickup")), W("Owner"), W("ItemOwner"), W("OptionalOwnerID"), W("bCombinePickupsWhenTossCompletes"), W("CombineTarget") });
   }
   void MsPawn(uint kanal, FortniteReplayReader.Models.NetFieldExports.PlayerPawn p) {
+    if (!msFelder && Zeit() is double tf && tf > 400) { msFelder = true; FelderZeigen("FortPickup|ItemizationCoreRuntime|RootItemization|PlayerPawn_Athena|BroadcastRemote|Harvest|ResourceBuilding|PawnReplay|FortInventory|Vehicle"); }
     if (Hole(VonFigur, kanal)?.Id is not int id) return;
     if (!msPawnZahl.TryGetValue(id, out var z)) msPawnZahl[id] = z = new double[7];
     z[0]++; if (p.Location is not null) z[1]++; if (p.ReplicatedMovement is not null) z[2]++;
