@@ -60,8 +60,23 @@ for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWit
     for (const [k, v] of c) summe[k] = (summe[k] ?? 0) + v;
     for (const [k, v] of soloMatch) solo[k] = (solo[k] ?? 0) + Math.round(v);
   }
+  /*
+   * Gelesene Matches, die (noch) nicht in den Rohdaten stehen, bleiben mit ihren Punkten - sonst saehe der Planer sie als offen, und ihr Schaden zaehlte beim
+   * naechsten Einarbeiten doppelt.
+   */
+  const ausRoh = new Set(matches.map((m) => m.id));
+  for (const m of alt.matches ?? []) {
+    if (ausRoh.has(m.id)) continue;
+    matches.push(m);
+    for (const [k, v] of Object.entries(m.spieler ?? {})) summe[k] = (summe[k] ?? 0) + (Number(v) || 0);
+  }
   fs.mkdirSync(ZIEL, { recursive: true });
-  fs.writeFileSync(zielDatei, JSON.stringify({ ...alt, version: 3, eventId: roh.eventId, windowId: roh.windowId,
+  /*
+   * Die Fassung der Datei bleibt (15.11.2026). Bis dahin stand hier immer version 3 - der Planer (scripts/clutch-berechnen.mjs) und clutch-zusammen.mjs werten
+   * erst ab 4 als gueltig: jeder kleine Spieltag mit Rohdaten wurde deshalb in jedem Lauf ganz neu gelesen (FNCS Solo Reload Heat 1, alle Regionen: 8 von 8 offen,
+   * obwohl fertig). 3 nur noch fuer eine Datei, die es vorher nicht gab.
+   */
+  fs.writeFileSync(zielDatei, JSON.stringify({ ...alt, version: Math.max(3, Number(alt.version) || 0), eventId: roh.eventId, windowId: roh.windowId,
     regeln: roh.regeln, ...(herkunft ? { regelHerkunft: herkunft } : { regelHerkunft: undefined }),
     neuGerechnet: new Date().toISOString(), matches, summe, solo }, null, 1));
   gerechnet += 1;

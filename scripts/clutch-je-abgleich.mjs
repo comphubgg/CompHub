@@ -76,10 +76,12 @@ for (const f of dateien) {
   const datei = path.join(ZIEL, f);
   // Erst ohne ganzes Einlesen (die Dateien grosser Cups haben 60 MB, der Ordner zusammen Gigabytes): "je" mit seiner Groesse und jeGeprueft stehen als Text darin.
   const text = fs.readFileSync(datei, 'latin1');
-  const an = text.lastIndexOf('"je":{"spalten"');
+  // Auch eingerueckt (scripts/clutch-neu-rechnen.mjs schreibt mit Leerzeichen).
+  let an = -1;
+  for (const m of text.matchAll(/"je":\s*\{\s*"spalten"/g)) an = m.index;
   if (an < 0) continue;
-  const bytesText = Number(/"bytes":(\d+)/.exec(text.slice(an, an + 20000))?.[1]);
-  const gepruefText = Number(/"jeGeprueft":(\d+)/.exec(text)?.[1]);
+  const bytesText = Number(/"bytes":\s*(\d+)/.exec(text.slice(an, an + 40000))?.[1]);
+  const gepruefText = Number(/"jeGeprueft":\s*(\d+)/.exec(text)?.[1]);
   const name = `clutch-je/${w}.json`;
   const groesse = await groesseAmRelease(name);
   if (groesse === undefined) { console.log(`  ${w}: Manifest nicht lesbar - diesmal nicht geprueft`); continue; }
