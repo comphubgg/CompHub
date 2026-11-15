@@ -184,7 +184,7 @@ jobs:
     needs: [planen, rechnen]
     if: always() && !cancelled() && needs.planen.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55   # 40 bis 15.11.2026: Warten auf die Sofort-Ablage (16 min) + Abgleich + Hochladen lief darueber, der Abschluss wurde abgebrochen
     # Eigene Gruppe: in clutch-ablegen verdraengt jeder neue Auftrag den wartenden, und die Rechner schicken zwoelf davon. Dieser Schritt hing dort fest, der naechste Lauf kam nicht an die Reihe
     # (7.11.2026). Damit trotzdem nur einer schreibt, wartet er unten, bis die Sofort-Ablage fertig ist: neue kommen nicht mehr nach, die Rechner sind ja durch.
     concurrency:
@@ -252,7 +252,8 @@ jobs:
       # Lage der Werte je Match gegen die Datei am Release (scripts/clutch-je-abgleich.mjs, 15.11.2026).
       - name: Werte je Match abgleichen
         continue-on-error: true
-        run: node scripts/clutch-je-abgleich.mjs 2>&1 | tail -40
+        timeout-minutes: 6
+        run: node scripts/clutch-je-abgleich.mjs --hoechstens 25 --minuten 3 2>&1 | tail -40
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

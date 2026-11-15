@@ -73,25 +73,36 @@ function lageAus(buf) {
 const dateien = (fs.existsSync(ZIEL) ? fs.readdirSync(ZIEL).filter((f) => f.endsWith('.json') && !f.startsWith('_')) : []).sort().reverse();
 // Je Lauf hoechstens so viele holen und neu schreiben (jede geaenderte Spieltags-Datei wird danach hochgeladen) - der Rest kommt im naechsten Lauf.
 const HOECHSTENS = Number(process.argv[process.argv.indexOf('--hoechstens') + 1]) || 60;
+/*
+ * Und hoechstens so viele Minuten (15.11.2026): mit 60 Dateien brauchte der Schritt im Abschluss 8,5 Minuten, das Hochladen danach lief in die Zeitgrenze
+ * des Jobs (40 Minuten), und der ganze Abschluss wurde abgebrochen.
+ */
+const MINUTEN = Number(process.argv[process.argv.indexOf('--minuten') + 1]) || 3;
+const schluss = Date.now() + MINUTEN * 60_000;
 let geprueft = 0; let repariert = 0; let ohneDatei = 0; let ok = 0; let mitLuecke = 0; let aufgeschoben = 0;
+// Erst alle Kandidaten (Text, ohne ganzes Einlesen) und ihre Groesse am Release - die Anfragen zu acht zugleich.
+const kandidaten = [];
 for (const f of dateien) {
   const w = f.replace(/\.json$/, '');
   // Gerade hier geschrieben (scripts/clutch-zusammen.mjs): Lage und Datei kommen aus demselben Lauf, jeFehlt hat zusammen schon gezaehlt.
   if (fs.existsSync(path.join(DATEN, 'clutch-je', f))) continue;
-  const datei = path.join(ZIEL, f);
-  // Erst ohne ganzes Einlesen (die Dateien grosser Cups haben 60 MB, der Ordner zusammen Gigabytes): "je" mit seiner Groesse und jeGeprueft stehen als Text darin.
-  const text = fs.readFileSync(datei, 'latin1');
-  // Auch eingerueckt (scripts/clutch-neu-rechnen.mjs schreibt mit Leerzeichen).
+  // Die Dateien grosser Cups haben 60 MB, der Ordner zusammen Gigabytes: "je" mit seiner Groesse und jeGeprueft stehen als Text darin (auch eingerueckt, clutch-neu-rechnen).
+  const text = fs.readFileSync(path.join(ZIEL, f), 'latin1');
   let an = -1;
   for (const m of text.matchAll(/"je":\s*\{\s*"spalten"/g)) an = m.index;
   if (an < 0) continue;
-  const bytesText = Number(/"bytes":\s*(\d+)/.exec(text.slice(an, an + 40000))?.[1]);
-  const gepruefText = Number(/"jeGeprueft":\s*(\d+)/.exec(text)?.[1]);
+  kandidaten.push({ f, w, bytesText: Number(/"bytes":\s*(\d+)/.exec(text.slice(an, an + 40000))?.[1]), gepruefText: Number(/"jeGeprueft":\s*(\d+)/.exec(text)?.[1]) });
+}
+{
+  let i = 0;
+  await Promise.all(Array.from({ length: 8 }, async () => { while (i < kandidaten.length) { const k = kandidaten[i++]; k.groesse = await groesseAmRelease(`clutch-je/${k.w}.json`); } }));
+}
+for (const { f, w, bytesText, gepruefText, groesse } of kandidaten) {
+  const datei = path.join(ZIEL, f);
   const name = `clutch-je/${w}.json`;
-  const groesse = await groesseAmRelease(name);
   if (groesse === undefined) { console.log(`  ${w}: Groesse am Release nicht feststellbar - diesmal nicht geprueft`); continue; }
   if (groesse === bytesText && gepruefText === bytesText) { ok += 1; continue; }
-  if (geprueft >= HOECHSTENS) { aufgeschoben += 1; continue; }
+  if (geprueft >= HOECHSTENS || Date.now() > schluss) { aufgeschoben += 1; continue; }
   let d;
   try { d = JSON.parse(fs.readFileSync(datei, 'utf8')); } catch { continue; }
   if (!d?.je) continue;
