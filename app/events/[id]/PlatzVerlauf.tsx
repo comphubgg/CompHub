@@ -4,7 +4,7 @@
  * Placement Progression (Betreiber, 15.11.2026): wie sich die besten zehn Teams Spiel fuer Spiel in der Wertung bewegt haben - Linien (Platz nach Spiel 1, 2, ...),
  * darunter die Tabelle je Spiel (Platz im Match, Punkte, Stand) und "Top 10 als CSV".
  *
- * Punkte je Spiel aus Epics Wertung des Cups (preise.wertung: Placement-Schwellen, Punkte je Elimination). Der Stand nach Spiel k ist der Platz unter allen
+ * Punkte je Spiel: Epics eigene Punkte je Match (punktePlatz + punkteElim aus /api/cup-leaderboard), sonst aus der Wertung des Cups (preise.wertung). Der Stand nach Spiel k ist der Platz unter allen
  * geladenen Teams nach ihrem k-ten Spiel. Gezeigt wird nur, wenn die Summe dieser Punkte fuer die zehn Teams genau Epics Punkte ergibt - sonst passt die Wertung
  * nicht (z. B. Spielzahl-Grenze, Sonderregeln), und eine erfundene Kurve waere schlechter als keine.
  */
@@ -14,12 +14,14 @@ import T from '@/app/components/T';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 
-interface Match { placement?: number; elims?: number; endTime?: string }
+interface Match { placement?: number; elims?: number; endTime?: string; punktePlatz?: number; punkteElim?: number }
 interface Team { rank: number; points: number; players: Array<{ id: string; name: string }>; matches: Match[]; matchesWeg?: boolean }
 interface Regel { was: string; schwelle: number; regel: string; punkte: number; jeStueck: boolean }
 
 /** Punkte eines Spiels nach Epics Regeln: jede erreichte Platz-Schwelle zaehlt, Elims je Stueck oder als Schwelle. */
 export function spielPunkte(m: Match, wertung: Regel[]): number {
+  // Epics eigene Punkte je Match (lib/epicCups: punktePlatz, punkteElim), wo die Bestenliste sie fuehrt - sonst aus der Wertung des Cups.
+  if (typeof m.punktePlatz === 'number' || typeof m.punkteElim === 'number') return (m.punktePlatz ?? 0) + (m.punkteElim ?? 0);
   let p = 0;
   for (const r of wertung) {
     if (r.was === 'Placement' && r.regel === 'lte' && typeof m.placement === 'number' && m.placement <= r.schwelle) p += r.punkte;
@@ -38,17 +40,18 @@ export default function PlatzVerlauf({ tabelle, wertung, name }: { tabelle: Team
 
   const daten = useMemo(() => {
     const mit = tabelle.filter((e) => !e.matchesWeg && e.matches?.length);
-    if (!wertung.length || mit.length < 10) return null;
+    const epicPunkte = mit.some((e) => e.matches.some((m) => typeof m.punktePlatz === 'number'));
+    if ((!wertung.length && !epicPunkte) || mit.length < 10) return null;
     const verlauf = mit.map((e) => {
       const spiele = [...e.matches].sort((a, b) => Date.parse(a.endTime ?? '') - Date.parse(b.endTime ?? ''));
       let summe = 0;
-      const punkte = spiele.map((m) => spielPunkte(m, wertung));
+      const punkte = spiele.map((m) => +spielPunkte(m, wertung).toFixed(2));
       const kum = punkte.map((p) => (summe += p));
       return { e, spiele, punkte, kum };
     });
     const top = verlauf.filter((v) => v.e.rank <= 10).sort((a, b) => a.e.rank - b.e.rank).slice(0, 10);
-    // Nur wenn unsere Rechnung Epics Punkte trifft.
-    if (top.length < 10 || top.some((v) => v.kum[v.kum.length - 1] !== v.e.points)) return null;
+    // Aus der Wertung gerechnet: nur wenn die Summe Epics Punkte trifft. Epics eigene Punkte je Match gelten so, wie Epic sie fuehrt.
+    if (top.length < 10 || (!epicPunkte && top.some((v) => Math.abs(v.kum[v.kum.length - 1] - v.e.points) > 0.5))) return null;
     const n = Math.max(...top.map((v) => v.spiele.length));
     // Stand nach Spiel k: Platz nach Punkten unter allen geladenen Teams (wer weniger Spiele hat, mit seinem letzten Stand).
     const stand = (k: number) => {

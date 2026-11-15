@@ -312,6 +312,8 @@ interface Match {
   /** Epics Sitzungskennung - dieselbe, die als "Match ID" angezeigt wird. */
   sessionId?: string;
   placement?: number; elims?: number; timeAlive?: number; endTime?: string;
+  /** Epics Punkte dieses Matches fuer Platz und Eliminierungen (lib/epicCups). */
+  punktePlatz?: number; punkteElim?: number;
 }
 interface Eintrag {
   rank: number; points: number; elims: number; games: number; wins: number;
@@ -4161,8 +4163,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </div>
           </header>
           {/* Placement Progression der besten zehn und "Top 10 als CSV" (Betreiber, 15.11.2026) - nur wenn Epics Wertung des Cups die Punkte genau ergibt (./PlatzVerlauf). */}
-          {!!preise?.wertung?.length && tabelle.length >= 10 && (
-            <PlatzVerlauf tabelle={tabelle} wertung={preise.wertung} name={lbFenster?.windowId ?? id} />
+          {tabelle.length >= 10 && (
+            <PlatzVerlauf tabelle={tabelle} wertung={preise?.wertung ?? []} name={lbFenster?.windowId ?? id} />
           )}
 
           {/*
