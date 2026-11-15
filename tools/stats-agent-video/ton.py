@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Original-Audio fuer das Stats-Agent-Video (keine fremde Musik).
 
-python3 ton.py sfx.json ausgabe.wav
+python3 ton.py sfx.json ausgabe.wav [--musik-db -5] [--lufs -16] [--stems]
 
 - Elektronisches Bett, 125 BPM (Takt = 1,92 s, passt zum Szenen-Zeitplan in szene.html):
   Kick, Hats, Clap, Sub-Bass mit Sidechain, Pad-Akkorde (Am - F - C - G), Pluck-Arpeggio.
 - SFX laut Zeitplan aus der Szene (window.SFX): whoosh, hit, impact, riser, glitch, click, blip, ping, ticks, stream.
-- Mischung: Hall per FFT-Faltung, Soft-Clip, danach ffmpeg loudnorm (2 Durchgaenge) auf -14 LUFS / -1,5 dBTP.
+- Mischung: Hall per FFT-Faltung, Soft-Clip, danach ffmpeg loudnorm (2 Durchgaenge) auf -16 LUFS / -1,5 dBTP.
+- Musikbett standardmaessig 5 dB leiser als in der ersten Fassung (Betreiber, 15.11.2026: "Musik etwas zu laut");
+  SFX unveraendert. --musik-db 0 ergibt die alte Balance.
+- Abschnittszeiten (S2..S6, STEP0, STEP_END) kommen aus plan["abschnitte"], sonst die Werte des Stats-Agent-Videos.
+- --stems schreibt zusaetzlich -musik.wav und -sfx.wav (gleiche Verstaerkung, ohne Saettigung) zum Nachmessen.
 Nur numpy + ffmpeg.
 """
 import json
@@ -22,14 +26,24 @@ BEAT = 60.0 / BPM
 BAR = 4 * BEAT
 rng = np.random.default_rng(7)
 
+def opt(name, std):
+    return float(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else std
+
+
 plan = json.load(open(sys.argv[1]))
 AUS = sys.argv[2]
+MUSIK_DB = opt("--musik-db", -5.0)  # Musikbett relativ zur ersten Fassung
+ZIEL_LUFS = opt("--lufs", -16.0)
+STEMS = "--stems" in sys.argv
 DAUER = float(plan["dauer"])
 N = int(round(DAUER * SR))
 SFXL = plan["sfx"]
 
-S2, S3, S4, S5, S6 = 5.76, 13.44, 71.04, 80.64, 86.40
-STEP0, STEP_END = 15.36, 63.36
+# Abschnitte: S2 Drop, S3 volle Drums, S4 Breakdown, S5 Wiedereinstieg Arp, S6 Outro; STEP0/STEP_END = Arp-Strecke
+AB = {"S2": 5.76, "S3": 13.44, "S4": 71.04, "S5": 80.64, "S6": 86.40, "STEP0": 15.36, "STEP_END": 63.36}
+AB.update(plan.get("abschnitte", {}))
+S2, S3, S4, S5, S6 = AB["S2"], AB["S3"], AB["S4"], AB["S5"], AB["S6"]
+STEP0, STEP_END = AB["STEP0"], AB["STEP_END"]
 
 
 # ---------------------------------------------------------------- Hilfen
@@ -383,9 +397,11 @@ for e in SFXL:
 sfx = sfx + hall(sfx, 1.4, 3.5) * 0.22
 
 # ---------------------------------------------------------------- Master
-mix = musik * 0.85 + sfx * 0.9
+MG = 0.85 * 10 ** (MUSIK_DB / 20)
+mix = musik * MG + sfx * 0.9
 mix = fft_filter(mix[:, 0], lo=25, ordnung=2)[:, None] * [1, 0] + fft_filter(mix[:, 1], lo=25, ordnung=2)[:, None] * [0, 1]
-mix /= np.max(np.abs(mix)) + 1e-9
+norm = np.max(np.abs(mix)) + 1e-9
+mix /= norm
 mix = np.tanh(mix * 1.6) / np.tanh(1.6)  # sanfte Saettigung
 fade_in = np.minimum(1, tt / 0.4)
 fade_out = np.clip((DAUER - tt) / 2.4, 0, 1) ** 1.5
@@ -405,11 +421,15 @@ def schreibe(pfad, x):
 
 roh = AUS.replace(".wav", "-roh.wav")
 schreibe(roh, mix)
+if STEMS:
+    for name, x in (("musik", musik * MG), ("sfx", sfx * 0.9)):
+        y = fft_filter(x[:, 0], lo=25)[:, None] * [1, 0] + fft_filter(x[:, 1], lo=25)[:, None] * [0, 1]
+        schreibe(AUS.replace(".wav", f"-{name}.wav"), np.clip(y / norm * 0.5, -1, 1))
 
-# Lautheit: 2-Durchgang-loudnorm auf -14 LUFS, True Peak -1.5 dBTP
-mess = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", roh, "-af", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
+# Lautheit: 2-Durchgang-loudnorm auf ZIEL_LUFS, True Peak -1.5 dBTP
+mess = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", roh, "-af", f"loudnorm=I={ZIEL_LUFS}:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"], capture_output=True, text=True).stderr
 j = json.loads(mess[mess.rindex("{") : mess.rindex("}") + 1])
-af = (f"loudnorm=I=-14:TP=-1.5:LRA=11:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}"
+af = (f"loudnorm=I={ZIEL_LUFS}:TP=-1.5:LRA=11:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}"
       f":measured_thresh={j['input_thresh']}:offset={j['target_offset']}:linear=true,alimiter=limit=0.84:attack=1:release=50:level=false")
 subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", roh, "-af", af, "-ar", str(SR), "-c:a", "pcm_s16le", AUS], check=True)
-print("Audio:", AUS, f"{DAUER:.2f} s", "gemessen vorher:", j["input_i"], "LUFS")
+print("Audio:", AUS, f"{DAUER:.2f} s", f"Musik {MUSIK_DB:+.1f} dB, Ziel {ZIEL_LUFS} LUFS,", "gemessen vorher:", j["input_i"], "LUFS")
