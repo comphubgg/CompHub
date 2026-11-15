@@ -1,0 +1,56 @@
+# Echte Aufnahmen der Live-Seite fuer Promo-Videos (Betreiber, 15.11.2026: "wirklich zeigen, wie es auf der Seite aussieht").
+# Die Claude-Sandbox kommt nicht an thecomphub.com - der Runner schon. Playwright klickt sich wie ein Besucher durch
+# /replays -> Spieltag -> Game (Kill-Feed, Kampf-Orte, Zonen, Spieler, 3D, Werte) -> Cup-Seite "Matches" und nimmt quer (1920x1080) und hoch (1080x1920) auf.
+# Ergebnis je Format als replays-aufnahme-<format>.tar im Release "medien" (Artefakte sind aus der Sandbox nicht ladbar).
+# Skript: tools/replays-video/seite-aufnehmen.mjs
+name: Seite aufnehmen
+on:
+  workflow_dispatch:
+    inputs:
+      tag: { description: 'Spieltag (windowId), leer = automatisch (FNCS, Reload Solos, EU bevorzugt)', required: false, default: '' }
+      nr: { description: 'Game-Nummer, leer = das Game mit den meisten Daten', required: false, default: '' }
+      formate: { description: 'quer, hoch oder beide (Komma)', required: false, default: 'quer,hoch' }
+      basis: { description: 'Seite', required: false, default: 'https://www.thecomphub.com' }
+      name: { description: 'Name der Datei im Release medien', required: false, default: 'replays-aufnahme' }
+permissions:
+  contents: write
+jobs:
+  liste:
+    runs-on: ubuntu-latest
+    outputs:
+      formate: ${{ steps.f.outputs.formate }}
+    steps:
+      - id: f
+        env: { F: '${{ inputs.formate }}' }
+        run: node -e "console.log('formate='+JSON.stringify(process.argv[1].split(',').map(s=>s.trim()).filter(Boolean)))" "$F" >> "$GITHUB_OUTPUT"
+  aufnehmen:
+    needs: liste
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        format: ${{ fromJSON(needs.liste.outputs.formate) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - name: Aufnehmen
+        env:
+          TAG: ${{ inputs.tag }}
+          NR: ${{ inputs.nr }}
+          BASIS: ${{ inputs.basis }}
+        run: node tools/replays-video/seite-aufnehmen.mjs --format ${{ matrix.format }} --basis "$BASIS" --tag "$TAG" --nr "$NR" --aus aufnahme-${{ matrix.format }}
+      - name: Hochladen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ inputs.name }}
+        run: |
+          [ -d aufnahme-${{ matrix.format }} ] || exit 0
+          ls -la aufnahme-${{ matrix.format }}
+          cat aufnahme-${{ matrix.format }}/marken.json || true
+          tar -cf "$NAME-${{ matrix.format }}.tar" aufnahme-${{ matrix.format }}
+          gh release upload medien "$NAME-${{ matrix.format }}.tar" --clobber
