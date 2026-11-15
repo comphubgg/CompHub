@@ -18,7 +18,7 @@ import { REGIONEN_REIHE } from '@/lib/regionFarbe';
 interface Zeile {
   rang: number; epicId: string; name: string; region: string; land: string | null; rating: number; stern: boolean;
   events: number | null; trend: number | null; manuell: boolean; platzFest: number | null; sternFest: boolean | null; entfernt?: boolean;
-  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup' } | null;
+  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup'; nachLuecke?: boolean } | null;
 }
 interface Antwort { titelJahr: number; liste: Zeile[]; regeln: { stand: number; kandidaten: number; referenz: number } | null }
 interface Treffer { epicId: string; anzeige?: string; name?: string; regionen?: string[] }
@@ -135,7 +135,7 @@ export default function ProspectsPflege() {
             <thead>
               <tr className="border-b border-zinc-800 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                 <th className="px-3 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th><th className="px-2 py-2">Region</th>
-                <th className="px-2 py-2 text-right">Rating</th><th className="px-2 py-2 text-right">Events</th><th className="px-3 py-2"><T>Erster Auftritt</T></th>
+                <th className="px-2 py-2 text-right">Rating</th><th className="px-2 py-2 text-right">Events</th><th className="px-3 py-2"><T>Durchbruch</T></th>
                 <th className="px-2 py-2 text-center"><T>Stern</T></th><th className="px-2 py-2"><T>Fester Platz</T></th><th className="px-2 py-2" />
               </tr>
             </thead>
@@ -151,7 +151,7 @@ export default function ProspectsPflege() {
                   <td className="px-2 py-1.5 text-xs text-slate-400">{z.region || '–'}</td>
                   <td className={`px-2 py-1.5 text-right text-xs font-bold tabular-nums ${z.rating > 1 ? 'text-emerald-400' : 'text-slate-300'}`}>{z.rating.toFixed(2)}</td>
                   <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-400">{z.events ?? '–'}</td>
-                  <td className="max-w-[220px] truncate px-3 py-1.5 text-[11px] text-slate-500" title={z.erstes?.windowId}>{z.erstes ? `${datum(z.erstes.datum)} · ${z.erstes.titel || z.erstes.windowId} · #${z.erstes.platz}` : '–'}</td>
+                  <td className="max-w-[220px] truncate px-3 py-1.5 text-[11px] text-slate-500" title={z.erstes?.windowId}>{z.erstes ? `${datum(z.erstes.datum)} · ${z.erstes.titel || z.erstes.windowId} · #${z.erstes.platz}${z.erstes.nachLuecke ? ` · ${t('nach Datenlücke')}` : ''}` : '–'}</td>
                   <td className="px-2 py-1.5 text-center">
                     {/* Ein Klick schaltet weiter: automatisch -> Stern -> kein Stern -> automatisch. */}
                     <button type="button" disabled={laeuft === z.epicId} onClick={() => void senden(z.epicId, { stern: z.sternFest === null ? true : z.sternFest ? false : null })}

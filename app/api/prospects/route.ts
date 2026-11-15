@@ -27,10 +27,10 @@ const REGIONEN = new Set(['EU', 'NAC', 'NAW', 'BR', 'OCE', 'ME', 'ASIA']);
 interface Kandidat {
   epicId: string; name: string; region: string; score: number; rating: number; niveau: number; note: number; trend: number;
   events: number; fncs: number; top100: number; beste: number; verlauf: number[];
-  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup' };
+  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup'; nachLuecke?: boolean };
 }
 interface Rechnung {
-  stand: number; ab: number; tage: number; minEvents: number; trendGewicht: number; trendMax: number; trendVoll: number; stuetze: number; referenz: number;
+  stand: number; ab: number; tage: number; aktivTage: number; spitze: number; luecke: number; lueckeNach: number; minEvents: number; trendGewicht: number; trendMax: number; trendVoll: number; stuetze: number; referenz: number;
   liste: Kandidat[];
 }
 export interface PflegeEintrag { name?: string; region?: string; aktion?: 'add' | 'remove'; stern?: boolean; platz?: number; geaendert?: number }
@@ -119,7 +119,7 @@ async function zusammen(mitEntfernten: boolean) {
   if (mitEntfernten) for (const z of alle.filter((x) => x.entfernt)) liste.push({ ...ohneScore(z), rang: 0, stern: false });
 
   const regeln = rechnung ? {
-    tage: rechnung.tage, ab: rechnung.ab, minEvents: rechnung.minEvents, trendGewicht: rechnung.trendGewicht, trendMax: rechnung.trendMax,
+    tage: rechnung.tage, aktivTage: rechnung.aktivTage, spitze: rechnung.spitze, luecke: rechnung.luecke, lueckeNach: rechnung.lueckeNach, ab: rechnung.ab, minEvents: rechnung.minEvents, trendGewicht: rechnung.trendGewicht, trendMax: rechnung.trendMax,
     trendVoll: rechnung.trendVoll, stuetze: rechnung.stuetze, referenz: rechnung.referenz, stand: rechnung.stand, kandidaten: rechnung.liste.length,
   } : null;
   return { liste, regeln, eintraege };

@@ -16,10 +16,10 @@ import { REGIONEN_REIHE, regionFarbe } from '@/lib/regionFarbe';
 interface Zeile {
   rang: number; epicId: string; name: string; region: string; land: string | null; rating: number; stern: boolean;
   events: number | null; trend: number | null; manuell: boolean;
-  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup' } | null;
+  erstes: { datum: number; windowId: string; titel: string; platz: number; art: 'fncs' | 'cup'; nachLuecke?: boolean } | null;
 }
 interface Regeln {
-  tage: number; ab: number; minEvents: number; trendGewicht: number; trendMax: number; trendVoll: number; stuetze: number; referenz: number;
+  tage: number; aktivTage: number; spitze: number; luecke: number; lueckeNach: number; ab: number; minEvents: number; trendGewicht: number; trendMax: number; trendVoll: number; stuetze: number; referenz: number;
   stand: number; kandidaten: number;
 }
 interface Antwort { titelJahr: number; regeln: Regeln | null; liste: Zeile[] }
@@ -60,7 +60,7 @@ export default function Prospects({ aufSpieler }: { aufSpieler?: (id: string, na
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-400"><T>Neu an der Spitze</T></p>
         <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-50 sm:text-4xl">Prospects <span className="text-sky-400">{jahr}</span></h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400">
-          <T>Spieler, die erst in den letzten Monaten oben aufgetaucht sind und seitdem konstant liefern. Wir kennen kein Alter – gezählt wird allein, wann ein Konto zum ersten Mal ein FNCS-Finale, einen Heat oder Runde 3 erreicht hat oder in einem großen Cup unter die Top 100 kam.</T>
+          <T>Spieler, deren Durchbruch höchstens zwei Jahre zurückliegt, geordnet nach ihrer aktuellen Form. Wir kennen kein Alter – gezählt wird allein, wann ein Konto zum ersten Mal ein FNCS-Finale, einen Heat oder Runde 3 erreicht hat oder in einem großen Cup unter die Top 10 kam.</T>
         </p>
       </div>
 
@@ -79,14 +79,15 @@ export default function Prospects({ aufSpieler }: { aufSpieler?: (id: string, na
         <div className="mb-5 rounded-xl border border-white/[0.08] bg-zinc-900 p-4 text-sm leading-relaxed text-slate-300">
           <h3 className="mb-2 text-sm font-extrabold text-slate-100"><T>So werden Prospects gewählt</T></h3>
           <ol className="list-decimal space-y-1.5 pl-5 text-[13px] text-slate-400">
-            <li><span className="font-semibold text-slate-200"><T>Erster Auftritt.</T></span> <T>Ein Spieltag zählt als erster nennenswerter Auftritt, wenn das Konto dort eine FNCS-Runde ab Runde 3 (Heat, Halbfinale, Finale) spielt oder in einem Cash, Victory, Elite oder Series Cup bzw. einer Performance Evaluation Top 100 wird. Durchsucht wird unsere ganze gespeicherte Geschichte bis 2019, allein über die Epic-Konto-Id – ein neuer Name macht niemanden neu.</T></li>
-            <li><span className="font-semibold text-slate-200"><T>Zeitfenster.</T></span> {t('Dieser erste Auftritt liegt höchstens {tage} Tage zurück (etwa zwei Saisons), und seitdem stehen mindestens {min} Spieltage in unseren Bestenlisten. Zero Build, Mobile und Ranked zählen nicht.').replace('{tage}', String(r?.tage ?? 183)).replace('{min}', String(r?.minEvents ?? 5))}</li>
-            <li><span className="font-semibold text-slate-200"><T>Niveau.</T></span> {t('Unsere Platzierungsnote über die letzten 20 Spieltage im Fenster: 1 − log(Platz) / log(Feld), Regionen gewichtet, das schlechteste Fünftel fällt weg. Damit fünf gute Cups noch kein Beweis sind, wird sie mit {s} gedachten Spieltagen auf Höhe der Referenz gemischt.').replace('{s}', String(r?.stuetze ?? 5))}</li>
+            <li><span className="font-semibold text-slate-200"><T>Durchbruch.</T></span> {t('Der erste Spieltag auf Spitzenniveau: eine FNCS-Runde ab Runde 3 (Heat, Halbfinale, Finale, Division-1-Finale) oder ein Top-{spitze}-Platz in einem Cash, Victory, Elite oder Series Cup bzw. einer Performance Evaluation. Durchsucht wird unsere ganze gespeicherte Geschichte bis 2019, allein über die Epic-Konto-Id – ein neuer Name macht niemanden neu.').replace('{spitze}', String(r?.spitze ?? 10))}</li>
+            <li><span className="font-semibold text-slate-200"><T>Lücken.</T></span> {t('In manchen Monaten fehlen uns Bestenlisten. Liegt der Durchbruch höchstens {nach} Tage nach einer solchen Lücke (mindestens {luecke} Tage ohne FNCS- oder großen Cup-Spieltag), könnte er eigentlich früher gewesen sein: dann zählt das früheste starke Ergebnis, das wir überhaupt haben (FNCS ab Runde 3 oder Top 25).').replace('{nach}', String(r?.lueckeNach ?? 60)).replace('{luecke}', String(r?.luecke ?? 45))}</li>
+            <li><span className="font-semibold text-slate-200"><T>Zeitfenster.</T></span> {t('Der Durchbruch liegt höchstens {tage} Tage zurück (etwa zwei Jahre), und in den letzten {aktiv} Tagen stehen mindestens {min} Spieltage in unseren Bestenlisten. Zero Build, Mobile und Ranked zählen nicht.').replace('{tage}', String(r?.tage ?? 730)).replace('{aktiv}', String(r?.aktivTage ?? 183)).replace('{min}', String(r?.minEvents ?? 5))}</li>
+            <li><span className="font-semibold text-slate-200"><T>Niveau.</T></span> {t('Die aktuelle Form entscheidet: unsere Platzierungsnote über die letzten 20 Wettkampf-Spieltage (FNCS, Cash, Victory, Elite, Series Cup, Performance Evaluation) in der Heimatregion – 1 − log(Platz) / log(Feld), Regionen gewichtet, das schlechteste Fünftel fällt weg. Damit wenige gute Cups noch kein Beweis sind, wird sie mit {s} gedachten Spieltagen auf Höhe der Referenz gemischt.').replace('{s}', String(r?.stuetze ?? 5))}</li>
             <li><span className="font-semibold text-slate-200"><T>Trend.</T></span> {t('Note der neueren Hälfte dieser Spieltage minus Note der älteren Hälfte, begrenzt auf ±{max}; unter {voll} Spieltagen zählt er anteilig.').replace('{max}', String(r?.trendMax ?? 0.2)).replace('{voll}', String(r?.trendVoll ?? 10))}</li>
-            <li><span className="font-semibold text-slate-200">Rating.</span> {t('(Niveau + {g} × Trend) / Referenz. Die Referenz ({ref}) ist die mittlere Note aller etablierten Spieler unseres Spielerkreises, die im selben Fenster gespielt haben – ein Rating über 1 heißt: stärker als der typische etablierte Spieler.').replace('{g}', String(r?.trendGewicht ?? 0.5)).replace('{ref}', String(r?.referenz ?? '–'))}</li>
+            <li><span className="font-semibold text-slate-200">Rating.</span> {t('(Niveau + {g} × Trend) / Referenz. Die Referenz ({ref}) ist die mittlere Note aller etablierten Spieler unseres Spielerkreises, die im letzten halben Jahr gespielt haben – ein Rating über 1 heißt: stärker als der typische etablierte Spieler.').replace('{g}', String(r?.trendGewicht ?? 0.25)).replace('{ref}', String(r?.referenz ?? '–'))}</li>
             <li><span className="font-semibold text-slate-200"><T>Pflege.</T></span> <T>Die Redaktion kann Spieler aufnehmen oder entfernen, Sterne setzen und Plätze festlegen; ein fester Platz geht der Rechnung vor. Sterne stehen sonst bei den ersten elf.</T></li>
           </ol>
-          {r && <p className="mt-3 text-[11px] text-slate-500">{t('Stand')}: {datum(r.stand)} · {r.kandidaten} {t('Kandidaten')} · {t('Fenster ab')} {datum(r.ab)}</p>}
+          {r && <p className="mt-3 text-[11px] text-slate-500">{t('Stand')}: {datum(r.stand)} · {r.kandidaten} {t('Kandidaten')} · {t('Durchbruch ab')} {datum(r.ab)}</p>}
         </div>
       )}
 
@@ -97,7 +98,7 @@ export default function Prospects({ aufSpieler }: { aufSpieler?: (id: string, na
         <ol className="gap-x-3 sm:columns-2 lg:columns-3">
           {d.liste.map((z, i) => {
             const gruen = z.rating > 1;
-            const erstes = z.erstes ? `${t('Erster Auftritt')}: ${z.erstes.titel || z.erstes.windowId} · #${z.erstes.platz} · ${datum(z.erstes.datum)}` : t('Von der Redaktion aufgenommen');
+            const erstes = z.erstes ? `${t('Durchbruch')}: ${z.erstes.titel || z.erstes.windowId} · #${z.erstes.platz} · ${datum(z.erstes.datum)}` : t('Von der Redaktion aufgenommen');
             return (
               <li key={z.epicId} className="mb-1.5 break-inside-avoid">
                 <button type="button" onClick={() => aufSpieler?.(z.epicId, z.name)} title={erstes}

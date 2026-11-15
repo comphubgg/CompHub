@@ -18,7 +18,7 @@ const ERKLAERUNG: Record<string, string> = {
   regional: 'Die Spieler einer Region im Vergleich.',
   spieler: 'Alle Spieler mit ihren Werten. Ein Klick öffnet das Profil.',
   aufsteiger: 'Wer gerade konstant stärker wird: die letzten zehn Cups gegen die zehn davor.',
-  prospects: 'Wer erst kürzlich oben angekommen ist und seitdem konstant liefert.',
+  prospects: 'Wer in den letzten zwei Jahren den Durchbruch geschafft hat – nach aktueller Form.',
   jahr: 'Das laufende Jahr: Preisgeld, Siege und Bestwerte.',
   orgs: 'Die E-Sports-Teams mit ihren Spielern und Preisgeldern.',
   vergleich: 'Zwei Spieler direkt gegeneinander vergleichen.',
