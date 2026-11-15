@@ -49,6 +49,13 @@ jobs:
           CUP: ${{ inputs.cup }}
           EVENT: ${{ inputs.event }}
         run: node scripts/discord-stats-probe.cjs "$SPIELER" "$CUP" "$EVENT" 2>&1 | grep -E "PROBE|Error|error" | head -400
+      # Laeuft auf thecomphub.com schon der Stand mit ?raenge= (Einzelansicht von /stats)? Zeigt nur, ob die Antwort das Feld hat.
+      - name: Stand der Seite
+        continue-on-error: true
+        run: |
+          curl -s -m 60 "https://www.thecomphub.com/api/cup-spieler?window=S43_TriosCashCup_Event2_EU&event=epicgames_S43_TriosCashCup_EU&raenge=8224fc7512ad42818f381e262e4a6a2b" \
+            | head -c 400; echo
+          curl -s -m 30 https://www.thecomphub.com/api/stand | head -c 300; echo
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local data/epic-auth.json
