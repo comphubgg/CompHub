@@ -1,0 +1,8 @@
+Diagnose 15.11.2026 (Zweig exakt-mats-strecke): Beweis fuer Strecke (Epic Travel_Distance_Ground), Mats Farmed/Collected und Builds.
+Ordner <M> mit: rp/<match>.replay, aus/<match>.json + aus/spur-<match>.json (Leser mit MS_DIAG=1 MS_SPUR=...), neu/<match>.json (Leser ohne Schalter),
+epic/epic__<window>.json (scripts/diag-epic-sitzungen.mjs). Holen: schaden-diag.yml mit umgebung=MS_HOLEN=1 (scripts/ms-holen.sh).
+  TS=1 OHNE_TOT=1 node takt.cjs <M> <epic.json> <match...>      Takt 0,8-1,2 s gegen Epic
+  TS=1 OHNE_TOT=1 node band.cjs <M> <epic.json> <match...>      Epic innerhalb der Phasen-Spanne?
+  node leser-gegen-epic.cjs <M>                                streckeBoden des Lesers gegen Epic (Heat 1 EU)
+  node mats-summe.cjs <M> ; node mats-je-spieler.cjs <M>        Farmed / Collected / Quellen
+  node bau-gegen-inventar.cjs <M>                              Bauteile gegen Inventar-Minus

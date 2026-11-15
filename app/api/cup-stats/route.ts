@@ -51,7 +51,7 @@ interface Kategorie {
 }
 
 /** Werte aus den ausgewerteten Replays (clutch/<Fenster>.json) - je Team die Summe der Spieler; null, wenn nicht alle Spiele gelesen sind. */
-interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number; farm: number | null; heilHp: number; schildHeil: number }
+interface Extra { erlitten: number; treffer: number; sturm: number; builds: number | null; clutch: number; farm: number | null; gesammelt: number | null; heilHp: number; schildHeil: number }
 
 /*
  * Reihenfolge und Titel wie bei Osirion (Betreiber, 8.11.2026: "die Beschriftung genau gleich ... die Reihenfolge genau gleich ... immer ausgeschrieben"): zuerst die zehn,
@@ -68,8 +68,13 @@ const KATEGORIEN: Kategorie[] = [
   { schluessel: 'timeAlive', symbol: '⏱️', titel: 'Time Alive', zeit: true, wert: (e) => lebenOhneUeberlappung(e.matches ?? []) ?? e.timeAlive },
   { schluessel: 'strecke', symbol: '🏃', titel: 'Distance Traveled', einheit: 'km', faktor: 1 / 100_000, nachkomma: 1, wert: (e) => e.strecke },
   { schluessel: 'treffer', symbol: '🎯', titel: 'Hits To Players', wert: (_e, x) => x?.treffer ?? 0 },
-  // Epics Wert, wo Epic ihn fuehrt; sonst (Reload-Cups) aus den Replays.
-  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Mats Farmed', wert: (e, x) => e.matsGefarmt || x?.farm || 0 },
+  /*
+   * Mats Farmed (Betreiber, 15.11.2026): nur mit der Spitzhacke Abgebautes - Baeume, Steine, Autos, Gebaeude. Epic fuehrt das nicht (WoodAcquired kam in 150.223 Sitzungen
+   * nie vor und sagt nicht, woher), darum immer aus den Replays (tools/replay-voll, MatsExakt). Mats Collected: alles Erhaltene - Abbau, Kisten, Boden, Drops von
+   * Eliminierten, Wiedereinstieg; ohne Weitergereichtes im Team und eigene, wieder aufgehobene.
+   */
+  { schluessel: 'matsGefarmt', symbol: '🧱', titel: 'Mats Farmed', wert: (_e, x) => x?.farm || 0 },
+  { schluessel: 'matsGesammelt', symbol: '📥', titel: 'Mats Collected', mehr: true, wert: (e, x) => x?.gesammelt || e.matsErhalten || 0 },
   { schluessel: 'builds', symbol: '🏗️', titel: 'Builds Placed', wert: (_e, x) => x?.builds ?? 0 },
   { schluessel: 'points', symbol: '🏆',      titel: 'Most Points',            wert: (e) => e.points },
   /*
@@ -111,11 +116,11 @@ async function ganzeListe(w: string): Promise<{ entries: CupEintrag[]; updated?:
 /** Die Replay-Werte eines Spieltags je Team (Summe der Spieler) - null, wenn ein Spieler nicht ganz gelesen ist. */
 async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
   const zb = istZeroBuild(w);
-  type D = { erlitten?: number; treffer?: number; sturm?: number; heilHp?: number; schildHeilEcht?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number };
+  type D = { erlitten?: number; treffer?: number; sturm?: number; heilHp?: number; schildHeilEcht?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number; farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number };
   const c = await liesClutch<{ schaden?: Record<string, D>; spiele?: Record<string, number>; summe?: Record<string, number> }>(w).catch(() => null);
   if (!c?.schaden) return () => null;
   return (e) => {
-    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0, heilHp: 0, schildHeil: 0 };
+    const x: Extra = { erlitten: 0, treffer: 0, sturm: 0, builds: 0, clutch: 0, farm: 0, gesammelt: 0, heilHp: 0, schildHeil: 0 };
     for (const p of e.players) {
       const id = String(p.id ?? '').toLowerCase();
       const d = c.schaden?.[id];
@@ -126,6 +131,9 @@ async function extraFuer(w: string): Promise<(e: CupEintrag) => Extra | null> {
       x.heilHp += d.heilHp ?? 0; x.schildHeil += d.schildHeilEcht ?? 0;
       if (zb) x.farm = 0;
       else if (x.farm !== null) x.farm = typeof d.farmHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.farm + (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0) : null;
+      // Gesammelt = Gefarmt + alles andere Erhaltene (samHolz usw.: Kisten, Boden, Gegner, Wiedereinstieg). Auch im Zero Build (Kisten, Boden).
+      if (x.gesammelt !== null) x.gesammelt = typeof d.samHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0)
+        ? x.gesammelt + (zb ? 0 : (d.farmHolz ?? 0) + (d.farmStein ?? 0) + (d.farmMetall ?? 0)) + (d.samHolz ?? 0) + (d.samStein ?? 0) + (d.samMetall ?? 0) : null;
       if (x.builds !== null) x.builds = typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= (e.games || 0) ? x.builds + (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0) : null;
     }
     return x.erlitten === 0 && x.treffer === 0 ? null : x;
@@ -290,9 +298,10 @@ async function holeRoh(request: Request) {
         // Bei Team-Cups fuehrt Epic weder Schaden noch Strecke - dann aus den Replays; ohne gelesenes Replay leer statt 0.
         damage: eintraege.reduce((a, e) => a + (e.damage || 0), 0) || (s.length ? summeVon((d) => (d as { dmg?: number }).dmg) : null),
         strecke: eintraege.reduce((a, e) => a + (e.strecke || 0), 0) / 100_000
-          || (Object.keys(c?.strecke ?? {}).length ? Object.values(c!.strecke!).reduce((a, [f, l]) => a + (f ?? 0) + (l ?? 0), 0) / 0.685 / 1000 : null),
+          || (s.some((d) => typeof (d as { streckeBoden?: number }).streckeBoden === 'number') ? summeVon((d) => (d as { streckeBoden?: number }).streckeBoden ?? 0) / 1000
+            : Object.keys(c?.strecke ?? {}).length ? Object.values(c!.strecke!).reduce((a, [f, l]) => a + (f ?? 0) + (l ?? 0), 0) / 0.685 / 1000 : null),
         // Leer, solange kein Replay gelesen ist (laufender Cup: sonst stuende "Materials Farmed 0" da); im Zero Build nach dem Lesen wirklich 0.
-        matsGefarmt: istZeroBuild(window_) ? 0 : eintraege.reduce((a, e) => a + (e.matsGefarmt || 0), 0) || (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
+        matsGefarmt: istZeroBuild(window_) ? 0 : (s.length ? s.reduce((a, d) => a + ((d as { farmHolz?: number }).farmHolz ?? 0) + ((d as { farmStein?: number }).farmStein ?? 0) + ((d as { farmMetall?: number }).farmMetall ?? 0), 0) : null),
         treffer: s.length ? summeVon((d) => d.treffer) : null,
         builds: s.some((d) => typeof d.selbstHolz === 'number') ? summeVon((d) => (d.selbstHolz ?? 0) + (d.selbstStein ?? 0) + (d.selbstMetall ?? 0)) : null,
         // Gelungene Edits wie Osirion (Builds Edited); die Versuche waeren mehr.

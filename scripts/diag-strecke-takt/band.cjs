@@ -1,0 +1,5 @@
+const {data,F}=require('./spur.cjs');
+const X=data.filter(x=>x.e>=1000&&x.pts.length);
+function one(x,phi){const {pts,S,e}=x;let sum=0,last=null,i=0;for(let T=Math.floor(pts[0][0])-1+phi;T<=pts[pts.length-1][0]+1;T+=1){while(i+1<pts.length&&pts[i+1][0]<=T)i++;const a=pts[i];if(a[0]>T||!F.basis(S[i])){last=null;continue}let P=a;if(i+1<pts.length&&pts[i+1][7]===a[7]&&pts[i+1][0]>a[0]){const b=pts[i+1];const f=(T-a[0])/(b[0]-a[0]);P=[T,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+(b[3]-a[3])*f,0,0,0,a[7]]}if(last&&last[7]===P[7])sum+=Math.hypot(P[1]-last[1],P[2]-last[2],P[3]-last[3])/100;last=P}return sum}
+let drin=0,n=0,totE=0,totM=0;const aus=[];for(const x of X){const v=[];for(let k=0;k<40;k++)v.push(one(x,k/40));const lo=Math.min(...v),hi=Math.max(...v),mean=v.reduce((a,b)=>a+b,0)/v.length;n++;totE+=x.e;totM+=mean;if(x.e>=lo-0.5&&x.e<=hi+0.5)drin++;else aus.push([x.n.slice(0,12),x.m.slice(0,4),Math.round(x.e),Math.round(lo),Math.round(hi)])}
+console.log('Epic innerhalb [min,max] ueber 40 Phasen:',drin,'von',n,'| Summe Epic',Math.round(totE),'Summe Mittel',Math.round(totM),'Abw',((totM/totE-1)*100).toFixed(3)+'%');console.log(JSON.stringify(aus));

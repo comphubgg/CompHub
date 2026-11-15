@@ -398,7 +398,10 @@ if (bus.Count == 0 && reader.BusWerte.TryGetValue("FlightStartLocation", out var
 }
 var gd = replay.GameData;
 reader.BusAbFuerMs = busAb;
+reader.BusAbExakt = busAb;
 reader.MsSpurSchreiben();
+// Eliminierungen je Spieler fuer die Strecke (Ursache 50 ist der Wiedereinstieg im Reload, kein Tod).
+var todeJe = feed.Where(f => f.art == "tot" && f.opfer is not null && Convert.ToInt32(f.ursache ?? 0) != 50).GroupBy(f => (int)f.opfer).ToDictionary(g => g.Key, g => g.Select(f => (double)(f.t ?? 0)).ToList());
 Console.WriteLine(JsonConvert.SerializeObject(new {
   bus = bus.Count > 0 ? bus : null,
   version = 3,
@@ -416,6 +419,8 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
   extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten, streckeVoll = reader.StreckeJe(busAb),
   msDiag = SchadenLeser.MsDiag ? reader.MsDiagFertig() : null,
+  // Fassung 16 (15.11.2026): Strecke am Boden wie Epic (m) und gesammelte Mats je Quelle [Kiste, Boden, Gegner, Team, selbst, Wiedereinstieg, unbekannt, Rueckgabe] x [Holz, Stein, Metall].
+  fassung = 16, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
 }, Formatting.None, einst));
 }
 
@@ -560,6 +565,9 @@ class SchadenLeser : ReplayReader {
    */
   readonly Dictionary<uint, (char stoff, int besitzer, bool gesetzt, bool ersatz)> bauTeile = new();
   readonly Dictionary<int, int> spielerVonWelt = new();
+  readonly Dictionary<uint, (double t, string form)> msBauZeit = new();
+  readonly HashSet<uint> msBauEdit = new();
+  public object MsBauListe() => bauTeile.Select(kv => new object[] { msBauZeit.TryGetValue(kv.Key, out var z) ? Math.Round(z.t, 2) : -1, spielerVonWelt.TryGetValue(kv.Value.besitzer, out var id) ? id : -1, kv.Value.stoff.ToString(), kv.Value.gesetzt ? 1 : 0, kv.Value.ersatz ? 1 : 0, z.form, msBauEdit.Contains(kv.Key) ? 1 : 0, kv.Key }).ToList();
   bool BauLesen(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint kanal, bool enablePropertyChecksum) {
     if (enablePropertyChecksum) archive.ReadBit();
     int? team = null, besitzer = null; bool? gesetzt = null; var ersatz = false; var bearbeitet = false;
@@ -583,6 +591,7 @@ class SchadenLeser : ReplayReader {
     if (Channels[kanal]?.Actor?.ActorNetGUID?.Value is uint akteur) {
       bauTeile.TryGetValue(akteur, out var alt);
       bauTeile[akteur] = (teil.stoff, besitzer ?? alt.besitzer, gesetzt ?? alt.gesetzt, ersatz || alt.ersatz);
+      if (MsDiag && Zeit() is double tb) { if (!msBauZeit.ContainsKey(akteur)) msBauZeit[akteur] = (tb, teil.form); if (bearbeitet) msBauEdit.Add(akteur); }
     }
     if (team is not int tm) return true;
     if (!Bauten.TryGetValue(tm, out var b)) Bauten[tm] = b = new Bau();
@@ -824,12 +833,9 @@ class SchadenLeser : ReplayReader {
     return i < l.Count && l[i] <= bis;
   }
   /*
-   * Rechnet die Inventar-Schritte auf die Spieler um; einmal nach dem Lesen, wenn alle Figuren bekannt sind. Die Regeln sind an den vier Spielen des Performance-Finales gegen Osirion geprueft
-   * (Darm, Charyy, demus; Holz, Stein, Metall je Spieler), die Mengen selbst sind exakt, nur ihre Einordnung ist geschaetzt:
-   * - Rueckgabe: ein Plus in Zehnern bis 2 s nach einem Minus ist ein abgebrochener Bau und zaehlt nicht als Gewinn.
-   * - Gefarmt: das Plus liegt bis 2 s nach oder 0,6 s vor einem Spitzhackenschlag. Faellt dazu ein Aufheben in die Zeit (das Aufgehobene kommt 0,4 bis 1,1 s spaeter an), zaehlen nur Mengen bis 30.
-   * - Ein Minus ab 70 ist Hinwerfen. Was das Team binnen 30 s davon wieder aufhebt, ist nur weitergereicht und zaehlt nicht als gesammelt (Darm: Holz +68 % ohne diese Regel).
-   * - Gesammelt ist alles andere. Osirion fuehrt beides getrennt. Im Finale im Mittel daneben: Gefarmt 6 %, Gesammelt 15 %.
+   * Rechnet die Inventar-Schritte auf die Spieler um; einmal nach dem Lesen, wenn alle Figuren bekannt sind. Seit Fassung 16 (15.11.2026) ordnet MatsExakt jede Zunahme
+   * ihrer Quelle zu (Aufheben mit der Menge des Pickups, Wiedereinstieg, Spitzhacke, Rueckgabe) - vorher schaetzten Zeitfenster um Spitzhackenschlaege und Aufheben
+   * die Einordnung (FNCS Solo Reload Heat 1 EU: Mats Farmed 13 % zu hoch, die Lobby vor dem Bus zaehlte mit).
    */
   const double WurfAb = 70, WurfFrist = 30;
   readonly Dictionary<(int, int), int> inventarBau = new();
@@ -858,62 +864,9 @@ class SchadenLeser : ReplayReader {
       if (!schritte.TryGetValue((id, stoff), out var l)) schritte[(id, stoff)] = l = new();
       l.Add(new[] { t, menge });
     }
-    var leer = new List<double>();
-    var jeTeam = new Dictionary<(int, int), List<(double t, double m, int id)>>();
-    foreach (var ((id, stoff), l) in schritte) {
-      for (int i = 0; i < l.Count; i++) {
-        if (l[i][1] <= 0 || l[i][1] % 10 != 0) continue;
-        for (int j = i - 1; j >= 0 && l[i][0] - l[j][0] <= 2 && l[i][1] > 0; j--) {
-          if (l[j][1] >= 0) continue;
-          var k = Math.Min(l[i][1], -l[j][1]); l[i][1] -= k; l[j][1] += k;
-        }
-      }
-      // Gegenprobe Bauen (14.11.2026): jedes nach dem Rueckgabe-Abgleich verbleibende Minus in Zehnern unter WurfAb ist ein gesetztes Teil (10 Mats je Teil).
-      foreach (var x in l) if (x[1] < 0 && -x[1] < WurfAb && x[1] % 10 == 0) { inventarBau.TryGetValue((id, stoff), out var ib); inventarBau[(id, stoff)] = ib + (int)(-x[1] / 10); }
-      var team = teamVon.TryGetValue(id, out var tm) ? tm : -id;
-      if (!jeTeam.TryGetValue((team, stoff), out var tl)) jeTeam[(team, stoff)] = tl = new();
-      foreach (var x in l) if (x[1] != 0) tl.Add((x[0], x[1], id));
-    }
-    foreach (var ((_, stoff), l) in jeTeam) {
-      // Im Team hingeworfene Mats (je Team und Stoff), aus denen ein Aufheben kurz danach bedient wird.
-      var geworfen = new List<double[]>();
-      foreach (var (t, m, id) in l.OrderBy(x => x.t)) {
-        var e = ExtraVon(id);
-        if (m < 0) {
-          if (-m >= WurfAb) geworfen.Add(new[] { t, -m });
-          continue;
-        }
-        var schlaege = axt.GetValueOrDefault(id) ?? leer; var aufgehoben = auf.GetValueOrDefault((id, stoff)) ?? leer;
-        // Bis 2 s nach dem Schlag (8.11.2026): das Gefarmte kommt im Strom oft spaeter an. Mit 0,5 s fehlten Focus (FNCS Solo Reload, 10 Matches) 15 % zu Osirions
-        // Mats Farmed; mit 2 s 6.781 zu 6.824, Metall 583 zu 593.
-        if (DiagId is not null) {
-          // Varianten der Regel (Diagnose, 10.11.2026): [A] wie bisher, [B] Fenster 1 s, [C] ohne Kleinmengen-Regel, [D] Fenster 1 s ohne Kleinmengen, [E] nur bis 30 je Schritt.
-          if (!FarmVarianten.TryGetValue(id, out var fv)) FarmVarianten[id] = fv = new double[9];
-          var aufNah = Zwischen(aufgehoben, t - 1.1, t - 0.4);
-          var a2 = Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !aufNah);
-          var b1 = Zwischen(schlaege, t - 1, t + 0.6) && (m <= 30 || !aufNah);
-          var klein = m <= 30 && MitSpitzhacke(id, t) && !Zwischen(aufgehoben, t - 1.5, t + 0.5);
-          if (a2 || klein) fv[0] += m; if (b1 || klein) fv[1] += m; if (a2) fv[2] += m; if (b1) fv[3] += m; if ((a2 || klein) && m <= 30) fv[4] += m;
-          // [F] wie D, aber kein Aufheben desselben Stoffs 3 s davor bis 1 s danach; [G] Fenster 0,6 s ohne Kleinmengen; [H] wie F mit Fenster 0,6 s; [I] wie D, Schritt hoechstens 40
-          var aufWeit = Zwischen(aufgehoben, t - 3, t + 1);
-          var c06 = Zwischen(schlaege, t - 0.6, t + 0.6) && (m <= 30 || !aufNah);
-          if (b1 && !aufWeit) fv[5] += m; if (c06) fv[6] += m; if (c06 && !aufWeit) fv[7] += m; if (b1 && m <= 40) fv[8] += m;
-        }
-        if (Zwischen(schlaege, t - 2, t + 0.6) && (m <= 30 || !Zwischen(aufgehoben, t - 1.1, t - 0.4))) { e[ExtraGefarmt + stoff] += m; continue; }
-        /*
-         * Schlaege auf Autos, Kuehlschraenke und andere Dinge, die kein Bauteil sind, stehen nicht als Einschlag im Strom (8.11.2026: Focus, FNCS Solo Reload, Metall gefarmt
-         * 323 zu Osirions 593). Kleine Mengen mit der Spitzhacke in der Hand und ohne Aufheben in der Naehe sind deshalb auch gefarmt.
-         */
-        if (m <= 30 && MitSpitzhacke(id, t) && !Zwischen(aufgehoben, t - 1.5, t + 0.5)) { e[ExtraGefarmt + stoff] += m; continue; }
-        var rest = m;
-        foreach (var w in geworfen) {
-          if (rest <= 0) break;
-          if (t - w[0] > WurfFrist || w[1] <= 0) continue;
-          var k = Math.Min(rest, w[1]); w[1] -= k; rest -= k;
-        }
-        e[ExtraGesammelt + stoff] += rest;
-      }
-    }
+    // Gegenprobe Bauen (14.11.2026, nur BAU_DIAG): jedes Minus in Zehnern unter WurfAb ist ein gesetztes Teil (10 Mats je Teil).
+    foreach (var ((id, stoff), l) in schritte) foreach (var x in l) if (x[1] < 0 && -x[1] < WurfAb && x[1] % 10 == 0) { inventarBau.TryGetValue((id, stoff), out var ib); inventarBau[(id, stoff)] = ib + (int)(-x[1] / 10); }
+    MatsExakt(schritte, axt, teamVon);
     /*
      * Schuesse (8.11.2026, an zehn Matches des Betreibers gegen Osirion: 429 zu 440): je 2 s das Groessere aus der Munition, die aus dem Magazin verschwindet, und den Einschlaegen
      * mit einer Schusswaffe in der Hand. Der Munitionsstand fehlt bei manchen Waffen ganz (nicht im Inventar zugeordnet), die Einschlaege sehen keine Schuesse ins Leere.
@@ -1066,7 +1019,10 @@ class SchadenLeser : ReplayReader {
   public readonly Dictionary<int, List<double[]>> KillVerlauf = new();
   public override bool ReceiveProperties(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint channelIndex, out INetFieldExportGroup exportGroup, bool enablePropertyChecksum = true, bool netDeltaUpdate = false) {
     if (bauKanal.ContainsKey(channelIndex) && group.PathName.Contains("PBWA_", StringComparison.Ordinal)) { exportGroup = null; return BauLesen(archive, group, channelIndex, enablePropertyChecksum); }
-    if (MsDiag && (group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal) || group.PathName.EndsWith("FortPickupAthena", StringComparison.Ordinal))) MsRohLesen(archive, group, channelIndex, enablePropertyChecksum);
+    if (group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal) || group.PathName.EndsWith("FortPickupAthena", StringComparison.Ordinal)) {
+      ExaktRohLesen(archive, group, channelIndex, enablePropertyChecksum);
+      if (MsDiag) MsRohLesen(archive, group, channelIndex, enablePropertyChecksum);
+    }
     if (!group.PathName.EndsWith("FortRegenHealthSet", StringComparison.Ordinal)) return base.ReceiveProperties(archive, group, channelIndex, out exportGroup, enablePropertyChecksum, netDeltaUpdate);
     exportGroup = null;
     if (enablePropertyChecksum) archive.ReadBit();
@@ -1171,6 +1127,7 @@ class SchadenLeser : ReplayReader {
     var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
     if (name is not null) lootNameVonKanal[kanal] = name;
     else lootNameVonKanal.TryGetValue(kanal, out name);
+    MatsPickupMerken(kanal, g, name, t);
     if (MsDiag) MsPickupNotieren(kanal, g, name, t);
     // Aus einer Kiste geworfen (das Kennzeichen kommt im Replay oft erst spaeter, zeitlich und oertlich unbrauchbar - nur das Kennzeichen je Kanal zaehlt).
     if (Wert("bTossedFromContainer") is bool raus && raus) kistenKanal.Add(kanal);
@@ -1188,6 +1145,166 @@ class SchadenLeser : ReplayReader {
     }
     Eintrag(Wert("PickupTarget"), 1);
     Eintrag(Wert("PawnWhoDroppedPickup"), 0);
+  }
+  /*
+   * ===== Exakte Mats und exakte Strecke (Fassung 16, 15.11.2026, Zweig exakt-mats-strecke) =====
+   *
+   * MATS. Jede Zunahme von Holz/Stein/Metall im Inventar eines Spielers (die Mengen stehen offen im Strom, InventarEintrag) wird ihrer Quelle zugeordnet:
+   *  1. Aufheben: ein Mats-Pickup desselben Stoffs, den dieser Spieler aufhebt (PickupTarget), bis 2,5 s vor oder nach der Zunahme - hoechstens so viel, wie der Pickup
+   *     enthielt (StackSize in seiner DataList, hoechste Lesung bis 1,5 s nach dem Aufheben: hingeworfene Stapel verschmelzen und melden die Summe erst danach).
+   *     Quelle: Kiste (bTossedFromContainer), Boden (niemand liess ihn fallen), Gegner (PawnWhoDroppedPickup aus einem anderen Team: Eliminierung), Team (ein Mitspieler
+   *     reichte weiter) oder selbst (eigene, wieder aufgehoben).
+   *  2. Wiedereinstieg (Reload): Zunahme im Moment einer neuen Figur (-0,3 bis +1 s).
+   *  3. Spitzhacke: Schlag mit der Spitzhacke -2 bis +0,6 s oder Spitzhacke in der Hand. Kleine Reste (bis 30) bis 5 s nach dem letzten Schlag ebenso.
+   *  4. Rueckgabe: Zehner bis 2 s nach einem Minus (abgebrochener Bau) - kein Gewinn.
+   *  5. Rest: unbekannt.
+   * Gefarmt = 3. Gesammelt (extra 6-8) = Kiste + Boden + Gegner + Wiedereinstieg + unbekannt, also alles ausser Gefarmt, ohne Weitergereichtes (Team, selbst) und Rueckgaben.
+   * Vor dem Bus (Lobby) zaehlt nichts. FNCS Solo Reload Heat 1 EU (8 Matches, 291 Spieler-Matches): unbekannt 0,36 % aller Zunahmen.
+   *
+   * STRECKE. Epics Travel_Distance_Ground ist die Summe der 3D-Abstaende der Position im Abstand von genau 1 s, solange der Spieler lebt und weder faellt (Skydiving) noch gleitet
+   * (Fallschirm), ab dem Absprung aus dem Bus. Bewiesen an FNCS Solo Reload Heat 1 EU, 284 Spieler-Matches: Takt 0,95 s / 1,0 s / 1,05 s ergibt 1,0107 / 1,0001 / 0,9901 (Median),
+   * die Summe aller Spieler weicht -0,08 % ab. Den Takt (Phase) je Spieler kennt nur Epic; hier der Mittelwert ueber zehn Phasen (je Spieler im Mittel 0,47 % daneben).
+   * Positionen: ReplicatedMovement jeder Figur, selbst entpackt (die Bibliothek liefert es nicht), mit der Serverzeit ReplayLastTransformUpdateTimeStamp.
+   */
+  readonly Dictionary<(uint kanal, uint akteur), (int stoff, double t0, int ziel, double tAuf, bool kiste, int fallen)> matsPickups = new();
+  readonly Dictionary<(uint kanal, uint akteur), List<(double t, int menge)>> matsPickupMenge = new();
+  public double? BusAbExakt;
+  void MatsPickupMerken(uint kanal, INetFieldExportGroup g, string name, double t) {
+    if (name is null) return;
+    var stoff = name.StartsWith("WoodItemData") ? 0 : name.StartsWith("StoneItemData") ? 1 : name.StartsWith("MetalItemData") ? 2 : -1;
+    if (stoff < 0) return;
+    object W(string k) { try { var v = g.GetType().GetProperty(k)?.GetValue(g); if (v is null) return null; return v.GetType().GetProperty("Value")?.GetValue(v) ?? v; } catch { return null; } }
+    int Wer(object a) { if (a is null) return -2; try { var u = Convert.ToUInt32(a); return spielerVonAkteur.TryGetValue(u, out var sid) ? sid : -1; } catch { return -2; } }
+    var akteur = kanalAkteur.TryGetValue(kanal, out var ak) ? ak : 0u;
+    var key = (kanal, akteur);
+    var e = matsPickups.TryGetValue(key, out var alt) ? alt : (stoff: stoff, t0: t, ziel: -2, tAuf: -1.0, kiste: false, fallen: -2);
+    if (W("bTossedFromContainer") is bool kiste && kiste) e.kiste = true;
+    var fallen = Wer(W("PawnWhoDroppedPickup")); if (fallen != -2) e.fallen = fallen;
+    var ziel = Wer(W("PickupTarget")); if (ziel >= 0 && e.ziel < 0) { e.ziel = ziel; e.tAuf = t; }
+    matsPickups[key] = e;
+  }
+  // Positionen je Spieler: [Serverzeit, x, y, z, Kanal, in der Luft 1/0, Rahmenzeit]
+  readonly Dictionary<int, List<double[]>> bewegungJe = new();
+  readonly Dictionary<uint, (bool sky, bool para)> luftJeKanal = new();
+  readonly Dictionary<int, List<double>> absprungJe = new();
+  void LuftNotieren(uint kanal, FortniteReplayReader.Models.NetFieldExports.PlayerPawn p) {
+    var st = luftJeKanal.GetValueOrDefault(kanal);
+    if (p.bIsSkydiving is bool sk) {
+      if (sk && !st.sky && Hole(VonFigur, kanal)?.Id is int pid && Zeit() is double tz) (absprungJe.TryGetValue(pid, out var l) ? l : absprungJe[pid] = new()).Add(tz);
+      st.sky = sk;
+    }
+    if (p.bIsParachuteOpen is bool pa) st.para = pa;
+    luftJeKanal[kanal] = st;
+  }
+  /// Figur und Pickup roh gelesen: Position samt Serverzeit bzw. die Menge des Pickups. Danach zurueck an den Anfang, die Bibliothek liest dasselbe noch einmal normal.
+  void ExaktRohLesen(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint kanal, bool pruef) {
+    var pos = archive.Position;
+    var pawn = group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal);
+    double[] punkt = null; float? ts = null;
+    try {
+      if (pruef) archive.ReadBit();
+      while (true) {
+        var feld = archive.ReadIntPacked();
+        if (feld == 0 || archive.IsError) break;
+        feld--;
+        var bits = archive.ReadIntPacked();
+        if (bits == 0) continue;
+        var daten = archive.ReadBits(bits).ToArray();
+        if (archive.IsError) break;
+        var name = feld < group.NetFieldExports.Length ? group.NetFieldExports[feld]?.Name : null;
+        if (pawn && name == "ReplicatedMovement" && Zeit() is double t && Hole(VonFigur, kanal)?.Id is int id) {
+          var r = new Unreal.Core.NetBitReader(daten, (int)bits) { EngineNetworkVersion = archive.EngineNetworkVersion, NetworkVersion = archive.NetworkVersion, ReplayHeaderFlags = archive.ReplayHeaderFlags, ReplayVersion = archive.ReplayVersion, NetworkReplayVersion = archive.NetworkReplayVersion };
+          var rm = r.SerializeRepMovement(Unreal.Core.Models.Enums.VectorQuantization.RoundTwoDecimals, Unreal.Core.Models.Enums.RotatorQuantization.ShortComponents, Unreal.Core.Models.Enums.VectorQuantization.RoundWholeNumber);
+          if (rm.Location is not null && !r.IsError) {
+            var l = luftJeKanal.GetValueOrDefault(kanal);
+            punkt = new double[] { t, rm.Location.X, rm.Location.Y, rm.Location.Z, kanal, l.sky || l.para ? 1 : 0, t };
+            (bewegungJe.TryGetValue(id, out var bl) ? bl : bewegungJe[id] = new()).Add(punkt);
+          }
+        } else if (pawn && name == "ReplayLastTransformUpdateTimeStamp" && bits == 32) ts = BitConverter.ToSingle(daten, 0);
+        else if (!pawn && name == "DataList") {
+          TypenSuchen(daten, (int)bits);
+          if (WertHinter(daten, (int)bits, stapelTyp, 20000, "p" + kanal) is int menge && Zeit() is double tp) {
+            var akteur = kanalAkteur.TryGetValue(kanal, out var ak) ? ak : 0u;
+            (matsPickupMenge.TryGetValue((kanal, akteur), out var ml) ? ml : matsPickupMenge[(kanal, akteur)] = new()).Add((tp, menge));
+          }
+        }
+      }
+    } catch { }
+    if (punkt is not null && ts is float f && f > 0) punkt[0] = f;
+    PosSetzer.Invoke(archive, new object[] { pos }); FehlerSetzer.Invoke(archive, new object[] { false });
+  }
+  /// Gesammelt je Quelle [Holz, Stein, Metall]: 0 Kiste, 1 Boden, 2 Gegner, 3 Team, 4 selbst, 5 Wiedereinstieg, 6 unbekannt, 7 Rueckgabe.
+  public readonly Dictionary<int, double[][]> MatsQuellen = new();
+  void MatsExakt(Dictionary<(int, int), List<double[]>> schritte, Dictionary<int, List<double>> axt, Dictionary<int, int> teamVon) {
+    var bus = BusAbExakt ?? 0;
+    var figurAb = Figuren.GroupBy(f => f.id).ToDictionary(g => g.Key, g => g.Select(f => f.t).OrderBy(x => x).Skip(1).ToList());
+    // Pickups je Spieler und Stoff, mit der Menge.
+    var pool = new Dictionary<(int, int), List<double[]>>();
+    var quelleListe = new Dictionary<(int, int), List<int>>();
+    foreach (var (key, e) in matsPickups) {
+      if (e.ziel < 0) continue;
+      double menge = double.PositiveInfinity;
+      if (matsPickupMenge.TryGetValue(key, out var ml) && ml.Count > 0) {
+        var bis = ml.Where(x => x.t <= e.tAuf + 1.5).Select(x => x.menge).ToList();
+        menge = bis.Count > 0 ? bis.Max() : ml.Max(x => x.menge);
+      }
+      var team = teamVon.TryGetValue(e.ziel, out var tz) ? tz : -1;
+      var quelle = e.kiste ? 0 : e.fallen < 0 ? (e.fallen == -2 ? 1 : 2) : e.fallen == e.ziel ? 4 : (teamVon.TryGetValue(e.fallen, out var tf) && tf == team ? 3 : 2);
+      if (!pool.TryGetValue((e.ziel, e.stoff), out var pl)) { pool[(e.ziel, e.stoff)] = pl = new(); quelleListe[(e.ziel, e.stoff)] = new(); }
+      pl.Add(new[] { e.tAuf, menge }); quelleListe[(e.ziel, e.stoff)].Add(quelle);
+    }
+    var leer = new List<double>();
+    foreach (var ((id, stoff), l) in schritte) {
+      var e = ExtraVon(id);
+      if (!MatsQuellen.TryGetValue(id, out var q)) { MatsQuellen[id] = q = new double[8][]; for (int i = 0; i < 8; i++) q[i] = new double[3]; }
+      var pl = pool.GetValueOrDefault((id, stoff)); var ql = quelleListe.GetValueOrDefault((id, stoff));
+      var schlaege = axt.GetValueOrDefault(id) ?? leer; var neu = figurAb.GetValueOrDefault(id) ?? leer;
+      for (int i = 0; i < l.Count; i++) {
+        var (t, m) = (l[i][0], l[i][1]);
+        if (m <= 0 || t < bus) continue;
+        var rest = m;
+        if (pl is not null) for (int k = 0; k < pl.Count && rest > 0; k++) {
+          if (!(pl[k][1] > 0) || t - pl[k][0] < -2.5 || t - pl[k][0] > 2.5) continue;
+          var n = Math.Min(rest, pl[k][1]); pl[k][1] -= n; rest -= n; q[ql[k]][stoff] += n;
+        }
+        if (rest <= 0) continue;
+        if (neu.Any(f => t - f >= -0.3 && t - f <= 1)) { q[5][stoff] += rest; continue; }
+        if (Zwischen(schlaege, t - 2, t + 0.6) || MitSpitzhacke(id, t)) { e[ExtraGefarmt + stoff] += rest; continue; }
+        var rueck = rest % 10 == 0 && Enumerable.Range(Math.Max(0, i - 8), i - Math.Max(0, i - 8)).Any(j => l[j][1] < 0 && t - l[j][0] <= 2);
+        if (rueck) { q[7][stoff] += rest; continue; }
+        if (rest <= 30 && Zwischen(schlaege, t - 5, t)) { e[ExtraGefarmt + stoff] += rest; continue; }
+        q[6][stoff] += rest;
+      }
+      e[ExtraGesammelt + stoff] = q[0][stoff] + q[1][stoff] + q[2][stoff] + q[5][stoff] + q[6][stoff];
+    }
+  }
+  /// Strecke am Boden je Spieler in Metern, wie Epic sie zaehlt (siehe oben). tode: Zeitpunkte der Eliminierungen je Spieler (ohne Wiedereinstieg).
+  public Dictionary<int, double> StreckeBoden(Dictionary<int, List<double>> tode) {
+    var raus = new Dictionary<int, double>();
+    var bus = BusAbExakt ?? 0;
+    foreach (var (id, pts) in bewegungJe) {
+      if (pts.Count < 2) continue;
+      var sprung = absprungJe.GetValueOrDefault(id) ?? new List<double>();
+      var erster = sprung.Count > 0 ? sprung.Min() : double.PositiveInfinity;
+      var tot = (tode.GetValueOrDefault(id) ?? new List<double>()).Select(t => (t, bis: sprung.Where(s => s > t).DefaultIfEmpty(double.PositiveInfinity).Min())).ToList();
+      bool Zaehlt(double[] a) => a[5] == 0 && a[6] >= bus && a[6] >= erster && !tot.Any(x => a[6] >= x.t && a[6] < x.bis);
+      var ok = pts.Select(Zaehlt).ToArray();
+      double summe = 0; const int Phasen = 10;
+      for (int ph = 0; ph < Phasen; ph++) {
+        double[] last = null; int i = 0;
+        for (var T = Math.Floor(pts[0][0]) - 1 + (double)ph / Phasen; T <= pts[^1][0] + 1; T += 1) {
+          while (i + 1 < pts.Count && pts[i + 1][0] <= T) i++;
+          var a = pts[i];
+          if (a[0] > T || !ok[i]) { last = null; continue; }
+          var p = a;
+          if (i + 1 < pts.Count && pts[i + 1][4] == a[4] && pts[i + 1][0] > a[0]) { var b = pts[i + 1]; var f = (T - a[0]) / (b[0] - a[0]); p = new[] { T, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f, a[4] }; }
+          if (last is not null && last[4] == p[4]) summe += Math.Sqrt(Math.Pow(p[1] - last[1], 2) + Math.Pow(p[2] - last[2], 2) + Math.Pow(p[3] - last[3], 2)) / 100;
+          last = p;
+        }
+      }
+      raus[id] = Math.Round(summe / Phasen, 1);
+    }
+    return raus;
   }
   /*
    * Diagnose MS_DIAG (15.11.2026, Zweig exakt-mats-strecke): was der Strom fuer exakte Mats und exakte Strecke wirklich hergibt.
@@ -1254,6 +1371,7 @@ class SchadenLeser : ReplayReader {
   void MsRohLesen(Unreal.Core.FBitArchive archive, Unreal.Core.Models.NetFieldExportGroup group, uint kanal, bool pruef) {
     var pos = archive.Position;
     var pawn = group.PathName.EndsWith("PlayerPawn_Athena_C", StringComparison.Ordinal);
+    msTsOffen = null; msSpurOffen = null;
     try {
       if (pruef) archive.ReadBit();
       while (true) {
@@ -1269,6 +1387,8 @@ class SchadenLeser : ReplayReader {
         if (!MsFelder.TryGetValue(nm, out var z)) MsFelder[nm] = z = new long[3];
         z[0]++; z[1] += bits; z[2] = Math.Max(z[2], bits);
         if (pawn && ex?.Name == "ReplicatedMovement") MsBewegungLesen(archive, kanal, daten, (int)bits);
+        // Die Serverzeit der Bewegung (ReplayLastTransformUpdateTimeStamp, 32 Bit float): genauer als die Zeit des Rahmens, in dem sie ankommt.
+        if (pawn && ex?.Name == "ReplayLastTransformUpdateTimeStamp" && bits == 32) msTsOffen = BitConverter.ToSingle(daten, 0);
         if (!pawn && ex?.Name == "DataList") {
           TypenSuchen(daten, (int)bits);
           var akteur = kanalAkteur.TryGetValue(kanal, out var ak) ? ak : 0u;
@@ -1280,6 +1400,8 @@ class SchadenLeser : ReplayReader {
         }
       }
     } catch (Exception e) { if (MsRmProben.Count < 60) MsRmProben.Add(new object[] { "fehler", e.Message }); }
+    if (msSpurOffen is not null) msSpurOffen[8] = msTsOffen is float tsf ? Math.Round(tsf, 4) : -1;
+    else if (pawn && msTsOffen is float tsn && Hole(VonFigur, kanal)?.Id is int pidn && MsSpurDatei is not null) (MsTsOhne.TryGetValue(pidn, out var lo) ? lo : MsTsOhne[pidn] = new()).Add(new[] { Math.Round(Zeit() ?? 0, 3), Math.Round(tsn, 4) });
     PosSetzer.Invoke(archive, new object[] { pos }); FehlerSetzer.Invoke(archive, new object[] { false });
   }
   void MsBewegungLesen(Unreal.Core.FBitArchive archive, uint kanal, byte[] daten, int bits) {
@@ -1300,7 +1422,8 @@ class SchadenLeser : ReplayReader {
         var rm0 = r0.SerializeRepMovement(MsVarianten[0].l, MsVarianten[0].r, MsVarianten[0].v);
         if (rm0.Location is not null) {
           if (!MsSpur.TryGetValue(pid, out var sp)) MsSpur[pid] = sp = new();
-          sp.Add(new double[] { Math.Round(tt, 3), Math.Round(rm0.Location.X, 1), Math.Round(rm0.Location.Y, 1), Math.Round(rm0.Location.Z, 1), Math.Round(rm0.LinearVelocity?.X ?? 0), Math.Round(rm0.LinearVelocity?.Y ?? 0), Math.Round(rm0.LinearVelocity?.Z ?? 0), kanal });
+          msSpurOffen = new double[] { Math.Round(tt, 3), Math.Round(rm0.Location.X, 2), Math.Round(rm0.Location.Y, 2), Math.Round(rm0.Location.Z, 2), Math.Round(rm0.LinearVelocity?.X ?? 0), Math.Round(rm0.LinearVelocity?.Y ?? 0), Math.Round(rm0.LinearVelocity?.Z ?? 0), kanal, -1 };
+          sp.Add(msSpurOffen);
         }
       } catch { }
     }
@@ -1335,13 +1458,15 @@ class SchadenLeser : ReplayReader {
     return raus;
   }
   public static readonly string MsSpurDatei = Environment.GetEnvironmentVariable("MS_SPUR");
+  float? msTsOffen; double[] msSpurOffen;
+  public readonly Dictionary<int, List<double[]>> MsTsOhne = new();
   public readonly Dictionary<int, List<double[]>> MsSpur = new();
   public readonly Dictionary<int, List<object[]>> MsZust = new();
   readonly Dictionary<string, string> msZustandAlt = new();
   static readonly PropertyInfo[] MsZustandFelder = new[] { "ReplicatedMovementMode", "bIsSkydiving", "bIsParachuteOpen", "bIsSkydivingFromBus", "bIsSkydivingFromLaunchPad", "bInGliderRedeploy", "Vehicle", "SeatIndex", "bIsZiplining", "bIsSlopeSliding", "bIsDBNO", "bIsCrouched", "bIsSprinting", "bIsTacticalSprinting", "MovementBase", "bReplicatedIsInVortex", "bIsWaterJump", "bIsWaterSprintBoost", "CurrentMovementStyle", "TeleportCounter", "bIsDying", "bIsInWaterVolume", "bIsSwimming" }
     .Select(n => typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty(n)).Where(p => p is not null).ToArray();
-  public void MsSpurSchreiben() { if (MsSpurDatei is null) return; File.WriteAllText(MsSpurDatei, JsonConvert.SerializeObject(new { spur = MsSpur, zust = MsZust })); }
-  public object MsDiagFertig() => new { felder = MsFelder, rmProben = MsRmProben, pickupMenge = MsPickupMengeListe, pickupMengeKanal = MsPickupMenge, strecke = MsStrecke(BusAbFuerMs),
+  public void MsSpurSchreiben() { if (MsSpurDatei is null) return; File.WriteAllText(MsSpurDatei, JsonConvert.SerializeObject(new { spur = MsSpur, zust = MsZust, tsOhne = MsTsOhne })); }
+  public object MsDiagFertig() => new { bauListe = MsBauListe(), felder = MsFelder, rmProben = MsRmProben, pickupMenge = MsPickupMengeListe, pickupMengeKanal = MsPickupMenge, strecke = MsStrecke(BusAbFuerMs),
  pickups = MsPickups, inv = MsInv, pawnZahl = msPawnZahl, encProben = msEncProben,
     wurzelFigur = inventarFiguren.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value.Select(f => spielerVonAkteur.TryGetValue(f, out var sid) ? sid : -1).ToList()) };
   /*
@@ -1409,6 +1534,7 @@ class SchadenLeser : ReplayReader {
     }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
       BauZustandNotieren(channelIndex, pawn);
+      LuftNotieren(channelIndex, pawn);
       if (MsDiag) MsPawn(channelIndex, pawn);
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);

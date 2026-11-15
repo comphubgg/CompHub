@@ -297,7 +297,10 @@ if (arg[0] === '--plan') {
       // Fassung 19 (15.11.2026): Elims nur aus dem Kill-Zaehler, am Aus des Teams nach dessen eigenen Zeitstempeln geschnitten - kein Auffuellen aus dem Kill-Feed
       // mehr (Bot-Kills, Kills nach dem Aus; gegen Epics TEAM_ELIMS geprueft, lib/vollSchaden.mjs). Der Zaehler steht nicht in den Rohdaten, deshalb neu lesen:
       // die Spieltage der Woche bis 3.000 Matches, erst nach FNCS Heat 2 (bis 21:00 UTC) und ihrer Auswertung.
-      || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 21, 25)));
+      || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 21, 25))
+      // Fassung 20 (15.11.2026): Mats Farmed exakt (nur Spitzhacke; Aufheben mit der Menge des Pickups getrennt, vorher rund 13 % zu viel), Mats Collected je Quelle,
+      // Strecke am Boden wie Epic (vorher Proben alle 10 s, hochgerechnet: Median 12 % daneben). Spieltage der letzten 14 Tage bis 3.000 Matches neu.
+      || ((da.schadenFassung ?? 0) < 20 && f.ids.size <= 3000 && Date.now() - f.datum < 14 * 864e5));
     /*
      * Werte je Match verloren (15.11.2026): "Clutch ablegen" lud clutch-je/ nicht hoch, der naechste Lauf verwarf die Zeilen des vorigen (scripts/clutch-je-abgleich.mjs zaehlt
      * sie als jeFehlt). Solche Spieltage einmal ganz neu lesen - nur die der letzten 14 Tage (Epic haelt Replays 31 Tage, mit Abstand) bis 3.000 Matches, nicht, wenn sie
