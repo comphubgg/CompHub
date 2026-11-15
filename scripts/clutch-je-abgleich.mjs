@@ -7,7 +7,7 @@
 // (S43_TriosCashCup_Event2_EU hatte zeitweise gar keine): die Kurven je Match in den Player Stats lasen dort Byte-Bereiche mitten aus einem anderen Stueck.
 //
 // Dieses Skript laeuft in beiden Ablage-Schritten vor dem Hochladen. Fuer jede Spieltags-Datei mit "je", deren Werte-je-Match-Datei nicht gerade hier
-// geschrieben wurde (data/clutch-je/<w>.json), vergleicht es die Groesse am Release (Manifest) mit je.bytes. Passt sie nicht - oder ist die Datei noch nie
+// geschrieben wurde (data/clutch-je/<w>.json), vergleicht es die Groesse am Release (der Anhang selbst, HEAD) mit je.bytes. Passt sie nicht - oder ist die Datei noch nie
 // geprueft worden (jeGeprueft) -, wird die Datei vom Release geholt, die Lage aus ihr neu bestimmt und gezaehlt, wie viele gelesene Matches dort keine
 // einzige Zeile haben (jeFehlt). Fehlt die Datei am Release ganz, faellt "je" weg (der naechste Lauf faengt die Werte je Match neu an).
 // Spieltage mit jeFehlt liest der Planer neu (scripts/clutch-berechnen.mjs, Regel "jeFehlt").
@@ -39,17 +39,22 @@ async function holen(tag, anhang) {
   throw new Error(`${anhang} nicht lesbar`);
 }
 
-const manifeste = new Map();
+/*
+ * Die Groesse der Datei am Release - aus dem Anhang selbst (HEAD), nicht aus manifest.json: das Manifest von daten-clutch-je-s43 nannte am 15.11.2026 fuer
+ * S43_TriosCashCup_Event2_ME 2.439.631 Bytes, der Anhang hatte 3.502.836. null = es gibt ihn nicht (dreimal 404), undefined = nicht feststellbar.
+ */
 async function groesseAmRelease(name) {
-  const tag = tagFuer(name);
-  if (!manifeste.has(tag)) {
-    const roh = await holen(tag, 'manifest.json').catch(() => undefined);
-    // Ohne lesbares Manifest nichts entscheiden (undefined), ein fehlendes Release heisst: nichts da (leeres Manifest).
-    manifeste.set(tag, roh === undefined ? undefined : JSON.parse(roh?.toString('utf8') || '{}'));
+  const url = `https://github.com/${REPO}/releases/download/${tagFuer(name)}/${encodeURIComponent(name.replace(/\//g, '__'))}`;
+  let fehlt = 0;
+  for (let v = 0; v < 3; v += 1) {
+    try {
+      const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(60_000) });
+      if (r.status === 404) fehlt += 1;
+      else if (r.ok && r.headers.get('content-length')) return Number(r.headers.get('content-length'));
+    } catch { /* noch einmal */ }
+    await new Promise((ok) => setTimeout(ok, 2000 * (v + 1)));
   }
-  const m = manifeste.get(tag);
-  if (m === undefined) return undefined;
-  return m[name.replace(/\//g, '__')]?.groesse ?? null;
+  return fehlt === 3 ? null : undefined;
 }
 
 /** Die Lage der Stuecke [Anfang, Laenge] aus der Datei selbst: eine Zeile je Stueck (lib/jeSpiel.mjs, jeDatei). */
@@ -84,7 +89,7 @@ for (const f of dateien) {
   const gepruefText = Number(/"jeGeprueft":\s*(\d+)/.exec(text)?.[1]);
   const name = `clutch-je/${w}.json`;
   const groesse = await groesseAmRelease(name);
-  if (groesse === undefined) { console.log(`  ${w}: Manifest nicht lesbar - diesmal nicht geprueft`); continue; }
+  if (groesse === undefined) { console.log(`  ${w}: Groesse am Release nicht feststellbar - diesmal nicht geprueft`); continue; }
   if (groesse === bytesText && gepruefText === bytesText) { ok += 1; continue; }
   if (geprueft >= HOECHSTENS) { aufgeschoben += 1; continue; }
   let d;
