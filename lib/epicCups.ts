@@ -679,7 +679,8 @@ const SEITE_TTL = 10_000;
  * die Aufloesung faellt die Drossel weg und ein Fenster kommt in Sekunden.
  */
 export async function holeSeite(eventId: string, windowId: string, page = 0, ohneNamen = false) {
-  return gecacht(`seite|${eventId}|${windowId}|${page}|${ohneNamen ? 'ids' : 'namen'}`, SEITE_TTL,
+  // Erste Seite (Top 100, ganze Heats/Finals) alle 3 s frisch von Epic (Betreiber, Heat 2: "der schnellste moegliche Weg"); tiefere Seiten wie bisher.
+  return gecacht(`seite|${eventId}|${windowId}|${page}|${ohneNamen ? 'ids' : 'namen'}`, page === 0 ? 3_000 : SEITE_TTL,
     () => holeSeiteRoh(eventId, windowId, page, ohneNamen));
 }
 

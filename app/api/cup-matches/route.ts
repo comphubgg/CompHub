@@ -279,7 +279,8 @@ async function holeRoh(request: Request) {
      * naechste Antwort schnell wieder faellig.
      */
     const vorher = zuletztLive.get(`${event}|${window_}`);
-    const frist = vorher && Date.now() - vorher < 30 * 60_000 ? TTL_LIVE : TTL;
+    // Live alle 3 s (Betreiber, Heat 2); die Seiten selbst haelt lib/epicCups (erste 3 s, tiefere 10 s), Epic wird also nicht oefter als dort gefragt.
+    const frist = vorher && Date.now() - vorher < 30 * 60_000 ? 3_000 : TTL;
     // Grosse Listen aus dem Vorrat: der Weg ueber Epic sind hundert Seiten (37 Sekunden beim Trios Cash Cup am 7.11.2026).
     const vorrat = limit > 500 && p.get('frisch') !== '1' ? await bestenlisteVorrat(window_) : null;
     const daten = vorrat ? { entries: vorrat.slice(0, limit) } : await gecacht(`matches|${event}|${window_}|${limit}`, frist,
