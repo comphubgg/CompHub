@@ -1,0 +1,9 @@
+# Der XMPP-Dienst (scripts/xmpp-dienst.mjs) - ein eigenes, kleines Image, damit ein Update der Seite die Verbindung zu Epic nicht trennt.
+# Gebaut von .github/workflows/xmpp-image.yml nur, wenn sich der Dienst selbst aendert: ghcr.io/comphubgg/comphub-web:xmpp
+# Darin nichts Geheimes - die Epic-Zugaenge holt der Dienst beim Start (scripts/daten-sync.mjs, Schluessel aus web.env).
+FROM node:24-slim
+WORKDIR /app
+RUN npm init -y >/dev/null && npm install --no-audit --no-fund @xmpp/client@0.13.1 && npm cache clean --force
+COPY scripts/daten-sync.mjs scripts/xmpp-dienst.mjs ./scripts/
+ENV NODE_ENV=production COMPHUB_DATEN=/app/data
+CMD ["node", "scripts/xmpp-dienst.mjs"]

@@ -11,12 +11,33 @@ services:
       COMPHUB_ABLAGE: supabase
       COMPHUB_KEIN_HINTERGRUND: "1"
       NODE_OPTIONS: --max-old-space-size=6144
+      # Die Status der Epic-Freunde (Match-IDs) kommen vom Dienst "xmpp" unten, nicht aus diesem Prozess (lib/epicFreundeStatus).
+      XMPP_DIENST_URL: http://xmpp:3210
     ports:
       - "127.0.0.1:3100:10000"
     # Der Live-Stand der vollen Replays (Dienst "live", scripts/live-spur.mjs) - nur lesend. lib/clutchLive nimmt ihn statt des Release, solange er mehr
     # Matches kennt; fehlt er oder ist er kaputt, bleibt es beim Release.
     volumes:
       - ./live:/app/live:ro
+
+  # Die XMPP-Verbindung zu Epic (Status der Freunde = Match-IDs) als eigener Dienst (scripts/xmpp-dienst.mjs, Dockerfile.xmpp): ein Update der Seite
+  # startet nur "web" neu, dieser Dienst laeuft weiter (sein Image :xmpp aendert sich nur mit dem Dienst selbst, .github/workflows/xmpp-image.yml).
+  # Vorher hing die Verbindung am Prozess der Seite: nach jedem Update minutenlang keine Match-IDs (Heat 2, 15.11.2026). Nur im Compose-Netz erreichbar
+  # (http://xmpp:3210), kein Port nach aussen. Protokoll: docker compose logs -f xmpp. Die Epic-Zugaenge (epic-auth.json, epic-auth-bot.json) holt er
+  # beim Start aus dem Archiv (Schluessel aus web.env); klappt das nicht, nimmt er die von "hintergrund" (./daten, nur lesend).
+  xmpp:
+    image: ghcr.io/comphubgg/comphub-web:xmpp
+    restart: always
+    env_file: web.env
+    environment:
+      XMPP_DIENST_PORT: "3210"
+      COMPHUB_DATEN: /app/data
+      TZ: Europe/Berlin
+    mem_limit: 256m
+    volumes:
+      - ./daten:/app/daten-hintergrund:ro
+    entrypoint: ["sh", "-c"]
+    command: ["mkdir -p data; node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json,epic-auth-bot.json 2>&1 | tail -2; for f in epic-auth.json epic-auth-bot.json; do [ -s data/$$f ] || cp /app/daten-hintergrund/$$f data/ 2>/dev/null; done; exec node scripts/xmpp-dienst.mjs"]
 
   # Die Hintergrundlaeufe wie frueher auf dem PC (instrumentation.node.ts):
   # Live-Takt alle 5 Minuten, Replays stuendlich, Spieltage, Rangliste, Nachtlauf.
