@@ -302,7 +302,17 @@ if (arg[0] === '--plan') {
     const jeNeu = !!da && !neuAnfang && (da.jeFehlt ?? 0) > 0 && !da.jeFrisch && Date.now() - f.datum < 14 * 864e5 && f.ids.size <= 3000
       && Date.now() > Date.UTC(2026, 10, 15, 22, 30);
     if (jeNeu) console.log(`  ${f.windowId}: ${da.jeFehlt} Matches ohne Werte je Match - ganz neu lesen`);
-    const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang && !jeNeu;
+    /*
+     * Haengengebliebene kleine Spieltage (15.11.2026): mit Fassung 3 fing clutch-zusammen.mjs bei jeder Sofort-Ablage leer an, behielt aber die Rohdaten - und
+     * clutch-neu-rechnen.mjs schrieb die Matches aus ALLEN Rohdaten zurueck. Seit es die Fassung 4 behaelt (ce35d8ce), bleibt ein solcher Zwischenstand stehen:
+     * alle Matches da (der Plan sieht nichts Offenes), Spiele/Schaden nur von einem Rechner, "teilweise" mit weniger Matches als die Datei hat (am Release:
+     * FNCS Solos Reload Heat 1 EU, 8 Matches, teilweise 6, Spiele 223 statt 291). Seit clutch-zusammen.mjs dann auch die Rohdaten verwirft, entsteht er nicht
+     * mehr; die schon haengenden einmal ganz neu lesen. Frische (2 Tage) sofort - sie sind klein -, aeltere nach der Heat.
+     */
+    const haengt = !!da && !neuAnfang && !jeNeu && !da.ohneRohRechnung && (da.matches?.length ?? 0) > (da.teilweise?.matches ?? Infinity)
+      && Date.now() - f.datum < 14 * 864e5 && (Date.now() - f.datum < 2 * 864e5 || Date.now() > Date.UTC(2026, 10, 15, 22, 30));
+    if (haengt) console.log(`  ${f.windowId}: ${da.matches.length} Matches, aber teilweise ${da.teilweise.matches} - Zwischenstand haengt, ganz neu lesen`);
+    const gilt = da && (da.version ?? 0) >= 4 && !neuAnfang && !jeNeu && !haengt;
     /*
      * "Ohne Replay" ist kein Endurteil (Betreiber, 10.11.2026: zyfos Match galt als ohne Replay und liess sich am Morgen problemlos laden). In den ersten drei Tagen
      * wird ein solches Match alle zwei Stunden noch einmal versucht.
@@ -311,7 +321,7 @@ if (arg[0] === '--plan') {
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(ohneNochmal ? [] : (da.ohne ?? []))] : []);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
-    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang: neuAnfang || jeNeu });
+    raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang: neuAnfang || jeNeu || haengt });
   }
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).

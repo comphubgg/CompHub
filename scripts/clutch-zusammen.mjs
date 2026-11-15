@@ -73,7 +73,13 @@ for (const [w, dateien] of jeTag) {
     return je;
   };
   const rohDatei = path.join(ROH, `${w}.json`);
-  if (neuAnfang) fs.rmSync(rohDatei, { force: true });
+  /*
+   * Faengt der Spieltag leer an, gilt das auch fuer die Rohdaten (15.11.2026). Bis dahin nur bei neuAnfang: bei einer Datei der Fassung 3 (clutch-neu-rechnen.mjs
+   * schrieb bis zum 15.11.2026 "version: 3" in jede kleine Datei) fing d leer an, die Rohdaten vom Release blieben aber - clutch-neu-rechnen.mjs rechnete
+   * die Matches dann aus ALLEN Rohdaten, Spiele/Schaden/Strecke kamen nur aus den Teilen dieses Rechners. Am Release gesehen: FNCS Solos Reload Heat 1 EU,
+   * 8 Matches, Spiele je Spieler 1 bis 5 statt 8 (11:31 UTC), bis der Abschluss der Runde alle Teile zusammen einarbeitete.
+   */
+  if (neuAnfang || d !== alt) fs.rmSync(rohDatei, { force: true });
   let roh = null;
   for (const datei of dateien) {
     const t = liesDatei(datei);
