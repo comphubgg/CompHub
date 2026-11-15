@@ -127,7 +127,7 @@ const nextConfig: NextConfig = {
     return [
       // Die eigene Discord-Adresse (Betreiber, 15.11.2026: "discord.gg/eGGdNYCC ist nicht professionell"). Vorlaeufig, nicht dauerhaft: das Ziel kann
       // sich aendern (neuer Einladungslink, spaeter vielleicht discord.gg/comphub).
-      { source: '/discord', destination: 'https://discord.gg/eGGdNYCC', permanent: false },
+      { source: '/discord', destination: 'https://discord.gg/8jQ3tf37sQ', permanent: false },  // dieselbe Einladung wie lib/marke.ts (laeuft nie ab)
       ...ALTE_ADRESSEN.flatMap(([alt, neu]) => [
         { source: alt, destination: neu, permanent: true },
         { source: `${alt}/:pfad*`, destination: `${neu}/:pfad*`, permanent: true },
