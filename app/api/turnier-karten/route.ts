@@ -1,3 +1,4 @@
+import { VITAL_AUS } from '@/lib/vitalScrims';
 import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -113,7 +114,9 @@ function stabileIds(k: Turnierkarte): Map<string, string> {
 
 async function lies(): Promise<Turnierkarte[]> {
   try {
-    return JSON.parse(await fs.readFile(DATEI, 'utf8')) as Turnierkarte[];
+    // Automatisch gebaute Karten ausserhalb EU stammen aus Vital Scrims - abgeschaltet (lib/vitalScrims VITAL_AUS).
+    return (JSON.parse(await fs.readFile(DATEI, 'utf8')) as Turnierkarte[])
+      .filter((k) => !(VITAL_AUS && (k as { automatisch?: unknown }).automatisch && (k as { region?: string }).region !== 'EU'));
   } catch {
     return [];
   }

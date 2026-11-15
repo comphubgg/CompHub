@@ -18,6 +18,11 @@ import { formenGlaetten } from '@/lib/formenGlaetten';
  */
 
 export const VITAL_REGIONEN = ['NAC', 'NAW', 'ME', 'OCE'] as const;
+/*
+ * ABGESCHALTET (Betreiber, 15.11.2026): Vital Scrims hat der Nutzung ihrer Drop-Maps nicht zugestimmt (IP-Klausel). Bis zu einer Vereinbarung liefert
+ * diese Datei keine Turniere und keine Karten mehr - alle Wege (FNCS-Seiten, Tournament Maps, Kartenautomatik) bekommen damit nichts.
+ */
+export const VITAL_AUS = true;
 export type VitalRegion = (typeof VITAL_REGIONEN)[number];
 export const istVitalRegion = (r: string): r is VitalRegion => (VITAL_REGIONEN as readonly string[]).includes(r);
 
@@ -87,6 +92,7 @@ async function geschwister(v: VitalTurnier): Promise<VitalTurnier[]> {
 
 /** Alle Turniere, die Vital fuehrt - zehn Minuten im Speicher. Fehlt die Seite, bleibt der alte Stand (oder eine leere Liste). */
 export async function vitalTurniere(): Promise<VitalTurnier[]> {
+  if (VITAL_AUS) return [];
   if (listeMerker && listeMerker.bis > Date.now()) return listeMerker.liste;
   try {
     const r = await fetch(`${BASIS}/competitive`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(20_000), cache: 'no-store' });
@@ -131,6 +137,7 @@ const kartenMerker = new Map<string, { bis: number; wert: VitalKarte | null }>()
 
 /** Die Teams eines Turniers mit ihren Formen - ueber den Websocket, hoechstens fuenfzehn Sekunden Wartezeit. */
 export async function vitalKarte(id: string, vorbei: boolean): Promise<VitalKarte | null> {
+  if (VITAL_AUS) return null;
   const da = kartenMerker.get(id);
   if (da && da.bis > Date.now()) return da.wert;
   const wert = await new Promise<VitalKarte | null>((fertig) => {
