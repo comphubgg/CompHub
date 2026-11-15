@@ -11,7 +11,7 @@ import { Flagge } from '@/app/replays/Werkzeuge';
 import { GlueckTafel, Info, type TafelZeile } from '@/app/replays/Analysen';
 import { FORMEL_GLUECK, glueckWort } from '@/app/replays/analyse';
 
-interface GameZeile { tag: string; nr: number; match: string; glueck: number; zonen: number; gegen: number | null; platz: number | null; punkte: number | null; swing: { wert: number; zone: number } | null; throw: { wert: number; zone: number } | null }
+interface GameZeile { tag: string; nr: number; match: string; glueck: number; zonen: number; drin: number; abstand: number | null; gegen: number | null; platz: number | null; punkte: number | null; swing: { wert: number; zone: number } | null; throw: { wert: number; zone: number } | null }
 export interface AuswertungSpieler { epic: string; name: string; land?: string; games: GameZeile[] }
 export interface Auswertung { tage: Array<{ windowId: string; titel: string; region: string; games: number }>; spieler: AuswertungSpieler[] }
 
@@ -46,7 +46,9 @@ export function zusammen(s: AuswertungSpieler) {
     if (x.swing && x.swing.wert > sw) { sw = x.swing.wert; swing = `+${x.swing.wert} · G${x.nr} Z${x.swing.zone}`; }
     if (x.throw && x.throw.wert > wu) { wu = x.throw.wert; wurf = `−${x.throw.wert} · G${x.nr} Z${x.throw.zone}`; }
   }
-  return { glueck, gegen, platz, punkte, swing, wurf, zonen: g.reduce((a, x) => a + x.zonen, 0) };
+  const mitAbstand = g.filter((x) => x.abstand !== null);
+  return { glueck, gegen, platz, punkte, swing, wurf, zonen: g.reduce((a, x) => a + x.zonen, 0), drin: g.reduce((a, x) => a + x.drin, 0),
+    abstand: mitAbstand.length ? mitAbstand.reduce((a, x) => a + (x.abstand ?? 0), 0) / mitAbstand.length : null };
 }
 
 export default function TagesAuswertung({ tage }: { tage: string[] }) {

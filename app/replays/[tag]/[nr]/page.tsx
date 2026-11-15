@@ -14,6 +14,7 @@ import { saisonKarte } from '@/lib/bildAdressen';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 import ReplayAnsicht, { type RMatch, type RWertung } from '../../ReplayAnsicht';
 import LadenDialog from '../../LadenDialog';
+import Rundgang from '../../Rundgang';
 
 interface Game { id: string; nr: number; beginn?: string; sieger?: string[] }
 interface Tag { windowId: string; titel: string; region: string; season: string; matches: Game[] }
@@ -28,6 +29,7 @@ export default function GameSeite() {
   const [match, setMatch] = useState<(RMatch & { karte?: string; wertung?: RWertung | null }) | null>(null);
   const [fehler, setFehler] = useState('');
   const [laden, setLaden] = useState(false);
+  const [tour, setTour] = useState(false);
   /** Aus "Meine Cups": das Epic-Konto, dessen Team in dieser Ansicht von Anfang an markiert ist (?spieler=...). */
   const [hervorheben, setHervorheben] = useState('');
   useEffect(() => {
@@ -79,12 +81,18 @@ export default function GameSeite() {
           <Link href={`/replays/${encodeURIComponent(tagId)}`} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">
             ← {tag ? schoenerTitel(tag.titel) : <T>Spieltag</T>}
           </Link>
+          <Link href="/replays" aria-label="Replays" className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-white/10 text-slate-300 hover:border-sky-500/60">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+          </Link>
+          <Link href="/replays/anleitung" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-sky-500/60"><T>Guide</T></Link>
           <button type="button" onClick={() => setLaden(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-sky-400">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" /></svg>
             <T>Load replay</T>
           </button>
           <LadenDialog offen={laden} schliessen={() => setLaden(false)} aktuell={game?.id} />
+          <button type="button" onClick={() => setTour(true)} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-sky-500/60"><T>Tour</T></button>
+          <Rundgang offen={tour} schliessen={() => setTour(false)} />
           {tag && (
             <div className="ml-auto flex items-center gap-1.5">
               {nr > 1 && <Link href={href(nr - 1)} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">← Game {nr - 1}</Link>}
@@ -98,7 +106,10 @@ export default function GameSeite() {
 
         {tag && match && game && (
           <>
-            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">{schoenerTitel(tag.titel)} · Game {game.nr}</h1>
+            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl"
+              title={[schoenerTitel(tag.titel), tag.region, `Game ${game.nr}`, `${match.spieler.filter((x) => !x.bot).length} players`,
+                typeof match.ende === 'number' ? `${Math.round((match.ende - (match.busAb ?? 0)) / 60)} min` : null,
+                match.bus?.length ? null : 'no bus / drop data in this replay'].filter(Boolean).join(' · ')}>{schoenerTitel(tag.titel)} · Game {game.nr}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{tag.region}</span>
               {geschwister.length > 1 && <span>{tagName(tag.windowId, tagNr)}</span>}
@@ -107,7 +118,8 @@ export default function GameSeite() {
               {(game.sieger ?? []).length > 0 && <span className="text-amber-300">🏆 {(game.sieger ?? []).map(ohneMarke).join(' · ')}</span>}
             </p>
             <div className="mt-5">
-              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined} />
+              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined}
+                games={tag.matches.map((m) => ({ nr: m.nr, href: href(m.nr), aktiv: m.nr === game.nr }))} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}/{game.nr}</code></p>
           </>

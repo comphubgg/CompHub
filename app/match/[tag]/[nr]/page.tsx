@@ -84,7 +84,7 @@ export default function MatchSeite() {
       <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-center text-slate-100">
         <div className="max-w-md">
           <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500"><T>Jedes Game eines Cups in 2D und 3D: die Zonen, wie sie gezogen sind, der Kill-Feed und alle Teams.</T></p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-500"><T>Every game of a cup on the map: the zones as they were drawn, the kill feed and every player.</T></p>
           <Link href="/sign-in" className="mt-6 inline-block rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400"><T>Zur Anmeldung</T></Link>
         </div>
       </main>

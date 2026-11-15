@@ -5,10 +5,8 @@
  *
  * Der Betreiber (13.10.2026): die Replay-Funktion soll eine eigene, dauerhafte Seite sein wie bei Osirion - 2D und 3D, zu jedem Game,
  * ueber eine Adresse, die sich nie aendert. Gespielt wird, was die Server-Replays hergeben (tools/replay-voll): die Zonen jedes Games
- * mit Beginn und Ende des Schrumpfens, jeder Knock und jede Eliminierung mit Ort und Zeit, die Spieler mit Team und Platz. Laufwege
- * liefert der Leser bei aktuellen Replays nicht - deshalb laufen hier Zone, Eliminierungen, Knocks und die Zahl der Lebenden mit der
- * Zeit, keine Spielerpunkte auf der Insel. Die 3D-Ansicht kippt dieselbe Karte nach hinten und stellt die Zone als Wand und die
- * Eliminierungen als Pfosten auf; das ist keine Kamerafahrt durchs Spiel.
+ * mit Beginn und Ende des Schrumpfens, jeder Knock und jede Eliminierung mit Ort und Zeit, die Spieler mit Team und Platz. Die 3D-Ansicht
+ * ist am 15.11.2026 entfallen (Betreiber: "das ist kein echtes 3D"); die Spieler laufen mit ihren Orten aus dem vollen Replay ueber die Karte.
  *
  * Am selben Tag (Betreiber): ueber ein Zeichen fahren zeigt ein kleines Fenster - wer es ist, sein Mitspieler, Platz, Punkte, Eliminierungen -;
  * die Karte laesst sich mit dem Mausrad vergroessern und mit der Maus verschieben (die Zeichen behalten ihre Groesse); eine Legende erklaert,
@@ -25,6 +23,7 @@ import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, ortBei, useSpielerDat
 import { EinstellungenKnopf, Flagge, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
 import SeitenPanel from '@/app/replays/SeitenPanel';
 import Analysen from '@/app/replays/Analysen';
+import { mitBusStart } from '@/app/replays/analyse';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -101,7 +100,7 @@ function XZeichen({ farbe, gross = 22 }: { farbe: string; gross?: number }) {
   );
 }
 
-export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf, games }: {
+export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf, games }: {
   match: RMatch; kartenBild: string | null; titel?: string; wertung?: RWertung | null;
   /** Kopf der rechten Leiste: Cup und Game */
   kopf?: string;
@@ -110,6 +109,12 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   /** Epic-Konto, dessen Team von Anfang an markiert ist (die eigenen Spiele unter "Meine Cups"). */
   hervorheben?: string;
 }) {
+  /*
+   * Spieler starten im Bus (Betreiber, 15.11.2026): Orte vor dem Bus (die Startinsel) fallen weg; der erste Ort jedes Spielers ist der Bus im
+   * Augenblick seines Absprungs - aus "figuren" (neue Figur nach dem Bus = Absprung), sonst der Punkt der Route, der seiner Landung am naechsten liegt.
+   * Von dort gleitet er geradlinig bis zu seinem ersten Ort am Boden.
+   */
+  const match = useMemo<typeof roh>(() => mitBusStart(roh), [roh]);
   // Reload-Inseln: Bild und geeichter Ausschnitt (app/replays/inselKarten) - die grosse Karte kommt wie bisher von der Seite.
   const insel = useMemo(() => (/^Athena_Empty/i.test((match as { karte?: string }).karte ?? '') ? inselKarte(match.playlist) : null), [match]);
   const kartenBild = grosseKarte ?? insel?.bild ?? null;
@@ -122,7 +127,19 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
    * Der Ausschnitt der Welt. Die grosse Insel ("Hera_..._Terrain") hat feste Grenzen; die kleinen Reload-Inseln ("Athena_Empty") haben ein
    * anderes Mass, und ein Kartenbild gibt es dort nicht - der Ausschnitt wird dann aus den Zonen und den Orten der Eliminierungen gebildet.
    */
+  // Das Kartenbild selbst: welcher Weltausschnitt es abdeckt.
+  const bildRahmen = useMemo(() => (insel ? { x0: insel.x0, y0: insel.y0, spanne: insel.spanne } : { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE }), [insel]);
   const welt = useMemo(() => {
+    // Mit Spielerorten: die Hauptinsel, wo gespielt wurde (Orte ab dem Bus, 1.-99. Perzentil, dazu die Zonen ab Kreis 2) - die Startinsel bleibt draussen.
+    const orte = Object.values((match as { orte?: Record<string, number[][]> }).orte ?? {}).flat();
+    if (orte.length > 50) {
+      const xs = orte.map((o) => o[1]).sort((a, b) => a - b); const ys = orte.map((o) => o[2]).sort((a, b) => a - b);
+      const q = (l: number[], f: number) => l[Math.min(l.length - 1, Math.max(0, Math.floor(f * l.length)))];
+      let x0 = q(xs, 0.01); let x1 = q(xs, 0.99); let y0 = q(ys, 0.01); let y1 = q(ys, 0.99);
+      for (const z of match.zonen.slice(1)) { if (typeof z.x === 'number' && typeof z.y === 'number' && typeof z.radius === 'number' && z.radius < 80_000) { x0 = Math.min(x0, z.x - z.radius); x1 = Math.max(x1, z.x + z.radius); y0 = Math.min(y0, z.y - z.radius); y1 = Math.max(y1, z.y + z.radius); } }
+      const spanne = Math.max(x1 - x0, y1 - y0) * 1.1;
+      return { x0: (x0 + x1) / 2 - spanne / 2, y0: (y0 + y1) / 2 - spanne / 2, spanne };
+    }
     if (insel) return insel.ausschnitt;
     if (kartenBild) return { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE };
     const xs: number[] = []; const ys: number[] = [];
@@ -132,7 +149,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
     const x0 = Math.min(...xs); const x1 = Math.max(...xs); const y0 = Math.min(...ys); const y1 = Math.max(...ys);
     const spanne = Math.max(x1 - x0, y1 - y0) * 1.08;
     return { x0: (x0 + x1) / 2 - spanne / 2, y0: (y0 + y1) / 2 - spanne / 2, spanne };
-  }, [kartenBild, insel, match.zonen, match.feed]);
+  }, [kartenBild, insel, match]);
   /** Weltkoordinate -> Prozent der Kartenbreite (x) bzw. -hoehe (y). */
   const pzx = (v: number) => ((v - welt.x0) / welt.spanne) * 100;
   const pzy = (v: number) => ((v - welt.y0) / welt.spanne) * 100;
@@ -162,7 +179,6 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   const [zeit, setZeit] = useState(tStart);
   const [laeuft, setLaeuft] = useState(false);
   const [tempo, setTempo] = useState(5);
-  const [dreiD, setDreiD] = useState(false);
   const [knocks, setKnocks] = useState(true);
   const [teamWahl, setTeamWahl] = useState<number | null>(null);
   // Einstellungen der Karte (Zahnrad), Zeichnen, Legende - app/replays/Werkzeuge.
@@ -194,6 +210,15 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
 
   // Zoom und Verschiebung der Karte: z = Vergroesserung, x/y = Verschiebung in Bildpunkten.
   const [ansicht, setAnsicht] = useState({ z: 1, x: 0, y: 0 });
+  // Breite des Kartenrahmens in Bildpunkten (fuer das Ausweichen der Namensschilder).
+  const [kartenBreite, setKartenBreite] = useState(800);
+  useEffect(() => {
+    const el = kartenRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setKartenBreite(el.getBoundingClientRect().width || 800));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const kartenRef = useRef<HTMLDivElement | null>(null);
   const zug = useRef<{ px: number; py: number; ax: number; ay: number } | null>(null);
   const [tip, setTip] = useState<{ links: number; oben: number; breite: number; e: REreignis } | null>(null);
@@ -401,12 +426,10 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
   const kartenInhalt = (
     <>
       {kartenBild ? (
+        // Das ganze Kartenbild, so verschoben und vergroessert, dass genau der Ausschnitt den Rahmen fuellt.
         // eslint-disable-next-line @next/next/no-img-element
-        insel ? (
-          // Das ganze Inselbild, so verschoben und vergroessert, dass genau der Ausschnitt den Rahmen fuellt.
-          <img src={kartenBild} alt="" className="absolute max-w-none" draggable={false}
-            style={{ filter: ein.grau ? 'grayscale(1) brightness(.8)' : undefined, left: `${((insel.x0 - welt.x0) / welt.spanne) * 100}%`, top: `${((insel.y0 - welt.y0) / welt.spanne) * 100}%`, width: `${(insel.spanne / welt.spanne) * 100}%`, height: `${(insel.spanne / welt.spanne) * 100}%` }} />
-        ) : <img src={kartenBild} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} style={ein.grau ? { filter: 'grayscale(1) brightness(.8)' } : undefined} />
+        <img src={kartenBild} alt="" className="absolute max-w-none" draggable={false}
+          style={{ filter: ein.grau ? 'grayscale(1) brightness(.8)' : undefined, left: `${((bildRahmen.x0 - welt.x0) / welt.spanne) * 100}%`, top: `${((bildRahmen.y0 - welt.y0) / welt.spanne) * 100}%`, width: `${(bildRahmen.spanne / welt.spanne) * 100}%`, height: `${(bildRahmen.spanne / welt.spanne) * 100}%` }} />
       ) : (
         <div className="absolute inset-0 bg-sky-950" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.12) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
       )}
@@ -435,7 +458,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
           const spitzen: Array<{ s: number; sprung: boolean }> = [];
           for (let s = abstand / 2; s <= flug; s += abstand) spitzen.push({ s, sprung: s >= (b.sprungAb ?? 0) && s <= (b.sprungBis ?? flug) });
           return (
-            <g key={`bus${i}`} opacity={imFlug !== null && imFlug > flug + 90 ? 0.6 : 1}>
+            <g key={`bus${i}`} opacity={imFlug !== null && imFlug > flug + 90 ? 0.3 : 1}>
               {spitzen.map(({ s, sprung }) => {
                 const m = bei(s);
                 const vorn = { x: m.x + Math.cos(rad) * gross * 0.5, y: m.y + Math.sin(rad) * gross * 0.5 };
@@ -497,7 +520,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
         <div>
           <div ref={kartenRef}
             className={`relative mx-auto aspect-square w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} touch-none select-none overflow-hidden rounded-2xl border border-white/10 bg-sky-950`}
-            style={{ perspective: '1300px', cursor: ansicht.z > 1 ? 'grab' : 'default' }}
+            style={{ cursor: ansicht.z > 1 ? 'grab' : 'default' }}
             onPointerDown={(ev) => {
               if ((ev.target as HTMLElement).closest('[data-marker]') || (ev.target as HTMLElement).closest('[data-knopf]')) return;
               zug.current = { px: ev.clientX, py: ev.clientY, ax: ansicht.x, ay: ansicht.y };
@@ -512,19 +535,10 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
             onPointerUp={() => { zug.current = null; }}
             onPointerCancel={() => { zug.current = null; }}
             onDoubleClick={() => setAnsicht({ z: 1, x: 0, y: 0 })}>
-            <div
-              className="absolute inset-0 transition-transform duration-700 ease-out"
-              style={{ transformStyle: 'preserve-3d', transform: dreiD ? 'rotateX(52deg) scale(0.72) translateY(-3%)' : 'none', transformOrigin: '50% 50%' }}>
+            <div className="absolute inset-0">
               <div className="absolute inset-0"
-                style={{ transformStyle: 'preserve-3d', transformOrigin: '0 0', transform: `translate(${ansicht.x}px, ${ansicht.y}px) scale(${ansicht.z})`, '--z': ansicht.z, '--zs': Math.pow(ansicht.z, 0.65) } as CSSProperties}>
+                style={{ transformOrigin: '0 0', transform: `translate(${ansicht.x}px, ${ansicht.y}px) scale(${ansicht.z})`, '--z': ansicht.z, '--zs': Math.pow(ansicht.z, 0.65) } as CSSProperties}>
                 <div className="absolute inset-0 overflow-hidden rounded-xl shadow-2xl">{kartenInhalt}</div>
-
-                {dreiD && zone.jetzt && Array.from({ length: 9 }, (_, k) => (
-                  <svg key={`w${k}`} viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full"
-                    style={{ transform: `translateZ(${(k + 1) * 14}px)`, opacity: 0.1 + k * 0.03 }}>
-                    {kreis(zone.jetzt, { rand: '#c4b5fd', breite: 2 })}
-                  </svg>
-                ))}
 
                 {/* Eliminierungen: ein X in der Farbe des Teams - bleibt stehen */}
                 {ein.elims && tote.map((e, i) => (
@@ -550,14 +564,8 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
                 <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarSpieler} gewaehlt={fokusAn ? null : gewaehlt} linien={ein.schuesse} zahlen={ein.schaden} />
                 <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}
                   farbeVon={farbeVon} sichtbar={sichtbarSpieler} balken={ein.hp} pfeil={ein.richtung}
-                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ein.namen && (ansicht.z >= 1.8 || teamWahl !== null || ein.folgen)} />
+                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ein.namen} zoom={ansicht.z} rahmenBreite={kartenBreite} />
 
-                {/* 3D: Pfosten fuer die Eliminierungen */}
-                {dreiD && tote.slice(-80).map((e, i) => (
-                  <button key={`p${i}`} type="button" data-marker aria-label={t('Eliminiert')} {...marker(e)}
-                    className="absolute block w-[5px] cursor-pointer border-0 p-0"
-                    style={{ left: `${pzx(e.x as number)}%`, top: `${pzy(e.y as number)}%`, height: 46, background: farbeVon(e.opfer), boxShadow: '0 0 6px #000', transformOrigin: '50% 100%', transform: 'translate(-50%, -100%) rotateX(-90deg) scale(calc(1 / var(--z, 1)))', opacity: sichtbarTeam(e.opfer) ? 1 : 0.2 }} />
-                ))}
               </div>
             </div>
 
@@ -567,7 +575,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
               const naechste = match.zonen.find((z) => (z.schrumpftAb ?? 0) > zeit);
               const pille = 'flex items-center gap-1.5 rounded bg-black/75 px-2 py-1 text-[13px] font-bold tabular-nums text-white';
               return (
-                <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] flex-col items-start gap-1.5">
+                <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-150px)] flex-col items-start gap-1.5">
                 <div className="flex flex-wrap gap-1">
                   {sd.da && <span className="flex items-center rounded bg-amber-400 px-2 py-1 text-[12px] font-black tracking-wider text-black">BETA</span>}
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="10" cy="6" r="4" /><path d="M2 19c0-5 4-7 8-7s8 2 8 7z" /></svg>{lebende}/{echte.length}</span>
@@ -675,7 +683,9 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
           {sd.da && (
             <p className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-[12px] leading-snug text-amber-100`}>
               <b className="mr-1.5 rounded bg-amber-400 px-1.5 py-px text-[10px] font-black tracking-wider text-black">BETA</b>
-              <T>Die Spieler-Ansicht ist noch in Arbeit: Bewegungen laufen von einem bekannten Ort zum nächsten, der Schild ist geschätzt, Munition fehlt noch und einige neue Waffen haben noch kein Bild.</T>
+              {sd.schildEcht
+                ? <T>Player view: between two recorded positions a player moves in a straight line; shield and health come straight from the replay. Ammo and material counts are not in the replay data yet, and some new weapons have no image yet.</T>
+                : <T>Player view: between two recorded positions a player moves in a straight line; this replay has no shield values, so the shield is estimated. Ammo and material counts are not in the replay data yet, and some new weapons have no image yet.</T>}
             </p>
           )}
 
@@ -702,11 +712,7 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
             <input type="range" min={tStart} max={tEnde} step={1} value={Math.round(zeit)} onChange={(e) => springe(Number(e.target.value))}
               className="mt-3 w-full accent-sky-400" aria-label={t('Zeit')} />
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              {(['2D', '3D'] as const).map((m) => (
-                <button key={m} type="button" onClick={() => setDreiD(m === '3D')}
-                  className={`rounded-lg px-3 py-1.5 font-bold transition ${(m === '3D') === dreiD ? 'bg-sky-500 text-white shadow' : 'border border-white/10 text-slate-400 hover:text-slate-100'}`}>{m}</button>
-              ))}
-              <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-slate-400">
+              <label className="flex cursor-pointer items-center gap-1.5 text-slate-400">
                 <input type="checkbox" checked={knocks} onChange={(e) => setKnocks(e.target.checked)} className="accent-sky-400" /> <T>Knocks zeigen</T>
               </label>
               {teamWahl !== null && (
@@ -726,7 +732,6 @@ export default function ReplayAnsicht({ match, kartenBild: grosseKarte, titel, w
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white" /><span><T>Weißer Ring: die Zone jetzt. Gestrichelt: die nächste Zone.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1.5 h-1 w-3.5 shrink-0 rounded bg-yellow-400" /><span><T>Pfeile: die Busroute. Gelb: wo man abspringen kann.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-sm bg-violet-600/60" /><span><T>Violette Fläche: der Sturm, außerhalb der Zone.</T></span></li>
-              <li className="flex items-start gap-2.5"><span className="mt-0.5 h-4 w-1 shrink-0 bg-sky-400" /><span><T>3D: Die Pfosten stehen für Eliminierungen, die Wand ist die Zone.</T></span></li>
               <li className="text-slate-400"><T>Mausrad vergrößert die Karte, Ziehen verschiebt sie, Doppelklick setzt zurück. Fahre über ein Zeichen für Details.</T></li>
             </ul>
           </div>

@@ -307,7 +307,7 @@ export function GlueckTafel({ zeilen, kopf }: { zeilen: TafelZeile[]; kopf?: Rea
               <g key={q.schluessel} className={q.waehle ? 'cursor-pointer' : undefined} onClick={q.waehle}>
                 <title>{`${q.name} · final #${q.platz ?? '–'}${q.punkte !== null ? ` · ${q.punkte} pts` : ''} · luck ${plus(q.glueck)} · vs estimate ${plus(q.gegen ?? 0)}`}</title>
                 <circle cx={sx(gx)} cy={sy(gy)} r={q.an || q.sieger ? 7 : 5} fill={q.sieger ? '#fbbf24' : q.an ? '#f472b6' : '#38bdf8'} fillOpacity=".85" stroke="#020617" strokeWidth="1.5" />
-                {(q.an || q.sieger || top10.has(q.schluessel)) && <text x={sx(gx) + 9} y={sy(gy) + 4} fontSize="11" fill="#e2e8f0">{q.name}</text>}
+                {(q.an || q.sieger || top10.has(q.schluessel)) && <text x={sx(gx) > W * 0.82 ? sx(gx) - 9 : sx(gx) + 9} y={sy(gy) + 4} fontSize="11" fill="#e2e8f0" textAnchor={sx(gx) > W * 0.82 ? 'end' : 'start'}>{q.name}</text>}
               </g>
             );
           })}
