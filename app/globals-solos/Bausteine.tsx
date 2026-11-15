@@ -6,7 +6,7 @@ import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
-import { rahmen as formRahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { rahmen as formRahmen, spanneBei, einheitsGroesse, beschriftungsVersatz, type Beschriftung, type Punkt, type Spot } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
@@ -156,6 +156,56 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const trefferSpots = useMemo(() => new Set(treffer.map((x) => x.spot)), [treffer]);
   const zeilen = useCallback((name: string) => [kartenName(name)], []);
   const groesse = useMemo(() => einheitsGroesse(spots, aufSpot, zeilen), [spots, aufSpot, zeilen]);
+
+  /*
+   * Namen benachbarter Stellen duerfen nicht uebereinander liegen (Betreiber, 15.11.2026: "KING NOVA" und "LXRS" waren ein unlesbarer Brei -
+   * "ein bisschen auseinander wie bei Noble, nicht ineinander"). Die Breite jedes Namens wird in der Kartenschrift gemessen (bis sie geladen ist,
+   * geschaetzt), dann schiebt lib/prognoseKarte die Beschriftungen, die sich ueberdecken, als Ganzes ein Stueck auseinander - auf jeder Zoomstufe.
+   */
+  const [emBreite, setEmBreite] = useState<Record<string, number>>({});
+  const [kastenEm, setKastenEm] = useState(1.45);
+  const alleZeilen = useMemo(() => [...new Set(spots.flatMap((sp) => sp.spieler.map((n) => kartenName(n))))], [spots]);
+  useEffect(() => {
+    let weg = false;
+    const familie = kartenSchrift.style.fontFamily;
+    const miss = () => {
+      if (weg) return;
+      const g = document.createElement('canvas').getContext('2d');
+      if (!g) return;
+      g.font = `600 100px ${familie}`;
+      setEmBreite(Object.fromEntries(alleZeilen.map((tx) => [tx, g.measureText(tx).width / 100])));
+      const m = g.measureText('M');
+      if (m.fontBoundingBoxAscent > 0) setKastenEm(Math.max(1.12, (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) / 100));
+    };
+    miss();
+    document.fonts?.load(`600 100px ${familie}`).then(miss, () => { /* Ersatzschrift bleibt gemessen */ });
+    return () => { weg = true; };
+  }, [alleZeilen]);
+  /** Je Stelle mit Namen: die waagrechte Mitte jeder Zeile (bei schraegen Formen je Zeile verschieden) - fuer die Anzeige und den Versatz. */
+  const zeilenLage = useMemo(() => Object.fromEntries(spots.filter((sp) => sp.spieler.length).map((sp) => {
+    const r = formRahmen(sp.punkte);
+    const anzahl = sp.spieler.length;
+    const mitteX = r.links + r.breite / 2;
+    const gedraengt = sp.teams <= 1 || anzahl === 1;
+    return [sp.id, sp.spieler.map((_, i) => {
+      const yProz = gedraengt
+        ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
+        : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+      const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+      return spanne && r.breite > 0 ? spanne.mitte : mitteX;
+    })];
+  })) as Record<string, number[]>, [spots, groesse]);
+  const versatz = useMemo(() => beschriftungsVersatz(spots.filter((sp) => sp.spieler.length).map((sp): Beschriftung => {
+    const r = formRahmen(sp.punkte);
+    return {
+      id: sp.id, oben: r.oben, hoehe: r.hoehe, verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
+      zeilen: sp.spieler.map((n, i) => {
+        const tx = kartenName(n);
+        // Ungemessen: gut 0,68 je Grossbuchstabe (etwas mehr als die Schaetzung in schriftgroesse - lieber zu breit als ueberdeckt).
+        return { x: zeilenLage[sp.id][i], breite: (emBreite[tx] ?? tx.length * 0.68) * groesse };
+      }),
+    };
+  }), groesse, kastenEm), [spots, zeilenLage, emBreite, groesse, kastenEm]);
 
   /** Den Ausschnitt direkt ans Element schreiben, einmal je Bildaufbau. */
   const male = useCallback(() => {
@@ -352,9 +402,10 @@ export function Karte({ f, bild, rotAb = 2 }: {
       g.font = `700 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.lineWidth = Math.max(2, px * 0.18); g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#fff';
       const n = sp.spieler.length; const gedraengt = sp.teams <= 1 || n === 1;
+      const v = versatz[sp.id] ?? { dx: 0, dy: 0 };
       sp.spieler.forEach((name, i) => {
         const yProz = gedraengt ? r.oben + r.hoehe / 2 + (i - (n - 1) / 2) * groesse * 1.12 : r.oben + r.hoehe * (0.1 + 0.8 * (i / (n - 1)));
-        const x = ((r.links + r.breite / 2) / 100) * G; const y = (yProz / 100) * G;
+        const x = ((r.links + r.breite / 2 + v.dx) / 100) * G; const y = ((yProz + v.dy) / 100) * G;
         g.strokeText(kartenName(name), x, y); g.fillText(kartenName(name), x, y);
       });
     }
@@ -445,6 +496,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
               const r = formRahmen(sp.punkte);
               const anzahl = sp.spieler.length;
               const mitteX = r.links + r.breite / 2;
+              const v = versatz[sp.id];
               return (
                 <div key={sp.id} data-form={sp.id}
                   className={`karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center${kennzeichen(sp)}`}
@@ -454,16 +506,15 @@ export function Karte({ f, bild, rotAb = 2 }: {
                     // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
                     justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+                    // Weg von der Nachbarstelle, wenn sich die Namen sonst ueberdecken - in Bildschirmmass, wie die Schrift (translate setzt sich zum
+                    // transform von .ist-hover dazu, statt es zu ersetzen).
+                    ...(v ? { translate: `calc(${v.dx.toFixed(3)}cqw / var(--z, 1)) calc(${v.dy.toFixed(3)}cqw / var(--z, 1))` } : {}),
                   }}>
                   {sp.spieler.map((name, i) => {
-                    const gedraengt = sp.teams <= 1 || anzahl === 1;
-                    const yProz = gedraengt
-                      ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
-                      : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-                    const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-                    const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                    const zx = zeilenLage[sp.id]?.[i] ?? mitteX;
+                    const links = r.breite > 0 ? ((zx - mitteX) / r.breite) * 100 : 0;
                     return (
-                      <div key={`${name}-${i}`} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
+                      <div key={`${name}-${i}`} className="relative" style={links ? { left: `${links}%` } : undefined}>
                         <p className="karten-name" style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>
                           {kartenName(name)}
                         </p>
