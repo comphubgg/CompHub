@@ -4,7 +4,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { vipAus } from '@/lib/vipCookie';
-import { alleZugaenge, type Zugang } from '@/lib/vipZugaenge';
+import { alleZugaenge, zugangAbgelaufen, type Zugang } from '@/lib/vipZugaenge';
 import { schickeSchluessel, discordDa } from '@/lib/discord';
 import {
   neuerSchluessel, praefixTaugt, schluesselTaugt, schonVergeben,
@@ -45,8 +45,11 @@ export async function GET() {
   if (!name) return NextResponse.json({ darf: false });
   const u = (await alleZugaenge())
     .find((x) => x.username.toLowerCase() === name.toLowerCase());
+  if (!u || zugangAbgelaufen(u)) return NextResponse.json({ darf: false, abgelaufen: Boolean(u) });
   return NextResponse.json({
-    darf: Boolean(u?.darfSchluessel) && u?.status === 'active',
+    darf: Boolean(u.darfSchluessel) && u.status === 'active',
+    // Die Frist fuers Dashboard ("VIP access expires in N days"); null = ohne Ende. Nur wenn sie den Schluessel beendet (fristLoescht).
+    bis: u.fristLoescht && typeof u.vipBis === 'number' && u.vipBis > 0 ? u.vipBis : null,
   });
 }
 
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
   if (i < 0) {
     return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
   }
-  if (!daten.users[i].darfSchluessel || daten.users[i].status !== 'active') {
+  if (!daten.users[i].darfSchluessel || daten.users[i].status !== 'active' || zugangAbgelaufen(daten.users[i])) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 

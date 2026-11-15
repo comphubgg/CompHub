@@ -159,6 +159,10 @@ export default function AdminDashboardPage() {
    * das Recht noch einmal, wenn es darauf ankommt.
    */
   const [darfWechseln, setDarfWechseln] = useState(false);
+  /** Wann der eigene Schluessel ablaeuft (null = ohne Ende) - vom Server, /api/vip-schluessel. */
+  const [schluesselBis, setSchluesselBis] = useState<number | null>(null);
+  /** Gegen diesen Zeitpunkt zaehlen die Resttage - gesetzt beim Abruf, nicht bei jedem Zeichnen. */
+  const [schluesselJetzt, setSchluesselJetzt] = useState(0);
   const [wechselOffen, setWechselOffen] = useState(false);
   const [eigenerWunsch, setEigenerWunsch] = useState('');
   const [wechselStand, setWechselStand] = useState('');
@@ -277,6 +281,8 @@ export default function AdminDashboardPage() {
       try {
         const j = await (await fetch('/api/vip-schluessel')).json();
         setDarfWechseln(Boolean(j?.darf));
+        setSchluesselBis(typeof j?.bis === 'number' ? j.bis : null);
+        setSchluesselJetzt(Date.now());
       } catch { /* dann eben ohne den Knopf */ }
     });
   }, []);
@@ -604,6 +610,22 @@ export default function AdminDashboardPage() {
             {accessKey && (
             <section data-dash="schluessel" className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Zugangsschlüssel</T></h2>
+              {/* Der Ablauf (Betreiber, 15.11.2026: "VIP access expires in N days") - dieselbe Frist, die der Server bei jeder Anmeldung prueft. */}
+              {schluesselBis ? (() => {
+                const tage = Math.max(0, Math.ceil((schluesselBis - schluesselJetzt) / 86_400_000));
+                return (
+                  <p data-ablauf className={`mt-1 text-xs ${tage <= 3 ? 'text-amber-300' : 'text-sky-300'}`}>
+                    {tage === 0 ? t('Dein VIP-Zugang läuft heute ab')
+                      : t(tage === 1 ? 'Dein VIP-Zugang läuft ab in 1 Tag' : 'Dein VIP-Zugang läuft ab in {n} Tagen').replace('{n}', String(tage))}
+                    {' · '}{new Date(schluesselBis).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}
+                    <span className="block text-[11px] text-slate-500">
+                      <T>Danach gilt der Schlüssel nicht mehr. Verlängern: im Discord bei Juanito melden.</T>
+                    </span>
+                  </p>
+                );
+              })() : (
+                <p data-ablauf className="mt-1 text-xs text-slate-500"><T>Dein VIP-Zugang hat keinen Ablauf.</T></p>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <code className="min-w-0 flex-1 truncate rounded-lg border border-zinc-800
                                  bg-zinc-900/80 px-3 py-2 font-mono text-sm text-slate-200">

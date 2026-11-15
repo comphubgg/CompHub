@@ -7,7 +7,8 @@ import { verankereProfi } from '@/lib/profiVerankern';
 import { rechteBereinigen } from '@/lib/rechte';
 import { modName } from '@/lib/modName';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { schickeSchluessel, loescheZugang, discordDa } from '@/lib/discord';
+import { schickeSchluessel, loescheZugang, discordDa, fristNachziehen } from '@/lib/discord';
+import { fristFuer, laufzeitAus } from '@/lib/vipZugaenge';
 import {
   neuerSchluessel, praefixTaugt, schluesselTaugt, schonVergeben,
 } from '@/lib/zugangsSchluessel';
@@ -141,6 +142,8 @@ export async function GET(request: Request) {
       rechte: u.rechte ?? [],
       epicId: u.epicId ?? null,
       vipBis: u.vipBis ?? null,
+      // Beendet die Frist den Schluessel selbst (Ablauf-Lauf loescht ihn)? Sonst nimmt sie nur das VIP-Recht.
+      fristLoescht: Boolean(u.fristLoescht),
       darfSchluessel: Boolean(u.darfSchluessel),
       // Wessen Overlays dieser Zugang betreut - bei einem Manager.
       verwaltet: u.verwaltet ?? null,
@@ -236,6 +239,15 @@ export async function POST(request: Request) {
   const vorgabe = String(koerper.schluessel ?? '').trim();
   const praefix = String(koerper.praefix ?? '').trim();
 
+  /*
+   * Die Laufzeit (Betreiber, 15.11.2026): 7 / 30 / 90 Tage oder 0 = unbegrenzt, vorgegeben 30. Gilt beim Anlegen; beim blossen Erneuern
+   * eines vorhandenen Schluessels bleibt die Frist, wie sie ist - es sei denn, es wurde ausdruecklich eine mitgeschickt.
+   */
+  const laufzeit = laufzeitAus(koerper.laufzeitTage);
+  if (laufzeit === null) {
+    return NextResponse.json({ fehler: 'Die Laufzeit muss zwischen 0 und 730 Tagen liegen.' }, { status: 400 });
+  }
+
   if (vorgabe) {
     const einwand = schluesselTaugt(vorgabe);
     if (einwand) return NextResponse.json({ fehler: einwand }, { status: 400 });
@@ -265,12 +277,17 @@ export async function POST(request: Request) {
     }
     daten.users[i].accessKey = schluessel;
     daten.users[i].status = 'active';
+    if (koerper.laufzeitTage !== undefined) {
+      delete daten.users[i].vipBis; delete daten.users[i].fristLoescht;
+      Object.assign(daten.users[i], fristFuer(laufzeit));
+    }
   } else {
     daten.users.push({
       username: name,
       accessKey: schluessel,
       status: 'active',
       createdAt: new Date().toISOString(),
+      ...fristFuer(laufzeit),
       /*
        * Ein Manager kommt fertig eingerichtet zur Welt.
        *
@@ -332,6 +349,7 @@ export async function POST(request: Request) {
     ok: true,
     name,
     schluessel,
+    vipBis: fertig?.fristLoescht ? fertig.vipBis ?? null : null,
     discord: discord.ok ? 'gesendet'
       : discordDa() ? `nicht gesendet: ${discord.grund}` : null,
   });
@@ -445,6 +463,9 @@ export async function PUT(request: Request) {
     await schickeSchluessel(
       daten.users[i].username, daten.users[i].accessKey, 'vip', true,
       rechtNachher);
+  } else if (tage !== undefined) {
+    // Neue Frist: die Schluesselnachricht in Discord zeigt sie gleich (Countdown), ohne neuen Schluessel.
+    await fristNachziehen(daten.users[i].username).catch(() => null);
   }
 
   return NextResponse.json({ ok: true });

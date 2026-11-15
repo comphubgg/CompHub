@@ -80,6 +80,10 @@ interface Eintrag {
   kanal: string;
   /** Die zuletzt dort abgelegte Schluesselnachricht - sie wird ersetzt. */
   nachricht?: string;
+  /** Welche Frist (vipBis, 0 = ohne Ende) diese Nachricht zeigt - weicht sie ab, zieht vipAblaufLauf sie nach. */
+  frist?: number;
+  /** Fuer welche Frist die Erinnerung drei Tage vorher schon im Kanal steht - so geht sie genau einmal hinaus. */
+  erinnert?: number;
 }
 
 type Ablage = Record<string, Eintrag>;
@@ -529,8 +533,11 @@ export async function loescheZugang(
     }
   }
 
-  delete ablage[schluessel];
-  await schreibe(ablage);
+  // Blieb der Kanal stehen, bleibt auch die Zuordnung - sonst kennte ihn niemand mehr, und ein zweiter Versuch (Ablauf-Lauf) fände nichts.
+  if (!offen.includes('Kanal')) {
+    delete ablage[schluessel];
+    await schreibe(ablage);
+  }
 
   return offen.length
     ? { ok: false, grund: `${offen.join(' und ')} blieb stehen` }
@@ -550,6 +557,57 @@ export function knoepfeMoeglich(): boolean {
   return Boolean(process.env.DISCORD_PUBLIC_KEY);
 }
 
+/*
+ * Die Laufzeit als Zeilen fuer Discord (Betreiber, 15.11.2026: "nowhere is there a visible timer").
+ *
+ * <t:UNIX:R> zaehlt in Discord von selbst herunter ("in 29 days", "in 3 hours") - die Nachricht muss dafuer nie bearbeitet werden;
+ * <t:UNIX:f> ist das Datum in der Zeitzone dessen, der hinsieht.
+ */
+export function fristZeilen(bis: number | null | undefined): string[] {
+  if (!bis || bis <= 0) return ['⏳ **No expiry** — this key does not run out.'];
+  const u = Math.floor(bis / 1000);
+  return [`⏳ **Expires <t:${u}:R>** · <t:${u}:f>`,
+    '_When it runs out, the key stops working and this channel is deleted._'];
+}
+
+/** Die Frist eines Zugangs, wie sie den Schluessel beendet - sonst 0 (ohne Ende). */
+function fristVon(z: { vipBis?: number; fristLoescht?: boolean } | null | undefined): number {
+  return z?.fristLoescht && typeof z.vipBis === 'number' && z.vipBis > 0 ? z.vipBis : 0;
+}
+
+/** Der Text der Schluesselnachricht - eine Stelle fuer Senden und Nachziehen. */
+export function schluesselInhalt(schluessel: string, anmeldename: string, bis: number): string {
+  return [
+    `**Your CompHub access key**`,
+    /*
+     * Verdeckt, bis man draufklickt.
+     *
+     * Discord zeigt Text zwischen zwei senkrechten Strichen erst nach
+     * einem Klick - genau das, was der Betreiber wollte: "so eine Art
+     * Auge zum Aufklappen, falls man gerade am Streamen ist und
+     * durchschaltet." Ein offen liegender Schluessel im Kanal ist
+     * genau einen Szenenwechsel von der Oeffentlichkeit entfernt.
+     */
+    `||\`${schluessel}\`||`,
+    '',
+    '_Click the grey bar to reveal the key._',
+    /*
+     * Der Name, mit dem man sich anmeldet - nicht der des Kanals.
+     *
+     * Bei einem Manager-Zugang sind das zwei verschiedene Dinge: der
+     * Kanal heisst nach dem Streamer ("gripey"), angemeldet wird sich
+     * aber mit dem Zugang ("gripey-managers"). Hier stand der
+     * Kanalname, und damit ein Name, mit dem niemand hineinkam.
+     */
+    `Sign in at https://www.thecomphub.com/sign-in/vip with the name \`${anmeldename}\`.`,
+    '',
+    ...fristZeilen(bis),
+    '',
+    '_This message is replaced whenever a new key is generated — the key '
+    + 'above is always the valid one._',
+  ].join('\n');
+}
+
 export async function schickeSchluessel(
   name: string, schluessel: string, art: KanalArt = 'vip',
   darfWechseln = false, darfEigenen = false, anmeldename = '',
@@ -562,6 +620,9 @@ export async function schickeSchluessel(
 
   const merkschluessel = art === 'manager'
     ? `manager:${name.toLowerCase()}` : name.toLowerCase();
+  // Die Frist des Zugangs, mit dem man sich anmeldet - sie steht unter dem Schluessel (fristZeilen).
+  const wer = (anmeldename || name).toLowerCase();
+  const bis = fristVon((await alleZugaenge().catch(() => [])).find((u) => u.username.toLowerCase() === wer));
 
   /*
    * Alles weg, was nicht angepinnt ist - nicht nur die gemerkte Nachricht.
@@ -588,34 +649,7 @@ export async function schickeSchluessel(
   const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
     // Ohne Vorschaukarte der Seite unter dem Link (Betreiber, 14.11.2026: "nicht mehr so clean wie vorher").
     flags: 4,
-    content: [
-      `**Your CompHub access key**`,
-      /*
-       * Verdeckt, bis man draufklickt.
-       *
-       * Discord zeigt Text zwischen zwei senkrechten Strichen erst nach
-       * einem Klick - genau das, was der Betreiber wollte: "so eine Art
-       * Auge zum Aufklappen, falls man gerade am Streamen ist und
-       * durchschaltet." Ein offen liegender Schluessel im Kanal ist
-       * genau einen Szenenwechsel von der Oeffentlichkeit entfernt.
-       */
-      `||\`${schluessel}\`||`,
-      '',
-      '_Click the grey bar to reveal the key._',
-      /*
-       * Der Name, mit dem man sich anmeldet - nicht der des Kanals.
-       *
-       * Bei einem Manager-Zugang sind das zwei verschiedene Dinge: der
-       * Kanal heisst nach dem Streamer ("gripey"), angemeldet wird sich
-       * aber mit dem Zugang ("gripey-managers"). Hier stand der
-       * Kanalname, und damit ein Name, mit dem niemand hineinkam.
-       */
-      `Sign in at https://www.thecomphub.com/sign-in/vip with the name \`${
-        anmeldename || name}\`.`,
-      '',
-      '_This message is replaced whenever a new key is generated — the key '
-      + 'above is always the valid one._',
-    ].join('\n'),
+    content: schluesselInhalt(schluessel, anmeldename || name, bis),
     /*
      * Das Panel darunter.
      *
@@ -674,9 +708,45 @@ export async function schickeSchluessel(
    * danach auf den Manager-Kanal, und die naechste Schluesselnachricht fuer
    * Amar selbst waere im falschen Kanal gelandet.
    */
-  ablage[merkschluessel] = { kanal, nachricht: id };
+  ablage[merkschluessel] = { kanal, nachricht: id, frist: bis, ...(ablage[merkschluessel]?.erinnert ? { erinnert: ablage[merkschluessel].erinnert } : {}) };
   await schreibe(ablage);
   return { ok: true };
+}
+
+/** Unter welchem Eintrag der Ablage die Schluesselnachricht eines Zugangs steht. */
+function merkschluesselVon(z: { username: string; verwaltet?: string }): { schluessel: string; art: KanalArt; kanalName: string } {
+  const fuer = (z.verwaltet ?? '').trim().toLowerCase();
+  return fuer ? { schluessel: `manager:${fuer}`, art: 'manager', kanalName: fuer }
+    : { schluessel: z.username.toLowerCase(), art: 'vip', kanalName: z.username.toLowerCase() };
+}
+
+/**
+ * Die Frist in der vorhandenen Schluesselnachricht nachziehen - ohne neuen Schluessel und ohne neue Nachricht (PATCH, Knoepfe bleiben).
+ * Fuer eine neu gesetzte oder entfernte Frist und fuer Zugaenge, deren Nachricht noch aus der Zeit ohne Anzeige stammt.
+ * Ist die Nachricht weg (404), wird sie neu geschrieben.
+ */
+export async function fristNachziehen(name: string): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const z = (await alleZugaenge()).find((u) => u.username.toLowerCase() === name.trim().toLowerCase());
+  if (!z) return { ok: false, grund: 'nicht gefunden' };
+  const { schluessel: merk, art, kanalName } = merkschluesselVon(z);
+  const ablage = await lies();
+  const e = ablage[merk];
+  const bis = fristVon(z);
+  if (e?.kanal && e.nachricht) {
+    const ok = await ruf(`/channels/${e.kanal}/messages/${e.nachricht}`, 'PATCH', {
+      content: schluesselInhalt(z.accessKey, z.username, bis),
+    });
+    if (ok) {
+      ablage[merk] = { ...e, frist: bis };
+      await schreibe(ablage);
+      return { ok: true };
+    }
+    if (letzterStatus !== 404) return { ok: false, grund: `discord-${letzterStatus || 'weg'}` };
+  }
+  // Keine (oder keine bekannte) Nachricht mehr: neu schreiben, mit denselben Knoepfen wie beim Anlegen.
+  const verwaltet = Boolean((z.verwaltet ?? '').trim());
+  return schickeSchluessel(kanalName, z.accessKey, art, !verwaltet, !verwaltet && Boolean(z.darfSchluessel), z.username);
 }
 
 /* ====================================================================== *
@@ -2671,6 +2741,7 @@ export async function zugangEntscheiden(
     schluessel = vorhanden.accessKey;
     vorhanden.discordId = a.nutzerId; vorhanden.discordName = a.nutzerName;
     if (a.art === 'vip') vorhanden.stufe = stufe;
+    if (bis) { vorhanden.vipBis = bis; vorhanden.fristLoescht = true; }
     await schreibeZugaenge(users);
   } else {
     schluessel = neuerSchluessel('');
@@ -2680,6 +2751,8 @@ export async function zugangEntscheiden(
       // Wer das ist - fuer Chat, Frist und Loeschen im VIP-Panel.
       discordId: a.nutzerId, discordName: a.nutzerName,
       ...(a.art === 'vip' ? { stufe } : {}),
+      // Die Laufzeit gleich am Zugang - so steht sie schon in der ersten Schluesselnachricht (fristZeilen).
+      ...(bis ? { vipBis: bis, fristLoescht: true } : {}),
       ...(a.art === 'manager' ? { rolle: 'manager' as const, rechte: ['overlays'], verwaltet: streamer, darfSchluessel: false, mods: [name] } : {}),
     });
     await schreibeZugaenge(users);
@@ -3038,6 +3111,8 @@ export async function vipFrist(name: string, bis: number | null): Promise<{ ok: 
   if (!u) return { ok: false, text: 'This access does not exist.' };
   if (bis === null) { delete u.vipBis; delete u.fristLoescht; } else { u.vipBis = bis; u.fristLoescht = true; }
   await schreibeZugaenge(users);
+  // Die Schluesselnachricht im eigenen Kanal zeigt die neue Frist (oder "No expiry") - ohne neuen Schluessel.
+  const nachgezogen = await fristNachziehen(u.username).catch(() => ({ ok: false }));
 
   const z = await zeileZu(name);
   const was = z?.art === 'manager' ? 'manager' : z?.stufe === 'vip' ? 'VIP' : 'VIP Streamer';
@@ -3046,14 +3121,15 @@ export async function vipFrist(name: string, bis: number | null): Promise<{ ok: 
       title: 'Your CompHub access',
       description: bis === null
         ? `Your ${was} access **${u.username}** no longer has an end date.`
-        : `Your ${was} access **${u.username}** is valid until **${TAG_EN(bis)}**.\n\nAfter that date it will be removed automatically. If you would like to keep it, just reply to Juanito in the CompHub server.`,
+        : `Your ${was} access **${u.username}** is valid until **${TAG_EN(bis)}** (<t:${Math.floor(bis / 1000)}:R>).\n\nAfter that date it will be removed automatically. If you would like to keep it, just reply to Juanito in the CompHub server.`,
       color: FARBE,
     }],
   }) : false;
   return {
     ok: true,
     text: (bis === null ? 'End date removed' : `Valid until ${TAG_EN(bis)}`)
-      + (z?.discordId ? (dm ? ' · DM sent.' : ' · the DM could not be delivered (closed DMs).') : ' · no DM: not linked to Discord.'),
+      + (z?.discordId ? (dm ? ' · DM sent.' : ' · the DM could not be delivered (closed DMs).') : ' · no DM: not linked to Discord.')
+      + (nachgezogen.ok ? ' · Key message updated.' : ''),
   };
 }
 
@@ -3072,6 +3148,18 @@ export async function vipLoeschen(
   const weg = users.find((x) => x.username.toLowerCase() === name.toLowerCase());
   if (!weg || !z) return { ok: false, text: 'This access does not exist.' };
 
+  /*
+   * Beim Ablauf zuerst Kanal und Rolle (Betreiber, 15.11.2026: der private Kanal mit dem Schluessel soll weg). Klappt das nicht, bleibt der
+   * Eintrag stehen - der Schluessel gilt ohnehin nicht mehr (lib/vipZugaenge, zugangAbgelaufen) - und der naechste Lauf versucht es noch
+   * einmal. Umgekehrt waere der Eintrag weg und der Kanal mit dem Schluessel stuende fuer immer herrenlos da.
+   */
+  const fuerAblauf = (weg.verwaltet ?? '').trim();
+  let kanalWeg: { ok: boolean; grund?: string } | null = null;
+  if (ablauf) {
+    kanalWeg = await (fuerAblauf ? loescheZugang(fuerAblauf, 'manager') : loescheZugang(weg.username));
+    if (!kanalWeg.ok) return { ok: false, text: `Discord: ${kanalWeg.grund ?? 'failed'} - access kept for the next run.` };
+  }
+
   let dm = false;
   if (z.discordId) {
     const was = z.art === 'manager' ? 'manager' : z.stufe === 'vip' ? 'VIP' : 'VIP Streamer';
@@ -3089,9 +3177,10 @@ export async function vipLoeschen(
       if (r) await ruf(`/guilds/${SERVER}/members/${z.discordId}/roles/${r}`, 'DELETE');
     }
   }
-  await schreibeZugaenge(users.filter((x) => x !== weg));
+  // Frisch lesen: zwischen dem Lesen oben und hier lagen Discord-Aufrufe, und ein anderer Weg kann inzwischen geschrieben haben.
+  await schreibeZugaenge((await alleZugaenge()).filter((x) => x.username.toLowerCase() !== weg.username.toLowerCase()));
   const fuer = (weg.verwaltet ?? '').trim();
-  await (fuer ? loescheZugang(fuer, 'manager') : loescheZugang(weg.username));
+  if (!kanalWeg) await (fuer ? loescheZugang(fuer, 'manager') : loescheZugang(weg.username));
   return {
     ok: true,
     text: `Access "${weg.username}" deleted`
@@ -3099,17 +3188,87 @@ export async function vipLoeschen(
   };
 }
 
-/** Was im Panel eine Frist hat und abgelaufen ist: loeschen. Liefert die Namen. */
-export async function abgelaufeneVipsLoeschen(): Promise<string[]> {
-  const { alleZugaenge } = await import('./vipZugaenge');
-  const faellig = (await alleZugaenge()).filter((u) => u.fristLoescht && typeof u.vipBis === 'number'
-    && u.vipBis > 0 && u.vipBis <= Date.now());
-  const weg: string[] = [];
-  for (const u of faellig) {
+export interface AblaufBericht {
+  /** Ohne Bot-Token geschieht nichts - der Schluessel gilt trotzdem nicht mehr (zugangAbgelaufen), geloescht wird beim naechsten Lauf mit Token. */
+  uebersprungen?: string;
+  geloescht: string[];
+  /** Abgelaufen, aber Kanal/Rolle liessen sich nicht entfernen - bleibt fuer den naechsten Lauf stehen. */
+  offen: Array<{ name: string; grund: string }>;
+  erinnert: string[];
+  nachgezogen: string[];
+}
+
+const ERINNERN_MS = 3 * 86_400_000;
+/** Hoechstens so viele Schluesselnachrichten je Lauf nachziehen - Discords Takt, und der Rest folgt in zehn Minuten. */
+const NACHZIEHEN_JE_LAUF = 15;
+
+/*
+ * Der Ablauf-Lauf (alle zehn Minuten, app/api/cron/vip-ablauf - angestossen von .github/workflows/discord-live.yml).
+ *
+ *   1. Abgelaufen (fristLoescht + vipBis vorbei): Kanal und Rolle weg, DM, Eintrag weg - siehe vipLoeschen. Wer weg ist, ist weg: ein zweiter
+ *      Lauf findet ihn nicht mehr, also geschieht das genau einmal.
+ *   2. Drei Tage vorher einmal eine Erinnerung im eigenen Kanal (gemerkt je Frist in der Kanal-Ablage - eine verlaengerte Frist erinnert neu).
+ *   3. Schluesselnachrichten, deren angezeigte Frist nicht mehr stimmt (oder die noch aus der Zeit ohne Anzeige stammen), nachziehen.
+ *      Zugaenge ohne Frist, deren Nachricht nie eine zeigte, bleiben unangetastet.
+ *
+ * Was geschah, geht an #admin-alarm.
+ */
+export async function vipAblaufLauf(jetzt = Date.now()): Promise<AblaufBericht> {
+  const bericht: AblaufBericht = { geloescht: [], offen: [], erinnert: [], nachgezogen: [] };
+  if (!discordDa()) return { ...bericht, uebersprungen: 'kein-token' };
+  const { zugangAbgelaufen } = await import('./vipZugaenge');
+  const alle = (await alleZugaenge()).filter((u) => u.rolle !== 'admin');
+
+  for (const u of alle.filter((x) => zugangAbgelaufen(x, jetzt))) {
     const erg = await vipLoeschen(u.username, 'The access period ended.', true);
-    if (erg.ok) weg.push(u.username);
+    if (erg.ok) bericht.geloescht.push(u.username);
+    else bericht.offen.push({ name: u.username, grund: erg.text });
   }
-  return weg;
+
+  const ablage = await lies();
+  let geaendert = false;
+  let nachgezogen = 0;
+  for (const u of alle.filter((x) => !zugangAbgelaufen(x, jetzt) && x.status === 'active')) {
+    const { schluessel: merk } = merkschluesselVon(u);
+    const e = ablage[merk];
+    const bis = fristVon(u);
+    if (bis && e?.kanal && bis - jetzt <= ERINNERN_MS && e.erinnert !== bis) {
+      const id = idAus(await ruf(`/channels/${e.kanal}/messages`, 'POST', {
+        content: [
+          `${u.discordId ? `<@${u.discordId}> ` : ''}⏳ **Your CompHub access \`${u.username}\` expires <t:${Math.floor(bis / 1000)}:R>** · <t:${Math.floor(bis / 1000)}:f>`,
+          'After that the key stops working and this channel is deleted. Want to keep it? Just write to Juanito on the CompHub server.',
+        ].join('\n'),
+        allowed_mentions: { users: u.discordId ? [u.discordId] : [] },
+      }));
+      if (id) { ablage[merk] = { ...e, erinnert: bis }; geaendert = true; bericht.erinnert.push(u.username); }
+    }
+    if (e?.nachricht && (e.frist ?? 0) !== bis && nachgezogen < NACHZIEHEN_JE_LAUF) {
+      nachgezogen += 1;
+      // fristNachziehen liest und schreibt die Ablage selbst - vorher die eigenen Aenderungen sichern, danach neu lesen.
+      if (geaendert) { await schreibe(ablage); geaendert = false; }
+      const erg = await fristNachziehen(u.username).catch(() => ({ ok: false }));
+      if (erg.ok) bericht.nachgezogen.push(u.username);
+      Object.assign(ablage, await lies());
+    }
+  }
+  if (geaendert) await schreibe(ablage);
+
+  if (bericht.geloescht.length || bericht.offen.length || bericht.erinnert.length) {
+    await schickeAlarm({
+      titel: 'VIP-Ablauf',
+      text: [
+        bericht.geloescht.length ? `Abgelaufen und entfernt (Zugang, Kanal, Rolle): ${bericht.geloescht.join(', ')}` : '',
+        ...bericht.offen.map((o) => `Abgelaufen, noch nicht entfernt (naechster Lauf versucht es wieder): ${o.name} - ${o.grund}`),
+        bericht.erinnert.length ? `Erinnerung (3 Tage vorher) im Kanal: ${bericht.erinnert.join(', ')}` : '',
+      ].filter(Boolean).join('\n'),
+    }).catch(() => null);
+  }
+  return bericht;
+}
+
+/** Was im Panel eine Frist hat und abgelaufen ist: loeschen. Liefert die Namen (der alte Weg, jetzt ueber vipAblaufLauf). */
+export async function abgelaufeneVipsLoeschen(): Promise<string[]> {
+  return (await vipAblaufLauf()).geloescht;
 }
 
 /* ==================================================================== */

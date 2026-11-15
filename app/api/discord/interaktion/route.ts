@@ -446,10 +446,12 @@ export async function POST(request: NextRequest) {
           title: 'Accept - how long?',
           components: [{
             type: 1,
+            // Vorgabe 30 Tage (Betreiber, 15.11.2026: Schluessel nur noch auf Zeit, "e.g. valid for one month") - leeren heisst weiterhin unbegrenzt.
             components: [{
               type: 4, custom_id: 'bis', style: 1, required: false, max_length: 30,
-              label: 'Valid until (empty = unlimited)',
-              placeholder: '25.10.2026  or  1 month  or  2 weeks',
+              label: 'Valid for (empty = unlimited)',
+              value: '30 days',
+              placeholder: '7 days · 30 days · 90 days · 25.12.2026',
             }],
           }],
         },

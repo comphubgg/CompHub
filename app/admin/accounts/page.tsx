@@ -211,12 +211,42 @@ function ProSuche({ aktuell, waehle }: {
  * Die gewoehnliche Anmeldung bleibt unberuehrt: dort geht weiterhin nur die
  * E-Mail-Adresse. Diese Zugaenge laufen ueber den VIP-Reiter.
  */
+/** Wann ein Schluessel ablaeuft - "kein Ablauf", "läuft ab in N Tagen (Datum)" oder "abgelaufen". */
+function AblaufMarke({ bis }: { bis: number | null }) {
+  const t = useT();
+  // Einmal beim Zeichnen festgehalten - die Liste wird ohnehin bei jeder Aenderung neu geholt.
+  const [jetzt] = useState(() => Date.now());
+  if (!bis) {
+    return <span className="rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-slate-500">{t('kein Ablauf')}</span>;
+  }
+  const datum = new Date(bis).toLocaleDateString('de-DE');
+  if (bis <= jetzt) {
+    return <span className="rounded border border-rose-700/60 bg-rose-950/30 px-1.5 py-0.5 text-[10px] text-rose-300">{t('abgelaufen')} · {datum}</span>;
+  }
+  const tage = Math.ceil((bis - jetzt) / 86_400_000);
+  const bald = tage <= 3;
+  return (
+    <span title={new Date(bis).toLocaleString('de-DE')}
+      className={`rounded border px-1.5 py-0.5 text-[10px] ${bald
+        ? 'border-amber-600/60 bg-amber-950/30 text-amber-300' : 'border-sky-500/30 bg-sky-500/10 text-sky-300/90'}`}>
+      {t(tage === 1 ? 'läuft ab in 1 Tag' : 'läuft ab in {n} Tagen').replace('{n}', String(tage))} · {datum}
+    </span>
+  );
+}
+
 function VipZugaenge() {
   const t = useT();
   const [liste, setListe] = useState<Array<{
     name: string; schluessel: string; aktiv: boolean; angelegt: string;
     verwaltet?: string | null; mods?: string[];
+    vipBis?: number | null; fristLoescht?: boolean;
   }>>([]);
+  /**
+   * Wie lange der neue Schluessel gilt (Betreiber, 15.11.2026: Schluessel nur noch auf Zeit, "e.g. valid for one month") - vorgegeben 30 Tage,
+   * 0 = unbegrenzt. Laeuft er ab, gilt er nirgends mehr, Kanal und Zugang werden geloescht (lib/discord, vipAblaufLauf).
+   */
+  const [laufzeit, setLaufzeit] = useState<number>(30);
+  const [laufzeitJetzt] = useState(() => Date.now());
   /** Wessen Schluessel gerade offen liegt - einer zur Zeit. */
   const [zeigt, setZeigt] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -315,6 +345,8 @@ function VipZugaenge() {
         body: JSON.stringify({
           name: zuName,
           neuerSchluessel,
+          // Beim Erneuern bleibt die Frist, wie sie ist - nur ein neuer Zugang bekommt die gewaehlte Laufzeit.
+          ...(neuerSchluessel ? {} : { laufzeitTage: laufzeit }),
           ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
             : praefix.trim() ? { praefix: praefix.trim() } : {}),
           ...(art === 'manager' && verwaltet.trim()
@@ -325,7 +357,27 @@ function VipZugaenge() {
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setDiscord(j.discord ?? null);
-      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet('');
+      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet(''); setLaufzeit(30);
+      await holen();
+    } catch (e) { setFehler((e as Error).message); }
+  }
+
+  /**
+   * Die Frist eines vorhandenen Zugangs setzen - auch fuer alte Schluessel ohne Ablauf (die bleiben sonst unbegrenzt).
+   * Derselbe Weg wie die VIP-Dauer eines Kontos (PUT vipTage); die Schluesselnachricht in Discord zieht nach.
+   */
+  async function fristSetzen(n: string, tage: number) {
+    const text = tage
+      ? t('Ablauf in {n} Tagen setzen? Danach gilt der Schlüssel nicht mehr, Kanal und Zugang werden gelöscht.').replace('{n}', String(tage))
+      : t('Ablauf entfernen? Der Schlüssel gilt dann unbegrenzt.');
+    if (!window.confirm(`${n}: ${text}`)) return;
+    setFehler('');
+    try {
+      const r = await fetch('/api/admin/vip-zugaenge', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: n, vipTage: tage }),
+      });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); setFehler(t(j?.fehler ?? 'nicht gespeichert')); }
       await holen();
     } catch (e) { setFehler((e as Error).message); }
   }
@@ -608,6 +660,28 @@ ${n}`)) return;
             Kleinschreibung zählt also mit.</T>
           </p>
 
+          {/* Die Laufzeit - dieselben Stufen wie beim VIP eines Kontos (VIP_DAUER), vorgegeben 30 Tage. */}
+          <div data-laufzeit className="mt-3">
+            <span className="mb-1 block text-[10px] uppercase tracking-wider text-slate-600">
+              <T>Gültig für</T>
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {[7, 30, 90, 0].map((tage) => (
+                <button key={tage} type="button" onClick={() => setLaufzeit(tage)}
+                  className={`rounded-md border px-3 py-1.5 text-[11px] font-semibold transition ${laufzeit === tage
+                    ? 'border-sky-500 bg-sky-500 text-white'
+                    : 'border-zinc-800 text-slate-400 hover:border-sky-500 hover:text-slate-200'}`}>
+                  {tage ? t(`${tage} Tage`) : t('unbegrenzt')}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-slate-600">
+              {laufzeit
+                ? <>{t('Läuft ab am')} {new Date(laufzeitJetzt + laufzeit * 86_400_000).toLocaleDateString('de-DE')} — <T>danach gilt der Schlüssel nicht mehr, Discord-Kanal und Zugang werden gelöscht.</T></>
+                : <T>Kein Ablauf — der Schlüssel gilt, bis du ihn entfernst.</T>}
+            </p>
+          </div>
+
 
           {fehler && (
             <p className="mt-3 rounded-lg border border-rose-900/60 bg-rose-950/30
@@ -674,6 +748,17 @@ ${n}`)) return;
                   <span className="text-[10px] text-slate-700">
                     {new Date(z.angelegt).toLocaleDateString('de-DE')}
                   </span>
+                  {/* Der Ablauf - wie im Discord-Kanal des Zugangs (dort als Countdown). */}
+                  <AblaufMarke bis={z.fristLoescht ? z.vipBis ?? null : null} />
+                  <select aria-label={t('Ablauf setzen')} value=""
+                    onChange={(e) => { if (e.target.value !== '') void fristSetzen(z.name, Number(e.target.value)); }}
+                    className="rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[10px] text-slate-500 outline-none hover:border-sky-500">
+                    <option value="">{t('Ablauf setzen …')}</option>
+                    <option value="7">{t('7 Tage ab jetzt')}</option>
+                    <option value="30">{t('30 Tage ab jetzt')}</option>
+                    <option value="90">{t('90 Tage ab jetzt')}</option>
+                    <option value="0">{t('unbegrenzt')}</option>
+                  </select>
                   {/*
                     * Ein Manager-Zugang traegt, fuer wen er arbeitet.
                     *

@@ -8,6 +8,7 @@ import { ueberHttps } from '@/lib/vipCookie';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { merkeAnmeldung as merkeAnwesenheit } from '@/lib/anwesenheit';
 import { modName } from '@/lib/modName';
+import { zugangAbgelaufen } from '@/lib/vipZugaenge';
 
 /*
  * Bei jeder Anfrage neu ausfuehren.
@@ -78,6 +79,10 @@ export async function POST(request: NextRequest) {
     if (!user || user.accessKey !== accessKey || user.status !== 'active') {
       fehlversuch(request, String(username));
       return NextResponse.json({ error: 'Invalid username or access key' }, { status: 401 });
+    }
+    // Abgelaufene Frist: der Schluessel gilt nicht mehr, auch wenn der Aufraeumlauf ihn noch nicht entfernt hat (lib/vipZugaenge).
+    if (zugangAbgelaufen(user)) {
+      return NextResponse.json({ error: 'This access key has expired' }, { status: 401 });
     }
     erfolg(request, String(username));
 

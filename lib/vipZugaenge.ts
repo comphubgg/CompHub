@@ -100,6 +100,40 @@ export interface Zugang {
   twitchId?: string;
 }
 
+/*
+ * Die Laufzeit eines Schluessels (Betreiber, 15.11.2026: "VIP access keys must be time-limited, e.g. valid for one month").
+ *
+ * Kein zweiter Mechanismus: es ist dieselbe Frist wie im VIP-Panel (vipBis + fristLoescht). Neu ist nur, dass sie beim Anlegen und Annehmen
+ * gleich gewaehlt wird - vorgegeben 30 Tage - und dass ein abgelaufener Schluessel ab der ersten Sekunde nirgends mehr gilt, nicht erst, wenn
+ * der Aufraeumlauf ihn geloescht hat. Alte Zugaenge ohne Frist bleiben unbegrenzt; nichts laeuft still ab.
+ */
+export const LAUFZEITEN_TAGE = [7, 30, 90, 0] as const;
+export const STANDARD_TAGE = 30;
+const TAG_MS = 86_400_000;
+
+/** Die Frist zu einer Laufzeit in Tagen - 0 oder null heisst ohne Ende (dann keine Felder). */
+export function fristFuer(tage: number | null | undefined, jetzt = Date.now()): Pick<Zugang, 'vipBis' | 'fristLoescht'> {
+  if (!tage || !Number.isFinite(tage) || tage <= 0) return {};
+  return { vipBis: jetzt + Math.round(tage) * TAG_MS, fristLoescht: true };
+}
+
+/** Eine Laufzeit aus einer Anfrage lesen: Zahl in Tagen (0 = ohne Ende), sonst die Vorgabe. Unsinn gibt null (= ablehnen). */
+export function laufzeitAus(wert: unknown, vorgabe: number = STANDARD_TAGE): number | null {
+  if (wert === undefined) return vorgabe;
+  if (wert === null || wert === 'unbegrenzt' || wert === 'unlimited') return 0;
+  const n = Number(wert);
+  if (!Number.isFinite(n) || n < 0 || n > 730) return null;
+  return Math.round(n);
+}
+
+/**
+ * Ist dieser Schluessel abgelaufen? Nur eine Frist, die ihn loeschen soll (fristLoescht), beendet den Schluessel selbst; eine Frist aus der
+ * Kontenseite nimmt weiterhin nur das VIP-Recht (rechteVon). Ohne Frist: nie.
+ */
+export function zugangAbgelaufen(z: Pick<Zugang, 'vipBis' | 'fristLoescht'> | null | undefined, jetzt = Date.now()): boolean {
+  return !!z && !!z.fristLoescht && typeof z.vipBis === 'number' && z.vipBis > 0 && z.vipBis <= jetzt;
+}
+
 /** Wartet dieser Zugang noch auf die Bestaetigung mit Twitch? */
 export function wartetAufTwitch(z: Zugang | null): boolean {
   return !!z && !!(z.twitchPflicht ?? '').trim() && !z.twitchBestaetigt;
@@ -149,7 +183,9 @@ export async function zugangNach(name: string): Promise<Zugang | null> {
   const gesucht = name.trim().toLowerCase();
   if (!gesucht) return null;
   const alle = await alleZugaenge();
-  return alle.find((z) => z.username.toLowerCase() === gesucht) ?? null;
+  const z = alle.find((x) => x.username.toLowerCase() === gesucht) ?? null;
+  // Abgelaufen gilt wie geloescht - auch in den Minuten, bis der Aufraeumlauf ihn wirklich entfernt hat (jeder Anmeldeweg fragt hier).
+  return zugangAbgelaufen(z) ? null : z;
 }
 
 /**
@@ -166,7 +202,7 @@ export function rechteVon(z: Zugang | null): {
   epicId: string | null;
 } {
   // Stillgelegt - oder noch nicht mit Twitch bestaetigt: dann darf der Schluessel nichts, an keiner Stelle.
-  if (!z || z.status !== 'active' || wartetAufTwitch(z)) {
+  if (!z || z.status !== 'active' || wartetAufTwitch(z) || zugangAbgelaufen(z)) {
     return { gueltig: false, rolle: null, rechte: [], vip: false, epicId: null };
   }
   /*
@@ -215,6 +251,8 @@ export async function wechsleSchluessel(
   if (i < 0) return { ok: false, grund: 'nicht gefunden' };
 
   const z = alle[i];
+  // Ein abgelaufener Schluessel bekommt keinen neuen - auch nicht ueber den Knopf in Discord; verlaengern geht nur ueber die Frist.
+  if (zugangAbgelaufen(z)) return { ok: false, grund: 'abgelaufen' };
   if (!ausDemWerkzeug) {
     if (z.status !== 'active') return { ok: false, grund: 'stillgelegt' };
     if ((z.verwaltet ?? '').trim()) return { ok: false, grund: 'manager' };
@@ -267,6 +305,7 @@ export async function setzeSchluessel(
   if (i < 0) return { ok: false, grund: 'nicht gefunden' };
 
   const z = alle[i];
+  if (zugangAbgelaufen(z)) return { ok: false, grund: 'abgelaufen' };
   if (z.status !== 'active') return { ok: false, grund: 'stillgelegt' };
   if ((z.verwaltet ?? '').trim()) return { ok: false, grund: 'manager' };
   if (!z.darfSchluessel) return { ok: false, grund: 'nicht erlaubt' };
