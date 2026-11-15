@@ -30,7 +30,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { tagFuer, tagsFuer } from '../lib/releaseTags.mjs';
+import { schreibTagsFuer, tagsFuer } from '../lib/releaseTags.mjs';
 
 const PROJEKT = process.cwd();
 const DATEN = path.join(PROJEKT, 'data');
@@ -465,9 +465,18 @@ async function main() {
 
   // Je Release: Anhaenge, Manifest, Aufgaben.
   const releases = new Map();
-  const releaseFuer = async (tag) => {
+  const fehlend = new Map();
+  /** Nur zum Nachsehen (anlegen: false): ein Release, das es nicht gibt, wird nicht angelegt, sondern gilt als leer - es kann dort ja nichts liegen. */
+  const releaseFuer = async (tag, { anlegen = true } = {}) => {
     if (releases.has(tag)) return releases.get(tag);
-    const release = await releaseHolen(tag);
+    if (!anlegen && fehlend.has(tag)) return fehlend.get(tag);
+    let release;
+    if (!anlegen) {
+      const r = await api(`/repos/${REPO}/releases/tags/${tag}`);
+      if (r.status === 404) { const leer = { tag, vorhandene: new Map(), manifestAlt: {}, leer: true }; fehlend.set(tag, leer); return leer; }
+      if (!r.ok) throw new Error(`Release: ${r.status} ${await r.text()}`);
+      release = await r.json();
+    } else release = await releaseHolen(tag);
     const vorhandene = await anhaenge(release.id);
     const manifestAlt = await verzeichnisLesen(tag, vorhandene);
     const eintrag = {
@@ -481,11 +490,34 @@ async function main() {
 
   // Was hochgeladen wird: Name des Anhangs -> Bytes, je Release.
   const aufgaben = [];
+  /** Was schon beim Planen scheitert (alle Ziel-Releases voll) - zaehlt mit, damit der Lauf das nicht als geglueckt abhakt. */
+  const volleZiele = new Set(); const planFehler = [];
   for (const name of einzeln) {
     const daten = fs.readFileSync(path.join(DATEN, name));
     const anhang = anhangName(name);
     const summe = /^antworten\//.test(name) ? antwortSumme(daten) : pruefsumme(daten);
-    const rel = await releaseFuer(tagFuer(name));
+    /*
+     * Das Release zum Schreiben: das erste der Reihe, das die Datei schon hat oder noch Platz bietet (lib/releaseTags.mjs, schreibTagsFuer). Am 15.11.2026
+     * gingen die FNCS-Heats in kein Release, weil das eine Ziel voll war - GitHub antwortete 422 "file_count limited to 1000", der Lauf blieb gruen.
+     */
+    const ziele = schreibTagsFuer(name);
+    let rel = null;
+    for (const tag of ziele) {
+      const r = await releaseFuer(tag, { anlegen: false });
+      if (r.vorhandene.has(anhang)) { rel = r; break; }
+    }
+    if (!rel) {
+      for (const tag of ziele) {
+        const r = await releaseFuer(tag, { anlegen: false });
+        if (r.vorhandene.size + (r.geplant ?? 0) < VOLL) { if (r.leer) { fehlend.delete(tag); rel = await releaseFuer(tag); } else rel = r; break; }
+      }
+    }
+    if (!rel) {
+      volleZiele.add(ziele.join(', '));
+      planFehler.push(`${anhang}: alle Releases zum Schreiben voll (${ziele[0]} ...) - lib/releaseTags.mjs erweitern`);
+      continue;
+    }
+    if (!rel.vorhandene.has(anhang)) rel.geplant = (rel.geplant ?? 0) + 1;
     if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
     /*
      * Umzug ins Saison-Release: was im alten Release schon genau so liegt und
@@ -495,8 +527,8 @@ async function main() {
      */
     if (!erzwingen && !rel.manifestAlt[anhang]) {
       let schonDa = false;
-      for (const alt of tagsFuer(name).slice(1)) {
-        const r = await releaseFuer(alt);
+      for (const alt of tagsFuer(name).filter((t) => t !== rel.tag)) {
+        const r = await releaseFuer(alt, { anlegen: false });
         if (r.manifestAlt[anhang]?.summe === summe && r.vorhandene.has(anhang)) { schonDa = true; break; }
       }
       if (schonDa) continue;
@@ -592,7 +624,7 @@ async function main() {
     return;
   }
 
-  let fertig = 0; let schief = 0; let gleichGeblieben = 0; let kontingentMeldung = false; const fehler = [];
+  let fertig = 0; let schief = planFehler.length; let gleichGeblieben = 0; let kontingentMeldung = false; const fehler = [...planFehler];
   let naechste = 0;
   /*
    * Das Manifest nicht erst ganz am Ende schreiben.
@@ -683,6 +715,14 @@ async function main() {
   if (STEMPEL && !probe && !schief && !zurueckgestellt && !(FRIST && naechste < aufgaben.length)) {
     try { fs.writeFileSync(STEMPEL, ''); fs.utimesSync(STEMPEL, new Date(BEGINN), new Date(BEGINN)); } catch { /* ohne Stempel bleibt --neuer-als */ }
   }
+  /*
+   * Laut melden, wenn ein Release voll ist oder es bald wird. Die Ablaeufe rufen diesen Schritt mit "|| true" und kuerzen die Ausgabe (tail) - darum stehen
+   * diese Zeilen ganz am Ende und beginnen mit "::error::"/"::warning::": GitHub zeigt sie oben am Lauf, auch wenn der Schritt gruen bleibt.
+   */
+  const fastVoll = [...releases.values()].filter((rel) => rel.fertig && rel.vorhandene.size >= 900).map((rel) => `${rel.tag} (${rel.vorhandene.size})`);
+  if (fastVoll.length) console.log(`::warning title=Release fast voll::${fastVoll.length} Releases mit 900+ von 1000 Anhaengen: ${fastVoll.slice(0, 6).join(', ')}`);
+  const voll = fehler.filter((f) => /file_count|alle Releases zum Schreiben voll/.test(f)).length;
+  if (voll) console.log(`::error title=Release voll::${voll} Dateien kamen in kein Release (1000 Anhaenge erreicht: ${[...volleZiele].slice(0, 3).join(' | ') || 'siehe oben'}) - lib/releaseTags.mjs erweitern`);
   process.exit(schief ? 1 : 0);
 }
 
