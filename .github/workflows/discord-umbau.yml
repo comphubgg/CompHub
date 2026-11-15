@@ -1,0 +1,95 @@
+# Den Community-Discord neu ordnen (scripts/discord-umbau.mjs) - nur von Hand, Standard ist der Plan.
+#
+#   plan            zeigen, was sich aendern wuerde (liest nur)
+#   anwenden        Plan ausfuehren, nichts loeschen
+#   loeschen        Plan ausfuehren und die Loesch-Kandidaten entfernen (nie, was der Code kennt oder privat ist)
+#   updates-plan    den naechsten Changelog-Post fuer #comphub-updates zeigen (scripts/discord-updates.mjs)
+#   updates-posten  ihn posten
+#   x-probe         pruefen, welche kostenlosen Wege an die Posts von @CompHub_gg herankommen (aendert nichts)
+
+name: Discord Umbau
+
+on:
+  workflow_dispatch:
+    inputs:
+      modus:
+        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe'
+        type: choice
+        default: plan
+        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe]
+      emoji_namen:
+        description: 'Auch Kanaele umbenennen, die der Code ueber den Namen sucht (nur nach dem Code-Patch!)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: discord-umbau
+  cancel-in-progress: false
+
+jobs:
+  umbau:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fuer den Changelog braucht es Verlauf; fuer den Umbau genuegen die Skripte.
+          fetch-depth: ${{ startsWith(inputs.modus, 'updates') && 300 || 1 }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Umbau
+        if: inputs.modus == 'plan' || inputs.modus == 'anwenden' || inputs.modus == 'loeschen'
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          ARGS=""
+          [ "${{ inputs.modus }}" = "anwenden" ] && ARGS="--anwenden"
+          [ "${{ inputs.modus }}" = "loeschen" ] && ARGS="--anwenden --loeschen"
+          [ "${{ inputs.emoji_namen }}" = "true" ] && ARGS="$ARGS --emoji-namen"
+          node scripts/discord-umbau.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
+
+      - name: Changelog
+        if: startsWith(inputs.modus, 'updates')
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          # Das Anthropic-SDK nur, wenn ein Schluessel da ist - es ist keine Abhaengigkeit des Projekts.
+          if grep -q '^ANTHROPIC_API_KEY=' .env.local; then
+            npm install --silent --no-audit --no-fund --prefix "$RUNNER_TEMP/sdk" @anthropic-ai/sdk && export ANTHROPIC_SDK_ORT="$RUNNER_TEMP/sdk"
+          fi
+          set +e
+          ARGS=""
+          [ "${{ inputs.modus }}" = "updates-posten" ] && ARGS="--anwenden"
+          node scripts/discord-updates.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
+
+      # Ohne die kostenpflichtige X-Schnittstelle: welche oeffentlichen Wege liefern die Posts von @CompHub_gg?
+      # Gezaehlt werden Beitrags-Links (status/<nummer>) in der Antwort - 0 heisst: dieser Weg liefert nichts.
+      - name: X-Probe
+        if: inputs.modus == 'x-probe'
+        run: |
+          H=CompHub_gg
+          for u in \
+            "https://syndication.twitter.com/srv/timeline-profile/screen-name/$H" \
+            "https://cdn.syndication.twimg.com/timeline/profile?screen_name=$H" \
+            "https://publish.twitter.com/oembed?url=https://twitter.com/$H" \
+            "https://api.fxtwitter.com/$H" \
+            "https://api.fxtwitter.com/2/profile/$H/statuses" \
+            "https://nitter.net/$H/rss" \
+            "https://nitter.poast.org/$H/rss" \
+            "https://xcancel.com/$H/rss" \
+            "https://rsshub.app/twitter/user/$H"; do
+            code=$(curl -s -L -m 25 -A "Mozilla/5.0 (X11; Linux x86_64)" -o /tmp/x.out -w '%{http_code}' "$u" || echo 000)
+            n=$(grep -oE "status(es)?/[0-9]{10,25}" /tmp/x.out 2>/dev/null | sort -u | wc -l)
+            echo "$code  $(stat -c %s /tmp/x.out 2>/dev/null || echo 0) bytes  $n post links  $u"
+            grep -oE "status(es)?/[0-9]{10,25}" /tmp/x.out 2>/dev/null | sort -u | head -3 | sed 's/^/      /'
+          done
