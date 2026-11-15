@@ -23,6 +23,10 @@ on:
         description: 'auch im Image voll pruefen (dauert rund 20 Minuten)'
         required: false
         default: 'ja'
+      teilweise:
+        description: 'auch gegen einen Zwischenstand am Release vergleichen (ja/nein)'
+        required: false
+        default: 'nein'
       dauerlauf:
         description: 'danach so viele Minuten den Dauerlauf wie auf dem Server (Katalog der Seite, alle frischen Spieltage); 0 = nicht'
         required: false
@@ -76,10 +80,11 @@ jobs:
         env:
           COMPHUB_LIVE_ORT: ${{ runner.temp }}/live
           FENSTER: ${{ inputs.fenster }}
+          ZUSATZ: ${{ inputs.teilweise == 'ja' && '--auch-teilweise' || '' }}
         run: |
           # Rueckgabe 3: das Release ist gerade ein Zwischenstand einer laufenden Runde - bis zu 40 Minuten lang alle 2 Minuten wieder.
           for i in $(seq 1 20); do
-            set +e; node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10; rc=$?; set -e
+            set +e; node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10 $ZUSATZ; rc=$?; set -e
             [ "$rc" != 3 ] && exit "$rc"
             sleep 120
           done
@@ -148,14 +153,15 @@ jobs:
         env:
           FENSTER: ${{ inputs.fenster }}
           EVENT: ${{ inputs.event }}
+          ZUSATZ: ${{ inputs.teilweise == 'ja' && '--auch-teilweise' || '' }}
         run: |
           docker run --rm --env-file web.env -e COMPHUB_LIVE_ORT=/app/live -e LIVE_LESER=3 -e LIVE_LADEN=6 \
-            -e FENSTER="$FENSTER" -e EVENT="$EVENT" -v "$PWD/live:/app/live" --cpus 3.5 --memory 5g \
+            -e FENSTER="$FENSTER" -e EVENT="$EVENT" -e ZUSATZ="$ZUSATZ" -v "$PWD/live:/app/live" --cpus 3.5 --memory 5g \
             --entrypoint sh comphub-web:voll-probe -c '
               dotnet --list-runtimes && ls tools/replay-voll/bin/Release/net10.0/ReplayVollReplayReader.dll && echo "COMPHUB_SHA=$COMPHUB_SHA" &&
               node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2 &&
               nice -n 10 node scripts/live-spur.mjs --einmal --fenster "$FENSTER" ${EVENT:+--event "$EVENT"} 2>&1 | tail -60;
-              for i in $(seq 1 20); do node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10; rc=$?; [ "$rc" != 3 ] && exit "$rc"; sleep 120; done; exit 3'
+              for i in $(seq 1 20); do node scripts/live-abgleich.mjs "$FENSTER" --beispiele 10 $ZUSATZ; rc=$?; [ "$rc" != 3 ] && exit "$rc"; sleep 120; done; exit 3'
 
       - name: Zugangsdaten wieder weg
         if: always()
