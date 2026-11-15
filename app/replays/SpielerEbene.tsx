@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import LOOT_BILDER from '@/app/replays/lootBilder.json';
 import SPIEL_SYMBOL_TABELLE from '@/app/replays/spielSymbole.json';
+import WIKI_SYMBOL_TABELLE from '@/app/replays/wikiSymbole.json';
 
 export interface SpielerDaten {
   orte?: Record<string, number[][]>;
@@ -190,10 +191,15 @@ const kern = (s: string) => s.replace(/^(B|BP|WID|WMID|AGID|CID)_/i, '').replace
  * [Name, Spiel-Symbol unter public/waffen]. 200 Eintraege, darunter auch Waffen, die gerade in keinem Pool sind (Bonerattler, Rebecca's Guns, Monarch Pistol).
  */
 const SYMBOLE = SPIEL_SYMBOL_TABELLE as unknown as Record<string, [string, string]>;
+/*
+ * Die Wiki-Bilder bei uns (scripts/waffen-bilder-lokal.mjs, 15.11.2026): Kern -> [Name, Datei unter public/waffen]. Gehen vor die Adressen auf
+ * static.wikia.nocookie.net, die der Besucher sonst selbst laden muss (fremder Server).
+ */
+const WIKI_LOKAL = WIKI_SYMBOL_TABELLE as unknown as Record<string, [string, string]>;
 let wiki: Map<string, { name: string; bild: string }> | null = null;
 let wikiLaedt = false;
 const wikiHoerer = new Set<() => void>();
-function useWiki() {
+export function useWiki() {
   const [, neu] = useState(0);
   useEffect(() => {
     if (wiki) return undefined;
@@ -217,6 +223,8 @@ export function bildVon(roh: string): { name: string; bild: string } | null {
   if (spiel) return { name: spiel[1], bild: `/waffen/${spiel[2]}.webp` };
   const symbol = SYMBOLE[kern(roh)];
   if (symbol) return { name: symbol[0], bild: `/waffen/${symbol[1]}.webp` };
+  const lokal = WIKI_LOKAL[kern(roh)];
+  if (lokal) return { name: lokal[0], bild: `/waffen/${lokal[1]}.webp` };
   const ausWiki = wiki?.get(kern(roh));
   if (ausWiki) return ausWiki;
   if (/^(WID|AGID)_/i.test(roh)) {
@@ -226,14 +234,82 @@ export function bildVon(roh: string): { name: string; bild: string } | null {
   return w ? BILDER[w[1]] ?? null : null;
 }
 
-export function Fach({ roh, aktiv, gross = 40 }: { roh: string; aktiv?: boolean; gross?: number }) {
+/*
+ * Welche Waffe einen Knock oder Kill wirklich gemacht hat (Betreiber, 15.11.2026: "das echte Waffen-Symbol wie im Kill-Feed von Fortnite"): der letzte
+ * Treffer des Taeters auf das Opfer (bis 15 s davor), und was er in dem Augenblick in der Hand hielt. Bau- und Edit-Werkzeug, Heilung und Vorrat zaehlen
+ * nicht - dann wird bis 8 s zurueck die zuletzt gehaltene Waffe genommen. Passt die Art nicht zur Todesursache des Spiels (Schrotflinte, Gewehr ...),
+ * gilt sie nicht; ohne Treffer und ohne Hand bleibt es beim Symbol der Ursache.
+ */
+const WAFFEN_ARTEN = new Set<Art>(['shotgun', 'ar', 'smg', 'pistol', 'sniper', 'hacke', 'granate', 'sonst']);
+const URSACHE_ART: Record<string, Art[]> = {
+  Pistol: ['pistol'], Shotgun: ['shotgun'], Rifle: ['ar', 'sniper'], SMG: ['smg', 'pistol'], Sniper: ['sniper', 'ar'], Melee: ['hacke', 'sonst'],
+  Grenade: ['granate', 'sonst'], 'Grenade Launcher': ['granate', 'sonst'], 'Rocket Launcher': ['granate', 'sonst'],
+};
+/** roh: der Bauplan in der Hand; selten: Seltenheit aus seinem Fund; bild: die Kennung des Funds (Ersatz, wenn der Bauplan kein Bild hat). */
+export interface KillWaffe { roh: string; selten: string | null; bild: string | null }
+const SELTEN_RE = /_(C|UC|R|VR|SR|UR)(?:_Ore_T0\d|_T0\d)?$/i;
+// Bauplaene, deren Name nicht zur Kennung des Funds passt (im Replay gesehen): Bauplan -> Kern der Kennung.
+const BAUPLAN_ALIAS: Array<[RegExp, string]> = [
+  [/Pistol_Athena_HighTier/i, 'pistolautohightier'], [/Rifle_NoScope/i, 'snipernoscope'], [/Assault_InfantryRifle/i, 'assaultinfantry'],
+  [/Assault_Heavy_Recoil/i, 'assaultheavyrecoilbb'],
+];
+const lose = (x: string) => kern(x).replace(/_/g, '');
+/** Der letzte Fund des Taeters (bis t) mit derselben Kennung wie der Bauplan in der Hand: Seltenheit (die der Bauplan nicht fuehrt) und die Kennung. */
+export function fundZu(d: Aufbereitet, id: number, roh: string, t: number): { selten: string | null; wid: string } | null {
+  const k = BAUPLAN_ALIAS.find(([m]) => m.test(roh))?.[1] ?? lose(roh);
+  for (let i = d.loot.length - 1; i >= 0; i -= 1) {
+    const l = d.loot[i];
+    if (l[0] > t || l[1] !== id || l[5] !== 1) continue;
+    const name = d.namen[l[2]] ?? '';
+    const lk = lose(name);
+    if (lk && (lk === k || lk.startsWith(k) || k.startsWith(lk))) { const m = name.match(SELTEN_RE); return { selten: m ? m[1].toUpperCase() : null, wid: name }; }
+  }
+  return null;
+}
+export const seltenAusFund = (d: Aufbereitet, id: number, roh: string, t: number) => fundZu(d, id, roh, t)?.selten ?? null;
+/** Die Kennung, unter der es fuer eine gehaltene Waffe ein Bild gibt: der Bauplan selbst, sonst sein Fund. */
+export function bildKennung(roh: string, fund: { wid: string } | null): string | null {
+  if (bildVon(roh)) return roh;
+  if (fund && bildVon(fund.wid)) return fund.wid;
+  return null;
+}
+export function killWaffe(d: Aufbereitet, treffer: number[][] | undefined, taeter: number | undefined, opfer: number | undefined, t: number, ursache: string | null): KillWaffe | null {
+  if (taeter === undefined || taeter === opfer) return null;
+  const hand = d.hand.get(taeter);
+  if (!hand?.length) return null;
+  let tHit = t;
+  if (treffer) for (let i = treffer.length - 1; i >= 0; i -= 1) {
+    const h = treffer[i];
+    if (h[1] === taeter && h[2] === opfer && h[0] <= t + 0.5 && h[0] >= t - 15) { tHit = h[0]; break; }
+  }
+  const erlaubt = ursache ? URSACHE_ART[ursache] : undefined;
+  for (let i = bisIndex(hand, tHit + 0.05); i >= 0 && tHit - hand[i][0] <= 8; i -= 1) {
+    const roh = d.waffenNamen[hand[i][1]];
+    if (!roh) continue;
+    const art = artVon(roh).art;
+    if (!WAFFEN_ARTEN.has(art)) continue;
+    const fund = fundZu(d, taeter, roh, tHit);
+    if (art === 'sonst' && !bildKennung(roh, fund)) continue;
+    if (erlaubt && !erlaubt.includes(art)) continue;
+    // bild: die Fund-Kennung immer mitgeben - die Wiki-Tabelle kann erst spaeter geladen sein (FeedWaffe sieht beim Zeichnen nach).
+    return { roh, selten: fund?.selten ?? null, bild: fund?.wid ?? null };
+  }
+  return null;
+}
+/** Schriftfarbe der Seltenheit (C, UC, R, VR, SR). */
+export function seltenText(selten: string | null): string {
+  return ({ C: '#cbd5e1', UC: '#4ade80', R: '#38bdf8', VR: '#c084fc', SR: '#fbbf24', UR: '#fbbf24' } as Record<string, string>)[selten ?? ''] ?? '#e2e8f0';
+}
+const SELTEN_GRUND: Record<string, string> = { C: '#6b7280', UC: '#16a34a', R: '#0284c7', VR: '#9333ea', SR: '#d97706', UR: '#d97706' };
+
+export function Fach({ roh, aktiv, gross = 40, selten }: { roh: string; aktiv?: boolean; gross?: number; selten?: string | null }) {
   useWiki();
   const { art, name } = artVon(roh);
   const echt = bildVon(roh);
   const [kaputt, setKaputt] = useState(false);
   return (
     <span title={echt?.name ?? name} className="grid place-items-center overflow-hidden rounded-md" style={{
-      width: gross, height: gross, background: `linear-gradient(180deg, ${seltenheit(roh)}, #0b1220)`,
+      width: gross, height: gross, background: `linear-gradient(180deg, ${selten !== undefined ? SELTEN_GRUND[selten ?? ''] ?? '#475569' : seltenheit(roh)}, #0b1220)`,
       boxShadow: aktiv ? '0 0 0 2px #fff, 0 0 10px rgba(255,255,255,.5)' : 'inset 0 0 0 1px rgba(255,255,255,.18)',
     }}>
       {echt && !kaputt

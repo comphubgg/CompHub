@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { inselKarte } from '@/app/replays/inselKarten';
-import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, ortBei, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
+import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, killWaffe, ortBei, useSpielerDaten, type KillWaffe, type SpielerDaten } from '@/app/replays/SpielerEbene';
 import { EinstellungenKnopf, Flagge, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
 import SeitenPanel from '@/app/replays/SeitenPanel';
 import Analysen from '@/app/replays/Analysen';
@@ -348,15 +348,19 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
         if (gutschrift !== null && gutschrift !== e.opfer) { zahl = (elims.get(gutschrift) ?? 0) + 1; elims.set(gutschrift, zahl); } else gutschrift = null;
         if (e.opfer !== undefined) knock.delete(e.opfer);
       }
-      return { waffe: ursache === null || ursache === 50 ? null : URSACHE[ursache] ?? null, rueckkehr, gutschrift, zahl };
+      const waffe = ursache === null || ursache === 50 ? null : URSACHE[ursache] ?? null;
+      // Die echte Waffe (Bild + Seltenheit): beim Kill nach einem Knock die Waffe des Knocks.
+      const quelle = vorKnock && e.t - vorKnock.t <= 50 ? vorKnock : e;
+      const echt: KillWaffe | null = rueckkehr ? null : killWaffe(sd, match.treffer, quelle.taeter, e.opfer, quelle.t, waffe);
+      return { waffe, echt, rueckkehr, gutschrift, zahl };
     });
-  }, [feed]);
-  const feedEintraege = useMemo(() => feed.map((e, i) => ({ e, waffe: feedInfo[i]?.waffe ?? null, gutschrift: feedInfo[i]?.gutschrift ?? null, rueckkehr: Boolean(feedInfo[i]?.rueckkehr) })), [feed, feedInfo]);
+  }, [feed, sd, match.treffer]);
+  const feedEintraege = useMemo(() => feed.map((e, i) => ({ e, waffe: feedInfo[i]?.waffe ?? null, echt: feedInfo[i]?.echt ?? null, gutschrift: feedInfo[i]?.gutschrift ?? null, rueckkehr: Boolean(feedInfo[i]?.rueckkehr) })), [feed, feedInfo]);
   // Kill-Feed oben links auf der Karte: verblasst nach 6 s Spielzeit, bei schnellem Abspielen entsprechend laenger.
   const kartenFeed = useMemo<FeedZeile[]>(() => feedEintraege.filter((f) => (f.e.art === 'tot' || f.e.art === 'unten') && !f.rueckkehr && f.e.opfer !== undefined).map((f, i) => {
     const an = nachId.get(f.e.opfer ?? -1); const von = f.e.taeter !== undefined && f.e.taeter !== f.e.opfer ? nachId.get(f.e.taeter) : undefined;
     return {
-      schluessel: `${f.e.t}-${i}`, t: f.e.t, art: f.e.art as 'unten' | 'tot', waffe: f.waffe,
+      schluessel: `${f.e.t}-${i}`, t: f.e.t, art: f.e.art as 'unten' | 'tot', waffe: f.waffe, echt: f.echt,
       von: von ? { name: nameVon(von), land: landVon(von.id), farbe: farbeVon(von.id) } : null,
       an: { name: nameVon(an), land: landVon(an?.id), farbe: farbeVon(an?.id) },
     };

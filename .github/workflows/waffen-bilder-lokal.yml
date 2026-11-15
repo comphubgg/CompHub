@@ -1,0 +1,23 @@
+# Wiki-Bilder der Waffen bei uns ablegen (scripts/waffen-bilder-lokal.mjs) - die Sandbox kommt nicht ans Wiki, der Runner schon.
+# Ergebnis: waffen-bilder-lokal.tar (public/waffen/wiki-*.webp + app/replays/wikiSymbole.json) im Release "medien"; eingecheckt wird von Hand.
+name: Waffen-Bilder lokal
+# Nach einem Fortnite-Update von Hand starten (neue Waffen), dann das Tar einchecken.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  laden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i --no-save --no-package-lock --ignore-scripts=false sharp@0.34.5
+      - run: node scripts/waffen-bilder-lokal.mjs
+      - name: Ins Release medien
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          tar cf waffen-bilder-lokal.tar public/waffen/wiki-*.webp app/replays/wikiSymbole.json
+          ls -la waffen-bilder-lokal.tar
+          gh release upload medien waffen-bilder-lokal.tar --clobber

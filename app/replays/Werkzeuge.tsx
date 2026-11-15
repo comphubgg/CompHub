@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
-import { Symbol } from '@/app/replays/SpielerEbene';
+import { Fach, Symbol, bildVon, useWiki, type KillWaffe } from '@/app/replays/SpielerEbene';
 
 /* ------------------------------------------------------------------ Einstellungen */
 
@@ -119,27 +119,41 @@ export function WaffenSymbol({ waffe, gross = 18 }: { waffe: string | null; gros
   return <span title={waffe ?? ''} className="opacity-90"><Symbol art={art} gross={gross} /></span>;
 }
 
-/** Knock: ein nach unten zeigender Winkel; Eliminierung: ein Fadenkreuz mit X. */
+/*
+ * Knock und Eliminierung klar getrennt (Betreiber, 15.11.2026): Knock = rotes Kreuz im Kreis (wie das Knock-Symbol im Spiel), Eliminierung = Totenkopf.
+ */
 export function KnockSymbol({ gross = 16 }: { gross?: number }) {
   return (
-    <svg viewBox="0 0 20 20" width={gross} height={gross} aria-label="Knock" className="shrink-0">
-      <circle cx="10" cy="10" r="9" fill="#f59e0b" fillOpacity=".18" stroke="#f59e0b" strokeWidth="1.5" />
-      <path d="M6 8 L10 12.5 L14 8" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 20 20" width={gross} height={gross} role="img" aria-label="Knock" className="shrink-0">
+      <title>Knock</title>
+      <circle cx="10" cy="10" r="8.6" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1.8" />
+      <path d="M10 5.2 V14.8 M5.2 10 H14.8" stroke="#fecaca" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
 }
 export function ElimSymbol({ gross = 16 }: { gross?: number }) {
   return (
-    <svg viewBox="0 0 20 20" width={gross} height={gross} aria-label="Elimination" className="shrink-0">
-      <circle cx="10" cy="10" r="9" fill="#f43f5e" fillOpacity=".2" stroke="#f43f5e" strokeWidth="1.5" />
-      <path d="M6.5 6.5 L13.5 13.5 M13.5 6.5 L6.5 13.5" stroke="#fda4af" strokeWidth="2.2" strokeLinecap="round" />
+    <svg viewBox="0 0 20 20" width={gross} height={gross} role="img" aria-label="Elimination" className="shrink-0">
+      <title>Elimination</title>
+      <path d="M10 2.2 C5.6 2.2 3 5.1 3 8.7 c0 2.2 1 3.6 2.4 4.5 V15.6 c0 .7.5 1.2 1.2 1.2 H7.6 V15.2 h1.3 v1.6 h2.2 v-1.6 h1.3 v1.6 h1 c.7 0 1.2-.5 1.2-1.2 v-2.4 C16 12.3 17 10.9 17 8.7 17 5.1 14.4 2.2 10 2.2z" fill="#f8fafc" stroke="#111827" strokeWidth=".8" />
+      <circle cx="7.2" cy="9.4" r="1.9" fill="#111827" /><circle cx="12.8" cy="9.4" r="1.9" fill="#111827" />
+      <path d="M10 11.6 l-1 1.8 h2z" fill="#111827" />
     </svg>
   );
 }
 
+/** Die Waffe im Feed: das echte Bild auf der Farbe der Seltenheit; ohne Bild das Symbol der Todesursache. */
+export function FeedWaffe({ echt, waffe, gross = 22 }: { echt: KillWaffe | null; waffe: string | null; gross?: number }) {
+  useWiki();
+  // Das Bild kann erst nach dem Laden der Wiki-Tabelle da sein: hier neu nachsehen.
+  const bild = echt ? (bildVon(echt.roh) ? echt.roh : echt.bild && bildVon(echt.bild) ? echt.bild : null) : null;
+  if (echt && bild) return <span title={bildVon(bild)?.name} data-waffe={echt.roh} className="shrink-0"><Fach roh={bild} selten={echt.selten} gross={gross} /></span>;
+  return <span data-waffe-fehlt={echt?.roh ?? ''} className="contents"><WaffenSymbol waffe={waffe} gross={Math.round(gross * 0.75)} /></span>;
+}
+
 /* ------------------------------------------------------------------ Kill-Feed auf der Karte */
 
-export interface FeedZeile { schluessel: string; t: number; art: 'unten' | 'tot'; von: { name: string; land?: string; farbe: string } | null; an: { name: string; land?: string; farbe: string }; waffe: string | null }
+export interface FeedZeile { schluessel: string; t: number; art: 'unten' | 'tot'; von: { name: string; land?: string; farbe: string } | null; an: { name: string; land?: string; farbe: string }; waffe: string | null; echt: KillWaffe | null }
 
 /** Oben links auf der Karte: die neuesten Knocks und Eliminierungen, neueste oben, verblassen nach einigen Sekunden. */
 export function KartenFeed({ zeilen, zeit, dauer }: { zeilen: FeedZeile[]; zeit: number; dauer: number }) {
@@ -154,7 +168,7 @@ export function KartenFeed({ zeilen, zeit, dauer }: { zeilen: FeedZeile[]; zeit:
             style={{ opacity: alter > 0.7 ? Math.max(0, (1 - alter) / 0.3) : 1 }}>
             {z.von ? <><Flagge land={z.von.land} klein /><span className="max-w-[110px] truncate" style={{ color: z.von.farbe }}>{z.von.name}</span></> : <span className="text-slate-400"><T>Storm</T></span>}
             {z.art === 'tot' ? <ElimSymbol /> : <KnockSymbol />}
-            <WaffenSymbol waffe={z.waffe} gross={16} />
+            <FeedWaffe echt={z.echt} waffe={z.waffe} gross={22} />
             <Flagge land={z.an.land} klein /><span className="max-w-[110px] truncate" style={{ color: z.an.farbe }}>{z.an.name}</span>
           </li>
         );
