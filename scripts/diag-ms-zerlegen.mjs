@@ -51,13 +51,15 @@ for (const [sid, l] of Object.entries(schritte)) {
   for (const e of aufgehoben.filter((x) => x.ziel === Number(sid))) {
     const s = STOFFNAME.findIndex((x) => e.nm.startsWith(x)); if (s < 0) continue;
     const ls = lesungen.get(e.kanal) ?? [];
-    const vor = ls.filter((r) => r[0] >= e.t0 - 0.05 && r[0] <= e.tAuf + 0.05).pop();
-    const nach = ls.find((r) => r[0] > e.tAuf + 0.05 && r[0] <= e.tAuf + 3 && r[2] === e.akteur);
+    // Die Menge des Pickups: hoechste Lesung desselben Akteurs bis 1,5 s nach dem Aufheben. Hingeworfene Stapel verschmelzen (bCombinePickupsWhenTossCompletes),
+    // die verschmolzene Menge kommt oft erst nach dem Aufheben an (05d996d5, faded: Lesung 50 bei 1702,66, Aufheben 1703,06, Lesung 520 bei 1703,16, Inventar +418 auf 500).
+    const ms = ls.filter((r) => r[2] === e.akteur && r[0] <= e.tAuf + 1.5).map((r) => r[3]);
     const quelle = e.kiste ? 'kiste' : e.fallen == null ? 'boden' : e.fallen === Number(sid) ? 'selbst' : (typeof e.fallen === 'number' && e.fallen >= 0 ? 'andere' : 'unbekannt');
-    pool.push({ s, t: e.tAuf, rest: vor ? vor[3] - (nach ? nach[3] : 0) : null, quelle });
+    const spaet = ls.filter((r) => r[2] === e.akteur).map((r) => r[3]);
+    pool.push({ s, t: e.tAuf, rest: ms.length ? Math.max(...ms) : spaet.length ? Math.max(...spaet) : null, quelle, ohne: !ms.length && !spaet.length });
   }
   const z = () => [0, 0, 0];
-  const r = { match: d.match, id: Number(sid), epic: String(p.epic ?? '').toLowerCase(), name: p.name, team: p.team, platz: p.platz, plus: z(), minus: z(), auf: z(), aufQ: {}, hacke: z(), hackeFenster: z(), respawn: z(), rueck: z(), offen: z(), vorBus: z(), offenListe: [], ohneMenge: pool.filter((x) => x.rest == null).length };
+  const r = { match: d.match, id: Number(sid), epic: String(p.epic ?? '').toLowerCase(), name: p.name, team: p.team, platz: p.platz, plus: z(), minus: z(), auf: z(), aufQ: {}, hacke: z(), hackeFenster: z(), respawn: z(), rueck: z(), offen: z(), vorBus: z(), aufOhneMenge: z(), offenListe: [], ohneMenge: pool.filter((x) => x.rest == null).length };
   const figurAb = (d.figuren ?? []).filter((f) => f.id === Number(sid)).map((f) => f.t).slice(1);
   for (let i = 0; i < l.length; i++) {
     const x = l[i];
@@ -66,16 +68,17 @@ for (const [sid, l] of Object.entries(schritte)) {
     r.plus[x.s] += x.d; let rest = x.d;
     for (const q of pool) {
       if (rest <= 0) break;
-      if (q.s !== x.s || !(q.rest > 0) || x.t - q.t < -0.3 || x.t - q.t > 1.5) continue;
+      if (q.ohne && q.s === x.s && q.rest == null && x.t - q.t >= -2.5 && x.t - q.t <= 2.5) { r.aufOhneMenge[x.s] += rest; r.auf[x.s] += rest; (r.aufQ[q.quelle] ??= z())[x.s] += rest; rest = 0; q.rest = 0; break; }
+      if (q.s !== x.s || !(q.rest > 0) || x.t - q.t < -2.5 || x.t - q.t > 2.5) continue;
       const k = Math.min(rest, q.rest); q.rest -= k; rest -= k; r.auf[x.s] += k; (r.aufQ[q.quelle] ??= z())[x.s] += k;
     }
     if (rest <= 0) continue;
     if (figurAb.some((f) => x.t - f >= -0.3 && x.t - f <= 1)) { r.respawn[x.s] += rest; continue; }
     const rueck = rest % 10 === 0 && l.slice(Math.max(0, i - 8), i).some((y) => y.s === x.s && y.d < 0 && x.t - y.t <= 2);
     const fenster = nahe(axt[sid], x.t - 2, x.t + 0.6);
-    if (fenster || /Pickaxe|Melee/i.test(handName(sid, x.t))) { r.hacke[x.s] += rest; if (fenster) r.hackeFenster[x.s] += rest; continue; }
+    if (fenster || /Pickaxe|Melee/i.test(handName(sid, x.t))) { r.hacke[x.s] += rest; (r.hackeSchritte ??= []).push(rest); if (fenster) r.hackeFenster[x.s] += rest; continue; }
     if (rueck) { r.rueck[x.s] += rest; continue; }
-    r.offen[x.s] += rest; if (r.offenListe.length < 6) r.offenListe.push([x.t, STOFFNAME[x.s], rest, x.neu, handName(sid, x.t).split('/').pop().slice(0, 40)]);
+    r.offen[x.s] += rest; (r.offenAlle ??= []).push([Math.round(x.t * 100) / 100, x.s, rest, x.d, handName(sid, x.t).split('/').pop().slice(0, 30), Math.min(...(axt[sid] ?? [Infinity]).map((h) => Math.round((x.t - h) * 100) / 100).filter((v) => v > 0)), pool.filter((q) => q.s === x.s && Math.abs(x.t - q.t) < 5).map((q) => [Math.round((x.t - q.t) * 100) / 100, q.rest, q.quelle])]); if (r.offenListe.length < 6) r.offenListe.push([x.t, STOFFNAME[x.s], rest, x.neu, handName(sid, x.t).split('/').pop().slice(0, 40)]);
   }
   const x = d.extra?.[sid];
   r.teile = x ? [x[14], x[15], x[16]] : null;
