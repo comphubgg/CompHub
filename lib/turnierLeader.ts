@@ -81,6 +81,8 @@ export interface LeaderAntwort {
   mindestSpiele: number;
   spieleMax: number;
   gewertet: number;
+  /** Die gewerteten Spieler fuer das Performance Board (Elims x Damage) - nur der Kreis der besten 50 je Kennzahl. */
+  feld?: Array<{ epicId: string; name: string; land: string; elims: number; damage: number; platz: number | null; rating: number }>;
   /** Keine Platzierung bekannt - das Rating ohne den Platz-Anteil (hochgerechnet). */
   ohnePlatz?: boolean;
   hinweis?: string;
@@ -186,5 +188,7 @@ export async function baueLeader(hole: Holer): Promise<LeaderAntwort> {
     ...(await fotoFuerKonto(z.epicId)),
   } : null;
 
-  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}) };
+  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}),
+    feld: gewertet.map((x) => ({ epicId: x.epicId, name: String(x.name ?? x.epicId.slice(0, 8)), land: String(x.land ?? ''), elims: kills(x), damage: zahl(x.damage) ?? 0, platz: zahl(x.platz), rating: +(rating.get(x.epicId) ?? 0).toFixed(1) }))
+      .filter((x) => x.elims > 0 || x.damage > 0) };
 }
