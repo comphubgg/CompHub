@@ -440,4 +440,23 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
     "No games analysed yet. The hourly run works through the replays of the finals and LANs from the last 31 days.",
   "Weiße Ringe: die Zonen des Games, je später desto kräftiger. ✖ Elim, ● Knock - in der Farbe des Teams, das ihn geholt hat (Top 8 farbig). Zeigen mit der Maus nennt Zeit, Täter, Opfer und Abstand.":
     "White rings: the zones of the game, stronger the later they are. ✖ elim, ● knock - in the colour of the team that got it (top 8 in colour). Hovering shows time, attacker, victim and distance.",
+  // Prospects (15.11.2026)
+  "Die Liste rechnet sich alle sechs Stunden selbst. Hier nimmst du Spieler auf oder heraus, setzt Sterne und legst Plätze fest – ein fester Platz geht der Rechnung vor.": "The list recalculates itself every six hours. Here you add or remove players, set stars and pin positions – a pinned position takes precedence over the calculation.",
+  "Spieler aufnehmen": "Add a player",
+  "Name oder Epic-Konto-Id": "Name or Epic account ID",
+  "Aufnehmen": "Add",
+  "Wieder aufnehmen": "Restore",
+  "schon in der Liste": "already in the list",
+  "In der Liste suchen …": "Search the list …",
+  "Referenz": "Reference",
+  "Stern": "Star",
+  "Fester Platz": "Pinned position",
+  "automatisch (erste elf)": "automatic (top eleven)",
+  "Stern von Hand": "star set by hand",
+  "kein Stern von Hand": "no star, set by hand",
+  "Von Hand entfernt": "Removed by hand",
+  "Liste nicht erreichbar": "List not reachable",
+  "Spieler aufnehmen, entfernen, Sterne und Plätze": "Add or remove players, stars and positions",
+  "Dafür fehlt dir das Recht.": "You do not have permission for that.",
+  "Keine gültige Epic-Konto-Id.": "Not a valid Epic account ID.",
 };

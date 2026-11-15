@@ -19,6 +19,7 @@
 
 import TurnierLeader from '@/app/components/TurnierLeader';
 import Konstanz from './Konstanz';
+import Prospects from './Prospects';
 import MerkStern from '@/app/components/MerkStern';
 import Lieblinge from '@/app/components/Lieblinge';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
@@ -64,7 +65,7 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'konstanz' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'konstanz' | 'prospects' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
 /** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
 const JAHR = 2026;
@@ -78,7 +79,7 @@ const JAHR = 2026;
  */
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
-  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', konstanz: 'alle', jahr: 'alle',
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', konstanz: 'alle', prospects: 'alle', jahr: 'alle',
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
@@ -329,6 +330,8 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['aufsteiger', 'Aufsteiger'],
   // Konstanz je Region und Cup-Serie (Konstanz.tsx, Betreiber 15.11.2026).
   ['konstanz', 'Konstanz'],
+  // Wer neu oben ankommt (Prospects.tsx, Betreiber 15.11.2026).
+  ['prospects', 'Prospects'],
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
   ['orgs', 'Orgs'],
@@ -375,6 +378,8 @@ function Zeichen({ art }: { art: Bereich }) {
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
     aufsteiger: 'M4 17l6-6 4 4 6-7 M15 8h5v5',
     konstanz: 'M5 12h.01 M9 12h.01 M13 12h.01 M17 12h.01 M5 7h.01 M9 7h.01 M13 7h.01 M5 17h.01 M9 17h.01 M13 17h.01 M17 17h.01',
+    // Ein Stern mit Aufwaertsstrich - wer neu nach oben kommt.
+    prospects: 'M12 3l2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5L4.8 8.2l5-.6z M12 21v-3',
     jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
     // Ein Wappenschild - die Organisation.
     orgs: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z M9 12l2 2 4-4',
@@ -2796,7 +2801,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
      * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
      */
     const gewuenscht = suchParameter?.get('bereich');
-    if (gewuenscht && ['turniere', 'regional', 'spieler', 'aufsteiger', 'konstanz', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'aufsteiger', 'konstanz', 'prospects', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
       /* Jahresbilanz: "?bereich=jahr&jahr=2025&jregion=EU&jsaison=S37" ("jahr" = alle oder ein Jahr der Auswahl; sonst bleibt der Standard). */
       if (gewuenscht === 'jahr') {
@@ -5206,6 +5211,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
           {/* ---------------------------------------- Organisationen */}
           {bereich === 'aufsteiger' && <Aufsteiger aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'konstanz' && <Konstanz aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
+          {bereich === 'prospects' && <Prospects aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
 
           {/* ------------------------------------------------ Das Jahr */}

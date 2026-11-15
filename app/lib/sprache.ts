@@ -5105,6 +5105,28 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Matches erscheinen hier, sobald gespielt wird.': 'Matches appear here once play starts.',
   'Noch keine Matches.': 'No matches yet.',
   'nächste Runde': 'next round',
+  // Prospects (15.11.2026)
+  'Prospects': 'Prospects',
+  'Neu an der Spitze': 'New at the top',
+  'Spieler, die erst in den letzten Monaten oben aufgetaucht sind und seitdem konstant liefern. Wir kennen kein Alter – gezählt wird allein, wann ein Konto zum ersten Mal ein FNCS-Finale, einen Heat oder Runde 3 erreicht hat oder in einem großen Cup unter die Top 100 kam.': 'Players who only showed up at the top in the last few months and have delivered consistently since. We don\'t know anyone\'s age – all that counts is when an account first reached an FNCS final, a heat or round 3, or finished top 100 in a major cup.',
+  'So werden Prospects gewählt': 'How prospects are picked',
+  'Erster Auftritt.': 'First notable result.',
+  'Ein Spieltag zählt als erster nennenswerter Auftritt, wenn das Konto dort eine FNCS-Runde ab Runde 3 (Heat, Halbfinale, Finale) spielt oder in einem Cash, Victory, Elite oder Series Cup bzw. einer Performance Evaluation Top 100 wird. Durchsucht wird unsere ganze gespeicherte Geschichte bis 2019, allein über die Epic-Konto-Id – ein neuer Name macht niemanden neu.': 'An event counts as a notable result when the account plays an FNCS round from round 3 on (heat, semi-final, final) or finishes top 100 in a Cash, Victory, Elite or Series Cup or a Performance Evaluation. We search our entire stored history back to 2019, by Epic account ID only – a new name does not make anyone new.',
+  'Zeitfenster.': 'Time window.',
+  'Dieser erste Auftritt liegt höchstens {tage} Tage zurück (etwa zwei Saisons), und seitdem stehen mindestens {min} Spieltage in unseren Bestenlisten. Zero Build, Mobile und Ranked zählen nicht.': 'That first notable result is at most {tage} days old (about two seasons), and since then the player appears in at least {min} events in our leaderboards. Zero Build, mobile and ranked do not count.',
+  'Niveau.': 'Level.',
+  'Unsere Platzierungsnote über die letzten 20 Spieltage im Fenster: 1 − log(Platz) / log(Feld), Regionen gewichtet, das schlechteste Fünftel fällt weg. Damit fünf gute Cups noch kein Beweis sind, wird sie mit {s} gedachten Spieltagen auf Höhe der Referenz gemischt.': 'Our placement score over the last 20 events in the window: 1 − log(place) / log(field), weighted by region, worst fifth dropped. So that five good cups are not proof yet, it is blended with {s} imaginary events at the reference level.',
+  'Trend.': 'Trend.',
+  'Note der neueren Hälfte dieser Spieltage minus Note der älteren Hälfte, begrenzt auf ±{max}; unter {voll} Spieltagen zählt er anteilig.': 'Score of the newer half of these events minus the score of the older half, capped at ±{max}; below {voll} events it counts proportionally.',
+  '(Niveau + {g} × Trend) / Referenz. Die Referenz ({ref}) ist die mittlere Note aller etablierten Spieler unseres Spielerkreises, die im selben Fenster gespielt haben – ein Rating über 1 heißt: stärker als der typische etablierte Spieler.': '(Level + {g} × trend) / reference. The reference ({ref}) is the median score of all established players in our player circle who played in the same window – a rating above 1 means: stronger than the typical established player.',
+  'Pflege.': 'Curation.',
+  'Die Redaktion kann Spieler aufnehmen oder entfernen, Sterne setzen und Plätze festlegen; ein fester Platz geht der Rechnung vor. Sterne stehen sonst bei den ersten elf.': 'Our editors can add or remove players, set stars and pin positions; a pinned position takes precedence over the calculation. Otherwise the top eleven get a star.',
+  'Kandidaten': 'candidates',
+  'Fenster ab': 'window from',
+  'Erster Auftritt': 'First notable result',
+  'Von der Redaktion aufgenommen': 'Added by our editors',
+  'Noch keine Prospects in dieser Region.': 'No prospects in this region yet.',
+  'Wer erst kürzlich oben angekommen ist und seitdem konstant liefert.': 'Who only recently arrived at the top and has delivered consistently since.',
 };
 
 /**

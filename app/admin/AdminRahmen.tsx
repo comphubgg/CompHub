@@ -34,6 +34,7 @@ const WERKZEUGE: Array<[string, string]> = [
   ['/admin/replays', 'Replays'],
   ['/admin/replay', 'Zonen & Games'],
   ['/admin/players', 'Player Center'],
+  ['/admin/prospects', 'Prospects'],
   ['/admin/orgs', 'E-Sports-Teams'],
   ['/admin/vips', 'VIPs'],
   ['/admin/vip-access', 'VIP-Zugänge'],

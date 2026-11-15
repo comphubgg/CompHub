@@ -117,6 +117,8 @@ const ADMIN_ZIELE: Ziel[] = [
   // Admin-Dashboard eigentlich sein").
   { href: '/admin/replay', titel: 'Zonen & Games', text: 'Zonen-Bild bauen, Kills und Zonen je Game' },
   { href: '/admin/players', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
+  // Die Prospects-Liste der Statistik nachziehen (15.11.2026).
+  { href: '/admin/prospects', titel: 'Prospects', text: 'Spieler aufnehmen, entfernen, Sterne und Plätze' },
   { href: '/admin/orgs', titel: 'E-Sports-Teams', text: 'Organisationen, Spieler und Logos' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
   { href: '/admin/archive', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
