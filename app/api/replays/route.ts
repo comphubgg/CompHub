@@ -241,6 +241,23 @@ async function wartendeFenster(vorhanden: Set<string>) {
  * frisch. Und alles, was eine Anmeldung braucht, geht ohnehin nicht durch
  * diesen Weg.
  */
+/*
+ * Der Stand der Schnellspur (#12): ob ihre Quelle (der Cup-Katalog dieser Seite) beim letzten Plan antwortete, seit wann nicht, und welche Spieltage sie
+ * ueber 36 Stunden hinaus behaelt oder an die Nacharbeit abgab. Schreibt jeder Plan an den Release "signale" (scripts/replays-holen.mjs,
+ * lib/replaySchnellStand.mjs) - hier nur gelesen, eine Minute gemerkt.
+ */
+let schnellMerker: { zeit: number; wert: Record<string, unknown> | null } | null = null;
+async function schnellStand(): Promise<Record<string, unknown> | null> {
+  if (schnellMerker && Date.now() - schnellMerker.zeit < 60_000) return schnellMerker.wert;
+  let wert: Record<string, unknown> | null = schnellMerker?.wert ?? null;
+  try {
+    const r = await fetch('https://github.com/comphubgg/CompHub/releases/download/signale/schnell-status.json', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (r.ok) wert = await r.json() as Record<string, unknown>;
+  } catch { /* der letzte bekannte Stand bleibt */ }
+  schnellMerker = { zeit: Date.now(), wert };
+  return wert;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   /*
@@ -352,11 +369,12 @@ async function berechne(request: Request) {
    * hoch; hier wird es nur gelesen.
    */
   if (p.get('live')) {
-    const [schleife, lauf] = await Promise.all([
+    const [schleife, lauf, schnell] = await Promise.all([
       liesJson<Record<string, unknown> | null>('replays/_live-lauf.json', null),
       liesJson<Record<string, unknown> | null>('replays/_lauf.json', null),
+      schnellStand(),
     ]);
-    return NextResponse.json({ success: true, schleife, lauf, jetzt: Date.now() },
+    return NextResponse.json({ success: true, schleife, lauf, schnell, jetzt: Date.now() },
       { headers: { 'Cache-Control': 'no-store' } });
   }
 

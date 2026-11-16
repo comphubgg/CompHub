@@ -42,6 +42,7 @@ import {
 } from '../lib/replayKern.mjs';
 import { replayRegel, endrunden, cupVorrang } from '../lib/replayRegel.mjs';
 import { nachzuegler as nachzueglerAuswahl } from '../lib/replayNachzuegler.mjs';
+import { HALTEN_TAGE, gehaltenAus, haltenBerechnen } from '../lib/replaySchnellStand.mjs';
 
 /*
  * Wo antwortet das Werkzeug?
@@ -273,8 +274,31 @@ const stueckNr = Math.max(0, Number(String(wertVon('--stueck') ?? '0').split('/'
 /** So lange nach seinem Ende gehoert ein Spieltag der Schnellspur; die Nacharbeit (mehrere Rechner, --teil) laesst ihn so lange liegen. */
 const SCHNELL_STUNDEN = Math.max(1, Number(wertVon('--stunden')) || 36);
 const nacharbeit = teilVon > 1;
-/** Gehoert der Spieltag gerade der Schnellspur? Frisch zu Ende gegangen oder auf der Seite angefragt. */
-const gehoertSchnellspur = (windowId, datum) => vorrang.has(windowId) || (datum ?? 0) > Date.now() - SCHNELL_STUNDEN * 3600_000;
+
+/** Ein Anhang am Release "signale", ohne API gelesen: { ok: true, wert } (wert null, wenn es ihn noch nicht gibt) oder { ok: false } (nicht lesbar). */
+async function signalLesen(name) {
+  try {
+    const repo = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
+    // SIGNALE_URL nur fuer den Test (eine Attrappe statt des Releases).
+    const basis = process.env.SIGNALE_URL || `https://github.com/${repo}/releases/download/signale`;
+    const r = await fetch(`${basis}/${name}`, { signal: AbortSignal.timeout(20_000) });
+    if (r.status === 404) return { ok: true, wert: null };
+    if (!r.ok) return { ok: false, wert: null };
+    return { ok: true, wert: await r.json() };
+  } catch { return { ok: false, wert: null }; }
+}
+/*
+ * Die Spieltage, die die Schnellspur ueber die 36 Stunden hinaus behaelt, weil dort noch etwas offen ist (#12, lib/replaySchnellStand.mjs). Gelesen nur von
+ * Planer und Nacharbeit. null = das Signal gilt nicht (fehlt oder ist alt): dann gilt wie bisher allein die Frist. Konnte die Nacharbeit es gar nicht lesen
+ * (GitHub antwortet nicht), laesst sie in diesem Lauf alles bis HALTEN_TAGE liegen, statt womoeglich neben der Schnellspur zu schreiben.
+ */
+const gehaltenRoh = (nacharbeit || planSchreiben) ? await signalLesen('schnell-halten.json') : { ok: true, wert: null };
+const gehalten = gehaltenAus(gehaltenRoh.wert, Date.now()) ?? new Map();
+if (nacharbeit && !gehaltenRoh.ok) console.log(`Schnellspur-Signal (schnell-halten.json) nicht lesbar - Spieltage juenger als ${HALTEN_TAGE} Tage bleiben in diesem Lauf liegen.`);
+/** Gehoert der Spieltag gerade der Schnellspur? Frisch zu Ende gegangen, auf der Seite angefragt, oder von ihr gehalten, weil noch etwas offen ist. */
+const gehoertSchnellspur = (windowId, datum) => vorrang.has(windowId) || (datum ?? 0) > Date.now() - SCHNELL_STUNDEN * 3600_000
+  || gehalten.has(windowId)
+  || (nacharbeit && !gehaltenRoh.ok && (datum ?? 0) > Date.now() - HALTEN_TAGE * 864e5);
 
 const nurFenster = argumente.filter((a, i) => !a.startsWith('--') && !MIT_WERT.has(argumente[i - 1]));
 
@@ -876,11 +900,52 @@ async function rueckstandFenster() {
   } catch { return new Set(); }
 }
 
+/** Der Stand der Schnellspur fuer den Admin (data/schnell-status.json, der Ablauf legt ihn an den Release "signale"; lib/replaySchnellStand.mjs). */
+async function schnellStatus(werte) {
+  const vorher = (await signalLesen('schnell-status.json')).wert ?? {};
+  const zeit = new Date().toISOString();
+  const status = {
+    zeit, quelle: process.env.WERKZEUG_URL || BASIS, ...werte,
+    // Seit wann die Quelle nicht antwortet (bleibt bei jedem weiteren Fehlschlag stehen) und wann sie zuletzt antwortete.
+    seitFehler: werte.ok ? null : (vorher.ok === false && vorher.seitFehler ? vorher.seitFehler : zeit),
+    letzteOk: werte.ok ? zeit : (vorher.letzteOk ?? null),
+    ...(werte.ok && vorher.ok === false ? { wiederDa: { seit: vorher.seitFehler ?? null, fehler: vorher.fehler ?? null } } : {}),
+  };
+  const ziel = path.join(process.cwd(), 'data', 'schnell-status.json');
+  await fs.mkdir(path.dirname(ziel), { recursive: true });
+  await fs.writeFile(ziel, JSON.stringify(status, null, 1), 'utf8');
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await fs.appendFile(process.env.GITHUB_STEP_SUMMARY, werte.ok
+      ? `Schnellspur: Quelle erreichbar, ${werte.spieltage} Spieltage, ${werte.offen} offen, ${werte.gehalten} ueber 36 h gehalten, ${werte.abgegeben?.length ?? 0} abgegeben.\n`
+      : `**Schnellspur: Quelle ${status.quelle} nicht erreichbar** seit ${status.seitFehler} - ${werte.fehler}. Naechster Versuch mit dem naechsten Anstoss (spaetestens 15 min).\n`).catch(() => {});
+  }
+  return status;
+}
+
 async function planSchreibenLauf(datei) {
-  BASIS = await findeBasis();
-  const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(120_000) });
-  if (!antwort.ok) throw new Error(`Cup-Katalog HTTP ${antwort.status}`);
-  const katalog = await antwort.json();
+  /*
+   * Antwortet die Quelle (Cup-Katalog der Seite) nicht, gibt es keinen Plan - das war bis 16.11.2026 unsichtbar (#12): der Fehler ging im "| tail" des
+   * Ablaufs unter, und der Lauf war gruen. Jetzt: eine klare Zeile im Protokoll, eine Fehlermarke bei GitHub, der Status fuer /admin/replays, Code 1.
+   * Neu versucht wird mit dem naechsten Anstoss (Discord-Kette alle zehn Minuten, Zeitplan alle 15) - findeBasis fragt vorher schon dreimal je 60 s.
+   */
+  let katalog;
+  try {
+    BASIS = await findeBasis();
+    const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(120_000) });
+    if (!antwort.ok) throw new Error(`Cup-Katalog HTTP ${antwort.status}`);
+    katalog = await antwort.json();
+    if (!Array.isArray(katalog?.cups)) throw new Error('Cup-Katalog ohne Cups');
+  } catch (e) {
+    let fehler = String(e?.message ?? e).split('\n')[0].replace(/\.$/, '');
+    // findeBasis sucht nach WERKZEUG_URL noch auf localhost - auf GitHub sinnlos; die eigentliche Nachricht ist, dass WERKZEUG_URL nicht antwortete.
+    if (process.env.WERKZEUG_URL && /auf keinem Port/.test(fehler)) fehler = `Cup-Katalog antwortet nicht (3 Versuche je bis zu 60 s)`;
+    const st = await schnellStatus({ ok: false, fehler });
+    console.log(`SCHNELLSPUR: QUELLE NICHT ERREICHBAR (${st.quelle}) seit ${st.seitFehler}: ${fehler}`);
+    console.log(`::error title=Schnellspur: Quelle nicht erreichbar::${st.quelle} antwortet nicht (${fehler}), seit ${st.seitFehler}. Kein Plan, naechster Versuch mit dem naechsten Anstoss.`);
+    if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, 'arbeit=nein\nquelle=weg\n');
+    process.exitCode = 1;
+    return;
+  }
   const jetzt = Date.now();
 
   // Frisch (laeuft oder seit hoechstens SCHNELL_STUNDEN vorbei) oder angefragt - von der Seite (Vorrang) oder beim Anstossen genannt.
@@ -910,25 +975,32 @@ async function planSchreibenLauf(datei) {
         const ende = live ? jetzt : (w.end ?? w.begin ?? 0);
         if (ende < jetzt - FRIST_TAGE * 864e5) continue;
         const angefragt = vorrang.has(w.windowId) || nurFenster.includes(w.windowId);
-        if (!angefragt && !rueckstand.has(w.windowId) && ende < jetzt - SCHNELL_STUNDEN * 3600_000) continue;
+        // Aelter als 36 Stunden, aber bei der Schnellspur noch offen: sie fragt weiter nach, statt ihn fallen zu lassen (#12, lib/replaySchnellStand.mjs).
+        const alt = ende < jetzt - SCHNELL_STUNDEN * 3600_000;
+        const halten = alt && gehalten.has(w.windowId);
+        if (!angefragt && !rueckstand.has(w.windowId) && alt && !halten) continue;
         kandidaten.push({
           season: m[1].toUpperCase(), windowId: w.windowId, eventId: w.eventId, region: w.region, titel: cup.titel,
-          datum: live ? (w.begin ?? jetzt) : ende, live, angefragt, istEndrunde: endrundeHier.has(w.windowId),
+          datum: live ? (w.begin ?? jetzt) : ende, live, angefragt, gehalten: halten, istEndrunde: endrundeHier.has(w.windowId),
         });
       }
     }
   }
-  console.log(`${kandidaten.length} Spieltage frisch oder angefragt${vorrang.size ? ` (Vorrang: ${[...vorrang].join(', ')})` : ''}.`);
+  const nGehalten = kandidaten.filter((f) => f.gehalten).length;
+  console.log(`${kandidaten.length} Spieltage frisch, angefragt oder gehalten${nGehalten ? ` (${nGehalten} aelter als ${SCHNELL_STUNDEN} h, noch offen)` : ''}${vorrang.size ? ` (Vorrang: ${[...vorrang].join(', ')})` : ''}.`);
   vomRelease(kandidaten.map((f) => `replays/${f.season}/${f.windowId}/_zustand.json`));
 
   // Je Spieltag die offenen Matches. Die Bestenliste wird nur gefragt, solange neue Matches kommen koennen: waehrend des Cups und bis eine halbe Stunde
   // nach seinem Ende (danach steht die Liste der Matches im Stand, "idsStand").
   const plan = [];
+  /** Je Spieltag der Stand (fuer das Halten ueber 36 Stunden). */
+  const staende = new Map();
   let naechster = 0;
   const arbeiter = async () => {
     while (naechster < kandidaten.length) {
       const f = kandidaten[naechster++];
       const zustand = await liesZustand(f.season, f.windowId);
+      staende.set(f.windowId, { windowId: f.windowId, datum: f.datum, matches: zustand.matches ?? {} });
       const bekannt = Object.keys(zustand.matches ?? {});
       let ids = bekannt; let idsStand = null;
       const listeFertig = !f.live && !!zustand.idsAlle && (Date.parse(zustand.idsStand ?? '') || 0) > f.datum + 30 * 60_000;
@@ -957,6 +1029,26 @@ async function planSchreibenLauf(datei) {
     }
   };
   await Promise.all(Array.from({ length: 4 }, arbeiter));
+
+  /*
+   * Halten oder abgeben (#12). Jeder Plan schreibt die Liste neu (data/schnell-halten.json, der Ablauf legt sie an den Release "signale"). Was abgegeben
+   * wird, faellt hier aus dem Plan - von da an gehoert es allein den Nacharbeitern (ein Schreiber je Spieltag). Angefragte bleiben ohnehin hier.
+   */
+  for (const f of plan) {
+    const s = staende.get(f.windowId);
+    if (s) for (const id of f.neu ?? []) s.matches[id] ??= { stand: ZUSTAND.OFFEN };
+  }
+  const { halten, abgegeben } = haltenBerechnen([...staende.values()], jetzt, { stunden: SCHNELL_STUNDEN });
+  const abgabe = abgegeben.filter((a) => !kandidaten.find((k) => k.windowId === a.windowId)?.angefragt && a.datum <= jetzt - SCHNELL_STUNDEN * 3600_000);
+  for (const a of abgabe) {
+    console.log(`  an die Nacharbeit abgegeben: ${a.windowId} (${a.teuer} zu laden, ${a.fragen} noch einmal fragen - ${a.grund})`);
+    const i = plan.findIndex((f) => f.windowId === a.windowId);
+    if (i >= 0) plan.splice(i, 1);
+  }
+  const nHalten = Object.keys(halten).filter((w) => (halten[w].datum ?? 0) <= jetzt - SCHNELL_STUNDEN * 3600_000).length;
+  if (nHalten) console.log(`${nHalten} Spieltage aelter als ${SCHNELL_STUNDEN} h behaelt die Schnellspur, weil dort noch etwas offen ist.`);
+  await fs.mkdir(path.join(process.cwd(), 'data'), { recursive: true });
+  await fs.writeFile(path.join(process.cwd(), 'data', 'schnell-halten.json'), JSON.stringify({ zeit: new Date().toISOString(), fenster: halten }), 'utf8');
 
   // Angefragte zuerst, dann was gerade laeuft, dann das zuletzt Beendete.
   plan.sort((a, b) => Number(b.angefragt) - Number(a.angefragt) || cupVorrang(a.windowId) - cupVorrang(b.windowId) || Number(b.live) - Number(a.live) || b.datum - a.datum);
@@ -987,6 +1079,10 @@ async function planSchreibenLauf(datei) {
     : f.offen.filter((id) => f.vorher?.[id]?.stand !== ZUSTAND.NICHT_VORHANDEN).length), 0);
   await fs.mkdir(path.dirname(datei), { recursive: true });
   await fs.writeFile(datei, JSON.stringify({ erstellt: new Date().toISOString(), stuecke, fenster: plan }), 'utf8');
+  await schnellStatus({
+    ok: true, spieltage: plan.length, offen: gesamt, gehalten: nHalten,
+    abgegeben: abgabe.map((a) => ({ windowId: a.windowId, teuer: a.teuer, fragen: a.fragen, grund: a.grund })),
+  });
   if (process.env.GITHUB_OUTPUT) {
     await fs.appendFile(process.env.GITHUB_OUTPUT,
       `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\noffen=${signal}\n`);

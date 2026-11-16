@@ -65,6 +65,13 @@ interface LiveStand {
   lauf?: { zeitpunkt?: string; art?: string; fenster?: number; neu?: number;
     lagenVor?: number; ohneReplay?: number; fehlgeschlagen?: number;
     angefasst?: string[] } | null;
+  /** Der letzte Plan der Schnellspur (#12, lib/replaySchnellStand.mjs): ok, oder ihre Quelle antwortete nicht. */
+  schnell?: {
+    zeit?: string; ok?: boolean; quelle?: string; fehler?: string; seitFehler?: string | null; letzteOk?: string | null;
+    spieltage?: number; offen?: number; gehalten?: number;
+    abgegeben?: Array<{ windowId: string; teuer: number; fragen: number; grund: string }>;
+    wiederDa?: { seit: string | null; fehler: string | null };
+  } | null;
   jetzt?: number;
 }
 
@@ -501,7 +508,40 @@ export default function ReplayVerwaltung() {
                     {live.lauf.angefasst?.length ? ` · ${live.lauf.angefasst.map((w) => w.replace(/^S\d+_/, '')).join(', ')}` : ''}
                   </span>
                 )}
-                {!letzte && !live.lauf && !tag && <span className="text-slate-600"><T>noch kein Protokoll</T></span>}
+                {live.schnell && (() => {
+                  /*
+                   * Die Schnellspur (#12): bis 16.11.2026 war unsichtbar, wenn ihre Quelle (der Cup-Katalog dieser Seite) nicht antwortete - kein Plan, und der
+                   * Lauf trotzdem gruen. Rot, solange es so ist; gelb, wenn seit 45 Minuten kein Plan mehr kam.
+                   */
+                  const s = live.schnell;
+                  const vor = (iso?: string | null) => {
+                    const z = Date.parse(String(iso ?? ''));
+                    if (!Number.isFinite(z)) return '?';
+                    const m = Math.round((jetzt - z) / 60_000);
+                    return m < 60 ? `${m} min` : `${Math.round(m / 6) / 10} h`;
+                  };
+                  const zeitMs = Date.parse(String(s.zeit ?? ''));
+                  const alt = !Number.isFinite(zeitMs) || jetzt - zeitMs > 45 * 60_000;
+                  if (s.ok === false) {
+                    return (
+                      <span className="rounded border border-rose-500/50 bg-rose-500/10 px-2 py-0.5 font-semibold text-rose-300"
+                        title={`${s.quelle ?? ''} · ${s.fehler ?? ''}`}>
+                        <T>Schnellspur: Quelle nicht erreichbar</T> · <T>seit</T> {vor(s.seitFehler)} · <T>letzter Versuch</T> {vor(s.zeit)} <T>her</T>
+                        {s.letzteOk ? <> · <T>zuletzt ok vor</T> {vor(s.letzteOk)}</> : null}
+                        {s.fehler ? ` · ${s.fehler}` : ''}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className={alt ? 'text-amber-400' : 'text-slate-500'}>
+                      <T>Schnellspur</T> ({vor(s.zeit)} <T>her</T>{alt ? <>, <T>kein neuer Plan</T></> : null}): {s.spieltage ?? 0} <T>Spieltage</T>, {zahl(s.offen ?? 0)} <T>offen</T>
+                      {s.gehalten ? <> · {s.gehalten} <T>über 36 h gehalten</T></> : null}
+                      {s.abgegeben?.length ? <> · <span title={s.abgegeben.map((a) => `${a.windowId}: ${a.grund}`).join('\n')}>{s.abgegeben.length} <T>an die Nacharbeit abgegeben</T></span></> : null}
+                      {s.wiederDa?.seit ? <> · <T>Quelle wieder da, weg war sie seit</T> {new Date(s.wiederDa.seit).toLocaleString()}</> : null}
+                    </span>
+                  );
+                })()}
+                {!letzte && !live.lauf && !tag && !live.schnell && <span className="text-slate-600"><T>noch kein Protokoll</T></span>}
                 <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-slate-600">
                   <T>alle 10 Sekunden</T>
                 </span>

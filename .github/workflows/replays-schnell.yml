@@ -42,7 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: read
+      # write: der Stand fuer den Admin und die gehaltenen Spieltage gehen an den Release "signale" (Schritt unten).
+      contents: write
     outputs:
       stuecke: ${{ steps.plan.outputs.stuecke }}
       arbeit: ${{ steps.plan.outputs.arbeit }}
@@ -72,9 +73,25 @@ jobs:
           # 30.10.2026, der Betreiber: spaetestens eine Stunde nach Cup-Ende alles ausgewertet, auch bei mehreren Cups zugleich - zehn Leser statt fuenf.
           # Den Platz machen die Nacharbeiter frei (Signal unten, scripts/schnell-vorrang.mjs).
           SCHNELL_STUECKE: '10'
+        # pipefail (#12): ohne ihn ging ein Fehlschlag des Planens (Quelle nicht erreichbar) im "| tail" unter, und der Lauf war gruen.
         run: |
+          set -o pipefail
           WAHL=$(printf '%s' "$FENSTER" | tr -c 'A-Za-z0-9_.,-' ' ' | tr ',' ' ')
           node scripts/replays-holen.mjs --plan-schreiben data/schnell-plan.json --stunden 36 $WAHL 2>&1 | tail -60
+
+      # Der Stand fuer /admin/replays (ok / Quelle nicht erreichbar seit ...) und die Spieltage, die die Schnellspur ueber 36 Stunden hinaus behaelt
+      # (lib/replaySchnellStand.mjs; die Nacharbeiter lesen dieselbe Datei). Auch nach einem Fehlschlag - gerade dann.
+      - name: Stand an den Release
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view signale -R "${{ github.repository }}" >/dev/null 2>&1 || gh release create signale -R "${{ github.repository }}" --title "Signale" --notes "Kleine Steuerdateien der Ablaeufe." >/dev/null
+          for f in data/schnell-status.json data/schnell-halten.json; do
+            if [ -s "$f" ]; then gh release upload signale "$f" --clobber -R "${{ github.repository }}" && echo "$f hochgeladen"; fi
+          done
+          if [ -s data/schnell-status.json ]; then cat data/schnell-status.json; fi
 
       - name: Plan weitergeben
         if: steps.plan.outputs.arbeit == 'ja'
