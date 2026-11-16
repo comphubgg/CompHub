@@ -20,7 +20,7 @@ import { liesJson } from '@/lib/ablage';
  *
  *   Platzierung = max(0, (101 - Platz) / 100)   -> Platz 1 = 1,00, Platz 10 = 0,91, Platz 100 = 0,01, dahinter 0
  *   "bestes ..." = der beste Wert unter den gewerteten Spielern dieses Spieltags/Events.
- *   Gewertet wird, wer mindestens die Haelfte der Spiele des Spielers mit den meisten Spielen gespielt hat (wie die Je-Spiel-Kacheln der Player Stats);
+ *   Gewertet wird, wer mindestens die Haelfte der Spiele des Spielers mit den meisten Spielen gespielt hat (wie die Je-Spiel-Kacheln der Player Stats; "die meisten" ohne Ausreisser: die hoechste Spielzahl, die 5 % des Kreises erreichen);
  *   die Damage Ratio zaehlt dieselbe Regel. Fehlt ein Wert (z. B. die Ratio), zaehlt dieser Teil 0. Kennt der Spieltag keine Platzierung,
  *   gilt Rating = (Summe der vier uebrigen Teile) / 0,80. Fehlen Treffer/Ratio bei mehr als 10 % der Gewerteten (Replay-Auswertung laeuft noch),
  *   gilt Rating = 100 x (0.30 Elims + 0.25 Damage + 0.20 Platz) / 0.75.
@@ -201,7 +201,13 @@ export async function baueLeader(hole: Holer, opt: {
   const leer: LeaderAntwort = { vorhanden: false, mvp: null, tafeln: [], formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele: 0, spieleMax: 0, gewertet: 0 };
   if (!alle.length) return leer;
 
-  const spieleMax = alle.reduce((m, z) => Math.max(m, spieleVon(z)), 0);
+  /*
+   * "Die meisten Spiele" ohne Ausreisser (16.11.2026): Cups ohne Spielgrenze kennen Teams, die frueh sterben und doppelt so oft spielen - Performance Evaluation
+   * Cup Round 1 EU: BlackMonkey 77 und zikai. mit 16 Spielen (Platz 649), alle anderen hoechstens 8. Mit 16 galt "mindestens 8 Spiele", und Chap (61 Elims,
+   * Platz 1, 7 Spiele) fiel aus dem Rating. Jetzt: die hoechste Spielzahl, die mindestens 5 % des Kreises erreichen.
+   */
+  const spielzahlen = alle.map(spieleVon).sort((a, b) => b - a);
+  const spieleMax = spielzahlen[Math.min(spielzahlen.length - 1, Math.max(0, Math.ceil(spielzahlen.length * 0.05) - 1))] ?? 0;
   const mindestSpiele = Math.max(1, Math.ceil(spieleMax / 2));
   const gewertet = alle.filter((z) => spieleVon(z) >= mindestSpiele);
   // Kennt der Spieltag (noch) keine Platzierung, faellt dieser Teil weg und die uebrigen werden auf 100 hochgerechnet - sonst laege jeder um 20 Punkte zu tief.
