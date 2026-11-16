@@ -1219,6 +1219,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     mitte?: number | null;
     mitteGrund?: { grenze: number; stand: number; spiele: number; vorab: number | null; hochgerechnet: number | null; anteil: number | null; gewicht: number; fertig: boolean } | null;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
+    /** Gelernte Korrektur aus fertigen Spieltagen derselben Art: Punkte, als Anteil (andere Cup-Reihe als Vorlage) und woraus. */
+    korrektur?: number; korrekturArt?: 'punkte' | 'anteil' | null;
+    korrekturAus?: Array<{ windowId: string; prognose: number; tatsaechlich: number }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
   const belohnungsRang = useMemo(() => {
@@ -3557,6 +3560,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 mg.fertig ? t('alle Spiele gespielt')
                   : mg.hochgerechnet !== null ? `${t('hochgerechnet')} ${mg.hochgerechnet} (${t('zählt')} ${Math.round(mg.gewicht * 100)} %)` : t('nie unter der Grenze von jetzt'),
               ].filter(Boolean).join(' · ') : null;
+              /*
+               * Woraus die Vorab-Prognose besteht (Koordinator, 16.11.2026): Schnitt der Vorlage und die gelernte Korrektur aus Regionen, deren Spieltag derselben
+               * Art schon fertig ist - "S42 FNCS Solos LCQ 365 x 1,07 (OCE: Prognose 341, Ergebnis 365)".
+               */
+              const vorabGrund = qual?.schnitt ? [
+                `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}`
+                  + (qual.ausgaben.some((a) => typeof a.punkte === 'number') ? ` (${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')})` : ''),
+                !qual.aehnlich ? `+ ${QUAL_ZUSCHLAG}` : null,
+                qual.korrektur && qual.korrekturAus?.length
+                  ? `${qual.korrekturArt === 'anteil'
+                    ? `× ${(1 + qual.korrektur / qual.schnitt).toLocaleString(ort, { maximumFractionDigits: 2 })}`
+                    : `${qual.korrektur > 0 ? '+' : '−'} ${Math.abs(qual.korrektur)}`} ${t('gelernt aus fertigen Spieltagen derselben Art')}: ${qual.korrekturAus.map((k) => `${/_([A-Z]+)$/.exec(k.windowId)?.[1] ?? k.windowId} ${t('Prognose')} ${k.prognose} → ${t('Ergebnis')} ${k.tatsaechlich}`).join(' · ')}`
+                  : null,
+              ].filter(Boolean).join(' ') : null;
               const kacheln: Array<[string, string, string]> = [
                 [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
                 ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
@@ -3584,7 +3601,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <span>{l}</span>
                 </div>
                 <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`}
-                  title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}` : v}>{v}</div>
+                  title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}${vorabGrund ? `\n${t('Vorab')}: ${vorabGrund}` : ''}`
+                    : l === 'CompHub Prediction' && vorabGrund ? `${t('Vorab')}: ${vorabGrund}` : v}>{v}</div>
                 {l === 'CompHub Prediction' && prognoseGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{prognoseGrund}</div>}
               </div>
             )); })()}

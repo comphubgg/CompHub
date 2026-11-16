@@ -517,9 +517,13 @@ async function holeRoh(request: Request) {
    * mittlere Fehler der letzten sechs als Korrektur dazu - so wird jede Ausgabe genauer, ohne dass jemand von Hand nachstellt.
    */
   const ZUSCHLAG = 5; // wie QUAL_ZUSCHLAG auf der Event-Seite
-  const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}`;
+  // Offene LCQ und LCQ-Finale haben dieselbe Event-Kennung ("..._LastChanceQualifier_<R>") - ohne den Zusatz lernte das Finale aus der offenen Runde (16.11.2026).
+  const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}${stufe(dieser) === 'lcq-finale' ? '|finale' : ''}`;
   type Lern = { windowId: string; art: string; prognose: number; tatsaechlich: number; zeit: number };
   let korrektur = 0; let gelernt = 0;
+  /* Woraus die Korrektur gelernt ist - fuer die Erklaerung an der Prognose. */
+  let korrekturAus: Array<{ windowId: string; prognose: number; tatsaechlich: number }> = [];
+  let korrekturArt: 'punkte' | 'anteil' | null = null;
   try {
     const lern = await liesJson<Lern[]>('prognose-lernen.json', []);
     const fertig = !laeuft && typeof dieser.end === 'number' && jetzt > dieser.end + 30 * 60_000;
@@ -529,7 +533,21 @@ async function holeRoh(request: Request) {
     }
     const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
     // Mit einem schon gespielten Heat als Vorlage keine Korrektur obendrauf - der Wert ist bereits das echte Ergebnis.
-    if (gleiche.length && !heatVorlage) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
+    if (gleiche.length && !heatVorlage) {
+      /*
+       * Stammt die Vorlage aus einem aehnlichen, aber anderen Cup (FNCS Solos Reload LCQ nach der S42 LCQ ohne Reload, 16.11.2026), liegt das ganze Niveau
+       * daneben, nicht ein fester Betrag: dann gilt das Verhaeltnis Ergebnis/Prognose der schon fertigen Regionen, auf den eigenen Schnitt angewandt (OCE
+       * 341 -> 365 macht aus EU 365 rund 391). Sonst wie bisher der mittlere Fehler in Punkten.
+       */
+      if (aehnlich && schnitt !== null && gleiche.every((l) => l.prognose > 0)) {
+        const faktor = gleiche.reduce((s, l) => s + l.tatsaechlich / l.prognose, 0) / gleiche.length;
+        korrektur = Math.round(schnitt * (faktor - 1)); korrekturArt = 'anteil';
+      } else {
+        korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); korrekturArt = 'punkte';
+      }
+      gelernt = gleiche.length;
+      korrekturAus = gleiche.map((l) => ({ windowId: l.windowId, prognose: l.prognose, tatsaechlich: l.tatsaechlich }));
+    }
   } catch { /* ohne Lernstand wie bisher */ }
 
   /*
@@ -585,7 +603,7 @@ async function holeRoh(request: Request) {
     /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
     kumuliert: tagRunde,
     /* Gelernte Korrektur aus frueheren Spieltagen derselben Art (Punkte) und aus wie vielen. */
-    korrektur, gelernt,
+    korrektur, gelernt, korrekturAus, korrekturArt,
     /* Die Schaetzung kommt vom frueheren Tag derselben Runde. */
     vortag,
     grundlage: werte.length,

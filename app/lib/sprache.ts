@@ -2139,6 +2139,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Sieg': 'Victory Royale',
   'je Elimination': 'Per elimination',
   'Punktesystem': 'Scoring system',
+  'gelernt aus fertigen Spieltagen derselben Art': 'learned from finished sessions of the same kind',
   'je gespieltem Match': 'per match played',
   'Sofort weiter ab': 'Qualifies instantly at',
   'Aus Epics Daten, als der Spieltag lief': "From Epic's data while this session was live",
