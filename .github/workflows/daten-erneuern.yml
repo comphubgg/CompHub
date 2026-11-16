@@ -655,17 +655,19 @@ jobs:
             timeout $((FRIST + 30)) node scripts/antworten-vorrechnen.mjs http://localhost:3000 "$@" --frist=$FRIST 2>&1 | tee /tmp/teil.log | sed -u 's/^/  ['"$NAME"'] /'
             local CODE=${PIPESTATUS[0]}
             LEBT=ja
-            { [ "$CODE" = 3 ] || [ "$CODE" = 124 ] || ! curl -sf -m 10 -o /dev/null http://localhost:3000/api/stand; } && LEBT=nein
+            { [ "$CODE" = 3 ] || [ "$CODE" = 4 ] || [ "$CODE" = 124 ] || ! curl -sf -m 10 -o /dev/null http://localhost:3000/api/stand; } && LEBT=nein
             stoppen
             cat /tmp/teil.log >> /tmp/vorrechnen.log
             echo "$NAME, Versuch $VERSUCH (Frist ${FRIST}s, Ende $CODE): $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
             if [ "$LEBT" = nein ]; then echo "::warning::Server in $NAME abgestuerzt oder Frist erreicht:"; tail -n 8 /tmp/server.log; fi
           }
           for TEIL in 1 2 3 4 5 6 7 8; do
-            for VERSUCH in 1 2; do
-              # Je Portion hoechstens zwanzig Minuten, und fuer jede spaetere Portion bleiben vier Minuten uebrig (gemessen
-              # brauchen die Teile 3 bis 8 je unter einer Minute, wenn keine Akte nebenher laeuft). Die Akten bekommen den Rest.
-              FRIST=$(( $(rest) - 240 * (8 - TEIL) )); [ $FRIST -gt 1200 ] && FRIST=1200
+            for VERSUCH in 1 2 3; do
+              # Je Versuch hoechstens vierzig Minuten, und fuer jede spaetere Portion bleiben vier Minuten uebrig (16.11.2026
+              # gemessen: Teile 2 bis 8 zusammen 28 Minuten; Teil 1 allein ueber 20 - Startansicht 519 s, Clutch-Liste 225 s, Orgs
+              # 175 s, dann die Startansicht jeder Saison). Ein weiterer Versuch faengt nicht von vorn an: was schon gerechnet ist,
+              # liegt in der Ablage. Die Akten bekommen den Rest.
+              FRIST=$(( $(rest) - 240 * (8 - TEIL) )); [ $FRIST -gt 2400 ] && FRIST=2400
               [ $FRIST -lt 60 ] && { echo "::warning::Keine Zeit mehr fuer Teil $TEIL"; break; }
               portion "teil $TEIL" $FRIST --teil=$TEIL/8
               [ "$LEBT" = ja ] && break

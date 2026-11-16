@@ -265,6 +265,8 @@ async function los() {
     if (rest < 5_000) {
       schief += liste.length - i;
       console.log(`  FRIST  ${liste.length - i} Abfragen ohne Zeit uebrig, ab ${weg}`);
+      // Der Ablauf versucht die Portion dann noch einmal - das schon Gerechnete liegt in der Ablage und kommt sofort.
+      process.exitCode = 4;
       break;
     }
     try {
@@ -277,7 +279,8 @@ async function los() {
        */
       // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv, das Preisgeld der Orgs) duerfen laenger - und zwar
       // wirklich (siehe hole): abgebrochen rechnet der Server trotzdem weiter und blockiert die naechste.
-      const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)|orgs\?ansicht=verdienst/.test(weg);
+      // 16.11.2026: auch die Startansicht jeder Saison und die Preisgeldlisten - S43-Start brauchte ueber 180 s, die Clutch-Liste 225 s.
+      const schwer = /ansicht=akten|ansicht=start|ansicht=jahr&jahr=alle(&|$)|liste=verdienst|orgs\?ansicht=verdienst/.test(weg);
       // Eine Akten-Schale allein darf die ganze Frist haben (gemessen ueber 900 s je Schale, 16.11.2026).
       const r = await hole(weg, aktenArg ? rest : Math.min(rest, schwer ? 900_000 : 180_000));
       if (r.status < 200 || r.status >= 300) throw new Error(String(r.status));
