@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { GET as cupSpieler } from '@/app/api/cup-spieler/route';
 import { GET as cupStats } from '@/app/api/cup-stats/route';
-import { baueLeader, TAFELN } from '@/lib/turnierLeader';
+import { baueLeader, feldNachLand, TAFELN, type FeldLaender } from '@/lib/turnierLeader';
+import { landKarte } from '@/lib/spielerLand';
 import { fertigeAntwort, legeAntwortAb, alterMinuten } from '@/lib/antwortSpeicher';
 import { liesJson } from '@/lib/ablage';
 import { kumulativeTage } from '@/lib/kumulativ';
@@ -148,9 +149,9 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
   };
   // Beide Quellen zugleich, jede genau einmal (vorher neun Aufrufe von cup-spieler hintereinander gerechnet).
   const [sp, st] = await Promise.all([
-    cupSpieler(adresse('/api/cup-spieler', { kennzahlen: FELDER.join(','), pro: '50' })).then((r) => r.json()).catch(() => null) as Promise<{
+    cupSpieler(adresse('/api/cup-spieler', { kennzahlen: FELDER.join(','), pro: '50', laender: '1' })).then((r) => r.json()).catch(() => null) as Promise<{
       listen?: Record<string, Z[]>; gesamt?: Record<string, number>; replayStand?: { gelesen: number; gesamt: number } | null; schadenDa?: boolean;
-      schadenTeil?: unknown; umbau?: unknown;
+      schadenTeil?: unknown; umbau?: unknown; feldLaender?: FeldLaender;
     } | null>,
     event ? cupStats(adresse('/api/cup-stats', { top: '5' })).then((r) => r.json()).catch(() => null) as Promise<{
       bestenlisten?: Array<{ schluessel: string; alle?: Array<{ ids: string[]; spieler: string[]; rank: number; spiele?: number; roh: number }> }>;
@@ -164,10 +165,12 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
   const stListen = st?.bestenlisten ?? [];
   const solo = stListen.length > 0 && stListen.every((b) => (b.alle ?? []).every((x) => (x.ids?.length ?? 0) === 1));
   let hole: (kennzahl: string, pro: number) => Promise<Z[] & { gesamt?: number }>;
+  // Das ganze Feld nach Land fuer die Laenderuebersicht (Team-Cups: aus cup-spieler; Solo: unten aus denselben Zeilen wie die Tafeln).
+  let feld: FeldLaender | null = sp?.feldLaender ?? null;
   if (solo) {
     // Feld in cup-stats -> Feld der Leaders. Epics Werte sind fuer jeden Eintrag da (fehlt er in der Liste, ist er 0); Replay-Werte nur bei ganz Gelesenen.
     const EPIC: Record<string, string> = { damage: 'damage', elims: 'kills', timeAlive: 'timeAlive', headshots: 'headshots' };
-    const REPLAY: Record<string, string> = { treffer: 'hits', builds: 'builds', damageTaken: 'damageTaken' };
+    const REPLAY: Record<string, string> = { treffer: 'hits', builds: 'builds', damageTaken: 'damageTaken', matsGefarmt: 'matsFarmed' };
     const ausSpieler = new Map<string, Z>();
     for (const zeilen of Object.values(listen)) for (const z of zeilen) if (z?.epicId && !ausSpieler.has(z.epicId.toLowerCase())) ausSpieler.set(z.epicId.toLowerCase(), z);
     const zeilen = new Map<string, Z>();
@@ -179,7 +182,7 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
         z = {
           epicId: s0?.epicId ?? id0, name: s0?.name ?? name, land: s0?.land ?? '', reboots: s0?.reboots ?? null,
           platz: rank || platz.get(id) || null, spiele: spiele ?? s0?.spiele ?? 0,
-          kills: 0, elims: 0, damage: 0, timeAlive: 0, headshots: 0, hits: null, builds: null, damageTaken: null, quote: null,
+          kills: 0, elims: 0, damage: 0, timeAlive: 0, headshots: 0, hits: null, builds: null, damageTaken: null, quote: null, matsFarmed: null,
         };
         zeilen.set(id, z);
       }
@@ -201,6 +204,9 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
       z.quote = erl && erl > 0 ? dmg / erl : null;
     }
     const alle = [...zeilen.values()];
+    // Solo: das Land fuer jeden Spieler des Feldes aus unseren Profilen (ausSpieler kennt es nur fuer den Kreis), der Platz aus Epics Bestenliste.
+    const landVon = await landKarte();
+    feld = feldNachLand(alle, (z) => landVon.get(z.epicId.toLowerCase()) ?? String(z.land ?? ''), (z) => (typeof z.platz === 'number' ? z.platz : null));
     hole = async (kennzahl, pro) => {
       const f = kennzahl === 'elims' ? 'kills' : kennzahl;
       const mit = alle.filter((z) => typeof z[f] === 'number' && (z[f] as number) > 0).sort((a, b) => (b[f] as number) - (a[f] as number));
@@ -218,6 +224,7 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
   const [d, kopf] = await Promise.all([
     baueLeader(hole, {
       vorbei: () => vorbei,
+      feld: async () => feld,
       replayHinten: () => !!replayStand, schadenDa: () => solo || sp?.schadenDa !== false,
       // Warum eine Kennzahl fehlt: Auswertung laeuft noch (teilweise gelesen), Neu-Lesen laeuft (umbau), oder der Spieltag ist fertig gelesen - dann hat die
       // damals benutzte Leser-Fassung den Wert nicht erfasst (z. B. Builds vor Fassung 18, S42 FNCS Heat 2 EU vom 18.10.).
@@ -237,7 +244,8 @@ async function leaderFuer(basis: URL, fenster: string, event: string, windows: s
   // Der Dateiname wird bei 120 Zeichen gekappt (lib/antwortSpeicher) - Event und Tage deshalb als Pruefsumme, sonst fielen "Day 2" und "Day 1 + Day 2" zusammen.
   // "leader2" (16.11.2026): neue Gruende fuer fehlende Tafeln ('neu', 'alt') - aufgehobene Antworten mit dem alten "Auswertung laeuft" gelten nicht mehr.
   // "leader3" (16.11.2026): Tafeln mit kleiner, harmloser Luecke (basis) - aufgehobene Antworten ohne sie gelten nicht mehr.
-  const schluessel = `leader3|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
+  // "leader4" (16.11.2026): Laender ueber das ganze Feld mit mittlerer Platzierung, MVP nur wenn bewiesen, Mats Farmed und Reboots beim MVP.
+  const schluessel = `leader4|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
   const frist = await fristFuer(fenster, windows);
   const rechne = () => rechneLeader(basis, fenster, event, windows);
   // ?neu=1 (Vorwaermen nach dem Ablegen neuer Replay-Werte, scripts/leader-vorwaermen.mjs): neu rechnen, wenn die aufgehobene Antwort aelter als 5 Minuten ist.

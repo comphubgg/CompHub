@@ -11,6 +11,8 @@ import { liesClutch, istLive } from '@/lib/clutchLive';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
+import { istZeroBuild } from '@/lib/zeroBuild';
+import { feldNachLand } from '@/lib/turnierLeader';
 
 /** Zeit im Sturm: alte Auswertungen hatten bei abgebrochenen Aufnahmen 1,8e308 Sekunden - so ein Wert zaehlt nicht (7.11.2026). */
 const sturmOk = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? v : 0);
@@ -421,7 +423,9 @@ async function holeRoh(request: Request) {
       const alle = szene.spieler.map((x) => ({ ...x, elims: x.kills }));
       const listen: Record<string, unknown[]> = {}; const gesamt: Record<string, number> = {};
       for (const k of kennzahlen) { const s1 = seiteVon(alle, k, 1, pro, null); listen[k] = s1.zeilen; gesamt[k] = s1.gesamt; }
-      return NextResponse.json({ kennzahlen, listen, gesamt, replayStand: null, schadenDa: true, quelle: 'szene' });
+      // ?laender=1: das ganze Feld nach Land (Laenderuebersicht der Cup-Seite, lib/turnierLeader feldNachLand).
+      const feldLaender = p.get('laender') === '1' ? feldNachLand(alle, (z) => String(z.land ?? ''), (z) => (typeof z.platz === 'number' ? z.platz : null)) : undefined;
+      return NextResponse.json({ kennzahlen, listen, gesamt, replayStand: null, schadenDa: true, quelle: 'szene', ...(feldLaender ? { feldLaender } : {}) });
     }
     if (kennzahl) {
       const q = (p.get('q') ?? '').trim().toLowerCase();
@@ -643,6 +647,15 @@ async function holeRoh(request: Request) {
           builds: (d.bauHolz ?? 0) + (d.bauStein ?? 0) + (d.bauMetall ?? 0), bauHolz: d.bauHolz, bauStein: d.bauStein, bauMetall: d.bauMetall,
           bauWand: d.bauWand, bauBoden: d.bauBoden, bauTreppe: d.bauTreppe, bauDach: d.bauDach,
         } : {}),
+        /*
+         * Mats Farmed (16.11.2026, Event MVP der Cup-Seite): nur mit der Spitzhacke Abgebautes, dieselbe Regel wie die Kachel in app/api/cup-stats (Leser-Fassung 19,
+         * MatsExakt) - nur ein einzelner Tag, nur wenn jedes Spiel des Spielers den Inventar-Leser hatte, nie im Zero Build.
+         */
+        ...(tage.length === 1 && !istZeroBuild(tage[0]) && typeof (d as { farmHolz?: number }).farmHolz === 'number'
+          && ((d as { invSpiele?: number }).invSpiele ?? 0) >= (clutchDatei?.spiele?.[x.epicId.toLowerCase()] ?? Infinity) ? (() => {
+            const w = d as { farmHolz?: number; farmStein?: number; farmMetall?: number };
+            return { matsFarmed: (w.farmHolz ?? 0) + (w.farmStein ?? 0) + (w.farmMetall ?? 0) };
+          })() : {}),
         // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
         ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
         ...(typeof d.wiederbelebt === 'number' && !soloOhneReload ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
@@ -675,7 +688,36 @@ async function holeRoh(request: Request) {
       ...z, name: anzeige.get(z.epicId) ?? z.epicId.slice(0, 8), land: land.get(z.epicId) ?? '', platz: teams.get(z.epicId)?.platz ?? null,
       partner: (teams.get(z.epicId)?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
     });
+    /*
+     * ?laender=1 (16.11.2026, Laenderuebersicht der Cup-Seite): das ganze Feld nach Land - Spieler mit Land aus unseren Profilen einzeln (ein paar hundert
+     * hoechstens), alle uebrigen nur als Summe ("Unknown"). Der Platz aus Epics Endstand des Teams; nichts davon bleibt im Speicher liegen.
+     */
+    const epicFeld = p.get('laender') === '1' && tage.length === 1 ? await epicTag(fenster).catch(() => null) : null;
+    const feldLaender = p.get('laender') === '1' ? (() => {
+      const platzVon = new Map<string, number>();
+      for (const t of rep.teams ?? []) if (typeof t.platz === 'number') for (const id of t.spieler ?? []) platzVon.set(id.toLowerCase(), t.platz);
+      // Fehlt der Platz in den Replay-Werten, Epics Endplatz aus dem abgelegten Spieltag - wie app/api/turnier-leader fuer die Tafeln.
+      for (const t of epicFeld?.teams ?? []) if (typeof t.platz === 'number') for (const id of t.spieler ?? []) if (!platzVon.has(String(id).toLowerCase())) platzVon.set(String(id).toLowerCase(), t.platz);
+      /*
+       * rep.spieler kennt nur Spieler mit Kill oder Knock (lib/replaySchlank). Die uebrigen des Feldes (aus den Teams der Replays und Epics Endstand) zaehlen
+       * mit 0 Elims fuer Anzahl und Platz mit - ohne Schaden (unbekannt), sodass ein Land mit ihnen keine Schadenssumme bekommt statt einer zu kleinen.
+       */
+      const drin = new Set(alle.map((z) => z.epicId.toLowerCase()));
+      const rest: Zeile[] = [];
+      for (const t of [...(rep.teams ?? []), ...(epicFeld?.teams ?? [])]) {
+        for (const id0 of t.spieler ?? []) {
+          const id = String(id0).toLowerCase();
+          if (!drin.has(id) && id !== 'bot') { drin.add(id); rest.push({ epicId: String(id0), spiele: 0, kills: 0, elims: 0 }); }
+        }
+      }
+      return feldNachLand([...alle, ...rest], (z) => land.get(z.epicId) ?? land.get(z.epicId.toLowerCase()) ?? '', (z) => platzVon.get(z.epicId.toLowerCase()) ?? null);
+    })() : undefined;
+    if (feldLaender) {
+      await namenNachholen(feldLaender.bekannt.map((z) => z.epicId), anzeige);
+      for (const z of feldLaender.bekannt) z.name = anzeige.get(z.epicId) ?? z.epicId.slice(0, 8);
+    }
     return NextResponse.json({
+      ...(feldLaender ? { feldLaender } : {}),
       kennzahlen, replayStand, schadenTeil: teil,
       // Ob es fuer diesen Spieltag ueberhaupt Werte aus den vollen Replays gibt (Schaden, Treffer, Bauteile ...) - sonst sagen die Leaders das, statt Nullen zu zeigen.
       schadenDa: !!schadenVon && schadenVon.size > 0,

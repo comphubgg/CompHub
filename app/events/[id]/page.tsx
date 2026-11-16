@@ -29,6 +29,7 @@ import { rundenMischen } from '@/app/lib/rundenStand';
 import { useLiveFenster, type LiveTeil } from '@/app/lib/useLiveFenster';
 import { fortniteKarte, naheFortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
+import { CupMvpLaender } from '@/app/components/TurnierLeader';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
@@ -5285,6 +5286,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
         {/* Tournament Leaders stehen nur auf /globals-solos und /fncs, nicht unter Events (Betreiber, 15.11.2026). */}
+        {/*
+          * Davon nur Event MVP und Countries auch hier, oben unter Player Stats (Betreiber, 16.11.2026) - dieselben Zahlen und dieselbe Abdeckungsregel wie die
+          * Leaders (app/components/TurnierLeader CupMvpLaender, /api/turnier-leader). Nicht bei Ranked Cups (keine Werte je Spieler) und nicht vor dem Start.
+          */}
+        {lbFenster && cup?.art !== 'ranked' && lbFenster.status !== 'kommt' && ((soloCup && reiter === 'teams' && !detailStart) || (!soloCup && reiter === 'spieler')) && (
+          <CupMvpLaender key={`${lbFenster.windowId}|${summenText}`} eventId={lbFenster.eventId} windowId={lbFenster.windowId} windows={summenFenster} />
+        )}
         {/* Kommt man ueber den Stats-Knopf, steht der Spieler oben - bei Solo-Cups lag er sonst unter der ganzen Uebersicht (Betreiber, 7.11.2026). */}
         {reiter === 'teams' && lbFenster && soloCup && !!detailStart && (
           <div className="mb-4">

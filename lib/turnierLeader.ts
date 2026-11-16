@@ -68,16 +68,37 @@ export interface LeaderMvp {
   headshots: number | null;
   builds: number | null;
   damageTaken: number | null;
+  /** Reboots & Revives (nur Reload/Teams) und Mats Farmed (nur Spitzhacke, Leser-Fassung 19) - null, wo es den Wert nicht (fuer genug Spieler) gibt. */
+  reboots?: number | null;
+  matsFarmed?: number | null;
   /** Datei in public/spielerbilder - nur bei nachgewiesener Zuordnung zur Konto-Id. */
   datei: string | null;
   gesicht: [number, number, number] | null;
 }
 
 export interface LeaderLand {
-  land: string; spieler: number; rating: number; elims: number; damage: number | null;
+  /** Mittleres Rating der Gewerteten des Landes - null, wo es nicht fuer jeden sicher ist (oder bei "Unknown" ueber das ganze Feld). */
+  land: string; spieler: number; rating: number | null; elims: number; damage: number | null;
   hits: number | null; builds: number | null; reboots: number | null;
+  /** Mittlere Platzierung (Epics Endstand des Teams) - null, wenn sie nicht fuer jeden Spieler des Landes bekannt ist. */
+  platz?: number | null;
+  /** Bester im Rating - null, wenn ein Spieler ohne alle Werte ihn nachweislich noch ueberholen koennte. */
   bester: { name: string; rating: number } | null;
 }
+
+/** Summen ueber Spieler ohne bekanntes Land (das ganze Feld, siehe feldNachLand) - Summen nur, wenn jeder den Wert hat. */
+export interface FeldSumme {
+  spieler: number; platzSumme: number; platzAnzahl: number; elims: number;
+  damage: number | null; hits: number | null; builds: number | null; reboots: number | null;
+  /**
+   * Fuer die Obergrenze des Ratings ausserhalb des Kreises: je Wert die hoechste Spielzahl unter den Spielern ohne diesen Wert (0 = keiner ohne). Nur wer
+   * mindestens die Mindestzahl an Spielen hat, wird gewertet - ein fehlender Wert bei weniger Spielen aendert kein Rating.
+   */
+  ohne: { damage: number; hits: number; quote: number; platz: number };
+}
+
+/** Das ganze Feld nach Land: Spieler mit Land aus unseren Profilen einzeln (ein paar hundert hoechstens), der Rest als Summe. */
+export interface FeldLaender { bekannt: Array<Record<string, unknown> & { epicId: string }>; unbekannt: FeldSumme }
 
 export interface LeaderKopf { titel: string; saison: string; region: string; datum: number | null; bild: string | null }
 
@@ -142,6 +163,30 @@ type Roh = Record<string, unknown> & { epicId: string };
 type Holer = (kennzahl: string, pro: number) => Promise<Roh[] & { gesamt?: number }>;
 
 const zahl = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/**
+ * Das ganze Feld nach Land aufteilen (app/api/cup-spieler ?laender=1, app/api/turnier-leader bei Solo-Cups). Ein Durchlauf, nichts wird aufgehoben.
+ * `landVon` liefert das Land aus unseren Profilen ('' = unbekannt), `platzVon` Epics Endplatz (des Teams).
+ */
+export function feldNachLand<Z extends Record<string, unknown> & { epicId: string }>(alle: Z[], landVon: (z: Z) => string, platzVon: (z: Z) => number | null): FeldLaender {
+  const bekannt: FeldLaender['bekannt'] = [];
+  const u: FeldSumme = { spieler: 0, platzSumme: 0, platzAnzahl: 0, elims: 0, damage: 0, hits: 0, builds: 0, reboots: 0, ohne: { damage: 0, hits: 0, quote: 0, platz: 0 } };
+  const plus = (k: 'damage' | 'hits' | 'builds' | 'reboots', v: unknown) => { const n = zahl(v); u[k] = n === null || u[k] === null ? null : (u[k] as number) + n; };
+  for (const z of alle) {
+    const land = landVon(z);
+    const platz = platzVon(z);
+    if (land) { bekannt.push({ ...z, land, platz }); continue; }
+    u.spieler += 1;
+    if (platz && platz > 0) { u.platzSumme += platz; u.platzAnzahl += 1; } else u.ohne.platz = Math.max(u.ohne.platz, spieleVon(z));
+    u.elims += zahl(z.kills) ?? zahl(z.elims) ?? 0;
+    plus('damage', z.damage); plus('hits', z.hits); plus('builds', z.builds); plus('reboots', z.reboots);
+    const sp = spieleVon(z);
+    if (zahl(z.damage) === null) u.ohne.damage = Math.max(u.ohne.damage, sp);
+    if (zahl(z.hits) === null) u.ohne.hits = Math.max(u.ohne.hits, sp);
+    if ((zahl(z.quote) ?? zahl(z.damageRatio)) === null) u.ohne.quote = Math.max(u.ohne.quote, sp);
+  }
+  return { bekannt, unbekannt: u };
+}
 const spieleVon = (z: Roh) => zahl(z.matches) ?? zahl(z.spiele) ?? 0;
 const kills = (z: Roh) => zahl(z.kills) ?? zahl(z.elims) ?? 0;
 
@@ -193,6 +238,8 @@ export async function baueLeader(hole: Holer, opt: {
   replayStand?: () => 'laeuft' | 'neu' | 'fertig';
   /** Der Spieltag ist vorbei - nur dann darf eine Tafel mit einer kleinen, nachweislich harmlosen Luecke stehen (sicherOhne). */
   vorbei?: () => boolean;
+  /** Das ganze Feld nach Land (feldNachLand) - fuer die Laenderuebersicht ueber alle Spieler statt nur den Kreis. */
+  feld?: () => Promise<FeldLaender | null | undefined>;
 } = {}): Promise<LeaderAntwort> {
   const listen = await Promise.all(TAFELN.filter((t) => t.feld !== 'rating' && t.feld !== 'lowest').map(async (t) => [t, await hole(t.feld === 'kills' ? 'elims' : t.feld, 50).catch(() => [])] as const));
   const kreis = new Map<string, Roh>();
@@ -225,7 +272,21 @@ export async function baueLeader(hole: Holer, opt: {
   const ohneReplay = !reicht('hits') || !reicht('quote');
   const max = (f: (z: Roh) => number | null) => gewertet.reduce((m, z) => Math.max(m, f(z) ?? 0), 0);
   const beste = { elims: max(kills), damage: max((z) => zahl(z.damage)), quote: max((z) => zahl(z.quote) ?? zahl(z.damageRatio)), hits: max((z) => zahl(z.hits)) };
-  const rating = new Map(gewertet.map((z) => [z.epicId, ratingVon(z, beste, { replay: ohneReplay, platz: ohnePlatz, damage: ohneDamage })]));
+  const ohneTeile = { replay: ohneReplay, platz: ohnePlatz, damage: ohneDamage };
+  const rating = new Map(gewertet.map((z) => [z.epicId, ratingVon(z, beste, ohneTeile)]));
+  /*
+   * Sicher der Beste? (16.11.2026, Event MVP und "Best Player" der Laender auf der Cup-Seite: nichts zeigen, was wegen fehlender Replay-Werte falsch sein
+   * koennte.) Fehlt einem Gewerteten ein Wert, der ins Rating eingeht, zaehlt dieser Teil bei ihm 0. Seine Obergrenze: derselbe Spieler mit dem besten Wert
+   * des Spieltags an jeder fehlenden Stelle (und Platz 1, wenn der Platz fehlt). Liegt sie ueber dem Rating des Kandidaten, ist der Kandidat nicht bewiesen.
+   */
+  const fehltTeil = (z: Roh) => (!ohneDamage && zahl(z.damage) === null) || (!ohnePlatz && !(zahl(z.platz) ?? 0))
+    || (!ohneReplay && (zahl(z.hits) === null || (zahl(z.quote) ?? zahl(z.damageRatio)) === null));
+  const obergrenze = (z: Roh) => ratingVon({
+    ...z, damage: zahl(z.damage) ?? beste.damage, hits: zahl(z.hits) ?? beste.hits, quote: zahl(z.quote) ?? zahl(z.damageRatio) ?? beste.quote,
+    damageRatio: null, platz: zahl(z.platz) || 1,
+  }, beste, ohneTeile);
+  /** Ob `kandidat` mit `wert` vor jedem Spieler aus `menge` liegt, auch wenn dessen fehlende Werte die besten waeren. */
+  const sicherVor = (kandidat: string, wert: number, menge: Roh[]) => menge.every((z) => z.epicId === kandidat || !fehltTeil(z) || obergrenze(z) <= wert);
   const replayDa = opt.schadenDa ? opt.schadenDa() : true;
   const stand = opt.replayStand ? opt.replayStand() : 'laeuft';
   const gelesen = gewertet.filter((z) => zahl(z.hits) !== null).length;
@@ -308,34 +369,99 @@ export async function baueLeader(hole: Holer, opt: {
     if (zeilen.length) tafeln.push({ schluessel: t.schluessel, titel: t.titel, nachkomma: t.nachkomma, ...(t.zeit ? { zeit: true } : {}), zeilen, ...(basis ? { basis } : {}) });
   }
 
-  // Laender: je Land Anzahl, mittleres Rating, Summen; Treffer/Bauteile/Reboots nur, wenn jeder Spieler des Landes sie hat (sonst eine halbe Summe).
-  const feldGesamt0 = Math.max(0, ...listen.map(([, l]) => (l as { gesamt?: number }).gesamt ?? 0));
-  const nachLand = new Map<string, Roh[]>();
-  for (const x of gewertet) { const l = String(x.land ?? '').toUpperCase(); nachLand.set(l, [...(nachLand.get(l) ?? []), x]); }
-  const summeOderNull = (xs: Roh[], f: string) => (xs.every((x) => zahl(x[f]) !== null) ? xs.reduce((a, x) => a + (zahl(x[f]) ?? 0), 0) : null);
-  const laender: LeaderLand[] = [...nachLand].map(([land, xs]) => {
-    const best = [...xs].sort((a, b) => (rating.get(b.epicId) ?? 0) - (rating.get(a.epicId) ?? 0))[0];
-    return {
-      land, spieler: xs.length,
-      rating: +(xs.reduce((a, x) => a + (rating.get(x.epicId) ?? 0), 0) / xs.length).toFixed(1),
-      elims: xs.reduce((a, x) => a + kills(x), 0), damage: ohneDamage ? null : xs.reduce((a, x) => a + (zahl(x.damage) ?? 0), 0),
-      hits: ohneReplay ? null : summeOderNull(xs, 'hits'), builds: ohneReplay ? null : summeOderNull(xs, 'builds'), reboots: summeOderNull(xs, 'reboots'),
-      bester: best ? { name: String(best.name ?? best.epicId.slice(0, 8)), rating: +(rating.get(best.epicId) ?? 0).toFixed(1) } : null,
-    };
-  }).sort((a, b) => (a.land === '' ? 1 : 0) - (b.land === '' ? 1 : 0) || b.spieler - a.spieler || b.rating - a.rating);
+  const feld = opt.feld ? await opt.feld().catch(() => null) : null;
+  /*
+   * Obergrenze fuer alle ausserhalb des Kreises (16.11.2026): wer in keiner Kennzahl unter den besten 50 steht, hat ueberall hoechstens den 50. Wert -
+   * wo die Liste kuerzer ist, steht jeder mit einem Wert darin. Fehlt Spielern ausserhalb ein Wert (feld.ohne), zaehlt dort der beste; der Platz immer als 1.
+   */
+  const listeVon = (feld0: string) => listen.find(([t]) => t.feld === feld0)?.[1] ?? [];
+  const funfzigster = (feld0: string, f: (z: Roh) => number | null) => { const l = listeVon(feld0); return l.length >= 50 ? (f(l[49]) ?? 0) : 0; };
+  // Ohne Feld (unbekannt, wem draussen etwas fehlt) gilt jeder Wert als moeglicherweise fehlend - also der beste.
+  const ausserhalb = (ohne: FeldSumme['ohne'] | null) => ratingVon({
+    epicId: '', kills: funfzigster('kills', kills), platz: 1,
+    damage: !ohne || ohne.damage >= mindestSpiele ? beste.damage : funfzigster('damage', (z) => zahl(z.damage)),
+    hits: !ohne || ohne.hits >= mindestSpiele ? beste.hits : funfzigster('hits', (z) => zahl(z.hits)),
+    quote: !ohne || ohne.quote >= mindestSpiele ? beste.quote : funfzigster('quote', (z) => zahl(z.quote) ?? zahl(z.damageRatio)),
+  }, beste, ohneTeile);
+  const ohneMax = (f: (x: Roh) => number | null, u: number) => Math.max(u, ...(feld?.bekannt ?? []).filter((x) => f(x) === null).map(spieleVon));
+  const ohneAlle: FeldSumme['ohne'] | null = feld ? {
+    damage: ohneMax((x) => zahl(x.damage), feld.unbekannt.ohne.damage),
+    hits: ohneMax((x) => zahl(x.hits), feld.unbekannt.ohne.hits),
+    quote: ohneMax((x) => zahl(x.quote) ?? zahl(x.damageRatio), feld.unbekannt.ohne.quote),
+    platz: 0,
+  } : null;
+  const grundJetzt = (): NonNullable<LeaderAntwort['fehlend']>[number]['grund'] => (!replayDa ? 'fehlt' : stand === 'fertig' ? 'alt' : stand);
 
   const erster = tafeln.find((t) => t.schluessel === 'rating')?.zeilen[0];
-  const z = erster ? kreis.get(erster.epicId) : null;
+  const z0 = erster ? kreis.get(erster.epicId) : null;
+  // Der Event MVP nur, wenn kein Spieler mit fehlenden Werten (im Kreis oder ausserhalb) ihn noch ueberholen koennte - sonst auch keine "Highest Rated"-Tafel.
+  const mvpSicher = !!z0 && sicherVor(z0.epicId, rating.get(z0.epicId) ?? 0, gewertet) && ausserhalb(ohneAlle) <= (rating.get(z0.epicId) ?? 0);
+  if (z0 && !mvpSicher) {
+    const i = tafeln.findIndex((t) => t.schluessel === 'rating');
+    if (i >= 0) tafeln.splice(i, 1);
+    fehlend.unshift({ schluessel: 'rating', titel: 'Event MVP / Highest Rated', grund: grundJetzt() });
+  }
+  const z = mvpSicher ? z0 : null;
   const mvp: LeaderMvp | null = z ? {
     epicId: z.epicId, name: String(z.name ?? z.epicId.slice(0, 8)), land: String(z.land ?? ''), platz: zahl(z.platz), spiele: spieleVon(z),
-    rating: +(rating.get(z.epicId) ?? 0).toFixed(1), elims: kills(z), damage: ohneDamage ? null : zahl(z.damage) ?? 0,
+    // Nur Werte, die es gibt: fehlt einer (auch beim MVP selbst), steht null - nie 0 an seiner Stelle.
+    rating: +(rating.get(z.epicId) ?? 0).toFixed(1), elims: kills(z), damage: ohneDamage ? null : zahl(z.damage),
     quote: ohneReplay ? null : zahl(z.quote) ?? zahl(z.damageRatio),
     hits: ohneReplay ? null : zahl(z.hits), headshots: reicht('headshots') ? zahl(z.headshots) : null, builds: reicht('builds') ? zahl(z.builds) : null,
     damageTaken: reicht('damageTaken') ? zahl(z.damageTaken) : null,
+    reboots: reicht('reboots') ? zahl(z.reboots) : null,
+    matsFarmed: reicht('matsFarmed') ? zahl(z.matsFarmed) : null,
     ...(await fotoFuerKonto(z.epicId)),
   } : null;
 
-  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}), ...(ohneReplay ? { ohneReplay: true } : {}), ...(ohneDamage ? { ohneDamage: true } : {}), laender, ganzesFeld: !!feldGesamt0 && kreis.size >= feldGesamt0,
+  /*
+   * Laender (16.11.2026, Cup-Seite): mit dem ganzen Feld (opt.feld) je Land alle Spieler - Anzahl, mittlere Platzierung, Summen; ohne es nur die Gewerteten
+   * des Kreises (wie bisher, ganzesFeld = false). Land nur aus unseren Profilen, der Rest als "Unknown" ('').
+   * Summen nur, wenn jeder Spieler des Landes den Wert hat (sonst eine halbe Summe); Treffer/Bauteile nicht, solange das Rating sie nicht zaehlt.
+   * Der Beste im Rating nur, wenn ihn kein Landsmann mit fehlenden Werten ueberholen koennte (sicherVor) - bei "Unknown" mit dem ganzen Feld zusaetzlich
+   * gegen die Obergrenze ausserhalb des Kreises.
+   */
+  const feldGesamt0 = Math.max(0, ...listen.map(([, l]) => (l as { gesamt?: number }).gesamt ?? 0));
+  const summeOderNull = (xs: Roh[], f: string) => (xs.every((x) => zahl(x[f]) !== null) ? xs.reduce((a, x) => a + (zahl(x[f]) ?? 0), 0) : null);
+  const besterVon = (xs: Roh[], mitAusserhalb: boolean) => {
+    const bewertet = xs.filter((x) => spieleVon(x) >= mindestSpiele);
+    const r = (x: Roh) => rating.get(x.epicId) ?? ratingVon(x, beste, ohneTeile);
+    const best = [...bewertet].sort((a, b) => r(b) - r(a))[0];
+    if (!best) return null;
+    const w = r(best);
+    if (!sicherVor(best.epicId, w, bewertet) || (mitAusserhalb && ausserhalb(feld?.unbekannt.ohne ?? null) > w)) return null;
+    return { name: String(best.name ?? best.epicId.slice(0, 8)), rating: +w.toFixed(1) };
+  };
+  const landZeile = (land: string, xs: Roh[]): LeaderLand => {
+    const bewertet = xs.filter((x) => spieleVon(x) >= mindestSpiele);
+    const ratings = bewertet.map((x) => rating.get(x.epicId) ?? ratingVon(x, beste, ohneTeile));
+    return {
+      land, spieler: xs.length,
+      rating: bewertet.length && bewertet.every((x) => !fehltTeil(x)) ? +(ratings.reduce((a, v) => a + v, 0) / ratings.length).toFixed(1) : null,
+      platz: xs.every((x) => (zahl(x.platz) ?? 0) > 0) ? +(xs.reduce((a, x) => a + (zahl(x.platz) ?? 0), 0) / xs.length).toFixed(1) : null,
+      elims: xs.reduce((a, x) => a + kills(x), 0), damage: ohneDamage ? null : summeOderNull(xs, 'damage'),
+      hits: ohneReplay ? null : summeOderNull(xs, 'hits'), builds: ohneReplay ? null : summeOderNull(xs, 'builds'), reboots: summeOderNull(xs, 'reboots'),
+      bester: besterVon(xs, false),
+    };
+  };
+  const nachLand = new Map<string, Roh[]>();
+  for (const x of feld ? feld.bekannt : gewertet) { const l = String(x.land ?? '').toUpperCase(); nachLand.set(l, [...(nachLand.get(l) ?? []), x]); }
+  let laender: LeaderLand[] = [...nachLand].map(([land, xs]) => landZeile(land, xs));
+  if (feld && feld.unbekannt.spieler > 0) {
+    const u = feld.unbekannt;
+    laender = laender.filter((l) => l.land !== '');
+    laender.push({
+      land: '', spieler: u.spieler, rating: null,
+      platz: u.platzAnzahl === u.spieler ? +(u.platzSumme / u.spieler).toFixed(1) : null,
+      elims: u.elims, damage: ohneDamage ? null : u.damage, hits: ohneReplay ? null : u.hits, builds: ohneReplay ? null : u.builds, reboots: u.reboots,
+      // Die Unbekannten des Kreises - und keiner ausserhalb darf sie nachweislich schlagen koennen.
+      bester: besterVon(gewertet.filter((x) => !String(x.land ?? '')), true),
+    });
+  }
+  laender.sort((a, b) => (a.land === '' ? 1 : 0) - (b.land === '' ? 1 : 0) || b.spieler - a.spieler || (b.rating ?? 0) - (a.rating ?? 0));
+  const ganzesFeld = !!feld || (!!feldGesamt0 && kreis.size >= feldGesamt0);
+
+  return { vorhanden: tafeln.length > 0, mvp, tafeln, formel: RATING_FORMEL, gewichte: RATING_GEWICHTE, mindestSpiele, spieleMax, gewertet: gewertet.length, ...(ohnePlatz ? { ohnePlatz: true } : {}), ...(ohneReplay ? { ohneReplay: true } : {}), ...(ohneDamage ? { ohneDamage: true } : {}), laender, ganzesFeld,
     ...(fehlend.length ? { fehlend } : {}), replayAbdeckung: { gelesen, von: gewertet.length },
     // Das Performance Board braucht den Schaden - ohne ihn kein Board (statt aller Punkte auf 0).
     feld: ohneDamage ? [] : gewertet.map((x) => ({ epicId: x.epicId, name: String(x.name ?? x.epicId.slice(0, 8)), land: String(x.land ?? ''), elims: kills(x), damage: zahl(x.damage) ?? 0, platz: zahl(x.platz), rating: +(rating.get(x.epicId) ?? 0).toFixed(1) }))

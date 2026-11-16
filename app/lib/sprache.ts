@@ -5017,6 +5017,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Je Spiel: Platz im Match · Punkte. Linie: Stand in der Wertung nach dem jeweiligen Spiel des Teams.': 'Per game: place in the match · points. Line: standing after that game of the team.',
   'Die gewerteten Spitzenspieler': 'The rated top players',
   'Land aus unseren Profilen': 'country from our profiles',
+  'Alle Spieler des Spieltags': 'All players of this match day',
+  'Avg Place: mittlerer Endplatz (des Teams). Best Player: höchstes CompHub Rating. „–“: nicht für jeden Spieler des Landes vorhanden – keine halben Summen.':
+    'Avg Place: average final placement (of the team). Best Player: highest CompHub Rating. "–": not available for every player of that country – no partial totals.',
+  'Noch nicht gezeigt: die Replay-Auswertung läuft noch, und ein Spieler mit fehlenden Werten könnte noch vorn liegen.':
+    'Not shown yet: the replay analysis is still running, and a player with missing stats could still be ahead.',
+  'Nicht gezeigt: für diesen Spieltag fehlen Replay-Werte einzelner Spieler, die den MVP noch ändern könnten.':
+    'Not shown: some players are missing replay stats for this match day that could still change the MVP.',
+  'Rating (0–100): gewichtete Summe – Elims, Damage, Ratio und Hits je geteilt durch den besten Wert des Spieltags, Placement = (101 − Platz) / 100':
+    'Rating (0–100): weighted sum – elims, damage, ratio and hits each divided by the best value of this match day, placement = (101 − place) / 100',
+  'auf 100 hochgerechnet, weil die übrigen Werte nicht für alle vorliegen': 'scaled to 100 because the other stats are not available for everyone',
   'Gestrichelt: Schnitt der gewerteten Spieler. Beschriftet: die besten zehn im Rating.': 'Dashed: average of the rated players. Labelled: top ten by rating.',
   'Ohne bekannte Platzierung: Rating = Summe der übrigen Teile / 0,80.': 'No placement known: rating = sum of the other parts / 0.80.',
   'Alle Zahlen wie in den Player Stats; Damage Taken nur durch Spieler, ohne Sturm.': 'All numbers as in Player Stats; Damage Taken from players only, no storm.',

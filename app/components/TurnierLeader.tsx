@@ -12,7 +12,7 @@ import T from '@/app/components/T';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import { ftGesichtLage } from '@/lib/ftBild';
-import type { LeaderAntwort, LeaderMvp, LeaderTafel } from '@/lib/turnierLeader';
+import type { LeaderAntwort, LeaderLand, LeaderMvp, LeaderTafel } from '@/lib/turnierLeader';
 
 export function leaderAdresse(eventId: string, windowId: string, windows?: string[] | null) {
   return `/api/turnier-leader?window=${encodeURIComponent(windowId)}${eventId ? `&event=${encodeURIComponent(eventId)}` : ''}`
@@ -82,13 +82,14 @@ function Platzhalter() {
 
 function MvpKarte({ m, ort }: { m: LeaderMvp; ort: string }) {
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
+  // Nur Werte, die es fuer diesen Spieltag wirklich gibt (16.11.2026) - kein "–" und nie eine 0 an Stelle eines fehlenden Werts.
+  const roh: Array<[string, number | null | undefined, number?]> = [
+    ['Rating', m.rating, 1], ['Elims', m.elims], ['Damage Dealt', m.damage], ['Damage Ratio', m.quote, 2], ['Headshots', m.headshots],
+    ['Hits to Players', m.hits], ['Builds Placed', m.builds], ['Mats Farmed', m.matsFarmed], ['Reboots & Revives', m.reboots], ['Damage Taken', m.damageTaken],
+  ];
   const werte: Array<[string, string]> = [
-    ['Rating', zahl(m.rating, 1)],
-    ['Damage Dealt', m.damage != null ? zahl(m.damage) : '–'],
-    ['Damage Ratio', m.quote != null ? zahl(m.quote, 2) : '–'],
-    ['Hits to Players', m.hits != null ? zahl(m.hits) : '–'],
-    ['Headshots', m.headshots != null ? zahl(m.headshots) : '–'],
-    ['Placement', m.platz ? `#${m.platz}` : '–'],
+    ...roh.filter((x): x is [string, number, number?] => typeof x[1] === 'number' && Number.isFinite(x[1])).map(([k, v, n]) => [k, zahl(v, n ?? 0)] as [string, string]),
+    ...(m.platz ? [['Placement', `#${m.platz}`] as [string, string]] : []),
   ];
   return (
     <article className="relative overflow-hidden rounded-2xl border border-sky-500/30 bg-gradient-to-b from-[#0d1b30] via-[#0a1322] to-[#060a12] shadow-[0_0_40px_rgba(14,165,233,.12)]">
@@ -181,53 +182,98 @@ function PerformanceBoard({ feld, mvp, ort }: { feld: NonNullable<LeaderAntwort[
 
 const landName = (code: string, ort: string) => { try { return new Intl.DisplayNames([ort], { type: 'region' }).of(code) ?? code; } catch { return code; } };
 
-/** Country Summary: je Land Spieler, mittleres Rating und Summen - Land nur aus unseren Profilen, der Rest als "Unknown". */
+type LandSpalte = 'land' | 'spieler' | 'platz' | 'elims' | 'damage' | 'bester' | 'rating' | 'hits' | 'builds' | 'reboots';
+
+/**
+ * Country Summary: je Land Spieler, mittlere Platzierung, Summen und der Beste im Rating - Land nur aus unseren Profilen, der Rest als "Unknown".
+ * Jede Spalte sortierbar (Klick auf den Kopf; "Unknown" bleibt unten, es ist kein Land). Auf dem Telefon nur die sechs Kernspalten, ohne Querscrollen der Seite.
+ */
 function Laender({ laender, ganz, ort }: { laender: NonNullable<LeaderAntwort['laender']>; ganz: boolean; ort: string }) {
   const { t } = useSprache();
   const [alle, setAlle] = useState(false);
+  const [sortierung, setSortierung] = useState<{ spalte: LandSpalte; ab: boolean }>({ spalte: 'spieler', ab: true });
   const bekannt = laender.filter((l) => l.land);
-  const zahl = (v: number | null, n = 0) => (v == null ? '–' : v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n }));
-  const zeilen = alle ? laender : laender.slice(0, 8);
+  const zahl = (v: number | null | undefined, n = 0) => (v == null ? '–' : v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n }));
+  const wert = (l: LeaderLand, s: LandSpalte): number | string | null => (s === 'land' ? (l.land ? landName(l.land, ort) : '') : s === 'bester' ? l.bester?.rating ?? null
+    : s === 'platz' ? l.platz ?? null : (l[s] as number | null));
+  const sortiert = [...laender].sort((a, b) => {
+    if (!a.land !== !b.land) return a.land ? -1 : 1;
+    const x = wert(a, sortierung.spalte); const y = wert(b, sortierung.spalte);
+    if (x === null || y === null) return x === y ? b.spieler - a.spieler : x === null ? 1 : -1;
+    const d = typeof x === 'string' ? x.localeCompare(String(y), ort) : x - (y as number);
+    return (sortierung.ab ? -d : d) || b.spieler - a.spieler;
+  });
+  const zeilen = alle ? sortiert : sortiert.slice(0, 10);
+  // Kleiner ist besser bei der Platzierung, Namen von A bis Z - der erste Klick sortiert dort aufsteigend.
+  const klick = (s: LandSpalte) => setSortierung((v) => (v.spalte === s ? { spalte: s, ab: !v.ab } : { spalte: s, ab: s !== 'platz' && s !== 'land' }));
+  const spalten: Array<{ s: LandSpalte; titel: string; klasse?: string }> = [
+    { s: 'land', titel: 'Country' }, { s: 'spieler', titel: 'Players' }, { s: 'platz', titel: 'Avg Place' }, { s: 'elims', titel: 'Elims' },
+    { s: 'damage', titel: 'Damage' }, { s: 'bester', titel: 'Best Player' }, { s: 'rating', titel: 'Avg Rating', klasse: 'hidden md:table-cell' },
+    { s: 'hits', titel: 'Hits', klasse: 'hidden lg:table-cell' }, { s: 'builds', titel: 'Builds', klasse: 'hidden lg:table-cell' }, { s: 'reboots', titel: 'Reboots', klasse: 'hidden lg:table-cell' },
+  ];
+  const zelle = 'px-1.5 py-1.5 sm:px-2';
   return (
-    <section className="rounded-xl border border-white/[0.08] bg-zinc-900/80 p-3">
+    <section className="min-w-0 rounded-xl border border-white/[0.08] bg-zinc-900/80 p-3" aria-label="Countries">
       <p className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Country Summary</span>
-        <span className="text-[11px] text-slate-500">{ganz ? t('Alle gewerteten Spieler') : t('Die gewerteten Spitzenspieler')} · <T>Land aus unseren Profilen</T></span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Countries</span>
+        <span className="text-[11px] text-slate-500">{ganz ? t('Alle Spieler des Spieltags') : t('Die gewerteten Spitzenspieler')} · <T>Land aus unseren Profilen</T></span>
       </p>
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[...bekannt].sort((a, b) => b.spieler - a.spieler || b.rating - a.rating).slice(0, 4).map((l) => (
-          <div key={l.land} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+        {[...bekannt].sort((a, b) => b.spieler - a.spieler || (a.platz ?? 1e9) - (b.platz ?? 1e9)).slice(0, 4).map((l) => (
+          <div key={l.land} className="flex min-w-0 items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
             <TeamFlagge laender={[l.land]} groesse={28} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-100">{landName(l.land, ort)}</p>
-              <p className="text-[11px] text-slate-400">{l.spieler} <T>Spieler</T> · Ø {zahl(l.rating, 1)}</p>
+              <p className="truncate text-[11px] text-slate-400">{l.spieler} <T>Spieler</T>{l.platz != null ? ` · Ø #${zahl(l.platz, 1)}` : ''}</p>
             </div>
           </div>
         ))}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-xs">
-          <thead className="text-[10px] uppercase tracking-[0.12em] text-slate-500">
-            <tr>{['Country', 'Players', 'Avg Rating', 'Elims', 'Damage', 'Hits', 'Builds', 'Reboots', 'Highest Rated'].map((h) => <th key={h} className="px-2 py-1.5 font-semibold">{h}</th>)}</tr>
+        <table className="w-full text-left text-[11px] sm:text-xs">
+          <thead className="text-[10px] uppercase tracking-[0.08em] text-slate-500 sm:tracking-[0.12em]">
+            <tr>
+              {spalten.map(({ s, titel, klasse }) => (
+                <th key={s} scope="col" className={`${zelle} font-semibold ${klasse ?? ''}`}
+                  aria-sort={sortierung.spalte === s ? (sortierung.ab ? 'descending' : 'ascending') : 'none'}>
+                  <button type="button" onClick={() => klick(s)}
+                    className={`inline-flex items-center gap-0.5 uppercase transition hover:text-sky-300 ${sortierung.spalte === s ? 'text-sky-400' : ''}`}>
+                    {titel}<span aria-hidden className="w-2">{sortierung.spalte === s ? (sortierung.ab ? '↓' : '↑') : ''}</span>
+                  </button>
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04] tabular-nums text-slate-300">
             {zeilen.map((l) => (
               <tr key={l.land || 'x'}>
-                <td className="px-2 py-1.5"><span className="flex items-center gap-2"><TeamFlagge laender={[l.land || null]} groesse={16} /><span className="truncate">{l.land ? landName(l.land, ort) : 'Unknown'}</span></span></td>
-                <td className="px-2 py-1.5">{l.spieler}</td>
-                <td className="px-2 py-1.5 font-semibold text-sky-300">{zahl(l.rating, 1)}</td>
-                <td className="px-2 py-1.5">{zahl(l.elims)}</td>
-                <td className="px-2 py-1.5">{zahl(l.damage)}</td>
-                <td className="px-2 py-1.5">{zahl(l.hits)}</td>
-                <td className="px-2 py-1.5">{zahl(l.builds)}</td>
-                <td className="px-2 py-1.5">{zahl(l.reboots)}</td>
-                <td className="px-2 py-1.5 text-slate-200">{l.bester ? `${l.bester.name} (${zahl(l.bester.rating, 1)})` : '–'}</td>
+                <td className={zelle}>
+                  <span className="flex min-w-0 items-center gap-1.5 sm:gap-2" title={l.land ? landName(l.land, ort) : 'Unknown'}>
+                    <TeamFlagge laender={[l.land || null]} groesse={16} />
+                    <span className="truncate sm:hidden">{l.land || '?'}</span>
+                    <span className="hidden truncate sm:inline">{l.land ? landName(l.land, ort) : 'Unknown'}</span>
+                  </span>
+                </td>
+                <td className={zelle}>{zahl(l.spieler)}</td>
+                <td className={zelle}>{l.platz != null ? `#${zahl(l.platz, 1)}` : '–'}</td>
+                <td className={zelle}>{zahl(l.elims)}</td>
+                <td className={zelle}>{zahl(l.damage)}</td>
+                <td className={`${zelle} max-w-[7.5rem] sm:max-w-none`}>
+                  {l.bester ? <span className="block truncate text-slate-200">{l.bester.name} <span className="text-sky-300">{zahl(l.bester.rating, 1)}</span></span> : '–'}
+                </td>
+                <td className={`${zelle} hidden font-semibold text-sky-300 md:table-cell`}>{zahl(l.rating, 1)}</td>
+                <td className={`${zelle} hidden lg:table-cell`}>{zahl(l.hits)}</td>
+                <td className={`${zelle} hidden lg:table-cell`}>{zahl(l.builds)}</td>
+                <td className={`${zelle} hidden lg:table-cell`}>{zahl(l.reboots)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {laender.length > 8 && (
+      <p className="mt-2 text-[10px] leading-relaxed text-slate-600">
+        <T>Avg Place: mittlerer Endplatz (des Teams). Best Player: höchstes CompHub Rating. „–“: nicht für jeden Spieler des Landes vorhanden – keine halben Summen.</T>
+      </p>
+      {laender.length > 10 && (
         <button type="button" onClick={() => setAlle((a) => !a)} className="mt-2 text-[11px] font-semibold text-sky-400 hover:text-sky-300">
           {alle ? t('Weniger') : `${t('Alle')} (${laender.length})`}
         </button>
@@ -320,5 +366,50 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Cup-Seite (app/events/[id], Player Stats; Betreiber 16.11.2026): nur Event MVP und Countries - aus denselben Daten wie die Tournament Leaders
+ * (/api/turnier-leader, gleiche Abdeckungsregel). Fehlt der MVP, weil Replay-Werte fehlen, steht das da statt eines vielleicht falschen Spielers.
+ */
+export function CupMvpLaender({ eventId, windowId, windows }: { eventId: string; windowId: string; windows?: string[] | null }) {
+  const { sprache } = useSprache();
+  const ort = ortVon(sprache);
+  const { laedt, daten } = useLeader(eventId, windowId, windows);
+  if (laedt) {
+    return (
+      <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+        <div className="h-72 animate-pulse rounded-2xl bg-zinc-900/70" />
+        <div className="h-72 animate-pulse rounded-xl bg-zinc-900/70" />
+      </div>
+    );
+  }
+  if (!daten || (!daten.mvp && !(daten.laender?.length))) return null;
+  const mvpFehlt = daten.fehlend?.find((f) => f.schluessel === 'rating');
+  const teile = [
+    '30 % Elims',
+    ...(daten.ohneDamage ? [] : ['25 % Damage']),
+    ...(daten.ohneReplay ? [] : ['15 % Damage Ratio', '10 % Hits']),
+    ...(daten.ohnePlatz ? [] : ['20 % Placement']),
+  ];
+  return (
+    <div className="mb-4 grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-2">
+        {daten.mvp ? <MvpKarte m={daten.mvp} ort={ort} /> : (
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-xs text-slate-400">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Event MVP</p>
+            {mvpFehlt?.grund === 'laeuft' || mvpFehlt?.grund === 'neu' ? <T>Noch nicht gezeigt: die Replay-Auswertung läuft noch, und ein Spieler mit fehlenden Werten könnte noch vorn liegen.</T>
+              : <T>Nicht gezeigt: für diesen Spieltag fehlen Replay-Werte einzelner Spieler, die den MVP noch ändern könnten.</T>}
+          </div>
+        )}
+        {daten.mvp && (
+          <p className="px-1 text-[10px] leading-relaxed text-slate-500">
+            <T>Rating (0–100): gewichtete Summe – Elims, Damage, Ratio und Hits je geteilt durch den besten Wert des Spieltags, Placement = (101 − Platz) / 100</T> – {teile.join(' + ')}{teile.length < 5 && <> (<T>auf 100 hochgerechnet, weil die übrigen Werte nicht für alle vorliegen</T>)</>}.
+          </p>
+        )}
+      </div>
+      {(daten.laender?.length ?? 0) > 0 && <Laender laender={daten.laender!} ganz={!!daten.ganzesFeld} ort={ort} />}
+    </div>
   );
 }
