@@ -64,7 +64,7 @@ const GRUPPEN: Array<{
     hrefs: ['/admin/accounts', '/admin/vip-access', '/admin/switch', '/admin/sections', '/admin/services', '/admin/live'] },
   { id: 'post', titel: 'Posteingang', punkt: 'bg-rose-400', titelFarbe: 'text-rose-300',
     kachel: 'hover:border-rose-500/70 hover:bg-rose-500/[0.06]',
-    hrefs: ['/admin/contact'] },
+    hrefs: ['/admin/contact', '/admin/partner'] },
 ];
 const WEITERE = {
   id: 'weitere', titel: 'Weitere', punkt: 'bg-slate-400', titelFarbe: 'text-slate-300',

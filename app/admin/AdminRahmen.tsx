@@ -41,6 +41,7 @@ const WERKZEUGE: Array<[string, string]> = [
   ['/admin/vip-access', 'VIP-Zugänge'],
   ['/admin/accounts', 'Konten'],
   ['/admin/contact', 'Kontakt'],
+  ['/admin/partner', 'Partner-Anfragen'],
   ['/admin/archive', 'Archiv'],
   ['/admin/assets', 'Bildvorrat'],
   ['/admin/live', 'Live'],

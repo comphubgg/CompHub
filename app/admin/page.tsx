@@ -134,6 +134,8 @@ const ADMIN_ZIELE: Ziel[] = [
    * auswendig wusste, las die Meldungen aus dem Kontaktformular nie.
    */
   { href: '/admin/contact', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
+  // Fertige Anfragen an Streamer zum Kopieren (16.11.2026).
+  { href: '/admin/partner', titel: 'Partner-Anfragen', text: 'Fertige E-Mails und DMs an Streamer kopieren' },
 ];
 
 export default function AdminDashboardPage() {
