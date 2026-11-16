@@ -101,6 +101,17 @@
       box.parentNode.insertBefore(huelle, box);
       huelle.appendChild(box);
       box.classList.add('lk-box');
+      /*
+       * The frame follows the box: hidden when the box is hidden, faded when
+       * the box is not shown yet ("da" missing - e.g. a timer outside its
+       * window). Observed instead of :has(), which older OBS builds lack.
+       */
+      var folgen = function () {
+        huelle.hidden = box.hidden;
+        huelle.style.opacity = box.classList.contains('da') ? '' : '0';
+      };
+      if (window.MutationObserver) new MutationObserver(folgen).observe(box, { attributes: true, attributeFilter: ['class', 'hidden'] });
+      folgen();
     }
     var an = cfg.rahmen !== false;
     huelle.classList.toggle('aus', !an);

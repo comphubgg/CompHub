@@ -8,6 +8,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
+import { DesignGruppe, HausGruppe, HAUS_STANDARD, LOOK_STANDARD, Schalter, Segmente } from '../Bausteine';
 
 /*
  * Den Countdown bis zum Cup einstellen.
@@ -38,6 +39,12 @@ const STANDARD = {
   /** Nach dem Start: die Zeit seit dem Start weiterzaehlen oder verschwinden. */
   nachStart: 'zaehlt' as 'zaehlt' | 'weg',
   wortLaeuft: 'LIVE FOR',
+  // Redesign 11/2026 (public/overlay/timer.html + look.js).
+  layout: 'zwei' as 'zwei' | 'eine' | 'segmente' | 'balken',
+  startZeigen: false,
+  ...LOOK_STANDARD,
+  ...HAUS_STANDARD,
+  wasserzeichen: 'aus' as typeof HAUS_STANDARD.wasserzeichen,
 };
 
 type Config = typeof STANDARD;
@@ -74,6 +81,7 @@ export default function TimerSeite() {
   const [schmutzig, setSchmutzig] = useState(false);
   const [cups, setCups] = useState<Cup[] | null>(null);
 
+  const setzLos = (k: string, v: unknown) => setz(k as keyof Config, v as Config[keyof Config]);
   const setz = <K extends keyof Config>(k: K, v: Config[K]) => {
     setCfg((alt) => ({ ...alt, [k]: v }));
     setSchmutzig(true);
@@ -183,7 +191,8 @@ export default function TimerSeite() {
   function laden(o: OverlayEintrag) {
     setId(o.id);
     setName(o.name);
-    setCfg({ ...STANDARD, ...(o.config as Partial<Config>) });
+    const alt = o.config as Partial<Config>;
+    setCfg({ ...STANDARD, ...alt, layout: alt.layout ?? (alt.anordnung === 'eine' ? 'eine' : 'zwei') });
   }
 
   /** Wie lange es noch dauert - nur zur Anzeige im Werkzeug. */
@@ -263,12 +272,12 @@ export default function TimerSeite() {
                   { wert: 'weg' as const, titel: 'Verschwinden' },
                 ]}
                 setzen={(w) => setz('nachStart', w)} />
-              <Wahlreihe titel="Anordnung" wert={cfg.anordnung}
-                optionen={[
-                  { wert: 'zwei' as const, titel: 'Untereinander' },
-                  { wert: 'eine' as const, titel: 'Eine Zeile' },
-                ]}
-                setzen={(w) => setz('anordnung', w)} />
+            </div>
+            <div className="mt-3 space-y-3">
+              <Segmente titel="Layout" wert={cfg.layout}
+                setzen={(w) => { setz('layout', w); setz('anordnung', w === 'eine' ? 'eine' : 'zwei'); }}
+                optionen={[{ wert: 'zwei', titel: 'Stacked' }, { wert: 'eine', titel: 'One line' }, { wert: 'segmente', titel: 'Blocks' }, { wert: 'balken', titel: 'Progress bar' }]} />
+              <Schalter titel="Show the start time" an={cfg.startZeigen} setzen={(b) => setz('startZeigen', b)} />
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
               <T>Null Stunden heißt: immer sichtbar. Sonst bleibt der Timer
@@ -276,6 +285,9 @@ export default function TimerSeite() {
               keine Information, sondern eine Uhr im Bild.</T>
             </p>
           </section>
+
+          <HausGruppe cfg={cfg} setz={setzLos} />
+          <DesignGruppe cfg={cfg} setz={setzLos} />
 
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <h2 className="mb-3 text-sm font-semibold text-slate-100">

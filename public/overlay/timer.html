@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Cup timer</title>
+<link rel="stylesheet" href="look.css">
 <style>
 /*
  * Der Countdown bis zum Start eines Cups.
@@ -90,6 +91,33 @@ html, body {
   color: rgba(255, 255, 255, 0.82);
 }
 
+/*
+ * ------------------------------------------------ CompHub house style (11/2026)
+ * Unless the look is "klassisch": transparent black box with the rotating
+ * frame, Inter in white, the small letter-spaced label with the logo, the
+ * time big and bold, cup and start time in grey. Layouts:
+ *   zwei      label above the time (previous default)
+ *   eine      everything in one line (previous)
+ *   segmente  days / hours / minutes / seconds as separate blocks with units
+ *   balken    time plus a thin progress bar that fills up towards the start
+ */
+#kopfzeile { display: flex; align-items: center; gap: .35em; }
+#kopfzeile .lk-logo { width: .5em; height: .5em; border-radius: .12em; }
+body.haus #karte { border: 0; border-radius: 14px; padding: .45em .8em .5em; }
+body.haus #wort { color: rgba(255, 255, 255, .7); letter-spacing: .22em; }
+body.haus #zeit { font-weight: 700; }
+body.haus #cup, body.haus #start { color: rgba(255, 255, 255, .55); font-weight: 600; letter-spacing: .04em; }
+#start { display: block; font-size: .26em; margin-top: .1em; }
+#segmente { display: none; gap: .18em; margin-top: .08em; }
+#segmente .seg { display: flex; flex-direction: column; align-items: center; min-width: 1.35em; padding: .08em .12em .1em; border-radius: .14em; background: rgba(255, 255, 255, .06); }
+#segmente b { font-size: .9em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
+#segmente i { font-style: normal; font-size: .22em; font-weight: 600; letter-spacing: .18em; color: rgba(255, 255, 255, .5); }
+body.l-segmente #segmente { display: flex; }
+body.l-segmente #zeit { display: none; }
+#bar { display: none; height: .09em; margin-top: .22em; border-radius: 1em; background: rgba(255, 255, 255, .12); overflow: hidden; }
+#bar i { display: block; height: 100%; width: 0; background: var(--lk-akzent, #fff); transition: width 1s linear; }
+body.l-balken #bar { display: block; }
+
 @media (prefers-reduced-motion: reduce) {
   #karte { transition: none !important; }
 }
@@ -97,13 +125,17 @@ html, body {
 </head>
 <body>
 
-<div id="karte">
-  <span id="wort">STARTS IN</span>
+<div id="karte" class="lk-karte">
+  <span id="kopfzeile"><span id="wort">STARTS IN</span></span>
   <span id="zeit">—</span>
+  <span id="segmente"></span>
+  <span id="bar"><i></i></span>
   <span id="cup" hidden></span>
+  <span id="start" hidden></span>
 </div>
 
 <script src="konfig.js"></script>
+<script src="look.js"></script>
 <script>
 (function () {
   'use strict';
@@ -155,6 +187,10 @@ html, body {
      */
     nachStart: 'zaehlt',
     wortLaeuft: 'LIVE FOR',
+    // Redesign 11/2026: layout, start time, house style (look.js).
+    layout: '', startZeigen: false,
+    look: 'clean', rahmen: true, rahmenTempo: 4, rahmenBreite: 2.5, hintergrund: 'hero', hintergrundUrl: '', heroDeck: 0.1,
+    wasserzeichen: 'aus', chLogo: true,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -188,6 +224,32 @@ html, body {
     return mi + ':' + zwei(se);
   }
 
+  /** Segments (days / hrs / min / sec) and the progress bar - both from the same seconds. */
+  function extras(sek, vorStart) {
+    const s = Math.max(0, Math.floor(sek));
+    const teile = [[Math.floor(s / 86400), 'DAYS'], [Math.floor((s % 86400) / 3600), 'HRS'], [Math.floor((s % 3600) / 60), 'MIN'], [s % 60, 'SEC']];
+    const seg = $('segmente');
+    const zeigen = teile.filter((t, i) => i > 0 || t[0] > 0);
+    if (seg.childElementCount !== zeigen.length) {
+      seg.textContent = '';
+      zeigen.forEach(() => { const d = document.createElement('span'); d.className = 'seg'; d.innerHTML = '<b></b><i></i>'; seg.appendChild(d); });
+    }
+    zeigen.forEach((t, i) => {
+      const d = seg.children[i];
+      Look.zahl(d.firstChild, i === 0 && t[1] === 'DAYS' ? String(t[0]) : String(t[0]).padStart(2, '0'));
+      d.lastChild.textContent = t[1];
+    });
+    // Progress: from the moment it appears (abStunden before the start) to the start.
+    const fenster = Math.max(1, Number(cfg.abStunden) || 12) * 3600;
+    $('bar').firstChild.style.width = vorStart ? Math.max(0, Math.min(100, (1 - s / fenster) * 100)) + '%' : '100%';
+    const st = $('start');
+    if (cfg.startZeigen && beginn) {
+      const d = new Date(beginn);
+      st.textContent = (vorStart ? 'STARTS ' : 'STARTED ') + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      st.hidden = false;
+    } else st.hidden = true;
+  }
+
   function zeichne() {
     if (!beginn) {
       $('karte').classList.remove('da');
@@ -204,6 +266,7 @@ html, body {
     if (uebrig <= 0) {
       if (cfg.nachStart === 'zaehlt' && -uebrig <= 14 * 3600) {
         $('zeit').textContent = alsZeit(-uebrig);
+        extras(-uebrig, false);
         $('wort').textContent = String(cfg.wortLaeuft || 'LIVE FOR');
         const cz = $('cup');
         if (cfg.cupZeigen && cfg.cup) { cz.textContent = String(cfg.cup); cz.hidden = false; } else cz.hidden = true;
@@ -236,6 +299,7 @@ html, body {
     }
 
     $('zeit').textContent = alsZeit(uebrig);
+    extras(uebrig, true);
     $('wort').textContent = String(cfg.wort || 'STARTS IN');
     const c = $('cup');
     if (cfg.cupZeigen && cfg.cup) {
@@ -286,7 +350,17 @@ html, body {
       s.setProperty('--deckkraft', String(cfg.deckkraft));
       s.setProperty('--akzent', String(cfg.akzent));
       s.setProperty('--schrift', cfg.schrift + 'px');
-      $('karte').classList.toggle('eine', cfg.anordnung === 'eine');
+      // Layout: the new setting, else the old "anordnung".
+      const layout = ['zwei', 'eine', 'segmente', 'balken'].indexOf(cfg.layout) >= 0 ? cfg.layout : (cfg.anordnung === 'eine' ? 'eine' : 'zwei');
+      $('karte').classList.toggle('eine', layout === 'eine');
+      ['zwei', 'eine', 'segmente', 'balken'].forEach((l) => document.body.classList.toggle('l-' + l, l === layout));
+      const haus = cfg.look !== 'klassisch';
+      document.body.classList.toggle('haus', haus);
+      Look.haus($('karte'), Object.assign({}, cfg, { akzent: haus ? (cfg.lookAkzent || '#ffffff') : cfg.akzent }));
+      const kz = $('kopfzeile');
+      let lg = kz.querySelector('.lk-logo');
+      if (haus && cfg.chLogo !== false && !lg) kz.insertBefore(Look.logo(), kz.firstChild);
+      if ((!haus || cfg.chLogo === false) && lg) lg.remove();
 
       if (uhr) clearInterval(uhr);
       uhr = setInterval(zeichne, 1000);

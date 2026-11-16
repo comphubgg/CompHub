@@ -104,6 +104,8 @@ body.anim-aus .lk-neu { animation: none; }
 @property --lk-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 @keyframes lk-dreh { to { --lk-a: 360deg; } }
 @keyframes lk-lauf { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lk-rand[hidden] { display: none !important; }
+.lk-rand { transition: opacity .35s ease; }
 .lk-rand { position: relative; display: inline-block; padding: var(--lk-bw, 2.5px); border-radius: calc(var(--lk-r, 14px) + var(--lk-bw, 2.5px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
 .lk-rand::before {
   content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
