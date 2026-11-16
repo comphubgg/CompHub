@@ -240,6 +240,39 @@ function schreib(name, wert) {
   fs.writeFileSync(ziel, JSON.stringify(wert));
 }
 
+/* ------------------------------------------------- Laender je Konto */
+
+/*
+ * Woher die Spieler kommen, laut Noble (16.11.2026) - scrims/_laender.json: { stand, sitzungen: [id, ...], konten: { <epicId>: { <LAND>: Anzahl } } }.
+ * Quelle "noble" der Flaggen in Posts und Profilen (lib/spielerFlagge.mjs: nach Profil, Szene-Liste und Spiel). Je Session einmal gezaehlt; beim ersten Lauf
+ * aus dem ganzen Archiv (alle Tage im Verzeichnis), danach nur, was neu dazukommt. Poyo nennt kein Land.
+ */
+async function laenderSammeln(alleKurz) {
+  const d = (await abgelegt('scrims/_laender.json')) ?? { sitzungen: [], konten: {} };
+  const gezaehlt = new Set(d.sitzungen ?? []);
+  d.konten ??= {};
+  const offen = alleKurz.filter((k) => k.quelle === 'noble' && !k.nichtDa && !gezaehlt.has(k.id));
+  const dateien = [...new Set(offen.map((k) => `scrims/${k.tag}/noble-${k.guildId}.json`))];
+  let neu = 0;
+  for (const name of dateien) {
+    const datei = await abgelegt(name);
+    for (const s of datei?.sitzungen ?? []) {
+      if (gezaehlt.has(s.id) || s.nichtDa) continue;
+      gezaehlt.add(s.id); neu += 1;
+      for (const t of s.teams ?? []) for (const p of t.s ?? []) {
+        const id = String(p[1] ?? '').replace(/-/g, '').toLowerCase();
+        const land = String(p[2] ?? '').toUpperCase();
+        if (!/^[0-9a-f]{32}$/.test(id) || !/^[A-Z]{2}$/.test(land)) continue;
+        const k = (d.konten[id] ??= {});
+        k[land] = (k[land] ?? 0) + 1;
+      }
+    }
+  }
+  if (!neu && d.stand) return;
+  schreib('scrims/_laender.json', { stand: Date.now(), sitzungen: [...gezaehlt], konten: d.konten });
+  console.log(`Laender: ${neu} Sessions neu gezaehlt, ${Object.keys(d.konten).length} Konten mit Land.`);
+}
+
 /* ---------------------------------------------------------------- Lauf */
 
 async function main() {
@@ -317,6 +350,7 @@ async function main() {
     stand: Date.now(), server,
     sitzungen: [...kurz.values()].sort((a, b) => b.beginn - a.beginn),
   });
+  await laenderSammeln([...kurz.values()]);
   console.log(`Fertig: ${gesamt} Sessions im Fenster, ${neu} neu, ${fehlen} gibt die Quelle gerade nicht heraus.`);
 
   if (mitHeute) await poyoHeute(server.filter((sv) => sv.quelle === 'poyo'));

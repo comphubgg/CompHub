@@ -377,6 +377,13 @@ jobs:
         timeout-minutes: 6
         run: node scripts/power-rankings-holen.mjs 2>&1 | tail -8
 
+      # Die Flagge, die jeder Spieler in Fortnite gewaehlt hat (Epics playerFlagTokens), aus der Weltrangliste und den Bestenlisten der juengsten
+      # Spieltage - power-rankings/spiel-flaggen.json, Quelle "spiel" fuer Posts, Profile und Statistik (16.11.2026). Geht mit der Weltrangliste ans Release.
+      - name: Spiel-Flaggen sammeln
+        continue-on-error: true
+        timeout-minutes: 7
+        run: node scripts/spiel-flaggen.mjs --minuten 4 2>&1 | tail -15
+
       # Die Weltrangliste sofort ans Release: die Seite zeigte am 19.10.2026 den Stand vom 11.10. ("seit neun Tagen nicht aktualisiert"), weil sie erst am Ende des Laufs
       # hochkam. Eine einzige Datei - dieser Schritt dauert Sekunden.
       - name: Weltrangliste ans Release

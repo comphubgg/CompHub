@@ -13,6 +13,8 @@ import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
 import { istZeroBuild } from '@/lib/zeroBuild';
 import { feldNachLand } from '@/lib/turnierLeader';
+import { landQuellen } from '@/lib/landQuellen';
+import { landPasst } from '@/lib/spielerFlagge.mjs';
 
 /** Zeit im Sturm: alte Auswertungen hatten bei abgebrochenen Aufnahmen 1,8e308 Sekunden - so ein Wert zaehlt nicht (7.11.2026). */
 const sturmOk = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? v : 0);
@@ -226,8 +228,11 @@ async function namen(): Promise<Map<string, string>> {
   return karte;
 }
 
-/** Die Laender aus den gepflegten Profilen - fuer die Flagge in der Liste. */
-async function laender(): Promise<Map<string, string>> {
+/**
+ * Die Laender aus den gepflegten Profilen - fuer die Flagge in der Liste. Ohne Profil-Land (16.11.2026) als Rueckfall die Flagge, die der Spieler in Fortnite
+ * gewaehlt hat (Epics playerFlagTokens, lib/landQuellen "spiel") - nur, wenn sie zur Region des Spieltags passt. Das Profil geht immer vor.
+ */
+async function laender(region = ''): Promise<Map<string, string>> {
   const karte = new Map<string, string>();
   try {
     const roh = JSON.parse(await fs.readFile(
@@ -238,6 +243,13 @@ async function laender(): Promise<Map<string, string>> {
       if (id && pr.land) karte.set(id, pr.land);
     }
   } catch { /* noch keine Profile */ }
+  try {
+    for (const [id, land] of Object.entries((await landQuellen()).spiel)) {
+      const code = /^(en|sco|wal|nir)$/.test(land) ? 'GB' : land.toUpperCase();
+      if (karte.has(id) || !/^[A-Z]{2}$/.test(code) || (region && !landPasst(code, region))) continue;
+      karte.set(id, code);
+    }
+  } catch { /* ohne Spiel-Flaggen nur die Profile */ }
   return karte;
 }
 
@@ -369,7 +381,7 @@ async function holeRoh(request: Request) {
    * gibt, gehen sie vor, die Knocks kommen aus den Replays dazu. Sonst die
    * Replays allein (Kills, Knocks, Tode).
    */
-  const [anzeige, land] = await Promise.all([namen(), laender()]);
+  const [anzeige, land] = await Promise.all([namen(), laender(fenster)]);
   const repRoh = tage.length === 1 && saison ? await replayTag(saison, fenster) : (tageWunsch.length > 1 && saison ? await replayTage(saison, tageWunsch) : null);
   /*
    * Tode im Solo ohne Reload: die Replays zaehlen nur Tode durch Gegner - Sturm und Fall fehlen. Im Solo stirbt aber jeder in jedem Spiel,

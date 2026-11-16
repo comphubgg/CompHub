@@ -2,6 +2,7 @@ import { liesJson } from '@/lib/ablage';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { holeSeite, holeMarken } from '@/lib/epicCups';
 import { profilKarte, type KatalogCup } from '@/lib/ergebnisPosts';
+import { flaggeOderRegion, landWaehlen } from '@/lib/spielerFlagge.mjs';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import type { TagesPost } from '@/lib/tagesposts';
 
@@ -29,8 +30,8 @@ export interface HeatsDaten {
   quelle: string; ausMarken: boolean;
 }
 
-const flagge = (land?: string | null) => (land && /^[A-Za-z]{2}$/.test(land)
-  ? [...land.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('') : '');
+// Jeder Name mit Flagge (16.11.2026, lib/spielerFlagge.mjs): ohne bekanntes Land das Zeichen der Region.
+const flagge = (land: string | null | undefined, region: string) => flaggeOderRegion(land ?? '', region);
 
 export const heatTag = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Berlin' });
 
@@ -109,7 +110,8 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
       const pr = karte.profile.get(id.toLowerCase()); const sz = karte.szene.get(id.toLowerCase());
       const name = ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || k.name)).trim() || k.name;
       const liste = heats.get(t) ?? [];
-      liste.push({ id, name, land: pr?.land || sz?.land || '', x: pr?.x?.replace(/^@/, '') || undefined, rang: k.rang, punkte: k.punkte });
+      const land = landWaehlen({ profil: pr?.land, szene: sz?.land, spiel: karte.quellen?.spiel[id.toLowerCase()], noble: karte.quellen?.noble[id.toLowerCase()] }, region)?.land ?? '';
+      liste.push({ id, name, land, x: pr?.x?.replace(/^@/, '') || undefined, rang: k.rang, punkte: k.punkte });
       heats.set(t, liste);
     }
     const gefunden = [...heats.values()].reduce((a, l) => a + l.length, 0);
@@ -133,7 +135,7 @@ export async function heatsPostsFinden(region = 'EU'): Promise<TagesPost[]> {
   for (const d of await heatsDaten(region).catch(() => [])) {
     const schluessel = `heats:${d.eventId}`;
     if (benutzt.has(schluessel)) continue;
-    const wer = (s: HeatSpieler) => `${flagge(s.land)} ${s.x ? `@${s.x}` : s.name.toUpperCase()}`.trim();
+    const wer = (s: HeatSpieler) => `${flagge(s.land, d.region)} ${s.x ? `@${s.x}` : s.name.toUpperCase()}`.trim();
     const zeilen = d.heats.map((h) => `Heat ${h.nr} · ${heatTag(h.begin)} (${h.spieler.length} players)\n${h.spieler.slice(0, 3).map(wer).join(', ')}${h.spieler.length > 3 ? ' & more' : ''}`);
     neu.push({
       nr: 0, art: 'cup', schluessel, titel: `Heats: ${d.titel} (${d.region})`,

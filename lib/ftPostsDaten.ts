@@ -5,6 +5,7 @@ import { liesClutch, liesClutchJe } from '@/lib/clutchLive';
 import { istZeroBuild } from '@/lib/zeroBuild';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { JE_SPALTEN, jeLesen } from '@/lib/jeSpiel.mjs';
+import { landQuellen } from '@/lib/landQuellen';
 import { ftKonten, ftPosts, ftStandings, type FtBildSpieler, type FtClutch, type FtErgebnis, type FtJeZeile, type FtKandidat, type FtPost, type FtTeam } from '@/lib/ftPosts';
 
 /*
@@ -25,7 +26,7 @@ const SEITE = 'https://www.thecomphub.com';
 /** Die alten Zeilen ohne "je" in der Datei (bis 7.11.2026, nur kleine Spieltage) - Elims stehen auch dort an erster Stelle. */
 const ALTE_SPALTEN = ['killsEcht', 'dmg', 'erlitten', 'heilHp', 'schildHeilEcht', 'krit', 'treffer', 'schussEcht', 'matsAlt'];
 
-interface LbEintrag { rank: number; points?: number; wins?: number; elims?: number; games?: number; matches?: unknown[]; players?: Array<{ id?: string; name?: string; anzeige?: string }> }
+interface LbEintrag { rank: number; points?: number; wins?: number; elims?: number; games?: number; matches?: unknown[]; players?: Array<{ id?: string; name?: string; anzeige?: string; spielLand?: string }> }
 
 /** Alle Teams des Spieltags: erst der ganze Vorrat, sonst die ersten 2.000 Plaetze. */
 const lbFrage = async (eventId: string, windowId: string, zusatz: string) => {
@@ -35,10 +36,16 @@ const lbFrage = async (eventId: string, windowId: string, zusatz: string) => {
   return { entries: j.entries ?? [], updated: j.updated };
 };
 
+/** Die Flagge aus Fortnite je Konto, wie Epics Bestenliste sie fuehrt (lib/epicCups, spielLand) - geht der gesammelten Datei vor (sie ist frischer). */
+const spielLaender: Record<string, string> = {};
+
 function teamsVon(eintraege: LbEintrag[], namen: Record<string, string>): FtTeam[] {
   return eintraege.map((e) => {
     const ids = (e.players ?? []).map((p) => String(p.id ?? '').toLowerCase()).filter(Boolean);
-    for (const p of e.players ?? []) { const id = String(p.id ?? '').toLowerCase(); const n = p.anzeige || p.name; if (id && n) namen[id] = n; }
+    for (const p of e.players ?? []) {
+      const id = String(p.id ?? '').toLowerCase(); const n = p.anzeige || p.name; if (id && n) namen[id] = n;
+      if (id && p.spielLand) spielLaender[id] = p.spielLand;
+    }
     return { ids, rang: e.rank, punkte: e.points ?? 0, siege: e.wins ?? 0, elims: e.elims ?? 0, spiele: e.games ?? e.matches?.length ?? 0 };
   }).filter((t) => t.ids.length);
 }
@@ -151,6 +158,12 @@ export async function ftPostsFuer(eventId: string, windowId: string, titel: stri
     liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
   ]);
   const konten = ftKonten(profile, liste, streamer, namen);
+  // Jeder Name bekommt eine Flagge (16.11.2026): nach Profil und Szene-Liste die Flagge aus Fortnite, dann Noble, sonst das Zeichen der Region.
+  const quellen = await landQuellen().catch(() => null);
+  konten.spiel = { ...(quellen?.spiel ?? {}) };
+  konten.noble = quellen?.noble ?? {};
+  konten.region = windowId;
+  const spielDazu = () => { Object.assign(konten.spiel!, spielLaender); };
   // Konto-Id -> Foto aus dem gepflegten Verzeichnis, nur echte Fotos (lib/epicCups, bilderNachKonto).
   const nachKonto = new Map<string, string>();
   for (const b of Array.isArray(bildListe) ? bildListe : []) if (b?.epicId && b.datei && b.echtesFoto) nachKonto.set(String(b.epicId).toLowerCase(), String(b.datei));
@@ -162,6 +175,7 @@ export async function ftPostsFuer(eventId: string, windowId: string, titel: stri
   const standings = async (alle: FtTeam[]) => {
     const spitze = await spitzeAus(eventId, windowId, quelle === 'epic');
     lbNamen(spitze.namen);
+    spielDazu();
     // Teams jenseits der ersten 100 nur fuer "Most Wins" (ohne Platz in der Liste, darum Rang unendlich).
     const frisch = new Set(spitze.teams.map((t) => [...t.ids].sort().join('+')));
     const rest = alle.filter((t) => !frisch.has([...t.ids].sort().join('+'))).map((t) => ({ ...t, rang: Infinity }));
@@ -195,6 +209,7 @@ export async function ftPostsFuer(eventId: string, windowId: string, titel: stri
 
   const lb = await teamsAus(eventId, windowId).catch(() => ({ teams: [] as FtTeam[], namen: {} as Record<string, string> }));
   lbNamen(lb.namen);
+  spielDazu();
   const s = await standings(lb.teams).catch(() => ({ post: null, updated: undefined, zahl: 0 }));
 
   if (fehlt || !clutch) {

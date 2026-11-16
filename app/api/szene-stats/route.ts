@@ -17,6 +17,8 @@ import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
+import { landQuellen } from '@/lib/landQuellen';
+import { landPasst } from '@/lib/spielerFlagge.mjs';
 import { liesClutch } from '@/lib/clutchLive';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 import { spielerbildKlein, spielerbildGross, standAnhaengen } from '@/lib/spielerbildKlein';
@@ -100,21 +102,38 @@ let profileStand = -1;
  * schlaegt sie immer. Von 106 Faellen, in denen beide ein Land fuehren,
  * stimmten 102 ueberein - die vier Abweichungen entscheidet der Nutzer.
  */
-let szeneSpieler: Map<string, { name: string; land: string }> | null = null;
+/*
+ * landQuelle (16.11.2026): woher das Land stammt. Fehlt es in der Szene-Liste, springt die Flagge ein, die der Spieler in Fortnite gewaehlt hat (Epics
+ * playerFlagTokens, lib/landQuellen "spiel") - nur als Rueckfall: ein gepflegtes Profil geht an jeder Stelle vor (pr?.land || sz?.land), die Szene-Liste
+ * auch. Passt sie nicht zur Heimatregion des Kontos (BR bei einem reinen EU-Spieler), bleibt sie weg. Konten nur mit Spiel-Flagge stehen ohne Namen da.
+ */
+let szeneSpieler: Map<string, { name: string; land: string; landQuelle?: 'szene' | 'spiel' }> | null = null;
 let szeneBis = 0;
 
 async function liesSzeneSpieler() {
   if (szeneSpieler && Date.now() < szeneBis) return szeneSpieler;
-  const karte = new Map<string, { name: string; land: string }>();
+  const karte = new Map<string, { name: string; land: string; landQuelle?: 'szene' | 'spiel' }>();
   try {
     const roh = JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
       Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
     for (const p of roh) {
       if (!p.ID || !p.NAME || istKennungName(p.NAME, p.ID)) continue;
-      karte.set(p.ID, { name: p.NAME, land: (p.COUNTRY || '').toUpperCase() });
+      const land = (p.COUNTRY || '').toUpperCase();
+      karte.set(p.ID, { name: p.NAME, land, ...(land ? { landQuelle: 'szene' as const } : {}) });
     }
   } catch { /* keine Kopie da */ }
+  try {
+    const [q, heimat] = await Promise.all([landQuellen(), heimatRegionen().catch(() => new Map<string, string>())]);
+    for (const [id, land] of Object.entries(q.spiel)) {
+      // Nur echte Laenderkuerzel (England & Co. als GB) - die Flaggen der Seite kennen nur zwei Buchstaben.
+      const code = /^(en|sco|wal|nir)$/.test(land) ? 'GB' : land.toUpperCase();
+      if (!/^[A-Z]{2}$/.test(code) || !landPasst(code, heimat.get(id) ?? '')) continue;
+      const da = karte.get(id);
+      if (da?.land) continue;
+      karte.set(id, { name: da?.name ?? '', land: code, landQuelle: 'spiel' });
+    }
+  } catch { /* ohne Spiel-Flaggen bleibt es bei der Szene-Liste */ }
   szeneSpieler = karte;
   szeneBis = Date.now() + 5 * 60_000;
   return karte;
@@ -1675,7 +1694,7 @@ async function berechne(request: Request) {
       const szeneNamen = await liesSzeneSpieler();
       const grundlage = eintrag ?? (epicZeilen.length ? {
         epicId: spieler,
-        name: szeneNamen.get(spieler)?.name ?? (await kreisKarte()).get(spieler)?.name ?? (await aktuelleNamen())[spieler] ?? spieler.slice(0, 8),
+        name: szeneNamen.get(spieler)?.name || (await kreisKarte()).get(spieler)?.name || (await aktuelleNamen())[spieler] || spieler.slice(0, 8),
         namen: [] as string[],
         regionen: [...new Set(epicZeilen.map((z) => z.region).filter(Boolean))],
         events: epicZeilen.length,

@@ -4,7 +4,7 @@
  * unter 280 Zeichen, wie X sie zaehlt (tweetLaenge): Listen werden von hinten gekuerzt, bis sie passen.
  *
  * Nur das Bauen der Texte - ohne Datei- oder Netzzugriff, damit dieselbe Regel in der Seite (lib/ftPostsDaten.ts, /api/admin/ft-posts) und im
- * Kommandozeilen-Werkzeug (scripts/ft-posts.mjs, mit node --experimental-strip-types) gilt. Deshalb hier keine "@/"-Importe und nur reine Typen.
+ * Kommandozeilen-Werkzeug (scripts/ft-posts.mjs, mit node --experimental-strip-types) gilt. Deshalb hier keine "@/"-Importe, nur reine Typen und die ebenso reine Flaggen-Regel (./spielerFlagge.mjs).
  *
  * Woher die Werte kommen (clutch/<Fenster>.json, scripts/clutch-berechnen.mjs, lib/vollSchaden.mjs) - dieselben Regeln wie die Statistikseite
  * (app/api/cup-spieler, app/api/spieler-detail):
@@ -16,11 +16,15 @@
  *   - Strecke: epicStrecke (Meter, von Epic) vor strecke ([Fuss, Luft] aus Positionsproben, ohne Epic-Werte auf 68,5 % hochgerechnet und als "est." markiert).
  *   - Bestes Spiel: die meisten killsEcht in einem Match (Zeilen aus clutch-je), bei Gleichstand der Schaden dieses Matches.
  *   - Sieger, Siege und Elims je Team: Epics Bestenliste des Spieltags.
- *   - Flagge und @-Konto: spieler-profile.json (id -> x / land), Land ersatzweise aus szene-quelle/spielerliste.json.
+ *   - Flagge (16.11.2026: jeder Name hat eine - lib/spielerFlagge.mjs): spieler-profile.json (land), dann szene-quelle/spielerliste.json, dann die Flagge, die der
+ *     Spieler in Fortnite gewaehlt hat (Epics playerFlagTokens, "spiel"), dann Noble - eine automatische Quelle, die der Region widerspricht, wird uebersprungen
+ *     und gemeldet. Ohne Land das Zeichen der Region (🇪🇺, 🌎, 🌏, 🌍). @-Konto aus spieler-profile.json (x).
  *   - Immer @X-Konto, sonst der Name - nie twitch.tv (das gehoert nur in den Live-Post der Streamer).
  * Quoten (Damage Ratio, Kills/Match) und die Summen, die mit der Zahl der Spiele wachsen (Zeit am Leben), nur ab der Mindestzahl Spiele.
  * Fehlt ein Wert fuer alle (z. B. kein Inventar gelesen), entfaellt der Post - es wird nichts geschaetzt, was nicht als Schaetzung dasteht.
  */
+
+import { flaggeOderRegion, flaggeZeichen, landWaehlen, regionVon } from './spielerFlagge.mjs';
 
 export type FtJeZeile = Array<string | number | null>;
 
@@ -58,10 +62,17 @@ export interface FtTeam { ids: string[]; siege: number; spiele: number; elims: n
 /** Wie ein Spieler im Text erscheint - alle Schluessel klein geschrieben. */
 export interface FtKonten {
   x: Record<string, string>;
+  /** Das Land aus unseren Profilen (spieler-profile.json) - gilt immer zuerst. */
   land: Record<string, string>;
   twitch: Record<string, string>;
   /** Der Name, wenn es weder @ noch Twitch gibt. */
   namen: Record<string, string>;
+  /** Weitere Quellen fuers Land, in dieser Reihenfolge nach dem Profil (lib/spielerFlagge.mjs): Szene-Liste, Fortnite-Flagge (Epic), Noble. */
+  szene?: Record<string, string>;
+  spiel?: Record<string, string>;
+  noble?: Record<string, string>;
+  /** Die Wettkampfregion (Fenster-Id oder "EU") - prueft die automatischen Quellen und gibt das Zeichen, wenn kein Land bekannt ist. */
+  region?: string;
 }
 
 export interface FtEingabe {
@@ -103,10 +114,30 @@ export interface FtErgebnis {
 /** Ein Foto fuer das Bild unter einem Post (lib/ftBild.ts): Datei in public/spielerbilder, Gesicht [x, y, Breite] als Anteile (_gesichter.json). */
 export interface FtBildSpieler extends FtKandidat { datei: string; gesicht: [number, number, number] | null }
 
-export const ftFlagge = (c?: string | null): string => {
-  const k = (c ?? '').trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(k) ? String.fromCodePoint(...[...k].map((b) => 0x1f1a5 + b.charCodeAt(0))) : '';
-};
+export const ftFlagge = (c?: string | null): string => flaggeZeichen(c);
+
+/** Gemeldet wird je Spieler, Quelle und Land nur einmal je Prozess. */
+const gemeldet = new Set<string>();
+
+/**
+ * Das Land eines Spielers nach der festen Reihenfolge (Profil, Szene-Liste, Spiel, Noble) - mit der Quelle, oder null.
+ * Eine automatische Angabe, die der Region widerspricht, wird uebersprungen und einmal gemeldet (console.warn).
+ */
+export function ftLand(k: FtKonten, id: string): { land: string; quelle: string } | null {
+  const i = id.toLowerCase();
+  return landWaehlen({ profil: k.land[i], szene: k.szene?.[i], spiel: k.spiel?.[i], noble: k.noble?.[i] }, k.region ?? '', (quelle: string, land: string) => {
+    const s = `${i}|${quelle}|${land}|${k.region}`;
+    if (gemeldet.has(s)) return;
+    gemeldet.add(s);
+    if (gemeldet.size > 5000) gemeldet.clear();
+    console.warn(`[flagge] ${k.namen[i] ?? i}: ${land} aus "${quelle}" passt nicht zu ${regionVon(k.region) || k.region} - uebersprungen`);
+  });
+}
+
+/** Die Flagge vor dem Namen: das Land nach ftLand, sonst das Zeichen der Region - so hat jeder Name im Post eines. */
+export function ftFlaggeFuer(k: FtKonten, id: string): string {
+  return flaggeOderRegion(ftLand(k, id)?.land ?? '', k.region ?? '');
+}
 
 const ohneAt = (s: string) => s.trim().replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//i, '').replace(/^@/, '').replace(/[/?].*$/, '');
 const ohneTwitch = (s: string) => s.trim().replace(/^https?:\/\/(www\.)?twitch\.tv\//i, '').replace(/[/?].*$/, '');
@@ -127,7 +158,7 @@ export function ftKonten(
   streamer: { streamers?: Record<string, StreamerRoh[] | undefined> } | null | undefined,
   namen?: Record<string, { haupt?: string } | undefined> | null,
 ): FtKonten {
-  const k: FtKonten = { x: {}, land: {}, twitch: {}, namen: {} };
+  const k: FtKonten = { x: {}, land: {}, twitch: {}, namen: {}, szene: {} };
   const kanaele = new Set<string>();
   const xZuTwitch = new Map<string, string>();
   for (const l of Object.values(streamer?.streamers ?? {})) {
@@ -155,7 +186,7 @@ export function ftKonten(
   }
   for (const r of liste ?? []) {
     const id = String(r?.ID ?? '').toLowerCase();
-    if (id && r.COUNTRY && !k.land[id]) k.land[id] = r.COUNTRY;
+    if (id && r.COUNTRY) k.szene![id] = r.COUNTRY;
   }
   // Der gepflegte Hauptname geht vor dem Anzeigenamen aus dem Profil (wie bisher im Werkzeug).
   for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt) k.namen[id.toLowerCase()] = n.haupt;
@@ -198,9 +229,13 @@ function schreibweise(k: FtKonten, ersatzNamen?: Record<string, string>) {
     if (k.x[i]) return `@${k.x[i]}`;
     return name(id);
   };
-  const wer = (id: string) => [ftFlagge(k.land[klein(id)]), konto(id)].filter(Boolean).join(' ');
+  const wer = (id: string) => [ftFlaggeFuer(k, id), konto(id)].filter(Boolean).join(' ');
   const team = (ids: string[]) => ids.map(wer).join(' + ');
-  const kandidat = (id: string): FtKandidat => ({ id: klein(id), name: name(id), land: k.land[klein(id)]?.toLowerCase() ?? null });
+  // Fuers Bild nur echte Laender (zwei Buchstaben; England & Co. als gb) - das Regionszeichen gibt es dort nicht.
+  const kandidat = (id: string): FtKandidat => {
+    const l = ftLand(k, id)?.land ?? '';
+    return { id: klein(id), name: name(id), land: l ? (/^(en|sco|wal|nir)$/.test(l) ? 'gb' : l.toLowerCase()) : null };
+  };
   return { klein, name, wer, team, kandidat };
 }
 
@@ -252,7 +287,8 @@ export function ftStandings(e: { titel: string; teams: FtTeam[]; konten: FtKonte
 /** Alle Posts des Spieltags. Posts ohne Daten fehlen in der Liste. */
 export function ftPosts(e: FtEingabe): FtErgebnis {
   const d = e.clutch ?? {};
-  const { klein, wer, team, kandidat } = schreibweise(e.konten, d.namen);
+  // Ohne angegebene Region gilt die des Spieltags (Fenster-Id) - fuer die Pruefung der Flaggen und das Zeichen ohne Land.
+  const { klein, wer, team, kandidat } = schreibweise(e.konten.region ? e.konten : { ...e.konten, region: e.fenster }, d.namen);
 
   const spalte = (n: string) => 1 + e.spalten.indexOf(n);
   const ki = spalte('killsEcht');
@@ -417,7 +453,8 @@ export function tweetLaenge(text: string): number {
  * Genau im Format seiner eigenen Posts (X Premium, ohne 280-Grenze):
  *   Qualifier/Heat:  "🏆 <Cup> <Region> – Qualified for the <naechste Stufe> ✅", die Sieger (sofort weiter), dann die ueber Punkte, die Grenze und unsere Vorab-Prognose.
  *   sonst:           "🏆 <Cup> <Region> – Results", die ersten zehn.
- * Flagge nur aus dem Profil (konten.land - der Aufrufer gibt nur die Profil-Laender), @X-Konto aus dem Profil, sonst der Name (konten.namen) - nie twitch.tv.
+ * Flagge wie in allen Posts (ftFlaggeFuer: Profil, Szene-Liste, Spiel, Noble, sonst das Zeichen der Region), @X-Konto aus dem Profil, sonst der Name
+ * (konten.namen) - nie twitch.tv.
  * Fuss immer "Full results 👉 thecomphub.com".
  */
 export interface FtErgebnisEingabe {
@@ -440,7 +477,7 @@ export interface FtErgebnisEingabe {
 export const FT_FUSS = 'Full results 👉 thecomphub.com';
 
 export function ftErgebnisPost(e: FtErgebnisEingabe): FtPost | null {
-  const { team, kandidat } = schreibweise(e.konten);
+  const { team, kandidat } = schreibweise(e.konten.region ? e.konten : { ...e.konten, region: e.region });
   const teams = e.teams.filter((t) => t.ids?.length && Number.isFinite(t.rang)).sort((a, b) => (a.rang as number) - (b.rang as number));
   if (teams.length < 3) return null;
   const pts = (t: FtTeam) => `${Math.round(t.punkte ?? 0)} pts`;

@@ -21,7 +21,7 @@ import { GET as szeneAbruf } from '@/app/api/szene-stats/route';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { POST as echteNamenAbruf } from '@/app/api/echte-namen/route';
-import { finale as istFinaleFenster, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
+import { finale as istFinaleFenster, fensterName, flaggeAusKarte, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 import { STATS_BEFEHLE, STATS_KANAL, UEBERALL_BEFEHLE, statsAnleitung } from '@/lib/discordVorlagen.mjs';
 import { trennen, verknuepfungVon, verknuepfungMoeglich, verlinkeMarke } from '@/lib/discordEpicKonto';
 import { namensKey, namenVorschlaege, namenVorwaermen, kontoZuName, kontoErgebnisse, kontoSpieltageSofort, bestandVorwaermen, bekannterName, type KontoSuche } from '@/lib/discordSpielerSuche';
@@ -657,13 +657,13 @@ export async function cupAntwort(cupId: string, regionWunsch?: string): Promise<
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, event: f.eventId }),
   }))))?.namen ?? {};
   const karte = await profilKarte().catch(() => null);
-  const land = (id?: string) => {
+  // Wie in allen Posts (16.11.2026): jeder Name mit Flagge - Profil, Szene-Liste, Fortnite-Flagge, Noble, sonst das Zeichen der Region.
+  const land = (id?: string, spielLand?: string) => {
     if (!id || !karte) return '';
-    const k = id.toLowerCase();
-    return flagge(karte.profile.get(k)?.land || karte.szene.get(k)?.land);
+    return flaggeAusKarte(karte, id, region, spielLand);
   };
   const zeilen = zehn.map((e) => {
-    const namen = (e.players ?? []).map((x) => `${land(x.id)} ${(x.id && echt[x.id]) || x.name}`.trim()).join(' + ');
+    const namen = (e.players ?? []).map((x) => `${land(x.id, (x as { spielLand?: string }).spielLand)} ${(x.id && echt[x.id]) || x.name}`.trim()).join(' + ');
     const teile = [`${zahl(e.points)} pts`];
     if (e.wins) teile.push(`${e.wins} ${e.wins === 1 ? 'win' : 'wins'}`);
     if (typeof e.elims === 'number') teile.push(`${e.elims} elims`);

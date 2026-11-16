@@ -7,6 +7,8 @@ import { heuteDatum, type Tagesplan, type TagesPost } from '@/lib/tagesposts';
 import { titelMit } from '@/lib/cupTitel';
 import { zonenTage } from '@/lib/zonenBild';
 import { kumulativeTage, tagNummer } from '@/lib/kumulativ';
+import { landQuellen, type LandQuellen } from '@/lib/landQuellen';
+import { ftFlaggeFuer, type FtKonten } from '@/lib/ftPosts';
 
 /*
  * Der Post zu jedem gelaufenen Cup (Betreiber, 19.10.2026): "immer nach einem Cup automatisch die Top 10 mit Profilbildern, fuer Twitter direkt fertig - und die
@@ -14,7 +16,8 @@ import { kumulativeTage, tagNummer } from '@/lib/kumulativ';
  * den Post an: der Text im Stil seiner eigenen Beitraege (Medaille, Flaggen, @-Konten, Punkte), dazu das Fotomosaik der Besten (/api/beitrag-bild).
  *
  * Was in den Post kommt, kommt aus der Bestenliste des Spieltags und aus den gepflegten Profilen (X-Konto, Land). Wer kein @-Konto hat, steht mit seinem
- * Namen da - nichts wird geraten. Jeder Spieltag bekommt nur einen Post (Schluessel "ergebnis:<windowId>" in posts-verlauf.json).
+ * Namen da - nichts wird geraten. Die Flagge wie in allen Posts (lib/ftPosts ftFlaggeFuer, 16.11.2026): Profil, Szene-Liste, die Flagge aus Fortnite, Noble -
+ * sonst das Zeichen der Region, damit jeder Name eine hat. Jeder Spieltag bekommt nur einen Post (Schluessel "ergebnis:<windowId>" in posts-verlauf.json).
  */
 
 const SEITE = 'https://www.thecomphub.com';
@@ -23,7 +26,7 @@ const EU = 'EU';
 
 export interface KatalogFenster { windowId: string; eventId: string; status?: string; end?: number; istFinale?: boolean }
 export interface KatalogCup { id: string; titel: string; art: string; global?: boolean; regionen?: Record<string, KatalogFenster[]> }
-interface Eintrag { rank: number; points: number; wins?: number; elims?: number; players?: Array<{ id?: string; name: string }> }
+interface Eintrag { rank: number; points: number; wins?: number; elims?: number; players?: Array<{ id?: string; name: string; spielLand?: string }> }
 
 export interface Profil { x?: string; land?: string; anzeige?: string; name?: string; /** Wie die Stimme im TikTok-Video den Namen spricht (lib/aussprache), vom Betreiber eingetragen. */ aussprache?: string }
 
@@ -48,12 +51,9 @@ export function fensterName(windowId: string, istFinale: boolean): string {
 
 const heuteDatumKurz = (ms?: number) => { const d = new Date(ms ?? Date.now()); return `${d.getUTCDate()} ${['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
 
-const flagge = (land?: string | null) => (land && /^[A-Za-z]{2}$/.test(land)
-  ? [...land.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('') : '');
-
 const PLATZ = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
-export async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map<string, { name: string; land: string }> }> {
+export async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map<string, { name: string; land: string }>; quellen: LandQuellen | null }> {
   const profile = new Map<string, Profil>();
   try {
     const roh = await liesJson<Record<string, Profil & { id?: string; epicId?: string }> | Array<Profil & { id?: string; epicId?: string }>>('spieler-profile.json', {});
@@ -65,7 +65,22 @@ export async function profilKarte(): Promise<{ profile: Map<string, Profil>; sze
     const roh = await liesJson<Array<{ ID?: string; NAME?: string; COUNTRY?: string }>>('szene-quelle/spielerliste.json', []);
     for (const p of roh) if (p.ID && p.NAME && !istKennungName(p.NAME, p.ID)) szene.set(p.ID.toLowerCase(), { name: p.NAME, land: p.COUNTRY ?? '' });
   } catch { /* keine Kopie */ }
-  return { profile, szene };
+  const quellen = await landQuellen().catch(() => null);
+  return { profile, szene, quellen };
+}
+
+/** Die Flagge eines Spielers im Post: Profil, Szene-Liste, Fortnite-Flagge (Bestenliste oder gesammelt), Noble, sonst das Zeichen der Region. */
+export function flaggeAusKarte(karte: Awaited<ReturnType<typeof profilKarte>>, id: string, region: string, spielLand?: string, name?: string): string {
+  const k = id.toLowerCase();
+  const konten: FtKonten = {
+    x: {}, twitch: {}, namen: name ? { [k]: name } : {},
+    land: { [k]: karte.profile.get(k)?.land ?? '' },
+    szene: { [k]: karte.szene.get(k)?.land ?? '' },
+    spiel: { [k]: spielLand || karte.quellen?.spiel[k] || '' },
+    noble: { [k]: karte.quellen?.noble[k] ?? '' },
+    region,
+  };
+  return ftFlaggeFuer(konten, k);
 }
 
 /** Die zehn ersten Teams eines Spieltags als fertiger Post - oder null, wenn die Bestenliste noch nicht steht. */
@@ -78,12 +93,11 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
   } catch { return null; }
   if (eintraege.length < 3) return null;
 
-  const spielerZeile = (p: { id?: string; name: string }) => {
+  const spielerZeile = (p: { id?: string; name: string; spielLand?: string }) => {
     const id = (p.id ?? '').toLowerCase();
     const pr = karte.profile.get(id); const sz = karte.szene.get(id);
-    const land = pr?.land || sz?.land || '';
     const name = ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name;
-    return `${flagge(land)} ${pr?.x ? `@${pr.x.replace(/^@/, '')}` : name.toUpperCase()}`.trim();
+    return `${flaggeAusKarte(karte, id, region, p.spielLand, name)} ${pr?.x ? `@${pr.x.replace(/^@/, '')}` : name.toUpperCase()}`.trim();
   };
   const zeilen = eintraege.map((e, i) => `${PLATZ[i]} ${(e.players ?? []).map(spielerZeile).join(' + ')} ${e.points} pts`);
 

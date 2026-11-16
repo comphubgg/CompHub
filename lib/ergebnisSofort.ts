@@ -5,6 +5,7 @@ import { GET as qualiAbruf } from '@/app/api/qualifikation/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { titelMit, zielName, stufeKurz } from '@/lib/cupTitel';
 import { finale } from '@/lib/ergebnisPosts';
+import { landQuellen } from '@/lib/landQuellen';
 import { ftErgebnisPost, type FtKonten, type FtTeam, type FtPost } from '@/lib/ftPosts';
 import { ftBilderFuer } from '@/lib/ftPostsDaten';
 import type { FtBildSpieler } from '@/lib/ftPosts';
@@ -78,7 +79,10 @@ export async function sofortVermerken(schluessel: string, grund: string, text?: 
   await schreibJson(DATEI, s);
 }
 
-/** Konten fuer den Post: @X, Land und Anzeigename NUR aus spieler-profile.json (Betreiber: Flaggen nur aus unseren Profilen), sonst der bereinigte Name. */
+/**
+ * Konten fuer den Post: @X und Anzeigename aus spieler-profile.json, sonst der bereinigte Name. Das Land (16.11.2026, "jeder Spieler soll eine Flagge haben"):
+ * Profil, Szene-Liste, die Flagge aus Fortnite, Noble (lib/landQuellen, Reihenfolge in lib/spielerFlagge.mjs) - ohne Land das Zeichen der Region.
+ */
 async function kontenLaden(): Promise<FtKonten> {
   const [profile, namen] = await Promise.all([
     liesJson<Record<string, { id?: string; epicId?: string; x?: string; land?: string; anzeige?: string }> | Array<{ id?: string; epicId?: string; x?: string; land?: string; anzeige?: string }>>('spieler-profile.json', {}).catch(() => ({})),
@@ -95,6 +99,8 @@ async function kontenLaden(): Promise<FtKonten> {
     if (p.anzeige) k.namen[id] = p.anzeige;
   }
   for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt && !k.namen[id.toLowerCase()]) k.namen[id.toLowerCase()] = n.haupt;
+  const q = await landQuellen().catch(() => null);
+  if (q) { k.szene = q.szene; k.spiel = { ...q.spiel }; k.noble = q.noble; }
   return k;
 }
 
@@ -164,6 +170,9 @@ async function postBauen(cup: SofortCup, region: string, f: SofortFenster, alle:
     for (const p of e.players ?? []) {
       const id = String(p.id ?? '').toLowerCase();
       if (id && !konten.namen[id] && (p.anzeige || p.name)) konten.namen[id] = sauber(String(p.anzeige || p.name));
+      // Die Flagge aus Fortnite, wie Epics Bestenliste sie gerade fuehrt (lib/epicCups) - frischer als die gesammelte.
+      const sl = (p as { spielLand?: string }).spielLand;
+      if (id && sl) (konten.spiel ??= {})[id] = sl;
     }
     return { ids, rang: e.rank, punkte: e.points ?? 0, siege: e.wins ?? 0, elims: e.elims ?? 0, spiele: (e.matches ?? []).length };
   }).filter((t) => t.ids.length);
@@ -171,7 +180,7 @@ async function postBauen(cup: SofortCup, region: string, f: SofortFenster, alle:
   const schwelle = !istFinale && f.qualifiziert ? f.qualifiziert : null;
   const naechste = schwelle ? naechsteStufe(f, alle) : null;
   const name = titelMit(cup.titel, f.windowId, f.playlist);
-  const post: FtPost | null = ftErgebnisPost({ cup: name, region, teams, konten, schwelle, sofortPunkte: f.sofortPunkte ?? null, naechste, prognose });
+  const post: FtPost | null = ftErgebnisPost({ cup: name, region, teams, konten: { ...konten, region }, schwelle, sofortPunkte: f.sofortPunkte ?? null, naechste, prognose });
   if (!post) return null;
   const bild = await ftBilderFuer(post.kandidaten).catch(() => [] as FtBildSpieler[]);
   const medaille = ['🥇', '🥈', '🥉'];

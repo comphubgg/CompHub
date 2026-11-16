@@ -15,6 +15,7 @@ import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 
 import { spielerbildGross } from './spielerbildKlein';
+import { landAusGeoToken } from './spielerFlagge.mjs';
 // Oeffentlich dokumentierter Epic Android-Game-Client. Kein Geheimnis.
 // Der PC-Client faellt raus: der darf keine dauerhafte Geraete-Anmeldung
 // anlegen; der iOS-Client wurde von Epic abgeschaltet.
@@ -53,6 +54,11 @@ export interface CupSpieler {
   /** Der Name, unter dem das Werkzeug den Spieler fuehrt (Profil, Szene-Liste, sonst ohne Orgtag) - nicht der, den er gerade traegt. */
   anzeige?: string;
   land?: string | null;
+  /**
+   * Die Flagge, die der Spieler in Fortnite selbst gewaehlt hat - Epic fuehrt sie je Eintrag als playerFlagTokens ("GroupIdentity_GeoIdentity_germany",
+   * lib/spielerFlagge.mjs). Quelle "spiel": nach Profil und Szene-Liste, vor Noble (16.11.2026).
+   */
+  spielLand?: string;
 }
 
 export interface CupMatch {
@@ -547,6 +553,8 @@ export interface RohEintrag {
   percentile?: number;
   teamId?: string;
   teamAccountIds?: string[];
+  /** Je Konto die Flagge, die der Spieler in Fortnite gewaehlt hat ("GroupIdentity_GeoIdentity_<land>"). */
+  playerFlagTokens?: Record<string, string>;
   /** Epics Aufschluesselung der Punkte: je Stufe "PLACEMENT_STAT_INDEX:12" bzw. "TEAM_ELIMS_STAT_INDEX:1" Punkte und wie oft erreicht. */
   pointBreakdown?: Record<string, { pointsEarned?: number; timesAchieved?: number }>;
   sessionHistory?: Array<{
@@ -660,9 +668,10 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
     punktePlatz: stufen.size ? +punktePlatz.toFixed(2) : undefined,
     punkteElims: elimWert ? +punkteElims.toFixed(2) : undefined,
     matches,
-    players: (e.teamAccountIds ?? []).map((id) => ({
-      id, name: namen[id] || id.slice(0, 8),
-    })),
+    players: (e.teamAccountIds ?? []).map((id) => {
+      const spielLand = landAusGeoToken(e.playerFlagTokens?.[id]);
+      return { id, name: namen[id] || id.slice(0, 8), ...(spielLand ? { spielLand } : {}) };
+    }),
   };
 }
 
