@@ -1,5 +1,7 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
+import { createHash } from 'crypto';
+import { promises as echtesFs } from 'fs';
 import { DATEN_ORT } from './datenOrt';
 import { liesJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
@@ -132,9 +134,51 @@ export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
    * und ein paar Minuten Verzug tun der Saisonliste nichts.
    */
   const tage = await fertigeAntwort(`replays|saison|${season}`,
-    () => aggregateLesen(season), 30 * 60_000);
+    () => aggregateLesen(season), 30 * 60_000, true, undefined, await aggregatStand(season));
   saisonMerker.set(season, { tage, bis: Date.now() + HALTBAR });
   return tage;
+}
+
+/*
+ * Seit wann die Grundlage der Saison-Sammlung so ist, wie sie ist (ms) - oder undefined, wenn das nicht festzustellen ist (dann
+ * gilt die alte Regel). Nur dort, wo die Dateien liegen.
+ *
+ * Gebraucht vom Vorrechnen (lib/antwortSpeicher, grundlageStand): bis zum 16.11.2026 las jeder Stundenlauf die Sammlung jeder Saison
+ * neu - fuer S42 rund vier Gigabyte Aggregate -, auch wenn sich seit dem letzten Lauf keine Datei geaendert hatte. Die Startansicht
+ * von S42 lief damit in jedem Lauf dreimal in die Frist von 900 s oder riss den Server um (Lauf 43839298370, Messlauf 43869136304),
+ * und Teil 2 bekam keine Zeit mehr.
+ *
+ * Nicht die Aenderungszeit allein: scripts/ablage-github-holen.mjs setzt geholte Dateien auf die Zeit des Releases minus einen Tag
+ * zurueck, eine geaenderte Datei kann also aelter aussehen als die abgelegte Antwort. Deshalb ein Fingerabdruck aus Name, Groesse und
+ * Zeit jeder Quelle (Aggregate der Saison, Replay-Uebersicht); aendert er sich, gilt "jetzt" als Stand. Gemerkt unter
+ * data/_vorrechnen-stand/ - der Unterstrich haelt es aus Release und Supabase heraus, der Zwischenspeicher des Laufs nimmt es mit.
+ */
+async function aggregatStand(season: string): Promise<number | undefined> {
+  if (ohneDateien()) return undefined;
+  try {
+    const ordner = path.join(ABLAGE, season);
+    const fenster = (await fs.readdir(ordner)).sort();
+    const teile: string[] = [];
+    for (let i = 0; i < fenster.length; i += 32) {
+      teile.push(...await Promise.all(fenster.slice(i, i + 32).map(async (w) => {
+        try { const st = await fs.stat(path.join(ordner, w, '_aggregat.json')); return `${w}:${st.size}:${Math.round(st.mtimeMs)}`; } catch { return `${w}:-`; }
+      })));
+    }
+    try {
+      const st = await fs.stat(path.join(DATEN_ORT, 'antworten', 'replays_uebersicht.json'));
+      teile.push(`uebersicht:${st.size}:${Math.round(st.mtimeMs)}`);
+    } catch { teile.push('uebersicht:-'); }
+    const abdruck = createHash('sha1').update(teile.join('|')).digest('hex');
+    const merker = path.join(DATEN_ORT, '_vorrechnen-stand', `replays_saison_${season.replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+    try {
+      const da = JSON.parse(await echtesFs.readFile(merker, 'utf8')) as { abdruck?: string; seit?: number };
+      if (da.abdruck === abdruck && typeof da.seit === 'number') return da.seit;
+    } catch { /* noch keiner */ }
+    const seit = Date.now();
+    await echtesFs.mkdir(path.dirname(merker), { recursive: true });
+    await echtesFs.writeFile(merker, JSON.stringify({ abdruck, seit, dateien: teile.length }));
+    return seit;
+  } catch { return undefined; }
 }
 
 async function aggregateLesen(season: string): Promise<AggregatTag[]> {

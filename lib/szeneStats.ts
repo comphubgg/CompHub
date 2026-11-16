@@ -2652,7 +2652,26 @@ export interface ClutchZeile { epicId: string; punkte: number; spiele: number; s
  * Antwort, wenn jeder dieser Tage sie fuehrt; sonst waere sie fuer manche
  * Spieler eine halbe Summe, die wie eine ganze aussieht.
  */
+/*
+ * Im Vorrechnen des Stundenlaufs je Saison zehn Minuten gemerkt (16.11.2026): Teil 1 fragt die Clutch-Summe von S43 viermal binnen
+ * acht Minuten an (Startansicht ohne und mit Saison, je mit und ohne "clutch=alle"), und jedes Mal wurden alle Clutch-Dateien der
+ * Saison neu gelesen - gemessen 2,8 GB je Durchgang (Messlauf 43869136304). Die Dateien aendern sich waehrend des Vorrechnens nicht.
+ * Auf der Seite bleibt es wie bisher (kein Merker).
+ */
+const clutchMerker = new Map<string, { bis: number; wert: ReturnType<typeof clutchDerSaisonRechnen> }>();
+
 export async function clutchDerSaison(saison: string, verzeichnis: ArchivEintrag[]) {
+  if (process.env.COMPHUB_VORRECHNEN !== '1' || ohneDateien()) return clutchDerSaisonRechnen(saison, verzeichnis);
+  const jetzt = Date.now();
+  const da = clutchMerker.get(saison);
+  if (da && da.bis > jetzt) return da.wert;
+  const wert = clutchDerSaisonRechnen(saison, verzeichnis);
+  clutchMerker.set(saison, { bis: jetzt + 10 * 60_000, wert });
+  wert.catch(() => clutchMerker.delete(saison));
+  return wert;
+}
+
+async function clutchDerSaisonRechnen(saison: string, verzeichnis: ArchivEintrag[]) {
   const fenster = new Set<string>();
   for (const e of verzeichnis) if (e.season === saison) fenster.add(e.windowId);
   try { for (const t of await liesEpicSpieltage()) if (t.season === saison) fenster.add(t.windowId); } catch { /* nur die vom Archiv */ }
