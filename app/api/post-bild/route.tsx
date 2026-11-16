@@ -7,6 +7,7 @@ import { fokusVon } from '@/lib/fotoFokus';
 import { FARBE, dropMapFuer, type KartenPost } from '@/lib/postKarte';
 import { zonenBild } from '@/lib/zonenBild';
 import { nobleZeichenSvg } from '@/lib/nobleZeichen';
+import { anker } from '@/lib/prognoseKarte'; // Namen um die sichtbare Mitte der Form (16.11.2026)
 
 /*
  * Das Bild zu einem Post des Tages (lib/tagesposts): 1600 x 900, im Stil der Seite - dunkler Grund, Blau, Anzeigeschrift.
@@ -128,7 +129,7 @@ export async function GET(request: Request) {
       const langst = Math.max(...z.namen.map((n) => n.length), 4);
       const schriftGr = Math.max(11, Math.min(28, hoehe / (z.namen.length + 0.7), (breite * 0.9) / (langst * 0.62)));
       return (
-        <div key={zi} style={{ position: 'absolute', left: x0, top: y0, width: breite, height: hoehe, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div key={zi} style={{ position: 'absolute', left: (anker(z.punkte).x / 100) * G - breite / 2, top: (anker(z.punkte).y / 100) * G - hoehe / 2, width: breite, height: hoehe, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           {z.namen.map((n, i) => (
             <div key={i} style={{ display: 'flex', fontSize: schriftGr, fontWeight: 700, lineHeight: 1.1, color: '#ffffff', textTransform: 'uppercase', whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(2,10,24,0.95)' }}>{n}</div>
           ))}

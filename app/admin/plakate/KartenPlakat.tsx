@@ -8,6 +8,7 @@ import { kartenName } from '@/app/lib/kartenStil';
 import { fortniteKarte } from '@/lib/bildAdressen';
 import type { SolosFenster } from '@/lib/globalsSolos';
 import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
+import { anker } from '@/lib/prognoseKarte';
 
 /*
  * Das Karten-Plakat (Betreiber, 26.10.2026, Vorbild: der Beitrag von kxrr zur Grand-Finals-Map): die Insel mit allen Landepunkten, jeder Punkt mit der Flagge des Landes gefuellt und mit den Namen
@@ -115,7 +116,8 @@ export default function KartenPlakat() {
       const px = Math.max(15, Math.min(40, hoehe / (zeilen.length + 0.6) * 0.82, (breite / Math.max(4, laengste)) * 1.5));
       g.font = `800 ${px}px "Bricolage Grotesque", "Figtree", Arial, sans-serif`;
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-      const cx = (x0 + x1) / 2; const cy = (y0 + y1) / 2;
+      // Die Namen um die sichtbare Mitte der Form (lib/prognoseKarte anker), nicht um die des Rahmens (Betreiber, 16.11.2026).
+      const ak = anker(fo.punkte); const cx = X(ak.x); const cy = Y(ak.y);
       zeilen.forEach((z, i) => {
         const y = cy + (i - (zeilen.length - 1) / 2) * px * 1.02;
         g.lineWidth = Math.max(4, px * 0.22); g.strokeStyle = '#000'; g.strokeText(z, cx, y, breite * 1.05);

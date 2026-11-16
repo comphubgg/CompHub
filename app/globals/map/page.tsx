@@ -8,7 +8,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 import { useZugang } from '@/app/lib/zugang';
-import { rahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { anker, rahmen, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
 import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
@@ -372,28 +372,23 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
           if (!drauf.length) return null;
           const r = rahmen(sp.punkte);
           const anzahl = drauf.length;
-          const mitteX = r.links + r.breite / 2;
+          // Alle Namen als ein Block um die sichtbare Mitte der Form (lib/prognoseKarte anker: groesster Abstand zum Rand) - nie an den Rand verteilt (Betreiber, 16.11.2026).
+        const ak = anker(sp.punkte);
           return (
             <div key={sp.id} data-form={sp.id}
               className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col
                          items-center text-center"
               style={{
-                left: `${r.links}%`, top: `${r.oben}%`,
+                left: `${ak.x - r.breite / 2}%`, top: `${ak.y - r.hoehe / 2}%`,
                 width: `${r.breite}%`, height: `${r.hoehe}%`,
-                justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                justifyContent: 'center',
                 paddingBlock: 'calc(0.45cqw / var(--z, 1))',
               }}>
-              {drauf.map((key, i) => {
+              {drauf.map((key) => {
                 const texte = zeilen(key, anzahl === 1);
-                const yProz = anzahl === 1
-                  ? r.oben + r.hoehe / 2
-                  : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-                const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-                const versatz = spanne && r.breite > 0
-                  ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
                 return (
                   <div key={key} className="relative"
-                    style={versatz ? { left: `${versatz}%` } : undefined}>
+                   >
                     {texte.map((tx, z) => (
                       <p key={z} className="karten-name"
                         style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>

@@ -21,7 +21,7 @@ import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import {
-  einheitsGroesse, rahmen, spanneBei, type Punkt, type Spot,
+  anker, einheitsGroesse, rahmen, type Punkt, type Spot,
 } from '@/lib/prognoseKarte';
 import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
@@ -603,27 +603,23 @@ function BetreiberPrognose() {
                       if (!keys.length) return null;
                       const r = rahmen(sp.punkte);
                       const anzahl = keys.length;
-                      const mitteX = r.links + r.breite / 2;
+                      // Alle Namen als ein Block um die sichtbare Mitte der Form (lib/prognoseKarte anker: groesster Abstand zum Rand) - nie an den Rand verteilt (Betreiber, 16.11.2026).
+        const ak = anker(sp.punkte);
                       // Ein Kasten in der Groesse der Form, darin die Teams mittig
                       // oder von Rand zu Rand - wie im Karten-Werkzeug.
                       return (
                         <div key={sp.id} data-form={sp.id}
                           className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center"
                           style={{
-                            left: `${r.links}%`, top: `${r.oben}%`, width: `${r.breite}%`, height: `${r.hoehe}%`,
-                            justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                            left: `${ak.x - r.breite / 2}%`, top: `${ak.y - r.hoehe / 2}%`, width: `${r.breite}%`, height: `${r.hoehe}%`,
+                            justifyContent: 'center',
                             paddingBlock: '0.45cqw',
                           }}>
-                          {keys.map((k, i) => {
+                          {keys.map((k) => {
                             const texte = zeilenFuer(k, anzahl === 1);
                             if (!texte.length) return null;
-                            const yProz = anzahl === 1
-                              ? r.oben + r.hoehe / 2
-                              : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-                            const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-                            const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
                             return (
-                              <div key={k} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
+                              <div key={k} className="relative">
                                 {texte.map((tx, z) => (
                                   <p key={z} className="karten-name" style={{ fontSize: `${schrift}cqw` }}>
                                     {tx}

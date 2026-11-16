@@ -32,6 +32,7 @@ import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { spotQuelle, zeigtNoble } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import { anker } from '@/lib/prognoseKarte';
 import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 import { gruppenName } from '@/lib/fensterName';
@@ -192,24 +193,6 @@ function imPolygon(p: Punkt, ecken: Punkt[]) {
       && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) drin = !drin;
   }
   return drin;
-}
-
-/**
- * Wie breit ist die Form auf einer bestimmten Hoehe, und wo liegt dort ihre
- * Mitte? Bei schraegen oder spitz zulaufenden Formen ist das je Zeile
- * verschieden - das umschliessende Rechteck wuerde die Beschriftung neben
- * die Flaeche setzen.
- */
-function spanneBei(punkte: Punkt[], y: number): { mitte: number; breite: number } | null {
-  const schnitte: number[] = [];
-  for (let i = 0, j = punkte.length - 1; i < punkte.length; j = i++) {
-    const a = punkte[i], b = punkte[j];
-    if ((a.y > y) === (b.y > y)) continue;
-    schnitte.push(a.x + ((y - a.y) / (b.y - a.y)) * (b.x - a.x));
-  }
-  if (schnitte.length < 2) return null;
-  const links = Math.min(...schnitte), rechts = Math.max(...schnitte);
-  return { mitte: (links + rechts) / 2, breite: rechts - links };
 }
 
 /**
@@ -1124,24 +1107,22 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
         : (sp.name ? [[sp.name]] : []);
       if (!saetze.length) continue;
 
-      const r = rahmen(sp.punkte);
-      const mx = zuX(r.links + r.breite / 2);
+      // Alle Namen als ein Block um die sichtbare Mitte der Form (anker) - wie auf dem Bildschirm, nie an den Rand verteilt (Betreiber, 16.11.2026).
+      const ak = anker(sp.punkte);
+      const mx = zuX(ak.x);
       const grad = (einheitsGroesse / 100) * KARTE;
       g.font = `700 ${grad}px Inter, system-ui, sans-serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
 
-      const hoeheProTeam = (r.hoehe / saetze.length / 100) * KARTE;
-      saetze.forEach((texte, i) => {
-        const oben = zuY(r.oben) + i * hoeheProTeam;
-        texte.forEach((text, z) => {
-          const y = oben + (hoeheProTeam / (texte.length + 1)) * (z + 1);
-          g.lineWidth = Math.max(2, grad * 0.18);
-          g.strokeStyle = 'rgba(0,0,0,0.85)';
-          g.strokeText(text, mx, y);
-          g.fillStyle = '#ffffff';
-          g.fillText(text, mx, y);
-        });
+      const alle = saetze.flat();
+      alle.forEach((text, z) => {
+        const y = zuY(ak.y) + (z - (alle.length - 1) / 2) * grad * 1.12;
+        g.lineWidth = Math.max(2, grad * 0.18);
+        g.strokeStyle = 'rgba(0,0,0,0.85)';
+        g.strokeText(text, mx, y);
+        g.fillStyle = '#ffffff';
+        g.fillText(text, mx, y);
       });
     }
 
@@ -2785,30 +2766,22 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 if (!keys.length) return null;
                 const r = rahmen(sp.punkte);
                 const anzahl = keys.length;
-                const mitteX = r.links + r.breite / 2;
+                // Alle Namen als ein Block um die sichtbare Mitte der Form (lib/prognoseKarte anker: groesster Abstand zum Rand) - nie an den Rand verteilt (Betreiber, 16.11.2026).
+        const ak = anker(sp.punkte);
 
                 return (
                   <div key={sp.id} data-form={sp.id}
                     className="karten-beschriftung pointer-events-none absolute z-10 flex
                                flex-col items-center text-center"
                     style={{
-                      left: `${r.links}%`, top: `${r.oben}%`,
+                      left: `${ak.x - r.breite / 2}%`, top: `${ak.y - r.hoehe / 2}%`,
                       width: `${r.breite}%`, height: `${r.hoehe}%`,
-                      justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                      justifyContent: 'center',
                       paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                     }}>
-                    {keys.map((k, i) => {
+                    {keys.map((k) => {
                       const texte = zeilenFuer(k, anzahl === 1);
                       if (!texte.length) return null;
-                      // Waagerecht mittig in der Spanne auf der Hoehe der Zeile -
-                      // bei einer schraegen Form liegt die anders als die Mitte
-                      // des umschliessenden Rechtecks.
-                      const yProz = anzahl === 1
-                        ? r.oben + r.hoehe / 2
-                        : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-                      const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-                      const versatz = spanne && r.breite > 0
-                        ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
                       return (
                         <div key={k} draggable={!karteFest}
                           onDragStart={(ev) => {
@@ -2817,7 +2790,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                           onClick={() => vonForm(sp.id, k)}
                           title={karteFest ? undefined : uebs('Klick entfernt das Team von dieser Form')}
                           className={`relative ${karteFest ? '' : 'pointer-events-auto cursor-pointer'}`}
-                          style={versatz ? { left: `${versatz}%` } : undefined}>
+                         >
                           {texte.map((t, z) => (
                             <p key={z} className="karten-name"
                               style={{ fontSize: `calc(${einheitsGroesse}cqw / var(--z, 1))` }}>

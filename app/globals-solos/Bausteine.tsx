@@ -6,7 +6,7 @@ import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
-import { rahmen as formRahmen, spanneBei, einheitsGroesse, anker, versatzBei, versatzTabelle, versatzFuer, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot, type VersatzTabelle } from '@/lib/prognoseKarte';
+import { rahmen as formRahmen, einheitsGroesse, anker, versatzBei, versatzTabelle, versatzFuer, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot, type VersatzTabelle } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
@@ -212,24 +212,19 @@ export function Karte({ f, bild, rotAb = 2 }: {
    * zum Rand) - dort steht ihr Name, wenn nichts im Weg ist (Betreiber, 15.11.2026: "CHAP" sass unten links, "KAAN" am Rand seiner L-Form).
    */
   const ankerJe = useMemo(() => Object.fromEntries(spots.map((sp) => [sp.id, anker(sp.punkte)])) as Record<string, Punkt>, [spots]);
-  /** Je Stelle mit Namen: die waagrechte Mitte jeder Zeile - dicht gesetzte Zeilen auf der Mitte der Stelle, verteilte je Zeile mittig in der Form. */
-  const zeilenLage = useMemo(() => Object.fromEntries(spots.filter((sp) => sp.spieler.length).map((sp) => {
-    const r = formRahmen(sp.punkte);
-    const anzahl = sp.spieler.length;
-    const gedraengt = sp.teams <= 1 || anzahl === 1;
-    return [sp.id, sp.spieler.map((_, i) => {
-      if (gedraengt) return ankerJe[sp.id].x;
-      const yProz = r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-      const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-      return spanne && r.breite > 0 ? spanne.mitte : r.links + r.breite / 2;
-    })];
-  })) as Record<string, number[]>, [spots, ankerJe]);
+  /*
+   * Je Stelle mit Namen: alle Zeilen als ein Block um die sichtbare Mitte der Stelle (anker: der Punkt mit dem groessten Abstand zum Rand), auch
+   * bei mehreren Teams (Betreiber, 16.11.2026: "CHECKMATE MARCUS" stand am oberen, "FORG PACEVE BAYN" am unteren Rand und stiessen an die Namen
+   * der Nachbarn). Zusammenstoesse loest danach versatzBei fuer die ganze Karte.
+   */
+  const zeilenLage = useMemo(() => Object.fromEntries(spots.filter((sp) => sp.spieler.length)
+    .map((sp) => [sp.id, sp.spieler.map(() => ankerJe[sp.id].x)])) as Record<string, number[]>, [spots, ankerJe]);
   /** Die Beschriftungen fuer den Loeser - mit Breiten je Zeile (Prozent der Kartenbreite bei Zoom 1). */
   const beschriftungenFuer = useCallback((breite: (tx: string) => number): Beschriftung[] => spots.filter((sp) => sp.spieler.length).map((sp) => {
     const r = formRahmen(sp.punkte);
     return {
       id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, ax: ankerJe[sp.id].x, ay: ankerJe[sp.id].y, punkte: sp.punkte,
-      verteilt: !(sp.teams <= 1 || sp.spieler.length === 1),
+      verteilt: false,
       zeilen: sp.spieler.map((n, i) => ({ x: zeilenLage[sp.id][i], breite: breite(kartenName(n)) })),
     };
   }), [spots, ankerJe, zeilenLage]);
@@ -577,10 +572,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
             {spots.map((sp) => {
               if (!sp.spieler.length) return null;
               const r = formRahmen(sp.punkte);
-              const anzahl = sp.spieler.length;
-              const gedraengt = sp.teams <= 1 || anzahl === 1;
-              // Dicht gesetzte Namen: der Kasten (so gross wie der Rahmen der Form) steht mit seiner Mitte auf der Mitte der Stelle; verteilte im Rahmen.
-              const kx = gedraengt ? ankerJe[sp.id].x - r.breite / 2 : r.links, ky = gedraengt ? ankerJe[sp.id].y - r.hoehe / 2 : r.oben;
+              // Alle Namen als ein Block: der Kasten (so gross wie der Rahmen der Form) steht mit seiner Mitte auf der sichtbaren Mitte der Stelle.
+              const kx = ankerJe[sp.id].x - r.breite / 2, ky = ankerJe[sp.id].y - r.hoehe / 2;
               const mitteX = kx + r.breite / 2;
               return (
                 <div key={sp.id} data-form={sp.id}
@@ -589,7 +582,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
                     left: `${kx}%`, top: `${ky}%`,
                     width: `${r.breite}%`, height: `${r.hoehe}%`,
                     // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
-                    justifyContent: gedraengt ? 'center' : 'space-between',
+                    justifyContent: 'center',
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                     // Weg von der Nachbarstelle, wenn sich die Namen auf der aktuellen Zoomstufe sonst ueberdecken: translate setzt setzeVersatz()
                     // beim Zoomen direkt am Element (es setzt sich zum transform von .ist-hover dazu, statt es zu ersetzen).
@@ -658,7 +651,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
           */}
         <div className="pointer-events-none absolute inset-0 z-20"><KartenWasserzeichen dicht /></div>
         {/* Landepunkte von Noble Practice: das kleine Noble-Zeichen in der Ecke (lib/nobleZeichen). */}
-        {f.kartenQuelle === 'noble' && f.formen.length > 0 && <NobleWasserzeichen schildUnten={voll ? '4.5rem' : '3.75rem'} />}
+        {f.kartenQuelle === 'noble' && f.formen.length > 0 && <NobleWasserzeichen />}
         <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />

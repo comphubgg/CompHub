@@ -3,6 +3,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
 import { nobleZeichenSvg } from '@/lib/nobleZeichen';
+import { anker } from '@/lib/prognoseKarte';
 import { nobleFensterAnzeige } from '@/lib/nobleAnzeige'; // Noble-Formen leicht vereinfacht (Wunsch von Noble, 16.11.2026)
 import { fensterFuer } from '@/lib/globalsSolos';
 import { ALT } from '@/lib/alteMaps';
@@ -160,9 +161,11 @@ export async function kartenBild(d: KartenPost['bild'], ursprung: string): Promi
     const breite = x1 - x0; const hoehe = y1 - y0;
     const langst = Math.max(...z.namen.map((n) => n.length), 4);
     const schrift = Math.max(11, Math.min(30, hoehe / (z.namen.length + 0.6), (breite * 0.92) / (langst * 0.62)));
-    const start = (y0 + y1) / 2 - ((z.namen.length - 1) * schrift * 1.12) / 2;
+    // Block um die sichtbare Mitte der Form (lib/prognoseKarte anker), nicht um die Mitte des Rahmens (Betreiber, 16.11.2026).
+    const ak = anker(z.punkte);
+    const start = (ak.y / 100) * G - ((z.namen.length - 1) * schrift * 1.12) / 2;
     z.namen.forEach((n, i) => {
-      teile.push(`<text x="${(x0 + x1) / 2}" y="${start + i * schrift * 1.12}" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="${schrift}" fill="#ffffff" stroke="#05080e" stroke-width="${schrift / 9}" paint-order="stroke" text-anchor="middle" dominant-baseline="middle">${esc(n)}</text>`);
+      teile.push(`<text x="${(ak.x / 100) * G}" y="${start + i * schrift * 1.12}" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="${schrift}" fill="#ffffff" stroke="#05080e" stroke-width="${schrift / 9}" paint-order="stroke" text-anchor="middle" dominant-baseline="middle">${esc(n)}</text>`);
     });
     if (z.land && breite > 70) teile.push(`<rect x="${x0 + 6}" y="${y0 + 6}" width="46" height="26" rx="7" fill="#05080e" fill-opacity="0.85"/><text x="${x0 + 29}" y="${y0 + 19.5}" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="15" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${esc(z.land)}</text>`);
   }

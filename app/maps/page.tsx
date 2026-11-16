@@ -29,6 +29,7 @@ import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { hatNobleFormen } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import { anker } from '@/lib/prognoseKarte';
 import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 import { sichtbarerTakt } from '@/app/lib/takt';
@@ -236,25 +237,6 @@ function mittelpunkt(p: Punkt[]): Punkt {
     x: p.reduce((s, q) => s + q.x, 0) / p.length,
     y: p.reduce((s, q) => s + q.y, 0) / p.length,
   };
-}
-
-/**
- * Wie breit ist die Form auf einer bestimmten Hoehe, und wo liegt dort ihre
- * Mitte? Bei schraegen oder spitz zulaufenden Formen ist das je Zeile
- * verschieden - das umschliessende Rechteck wuerde die Beschriftung neben
- * die Flaeche setzen.
- */
-function spanneBei(punkte: Punkt[], y: number): { mitte: number; breite: number } | null {
-  const schnitte: number[] = [];
-  for (let i = 0, j = punkte.length - 1; i < punkte.length; j = i++) {
-    const a = punkte[i], b = punkte[j];
-    // Kante schneidet diese Hoehe?
-    if ((a.y > y) === (b.y > y)) continue;
-    schnitte.push(a.x + ((y - a.y) / (b.y - a.y)) * (b.x - a.x));
-  }
-  if (schnitte.length < 2) return null;
-  const links = Math.min(...schnitte), rechts = Math.max(...schnitte);
-  return { mitte: (links + rechts) / 2, breite: rechts - links };
 }
 
 /** Das umschliessende Rechteck einer Form - Grundlage fuer die Beschriftung. */
@@ -3117,42 +3099,22 @@ ${name}
         continue;
       }
 
-      const hoeheProTeam = r.hoehe / belegt.length;
-      belegt.forEach((t, i) => {
+      // Wie auf dem Bildschirm: alle Namen als ein Block um die sichtbare Mitte der Form (anker), nie an den Rand verteilt (Betreiber, 16.11.2026).
+      const alleZeilen = belegt.flatMap((t) => {
         const namen = namenVon(t);
-        const allein = belegt.length === 1 && namen.length > 1;
-        const zeilen = allein ? namen : [namen.join(' ')];
-
-        // Wie auf dem Bildschirm: die Zeile sitzt in der Spanne, die die Form
-        // auf dieser Hoehe wirklich hat.
-        const bandMitte = r.oben + hoeheProTeam * (i + 0.5);
-        // Dieselbe Groesse fuer alle Formen wie auf dem Bildschirm.
-        const groesseProz = einheitsGroesse;
-        const px = groesseProz / 100 * G;
-
-        // Wie auf dem Bildschirm an den Rand geruecken.
-        const hoch = zeilen.length * groesseProz * 1.15;
-        const obenY = r.oben + hoch * 0.62;
-        const untenY = r.oben + r.hoehe - hoch * 0.62;
-        const platzY = untenY - obenY;
-        const yProz = (belegt.length === 1 || platzY <= 0)
-          ? bandMitte
-          : obenY + platzY * (i / (belegt.length - 1));
-        const spanne = spanneBei(s.punkte, yProz)
-          ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-        g.font = `600 ${px}px ${familie}, system-ui, sans-serif`;
-
-        const zx = (spanne.mitte / 100) * G;
-        const mitte = (yProz / 100) * G;
-        zeilen.forEach((zeile, j) => {
-          const y = mitte + (j - (zeilen.length - 1) / 2) * px * 1.05;
-          // Die schwarze Kontur wie auf dem Bildschirm.
-          g.strokeStyle = '#000'; g.lineWidth = px * 0.14;
-          g.lineJoin = 'round';
-          g.strokeText(zeile, zx, y);
-          g.fillStyle = '#ffffff';
-          g.fillText(zeile, zx, y);
-        });
+        return belegt.length === 1 && namen.length > 1 ? namen : [namen.join(' ')];
+      });
+      const px = (einheitsGroesse / 100) * G;
+      const ak = anker(s.punkte);
+      g.font = `600 ${px}px ${familie}, system-ui, sans-serif`;
+      alleZeilen.forEach((zeile, j) => {
+        const y = (ak.y / 100) * G + (j - (alleZeilen.length - 1) / 2) * px * 1.05;
+        // Die schwarze Kontur wie auf dem Bildschirm.
+        g.strokeStyle = '#000'; g.lineWidth = px * 0.14;
+        g.lineJoin = 'round';
+        g.strokeText(zeile, (ak.x / 100) * G, y);
+        g.fillStyle = '#ffffff';
+        g.fillText(zeile, (ak.x / 100) * G, y);
       });
       g.textBaseline = 'alphabetic';
     }
@@ -3605,7 +3567,8 @@ ${name}
         if (!belegt.length && !s.name) return null;
 
         const r = rahmen(s.punkte);
-        const mitteX = r.links + r.breite / 2;
+        // Alle Namen als ein Block um die sichtbare Mitte der Form (lib/prognoseKarte anker: groesster Abstand zum Rand) - nie an den Rand verteilt (Betreiber, 16.11.2026).
+        const ak = anker(s.punkte);
         // Steht ein Team allein, bekommt jeder Name eine eigene Zeile und
         // damit mehr Groesse. Bei mehreren Teams je Team eine Zeile.
         const gruppen: string[][] = belegt.length
@@ -3614,27 +3577,21 @@ ${name}
               return belegt.length === 1 && namen.length > 1 ? namen : [namen.join(' ')];
             })
           : [[s.name ?? '']];
-        const anzahl = gruppen.length;
 
         return (
           <div key={s.id} data-form={s.id}
             className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col
                        items-center text-center"
             style={{
-              left: `${r.links}%`, top: `${r.oben}%`,
+              left: `${ak.x - r.breite / 2}%`, top: `${ak.y - r.hoehe / 2}%`,
               width: `${r.breite}%`, height: `${r.hoehe}%`,
-              justifyContent: anzahl === 1 ? 'center' : 'space-between',
+              justifyContent: 'center',
               paddingBlock: 'calc(0.45cqw / var(--z, 1))',
             }}>
             {gruppen.map((zeilen, i) => {
-              const yProz = anzahl === 1
-                ? r.oben + r.hoehe / 2
-                : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-              const spanne = s.form === 'rechteck' ? null : spanneBei(s.punkte, yProz);
-              const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
               return (
                 <div key={i} className="relative"
-                  style={versatz ? { left: `${versatz}%` } : undefined}>
+                 >
                   {zeilen.map((tx, k) => (
                     <p key={k} className={`karten-name${belegt.length ? '' : ' opacity-75'}`}
                       style={{ fontSize: `calc(${einheitsGroesse}cqw / var(--z, 1))` }}>
