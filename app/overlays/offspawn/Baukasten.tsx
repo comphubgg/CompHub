@@ -7,6 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { Regler, Vorschau, Wahlreihe } from '../Teile';
+import { DesignGruppe, HausGruppe, HAUS_STANDARD, LOOK_STANDARD, Segmente, Text as TextFeld } from '../Bausteine';
 import Ablauf, { FertigSchritt, Vorlagen, type Vorlage } from '../Ablauf';
 import { THEMEN, themaAkzent, deckkraftFuer, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
@@ -46,6 +47,12 @@ const STANDARD = {
   thema: '' as Thema,
   /** Wie rund die Ecken sind. */
   ecken: 12,
+  // Redesign 11/2026: layout, footer and the CompHub house style (look.js).
+  layout: 'box' as 'box' | 'breit' | 'zeile',
+  fuss: '',
+  ...LOOK_STANDARD,
+  ...HAUS_STANDARD,
+  wasserzeichen: 'aus' as typeof HAUS_STANDARD.wasserzeichen,
 };
 
 type Config = typeof STANDARD;
@@ -70,20 +77,22 @@ const FARBEN: Array<{ wert: string; titel: string }> = [
  * Die fertigen Looks (Schritt "Vorlage"). Dazu die Looks der Cup-Reihen aus themen.ts: ihr Akzent wird die Farbe der Namen.
  */
 const VORLAGEN_BASIS: Array<Vorlage<Config>> = [
+  { schluessel: 'haus', titel: 'CompHub', text: 'Transparent black, white text, the rotating frame — the house style.',
+    setzt: { thema: '' as Thema, look: 'clean', grund: '0 0 0', deckkraft: 0.66, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 30, ecken: 14 } },
   { schluessel: 'klassisch', titel: 'Klassisch', text: 'Schwarz mit weißen Namen — das gewohnte Bild.',
-    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 30, ecken: 12 } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 30, ecken: 12 } },
   { schluessel: 'blau-rot', titel: 'Blau gegen Rot', text: 'Jedes Team in seiner Farbe — gut für 1v1 und 2v2.',
-    setzt: { thema: '' as Thema, grund: '12 20 38', deckkraft: 0.8, farbe1: '#38bdf8', farbe2: '#f43f5e', schrift: 30, ecken: 14 } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '12 20 38', deckkraft: 0.8, farbe1: '#38bdf8', farbe2: '#f43f5e', schrift: 30, ecken: 14 } },
   { schluessel: 'gold', titel: 'Gold', text: 'Beide Namen in Gold auf Schwarz.',
-    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.75, farbe1: '#f5c542', farbe2: '#f5c542', schrift: 30, ecken: 12 } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', deckkraft: 0.75, farbe1: '#f5c542', farbe2: '#f5c542', schrift: 30, ecken: 12 } },
   { schluessel: 'gross', titel: 'Groß', text: 'Große Schrift, runde Ecken — für Offspawns, die man aus der Ferne lesen soll.',
-    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 52, ecken: 20 } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 52, ecken: 20 } },
   { schluessel: 'sauber', titel: 'Sauber', text: 'Anthrazit, fast deckend, schlichte Ecken.',
-    setzt: { thema: '' as Thema, grund: '24 24 27', deckkraft: 0.92, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 26, ecken: 8 } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '24 24 27', deckkraft: 0.92, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 26, ecken: 8 } },
 ];
 const VORLAGEN_THEMEN: Array<Vorlage<Config>> = THEMEN.filter((x) => x.wert).map((x) => ({
   schluessel: `thema-${x.wert}`, titel: x.titel, text: 'Das Aussehen dieser Cup-Reihe.',
-  setzt: { thema: x.wert, deckkraft: deckkraftFuer(x.wert, 0.72), farbe1: themaAkzent(x.wert) ?? '#ffffff', farbe2: themaAkzent(x.wert) ?? '#ffffff' },
+  setzt: { look: 'klassisch', thema: x.wert, deckkraft: deckkraftFuer(x.wert, 0.72), farbe1: themaAkzent(x.wert) ?? '#ffffff', farbe2: themaAkzent(x.wert) ?? '#ffffff' },
 }));
 const VORLAGEN_ALLE: Array<Vorlage<Config>> = [...VORLAGEN_BASIS, ...VORLAGEN_THEMEN];
 
@@ -191,6 +200,7 @@ export default function OffspawnBaukasten({ globals = false }: {
   };
 
   useEffect(() => { setSchmutzig(false); }, [id]);
+  const setzLos = (k: string, v: unknown) => setz(k as keyof Config, v as Config[keyof Config]);
 
   const vorschau = useMemo(
     () => `/overlay/offspawn.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`,
@@ -411,6 +421,21 @@ export default function OffspawnBaukasten({ globals = false }: {
               waehle={(v) => { setCfg((a) => ({ ...a, ...v.setzt })); setSchmutzig(true); }} />
           ),
         }]),
+
+        /* --------------------------------------------------- Design (house style) */
+        {
+          schluessel: 'design', titel: 'Design',
+          hinweis: 'Layout, frame, background and look. “CompHub” is the house style; the coloured templates use the classic look.',
+          inhalt: (
+            <div className="space-y-4">
+              <Segmente titel="Layout" wert={cfg.layout} setzen={(v) => setz('layout', v)}
+                optionen={[{ wert: 'box', titel: 'Photos outside' }, { wert: 'breit', titel: 'Wide' }, { wert: 'zeile', titel: 'Slim line' }]} />
+              <TextFeld titel="Footer (optional)" wert={cfg.fuss} setzen={(v) => setz('fuss', v)} platzhalter="FIRST TO 3" max={40} />
+              <HausGruppe cfg={cfg} setz={setzLos} fotos />
+              <DesignGruppe cfg={cfg} setz={setzLos} />
+            </div>
+          ),
+        },
 
         /* --------------------------------------------------- 3 Feinschliff */
         {
