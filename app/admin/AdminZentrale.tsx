@@ -55,7 +55,7 @@ const GRUPPEN: Array<{
     hrefs: ['/maps', '/admin/alte-maps', '/admin/tweets', '/admin/tiktok', '/admin/predictions', '/admin/archive', '/admin/assets'] },
   { id: 'spieler', titel: 'Spieler & Teams', punkt: 'bg-emerald-400', titelFarbe: 'text-emerald-300',
     kachel: 'hover:border-emerald-500/70 hover:bg-emerald-500/[0.06]',
-    hrefs: ['/admin/players', '/admin/prospects', '/admin/orgs', '/admin/vips'] },
+    hrefs: ['/admin/players', '/admin/flaggen', '/admin/prospects', '/admin/orgs', '/admin/vips'] },
   { id: 'daten', titel: 'Daten & Replays', punkt: 'bg-amber-400', titelFarbe: 'text-amber-300',
     kachel: 'hover:border-amber-500/70 hover:bg-amber-500/[0.06]',
     hrefs: ['/admin/replays', '/admin/replay'] },
