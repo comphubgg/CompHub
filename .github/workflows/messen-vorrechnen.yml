@@ -60,34 +60,33 @@ jobs:
           sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
           mkdir -p /tmp/prof
           export LAUF_BEGINN=$(date +%s)
-          starten() {
-            NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs --cpu-prof --cpu-prof-dir=/tmp/prof/$1 --cpu-prof-interval 20000" \
-              npx next start -p 3000 >> /tmp/server-$1.log 2>&1 &
-            for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
-          }
-          stoppen() { pkill -TERM -f next-server; sleep 15; pkill -9 -f next-server; sleep 2; }
+          # --prof schreibt laufend (ueberlebt einen Absturz), ausgewertet unten mit --prof-process, Ergebnis ins Protokoll
+          # (Anhaenge sind von aussen nicht immer lesbar).
+          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs --prof --logfile=/tmp/prof/v8-%p.log --no-logfile-per-isolate" \
+            npx next start -p 3000 >> /tmp/server.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
           ( while sleep 30; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB"; done ) &
-          echo "=== A: teil 1/8"
-          starten a
-          timeout 2500 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=1/8 --frist=2400
-          stoppen
-          grep '\[MESS\]' /tmp/server-a.log | tail -3
-          echo "=== B: einzelne Abfragen, abgeschlossene Saisons"
-          starten b
-          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S40' 'ansicht=start&saison=S41&clutch=alle' 'ansicht=start&clutch=alle'; do
-            S=$(date +%s.%N); curl -s -o /tmp/antwort.json -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
-            grep '\[MESS\]' /tmp/server-b.log | tail -1 | cut -c1-1500
+          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S43' 'ansicht=start&saison=S42'; do
+            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 900 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            grep '\[MESS\]' /tmp/server.log | grep -v 'heap=1[0-9]MB' | tail -1 | cut -c1-1800
           done
-          stoppen
-          ls -la /tmp/prof/*
+          grep '\[MESS\]' /tmp/server.log | grep -v 'heap=1[0-9]MB' | awk 'NR%4==0' | cut -c1-260 | tail -40
+          pkill -TERM -f next-server; sleep 10; pkill -9 -f next-server; sleep 2
+          ls -la /tmp/prof
+          for f in /tmp/prof/v8-*.log; do
+            [ $(stat -c %s "$f") -gt 100000 ] || continue
+            echo "=== $f"
+            timeout 600 node --prof-process "$f" 2>/dev/null | sed -n '1,/Bottom up/p' | head -60
+            timeout 600 node --prof-process "$f" 2>/dev/null | sed -n '/Bottom up/,$p' | head -150
+          done
+          tail -20 /tmp/server.log | cut -c1-300
           true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: messung
           path: |
-            /tmp/prof
-            /tmp/server-*.log
+            /tmp/server.log
           retention-days: 3
       - if: always()
         run: rm -f .env.local
