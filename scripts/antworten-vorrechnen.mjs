@@ -278,7 +278,8 @@ async function los() {
       // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv, das Preisgeld der Orgs) duerfen laenger - und zwar
       // wirklich (siehe hole): abgebrochen rechnet der Server trotzdem weiter und blockiert die naechste.
       const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)|orgs\?ansicht=verdienst/.test(weg);
-      const r = await hole(weg, Math.min(rest, schwer ? 900_000 : 180_000));
+      // Eine Akten-Schale allein darf die ganze Frist haben (gemessen ueber 900 s je Schale, 16.11.2026).
+      const r = await hole(weg, aktenArg ? rest : Math.min(rest, schwer ? 900_000 : 180_000));
       if (r.status < 200 || r.status >= 300) throw new Error(String(r.status));
       ok += 1;
       console.log(`  ok    ${zeit(Date.now() - start).padStart(7)}  ${String(r.bytes).padStart(9)} B  ${weg}`);

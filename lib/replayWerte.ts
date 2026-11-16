@@ -165,7 +165,15 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
   } catch { /* dann bleibt die Gesamtzahl unbekannt */ }
 
   const tage: AggregatTag[] = [];
-  const GLEICHZEITIG = 16;
+  /*
+   * Vier nebeneinander, nicht sechzehn, und je Konto nur die vier Zahlen, die die Saisonliste braucht (16.11.2026).
+   *
+   * Ein Aggregat traegt je Konto weit mehr (Opfer, Waffen, Matches) - in Season 43 bis 156 MB je Datei, zusammen fast drei
+   * Gigabyte. Sechzehn davon zugleich als Zeichenkette und als Objekt, und alle Konten mit allen Feldern bis zum Ende gehalten:
+   * der Server des Stundenlaufs lief bei der Startansicht nach zehn Minuten in "JavaScript heap out of memory" (7 GB), in jedem
+   * Lauf, und mit ihm Teil 1 des Vorrechnens - die Liste von S43 blieb beim 6.11. stehen.
+   */
+  const GLEICHZEITIG = 4;
   for (let i = 0; i < fenster.length; i += GLEICHZEITIG) {
     const gruppe = fenster.slice(i, i + GLEICHZEITIG);
     const ergebnisse = await Promise.all(gruppe.map(async (w) => {
@@ -187,9 +195,9 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
           titel: roh.titel ?? w, datum: typeof roh.von === 'number' ? roh.von : null,
           ausgewertet: roh.matches ?? 0, gesamt,
           // Aeltere Aggregate zaehlten Selbst-Eliminierungen (Sturm, Sturz) als Kill; sie stehen in den Opfern des Spielers selbst und werden abgezogen (28.10.2026).
-          spieler: roh.spieler.filter((k) => k.epicId).map((k) => {
+          spieler: roh.spieler.filter((k) => k.epicId).map((k): AggregatKonto => {
             const selbst = Number((k as { opfer?: Record<string, number> }).opfer?.[k.epicId] ?? 0);
-            return selbst ? { ...k, kills: Math.max(0, (k.kills ?? 0) - selbst) } : k;
+            return { epicId: k.epicId, matches: k.matches ?? 0, kills: Math.max(0, (k.kills ?? 0) - selbst), knocks: k.knocks ?? 0 };
           }),
         } as AggregatTag;
       } catch { return null; }
