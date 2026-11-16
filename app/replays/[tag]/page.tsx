@@ -12,7 +12,6 @@ import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import ZonenBild from '@/app/admin/replay/ZonenBild';
 import { useZugang } from '@/app/lib/zugang';
-import TagesAuswertung from '../TagesAuswertung';
 import LadenDialog from '../LadenDialog';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 
@@ -105,11 +104,6 @@ export default function SpieltagSeite() {
                   </p>
                 </Link>
               ))}
-            </div>
-            {/* Alle Games des Tages zusammen: Zonen-Glueck und Glueck gegen Leistung (/api/replay-auswertung) */}
-            <div className="mt-8" id="auswertung">
-              <h2 className="mb-3 text-xl font-black tracking-tight"><T>All games analysed</T></h2>
-              <TagesAuswertung tage={[tag.windowId]} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}</code></p>
           </>

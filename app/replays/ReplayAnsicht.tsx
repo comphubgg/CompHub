@@ -764,11 +764,11 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, kar
             <p className="mt-1 text-[11px] text-slate-500"><T>Die violetten Streifen sind die Zeiten, in denen die Zone schrumpft. Ein Klick springt dorthin.</T></p>
           </div>
 
-          {/* ------------------------------------------------ Auswertungen: Hoehe, Zonen-Glueck, Glueck gegen Leistung */}
+          {/* ------------------------------------------------ Auswertung: Hoehenverlauf */}
           {sd.da && (
             <div className="mt-3">
               <Analysen match={match} orte={sd.orte} tStart={tStart} tEnde={tEnde} zeit={zeit} echte={echte} nameVon={nameVon} landVon={landVon} farbeVon={farbeVon}
-                springe={springe} waehle={setGewaehlt} gewaehlt={gewaehlt} wertung={wertung} games={games} />
+                springe={springe} waehle={setGewaehlt} gewaehlt={gewaehlt} games={games} />
             </div>
           )}
         </div>

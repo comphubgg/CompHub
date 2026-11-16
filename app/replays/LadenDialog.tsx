@@ -2,8 +2,7 @@
 
 /*
  * "Replay laden" (Betreiber, 15.11.2026): Season-Reiter, Region (nur Regionen mit Replays), Sortierung nach Datum oder Name. Je Cup-Tag eine Zeile mit
- * Haken, "Games" (die Games klappen auf und laden sofort) und "Analysieren" (alle Games des Tages). Mehrere angehakte Tage zusammen:
- * "Auswahl analysieren (n)" -> /replays/auswertung?tage=... Daten: /api/replay?uebersicht=1 und ?tag=.
+ * "Games" (die Games klappen auf und laden sofort). Daten: /api/replay?uebersicht=1 und ?tag=.
  */
 
 import { useRouter } from 'next/navigation';
@@ -17,8 +16,6 @@ interface CupKurz { eventId: string; kurz: string; titel: string; season: string
 interface Game { id: string; nr: number; beginn?: string; sieger?: string[]; spieler?: number }
 interface Zeile { cup: CupKurz; tag: TagKurz; name: string }
 
-export const HOECHSTENS = 4;
-
 export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boolean; schliessen: () => void; aktuell?: string }) {
   const t = useT();
   const router = useRouter();
@@ -30,7 +27,6 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
   const [suche, setSuche] = useState('');
   const [offenerTag, setOffenerTag] = useState<string | null>(null);
   const [games, setGames] = useState<Record<string, Game[]>>({});
-  const [haken, setHaken] = useState<string[]>([]);
 
   useEffect(() => {
     if (!offen || cups) return undefined;
@@ -74,7 +70,6 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
   if (!offen) return null;
   const chip = (an: boolean) => `rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
   const geh = (href: string) => { router.push(href); schliessen(); };
-  const hake = (w: string) => setHaken((h) => (h.includes(w) ? h.filter((x) => x !== w) : h.length >= HOECHSTENS ? h : [...h, w]));
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-3 backdrop-blur-sm" onClick={schliessen} role="dialog" aria-modal="true" aria-label={t('Load replay')}>
@@ -105,11 +100,10 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
           {!cups && !fehler && <li className="p-3 text-sm text-slate-500"><T>Loading …</T></li>}
           {cups && !zeilen.length && <li className="p-3 text-sm text-slate-500"><T>No replays in this selection.</T></li>}
           {zeilen.map(({ tag: d, name }) => {
-            const w = d.windowId; const auf = offenerTag === w; const an = haken.includes(w);
+            const w = d.windowId; const auf = offenerTag === w;
             return (
-              <li key={w} className={`mb-1 rounded-xl border transition ${an ? 'border-sky-500/60 bg-sky-500/[0.06]' : 'border-white/[0.06]'}`}>
+              <li key={w} className="mb-1 rounded-xl border border-white/[0.06] transition">
                 <div className="flex flex-wrap items-center gap-2 px-2.5 py-2">
-                  <input type="checkbox" checked={an} onChange={() => hake(w)} disabled={!an && haken.length >= HOECHSTENS} className="h-4 w-4 accent-sky-500" aria-label={name} />
                   <span className="rounded bg-white/10 px-1.5 py-px text-[9px] font-black text-slate-200">{d.region}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12px] font-bold text-slate-100">{name}</span>
@@ -117,7 +111,6 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
                   </span>
                   <button type="button" onClick={() => setOffenerTag(auf ? null : w)} aria-expanded={auf}
                     className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60">Games {auf ? '▴' : '▾'}</button>
-                  <button type="button" onClick={() => geh(`/replays/${encodeURIComponent(w)}#auswertung`)} className="rounded-lg bg-sky-500/90 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-sky-400"><T>Analyze</T></button>
                 </div>
                 {auf && (
                   <div className="flex flex-wrap gap-1 border-t border-white/[0.06] px-2.5 py-2">
@@ -133,15 +126,6 @@ export default function LadenDialog({ offen, schliessen, aktuell }: { offen: boo
             );
           })}
         </ul>
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] px-4 py-3">
-          <button type="button" onClick={() => setHaken(zeilen.slice(0, HOECHSTENS).map((z) => z.tag.windowId))} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60"><T>Select all</T></button>
-          <button type="button" onClick={() => setHaken([])} disabled={!haken.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-300 hover:border-sky-500/60 disabled:opacity-40"><T>Reset</T></button>
-          <span className="text-[10px] text-slate-500"><T>Up to 4 cup days together.</T></span>
-          <button type="button" disabled={!haken.length} onClick={() => geh(haken.length === 1 ? `/replays/${encodeURIComponent(haken[0])}#auswertung` : `/replays/auswertung?tage=${haken.map(encodeURIComponent).join(',')}`)}
-            className="ml-auto rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
-            <T>Analyze selected</T> ({haken.length})
-          </button>
-        </div>
       </div>
     </div>
   );

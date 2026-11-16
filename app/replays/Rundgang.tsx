@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 
 export const SCHRITTE: Array<[string, string]> = [
-  ['Load a replay', 'The blue button opens every analysed cup: pick a season, filter by region, open the games of a cup day or analyse the whole day. Tick up to four days to analyse them together.'],
+  ['Load a replay', 'The blue button opens every analysed cup: pick a season, filter by region and open the games of a cup day.'],
   ['The map', 'The map shows the main island. Drag to move, scroll or use + / − to zoom, double-click to reset. The violet area is the storm, the white ring the zone, the dashed ring the next zone.'],
   ['Players', 'Every player is an arrow in his colour pointing where he looks, with his name and his shield (blue) and health (green) above. Click a player to select him.'],
   ['The bus', 'Everyone starts on the bus. The arrows show its route (yellow where you may jump); each player appears at the moment he jumped and glides to his landing spot.'],
@@ -19,7 +19,7 @@ export const SCHRITTE: Array<[string, string]> = [
   ['Drawing', 'Settings → Draw: pen, arrow or circle in four colours. Ctrl+Z undoes the last stroke; Clear removes everything.'],
   ['Players and kill feed panel', 'On the right: every player with elims and damage so far, alive (green), knocked (amber) or out (red). The Killfeed tab lists every knock and elimination with the weapon held and the distance.'],
   ['One player', 'Click a player: placement, elims and damage at the current time, his timeline (landing, loot with source, damage, knocks, heals, storm, zone separators) and his weapon breakdown. A click on a row jumps there and zooms in.'],
-  ['Analysis', 'Below the map: the height timeline (who held the highest ground in each zone), zone luck (how kind each zone was compared with every other possible draw) and luck vs performance.'],
+  ['Analysis', 'Below the map: the height timeline - who held the highest ground in each zone, and for how long.'],
 ];
 
 export default function Rundgang({ offen, schliessen }: { offen: boolean; schliessen: () => void }) {
