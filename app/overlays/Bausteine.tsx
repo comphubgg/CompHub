@@ -251,7 +251,7 @@ export const LOOKS: Array<{ wert: LookConfig['look']; titel: string; text: strin
  */
 export function DesignGruppe<C extends LookConfig>({ cfg, setz, akzentStandard = '#ffffff' }: {
   cfg: C;
-  setz: <K extends keyof LookConfig>(k: K, v: LookConfig[K]) => void;
+  setz: (k: keyof LookConfig, v: LookConfig[keyof LookConfig]) => void;
   akzentStandard?: string;
 }) {
   const t = useT();
@@ -300,6 +300,61 @@ export function DesignGruppe<C extends LookConfig>({ cfg, setz, akzentStandard =
         <Schieber titel="Distance from the edge" wert={cfg.rand} von={0} bis={200} schritt={4} einheit=" px" setzen={(n) => setz('rand', n)} />
       )}
       <p className="text-[11px] text-slate-500"><T>“Free” keeps the overlay in the top-left corner of its source, so you move it in OBS. With a position, add the source at 1920 × 1080 and it places itself.</T></p>
+    </Gruppe>
+  );
+}
+
+/* ------------------------------------------------------------------ house frame (look.js Look.rahmen) */
+
+/** The CompHub house frame settings (rotating border, background, logo, watermark). */
+export const HAUS_STANDARD = {
+  rahmen: true,
+  rahmenTempo: 4,
+  rahmenBreite: 2.5,
+  hintergrund: 'hero' as 'hero' | 'fotos' | 'eigen' | 'aus',
+  hintergrundUrl: '',
+  heroDeck: 0.1,
+  wasserzeichen: 'rechts' as 'rechts' | 'links' | 'kopf' | 'aus',
+  chLogo: true,
+};
+export type HausConfig = typeof HAUS_STANDARD;
+
+/** Frame, background, logo and watermark - the same block on every configurator. */
+export function HausGruppe<C extends HausConfig>({ cfg, setz, fotos = false }: {
+  cfg: C;
+  setz: (k: keyof HausConfig, v: HausConfig[keyof HausConfig]) => void;
+  /** Offer "player photos" (overlays that know their players). */
+  fotos?: boolean;
+}) {
+  const t = useT();
+  const modi: Array<{ wert: HausConfig['hintergrund']; titel: string }> = [
+    { wert: 'hero', titel: 'CompHub animation' },
+    ...(fotos ? [{ wert: 'fotos' as const, titel: 'Player photos' }] : []),
+    { wert: 'eigen', titel: 'Own image / video' },
+    { wert: 'aus', titel: 'Off' },
+  ];
+  return (
+    <Gruppe titel="Frame and background" text="A thin blue/white light circles the box; behind the text a faint background. Box opacity is set separately.">
+      <div className="grid grid-cols-2 gap-2">
+        <Schalter titel="Animated border" an={cfg.rahmen} setzen={(b) => setz('rahmen', b)} />
+        <Schalter titel="CompHub logo" an={cfg.chLogo} setzen={(b) => setz('chLogo', b)} />
+      </div>
+      {cfg.rahmen && (
+        <div className="grid grid-cols-2 gap-3">
+          <Schieber titel="One round takes" wert={cfg.rahmenTempo} von={1} bis={15} schritt={0.5} einheit=" s" setzen={(n) => setz('rahmenTempo', n)} />
+          <Schieber titel="Border width" wert={cfg.rahmenBreite} von={1} bis={6} schritt={0.5} einheit=" px" setzen={(n) => setz('rahmenBreite', n)} />
+        </div>
+      )}
+      <Segmente titel="Background" wert={cfg.hintergrund} setzen={(v) => setz('hintergrund', v)} optionen={modi} />
+      {cfg.hintergrund === 'eigen' && (
+        <Text titel="Image or video URL (.mp4 / .webm plays muted in a loop)" wert={cfg.hintergrundUrl} setzen={(v) => setz('hintergrundUrl', v.trim())} platzhalter="https://…" max={500} />
+      )}
+      {cfg.hintergrund !== 'aus' && (
+        <Schieber titel="Background opacity" wert={Math.round(cfg.heroDeck * 100)} von={0} bis={100} einheit=" %"
+          setzen={(n) => setz('heroDeck', n / 100)} anzeige={(n) => (n ? `${n} %` : t('off'))} />
+      )}
+      <Segmente titel="thecomphub.com watermark" wert={cfg.wasserzeichen} setzen={(v) => setz('wasserzeichen', v)}
+        optionen={[{ wert: 'rechts', titel: 'Bottom right' }, { wert: 'links', titel: 'Bottom left' }, { wert: 'kopf', titel: 'Next to the logo' }, { wert: 'aus', titel: 'Off' }]} />
     </Gruppe>
   );
 }

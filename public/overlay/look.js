@@ -207,5 +207,16 @@
 
   /** The CompHub logo as a small image. */
   function logo(cls) { var i = new Image(); i.alt = ''; i.className = cls || 'lk-logo'; i.src = server() + '/favicon-192.png'; return i; }
-  global.Look = { anwenden: anwenden, neu: neu, zahl: zahl, font: font, rahmen: rahmen, logo: logo };
+  /**
+   * Everything of the house style in one call: look classes plus the frame
+   * around `box`. With the classic look (or opts.ohneRahmen) the frame,
+   * background and watermark stay off - the overlay looks as it used to.
+   */
+  function haus(box, cfg, opts) {
+    anwenden(cfg);
+    var klassisch = (cfg && cfg.look) === 'klassisch';
+    var aus = klassisch || (opts && opts.ohneRahmen);
+    return rahmen(box, aus ? Object.assign({}, cfg, { rahmen: false, heroDeck: 0, wasserzeichen: 'aus' }) : cfg, opts);
+  }
+  global.Look = { haus: haus, anwenden: anwenden, neu: neu, zahl: zahl, font: font, rahmen: rahmen, logo: logo };
 })(window);
