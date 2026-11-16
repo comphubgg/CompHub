@@ -18,6 +18,8 @@
 // (opfer[eigene Id]); das wird hier abgezogen, ohne ein Replay neu zu lesen. Die Team-Summen ebenso.
 //
 //   node scripts/replays-schlank.mjs [fenster ...]   ohne Angabe alle Fenster der Platte, sonst nur die genannten (die Live-Schleife nennt die frisch angefassten)
+//   node scripts/replays-schlank.mjs --seit 60       nur Fenster, deren Auswertung in den letzten 60 Minuten geschrieben wurde ("Replays nacharbeiten": dort
+//                                                    liegen keine schlanken Fassungen auf der Platte, ohne --seit entstuenden alle ~1000 neu)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +27,10 @@ import path from 'node:path';
 const QUELLE = path.join(process.cwd(), 'data', 'replays');
 const ZIEL = path.join(process.cwd(), 'data', 'replays-schlank');
 
-const nurDiese = new Set(process.argv.slice(2).filter((a) => !a.startsWith('--')));
+const argv = process.argv.slice(2);
+const seitIdx = argv.indexOf('--seit');
+const SEIT_MS = seitIdx >= 0 ? Number(argv[seitIdx + 1]) * 60_000 : 0;
+const nurDiese = new Set(argv.filter((a, i) => !a.startsWith('--') && !(seitIdx >= 0 && i === seitIdx + 1)));
 let neu = 0; let gleich = 0; let kaputt = 0;
 for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
   if (!/^S\d+$/i.test(saison)) continue;
@@ -35,6 +40,7 @@ for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
     if (nurDiese.size && !nurDiese.has(fenster)) continue;
     const agg = path.join(ordner, fenster, '_aggregat.json');
     if (!fs.existsSync(agg)) continue;
+    if (SEIT_MS > 0 && Date.now() - fs.statSync(agg).mtimeMs > SEIT_MS) continue;
     const ziel = path.join(ZIEL, saison, `${fenster}.json`);
     if (fs.existsSync(ziel) && fs.statSync(ziel).mtimeMs >= fs.statSync(agg).mtimeMs) { gleich += 1; continue; }
     let a;
