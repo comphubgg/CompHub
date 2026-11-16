@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
+import { trefferOrteKorrigiert } from '@/lib/trefferOrte.mjs';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayIndex, nachSpieltag, cupKurz, meineCups } from '@/lib/replayVoll';
 import { holeSeite } from '@/lib/epicCups';
@@ -43,6 +44,8 @@ export async function GET(request: Request) {
         daten = await liesJson<Record<string, unknown> | null>(e.datei, null).catch(() => null);
       }
       if (!daten) return NextResponse.json({ error: 'Die Auswertung ist gerade nicht lesbar.' }, { status: 424 });
+      // Trefferorte alter Dateien mal 10 (Leser bis Fassung 16 las sie mit dem falschen Massstab - lib/trefferOrte.mjs).
+      daten = trefferOrteKorrigiert(daten);
       // Die Wertung des Cups (Punkte je Platz und je Eliminierung) - damit die Karte zeigen kann, wie viele Punkte ein Team in diesem Game gemacht hat.
       let wertung: { platz: Record<string, number>; elim: number } | null = null;
       try {

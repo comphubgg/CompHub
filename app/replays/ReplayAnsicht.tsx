@@ -24,6 +24,7 @@ import { EinstellungenKnopf, Flagge, KartenFeed, Zeichenflaeche, useEinstellunge
 import SeitenPanel from '@/app/replays/SeitenPanel';
 import Analysen from '@/app/replays/Analysen';
 import { mitBusStart } from '@/app/replays/analyse';
+import { trefferOrteKorrigiert } from '@/lib/trefferOrte.mjs';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -114,7 +115,9 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
    * Augenblick seines Absprungs - aus "figuren" (neue Figur nach dem Bus = Absprung), sonst der Punkt der Route, der seiner Landung am naechsten liegt.
    * Von dort gleitet er geradlinig bis zu seinem ersten Ort am Boden.
    */
-  const match = useMemo<typeof roh>(() => mitBusStart(roh), [roh]);
+  // Trefferorte alter Dateien (Leser bis Fassung 16) zehnmal zu nah am Ursprung - vor allem anderen berichtigen (lib/trefferOrte.mjs), auch fuer
+  // Antworten, die noch im Zwischenspeicher liegen.
+  const match = useMemo<typeof roh>(() => mitBusStart(trefferOrteKorrigiert(roh)), [roh]);
   // Reload-Inseln: Bild und geeichter Ausschnitt (app/replays/inselKarten) - die grosse Karte kommt wie bisher von der Seite.
   const insel = useMemo(() => (/^Athena_Empty/i.test((match as { karte?: string }).karte ?? '') ? inselKarte(match.playlist) : null), [match]);
   const kartenBild = grosseKarte ?? insel?.bild ?? null;
