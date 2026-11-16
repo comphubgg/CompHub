@@ -6,7 +6,7 @@ import { schreibGrund } from '@/lib/schreibfehler';
 import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { ersatzSeit, liesJson } from '@/lib/ablage';
-import { mitSpotQuelle, spotQuelle } from '@/lib/kartenQuelle';
+import { istVitalKarte, mitSpotQuelle, spotQuelle } from '@/lib/kartenQuelle';
 
 // Ablage der Turnierkarten: Spots samt zugeordneten Teams.
 //
@@ -117,9 +117,10 @@ function stabileIds(k: Turnierkarte): Map<string, string> {
 
 async function lies(): Promise<Turnierkarte[]> {
   try {
-    // Automatisch gebaute Karten ausserhalb EU stammen aus Vital Scrims - abgeschaltet (lib/vitalScrims VITAL_AUS).
+    // Karten mit Landepunkten von Vital Scrims gehen nicht hinaus, solange Vital nicht zugestimmt hat (lib/vitalScrims VITAL_AUS) - frueher nur die
+    // automatisch gebauten, so blieben drei von Hand gespeicherte NA-Karten sichtbar (16.11.2026). Gespeichert bleiben sie (oeffentlich: false).
     return (JSON.parse(await fs.readFile(DATEI, 'utf8')) as Turnierkarte[])
-      .filter((k) => !(VITAL_AUS && (k as { automatisch?: unknown }).automatisch && (k as { region?: string }).region !== 'EU'))
+      .filter((k) => !(VITAL_AUS && istVitalKarte(k)))
       // Die Quelle jeder Form, auch bei aelteren Karten (hergeleitet) - darueber nennt die Ansicht Noble Practice.
       .map((k) => mitSpotQuelle(k));
   } catch {
@@ -360,6 +361,8 @@ export async function POST(request: Request) {
     // Die echte Quelle (noble/vital) statt nur "auto" - siehe lib/kartenQuelle.
     ...(eingang.ausQuelle ? { automatisch: { stand: geaendert, quelle: quelleDerFormen(eingang) } } : {}),
   };
+  // Formen von Vital ("Generate map" in NA/ME/OCE) duerfen gespeichert, aber nicht veroeffentlicht werden, solange Vital nicht zugestimmt hat.
+  if (VITAL_AUS && karte.oeffentlich && istVitalKarte(karte)) karte.oeffentlich = false;
 
   const gelesen = await kartenZumSchreiben();
   if (gelesen instanceof NextResponse) return gelesen;
@@ -416,6 +419,11 @@ export async function PATCH(request: Request) {
   const karten = gelesen;
   const k = karten.find((x) => x.id === id);
   if (!k) return NextResponse.json({ error: 'Unknown map' }, { status: 404 });
+  if (oeffentlich && VITAL_AUS && istVitalKarte(k)) {
+    return NextResponse.json({
+      error: 'This map uses drop spots from Vital Scrims and stays private until Vital agrees (COMPHUB_VITAL_KARTEN=1).',
+    }, { status: 409 });
+  }
 
   k.oeffentlich = oeffentlich;
   const schiefgegangen = await schreibOderSage(karten);

@@ -4,6 +4,8 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { kontoAus, nachId } from '@/lib/konten';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { istVitalKarte } from '@/lib/kartenQuelle';
+import { VITAL_AUS } from '@/lib/vitalScrims';
 
 // Ein Profi traegt sich selbst auf einer Karte ein.
 //
@@ -32,7 +34,7 @@ const COOKIE = 'streamer_dashboard_konto';
 interface Team { id: string; spieler: string[]; ids: string[]; farbe?: string }
 interface Spot { id: string; form: string; punkte: unknown[]; teams: string[] }
 interface Karte {
-  id: string; titel: string; oeffentlich?: boolean; gesperrt?: boolean;
+  id: string; titel: string; oeffentlich?: boolean; gesperrt?: boolean; region?: string; windowId?: string;
   spots: Spot[]; teams: Team[]; geaendert?: number;
 }
 
@@ -60,7 +62,8 @@ export async function GET(request: Request) {
   const karteId = new URL(request.url).searchParams.get('karte') ?? '';
   const { karten } = await lies();
   const karte = karten.find((k) => k.id === karteId);
-  if (!karte) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+  // Karten mit Formen von Vital Scrims gehen nicht hinaus (lib/vitalScrims VITAL_AUS) - wie in /api/turnier-karten.
+  if (!karte || (VITAL_AUS && istVitalKarte(karte))) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
 
   const konto = await wer();
   const eigenes = konto?.epicId

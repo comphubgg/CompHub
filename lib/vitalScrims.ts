@@ -21,8 +21,15 @@ export const VITAL_REGIONEN = ['NAC', 'NAW', 'ME', 'OCE'] as const;
 /*
  * ABGESCHALTET (Betreiber, 15.11.2026): Vital Scrims hat der Nutzung ihrer Drop-Maps nicht zugestimmt (IP-Klausel). Bis zu einer Vereinbarung liefert
  * diese Datei keine Turniere und keine Karten mehr - alle Wege (FNCS-Seiten, Tournament Maps, Kartenautomatik) bekommen damit nichts.
+ *
+ * Dazu (16.11.2026): gespeicherte Turnierkarten mit Vital-Formen (lib/kartenQuelle istVitalKarte) liefert /api/turnier-karten nicht aus, die
+ * Kartenautomatik baut nur noch Europa (Noble), und "Generate map"/PATCH koennen keine Vital-Karte oeffentlich machen. Die Daten bleiben gespeichert
+ * (oeffentlich: false), nichts ist geloescht.
+ *
+ * WIEDER EINSCHALTEN (erst mit Zustimmung von Vital): COMPHUB_VITAL_KARTEN=1 in der Umgebung des Servers setzen und neu starten, dann die Karten unter
+ * /maps wieder auf oeffentlich stellen. Die Scrims-Bestenlisten (lib/scrimServer, Yunite) haengen nicht an diesem Schalter.
  */
-export const VITAL_AUS = true;
+export const VITAL_AUS = process.env.COMPHUB_VITAL_KARTEN !== '1';
 export type VitalRegion = (typeof VITAL_REGIONEN)[number];
 export const istVitalRegion = (r: string): r is VitalRegion => (VITAL_REGIONEN as readonly string[]).includes(r);
 

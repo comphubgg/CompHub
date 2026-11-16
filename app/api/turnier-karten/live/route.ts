@@ -1,7 +1,8 @@
 import path from 'path';
 import { beobachte, liesGeteilt } from '@/lib/dateiWache';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { mitSpotQuelle } from '@/lib/kartenQuelle';
+import { istVitalKarte, mitSpotQuelle } from '@/lib/kartenQuelle';
+import { VITAL_AUS } from '@/lib/vitalScrims';
 
 /*
  * Der Stand einer Turnierkarte, sobald er sich aendert.
@@ -70,7 +71,9 @@ function stabileIds(k: Karte): Map<string, string> {
 async function holeKarte(id: string, stempel: number): Promise<Karte | null> {
   try {
     const alle = await liesGeteilt<Karte[]>(DATEI, stempel);
-    return alle.find((k) => k.id === id) ?? null;
+    const k = alle.find((x) => x.id === id) ?? null;
+    // Karten mit Formen von Vital Scrims gehen nicht hinaus (lib/vitalScrims VITAL_AUS) - wie in ../route.ts.
+    return k && VITAL_AUS && istVitalKarte(k) ? null : k;
   } catch {
     return null;
   }

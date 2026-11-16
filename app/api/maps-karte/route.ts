@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fensterFuer, vitalFenster } from '@/lib/globalsSolos';
-import { istVitalRegion } from '@/lib/vitalScrims';
+import { istVitalRegion, VITAL_AUS } from '@/lib/vitalScrims';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
 import { ALT, alteFenster, inselFuer, mitHandEbene } from '@/lib/alteMaps';
 import { fncsPlatzierungen } from '@/lib/fncsEreignisse';
@@ -70,6 +70,8 @@ function rechneEinmal(t: string, r: string, w: string): Promise<Basis | null> {
 }
 
 async function basisFuer(t: string, r: string, w: string): Promise<Basis | null> {
+  // Ein Stand auf der Platte fuer NA/ME/OCE stammt von Vital Scrims - nicht ausliefern, solange Vital nicht zugestimmt hat (lib/vitalScrims VITAL_AUS).
+  if (VITAL_AUS && istVitalRegion(r)) return rechneEinmal(t, r, w);
   try {
     const d = datei(`${t}|${r}|${w}`);
     const alter = Date.now() - fs.statSync(d).mtimeMs;

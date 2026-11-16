@@ -52,6 +52,13 @@ export function mitSpotQuelle<S extends SpotKopf, K extends KartenKopf & { spots
 export const hatNobleFormen = (spots: ReadonlyArray<{ quelle?: string; punkte?: ReadonlyArray<unknown> }>) =>
   spots.some((sp) => sp.quelle === 'noble' && (sp.punkte?.length ?? 3) >= 3);
 
+/*
+ * Stammen Landepunkte dieser Karte von Vital Scrims? Ja, sobald eine Form (gespeichert oder hergeleitet) von Vital kommt oder die Automatik/"Generate map"
+ * Vital als Quelle eingetragen hat. Solche Karten zeigt die Seite nicht, solange Vital nicht zugestimmt hat (lib/vitalScrims VITAL_AUS, Betreiber 16.11.2026).
+ */
+export const istVitalKarte = (k: KartenKopf & { spots?: ReadonlyArray<SpotKopf> }) =>
+  k.automatisch?.quelle === 'vital' || (k.spots ?? []).some((sp) => spotQuelle(k, sp) === 'vital');
+
 /** Wie hatNobleFormen, aber mit Herleitung fuer Formen ohne gespeicherte Quelle (z. B. Prognose-Karten). */
 export const zeigtNoble = (k: KartenKopf, spots: ReadonlyArray<SpotKopf & { punkte?: ReadonlyArray<unknown> }>) =>
   spots.some((sp) => spotQuelle(k, sp) === 'noble' && (sp.punkte?.length ?? 3) >= 3);

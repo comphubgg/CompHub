@@ -3,7 +3,7 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { ersatzSeit, liesJson, schreibJson } from '@/lib/ablage';
 import { nobleKarte } from '@/lib/nobleKarte';
-import { vitalAlsNoble, VITAL_REGIONEN, regionAusKennung } from '@/lib/vitalScrims';
+import { vitalAlsNoble, VITAL_AUS, VITAL_REGIONEN, regionAusKennung } from '@/lib/vitalScrims';
 import { istGrossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { kartenTitel } from '@/lib/rundenName';
 import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
@@ -31,8 +31,11 @@ import type { SpotQuelle } from '@/lib/kartenQuelle';
 const DATEI = path.join(DATEN_ORT, 'turnier-karten.json');
 const STAND = 'karten-automatik.json';
 
-/** Die Regionen mit einer Quelle fuer Landepunkte: Europa ueber Noble, NA, Middle East und Ozeanien ueber Vital. */
-export const AUTO_REGIONEN = ['EU', ...VITAL_REGIONEN] as const;
+/**
+ * Die Regionen mit einer Quelle fuer Landepunkte: Europa ueber Noble, NA, Middle East und Ozeanien ueber Vital - Vital nur mit COMPHUB_VITAL_KARTEN=1
+ * (lib/vitalScrims VITAL_AUS: Vital hat der Nutzung nicht zugestimmt, 16.11.2026).
+ */
+export const AUTO_REGIONEN: readonly string[] = VITAL_AUS ? ['EU'] : ['EU', ...VITAL_REGIONEN];
 
 const FARBEN = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#22d3ee', '#f472b6', '#84cc16'];
 const ZEHN_MIN = 10 * 60_000;
@@ -69,7 +72,7 @@ export function zieleAus(cups: CupGruppe[], nurPerformance = false): Ziel[] {
     if (!istGrossesTurnier(cup.titel)) continue;
     if (nurPerformance && !/performance/i.test(cup.titel)) continue;
     for (const [region, liste] of Object.entries(cup.regionen ?? {})) {
-      if (!(AUTO_REGIONEN as readonly string[]).includes(region)) continue;
+      if (!AUTO_REGIONEN.includes(region)) continue;
       // Nur Spieltage dieser Region: Epic fuehrt beim Duo-Cup unter NA West auch die Fenster von NA Central ("..._NAC").
       const sortiert = [...liste].filter((f) => passtRegion(f.windowId, region)).sort((a, b) => a.begin - b.begin);
       sortiert.forEach((f, i) => {
@@ -137,7 +140,8 @@ function baueKarte(
   return {
     id, titel, cupId: z.cup.id, cupTitel: z.cup.titel, region: z.region, eventId: z.f.eventId, windowId: z.f.windowId,
     bildId: bild.id, bildTitel: bild.titel, bildAutomatisch: true, namenSichtbar: false, gesperrt: false,
-    spots, teams: gekuerzt, geaendert, oeffentlich: true,
+    // Vital-Karten nie von selbst oeffentlich, solange der Schalter aus ist (siehe AUTO_REGIONEN).
+    spots, teams: gekuerzt, geaendert, oeffentlich: herkunft !== 'vital' || !VITAL_AUS,
     // Die echte Quelle der Landepunkte (frueher nur "auto"): Noble wird auf der Karte genannt, Vital nicht - siehe lib/kartenQuelle.
     automatisch: { stand: geaendert, quelle: herkunft },
   };
