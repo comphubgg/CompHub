@@ -675,6 +675,11 @@ jobs:
           done
           # Die Akten: je Schale ein frischer Server. Reicht die Zeit nicht fuer alle acht, faengt der naechste Lauf mit der
           # Schale an, die diesmal zu kurz kam (nach der Stunde gedreht).
+          # 16.11.2026: jede Schale las alle Replay-Aggregate und Clutch-Dateien neu (gemessen 1236 s je Schale, auf dem
+          # Laufrechner ueber 1500 s - abgebrochen, die Akten am Release blieben beim 7.11.). Jetzt legt aktenSchreiben je
+          # Spieltag einen Auszug unter data/_akten-vorstufe ab (lib/szeneStats.ts, aktenVorstufe), und der Zwischenspeicher
+          # nimmt ihn mit (440 MB): mit Auszug rund 70 s je Schale. Ohne (erster Lauf, leerer Zwischenspeicher) zahlt die erste Schale
+          # einmal das Lesen; bricht sie ab, ist das Gelesene trotzdem abgelegt und die naechste macht dort weiter.
           ERSTE=$(( 10#$(date -u +%H) % 8 ))
           for I in 0 1 2 3 4 5 6 7; do
             SCHALE=$(( (ERSTE + I) % 8 + 1 ))

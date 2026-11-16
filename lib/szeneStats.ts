@@ -19,9 +19,10 @@
 import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 import { JAHR_SAISONS, jahrVonSaison } from './saisonJahre';
 import fs from '@/lib/ablageFs';
+import { promises as echtesFs } from 'fs';
+import { createHash } from 'crypto';
 import path from 'path';
 import { replayWert, replayKarte, aggregateSaison } from '@/lib/replayWerte';
-import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
@@ -944,6 +945,101 @@ async function bekannteKonten(): Promise<Set<string>> {
   return raus;
 }
 
+/*
+ * Die Vorstufe der Akten (16.11.2026): je Epic-Spieltag nur, was eine Akte daraus braucht - Replay-Elims und -Knocks je
+ * Konto, Schaden und Clutch -, klein unter data/_akten-vorstufe/ (der Unterstrich haelt sie aus Release und Supabase heraus,
+ * der Zwischenspeicher des Laufs nimmt sie mit).
+ *
+ * Gemessen an Schale 7/8 mit dem Stand vom 16.11.: 1236 s, davon 644 s fuer replayKarte und 170 s fuer data/clutch - die
+ * Aggregate (bis 156 MB) und Clutch-Dateien (bis 224 MB) jedes Spieltags, in jeder der acht Schalen neu gelesen. Auf dem
+ * Laufrechner brach die Schale nach 1500 s ab, die Akten am Release blieben beim 6./7.11. stehen, und die Profile zeigten
+ * weniger Events und Elims als die Listen (2049 von 3552 Konten). Jetzt liest das nur noch der erste, der einen Spieltag
+ * braucht, und nur, wenn sich eine der Quelldateien geaendert hat (Groesse und Zeit, siehe vorstufeQuelle).
+ *
+ * Abgelegt werden nur die Konten, die in Epics Bestenliste dieses Tages stehen - nur nach denen fragt aktenSchreiben. Das sind
+ * rund ein Drittel der Zeilen (gemessen: 5,8 von 16,5 Millionen); ganz waren es 1,3 GB, die jede Stunde mit dem
+ * Zwischenspeicher des Laufs wandern. Aendert sich die Bestenliste, aendert sich die Kennung (teamKennung) und der Tag wird
+ * neu gelesen.
+ */
+const VORSTUFE = path.join(DATEN_ORT, '_akten-vorstufe');
+
+interface AktenVorstufe {
+  /** Groesse und Zeit der Quellen (schlankes Replay | Aggregat | Clutch | Konten der Bestenliste) - aendert sich eine, wird neu gelesen. */
+  quelle: string;
+  /** [Konto, Elims, Knocks] - wie replayKarte. */
+  replay: Array<[string, number, number]>;
+  /** Konto -> [Schaden, erlitten (beide gerundet, wie in der Akte), Treffer, Krit] - wie data/clutch "schaden". */
+  schaden: Record<string, [number, number, number, number]>;
+  /** Clutch-Punkte je Konto, null wenn der Tag (noch) nicht gelesen ist - wie data/clutch "summe" (leer ist hier nicht null: dann 0). */
+  clutch: Record<string, number> | null;
+}
+
+const vorstufeName = (s: string) => (s || '_').replace(/[^A-Za-z0-9_.-]/g, '_');
+
+/** Groesse und Zeit genau der Dateien, die replayKarte (lib/replaySchlank) und vollWerte lesen; '-' fuer eine fehlende. */
+async function vorstufeQuelle(season: string, windowId: string): Promise<string> {
+  const wege = [
+    path.join(DATEN_ORT, 'replays-schlank', season, `${windowId}.json`),
+    path.join(DATEN_ORT, 'replays', season, windowId, '_aggregat.json'),
+    path.join(DATEN_ORT, 'clutch', `${windowId}.json`),
+  ];
+  const teile = await Promise.all(wege.map(async (w) => {
+    try {
+      const s = await fs.stat(w);
+      return `${s.size}@${Math.round(s.mtimeMs)}`;
+    } catch { return '-'; }
+  }));
+  return teile.join('|');
+}
+
+/** Welche Konten in der Bestenliste des Tages stehen, als kurze Kennung. */
+function teamKennung(tag: EpicSpieltag): { konten: Set<string>; kennung: string } {
+  const konten = new Set<string>();
+  const h = createHash('sha1');
+  for (const t of tag.teams) for (const id of t.spieler) { konten.add(id); h.update(id); h.update(','); }
+  return { konten, kennung: `${konten.size}#${h.digest('hex').slice(0, 16)}` };
+}
+
+async function aktenVorstufe(tag: EpicSpieltag): Promise<AktenVorstufe> {
+  const { season, windowId } = tag;
+  const { konten, kennung } = teamKennung(tag);
+  const quelle = `${await vorstufeQuelle(season, windowId)}|${kennung}`;
+  const datei = path.join(VORSTUFE, vorstufeName(season), `${vorstufeName(windowId)}.json`);
+  try {
+    const da = JSON.parse(await echtesFs.readFile(datei, 'utf8')) as AktenVorstufe;
+    if (da?.quelle === quelle && Array.isArray(da.replay)) return da;
+  } catch { /* noch keine oder unlesbar - dann neu */ }
+
+  const karte = await replayKarte(season, windowId);
+  const voll = await vollWerte(windowId);
+  const neu: AktenVorstufe = {
+    quelle,
+    replay: [...karte].filter(([id]) => konten.has(id))
+      .map(([id, w]): [string, number, number] => [id, w.elims, w.knocks]),
+    schaden: Object.fromEntries(Object.entries(voll.schaden ?? {}).filter(([id]) => konten.has(id))
+      .map(([id, x]): [string, [number, number, number, number]] => [id, [Math.round(x.dmg), Math.round(x.erlitten), x.treffer, x.krit]])),
+    clutch: voll.summe && Object.keys(voll.summe).length
+      ? Object.fromEntries(Object.entries(voll.summe).filter(([id]) => konten.has(id))) : null,
+  };
+  /*
+   * Nur Gelungenes ablegen. Liegt eine Quelle da, und es kam nichts aus ihr heraus (unlesbar, gerade im Schreiben), wird
+   * das Ergebnis diesmal benutzt, aber nicht gemerkt - der naechste Lauf liest die Datei noch einmal (AGENTS.md: ein
+   * Fehlschlag ist kein Beweis). Ein leerer Spieltag ohne Quelle ist dagegen ein echtes Ergebnis.
+   */
+  const [schlank, aggregat, clutch] = quelle.split('|');
+  const replayLeer = (schlank !== '-' || aggregat !== '-') && !karte.size;
+  const clutchLeer = clutch !== '-' && !Object.keys(voll).length;
+  if (!replayLeer && !clutchLeer) {
+    try {
+      await echtesFs.mkdir(path.dirname(datei), { recursive: true });
+      const zwischen = `${datei}.${process.pid}.tmp`;
+      await echtesFs.writeFile(zwischen, JSON.stringify(neu));
+      await echtesFs.rename(zwischen, datei);
+    } catch { /* nur ein Merkzettel - dann beim naechsten Mal neu */ }
+  }
+  return neu;
+}
+
 /**
  * Die Akten schreiben - wahlweise nur eine Schale der Konten.
  *
@@ -1015,20 +1111,24 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
   const imArchiv = new Set(verzeichnis.map((e) => e.windowId));
   for (const tag of await liesEpicSpieltage()) {
     if (imArchiv.has(tag.windowId)) continue;
-    let replays: Map<string, ReplayWert> | null = null;
-    let voll: { schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>; summe?: Record<string, number> } | null = null;
+    let vs: AktenVorstufe | null = null;
+    let replays: Map<string, [number, number]> | null = null;
     for (const team of tag.teams) {
       for (const id of team.spieler) {
         if (!inSchale(id)) continue;
         const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
         if (!a) continue;
-        replays ??= await replayKarte(tag.season, tag.windowId);
-        const w = replays.get(id);
+        // Replay-Elims und -Knocks, Schaden und Clutch aus der Vorstufe (siehe aktenVorstufe) - dieselben Werte wie aus
+        // replayKarte und data/clutch, ohne die grossen Dateien in jeder Schale neu zu lesen.
+        vs ??= await aktenVorstufe(tag);
+        replays ??= new Map(vs.replay.map(([k, e, kn]) => [k, [e, kn]]));
+        const r = replays.get(id);
+        const w = r ? { elims: r[0], knocks: r[1] } : undefined;
         // Schaden und Clutch aus den vollen Replays, wo der Tag gelesen ist
         // (.github/workflows/clutch-rechnen.yml) - gezaehlt, nicht von Epic.
-        voll ??= await vollWerte(tag.windowId);
-        const sch = voll.schaden?.[id];
-        const cl = voll.summe && Object.keys(voll.summe).length ? (voll.summe[id] ?? 0) : undefined;
+        const s = vs.schaden[id];
+        const sch = s ? { dmg: s[0], erlitten: s[1], treffer: s[2], krit: s[3] } : undefined; // dmg und erlitten schon gerundet
+        const cl = vs.clutch ? (vs.clutch[id] ?? 0) : undefined;
         a.epic.push({
           event: tag.windowId, windowId: tag.windowId, region: tag.region,
           season: tag.season, titel: tag.titel, datum: tag.datum,
@@ -1036,7 +1136,7 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
           mitspieler: team.spieler.filter((x) => x !== id),
           nurEpic: true,
           ...(w ? { replayElims: w.elims, replayKnocks: w.knocks } : {}),
-          ...(sch ? { replaySchaden: { dmg: Math.round(sch.dmg), erlitten: Math.round(sch.erlitten), treffer: sch.treffer, krit: sch.krit } } : {}),
+          ...(sch ? { replaySchaden: sch } : {}),
           ...(typeof cl === 'number' ? { replayClutch: cl } : {}),
         });
       }
