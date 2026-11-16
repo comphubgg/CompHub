@@ -204,7 +204,14 @@ jobs:
             sleep 15
           done
 
+      # Immer der neueste Stand von main, nicht der Commit, mit dem die Runde anfing (16.11.2026). Eine Runde laeuft bis zu zwei Stunden; Lauf 43828063226
+      # begann um 08:02 auf a6e44557 und legte um 09:32 mit dem clutch-zusammen.mjs von vor ddaf60ab ab - ohne Umbau-Schutz. Er schrieb den Neuanfang
+      # (Fassung 20) direkt ueber die volle Datei von Performance Evaluation Cup Round 1 EU (207 Matches); danach galt die veroeffentlichte Datei als
+      # "selbst teilweise", und ein Umbau mit 83 von 207 ersetzte sie (6d60efa7). Die Seite zeigte fuer die besten 32 Spieler keine Replay-Werte mehr.
+      # clutch-ablegen.yml laeuft schon immer auf main (--ref main beim Anstossen).
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
