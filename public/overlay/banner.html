@@ -395,7 +395,21 @@
   .l-werte .tl { font-size: calc(9px * var(--skala)); font-weight: 800; letter-spacing: .12em; line-height: 1.15; color: #aab4c4; text-transform: uppercase; text-align: left; }
   #leiste.leerlauf .l-werte { display: none; }
   #leiste.leerlauf .l-hinweis { display: flex; }
+
+  /*
+   * ------------------------------------------------ CompHub house style (11/2026)
+   * With the template "comphub" (the default): Inter, the rotating frame and
+   * faint background around the card (look.js), the CompHub logo above the
+   * names, slightly more transparent. The slanted bar (form=leiste) keeps its
+   * own shape. Params: &border=0 &hero=10 (0-100) &bgmode=hero|fotos|eigen|aus
+   * &bgurl=… &url=rechts|links|aus (watermark) &nologo=1
+   */
+  body.haus, body.haus #banner { font-family: 'Inter', 'Segoe UI', sans-serif; }
+  body.haus #banner { border-radius: 14px; }
+  body.haus .namen .lk-logo, body.haus .t-namen .lk-logo { width: calc(18px * var(--skala)); height: calc(18px * var(--skala)); border-radius: calc(4px * var(--skala)); margin-right: calc(8px * var(--skala)); vertical-align: -0.12em; }
+  body.haus .lk-rand { margin-top: 2px; }
 </style>
+<link rel="stylesheet" href="look.css">
 </head>
 <body>
 
@@ -431,6 +445,7 @@
 </div>
 
 <script src="vorlagen.js"></script>
+<script src="look.js"></script>
 <script>
 /*
  * Eine Adresse, die bleibt.
@@ -594,7 +609,26 @@ const TRIO_MODE = !LEISTE && (GROESSTES_TEAM >= 3 || PROBE) && (GROESSTES_TEAM >
 let TRIO_START = 1;
 
 // Vorlage und Deckkraft aus der Adresse.
-Vorlagen.anwenden(document.documentElement, P.get('vorlage'));
+const VORLAGE = Vorlagen.anwenden(document.documentElement, P.get('vorlage'));
+/* The house style: the "comphub" template (also the default for none). */
+const HAUS = VORLAGE.id === 'comphub' && !LEISTE;
+if (HAUS) {
+  document.body.classList.add('haus');
+  if (!P.get('klar')) document.documentElement.style.setProperty('--klar', '0.66');
+  const bg = P.get('bgmode');
+  Look.haus(document.getElementById('banner'), {
+    look: 'clean',
+    rahmen: P.get('border') !== '0',
+    heroDeck: P.has('hero') ? Math.max(0, Math.min(100, Number(P.get('hero')))) / 100 : 0.1,
+    hintergrund: bg || 'hero', hintergrundUrl: P.get('bgurl') || '',
+    wasserzeichen: P.get('url') || 'aus',
+  });
+}
+/** The CompHub logo before the names (house style). */
+function hausLogo(el) {
+  if (!HAUS || P.get('nologo') === '1' || !el || el.querySelector('.lk-logo')) return;
+  el.insertBefore(Look.logo(), el.firstChild);
+}
 // Die Akzentfarbe laesst sich in jede Farbe stellen (Betreiber, 19.10.2026: "diese gruene Farbe in jede Farbe anpassbar").
 const AKZENT = (P.get('akzent') || '').trim();
 if (/^#?[0-9a-f]{3}([0-9a-f]{3})?$/i.test(AKZENT)) document.documentElement.style.setProperty('--akzent', AKZENT.charAt(0) === '#' ? AKZENT : '#' + AKZENT);
@@ -924,6 +958,7 @@ async function zeichneTrio(liste, g, w) {
     k.querySelector('.t-name').textContent = namen[i] || '';
   }
   document.getElementById('t-namen').textContent = namen.filter(Boolean).join(' & ');
+  hausLogo(document.getElementById('t-namen'));
   passeGroesseAn();
   fotos.querySelectorAll('.t-name').forEach(textEinpassen);
   textEinpassen(document.getElementById('t-namen'));
@@ -932,6 +967,7 @@ async function zeichneTrio(liste, g, w) {
 function namenEinpassen() {
   const el = document.getElementById('namen');
   if (!el) return;
+  hausLogo(el);
   el.style.fontSize = '';
   const voll = parseFloat(getComputedStyle(el).fontSize) || 21;
   let groesse = voll;

@@ -32,6 +32,8 @@ interface Team { rank: number; spieler: Spieler[] }
 
 /** Muss zu public/overlay/vorlagen.js passen. */
 const VORLAGEN = [
+  // The CompHub house style (11/2026): transparent black, white text, rotating frame, logo.
+  { id: 'comphub', titel: 'CompHub', grund: '#0a0c12', akzent: '#ffffff', schrift: '#ffffff' },
   { id: 'nacht', titel: 'Nacht', grund: '#0d1b3a', akzent: '#38bdf8', schrift: '#ffffff' },
   { id: 'kohle', titel: 'Kohle', grund: '#0b0b0e', akzent: '#38bdf8', schrift: '#ffffff' },
   { id: 'eis', titel: 'Eis', grund: '#0b3d7a', akzent: '#7dd3fc', schrift: '#ffffff' },
@@ -414,7 +416,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const [ausAdresseGeladen, setAusAdresseGeladen] = useState(false);
 
   // In der Globals-Fassung ist das Aussehen des Turniers die Voreinstellung.
-  const [vorlage, setVorlage] = useState(globals ? 'globals' : 'nacht');
+  const [vorlage, setVorlage] = useState(globals ? 'globals' : 'comphub');
   const [klar, setKlar] = useState(92);
   const [hoehe, setHoehe] = useState(108);
   /**

@@ -12,6 +12,21 @@
  */
 (function (global) {
   const VORLAGEN = [
+    /*
+     * The CompHub house style (11/2026) - first in the list, so it is also the
+     * default for a banner without a template. Transparent black, white text,
+     * grey labels, no coloured accent; banner.html adds the rotating frame,
+     * the faint background and the logo (look.js).
+     */
+    {
+      id: 'comphub',
+      titel: 'CompHub',
+      beschreibung: 'Transparent black, white text, the rotating frame - the house style',
+      werte: {
+        grund: '#0a0c12', grund2: '#141821', schrift: '#ffffff',
+        leise: '#a3a9b7', akzent: '#ffffff',
+      },
+    },
     {
       id: 'nacht',
       titel: 'Nacht',
