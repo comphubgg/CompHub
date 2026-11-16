@@ -31,7 +31,8 @@ export const STANDARD = {
   wasserzeichen: 'rechts' as 'rechts' | 'links' | 'kopf' | 'aus',
   name1: '', name2: '', tag1: '', tag2: '', teamZeigen: true,
   spieler1: ['Chap', 'Kaan', 'Fastroki'] as string[], spieler2: ['Nociff', 'Izzi', 'Akiira'] as string[],
-  laender1: ['de', 'de', 'at'] as string[], laender2: ['fr', 'de', 'ch'] as string[],
+  /** Explicitly chosen flags only - empty means: the real flag from our profile data (the overlay looks it up). */
+  laender1: [] as string[], laender2: [] as string[],
   flagge1: '', flagge2: '', logo1: '', logo2: '',
   punkte1: 0, punkte2: 0,
   stil: 'bar' as 'bar' | 'compact' | 'vertical' | 'eng',
@@ -127,20 +128,23 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
   const [offen, setOffen] = useState(false);
   const [funde, setFunde] = useState<Fund[]>([]);
   /*
-   * The flag from our profile data - only for an exact name match, and only
-   * for this one player. Operator, 11/2026: one player's flag must never end
-   * up on the others.
+   * The real flag from our profile data (/api/spieler-laender?wer=), the same
+   * lookup the overlay uses. Shown as the default; typing a code overrides it
+   * for this one player only. Nothing is hard-coded.
    */
-  async function flaggeSuchen() {
+  const [auto, setAuto] = useState('');
+  useEffect(() => {
     const q = name.trim();
-    if (q.length < 2 || land) return;
-    try {
-      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)).json();
-      const genau = (Array.isArray(j?.spieler) ? j.spieler as Fund[] : [])
-        .find((f) => f.anzeige.trim().toLowerCase() === q.toLowerCase() && f.land);
-      if (genau?.land) setzen(name, genau.land.toLowerCase());
-    } catch { /* keep without flag */ }
-  }
+    if (q.length < 2) { setAuto(''); return undefined; }
+    const uhr = window.setTimeout(() => {
+      fetch(`/api/spieler-laender?wer=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => setAuto(String(j?.laender?.[q] ?? '').toLowerCase()))
+        .catch(() => setAuto(''));
+    }, 400);
+    return () => window.clearTimeout(uhr);
+  }, [name]);
+  const flagge = land || auto;
   useEffect(() => {
     const q = name.trim();
     if (!offen || q.length < 2) { setFunde([]); return undefined; }
@@ -155,14 +159,14 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
   return (
     <div className="relative flex items-center gap-1.5">
       <input value={land} maxLength={2} onChange={(e) => setzen(name, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
-        placeholder="cc" title={t('Flag (country code, e.g. de)')}
+        placeholder={auto || 'cc'} title={t('Flag (country code, e.g. de)')}
         className={`${FELD} w-12 shrink-0 px-2 text-center font-mono text-xs uppercase`} />
-      {/^[a-z]{2}$/.test(land) && (
+      {/^[a-z]{2}$/.test(flagge) && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/flags/${land}.png`} alt="" className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover" />
+        <img src={`/flags/${flagge}.png`} alt="" className={`h-3.5 w-5 shrink-0 rounded-[2px] object-cover ${land ? '' : 'opacity-70'}`} />
       )}
       <input value={name} maxLength={24} onChange={(e) => setzen(e.target.value, land)}
-        onFocus={() => setOffen(true)} onBlur={() => { window.setTimeout(() => setOffen(false), 150); void flaggeSuchen(); }}
+        onFocus={() => setOffen(true)} onBlur={() => window.setTimeout(() => setOffen(false), 150)}
         placeholder={t('Player name')} className={`${FELD} min-w-0 flex-1`} />
       {entfernen && (
         <button type="button" onClick={entfernen} title={t('Remove')}
@@ -172,7 +176,7 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
         <div className="absolute left-14 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-white/10 bg-[#0d1119] shadow-2xl">
           {funde.map((f) => (
             <button key={f.epicId} type="button" onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { setzen(f.anzeige, (f.land ?? '').toLowerCase()); setOffen(false); }}
+              onClick={() => { setzen(f.anzeige, ''); setOffen(false); }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-300 hover:bg-white/[0.05]">
               {f.land
                 // eslint-disable-next-line @next/next/no-img-element

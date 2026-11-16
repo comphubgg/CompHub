@@ -263,7 +263,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
  * no gold - the leading places are simply white and bold. Layouts:
  *   liste    the table (previous)
  *   kompakt  tighter rows, smaller header
- *   spalten  the places side by side as columns (photo, name, points)
+ *   spalten  the places side by side as columns (place, name, points)
  *   ticker   one scrolling line, for the bottom of the screen
  * Extra fields: eliminations and games per row.
  */
@@ -294,7 +294,7 @@ body.haus.l-spalten tr { display: flex; flex-direction: column; align-items: cen
 body.haus.l-spalten tr + tr { border-left: 1px solid rgba(255, 255, 255, .08); }
 body.haus.l-spalten td { display: block; padding: 0 !important; border: 0 !important; width: auto; text-align: center; max-width: 9em; }
 body.haus.l-spalten td.platz { font-size: .75em; }
-body.haus.l-spalten td.bild { height: calc(var(--schrift) * 2.4); }
+
 body.haus.l-spalten td.bild .rahmen { width: calc(var(--schrift) * 2.4); height: calc(var(--schrift) * 2.4); }
 body.haus.l-spalten td.punkte { font-size: 1.35em; }
 body.haus.l-spalten #kopfextra { display: none; }
@@ -503,7 +503,12 @@ body.haus.l-ticker #lauf { display: flex; overflow: hidden; flex: 1 1 auto; min-
        * Eine graue Silhouette neben einem echten Gesicht sieht schlechter
        * aus als gar kein Bild - dieselbe Regel wie bei der Bildgenerierung.
        */
-      if (cfg.bilder) {
+      /*
+       * No profile pictures on the leaderboard (operator, 11/2026): we do not
+       * have a photo for every player, and a list with gaps looks broken. Old
+       * settings with "bilder" on simply show no photos.
+       */
+      if (false && cfg.bilder) {
         const td = document.createElement('td');
         td.className = 'bild';
         /*

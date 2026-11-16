@@ -96,8 +96,8 @@ const VORLAGEN_BASIS: Array<Vorlage<Config>> = [
     setzt: { look: 'klassisch', thema: '' as Thema, grund: '12 20 38', akzent: '#38bdf8', deckkraft: 0.82, ecken: 16, breite: 420, schrift: 16, gold: 1, bilder: false } },
   { schluessel: 'kompakt', titel: 'Kompakt', text: 'Schmal und klein — für die Ecke des Bildes.',
     setzt: { look: 'klassisch', thema: '' as Thema, grund: '24 24 27', akzent: '#ffffff', deckkraft: 0.78, ecken: 6, breite: 320, schrift: 13, gold: 0, bilder: false } },
-  { schluessel: 'gross', titel: 'Groß mit Fotos', text: 'Breit, große Schrift und das Foto vor dem Namen.',
-    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', akzent: '#34d399', deckkraft: 0.7, ecken: 14, breite: 640, schrift: 22, gold: 3, bilder: true } },
+  { schluessel: 'gross', titel: 'Groß', text: 'Breit und große Schrift.',
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', akzent: '#34d399', deckkraft: 0.7, ecken: 14, breite: 640, schrift: 22, gold: 3, bilder: false } },
   { schluessel: 'rot', titel: 'Rot auf Anthrazit', text: 'Kräftiger roter Akzent auf dunklem Grau.',
     setzt: { look: 'klassisch', thema: '' as Thema, grund: '24 24 27', akzent: '#f43f5e', deckkraft: 0.85, ecken: 10, breite: 440, schrift: 17, gold: 1, bilder: false } },
 ];
@@ -447,14 +447,7 @@ export default function StandingsBaukasten({ globals = false }: {
                   </label>
                   {/* In der Globals-Fassung nicht: "Die Funktion Photos before
                       the name soll weg. Das ist viel zu viel dann." */}
-                  {!globals && (
-                    <label className="flex items-center gap-2 self-end text-xs text-slate-400">
-                      <input type="checkbox" checked={cfg.bilder}
-                        onChange={(e) => setz('bilder', e.target.checked)}
-                        className="accent-sky-500" />
-                      <T>Fotos vor dem Namen</T>
-                    </label>
-                  )}
+                  {/* No photos on the leaderboard (operator, 11/2026): we do not have one for every player. */}
                 </div>
                 <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
                   <T>Die Karte ist so breit wie eingestellt, wächst aber mit, wenn

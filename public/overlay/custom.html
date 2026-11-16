@@ -23,7 +23,8 @@
     ?vorschau=<json>    the live preview in the configurator (no requests).
     plain URL params    no account needed, e.g.
       ?title=MASTER%20MONDAYS&p1=Chap,Kaan,Fastroki&p2=Nociff,Izzi,Akiira
-      &s1=0&s2=0 &fl1=de,de,at &fl2=fr,de,ch (flag per player)
+      &s1=0&s2=0 &fl1=..&fl2=.. (optional flag override per player; otherwise the
+      real flags come from our profile data via /api/spieler-laender?wer=)
       &style=bar|compact|vertical|eng (eng = stacked compact) &layout=stacked|inline
       &t1=..&t2=.. (team names, optional) &tag1/&tag2 (compact)
       &v=top|middle|bottom &h=left|center|right &margin=48 &scale=1
@@ -352,6 +353,27 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     vorher.p1 = p1; vorher.p2 = p2;
   }
 
+  /*
+   * Flags from our profile data (/api/spieler-laender?wer=...): every player
+   * without an explicitly chosen flag gets the real one - one small request
+   * for all names, remembered. Nothing is typed in by hand.
+   */
+  var landCache = {};
+  var letzteCfg = null;
+  function laenderHolen(namen) {
+    var fehlt = namen.filter(function (n) { return n && !(n.toLowerCase() in landCache); });
+    if (!fehlt.length) return;
+    fehlt.forEach(function (n) { landCache[n.toLowerCase()] = ''; });
+    fetch(SERVER + '/api/spieler-laender?wer=' + encodeURIComponent(fehlt.join(',')))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.laender) return;
+        Object.keys(j.laender).forEach(function (n) { landCache[n.toLowerCase()] = String(j.laender[n]).toLowerCase(); });
+        if (letzteCfg) { seite(1, letzteCfg); seite(2, letzteCfg); }
+      })
+      .catch(function () { /* without flags */ });
+  }
+
   function seite(n, cfg) {
     var namen = liste(cfg['spieler' + n]).filter(Boolean).slice(0, 4);
     var laender = liste(cfg['laender' + n]);
@@ -372,7 +394,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
       if (i > 0) { var tr = document.createElement('span'); tr.className = 'trenner'; tr.textContent = '·'; sp.appendChild(tr); }
       var z = document.createElement('div');
       z.className = 'sp';
-      var f = flaggenPfad(laender[i]) || (i === 0 ? teamFlagge : '');
+      var f = flaggenPfad(laender[i]) || flaggenPfad(landCache[nm.toLowerCase()]) || (i === 0 ? teamFlagge : '');
       if (f) {
         var im = document.createElement('img');
         im.className = 'flagge'; im.alt = ''; im.src = f;
@@ -439,6 +461,8 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     $('fuss').textContent = teile.join(' · ');
     $('fuss').hidden = !teile.length;
 
+    letzteCfg = cfg;
+    laenderHolen(liste(cfg.spieler1).concat(liste(cfg.spieler2)).filter(Boolean).slice(0, 8));
     seite(1, cfg);
     seite(2, cfg);
     punkte(cfg.punkte1, cfg.punkte2, cfg.animation);

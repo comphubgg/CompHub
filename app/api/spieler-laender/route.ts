@@ -127,8 +127,43 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
  * fertig in der Ablage - siehe lib/antwortSpeicher.ts. Vorgerechnet wird es
  * von der stuendlichen GitHub-Aktion, dort wo die Dateien ohnehin liegen.
  */
+/*
+ * Only a few names: ?wer=Chap,Kaan,Fastroki -> { laender: { Chap: "CH", ... } }
+ *
+ * For the overlays (11/2026): their demo and preview flags must be the real
+ * ones from our profile data, never typed in by hand - and an OBS source
+ * should not download the whole map for six names. The name map is built
+ * once and kept for ten minutes.
+ */
+let namenKarte: Record<string, string> | null = null;
+let namenBis = 0;
+async function wenige(wer: string) {
+  if (!namenKarte || Date.now() > namenBis) {
+    let rohe: RohSpieler[] = [];
+    const nachId: Record<string, string> = {};
+    try {
+      rohe = JSON.parse(await fs.readFile(DATEI, 'utf8')) as RohSpieler[];
+      for (const p of rohe) {
+        const id = (p.ID ?? '').trim();
+        const land = (p.COUNTRY ?? '').trim().toUpperCase();
+        if (id && /^[A-Z]{2}$/.test(land)) nachId[id] = land;
+      }
+    } catch { /* without the list only the profiles */ }
+    namenKarte = await nachNamen(nachId, rohe);
+    namenBis = Date.now() + 10 * 60_000;
+  }
+  const laender: Record<string, string> = {};
+  for (const n of wer.split(',').map((x) => x.trim()).filter(Boolean).slice(0, 40)) {
+    const land = namenKarte[namensSchluessel(n)];
+    if (land) laender[n] = land;
+  }
+  return NextResponse.json({ laender }, { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' } });
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const wer = url.searchParams.get('wer');
+  if (wer) return wenige(wer);
   const schluessel = 'laender|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
