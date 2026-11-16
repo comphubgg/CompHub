@@ -50,7 +50,7 @@ jobs:
     # Zwischenspeicher am Ende blieb jedes Mal ungesichert. Die Frist ist
     # jetzt weit genug; ueberlappen koennen sich Laeufe wegen der
     # Gruppe unten ohnehin nicht.
-    # 16.11.2026: 100 statt 170. Ein Lauf braucht jetzt um 45 Minuten (Vorrechnen 23, Hochladen im Hintergrund); nur ein kalter Lauf
+    # 16.11.2026: 100 statt 170. Ein Lauf braucht jetzt um 45 Minuten (Vorrechnen 20, Hochladen im Hintergrund); nur ein kalter Lauf
     # ohne Zwischenspeicher ("Stand vom Release holen", bis 40 Minuten) braucht mehr.
     timeout-minutes: 100
 
@@ -601,11 +601,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=7168
         run: |
           set +e
-          # Bis hierhin darf gerechnet werden (16.11.2026: 23 statt 100 Minuten). Der Schritt fuellte seine 100 Minuten in jedem Lauf -
+          # Bis hierhin darf gerechnet werden (16.11.2026: 20 statt 100 Minuten; gemessen 45 und 49 Minuten je Lauf mit 23). Der Schritt fuellte seine 100 Minuten in jedem Lauf -
           # Teil 1 dreimal je 40 Minuten an der Startansicht von S42, die Akten mit dem Rest -, und ein Lauf dauerte 133 Minuten statt
           # einer Stunde; die Laeufe stauten sich. Seit die schlanken Replays und die Saison-Sammlung nicht mehr jede Stunde voll gelesen
           # werden, reicht die Zeit fuer die Listen; die Akten bekommen den Rest, mindestens vier Minuten, und drehen sich ueber die Laeufe.
-          ENDE=$(( $(date +%s) + 23 * 60 ))
+          ENDE=$(( $(date +%s) + 20 * 60 ))
           # Auslagerungsdatei: faengt Spitzen ab, statt dass der Laufrechner
           # bei vollem Speicher stehen bleibt. Auf /mnt liegt die grosse,
           # fluechtige Platte des Laufrechners.
@@ -679,7 +679,8 @@ jobs:
             if [ "$LEBT" = nein ]; then echo "::warning::Server in $NAME abgestuerzt oder Frist erreicht:"; tail -n 8 /tmp/server.log; fi
           }
           # Teil 1 zuerst (Startansichten, Jahre), dann 2 bis 8 nach der Stunde gedreht: reicht die Zeit einmal nicht, trifft es jede Stunde
-          # einen anderen Teil. Fuer jeden spaeteren Teil bleibt eine halbe Minute, fuer die Akten vier. Ein zweiter Versuch nur, wenn der
+          # einen anderen Teil. Fuer jeden spaeteren Teil bleibt eine Minute (der Server braucht zum Warmwerden 30 bis 60 s), fuer die Akten
+          # vier; ein Teil hoechstens zehn Minuten (Lauf 43899822030: Teil 1 hing 15 Minuten am ersten Aufbau der S42-Auszuege). Ein zweiter Versuch nur, wenn der
           # Server abstuerzte - nicht nach abgelaufener Frist; er faengt nicht von vorn an, was gerechnet ist, liegt in der Ablage
           # (16.11.2026 gemessen: Teile 3 bis 8 je unter einer Minute, Teil 2 um vier, Teil 1 um zehn).
           DREH=$(( 10#$(date -u +%H) % 7 ))
@@ -688,7 +689,7 @@ jobs:
           for TEIL in $REIHE; do
             N=$((N + 1))
             for VERSUCH in 1 2; do
-              FRIST=$(( $(rest) - 240 - 30 * (8 - N) )); [ $FRIST -gt 900 ] && FRIST=900
+              FRIST=$(( $(rest) - 240 - 60 * (8 - N) )); [ $FRIST -gt 600 ] && FRIST=600
               [ $FRIST -lt 45 ] && { echo "::warning::Keine Zeit mehr fuer Teil $TEIL"; break; }
               portion "teil $TEIL" $FRIST --teil=$TEIL/8
               [ "$LEBT" = ja ] && break
@@ -743,7 +744,7 @@ jobs:
         timeout-minutes: 8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur akten --minuten 5 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
+        run: node scripts/ablage-github.mjs --nur akten --minuten 4 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
 
       - name: Ergebnis nach Supabase
         # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
