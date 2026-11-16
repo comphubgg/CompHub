@@ -11,8 +11,10 @@
   House style (operator, 11/2026: "simple, transparent, not many colours"):
   one semi-transparent black rounded box, Inter in white, names at the outer
   edges with small flags, a big score with a muted colon, a small letter-spaced
-  title line with an optional red LIVE dot, an optional grey footer
-  ("FIRST TO 5"). Colour is optional ("farbig": team accents) - never default.
+  title line with the CompHub logo, an optional grey footer ("FIRST TO 5").
+  Around the box a rotating blue/white border, inside it the homepage hero
+  images drifting at ~10 % (look.js "house frame"). No LIVE indicator.
+  Colour is optional ("farbig": team accents) - never default.
 
   Three ways to feed it:
     ?id=<id>            a saved overlay (/overlays/custom). Score changes from
@@ -25,10 +27,13 @@
       &style=bar|compact|vertical &layout=stacked|inline
       &t1=..&t2=.. (team names, optional) &tag1/&tag2 (compact)
       &v=top|middle|bottom &h=left|center|right &margin=48 &scale=1
-      &hideTitle=1 &hideLive=1 &live=LIVE &font=inter|oswald|...
+      &hideTitle=1 &font=inter|oswald|... &nologo=1
+      &border=0 &borderspeed=4 &borderwidth=2.5 &hero=10 (0-100, background opacity)
+      &bgmode=hero|fotos|eigen|aus &bgurl=<image or .mp4/.webm> &url=rechts|links|kopf|aus
       &bg=0a0a0c &op=62 &text=ffffff &color=1 &c1=3b82f6 &c2=ef4444
       &mode=boxfight &ft=5 (first to) &round=7 &series=1-0 &logo1=<url>
 -->
+<link rel="stylesheet" href="look.css">
 <style>
 :root {
   --grund: 10 10 12;
@@ -49,11 +54,9 @@ body { display: flex; padding: var(--rand); font-family: var(--font); color: var
 body.v-top { align-items: flex-start; } body.v-middle { align-items: center; } body.v-bottom { align-items: flex-end; }
 body.h-left { justify-content: flex-start; } body.h-center { justify-content: center; } body.h-right { justify-content: flex-end; }
 
+.lk-rand { zoom: var(--mass); }
 #board {
-  zoom: var(--mass);
   min-width: 520px;
-  border-radius: var(--ecken);
-  overflow: hidden;
   background: rgb(var(--grund) / var(--deck));
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
@@ -71,9 +74,8 @@ body.h-left { justify-content: flex-start; } body.h-center { justify-content: ce
 }
 #kopf b { color: var(--text); font-weight: 700; }
 #marke { height: 18px; max-width: 120px; object-fit: contain; }
-#live { display: inline-flex; align-items: center; gap: 6px; }
-#live i { width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: blink 2s ease-in-out infinite; }
-@keyframes blink { 50% { opacity: .35; } }
+#kopf .lk-logo { height: 16px; width: 16px; }
+.mitte-logo { display: none; width: 26px; height: 26px; border-radius: 6px; opacity: .9; }
 
 #reihe { display: flex; align-items: center; justify-content: space-between; gap: 40px; padding: 10px 30px 14px; }
 .seite { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -118,6 +120,8 @@ body.compact .kurz { display: block; }
 .kurz { display: none; font-size: 24px; font-weight: 600; white-space: nowrap; }
 body.compact #stand { font-size: 44px; }
 body.compact .teiler { font-size: 28px; }
+body.compact.mitLogo .teiler { display: none; }
+body.compact.mitLogo .mitte-logo { display: block; }
 
 /* sidebar: stacked */
 body.vertical #board { min-width: 300px; }
@@ -145,7 +149,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
 <body class="v-top h-center">
 
 <div id="board">
-  <div id="kopf"><img id="marke" alt="" hidden><b id="titeltext"></b><span id="live"><i></i><span id="livetext">LIVE</span></span></div>
+  <div id="kopf" data-lk-kopf><img id="marke" alt="" hidden><b id="titeltext"></b></div>
   <div id="reihe">
     <div class="seite a">
       <img class="logo" id="l1" alt="" hidden>
@@ -156,7 +160,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
         <div class="pips" id="pips1" hidden></div>
       </div>
     </div>
-    <div id="stand"><span class="zahl" id="z1">0</span><span class="teiler">:</span><span class="zahl" id="z2">0</span></div>
+    <div id="stand"><span class="zahl" id="z1">0</span><span class="teiler">:</span><span id="mitteLogo"></span><span class="zahl" id="z2">0</span></div>
     <div class="seite b">
       <img class="logo" id="l2" alt="" hidden>
       <div class="team">
@@ -170,11 +174,18 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
   <div id="fuss" hidden></div>
 </div>
 
+<script src="look.js"></script>
 <script>
 (function () {
   'use strict';
 
   var STANDARD = {
+    // House frame (look.js): rotating border, faint hero images, CompHub logo.
+    rahmen: true, rahmenTempo: 4, rahmenBreite: 2.5, heroDeck: 0.1, chLogo: true,
+    // Background inside the box: 'hero' | 'fotos' (players' photos) | 'eigen' (hintergrundUrl) | 'aus'
+    hintergrund: 'hero', hintergrundUrl: '',
+    // "thecomphub.com": 'rechts' | 'links' | 'kopf' | 'aus'
+    wasserzeichen: 'rechts',
     titel: 'MASTER MONDAYS', titelZeigen: true,
     live: 'LIVE', liveZeigen: true,
     name1: '', name2: '', tag1: '', tag2: '', teamZeigen: true,
@@ -183,7 +194,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     flagge1: '', flagge2: '', logo1: '', logo2: '',
     punkte1: 0, punkte2: 0,
     stil: 'bar', anordnung: 'stapel',
-    grund: '#0a0a0c', deckkraft: 0.62,
+    grund: '#0a0c12', deckkraft: 0.66,
     akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ff4d4d',
     farbig: false,
     schrift: 'inter', groesse: 1, ecken: 14,
@@ -282,6 +293,14 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
       c.serie1 = Number(se[0]) || 0; c.serie2 = Number(se[1]) || 0; c.serieZeigen = true;
     }
     if (ja('hideTitle')) c.titelZeigen = false;
+    if (ja('nologo')) c.chLogo = false;
+    if (P.get('border') === '0') c.rahmen = false;
+    if (P.has('borderspeed')) c.rahmenTempo = Number(P.get('borderspeed')) || 4;
+    if (P.has('borderwidth')) c.rahmenBreite = Number(P.get('borderwidth')) || 2.5;
+    if (P.has('bgmode')) c.hintergrund = P.get('bgmode');
+    if (P.has('bgurl')) c.hintergrundUrl = P.get('bgurl');
+    if (P.has('url')) c.wasserzeichen = P.get('url');
+    if (P.has('hero')) c.heroDeck = Math.max(0, Math.min(100, Number(P.get('hero')))) / 100;
     if (ja('hideLive')) c.liveZeigen = false;
     if (ja('hideTeams')) c.teamZeigen = false;
     return c;
@@ -382,9 +401,16 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     if (mlOk) { if (marke.getAttribute('src') !== ml) marke.src = ml; marke.hidden = false; } else marke.hidden = true;
     $('titeltext').textContent = String(cfg.titel || '');
     $('titeltext').hidden = !cfg.titelZeigen || !cfg.titel;
-    $('livetext').textContent = String(cfg.live || 'LIVE');
-    $('live').hidden = !cfg.liveZeigen;
-    $('kopf').hidden = $('titeltext').hidden && $('live').hidden && !mlOk;
+    // The CompHub logo next to the title (and in place of the colon in the compact layout).
+    var kopf = $('kopf');
+    var chl = kopf.querySelector('.lk-logo');
+    if (cfg.chLogo && !chl) kopf.insertBefore(Look.logo(), kopf.firstChild);
+    if (!cfg.chLogo && chl) chl.remove();
+    var ml2 = $('mitteLogo');
+    if (cfg.chLogo && !ml2.firstChild) ml2.appendChild(Look.logo('mitte-logo'));
+    b.classList.toggle('mitLogo', Boolean(cfg.chLogo));
+    kopf.hidden = $('titeltext').hidden && !mlOk && !cfg.chLogo;
+    Look.rahmen($('board'), cfg, { fotos: { links: liste(cfg.spieler1).filter(Boolean), rechts: liste(cfg.spieler2).filter(Boolean) } });
 
     // Footer: first to / round / series / own text - grey and small.
     var teile = [];

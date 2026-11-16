@@ -23,7 +23,11 @@ import {
 
 export const STANDARD = {
   titel: 'MASTER MONDAYS', titelZeigen: true,
-  live: 'LIVE', liveZeigen: true,
+  live: 'LIVE', liveZeigen: false,
+  /** House frame: rotating blue/white border, faint hero images, CompHub logo. */
+  rahmen: true, rahmenTempo: 4, rahmenBreite: 2.5, heroDeck: 0.1, chLogo: true,
+  hintergrund: 'hero' as 'hero' | 'fotos' | 'eigen' | 'aus', hintergrundUrl: '',
+  wasserzeichen: 'rechts' as 'rechts' | 'links' | 'kopf' | 'aus',
   name1: '', name2: '', tag1: '', tag2: '', teamZeigen: true,
   spieler1: ['Chap', 'Kaan', 'Fastroki'] as string[], spieler2: ['Nociff', 'Izzi', 'Akiira'] as string[],
   laender1: ['de', 'de', 'at'] as string[], laender2: ['fr', 'de', 'ch'] as string[],
@@ -31,7 +35,7 @@ export const STANDARD = {
   punkte1: 0, punkte2: 0,
   stil: 'bar' as 'bar' | 'compact' | 'vertical',
   anordnung: 'stapel' as 'stapel' | 'reihe',
-  grund: '#0a0a0c', deckkraft: 0.62,
+  grund: '#0a0c12', deckkraft: 0.66,
   akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ff4d4d',
   /** Team colours on the board - off by default (house style: monochrome). */
   farbig: false,
@@ -48,7 +52,7 @@ export type CustomConfig = typeof STANDARD;
 
 /** Presets - "Clean" (monochrome, transparent) is the house style; the rest add colour. */
 export const PRESETS: Array<{ name: string; setzt: Partial<CustomConfig> }> = [
-  { name: 'Clean', setzt: { grund: '#0a0a0c', deckkraft: 0.62, text: '#ffffff', liveFarbe: '#ff4d4d', farbig: false, schrift: 'inter' } },
+  { name: 'Clean', setzt: { grund: '#0a0c12', deckkraft: 0.66, text: '#ffffff', liveFarbe: '#ff4d4d', farbig: false, schrift: 'inter' } },
   { name: 'Clear', setzt: { grund: '#000000', deckkraft: 0.35, text: '#ffffff', liveFarbe: '#ff4d4d', farbig: false, schrift: 'inter' } },
   { name: 'Midnight', setzt: { farbig: true, grund: '#0b1120', deckkraft: 0.9, akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ef4444' } },
   { name: 'Ice', setzt: { farbig: true, grund: '#0e1726', deckkraft: 0.86, akzent1: '#38bdf8', akzent2: '#a78bfa', text: '#f1f5f9', liveFarbe: '#38bdf8' } },
@@ -90,13 +94,19 @@ export function customParamUrl(c: CustomConfig, basis: string): string {
   p.set('font', c.schrift); p.set('scale', String(c.groesse)); p.set('radius', String(c.ecken));
   p.set('v', c.vert); p.set('h', c.horiz); p.set('margin', String(c.rand));
   p.set('anim', c.animation);
+  if (!c.chLogo) p.set('nologo', '1');
+  if (!c.rahmen) p.set('border', '0');
+  if (c.rahmenTempo !== 4) p.set('borderspeed', String(c.rahmenTempo));
+  if (c.rahmenBreite !== 2.5) p.set('borderwidth', String(c.rahmenBreite));
+  if (c.heroDeck !== 0.1) p.set('hero', String(Math.round(c.heroDeck * 100)));
+  if (c.hintergrund !== 'hero') p.set('bgmode', c.hintergrund);
+  if (c.hintergrund === 'eigen' && c.hintergrundUrl) p.set('bgurl', c.hintergrundUrl);
+  if (c.wasserzeichen !== 'rechts') p.set('url', c.wasserzeichen);
   if (c.farbig) p.set('color', '1');
   if (c.fussText) p.set('footer', c.fussText);
   if (c.modus === 'boxfight') { p.set('mode', 'boxfight'); p.set('ft', String(c.ziel)); if (c.runde) p.set('round', String(c.runde)); }
   if (c.serieZeigen) p.set('series', `${c.serie1}-${c.serie2}`);
-  p.set('live', c.live);
   if (!c.titelZeigen) p.set('hideTitle', '1');
-  if (!c.liveZeigen) p.set('hideLive', '1');
   if (!c.teamZeigen) p.set('hideTeams', '1');
   return `${basis}/overlay/custom.html?${p.toString()}`;
 }
@@ -305,9 +315,8 @@ export default function CustomBaukasten() {
             <Text titel="Title" wert={cfg.titel} setzen={(v) => setz('titel', v)} platzhalter="MASTER MONDAYS" />
             <div className="grid grid-cols-2 gap-2">
               <Schalter titel="Show title" an={cfg.titelZeigen} setzen={(b) => setz('titelZeigen', b)} />
-              <Schalter titel="Show live tag" an={cfg.liveZeigen} setzen={(b) => setz('liveZeigen', b)} />
+              <Schalter titel="CompHub logo" an={cfg.chLogo} setzen={(b) => setz('chLogo', b)} />
             </div>
-            {cfg.liveZeigen && <Text titel="Live tag text" wert={cfg.live} setzen={(v) => setz('live', v)} max={20} />}
             <Text titel="Footer text (optional)" wert={cfg.fussText} setzen={(v) => setz('fussText', v)} platzhalter="BO3 · GAME 2" max={40} />
             <Segmente titel="Format" wert={cfg.modus} setzen={(v) => setz('modus', v)}
               optionen={[{ wert: 'match', titel: 'Score only' }, { wert: 'boxfight', titel: 'First to X (round dots)' }]} />
@@ -382,6 +391,26 @@ export default function CustomBaukasten() {
                 {SCHRIFTEN.map((s) => <option key={s.wert} value={s.wert}>{s.titel}</option>)}
               </select>
             </div>
+          </Gruppe>
+
+          <Gruppe titel="Frame and background" text="A thin blue/white light circles the box; behind the text a faint background. The box opacity is under Colours.">
+            <Schalter titel="Animated border" an={cfg.rahmen} setzen={(b) => setz('rahmen', b)} />
+            {cfg.rahmen && (
+              <div className="grid grid-cols-2 gap-3">
+                <Schieber titel="One round takes" wert={cfg.rahmenTempo} von={1} bis={15} schritt={0.5} einheit=" s" setzen={(n) => setz('rahmenTempo', n)} />
+                <Schieber titel="Border width" wert={cfg.rahmenBreite} von={1} bis={6} schritt={0.5} einheit=" px" setzen={(n) => setz('rahmenBreite', n)} />
+              </div>
+            )}
+            <Segmente titel="Background" wert={cfg.hintergrund} setzen={(v) => setz('hintergrund', v)}
+              optionen={[{ wert: 'hero', titel: 'CompHub animation' }, { wert: 'fotos', titel: 'Player photos' }, { wert: 'eigen', titel: 'Own image / video' }, { wert: 'aus', titel: 'Off' }]} />
+            {cfg.hintergrund === 'fotos' && <p className="text-[11px] text-slate-500"><T>Each side shows its players’ photos from our player directory, blurred. Without any photo it falls back to the CompHub animation.</T></p>}
+            {cfg.hintergrund === 'eigen' && <Text titel="Image or video URL (.mp4 / .webm plays muted in a loop)" wert={cfg.hintergrundUrl} setzen={(v) => setz('hintergrundUrl', v.trim())} platzhalter="https://…" max={500} />}
+            {cfg.hintergrund !== 'aus' && (
+              <Schieber titel="Background opacity" wert={Math.round(cfg.heroDeck * 100)} von={0} bis={100} einheit=" %" setzen={(n) => setz('heroDeck', n / 100)}
+                anzeige={(n) => (n ? `${n} %` : t('off'))} />
+            )}
+            <Segmente titel="thecomphub.com watermark" wert={cfg.wasserzeichen} setzen={(v) => setz('wasserzeichen', v)}
+              optionen={[{ wert: 'rechts', titel: 'Bottom right' }, { wert: 'links', titel: 'Bottom left' }, { wert: 'kopf', titel: 'Next to the logo' }, { wert: 'aus', titel: 'Off' }]} />
           </Gruppe>
 
           <Gruppe titel="Position and size" text="The board places itself on the 1920 × 1080 source — no need to move it in OBS.">

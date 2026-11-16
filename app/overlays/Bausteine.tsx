@@ -222,3 +222,84 @@ export function Schieber({ titel, wert, von, bis, schritt = 1, einheit = '', set
     </label>
   );
 }
+
+/* ------------------------------------------------------------------ shared design (look.js) */
+
+/** The design settings every redesigned overlay understands (public/overlay/look.js). */
+export const LOOK_STANDARD = {
+  look: 'clean' as 'clean' | 'glass' | 'kante' | 'mono' | 'klassisch',
+  lookAkzent: '',
+  schriftArt: '' as '' | 'inter' | 'oswald' | 'barlow' | 'bebas' | 'rajdhani' | 'anton',
+  animation: 'gleiten' as 'gleiten' | 'blende' | 'ruhig' | 'aus',
+  vert: '' as '' | 'top' | 'middle' | 'bottom',
+  horiz: '' as '' | 'left' | 'center' | 'right',
+  rand: 0,
+};
+export type LookConfig = typeof LOOK_STANDARD;
+
+export const LOOKS: Array<{ wert: LookConfig['look']; titel: string; text: string }> = [
+  { wert: 'clean', titel: 'Clean', text: 'Semi-transparent black, white text, hardly any colour. The house style.' },
+  { wert: 'glass', titel: 'Glass', text: 'Frosted and lighter — the game shines through.' },
+  { wert: 'kante', titel: 'Edge', text: 'Sharp corners, condensed capitals, a bold accent edge.' },
+  { wert: 'mono', titel: 'Mono', text: 'Black and white only.' },
+  { wert: 'klassisch', titel: 'Classic', text: 'The previous design, unchanged.' },
+];
+
+/**
+ * Look, accent, font, motion and position - the same block on every configurator.
+ * Position empty = top left without margin, exactly where older sources sit.
+ */
+export function DesignGruppe<C extends LookConfig>({ cfg, setz, akzentStandard = '#ffffff' }: {
+  cfg: C;
+  setz: <K extends keyof LookConfig>(k: K, v: LookConfig[K]) => void;
+  akzentStandard?: string;
+}) {
+  const t = useT();
+  const aktiv = LOOKS.find((l) => l.wert === cfg.look) ?? LOOKS[0];
+  return (
+    <Gruppe titel="Design" text="Clean is the house style: transparent black, white text. Classic keeps the previous design.">
+      <div>
+        <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500"><T>Look</T></span>
+        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+          {LOOKS.map((l) => (
+            <button key={l.wert} type="button" onClick={() => setz('look', l.wert)} aria-pressed={cfg.look === l.wert}
+              className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${cfg.look === l.wert
+                ? 'border-sky-400 bg-sky-500/15 text-sky-200' : 'border-white/[0.08] text-slate-400 hover:border-white/25 hover:text-slate-200'}`}>
+              <T>{l.titel}</T>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500"><T>{aktiv.text}</T></p>
+      </div>
+      {cfg.look !== 'klassisch' && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Farbe titel="Accent" wert={cfg.lookAkzent || akzentStandard} setzen={(v) => setz('lookAkzent', v)}
+            vorschlaege={['#ffffff', '#38bdf8', '#818cf8', '#f472b6', '#f97316']} />
+          <div>
+            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500"><T>Font</T></span>
+            <select value={cfg.schriftArt} onChange={(e) => setz('schriftArt', e.target.value as LookConfig['schriftArt'])}
+              className={`${FELD} w-full`}>
+              <option value="">{t('Look default')}</option>
+              <option value="inter">Inter</option>
+              <option value="oswald">Oswald</option>
+              <option value="barlow">Barlow Condensed</option>
+              <option value="bebas">Bebas Neue</option>
+              <option value="rajdhani">Rajdhani</option>
+              <option value="anton">Anton</option>
+            </select>
+          </div>
+        </div>
+      )}
+      <Segmente titel="Animation" wert={cfg.animation} setzen={(v) => setz('animation', v)}
+        optionen={[{ wert: 'gleiten', titel: 'Slide in' }, { wert: 'blende', titel: 'Fade' }, { wert: 'ruhig', titel: 'Subtle' }, { wert: 'aus', titel: 'Off' }]} />
+      <Segmente titel="Vertical position" wert={cfg.vert} setzen={(v) => setz('vert', v)}
+        optionen={[{ wert: '', titel: 'Free' }, { wert: 'top', titel: 'Top' }, { wert: 'middle', titel: 'Middle' }, { wert: 'bottom', titel: 'Bottom' }]} />
+      <Segmente titel="Horizontal position" wert={cfg.horiz} setzen={(v) => setz('horiz', v)}
+        optionen={[{ wert: '', titel: 'Free' }, { wert: 'left', titel: 'Left' }, { wert: 'center', titel: 'Centre' }, { wert: 'right', titel: 'Right' }]} />
+      {(cfg.vert || cfg.horiz) && (
+        <Schieber titel="Distance from the edge" wert={cfg.rand} von={0} bis={200} schritt={4} einheit=" px" setzen={(n) => setz('rand', n)} />
+      )}
+      <p className="text-[11px] text-slate-500"><T>“Free” keeps the overlay in the top-left corner of its source, so you move it in OBS. With a position, add the source at 1920 × 1080 and it places itself.</T></p>
+    </Gruppe>
+  );
+}
