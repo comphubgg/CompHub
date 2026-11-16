@@ -12,13 +12,15 @@
  * die Karte laesst sich mit dem Mausrad vergroessern und mit der Maus verschieben (die Zeichen behalten ihre Groesse); eine Legende erklaert,
  * was X, Kreis und Ring bedeuten.
  *
- * Weltkoordinaten laufen von -135000 bis +135000 (geprueft an Globals Day 1, Game 6, siehe app/admin/replay).
+ * Welchen Weltausschnitt das Kartenbild der grossen Insel abdeckt, ist je Saison an echten Replays gemessen (lib/zonenKarte, brRahmen): Truhen
+ * und Kills liegen damit auf Land und auf den Gebaeuden. Die alte Annahme -135.000..+135.000 lag rund 10 % zu eng (16.11.2026).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { inselKarte } from '@/app/replays/inselKarten';
+import { brRahmen, type Rahmen } from '@/lib/zonenKarte';
 import { KartenHud, SchussEbene, SpielerPunkte, SpurEbene, killWaffe, ortBei, useSpielerDaten, type KillWaffe, type SpielerDaten } from '@/app/replays/SpielerEbene';
 import { EinstellungenKnopf, Flagge, KartenFeed, Zeichenflaeche, useEinstellungen, type FeedZeile } from '@/app/replays/Werkzeuge';
 import SeitenPanel from '@/app/replays/SeitenPanel';
@@ -56,8 +58,6 @@ export interface RMatch extends SpielerDaten {
 /** Wie viele Punkte ein Platz und eine Eliminierung in diesem Cup geben - aus Epics Punkteaufschluesselung (lib/epicCups, wertungAus). */
 export interface RWertung { platz: Record<string, number>; elim: number }
 
-/** Die grosse Battle-Royale-Insel: Weltkoordinaten laufen von -135000 bis +135000. */
-const BR_SPANNE = 135_000;
 const FARBEN = ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#fb7185', '#facc15', '#60a5fa', '#2dd4bf', '#c084fc', '#fb923c', '#a3e635'];
 const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/, '').trim() || '?';
 /** Bots (die KI-Gegner, die die Lobby auffuellen) haben keinen Namen und keine Werte - sie stehen als "Bot" da, nicht als Fragezeichen. */
@@ -100,8 +100,10 @@ function XZeichen({ farbe, gross = 22 }: { farbe: string; gross?: number }) {
   );
 }
 
-export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, titel, wertung, hervorheben, kopf, games }: {
+export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, kartenRahmen, titel, wertung, hervorheben, kopf, games }: {
   match: RMatch; kartenBild: string | null; titel?: string; wertung?: RWertung | null;
+  /** Welchen Weltausschnitt das Bild der grossen Insel abdeckt - brRahmen(windowId) des Spieltags (lib/zonenKarte). Ohne: die Karte von heute. */
+  kartenRahmen?: Rahmen;
   /** Kopf der rechten Leiste: Cup und Game */
   kopf?: string;
   /** die Games des Spieltags (Auswahl unter der Karte) */
@@ -128,7 +130,8 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
    * anderes Mass, und ein Kartenbild gibt es dort nicht - der Ausschnitt wird dann aus den Zonen und den Orten der Eliminierungen gebildet.
    */
   // Das Kartenbild selbst: welcher Weltausschnitt es abdeckt.
-  const bildRahmen = useMemo(() => (insel ? { x0: insel.x0, y0: insel.y0, spanne: insel.spanne } : { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE }), [insel]);
+  const brBild = kartenRahmen ?? brRahmen(null);
+  const bildRahmen = useMemo<Rahmen>(() => (insel ? { x0: insel.x0, y0: insel.y0, spanne: insel.spanne } : brBild), [insel, brBild]);
   const welt = useMemo(() => {
     // Mit Spielerorten: die Hauptinsel, wo gespielt wurde (Orte ab dem Bus, 1.-99. Perzentil, dazu die Zonen ab Kreis 2) - die Startinsel bleibt draussen.
     const orte = Object.values((match as { orte?: Record<string, number[][]> }).orte ?? {}).flat();
@@ -141,15 +144,15 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
       return { x0: (x0 + x1) / 2 - spanne / 2, y0: (y0 + y1) / 2 - spanne / 2, spanne };
     }
     if (insel) return insel.ausschnitt;
-    if (kartenBild) return { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE };
+    if (kartenBild) return bildRahmen;
     const xs: number[] = []; const ys: number[] = [];
     for (const z of match.zonen) { if (typeof z.x === 'number' && typeof z.y === 'number') { const r = z.radius ?? 0; xs.push(z.x - r, z.x + r); ys.push(z.y - r, z.y + r); } }
     for (const e of match.feed) { if (typeof e.x === 'number') xs.push(e.x); if (typeof e.y === 'number') ys.push(e.y); }
-    if (!xs.length || !ys.length) return { x0: -BR_SPANNE, y0: -BR_SPANNE, spanne: 2 * BR_SPANNE };
+    if (!xs.length || !ys.length) return bildRahmen;
     const x0 = Math.min(...xs); const x1 = Math.max(...xs); const y0 = Math.min(...ys); const y1 = Math.max(...ys);
     const spanne = Math.max(x1 - x0, y1 - y0) * 1.08;
     return { x0: (x0 + x1) / 2 - spanne / 2, y0: (y0 + y1) / 2 - spanne / 2, spanne };
-  }, [kartenBild, insel, match]);
+  }, [kartenBild, insel, match, bildRahmen]);
   /** Weltkoordinate -> Prozent der Kartenbreite (x) bzw. -hoehe (y). */
   const pzx = (v: number) => ((v - welt.x0) / welt.spanne) * 100;
   const pzy = (v: number) => ((v - welt.y0) / welt.spanne) * 100;
@@ -367,12 +370,15 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
   }), [feedEintraege, nachId, landVon]); // eslint-disable-line react-hooks/exhaustive-deps
   const feedDauer = 6 * Math.max(1, tempo / 4);
   // Ortsnamen: nur fuer die grosse Insel (aktuelle Karte, /api/fortnite-map) - die Reload-Inseln haben keine.
-  const [ortsnamen, setOrtsnamen] = useState<Array<{ name: string; links: number; oben: number }>>([]);
+  // Epics Ortspunkte in Weltkoordinaten (x, y) - sie werden wie Kills und Zonen gezeichnet und liegen damit im selben Rahmen wie das Bild.
+  const [ortsnamen, setOrtsnamen] = useState<Array<{ name: string; x: number; y: number }>>([]);
   const ortsnamenDa = Boolean(kartenBild && !insel);
   useEffect(() => {
     if (!ortsnamenDa) return undefined;
     let weg = false;
-    fetch('/api/fortnite-map').then((r) => r.json()).then((j) => { if (!weg && Array.isArray(j?.orte)) setOrtsnamen(j.orte); }).catch(() => {});
+    fetch('/api/fortnite-map').then((r) => r.json()).then((j) => {
+      if (!weg && Array.isArray(j?.orte)) setOrtsnamen(j.orte.filter((o: { x?: unknown; y?: unknown }) => typeof o.x === 'number' && typeof o.y === 'number'));
+    }).catch(() => {});
     return () => { weg = true; };
   }, [ortsnamenDa]);
   // Fokus: nur der gewaehlte Spieler kraeftig. Folgen: die Karte haelt ihn in der Mitte.
@@ -563,7 +569,7 @@ export default function ReplayAnsicht({ match: roh, kartenBild: grosseKarte, tit
                 {ein.spuren && <SpurEbene d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} pzx={pzx} pzy={pzy} farbeVon={farbeVon} sichtbar={sichtbarSpieler} ereignisse={ein.spurEreignisse} gewaehlt={gewaehlt} />}
                 {ortsnamenDa && ein.orte && ortsnamen.map((o) => (
                   <span key={o.name} className="pointer-events-none absolute z-[12] whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-white/85"
-                    style={{ left: `${pzx(-BR_SPANNE + (o.links / 100) * 2 * BR_SPANNE)}%`, top: `${pzy(-BR_SPANNE + (o.oben / 100) * 2 * BR_SPANNE)}%`, transform: 'translate(-50%, -50%) scale(calc(var(--zs, 1) / var(--z, 1)))', textShadow: '0 0 3px #000, 0 0 2px #000' }}>{o.name}</span>
+                    style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: 'translate(-50%, -50%) scale(calc(var(--zs, 1) / var(--z, 1)))', textShadow: '0 0 3px #000, 0 0 2px #000' }}>{o.name}</span>
                 ))}
                 <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarSpieler} gewaehlt={fokusAn ? null : gewaehlt} linien={ein.schuesse} zahlen={ein.schaden} />
                 <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}

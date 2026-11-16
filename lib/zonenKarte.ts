@@ -44,6 +44,23 @@ export const BR_RAHMEN: Record<number, Rahmen> = {
   42: { x0: -142_300, y0: -150_000, spanne: 300_500 },
 };
 
+/*
+ * Epics Karte von heute (/bilder/karte-leer.png, karte-orte.png von fortnite-api.com) - fuer Fenster-Kennungen ohne Saison. Gemessen in
+ * Season 43: sie deckt denselben Ausschnitt ab wie karte-s43.png (dieselben Truhen-Treffer auf Land), und Epics Ortspunkte aus
+ * /api/fortnite-map fallen damit auf die Ortsnamen von karte-orte.png. Beim naechsten Saisonwechsel neu messen.
+ */
+const HEUTE: Rahmen = BR_RAHMEN[43];
+
+/**
+ * Welchen Weltausschnitt das Battle-Royale-Kartenbild eines Spieltags abdeckt (das Bild selbst: saisonKarte(windowId)). Gemessen je Saison,
+ * ohne Saison in der Kennung die Karte von heute, fuer eine noch nicht gemessene Saison die alte Annahme.
+ */
+export function brRahmen(windowId?: string | null): Rahmen {
+  const s = saisonVon(windowId);
+  if (s === null) return HEUTE;
+  return BR_RAHMEN[s] ?? BR_STANDARD;
+}
+
 /** Die Karte fuer ein Zonen-Bild aus Playlist und Fenster-Kennung. */
 export function zonenKarte(playlist: string | null | undefined, windowId: string): ZonenKarte {
   const insel = inselAusPlaylist(playlist);
@@ -52,8 +69,7 @@ export function zonenKarte(playlist: string | null | undefined, windowId: string
     if (k) return { art: 'reload', bild: k.bild, rahmen: { x0: k.x0, y0: k.y0, spanne: k.spanne }, ausschnitt: k.ausschnitt, insel: insel.schluessel };
     return { art: 'reload', bild: null, rahmen: BR_STANDARD, insel: insel.schluessel };
   }
-  const s = saisonVon(windowId);
-  return { art: 'br', bild: saisonKarte(windowId), rahmen: (s !== null ? BR_RAHMEN[s] : undefined) ?? BR_STANDARD };
+  return { art: 'br', bild: saisonKarte(windowId), rahmen: brRahmen(windowId) };
 }
 
 /** Ein Ausschnitt um alle Zonen herum - fuer eine Reload-Insel ohne geeichtes Bild (dann ohne Karte, aber an der richtigen Stelle zueinander). */

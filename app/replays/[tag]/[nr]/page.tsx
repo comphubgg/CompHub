@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { saisonKarte } from '@/lib/bildAdressen';
+import { brRahmen } from '@/lib/zonenKarte';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 import ReplayAnsicht, { type RMatch, type RWertung } from '../../ReplayAnsicht';
 import LadenDialog from '../../LadenDialog';
@@ -118,7 +119,7 @@ export default function GameSeite() {
               {(game.sieger ?? []).length > 0 && <span className="text-amber-300">🏆 {(game.sieger ?? []).map(ohneMarke).join(' · ')}</span>}
             </p>
             <div className="mt-5">
-              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined}
+              <ReplayAnsicht match={match} kartenBild={kartenBild} kartenRahmen={brRahmen(tagId)} titel={`Game ${game.nr}`} kopf={`${schoenerTitel(tag.titel)} · ${tag.region} · Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined}
                 games={tag.matches.map((m) => ({ nr: m.nr, href: href(m.nr), aktiv: m.nr === game.nr }))} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}/{game.nr}</code></p>
