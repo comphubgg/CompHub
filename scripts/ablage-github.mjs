@@ -187,6 +187,12 @@ function gewuenscht(name) {
   // (siebzehntausend Dateien, die sich nie wieder aendern).
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
+  /*
+   * Die Saison-Sammlung der Replay-Aggregate (lib/replayWerte aggregateSaison) liest nur der Laufrechner selbst - die Seite rechnet
+   * daraus nichts. Seit sie wieder fertig wird (16.11.2026), ist sie fuer S43 381 MB gross und aendert sich jede Stunde; am Release
+   * waere das jede Stunde ein Drittel Gigabyte Hochladen fuer niemanden.
+   */
+  if (/^antworten\/replays_saison_/.test(name)) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
   if (/^clutch(-roh|-je)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
