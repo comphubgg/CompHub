@@ -1,0 +1,52 @@
+# Der Changelog nach #comphub-updates - von selbst, einmal am Tag (Backlog D2, 16.11.2026).
+#
+# Bisher lief scripts/discord-updates.mjs nur von Hand (Ablauf "Discord Umbau", modus updates-posten). Jetzt jeden Abend:
+# das Skript macht dort weiter, wo der letzte Post aufgehoert hat (Fusszeile mit dem letzten Commit), und postet nur Englisch -
+# aus dem Trailer "Changelog: ..." eines Commits oder, mit ANTHROPIC_API_KEY, aus Claudes Zusammenfassung der Commits. Ein
+# Commit ohne beides wird nicht gepostet, nichts wird erfunden; ohne neue Commits passiert nichts ("Nichts zu posten").
+
+name: Discord Changelog
+
+on:
+  schedule:
+    - cron: '41 18 * * *'
+  workflow_dispatch:
+    inputs:
+      posten:
+        description: 'Wirklich posten (sonst nur der Plan)'
+        type: boolean
+        default: true
+
+# Dieselbe Gruppe wie "Discord Umbau": nie zwei Laeufe, die gleichzeitig in denselben Kanal schreiben.
+concurrency:
+  group: discord-umbau
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 300
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Changelog
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          if grep -q '^ANTHROPIC_API_KEY=' .env.local; then
+            npm install --silent --no-audit --no-fund --prefix "$RUNNER_TEMP/sdk" @anthropic-ai/sdk && export ANTHROPIC_SDK_ORT="$RUNNER_TEMP/sdk"
+          fi
+          set +e
+          ARGS="--anwenden"
+          [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.posten }}" != "true" ] && ARGS=""
+          node scripts/discord-updates.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
