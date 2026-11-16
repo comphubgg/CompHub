@@ -83,7 +83,12 @@ jobs:
         timeout-minutes: 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Nur, wenn nicht schon einer wartet (16.11.2026): GitHub haelt je Gruppe hoechstens einen wartenden Lauf und bricht den
+        # aelteren ab, sobald ein neuer kommt - jeder Anstoss neben dem stuendlichen Plan erzeugte so einen "cancelled"-Lauf.
         run: |
+          WARTEND=$(gh run list -R "${{ github.repository }}" -w daten-erneuern.yml -L 20 --json status \
+            --jq '[.[] | select(.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")] | length' || echo 0)
+          if [ "${WARTEND:-0}" -gt 0 ]; then echo "es wartet schon ein Lauf ($WARTEND) - kein weiterer"; exit 0; fi
           gh workflow run daten-erneuern.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen"
           # Die beiden Replay-Ablaeufe (replays-voll.yml, eigene-auswerten.yml) sind Schleifen und halten sich selbst am Laufen.
       - uses: actions/checkout@v4
@@ -232,6 +237,24 @@ jobs:
           # Dazu Schaden und Clutch je Spieltag (Ablauf "Clutch rechnen") fuer die Akten.
           node scripts/ablage-github-holen.mjs --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner epic-spieltage --ordner clutch 2>&1 | tail -4
 
+      # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
+      # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
+      # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der
+      # Schritt "Ergebnis nach Supabase" mit hoch. Siehe das Skript.
+      #
+      # 16.11.2026: im Hintergrund, neben den Schritten bis zum Hochladen (vorher zwoelf Minuten je Lauf allein). Er fragt nur Epic
+      # ueber die Seite und legt neue Dateien ganz oder gar nicht ab (scripts/epic-fenster-suchen.mjs, schreibeGanz); der Schritt
+      # "Alte Spieltage abwarten" vor dem ersten grossen Hochladen wartet auf ihn. Zehn statt zwoelf Minuten - die gingen ohnehin
+      # verloren: jede Epic-404 kam als 500 an und galt als Aussetzer, die Zahl der offenen Kennungen blieb Lauf fuer Lauf 274994.
+      - name: Alte Spieltage suchen (Hintergrund)
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: |
+          nohup bash -c 'timeout --signal=TERM 10m node scripts/epic-fenster-suchen.mjs --hoechstens 1500 > /tmp/suchen.log 2>&1; touch /tmp/suchen.fertig' > /dev/null 2>&1 &
+          echo "gestartet"
+
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
       # - Stunde um Stunde, unter "continue-on-error" unsichtbar. Genau
@@ -258,21 +281,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ablage-github.mjs --nur epic-spieltage 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
-
-      # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
-      # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
-      # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der
-      # Schritt "Ergebnis nach Supabase" mit hoch. Siehe das Skript.
-      - name: Alte Spieltage suchen
-        continue-on-error: true
-        timeout-minutes: 15
-        env:
-          WERKZEUG_URL: https://www.thecomphub.com
-        # Endet selbst nach zwoelf Minuten (SIGTERM), statt jedes Mal hart in
-        # die Grenze zu laufen und den Lauf als gescheitert zu markieren.
-        run: |
-          timeout --signal=TERM 12m node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
-          true
 
       # Die Team-Eliminierungen aus Epics Bestenlisten (Statistik, Jahre):
       # die offenen Saisons aus den Spieltagen oben neu, das laufende Jahr
@@ -458,6 +466,14 @@ jobs:
         timeout-minutes: 5
         run: |
           if [ $(( 10#$(date -u +%H) % 6 )) -eq 0 ]; then node scripts/waffen-bilder.mjs 2>&1 | tail -3; else echo "nicht in dieser Stunde"; fi
+
+      - name: Alte Spieltage abwarten
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 12
+        run: |
+          for _ in $(seq 1 660); do [ -f /tmp/suchen.fertig ] && break; [ -f /tmp/suchen.log ] || break; sleep 1; done
+          tail -6 /tmp/suchen.log 2>/dev/null || echo "kein Protokoll"
 
       # Das Gerechnete sofort ans Release - noch vor dem Bau.
       #
