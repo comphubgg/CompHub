@@ -88,26 +88,7 @@ export async function registerNode() {
         '/api/cup-catalog?modus=alle',
         '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
       ].map(rufe));
-      /*
-       * Danach die Seiten, ueber die der Betreiber am 16.11.2026 klagte ("/statistics, /fncs, /globals-solos laden zu langsam") - zu zweit statt
-       * einzeln: nach einem Neustart warteten die ersten Besucher sonst bis zu 12 s (gemessen /api/globals-solos?region=EU 11,7 s, die Jahresbilanz
-       * der Startseite 5,2 s). Die Statistik fragt erst die Saisons und dann die Startansicht der neuesten - hier genauso.
-       */
-      const jahr = new Date().getUTCFullYear();
-      const reihe = [
-        '/api/globals-solos?region=EU', '/api/fncs-ereignisse', '/api/fncs-alltime', '/api/maps-liste',
-        '/api/statistik-zahlen', `/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, '/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1',
-        '/api/cup-catalog?modus=alle-aktuell', '/api/cup-catalog', '/api/turnier-karten?liste=1',
-      ];
-      const saisonStart = async () => {
-        try {
-          const j = await fetch(`${intern}/api/szene-stats`, { cache: 'no-store', signal: AbortSignal.timeout(60_000) }).then((r) => r.json()) as { saisons?: Array<{ kennung?: string }> };
-          const neueste = j.saisons?.[0]?.kennung;
-          if (neueste) await rufe(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(neueste)}`);
-        } catch { /* dann eben beim ersten Besucher */ }
-      };
-      let i = 0;
-      await Promise.all([saisonStart(), ...Array.from({ length: 2 }, async () => { while (i < reihe.length) await rufe(reihe[i++]); })]);
+      for (const weg of ['/api/maps-liste', '/api/fncs-ereignisse', '/api/globals-solos?region=EU']) await rufe(weg);
     };
     setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
 
