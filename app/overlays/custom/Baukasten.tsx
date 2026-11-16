@@ -23,37 +23,44 @@ import {
 
 export const STANDARD = {
   titel: 'MASTER MONDAYS', titelZeigen: true,
-  live: 'LIVE NOW', liveZeigen: true,
-  name1: 'TEAM A', name2: 'TEAM B', tag1: '', tag2: '', teamZeigen: true,
-  spieler1: ['CHAP', 'KAAN', 'FASTROKI'] as string[], spieler2: ['NOCIFF', 'IZZI', 'AKIIRA'] as string[],
-  laender1: [] as string[], laender2: [] as string[],
+  live: 'LIVE', liveZeigen: true,
+  name1: '', name2: '', tag1: '', tag2: '', teamZeigen: true,
+  spieler1: ['Chap', 'Kaan', 'Fastroki'] as string[], spieler2: ['Nociff', 'Izzi', 'Akiira'] as string[],
+  laender1: ['de', 'de', 'at'] as string[], laender2: ['fr', 'de', 'ch'] as string[],
   flagge1: '', flagge2: '', logo1: '', logo2: '',
   punkte1: 0, punkte2: 0,
   stil: 'bar' as 'bar' | 'compact' | 'vertical',
   anordnung: 'stapel' as 'stapel' | 'reihe',
-  grund: '#0b1120', deckkraft: 0.9,
-  akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ef4444',
-  schrift: 'oswald', groesse: 1, ecken: 6,
+  grund: '#0a0a0c', deckkraft: 0.62,
+  akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ff4d4d',
+  /** Team colours on the board - off by default (house style: monochrome). */
+  farbig: false,
+  schrift: 'inter', groesse: 1, ecken: 14,
   vert: 'top' as 'top' | 'middle' | 'bottom',
   horiz: 'center' as 'left' | 'center' | 'right',
   rand: 48,
   animation: 'pop' as 'pop' | 'flip' | 'glow' | 'none',
+  /** Small grey footer: own text; "first to", round and series are added automatically. */
+  fussText: '',
+  modus: 'match' as 'match' | 'boxfight', ziel: 5, zielZeigen: true, runde: 0, serie1: 0, serie2: 0, serieZeigen: false,
 };
 export type CustomConfig = typeof STANDARD;
 
-/** Colour presets - our own palettes, no borrowed branding. */
+/** Presets - "Clean" (monochrome, transparent) is the house style; the rest add colour. */
 export const PRESETS: Array<{ name: string; setzt: Partial<CustomConfig> }> = [
-  { name: 'Midnight', setzt: { grund: '#0b1120', deckkraft: 0.9, akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ef4444' } },
-  { name: 'Ice', setzt: { grund: '#0e1726', deckkraft: 0.86, akzent1: '#38bdf8', akzent2: '#a78bfa', text: '#f1f5f9', liveFarbe: '#38bdf8' } },
-  { name: 'Ember', setzt: { grund: '#1a0f0f', deckkraft: 0.9, akzent1: '#f97316', akzent2: '#e11d48', text: '#fff7ed', liveFarbe: '#f43f5e' } },
+  { name: 'Clean', setzt: { grund: '#0a0a0c', deckkraft: 0.62, text: '#ffffff', liveFarbe: '#ff4d4d', farbig: false, schrift: 'inter' } },
+  { name: 'Clear', setzt: { grund: '#000000', deckkraft: 0.35, text: '#ffffff', liveFarbe: '#ff4d4d', farbig: false, schrift: 'inter' } },
+  { name: 'Midnight', setzt: { farbig: true, grund: '#0b1120', deckkraft: 0.9, akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ef4444' } },
+  { name: 'Ice', setzt: { farbig: true, grund: '#0e1726', deckkraft: 0.86, akzent1: '#38bdf8', akzent2: '#a78bfa', text: '#f1f5f9', liveFarbe: '#38bdf8' } },
+  { name: 'Ember', setzt: { farbig: true, grund: '#1a0f0f', deckkraft: 0.9, akzent1: '#f97316', akzent2: '#e11d48', text: '#fff7ed', liveFarbe: '#f43f5e' } },
   { name: 'Mono', setzt: { grund: '#111111', deckkraft: 0.92, akzent1: '#e5e7eb', akzent2: '#6b7280', text: '#ffffff', liveFarbe: '#ffffff' } },
-  { name: 'Violet', setzt: { grund: '#140f24', deckkraft: 0.88, akzent1: '#8b5cf6', akzent2: '#ec4899', text: '#faf5ff', liveFarbe: '#ec4899' } },
-  { name: 'Glass', setzt: { grund: '#000000', deckkraft: 0.45, akzent1: '#60a5fa', akzent2: '#f87171', text: '#ffffff', liveFarbe: '#f87171' } },
+  { name: 'Violet', setzt: { farbig: true, grund: '#140f24', deckkraft: 0.88, akzent1: '#8b5cf6', akzent2: '#ec4899', text: '#faf5ff', liveFarbe: '#ec4899' } },
+  { name: 'Glass', setzt: { farbig: true, grund: '#000000', deckkraft: 0.45, akzent1: '#60a5fa', akzent2: '#f87171', text: '#ffffff', liveFarbe: '#f87171' } },
 ];
 
 const SCHRIFTEN = [
-  { wert: 'oswald', titel: 'Oswald' }, { wert: 'barlow', titel: 'Barlow' }, { wert: 'bebas', titel: 'Bebas' },
-  { wert: 'rajdhani', titel: 'Rajdhani' }, { wert: 'chakra', titel: 'Chakra' }, { wert: 'inter', titel: 'Inter' },
+  { wert: 'inter', titel: 'Inter' }, { wert: 'oswald', titel: 'Oswald' }, { wert: 'barlow', titel: 'Barlow' }, { wert: 'bebas', titel: 'Bebas' },
+  { wert: 'rajdhani', titel: 'Rajdhani' }, { wert: 'chakra', titel: 'Chakra' },
   { wert: 'anton', titel: 'Anton' },
 ];
 const AKZENTE = ['#3b82f6', '#38bdf8', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#e5e7eb'];
@@ -83,6 +90,10 @@ export function customParamUrl(c: CustomConfig, basis: string): string {
   p.set('font', c.schrift); p.set('scale', String(c.groesse)); p.set('radius', String(c.ecken));
   p.set('v', c.vert); p.set('h', c.horiz); p.set('margin', String(c.rand));
   p.set('anim', c.animation);
+  if (c.farbig) p.set('color', '1');
+  if (c.fussText) p.set('footer', c.fussText);
+  if (c.modus === 'boxfight') { p.set('mode', 'boxfight'); p.set('ft', String(c.ziel)); if (c.runde) p.set('round', String(c.runde)); }
+  if (c.serieZeigen) p.set('series', `${c.serie1}-${c.serie2}`);
   p.set('live', c.live);
   if (!c.titelZeigen) p.set('hideTitle', '1');
   if (!c.liveZeigen) p.set('hideLive', '1');
@@ -121,7 +132,7 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
       )}
       <input value={name} maxLength={24} onChange={(e) => setzen(e.target.value, land)}
         onFocus={() => setOffen(true)} onBlur={() => window.setTimeout(() => setOffen(false), 150)}
-        placeholder={t('Player name')} className={`${FELD} min-w-0 flex-1 uppercase`} />
+        placeholder={t('Player name')} className={`${FELD} min-w-0 flex-1`} />
       {entfernen && (
         <button type="button" onClick={entfernen} title={t('Remove')}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/[0.08] text-slate-500 transition hover:border-rose-400/60 hover:text-rose-300">×</button>
@@ -130,7 +141,7 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
         <div className="absolute left-14 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-white/10 bg-[#0d1119] shadow-2xl">
           {funde.map((f) => (
             <button key={f.epicId} type="button" onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { setzen(f.anzeige.toUpperCase(), (f.land ?? '').toLowerCase()); setOffen(false); }}
+              onClick={() => { setzen(f.anzeige, (f.land ?? '').toLowerCase()); setOffen(false); }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-300 hover:bg-white/[0.05]">
               {f.land
                 // eslint-disable-next-line @next/next/no-img-element
@@ -273,8 +284,8 @@ export default function CustomBaukasten() {
             <div className="grid grid-cols-2 gap-3">
               {([1, 2] as const).map((s) => (
                 <div key={s} className="rounded-xl border border-white/[0.07] bg-black/30 p-3 text-center">
-                  <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: s === 1 ? cfg.akzent1 : cfg.akzent2 }}>
-                    {(s === 1 ? cfg.tag1 || cfg.name1 : cfg.tag2 || cfg.name2) || '—'}
+                  <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">
+                    {(s === 1 ? cfg.tag1 || cfg.name1 || cfg.spieler1.filter(Boolean).join(' & ') : cfg.tag2 || cfg.name2 || cfg.spieler2.filter(Boolean).join(' & ')) || '—'}
                   </p>
                   <p className="my-1 font-mono text-4xl font-black tabular-nums text-white">{s === 1 ? cfg.punkte1 : cfg.punkte2}</p>
                   <div className="flex gap-1.5">
@@ -297,12 +308,28 @@ export default function CustomBaukasten() {
               <Schalter titel="Show live tag" an={cfg.liveZeigen} setzen={(b) => setz('liveZeigen', b)} />
             </div>
             {cfg.liveZeigen && <Text titel="Live tag text" wert={cfg.live} setzen={(v) => setz('live', v)} max={20} />}
+            <Text titel="Footer text (optional)" wert={cfg.fussText} setzen={(v) => setz('fussText', v)} platzhalter="BO3 · GAME 2" max={40} />
+            <Segmente titel="Format" wert={cfg.modus} setzen={(v) => setz('modus', v)}
+              optionen={[{ wert: 'match', titel: 'Score only' }, { wert: 'boxfight', titel: 'First to X (round dots)' }]} />
+            {cfg.modus === 'boxfight' && (
+              <div className="grid grid-cols-2 gap-3">
+                <Schieber titel="First to" wert={cfg.ziel} von={1} bis={15} setzen={(n) => setz('ziel', n)} />
+                <Schieber titel="Round" wert={cfg.runde} von={0} bis={30} setzen={(n) => setz('runde', n)} anzeige={(n) => (n ? String(n) : 'off')} />
+              </div>
+            )}
+            <Schalter titel="Show series score in the footer" an={cfg.serieZeigen} setzen={(b) => setz('serieZeigen', b)} />
+            {cfg.serieZeigen && (
+              <div className="grid grid-cols-2 gap-3">
+                <Schieber titel="Series left" wert={cfg.serie1} von={0} bis={9} setzen={(n) => setz('serie1', n)} />
+                <Schieber titel="Series right" wert={cfg.serie2} von={0} bis={9} setzen={(n) => setz('serie2', n)} />
+              </div>
+            )}
           </Gruppe>
 
           <Gruppe titel="Teams and players" text="1–4 players per side. Type to search our player directory — it fills in the name and flag.">
             <TeamKarte n={1} cfg={cfg} setz={setz} />
             <TeamKarte n={2} cfg={cfg} setz={setz} />
-            <Schalter titel="Show team names above the players" an={cfg.teamZeigen} setzen={(b) => setz('teamZeigen', b)} />
+            <Schalter titel="Show team names (small, above the players)" an={cfg.teamZeigen} setzen={(b) => setz('teamZeigen', b)} />
             <button type="button" onClick={() => setCfg((a) => ({
               ...a, name1: a.name2, name2: a.name1, tag1: a.tag2, tag2: a.tag1, spieler1: a.spieler2, spieler2: a.spieler1,
               laender1: a.laender2, laender2: a.laender1, flagge1: a.flagge2, flagge2: a.flagge1, logo1: a.logo2, logo2: a.logo1,
@@ -315,7 +342,7 @@ export default function CustomBaukasten() {
 
           <Gruppe titel="Layout">
             <Segmente titel="Style" wert={cfg.stil} setzen={(v) => setz('stil', v)}
-              optionen={[{ wert: 'bar', titel: 'Broadcast bar' }, { wert: 'compact', titel: 'Compact' }, { wert: 'vertical', titel: 'Sidebar' }]} />
+              optionen={[{ wert: 'bar', titel: 'Scoreboard' }, { wert: 'compact', titel: 'Compact' }, { wert: 'vertical', titel: 'Sidebar' }]} />
             {cfg.stil !== 'compact' && (
               <Segmente titel="Player names" wert={cfg.anordnung} setzen={(v) => setz('anordnung', v)}
                 optionen={[{ wert: 'stapel', titel: 'Stacked' }, { wert: 'reihe', titel: 'Inline' }]} />
@@ -339,12 +366,13 @@ export default function CustomBaukasten() {
                 ))}
               </div>
             </div>
+            <Schalter titel="Team colours on the board" an={cfg.farbig} setzen={(b) => setz('farbig', b)} />
             <div className="grid grid-cols-2 gap-3">
               <Farbe titel="Left accent" wert={cfg.akzent1} setzen={(v) => setz('akzent1', v)} vorschlaege={AKZENTE.slice(0, 4)} />
               <Farbe titel="Right accent" wert={cfg.akzent2} setzen={(v) => setz('akzent2', v)} vorschlaege={AKZENTE.slice(3)} />
-              <Farbe titel="Background" wert={cfg.grund} setzen={(v) => setz('grund', v)} vorschlaege={['#0b1120', '#111111', '#140f24']} />
+              <Farbe titel="Background" wert={cfg.grund} setzen={(v) => setz('grund', v)} vorschlaege={['#0a0a0c', '#000000', '#0b1120']} />
               <Farbe titel="Text" wert={cfg.text} setzen={(v) => setz('text', v)} vorschlaege={['#ffffff', '#e2e8f0']} />
-              <Farbe titel="Live tag" wert={cfg.liveFarbe} setzen={(v) => setz('liveFarbe', v)} vorschlaege={['#ef4444', '#38bdf8']} />
+              <Farbe titel="Live tag" wert={cfg.liveFarbe} setzen={(v) => setz('liveFarbe', v)} vorschlaege={['#ff4d4d', '#ffffff']} />
             </div>
             <Schieber titel="Background opacity" wert={Math.round(cfg.deckkraft * 100)} von={0} bis={100} einheit=" %"
               setzen={(n) => setz('deckkraft', n / 100)} />
@@ -363,7 +391,7 @@ export default function CustomBaukasten() {
               optionen={[{ wert: 'left', titel: 'Left' }, { wert: 'center', titel: 'Centre' }, { wert: 'right', titel: 'Right' }]} />
             <Schieber titel="Size" wert={cfg.groesse} von={0.5} bis={2} schritt={0.05} setzen={(n) => setz('groesse', n)} anzeige={(n) => `${Math.round(n * 100)} %`} />
             <Schieber titel="Distance from the edge" wert={cfg.rand} von={0} bis={200} schritt={4} einheit=" px" setzen={(n) => setz('rand', n)} />
-            <Schieber titel="Corner radius" wert={cfg.ecken} von={0} bis={24} einheit=" px" setzen={(n) => setz('ecken', n)} />
+            <Schieber titel="Corner radius" wert={cfg.ecken} von={0} bis={28} einheit=" px" setzen={(n) => setz('ecken', n)} />
           </Gruppe>
         </div>
 
