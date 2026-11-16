@@ -1504,7 +1504,14 @@ async function berechne(request: Request) {
        * Spieltag weniger. Wer im Zeitraum nicht angetreten ist, bekommt
        * keine Summe; die Seite setzt dann Nullen.
        */
-      if (!ohneAuswahl) {
+      /*
+       * Auch ueber "alle Saisons" (Backlog D1, 16.11.2026): die Kopfzahlen aus denselben Zeilen, nicht aus der fertigen Gesamtliste. Die Liste
+       * wird jeden Lauf neu gerechnet, die Akten mit den Zeilen nur, wenn ihre Schale in der Zeit fertig wird - am 16.11. lagen die Akten am
+       * Release auf dem Stand vom 7.11., die Gesamtliste vom 16.11. Nachgezaehlt: 2.049 von 3.552 Konten zeigten im Profil oben mehr
+       * Spieltage, Elims und Schaden, als die Turniere darunter zusammen ergaben (etwa 171 gegen 148 Spieltage, 1.842 gegen 1.405 Elims).
+       * Nur wer gar keine Zeile hat, behaelt den Eintrag der Gesamtliste.
+       */
+      if (!ohneAuswahl || rohZeilen.length) {
         eintrag = rohZeilen.length
           ? summeAusVerlauf(spieler,
             alle.find((s) => s.epicId === spieler)?.name ?? '', rohZeilen)

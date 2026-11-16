@@ -254,10 +254,14 @@ async function eigeneEintraege(quelle: ArchivEintrag[]): Promise<ArchivEintrag[]
   const imArchiv = new Set(quelle.map((e) => e.windowId));
   const kandidaten = (await liesEpicSpieltage()).filter((t) => eigenKandidat(t, imArchiv));
   const liste: ArchivEintrag[] = [];
+  const doppelt = new Set<string>();
   let i = 0;
   await Promise.all(Array.from({ length: 6 }, async () => {
     while (i < kandidaten.length) {
       const t = kandidaten[i++];
+      // Ein Fenster nur einmal, auch wenn es unter den Epic-Spieltagen doppelt steht (Backlog D1).
+      if (doppelt.has(t.windowId)) continue;
+      doppelt.add(t.windowId);
       const werte = await eigeneSpieler(t).catch(() => null);
       if (!werte) continue;
       eigeneDateien.set(t.windowId, werte.players);
@@ -972,6 +976,7 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
     return a;
   };
 
+  const aktenGesehen = new Set<string>();
   for (const e of verzeichnis) {
     const datei = await liesDatei(e);
     if (!datei) continue;
@@ -987,6 +992,10 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
       const a = akte(p.epicId);
       if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor|Acrocanthosaurus)/.test(e.windowId)
           && a.verlauf.some((z) => z.windowId === e.windowId)) continue;
+      // Dieselbe Regel wie summen(): Fenster und Datei zusammen zaehlen einmal (Backlog D1 - S42_PerformanceEvaluation_Event6Round1_EU stand doppelt in Akten).
+      const kennung = `${p.epicId}|${e.windowId}|${e.datei}`;
+      if (aktenGesehen.has(kennung)) continue;
+      aktenGesehen.add(kennung);
       const platz = await platzMitLan(karte, p.epicId);
       a.verlauf.push({
         event: e.name, windowId: e.windowId, region: e.region, season: e.season,
@@ -1092,6 +1101,7 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
     && (!filter.region || e.region === filter.region));
 
   const zeilen: VerlaufZeile[] = [];
+  const gesehen = new Set<string>();
 
   for (const e of eintraege) {
     // Ein LAN-Fenster liegt im Archiv je Region einmal - in den Verlauf
@@ -1100,6 +1110,9 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
     // 1,63 statt 1,33 Millionen).
     if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor|Acrocanthosaurus)/.test(e.windowId)
         && zeilen.some((z) => z.windowId === e.windowId)) continue;
+    // Wie summen(): Fenster und Datei zusammen nur einmal (Backlog D1).
+    if (gesehen.has(`${e.windowId}|${e.datei}`)) continue;
+    gesehen.add(`${e.windowId}|${e.datei}`);
     const datei = await liesDatei(e);
     if (!datei) continue;
     const p = datei.players.find((x) => x.epicId === epicId);
