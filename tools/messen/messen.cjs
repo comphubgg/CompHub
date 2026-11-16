@@ -5,7 +5,11 @@ const st = { lesen: {}, parse: { n: 0, ms: 0, mb: 0 }, netz: {} };
 const ordner = (p) => { const s = String(p); const i = s.indexOf('/data/'); if (i < 0) return 'sonst'; const t = s.slice(i + 6).split('/'); return t.length > 1 ? t[0] : '(wurzel)'; };
 const add = (k, ms, b) => { const x = (st.lesen[k] ??= { n: 0, ms: 0, mb: 0 }); x.n++; x.ms += ms; x.mb += b / 1e6; };
 const orig = fs.promises.readFile;
-fs.promises.readFile = async function (p, ...r) { const t = performance.now(); const v = await orig.call(this, p, ...r); add(ordner(p), performance.now() - t, v?.length ?? 0); return v; };
+const grossZaehler = new Map();
+fs.promises.readFile = async function (p, ...r) { const t = performance.now(); const v = await orig.call(this, p, ...r); add(ordner(p), performance.now() - t, v?.length ?? 0);
+  if ((v?.length ?? 0) > 20e6 && process.env.MESSEN_GROSS === '1') { const k = String(p); const n = (grossZaehler.get(k) || 0) + 1; grossZaehler.set(k, n);
+    process.stderr.write(`[GROSS] ${new Date().toISOString().slice(11, 19)} ${Math.round(v.length / 1e6)}MB x${n} ${k.slice(k.indexOf('/data/') + 6)}\n${n === 1 && /S42/.test(k) && grossZaehler.size % 50 === 1 ? (new Error('Aufruf').stack || '').split('\n').slice(2, 14).join('\n') + '\n' : ''}`); }
+  return v; };
 const origS = fs.readFileSync;
 fs.readFileSync = function (p, ...r) { const t = performance.now(); const v = origS.call(this, p, ...r); add('sync:' + ordner(p), performance.now() - t, v?.length ?? 0); return v; };
 const jp = JSON.parse;
