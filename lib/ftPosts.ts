@@ -372,10 +372,10 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   }
 
   // ---- Die Ranglisten.
-  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} elims (${ftZahl(s.dmg)} dmg)`, undefined, nachElims);
-  liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} dmg (${ratio(s).toFixed(2)} ratio)` : `${ftZahl(s.dmg)} dmg`));
+  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} elims (${ftZahl(s.dmg)} damage)`, undefined, nachElims);
+  liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} damage (${ratio(s).toFixed(2)} ratio)` : `${ftZahl(s.dmg)} damage`));
   liste('best-game', '🔥', 'Best Single Game', (s) => s.bestes?.elims ?? null,
-    (s) => `${s.bestes?.elims} ${s.bestes?.elims === 1 ? 'elim' : 'elims'}${s.bestes?.dmg ? ` (${ftZahl(s.bestes.dmg)} dmg)` : ''}`,
+    (s) => `${s.bestes?.elims} ${s.bestes?.elims === 1 ? 'elim' : 'elims'}${s.bestes?.dmg ? ` (${ftZahl(s.bestes.dmg)} damage)` : ''}`,
     undefined, (s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0));
   liste('hits', '🎯', 'Most Hits', (s) => s.treffer, (s) => `${ftZahl(s.treffer ?? 0)} hits${s.krit !== null ? ` (${ftZahl(s.krit)} headshots)` : ''}`);
   liste('builds', '🧱', 'Most Builds Placed', (s) => s.bauten, (s) => `${ftZahl(s.bauten ?? 0)} builds`);
