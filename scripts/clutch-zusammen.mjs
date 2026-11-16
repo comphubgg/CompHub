@@ -90,7 +90,8 @@ for (const [w, dateien] of jeTag) {
   const alt = stufe ?? pub;
   // Vor Fassung 4 (alte Schadensregel) wird nichts weitergefuehrt - der Spieltag ist ganz neu gelesen.
   // jeFrisch: ganz nach dem 15.11.2026 gelesen - die Werte je Match koennen nicht mehr verloren sein (der Planer liest so einen Spieltag wegen jeFehlt nicht noch einmal).
-  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 20, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true };
+  // angefangen: wann dieser Stand leer anfing - der Planer liest einen Spieltag aus NEU_LESEN (scripts/clutch-berechnen.mjs) nur einmal neu.
+  const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 20, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true, angefangen: new Date().toISOString() };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
   // Umbau: ein neuer Anfang ueber einer veroeffentlichten Datei mit Werten aus den Replays, oder die Fortsetzung eines laufenden. Eine Datei ohne Schaden
   // (z. B. Fassung 3) hat nichts, was die Seite verlieren koennte - dort zeigt der wachsende Stand gleich, was schon gelesen ist.

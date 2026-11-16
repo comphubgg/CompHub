@@ -60,7 +60,17 @@ for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWit
   let alt;
   try { alt = JSON.parse(fs.readFileSync(zielDatei, 'utf8')); } catch { console.log(`  ${f}: Spieltags-Datei fehlt oder ist unlesbar - nicht neu angelegt`); continue; }
   const summe = {}; const matches = []; const solo = {};
+  /*
+   * Nur Matches, die die Datei schon kennt (16.11.2026). Rohdaten und Datei legt clutch-zusammen.mjs zusammen an - stehen in den Rohdaten mehr Matches,
+   * stammen sie aus einem anderen Stand (beim Holen vom Release mitten in einem fremden Hochladen erwischt). Frueher kamen sie trotzdem in die Liste, ohne
+   * ihre Spiele, ihren Schaden und ihre Treffer: Performance Evaluation Cup Round 1 EU stand so mit 207 von 207 Matches da, bei 11 davon fehlten die Werte
+   * (726 Spieler mit zu wenig Spielen). Weggelassen sieht der Planer sie als offen und liest sie richtig nach.
+   */
+  const inDatei = new Set((alt.matches ?? []).map((m) => m.id));
+  const fremd = (roh.matches ?? []).filter((m) => !inDatei.has(m.id)).length;
+  if (fremd) console.log(`  ${f}: ${fremd} Matches nur in den Rohdaten, nicht in der Datei - nicht uebernommen`);
   for (const m of roh.matches ?? []) {
+    if (!inDatei.has(m.id)) continue;
     const soloMatch = new Map();
     const c = clutchAusVoll(m, roh.regeln, { solo: soloMatch });
     matches.push({ id: m.id, spieler: Object.fromEntries(c) });

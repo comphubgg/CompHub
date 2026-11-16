@@ -103,6 +103,13 @@ function vollAus(datei) {
 
 /** Bis so viele gelesene Matches wird ein Spieltag nach einer neuen Schadensregel ganz neu gelesen. */
 const NEU_LESEN_BIS = 400;
+/*
+ * Einzelne Spieltage einmal ganz neu lesen (ueber den Umbau: die veroeffentlichte Datei bleibt bis zum Ende), weil ihre Datei nachweislich nicht stimmt -
+ * Fenster -> Zeitpunkt. Gilt, bis ein Stand dieses Spieltags nach dem Zeitpunkt leer angefangen hat (clutch-zusammen.mjs schreibt "angefangen").
+ *   Performance Evaluation Cup Round 1 EU (16.11.2026): 207 Matches gelistet, bei 11 fehlen Spiele, Schaden und Treffer (Rohdaten aus einem fremden Stand,
+ *   siehe clutch-neu-rechnen.mjs) - 726 Spieler mit zu wenig Spielen, die Leaders ohne Builds und mit falschem Kreis.
+ */
+const NEU_LESEN = { S43_PerformanceEvaluation_Event2Round1_EU: '2026-11-16T15:30:00Z' };
 
 async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
   const regeln = await wertung(eventId, windowId);
@@ -306,7 +313,9 @@ if (arg[0] === '--plan') {
       || ((da.schadenFassung ?? 0) < 19 && f.ids.size <= 3000 && Date.now() > Date.UTC(2026, 10, 15, 21, 25))
       // Fassung 20 (15.11.2026): Mats Farmed exakt (nur Spitzhacke; Aufheben mit der Menge des Pickups getrennt, vorher rund 13 % zu viel), Mats Collected je Quelle,
       // Strecke am Boden wie Epic (vorher Proben alle 10 s, hochgerechnet: Median 12 % daneben). Spieltage der letzten 14 Tage bis 3.000 Matches neu.
-      || ((da.schadenFassung ?? 0) < 20 && f.ids.size <= 3000 && Date.now() - f.datum < 14 * 864e5));
+      || ((da.schadenFassung ?? 0) < 20 && f.ids.size <= 3000 && Date.now() - f.datum < 14 * 864e5)
+      // Einzeln angeordnet (NEU_LESEN oben).
+      || (!!NEU_LESEN[f.windowId] && !(String(da.angefangen ?? '') > NEU_LESEN[f.windowId])));
     /*
      * Werte je Match verloren (15.11.2026): "Clutch ablegen" lud clutch-je/ nicht hoch, der naechste Lauf verwarf die Zeilen des vorigen (scripts/clutch-je-abgleich.mjs zaehlt
      * sie als jeFehlt). Solche Spieltage einmal ganz neu lesen - nur die der letzten 14 Tage (Epic haelt Replays 31 Tage, mit Abstand) bis 3.000 Matches, nicht, wenn sie
