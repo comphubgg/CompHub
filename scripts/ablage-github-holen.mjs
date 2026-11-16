@@ -138,8 +138,9 @@ async function main() {
       for (const a of Object.keys(manifest)) {
         if (a === 'manifest.json' || a.endsWith('.neu')) continue;
         const n = ablageName(a);
-        if (!(n.startsWith(praefix) || (praefix === 'akten/' && /^akten__[0-9a-f]{2}\.json$/.test(n)))) continue;
-        if (!woher.has(n)) woher.set(n, { tag, manifest });
+        if (!(n.startsWith(praefix) || (praefix === 'akten/' && /^akten__[0-9a-f]{2}\.json$/.test(a)))) continue;
+        // Den echten Anhangsnamen mitfuehren (16.11.2026): ablageName macht aus "akten__3f.json" "akten/3f.json", und das gibt es am Release nicht (404).
+        if (!woher.has(n)) woher.set(n, { tag, manifest, anhang: a });
       }
     }
     const alle = [...woher.keys()];
@@ -148,14 +149,15 @@ async function main() {
     const arbeiter = async () => {
       while (naechste < alle.length) {
         const name = alle[naechste++];
-        const { tag, manifest } = woher.get(name);
+        const { tag, manifest, anhang } = woher.get(name);
         try {
-          if (praefix === 'akten/') {
+          // Nur "akten__<2 hex>.json" ist ein Buendel; andere Akten (z. B. akten/<uuid>.json) laedt ablage-github.mjs einzeln hoch -> unten als Datei holen.
+          if (/^akten__[0-9a-f]{2}\.json$/.test(anhang)) {
             // Ein Buendel: nur laden, wenn die Summe eine andere ist als beim letzten Mal.
-            const merk = path.join(DATEN, 'akten', `.${name}.summe`);
-            const dort = manifest[anhangName(name)]?.summe;
+            const merk = path.join(DATEN, 'akten', `.${anhang}.summe`);
+            const dort = manifest[anhang]?.summe;
             if (dort && fs.existsSync(merk) && fs.readFileSync(merk, 'utf8') === dort) { gleich += 1; continue; }
-            const daten = await holen(tag, name);
+            const daten = await holen(tag, anhang);
             if (!daten) { fehlt += 1; continue; }
             const buendel = JSON.parse(daten.toString('utf8'));
             fs.mkdirSync(path.join(DATEN, 'akten'), { recursive: true });
