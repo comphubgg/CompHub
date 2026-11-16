@@ -31,7 +31,7 @@ export const BLAU = '#0e47de';
 /** Wo das Kartenbild herkommt: Bilder der Quelle ueber unseren Server, eigene direkt, sonst Epics aktuelle Karte. */
 export function kartenQuelle(bild?: string | null): string {
   if (!bild) return fortniteKarte(false);
-  return /^https?:\/\//.test(bild) ? `/api/maps-bild?u=${encodeURIComponent(bild)}` : encodeURI(bild);
+  return /^https?:\/\//.test(bild) ? `/api/maps-bild?u=${encodeURIComponent(bild)}&v=png` : encodeURI(bild);
 }
 
 export const datum = (iso: string | null) => (iso

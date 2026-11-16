@@ -149,7 +149,9 @@ export async function GET(request: Request) {
           daten = klein.buffer.slice(klein.byteOffset, klein.byteOffset + klein.byteLength) as ArrayBuffer;
           typ = 'image/webp';
         } catch { /* unverkleinert ausliefern */ }
-      } else if (typ.includes('png') && daten.byteLength > 512 * 1024) {
+      } else if (false && typ.includes('png') && daten.byteLength > 512 * 1024) {
+        // Abgeschaltet (Betreiber, 16.11.2026: Formen ungefuellt, Starterinsel unten rechts, Formen zu gross): das verlustbehaftete WebP verschob die
+        // Insel-Erkennung in app/globals-solos/Bausteine.tsx. Die Noble-Karte geht wieder unveraendert als PNG raus.
         /*
          * Die Karten von Noble sind PNG mit 2048 x 2048 Punkten, rund 3 MB (/globals-solos, 16.11.2026: 3,0 MB je Aufruf). Als WebP in derselben
          * Groesse (Masse, Transparenz und Farben bleiben - die Insel-Erkennung in app/globals-solos/Bausteine.tsx findet denselben Rahmen) sind es
