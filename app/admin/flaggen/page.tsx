@@ -25,12 +25,21 @@ interface Zeile {
   rang: number; id: string; name: string; namen: string[]; region: string;
   punkte: number; final: number; semi: number; heat: number; runde: number; cup: number; besteFinal: number | null; letzte: number | null; pr: number | null;
   land: string; x: string; twitch: string; auto: { land: string; quelle: string } | null; alterEintrag: string | null;
+  quelle: Record<'land' | 'x' | 'twitch', string>; konten: string[]; nurZweit: boolean;
   fehlt: { land: boolean; x: boolean }; speicherName: string;
 }
 interface Antwort { ok: boolean; error?: string; stand: number; wichtig: number; zeilen: Zeile[]; ausgeschlossen: { geloescht: number; turnierkonto: number; vollstaendig: number; ohneName: number } }
 type Feld = 'land' | 'x' | 'twitch';
 type Werte = Record<Feld, string>;
-type Zustand = { art: 'speichert' | 'ok' | 'fehler'; text?: string };
+type Zustand = { art: 'sendet' | 'wartet' | 'ok' | 'fehler'; text?: string };
+/** Eine abgeschickte Aenderung, bis der Server sie als gespeichert meldet - so laesst sie sich bei einem Fehler von selbst noch einmal schicken. */
+type Auftrag = { koerper: Record<string, unknown>; gesendet: Werte; version: number | null; versuche: number; naechster: number };
+/*
+ * Wichtig im engeren Sinn (Betreiber, 16.11.2026: 23.217 Zeilen waren "viel zu viele"): mindestens zwei FNCS-Finals/Heats/Halbfinals oder mindestens
+ * drei spaete FNCS-Qualifikationsrunden. Cups zaehlen hier nicht - Top 100 in einem Cash Cup schafften zu viele (mit Cups waeren es 22.500 geblieben).
+ * Alle uebrigen wichtigen Spieler nur mit "Alle wichtigen zeigen".
+ */
+const kern = (z: Zeile) => z.final + z.heat + z.semi >= 2 || z.runde >= 3;
 
 const FELDER: Feld[] = ['land', 'x', 'twitch'];
 const JE_SEITE = 100;
@@ -58,6 +67,8 @@ export default function FlaggenPflege() {
   const [zustand, setZustand] = useState<Record<string, Zustand>>({});
   /** Zeilen, die in dieser Sitzung unter ihrer Konto-Id gespeichert wurden (ein Alteintrag unter dem Namen ist danach umgezogen). */
   const [unterId, setUnterId] = useState<Set<string>>(() => new Set());
+  const [alleZeigen, setAlleZeigen] = useState(false);
+  const auftraege = useRef<Record<string, Auftrag>>({});
   const [filter, setFilter] = useState<Filter>('offen');
   const [region, setRegion] = useState('');
   const [suche, setSuche] = useState('');
@@ -90,6 +101,8 @@ export default function FlaggenPflege() {
     if (!d) return [];
     const q = suche.trim().toLowerCase();
     return d.zeilen.filter((z) => {
+      if (!alleZeigen && !kern(z)) return false;
+      if (filter === 'offen' && !(z.fehlt.land || z.fehlt.x || z.nurZweit)) return false;
       if (filter === 'land' && !z.fehlt.land) return false;
       if (filter === 'x' && !z.fehlt.x) return false;
       if (filter === 'beide' && !(z.fehlt.land && z.fehlt.x)) return false;
@@ -97,24 +110,47 @@ export default function FlaggenPflege() {
       if (q && ![z.name, ...z.namen, z.id].some((n) => n.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [d, filter, region, suche]);
+  }, [d, filter, region, suche, alleZeigen]);
+  const kernZahl = useMemo(() => (d?.zeilen ?? []).filter(kern).length, [d]);
   const seiten = Math.max(1, Math.ceil(liste.length / JE_SEITE));
   const aufSeite = liste.slice(seite * JE_SEITE, (seite + 1) * JE_SEITE);
-  useEffect(() => { setSeite(0); }, [filter, region, suche]);
+  useEffect(() => { setSeite(0); }, [filter, region, suche, alleZeigen]);
 
   // Was jetzt (nach dem Gespeicherten) noch fehlt.
   const offen = useMemo(() => {
     const z = { land: 0, x: 0, beide: 0, start: { land: 0, x: 0, beide: 0 } };
     for (const r of d?.zeilen ?? []) {
+      if (!alleZeigen && !kern(r)) continue;
       const g = gespeichert[r.id];
-      const nurAlt = !!r.alterEintrag && !unterId.has(r.id);
-      const fl = !g?.land || (r.fehlt.land && nurAlt);
-      const fx = !g?.x || (r.fehlt.x && nurAlt);
+      const fl = !g?.land;
+      const fx = !g?.x;
       if (fl) z.land += 1; if (fx) z.x += 1; if (fl && fx) z.beide += 1;
       if (r.fehlt.land) z.start.land += 1; if (r.fehlt.x) z.start.x += 1; if (r.fehlt.land && r.fehlt.x) z.start.beide += 1;
     }
     return z;
-  }, [d, gespeichert, unterId]);
+  }, [d, gespeichert, alleZeigen]);
+
+  /*
+   * Abschicken. Der Server antwortet sofort ("wartet") und schreibt gesammelt (lib/profilWarteschlange.ts); gespeichert ist eine Zeile erst, wenn die
+   * Abfrage unten "gespeichert" meldet. Scheitert das Abschicken (Netz, 5xx), geht es von selbst noch einmal - nach 3, 6, 12 ... Sekunden.
+   */
+  const abschicken = useCallback(async (id: string) => {
+    const a = auftraege.current[id];
+    if (!a) return;
+    setZustand((s) => ({ ...s, [id]: { art: 'sendet' } }));
+    try {
+      const r = await fetch('/api/admin/flaggen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a.koerper) });
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; version?: number } | null;
+      if (r.status === 400) { delete auftraege.current[id]; setZustand((s) => ({ ...s, [id]: { art: 'fehler', text: j?.error ?? 'Ungültig' } })); return; }
+      if (!r.ok || !j?.ok) throw new Error(j?.error ?? `HTTP ${r.status}`);
+      if (auftraege.current[id] === a) { a.version = j.version ?? 0; a.versuche = 0; }
+      setZustand((s) => ({ ...s, [id]: { art: 'wartet' } }));
+    } catch (f) {
+      a.versuche += 1;
+      a.naechster = Date.now() + Math.min(60_000, 3000 * 2 ** (a.versuche - 1));
+      setZustand((s) => ({ ...s, [id]: { art: 'fehler', text: `${(f as Error).message} - neuer Versuch gleich` } }));
+    }
+  }, []);
 
   const speichern = useCallback(async (z: Zeile, erzwingen = false) => {
     const e = entwurfRef.current[z.id];
@@ -123,38 +159,59 @@ export default function FlaggenPflege() {
     const geprueft = Object.fromEntries(FELDER.map((f) => [f, pruefe(f, e[f])])) as Record<Feld, { wert: string; fehler: string }>;
     const fehler = FELDER.map((f) => geprueft[f].fehler).filter(Boolean);
     if (fehler.length) { setZustand((s) => ({ ...s, [z.id]: { art: 'fehler', text: fehler.join(' · ') } })); return; }
-    // Nur, was sich geaendert hat - die anderen Felder schickt die Zeile gar nicht, damit sie im Profil bleiben, wie sie sind.
+    // Nur, was sich geaendert hat - die anderen Felder schickt die Zeile gar nicht, damit sie im Profil bleiben, wie sie sind. Steht ein Wert nur auf
+    // einem Zweitkonto, geht er mit (erzwingen), damit er auch unter dem Hauptkonto steht.
     const aenderung: Partial<Werte> = {};
-    for (const f of FELDER) if (geprueft[f].wert !== g[f] || (erzwingen && geprueft[f].wert)) aenderung[f] = geprueft[f].wert;
+    for (const f of FELDER) if (geprueft[f].wert !== g[f] || ((erzwingen || z.quelle[f]) && geprueft[f].wert && !unterId.has(z.id))) aenderung[f] = geprueft[f].wert;
     if (!Object.keys(aenderung).length) {
       setEntwurf((s) => ({ ...s, [z.id]: { ...g } }));
-      // Zurueckgenommen (Esc) oder nichts geaendert: ein alter Fehler dieser Zeile gilt nicht mehr.
-      setZustand((s) => (s[z.id]?.art === 'fehler' ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== z.id)) : s));
+      setZustand((s) => (s[z.id]?.art === 'fehler' && !auftraege.current[z.id] ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== z.id)) : s));
       return;
     }
-    setZustand((s) => ({ ...s, [z.id]: { art: 'speichert' } }));
-    try {
-      const r = await fetch('/api/admin/flaggen', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: z.id, name: z.speicherName, ...aenderung }),
-      });
-      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; profil?: Partial<Werte> | null } | null;
-      if (!r.ok || !j?.ok) throw new Error(j?.error ?? `HTTP ${r.status}`);
-      const neu: Werte = { land: j.profil?.land ?? '', x: j.profil?.x ?? '', twitch: j.profil?.twitch ?? '' };
-      setGespeichert((s) => ({ ...s, [z.id]: neu }));
-      setUnterId((s) => new Set(s).add(z.id));
-      // Steht im Feld noch dasselbe wie beim Absenden, zeigt es jetzt die gespeicherte Form ("@abc" -> "abc", "Polen" -> "PL").
-      setEntwurf((s) => {
-        const jetzt = s[z.id];
-        const zeigen = { ...jetzt };
-        for (const f of FELDER) if (jetzt[f] === e[f]) zeigen[f] = neu[f];
-        return { ...s, [z.id]: zeigen };
-      });
-      setZustand((s) => ({ ...s, [z.id]: { art: 'ok' } }));
-    } catch (f) {
-      setZustand((s) => ({ ...s, [z.id]: { art: 'fehler', text: (f as Error).message } }));
-    }
-  }, []);
+    const gesendet: Werte = { ...g };
+    for (const f of FELDER) if (f in aenderung) gesendet[f] = aenderung[f]!;
+    auftraege.current[z.id] = { koerper: { id: z.id, name: z.speicherName, konten: z.konten, ...aenderung }, gesendet, version: null, versuche: 0, naechster: 0 };
+    await abschicken(z.id);
+  }, [abschicken, unterId]);
+
+  // Alle 1,5 s: was wartet, beim Server nachfragen; was gescheitert ist, zur Zeit noch einmal schicken.
+  useEffect(() => {
+    const uhr = setInterval(() => {
+      const offen = Object.entries(auftraege.current);
+      if (!offen.length) return;
+      for (const [id, a] of offen) if (a.version == null && a.naechster && Date.now() >= a.naechster) { a.naechster = 0; void abschicken(id); }
+      const fragen = offen.filter(([, a]) => a.version != null).map(([id]) => id);
+      if (!fragen.length) return;
+      void fetch(`/api/admin/flaggen?status=${fragen.join(',')}`, { cache: 'no-store' }).then(async (r) => {
+        const j = await r.json().catch(() => null) as { status?: Record<string, { art: string; version: number; profil?: Partial<Werte> | null; fehler?: string }> } | null;
+        if (!r.ok || !j?.status) return;
+        for (const id of fragen) {
+          const a = auftraege.current[id];
+          if (!a || a.version == null) continue;
+          const st = j.status[id];
+          if (!st) { a.version = null; a.naechster = Date.now(); continue; } // Server kennt sie nicht (Neustart): neu schicken
+          if (st.art === 'gespeichert' && st.version >= a.version) {
+            delete auftraege.current[id];
+            const neu: Werte = { land: st.profil?.land ?? '', x: st.profil?.x ?? '', twitch: st.profil?.twitch ?? '' };
+            setGespeichert((s) => ({ ...s, [id]: neu }));
+            setUnterId((s) => new Set(s).add(id));
+            // Steht im Feld noch dasselbe wie beim Absenden, zeigt es jetzt die gespeicherte Form ("@abc" -> "abc", "Polen" -> "PL").
+            setEntwurf((s) => {
+              const jetzt = s[id];
+              if (!jetzt) return s;
+              const zeigen = { ...jetzt };
+              for (const f of FELDER) if (pruefe(f, jetzt[f]).wert === a.gesendet[f]) zeigen[f] = neu[f];
+              return { ...s, [id]: zeigen };
+            });
+            setZustand((s) => ({ ...s, [id]: { art: 'ok' } }));
+          } else if (st.art === 'fehler') {
+            setZustand((s) => ({ ...s, [id]: { art: 'fehler', text: st.fehler } }));
+          }
+        }
+      }).catch(() => undefined);
+    }, 1500);
+    return () => clearInterval(uhr);
+  }, [abschicken]);
 
   // Den Fokus nach einem Seitenwechsel setzen (Enter in der letzten Zeile).
   useEffect(() => {
@@ -171,6 +228,11 @@ export default function FlaggenPflege() {
     }
     if (e.key !== 'Enter') return;
     e.preventDefault();
+    // Enter in einem leeren Flaggenfeld mit Vorschlag: den Vorschlag uebernehmen und stehen bleiben.
+    if (feld === 'land' && !entwurfRef.current[z.id]?.land.trim() && z.auto) {
+      setEntwurf((s) => ({ ...s, [z.id]: { ...s[z.id], land: z.auto!.land } }));
+      return;
+    }
     const ziel = i + (e.shiftKey ? -1 : 1);
     if (ziel >= 0 && ziel < aufSeite.length) {
       document.querySelector<HTMLInputElement>(`[data-zeile="${ziel}"][data-feld="${feld}"]`)?.focus();
@@ -196,7 +258,7 @@ export default function FlaggenPflege() {
   useEffect(() => {
     const warnen = (e: BeforeUnloadEvent) => {
       const ungespeichert = Object.entries(entwurfRef.current).some(([id, w]) => FELDER.some((f) => w[f] !== (gespeichertRef.current[id]?.[f] ?? '')));
-      if (ungespeichert || Object.values(zustand).some((s) => s.art === 'speichert')) e.preventDefault();
+      if (ungespeichert || Object.values(zustand).some((s) => s.art === 'sendet' || s.art === 'wartet') || Object.keys(auftraege.current).length > 0) e.preventDefault();
     };
     window.addEventListener('beforeunload', warnen);
     return () => window.removeEventListener('beforeunload', warnen);
@@ -247,13 +309,14 @@ export default function FlaggenPflege() {
           <span className="mx-1 h-5 w-px bg-zinc-800" />
           <button type="button" onClick={() => setRegion('')} className={chip(!region)}><T>Alle Regionen</T></button>
           {REGIONEN_REIHE.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={chip(region === r)}>{r}</button>)}
+          <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-400" title="Ohne Haken: nur wer mindestens zwei FNCS-Finals/Heats oder drei späte FNCS-Runden hat"><input type="checkbox" checked={alleZeigen} onChange={(e) => setAlleZeigen(e.target.checked)} data-alle /> <T>Alle wichtigen zeigen</T></label>
           <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-400"><input type="checkbox" checked={twitchZeigen} onChange={(e) => setTwitchZeigen(e.target.checked)} /> Twitch</label>
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Name oder Epic-Id …" aria-label="Suche"
             className="ml-auto w-full max-w-[240px] rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500" />
         </div>
 
         <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-          <span>{liste.length} <T>Zeilen</T></span>
+          <span data-zeilenzahl>{liste.length} <T>Zeilen</T> · {alleZeigen ? <T>alle wichtigen Spieler</T> : <>{kernZahl} <T>Kernspieler (2+ FNCS-Finals/Heats oder 3+ späte FNCS-Runden)</T></>}</span>
           {blaettern}
         </div>
 
@@ -285,7 +348,14 @@ export default function FlaggenPflege() {
                 const land = landNach(pl.wert);
                 const s = zustand[z.id];
                 const geaendert = FELDER.some((f) => e[f] !== g[f]);
-                const fertig = !!g.land && !!g.x && (!z.alterEintrag || unterId.has(z.id));
+                const fertig = !!g.land && !!g.x && (!z.nurZweit || unterId.has(z.id));
+                // Unter jeder Zelle: woher der Wert kommt - gespeichert (unter diesem Konto oder einem anderen des Spielers) oder nur getippt.
+                const herkunft = (f: Feld) => {
+                  if (pruefe(f, e[f]).wert !== g[f] && e[f].trim() !== g[f]) return <p className="mt-0.5 text-[10px] font-semibold text-rose-300" data-herkunft="ungespeichert">● nicht gespeichert</p>;
+                  if (!g[f]) return null;
+                  if (z.quelle[f] && !unterId.has(z.id)) return <p className="mt-0.5 truncate text-[10px] text-violet-300" data-herkunft="zweit" title="Gespeichert, aber nicht unter diesem Konto - Speichern übernimmt es">gespeichert bei {z.quelle[f]}</p>;
+                  return <p className="mt-0.5 text-[10px] text-sky-400/80" data-herkunft="gespeichert">✓ gespeichert</p>;
+                };
                 return (
                   <tr key={z.id} onBlur={(ev) => zeileVerlassen(ev, z)} data-id={z.id}
                     className={`border-b border-zinc-800/60 align-top ${fertig ? 'bg-sky-500/[0.06]' : ''}`}>
@@ -304,15 +374,18 @@ export default function FlaggenPflege() {
                         <input data-zeile={i} data-feld="land" value={e.land} placeholder={z.auto ? `${z.auto.land}?` : 'Land / DE / DEU'} aria-label={`Flagge ${z.name}`}
                           onChange={(ev) => setEntwurf((x) => ({ ...x, [z.id]: { ...e, land: ev.target.value } }))} onKeyDown={(ev) => taste(ev, z, i, 'land')}
                           className={`${zelle} max-w-[130px] ${pl.fehler ? 'border-rose-500' : 'border-zinc-700'}`} />
+                        {!e.land.trim() && z.auto && (
+                          <button type="button" tabIndex={-1} data-uebernehmen onClick={() => setEntwurf((x) => ({ ...x, [z.id]: { ...e, land: z.auto!.land } }))}
+                            title={`Vorschlag aus ${z.auto.quelle} (automatisch, nicht geprüft). Enter im leeren Feld übernimmt ihn auch.`}
+                            className="flex shrink-0 items-center gap-1 rounded border border-dashed border-zinc-600 px-1.5 py-0.5 text-[11px] text-slate-300 hover:border-sky-500 hover:text-sky-300">
+                            <TeamFlagge groesse={12} laender={[z.auto.land]} />{z.auto.land} <T>übernehmen</T>
+                          </button>
+                        )}
                         {land ? (
                           <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-300" data-vorschau="land"><TeamFlagge groesse={16} laender={[land.code]} /><span className="truncate">{land.code} · {land.en}</span></span>
-                        ) : pl.fehler ? <span className="text-xs text-rose-300">{pl.fehler}</span> : z.auto ? (
-                          <button type="button" tabIndex={-1} onClick={() => setEntwurf((x) => ({ ...x, [z.id]: { ...e, land: z.auto!.land } }))}
-                            title={`Nur automatisch (${z.auto.quelle}) - nicht geprüft`} className="flex items-center gap-1 rounded border border-dashed border-zinc-700 px-1.5 py-0.5 text-[11px] text-slate-400 hover:border-sky-500 hover:text-sky-300">
-                            <TeamFlagge groesse={12} laender={[z.auto.land]} />{z.auto.land} <span className="text-slate-600">({z.auto.quelle})</span>
-                          </button>
-                        ) : null}
+                        ) : pl.fehler ? <span className="text-xs text-rose-300">{pl.fehler}</span> : z.auto ? <span className="text-[10px] text-slate-600">{z.auto.quelle}</span> : null}
                       </div>
+                      {herkunft('land')}
                     </td>
                     <td className="px-2 py-2">
                       <input data-zeile={i} data-feld="x" value={e.x} placeholder="@handle oder x.com/…" aria-label={`X ${z.name}`}
@@ -320,6 +393,7 @@ export default function FlaggenPflege() {
                         className={`${zelle} ${px.fehler ? 'border-rose-500' : 'border-zinc-700'}`} />
                       {px.fehler ? <p className="mt-0.5 text-[11px] text-rose-300">{px.fehler}</p>
                         : px.wert && px.wert !== e.x.trim() ? <p className="mt-0.5 text-[11px] text-slate-500" data-vorschau="x">→ @{px.wert}</p> : null}
+                      {herkunft('x')}
                     </td>
                     {twitchZeigen && (
                       <td className="px-2 py-2">
@@ -327,14 +401,16 @@ export default function FlaggenPflege() {
                           onChange={(ev) => setEntwurf((x) => ({ ...x, [z.id]: { ...e, twitch: ev.target.value } }))} onKeyDown={(ev) => taste(ev, z, i, 'twitch')}
                           className={`${zelle} ${pt.fehler ? 'border-rose-500' : 'border-zinc-700'}`} />
                         {pt.fehler && <p className="mt-0.5 text-[11px] text-rose-300">{pt.fehler}</p>}
+                        {herkunft('twitch')}
                       </td>
                     )}
                     <td className="px-2 py-2 text-xs" data-status={s?.art ?? (geaendert ? 'geaendert' : '')}>
-                      {s?.art === 'speichert' ? <span className="text-slate-400">speichert …</span>
+                      {s?.art === 'sendet' ? <span className="text-slate-400">sendet …</span>
+                        : s?.art === 'wartet' ? <span className="text-slate-300">in der Warteschlange …</span>
                         : s?.art === 'fehler' ? <span className="text-rose-300" title={s.text}>✕ {s.text}</span>
                           : geaendert ? <span className="text-slate-400">nicht gespeichert</span>
                             : s?.art === 'ok' ? <span className="font-semibold text-sky-300">✓ gespeichert{fertig ? ' · fertig' : ''}</span>
-                              : z.alterEintrag ? <button type="button" tabIndex={-1} onClick={() => void speichern(z, true)} className="rounded border border-violet-500/50 px-1.5 py-0.5 text-[11px] text-violet-300 hover:bg-violet-500/10">unter Id übernehmen</button>
+                              : z.nurZweit ? <button type="button" tabIndex={-1} onClick={() => void speichern(z, true)} title="Die Werte stehen auf einem anderen Konto des Spielers oder im Alteintrag - hier unter das Hauptkonto übernehmen" className="rounded border border-violet-500/50 px-1.5 py-0.5 text-[11px] text-violet-300 hover:bg-violet-500/10">aufs Hauptkonto übernehmen</button>
                                 : <span className="text-slate-600">{[z.fehlt.land && 'Flagge', z.fehlt.x && 'X'].filter(Boolean).join(' + ')} fehlt</span>}
                     </td>
                   </tr>
