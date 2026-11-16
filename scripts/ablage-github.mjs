@@ -16,6 +16,10 @@
 //   node scripts/ablage-github.mjs --probe            zeigen, nicht uebertragen
 //   node scripts/ablage-github.mjs --erzwingen        auch, was laut Manifest schon so liegt
 //
+// Loeschen (16.11.2026): eine leere Datei "<name>.weg" neben den Daten (z. B. data/clutch-neu/clutch/<w>.json.weg) heisst: <name> am Release loeschen,
+// Anhang und Eintrag im Verzeichnis. Das geschieht erst, wenn alles Hochladen dieses Laufs geglueckt ist - so verschwindet der Schatten eines neu gelesenen
+// Spieltags (scripts/clutch-zusammen.mjs) nie, bevor der getauschte Stand oben ist. Fuer --nur gilt der Name ohne ".weg".
+//
 // Geaendert heisst: die Pruefsumme weicht von der im Manifest ab, das als
 // eigener Anhang ("manifest.json") am Release liegt. Akten werden in 256
 // Buendel nach den ersten zwei Zeichen der Konto-Id gepackt (siehe
@@ -170,6 +174,8 @@ const AM_RELEASE = [
   /^clutch\//,
   /^clutch-roh\//,
   /^clutch-je\//,
+  // Der Schatten eines Spieltags, der gerade ganz neu gelesen wird (scripts/clutch-zusammen.mjs) - die Seite liest ihn nie.
+  /^clutch-neu\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
@@ -182,7 +188,7 @@ const GEPFLEGT = /^(prognosen|turnier-karten|karten-vorlagen|alte-maps|maps-bild
 const anhangName = (name) => name.replace(/\//g, '__').replace(/=/g, '-eq-');
 
 function gewuenscht(name) {
-  if (name.startsWith('.') || name.endsWith('.neu') || /\.\d+\.neu$/.test(name)) return false;
+  if (name.startsWith('.') || name.endsWith('.neu') || name.endsWith('.weg') || /\.\d+\.neu$/.test(name)) return false;
   // Von den Replays nur die Auswertungen und Staende, nie die rohen Matches
   // (siebzehntausend Dateien, die sich nie wieder aendern).
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
@@ -194,7 +200,7 @@ function gewuenscht(name) {
    */
   if (/^antworten\/replays_saison_/.test(name)) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
-  if (/^clutch(-roh|-je)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
+  if (/^clutch(-roh|-je|-neu)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
   if (/^replay-voll\//.test(name) && process.env.OHNE_REPLAYVOLL === '1') return false;
   // Staende, Auswertungen und schlanke Fassungen der Replays schreiben die Replay-Ablaeufe (Schnellspur, Nacharbeit, schlank) - der Stundenlauf hatte alte
@@ -469,7 +475,11 @@ async function main() {
     const st = fs.statSync(path.join(DATEN, name));
     return Date.now() - st.mtimeMs < neuerAls * 60_000;
   };
-  const alle = sammle().filter(gewuenscht);
+  const gesammelt = sammle();
+  // Zu loeschen (Marker "<name>.weg"): nur, was auch hochgeladen werden duerfte (--nur, OHNE_CLUTCH ...).
+  const zuLoeschen = gesammelt.filter((n) => n.endsWith('.weg')).map((n) => n.slice(0, -4)).filter(gewuenscht);
+  const wegSet = new Set(zuLoeschen);
+  const alle = gesammelt.filter(gewuenscht).filter((n) => !wegSet.has(n));
 
   // Akten buendeln, alles andere einzeln.
   const einzeln = [];
@@ -504,6 +514,8 @@ async function main() {
       tag, release, vorhandene, manifestAlt, manifest: { ...manifestAlt }, fertig: 0,
       /** Was dieser Lauf selbst geschrieben hat - das gewinnt beim Zusammenfuehren. */
       eigene: new Set(),
+      /** Was dieser Lauf geloescht hat - faellt auch aus dem frisch gelesenen Verzeichnis. */
+      geloescht: new Set(),
     };
     releases.set(tag, eintrag);
     return eintrag;
@@ -638,6 +650,7 @@ async function main() {
   if (nur.length) console.log(`  Nur       : ${nur.join(', ')}`);
   if (neuerAls) console.log(`  Nur juenger als: ${neuerAls} Minuten`);
   console.log('');
+  if (zuLoeschen.length) console.log(`  Loeschen  : ${zuLoeschen.length} (${zuLoeschen.slice(0, 3).join(', ')}${zuLoeschen.length > 3 ? ' ...' : ''})`);
   if (probe) {
     for (const a of aufgaben.slice(0, 40)) console.log(`    ${a.anhang} (${(a.daten.length / 1024).toFixed(0)} KB)`);
     if (aufgaben.length > 40) console.log(`    … und ${aufgaben.length - 40} weitere`);
@@ -668,6 +681,7 @@ async function main() {
         const frisch = await verzeichnisLesen(rel.tag, rel.vorhandene);
         const eigene = Object.fromEntries([...rel.eigene].map((k) => [k, rel.manifest[k]]));
         rel.manifest = { ...rel.manifest, ...frisch, ...eigene };
+        for (const k of rel.geloescht) delete rel.manifest[k];
       } catch (e) { console.log(`  ${rel.tag}: frisches Verzeichnis nicht lesbar (${e.message}) - das eigene wird geschrieben`); }
       await hochladen(rel.release.id, rel.vorhandene, 'manifest.json', Buffer.from(JSON.stringify(rel.manifest), 'utf8'));
       rel.manifestStand = rel.fertig;
@@ -725,10 +739,42 @@ async function main() {
     if (!rel.fertig || rel.fertig === rel.manifestStand) continue;
     await manifestSchreiben(rel);
   }
+  /*
+   * Loeschen - erst, wenn alles dieses Laufs oben ist (kein Fehler, nichts zurueckgestellt, Zeitrahmen nicht erreicht). Sonst bleiben die Marker liegen;
+   * im Ablauf ist der Rechner danach weg, und der Schatten wird beim naechsten Mal wieder getauscht und wieder zum Loeschen vorgemerkt.
+   */
+  let geloescht = 0;
+  const allesOben = !schief && !zurueckgestellt && !(FRIST && naechste < aufgaben.length) && !kontingentMeldung;
+  if (zuLoeschen.length && !allesOben) console.log(`\n  Loeschen ausgesetzt (${zuLoeschen.length}) - nicht alles dieses Laufs kam hoch.`);
+  if (zuLoeschen.length && allesOben) {
+    const geaendert = new Set();
+    for (const name of zuLoeschen) {
+      const anhang = anhangName(name);
+      try {
+        for (const tag of tagsFuer(name)) {
+          const rel = await releaseFuer(tag, { anlegen: false });
+          if (rel.leer) continue;
+          for (const k of [anhang, `${anhang}.neu`]) {
+            const a = rel.vorhandene.get(k);
+            if (!a) continue;
+            await gedrosselt();
+            const weg = await api(`/repos/${REPO}/releases/assets/${a.id}`, { method: 'DELETE' });
+            if (!weg.ok && weg.status !== 404) throw new Error(`loeschen ${k}: ${weg.status}`);
+            rel.vorhandene.delete(k);
+          }
+          if (rel.manifest[anhang] || rel.manifestAlt[anhang]) { delete rel.manifest[anhang]; rel.eigene.delete(anhang); rel.geloescht.add(anhang); geaendert.add(rel); }
+        }
+        geloescht += 1;
+        fs.rmSync(path.join(DATEN, `${name}.weg`), { force: true });
+      } catch (e) { schief += 1; fehler.push(`${anhang}: ${e.message}`); }
+    }
+    for (const rel of geaendert) await manifestSchreiben(rel);
+  }
   console.log('');
   if (FRIST && naechste < aufgaben.length) console.log(`  Zeitrahmen aufgebraucht - ${aufgaben.length - naechste} Dateien kommen im naechsten Lauf dran.`);
   if (gleichGeblieben) console.log(`  Unveraendert (nur im Verzeichnis nachgetragen): ${gleichGeblieben}`);
   console.log(`  Uebertragen : ${fertig}`);
+  if (zuLoeschen.length) console.log(`  Geloescht   : ${geloescht} von ${zuLoeschen.length}`);
   console.log(`  Gescheitert : ${schief}`);
   for (const f of fehler.slice(0, 20)) console.log(`    - ${f}`);
   console.log('');

@@ -36,7 +36,7 @@ jobs:
         run: npm ci --omit=optional
 
       - name: Stand vom Release
-        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh 2>&1 | tail -3
+        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-neu/clutch --ordner clutch-neu/clutch-roh 2>&1 | tail -4
 
       - name: Teilstaende zusammenholen
         uses: actions/download-artifact@v4
@@ -70,12 +70,14 @@ jobs:
         timeout-minutes: 6
         run: node scripts/clutch-je-abgleich.mjs --hoechstens 10 --minuten 2 2>&1 | tail -40
 
+      # clutch-neu: der Schatten eines Spieltags, der ganz neu gelesen wird (scripts/clutch-zusammen.mjs, 16.11.2026). Er geht hoch, bis er ganz gelesen ist;
+      # dann wird er gegen clutch/<w>.json getauscht und hier am Release geloescht (Marker .weg). Vorher legte jede Sofort-Ablage den halben Stand ueber den ganzen.
       # clutch-je ausdruecklich: --nur clutch trifft nur "clutch" und "clutch/...", nicht "clutch-je/..." (scripts/ablage-github.mjs, gewuenscht). Ohne die Datei
       # zeigte die Lage in clutch/<w>.json auf eine Datei, die es am Release nicht gab, und der naechste Lauf verwarf die Zeilen dieses Laufs (15.11.2026).
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-neu 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
 
       # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
       - name: Leaders vorwaermen

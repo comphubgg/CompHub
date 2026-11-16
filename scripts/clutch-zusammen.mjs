@@ -20,11 +20,22 @@ const TEILE = path.join(DATEN, 'clutch-teil');
 const ZIEL = path.join(DATEN, 'clutch');
 const ROH = path.join(DATEN, 'clutch-roh');
 const JE = path.join(DATEN, 'clutch-je');
+/*
+ * Der Schatten (16.11.2026): liest der Plan einen Spieltag ganz neu (neuAnfang, z. B. nach einer neuen Schadensregel), entsteht der neue Stand hier -
+ * clutch-neu/clutch/<w>.json, clutch-neu/clutch-je/<w>.json, clutch-neu/clutch-roh/<w>.json (eigenes Release daten-clutch-neu, lib/releaseTags.mjs).
+ * Bis dahin fing clutch/<w>.json leer an, und jede Sofort-Ablage legte den halben Stand ueber den ganzen: am Morgen des 16.11.2026 (Fassung 20) zeigten
+ * die Leaders der FNCS Solos Reload Heat 2 EU nur bei Nova, skinny covx und Kami Schaden, "8 offen von 8" im Plan. Jetzt bleibt clutch/<w>.json, wie es
+ * ist, bis der Schatten ganz gelesen ist (kein "teilweise" mehr); dann wird getauscht - Epics Werte (epic-schaden-holen.mjs) bleiben dabei erhalten - und
+ * die Schatten-Dateien werden am Release geloescht (Marker <name>.weg, scripts/ablage-github.mjs).
+ */
+const SCHATTEN = path.join(DATEN, 'clutch-neu');
+const EPIC_FELDER = ['epicDmg', 'epicZeit', 'epicStrecke', 'epicKopf', 'epicTeamZeit', 'epicDmgStand'];
+/** Eine Datei am Release loeschen lassen (scripts/ablage-github.mjs liest den Marker). */
+const wegMarke = (name) => { const p = path.join(DATEN, `${name}.weg`); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, ''); };
 const REPO = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
 
-/** Die Werte je Match, die schon am Release liegen (lib/jeSpiel.mjs) - das Repo ist oeffentlich, ein einfacher Abruf genuegt. Fehlt die Datei, ist es der erste Lauf. */
-async function jeVomRelease(w) {
-  const name = `clutch-je/${w}.json`;
+/** Die Werte je Match (lib/jeSpiel.mjs) oder eine andere Datei, die schon am Release liegt - das Repo ist oeffentlich, ein einfacher Abruf genuegt. Fehlt die Datei, ist es der erste Lauf (null). */
+async function vomRelease(name) {
   const lokal = path.join(DATEN, name);
   if (fs.existsSync(lokal)) return fs.readFileSync(lokal);
   const url = `https://github.com/${REPO}/releases/download/${tagFuer(name)}/${name.replace(/\//g, '__')}`;
@@ -48,15 +59,30 @@ for (const f of fs.existsSync(TEILE) ? fs.readdirSync(TEILE).filter((x) => x.end
   jeTag.set(w, [...(jeTag.get(w) ?? []), path.join(TEILE, f)]);
 }
 
+// Auch Schatten ohne neue Teile: ist einer inzwischen ganz gelesen (z. B. der Tausch scheiterte letztes Mal am Holen der Werte je Match), wird er jetzt getauscht.
+for (const f of fs.existsSync(path.join(SCHATTEN, 'clutch')) ? fs.readdirSync(path.join(SCHATTEN, 'clutch')).filter((x) => x.endsWith('.json')) : []) {
+  const w = f.replace(/\.json$/, '');
+  if (!jeTag.has(w)) jeTag.set(w, []);
+}
+
 fs.mkdirSync(ZIEL, { recursive: true });
 fs.mkdirSync(ROH, { recursive: true });
-let tage = 0; let neu = 0; let fertigTage = 0;
+let tage = 0; let neu = 0; let fertigTage = 0; let getauscht = 0; let imSchattenZahl = 0;
 for (const [w, dateien] of jeTag) {
-  const zielDatei = path.join(ZIEL, `${w}.json`);
-  const alt = liesDatei(zielDatei);
+  const hauptDatei = path.join(ZIEL, `${w}.json`);
+  const haupt = liesDatei(hauptDatei);
   // Vor Fassung 4 (alte Schadensregel) wird nichts weitergefuehrt - der Spieltag ist ganz neu gelesen.
   // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt ebenfalls leer an - die alten Werte wuerden sonst doppelt zaehlen.
   const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
+  // Im Schatten: es gibt schon einen, oder der Spieltag wird neu gelesen und am Release steht ein Stand mit Matches, der bis zum Ende stehen bleiben soll.
+  const schattenDatei = path.join(SCHATTEN, 'clutch', `${w}.json`);
+  const imSchatten = fs.existsSync(schattenDatei) || (neuAnfang && !!haupt?.matches?.length);
+  const zielDatei = imSchatten ? schattenDatei : hauptDatei;
+  const jeName = imSchatten ? `clutch-neu/clutch-je/${w}.json` : `clutch-je/${w}.json`;
+  const jeOrdner = path.dirname(path.join(DATEN, jeName));
+  const alt = imSchatten ? liesDatei(schattenDatei) : haupt;
+  // Ein Schatten ohne neue Teile, der noch nicht ganz gelesen ist: nichts zu tun (nicht neu schreiben, sonst geht er jedes Mal hoch).
+  if (imSchatten && !dateien.length && (!alt || alt.teilweise)) continue;
   // jeFrisch: ganz nach dem 15.11.2026 gelesen - die Werte je Match koennen nicht mehr verloren sein (der Planer liest so einen Spieltag wegen jeFehlt nicht noch einmal).
   const d = alt && (alt.version ?? 0) >= 4 && !neuAnfang ? alt : { version: 4, schadenFassung: 20, windowId: w, matches: [], summe: {}, spiele: {}, jeFrisch: true };
   d.matches ??= []; d.summe ??= {}; d.spiele ??= {}; d.ohne ??= [];
@@ -66,13 +92,13 @@ for (const [w, dateien] of jeTag) {
   const jeLaden = async () => {
     if (je || jeKaputt) return je;
     try {
-      const alt = d.je && !neuAnfang ? await jeVomRelease(w) : null;
-      je = alt ? jeLesen(alt) : {};
+      const bisher = d.je && !neuAnfang ? await vomRelease(jeName) : null;
+      je = bisher ? jeLesen(bisher) : {};
     } catch (e) { console.log(`  ${w}: ${e.message} - Werte je Match diesmal nicht weitergefuehrt`); jeKaputt = true; return null; }
     if (d.jeSpiel) { for (const [k, v] of Object.entries(d.jeSpiel)) (je[k] ??= []).push(...v.map(alteZeile)); delete d.jeSpiel; jeNeu = true; }
     return je;
   };
-  const rohDatei = path.join(ROH, `${w}.json`);
+  const rohDatei = path.join(imSchatten ? path.join(SCHATTEN, 'clutch-roh') : ROH, `${w}.json`);
   /*
    * Faengt der Spieltag leer an, gilt das auch fuer die Rohdaten (15.11.2026). Bis dahin nur bei neuAnfang: bei einer Datei der Fassung 3 (clutch-neu-rechnen.mjs
    * schrieb bis zum 15.11.2026 "version: 3" in jede kleine Datei) fing d leer an, die Rohdaten vom Release blieben aber - clutch-neu-rechnen.mjs rechnete
@@ -152,16 +178,53 @@ for (const [w, dateien] of jeTag) {
   d.gerechnet = new Date().toISOString();
   if (jeNeu && je) {
     const { inhalt, lage } = jeDatei(je);
-    fs.mkdirSync(JE, { recursive: true });
-    fs.writeFileSync(path.join(JE, `${w}.json`), inhalt);
+    fs.mkdirSync(jeOrdner, { recursive: true });
+    fs.writeFileSync(path.join(DATEN, jeName), inhalt);
     d.je = { spalten: JE_SPALTEN, lage, bytes: inhalt.length };
     // Ob gelesene Matches ohne eine einzige Zeile dastehen (bis 15.11.2026 gingen Zeilen verloren, siehe scripts/clutch-je-abgleich.mjs) - der Planer liest sie neu.
     d.jeGeprueft = inhalt.length;
     const fehlt = jeFehltVon(d, je);
     if (fehlt) d.jeFehlt = fehlt; else delete d.jeFehlt;
   }
+  fs.mkdirSync(path.dirname(zielDatei), { recursive: true });
+  fs.mkdirSync(path.dirname(rohDatei), { recursive: true });
   fs.writeFileSync(zielDatei, JSON.stringify(d));
   if (roh) fs.writeFileSync(rohDatei, JSON.stringify(roh));
   tage += 1;
+  if (!imSchatten) continue;
+  if (d.teilweise || !d.matches.length) {
+    imSchattenZahl += 1;
+    console.log(`  ${w}: neu gelesen im Schatten - ${erledigt} von ${d.gesamt}; am Release bleibt der bisherige Stand (${haupt?.matches?.length ?? 0} Matches)`);
+    continue;
+  }
+  /*
+   * Tauschen. Die Werte je Match gehoeren zur Lage in d.je - ohne sie kein Tausch (sonst zeigte die Lage ins Leere); dann bleibt der Schatten und der
+   * naechste Lauf versucht es wieder.
+   */
+  let jeBuf = null;
+  if (d.je) {
+    try { jeBuf = await vomRelease(jeName); } catch (e) { console.log(`  ${w}: ${e.message}`); }
+    if (!jeBuf) { console.log(`  ${w}: Schatten ganz gelesen, aber ${jeName} nicht lesbar - Tausch im naechsten Lauf`); continue; }
+  }
+  // Die Rohdaten des Schattens gehoeren dazu (clutch-neu-rechnen.mjs rechnet daraus): lagen sie nicht auf der Platte, vom Release - sonst ein Tausch spaeter.
+  if (!fs.existsSync(rohDatei) && !d.ohneRohRechnung) {
+    let b;
+    try { b = await vomRelease(`clutch-neu/clutch-roh/${w}.json`); } catch (e) { console.log(`  ${w}: ${e.message} - Tausch im naechsten Lauf`); continue; }
+    if (b) fs.writeFileSync(rohDatei, b);
+  }
+  // Epics eigene Werte haengen an der Bestenliste, nicht am Lesen der Replays - sie bleiben (epic-schaden-holen.mjs frischt sie im Abschluss auf).
+  for (const f of EPIC_FELDER) if (haupt?.[f] !== undefined && d[f] === undefined) d[f] = haupt[f];
+  fs.writeFileSync(hauptDatei, JSON.stringify(d));
+  if (jeBuf) { fs.mkdirSync(JE, { recursive: true }); fs.writeFileSync(path.join(JE, `${w}.json`), jeBuf); }
+  const hauptRoh = path.join(ROH, `${w}.json`);
+  if (fs.existsSync(rohDatei)) fs.renameSync(rohDatei, hauptRoh);
+  // Ohne neue Rohdaten (grosser Spieltag) passen die alten nicht mehr zu den Matches - weg damit, auch am Release.
+  else if (fs.existsSync(hauptRoh) || haupt) { fs.rmSync(hauptRoh, { force: true }); wegMarke(`clutch-roh/${w}.json`); }
+  fs.rmSync(schattenDatei, { force: true });
+  fs.rmSync(path.join(DATEN, jeName), { force: true });
+  for (const n of [`clutch-neu/clutch/${w}.json`, `clutch-neu/clutch-je/${w}.json`, `clutch-neu/clutch-roh/${w}.json`]) wegMarke(n);
+  getauscht += 1;
+  console.log(`  ${w}: Schatten ganz gelesen (${d.matches.length} Matches) - getauscht, vorher ${haupt?.matches?.length ?? 0} Matches`);
 }
-console.log(`Zusammengefuehrt: ${neu} neue Matches in ${tage} Spieltagen, davon ${fertigTage} jetzt ganz gelesen.`);
+console.log(`Zusammengefuehrt: ${neu} neue Matches in ${tage} Spieltagen, davon ${fertigTage} jetzt ganz gelesen`
+  + `${getauscht || imSchattenZahl ? ` (Schatten: ${getauscht} getauscht, ${imSchattenZahl} noch im Schatten)` : ''}.`);
