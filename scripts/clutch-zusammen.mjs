@@ -234,7 +234,9 @@ for (const [w, dateien] of jeTag) {
     roh ??= liesDatei(rohDatei);
     for (const k of EPIC_FELDER) if (pub?.[k] !== undefined && d[k] === undefined) d[k] = pub[k];
     delete d.umbauSeit; delete d.umbauRoh; delete d.umbau;
-    console.log(`  ${w}: Neu-Lesen fertig (${gelesen} Matches) - ersetzt die veroeffentlichte Datei`);
+    console.log(d.teilweise
+      ? `  ${w}: Neu-Lesen hat ${gelesen} von ${d.gesamt ?? '?'} Matches, die veroeffentlichte Datei nur ${pub?.matches?.length ?? 0} (selbst teilweise) - ersetzt sie`
+      : `  ${w}: Neu-Lesen fertig (${gelesen} Matches) - ersetzt die veroeffentlichte Datei`);
     for (const ordner of [UMBAU, UMBAU_JE, UMBAU_ROH]) fs.rmSync(path.join(ordner, `${w}.json`), { force: true });
   }
   delete d.umbauRoh;
