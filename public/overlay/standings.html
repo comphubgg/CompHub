@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>Standings</title>
 <link rel="stylesheet" href="themen.css">
+<link rel="stylesheet" href="look.css">
 <style>
 /*
  * Das Standings-Overlay.
@@ -254,26 +255,86 @@ td.punkte b.neu { animation: stups .9s ease-out; }
   color: var(--leise);
 }
 
+/*
+ * ------------------------------------------------ CompHub house style (11/2026)
+ * Unless the look is "klassisch" or a cup-series theme is set: transparent
+ * black box with the rotating frame, the CompHub logo in the header, Inter in
+ * white, greys for places and labels, thin dividers instead of zebra rows and
+ * no gold - the leading places are simply white and bold. Layouts:
+ *   liste    the table (previous)
+ *   kompakt  tighter rows, smaller header
+ *   spalten  the places side by side as columns (photo, name, points)
+ *   ticker   one scrolling line, for the bottom of the screen
+ * Extra fields: eliminations and games per row.
+ */
+body.haus #karte { border: 0; border-radius: 14px; }
+body.haus #kopf { color: rgba(255, 255, 255, .6); letter-spacing: .2em; padding-bottom: .5em; align-items: center; }
+body.haus #titel { color: #fff; display: inline-flex; align-items: center; gap: .55em; }
+body.haus #titel .lk-logo { width: 1.5em; height: 1.5em; border-radius: .35em; }
+body.haus #spanne { color: rgba(255, 255, 255, .6); }
+body.haus tr:nth-child(odd) { background: transparent; }
+body.haus tr + tr td { border-top: 1px solid rgba(255, 255, 255, .07); }
+body.haus td.platz { color: rgba(255, 255, 255, .5); font-weight: 700; }
+body.haus tr.gold td.platz, body.haus tr.gold td.team, body.haus tr.gold td.punkte { color: #fff; }
+body.haus tr.gold td.team { font-weight: 700; }
+body.haus td.punkte { font-weight: 700; }
+body.haus td.punkte b.neu { animation: lk-puls .55s cubic-bezier(.2, 1.5, .4, 1); }
+td.extra { width: 1%; text-align: right; color: rgba(255, 255, 255, .55); font-size: calc(var(--schrift) * .82); padding-left: 0; }
+#kopfextra { display: inline-flex; gap: 1.6em; margin-left: auto; margin-right: .2em; }
+#kopfextra:empty { display: none; }
+
+body.haus.l-kompakt td { padding-top: .26em; padding-bottom: .26em; }
+body.haus.l-kompakt #kopf { padding: .5em 1em .35em; }
+
+/* columns: one card per place */
+body.haus.l-spalten #karte { width: auto; }
+body.haus.l-spalten table { display: block; }
+body.haus.l-spalten tbody { display: flex; }
+body.haus.l-spalten tr { display: flex; flex-direction: column; align-items: center; gap: .15em; min-width: 7.5em; padding: .5em .6em .7em; background: transparent !important; }
+body.haus.l-spalten tr + tr { border-left: 1px solid rgba(255, 255, 255, .08); }
+body.haus.l-spalten td { display: block; padding: 0 !important; border: 0 !important; width: auto; text-align: center; max-width: 9em; }
+body.haus.l-spalten td.platz { font-size: .75em; }
+body.haus.l-spalten td.bild { height: calc(var(--schrift) * 2.4); }
+body.haus.l-spalten td.bild .rahmen { width: calc(var(--schrift) * 2.4); height: calc(var(--schrift) * 2.4); }
+body.haus.l-spalten td.punkte { font-size: 1.35em; }
+body.haus.l-spalten #kopfextra { display: none; }
+
+/* ticker: one scrolling line */
+#lauf { display: none; }
+body.haus.l-ticker table { display: none; }
+body.haus.l-ticker #karte { width: var(--breite); min-width: 0; display: flex; align-items: center; }
+body.haus.l-ticker #kopf { padding: .55em .9em; flex: 0 0 auto; border-right: 1px solid rgba(255, 255, 255, .1); }
+body.haus.l-ticker #kopfrechts, body.haus.l-ticker #spanne, body.haus.l-ticker #kopfextra { display: none; }
+body.haus.l-ticker #lauf { display: flex; overflow: hidden; flex: 1 1 auto; min-width: 0; font-size: var(--schrift); }
+#lauf .band { display: flex; white-space: nowrap; animation: lk-lauf var(--lauf, 30s) linear infinite; }
+#lauf .eintrag { display: inline-flex; align-items: baseline; gap: .45em; padding: 0 1.1em; color: #fff; font-weight: 600; }
+#lauf .eintrag i { font-style: normal; color: rgba(255, 255, 255, .5); font-weight: 700; }
+#lauf .eintrag b { font-weight: 700; }
+
 @media (prefers-reduced-motion: reduce) {
   #karte, td.punkte b { transition: none !important; animation: none !important; }
 }
+
 </style>
 </head>
 <body>
 
-<div id="karte">
+<div id="karte" class="lk-karte">
   <div id="kopf">
     <span id="titel">STANDINGS</span><img id="marke" src="/logos/CompHub-Logo-frei.png" alt="" hidden>
     <!-- Beim Blaettern steht hier, welche Plaetze gerade zu sehen sind. -->
     <span id="spanne" hidden></span>
+    <span id="kopfextra"></span>
     <span id="kopfrechts">POINTS</span>
   </div>
   <table><tbody id="zeilen"></tbody></table>
+  <div id="lauf"></div>
   <div id="hinweis" hidden></div>
 </div>
 
 <script src="konfig.js"></script>
 <script src="gesicht.js"></script>
+<script src="look.js"></script>
 <script>
 (function () {
   'use strict';
@@ -332,6 +393,10 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     seitenBis: 0,
     /** Sekunden je Seite. */
     seitenTakt: 8,
+    // Redesign 11/2026: layout, extra fields, house style (look.js).
+    layout: 'liste', elimsZeigen: false, spieleZeigen: false,
+    look: 'clean', rahmen: true, rahmenTempo: 4, rahmenBreite: 2.5, hintergrund: 'hero', hintergrundUrl: '', heroDeck: 0.1,
+    wasserzeichen: 'aus', chLogo: true,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -468,6 +533,12 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       team.textContent = (e.players || []).map((p) => spielerName(p.name)).join(' & ');
       tr.appendChild(team);
 
+      // Extra fields: eliminations and games (only in the house style).
+      if (document.body.classList.contains('haus')) {
+        if (cfg.elimsZeigen) { const x = document.createElement('td'); x.className = 'extra'; x.textContent = e.elims ?? '–'; tr.appendChild(x); }
+        if (cfg.spieleZeigen) { const x = document.createElement('td'); x.className = 'extra'; x.textContent = e.games ?? '–'; tr.appendChild(x); }
+      }
+
       const punkte = document.createElement('td');
       punkte.className = 'punkte';
       const b = document.createElement('b');
@@ -481,6 +552,26 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       tr.appendChild(punkte);
 
       tb.appendChild(tr);
+    }
+    // Ticker: the same places as one scrolling band (twice, for a seamless loop).
+    const lauf = $('lauf');
+    lauf.textContent = '';
+    if (document.body.classList.contains('l-ticker')) {
+      const band = document.createElement('div');
+      band.className = 'band';
+      for (let k = 0; k < 2; k++) {
+        for (const e of eintraege) {
+          const sp = document.createElement('span');
+          sp.className = 'eintrag';
+          const i = document.createElement('i'); i.textContent = e.games !== 0 ? '#' + e.rank : '–';
+          const n = document.createElement('span'); n.textContent = (e.players || []).map((p) => spielerName(p.name)).join(' & ');
+          const b = document.createElement('b'); b.textContent = e.points;
+          sp.append(i, n, b);
+          band.appendChild(sp);
+        }
+      }
+      band.style.setProperty('--lauf', Math.max(12, eintraege.length * 4) + 's');
+      lauf.appendChild(band);
     }
     $('karte').classList.add('da');
   }
@@ -570,8 +661,20 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       document.body.classList.toggle('globals', cfg.thema === 'globals');
       // Die Themen der anderen Reihen (public/overlay/themen.css).
       for (const th of ['performance', 'division', 'cash', 'reload']) document.body.classList.toggle('th-' + th, cfg.thema === th);
-      $('marke').hidden = !Number(cfg.marke);
-      $('titel').textContent = String(cfg.titel || 'STANDINGS');
+      // House style unless the classic look or a cup-series theme is chosen.
+      const haus = !cfg.thema && cfg.look !== 'klassisch';
+      document.body.classList.toggle('haus', haus);
+      const layout = ['liste', 'kompakt', 'spalten', 'ticker'].indexOf(cfg.layout) >= 0 ? cfg.layout : 'liste';
+      ['liste', 'kompakt', 'spalten', 'ticker'].forEach((l) => document.body.classList.toggle('l-' + l, haus && l === layout));
+      Look.haus($('karte'), Object.assign({}, cfg, { look: haus ? (cfg.look || 'clean') : 'klassisch', akzent: haus ? (cfg.lookAkzent || '#ffffff') : cfg.akzent }));
+      $('marke').hidden = haus || !Number(cfg.marke);
+      const tt = $('titel');
+      tt.textContent = String(cfg.titel || 'STANDINGS');
+      if (haus && cfg.chLogo !== false) tt.insertBefore(Look.logo(), tt.firstChild);
+      const ke = $('kopfextra');
+      ke.textContent = '';
+      if (haus && cfg.elimsZeigen) ke.append(Object.assign(document.createElement('span'), { textContent: 'ELIMS' }));
+      if (haus && cfg.spieleZeigen) ke.append(Object.assign(document.createElement('span'), { textContent: 'GAMES' }));
       $('kopfrechts').textContent = String(cfg.kopfrechts || 'POINTS');
 
       if (uhr) clearInterval(uhr);

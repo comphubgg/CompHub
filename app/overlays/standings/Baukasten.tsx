@@ -8,6 +8,7 @@ import OverlayGeruest, {
 } from '../OverlayGeruest';
 import { CupWahl, Regler, Vorschau, Wahlreihe } from '../Teile';
 import Ablauf, { FertigSchritt, Vorlagen, type Vorlage } from '../Ablauf';
+import { DesignGruppe, HausGruppe, HAUS_STANDARD, LOOK_STANDARD, Schalter, Segmente } from '../Bausteine';
 import { THEMEN, themaAkzent, themaFuerCup, deckkraftFuer, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 import GlobalsTagWahl from '@/app/globals/GlobalsTage';
@@ -55,6 +56,13 @@ const STANDARD = {
   /** Blättern: bis zu welchem Platz, und wie lange eine Seite steht. */
   seitenBis: 0,
   seitenTakt: 8,
+  // Redesign 11/2026 (public/overlay/standings.html + look.js).
+  layout: 'liste' as 'liste' | 'kompakt' | 'spalten' | 'ticker',
+  elimsZeigen: false,
+  spieleZeigen: false,
+  ...LOOK_STANDARD,
+  ...HAUS_STANDARD,
+  wasserzeichen: 'aus' as typeof HAUS_STANDARD.wasserzeichen,
 };
 
 type Config = typeof STANDARD;
@@ -80,20 +88,22 @@ const AKZENTE: Array<{ wert: string; titel: string }> = [
  * Dazu die Looks der Cup-Reihen (Performance, Division, Cash ...) aus themen.ts.
  */
 const VORLAGEN_BASIS: Array<Vorlage<Config>> = [
+  { schluessel: 'haus', titel: 'CompHub', text: 'Transparent black, white text, the rotating frame — the house style.',
+    setzt: { thema: '' as Thema, look: 'clean', grund: '0 0 0', deckkraft: 0.66, ecken: 14, breite: 420, schrift: 16, bilder: false } },
   { schluessel: 'klassisch', titel: 'Klassisch', text: 'Schwarz mit Gold — das gewohnte Bild.',
-    setzt: { thema: '' as Thema, grund: '0 0 0', akzent: '#f5c542', deckkraft: 0.72, ecken: 10, breite: 420, schrift: 16, gold: 1, bilder: false } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', akzent: '#f5c542', deckkraft: 0.72, ecken: 10, breite: 420, schrift: 16, gold: 1, bilder: false } },
   { schluessel: 'nachtblau', titel: 'Nachtblau', text: 'Dunkles Blau mit hellblauem Akzent, etwas runder.',
-    setzt: { thema: '' as Thema, grund: '12 20 38', akzent: '#38bdf8', deckkraft: 0.82, ecken: 16, breite: 420, schrift: 16, gold: 1, bilder: false } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '12 20 38', akzent: '#38bdf8', deckkraft: 0.82, ecken: 16, breite: 420, schrift: 16, gold: 1, bilder: false } },
   { schluessel: 'kompakt', titel: 'Kompakt', text: 'Schmal und klein — für die Ecke des Bildes.',
-    setzt: { thema: '' as Thema, grund: '24 24 27', akzent: '#ffffff', deckkraft: 0.78, ecken: 6, breite: 320, schrift: 13, gold: 0, bilder: false } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '24 24 27', akzent: '#ffffff', deckkraft: 0.78, ecken: 6, breite: 320, schrift: 13, gold: 0, bilder: false } },
   { schluessel: 'gross', titel: 'Groß mit Fotos', text: 'Breit, große Schrift und das Foto vor dem Namen.',
-    setzt: { thema: '' as Thema, grund: '0 0 0', akzent: '#34d399', deckkraft: 0.7, ecken: 14, breite: 640, schrift: 22, gold: 3, bilder: true } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '0 0 0', akzent: '#34d399', deckkraft: 0.7, ecken: 14, breite: 640, schrift: 22, gold: 3, bilder: true } },
   { schluessel: 'rot', titel: 'Rot auf Anthrazit', text: 'Kräftiger roter Akzent auf dunklem Grau.',
-    setzt: { thema: '' as Thema, grund: '24 24 27', akzent: '#f43f5e', deckkraft: 0.85, ecken: 10, breite: 440, schrift: 17, gold: 1, bilder: false } },
+    setzt: { look: 'klassisch', thema: '' as Thema, grund: '24 24 27', akzent: '#f43f5e', deckkraft: 0.85, ecken: 10, breite: 440, schrift: 17, gold: 1, bilder: false } },
 ];
 const VORLAGEN_THEMEN: Array<Vorlage<Config>> = THEMEN.filter((x) => x.wert).map((x) => ({
   schluessel: `thema-${x.wert}`, titel: x.titel, text: 'Das Aussehen dieser Cup-Reihe.',
-  setzt: { thema: x.wert, akzent: themaAkzent(x.wert) ?? '#f5c542', deckkraft: deckkraftFuer(x.wert, 0.72) },
+  setzt: { look: 'klassisch', thema: x.wert, akzent: themaAkzent(x.wert) ?? '#f5c542', deckkraft: deckkraftFuer(x.wert, 0.72) },
 }));
 const VORLAGEN_ALLE: Array<Vorlage<Config>> = [...VORLAGEN_BASIS, ...VORLAGEN_THEMEN];
 
@@ -137,6 +147,7 @@ export default function StandingsBaukasten({ globals = false }: {
 
   const setz = <K extends keyof Config>(k: K, v: Config[K]) =>
     setCfg((alt) => ({ ...alt, [k]: v }));
+  const setzLos = (k: string, v: unknown) => setz(k as keyof Config, v as Config[keyof Config]);
 
   function waehlen(o: OverlayEintrag) {
     setId(o.id);
@@ -357,6 +368,24 @@ export default function StandingsBaukasten({ globals = false }: {
               vorschauUrl={(c) => `/overlay/standings.html?vorschau=${encodeURIComponent(JSON.stringify(c))}`}
               gilt={(v) => Object.entries(v.setzt).every(([k, w]) => (cfg as Record<string, unknown>)[k] === w)}
               waehle={(v) => setCfg((a) => ({ ...a, ...v.setzt }))} />
+          ),
+        }]),
+
+        /* --------------------------------------------------- Design (house style) */
+        ...(globals ? [] : [{
+          schluessel: 'design', titel: 'Design',
+          hinweis: 'Layout, extra columns, frame and background. “CompHub” is the house style; the coloured templates use the classic look.',
+          inhalt: (
+            <div className="space-y-4">
+              <Segmente titel="Layout" wert={cfg.layout} setzen={(v) => setz('layout', v)}
+                optionen={[{ wert: 'liste', titel: 'List' }, { wert: 'kompakt', titel: 'Compact' }, { wert: 'spalten', titel: 'Columns' }, { wert: 'ticker', titel: 'Ticker' }]} />
+              <div className="grid grid-cols-2 gap-2">
+                <Schalter titel="Eliminations column" an={cfg.elimsZeigen} setzen={(b) => setz('elimsZeigen', b)} />
+                <Schalter titel="Games column" an={cfg.spieleZeigen} setzen={(b) => setz('spieleZeigen', b)} />
+              </div>
+              <HausGruppe cfg={cfg} setz={setzLos} />
+              <DesignGruppe cfg={cfg} setz={setzLos} />
+            </div>
           ),
         }]),
 
