@@ -50,9 +50,15 @@ function groesse(f: { playlist?: string | null; windowId: string; eventId: strin
 }
 
 /** Die Stufe eines Spieltags: offene Runde, Heat, Last Chance oder Finale - verglichen wird nur Gleiches mit Gleichem. */
-function stufe(f: { windowId: string; istFinale?: boolean }): string {
+function stufe(f: { windowId: string; istFinale?: boolean; tokens?: string[] }): string {
   const w = f.windowId;
-  if (/lastchance|lcq/i.test(w)) return 'lcq';
+  /*
+   * Last Chance in zwei Rollen (Betreiber, 16.11.2026: "CompHub Prediction ~252" fuer die offene LCQ der FNCS Solos Reload, Top 20). Die offene Runde
+   * (S42/S43 "..._LastChanceQualifier_<R>", 11/12 Spiele, Zugang per RegionLock) und das kleine Finale ("..._LastChanceLobby_<R>", 5 Spiele, Zugang nur mit der
+   * Marke "..._LastChanceFinal_<R>") liefen beide als "lcq" - die Prognose mittelte Platz 20 der S42-Lobby (138, rund 40 Spieler) mit Platz 20 der offenen
+   * S42-LCQ (365). Die Rolle steht in Epics Daten, nicht im Namen: das Finale verlangt eine Final-Marke (istFinale), die offene Runde nicht.
+   */
+  if (/lastchance|lcq/i.test(w)) return f.istFinale || (f.tokens ?? []).some((t) => /final/i.test(t)) ? 'lcq-finale' : 'lcq';
   if (/heat/i.test(w)) return 'heat';
   if (f.istFinale || /final/i.test(w)) return 'finale';
   return 'offen';
@@ -382,7 +388,11 @@ async function holeRoh(request: Request) {
     const gleicheSpiele = gleicherModus.filter((f) => !dieser.matchCap || f.matchCap === dieser.matchCap);
     // Dann dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
     const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
-    frueher = (gleicheSpiele.length ? gleicheSpiele : gleicherModus.length ? gleicherModus : gleicheArt.length ? gleicheArt : kandidaten)
+    const gewaehlt = gleicheSpiele.length ? gleicheSpiele : gleicherModus.length ? gleicherModus : gleicheArt.length ? gleicheArt : kandidaten;
+    // Dieselbe Region zuerst: Epics NAC-Liste fuehrt auch die NAW-Spieltage, und die offene LCQ NA Central nahm sonst die von NA West (16.11.2026).
+    const endung = new RegExp(`_${region}$`, 'i');
+    const eigeneRegion = gewaehlt.filter((f) => endung.test(f.windowId));
+    frueher = (eigeneRegion.length ? eigeneRegion : gewaehlt)
       .sort((a, b) => b.begin - a.begin)
       .slice(0, AUSGABEN);
     aehnlich = frueher.length > 0;
