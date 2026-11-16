@@ -556,7 +556,13 @@ export async function mitHandEbene(e: MapEintrag, f: SolosFenster): Promise<Solo
       return { punkte: fo.punkte, spieler: dabei.flatMap((t) => t.spieler.map((p) => p.anzeige)), teams: dabei.length, gruppen: dabei.map((t) => t.spieler.map((p) => p.anzeige)) };
     })
     : f.formen;
-  return { ...f, teams, spieler: eigene.length ? [...alle.values()] : f.spieler, formen, quelle: eigene.length ? 'hand' : f.quelle };
+  // Hat der Admin eigene Formen gespeichert, gelten nur seine - Nobles Landepunkte stehen dann nicht mehr da, also wird Noble auch nicht genannt.
+  // Nur eigene Teams auf Nobles Formen: die Formen bleiben Nobles, der Hinweis bleibt.
+  const { kartenQuelle, ...rest } = f;
+  return {
+    ...rest, ...(handFormen.length || !kartenQuelle ? {} : { kartenQuelle }),
+    teams, spieler: eigene.length ? [...alle.values()] : f.spieler, formen, quelle: eigene.length ? 'hand' : f.quelle,
+  };
 }
 
 /** Fuer den Editor: ausschliesslich das, was der Admin selbst angelegt hat - es wird nichts hineingeladen. */

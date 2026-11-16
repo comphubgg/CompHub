@@ -1,6 +1,7 @@
 import path from 'path';
 import { beobachte, liesGeteilt } from '@/lib/dateiWache';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { mitSpotQuelle } from '@/lib/kartenQuelle';
 
 /*
  * Der Stand einer Turnierkarte, sobald er sich aendert.
@@ -40,10 +41,11 @@ const BLICK_MS = 600;
 const LEBENSZEICHEN_MS = 20_000;
 
 interface Team { id: string; ids?: string[] }
-interface Spot { id: string; teams: string[] }
+interface Spot { id: string; teams: string[]; quelle?: string }
 interface Karte {
   id: string; titel: string; spiele?: string; bildId?: string;
   gesperrt?: boolean; spots: Spot[]; teams: Team[]; geaendert: number;
+  region?: string; windowId?: string; automatisch?: { quelle?: string };
 }
 
 /** Dieselben stabilen Schluessel wie in der Kartenansicht - siehe route.ts. */
@@ -83,7 +85,8 @@ function alsStand(k: Karte) {
     bildId: k.bildId ?? '',
     gesperrt: k.gesperrt ?? false,
     teams: k.teams.map((t) => ({ ...t, id: stabil.get(t.id) ?? t.id })),
-    spots: k.spots.map((sp) => ({
+    // Mit der Quelle jeder Form (lib/kartenQuelle) - darueber nennt die Ansicht Noble Practice.
+    spots: mitSpotQuelle(k).spots.map((sp) => ({
       ...sp, teams: sp.teams.map((t) => stabil.get(t) ?? t),
     })),
   };

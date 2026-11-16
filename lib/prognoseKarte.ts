@@ -9,6 +9,8 @@ export interface Punkt { x: number; y: number }
 
 export interface Spot {
   id: string; form: string; punkte: Punkt[]; name?: string; farbe?: string;
+  /** Woher die Form stammt - siehe lib/kartenQuelle (Noble wird genannt, Vital nicht). */
+  quelle?: string;
 }
 
 /** Der umschliessende Rahmen einer Form, in Prozent. */

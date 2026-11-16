@@ -10,6 +10,7 @@ import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { schickeAdminAufgabe } from '@/lib/discord';
 import type { CupGruppe, CupFensterDetail } from '@/lib/epicCups';
 import type { Turnierkarte, KartenTeam, Spot } from '@/app/api/turnier-karten/route';
+import type { SpotQuelle } from '@/lib/kartenQuelle';
 
 /*
  * Turnierkarten von selbst (Betreiber, 29.10.2026): "fuer jeden Performance-Cup-Final, jeden Division-1-Final oder allgemein so grosse Finale, wie
@@ -96,7 +97,7 @@ async function liesKarten(): Promise<AutoKarte[]> {
 /** Die Karte aus Formen und Spielern der Quelle bauen - so wie "Generate map" auf der Kartenseite. */
 function baueKarte(
   z: Ziel, quelle: { formen: Array<{ punkte: Array<{ x: number; y: number }>; teams: Array<{ ids: string[]; namen: string[] }> }>; ohneForm: Array<{ ids: string[]; namen: string[] }> },
-  profile: Record<string, { anzeige?: string }>, bild: { id: string; titel: string }, alt: AutoKarte | undefined,
+  profile: Record<string, { anzeige?: string }>, bild: { id: string; titel: string }, alt: AutoKarte | undefined, herkunft: SpotQuelle,
 ): AutoKarte {
   const teams: KartenTeam[] = [];
   const team = (e: { ids: string[]; namen: string[] }) => {
@@ -119,6 +120,7 @@ function baueKarte(
       form: rechteck ? 'rechteck' : 'polygon',
       punkte: rechteck ? [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }] : fo.punkte,
       teams: fo.teams.map(team),
+      quelle: herkunft,
     } as Spot;
   });
   for (const e of quelle.ohneForm) team(e);
@@ -136,7 +138,8 @@ function baueKarte(
     id, titel, cupId: z.cup.id, cupTitel: z.cup.titel, region: z.region, eventId: z.f.eventId, windowId: z.f.windowId,
     bildId: bild.id, bildTitel: bild.titel, bildAutomatisch: true, namenSichtbar: false, gesperrt: false,
     spots, teams: gekuerzt, geaendert, oeffentlich: true,
-    automatisch: { stand: geaendert, quelle: 'auto' },
+    // Die echte Quelle der Landepunkte (frueher nur "auto"): Noble wird auf der Karte genannt, Vital nicht - siehe lib/kartenQuelle.
+    automatisch: { stand: geaendert, quelle: herkunft },
   };
 }
 
@@ -214,7 +217,7 @@ export async function kartenAutomatik(
 
     const letzterVersuch = nachholen || jetzt >= z.f.begin + ZEHN_MIN;
     if (quelle) {
-      const neu = baueKarte(z, quelle, profile, bild, vorhanden);
+      const neu = baueKarte(z, quelle, profile, bild, vorhanden, z.region === 'EU' ? 'noble' : 'vital');
       // Die Live-Route fragt alle zwanzig Sekunden: ohne echte Aenderung wird nichts geschrieben, sonst laedt jeder Zuschauer jedes Mal alles neu.
       const gleich = !!vorhanden && kartenInhalt(vorhanden) === kartenInhalt(neu);
       if (!gleich) {

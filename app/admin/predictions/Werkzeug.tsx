@@ -30,6 +30,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
 import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { NOBLE_BILD_TEXT, zeigtNoble } from '@/lib/kartenQuelle';
 import { gruppenName } from '@/lib/fensterName';
 import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
@@ -164,6 +165,8 @@ interface Spot {
   /* Muss mitgefuehrt werden, auch wenn diese Seite sie nicht selbst vergibt:
      sonst faellt eine im Karteneditor gesetzte Farbe beim Speichern weg. */
   farbe?: string;
+  /** Woher die Form stammt (Noble ueber "Von Noble holen") - darueber nennt die Karte Noble Practice. Siehe lib/kartenQuelle. */
+  quelle?: 'noble' | 'vital';
 }
 
 /** Wie nah am ersten Punkt schliesst eine freie Form? In Prozent der Karte. */
@@ -1236,6 +1239,14 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       logo.src = '/logos/CompHub-Logo-frei.png';
     });
 
+    // Quelle der Landepunkte unten links in der Karte - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle).
+    if (zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots)) {
+      const rand = Math.round(KARTE * 0.022);
+      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(KARTE * 0.014)}px Segoe UI, system-ui, sans-serif`;
+      g.textAlign = 'left'; g.textBaseline = 'bottom'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6;
+      g.fillText(NOBLE_BILD_TEXT, RAND + rand, RAND + KARTE - Math.round(rand * 0.5)); g.restore();
+    }
+
     try {
       await speichereLeinwand(
         c, `prognose-${(kartenName || 'karte').replace(/[^a-z0-9]+/gi, '-')}.png`);
@@ -1659,6 +1670,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
         ok?: boolean; error?: string; nichtGefunden?: boolean;
         formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
         ohneForm?: Array<{ ids: string[]; namen: string[] }>;
+        quelle?: 'noble' | 'vital';
       };
       if (!r.ok || !j.ok) { setStatus(j.nichtGefunden ? uebs('Noble kennt diesen Spieltag nicht.') : (j.error ?? uebs('Noble nicht erreichbar'))); return; }
       if (!(j.formen ?? []).length) { setStatus(uebs('Noble kennt diesen Spieltag, hat aber noch keine Formen.')); return; }
@@ -1683,6 +1695,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
         neueSpots.push({
           id, form: rechteck ? 'rechteck' : 'polygon',
           punkte: rechteck ? rechteckPunkte({ x: Math.min(...xs), y: Math.min(...ys) }, { x: Math.max(...xs), y: Math.max(...ys) }) : fo.punkte,
+          quelle: j.quelle === 'vital' ? 'vital' : 'noble',
         });
         neuAufSpot[id] = fo.teams.map(keyVon);
       });

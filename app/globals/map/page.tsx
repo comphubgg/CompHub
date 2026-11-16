@@ -16,6 +16,7 @@ import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
+import { hatNobleFormen, NOBLE_ADRESSE, NOBLE_HINWEIS } from '@/lib/kartenQuelle';
 
 /*
  * Eine Form der Turnierkarte.
@@ -23,7 +24,7 @@ import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
  * Dieselbe Form wie in der Prognose, nur traegt sie dort die Teams in einer
  * eigenen Zuordnung und hier bei sich selbst.
  */
-type KartenSpot = Spot & { teams?: string[] };
+type KartenSpot = Spot & { teams?: string[]; quelle?: string };
 
 /*
  * Die Karte der Global Championship.
@@ -409,6 +410,15 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
                      text-[11px] text-slate-200 transition hover:bg-black/90">
           <T>Ganze Karte</T>
         </button>
+      )}
+
+      {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
+      {hatNobleFormen(spots) && (
+        <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
+          onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+          className={`${vollbild ? 'fixed left-4 top-4' : 'absolute left-2 top-2'} z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90`}>
+          {NOBLE_HINWEIS} ↗
+        </a>
       )}
 
       {/* Das Vollbild-Quadrat - gleich gebaut wie bei den Predictions. */}

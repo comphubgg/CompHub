@@ -32,7 +32,9 @@ export async function GET(request: Request) {
     const kennung = (p.get('window') ?? '').trim();
     if (!kennung) return NextResponse.json({ ok: false, error: 'Kein Spieltag gewählt.' }, { status: 400, headers: nie });
     const wunsch = { titel: (p.get('titel') ?? '').trim() || undefined, begin: Number(p.get('begin')) || undefined };
-    let karte = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined, wunsch);
+    // Mit der Quelle: die Karte nennt Noble Practice, Vital nicht (lib/kartenQuelle).
+    const vonNoble = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined, wunsch);
+    let karte: ((NonNullable<typeof vonNoble> & { quelle: 'noble' }) | Awaited<ReturnType<typeof vitalAlsNoble>>) = vonNoble && { ...vonNoble, quelle: 'noble' as const };
     // Noble fuehrt nur Europa: fuer NA Central, NA West, Middle East und Ozeanien kommen die Landepunkte von Vital Scrims.
     if (!karte) karte = await vitalAlsNoble(kennung, wunsch.begin, Number(p.get('ende')) || null, p.get('region') ?? undefined);
     if (!karte) {
