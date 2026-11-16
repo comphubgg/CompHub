@@ -16,7 +16,9 @@ export interface InselKarte { bild: string; x0: number; y0: number; spanne: numb
 
 export const RELOAD_INSELN: Record<string, InselKarte> = {
   // Land im Bild (512 px): x 108-480, y 63-463 - als Quadrat mit Rand: Bildpunkte 82-506 / 51-475.
-  SourSpawn: { bild: '/api/karten-bild?id=reload-nitemare-island&datei=1', x0: -91_000, y0: -87_000, spanne: 174_000, ausschnitt: { x0: -63_100, y0: -69_700, spanne: 144_100 } },
+  // Nachgeeicht 16.11.2026 an 5.381 Truhen aus 4 Matches (FNCS Solos Reload Heats EU): Spanne 174.000 bestaetigt (bei 166.000 liegen Truhen im Meer,
+  // bei 184.000 neben den Haeusern der Stadt unten rechts), die Mitte lag 1.000 daneben - auf Land jetzt 91,9 % statt 84,6 %.
+  SourSpawn: { bild: '/api/karten-bild?id=reload-nitemare-island&datei=1', x0: -92_000, y0: -88_000, spanne: 174_000, ausschnitt: { x0: -63_100, y0: -69_700, spanne: 144_100 } },
 };
 
 export function inselCode(playlist: string | null | undefined): string | null {

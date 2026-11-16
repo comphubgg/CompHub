@@ -20,6 +20,15 @@ import { RELOAD_INSELN } from '@/app/replays/inselKarten';
  *   Battle Royale S42 (Hera_V2_Terrain, /bilder/karte-s42.png): 3.585 Truhen aus Performance Evaluation Event9Round2 EU. Mit der alten Spanne
  *   lagen viele im Wasser rings um die Kueste, mit x0 -142.300 / y0 -150.000 / Spanne 300.500 auf Land.
  *   Reload: app/replays/inselKarten (RELOAD_INSELN).
+ *
+ * Masstab nachgewiesen (Nitemare Island, 16.11.2026): die Hauptinsel misst im Bild 102.600 x 126.800 Einheiten; die Spieler eines ganzen Matches
+ * reichen bis x -50.500..46.000 und y -62.700..60.600, also an allen vier Seiten bis 1.000-5.000 vor die Kueste. Waere der Masstab 10 % daneben,
+ * laegen sie 10.000 vor oder hinter der Kueste. Eine Zone mit Radius 20.000 ist darum wirklich knapp 40 % der Inselbreite gross: Reload spielt
+ * dieselben spaeten Zonen wie Battle Royale (26.500 -> 20.000 -> 10.000 -> 5.000, nachgesehen in den Replays beider Modi), nur auf einer
+ * Insel, die ein Drittel kleiner ist.
+ *
+ * Wo der Kreis steht: x/y eines Eintrags ist die Mitte der NAECHSTEN Zone (naechsterRadius). Geprueft an den Spielerorten - nach dem Schrumpfen
+ * auf 5.000 standen 8 von 8 (BR) und 3 von 3 (Reload) Spielern in diesem Kreis, im Kreis um die eigene Mitte keiner.
  */
 
 export interface Rahmen { x0: number; y0: number; spanne: number }
@@ -35,6 +44,17 @@ export interface ZonenKarte {
   insel?: string;
 }
 
+/**
+ * Was das Zonen-Bild von einer Reload-Insel zeigt: nur die Hauptinsel, ohne die Startinsel (Betreiber, 16.11.2026: "warum ist die Starter-Insel
+ * unten rechts"). Gemessen als groesste zusammenhaengende Landflaeche im Bild: Hauptinsel x -55.300..47.300, y -63.900..62.900; die Startinsel
+ * beginnt bei x 58.900 / y 54.700. Das Quadrat muss so hoch wie die Insel sein (134.400 mit Rand) - mittig reichte es rechts bis 61.900 und
+ * schnitte die Startinsel an, darum endet es bei x 56.000 (8.700 Wasser vor der Kueste, 2.900 vor der Startinsel). Die Replay-Ansicht behaelt
+ * ihren eigenen Ausschnitt mit der kleinen Insel (inselKarten, Betreiber 7.11.2026).
+ */
+const ZONEN_AUSSCHNITT: Record<string, Rahmen> = {
+  SourSpawn: { x0: -78_400, y0: -67_700, spanne: 134_400 },
+};
+
 /** Die alte Annahme (-135.000 bis +135.000) - nur noch, wo fuer eine Saison nichts gemessen ist. */
 const BR_STANDARD: Rahmen = { x0: -135_000, y0: -135_000, spanne: 270_000 };
 
@@ -49,7 +69,7 @@ export function zonenKarte(playlist: string | null | undefined, windowId: string
   const insel = inselAusPlaylist(playlist);
   if (insel.art === 'reload' && insel.schluessel) {
     const k = RELOAD_INSELN[insel.schluessel];
-    if (k) return { art: 'reload', bild: k.bild, rahmen: { x0: k.x0, y0: k.y0, spanne: k.spanne }, ausschnitt: k.ausschnitt, insel: insel.schluessel };
+    if (k) return { art: 'reload', bild: k.bild, rahmen: { x0: k.x0, y0: k.y0, spanne: k.spanne }, ausschnitt: ZONEN_AUSSCHNITT[insel.schluessel] ?? k.ausschnitt, insel: insel.schluessel };
     return { art: 'reload', bild: null, rahmen: BR_STANDARD, insel: insel.schluessel };
   }
   const s = saisonVon(windowId);

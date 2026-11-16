@@ -6,7 +6,7 @@ import { zonenKarte, rahmenUmZonen, type Rahmen } from '@/lib/zonenKarte';
 /*
  * Das Zonen-Bild eines Finales, auf dem Server gezeichnet (Aufgabe 128, Betreiber 19.10.2026: "Zonenbilder fuer Finals" als automatischer Post).
  *
- * Dasselbe Bild wie im Admin-Werkzeug (app/admin/replay/ZonenBild.tsx): je Game die Zone mit Radius 20.000 als schwarzer, halb durchsichtiger Kreis mit
+ * Dasselbe Bild wie im Admin-Werkzeug (app/admin/replay/ZonenBild.tsx): je Game die Zone mit Radius 20.000 als schwarzer, Kreis (rgba 8,8,12,0.74) mit
  * "GAME N", darunter in Gelb die Zone mit 10.000, in die sie danach rotierte. Auf der Insel des Cups (Reload oder grosse Karte, geeicht - lib/zonenKarte),
  * die Teile mit ihrem echten Namen (Heat 1, Round 1 · Day 2 - lib/zonenTeile); im gemeinsamen Bild "HEAT 1: GAMES 1–8 · HEAT 2: GAMES 9–16". Die Zonen kommen aus den Server-Replays (tools/replay-voll), ueber
  * dieselbe Schnittstelle wie dort (/api/replay?tag=, ?zonen=). Gezeichnet als SVG ueber der leeren Karte (sharp), damit kein Browser noetig ist.
@@ -85,10 +85,9 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
   const titel = [tage[0].titel.replace(/^Fortnite\s+/i, '').toUpperCase(), jahr].filter(Boolean).join(' ') + (zusatz ? ` · ${zusatz.toUpperCase()}` : '');
   const rand = n * 0.03;
   const teile: string[] = [];
-  const strich = n * 0.0028;
-  // Erst alle gelben, dann die schwarzen darueber - wie in der Vorlage.
-  for (const s of games) if (da(s.klein)) teile.push(`<circle cx="${px(s.klein.x)}" cy="${py(s.klein.y)}" r="${pr(KLEIN)}" fill="rgba(250,204,21,0.34)" stroke="rgba(250,204,21,0.95)" stroke-width="${strich}"/>`);
-  for (const s of games) if (da(s.gross)) teile.push(`<circle cx="${px(s.gross.x)}" cy="${py(s.gross.y)}" r="${pr(GROSS)}" fill="rgba(0,0,0,0.36)" stroke="rgba(0,0,0,0.92)" stroke-width="${strich}"/>`);
+  // Erst alle gelben, dann die dunklen darueber - wie in der Vorlage; Fuellung wie bisher (Schwarz des ersten Tages), ohne Rand.
+  for (const s of games) if (da(s.klein)) teile.push(`<circle cx="${px(s.klein.x)}" cy="${py(s.klein.y)}" r="${pr(KLEIN)}" fill="rgba(250,204,21,0.62)"/>`);
+  for (const s of games) if (da(s.gross)) teile.push(`<circle cx="${px(s.gross.x)}" cy="${py(s.gross.y)}" r="${pr(GROSS)}" fill="rgba(8,8,12,0.74)"/>`);
   const schrift = 'font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="700"';
   // Liegen zwei Zonen fast uebereinander, ruecken die Beschriftungen auseinander ("GAMGAME 10" am FNCS-Solos-Finale EU).
   const gesetzt: Array<{ x: number; y: number }> = [];
@@ -98,14 +97,15 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
     const x = px(s.gross.x); let y = py(s.gross.y);
     for (let i = 0; i < 6 && gesetzt.some((g) => Math.abs(g.x - x) < breite && Math.abs(g.y - y) < hoehe); i += 1) y += hoehe;
     gesetzt.push({ x, y });
-    teile.push(`<text x="${x}" y="${y}" ${schrift} font-size="${Math.round(n * 0.024)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="rgba(0,0,0,0.85)" stroke-width="${n * 0.005}" paint-order="stroke">GAME ${s.nr}</text>`);
+    teile.push(`<text x="${x}" y="${y}" ${schrift} font-size="${Math.round(n * 0.024)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="rgba(0,0,0,0.55)" stroke-width="${n * 0.004}" paint-order="stroke">GAME ${s.nr}</text>`);
   }
-  const mehrere = tage.length > 1;
-  const zeile = (text: string, x: number, y: number, groesse: number, farbe: string, extra = '') => teile.push(`<text x="${x}" y="${y}" ${schrift} font-size="${Math.round(n * groesse)}" fill="${farbe}" stroke="rgba(0,0,0,0.7)" stroke-width="${n * groesse * 0.22}" paint-order="stroke" ${extra}>${xml(text)}</text>`);
-  zeile('ZONES', rand, n - rand - n * (mehrere ? 0.058 : 0.03), 0.05, '#fff');
-  zeile(titel, rand, n - rand - (mehrere ? n * 0.028 : 0), 0.018, '#38bdf8');
-  if (mehrere) zeile(legende.join(' · '), rand, n - rand, 0.015, '#fff');
-  zeile('THECOMPHUB.COM', n - rand, n - rand, 0.016, 'rgba(255,255,255,0.85)', 'text-anchor="end"');
+  // Fusszeile wie bisher; bei mehreren Teilen an der Stelle der frueheren Tageslegende, welche Games zu welchem Teil gehoeren (ohne Farbpunkt).
+  teile.push(`<text x="${rand}" y="${n - rand - n * 0.03}" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="800" font-size="${Math.round(n * 0.05)}" fill="#fff">ZONES</text>`);
+  teile.push(`<text x="${rand}" y="${n - rand}" ${schrift} font-size="${Math.round(n * 0.018)}" fill="#38bdf8">${xml(titel)}</text>`);
+  teile.push(`<text x="${n - rand}" y="${n - rand}" ${schrift} font-size="${Math.round(n * 0.016)}" text-anchor="end" fill="rgba(255,255,255,0.75)">THECOMPHUB.COM</text>`);
+  if (tage.length > 1) {
+    legende.forEach((zeile, i) => teile.push(`<text x="${rand}" y="${n - rand - n * 0.105 + i * n * 0.024}" ${schrift} font-size="${Math.round(n * 0.016)}" fill="#fff" stroke="rgba(0,0,0,0.6)" stroke-width="${n * 0.003}" paint-order="stroke">${xml(zeile)}</text>`));
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}">${teile.join('')}</svg>`;
   // Erst zeichnen, dann verkleinern - sharp verkleinert sonst vor dem Ueberlagern, und die Zeichnung waere groesser als die Karte.
   const voll = await sharp(grund).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).png().toBuffer();

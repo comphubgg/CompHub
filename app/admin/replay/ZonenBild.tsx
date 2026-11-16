@@ -8,11 +8,13 @@
  * darunter in Gelb die kleinere, in die sie danach rotiert ist, und ein Bild
  * mit allen Teilen zusammen.
  *
- * 16.11.2026 (Betreiber): alle grossen Kreise schwarz - keine Farbe je Tag
- * mehr und keine Farblegende. Im gemeinsamen Bild laufen die Nummern weiter
- * (GAME 1-16), und die Legende sagt, welche Games zu welchem Teil gehoeren:
- * "HEAT 1: GAMES 1-8 · HEAT 2: GAMES 9-16". Die Kreise sind halb durchsichtig
- * mit kraeftigem Rand, damit die Karte darunter gut zu sehen bleibt.
+ * 16.11.2026 (Betreiber): alle grossen Kreise im Schwarz des ersten Tages -
+ * keine Farbe je Tag mehr und keine Farbpunkte. Im gemeinsamen Bild laufen
+ * die Nummern weiter (GAME 1-16), und die Legende sagt, welche Games zu
+ * welchem Teil gehoeren: "HEAT 1: GAMES 1-8". Sonst sieht es aus wie vorher -
+ * dieselbe Fuellung ohne Rand, dieselbe Schrift mit demselben Strich (ein
+ * erster Versuch mit durchsichtigen Kreisen und dickerer Schrift wurde
+ * zurueckgenommen: "die Schrift ist haesslich", "nicht gefuellt wie vorher").
  *
  * Die Teile heissen, wie Epic sie nennt (Heat 1, Round 1 · Day 2, Event 1 ·
  * Round 2 - lib/zonenTeile), und die Karte ist die Insel des Cups: bei Reload
@@ -40,12 +42,26 @@ interface Kreis { x: number; y: number }
 const GROSS = 20_000;
 const KLEIN = 10_000;
 const N = 2048;
-/** Schwarz fuer alle grossen Zonen, halb durchsichtig - der Rand traegt die Form. */
-const SCHWARZ_FLAECHE = 'rgba(0, 0, 0, 0.36)';
-const SCHWARZ_RAND = 'rgba(0, 0, 0, 0.92)';
-const GELB_FLAECHE = 'rgba(250, 204, 21, 0.34)';
-const GELB_RAND = 'rgba(250, 204, 21, 0.95)';
+/** Wie bisher: der grosse Kreis im Schwarz des ersten Tages, der kleine gelb - beide ohne Rand. */
+const SCHWARZ = 'rgba(8, 8, 12, 0.74)';
+const GELB = 'rgba(250, 204, 21, 0.62)';
 const WASSER = '#0b3a66';
+const SCHRIFT = 'Inter, system-ui, sans-serif';
+
+/**
+ * Die Schrift laden, bevor gezeichnet wird. Eine Leinwand wartet nicht auf Schriften: ist sie noch nicht da, steht der Text in der Ersatzschrift
+ * und bleibt so. Inter ist keine Webschrift dieser Seite - dann ist sofort klar, was greift (wie bisher system-ui), und es wird nicht gewartet.
+ */
+async function schriftBereit(): Promise<void> {
+  try {
+    const f = (document as Document & { fonts?: FontFaceSet }).fonts;
+    if (!f) return;
+    await Promise.race([
+      Promise.all(['700 48px', '800 100px'].map((g) => f.load(`${g} ${SCHRIFT}`))),
+      new Promise((fertig) => setTimeout(fertig, 3000)),
+    ]);
+  } catch { /* ohne FontFaceSet: einfach zeichnen */ }
+}
 
 const da = (z?: Zone): z is Zone & Kreis => typeof z?.x === 'number' && typeof z?.y === 'number';
 
@@ -140,24 +156,20 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
         g.drawImage(bild, ((sicht.x0 - r.x0) / r.spanne) * w, ((sicht.y0 - r.y0) / r.spanne) * h, (sicht.spanne / r.spanne) * w, (sicht.spanne / r.spanne) * h, 0, 0, N, N);
       }
 
-      // Erst alle gelben, dann die schwarzen darueber - wie in der Vorlage.
-      g.lineWidth = N * 0.0028;
+      // Erst alle gelben, dann die dunklen darueber - wie in der Vorlage.
       for (const s of games) {
         if (!da(s.klein)) continue;
         g.beginPath(); g.arc(px(s.klein.x), py(s.klein.y), pr(KLEIN), 0, Math.PI * 2);
-        g.fillStyle = GELB_FLAECHE; g.fill();
-        g.strokeStyle = GELB_RAND; g.stroke();
+        g.fillStyle = GELB; g.fill();
       }
       for (const s of games) {
         if (!da(s.gross)) continue;
         g.beginPath(); g.arc(px(s.gross.x), py(s.gross.y), pr(GROSS), 0, Math.PI * 2);
-        g.fillStyle = SCHWARZ_FLAECHE; g.fill();
-        g.strokeStyle = SCHWARZ_RAND; g.stroke();
+        g.fillStyle = SCHWARZ; g.fill();
       }
       // Beschriftung; liegen zwei Zonen fast uebereinander, ruecken die Namen auseinander (wie lib/zonenBild).
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = `800 ${Math.round(N * 0.024)}px Inter, system-ui, sans-serif`;
-      g.lineJoin = 'round';
+      g.font = `700 ${Math.round(N * 0.024)}px ${SCHRIFT}`;
       const gesetzt: Kreis[] = [];
       const hoehe = N * 0.03; const breite = N * 0.13;
       for (const s of games) {
@@ -165,34 +177,40 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
         const x = px(s.gross.x); let y = py(s.gross.y);
         for (let i = 0; i < 6 && gesetzt.some((q) => Math.abs(q.x - x) < breite && Math.abs(q.y - y) < hoehe); i += 1) y += hoehe;
         gesetzt.push({ x, y });
-        g.lineWidth = N * 0.005; g.strokeStyle = 'rgba(0,0,0,0.85)';
+        g.lineWidth = N * 0.004; g.strokeStyle = 'rgba(0,0,0,0.55)';
         g.strokeText(`GAME ${s.nr}`, x, y);
         g.fillStyle = '#ffffff';
         g.fillText(`GAME ${s.nr}`, x, y);
       }
 
-      // Unten links: ZONES, der Turniername im Blau der Seite, im gemeinsamen Bild welche Games zu welchem Teil gehoeren; rechts CompHub.
+      // Unten links: ZONES, der Turniername im Blau der Seite, CompHub - wie bisher, ohne Strich.
       g.textAlign = 'left'; g.textBaseline = 'alphabetic';
       const rand = N * 0.03;
-      const text = (s: string, x: number, y: number, groesse: number, farbe: string, gewicht = 700) => {
-        g.font = `${gewicht} ${Math.round(N * groesse)}px Inter, system-ui, sans-serif`;
-        g.lineWidth = N * groesse * 0.22; g.strokeStyle = 'rgba(0,0,0,0.7)';
-        g.strokeText(s, x, y);
-        g.fillStyle = farbe; g.fillText(s, x, y);
-      };
-      const mehrere = gezeigt.length > 1;
-      text('ZONES', rand, N - rand - N * (mehrere ? 0.058 : 0.03), 0.05, '#ffffff', 800);
-      text(titel, rand, N - rand - (mehrere ? N * 0.028 : 0), 0.018, '#38bdf8');
-      if (mehrere) text(legende.join(' · '), rand, N - rand, 0.015, '#ffffff');
+      g.fillStyle = '#ffffff';
+      g.font = `800 ${Math.round(N * 0.05)}px ${SCHRIFT}`;
+      g.fillText('ZONES', rand, N - rand - N * 0.03);
+      g.fillStyle = '#38bdf8';
+      g.font = `700 ${Math.round(N * 0.018)}px ${SCHRIFT}`;
+      g.fillText(titel, rand, N - rand);
+      g.fillStyle = 'rgba(255,255,255,0.75)';
       g.textAlign = 'right';
-      text('THECOMPHUB.COM', N - rand, N - rand, 0.016, 'rgba(255,255,255,0.85)');
+      g.font = `700 ${Math.round(N * 0.016)}px ${SCHRIFT}`;
+      g.fillText('THECOMPHUB.COM', N - rand, N - rand);
+      // Bei mehreren Teilen: welche Games zu welchem Teil gehoeren - an der Stelle der frueheren Tageslegende, ohne Farbpunkt.
+      if (gezeigt.length > 1) {
+        g.textAlign = 'left';
+        g.font = `700 ${Math.round(N * 0.014)}px ${SCHRIFT}`;
+        g.fillStyle = '#ffffff';
+        legende.forEach((zeile, i) => g.fillText(zeile, rand, N - rand - N * 0.105 + i * N * 0.024));
+      }
       setBereit(true);
     };
 
-    if (!karte.bild) { zeichnen(null); return () => { weg = true; }; }
+    const schrift = schriftBereit();
+    if (!karte.bild) { void schrift.then(() => zeichnen(null)); return () => { weg = true; }; }
     const bild = new Image();
-    bild.onload = () => zeichnen(bild);
-    bild.onerror = () => zeichnen(null);
+    bild.onload = () => { void schrift.then(() => zeichnen(bild)); };
+    bild.onerror = () => { void schrift.then(() => zeichnen(null)); };
     bild.src = karte.bild;
     return () => { weg = true; };
   }, [gezeigt, zonen, titel, karte, laedt]);
