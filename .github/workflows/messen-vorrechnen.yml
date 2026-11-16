@@ -7,7 +7,7 @@ on:
 jobs:
   messen:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     permissions:
       contents: read
     env:
@@ -23,10 +23,25 @@ jobs:
       - run: npm ci
       - run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
       - uses: actions/cache/restore@v4
+        id: zs
         with:
           path: data
           key: messen-nie-${{ github.run_id }}
           restore-keys: comphub-daten-
+      # Der Zwischenspeicher von daten-erneuern.yml war aus diesem Ablauf nicht zu finden (16.11.2026) - dann wie ein kalter
+      # Lauf dort: dieselben Befehle wie "Stand vom Release holen", "Das Noetigste" und "Verdienst-Akte und Tabellen".
+      - name: Stand vom Release
+        if: steps.zs.outputs.cache-matched-key == ''
+        timeout-minutes: 50
+        run: |
+          df -h / | tail -1
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
+            --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
+            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner clutch \
+            2>&1 | tail -12
+          node scripts/daten-sync.mjs --herunterladen --noetiges --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches 2>&1 | tail -4 || true
+          node scripts/ablage-github-holen.mjs verdienst-archiv.json elims-archiv.json elims-summen-alt.json preisgeld-tabellen.json wertung-tabellen.json lan-preisgelder.json lan-konten.json 2>&1 | tail -6
+          du -sh data; df -h / | tail -1
       - name: Bauen
         env:
           NODE_OPTIONS: --max-old-space-size=5120
