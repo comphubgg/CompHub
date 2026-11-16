@@ -440,11 +440,23 @@ if (EINMAL) {
 await katalog();
 setInterval(() => { katalog().catch((e) => log(`Katalog: ${e.message}`)); }, KATALOG_MS);
 // Je Minute: wie viele Matches gelesen, was wartet.
+const taktVerlauf = [];
 setInterval(() => {
   const offen = [...fenster.values()].reduce((n, f) => n + f.offen.length + f.zurueck.size, 0);
   const laufend = [...fenster.values()].reduce((n, f) => n + f.laeuft.size, 0);
   const aktiv = [...fenster.values()].filter((f) => f.aktiv).map((f) => `${f.windowId} ${[...f.ids].filter((id) => f.fertig.has(id) || f.auth.ids.has(id)).length}/${f.ids.size} (hier ${f.fertig.size})`).join(', ');
   log(`Takt: ${zahl.gelesen} Matches/min gelesen, ${zahl.spaeter} spaeter, ${zahl.ohne} ohne Replay, ${zahl.fehler} Fehler - ${offen} offen, ${laufend} laufen${aktiv ? ` | ${aktiv}` : ''} | ${messung()}`);
+  /*
+   * Der Takt auch als Datei (16.11.2026): "web" liest ./live mit und zeigt ihn unter /api/stand (live). Ohne Zugang zum Server war nicht zu messen, wie
+   * viele Matches je Minute die Live-Spur schafft - die Grundlage, um zu entscheiden, was hier und was auf GitHub gerechnet wird.
+   */
+  try {
+    taktVerlauf.push({ t: new Date().toISOString().slice(0, 16), gelesen: zahl.gelesen, offen, laufend });
+    if (taktVerlauf.length > 180) taktVerlauf.splice(0, taktVerlauf.length - 180);
+    const fen = [...fenster.values()].filter((f) => f.aktiv).map((f) => ({ w: f.windowId, ids: f.ids.size, hier: f.fertig.size, release: f.auth.ids.size,
+      offen: f.offen.length + f.zurueck.size }));
+    schreibeAtomar(path.join(LIVE_ORT, 'takt.json'), JSON.stringify({ zeit: new Date().toISOString(), leser: LESER, laden: LADEN, messung: messung(), fenster: fen, verlauf: taktVerlauf }));
+  } catch { /* nur Auskunft */ }
   zahl.gelesen = 0; zahl.spaeter = 0; zahl.ohne = 0; zahl.fehler = 0;
   if (dauern.length > 2000) dauern.splice(0, dauern.length - 1000);
 }, 60_000).unref();

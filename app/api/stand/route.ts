@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 /*
@@ -43,6 +44,17 @@ async function bauKennung(): Promise<string> {
   return gemerkt;
 }
 
+/*
+ * Der Takt der Live-Spur (Dienst "live", scripts/live-spur.mjs schreibt /app/live/takt.json je Minute) und die Last des Servers (16.11.2026): ohne
+ * Zugang zum Server war nicht zu messen, wie viele volle Replays je Minute er schafft. Im Container zeigen loadavg und cpus die Werte des ganzen Rechners.
+ */
+async function liveTakt() {
+  try {
+    const j = JSON.parse(await fs.readFile(path.join(process.env.COMPHUB_LIVE_ORT || '/app/live', 'takt.json'), 'utf8'));
+    return { zeit: j.zeit, leser: j.leser, messung: j.messung, fenster: j.fenster, verlauf: Array.isArray(j.verlauf) ? j.verlauf.slice(-60) : [] };
+  } catch { return null; }
+}
+
 export async function GET() {
   return NextResponse.json(
     {
@@ -56,6 +68,10 @@ export async function GET() {
       externMb: Math.round(process.memoryUsage().external / 1048576),
       pufferMb: Math.round(process.memoryUsage().arrayBuffers / 1048576),
       laufzeitMin: Math.round(process.uptime() / 60),
+      kerne: os.cpus().length,
+      last: os.loadavg().map((x) => Math.round(x * 100) / 100),
+      freiMb: Math.round(os.freemem() / 1048576),
+      live: await liveTakt(),
     },
     // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.
     { headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=60', 'CDN-Cache-Control': 'max-age=60' } },
