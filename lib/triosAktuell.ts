@@ -34,7 +34,8 @@ export const TRIOS_AKTUELL: AktuellesTrio[] = [
   { region: 'EU', status: 'testet', ids: ['0865dd0ccabd4156aa6e7757f9b5b753', 'b98790d7278b4169947b3c932c3a6af0', 'c361004bd01441098a2d9778ff24d195'], namen: ['NEBS', 'NXTHAN', 'KIRO'] },
   { region: 'EU', status: 'testet', ids: ['99318c7303c541cdb52133a9e6380979', 'e8e6c5346fe646ba8fa5dc37002eb22d', 'fbf93610fe9448c7a5eb537be89533d5'], namen: ['IZZI', 'NOCIF', 'SEYYTO'] },
   { region: 'EU', status: 'testet', ids: ['9032a26b8a7845dd991841581182a1dd', 'ef29a568e9c145a785da2903fe81114b', 'ba35337d939749af80ee7f0b4f680d82'], namen: ['MRSAVAGE', 'GHONZO', 'KAAN'] },
-  { region: 'EU', status: 'bestaetigt', ids: ['2fc6c760b9504e6187cde71d86d314c8', '990f29fa76f9482f807820dd4807f464', '2b3da27c62d14887bd6daa865df33487'], namen: ['CR1NGE', 'TWI', 'IDROP'] },
+  // 16.11.2026 (Betreiber): Momsy statt IDrop - zusammen im Trios Cash Cup EU 14.11. (Platz 7), IDrop seit 5.11. nicht mehr dabei.
+  { region: 'EU', status: 'bestaetigt', ids: ['2fc6c760b9504e6187cde71d86d314c8', '990f29fa76f9482f807820dd4807f464', 'd141060dd88545c4a3b2408f668508b3'], namen: ['CR1NGE', 'TWI', 'MOMSY'] },
   { region: 'EU', status: 'testet', ids: ['746fde5c9ceb4850bf60557d1260399e', '8a9f8de89ec04ae09755781697a30577', '8fa6505583834b1faa184a891acf0680'], namen: ['HRIS', 'TAYSON', 'CHICO'] },
   { region: 'EU', status: 'testet', ids: ['862a829593db4771a9965076bf1621b7', 'd141060dd88545c4a3b2408f668508b3', '0ecd594f9f7346c1867e303f3e1d825a'], namen: ['JANNISZ', 'MOMSY', 'SKYJUMP'] },
   { region: 'EU', status: 'testet', ids: ['077d69a8f1ea43e4bf8f1273dc0b5aa5', '78fccdc1ea7e4ea08103902c01908858', 'a805254515544975936323c7533e24ef'], namen: ['AKIIRA', 'KURAMA', 'WEREX'] },
