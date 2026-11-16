@@ -52,6 +52,7 @@ const { PROFIL_DATEI, wendeAn } = await jiti.import(path.join(PROJEKT, 'lib/spie
 const { kernname, namensSchluessel } = await jiti.import(path.join(PROJEKT, 'lib/homoglyph.ts'));
 const { landAusEingabe } = await jiti.import(path.join(PROJEKT, 'lib/laender.ts'));
 const { regionVonLand } = await jiti.import(path.join(PROJEKT, 'lib/landRegion.ts'));
+const { gitDatenAktiv } = await jiti.import(path.join(PROJEKT, 'lib/ablageGitDaten.ts'));
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const hat = (n) => process.argv.includes(n);
@@ -240,7 +241,8 @@ async function ladeDaten() {
   for (const x of pr?.spieler ?? []) { const id = String(x.id ?? '').replace(/-/g, '').toLowerCase(); const l = String(x.land ?? '').trim().toUpperCase(); if (id && /^[A-Z]{2}$/.test(l)) bekanntLand.set(id, { code: l, quelle: 'Epics Power Ranking' }); }
   for (const x of szene ?? []) { const id = String(x.ID ?? '').trim().toLowerCase(); const l = String(x.COUNTRY ?? '').trim().toUpperCase(); if (id && /^[A-Z]{2}$/.test(l)) bekanntLand.set(id, { code: l, quelle: 'die Szene-Liste' }); }
   if (!wichtig?.konten) throw new Error('spieler-kreis/_wichtig.json fehlt');
-  if (ANWENDEN && (!(process.env.DATEN_TOKEN || '').trim() || !Object.keys(profile).length)) throw new Error('--anwenden braucht DATEN_TOKEN und eine lesbare spieler-profile.json - nichts geschrieben');
+  // Schreiben nur ins GitHub-Archiv (DATEN_TOKEN, oder GITHUB_TOKEN mit COMPHUB_ABLAGE=github wie im Lauf) und nur, wenn die Profile lesbar waren.
+  if (ANWENDEN && (!gitDatenAktiv() || !Object.keys(profile).length)) throw new Error('--anwenden braucht das GitHub-Archiv (DATEN_TOKEN oder GITHUB_TOKEN mit COMPHUB_ABLAGE=github) und eine lesbare spieler-profile.json - nichts geschrieben');
   log(`Daten: ${Object.keys(wichtig.konten).length} wichtige, ${Object.keys(profile).length} Profile, ${Object.keys(namen).length} Namen, ${Object.keys(orgs?.orgs ?? {}).length} Orgs, ${Object.keys(lan).length} LAN-Konten`);
   return { wichtig, profile, namen, streamers, orgs, lan, bekanntLand };
 }
