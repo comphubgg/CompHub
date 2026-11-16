@@ -26,7 +26,11 @@ on:
         type: string
         default: '300'
       nur:
-        description: 'Nur diese Epic-Ids (Komma)'
+        description: 'Nur diese Epic-Ids (Komma; "id=Name" fuer Spieler ausserhalb der Kernliste)'
+        type: string
+        default: ''
+      region:
+        description: 'Region fuer --nur-Spieler ausserhalb der Kernliste (EU, NAC ...)'
         type: string
         default: ''
       probe:
@@ -89,6 +93,9 @@ jobs:
         env:
           # Das Archiv (comphub-daten) mit dem GITHUB_TOKEN aus ENV_LOCAL, wie scripts/x-handles.mjs (lib/ablageGitDaten).
           COMPHUB_ABLAGE: github
+          # Als Umgebung statt im Befehl: Namen in "id=Name" duerfen Leerzeichen haben.
+          NUR: ${{ inputs.nur }}
+          REGION: ${{ inputs.region }}
         run: |
           printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
           mkdir -p aus
@@ -100,10 +107,9 @@ jobs:
             probe)     ARGS="--probe ${{ inputs.probe || '30' }} --versatz ${{ inputs.versatz || '0' }}" ;;
             endpunkte) ARGS="--endpunkte bugha bugha" ;;
           esac
-          [ -n "${{ inputs.nur }}" ] && ARGS="$ARGS --nur ${{ inputs.nur }}"
-          echo "Modus $MODUS: $ARGS"
+          echo "Modus $MODUS: $ARGS${NUR:+ --nur ($(echo "$NUR" | tr ',' '\n' | grep -c .) Konten)}${REGION:+ --region $REGION}"
           set +e
-          node scripts/socials-finden.mjs $ARGS > aus/ergebnis.json
+          node scripts/socials-finden.mjs $ARGS ${NUR:+--nur "$NUR"} ${REGION:+--region "$REGION"} > aus/ergebnis.json
           rc=$?
           rm -f .env.local
           echo "ERGEBNIS_B64 $(gzip -9c aus/ergebnis.json | base64 -w0)"

@@ -14,7 +14,7 @@
  *   socials-vorschlaege.json  alles Schwaechere je Spieler, mit Belegen; angenommen/abgelehnt setzt die Admin-Seite
  *   socials-geprueft.json     wann welcher Spieler zuletzt abgesucht wurde (der Lauf setzt dort fort, wo er aufhoerte)
  *
- *   node scripts/socials-finden.mjs --plan [--minuten 300] [--tage 30] [--nur <epicId,...>]   suchen, nichts schreiben
+ *   node scripts/socials-finden.mjs --plan [--minuten 300] [--tage 30] [--nur <epicId[=Name],...>] [--region EU]   suchen, nichts schreiben
  *   node scripts/socials-finden.mjs --anwenden ...                                          suchen und schreiben
  *   node scripts/socials-finden.mjs --probe 30                                              blind an Spielern mit bekanntem X/Twitch messen
  *   node scripts/socials-finden.mjs --endpunkte <handle> <twitch>                            die Schnittstellen einmal ansehen
@@ -60,7 +60,16 @@ const ANWENDEN = hat('--anwenden');
 const PROBE = Number(arg('--probe', 0));
 const MINUTEN = Number(arg('--minuten', 300));
 const TAGE = Number(arg('--tage', 30));
-const NUR = String(arg('--nur', '') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x));
+/*
+ * --nur: nur diese Konten - "id" oder "id=Name", durch Komma getrennt. Gezielt (16.11.2026, Posts des LCQ EU) auch fuer Spieler ausserhalb der Kernliste
+ * (spieler-kreis/_wichtig.json): ihr Name kommt aus "=Name", sonst aus spieler-namen.json oder dem Profil; --region gibt ihnen die Region (z. B. EU).
+ */
+const NUR_ROH = String(arg('--nur', '') ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  .map((x) => { const i = x.indexOf('='); return i > 0 ? [x.slice(0, i).trim().toLowerCase(), x.slice(i + 1).trim()] : [x.toLowerCase(), '']; })
+  .filter(([id]) => /^[0-9a-f]{32}$/.test(id));
+const NUR = NUR_ROH.map(([id]) => id);
+const NUR_NAMEN = new Map(NUR_ROH.filter(([, n]) => n));
+const NUR_REGION = String(arg('--region', '') ?? '').trim().toUpperCase();
 const X_JE_SPIELER = Number(arg('--x-je-spieler', 24));
 const LAUF = `${new Date().toISOString().slice(0, 16)}Z`;
 const ENDE = Date.now() + MINUTEN * 60e3;
@@ -420,16 +429,20 @@ async function finde(p, s, { abgelehnt = {} } = {}) {
 
 function spielerListe(d, s, { blind = new Set() } = {}) {
   const liste = [];
-  for (const [id, w] of Object.entries(d.wichtig.konten)) {
-    if (s.lanIds.has(id) || w[11] || !kern(w)) continue;
+  // Gezielt (--nur): auch wer nicht zum Kern gehoert oder gar nicht in der Liste steht - mit leeren Kennzahlen und der Region aus --region.
+  const konten = Object.entries(d.wichtig.konten);
+  for (const id of NUR) if (!d.wichtig.konten[id]) konten.push([id, [0, 0, 0, 0, 0, 0, null, null, NUR_REGION, NUR_NAMEN.get(id) ?? '', null]]);
+  for (const [id, w] of konten) {
+    const gezielt = NUR.includes(id);
+    if (s.lanIds.has(id) || (!gezielt && (w[11] || !kern(w)))) continue;
     const b = d.namen[id];
-    const alle = [...new Set([w[9], b?.haupt ?? '', ...(b?.namen ?? [])].map((n) => String(n ?? '').trim()).filter(Boolean))];
+    const alle = [...new Set([w[9], NUR_NAMEN.get(id) ?? '', b?.haupt ?? '', ...(b?.namen ?? [])].map((n) => String(n ?? '').trim()).filter(Boolean))];
     for (const l of s.lanJe.get(id) ?? []) { const n = s.nachId.get(l)?.name; if (n) alle.push(n); }
     const eigen = s.nachId.get(id);
     const name = eigen?.anzeige || alle[0] || '';
     if (!name) continue;
     const hat = blind.has(id) ? { land: gespeichert(id, alle, s).land, x: '', twitch: '' } : gespeichert(id, alle, s);
-    liste.push({ id, name, namen: alle.filter((n) => n !== name).slice(0, 6), region: eigen?.region || w[8] || '', punkte: w[0], final: w[1], pr: w[10], hat, speicherName: alle[0] || name });
+    liste.push({ id, name, namen: alle.filter((n) => n !== name).slice(0, 6), region: eigen?.region || w[8] || (gezielt ? NUR_REGION : '') || '', punkte: w[0], final: w[1], pr: w[10], hat, speicherName: alle[0] || name });
   }
   return liste.sort((a, b) => b.punkte - a.punkte);
 }
@@ -563,7 +576,11 @@ async function lauf() {
   const s = sichten(daten);
   const [geprueftAlt, vorschlaege] = await Promise.all([liesJson('socials-geprueft.json', {}), liesJson('socials-vorschlaege.json', { zeilen: {} })]);
   let liste = spielerListe(daten, s).filter((p) => !p.hat.x || !p.hat.twitch || !p.hat.land);
-  if (NUR.length) liste = liste.filter((p) => NUR.includes(p.id));
+  if (NUR.length) {
+    liste = liste.filter((p) => NUR.includes(p.id));
+    const ohne = NUR.filter((id) => !liste.some((p) => p.id === id));
+    if (ohne.length) log(`--nur: ${ohne.length} Konten ohne Namen oder schon vollstaendig - uebersprungen: ${ohne.join(', ')}`);
+  }
   else liste = liste.filter((p) => (geprueftAlt[p.id]?.zeit ?? 0) < Date.now() - TAGE * 864e5);
   log(`${liste.length} Kernspieler offen (X, Twitch oder Flagge fehlt, nicht in den letzten ${TAGE} Tagen abgesucht). Budget ${MINUTEN} min.`);
   const summe = { spieler: 0, auto: { x: 0, twitch: 0, land: 0 }, vorschlag: { x: 0, twitch: 0, land: 0 }, eingetragen: { x: 0, twitch: 0, land: 0 }, beispiele: [] };
