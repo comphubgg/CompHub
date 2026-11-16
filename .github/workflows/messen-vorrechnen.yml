@@ -1,0 +1,97 @@
+# Messlauf nur von Hand: wo bleibt die Zeit in "Antworten vorrechnen" (daten-erneuern.yml)? Liest den Zwischenspeicher nur
+# (kein Sichern), laedt nichts hoch, schreibt nur auf dem Laufrechner; Ergebnis als Anhang "messung" (CPU-Profile, Lese-/Netzzeiten
+# aus tools/messen/messen.cjs). Auf main, weil ein Zweig den Zwischenspeicher von main nicht zu sehen bekam (16.11.2026).
+name: Messen Vorrechnen
+on:
+  workflow_dispatch:
+jobs:
+  messen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    env:
+      OHNE_CLUTCH: '1'
+      OHNE_REPLAYVOLL: '1'
+      OHNE_REPLAYS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - uses: actions/cache/restore@v4
+        id: zs
+        with:
+          path: data
+          key: messen-nie-${{ github.run_id }}
+          restore-keys: comphub-daten-
+      # Der Zwischenspeicher von daten-erneuern.yml war aus diesem Ablauf nicht zu finden (16.11.2026) - dann wie ein kalter
+      # Lauf dort: dieselben Befehle wie "Stand vom Release holen", "Das Noetigste" und "Verdienst-Akte und Tabellen".
+      - name: Stand vom Release
+        if: steps.zs.outputs.cache-matched-key == ''
+        timeout-minutes: 50
+        run: |
+          df -h / | tail -1
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
+            --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
+            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner clutch \
+            --ordner replays-schlank/S42 --ordner replays-schlank/S43 --ordner replays-schlank/S44 \
+            2>&1 | tail -12
+          node scripts/daten-sync.mjs --herunterladen --noetiges --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches 2>&1 | tail -4 || true
+          node scripts/ablage-github-holen.mjs verdienst-archiv.json elims-archiv.json elims-summen-alt.json preisgeld-tabellen.json wertung-tabellen.json lan-preisgelder.json lan-konten.json 2>&1 | tail -6
+          du -sh data; df -h / | tail -1
+      - name: Bauen
+        env:
+          NODE_OPTIONS: --max-old-space-size=5120
+        run: |
+          mv data /tmp/daten-beiseite
+          npm run build > /tmp/bau.log 2>&1; CODE=$?
+          if [ -d data ]; then mv data /tmp/bau-leer; fi
+          mv /tmp/daten-beiseite data
+          tail -5 /tmp/bau.log; exit $CODE
+      - name: Messen
+        timeout-minutes: 70
+        env:
+          COMPHUB_VORRECHNEN: '1'
+        run: |
+          set +e
+          sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
+          mkdir -p /tmp/prof
+          export LAUF_BEGINN=$(date +%s)
+          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs --cpu-prof --cpu-prof-dir=/tmp/prof --cpu-prof-interval 5000" \
+            npx next start -p 3000 >> /tmp/server.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
+          ( while sleep 30; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB"; done ) &
+          for q in 'ansicht=start&saison=S43' 'ansicht=start&saison=S42' 'ansicht=start&saison=S42&clutch=alle'; do
+            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            grep '\[MESS\]' /tmp/server.log | grep -v 'heap=1[0-9]MB' | tail -1 | cut -c1-700
+          done
+          pkill -TERM -f next-server; sleep 30; pkill -9 -f next-server; sleep 2
+          ls -la data/_vorrechnen-stand/ 2>&1; ls -la data/antworten/replays_saison_* 2>&1
+          echo "=== frischer Server, gleiche Abfragen (Saison-Sammlung soll aus der Ablage kommen)"
+          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs" npx next start -p 3000 >> /tmp/server2.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
+          for q in 'ansicht=start&saison=S42' 'ansicht=start&saison=S43'; do
+            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            grep '\[MESS\]' /tmp/server2.log | grep -v 'heap=1[0-9]MB' | tail -1 | cut -c1-700
+          done
+          pkill -TERM -f next-server; sleep 10; pkill -9 -f next-server; sleep 2
+          ls -la /tmp/prof
+          for f in /tmp/prof/*.cpuprofile; do
+            [ "$(stat -c %s "$f")" -gt 200000 ] || continue
+            echo "=== $f"; node --max-old-space-size=4096 tools/messen/profil.cjs "$f"
+          done
+          tail -20 /tmp/server.log | cut -c1-300
+          true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: messung
+          path: |
+            /tmp/server.log
+          retention-days: 3
+      - if: always()
+        run: rm -f .env.local

@@ -96,6 +96,7 @@ var wache = new System.Threading.Timer(_ => { Console.Error.WriteLine($"Zeitlimi
 try {
   reader = new SchadenLeser();
   SchadenLeser.EffektEinklinken(reader);
+  SchadenLeser.TrefferOrtMassstab(reader);
   replay = reader.ReadReplay(datei);
   wache.Dispose();
 
@@ -420,7 +421,9 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten, streckeVoll = reader.StreckeJe(busAb),
   msDiag = SchadenLeser.MsDiag ? reader.MsDiagFertig() : null,
   // Fassung 16 (15.11.2026): Strecke am Boden wie Epic (m) und gesammelte Mats je Quelle [Kiste, Boden, Gegner, Team, selbst, Wiedereinstieg, unbekannt, Rueckgabe] x [Holz, Stein, Metall].
-  fassung = 16, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
+  // Fassung 17 (16.11.2026): Trefferorte (schuesse, und in orte der Ort des Getroffenen) im richtigen Massstab - vorher zehnmal zu nah am Ursprung, siehe
+  // TrefferOrtMassstab. trefferOrtMassstab = 10 sagt lib/trefferOrte.mjs, dass an dieser Datei nichts mehr nachzutragen ist.
+  fassung = 17, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
 }, Formatting.None, einst));
 }
 
@@ -1479,7 +1482,9 @@ class SchadenLeser : ReplayReader {
     if (Hole(VonFigur, kanal)?.Id is not int von) return;
     if (c.NonPlayerLocation is Unreal.Core.Models.FVector nl && (c.NonPlayerMagnitude ?? 0) > 0)
       Schuesse.Add(new[] { Math.Round(t, 1), von, Math.Round(nl.X), Math.Round(nl.Y), Math.Round(c.NonPlayerMagnitude ?? 0), 0 });
-    if (c.Location is Unreal.Core.Models.FVector pl && c.HitActor is not null && (c.Magnitude ?? 0) > 0) {
+    if (c.Location is Unreal.Core.Models.FVector pl0 && c.HitActor is not null && (c.Magnitude ?? 0) > 0) {
+      // Nur noetig, wenn TrefferOrtMassstab scheiterte: dann hat die Bibliothek gepackte Werte durch 100 statt durch 10 geteilt.
+      var pl = !TrefferOrtGestellt && pl0.Bits is > 0 and < 32 && pl0.ScaleFactor == 100 ? new Unreal.Core.Models.FVector(pl0.X * 10, pl0.Y * 10, pl0.Z * 10) : pl0;
       var aufSpieler = spielerVonAkteur.TryGetValue(c.HitActor.Value, out var ziel) && ziel != von;
       Schuesse.Add(new[] { Math.Round(t, 1), von, Math.Round(pl.X), Math.Round(pl.Y), Math.Round(c.Magnitude ?? 0), aufSpieler ? (c.bIsCritical == true ? 2 : 1) : 0 });
       if (aufSpieler) OrtNotieren(ziel, t, pl.X, pl.Y, pl.Z);
@@ -1879,6 +1884,38 @@ class SchadenLeser : ReplayReader {
       if (d != null) foreach (System.Collections.DictionaryEntry kv in d) { var k = kv.Key; var v = k is uint u ? u : k?.GetType().GetProperty("Value")?.GetValue(k) is uint u2 ? u2 : 0; if (v == g) return kv.Value?.ToString() ?? "?"; }
     } catch { }
     return "?";
+  }
+  /*
+   * TREFFERORT IM MASSSTAB 10 (16.11.2026). Die Bibliothek liest BatchedDamageCues.Location als PropertyVector100 (Massstab 100); Fortnite schickt den Ort
+   * des Treffers aber gepackt mit Massstab 10 (wie NonPlayerLocation daneben, FVector_NetQuantize10). Jeder Trefferort kam so genau zehnmal zu nah am
+   * Ursprung heraus, in x, y und Hoehe (-302/2358 statt -3020/23580): in "schuesse" alle Eintraege (auch Bauteile - NonPlayerLocation ist im Strom leer)
+   * und in "orte" jeder Ort, der vom Treffer auf den Spieler stammt (4-7 % aller Orte; gefunden bei der Pruefung der Zonen-Bilder FNCS Solo Reload Heats EU).
+   * Beweis aus den Bits: ein Ort um 67.000 kommt mit 21 Bit je Achse - das ist 671.770 (Massstab 10); mit Massstab 100 braeuchte er 24 Bit.
+   * Geprueft an vier Matches FNCS Solo Reload Heat 1 EU (023efdbc, 05d996d5, 189f3157, 1b4dc386): vorher 4,6 / 6,1 / 6,9 / 4,9 % der Orte zehnmal zu klein,
+   * nachher 0 (die 1-2 je Match, die die Nachbar-Probe noch meldet, sind Spruenge von der Startinsel); geaendert haben sich genau die 1.361 Trefferorte, jeder
+   * genau mal 10, und sie liegen nun auf dem Weg des Spielers (Median 18-41 m zum naechsten eigenen Ort, vorher 234-545 m). Alles andere in der Ausgabe
+   * (Schaden, Mats, Strecke ...) ist Byte fuer Byte gleich. Hier wird die Angabe im Zwischenspeicher des Lesers auf Massstab 10 gestellt; die gepackten
+   * Bits sind dieselben, nur der Teiler stimmt jetzt. Alte Dateien berichtigt lib/trefferOrte.mjs beim Laden.
+   */
+  public static bool TrefferOrtGestellt;
+  public static void TrefferOrtMassstab(object leser) {
+    TrefferOrtGestellt = false;
+    try {
+      object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
+      object Wert(object liste, object schluessel) {
+        var m = liste.GetType().GetMethods().First(m => m.Name == "TryGetValue" && m.GetParameters()[0].ParameterType == schluessel.GetType());
+        var a = new object[] { schluessel, null }; return (bool)m.Invoke(liste, a) ? a[1] : null;
+      }
+      var gruppen = F(F(leser, "_netFieldParser"), "NetFieldGroups");
+      var gruppe = Wert(gruppen, "/Script/FortniteGame.FortPawn:NetMulticast_Athena_BatchedDamageCues");
+      var felder = F(gruppe, "Properties");
+      var idx = new object[] { "Location", 0 };
+      if (felder is null || !(bool)felder.GetType().GetMethod("TryGetIndex").Invoke(felder, idx)) throw new InvalidOperationException("Feld Location nicht gefunden");
+      var info = Wert(felder, (int)idx[1]);
+      if (F(info, "Attribute") is not NetFieldAttribute att) throw new InvalidOperationException("keine Angabe zu Location");
+      if (att.Type is RepLayoutCmdType.PropertyVector100 or RepLayoutCmdType.PropertyVector10) { att.Type = RepLayoutCmdType.PropertyVector10; TrefferOrtGestellt = true; }
+      else throw new InvalidOperationException("Location ist " + att.Type);
+    } catch (Exception e) { Console.Error.WriteLine("Trefferort nicht auf Massstab 10 gestellt (Orte werden nachtraeglich mal 10 genommen): " + e.Message); }
   }
   public static void EffektEinklinken(object leser) {
     try {

@@ -293,6 +293,13 @@ export async function fertigeAntwort<T>(
    * beim ersten Aufruf Zahlen von vor Stunden - "stimmt nicht mit EU Competitive ueberein"; erst der zweite Aufruf hatte die frischen).
    */
   spaetestensMs?: number,
+  /**
+   * Seit wann die Grundlage dieser Antwort so ist, wie sie ist (ms), wo sich das billig feststellen laesst - etwa ueber einen
+   * Fingerabdruck der Quelldateien (lib/replayWerte, aggregatStand). Im Vorrechnen des stuendlichen Laufs gilt eine abgelegte Antwort,
+   * die danach gerechnet wurde, als aktuell und wird nicht neu gerechnet (16.11.2026: die Replay-Sammlung von S42 wurde jede Stunde aus
+   * rund vier Gigabyte neu gelesen, obwohl sich kein Aggregat geaendert hatte). Ohne Angabe gilt wie bisher der Beginn des Laufs.
+   */
+  grundlageStand?: number,
 ): Promise<T> {
   const name = nameVon(schluessel);
   /*
@@ -331,6 +338,10 @@ export async function fertigeAntwort<T>(
    * einer Liste (Globals in "Most Eliminations", 30.9.2026) bis zum
    * uebernaechsten Lauf liegen, weil die Antwort des letzten noch "frisch" war.
    */
+  if (vorrechnen && typeof grundlageStand === 'number' && grundlageStand > 0 && abgelegt && typeof abgelegt.zeit === 'number'
+      && abgelegt.zeit >= grundlageStand) {
+    return abgelegt.wert;
+  }
   const laufBeginn = Number(process.env.LAUF_BEGINN || 0) * 1000;
   const vorDemLauf = (zeit: number) => laufBeginn > 0 ? zeit < laufBeginn : jetzt - zeit >= frischMs;
 

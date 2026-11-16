@@ -84,7 +84,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^replays-schlank\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|wertung-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|alte-maps|maps-bild|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
@@ -124,7 +124,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^replay-voll\//,
   /^replays-schlank\//,
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|wertung-tabellen|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
 ];
 
 export function nurRelease(name: string): boolean {
@@ -146,7 +146,7 @@ const ZUERST: Array<RegExp> = [
   /^clutch\//,
   /^replay-voll\//,
   /^replays-schlank\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|wertung-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
 ];
 
 export function releaseZuerst(name: string): boolean {

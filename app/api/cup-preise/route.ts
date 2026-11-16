@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { holeGegenstaende } from '@/lib/gegenstaende';
 import fs from '@/lib/ablageFs';
 import path from 'path';
-import { EpicLoginNoetig } from '@/lib/epicCups';
+import { EpicLoginNoetig, gecacht, REGIONEN } from '@/lib/epicCups';
+import { liesClutch } from '@/lib/clutchLive';
+import { liesJson } from '@/lib/ablage';
 import {
   holeKatalog, wertungVon, type EpicKatalog,
 } from '@/lib/cupWertung';
@@ -132,10 +134,70 @@ async function gepflegte(): Promise<Gepflegt[]> {
   } catch { return []; }
 }
 
+/*
+ * Die Punktetabelle mit Rueckfall (Betreiber, 16.11.2026: jeder Cup zeigt unter About sein Punktesystem). Epic laesst Wertung und Auszahlung mit dem Cup aus
+ * dem Katalog fallen - fuer vergangene Spieltage stand dann nichts mehr da. Drei Quellen, in dieser Reihenfolge:
+ *   1. Epics Katalog der Region (scoreLocationScoringRuleSets / templates.scoringRules, lib/cupWertung);
+ *   2. die Regeln, mit denen die Replay-Auswertung gerechnet hat (clutch/<w>.json, "regeln" - aus Epics Katalog gelesen, solange er den Spieltag fuehrte);
+ *   3. Epics Kataloge der anderen Regionen: derselbe Spieltag, sonst dasselbe Fenster in einer anderen Region (gleiche Vorlage, gleiche Wertung).
+ * Bleibt alles leer, sagt die Seite "Scoring not published".
+ */
+type Regel = ReturnType<typeof wertungVon>[number];
+async function wertungMitRueckfall(epic: EpicKatalog, windowId: string, eventId: string): Promise<{ wertung: Regel[]; wertungQuelle: string | null }> {
+  const direkt = wertungVon(epic, windowId, eventId);
+  if (direkt.length) return { wertung: direkt, wertungQuelle: 'epic' };
+  return gecacht(`wertung-rueck|${windowId}`, 30 * 60_000, async () => {
+    // Abgelegt, solange Epic den Spieltag noch fuehrte (scripts/wertung-aus-katalog.mjs): je Regelsatz einmal, je Fenster nur sein Schluessel.
+    try {
+      const abgelegt = await liesJson<{ saetze?: Record<string, Regel[]>; fenster?: Record<string, string> } | null>('wertung-tabellen.json', null);
+      const satz = abgelegt?.fenster?.[windowId];
+      const r = satz ? abgelegt?.saetze?.[satz] ?? [] : [];
+      if (r.length) return { wertung: r, wertungQuelle: 'archiv' };
+    } catch { /* naechste Quelle */ }
+    try {
+      const c = await liesClutch<{ regeln?: Regel[] }>(windowId);
+      const r = (c?.regeln ?? []).filter((x) => x && typeof x.punkte === 'number' && x.punkte > 0);
+      if (r.length) return { wertung: r, wertungQuelle: 'replay' };
+    } catch { /* naechste Quelle */ }
+    const eigen = /_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i.exec(windowId)?.[1]?.toUpperCase() ?? '';
+    for (const r of REGIONEN.filter((x) => x !== eigen)) {
+      try {
+        const k = await holeKatalog(r);
+        const gleich = wertungVon(k, windowId, eventId);
+        if (gleich.length) return { wertung: gleich, wertungQuelle: 'epic' };
+        if (eigen) {
+          const w2 = windowId.replace(new RegExp(`_${eigen}$`, 'i'), `_${r}`);
+          const e2 = eventId.replace(new RegExp(`_${eigen}$`, 'i'), `_${r}`);
+          const andere = wertungVon(k, w2, e2);
+          if (andere.length) return { wertung: andere, wertungQuelle: `epic-${r}` };
+        }
+      } catch { /* naechste Region */ }
+    }
+    return { wertung: [] as Regel[], wertungQuelle: null };
+  });
+}
+
 async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const window_ = searchParams.get('window');
   const region = (searchParams.get('region') ?? 'EU').toUpperCase();
+  // Alle Punktetabellen der Region auf einmal - fuer scripts/wertung-aus-katalog.mjs, das sie ablegt, bevor Epic den Cup fallen laesst.
+  if (searchParams.get('wertungen') === '1') {
+    try {
+      const k = await holeKatalog(region);
+      const fenster: Record<string, Regel[]> = {};
+      for (const e of (k.events ?? []) as Array<{ eventId?: string; eventWindows?: Array<{ eventWindowId?: string }> }>) {
+        for (const w of e.eventWindows ?? []) {
+          if (!w.eventWindowId || !e.eventId) continue;
+          const r = wertungVon(k, w.eventWindowId, e.eventId);
+          if (r.length) fenster[w.eventWindowId] = r;
+        }
+      }
+      return NextResponse.json({ region, fenster });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
+  }
   if (!window_) {
     return NextResponse.json({ error: 'window ist noetig' }, { status: 400 });
   }
@@ -171,7 +233,7 @@ async function holeRoh(request: Request) {
   const gruppen = istGlobalsFinale(eventIdRoh, window_)
     ? Object.entries(alle).find(([k]) => k === GLOBALS_EVENT || k.includes('MannekenPis'))?.[1]
     : alle[window_] ?? Object.entries(alle).find(([k]) => k.includes(window_))?.[1];
-  const wertung = wertungVon(epic, window_, eventIdRoh);
+  const { wertung, wertungQuelle } = await wertungMitRueckfall(epic, window_, eventIdRoh);
 
   // Epics Tabelle unveraendert - fuer scripts/preisgeld-aus-katalog.mjs,
   // das sie dauerhaft ablegt, bevor das Fenster aus dem Katalog faellt.
@@ -234,7 +296,7 @@ async function holeRoh(request: Request) {
             von: (treffer.jePunkte ?? 100) * (i + 1),
             plaetze: 1,
           })),
-      gegenstaende: [], wertung,
+      gegenstaende: [], wertung, wertungQuelle,
       // Bei Punktezahlungen laesst sich nichts aufaddieren - siehe unten.
       gesamt: treffer.art === 'platz' ? summeUeberPlaetze(platzStufen) : null,
     });
@@ -262,7 +324,7 @@ async function holeRoh(request: Request) {
         return NextResponse.json({
           vorhanden: true, window: window_, region, waehrung: lan.waehrung ?? 'USD',
           proPerson: true, gepflegt: true, quelle: 'lan-preisgelder',
-          erlaeuterung: lan.name ?? null, geld, gegenstaende: [], wertung, gesamt: null,
+          erlaeuterung: lan.name ?? null, geld, gegenstaende: [], wertung, wertungQuelle, gesamt: null,
         });
       }
     }
@@ -286,7 +348,7 @@ async function holeRoh(request: Request) {
         return NextResponse.json({
           vorhanden: true, window: window_, region, waehrung: tabelle.waehrung ?? 'USD',
           proPerson: true, gepflegt: true, quelle: tabelle.fenster === window_ ? 'preisgeld-tabellen' : `preisgeld-tabellen (${tabelle.fenster})`,
-          erlaeuterung: tabelle.name ?? null, geld, gegenstaende: [], wertung,
+          erlaeuterung: tabelle.name ?? null, geld, gegenstaende: [], wertung, wertungQuelle,
           gesamt: null,
         });
       }
@@ -294,7 +356,7 @@ async function holeRoh(request: Request) {
     return NextResponse.json({
       vorhanden: false, window: window_, region,
       hinweis: 'Epic veroeffentlicht zu diesem Spieltag keine Auszahlungstabelle.',
-      geld: [], gegenstaende: [], waehrung: null, gesamt: null, wertung,
+      geld: [], gegenstaende: [], waehrung: null, gesamt: null, wertung, wertungQuelle,
     });
   }
 
@@ -373,7 +435,7 @@ async function holeRoh(request: Request) {
 
   return NextResponse.json({
     vorhanden: true, window: window_, region, waehrung,
-    geld: gespannt, gegenstaende, gesamt, wertung,
+    geld: gespannt, gegenstaende, gesamt, wertung, wertungQuelle,
   });
 }
 

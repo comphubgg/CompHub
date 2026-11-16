@@ -50,9 +50,15 @@ function groesse(f: { playlist?: string | null; windowId: string; eventId: strin
 }
 
 /** Die Stufe eines Spieltags: offene Runde, Heat, Last Chance oder Finale - verglichen wird nur Gleiches mit Gleichem. */
-function stufe(f: { windowId: string; istFinale?: boolean }): string {
+function stufe(f: { windowId: string; istFinale?: boolean; tokens?: string[] }): string {
   const w = f.windowId;
-  if (/lastchance|lcq/i.test(w)) return 'lcq';
+  /*
+   * Last Chance in zwei Rollen (Betreiber, 16.11.2026: "CompHub Prediction ~252" fuer die offene LCQ der FNCS Solos Reload, Top 20). Die offene Runde
+   * (S42/S43 "..._LastChanceQualifier_<R>", 11/12 Spiele, Zugang per RegionLock) und das kleine Finale ("..._LastChanceLobby_<R>", 5 Spiele, Zugang nur mit der
+   * Marke "..._LastChanceFinal_<R>") liefen beide als "lcq" - die Prognose mittelte Platz 20 der S42-Lobby (138, rund 40 Spieler) mit Platz 20 der offenen
+   * S42-LCQ (365). Die Rolle steht in Epics Daten, nicht im Namen: das Finale verlangt eine Final-Marke (istFinale), die offene Runde nicht.
+   */
+  if (/lastchance|lcq/i.test(w)) return f.istFinale || (f.tokens ?? []).some((t) => /final/i.test(t)) ? 'lcq-finale' : 'lcq';
   if (/heat/i.test(w)) return 'heat';
   if (f.istFinale || /final/i.test(w)) return 'finale';
   return 'offen';
@@ -382,7 +388,11 @@ async function holeRoh(request: Request) {
     const gleicheSpiele = gleicherModus.filter((f) => !dieser.matchCap || f.matchCap === dieser.matchCap);
     // Dann dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
     const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
-    frueher = (gleicheSpiele.length ? gleicheSpiele : gleicherModus.length ? gleicherModus : gleicheArt.length ? gleicheArt : kandidaten)
+    const gewaehlt = gleicheSpiele.length ? gleicheSpiele : gleicherModus.length ? gleicherModus : gleicheArt.length ? gleicheArt : kandidaten;
+    // Dieselbe Region zuerst: Epics NAC-Liste fuehrt auch die NAW-Spieltage, und die offene LCQ NA Central nahm sonst die von NA West (16.11.2026).
+    const endung = new RegExp(`_${region}$`, 'i');
+    const eigeneRegion = gewaehlt.filter((f) => endung.test(f.windowId));
+    frueher = (eigeneRegion.length ? eigeneRegion : gewaehlt)
       .sort((a, b) => b.begin - a.begin)
       .slice(0, AUSGABEN);
     aehnlich = frueher.length > 0;
@@ -507,9 +517,13 @@ async function holeRoh(request: Request) {
    * mittlere Fehler der letzten sechs als Korrektur dazu - so wird jede Ausgabe genauer, ohne dass jemand von Hand nachstellt.
    */
   const ZUSCHLAG = 5; // wie QUAL_ZUSCHLAG auf der Event-Seite
-  const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}`;
+  // Offene LCQ und LCQ-Finale haben dieselbe Event-Kennung ("..._LastChanceQualifier_<R>") - ohne den Zusatz lernte das Finale aus der offenen Runde (16.11.2026).
+  const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}${stufe(dieser) === 'lcq-finale' ? '|finale' : ''}`;
   type Lern = { windowId: string; art: string; prognose: number; tatsaechlich: number; zeit: number };
   let korrektur = 0; let gelernt = 0;
+  /* Woraus die Korrektur gelernt ist - fuer die Erklaerung an der Prognose. */
+  let korrekturAus: Array<{ windowId: string; prognose: number; tatsaechlich: number }> = [];
+  let korrekturArt: 'punkte' | 'anteil' | null = null;
   try {
     const lern = await liesJson<Lern[]>('prognose-lernen.json', []);
     const fertig = !laeuft && typeof dieser.end === 'number' && jetzt > dieser.end + 30 * 60_000;
@@ -519,7 +533,21 @@ async function holeRoh(request: Request) {
     }
     const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
     // Mit einem schon gespielten Heat als Vorlage keine Korrektur obendrauf - der Wert ist bereits das echte Ergebnis.
-    if (gleiche.length && !heatVorlage) { korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); gelernt = gleiche.length; }
+    if (gleiche.length && !heatVorlage) {
+      /*
+       * Stammt die Vorlage aus einem aehnlichen, aber anderen Cup (FNCS Solos Reload LCQ nach der S42 LCQ ohne Reload, 16.11.2026), liegt das ganze Niveau
+       * daneben, nicht ein fester Betrag: dann gilt das Verhaeltnis Ergebnis/Prognose der schon fertigen Regionen, auf den eigenen Schnitt angewandt (OCE
+       * 341 -> 365 macht aus EU 365 rund 391). Sonst wie bisher der mittlere Fehler in Punkten.
+       */
+      if (aehnlich && schnitt !== null && gleiche.every((l) => l.prognose > 0)) {
+        const faktor = gleiche.reduce((s, l) => s + l.tatsaechlich / l.prognose, 0) / gleiche.length;
+        korrektur = Math.round(schnitt * (faktor - 1)); korrekturArt = 'anteil';
+      } else {
+        korrektur = Math.round(gleiche.reduce((s, l) => s + (l.tatsaechlich - l.prognose), 0) / gleiche.length); korrekturArt = 'punkte';
+      }
+      gelernt = gleiche.length;
+      korrekturAus = gleiche.map((l) => ({ windowId: l.windowId, prognose: l.prognose, tatsaechlich: l.tatsaechlich }));
+    }
   } catch { /* ohne Lernstand wie bisher */ }
 
   /*
@@ -575,7 +603,7 @@ async function holeRoh(request: Request) {
     /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
     kumuliert: tagRunde,
     /* Gelernte Korrektur aus frueheren Spieltagen derselben Art (Punkte) und aus wie vielen. */
-    korrektur, gelernt,
+    korrektur, gelernt, korrekturAus, korrekturArt,
     /* Die Schaetzung kommt vom frueheren Tag derselben Runde. */
     vortag,
     grundlage: werte.length,

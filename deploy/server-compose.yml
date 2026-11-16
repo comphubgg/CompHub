@@ -11,6 +11,9 @@ services:
       COMPHUB_ABLAGE: supabase
       COMPHUB_KEIN_HINTERGRUND: "1"
       NODE_OPTIONS: --max-old-space-size=6144
+      # Absturzschleife 16.11.2026: der Kernel beendete next-server bei 5-8 GB rss (dmesg "Out of memory"), der Heap lag bei rund 1 GB. glibc legt je Thread
+      # eigene Speicherbereiche an und gibt sie kaum zurueck (bekannt bei Node mit sharp/libvips) - zwei Bereiche halten den Prozess klein.
+      MALLOC_ARENA_MAX: "2"
       # Die Status der Epic-Freunde (Match-IDs) kommen vom Dienst "xmpp" unten, nicht aus diesem Prozess (lib/epicFreundeStatus).
       XMPP_DIENST_URL: http://xmpp:3210
     ports:

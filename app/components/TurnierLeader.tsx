@@ -122,6 +122,9 @@ function Tafel({ t, ort }: { t: LeaderTafel; ort: string }) {
         <span className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">{t.titel}</span>
         <span className="text-[10px] uppercase tracking-wider text-slate-600">Top 5</span>
       </p>
+      {t.basis && (
+        <p className="border-b border-white/[0.06] px-3 py-1 text-[10px] text-slate-500"><T>Gerechnet aus</T> {t.basis.mit} <T>von</T> {t.basis.von} <T>Spielern</T></p>
+      )}
       <ol className="divide-y divide-white/[0.04]">
         {t.zeilen.map((z) => (
           <li key={z.epicId} className="flex items-center gap-2.5 px-3 py-[7px] text-sm">

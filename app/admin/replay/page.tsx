@@ -11,19 +11,20 @@
  * mit Team und Platz. Laufwege gibt der Leser bei aktuellen Replays nicht her -
  * deshalb zeigt die Karte Zonen und die Orte der Kaempfe, keine Wege.
  *
- * Die Karte ist Epics aktuelles Kartenbild (fortnite-api.com). Weltkoordinaten
- * laufen von -135000 bis +135000; geprueft an Globals Day 1, Game 6: die Zone
- * mit Radius 20000 liegt hier bei 75,4 % / 24,0 %, im Zonen-Bild des
- * Betreibers bei 75,7 % / 22,5 %.
+ * Die Karte ist die Insel des Spieltags (lib/zonenKarte: die grosse Karte der
+ * Saison oder die Reload-Insel aus der Playlist), mit dem an echten Replays
+ * gemessenen Weltausschnitt (Truhen auf Land und auf den Gebaeuden). Die alte
+ * feste Spanne -135.000..+135.000 lag rund 10 % zu eng (16.11.2026).
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
-import { fortniteKarte } from '@/lib/bildAdressen';
+import { zonenKarte, rahmenUmZonen, type Rahmen, type ZonenKarte } from '@/lib/zonenKarte';
 import { inselAusschnitt, GANZES_BILD } from '@/lib/inselAusschnitt';
 import ZonenBild from './ZonenBild';
+import { zonenGruppe } from '@/lib/zonenTeile';
 
 interface MatchKurz {
   id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number;
@@ -35,37 +36,43 @@ interface Spieler {
 }
 interface Ereignis { t?: number; opfer?: number; taeter?: number; art: 'auf' | 'unten' | 'tot'; x?: number; y?: number; abstand?: number }
 interface Zone { radius?: number; naechsterRadius?: number; x?: number; y?: number; schrumpftAb?: number; schrumpftBis?: number }
-interface Match { spieler: Spieler[]; feed: Ereignis[]; zonen: Zone[]; sieger?: number; ende?: number; info?: MatchKurz & { titel?: string } }
+interface Match { spieler: Spieler[]; feed: Ereignis[]; zonen: Zone[]; sieger?: number; ende?: number; playlist?: string; info?: MatchKurz & { titel?: string } }
 
-const SPANNE = 135_000;
-/** Weltkoordinate -> Punkt im 1000er-Bild der Karte. */
-const px = (v: number) => ((v + SPANNE) / (2 * SPANNE)) * 1000;
-const pr = (r: number) => (r / (2 * SPANNE)) * 1000;
 const FARBEN = ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#fb7185', '#facc15', '#60a5fa'];
 const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/, '');
 const uhr = (s?: number) => (typeof s === 'number' ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '–');
 
 /** Die Karte mit Kreisen und Punkten - alles in einem SVG ueber dem Bild. */
-function Karte({ kreise, punkte, beschriftung }: {
+function Karte({ karte, kreise, punkte, beschriftung }: {
+  /** Bild und Weltausschnitt der Insel (lib/zonenKarte). */
+  karte: ZonenKarte;
   kreise: Array<{ x: number; y: number; r: number; farbe: string; staerke: number; text?: string }>;
   punkte: Array<{ x: number; y: number; farbe: string; art: 'tot' | 'unten'; titel: string }>;
   beschriftung?: string;
 }) {
+  // Ohne geeichtes Bild (Reload-Insel, die noch nicht gemessen ist): keine Karte, der Ausschnitt um Zonen und Kaempfe.
+  const rahmen: Rahmen = karte.bild ? karte.rahmen
+    : rahmenUmZonen([...kreise, ...punkte.map((p) => ({ x: p.x, y: p.y, r: 0 }))]);
+  /** Weltkoordinate -> Punkt im 1000er-Bild der Karte. */
+  const px = (v: number) => ((v - rahmen.x0) / rahmen.spanne) * 1000;
+  const py = (v: number) => ((v - rahmen.y0) / rahmen.spanne) * 1000;
+  const pr = (r: number) => (r / rahmen.spanne) * 1000;
   // Bild und Kreise liegen in derselben Ebene: sie wird so vergroessert, dass die Insel den Rahmen fuellt (Betreiber, 6.11.2026: "zu viel blauer Rand").
-  const [insel, setInsel] = useState(GANZES_BILD);
+  const [gemessen, setInsel] = useState(GANZES_BILD);
+  const insel = karte.bild ? gemessen : GANZES_BILD;
   const faktor = 1 / insel.seite;
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-zinc-800 bg-sky-950">
       <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${faktor}) translate(${-insel.x * 100}%, ${-insel.y * 100}%)` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={fortniteKarte(false)} alt="" crossOrigin="anonymous" onLoad={(e) => setInsel(inselAusschnitt(e.currentTarget))} className="absolute inset-0 h-full w-full object-cover" />
+      {karte.bild && <img src={karte.bild} alt="" crossOrigin="anonymous" onLoad={(e) => setInsel(inselAusschnitt(e.currentTarget))} className="absolute inset-0 h-full w-full object-cover" />}
       <svg viewBox="0 0 1000 1000" className="absolute inset-0 h-full w-full">
         {kreise.map((k, i) => (
           <g key={i}>
-            <circle cx={px(k.x)} cy={px(k.y)} r={pr(k.r)} fill={k.farbe} fillOpacity={0.12 * k.staerke}
+            <circle cx={px(k.x)} cy={py(k.y)} r={pr(k.r)} fill={k.farbe} fillOpacity={0.12 * k.staerke}
               stroke={k.farbe} strokeOpacity={Math.min(1, 0.35 + 0.5 * k.staerke)} strokeWidth={2.5} />
             {k.text && (
-              <text x={px(k.x)} y={px(k.y)} textAnchor="middle" dominantBaseline="middle" fontSize={26}
+              <text x={px(k.x)} y={py(k.y)} textAnchor="middle" dominantBaseline="middle" fontSize={26}
                 fontWeight={800} fill="#fff" stroke="#000" strokeWidth={4} paintOrder="stroke">{k.text}</text>
             )}
           </g>
@@ -73,10 +80,10 @@ function Karte({ kreise, punkte, beschriftung }: {
         {punkte.map((p, i) => (
           p.art === 'tot'
             ? <g key={i}><title>{p.titel}</title>
-              <path d={`M${px(p.x) - 7},${px(p.y) - 7} L${px(p.x) + 7},${px(p.y) + 7} M${px(p.x) + 7},${px(p.y) - 7} L${px(p.x) - 7},${px(p.y) + 7}`}
-                stroke="#000" strokeWidth={6} /><path d={`M${px(p.x) - 7},${px(p.y) - 7} L${px(p.x) + 7},${px(p.y) + 7} M${px(p.x) + 7},${px(p.y) - 7} L${px(p.x) - 7},${px(p.y) + 7}`}
+              <path d={`M${px(p.x) - 7},${py(p.y) - 7} L${px(p.x) + 7},${py(p.y) + 7} M${px(p.x) + 7},${py(p.y) - 7} L${px(p.x) - 7},${py(p.y) + 7}`}
+                stroke="#000" strokeWidth={6} /><path d={`M${px(p.x) - 7},${py(p.y) - 7} L${px(p.x) + 7},${py(p.y) + 7} M${px(p.x) + 7},${py(p.y) - 7} L${px(p.x) - 7},${py(p.y) + 7}`}
                 stroke={p.farbe} strokeWidth={3} /></g>
-            : <circle key={i} cx={px(p.x)} cy={px(p.y)} r={5} fill={p.farbe} stroke="#000" strokeWidth={2}><title>{p.titel}</title></circle>
+            : <circle key={i} cx={px(p.x)} cy={py(p.y)} r={5} fill={p.farbe} stroke="#000" strokeWidth={2}><title>{p.titel}</title></circle>
         ))}
       </svg>
       </div>
@@ -144,11 +151,9 @@ export default function ReplaySeite() {
     });
   }, [tage, nurWichtige, cupSuche]);
   const tag = tage?.find((x) => x.windowId === tagWahl) ?? null;
-  // Alle Tage desselben Turniers, der Reihe nach - fuer das Zonen-Bild.
-  const turnierTage = useMemo(() => (tag && tage
-    ? tage.filter((x) => (tag.eventId ? x.eventId === tag.eventId : x.windowId === tag.windowId))
-      .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')))
-    : []), [tag, tage]);
+  // Die Teile derselben Stufe, der Reihe nach - fuer das Zonen-Bild (Heat 1 + Heat 2, Day 1 + Day 2 einer Runde; getrennte Cups mit
+  // gleicher eventId wie Performance Evaluation Event1Round2/Event2Round2 nicht - lib/zonenTeile).
+  const turnierTage = useMemo(() => (tag && tage ? zonenGruppe(tage, tag) : []), [tag, tage]);
 
   // Fuer die Zonen-Uebersicht eines Tages alle seine Games laden.
   useEffect(() => {
@@ -215,6 +220,8 @@ export default function ReplaySeite() {
   }
 
   const nachId = new Map((match?.spieler ?? []).map((s) => [s.id, s]));
+  // Die Insel des Spieltags: aus der Playlist des ersten geladenen Games und der Saison der Kennung (lib/zonenKarte).
+  const tagKarte = zonenKarte(tag?.matches.map((m) => tagMatches[m.id]?.playlist).find(Boolean), tag?.windowId ?? '');
 
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-8 text-slate-100">
@@ -311,7 +318,7 @@ export default function ReplaySeite() {
                     ))}
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-                    <Karte beschriftung={`${tag.titel} · Zones`}
+                    <Karte beschriftung={`${tag.titel} · Zones`} karte={tagKarte}
                       kreise={tag.matches.flatMap((m, i) => {
                         const z = (tagMatches[m.id]?.zonen ?? []).find((x) => Math.round(x.naechsterRadius ?? 0) === phase);
                         return z && typeof z.x === 'number' && typeof z.y === 'number'
@@ -349,7 +356,7 @@ export default function ReplaySeite() {
                   </div>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_26rem]">
                     <div>
-                      <Karte
+                      <Karte karte={zonenKarte(match.playlist, tag?.windowId ?? '')}
                         kreise={match.zonen.filter((z) => typeof z.x === 'number' && z.naechsterRadius).map((z, i, alle) => ({
                           x: z.x!, y: z.y!, r: z.naechsterRadius!, farbe: '#ffffff', staerke: (i + 1) / alle.length,
                         }))}

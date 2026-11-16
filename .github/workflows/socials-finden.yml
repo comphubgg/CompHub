@@ -1,0 +1,78 @@
+# X-, Twitch-Konten und Flaggen der wichtigen Spieler suchen (scripts/socials-finden.mjs, lib/socialsFinder.mjs) - Ergebnis in /admin/flaggen.
+#
+#   plan       suchen, nichts schreiben
+#   anwenden   suchen; stark Belegtes in LEERE Felder von spieler-profile.json (protokolliert in socials-auto.json), der Rest als Vorschlag
+#              (socials-vorschlaege.json); setzt fort, wo der letzte Lauf aufhoerte (socials-geprueft.json)
+#   probe      blind an Spielern mit bekanntem X/Twitch messen (schreibt nichts)
+#   endpunkte  die Schnittstellen einmal ansehen
+# Zeitplan: taeglich 02:41 UTC mit "anwenden" (hoechstens fuenf Stunden, eine Anfrage je Sekunde und Host).
+# Das Ergebnis steht als JSON im Protokoll (Zeile ERGEBNIS_B64, gzip + base64).
+
+name: Socials finden
+
+on:
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+    inputs:
+      modus:
+        description: 'plan | anwenden | probe | endpunkte'
+        type: choice
+        default: plan
+        options: [plan, anwenden, probe, endpunkte]
+      minuten:
+        description: 'Budget in Minuten'
+        type: string
+        default: '300'
+      nur:
+        description: 'Nur diese Epic-Ids (Komma)'
+        type: string
+        default: ''
+      probe:
+        description: 'Probe: wie viele Spieler'
+        type: string
+        default: '30'
+      versatz:
+        description: 'Probe: andere Auswahl (0, 1, 2 ...)'
+        type: string
+        default: '0'
+
+concurrency:
+  group: socials-finden
+  cancel-in-progress: false
+
+jobs:
+  finden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund 2>&1 | tail -2
+      - name: Suchen
+        env:
+          # Das Archiv (comphub-daten) mit dem GITHUB_TOKEN aus ENV_LOCAL, wie scripts/x-handles.mjs (lib/ablageGitDaten).
+          COMPHUB_ABLAGE: github
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          mkdir -p aus
+          MODUS="${{ inputs.modus || 'anwenden' }}"
+          MIN="${{ inputs.minuten || '300' }}"
+          case "$MODUS" in
+            anwenden)  ARGS="--anwenden --minuten $MIN" ;;
+            plan)      ARGS="--minuten $MIN" ;;
+            probe)     ARGS="--probe ${{ inputs.probe || '30' }} --versatz ${{ inputs.versatz || '0' }}" ;;
+            endpunkte) ARGS="--endpunkte bugha bugha" ;;
+          esac
+          [ -n "${{ inputs.nur }}" ] && ARGS="$ARGS --nur ${{ inputs.nur }}"
+          echo "Modus $MODUS: $ARGS"
+          set +e
+          node scripts/socials-finden.mjs $ARGS > aus/ergebnis.json
+          rc=$?
+          rm -f .env.local
+          echo "ERGEBNIS_B64 $(gzip -9c aus/ergebnis.json | base64 -w0)"
+          exit $rc

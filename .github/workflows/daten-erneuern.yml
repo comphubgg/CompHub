@@ -50,7 +50,9 @@ jobs:
     # Zwischenspeicher am Ende blieb jedes Mal ungesichert. Die Frist ist
     # jetzt weit genug; ueberlappen koennen sich Laeufe wegen der
     # Gruppe unten ohnehin nicht.
-    timeout-minutes: 170
+    # 16.11.2026: 100 statt 170. Ein Lauf braucht jetzt um 45 Minuten (Vorrechnen 23, Hochladen im Hintergrund); nur ein kalter Lauf
+    # ohne Zwischenspeicher ("Stand vom Release holen", bis 40 Minuten) braucht mehr.
+    timeout-minutes: 100
 
     # Zwei Laeufe gleichzeitig wuerden einander dieselben Zeilen
     # ueberschreiben - und der zweite haette den aelteren Stand.
@@ -83,7 +85,12 @@ jobs:
         timeout-minutes: 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Nur, wenn nicht schon einer wartet (16.11.2026): GitHub haelt je Gruppe hoechstens einen wartenden Lauf und bricht den
+        # aelteren ab, sobald ein neuer kommt - jeder Anstoss neben dem stuendlichen Plan erzeugte so einen "cancelled"-Lauf.
         run: |
+          WARTEND=$(gh run list -R "${{ github.repository }}" -w daten-erneuern.yml -L 20 --json status \
+            --jq '[.[] | select(.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")] | length' || echo 0)
+          if [ "${WARTEND:-0}" -gt 0 ]; then echo "es wartet schon ein Lauf ($WARTEND) - kein weiterer"; exit 0; fi
           gh workflow run daten-erneuern.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen"
           # Die beiden Replay-Ablaeufe (replays-voll.yml, eigene-auswerten.yml) sind Schleifen und halten sich selbst am Laufen.
       - uses: actions/checkout@v4
@@ -158,6 +165,7 @@ jobs:
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
             --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
             --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner clutch \
+            --ordner replays-schlank/S42 --ordner replays-schlank/S43 --ordner replays-schlank/S44 \
             2>&1 | tail -12
 
       # Die kleinen Staende jede Stunde: Fotos, gepflegte Profile, Namen,
@@ -211,7 +219,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         run: |
-          node scripts/ablage-github-holen.mjs verdienst-archiv.json elims-archiv.json elims-summen-alt.json preisgeld-tabellen.json lan-preisgelder.json lan-konten.json 2>&1 | tail -6
+          node scripts/ablage-github-holen.mjs verdienst-archiv.json elims-archiv.json elims-summen-alt.json preisgeld-tabellen.json wertung-tabellen.json lan-preisgelder.json lan-konten.json 2>&1 | tail -6
 
       # Die ausgewerteten Replays, aber nur, was sich geaendert hat.
       #
@@ -231,6 +239,29 @@ jobs:
         run: |
           # Dazu Schaden und Clutch je Spieltag (Ablauf "Clutch rechnen") fuer die Akten.
           node scripts/ablage-github-holen.mjs --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner epic-spieltage --ordner clutch 2>&1 | tail -4
+          # Die schlanken Replays (16.11.2026). Seit der Schritt "Replays schlank ablegen" hier aus ist (29.10.), kamen sie nie mehr auf diesen
+          # Rechner: lib/replaySchlank las fuer jeden neueren Spieltag das volle Aggregat (bis 156 MB) und fuer aeltere eine Fassung vom 29.10.
+          # Gemessen (Messlauf 43869136304): die Startansicht von S42 las so 900 Replay-Dateien, 10,7 GB, und kam nicht durch.
+          # Am Release liegen sie fertig (replays-schlank.yml): S42 0,8 GB, S43 0,2 GB, danach nur, was sich aendert.
+          node scripts/ablage-github-holen.mjs --ordner replays-schlank/S42 --ordner replays-schlank/S43 --ordner replays-schlank/S44 2>&1 | tail -2
+
+      # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
+      # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
+      # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der
+      # Schritt "Ergebnis nach Supabase" mit hoch. Siehe das Skript.
+      #
+      # 16.11.2026: im Hintergrund, neben den Schritten bis zum Hochladen (vorher zwoelf Minuten je Lauf allein). Er fragt nur Epic
+      # ueber die Seite und legt neue Dateien ganz oder gar nicht ab (scripts/epic-fenster-suchen.mjs, schreibeGanz); der Schritt
+      # "Alte Spieltage abwarten" vor dem ersten grossen Hochladen wartet auf ihn. Zehn statt zwoelf Minuten - die gingen ohnehin
+      # verloren: jede Epic-404 kam als 500 an und galt als Aussetzer, die Zahl der offenen Kennungen blieb Lauf fuer Lauf 274994.
+      - name: Alte Spieltage suchen (Hintergrund)
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: |
+          nohup bash -c 'timeout --signal=TERM 10m node scripts/epic-fenster-suchen.mjs --hoechstens 1500 > /tmp/suchen.log 2>&1; touch /tmp/suchen.fertig' > /dev/null 2>&1 &
+          echo "gestartet"
 
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
@@ -258,21 +289,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ablage-github.mjs --nur epic-spieltage 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
-
-      # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
-      # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
-      # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der
-      # Schritt "Ergebnis nach Supabase" mit hoch. Siehe das Skript.
-      - name: Alte Spieltage suchen
-        continue-on-error: true
-        timeout-minutes: 15
-        env:
-          WERKZEUG_URL: https://www.thecomphub.com
-        # Endet selbst nach zwoelf Minuten (SIGTERM), statt jedes Mal hart in
-        # die Grenze zu laufen und den Lauf als gescheitert zu markieren.
-        run: |
-          timeout --signal=TERM 12m node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
-          true
 
       # Die Team-Eliminierungen aus Epics Bestenlisten (Statistik, Jahre):
       # die offenen Saisons aus den Spieltagen oben neu, das laufende Jahr
@@ -459,30 +475,9 @@ jobs:
         run: |
           if [ $(( 10#$(date -u +%H) % 6 )) -eq 0 ]; then node scripts/waffen-bilder.mjs 2>&1 | tail -3; else echo "nicht in dieser Stunde"; fi
 
-      # Das Gerechnete sofort ans Release - noch vor dem Bau.
-      #
-      # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein
-      # Abschaltsignal ("The runner has received a shutdown signal", exit
-      # 143), und alles danach - auch "Ergebnis ans GitHub-Release" mit
-      # always() - fiel weg. Die Seite blieb auf dem Stand vom 23.9. stehen;
-      # der Betreiber sah es an "Matches processed", das sich seit Tagen
-      # nicht mehr bewegte. Jetzt ist das Wichtigste oben, bevor gebaut wird;
-      # der Schritt am Ende laedt dann nur noch nach, was sich seither
-      # geaendert hat (das Manifest kennt den Rest).
-      - name: Zwischenstand ans GitHub-Release
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 25
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Hoechstens 100 Dateien und 14 Minuten je Lauf, das Wichtigste zuerst
-          # (Weltrangliste, Spieltage, Platzierungen, dann Antworten, Werte der
-          # Szene, Profile - je nach Alter). Ohne Deckel kamen die Antworten
-          # alphabetisch zuerst dran und schoben alles andere stundenlang
-          # beiseite; siehe scripts/ablage-github.mjs.
-          node scripts/ablage-github.mjs --hoechstens 100 --minuten 14 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -30
-
+      # "Zwischenstand ans GitHub-Release" stand bis zum 16.11.2026 hier, vor dem Bau (seit dem 24.9.: der Laufrechner wurde beim Bauen
+      # abgeschaltet, und alles danach fiel weg). Der Bau dauert inzwischen eine Minute; das Hochladen laeuft jetzt nach ihm im Hintergrund,
+      # neben dem Vorrechnen - siehe dort.
       # Einmalig (28.9.2026, 20:24 UTC): ein versehentlich gestarteter
       # Hochladelauf vom Entwicklerrechner ersetzte am Release 17 Dateien durch
       # aeltere Staende (Antworten, Elims-Archiv, Preisgeld-Tabellen,
@@ -562,9 +557,25 @@ jobs:
           tail -n 40 /tmp/bau.log
           exit $CODE
 
+      # Das Gerechnete und Geholte ans Release, waehrend vorgerechnet wird (16.11.2026; vorher als eigener Schritt vor dem Bau, 4,3 Minuten
+      # je Lauf allein). Erst nach dem Bau: der schiebt den Datenordner beiseite, ein Hochladen dabei saehe Dateien verschwinden. Neben dem
+      # Vorrechnen ist es sicher - die Ablage schreibt jede Antwort erst daneben (".<pid>.neu", das Hochladen laesst die aus) und benennt
+      # sie dann um, gelesen wird also nur Ganzes. Begrenzung wie bisher (100 Dateien, 14 Minuten, das Wichtigste zuerst; siehe
+      # scripts/ablage-github.mjs). "Hochladen abwarten" vor "Akten ans Release" wartet darauf - zwei Hochlader an einem Manifest
+      # verloeren sich gegenseitig Eintraege.
+      - name: Zwischenstand ans GitHub-Release (Hintergrund)
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ( node scripts/ablage-github.mjs --hoechstens 100 --minuten 14 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' > /tmp/zwischenstand.log; touch /tmp/zwischenstand.fertig ) < /dev/null > /dev/null 2>&1 &
+          echo "gestartet"
+
       - name: Antworten vorrechnen
         continue-on-error: true
-        timeout-minutes: 110
+        timeout-minutes: 32
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
           # Zu alte Antworten sofort neu rechnen statt im Hintergrund - der
@@ -590,8 +601,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=7168
         run: |
           set +e
-          # Bis hierhin darf gerechnet werden: die Frist des Schritts (110 min) minus Zeit fuer den Schluss (Discord, Protokoll).
-          ENDE=$(( $(date +%s) + 100 * 60 ))
+          # Bis hierhin darf gerechnet werden (16.11.2026: 23 statt 100 Minuten). Der Schritt fuellte seine 100 Minuten in jedem Lauf -
+          # Teil 1 dreimal je 40 Minuten an der Startansicht von S42, die Akten mit dem Rest -, und ein Lauf dauerte 133 Minuten statt
+          # einer Stunde; die Laeufe stauten sich. Seit die schlanken Replays und die Saison-Sammlung nicht mehr jede Stunde voll gelesen
+          # werden, reicht die Zeit fuer die Listen; die Akten bekommen den Rest, mindestens vier Minuten, und drehen sich ueber die Laeufe.
+          ENDE=$(( $(date +%s) + 23 * 60 ))
           # Auslagerungsdatei: faengt Spitzen ab, statt dass der Laufrechner
           # bei vollem Speicher stehen bleibt. Auf /mnt liegt die grosse,
           # fluechtige Platte des Laufrechners.
@@ -640,6 +654,8 @@ jobs:
           starten
           node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
           node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
+          # Ebenso Epics Punktetabellen je Spieltag (scripts/wertung-aus-katalog.mjs) - sonst fehlt vergangenen Cups das Punktesystem unter About.
+          node scripts/wertung-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
           stoppen
           # 15.11.2026: die Listen zuerst, alle acht Portionen; die Akten danach, jede Schale auf eigenem frischen Server und
           # mit der Zeit, die bleibt (scripts/antworten-vorrechnen.mjs, hole()). Vorher lief die Akte als erste Abfrage jeder
@@ -654,6 +670,7 @@ jobs:
             starten
             timeout $((FRIST + 30)) node scripts/antworten-vorrechnen.mjs http://localhost:3000 "$@" --frist=$FRIST 2>&1 | tee /tmp/teil.log | sed -u 's/^/  ['"$NAME"'] /'
             local CODE=${PIPESTATUS[0]}
+            ENDE_CODE=$CODE
             LEBT=ja
             { [ "$CODE" = 3 ] || [ "$CODE" = 4 ] || [ "$CODE" = 124 ] || ! curl -sf -m 10 -o /dev/null http://localhost:3000/api/stand; } && LEBT=nein
             stoppen
@@ -661,16 +678,21 @@ jobs:
             echo "$NAME, Versuch $VERSUCH (Frist ${FRIST}s, Ende $CODE): $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
             if [ "$LEBT" = nein ]; then echo "::warning::Server in $NAME abgestuerzt oder Frist erreicht:"; tail -n 8 /tmp/server.log; fi
           }
-          for TEIL in 1 2 3 4 5 6 7 8; do
-            for VERSUCH in 1 2 3; do
-              # Je Versuch hoechstens vierzig Minuten, und fuer jede spaetere Portion bleiben vier Minuten uebrig (16.11.2026
-              # gemessen: Teile 2 bis 8 zusammen 28 Minuten; Teil 1 allein ueber 20 - Startansicht 519 s, Clutch-Liste 225 s, Orgs
-              # 175 s, dann die Startansicht jeder Saison). Ein weiterer Versuch faengt nicht von vorn an: was schon gerechnet ist,
-              # liegt in der Ablage. Die Akten bekommen den Rest.
-              FRIST=$(( $(rest) - 240 * (8 - TEIL) )); [ $FRIST -gt 2400 ] && FRIST=2400
-              [ $FRIST -lt 60 ] && { echo "::warning::Keine Zeit mehr fuer Teil $TEIL"; break; }
+          # Teil 1 zuerst (Startansichten, Jahre), dann 2 bis 8 nach der Stunde gedreht: reicht die Zeit einmal nicht, trifft es jede Stunde
+          # einen anderen Teil. Fuer jeden spaeteren Teil bleibt eine halbe Minute, fuer die Akten vier. Ein zweiter Versuch nur, wenn der
+          # Server abstuerzte - nicht nach abgelaufener Frist; er faengt nicht von vorn an, was gerechnet ist, liegt in der Ablage
+          # (16.11.2026 gemessen: Teile 3 bis 8 je unter einer Minute, Teil 2 um vier, Teil 1 um zehn).
+          DREH=$(( 10#$(date -u +%H) % 7 ))
+          REIHE="1"; for I in 0 1 2 3 4 5 6; do REIHE="$REIHE $(( (DREH + I) % 7 + 2 ))"; done
+          N=0
+          for TEIL in $REIHE; do
+            N=$((N + 1))
+            for VERSUCH in 1 2; do
+              FRIST=$(( $(rest) - 240 - 30 * (8 - N) )); [ $FRIST -gt 900 ] && FRIST=900
+              [ $FRIST -lt 45 ] && { echo "::warning::Keine Zeit mehr fuer Teil $TEIL"; break; }
               portion "teil $TEIL" $FRIST --teil=$TEIL/8
               [ "$LEBT" = ja ] && break
+              [ "$ENDE_CODE" = 4 ] && break
             done
           done
           # Die Akten: je Schale ein frischer Server. Reicht die Zeit nicht fuer alle acht, faengt der naechste Lauf mit der
@@ -684,8 +706,8 @@ jobs:
           for I in 0 1 2 3 4 5 6 7; do
             SCHALE=$(( (ERSTE + I) % 8 + 1 ))
             VERSUCH=1
-            FRIST=$(( $(rest) - 30 )); [ $FRIST -gt 1500 ] && FRIST=1500
-            [ $FRIST -lt 120 ] && { echo "::warning::Keine Zeit mehr fuer Akten-Schale $SCHALE und folgende"; break; }
+            FRIST=$(( $(rest) - 30 )); [ $FRIST -gt 900 ] && FRIST=900
+            [ $FRIST -lt 120 ] && { echo "Keine Zeit mehr fuer Akten-Schale $SCHALE und folgende - sie kommen in den naechsten Laeufen dran"; break; }
             portion "akten $SCHALE" $FRIST --akten=$SCHALE/8
           done
           starten
@@ -699,16 +721,29 @@ jobs:
           mkdir -p data/antworten
           BEREIT=$BEREIT node scripts/lauf-protokoll.mjs
 
+      # Die beiden Hintergrund-Schritte (alte Spieltage suchen, Zwischenstand ans Release) muessen fertig sein, bevor weiter hochgeladen wird.
+      - name: Hochladen abwarten
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 16
+        run: |
+          for _ in $(seq 1 900); do
+            { [ -f /tmp/suchen.fertig ] || [ ! -f /tmp/suchen.log ]; } && { [ -f /tmp/zwischenstand.fertig ] || [ ! -f /tmp/zwischenstand.log ]; } && break
+            sleep 1
+          done
+          echo "--- Alte Spieltage suchen"; tail -4 /tmp/suchen.log 2>/dev/null || echo "kein Protokoll"
+          echo "--- Zwischenstand"; tail -30 /tmp/zwischenstand.log 2>/dev/null || echo "kein Protokoll"
+
       # Die Akten (je Spieler Turniere und Earnings, gebuendelt) gleich nach dem Vorrechnen ans Release (28.10.2026): bis dahin gingen sie erst mit dem
       # Zwischenstand des naechsten Laufs hoch - der ist auf 100 Dateien begrenzt und wurde oft abgebrochen; seit dem 11.10. kam keine Akte mehr an, die
       # Profile zeigten keine Earnings nach Ende September (Betreiber: "die neuesten Earnings sind vom 27.09.").
       - name: Akten ans Release
         if: ${{ !cancelled() }}
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur akten --minuten 12 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
+        run: node scripts/ablage-github.mjs --nur akten --minuten 5 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
 
       - name: Ergebnis nach Supabase
         # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
@@ -756,11 +791,11 @@ jobs:
       - name: Ergebnis ans GitHub-Release
         if: always()
         continue-on-error: true
-        timeout-minutes: 45
+        timeout-minutes: 11
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/ablage-github.mjs --hoechstens 100 --minuten 20 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -60
+          node scripts/ablage-github.mjs --hoechstens 100 --minuten 8 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -60
 
       - name: Datenordner sichern
         # Auch nach einem Fehlschlag - siehe oben.

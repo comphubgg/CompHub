@@ -35,6 +35,7 @@ import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
 import WegKasten from './WegKasten';
 import AuswertungsStand from './AuswertungsStand';
+import Punktesystem from './Punktesystem';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -295,6 +296,8 @@ interface Cup {
   bild?: string; farbe?: string; art: string; global: boolean;
   regionen: Record<string, Fenster[]>;
   live: boolean;
+  /** Region locked oder nicht, aus Epics Marken (lib/epicCups, RegionsSperre); fehlt = unbekannt, dann steht nichts da. */
+  regionsSperre?: { gesperrt: boolean; beleg: string };
 }
 interface Spieler { id: string; name: string; img?: string | null; logo?: string | null }
 /** Von Hand gepflegte Angaben zu einem Spieler - hier zaehlt nur das Land. */
@@ -733,6 +736,31 @@ function naechsterSchritt(gezeigt: number): number {
  * Es ist auch keine Kleinigkeit: die eine Angabe ist fuer fast jeden
  * erreichbar, die andere fuer acht Teams weltweit.
  */
+/*
+ * Wie gross das Feld ist. Epic gibt hoechstens 10.000 Plaetze heraus; darueber hilft Epics Perzentil. Das ist abgerundet auf eine Stelle
+ * (gemessen 16.11.2026, S42 FNCS Solos LCQ: EU 0,1 ab Platz 4.142 und 0,2 ab Platz 8.284; NAC 0,1/0,2/0,5/0,6/0,7 ab 1.425/2.850/7.124/8.549/9.974 - jeweils genau
+ * Anteil x Feld). Rang / Perzentil am LETZTEN Platz ueberschaetzte deshalb bis aufs Doppelte (EU: 10.000 / 0,2 = 50.000 statt rund 41.400). Genau ist der
+ * Platz, an dem das Perzentil auf einen neuen Wert springt: dort ist Rang = Perzentil x Feld.
+ */
+function feldGroesse(eintraege: Array<{ rank: number; percentile?: number }>): { zahl: number; genau: boolean } | null {
+  if (!eintraege.length) return null;
+  const sortiert = [...eintraege].sort((a, b) => a.rank - b.rank);
+  if (sortiert.length < 10_000) return { zahl: sortiert[sortiert.length - 1].rank, genau: true };
+  let vorher = -1; let schaetzung: number | null = null;
+  for (const e of sortiert) {
+    const p = e.percentile ?? 0;
+    if (p > vorher && p > 0 && vorher >= 0) schaetzung = Math.round(e.rank / p);
+    vorher = p;
+  }
+  return schaetzung ? { zahl: schaetzung, genau: false } : null;
+}
+
+function feldGroesseText(eintraege: Array<{ rank: number; percentile?: number }>, ort: string, t: (s: string) => string): string {
+  const f = feldGroesse(eintraege);
+  if (!f) return `${(10_000).toLocaleString(ort)}+`;
+  return f.genau ? f.zahl.toLocaleString(ort) : `${t('etwa')} ${(Math.round(f.zahl / 100) * 100).toLocaleString(ort)}`;
+}
+
 function schwellenText(art: string, schwelle: number): string {
   if (art === 'percentile') return `Top ${(schwelle * 100).toFixed(0)} %`;
   if (art === 'value') return `${schwelle} Points`;
@@ -1166,6 +1194,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     erlaeuterung?: string | null;
     wertung?: Array<{ was: string; schwelle: number; regel: string;
       punkte: number; jeStueck: boolean }>;
+    /** Woher die Punktetabelle stammt: "epic", "replay" (aus der Replay-Auswertung) oder "epic-<Region>". */
+    wertungQuelle?: string | null;
   } | null>(null);
   /**
    * Wie viele Punkte es voraussichtlich braucht.
@@ -1189,6 +1219,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     mitte?: number | null;
     mitteGrund?: { grenze: number; stand: number; spiele: number; vorab: number | null; hochgerechnet: number | null; anteil: number | null; gewicht: number; fertig: boolean } | null;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
+    /** Gelernte Korrektur aus fertigen Spieltagen derselben Art: Punkte, als Anteil (andere Cup-Reihe als Vorlage) und woraus. */
+    korrektur?: number; korrekturArt?: 'punkte' | 'anteil' | null;
+    korrekturAus?: Array<{ windowId: string; prognose: number; tatsaechlich: number }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
   const belohnungsRang = useMemo(() => {
@@ -3495,11 +3528,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     // Waehrend die Liste noch tiefer laedt, keine hochzaehlende Zahl (Betreiber, 9.11.2026: "328 / 1293 / 3037 / 5000 / 8299 / 10000 soll nicht mehr da
                     // sein - alles instant wie auf jeder anderen Seite"): die Zahl erscheint einmal, wenn die ganze Liste da ist.
                     if (vertieft) return '–';
-                    if (tabelle.length < 10_000) return tabelle.length ? tabelle.length.toLocaleString(ort) : '–';
-                    const letzter = tabelle.reduce((a, x) => (x.rank > a.rank ? x : a), tabelle[0]) as { rank: number; percentile?: number };
-                    return letzter.percentile && letzter.percentile > 0
-                      ? `${t('etwa')} ${(Math.round(letzter.rank / letzter.percentile / 100) * 100).toLocaleString(ort)}`
-                      : `${(10_000).toLocaleString(ort)}+`;
+                    return tabelle.length ? feldGroesseText(tabelle, ort, t) : '–';
                   })()],
             ] as Array<[string, string]>);
               const st = spieltagAus(fenster.playlist);
@@ -3531,6 +3560,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 mg.fertig ? t('alle Spiele gespielt')
                   : mg.hochgerechnet !== null ? `${t('hochgerechnet')} ${mg.hochgerechnet} (${t('zählt')} ${Math.round(mg.gewicht * 100)} %)` : t('nie unter der Grenze von jetzt'),
               ].filter(Boolean).join(' · ') : null;
+              /*
+               * Woraus die Vorab-Prognose besteht (Koordinator, 16.11.2026): Schnitt der Vorlage und die gelernte Korrektur aus Regionen, deren Spieltag derselben
+               * Art schon fertig ist - "S42 FNCS Solos LCQ 365 x 1,07 (OCE: Prognose 341, Ergebnis 365)".
+               */
+              const vorabGrund = qual?.schnitt ? [
+                `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}`
+                  + (qual.ausgaben.some((a) => typeof a.punkte === 'number') ? ` (${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')})` : ''),
+                !qual.aehnlich ? `+ ${QUAL_ZUSCHLAG}` : null,
+                qual.korrektur && qual.korrekturAus?.length
+                  ? `${qual.korrekturArt === 'anteil'
+                    ? `× ${(1 + qual.korrektur / qual.schnitt).toLocaleString(ort, { maximumFractionDigits: 2 })}`
+                    : `${qual.korrektur > 0 ? '+' : '−'} ${Math.abs(qual.korrektur)}`} ${t('gelernt aus fertigen Spieltagen derselben Art')}: ${qual.korrekturAus.map((k) => `${/_([A-Z]+)$/.exec(k.windowId)?.[1] ?? k.windowId} ${t('Prognose')} ${k.prognose} → ${t('Ergebnis')} ${k.tatsaechlich}`).join(' · ')}`
+                  : null,
+              ].filter(Boolean).join(' ') : null;
               const kacheln: Array<[string, string, string]> = [
                 [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
                 ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
@@ -3558,7 +3601,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <span>{l}</span>
                 </div>
                 <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`}
-                  title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}` : v}>{v}</div>
+                  title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}${vorabGrund ? `\n${t('Vorab')}: ${vorabGrund}` : ''}`
+                    : l === 'CompHub Prediction' && vorabGrund ? `${t('Vorab')}: ${vorabGrund}` : v}>{v}</div>
                 {l === 'CompHub Prediction' && prognoseGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{prognoseGrund}</div>}
               </div>
             )); })()}
@@ -4036,6 +4080,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <div className="flex flex-col gap-5 md:flex-row">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <h2 className="text-base font-bold text-slate-100">{kartenTitel(cup?.titel, fenster, t)}</h2>
+                  {/* Region lock - nur mit Beleg aus Epics Marken, sonst gar nicht (Betreiber, 16.11.2026). */}
+                  {cup?.regionsSperre && (
+                    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3" data-region-lock={cup.regionsSperre.gesperrt ? 'ja' : 'nein'}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-bold text-slate-100">
+                          {cup.regionsSperre.gesperrt ? t('Regionsgebunden') : t('Nicht regionsgebunden')}
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cup.regionsSperre.gesperrt
+                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-300' : 'border-sky-500/40 bg-sky-500/10 text-sky-300'}`}>
+                          {cup.regionsSperre.gesperrt ? t('Eine Region') : t('Mehrere Regionen')}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                        {cup.regionsSperre.gesperrt
+                          ? t('Wer diesen Cup in einer Region spielt, ist für den ganzen Cup an diese Region gebunden und kann ihn in keiner anderen Region spielen.')
+                          : t('Diesen Cup kannst du in mehreren Regionen spielen – etwa als EU-Spieler auch das Asia-Fenster, ohne für EU gesperrt zu werden.')}
+                      </p>
+                      <p className="mt-1 break-all text-[11px] leading-relaxed text-slate-500">{t('Quelle')}: Epic · {cup.regionsSperre.beleg}</p>
+                    </div>
+                  )}
                   {/* Epics eigene Beschreibung - worum es geht und wie die Runden
                       zusammenhaengen (Qualifier, Runden, wer weiterkommt). Der
                       Betreiber (29.9.2026): "bei About soll unbedingt so etwas
@@ -4073,6 +4137,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           : aboutJetzt ? startText(fenster.begin, aboutJetzt, sprache === 'en') : ''}
                     </>
                   ))}
+                  {/* Wie viele mitspielen - erst ab dem Start bekannt, aus Epics Bestenliste (Betreiber, 16.11.2026). */}
+                  {fenster.status !== 'kommt' && !vertieft && tabelle.length > 0
+                    && zeile(soloCup ? t('Spieler') : t('Teams'), feldGroesseText(tabelle, ort, t))}
                   <AuswertungsStand windowId={fenster.windowId} />
                 </div>
                 {/* Die Karte des Spieltags, klein. */}
@@ -4085,6 +4152,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                 )}
               </div>
+
+              {/* Das Punktesystem aus Epics Daten (app/api/cup-preise "wertung"); ohne Tabelle "Scoring not published". */}
+              {preise !== null && (
+                <Punktesystem wertung={preise.wertung ?? []} quelle={preise.wertungQuelle} sofortPunkte={fenster.sofortPunkte} ort={ort} />
+              )}
 
               {/* Die Teilnahmebedingungen - eingeklappt, wie "Show rules". */}
               <button type="button" onClick={() => setRegelnOffen((v) => !v)}

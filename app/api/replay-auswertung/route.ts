@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
+import { trefferOrteKorrigiert } from '@/lib/trefferOrte.mjs';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayIndex, nachSpieltag } from '@/lib/replayVoll';
 import { holeSeite } from '@/lib/epicCups';
@@ -50,7 +51,8 @@ export async function GET(request: Request) {
           if (!e) return;
           const schluessel = `${m.id}|${e.laenge ?? ''}|${wertung ? 'w' : ''}`;
           if (!JE_MATCH.has(schluessel)) {
-            const d = await liesJson<(RMatch & { orte?: Record<string, number[][]> }) | null>(e.datei, null).catch(() => null);
+            const roh = await liesJson<(RMatch & { orte?: Record<string, number[][]> }) | null>(e.datei, null).catch(() => null);
+            const d = roh && trefferOrteKorrigiert(roh); // Trefferorte alter Dateien mal 10 (lib/trefferOrte.mjs)
             if (!d?.orte || !Object.keys(d.orte).length) return;
             const orte = sortiertJe(d.orte);
             const g = zonenGlueck(d, orte); const sch = schaetzung(d, orte);

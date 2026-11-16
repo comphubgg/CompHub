@@ -24,6 +24,8 @@ import TeamFlagge from '@/components/TeamFlagge';
 interface Treffer {
   epicId: string; name: string; anzeige?: string; land?: string | null;
   bild?: string | null; heimat?: string; regionen?: string[];
+  /** Aus dem Index aller Turnierspieler (/api/spieler-verlauf) - kein Profil bei uns, dafuer Region und Zahl der Turniere. */
+  ausIndex?: boolean; events?: number; region?: string; alterName?: string;
 }
 
 type Stand = 'leer' | 'laedt' | 'fertig' | 'fehler';
@@ -48,11 +50,19 @@ export default function KopfSuche() {
     const abbruch = new AbortController();
     const zeiger = setTimeout(async () => {
       try {
+        // Daneben jeder, der je in einer unserer Bestenlisten stand (Betreiber, 16.11.2026) - erst die Profile, dann der Rest.
+        const index = q.length >= 3
+          ? fetch(`/api/spieler-verlauf?q=${encodeURIComponent(q)}`, { signal: abbruch.signal }).then((x) => x.json()).catch(() => null)
+          : Promise.resolve(null);
         const r = await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`, { signal: abbruch.signal });
         if (!r.ok) throw new Error(String(r.status));
         const j = await r.json();
         if (!j || j.success === false || !Array.isArray(j.spieler)) throw new Error('Antwort');
-        setTreffer((j.spieler as Treffer[]).slice(0, MAX));
+        const profile = (j.spieler as Treffer[]).slice(0, MAX);
+        const da = new Set(profile.map((x) => x.epicId));
+        const aus = (((await index)?.treffer ?? []) as Array<{ epicId: string; name: string; events: number; region: string; alterName?: string }>)
+          .filter((x) => !da.has(x.epicId)).map((x) => ({ ...x, ausIndex: true }));
+        setTreffer([...profile.slice(0, aus.length ? 5 : MAX), ...aus].slice(0, MAX));
         setAktiv(-1);
         setStand('fertig');
       } catch (e) {
@@ -73,7 +83,7 @@ export default function KopfSuche() {
 
   const oeffne = (sp: Treffer) => {
     setOffen(false); setFrage(''); eingabe.current?.blur(); setStand('leer'); setTreffer([]);
-    router.push(`/statistics?spieler=${encodeURIComponent(sp.anzeige || sp.name)}`);
+    router.push(`/statistics?spieler=${encodeURIComponent(sp.ausIndex ? sp.epicId : (sp.anzeige || sp.name))}`);
   };
 
   const zeigeListe = offen && stand !== 'leer';
@@ -125,7 +135,7 @@ export default function KopfSuche() {
           {treffer.length > 0 && (
             <ul id={listeId} role="listbox">
               {treffer.map((sp, i) => {
-                const region = sp.heimat || sp.regionen?.[0] || '';
+                const region = sp.heimat || sp.regionen?.[0] || sp.region || '';
                 return (
                   <li key={sp.epicId} id={`${listeId}-${i}`} role="option" aria-selected={i === aktiv}>
                     <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => oeffne(sp)} onMouseEnter={() => setAktiv(i)}
@@ -139,7 +149,14 @@ export default function KopfSuche() {
                         )}
                       </span>
                       <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
-                      <span className="min-w-0 flex-1 truncate text-base font-semibold text-slate-100">{sp.anzeige || sp.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-base font-semibold text-slate-100">
+                        {sp.anzeige || sp.name}
+                        {sp.ausIndex && (
+                          <span className="block truncate text-xs font-normal text-slate-500">
+                            {sp.alterName ? `${t('früher')} ${sp.alterName} · ` : ''}{sp.events ?? 0} {t('Turniere')}
+                          </span>
+                        )}
+                      </span>
                       {region && <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-sky-500">{region}</span>}
                     </button>
                   </li>

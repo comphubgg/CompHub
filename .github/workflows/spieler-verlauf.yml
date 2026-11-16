@@ -1,0 +1,101 @@
+# Der Turnierverlauf jedes Kontos aus unseren Bestenlisten und die Namenssuche dazu (scripts/spieler-verlauf.mjs) - fuer das Profil jedes Spielers unter
+# Statistics. Gerechnet wird hier, nie auf dem Server der Seite; die Seite liest je Profil ein kleines Stueck vom Release "daten-verlauf" (lib/spielerVerlauf.ts).
+# Inkrementell: nur Spieltage, deren Pruefsumme im Manifest neu ist, werden geholt und gelesen. Sonntags (und mit voll=true) wird alles neu gerechnet.
+
+name: Spieler-Verlauf
+
+on:
+  workflow_dispatch:
+    inputs:
+      voll:
+        description: 'Alles neu rechnen (true/false)'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '47 */3 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/spieler-verlauf.yml'
+      - 'scripts/spieler-verlauf.mjs'
+
+concurrency:
+  group: spieler-verlauf
+  cancel-in-progress: false
+
+jobs:
+  verlauf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional --no-audit --no-fund
+
+      - name: Voll oder inkrementell
+        id: art
+        run: |
+          VOLL="${{ inputs.voll }}"
+          # Sonntags einmal alles neu: Preisgeld, Quali-Grenzen und Titel aendern sich auch an alten Spieltagen.
+          if [ "$(date -u +%u)" = "7" ] && [ "$(date -u +%H)" = "00" ]; then VOLL=true; fi
+          if ! gh release view daten-verlauf >/dev/null 2>&1; then
+            gh release create daten-verlauf --title "Turnierverlauf aller Konten" --notes "Index je Konto und Namenssuche. Siehe scripts/spieler-verlauf.mjs." --prerelease
+            VOLL=true
+          fi
+          echo "voll=$VOLL" >> "$GITHUB_OUTPUT"
+          echo "Voll: $VOLL"
+
+      - name: Voriger Stand und neue Spieltage
+        run: node scripts/spieler-verlauf.mjs --holen ${{ steps.art.outputs.voll == 'true' && '--voll' || '' }}
+
+      # Das alte Archiv (bis 2019, je Spieltag die besten 500) nur, wenn alles neu gerechnet wird - es aendert sich nicht.
+      - name: Altes Archiv
+        if: steps.art.outputs.voll == 'true'
+        run: curl -fsSL "https://github.com/${{ github.repository }}/releases/download/daten-spieltage-alt/epic-spieltage-alt.tar.gz" | tar xz -C data
+
+      - name: Katalog, Preisgeld, Namen, Power Ranking
+        run: node scripts/ablage-github-holen.mjs cup-archiv.json preisgeld-tabellen.json verdienst-archiv.json epic-namen.json power-rankings/global.json 2>&1 | tail -3
+
+      - name: Rechnen
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1 || true
+          NAMEN_MINUTEN=40 node --max-old-space-size=12000 scripts/spieler-verlauf.mjs ${{ steps.art.outputs.voll == 'true' && '--voll' || '' }}
+          rm -f .env.local data/epic-auth.json
+          du -sh data/spieler-verlauf-neu
+
+      # Erst die Stuecke, zuletzt _stand.json - wer liest, findet nie einen Stand, dessen Dateien noch fehlen. Danach die Builds vor dem vorigen weg.
+      - name: Ans Release
+        run: |
+          cd data/spieler-verlauf-neu
+          NEU=$(node -e 'console.log(require("./_stand.json").build)')
+          ALT=$(node -e 'try{console.log(require("../spieler-verlauf/_stand.json").build)}catch{console.log("")}')
+          ls verlauf-*.bin namen-*.bin > /tmp/dateien.txt
+          split -l 40 /tmp/dateien.txt /tmp/teil-
+          for t in /tmp/teil-*; do
+            for v in 1 2 3; do gh release upload daten-verlauf $(cat "$t") --clobber && break; sleep 20; done
+          done
+          gh release upload daten-verlauf namen-stand.json.gz zusatz.json --clobber
+          gh release upload daten-verlauf _stand.json --clobber
+          echo "Build $NEU hochgeladen (vorher: ${ALT:-keiner})."
+          for s in 1 2 3 4 5 6 7 8 9 10; do
+            gh api "repos/${{ github.repository }}/releases/tags/daten-verlauf" >/dev/null || break
+            ID=$(gh api "repos/${{ github.repository }}/releases/tags/daten-verlauf" --jq .id)
+            gh api "repos/${{ github.repository }}/releases/$ID/assets?per_page=100&page=$s" --jq '.[] | "\(.id) \(.name)"' > /tmp/seite.txt || break
+            [ -s /tmp/seite.txt ] || break
+            cat /tmp/seite.txt >> /tmp/alle.txt
+          done
+          grep -E ' (verlauf|namen)-[0-9T]+(-[0-9a-f]{2})?\.bin$' /tmp/alle.txt | while read -r id name; do
+            b=$(echo "$name" | sed -E 's/^(verlauf|namen)-([0-9T]+).*/\2/')
+            if [ "$b" != "$NEU" ] && [ "$b" != "$ALT" ]; then gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" && echo "weg: $name"; fi
+          done | tail -3

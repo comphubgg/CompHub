@@ -36,10 +36,31 @@ const ZIEL = saisons.length ? saisons : ['S30', 'S31', 'S33', 'S34', 'S36', 'S37
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/*
+ * Epic kennt die Kennung nicht (16.11.2026): die Seite reicht Epics 404 als 500 weiter ("HTTP 404 bei https://events-public-service-live...
+ * Event '...' not found"). Das Skript hielt jede 5xx fuer einen Aussetzer, wartete zehn Sekunden und merkte nichts - jeder Lauf pruefte
+ * dieselben gut siebzig Kennungen, zwoelf Minuten lang, und die Zahl "274994 Kennungen zu pruefen" blieb Lauf fuer Lauf gleich.
+ */
+class NichtBeiEpic extends Error {}
+
 async function json(url) {
   const r = await fetch(url, { signal: AbortSignal.timeout(60_000) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    if (r.status === 404 || /HTTP 404 bei https:\/\/events-public-service/.test(text)) throw new NichtBeiEpic(`HTTP ${r.status} (Epic: 404)`);
+    throw new Error(`HTTP ${r.status}`);
+  }
   return r.json();
+}
+
+/**
+ * Ganz schreiben oder gar nicht: der Schritt laeuft neben anderen, die epic-spieltage lesen und hochladen (daten-erneuern.yml).
+ * Die Zwischendatei endet auf ".<pid>.neu" - die laesst scripts/ablage-github.mjs aus, und Leser nehmen nur ".json".
+ */
+async function schreibeGanz(datei, text) {
+  const zwischen = `${datei}.${process.pid}.neu`;
+  await fs.writeFile(zwischen, text, 'utf8');
+  await fs.rename(zwischen, datei);
 }
 
 /** Muster: Kennung ohne Saison und Region, mit Platzhaltern fuer Zaehler. */
@@ -96,7 +117,9 @@ async function main() {
         for (const region of REGIONEN) {
           const windowId = `${season}_${wv}_${region}`;
           const eventId = `epicgames_${season}_${ev}_${region}`;
-          if (gesucht[windowId]) continue;
+          // "fehlt" (Epic: 404) nach dreissig Tagen noch einmal - ein einzelner Befund ist kein Beweis fuer immer (AGENTS.md).
+          const stand = gesucht[windowId];
+          if (stand && !(String(stand).startsWith('fehlt ') && Date.now() - Date.parse(String(stand).slice(6)) > 30 * 86_400_000)) continue;
           kandidaten.push({ season, region, windowId, eventId, titel });
         }
       }
@@ -140,9 +163,12 @@ async function main() {
   }
   kandidaten.sort((a, b) => a.windowId.localeCompare(b.windowId, undefined, { numeric: true }));
 
-  let gefunden = 0; let geprueft = 0; let uebersprungen = 0;
+  let gefunden = 0; let geprueft = 0; let uebersprungen = 0; let nichtDa = 0;
+  // Der Ablauf beendet den Schritt mit SIGTERM ("timeout"): dann sauber aufhoeren und den Merker sichern, statt bis zu 99 Befunde zu verlieren.
+  let aufhoeren = false;
+  process.on('SIGTERM', () => { aufhoeren = true; });
   for (const k of kandidaten) {
-    if (geprueft >= hoechstens) break;
+    if (geprueft >= hoechstens || aufhoeren) break;
     const datei = path.join(ABLAGE, k.season, `${k.windowId}.json`);
     try { await fs.access(datei); gesucht[k.windowId] = 'da'; merken(k); continue; } catch { /* fehlt */ }
     if (zuWeit(k)) { uebersprungen += 1; continue; }
@@ -152,6 +178,13 @@ async function main() {
       daten = await json(`${BASIS}/api/cup-leaderboard?event=${encodeURIComponent(k.eventId)}`
         + `&window=${encodeURIComponent(k.windowId)}&limit=10000`);
     } catch (e) {
+      if (e instanceof NichtBeiEpic) {
+        gesucht[k.windowId] = `fehlt ${new Date().toISOString().slice(0, 10)}`;
+        nichtDa += 1;
+        if (geprueft % 100 === 0) await schreibeGanz(MERKER, JSON.stringify(gesucht, null, 1));
+        await warte(250);
+        continue;
+      }
       // Eine Drosselung (429) oder ein Aussetzer (5xx) ist kein Befund:
       // dann kurz warten und die Kennung beim naechsten Lauf noch einmal.
       if (/HTTP (429|5\d\d)|timeout|fetch failed/i.test(e.message)) { await warte(10_000); continue; }
@@ -163,7 +196,7 @@ async function main() {
     if (!eintraege.length) {
       gesucht[k.windowId] = `leer ${new Date().toISOString().slice(0, 10)}`;
       await warte(250);
-      if (geprueft % 100 === 0) await fs.writeFile(MERKER, JSON.stringify(gesucht, null, 1));
+      if (geprueft % 100 === 0) await schreibeGanz(MERKER, JSON.stringify(gesucht, null, 1));
       continue;
     }
     const zeiten = eintraege.flatMap((e) => (e.matches ?? [])
@@ -176,7 +209,7 @@ async function main() {
       spieler: (e.players ?? []).map((p) => p.id).filter(Boolean),
     })).filter((t) => t.spieler.length);
     await fs.mkdir(path.join(ABLAGE, k.season), { recursive: true });
-    await fs.writeFile(datei, JSON.stringify({
+    await schreibeGanz(datei, JSON.stringify({
       eventId: k.eventId, windowId: k.windowId, region: k.region, season: k.season,
       titel: k.titel, cupId: null, runde: null, rundenTyp: null,
       istFinale: /final|round2/i.test(k.windowId),
@@ -184,15 +217,15 @@ async function main() {
       // Damit klar ist, woher die Kennung stammt.
       quelle: 'gesucht',
       teams,
-    }, null, 1), 'utf8');
+    }, null, 1));
     gesucht[k.windowId] = 'gefunden';
     merken(k);
     gefunden += 1;
     console.log(`  + ${k.windowId} (${teams.length} Teams${datum ? ', ' + new Date(datum).toISOString().slice(0, 10) : ''})`);
     await warte(300);
   }
-  await fs.writeFile(MERKER, JSON.stringify(gesucht, null, 1));
-  console.log(`\nFertig: ${geprueft} geprueft, ${gefunden} gefunden, ${uebersprungen} als aussichtslos uebersprungen.`);
+  await schreibeGanz(MERKER, JSON.stringify(gesucht, null, 1));
+  console.log(`\nFertig: ${geprueft} geprueft, ${gefunden} gefunden, ${nichtDa} bei Epic nicht vorhanden, ${uebersprungen} als aussichtslos uebersprungen.`);
 }
 
 main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });

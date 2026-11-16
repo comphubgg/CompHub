@@ -7,7 +7,7 @@ import { liesJson } from '@/lib/ablage';
  *
  * Die Zahlen (16.11.2026): bei Solo-Spieltagen genau die von app/api/cup-stats (Damage, Elims, Time Alive, Headshots aus Epics Bestenliste, Hits, Builds,
  * Damage Taken aus den vollen Replays), sonst aus app/api/cup-spieler (unsere Replays bzw. die Szene-Quelle, je Spieler - nie Epics Team-Werte).
- * Siehe app/api/turnier-leader (rechneLeader). Eine Kennzahl, die weniger als 90 % der Gewerteten haben, bekommt keine Tafel, sondern steht in "fehlend". Damage Taken ist der Schaden von Spielern (ohne Sturm), wie bei der Damage Ratio. Mats Farmed und Distance
+ * Siehe app/api/turnier-leader (rechneLeader). Eine Kennzahl, die weniger als 90 % der Gewerteten haben, bekommt keine Tafel, sondern steht in "fehlend" - ausser bei einem vorbeien Spieltag mit einer kleinen Luecke, die nachweislich niemanden aus der Top 5 betrifft (sicherOhne, Tafel mit "basis"). Damage Taken ist der Schaden von Spielern (ohne Sturm), wie bei der Damage Ratio. Mats Farmed und Distance
  * fehlen bewusst, bis sie exakt sind.
  *
  * CompHub Rating (0-100, transparent, ohne versteckte Gewichte):
@@ -49,6 +49,8 @@ export interface LeaderTafel {
   /** Sekunden, angezeigt als "2h 38m". */
   zeit?: boolean;
   zeilen: LeaderZeile[];
+  /** Die Tafel steht trotz Luecke (siehe sicherOhne in baueLeader): gerechnet aus `mit` von `von` gewerteten Spielern. */
+  basis?: { mit: number; von: number };
 }
 
 export interface LeaderMvp {
@@ -189,6 +191,8 @@ export async function baueLeader(hole: Holer, opt: {
   schadenDa?: () => boolean;
   /** Stand der vollen Auswertung: noch teilweise ('laeuft'), wird neu gelesen ('neu') oder fertig ('fertig': was dann fehlt, hat der Leser nicht erfasst). */
   replayStand?: () => 'laeuft' | 'neu' | 'fertig';
+  /** Der Spieltag ist vorbei - nur dann darf eine Tafel mit einer kleinen, nachweislich harmlosen Luecke stehen (sicherOhne). */
+  vorbei?: () => boolean;
 } = {}): Promise<LeaderAntwort> {
   const listen = await Promise.all(TAFELN.filter((t) => t.feld !== 'rating' && t.feld !== 'lowest').map(async (t) => [t, await hole(t.feld === 'kills' ? 'elims' : t.feld, 50).catch(() => [])] as const));
   const kreis = new Map<string, Roh>();
@@ -235,13 +239,55 @@ export async function baueLeader(hole: Holer, opt: {
     return raus;
   };
 
+  const wertVon = (z: Roh, feld: string) => (feld === 'quote' ? zahl(z.quote) ?? zahl(z.damageRatio) : zahl(z[feld]));
+  /*
+   * Kleine Luecke bei einem vorbeien Spieltag (Betreiber, 16.11.2026: die Leaders eines fertigen Cups sollen nie leer aussehen). Fehlt eine Kennzahl bei
+   * hoechstens einem Viertel der Gewerteten, steht die Tafel mit "based on X of Y players" - aber nur, wenn keiner der Fehlenden die Top 5 plausibel
+   * erreichen koennte. Der Massstab kommt aus dem Spieltag selbst: "Erreicher" sind die Gewerteten mit Wert, die mindestens 80 % des fuenften Werts haben.
+   * Ein Fehlender ist harmlos, wenn er schwaecher ist als jeder Erreicher - gemessen an dem, woran die Kennzahl haengt: Damage, Treffer, Kopftreffer und
+   * Ratio an den Elims (weniger Elims als der Erreicher mit den wenigsten), Time Alive an der Platzierung (schlechter platziert als der am schlechtesten
+   * platzierte Erreicher), alles andere (Bauteile, erlittener Schaden, Reboots) an beidem. Nur die Elims reichen bei Damage nicht doppelt zu pruefen: im Trio
+   * ist ein Spieler mit 3 Elims oft gut platziert (sein Team), das sagt ueber seinen Schaden nichts. Haengt eine Kennzahl kaum am Massstab, sind unter den
+   * Erreichern auch schwache Spieler - die Schwelle faellt, und die Tafel bleibt verborgen. Lieber eine Tafel zu wenig als eine falsche Top 5.
+   * Gegenprobe (Performance Evaluation Cup Event 1 Round 1 EU, ganz gelesen, die schwaechsten 14 % kuenstlich ohne Werte): Damage, Treffer, Kopftreffer und
+   * Ratio stehen mit "based on", Time Alive, Bauteile und erlittener Schaden bleiben verborgen; fehlt zusaetzlich ein starker Spieler, bleibt alles verborgen.
+   * Beispiel Performance Evaluation Cup Round 1 EU (12.11.2026), 16.11. mittags: die 32 Fehlenden waren Chap, swizzy, akiira, KAAN ... (61, 60, 50, 48 Elims;
+   * Platz 1 und 2) - ihre Spiele lagen in den 20 noch nicht voll gelesenen Matches. Die Regel haelt diese Tafeln zurueck.
+   */
+  const sicherOhne = (feld: string) => {
+    if (!(opt.vorbei?.() ?? false) || !replayDa) return false;
+    // Derselbe Kreis wie die Tafel: die Ratio nur unter Gewerteten, die Summen-Kennzahlen unter allen.
+    const kreisDerTafel = feld === 'quote' ? gewertet : alle;
+    const ohne = kreisDerTafel.filter((z) => wertVon(z, feld) === null);
+    if (!ohne.length || ohne.length > 0.25 * kreisDerTafel.length) return false;
+    const mit = kreisDerTafel.map((z) => ({ z, w: wertVon(z, feld) })).filter((x): x is { z: Roh; w: number } => x.w !== null && x.w > 0).sort((a, b) => b.w - a.w);
+    if (mit.length < 5) return false;
+    const erreicher = mit.filter((x) => x.w >= 0.8 * mit[4].w);
+    const minElims = Math.min(...erreicher.map((x) => kills(x.z)));
+    const plaetze = erreicher.map((x) => zahl(x.z.platz));
+    const schlechtester = ohnePlatz ? null : plaetze.every((p) => p !== null && p > 0) ? Math.max(...(plaetze as number[])) : -1;
+    if (schlechtester === -1) return false;
+    const nachElims = feld !== 'timeAlive';
+    const nachPlatz = !['damage', 'hits', 'headshots', 'quote'].includes(feld);
+    // Time Alive ohne bekannte Platzierung: kein Massstab - verborgen lassen.
+    if (nachPlatz && schlechtester === null && !nachElims) return false;
+    return ohne.every((z) => {
+      const p = zahl(z.platz);
+      return (!nachElims || kills(z) < minElims) && (!nachPlatz || schlechtester === null || (p !== null && p > schlechtester));
+    });
+  };
+
   const tafeln: LeaderTafel[] = [];
   for (const t of TAFELN) {
+    let basis: LeaderTafel['basis'];
     if (t.feld !== 'rating' && t.feld !== 'lowest' && t.feld !== 'kills' && !reicht(t.feld)) {
       // Reboots gibt es im Solo ohne Reload nicht (cup-spieler liefert dort keinen Wert) - das ist kein Datenloch.
       const format = t.feld === 'reboots' && !gewertet.some((z) => zahl(z.reboots) !== null);
-      fehlend.push({ schluessel: t.schluessel, titel: t.titel, grund: format && replayDa && gelesen > 0 ? 'format' : !replayDa ? 'fehlt' : stand === 'fertig' ? 'alt' : stand });
-      continue;
+      if (!format && sicherOhne(t.feld)) basis = { mit: gewertet.filter((z) => wertVon(z, t.feld) !== null).length, von: gewertet.length };
+      else {
+        fehlend.push({ schluessel: t.schluessel, titel: t.titel, grund: format && replayDa && gelesen > 0 ? 'format' : !replayDa ? 'fehlt' : stand === 'fertig' ? 'alt' : stand });
+        continue;
+      }
     }
     let zeilen: LeaderZeile[];
     if (t.feld === 'lowest') {
@@ -251,9 +297,9 @@ export async function baueLeader(hole: Holer, opt: {
       zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma, true);
     } else if (t.feld === 'rating') zeilen = fuenf(gewertet.map((z) => ({ z, w: rating.get(z.epicId) ?? 0 })), t.nachkomma);
     // Je-Spiel-Werte (Ratio) nur fuer Gewertete - sonst fuehrt einer mit wenigen Spielen.
-    else if (t.feld === 'quote') zeilen = fuenf(gewertet.map((z) => ({ z, w: zahl(z.quote) ?? zahl(z.damageRatio) ?? 0 })), t.nachkomma);
+    else if (t.feld === 'quote') zeilen = fuenf(gewertet.map((z) => ({ z, w: wertVon(z, 'quote') ?? 0 })), t.nachkomma);
     else zeilen = fuenf(alle.map((z) => ({ z, w: t.feld === 'kills' ? kills(z) : zahl(z[t.feld]) ?? 0 })), t.nachkomma);
-    if (zeilen.length) tafeln.push({ schluessel: t.schluessel, titel: t.titel, nachkomma: t.nachkomma, ...(t.zeit ? { zeit: true } : {}), zeilen });
+    if (zeilen.length) tafeln.push({ schluessel: t.schluessel, titel: t.titel, nachkomma: t.nachkomma, ...(t.zeit ? { zeit: true } : {}), zeilen, ...(basis ? { basis } : {}) });
   }
 
   // Laender: je Land Anzahl, mittleres Rating, Summen; Treffer/Bauteile/Reboots nur, wenn jeder Spieler des Landes sie hat (sonst eine halbe Summe).
