@@ -3992,6 +3992,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Noch keine Absteiger in dieser Region.': 'No fallers in this region yet.',
   'Größter Sprung': 'Biggest jump',
   'Höchste Note': 'Highest rating',
+  'Note': 'Rating',
+  'Sprung': 'Jump',
   'Spieler in der Liste': 'Players on the list',
   'Stärkste Form': 'Strongest form',
   'Noch nicht fertig': 'Not final yet',
