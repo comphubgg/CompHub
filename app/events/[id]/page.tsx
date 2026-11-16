@@ -35,6 +35,7 @@ import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
 import WegKasten from './WegKasten';
 import AuswertungsStand from './AuswertungsStand';
+import Punktesystem from './Punktesystem';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -735,6 +736,31 @@ function naechsterSchritt(gezeigt: number): number {
  * Es ist auch keine Kleinigkeit: die eine Angabe ist fuer fast jeden
  * erreichbar, die andere fuer acht Teams weltweit.
  */
+/*
+ * Wie gross das Feld ist. Epic gibt hoechstens 10.000 Plaetze heraus; darueber hilft Epics Perzentil. Das ist abgerundet auf eine Stelle
+ * (gemessen 16.11.2026, S42 FNCS Solos LCQ: EU 0,1 ab Platz 4.142 und 0,2 ab Platz 8.284; NAC 0,1/0,2/0,5/0,6/0,7 ab 1.425/2.850/7.124/8.549/9.974 - jeweils genau
+ * Anteil x Feld). Rang / Perzentil am LETZTEN Platz ueberschaetzte deshalb bis aufs Doppelte (EU: 10.000 / 0,2 = 50.000 statt rund 41.400). Genau ist der
+ * Platz, an dem das Perzentil auf einen neuen Wert springt: dort ist Rang = Perzentil x Feld.
+ */
+function feldGroesse(eintraege: Array<{ rank: number; percentile?: number }>): { zahl: number; genau: boolean } | null {
+  if (!eintraege.length) return null;
+  const sortiert = [...eintraege].sort((a, b) => a.rank - b.rank);
+  if (sortiert.length < 10_000) return { zahl: sortiert[sortiert.length - 1].rank, genau: true };
+  let vorher = -1; let schaetzung: number | null = null;
+  for (const e of sortiert) {
+    const p = e.percentile ?? 0;
+    if (p > vorher && p > 0 && vorher >= 0) schaetzung = Math.round(e.rank / p);
+    vorher = p;
+  }
+  return schaetzung ? { zahl: schaetzung, genau: false } : null;
+}
+
+function feldGroesseText(eintraege: Array<{ rank: number; percentile?: number }>, ort: string, t: (s: string) => string): string {
+  const f = feldGroesse(eintraege);
+  if (!f) return `${(10_000).toLocaleString(ort)}+`;
+  return f.genau ? f.zahl.toLocaleString(ort) : `${t('etwa')} ${(Math.round(f.zahl / 100) * 100).toLocaleString(ort)}`;
+}
+
 function schwellenText(art: string, schwelle: number): string {
   if (art === 'percentile') return `Top ${(schwelle * 100).toFixed(0)} %`;
   if (art === 'value') return `${schwelle} Points`;
@@ -1168,6 +1194,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     erlaeuterung?: string | null;
     wertung?: Array<{ was: string; schwelle: number; regel: string;
       punkte: number; jeStueck: boolean }>;
+    /** Woher die Punktetabelle stammt: "epic", "replay" (aus der Replay-Auswertung) oder "epic-<Region>". */
+    wertungQuelle?: string | null;
   } | null>(null);
   /**
    * Wie viele Punkte es voraussichtlich braucht.
@@ -3497,11 +3525,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     // Waehrend die Liste noch tiefer laedt, keine hochzaehlende Zahl (Betreiber, 9.11.2026: "328 / 1293 / 3037 / 5000 / 8299 / 10000 soll nicht mehr da
                     // sein - alles instant wie auf jeder anderen Seite"): die Zahl erscheint einmal, wenn die ganze Liste da ist.
                     if (vertieft) return '–';
-                    if (tabelle.length < 10_000) return tabelle.length ? tabelle.length.toLocaleString(ort) : '–';
-                    const letzter = tabelle.reduce((a, x) => (x.rank > a.rank ? x : a), tabelle[0]) as { rank: number; percentile?: number };
-                    return letzter.percentile && letzter.percentile > 0
-                      ? `${t('etwa')} ${(Math.round(letzter.rank / letzter.percentile / 100) * 100).toLocaleString(ort)}`
-                      : `${(10_000).toLocaleString(ort)}+`;
+                    return tabelle.length ? feldGroesseText(tabelle, ort, t) : '–';
                   })()],
             ] as Array<[string, string]>);
               const st = spieltagAus(fenster.playlist);
@@ -4095,6 +4119,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           : aboutJetzt ? startText(fenster.begin, aboutJetzt, sprache === 'en') : ''}
                     </>
                   ))}
+                  {/* Wie viele mitspielen - erst ab dem Start bekannt, aus Epics Bestenliste (Betreiber, 16.11.2026). */}
+                  {fenster.status !== 'kommt' && !vertieft && tabelle.length > 0
+                    && zeile(soloCup ? t('Spieler') : t('Teams'), feldGroesseText(tabelle, ort, t))}
                   <AuswertungsStand windowId={fenster.windowId} />
                 </div>
                 {/* Die Karte des Spieltags, klein. */}
@@ -4107,6 +4134,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                 )}
               </div>
+
+              {/* Das Punktesystem aus Epics Daten (app/api/cup-preise "wertung"); ohne Tabelle "Scoring not published". */}
+              {preise !== null && (
+                <Punktesystem wertung={preise.wertung ?? []} quelle={preise.wertungQuelle} sofortPunkte={fenster.sofortPunkte} ort={ort} />
+              )}
 
               {/* Die Teilnahmebedingungen - eingeklappt, wie "Show rules". */}
               <button type="button" onClick={() => setRegelnOffen((v) => !v)}

@@ -2138,6 +2138,11 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Wertung': 'Scoring',
   'Sieg': 'Victory Royale',
   'je Elimination': 'Per elimination',
+  'Punktesystem': 'Scoring system',
+  'je gespieltem Match': 'per match played',
+  'Sofort weiter ab': 'Qualifies instantly at',
+  'Aus Epics Daten, als der Spieltag lief': "From Epic's data while this session was live",
+  'Aus Epics Daten derselben Runde in': "From Epic's data for the same round in",
   'Treffer im ganzen Bestand': 'matches across everything',
   'Keine Bestenliste — dieses Turnier wird auf einer LAN gespielt.':
     'No leaderboard — this tournament is played on LAN.',
