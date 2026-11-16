@@ -51,8 +51,10 @@ export interface ZonenKarte {
  * schnitte die Startinsel an, darum endet es bei x 56.000 (8.700 Wasser vor der Kueste, 2.900 vor der Startinsel). Die Replay-Ansicht behaelt
  * ihren eigenen Ausschnitt mit der kleinen Insel (inselKarten, Betreiber 7.11.2026).
  */
+// Nachgeeicht 16.11.2026 (inselKarten: Bild um -1.100/-1.200 versetzt): die Insel liegt in Weltkoordinaten 1.100 weiter rechts und 1.200 weiter unten als
+// oben gemessen, der Ausschnitt rueckt mit (gleicher Rand wie vorher: 2.900 vor der Startinsel).
 const ZONEN_AUSSCHNITT: Record<string, Rahmen> = {
-  SourSpawn: { x0: -78_400, y0: -67_700, spanne: 134_400 },
+  SourSpawn: { x0: -77_300, y0: -66_500, spanne: 134_400 },
 };
 
 /** Die alte Annahme (-135.000 bis +135.000) - nur noch, wo fuer eine Saison nichts gemessen ist. */
