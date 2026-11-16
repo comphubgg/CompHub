@@ -33,6 +33,7 @@ import { ohneZierrat } from '@/lib/homoglyph';
 import T from '@/app/components/T';
 import StatistikIntro from './StatistikIntro';
 import KonstanzKarte from './KonstanzKarte';
+import TurnierVerlauf, { type VerlaufKopf } from './TurnierVerlauf';
 import Aufsteiger from './Aufsteiger';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
 import { bildPfad } from '@/app/components/ArchivTeile';
@@ -83,7 +84,9 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'archiv';
+type SpielerReiter = 'uebersicht' | 'verlauf' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'archiv';
+/** Ein Treffer aus dem Index aller Turnierspieler (/api/spieler-verlauf?q=) - auch Konten ohne Profil bei uns. */
+interface IndexTreffer { epicId: string; name: string; events: number; region: string; alterName?: string; ohneVerlauf?: boolean }
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
@@ -2641,6 +2644,15 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   const [kopfSuche, setKopfSuche] = useState('');
   const [kopfTreffer, setKopfTreffer] = useState<Spieler[]>([]);
   const [kopfOffen, setKopfOffen] = useState(false);
+  /* Dazu der Index aller Turnierspieler (Betreiber, 16.11.2026: "jeder, der je ein Turnier gespielt hat"), und was er zum offenen Profil weiss. */
+  const [indexTreffer, setIndexTreffer] = useState<IndexTreffer[]>([]);
+  const [indexSucht, setIndexSucht] = useState<'' | 'laeuft' | 'nichts'>('');
+  const [verlaufKopf, setVerlaufKopf] = useState<(VerlaufKopf & { epicId: string }) | null>(null);
+  const aufVerlaufKopf = useCallback((k: VerlaufKopf, epicId: string) => {
+    setVerlaufKopf({ ...k, epicId });
+    // Ohne Namen geoeffnet (Link mit Konto-Id): der Name aus dem Index.
+    if (k.name) setOffen((alt) => (alt && alt.epicId === epicId && !alt.anzeige ? { ...alt, anzeige: k.name!, name: alt.name || k.name!, namen: alt.namen?.length ? alt.namen : [k.name!] } : alt));
+  }, []);
 
   /**
    * Den Bereich wechseln und dabei aufraeumen.
@@ -3104,7 +3116,13 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     // Effekts: so gibt es nur einen Weg, auf dem sich die Trefferliste
     // aendert, und React bekommt keine Zustandsaenderung mitten im Zeichnen.
     const t = setTimeout(async () => {
-      if (q.length < 2) { if (!weg) setKopfTreffer([]); return; }
+      if (q.length < 2) { if (!weg) { setKopfTreffer([]); setIndexTreffer([]); setIndexSucht(''); } return; }
+      // Daneben der Index aller Turnierspieler - ab drei Zeichen (kuerzer ist kein Epic-Name).
+      if (q.length >= 3) {
+        void fetch(`/api/spieler-verlauf?q=${encodeURIComponent(q)}`).then((r) => r.json())
+          .then((j) => { if (!weg) { setIndexTreffer(j?.treffer ?? []); setIndexSucht(''); } })
+          .catch(() => { if (!weg) setIndexTreffer([]); });
+      } else setIndexTreffer([]);
       try {
         const r = await fetch(`/api/szene-stats?ansicht=suche`
           + `&q=${encodeURIComponent(q)}`);
@@ -3114,6 +3132,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     }, 250);
     return () => { weg = true; clearTimeout(t); };
   }, [kopfSuche]);
+
 
   /* ----------------------------------------------------------- Vergleich */
 
@@ -3584,13 +3603,14 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
    * holt es sich dann selbst.
    */
   const introBereich = useCallback((w: string) => { setBereich(w as typeof bereich); }, []);
-  const oeffneKonto = useCallback(async (epicId: string, name: string) => {
+  const oeffneKonto = useCallback(async (epicId: string, name: string, reiter: SpielerReiter = 'verdienst') => {
     const da = spieler.find((x) => x.epicId === epicId);
-    if (da) { oeffne(da, 'verdienst'); return; }
+    if (da) { oeffne(da, reiter); return; }
     try {
-      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(name)}`)).json();
+      // Ohne Namen (Link mit Konto-Id, Mitspieler ohne Namen) ueber die Id - die Suche kennt beide.
+      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(name || epicId)}`)).json();
       const treffer = ((j.spieler ?? []) as Spieler[]).find((x) => x.epicId === epicId);
-      if (treffer) { oeffne(treffer, 'verdienst'); return; }
+      if (treffer) { oeffne(treffer, reiter); return; }
     } catch { /* dann mit Id und Namen */ }
     // Das Werkzeug kennt das Konto nicht: den Namen holt es bei Epic (der Betreiber: so, wie Epic Games den Namen herausgibt).
     let epicName = name; let anzeigeName = name;
@@ -3605,8 +3625,28 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
       headshots: 0, damage: 0, damageTaken: 0, heals: 0, stormDamage: 0, fallDamage: 0, mats: 0,
       builds: 0, distanz: 0, timeInStorm: 0, timeAlive: 0, quote: 0, genauigkeit: 0,
       elimsProMatch: 0, damageProMatch: 0,
-    }, 'verdienst');
+    }, reiter);
   }, [spieler, oeffne]);
+
+  /** Ein Treffer aus dem Index: das Profil oeffnet mit dem Turnierverlauf. */
+  const oeffneIndex = useCallback((x: IndexTreffer) => {
+    setKopfSuche(''); setKopfOffen(false); setIndexTreffer([]); setIndexSucht('');
+    void oeffneKonto(x.epicId, x.name, 'verlauf');
+  }, [oeffneKonto]);
+
+  /*
+   * Eingabetaste ohne Treffer: der genaue Epic-Name bei Epic (fuer Konten, deren Namen der Index noch nicht kennt). Findet Epic das Konto, oeffnet
+   * sein Profil - dort steht "Kein Turnierverlauf gefunden", wenn es in keiner unserer Listen steht.
+   */
+  const sucheBeiEpic = useCallback(async (q: string) => {
+    setIndexSucht('laeuft');
+    try {
+      const j = await (await fetch(`/api/spieler-verlauf?q=${encodeURIComponent(q)}&epic=1`)).json();
+      const x = (j?.treffer ?? [])[0] as IndexTreffer | undefined;
+      if (x) { oeffneIndex(x); return; }
+    } catch { /* dann "nichts gefunden" */ }
+    setIndexSucht('nichts');
+  }, [oeffneIndex]);
 
   /*
    * Der geoeffnete Spieler steht in der Adresse.
@@ -3784,12 +3824,16 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
           const j = await (await fetch(
             `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(gesucht)}`)).json();
           const liste: Spieler[] = j.spieler ?? [];
-          treffer = liste.find(passt) ?? liste[0];
+          // Eine Konto-Id meint genau dieses Konto - nie den ersten Treffer der Namenssuche.
+          treffer = liste.find(passt) ?? (/^[0-9a-f]{32}$/i.test(gesucht) ? undefined : liste[0]);
         } catch { /* dann bleibt es bei der Liste */ }
       }
-      if (treffer) oeffne(treffer); else setProfilAusLink(false);
+      if (treffer) oeffne(treffer);
+      // Ein Konto ohne Profil bei uns (jeder, der je in einer unserer Bestenlisten stand): mit Id oeffnen, der Turnierverlauf holt den Rest.
+      else if (/^[0-9a-f]{32}$/i.test(gesucht)) void oeffneKonto(gesucht.toLowerCase(), '', 'verlauf');
+      else setProfilAusLink(false);
     })();
-  }, [spieler, oeffne]);
+  }, [spieler, oeffne, oeffneKonto]);
 
   /** Im offenen Profil den Zeitraum wechseln. */
   /*
@@ -3838,6 +3882,23 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
       .catch(() => { if (!weg) { setRanked(null); setRankedFehlt(true); } });
     return () => { weg = true; };
   }, [offen?.epicId]);
+
+  /*
+   * Region, zuletzt gesehen und Zahl der Turniere aus dem Index aller Turnierspieler (/api/spieler-verlauf) - fuer den Kopf jedes Profils, auch
+   * wenn der Reiter "Turnierverlauf" nicht offen ist. Der Reiter fragt dieselbe Adresse; der Browser beantwortet das zweite Mal aus dem Speicher.
+   */
+  useEffect(() => {
+    const id = offen?.epicId;
+    if (!id) return undefined;
+    let weg = false;
+    fetch(`/api/spieler-verlauf?id=${encodeURIComponent(id)}`).then((r) => r.json())
+      .then((j) => {
+        if (weg || !j?.ok) return;
+        aufVerlaufKopf({ name: j.name ?? null, region: j.region ?? '', zuletzt: j.zuletzt ?? null, events: (j.zeilen ?? []).length }, id);
+      })
+      .catch(() => { /* ohne Index bleibt der Kopf, wie er ist */ });
+    return () => { weg = true; };
+  }, [offen?.epicId, aufVerlaufKopf]);
 
   const profilZeitraum = useCallback((zeitraum: string) => {
     setProfilSaison(zeitraum);
@@ -4101,6 +4162,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     const jahr = /global-championship-(\d{4})/.exec(l.kennung)?.[1];
     return !(jahr && fncsGrandFinals.some((f) => f.platz === 1 && f.saison === `GLOBALS ${jahr}`));
   }).length;
+  /** Was der Turnierverlauf zum offenen Konto weiss (Region, zuletzt gesehen) - fuer den Kopf, gerade bei Konten ohne Profil bei uns. */
+  const kopfVerlauf = offen && verlaufKopf?.epicId === offen.epicId ? verlaufKopf : null;
   const kennzahlen: Array<[string, string, string]> = !offen ? [] : [
                   /*
                    * Die Unterzeilen werden hier zusammengesetzt und muessen
@@ -4172,7 +4235,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
    * wirklich gewartet wird. Was aus dem Speicher kommt, zeigt keinen
    * Schirm; was laenger dauert, zeigt ihn genau so lange, wie es dauert.
    */
-  const wartet = profilLaedt || (bereich === 'jahr' && jahrLaedt)
+  // Der Turnierverlauf haengt nicht am Profil (eigener Index) - waehrend er offen ist, deckt das Laden des Profils ihn nicht zu.
+  const wartet = (profilLaedt && spielerReiter !== 'verlauf') || (bereich === 'jahr' && jahrLaedt)
     || (bereich === 'spieler' && laedt && !spieler.length)
     || (bereich === 'turniere' && cupLaedt && !cupFeld.length)
     || (bereich === 'regional' && regionLaedt && !regionFeld.length)
@@ -4268,10 +4332,13 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
         onBlur={() => setTimeout(() => setKopfOffen(false), 150)}
         onKeyDown={(e) => {
           // Eingabetaste oeffnet den ersten Treffer - schneller als
-          // zur Maus zu greifen.
-          if (e.key === 'Enter' && kopfTreffer[0]) {
-            oeffne(kopfTreffer[0]);
-            setKopfSuche(''); setKopfOffen(false);
+          // zur Maus zu greifen. Ohne Profil-Treffer der erste aus dem Index aller Turnierspieler, sonst Epics Namensdienst.
+          if (e.key === 'Enter' && bereich !== 'bilder') {
+            if (kopfTreffer[0]) {
+              oeffne(kopfTreffer[0]);
+              setKopfSuche(''); setKopfOffen(false);
+            } else if (indexTreffer[0]) oeffneIndex(indexTreffer[0]);
+            else if (kopfSuche.trim().length >= 3) void sucheBeiEpic(kopfSuche.trim());
           }
           if (e.key === 'Escape') { setKopfSuche(''); setKopfOffen(false); }
         }}
@@ -4284,11 +4351,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                    py-1.5 text-sm text-slate-100 outline-none
                    placeholder:text-slate-600 focus:border-sky-500" />
 
-      {kopfOffen && bereich !== 'bilder' && kopfTreffer.length > 0 && (
-        <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
+      {kopfOffen && bereich !== 'bilder' && (kopfTreffer.length > 0 || indexTreffer.length > 0 || indexSucht !== '') && (
+        <div className="absolute right-0 z-40 mt-1 w-[min(92vw,24rem)] overflow-hidden
                         rounded-lg border border-zinc-700 bg-zinc-950
                         shadow-2xl">
-          {kopfTreffer.map((sp) => (
+          {kopfTreffer.slice(0, indexTreffer.length ? 5 : 8).map((sp) => (
             <button key={sp.epicId}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
@@ -4317,6 +4384,35 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
               </span>
             </button>
           ))}
+          {/* Alle anderen Turnierspieler aus dem Index - ohne Foto und Flagge (die kennen wir nur aus gepflegten Profilen), dafuer mit Region. */}
+          {(() => {
+            const schon = new Set(kopfTreffer.map((x) => x.epicId));
+            const rest = indexTreffer.filter((x) => !schon.has(x.epicId)).slice(0, 6);
+            if (!rest.length && !indexSucht) return null;
+            return (
+              <div className="border-t border-zinc-800">
+                <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Alle Turnierspieler</T></p>
+                {rest.map((x) => (
+                  <button key={x.epicId} onMouseDown={(e) => e.preventDefault()} onClick={() => oeffneIndex(x)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-zinc-900">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-slate-100">{x.name}</span>
+                      {x.alterName && <span className="block truncate text-[10px] text-slate-500"><T>früher</T> {x.alterName}</span>}
+                    </span>
+                    {x.region && <RegionMarke region={x.region} />}
+                    <span className="shrink-0 text-[10px] text-slate-600">
+                      {x.events > 0 ? <>{zahl(x.events, 0, sprache)} <T>Turniere</T></> : <T>ohne Verlauf</T>}
+                    </span>
+                  </button>
+                ))}
+                {indexSucht === 'laeuft' && <p className="px-3 py-2 text-xs text-slate-500"><T>Suche bei Epic …</T></p>}
+                {indexSucht === 'nichts' && <p className="px-3 py-2 text-xs text-slate-500"><T>Kein Spieler mit diesem Namen gefunden.</T></p>}
+                {!kopfTreffer.length && !indexSucht && kopfSuche.trim().length >= 3 && (
+                  <p className="px-3 pb-2 pt-1 text-[10px] text-slate-600"><T>Nicht dabei? Eingabetaste sucht den genauen Epic-Namen.</T></p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -6126,9 +6222,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <TeamFlagge groesse={34} laender={[offen.land ?? undefined]} />
-                    {(offen.heimat || offen.regionen?.[0]) && (
+                    {(offen.heimat || offen.regionen?.[0]) ? (
                       <RegionMarke region={offen.heimat || offen.regionen[0]} />
-                    )}
+                    ) : kopfVerlauf?.region ? (
+                      /* Ohne gepflegtes Profil keine Flagge (die kennen wir nicht) - dafuer die Region aus dem Turnierverlauf. */
+                      <RegionMarke region={kopfVerlauf.region} />
+                    ) : null}
                     <MerkStern epicId={offen.epicId} name={grossName(offen.anzeige, offen.gepflegt)} bild={offen.bild ?? null} />
                     {offen.x && (
                       <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
@@ -6143,7 +6242,14 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   <p className="mt-2 text-sm text-slate-500">
                     {offen.events
                       ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
-                      : t('Werte werden geladen …')}
+                      : kopfVerlauf
+                        ? `${zahl(kopfVerlauf.events, 0, sprache)} ${t('Turniere')}`
+                        : profilLaedt ? t('Werte werden geladen …') : ''}
+                  </p>
+                  {/* Konto-Id und zuletzt gesehen (aus dem Turnierverlauf) - fuer jedes Konto. */}
+                  <p className="mt-1 break-all font-mono text-[11px] text-slate-600">
+                    {offen.epicId}
+                    {kopfVerlauf?.zuletzt ? <span className="font-sans"> · <T>zuletzt gesehen</T> {datumText(kopfVerlauf.zuletzt, sprache)}</span> : null}
                   </p>
 
                   {/* Die Marken.
@@ -6280,7 +6386,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   Berechnungen. An ihrer Stelle steht die Schadensquote, die
                   sich nachrechnen laesst. Die beiden Raenge sind abgezaehlt -
                   aus derselben Liste, die die Seite ohnehin fuehrt. */}
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              {/* Ohne ausgewertete Spieltage (Konto ohne Profil bei uns) gaebe es hier nur Nullen und Striche - dann steht der Turnierverlauf fuer sich. */}
+              <div className={`grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6 ${!profilLaedt && !offen.events ? 'hidden' : ''}`}>
                 {kennzahlen.map(([l, v, unten]) => (
                   <div key={l} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>{l}</T></p>
@@ -6327,6 +6434,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
                   zusammengelegt. */}
               {([['uebersicht', 'Überblick'],
+                 // Jeder Spieltag aus Epics Bestenlisten, fuer jedes Konto (scripts/spieler-verlauf.mjs).
+                 ['verlauf', 'Turnierverlauf'],
                  // Die Zahlen nur, wo es welche gibt - ein Konto ohne ausgewertete Matches zeigt keine Seite voller Nullen (Betreiber, 14.10.2026).
                  ...(offen.matches > 0 ? [['werte', 'Zahlen']] : []),
                  ['turniere', 'Ergebnisse'],
@@ -6354,7 +6463,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </button>
               ))}
 
-              <label className="ml-auto flex items-center gap-2 py-2">
+              {/* Der Turnierverlauf hat seine eigenen Filter (Saison, Modus, Region) - der Zeitraum hier gilt nur fuer die anderen Reiter. */}
+              <label className={`ml-auto flex items-center gap-2 py-2 ${spielerReiter === 'verlauf' ? 'hidden' : ''}`}>
                 <span className="text-[11px] font-semibold uppercase
                                  tracking-[0.14em] text-slate-600">
                   <T>Zeitraum</T>
@@ -6384,8 +6494,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   Nicht zum Lesen gedacht, sondern zum Nachsehen - wer sich
                   fragt, ob eine Zahl fuer eine Saison oder fuers ganze
                   Archiv gilt, findet die Antwort ohne zu suchen. */}
-              <p className="mb-4 text-center text-[11px] tracking-[0.14em]
-                            text-slate-700">
+              <p className={`mb-4 text-center text-[11px] tracking-[0.14em]
+                            text-slate-700 ${spielerReiter === 'verlauf' ? 'hidden' : ''}`}>
                 {spielerReiter === 'verdienst' ? (() => {
                   const mitGeld = [...verlauf, ...epicZeilen].filter((z) => (z.verdienst ?? 0) > 0);
                   const codes = [...new Set([...mitGeld.map((z) => z.season), ...lanErgebnisse.map((l) => l.season)])]
@@ -6411,7 +6521,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   Vorher stand bei einem Spieler, der in dieser Saison gar
                   nicht angetreten ist, fuer immer "Wird geladen …" - und man
                   wartete auf etwas, das nie kommt. */}
-              {profilLaedt ? (
+              {spielerReiter === 'verlauf' ? (
+                /* Kommt aus einem eigenen Index und haengt nicht am Laden des Profils - auch ein Konto ohne Profil bei uns hat ihn. */
+                <TurnierVerlauf key={offen.epicId} epicId={offen.epicId}
+                  aufKopf={(k) => aufVerlaufKopf(k, offen.epicId)}
+                  aufSpieler={(id, name) => { void oeffneKonto(id, name, 'verlauf'); }} />
+              ) : profilLaedt ? (
                 <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
               ) : profilFehler ? (
                 /* Ein Ausfall ist nicht "nicht angetreten" - das stand sonst da. */

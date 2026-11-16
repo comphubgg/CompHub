@@ -25,12 +25,25 @@ async function ladeSpieler(id: string): Promise<SpielerKopf | null> {
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(3000),
     });
-    if (!r.ok) return null;
-    const d = await r.json();
+    const d = r.ok ? await r.json() : null;
     const s = (Array.isArray(d?.spieler) ? d.spieler[0] : d?.spieler) as SpielerKopf | undefined;
-    if (!s || s.epicId?.toLowerCase() !== id.toLowerCase()) return null;
-    const anzeige = (s.anzeige || s.name || '').trim();
-    return anzeige ? s : null;
+    if (s && s.epicId?.toLowerCase() === id.toLowerCase() && (s.anzeige || s.name || '').trim()) return s;
+    return await ausVerlauf(id);
+  } catch {
+    return null;
+  }
+}
+
+/** Jedes andere Konto aus unseren Bestenlisten: der Name aus dem Turnierverlauf (/api/spieler-verlauf, ein kleines Stueck des Index). */
+async function ausVerlauf(id: string): Promise<SpielerKopf | null> {
+  try {
+    const r = await fetch(`${WURZEL}/api/spieler-verlauf?id=${encodeURIComponent(id.toLowerCase())}`, {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!r.ok) return null;
+    const d = await r.json() as { name?: string | null; zeilen?: unknown[] };
+    return d?.name && d.zeilen?.length ? { epicId: id, name: d.name } : null;
   } catch {
     return null;
   }
