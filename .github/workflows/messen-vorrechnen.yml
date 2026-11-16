@@ -61,29 +61,21 @@ jobs:
           sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
           mkdir -p /tmp/prof
           export LAUF_BEGINN=$(date +%s)
-          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs --cpu-prof --cpu-prof-dir=/tmp/prof --cpu-prof-interval 5000" \
+          export MESSEN_GROSS=1
+          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs " \
             npx next start -p 3000 >> /tmp/server.log 2>&1 &
           for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
           ( while sleep 30; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB"; done ) &
-          for q in 'ansicht=start&saison=S43' 'ansicht=start&saison=S42' 'ansicht=start&saison=S42&clutch=alle'; do
-            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
-            grep '\[MESS\]' /tmp/server.log | grep -v 'heap=1[0-9]MB' | tail -1 | cut -c1-700
+          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S42'; do
+            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 900 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
           done
           pkill -TERM -f next-server; sleep 30; pkill -9 -f next-server; sleep 2
-          ls -la data/_vorrechnen-stand/ 2>&1; ls -la data/antworten/replays_saison_* 2>&1
-          echo "=== frischer Server, gleiche Abfragen (Saison-Sammlung soll aus der Ablage kommen)"
-          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs" npx next start -p 3000 >> /tmp/server2.log 2>&1 &
-          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
-          for q in 'ansicht=start&saison=S42' 'ansicht=start&saison=S43'; do
-            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
-            grep '\[MESS\]' /tmp/server2.log | grep -v 'heap=1[0-9]MB' | tail -1 | cut -c1-700
-          done
-          pkill -TERM -f next-server; sleep 10; pkill -9 -f next-server; sleep 2
-          ls -la /tmp/prof
-          for f in /tmp/prof/*.cpuprofile; do
-            [ "$(stat -c %s "$f")" -gt 200000 ] || continue
-            echo "=== $f"; node --max-old-space-size=4096 tools/messen/profil.cjs "$f"
-          done
+          echo "=== grosse Lesevorgaenge"; grep -c '\[GROSS\]' /tmp/server.log
+          grep '\[GROSS\]' /tmp/server.log | awk '{print $5}' | sed -E 's#/[^/]*$##' | sort | uniq -c | sort -rn | head -20
+          grep '\[GROSS\]' /tmp/server.log | awk '{print $4}' | sort | uniq -c
+          grep -A12 '\[GROSS\].*x1 ' /tmp/server.log | grep -v '\[GROSS\]' | head -60
+          grep '\[GROSS\]' /tmp/server.log | sed -n '1~40p' | head -40
+          ls data/replays/S42 | wc -l; ls data/replays-schlank/S42 2>/dev/null | wc -l; du -sh data/replays/S42 data/replays-schlank/S42 2>&1
           tail -20 /tmp/server.log | cut -c1-300
           true
       - uses: actions/upload-artifact@v4
