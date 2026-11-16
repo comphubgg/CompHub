@@ -3258,34 +3258,49 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
   return (
     <main className="flex-1 bg-zinc-950 text-slate-200">
-      {/* Kopf mit Turnierbild */}
-      <div className="relative border-b border-zinc-800">
+      {/*
+        * Kopf mit Turnierbild (Backlog C1, 16.11.2026): ein einheitlicher Kopf auf Handy und Desktop - Zurueck-Link als kleine Pille, der Titel
+        * gross in der Anzeigeschrift und umbrechend statt abgeschnitten, darunter Untertitel und die Marken (Live, Finale) alle gleich hoch und
+        * rund. "Finale" stand vorher in Gelb/Bernstein - nicht unsere Farbe, jetzt Blau wie der Rest der Seite.
+        */}
+      <div className="relative overflow-hidden border-b border-zinc-800">
         {cup?.bild && (
-          <div className="absolute inset-0 overflow-hidden">
-            <img src={cup.bild} alt="" className="h-full w-full object-cover opacity-25" />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-950/40" />
+          <div aria-hidden className="absolute inset-0">
+            <img src={cup.bild} alt="" className="h-full w-full object-cover object-center opacity-30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-zinc-950/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-transparent to-transparent" />
           </div>
         )}
-        <div className="relative mx-auto max-w-[1400px] px-4 py-6">
+        <div className="relative mx-auto max-w-[1400px] px-4 pb-6 pt-5 sm:pb-9 sm:pt-7">
           <Link href="/events"
-            className="text-xs text-slate-400 transition hover:text-sky-400">
+            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700/80 bg-zinc-950/60 px-3 py-1
+                       text-xs font-medium text-slate-300 backdrop-blur transition hover:border-sky-500/70 hover:text-sky-400">
             <T>← Alle Events</T>
           </Link>
 
-          <h1 className="mt-2 text-2xl font-bold text-slate-50">
+          <h1 className="schrift-anzeige mt-3 max-w-4xl break-words text-[1.75rem] font-extrabold leading-tight tracking-tight
+                         text-slate-50 sm:mt-4 sm:text-4xl lg:text-[2.75rem]">
             {cup?.titel ?? id}
           </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            {cup?.untertitel && <span>{cup.untertitel}</span>}
-            {cup?.live && (
-              <span className="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold
-                               uppercase tracking-wider text-white"><T>Live</T></span>
-            )}
-            {fenster?.istFinale && (
-              <span className="rounded bg-amber-950/70 px-2 py-0.5 text-[10px] font-semibold
-                               uppercase tracking-wider text-amber-300"><T>Finale</T></span>
-            )}
-          </p>
+          {(cup?.untertitel || cup?.live || fenster?.istFinale) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm text-slate-400 sm:mt-3">
+              {cup?.untertitel && <span className="mr-1">{cup.untertitel}</span>}
+              {cup?.live && (
+                <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-rose-500/50 bg-rose-500/15 px-2.5
+                                 text-[11px] font-bold uppercase tracking-wider text-rose-300">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  </span>
+                  <T>Live</T>
+                </span>
+              )}
+              {fenster?.istFinale && (
+                <span className="inline-flex h-6 items-center rounded-full border border-sky-500/50 bg-sky-500/15 px-2.5
+                                 text-[11px] font-bold uppercase tracking-wider text-sky-300"><T>Finale</T></span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
