@@ -63,7 +63,9 @@ const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); 
 const addiere = (ziel, quelle) => { for (const [k, v] of Object.entries(quelle ?? {})) ziel[k] = (ziel[k] ?? 0) + v; };
 
 const jeTag = new Map();
-for (const f of fs.existsSync(TEILE) ? fs.readdirSync(TEILE).filter((x) => x.endsWith('.json')) : []) {
+/** Teil-Dateien, die eingearbeitet sind oder deren Matches schon dastanden - fuer die Marke in scripts/clutch-teile-holen.mjs (zurueckgestellte fehlen). */
+const erledigteTeile = new Set();
+for (const f of fs.existsSync(TEILE) ? fs.readdirSync(TEILE).filter((x) => /__\d+\.json$/.test(x)) : []) {
   const w = f.replace(/__\d+\.json$/, '');
   jeTag.set(w, [...(jeTag.get(w) ?? []), path.join(TEILE, f)]);
 }
@@ -74,8 +76,17 @@ let tage = 0; let neu = 0; let fertigTage = 0;
 for (const [w, dateien] of jeTag) {
   const zielDatei = path.join(ZIEL, `${w}.json`);
   const pub = liesDatei(zielDatei);
-  // Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt leer an - die alten Werte wuerden sonst doppelt zaehlen.
-  const neuAnfang = dateien.some((datei) => liesDatei(datei)?.neuAnfang);
+  /*
+   * Ein Spieltag, den der Plan neu lesen liess (neuAnfang), faengt leer an - die alten Werte wuerden sonst doppelt zaehlen.
+   * Aber nur, wenn der Plan nach dem Anfang des jetzigen Stands entstand (16.11.2026, "geplant" im Teil): seit jede Ablage die Teile ALLER juengeren Laeufe
+   * holt (scripts/clutch-teile-holen.mjs), kommt ein schon eingearbeitetes Teil mit neuAnfang wieder vorbei. Hat der Neuanfang, den es verlangte, schon
+   * begonnen (umbau.seit / angefangen danach), ist es ein gewoehnliches Teil - sonst fiele der Spieltag bei jeder Ablage wieder auf leer zurueck und
+   * verloere die Teile der anderen Laeufe.
+   */
+  // Mit 30 Minuten Abstand: zwischen dem Anfang (hier gesetzt) und dem fertigen Hochladen sieht ein Planer noch den alten Stand und verlangt den Neuanfang
+  // noch einmal. Ein wirklich neuer Wunsch (neue Leser-Fassung) kommt mit dem naechsten Plan wieder.
+  const standSeit = Date.parse(pub?.umbau?.seit ?? pub?.angefangen ?? '') || 0;
+  const neuAnfang = dateien.some((datei) => { const t = liesDatei(datei); return t?.neuAnfang && !(t.geplant && standSeit && Date.parse(t.geplant) < standSeit + 30 * 60_000); });
   // Laeuft ein Umbau (siehe UMBAU oben), wird er fortgefuehrt - ausser der Plan faengt ganz neu an.
   let stufe = null;
   if (pub?.umbau?.seit && !neuAnfang) {
@@ -129,6 +140,7 @@ for (const [w, dateien] of jeTag) {
     fs.writeFileSync(rohDatei, b);
   }
   let roh = null;
+  const eingearbeitet = [];
   for (const datei of dateien) {
     const t = liesDatei(datei);
     if (!t) continue;
@@ -142,6 +154,7 @@ for (const [w, dateien] of jeTag) {
     const neuHier = (t.matches ?? []).filter((m) => !da.has(m.id) || ohneSet.has(m.id));
     if (neuHier.length !== (t.matches ?? []).length) {
       console.log(`  ${w}: ${t.matches.length - neuHier.length} Matches standen schon da - Teil ${path.basename(datei)} uebersprungen`);
+      erledigteTeile.add(path.basename(datei));
       continue;
     }
     // Ohne lesbaren alten Stand der Werte je Match nicht einarbeiten: sonst stuenden die Matches da, ihre Zeilen waeren fuer immer weg (15.11.2026). So bleiben sie offen
@@ -192,7 +205,14 @@ for (const [w, dateien] of jeTag) {
       for (const m of t.roh) if (!rohDa.has(m.id)) roh.matches.push(m);
     }
     neu += neuHier.length;
+    eingearbeitet.push(path.basename(datei));
   }
+  /*
+   * Nichts Neues fuer diesen Spieltag (alle Teile schon eingearbeitet): die Datei bleibt, wie sie ist (16.11.2026). Vorher wurde sie mit neuem "gerechnet"
+   * geschrieben und ging bei jeder Ablage wieder ans Release.
+   */
+  if (!eingearbeitet.length && !neuAnfang) continue;
+  const fertigeTeile = eingearbeitet;
   const gelesen = d.matches.length;
   const erledigt = gelesen + d.ohne.length;
   if (erledigt < (d.gesamt ?? 0)) d.teilweise = { teams: 0, matches: gelesen, vonMindestens: d.gesamt };
@@ -228,6 +248,7 @@ for (const [w, dateien] of jeTag) {
     pub.umbau = { seit: d.umbauSeit, gelesen, von: d.gesamt ?? null, fassung: d.schadenFassung ?? null };
     fs.writeFileSync(zielDatei, JSON.stringify(pub));
     console.log(`  ${w}: wird neu gelesen (${gelesen} von ${d.gesamt ?? '?'}) - die veroeffentlichte Datei bleibt bis zum Ende`);
+    for (const f of fertigeTeile) erledigteTeile.add(f);
     tage += 1;
     continue;
   }
@@ -247,6 +268,8 @@ for (const [w, dateien] of jeTag) {
   }
   fs.writeFileSync(zielDatei, JSON.stringify(d));
   if (roh) fs.writeFileSync(path.join(ROH, `${w}.json`), JSON.stringify(roh));
+  for (const f of fertigeTeile) erledigteTeile.add(f);
   tage += 1;
 }
+if (fs.existsSync(TEILE)) fs.writeFileSync(path.join(TEILE, '_erledigt.json'), JSON.stringify([...erledigteTeile]));
 console.log(`Zusammengefuehrt: ${neu} neue Matches in ${tage} Spieltagen, davon ${fertigTage} jetzt ganz gelesen.`);

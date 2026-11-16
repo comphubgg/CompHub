@@ -33,7 +33,31 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
+  # Vorrang fuer grosse Cups (16.11.2026): laeuft ein grosser Cup (FNCS, Cash, Performance Evaluation ...) oder endete er vor hoechstens einer Stunde,
+  # belegt ein geplanter Lauf keinen der 20 Rechner - die volle Auswertung des Cups (clutch-rechnen.yml) geht vor. Von Hand angestossen laeuft er immer.
+  vorrang:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: read
+    outputs:
+      frei: ${{ steps.p.outputs.frei }}
+    steps:
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          frei=1
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            curl -sfL --max-time 20 "https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/frischer-cup.mjs" -o /tmp/frisch.mjs \
+              && n=$(node /tmp/frisch.mjs --gross --nach 60 || echo 0) || n=0
+            if [ "${n:-0}" -gt 0 ]; then frei=0; echo "Grosser Cup laeuft oder endete vor weniger als einer Stunde ($(node /tmp/frisch.mjs --gross --nach 60 --liste)) - dieser Lauf wartet auf den naechsten Termin."; fi
+          fi
+          echo "frei=$frei" >> "$GITHUB_OUTPUT"
+
   schlank:
+    needs: vorrang
+    if: needs.vorrang.outputs.frei == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 340
     permissions:

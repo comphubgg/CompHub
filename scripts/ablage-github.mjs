@@ -14,6 +14,7 @@
 //                                                     alles seit dem letzten vollstaendig geglueckten Durchgang
 //                                                     (ohne Stempel: die letzten 20 Minuten)
 //   node scripts/ablage-github.mjs --probe            zeigen, nicht uebertragen
+//   node scripts/ablage-github.mjs --zuerst 'LCQ_EU'  was auf das Muster passt, geht zuerst hoch
 //   node scripts/ablage-github.mjs --erzwingen        auch, was laut Manifest schon so liegt
 //
 // Geaendert heisst: die Pruefsumme weicht von der im Manifest ab, das als
@@ -607,7 +608,13 @@ async function main() {
    * Dateien (Saison 30 bis 33) wegen ihres Alters ganz vorn und verbrauchten das Kontingent, waehrend die neuen Spieltage warteten.
    */
   const rangVon = (a) => { const m = a.rel.manifestAlt[a.anhang]; return !m ? 0 : m.summe ? 1 : 2; };
-  aufgaben.sort((x, y) => gruppeVon(x) - gruppeVon(y) || rangVon(x) - rangVon(y) || alterVon(x) - alterVon(y));
+  /*
+   * --zuerst <muster>: was darauf passt, vor allem anderen (16.11.2026) - die Dateien eines laufenden grossen Cups (clutch-ablegen.yml) gehen vor dem
+   * Neu-Lesen aelterer Spieltage hoch, das in derselben Ablage steckt.
+   */
+  const zuerstMuster = wert('--zuerst') ? new RegExp(wert('--zuerst')) : null;
+  const zuerstVon = (a) => (zuerstMuster && zuerstMuster.test(a.anhang) ? 0 : 1);
+  aufgaben.sort((x, y) => zuerstVon(x) - zuerstVon(y) || gruppeVon(x) - gruppeVon(y) || rangVon(x) - rangVon(y) || alterVon(x) - alterVon(y));
   let zurueckgestellt = 0;
   if (HOECHSTENS && aufgaben.length > HOECHSTENS) {
     const nach = [[], [], [], []];

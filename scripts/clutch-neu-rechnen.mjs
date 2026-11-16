@@ -19,7 +19,7 @@ import { regelnHerleiten } from '../lib/clutchRegeln.mjs';
 const DATEN = path.join(process.cwd(), 'data');
 const ROH = path.join(DATEN, 'clutch-roh');
 const ZIEL = path.join(DATEN, 'clutch');
-let gerechnet = 0; let hergeleitet = 0; let ohneTabelle = 0;
+let gerechnet = 0; let hergeleitet = 0; let ohneTabelle = 0; let gleich = 0;
 
 /** Team aus zwei bis vier? Clutch gibt es bei Duos, Trios und Squads - bei Solos nicht. */
 function istDuo(matches) {
@@ -93,9 +93,16 @@ for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWit
    * erst ab 4 als gueltig: jeder kleine Spieltag mit Rohdaten wurde deshalb in jedem Lauf ganz neu gelesen (FNCS Solo Reload Heat 1, alle Regionen: 8 von 8 offen,
    * obwohl fertig). 3 nur noch fuer eine Datei, die es vorher nicht gab.
    */
-  fs.writeFileSync(zielDatei, JSON.stringify({ ...alt, version: Math.max(3, Number(alt.version) || 0), eventId: roh.eventId, windowId: roh.windowId,
+  const neuStand = { ...alt, version: Math.max(3, Number(alt.version) || 0), eventId: roh.eventId, windowId: roh.windowId,
     regeln: roh.regeln, ...(herkunft ? { regelHerkunft: herkunft } : { regelHerkunft: undefined }),
-    neuGerechnet: new Date().toISOString(), matches, summe, solo }, null, 1));
+    neuGerechnet: alt.neuGerechnet, matches, summe, solo };
+  /*
+   * Nur schreiben, was sich aendert (16.11.2026). Bis dahin bekam jede Datei mit Rohdaten bei jeder Ablage ein neues "neuGerechnet" - und damit eine neue
+   * Pruefsumme: jede Ablage lud rund 240 Dateien hoch (je drei Anfragen, hoechstens 80 je Minute), 9,5 von 15 Minuten (Lauf 43947950859, EU LCQ).
+   */
+  const vergleich = (o) => JSON.stringify(o, (k, v) => (k === 'neuGerechnet' ? undefined : v));
+  if (vergleich(neuStand) === vergleich(alt)) { gleich += 1; continue; }
+  fs.writeFileSync(zielDatei, JSON.stringify({ ...neuStand, neuGerechnet: new Date().toISOString() }, null, 1));
   gerechnet += 1;
 }
-console.log(`Clutch aus Rohdaten neu gerechnet: ${gerechnet} Spieltage (Tabelle hergeleitet: ${hergeleitet}, ohne belegte Tabelle: ${ohneTabelle})`);
+console.log(`Clutch aus Rohdaten neu gerechnet: ${gerechnet} Spieltage, ${gleich} unveraendert (Tabelle hergeleitet: ${hergeleitet}, ohne belegte Tabelle: ${ohneTabelle})`);

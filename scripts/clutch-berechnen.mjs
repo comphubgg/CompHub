@@ -216,6 +216,22 @@ if (arg[0] === '--plan') {
   const grenze = Date.now() - 31 * 864e5;
   const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
   const LISTEN = path.join(ZIEL, '_listen.json');
+  const VORRANG = process.env.CLUTCH_VORRANG === '1';
+  let zurueck = 0;
+  /*
+   * --im-flug <ordner>: Teile juengerer Runden, die noch nicht abgelegt sind (scripts/clutch-teile-holen.mjs). Seit die naechste Runde nicht mehr auf die
+   * Ablage wartet (16.11.2026), stuenden ihre Matches sonst noch einmal im Plan - und ein Teil mit schon vorhandenen Matches wird beim Einarbeiten ganz
+   * uebersprungen.
+   */
+  const imFlug = new Map(); const imFlugNeu = new Set(); let imFlugZahl = 0;
+  const flugOrdner = wert('--im-flug');
+  for (const n of flugOrdner && fs.existsSync(flugOrdner) ? fs.readdirSync(flugOrdner).filter((x) => /__\d+\.json$/.test(x)) : []) {
+    const t = liesDatei(path.join(flugOrdner, n));
+    if (!t?.windowId) continue;
+    if (t.neuAnfang) imFlugNeu.add(t.windowId);
+    const s = imFlug.get(t.windowId) ?? imFlug.set(t.windowId, new Set()).get(t.windowId);
+    for (const id of [...(t.matches ?? []).map((m) => m.id), ...(t.ohne ?? [])]) { if (!s.has(id)) imFlugZahl += 1; s.add(id); }
+  }
   const listen = liesDatei(LISTEN) ?? {};
   const fenster = new Map();
   const epicOrdner = path.join(DATEN, 'epic-spieltage');
@@ -345,10 +361,20 @@ if (arg[0] === '--plan') {
      */
     const ohneNochmal = Date.now() - f.datum < 3 * 864e5 && Date.now() - Date.parse(da?.ohneVersucht ?? da?.gerechnet ?? 0) > 2 * 3600_000;
     const fertig = new Set(gilt ? [...(da.matches ?? []).map((m) => m.id), ...(ohneNochmal ? [] : (da.ohne ?? []))] : []);
+    // Unterwegs (gelesen, noch nicht abgelegt) - nicht ein zweites Mal planen. Ein Neuanfang plant alles neu - ausser er ist schon unterwegs (Teile mit
+    // neuAnfang im Flug): dann gehoeren deren Matches zum neuen Stand.
+    if ((!neuAnfang && !jeNeu && !haengt) || imFlugNeu.has(f.windowId)) for (const id of imFlug.get(f.windowId) ?? []) fertig.add(id);
     const offen = [...f.ids].filter((id) => !fertig.has(id));
     if (!offen.length) continue;
+    /*
+     * Vorrang fuer einen grossen Cup (CLUTCH_VORRANG=1, 16.11.2026): solange einer laeuft oder vor kurzem endete (scripts/frischer-cup.mjs --gross), nur
+     * Spieltage der letzten zwei Tage, kein Neu-Lesen aelterer - die Runde ist dann in Minuten durch und die naechste holt die neuen Matches.
+     */
+    if (VORRANG && (Date.now() - f.datum > 2 * 864e5 || ((neuAnfang || jeNeu || haengt) && Date.now() - f.datum > 6 * 3600_000))) { zurueck += offen.length; continue; }
     raus.push({ eventId: f.eventId, windowId: f.windowId, datum: f.datum, eu: /_EU$/i.test(f.windowId), gesamt: f.ids.size, offen, neuAnfang: neuAnfang || jeNeu || haengt });
   }
+  if (zurueck) console.log(`Vorrang fuer einen grossen Cup: ${zurueck} offene Matches aelterer Spieltage und Neu-Lesen warten`);
+  if (imFlugZahl) console.log(`Unterwegs (gelesen, noch nicht abgelegt): ${imFlugZahl} Matches - nicht neu geplant`);
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
   const frisch = (t) => Date.now() - t.datum < 2 * 864e5;
@@ -362,11 +388,13 @@ if (arg[0] === '--plan') {
   raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (Number(klein(b)) - Number(klein(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
   // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
-  const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 150)));
+  const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / (VORRANG ? 60 : 150))));
   // Die Punktetabelle holt der Planer einmal fuer alle Rechner - acht Rechner, die sie zugleich bei Epic holen, laufen leicht in "zu viele Anmeldungen",
   // und ein Rechner ohne Tabelle rechnete bisher still ohne Clutch-Punkte weiter.
   for (const t of raus) { try { t.regeln = await wertungSicher(t.eventId, t.windowId); } catch { t.regeln = []; } }
-  fs.writeFileSync(ziel, JSON.stringify({ erstellt: new Date().toISOString(), fenster: raus }));
+  // stand: wann der Stand vom Release geholt wurde (CLUTCH_STAND_ZEIT, clutch-rechnen.yml) - danach richtet sich, ob ein verlangter Neuanfang noch gilt
+  // (scripts/clutch-zusammen.mjs).
+  fs.writeFileSync(ziel, JSON.stringify({ erstellt: new Date().toISOString(), stand: process.env.CLUTCH_STAND_ZEIT || null, fenster: raus }));
   for (const t of raus.slice(0, 15)) console.log(`  ${t.windowId.padEnd(52)} ${String(t.offen.length).padStart(6)} offen von ${t.gesamt}`);
   console.log(`Plan: ${offenGesamt} offene Matches aus ${raus.length} Spieltagen - ${offenGesamt ? rechner : 0} Rechner`);
   if (process.env.GITHUB_OUTPUT) {
@@ -418,6 +446,8 @@ if (arg[0] === '--plan') {
     const teil = liesDatei(teilDatei) ?? neuerTeil({ eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt });
     teil.strecke ??= {};
     teil.neuAnfang = !!t.neuAnfang;
+    // Wann der Plan entstand - clutch-zusammen.mjs beachtet neuAnfang nur, wenn der jetzige Stand vorher anfing (ein Teil kann mehrmals vorbeikommen).
+    teil.geplant = plan.stand || plan.erstellt || null;
     // Matches, die in diesem Lauf scheiterten (Download oder Leser) - clutch-zusammen.mjs zaehlt die Fehlversuche ueber die Laeufe.
     teil.fehler ??= [];
     teil.gesamt = Math.max(teil.gesamt ?? 0, t.gesamt);

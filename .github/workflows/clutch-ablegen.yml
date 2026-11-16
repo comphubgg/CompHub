@@ -1,8 +1,13 @@
 # Fertige Teilstaende des vollen Auslesens sofort auf die Seite (Betreiber, 7.11.2026: "alles, was direkt fertig ist, kommt direkt in die Seite, nicht dass ich warte und alles miteinander kommt").
 #
-# Jeder Rechner von "Clutch rechnen" stoesst diesen Ablauf an, sobald er fertig ist. Geholt wird, was bis dahin von dieser Runde da ist; ein Teil, der schon eingearbeitet ist, wird von
-# scripts/clutch-zusammen.mjs uebersprungen. Es schreibt immer nur einer (Gruppe clutch-ablegen, auch der Schritt "ablegen" der Runde); laufen mehrere Rechner kurz nacheinander aus,
-# wartet genau ein weiterer Lauf und nimmt alle mit. Epics Schaden holt weiter nur der Abschluss der Runde: das dauert und aendert sich nicht je Rechner.
+# Der EINZIGE Schreiber von clutch/, clutch-roh/, clutch-je/, clutch-umbau*/ am Release (16.11.2026; vorher auch der Schritt "ablegen" jeder Runde).
+# Jeder Rechner von "Clutch rechnen" stoesst diesen Ablauf an, sobald sein Teil hochgeladen ist. Geholt werden die Teile ALLER Laeufe der letzten drei
+# Stunden, die noch nicht abgelegt sind (scripts/clutch-teile-holen.mjs, Marke clutch/_teile-abgelegt.json) - schon Eingearbeitetes ueberspringt
+# scripts/clutch-zusammen.mjs. Darum schadet es nicht, dass GitHub von mehreren wartenden Laeufen nur den juengsten behaelt: der nimmt alles mit.
+#
+# Die Sperre ist die Gruppe clutch-ablegen (auch clutch-neu.yml): es schreibt immer nur einer, ein wartender beginnt, sobald der laufende fertig ist -
+# kein blindes Warten mehr (bis 16.11.2026 wartete der Abschluss der Runde bis zu 40 Minuten, EU LCQ: 20:15 bis 20:36, abgelegt 20:54).
+# Ein laufender Schreiber wird nie abgebrochen (cancel-in-progress: false).
 
 name: Clutch ablegen
 
@@ -10,22 +15,50 @@ on:
   workflow_dispatch:
     inputs:
       lauf:
-        description: 'Lauf von "Clutch rechnen", dessen Teilstaende eingearbeitet werden'
-        required: true
+        description: 'Lauf von "Clutch rechnen", der anstiess (nur zur Auskunft - geholt wird alles Offene)'
+        required: false
+  schedule:
+    - cron: '7,37 * * * *'   # Rueckfall: falls ein Anstoss verloren ging
 
 concurrency:
   group: clutch-ablegen
   cancel-in-progress: false
 
 jobs:
-  ablegen:
+  # Uebergang (16.11.2026): eine Runde, die noch mit der alten clutch-rechnen.yml lief, legt in ihrem Schritt "ablegen" selbst ab und wartet dabei, bis kein
+  # "Clutch ablegen" mehr laeuft. Nie zugleich schreiben und nicht gegenseitig warten: solange so ein alter Abschluss laeuft, legt dieser Lauf nichts ab
+  # (die Teile holt die naechste Ablage).
+  sperre:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      frei: ${{ steps.p.outputs.frei }}
+    steps:
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=0
+          for id in $(gh run list -R "${{ github.repository }}" -w clutch-rechnen.yml -s in_progress --json databaseId -q '.[].databaseId' 2>/dev/null); do
+            k=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs" -q '[.jobs[] | select(.name == "ablegen" and .status == "in_progress")] | length' 2>/dev/null || echo 0)
+            n=$((n + ${k:-0}))
+          done
+          if [ "$n" = "0" ]; then echo "frei=1" >> "$GITHUB_OUTPUT"; else echo "frei=0" >> "$GITHUB_OUTPUT"; echo "Ein alter Abschluss schreibt gerade - diesmal nichts abgelegt."; fi
+
+  ablegen:
+    needs: sperre
+    if: needs.sperre.outputs.frei == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
       actions: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -38,15 +71,11 @@ jobs:
       - name: Stand vom Release
         run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-umbau 2>&1 | tail -3
 
+      # Alle offenen Teile der letzten drei Stunden (nicht nur die eines Laufs) und die Match-Listen des juengsten Plans (clutch/_listen.json).
       - name: Teilstaende zusammenholen
-        uses: actions/download-artifact@v4
-        with:
-          pattern: clutch-teil-*
-          path: data/clutch-teil
-          merge-multiple: true
-          run-id: ${{ inputs.lauf }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/clutch-teile-holen.mjs --ziel data/clutch-teil --stunden 3 --listen 2>&1 | tail -15
       - name: Zusammenfuehren
         run: node scripts/clutch-zusammen.mjs
 
@@ -71,6 +100,18 @@ jobs:
         timeout-minutes: 8
         run: node scripts/clutch-aus-voll.mjs --hoechstens 60 --minuten 6 2>&1 | tail -60
 
+      # Epics eigener Schaden fuer Solo-Spieltage (bis 16.11.2026 nur im Abschluss der Runde) - hoechstens drei Minuten, frische Spieltage alle 30 Minuten.
+      - name: Epics Schaden
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          EPIC_SCHADEN_MINUTEN: '3'
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
+          node scripts/epic-schaden-holen.mjs 2>&1 | tail -12
+          rm -f .env.local
+
       # Lage der Werte je Match (clutch/<w>.json, "je") gegen die Datei am Release pruefen und reparieren - bis zum 15.11.2026 kam clutch-je/ von hier nie an.
       - name: Werte je Match abgleichen
         continue-on-error: true
@@ -82,10 +123,24 @@ jobs:
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: |
+          # Die Dateien laufender oder eben beendeter grosser Cups zuerst (vor dem Neu-Lesen aelterer Spieltage).
+          zuerst=$(node scripts/frischer-cup.mjs --gross --nach 360 --liste || true)
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh ${zuerst:+--zuerst "$zuerst"} 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          # pipefail fehlt in "run" - das Ergebnis des Hochladens selbst zaehlt (die Marke darf nur nach geglueckter Ablage kommen).
+          exit ${PIPESTATUS[0]}
+
+      # Erst jetzt merken, welche Teile eingearbeitet sind - scheiterte das Hochladen, holt die naechste Ablage sie noch einmal.
+      - name: Abgelegte Teile merken
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/clutch-teile-holen.mjs --ziel data/clutch-teil --marke-schreiben
+          node scripts/ablage-github.mjs --nur clutch/_teile-abgelegt.json 2>&1 | tail -3
 
       # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
       - name: Leaders vorwaermen
+        if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 6
         run: node scripts/leader-vorwaermen.mjs https://www.thecomphub.com --tage 3 2>&1 | tail -25

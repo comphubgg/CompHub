@@ -38,8 +38,11 @@ const liste = dateien.map((f) => f.replace(/\.json$/, ''))
   .sort((a, b) => rang(a) - rang(b));
 
 let fertig = 0;
+// Zeitrahmen (EPIC_SCHADEN_MINUTEN, 16.11.2026): laeuft jetzt in jeder Ablage (clutch-ablegen.yml) - geprueft zwischen den Spieltagen, nie mitten im Schreiben.
+const schluss = Number(process.env.EPIC_SCHADEN_MINUTEN) ? Date.now() + Number(process.env.EPIC_SCHADEN_MINUTEN) * 60_000 : Infinity;
 for (const w of liste) {
   if (fertig >= HOECHSTENS) break;
+  if (Date.now() > schluss) { console.log('Zeitrahmen erreicht - der Rest mit der naechsten Ablage'); break; }
   const datei = path.join(ORDNER, `${w}.json`);
   let d;
   try { d = JSON.parse(fs.readFileSync(datei, 'utf8')); } catch { continue; }

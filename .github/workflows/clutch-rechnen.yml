@@ -9,8 +9,14 @@
 #             clutch/_listen.json); wie viele Rechner es braucht
 #   rechnen   bis zu acht Rechner; jeder nimmt von JEDEM offenen Spieltag jedes N-te Match (fest nach der Match-Id) und liest vier zugleich - ein grosser
 #             Cup ist so auf alle verteilt. Frisch Beendetes zuerst (Europa vorn), dann der Rest. Lokal gemessen: 37 Matches je Minute statt 4.
-#   ablegen   ein einziger Rechner arbeitet die Teilstaende in den Stand vom Release ein (scripts/clutch-zusammen.mjs) und laedt hoch
-# Solange etwas offen bleibt, stoesst sich der Ablauf selbst wieder an.
+#   ablegen   seit 16.11.2026 allein clutch-ablegen.yml (jeder Rechner stoesst es an, sobald sein Teil oben ist; es holt die Teile aller juengeren Runden)
+# Solange etwas offen bleibt, stoesst sich der Ablauf selbst wieder an - gleich nach den Rechnern, ohne auf die Ablage zu warten (Matches, die gelesen, aber
+# noch nicht abgelegt sind, plant der naechste Plan nicht noch einmal: --im-flug).
+#
+# Vorrang fuer grosse Cups (16.11.2026, EU LCQ: Ende 20:30 UTC, eine Runde dauerte 100 Minuten - Plan 19:15, Rechner bis 20:15, Ablage bis 20:54): laeuft ein
+# grosser Cup (FNCS, Cash, Performance Evaluation ... - scripts/frischer-cup.mjs --gross) oder endete er vor hoechstens 90 Minuten, plant die Runde nur die
+# Spieltage der letzten zwei Tage (kein Neu-Lesen aelterer), rechnet hoechstens 9 statt 25 Minuten mit hoechstens 14 Rechnern (Platz fuer Schnellspur,
+# Sammler und Ablage unter GitHubs 20) und macht auch ohne Offenes weiter - so kommt jede neue Lobby mit der naechsten Runde dran, alle rund 15 Minuten.
 
 # 6.11.2026: kleine Team-Spieltage der letzten Woche werden einmal neu gelesen (der Schuss, der umhaut, zaehlt jetzt als Schaden), siehe scripts/clutch-berechnen.mjs.
 
@@ -40,6 +46,8 @@ jobs:
       rechner: ${{ steps.plan.outputs.rechner }}
       anzahl: ${{ steps.plan.outputs.anzahl }}
       offen: ${{ steps.plan.outputs.offen }}
+      vorrang: ${{ steps.vorrang.outputs.vorrang }}
+      minuten: ${{ steps.vorrang.outputs.minuten }}
     steps:
       # Vorrang fuer frische Cups (Betreiber, 14.11.2026: "eine Warteschlange darf nicht sein ... instant nach dem Cup"). GitHub laesst hoechstens 20 Rechner
       # gleichzeitig laufen; nach Heat 1 wartete die Auswertung, weil Nacharbeit, Stundenlauf & Co. die Plaetze belegten. Laeuft gerade ein Cup oder ging
@@ -65,6 +73,14 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # Grosser Cup laeuft oder endete vor hoechstens 90 Minuten? Dann kurze Runden nur fuer Frisches (siehe oben).
+      - name: Vorrang fuer einen grossen Cup?
+        id: vorrang
+        run: |
+          n=$(node scripts/frischer-cup.mjs --gross --nach 90 || echo 0)
+          echo "Grosse Cups (laufend oder bis 90 Minuten vorbei): $n $(node scripts/frischer-cup.mjs --gross --nach 90 --liste || true)"
+          if [ "${n:-0}" -gt 0 ]; then echo "vorrang=1" >> "$GITHUB_OUTPUT"; echo "minuten=9" >> "$GITHUB_OUTPUT"; else echo "vorrang=0" >> "$GITHUB_OUTPUT"; echo "minuten=25" >> "$GITHUB_OUTPUT"; fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -78,17 +94,29 @@ jobs:
 
       - name: Epic-Anmeldung und Stand vom Release
         run: |
+          # Wann der Stand geholt wurde - ein Neuanfang, den dieser Plan verlangt, gilt nur, wenn der Stand am Release davor anfing (scripts/clutch-zusammen.mjs).
+          echo "CLUTCH_STAND_ZEIT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           # replays/S43 ausdruecklich: "replays" allein ist das alte Release. Ohne den Stand der laufenden Season kannte der Plan einen Cup erst, wenn der Stundenlauf ihn unter die
           # Epic-Spieltage geschrieben hatte (7.11.2026: der Trios Cash Cup war eine Stunde nach dem Ende noch in keinem Plan).
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner clutch-umbau --ordner replays --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
 
+      # Was juengere Runden gelesen haben, aber noch nicht abgelegt ist (Marke clutch/_teile-abgelegt.json) - wird nicht noch einmal geplant.
+      - name: Unterwegs
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/clutch-teile-holen.mjs --ziel data/clutch-flug --stunden 3 2>&1 | tail -5
+
       - name: Planen
         id: plan
         env:
           # 20 (9.11.2026): Squads Victory Cup + zwei Duos-Reload-Ranked am selben Abend = 15.681 Matches; mit 12 Rechnern a 12 Minuten waren es rund fuenf Runden.
-          CLUTCH_RECHNER: '20'
-        run: node scripts/clutch-berechnen.mjs --plan data/clutch-plan.json --minuten 40 2>&1 | tail -25
+          # 14 bei Vorrang (16.11.2026): mit 20 warteten bei der EU LCQ drei Rechner 27 Minuten auf einen Platz (Schnellspur, Sammler, Stundenlauf, Ablage) - und
+          # mit ihnen die ganze Runde.
+          CLUTCH_RECHNER: ${{ steps.vorrang.outputs.vorrang == '1' && '14' || '20' }}
+          CLUTCH_VORRANG: ${{ steps.vorrang.outputs.vorrang }}
+        run: node scripts/clutch-berechnen.mjs --plan data/clutch-plan.json --minuten 40 --im-flug data/clutch-flug 2>&1 | tail -25
 
       - name: Plan weitergeben
         uses: actions/upload-artifact@v4
@@ -156,8 +184,10 @@ jobs:
           # 12 statt 295 Minuten (7.11.2026): abgelegt wird erst nach dem letzten Rechner. Der Trios Cash Cup endete um 18 Uhr, der laufende Durchgang brauchte fuer 148 alte Matches noch
           # fast eine Stunde, und erst dann kam der Cup dran. Kurze Runden heissen: frische Cups sind schnell an der Reihe, und Damage und Clutch wachsen waehrend des Lesens.
           # Hart nach 22 Minuten beenden: --minuten prueft nur zwischen den Matches, ein haengendes Match hielt den Rechner sonst fest.
-          timeout --signal=TERM --kill-after=60 34m node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
-            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 25 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
+          # --minuten aus dem Plan: 25, bei Vorrang fuer einen grossen Cup 9 (die naechste Runde holt die neuen Lobbys).
+          M=${{ needs.planen.outputs.minuten || 25 }}
+          timeout --signal=TERM --kill-after=60 $((M + 9))m node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
+            --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten $M 2>&1 | awk '!/^    [0-9a-f]{32}:/ || n++ < 20' | tail -80
 
       - name: Teilstand weitergeben
         if: always()
@@ -180,122 +210,11 @@ jobs:
         if: always()
         run: rm -f .env.local
 
-  ablegen:
-    needs: [planen, rechnen]
-    if: always() && !cancelled() && needs.planen.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 100   # 40 bis 15.11.2026, 55 bis 16.11.2026: Warten auf die Sofort-Ablage (jetzt bis 40 min) + Abgleich + Hochladen
-    # Eigene Gruppe: in clutch-ablegen verdraengt jeder neue Auftrag den wartenden, und die Rechner schicken zwoelf davon. Dieser Schritt hing dort fest, der naechste Lauf kam nicht an die Reihe
-    # (7.11.2026). Damit trotzdem nur einer schreibt, wartet er unten, bis die Sofort-Ablage fertig ist: neue kommen nicht mehr nach, die Rechner sind ja durch.
-    concurrency:
-      group: clutch-abschluss
-      cancel-in-progress: false
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      # Nie zwei Schreiber zugleich (16.11.2026). Bis dahin gab dieses Warten nach 15 Minuten auf und legte trotzdem ab: Lauf 43853059951 holte den Stand
-      # vom Release um 12:32, waehrend die Sofort-Ablage 43861000593 von 12:30 bis 12:41 hochlud - halb alter, halb neuer Stand (clutch/ alt, clutch-roh/ neu).
-      # clutch-neu-rechnen.mjs nahm 11 Matches aus den neuen Rohdaten in die Liste, ohne ihre Spiele und ihren Schaden; der naechste Lauf hielt die Datei fuer
-      # ganz gelesen (Performance Evaluation Cup Round 1 EU: 207 Matches gelistet, 726 Spieler mit zu wenig Spielen, die Tafeln fehlten). Jetzt bis zu
-      # 40 Minuten warten (die Rechner sind durch, es kommen keine neuen Sofort-Ablagen nach) - und lieber gar nicht ablegen als neben einer anderen.
-      - name: Warten, bis die Sofort-Ablage fertig ist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for i in $(seq 1 160); do
-            offen=$(gh run list -R "${{ github.repository }}" -w clutch-ablegen.yml -L 10 --json status -q '[.[] | select(.status != "completed")] | length' || echo 1)
-            [ "${offen:-1}" = "0" ] && { echo "Sofort-Ablage fertig - lege ab."; exit 0; }
-            sleep 15
-          done
-          echo "::error::Sofort-Ablage nach 40 Minuten noch nicht fertig - nicht abgelegt, um nicht gleichzeitig zu schreiben (sie arbeitet die Teile dieser Runde selbst ein)."
-          exit 1
-
-      # Immer der neueste Stand von main, nicht der Commit, mit dem die Runde anfing (16.11.2026). Eine Runde laeuft bis zu zwei Stunden; Lauf 43828063226
-      # begann um 08:02 auf a6e44557 und legte um 09:32 mit dem clutch-zusammen.mjs von vor ddaf60ab ab - ohne Umbau-Schutz. Er schrieb den Neuanfang
-      # (Fassung 20) direkt ueber die volle Datei von Performance Evaluation Cup Round 1 EU (207 Matches); danach galt die veroeffentlichte Datei als
-      # "selbst teilweise", und ein Umbau mit 83 von 207 ersetzte sie (6d60efa7). Die Seite zeigte fuer die besten 32 Spieler keine Replay-Werte mehr.
-      # clutch-ablegen.yml laeuft schon immer auf main (--ref main beim Anstossen).
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-
-      - name: Abhängigkeiten
-        run: npm ci --omit=optional
-
-      - name: Stand vom Release
-        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-umbau 2>&1 | tail -3
-
-      # Die gemerkten Match-Listen des Planers.
-      - uses: actions/download-artifact@v4
-        with:
-          name: clutch-plan
-          path: data
-
-      - name: Teilstaende zusammenholen
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          pattern: clutch-teil-*
-          path: data/clutch-teil
-          merge-multiple: true
-
-      - name: Zusammenfuehren
-        run: node scripts/clutch-zusammen.mjs
-
-      - name: Clutch aus den Rohdaten nach der aktuellen Regel
-        continue-on-error: true
-        run: node scripts/clutch-neu-rechnen.mjs
-      - name: Ueberlebenszeit aus den Rohdaten
-        continue-on-error: true
-        run: node scripts/clutch-leben.mjs
-      # Spieltags-Dateien ohne Schaden aus ihren Werten je Match wiederherstellen (16.11.2026, scripts/clutch-aus-je.mjs): 199 von 397 juengeren standen so am Release.
-      - name: Schaden aus den Werten je Match
-        continue-on-error: true
-        timeout-minutes: 8
-        run: node scripts/clutch-aus-je.mjs --hoechstens 250 --minuten 6 2>&1 | tail -60
-      # Was danach noch ohne Schaden ist (vor allem aelter als 31 Tage: Epic hat die Replays nicht mehr): aus den voll ausgelesenen Replays (replay-voll/), nur wenn
-      # jedes Match dort mit Schaden-Werten liegt (16.11.2026, scripts/clutch-aus-voll.mjs - gegen acht gute Spieltage Feld fuer Feld geprueft).
-      - name: Schaden aus den vollen Replays
-        continue-on-error: true
-        timeout-minutes: 8
-        run: node scripts/clutch-aus-voll.mjs --hoechstens 60 --minuten 6 2>&1 | tail -60
-      # Epics eigener Schaden fuer Solo-Spieltage: unser Replay-Wert lag rund fuenf Prozent ueber Epic und Osirion (4.11.2026).
-      - name: Epics Schaden
-        continue-on-error: true
-        timeout-minutes: 15
-        run: |
-          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
-          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -1
-          node scripts/epic-schaden-holen.mjs 2>&1 | tail -12
-          rm -f .env.local
-      # Lage der Werte je Match gegen die Datei am Release (scripts/clutch-je-abgleich.mjs, 15.11.2026).
-      - name: Werte je Match abgleichen
-        continue-on-error: true
-        timeout-minutes: 6
-        run: node scripts/clutch-je-abgleich.mjs --hoechstens 25 --minuten 3 2>&1 | tail -40
-      - name: Ans Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ls data/clutch | wc -l
-          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
-
-      # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
-      - name: Leaders vorwaermen
-        continue-on-error: true
-        timeout-minutes: 6
-        run: node scripts/leader-vorwaermen.mjs https://www.thecomphub.com --tage 3 2>&1 | tail -25
-
-  # Solange etwas offen blieb, gleich weiter.
+  # Solange etwas offen blieb, gleich weiter - ohne auf die Ablage zu warten (16.11.2026). Bei Vorrang fuer einen grossen Cup auch ohne Offenes: neue Lobbys
+  # kommen laufend dazu, und nach dem Ende soll die letzte Runde sofort kommen, nicht erst mit dem Rueckfall alle drei Stunden.
   weiter:
-    needs: [planen, rechnen, ablegen]
-    if: always() && !cancelled() && needs.planen.outputs.offen != '' && needs.planen.outputs.offen != '0'
+    needs: [planen, rechnen]
+    if: always() && !cancelled() && needs.planen.result == 'success' && ((needs.planen.outputs.offen != '' && needs.planen.outputs.offen != '0') || needs.planen.outputs.vorrang == '1')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -306,5 +225,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Nichts offen (nur Vorrang): zwei Minuten Luft, damit nicht im Sekundentakt geplant wird.
+          if [ "${{ needs.planen.outputs.offen }}" = "0" ]; then sleep 120; fi
           gh workflow run clutch-rechnen.yml -R "${{ github.repository }}" --ref main \
             && echo "Noch offen (${{ needs.planen.outputs.offen }} beim Planen) - naechster Durchgang angestossen."

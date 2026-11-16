@@ -15,8 +15,9 @@ on:
   schedule:
     - cron: '20 5 * * *'   # taeglich: neue Spieltage ohne Tabelle bekommen eine hergeleitete
 
+# Schreibt clutch/ ans Release - darum in der Sperre aller Clutch-Schreiber (clutch-ablegen.yml), seit die Runden nicht mehr selbst ablegen (16.11.2026).
 concurrency:
-  group: clutch-rechnen
+  group: clutch-ablegen
   cancel-in-progress: false
 
 jobs:
