@@ -1,4 +1,5 @@
 'use client';
+import { kleinBild } from './kleinBild';
 
 /*
  * Das Band hinter der Ueberschrift der Seiten FNCS (Events) und Maps: die laufenden Reihen der Startseite - Karten und Vorschaubilder der Cups -, 90 Prozent Schwarz
@@ -41,7 +42,7 @@ function Reihe({ bilder, dauer, rueck = false }: { bilder: string[]; dauer: numb
     <div className={`hero-reihe ${rueck ? 'rueck' : ''}`} style={{ ['--dauer' as string]: `${dauer}s` }}>
       {[...bilder, ...bilder].map((src, i) => (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={`${src}-${i}`} src={src} alt="" loading="lazy" draggable={false}
+        <img key={`${src}-${i}`} src={kleinBild(src)} alt="" loading="lazy" draggable={false}
           className="h-36 w-60 shrink-0 rounded-2xl object-cover shadow-lg sm:h-40 sm:w-72" />
       ))}
     </div>
