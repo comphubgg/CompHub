@@ -7,6 +7,7 @@ import OverlayGeruest, { ARTEN, overlayAdresse, useOverlays, type OverlayEintrag
 import { MeineListe } from '../Teile';
 import {
   Buehne, Farbe, FELD, Gruppe, KopierFeld, ObsSchritte, Schalter, Schieber, Segmente, Text,
+  obsGroesse, type OverlayGroesse,
 } from '../Bausteine';
 
 /*
@@ -33,16 +34,21 @@ export const STANDARD = {
   laender1: ['de', 'de', 'at'] as string[], laender2: ['fr', 'de', 'ch'] as string[],
   flagge1: '', flagge2: '', logo1: '', logo2: '',
   punkte1: 0, punkte2: 0,
-  stil: 'bar' as 'bar' | 'compact' | 'vertical',
+  stil: 'bar' as 'bar' | 'compact' | 'vertical' | 'eng',
   anordnung: 'stapel' as 'stapel' | 'reihe',
   grund: '#0a0c12', deckkraft: 0.66,
   akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ff4d4d',
   /** Team colours on the board - off by default (house style: monochrome). */
   farbig: false,
   schrift: 'inter', groesse: 1, ecken: 14,
+  /*
+   * Top left with a little room for the shadow: then the OBS source can be
+   * exactly the overlay's size (operator, 11/2026). Centre / bottom placement
+   * on a full 1920 x 1080 source stays available.
+   */
   vert: 'top' as 'top' | 'middle' | 'bottom',
-  horiz: 'center' as 'left' | 'center' | 'right',
-  rand: 48,
+  horiz: 'left' as 'left' | 'center' | 'right',
+  rand: 12,
   animation: 'pop' as 'pop' | 'flip' | 'glow' | 'none',
   /** Small grey footer: own text; "first to", round and series are added automatically. */
   fussText: '',
@@ -120,6 +126,21 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
   const t = useT();
   const [offen, setOffen] = useState(false);
   const [funde, setFunde] = useState<Fund[]>([]);
+  /*
+   * The flag from our profile data - only for an exact name match, and only
+   * for this one player. Operator, 11/2026: one player's flag must never end
+   * up on the others.
+   */
+  async function flaggeSuchen() {
+    const q = name.trim();
+    if (q.length < 2 || land) return;
+    try {
+      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)).json();
+      const genau = (Array.isArray(j?.spieler) ? j.spieler as Fund[] : [])
+        .find((f) => f.anzeige.trim().toLowerCase() === q.toLowerCase() && f.land);
+      if (genau?.land) setzen(name, genau.land.toLowerCase());
+    } catch { /* keep without flag */ }
+  }
   useEffect(() => {
     const q = name.trim();
     if (!offen || q.length < 2) { setFunde([]); return undefined; }
@@ -141,7 +162,7 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
         <img src={`/flags/${land}.png`} alt="" className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover" />
       )}
       <input value={name} maxLength={24} onChange={(e) => setzen(e.target.value, land)}
-        onFocus={() => setOffen(true)} onBlur={() => window.setTimeout(() => setOffen(false), 150)}
+        onFocus={() => setOffen(true)} onBlur={() => { window.setTimeout(() => setOffen(false), 150); void flaggeSuchen(); }}
         placeholder={t('Player name')} className={`${FELD} min-w-0 flex-1`} />
       {entfernen && (
         <button type="button" onClick={entfernen} title={t('Remove')}
@@ -280,6 +301,8 @@ export default function CustomBaukasten() {
     } catch { /* next click */ }
   }
 
+  const [groesse, setGroesse] = useState<OverlayGroesse | null>(null);
+  const obs = obsGroesse(groesse);
   const eintrag = id ? liste?.find((o) => o.id === id) : undefined;
   const obsUrl = id ? overlayAdresse('custom', id) : '';
   const steuerUrl = id && eintrag?.steuer ? `${basis}/overlays/custom/control?id=${id}&key=${eintrag.steuer}` : '';
@@ -351,8 +374,8 @@ export default function CustomBaukasten() {
 
           <Gruppe titel="Layout">
             <Segmente titel="Style" wert={cfg.stil} setzen={(v) => setz('stil', v)}
-              optionen={[{ wert: 'bar', titel: 'Scoreboard' }, { wert: 'compact', titel: 'Compact' }, { wert: 'vertical', titel: 'Sidebar' }]} />
-            {cfg.stil !== 'compact' && (
+              optionen={[{ wert: 'bar', titel: 'Scoreboard' }, { wert: 'eng', titel: 'Stacked compact' }, { wert: 'compact', titel: 'One line' }, { wert: 'vertical', titel: 'Sidebar' }]} />
+            {(cfg.stil === 'bar' || cfg.stil === 'vertical') && (
               <Segmente titel="Player names" wert={cfg.anordnung} setzen={(v) => setz('anordnung', v)}
                 optionen={[{ wert: 'stapel', titel: 'Stacked' }, { wert: 'reihe', titel: 'Inline' }]} />
             )}
@@ -427,12 +450,12 @@ export default function CustomBaukasten() {
         {/* ------------------------------------------------ preview + output */}
         <div className="order-1 space-y-4 xl:order-2">
           <div className="xl:sticky xl:top-20 space-y-4">
-            <Buehne src={erstSrc} titel={t('Preview')} szene onFrame={(f) => {
+            <Buehne src={erstSrc} titel={t('Preview')} szene onGroesse={setGroesse} onFrame={(f) => {
               rahmen.current = f;
               f?.addEventListener('load', () => f.contentWindow?.postMessage({ comphub: 'custom-cfg', cfg }, window.location.origin), { once: true });
             }}
               kopf={<>
-                <span className="font-mono uppercase tracking-[0.18em]">1920 × 1080 · <T>live preview</T></span>
+                <span className="font-mono uppercase tracking-[0.18em]"><T>live preview</T> · {obs.voll ? '1920 × 1080' : `${obs.b} × ${obs.h}`}</span>
                 <span className="text-slate-500"><T>Transparent in OBS</T></span>
               </>} />
 
@@ -481,7 +504,12 @@ export default function CustomBaukasten() {
 
             <section className="rounded-2xl border border-white/[0.07] bg-[#10141c] p-4 sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-slate-100"><T>How to add it in OBS</T></h3>
-              <ObsSchritte breite={art.obs.b} hoehe={art.obs.h} />
+              <ObsSchritte breite={obs.b} hoehe={obs.h} />
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                {obs.voll
+                  ? <T>Placed in the centre or at the bottom: use a full 1920 × 1080 source, the board positions itself.</T>
+                  : <T>This is the overlay’s own size. Move the source in OBS to where you want it — don’t stretch it.</T>}
+              </p>
             </section>
 
             <section className="rounded-2xl border border-white/[0.07] bg-[#10141c] p-4 sm:p-5">

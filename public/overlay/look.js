@@ -112,6 +112,7 @@
       };
       if (window.MutationObserver) new MutationObserver(folgen).observe(box, { attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
       folgen();
+      groesseMelden(huelle);
     }
     var an = cfg.rahmen !== false;
     huelle.classList.toggle('aus', !an);
@@ -208,12 +209,34 @@
   function wasserzeichen(box, cfg) {
     var w = box.querySelector('.lk-url');
     var modus = ['rechts', 'links', 'kopf', 'aus'].indexOf(cfg.wasserzeichen) >= 0 ? cfg.wasserzeichen : 'rechts';
-    if (modus === 'aus') { if (w) w.remove(); return; }
+    if (modus === 'aus') { if (w) w.remove(); box.classList.remove('lk-mitUrl'); return; }
     if (!w) { w = document.createElement('span'); w.textContent = 'thecomphub.com'; }
     var kopf = box.querySelector('[data-lk-kopf]');
     w.className = 'lk-url ' + (modus === 'kopf' && kopf ? 'im-kopf' : modus === 'links' ? 'ecke links' : 'ecke rechts');
     var ziel = modus === 'kopf' && kopf ? kopf : box;
+    // A corner watermark gets its own strip, so it never sits on the content.
+    box.classList.toggle('lk-mitUrl', !(modus === 'kopf' && kopf));
     if (w.parentNode !== ziel) ziel.appendChild(w);
+  }
+
+  /*
+   * Tell the configurator (parent frame, same origin) where the overlay sits
+   * and how big it is - so the preview can be cropped to the overlay and the
+   * OBS size hint can name its real pixel size. Only inside a frame.
+   */
+  function groesseMelden(el) {
+    if (window.parent === window) return;
+    var senden = function () {
+      var r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      try {
+        window.parent.postMessage({ comphub: 'overlay-groesse', x: Math.round(r.left), y: Math.round(r.top), w: Math.ceil(r.width), h: Math.ceil(r.height) }, location.origin);
+      } catch (e) { /* other origin */ }
+    };
+    if (window.ResizeObserver) new ResizeObserver(senden).observe(el);
+    window.addEventListener('load', senden);
+    setTimeout(senden, 300);
+    setTimeout(senden, 1500);
   }
 
   /** The CompHub logo as a small image. */

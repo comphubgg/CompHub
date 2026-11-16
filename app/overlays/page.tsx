@@ -7,7 +7,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 import VipVorhang from './VipVorhang';
 import { ARTEN } from './OverlayGeruest';
-import { Buehne, KopierFeld, ObsSchritte } from './Bausteine';
+import { Buehne, KopierFeld, ObsSchritte, obsGroesse, type OverlayGroesse } from './Bausteine';
 import { customParamUrl, STANDARD as CUSTOM_STANDARD } from './custom/Baukasten';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 
@@ -81,6 +81,8 @@ const REIHENFOLGE = ['custom', 'teamkarte', 'standings', 'timer', 'qual', 'offsp
 export default function OverlaysSeite() {
   const zugang = useZugang();
   const [basis, setBasis] = useState('');
+  // The real size each preview reports (look.js) - for an honest OBS size.
+  const [groessen, setGroessen] = useState<Record<string, OverlayGroesse>>({});
   // A sample start a little over two hours from now - fixed once, so the preview does not reload.
   const [start] = useState(() => Date.now() + 2 * 3_600_000 + 14 * 60_000);
   useEffect(() => { setBasis(window.location.origin); }, []);
@@ -149,9 +151,10 @@ export default function OverlaysSeite() {
                 <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
                   <div className={`min-w-0 p-3 sm:p-4 ${i % 2 ? 'lg:order-2' : ''}`}>
                     {v && <Buehne src={v.src} breite={v.b} hoehe={v.h} szene titel={a.titel}
+                      onGroesse={(g) => setGroessen((alt) => (alt[a.schluessel]?.w === g.w && alt[a.schluessel]?.h === g.h && alt[a.schluessel]?.x === g.x ? alt : { ...alt, [a.schluessel]: g }))}
                       kopf={<>
                         <span className="font-mono uppercase tracking-[0.18em]"><T>Sample values</T></span>
-                        <span className="font-mono text-slate-500">OBS {a.obs.b} × {a.obs.h}</span>
+                        <span className="font-mono text-slate-500">OBS {obsGroesse(groessen[a.schluessel] ?? null).b} × {obsGroesse(groessen[a.schluessel] ?? null).h}</span>
                       </>} />}
                   </div>
                   <div className="flex min-w-0 flex-col p-5 sm:p-7">
@@ -176,7 +179,7 @@ export default function OverlaysSeite() {
                         </div>
                         <div>
                           <dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>OBS size</T></dt>
-                          <dd className="mt-0.5 font-mono text-xs text-slate-300">{a.obs.b} × {a.obs.h}</dd>
+                          <dd className="mt-0.5 font-mono text-xs text-slate-300">{obsGroesse(groessen[a.schluessel] ?? null).b} × {obsGroesse(groessen[a.schluessel] ?? null).h}</dd>
                         </div>
                       </div>
                     </dl>

@@ -138,7 +138,9 @@ body.anim-aus .lk-neu { animation: none; }
 .lk-hero { position: absolute; }
 /* the URL watermark */
 .lk-url { font: 600 9px/1 'Inter', 'Segoe UI', sans-serif; letter-spacing: 1.6px; color: rgba(255, 255, 255, .45); text-transform: lowercase; white-space: nowrap; pointer-events: none; }
-.lk-url.ecke { position: absolute !important; bottom: 6px; z-index: 2; }
+.lk-url.ecke { position: absolute !important; bottom: 5px; z-index: 2; }
 .lk-url.ecke.rechts { right: 10px; }
 .lk-url.ecke.links { left: 10px; }
 .lk-url.im-kopf { margin-left: 4px; font-size: 9px; letter-spacing: 1.6px; color: rgba(255, 255, 255, .45); font-weight: 600; }
+
+.lk-box.lk-mitUrl { padding-bottom: 16px !important; }

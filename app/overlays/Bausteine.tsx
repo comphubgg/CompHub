@@ -33,7 +33,32 @@ export const KARO: React.CSSProperties = {
  * @param szene a dim gameplay-like backdrop instead of the checkerboard
  * @param breite / hoehe a smaller stage (e.g. 960 x 540) shows corner overlays larger
  */
-export function Buehne({ src, titel = 'Preview', szene = false, breite = 1920, hoehe = 1080, onFrame, kopf }: {
+export interface OverlayGroesse { x: number; y: number; w: number; h: number }
+
+/** Room around the overlay for its shadow - part of the recommended OBS size. */
+const RAND_SCHATTEN = 16;
+
+/**
+ * The OBS browser-source size for an overlay of this size and place.
+ * In the top-left corner: just its own box (plus shadow room). Placed
+ * elsewhere on the canvas (centred, bottom ...): the full 1920 x 1080.
+ */
+export function obsGroesse(g: OverlayGroesse | null): { b: number; h: number; voll: boolean } {
+  if (!g) return { b: 1920, h: 1080, voll: true };
+  if (g.x > 120 || g.y > 120) return { b: 1920, h: 1080, voll: true };
+  const rund = (n: number) => Math.min(1920, Math.ceil(n / 10) * 10);
+  return { b: rund(g.x + g.w + RAND_SCHATTEN), h: rund(g.y + g.h + RAND_SCHATTEN), voll: false };
+}
+
+/**
+ * The overlay preview, cropped to the overlay itself.
+ *
+ * The overlay page reports where its box sits and how big it is
+ * (look.js groesseMelden). Until then - or for overlays that do not report -
+ * the whole canvas is shown, scaled to the width. Operator, 11/2026: "show
+ * only the overlay itself at the size it needs", not a 1920 x 1080 canvas.
+ */
+export function Buehne({ src, titel = 'Preview', szene = false, breite = 1920, hoehe = 1080, onFrame, kopf, onGroesse }: {
   src: string;
   titel?: string;
   szene?: boolean;
@@ -41,26 +66,50 @@ export function Buehne({ src, titel = 'Preview', szene = false, breite = 1920, h
   hoehe?: number;
   onFrame?: (f: HTMLIFrameElement | null) => void;
   kopf?: ReactNode;
+  /** Called with the overlay's box on the canvas, whenever it changes. */
+  onGroesse?: (g: OverlayGroesse) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [mass, setMass] = useState(0.3);
+  const rahmen = useRef<HTMLIFrameElement | null>(null);
+  const [platz, setPlatz] = useState(600);
+  const [g, setG] = useState<OverlayGroesse | null>(null);
   useEffect(() => {
     const el = box.current;
     if (!el) return undefined;
-    const messen = () => setMass(el.clientWidth / breite);
+    const messen = () => setPlatz(el.clientWidth);
     messen();
     const ro = new ResizeObserver(messen);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [breite]);
+  }, []);
+  useEffect(() => {
+    const an = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== rahmen.current?.contentWindow) return;
+      const d = e.data as { comphub?: string } & Partial<OverlayGroesse>;
+      if (d?.comphub !== 'overlay-groesse' || !d.w || !d.h) return;
+      const neu = { x: d.x ?? 0, y: d.y ?? 0, w: d.w, h: d.h };
+      setG((alt) => (alt && alt.x === neu.x && alt.y === neu.y && alt.w === neu.w && alt.h === neu.h ? alt : neu));
+      onGroesse?.(neu);
+    };
+    window.addEventListener('message', an);
+    return () => window.removeEventListener('message', an);
+  }, [onGroesse]);
+
+  // The crop: the overlay's box plus a little room for its shadow.
+  const aus = g
+    ? { x: Math.max(0, g.x - RAND_SCHATTEN), y: Math.max(0, g.y - RAND_SCHATTEN), w: g.w + 2 * RAND_SCHATTEN, h: g.h + 2 * RAND_SCHATTEN }
+    : { x: 0, y: 0, w: breite, h: hoehe };
+  // Never larger than real size: a 400 px overlay stays 400 px wide.
+  const mass = Math.min(1, platz / aus.w);
   return (
     <figure className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0b0e14] shadow-[0_20px_60px_-30px_rgba(0,0,0,.8)]">
       {kopf && <figcaption className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 text-[11px] text-slate-400">{kopf}</figcaption>}
-      <div ref={box} className="relative w-full overflow-hidden"
-        style={{ ...(szene ? SZENE : KARO), aspectRatio: `${breite} / ${hoehe}` }}>
-        <iframe ref={onFrame} title={titel} src={src} scrolling="no" tabIndex={-1}
-          className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
-          style={{ width: breite, height: hoehe, transform: `scale(${mass})`, background: 'transparent' }} />
+      <div ref={box} className="flex w-full justify-center" style={szene ? SZENE : KARO}>
+        <div className="relative overflow-hidden" style={{ width: aus.w * mass, height: aus.h * mass }}>
+          <iframe ref={(f) => { rahmen.current = f; onFrame?.(f); }} title={titel} src={src} scrolling="no" tabIndex={-1}
+            className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
+            style={{ width: breite, height: hoehe, transform: `scale(${mass}) translate(${-aus.x}px, ${-aus.y}px)`, background: 'transparent' }} />
+        </div>
       </div>
     </figure>
   );

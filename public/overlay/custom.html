@@ -24,7 +24,7 @@
     plain URL params    no account needed, e.g.
       ?title=MASTER%20MONDAYS&p1=Chap,Kaan,Fastroki&p2=Nociff,Izzi,Akiira
       &s1=0&s2=0 &fl1=de,de,at &fl2=fr,de,ch (flag per player)
-      &style=bar|compact|vertical &layout=stacked|inline
+      &style=bar|compact|vertical|eng (eng = stacked compact) &layout=stacked|inline
       &t1=..&t2=.. (team names, optional) &tag1/&tag2 (compact)
       &v=top|middle|bottom &h=left|center|right &margin=48 &scale=1
       &hideTitle=1 &font=inter|oswald|... &nologo=1
@@ -85,14 +85,15 @@ body.h-left { justify-content: flex-start; } body.h-center { justify-content: ce
 .tname { margin-bottom: 2px; font-size: 11px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: rgba(255, 255, 255, .5); white-space: nowrap; }
 .spieler { display: flex; flex-direction: column; }
 .sp { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
-.seite.b .sp { flex-direction: row-reverse; }
+/* right side: name, then the flag at the outer edge - one clean right-aligned column */
+.seite.b .sp { flex-direction: row-reverse; justify-content: flex-start; }
+.flagge { display: block; }
 .flagge { width: 20px; height: 14px; border-radius: 2px; object-fit: cover; flex: 0 0 auto; }
 .logo { width: 48px; height: 48px; object-fit: contain; flex: 0 0 auto; }
-body.inline .spieler { flex-direction: row; flex-wrap: nowrap; }
-body.inline .sp + .sp::before { content: '·'; opacity: .45; margin: 0 .3em 0 -.1em; }
-body.inline .seite.b .spieler { flex-direction: row-reverse; }
-body.inline .seite.b .sp + .sp::before { content: none; }
-body.inline .seite.b .sp + .sp::after { content: '·'; opacity: .45; margin: 0 -.1em 0 .3em; }
+body.inline .spieler { flex-direction: row; flex-wrap: nowrap; align-items: center; }
+body.inline .seite.b .spieler { justify-content: flex-end; }
+.trenner { display: none; margin: 0 .45em; color: rgba(255, 255, 255, .35); font-size: 22px; }
+body.inline .trenner { display: inline; }
 
 #stand { display: flex; align-items: center; gap: 16px; font-size: 54px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .teiler { color: rgba(255, 255, 255, .3); font-size: 34px; }
@@ -122,6 +123,21 @@ body.compact #stand { font-size: 44px; }
 body.compact .teiler { font-size: 28px; }
 body.compact.mitLogo .teiler { display: none; }
 body.compact.mitLogo .mitte-logo { display: block; }
+
+/* stacked compact ("eng"): small, narrow, names tight next to the score */
+body.eng #board { min-width: 0; }
+body.eng #reihe { justify-content: center; gap: 16px; padding: 8px 16px 10px; }
+body.eng .seite.a .team { align-items: flex-end; text-align: right; }
+body.eng .seite.a .sp { flex-direction: row; justify-content: flex-end; }
+body.eng .sp { font-size: 16px; line-height: 1.2; gap: 6px; }
+body.eng .flagge { width: 16px; height: 11px; }
+body.eng .tname { font-size: 9px; }
+body.eng #stand { font-size: 38px; gap: 10px; }
+body.eng .teiler { font-size: 24px; }
+body.eng #kopf { font-size: 10px; padding-top: 6px; }
+body.eng #fuss { font-size: 9px; padding-bottom: 7px; }
+body.eng .logo { width: 32px; height: 32px; }
+body.eng .pips i { width: 6px; height: 6px; }
 
 /* sidebar: stacked */
 body.vertical #board { min-width: 300px; }
@@ -199,6 +215,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     farbig: false,
     schrift: 'inter', groesse: 1, ecken: 14,
     vert: 'top', horiz: 'center', rand: 48,
+    // (the configurator now starts new overlays at top-left with 12 px, so the OBS source can be the overlay's own size)
     animation: 'pop',
     muster: 'none', markeLogo: '', markeZeigen: true,
     modus: 'match', ziel: 5, zielZeigen: true, runde: 0, serie1: 0, serie2: 0, serieZeigen: false,
@@ -352,6 +369,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     sp.textContent = '';
     var teamFlagge = flaggenPfad(cfg['flagge' + n]);
     namen.forEach(function (nm, i) {
+      if (i > 0) { var tr = document.createElement('span'); tr.className = 'trenner'; tr.textContent = '·'; sp.appendChild(tr); }
       var z = document.createElement('div');
       z.className = 'sp';
       var f = flaggenPfad(laender[i]) || (i === 0 ? teamFlagge : '');
@@ -389,7 +407,7 @@ body.m-diagonal #board { background-image: repeating-linear-gradient(-45deg, rgb
     var b = document.body;
     var vert = ['top', 'middle', 'bottom'].indexOf(cfg.vert) >= 0 ? cfg.vert : 'top';
     var horiz = ['left', 'center', 'right'].indexOf(cfg.horiz) >= 0 ? cfg.horiz : 'center';
-    var stil = ['bar', 'compact', 'vertical'].indexOf(cfg.stil) >= 0 ? cfg.stil : 'bar';
+    var stil = ['bar', 'compact', 'vertical', 'eng'].indexOf(cfg.stil) >= 0 ? cfg.stil : 'bar';
     var box = cfg.modus === 'boxfight';
     b.className = 'v-' + vert + ' h-' + horiz + ' ' + stil + (cfg.anordnung === 'reihe' ? ' inline' : '')
       + (cfg.farbig ? ' farbig' : '') + (cfg.muster === 'diagonal' ? ' m-diagonal' : '') + (box ? ' boxfight' : '');
