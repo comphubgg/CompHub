@@ -1,0 +1,39 @@
+# Test- und Diagnose-Branches automatisch loeschen (Betreiber, 16.11.2026: "wieso genau muss ich immer wieder solche Sachen loeschen?").
+# Agenten legen fuer Messlaeufe kurz Branches an (diag..., ...-diag, probe..., ...-probe, messen/..., ...-tmp); aus ihrer Umgebung koennen
+# sie Branches nicht loeschen. Dieser Ablauf loescht nur Branches mit genau diesen Namensmustern, deren letzter Commit aelter als 2 Tage ist.
+# main, claude/* und alles andere bleibt unangetastet.
+name: Branches aufraeumen
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aufraeumen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Alte Test-Branches loeschen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          grenze=$(date -u -d '2 days ago' +%s)
+          gh api --paginate "repos/$REPO/branches?per_page=100" -q '.[].name' | while read -r b; do
+            case "$b" in
+              main|claude/*) continue ;;
+            esac
+            if ! echo "$b" | grep -Eq '^(diag|probe|messen|test)([/-]|$)|-(diag|probe|tmp)$|^socials-probe$'; then continue; fi
+            datum=$(gh api "repos/$REPO/commits/$(printf %s "$b" | jq -sRr @uri)" -q '.commit.committer.date' 2>/dev/null || true)
+            [ -z "$datum" ] && continue
+            if [ "$(date -u -d "$datum" +%s)" -lt "$grenze" ]; then
+              echo "loesche $b (letzter Commit $datum)"
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$b" || echo "konnte $b nicht loeschen"
+            else
+              echo "behalte $b (zu neu: $datum)"
+            fi
+          done
