@@ -52,6 +52,9 @@ export async function GET() {
       // Renders 512 MB kommt.
       speicherMb: Math.round(process.memoryUsage().rss / 1048576),
       heapMb: Math.round(process.memoryUsage().heapUsed / 1048576),
+      // Absturzschleife 16.11.2026: rss 5-8 GB bei 1 GB Heap - der Rest liegt ausserhalb (Buffer, native Bibliotheken). Zur Eingrenzung mit ausgegeben.
+      externMb: Math.round(process.memoryUsage().external / 1048576),
+      pufferMb: Math.round(process.memoryUsage().arrayBuffers / 1048576),
       laufzeitMin: Math.round(process.uptime() / 60),
     },
     // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.
