@@ -7,7 +7,7 @@ import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenName } from '@/app/lib/kartenStil';
 import { fortniteKarte } from '@/lib/bildAdressen';
 import type { SolosFenster } from '@/lib/globalsSolos';
-import { NOBLE_BILD_TEXT } from '@/lib/kartenQuelle';
+import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 
 /*
  * Das Karten-Plakat (Betreiber, 26.10.2026, Vorbild: der Beitrag von kxrr zur Grand-Finals-Map): die Insel mit allen Landepunkten, jeder Punkt mit der Flagge des Landes gefuellt und mit den Namen
@@ -15,7 +15,7 @@ import { NOBLE_BILD_TEXT } from '@/lib/kartenQuelle';
  *
  * Ein Landepunkt mit Spielern aus einem Land bekommt dessen Flagge; stehen Spieler aus mehreren Laendern darauf, bleibt er dunkel (rot, wo mehrere Teams landen) - eine
  * gemischte Flagge wuerde falsche Herkunft vortaeuschen. Kein Noble-Logo im Bild: das Kartenbild kommt ohne. Stammen die Landepunkte von Noble, steht unten links
- * "Drop spots: Noble Practice (nobleprac.com)" (Betreiber, 16.11.2026).
+ * das Noble-Wasserzeichen (lib/nobleZeichen, Bedingung von Noble, 16.11.2026).
  */
 
 interface Eintrag { turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string; datum: number | null; saisonKurz?: string }
@@ -131,12 +131,8 @@ export default function KartenPlakat() {
     g.fillStyle = '#38bdf8'; g.fillText('COMP', GROESSE - 44 - 190, 98); g.fillStyle = '#f8fafc'; g.fillText('HUB', GROESSE - 44, 98);
     g.font = '700 24px Figtree, Arial, sans-serif'; g.fillStyle = 'rgba(248,250,252,0.85)';
     g.fillText('thecomphub.com', GROESSE - 44, kopf + GROESSE - 22);
-    // Quelle der Landepunkte unten links, etwas kleiner als die Adresse - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle).
-    if (fenster.kartenQuelle === 'noble' && fenster.formen.length) {
-      g.save(); g.textAlign = 'left'; g.font = '600 21px Figtree, Arial, sans-serif'; g.fillStyle = 'rgba(255,255,255,0.8)';
-      g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6;
-      g.fillText(NOBLE_BILD_TEXT, 44, kopf + GROESSE - 22); g.restore();
-    }
+    // Landepunkte von Noble Practice: das Noble-Wasserzeichen auf der Karte des Plakats (lib/nobleZeichen - Bedingung von Noble, 16.11.2026).
+    if (fenster.kartenQuelle === 'noble' && fenster.formen.length) zeichneNobleZeichen(g, 0, kopf, GROESSE, GROESSE, { schrift: 'Figtree, Arial, sans-serif' });
   }, [fenster, titel]);
 
   useEffect(() => { void zeichnen(); }, [zeichnen]);

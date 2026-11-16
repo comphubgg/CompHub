@@ -9,6 +9,7 @@ import { inselAusPlaylist, brBildFuer } from '@/lib/inseln';
 import { eigeneKarte } from '@/lib/bildAdressen';
 import { heatsDaten } from '@/lib/heatsPosts';
 import { gecacht } from '@/lib/epicCups';
+import { nobleFensterAnzeige } from '@/lib/nobleAnzeige';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -44,6 +45,17 @@ async function leereKarteFuer(windowId: string): Promise<{ url: string; titel: s
   return { url: `${eigeneKarte(bild?.id ?? id)}${bild?.hochgeladen ? `?v=${bild.hochgeladen}` : ''}`, titel: karten.find((k) => k.id === id)?.titel ?? id };
 }
 
+/**
+ * Landepunkte von Noble Practice tragen das Noble-Wasserzeichen (Bedingung von Noble, 16.11.2026). Aeltere Staende - das Archiv
+ * solos-archiv/S42-EU.json vom 2.11., gespeicherte letzte Antworten - kennen das Feld kartenQuelle noch nicht: kommt die Antwort von Noble
+ * (quelle "noble"), wird es an jedem Spieltag mit Formen gesetzt.
+ */
+function mitNobleQuelle<D extends { quelle?: string; fenster?: SolosDaten['fenster'] }>(d: D): D {
+  if (d?.quelle !== 'noble' || !d.fenster) return d;
+  // Dazu die Formen leicht vereinfacht (lib/formVereinfachen - Wunsch von Noble, 16.11.2026); gespeichert bleibt das Original.
+  return { ...d, fenster: d.fenster.map((f) => nobleFensterAnzeige(f.formen?.length && f.kartenQuelle !== 'noble' ? { ...f, kartenQuelle: 'noble' as const } : f)) };
+}
+
 /** Ob eine alte Antwort noch passt: keine Stufe lief seit ihr (oder beginnt in der naechsten halben Stunde) - sonst nur bis drei Minuten. */
 function nichtsGelaufen(wert: SolosDaten | null, alterMs: number): boolean {
   if (alterMs < 3 * 60_000) return true;
@@ -69,13 +81,13 @@ export async function GET(request: Request) {
     try {
       const datei = `solos-archiv/${reihe}-${region}.json`;
       const da = await liesJson<Record<string, unknown> | null>(datei, null).catch(() => null);
-      if (da) return NextResponse.json({ ok: true, archiv: reihe, ...da }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+      if (da) return NextResponse.json({ ok: true, archiv: reihe, ...mitNobleQuelle(da as { quelle?: string; fenster?: SolosDaten['fenster'] }) }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
       const neu = await globalsSolos(region, reihe.slice(1));
       const passt = !!neu && neu.stufen.length > 0 && neu.stufen.every((x) => x.windowId.toUpperCase().startsWith(`${reihe}_`))
         && (!neu.fenster.length || neu.fenster.some((x) => x.windowId.toUpperCase().startsWith(`${reihe}_`)));
       if (!neu || !passt) return NextResponse.json({ ok: false, error: 'Diese Reihe liegt nicht mehr vor.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
       await schreibJson(datei, neu).catch(() => { /* dann beim naechsten Aufruf */ });
-      return NextResponse.json({ ok: true, archiv: reihe, ...neu }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+      return NextResponse.json({ ok: true, archiv: reihe, ...mitNobleQuelle(neu) }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
     } catch (e) {
       return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
     }
@@ -88,11 +100,12 @@ export async function GET(request: Request) {
      * gilt als frisch (die Seite fragt alle zwei Minuten, die Bestenlisten darunter sind zwei Minuten gemerkt); eine aeltere kommt sofort und wird im
      * Hintergrund neu gerechnet - aber nur, wenn seit ihr keine Stufe lief: dann darf sie bis zu einem Tag alt sein, sonst hoechstens drei Minuten.
      */
-    const roh = kurzAnfrage
+    const rohGespeichert = kurzAnfrage
       ? await ueberdauernd(`globals-solos-${region}`, 2 * 60_000, 24 * 3600_000, () => globalsSolos(region))
       : frisch
         ? await globalsSolos(region)
         : await ueberdauernd(`globals-solos-${region}`, 30_000, 24 * 3600_000, () => globalsSolos(region), nichtsGelaufen);
+    const roh = rohGespeichert && mitNobleQuelle(rohGespeichert);
     /*
      * Nur die laufende Reihe (2.11.2026): Epics Stufen waren schon die Solos Reload (Season 43), Spieler, Heats und Karten kamen aber noch von
      * den Battle-Royale-Solos der Season 42 - die Seite stand deshalb als "FNCS · Battle Royale" da, die Startseite zeigte deren Heats. Gehoert

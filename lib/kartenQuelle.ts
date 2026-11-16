@@ -17,11 +17,11 @@
 export type SpotQuelle = 'noble' | 'vital';
 
 /** Der Hinweis auf der Seite (als Link) und im Bild. */
-export const NOBLE_HINWEIS = 'Drop spots: Noble Practice';
-export const NOBLE_BILD_TEXT = 'Drop spots: Noble Practice (nobleprac.com)';
+export const NOBLE_HINWEIS = 'Drop maps by Noble Practice';
+export const NOBLE_BILD_TEXT = 'Drop maps by Noble Practice (nobleprac.com)';
 export const NOBLE_ADRESSE = 'https://nobleprac.com';
 
-interface KartenKopf { region?: string | null; windowId?: string | null; automatisch?: { quelle?: string } | null }
+interface KartenKopf { id?: string; region?: string | null; windowId?: string | null; automatisch?: { quelle?: string } | null }
 interface SpotKopf { id: string; quelle?: string }
 
 const regionVon = (k: KartenKopf) => (k.region || /_([A-Z]{2,4})$/.exec(k.windowId ?? '')?.[1] || '').toUpperCase();
@@ -30,10 +30,14 @@ const regionVon = (k: KartenKopf) => (k.region || /_([A-Z]{2,4})$/.exec(k.window
 export function spotQuelle(k: KartenKopf, sp: SpotKopf): SpotQuelle | undefined {
   if (sp.quelle === 'noble' || sp.quelle === 'vital') return sp.quelle;
   if (sp.quelle) return undefined;
+  // Als Ganzes von Noble uebernommene Karten (Kennung "noble-<windowId>", frueher scripts/karte-speichern): jede Form ohne eigene Quelle ist Nobles.
+  if (k.id?.startsWith('noble-')) return 'noble';
   if (!sp.id.startsWith('noble-')) return undefined;
   const auto = k.automatisch?.quelle;
   if (auto === 'noble' || auto === 'vital') return auto;
-  return regionVon(k) === 'EU' ? 'noble' : 'vital';
+  // Vital fuehrte nur NA Central, NA West, Middle East und Ozeanien - alles andere (Europa, Global Championship ...) kam von Noble (16.11.2026:
+  // die Karte der Global Championship stand vorher faelschlich ohne Noble-Hinweis da).
+  return ['NAC', 'NAW', 'ME', 'OCE'].includes(regionVon(k)) ? 'vital' : 'noble';
 }
 
 /** Die Karte mit der Quelle an jeder Form, die eine hat - so speichert der Editor sie beim naechsten Mal mit. */

@@ -6,6 +6,7 @@ import { tagesplan } from '@/lib/tagesposts';
 import { fokusVon } from '@/lib/fotoFokus';
 import { FARBE, dropMapFuer, type KartenPost } from '@/lib/postKarte';
 import { zonenBild } from '@/lib/zonenBild';
+import { nobleZeichenSvg } from '@/lib/nobleZeichen';
 
 /*
  * Das Bild zu einem Post des Tages (lib/tagesposts): 1600 x 900, im Stil der Seite - dunkler Grund, Blau, Anzeigeschrift.
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
   if (dropWindow) {
     const dm = await dropMapFuer(dropWindow).catch(() => null);
     if (!dm) return new Response('Keine Landepunkte fuer diesen Spieltag', { status: 404 });
-    d = { art: 'karte', titel: (p.get('titel') || dm.titel).slice(0, 80), region: dm.region, karte: dm.karte, zonen: dm.zonen, unter: `Drop map · ${dm.region}` };
+    d = { art: 'karte', titel: (p.get('titel') || dm.titel).slice(0, 80), region: dm.region, karte: dm.karte, zonen: dm.zonen, noble: dm.noble, unter: `Drop map · ${dm.region}` };
   } else {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return new Response('datum fehlt', { status: 400 });
     const plan = await tagesplan(datum, false);
@@ -138,11 +139,18 @@ export async function GET(request: Request) {
       );
     });
     const titel = k.titel.length > 52 ? `${k.titel.slice(0, 51)}…` : k.titel;
+    // Landepunkte von Noble Practice: das Noble-Wasserzeichen (lib/nobleZeichen) als fertiges Bild ueber der Karte, das Schild ueber dem Fussband (Bedingung von Noble, 16.11.2026).
+    // Aeltere gespeicherte Tagesplaene kennen das Feld nicht - deren Karten kamen alle ueber fensterFuer, also von Noble.
+    const nobleZeichen = k.noble !== false
+      ? await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${G}" height="${G}" viewBox="0 0 ${G} ${G}">${nobleZeichenSvg(G, { schildUnten: 96 })}</svg>`)).png().toBuffer()
+        .then((b) => `data:image/png;base64,${b.toString('base64')}`).catch(() => null)
+      : null;
     const kartenBildEl = (
       <div style={{ display: 'flex', position: 'relative', width: G, height: G, background: '#0a2a5a', color: '#fff', fontFamily: 'Figtree, sans-serif', overflow: 'hidden' }}>
         {karte && <img src={karte} width={G} height={G} style={{ position: 'absolute', left: 0, top: 0, width: G, height: G, objectFit: 'cover' }} />}
         <svg width={G} height={G} viewBox={`0 0 ${G} ${G}`} style={{ position: 'absolute', left: 0, top: 0 }}>{flaechen}</svg>
         {namen}
+        {nobleZeichen && <img src={nobleZeichen} width={G} height={G} style={{ position: 'absolute', left: 0, top: 0, width: G, height: G }} />}
         <div style={{ position: 'absolute', left: 0, top: 0, width: G, height: 118, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 34px', background: 'linear-gradient(180deg, rgba(6,24,56,0.95) 0%, rgba(6,24,56,0.75) 70%, rgba(6,24,56,0) 100%)' }}>
           <div style={{ display: 'flex', fontFamily: familie, fontSize: 40, fontWeight: 800, lineHeight: 1.05 }}>{titel}</div>
           <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, color: '#7dd3fc', letterSpacing: 3, marginTop: 6, textTransform: 'uppercase' }}>{k.unter ?? `Where the teams dropped · ${k.region}`}</div>

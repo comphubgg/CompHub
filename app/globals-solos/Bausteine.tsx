@@ -14,7 +14,8 @@ import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { useZugang } from '@/app/lib/zugang';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { MARKE } from '@/lib/marke';
-import { NOBLE_ADRESSE, NOBLE_BILD_TEXT, NOBLE_HINWEIS } from '@/lib/kartenQuelle';
+import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 /*
@@ -496,12 +497,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
       g.save(); g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = `600 ${Math.round(G * 0.016)}px Segoe UI, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'bottom';
       g.fillText('thecomphub.com', G - rand, G - Math.round(rand * 0.5)); g.restore();
     }
-    // Quelle der Landepunkte nennen (Betreiber, 15.11.2026).
-    if (f.kartenQuelle === 'noble' && f.formen.length) {
-      const rand = Math.round(G * 0.022);
-      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(G * 0.014)}px Segoe UI, system-ui, sans-serif`; g.textAlign = 'left'; g.textBaseline = 'bottom';
-      g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6; g.fillText(NOBLE_BILD_TEXT, rand, G - Math.round(rand * 0.5)); g.restore();
-    }
+    // Landepunkte von Noble Practice: das Noble-Wasserzeichen auf dem Bild (lib/nobleZeichen - Bedingung von Noble, 16.11.2026).
+    if (f.kartenQuelle === 'noble' && f.formen.length) zeichneNobleZeichen(g, 0, 0, G, G);
     try {
       const wie = await speichereLeinwand(c, `${(f.name || 'karte').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`);
       setKopiert(wie === 'kopiert' ? t('Bild kopiert') : t('Bild gespeichert'));
@@ -660,12 +657,11 @@ export function Karte({ f, bild, rotAb = 2 }: {
           * "wie bei Noble", "mein Logo ganz rechts am Rand"). Beides zoomt nicht mit.
           */}
         <div className="pointer-events-none absolute inset-0 z-20"><KartenWasserzeichen dicht /></div>
-        {f.kartenQuelle === 'noble' && f.formen.length > 0 && (
-          <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
-            className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
-            {NOBLE_HINWEIS} ↗
-          </a>
-        )}
+        {/* Landepunkte von Noble Practice: Wasserzeichen auf der Karte und der Hinweis mit Link (Bedingung von Noble, 16.11.2026). */}
+        {f.kartenQuelle === 'noble' && f.formen.length > 0 && (<>
+          <NobleWasserzeichen schildUnten={voll ? '4.5rem' : '3.75rem'} />
+          <NobleHinweis />
+        </>)}
         <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />

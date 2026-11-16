@@ -27,7 +27,10 @@ import {
 } from '@/app/lib/kartenStil';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
-import { hatNobleFormen, NOBLE_ADRESSE, NOBLE_BILD_TEXT, NOBLE_HINWEIS } from '@/lib/kartenQuelle';
+import { hatNobleFormen } from '@/lib/kartenQuelle';
+import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 type Form = 'rechteck' | 'polygon';
@@ -421,6 +424,13 @@ export default function KartenSeite(
      im Zustand steht der deutsche Quelltext, angezeigt wird die
      Fassung der gewaehlten Sprache. */
   const [spots, setSpots] = useState<Spot[]>([]);
+  /*
+   * Was gezeichnet wird: Noble-Formen leicht vereinfacht (lib/formVereinfachen - Wunsch von Noble Practice, 16.11.2026), alle anderen wie sie
+   * sind. Bearbeitet und gespeichert werden immer die Originale (spots); die gerade gewaehlte Form zeigt der Bauende im Original, damit die
+   * Ziehpunkte auf ihrem Rand liegen.
+   */
+  const anzeigeSpots = useMemo(() => nobleSpotsAnzeige(spots, (s) => s.quelle === 'noble')
+    .map((s, i) => (s === spots[i] ? s : { ...s, form: 'polygon' as const })), [spots]);
   const [teams, setTeams] = useState<KartenTeam[]>([]);
   const [gesperrt, setGesperrt] = useState(false);
 
@@ -3065,7 +3075,7 @@ ${name}
     const familie = kartenSchrift.style.fontFamily;
     try { await document.fonts.load(`600 40px ${familie}`); } catch { /* dann Ersatz */ }
 
-    for (const s of spots) {
+    for (const s of anzeigeSpots) {
       const f = spotFarbe(s);
       g.beginPath();
       s.punkte.forEach((p, i) => {
@@ -3236,13 +3246,8 @@ ${name}
       g.restore();
     }
 
-    // Quelle der Landepunkte nennen, unten links - wie auf /globals-solos (Betreiber, 16.11.2026). Nur Noble, nie Vital (lib/kartenQuelle).
-    if (hatNobleFormen(spots)) {
-      const rand = Math.round(G * 0.022);
-      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(G * 0.014)}px Segoe UI, system-ui, sans-serif`;
-      g.textAlign = 'left'; g.textBaseline = 'bottom'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6;
-      g.fillText(NOBLE_BILD_TEXT, rand, G - Math.round(rand * 0.5)); g.restore();
-    }
+    // Landepunkte von Noble Practice: das Noble-Wasserzeichen auf dem Bild (lib/nobleZeichen - Bedingung von Noble, 16.11.2026). Nur Noble, nie Vital.
+    if (hatNobleFormen(spots)) zeichneNobleZeichen(g, 0, 0, G, G);
 
     let wie: 'kopiert' | 'gespeichert';
     try {
@@ -3521,10 +3526,13 @@ ${name}
         * Formen - so verdeckt es nichts und laesst sich nicht wegschneiden.
         */}
       <KartenWasserzeichen />
+      {/* Landepunkte von Noble Practice: Noble-Wasserzeichen auf der Karte (Bedingung von Noble, 16.11.2026). */}
+      {hatNobleFormen(spots) && <NobleWasserzeichen />}
 
       <svg viewBox="0 0 100 100" preserveAspectRatio="none"
         className="pointer-events-none absolute inset-0 h-full w-full">
-        {spots.map((s) => {
+        {anzeigeSpots.map((a, i) => {
+          const s = darfBauen && gewaehlt === a.id ? spots[i] : a;
           const f = spotFarbe(s);
           // Randstaerke, Hover und Schein kommen aus globals.css (.karten-form).
           return (
@@ -3590,7 +3598,8 @@ ${name}
         * Bei schraegen Formen rueckt jede Zeile in die Spanne, die die Form
         * auf ihrer Hoehe wirklich hat.
         */}
-      {spots.map((s) => {
+      {anzeigeSpots.map((a, i) => {
+        const s = darfBauen && gewaehlt === a.id ? spots[i] : a;
         const belegt = s.teams.map((id) => teams.find((t) => t.id === id))
           .filter(Boolean) as KartenTeam[];
         if (!belegt.length && !s.name) return null;
@@ -3660,13 +3669,7 @@ ${name}
       </div>{/* Ende der Zoom-Ebene - die Leiste unten bleibt an ihrem Platz */}
 
       {/* Quelle der Landepunkte, oben links und ohne Zoom - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-      {hatNobleFormen(spots) && (
-        <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
-          onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
-          className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
-          {NOBLE_HINWEIS} ↗
-        </a>
-      )}
+      {hatNobleFormen(spots) && <NobleHinweis />}
 
       {/* Die Werkzeugleiste: im Breitbild liegt sie ganz rechts am Rand des Fensters (siehe unten), sonst am rechten Rand der Karte. */}
       {!vollbild && werkzeugleiste('absolute right-2 top-2 z-30 flex flex-col gap-1.5')}

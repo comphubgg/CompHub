@@ -30,7 +30,10 @@ import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
 import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
-import { NOBLE_BILD_TEXT, zeigtNoble } from '@/lib/kartenQuelle';
+import { spotQuelle, zeigtNoble } from '@/lib/kartenQuelle';
+import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
+import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
 import { gruppenName } from '@/lib/fensterName';
 import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
@@ -571,6 +574,12 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
    */
   const [formenAn, setFormenAn] = useState(false);
   const [gewaehlteForm, setGewaehlteForm] = useState<string | null>(null);
+  /*
+   * Was gezeichnet wird: Noble-Formen leicht vereinfacht (lib/formVereinfachen - Wunsch von Noble Practice, 16.11.2026). Bearbeitet und
+   * gespeichert werden die Originale (spots); die gerade gewaehlte Form steht beim Bearbeiten im Original da.
+   */
+  const anzeigeSpots = useMemo(() => nobleSpotsAnzeige(spots, (sp) => spotQuelle({ region: ziel?.region, windowId: ziel?.windowId }, sp) === 'noble'),
+    [spots, ziel?.region, ziel?.windowId]);
   const [formenStand, setFormenStand] = useState('');
   /** Welches Zeichenwerkzeug liegt an? */
   const [werkzeug, setWerkzeug] = useState<'rechteck' | 'polygon' | null>(null);
@@ -1005,7 +1014,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
    */
   const einheitsGroesse = useMemo(() => {
     const werte: number[] = [];
-    for (const sp of spots) {
+    for (const sp of anzeigeSpots) {
       const keys = aufSpot[sp.id] ?? [];
       const r = rahmen(sp.punkte);
       const anzahl = keys.length || 1;
@@ -1022,7 +1031,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     if (!werte.length) return 1.2;
     werte.sort((a, b) => a - b);
     return Math.max(1.1, Math.min(werte[Math.floor(werte.length / 3)], 2.0));
-  }, [spots, aufSpot, zeilenFuer]);
+  }, [anzeigeSpots, aufSpot, zeilenFuer]);
 
   /**
    * Karte und Rangliste als ein Bild.
@@ -1092,7 +1101,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     const zuX = (x: number) => RAND + (x / 100) * KARTE;
     const zuY = (y: number) => RAND + (y / 100) * KARTE;
 
-    for (const sp of spots) {
+    for (const sp of anzeigeSpots) {
       const keys = aufSpot[sp.id] ?? [];
       g.beginPath();
       sp.punkte.forEach((p, i) => {
@@ -1239,13 +1248,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       logo.src = '/logos/CompHub-Logo-frei.png';
     });
 
-    // Quelle der Landepunkte unten links in der Karte - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle).
-    if (zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots)) {
-      const rand = Math.round(KARTE * 0.022);
-      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(KARTE * 0.014)}px Segoe UI, system-ui, sans-serif`;
-      g.textAlign = 'left'; g.textBaseline = 'bottom'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6;
-      g.fillText(NOBLE_BILD_TEXT, RAND + rand, RAND + KARTE - Math.round(rand * 0.5)); g.restore();
-    }
+    // Landepunkte von Noble Practice: das Noble-Wasserzeichen auf der Karte im Bild (lib/nobleZeichen - Bedingung von Noble, 16.11.2026). Nur Noble, nie Vital.
+    if (zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots)) zeichneNobleZeichen(g, RAND, RAND, KARTE, KARTE);
 
     try {
       await speichereLeinwand(
@@ -2696,11 +2700,14 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
               {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
+              {/* Landepunkte von Noble Practice: Noble-Wasserzeichen und Hinweis (Bedingung von Noble, 16.11.2026). */}
+              {zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots) && (<><NobleWasserzeichen /><NobleHinweis /></>)}
 
               <svg viewBox="0 0 100 100" preserveAspectRatio="none"
                 className={`absolute inset-0 h-full w-full ${formenAn
                   ? '' : 'pointer-events-none'}`}>
-                {spots.map((sp) => {
+                {anzeigeSpots.map((a, ai) => {
+                  const sp = formenAn && gewaehlteForm === a.id ? spots[ai] : a;
                   const belegt = (aufSpot[sp.id] ?? []).length;
                   const dran = formenAn && gewaehlteForm === sp.id;
                   // Farben wie beim Vorbild (app/lib/kartenStil); Randstaerke,
@@ -2772,7 +2779,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 * Zoomen auf dem Bildschirm gleich gross, ohne dass die Karte
                 * neu gezeichnet werden muss.
                 */}
-              {spots.map((sp) => {
+              {anzeigeSpots.map((a, ai) => {
+                const sp = formenAn && gewaehlteForm === a.id ? spots[ai] : a;
                 const keys = aufSpot[sp.id] ?? [];
                 if (!keys.length) return null;
                 const r = rahmen(sp.punkte);

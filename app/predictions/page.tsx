@@ -27,7 +27,9 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
-import { NOBLE_ADRESSE, NOBLE_HINWEIS, zeigtNoble } from '@/lib/kartenQuelle';
+import { spotQuelle, zeigtNoble } from '@/lib/kartenQuelle';
+import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
 import { eigeneKarte } from '@/lib/bildAdressen';
 import { regionVonLaendern } from '@/lib/landRegion';
 import Tippen from './Tippen';
@@ -291,7 +293,12 @@ function BetreiberPrognose() {
     }
     return [];
   }, [prognose]);
-  const karte = karten[Math.min(kartenNr, Math.max(0, karten.length - 1))] ?? null;
+  const karteRoh = karten[Math.min(kartenNr, Math.max(0, karten.length - 1))] ?? null;
+  // Noble-Formen leicht vereinfacht anzeigen (lib/formVereinfachen - Wunsch von Noble, 16.11.2026); andere bleiben, gespeichert bleibt das Original.
+  const kartenRegion = prognose?.quellen?.[0]?.region;
+  const karte = useMemo(() => (karteRoh
+    ? { ...karteRoh, spots: nobleSpotsAnzeige(karteRoh.spots, (sp) => spotQuelle({ region: kartenRegion }, sp) === 'noble') }
+    : null), [karteRoh, kartenRegion]);
 
   /* ------------------------------------------------------ Add a Duo */
 
@@ -576,6 +583,8 @@ function BetreiberPrognose() {
                     <img alt={t('Karte')} draggable={false} className="absolute inset-0 h-full w-full object-cover"
                       src={eigeneKarte(karte.bildId)} />
                     <KartenWasserzeichen />
+                    {/* Landepunkte von Noble Practice: Noble-Wasserzeichen auf der Karte (Bedingung von Noble, 16.11.2026). */}
+                    {zeigtNoble({ region: prognose?.quellen?.[0]?.region }, karte.spots) && <NobleWasserzeichen />}
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
                       {karte.spots.map((sp) => {
                         const belegt = (karte.aufSpot[sp.id] ?? []).length;
@@ -627,12 +636,7 @@ function BetreiberPrognose() {
                       );
                     })}
                     {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-                    {zeigtNoble({ region: prognose?.quellen?.[0]?.region }, karte.spots) && (
-                      <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
-                        className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
-                        {NOBLE_HINWEIS} ↗
-                      </a>
-                    )}
+                    {zeigtNoble({ region: prognose?.quellen?.[0]?.region }, karte.spots) && <NobleHinweis />}
                   </div>
                 )}
               </div>

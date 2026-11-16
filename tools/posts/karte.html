@@ -6,6 +6,8 @@
 <script src="karte-daten.js" onerror="window.KARTE=null"></script>
 <script>
 const K=window.KARTE||{formen:[]}, G=1400;
+// Angezeigt werden die vereinfachten Formen (anzeige, von scripts/noble-karte-daten.mjs), nie die Originale 1:1.
+for(const f of K.formen||[])if(Array.isArray(f.anzeige)&&f.anzeige.length>=3)f.punkte=f.anzeige;
 function rahmen(p){const xs=p.map(q=>q.x),ys=p.map(q=>q.y);const links=Math.min(...xs),oben=Math.min(...ys);return{links,oben,breite:Math.max(...xs)-links,hoehe:Math.max(...ys)-oben};}
 function spanneBei(punkte,y){const s=[];for(let i=0,j=punkte.length-1;i<punkte.length;j=i++){const a=punkte[i],b=punkte[j];if((a.y>y)===(b.y>y))continue;s.push(a.x+((y-a.y)/(b.y-a.y))*(b.x-a.x));}if(s.length<2)return null;const l=Math.min(...s),r=Math.max(...s);return{mitte:(l+r)/2,breite:r-l};}
 function schriftgroesse(breite,hoehe,zeichen){const nachHoehe=hoehe*0.7;const nachBreite=(breite*0.96)/Math.max(zeichen*0.62,1);return Math.max(0.6,Math.min(nachHoehe,nachBreite,3.2));}
@@ -45,6 +47,10 @@ const lade=src=>new Promise(ok=>{const b=new Image();b.onload=()=>ok(b);b.onerro
  const logo=await lade('../../public/logos/CompHub-Logo-frei.png');
  if(logo&&logo.naturalWidth){const br=Math.round(G*0.155),ho=Math.round(br*(logo.naturalHeight/logo.naturalWidth)),rand=Math.round(G*0.022);g.save();g.shadowColor='rgba(0,0,0,0.55)';g.shadowBlur=12;g.globalAlpha=0.95;g.drawImage(logo,G-rand-br,G-rand-ho,br,ho);g.restore();
   g.save();g.shadowColor='rgba(0,0,0,0.6)';g.shadowBlur=8;g.fillStyle='rgba(255,255,255,0.85)';const ap=Math.round(G*0.019);g.font=`600 ${ap}px Segoe UI, system-ui, sans-serif`;g.textAlign='right';g.textBaseline='bottom';g.fillText('thecomphub.com',G-rand,G-Math.round(rand*0.35));g.restore();}
+ // Kleines Noble-Zeichen unten links (Geste an Noble Practice, 16.11.2026; wie lib/nobleZeichen). Die Formen kommen vereinfacht (anzeige, lib/formVereinfachen).
+ {const fs=Math.round(G*0.013),rand=Math.round(G*0.022);g.save();g.font=`800 ${fs}px Segoe UI, system-ui, sans-serif`;const w1=g.measureText('NOBLE PRACTICE').width;g.font=`600 ${fs}px Segoe UI, system-ui, sans-serif`;const w2=g.measureText(' · nobleprac.com').width;
+  const pad=fs*0.6,hb=fs*1.9,bb=w1+w2+pad*2,bx=rand,by=G-rand-hb;g.fillStyle='rgba(5,8,14,0.6)';g.beginPath();g.roundRect(bx,by,bb,hb,hb*0.3);g.fill();g.textBaseline='middle';g.textAlign='left';
+  g.font=`800 ${fs}px Segoe UI, system-ui, sans-serif`;g.fillStyle='#fff';g.fillText('NOBLE PRACTICE',bx+pad,by+hb/2);g.font=`600 ${fs}px Segoe UI, system-ui, sans-serif`;g.fillStyle='rgba(255,255,255,0.8)';g.fillText(' · nobleprac.com',bx+pad+w1,by+hb/2);g.restore();}
  document.body.dataset.fertig='1';
 })();
 </script></body></html>

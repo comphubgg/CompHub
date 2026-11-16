@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
+import { nobleZeichenSvg } from '@/lib/nobleZeichen';
+import { nobleFensterAnzeige } from '@/lib/nobleAnzeige'; // Noble-Formen leicht vereinfacht (Wunsch von Noble, 16.11.2026)
 import { fensterFuer } from '@/lib/globalsSolos';
 import { ALT } from '@/lib/alteMaps';
 
@@ -20,7 +22,7 @@ import { ALT } from '@/lib/alteMaps';
 export interface KartenZone { punkte: Array<{ x: number; y: number }>; namen: string[]; land: string | null; anzahl: number }
 export interface KartenPost {
   schluessel: string; titel: string; text: string;
-  bild: { art: 'karte'; titel: string; region: string; karte: string | null; zonen: KartenZone[]; unter?: string };
+  bild: { art: 'karte'; titel: string; region: string; karte: string | null; zonen: KartenZone[]; unter?: string; /** Landepunkte von Noble Practice: Noble-Wasserzeichen ins Bild (lib/nobleZeichen). */ noble?: boolean };
 }
 
 const SEITE = 'https://www.thecomphub.com';
@@ -80,7 +82,7 @@ export async function kartenKandidaten(): Promise<KartenPost[]> {
       try {
         const r = await fensterFuer(e.turnierId, e.region, e.windowId);
         if (!r || r.fenster.formen.length < 6) continue;
-        const z = zonen(r.fenster);
+        const z = zonen(nobleFensterAnzeige(r.fenster));
         const ecken = z.filter((x) => x.land).sort((a, b) => b.anzahl - a.anzahl);
         // Manche Eintraege tragen nur "Fortnite" als Titel (Performance Cups): dann Cup und Spieltag, mit dem Datum, damit zwei Wochen nicht gleich heissen.
         const roh = e.titel.replace(/\s*·\s*/g, ' - ');
@@ -93,7 +95,7 @@ export async function kartenKandidaten(): Promise<KartenPost[]> {
         raus.push({
           schluessel: `karte:${e.windowId}`, titel: `Karte: ${titel}`,
           text: `Where the teams dropped at ${titel}.${aufgezaehlt.length ? `\n\n${aufgezaehlt.join('\n')}` : ''}\n\nEvery landing spot, every team: ${SEITE}/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`,
-          bild: { art: 'karte', titel, region: e.region, karte: r.fenster.bild ?? null, zonen: z },
+          bild: { art: 'karte', titel, region: e.region, karte: r.fenster.bild ?? null, zonen: z, noble: r.fenster.kartenQuelle === 'noble' },
         });
       } catch { /* ohne Landepunkte faellt dieser Cup weg */ }
     }
@@ -106,13 +108,13 @@ export async function kartenKandidaten(): Promise<KartenPost[]> {
  * passendem Titel" - wie "EU RELOAD FNCS HEAT 2 DROP MAP"). Anders als kartenKandidaten ohne Zeitfenster: auch vor und waehrend des Spieltags, sobald
  * Noble die Landepunkte kennt. Dazu die Spieler mit Konto-ID, damit der Tweet-Baukasten die bekannten als Key Players nennen kann.
  */
-export async function dropMapFuer(windowId: string): Promise<{ titel: string; region: string; karte: string | null; zonen: KartenZone[]; spieler: Array<{ id: string; anzeige: string; land: string | null }>; link: string } | null> {
+export async function dropMapFuer(windowId: string): Promise<{ titel: string; region: string; karte: string | null; zonen: KartenZone[]; noble: boolean; spieler: Array<{ id: string; anzeige: string; land: string | null }>; link: string } | null> {
   const e = (await mapsVerzeichnis()).find((x) => x.windowId === windowId);
   if (!e) return null;
   const r = await fensterFuer(e.turnierId, e.region, e.windowId);
   if (!r || !r.fenster.formen.length) return null;
   return {
-    titel: e.titel.replace(/\s*·\s*/g, ' - '), region: e.region, karte: r.fenster.bild ?? null, zonen: zonen(r.fenster),
+    titel: e.titel.replace(/\s*·\s*/g, ' - '), region: e.region, karte: r.fenster.bild ?? null, zonen: zonen(nobleFensterAnzeige(r.fenster)), noble: r.fenster.kartenQuelle === 'noble',
     spieler: r.fenster.spieler.map((x) => ({ id: x.id, anzeige: x.anzeige, land: x.land })),
     link: `${SEITE}/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`,
   };
@@ -164,6 +166,8 @@ export async function kartenBild(d: KartenPost['bild'], ursprung: string): Promi
     });
     if (z.land && breite > 70) teile.push(`<rect x="${x0 + 6}" y="${y0 + 6}" width="46" height="26" rx="7" fill="#05080e" fill-opacity="0.85"/><text x="${x0 + 29}" y="${y0 + 19.5}" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="15" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${esc(z.land)}</text>`);
   }
+  // Landepunkte von Noble Practice: das Noble-Wasserzeichen auf der Karte, das Schild ueber dem Fussband (Bedingung von Noble, 16.11.2026).
+  if (d.noble !== false) teile.push(nobleZeichenSvg(G, { schildUnten: 74 })); // ohne Feld (aeltere Plaene): Karten kamen nur ueber fensterFuer = Noble
   // Kopfband und Fuss
   teile.push(`<rect x="0" y="0" width="${G}" height="86" fill="#05080e" fill-opacity="0.82"/>`);
   teile.push(`<text x="32" y="38" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="32" fill="#ffffff">${esc(d.titel.length > 46 ? `${d.titel.slice(0, 45)}…` : d.titel)}</text>`);

@@ -16,7 +16,9 @@ import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
-import { hatNobleFormen, NOBLE_ADRESSE, NOBLE_HINWEIS } from '@/lib/kartenQuelle';
+import { hatNobleFormen } from '@/lib/kartenQuelle';
+import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
+import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
 
 /*
  * Eine Form der Turnierkarte.
@@ -113,7 +115,8 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
 }) {
   const t = useT();
   const teams = useMemo(() => new Map((karte.teams ?? []).map((x) => [x.id, x])), [karte.teams]);
-  const spots = useMemo(() => karte.spots ?? [], [karte.spots]);
+  // Noble-Formen leicht vereinfacht anzeigen (lib/formVereinfachen - Wunsch von Noble, 16.11.2026); andere bleiben.
+  const spots = useMemo(() => nobleSpotsAnzeige(karte.spots ?? [], (sp) => sp.quelle === 'noble'), [karte.spots]);
 
   const flaeche = useRef<HTMLDivElement | null>(null);
   const ebene = useRef<HTMLDivElement | null>(null);
@@ -347,6 +350,8 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
 
         {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
+        {/* Landepunkte von Noble Practice: Noble-Wasserzeichen auf der Karte (Bedingung von Noble, 16.11.2026). */}
+        {hatNobleFormen(spots) && <NobleWasserzeichen />}
 
         <svg viewBox="0 0 100 100" preserveAspectRatio="none"
           className="pointer-events-none absolute inset-0 h-full w-full">
@@ -413,13 +418,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
       )}
 
       {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-      {hatNobleFormen(spots) && (
-        <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
-          onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
-          className={`${vollbild ? 'fixed left-4 top-4' : 'absolute left-2 top-2'} z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90`}>
-          {NOBLE_HINWEIS} ↗
-        </a>
-      )}
+      {hatNobleFormen(spots) && <NobleHinweis className={vollbild ? 'fixed left-4 top-4' : 'absolute left-2 top-2'} />}
 
       {/* Das Vollbild-Quadrat - gleich gebaut wie bei den Predictions. */}
       <button type="button" onMouseDown={(e) => e.stopPropagation()}

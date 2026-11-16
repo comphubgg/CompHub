@@ -10,6 +10,7 @@ import { eigeneKarte, fortniteKarte } from '@/lib/bildAdressen';
 import { kartenName } from '@/app/lib/kartenStil';
 import type { SolosFenster } from '@/lib/globalsSolos';
 import { hatNobleFormen } from '@/lib/kartenQuelle';
+import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
 
 /*
  * Die Turnierkarte gleich auf der Event-Seite (Betreiber, 26.10.2026: "dass man auf die Map so extra klicken muss, gefaellt mir nicht").
@@ -65,8 +66,8 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
   const fenster = useMemo<SolosFenster | null>(() => {
     if (!aktuell || !s?.spots) return null;
     const team = new Map((s.teams ?? []).map((x) => [x.id, x]));
-    const formen = s.spots
-      .filter((sp) => (sp.punkte?.length ?? 0) >= 3)
+    // Noble-Formen leicht vereinfacht anzeigen (lib/formVereinfachen - Wunsch von Noble, 16.11.2026); andere bleiben, wie sie sind.
+    const formen = nobleSpotsAnzeige(s.spots.filter((sp) => (sp.punkte?.length ?? 0) >= 3), (sp) => sp.quelle === 'noble')
       .map((sp) => {
         const gruppen = (sp.teams ?? []).map((id) => team.get(id)?.spieler ?? []).filter((g) => g.length);
         return { punkte: sp.punkte, spieler: gruppen.flat(), teams: gruppen.length, gruppen };

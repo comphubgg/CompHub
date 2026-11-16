@@ -8,6 +8,7 @@ import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
 import { ALT, alteFenster, inselFuer, mitHandEbene } from '@/lib/alteMaps';
 import { fncsPlatzierungen } from '@/lib/fncsEreignisse';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import { nobleFensterAnzeige } from '@/lib/nobleAnzeige';
 
 /** Das Verzeichnis aus dem gespeicherten Stand (wie /api/maps-liste) - frisch gebaut braucht es nach einem Neustart ueber 20 s. */
 async function verzeichnis() {
@@ -102,9 +103,14 @@ export async function GET(request: Request) {
     // Nennt Noble fuer das Fenster nur die allgemeine, immer aktuelle Spielkarte (fortnite-api.com), steht dort bei einem alten Event die falsche
     // Insel (Global Championship 2025 zeigte die Insel von heute): dann gilt die Insel der Saison des Events.
     if (e && (!f.fenster.bild || f.fenster.bild.includes('fortnite-api.com/images/map'))) f.fenster.bild = inselFuer(e.saison);
+    // Landepunkte von Noble Practice (alles ausser den Vital-Regionen): die Ansicht setzt darauf das Noble-Wasserzeichen (Bedingung von Noble,
+    // 16.11.2026) - auch fuer Staende auf der Platte von vor dem 15.11., die das Feld noch nicht kannten.
+    if (!istVitalRegion(r) && f.fenster.formen.length) f.fenster.kartenQuelle = 'noble';
     // Formen und Teams, die der Admin selbst eingetragen hat (wo Noble keine fuehrt), gelten vor Nobles.
     // Antwortet die Ablage nicht, bleibt es bei Nobles Karte - sie faellt nicht aus.
     if (e) f.fenster = await mitHandEbene(e, f.fenster).catch(() => f.fenster);
+    // Noble-Formen leicht vereinfacht anzeigen (lib/formVereinfachen - Wunsch von Noble, 16.11.2026); eigene Formen des Admins bleiben.
+    f.fenster = nobleFensterAnzeige(f.fenster);
     return NextResponse.json({ ok: true, ...f, tage: (e?.tage ?? []).map((d) => ({ name: d.name, windowId: d.windowId })), platzierungen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
