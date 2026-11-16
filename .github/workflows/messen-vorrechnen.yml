@@ -66,10 +66,21 @@ jobs:
             npx next start -p 3000 >> /tmp/server.log 2>&1 &
           for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
           ( while sleep 30; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB"; done ) &
-          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S42'; do
-            S=$(date +%s.%N); curl -s -o /dev/null -w "%{http_code} %{size_download}B" -m 900 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S42' 'ansicht=start&saison=S43'; do
+            S=$(date +%s.%N); curl -s -o /tmp/a1.json -w "%{http_code} %{size_download}B" -m 900 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            cp /tmp/a1.json "/tmp/erst-$(echo $q | tr '&=' '__').json"
           done
-          pkill -TERM -f next-server; sleep 30; pkill -9 -f next-server; sleep 2
+          pkill -TERM -f next-server; sleep 20; pkill -9 -f next-server; sleep 2
+          ls data/_vorrechnen-stand/aggregat/S42 | wc -l; du -sh data/_vorrechnen-stand; ls -la data/antworten/replays_saison_S4* 2>&1
+          echo "=== zweiter frischer Server, neuer Laufbeginn: Startansicht neu, Saison-Sammlung aus Ablage/Auszug"
+          export LAUF_BEGINN=$(date +%s)
+          NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs" npx next start -p 3000 >> /tmp/server2.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
+          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S42' 'ansicht=start&saison=S43'; do
+            S=$(date +%s.%N); curl -s -o /tmp/a2.json -w "%{http_code} %{size_download}B" -m 900 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            node -e "const a=require('/tmp/erst-$(echo $q | tr '&=' '__').json'),b=require('/tmp/a2.json');const o=(x)=>JSON.stringify({l:x.listen,g:x.grundlage,c:x.clutch&&x.clutch.gesamt});console.log('    Listen/Grundlage gleich wie erster Server:',o(a)===o(b))"
+          done
+          grep '\[GROSS\]' /tmp/server2.log | grep -c replays/ || true
           echo "=== grosse Lesevorgaenge"; grep -c '\[GROSS\]' /tmp/server.log
           grep '\[GROSS\]' /tmp/server.log | awk '{print $5}' | sed -E 's#/[^/]*$##' | sort | uniq -c | sort -rn | head -20
           grep '\[GROSS\]' /tmp/server.log | awk '{print $4}' | sort | uniq -c
