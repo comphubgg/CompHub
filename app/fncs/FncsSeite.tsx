@@ -22,7 +22,6 @@ import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
-import FncsLeader from './FncsLeader';
 import { kleinBild } from '@/app/components/kleinBild';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
@@ -336,7 +335,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
 }) {
   const t = useT();
   const ort = ortVon(useSprache().sprache);
-  const [tab, setTab] = useAdressWert<'events' | 'alltime' | 'leaders'>('reiter', 'events', ['events', 'alltime', 'leaders']);
+  const [tab, setTab] = useAdressWert<'events' | 'alltime'>('reiter', 'events', ['events', 'alltime']);
   const [liste, setListe] = useState<FncsEreignis[] | null>(anfangListe);
   const [fehler, setFehler] = useState(false);
   const [filter, setFilter] = useAdressWert<'alle' | 'lan' | 'online'>('art', 'alle', ['alle', 'lan', 'online']);
@@ -412,8 +411,6 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
           <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-zinc-950 p-1">
             <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
             <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats</button>
-            {/* Tournament Leaders je FNCS-Spieltag, auch vergangene (Betreiber, 15.11.2026). */}
-            <button type="button" onClick={() => setTab('leaders')} className={reiter(tab === 'leaders')}>Leaders</button>
             {/* FNCS Solos: eine eigene Seite fuer alle Regionen (Heats, Last Chance, Finale, Karte). */}
             <Link href="/globals-solos" className={reiter(false)}>Solos</Link>
           </div>
@@ -421,7 +418,6 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
       </div>
 
       <div className="mx-auto max-w-[1500px] px-4 py-8">
-        {tab === 'leaders' && <FncsLeader />}
         {tab === 'events' && (
           <>
             <style>{`@keyframes fncs-rein { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }

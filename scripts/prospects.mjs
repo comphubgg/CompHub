@@ -130,7 +130,7 @@ function note(i, platz) {
 /* ---------------------------------------------------- Replays je Spieltag */
 
 // Je gelesenem Spieltag (data/clutch, nicht "teilweise"): je Konto Perzentil von Schaden je Spiel und Schadensquote im Feld - nur wer mindestens die Haelfte
-// der meisten Spiele hat (wie die Tournament Leaders).
+// der meisten Spiele hat.
 const replay = new Map();
 {
   const ordner = path.join(DATEN, 'clutch');

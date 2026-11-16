@@ -5284,8 +5284,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Solo Stats bei einem Solo-Cup, sonst Team Stats - wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
-        {/* Tournament Leaders stehen nur auf /globals-solos und /fncs, nicht unter Events (Betreiber, 15.11.2026). */}
-        {/* Auch Event MVP und Countries nicht unter Events (Betreiber, 16.11.2026: "Das soll immer noch nicht unter die Events-Tab") - nur auf /globals-solos und /fncs. */}
         {/* Kommt man ueber den Stats-Knopf, steht der Spieler oben - bei Solo-Cups lag er sonst unter der ganzen Uebersicht (Betreiber, 7.11.2026). */}
         {reiter === 'teams' && lbFenster && soloCup && !!detailStart && (
           <div className="mb-4">

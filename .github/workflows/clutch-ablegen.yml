@@ -137,10 +137,3 @@ jobs:
         run: |
           node scripts/clutch-teile-holen.mjs --ziel data/clutch-teil --marke-schreiben
           node scripts/ablage-github.mjs --nur clutch/_teile-abgelegt.json 2>&1 | tail -3
-
-      # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
-      - name: Leaders vorwaermen
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        timeout-minutes: 6
-        run: node scripts/leader-vorwaermen.mjs https://www.thecomphub.com --tage 3 2>&1 | tail -25

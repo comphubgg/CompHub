@@ -17,7 +17,6 @@
 //
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
-import TurnierLeader from '@/app/components/TurnierLeader';
 import Konstanz from './Konstanz';
 import Prospects from './Prospects';
 import MerkStern from '@/app/components/MerkStern';
@@ -4550,17 +4549,6 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
-              {/* Event MVP und Tournament Leaders des juengsten Turniers (Betreiber, 15.11.2026) - dieselbe Ansicht wie in den Player Stats. */}
-              {(() => {
-                const neu = [...kacheln].filter((kk) => kk.turnier.windowId && !kk.turnier.gesamt).sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0))
-                  .find((kk) => kk.turnier.region === 'EU') ?? kacheln[0];
-                return neu?.turnier.windowId ? (
-                  <div className="mt-8">
-                    <TurnierLeader key={neu.turnier.windowId} eventId={neu.turnier.eventId ?? ''} windowId={neu.turnier.windowId} />
-                  </div>
-                ) : null;
-              })()}
-
               {startFehlt && !listen.length && (
                 <p className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
                   <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
@@ -4785,13 +4773,6 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     <T>Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.</T>
                   </span>
                 </div>
-              )}
-
-              {/* Tournament Leaders des Cups (Betreiber, 15.11.2026): Event MVP und die besten fuenf je Kennzahl - je Tag oder alle Tage zusammen. */}
-              {cup.windowId && (
-                <TurnierLeader key={`${cup.windowId}|${tagWahl}`} eventId={cup.eventId ?? ''}
-                  windowId={tagWahl !== 'gesamt' ? tagWahl : (cup.tage?.length ? cup.tage[cup.tage.length - 1].windowId : cup.windowId)}
-                  windows={tagWahl === 'gesamt' && (cup.tage?.length ?? 0) > 1 ? cup.tage!.map((x) => x.windowId) : null} />
               )}
 
               {cupLaedt && !cupFeld.length ? (

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
-import TurnierLeader from '@/app/components/TurnierLeader';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
@@ -37,9 +36,8 @@ import { useZugang } from '@/app/lib/zugang';
  * darunter, rechts, die Ansicht dieser Stufe: Karte, Bestenliste, Spieler, Laender. Vor den Spieltagen stehen "Der Weg" und "Qualifiziert", am Ende das Preisgeld.
  */
 type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte' | 'heats';
-type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender' | 'stats';
-// "Stats": die Tournament Leaders des Spieltags (Betreiber, 15.11.2026) - Event MVP und die besten fuenf je Kennzahl, app/components/TurnierLeader.tsx.
-const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder'], ['stats', 'Stats']];
+type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender';
+const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder']];
 const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld' || x === 'karte' || x === 'heats';
 
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
@@ -582,9 +580,6 @@ export default function SolosSeite() {
                 </div>
               </Karte2>
             )}
-            {ansicht === 'stats' && (eventVon(aktuell.windowId)
-              ? <TurnierLeader key={aktuell.windowId} kompakt eventId={eventVon(aktuell.windowId)} windowId={aktuell.windowId} titel={`FNCS Solos · ${aktuell.name} · ${region}`} />
-              : <Karte2><p className="py-6 text-center text-sm text-slate-500"><T>Für diesen Spieltag liegen noch keine Werte je Spieler vor.</T></p></Karte2>)}
             {ansicht === 'laender' && (
               <Karte2>
                 <h3 className="text-base font-extrabold text-slate-100"><T>Spieler nach Land</T> · {aktuell.name}</h3>

@@ -108,6 +108,17 @@ export async function middleware(request: NextRequest) {
   if (host === 'thecomphub.com' && (request.method === 'GET' || request.method === 'HEAD')) {
     return NextResponse.redirect(`https://www.thecomphub.com${pfad}${request.nextUrl.search}`, 301);
   }
+  /*
+   * Die Tournament Leaders sind entfernt (Betreiber, 16.11.2026). Alte Links auf ihre Ansichten (/fncs?reiter=leaders, /globals-solos?ansicht=stats)
+   * fuehren auf die normale Seite, statt eine leere Auswahl zu zeigen - die uebrigen Angaben (Region, Stufe) bleiben.
+   */
+  const leaderParam = pfad === '/fncs' && request.nextUrl.searchParams.get('reiter') === 'leaders' ? 'reiter'
+    : pfad === '/globals-solos' && request.nextUrl.searchParams.get('ansicht') === 'stats' ? 'ansicht' : null;
+  if (leaderParam) {
+    const ziel = request.nextUrl.clone();
+    ziel.searchParams.delete(leaderParam);
+    return NextResponse.redirect(ziel, 301);
+  }
   if (pfad === '/admin' || pfad.startsWith('/admin/')) {
     if (!(await verwaltungErlaubt(request))) {
       const ziel = new URL('/sign-in', request.url);

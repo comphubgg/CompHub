@@ -12,7 +12,6 @@ import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsC
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
 import { istZeroBuild } from '@/lib/zeroBuild';
-import { feldNachLand } from '@/lib/turnierLeader';
 import { landQuellen } from '@/lib/landQuellen';
 import { landPasst } from '@/lib/spielerFlagge.mjs';
 
@@ -359,12 +358,6 @@ async function holeRoh(request: Request) {
   // Das Finale der Globals: beide Tage (siehe ausSzene).
   const event = p.get('event');
   const kennzahl = (p.get('kennzahl') ?? '').trim();
-  /*
-   * Mehrere Kennzahlen in einem Aufruf (?kennzahlen=elims,damage,...&pro=50, 16.11.2026): die Tournament Leaders fragten jede ihrer neun Kennzahlen
-   * einzeln ab - neunmal dieselbe Rechnung (Replay-Werte, Clutch-Datei, Namen) fuer einen Spieltag. Gemessen gegen thecomphub.com: 19,3 s beim ersten,
-   * 6,6 s beim zweiten Aufruf (FNCS Solos Reload Heat 2 EU). Jetzt einmal gerechnet; je Kennzahl dieselbe erste Seite wie ?kennzahl=.
-   */
-  const kennzahlen = (p.get('kennzahlen') ?? '').split(',').map((k) => k.trim()).filter(Boolean).slice(0, 16);
   const seite = Number(p.get('seite')) || 1;
   const pro = Math.min(Math.max(Number(p.get('pro')) || 50, 10), 200);
   const raengeIds = (p.get('raenge') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)).slice(0, 4);
@@ -431,14 +424,6 @@ async function holeRoh(request: Request) {
       }
     }
     if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(szene.spieler, raengeIds), quelle: 'szene' });
-    if (kennzahlen.length) {
-      const alle = szene.spieler.map((x) => ({ ...x, elims: x.kills }));
-      const listen: Record<string, unknown[]> = {}; const gesamt: Record<string, number> = {};
-      for (const k of kennzahlen) { const s1 = seiteVon(alle, k, 1, pro, null); listen[k] = s1.zeilen; gesamt[k] = s1.gesamt; }
-      // ?laender=1: das ganze Feld nach Land (Laenderuebersicht der Cup-Seite, lib/turnierLeader feldNachLand).
-      const feldLaender = p.get('laender') === '1' ? feldNachLand(alle, (z) => String(z.land ?? ''), (z) => (typeof z.platz === 'number' ? z.platz : null)) : undefined;
-      return NextResponse.json({ kennzahlen, listen, gesamt, replayStand: null, schadenDa: true, quelle: 'szene', ...(feldLaender ? { feldLaender } : {}) });
-    }
     if (kennzahl) {
       const q = (p.get('q') ?? '').trim().toLowerCase();
       return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
@@ -689,56 +674,6 @@ async function holeRoh(request: Request) {
   };
 
   if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(rep.spieler.map(werte), raengeIds), quelle: 'replay' });
-
-  if (kennzahlen.length) {
-    const alle = rep.spieler.map(werte);
-    const seiten = kennzahlen.map((k) => [k, seiteVon(alle, k, 1, pro, null)] as const);
-    const ids = new Set(seiten.flatMap(([, s1]) => s1.zeilen.map((z) => z.epicId)));
-    const teams = teamsFuer(ids);
-    await namenNachholen([...ids, ...[...ids].flatMap((id) => teams.get(id)?.partner ?? [])], anzeige);
-    const mitNamen = (z: Zeile) => ({
-      ...z, name: anzeige.get(z.epicId) ?? z.epicId.slice(0, 8), land: land.get(z.epicId) ?? '', platz: teams.get(z.epicId)?.platz ?? null,
-      partner: (teams.get(z.epicId)?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
-    });
-    /*
-     * ?laender=1 (16.11.2026, Laenderuebersicht der Cup-Seite): das ganze Feld nach Land - Spieler mit Land aus unseren Profilen einzeln (ein paar hundert
-     * hoechstens), alle uebrigen nur als Summe ("Unknown"). Der Platz aus Epics Endstand des Teams; nichts davon bleibt im Speicher liegen.
-     */
-    const epicFeld = p.get('laender') === '1' && tage.length === 1 ? await epicTag(fenster).catch(() => null) : null;
-    const feldLaender = p.get('laender') === '1' ? (() => {
-      const platzVon = new Map<string, number>();
-      for (const t of rep.teams ?? []) if (typeof t.platz === 'number') for (const id of t.spieler ?? []) platzVon.set(id.toLowerCase(), t.platz);
-      // Fehlt der Platz in den Replay-Werten, Epics Endplatz aus dem abgelegten Spieltag - wie app/api/turnier-leader fuer die Tafeln.
-      for (const t of epicFeld?.teams ?? []) if (typeof t.platz === 'number') for (const id of t.spieler ?? []) if (!platzVon.has(String(id).toLowerCase())) platzVon.set(String(id).toLowerCase(), t.platz);
-      /*
-       * rep.spieler kennt nur Spieler mit Kill oder Knock (lib/replaySchlank). Die uebrigen des Feldes (aus den Teams der Replays und Epics Endstand) zaehlen
-       * mit 0 Elims fuer Anzahl und Platz mit - ohne Schaden (unbekannt), sodass ein Land mit ihnen keine Schadenssumme bekommt statt einer zu kleinen.
-       */
-      const drin = new Set(alle.map((z) => z.epicId.toLowerCase()));
-      const rest: Zeile[] = [];
-      for (const t of [...(rep.teams ?? []), ...(epicFeld?.teams ?? [])]) {
-        for (const id0 of t.spieler ?? []) {
-          const id = String(id0).toLowerCase();
-          if (!drin.has(id) && id !== 'bot') { drin.add(id); rest.push({ epicId: String(id0), spiele: 0, kills: 0, elims: 0 }); }
-        }
-      }
-      return feldNachLand([...alle, ...rest], (z) => land.get(z.epicId) ?? land.get(z.epicId.toLowerCase()) ?? '', (z) => platzVon.get(z.epicId.toLowerCase()) ?? null);
-    })() : undefined;
-    if (feldLaender) {
-      await namenNachholen(feldLaender.bekannt.map((z) => z.epicId), anzeige);
-      for (const z of feldLaender.bekannt) z.name = anzeige.get(z.epicId) ?? z.epicId.slice(0, 8);
-    }
-    return NextResponse.json({
-      ...(feldLaender ? { feldLaender } : {}),
-      kennzahlen, replayStand, schadenTeil: teil,
-      // Ob es fuer diesen Spieltag ueberhaupt Werte aus den vollen Replays gibt (Schaden, Treffer, Bauteile ...) - sonst sagen die Leaders das, statt Nullen zu zeigen.
-      schadenDa: !!schadenVon && schadenVon.size > 0,
-      // Laeuft ein Neu-Lesen (neuere Leser-Fassung), sagen die Leaders bei fehlenden Werten "wird neu gelesen" statt "nicht erfasst".
-      umbau: clutchDatei?.umbau ?? null,
-      listen: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.zeilen.map(mitNamen)])),
-      gesamt: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.gesamt])),
-    });
-  }
 
   // Eine Kennzahl ganz, seitenweise - ueber alle Spieler des Spieltags, nicht nur die gezeigten.
   if (kennzahl) {

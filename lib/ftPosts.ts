@@ -335,7 +335,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
     }
     return {
       id,
-      // Im Solo Epics DamageDealt, wo es ihn gibt (Betreiber, 15.11.2026) - dieselbe Regel wie app/api/cup-spieler und die Tournament Leaders.
+      // Im Solo Epics DamageDealt, wo es ihn gibt (Betreiber, 15.11.2026) - dieselbe Regel wie app/api/cup-spieler.
       dmg: zahl(d.epicDmg?.[id]) ?? w.dmg ?? 0,
       erlitten: w.erlitten ?? 0,
       treffer: zahl(w.treffer),
