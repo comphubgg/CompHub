@@ -6,6 +6,7 @@ import { landNach } from '@/lib/laender';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { PROFIL_DATEI, pruefeAenderung, EingabeFehler, type SpielerProfil } from '@/lib/spielerProfil';
 import { einreihen, mitWartendem, status } from '@/lib/profilWarteschlange';
+import { liesAuto, liesVorschlaege, markieren, offeneMarkierungen, wendeMarkierungAn, type AutoEintrag, type Entscheidung, type SocialFeld, type Vorschlag, type VorschlagDatei } from '@/lib/socialsVorschlaege';
 
 /*
  * Flaggen und X-Konten der wichtigen Spieler nachtragen (Betreiber, 16.11.2026) - nur fuer den Admin, die Seite dazu ist /admin/flaggen.
@@ -15,6 +16,12 @@ import { einreihen, mitWartendem, status } from '@/lib/profilWarteschlange';
  *   POST  { id, name, land?, x?, twitch? }  -> geprueft und eingereiht, Antwort sofort { status: 'wartet' }; ein Feld, das fehlt, bleibt, wie es ist;
  *         "" loescht. Geschrieben wird gesammelt, ein Commit fuer alle wartenden Zeilen (lib/profilWarteschlange.ts).
  *   GET   ?status=<id>,<id>  -> je Zeile 'wartet' | 'gespeichert' (mit dem Eintrag) | 'fehler'; fehlt eine Id, kennt der Server sie nicht (neu schicken).
+ *   POST  { aktion: 'markieren', id, feld, wert, entscheidung }  -> eine Entscheidung zu einem Vorschlag oder einer automatischen Eintragung des
+ *         Socials-Finders (scripts/socials-finden.mjs, lib/socialsVorschlaege.ts): angenommen | abgelehnt | geprueft | rueckgaengig. Den Wert selbst
+ *         speichert die Seite wie jede Eingabe (POST oben); hier merkt sich nur der Finder, was er nicht wieder vorschlagen bzw. eintragen soll.
+ *
+ * Je Zeile dazu: vorschlag (was der Finder fuer ein leeres Feld vorschlaegt, mit Belegen) und auto (was er selbst eingetragen hat und noch niemand
+ * geprueft hat). Eine Zeile mit offener automatischer Eintragung bleibt in der Liste, auch wenn sie sonst vollstaendig waere.
  *
  * Die Profile werden bei jedem Aufruf frisch gelesen, die Liste der wichtigen Spieler kommt vom Release (alle sechs Stunden neu, spieler-kreis.yml).
  */
@@ -46,6 +53,10 @@ export interface FlaggenZeile {
   fehlt: { land: boolean; x: boolean };
   /** Der Name, der beim Speichern mitgeht (findet den Alteintrag). */
   speicherName: string;
+  /** Vorschlaege des Socials-Finders fuer leere Felder (mit Belegen). */
+  vorschlag: Partial<Record<SocialFeld, Vorschlag>>;
+  /** Automatisch eingetragen, noch nicht geprueft. */
+  autoGespeichert: Partial<Record<SocialFeld, Pick<AutoEintrag, 'wert' | 'belege' | 'zeit'>>>;
 }
 
 const nein = () => NextResponse.json({ ok: false, error: 'Nur für Admins.' }, { status: 403 });
@@ -57,13 +68,19 @@ export async function GET(request: Request) {
     const ids = nachStatus.split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)).slice(0, 500);
     return NextResponse.json({ ok: true, status: status(ids) }, { headers: { 'Cache-Control': 'private, no-store' } });
   }
-  const [wichtig, profile, namen, szene, pr] = await Promise.all([
+  const [wichtig, profile, namen, szene, pr, vorschlaege, autoDatei] = await Promise.all([
     liesJson<WichtigDatei | null>('spieler-kreis/_wichtig.json', null),
     liesJson<Record<string, SpielerProfil>>(PROFIL_DATEI, {}).then(mitWartendem),
     liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}),
     liesJson<SzeneSpieler[]>('szene-quelle/spielerliste.json', []),
     liesJson<PrDatei | null>('power-rankings/global.json', null),
+    liesVorschlaege().catch((): VorschlagDatei => ({ zeilen: {} })),
+    liesAuto().catch(() => ({ eintraege: [] as AutoEintrag[] })),
   ]);
+  // Entscheidungen, die noch nicht geschrieben sind, gleich mit anwenden - sonst kaeme ein eben Abgelehntes nach dem Neuladen zurueck.
+  for (const m of offeneMarkierungen()) wendeMarkierungAn(vorschlaege, autoDatei, m);
+  const autoJe = new Map<string, AutoEintrag[]>();
+  for (const e of autoDatei.eintraege ?? []) if (e.status === 'offen') (autoJe.get(e.id) ?? autoJe.set(e.id, []).get(e.id)!).push(e);
   const lan = await liesLanKonten().catch(() => ({}) as Awaited<ReturnType<typeof liesLanKonten>>);
   if (!wichtig?.konten) {
     return NextResponse.json({ ok: false, error: 'Die Liste der wichtigen Spieler ist noch nicht gerechnet (spieler-kreis/_wichtig.json fehlt am Release). Sie entsteht im Lauf "Spieler-Kreis".' }, { status: 503 });
@@ -167,7 +184,19 @@ export async function GET(request: Request) {
     };
     const land = feld('land'); const x = feld('x'); const twitch = feld('twitch');
     const nurZweit = [land, x, twitch].some((v) => v.wert && v.quelle);
-    if (land.wert && x.wert && !nurZweit) { ausgeschlossen.vollstaendig += 1; continue; }
+    // Automatisch Eingetragenes zaehlt nur, solange es noch so dasteht (sonst hat es jemand schon geaendert).
+    const autoGespeichert: FlaggenZeile['autoGespeichert'] = {};
+    for (const e of autoJe.get(id) ?? []) {
+      const jetzt = { x, twitch, land }[e.feld].wert;
+      if (jetzt && jetzt.toLowerCase() === e.wert.toLowerCase()) autoGespeichert[e.feld] = { wert: e.wert, belege: e.belege, zeit: e.zeit };
+    }
+    if (land.wert && x.wert && !nurZweit && !Object.keys(autoGespeichert).length) { ausgeschlossen.vollstaendig += 1; continue; }
+    const vz = vorschlaege.zeilen?.[id];
+    const vorschlag: FlaggenZeile['vorschlag'] = {};
+    for (const f of ['x', 'twitch', 'land'] as const) {
+      const v = vz?.[f];
+      if (v?.wert && !{ x, twitch, land }[f].wert && !(vz?.abgelehnt?.[f] ?? []).includes(v.wert.toLowerCase())) vorschlag[f] = v;
+    }
     const auto = land.wert ? null
       : szeneLand.has(id) ? { land: szeneLand.get(id)!, quelle: 'Szene-Liste' }
         : prLand.has(id) ? { land: prLand.get(id)!, quelle: 'Power Ranking' } : null;
@@ -176,7 +205,7 @@ export async function GET(request: Request) {
       punkte, final, semi, heat, runde, cup, besteFinal, letzte, pr: prRang,
       land: land.wert, x: x.wert, twitch: twitch.wert, auto, alterEintrag,
       quelle: { land: land.quelle, x: x.quelle, twitch: twitch.quelle }, konten: konten.map((k) => k.id), nurZweit,
-      fehlt: { land: !land.wert, x: !x.wert }, speicherName: speicherName || epicName || name,
+      fehlt: { land: !land.wert, x: !x.wert }, speicherName: speicherName || epicName || name, vorschlag, autoGespeichert,
     });
   }
   return NextResponse.json({ ok: true, stand: wichtig.stand, regeln: wichtig.regeln, wichtig: sortiert.length, zeilen, ausgeschlossen },
@@ -185,9 +214,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!await istAdminAnfrage()) return nein();
-  let e: { id?: string; name?: string; land?: string; x?: string; twitch?: string; konten?: string[] };
+  let e: { id?: string; name?: string; land?: string; x?: string; twitch?: string; konten?: string[]; aktion?: string; feld?: string; wert?: string; entscheidung?: string };
   try { e = await request.json(); } catch { return NextResponse.json({ ok: false, error: 'Kein JSON' }, { status: 400 }); }
   if (!/^[0-9a-f]{32}$/i.test(e.id ?? '')) return NextResponse.json({ ok: false, error: 'Epic-Konto-Id fehlt' }, { status: 400 });
+  if (e.aktion === 'markieren') {
+    const feld = e.feld as SocialFeld;
+    const entscheidung = e.entscheidung as Entscheidung;
+    if (!['x', 'twitch', 'land'].includes(feld) || !['angenommen', 'abgelehnt', 'geprueft', 'rueckgaengig'].includes(entscheidung) || !String(e.wert ?? '').trim()) {
+      return NextResponse.json({ ok: false, error: 'feld, wert oder entscheidung ungueltig' }, { status: 400 });
+    }
+    markieren({ id: e.id!.toLowerCase(), feld, wert: String(e.wert).trim().slice(0, 40), entscheidung });
+    return NextResponse.json({ ok: true, status: 'wartet' });
+  }
   try {
     // Nur die Felder, die die Zeile wirklich schickt - alles andere im Profil bleibt (lib/spielerProfil.ts). Geprueft wird hier, geschrieben gesammelt.
     const a = pruefeAenderung({

@@ -27,7 +27,12 @@ interface Zeile {
   land: string; x: string; twitch: string; auto: { land: string; quelle: string } | null; alterEintrag: string | null;
   quelle: Record<'land' | 'x' | 'twitch', string>; konten: string[]; nurZweit: boolean;
   fehlt: { land: boolean; x: boolean }; speicherName: string;
+  /** Socials-Finder (scripts/socials-finden.mjs): Vorschlaege fuer leere Felder und automatisch Eingetragenes, das noch niemand geprueft hat. */
+  vorschlag: Partial<Record<Feld, SocialVorschlag>>;
+  autoGespeichert: Partial<Record<Feld, { wert: string; belege: Beleg[]; zeit: number }>>;
 }
+interface Beleg { art: string; text: string; url?: string; stark?: boolean }
+interface SocialVorschlag { wert: string; belege: Beleg[]; andere?: Array<{ wert: string; belege: Beleg[] }> }
 interface Antwort { ok: boolean; error?: string; stand: number; wichtig: number; zeilen: Zeile[]; ausgeschlossen: { geloescht: number; turnierkonto: number; vollstaendig: number; ohneName: number } }
 type Feld = 'land' | 'x' | 'twitch';
 type Werte = Record<Feld, string>;
@@ -43,7 +48,7 @@ const kern = (z: Zeile) => z.final + z.heat + z.semi >= 2 || z.runde >= 3;
 
 const FELDER: Feld[] = ['land', 'x', 'twitch'];
 const JE_SEITE = 100;
-type Filter = 'offen' | 'land' | 'x' | 'beide';
+type Filter = 'offen' | 'land' | 'x' | 'beide' | 'vorschlaege' | 'auto';
 
 /** Was aus einer Eingabe gespeichert wuerde - oder ein Fehlertext. */
 function pruefe(feld: Feld, roh: string): { wert: string; fehler: string } {
@@ -74,6 +79,8 @@ export default function FlaggenPflege() {
   const [suche, setSuche] = useState('');
   const [seite, setSeite] = useState(0);
   const [twitchZeigen, setTwitchZeigen] = useState(true);
+  /** Vorschlaege/Auto-Eintraege, ueber die in dieser Sitzung entschieden wurde ("<id>|<feld>"). */
+  const [entschieden, setEntschieden] = useState<Record<string, string>>({});
   const fokusNach = useRef<{ zeile: number; feld: Feld } | null>(null);
   const entwurfRef = useRef(entwurf);
   entwurfRef.current = entwurf;
@@ -106,11 +113,22 @@ export default function FlaggenPflege() {
       if (filter === 'land' && !z.fehlt.land) return false;
       if (filter === 'x' && !z.fehlt.x) return false;
       if (filter === 'beide' && !(z.fehlt.land && z.fehlt.x)) return false;
+      if (filter === 'vorschlaege' && !FELDER.some((f) => z.vorschlag?.[f] && !entschieden[`${z.id}|${f}`])) return false;
+      if (filter === 'auto' && !FELDER.some((f) => z.autoGespeichert?.[f] && !entschieden[`${z.id}|${f}`])) return false;
       if (region && z.region !== region) return false;
       if (q && ![z.name, ...z.namen, z.id].some((n) => n.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [d, filter, region, suche, alleZeigen]);
+  }, [d, filter, region, suche, alleZeigen, entschieden]);
+  const finderZahl = useMemo(() => {
+    const z = { vorschlaege: 0, auto: 0 };
+    for (const r of d?.zeilen ?? []) {
+      if (!alleZeigen && !kern(r)) continue;
+      if (FELDER.some((f) => r.vorschlag?.[f] && !entschieden[`${r.id}|${f}`])) z.vorschlaege += 1;
+      if (FELDER.some((f) => r.autoGespeichert?.[f] && !entschieden[`${r.id}|${f}`])) z.auto += 1;
+    }
+    return z;
+  }, [d, alleZeigen, entschieden]);
   const kernZahl = useMemo(() => (d?.zeilen ?? []).filter(kern).length, [d]);
   const seiten = Math.max(1, Math.ceil(liste.length / JE_SEITE));
   const aufSeite = liste.slice(seite * JE_SEITE, (seite + 1) * JE_SEITE);
@@ -173,6 +191,21 @@ export default function FlaggenPflege() {
     auftraege.current[z.id] = { koerper: { id: z.id, name: z.speicherName, konten: z.konten, ...aenderung }, gesendet, version: null, versuche: 0, naechster: 0 };
     await abschicken(z.id);
   }, [abschicken, unterId]);
+
+  /*
+   * Socials-Finder: Vorschlag uebernehmen / ablehnen, automatisch Eingetragenes bestaetigen / zuruecknehmen. Der Wert geht den gewohnten Weg (speichern,
+   * mit Status unter der Zeile); die Entscheidung merkt sich der Finder (POST aktion "markieren"), damit er Abgelehntes nicht wieder bringt.
+   */
+  const markieren = useCallback((id: string, feld: Feld, wert: string, entscheidung: 'angenommen' | 'abgelehnt' | 'geprueft' | 'rueckgaengig') => {
+    setEntschieden((s) => ({ ...s, [`${id}|${feld}`]: entscheidung }));
+    void fetch('/api/admin/flaggen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'markieren', id, feld, wert, entscheidung }) }).catch(() => undefined);
+  }, []);
+  const setzeUndSpeichere = useCallback((z: Zeile, feld: Feld, wert: string) => {
+    const neu = { ...(entwurfRef.current[z.id] ?? { land: '', x: '', twitch: '' }), [feld]: wert };
+    entwurfRef.current = { ...entwurfRef.current, [z.id]: neu };
+    setEntwurf((s) => ({ ...s, [z.id]: neu }));
+    void speichern(z);
+  }, [speichern]);
 
   // Alle 1,5 s: was wartet, beim Server nachfragen; was gescheitert ist, zur Zeit noch einmal schicken.
   useEffect(() => {
@@ -307,6 +340,9 @@ export default function FlaggenPflege() {
             <button key={k} type="button" onClick={() => setFilter(k)} className={chip(filter === k)}><T>{titel}</T></button>
           ))}
           <span className="mx-1 h-5 w-px bg-zinc-800" />
+          <button type="button" onClick={() => setFilter('vorschlaege')} className={chip(filter === 'vorschlaege')} data-filter="vorschlaege" title="Vom Socials-Finder gefunden, aber nicht stark genug belegt - ein Klick übernimmt oder verwirft"><T>Vorschläge</T> {finderZahl.vorschlaege}</button>
+          <button type="button" onClick={() => setFilter('auto')} className={chip(filter === 'auto')} data-filter="auto" title="Vom Socials-Finder mit starken Belegen selbst eingetragen (socials-auto.json) - bitte prüfen"><T>Auto-gespeichert, bitte prüfen</T> {finderZahl.auto}</button>
+          <span className="mx-1 h-5 w-px bg-zinc-800" />
           <button type="button" onClick={() => setRegion('')} className={chip(!region)}><T>Alle Regionen</T></button>
           {REGIONEN_REIHE.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={chip(region === r)}>{r}</button>)}
           <label className="ml-2 flex items-center gap-1.5 text-xs text-slate-400" title="Ohne Haken: nur wer mindestens zwei FNCS-Finals/Heats oder drei späte FNCS-Runden hat"><input type="checkbox" checked={alleZeigen} onChange={(e) => setAlleZeigen(e.target.checked)} data-alle /> <T>Alle wichtigen zeigen</T></label>
@@ -356,6 +392,42 @@ export default function FlaggenPflege() {
                   if (z.quelle[f] && !unterId.has(z.id)) return <p className="mt-0.5 truncate text-[10px] text-violet-300" data-herkunft="zweit" title="Gespeichert, aber nicht unter diesem Konto - Speichern übernimmt es">gespeichert bei {z.quelle[f]}</p>;
                   return <p className="mt-0.5 text-[10px] text-sky-400/80" data-herkunft="gespeichert">✓ gespeichert</p>;
                 };
+                const belegListe = (b: Beleg[]) => (
+                  <ul className="mt-1 space-y-0.5 text-[10px] leading-snug text-slate-400">
+                    {b.map((x, k) => <li key={k} className={x.stark ? 'text-emerald-300/90' : ''}>{x.stark ? '● ' : '○ '}{x.url ? <a href={x.url} target="_blank" rel="noreferrer" tabIndex={-1} className="hover:text-sky-300 hover:underline">{x.text}</a> : x.text}</li>)}
+                  </ul>
+                );
+                const zeigeWert = (f: Feld, w: string) => (f === 'x' ? `@${w}` : f === 'land' ? `${w}${landNach(w) ? ` · ${landNach(w)!.en}` : ''}` : w);
+                // Unter der Zelle: Vorschlag (nur fuer ein leeres Feld) oder automatisch Eingetragenes zum Pruefen.
+                const finder = (f: Feld) => {
+                  const schluessel = `${z.id}|${f}`;
+                  const a = z.autoGespeichert?.[f];
+                  if (a && !entschieden[schluessel] && g[f].toLowerCase() === a.wert.toLowerCase()) {
+                    return (
+                      <details className="mt-1 rounded border border-amber-500/40 bg-amber-500/[0.06] px-1.5 py-1" data-auto={f}>
+                        <summary className="flex cursor-pointer items-center gap-1.5 text-[10px] font-semibold text-amber-300">
+                          <span>auto · {zeigeWert(f, a.wert)} · bitte prüfen</span>
+                          <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, a.wert, 'geprueft'); }} title="Stimmt - als geprüft markieren" className="ml-auto rounded border border-emerald-500/50 px-1 text-emerald-300 hover:bg-emerald-500/10">✓</button>
+                          <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, a.wert, 'rueckgaengig'); setzeUndSpeichere(z, f, ''); }} title="Falsch - Feld wieder leeren; der Finder trägt diesen Wert nicht wieder ein" className="rounded border border-rose-500/50 px-1 text-rose-300 hover:bg-rose-500/10">↶</button>
+                        </summary>
+                        {belegListe(a.belege)}
+                      </details>
+                    );
+                  }
+                  const v = z.vorschlag?.[f];
+                  if (!v || entschieden[schluessel] || e[f].trim() || g[f]) return null;
+                  return (
+                    <details className="mt-1 rounded border border-dashed border-zinc-600 px-1.5 py-1" data-vorschlag={f}>
+                      <summary className="flex cursor-pointer items-center gap-1.5 text-[10px] text-slate-300">
+                        <span className="truncate">Vorschlag {zeigeWert(f, v.wert)}</span>
+                        <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, v.wert, 'angenommen'); setzeUndSpeichere(z, f, v.wert); }} title="Übernehmen und speichern" className="ml-auto rounded border border-sky-500/50 px-1 text-sky-300 hover:bg-sky-500/10">✓</button>
+                        <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, v.wert, 'abgelehnt'); }} title="Verwerfen - wird nicht wieder vorgeschlagen" className="rounded border border-zinc-600 px-1 text-slate-400 hover:bg-zinc-800">✕</button>
+                      </summary>
+                      {belegListe(v.belege)}
+                      {!!v.andere?.length && <p className="mt-1 text-[10px] text-slate-500">auch möglich: {v.andere.map((o) => zeigeWert(f, o.wert)).join(', ')}</p>}
+                    </details>
+                  );
+                };
                 return (
                   <tr key={z.id} onBlur={(ev) => zeileVerlassen(ev, z)} data-id={z.id}
                     className={`border-b border-zinc-800/60 align-top ${fertig ? 'bg-sky-500/[0.06]' : ''}`}>
@@ -386,6 +458,7 @@ export default function FlaggenPflege() {
                         ) : pl.fehler ? <span className="text-xs text-rose-300">{pl.fehler}</span> : z.auto ? <span className="text-[10px] text-slate-600">{z.auto.quelle}</span> : null}
                       </div>
                       {herkunft('land')}
+                      {finder('land')}
                     </td>
                     <td className="px-2 py-2">
                       <input data-zeile={i} data-feld="x" value={e.x} placeholder="@handle oder x.com/…" aria-label={`X ${z.name}`}
@@ -394,6 +467,7 @@ export default function FlaggenPflege() {
                       {px.fehler ? <p className="mt-0.5 text-[11px] text-rose-300">{px.fehler}</p>
                         : px.wert && px.wert !== e.x.trim() ? <p className="mt-0.5 text-[11px] text-slate-500" data-vorschau="x">→ @{px.wert}</p> : null}
                       {herkunft('x')}
+                      {finder('x')}
                     </td>
                     {twitchZeigen && (
                       <td className="px-2 py-2">
@@ -402,6 +476,7 @@ export default function FlaggenPflege() {
                           className={`${zelle} ${pt.fehler ? 'border-rose-500' : 'border-zinc-700'}`} />
                         {pt.fehler && <p className="mt-0.5 text-[11px] text-rose-300">{pt.fehler}</p>}
                         {herkunft('twitch')}
+                        {finder('twitch')}
                       </td>
                     )}
                     <td className="px-2 py-2 text-xs" data-status={s?.art ?? (geaendert ? 'geaendert' : '')}>
