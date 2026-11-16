@@ -23,12 +23,40 @@ const JE = path.join(DATEN, 'clutch-je');
 const REPO = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
 const arg = process.argv.slice(2);
 const HOECHSTENS = Number(arg[arg.indexOf('--hoechstens') + 1]) || 80;
+// Zeitrahmen (16.11.2026): der erste Lauf im Ablauf brach nach 8 Minuten ab, ohne eine Datei wiederhergestellt zu haben - und die Ausgabe ging mit "| tail" verloren.
+const MINUTEN = arg.includes('--minuten') ? Number(arg[arg.indexOf('--minuten') + 1]) || 6 : Infinity;
+const schluss = Date.now() + MINUTEN * 60_000;
+
+const manifeste = new Map();
+/** Das Verzeichnis eines Release (manifest.json) - null, wenn es nicht lesbar ist (dann wird die Datei wie bisher direkt versucht). */
+async function manifestVon(tag) {
+  if (!manifeste.has(tag)) {
+    manifeste.set(tag, (async () => {
+      for (let v = 0; v < 3; v += 1) {
+        try {
+          const r = await fetch(`https://github.com/${REPO}/releases/download/${tag}/manifest.json`, { redirect: 'follow', signal: AbortSignal.timeout(60_000) });
+          if (r.ok) return await r.json();
+        } catch { /* noch einmal */ }
+        await new Promise((ok) => setTimeout(ok, 3000));
+      }
+      return null;
+    })());
+  }
+  return manifeste.get(tag);
+}
 
 async function jeVomRelease(w) {
   const name = `clutch-je/${w}.json`;
   const lokal = path.join(DATEN, name);
   if (fs.existsSync(lokal)) return fs.readFileSync(lokal);
   const url = `https://github.com/${REPO}/releases/download/${tagFuer(name)}/${name.replace(/\//g, '__')}`;
+  /*
+   * Erst im Verzeichnis des Release nachsehen (16.11.2026): von 168 Spieltagen ohne Schaden hatten 132 gar keine Werte je Match. Jeder davon kostete hier 15 s
+   * Warten auf 404 - die ersten 40 (alphabetisch) waren alle solche, und nach 8 Minuten war keine Datei wiederhergestellt. Kennt das Verzeichnis die Datei,
+   * wird ein 404 weiter wiederholt (Austausch am Release, siehe scripts/ablage-github-holen.mjs).
+   */
+  const m = await manifestVon(tagFuer(name));
+  if (m && !m[name.replace(/\//g, '__')]) return null;
   for (let v = 0; v < 3; v += 1) {
     try {
       const r = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120_000) });
@@ -45,8 +73,18 @@ async function jeVomRelease(w) {
 const SUMMEN = JE_SPALTEN.filter((k) => !['leben', 'strecke', 'killsEcht', 'todeEcht', 'killsNachAus'].includes(k));
 let wieder = 0; let ohneJe = 0; let unvollstaendig = 0;
 const dateien = fs.existsSync(ZIEL) ? fs.readdirSync(ZIEL).filter((f) => f.endsWith('.json') && !f.startsWith('_')) : [];
-for (const f of dateien) {
+/*
+ * Ohne Schaden heisst klein: erst den Text ansehen, nur Kandidaten parsen (16.11.2026). data/clutch/ haelt rund 900 Dateien, zusammen 5,2 GB (17 ueber 50 MB);
+ * jede zu parsen kostete im Ablauf die ganzen 8 Minuten - "Schaden aus den Werten je Match" lief ab, bevor es zu einer der 199 Dateien kam. Die juengsten zuerst.
+ */
+const zeitVon = (f) => { try { return fs.statSync(path.join(ZIEL, f)).mtimeMs; } catch { return 0; } };
+const kandidaten = dateien.filter((f) => {
+  try { return !/"schaden":\s*\{\s*"/.test(fs.readFileSync(path.join(ZIEL, f), 'utf8')); } catch { return false; }
+}).sort((a, b) => zeitVon(b) - zeitVon(a));
+console.log(`${kandidaten.length} von ${dateien.length} Spieltags-Dateien ohne Schaden`);
+for (const f of kandidaten) {
   if (wieder >= HOECHSTENS) break;
+  if (Date.now() > schluss) { console.log(`Zeitrahmen (${MINUTEN} min) erreicht - der Rest im naechsten Lauf`); break; }
   const ziel = path.join(ZIEL, f);
   let d;
   try { d = JSON.parse(fs.readFileSync(ziel, 'utf8')); } catch { continue; }

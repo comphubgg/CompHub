@@ -244,7 +244,7 @@ jobs:
       - name: Schaden aus den Werten je Match
         continue-on-error: true
         timeout-minutes: 8
-        run: node scripts/clutch-aus-je.mjs --hoechstens 80 2>&1 | tail -30
+        run: node scripts/clutch-aus-je.mjs --hoechstens 250 --minuten 6 2>&1 | tail -60
       # Epics eigener Schaden fuer Solo-Spieltage: unser Replay-Wert lag rund fuenf Prozent ueber Epic und Osirion (4.11.2026).
       - name: Epics Schaden
         continue-on-error: true
