@@ -295,6 +295,8 @@ interface Cup {
   bild?: string; farbe?: string; art: string; global: boolean;
   regionen: Record<string, Fenster[]>;
   live: boolean;
+  /** Region locked oder nicht, aus Epics Marken (lib/epicCups, RegionsSperre); fehlt = unbekannt, dann steht nichts da. */
+  regionsSperre?: { gesperrt: boolean; beleg: string };
 }
 interface Spieler { id: string; name: string; img?: string | null; logo?: string | null }
 /** Von Hand gepflegte Angaben zu einem Spieler - hier zaehlt nur das Land. */
@@ -4044,6 +4046,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
                       <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{cup.beschreibung}</p>
+                    </div>
+                  )}
+                  {/* Region lock - nur mit Beleg aus Epics Marken, sonst gar nicht (Betreiber, 16.11.2026). */}
+                  {cup?.regionsSperre && (
+                    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3" data-region-lock={cup.regionsSperre.gesperrt ? 'ja' : 'nein'}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-bold text-slate-100">
+                          {cup.regionsSperre.gesperrt ? t('Regionsgebunden') : t('Nicht regionsgebunden')}
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cup.regionsSperre.gesperrt
+                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-300' : 'border-sky-500/40 bg-sky-500/10 text-sky-300'}`}>
+                          {cup.regionsSperre.gesperrt ? t('Eine Region') : t('Mehrere Regionen')}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                        {cup.regionsSperre.gesperrt
+                          ? t('Wer diesen Cup in einer Region spielt, ist für den ganzen Cup an diese Region gebunden und kann ihn in keiner anderen Region spielen.')
+                          : t('Diesen Cup kannst du in mehreren Regionen spielen – etwa als EU-Spieler auch das Asia-Fenster, ohne für EU gesperrt zu werden.')}
+                      </p>
+                      <p className="mt-1 break-all text-[11px] leading-relaxed text-slate-500">{t('Quelle')}: Epic · {cup.regionsSperre.beleg}</p>
                     </div>
                   )}
                   {st.pbm && (

@@ -1111,6 +1111,27 @@ export type CupArt =
   | 'skin'          // Shop-Cups um einen Skin
   | 'sonstige';     // Testcups, Performance Evaluation und Aehnliches
 
+/**
+ * Ob ein Cup regionsgebunden ist ("region locked"): wer ihn in einer Region
+ * spielt, darf ihn fuer den Rest des Cups in keiner anderen spielen.
+ *
+ * Epic drueckt das mit Marken aus, die "RegionLock" im Namen tragen
+ * ("RegionLock_S43_FNCSSoloReload_EU"): das erste Spiel vergibt die Marke der
+ * eigenen Region, die spaeteren Fenster verlangen genau diese Marke
+ * (requireAllTokens) oder schliessen die der anderen Regionen aus
+ * (requireNoneTokens). Belegt am 16.11.2026: FNCS Solos Reload LCQ EU verlangt
+ * RegionLock_S43_FNCSSoloReload_EU; in keinem Cash, Victory, Ranked oder Skin
+ * Cup steht eine solche Marke - und dort tauchen dieselben Konten in mehreren
+ * Regionen derselben Runde auf (Gegenprobe ueber die Bestenlisten).
+ *
+ * Fehlt das Feld, ist es unbekannt - dann steht auf der Seite nichts.
+ */
+export interface RegionsSperre {
+  gesperrt: boolean;
+  /** Woran es entschieden wurde - Marke und Feld, oder warum keine da ist. */
+  beleg: string;
+}
+
 export interface CupGruppe {
   id: string;                    // displayDataId
   titel: string;
@@ -1130,6 +1151,8 @@ export interface CupGruppe {
   letzterStart: number | null;
   live: boolean;
   vorbei: boolean;
+  /** Region locked oder nicht - nur, wo es sich aus Epics Daten belegen laesst (RegionsSperre). */
+  regionsSperre?: RegionsSperre;
 }
 
 // Epic markiert Shop-Cups selbst als "ShopCup" - das sind die Skin-Cups.
@@ -1230,6 +1253,91 @@ function plattformenVon(roh?: string[]): string[] | undefined {
   if (!roh?.length) return undefined;
   const da = new Set(roh.map((p) => PLATTFORM[p]).filter(Boolean));
   return PLATTFORM_REIHE.filter((p) => da.has(p));
+}
+
+/*
+ * Region lock - siehe RegionsSperre.
+ *
+ * Gesucht wird in jedem Feld des Fensters, das mit "require" beginnt
+ * (requireAllTokens, requireNoneTokens, requireNoneTokensCaller ...), und in
+ * den Marken, die das Fenster vergibt. Eine andere Marke mit "Lock" im Namen,
+ * die keine Divisionssperre ist, macht den Cup unklar statt "nicht gesperrt":
+ * lieber nichts anzeigen als falsch.
+ */
+const SPERR_MARKE = /regionlock/i;
+const ANDERE_SPERRE = /lock/i;
+const KEINE_REGIONSSPERRE = /regionlock|divisionlock|teamlock/i;
+const REGIONS_ANHANG = /_(EU|NAC|NAE|NAW|NA|BR|ASIA|ME|OCE)$/i;
+const OHNE_BEDEUTUNG = /^LANSpectator$|^fake_token$|^GroupIdentity_/i;
+
+/** Alle Marken eines Fensters samt Feld ("requireAllTokens: ...", "payout: ..."). */
+function markenMitFeld(w: Record<string, unknown>, tabellen: Array<RohAuszahlung[] | undefined>): string[] {
+  const raus: string[] = [];
+  for (const [feld, wert] of Object.entries(w)) {
+    if (!/^require/i.test(feld) || !Array.isArray(wert)) continue;
+    for (const t of wert) if (typeof t === 'string' && t) raus.push(`${feld}: ${t}`);
+  }
+  for (const tabelle of tabellen) {
+    for (const g of tabelle ?? []) for (const r of g.ranks ?? []) for (const p of r.payouts ?? []) {
+      if (p.rewardType === 'token' && p.value) raus.push(`payout: ${p.value}`);
+    }
+  }
+  return [...new Set(raus)];
+}
+
+/** Was ein Fenster ueber den Region lock verraet. */
+interface SperrSpur { belege: string[]; zweifel: string[]; offen: boolean }
+
+function sperrSpur(w: Record<string, unknown>, tabellen: Array<RohAuszahlung[] | undefined>, zugang: string[]): SperrSpur {
+  const alle = markenMitFeld(w, tabellen);
+  const marke = (x: string) => x.slice(x.indexOf(': ') + 2);
+  return {
+    belege: alle.filter((x) => SPERR_MARKE.test(marke(x))),
+    zweifel: alle.filter((x) => ANDERE_SPERRE.test(marke(x)) && !KEINE_REGIONSSPERRE.test(marke(x))),
+    // Ein Einstiegsfenster: keine Marke einer bestimmten Region noetig (Runde 1 eines Cash Cups, Performance Evaluation mit Power-Ranking-Marke).
+    offen: zugang.filter((t) => !OHNE_BEDEUTUNG.test(t)).every((t) => !REGIONS_ANHANG.test(t)),
+  };
+}
+
+/**
+ * Region lock je Cup entscheiden - nur mit Beleg.
+ *
+ *  - Eine RegionLock-Marke in irgendeinem Fenster oder einer Auszahlung: gesperrt.
+ *  - Keine, keine unklare Sperrmarke, mindestens zwei Regionen und ein
+ *    Einstiegsfenster: nicht gesperrt.
+ *  - Nur Fenster fuer Qualifizierte (ein Finale): es gilt, was fuer den Cup
+ *    gilt, der die verlangte Marke vergibt.
+ *  - Sonst unbekannt (kein Feld).
+ */
+function entscheideSperren(gruppen: Iterable<CupGruppe>, spuren: Map<string, SperrSpur[]>) {
+  const liste = [...gruppen];
+  const regionenVon = (g: CupGruppe) => Object.keys(g.regionen).filter((r) => r !== 'GLOBAL' && g.regionen[r].length);
+  for (const g of liste) {
+    const sp = spuren.get(g.id) ?? [];
+    if (!sp.length || g.global) continue;
+    const beleg = sp.flatMap((x) => x.belege)[0];
+    if (beleg) { g.regionsSperre = { gesperrt: true, beleg }; continue; }
+    const zweifel = sp.flatMap((x) => x.zweifel)[0];
+    if (zweifel || regionenVon(g).length < 2) continue;
+    if (sp.some((x) => x.offen)) {
+      const n = Object.values(g.regionen).reduce((a, l) => a + l.length, 0);
+      g.regionsSperre = { gesperrt: false, beleg: `no RegionLock token in any of ${n} windows (${regionenVon(g).length} regions)` };
+    }
+  }
+  // Finals und Co.: vom Cup, der die Zugangsmarke vergibt.
+  const vergeber = new Map<string, CupGruppe>();
+  for (const g of liste) for (const l of Object.values(g.regionen)) for (const f of l) for (const m of f.marken ?? []) {
+    if (!vergeber.has(m.token) || g.regionsSperre) vergeber.set(m.token, g);
+  }
+  for (const g of liste) {
+    if (g.regionsSperre || g.global || !(spuren.get(g.id) ?? []).length || regionenVon(g).length < 2) continue;
+    if ((spuren.get(g.id) ?? []).some((x) => x.zweifel.length)) continue;
+    for (const l of Object.values(g.regionen)) for (const f of l) for (const t of f.tokens) {
+      const von = vergeber.get(t);
+      if (g.regionsSperre || !von?.regionsSperre || von === g) continue;
+      g.regionsSperre = { gesperrt: von.regionsSperre.gesperrt, beleg: `requires ${t}, awarded by ${von.titel} (${von.regionsSperre.beleg})` };
+    }
+  }
 }
 
 /** Eine Auszahlungsgruppe, wie Epic sie fuehrt. */
@@ -1394,6 +1502,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
   const optik = await turnierOptik();
   const gruppen = new Map<string, CupGruppe>();
   const jetzt = Date.now();
+  const spuren = new Map<string, SperrSpur[]>();
 
   const alle = await Promise.all(regionen.map(async (r) => {
     try { return { region: r, daten: await rohEvents(r) }; }
@@ -1492,6 +1601,11 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
             daten.resolvedWindowLocations?.[`Fortnite:${ev.eventId}:${w.eventWindowId}`]),
         };
 
+        const sp = spuren.get(id) ?? [];
+        sp.push(sperrSpur(w as unknown as Record<string, unknown>,
+          [daten.payoutTables?.[w.eventWindowId], daten.payoutTables?.[ev.eventId]], tokens));
+        spuren.set(id, sp);
+
         // Globale Events kommen aus jeder Regionsabfrage identisch zurueck.
         // Sie landen unter einem Sammelschluessel, damit sie nicht faelschlich
         // als sieben getrennte Regionen erscheinen.
@@ -1523,6 +1637,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
       g.regionen[r].sort((a, b) => a.begin - b.begin);
     }
   }
+  entscheideSperren(gruppen.values(), spuren);
 
   // Laufende zuerst, dann die naechsten, dann die zuletzt gelaufenen.
   return [...gruppen.values()].sort((a, b) => {
@@ -1576,6 +1691,8 @@ export interface ArchivEintrag {
    */
   tokens?: string[];
   marken?: Marke[];
+  /** Region lock des Cups - siehe RegionsSperre; steht an jeder Zeile des Cups. */
+  regionsSperre?: RegionsSperre;
   gesehen: string;
 }
 
@@ -1698,11 +1815,13 @@ export async function archivCups(
 
     let g = gruppen.get(e.id);
     if (g && !g.beschreibung && e.beschreibung) g.beschreibung = e.beschreibung;
+    if (g && !g.regionsSperre && e.regionsSperre) g.regionsSperre = e.regionsSperre;
     if (!g) {
       g = {
         id: e.id, titel: e.titel, untertitel: e.untertitel, bild: e.bild,
         beschreibung: e.beschreibung,
         kapitel: e.kapitel,
+        ...(e.regionsSperre ? { regionsSperre: e.regionsSperre } : {}),
         art: e.art, global: e.global, regionen: {},
         naechsterStart: null, letzterStart: null, live: false, vorbei: true,
       };
@@ -1744,6 +1863,15 @@ export async function archivCups(
 
   for (const g of gruppen.values()) {
     if (!g.beschreibung) g.beschreibung = beschreibungVon(g);
+    /*
+     * Aeltere Zeilen tragen noch keinen Region lock - aber ihre Zugangsmarken. Eine RegionLock-Marke darunter ist Beleg genug
+     * (FNCS Solos LCQ, S42). Dass ein Cup nicht gesperrt ist, laesst sich daraus nicht ablesen: die ausschliessenden Marken
+     * (requireNoneTokens) stehen nicht im Archiv.
+     */
+    if (!g.regionsSperre) {
+      const t = Object.values(g.regionen).flat().flatMap((f) => f.tokens).find((x) => SPERR_MARKE.test(x));
+      if (t) g.regionsSperre = { gesperrt: true, beleg: `requireAllTokens/requireAnyTokens: ${t}` };
+    }
   }
 
   return [...gruppen.values()]
@@ -1782,6 +1910,8 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           // Und die Marken (seit dem 22.9.2026), solange Epic sie noch nennt.
           if (f.marken?.length && !da.marken?.length) { da.marken = f.marken; neu++; }
           if (f.tokens?.length && !da.tokens?.length) { da.tokens = f.tokens; neu++; }
+          // Region lock (seit dem 16.11.2026) - gilt fuer den ganzen Cup.
+          if (c.regionsSperre && (!da.regionsSperre || da.regionsSperre.gesperrt !== c.regionsSperre.gesperrt)) { da.regionsSperre = c.regionsSperre; neu++; }
           // Plattformen fuer "About" (seit dem 25.9.2026).
           if (f.plattformen?.length && !da.plattformen?.length) {
             da.plattformen = f.plattformen; da.nurTouch = f.nurTouch; neu++;
@@ -1801,6 +1931,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           ...(f.raenge?.length ? { raenge: f.raenge } : {}),
           ...(f.tokens?.length ? { tokens: f.tokens } : {}),
           ...(f.marken?.length ? { marken: f.marken } : {}),
+          ...(c.regionsSperre ? { regionsSperre: c.regionsSperre } : {}),
           gesehen: jetzt,
         });
         neu++;

@@ -39,6 +39,36 @@ async function holeRoh(request: Request) {
     return NextResponse.json({ fehler: 'event fehlt' }, { status: 400 });
   }
 
+  /*
+   * ?roh=1: Epics Rohdaten zu diesem Fenster - Ereignis-Metadaten, alle require-Felder und die Auszahlung.
+   * Fuer die Gegenprobe des Region lock (16.11.2026): woran die Seite "Region locked" festmacht, soll jeder
+   * selbst nachsehen koennen. Nur das Ereignis, nie die Antwort als Ganzes (die nennt das eigene Konto).
+   */
+  if (p.get('roh') === '1') {
+    try {
+      const roh = await gecacht<unknown>(`quali-roh|${event}|${fenster}`, TTL, async () => {
+        const { token, accountId } = await getToken();
+        for (const region of ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE']) {
+          const r = await fetch(`${EVENTS}/api/v1/events/Fortnite/download/${accountId}`
+            + `?region=${region}&platform=Windows&teamAccountIds=${accountId}`, { headers: { Authorization: token } });
+          if (!r.ok) continue;
+          const d = await r.json() as { events?: RohesEreignis[]; payoutTables?: Record<string, unknown> };
+          const ev = (d.events ?? []).find((e) => e.eventId === event);
+          if (!ev) continue;
+          const w = fenster ? (ev.eventWindows ?? []).find((x) => x.eventWindowId === fenster) : (ev.eventWindows ?? [])[0];
+          const { eventWindows: _alle, ...ohneFenster } = ev as RohesEreignis & Record<string, unknown>;
+          void _alle;
+          return { ereignis: ohneFenster, fenster: w ?? null,
+            auszahlung: w ? d.payoutTables?.[w.eventWindowId] ?? d.payoutTables?.[ev.eventId] ?? null : null };
+        }
+        return null;
+      });
+      return NextResponse.json({ ok: !!roh, roh });
+    } catch (e) {
+      return NextResponse.json({ ok: false, grund: (e as Error).message });
+    }
+  }
+
   try {
     const zeilen = await gecacht<QualiZeile[]>(
       `quali|${event}|${fenster}`, TTL, async () => {
