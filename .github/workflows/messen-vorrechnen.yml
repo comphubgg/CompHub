@@ -1,0 +1,78 @@
+# Messlauf nur von Hand: wo bleibt die Zeit in "Antworten vorrechnen" (daten-erneuern.yml)? Liest den Zwischenspeicher nur
+# (kein Sichern), laedt nichts hoch, schreibt nur auf dem Laufrechner; Ergebnis als Anhang "messung" (CPU-Profile, Lese-/Netzzeiten
+# aus tools/messen/messen.cjs). Auf main, weil ein Zweig den Zwischenspeicher von main nicht zu sehen bekam (16.11.2026).
+name: Messen Vorrechnen
+on:
+  workflow_dispatch:
+jobs:
+  messen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      OHNE_CLUTCH: '1'
+      OHNE_REPLAYVOLL: '1'
+      OHNE_REPLAYS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: messen-nie-${{ github.run_id }}
+          restore-keys: comphub-daten-
+      - name: Bauen
+        env:
+          NODE_OPTIONS: --max-old-space-size=5120
+        run: |
+          mv data /tmp/daten-beiseite
+          npm run build > /tmp/bau.log 2>&1; CODE=$?
+          if [ -d data ]; then mv data /tmp/bau-leer; fi
+          mv /tmp/daten-beiseite data
+          tail -5 /tmp/bau.log; exit $CODE
+      - name: Messen
+        timeout-minutes: 70
+        env:
+          COMPHUB_VORRECHNEN: '1'
+        run: |
+          set +e
+          sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
+          mkdir -p /tmp/prof
+          export LAUF_BEGINN=$(date +%s)
+          starten() {
+            NODE_OPTIONS="--max-old-space-size=7168 --require $PWD/tools/messen/messen.cjs --cpu-prof --cpu-prof-dir=/tmp/prof/$1 --cpu-prof-interval 20000" \
+              npx next start -p 3000 >> /tmp/server-$1.log 2>&1 &
+            for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
+          }
+          stoppen() { pkill -TERM -f next-server; sleep 15; pkill -9 -f next-server; sleep 2; }
+          ( while sleep 30; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB"; done ) &
+          echo "=== A: teil 1/8"
+          starten a
+          timeout 2500 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=1/8 --frist=2400
+          stoppen
+          grep '\[MESS\]' /tmp/server-a.log | tail -3
+          echo "=== B: einzelne Abfragen, abgeschlossene Saisons"
+          starten b
+          for q in 'ansicht=start&saison=S41' 'ansicht=start&saison=S40' 'ansicht=start&saison=S41&clutch=alle' 'ansicht=start&clutch=alle'; do
+            S=$(date +%s.%N); curl -s -o /tmp/antwort.json -w "%{http_code} %{size_download}B" -m 600 "http://localhost:3000/api/szene-stats?$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            grep '\[MESS\]' /tmp/server-b.log | tail -1 | cut -c1-1500
+          done
+          stoppen
+          ls -la /tmp/prof/*
+          true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: messung
+          path: |
+            /tmp/prof
+            /tmp/server-*.log
+          retention-days: 3
+      - if: always()
+        run: rm -f .env.local
