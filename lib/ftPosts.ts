@@ -264,6 +264,9 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
 
   // Ueberlebenszeit wie app/api/cup-spieler: Epics Zeit vor der eigenen, die Teamzeit als Obergrenze; bei Reload nur Epics Zeit, wenn es sie gibt.
   const nurEpicZeit = /reload/i.test(e.fenster ?? '') && Object.keys(d.epicZeit ?? {}).length > 0;
+  // Reload (16.11.2026, LCQ EU: "Longest Time Alive 2h 27m" in einem 2,5-Stunden-Fenster): Epics Zeit zaehlt jedes Game bis zum endgueltigen Aus samt
+  // aller Reloads, auch Spieler um Platz 9.000 kamen auf ueber 2 Stunden. Als Bestwert sagt das nichts - bei Reload keine Time-Alive-Posts.
+  const ohneZeit = /reload/i.test(e.fenster ?? '');
   const lebenVon = (id: string) => {
     const s = zahl(d.epicZeit?.[id]) ?? (nurEpicZeit ? null : zahl(d.leben?.[id]));
     return s === null ? null : Math.min(s, zahl(d.epicTeamZeit?.[id]) ?? Infinity);
@@ -363,7 +366,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const [t1] = top((s) => s.erlitten, 1, (s) => s.erlitten > 0); if (t1) { beste.push(`🩸 Most Damage Taken: ${wer(t1.id)} – ${ftZahl(t1.erlitten)} damage`); merke(t1.id); }
   const [hp1] = top((s) => s.heilHp ?? 0, 1, (s) => (s.heilHp ?? 0) > 0); if (hp1) { beste.push(`💊 Most Health Healed: ${wer(hp1.id)} – ${ftZahl(hp1.heilHp ?? 0)} HP`); merke(hp1.id); }
   const [sh1] = top((s) => s.schildHeil ?? 0, 1, (s) => (s.schildHeil ?? 0) > 0); if (sh1) { beste.push(`🛡️ Most Shield Healed: ${wer(sh1.id)} – ${ftZahl(sh1.schildHeil ?? 0)} shield`); merke(sh1.id); }
-  const [l1] = top((s) => s.leben ?? 0, 1, (s) => (s.leben ?? 0) > 0); if (l1) { beste.push(`⏱️ Longest Time Alive: ${wer(l1.id)} – ${ftDauer(l1.leben ?? 0)}`); merke(l1.id); }
+  const [l1] = ohneZeit ? [] : top((s) => s.leben ?? 0, 1, (s) => (s.leben ?? 0) > 0); if (l1) { beste.push(`⏱️ Longest Time Alive: ${wer(l1.id)} – ${ftDauer(l1.leben ?? 0)}`); merke(l1.id); }
   const [st1] = top((s) => s.sturm ?? 0, 1, (s) => (s.sturm ?? 0) > 0); if (st1) { beste.push(`🌪️ Most Time in Storm: ${wer(st1.id)} – ${ftDauer(st1.sturm ?? 0)}`); merke(st1.id); }
   if (beste.length) {
     // Fuers Bild: erst die Besten der Zeilen, dann nach Schaden aufgefuellt.
@@ -380,7 +383,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   liste('hits', '🎯', 'Most Hits', (s) => s.treffer, (s) => `${ftZahl(s.treffer ?? 0)} hits${s.krit !== null ? ` (${ftZahl(s.krit)} headshots)` : ''}`);
   liste('builds', '🧱', 'Most Builds Placed', (s) => s.bauten, (s) => `${ftZahl(s.bauten ?? 0)} builds`);
   liste('mats', '🪓', 'Most Mats Farmed', (s) => s.mats, (s) => `${ftZahl(s.mats ?? 0)} mats`);
-  liste('survival', '⏱️', 'Most Time Alive', (s) => s.leben, (s) => ftDauer(s.leben ?? 0), (s) => s.spiele >= minSpiele);
+  if (!ohneZeit) liste('survival', '⏱️', 'Most Time Alive', (s) => s.leben, (s) => ftDauer(s.leben ?? 0), (s) => s.spiele >= minSpiele);
   liste('distance', '🏃', streckeGeschaetzt ? 'Distance Traveled (est.)' : 'Distance Traveled', (s) => s.strecke, (s) => ftKm(s.strecke ?? 0), (s) => s.spiele >= minSpiele);
   liste('storm', '🌪️', 'Most Time in Storm', (s) => s.sturm, (s) => ftDauer(s.sturm ?? 0));
 
