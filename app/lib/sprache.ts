@@ -4962,6 +4962,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'In diesem Format nicht erfasst': 'Not tracked in this format',
   'Wird gerade mit der neuen Auswertung neu gelesen – bis dahin nicht gezeigt': 'Being re-read with the new analysis – not shown until it is done',
   'Für dieses Event nicht verfügbar': 'Not available for this event',
+  'Gerechnet aus': 'Based on',
+  'Spielern': 'players',
   'Ohne Schaden je Spieler: Rating = 100 × (0.30·Elims + 0.20·Placement) / 0.50.': 'Without damage per player: rating = 100 × (0.30·Elims + 0.20·Placement) / 0.50.',
   'Spiele gelesen – Treffer, Kopftreffer, Bauteile, erlittener Schaden und Ratio nur bei Spielern, deren Spiele alle gelesen sind.': 'games read – hits, headshots, builds, damage taken and ratio only for players whose games are all read.',
   'Solange die Replays nicht ganz gelesen sind: Rating = 100 × (0.30·Elims + 0.25·Damage + 0.20·Placement) / 0.75.': 'While the replays are not fully read: rating = 100 × (0.30·elims + 0.25·damage + 0.20·placement) / 0.75.',

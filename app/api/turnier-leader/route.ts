@@ -213,8 +213,11 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
       return Object.assign(z0, { gesamt: sp?.gesamt?.[kennzahl] });
     };
   }
+  // Vorbei (fristFuer: laenger als eine Minute frisch heisst, das Ende liegt hinter uns) - erst dann duerfen Tafeln mit kleiner, harmloser Luecke stehen.
+  const vorbei = (await fristFuer(fenster, windows)).ms > 60_000;
   const [d, kopf] = await Promise.all([
     baueLeader(hole, {
+      vorbei: () => vorbei,
       replayHinten: () => !!replayStand, schadenDa: () => solo || sp?.schadenDa !== false,
       // Warum eine Kennzahl fehlt: Auswertung laeuft noch (teilweise gelesen), Neu-Lesen laeuft (umbau), oder der Spieltag ist fertig gelesen - dann hat die
       // damals benutzte Leser-Fassung den Wert nicht erfasst (z. B. Builds vor Fassung 18, S42 FNCS Heat 2 EU vom 18.10.).
@@ -233,7 +236,8 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
 async function leaderFuer(basis: URL, fenster: string, event: string, windows: string[], neu = false) {
   // Der Dateiname wird bei 120 Zeichen gekappt (lib/antwortSpeicher) - Event und Tage deshalb als Pruefsumme, sonst fielen "Day 2" und "Day 1 + Day 2" zusammen.
   // "leader2" (16.11.2026): neue Gruende fuer fehlende Tafeln ('neu', 'alt') - aufgehobene Antworten mit dem alten "Auswertung laeuft" gelten nicht mehr.
-  const schluessel = `leader2|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
+  // "leader3" (16.11.2026): Tafeln mit kleiner, harmloser Luecke (basis) - aufgehobene Antworten ohne sie gelten nicht mehr.
+  const schluessel = `leader3|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
   const frist = await fristFuer(fenster, windows);
   const rechne = () => rechneLeader(basis, fenster, event, windows);
   // ?neu=1 (Vorwaermen nach dem Ablegen neuer Replay-Werte, scripts/leader-vorwaermen.mjs): neu rechnen, wenn die aufgehobene Antwort aelter als 5 Minuten ist.
