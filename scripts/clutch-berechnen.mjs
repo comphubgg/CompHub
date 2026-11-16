@@ -385,7 +385,8 @@ if (arg[0] === '--plan') {
    * stand nach zehn Tagen noch ohne Schaden da. Frisch Beendetes bleibt vorn.
    */
   const klein = (t) => t.gesamt <= 300;
-  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (Number(klein(b)) - Number(klein(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
+  // Bei Vorrang zuerst die grossen Cups selbst (cupVorrang 0), dann erst die kleinen - sonst kamen Ranked-Spieltage mit 220 Matches vor die laufende LCQ.
+  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (VORRANG ? cupVorrang(a.windowId) - cupVorrang(b.windowId) : 0) || (Number(klein(b)) - Number(klein(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
   // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
   const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / (VORRANG ? 60 : 150))));
