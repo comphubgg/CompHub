@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Custom scoreboard</title>
+<!--
+  Custom / Tokens scoreboard: team vs team for custom matches, token events
+  and showmatches. Built for a 1920 x 1080 browser source with a transparent
+  page; the board places itself (top / middle / bottom, left / centre / right).
+
+  Three ways to feed it:
+    ?id=<id>            a saved overlay (/overlays/custom). Score changes from
+                        the control page arrive within ~1.5 s (one tiny request
+                        every 1.5 s, answered from server memory).
+    ?vorschau=<json>    the live preview in the configurator (no requests).
+    plain URL params    no account needed, e.g.
+      ?title=MASTER%20MONDAYS&t1=Team%20A&t2=Team%20B
+      &p1=CHAP,KAAN,FASTROKI&p2=NOCIFF,IZZI,AKIIRA&s1=0&s2=0
+      &c1=3b82f6&c2=ef4444&bg=0b1120&op=90&text=ffffff&font=oswald
+      &layout=stacked|inline  &style=bar|compact|vertical
+      &v=top|middle|bottom &h=left|center|right &margin=48 &scale=1
+      &live=LIVE%20NOW &hideTitle=1 &hideLive=1 &hideTeams=1
+      &tag1=TA&tag2=TB &logo1=<url> &logo2=<url> &f1=de &f2=fr
+      &fl1=de,de,at &fl2=fr,ch,de (flag per player) &anim=pop|flip|glow|none
+      &pattern=diagonal &patterncolor=38bdf8 &outline=1 &logo=<url>
+      &mode=boxfight &ft=5 (first to) &round=7 &series=1-0
+-->
+<style>
+:root {
+  --grund: 11 17 32;
+  --deck: 0.9;
+  --a: #3b82f6;
+  --b: #ef4444;
+  --text: #ffffff;
+  --live: #ef4444;
+  --font: 'Oswald', 'Arial Narrow', sans-serif;
+  --mass: 1;
+  --rand: 48px;
+  --ecken: 6px;
+  --muster: #38bdf8;
+  --kontur: #000000;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+body {
+  display: flex;
+  padding: var(--rand);
+  font-family: var(--font);
+  color: var(--text);
+}
+body.v-top { align-items: flex-start; }
+body.v-middle { align-items: center; }
+body.v-bottom { align-items: flex-end; }
+body.h-left { justify-content: flex-start; }
+body.h-center { justify-content: center; }
+body.h-right { justify-content: flex-end; }
+
+#board {
+  zoom: var(--mass);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .35s ease, transform .35s ease;
+}
+#board.da { opacity: 1; transform: none; }
+
+/* ---------------------------------------------------------- title + live */
+#titel {
+  position: relative;
+  z-index: 2;
+  padding: 7px 26px 6px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  background: rgb(var(--grund) / calc(var(--deck) + .06));
+  border-radius: var(--ecken) var(--ecken) 0 0;
+  white-space: nowrap;
+}
+#titel::after {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  border-radius: var(--ecken) var(--ecken) 0 0;
+  background: linear-gradient(90deg, var(--a), var(--b));
+}
+#titel { display: flex; align-items: center; gap: 12px; }
+#marke { height: 34px; max-width: 160px; object-fit: contain; }
+#meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.chip {
+  display: inline-flex; align-items: center;
+  padding: 5px 13px 4px;
+  font-size: 14px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  background: rgb(var(--grund) / var(--deck));
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.chip b { font-weight: 700; color: color-mix(in srgb, var(--a) 50%, var(--text)); margin-left: .45em; }
+#live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 4px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  background: rgb(var(--grund) / var(--deck));
+  border: 1px solid color-mix(in srgb, var(--live) 55%, transparent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+#live i {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 0 var(--live);
+  animation: puls 1.8s ease-out infinite;
+}
+@keyframes puls {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 70%, transparent); }
+  70% { box-shadow: 0 0 0 9px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ---------------------------------------------------------- the bar */
+#reihe {
+  display: flex;
+  align-items: stretch;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .45));
+}
+.seite {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 300px;
+  padding: 14px 30px;
+  background: rgb(var(--grund) / var(--deck));
+}
+.seite.a {
+  justify-content: flex-end;
+  border-radius: var(--ecken) 0 0 var(--ecken);
+  background-image: linear-gradient(270deg, color-mix(in srgb, var(--a) 26%, transparent), transparent 70%);
+  box-shadow: inset 5px 0 0 var(--a);
+}
+.seite.b {
+  justify-content: flex-start;
+  border-radius: 0 var(--ecken) var(--ecken) 0;
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--b) 26%, transparent), transparent 70%);
+  box-shadow: inset -5px 0 0 var(--b);
+}
+.team { display: flex; flex-direction: column; gap: 2px; }
+.seite.a .team { align-items: flex-end; text-align: right; }
+.seite.b .team { align-items: flex-start; text-align: left; }
+.tname {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .92;
+  margin-bottom: 2px;
+}
+.seite.a .tname { color: color-mix(in srgb, var(--a) 55%, var(--text)); }
+.seite.b .tname { color: color-mix(in srgb, var(--b) 55%, var(--text)); }
+.spieler { display: flex; flex-direction: column; gap: 1px; }
+.sp {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 25px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.seite.a .sp { flex-direction: row-reverse; }
+body.inline .spieler { flex-direction: row; gap: 0; }
+body.inline .sp + .sp::before { content: '·'; opacity: .45; margin: 0 .35em; }
+body.inline .seite.a .spieler { justify-content: flex-end; }
+body.inline .seite.a .sp { flex-direction: row; }
+.flagge {
+  width: 26px; height: 18px; object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .18);
+  flex: 0 0 auto;
+}
+.sp .flagge { width: 22px; height: 15px; }
+.logo {
+  width: 64px; height: 64px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+#stand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-width: 190px;
+  margin: -8px 0;
+  padding: 0 26px;
+  background: rgb(var(--grund) / calc(var(--deck) + .08));
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .07), transparent 60%);
+  border-radius: var(--ecken);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08);
+  z-index: 1;
+}
+.zahl {
+  position: relative;
+  display: inline-block;
+  min-width: .62em;
+  text-align: center;
+  font-size: 66px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.zahl::after {
+  content: '';
+  position: absolute; left: 12%; right: 12%; bottom: -10px; height: 4px;
+  border-radius: 2px;
+}
+#z1::after { background: var(--a); }
+#z2::after { background: var(--b); }
+.teiler { font-size: 40px; font-weight: 600; opacity: .4; transform: translateY(-3px); }
+
+/* score change animations */
+.zahl.pop { animation: pop .55s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.32); } 100% { transform: scale(1); } }
+.zahl.flip { animation: flip .5s ease; }
+@keyframes flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); opacity: .3; } 100% { transform: rotateX(0); } }
+#z1.glow { animation: glowA 1.2s ease; }
+#z2.glow { animation: glowB 1.2s ease; }
+@keyframes glowA { 0%, 100% { text-shadow: none; } 30% { text-shadow: 0 0 22px var(--a), 0 0 6px var(--a); } }
+@keyframes glowB { 0%, 100% { text-shadow: none; } 30% { text-shadow: 0 0 22px var(--b), 0 0 6px var(--b); } }
+
+/* ---------------------------------------------------------- compact: a score bug */
+body.compact .spieler, body.compact .logo { display: none; }
+body.compact .seite { min-width: 0; padding: 10px 22px; }
+body.compact .tname { font-size: 26px; letter-spacing: .08em; margin: 0; opacity: 1; color: var(--text) !important; }
+body.compact #stand { min-width: 130px; margin: 0; padding: 0 18px; }
+body.compact .zahl { font-size: 42px; }
+body.compact .zahl::after { bottom: -6px; height: 3px; }
+body.compact .teiler { font-size: 28px; }
+body.compact #titel { font-size: 13px; padding: 5px 18px 4px; }
+
+/* ---------------------------------------------------------- vertical: a sidebar */
+body.vertical #reihe { flex-direction: column; }
+body.vertical .seite { min-width: 300px; justify-content: flex-start !important; padding: 16px 22px; }
+body.vertical .seite.a { border-radius: var(--ecken) var(--ecken) 0 0; box-shadow: inset 5px 0 0 var(--a);
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--a) 22%, transparent), transparent 70%); }
+body.vertical .seite.b { border-radius: 0 0 var(--ecken) var(--ecken); box-shadow: inset 5px 0 0 var(--b); }
+body.vertical .seite .team { align-items: flex-start !important; text-align: left !important; }
+body.vertical .seite.a .sp { flex-direction: row; }
+body.vertical .seite.a { flex-direction: row-reverse; justify-content: flex-end !important; }
+body.vertical .seite.a .spieler { justify-content: flex-start; }
+body.vertical #stand { margin: 0 -8px; padding: 10px 0 16px; }
+
+/* ---------------------------------------------------------- box fight */
+.pips { display: flex; gap: 5px; margin-top: 8px; }
+.pips i {
+  width: 16px; height: 6px; border-radius: 2px;
+  background: rgba(255, 255, 255, .16);
+  transition: background .3s ease;
+}
+.seite.a .pips { justify-content: flex-end; }
+.seite.a .pips i.an { background: var(--a); box-shadow: 0 0 8px color-mix(in srgb, var(--a) 60%, transparent); }
+.seite.b .pips i.an { background: var(--b); box-shadow: 0 0 8px color-mix(in srgb, var(--b) 60%, transparent); }
+#ziel {
+  position: absolute; left: 0; right: 0; bottom: 6px;
+  text-align: center;
+  font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+  opacity: .65;
+}
+body.boxfight #stand { padding-bottom: 14px; }
+body.compact.boxfight #stand { padding-bottom: 16px; }
+body.compact #ziel { bottom: 3px; font-size: 10px; }
+
+/* ---------------------------------------------------------- pattern accents (presets) */
+.band { display: none; align-self: stretch; height: 10px; margin-top: 0; }
+.seite::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; display: none;
+  border-radius: inherit;
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--muster) 14%, transparent) 0 2px, transparent 2px 10px);
+}
+body.m-diagonal .seite::before { display: block; }
+body.m-diagonal .band { display: block; height: 3px; background: linear-gradient(90deg, var(--a), var(--muster), var(--b)); }
+
+/* bold outlined type, like a thumbnail */
+body.kontur .sp, body.kontur .zahl, body.kontur #titeltext, body.kontur .tname span {
+  -webkit-text-stroke: .1em var(--kontur);
+  paint-order: stroke fill;
+  text-shadow: .03em .07em 0 var(--kontur);
+}
+body.kontur .tname span { -webkit-text-stroke-width: .16em; }
+body.kontur .zahl { -webkit-text-stroke-width: .08em; }
+
+@media (prefers-reduced-motion: reduce) {
+  #board, .zahl, #live i { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body class="v-top h-center">
+
+<div id="board">
+  <div id="titel"><img id="marke" alt="" hidden><span id="titeltext">MASTER MONDAYS</span></div>
+  <div id="reihe">
+    <div class="seite a">
+      <div class="team">
+        <div class="tname" id="tn1"></div>
+        <div class="spieler" id="sp1"></div>
+        <div class="pips" id="pips1" hidden></div>
+      </div>
+      <img class="logo" id="l1" alt="" hidden>
+    </div>
+    <div id="stand">
+      <span class="zahl" id="z1">0</span><span class="teiler">:</span><span class="zahl" id="z2">0</span>
+      <span id="ziel" hidden></span>
+    </div>
+    <div class="seite b">
+      <img class="logo" id="l2" alt="" hidden>
+      <div class="team">
+        <div class="tname" id="tn2"></div>
+        <div class="spieler" id="sp2"></div>
+        <div class="pips" id="pips2" hidden></div>
+      </div>
+    </div>
+  </div>
+  <div class="band"></div>
+  <div id="meta">
+    <span class="chip" id="runde" hidden></span>
+    <span id="live"><i></i><span id="livetext">LIVE NOW</span></span>
+    <span class="chip" id="serie" hidden></span>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STANDARD = {
+    titel: 'MASTER MONDAYS', titelZeigen: true,
+    live: 'LIVE NOW', liveZeigen: true,
+    name1: 'TEAM A', name2: 'TEAM B', tag1: '', tag2: '', teamZeigen: true,
+    spieler1: ['CHAP', 'KAAN', 'FASTROKI'], spieler2: ['NOCIFF', 'IZZI', 'AKIIRA'],
+    laender1: [], laender2: [],
+    flagge1: '', flagge2: '', logo1: '', logo2: '',
+    punkte1: 0, punkte2: 0,
+    stil: 'bar', anordnung: 'stapel',
+    grund: '#0b1120', deckkraft: 0.9,
+    akzent1: '#3b82f6', akzent2: '#ef4444', text: '#ffffff', liveFarbe: '#ef4444',
+    schrift: 'oswald', groesse: 1, ecken: 6,
+    vert: 'top', horiz: 'center', rand: 48,
+    animation: 'pop',
+    // Preset accents (app/overlays/presets.ts writes these).
+    muster: 'none', musterFarbe: '#38bdf8', kontur: false, konturFarbe: '#000000',
+    markeLogo: '', markeZeigen: true,
+    // Box fight / series.
+    modus: 'match', ziel: 5, zielZeigen: true, runde: 0, serie1: 0, serie2: 0, serieZeigen: false,
+  };
+
+  /* A few web fonts. Anton is served by us; the rest come from Google Fonts. */
+  var SCHRIFTEN = {
+    oswald: { css: "'Oswald', 'Arial Narrow', sans-serif", g: 'Oswald:wght@400;500;600;700' },
+    inter: { css: "'Inter', 'Segoe UI', sans-serif", g: 'Inter:wght@400;500;600;700;800' },
+    bebas: { css: "'Bebas Neue', 'Arial Narrow', sans-serif", g: 'Bebas+Neue' },
+    rajdhani: { css: "'Rajdhani', sans-serif", g: 'Rajdhani:wght@500;600;700' },
+    chakra: { css: "'Chakra Petch', sans-serif", g: 'Chakra+Petch:wght@500;600;700' },
+    barlow: { css: "'Barlow Condensed', sans-serif", g: 'Barlow+Condensed:wght@500;600;700;800' },
+    anton: { css: "'Anton', Impact, sans-serif", eigen: true },
+  };
+  var geladen = {};
+  function schriftLaden(k) {
+    var s = SCHRIFTEN[k] || SCHRIFTEN.oswald;
+    if (geladen[k]) return s.css;
+    geladen[k] = true;
+    if (s.eigen) {
+      var st = document.createElement('style');
+      st.textContent = "@font-face{font-family:'Anton';src:url('/fonts/anton-latin.woff2') format('woff2');font-display:block}";
+      document.head.appendChild(st);
+    } else {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=' + s.g + '&display=block';
+      document.head.appendChild(l);
+    }
+    return s.css;
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var P = new URLSearchParams(location.search);
+  var SERVER = P.get('server') || location.origin;
+
+  function hex(v, std) {
+    v = String(v || '').trim();
+    if (/^#?[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) return v[0] === '#' ? v : '#' + v;
+    return std;
+  }
+  function rgb(h) {
+    h = hex(h, '#0b1120').slice(1);
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var n = parseInt(h, 16);
+    return ((n >> 16) & 255) + ' ' + ((n >> 8) & 255) + ' ' + (n & 255);
+  }
+  function liste(v) {
+    if (Array.isArray(v)) return v.map(String);
+    return String(v || '').split(',').map(function (x) { return x.trim(); });
+  }
+  function flaggenPfad(code) {
+    code = String(code || '').trim().toLowerCase();
+    return /^[a-z]{2}$/.test(code) ? SERVER + '/flags/' + code + '.png' : '';
+  }
+
+  /* Plain URL params -> settings (for links without an account). */
+  function ausAdresse() {
+    var c = {};
+    var ja = function (k) { var w = P.get(k); return w === '1' || w === 'true' || w === 'yes'; };
+    var map = {
+      title: 'titel', live: 'live', t1: 'name1', t2: 'name2', tag1: 'tag1', tag2: 'tag2',
+      logo1: 'logo1', logo2: 'logo2', f1: 'flagge1', f2: 'flagge2', font: 'schrift', anim: 'animation',
+    };
+    Object.keys(map).forEach(function (k) { if (P.has(k)) c[map[k]] = P.get(k); });
+    if (P.has('p1')) c.spieler1 = liste(P.get('p1'));
+    if (P.has('p2')) c.spieler2 = liste(P.get('p2'));
+    if (P.has('fl1')) c.laender1 = liste(P.get('fl1'));
+    if (P.has('fl2')) c.laender2 = liste(P.get('fl2'));
+    if (P.has('s1')) c.punkte1 = Number(P.get('s1')) || 0;
+    if (P.has('s2')) c.punkte2 = Number(P.get('s2')) || 0;
+    if (P.has('c1')) c.akzent1 = P.get('c1');
+    if (P.has('c2')) c.akzent2 = P.get('c2');
+    if (P.has('bg')) c.grund = P.get('bg');
+    if (P.has('text')) c.text = P.get('text');
+    if (P.has('livecolor')) c.liveFarbe = P.get('livecolor');
+    if (P.has('op')) c.deckkraft = Math.max(0, Math.min(100, Number(P.get('op')))) / 100;
+    if (P.has('scale')) c.groesse = Number(P.get('scale')) || 1;
+    if (P.has('radius')) c.ecken = Number(P.get('radius')) || 0;
+    if (P.has('margin')) c.rand = Number(P.get('margin')) || 0;
+    if (P.has('v')) c.vert = P.get('v');
+    if (P.has('h')) c.horiz = P.get('h');
+    if (P.has('style')) c.stil = P.get('style');
+    if (P.has('pattern')) c.muster = P.get('pattern');
+    if (P.has('patterncolor')) c.musterFarbe = P.get('patterncolor');
+    if (ja('outline')) c.kontur = true;
+    if (P.has('logo')) c.markeLogo = P.get('logo');
+    if (P.has('mode')) c.modus = P.get('mode');
+    if (P.has('ft')) c.ziel = Number(P.get('ft')) || 0;
+    if (P.has('round')) c.runde = Number(P.get('round')) || 0;
+    if (P.has('series')) {
+      var se = String(P.get('series')).split(/[-:]/);
+      c.serie1 = Number(se[0]) || 0; c.serie2 = Number(se[1]) || 0; c.serieZeigen = true;
+    }
+    if (P.has('layout')) c.anordnung = P.get('layout') === 'inline' ? 'reihe' : 'stapel';
+    if (ja('hideTitle')) c.titelZeigen = false;
+    if (ja('hideLive')) c.liveZeigen = false;
+    if (ja('hideTeams')) c.teamZeigen = false;
+    return c;
+  }
+
+  var vorher = { p1: null, p2: null };
+  function zaehlen(el, wert, alt, anim) {
+    el.textContent = String(wert);
+    if (alt === null || alt === wert || !anim || anim === 'none') return;
+    el.classList.remove('pop', 'flip', 'glow');
+    void el.offsetWidth;
+    el.classList.add(anim);
+  }
+
+  function seite(n, cfg) {
+    var tn = $('tn' + n);
+    tn.textContent = '';
+    var flagge = flaggenPfad(cfg['flagge' + n]);
+    if (flagge) {
+      var fi = document.createElement('img');
+      fi.className = 'flagge'; fi.alt = ''; fi.src = flagge;
+      tn.appendChild(fi);
+    }
+    var name = String(cfg['name' + n] || '');
+    var tag = String(cfg['tag' + n] || '');
+    var t = document.createElement('span');
+    // In the compact score bug the short tag wins - that is what it is for.
+    t.textContent = cfg.stil === 'compact' && tag ? tag : (name || tag);
+    tn.appendChild(t);
+    tn.hidden = !(cfg.teamZeigen || cfg.stil === 'compact') || !(name || tag);
+
+    var sp = $('sp' + n);
+    sp.textContent = '';
+    var namen = liste(cfg['spieler' + n]).filter(Boolean).slice(0, 4);
+    var laender = liste(cfg['laender' + n]);
+    namen.forEach(function (nm, i) {
+      var z = document.createElement('div');
+      z.className = 'sp';
+      var f = flaggenPfad(laender[i]);
+      if (f) {
+        var im = document.createElement('img');
+        im.className = 'flagge'; im.alt = ''; im.src = f;
+        z.appendChild(im);
+      }
+      var s = document.createElement('span');
+      s.textContent = nm;
+      z.appendChild(s);
+      sp.appendChild(z);
+    });
+    sp.hidden = !namen.length;
+
+    var logo = $('l' + n);
+    var lp = String(cfg['logo' + n] || '').trim();
+    if (lp && /^(https?:\/\/|\/)/.test(lp)) { if (logo.getAttribute('src') !== lp) logo.src = lp; logo.hidden = false; }
+    else logo.hidden = true;
+  }
+
+  function anwenden(cfg) {
+    var r = document.documentElement.style;
+    r.setProperty('--grund', rgb(cfg.grund));
+    r.setProperty('--deck', String(Math.max(0, Math.min(1, Number(cfg.deckkraft)))));
+    r.setProperty('--a', hex(cfg.akzent1, '#3b82f6'));
+    r.setProperty('--b', hex(cfg.akzent2, '#ef4444'));
+    r.setProperty('--text', hex(cfg.text, '#ffffff'));
+    r.setProperty('--live', hex(cfg.liveFarbe, '#ef4444'));
+    r.setProperty('--font', schriftLaden(cfg.schrift));
+    r.setProperty('--mass', String(Math.max(0.4, Math.min(2.5, Number(cfg.groesse) || 1))));
+    r.setProperty('--rand', Math.max(0, Math.min(400, Number(cfg.rand) || 0)) + 'px');
+    r.setProperty('--ecken', Math.max(0, Math.min(30, Number(cfg.ecken))) + 'px');
+
+    var b = document.body;
+    var vert = ['top', 'middle', 'bottom'].indexOf(cfg.vert) >= 0 ? cfg.vert : 'top';
+    var horiz = ['left', 'center', 'right'].indexOf(cfg.horiz) >= 0 ? cfg.horiz : 'center';
+    var stil = ['bar', 'compact', 'vertical'].indexOf(cfg.stil) >= 0 ? cfg.stil : 'bar';
+    var muster = cfg.muster === 'diagonal' ? 'diagonal' : 'none';
+    var box = cfg.modus === 'boxfight';
+    b.className = 'v-' + vert + ' h-' + horiz + ' ' + stil + (cfg.anordnung === 'reihe' ? ' inline' : '')
+      + ' m-' + muster + (cfg.kontur ? ' kontur' : '') + (box ? ' boxfight' : '');
+    r.setProperty('--muster', hex(cfg.musterFarbe, '#38bdf8'));
+    r.setProperty('--kontur', hex(cfg.konturFarbe, '#000000'));
+    ziel = box ? Math.max(0, Math.min(30, Math.round(Number(cfg.ziel) || 0))) : 0;
+
+    var marke = $('marke');
+    var ml = String(cfg.markeLogo || '').trim();
+    var mlOk = cfg.markeZeigen && /^(https?:\/\/|\/|data:image\/)/.test(ml);
+    if (mlOk) { if (marke.getAttribute('src') !== ml) marke.src = ml; marke.hidden = false; } else marke.hidden = true;
+    $('titeltext').textContent = String(cfg.titel || '');
+    $('titeltext').hidden = !cfg.titelZeigen || !cfg.titel;
+    $('titel').hidden = $('titeltext').hidden && !mlOk;
+    $('livetext').textContent = String(cfg.live || 'LIVE');
+    $('live').hidden = !cfg.liveZeigen;
+
+    var zt = $('ziel');
+    zt.textContent = ziel ? 'FIRST TO ' + ziel : '';
+    zt.hidden = !ziel || !cfg.zielZeigen;
+    var rn = Number(cfg.runde) || 0;
+    $('runde').textContent = 'ROUND ' + rn;
+    $('runde').hidden = !box || rn <= 0;
+    var se = $('serie');
+    se.textContent = 'SERIES';
+    var sb = document.createElement('b');
+    sb.textContent = (Number(cfg.serie1) || 0) + ' – ' + (Number(cfg.serie2) || 0);
+    se.appendChild(sb);
+    se.hidden = !cfg.serieZeigen;
+    $('meta').hidden = $('runde').hidden && $('live').hidden && se.hidden;
+
+    seite(1, cfg);
+    seite(2, cfg);
+    punkte(cfg.punkte1, cfg.punkte2, cfg.animation);
+    $('board').classList.add('da');
+  }
+  var aktuelleAnim = 'pop';
+  var ziel = 0;
+  function pips(n, wert) {
+    var el = $('pips' + n);
+    el.hidden = !ziel || ziel > 15;
+    if (el.hidden) return;
+    if (el.childElementCount !== ziel) {
+      el.textContent = '';
+      for (var i = 0; i < ziel; i++) el.appendChild(document.createElement('i'));
+    }
+    Array.prototype.forEach.call(el.children, function (p, i) { p.classList.toggle('an', i < wert); });
+  }
+  function punkte(p1, p2, anim) {
+    if (anim) aktuelleAnim = anim;
+    p1 = Number(p1) || 0; p2 = Number(p2) || 0;
+    pips(1, p1); pips(2, p2);
+    zaehlen($('z1'), p1, vorher.p1, aktuelleAnim);
+    zaehlen($('z2'), p2, vorher.p2, aktuelleAnim);
+    vorher.p1 = p1; vorher.p2 = p2;
+  }
+
+  function mit(c) {
+    var o = {};
+    Object.keys(STANDARD).forEach(function (k) { o[k] = STANDARD[k]; });
+    Object.keys(c || {}).forEach(function (k) { o[k] = c[k]; });
+    return o;
+  }
+
+  // 1. Preview inside the configurator: exactly what is in the address.
+  var vorschau = P.get('vorschau');
+  if (vorschau) {
+    try { anwenden(mit(JSON.parse(vorschau))); } catch (e) { anwenden(mit({})); }
+    // The configurator can push score changes in without reloading the frame.
+    window.addEventListener('message', function (ev) {
+      if (ev.origin !== location.origin || !ev.data || ev.data.comphub !== 'custom-cfg') return;
+      anwenden(mit(ev.data.cfg));
+    });
+    return;
+  }
+
+  var id = P.get('id');
+  // 2. No id: plain URL params.
+  if (!id) { anwenden(mit(ausAdresse())); return; }
+
+  // 3. A saved overlay: settings once, then only the tiny score question.
+  var MERK = 'comphub-overlay:' + id;
+  var stand = -1;
+  var laeuft = false;
+  function merkzettel() {
+    if (laeuft) return;
+    try {
+      var g = JSON.parse(localStorage.getItem(MERK) || 'null');
+      if (g && g.config) { laeuft = true; anwenden(mit(g.config)); }
+    } catch (e) { /* none */ }
+  }
+  function voll() {
+    return fetch(SERVER + '/api/overlay-config?id=' + encodeURIComponent(id), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.config) { merkzettel(); return; }
+        try { localStorage.setItem(MERK, JSON.stringify({ config: j.config, stand: j.stand })); } catch (e) { /* blocked */ }
+        stand = j.stand;
+        laeuft = true;
+        anwenden(mit(j.config));
+      })
+      .catch(merkzettel);
+  }
+  var unterwegs = false;
+  function kurz() {
+    if (unterwegs || document.hidden) return;
+    unterwegs = true;
+    fetch(SERVER + '/api/overlay-config?nur=stand&id=' + encodeURIComponent(id), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || typeof j.stand !== 'number' || j.stand === stand) return;
+        // Score only? Show it at once; the full settings follow in the same breath.
+        punkte(j.p1, j.p2);
+        return voll();
+      })
+      .catch(function () { /* network gone - keep what is on screen */ })
+      .then(function () { unterwegs = false; });
+  }
+  voll();
+  setInterval(kurz, 1500);
+})();
+</script>
+</body>
+</html>

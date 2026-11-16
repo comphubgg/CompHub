@@ -76,6 +76,34 @@ export interface OverlayEintrag {
   geaendertVon?: string;
   /** Gesetzt = geloescht (Millisekunden). Der Eintrag bleibt 7 Tage liegen. */
   geloeschtAm?: number;
+  /**
+   * Control key of a "custom" scoreboard: whoever has it may change the score
+   * (the control page on a phone or a co-caster's PC), nothing else. Never
+   * part of the public answer.
+   */
+  steuer?: string;
+}
+
+/** Types that carry a control key for live score updates. */
+const MIT_STEUER = new Set(['custom']);
+
+/*
+ * The score of the custom scoreboards, kept in memory.
+ *
+ * The scoreboard in OBS asks every 1.5 s whether the score changed. That
+ * answer must be cheap: no file read, a few bytes. The map is filled on the
+ * first question (one read) and updated on every write in this process.
+ */
+interface Kurzstand { p1: number; p2: number; stand: number; bis: number }
+const KURZ = new Map<string, Kurzstand | null>();
+const KURZ_MS = 10 * 60_000;
+function kurzMerken(e: OverlayEintrag | undefined, id: string) {
+  if (!e || e.geloeschtAm) { KURZ.set(id, null); return; }
+  KURZ.set(id, {
+    p1: Number(e.config?.punkte1) || 0, p2: Number(e.config?.punkte2) || 0,
+    stand: e.stand, bis: Date.now() + KURZ_MS,
+  });
+  if (KURZ.size > 2000) KURZ.delete(KURZ.keys().next().value as string);
 }
 
 /**
@@ -104,6 +132,7 @@ async function schreibe(alles: Record<string, OverlayEintrag>): Promise<void> {
   }
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(alles, null, 1), 'utf8');
+  for (const id of KURZ.keys()) kurzMerken(alles[id], id);
 }
 
 /** Wer fragt gerade - oder null. */
@@ -165,6 +194,25 @@ async function wer(): Promise<string | null> {
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
+
+  /*
+   * The cheap question of the custom scoreboard: score and version only.
+   * Answered from memory; the full settings are fetched only when the
+   * version moves.
+   */
+  const kurzId = p.get('id');
+  if (kurzId && p.get('nur') === 'stand') {
+    let k = KURZ.get(kurzId);
+    if (k === undefined || (k && k.bis < Date.now())) {
+      kurzMerken((await lies())[kurzId], kurzId);
+      k = KURZ.get(kurzId);
+    }
+    if (!k) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    return NextResponse.json({ p1: k.p1, p2: k.p2, stand: k.stand }, {
+      headers: { 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'max-age=1', 'Vercel-CDN-Cache-Control': 'max-age=1' },
+    });
+  }
+
   const alles = await lies();
 
   const id = p.get('id');
@@ -205,6 +253,8 @@ export async function GET(request: Request) {
           geaendert: e.geaendert, config: e.config,
           angelegtVon: e.angelegtVon ?? null,
           geaendertVon: e.geaendertVon ?? null,
+          // Only the owner sees the control key of a scoreboard.
+          steuer: e.steuer ?? null,
         })),
     });
   }
@@ -225,13 +275,62 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const koerper = await request.json().catch(() => ({}));
+
+  /*
+   * ------------------------------------------------ Score of a scoreboard
+   *
+   * { id, punkte: { p1, p2 }, steuer? } - the control page. Allowed with the
+   * control key (no account needed: a co-caster on another PC or a phone) or
+   * for the owner. Only score, round and series change; nothing else can be
+   * written this way.
+   */
+  if (typeof koerper.id === 'string' && koerper.punkte && typeof koerper.punkte === 'object') {
+    const alles = await lies();
+    const e = alles[koerper.id];
+    if (!e || e.geloeschtAm) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    const mitSchluessel = typeof koerper.steuer === 'string' && Boolean(e.steuer) && koerper.steuer === e.steuer;
+    if (!mitSchluessel && e.besitzer !== await wer()) {
+      return NextResponse.json({ error: 'Wrong control key' }, { status: 403 });
+    }
+    const zahl = (v: unknown) => Math.max(0, Math.min(999, Math.round(Number(v) || 0)));
+    const extra: Record<string, unknown> = {};
+    // Round and series travel with the score; only numbers.
+    for (const k of ['runde', 'serie1', 'serie2'] as const) {
+      if (koerper.punkte[k] !== undefined) extra[k] = zahl(koerper.punkte[k]);
+    }
+    e.config = { ...e.config, ...extra, punkte1: zahl(koerper.punkte.p1), punkte2: zahl(koerper.punkte.p2) };
+    e.stand += 1;
+    e.geaendert = new Date().toISOString();
+    try {
+      await schreibe(alles);
+    } catch {
+      return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+    }
+    kurzMerken(e, e.id);
+    return NextResponse.json({ ok: true, p1: e.config.punkte1, p2: e.config.punkte2, stand: e.stand, config: e.config });
+  }
+
   const ich = await wer();
   if (!ich) {
     return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
   }
 
-  const koerper = await request.json().catch(() => ({}));
   const alles = await lies();
+
+  // ------------------------------------------------ New control key (owner)
+  if (koerper.neuerSteuer && typeof koerper.id === 'string') {
+    const e = alles[koerper.id];
+    if (!e || e.geloeschtAm) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    if (e.besitzer !== ich) return NextResponse.json({ error: 'Not yours' }, { status: 403 });
+    e.steuer = randomBytes(12).toString('base64url');
+    try {
+      await schreibe(alles);
+    } catch {
+      return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+    }
+    return NextResponse.json({ ok: true, steuer: e.steuer });
+  }
 
   // ------------------------------------------------------------ Entfernen
   if (koerper.loeschen && typeof koerper.id === 'string') {
@@ -272,7 +371,10 @@ export async function POST(request: Request) {
   const name = String(koerper.name ?? '').trim().slice(0, 60) || typ;
   const config = (koerper.config && typeof koerper.config === 'object')
     ? koerper.config as Record<string, unknown> : {};
-
+  // A logo can travel as a small data URL; everything together stays small.
+  if (JSON.stringify(config).length > 400_000) {
+    return NextResponse.json({ error: 'Settings too large (logo image too big?)' }, { status: 413 });
+  }
   // ------------------------------------------------------------- Aendern
   if (typeof koerper.id === 'string' && alles[koerper.id] && !alles[koerper.id].geloeschtAm) {
     const e = alles[koerper.id];
@@ -284,6 +386,7 @@ export async function POST(request: Request) {
     e.config = config;
     e.stand += 1;
     e.geaendert = new Date().toISOString();
+    if (MIT_STEUER.has(typ) && !e.steuer) e.steuer = randomBytes(12).toString('base64url');
     const wers = await schild();
     if (wers) e.geaendertVon = wers;
     try {
@@ -291,7 +394,8 @@ export async function POST(request: Request) {
     } catch {
       return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
     }
-    return NextResponse.json({ id: e.id, stand: e.stand });
+    kurzMerken(e, e.id);
+    return NextResponse.json({ id: e.id, stand: e.stand, steuer: e.steuer ?? null });
   }
 
   // ------------------------------------------------------------- Anlegen
@@ -316,6 +420,7 @@ export async function POST(request: Request) {
     config,
     // Einmal lesen, nicht zweimal - und nur setzen, wenn wirklich eines da ist.
     ...(wer_es_war ? { angelegtVon: wer_es_war, geaendertVon: wer_es_war } : {}),
+    ...(MIT_STEUER.has(typ) ? { steuer: randomBytes(12).toString('base64url') } : {}),
   };
   alles[neu.id] = neu;
   try {
@@ -323,5 +428,5 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
   }
-  return NextResponse.json({ id: neu.id, stand: neu.stand });
+  return NextResponse.json({ id: neu.id, stand: neu.stand, steuer: neu.steuer ?? null });
 }

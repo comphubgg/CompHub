@@ -41,11 +41,23 @@ export interface OverlayEintrag {
    */
   angelegtVon?: string | null;
   geaendertVon?: string | null;
+  /** Control key of a custom scoreboard (owner only). */
+  steuer?: string | null;
 }
 
 /** Die Arten, die es gibt - dieselbe Reihenfolge wie in der Leiste. */
 export const ARTEN: Array<{
   schluessel: string; pfad: string; titel: string; datei: string; was: string;
+  /** Subtitle under the name. */
+  kurz: string;
+  /** Plain-English: what it shows. */
+  zeigt: string;
+  /** Plain-English: when to use it. */
+  wann: string;
+  /** Recommended OBS browser-source size. */
+  obs: { b: number; h: number };
+  /** Where the numbers come from. */
+  quelle: string;
   /**
    * Braucht diese Art keinen Cup?
    *
@@ -70,11 +82,21 @@ export const ARTEN: Array<{
     schluessel: 'teamkarte', pfad: '/overlays/teamkarte', titel: 'Team Banner',
     datei: 'banner.html',
     was: 'Zwei Spieler nebeneinander, mit Foto und Werten',
+    kurz: 'Your team, live stats',
+    zeigt: 'You (solo), your duo or trio with photos and the live numbers of the cup day: place, points, games, eliminations. Can rotate through several teams.',
+    wann: 'Keep it on screen while you play a cup, so viewers always see where you stand.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'Epic leaderboard of the chosen cup day, refreshed every 30 s',
   },
   {
     schluessel: 'standings', pfad: '/overlays/standings', titel: 'Leaderboard',
     datei: 'standings.html',
     was: 'Die vordersten Plätze des laufenden Spieltags',
+    kurz: 'Top places, live',
+    zeigt: 'The top places of a running cup day with points, optional photos and pages that flip through more places.',
+    wann: 'For casters and watch parties, or between games to show the race at the top.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'Epic leaderboard of the chosen cup day, refreshed every 15 s or slower',
   },
   /*
    * Der Countdown - der Betreiber wollte ihn in der Leiste sehen: "links
@@ -84,15 +106,41 @@ export const ARTEN: Array<{
     schluessel: 'timer', pfad: '/overlays/timer', titel: 'Cup timer',
     datei: 'timer.html',
     was: 'Countdown bis zum Start des Spieltags',
+    kurz: 'Countdown to the cup',
+    zeigt: 'A countdown to the start of a cup day with the cup name. It hides itself the moment the cup starts.',
+    wann: 'On your starting-soon screen before a cup.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'Cup schedule (start time of the chosen cup day)',
+  },
+  /*
+   * Custom / Tokens (11/2026): a broadcast scoreboard for custom matches,
+   * token events and showmatches - team vs team, stacked player names, a
+   * big score that a control page updates live.
+   */
+  {
+    schluessel: 'custom', pfad: '/overlays/custom', titel: 'Custom',
+    datei: 'custom.html',
+    was: 'Team gegen Team mit Stand - für Customs, Tokens und Showmatches',
+    kurz: 'Tokens / showmatches',
+    zeigt: 'A broadcast scoreboard: both teams with their players stacked, a big score in the middle, the event title and a LIVE tag. Colours, fonts, flags, logos and position are yours.',
+    wann: 'For custom matches, token events and showmatches. Update the score live from a control page — on your PC or your phone.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'You — the score comes from the control page',
+    ohneCup: true,
   },
   /*
    * Der Offspawn-Stand. Er holt als einziger nichts von Epic - was dort
    * steht, gibt der Betreiber selbst ein.
    */
   {
-    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Custom',
+    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Offspawn',
     datei: 'offspawn.html',
     was: 'Zwei Teams und ein Stand, von Hand gepflegt',
+    kurz: '1v1 · 2v2 score with photos',
+    zeigt: 'Two sides with photos and a score you count by hand — a compact box for offspawn fights, 1v1s and 2v2s.',
+    wann: 'When you fight another team for a drop spot or play a quick 1v1 series.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'You — score and names are typed in by hand',
     ohneCup: true,
   },
   /*
@@ -104,6 +152,11 @@ export const ARTEN: Array<{
     schluessel: 'text', pfad: '/overlays/text', titel: 'Custom text',
     datei: 'text.html',
     was: 'Eine Zeile Text, frei geschrieben, mit Balken oder ohne',
+    kurz: 'One free line',
+    zeigt: 'One line of your own text, with or without a bar.',
+    wann: 'For notes like “GAME 4/6” or “BO3”.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'You',
     ohneCup: true,
     versteckt: true,
   },
@@ -111,6 +164,11 @@ export const ARTEN: Array<{
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
     datei: 'qual.html',
     was: 'Wie viele Punkte es zum Weiterkommen braucht',
+    kurz: 'Points needed to qualify',
+    zeigt: 'How many points it takes to qualify: an estimate from earlier editions of the same cup, next to the live points at the qualifying place right now.',
+    wann: 'During qualifiers and cash cups, so viewers know what you are aiming for.',
+    obs: { b: 1920, h: 1080 },
+    quelle: 'Earlier editions of the cup + live leaderboard',
   },
 ];
 
@@ -181,8 +239,10 @@ export function useOverlays(typ: string) {
   return { liste, fehler, speichern, entfernen, laden };
 }
 
-export default function OverlayGeruest({ aktiv, children }: {
+export default function OverlayGeruest({ aktiv, children, immerBaukasten = false }: {
   aktiv: string; children: React.ReactNode;
+  /** Skip the start view: the page is a single configurator (Custom). */
+  immerBaukasten?: boolean;
 }) {
   const t = useT();
   const zugang = useZugang();
@@ -205,12 +265,12 @@ export default function OverlayGeruest({ aktiv, children }: {
   const [eingebettet, setEingebettet] = useState(false);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    setImBaukasten(Boolean(p.get('bauen') || p.get('fenster') || p.get('id')));
+    setImBaukasten(immerBaukasten || Boolean(p.get('bauen') || p.get('fenster') || p.get('id')));
     const drin = Boolean(p.get('eingebettet'));
     setEingebettet(drin);
     // Kopfzeile und schwebende Knoepfe ausblenden - siehe globals.css.
     document.documentElement.classList.toggle('eingebettet', drin);
-  }, []);
+  }, [immerBaukasten]);
 
   if (zugang.laedt) return <LadeSchirm />;
 
@@ -261,7 +321,7 @@ export default function OverlayGeruest({ aktiv, children }: {
         <div className="min-w-0 flex-1">
           {imBaukasten ? (
             <>
-              {!eingebettet && (
+              {!eingebettet && !immerBaukasten && (
                 <button onClick={() => { window.location.href = window.location.pathname; }}
                   className="mb-4 text-[11px] text-slate-500 transition
                              hover:text-sky-400">
