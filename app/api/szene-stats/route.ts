@@ -588,10 +588,13 @@ function startAusliefern(wert: unknown, url: URL): NextResponse {
     return NextResponse.json({ success: true, feld, plaetze: l.plaetze ?? [] }, { headers: kopf });
   }
   const elims = listen.find((l) => l.feld === 'elims')?.plaetze ?? [];
+  /*
+   * Bis zu vier je Region (16.11.2026): in den 400 Plaetzen der Elim-Liste haben BR, ASIA und OCE gerade niemanden und ME niemanden mit Foto,
+   * mit einem je Region blieben nur drei, vier Karten. Die Seite fuellt aus diesen Kandidaten auf acht auf.
+   */
   const faecher: Array<Record<string, unknown>> = [];
   for (const r of FAECHER_REGIONEN) {
-    const x = elims.find((p) => p.bild && ((p.heimat as string) || (p.regionen as string[] | undefined)?.[0] || '') === r);
-    if (x) faecher.push(x);
+    faecher.push(...elims.filter((p) => p.bild && ((p.heimat as string) || (p.regionen as string[] | undefined)?.[0] || '') === r).slice(0, 4));
   }
   return NextResponse.json({
     ...(wert as Record<string, unknown>),

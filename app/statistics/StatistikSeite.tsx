@@ -2208,13 +2208,32 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
   }, []);
   const karten = useMemo(() => {
     const mit = spieler.filter((x) => x.bild);
-    const raus: Spieler[] = [];
+    const regionVon = (x: Spieler) => x.heimat || x.regionen[0] || '';
     // Einer je Region (Betreiber, 19.10.2026: zwei Reihen Fotos untereinander sahen nicht sauber aus - zurueck zum Faecher, nur mit einem je Region).
+    const je = new Map<string, Spieler[]>();
+    const rest = new Map<string, Spieler[]>();
     for (const r of REGIONEN_REIHE) {
       const gesetzt = fest.filter((x) => (FEST[r] ?? []).some((n) => n.toLowerCase() === x.anzeige.toLowerCase()));
-      raus.push(...(gesetzt.length ? gesetzt : mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 1)));
+      const kandidaten = mit.filter((x) => regionVon(x) === r && !gesetzt.some((g) => g.epicId === x.epicId));
+      je.set(r, gesetzt.length ? [...gesetzt] : kandidaten.slice(0, 1));
+      rest.set(r, gesetzt.length ? kandidaten : kandidaten.slice(1));
     }
-    return raus;
+    /*
+     * Auf acht Karten auffuellen (Betreiber, 16.11.2026: "nur noch 4 Bilder ... sieht leer aus"): fehlen Regionen ganz (gerade BR, ME, ASIA, OCE
+     * ohne Foto in der Elim-Liste), kommen reihum die Naechsten der vorhandenen Regionen dazu. Sortiert bleibt nach Region.
+     */
+    const ZIEL = 8;
+    let zahlNun = [...je.values()].reduce((a, l) => a + l.length, 0);
+    while (zahlNun < ZIEL) {
+      let dazu = false;
+      for (const r of REGIONEN_REIHE) {
+        if (zahlNun >= ZIEL) break;
+        const n = rest.get(r)?.shift();
+        if (n) { je.get(r)!.push(n); zahlNun++; dazu = true; }
+      }
+      if (!dazu) break;
+    }
+    return REGIONEN_REIHE.flatMap((r) => je.get(r) ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spieler, fest]);
   if (karten.length < 4) return null;
