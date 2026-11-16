@@ -1115,7 +1115,8 @@ export type CupArt =
  * Ob ein Cup regionsgebunden ist ("region locked"): wer ihn in einer Region
  * spielt, darf ihn fuer den Rest des Cups in keiner anderen spielen.
  *
- * Epic drueckt das mit Marken aus, die "RegionLock" im Namen tragen
+ * Epic nennt es am Ereignis selbst (metadata.RegionLockType, bei FNCS "Window")
+ * und setzt es mit Marken um, die "RegionLock" im Namen tragen
  * ("RegionLock_S43_FNCSSoloReload_EU"): das erste Spiel vergibt die Marke der
  * eigenen Region, die spaeteren Fenster verlangen genau diese Marke
  * (requireAllTokens) oder schliessen die der anderen Regionen aus
@@ -1288,11 +1289,15 @@ function markenMitFeld(w: Record<string, unknown>, tabellen: Array<RohAuszahlung
 /** Was ein Fenster ueber den Region lock verraet. */
 interface SperrSpur { belege: string[]; zweifel: string[]; offen: boolean }
 
-function sperrSpur(w: Record<string, unknown>, tabellen: Array<RohAuszahlung[] | undefined>, zugang: string[]): SperrSpur {
+function sperrSpur(w: Record<string, unknown>, tabellen: Array<RohAuszahlung[] | undefined>, zugang: string[],
+  evMeta?: Record<string, unknown>): SperrSpur {
   const alle = markenMitFeld(w, tabellen);
   const marke = (x: string) => x.slice(x.indexOf(': ') + 2);
+  // Epics eigenes Feld am Ereignis: "RegionLockType": "Window" (FNCS, 16.11.2026) - bei Cash, Victory, Ranked, Perf Eval fehlt es.
+  const typ = evMeta?.RegionLockType;
+  const ausMeta = typeof typ === 'string' && typ && typ.toLowerCase() !== 'none' ? [`event metadata RegionLockType: ${typ}`] : [];
   return {
-    belege: alle.filter((x) => SPERR_MARKE.test(marke(x))),
+    belege: [...alle.filter((x) => SPERR_MARKE.test(marke(x))), ...ausMeta],
     zweifel: alle.filter((x) => ANDERE_SPERRE.test(marke(x)) && !KEINE_REGIONSSPERRE.test(marke(x))),
     // Ein Einstiegsfenster: keine Marke einer bestimmten Region noetig (Runde 1 eines Cash Cups, Performance Evaluation mit Power-Ranking-Marke).
     offen: zugang.filter((t) => !OHNE_BEDEUTUNG.test(t)).every((t) => !REGIONS_ANHANG.test(t)),
@@ -1321,7 +1326,7 @@ function entscheideSperren(gruppen: Iterable<CupGruppe>, spuren: Map<string, Spe
     if (zweifel || regionenVon(g).length < 2) continue;
     if (sp.some((x) => x.offen)) {
       const n = Object.values(g.regionen).reduce((a, l) => a + l.length, 0);
-      g.regionsSperre = { gesperrt: false, beleg: `no RegionLock token in any of ${n} windows (${regionenVon(g).length} regions)` };
+      g.regionsSperre = { gesperrt: false, beleg: `no RegionLockType and no RegionLock token in any of ${n} windows (${regionenVon(g).length} regions)` };
     }
   }
   // Finals und Co.: vom Cup, der die Zugangsmarke vergibt.
@@ -1603,7 +1608,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
 
         const sp = spuren.get(id) ?? [];
         sp.push(sperrSpur(w as unknown as Record<string, unknown>,
-          [daten.payoutTables?.[w.eventWindowId], daten.payoutTables?.[ev.eventId]], tokens));
+          [daten.payoutTables?.[w.eventWindowId], daten.payoutTables?.[ev.eventId]], tokens, ev.metadata));
         spuren.set(id, sp);
 
         // Globale Events kommen aus jeder Regionsabfrage identisch zurueck.
