@@ -38,6 +38,32 @@ function Linie({ werte, breit = 132, hoch = 34 }: { werte: number[]; breit?: num
   );
 }
 
+/** Der Formverlauf gross, als Flaeche mit Verlauf - das Bild der Top-3-Karten. */
+function Flaeche({ werte, ab }: { werte: number[]; ab?: boolean }) {
+  const breit = 400; const hoch = 120;
+  if (werte.length < 2) return null;
+  const klein = Math.min(...werte); const gross = Math.max(...werte);
+  const spanne = Math.max(gross - klein, 0.05);
+  const pt = werte.map((w, i) => [(i / (werte.length - 1)) * breit, hoch - 10 - ((w - klein) / spanne) * (hoch - 28)]);
+  const linie = pt.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const farbe = ab ? '#fb7185' : '#38bdf8';
+  const id = `fl-${ab ? 'ab' : 'auf'}`;
+  const [ex, ey] = pt[pt.length - 1];
+  return (
+    <svg viewBox={`0 0 ${breit} ${hoch}`} preserveAspectRatio="none" className="block h-32 w-full" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor={farbe} stopOpacity=".35" />
+          <stop offset="1" stopColor={farbe} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${hoch} ${linie} ${breit},${hoch}`} fill={`url(#${id})`} />
+      <polyline points={linie} fill="none" stroke={farbe} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={ex - 4} cy={ey} r="4" fill={farbe} />
+    </svg>
+  );
+}
+
 function Foto({ bild, name, gross }: { bild?: string | null; name: string; gross?: boolean }) {
   const [kaputt, setKaputt] = useState(false);
   /*
@@ -98,90 +124,111 @@ export default function Aufsteiger({ aufSpieler }: { aufSpieler: (id: string, na
   const wert = (x: Zeile) => `${x.delta > 0 ? '+' : ''}${x.delta.toFixed(2)}`;
   const verlaufVon = (x: Zeile) => (x.verlauf?.length ? x.verlauf : [x.vorher, x.jetzt]);
   const spitze = zeilen.slice(0, 3);
-  const groesster = zeilen.length ? [...zeilen].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0] : null;
-  const staerkste = zeilen.length ? [...zeilen].sort((a, b) => b.jetzt - a.jetzt)[0] : null;
   const knopf = (an: boolean) => `rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${an ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-zinc-800 text-slate-400 hover:text-slate-200'}`;
 
+  /** Die Note (0-10) als Balken: hell der alte Stand, kraeftig der neue - so sieht man den Sprung, ohne zu rechnen. */
+  const Balken = ({ x }: { x: Zeile }) => {
+    const a = Math.max(0, Math.min(1, x.vorher)) * 100; const b = Math.max(0, Math.min(1, x.jetzt)) * 100;
+    const auf = b >= a;
+    return (
+      <span className="relative block h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+        <span className="absolute inset-y-0 left-0 rounded-full bg-slate-600/60" style={{ width: `${Math.max(a, b)}%` }} />
+        <span className={`absolute inset-y-0 left-0 rounded-full ${auf ? 'bg-gradient-to-r from-sky-600 to-sky-400' : 'bg-gradient-to-r from-rose-700 to-rose-500'}`} style={{ width: `${auf ? b : b}%` }} />
+      </span>
+    );
+  };
+  const farbe = ansicht === 'auf' ? 'text-sky-400' : 'text-rose-400';
+
   return (
-    <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 sm:p-7">
+      {/* Kopf: links Titel, rechts alle Schalter in einer Reihe (2.0: die drei Zahlenkacheln darunter wiederholten nur Platz 1). */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-100">{ansicht === 'auf' ? <T>Aufsteiger</T> : <T>Absteiger</T>}</h2>
-          <p className="mt-0.5 text-sm text-slate-400"><T>Die letzten zehn Cups gegen die zehn davor. Ein einzelner guter Cup reicht nicht.</T></p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-500">Form</p>
+          <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl">{ansicht === 'auf' ? <T>Aufsteiger</T> : <T>Absteiger</T>}</h2>
+          <p className="mt-1 text-sm text-slate-400"><T>Die letzten zehn Cups gegen die zehn davor. Ein einzelner guter Cup reicht nicht.</T></p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setAnsicht('auf')} className={knopf(ansicht === 'auf')}><T>Aufsteiger</T></button>
-          <button type="button" onClick={() => setAnsicht('ab')} className={knopf(ansicht === 'ab')}><T>Absteiger</T></button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-zinc-800 bg-zinc-950/60 p-1">
+            {(['auf', 'ab'] as Ansicht[]).map((a) => (
+              <button key={a} type="button" onClick={() => setAnsicht(a)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${ansicht === a ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                {a === 'auf' ? <T>Aufsteiger</T> : <T>Absteiger</T>}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-xl border border-zinc-800 bg-zinc-950/60 p-1">
+            {(['sprung', 'note'] as Sortierung[]).map((a) => (
+              <button key={a} type="button" onClick={() => setSortierung(a)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${sortierung === a ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                {a === 'sprung' ? <T>Größter Sprung</T> : <T>Höchste Note</T>}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {REGIONEN.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={knopf(region === r)}>{r}</button>)}
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setSortierung('sprung')} className={knopf(sortierung === 'sprung')}><T>Größter Sprung</T></button>
-          <button type="button" onClick={() => setSortierung('note')} className={knopf(sortierung === 'note')}><T>Höchste Note</T></button>
-        </div>
+      <div className="mb-6 flex flex-wrap gap-1.5">
+        {REGIONEN.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={knopf(region === r)}>{r}</button>)}
       </div>
 
       {liste === null ? <p className="py-10 text-center text-sm text-slate-500"><T>Wird geladen …</T></p>
         : !zeilen.length ? <p className="py-10 text-center text-sm text-slate-500">{ansicht === 'auf' ? <T>Noch keine Aufsteiger in dieser Region.</T> : <T>Noch keine Absteiger in dieser Region.</T>}</p>
           : (
             <>
-              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                  <p className="text-xs font-semibold text-slate-400"><T>Spieler in der Liste</T></p>
-                  <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-100">{zeilen.length}</p>
-                </div>
-                {groesster && (
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs font-semibold text-slate-400"><T>Größter Sprung</T></p>
-                    <p className="mt-1 truncate text-lg font-extrabold text-slate-100">{groesster.name}</p>
-                    <p className="text-sm font-bold tabular-nums text-sky-400">{wert(groesster)}</p>
-                  </div>
-                )}
-                {staerkste && (
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs font-semibold text-slate-400"><T>Stärkste Form</T></p>
-                    <p className="mt-1 truncate text-lg font-extrabold text-slate-100">{staerkste.name}</p>
-                    <p className="text-sm font-bold tabular-nums text-sky-400">{(staerkste.jetzt * 10).toFixed(1)} / 10</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Die drei groessten: der Formverlauf ist das Bild - mit Foto daneben, ohne Foto bleibt die Kurve allein und nichts steht leer. */}
+              <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {spitze.map((x, i) => (
                   <button key={x.epicId} type="button" onClick={() => aufSpieler(x.epicId, x.name)}
-                    className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-left transition hover:border-sky-500">
-                    <Foto bild={fotos[x.name]} name={x.name} gross />
-                    <p className="mt-2 truncate text-base font-extrabold text-slate-100"><span className="text-slate-500">{i + 1}.</span> {x.name}</p>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="text-lg font-extrabold tabular-nums text-sky-400">{wert(x)}</span>
-                      <Linie werte={verlaufVon(x)} breit={110} hoch={30} />
+                    className={`group relative overflow-hidden rounded-2xl border bg-zinc-950/70 text-left transition hover:-translate-y-0.5 hover:border-sky-500/70 ${i === 0 ? 'border-sky-500/40 shadow-[0_0_40px_rgba(14,165,233,.12)]' : 'border-zinc-800'}`}>
+                    <div className="relative h-40">
+                      <span aria-hidden className="schrift-anzeige absolute -right-2 -top-6 text-[8rem] font-black leading-none text-white/[0.04]">{i + 1}</span>
+                      <div className="absolute inset-x-0 bottom-0 px-1"><Flaeche werte={verlaufVon(x)} ab={ansicht === 'ab'} /></div>
+                      <span className="absolute left-4 top-4 rounded-full border border-white/10 bg-zinc-900/80 px-2.5 py-0.5 text-xs font-bold text-slate-300 backdrop-blur">#{i + 1}</span>
                     </div>
-                    <p className="mt-1 text-xs tabular-nums text-slate-400">{(x.vorher * 10).toFixed(1)} → {(x.jetzt * 10).toFixed(1)} · {x.cups} {t('Cups')}{x.beste ? ` · ${t('Bester Platz')} ${x.beste}` : ''}</p>
+                    <div className="flex items-center gap-3 border-t border-zinc-800/80 p-4">
+                      <Foto bild={fotos[x.name]} name={x.name} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-extrabold text-slate-100">{x.name}</p>
+                        <p className="text-xs tabular-nums text-slate-500">{x.cups} {t('Cups')}{x.beste ? ` · ${t('Bester Platz')} ${x.beste}` : ''}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-2xl font-black tabular-nums ${farbe}`}>{wert(x)}</p>
+                        <p className="text-xs tabular-nums text-slate-400">{(x.vorher * 10).toFixed(1)} → <span className="font-bold text-slate-200">{(x.jetzt * 10).toFixed(1)}</span></p>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
 
-              <ol className="divide-y divide-zinc-800">
-                {zeilen.slice(3).map((x, i) => (
-                  <li key={x.epicId}>
-                    <button type="button" onClick={() => aufSpieler(x.epicId, x.name)} className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition hover:bg-zinc-800/50">
-                      <span className="w-7 shrink-0 text-right text-sm tabular-nums text-slate-500">{i + 4}</span>
-                      <Foto bild={fotos[x.name]} name={x.name} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-base font-semibold text-slate-100">{x.name}</span>
-                        <span className="block text-xs tabular-nums text-slate-500">{x.cups} {t('Cups')}{x.beste ? ` · ${t('Bester Platz')} ${x.beste}` : ''}</span>
-                      </span>
-                      <span className="hidden sm:block"><Linie werte={verlaufVon(x)} /></span>
-                      <span className="hidden text-sm tabular-nums text-slate-400 md:block">{(x.vorher * 10).toFixed(1)} → {(x.jetzt * 10).toFixed(1)}</span>
-                      <span className="w-16 text-right text-base font-bold tabular-nums text-sky-400">{wert(x)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <div className="overflow-hidden rounded-2xl border border-zinc-800">
+                <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_9rem_12rem_4.5rem] items-center gap-4 bg-zinc-950/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 md:grid">
+                  <span>#</span><span><T>Spieler</T></span><span><T>Verlauf</T></span><span><T>Note</T></span><span className="text-right"><T>Sprung</T></span>
+                </div>
+                <ol className="divide-y divide-zinc-800/80">
+                  {zeilen.slice(3).map((x, i) => (
+                    <li key={x.epicId}>
+                      <button type="button" onClick={() => aufSpieler(x.epicId, x.name)}
+                        className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_4.5rem] items-center gap-4 px-4 py-2.5 text-left transition hover:bg-zinc-800/40 md:grid-cols-[2.5rem_minmax(0,1fr)_9rem_12rem_4.5rem]">
+                        <span className="text-sm font-bold tabular-nums text-slate-500">{i + 4}</span>
+                        <span className="flex min-w-0 items-center gap-3">
+                          <Foto bild={fotos[x.name]} name={x.name} />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-bold text-slate-100">{x.name}</span>
+                            <span className="block text-xs tabular-nums text-slate-500">{x.cups} {t('Cups')}{x.beste ? ` · ${t('Bester Platz')} ${x.beste}` : ''}</span>
+                          </span>
+                        </span>
+                        <span className="hidden md:block"><Linie werte={verlaufVon(x)} breit={140} hoch={30} /></span>
+                        <span className="hidden md:block">
+                          <Balken x={x} />
+                          <span className="mt-1 block text-[11px] tabular-nums text-slate-500">{(x.vorher * 10).toFixed(1)} → <span className="font-semibold text-slate-300">{(x.jetzt * 10).toFixed(1)}</span></span>
+                        </span>
+                        <span className={`text-right text-base font-extrabold tabular-nums ${farbe}`}>{wert(x)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </>
           )}
     </section>
