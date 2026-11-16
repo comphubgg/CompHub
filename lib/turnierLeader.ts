@@ -107,9 +107,11 @@ export interface LeaderAntwort {
   /**
    * Kennzahlen, deren Tafel fehlt, und warum (16.11.2026, Betreiber: keine Karte mit einem Spieler, wenn Daten fehlen - erst die Daten, und nur was es wirklich
    * nicht gibt, ehrlich benannt): 'laeuft' = die Replay-Auswertung ist noch nicht fertig, 'fehlt' = fuer diesen Spieltag gibt es (noch) keine volle
-   * Replay-Auswertung, 'format' = die Kennzahl gibt es in diesem Format nicht (Reboots im Solo ohne Reload).
+   * Replay-Auswertung, 'format' = die Kennzahl gibt es in diesem Format nicht (Reboots im Solo ohne Reload), 'neu' = der Spieltag wird gerade mit einer neueren
+   * Leser-Fassung neu gelesen, 'alt' = der Spieltag ist fertig gelesen, die damals benutzte Leser-Fassung hat den Wert aber nicht erfasst (16.11.2026: S42 FNCS
+   * Heat 2 EU vom 18.10. zeigte bei Builds "Auswertung laeuft noch" - dort laeuft nichts mehr, Bauteile kamen erst mit Fassung 18 dazu).
    */
-  fehlend?: Array<{ schluessel: string; titel: string; grund: 'laeuft' | 'fehlt' | 'format' }>;
+  fehlend?: Array<{ schluessel: string; titel: string; grund: 'laeuft' | 'fehlt' | 'format' | 'neu' | 'alt' }>;
   /** Wie viele der Gewerteten ganz aus den Replays gelesen sind (fuer den Hinweis, solange die Auswertung laeuft). */
   replayAbdeckung?: { gelesen: number; von: number };
   hinweis?: string;
@@ -185,6 +187,8 @@ export async function baueLeader(hole: Holer, opt: {
   replayHinten?: () => boolean;
   /** Gibt es fuer den Spieltag ueberhaupt Werte aus den vollen Replays? Nein: fehlende Tafeln heissen 'fehlt', sonst 'laeuft'. */
   schadenDa?: () => boolean;
+  /** Stand der vollen Auswertung: noch teilweise ('laeuft'), wird neu gelesen ('neu') oder fertig ('fertig': was dann fehlt, hat der Leser nicht erfasst). */
+  replayStand?: () => 'laeuft' | 'neu' | 'fertig';
 } = {}): Promise<LeaderAntwort> {
   const listen = await Promise.all(TAFELN.filter((t) => t.feld !== 'rating' && t.feld !== 'lowest').map(async (t) => [t, await hole(t.feld === 'kills' ? 'elims' : t.feld, 50).catch(() => [])] as const));
   const kreis = new Map<string, Roh>();
@@ -213,6 +217,7 @@ export async function baueLeader(hole: Holer, opt: {
   const beste = { elims: max(kills), damage: max((z) => zahl(z.damage)), quote: max((z) => zahl(z.quote) ?? zahl(z.damageRatio)), hits: max((z) => zahl(z.hits)) };
   const rating = new Map(gewertet.map((z) => [z.epicId, ratingVon(z, beste, { replay: ohneReplay, platz: ohnePlatz, damage: ohneDamage })]));
   const replayDa = opt.schadenDa ? opt.schadenDa() : true;
+  const stand = opt.replayStand ? opt.replayStand() : 'laeuft';
   const gelesen = gewertet.filter((z) => zahl(z.hits) !== null).length;
   const fehlend: NonNullable<LeaderAntwort['fehlend']> = [];
 
@@ -235,7 +240,7 @@ export async function baueLeader(hole: Holer, opt: {
     if (t.feld !== 'rating' && t.feld !== 'lowest' && t.feld !== 'kills' && !reicht(t.feld)) {
       // Reboots gibt es im Solo ohne Reload nicht (cup-spieler liefert dort keinen Wert) - das ist kein Datenloch.
       const format = t.feld === 'reboots' && !gewertet.some((z) => zahl(z.reboots) !== null);
-      fehlend.push({ schluessel: t.schluessel, titel: t.titel, grund: format && replayDa && gelesen > 0 ? 'format' : !replayDa ? 'fehlt' : 'laeuft' });
+      fehlend.push({ schluessel: t.schluessel, titel: t.titel, grund: format && replayDa && gelesen > 0 ? 'format' : !replayDa ? 'fehlt' : stand === 'fertig' ? 'alt' : stand });
       continue;
     }
     let zeilen: LeaderZeile[];

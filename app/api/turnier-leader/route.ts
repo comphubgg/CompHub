@@ -150,6 +150,7 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
   const [sp, st] = await Promise.all([
     cupSpieler(adresse('/api/cup-spieler', { kennzahlen: FELDER.join(','), pro: '50' })).then((r) => r.json()).catch(() => null) as Promise<{
       listen?: Record<string, Z[]>; gesamt?: Record<string, number>; replayStand?: { gelesen: number; gesamt: number } | null; schadenDa?: boolean;
+      schadenTeil?: unknown; umbau?: unknown;
     } | null>,
     event ? cupStats(adresse('/api/cup-stats', { top: '5' })).then((r) => r.json()).catch(() => null) as Promise<{
       bestenlisten?: Array<{ schluessel: string; alle?: Array<{ ids: string[]; spieler: string[]; rank: number; spiele?: number; roh: number }> }>;
@@ -213,7 +214,12 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
     };
   }
   const [d, kopf] = await Promise.all([
-    baueLeader(hole, { replayHinten: () => !!replayStand, schadenDa: () => solo || sp?.schadenDa !== false }),
+    baueLeader(hole, {
+      replayHinten: () => !!replayStand, schadenDa: () => solo || sp?.schadenDa !== false,
+      // Warum eine Kennzahl fehlt: Auswertung laeuft noch (teilweise gelesen), Neu-Lesen laeuft (umbau), oder der Spieltag ist fertig gelesen - dann hat die
+      // damals benutzte Leser-Fassung den Wert nicht erfasst (z. B. Builds vor Fassung 18, S42 FNCS Heat 2 EU vom 18.10.).
+      replayStand: () => (sp?.umbau ? 'neu' : sp?.schadenTeil || replayStand ? 'laeuft' : sp ? 'fertig' : 'laeuft'),
+    }),
     kopfVon(fenster, windows),
   ]);
   return { d: { ...d, ...(solo ? { quelle: 'cup-stats' } : { quelle: 'cup-spieler' }) }, kopf, replayStand };
@@ -226,7 +232,8 @@ async function rechneLeader(basis: URL, fenster: string, event: string, windows:
  */
 async function leaderFuer(basis: URL, fenster: string, event: string, windows: string[], neu = false) {
   // Der Dateiname wird bei 120 Zeichen gekappt (lib/antwortSpeicher) - Event und Tage deshalb als Pruefsumme, sonst fielen "Day 2" und "Day 1 + Day 2" zusammen.
-  const schluessel = `leader|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
+  // "leader2" (16.11.2026): neue Gruende fuer fehlende Tafeln ('neu', 'alt') - aufgehobene Antworten mit dem alten "Auswertung laeuft" gelten nicht mehr.
+  const schluessel = `leader2|${fenster}|${createHash('sha256').update(`${event}|${windows.join(',')}`).digest('hex').slice(0, 16)}`;
   const frist = await fristFuer(fenster, windows);
   const rechne = () => rechneLeader(basis, fenster, event, windows);
   // ?neu=1 (Vorwaermen nach dem Ablegen neuer Replay-Werte, scripts/leader-vorwaermen.mjs): neu rechnen, wenn die aufgehobene Antwort aelter als 5 Minuten ist.

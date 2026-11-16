@@ -492,6 +492,8 @@ async function holeRoh(request: Request) {
     spiele?: Record<string, number>;
     /** Noch nicht jedes Match voll gelesen (scripts/clutch-zusammen.mjs) - Werte nur bei Spielern, deren Spiele alle gelesen sind. */
     teilweise?: { teams: number; matches: number; vonMindestens?: number };
+    /** Der Spieltag wird gerade neu gelesen (scripts/clutch-zusammen.mjs, UMBAU) - die Werte hier sind die alten, bis der neue Stand ganz ist. */
+    umbau?: { seit: string; gelesen: number; von: number | null; fassung: number | null };
     /** Plattform je Spieler aus den vollen Replays (WIN, PS5, XSX, SWT, IOS ...). */
     plattform?: Record<string, string>;
     /** Laufstrecke je Spieler [zu Fuss, Luft] in Metern aus den Positionsproben der Replays (lib/replayPositionen). */
@@ -507,6 +509,7 @@ async function holeRoh(request: Request) {
       // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
       if (!c || c.teilweise) return a;
       const raus = a ?? { summe: {}, schaden: {}, leben: {}, spiele: {} };
+      if (c.umbau) raus.umbau = c.umbau;
       for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + (c.epicZeit?.[id] ?? v);
       // Spiele je Spieler mit: ohne sie gelten Elims aus dem vollen Auslesen (killsEcht) ueber mehrere Tage nicht als ganz gelesen.
       for (const [id, v] of Object.entries(c.spiele ?? {})) raus.spiele![id] = (raus.spiele![id] ?? 0) + v;
@@ -676,6 +679,8 @@ async function holeRoh(request: Request) {
       kennzahlen, replayStand, schadenTeil: teil,
       // Ob es fuer diesen Spieltag ueberhaupt Werte aus den vollen Replays gibt (Schaden, Treffer, Bauteile ...) - sonst sagen die Leaders das, statt Nullen zu zeigen.
       schadenDa: !!schadenVon && schadenVon.size > 0,
+      // Laeuft ein Neu-Lesen (neuere Leser-Fassung), sagen die Leaders bei fehlenden Werten "wird neu gelesen" statt "nicht erfasst".
+      umbau: clutchDatei?.umbau ?? null,
       listen: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.zeilen.map(mitNamen)])),
       gesamt: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.gesamt])),
     });

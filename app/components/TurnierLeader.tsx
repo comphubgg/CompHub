@@ -276,7 +276,7 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
       )}
       {!laedt && daten?.fehlend && daten.fehlend.length > 0 && (
         <div className="mb-3 space-y-1 rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-2 text-xs text-slate-300">
-          {(['laeuft', 'fehlt', 'format'] as const).map((grund) => {
+          {(['laeuft', 'neu', 'fehlt', 'format', 'alt'] as const).map((grund) => {
             const namen = daten.fehlend!.filter((f) => f.grund === grund).map((f) => f.titel);
             if (!namen.length) return null;
             return (
@@ -284,6 +284,8 @@ export default function TurnierLeader({ eventId, windowId, windows, titel, kompa
                 {grund === 'laeuft' && <><T>Replay-Auswertung läuft noch</T>{daten.replayAbdeckung ? ` (${daten.replayAbdeckung.gelesen}/${daten.replayAbdeckung.von} ` : ' ('}<T>gewertete Spieler ganz gelesen</T>) – <T>noch nicht gezeigt</T>: </>}
                 {grund === 'fehlt' && <><T>Für diesen Spieltag gibt es noch keine volle Replay-Auswertung (sie steht in der Warteschlange)</T> – <T>nicht gezeigt</T>: </>}
                 {grund === 'format' && <><T>In diesem Format nicht erfasst</T>: </>}
+                {grund === 'neu' && <><T>Wird gerade mit der neuen Auswertung neu gelesen – bis dahin nicht gezeigt</T>: </>}
+                {grund === 'alt' && <><T>Für dieses Event nicht verfügbar</T>: </>}
                 <span className="text-slate-400">{namen.join(', ')}</span>
               </p>
             );
