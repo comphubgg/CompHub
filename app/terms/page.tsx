@@ -18,7 +18,7 @@ const KONTAKT = 'contact@thecomphub.com';
 
 const EN: RechtsText = {
   titel: 'Terms of Use',
-  stand: 'Last updated: 12 October 2026',
+  stand: 'Last updated: 16 November 2026',
   einleitung:
     'These terms apply to CompHub (thecomphub.com). By using the site or creating an account you agree to them. How we '
     + 'handle personal data is described in the Privacy Policy.',
@@ -56,6 +56,22 @@ const EN: RechtsText = {
         'use automated tools to collect large amounts of data from the site',
         'harass others, post unlawful content, or pretend to be someone else',
         'share or sell access that was given to you personally',
+        'copy, scrape, mirror or republish our statistics, rankings, ratings, maps or other content in bulk, or use them to build or feed another site, app, database or AI model',
+        'reverse engineer, decompile or copy the site\'s code, design, layout or our internal interfaces (APIs), or embed our pages in frames',
+        'remove or hide our name, watermarks or the credit to a source shown on a map, image or export',
+      ],
+    },
+    {
+      titel: 'Our content and data',
+      absaetze: [
+        'The site, its code, design, texts, graphics, logos, videos, the selection and arrangement of the data and all statistics, '
+        + 'ratings, rankings, predictions and maps we calculate are owned by CompHub or its licensors and are protected by '
+        + 'copyright and database rights. Using the site gives you no rights to them beyond viewing them for your personal, '
+        + 'non-commercial use.',
+        'You may share single screenshots, images or exports for personal or editorial use (for example in a social media post) '
+        + 'as long as CompHub stays visible as the source and nothing is changed to mislead. Any other use, in particular '
+        + 'commercial use or systematic copying, needs our prior written permission.',
+        'Content from third parties (for example map shapes or images) belongs to its owners and is credited where it is used.',
       ],
     },
     {
@@ -97,7 +113,7 @@ const EN: RechtsText = {
 
 const DE: RechtsText = {
   titel: 'Nutzungsbedingungen',
-  stand: 'Stand: 12. Oktober 2026',
+  stand: 'Stand: 16. November 2026',
   einleitung:
     'Diese Bedingungen gelten für CompHub (thecomphub.com). Mit der Nutzung der Seite oder der Anlage eines Kontos stimmst du '
     + 'ihnen zu. Wie wir mit personenbezogenen Daten umgehen, steht in der Datenschutzerklärung.',
@@ -136,6 +152,22 @@ const DE: RechtsText = {
         'automatisierte Werkzeuge nutzen, um große Datenmengen von der Seite abzuziehen',
         'andere belästigen, rechtswidrige Inhalte veröffentlichen oder sich als jemand anderes ausgeben',
         'Zugänge weitergeben oder verkaufen, die dir persönlich gegeben wurden',
+        'unsere Statistiken, Ranglisten, Ratings, Karten oder andere Inhalte in größerem Umfang kopieren, auslesen (Scraping), spiegeln oder neu veröffentlichen oder damit eine andere Seite, App, Datenbank oder ein KI-Modell aufbauen oder füttern',
+        'den Code, das Design, das Layout oder unsere internen Schnittstellen (APIs) nachbauen, zurückentwickeln oder kopieren oder unsere Seiten in Frames einbetten',
+        'unseren Namen, Wasserzeichen oder die Quellenangabe auf einer Karte, einem Bild oder Export entfernen oder verdecken',
+      ],
+    },
+    {
+      titel: 'Unsere Inhalte und Daten',
+      absaetze: [
+        'Die Seite, ihr Code, Design, Texte, Grafiken, Logos, Videos, die Auswahl und Anordnung der Daten sowie alle von uns '
+        + 'berechneten Statistiken, Ratings, Ranglisten, Vorhersagen und Karten gehören CompHub oder seinen Lizenzgebern und sind '
+        + 'durch Urheberrecht und Datenbankschutzrecht geschützt. Die Nutzung der Seite gibt dir daran keine Rechte außer dem '
+        + 'Ansehen für den persönlichen, nicht kommerziellen Gebrauch.',
+        'Einzelne Screenshots, Bilder oder Exporte darfst du für persönliche oder redaktionelle Zwecke teilen (etwa in einem '
+        + 'Social-Media-Post), solange CompHub als Quelle sichtbar bleibt und nichts irreführend verändert wird. Jede andere '
+        + 'Nutzung, besonders kommerzielle Nutzung oder systematisches Kopieren, braucht unsere vorherige schriftliche Erlaubnis.',
+        'Inhalte Dritter (zum Beispiel Kartenformen oder Bilder) gehören ihren Inhabern und werden dort genannt, wo sie verwendet werden.',
       ],
     },
     {
