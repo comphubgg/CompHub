@@ -107,10 +107,10 @@
        * window). Observed instead of :has(), which older OBS builds lack.
        */
       var folgen = function () {
-        huelle.hidden = box.hidden;
+        huelle.hidden = box.hidden || box.style.display === 'none';
         huelle.style.opacity = box.classList.contains('da') ? '' : '0';
       };
-      if (window.MutationObserver) new MutationObserver(folgen).observe(box, { attributes: true, attributeFilter: ['class', 'hidden'] });
+      if (window.MutationObserver) new MutationObserver(folgen).observe(box, { attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
       folgen();
     }
     var an = cfg.rahmen !== false;

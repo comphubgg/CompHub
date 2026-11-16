@@ -7,6 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
+import { DesignGruppe, HausGruppe, HAUS_STANDARD, LOOK_STANDARD, Schalter, Segmente } from '../Bausteine';
 
 /*
  * Die Qualifikationslinie einstellen.
@@ -40,6 +41,13 @@ const STANDARD = {
    * beschrieben hat.
    */
   anordnung: 'zwei' as 'zwei' | 'eine',
+  // Redesign 11/2026 (public/overlay/qual.html + look.js).
+  layout: 'zwei' as 'zwei' | 'eine' | 'meter' | 'gross',
+  liveZeigen: true,
+  topZeigen: true,
+  ...LOOK_STANDARD,
+  ...HAUS_STANDARD,
+  wasserzeichen: 'aus' as typeof HAUS_STANDARD.wasserzeichen,
 };
 
 type Config = typeof STANDARD;
@@ -69,13 +77,15 @@ export default function QualSeite() {
   const [gespeichert, setGespeichert] = useState(false);
   const [schmutzig, setSchmutzig] = useState(false);
 
+  const setzLos = (k: string, v: unknown) => setz(k as keyof Config, v as Config[keyof Config]);
   const setz = <K extends keyof Config>(k: K, v: Config[K]) =>
     setCfg((alt) => ({ ...alt, [k]: v }));
 
   function waehlen(o: OverlayEintrag) {
     setId(o.id);
     setName(o.name);
-    setCfg({ ...STANDARD, ...(o.config as Partial<Config>) });
+    const alt = o.config as Partial<Config>;
+    setCfg({ ...STANDARD, ...alt, layout: alt.layout ?? (alt.anordnung === 'eine' ? 'eine' : 'zwei') });
   }
 
   function neu() {
@@ -187,17 +197,23 @@ export default function QualSeite() {
             </div>
           </section>
 
+          <HausGruppe cfg={cfg} setz={setzLos} />
+          <DesignGruppe cfg={cfg} setz={setzLos} />
+
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <h2 className="mb-3 text-sm font-semibold text-slate-100">
               <T>Aussehen</T>
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Wahlreihe titel="Anordnung" wert={cfg.anordnung}
-                optionen={[
-                  { wert: 'zwei', titel: 'Zwei Zeilen' },
-                  { wert: 'eine', titel: 'Eine dünne Zeile' },
-                ]}
-                setzen={(w) => setz('anordnung', w)} />
+              <div className="sm:col-span-2 space-y-3">
+                <Segmente titel="Layout" wert={cfg.layout}
+                  setzen={(w) => { setz('layout', w); setz('anordnung', w === 'eine' ? 'eine' : 'zwei'); }}
+                  optionen={[{ wert: 'zwei', titel: 'Two lines' }, { wert: 'eine', titel: 'One line' }, { wert: 'meter', titel: 'Meter' }, { wert: 'gross', titel: 'Big number' }]} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Schalter titel="Show the live qualifying score" an={cfg.liveZeigen} setzen={(b) => setz('liveZeigen', b)} />
+                  <Schalter titel="Show “TOP N”" an={cfg.topZeigen} setzen={(b) => setz('topZeigen', b)} />
+                </div>
+              </div>
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
               <Wahlreihe titel="Akzent" wert={cfg.akzent} optionen={AKZENTE}

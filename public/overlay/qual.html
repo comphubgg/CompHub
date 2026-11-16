@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Qual line</title>
+<link rel="stylesheet" href="look.css">
 <style>
 /*
  * Die Qualifikationslinie.
@@ -170,11 +171,38 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   #karte { transition: none !important; }
 }
+/*
+ * ------------------------------------------------ CompHub house style (11/2026)
+ * Unless the look is "klassisch": transparent black box with the rotating
+ * frame, Inter in white, the logo before the label, greys for the small text,
+ * no coloured numbers. Layouts:
+ *   zwei   estimate above, live line below (previous default)
+ *   eine   one line (previous)
+ *   meter  estimate and live side by side with a bar: how close the live
+ *          qualifying score is to the estimate
+ *   gross  one big number (the estimate), live value small underneath
+ */
+body.haus #karte { border: 0; border-radius: 14px; }
+body.haus #oben .wort, body.haus #oben .einheit, body.haus #unten { color: rgba(255, 255, 255, .6); }
+body.haus #unten b { color: #fff; }
+body.haus #oben { font-weight: 700; }
+#oben .lk-logo { width: .8em; height: .8em; border-radius: .2em; align-self: center; }
+#meter { display: none; margin-top: .45em; width: 16em; font-size: var(--schrift); }
+#meter .spur { position: relative; height: .32em; border-radius: 1em; background: rgba(255, 255, 255, .12); overflow: hidden; }
+#meter .fuell { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 1em; background: var(--lk-akzent, #fff); transition: width .8s ease; }
+#meter .zahlen { display: flex; justify-content: space-between; margin-top: .35em; font-size: .7em; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .6); }
+#meter .zahlen b { color: #fff; font-size: 1.25em; letter-spacing: 0; margin-left: .3em; }
+body.l-meter #meter { display: block; }
+body.l-meter #unten { display: none !important; }
+body.l-gross #oben { flex-direction: column; align-items: flex-start; gap: 0; }
+body.l-gross #schaetzung { font-size: 2.3em; line-height: 1; }
+body.l-gross #oben .einheit { display: none; }
+
 </style>
 </head>
 <body>
 
-<div id="karte">
+<div id="karte" class="lk-karte">
   <div id="oben" hidden>
     <span class="wort" id="wort">QUAL ~</span>
     <span id="schaetzung">—</span>
@@ -185,10 +213,12 @@ html, body {
     <span class="strich" aria-hidden="true"></span>
     <span id="top">TOP —</span>
   </div>
+  <div id="meter"><div class="spur"><div class="fuell"></div></div><div class="zahlen"><span>LIVE<b id="mLive">—</b></span><span>EST.<b id="mEst">—</b></span></div></div>
   <div id="hinweis" hidden></div>
 </div>
 
 <script src="konfig.js"></script>
+<script src="look.js"></script>
 <script>
 (function () {
   'use strict';
@@ -218,6 +248,10 @@ html, body {
     pausiert: 0, sichtbar: 15,
     /** "zwei" = zwei Zeilen uebereinander, "eine" = eine flache Leiste. */
     anordnung: 'zwei',
+    // Redesign 11/2026: layout and house style (look.js).
+    layout: '', liveZeigen: true, topZeigen: true,
+    look: 'clean', rahmen: true, rahmenTempo: 4, rahmenBreite: 2.5, hintergrund: 'hero', hintergrundUrl: '', heroDeck: 0.1,
+    wasserzeichen: 'aus', chLogo: true,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -252,9 +286,11 @@ html, body {
       $('wort').textContent = String(cfg.wort || 'QUAL ~');
 
       // Die Schaetzung: von Hand, sonst aus frueheren Ausgaben - der Zuschlag nur bei Ausgaben desselben Cups, wie auf der Event-Seite.
+      let schaetzung = 0;
       if (vonHand || d.schnitt) {
-        $('schaetzung').textContent = vonHand ? Math.round(Number(cfg.punkte))
+        schaetzung = vonHand ? Math.round(Number(cfg.punkte))
           : d.schnitt + (d.aehnlich ? 0 : Math.max(0, Number(cfg.zuschlag) || 0));
+        Look.zahl($('schaetzung'), schaetzung);
         $('oben').hidden = false;
       } else {
         $('oben').hidden = true;
@@ -263,13 +299,20 @@ html, body {
       // Der Live-Wert nur, wenn gerade wirklich jemand auf dem Platz steht.
       // Waehrend des Spieltags ist das der Stand von jetzt, alle fuenfzehn
       // Sekunden frisch - danach das Ergebnis.
-      if (d.tatsaechlich) {
-        $('live').textContent = d.tatsaechlich;
+      if (d.tatsaechlich && cfg.liveZeigen !== false) {
+        Look.zahl($('live'), d.tatsaechlich);
         $('top').textContent = 'TOP ' + (d.schwelle || cfg.schwelle);
+        $('top').hidden = cfg.topZeigen === false;
+        $('unten').querySelector('.strich').hidden = cfg.topZeigen === false;
         $('unten').hidden = false;
       } else {
         $('unten').hidden = true;
       }
+      // The meter: live qualifying score against the estimate.
+      $('mLive').textContent = d.tatsaechlich || '—';
+      $('mEst').textContent = schaetzung || '—';
+      $('meter').querySelector('.fuell').style.width = schaetzung && d.tatsaechlich
+        ? Math.max(2, Math.min(100, d.tatsaechlich / schaetzung * 100)) + '%' : '0%';
 
       $('karte').classList.add('da');
     } catch (e) {
@@ -287,7 +330,16 @@ html, body {
       s.setProperty('--deckkraft', String(cfg.deckkraft));
       s.setProperty('--akzent', String(cfg.akzent));
       s.setProperty('--schrift', cfg.schrift + 'px');
-      $('karte').classList.toggle('eine', cfg.anordnung === 'eine');
+      const layout = ['zwei', 'eine', 'meter', 'gross'].indexOf(cfg.layout) >= 0 ? cfg.layout : (cfg.anordnung === 'eine' ? 'eine' : 'zwei');
+      $('karte').classList.toggle('eine', layout === 'eine');
+      ['zwei', 'eine', 'meter', 'gross'].forEach((l) => document.body.classList.toggle('l-' + l, l === layout));
+      const haus = cfg.look !== 'klassisch';
+      document.body.classList.toggle('haus', haus);
+      Look.haus($('karte'), Object.assign({}, cfg, { akzent: haus ? (cfg.lookAkzent || '#ffffff') : cfg.akzent }));
+      const ob = $('oben');
+      let lg = ob.querySelector('.lk-logo');
+      if (haus && cfg.chLogo !== false && !lg) ob.insertBefore(Look.logo(), ob.firstChild);
+      if ((!haus || cfg.chLogo === false) && lg) lg.remove();
 
       if (uhr) clearInterval(uhr);
       uhr = setInterval(holen, Math.max(5, cfg.takt) * 1000);
