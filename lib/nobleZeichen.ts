@@ -4,7 +4,7 @@
  * Noble Practice (16.11.2026): "Just make a few small adjustments to the shapes, and a watermark isn't necessarily required if you change the
  * shapes." Die Formen werden deshalb beim Zeichnen leicht vereinfacht (lib/formVereinfachen). Als Geste bleibt ein kleines, unaufdringliches
  * Zeichen "NOBLE PRACTICE · nobleprac.com" in der Ecke des Bildes - auf der Seite, im kopierten/gespeicherten Bild und in den erzeugten
- * Post-Bildern -, dazu auf der Seite der Hinweis "Drop maps by Noble Practice" mit Link (lib/kartenQuelle). Kein grosses Wasserzeichen.
+ * Post-Bildern. Kein grosses Wasserzeichen, kein Link-Hinweis mehr (Betreiber, 16.11.2026).
  *
  * Karten, deren Formen nicht von Noble sind, bekommen das Zeichen nicht (die Entscheidung trifft der Aufrufer ueber lib/kartenQuelle).
  * Ohne Abhaengigkeiten: Browser (Canvas), Server (SVG fuer sharp) und Satori (post-bild) nehmen dieselben Werte.

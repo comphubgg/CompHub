@@ -16,10 +16,6 @@
 
 export type SpotQuelle = 'noble' | 'vital';
 
-/** Der Hinweis auf der Seite (als Link) und im Bild. */
-export const NOBLE_HINWEIS = 'Drop maps by Noble Practice';
-export const NOBLE_BILD_TEXT = 'Drop maps by Noble Practice (nobleprac.com)';
-export const NOBLE_ADRESSE = 'https://nobleprac.com';
 
 interface KartenKopf { id?: string; region?: string | null; windowId?: string | null; automatisch?: { quelle?: string } | null }
 interface SpotKopf { id: string; quelle?: string }

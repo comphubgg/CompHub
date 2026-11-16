@@ -29,7 +29,7 @@ import {
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { spotQuelle, zeigtNoble } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
-import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 import { eigeneKarte } from '@/lib/bildAdressen';
 import { regionVonLaendern } from '@/lib/landRegion';
 import Tippen from './Tippen';
@@ -635,8 +635,6 @@ function BetreiberPrognose() {
                         </div>
                       );
                     })}
-                    {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-                    {zeigtNoble({ region: prognose?.quellen?.[0]?.region }, karte.spots) && <NobleHinweis />}
                   </div>
                 )}
               </div>

@@ -29,7 +29,7 @@ import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { hatNobleFormen } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
-import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
@@ -3668,8 +3668,6 @@ ${name}
 
       </div>{/* Ende der Zoom-Ebene - die Leiste unten bleibt an ihrem Platz */}
 
-      {/* Quelle der Landepunkte, oben links und ohne Zoom - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-      {hatNobleFormen(spots) && <NobleHinweis />}
 
       {/* Die Werkzeugleiste: im Breitbild liegt sie ganz rechts am Rand des Fensters (siehe unten), sonst am rechten Rand der Karte. */}
       {!vollbild && werkzeugleiste('absolute right-2 top-2 z-30 flex flex-col gap-1.5')}

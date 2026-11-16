@@ -33,7 +33,7 @@ import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { spotQuelle, zeigtNoble } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
 import { zeichneNobleZeichen } from '@/lib/nobleZeichen';
-import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 import { gruppenName } from '@/lib/fensterName';
 import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
@@ -2701,7 +2701,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
               {/* Landepunkte von Noble Practice: Noble-Wasserzeichen und Hinweis (Bedingung von Noble, 16.11.2026). */}
-              {zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots) && (<><NobleWasserzeichen /><NobleHinweis /></>)}
+              {zeigtNoble({ region: ziel?.region, windowId: ziel?.windowId }, spots) && <NobleWasserzeichen />}
 
               <svg viewBox="0 0 100 100" preserveAspectRatio="none"
                 className={`absolute inset-0 h-full w-full ${formenAn

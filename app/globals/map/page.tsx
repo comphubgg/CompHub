@@ -18,7 +18,7 @@ import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import { hatNobleFormen } from '@/lib/kartenQuelle';
 import { nobleSpotsAnzeige } from '@/lib/nobleAnzeige';
-import NobleWasserzeichen, { NobleHinweis } from '@/app/components/NobleWasserzeichen';
+import NobleWasserzeichen from '@/app/components/NobleWasserzeichen';
 
 /*
  * Eine Form der Turnierkarte.
@@ -417,8 +417,6 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
         </button>
       )}
 
-      {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
-      {hatNobleFormen(spots) && <NobleHinweis className={vollbild ? 'fixed left-4 top-4' : 'absolute left-2 top-2'} />}
 
       {/* Das Vollbild-Quadrat - gleich gebaut wie bei den Predictions. */}
       <button type="button" onMouseDown={(e) => e.stopPropagation()}
