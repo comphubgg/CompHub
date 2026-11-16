@@ -16,8 +16,11 @@ interface Zone { naechsterRadius?: number; x?: number; y?: number }
 interface TagKurz { windowId: string; titel: string; matches: Array<{ id: string; nr: number; beginn?: string }> }
 
 const SEITE = 'https://www.thecomphub.com';
-const GROSS = 20_000;
-const KLEIN = 10_000;
+/*
+ * Die Zonen, die gezeichnet werden: auf der grossen Karte 20.000 (dunkel) und 10.000 (gelb). Auf einer Reload-Insel eine Phase spaeter, 10.000 und 5.000
+ * (Betreiber, 16.11.2026: "du verdeckst mit diesen Kreisen die halbe Map" - die Reload-Inseln sind nur gut zwei Drittel so gross).
+ */
+const RADIEN = { br: [20_000, 10_000], reload: [10_000, 5_000] } as const;
 const xml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export interface ZonenBild { png: Buffer; titel: string; games: number; mitZone: number; tage: Array<{ windowId: string; games: number }> }
@@ -45,6 +48,7 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
     playlist = playlist ?? j.playlist ?? null;
   }
 
+  const [GROSS, KLEIN] = RADIEN[zonenKarte(playlist, tage[0].windowId).art];
   let versatz = 0;
   const games: Array<{ gross?: Zone; klein?: Zone; nr: number }> = [];
   const legende: string[] = [];

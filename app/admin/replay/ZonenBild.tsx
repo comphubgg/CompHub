@@ -39,8 +39,11 @@ interface Zone { naechsterRadius?: number; x?: number; y?: number }
 interface TagKurz { windowId: string; titel: string; matches: Array<{ id: string; nr: number; beginn?: string }> }
 interface Kreis { x: number; y: number }
 
-const GROSS = 20_000;
-const KLEIN = 10_000;
+/*
+ * Die Zonen, die gezeichnet werden: auf der grossen Karte 20.000 (dunkel) und 10.000 (gelb). Auf einer Reload-Insel eine Phase spaeter, 10.000 und 5.000
+ * (Betreiber, 16.11.2026: "du verdeckst mit diesen Kreisen die halbe Map" - die Reload-Inseln sind nur gut zwei Drittel so gross).
+ */
+const RADIEN = { br: [20_000, 10_000], reload: [10_000, 5_000] } as const;
 const N = 2048;
 /** Wie bisher: der grosse Kreis im Schwarz des ersten Tages, der kleine gelb - beide ohne Rand. */
 const SCHWARZ = 'rgba(8, 8, 12, 0.74)';
@@ -113,6 +116,7 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
     const c = leinwand.current;
     if (!c || laedt) return undefined;
     let weg = false;
+    const [GROSS, KLEIN] = RADIEN[karte.art];
 
     // Nummern ueber alle gezeigten Teile fortlaufend (beide Heats: 1 bis 16).
     let versatz = 0;
