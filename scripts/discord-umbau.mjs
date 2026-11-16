@@ -22,7 +22,7 @@
  * abweicht. Ein zweiter Lauf direkt danach zeigt einen leeren Plan.
  *
  * Was nie geloescht wird: alles, was der Code kennt (Namen und Muster unten, aus lib/discord.ts,
- * lib/discordGilden.ts, lib/botFreunde.ts und scripts/*discord*.mjs), alles Private (@everyone darf
+ * lib/discordGilden.ts und scripts/*discord*.mjs), alles Private (@everyone darf
  * nicht sehen), Sprach- und Buehnenkanaele, die Kanaele, die Discord selbst braucht (Regeln,
  * Community-Updates, Systemkanal, AFK), und Kategorien, in denen noch etwas liegt.
  *

@@ -42,8 +42,8 @@ interface Zustand {
 }
 
 /*
- * Zwei Konten (7.11.2026): das des Betreibers (seine bisherigen Freunde) und das Bot-Konto der Seite ("comphub.", data/epic-auth-bot.json), das den Pros
- * Freundschaftsanfragen schickt (scripts/bot-freunde.mjs). Je Konto eine Verbindung; der Match-Finder sieht die Freunde beider.
+ * Zwei Konten (7.11.2026): das des Betreibers (seine bisherigen Freunde) und das Bot-Konto der Seite ("comphub.", data/epic-auth-bot.json), dessen schon
+ * angenommene Freunde weiter zaehlen (Anfragen schickt es seit 16.11.2026 keine mehr, #21). Je Konto eine Verbindung; der Match-Finder sieht die Freunde beider.
  */
 type Konto = 'haupt' | 'bot';
 const g = globalThis as unknown as { __epicFreunde?: Zustand; __epicFreundeBot?: Zustand };
