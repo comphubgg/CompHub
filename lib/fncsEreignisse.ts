@@ -12,7 +12,7 @@ import { kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
 import { endspielArt, schluesselVon, landVonName, plaetze, type Art } from '@/lib/fncsListe';
 import { hatArchiv } from '@/lib/fncsBestenlisten';
 import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
-import { vglRekord, vglLeaderboard } from '@/lib/fncsReihenfolge';
+import { vglRekord, vglLeaderboard, nameVgl } from '@/lib/fncsReihenfolge';
 
 /*
  * Die Endspiele der FNCS fuer die FNCS-Seite: jede Grand Finals, jede Global Championship, das Invitational und die Summit -
@@ -420,6 +420,8 @@ export interface FncsRekorde {
   ab: string;
   spieler: Array<{ name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>;
   punkte: RekordZeile[]; siege: RekordZeile[]; elims: RekordZeile[];
+  /** Die Endspiele, die wirklich in die Zahlen eingegangen sind (Name wie bei RekordZeile.event), nach Datum - fuer den Hinweis zum Datenumfang. */
+  finals?: string[];
   /** Wie viele Endspiele Epic trotz Wiederholungen nicht geliefert hat - dann sind die Summen zu klein. Fehlt oder 0: vollstaendig. */
   fehlend?: number;
 }
@@ -438,6 +440,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
   const je = new Map<string, { name: string; land: string | null; punkte: number; siege: number; elims: number; finals: number }>();
   const alleTeams: Array<{ event: string; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }> = [];
   let fehlend = 0;
+  const gezaehlt: Array<{ event: string; datum: number }> = [];
   await Promise.all(mitEpic.map(async (k) => {
     const tage = k.e.tage ?? [];
     const fenster = tage.length > 1 ? tage.map((t) => t.windowId) : [k.e.windowId];
@@ -448,6 +451,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
       const ziel = fenster.length > 1 ? `windows=${fenster.map(encodeURIComponent).join(',')}` : `window=${encodeURIComponent(fenster[0])}`;
       const zeilen = await ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`);
       const label = k.art === 'gc' ? `${k.jahr} Global Championship` : `${k.e.saisonKurz} Grand Finals`;
+      if (zeilen.length) gezaehlt.push({ event: label, datum: k.e.datum ?? 0 });
       for (const z of zeilen) {
         let spieler = z.players.map((p) => {
           const x = kontext(p.id, p.displayName || p.name || '');
@@ -476,6 +480,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
     ab: 'Chapter 5 Season 3',
     spieler: [...je.values()].sort(vglLeaderboard).slice(0, 100),
     punkte: top('punkte'), siege: top('siege'), elims: top('elims'),
+    finals: gezaehlt.sort((a, b) => a.datum - b.datum || nameVgl(a.event, b.event)).map((f) => f.event),
     ...(fehlend > 0 ? { fehlend } : {}),
   };
   // Eine unvollstaendige Summe nur kurz merken, damit bald neu gefragt wird.

@@ -22,6 +22,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
+import GfRekorde from './GfRekorde';
 import { kleinBild } from '@/app/components/kleinBild';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
@@ -470,7 +471,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
 
         {tab === 'alltime' && (
           <>
-            {/* Wie beim Vorbild: FNCS Winners, All-Time Leaderboard, Nationalities, Rekorde in einem Grand Finals. */}
+            {/* FNCS Winners, All-Time Leaderboard, Nationalities, darunter die Grand-Finals-Rekorde. */}
             <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
               <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
               <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.</T></p>
@@ -532,27 +533,8 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
               </div>
             )}
 
-            {alt?.rekorde && (
-              <div className="mb-10 grid gap-4 lg:grid-cols-3">
-                {([['Most points in a single Grand Finals', alt.rekorde.punkte], ['Most Victory Royales in a single Grand Finals', alt.rekorde.siege], ['Most elims in a single Grand Finals', alt.rekorde.elims]] as const).map(([titel, zeilen]) => (
-                  <Tafel key={titel} titel={titel} unter={t('Seit {n}').replace('{n}', alt.rekorde?.ab ?? '')}>
-                    <ol>
-                      {zeilen.map((z, i) => (
-                        <li key={`${z.event}-${i}`} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
-                          <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
-                          <TeamFlagge groesse={z.spieler.length > 1 ? 24 : 16} laender={z.spieler.map((x) => x.land)} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[12px] font-bold uppercase text-slate-100">{z.spieler.map((x) => x.name).join(' · ')}</span>
-                            <span className="block text-[11px] text-slate-600">{z.event}</span>
-                          </span>
-                          <span className="text-sm font-black tabular-nums text-sky-400">{z.wert}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </Tafel>
-                ))}
-              </div>
-            )}
+            {/* Grand-Finals-Rekorde (16.11.2026): ein eigener Abschnitt mit Umschalter, Treppchen und Tabelle statt drei gleicher Karten. */}
+            {alt?.rekorde && <GfRekorde rekorde={alt.rekorde} ort={ort} />}
 
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
