@@ -8,7 +8,10 @@
 //   * Eliminierungen: bei Solos aus Epics Bestenliste, bei Teams aus dem vollen Auslesen (killsEcht) oder den Server-Replays, wenn sie je Team zu Epic passen,
 //   * Schaden, erlittener Schaden, Treffer, Sturmschaden und Ueberlebenszeit aus den vollen Replays (clutch/<w>.json, tools/replay-voll).
 //
-// Was wir nicht haben, steht nicht drin - Schuesse, Assists, Heilung, Material, Bauteile, Strecke gab es nur bei der Quelle; Kopftreffer zaehlen die
+//   * Gesetzte Bauteile (16.11.2026) aus denselben vollen Replays (selbstHolz/-Stein/-Metall, wie app/api/cup-spieler), nur wenn jedes Spiel sie hat -
+//     vorher fehlten sie, und "Meiste Bauteile" der Saison S43 stand mit 0 bei allen 400.
+//
+// Was wir nicht haben, steht nicht drin - Schuesse, Assists, Heilung, Material gab es nur bei der Quelle; Kopftreffer zaehlen die
 // Replays nicht verlaesslich genug ("er hat nie im Leben nur einen"). Die Summen der Statistik zaehlen solche Werte nur ueber die Spieltage, die sie
 // haben (siehe summen() in lib/szeneStats.ts). Schaden und Zeit stehen je Spieler erst, wenn jedes seiner Spiele voll gelesen ist.
 // Der Schaden aus den Replays liegt im Mittel rund 6 % unter Epics Zahl (ohne Treffer auf Umgehauene, an den Globals geprueft).
@@ -32,7 +35,11 @@ const HOECHSTENS_SPIELER = 4000;
 
 type Clutch = {
   /** killsEcht: der Kill-Zaehler des vollen Auslesens, am Aus des Teams geschnitten (Fassung 19) - je Spieler ueber alle gelesenen Spiele. */
-  schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number; killsEcht?: number }>;
+  schaden?: Record<string, {
+    dmg: number; erlitten: number; treffer: number; sturm?: number; killsEcht?: number;
+    /** Selbst gesetzte Teile aus dem Inventar-Leser (wie Osirions "Builds Placed"), je Spieler; invSpiele = Spiele, die diesen Wert haben. */
+    selbstHolz?: number; selbstStein?: number; selbstMetall?: number; invSpiele?: number;
+  }>;
   leben?: Record<string, number>;
   spiele?: Record<string, number>;
   /** [zu Fuss, Luft] in Metern (lib/replayPositionen). */
@@ -57,6 +64,7 @@ export interface EigeneSpielerZeile {
   eliminations?: number; matchesPlayed: number;
   damageDealt?: number; damageTakenFromPlayers?: number; hitsToPlayers?: number; stormDamage?: number; timeAlive?: number;
   distanceOnFoot?: number; distanceSkydiving?: number;
+  woodBuildsPlaced?: number; stoneBuildsPlaced?: number; metalBuildsPlaced?: number;
 }
 
 /**
@@ -127,6 +135,8 @@ export async function eigeneSpieler(t: EigenerTag): Promise<{ players: EigeneSpi
         } : {}),
         ...(voll && typeof clutch?.leben?.[k] === 'number' ? { timeAlive: Math.round(clutch.leben[k]) } : {}),
         ...(voll && clutch?.strecke?.[k] ? { distanceOnFoot: clutch.strecke[k][0], distanceSkydiving: clutch.strecke[k][1] } : {}),
+        ...(voll && d && typeof d.selbstHolz === 'number' && (d.invSpiele ?? 0) >= team.matches
+          ? { woodBuildsPlaced: d.selbstHolz, stoneBuildsPlaced: d.selbstStein ?? 0, metalBuildsPlaced: d.selbstMetall ?? 0 } : {}),
       });
     }
   }

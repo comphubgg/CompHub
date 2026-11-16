@@ -1541,7 +1541,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
      */
     mindestMatches: k.feld === 'quote' ? mindestMatches : null,
     plaetze: [...saisonFeld]
-      .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches : true))
+      // Nur wer einen Wert hat (16.11.2026): ohne Kopftreffer in den eigenen Spieltagen stand "Meiste Kopftreffer" mit 400 Nullen da.
+      .filter((s) => Number(s[k.feld]) > 0 && (k.feld === 'quote' ? s.matches >= mindestMatches : true))
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
       /*
        * Vierhundert statt sechzig.
@@ -1950,7 +1951,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     einheit: k.einheit ?? null,
     mindestMatches: k.feld === 'quote' ? quoteMindest : null,
     plaetze: [...feld]
-      .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest : true))
+      .filter((s) => Number(s[k.feld]) > 0 && (k.feld === 'quote' ? s.matches >= quoteMindest : true))
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
       .slice(0, LISTEN_LAENGE),
   }));

@@ -4551,7 +4551,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 * gross mit Foto, die Plaetze zwei bis fuenf darunter. Die Elim-Liste steht oben als eigene, breite Karte - hier nicht noch einmal.
                 */}
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {listen.filter((l) => l.feld !== 'elims').map((l) => {
+                {/* Eine Liste ohne einen einzigen Wert (z. B. Kopftreffer in S43) steht nicht als Karte voller Nullen da. */}
+                {listen.filter((l) => l.feld !== 'elims' && l.plaetze.length > 0).map((l) => {
                   const [erster, ...rest] = l.plaetze.slice(0, 5);
                   const wertVon = (sp: Spieler) => feldText(sp, l.feld, l.nachkomma, sprache, l.einheit ?? '');
                   return (
