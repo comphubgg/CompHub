@@ -228,6 +228,8 @@ async function holeRoh(request: Request) {
           statPlatz: k.schluessel === 'points' ? e.rank : statPlaetze[i],
           spieler: e.players.map((p) => p.name),
           ids: e.players.map((p) => p.id),
+          // Spiele des Teams (app/api/turnier-leader: wer mindestens die Haelfte der meisten Spiele hat, wird gewertet).
+          spiele: e.games || 0,
           wert: +angezeigt.toFixed(k.nachkomma ?? 0),
           roh,
         };

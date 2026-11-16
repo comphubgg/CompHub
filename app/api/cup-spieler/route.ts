@@ -345,6 +345,12 @@ async function holeRoh(request: Request) {
   // Das Finale der Globals: beide Tage (siehe ausSzene).
   const event = p.get('event');
   const kennzahl = (p.get('kennzahl') ?? '').trim();
+  /*
+   * Mehrere Kennzahlen in einem Aufruf (?kennzahlen=elims,damage,...&pro=50, 16.11.2026): die Tournament Leaders fragten jede ihrer neun Kennzahlen
+   * einzeln ab - neunmal dieselbe Rechnung (Replay-Werte, Clutch-Datei, Namen) fuer einen Spieltag. Gemessen gegen thecomphub.com: 19,3 s beim ersten,
+   * 6,6 s beim zweiten Aufruf (FNCS Solos Reload Heat 2 EU). Jetzt einmal gerechnet; je Kennzahl dieselbe erste Seite wie ?kennzahl=.
+   */
+  const kennzahlen = (p.get('kennzahlen') ?? '').split(',').map((k) => k.trim()).filter(Boolean).slice(0, 16);
   const seite = Number(p.get('seite')) || 1;
   const pro = Math.min(Math.max(Number(p.get('pro')) || 50, 10), 200);
   const raengeIds = (p.get('raenge') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)).slice(0, 4);
@@ -411,6 +417,12 @@ async function holeRoh(request: Request) {
       }
     }
     if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(szene.spieler, raengeIds), quelle: 'szene' });
+    if (kennzahlen.length) {
+      const alle = szene.spieler.map((x) => ({ ...x, elims: x.kills }));
+      const listen: Record<string, unknown[]> = {}; const gesamt: Record<string, number> = {};
+      for (const k of kennzahlen) { const s1 = seiteVon(alle, k, 1, pro, null); listen[k] = s1.zeilen; gesamt[k] = s1.gesamt; }
+      return NextResponse.json({ kennzahlen, listen, gesamt, replayStand: null, schadenDa: true, quelle: 'szene' });
+    }
     if (kennzahl) {
       const q = (p.get('q') ?? '').trim().toLowerCase();
       return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
@@ -480,6 +492,8 @@ async function holeRoh(request: Request) {
     spiele?: Record<string, number>;
     /** Noch nicht jedes Match voll gelesen (scripts/clutch-zusammen.mjs) - Werte nur bei Spielern, deren Spiele alle gelesen sind. */
     teilweise?: { teams: number; matches: number; vonMindestens?: number };
+    /** Der Spieltag wird gerade neu gelesen (scripts/clutch-zusammen.mjs, UMBAU) - die Werte hier sind die alten, bis der neue Stand ganz ist. */
+    umbau?: { seit: string; gelesen: number; von: number | null; fassung: number | null };
     /** Plattform je Spieler aus den vollen Replays (WIN, PS5, XSX, SWT, IOS ...). */
     plattform?: Record<string, string>;
     /** Laufstrecke je Spieler [zu Fuss, Luft] in Metern aus den Positionsproben der Replays (lib/replayPositionen). */
@@ -495,6 +509,7 @@ async function holeRoh(request: Request) {
       // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
       if (!c || c.teilweise) return a;
       const raus = a ?? { summe: {}, schaden: {}, leben: {}, spiele: {} };
+      if (c.umbau) raus.umbau = c.umbau;
       for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + (c.epicZeit?.[id] ?? v);
       // Spiele je Spieler mit: ohne sie gelten Elims aus dem vollen Auslesen (killsEcht) ueber mehrere Tage nicht als ganz gelesen.
       for (const [id, v] of Object.entries(c.spiele ?? {})) raus.spiele![id] = (raus.spiele![id] ?? 0) + v;
@@ -649,6 +664,27 @@ async function holeRoh(request: Request) {
   };
 
   if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(rep.spieler.map(werte), raengeIds), quelle: 'replay' });
+
+  if (kennzahlen.length) {
+    const alle = rep.spieler.map(werte);
+    const seiten = kennzahlen.map((k) => [k, seiteVon(alle, k, 1, pro, null)] as const);
+    const ids = new Set(seiten.flatMap(([, s1]) => s1.zeilen.map((z) => z.epicId)));
+    const teams = teamsFuer(ids);
+    await namenNachholen([...ids, ...[...ids].flatMap((id) => teams.get(id)?.partner ?? [])], anzeige);
+    const mitNamen = (z: Zeile) => ({
+      ...z, name: anzeige.get(z.epicId) ?? z.epicId.slice(0, 8), land: land.get(z.epicId) ?? '', platz: teams.get(z.epicId)?.platz ?? null,
+      partner: (teams.get(z.epicId)?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
+    });
+    return NextResponse.json({
+      kennzahlen, replayStand, schadenTeil: teil,
+      // Ob es fuer diesen Spieltag ueberhaupt Werte aus den vollen Replays gibt (Schaden, Treffer, Bauteile ...) - sonst sagen die Leaders das, statt Nullen zu zeigen.
+      schadenDa: !!schadenVon && schadenVon.size > 0,
+      // Laeuft ein Neu-Lesen (neuere Leser-Fassung), sagen die Leaders bei fehlenden Werten "wird neu gelesen" statt "nicht erfasst".
+      umbau: clutchDatei?.umbau ?? null,
+      listen: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.zeilen.map(mitNamen)])),
+      gesamt: Object.fromEntries(seiten.map(([k, s1]) => [k, s1.gesamt])),
+    });
+  }
 
   // Eine Kennzahl ganz, seitenweise - ueber alle Spieler des Spieltags, nicht nur die gezeigten.
   if (kennzahl) {

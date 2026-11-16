@@ -263,7 +263,13 @@ if (arg[0] === '--plan') {
     if (!f.ids.size) continue;
     // Arena-Matches legt Epic nicht als Server-Replay ab (folder_not_found_or_not_allowed) - zehntausende vergebliche Versuche je Spieltag.
     if (/Arena/i.test(f.windowId)) continue;
-    const da = liesDatei(path.join(ZIEL, `${f.windowId}.json`));
+    /*
+     * Laeuft ein Neu-Lesen (scripts/clutch-zusammen.mjs, UMBAU), zaehlt sein Stand daneben (clutch-umbau/<w>.json) - die veroeffentlichte Datei bleibt bis zum
+     * Ende die alte. Ist er nicht lesbar, gilt die veroeffentlichte: dann faengt das Neu-Lesen eben noch einmal an.
+     */
+    const veroeffentlicht = liesDatei(path.join(ZIEL, `${f.windowId}.json`));
+    const umbau = veroeffentlicht?.umbau?.seit ? liesDatei(path.join(DATEN, 'clutch-umbau', `${f.windowId}.json`)) : null;
+    const da = umbau && umbau.umbauSeit === veroeffentlicht.umbau.seit ? umbau : veroeffentlicht;
     /*
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.
@@ -333,7 +339,14 @@ if (arg[0] === '--plan') {
   // Was in den letzten zwei Tagen endete zuerst (Europa vor dem Rest, das aelteste zuerst - es hat die naechste Frist), dann der Rest (Europa zuerst,
   // das neueste zuerst).
   const frisch = (t) => Date.now() - t.datum < 2 * 864e5;
-  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
+  /*
+   * Kleine Spieltage (bis 300 Matches: Finals, Heats, Runde 2 eines Cups) vor den grossen offenen Runden (16.11.2026). Jeder Rechner geht die Liste der Reihe
+   * nach durch; stand ein Spieltag mit vier Matches hinter offenen Runden mit 20.000, kam er nie an die Reihe - Plan 06:56 UTC: 843.900 offene Matches aus
+   * 489 Spieltagen, jeder Rechner schaffte rund 1.200 je Durchgang ("noch offen: 41.343"), der Performance Evaluation Cup Event 2 Round 2 EU (4 Matches)
+   * stand nach zehn Tagen noch ohne Schaden da. Frisch Beendetes bleibt vorn.
+   */
+  const klein = (t) => t.gesamt <= 300;
+  raus.sort((a, b) => (Number(frisch(b)) - Number(frisch(a))) || (Number(klein(b)) - Number(klein(a))) || (cupVorrang(a.windowId) - cupVorrang(b.windowId)) || (Number(b.eu) - Number(a.eu)) || (frisch(a) ? b.datum - a.datum : b.datum - a.datum));
   const offenGesamt = raus.reduce((n, t) => n + t.offen.length, 0);
   // 150 Matches je Rechner: das sind bei rund 40 je Minute keine vier Minuten - je mehr Rechner, desto eher ist ein frischer Cup fertig.
   const rechner = Math.min(Math.max(1, Number(process.env.CLUTCH_RECHNER) || 8), Math.max(1, Math.ceil(offenGesamt / 150)));

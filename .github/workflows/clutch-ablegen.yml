@@ -36,7 +36,7 @@ jobs:
         run: npm ci --omit=optional
 
       - name: Stand vom Release
-        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh 2>&1 | tail -3
+        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-umbau 2>&1 | tail -3
 
       - name: Teilstaende zusammenholen
         uses: actions/download-artifact@v4
@@ -58,6 +58,12 @@ jobs:
         continue-on-error: true
         run: node scripts/clutch-leben.mjs
 
+      # Spieltags-Dateien ohne Schaden aus ihren Werten je Match wiederherstellen (16.11.2026, scripts/clutch-aus-je.mjs): 199 von 397 juengeren standen so am Release.
+      - name: Schaden aus den Werten je Match
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node scripts/clutch-aus-je.mjs --hoechstens 80 2>&1 | tail -30
+
       # Lage der Werte je Match (clutch/<w>.json, "je") gegen die Datei am Release pruefen und reparieren - bis zum 15.11.2026 kam clutch-je/ von hier nie an.
       - name: Werte je Match abgleichen
         continue-on-error: true
@@ -69,4 +75,10 @@ jobs:
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+
+      # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
+      - name: Leaders vorwaermen
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node scripts/leader-vorwaermen.mjs https://www.thecomphub.com --tage 3 2>&1 | tail -25

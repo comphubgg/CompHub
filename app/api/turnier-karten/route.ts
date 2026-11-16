@@ -6,6 +6,7 @@ import { schreibGrund } from '@/lib/schreibfehler';
 import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { ersatzSeit, liesJson } from '@/lib/ablage';
+import { mitSpotQuelle, spotQuelle } from '@/lib/kartenQuelle';
 
 // Ablage der Turnierkarten: Spots samt zugeordneten Teams.
 //
@@ -31,6 +32,8 @@ export interface Spot {
   punkte: Array<{ x: number; y: number }>;   // Prozent auf dem Kartenbild
   name?: string;
   teams: string[];                            // Team-Ids
+  /** Woher die Form stammt (Automatik, "Generate map") - von Hand gezeichnet: keine. Siehe lib/kartenQuelle. */
+  quelle?: 'noble' | 'vital';
 }
 
 export interface KartenTeam {
@@ -116,7 +119,9 @@ async function lies(): Promise<Turnierkarte[]> {
   try {
     // Automatisch gebaute Karten ausserhalb EU stammen aus Vital Scrims - abgeschaltet (lib/vitalScrims VITAL_AUS).
     return (JSON.parse(await fs.readFile(DATEI, 'utf8')) as Turnierkarte[])
-      .filter((k) => !(VITAL_AUS && (k as { automatisch?: unknown }).automatisch && (k as { region?: string }).region !== 'EU'));
+      .filter((k) => !(VITAL_AUS && (k as { automatisch?: unknown }).automatisch && (k as { region?: string }).region !== 'EU'))
+      // Die Quelle jeder Form, auch bei aelteren Karten (hergeleitet) - darueber nennt die Ansicht Noble Practice.
+      .map((k) => mitSpotQuelle(k));
   } catch {
     return [];
   }
@@ -315,6 +320,12 @@ async function nurAdmin() {
     { error: 'Only an admin can change maps.' }, { status: 403 });
 }
 
+/** Aus welcher Quelle "Generate map" die Formen nahm: die erste Form mit Quelle entscheidet. */
+function quelleDerFormen(k: Partial<Turnierkarte>): string {
+  for (const sp of k.spots ?? []) { const q = spotQuelle(k, sp); if (q) return q; }
+  return 'auto';
+}
+
 export async function POST(request: Request) {
   const abgewiesen = await nurAdmin();
   if (abgewiesen) return abgewiesen;
@@ -346,7 +357,8 @@ export async function POST(request: Request) {
     geaendert,
     oeffentlich: eingang.oeffentlich ?? false,
     // "Generate map" ist keine Handarbeit (5.11.2026: sonst blieb die Finalkarte danach stehen, waehrend Noble weiterlief).
-    ...(eingang.ausQuelle ? { automatisch: { stand: geaendert, quelle: 'auto' } } : {}),
+    // Die echte Quelle (noble/vital) statt nur "auto" - siehe lib/kartenQuelle.
+    ...(eingang.ausQuelle ? { automatisch: { stand: geaendert, quelle: quelleDerFormen(eingang) } } : {}),
   };
 
   const gelesen = await kartenZumSchreiben();

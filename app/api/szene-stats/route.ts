@@ -290,10 +290,8 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
   if (suchVorrat && Date.now() < suchVorrat.bis) return suchVorrat.stand;
 
   const stand = await fertigeAntwort('szene|suchindex', async () => {
-    const gepflegt = await liesProfile();
-    const szene = await liesSzeneSpieler();
-    const bildZu = await liesBilder();
-    const heimat = await heimatRegionen();
+    // Gleichzeitig statt nacheinander - nach einem Neustart wartete jede Datei auf die vorige.
+    const [gepflegt, szene, bildZu, heimat] = await Promise.all([liesProfile(), liesSzeneSpieler(), liesBilder(), heimatRegionen()]);
     return (await gesamtSummen()).map((x) => {
       const pr = gepflegt.get(x.epicId);
       const sz = szene.get(x.epicId);
@@ -660,11 +658,9 @@ async function berechne(request: Request) {
       const jahr = jahrRoh === 'alle' || jahrRoh === 'all' ? 0
         : (Number(jahrRoh) || new Date().getUTCFullYear());
       const volleListe = p.get('liste') === 'verdienst';
-      const daten = await jahresListen(jahr, region, p.get('saison') ?? undefined, volleListe);
-      const gepflegt = await liesProfile();
-      const bildZu = await liesBilder();
-      const heimat = await heimatRegionen();
-      const szene = await liesSzeneSpieler();
+      // Gleichzeitig statt nacheinander - nach einem Neustart wartete jede Datei auf die vorige.
+      const [daten, gepflegt, bildZu, heimat, szene] = await Promise.all([
+        jahresListen(jahr, region, p.get('saison') ?? undefined, volleListe), liesProfile(), liesBilder(), heimatRegionen(), liesSzeneSpieler()]);
       /*
        * So schlank wie moeglich: die Antwort war 1,1 Megabyte (sieben Listen
        * zu vierhundert Plaetzen mit allen Werten), bei Vercel ueber zwei
@@ -728,11 +724,9 @@ async function berechne(request: Request) {
        * wird wie die Startansicht vom stuendlichen Lauf vorgerechnet.
        */
       const nurClutch = p.get('clutch') === 'alle';
-      const daten = nurClutch ? null : await startseite(saison);
-      const gepflegt = await liesProfile();
-      const bildZu = await liesBilder();
-      const heimat = await heimatRegionen();
-      const szene = await liesSzeneSpieler();
+      // Gleichzeitig statt nacheinander - nach einem Neustart wartete jede Datei auf die vorige (die Namen aus dem ganzen Archiv gleich mit).
+      const [daten, gepflegt, bildZu, heimat, szene, gesamtFuerNamen] = await Promise.all([
+        nurClutch ? null : startseite(saison), liesProfile(), liesBilder(), heimatRegionen(), liesSzeneSpieler(), gesamtSummen()]);
       /*
        * Der Name haengt am Konto, nicht an der Saison.
        *
@@ -741,7 +735,7 @@ async function berechne(request: Request) {
        * du wissen, es geht ueber die Account-ID." Also gilt der juengste
        * Name aus dem ganzen Archiv, wo kein gepflegter vorliegt.
        */
-      const juengsteNamen = new Map((await gesamtSummen()).map((x) => [x.epicId, x.name]));
+      const juengsteNamen = new Map(gesamtFuerNamen.map((x) => [x.epicId, x.name]));
       /*
        * Die Solo Clutch Points der Saison als Zeilen fuer die Tabelle auf der
        * Startseite. Namen wie in jeder anderen Liste: gepflegtes Profil,
@@ -989,10 +983,8 @@ async function berechne(request: Request) {
     }
 
     if (p.get('ansicht') === 'bilder') {
-      const bildZu = await liesBilder();
-      const gepflegt = await liesProfile();
-      const szene = await liesSzeneSpieler();
-      const heimat = await heimatRegionen();
+      // Gleichzeitig statt nacheinander - nach einem Neustart wartete jede Datei auf die vorige.
+      const [bildZu, gepflegt, szene, heimat] = await Promise.all([liesBilder(), liesProfile(), liesSzeneSpieler(), heimatRegionen()]);
 
       /**
        * Wer wichtig ist, steht oben.
@@ -1747,10 +1739,8 @@ async function berechne(request: Request) {
     const sortiert = [...gefiltert].sort((a, b) =>
       Number(genug(b)) - Number(genug(a)) || Number(b[feld]) - Number(a[feld]));
 
-    const gepflegt = await liesProfile();
-    const bildZu = await liesBilder();
-    const heimat = await heimatRegionen();
-    const szene = await liesSzeneSpieler();
+    // Gleichzeitig statt nacheinander - nach einem Neustart wartete jede Datei auf die vorige.
+    const [gepflegt, bildZu, heimat, szene] = await Promise.all([liesProfile(), liesBilder(), heimatRegionen(), liesSzeneSpieler()]);
     const mitProfil = sortiert.slice(0, grenze).map((s) => {
       const pr = gepflegt.get(s.epicId);
       const sz = szene.get(s.epicId);

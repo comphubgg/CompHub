@@ -43,6 +43,12 @@ export interface Speicher {
   liste(ordner: string): Promise<string[]>;
   /** Groesse und Aenderungszeit, oder null. */
   angaben(name: string): Promise<{ groesse: number; geaendert: Date } | null>;
+  /**
+   * Lesen, aendern und zurueckschreiben in einem Zug - nur, wenn sich die Datei dazwischen nicht bewegt hat (der gelesene Stand geht beim Schreiben mit;
+   * ist er veraltet, wird frisch gelesen und die Aenderung noch einmal darauf gesetzt). Gibt der Speicher das nicht her, faellt aendereJson() auf
+   * Lesen, Schreiben und Nachsehen zurueck. `aendere` bekommt den Inhalt (oder null) und gibt den neuen zurueck - null heisst: nichts schreiben.
+   */
+  aendere?(name: string, aendere: (alt: Buffer | null) => Buffer | null): Promise<Buffer | null>;
 }
 
 /* ------------------------------------------------------------ Der Ordner */
@@ -251,6 +257,11 @@ function waehle(): Speicher {
         if (nurRelease(name)) return;
         return supabaseSpeicher.loesche(name);
       },
+      // Das sichere Aendern gibt es nur im GitHub-Archiv (lib/ablageGitDaten); Supabase faellt in aendereJson() auf Lesen und Schreiben zurueck.
+      aendere: supabaseSpeicher.aendere ? async (name, aendere) => {
+        if (nurRelease(name)) throw new Error(`${name} schreibt nur der Laufrechner`);
+        return supabaseSpeicher.aendere!(name, aendere);
+      } : undefined,
       liste: async (ordner) => {
         if (nurRelease(ordner.replace(/\/+$/, '') + '/')) return githubLeser.liste(ordner);
         return supabaseSpeicher.liste(ordner);
@@ -275,6 +286,8 @@ function waehle(): Speicher {
       ...echt,
       lies: async (n) => (luft.has(n) ? (luft.get(n) ?? null) : echt.lies(n)),
       schreib: async (n, d) => { luft.set(n, d); },
+      // Nie am echten Stand vorbei: aendereJson() nimmt dann den Weg ueber lies/schreib, also die Luft.
+      aendere: undefined,
       loesche: async (n) => { luft.set(n, null); },
     };
   }
@@ -312,6 +325,49 @@ export async function liesBereich(name: string, start: number, laenge: number): 
   }
   const roh = await speicher.lies(name);
   return roh ? roh.subarray(start, start + laenge) : null;
+}
+
+/**
+ * Eine JSON-Datei aendern, ohne fremde Aenderungen zu ueberschreiben (Betreiber, 16.11.2026: /admin/flaggen speichert Zeile um Zeile, waehrend die Laeufe
+ * auf GitHub dieselbe spieler-profile.json schreiben - lib/xHandles.mjs traegt X-Konten ein).
+ *
+ * `aendere` bekommt den frisch gelesenen Wert und aendert ihn an Ort und Stelle (oder gibt einen neuen zurueck). Es kann mehrmals laufen: hat sich die Datei
+ * zwischen Lesen und Schreiben bewegt, wird neu gelesen und die Aenderung auf den neuen Stand gesetzt. Im GitHub-Archiv entscheidet der Stand (sha) der
+ * Datei; sonst wird nach dem Schreiben nachgelesen, ob genau das dasteht, und notfalls wiederholt.
+ */
+export async function aendereJson<T>(name: string, standard: T, aendere: (wert: T) => T | void, einzug = 2): Promise<T> {
+  const parse = (roh: Buffer | null): T => {
+    if (!roh) return structuredClone(standard);
+    try { return JSON.parse(roh.toString('utf8')) as T; } catch { throw new Error(`${name} ist kein gueltiges JSON - nicht ueberschrieben`); }
+  };
+  const anwenden = (roh: Buffer | null): { wert: T; daten: Buffer } => {
+    const alt = parse(roh);
+    const neu = aendere(alt);
+    const wert = (neu === undefined ? alt : neu) as T;
+    return { wert, daten: Buffer.from(JSON.stringify(wert, null, einzug), 'utf8') };
+  };
+  const s = waehle();
+  if (s.aendere) {
+    let ergebnis: T | undefined;
+    await s.aendere(name, (roh) => {
+      const { wert, daten } = anwenden(roh);
+      ergebnis = wert;
+      return roh && roh.equals(daten) ? null : daten;
+    });
+    return ergebnis as T;
+  }
+  let letzter = '';
+  for (let versuch = 0; versuch < 4; versuch += 1) {
+    const roh = await s.lies(name);
+    const { wert, daten } = anwenden(roh);
+    if (roh && roh.equals(daten)) return wert;
+    await s.schreib(name, daten);
+    const nachher = await s.lies(name);
+    if (nachher && nachher.equals(daten)) return wert;
+    letzter = 'nach dem Schreiben stand etwas anderes da';
+    await new Promise((r) => setTimeout(r, 300 * (versuch + 1)));
+  }
+  throw new Error(`${name}: viermal Konflikt beim Schreiben (${letzter})`);
 }
 
 /** Eine JSON-Datei schreiben - in derselben Form wie bisher, mit Einrueckung. */

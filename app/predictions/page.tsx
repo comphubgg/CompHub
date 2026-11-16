@@ -27,6 +27,7 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { NOBLE_ADRESSE, NOBLE_HINWEIS, zeigtNoble } from '@/lib/kartenQuelle';
 import { eigeneKarte } from '@/lib/bildAdressen';
 import { regionVonLaendern } from '@/lib/landRegion';
 import Tippen from './Tippen';
@@ -625,6 +626,13 @@ function BetreiberPrognose() {
                         </div>
                       );
                     })}
+                    {/* Quelle der Landepunkte, oben links - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
+                    {zeigtNoble({ region: prognose?.quellen?.[0]?.region }, karte.spots) && (
+                      <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
+                        className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
+                        {NOBLE_HINWEIS} ↗
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

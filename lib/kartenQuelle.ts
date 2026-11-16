@@ -1,0 +1,57 @@
+/*
+ * Woher die Formen (Landepunkte) einer Turnierkarte stammen - und ob die Karte deshalb Noble Practice nennt (Betreiber, 16.11.2026: jede Karte, deren
+ * Landepunkte von Noble kommen, nennt sie sichtbar, auf der Seite und im Bild - wie /globals-solos).
+ *
+ * Genannt wird NUR Noble. Vital Scrims (NA Central, NA West, Middle East, Ozeanien) wird nicht genannt, bis es eine Vereinbarung gibt.
+ *
+ * Seit diesem Tag traegt jede Form ihre Quelle selbst (`quelle`): die Automatik (lib/kartenAutomatik) und "Generate map" schreiben sie hinein, von Hand
+ * gezeichnete Formen haben keine. Aeltere Karten wissen das nicht; fuer sie gilt: eine Form mit der Kennung "noble-..." kam aus der Automatik oder aus
+ * "Generate map" - in Europa ist das Noble (Noble fuehrt nur Europa), sonst Vital.
+ *
+ * Wird eine Karte danach von Hand bearbeitet, bleibt der Hinweis, solange noch mindestens eine Form von Noble darauf steht (auch verschoben oder
+ * umbenannt - gezeichnet hat sie Noble). Erst wenn alle Formen von Hand ersetzt sind, verschwindet er.
+ *
+ * Ohne Abhaengigkeiten, damit Server und Browser dasselbe rechnen.
+ */
+
+export type SpotQuelle = 'noble' | 'vital';
+
+/** Der Hinweis auf der Seite (als Link) und im Bild. */
+export const NOBLE_HINWEIS = 'Drop spots: Noble Practice';
+export const NOBLE_BILD_TEXT = 'Drop spots: Noble Practice (nobleprac.com)';
+export const NOBLE_ADRESSE = 'https://nobleprac.com';
+
+interface KartenKopf { region?: string | null; windowId?: string | null; automatisch?: { quelle?: string } | null }
+interface SpotKopf { id: string; quelle?: string }
+
+const regionVon = (k: KartenKopf) => (k.region || /_([A-Z]{2,4})$/.exec(k.windowId ?? '')?.[1] || '').toUpperCase();
+
+/** Die Quelle einer Form - gespeichert oder, bei aelteren Karten, hergeleitet. Von Hand gezeichnet: undefined. */
+export function spotQuelle(k: KartenKopf, sp: SpotKopf): SpotQuelle | undefined {
+  if (sp.quelle === 'noble' || sp.quelle === 'vital') return sp.quelle;
+  if (sp.quelle) return undefined;
+  if (!sp.id.startsWith('noble-')) return undefined;
+  const auto = k.automatisch?.quelle;
+  if (auto === 'noble' || auto === 'vital') return auto;
+  return regionVon(k) === 'EU' ? 'noble' : 'vital';
+}
+
+/** Die Karte mit der Quelle an jeder Form, die eine hat - so speichert der Editor sie beim naechsten Mal mit. */
+export function mitSpotQuelle<S extends SpotKopf, K extends KartenKopf & { spots: S[] }>(k: K): K {
+  let anders = false;
+  const spots = k.spots.map((sp) => {
+    const q = spotQuelle(k, sp);
+    if (!q || sp.quelle === q) return sp;
+    anders = true;
+    return { ...sp, quelle: q };
+  });
+  return anders ? { ...k, spots } : k;
+}
+
+/** Steht mindestens eine Form von Noble auf der Karte? Nur Formen mit gespeicherter Quelle zaehlen - vorher mitSpotQuelle. */
+export const hatNobleFormen = (spots: ReadonlyArray<{ quelle?: string; punkte?: ReadonlyArray<unknown> }>) =>
+  spots.some((sp) => sp.quelle === 'noble' && (sp.punkte?.length ?? 3) >= 3);
+
+/** Wie hatNobleFormen, aber mit Herleitung fuer Formen ohne gespeicherte Quelle (z. B. Prognose-Karten). */
+export const zeigtNoble = (k: KartenKopf, spots: ReadonlyArray<SpotKopf & { punkte?: ReadonlyArray<unknown> }>) =>
+  spots.some((sp) => spotQuelle(k, sp) === 'noble' && (sp.punkte?.length ?? 3) >= 3);

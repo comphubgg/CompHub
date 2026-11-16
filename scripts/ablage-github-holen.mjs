@@ -74,7 +74,16 @@ async function eine(name, tag, manifest) {
   const dort = manifest[anhang]?.summe;
   const hier = fs.existsSync(ziel) ? pruefsumme(fs.readFileSync(ziel)) : null;
   if (dort && hier === dort) return 'gleich';
-  const daten = await holen(tag, anhang);
+  let daten = await holen(tag, anhang);
+  /*
+   * Das Verzeichnis kennt die Datei, GitHub antwortet aber 404 (16.11.2026): waehrend ein anderer Lauf sie am vollen Release austauscht (erst loeschen,
+   * dann anlegen), fehlt sie fuer die Dauer des Hochladens. Ein solches "fehlt" liess scripts/clutch-neu-rechnen.mjs eine Datei ohne Schaden anlegen, die die
+   * volle am Release ersetzte. Deshalb hier noch zweimal nachsehen, bevor sie als fehlend gilt.
+   */
+  for (let v = 0; !daten && manifest[anhang] && v < 2; v += 1) {
+    await new Promise((ok) => setTimeout(ok, v ? 30_000 : 10_000));
+    daten = await holen(tag, anhang);
+  }
   if (!daten) return 'fehlt';
   if (hier && pruefsumme(daten) === hier) return 'gleich';
   fs.mkdirSync(path.dirname(ziel), { recursive: true });

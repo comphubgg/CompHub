@@ -9,6 +9,7 @@ import { sichtbarerTakt } from '@/app/lib/takt';
 import { eigeneKarte, fortniteKarte } from '@/lib/bildAdressen';
 import { kartenName } from '@/app/lib/kartenStil';
 import type { SolosFenster } from '@/lib/globalsSolos';
+import { hatNobleFormen } from '@/lib/kartenQuelle';
 
 /*
  * Die Turnierkarte gleich auf der Event-Seite (Betreiber, 26.10.2026: "dass man auf die Map so extra klicken muss, gefaellt mir nicht").
@@ -21,7 +22,7 @@ import type { SolosFenster } from '@/lib/globalsSolos';
 interface Eintrag { id: string; titel: string; spiele?: string; bildTitel?: string }
 interface Stand {
   geaendert: number; bildId?: string;
-  spots?: Array<{ id: string; punkte: Array<{ x: number; y: number }>; teams: string[] }>;
+  spots?: Array<{ id: string; punkte: Array<{ x: number; y: number }>; teams: string[]; quelle?: string }>;
   teams?: Array<{ id: string; spieler: string[] }>;
 }
 
@@ -70,7 +71,8 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
         const gruppen = (sp.teams ?? []).map((id) => team.get(id)?.spieler ?? []).filter((g) => g.length);
         return { punkte: sp.punkte, spieler: gruppen.flat(), teams: gruppen.length, gruppen };
       });
-    return { windowId: aktuell.id, name: aktuell.titel, art: 'finale', start: null, end: null, spieler: [], formen };
+    // Stammen Formen von Noble Practice, nennt die Karte sie (Link und Bild) - lib/kartenQuelle.
+    return { windowId: aktuell.id, name: aktuell.titel, art: 'finale', start: null, end: null, spieler: [], formen, ...(hatNobleFormen(s.spots) ? { kartenQuelle: 'noble' as const } : {}) };
   }, [aktuell, s]);
 
   if (!aktuell) return <>{leer}</>;

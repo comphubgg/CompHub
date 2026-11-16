@@ -100,6 +100,9 @@ const NUR_ADMIN: Ziel[] = [
   // Client-Id und Secret der Anmeldedienste - Geheimnisse, also nur Admin.
   { href: '/admin/services', titel: 'Anmeldedienste',
     text: 'Twitch, Discord und Google einrichten' },
+  // Wichtige Spieler ohne Flagge oder X-Konto, wie eine Tabelle (16.11.2026) - nur fuer den Admin (die Schnittstelle prueft das auch), nie von oeffentlichen
+  // Seiten verlinkt.
+  { href: '/admin/flaggen', titel: 'Flaggen & X', text: 'Wichtige Spieler ohne Flagge oder X-Konto nachtragen' },
   // Die Maps ohne Landepunkte aus dem Archiv: Formen, Teams und Leaderboard je Karte von Hand (13.10.2026).
   { href: '/admin/alte-maps', titel: 'Alte Maps',
     text: 'Karten von Hand pflegen: Formen, Teams, Leaderboard' },

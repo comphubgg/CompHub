@@ -27,6 +27,7 @@ import {
 } from '@/app/lib/kartenStil';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { hatNobleFormen, NOBLE_ADRESSE, NOBLE_BILD_TEXT, NOBLE_HINWEIS } from '@/lib/kartenQuelle';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 type Form = 'rechteck' | 'polygon';
@@ -35,6 +36,8 @@ interface Spot {
   id: string; form: Form; punkte: Punkt[]; name?: string; teams: string[];
   /** Selbst gewaehlte Farbe. Ohne Angabe faerbt sich die Form nach Belegung. */
   farbe?: string;
+  /** Woher die Form stammt ("Generate map", Automatik) - von Hand gezeichnet: keine. Siehe lib/kartenQuelle. */
+  quelle?: 'noble' | 'vital';
 }
 /**
  * Ein Spieler, den die Texterkennung in einer eingefuegten Vorlage gefunden
@@ -1594,6 +1597,7 @@ export default function KartenSeite(
         turnier?: { name: string }; fenster?: { name: string };
         formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
         ohneForm?: Array<{ ids: string[]; namen: string[] }>;
+        quelle?: 'noble' | 'vital';
       };
       if (!r.ok || !j.ok) {
         if (j.nichtGefunden) {
@@ -1645,6 +1649,8 @@ export default function KartenSeite(
             ? rechteckPunkte({ x: Math.min(...xs), y: Math.min(...ys) }, { x: Math.max(...xs), y: Math.max(...ys) })
             : fo.punkte,
           teams: ids,
+          // Die Quelle bleibt an der Form, auch wenn sie spaeter verschoben wird - darueber nennt die Karte Noble Practice.
+          quelle: j.quelle === 'vital' ? 'vital' : 'noble',
         } as Spot;
       });
 
@@ -3230,6 +3236,14 @@ ${name}
       g.restore();
     }
 
+    // Quelle der Landepunkte nennen, unten links - wie auf /globals-solos (Betreiber, 16.11.2026). Nur Noble, nie Vital (lib/kartenQuelle).
+    if (hatNobleFormen(spots)) {
+      const rand = Math.round(G * 0.022);
+      g.save(); g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = `600 ${Math.round(G * 0.014)}px Segoe UI, system-ui, sans-serif`;
+      g.textAlign = 'left'; g.textBaseline = 'bottom'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6;
+      g.fillText(NOBLE_BILD_TEXT, rand, G - Math.round(rand * 0.5)); g.restore();
+    }
+
     let wie: 'kopiert' | 'gespeichert';
     try {
       wie = await speichereLeinwand(
@@ -3644,6 +3658,15 @@ ${name}
       ))}
 
       </div>{/* Ende der Zoom-Ebene - die Leiste unten bleibt an ihrem Platz */}
+
+      {/* Quelle der Landepunkte, oben links und ohne Zoom - wie auf /globals-solos. Nur Noble, nie Vital (lib/kartenQuelle). */}
+      {hatNobleFormen(spots) && (
+        <a href={NOBLE_ADRESSE} target="_blank" rel="noopener noreferrer"
+          onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+          className="absolute left-2 top-2 z-30 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-medium text-slate-200 transition hover:bg-black/90">
+          {NOBLE_HINWEIS} ↗
+        </a>
+      )}
 
       {/* Die Werkzeugleiste: im Breitbild liegt sie ganz rechts am Rand des Fensters (siehe unten), sonst am rechten Rand der Karte. */}
       {!vollbild && werkzeugleiste('absolute right-2 top-2 z-30 flex flex-col gap-1.5')}

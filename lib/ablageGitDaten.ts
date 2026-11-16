@@ -51,7 +51,8 @@ import os from 'os';
 import path from 'path';
 import type { Speicher } from '@/lib/ablage';
 
-const API = 'https://api.github.com';
+// Ueberschreibbar nur zum Pruefen gegen einen nachgebauten Dienst (DATEN_API / DATEN_RAW) - im Betrieb nie gesetzt.
+const API = (process.env.DATEN_API || 'https://api.github.com').replace(/\/+$/, '');
 const ZWEIG = 'main';
 const FRISCH_MS = 60_000;
 // Fehlende Dateien und Ordnerlisten zaehlen bei GitHub voll gegen das Stundenkontingent (nur "nicht geaendert" ist frei) - sie werden deshalb seltener erfragt
@@ -228,7 +229,7 @@ function merkeFehler(e: unknown) {
  * Umbenennen je Datei) - derselbe Schluessel wie hinter der Seite. Nachteil des CDN: bis zu fuenf Minuten alt. Deshalb nicht fuer Dateien, die dieser Server in den
  * letzten sechs Minuten selbst geschrieben hat (sonst kaeme eine alte Fassung zurueck) - und bei jedem Fehler geht es ueber die API wie bisher.
  */
-const RAW = 'https://raw.githubusercontent.com';
+const RAW = (process.env.DATEN_RAW || 'https://raw.githubusercontent.com').replace(/\/+$/, '');
 const RAW_SPERRE_MS = 6 * 60_000;
 
 async function leseUeberCdn(name: string, alt: Eintrag | undefined): Promise<{ status: number; buf?: Buffer; etag?: string | null } | null> {
@@ -480,7 +481,75 @@ async function angaben(name: string): Promise<{ groesse: number; geaendert: Date
   return { groesse: daten.length, geaendert: new Date(e?.geprueft ?? Date.now()) };
 }
 
-export const gitDatenSpeicher: Speicher = { lies, schreib, loesche, liste, angaben };
+/*
+ * Lesen, aendern, schreiben - gegen den gelesenen Stand (Betreiber, 16.11.2026: /admin/flaggen).
+ *
+ * schreib() oben schreibt immer den ganzen Inhalt, den es bekommt; bei einem Konflikt (409/422) holt es nur den neuen Stand und schreibt denselben Inhalt
+ * noch einmal darueber. Fuer eine Datei, die auch andere schreiben (spieler-profile.json: die Laeufe auf GitHub tragen X-Konten ein, lib/xHandles.mjs),
+ * waere das ein stilles Ueberschreiben. Hier wird die Datei frisch ueber die Schnittstelle gelesen (nicht aus dem Speicher und nicht ueber das CDN), die
+ * Aenderung darauf gesetzt und mit genau diesem Stand (sha) geschrieben. Lehnt GitHub ab, weil sich die Datei bewegt hat, beginnt es von vorn - bis zu
+ * fuenfmal, mit wachsendem Abstand. Ein noch vorgemerkter Stand dieser Datei geht vorher hinaus, damit er nicht spaeter die Aenderung ueberschreibt.
+ */
+async function aendere(name: string, aendern: (alt: Buffer | null) => Buffer | null): Promise<Buffer | null> {
+  const n = sauber(name);
+  if (NUR_SPEICHER.test(n) || GESAMMELT.test(n)) throw new Error(`Ablage: ${n} laesst sich nicht sicher aendern`);
+  return nacheinander(async () => {
+    const vorgemerkt = wartend.get(n);
+    if (vorgemerkt) {
+      wartend.delete(n);
+      for (const uhren of [schnellUhren, sammelUhren]) { const u = uhren.get(n); if (u) clearTimeout(u); uhren.delete(n); }
+      await schreibeJetzt(n, vorgemerkt);
+      ausstehendLoeschen(n);
+    }
+    let letzter: Error | null = null;
+    /*
+     * Die Grundlage. Hat dieser Server die Datei zuletzt selbst geschrieben, kennt er Inhalt und sha schon - dann ohne Lesen (Betreiber, 16.11.2026: die
+     * Inhalte-Schnittstelle liefert direkt nach einem Commit noch eine Weile den alten Stand; jeder Versuch darauf lief in 409, Zeile um Zeile).
+     * Sonst, und nach jedem Konflikt: erst den Kopf des Zweigs (git/ref ist nie zwischengespeichert), dann die Datei genau zu diesem Commit.
+     */
+    const e0 = cache.get(n);
+    let grundlage: { daten: Buffer | null; sha: string | null } | null = e0 && !e0.ausstehend && e0.geschrieben && e0.daten && e0.sha
+      ? { daten: e0.daten, sha: e0.sha } : null;
+    for (let versuch = 0; versuch < 6; versuch += 1) {
+      if (versuch > 1) await new Promise((f) => setTimeout(f, 400 * versuch));
+      if (!grundlage) {
+        const k = await anfrage(`/repos/${repo()}/git/ref/heads/${ZWEIG}`);
+        if (!k.ok) throw new Error(`Ablage (GitHub) antwortet ${k.status} beim Lesen des Zweigs`);
+        const commit = ((await k.json()) as { object?: { sha?: string } }).object?.sha ?? ZWEIG;
+        const r = await anfrage(`/repos/${repo()}/contents/${pfad(n)}?ref=${commit}`, { headers: { Accept: 'application/vnd.github.raw+json' } });
+        if (!r.ok && r.status !== 404) throw new Error(`Ablage (GitHub) antwortet ${r.status} beim Lesen von ${n}`);
+        const daten = r.status === 404 ? null : Buffer.from(await r.arrayBuffer());
+        grundlage = { daten, sha: daten ? blobSha(daten) : null };
+      }
+      const alt = grundlage.daten;
+      const sha = grundlage.sha;
+      const neu = aendern(alt);
+      if (!neu) return alt;
+      const p = await anfrage(`/repos/${repo()}/contents/${pfad(n)}`, {
+        method: 'PUT', frist: SCHREIBEN_MS,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `Aktualisiert: ${n}`.slice(0, 200), content: neu.toString('base64'), branch: ZWEIG, ...(sha ? { sha } : {}) }),
+      });
+      if (p.ok) {
+        const j = await p.json() as { content?: { sha?: string }; commit?: { committer?: { date?: string } } };
+        const wann = Date.parse(j.commit?.committer?.date ?? '') || Date.now();
+        cache.set(n, { daten: neu, sha: j.content?.sha ?? blobSha(neu), etag: null, geprueft: Date.now(), geaendert: wann, geschrieben: Date.now() });
+        verzeichnisVergessen(n);
+        zuletztGeschrieben.set(n, Date.now());
+        platteSichern(n, neu);
+        return neu;
+      }
+      letzter = new Error(`Ablage (GitHub) antwortet ${p.status} beim Schreiben von ${n}`);
+      // 409/422: die Datei hat sich seit dem Lesen bewegt - frisch lesen und die Aenderung neu daraufsetzen.
+      if (p.status !== 409 && p.status !== 422) break;
+      grundlage = null;
+    }
+    merkeFehler(letzter);
+    throw letzter ?? new Error(`Ablage: Aendern von ${n} gescheitert`);
+  });
+}
+
+export const gitDatenSpeicher: Speicher = { lies, schreib, loesche, liste, angaben, aendere };
 
 /* ------------------------------------------------- Hilfen fuer den Betrieb */
 

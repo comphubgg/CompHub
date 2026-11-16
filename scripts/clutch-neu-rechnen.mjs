@@ -50,8 +50,15 @@ for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWit
     hergeleitet += 1;
   }
   const zielDatei = path.join(ZIEL, f);
-  let alt = {};
-  try { alt = JSON.parse(fs.readFileSync(zielDatei, 'utf8')); } catch { /* neu */ }
+  /*
+   * Ohne lesbare Spieltags-Datei nichts schreiben (16.11.2026). Bisher wurde dann eine neue angelegt - nur Matches, Punkte und Solo-Zeit, ohne Schaden,
+   * Spiele und Werte je Match - und beim Hochladen ersetzte sie die volle Datei am Release. Das geschah, wenn das Holen die Datei nicht bekam (waehrend
+   * eines Austauschs am vollen Release antwortet GitHub kurz mit 404). Am 16.11.2026 standen so 199 von 397 juengeren Spieltagen ohne Schaden da, darunter
+   * der Performance Evaluation Cup Event 2 Round 2 EU (Werte je Match um 00:28 UTC ganz geschrieben, um 07:57 die Datei ohne Schaden).
+   * clutch-zusammen.mjs legt Datei und Rohdaten immer zusammen an - Rohdaten ohne Datei heisst: sie fehlt hier, nicht am Release.
+   */
+  let alt;
+  try { alt = JSON.parse(fs.readFileSync(zielDatei, 'utf8')); } catch { console.log(`  ${f}: Spieltags-Datei fehlt oder ist unlesbar - nicht neu angelegt`); continue; }
   const summe = {}; const matches = []; const solo = {};
   for (const m of roh.matches ?? []) {
     const soloMatch = new Map();

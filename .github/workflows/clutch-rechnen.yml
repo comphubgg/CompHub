@@ -81,7 +81,7 @@ jobs:
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           # replays/S43 ausdruecklich: "replays" allein ist das alte Release. Ohne den Stand der laufenden Season kannte der Plan einen Cup erst, wenn der Stundenlauf ihn unter die
           # Epic-Spieltage geschrieben hatte (7.11.2026: der Trios Cash Cup war eine Stunde nach dem Ende noch in keinem Plan).
-          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner replays --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner clutch-umbau --ordner replays --ordner replays/S43 --ordner replays/S44 2>&1 | tail -3
 
       - name: Planen
         id: plan
@@ -215,7 +215,7 @@ jobs:
         run: npm ci --omit=optional
 
       - name: Stand vom Release
-        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh 2>&1 | tail -3
+        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-umbau 2>&1 | tail -3
 
       # Die gemerkten Match-Listen des Planers.
       - uses: actions/download-artifact@v4
@@ -240,6 +240,11 @@ jobs:
       - name: Ueberlebenszeit aus den Rohdaten
         continue-on-error: true
         run: node scripts/clutch-leben.mjs
+      # Spieltags-Dateien ohne Schaden aus ihren Werten je Match wiederherstellen (16.11.2026, scripts/clutch-aus-je.mjs): 199 von 397 juengeren standen so am Release.
+      - name: Schaden aus den Werten je Match
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node scripts/clutch-aus-je.mjs --hoechstens 80 2>&1 | tail -30
       # Epics eigener Schaden fuer Solo-Spieltage: unser Replay-Wert lag rund fuenf Prozent ueber Epic und Osirion (4.11.2026).
       - name: Epics Schaden
         continue-on-error: true
@@ -259,7 +264,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls data/clutch | wc -l
-          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+
+      # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
+      - name: Leaders vorwaermen
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node scripts/leader-vorwaermen.mjs https://www.thecomphub.com --tage 3 2>&1 | tail -25
 
   # Solange etwas offen blieb, gleich weiter.
   weiter:

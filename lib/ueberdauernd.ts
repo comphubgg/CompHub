@@ -61,7 +61,12 @@ function aufPlatte(schluessel: string, eintrag: { wert: unknown; zeit: number })
   } catch { /* nur ein Zusatz */ }
 }
 
-export async function ueberdauernd<T>(schluessel: string, frischMs: number, standMs: number, rechnen: () => Promise<T | null>): Promise<T | null> {
+/*
+ * nimmAlt (16.11.2026): ob eine alte Antwort (aelter als frischMs) noch sofort ausgeliefert werden darf - fuer Daten, die nur zeitweise live sind
+ * (Globals Solos: waehrend eines Spieltags nur ein paar Minuten alt, sonst bis zu einem Tag). Ohne die Angabe gilt standMs wie bisher.
+ */
+export async function ueberdauernd<T>(schluessel: string, frischMs: number, standMs: number, rechnen: () => Promise<T | null>,
+  nimmAlt?: (wert: T, alterMs: number) => boolean): Promise<T | null> {
   const da = speicher.get(schluessel);
   if (da && Date.now() - da.zeit < frischMs) return da.wert as T;
 
@@ -83,16 +88,20 @@ export async function ueberdauernd<T>(schluessel: string, frischMs: number, stan
     return l as Promise<T | null>;
   };
 
+  const passt = (e: { wert: unknown; zeit: number }, grenze: number) => Date.now() - e.zeit < grenze
+    && (!nimmAlt || nimmAlt(e.wert as T, Date.now() - e.zeit));
   const alt = da ?? vonPlatte(schluessel);
-  if (alt && Date.now() - alt.zeit < standMs) {
+  if (alt && passt(alt, standMs)) {
     if (!da) speicher.set(schluessel, alt);
     // Im Hintergrund frisch rechnen; ein Fehler dort ist nicht der des Besuchers.
     void neu().catch(() => { /* die alte bleibt */ });
     return alt.wert as T;
   }
+  // Eine alte im Speicher oder auf der Platte, die nimmAlt nicht will: die vom Release ist nicht juenger - gleich rechnen.
+  if (alt && nimmAlt) return neu();
   // Weder Speicher noch Platte: die vorgerechnete vom Release (bis zu einer Woche alt - besser als eine leere Seite).
   const abgelegt = await vonAblage(schluessel);
-  if (abgelegt && Date.now() - abgelegt.zeit < Math.max(standMs, 7 * 864e5)) {
+  if (abgelegt && passt(abgelegt, Math.max(standMs, 7 * 864e5))) {
     speicher.set(schluessel, abgelegt);
     if (!ohneDauerbetrieb) void neu().catch(() => { /* die abgelegte bleibt */ });
     return abgelegt.wert as T;

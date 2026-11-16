@@ -23,6 +23,7 @@ import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { vglElims, vglElimsMajor } from '@/lib/fncsReihenfolge';
 import FncsLeader from './FncsLeader';
+import { kleinBild } from '@/app/components/kleinBild';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -117,7 +118,7 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
       <div className="foto-dunkel relative aspect-video overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
         {e.bild && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={encodeURI(e.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          <img src={kleinBild(encodeURI(e.bild), 828)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         )}
         <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="absolute left-3 top-3 flex gap-1.5">
@@ -242,7 +243,7 @@ function Aufmacher({ e, nr, aktuell }: { e: FncsEreignis; nr: number; aktuell: b
         <div className="foto-dunkel relative min-h-[260px] overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
           {e.bild && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={encodeURI(e.bild)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={kleinBild(encodeURI(e.bild), 1920)} alt="" className="absolute inset-0 h-full w-full object-cover" />
           )}
           <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
           <div className="absolute left-5 top-5"><Marken e={e} aktuell={aktuell} nr={nr} /></div>
