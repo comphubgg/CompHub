@@ -196,11 +196,11 @@ const unterwegs = new Map<string, Promise<Buffer | null>>();
  * Buendel im Speicher, und der Server (512 MB bei Render) starb. Genau dann
  * hing das Profil im Ladeschirm, und die ganze Seite gab 502.
  *
- * Seit dem Umzug auf den eigenen Server (Contabo, 6 GB fuer Node, deploy/server-compose.yml) duerfen es 256 MB sein: bei 40 MB flog jede grosse
- * Antwort gleich wieder hinaus und wurde bei jedem Aufruf neu geholt. Eine einzelne Datei ueber 64 MB bleibt nie liegen.
+ * Bewusst weiter 40 MB (16.11.2026): der Server wuchs an diesem Tag nach jedem Start binnen Minuten auf ueber 5 GB und startete neu - auch ohne
+ * diese Aenderungen (gemessen ueber /api/stand). Solange das nicht geklaert ist, kommt hier kein Speicher dazu. Eine Datei ueber 40 MB bleibt nie liegen.
  */
-const VORRAT_BYTES = 256 * 1024 * 1024;
-const VORRAT_DATEI_BYTES = 64 * 1024 * 1024;
+const VORRAT_BYTES = 40 * 1024 * 1024;
+const VORRAT_DATEI_BYTES = 40 * 1024 * 1024;
 function vorratAufraeumen(jetzt: number) {
   let summe = 0;
   for (const [k, v] of vorrat) {
