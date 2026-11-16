@@ -310,13 +310,13 @@ export default function CustomBaukasten() {
 
   return (
     <OverlayGeruest aktiv="custom" immerBaukasten>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
         {/* ------------------------------------------------ controls */}
         <div className="order-2 space-y-4 xl:order-1">
           <Gruppe titel="Score" text={id ? 'Saved: every click is live in OBS within ~2 seconds.' : 'Save once — then every click goes straight to OBS.'}>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
               {([1, 2] as const).map((s) => (
-                <div key={s} className="rounded-xl border border-white/[0.07] bg-black/30 p-3 text-center">
+                <div key={s} className="min-w-0 rounded-xl border border-white/[0.07] bg-black/30 p-3 text-center">
                   <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">
                     {(s === 1 ? cfg.tag1 || cfg.name1 || cfg.spieler1.filter(Boolean).join(' & ') : cfg.tag2 || cfg.name2 || cfg.spieler2.filter(Boolean).join(' & ')) || '—'}
                   </p>

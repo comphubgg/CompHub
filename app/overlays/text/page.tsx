@@ -87,7 +87,7 @@ export default function TextSeite() {
 
   return (
     <OverlayGeruest aktiv="text" immerBaukasten>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
         <div className="order-2 space-y-4 xl:order-1">
           <Gruppe titel="Text" text="One line — or several that take turns (or scroll in the ticker).">
             <Text titel="Text" wert={cfg.text} setzen={(v) => setz('text', v)} platzhalter="GAME 1 / 4" max={80} />
