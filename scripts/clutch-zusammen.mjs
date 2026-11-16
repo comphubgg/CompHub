@@ -209,7 +209,11 @@ for (const [w, dateien] of jeTag) {
   }
   if (roh) d.umbauRoh = true;
   // Ein fertiger Umbau ersetzt die veroeffentlichte Datei - mit seinen Werten je Match. Hat dieser Lauf keine neuen Zeilen gebracht, liegen sie noch im Umbau.
-  let fertigUmbau = umbau && !d.teilweise;
+  /*
+   * War schon die veroeffentlichte Datei nur teilweise gelesen (ein Neu-Lesen von vor dem 16.11.2026, z. B. Trios Cash Cup Event 2 BR: 116 von 554), ersetzt der
+   * neue Stand sie, sobald er mindestens so viele Matches hat - nie ein schlechterer Stand auf der Seite, aber auch kein besserer, der daneben wartet.
+   */
+  let fertigUmbau = umbau && (!d.teilweise || (!!pub?.teilweise && d.matches.length >= (pub.matches?.length ?? 0)));
   if (fertigUmbau && d.je && !jeInhalt) {
     try { jeInhalt = await jeVomRelease(w, true); } catch { jeInhalt = null; }
     if (!jeInhalt) { fertigUmbau = false; console.log(`  ${w}: Umbau ganz gelesen, Werte je Match aber nicht lesbar - bleibt diesmal daneben`); }
