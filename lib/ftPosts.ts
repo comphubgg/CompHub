@@ -345,10 +345,10 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const merke = (...ids: string[]) => { for (const i of ids) if (!besteIds.includes(klein(i))) besteIds.push(klein(i)); };
   if (teams[0]) { beste.push(`👑 Winner: ${team(teams[0].ids)}`); merke(...teams[0].ids); }
   const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Most Elims: ${wer(e1.id)} – ${e1.elims} elims`); merke(e1.id); }
-  const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Most Dmg: ${wer(d1.id)} – ${ftZahl(d1.dmg)} dmg`); merke(d1.id); }
+  const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Most Damage: ${wer(d1.id)} – ${ftZahl(d1.dmg)} damage`); merke(d1.id); }
   const [g1] = top((s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0), 1, (s) => (s.bestes?.elims ?? 0) > 0);
   if (g1?.bestes) { beste.push(`🔥 Best Game: ${wer(g1.id)} – ${g1.bestes.elims} elims`); merke(g1.id); }
-  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) { beste.push(`📈 Best Dmg Ratio: ${wer(r1.id)} – ${ratio(r1).toFixed(2)} ratio`); merke(r1.id); }
+  const [r1] = top(ratio, 1, (s) => s.spiele >= minSpiele && s.erlitten > 0); if (r1) { beste.push(`📈 Best Damage Ratio: ${wer(r1.id)} – ${ratio(r1).toFixed(2)} ratio`); merke(r1.id); }
   if (teams.length) {
     const meisteSiege = Math.max(...teams.map((t) => t.siege));
     const w = teams.find((t) => t.siege === meisteSiege && meisteSiege > 0);
@@ -360,7 +360,7 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const [m1] = top((s) => s.mats ?? 0, 1, (s) => (s.mats ?? 0) > 0); if (m1) { beste.push(`🪓 Most Mats: ${wer(m1.id)} – ${ftZahl(m1.mats ?? 0)} mats`); merke(m1.id); }
   // Mehr Kategorien (Betreiber, 15.11.2026: "fehlen richtig viele Statistics").
   const [k1] = top((s) => s.krit ?? 0, 1, (s) => (s.krit ?? 0) > 0); if (k1) { beste.push(`💀 Most Headshots: ${wer(k1.id)} – ${ftZahl(k1.krit ?? 0)} headshots`); merke(k1.id); }
-  const [t1] = top((s) => s.erlitten, 1, (s) => s.erlitten > 0); if (t1) { beste.push(`🩸 Most Dmg Taken: ${wer(t1.id)} – ${ftZahl(t1.erlitten)} dmg`); merke(t1.id); }
+  const [t1] = top((s) => s.erlitten, 1, (s) => s.erlitten > 0); if (t1) { beste.push(`🩸 Most Damage Taken: ${wer(t1.id)} – ${ftZahl(t1.erlitten)} damage`); merke(t1.id); }
   const [hp1] = top((s) => s.heilHp ?? 0, 1, (s) => (s.heilHp ?? 0) > 0); if (hp1) { beste.push(`💊 Most Health Healed: ${wer(hp1.id)} – ${ftZahl(hp1.heilHp ?? 0)} HP`); merke(hp1.id); }
   const [sh1] = top((s) => s.schildHeil ?? 0, 1, (s) => (s.schildHeil ?? 0) > 0); if (sh1) { beste.push(`🛡️ Most Shield Healed: ${wer(sh1.id)} – ${ftZahl(sh1.schildHeil ?? 0)} shield`); merke(sh1.id); }
   const [l1] = top((s) => s.leben ?? 0, 1, (s) => (s.leben ?? 0) > 0); if (l1) { beste.push(`⏱️ Longest Time Alive: ${wer(l1.id)} – ${ftDauer(l1.leben ?? 0)}`); merke(l1.id); }

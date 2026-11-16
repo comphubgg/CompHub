@@ -321,7 +321,7 @@ function zeileText(e: Ergebnis): string {
   const teile = [
     e.punkte !== null ? `${zahl(e.punkte)} pts` : null,
     elims,
-    e.schaden !== null ? `${kurz(e.schaden)} dmg` : null,
+    e.schaden !== null ? `${kurz(e.schaden)} damage` : null,
     e.matches ? `${e.matches} ${e.matches === 1 ? 'match' : 'matches'}` : null,
   ].filter(Boolean);
   const wann = e.datum ? ` · <t:${Math.floor(e.datum / 1000)}:d>` : '';
