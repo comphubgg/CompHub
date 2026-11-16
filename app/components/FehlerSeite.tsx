@@ -55,12 +55,14 @@ export default function FehlerSeite({ code, wiederholen }: { code: number; wiede
         <p className="mx-auto mt-10 max-w-md text-xs text-slate-500">
           <T>Wenn dich ein Link auf CompHub hierher geführt hat, sag uns im Discord Bescheid, dann reparieren wir ihn.</T>
         </p>
-        <p className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs font-semibold text-slate-400">
+        {/* Die Wege weiter (Backlog C3, 16.11.2026): Home, Turniere und Statistiken zuerst, als Navigation ausgezeichnet. */}
+        <nav aria-label="Links" className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs font-semibold text-slate-400">
+          <Link href="/" prefetch={false} className="transition hover:text-sky-500">Home</Link>
+          <Link href="/events" prefetch={false} className="transition hover:text-sky-500"><T>Turniere</T></Link>
           <Link href="/statistics" prefetch={false} className="transition hover:text-sky-500"><T>Statistiken</T></Link>
           <Link href="/power-rankings" prefetch={false} className="transition hover:text-sky-500"><T>Ranglisten</T></Link>
-          <Link href="/events" prefetch={false} className="transition hover:text-sky-500">Events</Link>
           <Link href="/tournament-maps" prefetch={false} className="transition hover:text-sky-500">Maps</Link>
-        </p>
+        </nav>
         <p className="mt-6 text-[10px] uppercase tracking-[0.2em] text-slate-600"><T>Fehlercode</T> {code}</p>
       </div>
     </main>

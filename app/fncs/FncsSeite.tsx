@@ -328,7 +328,11 @@ function Zeitstrahl({ liste, nrVon, aktuellKey }: { liste: FncsEreignis[]; nrVon
  * "Soft 404", weil das Server-HTML nur die Ueberschrift und den Ladeschirm enthielt. Der Abruf im Browser bleibt als Auffrischung und Ausweg,
  * wenn der Server nichts mitgeben konnte.
  */
-export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { anfangListe?: FncsEreignis[] | null; anfangAlt?: AllTime | null }) {
+export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz = null }: {
+  anfangListe?: FncsEreignis[] | null; anfangAlt?: AllTime | null;
+  /** Vom Server gezeichnete Eckdaten der Endspiele (app/fncs/page.tsx) - stehen statt des Ladeschirms, bis die volle Liste da ist. */
+  ersatz?: React.ReactNode;
+}) {
   const t = useT();
   const ort = ortVon(useSprache().sprache);
   const [tab, setTab] = useAdressWert<'events' | 'alltime' | 'leaders'>('reiter', 'events', ['events', 'alltime', 'leaders']);
@@ -451,7 +455,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null }: { an
               </div>
             </div>
             {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-950 px-4 py-3 text-sm text-rose-300"><T>Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
-            {!liste && !fehler && <LadeSchirm />}
+            {!liste && (ersatz ?? (!fehler && <LadeSchirm />))}
             {/* Das juengste Endspiel gross mit Treppchen und Fotos, darunter alle uebrigen wie bisher (Betreiber, 30.10.2026: "die Idee war geil, aber
                 nur den letzten FNCS-Cup zuerst so anzeigen und darunter, wie es vorher war"). */}
             {liste && ansicht === 'board' && sichtbar.length > 0 && (

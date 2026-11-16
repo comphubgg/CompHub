@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-html-link-for-pages -- hier ist der Rahmen selbst kaputt: bewusst echte Links mit vollem Neuladen statt Link. */
 
 import { MARKE } from '@/lib/marke';
 
@@ -23,6 +24,12 @@ export default function GlobalerFehler({ reset }: { error: Error & { digest?: st
             <a href="/" style={{ ...knopf, border: '1px solid #334155', color: '#e2e8f0' }}>Back to home</a>
             <a href={MARKE.discord} style={{ ...knopf, border: '1px solid #6366f1', color: '#a5b4fc' }}>Join our Discord</a>
           </div>
+          {/* Dieselben Wege weiter wie auf der eigenen Fehlerseite (Backlog C3): Home, Tournaments, Statistics. */}
+          <nav aria-label="Links" style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28, fontSize: 12, fontWeight: 600 }}>
+            <a href="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>Home</a>
+            <a href="/events" style={{ color: '#94a3b8', textDecoration: 'none' }}>Tournaments</a>
+            <a href="/statistics" style={{ color: '#94a3b8', textDecoration: 'none' }}>Statistics</a>
+          </nav>
         </div>
       </body>
     </html>

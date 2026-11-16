@@ -185,6 +185,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Matches': 'matches',
   'Turnier': 'Tournament',
   'Turniere': 'Tournaments',
+  'Alle FNCS-Endspiele mit Datum, Ort, Preisgeld und den Siegern.': 'Every FNCS final with date, location, prize pool and the winners.',
   'Pflege': 'Edit',
   'Los': 'Go',
   'Mehr': 'More',
