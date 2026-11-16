@@ -20,6 +20,7 @@
 
 import { promises as fs, readFileSync } from 'fs';
 import path from 'path';
+import { landAusGeoToken, unbekannteGeoTokens } from '../lib/spielerFlagge.mjs';
 
 // Zugangsdaten wie in den anderen Skripten aus .env.local (im Lauf schreibt
 // der Schritt "Zugangsdaten" sie dorthin).
@@ -61,45 +62,11 @@ async function hole(url) {
 }
 
 /*
- * Flaggen: Epic nennt das Land als "GroupIdentity_GeoIdentity_<land>" -
- * ausgeschrieben, klein, ohne Leerzeichen ("unitedstates"). Die Kuerzel
- * kommen aus den englischen Laendernamen; England, Schottland und Wales
- * fuehrt Epic einzeln, wie auf seiner Seite (flag-EN, flag-SCO, flag-WAL).
+ * Flaggen: Epic nennt das Land als "GroupIdentity_GeoIdentity_<land>" - die Umsetzung in Kuerzel steht seit dem 16.11.2026 in lib/spielerFlagge.mjs,
+ * weil dieselbe Angabe in jeder Turnier-Bestenliste steht (lib/epicCups.ts, Flagge "spiel" in den Posts).
  */
-const LAENDER = (() => {
-  const dn = new Intl.DisplayNames(['en'], { type: 'region' });
-  const karte = new Map();
-  for (let a = 65; a <= 90; a += 1) {
-    for (let b = 65; b <= 90; b += 1) {
-      const code = String.fromCharCode(a, b);
-      let name = '';
-      try { name = dn.of(code) ?? ''; } catch { continue; }
-      if (!name || name === code) continue;
-      karte.set(name.toLowerCase().normalize('NFKD').replace(/[^a-z]/g, ''), code.toLowerCase());
-    }
-  }
-  const extra = {
-    england: 'en', scotland: 'sco', wales: 'wal', northernireland: 'nir', unitedstates: 'us', usa: 'us',
-    unitedkingdom: 'gb', greatbritain: 'gb', southkorea: 'kr', korea: 'kr', russia: 'ru', czechia: 'cz',
-    czechrepublic: 'cz', turkey: 'tr', turkiye: 'tr', vietnam: 'vn', ivorycoast: 'ci', cotedivoire: 'ci',
-    bosnia: 'ba', bosniaandherzegovina: 'ba', northmacedonia: 'mk', macedonia: 'mk', uae: 'ae',
-    unitedarabemirates: 'ae', hongkong: 'hk', taiwan: 'tw', macau: 'mo', macao: 'mo', palestine: 'ps',
-    kosovo: 'xk', moldova: 'md', syria: 'sy', iran: 'ir', laos: 'la', bolivia: 'bo', venezuela: 've',
-    tanzania: 'tz', congo: 'cg', drcongo: 'cd', democraticrepublicofthecongo: 'cd', brunei: 'bn',
-    capeverde: 'cv', eswatini: 'sz', swaziland: 'sz', timorleste: 'tl', easttimor: 'tl',
-  };
-  for (const [k, v] of Object.entries(extra)) karte.set(k, v);
-  return karte;
-})();
-const unbekannteFlaggen = new Set();
-function land(token) {
-  const m = /GeoIdentity_(.+)$/.exec(token ?? '');
-  if (!m) return '';
-  const schluessel = m[1].toLowerCase().replace(/[^a-z]/g, '');
-  const code = LAENDER.get(schluessel);
-  if (!code) unbekannteFlaggen.add(m[1]);
-  return code ?? '';
-}
+const land = landAusGeoToken;
+const unbekannteFlaggen = unbekannteGeoTokens;
 
 /** Namen je Konto - hundert je Abfrage, vier Abfragen gleichzeitig (wie lib/epicCups). */
 async function namen(ids) {

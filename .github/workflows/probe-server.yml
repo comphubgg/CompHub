@@ -21,6 +21,10 @@ on:
         description: 'nur bei flagge: Match-Id'
         required: false
         default: ''
+      fenster:
+        description: 'nur bei flagge: eventId,windowId - die Flaggen aus Epics Bestenliste (playerFlagTokens)'
+        required: false
+        default: ''
 
 jobs:
   seite:
@@ -128,7 +132,15 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Umgebung
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Flaggen aus Epics Bestenliste
+        if: inputs.fenster != ''
+        env:
+          FENSTER: ${{ inputs.fenster }}
+        run: |
+          IFS=',' read -ra F <<< "$FENSTER"
+          node scripts/epic-flaggen.mjs "${F[0]}" "${F[1]}" 2>&1 | grep -E '^FLAGGEN|Error' | cut -c1-3000
       - name: Replay holen
+        if: inputs.match != ''
         env:
           MATCH: ${{ inputs.match }}
         run: |
@@ -140,6 +152,7 @@ jobs:
             .then((b) => { require('fs').writeFileSync('probe.replay', b); console.log('geladen', b.length); });
           "
       - name: Felder suchen
+        if: inputs.match != ''
         run: |
           cd tools/replay-voll
           dotnet run -c Release -- --erkunden ../../probe.replay > ../../erkunden.txt 2> ../../erkunden.err || true
@@ -149,6 +162,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: flagge-probe
-          path: erkunden.txt
+          if-no-files-found: ignore
+          path: |
+            erkunden.txt
+            epic-flaggen.json
       - if: always()
         run: rm -f .env.local
