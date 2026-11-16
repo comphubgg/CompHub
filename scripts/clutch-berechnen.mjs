@@ -263,7 +263,13 @@ if (arg[0] === '--plan') {
     if (!f.ids.size) continue;
     // Arena-Matches legt Epic nicht als Server-Replay ab (folder_not_found_or_not_allowed) - zehntausende vergebliche Versuche je Spieltag.
     if (/Arena/i.test(f.windowId)) continue;
-    const da = liesDatei(path.join(ZIEL, `${f.windowId}.json`));
+    /*
+     * Laeuft ein Neu-Lesen (scripts/clutch-zusammen.mjs, UMBAU), zaehlt sein Stand daneben (clutch-umbau/<w>.json) - die veroeffentlichte Datei bleibt bis zum
+     * Ende die alte. Ist er nicht lesbar, gilt die veroeffentlichte: dann faengt das Neu-Lesen eben noch einmal an.
+     */
+    const veroeffentlicht = liesDatei(path.join(ZIEL, `${f.windowId}.json`));
+    const umbau = veroeffentlicht?.umbau?.seit ? liesDatei(path.join(DATEN, 'clutch-umbau', `${f.windowId}.json`)) : null;
+    const da = umbau && umbau.umbauSeit === veroeffentlicht.umbau.seit ? umbau : veroeffentlicht;
     /*
      * Kleine Team-Spieltage der letzten Woche einmal neu lesen: bis zum 6.11.2026 zaehlte der Leser den Schuss, der umhaut, nicht als Schaden (tools/replay-voll). Grosse offene Runden
      * nicht: die sind zehntausend Matches, Solo aendert sich nicht.

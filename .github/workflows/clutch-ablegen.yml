@@ -36,7 +36,7 @@ jobs:
         run: npm ci --omit=optional
 
       - name: Stand vom Release
-        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh 2>&1 | tail -3
+        run: node scripts/ablage-github-holen.mjs --ordner clutch --ordner clutch-roh --ordner clutch-umbau 2>&1 | tail -3
 
       - name: Teilstaende zusammenholen
         uses: actions/download-artifact@v4
@@ -75,7 +75,7 @@ jobs:
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+        run: node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
 
       # Die Tournament Leaders der juengsten FNCS-Spieltage mit den eben abgelegten Werten vorrechnen lassen (scripts/leader-vorwaermen.mjs, 16.11.2026).
       - name: Leaders vorwaermen

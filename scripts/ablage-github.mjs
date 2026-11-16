@@ -170,6 +170,8 @@ const AM_RELEASE = [
   /^clutch\//,
   /^clutch-roh\//,
   /^clutch-je\//,
+  // Der Stand eines laufenden Neu-Lesens daneben (scripts/clutch-zusammen.mjs, UMBAU).
+  /^clutch-umbau(-je|-roh)?\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf|waffen-bilder)\.json$/,
@@ -194,7 +196,7 @@ function gewuenscht(name) {
    */
   if (/^antworten\/replays_saison_/.test(name)) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
-  if (/^clutch(-roh|-je)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
+  if (/^clutch(-roh|-je|-umbau|-umbau-je|-umbau-roh)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
   if (/^replay-voll\//.test(name) && process.env.OHNE_REPLAYVOLL === '1') return false;
   // Staende, Auswertungen und schlanke Fassungen der Replays schreiben die Replay-Ablaeufe (Schnellspur, Nacharbeit, schlank) - der Stundenlauf hatte alte
