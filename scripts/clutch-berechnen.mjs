@@ -314,6 +314,10 @@ if (arg[0] === '--plan') {
       // Fassung 20 (15.11.2026): Mats Farmed exakt (nur Spitzhacke; Aufheben mit der Menge des Pickups getrennt, vorher rund 13 % zu viel), Mats Collected je Quelle,
       // Strecke am Boden wie Epic (vorher Proben alle 10 s, hochgerechnet: Median 12 % daneben). Spieltage der letzten 14 Tage bis 3.000 Matches neu.
       || ((da.schadenFassung ?? 0) < 20 && f.ids.size <= 3000 && Date.now() - f.datum < 14 * 864e5)
+      // Fassung 21 (16.11.2026): Damage auch aus Gameplay-Effekten (LoudKiwi-Explosion, MoonFlax-Bolzen, Rakete) und vom Jagdgewehr-Geschoss - vorher je Spieler
+      // rund 1,3-2,2 % zu wenig gegen Epics DamageDealt. Im Team-Modus gibt es nur den Replay-Wert, deshalb neu lesen: Spieltage der letzten 14 Tage bis 3.000
+      // Matches, erst nach der EU LCQ vom 16.11. (18:00-20:30 UTC) und ihrer Auswertung. Die veroeffentlichte Datei bleibt bis zum Ende stehen (clutch-umbau).
+      || ((da.schadenFassung ?? 0) < 21 && f.ids.size <= 3000 && Date.now() - f.datum < 14 * 864e5 && Date.now() > Date.UTC(2026, 10, 16, 21, 30))
       // Einzeln angeordnet (NEU_LESEN oben).
       || (!!NEU_LESEN[f.windowId] && !(String(da.angefangen ?? '') > NEU_LESEN[f.windowId])));
     /*

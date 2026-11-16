@@ -166,9 +166,13 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   if (ab is not null) liste.Add((ab.Value, double.MaxValue));
   reader.AmBoden[g.Key] = liste;
 }
+// Tode je Spieler (ohne Ursache 50, die Rueckkehr im Reload) - fuer den Schaden aus Effekten (EffekteEinrechnen).
+reader.TodeZeiten = replay.KillFeed.Where(k => k.PlayerId is not null && !k.IsDowned && !k.IsRevived && k.DeathCause != 50).GroupBy(k => k.PlayerId.Value)
+  .ToDictionary(g => g.Key, g => g.Select(k => k.ReplicatedWorldTimeSecondsDouble ?? 0).ToList());
 reader.Zaehle(busAb);
 if (SchadenLeser.DiagId is int pruefId) reader.Pruefbericht(pruefId, busAb);
 if (SchadenLeser.DiagId is not null) reader.FelderZeigen("ClientRemote|HitMarker|DamagedResource|Harvest|Marker");
+if (SchadenLeser.RohDump) { reader.FelderZeigen("NoScope|Prj_|Projectile|Crossbow|MoonFlax|LoudKiwi|Bullet|Sniper"); reader.PfadeZeigen("NoScope|Prj_|Projectile|Crossbow|MoonFlax|LoudKiwi|Bullet|Sniper"); }
 if (SchadenLeser.MsDiag) reader.FelderZeigen("FortPickup|ItemizationCoreRuntime|RootItemization|PlayerPawn_Athena|BroadcastRemote|Harvest|ResourceBuilding|PawnReplay|FortInventory");
 reader.Tode = replay.KillFeed.Where(k => !k.IsDowned && !k.IsRevived && k.DeathLocation is not null).Select(k => (k.ReplicatedWorldTimeSecondsDouble ?? 0, (double)k.DeathLocation.X, (double)k.DeathLocation.Y)).ToList();
 if (SchadenLeser.DiagId is not null) {
@@ -267,6 +271,7 @@ if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektTags.OrderB
 if (SchadenLeser.DiagId is not null) foreach (var kv in reader.EffektArten.OrderByDescending(x => x.Value)) Console.Error.WriteLine($"DIAG EFFEKTART {kv.Value} {kv.Key}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG RAHMEN laengster {SchadenLeser.LaengsterRahmen} ms, Bloecke {SchadenLeser.Bloecke}, defekt {SchadenLeser.Defekt}, Buendel abgebrochen {SchadenLeser.BuendelAbgebrochen}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTCUES {reader.EffektCues}, Ereignisse (BatchedDamageCues) {reader.Ereignisse}");
+if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTSCHADEN {string.Join(", ", reader.EffektGezaehltJe.Select(kv => $"{kv.Key} {kv.Value.n}x {Math.Round(kv.Value.schaden)}"))}; ohne Verursacher {reader.EffektOhneVerursacher}; Raketen {reader.Raketen.Count}, Bolzen {reader.Bolzen.Count}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG PROJEKTILE {reader.ProjektilTreffer.Count} Treffer auf Spieler, gezaehlt {reader.ProjektilGezaehlt} mit {Math.Round(reader.ProjektilSchaden)} Schaden");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG EFFEKTTREFFER {reader.EffektTreffer.Count} Effekte, zugeordnet {reader.EffektZugeordnet}, gezaehlt {reader.EffektGezaehlt} mit {Math.Round(reader.EffektSchaden)} Schaden, ohne Schuetze {reader.EffektOhneSchuetze}, mehrdeutig {reader.EffektMehrdeutig}");
 if (SchadenLeser.DiagId is not null) Console.Error.WriteLine($"DIAG TRUHEN {reader.TruhenFertig().Count} geoeffnet (Kisten-Kanaele {reader.KistenKanaele}) (Truhen {reader.Truhen.Count(k => k[4] == 0)}, Munition {reader.Truhen.Count(k => k[4] == 1)}, sonst {reader.Truhen.Count(k => k[4] == 2)}), mit Oeffner {reader.TruhenFertig().Count(k => k[5] >= 0)}, laut Spiel {reader.KistenLautSpiel}, Aufheben {reader.Loot.Count(l => l[5] == 1)}, Fallenlassen {reader.Loot.Count(l => l[5] == 0)}");
@@ -420,10 +425,13 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
   extra = reader.ExtraFertig(replay.PlayerData.Where(p => p.Id is not null && p.TeamIndex is not null).GroupBy(p => p.Id.Value).ToDictionary(g => g.Key, g => (int)g.First().TeamIndex.Value)), inventarEintraege = reader.InventarEintraege, inventarOhneMenge = reader.InventarOhneMenge, orte = reader.Orte, leben = reader.Leben, schild = reader.Schild, ueberschild = reader.Ueberschild, killVerlauf = reader.KillVerlauf, sturmVerlauf = reader.SturmListe.Select(x => new[] { x.id, Math.Round(x.t, 2), x.an ? 1 : 0 }).ToList(), abbau = reader.AbbauJeSpieler(), loot = reader.Loot, lootNamen = reader.LootNamen, truhen = reader.TruhenFertig(), schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick, diagUeber = SchadenLeser.DiagId is null ? null : reader.UeberschussJe(busAb), diagKat = SchadenLeser.DiagId is null ? null : reader.KatJe, diagFarm = SchadenLeser.DiagId is null ? null : reader.FarmVarianten, streckeVoll = reader.StreckeJe(busAb),
   msDiag = SchadenLeser.MsDiag ? reader.MsDiagFertig() : null,
+  offenRoh = SchadenLeser.RohDump ? reader.OffenRoh : null, paramRoh = SchadenLeser.RohDump ? reader.ParamRoh : null, waffenRoh = SchadenLeser.RohDump ? reader.WaffenRohFertig() : null, effektRoh = SchadenLeser.RohDump ? reader.EffektRoh : null,
+  trefferAlle = SchadenLeser.RohDump ? reader.Liste.Select(e => new object[] { e.t is double tl ? Math.Round(tl, 3) : -1, e.von, e.an, e.hoehe, e.krit ? 1 : 0, e.schild ? 1 : 0, e.fatal ? 1 : 0, Math.Round(reader.Wirksam(e), 2) }).ToList() : null,
   // Fassung 16 (15.11.2026): Strecke am Boden wie Epic (m) und gesammelte Mats je Quelle [Kiste, Boden, Gegner, Team, selbst, Wiedereinstieg, unbekannt, Rueckgabe] x [Holz, Stein, Metall].
   // Fassung 17 (16.11.2026): Trefferorte (schuesse, und in orte der Ort des Getroffenen) im richtigen Massstab - vorher zehnmal zu nah am Ursprung, siehe
   // TrefferOrtMassstab. trefferOrtMassstab = 10 sagt lib/trefferOrte.mjs, dass an dieser Datei nichts mehr nachzutragen ist.
-  fassung = 17, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
+  // Fassung 18 (16.11.2026): Schaden aus Gameplay-Effekten (LoudKiwi-Explosion, MoonFlax-Bolzen, Rakete) und vom Jagdgewehr-Geschoss - siehe EffekteEinrechnen.
+  fassung = 18, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
 }, Formatting.None, einst));
 }
 
@@ -790,6 +798,8 @@ class SchadenLeser : ReplayReader {
      * (8.11.2026: Shots der FNCS Solo Reload EU 13,9 Mio. zu Osirions 9,1 Mio.).
      */
     if (da && ladung < vor && name.Contains("FirePetal") && Zeit() is double tfp) firePetalSchuesse.Add((wurzel, tfp));
+    if (da && ladung != vor && name.Contains("LoudKiwi") && Zeit() is double tkw) kiwiSchuesse.Add((wurzel, tkw));
+    if (RohDump && da && ladung != vor && Zeit() is double tfw) WaffenRoh.Add((Math.Round(tfw, 3), wurzel, name, vor - ladung));
     if (da && ladung < vor && SchussWaffe.IsMatch(name)) { if (ladung == 0 && vor - ladung > 8) AbwurfMunition += vor - ladung; else schussSchritte.Add((wurzel, vor - ladung, Zeit() ?? 0)); }
   }
   /*
@@ -1571,11 +1581,19 @@ class SchadenLeser : ReplayReader {
       }
       return;
     }
-    if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0); return; }
+    if (exportGroup is SchleuderProjektil sp0) { SchleuderNotieren(channelIndex, sp0.Instigator, sp0.PawnHitResults, sp0.SimulationStoppingHit, sp0.ChargePercent, sp0.Owner); return; }
+    // Das Geschoss des Jagdgewehrs (Rifle_NoScope, 16.11.2026): wie die Steinschleuder ohne Treffer-Ereignis, der Schaden kommt als Effekt (GE_Ranged_GenericDamage).
+    if (exportGroup is GewehrProjektil gp0) { SchleuderNotieren(channelIndex, gp0.Instigator, gp0.PawnHitResults, null, null, gp0.Owner); return; }
+    if (exportGroup is RaketenProjektil rp0) { RaketeNotieren(rp0.Instigator); return; }
+    if (exportGroup is ArmbrustProjektil ap0) { ArmbrustNotieren(ap0.Instigator); return; }
     if (exportGroup is EffektCueParam ep0) {
       EffektParams++;
       var gp = ep0.GameplayCueParameters;
       var tag = ep0.GameplayCueTag?.TagName ?? "?";
+      if (RohDump && Zeit() is double tpr && !tag.Contains("Campfire")) {
+        int? WerP(uint? a) { if (a is not uint u || u == 0) return null; if (figurVonAkteur.TryGetValue(u, out var fk) && Hole(VonFigur, fk)?.Id is int x) return x; if (spielerVonAkteur.TryGetValue(u, out var sv)) return sv; return Hole(VonAkteur, u)?.Id; }
+        ParamRoh.Add(new object[] { Math.Round(tpr, 3), Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id ?? -1, tag, gp?.RawMagnitude ?? 0, gp?.Instigator ?? 0, WerP(gp?.Instigator) ?? -1, gp?.EffectCauser ?? 0, WerP(gp?.EffectCauser) ?? -1, gp?.SourceObject ?? 0 });
+      }
       if (DiagId is not null) { EffektTags[tag] = (EffektTags.TryGetValue(tag, out var et) ? et : 0) + 1; }
       if (DiagId is not null && EffektParamDruck < 80 && !tag.Contains("Campfire") && !tag.Contains("Heal")) {
         EffektParamDruck++;
@@ -1587,6 +1605,14 @@ class SchadenLeser : ReplayReader {
     }
     if (exportGroup is EffektCue ec0) {
       EffektCues++;
+      if (RohDump && Zeit() is double tef) {
+        var dfe = ec0.Def is uint dfu ? (defPfad.TryGetValue(dfu, out var dpe) ? dpe : (defPfad[dfu] = GuidPfad(dfu))) : "?";
+        int? Wer(uint? a) { if (a is not uint u || u == 0) return null; if (figurVonAkteur.TryGetValue(u, out var fk) && Hole(VonFigur, fk)?.Id is int x) return x; if (spielerVonAkteur.TryGetValue(u, out var sv)) return sv; return Hole(VonAkteur, u)?.Id; }
+        var cx = ec0.EffectContext;
+        EffektRoh.Add(new object[] { Math.Round(tef, 3), Hole(VonFigur, channelIndex)?.Id ?? VomZustand(channelIndex)?.Id ?? -1, System.Text.RegularExpressions.Regex.Replace(dfe.Split('.').Last(), "_C$", ""), ec0.TotalMagnitude ?? 0,
+          ec0.ModifiedAttributes == null ? "" : string.Join(";", ec0.ModifiedAttributes.Where(m => m != null).Select(m => $"{m.AttributeName}:{m.TotalMagnitude}")),
+          cx?.Instigator ?? 0, Wer(cx?.Instigator) ?? -1, cx?.EffectCauser ?? 0, Wer(cx?.EffectCauser) ?? -1, cx?.SourceObject ?? 0, Wer(cx?.SourceObject) ?? -1 });
+      }
       if (DiagId is not null && ec0.Def is uint dfb && Zeit() is double tfb && Hole(VonFigur, channelIndex)?.Id is int ofb) {
         if (!defPfad.TryGetValue(dfb, out var dpb)) { dpb = GuidPfad(dfb); if (dpb != "?") defPfad[dfb] = dpb; }
         EffektAlle.Add((tfb, ofb, dpb));
@@ -1594,6 +1620,7 @@ class SchadenLeser : ReplayReader {
       if (ec0.Def is uint dfr && Zeit() is double tfr && Hole(VonFigur, channelIndex)?.Id is int opferR) {
         if (!defPfad.TryGetValue(dfr, out var dp)) { dp = GuidPfad(dfr); if (dp != "?") defPfad[dfr] = dp; }
         if (dp.Contains("GE_Ranged_GenericDamage")) EffektTreffer.Add((tfr, opferR));
+        if (SchadensEffektArt(dp) is string sea) SchadensEffekte.Add((tfr, opferR, sea));
       }
       if (DiagId is not null && ec0.Def is uint dz) { var gp = GuidPfad(dz); EffektArten[gp] = (EffektArten.TryGetValue(gp, out var ea) ? ea : 0) + 1; }
       if (DiagId is not null && EffektDruck < 60 && ec0.Def is uint dfx && System.Text.RegularExpressions.Regex.IsMatch(GuidPfad(dfx), "Damage|Ranged|Explosive")) {
@@ -1611,6 +1638,7 @@ class SchadenLeser : ReplayReader {
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
     if (exportGroup is not BatchedDamageCues c) return;
+    if (RohDump && Zeit() is double tfz0 && tfz0 > felderBeiRoh) { felderBeiRoh = tfz0 + 400; FelderZeigen("NoScope|Prj_|Projectile|Crossbow|MoonFlax|LoudKiwi|Bullet|Sniper|Rocket"); }
     Ereignisse++;
     SchussNotieren(channelIndex, c);
     // Diagnose (SCHADEN_DIAG=<Spieler-Id>, 10.11.2026): wo Treffer eines Spielers verloren gehen - Osirion zeigte bei manchen Squad-Spielern doppelt so viel Schaden.
@@ -1653,6 +1681,11 @@ class SchadenLeser : ReplayReader {
       Diag.TryGetValue(g, out var a); Diag[g] = (a.Item1 + 1, a.Item2 + (c.Magnitude ?? 0));
       if (diag && grund != g) { Diag.TryGetValue("ALLE:" + grund, out var b); Diag["ALLE:" + grund] = (b.Item1 + 1, b.Item2 + (c.Magnitude ?? 0)); }
     }
+    if (c.HitActor is uint hn0 && (c.Magnitude is null || c.Magnitude <= 0) && Zeit() is double tn0) {
+      int? anN = figurVonAkteur.TryGetValue(hn0, out var zkN0) && figurKanaele.Contains(zkN0) ? Hole(VonFigur, zkN0)?.Id : spielerVonAkteur.TryGetValue(hn0, out var szN0) ? szN0 : null;
+      if (anN is int anN1 && figurKanaele.Contains(channelIndex) && Hole(VonFigur, channelIndex)?.Id is int vonN1 && vonN1 != anN1) NullAufSpieler.Add((tn0, vonN1, anN1));
+      if (RohDump && anN is int) OffenRoh.Add(new object[] { Math.Round(tn0, 3), (Hole(VonFigur, channelIndex) ?? VomZustand(channelIndex))?.Id ?? -1, 0, "null", hn0, DiagZiel(hn0), anN, c.bIsFatal == true ? 1 : 0, c.bIsShield == true ? 1 : 0, channelIndex });
+    }
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) {
       if (DiagId is not null) {
         string zielArt = "keinZiel";
@@ -1666,6 +1699,7 @@ class SchadenLeser : ReplayReader {
       }
       return;
     }
+    if (RohDump && !figurKanaele.Contains(channelIndex) && Zeit() is double trk) OffenRoh.Add(new object[] { Math.Round(trk, 3), (Hole(VonFigur, channelIndex) ?? VomZustand(channelIndex))?.Id ?? -1, c.Magnitude.Value, "keinFigurKanal", c.HitActor.Value, DiagZiel(c.HitActor.Value), Hole(VonAkteur, c.HitActor.Value)?.Id ?? -1, c.bIsFatal == true ? 1 : 0, c.bIsShield == true ? 1 : 0, channelIndex });
     if (!figurKanaele.Contains(channelIndex)) { D("keinFigurKanal:" + (DiagId is null ? "" : (pfadVonAkteur.TryGetValue(kanalAkteur.TryGetValue(channelIndex, out var ka) ? ka : 0, out var kp) && kp is not null ? kp.Split('.').Last() : "ohneKlasse"))); return; }
     var von = Hole(VonFigur, channelIndex);
     int? anId = null; int? anTeam = null;
@@ -1684,7 +1718,7 @@ class SchadenLeser : ReplayReader {
         if (ueber?.Id is int uid) { anId = uid; anTeam = ueber.TeamIndex ?? (teamVonSpieler.TryGetValue(uid, out var tv2) ? tv2 : null); UeberAkteur++; unsicher = true; }
       }
     }
-    if (von?.Id is null) { D("schuetzeUnbekannt"); return; }
+    if (von?.Id is null) { if (RohDump && Zeit() is double tsu) OffenRoh.Add(new object[] { Math.Round(tsu, 3), VomZustand(channelIndex)?.Id ?? -1, c.Magnitude.Value, "schuetzeUnbekannt", c.HitActor.Value, DiagZiel(c.HitActor.Value), anId ?? -1, c.bIsFatal == true ? 1 : 0, c.bIsShield == true ? 1 : 0, channelIndex }); D("schuetzeUnbekannt"); return; }
     if (DiagId is not null && kanalAkteur.TryGetValue(channelIndex, out var eigAk) && spielerVonAkteur.TryGetValue(eigAk, out var eigId) && eigId != von.Id) {
       var k = "SCHUETZE-WIDERSPRUCH";
       Diag.TryGetValue(k, out var a); Diag[k] = (a.Item1 + 1, a.Item2 + c.Magnitude.Value);
@@ -1699,6 +1733,7 @@ class SchadenLeser : ReplayReader {
         Diag.TryGetValue("AUFLOESBAR:" + los, out var ab); Diag["AUFLOESBAR:" + los] = (ab.Item1 + 1, ab.Item2 + c.Magnitude.Value);
         if (los != "nein") { var wer = ueberAkteur ?? ueberKanal; var k2 = "AUFLOESBAR-BEI:" + (pfadVonAkteur.TryGetValue(c.HitActor.Value, out var pp) && pp is not null ? pp.Split('.').Last() : "ohneKlasse"); Diag.TryGetValue(k2, out var ab2); Diag[k2] = (ab2.Item1 + 1, ab2.Item2 + c.Magnitude.Value); }
       }
+      if (RohDump && Zeit() is double tro) OffenRoh.Add(new object[] { Math.Round(tro, 3), von.Id.Value, c.Magnitude.Value, art.StartsWith("zielUnbekannt") ? "zielUnbekannt" : art, c.HitActor.Value, DiagZiel(c.HitActor.Value), Hole(VonAkteur, c.HitActor.Value)?.Id ?? -1, c.bIsFatal == true ? 1 : 0, c.bIsShield == true ? 1 : 0, channelIndex });
       D(art);
       if (diag && Zeit() is double td) DiagOffen.Add((td, c.Magnitude.Value, art, c.HitActor.Value));
       if (DiagId is not null && Zeit() is double ta) DiagAlle.Add((ta, c.Magnitude.Value, art.StartsWith("zielUnbekannt") ? "unbekannt:" + DiagZiel(c.HitActor.Value) : art, c.HitActor.Value, von?.Id ?? -1));
@@ -1734,15 +1769,20 @@ class SchadenLeser : ReplayReader {
   /// Schuetze je Projektil-Kanal und die Treffer der Projektile: (Zeit, Schuetze, getroffene Figur als Akteur).
   readonly Dictionary<uint, int> projektilSchuetze = new();
   public readonly List<(double t, int von, uint zielAkteur)> ProjektilTreffer = new();
-  void SchleuderNotieren(uint kanal, SchleuderProjektil p) {
-    if (p.Instigator is uint ins && ins != 0) {
+  /// Wer wann eine Rakete bzw. einen MoonFlax-Bolzen in der Luft hatte (Instigator des Geschosses) - fuer Explosionen, deren Effekt keinen Verursacher nennt.
+  public readonly List<(double t, int von)> Raketen = new(), Bolzen = new();
+  int? SpielerVonFigurAkteur(uint? a) => a is uint u && u != 0 ? (figurVonAkteur.TryGetValue(u, out var fk) ? Hole(VonFigur, fk)?.Id : null) ?? (spielerVonAkteur.TryGetValue(u, out var sv) ? sv : null) : null;
+  void RaketeNotieren(uint? ins) { if (SpielerVonFigurAkteur(ins) is int w && Zeit() is double t) Raketen.Add((t, w)); }
+  void ArmbrustNotieren(uint? ins) { if (SpielerVonFigurAkteur(ins) is int w && Zeit() is double t) Bolzen.Add((t, w)); }
+  void SchleuderNotieren(uint kanal, uint? instigator, Unreal.Core.Models.FHitResult[] pawnHits, Unreal.Core.Models.FHitResult stopHit, float? charge, uint? owner) {
+    if (instigator is uint ins && ins != 0) {
       var wer = figurVonAkteur.TryGetValue(ins, out var fk) ? Hole(VonFigur, fk)?.Id : null;
       wer ??= spielerVonAkteur.TryGetValue(ins, out var sv) ? sv : null;
       if (wer is int w) projektilSchuetze[kanal] = w;
     }
     var treffer = new List<Unreal.Core.Models.FHitResult>();
-    if (p.PawnHitResults != null) treffer.AddRange(p.PawnHitResults.Where(h => h != null));
-    if (p.SimulationStoppingHit != null) treffer.Add(p.SimulationStoppingHit);
+    if (pawnHits != null) treffer.AddRange(pawnHits.Where(h => h != null));
+    if (stopHit != null) treffer.Add(stopHit);
     if (projektilSchuetze.TryGetValue(kanal, out var schuetze) && Zeit() is double tp) {
       foreach (var h in treffer) {
         object a = h.Actor;
@@ -1752,7 +1792,7 @@ class SchadenLeser : ReplayReader {
             && !ProjektilTreffer.Any(q => q.zielAkteur == z && q.von == schuetze && Math.Abs(q.t - tp) < 0.05)) ProjektilTreffer.Add((tp, schuetze, z));
       }
     }
-    if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={p.Instigator} owner={p.Owner} charge={p.ChargePercent} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null && (x.StartsWith("Actor") || x.StartsWith("Component") || x.StartsWith("BoneName") || x.StartsWith("PhysMat") || x.StartsWith("Item") || x.StartsWith("Hit") || x.StartsWith("Blocking")))))));
+    if (DiagId is not null) Console.Error.WriteLine($"DIAGSCHLEUDER t={Zeit()} k={kanal} ins={instigator} owner={owner} charge={charge} treffer={treffer.Count} " + string.Join(" ; ", treffer.Select(h => string.Join(",", h.GetType().GetProperties().Select(pp => { object v; try { v = pp.GetValue(h); } catch { return null; } return v is null ? null : pp.Name + "=" + v; }).Where(x => x != null && (x.StartsWith("Actor") || x.StartsWith("Component") || x.StartsWith("BoneName") || x.StartsWith("PhysMat") || x.StartsWith("Item") || x.StartsWith("Hit") || x.StartsWith("Blocking")))))));
   }
   public int Nachgetragen, UeberAkteur;
   public static readonly bool MsDiag = Environment.GetEnvironmentVariable("MS_DIAG") is not null;
@@ -1762,6 +1802,11 @@ class SchadenLeser : ReplayReader {
   /// Diagnose: je Schuetze, wie viele Treffer-Ereignisse in welche Kategorie fielen.
   public readonly Dictionary<int, Dictionary<string, int>> KatJe = new();
   readonly Dictionary<uint, string> kanalTyp = new();
+  double felderBeiRoh = 900;
+  public static readonly bool RohDump = Environment.GetEnvironmentVariable("SCHADEN_ROHDUMP") == "1";
+  public readonly List<object[]> OffenRoh = new(), EffektRoh = new(), ParamRoh = new();
+  public readonly List<(double t, uint wurzel, string name, int weg)> WaffenRoh = new();
+  public List<object[]> WaffenRohFertig() => WaffenRoh.Select(w => new object[] { w.t, SpielerDerWurzel(w.wurzel) ?? -1, w.name, w.weg }).ToList();
   public readonly List<(double t, double mag, string art, uint akteur)> DiagOffen = new();
   public readonly List<(double t, double mag, string art, uint akteur, int von)> DiagAlle = new();
   int DiagDump; bool FelderGezeigt;
@@ -1854,12 +1899,96 @@ class SchadenLeser : ReplayReader {
     var verlust = Summe(t - 0.15) - Summe(t + 0.6);
     return verlust >= Math.Min(hoehe, 20) * 0.5;
   }
+  /*
+   * SCHADEN AUS GAMEPLAY-EFFEKTEN (Leser Fassung 18, 16.11.2026). Manche Waffen treffen ohne Schadenswert im Treffer-Ereignis (BatchedDamageCues): der Schaden
+   * kommt als Gameplay-Effekt auf dem Opfer an (NetMulticast_InvokeGameplayCueExecuted_FromSpec), und dessen Verursacher (EffectContext) liest die Bibliothek
+   * nicht mit - in allen 6.389 Effekten eines Matches leer. Gegen Epics DamageDealt je Spieler und Match lag "Damage" deshalb zu niedrig: FNCS Solo Reload
+   * Heat 1 EU -2,20 % (284 Spieler-Spiele), Heat 2 EU -1,33 % (285). Die Luecke war fast ganz diese Effekte (Summe aller 16 Matches rund 4.300 zu 4.195 Luecke):
+   *   kiwi      GE_LoudKiwiDamage_StackingExplosion_Min - die Explosion der gestapelten Treffer der LoudKiwi-MP (~1,1 % allen Schadens). Sie gehoert dem, der das
+   *             Opfer zuletzt (bis 5 s davor) getroffen hat und in dieser Zeit mit der LoudKiwi geschossen hat (das Magazin aenderte sich).
+   *   armbrust  Explosion des MoonFlax-Bolzens: der Schuetze traf das Opfer im selben Moment (1 s davor bis 0,3 s danach) mit einem Treffer ohne Wert; sonst
+   *             wer allein einen Bolzen in der Luft hatte. (Heat 1 EU, 29f22c5a: PTH Thanos 0 statt Epics 142 - genau die 76 + 66, die Wozah im Moment der
+   *             Bolzen-Explosion verlor, und Thanos traf ihn dabei mit einem Treffer ohne Wert.)
+   *   rakete    GE_Damage_Explosive_LineOfSight: wer allein bis 3 s davor eine Rakete in der Luft hatte (Instigator des Geschosses).
+   * Das Jagdgewehr (Rifle_NoScope, Effekt GE_Ranged_GenericDamage, 86 je Koerpertreffer) laeuft nicht hier, sondern wie die Steinschleuder ueber sein Geschoss
+   * (GewehrProjektil: Schuetze und getroffene Figur stehen darin) und ProjektileEinrechnen.
+   * Wie viel: der Verlust an Leben + Schild + Overshield des Opfers im Moment des Effekts (bis 0,3 s danach, bis der Wert wieder steigt), ohne das, was gezaehlte
+   * Treffer im selben Fenster schon erklaeren; stirbt das Opfer daran (Reload: das Leben springt gleich wieder auf 100), alles, was es noch hatte.
+   * Ergebnis (gleiche 16 Matches): Heat 1 EU -2,20 % -> +0,12 %, genau (±1) 236 -> 249 von 284; Heat 2 EU -1,33 % -> +0,14 %, 249 -> 260 von 285.
+   * SCHADEN_EFFEKTE=0 schaltet es fuer Vergleiche ab.
+   */
+  public readonly List<(double t, int an, string art)> SchadensEffekte = new();
+  readonly List<(uint wurzel, double t)> kiwiSchuesse = new();
+  public readonly List<(double t, int von, int an)> NullAufSpieler = new();
+  public Dictionary<int, List<double>> TodeZeiten = new();
+  public readonly Dictionary<string, (int n, double schaden)> EffektGezaehltJe = new();
+  public int EffektOhneVerursacher;
+  static string SchadensEffektArt(string pfad) =>
+    pfad.Contains("LoudKiwiDamage") ? "kiwi"
+    : pfad.Contains("Crossbow_Moonflax_Explosive") || pfad.Contains("MoonFlax_ExplosiveCrossbow") ? "armbrust"
+    : pfad.Contains("GE_Damage_Explosive_LineOfSight") ? "rakete"
+    : null;
+  static double WertBis(Dictionary<int, List<double[]>> serien, int id, double t, double standard) {
+    if (!serien.TryGetValue(id, out var l)) return standard;
+    double w = standard; foreach (var x in l) { if (x[0] <= t) w = x[1]; else break; }
+    return w;
+  }
+  void EffekteEinrechnen(double? busAb) {
+    double Summe(int an, double z) => WertBis(Leben, an, z, 100) + WertBis(Schild, an, z, 0) + WertBis(Ueberschild, an, z, 0);
+    var kiwi = kiwiSchuesse.Select(k => (k.t, von: SpielerDerWurzel(k.wurzel))).Where(k => k.von is not null).ToList();
+    var neu = new List<(int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal)>();
+    var gesehen = new Dictionary<int, List<double>>();
+    foreach (var (t, an, art) in SchadensEffekte.OrderBy(e => e.t)) {
+      if (busAb is not null && t < busAb) continue;
+      if (!gesehen.TryGetValue(an, out var gl)) gesehen[an] = gl = new();
+      if (gl.Any(u => Math.Abs(u - t) < 0.05)) continue;
+      gl.Add(t);
+      if (AmBodenZuZeit(an, t)) continue;
+      var vor = Summe(an, t - 0.05); var tief = vor;
+      var zeiten = new SortedSet<double>();
+      foreach (var d in new[] { Leben, Schild, Ueberschild }) if (d.TryGetValue(an, out var l)) foreach (var x in l) if (x[0] > t - 0.05 && x[0] <= t + 0.3) zeiten.Add(x[0]);
+      foreach (var z in zeiten) { var w = Summe(an, z); if (w > tief + 0.5) break; tief = w; }
+      var tot = TodeZeiten.TryGetValue(an, out var tz) && tz.Any(x => x >= t - 0.1 && x <= t + 0.5);
+      if (tot) tief = 0;
+      var erklaert = Liste.Where(e => e.an == an && e.t is double et && et >= t - 0.05 && et <= t + 0.25).Sum(e => Wirksam(e));
+      var h = Math.Round(vor - tief - erklaert);
+      if (h <= 0) continue;
+      int? von = null;
+      if (art == "kiwi") {
+        var schuetzen = kiwi.Where(k => k.t >= t - 5 && k.t <= t + 0.1).Select(k => k.von.Value).ToHashSet();
+        von = Liste.Where(e => e.an == an && e.von != an && e.t is double et && et >= t - 5 && et <= t + 0.05 && schuetzen.Contains(e.von)).OrderBy(e => e.t).Select(e => (int?)e.von).LastOrDefault();
+      } else if (art == "armbrust") {
+        var wer = NullAufSpieler.Where(n => n.an == an && n.von != an && n.t >= t - 1 && n.t <= t + 0.3).Select(n => n.von).Distinct().ToList();
+        if (wer.Count == 0) wer = Bolzen.Where(b => b.von != an && b.t >= t - 3 && b.t <= t + 0.2).Select(b => b.von).Distinct().ToList();
+        if (wer.Count == 1) von = wer[0];
+      } else if (art == "rakete") {
+        var wer = Raketen.Where(b => b.von != an && b.t >= t - 3 && b.t <= t + 0.2).Select(b => b.von).Distinct().ToList();
+        if (wer.Count == 1) von = wer[0];
+      }
+      if (von is not int v) { EffektOhneVerursacher++; continue; }
+      var vt = teamVonSpieler.TryGetValue(v, out var tv) ? tv : null; var at = teamVonSpieler.TryGetValue(an, out var ta) ? ta : null;
+      if (vt is not null && vt == at) continue;
+      neu.Add((v, an, h, false, false, t, tot));
+      EffektGezaehltJe.TryGetValue(art, out var g); EffektGezaehltJe[art] = (g.n + 1, g.schaden + h);
+    }
+    Liste.AddRange(neu);
+  }
   public int ProjektilGezaehlt, EffektGezaehlt; public double ProjektilSchaden, EffektSchaden; public int EffektCues;
   /*
    * Die Bibliothek fuehrt je Klasse eine feste Liste der RPCs (_classNetCacheToNetFieldGroup). Fuer die Spielerfigur fehlt dort das Schadens-Ereignis der Gameplay-Effekte
    * (NetMulticast_InvokeGameplayCueExecuted_FromSpec, mit TotalMagnitude und Verursacher) - hier wird es als vierter Eintrag ergaenzt, nach dem Vorbild der BatchedDamageCues.
    */
   /// Diagnose: alle Feld-Gruppen, die das Replay bis zum Ende angelegt hat und deren Name passt - mit ihren Feldern.
+  public void PfadeZeigen(string muster) {
+    foreach (var g in pfadVonAkteur.Values.Where(v => v is not null && System.Text.RegularExpressions.Regex.IsMatch(v, muster, System.Text.RegularExpressions.RegexOptions.IgnoreCase)).GroupBy(v => v))
+      Console.Error.WriteLine($"PFADE {g.Count()} {g.Key}");
+    try {
+      object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
+      var d = F(F(this, "_netGuidCache"), "NetGuidToPathName") as System.Collections.IDictionary;
+      if (d != null) foreach (var v in d.Values.Cast<object>().Select(x => x?.ToString()).Where(x => x != null && System.Text.RegularExpressions.Regex.IsMatch(x, muster, System.Text.RegularExpressions.RegexOptions.IgnoreCase)).Distinct())
+        Console.Error.WriteLine($"PFADVOLL {v}");
+    } catch (Exception e) { Console.Error.WriteLine("PFADVOLL Fehler " + e.Message); }
+  }
   public void FelderZeigen(string muster) {
     try {
       object F(object o, string n) { for (var t = o?.GetType(); t != null; t = t.BaseType) { var fi = t.GetField(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (fi != null) return fi.GetValue(o); var pr = t.GetProperty(n, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); if (pr != null) return pr.GetValue(o); } return null; }
@@ -2025,6 +2154,7 @@ class SchadenLeser : ReplayReader {
   public void Zaehle(double? busAb) {
     // Seit 10.11.2026 immer (Fassung 12); SCHADEN_NEU=0 schaltet es nur fuer Vergleiche ab.
     if (Environment.GetEnvironmentVariable("SCHADEN_NEU") != "0") ProjektileEinrechnen(busAb);
+    if (Environment.GetEnvironmentVariable("SCHADEN_EFFEKTE") != "0") EffekteEinrechnen(busAb);
     for (int i = 0; i < Liste.Count; i++) {
       var e = Liste[i];
       if (Unsicher.Contains(i)) {
@@ -2275,6 +2405,23 @@ public class SchleuderProjektil : INetFieldExportGroup {
   [NetFieldExport("ChargePercent", RepLayoutCmdType.PropertyFloat)] public float? ChargePercent { get; set; }
   [NetFieldExport("PawnHitResults", RepLayoutCmdType.DynamicArray)] public Unreal.Core.Models.FHitResult[] PawnHitResults { get; set; }
   [NetFieldExport("SimulationStoppingHit", RepLayoutCmdType.Property)] public Unreal.Core.Models.FHitResult SimulationStoppingHit { get; set; }
+}
+
+/* Das Geschoss des Jagdgewehrs (16.11.2026) - wie die Steinschleuder: Instigator ist die Figur des Schuetzen, PawnHitResults die getroffenen Figuren. */
+[NetFieldExportGroup("/Game/Weapons/FORT_Sniper/Blueprints/B_Prj_Bullet_Sniper.B_Prj_Bullet_Sniper_C", ParseMode.Full)]
+public class GewehrProjektil : INetFieldExportGroup {
+  [NetFieldExport("Owner", RepLayoutCmdType.PropertyObject)] public uint? Owner { get; set; }
+  [NetFieldExport("Instigator", RepLayoutCmdType.PropertyObject)] public uint? Instigator { get; set; }
+  [NetFieldExport("PawnHitResults", RepLayoutCmdType.DynamicArray)] public Unreal.Core.Models.FHitResult[] PawnHitResults { get; set; }
+}
+/* Rakete und MoonFlax-Bolzen (16.11.2026): nur der Schuetze - ihre Explosion trifft per Effekt (GE_Damage_Explosive_LineOfSight, ..._Crossbow_Moonflax_Explosive...). */
+[NetFieldExportGroup("/Game/Weapons/FORT_RocketLaunchers/Blueprints/B_Prj_Ranged_Rocket_Athena.B_Prj_Ranged_Rocket_Athena_C", ParseMode.Full)]
+public class RaketenProjektil : INetFieldExportGroup {
+  [NetFieldExport("Instigator", RepLayoutCmdType.PropertyObject)] public uint? Instigator { get; set; }
+}
+[NetFieldExportGroup("/MoonFlaxWeaponGameplay/Items/Weapons/Crossbow/B_Prj_NEW_Crossbow_Moonflax_Athena.B_Prj_NEW_Crossbow_Moonflax_Athena_C", ParseMode.Full)]
+public class ArmbrustProjektil : INetFieldExportGroup {
+  [NetFieldExport("Instigator", RepLayoutCmdType.PropertyObject)] public uint? Instigator { get; set; }
 }
 
 /* Das neue Inventar (siehe SchadenLeser): die Gegenstaende eines Spielers und die Wurzel, die sagt, zu welcher Figur es gehoert. */
