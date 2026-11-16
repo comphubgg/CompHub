@@ -4038,16 +4038,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <div className="flex flex-col gap-5 md:flex-row">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <h2 className="text-base font-bold text-slate-100">{kartenTitel(cup?.titel, fenster, t)}</h2>
-                  {/* Epics eigene Beschreibung - worum es geht und wie die Runden
-                      zusammenhaengen (Qualifier, Runden, wer weiterkommt). Der
-                      Betreiber (29.9.2026): "bei About soll unbedingt so etwas
-                      stehen ... bei jedem Cup". */}
-                  {cup?.beschreibung && (
-                    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
-                      <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{cup.beschreibung}</p>
-                    </div>
-                  )}
                   {/* Region lock - nur mit Beleg aus Epics Marken, sonst gar nicht (Betreiber, 16.11.2026). */}
                   {cup?.regionsSperre && (
                     <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3" data-region-lock={cup.regionsSperre.gesperrt ? 'ja' : 'nein'}>
@@ -4066,6 +4056,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           : t('Diesen Cup kannst du in mehreren Regionen spielen – etwa als EU-Spieler auch das Asia-Fenster, ohne für EU gesperrt zu werden.')}
                       </p>
                       <p className="mt-1 break-all text-[11px] leading-relaxed text-slate-500">{t('Quelle')}: Epic · {cup.regionsSperre.beleg}</p>
+                    </div>
+                  )}
+                  {/* Epics eigene Beschreibung - worum es geht und wie die Runden
+                      zusammenhaengen (Qualifier, Runden, wer weiterkommt). Der
+                      Betreiber (29.9.2026): "bei About soll unbedingt so etwas
+                      stehen ... bei jedem Cup". */}
+                  {cup?.beschreibung && (
+                    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{cup.beschreibung}</p>
                     </div>
                   )}
                   {st.pbm && (
