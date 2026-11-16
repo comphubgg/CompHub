@@ -340,16 +340,47 @@ if (zugang) {
   const seit = Date.now() - 60 * TAG_MS;
   // Erst ab acht Stunden nach dem Start: solange der Cup laeuft, aendert sich der Platz noch.
   const reif = Date.now() - 8 * 3600_000;
+  /*
+   * Bei Duos und Trios gibt Epic den Eintrag nur heraus, wenn teamAccountIds das ganze Team nennt (16.11.2026: der Reload ZB Duos Cash Cup EU vom 15.11.
+   * kam mit dem eigenen Konto allein leer zurueck, obwohl das Konto in den Replays dieses Tages steht). Darum dazu die letzten Mitspieler, die haeufigsten zuerst.
+   * Fassung 2: alte leere Eintraege von Team-Spieltagen werden einmal neu gefragt.
+   */
+  if (zusatz._v !== 2) { for (const [w, v] of Object.entries(zusatz)) if (v === null && /Duo|Trio|Squad/i.test(w)) delete zusatz[w]; zusatz._v = 2; }
+  const mitZahl = new Map();
+  const mitNehmen = (l) => { for (const m of l ?? []) if (m !== eigen) mitZahl.set(m, (mitZahl.get(m) ?? 0) + 1); };
+  for (const v of Object.values(zusatz)) if (v && v.spieler) mitNehmen(v.spieler);
+  if (vorher?.lage) {
+    try {
+      const [start, laenge] = vorher.lage[parseInt(eigen.slice(0, 3), 16)];
+      const b = fs.readFileSync(path.join(VORHER, `verlauf-${vorher.build}-${eigen.slice(0, 2)}.bin`)).subarray(start, start + laenge);
+      for (const r of (JSON.parse(zlib.gunzipSync(b).toString('utf8'))[eigen]?.z ?? []).slice(0, 40)) mitNehmen(r[5]);
+    } catch { /* ohne vorigen Stand nur die neuen Spieltage */ }
+  }
+  const teamGroesse = new Map();
+  for (const i of geaendert) {
+    const q = quellen.get(tage[i].w);
+    if (!q || (tage[i].d ?? 0) < seit) continue;
+    const tag = lies(q.datei, null);
+    teamGroesse.set(tage[i].w, Math.max(1, ...(tag?.teams ?? []).slice(0, 50).map((x) => (x.spieler ?? []).length)));
+    for (const x of tag?.teams ?? []) if ((x.spieler ?? []).includes(eigen)) mitNehmen(x.spieler);
+  }
+  const mitspieler = [...mitZahl].sort((a, b) => b[1] - a[1]).map(([m]) => m).slice(0, 6);
+  const istTeam = (w) => (teamGroesse.get(w) ?? (/Duo|Trio|Squad/i.test(w) ? 2 : 1)) > 1;
   let geprueft = 0, ergaenzt = 0;
   for (const t of tage) {
-    if (!t.e || (t.d ?? 0) < seit || (t.d ?? 0) > reif || t.n < 9000 || t.w in zusatz || geprueft >= 400) continue;
+    if (!t.e || (t.d ?? 0) < seit || (t.d ?? 0) > reif || t.n < 9000 || t.w in zusatz || geprueft >= 600) continue;
     // Steht das Konto schon in der Liste, ist nichts zu ergaenzen (null = geprueft, nichts dahinter).
     const q = quellen.get(t.w);
     if (q && fs.readFileSync(q.datei, 'utf8').includes(eigen)) { zusatz[t.w] = null; continue; }
-    const j = await epic(`${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(t.e)}/${encodeURIComponent(t.w)}/${eigen}?page=0&rank=0&teamAccountIds=${eigen}`);
-    geprueft += 1;
-    if (!j || j.fehler) continue;
-    const e = (j.entries ?? []).find((x) => (x.teamAccountIds ?? []).includes(eigen));
+    let e = null, fehler = false;
+    for (const team of [[eigen], ...(istTeam(t.w) ? mitspieler.map((m) => [eigen, m]) : [])]) {
+      const j = await epic(`${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(t.e)}/${encodeURIComponent(t.w)}/${eigen}?page=0&rank=0&teamAccountIds=${team.join(',')}`);
+      geprueft += 1;
+      if (!j || j.fehler) { fehler = true; break; }
+      e = (j.entries ?? []).find((x) => (x.teamAccountIds ?? []).includes(eigen)) ?? null;
+      if (e) break;
+    }
+    if (fehler) continue;
     zusatz[t.w] = e && e.rank > t.n ? { platz: e.rank, punkte: e.pointsEarned ?? 0, matches: (e.sessionHistory ?? []).length, spieler: e.teamAccountIds ?? [eigen] } : null;
     if (zusatz[t.w]) ergaenzt += 1;
   }
@@ -375,7 +406,7 @@ if (zugang) {
 // Die Zusatz-Zeilen gehen bei jedem Lauf neu hinein (Kennung 1 - die alten fallen beim Zusammenlegen heraus).
 for (const [w, t] of Object.entries(zusatz)) {
   const i = tagNr.get(w);
-  if (!t || i === undefined) continue;
+  if (!t || typeof t !== 'object' || i === undefined) continue;
   for (const id of t.spieler) {
     zeileAblegen(id, `${id}\t${i}\t${t.platz}\t${t.punkte}\t${t.matches}\t0\t${t.spieler.filter((x) => x !== id).join(',')}\t1\n`);
     if (!namen.has(id)) namen.set(id, ['', 0]);
