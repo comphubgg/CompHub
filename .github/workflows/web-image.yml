@@ -21,9 +21,11 @@ on:
       - '**/*.md'
   workflow_dispatch:
 
+# Kein Abbrechen mehr (16.11.2026): bei vielen Pushes hintereinander brach jeder neue Build den laufenden ab, und es kam stundenlang nichts live.
+# So laeuft der aktuelle Build zu Ende; GitHub haelt nur den neuesten wartenden Lauf, aeltere wartende fallen weg.
 concurrency:
   group: web-image
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   bauen:
