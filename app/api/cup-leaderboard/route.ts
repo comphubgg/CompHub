@@ -202,7 +202,9 @@ async function holeRoh(request: Request) {
       const veraltet = !vorrat || (vorrat.gebaut ?? 0) < ab;
       // Vom Server selbst (instrumentation.ts, vorbauen): nur sicherstellen, dass der Vorrat frisch ist - ohne die Liste zu schicken.
       if (searchParams.get('vorbauen') === '1') {
-        if (veraltet) await hoechstens(ganzBauen(event, window_), 120_000);
+        // Bis der Bau wirklich fertig ist (hoechstens zehn Minuten), nicht nur zwei: sonst zog das Vorbauen (instrumentation-node.ts) zum naechsten
+        // Spieltag weiter, waehrend der vorige im Hintergrund weiterlief - nach einem Neustart mit leerem Vorrat liefen so immer mehr ganze Listen zugleich.
+        if (veraltet) await hoechstens(ganzBauen(event, window_), 10 * 60_000);
         return NextResponse.json({ ok: true, gebaut: veraltet });
       }
       if (veraltet) {

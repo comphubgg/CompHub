@@ -1,6 +1,14 @@
 import { promises as nodeFs } from 'fs';
 import path from 'path';
-import { gzipSync, gunzipSync } from 'zlib';
+import { gzip, gunzip } from 'zlib';
+import { promisify } from 'util';
+
+/*
+ * Packen und Entpacken im Hintergrund statt synchron (16.11.2026): eine ganze Liste (10.000 Plaetze mit Spielverlaeufen, ueber 20 MB) synchron zu packen
+ * haelt den Vorgang an, und solange beantwortet die Seite nichts.
+ */
+const packen = promisify(gzip);
+const entpacken = promisify(gunzip);
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { holeBereich, type CupEintrag } from '@/lib/epicCups';
 
@@ -21,7 +29,7 @@ export async function bestenlisteVorrat(windowId: string): Promise<CupEintrag[] 
   if (da && da.bis > Date.now()) return da.entries;
   try {
     const datei = `${ganzDatei(windowId)}.gz`;
-    const d = JSON.parse(gunzipSync(await nodeFs.readFile(datei)).toString('utf8')) as { entries?: CupEintrag[] };
+    const d = JSON.parse((await entpacken(await nodeFs.readFile(datei))).toString('utf8')) as { entries?: CupEintrag[] };
     if (!d.entries?.length) return null;
     if (MERKER.size >= 3) MERKER.delete(MERKER.keys().next().value as string);
     MERKER.set(windowId, { bis: Date.now() + 60_000, entries: d.entries });
@@ -40,7 +48,7 @@ export async function ganzLesen(w: string): Promise<GanzVorrat | null> {
     const gz = `${ganzDatei(w)}.gz`;
     const p = await nodeFs.access(gz).then(() => gz, () => ganzDatei(w));
     const roh = await nodeFs.readFile(p);
-    const d = JSON.parse((p === gz ? gunzipSync(roh) : roh).toString('utf8')) as GanzVorrat;
+    const d = JSON.parse((p === gz ? await entpacken(roh) : roh).toString('utf8')) as GanzVorrat;
     d.gebaut ??= (await nodeFs.stat(p)).mtimeMs;
     return d;
   } catch { return null; }
@@ -51,7 +59,7 @@ export async function ganzSchreiben(w: string, d: GanzVorrat): Promise<void> {
   await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
   const ziel = `${ganzDatei(w)}.gz`;
   const tmp = `${ziel}.${process.pid}.${Date.now()}.tmp`;
-  await nodeFs.writeFile(tmp, gzipSync(JSON.stringify({ ...d, gebaut: d.gebaut ?? Date.now() })));
+  await nodeFs.writeFile(tmp, await packen(JSON.stringify({ ...d, gebaut: d.gebaut ?? Date.now() })));
   await nodeFs.rename(tmp, ziel);
   await nodeFs.rm(ganzDatei(w), { force: true });
   vergissVorrat(w);

@@ -120,13 +120,15 @@ export async function registerNode() {
         }
         // Laufende zuerst, dann das zuletzt Beendete.
         ziele.sort((a, b) => Number(b.live) - Number(a.live) || b.ab - a.ab);
-        let i = 0;
-        await Promise.all(Array.from({ length: 2 }, async () => {
-          while (i < ziele.length) {
-            const z = ziele[i++];
-            await rufe(`/api/cup-leaderboard?event=${encodeURIComponent(z.eventId)}&window=${encodeURIComponent(z.windowId)}&ganz=1&vorbauen=1&ab=${Math.round(z.ab)}`);
-          }
-        }));
+        /*
+         * Einer nach dem anderen, und jeweils bis er fertig ist (16.11.2026): mit zwei zugleich und 180 s Frist je Abruf (die Schnittstelle antwortete
+         * nach 120 s, der Bau lief weiter) begannen nach einem Neustart neue Bauten, waehrend die alten noch liefen. Am 16.11. wuchs der Server nach jedem
+         * Start binnen drei bis vier Minuten auf 5,8 GB und startete neu (gemessen ueber /api/stand) - auch ohne andere Aenderungen.
+         */
+        for (const z of ziele) {
+          await fetch(`${intern}/api/cup-leaderboard?event=${encodeURIComponent(z.eventId)}&window=${encodeURIComponent(z.windowId)}&ganz=1&vorbauen=1&ab=${Math.round(z.ab)}`,
+            { cache: 'no-store', signal: AbortSignal.timeout(11 * 60_000) }).catch(() => {});
+        }
       } catch { /* naechster Takt */ } finally { baut = false; }
     };
     setTimeout(() => { void vorbauen(); }, 60_000).unref?.();
