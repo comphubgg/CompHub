@@ -64,6 +64,13 @@ jobs:
         timeout-minutes: 8
         run: node scripts/clutch-aus-je.mjs --hoechstens 250 --minuten 6 2>&1 | tail -60
 
+      # Was danach noch ohne Schaden ist (vor allem aelter als 31 Tage: Epic hat die Replays nicht mehr): aus den voll ausgelesenen Replays (replay-voll/), nur wenn
+      # jedes Match dort mit Schaden-Werten liegt (16.11.2026, scripts/clutch-aus-voll.mjs - gegen acht gute Spieltage Feld fuer Feld geprueft).
+      - name: Schaden aus den vollen Replays
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node scripts/clutch-aus-voll.mjs --hoechstens 60 --minuten 6 2>&1 | tail -60
+
       # Lage der Werte je Match (clutch/<w>.json, "je") gegen die Datei am Release pruefen und reparieren - bis zum 15.11.2026 kam clutch-je/ von hier nie an.
       - name: Werte je Match abgleichen
         continue-on-error: true
