@@ -173,20 +173,8 @@ export function aktenBuendel(name: string): { buendel: string; id: string } | nu
 /* ------------------------------------------------------------ Lesen */
 
 /** Kurzer Vorrat je Vorgang: dieselbe Datei nicht zweimal in einer Minute holen. */
-const vorrat = new Map<string, { bis: number; wert: Buffer | null; tag?: string }>();
+const vorrat = new Map<string, { bis: number; wert: Buffer | null }>();
 const VORRAT_MS = 60_000;
-/*
- * Abgelaufen heisst nicht weg (16.11.2026, Betreiber: "die Seiten laden zu langsam").
- *
- * Bis hierhin wartete nach Ablauf der Minute der naechste Besucher, bis GitHub die Datei noch einmal geliefert hatte - bei den grossen Antworten
- * (mehrere Megabyte) eine bis drei Sekunden, und das jede Minute aufs Neue. Jetzt kommt eine abgelaufene Kopie sofort, und die Datei wird im
- * Hintergrund neu geholt (stale-while-revalidate): wer eine Minute nach dem Vorgaenger kommt, sieht hoechstens dessen Stand, wartet aber nicht.
- * Nur bis VERALTET_MS nach dem Holen - was laenger niemand gelesen hat, wird wie bisher abgewartet. Gleichzeitige Abrufe derselben Datei teilen
- * sich einen (vorher holte jeder Besucher seine eigene Kopie).
- */
-const VERALTET_MS = 30 * 60_000;
-const geholtAm = new Map<string, number>();
-const unterwegs = new Map<string, Promise<Buffer | null>>();
 /*
  * Und nie mehr als das hier im Speicher.
  *
@@ -195,16 +183,12 @@ const unterwegs = new Map<string, Promise<Buffer | null>>();
  * zwei Megabyte - nach hundert Profilen lagen zweihundert Megabyte alter
  * Buendel im Speicher, und der Server (512 MB bei Render) starb. Genau dann
  * hing das Profil im Ladeschirm, und die ganze Seite gab 502.
- *
- * (16.11.2026: 256 MB liess den Server binnen drei Minuten auf 5,8 GB anwachsen und neu starten - zurueck auf 40 MB.) Bei 40 MB fliegt jede grosse
- * Antwort gleich wieder hinaus und wurde bei jedem Aufruf neu geholt. Eine einzelne Datei ueber 64 MB bleibt nie liegen.
  */
 const VORRAT_BYTES = 40 * 1024 * 1024;
-const VORRAT_DATEI_BYTES = 40 * 1024 * 1024;
 function vorratAufraeumen(jetzt: number) {
   let summe = 0;
   for (const [k, v] of vorrat) {
-    if ((geholtAm.get(k) ?? 0) + VERALTET_MS <= jetzt) { vorrat.delete(k); geholtAm.delete(k); continue; }
+    if (v.bis <= jetzt) { vorrat.delete(k); continue; }
     summe += v.wert?.length ?? 0;
   }
   // Immer noch zu viel: die aeltesten zuerst (die Map haelt die Reihenfolge).
@@ -212,7 +196,6 @@ function vorratAufraeumen(jetzt: number) {
     if (summe <= VORRAT_BYTES) break;
     summe -= v.wert?.length ?? 0;
     vorrat.delete(k);
-    geholtAm.delete(k);
   }
 }
 
@@ -232,40 +215,6 @@ async function holeAnhang(anhang: string, tag: string): Promise<Buffer | null> {
   const jetzt = Date.now();
   const da = vorrat.get(anhang);
   if (da && da.bis > jetzt) return da.wert;
-  // Abgelaufen, aber noch nicht zu alt: sofort die Kopie, frisch geholt wird im Hintergrund (siehe VERALTET_MS) - zuerst aus dem verlangten
-  // Release, und fehlt die Datei dort, aus dem, von dem die Kopie stammt (Saison-Release vor dem alten, wie in lies).
-  if (da?.wert && jetzt - (geholtAm.get(anhang) ?? 0) < VERALTET_MS) {
-    const herkunft = da.tag;
-    void geteilt(anhang, tag)
-      .then((w) => (w === null && herkunft && herkunft !== tag ? geteilt(anhang, herkunft) : w))
-      .then((w) => { if (w === null && vorrat.get(anhang) === da) { vorrat.delete(anhang); geholtAm.delete(anhang); } })
-      .catch(() => { /* die Kopie bleibt */ });
-    return da.wert;
-  }
-  return geteilt(anhang, tag);
-}
-
-/** Ein Abruf je Datei und Release zugleich - wer dazukommt, wartet auf denselben. */
-function geteilt(anhang: string, tag: string): Promise<Buffer | null> {
-  const schluessel = `${tag}|${anhang}`;
-  let l = unterwegs.get(schluessel);
-  if (!l) {
-    l = holeAnhangNeu(anhang, tag).finally(() => { unterwegs.delete(schluessel); });
-    unterwegs.set(schluessel, l);
-  }
-  return l;
-}
-
-function merke(anhang: string, wert: Buffer, jetzt: number, tag: string) {
-  vorrat.delete(anhang);
-  if (wert.length > VORRAT_DATEI_BYTES) { geholtAm.delete(anhang); return; }
-  vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert, tag });
-  geholtAm.set(anhang, jetzt);
-  vorratAufraeumen(jetzt);
-}
-
-async function holeAnhangNeu(anhang: string, tag: string): Promise<Buffer | null> {
-  const jetzt = Date.now();
   let r: Response;
   try {
     r = await fetch(basis(tag) + encodeURIComponent(anhang), {
@@ -279,11 +228,8 @@ async function holeAnhangNeu(anhang: string, tag: string): Promise<Buffer | null
   let wert: Buffer | null;
   if (r.status === 404) wert = null;
   else if (!r.ok) {
-    // Die Kopie im Speicher ist juenger als die auf der Platte (die wird hoechstens alle zehn Minuten geschrieben): die bleibt eine Minute.
-    const imSpeicher = vorrat.get(anhang);
-    if (imSpeicher?.wert && imSpeicher.tag === tag) { imSpeicher.bis = jetzt + VORRAT_MS; return imSpeicher.wert; }
     const kopie = await letzteKopie(tag, anhang);
-    if (kopie) { merke(anhang, kopie, jetzt, tag); return kopie; }
+    if (kopie) { vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert: kopie }); return kopie; }
     throw new Error(`GitHub-Ablage ${r.status} bei ${anhang}`);
   } else {
     wert = Buffer.from(await r.arrayBuffer());
@@ -295,7 +241,11 @@ async function holeAnhangNeu(anhang: string, tag: string): Promise<Buffer | null
     }
   }
   // Nur Gefundenes merken - was fehlt, kann im naechsten Lauf da sein.
-  if (wert) merke(anhang, wert, Date.now(), tag);
+  if (wert) {
+    vorrat.delete(anhang);
+    vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert });
+    vorratAufraeumen(jetzt);
+  }
   return wert;
 }
 
@@ -339,7 +289,6 @@ export async function liesBereich(name: string, start: number, laenge: number): 
     let wert = Buffer.from(await r.arrayBuffer());
     if (r.status === 200) wert = wert.subarray(start, start + laenge);
     vorrat.set(schluessel, { bis: jetzt + VORRAT_MS, wert });
-    geholtAm.set(schluessel, jetzt);
     vorratAufraeumen(jetzt);
     return wert;
   }
@@ -359,25 +308,9 @@ const manifeste = new Map<string, { bis: number; namen: string[] }>();
 const MANIFEST_MS = 5 * 60_000;
 const FEHLT_MS = 60 * 60_000;
 
-/** Wie beim Vorrat oben: ein abgelaufenes Manifest gilt sofort weiter, das neue kommt im Hintergrund (hoechstens VERALTET_MS nach dem Holen). */
-const manifestGeholt = new Map<string, number>();
-const manifestUnterwegs = new Map<string, Promise<string[]>>();
 async function manifestNamen(tag: string): Promise<string[]> {
   const da = manifeste.get(tag);
   if (da && da.bis > Date.now()) return da.namen;
-  let l = manifestUnterwegs.get(tag);
-  if (!l) {
-    l = manifestNeu(tag).then((namen) => { manifestGeholt.set(tag, Date.now()); return namen; }).finally(() => { manifestUnterwegs.delete(tag); });
-    manifestUnterwegs.set(tag, l);
-  }
-  if (da && Date.now() - (manifestGeholt.get(tag) ?? 0) < VERALTET_MS) {
-    l.catch(() => { /* das alte bleibt */ });
-    return da.namen;
-  }
-  return l;
-}
-
-async function manifestNeu(tag: string): Promise<string[]> {
   const r = await fetch(basis(tag) + 'manifest.json', {
     redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS),
   });

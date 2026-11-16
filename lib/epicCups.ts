@@ -2118,24 +2118,11 @@ export async function holeSeiteFrisch(eventId: string, windowId: string, page: n
   return d;
 }
 
-/*
- * Lange Fristen (ab zehn Minuten: Katalog, beendete Spieltage) warten nach Ablauf nicht mehr auf Epic (16.11.2026, Betreiber: "die Seiten laden zu
- * langsam"): bis zu zwei Minuten nach Ablauf gilt der alte Stand, waehrend im Hintergrund neu geholt wird - wer in dieser Zeit kommt, wartet nicht,
- * und der Naechste hat den frischen. Wer spaeter kommt, wartet wie bisher. Kurze Fristen (laufende Cups, 2 bis 120 Sekunden) bleiben, wie sie sind -
- * Live-Daten werden davon nicht aelter.
- */
-const VERALTET_AB_MS = 10 * 60_000;
-const VERALTET_HOECHSTENS_MS = 2 * 60_000;
-
 export async function gecacht<T>(key: string, ttl: number, hole: () => Promise<T>): Promise<T> {
   aufraeumen();
   const hit = cache.get(key);
   if (hit && hit.bis > Date.now()) return hit.data as T;
-  if (hit?.pending) {
-    if (ttl >= VERALTET_AB_MS && hit.data != null && hit.bis > 0 && Date.now() - hit.bis < VERALTET_HOECHSTENS_MS) return hit.data as T;
-    return hit.pending as Promise<T>;
-  }
-  const veraltetOk = ttl >= VERALTET_AB_MS && hit != null && hit.data != null && hit.bis > 0 && Date.now() - hit.bis < VERALTET_HOECHSTENS_MS;
+  if (hit?.pending) return hit.pending as Promise<T>;
 
   const start = Date.now();
   const pending = hole()
@@ -2150,9 +2137,5 @@ export async function gecacht<T>(key: string, ttl: number, hole: () => Promise<T
       throw err;
     });
   cache.set(key, { ...(hit ?? { data: null, bis: 0 }), pending });
-  if (veraltetOk) {
-    pending.catch(() => { /* der alte Stand bleibt */ });
-    return hit!.data as T;
-  }
   return pending;
 }

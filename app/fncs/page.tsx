@@ -19,7 +19,7 @@ import T from '@/app/components/T';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const FRIST_MS = 3_000;
+const FRIST_MS = 6_000;
 
 async function holen<T>(handler: () => Promise<Response>, nimm: (j: Record<string, unknown>) => T | null): Promise<T | null> {
   try {

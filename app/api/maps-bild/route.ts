@@ -98,15 +98,6 @@ async function hochgeladene(): Promise<Array<{ u: string; titel: string }>> {
 }
 
 const vorrat = new Map<string, { bis: number; typ: string; daten: ArrayBuffer }>();
-/*
- * Was die Quelle nicht liefert, eine Weile merken (16.11.2026): fortnite.gg antwortet diesem Server nicht (gemessen: alle zehn Karten des Bands hinter
- * /fncs und /tournament-maps 404) - und jeder Seitenaufruf fragte zehnmal neu an, bis zu 20 s je Bild. Jetzt eine halbe Stunde lang gleich 404, und der
- * Browser fragt in dieser Zeit auch nicht wieder.
- */
-const fehlt = new Map<string, number>();
-const FEHLT_MS = 30 * 60_000;
-const nichtDa = () => NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' },
-  { status: 404, headers: { 'Cache-Control': 'public, max-age=1800' } });
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -120,7 +111,6 @@ export async function GET(request: Request) {
     if (da && da.bis > Date.now()) {
       return new NextResponse(da.daten, { headers: { 'Content-Type': da.typ, 'Cache-Control': 'public, max-age=86400, s-maxage=604800' } });
     }
-    if ((fehlt.get(schluessel) ?? 0) > Date.now()) return nichtDa();
     try {
       let r = await fetch(u, { signal: AbortSignal.timeout(20_000) });
       // Gibt es die Karte genau dieser Spielversion nicht, gilt die einer anderen Ausgabe derselben Saison (gleiche Insel, kleine Aenderungen).
@@ -134,11 +124,7 @@ export async function GET(request: Request) {
       }
       // Fehlt das Bild beim Anbieter, sofort 404 statt 502: eine 5xx haelt der Lastverteiler fuer einen Serverausfall und antwortet erst nach Sekunden
       // mit seiner Ausweichseite (28.10.2026: /fncs wartete 7,6 s auf eine Karte, die es bei fortnite.gg nicht gibt).
-      if (!r.ok) {
-        if (fehlt.size > 200) fehlt.clear();
-        fehlt.set(schluessel, Date.now() + FEHLT_MS);
-        return nichtDa();
-      }
+      if (!r.ok) return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 404 });
       let daten = await r.arrayBuffer();
       let typ = r.headers.get('content-type') ?? 'image/png';
       if (breite) {
@@ -149,28 +135,12 @@ export async function GET(request: Request) {
           daten = klein.buffer.slice(klein.byteOffset, klein.byteOffset + klein.byteLength) as ArrayBuffer;
           typ = 'image/webp';
         } catch { /* unverkleinert ausliefern */ }
-      } else if (typ.includes('png') && daten.byteLength > 512 * 1024) {
-        /*
-         * Die Karten von Noble sind PNG mit 2048 x 2048 Punkten, rund 3 MB (/globals-solos, 16.11.2026: 3,0 MB je Aufruf). Als WebP in derselben
-         * Groesse (Masse, Transparenz und Farben bleiben - die Insel-Erkennung in app/globals-solos/Bausteine.tsx findet denselben Rahmen) sind es
-         * rund 0,5 MB.
-         */
-        try {
-          const sharp = (await import('sharp')).default;
-          const klein = await sharp(Buffer.from(daten)).webp({ quality: 82, alphaQuality: 90 }).toBuffer();
-          if (klein.byteLength < daten.byteLength) {
-            daten = klein.buffer.slice(klein.byteOffset, klein.byteOffset + klein.byteLength) as ArrayBuffer;
-            typ = 'image/webp';
-          }
-        } catch { /* dann eben das PNG */ }
       }
       if (vorrat.size > 60) vorrat.clear();
       vorrat.set(schluessel, { bis: Date.now() + 24 * 3600_000, typ, daten });
       return new NextResponse(daten, { headers: { 'Content-Type': typ, 'Cache-Control': 'public, max-age=86400, s-maxage=604800' } });
     } catch {
-      // Zeitueberschreitung oder Netzfehler: nur kurz merken, das kann gleich wieder gehen.
-      fehlt.set(schluessel, Date.now() + 60_000);
-      return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 404, headers: { 'Cache-Control': 'public, max-age=60' } });
+      return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 404 });
     }
   }
 

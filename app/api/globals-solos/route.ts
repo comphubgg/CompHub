@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { globalsSolos, type SolosDaten } from '@/lib/globalsSolos';
+import { globalsSolos } from '@/lib/globalsSolos';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import { leereNoble } from '@/lib/nobleKarte';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -44,15 +44,6 @@ async function leereKarteFuer(windowId: string): Promise<{ url: string; titel: s
   return { url: `${eigeneKarte(bild?.id ?? id)}${bild?.hochgeladen ? `?v=${bild.hochgeladen}` : ''}`, titel: karten.find((k) => k.id === id)?.titel ?? id };
 }
 
-/** Ob eine alte Antwort noch passt: keine Stufe lief seit ihr (oder beginnt in der naechsten halben Stunde) - sonst nur bis drei Minuten. */
-function nichtsGelaufen(wert: SolosDaten | null, alterMs: number): boolean {
-  if (alterMs < 3 * 60_000) return true;
-  const jetzt = Date.now();
-  const rand = 30 * 60_000;
-  return !(wert?.stufen ?? []).some((st) => st.status === 'live'
-    || (st.begin - rand <= jetzt && (st.end ?? st.begin + 6 * 3600_000) + rand >= jetzt - alterMs));
-}
-
 export async function GET(request: Request) {
   const suche = new URL(request.url).searchParams;
   const frisch = suche.get('frisch') === '1';
@@ -83,16 +74,9 @@ export async function GET(request: Request) {
   try {
     // Die Kurzfassung der Startseite kommt nach einem Neustart sofort aus der letzten guten Antwort (lib/ueberdauernd); frisch gerechnet wird im Hintergrund.
     const kurzAnfrage = suche.get('kurz') === '1' && !frisch;
-    /*
-     * Die volle Seite ebenso (16.11.2026, Betreiber: "/globals-solos laedt zu langsam" - nach einem Neustart gemessen 11,7 s): eine Antwort bis 30 s
-     * gilt als frisch (die Seite fragt alle zwei Minuten, die Bestenlisten darunter sind zwei Minuten gemerkt); eine aeltere kommt sofort und wird im
-     * Hintergrund neu gerechnet - aber nur, wenn seit ihr keine Stufe lief: dann darf sie bis zu einem Tag alt sein, sonst hoechstens drei Minuten.
-     */
     const roh = kurzAnfrage
       ? await ueberdauernd(`globals-solos-${region}`, 2 * 60_000, 24 * 3600_000, () => globalsSolos(region))
-      : frisch
-        ? await globalsSolos(region)
-        : await ueberdauernd(`globals-solos-${region}`, 30_000, 24 * 3600_000, () => globalsSolos(region), nichtsGelaufen);
+      : await globalsSolos(region);
     /*
      * Nur die laufende Reihe (2.11.2026): Epics Stufen waren schon die Solos Reload (Season 43), Spieler, Heats und Karten kamen aber noch von
      * den Battle-Royale-Solos der Season 42 - die Seite stand deshalb als "FNCS · Battle Royale" da, die Startseite zeigte deren Heats. Gehoert
@@ -115,10 +99,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, region: daten.region, fenster: heats, stufen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
     }
     // Die Einteilung der kommenden Heats - nach der Regel, sobald die letzte Runde vorbei ist (lib/heatsPosts), wie bei EU Competitive (Betreiber, 8.11.2026).
-    // Zwei Minuten frisch wie bisher; danach kommt der letzte Plan sofort (hoechstens fuenf Minuten alt) und der neue im Hintergrund.
-    const heatsPlan = (frisch
-      ? await gecacht(`solos|heatsplan|${region}`, 120_000, () => heatsDaten(region, undefined, true)).catch(() => [])
-      : await ueberdauernd(`solos-heatsplan-${region}`, 120_000, 5 * 60_000, () => heatsDaten(region, undefined, true)).catch(() => null)) ?? [];
+    const heatsPlan = await gecacht(`solos|heatsplan|${region}`, 120_000, () => heatsDaten(region, undefined, true)).catch(() => []);
     return NextResponse.json({ ok: true, ...daten, heatsPlan: heatsPlan.filter((d) => d.gefunden > 0) },
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' } });
   } catch (e) {

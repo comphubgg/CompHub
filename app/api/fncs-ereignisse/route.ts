@@ -41,28 +41,11 @@ async function fotosNachName(): Promise<Map<string, string>> {
   return raus;
 }
 
-/*
- * Die Fotos je Name fuenf Minuten gemerkt, danach sofort der alte Stand und der neue im Hintergrund (16.11.2026, Betreiber: "/fncs laedt zu
- * langsam"): vorher las jeder Aufruf drei Dateien neu (Profile, Fotos, Szene-Liste), bevor die fertige Liste herausging.
- */
-let fotoVorrat: { zeit: number; karte: Map<string, string> } | null = null;
-let fotoLauf: Promise<Map<string, string>> | null = null;
-async function fotosGemerkt(): Promise<Map<string, string>> {
-  const neu = () => (fotoLauf ??= fotosNachName()
-    .then((karte) => { fotoVorrat = { zeit: Date.now(), karte }; return karte; })
-    .finally(() => { fotoLauf = null; }));
-  if (fotoVorrat && Date.now() - fotoVorrat.zeit < 5 * 60_000) return fotoVorrat.karte;
-  if (fotoVorrat) { void neu().catch(() => { /* der alte Stand bleibt */ }); return fotoVorrat.karte; }
-  return neu();
-}
-
 export async function GET() {
   try {
-    // Die letzte gute Liste sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026). Liste und Fotos zugleich.
-    const [roh, fotos] = await Promise.all([
-      ueberdauernd('fncs-ereignisse-v3', 30 * 60_000, 7 * 864e5, () => fncsEreignisse()),
-      fotosGemerkt().catch(() => new Map<string, string>()),
-    ]);
+    // Die letzte gute Liste sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026).
+    const roh = await ueberdauernd('fncs-ereignisse-v3', 30 * 60_000, 7 * 864e5, () => fncsEreignisse());
+    const fotos = await fotosNachName().catch(() => new Map<string, string>());
     const ereignisse = (roh as FncsEreignis[]).map((e) => ({
       ...e,
       spitze: e.spitze.map((p) => ({ ...p, spieler: p.spieler.map((s) => ({ ...s, bild: fotos.get(schluessel(s.name)) ?? null })) })),

@@ -23,7 +23,6 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import KartenHintergrund, { CUP_BILDER } from '@/app/components/KartenHintergrund';
 import { regionFarbe, regionAnzeige, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useZugang } from '@/app/lib/zugang';
-import { kleinBild } from '@/app/components/kleinBild';
 
 type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
 
@@ -79,7 +78,7 @@ function Kachel({ e, i }: { e: Eintrag; i: number }) {
       <div className="relative aspect-[16/10] overflow-hidden bg-zinc-900">
         {e.bild ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={kleinBild(encodeURI(e.bild), 828)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          <img src={encodeURI(e.bild)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         ) : (
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950 text-3xl font-black text-sky-500/40">MAP</div>
         )}
@@ -256,7 +255,7 @@ export default function Maps() {
                 className={`group relative h-24 w-44 shrink-0 overflow-hidden rounded-2xl border text-left transition duration-300 ${an ? 'border-sky-500 shadow-md ring-2 ring-sky-500/30' : 'border-zinc-800 hover:border-zinc-600'}`}>
                 {KAPITEL_BILD[k.nr] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={kleinBild(encodeURI(KAPITEL_BILD[k.nr]), 384)} alt="" loading="lazy"
+                  <img src={encodeURI(KAPITEL_BILD[k.nr])} alt="" loading="lazy"
                     className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${an ? 'scale-105' : 'grayscale brightness-[.55] group-hover:brightness-75'}`} />
                 ) : (
                   <span className={`absolute inset-0 bg-gradient-to-br transition ${an ? 'from-sky-900 to-zinc-900' : 'from-zinc-800 to-zinc-900 grayscale'}`} />
