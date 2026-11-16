@@ -112,7 +112,7 @@ export async function registerNode() {
           for (const liste of Object.values(cup.regionen ?? {})) {
             for (const w of liste) {
               if (w.status === 'live') ziele.push({ eventId: w.eventId, windowId: w.windowId, ab: jetzt - 3 * 60_000, live: true });
-              else if (w.status === 'vorbei' && (w.end ?? 0) > jetzt - 31 * 864e5 && (w.end ?? 0) + 10 * 60_000 < jetzt) {
+              else if (w.status === 'vorbei' && (w.end ?? 0) > jetzt - 2 * 864e5 && (w.end ?? 0) + 10 * 60_000 < jetzt) {
                 ziele.push({ eventId: w.eventId, windowId: w.windowId, ab: (w.end ?? 0) + 10 * 60_000, live: false });
               }
             }
@@ -125,13 +125,20 @@ export async function registerNode() {
          * nach 120 s, der Bau lief weiter) begannen nach einem Neustart neue Bauten, waehrend die alten noch liefen. Am 16.11. wuchs der Server nach jedem
          * Start binnen drei bis vier Minuten auf 5,8 GB und startete neu (gemessen ueber /api/stand) - auch ohne andere Aenderungen.
          */
+        /*
+         * Absturzschleife am 16.11.2026 (ab 08:06 UTC alle 1-4 Minuten ein Neustart, Speicher binnen einer Minute auf 4-6 GB): die vorgebauten Listen
+         * liegen im Container ohne Volume, nach jedem Neustart wurden alle beendeten Spieltage der letzten 31 Tage (rund 540) neu gebaut - und der Bau
+         * selbst trieb den Speicher bis zum Neustart. Jetzt nur die letzten zwei Tage, und nur, solange der Prozess unter 2,5 GB liegt; aeltere Listen
+         * baut die Schnittstelle beim ersten Abruf wie zuvor.
+         */
         for (const z of ziele) {
+          if (process.memoryUsage().rss > 2.5 * 1024 ** 3) break;
           await fetch(`${intern}/api/cup-leaderboard?event=${encodeURIComponent(z.eventId)}&window=${encodeURIComponent(z.windowId)}&ganz=1&vorbauen=1&ab=${Math.round(z.ab)}`,
             { cache: 'no-store', signal: AbortSignal.timeout(11 * 60_000) }).catch(() => {});
         }
       } catch { /* naechster Takt */ } finally { baut = false; }
     };
-    setTimeout(() => { void vorbauen(); }, 60_000).unref?.();
+    setTimeout(() => { void vorbauen(); }, 3 * 60_000).unref?.();
     setInterval(() => { void vorbauen(); }, 60_000).unref?.();
 
     /*
