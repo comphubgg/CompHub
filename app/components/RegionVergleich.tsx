@@ -63,7 +63,7 @@ export default function RegionVergleich({ eventId, windowId, windows }: { eventI
                     <>
                       <p className="mt-1.5 flex items-center gap-1.5 truncate text-sm font-bold text-slate-100"><TeamFlagge laender={[r.mvp.land || null]} groesse={14} /><span className="truncate">{r.mvp.name}</span></p>
                       <p className="text-[11px] tabular-nums text-sky-300">Rating {zahl(r.mvp.rating, 1)}</p>
-                      <p className="text-[11px] tabular-nums text-slate-400">{r.mvp.elims} elims · {zahl(r.mvp.damage)} dmg{r.mvp.quote != null ? ` · ${zahl(r.mvp.quote, 2)}` : ''}</p>
+                      <p className="text-[11px] tabular-nums text-slate-400">{r.mvp.elims} elims · {r.mvp.damage != null ? zahl(r.mvp.damage) : '–'} dmg{r.mvp.quote != null ? ` · ${zahl(r.mvp.quote, 2)}` : ''}</p>
                       <p className="text-[11px] tabular-nums text-slate-500">{r.mvp.headshots ?? '–'} HS · {r.mvp.hits ?? '–'} hits · {r.mvp.builds != null ? zahl(r.mvp.builds) : '–'} builds</p>
                     </>
                   ) : <p className="mt-1.5 text-xs text-slate-600"><T>Noch keine Werte je Spieler.</T></p>}

@@ -4942,6 +4942,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Für diesen Spieltag liegen noch keine Werte je Spieler vor.': 'No per-player stats for this match day yet.',
   ['Placement = max(0, (101 − Platz) / 100). „max“ ist der beste Wert unter den gewerteten Spielern dieses Spieltags. Gewertet wird, wer mindestens die Hälfte der meisten Spiele gespielt hat']:
     'Placement = max(0, (101 − place) / 100). "max" is the best value among the rated players of this match day. Rated: everyone who played at least half of the most matches played',
+  'Replay-Auswertung läuft noch': 'Replay analysis still running',
+  'gewertete Spieler ganz gelesen': 'rated players fully read',
+  'noch nicht gezeigt': 'not shown yet',
+  'Für diesen Spieltag gibt es noch keine volle Replay-Auswertung (sie steht in der Warteschlange)': 'There is no full replay analysis for this match day yet (it is queued)',
+  'nicht gezeigt': 'not shown',
+  'In diesem Format nicht erfasst': 'Not tracked in this format',
+  'Ohne Schaden je Spieler: Rating = 100 × (0.30·Elims + 0.20·Placement) / 0.50.': 'Without damage per player: rating = 100 × (0.30·Elims + 0.20·Placement) / 0.50.',
   'Spiele gelesen – Treffer, Kopftreffer, Bauteile, erlittener Schaden und Ratio nur bei Spielern, deren Spiele alle gelesen sind.': 'games read – hits, headshots, builds, damage taken and ratio only for players whose games are all read.',
   'Solange die Replays nicht ganz gelesen sind: Rating = 100 × (0.30·Elims + 0.25·Damage + 0.20·Placement) / 0.75.': 'While the replays are not fully read: rating = 100 × (0.30·elims + 0.25·damage + 0.20·placement) / 0.75.',
   'Alle gewerteten Spieler': 'All rated players',

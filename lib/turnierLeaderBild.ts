@@ -141,7 +141,7 @@ export async function turnierLeaderZeichnen(leinwand: HTMLCanvasElement, d: Lead
     ctx.restore();
 
     const werte: Array<[string, string]> = [
-      ['RATING', zahl(m.rating, 1)], ['DAMAGE DEALT', zahl(m.damage)],
+      ['RATING', zahl(m.rating, 1)], ['DAMAGE DEALT', m.damage != null ? zahl(m.damage) : '–'],
       ['DAMAGE RATIO', m.quote != null ? zahl(m.quote, 2) : '–'], ['HITS TO PLAYERS', m.hits != null ? zahl(m.hits) : '–'],
       ['HEADSHOTS', m.headshots != null ? zahl(m.headshots) : '–'], ['PLACEMENT', m.platz ? `#${m.platz}` : '–'],
     ];
