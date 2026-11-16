@@ -40,7 +40,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts
+          # lib dazu: scripts/ablage-github.mjs holt lib/releaseTags.mjs - ohne lib scheiterte das Hochladen seit d3af91cb (30.10.2026) bei jedem Lauf (ERR_MODULE_NOT_FOUND), das Archiv endete im Oktober.
+          sparse-checkout: |
+            scripts
+            lib
 
       - uses: actions/setup-node@v4
         with:
