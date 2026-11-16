@@ -45,6 +45,8 @@ type Clutch = {
   /** [zu Fuss, Luft] in Metern (lib/replayPositionen). */
   strecke?: Record<string, [number, number]>;
   teilweise?: unknown;
+  /** Anzeigenamen aus den Replays, je Konto (klein geschrieben). */
+  namen?: Record<string, string>;
 };
 
 /** Gehoert der Spieltag zu dem, was die Quelle gefuehrt haette? */
@@ -123,7 +125,8 @@ export async function eigeneSpieler(t: EigenerTag): Promise<{ players: EigeneSpi
       // Nur wenn jedes Spiel dieses Spielers gelesen ist - sonst waeren Schaden und Zeit zu niedrig.
       const voll = (clutch?.spiele?.[k] ?? 0) >= team.matches;
       players.push({
-        username: namen[id] ?? namen[k] ?? id,
+        // Ersatz aus den Replays (16.11.2026): 172 Spieler der S43-Listen standen als Hex-Kennung da, die Replays kannten jeden Namen.
+        username: namen[id] ?? namen[k] ?? clutch?.namen?.[k] ?? clutch?.namen?.[id] ?? id,
         epicId: id,
         ...(elimsStimmen ? { eliminations: solo ? (team.teamElims ?? 0) : (kills!.get(k) ?? 0) } : {}),
         matchesPlayed: team.matches,
