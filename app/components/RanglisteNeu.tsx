@@ -146,8 +146,9 @@ export default function RanglisteNeu() {
             const platz = s.rank; const farbe = MEDAILLE[Math.min(platz, 3) - 1];
             const mitte = i === 1;
             // Mit Foto: das Bild ueber die ganze Karte, darauf eine Folie (dunkel oder hell, je nach Design); Gesicht und Hals bleiben oben frei.
+            // Die Mindesthoehe gilt auch ohne Foto (Backlog C2): sonst war eine Karte ohne Bild niedriger als ihre Nachbarn auf derselben Stufe.
             return (
-              <article key={s.id || s.rank} className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm ${s.bild ? (mitte ? 'min-h-[27rem]' : 'min-h-[23rem]') : ''} ${mitte ? 'px-6 pb-7 pt-8 md:pb-9 md:pt-10' : 'px-6 pb-6 pt-7'}`}>
+              <article key={s.id || s.rank} className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm ${mitte ? 'min-h-[27rem]' : 'min-h-[23rem]'} ${mitte ? 'px-6 pb-7 pt-8 md:pb-9 md:pt-10' : 'px-6 pb-6 pt-7'}`}>
                 {s.bild && (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}

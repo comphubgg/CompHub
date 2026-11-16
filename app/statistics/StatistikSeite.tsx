@@ -825,6 +825,8 @@ const DUELL_WERTE: Array<[string, keyof Spieler, number, string]> = [
  * Die ersten Drei einer Liste mit Foto (Betreiber, 19.10.2026: "zu jeder Statistik immer die passenden Top 3, und zu jeder Region"). Der Erste steht
  * in der Mitte und etwas hoeher; die Karten tragen Foto, Medaille, Name und die Zahl der Liste. Die Fotos sitzen in dunkler Folie, der Text darauf ist
  * fest hell - das gilt in beiden Fassungen, wie bei den Spielerkarten sonst.
+ * Alle drei Kacheln im selben 3:4 (Backlog C2, 16.11.2026); vorher war die Mitte ab sm 4:5 und damit niedriger als die Seiten statt hoeher.
+ * Hoeher steht der Erste jetzt ueber einen Abstand nach unten.
  */
 function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr: number }>; wertVon: (s: Spieler) => string; aufKlick: (s: Spieler) => void }) {
   const { sprache } = useSprache();
@@ -838,7 +840,7 @@ function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr:
         const mitte = i === 1;
         return (
           <button key={sp.epicId} type="button" onClick={() => aufKlick(sp)}
-            className={`foto-dunkel group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-800 text-left shadow-[0_12px_30px_rgba(2,6,23,.25)] transition hover:-translate-y-1 ${mitte ? 'aspect-[3/4] sm:aspect-[4/5]' : 'aspect-[3/4]'}`}>
+            className={`foto-dunkel group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-800 text-left shadow-[0_12px_30px_rgba(2,6,23,.25)] transition hover:-translate-y-1 aspect-[3/4] ${mitte ? 'mb-3 sm:mb-6' : ''}`}>
             {sp.bild ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -5355,7 +5357,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           </button>
                         )}
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                         {l.plaetze.slice(0, 6).map((sp, i) => (
                           <button key={sp.epicId}
                             onClick={() => oeffne(sp, l.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
@@ -5654,24 +5656,25 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </div>
 
                 {!galerie.length ? (
-                  <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                     {[...Array(16)].map((_, i) =>
-                      <div key={i} className="aspect-[4/5] animate-pulse rounded-xl
+                      <div key={i} className="aspect-[3/4] animate-pulse rounded-xl
                                               bg-zinc-900/60" />)}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                     {zeigen.slice(0, galerieMenge).map((sp, i) => (
                       <button key={sp.epicId} onClick={() => oeffne(sp)}
                         className="group overflow-hidden rounded-xl border border-zinc-800
                                    bg-zinc-950/60 text-left transition
                                    hover:border-sky-500">
-                        <div className="relative aspect-[4/5] overflow-hidden
+                        {/* Dasselbe 3:4 wie die uebrigen Spielerkacheln, das Foto absolut darin - so bestimmt nie das Bild die Hoehe (Backlog C2). */}
+                        <div className="relative aspect-[3/4] overflow-hidden
                                         bg-zinc-900">
                           {sp.bild ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img src={sp.bild} alt="" loading="lazy"
-                              className="h-full w-full object-cover object-top
+                              className="absolute inset-0 h-full w-full object-cover object-top
                                          transition group-hover:scale-105" />
                           ) : (
                             /* Ohne Foto: kein leerer Kasten, sondern die Zahl,
@@ -5813,9 +5816,9 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                  * Ladeanzeige.
                  */
                 <div className="relative">
-                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                     {[...Array(12)].map((_, i) =>
-                      <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />)}
+                      <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-zinc-900/60" />)}
                   </div>
                   <div className="absolute inset-0 grid place-items-start justify-center
                                   bg-zinc-950/40 pt-24 backdrop-blur-[1px]">
@@ -5835,7 +5838,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                    liegen leicht durchscheinend auf dem Foto, nicht darunter.
                    Der Betreiber: "pass Bild zwei an wie Bild drei, leicht
                    transparent." */
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                   {gezeigteSpieler.map((sp) => (
                     <button key={sp.epicId} onClick={() => oeffne(sp)}
                       className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl
@@ -5870,9 +5873,9 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                              ['Elims', kurzZahl(sp.elims, sprache), false],
                              ['Schaden', kurzZahl(sp.damage, sprache), false]] as
                             Array<[string, string, boolean]>).map(([l, v, farbig]) => (
-                              <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
-                                <span className="block truncate text-[11px] font-semibold
-                                                 uppercase text-slate-400"><T>{l}</T></span>
+                              <span key={l} className="min-w-0 flex-1 px-1 py-1.5 text-center sm:px-1.5">
+                                <span className="block truncate text-[9px] font-semibold
+                                                 uppercase text-slate-400 sm:text-[11px]"><T>{l}</T></span>
                                 <span className={`mt-0.5 block truncate text-[13px] font-bold
                                                   tabular-nums ${farbig
                                   ? 'text-sky-400' : 'text-slate-100'}`}>{v}</span>

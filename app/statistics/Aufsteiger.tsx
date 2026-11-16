@@ -40,13 +40,16 @@ function Linie({ werte, breit = 132, hoch = 34 }: { werte: number[]; breit?: num
 
 function Foto({ bild, name, gross }: { bild?: string | null; name: string; gross?: boolean }) {
   const [kaputt, setKaputt] = useState(false);
-  const rahmen = gross ? 'aspect-square w-full rounded-xl' : 'h-12 w-12 shrink-0 rounded-lg';
+  /*
+   * Mit und ohne Foto genau gleich gross (Backlog C2, 16.11.2026): vorher war die grosse Kachel mit Foto ein Quadrat und ohne Foto nur 6rem hoch, die drei
+   * Karten nebeneinander standen dann ungleich. Jetzt ein festes 4:3 fuer beide - flacher als das Quadrat, also auch ohne Foto kein riesiger leerer Kasten.
+   */
+  const rahmen = gross ? 'aspect-[4/3] w-full rounded-xl' : 'h-12 w-12 shrink-0 rounded-lg';
   if (!bild || kaputt) {
-    // Ohne Foto kein riesiges leeres Quadrat.
-    return <span className={`${gross ? 'h-24 w-full rounded-xl' : rahmen} flex items-center justify-center bg-zinc-800 font-extrabold text-slate-400 ${gross ? 'text-4xl' : 'text-lg'}`}>{name.slice(0, 1).toUpperCase()}</span>;
+    return <span className={`${rahmen} flex items-center justify-center bg-zinc-800 font-extrabold text-slate-400 ${gross ? 'text-4xl' : 'text-lg'}`}>{name.slice(0, 1).toUpperCase()}</span>;
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={bild} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${rahmen} object-cover`} />;
+  return <img src={bild} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${rahmen} block object-cover object-top`} />;
 }
 
 export default function Aufsteiger({ aufSpieler }: { aufSpieler: (id: string, name: string) => void }) {
