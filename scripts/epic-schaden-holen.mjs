@@ -37,7 +37,10 @@ const liste = dateien.map((f) => f.replace(/\.json$/, ''))
   .filter((w) => !wunsch.length || wunsch.includes(w))
   .sort((a, b) => rang(a) - rang(b));
 
-let fertig = 0;
+let fertig = 0; let gleich = 0;
+const STAND = path.join(ORDNER, '_epic-stand.json');
+let standDatei = {};
+try { standDatei = JSON.parse(fs.readFileSync(STAND, 'utf8')) ?? {}; } catch { /* noch keine */ }
 // Zeitrahmen (EPIC_SCHADEN_MINUTEN, 16.11.2026): laeuft jetzt in jeder Ablage (clutch-ablegen.yml) - geprueft zwischen den Spieltagen, nie mitten im Schreiben.
 const schluss = Number(process.env.EPIC_SCHADEN_MINUTEN) ? Date.now() + Number(process.env.EPIC_SCHADEN_MINUTEN) * 60_000 : Infinity;
 for (const w of liste) {
@@ -48,7 +51,7 @@ for (const w of liste) {
   try { d = JSON.parse(fs.readFileSync(datei, 'utf8')); } catch { continue; }
   if (!d.eventId || !d.schaden) continue;
   d.windowId ??= w;
-  const stand = Date.parse(d.epicDmgStand ?? '') || 0;
+  const stand = Math.max(Date.parse(d.epicDmgStand ?? '') || 0, Date.parse(standDatei[w] ?? '') || 0);
   if (!wunsch.length) {
     if (Date.now() - (Date.parse(d.gerechnet ?? '') || 0) > FRISCH_MS) continue;
     // Am ersten Tag alle 30 Minuten: Epic traegt nach dem Cup-Ende noch nach, eine Kopie von mitten im Cup stand sonst sechs Stunden (Focus: 14.080 statt 25.406).
@@ -91,10 +94,20 @@ for (const w of liste) {
   await Promise.all(Array.from({ length: 5 }, async () => {
     while (naechste < seiten) nehmen(await seite(d, naechste++));
   }));
-  d.epicDmgStand = new Date().toISOString();
+  const vorher = JSON.stringify([d.epicDmg, d.epicZeit, d.epicStrecke, d.epicKopf, d.epicTeamZeit]);
   if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; d.epicTeamZeit = teamZeit; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
-  fs.writeFileSync(datei, JSON.stringify(d));
+  standDatei[w] = new Date().toISOString();
+  /*
+   * Unveraendert: die (oft zig MB grosse) Spieltags-Datei bleibt, wie sie ist - nur der Zeitpunkt kommt nach clutch/_epic-stand.json (16.11.2026). Vorher
+   * bekam sie jedes Mal ein neues epicDmgStand und ging ganz ans Release: die erste Ablage nach der Umstellung lud so 40 Dateien, 1,1 GB, fast ohne Aenderung.
+   */
+  if (JSON.stringify([d.epicDmg, d.epicZeit, d.epicStrecke, d.epicKopf, d.epicTeamZeit]) !== vorher) {
+    d.epicDmgStand = standDatei[w];
+    fs.writeFileSync(datei, JSON.stringify(d));
+  } else gleich += 1;
   fertig += 1;
   console.log(`${w}: ${team ? 'Team-Cup, kein Epic-Schaden' : `${Object.keys(werte).length} Spieler`}`);
 }
-console.log(`Epic-Schaden: ${fertig} Spieltage gelesen.`);
+for (const [w, t] of Object.entries(standDatei)) if (Date.now() - Date.parse(t) > 2 * FRISCH_MS) delete standDatei[w];
+try { fs.writeFileSync(STAND, JSON.stringify(standDatei)); } catch { /* ohne Ordner keine Spieltage */ }
+console.log(`Epic-Schaden: ${fertig} Spieltage gelesen, davon ${gleich} unveraendert (Datei nicht neu geschrieben).`);
