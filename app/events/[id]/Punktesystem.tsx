@@ -115,7 +115,7 @@ export default function Punktesystem({ wertung, quelle, sofortPunkte, ort }: {
           )}
           {quelle && quelle !== 'epic' && (
             <li className="text-[11px] text-slate-500">
-              {quelle === 'replay' ? <T>Aus Epics Daten, als der Spieltag lief</T> : <><T>Aus Epics Daten derselben Runde in</T> {quelle.replace(/^epic-/, '')}</>}
+              {quelle === 'replay' || quelle === 'archiv' ?<T>Aus Epics Daten, als der Spieltag lief</T> : <><T>Aus Epics Daten derselben Runde in</T> {quelle.replace(/^epic-/, '')}</>}
             </li>
           )}
         </ul>

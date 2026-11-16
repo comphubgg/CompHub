@@ -4,6 +4,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { EpicLoginNoetig, gecacht, REGIONEN } from '@/lib/epicCups';
 import { liesClutch } from '@/lib/clutchLive';
+import { liesJson } from '@/lib/ablage';
 import {
   holeKatalog, wertungVon, type EpicKatalog,
 } from '@/lib/cupWertung';
@@ -146,6 +147,13 @@ async function wertungMitRueckfall(epic: EpicKatalog, windowId: string, eventId:
   const direkt = wertungVon(epic, windowId, eventId);
   if (direkt.length) return { wertung: direkt, wertungQuelle: 'epic' };
   return gecacht(`wertung-rueck|${windowId}`, 30 * 60_000, async () => {
+    // Abgelegt, solange Epic den Spieltag noch fuehrte (scripts/wertung-aus-katalog.mjs): je Regelsatz einmal, je Fenster nur sein Schluessel.
+    try {
+      const abgelegt = await liesJson<{ saetze?: Record<string, Regel[]>; fenster?: Record<string, string> } | null>('wertung-tabellen.json', null);
+      const satz = abgelegt?.fenster?.[windowId];
+      const r = satz ? abgelegt?.saetze?.[satz] ?? [] : [];
+      if (r.length) return { wertung: r, wertungQuelle: 'archiv' };
+    } catch { /* naechste Quelle */ }
     try {
       const c = await liesClutch<{ regeln?: Regel[] }>(windowId);
       const r = (c?.regeln ?? []).filter((x) => x && typeof x.punkte === 'number' && x.punkte > 0);
@@ -173,6 +181,23 @@ async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const window_ = searchParams.get('window');
   const region = (searchParams.get('region') ?? 'EU').toUpperCase();
+  // Alle Punktetabellen der Region auf einmal - fuer scripts/wertung-aus-katalog.mjs, das sie ablegt, bevor Epic den Cup fallen laesst.
+  if (searchParams.get('wertungen') === '1') {
+    try {
+      const k = await holeKatalog(region);
+      const fenster: Record<string, Regel[]> = {};
+      for (const e of (k.events ?? []) as Array<{ eventId?: string; eventWindows?: Array<{ eventWindowId?: string }> }>) {
+        for (const w of e.eventWindows ?? []) {
+          if (!w.eventWindowId || !e.eventId) continue;
+          const r = wertungVon(k, w.eventWindowId, e.eventId);
+          if (r.length) fenster[w.eventWindowId] = r;
+        }
+      }
+      return NextResponse.json({ region, fenster });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
+  }
   if (!window_) {
     return NextResponse.json({ error: 'window ist noetig' }, { status: 400 });
   }
