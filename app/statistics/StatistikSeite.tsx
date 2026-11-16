@@ -331,10 +331,7 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
   ['aufsteiger', 'Aufsteiger'],
-  // Konstanz je Region und Cup-Serie (Konstanz.tsx, Betreiber 15.11.2026).
-  ['konstanz', 'Konstanz'],
-  // Wer neu oben ankommt (Prospects.tsx, Betreiber 15.11.2026).
-  ['prospects', 'Prospects'],
+  // Konstanz und Prospects wieder aus der Leiste (Betreiber, 16.11.2026: "Loescht die zwei wieder"); Code und Admin-Seite bleiben.
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
   ['orgs', 'Orgs'],
