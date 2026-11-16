@@ -1,0 +1,175 @@
+{
+ "hinweis": "Redaktionelle Seed-Liste der Prospects (16.11.2026). Ein Alter kennen wir aus den Daten nicht - wer hier steht, gilt nach Wissen der Redaktion als junges Talent und zaehlt in der Rechnung als ganz neu (app/api/prospects). kern = vom Betreiber ausdruecklich genannt (muss unter die ersten 100). Im Admin (/admin/prospects) laesst sich die Liste ueberschreiben; sie steht dann in prospects.json unter seed.",
+ "seed": [
+  {
+   "epicId": "68e6282a05354cf7bd7cc1ceabd4be76",
+   "name": "Rax",
+   "kern": true
+  },
+  {
+   "epicId": "809efea617a343ed92290aa531282d1f",
+   "name": "Zucki",
+   "kern": true
+  },
+  {
+   "epicId": "ea26f6b365584c9681047d426789ac2c",
+   "name": "Vampi",
+   "kern": true
+  },
+  {
+   "epicId": "63dff70bb7b94eaaace9d12f6c2189c2",
+   "name": "Twek",
+   "kern": true
+  },
+  {
+   "epicId": "214f86e4a974447caa009f16be30222f",
+   "name": "Pardal",
+   "kern": true
+  },
+  {
+   "epicId": "3ba5fdadd0c645bbb8c33f65fa44ebea",
+   "name": "Lucx",
+   "kern": true
+  },
+  {
+   "epicId": "6a7e6e0e72ee477b9e08f4919e17414a",
+   "name": "Wagers",
+   "kern": true
+  },
+  {
+   "epicId": "fc14f89181654fb59a52228f72d666b7",
+   "name": "Xavier",
+   "kern": true
+  },
+  {
+   "epicId": "71e56980dcb7416c95cccb643b73c57f",
+   "name": "frxstyy",
+   "kern": true
+  },
+  {
+   "epicId": "5a020a9fcf1d4dada99f0f62c1877c68",
+   "name": "Hcube",
+   "kern": true
+  },
+  {
+   "epicId": "37c63121cb43486480ff49d19f843a7e",
+   "name": "qerz",
+   "kern": true
+  },
+  {
+   "epicId": "4ff0b25ec7c24ec1a85fd5a2c490a7cc",
+   "name": "Trusio",
+   "kern": true
+  },
+  {
+   "epicId": "0558720200b9408b9e2a9242f02d7812",
+   "name": "Slepzi",
+   "kern": true
+  },
+  {
+   "epicId": "2512ed089c99409fb69d2cc3de7c35c6",
+   "name": "Chikaraa",
+   "kern": true
+  },
+  {
+   "epicId": "58f95defeaaa4a448d7b291c66c95f43",
+   "name": "Ghost"
+  },
+  {
+   "epicId": "d406afd987c648469c6257a3dd71bf4b",
+   "name": "Minori"
+  },
+  {
+   "epicId": "15575f3b849e4e2ead20b6a33b7a4096",
+   "name": "Liam"
+  },
+  {
+   "epicId": "a4712ed231fb484eaec4ea868e687f7c",
+   "name": "Heror3h"
+  },
+  {
+   "epicId": "96558524507e4c5cade85cf8ea512b2c",
+   "name": "Trooly"
+  },
+  {
+   "epicId": "b4c4a81bccdb4417a505b7e2982ccab1",
+   "name": "AzatGo"
+  },
+  {
+   "epicId": "0838d6e83601412891f1b128861a1373",
+   "name": "Calle"
+  },
+  {
+   "epicId": "e2c3ed22bd2f43e1bec95ce3af167505",
+   "name": "NovaYT"
+  },
+  {
+   "epicId": "d88247ec77604374bce55def28047c57",
+   "name": "Janereis"
+  },
+  {
+   "epicId": "85fd7cdef49d401eb736b0e8b1c1d4ae",
+   "name": "Eyni"
+  },
+  {
+   "epicId": "bcc2fdbe66f941dd8b6d86db7635b254",
+   "name": "Szarik"
+  },
+  {
+   "epicId": "f74e818833cf4728a536d87da7af9189",
+   "name": "Foczka"
+  },
+  {
+   "epicId": "0c61540b03cd419f9d0b9e5c01351957",
+   "name": "Wifi"
+  },
+  {
+   "epicId": "4a119f7e240649b98a05f8feb5ea2cb9",
+   "name": "Borsuk"
+  },
+  {
+   "epicId": "3d22c67c220441ceb588a85b894faa32",
+   "name": "Matez"
+  },
+  {
+   "epicId": "8519283a38684afa8161039ae1df43cd",
+   "name": "Joshbot"
+  },
+  {
+   "epicId": "bc543b6823d6438cbb0c4ad120008446",
+   "name": "Yummy"
+  },
+  {
+   "epicId": "b4c45b5fc7b44e069dfdeec99f9c8121",
+   "name": "Rigby"
+  },
+  {
+   "epicId": "302466857103462f9a155b44c311828a",
+   "name": "zLeoSZN"
+  },
+  {
+   "epicId": "35b9cbe9e6e64a4bae241e11b2280175",
+   "name": "Aoxy"
+  },
+  {
+   "epicId": "c9c72e541ddf4d8cb32fed49525be969",
+   "name": "Snevy"
+  },
+  {
+   "epicId": "6778478ddf8e46ab84d2be89ddf22b8e",
+   "name": "Geno"
+  },
+  {
+   "epicId": "2650c586712347a0a4d240102d5181b3",
+   "name": "Timko"
+  },
+  {
+   "epicId": "6a71814206b54de0b0694c2c166bcaec",
+   "name": "Silxzys"
+  },
+  {
+   "epicId": "0ce513b1d393474a97ccb940361d484c",
+   "name": "Raygun"
+  }
+ ]
+}

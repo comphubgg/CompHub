@@ -440,8 +440,8 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
     "No games analysed yet. The hourly run works through the replays of the finals and LANs from the last 31 days.",
   "Weiße Ringe: die Zonen des Games, je später desto kräftiger. ✖ Elim, ● Knock - in der Farbe des Teams, das ihn geholt hat (Top 8 farbig). Zeigen mit der Maus nennt Zeit, Täter, Opfer und Abstand.":
     "White rings: the zones of the game, stronger the later they are. ✖ elim, ● knock - in the colour of the team that got it (top 8 in colour). Hovering shows time, attacker, victim and distance.",
-  // Prospects (15.11.2026)
-  "Die Liste rechnet sich alle sechs Stunden selbst. Hier nimmst du Spieler auf oder heraus, setzt Sterne und legst Plätze fest – ein fester Platz geht der Rechnung vor.": "The list recalculates itself every six hours. Here you add or remove players, set stars and pin positions – a pinned position takes precedence over the calculation.",
+  // Prospects (15.11.2026, neu 16.11.2026)
+  "Die Fakten rechnen sich alle sechs Stunden neu (Power Ranking, Durchbruch, Trend, Grand Finals). Hier nimmst du Spieler auf oder heraus, setzt Sterne und legst Plätze fest – ein fester Platz geht der Rechnung vor. Aufgenommene zählen wie die Seed-Liste der Redaktion.": "The facts are recalculated every six hours (Power Ranking, breakthrough, trend, Grand Finals). Here you add or remove players, set stars and pin positions – a pinned position takes precedence over the calculation. Added players count like the editorial seed list.",
   "Spieler aufnehmen": "Add a player",
   "Name oder Epic-Konto-Id": "Name or Epic account ID",
   "Aufnehmen": "Add",
@@ -459,4 +459,14 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
   "Spieler aufnehmen, entfernen, Sterne und Plätze": "Add or remove players, stars and positions",
   "Dafür fehlt dir das Recht.": "You do not have permission for that.",
   "Keine gültige Epic-Konto-Id.": "Not a valid Epic account ID.",
+  "Seed-Liste der Redaktion": "Editorial seed list",
+  "redaktionell": "editorial",
+  "Ein Alter steht in keiner Bestenliste. Wer hier steht, gilt nach Wissen der Redaktion als junges Talent: er ist immer Kandidat und zählt als ganz frischer Durchbruch. Mit Stern: vom Betreiber ausdrücklich genannt.": "No leaderboard shows anyone's age. Everyone listed here is, to our editors' knowledge, a young talent: always a candidate and counted as a brand-new breakthrough. With a star: named explicitly by the operator.",
+  "Quelle: prospects.json (seed).": "Source: prospects.json (seed).",
+  "Quelle: mitgelieferte Liste (lib/prospectsSeed.json).": "Source: bundled list (lib/prospectsSeed.json).",
+  "ohne Daten": "no data",
+  "Ohne aktuelle Daten": "Without current data",
+  "Nicht unter den ersten 10.000 im Power Ranking oder zu wenige Spieltage im letzten halben Jahr – erscheinen erst, wenn wieder Daten da sind.": "Not in the top 10,000 of the Power Ranking or too few events in the last six months – they appear once there is data again.",
+  "Seed-Liste": "seed list",
+  "Seed · Redaktion": "Seed · editorial",
 };
