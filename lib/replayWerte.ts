@@ -6,6 +6,7 @@ import { DATEN_ORT } from './datenOrt';
 import { liesJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { replayTag } from '@/lib/replaySchlank';
+import { istGrossesTurnier } from '@/lib/turnierArt';
 
 /*
  * Die Einzelwerte aus den eigenen Replay-Auswertungen.
@@ -97,7 +98,7 @@ async function fensterKarte(
 
 /* ------------------------------------------ Alle Spieltage einer Saison */
 
-/** Ein ausgewerteter Spieltag mit allen Konten - fuer die Saisonlisten. */
+/** Ein ausgewerteter Spieltag mit allen Konten - fuer die Saisonlisten. Seit dem 16.11.2026 nur grosse Turniere (istGrossesTurnier), siehe aggregatAuszug. */
 export interface AggregatTag {
   season: string; windowId: string; eventId: string; region: string;
   titel: string; datum: number | null;
@@ -181,6 +182,63 @@ async function aggregatStand(season: string): Promise<number | undefined> {
   } catch { return undefined; }
 }
 
+/*
+ * Der Auszug eines Aggregats fuer die Saison-Sammlung, je Fenster gemerkt (16.11.2026).
+ *
+ * Gemessen (Messlauf 43883158872): auf dem Laufrechner liegen unter replays/S42 1036 Fenster, 11 GB. Die Sammlung las sie alle
+ * (586 s fuer die Startansicht von S42) und war danach zu gross, um abgelegt zu werden - also wieder, in jedem Lauf. Gebraucht
+ * werden davon nur die grossen Turniere (lib/szeneStats startseite filtert als Erstes mit istGrossesTurnier - der einzige Leser
+ * der Sammlung); die uebrigen Fenster stehen nicht mehr darin. Der Auszug je Fenster liegt klein unter
+ * data/_vorrechnen-stand/aggregat/ (Unterstrich: nicht ans Release, nicht nach Supabase; der Zwischenspeicher nimmt ihn mit) und
+ * gilt, solange Groesse und Zeit des Aggregats gleich sind. Neu gelesen wird nur, was sich geaendert hat; bricht ein Lauf ab,
+ * macht der naechste dort weiter.
+ */
+interface AggregatAuszug {
+  quelle: string;
+  eventId: string; region: string; titel: string; von: number | null; matches: number;
+  /** [Konto, Matches, Kills ohne Selbst-Eliminierungen, Knocks] */
+  spieler: Array<[string, number, number, number]>;
+}
+
+async function aggregatAuszug(season: string, w: string): Promise<AggregatAuszug | null> {
+  const datei = path.join(ABLAGE, season, w, '_aggregat.json');
+  let quelle: string;
+  try { const st = await fs.stat(datei); quelle = `${st.size}@${Math.round(st.mtimeMs)}`; } catch { return null; }
+  const merk = path.join(DATEN_ORT, '_vorrechnen-stand', 'aggregat', season.replace(/[^A-Za-z0-9_-]/g, '_'),
+    `${w.replace(/[^A-Za-z0-9_.-]/g, '_')}.json`);
+  try {
+    const da = JSON.parse(await echtesFs.readFile(merk, 'utf8')) as { quelle?: string; auszug?: AggregatAuszug | null };
+    if (da.quelle === quelle) return da.auszug ?? null;
+  } catch { /* noch keiner */ }
+  let auszug: AggregatAuszug | null = null;
+  try {
+    const roh = JSON.parse(await fs.readFile(datei, 'utf8')) as Aggregat & {
+      eventId?: string; region?: string; titel?: string; von?: number;
+    };
+    if (Array.isArray(roh.spieler) && roh.spieler.length && istGrossesTurnier(roh.titel ?? w)) {
+      auszug = {
+        quelle, eventId: roh.eventId ?? '', region: roh.region ?? '', titel: roh.titel ?? w,
+        von: typeof roh.von === 'number' ? roh.von : null, matches: roh.matches ?? 0,
+        // Aeltere Aggregate zaehlten Selbst-Eliminierungen (Sturm, Sturz) als Kill; sie stehen in den Opfern des Spielers selbst und werden abgezogen (28.10.2026).
+        spieler: roh.spieler.filter((k) => k.epicId).map((k): [string, number, number, number] => {
+          const selbst = Number((k as { opfer?: Record<string, number> }).opfer?.[k.epicId] ?? 0);
+          return [k.epicId, k.matches ?? 0, Math.max(0, (k.kills ?? 0) - selbst), k.knocks ?? 0];
+        }),
+      };
+    }
+  } catch {
+    // Unlesbar (gerade im Schreiben?) - nicht merken, beim naechsten Mal noch einmal (AGENTS.md: ein Fehlschlag ist kein Beweis).
+    return null;
+  }
+  try {
+    await echtesFs.mkdir(path.dirname(merk), { recursive: true });
+    const zwischen = `${merk}.${process.pid}.neu`;
+    await echtesFs.writeFile(zwischen, JSON.stringify({ quelle, auszug }));
+    await echtesFs.rename(zwischen, merk);
+  } catch { /* nur ein Merkzettel */ }
+  return auszug;
+}
+
 async function aggregateLesen(season: string): Promise<AggregatTag[]> {
   // Nie auf dem Host der Seite: alle Auswertungen einer Saison sind dort zu
   // viel (bis zu 54 MB je Spieltag, siehe lib/replaySchlank). Dort gilt die
@@ -220,31 +278,20 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
   const GLEICHZEITIG = 4;
   for (let i = 0; i < fenster.length; i += GLEICHZEITIG) {
     const gruppe = fenster.slice(i, i + GLEICHZEITIG);
-    const ergebnisse = await Promise.all(gruppe.map(async (w) => {
-      try {
-        const roh = JSON.parse(await fs.readFile(
-          path.join(ABLAGE, season, w, '_aggregat.json'), 'utf8')) as Aggregat & {
-            eventId?: string; region?: string; titel?: string; von?: number;
-          };
-        if (!Array.isArray(roh.spieler) || !roh.spieler.length) return null;
-        /*
-         * Die Gesamtzahl aus der Uebersicht kann kleiner sein als die ausgewerteten Matches (PE Cup EU 08.10.: 230 ausgewertet,
-         * Gesamtzahl 64) - dann zaehlt sie etwas anderes und ist hier falsch. Lieber keine Gesamtzahl als "230/64".
-         */
-        const gesamtRoh = gesamtJe.get(w) ?? null;
-        const gesamt = gesamtRoh !== null && gesamtRoh >= (roh.matches ?? 0) ? gesamtRoh : null;
-        return {
-          season, windowId: w,
-          eventId: roh.eventId ?? '', region: roh.region ?? '',
-          titel: roh.titel ?? w, datum: typeof roh.von === 'number' ? roh.von : null,
-          ausgewertet: roh.matches ?? 0, gesamt,
-          // Aeltere Aggregate zaehlten Selbst-Eliminierungen (Sturm, Sturz) als Kill; sie stehen in den Opfern des Spielers selbst und werden abgezogen (28.10.2026).
-          spieler: roh.spieler.filter((k) => k.epicId).map((k): AggregatKonto => {
-            const selbst = Number((k as { opfer?: Record<string, number> }).opfer?.[k.epicId] ?? 0);
-            return { epicId: k.epicId, matches: k.matches ?? 0, kills: Math.max(0, (k.kills ?? 0) - selbst), knocks: k.knocks ?? 0 };
-          }),
-        } as AggregatTag;
-      } catch { return null; }
+    const ergebnisse = await Promise.all(gruppe.map(async (w): Promise<AggregatTag | null> => {
+      const a = await aggregatAuszug(season, w);
+      if (!a) return null;
+      /*
+       * Die Gesamtzahl aus der Uebersicht kann kleiner sein als die ausgewerteten Matches (PE Cup EU 08.10.: 230 ausgewertet,
+       * Gesamtzahl 64) - dann zaehlt sie etwas anderes und ist hier falsch. Lieber keine Gesamtzahl als "230/64".
+       */
+      const gesamtRoh = gesamtJe.get(w) ?? null;
+      const gesamt = gesamtRoh !== null && gesamtRoh >= a.matches ? gesamtRoh : null;
+      return {
+        season, windowId: w, eventId: a.eventId, region: a.region, titel: a.titel, datum: a.von,
+        ausgewertet: a.matches, gesamt,
+        spieler: a.spieler.map(([epicId, matches, kills, knocks]) => ({ epicId, matches, kills, knocks })),
+      };
     }));
     for (const t of ergebnisse) if (t) tage.push(t);
   }
