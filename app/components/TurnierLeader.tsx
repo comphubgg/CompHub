@@ -208,7 +208,7 @@ function Laender({ laender, ganz, ort }: { laender: NonNullable<LeaderAntwort['l
   const klick = (s: LandSpalte) => setSortierung((v) => (v.spalte === s ? { spalte: s, ab: !v.ab } : { spalte: s, ab: s !== 'platz' && s !== 'land' }));
   const spalten: Array<{ s: LandSpalte; titel: string; klasse?: string }> = [
     { s: 'land', titel: 'Country' }, { s: 'spieler', titel: 'Players' }, { s: 'platz', titel: 'Avg Place' }, { s: 'elims', titel: 'Elims' },
-    { s: 'damage', titel: 'Damage' }, { s: 'bester', titel: 'Best Player' }, { s: 'rating', titel: 'Avg Rating', klasse: 'hidden md:table-cell' },
+    { s: 'damage', titel: 'Damage' }, { s: 'bester', titel: 'Best Player', klasse: 'hidden sm:table-cell' }, { s: 'rating', titel: 'Avg Rating', klasse: 'hidden md:table-cell' },
     { s: 'hits', titel: 'Hits', klasse: 'hidden lg:table-cell' }, { s: 'builds', titel: 'Builds', klasse: 'hidden lg:table-cell' }, { s: 'reboots', titel: 'Reboots', klasse: 'hidden lg:table-cell' },
   ];
   const zelle = 'px-1.5 py-1.5 sm:px-2';
@@ -224,7 +224,8 @@ function Laender({ laender, ganz, ort }: { laender: NonNullable<LeaderAntwort['l
             <TeamFlagge laender={[l.land]} groesse={28} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-100">{landName(l.land, ort)}</p>
-              <p className="truncate text-[11px] text-slate-400">{l.spieler} <T>Spieler</T>{l.platz != null ? ` · Ø #${zahl(l.platz, 1)}` : ''}</p>
+              <p className="truncate text-[11px] text-slate-400">{l.spieler} <T>Spieler</T></p>
+              {l.platz != null && <p className="truncate text-[11px] text-slate-500">Avg Place #{zahl(l.platz, 1)}</p>}
             </div>
           </div>
         ))}
@@ -253,12 +254,14 @@ function Laender({ laender, ganz, ort }: { laender: NonNullable<LeaderAntwort['l
                     <span className="truncate sm:hidden">{l.land || '?'}</span>
                     <span className="hidden truncate sm:inline">{l.land ? landName(l.land, ort) : 'Unknown'}</span>
                   </span>
+                  {/* Telefon: der Beste unter dem Land statt in einer eigenen Spalte - so passt die Zeile ohne Querscrollen. */}
+                  {l.bester && <span className="mt-0.5 block max-w-[8.5rem] truncate text-[10px] text-slate-400 sm:hidden">{l.bester.name} <span className="text-sky-300">{zahl(l.bester.rating, 1)}</span></span>}
                 </td>
                 <td className={zelle}>{zahl(l.spieler)}</td>
                 <td className={zelle}>{l.platz != null ? `#${zahl(l.platz, 1)}` : '–'}</td>
                 <td className={zelle}>{zahl(l.elims)}</td>
                 <td className={zelle}>{zahl(l.damage)}</td>
-                <td className={`${zelle} max-w-[7.5rem] sm:max-w-none`}>
+                <td className={`${zelle} hidden sm:table-cell`}>
                   {l.bester ? <span className="block truncate text-slate-200">{l.bester.name} <span className="text-sky-300">{zahl(l.bester.rating, 1)}</span></span> : '–'}
                 </td>
                 <td className={`${zelle} hidden font-semibold text-sky-300 md:table-cell`}>{zahl(l.rating, 1)}</td>
@@ -405,7 +408,7 @@ export function CupMvpLaender({ eventId, windowId, windows }: { eventId: string;
         )}
         {daten.mvp && (
           <p className="px-1 text-[10px] leading-relaxed text-slate-500">
-            <T>Rating (0–100): gewichtete Summe – Elims, Damage, Ratio und Hits je geteilt durch den besten Wert des Spieltags, Placement = (101 − Platz) / 100</T> – {teile.join(' + ')}{teile.length < 5 && <> (<T>auf 100 hochgerechnet, weil die übrigen Werte nicht für alle vorliegen</T>)</>}.
+            <T>Rating (0–100): gewichtete Summe – Elims, Damage, Ratio und Hits je geteilt durch den besten Wert des Spieltags, Placement = (101 − Platz) / 100</T>. <T>Gewichte hier</T>: {teile.join(' + ')}{teile.length < 5 && <> (<T>auf 100 hochgerechnet, weil die übrigen Werte nicht für alle vorliegen</T>)</>}.
           </p>
         )}
       </div>

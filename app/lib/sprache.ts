@@ -5018,6 +5018,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die gewerteten Spitzenspieler': 'The rated top players',
   'Land aus unseren Profilen': 'country from our profiles',
   'Alle Spieler des Spieltags': 'All players of this match day',
+  'Gewichte hier': 'Weights here',
   'Avg Place: mittlerer Endplatz (des Teams). Best Player: höchstes CompHub Rating. „–“: nicht für jeden Spieler des Landes vorhanden – keine halben Summen.':
     'Avg Place: average final placement (of the team). Best Player: highest CompHub Rating. "–": not available for every player of that country – no partial totals.',
   'Noch nicht gezeigt: die Replay-Auswertung läuft noch, und ein Spieler mit fehlenden Werten könnte noch vorn liegen.':
