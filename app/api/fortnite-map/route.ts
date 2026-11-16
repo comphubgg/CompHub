@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import { brRahmen } from '@/lib/zonenKarte';
 
 // Aktuelles Fortnite-Kartenbild samt Ortsnamen - von fortnite-api.com,
 // kostenlos und ohne Schluessel. Dadurch muss kein PNG mehr von Hand
@@ -104,17 +105,18 @@ export async function GET(request: Request) {
       return new NextResponse(img.body, { headers: kopf });
     }
 
-    // Epics Weltkoordinaten laufen von etwa -135000 bis +135000. Fuer die
-    // Karte rechnen wir sie in Prozent um, damit sie zu jeder Bildgroesse passen.
-    // Y waechst dabei in dieselbe Richtung wie die Bildhoehe - gegen die Karte
-    // geprueft: Lifty Lodge liegt oben links, Heatwave Harbor unten links.
-    const SPANNE = 135_000;
+    // Jeder Ort in Epics Weltkoordinaten (x, y) und in Prozent des Kartenbilds (links, oben). Y waechst in dieselbe Richtung wie die
+    // Bildhoehe - gegen die Karte geprueft: Lifty Lodge liegt oben links, Heatwave Harbor unten links. Den Ausschnitt des Bilds nicht mehr
+    // als -135.000..+135.000 annehmen: gemessen ist er in lib/zonenKarte (brRahmen; mit der alten Spanne lagen die Punkte neben den Namen).
+    const rahmen = brRahmen(null);
     const orte = karte.daten.pois
       .map((p) => ({
         id: p.id,
         name: p.name,
-        links: ((p.location.x + SPANNE) / (2 * SPANNE)) * 100,
-        oben: ((p.location.y + SPANNE) / (2 * SPANNE)) * 100,
+        x: p.location.x,
+        y: p.location.y,
+        links: ((p.location.x - rahmen.x0) / rahmen.spanne) * 100,
+        oben: ((p.location.y - rahmen.y0) / rahmen.spanne) * 100,
       }))
       // Epic listet manche Orte doppelt (etwa zwei "Carwash").
       .filter((o, i, alle) => alle.findIndex((x) => x.name === o.name) === i)
