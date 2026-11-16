@@ -4,6 +4,7 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayIndex, nachSpieltag, cupKurz, meineCups } from '@/lib/replayVoll';
 import { holeSeite } from '@/lib/epicCups';
 import { profilKarte } from '@/lib/ergebnisPosts';
+import { zonenGruppe } from '@/lib/zonenTeile';
 
 /*
  * Die voll ausgelesenen Replays (scripts/replay-voll-holen.mjs) fuer die Seiten /replays und /admin/replay.
@@ -23,7 +24,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /** Die Zonen je ausgewertetem Match - ein Match aendert sich nie mehr, also bleibt es im Speicher und wird nur einmal gelesen. */
-const ZONEN = new Map<string, unknown[]>();
+const ZONEN = new Map<string, { zonen: unknown[]; playlist?: string }>();
 const GLEICHZEITIG = 6;
 
 export async function GET(request: Request) {
@@ -88,6 +89,8 @@ export async function GET(request: Request) {
       const t = liste.find((x) => x.windowId === zonenFenster);
       if (!t) return NextResponse.json({ error: 'Zu diesem Spieltag gibt es keine ausgewerteten Replays.' }, { status: 404 });
       const zonen: Record<string, unknown[]> = {};
+      // Die Playlist je Game: daraus die Insel (Reload oder die grosse Karte) - lib/zonenKarte.
+      const playlists: Record<string, string> = {};
       const offen = t.matches.filter((m) => alle[m.id]);
       for (let i = 0; i < offen.length; i += GLEICHZEITIG) {
         await Promise.all(offen.slice(i, i + GLEICHZEITIG).map(async (m) => {
@@ -95,14 +98,16 @@ export async function GET(request: Request) {
           // als Schluessel zeigte die Seite bis zum naechsten Neustart weiter die zwei Zonen der halben Fassung.
           const schluessel = `${m.id}|${alle[m.id].ende ?? ''}|${alle[m.id].laenge ?? ''}`;
           if (!ZONEN.has(schluessel)) {
-            const d = await liesJson<{ zonen?: unknown[] } | null>(alle[m.id].datei, null).catch(() => null);
+            const d = await liesJson<{ zonen?: unknown[]; playlist?: string } | null>(alle[m.id].datei, null).catch(() => null);
             if (!d) return;   // gerade nicht lesbar: nicht merken, beim naechsten Mal noch einmal
-            ZONEN.set(schluessel, Array.isArray(d.zonen) ? d.zonen : []);
+            ZONEN.set(schluessel, { zonen: Array.isArray(d.zonen) ? d.zonen : [], playlist: typeof d.playlist === 'string' ? d.playlist : undefined });
           }
-          zonen[m.id] = ZONEN.get(schluessel) ?? [];
+          const g = ZONEN.get(schluessel);
+          zonen[m.id] = g?.zonen ?? [];
+          if (g?.playlist) playlists[m.id] = g.playlist;
         }));
       }
-      return zwischenspeichern(NextResponse.json({ windowId: zonenFenster, zonen }, { headers: { 'Cache-Control': 'no-store' } }), 60);
+      return zwischenspeichern(NextResponse.json({ windowId: zonenFenster, zonen, playlist: Object.values(playlists)[0] ?? null, playlists }, { headers: { 'Cache-Control': 'no-store' } }), 60);
     }
 
     const tag = p.get('tag');
@@ -114,7 +119,8 @@ export async function GET(request: Request) {
         .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')));
       const geschwister = tage.map((x) => ({ windowId: x.windowId, matches: x.matches.length }));
       // Die Tage mit ihren Games (Kennung, Nummer, Beginn) - fuer die Zonen-Uebersicht des Cups.
-      const zonenTage = tage.map((x) => ({ windowId: x.windowId, titel: x.titel, matches: x.matches.map((m) => ({ id: m.id, nr: m.nr, beginn: m.beginn })) }));
+      // Nur die Teile derselben Stufe (Heat 1 + Heat 2, Day 1 + Day 2 einer Runde) - getrennte Cups mit gleicher eventId nicht (lib/zonenTeile).
+      const zonenTage = zonenGruppe(tage, t).map((x) => ({ windowId: x.windowId, titel: x.titel, matches: x.matches.map((m) => ({ id: m.id, nr: m.nr, beginn: m.beginn })) }));
       return zwischenspeichern(NextResponse.json({ tag: t, geschwister, zonenTage }, { headers: { 'Cache-Control': 'no-store' } }), 120);
     }
 

@@ -24,6 +24,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
 import { inselAusschnitt, GANZES_BILD } from '@/lib/inselAusschnitt';
 import ZonenBild from './ZonenBild';
+import { zonenGruppe } from '@/lib/zonenTeile';
 
 interface MatchKurz {
   id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number;
@@ -144,11 +145,9 @@ export default function ReplaySeite() {
     });
   }, [tage, nurWichtige, cupSuche]);
   const tag = tage?.find((x) => x.windowId === tagWahl) ?? null;
-  // Alle Tage desselben Turniers, der Reihe nach - fuer das Zonen-Bild.
-  const turnierTage = useMemo(() => (tag && tage
-    ? tage.filter((x) => (tag.eventId ? x.eventId === tag.eventId : x.windowId === tag.windowId))
-      .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')))
-    : []), [tag, tage]);
+  // Die Teile derselben Stufe, der Reihe nach - fuer das Zonen-Bild (Heat 1 + Heat 2, Day 1 + Day 2 einer Runde; getrennte Cups mit
+  // gleicher eventId wie Performance Evaluation Event1Round2/Event2Round2 nicht - lib/zonenTeile).
+  const turnierTage = useMemo(() => (tag && tage ? zonenGruppe(tage, tag) : []), [tag, tage]);
 
   // Fuer die Zonen-Uebersicht eines Tages alle seine Games laden.
   useEffect(() => {
