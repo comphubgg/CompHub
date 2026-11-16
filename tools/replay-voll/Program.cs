@@ -2344,6 +2344,16 @@ class Erkunder : ReplayReader {
     foreach (var kv in Akteure.OrderByDescending(x => x.Value).Take(150)) Console.WriteLine($"A {kv.Value} {kv.Key}");
     Console.WriteLine($"== KLASSEN IM STROM ({Klassen.Count})");
     foreach (var k in Klassen.OrderBy(x => x.Key)) Console.WriteLine($"K {k.Key} [{k.Value.Count}] {string.Join(",", k.Value.Take(70))}");
+    // Die Spielerzustaende vollstaendig (16.11.2026, Frage des Betreibers: "in Fortnite hat jeder eine Flagge" - steht ein Land/eine Flagge je Spieler im Replay?).
+    foreach (var k in Klassen.Where(x => x.Key.Contains("PlayerState", StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.Key))
+      Console.WriteLine($"KS {k.Key} [{k.Value.Count}] {string.Join(",", k.Value)}");
+    var landMuster = new System.Text.RegularExpressions.Regex("country|flag|nation|locale|region|banner|homebase|language", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    Console.WriteLine("== LAND/FLAGGE-TREFFER (Klasse oder Feld)");
+    foreach (var k in Klassen) {
+      if (landMuster.IsMatch(k.Key)) Console.WriteLine($"LT KLASSE {k.Key}");
+      foreach (var f in k.Value.Where(f => landMuster.IsMatch(f))) Console.WriteLine($"LT FELD {k.Key} . {f}");
+    }
+    foreach (var kv in Pfade.Where(kv => landMuster.IsMatch(kv.Key)).OrderByDescending(x => x.Value).Take(80)) Console.WriteLine($"LT PFAD {kv.Value} {kv.Key}");
     Console.WriteLine($"== OBJEKTPFADE ({Pfade.Count})");
     foreach (var kv in Pfade.OrderByDescending(x => x.Value).Take(500)) Console.WriteLine($"P {kv.Value} {kv.Key}");
     Console.WriteLine("== GRUPPEN (Anzahl)");

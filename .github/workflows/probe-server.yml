@@ -4,6 +4,9 @@
 #           (512 MB, 0,1 CPU) starten und die wichtigsten Adressen messen.
 #   replay: ein Globals-Replay im vollen Lesemodus auslesen - liefert der
 #           Leser Positionen, Zonen und Reboots?
+#   flagge: steht im Server-Replay je Spieler ein Land oder eine Flagge?
+#           (16.11.2026) Alle Felder der Spielerzustaende und jeder Treffer
+#           auf country/flag/nation/locale/region/banner, aus einem Match.
 
 name: Proben
 
@@ -11,9 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       was:
-        description: 'seite oder replay'
+        description: 'seite, replay oder flagge'
         required: true
         default: 'seite'
+      match:
+        description: 'nur bei flagge: Match-Id'
+        required: false
+        default: ''
 
 jobs:
   seite:
@@ -101,5 +108,47 @@ jobs:
           path: |
             probe.json
             probe-felder.json
+      - if: always()
+        run: rm -f .env.local
+
+  flagge:
+    if: inputs.was == 'flagge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: npm ci --no-audit --no-fund
+      - name: Umgebung
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Replay holen
+        env:
+          MATCH: ${{ inputs.match }}
+        run: |
+          node -e "
+          const { createRequire } = require('module');
+          const r = createRequire(process.cwd() + '/package.json');
+          const { downloadReplay } = r('fortnite-serverreplay-downloader');
+          downloadReplay({ matchId: process.env.MATCH, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 })
+            .then((b) => { require('fs').writeFileSync('probe.replay', b); console.log('geladen', b.length); });
+          "
+      - name: Felder suchen
+        run: |
+          cd tools/replay-voll
+          dotnet run -c Release -- --erkunden ../../probe.replay > ../../erkunden.txt 2> ../../erkunden.err || true
+          cd ../..
+          grep -E '^(== KLASSEN|KS |LT )' erkunden.txt | cut -c1-3000
+          echo "== Zeilen gesamt: $(wc -l < erkunden.txt)"; tail -5 erkunden.err
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flagge-probe
+          path: erkunden.txt
       - if: always()
         run: rm -f .env.local
