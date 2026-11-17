@@ -5,5 +5,6 @@ FROM node:24-slim
 WORKDIR /app
 RUN npm init -y >/dev/null && npm install --no-audit --no-fund @xmpp/client@0.13.1 && npm cache clean --force
 COPY scripts/daten-sync.mjs scripts/xmpp-dienst.mjs ./scripts/
+COPY lib/freundAnnahme.mjs ./lib/
 ENV NODE_ENV=production COMPHUB_DATEN=/app/data
 CMD ["node", "scripts/xmpp-dienst.mjs"]

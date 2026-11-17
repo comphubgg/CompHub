@@ -26,6 +26,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { client, xml } from '@xmpp/client';
+import { annahmeDurchgang, freigabenAus } from '../lib/freundAnnahme.mjs';
 
 const PORT = Number(process.env.XMPP_DIENST_PORT || 3210);
 const HOST = process.env.XMPP_DIENST_HOST || '0.0.0.0';
@@ -293,5 +294,30 @@ const ende = (sig) => {
 };
 process.on('SIGTERM', () => ende('SIGTERM'));
 process.on('SIGINT', () => ende('SIGINT'));
+
+/*
+ * Anfragen annehmen, die ein Streamer/Pro SELBST an das Bot-Konto geschickt hat (lib/freundAnnahme.mjs) - nur fuer Epic-Ids in
+ * <daten>/matchid-freigaben.json. Ohne Datei: nichts. Der Bot schickt weiterhin niemandem eine Anfrage (#21).
+ */
+const ANNAHME_MS = Number(process.env.FREUND_ANNAHME_S || 120) * 1000;
+async function annahme() {
+  const k = konten.bot;
+  if (!k.verbunden || !k.token || !k.konto) return;
+  // Erst der eigene Datenordner, dann der der Seite (im Compose-Dienst nur lesend unter /app/daten-hintergrund eingehaengt).
+  let roh = null;
+  for (const ort of [DATEN, process.env.FREIGABEN_ORT || '/app/daten-hintergrund']) {
+    roh = await fs.readFile(path.join(ort, 'matchid-freigaben.json'), 'utf8').catch(() => null);
+    if (roh) break;
+  }
+  if (!roh) return;
+  let freigaben;
+  try { freigaben = freigabenAus(JSON.parse(roh)); } catch { log('[bot] matchid-freigaben.json unlesbar'); return; }
+  if (!freigaben.size) return;
+  try {
+    const r = await annahmeDurchgang({ konto: k.konto, token: k.token, freigaben });
+    if (r.angenommen.length || r.fehler) log(`[bot] Anfragen: ${r.angenommen.length} angenommen (${r.angenommen.map((x) => x.slice(0, 6)).join(', ')}), ${r.liegen} liegen${r.fehler ? `, Fehler: ${r.fehler}` : ''}`);
+  } catch (e) { log(`[bot] Annahme: ${e?.message ?? e}`); }
+}
+setInterval(() => { void annahme(); }, ANNAHME_MS);
 
 for (const k of Object.values(konten)) void verbinde(k);
