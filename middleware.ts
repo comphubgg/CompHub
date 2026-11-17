@@ -121,6 +121,25 @@ async function finestErlaubt(request: NextRequest): Promise<boolean> {
   return false;
 }
 
+/*
+ * CompHub Awards 2026 (lib/awards): vorerst nur fuer den Admin. Fuer alle anderen ist /awards ein echter 404 - dieselbe Seite wie jede unbekannte
+ * Adresse, entschieden bevor etwas gebaut wird. Die Seite prueft auf dem Server noch einmal.
+ */
+async function awardsErlaubt(request: NextRequest): Promise<boolean> {
+  for (const adresse of auskunftAdressen(request, '/api/awards/zugang')) {
+    try {
+      const r = await fetch(adresse, {
+        headers: { cookie: request.headers.get('cookie') ?? '' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(process.env.NODE_ENV === 'development' ? 45_000 : 8_000),
+      });
+      if (r.status === 404) return false;
+      if (r.ok) return true;
+    } catch { /* naechste Adresse */ }
+  }
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   const pfad = request.nextUrl.pathname;
   /*
@@ -149,6 +168,11 @@ export async function middleware(request: NextRequest) {
       const ziel = new URL('/sign-in', request.url);
       ziel.searchParams.set('weiter', pfad);
       return NextResponse.redirect(ziel);
+    }
+  }
+  if (pfad === '/awards' || pfad.startsWith('/awards/')) {
+    if (!(await awardsErlaubt(request))) {
+      return NextResponse.rewrite(new URL('/fehler/404', request.url), { status: 404, headers: { 'Cache-Control': 'private, no-store', 'Netlify-CDN-Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
     }
   }
   if ((pfad === '/overlays/finest' || pfad.startsWith('/overlays/finest/')) && !pfad.startsWith('/overlays/finest/live')) {

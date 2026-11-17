@@ -31,6 +31,7 @@ const WERKZEUGE: Array<[string, string]> = [
   ['/maps', 'Karten'],
   ['/admin/alte-maps', 'Alte Maps'],
   ['/admin/predictions', 'Prognosen'],
+  ['/admin/awards', 'Awards'],
   ['/admin/replays', 'Replays'],
   ['/admin/replay', 'Zonen & Games'],
   ['/admin/players', 'Player Center'],
