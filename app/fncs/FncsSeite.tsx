@@ -42,10 +42,10 @@ const landName = (code: string) => { try { return new Intl.DisplayNames(['en'], 
 /** Eine Tafel der All-Time Stats: Kopfzeile, darunter die Liste (scrollt in sich, ohne Aufklapp-Knopf). */
 function Tafel({ titel, unter, children }: { titel: string; unter?: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900">
-      <p className="border-b border-white/[0.08] bg-zinc-800 px-3 py-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>{titel}</T></span>
-        {unter && <span className="ml-2 text-[11px] text-slate-600"><T>{unter}</T></span>}
+    <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900">
+      <p className="flex items-baseline gap-2 border-b border-white/[0.08] bg-zinc-800 px-4 py-3">
+        <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-100"><T>{titel}</T></span>
+        {unter && <span className="truncate text-[11px] text-slate-400"><T>{unter}</T></span>}
       </p>
       <div className="max-h-[560px] overflow-y-auto">{children}</div>
     </section>
@@ -472,7 +472,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
         {tab === 'alltime' && (
           <>
             {/* FNCS Winners, All-Time Leaderboard, Nationalities, darunter die Grand-Finals-Rekorde. */}
-            <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
+            <div className="mb-8 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
               <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
               <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.</T></p>
             </div>
@@ -480,14 +480,14 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
               <p className="mb-3 text-[11px] text-slate-500">{t('{n} Endspiele fehlen gerade – Epic antwortet nicht. Die Summen sind deshalb zu klein.').replace('{n}', String(alt.rekorde.fehlend))}</p>
             )}
             {alt && (
-              <div className="mb-10 grid gap-4 lg:grid-cols-3">
+              <div className="mb-12 grid gap-5 lg:grid-cols-3">
                 <Tafel titel="FNCS Winners" unter="Titles">
                   <ol>
                     {alt.titel.map((s, i) => (
-                      <li key={`${s.id}-${s.name}`} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
+                      <li key={`${s.id}-${s.name}`} className="flex items-center gap-2.5 border-b border-white/[0.05] px-4 py-2 transition last:border-b-0 hover:bg-white/[0.03]">
                         <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
                         <TeamFlagge groesse={16} laender={[s.land ?? undefined]} />
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase text-slate-100">{s.name}</span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-bold uppercase text-slate-100">{s.name}</span>
                         <span className="text-sm font-black tabular-nums text-amber-300">{s.titel}</span>
                       </li>
                     ))}
@@ -498,19 +498,19 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                   {alt.rekorde ? (
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-white/[0.08] text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          <th className="w-8 px-3 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th>
-                          <th className="px-2 py-2 text-right">PTS</th><th className="px-2 py-2 text-right">VR</th><th className="px-3 py-2 text-right">Elims</th>
+                        <tr className="sticky top-0 z-10 border-b border-white/[0.08] bg-zinc-900 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          <th className="w-8 px-4 py-2.5">#</th><th className="px-3 py-2.5"><T>Spieler</T></th>
+                          <th className="px-2 py-2.5 text-right">PTS</th><th className="px-2 py-2.5 text-right">VR</th><th className="px-4 py-2.5 text-right">Elims</th>
                         </tr>
                       </thead>
                       <tbody>
                         {alt.rekorde.spieler.map((s, i) => (
-                          <tr key={`${s.name}-${i}`} className="border-b border-white/[0.04]">
-                            <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
-                            <td className="px-3 py-1.5"><span className="flex items-center gap-2"><TeamFlagge groesse={16} laender={[s.land ?? undefined]} /><span className="text-[12px] font-bold uppercase text-slate-100">{s.name}</span></span></td>
-                            <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-50">{s.punkte.toLocaleString(ort)}</td>
-                            <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.siege}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{s.elims.toLocaleString(ort)}</td>
+                          <tr key={`${s.name}-${i}`} className="border-b border-white/[0.05] transition last:border-b-0 hover:bg-white/[0.03]">
+                            <td className="px-4 py-2 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
+                            <td className="px-3 py-2"><span className="flex items-center gap-2"><TeamFlagge groesse={16} laender={[s.land ?? undefined]} /><span className="text-[13px] font-bold uppercase text-slate-100">{s.name}</span></span></td>
+                            <td className="px-2 py-2 text-right font-bold tabular-nums text-slate-50">{s.punkte.toLocaleString(ort)}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-300">{s.siege}</td>
+                            <td className="px-4 py-2 text-right tabular-nums text-slate-300">{s.elims.toLocaleString(ort)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -521,10 +521,10 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                 <Tafel titel="Nationalities" unter="Titles by country">
                   <ol>
                     {alt.laender.map((l, i) => (
-                      <li key={l.land} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
+                      <li key={l.land} className="flex items-center gap-2.5 border-b border-white/[0.05] px-4 py-2 transition last:border-b-0 hover:bg-white/[0.03]">
                         <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
                         <TeamFlagge groesse={16} laender={[l.land]} />
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-100">{landName(l.land)}</span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-slate-100">{landName(l.land)}</span>
                         <span className="text-sm font-black tabular-nums text-amber-300">{l.titel}</span>
                       </li>
                     ))}
@@ -536,10 +536,11 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
             {/* Grand-Finals-Rekorde (16.11.2026): ein eigener Abschnitt mit Umschalter, Treppchen und Tabelle statt drei gleicher Karten. */}
             {alt?.rekorde && <GfRekorde rekorde={alt.rekorde} ort={ort} />}
 
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black tracking-tight"><T>Eliminierungen in den Grand Finals</T></h2>
-                <p className="mt-1 max-w-2xl text-xs text-slate-500">
+            <div className="mb-4 mt-2 flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400"><T>FNCS · Spieler</T></p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-50 sm:text-3xl"><T>Eliminierungen in den Grand Finals</T></h2>
+                <p className="mt-1 max-w-2xl text-sm text-slate-400">
                   <T>Beide Endspieltage jedes Majors zusammen, Europa. Gezählt wird, was das Archiv führt - ab</T> {alt?.ab || '…'}.
                 </p>
               </div>
@@ -549,20 +550,20 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
             {altFehler && <p className="rounded-xl border border-rose-500/30 bg-rose-950 px-4 py-3 text-sm text-rose-300"><T>Die Aufstellung ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
             {!alt && !altFehler && <LadeSchirm />}
             {alt && (
-              <p className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+              <p className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-400">
                 {([['bg-sky-400', '20+'], ['bg-sky-600', '12–19'], ['bg-sky-800', '8–11'], ['bg-sky-950 ring-1 ring-inset ring-sky-800/60', '4–7'], ['bg-zinc-800', '0–3']] as const).map(([k, txt]) => (
                   <span key={txt} className="flex items-center gap-1.5"><i className={`inline-block h-3 w-3 rounded ${k}`} /> {txt}</span>
                 ))}
                 <span className="flex items-center gap-1.5"><span className="text-slate-700">–</span> <T>nicht gespielt</T></span>
-                <span className="text-slate-600">Elims · <T>beide Endspieltage zusammen</T></span>
+                <span className="text-slate-500">Elims · <T>beide Endspieltage zusammen</T></span>
               </p>
             )}
             {alt && (
-              <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-zinc-900">
+              <div className="overflow-x-auto rounded-2xl border border-white/[0.08] bg-zinc-900">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.08] text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      <th className="w-12 px-3 py-2 text-left">#</th>
+                    <tr className="border-b border-white/[0.08] bg-zinc-800 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      <th className="w-12 px-3 py-2.5 text-left">#</th>
                       <th className="px-3 py-2 text-left"><T>Spieler</T></th>
                       <th className="px-3 py-2 text-right"><button type="button" onClick={() => setSortNach('gesamt')} className={sortNach === 'gesamt' ? 'text-sky-400' : 'hover:text-slate-200'}>Total</button></th>
                       <th className="px-2 py-2 text-right"><button type="button" onClick={() => setSortNach('best')} className={sortNach === 'best' ? 'text-sky-400' : 'hover:text-slate-200'}>Best</button></th>
@@ -571,7 +572,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                       {alt.events.map((ev) => (
                         <th key={ev.key} className="px-2 py-2 text-center">
                           <button type="button" onClick={() => setSortNach(ev.key)} title={ev.saisonName} className={`whitespace-nowrap ${sortNach === ev.key ? 'text-sky-400' : 'hover:text-slate-200'}`}>
-                            {ev.titel.replace('FNCS ', '')}<span className="block text-[11px] font-medium normal-case tracking-normal text-slate-600">{ev.saisonKurz}</span>
+                            {ev.titel.replace('FNCS ', '')}<span className="block text-[11px] font-medium normal-case tracking-normal text-slate-500">{ev.saisonKurz}</span>
                           </button>
                         </th>
                       ))}
@@ -579,28 +580,28 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                   </thead>
                   <tbody>
                     {zeilen.map((s) => (
-                      <tr key={s.id} className="border-b border-white/[0.04] transition hover:bg-sky-500/[0.05]">
-                        <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz}</td>
-                        <td className="px-3 py-1.5">
+                      <tr key={s.id} className="border-b border-white/[0.05] transition odd:bg-white/[0.015] hover:bg-sky-500/[0.06]">
+                        <td className="px-3 py-2 text-[11px] font-bold tabular-nums text-slate-500">{s.platz}</td>
+                        <td className="px-3 py-2">
                           <span className="flex items-center gap-2.5">
                             {s.bild
                               // eslint-disable-next-line @next/next/no-img-element
                               ? <img src={s.bild} alt="" loading="lazy" className="h-7 w-7 rounded-full border border-white/15 object-cover object-top" />
                               : <PlatzhalterRund name={s.name} groesse={28} />}
                             <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />
-                            <span className="text-[12px] font-bold uppercase tracking-wide text-slate-100">{s.name}</span>
+                            <span className="text-[13px] font-bold uppercase tracking-wide text-slate-100">{s.name}</span>
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 text-right text-sm font-black tabular-nums text-slate-50">{s.gesamt}</td>
+                        <td className="px-3 py-2 text-right text-sm font-black tabular-nums text-slate-50">{s.gesamt}</td>
                         {(() => { const k = kennzahlen(s); return (<>
-                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-sky-300">{k?.best ?? '–'}</td>
-                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-400">{k?.schlecht ?? '–'}</td>
-                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-300">{k ? `${k.schnitt.toLocaleString(ort, { maximumFractionDigits: 1 })} (${k.n})` : '–'}</td>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums text-sky-300">{k?.best ?? '–'}</td>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums text-slate-400">{k?.schlecht ?? '–'}</td>
+                          <td className="px-2 py-2 text-right text-xs tabular-nums text-slate-300">{k ? `${k.schnitt.toLocaleString(ort, { maximumFractionDigits: 1 })} (${k.n})` : '–'}</td>
                         </>); })()}
                         {alt.events.map((ev) => {
                           const v = s.je[ev.key];
                           return (
-                            <td key={ev.key} className="px-1.5 py-1.5 text-center">
+                            <td key={ev.key} className="px-1.5 py-2 text-center">
                               {v === undefined ? <span className="text-slate-700">–</span> : (
                                 <span className={`inline-block min-w-[2.4rem] rounded-md px-1.5 py-1 text-xs font-bold tabular-nums ${zellFarbe(ev.key, v)}`}>{v}</span>
                               )}

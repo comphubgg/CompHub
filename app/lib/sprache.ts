@@ -384,6 +384,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Bester': 'Best',
   'Schwächster': 'Worst',
   'Kopf an Kopf': 'Head to head',
+  'FNCS · Spieler': 'FNCS · Players',
   'Werte vorn': 'Stats won',
   'weniger ist besser': 'lower is better',
   'Selbst vergleichen →': 'Compare yourself →',
