@@ -116,6 +116,31 @@ function nurImSpeicher(name: string): boolean {
   return /^antworten\/szene_(spieler=|ansicht=profil)/.test(name);
 }
 
+/*
+ * Speicherfresser 17.11.2026: die Clutch-Liste der Saison ("&clutch=alle") wuchs mit den eigenen Spieltagen auf rund 610.000 Zeilen
+ * (127 MB je abgelegter Antwort, drei Saison-Schluessel). Der Server hielt sie geparst im Vorrat (der nur Eintraege zaehlt, nicht Bytes),
+ * las sie bei gleichzeitigen Anfragen mehrfach und wuchs auf 4-5 GB. Gezeigt werden davon nur die ersten Plaetze - mehr als
+ * CLUTCH_HOECHSTENS Zeilen bleiben nie im Speicher, "gesamt" behaelt die volle Zahl.
+ */
+export const CLUTCH_HOECHSTENS = 20_000;
+function clutchKappen(wert: unknown): void {
+  const c = (wert as { clutch?: { zeilen?: unknown[]; gesamt?: number } } | null)?.clutch;
+  if (!c || !Array.isArray(c.zeilen) || c.zeilen.length <= CLUTCH_HOECHSTENS) return;
+  if (typeof c.gesamt !== 'number') c.gesamt = c.zeilen.length;
+  c.zeilen = c.zeilen.slice(0, CLUTCH_HOECHSTENS);
+}
+
+/** Ein Lesen je Datei zugleich - wer dazukommt, wartet auf dasselbe (sonst parste jede gleichzeitige Anfrage die grosse Datei selbst). */
+const liestGerade = new Map<string, Promise<unknown>>();
+function liesGeteilt<T>(name: string): Promise<Ablage<T> | null> {
+  let l = liestGerade.get(name) as Promise<Ablage<T> | null> | undefined;
+  if (!l) {
+    l = liesJson<Ablage<T> | null>(name, null).finally(() => { liestGerade.delete(name); });
+    liestGerade.set(name, l);
+  }
+  return l;
+}
+
 /** Die abgelegte Zeile lesen - ohne Dateien wird ein Lesefehler zum Fehler. */
 async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> | null> {
   const jetzt = Date.now();
@@ -137,7 +162,8 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
     } catch { /* dann eben lesen */ }
   }
   try {
-    const zeile = await liesJson<Ablage<T> | null>(name, null);
+    const zeile = await liesGeteilt<T>(name);
+    if (zeile && typeof zeile === 'object') clutchKappen(zeile.wert);
     // Vor dem Umstieg auf eigene Daten gerechnet: gilt als nicht vorhanden (lib/fremdquelleGrenze).
     if (zeile && typeof zeile.zeit === 'number' && zeile.zeit < FREMD_GRENZE && istStatistikAntwort(name)) return null;
     if (zeile && typeof zeile.zeit === 'number') { kennungNamenErsetzen(zeile.wert); merkeImVorrat(name, { zeile, geholt: jetzt }); }
@@ -151,6 +177,7 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
 
 /** Eine frisch gerechnete Antwort merken - und ablegen, wo das vorgesehen ist. */
 async function merkeAntwort(name: string, zeile: Ablage<unknown>): Promise<void> {
+  clutchKappen(zeile.wert);
   merkeImVorrat(name, { zeile, geholt: Date.now() });
   if (nurImSpeicher(name)) return;
   await schreibJson(name, zeile);

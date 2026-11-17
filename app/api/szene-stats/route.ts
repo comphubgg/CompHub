@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { istKennungName } from '@/lib/kennungName';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { verdienst, lanEintraege } from '@/lib/preisgeld';
-import { fertigeAntwort, abgelegteAntwort, AblageNichtErreichbar, CDN_FRIST } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, abgelegteAntwort, AblageNichtErreichbar, CDN_FRIST, CLUTCH_HOECHSTENS } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
@@ -782,7 +782,8 @@ async function berechne(request: Request) {
       };
       if (nurClutch) {
         const c = await clutchFuerSaison(saison);
-        return NextResponse.json({ success: true, quelle: QUELLE, saison: c.saison, clutch: await clutchZeigen(c, null) });
+        // Hoechstens CLUTCH_HOECHSTENS Zeilen (17.11.2026: 610.000 Zeilen, 127 MB je Antwort, liessen den Server auf 5 GB wachsen); "gesamt" bleibt die volle Zahl.
+        return NextResponse.json({ success: true, quelle: QUELLE, saison: c.saison, clutch: await clutchZeigen(c, CLUTCH_HOECHSTENS) });
       }
       const schmuecken = (s: { epicId: string; name: string } | null) => (s ? {
         ...s,
@@ -1802,26 +1803,47 @@ type ClutchZeileAus = { anzeige?: string; name?: string } & Record<string, unkno
 type ClutchAlle = { success?: boolean; error?: string; quelle?: string; saison?: string;
   clutch?: { zeilen?: ClutchZeileAus[] } & Record<string, unknown> };
 const clutchVorrat = new Map<string, { bis: number; wert: ClutchAlle }>();
+const clutchLaedt = new Map<string, Promise<ClutchAlle | null>>();
 
 async function clutchTeil(request: Request, modus: 'suche' | 'seite'): Promise<Response> {
   const url = new URL(request.url);
-  const alleUrl = new URL(url);
-  alleUrl.searchParams.delete('q');
-  alleUrl.searchParams.delete('ab');
+  /*
+   * Schluessel nur aus der Saison (17.11.2026): vorher war es die ganze Abfrage ohne q/ab - jeder Zusatz (?x=1) lud die ganze Liste neu,
+   * und gleichzeitige Anfragen luden sie je fuer sich. Jetzt eine Ladung je Saison zugleich, hoechstens drei Saisons im Vorrat.
+   */
+  const saison = url.searchParams.get('saison') ?? '';
+  const alleUrl = new URL('/api/szene-stats', url);
+  alleUrl.searchParams.set('ansicht', 'start');
+  if (saison) alleUrl.searchParams.set('saison', saison);
   alleUrl.searchParams.set('clutch', 'alle');
-  const key = alleUrl.search;
+  const key = saison || '-';
   const gemerkt = clutchVorrat.get(key);
   let wert: ClutchAlle | null = gemerkt && gemerkt.bis > Date.now() ? gemerkt.wert : null;
   if (!wert) {
-    try {
-      const r = await GET(new Request(alleUrl.toString(), { headers: request.headers }));
-      wert = await r.json() as ClutchAlle;
-    } catch {
-      wert = null;
+    let laden = clutchLaedt.get(key);
+    if (!laden) {
+      laden = (async () => {
+        let w: ClutchAlle | null;
+        try {
+          const r = await GET(new Request(alleUrl.toString(), { headers: request.headers }));
+          w = await r.json() as ClutchAlle;
+        } catch {
+          w = null;
+        }
+        if (w?.success && Array.isArray(w.clutch?.zeilen)) {
+          if (w.clutch!.zeilen!.length > CLUTCH_HOECHSTENS) {
+            w.clutch!.gesamt = typeof w.clutch!.gesamt === 'number' ? w.clutch!.gesamt : w.clutch!.zeilen!.length;
+            w.clutch!.zeilen = w.clutch!.zeilen!.slice(0, CLUTCH_HOECHSTENS);
+          }
+          clutchVorrat.delete(key);
+          clutchVorrat.set(key, { bis: Date.now() + 15 * 60_000, wert: w });
+          while (clutchVorrat.size > 3) clutchVorrat.delete(clutchVorrat.keys().next().value as string);
+        }
+        return w;
+      })().finally(() => { clutchLaedt.delete(key); });
+      clutchLaedt.set(key, laden);
     }
-    if (wert?.success && Array.isArray(wert.clutch?.zeilen)) {
-      clutchVorrat.set(key, { bis: Date.now() + 5 * 60_000, wert });
-    }
+    wert = await laden;
   }
   // Erwartbare Fehler: 200 mit "error" (der Lastverteiler macht aus 5xx eine Fehlerseite).
   if (!wert?.success || !Array.isArray(wert.clutch?.zeilen)) {
