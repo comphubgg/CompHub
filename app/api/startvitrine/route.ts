@@ -8,6 +8,8 @@ import { liesJson } from '@/lib/ablage';
 import { saisonName } from '@/lib/szeneStats';
 import { GET as prLesen } from '../power-rankings/route';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
+import type { KatalogCup } from '@/lib/ergebnisPosts';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -81,6 +83,49 @@ function kachelName(k: Kachel): string {
 
 interface CupZeile { rang: number; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }
 interface VCup { titel: string; cup: string; typ: MapTyp; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: CupZeile[] }
+
+const ALLE_REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+/**
+ * Der Beste nach Eliminierungen je Region aus Epics offiziellen Bestenlisten des laufenden Events (Betreiber, 17.11.2026: die Global-Karte zeigte nur
+ * NAC, EU und NAW - die eigenen Spieltage der Saison gibt es nur dort). "Laufendes Event": der juengste beendete Solo-Cup der Saison, der in mindestens
+ * vier Regionen lief (ohne Arena, Ranked, Test) - fuer alle Regionen derselbe, damit die Balken Gleiches vergleichen. Seine beendeten Spieltage einer
+ * Region werden je Spieler zusammengezaehlt (die ersten 200 je Spieltag). Nur Solo: bei Teams fuehrt Epic die Eliminierungen je Team.
+ * Eine Region ohne Daten faellt still weg.
+ */
+async function regionenAusEpic(saison: string | undefined, request: Request) {
+  const katalog = await gecacht('vitrine|katalog', 15 * 60_000, async () =>
+    ((await (await katalogAbruf(new Request(new URL('/api/cup-catalog?modus=standard', request.url)))).json()) as { cups?: KatalogCup[] }).cups ?? []);
+  const praefix = saison ? `${saison}_` : '';
+  const fertigIn = (c: KatalogCup, r: string) => (c.regionen?.[r] ?? []).filter((f) => f.status === 'vorbei' && f.windowId.startsWith(praefix));
+  const cup = katalog
+    .filter((c) => /solo/i.test(c.titel) && !/ranked|arena|test/i.test(c.titel))
+    .filter((c) => ALLE_REGIONEN.filter((r) => fertigIn(c, r).length).length >= 4)
+    .map((c) => ({ c, ende: Math.max(0, ...ALLE_REGIONEN.flatMap((r) => fertigIn(c, r).map((f) => f.end ?? 0))) }))
+    .sort((a, b) => b.ende - a.ende)[0]?.c;
+  if (!cup) return null;
+  const kontext = await spielerKontext();
+  const liste: Array<{ region: string; name: string; land: string | null; elims: number }> = [];
+  await Promise.all(ALLE_REGIONEN.map(async (region) => {
+    const summe = new Map<string, { name: string; elims: number }>();
+    for (const f of fertigIn(cup, region).slice(0, 6)) {
+      const top = await gecacht(`vitrine|elims|${f.windowId}`, 30 * 60_000, () => holeTop(f.eventId, f.windowId, 200, false)).catch(() => null);
+      for (const e of (top?.entries ?? []) as Array<{ elims?: number; players?: Array<{ id?: string; name: string }> }>) {
+        if ((e.players ?? []).length !== 1) continue;
+        const p = e.players![0];
+        if (!p.id) continue;
+        const alt = summe.get(p.id) ?? { name: p.name, elims: 0 };
+        alt.elims += e.elims ?? 0;
+        summe.set(p.id, alt);
+      }
+    }
+    const bester = [...summe.entries()].sort((a, b) => b[1].elims - a[1].elims)[0];
+    if (!bester || bester[1].elims <= 0) return;
+    const k = kontext(bester[0], bester[1].name);
+    liste.push({ region, name: k.anzeige || bester[1].name, land: k.land, elims: bester[1].elims });
+  }));
+  return { titel: cup.titel, liste: liste.sort((a, b) => b.elims - a.elims) };
+}
 
 /**
  * Vier verschiedene Cups mit den ersten Plaetzen ihrer Bestenliste - fuer die "Turniere"-Karte der Startseite.
@@ -194,6 +239,14 @@ async function rechnen(request: Request) {
       if (saisonweit.length >= 3) regionen = saisonweit;
     } catch { /* ohne Saisonliste bleiben die Profilwerte */ }
   }
+  // Fehlen Regionen (seit dem 17.11.2026 gibt es eigene Spieltage der Saison nur in EU/NAC): alle aus Epics Bestenlisten des laufenden Events.
+  let regionenEvent: string | null = null;
+  if (regionen.length < ALLE_REGIONEN.length) {
+    try {
+      const epic = await regionenAusEpic(start.saison, request);
+      if (epic && epic.liste.length > regionen.length) { regionen = epic.liste; regionenEvent = epic.titel; }
+    } catch { /* dann bleiben die Regionen mit eigenen Spieltagen */ }
+  }
 
   let cups: VCup[] = [];
   try { cups = await cupsHolen(); } catch { /* ohne Cups bleibt die Karte leer */ }
@@ -222,7 +275,7 @@ async function rechnen(request: Request) {
 
   const antwort = {
     ok: true, saison: start.saison ?? null, saisonName: start.saison ? saisonName(start.saison) : null, spieltage: start.grundlage?.spieltage?.length ?? null,
-    spieler, cups, maps, regionen, rangliste,
+    spieler, cups, maps, regionen, regionenEvent, rangliste,
   };
   return antwort;
 }
