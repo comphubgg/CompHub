@@ -22,6 +22,36 @@ type Filter = 'frei' | 'zugeordnet' | 'alle';
 type CreditEntwurf = { quelle: string; fotograf: string; handle: string; link: string; lizenz: string; bestaetigt: boolean };
 
 const JE_SEITE = 48;
+
+/*
+ * Jede Antwort sicher lesen (17.11.2026: "Fehler: Unexpected token '<', "<!DOCTYPE "... is not valid JSON" - statt JSON kam die HTML-Seite von
+ * Cloudflare, weil der Server zu lange brauchte). Kommt kein JSON, entsteht eine verstaendliche Meldung mit dem HTTP-Status.
+ */
+type Antwort = { ok: boolean; error?: string; status: number; vorlaeufig?: boolean; [k: string]: unknown };
+function statusText(status: number): string {
+  if (status === 401 || status === 403) return `Nicht angemeldet oder keine Admin-Rechte (HTTP ${status}) – bitte neu anmelden.`;
+  if (status === 524 || status === 504 || status === 522) return `Zeitüberschreitung – der Server hat nicht rechtzeitig geantwortet (HTTP ${status}).`;
+  if (status === 502 || status === 503 || status === 520 || status === 521 || status === 523) return `Server gerade nicht erreichbar oder überlastet (HTTP ${status}).`;
+  if (status >= 500) return `Serverfehler (HTTP ${status}).`;
+  if (status === 404) return 'Schnittstelle nicht gefunden (HTTP 404).';
+  return `Unerwartete Antwort vom Server (HTTP ${status}).`;
+}
+async function holeJson(url: string, init?: RequestInit): Promise<Antwort> {
+  let r: Response;
+  try { r = await fetch(url, { cache: 'no-store', ...init }); } catch {
+    return { ok: false, status: 0, vorlaeufig: true, error: 'Keine Verbindung zum Server.' };
+  }
+  const text = await r.text().catch(() => '');
+  let j: Record<string, unknown> | null = null;
+  try { j = text ? JSON.parse(text) as Record<string, unknown> : null; } catch { j = null; }
+  // Voruebergehend: Zeitueberschreitung, Server weg, Verbindung - dann lohnt ein neuer Versuch.
+  const vorlaeufig = r.status === 0 || r.status === 408 || r.status === 429 || r.status >= 500;
+  if (!j || typeof j !== 'object') return { ok: false, status: r.status, vorlaeufig, error: statusText(r.status) };
+  if (!r.ok || j.ok === false) return { ...j, ok: false, status: r.status, vorlaeufig, error: String(j.error || statusText(r.status)) };
+  return { ...j, ok: true, status: r.status };
+}
+const neueCid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
+interface Unterwegs { cid: string; id: string; body: Record<string, unknown>; fertig: string; gesendet: boolean; versuche: number }
 const feld = 'w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-slate-100 outline-none focus:border-sky-500';
 const ausCredit = (c: Credit | null): CreditEntwurf => ({
   quelle: c?.quelle ?? '', fotograf: c?.fotograf ?? '', handle: c?.handle ?? '', link: c?.link ?? '', lizenz: c?.lizenz ?? '', bestaetigt: Boolean(c?.bestaetigt),
@@ -118,13 +148,13 @@ export default function FotosPoolSeite() {
   const [entwurf, setEntwurf] = useState<CreditEntwurf>(ausCredit(null));
   const [hochladen, setHochladen] = useState('');
 
+  const unterwegs = useRef(new Map<string, Unterwegs>());
+  const [offenZahl, setOffenZahl] = useState(0);
+  const [reiheFehler, setReiheFehler] = useState('');
   const laden = useCallback(async () => {
-    try {
-      const r = await fetch('/api/admin/foto-pool', { cache: 'no-store' });
-      const j = await r.json();
-      if (!j.ok) { setFehler(j.error ?? 'Laden gescheitert'); return; }
-      setFotos(j.fotos); setNamen(j.namen ?? {}); setFehler('');
-    } catch (e) { setFehler((e as Error).message); }
+    const j = await holeJson('/api/admin/foto-pool');
+    if (!j.ok) { setFehler(`Laden gescheitert: ${j.error}`); return; }
+    setFotos(j.fotos as Foto[]); setNamen((j.namen as Record<string, string>) ?? {}); setFehler('');
   }, []);
   useEffect(() => {
     if (!zugang.admin) return;
@@ -151,27 +181,101 @@ export default function FotosPoolSeite() {
   const aufSeite = liste.slice(seite * JE_SEITE, (seite + 1) * JE_SEITE);
   const zeige = (id: string, t: string) => setStatus((s) => ({ ...s, [id]: t }));
 
-  const schicke = async (id: string, body: Record<string, unknown>, warte: string, fertig: string) => {
-    zeige(id, warte);
-    const r = await fetch('/api/admin/foto-pool', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...body }) })
-      .then((x) => x.json()).catch((x) => ({ ok: false, error: (x as Error).message }));
-    if (!r.ok) { zeige(id, `Fehler: ${r.error}`); return null; }
-    zeige(id, fertig);
-    await laden();
-    return r;
+  /*
+   * Aendern: sofort auf der Seite, dann an den Server (der antwortet gleich und schreibt gesammelt). "wird gespeichert …" bis die Schreibreihe
+   * den Commit gemeldet hat (/api/admin/foto-pool/status), dann "gespeichert". Kommt keine Antwort (Zeitueberschreitung, Neustart), geht dieselbe
+   * Aenderung (gleiche cid, der Server wendet sie nur einmal an) von selbst noch einmal hinaus.
+   */
+  const lokal = (id: string, body: Record<string, unknown>) => setFotos((alt) => {
+    if (!alt) return alt;
+    const f = alt.find((x) => x.id === id);
+    if (!f) return alt;
+    if (body.aktion === 'loeschen') return alt.filter((x) => x.id !== id);
+    if (body.aktion === 'aktiv') return alt.map((x) => (x.epicId === f.epicId ? { ...x, aktiv: x.id === id } : x));
+    if (body.aktion === 'credit') return alt.map((x) => (x.id === id ? { ...x, credit: { ...(body.felder as Credit) } } : x));
+    if (body.aktion === 'zuordnen') {
+      const epicId = String(body.epicId ?? '');
+      const naechste = alt.map((x) => (x.id === id ? { ...x, epicId, name: String(body.name ?? ''), aktiv: Boolean(epicId) && !alt.some((y) => y.id !== id && y.epicId === epicId && y.aktiv), oeffentlich: false } : x));
+      // Der vorige Spieler: hat er kein aktives Foto mehr, rueckt sein naechstes nach.
+      if (f.epicId && f.aktiv) { const n = naechste.find((x) => x.epicId === f.epicId); if (n) n.aktiv = true; }
+      return naechste;
+    }
+    return alt;
+  });
+
+  const senden = useCallback(async (u: Unterwegs) => {
+    for (;;) {
+      u.versuche += 1;
+      const r = await holeJson('/api/admin/foto-pool', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cid: u.cid, id: u.id, ...u.body }) });
+      if (r.ok) { u.gesendet = true; return; }
+      if (r.vorlaeufig && u.versuche < 8) {
+        zeige(u.id, `wird gespeichert … (${r.error} Neuer Versuch läuft.)`);
+        await new Promise((f) => setTimeout(f, Math.min(30_000, 2000 * 2 ** (u.versuche - 1))));
+        if (!unterwegs.current.has(u.cid)) return;
+        continue;
+      }
+      unterwegs.current.delete(u.cid); setOffenZahl(unterwegs.current.size);
+      zeige(u.id, `Fehler: ${r.error}${r.vorlaeufig ? ' Bitte später noch einmal versuchen.' : ''}`);
+      void laden();
+      return;
+    }
+  }, [laden]);
+
+  const schicke = (id: string, body: Record<string, unknown>, fertig: string) => {
+    const u: Unterwegs = { cid: neueCid(), id, body, fertig, gesendet: false, versuche: 0 };
+    unterwegs.current.set(u.cid, u); setOffenZahl(unterwegs.current.size);
+    lokal(id, body);
+    zeige(id, 'wird gespeichert …');
+    void senden(u);
   };
 
+  // Solange etwas unterwegs ist: alle 1,5 s nach dem Stand fragen.
+  useEffect(() => {
+    if (!offenZahl) return;
+    let aus = false;
+    const runde = async () => {
+      const liste = [...unterwegs.current.values()].filter((u) => u.gesendet);
+      if (!liste.length) return;
+      const r = await holeJson(`/api/admin/foto-pool/status?cids=${liste.map((u) => u.cid).join(',')}`);
+      if (aus) return;
+      if (!r.ok) { setReiheFehler(`Stand nicht abrufbar: ${r.error}`); return; }
+      const reihe = r.reihe as { letzterFehler?: { text: string } | null } | undefined;
+      setReiheFehler(reihe?.letzterFehler ? `Speichern hakt: ${reihe.letzterFehler.text} – neuer Versuch läuft automatisch.` : '');
+      const stand = (r.stand ?? {}) as Record<string, { art: string; fehler?: string; endgueltig?: boolean }>;
+      let fertig = false;
+      for (const u of liste) {
+        const s = stand[u.cid];
+        if (!s) { u.gesendet = false; u.versuche = 0; void senden(u); continue; } // Server kennt sie nicht (Neustart): noch einmal
+        if (s.art === 'gespeichert') { unterwegs.current.delete(u.cid); zeige(u.id, u.fertig); fertig = true; }
+        else if (s.art === 'fehler') { unterwegs.current.delete(u.cid); zeige(u.id, `Fehler: ${s.fehler ?? 'nicht gespeichert'}`); fertig = true; }
+        else zeige(u.id, s.fehler ? `wird gespeichert … (${s.fehler})` : 'wird gespeichert …');
+      }
+      setOffenZahl(unterwegs.current.size);
+      if (fertig && !unterwegs.current.size) void laden();
+    };
+    const t = setInterval(() => { void runde(); }, 1500);
+    return () => { aus = true; clearInterval(t); };
+  }, [offenZahl, laden, senden]);
+
+  // Nicht wegklicken, solange etwas nicht gespeichert ist.
+  useEffect(() => {
+    if (!offenZahl) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [offenZahl]);
+
   const zuordnen = (f: Foto, t: Treffer | null) => {
-    if (!t) { if (f.epicId) schicke(f.id, { aktion: 'zuordnen', epicId: '', name: '' }, 'löst …', 'gelöst'); return; }
+    if (!t) { if (f.epicId) schicke(f.id, { aktion: 'zuordnen', epicId: '', name: '' }, 'gelöst · gespeichert'); return; }
     if (t.epicId === f.epicId) return;
     const name = t.anzeige || t.name;
     setNamen((n) => ({ ...n, [t.epicId]: name }));
-    schicke(f.id, { aktion: 'zuordnen', epicId: t.epicId, name }, 'ordnet zu …', `${name} zugeordnet`);
+    schicke(f.id, { aktion: 'zuordnen', epicId: t.epicId, name }, `${name} · gespeichert`);
   };
 
-  const creditSpeichern = async (f: Foto) => {
-    const r = await schicke(f.id, { aktion: 'credit', felder: entwurf }, 'speichert …', 'Credit gespeichert');
-    if (r) setCreditOffen(null);
+  const creditSpeichern = (f: Foto) => {
+    schicke(f.id, { aktion: 'credit', felder: entwurf }, 'Credit gespeichert');
+    setCreditOffen(null);
   };
 
   const dateienHochladen = async (liste: FileList) => {
@@ -179,7 +283,7 @@ export default function FotosPoolSeite() {
     for (const d of Array.from(liste)) {
       setHochladen(`lädt ${d.name} …`);
       const form = new FormData(); form.set('datei', d);
-      const r = await fetch('/api/admin/foto-pool', { method: 'POST', body: form }).then((x) => x.json()).catch((x) => ({ ok: false, error: (x as Error).message }));
+      const r = await holeJson('/api/admin/foto-pool', { method: 'POST', body: form });
       if (r.ok) gut += 1; else nicht.push(`${d.name}: ${r.error}`);
     }
     setHochladen(`${gut} aufgenommen${nicht.length ? ` · ${nicht.join(' · ')}` : ''}`);
@@ -199,6 +303,12 @@ export default function FotosPoolSeite() {
         <SeitenKopf className="mb-5" marke={<T>Spieler & Teams</T>} titel={<T>Foto-Pool</T>}
           text={<T>Zugeschnittene Fotos ohne Namen. Namen eintippen und den Spieler wählen – das Foto ersetzt bei ihm den Platzhalter. Hat ein Spieler mehrere Fotos, ist das aktive öffentlich. Der Credit steht nur, wenn er bestätigt ist.</T>} />
 
+        <p className="mb-3 text-xs" data-pool-speicherstand>
+          {offenZahl
+            ? <span className="text-amber-300">{offenZahl} {offenZahl === 1 ? 'Änderung wird' : 'Änderungen werden'} gespeichert …</span>
+            : <span className="text-emerald-400">Alles gespeichert</span>}
+        </p>
+        {reiheFehler && <p className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{reiheFehler}</p>}
         {fehler && <p className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{fehler}</p>}
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -247,7 +357,7 @@ export default function FotosPoolSeite() {
                   <div className="flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
                     <Link href={`/statistics?spieler=${f.epicId}`} target="_blank" className="hover:text-slate-300" title={f.epicId}>{f.epicId.slice(0, 8)}</Link>
                     {anzahl > 1 && <span>· {anzahl} <T>Fotos</T></span>}
-                    {!f.aktiv && <button type="button" className="rounded border border-emerald-500/40 px-1 text-emerald-300 hover:bg-emerald-500/10" onClick={() => schicke(f.id, { aktion: 'aktiv' }, 'setzt …', 'aktiv')}><T>aktiv setzen</T></button>}
+                    {!f.aktiv && <button type="button" className="rounded border border-emerald-500/40 px-1 text-emerald-300 hover:bg-emerald-500/10" onClick={() => schicke(f.id, { aktion: 'aktiv' }, 'aktiv · gespeichert')}><T>aktiv setzen</T></button>}
                     <button type="button" className="rounded border border-zinc-700 px-1 hover:text-slate-200" onClick={() => zuordnen(f, null)}><T>lösen</T></button>
                   </div>
                 )}
@@ -257,7 +367,7 @@ export default function FotosPoolSeite() {
                     {c?.handle || c?.fotograf || c?.quelle ? `📷 ${c.handle ? `@${c.handle}` : c.fotograf || c.quelle}${c.bestaetigt ? ' ✓' : ''}` : 'Credit …'}
                   </button>
                   <button type="button" className="shrink-0 rounded px-1 text-rose-400/80 hover:bg-rose-500/10 hover:text-rose-300"
-                    onClick={() => { if (window.confirm('Dieses Foto aus dem Pool löschen?')) schicke(f.id, { aktion: 'loeschen' }, 'löscht …', 'gelöscht'); }}><T>Löschen</T></button>
+                    onClick={() => { if (window.confirm('Dieses Foto aus dem Pool löschen?')) schicke(f.id, { aktion: 'loeschen' }, 'gelöscht'); }}><T>Löschen</T></button>
                 </div>
                 {creditOffen === f.id && (
                   <div className="space-y-1 rounded-lg border border-zinc-800 bg-zinc-950 p-1.5">
@@ -277,7 +387,7 @@ export default function FotosPoolSeite() {
                     </div>
                   </div>
                 )}
-                {st && <p className={`text-[10px] ${st.startsWith('Fehler') ? 'text-rose-300' : 'text-slate-500'}`}>{st}</p>}
+                {st && <p data-pool-stand className={`text-[10px] ${st.startsWith('Fehler') ? 'text-rose-300' : st.startsWith('wird') ? 'text-amber-300' : 'text-emerald-400'}`}>{st}</p>}
               </div>
             );
           })}

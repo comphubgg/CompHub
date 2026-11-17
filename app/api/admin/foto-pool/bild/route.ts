@@ -12,7 +12,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, error: 'Nur für Admins.' }, { status: 403 });
+  try {
+    if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, error: 'Nur für Admins.' }, { status: 403 });
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Anmeldung nicht prüfbar' }, { status: 503 });
+  }
   const id = new URL(request.url).searchParams.get('id') ?? '';
   if (!istPoolId(id)) return NextResponse.json({ ok: false, error: 'Unbekanntes Foto' }, { status: 400 });
   try {

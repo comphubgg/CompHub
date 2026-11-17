@@ -49,7 +49,7 @@ import crypto from 'crypto';
 import { promises as fsp } from 'fs';
 import os from 'os';
 import path from 'path';
-import type { Speicher } from '@/lib/ablage';
+import type { Sammel, Speicher } from '@/lib/ablage';
 
 // Ueberschreibbar nur zum Pruefen gegen einen nachgebauten Dienst (DATEN_API / DATEN_RAW) - im Betrieb nie gesetzt.
 const API = (process.env.DATEN_API || 'https://api.github.com').replace(/\/+$/, '');
@@ -549,7 +549,205 @@ async function aendere(name: string, aendern: (alt: Buffer | null) => Buffer | n
   });
 }
 
-export const gitDatenSpeicher: Speicher = { lies, schreib, loesche, liste, angaben, aendere };
+/*
+ * Mehrere Dateien in EINEM Commit (Betreiber, 17.11.2026: /admin/fotos-pool - "Unexpected token '<'" bei vielen Karten).
+ *
+ * Eine Zuordnung im Foto-Pool schrieb vorher fuenf Commits nacheinander (foto-pool.json, die Kopie in spielerfotos/, foto-credits.json,
+ * spielerbilder.json, noch einmal foto-pool.json), jeder einzeln in der einen Schreibreihe und jeder mit eigener Konfliktschleife. Zehn schnelle
+ * Zuordnungen waren fuenfzig Commits; die Anfragen warteten laenger als die 100 Sekunden, nach denen Cloudflare abbricht, und lieferten dessen
+ * HTML-Seite. Hier entsteht ein Commit ueber die Git-Schnittstelle (Baum + Commit + Zweig vorruecken):
+ *
+ *   - `plan` bekommt einen Leser, der genau den Stand des Zweigkopfs liefert (nie veraltet), und sagt, was zu schreiben, zu kopieren und zu
+ *     loeschen ist. Es kann mehrmals laufen: rueckt der Zweig dazwischen weiter (ein anderer Commit), wird neu gelesen und neu geplant.
+ *   - Kopien werden nicht hochgeladen: die Kopie zeigt im Baum auf denselben Blob wie das Original (gleicher Inhalt = gleicher Blob).
+ *   - Geloescht wird nur, was im Kopfstand wirklich liegt (sonst lehnt GitHub den Baum ab).
+ */
+
+function baumPfad(n: string): string {
+  return [praefix(), sauber(n)].filter(Boolean).join('/');
+}
+
+export async function sammelCommit(
+  nachricht: string,
+  plan: (lies: (name: string) => Promise<Buffer | null>) => Promise<Sammel | null>,
+  dateien: string[] = [],
+): Promise<{ commit: string | null; geschrieben: string[] }> {
+  return nacheinander(async () => {
+    // Ein noch vorgemerkter Stand einer dieser Dateien geht vorher hinaus, damit er die Aenderung nicht spaeter ueberschreibt.
+    for (const name of dateien) {
+      const n = sauber(name);
+      const vorgemerkt = wartend.get(n);
+      if (!vorgemerkt) continue;
+      wartend.delete(n);
+      for (const uhren of [schnellUhren, sammelUhren]) { const u = uhren.get(n); if (u) clearTimeout(u); uhren.delete(n); }
+      await schreibeJetzt(n, vorgemerkt);
+      ausstehendLoeschen(n);
+    }
+    const json = async <T>(weg: string, wozu: string): Promise<T> => {
+      const r = await anfrage(weg);
+      if (!r.ok) throw new Error(`Ablage (GitHub) antwortet ${r.status} beim ${wozu}`);
+      return await r.json() as T;
+    };
+    const kopfLesen = async () => {
+      const kopf = (await json<{ object?: { sha?: string } }>(`/repos/${repo()}/git/ref/heads/${ZWEIG}`, 'Lesen des Zweigs')).object?.sha;
+      if (!kopf) throw new Error('Ablage (GitHub): Zweig ohne Commit');
+      return kopf;
+    };
+    const baumVon = async (commit: string) => {
+      const baum = (await json<{ tree?: { sha?: string } }>(`/repos/${repo()}/git/commits/${commit}`, 'Lesen des Commits')).tree?.sha;
+      if (!baum) throw new Error('Ablage (GitHub): Commit ohne Baum');
+      return baum;
+    };
+
+    type BaumEintrag = { path: string; mode: '100644'; type: 'blob'; sha?: string | null; content?: string };
+    let letzter: Error | null = null;
+    for (let versuch = 0; versuch < 6; versuch += 1) {
+      if (versuch > 0) await new Promise((f) => setTimeout(f, 200 * versuch + Math.floor(Math.random() * 400)));
+      let kopf = await kopfLesen();
+
+      const gelesen = new Map<string, Buffer | null>();
+      const leser = async (name: string): Promise<Buffer | null> => {
+        const n = sauber(name);
+        if (gelesen.has(n)) return gelesen.get(n)!;
+        const r = await anfrage(`/repos/${repo()}/contents/${pfad(n)}?ref=${kopf}`, { headers: { Accept: 'application/vnd.github.raw+json' } });
+        if (!r.ok && r.status !== 404) throw new Error(`Ablage (GitHub) antwortet ${r.status} beim Lesen von ${n}`);
+        const daten = r.status === 404 ? null : Buffer.from(await r.arrayBuffer());
+        gelesen.set(n, daten);
+        return daten;
+      };
+      // Baum des Kopfs und Planen (liest die Dateien) gleichzeitig - jede Runde zaehlt, solange andere den Zweig bewegen.
+      const [baum0, s] = await Promise.all([baumVon(kopf), plan(leser)]);
+      let baum = baum0;
+      if (!s) return { commit: null, geschrieben: [] };
+
+      // Was im Kopfstand liegt, mit Blob-sha - je Ordner eine Anfrage (Inhalte-Schnittstelle, bis 1000 Eintraege; sonst einzeln nachsehen).
+      const ordnerInhalt = new Map<string, Promise<Map<string, string>>>();
+      const ordnerVon = (n: string) => { const i = n.lastIndexOf('/'); return i < 0 ? '' : n.slice(0, i); };
+      const ordnerLesen = (ordner: string) => {
+        let p = ordnerInhalt.get(ordner);
+        if (!p) {
+          p = (async () => {
+            const inhalt = new Map<string, string>();
+            const r = await anfrage(`/repos/${repo()}/contents/${pfad(ordner)}?ref=${kopf}`);
+            if (r.ok) {
+              const j = await r.json() as Array<{ name: string; sha: string; type: string }> | object;
+              if (Array.isArray(j)) for (const e of j) if (e.type === 'file') inhalt.set(e.name, e.sha);
+              if (Array.isArray(j) && j.length >= 1000) inhalt.set('\0voll', '1');
+            } else if (r.status !== 404) throw new Error(`Ablage (GitHub) antwortet ${r.status} beim Auflisten von ${ordner || '/'}`);
+            return inhalt;
+          })();
+          ordnerInhalt.set(ordner, p);
+        }
+        return p;
+      };
+      const blobVon = async (name: string): Promise<string | null> => {
+        const n = sauber(name);
+        const inhalt = await ordnerLesen(ordnerVon(n));
+        const sha = inhalt.get(n.slice(n.lastIndexOf('/') + 1));
+        if (sha || !inhalt.has('\0voll')) return sha ?? null;
+        const r = await anfrage(`/repos/${repo()}/contents/${pfad(n)}?ref=${kopf}`);
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error(`Ablage (GitHub) antwortet ${r.status} bei ${n}`);
+        return ((await r.json()) as { sha?: string }).sha ?? null;
+      };
+      const pfade = [...Object.keys(s.kopieren), ...Object.values(s.kopieren), ...s.loeschen].map(sauber);
+      await Promise.all([...new Set(pfade.map(ordnerVon))].map(ordnerLesen));
+
+      const eintraege: BaumEintrag[] = [];
+      const geaendert: Array<{ n: string; daten: Buffer }> = [];
+      for (const [name, daten] of Object.entries(s.schreiben)) {
+        const n = sauber(name);
+        const alt = gelesen.has(n) ? gelesen.get(n) : await leser(n);
+        if (alt && alt.equals(daten)) continue;
+        eintraege.push({ path: baumPfad(n), mode: '100644', type: 'blob', content: daten.toString('utf8') });
+        geaendert.push({ n, daten });
+      }
+      const kopiert: Array<{ nach: string; von: string; sha: string }> = [];
+      for (const [nach, von] of Object.entries(s.kopieren)) {
+        const sha = await blobVon(von);
+        if (!sha) throw new Error(`Ablage: ${von} fehlt - keine Kopie nach ${nach}`);
+        if ((await blobVon(nach)) === sha) continue; // liegt schon so da
+        eintraege.push({ path: baumPfad(nach), mode: '100644', type: 'blob', sha });
+        kopiert.push({ nach: sauber(nach), von: sauber(von), sha });
+      }
+      const geloescht: string[] = [];
+      const ziele = new Set([...Object.keys(s.kopieren), ...Object.keys(s.schreiben)].map(sauber));
+      for (const name of new Set(s.loeschen.map(sauber))) {
+        if (ziele.has(name)) continue;
+        if (!(await blobVon(name))) continue; // schon weg
+        eintraege.push({ path: baumPfad(name), mode: '100644', type: 'blob', sha: null });
+        geloescht.push(name);
+      }
+      if (!eintraege.length) return { commit: kopf, geschrieben: [] };
+      const beruehrt = new Set([...geaendert.map((x) => x.n), ...kopiert.flatMap((x) => [x.nach, x.von]), ...geloescht].map(baumPfad));
+
+      /*
+       * Baum, Commit, Zweig vorruecken. Rueckt ein anderer Commit den Zweig dazwischen weiter (422), und hat er keine unserer Dateien beruehrt
+       * (Vergleich alter Kopf ... neuer Kopf), wird dieselbe Aenderung ohne neues Lesen und Planen auf den neuen Kopf gesetzt - so kommt der
+       * Commit auch durch, wenn andere alle ein, zwei Sekunden schreiben. Sonst: von vorn.
+       */
+      let ergebnis: { sha: string; wann: number } | null = null;
+      for (let schnell = 0; schnell < 6 && !ergebnis; schnell += 1) {
+        const t = await anfrage(`/repos/${repo()}/git/trees`, {
+          method: 'POST', frist: SCHREIBEN_MS, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base_tree: baum, tree: eintraege }),
+        });
+        if (!t.ok) { letzter = new Error(`Ablage (GitHub) antwortet ${t.status} beim Anlegen des Baums`); break; }
+        const neuerBaum = ((await t.json()) as { sha?: string }).sha;
+        const cm = await anfrage(`/repos/${repo()}/git/commits`, {
+          method: 'POST', frist: SCHREIBEN_MS, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: nachricht.slice(0, 2000), tree: neuerBaum, parents: [kopf] }),
+        });
+        if (!cm.ok) throw new Error(`Ablage (GitHub) antwortet ${cm.status} beim Anlegen des Commits`);
+        const cj = await cm.json() as { sha?: string; committer?: { date?: string } };
+        const u = await anfrage(`/repos/${repo()}/git/refs/heads/${ZWEIG}`, {
+          method: 'PATCH', frist: SCHREIBEN_MS, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sha: cj.sha, force: false }),
+        });
+        if (u.ok) { ergebnis = { sha: cj.sha ?? '', wann: Date.parse(cj.committer?.date ?? '') || Date.now() }; break; }
+        letzter = new Error(`Ablage (GitHub) antwortet ${u.status} beim Vorruecken des Zweigs`);
+        if (u.status !== 422 && u.status !== 409) throw letzter;
+        const neu = await kopfLesen();
+        const [vergleich, neuerKopfBaum] = await Promise.all([
+          anfrage(`/repos/${repo()}/compare/${kopf}...${neu}`).then(async (r) => (r.ok ? await r.json() as { files?: Array<{ filename: string; previous_filename?: string }>; total_commits?: number } : null)),
+          baumVon(neu),
+        ]);
+        const dateienDazwischen = vergleich?.files;
+        if (!dateienDazwischen || dateienDazwischen.length >= 300 || (vergleich?.total_commits ?? 0) > 250) break;
+        if (dateienDazwischen.some((f) => beruehrt.has(f.filename) || (f.previous_filename && beruehrt.has(f.previous_filename)))) break;
+        kopf = neu; baum = neuerKopfBaum;
+      }
+      if (!ergebnis) continue;
+
+      // Der eigene Stand gilt ab jetzt - ohne erneutes Lesen (die Inhalte-Schnittstelle und das CDN liefern eine Weile noch den alten).
+      const jetzt = Date.now();
+      for (const { n, daten } of geaendert) {
+        cache.set(n, { daten, sha: blobSha(daten), etag: null, geprueft: jetzt, geaendert: ergebnis.wann, geschrieben: jetzt });
+        zuletztGeschrieben.set(n, jetzt);
+        platteSichern(n, daten);
+        verzeichnisVergessen(n);
+      }
+      for (const k2 of kopiert) {
+        const quelle = cache.get(k2.von);
+        const daten = quelle?.daten && quelle.sha === k2.sha ? quelle.daten : null;
+        // Ohne den Inhalt: als "eben geschrieben" vermerken, damit das naechste Lesen ueber die Schnittstelle geht (das CDN kennt die Datei noch nicht).
+        cache.set(k2.nach, { daten, sha: k2.sha, etag: null, geprueft: daten ? jetzt : 0, geaendert: ergebnis.wann, geschrieben: jetzt });
+        verzeichnisVergessen(k2.nach);
+      }
+      for (const n of geloescht) {
+        wartend.delete(n);
+        cache.set(n, { daten: null, sha: null, etag: null, geprueft: jetzt, geaendert: null });
+        verzeichnisVergessen(n);
+      }
+      return { commit: ergebnis.sha || null, geschrieben: [...geaendert.map((x) => x.n), ...kopiert.map((x) => x.nach), ...geloescht] };
+    }
+    merkeFehler(letzter);
+    // Kam nur wegen anderer Commits nicht durch: lib/ablage aendereMehrere schreibt dann Datei fuer Datei (jede mit ihrem sha).
+    throw Object.assign(letzter ?? new Error('Ablage: Sammel-Commit gescheitert'), { zweigBewegt: Boolean(letzter && /Vorruecken des Zweigs/.test(letzter.message)) });
+  });
+}
+
+export const gitDatenSpeicher: Speicher = { lies, schreib, loesche, liste, angaben, aendere, sammeln: sammelCommit };
 
 /* ------------------------------------------------- Hilfen fuer den Betrieb */
 

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { aendereJson, liesJson, speicher } from '@/lib/ablage';
-import { CREDIT_DATEI, mitAenderung, type CreditEingabe, type CreditTafel, type FotoCredit } from '@/lib/fotoCredits';
+import { aendereJson, aendereMehrere, liesJson, speicher } from '@/lib/ablage';
+import { CREDIT_DATEI, CREDIT_FELDER, mitAenderung, type CreditEingabe, type CreditTafel, type FotoCredit } from '@/lib/fotoCredits';
 import gesperrtListe from '@/lib/fotoGesperrt.json';
 import { kennungGesperrt } from '@/lib/fotoSperre.mjs';
 
@@ -26,6 +26,7 @@ import { kennungGesperrt } from '@/lib/fotoSperre.mjs';
 export const POOL_DATEI = 'foto-pool.json';
 export const POOL_ORDNER = 'fotopool/';
 const SPIELER_ORDNER = 'spielerfotos/';
+const BILDER_DATEI = 'spielerbilder.json';
 
 export interface PoolFoto {
   id: string;
@@ -157,178 +158,218 @@ export async function inPoolAufnehmen(zuschnitt: Buffer, angaben: {
 
 /* ------------------------------------------------------------------ Zuordnen, aktiv setzen, loesen, loeschen */
 
+/*
+ * Seit 17.11.2026 (Betreiber: "Fehler: Unexpected token '<', "<!DOCTYPE "... is not valid JSON" bei vielen Karten) als reine Rechnung auf dem
+ * gelesenen Stand der drei Dateien, geschrieben in EINEM Commit fuer beliebig viele Aenderungen (lib/fotoPoolReihe.ts sammelt, lib/ablage
+ * aendereMehrere schreibt). Vorher waren es je Zuordnung bis zu fuenf Commits nacheinander, die Anfrage wartete auf alle - bei schnellem Arbeiten
+ * laenger als Cloudflares 100 Sekunden. Brach eine Anfrage mittendrin ab, blieb ein halber Stand: Pool-Eintrag ohne oeffentliches Foto, Kopien
+ * ohne Eintrag (Kami dreimal), geloeschte Eintraege mit liegengebliebener Datei.
+ *
+ * Der Abgleich laeuft bei jedem Schreiben fuer ALLE zugeordneten Spieler: ein halber Stand von frueher heilt so beim naechsten Speichern.
+ */
+
 interface Bild { datei?: string; epicId?: string; name?: string; echtesFoto?: boolean }
 
 const kurzName = (name: string) => (name || 'spieler').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'spieler';
 
-async function aendereCredits(f: (t: CreditTafel) => void) {
-  await aendereJson<CreditTafel>(CREDIT_DATEI, {}, (t) => { f(t); });
+export class PoolFehler extends Error {}
+
+export type PoolAktion =
+  | { aktion: 'zuordnen'; id: string; epicId: string; name: string }
+  | { aktion: 'aktiv'; id: string }
+  | { aktion: 'loeschen'; id: string }
+  | { aktion: 'credit'; id: string; felder: CreditEingabe };
+
+export interface PoolStand { pool: PoolTafel; credits: CreditTafel; bilder: Bild[] }
+
+/** Eingabe pruefen und in die feste Form bringen (wirft PoolFehler). */
+export function aktionAus(e: { aktion?: unknown; id?: unknown; epicId?: unknown; name?: unknown; felder?: unknown } | null): PoolAktion {
+  const id = String(e?.id ?? '');
+  if (!e || !ID.test(id)) throw new PoolFehler('Unbekanntes Foto');
+  if (e.aktion === 'zuordnen') {
+    const epicId = String(e.epicId ?? '').toLowerCase().replace(/-/g, '');
+    if (epicId && !KONTO.test(epicId)) throw new PoolFehler('Epic-Konto-Id (32 Zeichen) fehlt');
+    return { aktion: 'zuordnen', id, epicId, name: String(e.name ?? '').trim().slice(0, 40) };
+  }
+  if (e.aktion === 'aktiv' || e.aktion === 'loeschen') return { aktion: e.aktion, id };
+  if (e.aktion === 'credit') {
+    const roh = (e.felder && typeof e.felder === 'object' ? e.felder : {}) as Record<string, unknown>;
+    const felder: CreditEingabe = {};
+    for (const f of CREDIT_FELDER) if (roh[f] !== undefined) felder[f] = roh[f];
+    return { aktion: 'credit', id, felder };
+  }
+  throw new PoolFehler('Unbekannte Aktion');
 }
 
-/**
- * Den Stand der Spieler herstellen, die eine Aenderung beruehrt: je Spieler genau das aktive Foto oeffentlich (Kopie in spielerfotos/,
- * spielerbilder.json, Credit), alle anderen nicht. `weg` sind Fotos, die eben aus dem Pool genommen wurden und noch eine Kopie haben koennten.
- */
-async function abgleichen(epicIds: string[], weg: PoolFoto[] = []) {
-  const ids = [...new Set(epicIds.filter((e) => KONTO.test(e)))];
-  const t = await liesPool();
-  const beruehrt = t.fotos.filter((f) => ids.includes(f.epicId) || (f.spielerDatei && (!f.epicId || !f.aktiv)));
-
-  // 1. Kopien, die nicht (mehr) oeffentlich sein sollen: Credit zurueck in den Eintrag, Kopie und Credit-Eintrag weg.
-  const zurueck = [...beruehrt.filter((f) => f.spielerDatei && !(f.aktiv && f.epicId)), ...weg.filter((f) => f.spielerDatei)];
-  const geloest = new Set<string>();
-  if (zurueck.length) {
-    let credits: CreditTafel = {};
-    await aendereCredits((c) => { credits = { ...c }; for (const f of zurueck) delete c[f.spielerDatei!]; });
-    for (const f of zurueck) { geloest.add(f.spielerDatei!); await speicher.loesche(SPIELER_ORDNER + f.spielerDatei!).catch(() => {}); }
-    await aenderePool((p) => {
-      for (const f of p.fotos) {
-        if (!f.spielerDatei || !geloest.has(f.spielerDatei)) continue;
-        const c = credits[f.spielerDatei];
-        if (c) f.credit = c; else delete f.credit;
-        delete f.spielerDatei;
-      }
-    });
-  }
-
-  // 2. Je Spieler das aktive Foto veroeffentlichen.
-  const neu = new Map<string, PoolFoto>();
-  const nachher = await liesPool();
-  for (const id of ids) {
-    const aktiv = nachher.fotos.find((f) => f.epicId === id && f.aktiv);
-    if (aktiv && !aktiv.spielerDatei) {
-      const roh = await speicher.lies(aktiv.datei);
-      if (!roh) throw new Error(`Pool-Foto ${aktiv.id} fehlt in der Ablage`);
-      const name = `${kurzName(aktiv.name ?? '')}-${id.slice(0, 8)}-${Date.now().toString(36)}.webp`;
-      await speicher.schreib(SPIELER_ORDNER + name, roh);
-      neu.set(id, { ...aktiv, spielerDatei: name });
-      // Kurz warten, damit zwei Kopien in derselben Millisekunde nie denselben Namen bekommen.
-      await new Promise((r) => setTimeout(r, 2));
-    }
-  }
-  if (neu.size) {
-    await aendereCredits((c) => { for (const f of neu.values()) if (f.credit) c[f.spielerDatei!] = { ...f.credit, geaendert: Date.now() }; });
-  }
-
-  // 3. spielerbilder.json: das aktive Foto eintragen - oder zuruecksetzen, was der Spieler vorher hatte.
-  const vorherNeu: Record<string, Vorher | null> = {};
-  if (ids.length) {
-    await aendereJson<Bild[]>('spielerbilder.json', [], (liste) => {
-      if (!Array.isArray(liste)) throw new Error('spielerbilder.json ist keine Liste');
-      for (const id of ids) {
-        const aktiv = neu.get(id) ?? nachher.fotos.find((f) => f.epicId === id && f.aktiv && f.spielerDatei);
-        const da = liste.find((b) => b.epicId === id);
-        const unsere = (d?: string) => Boolean(d && (geloest.has(d) || nachher.fotos.some((f) => f.spielerDatei === d)));
-        if (aktiv?.spielerDatei) {
-          if (da) {
-            if (!unsere(da.datei) && !(id in nachher.vorher)) vorherNeu[id] = { ...(da.datei ? { datei: da.datei } : {}), echtesFoto: Boolean(da.echtesFoto) };
-            da.datei = aktiv.spielerDatei; da.echtesFoto = true;
-          } else {
-            if (!(id in nachher.vorher)) vorherNeu[id] = {};
-            liste.push({ datei: aktiv.spielerDatei, epicId: id, name: aktiv.name || id.slice(0, 8), echtesFoto: true });
-          }
-        } else if (da && unsere(da.datei)) {
-          const v = nachher.vorher[id];
-          if (v?.datei) { da.datei = v.datei; da.echtesFoto = Boolean(v.echtesFoto); } else { delete da.datei; da.echtesFoto = false; }
-          vorherNeu[id] = null;
-        } else if (!aktiv) {
-          vorherNeu[id] = null;
-        }
-      }
-    }, 1);
-  }
-  if (neu.size || Object.keys(vorherNeu).length) {
-    await aenderePool((p) => {
-      for (const f of p.fotos) { const n = neu.get(f.epicId); if (n && n.id === f.id) f.spielerDatei = n.spielerDatei; }
-      for (const [id, v] of Object.entries(vorherNeu)) { if (v) p.vorher[id] = v; else delete p.vorher[id]; }
-    });
-  }
-}
-
-/** Hat ein Spieler nach einer Aenderung kein aktives Foto mehr, wird sein aeltestes zugeordnetes aktiv. */
+/** Hat ein Spieler nach einer Aenderung kein aktives Foto mehr, wird sein aeltestes zugeordnetes aktiv; mehr als eines aktiv: nur das erste bleibt. */
 function nachruecken(t: PoolTafel, epicId: string) {
   if (!epicId) return;
   const seine = t.fotos.filter((f) => f.epicId === epicId);
-  if (seine.length && !seine.some((f) => f.aktiv)) {
+  const aktive = seine.filter((f) => f.aktiv);
+  for (const f of aktive.slice(1)) f.aktiv = false;
+  if (seine.length && !aktive.length) {
     seine.sort((a, b) => (a.zugeordnet ?? a.erstellt) - (b.zugeordnet ?? b.erstellt))[0].aktiv = true;
   }
 }
 
-export class PoolFehler extends Error {}
-
-/** Foto einem Spieler zuordnen (epicId), einem anderen umhaengen oder loesen (epicId ""). */
-export async function zuordnen(id: string, epicId: string, name: string) {
-  if (!ID.test(id)) throw new PoolFehler('Unbekanntes Foto');
-  const ziel = String(epicId ?? '').toLowerCase().replace(/-/g, '');
-  if (ziel && !KONTO.test(ziel)) throw new PoolFehler('Epic-Konto-Id (32 Zeichen) fehlt');
-  let alt = '';
-  await aenderePool((t) => {
-    const f = t.fotos.find((x) => x.id === id);
-    if (!f) throw new PoolFehler('Unbekanntes Foto');
-    alt = f.epicId;
-    if (f.epicId === ziel) { if (ziel && name) f.name = String(name).trim().slice(0, 40); return; }
-    f.epicId = ziel;
-    f.aktiv = false;
-    if (ziel) { f.name = String(name ?? '').trim().slice(0, 40) || undefined; f.zugeordnet = Date.now(); }
-    else { delete f.name; delete f.zugeordnet; }
-    // Das erste Foto eines Spielers wird aktiv.
-    if (ziel && !t.fotos.some((x) => x !== f && x.epicId === ziel && x.aktiv)) f.aktiv = true;
-    nachruecken(t, alt);
-  });
-  await abgleichen([alt, ziel]);
-}
-
-/** Dieses Foto wird das oeffentliche seines Spielers. */
-export async function aktivSetzen(id: string) {
-  let epicId = '';
-  await aenderePool((t) => {
-    const f = t.fotos.find((x) => x.id === id);
-    if (!f) throw new PoolFehler('Unbekanntes Foto');
-    if (!f.epicId) throw new PoolFehler('Das Foto ist niemandem zugeordnet');
-    epicId = f.epicId;
-    for (const x of t.fotos) if (x.epicId === epicId) x.aktiv = x === f;
-  });
-  await abgleichen([epicId]);
-}
-
-/** Aus dem Pool loeschen - samt oeffentlicher Kopie, wenn es aktiv war (dann rueckt das naechste Foto des Spielers nach). */
-export async function loeschen(id: string) {
-  let weg: PoolFoto | undefined;
-  await aenderePool((t) => {
-    const i = t.fotos.findIndex((x) => x.id === id);
-    if (i < 0) throw new PoolFehler('Unbekanntes Foto');
-    [weg] = t.fotos.splice(i, 1);
-    nachruecken(t, weg.epicId);
-  });
-  if (!weg) return;
-  await abgleichen([weg.epicId], [weg]);
-  await speicher.loesche(weg.datei).catch(() => {});
-}
-
-/** Angaben zum Foto aendern - im Eintrag, und wenn es oeffentlich ist, in foto-credits.json (dort gilt "bestaetigt"). */
-export async function creditSetzen(id: string, e: CreditEingabe): Promise<FotoCredit | null> {
-  const t = await liesPool();
-  const f = t.fotos.find((x) => x.id === id);
-  if (!f) throw new PoolFehler('Unbekanntes Foto');
-  if (f.spielerDatei) {
-    let neu: FotoCredit | null = null;
-    await aendereCredits((c) => { neu = mitAenderung(c[f.spielerDatei!], e); if (neu) c[f.spielerDatei!] = neu; else delete c[f.spielerDatei!]; });
-    return neu;
+/**
+ * Eine Aenderung auf den Stand legen. `zeit` ist der Zeitpunkt der Eingabe (fuer "zugeordnet" und damit den Namen der oeffentlichen Kopie).
+ * Geloeschte Fotos landen in `weg` (ihre Datei und eine oeffentliche Kopie werden beim Abgleich mitgeloescht). Wirft PoolFehler.
+ */
+export function wendeAktionAn(st: PoolStand, a: PoolAktion, zeit: number, weg: PoolFoto[]): void {
+  const t = st.pool;
+  const i = t.fotos.findIndex((x) => x.id === a.id);
+  if (i < 0) {
+    // Zweimal geloescht (die Seite schickt nach einem Abbruch noch einmal) ist kein Fehler.
+    if (a.aktion === 'loeschen') return;
+    throw new PoolFehler('Unbekanntes Foto (inzwischen gelöscht?)');
   }
-  let neu: FotoCredit | null = null;
-  await aenderePool((p) => {
-    const x = p.fotos.find((y) => y.id === id);
-    if (!x) throw new PoolFehler('Unbekanntes Foto');
-    neu = mitAenderung(x.credit, e);
-    if (neu) x.credit = neu; else delete x.credit;
-  });
-  return neu;
+  const f = t.fotos[i];
+  if (a.aktion === 'zuordnen') {
+    const alt = f.epicId;
+    if (f.epicId === a.epicId) { if (a.epicId && a.name) f.name = a.name; return; }
+    f.epicId = a.epicId;
+    f.aktiv = false;
+    if (a.epicId) { f.name = a.name || undefined; f.zugeordnet = zeit; } else { delete f.name; delete f.zugeordnet; }
+    // Das erste Foto eines Spielers wird aktiv.
+    if (a.epicId && !t.fotos.some((x) => x !== f && x.epicId === a.epicId && x.aktiv)) f.aktiv = true;
+    nachruecken(t, alt);
+  } else if (a.aktion === 'aktiv') {
+    if (!f.epicId) throw new PoolFehler('Das Foto ist niemandem zugeordnet');
+    for (const x of t.fotos) if (x.epicId === f.epicId) x.aktiv = x === f;
+  } else if (a.aktion === 'loeschen') {
+    t.fotos.splice(i, 1);
+    weg.push(f);
+    nachruecken(t, f.epicId);
+  } else if (a.aktion === 'credit') {
+    if (f.spielerDatei) {
+      const neu = mitAenderung(st.credits[f.spielerDatei], a.felder);
+      if (neu) st.credits[f.spielerDatei] = neu; else delete st.credits[f.spielerDatei];
+    } else {
+      const neu = mitAenderung(f.credit, a.felder);
+      if (neu) f.credit = neu; else delete f.credit;
+    }
+  }
+}
+
+/**
+ * Den Stand herstellen, den der Pool verlangt: je Spieler genau das aktive Foto oeffentlich (Kopie in spielerfotos/, spielerbilder.json, Credit
+ * in foto-credits.json), alle anderen nicht; ohne Foto zurueck, was der Spieler vorher hatte (vorher[epicId]) - oder der Platzhalter.
+ * Aendert `st` und sagt, was kopiert und geloescht werden muss.
+ */
+export function abgleichen(st: PoolStand, weg: PoolFoto[], jetzt = Date.now()): { kopieren: Record<string, string>; loeschen: string[] } {
+  const t = st.pool;
+  const kopieren: Record<string, string> = {};
+  const loeschen: string[] = weg.map((f) => f.datei).filter((d) => d?.startsWith(POOL_ORDNER));
+  for (const id of new Set(t.fotos.map((f) => f.epicId).filter(Boolean))) nachruecken(t, id);
+
+  // 1. Kopien, die nicht (mehr) oeffentlich sein sollen: Credit zurueck in den Eintrag, Kopie und Credit-Eintrag weg.
+  const geloest = new Set<string>();
+  for (const f of [...t.fotos.filter((x) => x.spielerDatei && !(x.aktiv && x.epicId)), ...weg.filter((x) => x.spielerDatei)]) {
+    const d = f.spielerDatei!;
+    geloest.add(d);
+    const c = st.credits[d];
+    delete st.credits[d];
+    loeschen.push(SPIELER_ORDNER + d);
+    if (t.fotos.includes(f)) { if (c) f.credit = c; else delete f.credit; delete f.spielerDatei; }
+  }
+
+  // 2. Je Spieler das aktive Foto veroeffentlichen - unter einem festen Namen (Name, Konto, Zeit der Zuordnung): ein zweiter Versuch legt keine
+  //    zweite Kopie an (vorher: Kami dreimal in spielerfotos/).
+  const vergeben = new Set(t.fotos.map((f) => f.spielerDatei).filter(Boolean) as string[]);
+  for (const f of t.fotos) {
+    if (!f.epicId || !f.aktiv || f.spielerDatei) continue;
+    let zeit = f.zugeordnet ?? f.erstellt ?? jetzt;
+    let name = '';
+    for (;;) {
+      name = `${kurzName(f.name ?? '')}-${f.epicId.slice(0, 8)}-${zeit.toString(36)}.webp`;
+      if (!vergeben.has(name) && !geloest.has(name)) break;
+      zeit += 1;
+    }
+    vergeben.add(name);
+    f.spielerDatei = name;
+    kopieren[SPIELER_ORDNER + name] = f.datei;
+    if (f.credit) st.credits[name] = { ...f.credit, geaendert: jetzt };
+  }
+
+  // 3. spielerbilder.json: das aktive Foto eintragen - oder zuruecksetzen, was der Spieler vorher hatte.
+  const unsere = (d?: string) => Boolean(d && (geloest.has(d) || vergeben.has(d)));
+  const ids = new Set<string>([
+    ...t.fotos.map((f) => f.epicId), ...weg.map((f) => f.epicId), ...Object.keys(t.vorher),
+    ...st.bilder.filter((b) => unsere(b.datei)).map((b) => b.epicId ?? ''),
+  ].filter((e) => KONTO.test(e)));
+  for (const id of ids) {
+    const aktiv = t.fotos.find((f) => f.epicId === id && f.aktiv && f.spielerDatei);
+    const da = st.bilder.find((b) => b.epicId === id);
+    if (aktiv?.spielerDatei) {
+      if (da) {
+        if (!unsere(da.datei) && !(id in t.vorher)) t.vorher[id] = { ...(da.datei ? { datei: da.datei } : {}), echtesFoto: Boolean(da.echtesFoto) };
+        da.datei = aktiv.spielerDatei; da.echtesFoto = true;
+      } else {
+        if (!(id in t.vorher)) t.vorher[id] = {};
+        st.bilder.push({ datei: aktiv.spielerDatei, epicId: id, name: aktiv.name || id.slice(0, 8), echtesFoto: true });
+      }
+    } else if (da && unsere(da.datei)) {
+      const v = t.vorher[id];
+      if (v?.datei) { da.datei = v.datei; da.echtesFoto = Boolean(v.echtesFoto); } else { delete da.datei; da.echtesFoto = false; }
+      delete t.vorher[id];
+    } else if (!t.fotos.some((f) => f.epicId === id)) {
+      delete t.vorher[id];
+    }
+  }
+  return { kopieren, loeschen };
+}
+
+const parse = <T>(roh: Buffer | null, name: string, standard: T): T => {
+  if (!roh) return structuredClone(standard);
+  try { return JSON.parse(roh.toString('utf8')) as T; } catch { throw new Error(`${name} ist kein gültiges JSON - nicht überschrieben`); }
+};
+const alsJson = (wert: unknown, einzug: number) => Buffer.from(JSON.stringify(wert, null, einzug), 'utf8');
+
+export type Ergebnis = { ok: true } | { ok: false; fehler: string };
+
+/**
+ * Viele Aenderungen auf einmal schreiben: frisch gelesen (Zweigkopf), alle angewandt, abgeglichen, ein Commit. Eine einzelne ungueltige Aenderung
+ * (Foto inzwischen geloescht ...) haelt die anderen nicht auf - sie bekommt ihr eigenes Ergebnis. Wirft nur, wenn das Schreiben selbst scheitert.
+ */
+export async function aenderungenSchreiben(liste: Array<{ cid: string; a: PoolAktion; zeit: number }>): Promise<{ ergebnisse: Record<string, Ergebnis>; commit: string | null }> {
+  let ergebnisse: Record<string, Ergebnis> = {};
+  const r = await aendereMehrere(`Foto-Pool: ${beschreibe(liste.map((x) => x.a))} (Admin)`, async (lies) => {
+    ergebnisse = {};
+    const [p, c, b] = await Promise.all([lies(POOL_DATEI), lies(CREDIT_DATEI), lies(BILDER_DATEI)]);
+    const st: PoolStand = { pool: sauber(parse(p, POOL_DATEI, LEER)), credits: parse<CreditTafel>(c, CREDIT_DATEI, {}), bilder: parse<Bild[]>(b, BILDER_DATEI, []) };
+    if (!Array.isArray(st.bilder)) throw new Error(`${BILDER_DATEI} ist keine Liste`);
+    const weg: PoolFoto[] = [];
+    for (const { cid, a, zeit } of liste) {
+      try { wendeAktionAn(st, a, zeit, weg); ergebnisse[cid] = { ok: true }; } catch (f) {
+        if (!(f instanceof PoolFehler)) throw f;
+        ergebnisse[cid] = { ok: false, fehler: f.message };
+      }
+    }
+    const { kopieren, loeschen } = abgleichen(st, weg);
+    return {
+      // Reihenfolge zaehlt nur beim Schreiben Datei fuer Datei (lib/ablage aendereMehrere): der Pool zuletzt.
+      schreiben: { [CREDIT_DATEI]: alsJson(st.credits, 2), [BILDER_DATEI]: alsJson(st.bilder, 1), [POOL_DATEI]: alsJson(st.pool, 2) },
+      kopieren, loeschen,
+    };
+  }, [POOL_DATEI, CREDIT_DATEI, BILDER_DATEI]);
+  return { ergebnisse, commit: r.commit };
+}
+
+function beschreibe(liste: PoolAktion[]): string {
+  const n = { zuordnen: 0, loesen: 0, aktiv: 0, loeschen: 0, credit: 0 };
+  for (const a of liste) {
+    if (a.aktion === 'zuordnen') n[a.epicId ? 'zuordnen' : 'loesen'] += 1; else n[a.aktion] += 1;
+  }
+  const teile = [[n.zuordnen, 'zugeordnet'], [n.loesen, 'geloest'], [n.aktiv, 'aktiv gesetzt'], [n.loeschen, 'geloescht'], [n.credit, 'Credit']]
+    .filter(([z]) => z).map(([z, t]) => `${z} ${t}`);
+  return teile.join(', ') || 'Abgleich';
 }
 
 /** Fuer die Admin-Seite: jedes Foto mit seinem gueltigen Credit (bei oeffentlichen der aus foto-credits.json). */
-export async function poolMitCredits(): Promise<Array<Omit<PoolFoto, 'credit'> & { credit: FotoCredit | null }>> {
-  const [t, credits] = await Promise.all([liesPool(), liesJson<CreditTafel>(CREDIT_DATEI, {})]);
+export async function poolMitCredits(pool?: PoolTafel): Promise<Array<Omit<PoolFoto, 'credit'> & { credit: FotoCredit | null }>> {
+  const [t, credits] = await Promise.all([pool ?? liesPool(), liesJson<CreditTafel>(CREDIT_DATEI, {})]);
   return t.fotos.map((f) => ({ ...f, credit: (f.spielerDatei ? credits[f.spielerDatei] : f.credit) ?? null }));
 }
 

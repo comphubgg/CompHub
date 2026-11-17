@@ -50,6 +50,16 @@ export interface Speicher {
    * Lesen, Schreiben und Nachsehen zurueck. `aendere` bekommt den Inhalt (oder null) und gibt den neuen zurueck - null heisst: nichts schreiben.
    */
   aendere?(name: string, aendere: (alt: Buffer | null) => Buffer | null): Promise<Buffer | null>;
+  /** Mehrere Dateien in einem Commit (nur das GitHub-Archiv, lib/ablageGitDaten sammelCommit) - sonst faellt aendereMehrere() auf Einzelschritte zurueck. */
+  sammeln?(nachricht: string, plan: (lies: (name: string) => Promise<Buffer | null>) => Promise<Sammel | null>, dateien?: string[]): Promise<{ commit: string | null; geschrieben: string[] }>;
+}
+
+/** Was ein Sammel-Schreiben tut: ganze Inhalte schreiben, Dateien unter neuem Namen kopieren, Dateien loeschen. */
+export interface Sammel {
+  schreiben: Record<string, Buffer>;
+  /** nach -> von */
+  kopieren: Record<string, string>;
+  loeschen: string[];
 }
 
 /* ------------------------------------------------------------ Der Ordner */
@@ -259,6 +269,15 @@ function waehle(): Speicher {
         return supabaseSpeicher.loesche(name);
       },
       // Das sichere Aendern gibt es nur im GitHub-Archiv (lib/ablageGitDaten); Supabase faellt in aendereJson() auf Lesen und Schreiben zurueck.
+      sammeln: supabaseSpeicher.sammeln ? async (nachricht, plan, dateien) => {
+        return supabaseSpeicher.sammeln!(nachricht, async (lies) => {
+          const s = await plan(lies);
+          for (const n of [...Object.keys(s?.schreiben ?? {}), ...Object.keys(s?.kopieren ?? {}), ...(s?.loeschen ?? [])]) {
+            if (nurRelease(n)) throw new Error(`${n} schreibt nur der Laufrechner`);
+          }
+          return s;
+        }, dateien);
+      } : undefined,
       aendere: supabaseSpeicher.aendere ? async (name, aendere) => {
         if (nurRelease(name)) throw new Error(`${name} schreibt nur der Laufrechner`);
         return supabaseSpeicher.aendere!(name, aendere);
@@ -289,6 +308,7 @@ function waehle(): Speicher {
       schreib: async (n, d) => { luft.set(n, d); },
       // Nie am echten Stand vorbei: aendereJson() nimmt dann den Weg ueber lies/schreib, also die Luft.
       aendere: undefined,
+      sammeln: undefined,
       loesche: async (n) => { luft.set(n, null); },
     };
   }
@@ -371,6 +391,52 @@ export async function aendereJson<T>(name: string, standard: T, aendere: (wert: 
     await new Promise((r) => setTimeout(r, 300 * (versuch + 1)));
   }
   throw new Error(`${name}: viermal Konflikt beim Schreiben (${letzter})`);
+}
+
+/**
+ * Mehrere Dateien zusammen aendern - im GitHub-Archiv als EIN Commit gegen den frischen Stand des Zweigs (lib/ablageGitDaten sammelCommit; bewegt sich der
+ * Zweig, wird neu gelesen und `plan` laeuft noch einmal). Andere Speicher: nacheinander lesen, kopieren, schreiben, loeschen.
+ * `dateien` nennt die Dateien, die `plan` schreiben kann (ein dort noch vorgemerkter Stand geht vorher hinaus).
+ */
+export async function aendereMehrere(
+  nachricht: string,
+  plan: (lies: (name: string) => Promise<Buffer | null>) => Promise<Sammel | null>,
+  dateien: string[] = [],
+): Promise<{ commit: string | null; geschrieben: string[] }> {
+  const s = waehle();
+  if (s.sammeln) {
+    try { return await s.sammeln(nachricht, plan, dateien); } catch (e) {
+      // Nur wenn der Zweig sich staendig bewegte (andere schreiben im Sekundentakt): Datei fuer Datei weiter unten. Alles andere ist ein Fehler.
+      if (!(e as { zweigBewegt?: boolean }).zweigBewegt) throw e;
+      console.warn(`[ablage] Sammel-Commit kam nicht durch (${(e as Error).message}) - schreibe Datei fuer Datei`);
+    }
+  }
+  const gelesen = new Map<string, Buffer | null>();
+  const p = await plan(async (n) => { const roh = await s.lies(n); gelesen.set(n, roh); return roh; });
+  if (!p) return { commit: null, geschrieben: [] };
+  const geschrieben: string[] = [];
+  // Reihenfolge so, dass ein Abbruch dazwischen nichts Falsches oeffentlich macht: erst die Kopien, dann die Listen, zuletzt das Loeschen.
+  for (const [nach, von] of Object.entries(p.kopieren)) {
+    const roh = await s.lies(von);
+    if (!roh) throw new Error(`Ablage: ${von} fehlt - keine Kopie nach ${nach}`);
+    await s.schreib(nach, roh); geschrieben.push(nach);
+  }
+  for (const [name, daten] of Object.entries(p.schreiben)) {
+    const alt = gelesen.has(name) ? gelesen.get(name)! : await s.lies(name);
+    if (alt && alt.equals(daten)) continue;
+    if (s.aendere) {
+      // Nur auf genau den Stand, auf dem geplant wurde - hat ihn jemand dazwischen geaendert, wird alles neu geplant (Fehler, die Reihe versucht es wieder).
+      await s.aendere(name, (jetzt) => {
+        if (!(jetzt === null ? alt === null : alt !== null && jetzt.equals(alt))) throw new Error(`${name} wurde inzwischen geändert - wird neu geplant`);
+        return daten;
+      });
+    } else {
+      await s.schreib(name, daten);
+    }
+    geschrieben.push(name);
+  }
+  for (const name of p.loeschen) { if (p.kopieren[name] || p.schreiben[name]) continue; await s.loesche(name); geschrieben.push(name); }
+  return { commit: null, geschrieben };
 }
 
 /** Eine JSON-Datei schreiben - in derselben Form wie bisher, mit Einrueckung. */
