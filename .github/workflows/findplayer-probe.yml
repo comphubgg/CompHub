@@ -1,24 +1,30 @@
-# Probe: liefert Epics Sitzungssuche (findPlayer) die laufende Match-ID fremder Konten? Nur lesen, nichts ablegen (scripts/findplayer-probe.mjs).
+# Probe: liefert Epics Sitzungssuche (findPlayer) die laufende Match-ID fremder Konten? Nur lesen (scripts/findplayer-probe.mjs).
+# workflow_dispatch geht erst, wenn die Datei auf main liegt - bis dahin startet ein Push auf den Zweig matchid-frueh, der
+# scripts/findplayer-probe-start.txt aendert, die Dauerprobe (12 min, alle 20 s alle Konten aus scripts/findplayer-probe-ids.txt).
+# Treffer: Zeilen "TREFFER ..." im Live-Protokoll (Browser) und sofort als findplayer-treffer.txt am Release "signale".
 name: findPlayer-Probe
 
-# workflow_dispatch geht erst, wenn die Datei auf main liegt - bis dahin startet ein Push auf den Zweig matchid-frueh die Probe mit den Ids aus
-# scripts/findplayer-probe-ids.txt.
 on:
   push:
     branches: [matchid-frueh]
-    paths: [scripts/findplayer-probe-ids.txt]
+    paths: [scripts/findplayer-probe-start.txt]
   workflow_dispatch:
     inputs:
-      ids:
-        description: Epic-Konto-Ids (Leerzeichen oder Komma), hoechstens 50
+      minuten:
+        description: Dauer in Minuten (0 = eine Runde)
         required: false
+        default: '12'
+
+concurrency:
+  group: findplayer-probe
+  cancel-in-progress: true
 
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,8 +38,11 @@ jobs:
         run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
       - name: Probe
         env:
-          IDS: ${{ inputs.ids }}
-        run: node scripts/findplayer-probe.mjs ${IDS:-$(cat scripts/findplayer-probe-ids.txt)}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROBE_MIN: ${{ inputs.minuten || '12' }}
+          PROBE_TAKT_S: '20'
+          PROBE_ABLEGEN: '1'
+        run: node scripts/findplayer-probe.mjs scripts/findplayer-probe-ids.txt
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
