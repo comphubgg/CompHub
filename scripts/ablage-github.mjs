@@ -598,7 +598,7 @@ async function main() {
    * Innerhalb einer Gruppe geht das zuerst hoch, was am laengsten nicht mehr hochgeladen wurde - so kommt alles der Reihe nach dran, auch wenn ein Lauf nicht
    * alles schafft. Ist ein Deckel gesetzt, bekommt jede Gruppe einen Anteil (Gruppe 0 ganz, der Rest 40 / 35 / 25 Prozent); was eine Gruppe nicht braucht, geht weiter.
    */
-  const gruppeVon = (a) => (/^(power-rankings|epic-spieltage|platzierungen|cup-archiv|epic-namen|preisgeld|lan-)/.test(a.anhang) ? 0
+  const gruppeVon = (a) => (/^(power-rankings|epic-spieltage|platzierungen|cup-archiv|epic-namen|preisgeld|lan-|antworten__statistik_tage)/.test(a.anhang) ? 0
     : /^antworten/.test(a.anhang) ? 1 : /^akten/.test(a.anhang) ? 3 : 2);
   const alterVon = (a) => Date.parse(a.rel.manifestAlt[a.anhang]?.zeit ?? '') || 0;
   /*
