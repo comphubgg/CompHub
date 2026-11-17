@@ -1,0 +1,40 @@
+# Probe: welche Epic-Schnittstelle nennt die laufende Match-ID eines Turnier-Spielers ohne Freundschaft? Nur lesen (scripts/live-quellen-probe.mjs).
+# Start per Push auf matchid-frueh, der scripts/live-quellen-probe-start.txt aendert (workflow_dispatch erst, wenn die Datei auf main liegt).
+name: Live-Quellen-Probe
+
+on:
+  push:
+    branches: [matchid-frueh]
+    paths: [scripts/live-quellen-probe-start.txt]
+  workflow_dispatch:
+
+concurrency:
+  group: live-quellen-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --omit=optional --no-audit --no-fund
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Probe
+        env:
+          PROBE_MIN: '12'
+          PROBE_TAKT_S: '15'
+          BEKANNT: '1190e145ad8746c681ebbb8fe3471e7b,68e207379d894fb4a403ee629b9fee86'
+        run: node scripts/live-quellen-probe.mjs scripts/findplayer-probe-ids.txt
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
