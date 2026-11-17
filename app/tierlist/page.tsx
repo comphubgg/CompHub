@@ -82,7 +82,7 @@ export default function TierListPage() {
   }>>({});
 
   useEffect(() => {
-    fetch('/api/spieler-profile').then(r => r.json())
+    fetch('/api/spieler-profile?anzeigenamen=1').then(r => r.json())
       .then(j => setSpielerProfile(j.profile ?? {})).catch(() => {});
   }, []);
 
@@ -112,7 +112,7 @@ export default function TierListPage() {
         anzeige: vorher?.anzeige ?? '',
       }),
     });
-    const j = await fetch('/api/spieler-profile').then(r => r.json());
+    const j = await fetch('/api/spieler-profile?anzeigenamen=1').then(r => r.json());
     setSpielerProfile(j.profile ?? {});
   }, [spielerProfile]);
 
@@ -150,7 +150,7 @@ export default function TierListPage() {
         region: (vorher as any)?.region ?? '',
       }),
     });
-    const j = await fetch('/api/spieler-profile').then(r => r.json());
+    const j = await fetch('/api/spieler-profile?anzeigenamen=1').then(r => r.json());
     setSpielerProfile(j.profile ?? {});
   }, [spielerProfile]);
 

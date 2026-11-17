@@ -7,6 +7,7 @@ import { kernname } from '@/lib/homoglyph';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 import { globalsTeams } from '@/lib/globalsTeams';
 import { epicNamen } from '@/lib/epicNamenVorrat';
+import { anzeigenamen } from '@/lib/anzeigenamen';
 
 /*
  * Der echte Name zu einer Konto-Id - fuer die Beschriftung der Karten.
@@ -41,6 +42,8 @@ const KONTO = /^[0-9a-f]{32}$/;
 const MARKE = /\[[^\]]+\]/;
 
 interface Quellen {
+  /** spieler-anzeigenamen.json (lib/anzeigenamen) - der gelaeufige Name, vor allem anderen. */
+  gelaeufig: Map<string, string>;
   profile: Record<string, { anzeige?: string }>;
   epic: Record<string, string>;
   verzeichnis: Record<string, { haupt?: string }>;
@@ -60,12 +63,13 @@ async function liesJson<T>(datei: string, ersatz: T): Promise<T> {
 function quellen(): Promise<Quellen> {
   if (vorrat && vorrat.bis > Date.now()) return vorrat.quellen;
   const q = (async () => {
-    const [profile, epic, verzeichnis] = await Promise.all([
+    const [gelaeufig, profile, epic, verzeichnis] = await Promise.all([
+      anzeigenamen().catch(() => new Map<string, string>()),
       liesJson<Record<string, { anzeige?: string }>>('spieler-profile.json', {}),
       epicNamen(),
       liesJson<Record<string, { haupt?: string }>>('spieler-namen.json', {}),
     ]);
-    return { profile, epic, verzeichnis };
+    return { gelaeufig, profile, epic, verzeichnis };
   })();
   vorrat = { bis: Date.now() + 5 * 60_000, quellen: q };
   // Ein Fehlschlag soll nicht fuenf Minuten lang haengen bleiben.
@@ -74,6 +78,8 @@ function quellen(): Promise<Quellen> {
 }
 
 function nameZu(id: string, q: Quellen): string | null {
+  const gelaeufig = q.gelaeufig.get(id.toLowerCase());
+  if (gelaeufig) return gelaeufig;
   const gepflegt = q.profile[id]?.anzeige?.trim();
   if (gepflegt && !MARKE.test(gepflegt)) return gepflegt;
   const haupt = q.verzeichnis[id]?.haupt;

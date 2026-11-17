@@ -392,7 +392,61 @@ export default function FotosPoolSeite() {
             );
           })}
         </div>
+        <AnzeigenamenAbschnitt />
       </div>
     </main>
+  );
+}
+
+/*
+ * Anzeigenamen (Betreiber, 17.11.2026): der gelaeufige Name je Spieler mit Foto ("916Gon" statt "FURIA 916Gon") - lib/anzeigenamen,
+ * gespeichert in spieler-anzeigenamen.json. Feld leeren = wieder der Epic-Name. Gespeichert wird beim Verlassen des Feldes oder mit Enter.
+ */
+interface NamensEintrag { epicId: string; epic: string; anzeige: string; foto: boolean }
+function AnzeigenamenAbschnitt() {
+  const [eintraege, setEintraege] = useState<NamensEintrag[] | null>(null);
+  const [fehler, setFehler] = useState('');
+  const [stand, setStand] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState('');
+  useEffect(() => {
+    void holeJson('/api/admin/anzeigenamen').then((j) => {
+      if (j.ok) setEintraege((j.eintraege as NamensEintrag[]) ?? []); else setFehler(j.error ?? 'Fehler');
+    });
+  }, []);
+  const speichern = async (e: NamensEintrag, name: string) => {
+    if (name.trim() === e.anzeige) return;
+    setStand((s) => ({ ...s, [e.epicId]: 'wird gespeichert …' }));
+    const j = await holeJson('/api/admin/anzeigenamen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ epicId: e.epicId, name }),
+    });
+    if (!j.ok) { setStand((s) => ({ ...s, [e.epicId]: `Fehler: ${j.error}` })); return; }
+    setEintraege((l) => (l ?? []).map((x) => (x.epicId === e.epicId ? { ...x, anzeige: String(j.anzeige ?? '') } : x)));
+    setStand((s) => ({ ...s, [e.epicId]: 'gespeichert' }));
+  };
+  const f = filter.trim().toLowerCase();
+  const sichtbar = (eintraege ?? []).filter((e) => !f || e.epic.toLowerCase().includes(f) || e.anzeige.toLowerCase().includes(f) || e.epicId.startsWith(f));
+  return (
+    <section className="mt-10 rounded-xl border border-zinc-800 p-4" data-anzeigenamen>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-100"><T>Anzeigenamen</T></h2>
+          <p className="text-xs text-slate-500"><T>Der bekannte Name eines Spielers – überall auf der Seite statt des Epic-Namens. Leer = Epic-Name.</T></p>
+        </div>
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter …" className={`${feld} max-w-[200px]`} />
+      </div>
+      {fehler && <p className="text-xs text-rose-300">{fehler}</p>}
+      {!eintraege && !fehler && <p className="text-xs text-slate-500"><T>Lädt …</T></p>}
+      <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        {sichtbar.map((e) => (
+          <label key={e.epicId} className="flex items-center gap-2 text-xs">
+            <span className="w-36 shrink-0 truncate text-slate-500" title={`${e.epic} · ${e.epicId}`}>{e.epic || e.epicId.slice(0, 8)}</span>
+            <input defaultValue={e.anzeige} key={e.anzeige} placeholder={e.epic} aria-label={`Anzeigename für ${e.epic}`} className={feld}
+              onBlur={(ev) => void speichern(e, ev.target.value)}
+              onKeyDown={(ev) => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur(); }} />
+            <span className={`w-16 shrink-0 text-[10px] ${(stand[e.epicId] ?? '').startsWith('Fehler') ? 'text-rose-300' : 'text-emerald-400'}`}>{stand[e.epicId] ?? ''}</span>
+          </label>
+        ))}
+      </div>
+    </section>
   );
 }

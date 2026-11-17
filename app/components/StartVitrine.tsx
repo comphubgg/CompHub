@@ -161,7 +161,8 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
             <Link key={s.id} href={`/statistics?spieler=${encodeURIComponent(s.name)}`} className="vit-an mt-2 block" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
               <span className="flex items-center gap-3">
                 <TeamFlagge groesse={30} laender={[s.land ?? undefined]} />
-                <span className="schrift-anzeige min-w-0 truncate text-4xl font-extrabold uppercase tracking-tight text-[#fff] sm:text-5xl">{s.name}</span>
+                {/* Der gelaeufige Name in seiner Schreibweise ("916Gon", lib/anzeigenamen) - nicht in Grossbuchstaben. */}
+                <span className="schrift-anzeige min-w-0 truncate text-4xl font-extrabold tracking-tight text-[#fff] sm:text-5xl">{s.name}</span>
                 <span className="rounded border border-[rgba(255,255,255,.3)] bg-[rgba(255,255,255,.12)] px-1.5 py-0.5 text-[10px] font-bold text-[#e2e8f0]">{s.region}</span>
               </span>
             </Link>

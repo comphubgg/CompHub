@@ -6225,6 +6225,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   <h2 className="schrift-anzeige mt-3 break-words text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-100 sm:text-5xl">
                     {grossName(offen.anzeige, offen.gepflegt)}
                   </h2>
+                  {/* Der Epic-Name klein darunter, wenn der gelaeufige Name ein anderer ist (lib/anzeigenamen) - so bleibt das Konto auffindbar. */}
+                  {(() => {
+                    const epic = String((offen as { epicName?: string }).epicName || offen.name || '').trim();
+                    return epic && epic.toLowerCase() !== String(offen.anzeige || '').trim().toLowerCase()
+                      ? <p className="mt-1 text-xs text-slate-500" data-epic-name>Epic: {epic}</p> : null;
+                  })()}
                   <p className="mt-2 text-sm text-slate-500">
                     {offen.events
                       ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`

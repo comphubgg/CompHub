@@ -1,6 +1,7 @@
 import { liesJson } from '@/lib/ablage';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { PLATZHALTER_FOTO, spielerbildGross, spielerbildKlein } from '@/lib/spielerbildKlein';
+import { anzeigenamen, anzeigenameEinsetzen } from '@/lib/anzeigenamen';
 
 /*
  * Die eine, aktuelle Quelle fuer Spielerfotos (Betreiber, 17.11.2026: "ein neues Foto soll innerhalb von Minuten ueberall erscheinen").
@@ -30,6 +31,8 @@ export interface FotoStand {
   nachKonto: Map<string, string>;
   /** Namensschluessel -> Konto-Id, nur eindeutige Namen von Konten mit Foto (fuer Stellen, die nur einen Namen kennen). */
   nachName: Map<string, string>;
+  /** Konto-Id (klein) -> gelaeufiger Name (spieler-anzeigenamen.json, lib/anzeigenamen) - beim Ausliefern statt des Epic-Namens. */
+  anzeigenamen?: Map<string, string>;
 }
 
 let merker: { stand: FotoStand; bis: number } | null = null;
@@ -41,9 +44,10 @@ export async function fotoStand(): Promise<FotoStand> {
   if (unterwegs) return unterwegs;
   unterwegs = (async () => {
     try {
-      const [liste, profile] = await Promise.all([
+      const [liste, profile, namenTafel] = await Promise.all([
         liesJson<Eintrag[]>('spielerbilder.json', []),
         liesJson<Record<string, Profil>>('spieler-profile.json', {}).catch(() => ({} as Record<string, Profil>)),
+        anzeigenamen().catch(() => new Map<string, string>()),
       ]);
       const nachKonto = new Map<string, string>();
       const namen = new Map<string, Set<string>>();
@@ -62,9 +66,11 @@ export async function fotoStand(): Promise<FotoStand> {
         if (!nachKonto.has(id)) continue;
         for (const n of [p?.name, p?.anzeige, ...(Array.isArray(p?.namen) ? p.namen : [])]) merk(n, id);
       }
+      // Auch der gelaeufige Name findet das Foto ("916Gon" statt "FURIA 916Gon").
+      for (const [id, n] of namenTafel) if (nachKonto.has(id)) merk(n, id);
       const nachName = new Map<string, string>();
       for (const [k, ids] of namen) if (ids.size === 1) nachName.set(k, [...ids][0]);
-      const stand = { nachKonto, nachName };
+      const stand: FotoStand = { nachKonto, nachName, anzeigenamen: namenTafel };
       // Eine leere Liste (Ablage kurz nicht erreichbar) nicht eine Minute lang festhalten.
       merker = { stand, bis: Date.now() + (nachKonto.size ? FRIST_MS : 5_000) };
       return stand;
@@ -111,6 +117,8 @@ export function fotosEinsetzen<T>(wert: T, stand: FotoStand, gross = false): T {
       if (typeof v === 'string' && KONTO.test(v)) { id = v; break; }
     }
     if (id) {
+      // Der gelaeufige Name statt des rohen Epic-Namens (lib/anzeigenamen) - der Epic-Name bleibt in "name"/"epicName".
+      if (stand.anzeigenamen?.size && anzeigenameEinsetzen(r, id, stand.anzeigenamen) && 'gepflegt' in r) r.gepflegt = true;
       let gesetzt = false;
       for (const f of FOTO_FELDER) {
         if (!(f in r) || !istSpielerfotoFeld(r[f])) continue;

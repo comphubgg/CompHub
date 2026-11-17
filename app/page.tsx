@@ -112,7 +112,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                                  via-black/70 to-transparent px-3 pb-2.5 pt-10">
                   <span className="flex items-center gap-1.5">
                     <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
-                    <span className="min-w-0 truncate text-sm font-bold uppercase tracking-wide
+                    <span className="min-w-0 truncate text-sm font-bold tracking-wide
                                      text-slate-50">{sp.anzeige}</span>
                   </span>
                   <span className="mt-1 block text-lg font-bold tabular-nums text-emerald-400">

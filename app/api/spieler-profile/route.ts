@@ -77,8 +77,40 @@ async function mitLanKonten(profile: Record<string, SpielerProfil>) {
   return raus;
 }
 
-export async function GET() {
-  return NextResponse.json({ profile: await mitLanKonten(await lies()) });
+/*
+ * "?anzeigenamen=1" (Tierlist, 17.11.2026): die gelaeufigen Namen der Profis (lib/anzeigenamen) als "anzeige" - auch fuer Konten ohne
+ * eigenes Profil, dann mit dem Epic-Namen aus spielerbilder.json als "name", damit die Tierlist sie ueber den Turniernamen findet.
+ * Ohne den Schalter bleibt die Antwort, wie sie ist: die Admin-Seiten bearbeiten die Datei selbst.
+ */
+async function mitAnzeigenamen(profile: Record<string, SpielerProfil>) {
+  const { anzeigenamen } = await import('@/lib/anzeigenamen');
+  const { liesJson } = await import('@/lib/ablage');
+  const namen = await anzeigenamen().catch(() => new Map<string, string>());
+  if (!namen.size) return profile;
+  const raus: Record<string, SpielerProfil> = { ...profile };
+  const gesehen = new Set<string>();
+  for (const [k, p] of Object.entries(raus)) {
+    const id = String(p?.id ?? '').toLowerCase();
+    const n = id && namen.get(id);
+    if (!n) continue;
+    gesehen.add(id);
+    raus[k] = { ...p, anzeige: n };
+  }
+  const bilder = await liesJson<Array<{ epicId?: string; name?: string; turniername?: string }>>('spielerbilder.json', []).catch(() => []);
+  for (const e of Array.isArray(bilder) ? bilder : []) {
+    const id = String(e?.epicId ?? '').toLowerCase();
+    const n = namen.get(id);
+    if (!n || gesehen.has(id) || raus[id] || !e.name) continue;
+    gesehen.add(id);
+    raus[id] = { id, name: e.name, namen: [...new Set([e.name, e.turniername].filter(Boolean) as string[])], anzeige: n } as SpielerProfil;
+  }
+  return raus;
+}
+
+export async function GET(request: Request) {
+  const profile = await mitLanKonten(await lies());
+  const mit = new URL(request.url).searchParams.get('anzeigenamen') === '1';
+  return NextResponse.json({ profile: mit ? await mitAnzeigenamen(profile) : profile });
 }
 
 /*

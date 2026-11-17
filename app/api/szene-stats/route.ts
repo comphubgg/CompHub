@@ -983,9 +983,11 @@ async function berechne(request: Request) {
         const { liesOrgs } = await import('@/lib/orgs');
         for (const o of await liesOrgs()) for (const sp of o.spieler) if (sp.epicId && sp.name) orgName.set(sp.epicId, sp.name);
       } catch { /* ohne Orgs bleibt der Archivname */ }
+      // Der gelaeufige Name (lib/anzeigenamen, 17.11.2026): "916Gon" findet "FURIA 916Gon" - und der Epic-Name findet weiter den Spieler.
+      const gelaeufig = await (await import('@/lib/anzeigenamen')).anzeigenamen().catch(() => new Map<string, string>());
       const treffer = (await holeSuchIndex())
         .filter((e) => (istId ? e.epicId.toLowerCase() === q.trim().toLowerCase()
-          : [e.anzeige, e.name, jetzt[e.epicId] ?? '', ...e.namen, orgName.get(e.epicId) ?? ''].some((n) => vergleichbar(n).includes(qv))))
+          : [e.anzeige, e.name, jetzt[e.epicId] ?? '', ...e.namen, orgName.get(e.epicId) ?? '', gelaeufig.get(e.epicId.toLowerCase()) ?? ''].some((n) => vergleichbar(n).includes(qv))))
         // Gepflegte Profile (die Profis) zuerst, dann wer mehr gespielt hat: bei "twi" ist der gesuchte Spieler der mit Hunderten Matches,
         // nicht ein gleichnamiges Konto mit dreien.
         .sort((a, b) => Number(b.gepflegt) - Number(a.gepflegt) || b.matches - a.matches)
