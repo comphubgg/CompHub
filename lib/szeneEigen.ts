@@ -18,6 +18,7 @@ import path from 'path';
 import { liesJson } from '@/lib/ablage';
 import { replayTag } from '@/lib/replaySchlank';
 import { istGrossesTurnier } from '@/lib/turnierArt';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 export interface EigenerTag {
   eventId: string; windowId: string; region: string; season: string; titel: string; cupId: string;
@@ -73,7 +74,7 @@ export async function eigeneSpieler(t: EigenerTag): Promise<{ players: EigeneSpi
   const [rep, clutch, namen] = await Promise.all([
     replayTag(t.season, t.windowId),
     liesJson<Clutch | null>(path.join('clutch', `${t.windowId}.json`), null).catch(() => null),
-    liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>)),
+    epicNamen(),
   ]);
   /*
    * Ein Spieltag fehlt nie ganz (Betreiber, 31.10.2026: "Es darf nicht einfach auf einmal keine Stats mehr kommen"): jeder Spieler steht mit Matches

@@ -16,11 +16,11 @@
  * Das Ergebnis je Konto bleibt zehn Minuten im Prozess.
  */
 
-import { liesJson } from '@/lib/ablage';
 import { vergleichbar, gefaltet } from '@/lib/homoglyph';
 import { ACCOUNT, getToken } from '@/lib/epicCups';
 import { tagsFuer } from '@/lib/releaseTags.mjs';
 import { replayWert } from '@/lib/replayWerte';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
@@ -45,7 +45,7 @@ let indexLaeuft: Promise<NamenIndex> | null = null;
 
 function indexBauen(): Promise<NamenIndex> {
   indexLaeuft ??= (async () => {
-    const roh = await liesJson<Record<string, string>>('epic-namen.json', {});
+    const roh = await epicNamen();
     const ids: string[] = []; const namen: string[] = []; const keys: string[] = [];
     const nachKey = new Map<string, number[]>(); const nachGrob = new Map<string, number[]>();
     for (const [id, name] of Object.entries(roh)) {

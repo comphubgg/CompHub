@@ -6,6 +6,7 @@ import { liesJson } from '@/lib/ablage';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { kernname } from '@/lib/homoglyph';
 import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Die Endspiele der FNCS fuer die FNCS-Seite (siehe lib/fncsEreignisse): ein Eintrag je Event mit Vorschaubild, Datum, LAN-Vermerk
@@ -25,7 +26,7 @@ async function fotosNachName(): Promise<Map<string, string>> {
   const [profile, bilder, epic] = await Promise.all([
     liesJson<Record<string, { anzeige?: string; name?: string }>>('spieler-profile.json', {}),
     liesJson<Array<{ datei: string; epicId: string; name?: string; turniername?: string; echtesFoto?: boolean }>>('spielerbilder.json', []),
-    liesJson<Record<string, string>>('epic-namen.json', {}),
+    epicNamen(),
   ]);
   const bildVon = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.echtesFoto) bildVon.set(b.epicId, spielerbildKlein(b.datei));
@@ -37,7 +38,8 @@ async function fotosNachName(): Promise<Map<string, string>> {
   };
   for (const [id, p] of Object.entries(profile)) { setze(p.anzeige, id); setze(p.name, id); }
   for (const b of bilder) { setze(b.name, b.epicId); setze(b.turniername, b.epicId); }
-  for (const [id, n] of Object.entries(epic)) setze(n, id.toLowerCase());
+  // Nur Konten mit Foto zaehlen (setze) - also nur deren Epic-Namen nachsehen, nicht alle ~269.000 durchlaufen (17.11.2026: 0,8 s je Durchlauf).
+  for (const id of bildVon.keys()) setze(epic[id] ?? epic[id.toLowerCase()], id);
   return raus;
 }
 

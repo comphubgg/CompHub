@@ -6,6 +6,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { kernname } from '@/lib/homoglyph';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 import { globalsTeams } from '@/lib/globalsTeams';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Der echte Name zu einer Konto-Id - fuer die Beschriftung der Karten.
@@ -61,7 +62,7 @@ function quellen(): Promise<Quellen> {
   const q = (async () => {
     const [profile, epic, verzeichnis] = await Promise.all([
       liesJson<Record<string, { anzeige?: string }>>('spieler-profile.json', {}),
-      liesJson<Record<string, string>>('epic-namen.json', {}),
+      epicNamen(),
       liesJson<Record<string, { haupt?: string }>>('spieler-namen.json', {}),
     ]);
     return { profile, epic, verzeichnis };

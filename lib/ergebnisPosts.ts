@@ -9,6 +9,7 @@ import { zonenTage } from '@/lib/zonenBild';
 import { kumulativeTage, tagNummer } from '@/lib/kumulativ';
 import { landQuellen, type LandQuellen } from '@/lib/landQuellen';
 import { ftFlaggeFuer, type FtKonten } from '@/lib/ftPosts';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Der Post zu jedem gelaufenen Cup (Betreiber, 19.10.2026): "immer nach einem Cup automatisch die Top 10 mit Profilbildern, fuer Twitter direkt fertig - und die
@@ -64,7 +65,7 @@ export async function profilKarte(): Promise<{ profile: Map<string, Profil>; ers
   const quellen = await landQuellen().catch(() => null);
   const ersatz = new Map<string, { name: string; land: string }>();
   try {
-    const roh = await liesJson<Record<string, string>>('epic-namen.json', {});
+    const roh = await epicNamen();
     for (const [id, name] of Object.entries(roh)) {
       const k = id.toLowerCase();
       if (name && !istKennungName(name, k)) ersatz.set(k, { name, land: quellen?.spiel[k] ?? '' });

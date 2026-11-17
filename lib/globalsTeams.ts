@@ -9,6 +9,7 @@ import { GLOBALS_EVENT } from '@/lib/globalsCup';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 
 import { spielerbildGross } from './spielerbildKlein';
+import { epicNamen as epicNamenVorrat } from '@/lib/epicNamenVorrat';
 /*
  * Das Feld der Global Championship - wer antritt, und woher.
  *
@@ -101,12 +102,27 @@ const FESTE_KONTEN: Record<string, string> = {
 
 type Index = Map<string, Set<string>>;
 
+/** Epic-Name -> Konten, einmal je Stand der Epic-Namen (das Objekt aus lib/epicNamenVorrat bleibt dasselbe, bis sich die Datei aendert). */
+const epicIndexMerker = new WeakMap<object, Index>();
+function epicIndex(epicNamen: Readonly<Record<string, string>>): Index {
+  const da = epicIndexMerker.get(epicNamen);
+  if (da) return da;
+  const ix: Index = new Map();
+  for (const [id, n] of Object.entries(epicNamen)) {
+    if (!n || !KONTO.test(id) || istKennungName(n, id)) continue;
+    const k = namensSchluessel(n);
+    if (k) (ix.get(k) ?? ix.set(k, new Set()).get(k)!).add(id);
+  }
+  epicIndexMerker.set(epicNamen, ix);
+  return ix;
+}
+
 /** Die Zuordnung Name -> gewoehnliches Konto, siehe oben. */
 function zuordnung(quellen: {
   profile: Record<string, Profil>;
   bilder: Bildeintrag[];
   namen: Record<string, { namen?: string[]; haupt?: string }>;
-  epicNamen: Record<string, string>;
+  epicNamen: Readonly<Record<string, string>>;
   lanKonten: Set<string>;
 }) {
   const { profile, bilder, namen, epicNamen, lanKonten } = quellen;
@@ -131,14 +147,26 @@ function zuordnung(quellen: {
     if (!k || !KONTO.test(id) || lanKonten.has(id) || lanArtig.has(id)) return;
     (ix.get(k) ?? ix.set(k, new Set()).get(k)!).add(id);
   };
-  const reihe: Index[] = [neu(), neu(), neu(), neu()];
-  const [ausProfil, ausFoto, ausNamen, ausEpic] = reihe;
+  /*
+   * Die Epic-Namen (~269.000) nicht bei jedem Aufruf neu verschluesseln (17.11.2026: 0,65 s blockierte Ereignisschleife und ~270.000 neue Sets je
+   * Fenster und Minute): der Index haengt am gemeinsamen Stand aus lib/epicNamenVorrat und entsteht einmal je Stand; LAN-Konten fallen erst beim Nachsehen weg.
+   */
+  const basis = epicIndex(epicNamen);
+  const ausEpic: Pick<Index, 'get'> = {
+    get: (k: string) => {
+      const s = basis.get(k);
+      if (!s) return undefined;
+      const f = new Set([...s].filter((id) => !lanKonten.has(id) && !lanArtig.has(id)));
+      return f.size ? f : undefined;
+    },
+  };
+  const [ausProfil, ausFoto, ausNamen] = [neu(), neu(), neu()];
+  const reihe: Array<Pick<Index, 'get'>> = [ausProfil, ausFoto, ausNamen, ausEpic];
   for (const [id, p] of Object.entries(profile)) {
     for (const n of [p.name, p.anzeige, ...(p.namen ?? [])]) add(ausProfil, n, id);
   }
   for (const b of bilder) if (b.echtesFoto) for (const n of [b.name, b.turniername]) add(ausFoto, n, b.epicId);
   for (const [id, e] of Object.entries(namen)) for (const n of [...(e.namen ?? []), e.haupt]) add(ausNamen, n, id);
-  for (const [id, n] of Object.entries(epicNamen)) if (n && !istKennungName(n, id)) add(ausEpic, n, id);
 
   const mitFoto = new Set(bilder.filter((b) => b.echtesFoto).map((b) => b.epicId));
   const person = (id: string) => (profile[id]?.anzeige || profile[id]?.name || '').toLowerCase().trim();
@@ -180,7 +208,7 @@ export async function globalsTeams(fenster: string) {
     liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}),
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),
-    liesJson<Record<string, string>>('epic-namen.json', {}),
+    epicNamenVorrat(),
     landQuellen().catch(() => null),
   ]);
 

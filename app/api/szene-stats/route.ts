@@ -23,6 +23,7 @@ import { liesClutch } from '@/lib/clutchLive';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 import { spielerbildKlein, spielerbildGross, standAnhaengen, spielerbilderFrei, fotosImJsonSperren } from '@/lib/spielerbildKlein';
 import { fotosImTextEinsetzen } from '@/lib/aktuelleFotos';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -103,7 +104,7 @@ async function liesSzeneSpieler() {
   if (szeneSpieler && Date.now() < szeneBis) return szeneSpieler;
   const karte = new Map<string, { name: string; land: string; landQuelle?: 'spiel' }>();
   try {
-    const roh = await liesJson<Record<string, string>>('epic-namen.json', {});
+    const roh = await epicNamen();
     for (const [id, name] of Object.entries(roh)) {
       if (!name || istKennungName(name, id)) continue;
       karte.set(id.toLowerCase(), { name, land: '' });
@@ -276,7 +277,7 @@ function vergleichbar(s: string): string {
 let namenVorrat: { stand: Record<string, string>; bis: number } | null = null;
 async function aktuelleNamen(): Promise<Record<string, string>> {
   if (namenVorrat && Date.now() < namenVorrat.bis) return namenVorrat.stand;
-  const stand = await liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({}));
+  const stand = await epicNamen();
   namenVorrat = { stand, bis: Date.now() + 10 * 60_000 };
   return stand;
 }

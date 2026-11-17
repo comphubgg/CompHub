@@ -1,9 +1,9 @@
 import { findeSpieler, getToken, holeSeite, MAX_PAGES, gecacht } from '@/lib/epicCups';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { replayRegel } from '@/lib/replayRegel.mjs';
-import { liesJson } from '@/lib/ablage';
 import { scrimsVon, type ScrimTreffer } from '@/lib/scrimsNoble';
 import { freundesStatus } from '@/lib/epicFreundeStatus';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Der Match-ID-Finder fuer VIPs (Betreiber, 27.10.2026): "wenn man in einem Performance-Open-Cup von einem Spieler seine Match-ID will ... anzeigen, ob live
@@ -101,7 +101,7 @@ export async function finde(ids: string[], mitRohwert = false, namen: Record<str
     gecacht(schluessel, 15_000, () => findeFrisch(ids, mitRohwert)),
     // Laufende Scrims (Noble): ueber die Epic-Konto-Id im Session-Leaderboard, vor dem ersten Spiel ueber den Namen auf der Anmeldeliste.
     (async () => {
-      const aktuell = await liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>));
+      const aktuell = await epicNamen();
       return scrimsVon(ids.map((id) => ({ id, namen: [namen[id] ?? '', aktuell[id] ?? ''].filter(Boolean) }))).catch(() => ({} as Record<string, ScrimTreffer>));
     })(),
   ]);

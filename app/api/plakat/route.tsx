@@ -36,6 +36,7 @@ import { spielerbildGross } from '@/lib/spielerbildKlein';
  */
 
 import { heatsDaten, heatTag, type HeatsDaten } from '@/lib/heatsPosts';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -447,7 +448,7 @@ async function kontoZu(q: string): Promise<string | null> {
   const teil = genau.length ? genau : bilder.filter((x) => x.epicId && [x.name, x.turniername].some((n) => k(n).includes(ziel)));
   const bester = teil.sort((a, b) => (b.matches ?? 0) - (a.matches ?? 0))[0];
   if (bester?.epicId) return bester.epicId;
-  const namen = await liesJson<Record<string, string>>('epic-namen.json', {});
+  const namen = await epicNamen();
   const treffer = Object.entries(namen).filter(([, n]) => k(n) === ziel);
   return treffer.length === 1 ? treffer[0][0] : null;
 }

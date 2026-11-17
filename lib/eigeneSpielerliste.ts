@@ -1,7 +1,7 @@
-import { liesJson } from '@/lib/ablage';
 import { istKennungName } from '@/lib/kennungName';
 import { landQuellen } from '@/lib/landQuellen';
 import { LAND_QUELLEN, landNorm } from '@/lib/spielerFlagge.mjs';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Name und Land je Konto aus unseren eigenen Quellen (17.11.2026) - fuer alles, was einen Namen oder eine Flagge zu einer Konto-Id braucht und
@@ -25,7 +25,7 @@ export function eigeneSpielerliste(): Promise<Map<string, EigenerSpieler>> {
 
 async function laden(): Promise<Map<string, EigenerSpieler>> {
   const [namen, q] = await Promise.all([
-    liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>)),
+    epicNamen(),
     landQuellen().catch(() => null),
   ]);
   const karte = new Map<string, EigenerSpieler>();

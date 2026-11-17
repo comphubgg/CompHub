@@ -4,6 +4,7 @@ import { landNorm } from '@/lib/spielerFlagge.mjs';
 import { landQuellen } from '@/lib/landQuellen';
 import { FNCS_FAKTEN } from '@/lib/fncsFakten';
 import type { MapEintrag } from '@/lib/mapsVerzeichnis';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Die FNCS-Endspiele vor Epics Bestenlisten (vor Chapter 5 Season 3): welche Art ein Endspiel ist, das Land zu einem Spielernamen
@@ -52,7 +53,7 @@ export async function landVonName(): Promise<(name: string) => string | null> {
     };
     const [profile, epic, quellen] = await Promise.all([
       liesJson<Record<string, { name?: string; anzeige?: string; namen?: string[]; land?: string }>>('spieler-profile.json', {}).catch(() => ({})),
-      liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>)),
+      epicNamen(),
       landQuellen().catch(() => null),
     ]);
     const ausProfil = new Set<string>();

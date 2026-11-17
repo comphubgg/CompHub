@@ -6,6 +6,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { liesJson } from '@/lib/ablage';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { istKennungName } from '@/lib/kennungName';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 // Namensverzeichnis: welche Namen gehoeren zu welchem Epic-Konto?
 //
@@ -129,7 +130,7 @@ export async function POST() {
     m.set(n, (m.get(n) ?? 0) + gewicht);
   };
   const [epic, profile] = await Promise.all([
-    liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>)),
+    epicNamen(),
     liesJson<Record<string, { id?: string; name?: string; anzeige?: string; namen?: string[] }>>('spieler-profile.json', {}).catch(() => ({})),
   ]);
   for (const [id, n] of Object.entries(epic)) zaehle(id, n, 2);

@@ -13,6 +13,7 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { epicNamen } from './epicNamenVorrat';
 
 import { spielerbildGross, spielerbilderFrei } from './spielerbildKlein';
 import { landAusGeoToken } from './spielerFlagge.mjs';
@@ -384,22 +385,22 @@ const NAMEN_ABLAGE = 'epic-namen.json';
  * vorhandene Eintraege bleiben, ein Name wird nur durch einen frisch von Epic geholten, gueltigen ersetzt.
  */
 const namenNeu = NZ.neu;
-const NAMEN_ABSTAND_MS = 60_000;
+/*
+ * Fuenf Minuten, nicht eine (17.11.2026): jedes Schreiben liest, parst, schreibt und laedt die ganze Datei (14 MB, ~269.000 Eintraege) hoch - gemessen
+ * rund 0,5 s blockierte Ereignisschleife und +130 MB rss je Mal, und es belegt die eine Schreibreihe (lib/ablageGitDaten) mit einem 19-MB-Upload.
+ * Was dazwischen aufgeloest wird, steht in nameCache; nach einem Neustart fehlt hoechstens dieser Rest im Archiv und wird bei Epic neu geholt.
+ */
+const NAMEN_ABSTAND_MS = 5 * 60_000;
 
 /** Ein Name, der in den Vorrat darf: nicht leer und keine gekuerzte Id (siehe unten). */
 const gueltigerName = (id: string, name: string | undefined): name is string => Boolean(name) && name !== id.slice(0, 8);
 
-async function namenLaden(): Promise<void> {
-  if (NZ.geladen) return;
-  NZ.geladen = true;
-  try {
-    const { liesJson } = await import('@/lib/ablage');
-    const gespeichert = await liesJson<Record<string, string>>(NAMEN_ABLAGE, {});
-    for (const [id, name] of Object.entries(gespeichert)) {
-      // Fruehere Fassungen legten auch gekuerzte Ids ab - die sind kein Name.
-      if (!nameCache.has(id) && gueltigerName(id, name)) nameCache.set(id, name);
-    }
-  } catch { /* ohne Vorrat wird eben neu aufgeloest */ }
+/*
+ * Der Vorrat aus der Ablage ist der gemeinsame, nur lesende Stand aus lib/epicNamenVorrat (einmal je Prozess geparst, 17.11.2026). Bis dahin kopierte
+ * namenLaden alle ~269.000 Eintraege in nameCache (0,4 s und ~60 MB extra); nameCache haelt jetzt nur, was dieser Vorgang selbst von Epic geholt hat.
+ */
+async function namenVorrat(): Promise<Readonly<Record<string, string>>> {
+  try { return await epicNamen(); } catch { return {}; }
 }
 
 /**
@@ -424,13 +425,12 @@ async function namenJetztSchreiben(): Promise<void> {
   const teil = new Map(namenNeu);
   try {
     const { aendereJson } = await import('@/lib/ablage');
-    const stand = await aendereJson<Record<string, string>>(NAMEN_ABLAGE, {}, (vorrat) => {
+    await aendereJson<Record<string, string>>(NAMEN_ABLAGE, {}, (vorrat) => {
       for (const [id, name] of teil) if (gueltigerName(id, name)) vorrat[id] = name;
     }, 1);
-    // Geschrieben: aus der Vormerkung nehmen, was inzwischen nicht schon wieder neuer ist.
+    // Geschrieben: aus der Vormerkung nehmen, was inzwischen nicht schon wieder neuer ist. (Kein Durchlauf ueber alle Eintraege mehr - 0,4 s je Mal;
+    // es gibt einen Schreiber je Prozess, und gelesen wird ueber lib/epicNamenVorrat.)
     for (const [id, name] of teil) if (namenNeu.get(id) === name) namenNeu.delete(id);
-    // Was andere Vorgaenge abgelegt haben, kennt jetzt auch dieser.
-    for (const [id, name] of Object.entries(stand)) if (!nameCache.has(id) && gueltigerName(id, name)) nameCache.set(id, name);
   } catch { /* bleibt vorgemerkt - beim naechsten Mal wieder */ }
   NZ.zuletzt = Date.now();
   NZ.schreibt = false;
@@ -440,12 +440,18 @@ async function namenJetztSchreiben(): Promise<void> {
 let namenGebremstBis = 0;
 
 export async function loeseNamenAuf(ids: string[], token: string) {
-  await namenLaden();
+  const vorrat = await namenVorrat();
+  const bekannt = (id: string): string | undefined => {
+    const c = nameCache.get(id);
+    if (c) return c;
+    const v = vorrat[id];
+    return gueltigerName(id, v) ? v : undefined;
+  };
 
   const out: Record<string, string> = {};
   const fehlend: string[] = [];
   for (const id of new Set(ids)) {
-    const c = nameCache.get(id);
+    const c = bekannt(id);
     if (c && c !== id.slice(0, 8)) out[id] = c; else if ((ohneNamenBis.get(id) ?? 0) > Date.now()) out[id] = id.slice(0, 8); else fehlend.push(id);
   }
 
@@ -511,7 +517,7 @@ export async function loeseNamenAuf(ids: string[], token: string) {
        */
       // Auch nicht im Speicher des Vorgangs (15.11.2026: sonst blieb ein Konto bis zum Neustart "b830d2ba"); nur eine Minute nicht neu fragen.
       if (gueltigerName(acc.id, name)) {
-        if (nameCache.get(acc.id) !== name) namenNeu.set(acc.id, name);
+        if (bekannt(acc.id) !== name) namenNeu.set(acc.id, name);
         nameCache.set(acc.id, name);
       } else ohneNamenBis.set(acc.id, Date.now() + 60_000);
       if (ohneNamenBis.size > 50_000) ohneNamenBis.clear();
