@@ -16,7 +16,7 @@
  *   - Strecke: epicStrecke (Meter, von Epic) vor strecke ([Fuss, Luft] aus Positionsproben, ohne Epic-Werte auf 68,5 % hochgerechnet und als "est." markiert).
  *   - Bestes Spiel: die meisten killsEcht in einem Match (Zeilen aus clutch-je), bei Gleichstand der Schaden dieses Matches.
  *   - Sieger, Siege und Elims je Team: Epics Bestenliste des Spieltags.
- *   - Flagge (16.11.2026: jeder Name hat eine - lib/spielerFlagge.mjs): spieler-profile.json (land), dann szene-quelle/spielerliste.json, dann die Flagge, die der
+ *   - Flagge (16.11.2026: jeder Name hat eine - lib/spielerFlagge.mjs): spieler-profile.json (land), dann die Flagge, die der
  *     Spieler in Fortnite gewaehlt hat (Epics playerFlagTokens, "spiel"), dann Noble - eine automatische Quelle, die der Region widerspricht, wird uebersprungen
  *     und gemeldet. Ohne Land das Zeichen der Region (🇪🇺, 🌎, 🌏, 🌍). @-Konto aus spieler-profile.json (x).
  *   - Immer @X-Konto, sonst der Name - nie twitch.tv (das gehoert nur in den Live-Post der Streamer).
@@ -67,8 +67,7 @@ export interface FtKonten {
   twitch: Record<string, string>;
   /** Der Name, wenn es weder @ noch Twitch gibt. */
   namen: Record<string, string>;
-  /** Weitere Quellen fuers Land, in dieser Reihenfolge nach dem Profil (lib/spielerFlagge.mjs): Szene-Liste, Fortnite-Flagge (Epic), Noble. */
-  szene?: Record<string, string>;
+  /** Weitere Quellen fuers Land, in dieser Reihenfolge nach dem Profil (lib/spielerFlagge.mjs): Fortnite-Flagge (Epic), Noble. */
   spiel?: Record<string, string>;
   noble?: Record<string, string>;
   /** Die Wettkampfregion (Fenster-Id oder "EU") - prueft die automatischen Quellen und gibt das Zeichen, wenn kein Land bekannt ist. */
@@ -125,7 +124,7 @@ const gemeldet = new Set<string>();
  */
 export function ftLand(k: FtKonten, id: string): { land: string; quelle: string } | null {
   const i = id.toLowerCase();
-  return landWaehlen({ profil: k.land[i], szene: k.szene?.[i], spiel: k.spiel?.[i], noble: k.noble?.[i] }, k.region ?? '', (quelle: string, land: string) => {
+  return landWaehlen({ profil: k.land[i], spiel: k.spiel?.[i], noble: k.noble?.[i] }, k.region ?? '', (quelle: string, land: string) => {
     const s = `${i}|${quelle}|${land}|${k.region}`;
     if (gemeldet.has(s)) return;
     gemeldet.add(s);
@@ -148,17 +147,15 @@ interface StreamerRoh { twitch?: string; twitter?: string }
 /**
  * Die Zuordnung Id -> @-Konto, Land, Twitch und Name aus den gepflegten Dateien.
  *   profile:  spieler-profile.json (Objekt oder Liste)
- *   liste:    szene-quelle/spielerliste.json ([{ ID, COUNTRY }])
  *   streamer: streamers.json ({ streamers: { EU: [...], NA: [...] } }) - null: jeder Twitch-Kanal im Profil zaehlt als Streamer
  *   namen:    spieler-namen.json (id -> { haupt })
  */
 export function ftKonten(
   profile: Record<string, ProfilRoh> | ProfilRoh[] | null | undefined,
-  liste: Array<{ ID?: string; COUNTRY?: string }> | null | undefined,
   streamer: { streamers?: Record<string, StreamerRoh[] | undefined> } | null | undefined,
   namen?: Record<string, { haupt?: string } | undefined> | null,
 ): FtKonten {
-  const k: FtKonten = { x: {}, land: {}, twitch: {}, namen: {}, szene: {} };
+  const k: FtKonten = { x: {}, land: {}, twitch: {}, namen: {} };
   const kanaele = new Set<string>();
   const xZuTwitch = new Map<string, string>();
   for (const l of Object.values(streamer?.streamers ?? {})) {
@@ -183,10 +180,6 @@ export function ftKonten(
     const tw = eigen && (mitListe ? kanaele.has(eigen.toLowerCase()) : !x) ? eigen : (x ? xZuTwitch.get(x.toLowerCase()) ?? '' : '');
     if (tw) k.twitch[id] = tw;
     if (p.anzeige) k.namen[id] = p.anzeige;
-  }
-  for (const r of liste ?? []) {
-    const id = String(r?.ID ?? '').toLowerCase();
-    if (id && r.COUNTRY) k.szene![id] = r.COUNTRY;
   }
   // Der gepflegte Hauptname geht vor dem Anzeigenamen aus dem Profil (wie bisher im Werkzeug).
   for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt) k.namen[id.toLowerCase()] = n.haupt;

@@ -99,7 +99,7 @@ function Flagge({ land }: { land: string | null }) {
 
 /**
  * Eine gespeicherte Karte zeichnen - wie im Karten-Werkzeug und nach dem
- * Vorbild von eucompetitive.com (siehe app/lib/kartenStil): Rot, wo zwei
+ * Vorbild einer Vergleichsseite (siehe app/lib/kartenStil): Rot, wo zwei
  * Teams landen, Alata mit schwarzer Kontur, beim Ueberfahren waechst die
  * Form ein wenig. Mit dem Rad wird gezoomt, gezogen wird mit der Maus - und
  * weil beides direkt am Element geschieht, ohne die Seite neu zu zeichnen,

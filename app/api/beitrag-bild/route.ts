@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { istKennungName } from '@/lib/kennungName';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import sharp from 'sharp';
@@ -47,9 +46,8 @@ async function anzeigeNamen(): Promise<Map<string, string>> {
   /*
    * Von hinten nach vorn, damit das Wichtigere das Schwaechere ueberschreibt.
    *
-   * Zuletzt gilt immer der gepflegte Anzeigename. Davor die offene
-   * Spielerliste der Szene-Quelle, die den Profinamen fuehrt ("HIGGS"), und
-   * ganz zuerst der Hauptname aus dem eigenen Verzeichnis.
+   * Zuletzt gilt immer der gepflegte Anzeigename, davor der Hauptname aus
+   * dem eigenen Verzeichnis.
    *
    * Warum diese Kette noetig ist: unter dem Bild stand "XSET BatmnBugha",
    * wo "Higgs" gemeint war. Beides sind Turniernamen desselben Kontos, und
@@ -67,12 +65,6 @@ async function anzeigeNamen(): Promise<Map<string, string>> {
     }
   } catch { /* kein Verzeichnis */ }
 
-  try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-      Array<{ ID?: string; NAME?: string }>;
-    for (const p of roh) if (p.ID && p.NAME && !istKennungName(p.NAME, p.ID)) karte.set(p.ID, p.NAME);
-  } catch { /* keine Kopie da */ }
 
   try {
     const roh = JSON.parse(await fs.readFile(PROFILE, 'utf8')) as

@@ -31,7 +31,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 async def scrape_fortnite_rankings(region="EU", pages=5, page_size=50, start_page=1, end_page=None, source='fortnite', headless=True, upload_each_page=False):
     """
-    General scraper that can target Fortnite power-rankings or eucompetitive ranking pages.
+    Scraper for the Fortnite power-rankings pages (fortnite.com).
 
     Args:
         region: region string used for URL construction when applicable.
@@ -39,7 +39,7 @@ async def scrape_fortnite_rankings(region="EU", pages=5, page_size=50, start_pag
         page_size: number of entries per Fortnite page.
         start_page: first Fortnite page to scrape.
         end_page: last Fortnite page to scrape (inclusive).
-        source: 'fortnite' or 'eucompetitive'
+        source: 'fortnite' (the only supported source)
     """
     all_rankings = []
     failed_pages = []
@@ -55,17 +55,15 @@ async def scrape_fortnite_rankings(region="EU", pages=5, page_size=50, start_pag
             ],
         )
 
-        # Build start URL depending on source
-        if source == 'eucompetitive':
-            start_url = 'https://eucompetitive.com/ranking'
-        else:
-            start_url = f"https://www.fortnite.com/competitive/power-rankings?region={region}&pageSize={page_size}&page=1"
+        if source != 'fortnite':
+            raise ValueError(f"Unsupported source: {source}")
+        start_url = f"https://www.fortnite.com/competitive/power-rankings?region={region}&pageSize={page_size}&page=1"
 
         # we will collect a set of page URLs to visit (respecting pages limit)
         page_urls = []
 
         try:
-            if source != 'eucompetitive':
+            if source == 'fortnite':
                 start = max(1, start_page)
                 if end_page is not None and end_page >= start:
                     page_urls = [
@@ -324,7 +322,7 @@ async def main():
     parser.add_argument('--pageSize', type=int, default=50, help='Number of entries per Fortnite page')
     parser.add_argument('--startPage', type=int, default=1, help='First Fortnite page to scrape')
     parser.add_argument('--endPage', type=int, default=None, help='Last Fortnite page to scrape (inclusive)')
-    parser.add_argument('--source', choices=['fortnite','eucompetitive'], default='fortnite', help='Source site to scrape')
+    parser.add_argument('--source', choices=['fortnite'], default='fortnite', help='Source site to scrape')
     parser.add_argument('--headless', action=argparse.BooleanOptionalAction, default=True, help='Run browser in headless mode (default: on)')
     parser.add_argument('--upload-each-page', action='store_true', help='Attempt to upload partial results to Supabase after each page')
     args = parser.parse_args()

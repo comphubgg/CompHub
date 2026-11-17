@@ -21,8 +21,8 @@ import { globalsTeams } from '@/lib/globalsTeams';
  * Namen:
  *
  *   1. der gepflegte Anzeigename aus den Spielerprofilen,
- *   2. der Name aus der Spielerliste der Szene,
- *   3. der gelaeufige Name aus dem Namensverzeichnis, ohne Orgtag.
+ *   2. der gelaeufige Name aus dem Namensverzeichnis, ohne Orgtag,
+ *   3. Epics Anzeigename (epic-namen.json), ohne Orgtag.
  *
  * Bei der Global Championship tragen die Karten Epics LAN-Konten
  * ("[FNCSGC26] GodL Chap"). Die fuehrt lib/globalsTeams auf das gewoehnliche
@@ -41,11 +41,11 @@ const MARKE = /\[[^\]]+\]/;
 
 interface Quellen {
   profile: Record<string, { anzeige?: string }>;
-  szene: Map<string, string>;
+  epic: Record<string, string>;
   verzeichnis: Record<string, { haupt?: string }>;
 }
 
-/** Die Dateien einmal lesen und kurz behalten - die Szene-Liste ist gross. */
+/** Die Dateien einmal lesen und kurz behalten. */
 let vorrat: { bis: number; quellen: Promise<Quellen> } | null = null;
 
 async function liesJson<T>(datei: string, ersatz: T): Promise<T> {
@@ -59,15 +59,12 @@ async function liesJson<T>(datei: string, ersatz: T): Promise<T> {
 function quellen(): Promise<Quellen> {
   if (vorrat && vorrat.bis > Date.now()) return vorrat.quellen;
   const q = (async () => {
-    const [profile, szeneRoh, verzeichnis] = await Promise.all([
+    const [profile, epic, verzeichnis] = await Promise.all([
       liesJson<Record<string, { anzeige?: string }>>('spieler-profile.json', {}),
-      liesJson<Array<{ ID?: string; NAME?: string }>>(
-        path.join('szene-quelle', 'spielerliste.json'), []),
+      liesJson<Record<string, string>>('epic-namen.json', {}),
       liesJson<Record<string, { haupt?: string }>>('spieler-namen.json', {}),
     ]);
-    const szene = new Map<string, string>();
-    for (const s of szeneRoh) if (s.ID && s.NAME && !istKennungName(s.NAME, s.ID)) szene.set(s.ID, s.NAME);
-    return { profile, szene, verzeichnis };
+    return { profile, epic, verzeichnis };
   })();
   vorrat = { bis: Date.now() + 5 * 60_000, quellen: q };
   // Ein Fehlschlag soll nicht fuenf Minuten lang haengen bleiben.
@@ -78,10 +75,11 @@ function quellen(): Promise<Quellen> {
 function nameZu(id: string, q: Quellen): string | null {
   const gepflegt = q.profile[id]?.anzeige?.trim();
   if (gepflegt && !MARKE.test(gepflegt)) return gepflegt;
-  const szene = q.szene.get(id)?.trim();
-  if (szene) return szene;
   const haupt = q.verzeichnis[id]?.haupt;
   if (haupt && !MARKE.test(haupt)) return kernname(haupt) || null;
+  // Epics Anzeigename, ohne Orgtag und Startnummer.
+  const epic = q.epic[id]?.trim();
+  if (epic && !MARKE.test(epic) && !istKennungName(epic, id)) return kernname(epic) || null;
   return null;
 }
 

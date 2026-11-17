@@ -168,8 +168,6 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
     'Counted by seasons (a chapter starts in late November of the previous year): 2024 = Chapter 5 Season 3 and 4, 2025 = Chapter 6, 2026 = Chapter 7. The archive has no dates for older match days.',
   'Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.':
     'Online cups: derived from placement or points and the maintained prize table (EU only). LAN events: per player from published tables (Esports Charts, Esports Earnings). Anything missing here is not recorded, not zero.',
-  'Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.':
-    'Per player from our own replays and the finals of the scene source, home region only. Next to the number: Finals · Opens.',
   'Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist':
     'Earnings only where a prize money table is maintained',
   'Gezählt nach Saisons: Chapter 7 Season 1 bis 4 (die erste Saison beginnt Ende November des Vorjahres). Das Archiv kennt zu älteren Spieltagen kein Datum.':
@@ -297,20 +295,12 @@ export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
     'With a name here this becomes a manager access: several people share '
     + 'it, see and edit that streamer’s overlays and nothing else. Its key '
     + 'goes to Discord under “Manager Access Keys”, one channel per streamer.',
-  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor. Deine eigenen Werte bekommst du trotzdem: einmal meine-werte-holen.bat starten — dann liest das Werkzeug die Replays, die Fortnite auf deinem Rechner ablegt.':
-    'Epic does not publish damage, accuracy or materials, and the scene '
-    + 'source has nothing for this cup either. You can still get your own: '
-    + 'run meine-werte-holen.bat once — the tool then reads the replays '
-    + 'Fortnite stores on your PC.',
   'Zu diesem Spieltag veröffentlicht Epic keine Punktetabelle — ohne sie lässt sich der Verlauf nicht aufteilen.': 'Epic publishes no scoring table for this match day — without it the points cannot be split up.',
-  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt — alles darüber steht trotzdem, es kommt aus Epics Bestenliste.': 'Epic does not publish damage, accuracy or materials. They come from a scene source that appears one to two days later and does not cover every cup — everything above it is there regardless, from Epic’s leaderboard.',
   'Deine Werte': 'Your Stats',
   'kein Mitspieler': 'no team-mate',
   'Bauteile gesetzt': 'Builds Placed',
   'Lebenszeit je Runde': 'Avg Time Alive',
-  'Zu diesem Spieltag liegen keine Einzelwerte vor. Schaden, Trefferquote und Material veröffentlicht Epic nicht — sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt.': 'No individual stats for this match day. Epic does not publish damage, accuracy or materials — they come from a scene source that appears one to two days later and does not cover every cup.',
   'Wähle oben dein Konto — dann stehen hier deine Werte und die deines Mitspielers nebeneinander.': 'Pick your account above — then your stats and your team-mate’s appear side by side.',
-  'Diese Einzelwerte veröffentlicht Epic nicht. Sie stammen aus der Szene-Quelle, die dieses Werkzeug spiegelt.': 'Epic does not publish these individual stats. They come from the scene source this tool mirrors.',
   'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.':
     'places — Epic delivered no record for them, even though the whole '
     + 'field is loaded. The match ID above is complete.',

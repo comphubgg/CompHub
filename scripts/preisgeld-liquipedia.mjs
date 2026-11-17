@@ -40,7 +40,7 @@ const ZWISCHEN = process.env.LIQUIPEDIA_CACHE || path.join(os.tmpdir(), 'comphub
 const ZIEL = path.join(process.cwd(), 'data', 'preisgeld-tabellen.json');
 const PLATZ = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC = path.join(process.cwd(), 'data', 'epic-spieltage');
-const ARCHIV = path.join(process.cwd(), 'data', 'szene-stats');
+const EPIC_NAMEN = path.join(process.cwd(), 'data', 'epic-namen.json');
 
 const nurPruefen = process.argv.includes('--nur-pruefen');
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -317,12 +317,13 @@ export function schlicht(s) {
   return (s ?? '').split('').map((c) => tausch[c] ?? c).join('').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/** Epics Namen eines Spieltags aus dem Archiv - Konto -> Name. */
-async function archivNamen(season, windowId, region) {
-  try {
-    const d = JSON.parse(await fs.readFile(path.join(ARCHIV, region, season, `${windowId}.json`), 'utf8'));
-    return new Map((d.players ?? []).map((p) => [p.epicId, p.username]));
-  } catch { return new Map(); }
+/** Epics Anzeigenamen (epic-namen.json) - Konto -> Name. Einmal je Lauf gelesen. */
+let epicNamen = null;
+async function archivNamen() {
+  if (!epicNamen) {
+    try { epicNamen = new Map(Object.entries(JSON.parse(await fs.readFile(EPIC_NAMEN, 'utf8')))); } catch { epicNamen = new Map(); }
+  }
+  return epicNamen;
 }
 
 /** Die Teams eines Fensters, wie lib/szeneStats sie liest. */
@@ -432,7 +433,7 @@ async function main() {
     for (const w of e.spieltage) {
       const stand = await endstand(e.season, w, e.tage);
       if (!stand) continue;
-      const namen = await archivNamen(e.season, w, e.region);
+      const namen = await archivNamen();
       if (!namen.size) continue;
       geprueft += 1;
       const oben = stand.slice(0, 3).map((t) => t.spieler.map((id) => schlicht(namen.get(id) ?? '')));

@@ -2,22 +2,12 @@
 
 // Der Statistikbereich.
 //
-// Aufgebaut wie das Vorbild aus der Szene: links eine feste Leiste mit den
-// Bereichen und darunter die laufende Bestenliste, rechts der Inhalt. Oben in
-// der Uebersicht der juengste Spieltag als grosse Karte, darunter die
-// Bestenlisten der Saison in einem Raster.
-//
-// Zwei Unterschiede sind Absicht, nicht Nachlaessigkeit:
-//
-//   * Die Akzentfarbe ist das Blau der Startseite, nicht das Gold des
-//     Vorbilds - im Werkzeug gilt durchgehend eine Farbe.
-//   * Es gibt kein "Rating". Es steht in keiner offenen Datei der Quelle, und
-//     eine geratene Formel waere eine erfundene Zahl. Wo dort das Rating die
-//     Kopfzahl ist, stehen hier Eliminierungen - und die Ueberschrift sagt es.
-//
-// Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
+// Links eine feste Leiste mit den Bereichen und darunter die laufende
+// Bestenliste, rechts der Inhalt. Oben in der Uebersicht der juengste
+// Spieltag als grosse Karte, darunter die Bestenlisten der Saison in einem
+// Raster. Alle Zahlen kommen aus Epics Turnierdaten und unserer eigenen
+// Replay-Auswertung (lib/szeneStats, lib/szeneEigen).
 
-import Konstanz from './Konstanz';
 import Prospects from './Prospects';
 import MerkStern from '@/app/components/MerkStern';
 import Lieblinge from '@/app/components/Lieblinge';
@@ -66,7 +56,7 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'konstanz' | 'prospects' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'prospects' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
 /** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
 const JAHR = 2026;
@@ -80,7 +70,7 @@ const JAHR = 2026;
  */
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
-  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', konstanz: 'alle', prospects: 'alle', jahr: 'alle',
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', prospects: 'alle', jahr: 'alle',
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
@@ -331,7 +321,7 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
   ['aufsteiger', 'Aufsteiger'],
-  // Konstanz und Prospects wieder aus der Leiste (Betreiber, 16.11.2026: "Loescht die zwei wieder"); Code und Admin-Seite bleiben.
+  // Prospects nicht in der Leiste (Betreiber, 16.11.2026); die Konstanz-Ansicht ist seit dem 17.11.2026 entfernt.
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
   ['orgs', 'Orgs'],
@@ -377,7 +367,6 @@ function Zeichen({ art }: { art: Bereich }) {
       + 'a1.5 1.5 0 0 0 0 3z',
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
     aufsteiger: 'M4 17l6-6 4 4 6-7 M15 8h5v5',
-    konstanz: 'M5 12h.01 M9 12h.01 M13 12h.01 M17 12h.01 M5 7h.01 M9 7h.01 M13 7h.01 M5 17h.01 M9 17h.01 M13 17h.01 M17 17h.01',
     // Ein Stern mit Aufwaertsstrich - wer neu nach oben kommt.
     prospects: 'M12 3l2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5L4.8 8.2l5-.6z M12 21v-3',
     jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
@@ -805,8 +794,7 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '', linksUn
 /**
  * Welche Werte im Duell gegenuebergestellt werden.
  *
- * Der Betreiber (1.10.2026): das Head to Head soll klein sein wie bei
- * eucompetitive - Eliminierungen, Schaden, Kopftreffer, Treffer,
+ * Der Betreiber (1.10.2026): das Head to Head soll klein sein - Eliminierungen, Schaden, Kopftreffer, Treffer,
  * Schadensquote. Elf Zeilen waren eine Tabelle, kein Duell. Das "Avg.
  * Rating" der Vorlage fehlt mit Absicht: das rechnet nur der Anbieter, und
  * eine geratene Formel waere eine erfundene Zahl. Die uebrigen Werte
@@ -1469,9 +1457,8 @@ function VerlaufTabelle({ zeilen, fuss }: {
     w.damageTakenFromPlayers > 0 ? w.damageDealt / w.damageTakenFromPlayers : 0;
 
   /** Warum eine Spalte leer bleibt - einmal geschrieben, viermal verwendet. */
-  const ohneWert = t('Zu diesem Spieltag hat die Szene-Quelle noch nichts '
-    + 'veröffentlicht. Epics Bestenliste führt Schaden, Material und Bauteile '
-    + 'nicht, und im Replay stehen sie ebenfalls nicht.');
+  const ohneWert = t('Zu diesem Spieltag liegt noch keine vollständige Replay-Auswertung vor. '
+    + 'Epics Bestenliste führt Schaden, Material und Bauteile nicht.');
   const replayHinweis = t('Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt. Bei Solo-Cups stehen für die besten 10.000 Spieler Epics eigener Schaden und Kopftreffer.');
 
   return (
@@ -1900,7 +1887,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }
 
 /**
- * Die Solo Clutch Points der Saison als Tabelle - wie bei eucompetitive:
+ * Die Solo Clutch Points der Saison als Tabelle - wie auf einer Vergleichsseite:
  * Rang, Spieler, Region, Punkte, Solo-Zeit. Zehn Zeilen, darunter "Details"
  * mit allen Spielern der Saison (Betreiber, 1.10.2026).
  *
@@ -2470,13 +2457,10 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   /**
    * Finale, die gerade laufen oder eben zu Ende gingen.
    *
-   * Warum es das braucht: die Einzelwerte hier stammen von eucompetitive,
-   * und die veroeffentlicht sie erst ein bis zwei Tage nach einem Cup. Ein
-   * Finale von gestern Abend fehlt deshalb in dieser Liste - fuer den
-   * Betreiber sah es so aus, als haette ich es schlicht vergessen. Epic
-   * selbst fuehrt das Fenster dagegen sofort. Beide Quellen
-   * nebeneinandergelegt laesst sich sagen, was noch fehlt und warum, statt
-   * es stillschweigend auszulassen.
+   * Warum es das braucht: die Einzelwerte hier stehen erst, wenn die Replays
+   * eines Spieltags ausgewertet sind. Epic selbst fuehrt das Fenster dagegen
+   * sofort. Beides nebeneinandergelegt laesst sich sagen, was noch fehlt und
+   * warum, statt es stillschweigend auszulassen.
    */
   const [laufende, setLaufende] = useState<Array<{
     titel: string; region: string; windowId: string; live: boolean;
@@ -2831,7 +2815,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
      * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
      */
     const gewuenscht = suchParameter?.get('bereich');
-    if (gewuenscht && ['turniere', 'regional', 'spieler', 'aufsteiger', 'konstanz', 'prospects', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'aufsteiger', 'prospects', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
       /* Jahresbilanz: "?bereich=jahr&jahr=2025&jregion=EU&jsaison=S37" ("jahr" = alle oder ein Jahr der Auswahl; sonst bleibt der Standard). */
       if (gewuenscht === 'jahr') {
@@ -4596,7 +4580,6 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                           {sp.quelle === 'eigene' && sp.ausgewertet !== null && (
                             <span className="text-slate-600">{' · '}{sp.ausgewertet}{/* Eine Gesamtzahl unter der ausgewerteten Zahl ist falsch ("230/64") - dann nur die ausgewertete. */}{sp.gesamt && sp.gesamt >= sp.ausgewertet ? `/${sp.gesamt}` : ''}{' '}<T>Matches</T></span>
                           )}
-                          {sp.quelle === 'szene' && <span className="text-slate-600"> · <T>Szene-Quelle</T></span>}
                         </li>
                       ))}
                     </ul>
@@ -5307,7 +5290,6 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
           {/* -------------------------------------------------- Regionen */}
           {/* ---------------------------------------- Organisationen */}
           {bereich === 'aufsteiger' && <Aufsteiger aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
-          {bereich === 'konstanz' && <Konstanz aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'prospects' && <Prospects aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
 
@@ -6161,7 +6143,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
                 {/* Vorher stand hier "nur Heimatregion" - gezaehlt wird aber ueber alle Regionen und die LAN (lib/szeneStats, Betreiber 1.10.2026). */}
-                <T>Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.</T>
+                <T>Gezählt sind die Finals in allen Regionen samt LAN (Epics Bestenlisten und eigene Replays). Darunter, getrennt: was in den Opens dazukam.</T>
               </p>
             )}
             <div className="divide-y divide-zinc-900">
@@ -6430,7 +6412,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 dort sucht man ihn, weil die Zahlen darunter davon abhaengen. */}
             <div className="flex flex-wrap items-center gap-6 border-b border-zinc-800
                             px-1">
-              {/* Nach dem Vorbild eucompetitive (Betreiber, 28.9.2026): Overview,
+              {/* Nach dem Vorbild einer Vergleichsseite (Betreiber, 28.9.2026): Overview,
                   Stats, Tournament Results, FNCS, Achievements - dazu Earnings
                   und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
                   zusammengelegt. */}

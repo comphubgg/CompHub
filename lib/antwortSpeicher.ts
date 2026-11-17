@@ -290,7 +290,7 @@ export async function fertigeAntwort<T>(
   hintergrund = true,
   /**
    * Eine Antwort, die aelter ist als das, wird nicht mehr "erst einmal alt" ausgeliefert, sondern gleich neu gerechnet (Betreiber, 19.10.2026: das Profil zeigte
-   * beim ersten Aufruf Zahlen von vor Stunden - "stimmt nicht mit EU Competitive ueberein"; erst der zweite Aufruf hatte die frischen).
+   * beim ersten Aufruf Zahlen von vor Stunden - "stimmt nicht"; erst der zweite Aufruf hatte die frischen).
    */
   spaetestensMs?: number,
   /**

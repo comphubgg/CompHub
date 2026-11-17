@@ -1,0 +1,22 @@
+# Sperre gegen eine Quelle, deren Betreiber jede Nutzung untersagt hat (17.11.2026): scheitert, sobald ihr Name irgendwo im Repository steht -
+# in einer Abruf-Adresse ebenso wie in Text oder Kommentar. Skript: scripts/fremdquellen-sperre.mjs (laeuft auch vor jedem Bau in web-image.yml).
+name: Quellen pruefen
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sperre:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Gesperrte Quelle
+        run: node scripts/fremdquellen-sperre.mjs

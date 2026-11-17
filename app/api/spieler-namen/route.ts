@@ -3,6 +3,9 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { liesJson } from '@/lib/ablage';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { istKennungName } from '@/lib/kennungName';
 
 // Namensverzeichnis: welche Namen gehoeren zu welchem Epic-Konto?
 //
@@ -11,24 +14,15 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 // Ueber sie laesst sich zusammenfuehren, was zusammengehoert: aus "big tryonа"
 // wird so wieder "BIG vic0".
 //
-// Die Zuordnung entsteht aus den Turnierdateien, die eucompetitive.com
-// veroeffentlicht - dort steht zu jedem Spieler die Konto-ID dabei. Das
-// Ergebnis liegt lokal, damit nicht bei jedem Aufruf gut hundert Dateien
-// geladen werden muessen.
+// Die Zuordnung entsteht nur aus unseren eigenen Daten: Epics Anzeigenamen
+// je Konto (epic-namen.json - aus den Turnier-Bestenlisten und dem taeglichen
+// Abgleich, scripts/pro-namen-erneuern.mjs) und den gepflegten Profilen
+// (Name, Anzeigename, weitere Namen).
 //
 //   GET                  -> die gespeicherte Zuordnung
-//   POST                 -> neu aufbauen (dauert etwa eine Minute)
+//   POST (Admin)         -> neu aufbauen
 
 const DATEI = path.join(DATEN_ORT, 'spieler-namen.json');
-const BASIS = 'https://eucompetitive.com/APISYSTEMV2';
-const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
-const SEASONS = ['S41', 'S42'];
-
-const KOPF = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-              + '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-};
-
 export interface NamensEintrag {
   /** Vergleichbarer Kernname - fasst Tarnschreibweisen zusammen. */
   schluessel?: string;
@@ -124,36 +118,26 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
+  if (!await istAdminAnfrage()) return NextResponse.json({ ok: false, error: 'Nur für Admins.' }, { status: 403 });
   const zaehler = new Map<string, Map<string, number>>();
-  let dateien = 0;
-
-  for (const season of SEASONS) {
-    for (const region of REGIONEN) {
-      let liste: string[] = [];
-      try {
-        const r = await fetch(`${BASIS}/list_stats_json.php?region=${region}&season=${season}`,
-          { headers: KOPF, cache: 'no-store' });
-        liste = await r.json() as string[];
-      } catch { continue; }
-      if (!Array.isArray(liste)) continue;
-
-      for (const datei of liste) {
-        try {
-          const r = await fetch(`${BASIS}/DATA/${region}/${season}/stats/${datei}`,
-            { headers: KOPF, cache: 'no-store' });
-          if (!r.ok) continue;
-          const j = await r.json() as { players?: Array<{ epicId: string; username: string }> };
-          dateien++;
-          for (const p of j.players ?? []) {
-            if (!p.epicId || !p.username) continue;
-            if (!zaehler.has(p.epicId)) zaehler.set(p.epicId, new Map());
-            const m = zaehler.get(p.epicId)!;
-            m.set(p.username, (m.get(p.username) ?? 0) + 1);
-          }
-        } catch { /* eine fehlende Datei ist kein Grund abzubrechen */ }
-      }
-    }
+  const zaehle = (id: string, name: unknown, gewicht = 1) => {
+    const k = String(id ?? '').toLowerCase();
+    const n = String(name ?? '').trim();
+    if (!/^[0-9a-f]{32}$/.test(k) || !n || istKennungName(n, k)) return;
+    if (!zaehler.has(k)) zaehler.set(k, new Map());
+    const m = zaehler.get(k)!;
+    m.set(n, (m.get(n) ?? 0) + gewicht);
+  };
+  const [epic, profile] = await Promise.all([
+    liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>)),
+    liesJson<Record<string, { id?: string; name?: string; anzeige?: string; namen?: string[] }>>('spieler-profile.json', {}).catch(() => ({})),
+  ]);
+  for (const [id, n] of Object.entries(epic)) zaehle(id, n, 2);
+  for (const [k, p] of Object.entries(profile ?? {})) {
+    const id = p?.id || k;
+    for (const n of [p?.anzeige, p?.name, ...(p?.namen ?? [])]) zaehle(id, n);
   }
+  const dateien = 2;
 
   const verzeichnis: Verzeichnis = {};
   for (const [id, m] of zaehler) {

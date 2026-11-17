@@ -65,7 +65,7 @@ jobs:
       # wichtigen Spieler (/admin/flaggen).
       - name: Bestenlisten, Namen und Power Ranking vom Release
         run: |
-          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch epic-namen.json power-rankings/global.json verdienst-archiv.json szene-quelle/spielerliste.json lan-konten.json 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch epic-namen.json power-rankings/global.json verdienst-archiv.json lan-konten.json 2>&1 | tail -3
           du -sh data/epic-spieltage data/clutch 2>/dev/null || true
 
       # Das alte Archiv bis 2019 (je Spieltag die besten 500), einmal vom Rechner des Betreibers ans Release gelegt.

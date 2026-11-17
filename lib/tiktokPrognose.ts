@@ -138,10 +138,10 @@ export async function tagZweiPrognose(opt: { ohne?: string[]; nur?: string; regi
     const spieler = g.e.players ?? [];
     const namen = spieler.map((p) => {
       const id = (p.id ?? '').toLowerCase();
-      const pr = karte.profile.get(id); const sz = karte.szene.get(id);
+      const pr = karte.profile.get(id); const sz = karte.ersatz.get(id);
       return lateinisch(ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
     });
-    const laender = spieler.map((p) => karte.profile.get((p.id ?? '').toLowerCase())?.land || karte.szene.get((p.id ?? '').toLowerCase())?.land || '');
+    const laender = spieler.map((p) => karte.profile.get((p.id ?? '').toLowerCase())?.land || karte.ersatz.get((p.id ?? '').toLowerCase())?.land || '');
     const fotos = spieler.map((p) => {
       const img = bild.get((p.id ?? '').toLowerCase());
       return img ? `${SEITE}${spielerbildKlein(decodeURIComponent(img.replace(/^\/spielerbilder\//, '')))}` : null;

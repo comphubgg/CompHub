@@ -32,7 +32,7 @@ import { useZugang } from '@/app/lib/zugang';
  */
 
 /*
- * Zwei Zeilen wie bei eucompetitive.com/grands (Betreiber, 26.10.2026: "pass die Solo-FNCS an wie dort"): oben die Stufen - Fast Tracks, Heat 1, Heat 2, Last Chance, Finals -,
+ * Zwei Zeilen wie auf einer Vergleichsseite (Betreiber, 26.10.2026: "pass die Solo-FNCS an wie dort"): oben die Stufen - Fast Tracks, Heat 1, Heat 2, Last Chance, Finals -,
  * darunter, rechts, die Ansicht dieser Stufe: Karte, Bestenliste, Spieler, Laender. Vor den Spieltagen stehen "Der Weg" und "Qualifiziert", am Ende das Preisgeld.
  */
 type Fest = 'weg' | 'qualifiziert' | 'preisgeld' | 'karte' | 'heats';
@@ -210,7 +210,7 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
 /* ------------------------------------------------------------------ Heats */
 
 /*
- * Die Einteilung der Heats wie bei eucompetitive.com/heats (Betreiber, 8.11.2026): je Heat eine Tafel, darin Platz im Heat, Platz und Punkte aus der letzten
+ * Die Einteilung der Heats wie auf einer Vergleichsseite (Betreiber, 8.11.2026): je Heat eine Tafel, darin Platz im Heat, Platz und Punkte aus der letzten
  * Qualifier-Runde, Flagge und Name. Steht sofort nach der Runde fest (Zickzack-Regel, lib/heatsPosts) - Epics Marken bestaetigen sie spaeter.
  */
 function HeatsPlan({ plan }: { plan: HeatsDaten }) {
@@ -218,7 +218,7 @@ function HeatsPlan({ plan }: { plan: HeatsDaten }) {
   const t = useT();
   const ort = sprache === 'en' ? 'en-GB' : 'de-DE';
   /*
-   * Suche wie bei eucompetitive.com/heats (Betreiber, 8.11.2026): Name oder Land ("germany", "Deutschland", "DE") - Treffer bleiben hell und bekommen einen
+   * Suche wie auf einer Vergleichsseite (Betreiber, 8.11.2026): Name oder Land ("germany", "Deutschland", "DE") - Treffer bleiben hell und bekommen einen
    * Strich, alle anderen werden blass. Dazu der Wechsel zwischen den Heats (beide / nur einer).
    */
   const [suche, setSuche] = useState('');
@@ -430,7 +430,7 @@ export default function SolosSeite() {
   const zielRunde = aktuelleStufe ? zielName(aktuelleStufe.windowId) : null;
   const zielText = zielRunde ? `FNCS Solos${reihe === 'reload' ? ' Reload' : ''} ${zielRunde}` : undefined;
   const lcqText = daten?.stufen.find((y) => y.art === 'lcq')?.name;
-  // Wie viele der Spieler auf der Karte stehen - wie "Teams 100/100" bei eucompetitive.
+  // Wie viele der Spieler auf der Karte stehen - wie "Teams 100/100" auf einer Vergleichsseite.
   const aufKarte = f ? new Set(f.formen.flatMap((fo) => fo.spieler)).size : 0;
 
   const knopf = (aktiv: boolean) => `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${aktiv ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
@@ -458,7 +458,7 @@ export default function SolosSeite() {
               <p className="mt-3 max-w-xl text-sm text-[#cbd5e1]"><T>Jede Stufe auf dem Weg ins Grand Final — für jede Region: Qualifier, Fast Tracks, Heats, Last Chance, Finale und die Landepunkte.</T></p>
               {/* Umschalter laufende Reihe / Archiv der Season 42 (BR-Solos). */}
               <div className="mt-4 flex flex-wrap gap-2">
-                {/* Umschalter wie bei eucompetitive.com (Betreiber, 8.11.2026): "FNCS Reload Solo" | "FNCS Solos" (Season 42, Battle Royale). */}
+                {/* Umschalter wie auf einer Vergleichsseite (Betreiber, 8.11.2026): "FNCS Reload Solo" | "FNCS Solos" (Season 42, Battle Royale). */}
                 <div className="inline-flex rounded-xl border border-[rgba(255,255,255,.2)] bg-[rgba(0,0,0,.45)] p-1">
                   <a href="/globals-solos" className={`rounded-lg px-4 py-1.5 text-xs font-bold ${!archiv ? 'bg-[#f8fafc] text-[#0f172a]' : 'text-[#94a3b8] hover:text-[#fff]'}`}>FNCS Reload Solo</a>
                   <a href="/globals-solos?reihe=S42" className={`rounded-lg px-4 py-1.5 text-xs font-bold ${archiv === 'S42' ? 'bg-[#f8fafc] text-[#0f172a]' : 'text-[#94a3b8] hover:text-[#fff]'}`}>FNCS Solos</a>

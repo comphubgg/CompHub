@@ -1,8 +1,6 @@
-// Die eigenen Spieltage der Statistik (Idee 26, 31.10.2026).
+// Die Spieltage der Statistik, ausschliesslich aus unseren eigenen Daten (Idee 26, 31.10.2026; seit dem 17.11.2026 die einzige Quelle).
 //
-// Die Szene-Quelle liefert seit dem 10.10.2026 keine Spieltage mehr - die Statistik blieb beim Performance Cup vom 8.10. stehen, Heats, LCQ und
-// FNCS Solos Finals fehlten. Diese Datei baut fuer die Spieltage, die sie frueher gefuehrt haette (Finals der grossen Turniere, Fast Tracks, LANs
-// mit hoechstens ein paar hundert Spielern), dieselbe Art Datei aus unseren eigenen Daten - sofort nach dem Spieltag, und sie fuellt sich auf:
+// Fuer jeden Spieltag eines grossen Turniers (Finals der grossen Turniere, Fast Tracks, LANs) baut diese Datei die Werte je Spieler:
 //
 //   * Matches je Team und die Teilnehmer aus Epics Bestenliste (epic-spieltage),
 //   * Eliminierungen: bei Solos aus Epics Bestenliste, bei Teams aus dem vollen Auslesen (killsEcht) oder den Server-Replays, wenn sie je Team zu Epic passen,
@@ -11,7 +9,7 @@
 //   * Gesetzte Bauteile (16.11.2026) aus denselben vollen Replays (selbstHolz/-Stein/-Metall, wie app/api/cup-spieler), nur wenn jedes Spiel sie hat -
 //     vorher fehlten sie, und "Meiste Bauteile" der Saison S43 stand mit 0 bei allen 400.
 //
-// Was wir nicht haben, steht nicht drin - Schuesse, Assists, Heilung, Material gab es nur bei der Quelle; Kopftreffer zaehlen die
+// Was wir nicht haben, steht nicht drin - Schuesse, Assists, Heilung, Material; Kopftreffer zaehlen die
 // Replays nicht verlaesslich genug ("er hat nie im Leben nur einen"). Die Summen der Statistik zaehlen solche Werte nur ueber die Spieltage, die sie
 // haben (siehe summen() in lib/szeneStats.ts). Schaden und Zeit stehen je Spieler erst, wenn jedes seiner Spiele voll gelesen ist.
 // Der Schaden aus den Replays liegt im Mittel rund 6 % unter Epics Zahl (ohne Treffer auf Umgehauene, an den Globals geprueft).
@@ -27,9 +25,8 @@ export interface EigenerTag {
   teams: Array<{ platz: number; matches: number; teamElims?: number; spieler: string[] }>;
 }
 
-/** Ab dieser Saison - davor hat die Quelle alles, was zaehlt. */
-const AB_SAISON = 42;
-/** Mehr Teilnehmer hatte kein Spieltag der Quelle (Finals: 100, LANs: 100-150). */
+/** Ab dieser Saison liegen Epics Bestenlisten bei uns (epic-spieltage, Chapter 5 Season 3). */
+const AB_SAISON = 30;
 // 4.000 statt 260 (6.11.2026): auch die offenen Runden der grossen Cups gehoeren in die Statistik der Season ("vom gestrigen Cup"), die Performance Cups haben rund 2.000 Spieler.
 const HOECHSTENS_SPIELER = 4000;
 
@@ -49,10 +46,10 @@ type Clutch = {
   namen?: Record<string, string>;
 };
 
-/** Gehoert der Spieltag zu dem, was die Quelle gefuehrt haette? */
-export function eigenKandidat(t: EigenerTag, imArchiv: Set<string>, jetzt = Date.now()): boolean {
+/** Gehoert der Spieltag in die Statistik? */
+export function eigenKandidat(t: EigenerTag, jetzt = Date.now()): boolean {
   const nr = Number(/^S(\d+)$/i.exec(t.season)?.[1] ?? 0);
-  if (nr < AB_SAISON || imArchiv.has(t.windowId)) return false;
+  if (nr < AB_SAISON) return false;
   if (!t.datum || t.datum > jetzt - 2 * 3600_000) return false;
   const spieler = t.teams.reduce((n, x) => n + x.spieler.length, 0);
   if (!spieler || spieler > HOECHSTENS_SPIELER) return false;

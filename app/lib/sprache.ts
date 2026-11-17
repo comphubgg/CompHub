@@ -225,7 +225,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Cup hinzufügen': 'Add cup',
   'Damage je Spiel': 'Damage per game',
   'Elims je Spiel': 'Elims per game',
-  'Werte je Spieler aus der Szene-Quelle, unter den echten Konten der Spieler. Team und Platz aus Epics Leaderboard. Damage Ratio: ausgeteilter geteilt durch erlittenen Schaden.': "Per-player values from the scene source, under the players' real accounts. Team and place from Epic's leaderboard. Damage ratio: damage dealt divided by damage taken.",
   'Match abgesagt': 'Match cancelled',
   'Punkte zählen nicht': "points don't count",
   'Absage zurücknehmen': 'Undo cancellation',
@@ -583,12 +582,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karte öffnen': 'Open map',
   'Nicht erlaubt.': 'Not allowed.',
   'von selbst gesichert': 'saved automatically',
-  ['Zu diesem Spieltag hat die Szene-Quelle noch nichts veröffentlicht. Epics '
-    + 'Bestenliste führt Schaden, Material und Bauteile nicht, und im Replay '
-    + 'stehen sie ebenfalls nicht.']:
-    'The scene source has not published anything for this match day yet. '
-    + 'Epic’s leaderboard does not carry damage, materials or builds, and '
-    + 'they are not in the replay either.',
   'zur Anmeldung': 'to the sign-in page',
 
   // Der Matches-Bereich einer Eventseite.
@@ -1435,8 +1428,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'The tool knows neither account of this duo — so there are no cups to show.',
   'In dieser Saison haben die beiden keinen erfassten Cup zusammen gespielt.':
     'The two have not played a recorded cup together this season.',
-  'Elims je Spieler aus der Szene-Quelle, sonst aus unseren Replays; fehlt beides, steht ein Strich.':
-    'Elims per player from the scene source, otherwise from our replays; where neither exists, a dash.',
   'Auf ein Duo klicken — beide groß, dazu ihre gemeinsamen Cups dieser Saison.':
     'Click a duo — both big, with their cups together this season.',
   'Flagge und Name von {n} der {m} Konten, Fotos von {f} — Epic legt für das LAN eigene Konten an, zugeordnet wird über den Namen. Wer nicht eindeutig zuzuordnen ist, bleibt ohne Flagge; ein Foto kommt nur vom zugeordneten Konto selbst.':
@@ -1807,9 +1798,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'walls, folders and tier lists are kept — on every device.',
   'Loslegen': 'Get started',
   'Mit Twitch anmelden': 'Sign in with Twitch',
-  ['Nicht mit Epic Games verbunden. Turnierdaten von Epic Games und eucompetitive.com.']:
-    'Not affiliated with Epic Games. Tournament data from Epic Games and '
-    + 'eucompetitive.com.',
 
   // Player Center, zweite Runde
   'mit Foto': 'with photo',
@@ -1967,8 +1955,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'bearbeiten': 'edit',
   'abbrechen': 'cancel',
   'weitere anzeigen': 'show more',
-  'aus der Szene-Quelle — noch nicht bestätigt':
-    'from the scene source — not confirmed yet',
   'von Hand gepflegt': 'maintained by hand',
   'Dieser Bereich ist dem Adminkonto vorbehalten.':
     'This area is reserved for the admin account.',
@@ -2009,14 +1995,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Zustand': 'Status',
   'Ereignisse': 'Events',
   'Auswerter': 'Parser',
-  ['Aus den Server-Replays kommen Eliminierungen, Knocks, Waffe und Zeitpunkt '
-    + '— und wer wen ausgeschaltet hat. Schaden, Kopftreffer, Material und '
-    + 'Bauteile stehen im Netzwerk-Stream, den der offene Parser nicht mehr '
-    + 'lesen kann; die bleiben Sache der Szene-Quelle.']:
-    'Server replays give eliminations, knocks, weapon and timing — and who '
-    + 'eliminated whom. Damage, headshots, materials and builds live in the '
-    + 'network stream, which the open-source parser can no longer read; those '
-    + 'stay with the scene source.',
   ['Epic hält ein Replay 31 Tage vor. Was in dieser Zeit nicht geholt wird, '
     + 'ist danach für immer fort — deshalb sammelt das Werkzeug planmäßig von '
     + 'selbst und nicht auf Knopfdruck.']:
@@ -2366,8 +2344,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'match days counted',
   'je Spieler, aus Replays, Opens und Finals':
     'per player, from replays, opens and finals',
-  'Szene-Quelle':
-    'scene source',
   'Noch nicht in der Liste. Aus dem Verzeichnis vormerken — die Werte kommen, sobald er spielt.':
     'Not in the leaderboard yet. Pre-select from the directory — the values arrive as soon as they play.',
   'vormerken':
@@ -2782,8 +2758,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'ago',
   'Ganzes Jahr':
     'Whole year',
-  'Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.':
-    'Counted: finals in all regions plus LAN (scene source and our own replays). Below, separately: what was added in the opens.',
   'Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.':
     'No prize money is recorded for this player. Earnings exist only where a prize table is maintained (EU) or a LAN result is recorded.',
   'in':
@@ -4024,7 +3998,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Gemittelt über die letzten 24 Stunden.': 'Averaged over the last 24 hours.',
   'bis alles Offene fertig ist': 'until everything open is done',
   'Bei dem Tempo der letzten Stunde, ohne neue Cups.': 'At the pace of the last hour, without new cups.',
-  'Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Schaden, Heilung, Builds und alles Weitere je Match selbst ausgewertet aus Epics Server-Replays.': 'The numbers: tournament calendar, leaderboards, placements and teammates from Epic’s official API; eliminations, damage, healing, builds and everything else per match analyzed by us from Epic’s server replays.',
+  'Quellen: Turnierdaten von Epic Games (Turnierkalender, Bestenlisten, Platzierungen, Mitspieler), unsere eigene Replay-Auswertung (Eliminierungen, Schaden, Builds und alles Weitere je Match aus Epics Server-Replays) und unsere eigene Spielerdatenbank (Namen, Länder, Profile).': 'Sources: tournament data from Epic Games (tournament calendar, leaderboards, placements, teammates), our own replay analysis (eliminations, damage, builds and everything else per match from Epic’s server replays) and our own player database (names, countries, profiles).',
   'Live folgen': 'Follow live',
   'Nur während des Cups': 'Only during the cup',
   'Niemanden gefunden.': 'Nobody found.',
@@ -4267,7 +4241,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'war in diesem Cup nicht dabei.': 'was not in this cup.',
   'Der Verlauf der Punkte braucht mindestens zwei gespielte Matches.': 'The points history needs at least two played matches.',
   'Zu diesem Wert liefert keine Quelle Zahlen für diesen Cup.': 'No source publishes this value for this cup.',
-  'Schaden, Treffer, Material, Sturm und Strecke stammen aus der Szene-Quelle und gelten je Spieltag zusammen, nicht je Match.': 'Damage, hits, materials, storm and distance come from the scene source and are totals per match day, not per match.',
   'Für diesen Cup liefert Epic Platz, Punkte, Eliminierungen und Überlebenszeit je Match; die übrigen Werte gibt es hier nur, wenn eine Quelle sie für diesen Spieltag führt.': 'For this cup Epic provides placement, points, eliminations and time alive per match; the other values only appear here when a source tracks them for this match day.',
   'Epic zählt Eliminierungen und Zeit je Team.': 'Epic counts eliminations and time per team.',
   'Freunde-Leaderboard': 'Friends leaderboard',
@@ -5095,7 +5068,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Schnitt je Spieler und Match': 'Average per Player per Match',
   'Zuletzt aktualisiert': 'Last update',
   'Liegt für diesen Cup nicht vor': 'Not available for this cup',
-  'Endstand aus der Szene-Quelle': 'Final values from the scene source',
   'Epic gibt je Spieltag nur die ersten 10.000 Plätze heraus, gesucht wird in diesen.': 'Epic only releases the first 10,000 places per match day – the search covers these.',
 
   // ------------------------------------------------- Admin-Werkzeuge (Nachtrag)
@@ -5191,6 +5163,17 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Liste wird gerade neu gerechnet.': 'The list is being recalculated.',
   'Junge Spieler auf dem Weg nach oben – nur aus unseren Bestenlisten, Finals und Replays gerechnet.': 'Young players on their way up – calculated only from our leaderboards, finals and replays.',
   'Noch keine Prospects in dieser Region.': 'No prospects in this region yet.',
+  // Quellen nur noch eigene (17.11.2026).
+  'Gezählt sind die Finals in allen Regionen samt LAN (Epics Bestenlisten und eigene Replays). Darunter, getrennt: was in den Opens dazukam.':
+    'Counted: finals in all regions plus LAN (Epic leaderboards and our own replays). Below, separately: what was added in the opens.',
+  'Schaden, Treffer, Sturm und Strecke stammen aus unserer eigenen Replay-Auswertung und gelten je Spieltag zusammen, nicht je Match.':
+    'Damage, hits, storm and distance come from our own replay analysis and are totals per match day, not per match.',
+  'Elims je Spieler aus unseren Replays; fehlen sie, steht ein Strich.':
+    'Elims per player from our replays; where they are missing, a dash.',
+  ['Zu diesem Spieltag liegt noch keine vollständige Replay-Auswertung vor. '
+    + 'Epics Bestenliste führt Schaden, Material und Bauteile nicht.']:
+    'There is no complete replay analysis for this match day yet. '
+    + 'Epic’s leaderboard does not carry damage, materials or builds.',
 };
 
 /**

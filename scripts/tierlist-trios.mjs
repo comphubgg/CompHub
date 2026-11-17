@@ -16,7 +16,7 @@
  * steht. Wechselt jemand, steht beim naechsten Lauf das neue Trio da.
  *
  * Flaggen und Namen kommen ausschliesslich ueber die Konto-Id (gepflegtes
- * Profil, Szene-Quelle, Epics Power Rankings; Namen zuletzt direkt bei
+ * Profil, Epics Power Rankings; Namen zuletzt direkt bei
  * Epic). Ein Trio kommt nur in die Liste, wenn mindestens einer der drei
  * eine Flagge hat - Unbekannte blendet die Tierlist ohnehin aus - und alle
  * drei einen Namen haben.
@@ -84,7 +84,6 @@ async function main() {
   const profile = liesJson(path.join(DATEN, 'spieler-profile.json'), {});
   const namenVz = liesJson(path.join(DATEN, 'spieler-namen.json'), {});
   const epicVz = liesJson(path.join(DATEN, 'epic-namen.json'), {});
-  const quelle = liesJson(path.join(DATEN, 'szene-quelle', 'spielerliste.json'), []);
   const rangliste = liesJson(path.join(DATEN, 'power-rankings', 'global.json'), {})?.spieler ?? [];
 
   // Rangfolge: was weiter hinten steht, ueberschreibt nichts Vorderes.
@@ -96,18 +95,12 @@ async function main() {
     if (/^[A-Z]{2}$/.test(l)) setze(land, k, l);
     setze(name, k, String(p?.anzeige ?? '').trim());
   }
-  for (const p of quelle) {
-    const id = String(p?.ID ?? '').trim();
-    const l = String(p?.COUNTRY ?? '').trim().toUpperCase();
-    if (istId(id) && /^[A-Z]{2}$/.test(l)) setze(land, id, l);
-  }
   for (const p of rangliste) {
     const l = String(p?.land ?? '').trim().toUpperCase();
     if (istId(p?.id ?? '') && /^[A-Z]{2}$/.test(l)) setze(land, p.id, l);
   }
   for (const [id, e] of Object.entries(namenVz)) setze(name, id, String(e?.haupt ?? '').trim());
   for (const p of rangliste) setze(name, p?.id, String(p?.name ?? '').trim());
-  for (const p of quelle) setze(name, String(p?.ID ?? '').trim(), String(p?.NAME ?? '').trim());
   for (const [id, n] of Object.entries(epicVz)) setze(name, id, String(n ?? '').trim());
 
   // Die Trio-Spieltage, neueste zuerst.

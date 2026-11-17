@@ -18,7 +18,7 @@
  *   node scripts/umzug-supabase.mjs             wirklich uebertragen
  *   node scripts/umzug-supabase.mjs --nur konten.json,tierlists.json
  *   node scripts/umzug-supabase.mjs --ohne replays,epic-spieltage
- *   node scripts/umzug-supabase.mjs --herunterladen --nur szene-stats
+ *   node scripts/umzug-supabase.mjs --herunterladen --nur epic-spieltage
  *   node scripts/umzug-supabase.mjs --herunterladen --nur replays --nur-geaenderte
  *   node scripts/umzug-supabase.mjs --neuer-als 180
  *
@@ -66,7 +66,7 @@ const IM_OBJEKTSPEICHER = [
  * bevor die eigentlichen Daten drin sind.
  */
 const STANDARDMAESSIG_OHNE = [
-  'replays', 'epic-spieltage', 'szene-stats', 'szene-quelle',
+  'replays', 'epic-spieltage',
   'tournament-leaderboards', '_sicherung',
   // Alte Bestenlisten (2019 bis Mitte 2024) bleiben auf dem Rechner; nach
   // Supabase geht nur die kompakte Verdienst-Akte, die daraus entsteht.

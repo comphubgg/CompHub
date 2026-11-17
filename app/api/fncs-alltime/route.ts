@@ -9,10 +9,10 @@ import { vglElims, nameVgl } from '@/lib/fncsReihenfolge';
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
  *
- * Der Betreiber (13.10.2026): eine FNCS-Seite wie beim Vorbild - alle Endspiele und eine Aufstellung, wie viele Eliminierungen
- * jeder in den Grand Finals hatte, je Major. Gerechnet wird aus dem eigenen Archiv (data/szene-stats): die europaeischen
- * Endspieltage der Majors, die das Archiv fuehrt - jeder Major mit seinen zwei Tagen. Was das Archiv nicht hat (aeltere
- * Majors, die LANs), steht hier nicht; die Seite sagt, ab wann sie zaehlt.
+ * Der Betreiber (13.10.2026): alle Endspiele und eine Aufstellung, wie viele Eliminierungen jeder in den Grand Finals hatte,
+ * je Major. Gerechnet wird aus unseren eigenen Spieltagen (lib/szeneEigen: Epics Bestenlisten und unsere Replay-Auswertung):
+ * die europaeischen Endspieltage der Majors - jeder Major mit seinen zwei Tagen. Was wir nicht haben (aeltere Majors, die LANs),
+ * steht hier nicht; die Seite sagt, ab wann sie zaehlt.
  */
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,7 @@ const ENDSPIEL = /FNCS_?Major(\d)_(?:GrandFinal|Final)_?Day(\d)/i;
 export async function GET() {
   try {
     // Eine Antwort mit fehlenden Endspielen gilt nur kurz als frisch - dann wird bald neu gefragt.
-    const antwort = await ueberdauernd('fncs-alltime', letzteUnvollstaendig ? 2 * 60_000 : 30 * 60_000, 7 * 864e5, rechnen);
+    const antwort = await ueberdauernd('fncs-alltime-v2', letzteUnvollstaendig ? 2 * 60_000 : 30 * 60_000, 7 * 864e5, rechnen);
     if (!antwort) throw new Error('Keine FNCS-Endspiele im Archiv');
     return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   } catch (e) {
@@ -52,12 +52,12 @@ async function rechnen() {
     // Vollstaendig: als letzte vollstaendige Antwort ablegen.
     if (neu.rekorde) {
       const stempel = { ...neu, gerechnetAm: Date.now() };
-      await ueberdauernd('fncs-alltime-voll', 0, 7 * 864e5, async () => stempel).catch(() => null);
+      await ueberdauernd('fncs-alltime-voll-v2', 0, 7 * 864e5, async () => stempel).catch(() => null);
     }
     return neu;
   }
   // Nur lesen: nichts rechnen, nichts ueberschreiben (null).
-  const alt = await ueberdauernd<typeof neu & { gerechnetAm?: number }>('fncs-alltime-voll', Number.MAX_SAFE_INTEGER, 7 * 864e5, async () => null).catch(() => null);
+  const alt = await ueberdauernd<typeof neu & { gerechnetAm?: number }>('fncs-alltime-voll-v2', Number.MAX_SAFE_INTEGER, 7 * 864e5, async () => null).catch(() => null);
   if (alt && typeof alt.gerechnetAm === 'number' && Date.now() - alt.gerechnetAm < VOLL_MAX_ALTER && alt.rekorde && !((alt.rekorde.fehlend ?? 0) > 0)) {
     const { gerechnetAm: _g, ...rest } = alt;
     void _g;
@@ -82,7 +82,7 @@ async function rechnenRoh() {
     const events = [...gruppen.entries()]
       .map(([key, g]) => ({ key, titel: `FNCS Major ${g.nr}`, saison: g.saison, saisonKurz: saisonName(g.saison).replace(/Chapter\s*(\d+)\s*Season\s*(\S+)/i, 'CH$1 S$2'), saisonName: saisonName(g.saison), tage: g.tage }))
       .sort((a, b) => Number(a.saison.slice(1)) - Number(b.saison.slice(1)) || a.titel.localeCompare(b.titel));
-    if (!events.length) throw new Error('Keine FNCS-Endspiele im Archiv');
+    if (!events.length) throw new Error('Keine FNCS-Endspiele in den eigenen Spieltagen');
 
     const kontext = await spielerKontext();
     const je = new Map<string, { id: string; name: string; je: Record<string, number>; gesamt: number }>();
@@ -101,7 +101,7 @@ async function rechnenRoh() {
       const k = kontext(x.id, x.name);
       return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
     });
-    // Die Titel (FNCS-Sieger) seit Chapter 1 - aus der Spielerliste der Szene-Quelle - und nach Land.
+    // Die Titel (FNCS-Sieger) und nach Land.
     // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
     const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();
     for (const e of await fncsEreignisse()) {

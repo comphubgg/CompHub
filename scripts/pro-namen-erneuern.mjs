@@ -2,7 +2,7 @@
 //
 // Der Betreiber (29.10.2026): "du musst wirklich jeden Tag einmal Username updaten von jedem Pro in-game" - er hatte Juu unter seinem
 // In-Game-Namen ("juuzon ay лол7") gesucht und nicht gefunden. Die Namen standen bisher nur so aktuell da, wie der letzte Cup, in dem das Konto
-// gespielt hat. Hier werden alle Konten der Szene-Liste und der gepflegten Profile bei Epic nachgeschlagen (100 je Anfrage).
+// gespielt hat. Hier werden die wichtigen Spieler und alle Konten der gepflegten Profile bei Epic nachgeschlagen (100 je Anfrage).
 //
 //   node scripts/pro-namen-erneuern.mjs           einmal am Tag (Marke data/pro-namen-stand.json)
 //   node scripts/pro-namen-erneuern.mjs --jetzt   sofort
@@ -22,7 +22,8 @@ if (!process.argv.includes('--jetzt') && Date.now() - (stand.zeit ?? 0) < 20 * 3
 }
 
 const ids = new Set();
-for (const p of lies('szene-quelle/spielerliste.json', [])) if (p?.ID && ID.test(p.ID)) ids.add(p.ID.toLowerCase());
+// Die wichtigen Spieler aus unseren eigenen Turnierdaten (scripts/flaggen-wichtig.mjs) und die gepflegten Profile.
+for (const id of Object.keys(lies('spieler-kreis/_wichtig.json', {})?.konten ?? {})) if (ID.test(id)) ids.add(id.toLowerCase());
 const profile = lies('spieler-profile.json', []);
 for (const p of (Array.isArray(profile) ? profile : Object.values(profile))) if (p?.id && ID.test(p.id)) ids.add(p.id.toLowerCase());
 

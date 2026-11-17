@@ -6,7 +6,7 @@ import { heatsDaten } from '@/lib/heatsPosts';
 import { gecacht } from '@/lib/epicCups';
 
 /*
- * Das Vorschaubild eines Links (Betreiber, 8.11.2026: "ein Thumbnail wie das von EU Competitive, wo ich unter dem Post den Link setze - wenn man aufs Bild
+ * Das Vorschaubild eines Links (Betreiber, 8.11.2026: "ein Thumbnail wie das von einer Vergleichsseite, wo ich unter dem Post den Link setze - wenn man aufs Bild
  * drueckt, instant dort"). X, Discord und WhatsApp zeigen es unter dem geteilten Link: links das CompHub-Logo, dahinter das Bild der Reihe, rechts die Heats.
  *
  *   GET ?seite=solos&region=EU     FNCS Solos (Reload): Bild der Reihe und - sobald eingeteilt - die Ersten beider Heats

@@ -25,7 +25,7 @@ source does not provide stays empty.
 - **Epic Games** — tournament calendar, leaderboards, placements, teammates (official API).
 - **Server replays** — eliminations, knocks, weapons and zones per match, read by us.
   Damage, hits and headshots come from the full replay. Epic keeps replays for 31 days.
-- **eucompetitive.com** — per-match-day values for older events.
+- **Our own player database** — names, countries and profiles we maintain ourselves.
 
 Not affiliated with Epic Games.
 

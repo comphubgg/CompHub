@@ -758,7 +758,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
 
           <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
             {mitglieder.some((m) => m.szene)
-              ? <><T>Schaden, Treffer, Material, Sturm und Strecke stammen aus der Szene-Quelle und gelten je Spieltag zusammen, nicht je Match.</T> </>
+              ? <><T>Schaden, Treffer, Sturm und Strecke stammen aus unserer eigenen Replay-Auswertung und gelten je Spieltag zusammen, nicht je Match.</T> </>
               : daten.eigeneAuswertung
                 ? <><T>Schaden, Treffer und Kopftreffer sind aus den Replays deiner Lobbys gezählt; Eliminierungen, Zeit und Punkte kommen von Epic.</T> </>
               : mitglieder.some((m) => m.replay)

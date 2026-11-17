@@ -3,6 +3,7 @@ import { istKennungName } from '@/lib/kennungName';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen } from '@/lib/szeneStats';
+import { eigeneSpielerliste } from '@/lib/eigeneSpielerliste';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
@@ -144,20 +145,6 @@ async function liesProfile(): Promise<Map<string, Profil>> {
   return karte;
 }
 
-async function liesSzene(): Promise<Map<string, { name: string; land: string }>> {
-  const karte = new Map<string, { name: string; land: string }>();
-  try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-      Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
-    for (const p of roh) {
-      if (!p.ID || !p.NAME || istKennungName(p.NAME, p.ID)) continue;
-      karte.set(p.ID, { name: p.NAME, land: (p.COUNTRY || '').toUpperCase() });
-    }
-  } catch { /* keine Kopie da */ }
-  return karte;
-}
-
 interface Eintrag {
   epicId: string; anzeige: string; land: string; matches: number;
   /** Alle Schreibweisen dieses Kontos, gefaltet - danach wird verglichen. */
@@ -168,8 +155,8 @@ interface Eintrag {
  * Der Namensspeicher.
  *
  * Er wird aus denselben Quellen gebaut wie die Suche der Statistikseite:
- * dem eigenen Archiv, den gepflegten Profilen und der offenen Spielerliste
- * der Szene-Quelle. Weil das einen Moment dauert, bleibt er eine Minute
+ * dem eigenen Archiv, den gepflegten Profilen und Epics Anzeigenamen
+ * (lib/eigeneSpielerliste). Weil das einen Moment dauert, bleibt er eine Minute
  * lang liegen - laenger nicht, damit ein frisch gepflegter Name nicht erst
  * nach einem Neustart ankommt.
  */
@@ -178,13 +165,13 @@ let speicherBis = 0;
 
 async function namensSpeicher(): Promise<Eintrag[]> {
   if (speicher && Date.now() < speicherBis) return speicher;
-  const [summen, profile, szene] = await Promise.all([
-    gesamtSummen(), liesProfile(), liesSzene(),
+  const [summen, profile, eigene] = await Promise.all([
+    gesamtSummen(), liesProfile(), eigeneSpielerliste(),
   ]);
 
   const liste: Eintrag[] = summen.map((x) => {
     const pr = profile.get(x.epicId);
-    const sz = szene.get(x.epicId);
+    const sz = eigene.get(x.epicId.toLowerCase());
     const anzeige = pr?.anzeige || pr?.name || sz?.name || x.name;
     const alle = new Set<string>();
     for (const n of [anzeige, x.name, sz?.name ?? '', ...x.namen]) {

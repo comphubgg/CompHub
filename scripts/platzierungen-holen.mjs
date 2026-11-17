@@ -1,12 +1,10 @@
-// Platzierungen und Mitspieler zu jedem Spieltag im Archiv holen.
+// Platzierungen und Mitspieler zu jedem Spieltag der Statistik holen.
 //
-// Das gespiegelte Archiv (data/szene-stats) enthaelt je Spieler seine Werte,
-// aber weder seinen Platz noch mit wem er angetreten ist. Beides steht in
-// Epics eigener Bestenliste: dort hat jeder Eintrag einen Rang und die
-// Konto-Ids aller Teammitglieder - bei Duos zwei, bei Trios drei.
+// Die Spieltage stehen im Verzeichnis der eigenen Spieltage (data/antworten/statistik_tage.json, lib/szeneStats). Platz und
+// Mitspieler stehen in Epics eigener Bestenliste: dort hat jeder Eintrag einen Rang und die Konto-Ids aller Teammitglieder -
+// bei Duos zwei, bei Trios drei.
 //
-// Gespeichert werden nur Konto-Ids, keine Namen. Namen wechseln staendig,
-// die Id nicht; wer wie heisst, steht ohnehin schon im Archiv.
+// Gespeichert werden nur Konto-Ids, keine Namen. Namen wechseln staendig, die Id nicht.
 //
 //   node scripts/platzierungen-holen.mjs              -> alles, was fehlt
 //   node scripts/platzierungen-holen.mjs S41 S42      -> nur diese Saisons
@@ -20,7 +18,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASIS = process.env.WERKZEUG_URL || 'http://localhost:3000';
-const ARCHIV = path.join(process.cwd(), 'data', 'szene-stats');
+const VERZEICHNIS = path.join(process.cwd(), 'data', 'antworten', 'statistik_tage.json');
 const ABLAGE = path.join(process.cwd(), 'data', 'platzierungen');
 
 const argumente = process.argv.slice(2);
@@ -58,8 +56,8 @@ const WIEDER_NACH_MS = 7 * 864e5;
 const JUNG_MS = 3 * 864e5;
 
 async function main() {
-  const verzeichnis = JSON.parse(
-    await fs.readFile(path.join(ARCHIV, 'index.json'), 'utf8'));
+  let verzeichnis = [];
+  try { verzeichnis = JSON.parse(await fs.readFile(VERZEICHNIS, 'utf8')); } catch { verzeichnis = []; }
   const ziel = saisons.length
     ? verzeichnis.filter((e) => saisons.includes(e.season))
     : verzeichnis;

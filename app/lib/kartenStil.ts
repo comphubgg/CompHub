@@ -6,7 +6,7 @@ import { kernname, ohneZierrat } from '@/lib/homoglyph';
  * Wie jede Turnierkarte aussieht - im Karten-Werkzeug, in der Prognose und
  * unter /globals/map.
  *
- * Der Betreiber (24.9.2026) hat die Karte von eucompetitive.com/globals als
+ * Der Betreiber (24.9.2026) hat die Karte einer Vergleichsseite als
  * Vorbild genannt: "die Animation mit den Spielernamen, die Schriftart, wie
  * die zoomt ... fuer alle Maps", dazu die Rotfarbe der Formen. Nachgemessen
  * an der Seite selbst:

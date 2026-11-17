@@ -100,7 +100,7 @@ async function kontenLaden(): Promise<FtKonten> {
   }
   for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt && !k.namen[id.toLowerCase()]) k.namen[id.toLowerCase()] = n.haupt;
   const q = await landQuellen().catch(() => null);
-  if (q) { k.szene = q.szene; k.spiel = { ...q.spiel }; k.noble = q.noble; }
+  if (q) { k.spiel = { ...q.spiel }; k.noble = q.noble; }
   return k;
 }
 

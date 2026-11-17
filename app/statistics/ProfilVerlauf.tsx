@@ -2,7 +2,7 @@
 
 /*
  * Der Verlauf eines Spielers ueber seine Turniere - nach dem Vorbild der
- * "Rating Progression" bei eucompetitive, mit denselben Schaltern: die
+ * "Rating Progression" auf einer Vergleichsseite, mit denselben Schaltern: die
  * letzten zwoelf oder alle, und "grosse Events" dazu oder nicht (beides
  * zugleich waehlbar). Beim Oeffnen zeichnet sich die Linie von links nach
  * rechts, wie beim Vorbild.

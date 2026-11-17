@@ -70,7 +70,8 @@ export const runtime = 'nodejs';
  */
 export const maxDuration = 60;
 
-const QUELLE = 'eucompetitive.com';
+/** Woher die Zahlen kommen - steht in jeder Antwort. Nur unsere eigenen Quellen. */
+const QUELLE = 'Epic Games tournament data, CompHub replay analysis, CompHub player database';
 
 /**
  * Die eigenen Spielerprofile dazunehmen.
@@ -89,40 +90,24 @@ interface Profil { id?: string; name: string; land?: string; x?: string; anzeige
 let profile: Map<string, Profil> | null = null;
 let profileStand = -1;
 
-/**
- * Die Klarnamen und Laender aus der offenen Spielerliste der Quelle.
- *
- * Sie kennt zu viertausend Konten den Profinamen und das Land: das Konto
- * hinter "falcon peterbotǃ" heisst dort PETERBOT und traegt US, das hinter
- * "аurоra fv" heisst SHXRK. Ohne das stuende auf der Seite der Name, unter
- * dem jemand zufaellig an diesem Tag angetreten ist, und daneben die
- * Weltkugel.
- *
- * Es gilt als Grundlage, nicht als Wahrheit: ein selbst gepflegtes Profil
- * schlaegt sie immer. Von 106 Faellen, in denen beide ein Land fuehren,
- * stimmten 102 ueberein - die vier Abweichungen entscheidet der Nutzer.
- */
 /*
- * landQuelle (16.11.2026): woher das Land stammt. Fehlt es in der Szene-Liste, springt die Flagge ein, die der Spieler in Fortnite gewaehlt hat (Epics
- * playerFlagTokens, lib/landQuellen "spiel") - nur als Rueckfall: ein gepflegtes Profil geht an jeder Stelle vor (pr?.land || sz?.land), die Szene-Liste
- * auch. Passt sie nicht zur Heimatregion des Kontos (BR bei einem reinen EU-Spieler), bleibt sie weg. Konten nur mit Spiel-Flagge stehen ohne Namen da.
+ * Name und Land je Konto, wo kein Profil gepflegt ist (17.11.2026: nur noch unsere eigenen Quellen): Epics Anzeigename (epic-namen.json)
+ * und die Flagge, die der Spieler in Fortnite gewaehlt hat (Epics playerFlagTokens, lib/landQuellen "spiel") - ein gepflegtes Profil geht
+ * an jeder Stelle vor (pr?.land || sz?.land). Passt die Flagge nicht zur Heimatregion des Kontos (BR bei einem reinen EU-Spieler), bleibt sie weg.
  */
-let szeneSpieler: Map<string, { name: string; land: string; landQuelle?: 'szene' | 'spiel' }> | null = null;
+let szeneSpieler: Map<string, { name: string; land: string; landQuelle?: 'spiel' }> | null = null;
 let szeneBis = 0;
 
 async function liesSzeneSpieler() {
   if (szeneSpieler && Date.now() < szeneBis) return szeneSpieler;
-  const karte = new Map<string, { name: string; land: string; landQuelle?: 'szene' | 'spiel' }>();
+  const karte = new Map<string, { name: string; land: string; landQuelle?: 'spiel' }>();
   try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-      Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
-    for (const p of roh) {
-      if (!p.ID || !p.NAME || istKennungName(p.NAME, p.ID)) continue;
-      const land = (p.COUNTRY || '').toUpperCase();
-      karte.set(p.ID, { name: p.NAME, land, ...(land ? { landQuelle: 'szene' as const } : {}) });
+    const roh = await liesJson<Record<string, string>>('epic-namen.json', {});
+    for (const [id, name] of Object.entries(roh)) {
+      if (!name || istKennungName(name, id)) continue;
+      karte.set(id.toLowerCase(), { name, land: '' });
     }
-  } catch { /* keine Kopie da */ }
+  } catch { /* ohne Epic-Namen */ }
   try {
     const [q, heimat] = await Promise.all([landQuellen(), heimatRegionen().catch(() => new Map<string, string>())]);
     for (const [id, land] of Object.entries(q.spiel)) {
@@ -133,7 +118,7 @@ async function liesSzeneSpieler() {
       if (da?.land) continue;
       karte.set(id, { name: da?.name ?? '', land: code, landQuelle: 'spiel' });
     }
-  } catch { /* ohne Spiel-Flaggen bleibt es bei der Szene-Liste */ }
+  } catch { /* ohne Spiel-Flaggen */ }
   szeneSpieler = karte;
   szeneBis = Date.now() + 5 * 60_000;
   return karte;
@@ -1331,28 +1316,6 @@ async function berechne(request: Request) {
       } : null;
 
       /**
-       * Die Grand-Finals-Platzierungen aus der offenen Spielerliste.
-       *
-       * Sie fuehrt je Saison den erreichten Platz - null heisst, es gab keine
-       * Teilnahme. Daraus entsteht dieselbe Tafel, die das Vorbild unter
-       * "FNCS" zeigt.
-       */
-      // Fehlt die Kopie der Liste (Ablage gerade weg), bleibt die Tafel
-      // leer - das Profil selbst kommt trotzdem.
-      let szeneListe: Array<Record<string, string | number>> = [];
-      try {
-        szeneListe = JSON.parse(await fs.readFile(
-          path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-          Array<Record<string, string | number>>;
-      } catch { /* keine Kopie da */ }
-      const eintragQuelle = szeneListe.find((x) => x.ID === spieler);
-      const fncs = eintragQuelle ? {
-        titel: Number(eintragQuelle.FNCS_WINS ?? 0),
-        saisons: Object.entries(eintragQuelle)
-          .filter(([k]) => /^(CH\d|GLOBALS|ALL_STAR|GRAND_ROYALE|INVITATIONAL)/.test(k))
-          .map(([k, v]) => ({ saison: k.replace(/_/g, ' '), platz: Number(v) || 0 })),
-      } : null;
-      /**
        * Die Tage, an denen er der Staerkste war.
        *
        * Beim Vorbild heisst diese Marke "EVENT MVP" und richtet sich nach
@@ -1414,6 +1377,44 @@ async function berechne(request: Request) {
         };
       };
 
+      /*
+       * Die FNCS-Tafel und die Erfolge (lib/profilTafeln) - immer ueber alle
+       * Zeiten, gleich welche Saison oben gewaehlt ist.
+       */
+      const [alleSzene, alleEpic, lanListen] = await Promise.all([
+        verlauf(spieler).catch(() => []),
+        epicVerlauf(spieler).catch(() => []),
+        lanEintraege().catch(() => []),
+      ]);
+      mark('verlaufAlle');
+      const profilZeilen: ProfilZeile[] = [
+        ...alleSzene.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.event, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
+        ...alleEpic.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.titel, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
+      ];
+      const lanFuerTafel = lanListen.map((e) => ({
+        kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster,
+        spieler: e.spieler.map((x) => ({ epicId: x.epicId, platz: x.platz })),
+      }));
+      const labelVon = (kennung: string) => mitLeerzeichen(saisonKurz(kennung));
+      // Jede Saison mit einem FNCS-Finale in unseren eigenen Spieltagen (Epics Bestenlisten).
+      const weitereFinals = [...new Set(verzeichnis
+        .filter((e) => fncsFinalTag(e.windowId))
+        .map((e) => e.season))];
+      const solosFinals = [...new Set(verzeichnis.filter((e) => fncsSoloFinalTag(e.windowId)).map((e) => e.season))];
+      const tafelRoh = fncsTafel({
+        quelle: [], zeilen: profilZeilen, lan: lanFuerTafel, spieler,
+        label: labelVon, solosFinals,
+        kennungVon: (l) => kennungZu.get(l.replace(/\s+/g, '').toUpperCase()),
+        weitereFinals,
+      });
+      /*
+       * FNCS-Titel und Grand-Finals-Platzierungen - nur aus unseren eigenen Daten (17.11.2026): die Tafel oben, gebaut aus Epics Bestenlisten
+       * der Grand Finals, die wir haben, und den LAN-Listen. Aeltere Finals ohne Epic-Bestenliste fehlen hier.
+       */
+      const fncs = tafelRoh.length ? {
+        titel: tafelRoh.filter((z) => z.platz === 1).length,
+        saisons: tafelRoh.filter((z) => z.platz > 0).map((z) => ({ saison: z.saison, platz: z.platz })),
+      } : null;
       const fncsSiegeRoh = fncs
         ? await Promise.all(fncs.saisons.filter((x) => x.platz === 1)
           .map(async (x) => ({ saison: x.saison, ...(await fncsDetail(x.saison)) })))
@@ -1442,42 +1443,7 @@ async function berechne(request: Request) {
         return { ...x, mitspieler: namen };
       }));
 
-      /*
-       * Die FNCS-Tafel und die Erfolge (lib/profilTafeln) - immer ueber alle
-       * Zeiten, gleich welche Saison oben gewaehlt ist.
-       */
-      const [alleSzene, alleEpic, lanListen] = await Promise.all([
-        verlauf(spieler).catch(() => []),
-        epicVerlauf(spieler).catch(() => []),
-        lanEintraege().catch(() => []),
-      ]);
-      mark('verlaufAlle');
-      const profilZeilen: ProfilZeile[] = [
-        ...alleSzene.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.event, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
-        ...alleEpic.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.titel, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
-      ];
-      const lanFuerTafel = lanListen.map((e) => ({
-        kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster,
-        spieler: e.spieler.map((x) => ({ epicId: x.epicId, platz: x.platz })),
-      }));
-      const labelVon = (kennung: string) => mitLeerzeichen(saisonKurz(kennung));
-      const letzteQuelle = Math.max(0, ...(fncs?.saisons ?? []).map((x) => {
-        const k = kennungZu.get(x.saison.replace(/\s+/g, '').toUpperCase());
-        return k ? Number(k.slice(1)) : 0;
-      }));
-      const weitereFinals = [...new Set(verzeichnis
-        .filter((e) => fncsFinalTag(e.windowId) && Number(e.season.slice(1)) > letzteQuelle)
-        .map((e) => e.season))];
-      const solosFinals = [...new Set(verzeichnis.filter((e) => fncsSoloFinalTag(e.windowId)).map((e) => e.season))];
-      const tafelRoh = fncsTafel({
-        quelle: fncs?.saisons ?? [], zeilen: profilZeilen, lan: lanFuerTafel, spieler,
-        label: labelVon, solosFinals,
-        kennungVon: (l) => kennungZu.get(l.replace(/\s+/g, '').toUpperCase()),
-        weitereFinals,
-        gleicherPlatz: (saison, platz) => szeneListe
-          .filter((x) => x.ID !== spieler && Number(x[saison.replace(/\s+/g, '_')]) === platz)
-          .map((x) => String(x.ID)),
-      });
+
       const erfolgeRoh = andereErfolge(profilZeilen, lanFuerTafel, spieler);
       const person = (id: string) => {
         const pr2 = profileFuerSiege.get(id);

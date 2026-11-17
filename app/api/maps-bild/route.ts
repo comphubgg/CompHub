@@ -56,7 +56,7 @@ const AUSWAHL: Array<{ u: string; titel: string }> = [
   { u: '/maps/archiv/karte-19.jpg', titel: 'Chapter 4 Season 1 · A New Beginning' },
   { u: '/maps/archiv/karte-20.jpg', titel: 'Chapter 2 Season 5 · Zero Point' },
   { u: '/maps/archiv/karte-21.webp', titel: "Chapter 6 Season 4 · Shock 'n Awesome" },
-  // Die Karten je Update von fortnite.gg/map-evolution, so gewaehlt, dass sie mit den Karten von EU Competitive uebereinstimmen (lib/alteMaps).
+  // Die Karten je Update von fortnite.gg/map-evolution, je Saison eine (lib/alteMaps).
   { u: '/maps/archiv/gg/gg-9.00.webp', titel: 'Chapter 1 Season 9 · Update 9.00' },
   { u: '/maps/archiv/gg/gg-14.40.webp', titel: 'Chapter 2 Season 4 · Update 14.40' },
   { u: '/maps/archiv/gg/gg-15.00.webp', titel: 'Chapter 2 Season 5 · Update 15.00' },

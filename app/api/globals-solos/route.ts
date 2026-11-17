@@ -127,7 +127,7 @@ export async function GET(request: Request) {
       const stufen = daten.stufen.map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end }));
       return NextResponse.json({ ok: true, region: daten.region, fenster: heats, stufen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
     }
-    // Die Einteilung der kommenden Heats - nach der Regel, sobald die letzte Runde vorbei ist (lib/heatsPosts), wie bei EU Competitive (Betreiber, 8.11.2026).
+    // Die Einteilung der kommenden Heats - nach der Regel, sobald die letzte Runde vorbei ist (lib/heatsPosts), wie auf einer Vergleichsseite (Betreiber, 8.11.2026).
     // Zwei Minuten frisch wie bisher; danach kommt der letzte Plan sofort (hoechstens fuenf Minuten alt) und der neue im Hintergrund.
     const heatsPlan = (frisch
       ? await gecacht(`solos|heatsplan|${region}`, 120_000, () => heatsDaten(region, undefined, true)).catch(() => [])

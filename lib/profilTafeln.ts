@@ -1,7 +1,7 @@
 /*
  * Die FNCS-Tafel und die Erfolge eines Spielerprofils.
  *
- * Der Betreiber (28.9.2026) nach dem Vorbild eucompetitive: "das mit FNCS ist
+ * Der Betreiber (28.9.2026) nach dem Vorbild einer Vergleichsseite: "das mit FNCS ist
  * sehr geil, dass du so jeden FNCS von jemals auflisten kannst. Und DNQ
  * bedeutet didn't qualify ... die Platzierungen sollst du unbedingt wissen,
  * mit wem er gespielt hat, ist auch sehr wichtig."

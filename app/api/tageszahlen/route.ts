@@ -95,7 +95,7 @@ export async function GET(request: Request) {
     besucheJeTag().catch(() => []),
     alleKonten().catch(() => []),
     alleZugaenge().catch(() => []),
-    liesJson<Array<{ windowId?: string }>>('szene-stats/index.json', []).catch(() => [] as Array<{ windowId?: string }>),
+    liesJson<Array<{ windowId?: string }>>('antworten/statistik_tage.json', []).catch(() => [] as Array<{ windowId?: string }>),
   ]);
 
   const gestern = new Date(seit - 86_400_000).toISOString().slice(0, 10);

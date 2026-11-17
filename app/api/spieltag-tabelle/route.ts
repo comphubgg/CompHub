@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verdienst } from '@/lib/preisgeld';
+import { eigeneSpielerliste } from '@/lib/eigeneSpielerliste';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -47,15 +48,13 @@ async function namensKarte(): Promise<Map<string, { name: string; land: string }
     }
   } catch { /* kein Verzeichnis */ }
 
+  // Epics Anzeigename und das Land aus unseren eigenen Quellen (lib/eigeneSpielerliste) - der Name aus dem Verzeichnis geht vor.
   try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-      Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
-    for (const p of roh) {
-      if (!p.ID || !p.NAME) continue;
-      karte.set(p.ID, { name: p.NAME, land: (p.COUNTRY || '').toUpperCase() });
+    for (const [id, e] of await eigeneSpielerliste()) {
+      const vorher = karte.get(id);
+      karte.set(id, { name: vorher?.name || e.name || '', land: e.land });
     }
-  } catch { /* keine Kopie da */ }
+  } catch { /* ohne eigene Liste */ }
 
   // Der gepflegte Name gewinnt - er ist die Entscheidung des Betreibers.
   try {

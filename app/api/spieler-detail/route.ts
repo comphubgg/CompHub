@@ -22,8 +22,8 @@ import { fensterOk, kontoOk, leseErgebnis } from '@/lib/eigeneAuswertung';
  * Quellen, jede mit dem, was sie wirklich hat:
  *   - Epics Bestenliste (jeder Cup): Platz, Punkte - getrennt nach Platzierung und Eliminierungen -, je Spiel Platz, Eliminierungen,
  *     Ueberlebenszeit je TEAM; bei manchen Cups auch Schaden, Kopftreffer, Heilung, Strecke.
- *   - Die Szene-Quelle (die Spieltage, die sie fuehrt, vor allem Finals): je SPIELER Schaden, Treffer, Schuesse, Heilung, Material, Sturm,
- *     Strecke ... Je Spieltag zusammen, nicht je Spiel.
+ *   - Die eigenen Spieltage der Statistik (lib/szeneEigen, vor allem Finals): je SPIELER Schaden, Treffer, Sturm, Strecke ... aus unserer
+ *     eigenen Replay-Auswertung. Je Spieltag zusammen, nicht je Spiel.
  *   - Die Replays (die Spieltage, die ausgewertet sind): je SPIELER Eliminierungen, Knocks, Tode und - wo gelesen - Schaden, Treffer, Kopftreffer.
  *   - Die Auswertung der eigenen Lobbys (lib/eigeneAuswertung): wer sich mit Epic verifiziert hat und seine Stats ansieht, bestellt damit die Replays
  *     seiner Lobbys; Schaden, Treffer und Kopftreffer des ganzen Teams kommen daraus, auch wo der Cup zu gross fuer die Auswertung aller Lobbys ist.
@@ -60,7 +60,7 @@ async function ganzeListe(w: string): Promise<GanzeZeile[] | null> {
   } catch { return null; }
 }
 
-/** Die Konten zu einem Namen aus dem Verzeichnis der Szene - leer, wenn es keines kennt oder nicht antwortet. */
+/** Die Konten zu einem Namen aus dem Verzeichnis der Statistik - leer, wenn es keines kennt oder nicht antwortet. */
 async function kontenZumNamen(origin: string, q: string): Promise<Array<{ id: string; name: string }>> {
   // Zuerst der Server selbst: hinter dem Tunnel fuehrt die Adresse der Anfrage ins Leere, und die Suche kannte dann keinen einzigen Spieler aus dem Verzeichnis (7.11.2026: Glubschi).
   for (const basis of [`http://127.0.0.1:${process.env.PORT || 3100}`, origin]) {
@@ -203,7 +203,7 @@ export async function GET(request: Request) {
       } else gesamt = proSeite;
     } catch { /* ohne Gesamtzahl keine Prozentangabe */ }
 
-    // Die Szene-Quelle und die Replays - je Spieler.
+    // Die eigenen Spieltage und die Replays - je Spieler.
     const szeneVon = new Map<string, Record<string, number>>();
     let szeneStand: string | null = null; let szeneMatches = 0;
     try {
@@ -214,7 +214,7 @@ export async function GET(request: Request) {
         szeneVon.set(normId(s.epicId), werte);
       }
       szeneStand = sz?.aktualisiert ?? null; szeneMatches = sz?.matches ?? 0;
-    } catch { /* ohne Szene-Quelle bleibt es bei Epics Werten */ }
+    } catch { /* ohne eigenen Spieltag bleibt es bei Epics Werten */ }
 
     const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;

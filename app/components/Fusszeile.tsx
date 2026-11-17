@@ -156,11 +156,11 @@ export default function Fusszeile() {
           Inhabern.</T>
         </p>
       </div>
-      {/* Woher die Zahlen kommen (stand bis 14.10.2026 als eigener Abschnitt auf der Startseite). Genannt wird nur, was ohne Absprache genannt
-          werden kann: Epics eigene Schnittstellen und die selbst ausgewerteten Turnier-Replays. */}
+      {/* Woher die Zahlen kommen (stand bis 14.10.2026 als eigener Abschnitt auf der Startseite). Genannt werden nur unsere eigenen Quellen:
+          Epics Turnierdaten, die eigene Replay-Auswertung und die eigene Spielerdatenbank. */}
       <div className="mx-auto mt-4 max-w-5xl text-center text-[11px] leading-relaxed text-slate-600 sm:text-left">
         <p>
-          <T>Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Schaden, Heilung, Builds und alles Weitere je Match selbst ausgewertet aus Epics Server-Replays.</T>
+          <T>Quellen: Turnierdaten von Epic Games (Turnierkalender, Bestenlisten, Platzierungen, Mitspieler), unsere eigene Replay-Auswertung (Eliminierungen, Schaden, Builds und alles Weitere je Match aus Epics Server-Replays) und unsere eigene Spielerdatenbank (Namen, Länder, Profile).</T>
         </p>
         {/* Die Spielerfotos stammen von Event-Fotografen (Betreiber, 16.11.2026). */}
         <FotoHinweis className="mt-2" />

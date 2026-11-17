@@ -7,7 +7,7 @@
 //
 // Die Kennungen sind systematisch: S42_FNCSDivisionalCup_Division1_Event4_EU,
 // epicgames_S42_FNCSDivisionalCup_Division1_EU. Also werden die Muster der
-// laufenden Saison und des Archivs auf die alten Saisons uebertragen, die
+// laufenden Saison und der eigenen Spieltage auf die alten Saisons uebertragen, die
 // Zaehler (Event1..8, Round1..2, Week1..8) durchprobiert und jede Kennung
 // mit einer kleinen Abfrage geprueft. Was antwortet, wird als Spieltag
 // abgelegt - mit Platz, Punkten, Teams, wie die anderen Epic-Spieltage.
@@ -23,7 +23,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASIS = (process.env.WERKZEUG_URL || 'http://localhost:3000').replace(/\/+$/, '');
-const ARCHIV = path.join(process.cwd(), 'data', 'szene-stats');
+const VERZEICHNIS = path.join(process.cwd(), 'data', 'antworten', 'statistik_tage.json');
 const ABLAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 const MERKER = path.join(ABLAGE, '_gesucht.json');
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
@@ -97,7 +97,8 @@ async function main() {
       }
     }
   }
-  const index = JSON.parse(await fs.readFile(path.join(ARCHIV, 'index.json'), 'utf8'));
+  let index = [];
+  try { index = JSON.parse(await fs.readFile(VERZEICHNIS, 'utf8')); } catch { index = []; }
   for (const x of index) {
     if (!/^S\d+_/i.test(x.windowId)) continue;
     const { w, e } = muster(x.windowId, x.eventId);

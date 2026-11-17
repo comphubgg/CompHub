@@ -326,7 +326,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
                 </tbody>
               </table>
               <p className="mt-2 text-[11px] text-slate-600">
-                <T>Elims je Spieler aus der Szene-Quelle, sonst aus unseren Replays; fehlt beides, steht ein Strich.</T>
+                <T>Elims je Spieler aus unseren Replays; fehlen sie, steht ein Strich.</T>
               </p>
             </div>
           )}

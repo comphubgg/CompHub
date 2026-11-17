@@ -40,7 +40,7 @@ const SCHNAPPSCHUSS = Date.parse('2026-09-25T21:39:00Z');
 const UMZUG_ENDE = Date.parse('2026-09-26T06:04:00Z');
 const AUSGENOMMEN = new Set(['konten.json', 'vip-users.json']);
 /** Gerechnetes gehoert ans Release, nicht nach Supabase ("nur das Noetigste"). */
-const GERECHNET = /^(antworten|power-rankings|epic-spieltage|platzierungen|szene-stats|szene-quelle|replays)\/|^(cup-archiv|epic-namen|verdienst-archiv|elims-archiv|preisgeld-tabellen|prognose-felder)\.json$/;
+const GERECHNET = /^(antworten|power-rankings|epic-spieltage|platzierungen|replays)\/|^(cup-archiv|epic-namen|verdienst-archiv|elims-archiv|preisgeld-tabellen|prognose-felder)\.json$/;
 
 function umgebung() {
   const raus = {};

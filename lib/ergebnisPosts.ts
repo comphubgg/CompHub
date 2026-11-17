@@ -53,29 +53,32 @@ const heuteDatumKurz = (ms?: number) => { const d = new Date(ms ?? Date.now()); 
 
 const PLATZ = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
-export async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map<string, { name: string; land: string }>; quellen: LandQuellen | null }> {
+export async function profilKarte(): Promise<{ profile: Map<string, Profil>; ersatz: Map<string, { name: string; land: string }>; quellen: LandQuellen | null }> {
   const profile = new Map<string, Profil>();
   try {
     const roh = await liesJson<Record<string, Profil & { id?: string; epicId?: string }> | Array<Profil & { id?: string; epicId?: string }>>('spieler-profile.json', {});
     const liste = Array.isArray(roh) ? roh : Object.entries(roh).map(([k, v]) => ({ ...v, id: v.id || v.epicId || k }));
     for (const p of liste) { const id = (p.id || p.epicId || '').toLowerCase(); if (/^[0-9a-f]{32}$/.test(id)) profile.set(id, p); }
   } catch { /* ohne Profile steht der Name da */ }
-  const szene = new Map<string, { name: string; land: string }>();
-  try {
-    const roh = await liesJson<Array<{ ID?: string; NAME?: string; COUNTRY?: string }>>('szene-quelle/spielerliste.json', []);
-    for (const p of roh) if (p.ID && p.NAME && !istKennungName(p.NAME, p.ID)) szene.set(p.ID.toLowerCase(), { name: p.NAME, land: p.COUNTRY ?? '' });
-  } catch { /* keine Kopie */ }
+  // Ersatz, wo kein Profil gepflegt ist: Epics Anzeigename (epic-namen.json) und die Fortnite-Flagge aus Epics Bestenlisten.
   const quellen = await landQuellen().catch(() => null);
-  return { profile, szene, quellen };
+  const ersatz = new Map<string, { name: string; land: string }>();
+  try {
+    const roh = await liesJson<Record<string, string>>('epic-namen.json', {});
+    for (const [id, name] of Object.entries(roh)) {
+      const k = id.toLowerCase();
+      if (name && !istKennungName(name, k)) ersatz.set(k, { name, land: quellen?.spiel[k] ?? '' });
+    }
+  } catch { /* ohne Epic-Namen steht der Name aus der Bestenliste da */ }
+  return { profile, ersatz, quellen };
 }
 
-/** Die Flagge eines Spielers im Post: Profil, Szene-Liste, Fortnite-Flagge (Bestenliste oder gesammelt), Noble, sonst das Zeichen der Region. */
+/** Die Flagge eines Spielers im Post: Profil, Fortnite-Flagge (Bestenliste oder gesammelt), Noble, sonst das Zeichen der Region. */
 export function flaggeAusKarte(karte: Awaited<ReturnType<typeof profilKarte>>, id: string, region: string, spielLand?: string, name?: string): string {
   const k = id.toLowerCase();
   const konten: FtKonten = {
     x: {}, twitch: {}, namen: name ? { [k]: name } : {},
     land: { [k]: karte.profile.get(k)?.land ?? '' },
-    szene: { [k]: karte.szene.get(k)?.land ?? '' },
     spiel: { [k]: spielLand || karte.quellen?.spiel[k] || '' },
     noble: { [k]: karte.quellen?.noble[k] ?? '' },
     region,
@@ -95,7 +98,7 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
 
   const spielerZeile = (p: { id?: string; name: string; spielLand?: string }) => {
     const id = (p.id ?? '').toLowerCase();
-    const pr = karte.profile.get(id); const sz = karte.szene.get(id);
+    const pr = karte.profile.get(id); const sz = karte.ersatz.get(id);
     const name = ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name;
     return `${flaggeAusKarte(karte, id, region, p.spielLand, name)} ${pr?.x ? `@${pr.x.replace(/^@/, '')}` : name.toUpperCase()}`.trim();
   };

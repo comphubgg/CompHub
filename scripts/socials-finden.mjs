@@ -240,15 +240,14 @@ async function vomRelease(name) {
 const releaseJson = async (name, standard) => (await liesJson(name, null).catch(() => null)) ?? (await vomRelease(name)) ?? standard;
 
 async function ladeDaten() {
-  const [wichtig, profile, namen, streamers, orgs, lan, szene, pr] = await Promise.all([
+  const [wichtig, profile, namen, streamers, orgs, lan, pr] = await Promise.all([
     releaseJson('spieler-kreis/_wichtig.json', null), liesJson(PROFIL_DATEI, {}), releaseJson('spieler-namen.json', {}),
     liesJson('streamers.json', {}), liesJson('orgs.json', {}), liesJson('lan-konten.json', {}),
-    releaseJson('szene-quelle/spielerliste.json', []), releaseJson('power-rankings/global.json', null),
+    releaseJson('power-rankings/global.json', null),
   ]);
-  // Laender, die die Szene-Liste / Epics Power Ranking nennen - sie bestaetigen eine Flagge aus der Bio, entscheiden aber nie allein.
+  // Laender, die Epics Power Ranking nennt - sie bestaetigen eine Flagge aus der Bio, entscheiden aber nie allein.
   const bekanntLand = new Map();
   for (const x of pr?.spieler ?? []) { const id = String(x.id ?? '').replace(/-/g, '').toLowerCase(); const l = String(x.land ?? '').trim().toUpperCase(); if (id && /^[A-Z]{2}$/.test(l)) bekanntLand.set(id, { code: l, quelle: 'Epics Power Ranking' }); }
-  for (const x of szene ?? []) { const id = String(x.ID ?? '').trim().toLowerCase(); const l = String(x.COUNTRY ?? '').trim().toUpperCase(); if (id && /^[A-Z]{2}$/.test(l)) bekanntLand.set(id, { code: l, quelle: 'die Szene-Liste' }); }
   if (!wichtig?.konten) throw new Error('spieler-kreis/_wichtig.json fehlt');
   // Schreiben nur ins GitHub-Archiv (DATEN_TOKEN, oder GITHUB_TOKEN mit COMPHUB_ABLAGE=github wie im Lauf) und nur, wenn die Profile lesbar waren.
   if (ANWENDEN && (!gitDatenAktiv() || !Object.keys(profile).length)) throw new Error('--anwenden braucht das GitHub-Archiv (DATEN_TOKEN oder GITHUB_TOKEN mit COMPHUB_ABLAGE=github) und eine lesbare spieler-profile.json - nichts geschrieben');

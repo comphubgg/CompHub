@@ -1,5 +1,6 @@
 import fs from '@/lib/ablageFs';
 import { istKennungName } from '@/lib/kennungName';
+import { landQuellen } from '@/lib/landQuellen';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
@@ -26,7 +27,7 @@ import { spielerbildGross } from './spielerbildKlein';
  *
  * ------------------------------------------------------------ Die Zuordnung
  *
- * Zuerst lief sie allein ueber das Namensverzeichnis der Szene. Damit waren
+ * Zuerst lief sie allein ueber ein Namensverzeichnis. Damit waren
  * 75 von 100 Konten eindeutig, und viele Fotos fehlten - der Betreiber:
  * "paar Bilder laden einfach nicht". Nachgemessen am 23.9.2026 an den
  * echten Dateien, warum:
@@ -40,8 +41,8 @@ import { spielerbildGross } from './spielerbildKlein';
  *     Zweitkonto). Gehoeren alle Kandidaten zu derselben Person, gilt das mit
  *     Foto.
  *   - Und gefragt wird der Reihe nach: zuerst die gepflegten Profile, dann
- *     die Fotozuordnung, dann das Namensverzeichnis, dann die Spielerliste
- *     der Szene. Bleibt eine Quelle mehrdeutig, entscheidet die naechste -
+ *     die Fotozuordnung, dann das Namensverzeichnis, dann Epics
+ *     Anzeigenamen (epic-namen.json). Bleibt eine Quelle mehrdeutig, entscheidet die naechste -
  *     aber nur unter den Konten, die schon in Frage kamen.
  *
  * Ergebnis am selben Stand: 99 von 100 Konten, 73 mit Foto. Ein Foto kommt
@@ -105,10 +106,10 @@ function zuordnung(quellen: {
   profile: Record<string, Profil>;
   bilder: Bildeintrag[];
   namen: Record<string, { namen?: string[]; haupt?: string }>;
-  szene: Array<{ ID?: string; NAME?: string }>;
+  epicNamen: Record<string, string>;
   lanKonten: Set<string>;
 }) {
-  const { profile, bilder, namen, szene, lanKonten } = quellen;
+  const { profile, bilder, namen, epicNamen, lanKonten } = quellen;
 
   // Konten, deren saemtliche Namen eine Turniermarke tragen: LAN-Konten.
   const alleNamen = new Map<string, string[]>();
@@ -131,13 +132,13 @@ function zuordnung(quellen: {
     (ix.get(k) ?? ix.set(k, new Set()).get(k)!).add(id);
   };
   const reihe: Index[] = [neu(), neu(), neu(), neu()];
-  const [ausProfil, ausFoto, ausNamen, ausSzene] = reihe;
+  const [ausProfil, ausFoto, ausNamen, ausEpic] = reihe;
   for (const [id, p] of Object.entries(profile)) {
     for (const n of [p.name, p.anzeige, ...(p.namen ?? [])]) add(ausProfil, n, id);
   }
   for (const b of bilder) if (b.echtesFoto) for (const n of [b.name, b.turniername]) add(ausFoto, n, b.epicId);
   for (const [id, e] of Object.entries(namen)) for (const n of [...(e.namen ?? []), e.haupt]) add(ausNamen, n, id);
-  for (const s of szene) if (s.ID && !istKennungName(s.NAME, s.ID)) add(ausSzene, s.NAME, s.ID);
+  for (const [id, n] of Object.entries(epicNamen)) if (n && !istKennungName(n, id)) add(ausEpic, n, id);
 
   const mitFoto = new Set(bilder.filter((b) => b.echtesFoto).map((b) => b.epicId));
   const person = (id: string) => (profile[id]?.anzeige || profile[id]?.name || '').toLowerCase().trim();
@@ -175,27 +176,21 @@ export async function globalsTeams(fenster: string) {
     players?: Array<{ id: string; name: string; img?: string | null }>;
   }> }).entries ?? [];
 
-  const [namen, profile, bilder, szeneRoh] = await Promise.all([
+  const [namen, profile, bilder, epicNamen, laender] = await Promise.all([
     liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}),
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),
-    liesJson<Array<{ ID?: string; NAME?: string; COUNTRY?: string }>>(
-      path.join('szene-quelle', 'spielerliste.json'), []),
+    liesJson<Record<string, string>>('epic-namen.json', {}),
+    landQuellen().catch(() => null),
   ]);
 
   const lanKonten = new Set(eintraege.flatMap((e) => (e.players ?? []).map((x) => x.id)));
-  const kontoZu = zuordnung({ profile, bilder, namen, szene: szeneRoh, lanKonten });
+  const kontoZu = zuordnung({ profile, bilder, namen, epicNamen, lanKonten });
 
   const bildZu = new Map<string, string>();
   for (const b of bilder) {
     if (b.epicId && b.echtesFoto) {
       bildZu.set(b.epicId, spielerbildGross(b.datei));
-    }
-  }
-  const szene = new Map<string, { name: string; land: string }>();
-  for (const s of szeneRoh) {
-    if (s.ID && s.NAME && !istKennungName(s.NAME, s.ID)) {
-      szene.set(s.ID, { name: s.NAME, land: (s.COUNTRY || '').toUpperCase() });
     }
   }
 
@@ -214,7 +209,7 @@ export async function globalsTeams(fenster: string) {
       const roher = String(sp.name ?? '').replace(/\[[^\]]*\]\s*/g, '').trim();
       const konto = FESTE_KONTEN[sp.id] ?? kontoZu(roher);
       const pr = konto ? profile[konto] : undefined;
-      const sz = konto ? szene.get(konto) : undefined;
+      const spielLand = konto ? laender?.spiel[konto.toLowerCase()] ?? '' : '';
       return {
         /** Die Konto-Id des Turniers - nicht die des gewoehnlichen Kontos. */
         turnierId: sp.id,
@@ -224,8 +219,8 @@ export async function globalsTeams(fenster: string) {
         anzeige: (pr?.anzeige || (pr?.name && !MARKE.test(pr.name) ? pr.name : '')
           // Ohne gepflegten Namen der Name ohne Orgtag: "GodL Flickzy"
           // wird "Flickzy", wie auf der Karte.
-          || sz?.name || kernname(roher)),
-        land: (pr?.land || sz?.land || '').toUpperCase() || null,
+          || kernname(roher)),
+        land: (pr?.land || spielLand || '').toUpperCase() || null,
         x: pr?.x ?? null,
         bild: (konto ? bildZu.get(konto) : null) ?? sp.img ?? null,
       };

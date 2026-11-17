@@ -232,7 +232,7 @@ async function rechnen(request: Request) {
  * Antwort liegt jetzt auch auf der Platte: sie kommt sofort, frisch gerechnet wird im Hintergrund (lib/ueberdauernd).
  */
 export async function GET(request: Request) {
-  const antwort = await ueberdauernd('startvitrine', 10 * 60_000, 24 * 3600_000, () => rechnen(request));
+  const antwort = await ueberdauernd('startvitrine-v2', 10 * 60_000, 24 * 3600_000, () => rechnen(request));
   if (!antwort) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
   return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
 }

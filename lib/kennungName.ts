@@ -1,10 +1,10 @@
 /*
  * Eine Konto-Id ist kein Name.
  *
- * In der Spielerliste der Szene-Quelle (data/szene-quelle/spielerliste.json) steht bei 376 von ueber 4000 Konten statt eines Namens
- * die Konto-Id selbst. Wer die Liste ungeprueft als Namensquelle nimmt, zeigt dann auf Karten, in Bestenlisten und Posts 32 Zeichen
- * Hex - der Betreiber (19.10.2026): "Namen, die als lange Zahlen dastehen, musst du finden und ueberall richtig machen." Jeder, der
- * aus dieser Liste einen Namen liest, fragt deshalb zuerst hier; ohne Namen greift die naechste Quelle (Profil, Epic-Name).
+ * Manche Quellen fuehren bei Konten ohne bekannten Namen statt eines Namens die Konto-Id selbst. Wer das ungeprueft als Name nimmt,
+ * zeigt auf Karten, in Bestenlisten und Posts 32 Zeichen Hex - der Betreiber (19.10.2026): "Namen, die als lange Zahlen dastehen,
+ * musst du finden und ueberall richtig machen." Jeder, der einen Namen liest, fragt deshalb zuerst hier; ohne Namen greift die
+ * naechste Quelle (Profil, Epic-Name).
  */
 export function istKennungName(name: unknown, id?: unknown): boolean {
   const n = String(name ?? '').trim();

@@ -13,10 +13,8 @@
  * Noble im Finale fuehrt.
  */
 
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { liesJson } from '@/lib/ablage';
-import { DATEN_ORT } from '@/lib/datenOrt';
+import { landQuellen } from '@/lib/landQuellen';
 import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
@@ -72,7 +70,7 @@ export interface SolosTeam {
   rang: number | null;
   punkte: number | null;
   siege: number | null;
-  /** Nur bei von Hand gepflegten und archivierten Bestenlisten (lib/alteMaps, lib/fncsBestenlisten). */
+  /** Nur bei von Hand gepflegten Bestenlisten (lib/alteMaps). */
   elims?: number | null;
   /** Gespielte Matches - nur bei archivierten Bestenlisten. */
   spiele?: number | null;
@@ -157,43 +155,15 @@ async function ergebnisse(windowId: string, region: string = REGION, eventId?: s
 export type SpielerVon = (id: string, roh: string, land?: string) => SolosSpieler;
 
 /**
- * Die Heimatlaender aus der Spielerliste der Szene-Quelle (Konto-Id -> Laenderkuerzel).
- *
- * Der Betreiber (12.10.2026): auf den Karten standen bei den meisten Spielern Weltkugeln statt Flaggen, "weil dazu ja jeder
- * Spieler eigentlich in der Liste steht". Die Liste kennt das Land zu rund 2.100 der im Archiv gefuehrten Konten - sie ist
- * dieselbe Grundlage, die auch die Statistikseite nimmt. Ein gepflegtes Profil schlaegt sie, Nobles Angabe auch; nur wo beide
- * nichts wissen, springt sie ein. Wo auch sie nichts kennt, bleibt die Weltkugel: ein Land wird nicht geraten.
+ * Das Land aus Fortnite (Epics GeoIdentity in den Turnier-Bestenlisten, lib/landQuellen "spiel") - wo weder ein gepflegtes Profil
+ * noch Noble ein Land kennt. Wo auch das fehlt, bleibt die Weltkugel: ein Land wird nicht geraten.
  */
-/*
- * Dieselbe Liste kennt auch den Namen, unter dem ein Spieler in der Szene gefuehrt wird ("T3ENY", "VICO") - ohne Orgtag, ohne Startnummer, ohne den
- * Namen, den er gerade traegt. Betreiber (14.10.2026): auf den Karten und Bestenlisten alter Cups sollen die Spieler stehen, wie sie heissen
- * und nicht wie sie sich gerade nennen ("HVK TJINO 1!" - gemeint ist Tjino); ein echter Name, "weil du ja nicht weisst, wie sie damals hiessen".
- */
-let szeneListe: { bis: number; land: Map<string, string>; name: Map<string, string> } | null = null;
-async function szeneAngaben(): Promise<{ land: Map<string, string>; name: Map<string, string> }> {
-  if (szeneListe && szeneListe.bis > Date.now()) return szeneListe;
-  const land = new Map<string, string>();
-  const name = new Map<string, string>();
-  try {
-    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
-    for (const p of roh) {
-      if (!p.ID) continue;
-      if (/^[A-Za-z]{2}$/.test(p.COUNTRY ?? '')) land.set(p.ID, (p.COUNTRY as string).toUpperCase());
-      const n = String(p.NAME ?? '').trim();
-      // Bei einigen Konten steht in der Liste nur die Konto-Id statt eines Namens (376 von ueber 4000) - das ist kein Name.
-      if (n && !/^[0-9a-f]{32}$/i.test(n)) name.set(p.ID, n);
-    }
-  } catch { /* ohne Liste bleibt es bei Profil und Noble */ }
-  szeneListe = { bis: Date.now() + 10 * 60_000, land, name };
-  return szeneListe;
-}
-
 /** Wie ein Spieler aus Noble zu unserem Anzeigenamen, Land und Foto kommt (Profile und Spielerbilder des Werkzeugs). */
 export async function spielerKontext(): Promise<SpielerVon> {
-  const [profile, bilder, szene] = await Promise.all([
+  const [profile, bilder, laender] = await Promise.all([
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),
-    szeneAngaben(),
+    landQuellen().catch(() => null),
   ]);
   const bildZu = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
@@ -203,9 +173,9 @@ export async function spielerKontext(): Promise<SpielerVon> {
     const nobleLand = land && land !== 'global' ? land.toUpperCase() : null;
     return {
       id, name,
-      // Ein gepflegtes Profil zuerst, dann der Name der Szene-Liste; wo beide fehlen, der Epic-Name ohne Orgtag und Startnummer (nie der rohe).
-      anzeige: pr?.anzeige || szene.name.get(id) || kernname(pr?.name || name) || name,
-      land: (pr?.land || nobleLand || szene.land.get(id) || '').toUpperCase() || null,
+      // Ein gepflegtes Profil zuerst; sonst der Epic-Name ohne Orgtag und Startnummer (nie der rohe).
+      anzeige: pr?.anzeige || kernname(pr?.name || name) || name,
+      land: (pr?.land || nobleLand || laender?.spiel[id.toLowerCase()] || '').toUpperCase() || null,
       bild: bildZu.get(id) ?? null,
     };
   };

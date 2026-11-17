@@ -153,7 +153,7 @@ const SPIELER_KENNZAHLEN: Array<{
 }> = [
   // Selbst gerechnet: ausgeteilter geteilt durch erlittenen Schaden - beide
   // Werte stehen so in der Quelldatei. Der Titel sagt die Rechnung ausdruecklich
-  // dazu, denn eucompetitive zeigt auf der eigenen Seite unter "Rated" eine
+  // dazu, denn eine Vergleichsseite zeigt auf der eigenen Seite unter "Rated" eine
   // andere Zahl: deren Bewertung folgt einer eigenen, nicht veroeffentlichten
   // Formel und steht in keiner der offenen Dateien. Gleicher Name fuer zwei
   // verschiedene Rechnungen waere irrefuehrend.
@@ -1638,8 +1638,8 @@ export default function TweetSeite() {
       // Regionen vorkommen, sonst kaemen die Werte der falschen.
       /*
        * Zuerst dieselben Werte wie unter Player Stats auf der Event-Seite (app/api/cup-spieler, aus den Replays: Schaden, Quote, Treffer, Strecke, Zeit ...) -
-       * Betreiber, 8.11.2026: "wieso kann ich da nur 3 Stats haben und die Usernamen werden so komisch angezeigt". Die alte Quelle (spieler-stats) nur, wenn
-       * es dort nichts gibt.
+       * Betreiber, 8.11.2026: "wieso kann ich da nur 3 Stats haben und die Usernamen werden so komisch angezeigt". 
+       * Sonst gibt es keine Einzelwerte.
        */
       const fenster0 = aktuellesFenster;
       const ausCupSpieler = async (): Promise<SpielerDaten | null> => {
@@ -1661,13 +1661,10 @@ export default function TweetSeite() {
         };
       };
       ausCupSpieler()
-        .then((d) => d ?? fetch(`/api/spieler-stats?window=${encodeURIComponent(fenster0.windowId)}`
-          + (fenster0.region && fenster0.region !== 'GLOBAL'
-             ? `&region=${fenster0.region}` : '')).then((r) => r.json()))
-        .then((d: SpielerDaten) => {
+        .then((d: SpielerDaten | null) => {
           // Eine verspaetete Antwort zu einem anderen Spieltag darf die
           // aktuelle Auswahl nicht ueberschreiben.
-          if (d.fuer && d.fuer !== aktuellesFenster.windowId) return;
+          if (d?.fuer && d.fuer !== aktuellesFenster.windowId) return;
           setSpielerDaten(d);
         })
         .catch(() => setSpielerDaten(null));
@@ -2589,7 +2586,7 @@ export default function TweetSeite() {
     if (spielerListen.length) {
       gruppen.push({
         titel: 'Einzelwerte',
-        hinweis: `Werte je Spieler von ${einzelQuelle ?? 'der Szene-Quelle'} — `
+        hinweis: `Werte je Spieler von ${einzelQuelle ?? 'den Replays'} — `
           + 'nur bei „Player Stats“.',
         befehle: ausKennzahlen(spielerListen),
       });
@@ -4033,7 +4030,7 @@ export default function TweetSeite() {
                   niemand - dort steht nur ein durchgestrichener Zeiger. */}
               {!spielerListen.length && !ohneCup && !!stats && (
                 <span className="text-xs text-amber-500/80">
-                  {/* Die Einzelwerte kommen aus CompHubs Replay-Auswertung (app/api/cup-spieler) - nicht von eucompetitive (Betreiber, 14.11.2026). */}
+                  {/* Die Einzelwerte kommen aus CompHubs Replay-Auswertung (app/api/cup-spieler) - nicht einer Vergleichsseite (Betreiber, 14.11.2026). */}
                   Noch keine Player Stats: die Replays dieses Spieltags sind noch nicht
                   ganz ausgewertet. Das läuft nach dem Cup von selbst (meist innerhalb
                   einer Stunde) - danach stehen hier die Werte je Spieler.
@@ -4974,7 +4971,7 @@ export default function TweetSeite() {
                                ? 'border-amber-700/60 bg-amber-950/20 text-amber-200/90'
                                : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
                         {/* Die Flagge auch dann, wenn kein Profil gepflegt
-                            ist: das Land steht in der Szene-Quelle und ist
+                            ist: das Land aus unseren eigenen Quellen,
                             dasselbe, das die Statistikseite zeigt. Die
                             gruene Umrandung bleibt der Pflege vorbehalten -
                             so ist weiter erkennbar, wo noch etwas fehlt. */}

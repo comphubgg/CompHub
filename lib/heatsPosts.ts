@@ -93,7 +93,7 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
     try { marken = await holeMarken([...kandidaten.keys()]); } catch { /* dann nach der Regel */ }
     const karte = await profilKarte();
     /*
-     * Die Regel, nach der Epic einteilt (an Noble und EU Competitive geprueft, FNCS Solos Reload S43: 40 von 40 je Heat): nach dem Platz der letzten Runde im Zickzack -
+     * Die Regel, nach der Epic einteilt (an Noble und einer Vergleichsseite geprueft, FNCS Solos Reload S43: 40 von 40 je Heat): nach dem Platz der letzten Runde im Zickzack -
      * Platz 1 Heat 1, Platz 2 und 3 Heat 2, Platz 4 und 5 Heat 1 ... So steht die Einteilung sofort nach der Runde fest (Betreiber, 8.11.2026: "Noble hat das schon");
      * sobald Epic die Heat-Marken vergeben hat, gelten die Marken.
      */
@@ -107,10 +107,10 @@ export async function heatsDaten(region = 'EU', nurEvent?: string, alle = false)
     for (const [id, k] of kandidaten) {
       const t = markenDa ? (marken.get(id) ?? []).find((x) => heatMarke.has(x)) : einRunde && k.rang <= zubringerBis ? nachRegel(k.rang) : undefined;
       if (!t) continue;
-      const pr = karte.profile.get(id.toLowerCase()); const sz = karte.szene.get(id.toLowerCase());
+      const pr = karte.profile.get(id.toLowerCase()); const sz = karte.ersatz.get(id.toLowerCase());
       const name = ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || k.name)).trim() || k.name;
       const liste = heats.get(t) ?? [];
-      const land = landWaehlen({ profil: pr?.land, szene: sz?.land, spiel: karte.quellen?.spiel[id.toLowerCase()], noble: karte.quellen?.noble[id.toLowerCase()] }, region)?.land ?? '';
+      const land = landWaehlen({ profil: pr?.land, spiel: karte.quellen?.spiel[id.toLowerCase()], noble: karte.quellen?.noble[id.toLowerCase()] }, region)?.land ?? '';
       liste.push({ id, name, land, x: pr?.x?.replace(/^@/, '') || undefined, rang: k.rang, punkte: k.punkte });
       heats.set(t, liste);
     }

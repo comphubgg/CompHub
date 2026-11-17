@@ -98,7 +98,7 @@ def main() -> int:
     parser.add_argument("--pages", type=int, default=20, help="Number of pages to scrape if --top is not used")
     parser.add_argument("--start-page", type=int, default=1, help="First page to scrape")
     parser.add_argument("--end-page", type=int, default=None, help="Last page to scrape")
-    parser.add_argument("--source", choices=["fortnite", "eucompetitive"], default="fortnite", help="Source site")
+    parser.add_argument("--source", choices=["fortnite"], default="fortnite", help="Source site")
     parser.add_argument("--skip-upload", action="store_true", help="Do not upload to Supabase")
     parser.add_argument("--live-upload", action="store_true", help="Ask scraper to upload partial results to Supabase as pages complete")
     parser.add_argument("--headless", action=argparse.BooleanOptionalAction, default=True, help="Run browser headlessly")

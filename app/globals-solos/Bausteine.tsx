@@ -504,7 +504,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
   return (
     <div>
       {/*
-        * Karte und Spielerliste nebeneinander (Betreiber, 19.10.2026: "wie bei EU Competitive und Noble - eine Liste links oder rechts mit Suche, die Liste und die
+        * Karte und Spielerliste nebeneinander (Betreiber, 19.10.2026: "wie auf einer Vergleichsseite und Noble - eine Liste links oder rechts mit Suche, die Liste und die
         * Karte werden gefiltert, Enter hebt hervor"). Das Vollbild nimmt beides mit; das Bild geht dort bis an den Rand, in der Farbe des Meeres, statt schwarzer Balken.
         */}
       <div ref={huelle}

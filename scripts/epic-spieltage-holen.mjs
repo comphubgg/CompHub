@@ -1,15 +1,4 @@
-// Spieltage holen, zu denen die Szene-Quelle (noch) nichts hat.
-//
-// Das Archiv in data/szene-stats spiegelt eucompetitive.com. Dort stehen die
-// Einzelwerte jedes Teilnehmers - Schaden, Treffer, Material, Bauteile -, und
-// die gibt es sonst nirgends kostenlos: Epic selbst liefert sie nicht einmal
-// fuer die Turniere, zu denen die Quelle sie hat (nachgeprueft am selben
-// Fenster S42_PerformanceEvaluation_Event1Round2_EU: bei Epic steht ueberall
-// Schaden 0, in der Quelle 3550,24 fuer denselben Spieler).
-//
-// Die Quelle veroeffentlicht aber erst ein, zwei Tage nach dem Cup - und
-// laengst nicht jeden. Bis dahin fehlte der Spieltag im Profil vollstaendig,
-// obwohl er stattgefunden hat und Epic ihn fuehrt.
+// Epics Spieltage holen und ablegen (data/epic-spieltage) - die Grundlage der Statistik.
 //
 // Was Epic hergibt, ist echt und nicht wenig:
 //
@@ -33,7 +22,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASIS = process.env.WERKZEUG_URL || 'http://localhost:3000';
-const ARCHIV = path.join(process.cwd(), 'data', 'szene-stats');
 const ABLAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
 const neu = process.argv.slice(2).includes('--neu');

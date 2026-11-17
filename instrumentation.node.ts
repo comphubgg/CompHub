@@ -75,23 +75,12 @@ export async function starteHintergrund() {
   /**
    * Der naechtliche Nachlauf, in dieser Reihenfolge.
    *
-   * 1. Die Einzelwerte der Szene-Quelle - Schaden, Material, Bauteile. Das
-   *    ist die einzige kostenlose Quelle dafuer; Epic gibt sie nicht heraus.
-   * 2. Spieltage, zu denen die Quelle nichts hat. Erst danach, damit ein
-   *    Cup, den sie ueber Nacht veroeffentlicht hat, nicht zusaetzlich als
-   *    magere Epic-Zeile erscheint.
-   * 3. Die echten Turnierdaten zu allem, was neu dazugekommen ist.
+   * Epics eigene Spieltage (Platz, Punkte, Matches, Eliminierungen).
    *
-   * Nacheinander statt gleichzeitig: Epic drosselt. Beim ersten grossen Lauf
-   * kamen 84 von 894 Abrufen als HTTP 500 zurueck, weil zwei Skripte
-   * parallel abfragten.
+   * Nacheinander statt gleichzeitig: Epic drosselt.
    */
-  const szeneStatsHolen = async () => {
-    await starte('szene-stats-holen.mjs');
-    setTimeout(() => { void starte('epic-spieltage-holen.mjs'); }, 15 * 60_000)
-      .unref?.();
-    setTimeout(() => { void starte('spieltag-datum-nachtragen.mjs'); },
-      30 * 60_000).unref?.();
+  const spieltageHolen = async () => {
+    await starte('epic-spieltage-holen.mjs');
   };
 
   /**
@@ -99,8 +88,7 @@ export async function starteHintergrund() {
    *
    * Anlass: ein Finale, das am Abend zu Ende ging, stand am naechsten
    * Morgen noch nicht in der Statistik. Der Grund war der Takt - einmal
-   * taeglich um ein Uhr - und die Quelle: eucompetitive veroeffentlicht
-   * ihre Einzelwerte erst ein bis zwei Tage spaeter.
+   * taeglich um ein Uhr.
    *
    * Cups enden ueber alle Zeitzonen verteilt: die europaeischen gegen
    * Mitternacht, die amerikanischen in der Nacht, Asien und Ozeanien am
@@ -109,22 +97,15 @@ export async function starteHintergrund() {
    *
    * Deshalb stuendlich, und in dieser Reihenfolge:
    *
-   *   1. Die Szene-Quelle, aber nur die laufende Saison ("--neueste"):
-   *      sieben Verzeichnisabfragen, und geladen wird nur, was fehlt.
-   *   2. Fuenf Minuten spaeter Epics eigene Spieltage. Das ist der Lauf,
+   *   1. Epics eigene Spieltage. Das ist der Lauf,
    *      der den frisch beendeten Cup in die Statistik bringt - Epic
    *      fuehrt das Fenster sofort, mit Platz, Punkten und Matches.
-   *   3. Zehn Minuten spaeter das echte Turnierdatum dazu.
    *
    * Was schon da ist, wird uebersprungen; ein Lauf ohne neue Cups kostet
    * eine Handvoll Abfragen und sonst nichts.
    */
   const turniereNachfassen = async () => {
-    await starte('szene-stats-holen.mjs', ['--neueste']);
-    setTimeout(() => { void starte('epic-spieltage-holen.mjs'); }, 5 * 60_000)
-      .unref?.();
-    setTimeout(() => { void starte('spieltag-datum-nachtragen.mjs'); },
-      10 * 60_000).unref?.();
+    await starte('epic-spieltage-holen.mjs');
   };
 
   /**
@@ -216,7 +197,7 @@ export async function starteHintergrund() {
     const warten = ziel.getTime() - Date.now();
 
     setTimeout(() => {
-      void szeneStatsHolen();
+      void spieltageHolen();
       void replaysHolen();
       naechsterTermin();
     }, warten).unref?.();

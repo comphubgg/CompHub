@@ -1,20 +1,9 @@
-// Das gespiegelte Archiv der Einzelwerte - lesen und zusammenrechnen.
+// Die Statistik je Spieler - lesen und zusammenrechnen.
 //
-// Unter data/szene-stats/{REGION}/{SAISON}/ liegt je Spieltag eine Datei mit
-// den Werten jedes Teilnehmers (siehe scripts/szene-stats-holen.mjs). Diese
-// Datei macht daraus, was eine Oberflaeche braucht: die Summe ueber beliebig
-// viele Spieltage je Spieler.
-//
-// Zwei Dinge bleiben bewusst aussen vor:
-//
-//   * Das "Rating" der Quelle. Es steht in keiner der offenen Dateien, und
-//     die Zahl `damageRatio` darin ist nicht dasselbe: fuer shxrk stehen dort
-//     2,7763, waehrend ausgeteilt durch erlitten 1,8772 ergibt und die Seite
-//     selbst 2,35 anzeigt. Drei Zahlen, keine Formel - also keine Uebernahme.
-//   * Die Spielerfotos. Die sind lizenzierte Pressebilder ("Photo by Michal
-//     Konkol") und gehoeren dem Fotografen.
-//
-// Was hier gerechnet wird, laesst sich dagegen aus den Dateien nachrechnen.
+// Jeder Spieltag kommt aus unseren eigenen Daten (lib/szeneEigen): Teams, Platz, Matches und Eliminierungen aus Epics
+// Bestenliste (epic-spieltage), Schaden, Treffer, Zeit, Strecke und Bauteile aus unserer eigenen Replay-Auswertung
+// (clutch/, replays/). Diese Datei macht daraus, was eine Oberflaeche braucht: die Summe ueber beliebig viele Spieltage
+// je Spieler.
 
 import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 import { JAHR_SAISONS, jahrVonSaison } from './saisonJahre';
@@ -34,33 +23,14 @@ import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { DATEN_ORT } from './datenOrt';
 import { eigenKandidat, eigeneSpieler, type EigeneSpielerZeile } from '@/lib/szeneEigen';
 
-const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
+/** Das Verzeichnis der eigenen Spieltage (nur die Eckdaten, ohne Spielerwerte) - der Stundenlauf schreibt es, die Seite liest es. */
+const VERZEICHNIS_DATEI = 'antworten/statistik_tage.json';
 
 /**
  * Wie eine Saison heisst.
  *
- * Epic zaehlt seine Saisons durch - S36, S39, S41 -, die Szene spricht in
- * Kapiteln: "CH6 S3". Die Zuordnung ist abgelesen, nicht geraten.
- *
- * Fuer S30 bis S40 steht sie woertlich in den Daten: jede Spieltagsdatei
- * traegt im Feld "name" die Schreibweise der Szene, etwa
- * "CH6S3FNCSDivision1FinalsWeek1". Alle Dateien einer Saison nennen dasselbe
- * Kapitel - bei S39 sind das 158 uebereinstimmende Belege, bei S37 98, bei
- * S30 91; keine einzige Datei weicht ab.
- *
- * S41 und S42 tragen keinen solchen Namen mehr ("Escargo_Day1", "Reload
- * Elite Series 4 - Heat 3"). Fuer sie gelten zwei andere Belege:
- *
- *   * S41 -> CH7 S3 folgt aus der Vergleichsseite der Quelle: dort war CH7 S3
- *     gewaehlt, und die Ereignisliste dazu - Escargo Day1 bis Day4, Reload
- *     Elite Series 4, FNCS Major 2 - ist genau der Inhalt unseres
- *     S41-Ordners.
- *   * S42 ist die laufende Saison und heisst entsprechend CH7 S4.
- *
- * Die fortlaufende Zaehlung passt dazu: S39 -> CH7 S1 und S40 -> CH7 S2 sind
- * aus den Daten belegt, S41 und S42 schliessen daran an.
- *
- * S32, S35 und S38 fehlen - zu ihnen liefert die Quelle keine Dateien.
+ * Epic zaehlt seine Saisons durch - S36, S39, S41 -, gesprochen wird in
+ * Kapiteln: "CH6 S3". Die Zuordnung folgt Epics oeffentlichem Saisonkalender.
  */
 /*
  * Ausgeschrieben, nicht "CH7 S4": der Betreiber will "immer Chapter und
@@ -250,10 +220,9 @@ export interface SpielerSumme {
 const eigeneDateien = new Map<string, EigeneSpielerZeile[]>();
 let eigeneMerker: { liste: ArchivEintrag[]; bis: number } | null = null;
 
-async function eigeneEintraege(quelle: ArchivEintrag[]): Promise<ArchivEintrag[]> {
+async function eigeneEintraege(): Promise<ArchivEintrag[]> {
   if (eigeneMerker && Date.now() < eigeneMerker.bis) return eigeneMerker.liste;
-  const imArchiv = new Set(quelle.map((e) => e.windowId));
-  const kandidaten = (await liesEpicSpieltage()).filter((t) => eigenKandidat(t, imArchiv));
+  const kandidaten = (await liesEpicSpieltage()).filter((t) => eigenKandidat(t));
   const liste: ArchivEintrag[] = [];
   const doppelt = new Set<string>();
   let i = 0;
@@ -275,6 +244,7 @@ async function eigeneEintraege(quelle: ArchivEintrag[]): Promise<ArchivEintrag[]
     }
   }));
   eigeneMerker = { liste, bis: Date.now() + 15 * 60_000 };
+  if (liste.length) await schreibJson(VERZEICHNIS_DATEI, liste).catch(() => undefined);
   return liste;
 }
 
@@ -293,17 +263,13 @@ export async function liesVerzeichnis(): Promise<ArchivEintrag[]> {
    * Fehler hier laesst die abgelegte Antwort unberuehrt.
    */
   let gelesen: ArchivEintrag[];
-  try {
-    gelesen = JSON.parse(
-      await fs.readFile(path.join(ABLAGE, 'index.json'), 'utf8')) as ArchivEintrag[];
-  } catch (e) {
-    throw new Error(`Verzeichnis der Szene nicht lesbar: ${(e as Error).message}`);
-  }
-  if (!Array.isArray(gelesen) || !gelesen.length) throw new Error('Verzeichnis der Szene ist leer');
-  // Dazu die eigenen Spieltage seit dem Ende der Quelle (Idee 26) - nur dort, wo die Epic-Spieltage liegen (Stundenlauf), nie auf dem Host der Seite.
   if (!ohneDateien()) {
-    try { gelesen = [...gelesen, ...await eigeneEintraege(gelesen)]; } catch { /* ohne eigene Tage bleibt die Quelle */ }
+    // Wo die Epic-Spieltage und Replays liegen (Stundenlauf): die eigenen Spieltage rechnen und ihr Verzeichnis ablegen.
+    gelesen = await eigeneEintraege();
+  } else {
+    gelesen = await liesJson<ArchivEintrag[]>(VERZEICHNIS_DATEI, []).catch(() => [] as ArchivEintrag[]);
   }
+  if (!Array.isArray(gelesen) || !gelesen.length) throw new Error('Verzeichnis der Spieltage ist leer');
   verzeichnis = gelesen;
   verzeichnisBis = Date.now() + 60_000;
   return verzeichnis;
@@ -342,32 +308,9 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.daten;
 
   let daten: Datei | null = null;
-  if (e.eigen) {
+  {
     const p = eigeneDateien.get(e.windowId);
-    return p ? { ...e, players: p as unknown as RohSpieler[] } : null;
-  }
-  try {
-    daten = JSON.parse(await fs.readFile(
-      path.join(ABLAGE, e.region, e.season, e.datei), 'utf8')) as Datei;
-    if (!Array.isArray(daten.players)) daten = null;
-  } catch {
-    daten = null;
-  }
-  /*
-   * Solo-Spieltage: Eliminierungen aus Epics Bestenliste statt aus der Quelle (31.10.2026, FNCS Solos Finals EU: die Quelle fuehrte tjino mit 23,
-   * Epic und Osirion mit 27). Bei Solos ist das Team ein Konto, Epics Zahl gilt also je Spieler. Nur wo Epic den Tag fuehrt - sonst bleibt die Quelle.
-   */
-  if (daten) {
-    try {
-      const tag = await epicTag(e.windowId);
-      if (tag?.teams.length && tag.teams.every((t) => t.spieler.length === 1)) {
-        const elims = new Map(tag.teams.map((t) => [t.spieler[0].toLowerCase(), t.teamElims]));
-        daten = { ...daten, players: daten.players.map((p) => {
-          const v = elims.get((p.epicId ?? '').toLowerCase());
-          return typeof v === 'number' ? { ...p, eliminations: v } : p;
-        }) };
-      }
-    } catch { /* ohne Epic-Tag bleibt die Quelle */ }
+    daten = p ? { ...e, players: p as unknown as RohSpieler[] } : null;
   }
   /*
    * Nur Gelungenes merken.
@@ -1657,7 +1600,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
 
   type Nachweis = {
     name: string; region: string; datum: number | null;
-    quelle: 'eigene' | 'szene'; ausgewertet: number | null; gesamt: number | null;
+    quelle: 'eigene' | 'statistik'; ausgewertet: number | null; gesamt: number | null;
   };
   const nachweis: Nachweis[] = eigene.map((t) => ({
     name: t.titel, region: t.region, datum: t.datum,
@@ -1694,7 +1637,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     if (lan) lanFenster.add(e.windowId);
     nachweis.push({
       name: e.name, region: lan ? 'LAN' : e.region, datum: e.datum ?? null,
-      quelle: 'szene', ausgewertet: e.matches, gesamt: null,
+      quelle: 'statistik', ausgewertet: e.matches, gesamt: null,
     });
   }
 
@@ -1711,7 +1654,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
       // Die LAN ("*") ist keine eigene Region - sie zaehlt mit, steckt aber in der Heimat.
       const ohneLan = regionen.filter(([r]) => r !== '*');
       /*
-       * Die Summe ueber ALLE Regionen und die LAN - so zaehlt eucompetitive.
+       * Die Summe ueber ALLE Regionen und die LAN - so zaehlt man es ueblicherweise.
        *
        * Der Betreiber (1.10.2026) zeigte deren Liste ("Most Eliminations, CH7
        * S4, All Regions") als das, "wie die Liste eigentlich aussehen sollte":
@@ -1776,7 +1719,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * In allen Listen dieselbe Region im Kopf der Zeile: die, in der der
    * Spieler diese Saison am meisten gespielt hat. Vorher kam sie aus dem
    * ganzen Archiv - bei Veno "EU", obwohl er diese Saison NAC spielt und
-   * eucompetitive ihn als NAC fuehrt. (Hat jemand sein Land von Hand
+   * eine andere Liste ihn als NAC fuehrt. (Hat jemand sein Land von Hand
    * eingetragen, aendert das nichts: hier geht es nur um die Region des
    * Wettbewerbs.)
    */
@@ -2643,7 +2586,7 @@ export interface ClutchZeile { epicId: string; punkte: number; spiele: number; s
  * Solo Clutch Points der ganzen Saison, je Spieler.
  *
  * Der Betreiber (1.10.2026): unter den Saisonwerten der Startseite soll eine
- * Tabelle stehen wie bei eucompetitive - Rang, Spieler, Region, Punkte,
+ * Tabelle stehen wie auf einer Vergleichsseite - Rang, Spieler, Region, Punkte,
  * Solo-Zeit - und ein "Details" mit allen Spielern der Saison.
  *
  * Summiert werden die Spieltage, die aus den Replays gerechnet sind

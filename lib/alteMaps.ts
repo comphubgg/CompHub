@@ -5,7 +5,6 @@ import type { MapEintrag } from '@/lib/mapsVerzeichnis';
 import { cupBild, type MapTyp } from '@/lib/mapsTyp';
 import { GET as bestenliste } from '@/app/api/cup-leaderboard/route';
 import { endspielArt, schluesselVon, plaetze } from '@/lib/fncsListe';
-import { hatArchiv } from '@/lib/fncsBestenlisten';
 
 /*
  * Die Karten ohne Landepunkte: alle Cups, zu denen Noble Practice nichts fuehrt.
@@ -291,13 +290,10 @@ export const KEINE_KARTE = '/maps/archiv/keine-karte.png';
 
 /*
  * Die Karten je Spielversion (14.10.2026): der Betreiber - "bei Chapter 2 Season 4 fehlt oben rechts der blaue Kreis, das ist ein anderes Update;
- * geh bei fortnite.gg/map-evolution jedes Update durch, vergleiche mit EU Competitive, welche es ist, und nimm die" - Die Bilder kommen von
- * fortnite.gg/map-evolution (je Patch eine Karte; bei Chapter 1 und 2 ohne den Beschriftungsrand A-H / 1-8). Welche Version zu welcher Saison
- * und welchem Spieltag gehoert, sagt die Tabelle von EU Competitive (tournamentmaps: je Event ein Kartenbild, meist eins je Saison, in einigen
- * Saisons mehrere) - jedes ihrer 30 Bilder wurde gegen alle 227 Patch-Karten verglichen (Abstand der verkleinerten Bilder, mit und ohne
- * Beschriftungsrand); die Karte mit dem kleinsten Abstand gilt. Wo mehrere Patches gleich gut passen (die Karte hat sich nicht veraendert),
- * steht der juengste. Nicht zu finden ist die Karte des Grand Royale (Chapter 2 Season 8, dort liegt die Insel unter dem Wuerfel-Befall): sie ist
- * keine Patch-Karte; es steht die Karte der letzten Version der Saison (18.40) da - der Admin kann ein eigenes Bild waehlen.
+ * geh bei fortnite.gg/map-evolution jedes Update durch, welche es ist, und nimm die" - Die Bilder kommen von
+ * fortnite.gg/map-evolution (je Patch eine Karte; bei Chapter 1 und 2 ohne den Beschriftungsrand A-H / 1-8). Je Saison steht die Karte
+ * eines Patches dieser Saison. Die Karte des Grand Royale (Chapter 2 Season 8, dort liegt die Insel unter dem Wuerfel-Befall) ist keine
+ * Patch-Karte; es steht die der Saison da. Der Admin kann jede Insel je Spieltag oder je Saison tauschen (Verwaltung der alten Maps).
  */
 const GG = (patch: string) => `/maps/archiv/gg/gg-${patch.replace(/\s+/g, '-')}.webp`;
 export const INSEL_JE_SAISON: Record<string, string> = {
@@ -309,22 +305,8 @@ export const INSEL_JE_SAISON: Record<string, string> = {
   S33: GG('33.00'), S34: GG('34.00'), S36: GG('36.00'), S37: GG('37.00'),
 };
 
-/** Spieltage, deren Karte in der Tabelle von EU Competitive eine andere Version ist als die der Saison (Schluessel: Saison|Titel der Karte). */
-export const INSEL_JE_EVENT: Record<string, string> = {
-  'S18|FNCS Grand Royale': GG('18.40'),
-  // Chapter 3 Season 1: Woche 1 die erste Karte, Woche 2 und 3 die zweite, ab Woche 4 und in den FNCS-Runden die dritte.
-  'S19|Duo Cash Cup Finals - Week 2': GG('19.10'), 'S19|Duo Cash Cup Finals - Week 3': GG('19.10'),
-  ...Object.fromEntries([4, 5, 6, 7, 8].map((w) => [`S19|Duo Cash Cup Finals - Week ${w}`, GG('19.20')])),
-  ...Object.fromEntries(['FNCS Grand Finals', 'FNCS Semi Finals 3', 'FNCS Semi Finals 2', 'FNCS Semi Finals 1', 'FNCS Qualifier 2', 'FNCS Qualifier 1'].map((t) => [`S19|${t}`, GG('19.20')])),
-  // Das Invitational 2022 hat seine eigene Karte (auf der Insel liegt der Schnee anders).
-  'S22|FNCS Invitational 2022': GG('22.30'),
-  // Chapter 6 Season 1: die Karte aenderte sich in der Saison dreimal.
-  'S33|Performance Evaluation Cup - Week 4': GG('33.11'),
-  'S33|Performance Evaluation Cup - Week 6': GG('33.20'), 'S33|Performance Evaluation Cup - Week 7': GG('33.20'),
-  'S33|Performance Evaluation Cup - Week 8': GG('33.20'), 'S33|Performance Evaluation Cup - Week 9': GG('33.20'),
-  'S33|Division 1 Cup Finals - Week 3': GG('33.11'),
-  'S33|Division 1 Cup Finals - Week 4': GG('33.20'), 'S33|Division 1 Cup Finals - Week 5': GG('33.20'),
-};
+/** Spieltage mit einer eigenen Karte statt der ihrer Saison (Schluessel: Saison|Titel der Karte) - nur, was der Admin festlegt. */
+export const INSEL_JE_EVENT: Record<string, string> = {};
 
 /** Die Karte eines Spieltags: die Version dieses Spieltags, sonst die der Saison. */
 export const inselFuer = (saison: string, titel?: string): string => (titel && INSEL_JE_EVENT[`${saison}|${titel}`]) || INSEL_JE_SAISON[saison] || KEINE_KARTE;
@@ -424,18 +406,6 @@ async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined, tag 
   const kontext = await spielerKontext();
   const spieler = (id: string, roh: string, land?: string): SolosSpieler => kontext(id, roh, land);
   const eigene = daten?.teams ?? [];
-  // Ein FNCS-Endspiel mit archivierter Bestenliste (lib/fncsBestenlisten): ganze Teams mit Punkten, Siegen, Eliminierungen und Spielen.
-  if (!eigene.length && daten?.epicAn !== false) {
-    const a = endspielArt(e);
-    const schluessel = a ? schluesselVon(e.saison, a.art) : '';
-    const archiv = schluessel && hatArchiv(schluessel) ? await plaetze(schluessel) : [];
-    if (archiv.length) {
-      return archiv.map((t) => ({
-        id: `a${t.rang}`, spieler: t.spieler.map((s) => spieler(s.id, s.name, s.land ?? undefined)), rang: t.rang,
-        punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null, spiele: t.spiele ?? null,
-      }));
-    }
-  }
   if (!eigene.length && e.eventId && daten?.epicAn !== false) {
     try {
       return (await epicZeilen(e, tag)).map((en) => ({
@@ -445,7 +415,7 @@ async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined, tag 
       }));
     } catch { return []; }
   }
-  // Ein FNCS-Endspiel ohne Epic-Bestenliste (vor Chapter 5 Season 3): die Platzierungsliste der Szene-Quelle - Teams, Spieler, Flaggen.
+  // Ein FNCS-Endspiel ohne Epic-Bestenliste (vor Chapter 5 Season 3): die ersten fuenf Plaetze aus den Eckdaten (lib/fncsFakten).
   if (!eigene.length && !e.eventId && daten?.epicAn !== false) {
     const a = endspielArt(e);
     const liste = a ? await plaetze(schluesselVon(e.saison, a.art)) : [];

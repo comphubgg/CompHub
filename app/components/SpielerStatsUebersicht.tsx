@@ -326,7 +326,6 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
         return seit < 3_600_000 || (seit < 2 * 86400_000 && (!schadenAusReplay || fehlt || !!schadenTeil)) ? 'laeuft' : 'fertig';
       })()} />
       <p className="text-[11px] text-slate-500">
-        {szene ? <T>Endstand aus der Szene-Quelle</T> : null}
         {teamWerte && (
           <span className="block text-slate-500">
             <T>Diese Werte stammen direkt aus Epics Bestenliste und gelten je Team (Duo oder Trio), nicht je Spieler. Werte je einzelnem Spieler stehen nur in den Replays — zu diesem Cup liegen sie nicht vor.</T>

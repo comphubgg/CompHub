@@ -5,7 +5,6 @@
 //   data/spieler-verlauf/        der Turnierverlauf jedes Kontos (scripts/spieler-verlauf.mjs, Release daten-verlauf): jede Platzierung seit 2019 mit Feld,
 //                                Punkten, Spielen, Mitspielern und Preisgeld - alte Spieltage bis 2019 nur mit den besten 500.
 //   data/verdienst-archiv.json   jeder bezahlte Spieltag seit 2019 je Konto (Epics Auszahlungstabellen) - fuer "schon etabliert".
-//   lib/fncsBestenlisten.json    die Grand Finals seit Chapter 1 (EU) - fuer "schon etabliert".
 //   data/clutch/<Fenster>.json   die vollen Replays (Schaden ausgeteilt / eingesteckt je Spieler), wo gelesen.
 //   data/power-rankings/global.json  nur zum Anzeigen (Platz im Power Ranking), nicht im Score.
 //
@@ -172,18 +171,8 @@ for (const [id, l] of Object.entries(lies(path.join(DATEN, 'verdienst-archiv.jso
   geld.set(id, s);
   geldFenster.set(id, f);
 }
-// Grand Finals aus dem Archiv (EU, Chapter 1 bis CH6 S3): je Konto Saison -> bester Platz.
+// Grand Finals ausserhalb von Epics Bestenlisten: keine (17.11.2026 - nur eigene Daten).
 const gfArchiv = new Map();
-for (const [schluessel, teams] of Object.entries(lies(path.join(process.cwd(), 'lib', 'fncsBestenlisten.json'), {}))) {
-  const saison = schluessel.split('|')[0];
-  (teams ?? []).forEach((team, i) => {
-    for (const [id] of team?.[4] ?? []) {
-      const m = gfArchiv.get(id) ?? new Map();
-      m.set(saison, Math.min(m.get(saison) ?? 999, i + 1));
-      gfArchiv.set(id, m);
-    }
-  });
-}
 // Das Datum einer Saison (fuer Grand Finals aus dem Archiv, die kein Datum tragen): der Median ihrer Spieltage; fehlt die Saison, zwischen den Nachbarn.
 const saisonDaten = new Map();
 {

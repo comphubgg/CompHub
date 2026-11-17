@@ -10,7 +10,6 @@ import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { liesJson } from '@/lib/ablage';
 import { kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
 import { endspielArt, schluesselVon, landVonName, plaetze, type Art } from '@/lib/fncsListe';
-import { hatArchiv } from '@/lib/fncsBestenlisten';
 import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
 import { vglRekord, vglLeaderboard, nameVgl } from '@/lib/fncsReihenfolge';
 
@@ -208,7 +207,7 @@ async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<s
 
 async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<string, ArchivEintrag>): Promise<{ teams: number | null; spitze: FncsSpitze[] }> {
   const [kontext, landName] = await Promise.all([spielerKontext(), landVonName()]);
-  // Das Land: erst das Profil, dann die Spielerliste der Szene-Quelle, dann der Name (LAN-Konten wie "[FNCS24] EXD Peterbot" kennt nur der Name).
+  // Das Land: erst das Profil, dann die Fortnite-Flagge, dann der Name (LAN-Konten wie "[FNCS24] EXD Peterbot" kennt nur der Name).
   const spieler = (ps: Array<{ id: string; name?: string; displayName?: string }>) => ps.map((p) => {
     const x = kontext(p.id, p.displayName || p.name || '');
     const name = rein(x.anzeige);
@@ -227,21 +226,7 @@ async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Ma
     };
   }
 
-  // Archivierte Bestenliste (lib/fncsBestenlisten): vollstaendig und gegen die Eckdaten geprueft.
-  const archivKey = schluesselVon(k.e.saison, k.art);
-  if (!k.region && hatArchiv(archivKey)) {
-    const archiv = await plaetze(archivKey);
-    if (archiv.length) {
-      return {
-        teams: fakt?.teams ?? archiv.length,
-        // Name und Land wie im Werkzeug sonst: das Profil des Spielers (Konto-Id) geht vor, die Quelle gilt nur, wo es keins gibt.
-        spitze: mitPreis(archiv.slice(0, 5).map((t) => ({
-          rang: t.rang, punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null, spiele: t.spiele ?? null,
-          spieler: t.spieler.map((s) => { const x = kontext(s.id, s.name, s.land ?? undefined); return { name: rein(x.anzeige), land: x.land ?? s.land ?? landName(s.name) }; }),
-        }))),
-      };
-    }
-  }
+
 
   // 3. Die Global Championship 2026: der Endstand der Globals-Seite.
   if (/Global_Championship_2026$/.test(k.e.windowId)) {
@@ -271,7 +256,7 @@ async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Ma
     }
   }
 
-  // 4. Die Spielerliste der Szene-Quelle (ganze Platzierungsliste), dann die Eckdaten.
+  // 4. Die Eckdaten (die ersten fuenf Plaetze).
   const liste = k.region ? [] : await plaetze(schluesselVon(k.e.saison, k.art));
   if (liste.length) {
     return {
@@ -301,7 +286,6 @@ export async function fncsPlatzierungen(e: MapEintrag): Promise<FncsSpitze[]> {
   if (/Global_Championship_2026$/.test(e.windowId)) {
     try { const g = await ausGlobals(); if (g.length) return g.map((p) => ({ ...p, preis: p.preis ?? preisVon(fakt, p.rang) })); } catch { /* dann die Eckdaten */ }
   }
-  // Die ganze Platzierungsliste aus der Spielerliste der Szene-Quelle (Chapter 1 Season X bis Global Championship 2025).
   const liste = await plaetze(key);
   if (liste.length) return liste.map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, siege: t.siege, elims: t.elims, spiele: t.spiele, preis: preisVon(fakt, t.rang), spieler: t.spieler.map((s) => ({ name: s.name, land: s.land })) }));
   return fakt ? ausFakten(fakt) : [];
@@ -389,15 +373,11 @@ async function baueEreignisse(): Promise<FncsEreignis[]> {
   }));
   for (const e of aus) { gesehen.add(e.key); raus.push(e); }
 
-  // Endspiele, zu denen die Maps keine Karte fuehren (vor Chapter 2 Season 4): die archivierte Bestenliste, sonst die Eckdaten.
-  const land = await landVonName();
+  // Endspiele, zu denen die Maps keine Karte fuehren (vor Chapter 2 Season 4): die Eckdaten.
   for (const [schluessel, f] of Object.entries(FNCS_FAKTEN)) {
     if (gesehen.has(schluessel)) continue;
     const [saison, art] = schluessel.split('|') as [string, Art];
-    const archiv = hatArchiv(schluessel) ? await plaetze(schluessel) : [];
-    const spitze = archiv.length
-      ? archiv.slice(0, 5).map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, preis: preisVon(f, t.rang), spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? land(s.name) })) }))
-      : await ausFakten(f);
+    const spitze = await ausFakten(f);
     raus.push({
       key: schluessel, saison, saisonKurz: f.kopf1, saisonTitel: null,
       kopf1: f.kopf1, kopf2: f.kopf2, titel: f.titel, datum: faktDatum(f.datum), lan: !!f.lan, ort: f.ort ?? null,

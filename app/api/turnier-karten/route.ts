@@ -194,7 +194,7 @@ export async function GET(request: Request) {
   /*
    * Die Karten eines Spielers - fuer den Reiter "Maps" im Profil (Betreiber,
    * 1.10.2026: pro Spieler eine Geschichte der Karten mit seiner Platzierung
-   * vor jedem Cup, wie bei eucompetitive). Gelesen wird, was der Betreiber
+   * vor jedem Cup, wie auf einer Vergleichsseite). Gelesen wird, was der Betreiber
    * selbst gelegt hat: das Team, in dem die Konto-ID des Spielers steht, und
    * der Spot, auf dem es liegt. Es wird nichts abgeleitet und nichts gelegt;
    * ein Team ohne Spot taucht nicht auf. Nur veroeffentlichte Karten.

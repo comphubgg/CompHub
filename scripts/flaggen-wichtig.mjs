@@ -75,18 +75,11 @@ for (const { datei, s } of zaehlen) {
 
 const pr = new Map((lies(path.join(DATEN, 'power-rankings', 'global.json'), null)?.spieler ?? [])
   .filter((x) => x?.id).map((x) => [String(x.id).replace(/-/g, '').toLowerCase(), x.rank]));
-const szene = new Map();
-for (const p of lies(path.join(DATEN, 'szene-quelle', 'spielerliste.json'), [])) {
-  const id = String(p?.ID ?? '').trim().toLowerCase();
-  if (!id) continue;
-  const finals = Object.entries(p).filter(([k, v]) => !['ID', 'NAME', 'COUNTRY', 'FNCS_WINS'].includes(k) && Number(v) > 0).length;
-  szene.set(id, finals);
-}
 const namen = lies(path.join(DATEN, 'epic-namen.json'), {});
-console.log(`Power Ranking: ${pr.size}, Szene-Liste: ${szene.size}, Namen: ${Object.keys(namen).length}, LAN-Konten: ${Object.keys(lan).length}.`);
+console.log(`Power Ranking: ${pr.size}, Namen: ${Object.keys(namen).length}, LAN-Konten: ${Object.keys(lan).length}.`);
 
-// Wer nur im Power Ranking oder der Szene-Liste steht (z. B. Finals vor unserem Archiv), kommt auch hinein.
-for (const id of [...pr.keys(), ...szene.keys()]) if (!konten.has(id)) konten.set(id, neu());
+// Wer nur im Power Ranking steht, kommt auch hinein.
+for (const id of pr.keys()) if (!konten.has(id)) konten.set(id, neu());
 
 const raus = {};
 let wichtig = 0;
@@ -96,7 +89,7 @@ for (const [id, k] of konten) {
     z[e.art] += 1;
     if (e.art === 'final') z.besteFinal = Math.min(z.besteFinal ?? 999, e.platz);
   }
-  const b = bewerten(z, { pr: pr.get(id) ?? null, szeneFinals: szene.get(id) ?? 0 });
+  const b = bewerten(z, { pr: pr.get(id) ?? null });
   if (!b.wichtig) continue;
   wichtig += 1;
   const region = [...k.regionen].sort((a, c) => c[1] - a[1])[0]?.[0] ?? '';

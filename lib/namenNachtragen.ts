@@ -22,11 +22,11 @@ function mitFrist<T>(p: Promise<T>, ms: number, sonst: T): Promise<T> {
   return Promise.race([p.catch(() => sonst), new Promise<T>((r) => setTimeout(() => r(sonst), ms))]);
 }
 
-/** Eigene Daten (Profile, Szene-Liste, Namensverzeichnis) - eine Minute gemerkt. */
+/** Eigene Daten (Profile, Epic-Namen, Namensverzeichnis) - eine Minute gemerkt. */
 function eigeneNamen(): Promise<Map<string, string>> {
   return gecacht('namen-nachtragen|eigene', 60_000, async () => {
     const karte = new Map<string, string>();
-    const [{ profile, szene }, verzeichnis] = await Promise.all([
+    const [{ profile, ersatz }, verzeichnis] = await Promise.all([
       profilKarte(),
       liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}).catch(() => ({})),
     ]);
@@ -34,7 +34,7 @@ function eigeneNamen(): Promise<Map<string, string>> {
       const n = v?.haupt || v?.namen?.find((x) => !istIdName(x, id));
       if (n && !istIdName(n, id)) karte.set(k(id), n);
     }
-    for (const [id, s] of szene) if (s.name && !istIdName(s.name, id)) karte.set(k(id), s.name);
+    for (const [id, s] of ersatz) if (s.name && !istIdName(s.name, id) && !karte.has(k(id))) karte.set(k(id), s.name);
     for (const [id, p] of profile) {
       const pr = p as { anzeige?: string; name?: string };
       const n = pr.anzeige || pr.name;

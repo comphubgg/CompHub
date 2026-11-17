@@ -117,7 +117,7 @@ html[data-design="neu"] :is(div, section, article, aside)[class*="rounded-xl"][c
  * --i = Reihenfolge). Beim Ueberfahren richtet sich eine Karte auf und kommt nach vorn; ein Klick oeffnet sie gross (.faecher-pop).
  */
 .faecher { position: relative; display: block; list-style: none; padding: 0; margin: 0; container-type: inline-size; --abstand: 56px; --winkel: 2.5deg; }
-/* Beim Ueberfahren geht der Faecher von eng zu weit auseinander (Betreiber: "so wie bei EU Competitive") - bis die Karten fast nebeneinander stehen,
+/* Beim Ueberfahren geht der Faecher von eng zu weit auseinander (Betreiber: "so wie auf einer Vergleichsseite") - bis die Karten fast nebeneinander stehen,
    aber nie breiter als der Platz (cqw = Breite des Faechers; eine Karte ist 9rem breit, fuenf Abstaende dazwischen). */
 .faecher:hover, .faecher:focus-within { --abstand: min(8.7rem, calc((100cqw - 9.5rem) / var(--n, 5))); --winkel: 3deg; }
 .faecher > li { position: absolute; left: 50%; top: 50%; margin: -6.5rem 0 0 -4.5rem; z-index: var(--i);

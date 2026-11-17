@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
 import { fncsEreignisse, type FncsEreignis } from '@/lib/fncsEreignisse';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
 import { ueberdauernd } from '@/lib/ueberdauernd';
@@ -12,7 +11,7 @@ import { kernname } from '@/lib/homoglyph';
  * und den ersten drei Plaetzen samt Flaggen. Kein Konto noetig.
  *
  * Seit 30.10.2026 (neue FNCS-Seite mit Siegertreppchen) traegt jeder Spieler der Spitze auch sein Foto, wenn das Player Center eines hat -
- * die Platzierungen kennen nur Namen, also ueber Profilname, Fotoname und Szene-Liste.
+ * die Platzierungen kennen nur Namen, also ueber Profilname, Fotoname und Epic-Name.
  */
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +21,10 @@ export const maxDuration = 60;
 const schluessel = (n: string) => kernname(n).toLowerCase().replace(/[^a-z0-9]/g, '');
 
 async function fotosNachName(): Promise<Map<string, string>> {
-  const [profile, bilder, szene] = await Promise.all([
+  const [profile, bilder, epic] = await Promise.all([
     liesJson<Record<string, { anzeige?: string; name?: string }>>('spieler-profile.json', {}),
     liesJson<Array<{ datei: string; epicId: string; name?: string; turniername?: string; echtesFoto?: boolean }>>('spielerbilder.json', []),
-    liesJson<Array<{ ID?: string; NAME?: string }>>(path.join('szene-quelle', 'spielerliste.json'), []),
+    liesJson<Record<string, string>>('epic-namen.json', {}),
   ]);
   const bildVon = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.echtesFoto) bildVon.set(b.epicId, spielerbildKlein(b.datei));
@@ -37,13 +36,13 @@ async function fotosNachName(): Promise<Map<string, string>> {
   };
   for (const [id, p] of Object.entries(profile)) { setze(p.anzeige, id); setze(p.name, id); }
   for (const b of bilder) { setze(b.name, b.epicId); setze(b.turniername, b.epicId); }
-  for (const s of szene) if (s.ID) setze(s.NAME, s.ID);
+  for (const [id, n] of Object.entries(epic)) setze(n, id.toLowerCase());
   return raus;
 }
 
 /*
  * Die Fotos je Name fuenf Minuten gemerkt, danach sofort der alte Stand und der neue im Hintergrund (16.11.2026, Betreiber: "/fncs laedt zu
- * langsam"): vorher las jeder Aufruf drei Dateien neu (Profile, Fotos, Szene-Liste), bevor die fertige Liste herausging.
+ * langsam"): vorher las jeder Aufruf drei Dateien neu (Profile, Fotos, Namen), bevor die fertige Liste herausging.
  */
 let fotoVorrat: { zeit: number; karte: Map<string, string> } | null = null;
 let fotoLauf: Promise<Map<string, string>> | null = null;
@@ -60,7 +59,7 @@ export async function GET() {
   try {
     // Die letzte gute Liste sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026). Liste und Fotos zugleich.
     const [roh, fotos] = await Promise.all([
-      ueberdauernd('fncs-ereignisse-v3', 30 * 60_000, 7 * 864e5, () => fncsEreignisse()),
+      ueberdauernd('fncs-ereignisse-v4', 30 * 60_000, 7 * 864e5, () => fncsEreignisse()),
       fotosGemerkt().catch(() => new Map<string, string>()),
     ]);
     const ereignisse = (roh as FncsEreignis[]).map((e) => ({

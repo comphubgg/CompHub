@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fertigeAntwort } from '@/lib/antwortSpeicher';
+import { eigeneSpielerliste } from '@/lib/eigeneSpielerliste';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
@@ -41,7 +42,6 @@ export const maxDuration = 60;
 
 const PROFILE = path.join(DATEN_ORT, 'spieler-profile.json');
 const BILDER = path.join(DATEN_ORT, 'spielerbilder.json');
-const SZENE = path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json');
 
 interface Profil {
   id?: string; name: string; namen?: string[];
@@ -104,18 +104,12 @@ async function liesFotos(): Promise<Map<string, string>> {
   return karte;
 }
 
-/** Die Herkunftslaender der Szene-Quelle, nach Konto. */
+/** Die Herkunftslaender aus unseren eigenen Quellen (Profil, Fortnite-Flagge, Noble - lib/eigeneSpielerliste), nach Konto. */
 async function liesLaender(): Promise<Map<string, string>> {
   const karte = new Map<string, string>();
   try {
-    const roh = JSON.parse(await fs.readFile(SZENE, 'utf8')) as
-      Array<{ ID?: string; COUNTRY?: string }>;
-    for (const p of roh) {
-      const id = (p.ID ?? '').trim();
-      const land = (p.COUNTRY ?? '').trim().toUpperCase();
-      if (id && /^[A-Z]{2}$/.test(land)) karte.set(id, land);
-    }
-  } catch { /* keine Kopie da */ }
+    for (const [id, e] of await eigeneSpielerliste()) if (/^[A-Z]{2}$/.test(e.land)) karte.set(id, e.land);
+  } catch { /* ohne eigene Liste */ }
   return karte;
 }
 
@@ -157,7 +151,7 @@ async function berechne(request: Request) {
     liesJson<Array<{ epicId: string; name: string; region: string; cups: number; matches: number; konstanz: number }>>('spieler-kreis/_index.json', []).catch(() => []),
   ]);
 
-  // Der Spieler-Kreis (scripts/spieler-kreis.mjs): konstant gute Spieler, die nicht im Archiv der Szene stehen. Der Schluessel bleibt die Konto-Id.
+  // Der Spieler-Kreis (scripts/spieler-kreis.mjs): konstant gute Spieler, die nicht in der Statistik stehen. Der Schluessel bleibt die Konto-Id.
   const imArchiv = new Set(alle.map((s) => s.epicId));
   const ausKreis = kreis.filter((k) => k.name && !imArchiv.has(k.epicId) && k.matches >= mindestens).map((k) => {
     const pr = profile.nachId.get(k.epicId);

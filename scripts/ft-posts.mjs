@@ -27,7 +27,6 @@ if (d.je) {
 }
 const pro = await hole(`${R}/daten/spieler-namen.json`).catch(() => ({}));
 const profile = await hole(`${R}/daten/spieler-profile.json`).catch(() => ({}));
-const liste = await hole(`${R}/daten/szene-quelle__spielerliste.json`).catch(() => []);
 const streamer = await hole(`${R}/daten/streamers.json`).catch(() => lokal('streamers.json'));
 const C = cupDaten ? JSON.parse(fs.readFileSync(cupDaten, 'utf8').replace(/^window\.DATEN=/, '').replace(/;\s*$/, '')) : null;
 
@@ -41,7 +40,7 @@ for (const t of [...(C?.top?.slice(0, 1) ?? []), ...(C?.teamWerte ?? [])]) {
   teams.push({ ids: t.ids, rang: t.rang, siege: t.siege ?? 0, spiele: t.spiele ?? 0, elims: t.elims ?? 0 });
 }
 
-const erg = ftPosts({ titel, clutch: d, je, spalten, teams, konten: ftKonten(profile, liste, streamer, pro), minSpiele: Number(minSpieleArg) || undefined,
+const erg = ftPosts({ titel, clutch: d, je, spalten, teams, konten: ftKonten(profile, streamer, pro), minSpiele: Number(minSpieleArg) || undefined,
   fenster: windowId, zeroBuild: istZeroBuild(windowId) });
 console.log(`STAND ${erg.stand.gelesen}/${erg.stand.gesamt ?? '?'} Matches gelesen${erg.stand.teilweise ? ' - TEILWEISE, Werte noch nicht endgueltig' : ''}`);
 console.log(`\n${erg.posts.map((p) => `${p.text}\n(${tweetLaenge(p.text)}/280)`).join('\n\n=====\n\n')}\n`);

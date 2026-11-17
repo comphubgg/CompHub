@@ -66,10 +66,10 @@ async function jahrVonSaisonKarte() {
   return karte;
 }
 
-/** Saison je Fenster, wo die Kennung keine traegt: Archiv der Szene und LAN-Datei. */
+/** Saison je Fenster, wo die Kennung keine traegt: Verzeichnis der eigenen Spieltage und LAN-Datei. */
 async function saisonNachschlagen() {
   const karte = new Map();
-  for (const e of await jsonLesen(path.join(DATEN, 'szene-stats', 'index.json'), [])) {
+  for (const e of await jsonLesen(path.join(DATEN, 'antworten', 'statistik_tage.json'), [])) {
     if (e.windowId && e.season) karte.set(e.windowId, e.season);
   }
   const lan = await jsonLesen(path.join(DATEN, 'lan-preisgelder.json'), { eintraege: [] });

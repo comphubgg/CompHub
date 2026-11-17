@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
+import { landQuellen } from '@/lib/landQuellen';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { landNach } from '@/lib/laender';
@@ -12,7 +13,7 @@ import { liesAuto, liesVorschlaege, markieren, offeneMarkierungen, wendeMarkieru
  * Flaggen und X-Konten der wichtigen Spieler nachtragen (Betreiber, 16.11.2026) - nur fuer den Admin, die Seite dazu ist /admin/flaggen.
  *
  *   GET   -> { stand, regeln, zeilen: [...], ausgeschlossen }  jeder wichtige Spieler (scripts/flaggen-wichtig.mjs, spieler-kreis/_wichtig.json), dem in
- *            spieler-profile.json die Flagge oder das X-Konto fehlt; dazu, woher eine automatische Flagge kaeme (Szene-Liste, Epics Power Ranking).
+ *            spieler-profile.json die Flagge oder das X-Konto fehlt; dazu, woher eine automatische Flagge kaeme (Fortnite-Flagge aus Epics Bestenlisten, Epics Power Ranking).
  *   POST  { id, name, land?, x?, twitch? }  -> geprueft und eingereiht, Antwort sofort { status: 'wartet' }; ein Feld, das fehlt, bleibt, wie es ist;
  *         "" loescht. Geschrieben wird gesammelt, ein Commit fuer alle wartenden Zeilen (lib/profilWarteschlange.ts).
  *   GET   ?status=<id>,<id>  -> je Zeile 'wartet' | 'gespeichert' (mit dem Eintrag) | 'fehler'; fehlt eine Id, kennt der Server sie nicht (neu schicken).
@@ -32,7 +33,6 @@ export const dynamic = 'force-dynamic';
 /** [punkte, final, semi, heat, runde, cup, besteFinal, letzte, region, name, prRang, weg] - siehe scripts/flaggen-wichtig.mjs. */
 type Wichtig = [number, number, number, number, number, number, number | null, number | null, string, string, number | null, (1 | undefined)?];
 interface WichtigDatei { stand: number; regeln: unknown; konten: Record<string, Wichtig> }
-interface SzeneSpieler { ID?: string; NAME?: string; COUNTRY?: string }
 interface PrDatei { spieler?: Array<{ id?: string; land?: string; rank?: number }> }
 
 export interface FlaggenZeile {
@@ -68,11 +68,11 @@ export async function GET(request: Request) {
     const ids = nachStatus.split(',').map((x) => x.trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)).slice(0, 500);
     return NextResponse.json({ ok: true, status: status(ids) }, { headers: { 'Cache-Control': 'private, no-store' } });
   }
-  const [wichtig, profile, namen, szene, pr, vorschlaege, autoDatei] = await Promise.all([
+  const [wichtig, profile, namen, laender, pr, vorschlaege, autoDatei] = await Promise.all([
     liesJson<WichtigDatei | null>('spieler-kreis/_wichtig.json', null),
     liesJson<Record<string, SpielerProfil>>(PROFIL_DATEI, {}).then(mitWartendem),
     liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}),
-    liesJson<SzeneSpieler[]>('szene-quelle/spielerliste.json', []),
+    landQuellen().catch(() => null),
     liesJson<PrDatei | null>('power-rankings/global.json', null),
     liesVorschlaege().catch((): VorschlagDatei => ({ zeilen: {} })),
     liesAuto().catch(() => ({ eintraege: [] as AutoEintrag[] })),
@@ -93,11 +93,10 @@ export async function GET(request: Request) {
     if (id) nachId.set(id, p);
     else nachName.set(k, [k, p]);
   }
-  const szeneLand = new Map<string, string>();
-  for (const s of szene) {
-    const id = String(s.ID ?? '').trim().toLowerCase();
-    const l = String(s.COUNTRY ?? '').trim().toUpperCase();
-    if (id && landNach(l)) szeneLand.set(id, l);
+  const spielLand = new Map<string, string>();
+  for (const [id, roh] of Object.entries(laender?.spiel ?? {})) {
+    const l = String(roh ?? '').trim().toUpperCase();
+    if (id && landNach(l)) spielLand.set(id, l);
   }
   const prLand = new Map<string, string>();
   for (const s of pr?.spieler ?? []) {
@@ -198,7 +197,7 @@ export async function GET(request: Request) {
       if (v?.wert && !{ x, twitch, land }[f].wert && !(vz?.abgelehnt?.[f] ?? []).includes(v.wert.toLowerCase())) vorschlag[f] = v;
     }
     const auto = land.wert ? null
-      : szeneLand.has(id) ? { land: szeneLand.get(id)!, quelle: 'Szene-Liste' }
+      : spielLand.has(id) ? { land: spielLand.get(id)!, quelle: 'Fortnite-Flagge' }
         : prLand.has(id) ? { land: prLand.get(id)!, quelle: 'Power Ranking' } : null;
     zeilen.push({
       rang, id, name, namen: alle.filter((n) => n !== name).slice(0, 6), region: eigen?.region || alt?.region || region || '',

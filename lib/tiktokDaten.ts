@@ -134,12 +134,12 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
         const spieler = e.players ?? [];
         const namen = spieler.map((p) => {
           const id = (p.id ?? '').toLowerCase();
-          const pr = karte.profile.get(id); const sz = karte.szene.get(id);
+          const pr = karte.profile.get(id); const sz = karte.ersatz.get(id);
           return lateinisch(ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
         });
         const laender = spieler.map((p) => {
           const id = (p.id ?? '').toLowerCase();
-          return karte.profile.get(id)?.land || karte.szene.get(id)?.land || '';
+          return karte.profile.get(id)?.land || karte.ersatz.get(id)?.land || '';
         });
         const fotos = spieler.map((p) => {
           const img = bild.get((p.id ?? '').toLowerCase());

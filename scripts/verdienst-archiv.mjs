@@ -43,11 +43,6 @@ async function bekannteKonten() {
     const id = v?.id || (/^[0-9a-f]{32}$/i.test(k) ? k : '');
     if (id) konten.add(id);
   }
-  const index = await jsonLesen(path.join(DATEN, 'szene-stats', 'index.json'), []);
-  for (const e of index) {
-    const d = await jsonLesen(path.join(DATEN, 'szene-stats', e.region, e.season, e.datei));
-    for (const p of d?.players ?? []) if (p.epicId) konten.add(p.epicId);
-  }
   return konten;
 }
 

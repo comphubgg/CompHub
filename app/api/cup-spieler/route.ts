@@ -3,10 +3,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
-import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
-import { liesLanKonten } from '@/lib/lanKonten';
 import { liesClutch, istLive } from '@/lib/clutchLive';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
@@ -17,154 +14,6 @@ import { landPasst } from '@/lib/spielerFlagge.mjs';
 
 /** Zeit im Sturm: alte Auswertungen hatten bei abgebrochenen Aufnahmen 1,8e308 Sekunden - so ein Wert zaehlt nicht (7.11.2026). */
 const sturmOk = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? v : 0);
-
-/*
- * Ohne Replays: die Werte der Szene-Quelle.
- *
- * Bei einem LAN (Globals) gibt es keine Replays - die Profis spielen auf
- * Turnierkonten an fremden Rechnern. Die Szene-Quelle fuehrt die Werte je
- * Spieler trotzdem (Damage, Elims, Assists, ...), unter den echten Konten.
- * Team und Platz kommen aus Epics Bestenliste, verbunden ueber die
- * Zuordnung der Turnierkonten (lib/lanKonten). Beim Finale der Globals
- * zaehlen beide Tage zusammen.
- */
-async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<string, string>) {
-  const sz = await szeneFenster(tage);
-  if (!sz?.spieler.length) return null;
-  const lan = await liesLanKonten();
-  const echtVon = (id: string) => lan[id]?.echt ?? id;
-
-  // Die Teams ueber alle Tage: Punkte zusammen, daraus der Platz.
-  const teams = new Map<string, { spieler: string[]; roh: string[]; punkte: number; platz?: number }>();
-  for (const w of tage) {
-    const tag = await epicTag(w);
-    for (const t of tag?.teams ?? []) {
-      const echte = (t.spieler ?? []).map(echtVon);
-      const k = [...echte].sort().join('|');
-      const da = teams.get(k) ?? { spieler: echte, roh: t.spieler ?? [], punkte: 0 };
-      da.punkte += t.punkte ?? 0;
-      if (tage.length === 1) da.platz = t.platz;
-      teams.set(k, da);
-    }
-  }
-  if (tage.length > 1) {
-    // Gleiche Punkte wie im Endstand der Spieltag-Tabelle trennen (Siege, Elims je Spiel, mittlere Platzierung; lib/endstandGleichstand):
-    // sonst bekam dasselbe Team hier einen Platz nach Einlesereihenfolge, dort den geteilten oder getrennten Platz. Fehlen die Zahlen: geteilter Platz.
-    const liste = [...teams.values()].sort((a, b) => b.punkte - a.punkte);
-    const gleichstand = liste.some((t, i) => i > 0 && t.punkte === liste[i - 1].punkte);
-    const werte = gleichstand && tage.every((w, i) => w === tage[tage.length - 1].replace(/Day\d+/, `Day${i + 1}`))
-      ? await gleichstandWerte(tage[tage.length - 1], tage.length, { epic: false }).catch(() => null)
-      : null;
-    const geordnet = platzeMitGleichstand(liste.map((t) => ({ ...t, spieler: t.roh })), werte);
-    liste.forEach((t) => { t.platz = geordnet.find((g) => g.spieler === t.roh)?.platz; });
-  }
-  const teamVon = new Map<string, { spieler: string[]; platz?: number }>();
-  for (const t of teams.values()) for (const id of t.spieler) teamVon.set(id, t);
-
-  /*
-   * Solo-Spieltage: die Eliminierungen aus Epics Bestenliste (Betreiber, 31.10.2026, Vergleich mit Osirion beim FNCS-Solos-Finale EU: die
-   * Szene-Quelle fuehrte tjino mit 23, Epic und Osirion mit 27; shxrk 34 statt 35). Bei Solos ist das Team ein Spieler - Epics Zahl gilt je Konto.
-   * Und ohne Reload gibt es im Solo weder Reboot noch Wiederbeleben - die Quelle fuehrte trotzdem vereinzelt "1".
-   */
-  const soloElims = new Map<string, number>();
-  let solo = teams.size > 0;
-  for (const w of tage) {
-    const tag = await epicTag(w);
-    for (const t of tag?.teams ?? []) {
-      if ((t.spieler ?? []).length !== 1) { solo = false; continue; }
-      const id = echtVon(t.spieler[0]);
-      soloElims.set(id, (soloElims.get(id) ?? 0) + (t.teamElims ?? 0));
-    }
-  }
-  const ohneReboots = solo && !tage.some((w) => /reload/i.test(w));
-
-  /*
-   * Solo Clutch Points, wo sie gerechnet sind (scripts/clutch-berechnen.mjs):
-   * je Tag unter den Konten, die im Replay stehen - bei einem LAN die
-   * Turnierkonten, hier auf die echten umgeschrieben.
-   */
-  const clutch = new Map<string, number>();
-  let clutchDa = false;
-  /*
-   * Seit dem 28.9.2026 wieder sichtbar - der Betreiber will die Kachel.
-   * Gerechnet aus Epics Server-Replays der gewerteten Spiele (bei den Globals
-   * 6 + 6); Osirion zaehlt dort 13 Matches, die Werte weichen deshalb ab.
-   */
-  /*
-   * Schaden, erlittener Schaden, Treffer, Sturm- und Ueberlebenszeit aus unseren vollen Replays statt aus der Szene-Quelle (31.10.2026, Vergleich mit
-   * Osirion beim FNCS-Solos-Finale EU: die Replays treffen Osirions Reihenfolge fast genau - Quote tjino 2,10 zu Osirions 2,03, die Quelle hatte ghonzo
-   * 1,55 vorn; Sturmzeit ghxstyah 1h 36m wie Osirion). Nur wenn jeder Tag ganz gelesen ist; Material, Bauteile, Strecke, Assists bleiben aus der Quelle.
-   */
-  const rep = new Map<string, { dmg: number; erlitten: number; treffer: number; sturm: number; leben: number }>();
-  let repVoll = tage.length > 0;
-  for (const w of tage) {
-    const c = await liesClutch<{ summe?: Record<string, number>; teilweise?: unknown; leben?: Record<string, number>; epicDmg?: Record<string, number>;
-      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>; namen?: Record<string, string> }>(w).catch(() => null);
-    replayNamenMerken(c?.namen);
-    if (!c?.schaden || c.teilweise || !Object.keys(c.schaden).length) repVoll = false;
-    for (const [id, d] of Object.entries(c?.schaden ?? {})) {
-      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.dmg += c?.epicDmg?.[id] ?? d.dmg; x.erlitten += d.erlitten; x.treffer += d.treffer; x.sturm += sturmOk(d.sturm); rep.set(e, x);
-    }
-    for (const [id, v] of Object.entries(c?.leben ?? {})) {
-      const e = echtVon(id); const x = rep.get(e) ?? { dmg: 0, erlitten: 0, treffer: 0, sturm: 0, leben: 0 };
-      x.leben += v; rep.set(e, x);
-    }
-    if (!c?.summe) continue;
-    clutchDa = true;
-    for (const [id, pkt] of Object.entries(c.summe)) {
-      const e = echtVon(id);
-      clutch.set(e, (clutch.get(e) ?? 0) + pkt);
-    }
-  }
-  const ausRep = (id: string) => (repVoll ? rep.get(id.toLowerCase()) ?? rep.get(id) : undefined);
-
-  const nameVon = (id: string) => anzeige.get(id)
-    ?? sz.spieler.find((x) => x.epicId === id)?.username ?? id.slice(0, 8);
-  const spieler = sz.spieler.map((x) => {
-    const t = teamVon.get(x.epicId);
-    const spiele = x.matchesPlayed || sz.matches || 0;
-    const r = ausRep(x.epicId);
-    return {
-      epicId: x.epicId,
-      name: nameVon(x.epicId),
-      land: land.get(x.epicId) ?? '',
-      spiele,
-      kills: solo && soloElims.has(x.epicId) ? soloElims.get(x.epicId)! : x.eliminations ?? 0,
-      knocks: 0, tode: 0, umgehauen: 0,
-      assists: x.assists ?? 0,
-      damage: Math.round(r ? r.dmg : x.damageDealt ?? 0),
-      damageTaken: Math.round(r ? r.erlitten : x.damageTakenFromPlayers ?? 0),
-      // Ausgeteilter geteilt durch von Spielern erlittenen Schaden - dieselbe
-      // Rechnung wie ueberall im Werkzeug (lib/szeneStats, "quote"). Das Feld
-      // "damageRatio" der Quelle passt zu keiner Formel (siehe dort).
-      damageRatio: r ? (r.erlitten > 0 ? r.dmg / r.erlitten : null) : x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
-      quote: r ? (r.erlitten > 0 ? r.dmg / r.erlitten : null) : x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
-      genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
-      clutch: clutchDa ? (clutch.get(x.epicId) ?? 0) : null,
-      // Fuer die Kacheln (app/components/StatKacheln) - dieselben Summen wie
-      // in der Statistik (lib/szeneStats): Meter, Sekunden, Stueck.
-      hits: r ? r.treffer : x.hitsToPlayers ?? 0,
-      headshots: x.headshots ?? 0,
-      mats: (x.woodFarmed ?? 0) + (x.stoneFarmed ?? 0) + (x.metalFarmed ?? 0),
-      builds: (x.woodBuildsPlaced ?? 0) + (x.stoneBuildsPlaced ?? 0) + (x.metalBuildsPlaced ?? 0),
-      distanz: (x.distanceOnFoot ?? 0) + (x.distanceSkydiving ?? 0),
-      timeInStorm: r && r.sturm > 0 ? Math.round(r.sturm) : x.timeInStorm ?? 0,
-      timeAlive: r && r.leben > 0 ? Math.round(r.leben) : x.timeAlive ?? 0,
-      // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.
-      shots: x.shots ?? 0,
-      reboots: ohneReboots ? 0 : x.rebootsAndRevives ?? 0,
-      fallDamage: Math.round(x.fallDamage ?? 0),
-      stormDamage: Math.round(x.stormDamage ?? 0),
-      healthHealed: Math.round(x.healthHealed ?? 0),
-      shieldHealed: Math.round(x.shieldHealed ?? 0),
-      platz: t?.platz ?? null,
-      partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
-    };
-  }).sort((a, b) => b.damage - a.damage);
-  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, clutch: clutchDa, spieler,
-    aktualisiert: sz.aktualisiert };
-}
 
 // Werte je einzelnem Spieler - aus den Replays.
 //
@@ -355,7 +204,7 @@ async function holeRoh(request: Request) {
   const saison = p.get('saison')
     ?? /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
 
-  // Das Finale der Globals: beide Tage (siehe ausSzene).
+  // Das Finale der Globals: beide Tage.
   const event = p.get('event');
   const kennzahl = (p.get('kennzahl') ?? '').trim();
   const seite = Number(p.get('seite')) || 1;
@@ -366,14 +215,6 @@ async function holeRoh(request: Request) {
   const tage = tageWunsch.length > 1 ? tageWunsch : istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
     ? GLOBALS_TAGE.map((t) => t.windowId) : [fenster];
 
-  /*
-   * Die Werte der Szene-Quelle (Damage, Treffer, Material, Zeit ...) gibt es
-   * zu jedem Spieltag, den sie fuehrt - Finals, Cash Cups, LANs; es sind
-   * hoechstens ein paar hundert Spieler. Der Betreiber (28.9.2026): die
-   * Player Stats "bei jedem alten und zukuenftigen Cup ... immer". Wo es sie
-   * gibt, gehen sie vor, die Knocks kommen aus den Replays dazu. Sonst die
-   * Replays allein (Kills, Knocks, Tode).
-   */
   const [anzeige, land] = await Promise.all([namen(), laender(fenster)]);
   const repRoh = tage.length === 1 && saison ? await replayTag(saison, fenster) : (tageWunsch.length > 1 && saison ? await replayTage(saison, tageWunsch) : null);
   /*
@@ -410,27 +251,6 @@ async function holeRoh(request: Request) {
       return repRoh;
     }
   })();
-  const szene = await ausSzene(tage, anzeige, land).catch(() => null);
-  if (szene) {
-    if (rep?.spieler.length) {
-      const ausRep = new Map(rep.spieler.map((x) => [x.epicId, x]));
-      for (const x of szene.spieler) {
-        const r = ausRep.get(x.epicId);
-        x.knocks = r?.knocks ?? x.knocks;
-        // Wie bei allen anderen Cups: Eliminierungen je Match und K/D (Tode aus den Replays), ab fuenf Spielen.
-        if (r) x.tode = r.gestorben;
-        // Im Finale spielt jeder alle Spiele - dort reicht die Zahl der Spiele des Finales (Performance: vier).
-        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(r ? { kd: x.kills / Math.max(1, r.gestorben) } : {}) });
-      }
-    }
-    if (raengeIds.length) return NextResponse.json({ raenge: raengeVon(szene.spieler, raengeIds), quelle: 'szene' });
-    if (kennzahl) {
-      const q = (p.get('q') ?? '').trim().toLowerCase();
-      return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
-        q ? (z) => String(z.name ?? '').toLowerCase().includes(q) : null) });
-    }
-    return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
-  }
   if (!rep?.spieler.length) {
     // Noch keine Werte je Spieler: der Spieltag bekommt Vorrang bei den Replay-Rechnern, und die Seite zeigt, wie weit die Auswertung ist (lib/replayVorrang).
     if (tage.length === 1 && saison) void vorrangAnfordern(fenster, event);
@@ -613,7 +433,7 @@ async function holeRoh(request: Request) {
     // Erst ab fuenf Spielen - sonst fuehrt einer mit einem einzigen guten Spiel.
     ...(x.matches >= 5 ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
     clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
-    // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
+    // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs).
     ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
     // Strecke aus Positionsproben alle 10 s, dazwischen Luftlinie - ein Mindestwert (31.10.2026; die Reihenfolge trifft Osirion, die km liegen darunter).
     ...(streckeVon && ganzGelesen(x.epicId, x.matches) && streckeVon.has(x.epicId.toLowerCase())
@@ -628,7 +448,7 @@ async function holeRoh(request: Request) {
       }
       return {
         damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
-        // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
+        // Dasselbe Feld wie in der Statistik (quote) - so liest die Kachel "Damage Ratio" beide.
         damageRatio: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 && x.matches >= 3 ? d.dmg / d.erlitten : null,
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
         // Gebaute Teile nur, wenn jedes gelesene Spiel sie mitbringt - sonst waere die Zahl zu klein. Solo, siehe scripts/clutch-berechnen.mjs.
@@ -653,7 +473,7 @@ async function holeRoh(request: Request) {
             const w = d as { farmHolz?: number; farmStein?: number; farmMetall?: number };
             return { matsFarmed: (w.farmHolz ?? 0) + (w.farmStein ?? 0) + (w.farmMetall ?? 0) };
           })() : {}),
-        // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
+        // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals geprueft).
         ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
         ...(typeof d.wiederbelebt === 'number' && !soloOhneReload ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
       };

@@ -36,7 +36,7 @@ jobs:
         run: |
           df -h / | tail -1
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
-            --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
+            --ordner power-rankings \
             --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner replays/S42 --ordner replays/S43 --ordner replays/S44 --ordner clutch \
             --ordner replays-schlank/S42 --ordner replays-schlank/S43 --ordner replays-schlank/S44 \
             2>&1 | tail -12

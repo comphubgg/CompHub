@@ -11,7 +11,7 @@ import { ftKonten, ftPosts, ftStandings, type FtBildSpieler, type FtClutch, type
 /*
  * Die Daten fuer die Fortnite-Tracker-Posts (lib/ftPosts.ts) aus der Ablage der Seite - dieselben Dateien, die scripts/ft-posts.mjs vom Release holt:
  *   clutch/<Fenster>.json und clutch-je/<Fenster>.json (die Ablage findet sie am Release, siehe lib/ablageGithub),
- *   spieler-profile.json, spieler-namen.json, szene-quelle/spielerliste.json, streamers.json,
+ *   spieler-profile.json, spieler-namen.json, streamers.json,
  * und die Teams aus Epics Bestenliste ueber /api/cup-leaderboard (dieselbe Abfrage wie lib/ergebnisPosts - mit deren Vorrat und Zwischenspeicher).
  * Aus Epic kommt nur der Standings-Post (Plaetze, Punkte, Siege, Elims je Team) - sofort nach dem letzten Game, auch ohne Replays (ftStandings).
  * Dazu je Post die Fotos fuer das Bild darunter (lib/ftBild.ts): die ersten BILD_ZAHL Spieler des Posts mit echtem Foto - wer nur den Platzhalter hat, wird
@@ -150,14 +150,13 @@ export type FtAntwort = Omit<FtErgebnis, 'posts'> & {
  *   'replay' - wie bisher: ohne Replay-Auswertung ein Fehler (FtDatenFehlen).
  */
 export async function ftPostsFuer(eventId: string, windowId: string, titel: string, minSpiele?: number, quelle: 'auto' | 'epic' | 'replay' = 'auto'): Promise<FtAntwort> {
-  const [profile, namen, liste, streamer, bildListe] = await Promise.all([
+  const [profile, namen, streamer, bildListe] = await Promise.all([
     liesJson<Record<string, { id?: string; x?: string; land?: string; twitch?: string; anzeige?: string }>>('spieler-profile.json', {}).catch(() => ({})),
     liesJson<Record<string, { haupt?: string; schluessel?: string }>>('spieler-namen.json', {}).catch(() => ({})),
-    liesJson<Array<{ ID?: string; COUNTRY?: string }>>('szene-quelle/spielerliste.json', []).catch(() => []),
     liesJson<{ streamers?: Record<string, Array<{ twitch?: string; twitter?: string }>> } | null>('streamers.json', null).catch(() => null),
     liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
   ]);
-  const konten = ftKonten(profile, liste, streamer, namen);
+  const konten = ftKonten(profile, streamer, namen);
   // Jeder Name bekommt eine Flagge (16.11.2026): nach Profil und Szene-Liste die Flagge aus Fortnite, dann Noble, sonst das Zeichen der Region.
   const quellen = await landQuellen().catch(() => null);
   konten.spiel = { ...(quellen?.spiel ?? {}) };

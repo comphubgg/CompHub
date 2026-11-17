@@ -3,7 +3,7 @@
 /*
  * Die Reiter "FNCS" und "Erfolge" im Spielerprofil (Daten: lib/profilTafeln).
  *
- * Nach dem Vorbild eucompetitive, in der eigenen Optik: jedes FNCS-Finale seit
+ * Nach dem Vorbild einer Vergleichsseite, in der eigenen Optik: jedes FNCS-Finale seit
  * CH1 SX als Tafel oder Liste, DNQ (nicht qualifiziert) blass, mit den
  * Mitspielern; darueber Anzahl, bester, schlechtester, Schnitt und LAN-Schnitt.
  * Ein Rating gibt es nicht - das rechnet nur das Vorbild nach eigener Formel.

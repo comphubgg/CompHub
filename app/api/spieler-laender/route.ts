@@ -4,18 +4,15 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { heimatRegionen } from '@/lib/szeneStats';
+import { eigeneSpielerliste } from '@/lib/eigeneSpielerliste';
 
 // Das Herkunftsland je Konto - so, wie es die Statistikseite schon zeigt.
 //
-// Warum als eigene Schnittstelle: Die Laender stehen in der gespiegelten
-// Spielerliste der Szene-Quelle und sind dort ueber die Epic-Konto-ID
-// geschluesselt. Die Statistikseite liest sie serverseitig mit; das
-// Beitrags-Panel laeuft im Browser und kam bisher nicht daran - dort stand
-// deshalb bei jedem, dessen Flagge nicht von Hand gepflegt war, eine
-// Weltkugel, obwohl das Land bekannt ist.
-//
-// Von 4071 Konten in der Liste haben 3538 ein Land. Das ist der Unterschied
-// zwischen einem Beitrag voller Weltkugeln und einem mit Flaggen.
+// Warum als eigene Schnittstelle: Die Laender kommen aus unseren eigenen
+// Quellen (gepflegte Profile, die Flagge aus Fortnite in Epics Bestenlisten,
+// Noble - lib/eigeneSpielerliste) und sind ueber die Epic-Konto-ID
+// geschluesselt. Das Beitrags-Panel laeuft im Browser und kommt nur hierueber
+// daran.
 //
 //   GET             ->  { laender: { "<epicId>": "PL", … } }
 //   GET ?namen=1    ->  zusaetzlich { nachName: { "scroll": "DK", … } }
@@ -23,7 +20,7 @@ import { heimatRegionen } from '@/lib/szeneStats';
 // Die zweite Fassung ist fuer die Tierlist. Dort werden Spieler als Namen
 // gezogen, nicht als Konto-Ids - sie kann also nicht ueber die Id
 // nachschlagen. Die Zuordnung entsteht deshalb hier, wo beide Seiten
-// vorliegen: Konto-Id -> Land aus der Quelle, Konto-Id -> alle Namen aus dem
+// vorliegen: Konto-Id -> Land, Konto-Id -> alle Namen aus dem
 // Namensverzeichnis.
 //
 // Das bleibt ein Namensweg und damit unscharf - zwei Spieler koennen auf
@@ -44,7 +41,6 @@ export const runtime = 'nodejs';
  */
 export const maxDuration = 60;
 
-const DATEI = path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json');
 const NAMEN = path.join(DATEN_ORT, 'spieler-namen.json');
 const PROFILE = path.join(DATEN_ORT, 'spieler-profile.json');
 
@@ -55,6 +51,13 @@ function namensSchluessel(name: string) {
 
 interface RohSpieler { ID?: string; NAME?: string; COUNTRY?: string }
 
+/** Name (Epic) und Land je Konto aus unseren eigenen Quellen, in der Form der alten Liste. */
+async function eigeneRohe(): Promise<RohSpieler[]> {
+  try {
+    return [...(await eigeneSpielerliste())].map(([id, e]) => ({ ID: id, NAME: e.name, COUNTRY: e.land }));
+  } catch { return []; }
+}
+
 let karte: Record<string, string> | null = null;
 let bis = 0;
 
@@ -62,7 +65,7 @@ let bis = 0;
  * Land je Namensschluessel.
  *
  * Zwei Quellen, gepflegtes Profil zuerst: was von Hand eingetragen wurde,
- * ist geprueft. Danach die Szene-Quelle ueber das Namensverzeichnis.
+ * ist geprueft. Danach unsere eigene Liste (Epic-Namen) und das Namensverzeichnis.
  *
  * Mehrdeutige Namen fallen heraus. "rapid" gehoert in NAC einem anderen
  * Konto als in EU - eine Flagge fuer beide waere in einem von beiden Faellen
@@ -77,8 +80,7 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
     gefunden.get(k)!.add(land);
   };
 
-  // Der Name, unter dem die Quelle das Konto selbst fuehrt. Das ist der
-  // ergiebigste Weg: 3473 der 3538 Konten mit Land tragen dort einen Namen.
+  // Epics Anzeigename des Kontos.
   for (const p of rohe) {
     const land = nachId[(p.ID ?? '').trim()];
     if (land && p.NAME) merke(p.NAME, land);
@@ -94,7 +96,7 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
       if (!land) continue;
       for (const n of [...(e.namen ?? []), e.haupt ?? '']) if (n) merke(n, land);
     }
-  } catch { /* ohne Verzeichnis nur die Namen der Quelle */ }
+  } catch { /* ohne Verzeichnis nur die Epic-Namen */ }
 
   const raus: Record<string, string> = {};
   for (const [k, laender] of gefunden) {
@@ -102,7 +104,7 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
   }
 
   // Gepflegte Profile zuletzt - sie ueberschreiben und gelten auch dort,
-  // wo die Quelle uneinig war.
+  // wo die anderen Quellen uneinig waren.
   try {
     const profile = JSON.parse(await fs.readFile(PROFILE, 'utf8')) as
       Record<string, { name?: string; anzeige?: string; namen?: string[]; land?: string }>;
@@ -114,7 +116,7 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
         if (k.length >= 2) raus[k] = land;
       }
     }
-  } catch { /* dann eben nur die Quelle */ }
+  } catch { /* dann eben ohne Profile */ }
 
   return raus;
 }
@@ -142,13 +144,13 @@ async function wenige(wer: string) {
     let rohe: RohSpieler[] = [];
     const nachId: Record<string, string> = {};
     try {
-      rohe = JSON.parse(await fs.readFile(DATEI, 'utf8')) as RohSpieler[];
+      rohe = await eigeneRohe();
       for (const p of rohe) {
         const id = (p.ID ?? '').trim();
         const land = (p.COUNTRY ?? '').trim().toUpperCase();
         if (id && /^[A-Z]{2}$/.test(land)) nachId[id] = land;
       }
-    } catch { /* without the list only the profiles */ }
+    } catch { /* without our list only the profiles */ }
     namenKarte = await nachNamen(nachId, rohe);
     namenBis = Date.now() + 10 * 60_000;
   }
@@ -194,16 +196,15 @@ async function berechne(request: Request) {
   const raus: Record<string, string> = {};
   let rohe: RohSpieler[] = [];
   try {
-    rohe = JSON.parse(await fs.readFile(DATEI, 'utf8')) as RohSpieler[];
+    rohe = await eigeneRohe();
     for (const p of rohe) {
       const id = (p.ID ?? '').trim();
       const land = (p.COUNTRY ?? '').trim().toUpperCase();
-      // Nur zweistellige Kuerzel. In der Quelle stehen vereinzelt leere
-      // Felder und Platzhalter; ein "??" als Flagge waere schlimmer als die
+      // Nur zweistellige Kuerzel - ein "??" als Flagge waere schlimmer als die
       // Weltkugel, die es ersetzen soll.
       if (id && /^[A-Z]{2}$/.test(land)) raus[id] = land;
     }
-  } catch { /* keine Kopie da - dann eben keine Laender */ }
+  } catch { /* dann eben keine Laender */ }
 
   karte = raus;
   bis = Date.now() + 10 * 60_000;
