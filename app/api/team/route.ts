@@ -5,6 +5,7 @@ import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { abgelegteAntwort } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { lies as liesPr, LISTE as PR_LISTE } from '@/lib/powerRankings';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Ein Team fuer fremde Seiten (31.10.2026): die eigene Webseite einer Organisation holt hier die Werte ihrer Spieler.
@@ -38,7 +39,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: KOPF });
 }
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const kennung = (new URL(request.url).searchParams.get('org') ?? '').trim().toLowerCase();
   if (!kennung) return NextResponse.json({ ok: false, reason: 'org fehlt (?org=<kennung>)' }, { status: 400, headers: KOPF });
   try {
@@ -136,4 +137,9 @@ export async function GET(request: Request) {
   } catch (e) {
     return NextResponse.json({ ok: false, reason: `CompHub antwortet gerade nicht: ${(e as Error).message}` }, { status: 424, headers: KOPF });
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

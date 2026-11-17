@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { gecacht, holeTop, ergaenzeBilder, bilder, EpicLoginNoetig } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Alle Teams eines Cups mit der Information, wer ein Bild hinterlegt hat.
 // Grundlage fuer Spielerauswahl, Rotation und Karte.
@@ -50,6 +51,11 @@ export async function POST() {
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   return zwischenspeichern(await holeRoh(request), 60);
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

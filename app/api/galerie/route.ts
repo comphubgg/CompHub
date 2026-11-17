@@ -6,6 +6,7 @@ import {
   liesGalerie, schreibGalerie, liesBild, schreibBild, loescheBild, neueId, gehoertZuCup,
   type Galerie, type GalerieEintrag, type GalerieEvent,
 } from '@/lib/galerie';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Das Archiv - Fotos und Videos zu Events und Spielern (siehe lib/galerie).
 //
@@ -61,7 +62,7 @@ async function spielerAngaben(alle: string[]) {
   return Object.fromEntries(proId);
 }
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const p = new URL(request.url).searchParams;
   const bild = p.get('bild');
   if (bild) {
@@ -267,4 +268,9 @@ export async function DELETE(request: Request) {
   }
   await schreibGalerie(g);
   return NextResponse.json({ success: true });
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

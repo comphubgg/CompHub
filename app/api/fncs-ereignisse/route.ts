@@ -5,6 +5,7 @@ import { ueberdauernd } from '@/lib/ueberdauernd';
 import { liesJson } from '@/lib/ablage';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { kernname } from '@/lib/homoglyph';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Die Endspiele der FNCS fuer die FNCS-Seite (siehe lib/fncsEreignisse): ein Eintrag je Event mit Vorschaubild, Datum, LAN-Vermerk
@@ -55,7 +56,7 @@ async function fotosGemerkt(): Promise<Map<string, string>> {
   return neu();
 }
 
-export async function GET() {
+async function holeGET() {
   try {
     // Die letzte gute Liste sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026). Liste und Fotos zugleich.
     const [roh, fotos] = await Promise.all([
@@ -70,4 +71,9 @@ export async function GET() {
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET() {
+  return antwortMitAktuellenFotos(await holeGET());
 }

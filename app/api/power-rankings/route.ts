@@ -3,6 +3,7 @@ import { LISTE, erneuereImHintergrund, istAlt, lies } from '@/lib/powerRankings'
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { spielerKontext } from '@/lib/globalsSolos';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Die Power Rankings, seitenweise.
 //
@@ -132,6 +133,11 @@ async function holeRoh(request: Request) {
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   return zwischenspeichern(await holeRoh(request), 300);
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

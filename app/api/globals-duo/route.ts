@@ -3,6 +3,7 @@ import { verlauf, epicVerlauf } from '@/lib/szeneStats';
 import { verdienst } from '@/lib/preisgeld';
 import { gecacht } from '@/lib/epicCups';
 import { fensterName } from '@/lib/fensterName';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Die gemeinsamen Cups eines Duos in der laufenden Saison - schnell.
@@ -83,7 +84,7 @@ async function gemeinsam(a: string, b: string): Promise<Zeile[]> {
   })));
 }
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const p = new URL(request.url).searchParams;
   const a = (p.get('a') ?? '').toLowerCase();
   const b = (p.get('b') ?? '').toLowerCase();
@@ -103,4 +104,9 @@ export async function GET(request: Request) {
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

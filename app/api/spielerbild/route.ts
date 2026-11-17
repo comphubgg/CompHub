@@ -4,6 +4,7 @@ import { namensSchluessel } from '@/lib/homoglyph';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 import { spielerbildGross } from '@/lib/spielerbildKlein';
+import { fotoFuerKonto, fotoStand, kontoZuName, type FotoStand } from '@/lib/aktuelleFotos';
 /*
  * Das Foto zu einem Namen.
  *
@@ -28,7 +29,16 @@ export const runtime = 'nodejs';
 type Fotos = Awaited<ReturnType<typeof bilder>>;
 
 /** Das Foto zu einem Namen - null, wenn es keines gibt. */
-function finde(b: Fotos, name: string): string | null {
+function finde(b: Fotos, name: string, aktuell?: FotoStand): string | null {
+  /*
+   * Zuerst die aktuelle Quelle (17.11.2026, lib/aktuelleFotos): Name -> Konto -> Foto aus spielerbilder.json. Die Fotos aus dem Pool und die
+   * hochgeladenen liegen nicht in public/spielerbilder - der Dateinamen-Weg unten fand sie nie, die Tierlist zeigte dort den Platzhalter.
+   */
+  if (aktuell) {
+    const konto = kontoZuName(aktuell, name);
+    const bild = konto ? fotoFuerKonto(aktuell, konto, true) : null;
+    if (bild) return bild;
+  }
 
   /*
    * Zuerst genau, dann grosszuegig.
@@ -49,7 +59,7 @@ function finde(b: Fotos, name: string): string | null {
 async function holeRoh(request: Request) {
   const name = (new URL(request.url).searchParams.get('name') ?? '').trim();
   if (!name) return NextResponse.json({ img: null });
-  return NextResponse.json({ img: finde(await bilder(), name) });
+  return NextResponse.json({ img: finde(await bilder(), name, await fotoStand().catch(() => undefined)) });
 }
 
 /** Mehrere Namen auf einmal: die Tierlist mit Fotos fragt je Seite einmal, nicht je Kachel. */
@@ -57,13 +67,14 @@ export async function POST(request: Request) {
   const k = await request.json().catch(() => ({})) as { namen?: unknown };
   const namen = Array.isArray(k.namen) ? k.namen.filter((n): n is string => typeof n === 'string').map((n) => n.trim()).filter(Boolean).slice(0, 200) : [];
   if (!namen.length) return NextResponse.json({ bilder: {} });
-  const b = await bilder();
+  const [b, aktuell] = await Promise.all([bilder(), fotoStand().catch(() => undefined)]);
   const aus: Record<string, string | null> = {};
-  for (const n of namen) aus[n] = finde(b, n);
+  for (const n of namen) aus[n] = finde(b, n, aktuell);
   return NextResponse.json({ bilder: aus }, { headers: { 'Cache-Control': 'private, max-age=300' } });
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 3600);
+  // Fuenf Minuten statt einer Stunde: ein neu freigegebenes Foto soll in Minuten ankommen (17.11.2026).
+  return zwischenspeichern(await holeRoh(request), 300);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { EpicLoginNoetig } from '@/lib/epicCups';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { globalsTeams } from '@/lib/globalsTeams';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Das Feld der Global Championship - wer antritt, und woher. Die ganze
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const p = new URL(request.url).searchParams;
   const fenster = p.get('fenster') || GLOBALS_TAGE[0].windowId;
 
@@ -26,4 +27,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

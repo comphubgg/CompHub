@@ -873,7 +873,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
   if (schlicht) {
     /*
      * Kopf an Kopf auf der Startseite (Betreiber, 17.11.2026): ohne die zwei grossen Fotos und ohne gespiegelte Balken - oben ein
-     * schmaler Kopf mit Flagge, Name und Region beider Spieler und dem Stand der gewonnenen Werte ("3 – 2"), darunter je Wert eine
+     * schmaler Kopf mit rundem Foto, Flagge, Name und Region beider Spieler und dem Stand der gewonnenen Werte ("3 – 2"), darunter je Wert eine
      * neutrale Zeile (Duellreihe). Werte, die bei beiden 0 sind oder fehlen, fallen weg.
      */
     const werte: DuellWert[] = DUELL_WERTE.map(([titel, feld, nk, einheit]) => ({
@@ -882,15 +882,28 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
       b: quotientUnbekannt(rechts, feld as string) ? null : Number(rechts[feld] ?? 0),
     })).filter(zeigeReihe);
     const [standL, standR] = spielstand(werte);
+    /*
+     * Das Foto beider Spieler zurueck (Betreiber, 17.11.2026) - aber in unserer eigenen Form: ein rundes Bild neben Name und Region,
+     * nicht die zwei grossen gespiegelten Fotos von frueher. Ohne Foto der Platzhalter.
+     */
     const kopf = (s: Spieler, rechtsRum: boolean) => (
       <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`flex min-w-0 flex-1 flex-col gap-1.5 ${rechtsRum ? 'items-end text-right' : 'items-start text-left'}
+        className={`flex min-w-0 flex-1 items-center gap-3 ${rechtsRum ? 'flex-row-reverse text-right' : 'text-left'}
                     ${aufKlick ? 'cursor-pointer transition hover:text-sky-500' : ''}`}>
-        <span className={`flex max-w-full items-center gap-2 ${rechtsRum ? 'flex-row-reverse' : ''}`}>
-          <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
-          <span className="min-w-0 truncate text-lg font-extrabold uppercase tracking-wide text-slate-100 sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
+        {s.bild ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={s.bild} alt="" loading="lazy"
+            className="h-14 w-14 shrink-0 rounded-full border border-white/15 object-cover object-top" />
+        ) : (
+          <PlatzhalterRund name={s.anzeige || s.name} groesse={56} className="shrink-0 border border-white/10" />
+        )}
+        <span className={`flex min-w-0 flex-col gap-1.5 ${rechtsRum ? 'items-end' : 'items-start'}`}>
+          <span className={`flex max-w-full items-center gap-2 ${rechtsRum ? 'flex-row-reverse' : ''}`}>
+            <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
+            <span className="min-w-0 truncate text-lg font-extrabold uppercase tracking-wide text-slate-100 sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
+          </span>
+          {(s.heimat || s.regionen?.[0]) && <RegionMarke region={s.heimat || s.regionen?.[0] || ''} />}
         </span>
-        {(s.heimat || s.regionen?.[0]) && <RegionMarke region={s.heimat || s.regionen?.[0] || ''} />}
       </button>
     );
     return (

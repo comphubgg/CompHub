@@ -8,6 +8,7 @@ import { liesJson } from '@/lib/ablage';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { spielerbildKlein, spielerbilderFrei } from '@/lib/spielerbildKlein';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Alles, was das Player Center ueber einen Spieler wissen muss - an einer
 // Stelle.
@@ -121,7 +122,7 @@ async function liesLaender(): Promise<Map<string, string>> {
  * fertig in der Ablage - siehe lib/antwortSpeicher.ts. Vorgerechnet wird es
  * von der stuendlichen GitHub-Aktion, dort wo die Dateien ohnehin liegen.
  */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const url = new URL(request.url);
   const schluessel = 'center|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -216,4 +217,9 @@ async function berechne(request: Request) {
     ohneFlagge: spieler.filter((s) => !s.land).length,
     ohneKonto: spieler.filter((s) => !s.x).length,
   });
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

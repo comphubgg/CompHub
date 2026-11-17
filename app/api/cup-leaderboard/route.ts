@@ -17,6 +17,7 @@ import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cu
 import { GLOBALS_EVENT, GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 import { summiereTage } from '@/lib/globalsGesamt';
 import type { CupEintrag } from '@/lib/epicCups';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /** Die Wertungstabelle eines Spieltags - ohne sie keine Rundenpunkte. */
 async function wertungFuer(event: string, windowId: string): Promise<WertungsRegel[]> {
@@ -246,6 +247,11 @@ async function holeRoh(request: Request) {
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   return zwischenspeichern(await holeRoh(request), 20);
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

@@ -10,6 +10,7 @@ import { eigeneKarte } from '@/lib/bildAdressen';
 import { heatsDaten } from '@/lib/heatsPosts';
 import { gecacht } from '@/lib/epicCups';
 import { nobleFensterAnzeige } from '@/lib/nobleAnzeige';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -65,7 +66,7 @@ function nichtsGelaufen(wert: SolosDaten | null, alterMs: number): boolean {
     || (st.begin - rand <= jetzt && (st.end ?? st.begin + 6 * 3600_000) + rand >= jetzt - alterMs));
 }
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const suche = new URL(request.url).searchParams;
   const frisch = suche.get('frisch') === '1';
   const wunsch = (suche.get('region') ?? 'EU').toUpperCase();
@@ -138,4 +139,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: `Noble nicht erreichbar: ${(e as Error).message}` },
       { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

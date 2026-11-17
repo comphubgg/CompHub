@@ -18,6 +18,7 @@ import { replayTag } from '@/lib/replaySchlank';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { istGlobalsFinale } from '@/lib/globalsGesamt';
 import { GLOBALS_EVENT, GLOBALS_TAGE, tagTitel } from '@/lib/globalsCup';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Die einzelnen Runden eines Spieltags.
 //
@@ -814,7 +815,7 @@ function cdnSpeichern(r: Response): Response {
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const p = new URL(request.url).searchParams;
   const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
   // 60 s im CDN liessen nach einem Neuladen ein schon gesehenes Game wieder verschwinden (Betreiber, Heat 2, 15.11.2026) - jetzt hoechstens 5 s.
@@ -829,4 +830,9 @@ export async function GET(request: Request) {
     return r;
   }
   return cdnSpeichern(await holeRoh(request));
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

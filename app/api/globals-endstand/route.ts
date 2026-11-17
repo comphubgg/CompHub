@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { GET as bestenliste } from '../cup-leaderboard/route';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 import { globalsTeams } from '@/lib/globalsTeams';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Der Endstand der Global Championship: die ersten Plaetze nach beiden Tagen zusammen - mit den Namen, wie das Werkzeug
@@ -18,7 +19,7 @@ interface Eintrag { rank: number; points: number; elims: number; wins: number; g
 
 let merker: { bis: number; antwort: unknown } | null = null;
 
-export async function GET() {
+async function holeGET() {
   if (merker && merker.bis > Date.now()) return NextResponse.json(merker.antwort, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300' } });
   try {
     const r = await bestenliste(new Request(`http://localhost/api/cup-leaderboard?event=${GLOBALS_EVENT}&window=gesamt&limit=100`));
@@ -42,4 +43,9 @@ export async function GET() {
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET() {
+  return antwortMitAktuellenFotos(await holeGET());
 }

@@ -10,6 +10,7 @@ import { liesLanKonten } from '@/lib/lanKonten';
 import { landVonName } from '@/lib/fncsListe';
 import { FNCS_FAKTEN } from '@/lib/fncsFakten';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
@@ -30,7 +31,7 @@ export const maxDuration = 60;
  * (dort lief die Rechnung in Netlifys Frist). Neu gerechnet wird nach dreissig Minuten im Hintergrund. Der Schluessel v3 (17.11.2026): die Antworten
  * davor kamen aus dem alten Spieltage-Verzeichnis und werden nicht mehr ausgeliefert.
  */
-export async function GET() {
+async function holeGET() {
   try {
     const antwort = await ueberdauernd('fncs-alltime-v3', 30 * 60_000, 7 * 864e5, rechnenRoh);
     if (!antwort) throw new Error('Keine FNCS-Endspiele im Archiv');
@@ -154,4 +155,9 @@ function rekordeAus(
     punkte: top('punkte'), siege: top('siege'), elims: top('elims'),
     finals,
   };
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET() {
+  return antwortMitAktuellenFotos(await holeGET());
 }

@@ -95,8 +95,11 @@ async function mitBildern(posts: FtPost[], schluessel: Record<string, string | u
   const f = await fotos();
   const finde = (k: FtKandidat): FtBildSpieler | null => {
     const kandidaten = [nachKonto.get(k.id), ...[schluessel[k.id], kurz(k.name), kurz(k.name).split('-')[0]].filter(Boolean).flatMap((x) => [`${x}.jpg`, `${x}.png`])];
+    const vomKonto = nachKonto.get(k.id);
     for (const datei of kandidaten) {
-      if (datei && f.dateien.has(datei)) {
+      // Fotos aus dem Pool und hochgeladene liegen nicht in public/spielerbilder, sondern im Objektspeicher - gezeichnet wird ueber die Adresse
+      // /spielerbilder/<datei> (lib/ftBild), die beide ausliefert. Sie gelten, wenn spielerbilder.json sie diesem Konto zuordnet (17.11.2026).
+      if (datei && (f.dateien.has(datei) || (datei === vomKonto && /\.webp$/i.test(datei)))) {
         const g = f.gesichter[datei];
         return { ...k, datei, gesicht: Array.isArray(g) && g.length >= 3 ? [g[0], g[1], g[2]] : null };
       }

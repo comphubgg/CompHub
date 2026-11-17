@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { standAnhaengen } from '@/lib/spielerbildKlein';
+import { alleOeffentlichenFotos, antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 let letzteCups: VCup[] | null = null;
 /** Die Cups der zuletzt abgelegten Antwort (data/.zuletzt, siehe lib/ueberdauernd) - nach einem Neustart der einzige Vorrat. */
 function vorigeCups(): VCup[] {
@@ -257,14 +258,15 @@ async function rechnen(request: Request) {
   if (cups.length) letzteCups = cups;
   else cups = letzteCups ?? (letzteCups = vorigeCups());
   // Die ersten fuenf der Power Rankings - mit dem Namen aus den Profilen statt Epics Anzeigenamen samt Teamkuerzel.
-  let rangliste: Array<{ rang: number; name: string; land: string | null; wertung: number; delta: number; bild: string | null }> = [];
+  let rangliste: Array<{ rang: number; id: string; name: string; land: string | null; wertung: number; delta: number; bild: string | null }> = [];
   try {
     const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {});
     const j = await (await prLesen(new Request('http://localhost/api/power-rankings?page=1'))).json() as {
       players?: Array<{ rank: number; id: string; name: string; land?: string; wertung: number; deltaPlatz?: number; bild?: string | null }>;
     };
     rangliste = (j.players ?? []).slice(0, 5).map((x) => ({
-      rang: x.rank, name: profile[x.id]?.anzeige || profile[x.id]?.name || x.name,
+      // Die Konto-Id, damit das Foto beim Ausliefern auf den aktuellen Stand kommt (lib/aktuelleFotos).
+      rang: x.rank, id: x.id, name: profile[x.id]?.anzeige || profile[x.id]?.name || x.name,
       land: (profile[x.id]?.land || x.land || '').toUpperCase() || null, wertung: x.wertung, delta: x.deltaPlatz ?? 0,
       // Das Foto wie auf der Rangliste selbst (Betreiber, 2.11.2026: das Treppchen "mit einem Profilbild beschmuecken").
       bild: x.bild ?? null,
@@ -284,8 +286,17 @@ async function rechnen(request: Request) {
  * Nach jedem Neustart brauchte die erste Antwort bis zu 40 Sekunden (Cloudflare gab 502/504, die Karten der Startseite standen auf "nicht erreichbar", 26.10.2026). Die letzte gute
  * Antwort liegt jetzt auch auf der Platte: sie kommt sofort, frisch gerechnet wird im Hintergrund (lib/ueberdauernd).
  */
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const antwort = await ueberdauernd('startvitrine-v2', 10 * 60_000, 24 * 3600_000, () => rechnen(request));
-  if (!antwort) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
-  return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
+  if (!antwort) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0, fotos: await alleOeffentlichenFotos().catch(() => []) }, { status: 200 });
+  /*
+   * "fotos": alle Spielerfotos, die jetzt oeffentlich sind - fuer den Hintergrund der Startseite (app/components/HeroHintergrund). Nicht Teil
+   * der gemerkten Antwort, damit ein neu freigegebenes Foto nicht zehn Minuten (oder einen Tag, nach einem Neustart) auf sich warten laesst.
+   */
+  return NextResponse.json({ ...antwort, fotos: await alleOeffentlichenFotos().catch(() => []) }, { headers: { 'Cache-Control': CDN_FRIST } });
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

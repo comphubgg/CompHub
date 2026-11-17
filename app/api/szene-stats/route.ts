@@ -22,6 +22,7 @@ import { landPasst } from '@/lib/spielerFlagge.mjs';
 import { liesClutch } from '@/lib/clutchLive';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 import { spielerbildKlein, spielerbildGross, standAnhaengen, spielerbilderFrei, fotosImJsonSperren } from '@/lib/spielerbildKlein';
+import { fotosImTextEinsetzen } from '@/lib/aktuelleFotos';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -1890,7 +1891,12 @@ export async function GET(request: Request) {
         (_m, feld: string, url: string) => `"${feld}":"${standAnhaengen(url)}"`));
     const koepfe = new Headers(antwort.headers);
     koepfe.delete('content-length');
-    return zwischenspeichern(new NextResponse(text, { status: antwort.status, headers: koepfe }), 60);
+    /*
+     * Und die Fotos von jetzt (17.11.2026, lib/aktuelleFotos): die Listen ueber das ganze Archiv (Preisgeld 2026, Startansicht) rechnet nur der
+     * stuendliche Lauf - ein danach freigegebenes Foto (Vico, Pixie, SwizzY) stand bis dahin als null in der Antwort.
+     */
+    const aktuell = antwort.status === 200 ? await fotosImTextEinsetzen(text, new URL(request.url).searchParams.has('spieler')) : text;
+    return zwischenspeichern(new NextResponse(aktuell, { status: antwort.status, headers: koepfe }), 60);
   }
   return zwischenspeichern(antwort, 60);
 }

@@ -3,6 +3,7 @@ import {
   gecacht, holeRanked, aktiveTracks, loeseNamenAuf, getToken,
   findeSpieler, EpicLoginNoetig,
 } from '@/lib/epicCups';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 // Epics eigenes Rangsystem - Solo, Duos, Trios, Zero Build und die
 // Competitive-Stufen. Anders als die Turnierdaten laesst es sich auch
@@ -14,7 +15,7 @@ import {
 
 const TTL = 5 * 60_000;
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   try {
@@ -64,4 +65,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

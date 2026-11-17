@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { liesJson } from '@/lib/ablage';
+import { fotoStand } from '@/lib/aktuelleFotos';
 
 /*
  * Die Fotos fuer das Bild unter einer Player Card oder einem Team Spotlight (lib/statKarteBild.ts, Betreiber 15.11.2026).
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
     fs.readFile(path.join(ORDNER, '_gesichter.json'), 'utf8')
       .then((t) => JSON.parse(t) as Record<string, number[]>).catch(() => ({} as Record<string, number[]>)),
   ]);
+  const aktuell = await fotoStand();
   const nachId = new Map(verzeichnis.filter((e) => e.epicId && e.datei).map((e) => [e.epicId!.toLowerCase(), e.datei!]));
 
   const spieler = await Promise.all(ids.map(async (roh, i) => {
@@ -50,7 +52,9 @@ export async function GET(request: Request) {
     let datei: string | null = null;
     if (id && nachId.has(id)) {
       const d = nachId.get(id);
-      if (await echt(d)) datei = d!;
+      // Fotos aus dem Pool und hochgeladene liegen nicht in public/spielerbilder, sondern im Objektspeicher (spielerfotos/) - ausgeliefert
+      // unter derselben Adresse /spielerbilder/<datei>. Sie zaehlen, wenn die aktuelle Quelle sie fuer dieses Konto fuehrt (lib/aktuelleFotos).
+      if (await echt(d) || (d && aktuell.nachKonto.get(id) === d && /\.webp$/i.test(d))) datei = d!;
     } else if (name) {
       const k = kurz(name);
       for (const d of [k, k.split('-')[0]].filter(Boolean).flatMap((x) => [`${x}.jpg`, `${x}.png`])) {

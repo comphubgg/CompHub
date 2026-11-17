@@ -4,6 +4,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { spielerbilderFrei } from '@/lib/spielerbildKlein';
+import { fotoBytes } from '@/lib/aktuelleFotos';
 
 // Das Fotomosaik zu einem Beitrag.
 //
@@ -29,7 +30,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const VERZEICHNIS = path.join(DATEN_ORT, 'spielerbilder.json');
-const BILDER = path.join(process.cwd(), 'public', 'spielerbilder');
 const PROFILE = path.join(DATEN_ORT, 'spieler-profile.json');
 
 /**
@@ -177,7 +177,10 @@ function platzhalterSvg(b: number, h: number): Buffer {
 /** Eine Kachel b x h: das Foto von oben zugeschnitten, sonst der Platzhalter. */
 async function kachelBild(e: Eintrag, b: number, h: number): Promise<Buffer> {
   if (e.platzhalter) return sharp(platzhalterSvg(b, h)).png().toBuffer();
-  return sharp(path.join(BILDER, e.datei)).resize(b, h, { fit: 'cover', position: 'top' }).toBuffer();
+  // Auch Fotos aus dem Pool und hochgeladene (Objektspeicher), nicht nur die in public/spielerbilder (lib/aktuelleFotos).
+  const roh = await fotoBytes(e.datei);
+  if (!roh) throw new Error(`Foto fehlt: ${e.datei}`);
+  return sharp(roh).resize(b, h, { fit: 'cover', position: 'top' }).toBuffer();
 }
 
 async function verzeichnis(): Promise<Map<string, Eintrag>> {
@@ -326,7 +329,9 @@ async function baueMosaik(request: Request) {
   for (const e of vorrat) {
     if (gewaehlt.length >= zahl) break;
     try {
-      await sharp(path.join(BILDER, e.datei)).metadata();
+      const roh = await fotoBytes(e.datei);
+      if (!roh) throw new Error('fehlt');
+      await sharp(roh).metadata();
       gewaehlt.push(e);
     } catch {
       uebersprungen.push(e.datei);

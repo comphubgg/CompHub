@@ -4,6 +4,7 @@ import {
 } from '@/lib/pov';
 import { discordStand, mitgliedName, pruefeDiscordLive, standardDiscordId } from '@/lib/povDiscord';
 import { istLive, liveSeit, zuschauerZahl, gleicherAnschluss, anschlussVon } from '@/lib/povRelay';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Pro-POVs.
@@ -22,7 +23,7 @@ export const runtime = 'nodejs';
 
 const nie = { 'Cache-Control': 'no-store' };
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const modus = new URL(request.url).searchParams.get('modus') ?? 'sichtbar';
   const ich = await wer();
   const alle = await liesPros();
@@ -109,4 +110,9 @@ export async function POST(request: Request) {
     ok: true, bildEigen: Boolean(neu.bild),
     mein: { ...neu, bild: wirksam, live: istLive(ident), liveSeit: liveSeit(ident) },
   }, { headers: nie });
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }

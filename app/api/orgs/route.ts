@@ -6,6 +6,7 @@ import {
 import { abgelegteAntwort, legeAntwortAb, ohneDateien } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { antwortMitAktuellenFotos } from '@/lib/aktuelleFotos';
 
 /*
  * Die E-Sports-Organisationen (lib/orgs).
@@ -63,7 +64,7 @@ async function rechneAlle(orgs: Org[]): Promise<VerdienstAntwort> {
   return { zeit: Date.now(), konten: [...ids], posten };
 }
 
-export async function GET(request: Request) {
+async function holeGET(request: Request) {
   const ansicht = new URL(request.url).searchParams.get('ansicht');
 
   let orgs: Org[];
@@ -188,4 +189,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 424 });
   }
   return NextResponse.json({ ok: true, orgs });
+}
+
+/** Jede Antwort mit den Spielerfotos von jetzt, nicht von der Rechnung (lib/aktuelleFotos). */
+export async function GET(request: Request) {
+  return antwortMitAktuellenFotos(await holeGET(request));
 }
