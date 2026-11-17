@@ -19,7 +19,10 @@ jobs:
     permissions:
       contents: read
       actions: write
-    timeout-minutes: 15
+    # 35 statt 15 (17.11.2026): "Live melden" (5 min) + "Seite wach halten" (bis 13 min) + sleep 540 lagen ueber 15 Minuten. Der Job wurde dann vor
+    # "Naechsten Lauf anstossen" abgebrochen und die Kette riss (06:54 -> 10:35 und ab 14:08 UTC) - mit ihr der Anstoss der Schnellspur.
+    # Ein neuer Lauf bricht den alten ohnehin ab (cancel-in-progress), die laengere Grenze haelt also nichts auf.
+    timeout-minutes: 35
     concurrency:
       group: discord-live
       cancel-in-progress: true
