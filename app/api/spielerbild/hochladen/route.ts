@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { speicher, liesJson, schreibJson } from '@/lib/ablage';
+import { speicher, schreibJson } from '@/lib/ablage';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { creditEingabe, setzeCredits, type FotoCredit } from '@/lib/fotoCredits';
+import { uploadFrei } from '@/lib/fotoSperre.mjs';
+import { PLATZHALTER_FOTO } from '@/lib/spielerbildKlein';
 
 /*
  * Ein Spielerfoto hochladen - aus dem Admin-Werkzeug der E-Sports-Teams.
@@ -41,23 +43,35 @@ export async function GET(request: Request) {
   if (!roh) {
     // Die Middleware legt den urspruenglichen Pfad in x-comphub-pfad ab.
     for (const pfad of [request.headers.get('x-comphub-pfad') ?? '', adresse.pathname]) {
-      const m = /\/spielerbilder\/([^/?#]+)$/.exec(pfad);
+      const m = /\/spielerbilder(?:-klein)?\/([^/?#]+)$/.exec(pfad);
       if (m) { try { roh = decodeURIComponent(m[1]); } catch { roh = m[1]; } break; }
     }
   }
   const datei = roh.replace(/^spielerfotos\//, '');
-  // Ein 404 darf nirgends liegen bleiben: Cloudflare hielt es vier Stunden
-  // fest, und ein eben hochgeladenes Foto blieb so lange kaputt (30.9.2026).
-  const nie = { 'Cache-Control': 'no-store' };
-  if (!NAME.test(datei)) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404, headers: nie });
+  // Ein Fehlschlag darf nirgends liegen bleiben: Cloudflare hielt ein 404 vier Stunden
+  // fest, und ein eben hochgeladenes Foto blieb so lange kaputt (30.9.2026) - darum no-store.
+  /*
+   * Alles, was hier ankommt und nicht frei ist - die entfernten Fotos unter ihrer alten Adresse (/spielerbilder/x.jpg,
+   * /spielerbilder-klein/x.webp) und Uploads von vor dem Neuanfang (lib/fotoSperre.mjs) -, leitet auf den Platzhalter um: nie das alte
+   * Bild, und auch kein kaputtes Bild an Stellen, die eine alte Adresse noch abgelegt haben. Nicht zwischenspeichern, damit ein neues Foto
+   * unter demselben Namen sofort kommt.
+   */
+  const platzhalter = () => new NextResponse(null, {
+    status: 302,
+    headers: { Location: new URL(PLATZHALTER_FOTO, adresse).pathname, 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store' },
+  });
+  if (!NAME.test(datei) || uploadFrei(datei) !== true) return platzhalter();
   try {
     const roh = await speicher.lies(ORDNER + datei);
-    if (!roh) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404, headers: nie });
+    if (!roh) return platzhalter();
     return new NextResponse(new Uint8Array(roh), {
       headers: {
         'Content-Type': 'image/webp',
-        // Jede Fassung hat ihren eigenen Namen - sie aendert sich nie.
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        /*
+         * Jede Fassung hat ihren eigenen Namen. Frueher ein Jahr "immutable"; seit dem 17.11.2026 eine Stunde: ein Foto, das entfernt
+         * werden muss, darf nicht ein Jahr lang in Cloudflare oder im Browser liegen bleiben.
+         */
+        'Cache-Control': 'public, max-age=3600',
       },
     });
   } catch {
@@ -111,7 +125,11 @@ export async function POST(request: Request) {
   }
   try {
     await speicher.schreib(ORDNER + dateiName, bild);
-    const liste = await liesJson<Bild[]>('spielerbilder.json', []);
+    // Roh gelesen, nicht ueber liesJson: das blendet gesperrte Fotos aus, und hier wird die ganze Zuordnung zurueckgeschrieben.
+    const alt = await speicher.lies('spielerbilder.json');
+    const gelesen: unknown = alt ? JSON.parse(alt.toString('utf8')) : [];
+    if (!Array.isArray(gelesen)) throw new Error('spielerbilder.json ist keine Liste');
+    const liste = gelesen as Bild[];
     const da = liste.find((b) => b.epicId === epicId);
     if (da) { da.datei = dateiName; da.echtesFoto = true; }
     else liste.push({ datei: dateiName, epicId, name: name || epicId.slice(0, 8), echtesFoto: true });

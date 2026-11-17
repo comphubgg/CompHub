@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import TeamFlagge from '@/components/TeamFlagge';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
@@ -166,9 +167,8 @@ function SpielerFoto({ bild, name }: { bild: string | null; name: string }) {
   const [kaputt, setKaputt] = useState(false);
   if (!bild || kaputt) {
     return (
-      <span className="flex h-full w-full items-center justify-center text-6xl font-black text-zinc-700">
-        {name.slice(0, 1).toUpperCase()}
-      </span>
+      // Der Platzhalter der ganzen Seite (17.11.2026) statt des Anfangsbuchstabens.
+      <span className="relative block h-full w-full"><SpielerPlatzhalter name={name} /></span>
     );
   }
   const quelle = versuch ? `${bild}${bild.includes('?') ? '&' : '?'}r=${versuch}` : bild;

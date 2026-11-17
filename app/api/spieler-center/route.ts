@@ -7,7 +7,7 @@ import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { liesJson } from '@/lib/ablage';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { namensSchluessel } from '@/lib/homoglyph';
-import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { spielerbildKlein, spielerbilderFrei } from '@/lib/spielerbildKlein';
 
 // Alles, was das Player Center ueber einen Spieler wissen muss - an einer
 // Stelle.
@@ -93,8 +93,8 @@ async function liesProfile(): Promise<{
 async function liesFotos(): Promise<Map<string, string>> {
   const karte = new Map<string, string>();
   try {
-    const roh = JSON.parse(await fs.readFile(BILDER, 'utf8')) as
-      Array<{ datei: string; epicId: string; echtesFoto?: boolean }>;
+    const roh = spielerbilderFrei(JSON.parse(await fs.readFile(BILDER, 'utf8')) as
+      Array<{ datei: string; epicId: string; echtesFoto?: boolean }>);
     for (const e of roh) {
       if (e.epicId && e.echtesFoto && e.datei) {
         karte.set(e.epicId, spielerbildKlein(e.datei));

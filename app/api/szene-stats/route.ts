@@ -21,7 +21,7 @@ import { landQuellen } from '@/lib/landQuellen';
 import { landPasst } from '@/lib/spielerFlagge.mjs';
 import { liesClutch } from '@/lib/clutchLive';
 import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
-import { spielerbildKlein, spielerbildGross, standAnhaengen } from '@/lib/spielerbildKlein';
+import { spielerbildKlein, spielerbildGross, standAnhaengen, spielerbilderFrei, fotosImJsonSperren } from '@/lib/spielerbildKlein';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -127,9 +127,9 @@ async function liesSzeneSpieler() {
 /**
  * Die Spielerbilder.
  *
- * scripts/spielerbilder-anlegen.mjs legt je Spieler eine Datei unter
- * public/spielerbilder/ an - zunaechst nur die Silhouette, spaeter das echte
- * Foto. Zugeordnet wird ueber die Konto-Id, nicht ueber den Dateinamen.
+ * Die Fotos liegen unter public/spielerbilder (oder als Upload im Objektspeicher);
+ * zugeordnet wird ueber die Konto-Id, nicht ueber den Dateinamen. Seit dem
+ * 17.11.2026 nur freie Fotos (lib/fotoSperre.mjs) - sonst der Platzhalter.
  */
 /**
  * Wann eine Datei zuletzt geaendert wurde.
@@ -160,9 +160,10 @@ async function liesBilder() {
   if (bilder && bilderStand === stand) return bilder;
   const karte = new Map<string, { pfad: string; gross: string; echt: boolean }>();
   try {
-    const roh = JSON.parse(await fs.readFile(
+    // Ohne die gesperrten alten Fotos (17.11.2026, lib/fotoSperre.mjs).
+    const roh = spielerbilderFrei(JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8')) as
-      Array<{ datei: string; epicId: string; echtesFoto?: boolean }>;
+      Array<{ datei: string; epicId: string; echtesFoto?: boolean }>);
     /*
      * Nur echte Fotos werden ausgeliefert.
      *
@@ -598,7 +599,9 @@ function startAusliefern(wert: unknown, url: URL): NextResponse {
    */
   const faecher: Array<Record<string, unknown>> = [];
   for (const r of FAECHER_REGIONEN) {
-    faecher.push(...elims.filter((p) => p.bild && ((p.heimat as string) || (p.regionen as string[] | undefined)?.[0] || '') === r).slice(0, 4));
+    // Mit Foto zuerst, dann ohne (17.11.2026: die alten Fotos sind entfernt - die Karten zeigen dann den Platzhalter, statt ganz zu fehlen).
+    const hier = elims.filter((p) => ((p.heimat as string) || (p.regionen as string[] | undefined)?.[0] || '') === r);
+    faecher.push(...[...hier.filter((p) => p.bild), ...hier.filter((p) => !p.bild)].slice(0, 4));
   }
   return NextResponse.json({
     ...(wert as Record<string, unknown>),
@@ -1854,14 +1857,15 @@ export async function GET(request: Request) {
    * (bis 600 KB je Foto). Listen und Karten bekommen hier die kleine Fassung; das Profil eines
    * Spielers ("spieler=") zeigt sein Foto gross und bleibt, wie es ist.
    */
-  if (antwort.ok && !new URL(request.url).searchParams.has('spieler')
-      && (antwort.headers.get('content-type') ?? '').includes('json')) {
-    const text = (await antwort.text()).replace(
+  if (antwort.ok && (antwort.headers.get('content-type') ?? '').includes('json')) {
+    const roh = await antwort.text();
+    // Gesperrte alte Fotos (17.11.2026, lib/fotoSperre.mjs) werden zu null - auch im Profil ("spieler="), das sonst unberuehrt bleibt.
+    const text = fotosImJsonSperren(new URL(request.url).searchParams.has('spieler') ? roh : roh.replace(
       /"(bild|img)":"\/spielerbilder\/([A-Za-z0-9._-]+)\.(?:jpe?g|png)"/gi,
       (_m, feld: string, name: string) => `"${feld}":"/spielerbilder-klein/${name}.webp"`)
       // ... und das Kennzeichen des Foto-Inhalts dazu, damit ein neu zugeschnittenes Foto nicht Stunden im Browser haengt (lib/spielerbildKlein).
       .replace(/"(bild|img|pfad|gross)":"(\/spielerbilder(?:-klein)?\/[^"?]+)"/g,
-        (_m, feld: string, url: string) => `"${feld}":"${standAnhaengen(url)}"`);
+        (_m, feld: string, url: string) => `"${feld}":"${standAnhaengen(url)}"`));
     const koepfe = new Headers(antwort.headers);
     koepfe.delete('content-length');
     return zwischenspeichern(new NextResponse(text, { status: antwort.status, headers: koepfe }), 60);

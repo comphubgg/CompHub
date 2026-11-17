@@ -232,7 +232,8 @@ function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten
       }
       // Die Uebersicht: in jeder Kategorie der Letzte, alles in einem Post.
       if (kopf.length >= 5) {
-        const mitFoto = kopf.filter((k) => k.x.bild).slice(0, 3);
+        // Mit Foto zuerst; ohne Foto zeigt das Bild den Platzhalter (app/api/post-bild, 17.11.2026).
+        const mitFoto = [...kopf.filter((k) => k.x.bild), ...kopf.filter((k) => !k.x.bild)].slice(0, 3);
         raus.push({
           art: 'worst', schluessel: `worst:${voll.saison}:uebersicht`, titel: `Worst of: alle Kategorien ${sName}`,
           text: `WORST OF COMPHUB 🧌 ${sName} edition\n\n${kopf.map((k) => `${k.titel}: ${gross(rein(k.x.anzeige))} (${k.wert})`).join('\n')}\n\nAll love, all real numbers (min. ${mindest} matches) 😈\n\n${SEITE}/statistics`,

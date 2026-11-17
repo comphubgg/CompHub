@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import GlobalsGeruest from '../GlobalsGeruest';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { flaggenPfad } from '@/components/TeamFlagge';
@@ -57,10 +58,10 @@ function Foto({ s, klasse }: { s: Spieler; klasse: string }) {
         className={`${klasse} shrink-0 object-cover object-[center_20%]`} />
     );
   }
+  // Ohne Foto der Platzhalter der ganzen Seite (17.11.2026: alle alten Fotos entfernt) statt eines Anfangsbuchstabens.
   return (
-    <span className={`${klasse} grid shrink-0 place-items-center bg-zinc-800/80
-                      font-bold text-slate-500`}>
-      {(s.anzeige || s.name).slice(0, 1).toUpperCase()}
+    <span className={`${klasse} relative shrink-0 overflow-hidden`}>
+      <SpielerPlatzhalter />
     </span>
   );
 }

@@ -26,6 +26,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { spielerbilderFrei, fotosImJsonSperren } from '@/lib/spielerbildKlein';
 
 /**
  * Was ein Speicher koennen muss.
@@ -307,7 +308,9 @@ export async function liesJson<T>(name: string, standard: T): Promise<T> {
   const roh = await speicher.lies(name);
   if (!roh) return standard;
   try {
-    return JSON.parse(roh.toString('utf8')) as T;
+    const wert = JSON.parse(fotosImJsonSperren(roh.toString('utf8'))) as T;
+    // Die alten Spielerfotos sind gesperrt (17.11.2026, lib/fotoSperre.mjs) - keine lesende Stelle soll sie noch sehen.
+    return name === 'spielerbilder.json' ? spielerbilderFrei(wert) : wert;
   } catch {
     return standard;
   }

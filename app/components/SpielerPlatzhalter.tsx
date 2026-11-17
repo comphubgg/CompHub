@@ -11,7 +11,10 @@
  */
 
 // Ein einheitliches Standardbild (Betreiber, 14.11.2026: "das schwarze mit dem Fake-Kopf, das normale Standardbild ... alle sehen gleich aus").
-const TON = ['from-zinc-800 to-zinc-950'];
+// 17.11.2026 (alle alten Fotos entfernt, der Platzhalter steht jetzt fast ueberall): dunkel wie bisher, das Zeichen in Sky-Blau mit leichtem Schein -
+// dieselbe Zeichnung wie public/spielerbild-platzhalter.svg (Overlays, Beitragsbilder, alte Foto-Adressen).
+const TON = ['from-gray-800 to-zinc-950'];
+const SCHEIN = 'bg-[radial-gradient(circle_at_50%_35%,rgba(56,189,248,.14),transparent_60%)]';
 
 /** Ein Blauton je Name - jeder Spieler sieht anders aus, keiner fremd. */
 const tonVon = (name: string) => TON[Array.from(name).reduce((a, c) => a + c.charCodeAt(0), 0) % TON.length];
@@ -28,7 +31,8 @@ function Zeichen({ klasse }: { klasse: string }) {
 export default function SpielerPlatzhalter({ name = '' }: { name?: string }) {
   return (
     <span aria-hidden className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${tonVon(name)}`}>
-      <Zeichen klasse="h-3/5 w-3/5 translate-y-[12%] text-zinc-500/40" />
+      <span className={`absolute inset-0 ${SCHEIN}`} />
+      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[12%] text-sky-400/25" />
     </span>
   );
 }
@@ -37,7 +41,8 @@ export function PlatzhalterRund({ name = '', groesse = 28, eckig = false, classN
   return (
     <span aria-hidden style={{ width: groesse, height: groesse }}
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tonVon(name)} ${eckig ? 'rounded-lg' : 'rounded-full'} ${className}`}>
-      <Zeichen klasse="h-3/5 w-3/5 translate-y-[8%] text-zinc-500/40" />
+      <span className={`absolute inset-0 ${SCHEIN}`} />
+      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[8%] text-sky-400/25" />
     </span>
   );
 }

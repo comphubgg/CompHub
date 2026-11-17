@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fotosImJsonSperren } from '@/lib/spielerbildKlein';
 
 /*
  * Die letzte gute Antwort ueberdauert den Neustart (Betreiber, 26.10.2026: "die Startseite laedt zu lange" / "Not reachable right now").
@@ -44,7 +45,8 @@ async function vonAblage(schluessel: string): Promise<{ wert: unknown; zeit: num
 function vonPlatte(schluessel: string): { wert: unknown; zeit: number } | null {
   try {
     const datei = path.join(ORDNER, `${schluessel.replace(/[^a-z0-9_-]/gi, '_')}.json`);
-    const roh = JSON.parse(fs.readFileSync(datei, 'utf8')) as { zeit?: number; wert?: unknown };
+    // Alte Foto-Adressen darin sperren (17.11.2026, lib/fotoSperre.mjs).
+    const roh = JSON.parse(fotosImJsonSperren(fs.readFileSync(datei, 'utf8'))) as { zeit?: number; wert?: unknown };
     return typeof roh.zeit === 'number' && roh.wert !== undefined ? { wert: roh.wert, zeit: roh.zeit } : null;
   } catch { return null; }
 }

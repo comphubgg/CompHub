@@ -14,7 +14,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 
-import { spielerbildGross } from './spielerbildKlein';
+import { spielerbildGross, spielerbilderFrei } from './spielerbildKlein';
 import { landAusGeoToken } from './spielerFlagge.mjs';
 // Oeffentlich dokumentierter Epic Android-Game-Client. Kein Geheimnis.
 // Der PC-Client faellt raus: der darf keine dauerhafte Geraete-Anmeldung
@@ -2083,7 +2083,8 @@ async function bilderNachKonto(): Promise<{
   const platzhalter = new Set<string>();
   try {
     const roh = await fs.readFile(path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8');
-    const liste = JSON.parse(roh);
+    // Ohne die gesperrten alten Fotos (17.11.2026, lib/fotoSperre.mjs).
+    const liste = spielerbilderFrei(JSON.parse(roh));
     for (const e of (Array.isArray(liste) ? liste : Object.values(liste ?? {}))) {
       const id = (e as { epicId?: string })?.epicId;
       const datei = (e as { datei?: string })?.datei;

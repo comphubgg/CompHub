@@ -123,6 +123,8 @@ const nextConfig: NextConfig = {
       ],
       fallback: [
         { source: '/spielerbilder/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
+        // Die entfernten kleinen Fassungen (17.11.2026): ihre alten Adressen fuehren auf den Platzhalter statt auf ein kaputtes Bild.
+        { source: '/spielerbilder-klein/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
       ],
     };
   },

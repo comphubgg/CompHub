@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- CompHub-Platzhalter fuer ein Spielerfoto (17.11.2026): dunkel, Kopf und Schultern, Akzent in Sky-Blau. Gleich wie app/components/SpielerPlatzhalter.tsx. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f2937"/>
+      <stop offset="1" stop-color="#09090b"/>
+    </linearGradient>
+    <radialGradient id="s" cx="0.5" cy="0.35" r="0.6">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#g)"/>
+  <rect width="400" height="400" fill="url(#s)"/>
+  <g fill="#38bdf8" fill-opacity="0.25" transform="translate(80 128) scale(2.4)">
+    <circle cx="50" cy="36" r="17"/>
+    <path d="M16 92c0-19 15-33 34-33s34 14 34 33z"/>
+  </g>
+</svg>

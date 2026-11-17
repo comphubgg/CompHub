@@ -24,6 +24,26 @@ const neuSchreiben = process.argv.includes('--neu');
 
 async function main() {
   await fs.mkdir(ZIEL, { recursive: true });
+  await fs.mkdir(QUELLE, { recursive: true });
+  /*
+   * Die alten, entfernten Fotos (17.11.2026, lib/fotoSperre.mjs) duerfen nie wieder ausgeliefert werden - auch nicht, wenn eines aus einem
+   * alten Vorrat (Desktop\players) zurueck in den Ordner kopiert wurde. Ihr Inhalts-Kennzeichen steht in lib/fotoGesperrt.json; eine solche
+   * Datei wird hier geloescht, bevor die Seite gebaut wird.
+   */
+  const gesperrt = new Set(JSON.parse(await fs.readFile(path.join(process.cwd(), 'lib', 'fotoGesperrt.json'), 'utf8')));
+  const kennung = async (datei) => createHash('sha1').update(await fs.readFile(datei)).digest('hex').slice(0, 8);
+  let entfernt = 0;
+  for (const ordner of [QUELLE, ZIEL]) {
+    for (const d of await fs.readdir(ordner)) {
+      if (!/\.(jpe?g|png|webp)$/i.test(d)) continue;
+      if (gesperrt.has(await kennung(path.join(ordner, d)))) {
+        await fs.rm(path.join(ordner, d), { force: true });
+        entfernt += 1;
+        console.warn(`Gesperrtes altes Foto entfernt: ${path.relative(process.cwd(), path.join(ordner, d))}`);
+      }
+    }
+  }
+  if (entfernt) console.warn(`${entfernt} gesperrte alte Fotos entfernt (lib/fotoSperre.mjs).`);
   const dateien = (await fs.readdir(QUELLE)).filter((d) => /\.(jpe?g|png|webp)$/i.test(d));
   let geschrieben = 0, uebersprungen = 0, fehler = 0;
   const gesehen = new Set();

@@ -4,6 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { tagesplan } from '@/lib/tagesposts';
 import { fokusVon } from '@/lib/fotoFokus';
+import { adresseFrei, PLATZHALTER_FOTO } from '@/lib/spielerbildKlein';
 import { FARBE, dropMapFuer, type KartenPost } from '@/lib/postKarte';
 import { zonenBild } from '@/lib/zonenBild';
 import { nobleZeichenSvg } from '@/lib/nobleZeichen';
@@ -41,6 +42,12 @@ async function bildDaten(quelle: unknown, ursprung: string, breite = 800): Promi
     const png = await sharp(puffer).resize({ width: breite, withoutEnlargement: true }).png().toBuffer();
     return `data:image/png;base64,${png.toString('base64')}`;
   } catch { return null; }
+}
+
+/** Ein Spielerfoto fuer eine feste Fotoflaeche: ohne (freies) Foto der Platzhalter (17.11.2026, lib/fotoSperre.mjs) - keine leere Flaeche. */
+async function fotoDaten(quelle: unknown, ursprung: string, breite: number): Promise<string | null> {
+  const frei = typeof quelle === 'string' && quelle && adresseFrei(quelle) ? quelle : null;
+  return (frei && await bildDaten(frei, ursprung, breite)) || bildDaten(PLATZHALTER_FOTO, ursprung, breite);
 }
 
 const schriften = new Map<string, ArrayBuffer>();
@@ -201,7 +208,7 @@ export async function GET(request: Request) {
       </>,
     );
   } else if (d.art === 'spieler') {
-    const foto = await bildDaten(d.bild, ursprung, 900);
+    const foto = await fotoDaten(d.bild, ursprung, 900);
     const werte = (d.werte as Array<[string, string]>) ?? [];
     bild = rahmen(
       <>
@@ -225,7 +232,7 @@ export async function GET(request: Request) {
     // Kopf an Kopf: die Fotos ganz aussen, die Namen daneben, darunter die Zahlen - wie die Tafel auf der Statistikseite (ohne Rahmen).
     const l = d.links as { name: string; land: string | null; bild: string };
     const r = d.rechts as { name: string; land: string | null; bild: string };
-    const [fl, fr] = await Promise.all([bildDaten(l.bild, ursprung, 700), bildDaten(r.bild, ursprung, 700)]);
+    const [fl, fr] = await Promise.all([fotoDaten(l.bild, ursprung, 700), fotoDaten(r.bild, ursprung, 700)]);
     const werte = (d.werte as Array<[string, string, string]>) ?? [];
     const zahlVon = (t: string) => Number(String(t).replace(/,/g, ''));
     bild = rahmen(
@@ -258,7 +265,7 @@ export async function GET(request: Request) {
   } else if (d.art === 'rekord') {
     // Die ersten Drei einer Bestenliste mit Foto.
     const drei = (d.drei as Array<{ rang: number; name: string; land: string | null; bild: string; wert: string }>) ?? [];
-    const fotos = await Promise.all(drei.map((x) => bildDaten(x.bild, ursprung, 700)));
+    const fotos = await Promise.all(drei.map((x) => fotoDaten(x.bild, ursprung, 700)));
     const reihe = [1, 0, 2].map((i) => ({ x: drei[i], f: fotos[i] })).filter((e) => e.x);
     // "Worst of CompHub": dieselbe Buehne in Rot, die Plaetze ohne Medaillenfarben.
     const worst = d.worst === true;
@@ -308,7 +315,8 @@ export async function GET(request: Request) {
   } else {
     // Die Werbekarte: grosse Zahl oder Wort links, vier Spielerkarten wie ein Faecher rechts.
     const quellen = ((d.fotos as unknown[]) ?? []).slice(0, 4);
-    const fotos = await Promise.all(quellen.map((f) => bildDaten(f, ursprung, 520)));
+    // Die Sammlung zeigt nur echte Fotos - gesperrte fallen weg (lib/fotoSperre.mjs).
+    const fotos = await Promise.all(quellen.map((f) => (typeof f === 'string' && adresseFrei(f) ? bildDaten(f, ursprung, 520) : null)));
     const karten = fotos.map((f, i) => ({ f, fokus: fokusVon(String(quellen[i] ?? '')) })).filter((x): x is { f: string; fokus: string } => !!x.f);
     bild = rahmen(
       <>

@@ -12,7 +12,7 @@ import Prospects from './Prospects';
 import MerkStern from '@/app/components/MerkStern';
 import Lieblinge from '@/app/components/Lieblinge';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
+import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import StatistikZahlen from './StatistikZahlen';
 import StatistikAufmacher from './StatistikAufmacher';
 import { useSearchParams } from 'next/navigation';
@@ -942,8 +942,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
           className="absolute inset-0 h-full w-full object-cover object-top
                      transition duration-300 group-hover:scale-105" />
       ) : (
-        <div className="flex h-full items-center justify-center text-3xl
-                        text-zinc-700">?</div>
+        <SpielerPlatzhalter />
       )}
       <div className={`absolute bottom-0 w-full bg-gradient-to-t from-black/90
                        to-transparent px-2.5 pb-2 pt-6
@@ -2110,8 +2109,7 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
           <img src={s.bild} alt="" loading="lazy"
             className="h-16 w-16 shrink-0 rounded-lg border border-zinc-800 object-cover object-top" />
         ) : (
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg
-                           border border-zinc-800 bg-zinc-900 text-xl text-zinc-700">?</span>
+          <PlatzhalterRund groesse={64} eckig className="border border-zinc-800" />
         )
       ) : (
         <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
@@ -2187,14 +2185,15 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
     let weg = false;
     const namen = Object.values(FEST).flat();
     Promise.all(namen.map((n) => fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(n)}`).then((r) => r.json())
-      .then((j) => ((j?.spieler ?? []) as Spieler[]).find((p) => p.bild && p.anzeige.toLowerCase() === n.toLowerCase()) ?? null)
+      .then((j) => ((j?.spieler ?? []) as Spieler[]).find((p) => p.anzeige.toLowerCase() === n.toLowerCase()) ?? null)
       .catch(() => null)))
       .then((l) => { if (!weg) setFest(l.filter((x): x is Spieler => !!x)); });
     return () => { weg = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const karten = useMemo(() => {
-    const mit = spieler.filter((x) => x.bild);
+    // Mit Foto zuerst; ohne Foto (seit 17.11.2026 fast alle - die alten Fotos sind entfernt) danach, mit dem Platzhalter - sonst bliebe die Reihe leer.
+    const mit = [...spieler.filter((x) => x.bild), ...spieler.filter((x) => !x.bild)];
     const regionVon = (x: Spieler) => x.heimat || x.regionen[0] || '';
     // Einer je Region (Betreiber, 19.10.2026: zwei Reihen Fotos untereinander sahen nicht sauber aus - zurueck zum Faecher, nur mit einem je Region).
     const je = new Map<string, Spieler[]>();
@@ -2248,8 +2247,10 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
             <li key={x.epicId} style={{ ['--d' as string]: i - mitte, ['--i' as string]: i + 1 }}>
               <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
                 className="foto-dunkel group relative block h-52 w-36 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_14px_34px_rgba(2,6,23,.35)] max-sm:h-44 max-sm:w-28">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                {x.bild
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={x.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                  : <SpielerPlatzhalter />}
                 <span aria-hidden className="foto-unten absolute inset-0" />
                 <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
                 <span className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1.5 rounded-xl bg-[rgba(6,10,18,.6)] px-2 py-1.5 backdrop-blur">
@@ -2268,10 +2269,10 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
             className="faecher-schleier absolute inset-0 bg-[rgba(6,10,18,.66)] backdrop-blur-sm" />
           <div className="faecher-pop relative flex w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl max-sm:flex-col">
             <div className="relative h-72 shrink-0 sm:h-auto sm:w-[44%]">
-              {auf.bild && (
+              {auf.bild ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={auf.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
-              )}
+              ) : <SpielerPlatzhalter />}
               <span aria-hidden className="foto-unten absolute inset-0" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col p-6 sm:p-8">
@@ -4369,9 +4370,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   className="h-8 w-8 shrink-0 rounded object-cover
                              object-top" />
               ) : (
-                <span className="flex h-8 w-8 shrink-0 items-center
-                                 justify-center rounded bg-zinc-900
-                                 text-xs text-zinc-700">?</span>
+                <PlatzhalterRund groesse={32} eckig />
               )}
               <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
               <span className="min-w-0 flex-1 truncate text-xs font-semibold
@@ -4840,8 +4839,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                               className="absolute inset-0 h-full w-full object-cover
                                          transition group-hover:scale-105" />
                           ) : (
-                            <div className="flex h-full min-h-[230px] items-center
-                                            justify-center text-4xl text-zinc-700">?</div>
+                            <div className="relative h-full min-h-[230px]"><SpielerPlatzhalter /></div>
                           )}
                           <span className="absolute right-3 top-3 rounded bg-sky-500 px-2
                                            py-0.5 text-[11px] font-bold tracking-wider
@@ -5448,8 +5446,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                            object-top transition duration-300
                                            group-hover:scale-105" />
                             ) : (
-                              <span className="absolute inset-0 flex items-center justify-center
-                                               text-4xl text-zinc-800">?</span>
+                              <SpielerPlatzhalter />
                             )}
                             <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5
                                               py-0.5 text-[10px] font-bold tabular-nums ${
@@ -5754,19 +5751,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                               className="absolute inset-0 h-full w-full object-cover object-top
                                          transition group-hover:scale-105" />
                           ) : (
-                            /* Ohne Foto: kein leerer Kasten, sondern die Zahl,
-                               die sagt, warum dieser Spieler hier oben steht. */
-                            <div className="flex h-full flex-col items-center
-                                            justify-center gap-1">
-                              <span className="text-2xl font-bold tabular-nums
-                                               text-zinc-700">
-                                {zahl(sp.elims, 0, sprache)}
-                              </span>
-                              <span className="text-[9px] font-semibold uppercase
-                                               tracking-[0.14em] text-zinc-800">
-                                <T>Elims</T>
-                              </span>
-                            </div>
+                            // Ohne Foto der Platzhalter der ganzen Seite (17.11.2026).
+                            <SpielerPlatzhalter />
                           )}
                           <span className="absolute left-1.5 top-1.5 rounded
                                            bg-black/70 px-1.5 py-0.5 text-[9px]
@@ -5928,8 +5914,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                                      object-top transition duration-300
                                      group-hover:scale-105" />
                       ) : (
-                        <span className="absolute inset-0 flex items-center justify-center
-                                         text-4xl text-zinc-800">?</span>
+                        <SpielerPlatzhalter />
                       )}
                       <span className="absolute left-2 top-2">
                         <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />

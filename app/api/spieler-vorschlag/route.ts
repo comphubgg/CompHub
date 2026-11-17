@@ -3,6 +3,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { heimatRegionen } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { spielerbilderFrei } from '@/lib/spielerbildKlein';
 
 // Spielervorschlaege fuer einen Beitrag - aus echten Zahlen, nach offener Regel.
 //
@@ -64,8 +65,9 @@ export async function GET(request: Request) {
 
   let roh: RohSpieler[];
   try {
-    roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8'));
+    // Ohne die gesperrten alten Fotos (17.11.2026, lib/fotoSperre.mjs).
+    roh = spielerbilderFrei(JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8')));
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }

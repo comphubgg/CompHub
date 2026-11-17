@@ -10,13 +10,11 @@ import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 import { useT } from '@/app/components/SprachProvider';
 import { useBilder } from './BilderKontext';
+import { PLATZHALTER_FOTO } from '@/lib/spielerbildKlein';
 
-/** Silhouette fuer Spieler ohne Foto - dieselbe wie in den Videos. */
-const SILHOUETTE = (
-  <svg className="silhouette" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <circle cx="12" cy="8.5" r="4.2" /><path d="M3.6 21c.5-4.4 3.9-7 8.4-7s7.9 2.6 8.4 7z" />
-  </svg>
-);
+/** Spieler ohne Foto: der Platzhalter der ganzen Seite (17.11.2026, public/spielerbild-platzhalter.svg - wie app/components/SpielerPlatzhalter). */
+// eslint-disable-next-line @next/next/no-img-element
+const SILHOUETTE = <img src={PLATZHALTER_FOTO} alt="" draggable={false} decoding="async" />;
 interface PlayerCardProps {
   entry: TierListEntry;
   variant?: 'list' | 'pool';

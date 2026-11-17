@@ -1224,17 +1224,19 @@ async function zeichne(sanft) {
 }
 
 /** Beispieldaten nur fuer die Vorschau im Baukasten (?probe=1) - nie fuer OBS. */
+// Seit 17.11.2026 ohne echte Fotos (alle alten Spielerfotos entfernt): die Vorschau zeigt den Platzhalter, damit die Anordnung mit Fotos sichtbar bleibt.
+const PROBE_FOTO = '/spielerbild-platzhalter.svg';
 const PROBE_EINTRAG = LEISTE ? {
   rank: 2, points: 162, games: 4, elims: 9,
   // Name und Foto gehoeren zusammen (Betreiber, 29.10.2026: 'nicht fuer irgendwelche Profilbilder RAX nehmen, wenn es nicht RAX ist').
-  players: [{ id: 'probe1', name: 'RAX', img: '/spielerbilder/rax.jpg' }],
+  players: [{ id: 'probe1', name: 'RAX', img: PROBE_FOTO }],
 } : {
   rank: 1, points: 304, games: 6, elims: 25,
   players: [
-    { id: 'probe1', name: 'MALIBUCA', img: '/spielerbilder/malibuca.jpg' },
-    { id: 'probe2', name: 'VICO', img: '/spielerbilder/vico.jpg' },
+    { id: 'probe1', name: 'MALIBUCA', img: PROBE_FOTO },
+    { id: 'probe2', name: 'VICO', img: PROBE_FOTO },
     // Ein echtes Trio (Tierliste, vom Admin bestaetigt): Malibuca, Vico, RAX.
-    { id: 'probe3', name: 'RAX', img: '/spielerbilder/rax.jpg' },
+    { id: 'probe3', name: 'RAX', img: PROBE_FOTO },
   ],
 };
 

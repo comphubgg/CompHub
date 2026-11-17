@@ -3,6 +3,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import sharp from 'sharp';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { spielerbilderFrei } from '@/lib/spielerbildKlein';
 
 // Das Fotomosaik zu einem Beitrag.
 //
@@ -166,8 +167,10 @@ function platzhalterSvg(b: number, h: number): Buffer {
   const s = Math.min(b, h) * 0.6;
   const x = (b - s) / 2; const y = (h - s) / 2 + s * 0.12;
   return Buffer.from(`<svg width="${b}" height="${h}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="v" x1="0" y1="0" x2="1" y2="1">`
-    + '<stop offset="0" stop-color="#27272a"/><stop offset="1" stop-color="#09090b"/></linearGradient></defs>'
-    + `<rect width="${b}" height="${h}" fill="url(#v)"/><g transform="translate(${x} ${y}) scale(${s / 100})" fill="#71717a" fill-opacity="0.4">`
+    + '<stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#09090b"/></linearGradient>'
+    // Seit 17.11.2026 wie public/spielerbild-platzhalter.svg: leichter Schein und das Zeichen in Sky-Blau.
+    + '<radialGradient id="s" cx="0.5" cy="0.35" r="0.6"><stop offset="0" stop-color="#38bdf8" stop-opacity="0.14"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></radialGradient></defs>'
+    + `<rect width="${b}" height="${h}" fill="url(#v)"/><rect width="${b}" height="${h}" fill="url(#s)"/><g transform="translate(${x} ${y}) scale(${s / 100})" fill="#38bdf8" fill-opacity="0.25">`
     + '<circle cx="50" cy="36" r="17"/><path d="M16 92c0-19 15-33 34-33s34 14 34 33z"/></g></svg>');
 }
 
@@ -179,7 +182,8 @@ async function kachelBild(e: Eintrag, b: number, h: number): Promise<Buffer> {
 
 async function verzeichnis(): Promise<Map<string, Eintrag>> {
   try {
-    const liste = JSON.parse(await fs.readFile(VERZEICHNIS, 'utf8')) as Eintrag[];
+    // Ohne die gesperrten alten Fotos (17.11.2026, lib/fotoSperre.mjs).
+    const liste = spielerbilderFrei(JSON.parse(await fs.readFile(VERZEICHNIS, 'utf8')) as Eintrag[]);
     return new Map(liste.filter((e) => e.epicId).map((e) => [e.epicId, e]));
   } catch {
     return new Map();
