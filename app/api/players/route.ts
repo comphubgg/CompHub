@@ -5,6 +5,8 @@ import path from 'path';
 import { getSupabaseServerClient, hasSupabaseConfig, isSupabaseFallbackError } from '@/lib/supabaseServer';
 import { t } from '@/app/lib/i18n';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { ueberdauernd } from '@/lib/ueberdauernd';
+import { soloPool, duoPool } from '@/lib/tierlistPool';
 
 const PLAYERS_FILE = path.join(DATEN_ORT, 'players.json');
 const IS_VERCEL = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_ENV);
@@ -91,6 +93,42 @@ function normalizeDuoNames(player1: string, player2: string) {
  */
 const pg = (v: unknown) => `"${String(v ?? '').replace(/[\\"]/g, (c) => `\\${c}`)}"`;
 
+/*
+ * Die gepflegte Liste plus der Tierlist-Pool aus unseren eigenen Daten (17.11.2026).
+ *
+ * players.json hielt frueher hunderte Spieler aus einer fremden Tierlist; die sind geloescht, uebrig blieben drei. Damit die Vorschlaege
+ * beim Anlegen und alles, was EU_PLAYERS/NAC_PLAYERS liest, nicht leer bleibt, kommt der Pool (lib/tierlistPool) dazu - nur in der Antwort,
+ * die Datei selbst bleibt die gepflegte Liste. Von Hand Eingetragenes gewinnt immer.
+ */
+async function mitPool(data: PlayersData): Promise<PlayersData> {
+  const tag = 6 * 3_600_000, woche = 7 * 864e5;
+  const [solo, duo] = await Promise.all([
+    ueberdauernd('tierlist-pool-v4-solo', tag, woche, soloPool).catch(() => null),
+    ueberdauernd('tierlist-pool-v4-duo', tag, woche, duoPool).catch(() => null),
+  ]);
+  const players = { ...(data.players ?? {}) };
+  const regions = { NAC_PLAYERS: [...(data.regions?.NAC_PLAYERS ?? [])], EU_PLAYERS: [...(data.regions?.EU_PLAYERS ?? [])] };
+  const bekannt = new Set(Object.keys(players).map((n) => n.toLowerCase()));
+  for (const e of solo ?? []) {
+    const s = e.spieler[0];
+    if (!s?.name || bekannt.has(s.name.toLowerCase())) continue;
+    bekannt.add(s.name.toLowerCase());
+    players[s.name] = { region: e.region, ...(s.land ? { countryCode: s.land.toLowerCase() } : {}), isGlobal: false };
+    if (e.region === 'EU') regions.EU_PLAYERS.push(s.name);
+    else if (e.region === 'NAC') regions.NAC_PLAYERS.push(s.name);
+  }
+  const duos = [...(data.duos ?? [])];
+  const duoDa = new Set(duos.map((d) => d.map((n) => String(n).toLowerCase()).sort().join('|')));
+  for (const e of duo ?? []) {
+    const paar = e.spieler.slice(0, 2).map((s) => s.name) as [string, string];
+    const k = paar.map((n) => n.toLowerCase()).sort().join('|');
+    if (paar.length !== 2 || duoDa.has(k)) continue;
+    duoDa.add(k);
+    duos.push(paar);
+  }
+  return { players, regions, duos };
+}
+
 export async function GET() {
   try {
     const supabase = getSupabaseServerClient();
@@ -99,7 +137,7 @@ export async function GET() {
         return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
       }
       const fileData = await readPlayersFile();
-      return NextResponse.json(fileData);
+      return NextResponse.json(await mitPool(fileData));
     }
 
     const [{ data: players, error: playersError }, { data: duos, error: duosError }] = await Promise.all([
@@ -113,7 +151,7 @@ export async function GET() {
       const fehler = playersError ?? duosError;
       if (USE_DISK_FALLBACK) {
         console.warn(`Supabase ${isSupabaseFallbackError(fehler) ? 'unavailable' : 'error'} (${fehler?.message}), falling back to local players data`);
-        try { return NextResponse.json(await readPlayersFile()); } catch { /* unten der Fehler */ }
+        try { return NextResponse.json(await mitPool(await readPlayersFile())); } catch { /* unten der Fehler */ }
       }
       console.error('Supabase error fetching players/duos', fehler);
       return NextResponse.json({ error: fehler?.message ?? 'Failed to read players' }, { status: 424 });
@@ -130,14 +168,14 @@ export async function GET() {
       return acc;
     }, {});
 
-    const duoList = (duos || []).map((duo: any) => [duo.player1, duo.player2]);
+    const duoList = (duos || []).map((duo: any) => [duo.player1, duo.player2] as [string, string]);
 
-    return NextResponse.json({ players: playerMap, regions: { NAC_PLAYERS: [], EU_PLAYERS: [] }, duos: duoList });
+    return NextResponse.json(await mitPool({ players: playerMap, regions: { NAC_PLAYERS: [], EU_PLAYERS: [] }, duos: duoList }));
   } catch (error: any) {
     console.error(t('error_reading_players', 'Error reading players:'), error);
     // Ein Netzfehler zu Supabase ist kein Grund, die Spielerliste zu verweigern: die Datei steht daneben.
     if (USE_DISK_FALLBACK) {
-      try { return NextResponse.json(await readPlayersFile()); } catch { /* unten der Fehler */ }
+      try { return NextResponse.json(await mitPool(await readPlayersFile())); } catch { /* unten der Fehler */ }
     }
     return NextResponse.json({ error: error.message || t('failed_to_read_players', 'Failed to read players') }, { status: 424 });
   }
