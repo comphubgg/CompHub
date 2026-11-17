@@ -41,6 +41,40 @@ const ERSTE_SAISON = 30;
 const nrVon = (k: string) => Number(k.replace(/\D/g, '')) || 0;
 const n0 = (x: number | undefined) => (Number.isFinite(x) ? (x as number) : 0);
 
+/** Eine Epic-Zeile der Antwort, soweit der Vergleich sie braucht: Matches von Epic, Elims und Schaden je Konto aus den vollen Replays. */
+interface EpicZeile {
+  event: string; windowId: string; season: string; datum?: number | null; platz?: number | null; titel?: string; matches?: number;
+  replayElims?: number; replaySchaden?: { dmg: number; erlitten: number; treffer: number };
+}
+
+/**
+ * Seit dem 17.11.2026 (lib/fremdquelleGrenze) ist "verlauf" fuer jedes Konto leer - die Werte je Spieltag stehen nur noch in den
+ * Epic-Zeilen, wo das volle Replay gelesen ist (replayElims, replaySchaden). Der Vergleich las nur "verlauf" und zeigte deshalb fuer
+ * jedes Paar in jeder Saison "nicht angetreten" (gemessen: Vico und Malibuca, S42 und S43, verlauf 0 Zeilen, Epic-Zeilen 19 und 60).
+ * Hier werden die Epic-Zeilen mit eigenen Werten zu Zeilen mit Werten; Epic-Zeilen ohne Replay tragen keinen Wert je Spieler und
+ * zaehlen nicht (Epics Elims gelten fuers ganze Team).
+ */
+function mitEigenenWerten(verlauf: Zeile[], epic: unknown): Zeile[] {
+  const da = new Set(verlauf.map((z) => z.windowId));
+  const dazu: Zeile[] = [];
+  for (const z of (Array.isArray(epic) ? epic : []) as EpicZeile[]) {
+    if (!z || da.has(z.windowId)) continue;
+    const elims = typeof z.replayElims === 'number' ? z.replayElims : undefined;
+    const s = z.replaySchaden;
+    if (elims === undefined && !s) continue;
+    da.add(z.windowId);
+    dazu.push({
+      event: z.titel || z.event, windowId: z.windowId, season: z.season, datum: z.datum ?? 0, platz: z.platz ?? null,
+      werte: {
+        matchesPlayed: z.matches ?? 0,
+        ...(elims !== undefined ? { eliminations: elims } : {}),
+        ...(s ? { damageDealt: s.dmg, damageTakenFromPlayers: s.erlitten, hitsToPlayers: s.treffer } : {}),
+      },
+    });
+  }
+  return [...verlauf, ...dazu];
+}
+
 const FARBE_LINKS = '#e2e8f0';
 const FARBE_RECHTS = '#38bdf8';
 
@@ -429,7 +463,7 @@ export default function Vergleich({ saisons, sprache, start }: { saisons: Array<
      */
     Promise.all(fehlen.map((id) => fetch(`/api/szene-stats?spieler=${id}&saison=${saison}`).then((r) => r.json()).then((j) => {
       if (!Array.isArray(j?.verlauf)) throw new Error('keine Liste');
-      return [id, j.verlauf as Zeile[]] as const;
+      return [id, mitEigenenWerten(j.verlauf as Zeile[], j.epicZeilen)] as const;
     }).catch(() => null)))
       .then((paare) => {
         if (weg) return;
