@@ -149,6 +149,23 @@ jobs:
           done
           echo "Zusammengefuehrt: $EBENEN Ebenen"
 
+      # Einmalig (17.11.2026): alles aus der gesperrten Quelle und alles daraus Gerechnete aus dem Datenordner des Zwischenspeichers - die Akten, die
+      # Antworten der Statistik und die LAN-Zuordnung rechnet dieser Lauf aus eigenen Daten neu (scripts/fremdquellen-sperre.mjs, fremdquelle-loeschen.mjs).
+      - name: Gesperrte Quelle aus dem Datenordner
+        run: |
+          if [ ! -f data/.fremdquelle-weg-1711 ]; then
+            rm -rf data/szene-stats data/szene-quelle data/akten data/_akten-vorstufe
+            find data -maxdepth 1 -name 'eu*-tierlist.json' -delete 2>/dev/null || true
+            rm -f data/fotos-eingang.json data/fehlende-bilder.txt data/bekannte-ohne-foto.txt data/lan-konten.json
+            if [ -d data/antworten ]; then
+              find data/antworten -maxdepth 1 \( -name 'szene_*' -o -name 'center_*' -o -name 'laender_*' -o -name 'tierlist_trios_auto*' \) -delete
+            fi
+            mkdir -p data && touch data/.fremdquelle-weg-1711
+            echo "Datenordner gesaeubert"
+          else
+            echo "schon gesaeubert"
+          fi
+
       - name: Stand vom Release holen
         # Nur wenn der Zwischenspeicher nichts hergab. GitHub wirft ihn nach
         # sieben Tagen ohne Zugriff weg; dann faengt der Lauf sonst bei null an

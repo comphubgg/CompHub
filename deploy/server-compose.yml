@@ -62,6 +62,16 @@ services:
     volumes:
       - ./daten:/app/data
 
+  # Einmalig (17.11.2026): das Archiv der gesperrten Quelle und alles daraus Gerechnete aus dem Datenordner von "hintergrund" loeschen
+  # (scripts/fremdquellen-sperre.mjs). Laeuft einmal und endet; die Marke verhindert eine Wiederholung. Die Statistik rechnet aus eigenen Daten neu.
+  aufraeumen:
+    image: ghcr.io/comphubgg/comphub-web:voll
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command: ["cd /app/data && if [ ! -f .fremdquelle-weg-1711 ]; then rm -rf szene-stats szene-quelle akten _akten-vorstufe; find . -maxdepth 1 -name 'eu*-tierlist.json' -delete; rm -f fotos-eingang.json fehlende-bilder.txt bekannte-ohne-foto.txt lan-konten.json; [ -d antworten ] && find antworten -maxdepth 1 \\( -name 'szene_*' -o -name 'center_*' -o -name 'laender_*' -o -name 'tierlist_trios_auto*' \\) -delete; touch .fremdquelle-weg-1711; echo gesaeubert; else echo schon gesaeubert; fi"]
+    volumes:
+      - ./daten:/app/data
+
   # Die Replay-Uebersicht (Startseite "Matches ausgewertet", /admin/replays) alle 10 Minuten neu, aus den Zustaenden am Release
   # (14.11.2026: seit der PC aus ist, rechnete sie niemand mehr oft genug - die Zahl stand stundenlang bei 1.459.064).
   uebersicht:

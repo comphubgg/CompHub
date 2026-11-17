@@ -1,0 +1,31 @@
+# Einmalig, vom Betreiber angestossen (17.11.2026): alle Daten einer Quelle loeschen, deren Betreiber jede Nutzung untersagt hat - aus den Releases,
+# den Sicherungen, den Actions-Caches und Supabase. Was geloescht wird, steht in scripts/fremdquelle-loeschen.mjs. Erst "probe" laufen lassen,
+# dann ohne. Danach daten-erneuern.yml anstossen: es rechnet Antworten und Akten aus eigenen Daten neu.
+name: Fremdquelle loeschen
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Nur zeigen, nichts loeschen'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  loeschen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Schluessel
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Loeschen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/fremdquelle-loeschen.mjs ${{ inputs.probe && '--probe' || '' }}
