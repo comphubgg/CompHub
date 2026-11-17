@@ -110,6 +110,9 @@ jobs:
           LIVE_LAUFZEIT_MIN: '340'
           LIVE_NACH_ENDE_MIN: '60'
           LIVE_SPAETER_MS: '30000'
+          # Replay noch nicht bei Epic (404): in den ersten 15 Minuten nach dem Spiel jede Minute wieder, nicht erst nach 2, 4, 6 Minuten.
+          LIVE_FRUEH_MS: '60000'
+          LIVE_FRUEH_MIN: '15'
           LIVE_SEITE0_MS: '15000'
           LIVE_LESER: '4'
           LIVE_LADEN: '8'

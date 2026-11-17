@@ -69,6 +69,9 @@ const VERGESSEN_MS = 36 * 3600_000; // dann ist der Spieltag laengst im Release
 const BAUEN_MS = Number(process.env.LIVE_BAUEN_MS) || (NUR_BAUEN ? 15_000 : 60_000);
 // noch live oder kuerzer als das Spiel: so bald wieder fragen
 const SPAETER_MS = Number(process.env.LIVE_SPAETER_MS) || 90_000;
+// Noch kein Replay bei Epic (404) oder Fehler: in den ersten FRUEH_FENSTER_MS nach dem ersten Sehen des Matches so oft wieder (0 = wie bisher 2, 4, 6 ... min).
+const FRUEH_MS = Number(process.env.LIVE_FRUEH_MS) || 0;
+const FRUEH_FENSTER_MS = (Number(process.env.LIVE_FRUEH_MIN) || 15) * 60_000;
 const EINGANG = process.env.LIVE_EINGANG || path.join(LIVE_ORT, 'eingang');
 const RELEASE_MS = 5 * 60_000;      // auch ohne neue Teile so oft im Release nachsehen (archivieren, Live-Stand nachziehen)
 const ZWISCHEN = path.join(LIVE_ORT, 'release');
@@ -106,7 +109,7 @@ const fenster = new Map();
 function neuesFenster({ windowId, eventId, begin, end }) {
   const f = {
     windowId, eventId, begin, end, vorrang: cupVorrang(windowId), aktiv: false,
-    ids: new Set(liesJson(path.join(LIVE_ORT, 'ids', `${windowId}.json`), [])), idsGespeichert: 0,
+    ids: new Set(liesJson(path.join(LIVE_ORT, 'ids', `${windowId}.json`), [])), idsGespeichert: 0, zuerst: new Map(),
     stand: null, gelesen: 0, regeln: null, regelnZeit: 0, regelnLaeuft: null,
     offen: [], zurueck: new Map(), laeuft: new Set(), fertig: new Set(),
     auth: { ids: new Set(), zeit: 0, gesamt: 0, summe: '' }, neueTeile: 0, gebaut: 0, offeneTeile: 0,
@@ -202,7 +205,7 @@ function aufnehmen(f, daten) {
     for (const s of e.sessionHistory ?? []) {
       const id = s.sessionId;
       if (!id || f.ids.has(id)) continue;
-      f.ids.add(id); neu += 1;
+      f.ids.add(id); f.zuerst.set(id, Date.now()); neu += 1;
       if (!f.fertig.has(id) && !imRelease(f, id)) f.offen.push(id);
     }
   }
@@ -329,7 +332,10 @@ async function einMatch(job) {
     } else {
       // Kein Replay (noch nicht abgelegt?) oder Fehler: spaeter wieder, mit wachsendem Abstand bis hoechstens 30 Minuten - nie endgueltig (Hauptregel).
       zahl[r.art === 'ohne' ? 'ohne' : 'fehler'] += 1;
-      f.zurueck.set(id, { bis: Date.now() + Math.min(30, 2 * versuche) * 60_000, versuche });
+      // Sofortspur: ein eben beendetes Match, dessen Replay Epic noch nicht herausgibt (404, Fehler), in den ersten LIVE_FRUEH_MIN Minuten nach dem ersten
+      // Sehen alle LIVE_FRUEH_MS wieder - nicht erst nach 2, 4, 6 Minuten (EU LCQ 17.11.: Spiel 5 wartete so unnoetig, volle Stats erst 20-25 min danach).
+      const frueh = FRUEH_MS && Date.now() - (f.zuerst.get(id) ?? 0) < FRUEH_FENSTER_MS;
+      f.zurueck.set(id, { bis: Date.now() + (frueh ? FRUEH_MS : Math.min(30, 2 * versuche) * 60_000), versuche: frueh ? 0 : versuche });
       if (versuche >= 3) log(`${f.windowId} ${id}: ${r.art} (${versuche}. Versuch) - ${r.grund ?? ''}`);
     }
   } catch (e) {
