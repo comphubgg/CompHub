@@ -1,0 +1,34 @@
+# Probe: liefert Epics Sitzungssuche (findPlayer) die laufende Match-ID fremder Konten? Nur lesen, nichts ablegen (scripts/findplayer-probe.mjs).
+name: findPlayer-Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: Epic-Konto-Ids (Leerzeichen oder Komma), hoechstens 50
+        required: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --omit=optional --no-audit --no-fund
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Probe
+        env:
+          IDS: ${{ inputs.ids }}
+        run: node scripts/findplayer-probe.mjs $IDS
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
