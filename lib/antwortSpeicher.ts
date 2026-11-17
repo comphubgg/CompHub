@@ -29,6 +29,7 @@
  * die wichtigsten Antworten vor.
  */
 
+import { FREMD_GRENZE, istStatistikAntwort } from '@/lib/fremdquelleGrenze';
 import { after } from 'next/server';
 import { kennungNamenErsetzen } from '@/lib/kennungName';
 import { liesJson, schreibJson, speicher } from '@/lib/ablage';
@@ -137,6 +138,8 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
   }
   try {
     const zeile = await liesJson<Ablage<T> | null>(name, null);
+    // Vor dem Umstieg auf eigene Daten gerechnet: gilt als nicht vorhanden (lib/fremdquelleGrenze).
+    if (zeile && typeof zeile.zeit === 'number' && zeile.zeit < FREMD_GRENZE && istStatistikAntwort(name)) return null;
     if (zeile && typeof zeile.zeit === 'number') { kennungNamenErsetzen(zeile.wert); merkeImVorrat(name, { zeile, geholt: jetzt }); }
     return zeile;
   } catch (e) {

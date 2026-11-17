@@ -21,6 +21,7 @@ import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdien
 import { teamElimsListe } from '@/lib/elimsArchiv';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { DATEN_ORT } from './datenOrt';
+import { FREMD_GRENZE } from '@/lib/fremdquelleGrenze';
 import { eigenKandidat, eigeneSpieler, type EigeneSpielerZeile } from '@/lib/szeneEigen';
 
 /** Das Verzeichnis der eigenen Spieltage (nur die Eckdaten, ohne Spielerwerte) - der Stundenlauf schreibt es, die Seite liest es. */
@@ -838,7 +839,8 @@ async function akteLesen(epicId: string): Promise<Akte | null> {
   const jetzt = Date.now();
   const da = aktenMerker.get(epicId);
   if (da && da.bis > jetzt) return da.wert;
-  const wert = liesJson<Akte | null>(`${AKTEN}/${epicId}.json`, null);
+  // Akten von vor dem Umstieg auf eigene Daten gelten als nicht vorhanden (lib/fremdquelleGrenze).
+  const wert = liesJson<Akte | null>(`${AKTEN}/${epicId}.json`, null).then((a) => (a && (a.stand ?? 0) < FREMD_GRENZE ? null : a));
   aktenMerker.set(epicId, { bis: jetzt + 60_000, wert });
   // Fehlschlag nicht merken - beim naechsten Mal neu versuchen.
   wert.catch(() => aktenMerker.delete(epicId));
