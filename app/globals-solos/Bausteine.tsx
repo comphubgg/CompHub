@@ -652,7 +652,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         <div className="pointer-events-none absolute inset-0 z-20"><KartenWasserzeichen dicht /></div>
         {/* Landepunkte von Noble Practice: das kleine Noble-Zeichen in der Ecke (lib/nobleZeichen). */}
         {f.kartenQuelle === 'noble' && f.formen.length > 0 && <NobleWasserzeichen />}
-        <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
+        <div aria-hidden className="pointer-events-none absolute right-3 top-3 z-30 flex flex-col items-end opacity-90" style={{ width: 'clamp(56px, 7%, 110px)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />
           <span className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">thecomphub.com</span>
