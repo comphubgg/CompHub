@@ -20,7 +20,7 @@ interface Zeile {
   cut: number | null; cutPunkte: number | null; mitspieler: Array<{ id: string; name: string | null }>; ausserhalb?: boolean;
 }
 interface Antwort {
-  ok: boolean; epicId: string; name: string | null; alteNamen?: string[]; pr?: { platz: number; punkte: number } | null; prTop?: number;
+  ok: boolean; epicId: string; name: string | null; epicName?: string | null; alteNamen?: string[]; pr?: { platz: number; punkte: number } | null; prTop?: number;
   region?: string; zuletzt?: number | null; aktuelleSaison?: string; saisonNamen?: Record<string, string>; zeilen?: Zeile[]; fehler?: string;
 }
 
@@ -110,12 +110,19 @@ export default function TurnierVerlauf({ epicId, aufKopf, aufSpieler }: {
       {/* Kopfangaben: Konto, Region, zuletzt gesehen, Power Ranking, Preisgeld - fuer jedes Konto, auch ohne Profil bei uns. */}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
+          /*
+           * Der Epic-Name des Kontos statt der rohen Hex-Kennung (Betreiber, 17.11.2026: "sieht aus wie eine URL").
+           * Die Kennung bleibt erreichbar: im Tooltip und ueber den kleinen Kopierknopf daneben.
+           */
           ['Konto', (
-            <button key="k" type="button" title={t('Konto-Id kopieren')}
-              onClick={() => { void navigator.clipboard?.writeText(epicId).then(() => { setKopiert(true); setTimeout(() => setKopiert(false), 1500); }); }}
-              className="max-w-full truncate font-mono text-sm text-slate-200 transition hover:text-sky-300">
-              {kopiert ? t('Kopiert') : epicId}
-            </button>
+            <span key="k" className="flex min-w-0 items-center gap-1.5" title={epicId}>
+              <span className="min-w-0 truncate">{d.epicName || d.name || `${epicId.slice(0, 8)}…`}</span>
+              <button type="button" title={`${t('Konto-Id kopieren')}: ${epicId}`} aria-label={t('Konto-Id kopieren')}
+                onClick={() => { void navigator.clipboard?.writeText(epicId).then(() => { setKopiert(true); setTimeout(() => setKopiert(false), 1500); }); }}
+                className="shrink-0 rounded px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 transition hover:bg-zinc-800 hover:text-sky-300">
+                {kopiert ? t('Kopiert') : 'ID'}
+              </button>
+            </span>
           )],
           ['Region', d.region || '—'],
           ['Zuletzt gesehen', datum(d.zuletzt ?? null)],

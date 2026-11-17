@@ -7,6 +7,7 @@ Leerzeichen, Endung jpg, jpeg, png oder webp:
     S40.jpg   oder   CH7S2.jpg
     S41.jpg   oder   CH7S3.jpg
     S42.jpg   oder   CH7S4.jpg
+    S43.webp  (Treasure Hunters, Key Art (c) Epic Games, 1200x675)
 
 Liegt zu einer Saison nichts hier, bleibt das Banner ohne Bild - es wird
 bewusst keine fremde Cup-Grafik eingesetzt.

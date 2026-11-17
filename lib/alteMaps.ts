@@ -352,6 +352,8 @@ function kapitelBild(saison: string): string {
   if (nr <= 27) return '/saisonbilder/CH4.jpg';
   if (nr <= 32) return '/saisonbilder/CH5S4.jpg';
   if (nr <= 38) return '/saisonbilder/CH6S4.webp';
+  // Treasure Hunters hat eigene Key Art von Epic (17.11.2026) - nicht mehr das Bild von Chapter 7 Season 4.
+  if (nr === 43) return '/saisonbilder/S43.webp';
   return '/saisonbilder/CH7S4.jpg';
 }
 

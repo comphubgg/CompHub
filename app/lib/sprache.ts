@@ -4007,6 +4007,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'bis alles Offene fertig ist': 'until everything open is done',
   'Bei dem Tempo der letzten Stunde, ohne neue Cups.': 'At the pace of the last hour, without new cups.',
   'Quellen: Turnierdaten von Epic Games (Turnierkalender, Bestenlisten, Platzierungen, Mitspieler), unsere eigene Replay-Auswertung (Eliminierungen, Schaden, Builds und alles Weitere je Match aus Epics Server-Replays) und unsere eigene Spielerdatenbank (Namen, Länder, Profile).': 'Sources: tournament data from Epic Games (tournament calendar, leaderboards, placements, teammates), our own replay analysis (eliminations, damage, builds and everything else per match from Epic’s server replays) and our own player database (names, countries, profiles).',
+  'Saisonbilder: Fortnite / Epic Games.': 'Season art: Fortnite / Epic Games.',
   'Live folgen': 'Follow live',
   'Nur während des Cups': 'Only during the cup',
   'Niemanden gefunden.': 'Nobody found.',

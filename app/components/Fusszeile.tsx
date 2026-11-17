@@ -162,6 +162,8 @@ export default function Fusszeile() {
         <p>
           <T>Quellen: Turnierdaten von Epic Games (Turnierkalender, Bestenlisten, Platzierungen, Mitspieler), unsere eigene Replay-Auswertung (Eliminierungen, Schaden, Builds und alles Weitere je Match aus Epics Server-Replays) und unsere eigene Spielerdatenbank (Namen, Länder, Profile).</T>
         </p>
+        {/* Die Saisonbilder (public/saisonbilder, z. B. Treasure Hunters S43) sind Epics Key Art. */}
+        <p className="mt-2"><T>Saisonbilder: Fortnite / Epic Games.</T></p>
         {/* Die Spielerfotos stammen von Event-Fotografen (Betreiber, 16.11.2026). */}
         <FotoHinweis className="mt-2" />
       </div>

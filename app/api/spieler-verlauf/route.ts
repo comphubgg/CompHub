@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { kontoVerlauf, namenSuchen, type VerlaufTag } from '@/lib/spielerVerlauf';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { saisonName } from '@/lib/szeneStats';
+import { epicNamen } from '@/lib/epicNamenVorrat';
 
 /*
  * Turnierverlauf und Spielersuche fuer jedes Konto aus unseren Bestenlisten (lib/spielerVerlauf, gerechnet von scripts/spieler-verlauf.mjs).
@@ -43,6 +44,19 @@ async function epicName(id: string): Promise<string | null> {
   } catch { return null; }
 }
 
+/**
+ * Der Epic-Name fuer die Kachel "Konto" im Profil (Betreiber, 17.11.2026: dort stand die rohe Hex-Kennung, "sieht aus wie eine URL").
+ * Dieselbe Quelle wie sonst: epic-namen.json (taeglich fuer die Pros erneuert), dann der Index, dann Epics Namensdienst.
+ * Bewusst nicht der Anzeigename aus lib/anzeigenamen - der steht schon als Titel ueber dem Profil.
+ */
+async function kontoName(id: string, ausIndex: string | null | undefined): Promise<string | null> {
+  // Kalt (nach einem Neustart) braucht die Datei einen Moment - dann nicht darauf warten, sondern den Namen aus dem Index nehmen.
+  const leer: Readonly<Record<string, string>> = {};
+  const namen = await Promise.race([epicNamen().catch(() => leer), new Promise<typeof leer>((r) => setTimeout(() => r(leer), 1500))]);
+  const gepflegt = namen[id];
+  return gepflegt || ausIndex || (await epicName(id));
+}
+
 const json = (d: unknown, sekunden = 60) => NextResponse.json(d, {
   headers: { 'Cache-Control': `public, max-age=${sekunden}, s-maxage=${sekunden * 5}` },
 });
@@ -78,7 +92,8 @@ export async function GET(request: Request) {
   const aktuelleSaison = stand.tage.reduce((a, t) => (t.d > a.d ? t : a), stand.tage[0])?.s ?? '';
 
   if (!konto) {
-    return json({ ok: true, epicId: roh, name: await epicName(roh), zeilen: [], prTop: stand.prTop, aktuelleSaison, stand: stand.erstellt });
+    const name = await kontoName(roh, null);
+    return json({ ok: true, epicId: roh, name, epicName: name, zeilen: [], prTop: stand.prTop, aktuelleSaison, stand: stand.erstellt });
   }
 
   const zeilen = konto.z.map(([d, platz, punkte, matches, preis, mit, zusatz]) => {
@@ -103,8 +118,9 @@ export async function GET(request: Request) {
   const saisonNamen: Record<string, string> = {};
   for (const z of zeilen) saisonNamen[z.saison] ??= saisonName(z.saison);
 
+  const kontoEpicName = await kontoName(roh, konto.n);
   return json({
-    ok: true, epicId: roh, name: konto.n ?? (await epicName(roh)), alteNamen: konto.a ?? [],
+    ok: true, epicId: roh, name: konto.n ?? kontoEpicName, epicName: kontoEpicName, alteNamen: konto.a ?? [],
     pr: konto.pr ? { platz: konto.pr[0], punkte: konto.pr[1] } : null, prTop: stand.prTop,
     region: [...zaehlung].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '',
     zuletzt: zeilen[0]?.datum ?? null,
