@@ -473,7 +473,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
           <>
             {/* FNCS Winners, All-Time Leaderboard, Nationalities, darunter die Grand-Finals-Rekorde. */}
             <div className="mb-8 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
-              <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
+              <p className="text-[13px] font-bold text-slate-100">{t('Nur FNCS: diese Zahlen kommen aus Epics Bestenlisten der Grand Finals und Global Championships, seit {n}.').replace('{n}', alt?.rekorde?.ab || alt?.ab || '…')}</p>
               <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.</T></p>
             </div>
             {alt?.rekorde && (alt.rekorde.fehlend ?? 0) > 0 && (
@@ -541,7 +541,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400"><T>FNCS · Spieler</T></p>
                 <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-50 sm:text-3xl"><T>Eliminierungen in den Grand Finals</T></h2>
                 <p className="mt-1 max-w-2xl text-sm text-slate-400">
-                  <T>Beide Endspieltage jedes Majors zusammen, Europa. Gezählt wird, was das Archiv führt - ab</T> {alt?.ab || '…'}.
+                  <T>Europa, beide Endspieltage jedes Grand Finals zusammen. Epic zählt Eliminierungen je Team: in Duos und Trios steht bei jedem Spieler die Zahl seines Teams. Ab</T> {alt?.ab || '…'}.
                 </p>
               </div>
               <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
@@ -555,7 +555,7 @@ export default function FncsSeite({ anfangListe = null, anfangAlt = null, ersatz
                   <span key={txt} className="flex items-center gap-1.5"><i className={`inline-block h-3 w-3 rounded ${k}`} /> {txt}</span>
                 ))}
                 <span className="flex items-center gap-1.5"><span className="text-slate-700">–</span> <T>nicht gespielt</T></span>
-                <span className="text-slate-500">Elims · <T>beide Endspieltage zusammen</T></span>
+                <span className="text-slate-500"><T>Team-Elims</T> · <T>beide Endspieltage zusammen</T></span>
               </p>
             )}
             {alt && (

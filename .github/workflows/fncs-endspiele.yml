@@ -1,0 +1,44 @@
+name: FNCS-Endspiele holen
+# Die FNCS Grand Finals (Europa) und Global Championships aus Epics eigenen Bestenlisten fuer FNCS -> All-Time Stats
+# (scripts/fncs-endspiele-holen.mjs -> fncs-endspiele.json am Release "daten"). Die Bestenlisten kommen ueber die Schnittstelle der Seite
+# (/api/cup-leaderboard, dort liegt die Anmeldung bei Epic). Wöchentlich und von Hand; ein neues Endspiel aus Epics Katalog kommt von selbst dazu.
+on:
+  workflow_dispatch:
+    inputs:
+      nur:
+        description: 'Nur diese Saisons neu holen, z. B. S40,S41 (leer = alle)'
+        required: false
+        default: ''
+  schedule:
+    # Montags 05:17 UTC - nach dem Wochenende, an dem ein Grand Finals gespielt wird.
+    - cron: '17 5 * * 1'
+
+concurrency:
+  group: fncs-endspiele
+  cancel-in-progress: false
+
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Bisherigen Stand holen
+        continue-on-error: true
+        run: node scripts/ablage-github-holen.mjs fncs-endspiele.json 2>&1 | tail -3
+      - name: Endspiele von Epic holen
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: |
+          if [ -n "${{ inputs.nur }}" ]; then node scripts/fncs-endspiele-holen.mjs --nur "${{ inputs.nur }}"; else node scripts/fncs-endspiele-holen.mjs; fi
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur fncs-endspiele.json --erzwingen 2>&1 | tail -5

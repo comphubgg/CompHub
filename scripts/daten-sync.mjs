@@ -76,7 +76,7 @@ const NUR_RELEASE = [
   /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/, /^akten\//, /^epic-spieltage\//,
   /^platzierungen\//, /^spieler-kreis\//, /^tournament-leaderboards\//, /^power-rankings\//,
   /^replays\//, /^clutch\//, /^replay-voll\//, /^replays-schlank\//, /^scrims\//, /^_/,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten|team-verlauf)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten|fncs-endspiele|team-verlauf)\.json$/,
 ];
 
 const args = process.argv.slice(2);
