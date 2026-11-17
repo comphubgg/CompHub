@@ -90,8 +90,8 @@ export default function FotoQuellen({ className = '' }: { className?: string }) 
   return (
     <>
       <button type="button" onClick={() => setOffen(true)} aria-haspopup="dialog" data-foto-quellen
-        className={`inline-flex items-center gap-1.5 text-xs text-slate-500 transition hover:text-slate-200 ${className}`}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        className={`inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-sm font-medium text-slate-200 transition hover:border-white/30 hover:bg-white/10 hover:text-white ${className}`}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13.5" r="3.5" />
         </svg>
         <T>Fotos von</T>
