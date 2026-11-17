@@ -30,6 +30,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import FotoHinweis from '@/app/components/FotoHinweis';
 import StatistikIntro from './StatistikIntro';
 import KonstanzKarte from './KonstanzKarte';
 import TurnierVerlauf, { type VerlaufKopf } from './TurnierVerlauf';
@@ -6307,6 +6308,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </div>
               </div>
             </section>
+            {/* Die Fotos stammen von Event-Fotografen - der allgemeine Hinweis (Betreiber, 16.11.2026); ein bestaetigter Name steht am Foto selbst. */}
+            {offen.bild && <FotoHinweis className="mt-2 px-1 text-right" />}
 
             {/* Pflege - nur fuer den Admin */}
             {istAdmin && (

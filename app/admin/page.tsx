@@ -103,6 +103,8 @@ const NUR_ADMIN: Ziel[] = [
   // Wichtige Spieler ohne Flagge oder X-Konto, wie eine Tabelle (16.11.2026) - nur fuer den Admin (die Schnittstelle prueft das auch), nie von oeffentlichen
   // Seiten verlinkt.
   { href: '/admin/flaggen', titel: 'Flaggen & X', text: 'Wichtige Spieler ohne Flagge oder X-Konto nachtragen' },
+  // Neue Spielerfotos mit Fotograf, Quelle und Lizenz (17.11.2026) - oeffentlich steht nur Bestaetigtes am Foto.
+  { href: '/admin/fotos-credits', titel: 'Fotos & Fotografen', text: 'Spielerfotos hochladen, Fotografen nennen und bestätigen' },
   // Die Maps ohne Landepunkte aus dem Archiv: Formen, Teams und Leaderboard je Karte von Hand (13.10.2026).
   { href: '/admin/alte-maps', titel: 'Alte Maps',
     text: 'Karten von Hand pflegen: Formen, Teams, Leaderboard' },

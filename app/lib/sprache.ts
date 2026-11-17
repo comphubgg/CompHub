@@ -929,6 +929,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Feedback': 'Feedback',
   ['Wie es sich anfühlt']: 'How it feels to use',
   ['Formular im Werkzeug →']: 'Form inside the tool →',
+  /* Spielerfotos: Hinweis und Fotografen-Angaben (app/components/FotoHinweis.tsx, FotoCredit.tsx, /fotos-pruefen). */
+  ['Spielerfotos © bei den jeweiligen Fotografen.']: 'Player photos © their respective photographers.',
+  ['Soll ein Foto genannt oder entfernt werden?']: 'Want a photo credited or removed?',
+  ['Schreib uns.']: 'Contact us.',
   ['Nicht mit Epic Games verbunden. Alle Marken gehören ihren Inhabern.']:
     'Not affiliated with Epic Games. All trademarks belong to their owners.',
   ['Statistiken, Turniere und Streams der kompetitiven Fortnite-Szene — an einem Ort, aus einem Archiv.']:

@@ -10,6 +10,7 @@ import { SPRACH_COOKIE } from './lib/sprache';
 import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
 import FotoFokus from './components/FotoFokus';
+import FotoCredit from './components/FotoCredit';
 import DashAnsicht from './components/DashAnsicht';
 import NeuerStand from './components/NeuerStand';
 import PreviewTour from './components/PreviewTour';
@@ -240,6 +241,8 @@ export default async function RootLayout({
           </Suspense>
           <Sprachschalter />
           <FotoFokus />
+          {/* Bestaetigte Fotografen-Angaben am Foto (lib/fotoCredits.ts). */}
+          <FotoCredit />
           <DashAnsicht />
           {/* Der Hinweis, dass eine neue Fassung bereitsteht. Er steht im
               Rahmen, damit er auf jeder Seite erscheint - ein Tab, der einen

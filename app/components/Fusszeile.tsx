@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useDiscordEinladung } from '@/app/components/DiscordKnopf';
+import FotoHinweis from '@/app/components/FotoHinweis';
 
 /*
  * Die Fusszeile - unter der Startseite und unter dem Dashboard.
@@ -161,6 +162,8 @@ export default function Fusszeile() {
         <p>
           <T>Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Schaden, Heilung, Builds und alles Weitere je Match selbst ausgewertet aus Epics Server-Replays.</T>
         </p>
+        {/* Die Spielerfotos stammen von Event-Fotografen (Betreiber, 16.11.2026). */}
+        <FotoHinweis className="mt-2" />
       </div>
     </footer>
   );

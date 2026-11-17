@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { speicher, liesJson, schreibJson } from '@/lib/ablage';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { creditEingabe, setzeCredits, type FotoCredit } from '@/lib/fotoCredits';
 
 /*
  * Ein Spielerfoto hochladen - aus dem Admin-Werkzeug der E-Sports-Teams.
@@ -11,6 +12,8 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
  * Foto laesst sich ersetzen, muss aber nicht.
  *
  *   POST (Formular: datei, epicId, name)   nur Admin
+ *        dazu wahlweise die Angaben zum Foto (lib/fotoCredits.ts): fotograf, quelle, link, lizenz, bestaetigt, wahrscheinlich, notiz
+ *        - /admin/fotos-credits schickt sie gleich beim Hochladen mit (Betreiber, 17.11.2026).
  *   GET  ?datei=spielerfotos/...webp       das Bild ausliefern
  *
  * Abgelegt als WebP (hoechstens 600 px hoch) im Objektspeicher; die
@@ -90,13 +93,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ fehler: 'This file is not an image.' }, { status: 400 });
   }
 
+  const credit = creditEingabe((f) => { const v = form?.get(f); return typeof v === 'string' ? v : undefined; });
+  /** Die Angaben zum Foto ablegen - scheitert das, ist das Foto trotzdem da; die Antwort sagt es. */
+  const mitCredit = async (dateiName: string): Promise<{ credit?: FotoCredit | null; creditFehler?: string }> => {
+    if (!Object.keys(credit).length) return {};
+    try { return { credit: (await setzeCredits([dateiName], credit))[dateiName] }; }
+    catch (e) { return { creditFehler: `Photo saved, but the credit was not: ${(e as Error).message}` }; }
+  };
+
   const kurz = (name || 'spieler').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'spieler';
   const dateiName = `${kurz}-${ohneKonto ? 'org' : epicId.slice(0, 8)}-${Date.now().toString(36)}.webp`;
   if (ohneKonto) {
     try { await speicher.schreib(ORDNER + dateiName, bild); }
     catch { return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 424 }); }
-    return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}` });
+    return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}`, datei: dateiName, ...await mitCredit(dateiName) });
   }
   try {
     await speicher.schreib(ORDNER + dateiName, bild);
@@ -108,5 +119,5 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 424 });
   }
-  return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}` });
+  return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}`, datei: dateiName, ...await mitCredit(dateiName) });
 }
