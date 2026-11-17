@@ -16,6 +16,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
+import { FREIGEGEBEN, kennungGesperrt } from '../lib/fotoSperre.mjs';
 
 const QUELLE = path.join(process.cwd(), 'public', 'spielerbilder');
 const ZIEL = path.join(process.cwd(), 'public', 'spielerbilder-klein');
@@ -32,11 +33,19 @@ async function main() {
    */
   const gesperrt = new Set(JSON.parse(await fs.readFile(path.join(process.cwd(), 'lib', 'fotoGesperrt.json'), 'utf8')));
   const kennung = async (datei) => createHash('sha1').update(await fs.readFile(datei)).digest('hex').slice(0, 8);
+  // Freigegebene alte Fotos (lib/fotoSperre.mjs FREIGEGEBEN) bleiben - samt ihrer kleinen Fassung, solange das freigegebene Original daliegt.
+  const freiNamen = new Set();
+  for (const d of await fs.readdir(QUELLE)) {
+    if (!/\.(jpe?g|png)$/i.test(d)) continue;
+    const k = await kennung(path.join(QUELLE, d));
+    if (FREIGEGEBEN[k] === d) freiNamen.add(d.replace(/\.(jpe?g|png)$/i, ''));
+  }
   let entfernt = 0;
   for (const ordner of [QUELLE, ZIEL]) {
     for (const d of await fs.readdir(ordner)) {
       if (!/\.(jpe?g|png|webp)$/i.test(d)) continue;
-      if (gesperrt.has(await kennung(path.join(ordner, d)))) {
+      if (ordner === ZIEL && freiNamen.has(d.replace(/\.webp$/i, ''))) continue;
+      if (kennungGesperrt(await kennung(path.join(ordner, d)), gesperrt)) {
         await fs.rm(path.join(ordner, d), { force: true });
         entfernt += 1;
         console.warn(`Gesperrtes altes Foto entfernt: ${path.relative(process.cwd(), path.join(ordner, d))}`);

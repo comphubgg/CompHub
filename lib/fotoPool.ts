@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import { aendereJson, liesJson, speicher } from '@/lib/ablage';
 import { CREDIT_DATEI, mitAenderung, type CreditEingabe, type CreditTafel, type FotoCredit } from '@/lib/fotoCredits';
 import gesperrtListe from '@/lib/fotoGesperrt.json';
+import { kennungGesperrt } from '@/lib/fotoSperre.mjs';
 
 /*
  * Der Foto-Pool (Betreiber, 17.11.2026): der Betreiber schickt viele Spielerfotos ohne Namen. Wir schneiden sie zu (scripts/fotos-pool-import.mjs),
@@ -78,7 +79,7 @@ async function aenderePool(f: (t: PoolTafel) => void): Promise<PoolTafel> {
 const GESPERRT = new Set(gesperrtListe as string[]);
 export const sha1 = (b: Buffer) => crypto.createHash('sha1').update(b).digest('hex');
 /** Wie lib/fotoGesperrt.json: die ersten acht Zeichen des SHA-1. Die alten, entfernten Fotos (lib/fotoSperre.mjs) duerfen nie zurueck. */
-export const istGesperrt = (b: Buffer) => GESPERRT.has(sha1(b).slice(0, 8));
+export const istGesperrt = (b: Buffer) => kennungGesperrt(sha1(b).slice(0, 8), GESPERRT);
 
 /** dHash: 9x8 Graustufen, je Zeile "heller als rechts daneben?" - 64 Bit als Hex. Gleiches Motiv, anders gespeichert/verkleinert => fast gleicher Hash. */
 export async function wahrnehmungsHash(b: Buffer): Promise<string> {
