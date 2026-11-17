@@ -18,10 +18,14 @@ export const NOBLE_ZEICHEN = `${NOBLE_MARKE} · ${NOBLE_DOMAIN}`;
  * Auf eine Leinwand zeichnen: das kleine Schild unten links im Rechteck (x, y, b, h).
  * `schildUnten` hebt das Schild ueber einen Fuss (z. B. ein Band mit Logo) an.
  */
+const NOBLE_ZEICHEN_AUS = true;
+
 export function zeichneNobleZeichen(
   g: CanvasRenderingContext2D, x: number, y: number, b: number, h: number,
   o: { schrift?: string; schildUnten?: number } = {},
 ): void {
+  // Abgeschaltet (Betreiber, 17.11.2026: "entferne das fuer immer"; Noble: nach angepassten Formen kein Wasserzeichen noetig).
+  if (NOBLE_ZEICHEN_AUS) return;
   const schrift = o.schrift ?? 'Segoe UI, system-ui, sans-serif';
   const s = Math.min(b, h);
 

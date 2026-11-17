@@ -7,7 +7,11 @@
  */
 import { NOBLE_DOMAIN, NOBLE_MARKE } from '@/lib/nobleZeichen';
 
+const AUS = true;
+
 export default function NobleWasserzeichen() {
+  // Abgeschaltet (Betreiber, 17.11.2026: "entferne das fuer immer"; Noble: nach angepassten Formen kein Wasserzeichen noetig).
+  if (AUS) return null;
   // Oben links: unten links liegen auf manchen Karten Knoepfe ("Whole map"), die das Zeichen verdeckten (16.11.2026).
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden" data-noble-zeichen>
