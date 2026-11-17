@@ -94,8 +94,12 @@ for (const w of liste) {
   await Promise.all(Array.from({ length: 5 }, async () => {
     while (naechste < seiten) nehmen(await seite(d, naechste++));
   }));
-  const vorher = JSON.stringify([d.epicDmg, d.epicZeit, d.epicStrecke, d.epicKopf, d.epicTeamZeit]);
-  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; d.epicTeamZeit = teamZeit; } else { d.epicDmg = werte; d.epicZeit = zeit; d.epicStrecke = strecke; d.epicKopf = kopf; }
+  const gleichSortiert = (o) => (o && typeof o === 'object' ? Object.fromEntries(Object.entries(o).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) : o);
+  const vorher = JSON.stringify([d.epicDmg, d.epicZeit, d.epicStrecke, d.epicKopf, d.epicTeamZeit].map(gleichSortiert));
+  // Nach Id sortiert: die Seiten kommen zu fuenft parallel, die Reihenfolge der Eintraege wechselt - ohne Sortieren galt fast jede Datei als geaendert
+  // (17.11.2026: je Ablage 40 Spieltage gelesen, nur 2 bis 24 "unveraendert").
+  const sortiert = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)));
+  if (team) { delete d.epicDmg; delete d.epicZeit; delete d.epicStrecke; delete d.epicKopf; d.epicTeamZeit = sortiert(teamZeit); } else { d.epicDmg = sortiert(werte); d.epicZeit = sortiert(zeit); d.epicStrecke = sortiert(strecke); d.epicKopf = sortiert(kopf); }
   standDatei[w] = new Date().toISOString();
   /*
    * Unveraendert: die (oft zig MB grosse) Spieltags-Datei bleibt, wie sie ist - nur der Zeitpunkt kommt nach clutch/_epic-stand.json (16.11.2026). Vorher
