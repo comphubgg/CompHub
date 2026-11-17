@@ -1499,7 +1499,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
        * ohne die Antwort aufzublaehen.
        */
       .slice(0, LISTEN_LAENGE),
-  }));
+  })).filter((l) => l.feld === 'elims' || l.plaetze.length > 0); // Keine leere Kachel: was unsere Daten nicht fuehren (Material, Schuesse ...), faellt weg.
 
   /*
    * Die Eliminierungen ueber alle ausgewerteten Spieltage - je Spieler.
@@ -1899,7 +1899,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       .filter((s) => Number(s[k.feld]) > 0 && (k.feld === 'quote' ? s.matches >= quoteMindest : true))
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
       .slice(0, LISTEN_LAENGE),
-  }));
+  })).filter((l) => l.feld === 'elims' || l.plaetze.length > 0);
   const namen = new Map(feld.map((s) => [s.epicId, s]));
 
   /*
