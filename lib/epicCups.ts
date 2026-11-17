@@ -363,8 +363,24 @@ const NAMEN_ABLAGE = 'epic-namen.json';
 
 /** Wurde die Datei in diesem Vorgang schon gelesen? */
 let namenGeladen = false;
-/** Steht etwas Neues zum Schreiben an? */
-let namenSchmutzig = false;
+/**
+ * Was seit dem letzten erfolgreichen Schreiben neu aufgeloest wurde (Id -> Name) - nur das geht hinaus.
+ *
+ * Bis 17.11.2026 schrieb namenSichern() den ganzen Zwischenspeicher dieses Vorgangs als neue epic-namen.json. Mehrere Vorgaenge
+ * (Instanzen, Routen) mit unterschiedlich grossem Vorrat schrieben abwechselnd: im Archiv sprang die Datei alle ein bis drei Sekunden
+ * zwischen 8.000 und 21.000 Eintraegen (gemessen am Commit-Verlauf von comphub-daten), und was der kleinere Vorrat nicht kannte, war
+ * weg. Ausserdem war das die meiste Last in der einen Schreibreihe (lib/ablageGitDaten), in der dann die Foto-Pool-Speicherungen
+ * warteten. Jetzt: nur Neues, hoechstens einmal je NAMEN_ABSTAND_MS, und auf den frisch gelesenen Stand gesetzt (aendereJson) -
+ * vorhandene Eintraege bleiben, ein Name wird nur durch einen frisch von Epic geholten, gueltigen ersetzt.
+ */
+const namenNeu = new Map<string, string>();
+const NAMEN_ABSTAND_MS = 60_000;
+let namenZuletztGeschrieben = 0;
+let namenSchreibtGerade = false;
+let namenUhr: ReturnType<typeof setTimeout> | null = null;
+
+/** Ein Name, der in den Vorrat darf: nicht leer und keine gekuerzte Id (siehe unten). */
+const gueltigerName = (id: string, name: string | undefined): name is string => Boolean(name) && name !== id.slice(0, 8);
 
 async function namenLaden(): Promise<void> {
   if (namenGeladen) return;
@@ -374,25 +390,44 @@ async function namenLaden(): Promise<void> {
     const gespeichert = await liesJson<Record<string, string>>(NAMEN_ABLAGE, {});
     for (const [id, name] of Object.entries(gespeichert)) {
       // Fruehere Fassungen legten auch gekuerzte Ids ab - die sind kein Name.
-      if (!nameCache.has(id) && name && name !== id.slice(0, 8)) nameCache.set(id, name);
+      if (!nameCache.has(id) && gueltigerName(id, name)) nameCache.set(id, name);
     }
   } catch { /* ohne Vorrat wird eben neu aufgeloest */ }
 }
 
 /**
- * Zurueckschreiben - beilaeufig, nicht im Weg der Antwort.
+ * Zurueckschreiben - beilaeufig, nicht im Weg der Antwort, gesammelt.
  *
- * Ein Besucher soll nicht darauf warten, dass fuenfhundert Namen abgelegt
- * werden. Schlaegt es fehl, ist auch das kein Grund, die Bestenliste nicht
- * auszuliefern: dann wird beim naechsten Mal wieder aufgeloest.
+ * Ein Besucher soll nicht darauf warten, dass Namen abgelegt werden. Schlaegt es fehl, ist auch das kein Grund, die Bestenliste nicht
+ * auszuliefern: die Namen bleiben vorgemerkt und gehen beim naechsten Mal mit.
  */
-async function namenSichern(): Promise<void> {
-  if (!namenSchmutzig) return;
-  namenSchmutzig = false;
+function namenSichern(): void {
+  if (!namenNeu.size || namenSchreibtGerade || namenUhr) return;
+  const warten = namenZuletztGeschrieben + NAMEN_ABSTAND_MS - Date.now();
+  if (warten > 0) {
+    namenUhr = setTimeout(() => { namenUhr = null; namenSichern(); }, warten);
+    namenUhr.unref?.();
+    return;
+  }
+  void namenJetztSchreiben();
+}
+
+async function namenJetztSchreiben(): Promise<void> {
+  namenSchreibtGerade = true;
+  const teil = new Map(namenNeu);
   try {
-    const { schreibJson } = await import('@/lib/ablage');
-    await schreibJson(NAMEN_ABLAGE, Object.fromEntries(nameCache));
-  } catch { /* beim naechsten Mal wieder */ }
+    const { aendereJson } = await import('@/lib/ablage');
+    const stand = await aendereJson<Record<string, string>>(NAMEN_ABLAGE, {}, (vorrat) => {
+      for (const [id, name] of teil) if (gueltigerName(id, name)) vorrat[id] = name;
+    }, 1);
+    // Geschrieben: aus der Vormerkung nehmen, was inzwischen nicht schon wieder neuer ist.
+    for (const [id, name] of teil) if (namenNeu.get(id) === name) namenNeu.delete(id);
+    // Was andere Vorgaenge abgelegt haben, kennt jetzt auch dieser.
+    for (const [id, name] of Object.entries(stand)) if (!nameCache.has(id) && gueltigerName(id, name)) nameCache.set(id, name);
+  } catch { /* bleibt vorgemerkt - beim naechsten Mal wieder */ }
+  namenZuletztGeschrieben = Date.now();
+  namenSchreibtGerade = false;
+  namenSichern();
 }
 
 let namenGebremstBis = 0;
@@ -468,15 +503,18 @@ export async function loeseNamenAuf(ids: string[], token: string) {
        * auch wenn Epic den Namen spaeter wieder kennt.
        */
       // Auch nicht im Speicher des Vorgangs (15.11.2026: sonst blieb ein Konto bis zum Neustart "b830d2ba"); nur eine Minute nicht neu fragen.
-      if (name !== acc.id.slice(0, 8)) { namenSchmutzig = true; nameCache.set(acc.id, name); } else ohneNamenBis.set(acc.id, Date.now() + 60_000);
+      if (gueltigerName(acc.id, name)) {
+        if (nameCache.get(acc.id) !== name) namenNeu.set(acc.id, name);
+        nameCache.set(acc.id, name);
+      } else ohneNamenBis.set(acc.id, Date.now() + 60_000);
       if (ohneNamenBis.size > 50_000) ohneNamenBis.clear();
       out[acc.id] = name;
     }
   }
   for (const id of fehlend) if (!out[id]) out[id] = id.slice(0, 8);
 
-  // Beilaeufig ablegen, ohne die Antwort aufzuhalten.
-  void namenSichern();
+  // Beilaeufig ablegen, ohne die Antwort aufzuhalten (gesammelt, siehe namenNeu).
+  namenSichern();
   return out;
 }
 
