@@ -18,6 +18,7 @@
 
 import { speicher, schreibJson } from '@/lib/ablage';
 import { orgBild } from '@/lib/bildAdressen';
+import { adresseFrei } from '@/lib/spielerbildKlein';
 
 export const ORGS_DATEI = 'orgs.json';
 /** Das Jahr, dessen Preisgeld gezaehlt wird. */
@@ -179,7 +180,8 @@ export function saeubere(o: Partial<Org>): Org {
         tiktok: rolle === 'creator' ? konto(s?.tiktok) : null,
         youtube: rolle === 'creator' ? konto(s?.youtube) : null,
         // Auch Bilder im Ordner der Org (public/orgs/<org>/...) - z. B. die X-Profilbilder der CLUE-Spieler ohne CompHub-Foto (31.10.2026).
-        bild: /^\/(spielerbilder|orgs\/[a-z0-9-]+)\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
+        // Gesperrte alte Spielerfotos (17.11.2026, lib/fotoSperre.mjs) fallen weg - dann der Platzhalter.
+        bild: /^\/(spielerbilder|orgs\/[a-z0-9-]+)\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) && adresseFrei(String(s.bild)) ? String(s.bild) : null,
         liquipedia: s?.liquipedia ? text(s.liquipedia, 120) : null,
         beleg: s?.beleg ? text(s.beleg, 200) : null,
       };
