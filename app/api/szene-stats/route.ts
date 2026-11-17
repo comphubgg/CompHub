@@ -8,7 +8,7 @@ import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, saisonKurz, startseite, summen, tagesbeste, verlauf, epicVerlauf,
-  istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
+  istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, verdienstPostenAlle, lanErgebnisse, type SpielerSumme,
   JAHR_SAISONS, summeAusVerlauf,
   clutchFuerSaison,
 } from '@/lib/szeneStats';
@@ -519,7 +519,7 @@ async function holeRoh(request: Request) {
    * nur der Laufrechner; hier wird der letzte fertige Stand ausgeliefert,
    * auch wenn er ein paar Stunden alt ist.
    */
-  const archivWeit = ['jahr', 'start', 'bilder', 'suche'].includes(url.searchParams.get('ansicht') ?? '')
+  const archivWeit = ['jahr', 'start', 'bilder', 'suche', 'verdienst-posten'].includes(url.searchParams.get('ansicht') ?? '')
     || url.searchParams.has('sort') || url.searchParams.has('q');
   if (archivWeit && ohneDateien()) {
     let fertig: unknown = null;
@@ -665,6 +665,14 @@ async function berechne(request: Request) {
      * Das Jahr - ueber alle Saisons, mit Preisgeld. Ueber die Ablage der
      * fertigen Antworten (siehe GET unten), gerechnet vom stuendlichen Lauf.
      */
+    /*
+     * Das Preisgeld aller Zeiten je Konto, Posten fuer Posten (lib/szeneStats verdienstPostenAlle) - dieselbe Rechnung wie "Most earnings"
+     * aller Zeiten. Nur fuer den Turnierverlauf (scripts/spieler-verlauf.mjs liest die abgelegte Antwort vom Release); gerechnet vom stuendlichen Lauf.
+     */
+    if (p.get('ansicht') === 'verdienst-posten') {
+      return NextResponse.json({ success: true, ...(await verdienstPostenAlle()) });
+    }
+
     if (p.get('ansicht') === 'jahr') {
       const jahrRoh = p.get('jahr') ?? '';
       const jahr = jahrRoh === 'alle' || jahrRoh === 'all' ? 0

@@ -2658,6 +2658,11 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   const [indexTreffer, setIndexTreffer] = useState<IndexTreffer[]>([]);
   const [indexSucht, setIndexSucht] = useState<'' | 'laeuft' | 'nichts'>('');
   const [verlaufKopf, setVerlaufKopf] = useState<(VerlaufKopf & { epicId: string }) | null>(null);
+  /**
+   * Die bezahlten Spieltage aus dem Turnierverlauf (/api/spieler-verlauf) - dieselben Posten wie "Most earnings" (lib/szeneStats geldRechnen).
+   * Der Reiter "Verdienst" nimmt sie, wo sie da sind; so zeigen Verlauf, Verdienst und die Preisgeldliste dieselbe Summe (Betreiber, 17.11.2026).
+   */
+  const [indexGeld, setIndexGeld] = useState<{ epicId: string; zeilen: VerlaufZeile[] } | null>(null);
   const aufVerlaufKopf = useCallback((k: VerlaufKopf, epicId: string) => {
     setVerlaufKopf({ ...k, epicId });
     // Ohne Namen geoeffnet (Link mit Konto-Id): der Name aus dem Index.
@@ -3905,6 +3910,17 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
       .then((j) => {
         if (weg || !j?.ok) return;
         aufVerlaufKopf({ name: j.name ?? null, region: j.region ?? '', zuletzt: j.zuletzt ?? null, events: (j.zeilen ?? []).length }, id);
+        type IndexZeile = { w: string; titel: string; runde: string; region: string; saison: string; datum: number | null; platz: number; punkte: number;
+          preis: number; mitspieler: Array<{ id: string; name: string | null }> };
+        setIndexGeld({
+          epicId: id,
+          zeilen: ((j.zeilen ?? []) as IndexZeile[]).filter((z) => z.preis > 0).map((z) => ({
+            event: [z.titel, z.runde].filter(Boolean).join(' · '), windowId: z.w, region: z.region, season: z.saison,
+            datum: z.datum ?? undefined, platz: z.platz || null, punkte: z.platz ? z.punkte : null, verdienst: z.preis,
+            mitspieler: z.mitspieler.map((m) => ({ epicId: m.id, name: m.name ?? m.id.slice(0, 8), land: null })),
+            werte: {} as VerlaufZeile['werte'], nurEpic: true,
+          })),
+        });
       })
       .catch(() => { /* ohne Index bleibt der Kopf, wie er ist */ });
     return () => { weg = true; };
@@ -6929,14 +6945,16 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                  * gepflegten Tabelle; LAN-Events je Konto aus der LAN-Datei.
                  */
                 (() => {
-                  const zeilen = [...verlauf, ...epicZeilen]
-                    .filter((z) => typeof z.verdienst === 'number' && z.verdienst > 0)
-                    .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+                  // Aus dem Turnierverlauf, sobald er geladen ist: genau die Posten von "Most earnings" (LANs eingeschlossen).
+                  const ausIndex = indexGeld && indexGeld.epicId === offen.epicId ? indexGeld.zeilen : null;
+                  const zeilen = (ausIndex ?? [...verlauf, ...epicZeilen]
+                    .filter((z) => typeof z.verdienst === 'number' && z.verdienst > 0))
+                    .slice().sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
                   // Ein LAN steht entweder als Zeile mit Verdienst da (Epics Fenster
                   // liegt im Archiv) oder kommt aus der LAN-Datei - nie beides.
                   // Zugeordnet ueber das Fenster (Escargo, Bratwurst, BambiRaptor,
-                  // Dinosauron), nicht ueber Kuerzel im Namen.
-                  const lanOhneZeile = lanErgebnisse.filter((l) =>
+                  // Dinosauron), nicht ueber Kuerzel im Namen. Der Verlauf traegt die LANs schon selbst.
+                  const lanOhneZeile = ausIndex ? [] : lanErgebnisse.filter((l) =>
                     !zeilen.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0]));
                   const gesamt = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
                     + lanOhneZeile.reduce((a, l) => a + l.betrag, 0);

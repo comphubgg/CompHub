@@ -109,7 +109,8 @@ export async function GET(request: Request) {
       cut: t.q ?? null, cutPunkte: t.qp ?? null,
       mitspieler: mit.map((id) => ({ id, name: konto.m?.[id] ?? null })),
       // Hinter dem Ende unserer Liste (Epic gibt diesen Platz nur fuer das eigene Konto heraus).
-      ...(zusatz ? { ausserhalb: true } : {}),
+      // (Kennung 2: die Zeile kam aus den Preisgeld-Posten - ein Grand Final, eine LAN - und steht ganz normal in der Liste.)
+      ...(zusatz === 1 ? { ausserhalb: true } : {}),
     };
   }).filter(<T,>(x: T | null): x is T => x !== null);
 

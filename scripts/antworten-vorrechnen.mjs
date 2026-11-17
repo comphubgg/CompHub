@@ -71,6 +71,8 @@ function wege(saisons) {
     '/api/szene-stats?ansicht=jahr&jahr=2019',
     // Die ganze Preisgeldliste je Jahr - hinter dem Plus, hundert je Seite.
     '/api/szene-stats?ansicht=jahr&jahr=alle&liste=verdienst',
+    // Dieselbe Rechnung Posten fuer Posten je Konto - davon nimmt der Turnierverlauf im Profil sein Preisgeld (scripts/spieler-verlauf.mjs).
+    '/api/szene-stats?ansicht=verdienst-posten',
     ...[2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
       .map((j) => `/api/szene-stats?ansicht=jahr&jahr=${j}&liste=verdienst`),
     '/api/szene-stats?ansicht=bilder',
@@ -280,7 +282,7 @@ async function los() {
       // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv, das Preisgeld der Orgs) duerfen laenger - und zwar
       // wirklich (siehe hole): abgebrochen rechnet der Server trotzdem weiter und blockiert die naechste.
       // 16.11.2026: auch die Startansicht jeder Saison und die Preisgeldlisten - S43-Start brauchte ueber 180 s, die Clutch-Liste 225 s.
-      const schwer = /ansicht=akten|ansicht=start|ansicht=jahr&jahr=alle(&|$)|liste=verdienst|orgs\?ansicht=verdienst/.test(weg);
+      const schwer = /ansicht=akten|ansicht=start|ansicht=jahr&jahr=alle(&|$)|liste=verdienst|ansicht=verdienst-posten|orgs\?ansicht=verdienst/.test(weg);
       // Eine Akten-Schale allein darf die ganze Frist haben (gemessen ueber 900 s je Schale, 16.11.2026).
       const r = await hole(weg, aktenArg ? rest : Math.min(rest, schwer ? 900_000 : 180_000));
       if (r.status < 200 || r.status >= 300) throw new Error(String(r.status));

@@ -88,8 +88,10 @@ jobs:
         if: steps.art.outputs.voll == 'true'
         run: curl -fsSL "https://github.com/${{ github.repository }}/releases/download/daten-spieltage-alt/epic-spieltage-alt.tar.gz" | tar xz -C data
 
+      # Das Preisgeld je Konto und Spieltag kommt aus derselben Rechnung wie "Most earnings" (antworten/szene_ansicht=verdienst-posten.json,
+      # vorgerechnet von daten-erneuern.yml) - Verdienst-Akte und Tabellen bleiben fuer den Fall, dass sie noch nicht vorliegt.
       - name: Katalog, Preisgeld, Namen, Power Ranking
-        run: node scripts/ablage-github-holen.mjs cup-archiv.json preisgeld-tabellen.json verdienst-archiv.json epic-namen.json power-rankings/global.json 2>&1 | tail -3
+        run: node scripts/ablage-github-holen.mjs cup-archiv.json preisgeld-tabellen.json verdienst-archiv.json epic-namen.json power-rankings/global.json 'antworten/szene_ansicht=verdienst-posten.json' 2>&1 | tail -4
 
       - name: Rechnen
         run: |
