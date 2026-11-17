@@ -4906,6 +4906,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Zu diesem Spieltag liefert Epic keine einzelnen Runden.']:
     'Epic reports no individual rounds for this match day.',
   'Match-ID kopieren': 'Copy Match ID',
+  'Match': 'Match',
+  'Name filtern': 'Filter by name',
+  'Alle Freunde (Admin)': 'All friends (admin)',
+  'Wie lange die Sitzung gesehen wurde': 'How long the session was seen',
+  'Alle Epic-Freunde': 'All Epic friends',
+  ['Alle Freunde der beiden CompHub-Epic-Konten - live, Match-ID und Verlauf']:
+    'All friends of both CompHub Epic accounts - live, match ID and history',
   'Lebenszeit': 'Time alive',
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',

@@ -275,6 +275,18 @@ function dienstStarten() {
   void lauf();
 }
 
+/** Eine einzelne Abfrage beim XMPP-Dienst (etwa /verlauf, /freunde?alle=1) - null ohne Dienst oder wenn er nicht antwortet. */
+export async function dienstAbruf<T>(pfad: string): Promise<T | null> {
+  if (!DIENST) return null;
+  try {
+    const r = await fetch(`${DIENST}${pfad}`, {
+      headers: process.env.XMPP_DIENST_GEHEIM ? { Authorization: `Bearer ${process.env.XMPP_DIENST_GEHEIM}` } : {},
+      cache: 'no-store', signal: AbortSignal.timeout(4_000),
+    });
+    return r.ok ? await r.json() as T : null;
+  } catch { return null; }
+}
+
 /** Fuer die Statuszeile der Admins (Match-ID-Anzeige): woher die Status kommen, seit wann verbunden, wie viele Freunde. */
 export function freundeDienstStatus() {
   if (DIENST && dienst.erreichbar && dienst.status) {

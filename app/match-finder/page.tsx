@@ -23,7 +23,10 @@ interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund';
 interface FScrim { beendet?: boolean; session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
 interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null; freund?: boolean }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }
-interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[] }
+/** Eine Sitzung im Verlauf (lib/matchVerlauf): zuerst und zuletzt gesehen, Cup oder Playlist. */
+interface FVerlauf { matchId: string; von: string; bis: string; playlist: string | null; zeile?: string; windowId?: string | null; titel?: string | null }
+interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[]; verlauf?: Record<string, FVerlauf[]> }
+interface FFreund { id: string; name: string; live: FLive | null; verlauf: FVerlauf[] }
 
 const SPEICHER = 'match-finder-favoriten';
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
@@ -33,7 +36,8 @@ function spielart(p: string | null): string | null {
   if (!p) return null;
   const k = p.replace(/^Playlist_/i, '');
   const groesse = /solo/i.test(k) ? 'Solo' : /duo/i.test(k) ? 'Duos' : /trio/i.test(k) ? 'Trios' : /squad/i.test(k) ? 'Squads' : '';
-  const art = /showdown|tournament|arena/i.test(k) ? 'Tournament'
+  const art = /habanero|ranked/i.test(k) ? 'Ranked'
+    : /showdown|tournament|arena/i.test(k) ? 'Tournament'
     : /playground|creative|custom|private/i.test(k) ? 'Custom lobby / scrim'
       : /respawn|reload|blastberry|punchberry/i.test(k) ? 'Reload'
         : /nobuild|nobuildbr/i.test(k) ? 'Zero Build' : 'Match';
@@ -43,6 +47,125 @@ function spielart(p: string | null): string | null {
 function uhrzeit(iso: string | null) {
   const d = iso ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+function datumZeit(iso: string) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Wie lange die Sitzung gesehen wurde: "<1 min", "14 min", "1 h 05 min". */
+function dauer(von: string, bis: string) {
+  const min = Math.round(((Date.parse(bis) || 0) - (Date.parse(von) || 0)) / 60_000);
+  if (min < 1) return '<1 min';
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+}
+
+const verlaufStil = { fontFamily: 'Inter, var(--font-sans), system-ui, sans-serif' };
+
+/*
+ * Der Verlauf unter dem Live-Kasten (Betreiber, 17.11.2026): jede gesehene Sitzung bleibt stehen, auch nachdem der Spieler das Match verlassen hat -
+ * Cup-Titel (sonst die Playlist), Datum und Uhrzeit, Match-ID zum Kopieren, wie lange gesehen. Neueste zuerst.
+ */
+function Verlauf({ eintraege, liveId, kopiert, kopieren }: { eintraege: FVerlauf[]; liveId: string | null; kopiert: string; kopieren: (t: string) => void }) {
+  const t = useT();
+  const [alle, setAlle] = useState(false);
+  if (!eintraege.length) return null;
+  const zeigen = alle ? eintraege : eintraege.slice(0, 5);
+  return (
+    <div data-verlauf className="mt-3 rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-slate-200 backdrop-blur" style={verlaufStil}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{t('Verlauf')}</p>
+      <ul className="mt-1.5 divide-y divide-white/[0.06]">
+        {zeigen.map((e) => (
+          <li key={e.matchId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
+            <span className="min-w-0 flex-1 truncate font-medium text-slate-100" title={e.playlist ?? undefined}>
+              {e.matchId === liveId && <span className="mr-1.5 inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-red-500 align-middle" />}
+              {e.titel || spielart(e.playlist) || e.zeile || t('Match')}
+            </span>
+            <span className="tabular-nums text-slate-400">{datumZeit(e.von)}</span>
+            <span className="tabular-nums text-slate-500" title={t('Wie lange die Sitzung gesehen wurde')}>{dauer(e.von, e.bis)}</span>
+            <code className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[11px] text-slate-300" title={e.matchId}>{e.matchId.slice(0, 8)}…</code>
+            <button type="button" data-verlauf-kopieren={e.matchId} onClick={() => kopieren(e.matchId)}
+              className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:border-sky-400 hover:text-sky-300">
+              {kopiert === e.matchId ? t('Kopiert') : t('Kopieren')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {eintraege.length > 5 && (
+        <button type="button" onClick={() => setAlle(!alle)} className="mt-1 text-[11px] font-semibold text-slate-400 hover:text-slate-200">
+          {alle ? t('weniger') : `${t('alle anzeigen')} (${eintraege.length})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Der Live-Kasten: LIVE, Cup oder Playlist, Match-ID, kopieren. */
+function LiveKasten({ live, kopiert, kopieren }: { live: FLive; kopiert: string; kopieren: (t: string) => void }) {
+  const t = useT();
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+      <span className="flex items-center gap-1.5 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
+      <span className="text-xs text-slate-300">{live.titel ?? spielart(live.playlist) ?? t('Im Match')}</span>
+      <code className="rounded bg-zinc-950 px-2 py-1 font-mono text-xs text-slate-200">{live.matchId}</code>
+      <button type="button" onClick={() => kopieren(live.matchId)}
+        className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-400">
+        {kopiert === live.matchId ? t('Kopiert') : t('Match-ID kopieren')}
+      </button>
+    </div>
+  );
+}
+
+/*
+ * Nur fuer den Admin (Betreiber, 17.11.2026): alle Epic-Freunde der beiden CompHub-Konten, ohne sie als Favoriten anzulegen - live zuerst, dann nach Namen.
+ * Ein Abruf je 20 s (/api/match-finder?ansicht=freunde -> ein Abruf beim XMPP-Dienst).
+ */
+function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: string) => void }) {
+  const t = useT();
+  const [freunde, setFreunde] = useState<FFreund[] | null>(null);
+  const [fehler, setFehler] = useState('');
+  const [filter, setFilter] = useState('');
+  useEffect(() => {
+    let weg = false;
+    const laden = () => fetch('/api/match-finder?ansicht=freunde', { cache: 'no-store' }).then((r) => r.json())
+      .then((j: { ok?: boolean; error?: string; freunde?: FFreund[] }) => {
+        if (weg) return;
+        if (j?.ok) { setFreunde(j.freunde ?? []); setFehler(''); } else setFehler(j?.error ? t(j.error) : t('Nicht ladbar'));
+      })
+      .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
+    laden();
+    const id = window.setInterval(laden, 20_000);
+    return () => { weg = true; window.clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const q = filter.trim().toLowerCase();
+  const liste = (freunde ?? []).filter((f) => !q || f.name.toLowerCase().includes(q) || f.id.includes(q));
+  const live = (freunde ?? []).filter((f) => f.live).length;
+  return (
+    <section data-alle-freunde className="space-y-3">
+      <div className={`${karte} flex flex-wrap items-center gap-3`}>
+        <p className="text-sm text-slate-300">
+          {freunde ? <>{freunde.length} {t('Freunde')} · <span className="font-semibold text-red-400">{live} {t('live')}</span></> : t('Wird geladen …')}
+        </p>
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('Name filtern')}
+          className="ml-auto w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500 sm:w-64" />
+      </div>
+      {fehler && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
+      {liste.map((f) => (
+        <article key={f.id} data-freund={f.id} className={karte}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="truncate text-base font-bold text-slate-100">{f.name}</p>
+            {f.live
+              ? <span className="flex items-center gap-1.5 text-xs font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
+              : <span className="text-xs text-slate-500">{t('Nicht live')}</span>}
+          </div>
+          {f.live && <LiveKasten live={f.live} kopiert={kopiert} kopieren={kopieren} />}
+          <Verlauf eintraege={f.verlauf} liveId={f.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
+        </article>
+      ))}
+    </section>
+  );
 }
 
 export default function MatchFinder() {
@@ -59,6 +182,15 @@ export default function MatchFinder() {
   const [nochmal, setNochmal] = useState(0);
   const geladen = useRef(false);
   const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('matchfinder'));
+  // Der Admin hat einen zweiten Reiter: alle Epic-Freunde (/match-finder?ansicht=freunde, aus dem Dashboard verlinkt).
+  // Erst nach dem Laden des Zugangs sichtbar (vorher LadeSchirm) - der Server zeichnet die Reiter nie, darum hier direkt aus der Adresse.
+  const [ansicht, setAnsicht] = useState<'favoriten' | 'freunde'>(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ansicht') === 'freunde' ? 'freunde' : 'favoriten'));
+  const wechsleAnsicht = (a: 'favoriten' | 'freunde') => {
+    setAnsicht(a);
+    const u = new URL(window.location.href);
+    if (a === 'freunde') u.searchParams.set('ansicht', 'freunde'); else u.searchParams.delete('ansicht');
+    window.history.replaceState(null, '', u.toString());
+  };
 
   // Favoriten: sofort aus dem Browser, dann vom Konto (dort gilt der Stand, der zuletzt gespeichert wurde).
   useEffect(() => {
@@ -154,6 +286,18 @@ export default function MatchFinder() {
           </div>
         </section>
 
+        {zugang.admin && (
+          <div className="mb-4 flex gap-2" role="tablist">
+            {(['favoriten', 'freunde'] as const).map((a) => (
+              <button key={a} type="button" role="tab" aria-selected={ansicht === a} data-ansicht={a} onClick={() => wechsleAnsicht(a)}
+                className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${ansicht === a ? 'bg-sky-500 text-white' : 'border border-zinc-700 text-slate-300 hover:border-sky-500 hover:text-sky-300'}`}>
+                {a === 'favoriten' ? t('Favoriten') : t('Alle Freunde (Admin)')}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {zugang.admin && ansicht === 'freunde' ? <AlleFreunde kopiert={kopiert} kopieren={kopieren} /> : <>
         {fehler && <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -174,15 +318,7 @@ export default function MatchFinder() {
                       className="text-xs text-slate-500 transition hover:text-rose-400"><T>Entfernen</T></button>
                   </div>
                   {s?.live ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-                      <span className="flex items-center gap-1.5 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
-                      <span className="text-xs text-slate-300">{s.live.titel ?? spielart(s.live.playlist) ?? t('Im Match')}</span>
-                      <code className="rounded bg-zinc-950 px-2 py-1 font-mono text-xs text-slate-200">{s.live.matchId}</code>
-                      <button type="button" onClick={() => kopieren(s.live!.matchId)}
-                        className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-400">
-                        {kopiert === s.live.matchId ? t('Kopiert') : t('Match-ID kopieren')}
-                      </button>
-                    </div>
+                    <LiveKasten live={s.live} kopiert={kopiert} kopieren={kopieren} />
                   ) : !s?.scrim ? (
                     /*
                      * Epic zeigt ein laufendes Match nur Freunden (Clix, 7.11.2026: spielte im Trios Cash Cup, die Liste laufender Matches ist leer, die Sitzungssuche
@@ -209,6 +345,7 @@ export default function MatchFinder() {
                       <a href={s.scrim.link} target="_blank" rel="noreferrer" className="ml-auto text-xs font-semibold text-amber-300 hover:text-amber-200">{t('Leaderboard bei Noble')} →</a>
                     </div>
                   )}
+                  <Verlauf eintraege={daten?.verlauf?.[f.id] ?? []} liveId={s?.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
                   {s && s.matches.length > 0 && (
                     <div className="mt-3 overflow-x-auto">
                       <table className="w-full text-xs">
@@ -283,6 +420,7 @@ export default function MatchFinder() {
             </p>
           </aside>
         </div>
+        </>}
       </div>
     </main>
   );

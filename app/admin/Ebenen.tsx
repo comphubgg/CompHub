@@ -74,7 +74,10 @@ const NUR_HIER: Ziel[] = [
   { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
   { href: '/contact', titel: 'Kontakt', text: 'Per Discord oder E-Mail erreichst du den Betreiber', symbol: 'kontakt' },
 ];
-const NUR_HIER_ADMIN: Ziel[] = [];
+const NUR_HIER_ADMIN: Ziel[] = [
+  // Betreiber, 17.11.2026: alle Epic-Freunde beider Konten mit Live-Status, Match-ID und Verlauf - ohne sie als Favoriten anzulegen.
+  { href: '/match-finder?ansicht=freunde', titel: 'Alle Epic-Freunde', text: 'Alle Freunde der beiden CompHub-Epic-Konten - live, Match-ID und Verlauf', symbol: 'events' },
+];
 
 /** Der Kopf eines Abschnitts: Name, Marke und eine Linie, die bis zum Rand reicht. */
 function Kopf({ ton, titel, marke, text }: { ton: Ton; titel: string; marke: string; text: string }) {

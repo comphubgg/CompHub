@@ -6,8 +6,9 @@
  * HTTP:  /account/api/oauth/token, /account/api/public/account, /api/v1/events/Fortnite/download/:konto, /api/v1/leaderboards/Fortnite/:e/:w/:konto
  *        POST /__aendern?n=1   -> ein neues Match fuer n Teams (Punkte steigen, Plaetze wechseln); Antwort { zeit }
  *        POST /__setze?team=k&punkte=p -> Team k bekommt genau p Punkte und ein neues Match
- *        POST /__presence      -> { from, sessionId } als XMPP-Status an alle verbundenen Clients; Antwort { zeit }
+ *        POST /__presence      -> { from, sessionId, playlist?, zeile? } als XMPP-Status an alle verbundenen Clients; Antwort { zeit }
  *        POST /__xmpp?modus=normal|stumm|haengen&trennen=1  -> Stoerungen fuer die Wache des XMPP-Dienstes
+ *        GET  /friends/api/v1/:konto/summary -> zwei Freunde (fff, eee)
  *        GET  /__zaehler       -> Anfragen je Art
  * WS:    XMPP ueber WebSocket (RFC 7395) - gerade genug fuer @xmpp/client: SASL PLAIN, Bind, Session, Ping, Presence.
  */
@@ -69,7 +70,7 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/account/api/public/account') { zaehle('namen'); return json(res, u.searchParams.getAll('accountId').map((id) => ({ id, displayName: `Spieler_${id.slice(-4)}` }))); }
   if (u.pathname.startsWith('/api/v1/events/Fortnite/download/')) {
     zaehle('katalog');
-    return json(res, { events: [{ eventId: EVENT, displayDataId: EVENT, eventWindows: [{ eventWindowId: WINDOW, beginTime: new Date(jetzt - 3_600_000).toISOString(), endTime: new Date(jetzt + 6 * 3_600_000).toISOString() }] }], templates: [], payoutTables: {} });
+    return json(res, { events: [{ eventId: EVENT, displayDataId: EVENT, eventWindows: [{ eventWindowId: WINDOW, eventTemplateId: 'T_Test', beginTime: new Date(jetzt - 3_600_000).toISOString(), endTime: new Date(jetzt + 6 * 3_600_000).toISOString() }] }], templates: [{ eventTemplateId: 'T_Test', playlistId: 'Playlist_ShowdownTournament_Test_Solo' }], payoutTables: {} });
   }
   const m = /^\/api\/v1\/leaderboards\/Fortnite\/([^/]+)\/([^/]+)\//.exec(u.pathname);
   if (m) {
@@ -81,7 +82,7 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/__aendern' && req.method === 'POST') { aendern(Number(u.searchParams.get('n') ?? 1)); return json(res, { zeit: Date.now(), updated: aktualisiert }); }
   if (u.pathname === '/__presence' && req.method === 'POST') {
     const d = JSON.parse((await koerper(req)) || '{}');
-    const status = JSON.stringify({ Status: d.sessionId ? 'Battle Royale - 64 Left' : 'Lobby', bIsPlaying: !!d.sessionId, SessionId: d.sessionId ?? '', Properties: { FortGameplayStats_j: { playlist: 'Playlist_Test', numKills: 1 } } });
+    const status = JSON.stringify({ Status: d.sessionId ? (d.zeile ?? 'Battle Royale - 64 Left') : 'Lobby', bIsPlaying: !!d.sessionId, SessionId: d.sessionId ?? '', Properties: { FortGameplayStats_j: { playlist: d.playlist ?? 'Playlist_Test', numKills: 1 } } });
     const xml = `<presence xmlns="jabber:client" from="${d.from}@prod.ol.epicgames.com/V2:Fortnite:WIN::A" to="${hex(0)}@prod.ol.epicgames.com"><status>${status.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</status></presence>`;
     if (xmppModus === 'normal') for (const s of sockets) s.send(xml);
     return json(res, { zeit: Date.now(), an: sockets.size });
@@ -92,6 +93,8 @@ const server = http.createServer(async (req, res) => {
     if (u.searchParams.get('trennen') === '1') for (const w of wss.clients) w.terminate();
     return json(res, { modus: xmppModus, verbindungen: wss.clients.size });
   }
+  // Epics Freundesliste: der Test-Freund und ein zweiter, der nie online ist.
+  if (/^\/friends\/api\/v1\/[0-9a-f]{32}\/summary$/.test(u.pathname)) { zaehle('freundesliste'); return json(res, { friends: [{ accountId: '00000000000000000000000000000fff' }, { accountId: '00000000000000000000000000000eee' }] }); }
   if (u.pathname === '/__zaehler') return json(res, { zaehler, sockets: sockets.size });
   json(res, { error: 'unbekannt ' + u.pathname }, 404);
 });
