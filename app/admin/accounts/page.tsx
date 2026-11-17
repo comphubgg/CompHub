@@ -6,7 +6,16 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
-import { BEREICHE, VIP_BEREICHE } from '@/lib/rechte';
+import { BEREICHE, VIP_BEREICHE as VIP_OEFFENTLICH } from '@/lib/rechte';
+
+/*
+ * The VIP areas to tick - plus the private ones, named only here (admin-only
+ * code), never in the shared lib/rechte (see PRIVATE_VIP_SCHLUESSEL).
+ */
+const VIP_BEREICHE: Array<{ schluessel: string; titel: string; was: string }> = [
+  ...VIP_OEFFENTLICH,
+  { schluessel: 'finest', titel: 'Finest Creative (private demo)', was: 'Scoreboards 1v1–4v4 with the animated map header - only for the operator and whoever is ticked here' },
+];
 
 // Die Kontoverwaltung.
 //

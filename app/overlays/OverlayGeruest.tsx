@@ -191,7 +191,8 @@ export function useOverlays(typ: string) {
 
   const laden = useCallback(async () => {
     try {
-      const j = await (await fetch('/api/overlay-config?meine=1',
+      // The type goes along: some types are only listed when asked for (app/api/overlay-config).
+      const j = await (await fetch(`/api/overlay-config?meine=1&typ=${encodeURIComponent(typ)}`,
         { cache: 'no-store' })).json();
       setListe((j.overlays ?? []).filter((o: OverlayEintrag) => o.typ === typ));
     } catch {

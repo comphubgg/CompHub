@@ -8,6 +8,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { modName } from '@/lib/modName';
+import { finestErlaubt, ichDarfFinest, sichtPasst, FINEST_KOEPFE } from '@/lib/finestZugang';
 
 // Die Einstellungen eines Overlays - unter einer Adresse, die sich nie aendert.
 //
@@ -82,26 +83,42 @@ export interface OverlayEintrag {
    * part of the public answer.
    */
   steuer?: string;
+  /** Finest Creative overlays (private, lib/finestZugang): who with access saved it. */
+  finestVon?: string[];
+  /** Finest Creative overlays: secret view key - the overlay URL carries it (?k=). */
+  sicht?: string;
 }
 
 /** Types that carry a control key for live score updates. */
-const MIT_STEUER = new Set(['custom']);
+const MIT_STEUER = new Set(['custom', 'finest']);
+
+/**
+ * May this caller read a Finest Creative overlay? With its view key (OBS has
+ * no login) or signed in with the "finest" tick - and only while the overlay's
+ * owner still has access. Other types: always.
+ */
+async function finestLesbar(e: OverlayEintrag, k: string | null): Promise<boolean> {
+  if (e.typ !== 'finest') return true;
+  if (!(await finestErlaubt(e))) return false;
+  return sichtPasst(e, k) || (await ichDarfFinest()).length > 0;
+}
 
 /*
  * The score of the custom scoreboards, kept in memory.
  *
- * The scoreboard in OBS asks every 1.5 s whether the score changed. That
+ * The scoreboard in OBS asks every few seconds whether the score changed. That
  * answer must be cheap: no file read, a few bytes. The map is filled on the
  * first question (one read) and updated on every write in this process.
  */
-interface Kurzstand { p1: number; p2: number; stand: number; bis: number }
+/** fin: a Finest Creative overlay - never answered from here, see GET. */
+interface Kurzstand { p1: number; p2: number; stand: number; bis: number; fin?: boolean }
 const KURZ = new Map<string, Kurzstand | null>();
 const KURZ_MS = 10 * 60_000;
 function kurzMerken(e: OverlayEintrag | undefined, id: string) {
   if (!e || e.geloeschtAm) { KURZ.set(id, null); return; }
   KURZ.set(id, {
     p1: Number(e.config?.punkte1) || 0, p2: Number(e.config?.punkte2) || 0,
-    stand: e.stand, bis: Date.now() + KURZ_MS,
+    stand: e.stand, bis: Date.now() + KURZ_MS, fin: e.typ === 'finest',
   });
   if (KURZ.size > 2000) KURZ.delete(KURZ.keys().next().value as string);
 }
@@ -208,6 +225,18 @@ export async function GET(request: Request) {
       k = KURZ.get(kurzId);
     }
     if (!k) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    /*
+     * Finest Creative (private): only with the view key or the tick, checked
+     * on every poll, never cached by a CDN - and read fresh, so the score from
+     * the control page shows within a second.
+     */
+    if (k.fin) {
+      const e = (await lies())[kurzId];
+      if (!e || e.geloeschtAm || !(await finestLesbar(e, p.get('k')))) {
+        return NextResponse.json({ error: 'Unknown overlay' }, { status: 404, headers: FINEST_KOEPFE });
+      }
+      return NextResponse.json({ p1: Number(e.config?.punkte1) || 0, p2: Number(e.config?.punkte2) || 0, stand: e.stand }, { headers: FINEST_KOEPFE });
+    }
     return NextResponse.json({ p1: k.p1, p2: k.p2, stand: k.stand }, {
       headers: { 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'max-age=1', 'Vercel-CDN-Cache-Control': 'max-age=1' },
     });
@@ -221,6 +250,13 @@ export async function GET(request: Request) {
     // Ein geloeschtes Overlay ist fuer OBS genauso weg wie ein entferntes.
     if (!e || e.geloeschtAm) {
       return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    }
+    // Finest Creative (private): as if it did not exist without key or tick.
+    if (e.typ === 'finest') {
+      if (!(await finestLesbar(e, p.get('k')))) {
+        return NextResponse.json({ error: 'Unknown overlay' }, { status: 404, headers: FINEST_KOEPFE });
+      }
+      return NextResponse.json({ id: e.id, typ: e.typ, stand: e.stand, config: e.config }, { headers: FINEST_KOEPFE });
     }
     /*
      * Oeffentlich, aber ohne den Besitzer.
@@ -242,11 +278,20 @@ export async function GET(request: Request) {
   }
 
   if (p.get('meine')) {
+    /*
+     * Finest Creative overlays are private: never in the general list (the
+     * dashboard archive), only with ?typ=finest for someone with the tick -
+     * then also those a person with access saved for this owner.
+     */
+    const finest = p.get('typ') === 'finest' ? await ichDarfFinest() : [];
+    if (p.get('typ') === 'finest' && !finest.length) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: FINEST_KOEPFE });
     const ich = await wer();
     if (!ich) return NextResponse.json({ overlays: [] });
     return NextResponse.json({
       overlays: Object.values(alles)
-        .filter((e) => e.besitzer === ich && !e.geloeschtAm)
+        .filter((e) => !e.geloeschtAm && (finest.length
+          ? e.typ === 'finest' && (e.besitzer === ich || finest.includes(e.besitzer) || (e.finestVon ?? []).some((x) => finest.includes(x)))
+          : e.besitzer === ich && e.typ !== 'finest'))
         .sort((a, b) => b.geaendert.localeCompare(a.geaendert))
         .map((e) => ({
           id: e.id, typ: e.typ, name: e.name, stand: e.stand,
@@ -255,8 +300,9 @@ export async function GET(request: Request) {
           geaendertVon: e.geaendertVon ?? null,
           // Only the owner sees the control key of a scoreboard.
           steuer: e.steuer ?? null,
+          ...(e.typ === 'finest' ? { sicht: e.sicht ?? null } : {}),
         })),
-    });
+    }, finest.length ? { headers: FINEST_KOEPFE } : undefined);
   }
 
   if (p.get('geloescht')) {
@@ -265,7 +311,7 @@ export async function GET(request: Request) {
     const grenze = Date.now() - GALGENFRIST_MS;
     return NextResponse.json({
       geloescht: Object.values(alles)
-        .filter((e) => e.besitzer === ich && e.geloeschtAm && e.geloeschtAm >= grenze)
+        .filter((e) => e.besitzer === ich && e.typ !== 'finest' && e.geloeschtAm && e.geloeschtAm >= grenze)
         .sort((a, b) => (b.geloeschtAm ?? 0) - (a.geloeschtAm ?? 0))
         .map((e) => ({ id: e.id, typ: e.typ, name: e.name, geloeschtAm: e.geloeschtAm })),
     });
@@ -282,22 +328,60 @@ export async function POST(request: Request) {
    *
    * { id, punkte: { p1, p2 }, steuer? } - the control page. Allowed with the
    * control key (no account needed: a co-caster on another PC or a phone) or
-   * for the owner. Only score, round and series change; nothing else can be
-   * written this way.
+   * for the owner. Only the two numbers change; nothing else can be written
+   * this way.
    */
   if (typeof koerper.id === 'string' && koerper.punkte && typeof koerper.punkte === 'object') {
     const alles = await lies();
     const e = alles[koerper.id];
     if (!e || e.geloeschtAm) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
     const mitSchluessel = typeof koerper.steuer === 'string' && Boolean(e.steuer) && koerper.steuer === e.steuer;
+    if (e.typ === 'finest') {
+      // Gated: the person needs access themselves AND the key (or be the owner), and the overlay must still be allowed.
+      if (!(await ichDarfFinest()).length || !(await finestErlaubt(e))) {
+        return NextResponse.json({ error: 'No access to Finest Creative overlays' }, { status: 403 });
+      }
+    }
     if (!mitSchluessel && e.besitzer !== await wer()) {
       return NextResponse.json({ error: 'Wrong control key' }, { status: 403 });
     }
     const zahl = (v: unknown) => Math.max(0, Math.min(999, Math.round(Number(v) || 0)));
     const extra: Record<string, unknown> = {};
-    // Round and series travel with the score; only numbers.
+    // Round and series travel with the score (box fights); only numbers.
     for (const k of ['runde', 'serie1', 'serie2'] as const) {
       if (koerper.punkte[k] !== undefined) extra[k] = zahl(koerper.punkte[k]);
+    }
+    // Scoreboards with 3-4 teams.
+    if (koerper.punkte.p3 !== undefined) extra.punkte3 = zahl(koerper.punkte.p3);
+    if (koerper.punkte.p4 !== undefined) extra.punkte4 = zahl(koerper.punkte.p4);
+    if (typeof koerper.punkte.serieZeigen === 'boolean') extra.serieZeigen = koerper.punkte.serieZeigen;
+    /*
+     * The map header of a Finest Creative scoreboard (title, search term,
+     * island code, clip) may be changed from the control page too - plain
+     * short strings and http(s) links only.
+     */
+    if (e.typ === 'finest' && koerper.kopf && typeof koerper.kopf === 'object') {
+      const text = (v: unknown, n: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').slice(0, n);
+      const link = (v: unknown) => { const u = String(v ?? '').trim().slice(0, 500); return /^(https?:\/\/|\/)/.test(u) || !u ? u : ''; };
+      if ('karte' in koerper.kopf) extra.karte = text(koerper.kopf.karte, 40);
+      if ('suche' in koerper.kopf) extra.suche = text(koerper.kopf.suche, 24);
+      if ('code' in koerper.kopf) extra.code = text(koerper.kopf.code, 20);
+      if ('clip' in koerper.kopf) extra.clip = link(koerper.kopf.clip);
+      if (koerper.kopf.bild !== undefined) extra.bild = link(koerper.kopf.bild);
+    }
+    /*
+     * Line-up of a Finest Creative scoreboard from the control page: 2-4
+     * teams, 1-4 players each, optional team names - short strings only.
+     */
+    if (e.typ === 'finest' && koerper.aufstellung && typeof koerper.aufstellung === 'object') {
+      const a = koerper.aufstellung as Record<string, unknown>;
+      const text = (v: unknown, n: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, n);
+      extra.teams = Math.max(2, Math.min(4, Math.round(Number(a.teams) || 2)));
+      for (const i of [1, 2, 3, 4]) {
+        const sp = a[`spieler${i}`];
+        if (Array.isArray(sp)) extra[`spieler${i}`] = sp.slice(0, 4).map((x) => text(x, 24));
+        if (a[`name${i}`] !== undefined) extra[`name${i}`] = text(a[`name${i}`], 28);
+      }
     }
     e.config = { ...e.config, ...extra, punkte1: zahl(koerper.punkte.p1), punkte2: zahl(koerper.punkte.p2) };
     e.stand += 1;
@@ -375,10 +459,20 @@ export async function POST(request: Request) {
   if (JSON.stringify(config).length > 400_000) {
     return NextResponse.json({ error: 'Settings too large (logo image too big?)' }, { status: 413 });
   }
+  let finestIdents: string[] = [];
+  const warFinest = typeof koerper.id === 'string' && alles[koerper.id]?.typ === 'finest';
+  if (typ === 'finest' || warFinest) {
+    finestIdents = await ichDarfFinest();
+    if (!finestIdents.length) {
+      return NextResponse.json({ error: 'No access to Finest Creative overlays' }, { status: 403 });
+    }
+  }
+
   // ------------------------------------------------------------- Aendern
   if (typeof koerper.id === 'string' && alles[koerper.id] && !alles[koerper.id].geloeschtAm) {
     const e = alles[koerper.id];
-    if (e.besitzer !== ich) {
+    // Finest: the operator may be signed in by account or by VIP key - either of his idents owns it.
+    if (e.besitzer !== ich && !(e.typ === 'finest' && finestIdents.includes(e.besitzer))) {
       return NextResponse.json({ error: 'Not yours' }, { status: 403 });
     }
     e.typ = typ;
@@ -387,6 +481,10 @@ export async function POST(request: Request) {
     e.stand += 1;
     e.geaendert = new Date().toISOString();
     if (MIT_STEUER.has(typ) && !e.steuer) e.steuer = randomBytes(12).toString('base64url');
+    if (typ === 'finest') {
+      e.finestVon = [...new Set([...(e.finestVon ?? []), ...finestIdents])].slice(-10);
+      if (!e.sicht) e.sicht = randomBytes(18).toString('base64url');
+    }
     const wers = await schild();
     if (wers) e.geaendertVon = wers;
     try {
@@ -395,7 +493,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
     }
     kurzMerken(e, e.id);
-    return NextResponse.json({ id: e.id, stand: e.stand, steuer: e.steuer ?? null });
+    return NextResponse.json({ id: e.id, stand: e.stand, steuer: e.steuer ?? null, ...(e.sicht ? { sicht: e.sicht } : {}) });
   }
 
   // ------------------------------------------------------------- Anlegen
@@ -421,6 +519,7 @@ export async function POST(request: Request) {
     // Einmal lesen, nicht zweimal - und nur setzen, wenn wirklich eines da ist.
     ...(wer_es_war ? { angelegtVon: wer_es_war, geaendertVon: wer_es_war } : {}),
     ...(MIT_STEUER.has(typ) ? { steuer: randomBytes(12).toString('base64url') } : {}),
+    ...(typ === 'finest' ? { finestVon: finestIdents, sicht: randomBytes(18).toString('base64url') } : {}),
   };
   alles[neu.id] = neu;
   try {
@@ -428,5 +527,5 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
   }
-  return NextResponse.json({ id: neu.id, stand: neu.stand, steuer: neu.steuer ?? null });
+  return NextResponse.json({ id: neu.id, stand: neu.stand, steuer: neu.steuer ?? null, ...(neu.sicht ? { sicht: neu.sicht } : {}) });
 }

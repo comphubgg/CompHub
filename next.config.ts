@@ -95,6 +95,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/api/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
+      // The private Finest Creative pages differ per person (lib/finestZugang): never kept at the edge.
+      { source: '/overlays/finest', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
+      { source: '/overlays/finest/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
       // Chrome auf Android nennt das Handymodell nur auf Nachfrage (Client Hints) - fuer die grobe Geraeteangabe je Sitzung (lib/geraet).
       { source: '/:path*', headers: [{ key: 'Accept-CH', value: 'Sec-CH-UA-Model, Sec-CH-UA-Mobile, Sec-CH-UA-Platform-Version' }] },
     ];

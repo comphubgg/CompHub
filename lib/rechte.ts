@@ -70,7 +70,16 @@ export function darfVip(
 
 export const ALLE_BEREICHE: Bereich[] = BEREICHE.map((b) => b.schluessel);
 
-const VIP_SCHLUESSEL: string[] = VIP_BEREICHE.map((b) => b.schluessel);
+/*
+ * Private VIP areas (11/2026): ticked like the others, but only their key is
+ * here - this module ends up in the JavaScript every visitor downloads, and a
+ * private partner demo must not be named there. The title for the tick lives
+ * in the admin accounts page only. "finest": the Finest Creative demo
+ * (lib/finestZugang) - operator and admins have it without a tick.
+ */
+export const PRIVATE_VIP_SCHLUESSEL = ['finest'] as const;
+
+const VIP_SCHLUESSEL: string[] = [...VIP_BEREICHE.map((b) => b.schluessel), ...PRIVATE_VIP_SCHLUESSEL];
 
 /**
  * Was von den angehakten Bereichen gespeichert wird.

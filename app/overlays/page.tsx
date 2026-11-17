@@ -12,6 +12,46 @@ import { customParamUrl, STANDARD as CUSTOM_STANDARD } from './custom/Baukasten'
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 
 /*
+ * Private partner tabs (e.g. a demo for a potential partner): the server
+ * sends only the ones this person may see - nothing about them is in this
+ * page's code. See app/api/partner-kacheln.
+ */
+interface PartnerKachel { id: string; titel: string; text: string; href: string; logo: string; farbe: string; knopf: string }
+function PartnerKacheln() {
+  const [kacheln, setKacheln] = useState<PartnerKachel[]>([]);
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/partner-kacheln', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!weg && Array.isArray(j?.kacheln)) setKacheln(j.kacheln as PartnerKachel[]); })
+      .catch(() => { /* none */ });
+    return () => { weg = true; };
+  }, []);
+  return (
+    <>
+      {kacheln.map((k) => (
+        <article key={k.id} id={k.id} className="mt-6 overflow-hidden rounded-3xl border bg-[#0d0d10]" style={{ borderColor: `${k.farbe}40` }}>
+          <div className="h-2" style={{ background: `repeating-linear-gradient(-45deg,#111 0 10px,${k.farbe} 10px 20px)` }} />
+          <div className="flex flex-wrap items-center justify-between gap-5 p-5 sm:p-7">
+            <div className="flex min-w-0 items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={k.logo} alt="" className="h-12 w-auto shrink-0" />
+              <div className="min-w-0">
+                <h2 className="text-2xl font-black tracking-tight" style={{ color: k.farbe }}>{k.titel}</h2>
+                <p className="text-sm text-slate-400"><T>{k.text}</T></p>
+              </div>
+            </div>
+            <Link href={k.href} prefetch={false} className="rounded-lg px-5 py-2.5 text-sm font-bold text-black" style={{ background: k.farbe }}>
+              <T>{k.knopf}</T> →
+            </Link>
+          </div>
+        </article>
+      ))}
+    </>
+  );
+}
+
+/*
  * The overlay overview - redesigned 11/2026.
  *
  * The operator: "die komplette Overlay-Seite neu und cleaner und besser
@@ -207,6 +247,8 @@ export default function OverlaysSeite() {
             );
           })}
         </div>
+
+        <PartnerKacheln />
 
         <section className="mt-8 grid gap-5 rounded-3xl border border-white/[0.07] bg-[#0c1018] p-5 sm:grid-cols-3 sm:p-7">
           <div>

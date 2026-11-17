@@ -52,11 +52,11 @@ const SITZUNGS_COOKIES = ['streamer_dashboard_konto', 'streamer_dashboard_auth']
  * Middleware deshalb den Server direkt (COMPHUB_INTERN_URL, im Image
  * gesetzt) und nur ersatzweise die oeffentliche Adresse.
  */
-function auskunftAdressen(request: NextRequest): string[] {
-  const oeffentlich = new URL('/api/auth/check-admin', request.url).toString();
+function auskunftAdressen(request: NextRequest, ziel = '/api/auth/check-admin'): string[] {
+  const oeffentlich = new URL(ziel, request.url).toString();
   const adressen: string[] = [];
   const intern = process.env.COMPHUB_INTERN_URL;
-  if (intern) adressen.push(`${intern.replace(/\/+$/, '')}/api/auth/check-admin`);
+  if (intern) adressen.push(`${intern.replace(/\/+$/, '')}${ziel}`);
 
   /*
    * Der eigene Rechner hinter dem Tunnel (11.10.2026): der Server laeuft mit "-H 0.0.0.0", und Next baut
@@ -68,7 +68,7 @@ function auskunftAdressen(request: NextRequest): string[] {
    */
   const u = new URL(request.url);
   if (['0.0.0.0', '[::]', '::'].includes(u.hostname)) {
-    adressen.push(`http://127.0.0.1:${u.port || process.env.PORT || '3000'}/api/auth/check-admin`);
+    adressen.push(`http://127.0.0.1:${u.port || process.env.PORT || '3000'}${ziel}`);
   }
   adressen.push(oeffentlich);
   return adressen;
@@ -98,6 +98,29 @@ async function verwaltungErlaubt(request: NextRequest): Promise<boolean> {
   return false;
 }
 
+/*
+ * The private Finest Creative pages (lib/finestZugang): without the "finest"
+ * tick they are a real 404 - the same page as any unknown address - decided
+ * here before anything is rendered. The page checks again on the server; the
+ * overlay itself (/overlays/finest/live) checks its own key and is not
+ * routed through here.
+ */
+async function finestErlaubt(request: NextRequest): Promise<boolean> {
+  if (!SITZUNGS_COOKIES.some((c) => request.cookies.get(c)?.value)) return false;
+  for (const adresse of auskunftAdressen(request, '/api/finest/zugang')) {
+    try {
+      const r = await fetch(adresse, {
+        headers: { cookie: request.headers.get('cookie') ?? '' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(process.env.NODE_ENV === 'development' ? 45_000 : 8_000),
+      });
+      if (r.status === 404) return false;
+      if (r.ok) return true;
+    } catch { /* next address */ }
+  }
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   const pfad = request.nextUrl.pathname;
   /*
@@ -124,6 +147,11 @@ export async function middleware(request: NextRequest) {
       const ziel = new URL('/sign-in', request.url);
       ziel.searchParams.set('weiter', pfad);
       return NextResponse.redirect(ziel);
+    }
+  }
+  if ((pfad === '/overlays/finest' || pfad.startsWith('/overlays/finest/')) && !pfad.startsWith('/overlays/finest/live')) {
+    if (!(await finestErlaubt(request))) {
+      return NextResponse.rewrite(new URL('/fehler/404', request.url), { status: 404, headers: { 'Cache-Control': 'private, no-store', 'Netlify-CDN-Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
     }
   }
   const koepfe = new Headers(request.headers);
