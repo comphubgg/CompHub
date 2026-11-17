@@ -1,12 +1,17 @@
 # Probe: liefert Epics Sitzungssuche (findPlayer) die laufende Match-ID fremder Konten? Nur lesen, nichts ablegen (scripts/findplayer-probe.mjs).
 name: findPlayer-Probe
 
+# workflow_dispatch geht erst, wenn die Datei auf main liegt - bis dahin startet ein Push auf den Zweig matchid-frueh die Probe mit den Ids aus
+# scripts/findplayer-probe-ids.txt.
 on:
+  push:
+    branches: [matchid-frueh]
+    paths: [scripts/findplayer-probe-ids.txt]
   workflow_dispatch:
     inputs:
       ids:
         description: Epic-Konto-Ids (Leerzeichen oder Komma), hoechstens 50
-        required: true
+        required: false
 
 jobs:
   probe:
@@ -28,7 +33,7 @@ jobs:
       - name: Probe
         env:
           IDS: ${{ inputs.ids }}
-        run: node scripts/findplayer-probe.mjs $IDS
+        run: node scripts/findplayer-probe.mjs ${IDS:-$(cat scripts/findplayer-probe-ids.txt)}
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
