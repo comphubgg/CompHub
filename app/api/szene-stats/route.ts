@@ -1280,7 +1280,17 @@ async function berechne(request: Request) {
       type Nenner = 'voll' | 'elims' | 'schaden' | 'zeit';
       const nennerFeld = { voll: 'matchesVoll', elims: 'matchesElims', schaden: 'matchesSchaden', zeit: 'matchesZeit' } as const;
       // Eine aeltere fertige Antwort kennt die Nenner noch nicht: dann gilt wie frueher die Gesamtzahl der Matches.
-      const nennerBekannt = (n: Nenner) => gesamt.some((s) => s[nennerFeld[n]] !== undefined);
+      /*
+       * Einmal je Nenner, nicht je Spieler (17.11.2026): nennerVon laeuft fuer jeden Spieler des Felds in jedem Rang, und gesamt.some() lief dabei
+       * jedes Mal ueber das ganze Archiv, wo der Nenner fehlt - quadratisch. Gemessen: ein kaltes Profil blockierte die Ereignisschleife 30 s
+       * ("perzentile" 30.594 ms, /api/stand 29,96 s); acht Profile zugleich liessen die Seite ab 13:45 eine halbe Stunde nicht mehr antworten.
+       */
+      const bekannteNenner = new Map<Nenner, boolean>();
+      const nennerBekannt = (n: Nenner) => {
+        let b = bekannteNenner.get(n);
+        if (b === undefined) { b = gesamt.some((s) => s[nennerFeld[n]] !== undefined); bekannteNenner.set(n, b); }
+        return b;
+      };
       const nennerVon = (s: typeof gesamt[number], nenner: Nenner | false) =>
         nenner === false || !nennerBekannt(nenner) ? s.matches : (s[nennerFeld[nenner]] ?? 0);
       /** Denselben Wert je Match - fuer den Spieler wie fuer das Feld. */
