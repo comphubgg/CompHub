@@ -255,13 +255,24 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
    * Nobles Finale traegt beide Tage in einem Fenster (..._Final_EU, auch die Solo Series); Epics Archiv fuehrt Day 1 und Day 2 -
    * daraus kommen Bestenliste und Tag-Umschalter.
    */
-  const tageVon = (wid: string) => {
+  const tageVon = (wid: string, vorbei: boolean) => {
     const m = /^(.+)_EU$/.exec(wid);
     if (!m || /_Day\d$/.test(m[1])) return null;
     const t1 = imArchiv.get(`${m[1]}_Day1_EU`);
     const t2 = imArchiv.get(`${m[1]}_Day2_EU`);
-    if (!t1?.eventId || !t1.windowId || !t2?.windowId) return null;
-    return { eventId: t1.eventId, begin: t1.begin, end: t2.end, tage: [t1, t2].map((x, i) => ({ name: `Day ${i + 1}`, windowId: x.windowId as string, eventId: x.eventId ?? null })) };
+    if (t1?.eventId && t1.windowId && t2?.windowId) {
+      return { eventId: t1.eventId, begin: t1.begin, end: t2.end, tage: [t1, t2].map((x, i) => ({ name: `Day ${i + 1}`, windowId: x.windowId as string, eventId: x.eventId ?? null })) };
+    }
+    /*
+     * Grand Finals eines Majors ohne Archivzeilen (17.11.2026): die Zeilen von S30 bis 14.8.2026 waren nachgetragen und gingen mit der gesperrten Quelle
+     * (comphub-daten b3904f2d) - seitdem fehlten Event-Id und Tage, und die Karte "CH7 S3 Grand Finals" auf der Startseite stand ohne Platzierungen.
+     * Epics eigene Kennungen folgen festem Muster (scripts/fncs-endspiele-holen.mjs, live geprueft fuer S33 bis S41):
+     * Event "epicgames_S41_FNCSMajor2_Final_EU", Tage "S41_FNCSMajor2_Final_Day1_EU" und "..._Day2_EU". Nur fuer beendete Finals.
+     */
+    const gf = /^(S\d+_FNCSMajor\d_Final)$/.exec(m[1]);
+    if (!gf || !vorbei) return null;
+    const eventId = `epicgames_${gf[1]}_EU`;
+    return { eventId, begin: undefined, end: undefined, tage: [1, 2].map((d) => ({ name: `Day ${d}`, windowId: `${gf[1]}_Day${d}_EU`, eventId })) };
   };
 
   const liste: MapEintrag[] = [];
@@ -272,7 +283,7 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
       for (const w of d.tournamentData?.windows ?? []) {
         // Die Last-Chance-Runde heisst bei Noble "Qualifier", im Archiv "Lobby" - dasselbe Fenster.
         const a = imArchiv.get(w.windowId) ?? imArchiv.get(w.windowId.replace('LastChanceQualifier', 'LastChanceLobby'));
-        const tv = a ? null : tageVon(w.windowId);
+        const tv = a ? null : tageVon(w.windowId, Boolean(w.endDate) && Date.parse(w.endDate as string) < Date.now());
         const typ = typVon(`${t.tournamentName} ${a?.titel ?? ''}`);
         const saison = (w.windowId.match(/^(S\d+)_/) ?? [])[1] ?? '';
         const datum = w.startDate ? Date.parse(w.startDate) : (a?.begin ?? null);
