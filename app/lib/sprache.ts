@@ -929,6 +929,11 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Spielerfotos © bei den jeweiligen Fotografen.']: 'Player photos © their respective photographers.',
   ['Soll ein Foto genannt oder entfernt werden?']: 'Want a photo credited or removed?',
   ['Schreib uns.']: 'Contact us.',
+  /* "Photos from" - die Liste aller Foto-Quellen (app/components/FotoQuellen.tsx). */
+  'Fotos von': 'Photos from',
+  'Fotografen': 'Photographers',
+  ['Die Spielerfotos auf CompHub stammen von diesen Quellen. Danke!']: 'Player photos on CompHub come from these sources. Thank you!',
+  ['Die Liste konnte nicht geladen werden.']: 'The list could not be loaded.',
   ['Nicht mit Epic Games verbunden. Alle Marken gehören ihren Inhabern.']:
     'Not affiliated with Epic Games. All trademarks belong to their owners.',
   ['Statistiken, Turniere und Streams der kompetitiven Fortnite-Szene — an einem Ort, aus einem Archiv.']:

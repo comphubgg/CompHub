@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
-import { liesCredits, oeffentlich } from '@/lib/fotoCredits';
+import { liesQuellen } from '@/lib/fotoQuellen';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 /*
- * Die Fotografen-Angaben, die oeffentlich am Foto stehen duerfen (lib/fotoCredits.ts): nur bestaetigte Eintraege, je Dateistamm Text und Link.
+ * Die Credits, die am einzelnen Foto stehen bleiben (lib/fotoQuellen.ts): nur kleine Quellen (weniger als zwei oeffentliche Fotos, typisch das X-Konto
+ * einer Org) oder Eintraege mit "einzeln". Grosse Quellen stehen nur in der Liste "Photos from" (/api/foto-quellen).
  *
- *   GET -> { credits: { "bloomy": { text: "Michal Konkol", link: "https://x.com/KonkolMichal" }, ... } }
+ *   GET -> { credits: { "f1shyx": { text: "@glore_gg", link: "https://x.com/glore_gg", handle: "glore_gg" }, ... } }
  *
- * Vermutungen ("wahrscheinlich"), Herkunft und Notizen gehen hier nie hinaus. Gelesen von app/components/FotoCredit.tsx.
+ * Lizenz, Vermutungen und Notizen gehen hier nie hinaus. Gelesen von app/components/FotoCredit.tsx.
  */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  const credits = oeffentlich(await liesCredits().catch(() => ({})));
+  const credits = await liesQuellen().then((q) => q.einzeln).catch(() => ({}));
   return zwischenspeichern(NextResponse.json({ credits }), 300);
 }

@@ -10,11 +10,12 @@ import { aendereJson, liesJson } from '@/lib/ablage';
  *
  *   quelle         Eigentuemer/Herkunft, z. B. "Epic Games" oder "ESL".
  *   fotograf       Die Person hinter der Kamera.
- *   handle         Das X-Konto des Fotografen ohne "@" ("KonkolMichal") - oeffentlich als Marke oben mittig am Foto: Kamera + "@KonkolMichal",
- *                  verlinkt auf x.com/<handle> (Betreiber, 17.11.2026).
+ *   handle         Das X-Konto ohne "@" ("KonkolMichal") - des Fotografen, oder der Org, wenn kein Fotograf eingetragen ist.
  *   link           Ein Verweis zum Fotografen (X, Portfolio) - fehlt er, gilt x.com/<handle>.
  *   lizenz         Nur intern: unter welcher Erlaubnis wir es zeigen ("Erlaubnis per Mail 18.11.", "Epic Media Kit", "CC BY 4.0").
- *   bestaetigt     Nur dann steht oeffentlich etwas am Foto: "Foto: Epic Games / Michal Konkol", oder nur "Foto: Epic Games".
+ *   bestaetigt     Intern: Angabe geprueft. Oeffentlich steht seit 17.11.2026 jede benannte Quelle in der Liste "Photos from"
+ *                  (lib/fotoQuellen.ts); am einzelnen Foto nur kleine Quellen oder "einzeln".
+ *   einzeln        Den kleinen Credit am Foto auch bei einer grossen Quelle zeigen (lib/fotoQuellen.ts).
  *   wahrscheinlich Nur intern: eine Vermutung. Geht nie an die oeffentliche Schnittstelle.
  *   notiz          Nur intern.
  */
@@ -30,6 +31,8 @@ export interface FotoCredit {
   /** Nur intern. */
   lizenz?: string;
   bestaetigt: boolean;
+  /** Den kleinen Credit am Foto auch zeigen, wenn die Quelle gross ist (lib/fotoQuellen.ts). */
+  einzeln?: boolean;
   /** Nur intern: wer es vermutlich war. */
   wahrscheinlich?: string;
   /** Nur intern. */
@@ -37,7 +40,7 @@ export interface FotoCredit {
   geaendert?: number;
 }
 export type CreditTafel = Record<string, FotoCredit>;
-export const CREDIT_FELDER = ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'bestaetigt', 'wahrscheinlich', 'notiz'] as const;
+export const CREDIT_FELDER = ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'bestaetigt', 'einzeln', 'wahrscheinlich', 'notiz'] as const;
 export type CreditEingabe = Partial<Record<typeof CREDIT_FELDER[number], unknown>>;
 
 /** Dateinamen, wie sie in spielerbilder.json stehen - ohne Ordner. */
@@ -70,6 +73,7 @@ export function mitAenderung(alt: FotoCredit | undefined, e: CreditEingabe): Fot
   if (e.handle !== undefined) { const v = sauberHandle(e.handle); if (v) neu.handle = v; else delete neu.handle; }
   if (e.link !== undefined) { const v = sauberLink(e.link); if (v) neu.link = v; else delete neu.link; }
   if (e.bestaetigt !== undefined) neu.bestaetigt = e.bestaetigt === true || e.bestaetigt === 'true' || e.bestaetigt === '1';
+  if (e.einzeln !== undefined) { if (e.einzeln === true || e.einzeln === 'true' || e.einzeln === '1') neu.einzeln = true; else delete neu.einzeln; }
   // Ohne Namen gibt es nichts zu bestaetigen.
   if (!neu.quelle && !neu.fotograf && !neu.handle) neu.bestaetigt = false;
   neu.geaendert = Date.now();
@@ -95,30 +99,4 @@ export async function setzeCredits(dateien: string[], e: CreditEingabe): Promise
     for (const d of dateien) { const n = mitAenderung(t[d], e); if (n) t[d] = n; else delete t[d]; }
   });
   return Object.fromEntries(dateien.map((d) => [d, tafel[d] ?? null]));
-}
-
-/** Was oeffentlich am Foto steht: "Epic Games / Michal Konkol" - oder null. Nur bestaetigte Eintraege. */
-export function creditText(c: FotoCredit | undefined): string | null {
-  if (!c?.bestaetigt) return null;
-  const teile = [c.quelle, c.fotograf].map((x) => (x ?? '').trim()).filter(Boolean);
-  return teile.length ? teile.join(' / ') : c.handle ? `@${c.handle}` : null;
-}
-
-export interface OeffentlicherCredit { text: string; link?: string; handle?: string; fotograf?: string }
-
-/**
- * Die oeffentliche Fassung: je Dateistamm ("vico-1a2b3c4d-mvx1") Text, Link, X-Konto und Fotograf - nichts Internes (Lizenz, Vermutung, Notiz).
- * Ohne eigenen Link zeigt die Marke auf x.com/<handle>.
- */
-export function oeffentlich(t: CreditTafel): Record<string, OeffentlicherCredit> {
-  const aus: Record<string, OeffentlicherCredit> = {};
-  for (const [datei, c] of Object.entries(t)) {
-    const s = creditText(c);
-    if (!s) continue;
-    const link = c.link || (c.handle ? `https://x.com/${c.handle}` : '');
-    aus[datei.replace(/\.(jpe?g|png|webp)$/i, '').toLowerCase()] = {
-      text: s, ...(link ? { link } : {}), ...(c.handle ? { handle: c.handle } : {}), ...(c.fotograf ? { fotograf: c.fotograf } : {}),
-    };
-  }
-  return aus;
 }

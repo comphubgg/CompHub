@@ -9,21 +9,26 @@ import { useZugang } from '@/app/lib/zugang';
  * Spielerfotos & Fotografen (Betreiber, 16./17.11.2026): die alten, uebernommenen Fotos sind entfernt, neue laedt der Betreiber hier hoch - je Spieler, und
  * gleich mit den Angaben, von wem das Foto ist (Quelle, Fotograf, Link, Lizenz). Oeffentlich am Foto steht davon nur "Foto: Quelle / Fotograf", und nur,
  * wenn "bestaetigt" angehakt ist (lib/fotoCredits.ts, app/components/FotoCredit.tsx). "Wahrscheinlich", Lizenz und Notiz bleiben intern.
+ * Seit 17.11.2026 (Nachtrag): oeffentlich steht jede benannte Quelle in der Liste "Photos from" (lib/fotoQuellen.ts); am Foto nur kleine Quellen
+ * oder "am Foto" (einzeln). Oben ergaenzt ExtraQuellen die Liste von Hand (foto-quellen-extra.json).
  *
  * Mehrfachauswahl: Haken an den Karten, dann oben Quelle/Fotograf/... fuer alle gewaehlten setzen.
  * Nur fuer den Admin: /api/admin/foto-credits und /api/spielerbild/hochladen pruefen das bei jeder Anfrage.
  */
 
-interface Credit { quelle?: string; fotograf?: string; handle?: string; link?: string; lizenz?: string; bestaetigt: boolean; wahrscheinlich?: string; notiz?: string; geaendert?: number }
+interface Credit { quelle?: string; fotograf?: string; handle?: string; link?: string; lizenz?: string; bestaetigt: boolean; einzeln?: boolean; wahrscheinlich?: string; notiz?: string; geaendert?: number }
+interface Quelle { name: string; handle?: string; link?: string; fotos: number }
+interface ExtraEintrag { name: string; handle?: string; link?: string }
+type Art = 'organisationen' | 'fotografen';
 interface Zeile { epicId: string; name: string; datei: string; foto: boolean; bild: string | null; events: number; credit: Credit | null }
 type Filter = 'alle' | 'ohneFoto' | 'unbekannt' | 'wahrscheinlich' | 'offen' | 'bestaetigt';
-type Entwurf = { quelle: string; fotograf: string; handle: string; link: string; lizenz: string; wahrscheinlich: string; notiz: string; bestaetigt: boolean };
-const LEER: Entwurf = { quelle: '', fotograf: '', handle: '', link: '', lizenz: '', wahrscheinlich: '', notiz: '', bestaetigt: false };
+type Entwurf = { quelle: string; fotograf: string; handle: string; link: string; lizenz: string; wahrscheinlich: string; notiz: string; bestaetigt: boolean; einzeln: boolean };
+const LEER: Entwurf = { quelle: '', fotograf: '', handle: '', link: '', lizenz: '', wahrscheinlich: '', notiz: '', bestaetigt: false, einzeln: false };
 const JE_SEITE = 60;
 
 const ausCredit = (c: Credit | null): Entwurf => ({
   quelle: c?.quelle ?? '', fotograf: c?.fotograf ?? '', handle: c?.handle ?? '', link: c?.link ?? '', lizenz: c?.lizenz ?? '',
-  wahrscheinlich: c?.wahrscheinlich ?? '', notiz: c?.notiz ?? '', bestaetigt: Boolean(c?.bestaetigt),
+  wahrscheinlich: c?.wahrscheinlich ?? '', notiz: c?.notiz ?? '', bestaetigt: Boolean(c?.bestaetigt), einzeln: Boolean(c?.einzeln),
 });
 const schluessel = (z: Zeile) => z.epicId || z.datei;
 
@@ -116,6 +121,7 @@ export default function FotosCreditsSeite() {
     form.set('datei', datei); form.set('epicId', epicId); form.set('name', name);
     for (const f of ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'wahrscheinlich', 'notiz'] as const) if (e[f]) form.set(f, e[f]);
     form.set('bestaetigt', e.bestaetigt ? '1' : '0');
+    if (e.einzeln) form.set('einzeln', '1');
     zeigeStatus(k, 'lädt hoch …');
     const r = await fetch('/api/spielerbild/hochladen', { method: 'POST', body: form }).then((x) => x.json()).catch((x) => ({ fehler: (x as Error).message }));
     if (!r.ok) { zeigeStatus(k, `Fehler: ${r.fehler ?? 'Hochladen gescheitert'}`); return; }
@@ -155,7 +161,9 @@ export default function FotosCreditsSeite() {
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1400px]">
         <SeitenKopf className="mb-5" marke={<T>Spieler & Teams</T>} titel={<T>Spielerfotos & Fotografen</T>}
-          text={<T>Neue Fotos je Spieler hochladen, gleich mit Quelle, Fotograf, X-Konto, Link und Lizenz. Öffentlich steht oben mittig am Foto nur eine kleine Marke mit Kamera und X-Konto (oder Fotograf) – und nur, wenn „bestätigt“ angehakt ist. „Wahrscheinlich“, Lizenz und Notiz bleiben intern.</T>} />
+          text={<T>Neue Fotos je Spieler hochladen, gleich mit Quelle, Fotograf, X-Konto, Link und Lizenz. Öffentlich stehen alle benannten Quellen öffentlicher Fotos in der Liste „Photos from“ (Statistik oben rechts, Fußzeile). Am Foto selbst steht nur ein kleines Schild bei Quellen mit nur einem öffentlichen Foto – oder wenn „am Foto“ angehakt ist. „Wahrscheinlich“, Lizenz und Notiz bleiben intern.</T>} />
+
+        <ExtraQuellen />
 
         {fehler && <p className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{fehler}</p>}
 
@@ -218,7 +226,8 @@ export default function FotosCreditsSeite() {
             const e = ent(z);
             const geaendert = Boolean(entwurf[k]);
             const zst = zustandVon(z);
-            const oeffentlich = z.credit?.bestaetigt ? (z.credit.handle ? `@${z.credit.handle}` : [z.credit.quelle, z.credit.fotograf].filter(Boolean).join(' / ')) : '';
+            const oeffentlich = z.credit && (z.credit.quelle || z.credit.fotograf || z.credit.handle) && !/^unbekannt$/i.test(z.credit.quelle ?? '')
+              ? [z.credit.quelle, z.credit.fotograf].filter(Boolean).join(' / ') || `@${z.credit.handle}` : '';
             return (
               <div key={k} className={`flex gap-3 rounded-2xl border bg-zinc-900 p-3 ${gewaehlt.has(k) ? 'border-sky-500' : 'border-zinc-800'}`}>
                 <div className="flex w-24 shrink-0 flex-col gap-1.5">
@@ -243,7 +252,7 @@ export default function FotosCreditsSeite() {
                       {{ bestaetigt: 'bestätigt', offen: 'nicht bestätigt', wahrscheinlich: 'wahrscheinlich', unbekannt: 'unbekannt', ohneFoto: 'ohne Foto' }[zst]}
                     </span>
                   </div>
-                  <p className="truncate text-[11px] text-slate-500">{oeffentlich ? <>Öffentlich: <span className="text-slate-300">📷 {oeffentlich}</span></> : 'Öffentlich: nichts'}</p>
+                  <p className="truncate text-[11px] text-slate-500">{oeffentlich ? <>In „Photos from“: <span className="text-slate-300">{oeffentlich}</span></> : 'Öffentlich: nichts'}</p>
                   <div className="grid grid-cols-2 gap-1">
                     <input className={feld} placeholder="Quelle" value={e.quelle} onChange={(x) => setzeEnt(z, { quelle: x.target.value })} />
                     <input className={feld} placeholder="Fotograf" value={e.fotograf} onChange={(x) => setzeEnt(z, { fotograf: x.target.value })} />
@@ -256,6 +265,10 @@ export default function FotosCreditsSeite() {
                     <label className="flex items-center gap-1.5 text-slate-300">
                       <input type="checkbox" className="accent-emerald-500" checked={e.bestaetigt} disabled={!e.quelle.trim() && !e.fotograf.trim() && !e.handle.trim()} onChange={(x) => setzeEnt(z, { bestaetigt: x.target.checked })} />
                       <T>bestätigt</T>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-slate-400" title="Kleines Schild am Foto auch zeigen, wenn die Quelle viele Fotos hat">
+                      <input type="checkbox" className="accent-sky-500" checked={e.einzeln} onChange={(x) => setzeEnt(z, { einzeln: x.target.checked })} />
+                      <T>am Foto</T>
                     </label>
                     {z.foto && (
                       <button type="button" disabled={!geaendert} onClick={() => speichern(z)} className="rounded-md bg-sky-500 px-2 py-0.5 font-bold text-white disabled:opacity-30"><T>Speichern</T></button>
@@ -270,5 +283,57 @@ export default function FotosCreditsSeite() {
         </div>
       </div>
     </main>
+  );
+}
+
+/** Die von Hand ergaenzten Eintraege der Liste "Photos from" (foto-quellen-extra.json, /api/admin/foto-quellen). */
+function ExtraQuellen() {
+  const [extra, setExtra] = useState<Record<Art, ExtraEintrag[]> | null>(null);
+  const [liste, setListe] = useState<Record<Art, Quelle[]> | null>(null);
+  const [status, setStatus] = useState('');
+  const [offen, setOffen] = useState(false);
+  const laden = useCallback(async () => {
+    const j = await fetch('/api/admin/foto-quellen', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+    if (!j?.ok) { setStatus(`Fehler: ${j?.error ?? 'Laden gescheitert'}`); return; }
+    setExtra(j.extra); setListe(j.liste); setStatus('');
+  }, []);
+  useEffect(() => { if (!offen) return; const t = setTimeout(laden, 0); return () => clearTimeout(t); }, [offen, laden]);
+  const aendern = (art: Art, i: number, teil: Partial<ExtraEintrag>) => setExtra((x) => x && { ...x, [art]: x[art].map((e, j) => (j === i ? { ...e, ...teil } : e)) });
+  const speichern = async () => {
+    setStatus('speichert …');
+    const j = await fetch('/api/admin/foto-quellen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(extra) })
+      .then((r) => r.json()).catch((e) => ({ ok: false, error: (e as Error).message }));
+    if (!j.ok) { setStatus(`Fehler: ${j.error}`); return; }
+    await laden(); setStatus('gespeichert');
+  };
+  const feld = 'w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-slate-100 outline-none focus:border-sky-500';
+  return (
+    <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-xs">
+      <button type="button" onClick={() => setOffen(!offen)} className="font-semibold text-slate-200">{offen ? '▾' : '▸'} Liste „Photos from“ – von Hand ergänzen</button>
+      {offen && (
+        <div className="mt-2 space-y-3">
+          <p className="text-[11px] text-slate-500">Die Liste rechnet sich selbst aus den Credits öffentlicher Fotos. Hier Quellen dazunehmen (ohne Zahl) oder Anzeige-Name, X-Konto und Link einer errechneten Quelle festlegen (gleicher Name oder gleiches X-Konto).</p>
+          {extra && (['organisationen', 'fotografen'] as Art[]).map((art) => (
+            <div key={art}>
+              <p className="mb-1 font-semibold text-slate-300">{art === 'organisationen' ? 'Organisationen' : 'Fotografen'}</p>
+              {extra[art].map((e, i) => (
+                <div key={i} className="mb-1 grid grid-cols-[1fr_1fr_1.5fr_auto] gap-1">
+                  <input className={feld} placeholder="Name" value={e.name} onChange={(x) => aendern(art, i, { name: x.target.value })} />
+                  <input className={feld} placeholder="X-Konto (@…)" value={e.handle ?? ''} onChange={(x) => aendern(art, i, { handle: x.target.value })} />
+                  <input className={feld} placeholder="Link" value={e.link ?? ''} onChange={(x) => aendern(art, i, { link: x.target.value })} />
+                  <button type="button" className="rounded-md border border-zinc-700 px-2 text-slate-400 hover:text-rose-300" onClick={() => setExtra({ ...extra, [art]: extra[art].filter((_, j) => j !== i) })}>✕</button>
+                </div>
+              ))}
+              <button type="button" className="rounded-md border border-zinc-700 px-2 py-0.5 text-slate-400 hover:text-slate-100" onClick={() => setExtra({ ...extra, [art]: [...extra[art], { name: '' }] })}>+ Eintrag</button>
+              {liste && <p className="mt-1 text-[11px] text-slate-500">Öffentlich: {liste[art].map((q) => `${q.name}${q.fotos ? ` (${q.fotos})` : ''}`).join(' · ') || '–'}</p>}
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={speichern} disabled={!extra} className="rounded-md bg-sky-500 px-3 py-1 font-bold text-white disabled:opacity-30">Speichern</button>
+            <span className="text-slate-500">{status}</span>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

@@ -4,29 +4,25 @@ import { useEffect, useState } from 'react';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
- * Der Fotograf an jedem groesser gezeigten Spielerfoto (Betreiber, 16.11.2026) - aber nur, wenn die Angabe bestaetigt ist
- * (lib/fotoCredits.ts, /api/foto-credits liefert nur solche). Ohne bestaetigte Angabe steht am Foto nichts.
+ * Der kleine Credit am einzelnen Spielerfoto - nur noch fuer kleine Quellen (Betreiber, 17.11.2026, lib/fotoQuellen.ts): grosse, wiederkehrende Quellen
+ * (Fortnite Competitive / Epic Games, Esports World Cup, die Event-Fotografen) stehen nur in der Liste "Photos from" (app/components/FotoQuellen.tsx);
+ * am Foto bleibt nur, wer weniger als zwei oeffentliche Fotos hat - typisch das X-Konto einer Org (f1shyx -> @glore_gg) - oder "einzeln" traegt.
+ * /api/foto-credits liefert nur diese.
  *
- * Aussehen (Betreiber, 17.11.2026): eine kleine Pille OBEN MITTIG auf dem Foto, halbdurchsichtig dunkel, mit Kamera-Zeichen und dem X-Konto des
- * Fotografen ("@KonkolMichal"), verlinkt auf sein X-Profil. Bewusst anders als die Bildunterschrift unten rechts, die eine andere Seite benutzt.
- * Ohne X-Konto steht der Name des Fotografen (oder die Quelle) darin. Grosse Fotos (Profilkopf, grosse Karten) zeigen sie immer; mittlere
- * (kleine Karten) nur, solange die Maus darueber ist; kleine Kreise in Listen gar nicht.
+ * Aussehen: ein kleines Schild UNTEN LINKS im Foto, halbdurchsichtig schwarz, helle Schrift in der Seitenschrift, leicht abgerundet, nur das X-Konto
+ * (oder der Name). Grosse Fotos (Profilkopf, grosse Karten) zeigen es immer; mittlere (kleine Karten) nur beim Darueberfahren; kleine Kreise gar nicht.
  *
- * Wie FotoFokus: statt an jeder der vielen Stellen (Profilkopf, Spielerkarten, Rangliste ...) etwas einzubauen, sucht dieses Bauteil jedes <img> auf ein
- * Spielerfoto (/spielerbilder, /spielerbilder-klein) und legt unten rechts eine kleine Marke darueber. Nur auf Fotos, die mindestens 110 Pixel gross
- * gezeigt werden - an kleinen Kreisen in Listen waere sie unlesbar - und nicht auf verwischten Hintergrund-Kopien (aria-hidden).
+ * Wie FotoFokus: statt an jeder der vielen Stellen etwas einzubauen, sucht dieses Bauteil jedes <img> auf ein Spielerfoto (/spielerbilder,
+ * /spielerbilder-klein) und legt das Schild darueber - nicht auf verwischten Hintergrund-Kopien (aria-hidden) und nicht in [data-ohne-foto-credit].
  *
- * Liegt das Foto in einem Link oder Knopf (Spielerkarte), ist die Marke kein zweiter Link darin (das waere ungueltiges HTML), sondern oeffnet den Link
- * des Fotografen selbst und haelt den Klick von der Karte fern.
+ * Liegt das Foto in einem Link oder Knopf (Spielerkarte), ist das Schild kein zweiter Link darin (das waere ungueltiges HTML), sondern oeffnet den Link
+ * selbst und haelt den Klick von der Karte fern.
  */
 
 type Credits = Record<string, { text: string; link?: string; handle?: string; fotograf?: string }>;
 /** Ab dieser Groesse (kuerzere Seite, Pixel) steht die Marke immer da, darunter bis KLEIN nur beim Darueberfahren. */
 const GROSS = 180;
 const KLEIN = 110;
-const KAMERA = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" '
-  + 'stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/>'
-  + '<circle cx="12" cy="13.5" r="3.5"/></svg>';
 let geladen: Promise<Credits> | null = null;
 const holen = () => (geladen ??= fetch('/api/foto-credits').then((r) => (r.ok ? r.json() : { credits: {} }))
   .then((j: { credits?: Credits }) => j.credits ?? {}).catch(() => ({})));
@@ -75,15 +71,14 @@ export default function FotoCredit() {
         m.setAttribute(MARKE, '');
         m.dataset.text = text;
         m.setAttribute('aria-label', `${wort}: ${c.text}`);
-        m.innerHTML = KAMERA;
-        const s = document.createElement('span');
-        s.textContent = text;
-        s.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        m.appendChild(s);
-        m.style.cssText = 'position:absolute;z-index:5;display:inline-flex;align-items:center;gap:4px;max-width:calc(100% - 16px);transform:translateX(-50%);'
-          + 'padding:2px 8px 2px 7px;border-radius:999px;background:rgba(9,9,11,.62);border:1px solid rgba(255,255,255,.14);'
-          + 'backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#fff;font:600 10.5px/15px system-ui,sans-serif;'
-          + 'letter-spacing:.01em;pointer-events:auto;text-decoration:none;transition:opacity .15s;';
+        m.textContent = text;
+        m.style.cssText = 'position:absolute;z-index:5;display:block;max-width:calc(100% - 12px);transform:translateY(-100%);'
+          + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.55);'
+          + 'color:rgba(241,245,249,.88);font-family:inherit;font-size:9.5px;line-height:14px;font-weight:500;letter-spacing:.01em;'
+          + 'pointer-events:auto;text-decoration:none;transition:opacity .15s,color .15s;';
+        const schild = m;
+        schild.addEventListener('mouseenter', () => { schild.style.color = '#fff'; });
+        schild.addEventListener('mouseleave', () => { schild.style.color = 'rgba(241,245,249,.88)'; });
         if (c.link) {
           const ziel = c.link;
           if (m instanceof HTMLAnchorElement) { m.href = ziel; m.target = '_blank'; m.rel = 'noopener noreferrer'; } else {
@@ -97,9 +92,9 @@ export default function FotoCredit() {
         rahmen.appendChild(m);
         marken.set(img, m);
       }
-      // Oben mittig am Foto selbst, nicht am Rahmen (das Profilfoto fuellt nur die rechte Haelfte seiner Flaeche).
-      const links = `${img.offsetLeft + img.offsetWidth / 2}px`;
-      const oben = `${Math.max(0, img.offsetTop) + 6}px`;
+      // Unten links am Foto selbst, nicht am Rahmen (das Profilfoto fuellt nur die rechte Haelfte seiner Flaeche).
+      const links = `${img.offsetLeft + 6}px`;
+      const oben = `${img.offsetTop + img.offsetHeight - 6}px`;
       if (m.style.left !== links) m.style.left = links;
       if (m.style.top !== oben) m.style.top = oben;
       const marke = m;

@@ -22,6 +22,7 @@ import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import FotoHinweis from '@/app/components/FotoHinweis';
+import FotoQuellen from '@/app/components/FotoQuellen';
 import StatistikIntro from './StatistikIntro';
 import KonstanzKarte from './KonstanzKarte';
 import TurnierVerlauf, { type VerlaufKopf } from './TurnierVerlauf';
@@ -4504,6 +4505,8 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 <T>Nicht gespeichert. Bitte noch einmal umschalten.</T>
               </span>
             )}
+            {/* Von wem die Spielerfotos sind - eine Liste statt eines Credits an jedem Foto (Betreiber, 17.11.2026). */}
+            <FotoQuellen className="ml-auto self-start" />
 
           </div>
 
@@ -6292,7 +6295,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </div>
               </div>
             </section>
-            {/* Die Fotos stammen von Event-Fotografen - der allgemeine Hinweis (Betreiber, 16.11.2026); ein bestaetigter Name steht am Foto selbst. */}
+            {/* Die Fotos stammen von Event-Fotografen - der allgemeine Hinweis mit dem Link "Photos from" (Betreiber, 16./17.11.2026). */}
             {offen.bild && <FotoHinweis className="mt-2 px-1 text-right" />}
 
             {/* Pflege - nur fuer den Admin */}

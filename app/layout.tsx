@@ -241,7 +241,7 @@ export default async function RootLayout({
           </Suspense>
           <Sprachschalter />
           <FotoFokus />
-          {/* Bestaetigte Fotografen-Angaben am Foto (lib/fotoCredits.ts). */}
+          {/* Der kleine Credit am Foto - nur kleine Quellen, grosse stehen in "Photos from" (lib/fotoQuellen.ts). */}
           <FotoCredit />
           <DashAnsicht />
           {/* Der Hinweis, dass eine neue Fassung bereitsteht. Er steht im
