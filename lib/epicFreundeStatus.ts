@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { melde } from '@/lib/liveStrom';
+import { freigabenSenden } from '@/lib/matchIdFreigaben';
 
 /*
  * Der Online-Status der Epic-Freunde des CompHub-Kontos - fuer den Match-ID-Finder (Betreiber, 29.10.2026: "irgendwie muss das moeglich sein ...
@@ -246,6 +247,8 @@ function dienstStarten() {
                 if (a?.sessionId !== b?.sessionId || a?.zeile !== b?.zeile) melde(freundKanal(id), 'freund', b ?? null);
               }
               melde(STATUS_KANAL, 'status', freundeDienstStatus());
+              // Die Freigabeliste des Bot-Kontos (lib/matchIdFreigaben) bei jedem Verbinden mitgeben - nach einem Neustart des Dienstes ist sie sofort wieder da.
+              void freigabenSenden();
               fertig();
             } else if (name === 'freund') {
               if (d.status) dienst.freunde.set(d.id, d.status); else dienst.freunde.delete(d.id);

@@ -12,6 +12,7 @@
  *                     "status" bei jedem Verbinden/Trennen, Lebenszeichen alle 15 s
  *   GET /status    -> { status }
  *   GET /freunde?alle=1 -> dazu "liste" (alle Freunde beider Konten laut Epics Freundesliste, auch wer offline ist) und "verlauf" (siehe unten)
+ *   GET/POST /freigaben -> { ids } - die Epic-Ids, deren Freundschaftsanfragen an das Bot-Konto angenommen werden (POST { ids } setzt sie, von der Seite)
  *   GET /verlauf[?ids=a,b] -> { verlauf: { <epicId>: [{ matchId, von, bis, playlist, zeile }] } } - jede Sitzung, die ein Freund hatte (neueste zuletzt)
  *
  * Verlauf (Betreiber, 17.11.2026: "wenn ich das Match verlasse, ist die ID sofort weg - als Verlauf darunter behalten"): je Freund die letzten 50
@@ -33,6 +34,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { client, xml } from '@xmpp/client';
+import { annahmeDurchgang, freigabenAus } from '../lib/freundAnnahme.mjs';
 
 const PORT = Number(process.env.XMPP_DIENST_PORT || 3210);
 const HOST = process.env.XMPP_DIENST_HOST || '0.0.0.0';
@@ -374,6 +376,20 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify({ verlauf: verlaufAls(ids.length ? ids : null) }));
     return;
   }
+  if (u.pathname === '/freigaben') {
+    if (req.method === 'POST') {
+      let roh = '';
+      req.on('data', (c) => { roh += c; if (roh.length > 200_000) req.destroy(); });
+      req.on('end', () => {
+        let j;
+        try { j = JSON.parse(roh || '{}'); } catch { res.writeHead(400).end(); return; }
+        void freigabenSetzen(j).then(() => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, anzahl: freigaben.size })));
+      });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify({ ids: [...freigaben] }));
+    return;
+  }
   if (u.pathname === '/strom') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
     res.write(`retry: 1000\nevent: hallo\ndata: ${JSON.stringify({ status: status(), freunde: alleFreunde() })}\n\n`);
@@ -406,4 +422,33 @@ process.on('SIGTERM', () => ende('SIGTERM'));
 process.on('SIGINT', () => ende('SIGINT'));
 
 await verlaufLaden();
+
+/*
+ * Anfragen annehmen, die ein Streamer/Pro SELBST an das Bot-Konto geschickt hat (lib/freundAnnahme.mjs) - nur fuer freigegebene Epic-Ids.
+ * Die Liste fuehrt der Admin im Match-ID-Finder (lib/matchIdFreigaben, Ablage matchid-freigaben.json); die Seite schickt sie bei jedem Aendern und bei
+ * jedem Verbinden mit dem Strom hierher (POST /freigaben) - hier liegt sie im Speicher und in <daten>/matchid-freigaben.json (fuer einen Neustart).
+ * Leere Liste: nichts wird angenommen. Der Bot schickt weiterhin niemandem eine Anfrage (#21).
+ */
+const ANNAHME_MS = Number(process.env.FREUND_ANNAHME_S || 120) * 1000;
+const FREIGABEN_DATEI = path.join(DATEN, 'matchid-freigaben.json');
+let freigaben = new Set();
+try { freigaben = freigabenAus(JSON.parse(await fs.readFile(FREIGABEN_DATEI, 'utf8'))); log(`Freigaben geladen: ${freigaben.size}`); } catch { /* noch keine */ }
+async function freigabenSetzen(roh) {
+  freigaben = freigabenAus(roh);
+  await fs.mkdir(DATEN, { recursive: true }).then(() => fs.writeFile(FREIGABEN_DATEI, JSON.stringify({ ids: [...freigaben] }))).catch((e) => log(`Freigaben nicht geschrieben: ${e.message}`));
+  log(`Freigaben gesetzt: ${freigaben.size}`);
+  void annahme();
+}
+let annahmeLaeuft = false;
+async function annahme() {
+  const k = konten.bot;
+  if (annahmeLaeuft || !freigaben.size || !k.verbunden || !k.token || !k.konto) return;
+  annahmeLaeuft = true;
+  try {
+    const r = await annahmeDurchgang({ konto: k.konto, token: k.token, freigaben, basis: `${FRIENDS}/friends/api/v1` });
+    if (r.angenommen.length || r.fehler) log(`[bot] Anfragen: ${r.angenommen.length} angenommen (${r.angenommen.join(', ')}), ${r.liegen} liegen${r.fehler ? `, Fehler: ${r.fehler}` : ''}`);
+  } catch (e) { log(`[bot] Annahme: ${e?.message ?? e}`); } finally { annahmeLaeuft = false; }
+}
+setInterval(() => { void annahme(); }, ANNAHME_MS);
+
 for (const k of Object.values(konten)) void verbinde(k);

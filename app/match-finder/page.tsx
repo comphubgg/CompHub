@@ -118,6 +118,70 @@ function LiveKasten({ live, kopiert, kopieren }: { live: FLive; kopiert: string;
 }
 
 /*
+ * Freigaben fuer das Bot-Konto "comphub." (nur Admin, lib/matchIdFreigaben): wer hier steht und dem Bot SELBST eine Freundschaftsanfrage schickt, wird
+ * angenommen - danach kommt seine Match-ID schon auf der Startinsel (Epic-Status eines Freundes). Der Bot schickt niemandem eine Anfrage.
+ */
+interface FFreigabe { id: string; name: string; seit: string; von: string }
+function Freigaben() {
+  const [liste, setListe] = useState<FFreigabe[] | null>(null);
+  const [dienst, setDienst] = useState<string[] | null>(null);
+  const [eingabe, setEingabe] = useState('');
+  const [fehler, setFehler] = useState('');
+  const [laeuft, setLaeuft] = useState(false);
+  const nimm = (j: { ok?: boolean; error?: string; eintraege?: FFreigabe[]; dienst?: { ids: string[] } | null }) => {
+    if (!j?.ok) { setFehler(j?.error ?? 'Fehler'); return; }
+    setFehler(''); setListe(j.eintraege ?? []); setDienst(j.dienst?.ids ?? null);
+  };
+  useEffect(() => { fetch('/api/admin/matchid-freigaben', { cache: 'no-store' }).then((r) => r.json()).then(nimm).catch(() => setFehler('Nicht ladbar')); }, []);
+  const dazu = async () => {
+    const e = eingabe.trim();
+    if (!e || laeuft) return;
+    setLaeuft(true);
+    try {
+      const j = await fetch('/api/admin/matchid-freigaben', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eingabe: e }) }).then((r) => r.json());
+      nimm(j); if (j?.ok) setEingabe('');
+    } catch { setFehler('Nicht gespeichert'); } finally { setLaeuft(false); }
+  };
+  const weg = async (id: string) => {
+    setLaeuft(true);
+    try { nimm(await fetch(`/api/admin/matchid-freigaben?id=${id}`, { method: 'DELETE' }).then((r) => r.json())); } catch { setFehler('Nicht gespeichert'); } finally { setLaeuft(false); }
+  };
+  return (
+    <section className={`${karte} mb-4`} data-teil="freigaben">
+      <h2 className="text-base font-bold text-white"><T>Freigaben für das Bot-Konto "comphub."</T></h2>
+      <p className="mt-1 text-xs text-slate-400">
+        <T>Wer hier steht und dem Epic-Konto "comphub." selbst eine Freundschaftsanfrage schickt, wird automatisch angenommen (alle 2 Minuten). Danach kommt seine Match-ID schon auf der Startinsel. Der Bot schickt niemandem eine Anfrage.</T>
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input value={eingabe} onChange={(e) => setEingabe(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void dazu(); }} maxLength={60}
+          placeholder="Epic-Name oder Konto-Id" aria-label="Epic-Name oder Konto-Id"
+          className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none" />
+        <button type="button" onClick={() => void dazu()} disabled={laeuft || !eingabe.trim()}
+          className="rounded-lg bg-sky-500 px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-50"><T>Hinzufügen</T></button>
+      </div>
+      {fehler && <p className="mt-2 text-xs text-red-400">{fehler}</p>}
+      {liste === null ? <p className="mt-3 text-xs text-slate-500"><T>Lädt …</T></p>
+        : !liste.length ? <p className="mt-3 text-xs text-slate-500"><T>Noch niemand freigegeben.</T></p>
+          : (
+            <ul className="mt-3 divide-y divide-zinc-800 text-sm">
+              {liste.map((f) => (
+                <li key={f.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                  <span className="font-semibold text-white">{f.name || f.id.slice(0, 8)}</span>
+                  <span className="font-mono text-[11px] text-slate-500">{f.id}</span>
+                  {dienst && !dienst.includes(f.id) && <span className="text-[11px] text-amber-400"><T>noch nicht beim Dienst</T></span>}
+                  <span className="ml-auto text-[11px] text-slate-500">{datumZeit(f.seit)}</span>
+                  <button type="button" onClick={() => void weg(f.id)} disabled={laeuft} aria-label={`${f.name || f.id} entfernen`}
+                    className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 hover:border-red-500 hover:text-red-300 disabled:opacity-50"><T>Entfernen</T></button>
+                </li>
+              ))}
+            </ul>
+          )}
+      {dienst === null && liste !== null && <p className="mt-2 text-[11px] text-amber-400"><T>XMPP-Dienst nicht erreichbar - die Liste geht beim nächsten Verbinden hinüber.</T></p>}
+    </section>
+  );
+}
+
+/*
  * Nur fuer den Admin (Betreiber, 17.11.2026): alle Epic-Freunde der beiden CompHub-Konten, ohne sie als Favoriten anzulegen - live zuerst, dann nach Namen.
  * Ein Abruf je 20 s (/api/match-finder?ansicht=freunde -> ein Abruf beim XMPP-Dienst).
  */
@@ -297,7 +361,7 @@ export default function MatchFinder() {
           </div>
         )}
 
-        {zugang.admin && ansicht === 'freunde' ? <AlleFreunde kopiert={kopiert} kopieren={kopieren} /> : <>
+        {zugang.admin && ansicht === 'freunde' ? <><Freigaben /><AlleFreunde kopiert={kopiert} kopieren={kopieren} /></> : <>
         {fehler && <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
