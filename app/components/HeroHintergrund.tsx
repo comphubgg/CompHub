@@ -18,12 +18,24 @@ import { useEffect, useState } from 'react';
 const CUPS = ['/hero/cup-performance.webp', '/hero/cup-division.webp', '/hero/cup-global.webp', '/hero/cup-reload.webp'];
 const KARTEN = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `/hero/karte-${n}.webp`);
 
-const kachel = (src: string, i: number) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  // Nicht "lazy": die Reihen laufen schraeg ins Bild, der Browser lud die Kacheln dort oft erst, wenn sie schon sichtbar und leer waren.
-  <img key={`${src}-${i}`} src={encodeURI(src).replace(/%25/g, '%')} alt="" decoding="async" draggable={false}
-    className={`h-36 w-56 shrink-0 rounded-2xl object-cover shadow-lg sm:h-44 sm:w-72 ${src.includes('/spielerbilder') ? 'object-[center_18%]' : ''}`} />
-);
+/*
+ * Hoechstens so viele Spielerfotos im Hintergrund (17.11.2026, gemessen): mit "alle oeffentlichen" lud die Startseite 142 Fotos, 5,7 MB von 8,2 MB
+ * der ganzen Seite, auch auf dem Handy - und es werden mit dem Foto-Pool laufend mehr. Sichtbar sind je Reihe etwa acht Kacheln; 24 Fotos (sechs je
+ * Reihe, zwischen acht Bannern und Karten) fuellen jede Reihe, und jeder Besuch zieht andere aus allen.
+ */
+const HOECHSTENS_FOTOS = 24;
+
+const kachel = (src: string, i: number) => {
+  const foto = src.includes('/spielerbilder');
+  return (
+    // Nicht "lazy": die Reihen laufen schraeg ins Bild, der Browser lud die Kacheln dort oft erst, wenn sie schon sichtbar und leer waren.
+    // Fotos mit niedrigem Vorrang: sie kommen nach dem Laden der Seite und sollen Skripte und Daten der Seite nicht ausbremsen.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={`${src}-${i}`} src={encodeURI(src).replace(/%25/g, '%')} alt="" decoding="async" draggable={false}
+      fetchPriority={foto ? 'low' : undefined}
+      className={`h-36 w-56 shrink-0 rounded-2xl object-cover shadow-lg sm:h-44 sm:w-72 ${foto ? 'object-[center_18%]' : ''}`} />
+  );
+};
 
 /** Eine Reihe: die Bilder zweimal hintereinander, damit der Lauf nahtlos von vorn beginnt. */
 function Reihe({ bilder, dauer, rueck = false }: { bilder: string[]; dauer: number; rueck?: boolean }) {
@@ -68,7 +80,7 @@ export default function HeroHintergrund() {
         if (weg) return;
         const alle = Array.isArray(j?.fotos) ? (j.fotos as Array<{ bild?: string | null }>).map((f) => f.bild)
           : Array.isArray(j?.spieler) ? (j.spieler as Array<{ bild: string | null }>).map((s) => s.bild) : [];
-        setSpieler(gemischt([...new Set(alle.filter((b): b is string => !!b))]));
+        setSpieler(gemischt([...new Set(alle.filter((b): b is string => !!b))]).slice(0, HOECHSTENS_FOTOS));
       })
       .catch(() => { /* ohne Fotos laufen Banner und Karten allein */ });
     return () => { weg = true; };

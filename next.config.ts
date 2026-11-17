@@ -98,6 +98,19 @@ const nextConfig: NextConfig = {
       // The private Finest Creative pages differ per person (lib/finestZugang): never kept at the edge.
       { source: '/overlays/finest', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
       { source: '/overlays/finest/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] },
+      /*
+       * Feste Bilder und Schriften aus public/ eine Stunde am Rand von Cloudflare halten (17.11.2026, gemessen). Next schickt fuer public/ nur
+       * "public, max-age=0": Cloudflare fragte darum bei JEDEM Aufruf den Server, ob sich /hero/karte-1.webp oder das Logo geaendert hat
+       * (cf-cache-status REVALIDATED/EXPIRED, 450-600 ms statt 100 ms bei einem Treffer) - auf der Startseite ein Dutzend solcher Bilder je Besuch,
+       * und jedes wartete, wenn der Server gerade beschaeftigt war. Eine Stunde: ein unter gleichem Namen ersetztes Bild kommt spaetestens
+       * eine Stunde nach dem Aufspielen an. Browser behalten Bilder wie bisher vier Stunden (max-age=14400, so setzt es auch Cloudflare).
+       * Nur Ordner ohne gleichnamige Seite (nicht /maps: das ist auch eine Seite), nicht /spielerbilder (Fotos kommen und gehen) und
+       * nicht /orgs (Org-Uploads).
+       */
+      ...['hero', 'logos', 'logo', 'cups', 'tournaments', 'flags', 'fonts', 'webfonts', 'icons', 'saisonbilder', 'waffen'].map((ordner) => ({
+        source: `/${ordner}/:pfad+`,
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=14400, s-maxage=3600, stale-while-revalidate=86400' }],
+      })),
       // Chrome auf Android nennt das Handymodell nur auf Nachfrage (Client Hints) - fuer die grobe Geraeteangabe je Sitzung (lib/geraet).
       { source: '/:path*', headers: [{ key: 'Accept-CH', value: 'Sec-CH-UA-Model, Sec-CH-UA-Mobile, Sec-CH-UA-Platform-Version' }] },
     ];
