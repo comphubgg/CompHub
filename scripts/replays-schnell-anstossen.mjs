@@ -7,12 +7,14 @@
 //   node scripts/replays-schnell-anstossen.mjs     schreibt "anstossen=ja|nein" nach GITHUB_OUTPUT
 
 import fs from 'node:fs';
-import { replayRegel, endrunden } from '../lib/replayRegel.mjs';
+import { replayRegel, endrunden, cupVorrang } from '../lib/replayRegel.mjs';
 
 const SEITE = (process.env.WERKZEUG_URL || 'https://www.thecomphub.com').replace(/\/+$/, '');
 const jetzt = Date.now();
 
 let frisch = 0; let grund = ''; let sammeln = false;
+// Sofortspur (.github/workflows/sofortspur.yml): ein grosser Spieltag (Vorrang 0 - FNCS samt LCQ, Cash, Majors) beginnt in 20 Minuten, laeuft oder endete vor hoechstens einer Stunde.
+const sofort = [];
 try {
   const r = await fetch(`${SEITE}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(90_000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -27,6 +29,8 @@ try {
         // Der Live-Sammler (replays-live-sammler.yml) soll schon stehen, wenn das erste Spiel endet.
         if (!/Arena/i.test(w.windowId) && (w.status === 'live' || (w.begin > jetzt && w.begin - jetzt < 30 * 60_000))) sammeln = true;
         if (w.status === 'live' || (w.status === 'vorbei' && jetzt - (w.end ?? 0) < 6 * 3600_000)) frisch += 1;
+        if (!/Arena/i.test(w.windowId) && w.eventId && cupVorrang(w.windowId) === 0
+          && (w.status === 'live' || (w.status === 'kommt' && w.begin - jetzt < 20 * 60_000) || (w.status === 'vorbei' && jetzt - (w.end ?? 0) < 3600_000))) sofort.push(w.windowId);
       }
     }
   }
@@ -37,5 +41,6 @@ try {
 }
 const stuendlich = new Date(jetzt).getUTCMinutes() < 10;
 const ja = frisch > 0 || stuendlich;
+console.log(`Sofortspur: ${sofort.length ? `anstossen - ${sofort.join(', ')}` : 'kein grosser Spieltag frisch'}`);
 console.log(`Schnellspur: ${ja ? 'anstossen' : 'nicht noetig'}${grund ? ` - ${grund}` : stuendlich ? ' - stuendliche Nachschau' : ''}`);
-if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `anstossen=${ja ? 'ja' : 'nein'}\nsammeln=${sammeln ? 'ja' : 'nein'}\n`);
+if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `anstossen=${ja ? 'ja' : 'nein'}\nsammeln=${sammeln ? 'ja' : 'nein'}\nsofort=${sofort.length ? 'ja' : 'nein'}\n`);

@@ -1,0 +1,139 @@
+# Sofortspur (17.11.2026, Betreiber): die vollen Stats grosser Cups (FNCS samt LCQ, Cash, Majors) 3 bis 6 Minuten nach jedem Match auf der Seite.
+#
+# Bisher ging jedes Match durch "Replays schnell" -> "Clutch rechnen" (5-7 min Planen) -> "Clutch ablegen" (8-13 min Release) samt Wartezeiten: 25 bis 40 Minuten.
+# Hier liest EIN Lauf die Spieltage mit Vorrang 0 (lib/replayRegel cupVorrang) Match fuer Match, sobald Epic das Replay fertig abgelegt hat - derselbe Code
+# wie "Clutch rechnen" und die Live-Spur (scripts/live-spur.mjs, lib/vollMatch.mjs, Leser tools/replay-voll) - und schickt jeden Teilstand sofort an die
+# Seite (POST /api/sofort/match, app/api/sofort/match/route.ts). Der Dienst "live" auf dem Server fuehrt die Teile mit dem unveraenderten
+# scripts/clutch-zusammen.mjs auf den Stand vom Release zusammen (LIVE_NUR_BAUEN, kein eigenes Lesen); die Seite liest das ueber lib/clutchLive.ts.
+#
+# Der bisherige Weg bleibt unveraendert und massgeblich: sobald das Release ein Match hat, gilt das Release (lib/clutchLiveWahl nimmLive, live-spur archiviert
+# den Teil). Ist die Seite nicht erreichbar, wiederholt der Lauf jeden Teil bis zu seinem Ende; was dann noch fehlt, kommt wie bisher ueber das Release.
+#
+# Angestossen von der Discord-Live-Kette (scripts/replays-schnell-anstossen.mjs, "sofort=ja"), sobald ein solcher Spieltag in 20 Minuten beginnt, laeuft
+# oder vor hoechstens einer Stunde endete. Ein Lauf bleibt, solange das gilt (hoechstens 5 h 40 min), und endet dann von selbst; laeuft schon einer, wartet
+# hoechstens einer. Von Hand: mit "fenster" genau dieser Spieltag, jedes Match einmal (auch was das Release schon hat - zum Pruefen).
+#
+# Geheimnis: SOFORT_SECRET (GitHub -> Settings -> Secrets and variables -> Actions) und derselbe Wert als SOFORT_SECRET in /opt/comphub/web.env auf dem Server.
+
+name: Sofortspur
+
+on:
+  workflow_dispatch:
+    inputs:
+      fenster:
+        description: 'windowId (leer: Dauerlauf fuer alle frischen grossen Spieltage)'
+        required: false
+        default: ''
+      event:
+        description: 'eventId zu fenster (leer: aus Release oder Katalog)'
+        required: false
+        default: ''
+      ziel:
+        description: 'Adresse der Seite'
+        required: false
+        default: 'https://www.thecomphub.com'
+  schedule:
+    # Nur der Rueckfall: GitHub laesst Zeitplaene oft ausfallen. Der Lauf endet sofort, wenn kein grosser Spieltag frisch ist.
+    - cron: '7,37 * * * *'
+
+concurrency:
+  group: sofortspur-${{ inputs.fenster || 'dauer' }}
+  cancel-in-progress: false
+
+jobs:
+  # Erst nachsehen (ohne Abhaengigkeiten, ein paar Sekunden): ohne frischen grossen Spieltag endet der Lauf hier.
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      sofort: ${{ steps.frisch.outputs.sofort }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/replays-schnell-anstossen.mjs
+            lib/replayRegel.mjs
+          sparse-checkout-cone-mode: false
+      - name: Grosser Spieltag frisch?
+        id: frisch
+        env:
+          WERKZEUG_URL: ${{ inputs.ziel || 'https://www.thecomphub.com' }}
+          FENSTER: ${{ inputs.fenster }}
+          GEHEIM_DA: ${{ secrets.SOFORT_SECRET != '' }}
+        run: |
+          # Ohne das Geheimnis nimmt die Seite nichts an - dann gar nicht erst lesen (der bisherige Weg laeuft ohnehin).
+          if [ "$GEHEIM_DA" != "true" ]; then echo "sofort=nein" >> "$GITHUB_OUTPUT"; echo "SOFORT_SECRET fehlt (Settings -> Secrets and variables -> Actions)"; exit 0; fi
+          if [ -n "$FENSTER" ]; then echo "sofort=ja" >> "$GITHUB_OUTPUT"; echo "von Hand: $FENSTER"; exit 0; fi
+          node scripts/replays-schnell-anstossen.mjs | grep Sofortspur || true
+          grep -q '^sofort=' "$GITHUB_OUTPUT" || echo "sofort=nein" >> "$GITHUB_OUTPUT"
+
+  lesen:
+    needs: pruefen
+    if: needs.pruefen.outputs.sofort == 'ja'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Leser bauen
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+
+      - name: Lesen und senden
+        env:
+          WERKZEUG_URL: ${{ inputs.ziel || 'https://www.thecomphub.com' }}
+          LIVE_SENDEN_URL: ${{ inputs.ziel || 'https://www.thecomphub.com' }}/api/sofort/match
+          SOFORT_SECRET: ${{ secrets.SOFORT_SECRET }}
+          COMPHUB_LIVE_ORT: ${{ runner.temp }}/sofort
+          SOFORT_MESSUNG: ${{ runner.temp }}/sofort-messung.json
+          LIVE_NUR_VORRANG: '1'
+          LIVE_LAUFZEIT_MIN: '340'
+          LIVE_NACH_ENDE_MIN: '60'
+          LIVE_SPAETER_MS: '30000'
+          LIVE_SEITE0_MS: '15000'
+          LIVE_LESER: '4'
+          LIVE_LADEN: '8'
+          FENSTER: ${{ inputs.fenster }}
+          EVENT: ${{ inputs.event }}
+        run: |
+          set -o pipefail
+          W=$(printf '%s' "$FENSTER" | tr -cd 'A-Za-z0-9_-')
+          E=$(printf '%s' "$EVENT" | tr -cd 'A-Za-z0-9_-')
+          if [ -n "$W" ]; then
+            node scripts/live-spur.mjs --einmal --fenster "$W" ${E:+--event "$E"} 2>&1 | tail -200
+          else
+            node scripts/live-spur.mjs 2>&1
+          fi
+
+      - name: Messung
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sofort-messung
+          path: ${{ runner.temp }}/sofort-messung.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

@@ -131,6 +131,11 @@ jobs:
           if grep -q ^sammeln=ja "$GITHUB_OUTPUT" 2>/dev/null; then
             gh workflow run replays-live-sammler.yml -R "${{ github.repository }}" --ref main && echo "Live-Sammler angestossen"
           fi
+          # Sofortspur (sofortspur.yml): ein Dauerlauf je grossem Cup-Abend - nur, wenn nicht schon einer laeuft oder wartet.
+          if grep -q ^sofort=ja "$GITHUB_OUTPUT" 2>/dev/null; then
+            laeuft=$(gh run list -w sofortspur.yml -R "${{ github.repository }}" -L 10 --json status -q '[.[] | select(.status != "completed")] | length')
+            if [ "${laeuft:-1}" = "0" ]; then gh workflow run sofortspur.yml -R "${{ github.repository }}" --ref main && echo "Sofortspur angestossen"; else echo "Sofortspur laeuft schon ($laeuft)"; fi
+          fi
 
       # GitHub liess den Zeitplan am 28.9.2026 sieben Stunden lang ausfallen.
       # Jeder Lauf stoesst deshalb nach zehn Minuten den naechsten selbst an;

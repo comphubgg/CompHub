@@ -22,6 +22,9 @@ services:
     # Matches kennt; fehlt er oder ist er kaputt, bleibt es beim Release.
     volumes:
       - ./live:/app/live:ro
+      # Sofortspur (17.11.2026): app/api/sofort/match legt die auf GitHub gelesenen Matches (.github/workflows/sofortspur.yml) hier ab - der Dienst "live"
+      # nimmt sie als ./live/eingang und baut daraus den Live-Stand. Braucht SOFORT_SECRET in web.env (derselbe Wert wie das GitHub-Secret SOFORT_SECRET).
+      - ./live/eingang:/app/live-eingang
 
   # Die XMPP-Verbindung zu Epic (Status der Freunde = Match-IDs) als eigener Dienst (scripts/xmpp-dienst.mjs, Dockerfile.xmpp): ein Update der Seite
   # startet nur "web" neu, dieser Dienst laeuft weiter (sein Image :xmpp aendert sich nur mit dem Dienst selbst, .github/workflows/xmpp-image.yml).
@@ -138,6 +141,10 @@ services:
     env_file: web.env
     environment:
       WERKZEUG_URL: http://127.0.0.1:3100
+      # Sofortspur (17.11.2026, Betreiber: der Server liest keine Replays mehr): gelesen wird auf GitHub (.github/workflows/sofortspur.yml), hier nur
+      # zusammengefuehrt - die Teile aus ./live/eingang (app/api/sofort/match) alle 15 s mit clutch-zusammen.mjs auf den Stand vom Release.
+      # "auto": so, sobald SOFORT_SECRET in web.env steht; ohne ihn (oder mit "0") liest der Dienst selbst wie bis zum 17.11.
+      LIVE_NUR_BAUEN: auto
       LIVE_LESER: "3"
       LIVE_LADEN: "6"
       COMPHUB_LIVE_ORT: /app/live

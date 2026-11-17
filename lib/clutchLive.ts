@@ -8,22 +8,41 @@
  * Fehlt der Live-Stand, ist er kaputt, aelter oder nicht weiter als das Release: das Release, wie vorher. Ein Fehler hier bricht nie eine Seite.
  */
 
-import { liesJson, liesBereich, speicher } from '@/lib/ablage';
+import { liesBereich, speicher } from '@/lib/ablage';
 import { liesLiveStand, nimmLive } from '@/lib/clutchLiveWahl.mjs';
+import { fotosImJsonSperren } from '@/lib/spielerbildKlein';
 
 /** Objekte aus dem Live-Stand -> ihre clutch-je-Datei (oder null bei altem Format). */
 const ausLive = new WeakMap<object, Buffer | null>();
 
-/** clutch/<w>.json: der Live-Stand, wenn er mehr Matches kennt als das Release, sonst das Release; null, wenn es keins gibt. */
+/*
+ * Einmal geparst je Dateistand, nicht je Aufruf (Sofortspur, 17.11.2026). clutch/<w>.json eines grossen Spieltags hat bis 40 MB (LCQ EU 17.11.: 7.577 Matches,
+ * JSON.parse 320-370 ms) und app/api/cup-stats liest ihn je Aufruf zweimal - jedes Mal stand die Ereignisschleife. Das Release haelt lib/ablageGithub eine
+ * Minute als denselben Buffer vor (vorrat), der Live-Stand ist je Dateistand gemerkt (lib/clutchLiveWahl liesLiveStand) - an beiden haengt das geparste Objekt.
+ * Darum bekommen alle Aufrufer DASSELBE Objekt: die Leser (cup-stats, cup-spieler, spieler-detail, szene-stats, cup-preise, lib/ftPostsDaten, lib/ftPosts)
+ * lesen es nur (geprueft 17.11.2026). Es darf nicht veraendert werden - wer etwas daran aendern will, kopiert vorher.
+ */
+const geparst = new WeakMap<Buffer, unknown>();
+
+async function liesRelease<T>(w: string): Promise<T | null> {
+  const roh = await speicher.lies(`clutch/${w}.json`);
+  if (!roh) return null;
+  if (geparst.has(roh)) return geparst.get(roh) as T | null;
+  let d: T | null = null;
+  try { d = JSON.parse(fotosImJsonSperren(roh.toString('utf8'))) as T; } catch { d = null; }
+  geparst.set(roh, d);
+  return d;
+}
+
+/** clutch/<w>.json: der Live-Stand, wenn er mehr Matches kennt als das Release, sonst das Release; null, wenn es keins gibt. Nur lesen (siehe oben). */
 export async function liesClutch<T extends object>(w: string): Promise<T | null> {
   const [release, live] = await Promise.all([
-    liesJson<T | null>(`clutch/${w}.json`, null).catch(() => null),
+    liesRelease<T>(w).catch(() => null),
     liesLiveStand(w).catch(() => null),
   ]);
   try {
     if (live && nimmLive(live.d, release)) {
-      // Frisch geparst wie beim Release - Aufrufer duerfen das Objekt veraendern, ohne den gemerkten Stand zu treffen.
-      const d = JSON.parse(live.roh.toString('utf8')) as T;
+      const d = live.d as T;
       ausLive.set(d, live.je ?? null);
       return d;
     }

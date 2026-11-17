@@ -24,8 +24,19 @@
 //   - 36 Stunden nach dem Ende wird ein Spieltag ganz vergessen (dann steht er laengst im Release).
 //
 //   nice -n 10 node scripts/live-spur.mjs
+//
+// SOFORTSPUR (17.11.2026, Betreiber: volle Stats 3 bis 6 Minuten nach jedem Match, der Server liest selbst keine Replays mehr). Zwei weitere Arten:
+//   LIVE_SENDEN_URL=<Seite>/api/sofort/match + SOFORT_SECRET   (GitHub, .github/workflows/sofortspur.yml)
+//       liest wie oben, schickt jeden Teil sofort an die Seite (POST, gzip, Wiederholung bis er angenommen ist) und baut selbst keinen Live-Stand;
+//       LIVE_NUR_VORRANG=1: nur Spieltage mit Vorrang 0 (FNCS, Cash, LCQ, Majors - lib/replayRegel cupVorrang); LIVE_LAUFZEIT_MIN: so lange hoechstens,
+//       und Schluss, sobald kein Spieltag mehr frisch ist (LIVE_NACH_ENDE_MIN nach dem Ende) und nichts mehr zu senden ist.
+//   LIVE_NUR_BAUEN=1   (Server, Dienst "live")
+//       liest nichts und fragt Epic nicht; nimmt die Teile, die app/api/sofort/match unter LIVE_EINGANG (Standard <LIVE_ORT>/eingang/<w>/<id>.json)
+//       ablegt, und baut daraus wie oben den Live-Stand (alle LIVE_BAUEN_MS, Standard 15 s).
+// Den Eingang nehmen beide Server-Arten (mit und ohne LIVE_NUR_BAUEN) an.
 
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -44,9 +55,21 @@ const KATALOG_MS = 30_000;
 // endet hoechstens alle paar Minuten, Epic legt das Replay ohnehin erst danach ab.
 const SEITE0_MS = Math.max(5_000, Number(process.env.LIVE_SEITE0_MS) || 15_000);
 const SPAETESTENS_MS = 8 * 60_000;  // auch ohne neuen Stand alle Seiten
-const NACH_ENDE_MS = 6 * 3600_000;  // so lange nach dem Ende kommen noch Ids dazu (wie die Schnellspur)
+// "auto" (deploy/server-compose.yml): nur bauen, sobald SOFORT_SECRET gesetzt ist (dann liefert GitHub die Teile) - vorher liest der Dienst selbst wie bis zum 17.11.
+const NUR_BAUEN = process.env.LIVE_NUR_BAUEN === '1' || (process.env.LIVE_NUR_BAUEN === 'auto' && !!(process.env.SOFORT_SECRET || '').trim() && !(process.env.LIVE_SENDEN_URL || '').trim());
+const SENDEN_URL = (process.env.LIVE_SENDEN_URL || '').trim();
+const SENDEN = !!SENDEN_URL && !NUR_BAUEN;
+const SOFORT_SECRET = (process.env.SOFORT_SECRET || '').trim();
+const NUR_VORRANG = process.env.LIVE_NUR_VORRANG === '1';
+const LAUFZEIT_MS = (Number(process.env.LIVE_LAUFZEIT_MIN) || 0) * 60_000;
+// so lange nach dem Ende kommen noch Ids dazu (wie die Schnellspur); die Sofortspur auf GitHub nimmt weniger (LIVE_NACH_ENDE_MIN), danach holt das Release auf
+const NACH_ENDE_MS = (Number(process.env.LIVE_NACH_ENDE_MIN) || 360) * 60_000;
 const VERGESSEN_MS = 36 * 3600_000; // dann ist der Spieltag laengst im Release
-const BAUEN_MS = 60_000;            // hoechstens so oft je Spieltag der Live-Stand
+// hoechstens so oft je Spieltag der Live-Stand; nur bauend 15 s (ein kleiner Spieltag braucht dafuer ein paar Sekunden in einem eigenen Prozess)
+const BAUEN_MS = Number(process.env.LIVE_BAUEN_MS) || (NUR_BAUEN ? 15_000 : 60_000);
+// noch live oder kuerzer als das Spiel: so bald wieder fragen
+const SPAETER_MS = Number(process.env.LIVE_SPAETER_MS) || 90_000;
+const EINGANG = process.env.LIVE_EINGANG || path.join(LIVE_ORT, 'eingang');
 const RELEASE_MS = 5 * 60_000;      // auch ohne neue Teile so oft im Release nachsehen (archivieren, Live-Stand nachziehen)
 const ZWISCHEN = path.join(LIVE_ORT, 'release');
 
@@ -128,8 +151,12 @@ async function katalog() {
       const finals = regel === 'nurFinals' ? endrunden(liste) : null;
       for (const w of liste) {
         if ((finals && !finals.has(w.windowId)) || /Arena/i.test(w.windowId) || !w.eventId) continue;
+        // Sofortspur: nur die grossen Cups (FNCS samt LCQ, Cash, Majors) - die uebrigen bleiben bei Schnellspur und Clutch rechnen.
+        if (NUR_VORRANG && cupVorrang(w.windowId) !== 0) continue;
         // Wie scripts/replays-schnell-anstossen.mjs: laeuft, oder vor hoechstens sechs Stunden zu Ende.
-        const frisch = w.status === 'live' || (w.status === 'vorbei' && jetzt - (w.end ?? 0) < NACH_ENDE_MS);
+        const frisch = w.status === 'live' || (w.status === 'vorbei' && jetzt - (w.end ?? 0) < NACH_ENDE_MS)
+          // Sofortspur: schon kurz vor dem Beginn bereitstehen (der Lauf auf GitHub endet sonst gleich wieder).
+          || (SENDEN && w.status === 'kommt' && typeof w.begin === 'number' && w.begin - jetzt < 20 * 60_000);
         if (!frisch) continue;
         gesehen.add(w.windowId);
         let f = fenster.get(w.windowId);
@@ -284,16 +311,21 @@ async function einMatch(job) {
       teil.neuAnfang = false; teil.fehler = [];
       einarbeiten(teil, r.beitrag, { mitRoh: gesamt <= GROSS_MAX });
       // Der Stempel: mit welchem Code und welcher Schadensregel gelesen (clutch-zusammen.mjs liest diese Felder nicht).
-      Object.assign(teil, { sha: SHA, schadenFassung: SCHADEN_FASSUNG, gelesenAm: new Date().toISOString() });
+      // sofortZeit (Sofortspur): Spielende laut Epic (Beginn + Laenge) und wann das Replay hier fertig vorlag - fuer die Messung bis zur Seite.
+      const ende = Date.parse(r.epic?.start ?? '') + Number(r.epic?.laengeMs ?? NaN);
+      const sofortZeit = { matchEnde: Number.isFinite(ende) ? ende : null, bereit: uhr, gelesen: Date.now() };
+      Object.assign(teil, { sha: SHA, schadenFassung: SCHADEN_FASSUNG, gelesenAm: new Date().toISOString(), sofortZeit });
       schreibeAtomar(path.join(teilOrdner(LIVE_ORT, f.windowId), `${id}.json`), JSON.stringify(teil));
       f.fertig.add(id); f.neueTeile += 1; zahl.gelesen += 1;
       const z = r.zeiten ?? {};
       const gesamtS = (Date.now() - uhr) / 1000;
       dauern.push(gesamtS);
-      log(`${f.windowId} ${id}: gelesen in ${gesamtS.toFixed(1)} s (Laden ${z.laden?.toFixed(1)} s, Lesen ${z.lesen?.toFixed(1)} s, Rechnen ${z.rechnen?.toFixed(1)} s)`);
+      log(`${f.windowId} ${id}: gelesen in ${gesamtS.toFixed(1)} s (Laden ${z.laden?.toFixed(1)} s, Lesen ${z.lesen?.toFixed(1)} s, Rechnen ${z.rechnen?.toFixed(1)} s)`
+        + (sofortZeit.matchEnde ? `, ${((Date.now() - sofortZeit.matchEnde) / 60_000).toFixed(1)} min nach Spielende` : ''));
+      if (SENDEN) void senden(f, id, teil);
     } else if (r.art === 'spaeter') {
-      // Noch live bei Epic oder kuerzer als das Spiel: in anderthalb Minuten wieder.
-      zahl.spaeter += 1; f.zurueck.set(id, { bis: Date.now() + 90_000, versuche: 0 });
+      // Noch live bei Epic oder kuerzer als das Spiel: in anderthalb Minuten wieder (Sofortspur: LIVE_SPAETER_MS).
+      zahl.spaeter += 1; f.zurueck.set(id, { bis: Date.now() + SPAETER_MS, versuche: 0 });
     } else {
       // Kein Replay (noch nicht abgelegt?) oder Fehler: spaeter wieder, mit wachsendem Abstand bis hoechstens 30 Minuten - nie endgueltig (Hauptregel).
       zahl[r.art === 'ohne' ? 'ohne' : 'fehler'] += 1;
@@ -304,6 +336,105 @@ async function einMatch(job) {
     zahl.fehler += 1; f.zurueck.set(id, { bis: Date.now() + 5 * 60_000, versuche });
     log(`${f.windowId} ${id}: ${String(e?.message).slice(0, 120)}`);
   } finally { f.laeuft.delete(id); }
+}
+
+/* ------------------------------------------------------------- Sofortspur */
+
+/** Messung je Match: Spielende -> Replay fertig -> gelesen -> von der Seite angenommen (GitHub) bzw. angekommen -> im Live-Stand (Server). */
+const sofortMessung = [];
+const merkeMessung = (m) => { sofortMessung.push(m); if (sofortMessung.length > 300) sofortMessung.splice(0, sofortMessung.length - 200); };
+let sendenOffen = 0;
+const sendeZahl = { angenommen: 0, schonDa: 0, fehler: 0 };
+
+/** Einen Teil an die Seite (app/api/sofort/match). Wiederholt mit wachsendem Abstand (hoechstens eine Minute), bis er angenommen ist oder die Seite ihn ablehnt. */
+async function senden(f, id, teil) {
+  sendenOffen += 1;
+  const koerper = zlib.gzipSync(JSON.stringify(teil));
+  try {
+    for (let versuch = 1; ; versuch += 1) {
+      const uhr = Date.now();
+      let status = 0; let text = '';
+      try {
+        const r = await fetch(SENDEN_URL, {
+          method: 'POST', body: koerper, signal: AbortSignal.timeout(60_000),
+          headers: { Authorization: `Bearer ${SOFORT_SECRET}`, 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'User-Agent': 'comphub-sofortspur' },
+        });
+        status = r.status; text = (await r.text()).slice(0, 300);
+      } catch (e) { text = String(e?.message).slice(0, 160); }
+      if (status === 200) {
+        let a = {}; try { a = JSON.parse(text); } catch { /* nur Auskunft */ }
+        sendeZahl[a.schonDa ? 'schonDa' : 'angenommen'] += 1;
+        const z = teil.sofortZeit ?? {};
+        const jetzt = Date.now();
+        merkeMessung({ w: f.windowId, id, matchEnde: z.matchEnde, bereit: z.bereit, gelesen: z.gelesen, angenommen: jetzt, kb: Math.round(koerper.length / 1024), versuche: versuch });
+        log(`${f.windowId} ${id}: an die Seite ${a.schonDa ? '(schon da)' : 'angenommen'} - ${((jetzt - z.bereit) / 1000).toFixed(1)} s nach "Replay fertig"`
+          + (z.matchEnde ? `, ${((jetzt - z.matchEnde) / 60_000).toFixed(2)} min nach Spielende` : '') + `, Senden ${((jetzt - uhr) / 1000).toFixed(1)} s, ${Math.round(koerper.length / 1024)} KB gzip, Server ${a.ms ?? '?'} ms`);
+        return true;
+      }
+      // Abgelehnt wegen des Inhalts: Wiederholen hilft nicht (das Release holt das Match ohnehin nach).
+      if (status === 400 || status === 413) { sendeZahl.fehler += 1; log(`${f.windowId} ${id}: Seite lehnt ab (${status}) - ${text}`); return false; }
+      if (versuch === 1 || versuch % 5 === 0) log(`${f.windowId} ${id}: Seite nicht bereit (${status || 'keine Antwort'}: ${text}) - ${versuch}. Versuch, weiter`);
+      await warte(Math.min(60_000, 2000 * 2 ** Math.min(versuch - 1, 5)));
+    }
+  } finally { sendenOffen -= 1; }
+}
+
+/** Sofortspur auf GitHub: welche Matches das Release schon hat (die liest sie nicht) und die Wertungstabelle - ohne einen Live-Stand zu bauen. */
+async function releaseStand(f) {
+  f.auth.zeit = Date.now();
+  const buf = await releaseDatei(`clutch/${f.windowId}.json`, ZWISCHEN).catch((e) => { log(`${f.windowId}: Release nicht lesbar (${e.message})`); return null; });
+  if (!buf) return;
+  const auth = JSON.parse(buf.toString('utf8'));
+  f.auth = { ids: new Set((auth?.matches ?? []).map((m) => m.id)), zeit: Date.now(), gesamt: auth?.gesamt ?? 0, summe: auth?.gerechnet ?? '' };
+  f.authRegeln = auth?.regeln;
+  f.eventId ??= auth?.eventId;
+}
+
+const FENSTER_OK = /^[A-Za-z0-9_-]{1,200}$/;
+const eingangGemeldet = new Set();
+
+/*
+ * Server: die Teile, die app/api/sofort/match unter EINGANG/<w>/<id>.json abgelegt hat, zu den eigenen Teilen nehmen. Ein Teil mit anderer Schadensregel
+ * (Code auf GitHub neuer oder aelter als hier) bleibt liegen, bis beide gleich sind - hoechstens sechs Stunden, dann holt ohnehin das Release auf.
+ */
+function eingangNehmen() {
+  let ordner = [];
+  try { ordner = fs.readdirSync(EINGANG); } catch { return; }
+  for (const w of ordner) {
+    if (!FENSTER_OK.test(w)) continue;
+    let namen = [];
+    try { namen = fs.readdirSync(path.join(EINGANG, w)).filter((n) => n.endsWith('.json')); } catch { continue; }
+    for (const n of namen) {
+      const id = n.slice(0, -5);
+      const p = path.join(EINGANG, w, n);
+      let roh; let teil;
+      try { roh = fs.readFileSync(p); teil = JSON.parse(roh.toString('utf8')); } catch { continue; }
+      if (teil?.windowId !== w || teil?.matches?.length !== 1 || teil.matches[0]?.id !== id) { fs.rmSync(p, { force: true }); log(`Eingang ${w}/${n}: kein passender Teil - verworfen`); continue; }
+      if (teil.schadenFassung !== SCHADEN_FASSUNG) {
+        let alt = 0; try { alt = Date.now() - fs.statSync(p).mtimeMs; } catch { /* weiter */ }
+        if (alt > 6 * 3600_000) fs.rmSync(p, { force: true });
+        else if (!eingangGemeldet.has(p)) { eingangGemeldet.add(p); log(`Eingang ${w} ${id}: Schadensregel ${teil.schadenFassung}, hier ${SCHADEN_FASSUNG} - wartet`); }
+        continue;
+      }
+      let f = fenster.get(w);
+      if (!f) {
+        f = neuesFenster({ windowId: w, eventId: teil.eventId ?? null, begin: Date.now(), end: Date.now() });
+        fenster.set(w, f); zustandSchreiben();
+        log(`Dazu (Sofortspur): ${w}`);
+      }
+      f.end = Math.max(f.end ?? 0, Date.now());
+      f.eventId ??= teil.eventId;
+      const imArchiv = fs.existsSync(path.join(archivOrdner(LIVE_ORT, w), `${id}.json.gz`));
+      if (!imArchiv && !f.auth.ids.has(id)) {
+        schreibeAtomar(path.join(teilOrdner(LIVE_ORT, w), `${id}.json`), roh);
+        f.fertig.add(id); f.ids.add(id); f.neueTeile += 1;
+        const z = teil.sofortZeit ?? {};
+        merkeMessung({ w, id, matchEnde: z.matchEnde ?? null, bereit: z.bereit ?? null, gelesen: z.gelesen ?? null, angekommen: Date.now(), gebaut: null });
+        log(`Eingang ${w} ${id}: uebernommen${z.matchEnde ? ` (${((Date.now() - z.matchEnde) / 60_000).toFixed(2)} min nach Spielende)` : ''}`);
+      }
+      fs.rmSync(p, { force: true });
+    }
+  }
 }
 
 /* ------------------------------------------------------------- Live-Stand */
@@ -364,6 +495,13 @@ async function bauen(f) {
   if (je) schreibeAtomar(lebend[1], je);
   schreibeAtomar(lebend[0], JSON.stringify(d));
   log(`${w}: Live-Stand ${d.matches?.length ?? 0} Matches (Release ${d.basis.matches} + ${ids.length} Teile), ${archiviert} archiviert, ${ohneEpic} Epic-Werte entfernt, ${((Date.now() - beginn) / 1000).toFixed(1)} s`);
+  // Sofortspur: ab jetzt liest die Seite diese Matches (lib/clutchLive.ts) - die Messung je Match bis hierher.
+  const drin = new Set(ids);
+  for (const m of sofortMessung) {
+    if (m.w !== w || m.gebaut || !drin.has(m.id)) continue;
+    m.gebaut = Date.now(); m.bauenMs = m.gebaut - beginn;
+    log(`Sofort ${w} ${m.id}: im Live-Stand ${m.matchEnde ? `${((m.gebaut - m.matchEnde) / 60_000).toFixed(2)} min nach Spielende, ` : ''}${((m.gebaut - m.angekommen) / 1000).toFixed(1)} s nach Ankunft (Bauen ${(m.bauenMs / 1000).toFixed(1)} s)`);
+  }
 }
 
 async function bauer() {
@@ -388,11 +526,19 @@ if (!EINMAL) {
     fenster.set(windowId, neuesFenster({ windowId, ...z }));
   }
 }
-log(`Live-Spur (Schatten${EINMAL ? `, einmal: ${EINMAL_FENSTER}` : ''}): ${LESER} Leser, ${LADEN} Downloads, Ort ${LIVE_ORT}, Code ${SHA.slice(0, 12)}, Schadensregel ${SCHADEN_FASSUNG}, ${fenster.size} Spieltage vom letzten Lauf`);
-leser = leserDienst(LESER);
-const ende = (code = 0) => { log('Ende.'); try { leser.ende(); } catch { /* weiter */ } process.exit(code); };
+const ART = SENDEN ? `Sofortspur, sendet an ${SENDEN_URL}${NUR_VORRANG ? ', nur Vorrang 0' : ''}` : NUR_BAUEN ? 'nur bauen, Eingang ' + EINGANG : 'Schatten';
+log(`Live-Spur (${ART}${EINMAL ? `, einmal: ${EINMAL_FENSTER}` : ''}): ${NUR_BAUEN ? 'kein Leser' : `${LESER} Leser, ${LADEN} Downloads`}, Ort ${LIVE_ORT}, Code ${SHA.slice(0, 12)}, Schadensregel ${SCHADEN_FASSUNG}, ${fenster.size} Spieltage vom letzten Lauf`);
+if (SENDEN && !SOFORT_SECRET) log('Achtung: SOFORT_SECRET fehlt - die Seite wird jeden Teil mit 401/503 ablehnen.');
+leser = NUR_BAUEN ? null : leserDienst(LESER);
+const ende = (code = 0) => {
+  log('Ende.');
+  try { if (process.env.SOFORT_MESSUNG && sofortMessung.length) schreibeAtomar(process.env.SOFORT_MESSUNG, JSON.stringify(sofortMessung, null, 1)); } catch { /* nur Auskunft */ }
+  try { leser?.ende(); } catch { /* weiter */ }
+  process.exit(code);
+};
 process.on('SIGTERM', () => ende(0));
 process.on('SIGINT', () => ende(0));
+const START = Date.now();
 
 const messung = () => {
   if (!dauern.length) return 'noch keine Messung';
@@ -401,12 +547,30 @@ const messung = () => {
   return `${s.length} Matches, je Match Median ${q(0.5)} s, 90 % ${q(0.9)} s, hoechstens ${s[s.length - 1].toFixed(1)} s`;
 };
 
+/** Die Sofortspur in Zahlen: je Match Minuten vom Spielende bis zur Annahme (GitHub) bzw. bis in den Live-Stand (Server). */
+const sofortZusammen = () => {
+  const bis = (m) => m.angenommen ?? m.gebaut;
+  const ab = sofortMessung.filter((m) => bis(m) && m.matchEnde).map((m) => (bis(m) - m.matchEnde) / 60_000).sort((a, b) => a - b);
+  const bereit = sofortMessung.filter((m) => m.angenommen && m.bereit).map((m) => (m.angenommen - m.bereit) / 1000).sort((a, b) => a - b);
+  if (!ab.length && !bereit.length) return 'Sofortspur: noch keine Messung';
+  const q = (s, p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
+  return `Sofortspur: ${ab.length} Matches, Spielende -> ${SENDEN ? 'angenommen' : 'Live-Stand'} Median ${q(ab, 0.5)?.toFixed(2)} min, hoechstens ${ab[ab.length - 1]?.toFixed(2)} min`
+    + (bereit.length ? `; Replay fertig -> angenommen Median ${q(bereit, 0.5).toFixed(1)} s, hoechstens ${bereit[bereit.length - 1].toFixed(1)} s` : '');
+};
+
+/** Auf GitHub: warten, bis alle Teile bei der Seite sind (hoechstens so lange). */
+async function sendenAbwarten(ms) {
+  const bis = Date.now() + ms;
+  while (sendenOffen > 0 && Date.now() < bis) await warte(1000);
+  if (sendenOffen > 0) log(`${sendenOffen} Teile nicht bei der Seite angekommen - das Release holt sie nach.`);
+}
+
 if (EINMAL) {
   // Der Spieltag allein: eventId aus dem Aufruf, sonst aus dem Release (clutch/<w>.json), sonst aus dem Katalog.
   const f = neuesFenster({ windowId: EINMAL_FENSTER, eventId: EINMAL_EVENT ?? null, begin: 0, end: Date.now() });
   f.aktiv = true;
   fenster.set(f.windowId, f);
-  await bauen(f);  // laedt den Stand vom Release (Wertungstabelle, eventId)
+  await (SENDEN ? releaseStand(f) : bauen(f));  // laedt den Stand vom Release (Wertungstabelle, eventId)
   if (!f.eventId) {
     const k = await fetch(`${SEITE}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(90_000) }).then((r) => r.json()).catch(() => null);
     for (const cup of k?.cups ?? []) for (const liste of Object.values(cup.regionen ?? {})) for (const w of liste) if (w.windowId === f.windowId) f.eventId = w.eventId;
@@ -430,22 +594,27 @@ if (EINMAL) {
     }
   })());
   await Promise.all(arbeiten);
-  await bauen(f);
+  if (SENDEN) await sendenAbwarten(10 * 60_000); else await bauen(f);
   const offen = [...f.ids].filter((id) => !f.fertig.has(id));
   log(`${f.windowId}: ${f.fertig.size} von ${f.ids.size} gelesen in ${((Date.now() - beginn) / 1000).toFixed(0)} s, offen: ${offen.join(', ') || 'keins'}`);
   log(`Messung: ${messung()}`);
-  ende(offen.length ? 1 : 0);
+  log(sofortZusammen());
+  if (SENDEN) log(`Gesendet: ${sendeZahl.angenommen} angenommen, ${sendeZahl.schonDa} schon da, ${sendeZahl.fehler} abgelehnt`);
+  ende(offen.length || (SENDEN && sendeZahl.angenommen + sendeZahl.schonDa < f.fertig.size) ? 1 : 0);
 }
 
-await katalog();
-setInterval(() => { katalog().catch((e) => log(`Katalog: ${e.message}`)); }, KATALOG_MS);
+if (!NUR_BAUEN) {
+  await katalog();
+  setInterval(() => { katalog().catch((e) => log(`Katalog: ${e.message}`)); }, KATALOG_MS);
+}
 // Je Minute: wie viele Matches gelesen, was wartet.
 const taktVerlauf = [];
 setInterval(() => {
   const offen = [...fenster.values()].reduce((n, f) => n + f.offen.length + f.zurueck.size, 0);
   const laufend = [...fenster.values()].reduce((n, f) => n + f.laeuft.size, 0);
   const aktiv = [...fenster.values()].filter((f) => f.aktiv).map((f) => `${f.windowId} ${[...f.ids].filter((id) => f.fertig.has(id) || f.auth.ids.has(id)).length}/${f.ids.size} (hier ${f.fertig.size})`).join(', ');
-  log(`Takt: ${zahl.gelesen} Matches/min gelesen, ${zahl.spaeter} spaeter, ${zahl.ohne} ohne Replay, ${zahl.fehler} Fehler - ${offen} offen, ${laufend} laufen${aktiv ? ` | ${aktiv}` : ''} | ${messung()}`);
+  log(`Takt: ${zahl.gelesen} Matches/min gelesen, ${zahl.spaeter} spaeter, ${zahl.ohne} ohne Replay, ${zahl.fehler} Fehler - ${offen} offen, ${laufend} laufen${aktiv ? ` | ${aktiv}` : ''} | ${messung()} | ${sofortZusammen()}`
+    + (SENDEN ? ` | gesendet ${sendeZahl.angenommen}, schon da ${sendeZahl.schonDa}, abgelehnt ${sendeZahl.fehler}, offen ${sendenOffen}` : ''));
   /*
    * Der Takt auch als Datei (16.11.2026): "web" liest ./live mit und zeigt ihn unter /api/stand (live). Ohne Zugang zum Server war nicht zu messen, wie
    * viele Matches je Minute die Live-Spur schafft - die Grundlage, um zu entscheiden, was hier und was auf GitHub gerechnet wird.
@@ -453,13 +622,37 @@ setInterval(() => {
   try {
     taktVerlauf.push({ t: new Date().toISOString().slice(0, 16), gelesen: zahl.gelesen, offen, laufend });
     if (taktVerlauf.length > 180) taktVerlauf.splice(0, taktVerlauf.length - 180);
-    const fen = [...fenster.values()].filter((f) => f.aktiv).map((f) => ({ w: f.windowId, ids: f.ids.size, hier: f.fertig.size, release: f.auth.ids.size,
+    const fen = [...fenster.values()].filter((f) => f.aktiv || NUR_BAUEN).map((f) => ({ w: f.windowId, ids: f.ids.size, hier: f.fertig.size, release: f.auth.ids.size,
       offen: f.offen.length + f.zurueck.size }));
-    schreibeAtomar(path.join(LIVE_ORT, 'takt.json'), JSON.stringify({ zeit: new Date().toISOString(), leser: LESER, laden: LADEN, messung: messung(), fenster: fen, verlauf: taktVerlauf }));
+    // Sofortspur (17.11.2026): je Match Spielende, Replay fertig, gelesen, angekommen, im Live-Stand - die letzten 60.
+    schreibeAtomar(path.join(LIVE_ORT, 'takt.json'), JSON.stringify({ zeit: new Date().toISOString(), art: ART, leser: NUR_BAUEN ? 0 : LESER, laden: LADEN, messung: messung(),
+      sofort: sofortZusammen(), sofortMatches: sofortMessung.slice(-60), fenster: fen, verlauf: taktVerlauf }));
   } catch { /* nur Auskunft */ }
   zahl.gelesen = 0; zahl.spaeter = 0; zahl.ohne = 0; zahl.fehler = 0;
   if (dauern.length > 2000) dauern.splice(0, dauern.length - 1000);
 }, 60_000).unref();
+
+if (SENDEN) {
+  // Kein Live-Stand auf GitHub - nur alle fuenf Minuten nachsehen, was das Release schon hat (das braucht hier niemand mehr zu lesen).
+  void (async () => {
+    for (;;) {
+      for (const f of fenster.values()) if (f.aktiv && Date.now() - f.auth.zeit >= RELEASE_MS) await releaseStand(f).catch(() => {});
+      await warte(5_000);
+    }
+  })();
+  // Schluss, wenn kein Spieltag mehr frisch ist und alles gesendet ist - oder nach LIVE_LAUFZEIT_MIN (GitHub: hoechstens sechs Stunden je Lauf).
+  setInterval(async () => {
+    const arbeit = sendenOffen > 0 || [...fenster.values()].some((f) => f.laeuft.size);
+    const zuLange = LAUFZEIT_MS && Date.now() - START > LAUFZEIT_MS;
+    const nichtsFrisch = ![...fenster.values()].some((f) => f.aktiv) && Date.now() - START > 60_000;
+    if ((zuLange || nichtsFrisch) && !arbeit) { log(`${sofortZusammen()} | gesendet ${sendeZahl.angenommen}, schon da ${sendeZahl.schonDa}, abgelehnt ${sendeZahl.fehler}`); log(zuLange ? 'Laufzeit erreicht.' : 'Kein Spieltag mehr frisch.'); ende(0); }
+    if (zuLange && Date.now() - START > LAUFZEIT_MS + 10 * 60_000) { await sendenAbwarten(0); ende(0); }
+  }, 30_000);
+} else {
+  // Die Teile von GitHub (app/api/sofort/match) alle drei Sekunden aus dem Eingang nehmen.
+  setInterval(() => { try { eingangNehmen(); } catch (e) { log(`Eingang: ${e.message}`); } }, 3_000);
+  void bauer();
+}
+if (NUR_BAUEN) await new Promise(() => {});
 void sammler();
-void bauer();
 await Promise.all(Array.from({ length: LADEN }, arbeiter));

@@ -51,7 +51,9 @@ async function bauKennung(): Promise<string> {
 async function liveTakt() {
   try {
     const j = JSON.parse(await fs.readFile(path.join(process.env.COMPHUB_LIVE_ORT || '/app/live', 'takt.json'), 'utf8'));
-    return { zeit: j.zeit, leser: j.leser, messung: j.messung, fenster: j.fenster, verlauf: Array.isArray(j.verlauf) ? j.verlauf.slice(-60) : [] };
+    // Sofortspur (17.11.2026): je Match Spielende -> angekommen -> im Live-Stand (sofortMatches, Zeiten in ms seit 1970) und die Zusammenfassung.
+    return { zeit: j.zeit, art: j.art, leser: j.leser, messung: j.messung, sofort: j.sofort, sofortMatches: Array.isArray(j.sofortMatches) ? j.sofortMatches.slice(-30) : [],
+      fenster: j.fenster, verlauf: Array.isArray(j.verlauf) ? j.verlauf.slice(-60) : [] };
   } catch { return null; }
 }
 
