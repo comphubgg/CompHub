@@ -14,15 +14,15 @@ import { useZugang } from '@/app/lib/zugang';
  * Nur fuer den Admin: /api/admin/foto-credits und /api/spielerbild/hochladen pruefen das bei jeder Anfrage.
  */
 
-interface Credit { quelle?: string; fotograf?: string; link?: string; lizenz?: string; bestaetigt: boolean; wahrscheinlich?: string; notiz?: string; geaendert?: number }
+interface Credit { quelle?: string; fotograf?: string; handle?: string; link?: string; lizenz?: string; bestaetigt: boolean; wahrscheinlich?: string; notiz?: string; geaendert?: number }
 interface Zeile { epicId: string; name: string; datei: string; foto: boolean; bild: string | null; events: number; credit: Credit | null }
 type Filter = 'alle' | 'ohneFoto' | 'unbekannt' | 'wahrscheinlich' | 'offen' | 'bestaetigt';
-type Entwurf = { quelle: string; fotograf: string; link: string; lizenz: string; wahrscheinlich: string; notiz: string; bestaetigt: boolean };
-const LEER: Entwurf = { quelle: '', fotograf: '', link: '', lizenz: '', wahrscheinlich: '', notiz: '', bestaetigt: false };
+type Entwurf = { quelle: string; fotograf: string; handle: string; link: string; lizenz: string; wahrscheinlich: string; notiz: string; bestaetigt: boolean };
+const LEER: Entwurf = { quelle: '', fotograf: '', handle: '', link: '', lizenz: '', wahrscheinlich: '', notiz: '', bestaetigt: false };
 const JE_SEITE = 60;
 
 const ausCredit = (c: Credit | null): Entwurf => ({
-  quelle: c?.quelle ?? '', fotograf: c?.fotograf ?? '', link: c?.link ?? '', lizenz: c?.lizenz ?? '',
+  quelle: c?.quelle ?? '', fotograf: c?.fotograf ?? '', handle: c?.handle ?? '', link: c?.link ?? '', lizenz: c?.lizenz ?? '',
   wahrscheinlich: c?.wahrscheinlich ?? '', notiz: c?.notiz ?? '', bestaetigt: Boolean(c?.bestaetigt),
 });
 const schluessel = (z: Zeile) => z.epicId || z.datei;
@@ -46,7 +46,7 @@ export default function FotosCreditsSeite() {
   const [entwurf, setEntwurf] = useState<Record<string, Entwurf>>({});
   const [status, setStatus] = useState<Record<string, string>>({});
   const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
-  const [sammel, setSammel] = useState({ quelle: '', fotograf: '', link: '', lizenz: '', wahrscheinlich: '', bestaetigt: '' as '' | 'ja' | 'nein' });
+  const [sammel, setSammel] = useState({ quelle: '', fotograf: '', handle: '', link: '', lizenz: '', wahrscheinlich: '', bestaetigt: '' as '' | 'ja' | 'nein' });
   const [sammelStatus, setSammelStatus] = useState('');
   const [neu, setNeu] = useState({ epicId: '', name: '' });
 
@@ -114,7 +114,7 @@ export default function FotosCreditsSeite() {
     const e = z ? ent(z) : LEER;
     const form = new FormData();
     form.set('datei', datei); form.set('epicId', epicId); form.set('name', name);
-    for (const f of ['quelle', 'fotograf', 'link', 'lizenz', 'wahrscheinlich', 'notiz'] as const) if (e[f]) form.set(f, e[f]);
+    for (const f of ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'wahrscheinlich', 'notiz'] as const) if (e[f]) form.set(f, e[f]);
     form.set('bestaetigt', e.bestaetigt ? '1' : '0');
     zeigeStatus(k, 'lädt hoch …');
     const r = await fetch('/api/spielerbild/hochladen', { method: 'POST', body: form }).then((x) => x.json()).catch((x) => ({ fehler: (x as Error).message }));
@@ -129,7 +129,7 @@ export default function FotosCreditsSeite() {
     const dateien = (zeilen ?? []).filter((z) => gewaehlt.has(schluessel(z)) && z.foto).map((z) => z.datei);
     if (!dateien.length) { setSammelStatus('Keine Fotos gewählt (Spieler ohne Foto zählen nicht).'); return; }
     const felder: Record<string, unknown> = {};
-    for (const f of ['quelle', 'fotograf', 'link', 'lizenz', 'wahrscheinlich'] as const) if (sammel[f].trim()) felder[f] = sammel[f].trim();
+    for (const f of ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'wahrscheinlich'] as const) if (sammel[f].trim()) felder[f] = sammel[f].trim();
     if (sammel.bestaetigt) felder.bestaetigt = sammel.bestaetigt === 'ja';
     if (!Object.keys(felder).length) { setSammelStatus('Nichts eingetragen.'); return; }
     setSammelStatus('speichert …');
@@ -155,7 +155,7 @@ export default function FotosCreditsSeite() {
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1400px]">
         <SeitenKopf className="mb-5" marke={<T>Spieler & Teams</T>} titel={<T>Spielerfotos & Fotografen</T>}
-          text={<T>Neue Fotos je Spieler hochladen, gleich mit Quelle, Fotograf, Link und Lizenz. Öffentlich steht am Foto nur „Foto: Quelle / Fotograf“ – und nur, wenn „bestätigt“ angehakt ist. „Wahrscheinlich“, Lizenz und Notiz bleiben intern.</T>} />
+          text={<T>Neue Fotos je Spieler hochladen, gleich mit Quelle, Fotograf, X-Konto, Link und Lizenz. Öffentlich steht oben mittig am Foto nur eine kleine Marke mit Kamera und X-Konto (oder Fotograf) – und nur, wenn „bestätigt“ angehakt ist. „Wahrscheinlich“, Lizenz und Notiz bleiben intern.</T>} />
 
         {fehler && <p className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{fehler}</p>}
 
@@ -174,9 +174,10 @@ export default function FotosCreditsSeite() {
             <button type="button" className="rounded-md border border-zinc-700 px-2 py-0.5 hover:text-slate-100" onClick={() => setGewaehlt(new Set(liste.filter((z) => z.foto).map(schluessel)))}><T>Alle gefilterten wählen</T></button>
             <button type="button" className="rounded-md border border-zinc-700 px-2 py-0.5 hover:text-slate-100" onClick={() => setGewaehlt(new Set())}><T>Auswahl leeren</T></button>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-8">
             <input className={feld} placeholder="Quelle (z. B. Epic Games)" value={sammel.quelle} onChange={(e) => setSammel({ ...sammel, quelle: e.target.value })} />
             <input className={feld} placeholder="Fotograf" value={sammel.fotograf} onChange={(e) => setSammel({ ...sammel, fotograf: e.target.value })} />
+            <input className={feld} placeholder="X-Konto (@…)" value={sammel.handle} onChange={(e) => setSammel({ ...sammel, handle: e.target.value })} />
             <input className={feld} placeholder="Link" value={sammel.link} onChange={(e) => setSammel({ ...sammel, link: e.target.value })} />
             <input className={feld} placeholder="Lizenz (intern)" value={sammel.lizenz} onChange={(e) => setSammel({ ...sammel, lizenz: e.target.value })} />
             <input className={feld} placeholder="Wahrscheinlich (intern)" value={sammel.wahrscheinlich} onChange={(e) => setSammel({ ...sammel, wahrscheinlich: e.target.value })} />
@@ -217,7 +218,7 @@ export default function FotosCreditsSeite() {
             const e = ent(z);
             const geaendert = Boolean(entwurf[k]);
             const zst = zustandVon(z);
-            const oeffentlich = z.credit?.bestaetigt ? [z.credit.quelle, z.credit.fotograf].filter(Boolean).join(' / ') : '';
+            const oeffentlich = z.credit?.bestaetigt ? (z.credit.handle ? `@${z.credit.handle}` : [z.credit.quelle, z.credit.fotograf].filter(Boolean).join(' / ')) : '';
             return (
               <div key={k} className={`flex gap-3 rounded-2xl border bg-zinc-900 p-3 ${gewaehlt.has(k) ? 'border-sky-500' : 'border-zinc-800'}`}>
                 <div className="flex w-24 shrink-0 flex-col gap-1.5">
@@ -242,17 +243,18 @@ export default function FotosCreditsSeite() {
                       {{ bestaetigt: 'bestätigt', offen: 'nicht bestätigt', wahrscheinlich: 'wahrscheinlich', unbekannt: 'unbekannt', ohneFoto: 'ohne Foto' }[zst]}
                     </span>
                   </div>
-                  <p className="truncate text-[11px] text-slate-500">{oeffentlich ? <>Öffentlich: <span className="text-slate-300">Foto: {oeffentlich}</span></> : 'Öffentlich: nichts'}</p>
+                  <p className="truncate text-[11px] text-slate-500">{oeffentlich ? <>Öffentlich: <span className="text-slate-300">📷 {oeffentlich}</span></> : 'Öffentlich: nichts'}</p>
                   <div className="grid grid-cols-2 gap-1">
                     <input className={feld} placeholder="Quelle" value={e.quelle} onChange={(x) => setzeEnt(z, { quelle: x.target.value })} />
                     <input className={feld} placeholder="Fotograf" value={e.fotograf} onChange={(x) => setzeEnt(z, { fotograf: x.target.value })} />
+                    <input className={feld} placeholder="X-Konto (@…)" value={e.handle} onChange={(x) => setzeEnt(z, { handle: x.target.value })} />
                     <input className={feld} placeholder="Link" value={e.link} onChange={(x) => setzeEnt(z, { link: x.target.value })} />
                     <input className={feld} placeholder="Lizenz (intern)" value={e.lizenz} onChange={(x) => setzeEnt(z, { lizenz: x.target.value })} />
-                    <input className={`${feld} col-span-2`} placeholder="Wahrscheinlich (intern, nie öffentlich)" value={e.wahrscheinlich} onChange={(x) => setzeEnt(z, { wahrscheinlich: x.target.value })} />
+                    <input className={feld} placeholder="Wahrscheinlich (intern, nie öffentlich)" value={e.wahrscheinlich} onChange={(x) => setzeEnt(z, { wahrscheinlich: x.target.value })} />
                   </div>
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <label className="flex items-center gap-1.5 text-slate-300">
-                      <input type="checkbox" className="accent-emerald-500" checked={e.bestaetigt} disabled={!e.quelle.trim() && !e.fotograf.trim()} onChange={(x) => setzeEnt(z, { bestaetigt: x.target.checked })} />
+                      <input type="checkbox" className="accent-emerald-500" checked={e.bestaetigt} disabled={!e.quelle.trim() && !e.fotograf.trim() && !e.handle.trim()} onChange={(x) => setzeEnt(z, { bestaetigt: x.target.checked })} />
                       <T>bestätigt</T>
                     </label>
                     {z.foto && (

@@ -16,6 +16,7 @@ import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPla
 import StatistikZahlen from './StatistikZahlen';
 import StatistikAufmacher from './StatistikAufmacher';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
@@ -5809,9 +5810,19 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Archiv</T></p>
                   <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Alle Spieler</T></h2>
                 </div>
-                <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T>
-                  {standDatum(region) && <span className="block text-right text-xs"><T>Stand:</T> {standDatum(region)}</span>}
-                </p>
+                <div className="flex items-end gap-3">
+                  {/* Nur fuer den Admin: der Foto-Pool (Fotos ohne Namen Spielern zuordnen, 17.11.2026). Die Seite und ihre Schnittstellen
+                      pruefen das selbst - der Link ist nur der Weg dorthin. */}
+                  {istAdmin && (
+                    <Link href="/admin/fotos-pool" data-admin-fotos
+                      className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-200 hover:bg-rose-500/20">
+                      <T>Fotos</T> <span className="font-normal opacity-70">(Admin)</span>
+                    </Link>
+                  )}
+                  <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T>
+                    {standDatum(region) && <span className="block text-right text-xs"><T>Stand:</T> {standDatum(region)}</span>}
+                  </p>
+                </div>
               </div>
               <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
                 <button onClick={() => setRegion('')}

@@ -105,6 +105,8 @@ const NUR_ADMIN: Ziel[] = [
   { href: '/admin/flaggen', titel: 'Flaggen & X', text: 'Wichtige Spieler ohne Flagge oder X-Konto nachtragen' },
   // Neue Spielerfotos mit Fotograf, Quelle und Lizenz (17.11.2026) - oeffentlich steht nur Bestaetigtes am Foto.
   { href: '/admin/fotos-credits', titel: 'Fotos & Fotografen', text: 'Spielerfotos hochladen, Fotografen nennen und bestätigen' },
+  // Zugeschnittene Fotos ohne Namen (scripts/fotos-pool-import.mjs) Spielern zuordnen (17.11.2026).
+  { href: '/admin/fotos-pool', titel: 'Foto-Pool', text: 'Fotos ohne Namen Spielern zuordnen' },
   // Die Maps ohne Landepunkte aus dem Archiv: Formen, Teams und Leaderboard je Karte von Hand (13.10.2026).
   { href: '/admin/alte-maps', titel: 'Alte Maps',
     text: 'Karten von Hand pflegen: Formen, Teams, Leaderboard' },

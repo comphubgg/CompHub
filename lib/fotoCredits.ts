@@ -10,7 +10,9 @@ import { aendereJson, liesJson } from '@/lib/ablage';
  *
  *   quelle         Eigentuemer/Herkunft, z. B. "Epic Games" oder "ESL".
  *   fotograf       Die Person hinter der Kamera.
- *   link           Ein Verweis zum Fotografen (X, Portfolio).
+ *   handle         Das X-Konto des Fotografen ohne "@" ("KonkolMichal") - oeffentlich als Marke oben mittig am Foto: Kamera + "@KonkolMichal",
+ *                  verlinkt auf x.com/<handle> (Betreiber, 17.11.2026).
+ *   link           Ein Verweis zum Fotografen (X, Portfolio) - fehlt er, gilt x.com/<handle>.
  *   lizenz         Nur intern: unter welcher Erlaubnis wir es zeigen ("Erlaubnis per Mail 18.11.", "Epic Media Kit", "CC BY 4.0").
  *   bestaetigt     Nur dann steht oeffentlich etwas am Foto: "Foto: Epic Games / Michal Konkol", oder nur "Foto: Epic Games".
  *   wahrscheinlich Nur intern: eine Vermutung. Geht nie an die oeffentliche Schnittstelle.
@@ -22,6 +24,8 @@ export const CREDIT_DATEI = 'foto-credits.json';
 export interface FotoCredit {
   quelle?: string;
   fotograf?: string;
+  /** X-Konto ohne "@". */
+  handle?: string;
   link?: string;
   /** Nur intern. */
   lizenz?: string;
@@ -33,7 +37,7 @@ export interface FotoCredit {
   geaendert?: number;
 }
 export type CreditTafel = Record<string, FotoCredit>;
-export const CREDIT_FELDER = ['quelle', 'fotograf', 'link', 'lizenz', 'bestaetigt', 'wahrscheinlich', 'notiz'] as const;
+export const CREDIT_FELDER = ['quelle', 'fotograf', 'handle', 'link', 'lizenz', 'bestaetigt', 'wahrscheinlich', 'notiz'] as const;
 export type CreditEingabe = Partial<Record<typeof CREDIT_FELDER[number], unknown>>;
 
 /** Dateinamen, wie sie in spielerbilder.json stehen - ohne Ordner. */
@@ -51,18 +55,25 @@ export function sauberLink(v: unknown): string {
   } catch { return ''; }
 }
 
+/** "@KonkolMichal", "x.com/KonkolMichal", "https://twitter.com/KonkolMichal" -> "KonkolMichal"; sonst "". */
+export function sauberHandle(v: unknown): string {
+  const s = text(v, 120).replace(/^https?:\/\//i, '').replace(/^(?:www\.)?(?:x|twitter)\.com\//i, '').replace(/^@/, '').split(/[/?#\s]/)[0];
+  return /^[A-Za-z0-9_]{1,15}$/.test(s) ? s : '';
+}
+
 /** Eine Eingabe in einen gueltigen Eintrag verwandeln. Felder, die fehlen (undefined), bleiben wie im alten Eintrag; "" loescht. null = nichts mehr da. */
 export function mitAenderung(alt: FotoCredit | undefined, e: CreditEingabe): FotoCredit | null {
   const neu: FotoCredit = { ...(alt ?? { bestaetigt: false }) };
   for (const f of ['quelle', 'fotograf', 'lizenz', 'wahrscheinlich', 'notiz'] as const) {
     if (e[f] !== undefined) { const v = text(e[f], f === 'notiz' || f === 'lizenz' ? 300 : 80); if (v) neu[f] = v; else delete neu[f]; }
   }
+  if (e.handle !== undefined) { const v = sauberHandle(e.handle); if (v) neu.handle = v; else delete neu.handle; }
   if (e.link !== undefined) { const v = sauberLink(e.link); if (v) neu.link = v; else delete neu.link; }
   if (e.bestaetigt !== undefined) neu.bestaetigt = e.bestaetigt === true || e.bestaetigt === 'true' || e.bestaetigt === '1';
   // Ohne Namen gibt es nichts zu bestaetigen.
-  if (!neu.quelle && !neu.fotograf) neu.bestaetigt = false;
+  if (!neu.quelle && !neu.fotograf && !neu.handle) neu.bestaetigt = false;
   neu.geaendert = Date.now();
-  const leer = !neu.quelle && !neu.fotograf && !neu.link && !neu.lizenz && !neu.wahrscheinlich && !neu.notiz;
+  const leer = !neu.quelle && !neu.fotograf && !neu.handle && !neu.link && !neu.lizenz && !neu.wahrscheinlich && !neu.notiz;
   return leer ? null : neu;
 }
 
@@ -90,16 +101,24 @@ export async function setzeCredits(dateien: string[], e: CreditEingabe): Promise
 export function creditText(c: FotoCredit | undefined): string | null {
   if (!c?.bestaetigt) return null;
   const teile = [c.quelle, c.fotograf].map((x) => (x ?? '').trim()).filter(Boolean);
-  return teile.length ? teile.join(' / ') : null;
+  return teile.length ? teile.join(' / ') : c.handle ? `@${c.handle}` : null;
 }
 
-/** Die oeffentliche Fassung: je Dateistamm ("vico-1a2b3c4d-mvx1") Text und Link - nichts Internes (Lizenz, Vermutung, Notiz). */
-export function oeffentlich(t: CreditTafel): Record<string, { text: string; link?: string }> {
-  const aus: Record<string, { text: string; link?: string }> = {};
+export interface OeffentlicherCredit { text: string; link?: string; handle?: string; fotograf?: string }
+
+/**
+ * Die oeffentliche Fassung: je Dateistamm ("vico-1a2b3c4d-mvx1") Text, Link, X-Konto und Fotograf - nichts Internes (Lizenz, Vermutung, Notiz).
+ * Ohne eigenen Link zeigt die Marke auf x.com/<handle>.
+ */
+export function oeffentlich(t: CreditTafel): Record<string, OeffentlicherCredit> {
+  const aus: Record<string, OeffentlicherCredit> = {};
   for (const [datei, c] of Object.entries(t)) {
     const s = creditText(c);
     if (!s) continue;
-    aus[datei.replace(/\.(jpe?g|png|webp)$/i, '').toLowerCase()] = c.link ? { text: s, link: c.link } : { text: s };
+    const link = c.link || (c.handle ? `https://x.com/${c.handle}` : '');
+    aus[datei.replace(/\.(jpe?g|png|webp)$/i, '').toLowerCase()] = {
+      text: s, ...(link ? { link } : {}), ...(c.handle ? { handle: c.handle } : {}), ...(c.fotograf ? { fotograf: c.fotograf } : {}),
+    };
   }
   return aus;
 }
