@@ -35,8 +35,8 @@ interface Stand {
   build: string; erstellt: string; konten: number; zeilen: number; prTop: number; prStand: number | null;
   tage: VerlaufTag[]; lage: Array<[number, number]>; namenLage: Array<[number, number]>;
 }
-/** [tag, platz, punkte, matches, preis je Person, mitspieler, zusatz?] */
-export type VerlaufZeileRoh = [number, number, number, number, number, string[], 1?];
+/** [tag, platz, punkte, matches, preis je Person, mitspieler, zusatz? (1 = eigenes Konto hinter der Liste, 2 = aus den Preisgeld-Posten)] */
+export type VerlaufZeileRoh = [number, number, number, number, number, string[], (1 | 2)?];
 export interface KontoEintrag { n?: string; a?: string[]; pr?: [number, number]; z: VerlaufZeileRoh[]; m?: Record<string, string> }
 
 let lokal: boolean | null = null;

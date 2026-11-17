@@ -414,6 +414,53 @@ for (const [w, t] of Object.entries(zusatz)) {
 }
 leeren(true);
 
+/* ------------------------------------------------- Preisgeld wie "Most earnings" */
+
+/*
+ * Das Preisgeld jeder Zeile kommt aus derselben Rechnung wie "Most earnings" (lib/szeneStats geldRechnen, vorgerechnet vom stuendlichen Lauf als
+ * Antwort "ansicht=verdienst-posten"): je Konto jeder Posten mit Fenster, Betrag, Platz und Punkten. Der Betreiber (17.11.2026): Vico stand im
+ * Profil mit 167.105 Dollar gesamt, in "Most earnings 2026" mit 365.025 allein fuer das Jahr. Der Verlauf kannte nur die Epic-Spieltage dieses
+ * Index - die Grand Finals der Majors (Platzierungen aus Epics Bestenliste, data/platzierungen), die Global Championship, die LANs (veroeffentlichte
+ * Preislisten) und die Finals ueber zwei Tage (Endstand) fehlten ganz oder ohne Geld.
+ *
+ *   - Steht ein Posten zu einem Spieltag, den die Zeile schon hat: Betrag (und bei Finals der Endstand) aus dem Posten.
+ *   - Fehlt die Zeile: sie kommt dazu (Kennung 2 - beim naechsten Lauf wieder aus den Posten, nie aus dem vorigen Stand).
+ *   - Jede andere Zeile hat kein Preisgeld - die Summe im Profil ist so genau der Betrag in "Most earnings" aller Zeiten.
+ * Liegt die Antwort nicht vor, bleibt es bei der alten Rechnung (Verdienst-Akte und Tabellen je Tag).
+ */
+const postenRoh = lies(path.join(DATEN, 'antworten', 'szene_ansicht=verdienst-posten.json'), null);
+const posten = postenRoh?.wert?.konten ? postenRoh.wert : (postenRoh?.konten ? postenRoh : null);
+/** Fensternummer der Posten -> Spieltag im Index (neue Spieltage werden angelegt). */
+const postenTag = [];
+if (posten) {
+  let neu = 0;
+  for (const f of posten.fenster) {
+    let i = tagNr.get(f.w);
+    const kopf = {
+      w: f.w, f: 'posten', e: f.e ?? '',
+      // Die Titel tragen die Runde oft schon ("FNCS Major 2 - Grand Finals Day 2"); die Seite setzt sie selbst dazu. Ein Titel ohne Leerzeichen
+      // ist nur die Fensterkennung - dann sucht die Seite den Namen (lib/rundenName).
+      t: (() => { const k = String(f.t ?? '').split(' - ')[0].trim(); return /\s/.test(k) ? k : ''; })(),
+      r: f.r ?? '', s: f.s ?? '', d: f.d ?? 0, n: f.n ?? 0,
+      m: istReload({ windowId: f.w, titel: f.t }, null) ? 'reload' : 'br', ...(istZb({ windowId: f.w }, null) ? { zb: 1 } : {}),
+      ...(/final/i.test(f.w) || f.q === 'lan' ? { fi: 1 } : {}),
+    };
+    if (i === undefined) { i = tage.length; tagNr.set(f.w, i); tage.push(kopf); neu += 1; }
+    else if (tage[i].f === 'posten') tage[i] = kopf;
+    else {
+      // Ein Spieltag aus den Listen: nur fehlende Angaben ergaenzen (Datum, Titel, Region).
+      if (!tage[i].d && kopf.d) tage[i].d = kopf.d;
+      if (!tage[i].t && kopf.t) tage[i].t = kopf.t;
+      if (!tage[i].r && kopf.r) tage[i].r = kopf.r;
+      // Die LAN-Tage liegen unter "LAN" - zaehlen aber zu ihrer Saison (wie in "Most earnings" je Jahr).
+      if (!/^S\d+$/.test(tage[i].s ?? '') && /^S\d+$/.test(kopf.s)) tage[i].s = kopf.s;
+    }
+    postenTag.push(i);
+  }
+  const summe = Object.values(posten.summen ?? {}).reduce((a, b) => a + b, 0);
+  console.log(`Preisgeld-Posten (${posten.erstellt ?? '?'}): ${Object.keys(posten.konten).length} Konten, ${posten.fenster.length} Spieltage (${neu} neu im Index), zusammen ${summe} Dollar.`);
+} else console.log('Preisgeld-Posten fehlen (antworten/szene_ansicht=verdienst-posten.json) - Preisgeld nach Verdienst-Akte und Tabellen.');
+
 /* ------------------------------------------------------- Stuecke schreiben */
 
 const build = new Date().toISOString().replace(/[-:]/g, '').slice(0, 13);
@@ -448,6 +495,8 @@ for (let a = 0; a < 256; a++) {
       }
     }
   }
+  // Konten, die nur Posten haben (z. B. ein Grand Final ohne einen einzigen Epic-Spieltag in diesem Index).
+  if (posten) for (const id of Object.keys(posten.konten)) if (id.startsWith(k2) && !konto.has(id)) konto.set(id, []);
   const tmp = path.join(TMP, `${k2}.tsv`);
   if (fs.existsSync(tmp)) {
     for (const l of fs.readFileSync(tmp, 'utf8').split('\n')) {
@@ -467,7 +516,27 @@ for (let a = 0; a < 256; a++) {
     // Je Spieltag eine Zeile: Epics Liste fuehrt ein Konto nach einem Teamwechsel manchmal doppelt - es zaehlt die mit den meisten Punkten (wie ohneDoppelte).
     const je = new Map();
     for (const r of z0) { const da = je.get(r[0]); if (!da || r[2] > da[2] || (r[2] === da[2] && r[1] < da[1])) je.set(r[0], r); }
+    if (posten) {
+      // Je Spieltag der Betrag (mehrere Posten zum selben Fenster, z. B. Tabelle und LAN, zaehlen zusammen) - wie in "Most earnings".
+      const geldJeTag = new Map();
+      for (const [fi, betrag, platz, punkte, mit] of posten.konten[id] ?? []) {
+        const i = postenTag[fi];
+        if (i === undefined) continue;
+        const g = geldJeTag.get(i);
+        if (g) g.b += betrag; else geldJeTag.set(i, { b: betrag, p: platz, pk: punkte, mit: mit ?? [], tag: posten.fenster[fi].q === 'tag' });
+      }
+      for (const r of je.values()) {
+        const g = geldJeTag.get(r[0]);
+        r[4] = g ? g.b : 0;
+        // Finals ueber mehrere Tage: der Endstand, nach dem bezahlt wurde (lib/szeneStats platzKarte).
+        if (g?.tag && typeof g.p === 'number' && g.p > 0 && !r[6]) { r[1] = g.p; if (typeof g.pk === 'number') r[2] = g.pk; }
+      }
+      for (const [i, g] of geldJeTag) {
+        if (!je.has(i)) je.set(i, [i, g.p ?? 0, g.pk ?? 0, 0, g.b, g.mit, 2]);
+      }
+    }
     const z = [...je.values()].sort((x, y) => (tage[y[0]]?.d ?? 0) - (tage[x[0]]?.d ?? 0) || y[0] - x[0]);
+    if (!z.length) continue;
     const v = namen.get(id) ?? ['', 0];
     const m = {};
     for (const r of z) for (const mid of r[5]) { const n = namen.get(mid)?.[0]; if (n) m[mid] = n; }

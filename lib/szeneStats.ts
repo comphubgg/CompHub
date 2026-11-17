@@ -1780,6 +1780,218 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
  */
 export { JAHR_SAISONS, jahrVonSaison };
 
+/** Ein Spieltag, der in der Preisgeldrechnung vorkam - Kopfangaben fuer den Turnierverlauf (scripts/spieler-verlauf.mjs). */
+export interface GeldFenster {
+  w: string; e: string; t: string; r: string; s: string;
+  /** Tag (ms) - aus Epics Spieltagen, sonst dem Cup-Archiv; null, wo keiner gesichert ist. */
+  d: number | null;
+  /** Teams in der Liste (0 = unbekannt: Verdienst-Akte, LAN). */
+  n: number;
+  q: 'tag' | 'akte' | 'lan';
+}
+/** [Fenster, Betrag je Person, Platz, Punkte, Mitspieler] - Platz und Punkte wie gewertet (bei Finals ueber mehrere Tage der Endstand). */
+export type GeldPosten = [string, number, number | null, number | null, string[]];
+
+/** Die Spieltage unter data/platzierungen - mit Event, Region und Namen aus der Datei selbst (zehn Minuten gemerkt). */
+let platzFensterMerker: { liste: Array<{ season: string; windowId: string; eventId: string; region: string; name: string }>; bis: number } | null = null;
+async function platzFenster() {
+  if (platzFensterMerker && Date.now() < platzFensterMerker.bis) return platzFensterMerker.liste;
+  const liste: Array<{ season: string; windowId: string; eventId: string; region: string; name: string }> = [];
+  let saisonOrdner: string[] = [];
+  try { saisonOrdner = await fs.readdir(PLATZ_ABLAGE); } catch { /* der Ordner muss nicht existieren */ }
+  for (const season of saisonOrdner) {
+    if (!/^S\d+$/.test(season)) continue;
+    let dateien: string[] = [];
+    try { dateien = await fs.readdir(path.join(PLATZ_ABLAGE, season)); } catch { continue; }
+    for (const datei of dateien) {
+      if (!datei.endsWith('.json') || datei.startsWith('_')) continue;
+      const windowId = datei.slice(0, -5);
+      let kopf: { eventId?: string; region?: string; name?: string; season?: string } = {};
+      try { kopf = JSON.parse(await fs.readFile(path.join(PLATZ_ABLAGE, season, datei), 'utf8')); } catch { continue; }
+      liste.push({
+        season: kopf.season || season, windowId, eventId: kopf.eventId ?? '',
+        region: kopf.region ?? (/_(EU|NAC|NAW|BR|ASIA|ME|OCE)(?:_|$)/.exec(windowId)?.[1] ?? ''),
+        name: kopf.name || cupNameAusKennung(windowId) || windowId,
+      });
+    }
+  }
+  platzFensterMerker = { liste, bis: Date.now() + 10 * 60_000 };
+  return liste;
+}
+
+/** Alle Saisons, die "alle Zeit" beim Preisgeld umfasst: jedes Jahr, das Verzeichnis und jede Saison der Epic-Spieltage (ohne den Ordner "LAN"). */
+async function alleGeldSaisons(verzeichnisSaisons: string[]): Promise<string[]> {
+  const epic = ohneDateien() ? [] : (await liesEpicSpieltage()).map((t) => t.season);
+  return [...new Set([...verzeichnisSaisons, ...Object.values(JAHR_SAISONS).flat(), ...epic.filter((s) => /^S\d+$/.test(s))])].sort();
+}
+
+/**
+ * Das Preisgeld je Konto fuer einen Zeitraum - die eine Rechnung hinter "Most earnings" (jahresListen) und hinter dem Preisgeld im
+ * Turnierverlauf des Profils (verdienstPostenAlle).
+ *
+ *   1. Die Spieltage des Verzeichnisses (Finals, Platzierungen aus Epics Bestenliste) und die uebrigen Epic-Spieltage: Platz und Punkte
+ *      (bei Finals ueber mehrere Tage der Endstand, platzKarte) mit Epics Auszahlungstabelle (lib/preisgeld). Ein Fenster zaehlt einmal.
+ *   2. Die Verdienst-Akte fuer Fenster, die oben nicht vorkamen (2019 bis 2024, Epics alte Bestenlisten).
+ *   3. Die LANs aus der gepflegten Datei (veroeffentlichte Preislisten), nur ganz zugeordnete.
+ *
+ * Mit `posten` kommt zu jedem Konto jeder Posten mit Fenster, Platz und Punkten - auch unbezahlte Plaetze kleiner Finallisten (hoechstens 500
+ * Konten), damit Grand Finals ohne Geld im Verlauf nicht fehlen. Die Summe der Posten ist genau der Betrag der Liste.
+ */
+async function geldRechnen(o: {
+  jahr: number; saisons: string[]; alleSaisons: string[]; region?: string; eintraege: ArchivEintrag[];
+  /** Nur fuer die LANs mit gewaehlter Region: steht das Konto in dieser Region? */
+  inRegion?: (id: string) => boolean;
+  posten?: boolean;
+}) {
+  const { jahr, saisons, alleSaisons, region, eintraege } = o;
+  const imArchiv = new Set(eintraege.map((e) => e.windowId));
+  const epicTage = await liesEpicSpieltage();
+  const weitere = epicTage
+    .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season)
+      && (!region || t.region === region))
+    .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
+      region: t.region, name: t.titel }));
+  /*
+   * Dazu die Spieltage, deren Platzierungen aus Epics Bestenliste vorliegen (data/platzierungen, scripts/platzierungen-holen.mjs), die aber weder
+   * im Verzeichnis noch unter den Epic-Spieltagen stehen: die Grand Finals der Majors, die Solo Series, die Global Championship. Bis zum
+   * 17.11.2026 fuehrte sie das Verzeichnis; seit es nur noch die eigenen Spieltage kennt, fehlten sie hier ganz - und mit ihnen das groesste
+   * Preisgeld jedes Jahres (Vico, Major 2 2026 EU).
+   */
+  const schon = new Set([...imArchiv, ...weitere.map((t) => t.windowId)]);
+  for (const t of await platzFenster()) {
+    if (schon.has(t.windowId) || !saisons.includes(t.season) || (region && t.region !== region)) continue;
+    schon.add(t.windowId);
+    weitere.push(t);
+  }
+  const geld = new Map<string, number>();
+  const posten = new Map<string, GeldPosten[]>();
+  const fenster = new Map<string, GeldFenster>();
+  const merke = (id: string, p: GeldPosten) => { if (o.posten) (posten.get(id) ?? posten.set(id, []).get(id)!).push(p); };
+  let datumVon: Map<string, number> | null = null;
+  let cupTag: Map<string, number> | null = null;
+  if (o.posten) {
+    datumVon = new Map(epicTage.filter((t) => t.datum).map((t) => [t.windowId, t.datum as number]));
+    // Der Tag eines Grand Finals: aus Epics Bestenliste der Endspiele (data/fncs-endspiele.json, scripts/fncs-endspiele-holen.mjs).
+    const endspiele = await liesJson<{ endspiele?: Array<{ fenster?: string[]; datum?: number }> } | null>('fncs-endspiele.json', null).catch(() => null);
+    for (const e of endspiele?.endspiele ?? []) {
+      for (const w of e.fenster ?? []) if (typeof e.datum === 'number' && !datumVon.has(w)) datumVon.set(w, e.datum);
+    }
+    cupTag = new Map();
+    for (const f of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', []).catch(() => [])) {
+      if (f.windowId && typeof f.begin === 'number') cupTag.set(f.windowId, f.begin);
+    }
+  }
+  let mitRegel = 0;
+  for (const e of [...eintraege, ...weitere]) {
+    const karte = await platzKarte(e.season, e.windowId);
+    if (!karte) continue;
+    let dieserTag = false;
+    const klein = karte.size <= 500;
+    for (const [id, p] of karte) {
+      const v = await verdienst({
+        windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name,
+        platz: p.platz, punkte: p.punkte,
+      });
+      if (!v) break; // keine Regel fuer diesen Spieltag - alle Konten gleich
+      dieserTag = true;
+      geld.set(id, (geld.get(id) ?? 0) + v.betrag);
+      if (v.betrag > 0 || klein) merke(id, [e.windowId, v.betrag, p.platz, p.punkte, p.mitspieler]);
+    }
+    if (dieserTag) mitRegel += 1;
+    if (dieserTag && o.posten) {
+      fenster.set(e.windowId, {
+        w: e.windowId, e: e.eventId ?? '', t: e.name ?? '', r: e.region ?? '', s: e.season,
+        d: datumVon!.get(e.windowId) ?? cupTag!.get(e.windowId) ?? ('datum' in e && typeof e.datum === 'number' ? e.datum : null),
+        n: new Set([...karte.values()].map((x) => x.platz)).size, q: 'tag',
+      });
+    }
+  }
+  /*
+   * Dazu die Verdienst-Akte: alle Jahre, die das Archiv der Szene nicht
+   * kennt (2019 bis 2023), und fuer 2024 die Spieltage vor Chapter 5
+   * Season 3. Bei "alle Zeit" (jahr 0) zaehlt die ganze Akte - sonst fehlte
+   * dort alles vor Chapter 5 Season 3, und der Betreiber sah Malibuca mit 340
+   * statt 1.070 Tausend. Ein Jahr sind seine Saisons (JAHR_SAISONS), auch
+   * hier - nicht das Kalenderjahr. Eine gewaehlte Saison nimmt genau ihre Fenster.
+   */
+  const archiv = await liesVerdienstArchiv();
+  // Ohne die Akte keine Jahresliste - sie waere falsch und laege dann als fertige Antwort am Release (siehe aktenSchreiben).
+  if (!Object.keys(archiv.konten).length) throw new Error('Verdienst-Akte fehlt - keine Jahresliste.');
+  const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
+  // Welche Spieltage der Akte hier zaehlen - fuer "N von M Spieltagen mit Tabelle".
+  const aktenFenster = new Set<string>();
+  for (const [id, liste] of Object.entries(archiv.konten)) {
+    for (const e of liste) {
+      if (liveFenster.has(e[0])) continue;
+      if (region && e[1] !== region) continue;
+      const saisonDesFensters = saisonVonFenster(e[0], e[2]);
+      if (saisons.length === 1 && alleSaisons.length > 1) {
+        if (saisonDesFensters !== saisons[0]) continue;
+      } else if (jahr > 0) {
+        const jahrDesFensters = jahrVonSaison(saisonDesFensters) || eintragJahr(e);
+        if (jahrDesFensters !== jahr) continue;
+      }
+      geld.set(id, (geld.get(id) ?? 0) + e[5]);
+      aktenFenster.add(e[0]);
+      merke(id, [e[0], e[5], e[3] ?? null, e[4] ?? null, e[6] ?? []]);
+      if (o.posten && !fenster.has(e[0])) {
+        fenster.set(e[0], {
+          w: e[0], e: '', t: cupNameAusKennung(e[0]) || '', r: e[1] ?? '', s: saisonDesFensters,
+          d: Date.parse(e[2]) || null, n: 0, q: 'akte',
+        });
+      }
+    }
+  }
+  mitRegel += aktenFenster.size;
+  // Dazu die LAN-Events - je Konto, aus der gepflegten Datei (nur ganz zugeordnete, wie lanSummen).
+  const lans = await lanSummen(saisons);
+  for (const [id, betrag] of lans) {
+    if (region && o.inRegion && !o.inRegion(id)) continue;
+    geld.set(id, (geld.get(id) ?? 0) + betrag);
+  }
+  if (o.posten) {
+    for (const e of await lanEintraege()) {
+      if (!saisons.includes(e.season) || e.offen?.length) continue;
+      for (const s of e.spieler) {
+        if (region && o.inRegion && !o.inRegion(s.epicId)) continue;
+        merke(s.epicId, [e.fenster, s.betrag, s.platz ?? null, null, e.spieler.filter((x) => x.platz === s.platz && x.epicId !== s.epicId).map((x) => x.epicId)]);
+      }
+      if (!fenster.has(e.fenster) || fenster.get(e.fenster)!.q !== 'tag') {
+        fenster.set(e.fenster, {
+          w: e.fenster, e: '', t: e.name, r: 'LAN', s: e.season,
+          d: cupTag!.get(e.fenster) ?? datumVon!.get(e.fenster) ?? (e.datum ? Date.parse(e.datum) : null),
+          n: new Set(e.spieler.map((x) => x.platz)).size, q: 'lan',
+        });
+      }
+    }
+  }
+  const lanTage = lans.size ? eintraege.filter((e) =>
+    ['Escargo_Day4', 'Bratwurst_Finals_Day3', 'Dinosauron_Day2', 'BambiRaptor_Day2'].includes(e.windowId)).length : 0;
+  mitRegel += lanTage;
+  return { geld, posten, fenster, mitRegel, nurAkte: aktenFenster.size, weitere: weitere.length };
+}
+
+/**
+ * Das Preisgeld aller Zeiten je Konto, Posten fuer Posten - fuer den Turnierverlauf im Profil (scripts/spieler-verlauf.mjs liest die
+ * vorgerechnete Antwort "ansicht=verdienst-posten" vom Release). Dieselbe Rechnung wie "Most earnings" aller Zeiten (jahresListen(0)):
+ * die Summe der Posten eines Kontos ist genau sein Betrag dort.
+ */
+export async function verdienstPostenAlle() {
+  const verzeichnis = await liesVerzeichnis();
+  const alleSaisons = [...new Set(verzeichnis.map((e) => e.season))].sort();
+  const saisons = await alleGeldSaisons(alleSaisons);
+  const r = await geldRechnen({ jahr: 0, saisons, alleSaisons, eintraege: verzeichnis, posten: true });
+  const liste = [...r.fenster.values()];
+  const nr = new Map(liste.map((f, i) => [f.w, i]));
+  const konten: Record<string, Array<[number, number, number | null, number | null, string[]]>> = {};
+  for (const [id, l] of r.posten) {
+    konten[id] = l.filter((p) => nr.has(p[0])).map((p) => [nr.get(p[0])!, p[1], p[2], p[3], p[4]]);
+  }
+  const summen: Record<string, number> = {};
+  for (const [id, b] of r.geld) if (b > 0) summen[id] = b;
+  return { erstellt: new Date().toISOString(), fenster: liste, konten, summen };
+}
+
 export async function jahresListen(jahr: number, region?: string, nurSaison?: string,
   /**
    * Die Preisgeldliste ungekuerzt - fuer die eigene Antwort "liste=verdienst".
@@ -1812,78 +2024,25 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
    * sollst wirklich herausfinden, von wo welche Earnings kommen." Ein
    * Fenster zaehlt einmal, auch wenn es in beiden Ablagen liegt.
    */
-  const imArchiv = new Set(eintraege.map((e) => e.windowId));
-  const weitere = (await liesEpicSpieltage())
-    .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season)
-      && (!region || t.region === region))
-    .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
-      region: t.region, name: t.titel }));
-  const geld = new Map<string, number>();
-  let mitRegel = 0;
-  // Spieltage, die nur in der Verdienst-Akte stehen - sie gehoeren in die Zahl der Spieltage, sonst steht "650 von 545" da.
-  let nurAkte = 0;
-  for (const e of [...eintraege, ...weitere]) {
-    const karte = await platzKarte(e.season, e.windowId);
-    if (!karte) continue;
-    let dieserTag = false;
-    for (const [id, p] of karte) {
-      const v = await verdienst({
-        windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name,
-        platz: p.platz, punkte: p.punkte,
-      });
-      if (!v) break; // keine Regel fuer diesen Spieltag - alle Konten gleich
-      dieserTag = true;
-      geld.set(id, (geld.get(id) ?? 0) + v.betrag);
-    }
-    if (dieserTag) mitRegel += 1;
-  }
   /*
-   * Dazu die Verdienst-Akte: alle Jahre, die das Archiv der Szene nicht
-   * kennt (2019 bis 2023), und fuer 2024 die Spieltage vor Chapter 5
-   * Season 3. Nach Kalenderjahr, weil diese Eintraege ein Datum haben.
+   * Die Rechnung selbst steht in geldRechnen - dieselbe fuer diese Liste und fuer die Posten je Konto, aus denen der Turnierverlauf im Profil sein
+   * Preisgeld nimmt (verdienstPostenAlle). So koennen Profil und "Most earnings" nicht mehr auseinanderlaufen (Betreiber, 17.11.2026: Vico im Profil
+   * 167.105 Dollar gesamt, in der Liste 365.025 allein fuer 2026).
+   *
+   * "Alle Zeit" rechnet ueber jede Saison, die irgendein Jahr kennt, und jede Saison der Epic-Spieltage - nicht nur die Saisons des Verzeichnisses.
+   * Vorher fehlten dort die Epic-Spieltage der Saisons ohne eigene Finals (S28, S29, S32, S35, S38, S43), die in ihrem Jahr sehr wohl zaehlten:
+   * ein Jahr konnte mehr zeigen als alle Zeit.
    */
-  // Bei "alle Zeit" (jahr 0) zaehlt die ganze Akte - sonst fehlte dort
-  // alles vor Chapter 5 Season 3, und der Betreiber sah Malibuca mit 340
-  // statt 1.070 Tausend. Ein Jahr sind seine Saisons (JAHR_SAISONS), auch
-  // hier - nicht das Kalenderjahr, sonst zaehlte der Dezember eines
-  // Kapitelanfangs anders als die Saisonwahl darunter. Eine gewaehlte
-  // Saison nimmt genau ihre Fenster.
-  {
-    const archiv = await liesVerdienstArchiv();
-    // Ohne die Akte keine Jahresliste - sie waere falsch und laege dann als
-    // fertige Antwort am Release (siehe aktenSchreiben).
-    if (!Object.keys(archiv.konten).length) throw new Error('Verdienst-Akte fehlt - keine Jahresliste.');
-    const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
-    // Welche Spieltage der Akte hier zaehlen - fuer "N von M Spieltagen mit
-    // Tabelle"; vorher stand bei 2020 "0 von 0", obwohl das Preisgeld da war.
-    const aktenFenster = new Set<string>();
-    for (const [id, liste] of Object.entries(archiv.konten)) {
-      for (const e of liste) {
-        if (liveFenster.has(e[0])) continue;
-        if (region && e[1] !== region) continue;
-        const saisonDesFensters = saisonVonFenster(e[0], e[2]);
-        if (saisons.length === 1 && alleSaisons.length > 1) {
-          if (saisonDesFensters !== saisons[0]) continue;
-        } else if (jahr > 0) {
-          const jahrDesFensters = jahrVonSaison(saisonDesFensters) || eintragJahr(e);
-          if (jahrDesFensters !== jahr) continue;
-        }
-        geld.set(id, (geld.get(id) ?? 0) + e[5]);
-        aktenFenster.add(e[0]);
-      }
-    }
-    mitRegel += aktenFenster.size;
-    nurAkte = aktenFenster.size;
-  }
-  // Dazu die LAN-Events - je Konto, aus der gepflegten Datei.
-  let lanTage = 0;
-  for (const [id, betrag] of await lanSummen(saisons)) {
-    if (region && (feld.find((s) => s.epicId === id)?.regionen ?? []).indexOf(region) === -1) continue;
-    geld.set(id, (geld.get(id) ?? 0) + betrag);
-  }
-  lanTage = (await lanSummen(saisons)).size ? eintraege.filter((e) =>
-    ['Escargo_Day4', 'Bratwurst_Finals_Day3', 'Dinosauron_Day2', 'BambiRaptor_Day2'].includes(e.windowId)).length : 0;
-  mitRegel += lanTage;
+  const geldSaisons = jahr === 0 ? await alleGeldSaisons(alleSaisons) : saisons;
+  const geldEintraege = jahr === 0 ? (await liesVerzeichnis()).filter((e) => !region || e.region === region) : eintraege;
+  const regionVon = new Map(feld.map((s) => [s.epicId, s.regionen ?? []]));
+  const gerechnet = await geldRechnen({
+    jahr, saisons: geldSaisons, alleSaisons, region, eintraege: geldEintraege,
+    inRegion: (id) => (regionVon.get(id) ?? []).includes(region ?? ''),
+  });
+  const { geld, nurAkte } = gerechnet;
+  const weitereZahl = gerechnet.weitere;
+  const mitRegel = gerechnet.mitRegel;
 
   /*
    * Mindestzahl Matches fuer die Quotenliste: ein Zehntel der Matches des aktivsten Spielers, wenigstens 10. Vorher fest 10 - fuer
@@ -1968,7 +2127,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     /** Wie viele der Spieltage ueberhaupt eine Preisgeldregel haben. */
     spieltageMitRegel: mitRegel,
     /** LANs dieses Zeitraums, deren Preisliste noch nicht ganz Konten zugeordnet ist - sie zaehlen hier nicht (lib/preisgeld, lanSummen). */
-    lanOhneZuordnung: await lanUnvollstaendig(saisons),
+    lanOhneZuordnung: await lanUnvollstaendig(jahr === 0 ? await alleGeldSaisons(alleSaisons) : saisons),
   };
   /*
    * Je Platz die Team-Eliminierungen, dazu Matches und Spieltage aus
@@ -1999,7 +2158,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     // Zahl ist die ehrliche Zahl der Spieltage, wo das Archiv leer ist (2020:
     // "0 Spieltage" neben 937 gezaehlten).
     jahr, region: region ?? null,
-    spieltage: Math.max(eintraege.length + weitere.length + nurAkte, teamElims.spieltage, mitRegel), saisons,
+    spieltage: Math.max(geldEintraege.length + weitereZahl + nurAkte, teamElims.spieltage, mitRegel), saisons,
     saison: saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : null,
     saisonenDesJahres: alleSaisons.map((k) => ({ kennung: k, name: saisonName(k) })),
     listen: [verdienstListe, teamElimsListeFertig, ...listen],
@@ -2037,72 +2196,22 @@ export interface VerdienstPosten {
  * hier jeder Betrag seinen Tag behaelt.
  */
 export async function verdienstPosten(jahr: number, ids: Set<string>): Promise<Record<string, VerdienstPosten[]>> {
-  const saisons = JAHR_SAISONS[jahr] ?? [];
-  const raus: Record<string, VerdienstPosten[]> = {};
-  const dazu = (id: string, p: VerdienstPosten) => { if (p.betrag > 0) (raus[id] ??= []).push(p); };
-
-  const eintraege = (await liesVerzeichnis()).filter((e) => saisons.includes(e.season));
-  const imArchiv = new Set(eintraege.map((e) => e.windowId));
-  const epicTage = await liesEpicSpieltage();
-  const datumVon = new Map(epicTage.map((t) => [t.windowId, t.datum]));
-  const weitere = epicTage
-    .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season))
-    .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
-      region: t.region, name: t.titel, datum: t.datum ?? null }));
   /*
-   * Der Tag eines Archiv-Finales: aus Epics Spieltagen oder dem Cup-Archiv.
-   * Nie das Datum der Archivdatei selbst - das ist der Tag, an dem sie
-   * erzeugt wurde (bei vielen Finals aus Chapter 7 Season 1 und 2 der
-   * 12.7.2026). So zaehlten Preisgelder von vor dem Beitritt fuer die Org
-   * (26.9.2026: All Gamers 466.000 statt rund 270.000). Ohne gesicherten Tag
-   * bleibt er leer - dann zaehlt der Posten nur, wo kein Beitritt bekannt ist.
+   * Seit 17.11.2026 aus geldRechnen - genau die Posten, die "Most earnings" dieses Jahres zaehlt (vorher eine eigene Kopie der Rechnung,
+   * die nach dem Wegfall des alten Verzeichnisses die Grand Finals ebenso verlor und LANs mit offener Zuordnung mitzaehlte).
    */
-  const cupTag = new Map<string, number>();
-  for (const f of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', [])) {
-    if (f.windowId && typeof f.begin === 'number') cupTag.set(f.windowId, f.begin);
-  }
-  const alle = [
-    ...eintraege.map((e) => ({ season: e.season, windowId: e.windowId, eventId: e.eventId,
-      region: e.region, name: e.name, datum: datumVon.get(e.windowId) ?? cupTag.get(e.windowId) ?? null })),
-    ...weitere,
-  ];
-  for (const e of alle) {
-    const karte = await platzKarte(e.season, e.windowId);
-    if (!karte) continue;
-    for (const [id, p] of karte) {
-      if (!ids.has(id)) continue;
-      const v = await verdienst({
-        windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name,
-        platz: p.platz, punkte: p.punkte,
-      });
-      if (!v) break; // keine Regel fuer diesen Spieltag
-      dazu(id, { datum: e.datum, betrag: v.betrag, titel: e.name, windowId: e.windowId });
-    }
-  }
-
-  // Die Verdienst-Akte - nur Fenster, die oben nicht schon zaehlten.
-  const liveFenster = new Set(alle.map((e) => e.windowId));
-  const archiv = await liesVerdienstArchiv();
+  const saisons = JAHR_SAISONS[jahr] ?? [];
+  const verzeichnis = await liesVerzeichnis();
+  const alleSaisons = [...new Set(verzeichnis.map((e) => e.season))].sort();
+  const r = await geldRechnen({
+    jahr, saisons, alleSaisons, eintraege: verzeichnis.filter((e) => saisons.includes(e.season)), posten: true,
+  });
+  const raus: Record<string, VerdienstPosten[]> = {};
   for (const id of ids) {
-    for (const e of archiv.konten[id] ?? []) {
-      if (liveFenster.has(e[0])) continue;
-      const jahrDesFensters = jahrVonSaison(saisonVonFenster(e[0], e[2])) || eintragJahr(e);
-      if (jahrDesFensters !== jahr) continue;
-      dazu(id, { datum: Date.parse(e[2]) || null, betrag: e[5], titel: cupNameAusKennung(e[0]) || e[0], windowId: e[0] });
-    }
-  }
-
-  // Die LANs - ihr Tag steht im Cup-Archiv (Beginn des Fensters).
-  const cupArchiv = await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', []);
-  const lanTag = new Map<string, number>();
-  for (const f of Array.isArray(cupArchiv) ? cupArchiv : []) {
-    if (f.windowId && typeof f.begin === 'number') lanTag.set(f.windowId, f.begin);
-  }
-  for (const e of await lanEintraege()) {
-    if (!saisons.includes(e.season)) continue;
-    for (const s of e.spieler) {
-      if (!ids.has(s.epicId)) continue;
-      dazu(s.epicId, { datum: lanTag.get(e.fenster) ?? datumVon.get(e.fenster) ?? (e.datum ? Date.parse(e.datum) : null), betrag: s.betrag, titel: e.name, windowId: e.fenster });
+    for (const [w, betrag] of r.posten.get(id) ?? []) {
+      if (betrag <= 0) continue;
+      const f = r.fenster.get(w);
+      (raus[id] ??= []).push({ datum: f?.d ?? null, betrag, titel: f?.t || cupNameAusKennung(w) || w, windowId: w });
     }
   }
   for (const liste of Object.values(raus)) liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));

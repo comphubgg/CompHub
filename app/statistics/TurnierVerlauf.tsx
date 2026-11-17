@@ -262,7 +262,7 @@ export default function TurnierVerlauf({ epicId, aufKopf, aufSpieler }: {
                         <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
                           <span className={z.platz === 1 ? 'font-extrabold text-sky-300' : z.platz <= 10 ? 'font-bold text-sky-400' : 'font-semibold text-slate-100'}>#{zahl(z.platz)}</span>
                           <span className="block text-[0.7rem] text-slate-500">
-                            {z.ausserhalb ? t('hinter der Liste') : `${t('von')} ${zahl(z.teams)}${z.gekuerzt ? '+' : ''}`}
+                            {z.ausserhalb ? t('hinter der Liste') : z.teams > 0 ? `${t('von')} ${zahl(z.teams)}${z.gekuerzt ? '+' : ''}` : ''}
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-xs">
