@@ -1775,7 +1775,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
  * vor Juli 2026 auf demselben Spiegelungstag. Ein Kalenderjahr laesst sich
  * daraus nicht schneiden. Gezaehlt wird deshalb nach Saisons: ein Kapitel
  * beginnt Ende November oder Anfang Dezember des Vorjahres und laeuft bis
- * in den November - das Jahr 2026 sind Chapter 7 Season 1 bis 4. Die Seite
+ * in den November - das Jahr 2026 sind Chapter 7 Season 1 bis 4 und S43 (Treasure Hunters). Die Seite
  * sagt das dazu.
  */
 export { JAHR_SAISONS, jahrVonSaison };

@@ -15,7 +15,7 @@ export const JAHR_SAISONS: Record<number, string[]> = {
   2023: ['S23', 'S24', 'S25', 'S26', 'S27'],
   2024: ['S28', 'S29', 'S30', 'S31', 'S32'],
   2025: ['S33', 'S34', 'S35', 'S36', 'S37', 'S38'],
-  2026: ['S39', 'S40', 'S41', 'S42'],
+  2026: ['S39', 'S40', 'S41', 'S42', 'S43'],
 };
 
 /** Das Jahr, zu dem eine Saison zaehlt - siehe JAHR_SAISONS. */
