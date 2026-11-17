@@ -279,7 +279,9 @@ export function abgleichen(st: PoolStand, weg: PoolFoto[], jetzt = Date.now()): 
   //    zweite Kopie an (vorher: Kami dreimal in spielerfotos/).
   const vergeben = new Set(t.fotos.map((f) => f.spielerDatei).filter(Boolean) as string[]);
   for (const f of t.fotos) {
-    if (!f.epicId || !f.aktiv || f.spielerDatei) continue;
+    if (!f.epicId || !f.aktiv) continue;
+    // Schon oeffentlich: die Kopie trotzdem sicherstellen (fehlt sie nach einem halben Stand, entsteht sie neu; liegt sie da, passiert nichts).
+    if (f.spielerDatei) { kopieren[SPIELER_ORDNER + f.spielerDatei] = f.datei; continue; }
     let zeit = f.zugeordnet ?? f.erstellt ?? jetzt;
     let name = '';
     for (;;) {

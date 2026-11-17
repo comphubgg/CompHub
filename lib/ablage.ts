@@ -419,6 +419,8 @@ export async function aendereMehrere(
   for (const [nach, von] of Object.entries(p.kopieren)) {
     const roh = await s.lies(von);
     if (!roh) throw new Error(`Ablage: ${von} fehlt - keine Kopie nach ${nach}`);
+    const da = await s.lies(nach).catch(() => null);
+    if (da && da.equals(roh)) continue;
     await s.schreib(nach, roh); geschrieben.push(nach);
   }
   for (const [name, daten] of Object.entries(p.schreiben)) {
