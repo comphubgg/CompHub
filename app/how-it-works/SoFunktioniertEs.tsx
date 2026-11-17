@@ -17,7 +17,7 @@ import { ZAEHLEN_DE, ZAEHLEN_EN, ZaehlInhalt, MAIL } from './Zaehlen';
  *   how-we-count           Zaehlen.tsx (unveraendert)
  *   power-rankings         lib/powerRankings.ts (Epics eine weltweite Liste, TERMIN_STUNDEN), app/components/RanglisteNeu.tsx (10.000 Plaetze, Podest, Spruenge,
  *                          Laender der Top 100, Hoechstwert)
- *   statistics             app/statistics: KonstanzKarte + scripts/spieler-kreis.mjs (Note), Aufsteiger, Vergleich (ab C5S3), ProfilFncs, ProfilVerlauf,
+ *   statistics             app/statistics: KonstanzKarte + scripts/spieler-kreis.mjs (Note), Vergleich (ab C5S3), ProfilFncs, ProfilVerlauf,
  *                          Organisationen, RueckblickBild
  *   streams                app/streams/page.tsx (Ordner, Live-Status von Twitch, Titelfilter, Benachrichtigung, POV), Multiview.tsx
  *   fncs                   app/fncs/FncsSeite.tsx, app/globals-solos/SolosSeite.tsx (Landepunkte nur, wo eine Quelle sie fuehrt; Brasilien/Asien ohne)
@@ -122,7 +122,6 @@ const EN: Text = {
         'Progression over the player\'s tournaments: the last 12 or all of them, with or without big events.',
         'Consistency rating, our own: based on the last 20 cups. Each placement counts relative to the size of the field, regions are weighted, and '
         + 'the worst fifth is dropped. Players without enough cups get no rating.',
-        'Climbers and Fallers: the last 10 cups compared with the 10 before.',
         'Compare two players, duos or trios, by season or all time (from Chapter 5 Season 3, the first season with per-match values).',
         'Organizations, and a season recap image of a player to share.',
       ],
@@ -279,7 +278,6 @@ const DE: Text = {
         'Verlauf über die Turniere des Spielers: die letzten 12 oder alle, mit oder ohne große Events.',
         'Konstanz-Rating, unsere eigene Rechnung: aus den letzten 20 Cups. Jede Platzierung zählt nach der Größe des Feldes, die Regionen sind gewichtet, '
         + 'das schlechteste Fünftel fällt weg. Wer zu wenige Cups hat, bekommt kein Rating.',
-        'Aufsteiger und Absteiger: die letzten 10 Cups im Vergleich mit den 10 davor.',
         'Vergleich zweier Spieler, Duos oder Trios, nach Saison oder All-Time (ab Chapter 5 Season 3, der ersten Saison mit Werten je Match).',
         'Organisationen und ein Saisonrückblick als Bild zum Teilen.',
       ],

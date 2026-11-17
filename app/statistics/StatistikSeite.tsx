@@ -25,7 +25,6 @@ import FotoHinweis from '@/app/components/FotoHinweis';
 import StatistikIntro from './StatistikIntro';
 import KonstanzKarte from './KonstanzKarte';
 import TurnierVerlauf, { type VerlaufKopf } from './TurnierVerlauf';
-import Aufsteiger from './Aufsteiger';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
 import { bildPfad } from '@/app/components/ArchivTeile';
 import type { GalerieEintrag } from '@/lib/galerieTypen';
@@ -39,6 +38,7 @@ import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import Vergleich, { type VglSpieler } from './Vergleich';
+import Duellreihe, { spielstand, zeigeReihe, type DuellWert } from './Duellreihe';
 import RueckblickBild from './RueckblickBild';
 /**
  * In welcher Reihenfolge die Regionen stehen.
@@ -57,7 +57,7 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'aufsteiger' | 'prospects' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'prospects' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
 /** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
 const JAHR = 2026;
@@ -71,7 +71,7 @@ const JAHR = 2026;
  */
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
-  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', aufsteiger: 'alle', prospects: 'alle', jahr: 'alle',
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', prospects: 'alle', jahr: 'alle',
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
@@ -321,8 +321,7 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['turniere', 'Cups'],
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
-  ['aufsteiger', 'Aufsteiger'],
-  // Prospects nicht in der Leiste (Betreiber, 16.11.2026); die Konstanz-Ansicht ist seit dem 17.11.2026 entfernt.
+  // Prospects nicht in der Leiste (Betreiber, 16.11.2026); die Konstanz-Ansicht und die Aufsteiger sind seit dem 17.11.2026 entfernt.
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
   ['orgs', 'Orgs'],
@@ -367,7 +366,6 @@ function Zeichen({ art }: { art: Bereich }) {
     regional: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z M12 10.5a1.5 1.5 0 1 0 0-3'
       + 'a1.5 1.5 0 0 0 0 3z',
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
-    aufsteiger: 'M4 17l6-6 4 4 6-7 M15 8h5v5',
     // Ein Stern mit Aufwaertsstrich - wer neu nach oben kommt.
     prospects: 'M12 3l2.2 4.6 5 .6-3.7 3.4 1 5-4.5-2.5-4.5 2.5 1-5L4.8 8.2l5-.6z M12 21v-3',
     jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
@@ -871,55 +869,51 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
   /** Ohne Fotos: nur die beiden Namen oben und die Zahlen darunter (Uebersicht). */
   schlicht?: boolean;
 }) {
+  const { sprache } = useSprache();
   if (schlicht) {
+    /*
+     * Kopf an Kopf auf der Startseite (Betreiber, 17.11.2026): ohne die zwei grossen Fotos und ohne gespiegelte Balken - oben ein
+     * schmaler Kopf mit Flagge, Name und Region beider Spieler und dem Stand der gewonnenen Werte ("3 – 2"), darunter je Wert eine
+     * neutrale Zeile (Duellreihe). Werte, die bei beiden 0 sind oder fehlen, fallen weg.
+     */
+    const werte: DuellWert[] = DUELL_WERTE.map(([titel, feld, nk, einheit]) => ({
+      titel, nk, suffix: einheit,
+      a: quotientUnbekannt(links, feld as string) ? null : Number(links[feld] ?? 0),
+      b: quotientUnbekannt(rechts, feld as string) ? null : Number(rechts[feld] ?? 0),
+    })).filter(zeigeReihe);
+    const [standL, standR] = spielstand(werte);
     const kopf = (s: Spieler, rechtsRum: boolean) => (
       <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`flex min-w-0 flex-1 items-center gap-2 ${rechtsRum ? 'flex-row-reverse text-right' : ''}
-                    ${aufKlick ? 'cursor-pointer transition hover:text-sky-300' : ''}`}>
-        <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
-        <span className="truncate text-lg font-black uppercase tracking-wide text-slate-50">
-          {grossName(s.anzeige, s.gepflegt)}
+        className={`flex min-w-0 flex-1 flex-col gap-1.5 ${rechtsRum ? 'items-end text-right' : 'items-start text-left'}
+                    ${aufKlick ? 'cursor-pointer transition hover:text-sky-500' : ''}`}>
+        <span className={`flex max-w-full items-center gap-2 ${rechtsRum ? 'flex-row-reverse' : ''}`}>
+          <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
+          <span className="min-w-0 truncate text-lg font-extrabold uppercase tracking-wide text-slate-100 sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
         </span>
-      </button>
-    );
-    // Mit Fotos (Betreiber, 19.10.2026): das Foto ganz am Rand, links der linke, rechts der rechte Spieler - ohne Rahmen und ohne verwischten Grund.
-    // Der Rest der Kopfflaeche hat die Farbe von "VS"; der Name steht in der Mitte der Hoehe neben dem Foto (links: rechts vom Bild, rechts: links vom Bild).
-    const foto = (s: Spieler, rechtsRum: boolean) => (
-      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`group relative h-full w-[36%] max-w-[240px] shrink-0 overflow-hidden ${rechtsRum ? 'order-last' : ''}`}>
-        {s.bild ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.bild} alt={s.anzeige} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-        ) : (
-          <SpielerPlatzhalter name={(s.anzeige || '?')} />
-        )}
-      </button>
-    );
-    const nameVon = (s: Spieler, rechtsRum: boolean) => (
-      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 sm:px-6 ${rechtsRum ? 'items-end text-right' : 'items-start text-left'} ${aufKlick ? 'cursor-pointer transition hover:text-sky-500' : ''}`}>
-        <TeamFlagge groesse={24} laender={[s.land ?? undefined]} />
-        <span className="max-w-full break-words text-xl font-extrabold uppercase leading-tight tracking-wide text-slate-100 sm:text-3xl">{grossName(s.anzeige, s.gepflegt)}</span>
+        {(s.heimat || s.regionen?.[0]) && <RegionMarke region={s.heimat || s.regionen?.[0] || ''} />}
       </button>
     );
     return (
       <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
-        <div className="relative flex h-72 items-stretch bg-zinc-800 sm:h-80">
-          {foto(links, false)}
-          {nameVon(links, false)}
-          <span className="flex shrink-0 items-center px-1 text-3xl font-black italic text-sky-500 sm:px-4 sm:text-5xl">VS</span>
-          {nameVon(rechts, true)}
-          {foto(rechts, true)}
-          <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">{zeitraum}</span>
+        <div className="bg-zinc-800 px-4 pb-4 pt-3 sm:px-6">
+          <div className="mb-3 flex justify-center">
+            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">{zeitraum}</span>
+          </div>
+          <div className="flex items-center gap-3 sm:gap-6">
+            {kopf(links, false)}
+            <span className="flex shrink-0 flex-col items-center">
+              <span className="schrift-anzeige text-2xl font-black tabular-nums leading-none text-slate-100 sm:text-3xl">
+                <span className={standL > standR ? 'text-sky-400' : ''}>{standL}</span>
+                <span className="px-1.5 text-slate-500">–</span>
+                <span className={standR > standL ? 'text-sky-400' : ''}>{standR}</span>
+              </span>
+              <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Werte vorn</T></span>
+            </span>
+            {kopf(rechts, true)}
           </div>
         </div>
-        <div className="px-5 py-4">
-          {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
-            <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
-              links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)}
-              linksUnbekannt={quotientUnbekannt(links, feld as string)} rechtsUnbekannt={quotientUnbekannt(rechts, feld as string)} />
-          ))}
+        <div className="px-4 py-2 sm:px-6">
+          {werte.map((w) => <Duellreihe key={w.titel} wert={w} format={(x, nk) => zahl(x, nk, sprache)} />)}
         </div>
       </div>
     );
@@ -2817,7 +2811,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
      * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
      */
     const gewuenscht = suchParameter?.get('bereich');
-    if (gewuenscht && ['turniere', 'regional', 'spieler', 'aufsteiger', 'prospects', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'prospects', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
       /* Jahresbilanz: "?bereich=jahr&jahr=2025&jregion=EU&jsaison=S37" ("jahr" = alle oder ein Jahr der Auswahl; sonst bleibt der Standard). */
       if (gewuenscht === 'jahr') {
@@ -5288,7 +5282,6 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
 
           {/* -------------------------------------------------- Regionen */}
           {/* ---------------------------------------- Organisationen */}
-          {bereich === 'aufsteiger' && <Aufsteiger aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'prospects' && <Prospects aufSpieler={(id, name) => { void oeffneKonto(id, name); }} />}
           {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
 

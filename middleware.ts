@@ -134,9 +134,11 @@ export async function middleware(request: NextRequest) {
   /*
    * Die Tournament Leaders sind entfernt (Betreiber, 16.11.2026). Alte Links auf ihre Ansichten (/fncs?reiter=leaders, /globals-solos?ansicht=stats)
    * fuehren auf die normale Seite, statt eine leere Auswahl zu zeigen - die uebrigen Angaben (Region, Stufe) bleiben.
+   * Ebenso die Aufsteiger der Statistik (Betreiber, 17.11.2026: entfernt) - /statistics?bereich=aufsteiger fuehrt auf die Startansicht.
    */
   const leaderParam = pfad === '/fncs' && request.nextUrl.searchParams.get('reiter') === 'leaders' ? 'reiter'
-    : pfad === '/globals-solos' && request.nextUrl.searchParams.get('ansicht') === 'stats' ? 'ansicht' : null;
+    : pfad === '/globals-solos' && request.nextUrl.searchParams.get('ansicht') === 'stats' ? 'ansicht'
+      : pfad === '/statistics' && request.nextUrl.searchParams.get('bereich') === 'aufsteiger' ? 'bereich' : null;
   if (leaderParam) {
     const ziel = request.nextUrl.clone();
     ziel.searchParams.delete(leaderParam);

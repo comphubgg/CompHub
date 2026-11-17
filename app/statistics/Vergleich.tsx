@@ -4,6 +4,7 @@
  * Der Vergleich - zwei Spieler (oder zwei Duos, zwei Trios) gegeneinander, wie beim Vorbild.
  *
  * Der Betreiber (13.10.2026): die Vergleichsseite soll aussehen wie beim Vorbild ("Comparison"): oben zwei Spieler mit Fotos,
+ * (17.11.2026: Fotos und gespiegelte Balken ersetzt - schmaler Kopf und neutrale Zeilen, siehe Kopf und Duellreihe),
  * darunter wahlweise Board (Balken) oder Radar und Form; Solo, Duos und Trios, ein Reset-Knopf, Saison oder All-Time - und nur
  * Zahlen ab Chapter 5 Season 3, denn davor liegen keine Spielwerte vor.
  *
@@ -13,12 +14,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
+import Duellreihe, { spielstand, zeigeReihe, type DuellWert } from './Duellreihe';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import TeamFlagge from '@/components/TeamFlagge';
 
-export interface VglSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; gepflegt?: boolean; matches?: number }
+export interface VglSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; gepflegt?: boolean; matches?: number; heimat?: string; regionen?: string[] }
 
 interface Werte {
   eliminations?: number; damageDealt?: number; damageTakenFromPlayers?: number; headshots?: number; hitsToPlayers?: number; shots?: number;
@@ -193,20 +194,45 @@ function Slot({ wer, nr, onWahl, belegt }: { wer: VglSpieler | null; nr: number;
 
 /* ------------------------------------------------------------------ Anzeigen */
 
-function Foto({ s, rechts, klein }: { s: VglSpieler; rechts: boolean; klein: boolean }) {
-  return (
-    <div className={`relative overflow-hidden rounded-xl border border-white/[0.1] bg-zinc-900 ${klein ? 'aspect-[3/4] w-[96px] sm:w-[130px]' : 'aspect-[3/4] w-[150px] sm:w-[190px]'}`}>
-      {s.bild
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
-        : <SpielerPlatzhalter name={s.anzeige} />}
-      <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
-      <span className={`absolute inset-x-0 bottom-0 flex items-center gap-1.5 px-2.5 pb-2 ${rechts ? 'justify-end' : ''}`}>
-        <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />
-        <span className="min-w-0 truncate text-[11px] font-black uppercase tracking-wide text-slate-50">{s.anzeige}</span>
-      </span>
+/**
+ * Der schmale Kopf ueber dem Vergleich (Betreiber, 17.11.2026): statt zweier grosser Fotos je Seite Flagge, Name und Region der Spieler,
+ * in der Mitte der Stand der gewonnenen Werte aus dem Board ("3 – 2").
+ */
+function Kopf({ links, rechts, stand }: { links: VglSpieler[]; rechts: VglSpieler[]; stand: [number, number] }) {
+  const seite = (liste: VglSpieler[], r: boolean) => (
+    <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${r ? 'items-end text-right' : 'items-start text-left'}`}>
+      {liste.map((s) => {
+        const region = s.heimat || s.regionen?.[0] || '';
+        return (
+          <span key={s.epicId} className={`flex max-w-full items-center gap-2 ${r ? 'flex-row-reverse' : ''}`}>
+            <TeamFlagge groesse={liste.length > 1 ? 16 : 20} laender={[s.land ?? undefined]} />
+            <span className={`min-w-0 truncate font-black uppercase tracking-wide text-slate-50 ${liste.length > 1 ? 'text-sm sm:text-base' : 'text-lg sm:text-2xl'}`}>{s.anzeige}</span>
+            {region && <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-slate-400">{region}</span>}
+          </span>
+        );
+      })}
     </div>
   );
+  const [l, r] = stand;
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-4 sm:gap-6 sm:px-6">
+      {seite(links, false)}
+      <span className="flex shrink-0 flex-col items-center">
+        <span className="text-2xl font-black tabular-nums leading-none text-slate-100 sm:text-3xl">
+          <span className={l > r ? 'text-sky-400' : ''}>{l}</span>
+          <span className="px-1.5 text-slate-500">–</span>
+          <span className={r > l ? 'text-sky-400' : ''}>{r}</span>
+        </span>
+        <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Werte vorn</T></span>
+      </span>
+      {seite(rechts, true)}
+    </div>
+  );
+}
+
+/** Die Zeilen des Boards als Duellwerte - ohne die, die bei beiden 0 sind oder fehlen. */
+function boardWerte(links: Summe, rechts: Summe): DuellWert[] {
+  return REIHEN.map((r) => ({ titel: r.titel, a: r.wert(links), b: r.wert(rechts), nk: r.nk, suffix: r.suffix, weniger: r.weniger })).filter(zeigeReihe);
 }
 
 const fmt = (x: number, nk: number, loc: string) => x.toLocaleString(loc, { minimumFractionDigits: nk, maximumFractionDigits: nk });
@@ -219,30 +245,9 @@ function Board({ links, rechts, nameL, nameR, loc }: { links: Summe; rechts: Sum
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">vs</span>
         <span className="min-w-0 truncate text-right text-lg font-black uppercase tracking-wide text-slate-50 sm:text-2xl">{nameR}</span>
       </div>
-      <div className="space-y-3.5">
-        {REIHEN.map((r) => {
-          const a = r.wert(links); const b = r.wert(rechts);
-          // Unbekannt (Nenner 0) ist nicht 0: Strich, kein Balken, kein Sieger.
-          const gross = Math.max(a ?? 0, b ?? 0, 0.0001);
-          // Verglichen wird, was auf der Tafel steht: zwei gleiche Anzeigen sind gleichauf, nicht eine gruen und eine rot.
-          const ra = a === null ? null : Number(a.toFixed(r.nk)); const rb = b === null ? null : Number(b.toFixed(r.nk));
-          const vorn = ra === null || rb === null ? 0 : ra === rb ? 0 : ((r.weniger ? ra < rb : ra > rb) ? -1 : 1);
-          const farbe = (seite: -1 | 1) => (vorn === 0 ? 'bg-sky-400' : vorn === seite ? 'bg-emerald-400' : 'bg-rose-400');
-          const text = (seite: -1 | 1) => (vorn === seite ? 'font-black text-emerald-400' : vorn === 0 ? 'font-bold text-slate-200' : 'font-semibold text-slate-500');
-          return (
-            <div key={r.key} className="grid grid-cols-[64px_1fr_minmax(88px,160px)_1fr_64px] items-center gap-2 sm:grid-cols-[84px_1fr_minmax(140px,200px)_1fr_84px] sm:gap-3">
-              <span className={`text-right text-sm tabular-nums ${text(-1)}`}>{a === null ? '—' : <>{fmt(a, r.nk, loc)}{r.suffix ?? ''}</>}</span>
-              <span className="flex h-2 justify-end overflow-hidden rounded-full bg-white/[0.06]">
-                <span className={`h-full rounded-full ${farbe(-1)}`} style={{ width: `${((a ?? 0) / gross) * 100}%` }} />
-              </span>
-              <span className="text-center text-[10px] font-black uppercase leading-tight tracking-[0.14em] text-slate-300"><T>{r.titel}</T></span>
-              <span className="flex h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                <span className={`h-full rounded-full ${farbe(1)}`} style={{ width: `${((b ?? 0) / gross) * 100}%` }} />
-              </span>
-              <span className={`text-left text-sm tabular-nums ${text(1)}`}>{b === null ? '—' : <>{fmt(b, r.nk, loc)}{r.suffix ?? ''}</>}</span>
-            </div>
-          );
-        })}
+      {/* Neutrale Zeilen statt gespiegelter gruen/roter Balken (Betreiber, 17.11.2026) - siehe Duellreihe. */}
+      <div>
+        {boardWerte(links, rechts).map((w) => <Duellreihe key={w.titel} wert={w} format={(x, nk) => fmt(x, nk, loc)} />)}
       </div>
     </div>
   );
@@ -548,12 +553,8 @@ export default function Vergleich({ saisons, sprache, start }: { saisons: Array<
         </div>
       ) : (
         <>
-          {/* Die Fotos oben */}
-          <div className="mt-4 flex items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent px-3 py-6 sm:gap-8">
-            <div className="flex gap-2">{mitL.map((s) => <Foto key={s.epicId} s={s} rechts={false} klein={n > 1} />)}</div>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/[0.15] bg-zinc-950 text-xs font-black tracking-widest text-slate-300">VS</span>
-            <div className="flex gap-2">{mitR.map((s) => <Foto key={s.epicId} s={s} rechts klein={n > 1} />)}</div>
-          </div>
+          {/* Schmaler Kopf statt grosser Fotos: Flagge, Name, Region und der Stand der gewonnenen Werte. */}
+          <Kopf links={mitL} rechts={mitR} stand={spielstand(boardWerte(summeL, summeR))} />
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
@@ -596,7 +597,7 @@ export default function Vergleich({ saisons, sprache, start }: { saisons: Array<
                 {events.filter((e) => aktiv(e.windowId)).slice().reverse().map((e) => {
                   const pl = (tage: Map<string, Zeile[]>) => { const p = (tage.get(e.windowId) ?? []).map((z) => z.platz).filter((x): x is number => typeof x === 'number'); return p.length ? Math.min(...p) : null; };
                   const a = pl(tageL); const b = pl(tageR);
-                  const farbe = (x: number | null, y: number | null) => (x === null ? 'text-slate-700' : y === null || x < y ? 'font-black text-emerald-400' : x === y ? 'font-bold text-slate-200' : 'font-semibold text-slate-400');
+                  const farbe = (x: number | null, y: number | null) => (x === null ? 'text-slate-700' : y === null || x < y ? 'font-black text-sky-400' : x === y ? 'font-bold text-slate-200' : 'font-semibold text-slate-400');
                   return (
                     <div key={e.windowId} className="grid grid-cols-[56px_1fr_56px] items-center gap-3 border-b border-white/[0.04] py-1.5 last:border-b-0">
                       <span className={`text-right text-sm tabular-nums ${farbe(a, b)}`}>{a === null ? '–' : `${a}.`}</span>
