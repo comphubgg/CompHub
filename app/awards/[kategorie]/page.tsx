@@ -37,9 +37,7 @@ export default async function AwardsKategorie({ params }: { params: Promise<{ ka
           <h1 className="aw-anton mt-3 text-5xl leading-[0.95] sm:text-7xl">{k.name.toUpperCase()}</h1>
           <p className="mt-4 max-w-2xl text-base text-slate-300 sm:text-lg">{k.beschreibung}</p>
           <p className="mt-4 text-sm text-slate-400">
-            {stimmtAb(k)
-              ? <>Nominated by the panel · community vote {zeitraum(a.phasen.abstimmung.start, a.phasen.abstimmung.ende)} · one vote per Epic account</>
-              : <>Nominated and decided by the panel</>}
+            Community vote {zeitraum(a.phasen.abstimmung.start, a.phasen.abstimmung.ende)} · one vote per Epic account
             <span className="ml-2 inline-block whitespace-nowrap rounded-full border border-sky-400/40 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-300">{PHASE_TEXT[phase]}</span>
           </p>
         </div>

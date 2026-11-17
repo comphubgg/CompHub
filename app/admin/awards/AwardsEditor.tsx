@@ -20,7 +20,7 @@ interface Treffer {
 }
 interface OrgEintrag { name: string; logo: string | null; spieler: Array<{ epicId: string | null }> }
 
-const ART: Record<AbstimmungsArt, string> = { community: 'Community vote', panel: 'Panel decision', beide: 'Panel + community' };
+const ART: Record<AbstimmungsArt, string> = { community: 'Community vote', panel: 'Community vote', beide: 'Community vote' };
 const PHASE: Record<string, string> = { vorher: 'Before nominations', nominierung: 'Nominations', zwischen: 'Between nominations and voting', abstimmung: 'Voting open', auswertung: 'Voting closed, results pending', ergebnis: 'Results public' };
 
 const kennung = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -102,7 +102,7 @@ export default function AwardsEditor() {
 
   const neueKategorie = () => {
     const id = eindeutig('new-category', awards.kategorien.map((k) => k.id));
-    aendern((a) => ({ ...a, kategorien: [...a.kategorien, { id, name: 'New category', beschreibung: '', art: 'panel', sonderpreis: false, nominierte: [], sieger: null }] }));
+    aendern((a) => ({ ...a, kategorien: [...a.kategorien, { id, name: 'New category', beschreibung: '', art: 'community', sonderpreis: false, nominierte: [], sieger: null }] }));
     setOffen(id);
   };
 
@@ -215,11 +215,9 @@ function KategorieZeile({ k, andereIds, offen, umschalten, idGeaendert, hoch, ru
             <label className="block text-xs font-semibold text-slate-400 sm:col-span-2">Description
               <textarea value={k.beschreibung} onChange={(e) => aendern((x) => ({ ...x, beschreibung: e.target.value }))} rows={2} className={`${feld} mt-1`} />
             </label>
-            <label className="block text-xs font-semibold text-slate-400">Decided by
-              <select value={k.art} onChange={(e) => aendern((x) => ({ ...x, art: e.target.value as AbstimmungsArt }))} className={`${feld} mt-1`}>
-                {(Object.keys(ART) as AbstimmungsArt[]).map((a) => <option key={a} value={a}>{ART[a]}</option>)}
-              </select>
-            </label>
+            <div className="block text-xs font-semibold text-slate-400">Decided by
+              <p className={`${feld} mt-1`}>Community vote (fan vote, one vote per Epic account)</p>
+            </div>
             <div className="flex items-end gap-4">
               <label className="flex items-center gap-2 pb-2 text-sm text-slate-300">
                 <input type="checkbox" checked={k.sonderpreis} onChange={(e) => aendern((x) => ({ ...x, sonderpreis: e.target.checked }))} /> Special prize

@@ -3,7 +3,8 @@ import { aendereJson, liesJson } from '@/lib/ablage';
 /*
  * CompHub Awards 2026 (Betreiber, 17.11.2026) - vorerst NUR fuer den Admin.
  *
- * Ein Konzept eines Partners, jetzt ein CompHub-Projekt (nur Fortnite Competitive): Kategorien, in denen ein Gremium (~15 Leute) Nominierte
+ * Ein Konzept eines Partners, jetzt ein CompHub-Projekt (nur Fortnite Competitive). Seit 17.11.2026 (Betreiber) ohne Jury: in ALLEN Kategorien stimmt
+ * die Community ab (ein Fan-Vote). Die alte Fassung sah vor: ein Gremium (~15 Leute) schlaegt Nominierte
  * vorschlaegt; in einigen stimmt danach die Community ab (Content Creator, Play of the Year, Male, Female, Young Player), den Rest entscheidet
  * das Gremium. Dazu Sonderpreise (Manager und Coach, je "Best" und "Upcoming").
  *
@@ -22,7 +23,7 @@ export const OEFFENTLICH = false;
 export const AWARDS_DATEI = 'awards-2026.json';
 export const STIMMEN_DATEI = 'awards-2026-stimmen.json';
 
-/** community: die Community stimmt ab (nach den Nominierungen des Gremiums); panel: das Gremium entscheidet; beide: beides zaehlt. */
+/** Nur noch "community" (Betreiber, 17.11.2026: keine Jury). "panel"/"beide" bleiben als Typ fuer alte Staende und werden beim Speichern zu "community". */
 export type AbstimmungsArt = 'community' | 'panel' | 'beide';
 /** spieler: ein Profi mit Epic-Konto (Foto, Flagge, Team aus unseren Daten); person: Org/Creator/Agent/Manager/Coach von Hand; clip: ein Spielzug mit Link. */
 export type NominiertenArt = 'spieler' | 'person' | 'clip';
@@ -81,20 +82,19 @@ export const GRUNDSTAND: Awards = {
     kat('best-male-player', 'Best Male Player', 'The best male competitive Fortnite player of 2026.', 'community'),
     kat('best-female-player', 'Best Female Player', 'The best female competitive Fortnite player of 2026.', 'community'),
     kat('best-young-player', 'Best Young Player', 'The best young talent of the 2026 competitive season.', 'community'),
-    kat('best-esport-organisation', 'Best Esport Organisation', 'The organisation that did the most for competitive Fortnite in 2026.', 'panel'),
+    kat('best-esport-organisation', 'Best Esport Organisation', 'The organisation that did the most for competitive Fortnite in 2026.', 'community'),
     kat('best-content-creator', 'Best Content Creator', 'The creator who brought competitive Fortnite to the most people in 2026.', 'community'),
-    kat('best-agent', 'Best Agent', 'The agent who represented competitive players best in 2026.', 'panel'),
+    kat('best-agent', 'Best Agent', 'The agent who represented competitive players best in 2026.', 'community'),
     kat('best-play-of-the-year', 'Best Play of the Year', 'The single best play of the 2026 competitive season.', 'community'),
-    kat('best-manager', 'Best Manager', 'Special prize: the best team or player manager of 2026.', 'panel', true),
-    kat('upcoming-manager', 'Upcoming Manager', 'Special prize: the manager to watch.', 'panel', true),
-    kat('best-coach', 'Best Coach', 'Special prize: the best coach of 2026.', 'panel', true),
-    kat('upcoming-coach', 'Upcoming Coach', 'Special prize: the coach to watch.', 'panel', true),
+    kat('best-manager', 'Best Manager', 'Special prize: the best team or player manager of 2026.', 'community', true),
+    kat('upcoming-manager', 'Upcoming Manager', 'Special prize: the manager to watch.', 'community', true),
+    kat('best-coach', 'Best Coach', 'Special prize: the best coach of 2026.', 'community', true),
+    kat('upcoming-coach', 'Upcoming Coach', 'Special prize: the coach to watch.', 'community', true),
   ],
 };
 
 /* ------------------------------------------------------------------ Pruefen */
 
-const ARTEN: AbstimmungsArt[] = ['community', 'panel', 'beide'];
 const N_ARTEN: NominiertenArt[] = ['spieler', 'person', 'clip'];
 
 const text = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max) : '');
@@ -153,7 +153,7 @@ export function saeubern(roh: unknown): Awards {
     const sieger = text(o.sieger, 60);
     kategorien.push({
       id, name, beschreibung: text(o.beschreibung, 400),
-      art: ARTEN.includes(o.art as AbstimmungsArt) ? o.art as AbstimmungsArt : 'panel',
+      art: 'community',
       sonderpreis: o.sonderpreis === true,
       nominierte,
       sieger: nominierte.some((n) => n.id === sieger) ? sieger : null,

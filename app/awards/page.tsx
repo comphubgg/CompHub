@@ -39,7 +39,7 @@ function Karte({ k, phase }: { k: Kategorie; phase: Phase }) {
   return (
     <Link href={`/awards/${k.id}`} className="aw-box aw-box-link group flex flex-col p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] ${k.art === 'panel' ? 'border-slate-600 text-slate-300' : 'border-sky-400/50 bg-sky-400/10 text-sky-300'}`}>{ART_TEXT[k.art]}</span>
+        <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] border-sky-400/50 bg-sky-400/10 text-sky-300`}>{ART_TEXT[k.art]}</span>
         <span className="text-xs font-semibold text-slate-500">{k.nominierte.length ? `${k.nominierte.length} nominee${k.nominierte.length === 1 ? '' : 's'}` : 'Nominees TBA'}</span>
       </div>
       <h3 className="aw-anton mt-4 text-3xl leading-none">{k.name.toUpperCase()}</h3>
@@ -72,7 +72,7 @@ export default async function AwardsUebersicht() {
           <p className="aw-kicker text-sm sm:text-base">Competitive Fortnite · Season 2026</p>
           <h1 className="aw-anton mt-3 text-6xl leading-[0.95] sm:text-8xl">COMPHUB<br />AWARDS <span className="text-sky-400">2026</span></h1>
           <p className="mt-5 max-w-xl text-base text-slate-300 sm:text-lg">
-            The year in competitive Fortnite, honoured. A panel of around 15 voters nominates, the <b className="text-sky-400">community votes</b> in the fan categories, and the panel decides the rest.
+            The year in competitive Fortnite, honoured. Every award is a <b className="text-sky-400">fan vote</b>: the community decides every category, one vote per Epic account.
           </p>
           <span className="mt-6 inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
             <span className="h-2 w-2 rounded-full bg-sky-400" />{PHASE_TEXT[phase]}

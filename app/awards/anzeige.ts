@@ -4,8 +4,8 @@ import type { AbstimmungsArt, Phase } from '@/lib/awards';
 
 export const ART_TEXT: Record<AbstimmungsArt, string> = {
   community: 'Community vote',
-  panel: 'Panel decision',
-  beide: 'Panel + community',
+  panel: 'Community vote',
+  beide: 'Community vote',
 };
 
 export const PHASE_TEXT: Record<Phase, string> = {

@@ -70,7 +70,7 @@ export default function Abstimmung({ kategorie, nominierte, abstimmbar, offen, s
       {nominierte.length === 0 ? (
         <div className="aw-box px-6 py-16 text-center">
           <p className="aw-anton text-3xl text-slate-200">NOMINEES TBA</p>
-          <p className="mt-2 text-sm text-slate-400">The panel is still putting the shortlist together.</p>
+          <p className="mt-2 text-sm text-slate-400">The shortlist is still being put together.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
