@@ -337,7 +337,19 @@ async function tokenHolen() {
 
 // ---------------------------------------------------------------- Namen
 
-const nameCache = new Map<string, string>();
+/*
+ * Einmal je Prozess, nicht je Bauteil (17.11.2026): Next laedt diese Datei in mehrere Routen-Bauteile, jedes mit eigenem Modulzustand. Gemessen im
+ * Commit-Verlauf von comphub-daten nach dem Umstellen auf gesammeltes Schreiben: mehrere Schreiber je Minute im Abstand von fuenf Sekunden - also
+ * mehrere Zwischenspeicher, mehrere Vormerkungen, mehrere Uhren. Ueber globalThis teilen sie sich Vorrat, Vormerkung und Takt.
+ */
+type NamenZustand = {
+  cache: Map<string, string>; neu: Map<string, string>;
+  geladen: boolean; zuletzt: number; schreibt: boolean; uhr: ReturnType<typeof setTimeout> | null;
+};
+const NZ: NamenZustand = ((globalThis as { __comphubEpicNamen?: NamenZustand }).__comphubEpicNamen ??= {
+  cache: new Map(), neu: new Map(), geladen: false, zuletzt: 0, schreibt: false, uhr: null,
+});
+const nameCache = NZ.cache;
 /** Konten, zu denen Epic gerade keinen Namen nannte - kurz nicht neu fragen. */
 const ohneNamenBis = new Map<string, number>();
 
@@ -361,8 +373,6 @@ const ohneNamenBis = new Map<string, number>();
  */
 const NAMEN_ABLAGE = 'epic-namen.json';
 
-/** Wurde die Datei in diesem Vorgang schon gelesen? */
-let namenGeladen = false;
 /**
  * Was seit dem letzten erfolgreichen Schreiben neu aufgeloest wurde (Id -> Name) - nur das geht hinaus.
  *
@@ -373,18 +383,15 @@ let namenGeladen = false;
  * warteten. Jetzt: nur Neues, hoechstens einmal je NAMEN_ABSTAND_MS, und auf den frisch gelesenen Stand gesetzt (aendereJson) -
  * vorhandene Eintraege bleiben, ein Name wird nur durch einen frisch von Epic geholten, gueltigen ersetzt.
  */
-const namenNeu = new Map<string, string>();
+const namenNeu = NZ.neu;
 const NAMEN_ABSTAND_MS = 60_000;
-let namenZuletztGeschrieben = 0;
-let namenSchreibtGerade = false;
-let namenUhr: ReturnType<typeof setTimeout> | null = null;
 
 /** Ein Name, der in den Vorrat darf: nicht leer und keine gekuerzte Id (siehe unten). */
 const gueltigerName = (id: string, name: string | undefined): name is string => Boolean(name) && name !== id.slice(0, 8);
 
 async function namenLaden(): Promise<void> {
-  if (namenGeladen) return;
-  namenGeladen = true;
+  if (NZ.geladen) return;
+  NZ.geladen = true;
   try {
     const { liesJson } = await import('@/lib/ablage');
     const gespeichert = await liesJson<Record<string, string>>(NAMEN_ABLAGE, {});
@@ -402,18 +409,18 @@ async function namenLaden(): Promise<void> {
  * auszuliefern: die Namen bleiben vorgemerkt und gehen beim naechsten Mal mit.
  */
 function namenSichern(): void {
-  if (!namenNeu.size || namenSchreibtGerade || namenUhr) return;
-  const warten = namenZuletztGeschrieben + NAMEN_ABSTAND_MS - Date.now();
+  if (!namenNeu.size || NZ.schreibt || NZ.uhr) return;
+  const warten = NZ.zuletzt + NAMEN_ABSTAND_MS - Date.now();
   if (warten > 0) {
-    namenUhr = setTimeout(() => { namenUhr = null; namenSichern(); }, warten);
-    namenUhr.unref?.();
+    NZ.uhr = setTimeout(() => { NZ.uhr = null; namenSichern(); }, warten);
+    NZ.uhr.unref?.();
     return;
   }
   void namenJetztSchreiben();
 }
 
 async function namenJetztSchreiben(): Promise<void> {
-  namenSchreibtGerade = true;
+  NZ.schreibt = true;
   const teil = new Map(namenNeu);
   try {
     const { aendereJson } = await import('@/lib/ablage');
@@ -425,8 +432,8 @@ async function namenJetztSchreiben(): Promise<void> {
     // Was andere Vorgaenge abgelegt haben, kennt jetzt auch dieser.
     for (const [id, name] of Object.entries(stand)) if (!nameCache.has(id) && gueltigerName(id, name)) nameCache.set(id, name);
   } catch { /* bleibt vorgemerkt - beim naechsten Mal wieder */ }
-  namenZuletztGeschrieben = Date.now();
-  namenSchreibtGerade = false;
+  NZ.zuletzt = Date.now();
+  NZ.schreibt = false;
   namenSichern();
 }
 
