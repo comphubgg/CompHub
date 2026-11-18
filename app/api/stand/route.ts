@@ -81,6 +81,8 @@ export async function GET(request: Request) {
       freiMb: Math.round(os.freemem() / 1048576),
       // Wie lange die Ereignisschleife stand (lib/schleifenWaechter, 18.11.2026) - p50/p99/max seit dem letzten Abruf, dazu die letzten Luecken ueber 300 ms.
       schleife: schleifenStand(),
+      // Wann das Aufwaermen nach dem Start fertig war (instrumentation-node.ts) - null: laeuft noch. Der Wechsel ohne Ausfall wartet darauf.
+      warm: (globalThis as { __comphubWarm?: number }).__comphubWarm ?? null,
       live: await liveTakt(),
     },
     // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.

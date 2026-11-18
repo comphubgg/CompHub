@@ -72,7 +72,9 @@ async function liesReleaseNeu<T>(w: string): Promise<T | null> {
     return d;
   }
   // Grosse Dateien nacheinander parsen: zwei zugleich hiessen ein bis zwei GB Heap auf einmal, schneller fertig wird keiner.
-  const lauf = parseReihe.then(() => parse<T>(roh));
+  // Vor jedem Parse einmal zur Ereignisschleife zurueck (setImmediate): sonst liefen mehrere fertig geladene Dateien als Kette von Mikroaufgaben am
+  // Stueck - nach dem Neustart am 18.11. 16:56 stand die Schleife so 35 s (Aufwaermen eines Profils: alle grossen Cups des Spielers auf einmal).
+  const lauf = parseReihe.then(() => new Promise<void>((r) => { setImmediate(r); })).then(() => parse<T>(roh));
   parseReihe = lauf.catch(() => null);
   const d = await lauf;
   // Der Stand dazu - nur gemerkt, wenn seine Groesse zu den gelesenen Bytes passt (sonst wurde die Datei inzwischen ersetzt: beim naechsten Mal neu).

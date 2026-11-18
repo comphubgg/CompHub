@@ -91,9 +91,14 @@ export async function registerNode() {
         '/api/startvitrine',
         '/api/globals-solos?region=EU&kurz=1',
         '/api/cup-catalog?modus=alle',
-        '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
       ].map(rufe));
-      for (const weg of ['/api/maps-liste', '/api/fncs-ereignisse', '/api/globals-solos?region=EU']) await rufe(weg);
+      // Was die Startseite sonst noch fragt, dann die uebrigen Uebersichten. Das Profil zuletzt und allein (18.11.2026): es liest jede grosse
+      // clutch/<w>.json des Spielers (100-340 MB je Cup) - zusammen mit dem Rest hielt das die Schleife nach dem Neustart 35 s an.
+      for (const weg of ['/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', '/api/szene-stats', '/api/replays?zahl=1', '/api/sektionen?nur=staende',
+        '/api/fncs-ereignisse', '/api/globals-solos?region=EU&reihe=S42', '/api/maps-liste', '/api/globals-solos?region=EU',
+        '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4']) await rufe(weg);
+      // Fuer den Wechsel ohne Ausfall (deploy/comphub-update.sh): erst wenn das hier durch ist, bekommt dieser Container Besucher.
+      (globalThis as { __comphubWarm?: number }).__comphubWarm = Date.now();
     };
     setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
 

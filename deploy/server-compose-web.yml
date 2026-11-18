@@ -1,0 +1,53 @@
+# Die Seite ohne Ausfall beim Aufspielen (18.11.2026, Betreiber: "jedes Aufspielen legt die Seite eine halbe Minute lahm").
+#
+# Gelesen nur von deploy/comphub-update.sh (Projekt "comphubweb", liegt auf dem Server unter /opt/comphub/web/docker-compose.yml). Solange auf dem
+# Server noch das alte Update-Skript laeuft, wird diese Datei nicht benutzt - dann gilt weiter "web" aus deploy/server-compose.yml.
+#
+#   proxy       Caddy auf 127.0.0.1:3100 (dort, wo der Tunnel und die anderen Dienste die Seite suchen) - leitet zur aktiven Farbe weiter.
+#   web-blau    die Seite auf 127.0.0.1:3101
+#   web-gruen   die Seite auf 127.0.0.1:3102
+#
+# Ein neues Image startet in der Farbe, die gerade NICHT laeuft. Das Skript wartet, bis sie aufgewaermt ist (/api/stand "warm"), stellt den Proxy um
+# (caddy reload - laufende Anfragen laufen zu Ende) und haelt die alte Farbe nach 30 s an. Besucher sehen nie einen kalten Server.
+services:
+  proxy:
+    image: caddy:2.8.4-alpine
+    restart: always
+    network_mode: host
+    # Die Caddyfile schreibt deploy/comphub-update.sh (Ziel: die aktive Farbe).
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    mem_limit: 256m
+
+  web-blau: &web
+    image: ghcr.io/comphubgg/comphub-web:latest
+    # Nicht "always": die angehaltene Farbe soll auch nach einem Neustart des Rechners angehalten bleiben.
+    restart: unless-stopped
+    env_file: ../web.env
+    environment:
+      COMPHUB_ABLAGE: supabase
+      COMPHUB_KEIN_HINTERGRUND: "1"
+      NODE_OPTIONS: --max-old-space-size=6144
+      # Siehe deploy/server-compose.yml (Absturzschleife 16.11.2026).
+      MALLOC_ARENA_MAX: "2"
+      XMPP_DIENST_URL: http://xmpp:3210
+    ports:
+      - "127.0.0.1:3101:10000"
+    volumes:
+      - ../live:/app/live:ro
+      - ../live/eingang:/app/live-eingang
+      # Die letzten guten Antworten (lib/ueberdauernd, data/.zuletzt) fuer beide Farben gemeinsam: die neue liefert sie vom ersten Aufruf an.
+      - ../web-zuletzt:/app/data/.zuletzt
+    networks: [comphub]
+
+  web-gruen:
+    <<: *web
+    ports:
+      - "127.0.0.1:3102:10000"
+
+# Das Netz des Hauptprojekts (/opt/comphub, Projekt "comphub") - dort laeuft "xmpp".
+networks:
+  comphub:
+    external: true
+    name: comphub_default
