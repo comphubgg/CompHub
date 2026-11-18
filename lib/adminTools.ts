@@ -4,15 +4,15 @@ import { bereichVonPfad } from '@/lib/rechte';
  * Every admin tool, in one list (operator, 18.11.2026: the pill bar on top of the admin pages overflowed and the card grid on /admin did not contain
  * everything - "a new admin panel where everything is clearly reachable").
  *
- * The sidebar of every /admin page (app/admin/AdminSeitenleiste.tsx), its search, "Recently used" and the card grid on /admin?bereich=admin
- * (app/admin/AdminZentrale.tsx) all read THIS list. A new admin page goes in here and nowhere else - then it is in the sidebar, the cards and the search
+ * The pill bar on top of every /admin page (app/admin/AdminLeiste.tsx, wrapping onto several rows), its search and the card grid on /admin?bereich=admin
+ * (app/admin/AdminZentrale.tsx) all read THIS list. A new admin page goes in here and nowhere else - then it is in the pill bar, the cards and the search
  * at once.
  *
  * Texts are German like the rest of the site; the English versions stand in app/lib/spracheAdmin.ts (or sprache.ts when used outside /admin).
  *
  *   manager: true   - a manager could already see this tile before (filtered by his ticked area, lib/rechte, when the path has one).
  *                     Everything else is admin only - non-admins see nothing new.
- *   nurLeiste: true - navigation inside the dashboard itself; in the sidebar, not as a card.
+ *   nurLeiste: true - navigation inside the dashboard itself; in the pill bar, not as a card.
  *   zaehler         - a badge with a count, from an API that already provides it.
  *   unter           - further paths that belong to this tool (sub pages), for the "active" highlight.
  */
@@ -21,7 +21,7 @@ export type AdminGruppeId = 'dashboard' | 'inhalte' | 'spieler' | 'daten' | 'liv
 
 export interface AdminGruppe {
   id: AdminGruppeId; titel: string;
-  /** Tailwind classes: the dot, the heading, the card hover and the active sidebar entry. */
+  /** Tailwind classes: the dot, the heading, the card hover and the active entry (aktiv: unused by the pill bar). */
   punkt: string; titelFarbe: string; kachel: string; aktiv: string;
 }
 

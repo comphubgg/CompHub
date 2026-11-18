@@ -26,7 +26,6 @@ import T from '@/app/components/T';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
-import { usePathname } from 'next/navigation';
 import { sichtbareWerkzeuge } from '@/lib/adminTools';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Besucherherkunft from '@/app/components/Besucherherkunft';
@@ -38,7 +37,7 @@ import Klappbar from './Klappbar';
 import OfflineSeiten from './OfflineSeiten';
 import Ebenen from './Ebenen';
 import Seitenleiste, { BEREICHE, type Bereich } from './Seitenleiste';
-import { BEREICH_WAHL, BEREICH_GEZEIGT } from './AdminSeitenleiste';
+import { BEREICH_WAHL, BEREICH_GEZEIGT } from './AdminLeiste';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -58,8 +57,8 @@ const DEFAULT_PROFILE: ProfileData = {
 };
 
 /*
- * Die Admin-Werkzeuge stehen seit dem 18.11.2026 in einer einzigen Liste: lib/adminTools.ts. Dieselbe Liste fuellt die Seitenleiste jeder Admin-Seite
- * (AdminSeitenleiste), ihre Suche und die Kacheln hier - vorher waren es drei Listen (hier zwei, dazu die Kapsel-Leiste), und die Kacheln kannten nicht
+ * Die Admin-Werkzeuge stehen seit dem 18.11.2026 in einer einzigen Liste: lib/adminTools.ts. Dieselbe Liste fuellt die Kapsel-Leiste jeder Admin-Seite
+ * (AdminLeiste, die Kapseln oben), ihre Suche und die Kacheln hier - vorher waren es drei Listen (hier zwei, dazu die Kapsel-Leiste), und die Kacheln kannten nicht
  * alles. Ein neues Werkzeug gehoert dorthin und sonst nirgendwohin.
  */
 
@@ -123,11 +122,11 @@ export default function AdminDashboardPage() {
       u.searchParams.set('bereich', b); u.searchParams.delete('tab'); u.hash = '';
       window.history.replaceState(null, '', u.toString());
     } catch { /* ohne Adresse */ }
-    // Die Admin-Seitenleiste markiert den Bereich mit (sie hoert replaceState nicht).
+    // Die Admin-Leiste oben markiert den Bereich mit (sie hoert replaceState nicht).
     window.dispatchEvent(new Event(BEREICH_GEZEIGT));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  // Ein Klick in der Admin-Seitenleiste auf einen Bereich dieser Seite: umschalten statt neu laden.
+  // Ein Klick in der Admin-Leiste oben auf einen Bereich dieser Seite: umschalten statt neu laden.
   const bereichRef = useRef(setBereich);
   useEffect(() => { bereichRef.current = setBereich; });
   useEffect(() => {
@@ -138,13 +137,6 @@ export default function AdminDashboardPage() {
     window.addEventListener(BEREICH_WAHL, wahl);
     return () => window.removeEventListener(BEREICH_WAHL, wahl);
   }, []);
-  /*
-   * Unter /admin hat der Admin links die Admin-Seitenleiste (app/admin/AdminRahmen) - sie fuehrt auch die Bereiche dieses Dashboards. Die eigene Leiste
-   * entfiele dort doppelt; unter /vip und fuer jeden anderen bleibt sie.
-   */
-  const pfad = usePathname() ?? '';
-  // Waehrend die Rechte noch laden, keine der beiden - sonst stuende die eigene kurz da und verschwaende wieder.
-  const adminLeisteAussen = (zugang.laedt || zugang.admin) && (pfad === '/admin' || pfad.startsWith('/admin/'));
 
   useEffect(() => {
     fetch('/api/profile')
@@ -388,10 +380,10 @@ export default function AdminDashboardPage() {
 
         {/* Seitenleiste links (schmal: Kapseln oben) und daneben der gewaehlte Bereich - siehe app/admin/Seitenleiste. */}
         <div className="lg:flex lg:items-stretch lg:gap-5">
-        {!adminLeisteAussen && <Seitenleiste bereich={bereich} setBereich={setBereich}
+        <Seitenleiste bereich={bereich} setBereich={setBereich}
           vip={zugang.vip || rolle === 'manager' || zugang.manager}
           admin={istAdmin || rolle === 'admin' || zugang.admin}
-          manager={rolle === 'manager' || zugang.manager} />}
+          manager={rolle === 'manager' || zugang.manager} />
         <div className="min-w-0 flex-1">
 
         {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer
