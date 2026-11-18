@@ -41,34 +41,54 @@ export function endspielArt(e: MapEintrag): { art: Art; jahr?: string } | null {
  * "spiel"). Nur eindeutige Namen; kennt keine Quelle den Namen, bleibt die Weltkugel: ein Land wird nicht geraten.
  */
 let landMerker: { bis: number; karte: Map<string, string | null> } | null = null;
+let landBau: Promise<Map<string, string | null>> | null = null;
+
+/*
+ * Die Karte wurde alle zehn Minuten am Stueck neu gebaut - ueber alle ~708.000 Epic-Namen. Auf dem Server stand die Ereignisschleife dabei 22-34 s
+ * (Stichproben-Profil, 18.11.2026: nach jedem Start und danach alle zehn Minuten, ausgeloest von /api/fncs-ereignisse - also von der Startseite).
+ * Jetzt: der alte Stand gilt, waehrend der neue im Hintergrund entsteht; der Bau gibt alle 5.000 Namen die Schleife frei, und der Schluessel je Name
+ * ist gemerkt (lib/homoglyph namensSchluessel) und wird nur einmal je Name gerechnet.
+ */
+const frei = () => new Promise<void>((r) => { setImmediate(r); });
+async function landKarteBauen(): Promise<Map<string, string | null>> {
+  const karte = new Map<string, string | null>();
+  const setze = (k: string, land: string) => {
+    if (!k || !land) return;
+    const da = karte.get(k);
+    if (da === undefined) karte.set(k, land);
+    else if (da !== land) karte.set(k, null);
+  };
+  const [profile, epic, quellen] = await Promise.all([
+    liesJson<Record<string, { name?: string; anzeige?: string; namen?: string[]; land?: string }>>('spieler-profile.json', {}).catch(() => ({})),
+    epicNamen(),
+    landQuellen().catch(() => null),
+  ]);
+  const ausProfil = new Set<string>();
+  for (const p of Object.values(profile ?? {})) {
+    const l = landNorm(p?.land).toUpperCase();
+    if (!l) continue;
+    for (const n of [p.name, p.anzeige, ...(p.namen ?? [])]) { const k = namensSchluessel(String(n ?? '')); setze(k, l); ausProfil.add(k); }
+  }
+  let i = 0;
+  for (const id in epic ?? {}) {
+    if (++i % 5_000 === 0) await frei();
+    const l = landNorm(quellen?.spiel[id.toLowerCase()]).toUpperCase();
+    if (!l) continue;
+    const k = namensSchluessel(epic[id]);
+    if (!ausProfil.has(k)) setze(k, l);
+  }
+  landMerker = { bis: Date.now() + 10 * 60_000, karte };
+  return karte;
+}
+
 export async function landVonName(): Promise<(name: string) => string | null> {
   if (!landMerker || landMerker.bis < Date.now()) {
-    const karte = new Map<string, string | null>();
-    const setze = (name: unknown, land: string) => {
-      const k = namensSchluessel(String(name ?? ''));
-      if (!k || !land) return;
-      const da = karte.get(k);
-      if (da === undefined) karte.set(k, land);
-      else if (da !== land) karte.set(k, null);
-    };
-    const [profile, epic, quellen] = await Promise.all([
-      liesJson<Record<string, { name?: string; anzeige?: string; namen?: string[]; land?: string }>>('spieler-profile.json', {}).catch(() => ({})),
-      epicNamen(),
-      landQuellen().catch(() => null),
-    ]);
-    const ausProfil = new Set<string>();
-    for (const p of Object.values(profile ?? {})) {
-      const l = landNorm(p?.land).toUpperCase();
-      if (!l) continue;
-      for (const n of [p.name, p.anzeige, ...(p.namen ?? [])]) { setze(n, l); ausProfil.add(namensSchluessel(String(n ?? ''))); }
-    }
-    for (const [id, n] of Object.entries(epic ?? {})) {
-      const l = landNorm(quellen?.spiel[id.toLowerCase()]).toUpperCase();
-      if (l && !ausProfil.has(namensSchluessel(n))) setze(n, l);
-    }
-    landMerker = { bis: Date.now() + 10 * 60_000, karte };
+    landBau ??= landKarteBauen().finally(() => { landBau = null; });
+    // Ein alter Stand ist da: der gilt, bis der neue fertig ist - kein Aufrufer wartet auf den Bau.
+    if (!landMerker) await landBau.catch(() => undefined);
+    else landBau.catch(() => undefined);
   }
-  const karte = landMerker.karte;
+  const karte = landMerker?.karte ?? new Map<string, string | null>();
   return (name) => karte.get(namensSchluessel(name)) ?? null;
 }
 

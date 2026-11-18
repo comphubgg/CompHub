@@ -80,8 +80,22 @@ export function orgtagVon(name: string): string | null {
 
 /** Kernname in vergleichbarer Schreibweise - die Grundlage jeder Zuordnung. */
 export function namensSchluessel(name: string): string {
-  return vergleichbar(kernname(name)).replace(/[^a-z0-9]/g, '');
+  const da = schluesselMerker.get(name);
+  if (da !== undefined) return da;
+  const k = vergleichbar(kernname(name)).replace(/[^a-z0-9]/g, '');
+  if (schluesselMerker.size >= SCHLUESSEL_HOECHSTENS) schluesselMerker.clear();
+  schluesselMerker.set(name, k);
+  return k;
 }
+
+/*
+ * Gemerkt je Name (18.11.2026): lib/fncsListe (Land je Name) und lib/globalsTeams (Index der Epic-Namen) rechnen den Schluessel fuer alle ~708.000
+ * Epic-Namen - je neuem Stand von epic-namen.json (alle 5 Minuten) bzw. alle 10 Minuten. Auf dem Server stand die Ereignisschleife dabei 22 s
+ * (Stichproben-Profil nach dem Start, /api/stand?bloecke=1). Die Funktion haengt nur am Namen (ORGTAGS ist fest eingebaut) - gemerkt kostet ein
+ * neuer Stand nur noch die Namen, die neu dazukamen. Hoechstens 1,2 Mio. Eintraege (~100 MB), dann von vorn.
+ */
+const SCHLUESSEL_HOECHSTENS = 1_200_000;
+const schluesselMerker: Map<string, string> = ((globalThis as { __comphubNamensSchluessel?: Map<string, string> }).__comphubNamensSchluessel ??= new Map());
 
 /** Ziffern, die im Namen als Buchstaben gemeint sind. */
 const ZIFFERNSCHRIFT: Record<string, string> = {
