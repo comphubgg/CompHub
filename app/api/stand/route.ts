@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { schleifenStand } from '@/lib/schleifenWaechter';
+import { schleifenProfil } from '@/lib/schleifenProfil';
 
 /*
  * Welche Fassung der Seite gerade ausgeliefert wird.
@@ -58,7 +59,11 @@ async function liveTakt() {
   } catch { return null; }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Die Aufrufketten der letzten Bloecke ab 1 s (lib/schleifenProfil) - nur auf Nachfrage, sie sind lang.
+  if (new URL(request.url).searchParams.get('bloecke') === '1') {
+    return NextResponse.json({ bloecke: schleifenProfil() }, { headers: { 'Cache-Control': 'no-store' } });
+  }
   return NextResponse.json(
     {
       stand: await bauKennung(),
