@@ -90,7 +90,7 @@ async function katalog(): Promise<CupGruppe[]> {
 }
 
 /** Alle Fenster, die es gibt: aus Epics Liste und aus dem eigenen Archiv. */
-async function alleFenster(): Promise<Fenster[]> {
+export async function alleFenster(): Promise<Fenster[]> {
   const raus: Fenster[] = [];
   const gesehen = new Set<string>();
   for (const c of await katalog()) {

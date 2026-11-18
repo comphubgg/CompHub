@@ -431,7 +431,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   // Fassung 17 (16.11.2026): Trefferorte (schuesse, und in orte der Ort des Getroffenen) im richtigen Massstab - vorher zehnmal zu nah am Ursprung, siehe
   // TrefferOrtMassstab. trefferOrtMassstab = 10 sagt lib/trefferOrte.mjs, dass an dieser Datei nichts mehr nachzutragen ist.
   // Fassung 18 (16.11.2026): Schaden aus Gameplay-Effekten (LoudKiwi-Explosion, MoonFlax-Bolzen, Rakete) und vom Jagdgewehr-Geschoss - siehe EffekteEinrechnen.
-  fassung = 18, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen,
+  fassung = 18, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen, landung = reader.LandungJe(),
 }, Formatting.None, einst));
 }
 
@@ -1290,6 +1290,35 @@ class SchadenLeser : ReplayReader {
       }
       e[ExtraGesammelt + stoff] = q[0][stoff] + q[1][stoff] + q[2][stoff] + q[5][stoff] + q[6][stoff];
     }
+  }
+  /*
+   * LANDUNG (18.11.2026, Drop-Karten): wo ein Spieler nach dem Absprung aus dem Bus zum ersten Mal Boden beruehrt - die erste Position (ReplicatedMovement,
+   * Takt der Figur) ohne Fallen (bIsSkydiving) und ohne Fallschirm (bIsParachuteOpen) nach einer Position in der Luft, ab dem ersten Absprung. Je Spieler
+   * [Rahmenzeit s, x, y, z]; ohne Absprung oder ohne Bodenposition danach fehlt er. Gegenprobe gegen die Positionsproben (CharacterSample, 10 s Takt): siehe
+   * scripts/landung-pruefen.mjs.
+   */
+  public Dictionary<int, double[]> LandungJe() {
+    var raus = new Dictionary<int, double[]>();
+    foreach (var (id, roh) in bewegungJe) {
+      var sprung = absprungJe.GetValueOrDefault(id);
+      if (sprung is null || sprung.Count == 0) continue;
+      var erster = sprung.Min();
+      var pts = roh.Where(a => a[6] >= erster).OrderBy(a => a[6]).ToList();
+      var luft = false;
+      for (int i = 0; i < pts.Count; i++) {
+        var a = pts[i];
+        if (a[5] == 1) { luft = true; continue; }
+        if (!luft) continue;
+        // Bestaetigt erst, wenn die naechsten zwei Sekunden am Boden bleiben: Position und Zustand kommen in getrennten Feldern, ein einzelner Punkt
+        // "am Boden" zwischen Fallen und Fallschirm (oder direkt am Bus) ist keine Landung (gesehen: z 41.002, die Hoehe des Busses).
+        var ok = true;
+        for (int j = i + 1; j < pts.Count && pts[j][6] - a[6] <= 2; j++) if (pts[j][5] == 1) { ok = false; break; }
+        if (!ok) continue;
+        raus[id] = new[] { Math.Round(a[6], 2), Math.Round(a[1]), Math.Round(a[2]), Math.Round(a[3]) };
+        break;
+      }
+    }
+    return raus;
   }
   /// Strecke am Boden je Spieler in Metern, wie Epic sie zaehlt (siehe oben). tode: Zeitpunkte der Eliminierungen je Spieler (ohne Wiedereinstieg).
   public Dictionary<int, double> StreckeBoden(Dictionary<int, List<double>> tode) {

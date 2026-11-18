@@ -33,6 +33,8 @@ import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent, { LeereEventKarte } from './KarteImEvent';
+import DropKarteImEvent from './DropKarteImEvent';
+import type { DropAntwort, DropKarte } from '@/lib/dropKarte';
 import WegKasten from './WegKasten';
 import AuswertungsStand from './AuswertungsStand';
 import Punktesystem from './Punktesystem';
@@ -1449,7 +1451,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Je Spieltag koennen mehrere Karten liegen - eine je Spielhaelfte. */
   const [istAdmin, setIstAdmin] = useState(false);
   const [karten, setKarten] = useState<Array<{ id: string; titel: string; spiele?: string;
-    bildTitel?: string; eventId?: string; windowId: string }>>([]);
+    bildTitel?: string; eventId?: string; windowId: string; fremd?: boolean }>>([]);
 
   // ---- Cup finden ----------------------------------------------------
   useEffect(() => {
@@ -1515,6 +1517,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             nach.push({
               id: k.id, titel: k.titel, spiele: k.spiele, bildTitel: k.bildTitel,
               eventId: k.eventId, windowId: k.windowId,
+              // Landepunkte von Noble oder Vital (Automatik oder "Generate map") - sie weichen der eigenen Drop-Karte (lib/dropKarte).
+              fremd: Boolean(k.automatisch) || (k.spots ?? []).some((sp: { quelle?: string }) => sp.quelle === 'noble' || sp.quelle === 'vital'),
             });
           }
           // Nach dem Inselnamen sortieren, damit die Reihenfolge bleibt.
@@ -1571,6 +1575,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [karten, cup]);
 
   const kartenHier = useMemo(() => (fenster ? kartenFuer(fenster) : []), [fenster, kartenFuer]);
+
+  /*
+   * Die eigene Drop-Karte (Betreiber, 18.11.2026): bei jedem Spieltag mit einer einzigen Lobby (Finale, Last-Chance-Lobby, Heat ...) die Landepunkte aus den
+   * eigenen Replays - vorher als Prognose, ab dem ersten gelesenen Spiel mit den echten Landungen (lib/dropKarte). Waehrend des Spieltags jede Minute neu.
+   */
+  const [dropStand, setDrop] = useState<DropKarte | null>(null);
+  /** Fuer welchen Spieltag die Antwort schon da ist - bis dahin bleibt ein Reiter "Karte" aus der Adresse stehen. */
+  const [dropFuer, setDropFuer] = useState('');
+  useEffect(() => {
+    if (!fenster) return undefined;
+    let weg = false;
+    const w = fenster.windowId; const r = fenster.region;
+    const holen = () => {
+      fetch(`/api/drop-karte?window=${encodeURIComponent(w)}&region=${encodeURIComponent(r)}`)
+        .then((x) => (x.ok ? x.json() : null))
+        .then((j: DropAntwort | null) => { if (!weg) { setDrop(j && j.einzel && j.teams.length ? j : null); setDropFuer(w); } })
+        .catch(() => { if (!weg) setDropFuer(w); });
+    };
+    holen();
+    const stopp = fenster.status === 'live' ? sichtbarerTakt(holen, 60_000) : () => {};
+    return () => { weg = true; stopp(); };
+  }, [fenster]);
+  // Nur die Antwort zu genau diesem Spieltag (beim Wechsel steht kurz noch die alte im Zustand).
+  const drop = dropStand && fenster && dropStand.windowId === fenster.windowId ? dropStand : null;
 
 
   /**
@@ -3278,14 +3306,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
   // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos samt Reload-Reihe; eine hinterlegte Karte).
   const wegDa = !!cup && /fncssolos/i.test(cup.id);
-  const kartenAnzahl = kartenZumZeigen.length;
+  const kartenAnzahl = kartenZumZeigen.length + (drop ? 1 : 0);
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');
     // Ranked Cups haben diese Reiter nicht - siehe die Leiste unten.
     if (cup?.art === 'ranked' && ['spieler', 'archiv'].includes(reiter)) setReiter('liste');
     if (reiter === 'weg' && !wegDa) setReiter('liste');
-    if (reiter === 'karte' && kartenAnzahl === 0) setReiter('liste');
-  }, [soloCup, reiter, cup?.art, wegDa, kartenAnzahl]);
+    if (reiter === 'karte' && kartenAnzahl === 0 && fenster && dropFuer === fenster.windowId) setReiter('liste');
+  }, [soloCup, reiter, cup?.art, wegDa, kartenAnzahl, fenster, dropFuer]);
 
   if (fehler) {
     return (
@@ -4082,7 +4110,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {reiter === 'weg' && wegDa && (
           <WegKasten alsReiter region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
         )}
-        {reiter === 'karte' && kartenZumZeigen.length > 0 && (() => {
+        {reiter === 'karte' && drop && (() => {
+          // Die eigene Drop-Karte zuerst; daneben nur von Hand gezeichnete Karten - keine Landepunkte von Noble oder Vital, wo es eigene gibt.
+          const vonHand = kartenZumZeigen.filter((k) => !k.href && !karten.find((x) => x.id === k.id)?.fremd);
+          return (
+            <>
+              <DropKarteImEvent d={drop} />
+              {vonHand.length > 0 && <KarteImEvent key={`hand-${fenster?.windowId}`} alsReiter karten={vonHand} leer={null} />}
+            </>
+          );
+        })()}
+        {reiter === 'karte' && !drop && kartenZumZeigen.length > 0 && (() => {
           const knoepfe = (
             <div className="mb-5 flex flex-wrap gap-2">
               {kartenZumZeigen.map((k) => (
