@@ -59,6 +59,8 @@ export async function registerNode() {
    */
   // Die Ereignisschleife von Anfang an beobachten (lib/schleifenWaechter, /api/stand "schleife").
   try { (await import('./lib/schleifenWaechter')).schleifenWaechter(); } catch { /* nur eine Messung */ }
+  // Und womit sie stand: Stichproben-Profiler in 30-s-Fenstern, Bloecke ab 1 s mit Aufrufkette (lib/schleifenProfil, /api/stand?bloecke=1).
+  try { (await import('./lib/schleifenProfil')).schleifenProfil(); } catch { /* nur eine Messung */ }
 
   const wach = process.env.COMPHUB_WACH_URL;
   if (wach) {
