@@ -10,6 +10,30 @@
 // sprache.ts.
 
 export const ADMIN_AUF_ENGLISCH: Record<string, string> = {
+  // Post-Ideen (app/admin/post-ideen)
+  'Post-Ideen': 'Post ideas',
+  'Jeden Tag zwei fertige Posts für X aus echten Daten: Bild und Text': 'Two ready-made posts for X every day from real data: image and text',
+  'Jeden Tag fertige Posts für X: Bild im CompHub-Stil und englischer Text mit Flaggen und @-Konten - nur aus echten Daten (Teilnehmerfelder, Orgs, Preisgeld, Power Rankings, Cup-Katalog). Oben die zwei besten für heute.':
+    'Ready-made posts for X every day: an image in the CompHub style and English text with flags and @handles - only from real data (qualified fields, orgs, earnings, Power Rankings, cup catalog). The two best for today on top.',
+  'Neu rechnen': 'Recalculate',
+  'Rechnet …': 'Calculating …',
+  'Heute posten': 'Post today',
+  'Weitere Ideen': 'More ideas',
+  'Heute tragen die Daten keine Idee.': 'The data supports no idea today.',
+  'Die Ideen werden gerechnet - beim ersten Aufruf dauert das bis zu einer Minute.': 'Calculating the ideas - the first call takes up to a minute.',
+  'Nicht verfügbar': 'Not available',
+  'Kopiert ✓': 'Copied ✓',
+  'Bild herunterladen': 'Download image',
+  'Relevanz': 'Relevance',
+  'Zeichen': 'characters',
+  'X Premium nötig': 'needs X Premium',
+  'Nur für den Admin.': 'Admin only.',
+  'Orgs im Grand Final': 'Orgs in the Grand Final',
+  'Orgs · Monat': 'Orgs · month',
+  'Spieler der Woche': 'Player of the week',
+  'Länder der Woche': 'Countries of the week',
+  'Meilenstein': 'Milestone',
+  'Zeitplan': 'Schedule',
   'Zwei Namen mit &, Komma oder Schrägstrich trennen. Ein einzelner Name ergibt ein Solo.':
     'Separate two names with &, a comma or a slash. A single name makes a solo.',
   'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber':

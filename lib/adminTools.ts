@@ -60,6 +60,7 @@ export const ADMIN_WERKZEUGE: AdminWerkzeug[] = [
   // Inhalte
   { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen', gruppe: 'inhalte', manager: true, stichworte: 'posts tweets x twitter stats' },
   { href: '/posts', titel: 'Tagesposts', text: 'Die drei Posts des Tages mit Text und Bild', gruppe: 'inhalte', stichworte: 'daily posts heute today' },
+  { href: '/admin/post-ideen', titel: 'Post-Ideen', text: 'Jeden Tag zwei fertige Posts für X aus echten Daten: Bild und Text', gruppe: 'inhalte', stichworte: 'post ideas ideen daily täglich x twitter orgs earnings banner' },
   { href: '/admin/tiktok', titel: 'TikTok', text: 'Das tägliche Video zum Herunterladen', gruppe: 'inhalte', manager: true, stichworte: 'video clips' },
   { href: '/admin/plakate', titel: 'Plakate', text: 'Bild und Text für Spieler, Standings, Finals und Top 5', gruppe: 'inhalte', manager: true, stichworte: 'posters poster grafik bild' },
   { href: '/maps', titel: 'Karten', text: 'Turnierkarten bauen und Landepunkte setzen', gruppe: 'inhalte', manager: true, stichworte: 'maps drop spots landepunkte' },
