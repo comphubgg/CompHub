@@ -99,8 +99,12 @@ export function schleifenProfil(): Block[] {
         console.warn(`[schleife] Block ${b.ms} ms: ${b.oben[0]?.kette.slice(0, 4).join(' <- ')}`);
       }
     } catch { /* naechstes Fenster */ }
-    setTimeout(() => { void runde(); }, 100).unref?.();
+    // Nur die ersten 15 Minuten nach dem Start (dort liegen die meisten Bloecke) - danach kostet jedes Fenster beim Anhalten rund 0,3 s Schleife
+    // (gemessen 18.11.2026: alle 30 s eine Luecke von 310-380 ms). COMPHUB_PROFIL=dauer laesst ihn weiterlaufen.
+    if (Date.now() - start < 15 * 60_000 || process.env.COMPHUB_PROFIL === 'dauer') setTimeout(() => { void runde(); }, 100).unref?.();
+    else { void post(s, 'Profiler.disable').catch(() => undefined); }
   };
+  const start = Date.now();
   void runde();
   return bloecke;
 }
