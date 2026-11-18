@@ -26,7 +26,8 @@ import T from '@/app/components/T';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
-import { bereichVonPfad } from '@/lib/rechte';
+import { usePathname } from 'next/navigation';
+import { sichtbareWerkzeuge } from '@/lib/adminTools';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Besucherherkunft from '@/app/components/Besucherherkunft';
 import Fusszeile from '@/app/components/Fusszeile';
@@ -37,6 +38,7 @@ import Klappbar from './Klappbar';
 import OfflineSeiten from './OfflineSeiten';
 import Ebenen from './Ebenen';
 import Seitenleiste, { BEREICHE, type Bereich } from './Seitenleiste';
+import { BEREICH_WAHL, BEREICH_GEZEIGT } from './AdminSeitenleiste';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -55,93 +57,11 @@ const DEFAULT_PROFILE: ProfileData = {
   email: '',
 };
 
-interface Ziel { href: string; titel: string; text: string }
-
-/**
- * Die Werkzeuge, die nur der Admin sieht.
- *
- * Bewusst als eigener Block unter dem Schnellzugriff, nicht dazwischen
- * gemischt: was hier steht, veraendert die Inhalte des ganzen Werkzeugs -
- * Karten, Beitraege, Prognosen. Kommt spaeter etwas dazu, gehoert es in diese
- * Liste und sonst nirgendwohin.
- */
 /*
- * Die Verwaltungsbereiche.
- *
- * Dieselbe Liste zum Anhaken steht in lib/rechte.ts - zweimal gepflegt
- * waeren sie in einer Woche auseinandergelaufen. Getrennt bleibt nur die
- * Kontoverwaltung: die ist nicht vergebbar.
+ * Die Admin-Werkzeuge stehen seit dem 18.11.2026 in einer einzigen Liste: lib/adminTools.ts. Dieselbe Liste fuellt die Seitenleiste jeder Admin-Seite
+ * (AdminSeitenleiste), ihre Suche und die Kacheln hier - vorher waren es drei Listen (hier zwei, dazu die Kapsel-Leiste), und die Kacheln kannten nicht
+ * alles. Ein neues Werkzeug gehoert dorthin und sonst nirgendwohin.
  */
-const NUR_ADMIN: Ziel[] = [
-  // Wer gerade da ist und wer sich wann angemeldet hat. Nur Angemeldete und
-  // nur mit Namen - die Besuchszahlen unten zaehlen dagegen Browser.
-  { href: '/admin/live', titel: 'Live',
-    text: 'Wer gerade da ist und wann sich wer angemeldet hat' },
-  { href: '/admin/accounts', titel: 'Konten', text: 'Rollen und VIP vergeben' },
-  // Jeder VIP-Zugang mit Frist, Chat und Loeschen - der Betreiber wollte
-  // dafuer ein eigenes Panel (24.9.2026).
-  { href: '/admin/vip-access', titel: 'VIP-Zugänge', text: 'Frist, Chat und Löschen je VIP' },
-  /*
-   * Der Kontowechsel als eigene Seite.
-   *
-   * Er steckte in der Zugangsliste unter "Konten", zwischen Schluesseln,
-   * Rollen und Fristen - und war dort nicht zu finden. Der Betreiber wollte
-   * eine eigene: "kann ich einfach den User anklicken und dann switche ich
-   * automatisch."
-   */
-  { href: '/admin/switch', titel: 'Konto wechseln',
-    text: 'Sehen, was ein VIP oder Manager sieht' },
-  // Wer Bereiche zumachen darf, koennte sich damit selbst den Weg zurueck
-  // verbauen - deshalb nur der Admin, so wie bei den Konten.
-  { href: '/admin/sections', titel: 'Sections',
-    text: 'Bereiche auf Standby oder Offline stellen' },
-  // Wer auf der Startseite steht - eine Auswahl, keine Rechtevergabe.
-  { href: '/admin/vips', titel: 'VIPs',
-    text: 'Wer auf der Startseite gezeigt wird' },
-  // Client-Id und Secret der Anmeldedienste - Geheimnisse, also nur Admin.
-  { href: '/admin/services', titel: 'Anmeldedienste',
-    text: 'Twitch, Discord und Google einrichten' },
-  // Wichtige Spieler ohne Flagge oder X-Konto, wie eine Tabelle (16.11.2026) - nur fuer den Admin (die Schnittstelle prueft das auch), nie von oeffentlichen
-  // Seiten verlinkt.
-  { href: '/admin/flaggen', titel: 'Flaggen & X', text: 'Wichtige Spieler ohne Flagge oder X-Konto nachtragen' },
-  // Neue Spielerfotos mit Fotograf, Quelle und Lizenz (17.11.2026) - oeffentlich steht nur Bestaetigtes am Foto.
-  { href: '/admin/fotos-credits', titel: 'Fotos & Fotografen', text: 'Spielerfotos hochladen, Fotografen nennen und bestätigen' },
-  // Zugeschnittene Fotos ohne Namen (scripts/fotos-pool-import.mjs) Spielern zuordnen (17.11.2026).
-  { href: '/admin/fotos-pool', titel: 'Foto-Pool', text: 'Fotos ohne Namen Spielern zuordnen' },
-  // Die Maps ohne Landepunkte aus dem Archiv: Formen, Teams und Leaderboard je Karte von Hand (13.10.2026).
-  { href: '/admin/alte-maps', titel: 'Alte Maps',
-    text: 'Karten von Hand pflegen: Formen, Teams, Leaderboard' },
-];
-
-const ADMIN_ZIELE: Ziel[] = [
-  { href: '/maps', titel: 'Karten', text: 'Turnierkarten bauen' },
-  { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen' },
-  { href: '/admin/tiktok', titel: 'TikTok', text: 'Das tägliche Video zum Herunterladen' },
-  { href: '/admin/plakate', titel: 'Plakate', text: 'Bild und Text für Spieler, Standings, Finals und Top 5' },
-  { href: '/admin/predictions', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
-  { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
-  // Das Zonen-Bild zum Posten und je Game Zonen und Kills (29.9.2026: "sag
-  // mir mal, wo ich diese Map an sich machen kann ... Das soll auch im
-  // Admin-Dashboard eigentlich sein").
-  { href: '/admin/replay', titel: 'Zonen & Games', text: 'Zonen-Bild bauen, Kills und Zonen je Game' },
-  { href: '/admin/players', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
-  // Die Prospects-Liste der Statistik nachziehen (15.11.2026).
-  { href: '/admin/prospects', titel: 'Prospects', text: 'Rangliste ansehen, Konten ausblenden' },
-  { href: '/admin/orgs', titel: 'E-Sports-Teams', text: 'Organisationen, Spieler und Logos' },
-  { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
-  { href: '/admin/archive', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
-  /*
-   * Der Posteingang.
-   *
-   * Er stand in lib/rechte.ts als vergebbarer Bereich, fehlte hier aber in
-   * der Kachelliste - weder der Admin noch ein Manager mit dem Recht
-   * "Kontakt" kam ueber die Oberflaeche dorthin. Wer die Adresse nicht
-   * auswendig wusste, las die Meldungen aus dem Kontaktformular nie.
-   */
-  { href: '/admin/contact', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
-  // Fertige Anfragen an Streamer zum Kopieren (16.11.2026).
-  { href: '/admin/partner', titel: 'Partner-Anfragen', text: 'Fertige E-Mails und DMs an Streamer kopieren' },
-];
 
 export default function AdminDashboardPage() {
   const t = useT();
@@ -203,8 +123,28 @@ export default function AdminDashboardPage() {
       u.searchParams.set('bereich', b); u.searchParams.delete('tab'); u.hash = '';
       window.history.replaceState(null, '', u.toString());
     } catch { /* ohne Adresse */ }
+    // Die Admin-Seitenleiste markiert den Bereich mit (sie hoert replaceState nicht).
+    window.dispatchEvent(new Event(BEREICH_GEZEIGT));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  // Ein Klick in der Admin-Seitenleiste auf einen Bereich dieser Seite: umschalten statt neu laden.
+  const bereichRef = useRef(setBereich);
+  useEffect(() => { bereichRef.current = setBereich; });
+  useEffect(() => {
+    const wahl = (e: Event) => {
+      const b = (e as CustomEvent<string>).detail as Bereich;
+      bereichRef.current(BEREICHE.includes(b) ? b : 'start');
+    };
+    window.addEventListener(BEREICH_WAHL, wahl);
+    return () => window.removeEventListener(BEREICH_WAHL, wahl);
+  }, []);
+  /*
+   * Unter /admin hat der Admin links die Admin-Seitenleiste (app/admin/AdminRahmen) - sie fuehrt auch die Bereiche dieses Dashboards. Die eigene Leiste
+   * entfiele dort doppelt; unter /vip und fuer jeden anderen bleibt sie.
+   */
+  const pfad = usePathname() ?? '';
+  // Waehrend die Rechte noch laden, keine der beiden - sonst stuende die eigene kurz da und verschwaende wieder.
+  const adminLeisteAussen = (zugang.laedt || zugang.admin) && (pfad === '/admin' || pfad.startsWith('/admin/'));
 
   useEffect(() => {
     fetch('/api/profile')
@@ -379,15 +319,8 @@ export default function AdminDashboardPage() {
    * Kacheln, nicht alle mit den gesperrten daneben. Einmal gerechnet, damit
    * die Seitenzahl unten dieselbe Liste meint wie die Anzeige.
    */
-  const werkzeuge = [
-    ...ADMIN_ZIELE.filter((z) => {
-      const b = bereichVonPfad(z.href);
-      if (!b) return true;
-      if (istAdmin || rolle === 'admin' || zugang.admin) return true;
-      return eigeneRechte.includes(b) || zugang.darfBereich(b);
-    }),
-    ...((istAdmin || rolle === 'admin' || zugang.admin) ? NUR_ADMIN : []),
-  ];
+  const werkzeuge = sichtbareWerkzeuge(istAdmin || rolle === 'admin' || zugang.admin,
+    (b) => eigeneRechte.includes(b) || zugang.darfBereich(b as Parameters<typeof zugang.darfBereich>[0]));
   /*
    * Wer gar nicht angemeldet ist, sah unter /vip und /admin ein leeres Dashboard mit "No name", Fragezeichen und "Abmelden" (Durchsicht 30.10.2026) - jetzt
    * die Einladung zur Anmeldung, die nach dem Anmelden wieder hierher fuehrt.
@@ -455,10 +388,10 @@ export default function AdminDashboardPage() {
 
         {/* Seitenleiste links (schmal: Kapseln oben) und daneben der gewaehlte Bereich - siehe app/admin/Seitenleiste. */}
         <div className="lg:flex lg:items-stretch lg:gap-5">
-        <Seitenleiste bereich={bereich} setBereich={setBereich}
+        {!adminLeisteAussen && <Seitenleiste bereich={bereich} setBereich={setBereich}
           vip={zugang.vip || rolle === 'manager' || zugang.manager}
           admin={istAdmin || rolle === 'admin' || zugang.admin}
-          manager={rolle === 'manager' || zugang.manager} />
+          manager={rolle === 'manager' || zugang.manager} />}
         <div className="min-w-0 flex-1">
 
         {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer

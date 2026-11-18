@@ -37,6 +37,8 @@ const ABLAEUFE: Array<{ schluessel: string; datei: string; name: string; was: st
   { schluessel: 'live', datei: 'replays-live.yml', name: 'Live-Replays', was: 'Laufende Cups einsammeln', ruhigBisMin: 240 },
   { schluessel: 'voll', datei: 'replays-voll.yml', name: 'Replays (voll)', was: 'Zonen, Kill-Feed, Spieler je Match', ruhigBisMin: 8 * 60 },
   { schluessel: 'schlank', datei: 'replays-schlank.yml', name: 'Spielerwerte', was: 'Replay-Werte für die Event-Seiten', ruhigBisMin: 120 },
+  // Sofortspur (17.11.2026): volle Cup-Werte Minuten nach jedem Match. Ohne Cup laeuft sie nur selten (Abstaende bis gut 8 Std. gemessen), daher 12 Std.
+  { schluessel: 'sofort', datei: 'sofortspur.yml', name: 'Sofortspur', was: 'Volle Cup-Werte Minuten nach jedem Match', ruhigBisMin: 12 * 60 },
 ];
 
 interface Lauf {

@@ -157,8 +157,6 @@ html[data-design="neu"] :is(div, section, article, aside)[class*="rounded-xl"][c
 .admin-neu :is(div, section, article)[class*="rounded-lg"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]) { border-radius: 1rem; }
 .admin-neu table tbody tr { transition: background-color .15s ease; }
 .admin-neu table tbody tr:hover { background-color: rgba(14, 165, 233, .06); }
-.admin-leiste { scrollbar-width: none; }
-.admin-leiste::-webkit-scrollbar { display: none; }
 
 /*
  * Die Anzeige des Dashboards (Betreiber, 19.10.2026): was dort zu sehen ist, stellt man im Zahnrad ein (app/lib/dashAnsicht). Die Teile tragen

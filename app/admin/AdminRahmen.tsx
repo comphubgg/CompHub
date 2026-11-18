@@ -1,13 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useZugang } from '@/app/lib/zugang';
 import { ergaenzeEnglisch } from '@/app/lib/sprache';
 import { ADMIN_AUF_ENGLISCH } from '@/app/lib/spracheAdmin';
+import AdminSeitenleiste from './AdminSeitenleiste';
 
 // Die Admin-Texte werden erst hier geladen, nicht fuer alle Besucher. Das
 // Eintragen laeuft beim Laden des Moduls - auf dem Server und im Browser vor
@@ -16,63 +13,42 @@ ergaenzeEnglisch(ADMIN_AUF_ENGLISCH);
 
 /*
  * Der Rahmen um alle Admin-Seiten (Betreiber, 14.10.2026: "du hast fuer den Admin gar nichts geaendert ... Posts, Maps ... alles anpassen, auch fuer den
- * Admin"). Zwei Dinge fuer jede Seite unter /admin: oben eine Leiste mit allen Werkzeugen als Kapseln - man springt von einem zum anderen, ohne ueber das
- * Dashboard zu gehen, und sieht, wo man ist - und die gemeinsame Feinarbeit in design.css (.admin-neu: Eingabefelder, Knoepfe, Tafeln, Hintergrund).
+ * Admin"). Zwei Dinge fuer jede Seite unter /admin: links die Seitenleiste mit allen Werkzeugen (AdminSeitenleiste, seit 18.11.2026 statt der Kapsel-Leiste
+ * oben, die ueberlief) und die gemeinsame Feinarbeit in design.css (.admin-neu: Eingabefelder, Knoepfe, Tafeln, Hintergrund).
  *
  * Die Leiste sieht nur der Admin; ein Manager oder Besucher bekommt die Seite ohne sie (ein gesperrter Bereich taucht fuer andere nicht auf).
+ * Waehrend die Rechte noch geladen werden, haelt ein leerer Platz die Breite frei - aber nur, wenn in diesem Browser zuletzt der Admin hier war, sonst
+ * spraenge der Inhalt nach dem Laden zur Seite. Namen stehen darin keine.
  */
 
-const WERKZEUGE: Array<[string, string]> = [
-  ['/admin', 'Dashboard'],
-  ['/admin/tweets', 'Beiträge'],
-  ['/posts', 'Tagesposts'],
-  ['/admin/tiktok', 'TikTok'],
-  ['/admin/plakate', 'Plakate'],
-  ['/maps', 'Karten'],
-  ['/admin/alte-maps', 'Alte Maps'],
-  ['/admin/predictions', 'Prognosen'],
-  ['/admin/awards', 'Awards'],
-  ['/admin/replays', 'Replays'],
-  ['/admin/replay', 'Zonen & Games'],
-  ['/admin/players', 'Player Center'],
-  ['/admin/flaggen', 'Flaggen & X'],
-  ['/admin/fotos-credits', 'Fotos & Fotografen'],
-  ['/admin/fotos-pool', 'Foto-Pool'],
-  ['/admin/prospects', 'Prospects'],
-  ['/admin/orgs', 'E-Sports-Teams'],
-  ['/admin/vips', 'VIPs'],
-  ['/admin/vip-access', 'VIP-Zugänge'],
-  ['/admin/accounts', 'Konten'],
-  ['/admin/contact', 'Kontakt'],
-  ['/admin/partner', 'Partner-Anfragen'],
-  ['/admin/archive', 'Archiv'],
-  ['/admin/assets', 'Bildvorrat'],
-  ['/admin/live', 'Live'],
-];
+const WAR_ADMIN = 'comphub-admin-leiste-war';
 
 export default function AdminRahmen({ children }: { children: ReactNode }) {
-  const pfad = usePathname() ?? '';
   const zugang = useZugang();
-  const t = useT();
-  const aktiv = (href: string) => (href === '/admin' ? pfad === '/admin' : pfad === href || pfad.startsWith(`${href}/`));
+  const [platzhalter, setPlatzhalter] = useState(false);
+  useEffect(() => { try { setPlatzhalter(localStorage.getItem(WAR_ADMIN) === '1'); } catch { /* ohne Speicher */ } }, []);
+  useEffect(() => {
+    if (zugang.laedt) return;
+    try { localStorage.setItem(WAR_ADMIN, zugang.admin ? '1' : '0'); } catch { /* egal */ }
+  }, [zugang.laedt, zugang.admin]);
 
+  // Die Leiste klebt unter der Kopfzeile - deren Hoehe gemessen statt geraten (sie bricht je nach Breite und Sprache anders um).
+  useEffect(() => {
+    const kopf = document.querySelector<HTMLElement>('header.kopf');
+    if (!kopf) return undefined;
+    const setze = () => document.documentElement.style.setProperty('--admin-kopf', `${kopf.offsetHeight}px`);
+    setze();
+    const beobachter = new ResizeObserver(setze);
+    beobachter.observe(kopf);
+    return () => beobachter.disconnect();
+  }, []);
+
+  const leiste = !zugang.laedt && zugang.admin;
   return (
-    <div className="admin-neu">
-      {!zugang.laedt && zugang.admin && (
-        <div className="mx-auto max-w-[1400px] px-4 pt-4">
-          <nav aria-label={t('Admin-Werkzeuge')}
-            className="admin-leiste flex gap-1 overflow-x-auto rounded-full border border-zinc-800 bg-zinc-900 p-1.5 shadow-[0_6px_20px_rgba(15,23,42,.14)]">
-            {WERKZEUGE.map(([href, titel]) => (
-              <Link key={href} href={href} prefetch={false} aria-current={aktiv(href) ? 'page' : undefined}
-                className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                  aktiv(href) ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
-                <T>{titel}</T>
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
-      {children}
+    <div className="admin-neu bg-zinc-950 lg:flex lg:items-start">
+      {leiste && <AdminSeitenleiste />}
+      {zugang.laedt && platzhalter && <div aria-hidden className="hidden w-64 shrink-0 lg:block" />}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import { ADMIN_GRUPPEN, type AdminWerkzeug } from '@/lib/adminTools';
 
 /*
  * Die Admin-Zentrale.
@@ -18,7 +19,6 @@ import { useT } from '@/app/components/SprachProvider';
  * Laesst sich etwas nicht abrufen, steht das da - kein erfundener "alles gut".
  */
 
-export interface Ziel { href: string; titel: string; text: string }
 
 interface Lauf { status: string; conclusion: string | null; zeit: string; url: string }
 interface Job {
@@ -45,32 +45,6 @@ function Linie({ werte, farbe }: { werte: number[]; farbe: string }) {
 }
 interface ReplayStand { gesamt: number; ausgewertet: number; offenInFrist: number; imFristGesamt: number }
 
-/** Die Gruppen der Werkzeuge. Was hier nicht steht, landet unter "Weitere". */
-const GRUPPEN: Array<{
-  id: string; titel: string; hrefs: string[];
-  punkt: string; titelFarbe: string; kachel: string;
-}> = [
-  { id: 'inhalte', titel: 'Inhalte', punkt: 'bg-sky-400', titelFarbe: 'text-sky-300',
-    kachel: 'hover:border-sky-500/70 hover:bg-sky-500/[0.06]',
-    hrefs: ['/maps', '/admin/alte-maps', '/admin/tweets', '/admin/tiktok', '/admin/predictions', '/admin/archive', '/admin/assets'] },
-  { id: 'spieler', titel: 'Spieler & Teams', punkt: 'bg-emerald-400', titelFarbe: 'text-emerald-300',
-    kachel: 'hover:border-emerald-500/70 hover:bg-emerald-500/[0.06]',
-    hrefs: ['/admin/players', '/admin/flaggen', '/admin/fotos-credits', '/admin/fotos-pool', '/admin/prospects', '/admin/orgs', '/admin/vips'] },
-  { id: 'daten', titel: 'Daten & Replays', punkt: 'bg-amber-400', titelFarbe: 'text-amber-300',
-    kachel: 'hover:border-amber-500/70 hover:bg-amber-500/[0.06]',
-    hrefs: ['/admin/replays', '/admin/replay'] },
-  { id: 'nutzer', titel: 'Nutzer & Zugang', punkt: 'bg-violet-400', titelFarbe: 'text-violet-300',
-    kachel: 'hover:border-violet-500/70 hover:bg-violet-500/[0.06]',
-    hrefs: ['/admin/accounts', '/admin/vip-access', '/admin/switch', '/admin/sections', '/admin/services', '/admin/live'] },
-  { id: 'post', titel: 'Posteingang', punkt: 'bg-rose-400', titelFarbe: 'text-rose-300',
-    kachel: 'hover:border-rose-500/70 hover:bg-rose-500/[0.06]',
-    hrefs: ['/admin/contact', '/admin/partner'] },
-];
-const WEITERE = {
-  id: 'weitere', titel: 'Weitere', punkt: 'bg-slate-400', titelFarbe: 'text-slate-300',
-  kachel: 'hover:border-sky-500/70 hover:bg-zinc-900/70', hrefs: [] as string[],
-};
-
 const AMPEL: Record<Job['ampel'], { punkt: string; rand: string; text: string }> = {
   ok: { punkt: 'bg-emerald-400', rand: 'border-zinc-800', text: 'text-emerald-400' },
   warnung: { punkt: 'bg-amber-400', rand: 'border-amber-500/40', text: 'text-amber-400' },
@@ -88,7 +62,8 @@ function vor(zeit: string | number, t: (s: string) => string): string {
 }
 
 export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }: {
-  werkzeuge: Ziel[];
+  /** The tools this account sees, from lib/adminTools (the same list as the sidebar). */
+  werkzeuge: AdminWerkzeug[];
   /** Die Laeufe und Replays sind Sache des Admins - ein Manager sieht nur seine Werkzeuge. */
   zeigeLaeufe: boolean;
   /**
@@ -103,6 +78,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
   const [fehler, setFehler] = useState(false);
   const [replays, setReplays] = useState<ReplayStand | null>(null);
   const [laedt, setLaedt] = useState(false);
+  const [kontaktOffen, setKontaktOffen] = useState<number | null>(null);
 
   // Wann zuletzt geholt wurde - damit der Knopf "Aktualisieren" sichtbar etwas tut.
   const [stand, setStand] = useState<string>('');
@@ -110,14 +86,20 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
   const [alles, setAlles] = useState<null | 'laeuft' | { ok: boolean; text: string }>(null);
   const laden = useCallback((frisch: boolean = false) => {
     if (!zeigeLaeufe) return;
+    // Die Werkzeuge brauchen nur die Zahl der offenen Meldungen - die kurze Antwort statt der ganzen Zentrale (GitHub, Discord, Ladezeiten).
+    if (teil === 'werkzeuge') {
+      fetch('/api/kontakt?zaehlen=1', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((j: { offen?: number }) => setKontaktOffen(typeof j.offen === 'number' ? j.offen : null))
+        .catch(() => setKontaktOffen(null));
+      return;
+    }
     setLaedt(true);
     fetch(`/api/admin/zentrale${frisch ? '?frisch=1' : ''}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j) => { setDaten(j); setFehler(false); setStand(new Date().toLocaleTimeString()); })
       .catch(() => setFehler(true))
       .finally(() => setLaedt(false));
-    // Die Werkzeuge oben brauchen nur die Zahl der Meldungen, nicht die Replay-Zahlen.
-    if (teil === 'werkzeuge') return;
     fetch('/api/replays', { cache: 'no-store' }).then((r) => r.json())
       .then((j) => {
         const grenze = Date.now() - 31 * 864e5;
@@ -170,16 +152,14 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
   }, [zeigeLaeufe, laden]);
 
   const probleme = (daten?.jobs ?? []).filter((j) => j.ampel === 'fehler' || j.ampel === 'warnung').length;
-  const offenPost = daten?.kontaktOffen ?? 0;
+  const offenPost = daten?.kontaktOffen ?? kontaktOffen ?? 0;
   const replayOffen = replays?.offenInFrist ?? 0;
   const allesRuhig = daten && probleme === 0 && offenPost === 0 && replayOffen <= Math.max(50, (replays?.imFristGesamt ?? 0) * 0.005);
 
-  // Die Werkzeuge in ihre Gruppen sortieren; Unbekanntes unter "Weitere".
-  const bekannt = new Set(GRUPPEN.flatMap((g) => g.hrefs));
-  const gruppen = [
-    ...GRUPPEN.map((g) => ({ ...g, ziele: g.hrefs.map((h) => werkzeuge.find((w) => w.href === h)).filter((w): w is Ziel => !!w) })),
-    { ...WEITERE, ziele: werkzeuge.filter((w) => !bekannt.has(w.href)) },
-  ].filter((g) => g.ziele.length > 0);
+  // Die Werkzeuge in ihre Gruppen (lib/adminTools) - die Navigation des Dashboards selbst steht nur in der Leiste.
+  const gruppen = ADMIN_GRUPPEN
+    .map((g) => ({ ...g, ziele: werkzeuge.filter((w) => w.gruppe === g.id && !w.nurLeiste) }))
+    .filter((g) => g.ziele.length > 0);
 
   const Kennzahl = ({ wert, titel, href, ernst }: { wert: string; titel: string; href: string; ernst: boolean }) => (
     <Link href={href}
@@ -334,14 +314,14 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
               </h3>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {g.ziele.map((z) => (
-                  <Link key={z.href} href={z.href}
+                  <Link key={z.href} href={z.href} data-admin-kachel={z.href}
                     className={`group relative flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4 transition hover:-translate-y-0.5 ${g.kachel}`}>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-bold text-slate-100"><T>{z.titel}</T></span>
                       <span className="mt-0.5 block text-xs leading-snug text-slate-400"><T>{z.text}</T></span>
                     </span>
                     <span aria-hidden className="self-center text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300">→</span>
-                    {z.href === '/admin/contact' && offenPost > 0 && (
+                    {z.zaehler === 'kontakt' && offenPost > 0 && (
                       <span className="absolute right-2.5 top-2.5 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         {offenPost}
                       </span>

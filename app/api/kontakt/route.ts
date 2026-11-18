@@ -3,7 +3,7 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
-import { alle, lege, aendere, entferne } from '@/lib/kontakt';
+import { alle, lege, aendere, entferne, offen } from '@/lib/kontakt';
 import { sendeMail, betreiberAdresse } from '@/lib/mail';
 import { schickeSupport } from '@/lib/discord';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -42,9 +42,13 @@ async function angemeldet() {
  * dazu der alte VIP-Weg - solange das Konto des Betreibers nur darueber
  * besteht, kaeme er sonst an seinen eigenen Posteingang nicht heran.
  */
-export async function GET() {
+export async function GET(request: Request) {
   if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
+  }
+  // ?zaehlen=1: only the number of open messages - for the badge in the admin sidebar (app/admin/AdminSeitenleiste), without loading every message.
+  if (new URL(request.url).searchParams.get('zaehlen') === '1') {
+    return NextResponse.json({ offen: await offen() }, { headers: { 'Cache-Control': 'no-store' } });
   }
   return NextResponse.json({ meldungen: await alle() });
 }

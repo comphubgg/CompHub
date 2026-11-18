@@ -80,7 +80,7 @@ export default function PartnerSeite() {
           {fehlt.length > 0 && <p className="mt-2 text-xs text-amber-300"><T>Noch leer – steht sonst als Platzhalter im Text:</T> {fehlt.join(', ')}</p>}
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
           {/* Die Liste */}
           <nav className="flex flex-col gap-1.5">
             {PARTNER_VORLAGEN.map((x) => (
