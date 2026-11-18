@@ -1,12 +1,15 @@
 #!/bin/bash
-# Das Update des Servers, jede Minute (cron -> /usr/local/bin/comphub-update holt diese Datei von GitHub und fuehrt sie aus).
+# Das Update des Servers, jede Minute (cron -> /usr/local/bin/comphub-update -> diese Datei als FESTE lokale Kopie unter
+# /usr/local/lib/comphub/comphub-update.sh). Sie wird NICHT mehr bei jedem Lauf von GitHub geholt: ein Push auf main darf nicht ungeprueft als root
+# auf dem Server laufen. Installiert und erneuert wird sie nur von deploy/blau-gruen-einrichten.sh - auf einen Commit festgelegt und per sha256
+# geprueft (Anleitung: deploy/WECHSEL-OHNE-AUSFALL.md). Dasselbe gilt fuer die Compose-Datei der Seite (/opt/comphub/web/docker-compose.yml).
 #
 # Wie bisher: deploy/server-compose.yml holen, Images ziehen, alle Dienste starten - nur "web" nicht mehr. Die Seite laeuft jetzt in zwei Farben
 # hinter einem Proxy (deploy/server-compose-web.yml): ein neues Image startet in der freien Farbe, wird aufgewaermt und bekommt erst dann die
 # Besucher; die alte Farbe wird danach angehalten. Vorher ersetzte jedes Aufspielen den einzigen Container - rund 30 s stand die Seite ganz
 # (nach dem Start 35 s Ereignisschleife am Stueck, gemessen 18.11.2026), danach minutenlang langsam.
 #
-# Protokoll: /var/log/comphub-update.log. Anleitung: deploy/WECHSEL-OHNE-AUSFALL.md.
+# Protokoll: /var/log/comphub-update.log.
 set -u
 D=/opt/comphub
 cd "$D" || exit 0
@@ -16,15 +19,14 @@ log() { echo "$(date -u +%FT%TZ) $*"; }
 
 [ -f update.lock ] && [ $(( $(date +%s) - $(stat -c %Y update.lock) )) -lt 1200 ] && exit 0
 touch update.lock
-trap 'rm -f update.lock compose.neu web/compose.neu' EXIT
+trap 'rm -f update.lock compose.neu' EXIT
 
-# 1. Die Compose-Dateien (nur gueltige uebernehmen)
+# 1. Die Compose-Datei der uebrigen Dienste wie bisher von main (nur gueltige uebernehmen). Die der Seite liegt fest auf dem Server
+#    (deploy/blau-gruen-einrichten.sh) und wird hier nicht geholt.
 curl -fsSL "$RAW/deploy/server-compose.yml" -o compose.neu \
   && [ -s compose.neu ] && docker compose -f compose.neu config -q 2>/dev/null && mv compose.neu docker-compose.yml
 mkdir -p web web-zuletzt
-curl -fsSL "$RAW/deploy/server-compose-web.yml" -o web/compose.neu \
-  && [ -s web/compose.neu ] && docker compose -p comphubweb -f web/compose.neu config -q 2>/dev/null && mv web/compose.neu web/docker-compose.yml
-[ -f web/docker-compose.yml ] || { log "web/docker-compose.yml fehlt - Abbruch"; exit 1; }
+[ -f web/docker-compose.yml ] || { log "web/docker-compose.yml fehlt (deploy/blau-gruen-einrichten.sh ausfuehren) - Abbruch"; exit 1; }
 WEB="docker compose -p comphubweb -f web/docker-compose.yml"
 
 # 2. Alles ausser der alten "web" wie bisher
