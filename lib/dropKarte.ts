@@ -9,10 +9,14 @@ import { zonenKarte, type Rahmen } from '@/lib/zonenKarte';
 import { anzeigenamen } from '@/lib/anzeigenamen';
 import { liveOrt } from '@/lib/clutchLiveWahl.mjs';
 import { releaseDatei } from '@/lib/liveAblage.mjs';
+import { orteAus, rechtecke, type Kasten, type P, type Stelle, type Form, kastenUm, gleicherKasten, formUm } from '@/lib/dropFormen';
+import { nobleKarte } from '@/lib/nobleKarte';
 
 /*
  * Drop-Karten aus den eigenen Replays (Betreiber, 18.11.2026): "fuer jeden Cup, der eine einzelne Lobby ist" - Trios-Finale bis 33 Teams, Duos bis 50,
- * Solos bis 100 Spieler, Reload 40 - die Karte der Landepunkte automatisch, ohne Noble und ohne Vital. Quelle: nur CompHub.
+ * Solos bis 100 Spieler, Reload 40 - die Karte der Landepunkte automatisch. Nur fuer Admins, bis der Betreiber sie freigibt.
+ * Stellen: ab Spiel 1 die echten Landungen; davor Noble Practice, wenn Noble eine Karte zum Fenster hat (nur Lage und Zuordnung), sonst die Prognose.
+ * Die Formen sind immer unsere eigenen (lib/dropFormen).
  *
  * Der Landepunkt je Spieler und Match steht in den Rohdaten der vollen Replays (clutch-roh/<Fenster>.json, matches[].landung: { epicId: [x, y, t] }) -
  * die erste Positionsprobe am Boden nach dem Flug (lib/replayPositionen, CharacterSample, 10-s-Takt; Gegenprobe gegen den Netzwerkstrom mit
@@ -53,7 +57,7 @@ export function teamGroesse(playlist?: string | null): number | null {
 const RADIUS = 7_000;
 /** Zwei Teams, deren Stellen naeher als 60 m liegen, teilen sich eine Form (umkaempft) - so nah, dass sie sich am Boden sofort treffen. */
 const ZUSAMMEN = 6_000;
-/** Halbe Breite einer Form um die Stelle eines Teams. */
+/** Halbe Seite des Quadrats um eine Stelle, die in keinem bekannten Ort liegt (lib/dropFormen). */
 const FORM_RADIUS = 3_800;
 /** So viele Matches je Team fliessen hoechstens in die Prognose. */
 const MATCHES_JE_TEAM = 20;
@@ -71,8 +75,8 @@ export interface DropTeam {
   namen: string[];
   /** Index der Form, auf der das Team steht - null: keine Landung bekannt. */
   form: number | null;
-  /** echt: aus Spielen dieses Spieltags; prognose: aus frueheren Matches auf derselben Insel. */
-  art: 'echt' | 'prognose' | null;
+  /** echt: aus Spielen dieses Spieltags; noble: Stelle laut Noble Practice; prognose: aus frueheren Matches auf derselben Insel. */
+  art: 'echt' | 'noble' | 'prognose' | null;
   /** Wie viele Matches (Landungen) zugrunde liegen, und wie viele davon in der gewaehlten Haeufung. */
   matches: number;
   treffer: number;
@@ -263,28 +267,97 @@ export function haeufung(punkte: Punkt[]): { mitte: Punkt; treffer: number } | n
   return { mitte: { x: best.reduce((a, q) => a + q.x, 0) / best.length, y: best.reduce((a, q) => a + q.y, 0) / best.length }, treffer: best.length };
 }
 
-/** Konvexe Huelle (Andrew). */
-function huelle(p: Punkt[]): Punkt[] {
-  const s = [...p].sort((a, b) => a.x - b.x || a.y - b.y);
-  if (s.length < 3) return s;
-  const kreuz = (o: Punkt, a: Punkt, b: Punkt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const unten: Punkt[] = []; const oben: Punkt[] = [];
-  for (const q of s) { while (unten.length >= 2 && kreuz(unten[unten.length - 2], unten[unten.length - 1], q) <= 0) unten.pop(); unten.push(q); }
-  for (const q of [...s].reverse()) { while (oben.length >= 2 && kreuz(oben[oben.length - 2], oben[oben.length - 1], q) <= 0) oben.pop(); oben.push(q); }
-  return [...unten.slice(0, -1), ...oben.slice(0, -1)];
+/** Weltpunkt -> Prozent des Kartenbildes. */
+const inProzent = (q: Punkt, r: Rahmen): P => ({ x: ((q.x - r.x0) / r.spanne) * 100, y: ((q.y - r.y0) / r.spanne) * 100 });
+
+/**
+ * Die Orte der Insel (lib/dropFormen orteAus): die Formen aller Turnierkarten mit demselben Kartenbild - nur fuer Groesse und Lage der Rechtecke,
+ * keine Form wird uebernommen. Ohne Turnierkarten: keine Orte, jede Stelle bekommt ihr Quadrat.
+ */
+async function orteDerInsel(bild: string): Promise<Kasten[]> {
+  const id = (() => { try { return new URL(bild, 'http://x').searchParams.get('id'); } catch { return null; } })();
+  if (!id) return [];
+  const karten = await liesJson<Array<{ bildId?: string; spots?: Array<{ punkte?: P[] }> }>>('turnier-karten.json', []).catch(() => []);
+  return orteAus(karten.filter((k) => k.bildId === id).flatMap((k) => (k.spots ?? []).map((sp) => sp.punkte ?? [])));
 }
 
-/** Eine schlichte Form um die Stellen einer Gruppe: Achteck je Stelle, davon die Huelle - in Prozent des Kartenbildes. */
-function formUm(mitten: Punkt[], r: Rahmen): Punkt[] {
-  const ecken: Punkt[] = [];
-  for (const m of mitten) for (let i = 0; i < 8; i++) {
-    const w = (Math.PI / 4) * i + Math.PI / 8;
-    ecken.push({ x: m.x + Math.cos(w) * FORM_RADIUS, y: m.y + Math.sin(w) * FORM_RADIUS });
+/**
+ * Aus den Stellen der Teams (Weltmass, null: keine Landung) die Formen der Karte: Stellen naeher als ZUSAMMEN bilden eine Gruppe (einfache
+ * Verkettung), je Gruppe ein Rechteck in der Groesse ihres Ortes (lib/dropFormen); Gruppen im selben Ort teilen sich eines.
+ * Ohne Ablage und Netz - so laesst es sich auch allein pruefen (Kartenprobe).
+ */
+export function formenAusStellen(stellen: Array<Stelle | null>, namenVon: (i: number) => string[], rahmen: Rahmen, orte: Kasten[]):
+  { formen: DropKarte['formen']; formVon: Map<number, number> } {
+  const zusammen = (ZUSAMMEN / rahmen.spanne) * 100;
+  const mit = stellen.map((m, i) => ({ m, i })).filter((x): x is { m: Stelle; i: number } => x.m !== null);
+  const gruppeVon = new Map<number, number>();
+  const gruppen: number[][] = [];
+  for (const a of mit) {
+    // Stellen von Noble (mit Kasten) gehoeren nur zusammen, wenn Noble sie auf dieselbe Stelle setzt - Nobles Zuordnung bleibt.
+    const nahDran = (b: Stelle) => (a.m.ort && b.ort ? gleicherKasten(a.m.ort, b.ort) : Math.hypot(b.p.x - a.m.p.x, b.p.y - a.m.p.y) <= zusammen);
+    const nah = [...new Set(mit.filter((b) => b.i !== a.i && gruppeVon.has(b.i) && nahDran(b.m))
+      .map((b) => gruppeVon.get(b.i)!))];
+    if (!nah.length) { gruppeVon.set(a.i, gruppen.length); gruppen.push([a.i]); continue; }
+    const ziel = nah[0];
+    gruppen[ziel].push(a.i); gruppeVon.set(a.i, ziel);
+    for (const n of nah.slice(1)) { for (const j of gruppen[n]) { gruppen[ziel].push(j); gruppeVon.set(j, ziel); } gruppen[n] = []; }
   }
-  return huelle(ecken).map((q) => ({
-    x: Math.round(((q.x - r.x0) / r.spanne) * 10_000) / 100,
-    y: Math.round(((q.y - r.y0) / r.spanne) * 10_000) / 100,
-  }));
+  const voll = gruppen.filter((x) => x.length);
+  const halb = (FORM_RADIUS / rahmen.spanne) * 100;
+  const formen: DropKarte['formen'] = [];
+  const formVon = new Map<number, number>();
+  for (const r of rechtecke(voll.map((g) => g.map((i) => stellen[i]!)), orte, halb)) {
+    const g = r.gruppen.flatMap((gi) => voll[gi]);
+    const gruppenNamen = g.map((i) => namenVon(i));
+    for (const i of g) formVon.set(i, formen.length);
+    formen.push({ punkte: r.punkte, spieler: gruppenNamen.flat(), teams: g.length, gruppen: gruppenNamen });
+  }
+  return { formen, formVon };
+}
+
+/**
+ * Je Team seine Stelle: echte Landungen dieses Spieltags, sonst Noble, sonst die Prognose aus jeKonto (Matches je Konto auf derselben Insel).
+ * Teams, die nur Noble kennt, kommen dazu. Ohne Ablage und Netz (Kartenprobe).
+ */
+export function stellenFuer(feld: Array<{ ids: string[]; namen: string[] }>, gespielt: RohMatch[], noble: NobleStelle[], jeKonto: Map<string, RohMatch[]>, rahmen: Rahmen) {
+  const vonNoble = new Map<string, NobleStelle>();
+  for (const n of noble) for (const id of n.ids) vonNoble.set(id, n);
+  const imFeld = new Set(feld.flatMap((t) => t.ids));
+  const alleTeams = [...feld, ...noble.filter((n) => !n.ids.some((id) => imFeld.has(id))).map((n) => ({ ids: n.ids, namen: n.namen }))];
+  return alleTeams.map((t) => {
+    const echt = teamPunkte(gespielt, t.ids);
+    if (echt.length) {
+      const h = haeufung(echt);
+      return { t, art: 'echt' as const, stelle: h ? { p: inProzent(h.mitte, rahmen) } : null, matches: echt.length, treffer: h?.treffer ?? 0 };
+    }
+    const n = t.ids.map((id) => vonNoble.get(id)).find(Boolean);
+    if (n) return { t, art: 'noble' as const, stelle: { p: n.mitte, ort: n.kasten, form: n.form }, matches: 0, treffer: 0 };
+    const ms = [...new Set(t.ids.flatMap((e) => jeKonto.get(e) ?? []))].slice(0, MATCHES_JE_TEAM);
+    const p = teamPunkte(ms, t.ids);
+    const h = haeufung(p);
+    return { t, art: h ? 'prognose' as const : null, stelle: h ? { p: inProzent(h.mitte, rahmen) } : null, matches: p.length, treffer: h?.treffer ?? 0 };
+  });
+}
+
+/** Eine Stelle laut Noble Practice: wer dort steht, Mitte und Kasten (Prozent, auf unser Raster gerundet) - Nobles Polygon selbst bleibt draussen. */
+export interface NobleStelle { ids: string[]; namen: string[]; mitte: P; kasten: Kasten; form: Form }
+
+/** Die Stellen von Noble fuer dieses Fenster - leer, wenn Noble keine Karte dazu hat oder nicht antwortet (dann gilt die eigene Prognose). */
+export async function nobleStellen(windowId: string): Promise<NobleStelle[]> {
+  try {
+    const k = await Promise.race([
+      nobleKarte(windowId),
+      new Promise<null>((fertig) => { setTimeout(() => fertig(null), 20_000); }),
+    ]);
+    if (!k) return [];
+    return k.formen.filter((fo) => fo.teams.length && fo.punkte.length >= 3).flatMap((fo) => {
+      // Nur Lage und Ausdehnung: um Nobles Flaeche eine eigene Form (Rechteck oder ein sauberes L, lib/dropFormen formUm).
+      const form = formUm(fo.punkte);
+      const kasten = kastenUm(fo.punkte);
+      const mitte = { x: (form.kasten.x0 + form.kasten.x1) / 2, y: (form.kasten.y0 + form.kasten.y1) / 2 };
+      return fo.teams.map((t) => ({ ids: t.ids.map((id) => id.toLowerCase()), namen: t.namen, mitte, kasten, form }));
+    });
+  } catch { return []; }
 }
 
 /* ------------------------------------------------------------ Verlauf */
@@ -356,35 +429,16 @@ export async function baueDropKarte(windowId: string, region?: string | null): P
   const anzeigeVon = (id: string, roh: string) =>
     namen.anzeige.get(id) || namen.profile[id]?.anzeige || roh || rohNamen.get(id) || id.slice(0, 8);
 
-  // Je Team: die Stelle aus diesem Spieltag, sonst aus dem Verlauf.
-  const stellen = auf.teams.map((t) => {
-    const echt = teamPunkte(gespielt, t.ids);
-    if (echt.length) { const h = haeufung(echt); return { t, art: 'echt' as const, mitte: h?.mitte ?? null, matches: echt.length, treffer: h?.treffer ?? 0 }; }
-    const ms = [...new Set(t.ids.flatMap((e) => jeKonto.get(e) ?? []))].slice(0, MATCHES_JE_TEAM);
-    const p = teamPunkte(ms, t.ids);
-    const h = haeufung(p);
-    return { t, art: h ? 'prognose' as const : null, mitte: h?.mitte ?? null, matches: p.length, treffer: h?.treffer ?? 0 };
-  });
+  /*
+   * Je Team die Stelle (Betreiber, 18.11.2026): wer in diesem Spieltag schon gelandet ist, steht dort (echte Landungen ab Spiel 1). Sonst gilt Noble
+   * Practice, wenn Noble fuer dieses Fenster eine Karte hat - von Noble nur Lage, Ausdehnung und wer dort steht, die Form ist unsere (lib/dropFormen).
+   * Ohne Noble die Prognose aus den letzten Matches.
+   */
+  const noble = await nobleStellen(f.windowId);
+  const stellen = stellenFuer(auf.teams, gespielt, noble, jeKonto, zk.rahmen);
 
-  // Stellen naeher als ZUSAMMEN teilen sich eine Form (einfache Verkettung).
-  const mit = stellen.map((s, i) => ({ s, i })).filter((x) => x.s.mitte);
-  const gruppeVon = new Map<number, number>();
-  const gruppen: number[][] = [];
-  for (const a of mit) {
-    const nah = [...new Set(mit.filter((b) => b.i !== a.i && gruppeVon.has(b.i) && Math.hypot(b.s.mitte!.x - a.s.mitte!.x, b.s.mitte!.y - a.s.mitte!.y) <= ZUSAMMEN)
-      .map((b) => gruppeVon.get(b.i)!))];
-    if (!nah.length) { gruppeVon.set(a.i, gruppen.length); gruppen.push([a.i]); continue; }
-    const ziel = nah[0];
-    gruppen[ziel].push(a.i); gruppeVon.set(a.i, ziel);
-    for (const n of nah.slice(1)) { for (const j of gruppen[n]) { gruppen[ziel].push(j); gruppeVon.set(j, ziel); } gruppen[n] = []; }
-  }
-  const formen: DropKarte['formen'] = [];
-  const formVon = new Map<number, number>();
-  for (const g of gruppen.filter((x) => x.length)) {
-    const gruppenNamen = g.map((i) => stellen[i].t.ids.map((id, k) => anzeigeVon(id, stellen[i].t.namen[k] ?? '')));
-    for (const i of g) formVon.set(i, formen.length);
-    formen.push({ punkte: formUm(g.map((i) => stellen[i].mitte!), zk.rahmen), spieler: gruppenNamen.flat(), teams: g.length, gruppen: gruppenNamen });
-  }
+  const orte = await orteDerInsel(zk.bild);
+  const { formen, formVon } = formenAusStellen(stellen.map((st) => st.stelle), (i) => stellen[i].t.ids.map((id, k) => anzeigeVon(id, stellen[i].t.namen[k] ?? '')), zk.rahmen, orte);
   const teams: DropTeam[] = stellen.map((s, i) => ({
     ids: s.t.ids,
     namen: s.t.ids.map((id, k) => anzeigeVon(id, s.t.namen[k] ?? '')),
