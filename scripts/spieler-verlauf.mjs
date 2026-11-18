@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
+import { tagsFuer } from '../lib/releaseTags.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const SPIELTAGE = path.join(DATEN, 'epic-spieltage');
@@ -92,9 +93,9 @@ async function holen() {
     console.log(`Voriger Stand ${stand.build}: ${stand.tage.length} Spieltage, ${n} Dateien geholt.`);
   } else console.log('Kein voriger Stand - alles wird gerechnet.');
 
-  // Die Manifeste der Spieltag-Releases (das Saison-Release vor dem alten, wie lib/releaseTags.mjs).
+  // Die Manifeste der Spieltag-Releases, in der umgekehrten Lesereihe von lib/releaseTags.mjs (spaetere gewinnen: Saison-Release und sein Ueberlauf vor dem alten).
   const bekannt = new Map((stand?.tage ?? []).map((t) => [t.w, t.f]));
-  const tags = ['daten-spieltage', ...Array.from({ length: 17 }, (_, i) => `daten-spieltage-s${42 + i}`)];
+  const tags = [...tagsFuer('epic-spieltage/')].reverse();
   const wahl = new Map();
   for (const tag of tags) {
     const roh = await holeText(anhang(tag, 'manifest.json')).catch(() => null);

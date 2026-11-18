@@ -33,8 +33,10 @@ jobs:
       - name: Hochladen und rechnen lassen
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        # Ueber den Hochlader statt "gh release upload" (18.11.2026): er waehlt das Release nach lib/releaseTags.mjs (Saison-Release oder sein
+        # Ueberlauf, wenn es voll ist) und traegt die Datei ins Verzeichnis (manifest.json) ein - das lasen die Leser vorher nicht nach.
         run: |
-          W="${{ inputs.windowId }}"; S="${W%%_*}"; T="daten-spieltage-$(echo $S | tr 'A-Z' 'a-z')"
-          cp "data/epic-spieltage/$S/$W.json" "epic-spieltage__${S}__${W}.json"
-          gh release upload "$T" "epic-spieltage__${S}__${W}.json" --clobber
+          set -o pipefail; W="${{ inputs.windowId }}"; S="${W%%_*}"
+          node scripts/ablage-github.mjs --nur "epic-spieltage/$S/$W.json" 2>&1 | tr '\r' '\n' | tail -8
           gh workflow run clutch-rechnen.yml || true

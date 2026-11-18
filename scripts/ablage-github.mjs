@@ -515,6 +515,8 @@ async function main() {
   const aufgaben = [];
   /** Was schon beim Planen scheitert (alle Ziel-Releases voll) - zaehlt mit, damit der Lauf das nicht als geglueckt abhakt. */
   const volleZiele = new Set(); const planFehler = []; const umgeleitet = new Set();
+  /** Releases, die das letzte ihrer Schreib-Reihe sind und neue Dateien bekommen - danach ist kein Platz mehr (::warning:: am Ende). */
+  const letzteUeberlauf = new Set();
   for (const name of einzeln) {
     const daten = fs.readFileSync(path.join(DATEN, name));
     const anhang = anhangName(name);
@@ -540,7 +542,6 @@ async function main() {
       planFehler.push(`${anhang}: alle Releases zum Schreiben voll (${ziele[0]} ...) - lib/releaseTags.mjs erweitern`);
       continue;
     }
-    if (!rel.vorhandene.has(anhang)) rel.geplant = (rel.geplant ?? 0) + 1;
     if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
     /*
      * Umzug ins Saison-Release: was im alten Release schon genau so liegt und
@@ -570,6 +571,15 @@ async function main() {
       try { inhaltZeit = Number(JSON.parse(daten.toString('utf8'))?.zeit) || 0; } catch { /* keine Antwort */ }
       const dort = Number(rel.manifestAlt[anhang]?.inhaltZeit) || 0;
       if (!erzwingen && inhaltZeit && dort && inhaltZeit < dort && rel.vorhandene.has(anhang)) continue;
+    }
+    /*
+     * Erst hier als geplant zaehlen, nicht schon vor den Pruefungen oben (18.11.2026): jede der 488 S42-Spieltage, die unveraendert in daten-spieltage
+     * liegen ("Umzug ... bleibt dort"), zaehlte bei daten-spieltage-s42 mit, obwohl sie nie hochging - 582 vorhandene + 416 = 998, und die neuen
+     * S42-Dateien dahinter kamen "in kein Release", bei einem Release mit 582 Anhaengen.
+     */
+    if (!rel.vorhandene.has(anhang)) {
+      rel.geplant = (rel.geplant ?? 0) + 1;
+      if (ziele.length > 1 && rel.tag === ziele[ziele.length - 1]) letzteUeberlauf.add(rel.tag);
     }
     aufgaben.push({ rel, anhang, daten, summe, inhaltZeit });
   }
@@ -749,6 +759,7 @@ async function main() {
    * diese Zeilen ganz am Ende und beginnen mit "::error::"/"::warning::": GitHub zeigt sie oben am Lauf, auch wenn der Schritt gruen bleibt.
    */
   const fastVoll = [...releases.values()].filter((rel) => rel.fertig && rel.vorhandene.size >= 900).map((rel) => `${rel.tag} (${rel.vorhandene.size})`);
+  if (letzteUeberlauf.size) console.log(`::warning title=Letzter Ueberlauf in Gebrauch::Neue Dateien gehen ins letzte Release ihrer Schreib-Reihe: ${[...letzteUeberlauf].slice(0, 6).join(', ')} - lib/releaseTags.mjs erweitern, bevor es voll ist`);
   if (fastVoll.length) console.log(`::warning title=Release fast voll::${fastVoll.length} Releases mit 900+ von 1000 Anhaengen: ${fastVoll.slice(0, 6).join(', ')}`);
   const voll = fehler.filter((f) => /file_count|alle Releases zum Schreiben voll/.test(f)).length;
   if (voll) console.log(`::error title=Release voll::${voll} Dateien kamen in kein Release (1000 Anhaenge erreicht: ${[...volleZiele].slice(0, 3).join(' | ') || 'siehe oben'}) - lib/releaseTags.mjs erweitern`);

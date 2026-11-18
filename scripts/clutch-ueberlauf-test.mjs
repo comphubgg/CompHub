@@ -66,7 +66,7 @@ if (i > 0) {
   const alt = await import(pathToFileURL(path.resolve(process.argv[i + 1])).href);
   const beispiele = [
     'akten/0123456789abcdef0123456789abcdef.json', 'power-rankings/global.json', 'replays/S42/S42_X_EU/_aggregat.json', 'replays/S43/', 'replays/S41/x.json',
-    'epic-spieltage/S43/S43_X.json', 'epic-spieltage/', 'platzierungen/S42/a.json', 'tournament-leaderboards/a.json',
+    'tournament-leaderboards/a.json', // epic-spieltage/ und platzierungen/ haben seit dem 18.11.2026 eigenen Ueberlauf - scripts/spieltage-ueberlauf-test.mjs
     'clutch-je/S42_a.json', 'clutch-je/x.json', 'team-verlauf.json', 'scrims/2026-11-03/a.json', 'scrims/index.json', 'replays-schlank/S43/a.json', 'irgendwas.json',
     'replay-voll/2026-09/', 'replay-voll/2026-10/S42_W/abc.json', 'replay-voll/2026-12/S43_W/abc.json', 'replay-voll/index.json',
   ];
