@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { vorratDannFrisch } from '@/app/lib/holeJson';
 
 /*
  * Der Hintergrund der Startseite: eine Vorschau auf die Seite selbst (Betreiber, 14.10.2026: "so wirklich hintergrundmaessig eine Preview von
@@ -71,18 +72,20 @@ export default function HeroHintergrund() {
   const [spieler, setSpieler] = useState<string[]>([]);
   useEffect(() => {
     let weg = false;
+    let gesetzt = false;
     /*
      * Alle Spielerfotos, die gerade oeffentlich sind ("fotos", 17.11.2026) - vorher nur die zehn der Vitrine, und von denen hatten nach dem
      * Neuanfang der Fotos nur vier eines: der Hintergrund lief fast ohne Spieler. Ein neu freigegebenes Foto kommt mit der naechsten Antwort dazu.
      */
-    fetch('/api/startvitrine').then((r) => r.json())
-      .then((j) => {
-        if (weg) return;
+    // Dieselbe Anfrage wie die Startvitrine (app/lib/holeJson legt beide zusammen), mit Frist und der letzten guten Antwort aus dem Browser.
+    void vorratDannFrisch<{ fotos?: Array<{ bild?: string | null }>; spieler?: Array<{ bild: string | null }> }>('/api/startvitrine', 'startvitrine', (j) => {
+        // Einmal gemischt reicht: kommt nach den Fotos aus dem Vorrat die frische Antwort, springen die Reihen nicht ein zweites Mal um.
+        if (weg || gesetzt) return;
+        gesetzt = true;
         const alle = Array.isArray(j?.fotos) ? (j.fotos as Array<{ bild?: string | null }>).map((f) => f.bild)
           : Array.isArray(j?.spieler) ? (j.spieler as Array<{ bild: string | null }>).map((s) => s.bild) : [];
         setSpieler(gemischt([...new Set(alle.filter((b): b is string => !!b))]).slice(0, HOECHSTENS_FOTOS));
-      })
-      .catch(() => { /* ohne Fotos laufen Banner und Karten allein */ });
+      }, { gut: (j) => !!(j as { ok?: boolean })?.ok });
     return () => { weg = true; };
   }, []);
 

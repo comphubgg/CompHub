@@ -3,6 +3,7 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
+import { ausVorrat, holeJson, vorratDannFrisch } from '@/app/lib/holeJson';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import HeroHintergrund from '@/app/components/HeroHintergrund';
@@ -41,13 +42,11 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
   const [alle, setAlle] = useState<Antwort | null>(null);
   const [wahl, setWahl] = useState<'jahr' | 'alle'>('jahr');
   useEffect(() => {
-    const hole = (adresse: string, setz: (a: Antwort) => void) =>
-      fetch(adresse, { signal: AbortSignal.timeout(10_000) })
-        .then((r) => r.json())
-        .then((j) => { if (j?.plaetze?.length) setz(j); })
-        .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
-    void hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, setDieses);
-    void hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', setAlle);
+    // Mit Frist, Wiederholung und der letzten guten Liste aus dem Browser (app/lib/holeJson); fehlt beides, fehlt der Abschnitt - besser als leere Karten.
+    const hole = (adresse: string, schluessel: string, setz: (a: Antwort) => void) =>
+      void vorratDannFrisch<Antwort>(adresse, schluessel, setz, { gut: (j) => !!j?.plaetze?.length });
+    hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, `preisgeld-${jahr}`, setDieses);
+    hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', 'preisgeld-alle', setAlle);
   }, [jahr]);
   const daten = wahl === 'alle' ? (alle ?? dieses) : (dieses ?? alle);
   if (!daten) return null;
@@ -262,55 +261,55 @@ export default function Startseite() {
   };
 
   useEffect(() => {
-    void Promise.resolve().then(async () => {
-      try {
-        /*
-         * Nach zehn Sekunden ist Schluss.
-         *
-         * Der Betreiber: "Das soll auch maximal zehn Sekunden gehen." Er hat
-         * recht - eine Zahl, auf die man laenger wartet, ist keine Auskunft
-         * mehr. Bleibt eine Antwort aus, steht dort ein Strich, und die Seite
-         * ist trotzdem fertig; die Zahlen sind Beiwerk, nicht der Inhalt.
-         *
-         * Im Regelfall greift die Frist nie: die Antworten liegen fertig in
-         * der Ablage und kommen in Bruchteilen einer Sekunde.
-         */
-        const frist = AbortSignal.timeout(10_000);
-        // Dazu gleich die genaue Zahl (?zahl=1, 30.10.2026): die Summe der Spieltage hinkt hinterher - die Seite zeigte 840.004, der Server kannte 861.118.
-        /*
-         * Die Zahl der Spieltage kommt aus der Liste "alle Zeit" (dieselbe Antwort wie der Preisgeld-Block unten, also meist schon im
-         * Zwischenspeicher). Vorher stand hier die Zahl aus dem Verzeichnis der Szene allein (982) - die Statistik zeigte fuer 2026 aber
-         * 1.342 Spieltage, weil dort auch Epics Bestenlisten zaehlen. Ein Jahr wirkte so groesser als das ganze Archiv.
-         */
-        const [archiv, zahl, alleZeit] = await Promise.all([
-          fetch('/api/szene-stats', { signal: frist })
-            .then((r) => r.json()).catch(() => null),
-          fetch('/api/replays?zahl=1', { signal: frist })
-            .then((r) => r.json()).catch(() => null) as Promise<{ ausgewertet?: number | null } | null>,
-          fetch('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { signal: frist })
-            .then((r) => r.json()).catch(() => null) as Promise<{ success?: boolean; spieltage?: number } | null>,
-        ]);
-        /*
-         * Die ganze Replay-Liste (rund 280 KB) nur noch als Ersatz, wenn die fertige Zahl fehlt - vorher kam sie bei jedem Besuch mit,
-         * obwohl daraus nur dieselbe Summe wurde.
-         */
-        const replays = typeof zahl?.ausgewertet === 'number' && zahl.ausgewertet > 0 ? null
-          : await fetch('/api/replays', { signal: frist }).then((r) => r.json()).catch(() => null);
-        // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
-        setStand({
-          saisons: archiv?.saisons?.length ?? null,
-          spieltage: Math.max(
-            alleZeit?.success && typeof alleZeit.spieltage === 'number' ? alleZeit.spieltage : 0,
-            typeof archiv?.spieltage === 'number' ? archiv.spieltage : 0) || null,
-          regionen: archiv?.regionen?.length ?? null,
+    /*
+     * Jede Zahl fuer sich, sobald ihre Antwort da ist, mit Frist und Wiederholung - und vorher die zuletzt gesehenen Zahlen aus dem Browser
+     * (app/lib/holeJson, 18.11.2026). Vorher wartete der Kopf auf alle drei Antworten (Promise.all, Frist 10 s, kein zweiter Versuch): stand der
+     * Server, stand dort eine Minute lang ein Strich. Bleibt eine Antwort ganz aus, steht ein Strich - eine Null waere eine Behauptung.
+     *
+     * Die Zahl der Spieltage kommt aus der Liste "alle Zeit" (dieselbe Antwort wie der Preisgeld-Block unten, also meist schon im Zwischenspeicher);
+     * die Summe der Spieltage aus dem Verzeichnis der Szene allein (982) war kleiner als die 1.342 Spieltage, die die Statistik fuer 2026 zeigte.
+     * Die genaue Zahl der Matches kommt aus ?zahl=1 (30.10.2026); die ganze Replay-Liste (rund 280 KB) nur, wenn sie fehlt.
+     */
+    const VORRAT = 'start-zahlen';
+    const alt = ausVorrat<Stand>(VORRAT);
+    if (alt) void Promise.resolve().then(() => { setStand((s) => s ?? alt); setLaedt(false); });
+    let weg = false;
+    const teile: { archiv?: { saisons?: unknown[]; spieltage?: number; regionen?: unknown[] } | null; zahl?: number | null; alleZeit?: number | null } = {};
+    const setzen = () => {
+      if (weg) return;
+      setStand((s) => {
+        const neu: Stand = {
+          saisons: teile.archiv?.saisons?.length ?? s?.saisons ?? null,
+          // Bis beide Quellen da sind, nicht unter die zuletzt gezeigte Zahl fallen (sonst sprang sie 1.342 -> 982 -> 1.342).
+          spieltage: Math.max(teile.alleZeit ?? 0, typeof teile.archiv?.spieltage === 'number' ? teile.archiv.spieltage : 0,
+            'alleZeit' in teile && 'archiv' in teile ? 0 : s?.spieltage ?? 0) || null,
+          regionen: teile.archiv?.regionen?.length ?? s?.regionen ?? null,
           konten: null,
-          replays: Math.max(zahl?.ausgewertet ?? 0, (replays?.fenster ?? []).reduce(
-            (n: number, f: { zaehler?: Record<string, number> }) =>
-              n + (f.zaehler?.PARSED ?? 0), 0)) || null,
-        });
-      } catch { /* dann bleiben die Zahlen aus */ }
-      finally { setLaedt(false); }
-    });
+          // Nur nach oben - auch gegenueber dem Vorrat.
+          replays: Math.max(teile.zahl ?? 0, s?.replays ?? 0) || null,
+        };
+        try { window.localStorage.setItem(`ch-vorrat:${VORRAT}`, JSON.stringify({ zeit: Date.now(), wert: neu })); } catch { /* ohne Vorrat */ }
+        return neu;
+      });
+      setLaedt(false);
+    };
+    const FRISTEN = [8_000, 12_000];
+    void Promise.allSettled([
+      holeJson<{ saisons?: unknown[]; spieltage?: number; regionen?: unknown[] }>('/api/szene-stats', { fristen: FRISTEN, gut: (j) => Array.isArray(j?.saisons) })
+        .then((j) => { teile.archiv = j; setzen(); }),
+      holeJson<{ ausgewertet?: number | null }>('/api/replays?zahl=1', { fristen: FRISTEN })
+        .then(async (j) => {
+          let n = typeof j?.ausgewertet === 'number' && j.ausgewertet > 0 ? j.ausgewertet : 0;
+          if (!n) {
+            const liste = await holeJson<{ fenster?: Array<{ zaehler?: Record<string, number> }> }>('/api/replays', { fristen: FRISTEN }).catch(() => null);
+            n = (liste?.fenster ?? []).reduce((a, f) => a + (f.zaehler?.PARSED ?? 0), 0);
+          }
+          teile.zahl = n || null; setzen();
+        }),
+      holeJson<{ success?: boolean; spieltage?: number }>('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { fristen: FRISTEN })
+        .then((j) => { teile.alleZeit = j?.success && typeof j.spieltage === 'number' ? j.spieltage : null; setzen(); }),
+    ]).finally(() => { if (!weg) setLaedt(false); });
+    return () => { weg = true; };
   }, []);
 
   /*

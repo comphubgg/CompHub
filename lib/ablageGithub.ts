@@ -353,6 +353,35 @@ export async function liesBereich(name: string, start: number, laenge: number): 
  * zaehlt Anfragen, das CDN nicht). Fuenf Minuten gemerkt - so oft aendert
  * der Laufrechner ohnehin nichts.
  */
+/*
+ * Der Stand einer Datei am Release, ohne sie zu laden (18.11.2026): Tag, Groesse und ETag aus einer Anfrage nach einem einzigen Byte. HEAD geht nicht - die
+ * signierte Adresse, auf die GitHub weiterleitet, gilt nur fuer GET (401). Fuer lib/clutchLive: eine 200-340 MB grosse clutch/<w>.json wurde bei jedem
+ * Aufruf neu geladen und geparst (2-3 s stehende Ereignisschleife je Datei), weil der Vorrat oben nur Dateien bis 40 MB haelt. Mit dem Stempel bleibt
+ * das geparste Objekt, solange die Datei am Release dieselbe ist. null: nirgends gefunden; wirft bei einem Netzfehler.
+ */
+const stempelVorrat = new Map<string, { bis: number; wert: string | null }>();
+const STEMPEL_MS = 60_000;
+export async function releaseStempel(name: string): Promise<string | null> {
+  const da = stempelVorrat.get(name);
+  if (da && da.bis > Date.now()) return da.wert;
+  const anhang = anhangName(name);
+  const tags = [...tagsFuer(name), ...(/^clutch\//.test(name) ? ['daten'] : [])];
+  let wert: string | null = null;
+  for (const tag of tags) {
+    const r = await fetch(basis(tag) + encodeURIComponent(anhang), {
+      redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS), headers: { Range: 'bytes=0-0' },
+    });
+    try { await r.body?.cancel(); } catch { /* nur ein Byte */ }
+    if (r.status === 404) continue;
+    if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} beim Stand von ${anhang}`);
+    const gesamt = (r.headers.get('content-range') ?? '').split('/')[1] ?? r.headers.get('content-length') ?? '';
+    wert = `${tag}|${gesamt}|${r.headers.get('etag') ?? ''}|${r.headers.get('last-modified') ?? ''}`;
+    break;
+  }
+  stempelVorrat.set(name, { bis: Date.now() + STEMPEL_MS, wert });
+  return wert;
+}
+
 const manifeste = new Map<string, { bis: number; namen: string[] }>();
 const MANIFEST_MS = 5 * 60_000;
 const FEHLT_MS = 60 * 60_000;

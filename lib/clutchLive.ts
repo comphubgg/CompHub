@@ -8,7 +8,7 @@
  * Fehlt der Live-Stand, ist er kaputt, aelter oder nicht weiter als das Release: das Release, wie vorher. Ein Fehler hier bricht nie eine Seite.
  */
 
-import { liesBereich, speicher } from '@/lib/ablage';
+import { dateiStempel, liesBereich, speicher } from '@/lib/ablage';
 import { liesLiveStand, nimmLive } from '@/lib/clutchLiveWahl.mjs';
 import { fotosImJsonSperren } from '@/lib/spielerbildKlein';
 
@@ -24,14 +24,83 @@ const ausLive = new WeakMap<object, Buffer | null>();
  */
 const geparst = new WeakMap<Buffer, unknown>();
 
-async function liesRelease<T>(w: string): Promise<T | null> {
+/*
+ * Grosse Dateien (18.11.2026, Betreiber: "die Startseite hing eine Minute"). Der Vorrat in lib/ablageGithub haelt nur Dateien bis 40 MB - die
+ * clutch/<w>.json der grossen Cups sind inzwischen 100-340 MB (S42_InoxtagIconCup_EU 344 MB, S43_OnePieceBuggyCup_EU 220 MB). Fuer sie kam bei JEDEM
+ * Aufruf ein neuer Buffer, die WeakMap oben griff nie: jedes Mal die ganze Datei von GitHub (bis 20 s), toString und JSON.parse. Gemessen: 197 MB ->
+ * 2,0-2,5 s, in denen die Ereignisschleife steht und keine Route antwortet (auch nicht /api/ping); /api/cup-stats liest dieselbe Datei zweimal. Auf dem
+ * Server: /api/cup-stats fuer S42_InoxtagIconCup_ZB_EU brauchte 19-22 s, /api/ping stand waehrenddessen zweimal 2,2-3,3 s.
+ *
+ * Jetzt bleibt das geparste Objekt, solange die Datei am Release dieselbe ist (Stempel aus Tag, Groesse und ETag, lib/ablage dateiStempel - eine Anfrage
+ * nach einem Byte, hoechstens alle zwei Minuten). Zugleich wird je Datei nur einmal gelesen (auch die beiden Leser in cup-stats teilen sich das), und
+ * grosse Dateien werden nacheinander geparst, nicht mehrere Hundert MB zugleich. Hoechstens GROSS_BUDGET Bytes Quelle bleiben gemerkt (geparst etwa
+ * das Dreifache im Heap), die am laengsten unbenutzte faellt zuerst heraus.
+ */
+const GROSS_AB = 40 * 1024 * 1024;
+const GROSS_BUDGET = 450 * 1024 * 1024;
+const GROSS_PRUEFEN_MS = 2 * 60_000;
+const gross = new Map<string, { d: unknown; stempel: string; bytes: number; geprueft: number }>();
+const grossUnterwegs = new Map<string, Promise<unknown>>();
+let parseReihe: Promise<unknown> = Promise.resolve();
+
+function parse<T>(roh: Buffer): T | null {
+  try { return JSON.parse(fotosImJsonSperren(roh.toString('utf8'))) as T; } catch { return null; }
+}
+
+function grossMerken(w: string, eintrag: { d: unknown; stempel: string; bytes: number; geprueft: number }) {
+  gross.delete(w);
+  if (eintrag.bytes > GROSS_BUDGET) return;
+  gross.set(w, eintrag);
+  let summe = 0;
+  for (const e of gross.values()) summe += e.bytes;
+  for (const [k, e] of gross) {
+    if (summe <= GROSS_BUDGET) break;
+    if (k === w) continue;
+    gross.delete(k);
+    summe -= e.bytes;
+  }
+}
+
+async function liesReleaseNeu<T>(w: string): Promise<T | null> {
   const roh = await speicher.lies(`clutch/${w}.json`);
-  if (!roh) return null;
+  if (!roh) { gross.delete(w); return null; }
   if (geparst.has(roh)) return geparst.get(roh) as T | null;
-  let d: T | null = null;
-  try { d = JSON.parse(fotosImJsonSperren(roh.toString('utf8'))) as T; } catch { d = null; }
-  geparst.set(roh, d);
+  if (roh.length < GROSS_AB) {
+    gross.delete(w);
+    const d = parse<T>(roh);
+    geparst.set(roh, d);
+    return d;
+  }
+  // Grosse Dateien nacheinander parsen: zwei zugleich hiessen ein bis zwei GB Heap auf einmal, schneller fertig wird keiner.
+  const lauf = parseReihe.then(() => parse<T>(roh));
+  parseReihe = lauf.catch(() => null);
+  const d = await lauf;
+  // Der Stand dazu - nur gemerkt, wenn seine Groesse zu den gelesenen Bytes passt (sonst wurde die Datei inzwischen ersetzt: beim naechsten Mal neu).
+  const stempel = await dateiStempel(`clutch/${w}.json`).catch(() => null);
+  if (d && stempel && stempel.includes(`|${roh.length}|`)) grossMerken(w, { d, stempel, bytes: roh.length, geprueft: Date.now() });
   return d;
+}
+
+async function liesRelease<T>(w: string): Promise<T | null> {
+  const da = gross.get(w);
+  if (da && Date.now() - da.geprueft < GROSS_PRUEFEN_MS) { gross.delete(w); gross.set(w, da); return da.d as T; }
+  let l = grossUnterwegs.get(w) as Promise<T | null> | undefined;
+  if (!l) {
+    l = (async () => {
+      if (da) {
+        let stempel: string | null = null;
+        try { stempel = await dateiStempel(`clutch/${w}.json`); } catch {
+          // Stand nicht feststellbar (GitHub antwortet nicht): das Gemerkte gilt weiter, statt hunderte MB auf gut Glueck zu laden.
+          da.geprueft = Date.now();
+          return da.d as T;
+        }
+        if (stempel === da.stempel) { da.geprueft = Date.now(); return da.d as T; }
+      }
+      return liesReleaseNeu<T>(w);
+    })().finally(() => { grossUnterwegs.delete(w); });
+    grossUnterwegs.set(w, l);
+  }
+  return l;
 }
 
 /** clutch/<w>.json: der Live-Stand, wenn er mehr Matches kennt als das Release, sonst das Release; null, wenn es keins gibt. Nur lesen (siehe oben). */

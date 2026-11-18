@@ -10,6 +10,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import Rollzahl from '@/app/components/Rollzahl';
 import { fokusVon } from '@/lib/fotoFokus';
 import { ortJetzt } from '@/app/lib/ort';
+import { vorratDannFrisch } from '@/app/lib/holeJson';
 
 /*
  * Die Schaukaesten der Startseite.
@@ -623,40 +624,44 @@ export default function StartVitrine() {
   const [alleStufen, setAlleStufen] = useState<SolosStufeKurz[]>([]);
   /** Die FNCS Solos der Season 42 aus dem Archiv - dieselbe Karte wie bei Reload (Betreiber, 9.11.2026: "FNCS Solos genau gleich wie FNCS Reload Solos"). */
   const [br, setBr] = useState<{ stufen: SolosStufeKurz[]; heats: SolosFenster[] }>({ stufen: [], heats: [] });
+  /** Ob die Antwort der Vitrine (bzw. der FNCS-Endspiele) entschieden ist - je Quelle, damit eine langsame Antwort die anderen Karten nicht aufhaelt. */
   const [geladen, setGeladen] = useState(false);
+  const [fncsGeladen, setFncsGeladen] = useState(false);
   const geholt = useRef(false);
 
   useEffect(() => {
     if (geholt.current) return;
     geholt.current = true;
-    const j = (a: string) => fetch(a, { signal: AbortSignal.timeout(20_000), cache: 'no-store' }).then((r) => r.json());
-    void Promise.allSettled([
-      j('/api/startvitrine').then((v: Vitrine) => { if (v?.ok) setDaten(v); }),
-      // Kurzfassung (nur die Heats) und eine zweite Chance: der erste Aufruf nach einem Neustart rechnet laenger als die Frist.
-      j('/api/globals-solos?kurz=1').catch(() => j('/api/globals-solos?kurz=1')).then((v: { ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }) => {
-        if (!v?.ok) return;
-        setHeats((v.fenster ?? []).filter((f) => f.art === 'heat'));
-        const jetzt = Date.now();
-        const st = v.stufen ?? [];
-        setAlleStufen(st);
-        const laeuft = st.some((x) => x.status === 'live' || (x.status === 'kommt' && x.begin - jetzt < 2 * 864e5)
-          || (x.art === 'finale' && x.status === 'vorbei' && x.end !== null && jetzt - x.end < 18 * 3600_000));
-        setSolos(laeuft ? st : null);
-      }),
-      j('/api/globals-solos?region=EU&reihe=S42').then((v: { ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }) => {
-        if (!v?.ok) return;
-        setBr({
-          stufen: (v.stufen ?? []).map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end })),
-          heats: (v.fenster ?? []).filter((f) => f.art === 'heat').map((f) => ({ ...f, spieler: f.spieler.slice(0, 8), teams: [], formen: [] })),
-        });
-      }).catch(() => { /* ohne Archiv nur das Bild */ }),
-      j('/api/fncs-ereignisse').then((v: { ok?: boolean; ereignisse?: FncsKurz[] }) => {
-        if (!v?.ok || !v.ereignisse?.length) return;
-        setFncs(v.ereignisse[v.ereignisse.length - 1]);
-        // Fuer die Slideshow die juengsten Endspiele (ohne die Regions-Doppel "S40|gf|NAC").
-        setFncsAlle(v.ereignisse.filter((e) => e.key.split('|').length === 2).slice(-4));
-      }),
-    ]).finally(() => setGeladen(true));
+    /*
+     * Jede Quelle fuer sich, mit Frist, Wiederholung und der letzten guten Antwort aus dem Browser (app/lib/holeJson, 18.11.2026): vorher wartete jede
+     * Karte, bis ALLE vier Antworten da waren (Promise.allSettled, Frist 20 s, Solos mit zweitem Versuch 40 s) - stand der Server, blieben alle Platzhalter.
+     */
+    const solosSetzen = (v: { ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }) => {
+      setHeats((v.fenster ?? []).filter((f) => f.art === 'heat'));
+      const jetzt = Date.now();
+      const st = v.stufen ?? [];
+      setAlleStufen(st);
+      const laeuft = st.some((x) => x.status === 'live' || (x.status === 'kommt' && x.begin - jetzt < 2 * 864e5)
+        || (x.art === 'finale' && x.status === 'vorbei' && x.end !== null && jetzt - x.end < 18 * 3600_000));
+      setSolos(laeuft ? st : null);
+    };
+    void vorratDannFrisch<Vitrine>('/api/startvitrine', 'startvitrine', (v) => setDaten(v), { gut: (v) => !!v?.ok })
+      .finally(() => setGeladen(true));
+    // Kurzfassung (nur die Heats); der erste Aufruf nach einem Neustart rechnet laenger - dafuer die Wiederholung.
+    void vorratDannFrisch<{ ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }>('/api/globals-solos?kurz=1', 'globals-solos-kurz', solosSetzen,
+      { gut: (v) => !!v?.ok });
+    void vorratDannFrisch<{ ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }>('/api/globals-solos?region=EU&reihe=S42', 'globals-solos-s42', (v) => {
+      setBr({
+        stufen: (v.stufen ?? []).map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end })),
+        heats: (v.fenster ?? []).filter((f) => f.art === 'heat').map((f) => ({ ...f, spieler: f.spieler.slice(0, 8), teams: [], formen: [] })),
+      });
+    }, { gut: (v) => !!v?.ok });
+    void vorratDannFrisch<{ ok?: boolean; ereignisse?: FncsKurz[] }>('/api/fncs-ereignisse', 'fncs-ereignisse', (v) => {
+      const e = v.ereignisse ?? [];
+      setFncs(e[e.length - 1]);
+      // Fuer die Slideshow die juengsten Endspiele (ohne die Regions-Doppel "S40|gf|NAC").
+      setFncsAlle(e.filter((x) => x.key.split('|').length === 2).slice(-4));
+    }, { gut: (v) => !!v?.ok && !!v.ereignisse?.length }).finally(() => setFncsGeladen(true));
   }, []);
 
   return (
@@ -704,8 +709,8 @@ export default function StartVitrine() {
             <FncsSchau seiten={[
               { name: 'FNCS Solos Reload', datum: Math.max(0, ...(solos ?? alleStufen).map((s) => s.begin)), inhalt: <SoloKarte stufen={solos ?? alleStufen} heats={heats} art="reload" /> },
               { name: 'FNCS Solos', datum: Math.max(0, ...br.stufen.map((s) => s.begin)), inhalt: <SoloKarte stufen={br.stufen} heats={br.heats} art="br" /> },
-              ...(fncsAlle.length ? fncsAlle : fncs ? [fncs] : []).map((e) => ({ name: e.titel, datum: e.datum ?? 0, inhalt: <FncsKarte e={e} fertig={geladen} /> })),
-              ...(!fncsAlle.length && !fncs ? [{ name: 'FNCS', datum: 0, inhalt: <FncsKarte e={null} fertig={geladen} /> }] : []),
+              ...(fncsAlle.length ? fncsAlle : fncs ? [fncs] : []).map((e) => ({ name: e.titel, datum: e.datum ?? 0, inhalt: <FncsKarte e={e} fertig={fncsGeladen} /> })),
+              ...(!fncsAlle.length && !fncs ? [{ name: 'FNCS', datum: 0, inhalt: <FncsKarte e={null} fertig={fncsGeladen} /> }] : []),
             ].sort((a, b) => b.datum - a.datum).slice(0, 5)} />
           </div>
         </div>

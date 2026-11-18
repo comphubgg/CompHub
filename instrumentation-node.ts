@@ -57,6 +57,9 @@ export async function registerNode() {
    * oeffentliche Adresse auf; das kommt ueber Cloudflare als Besuch bei
    * Render an. Eine Anfrage, zwanzig Byte.
    */
+  // Die Ereignisschleife von Anfang an beobachten (lib/schleifenWaechter, /api/stand "schleife").
+  try { (await import('./lib/schleifenWaechter')).schleifenWaechter(); } catch { /* nur eine Messung */ }
+
   const wach = process.env.COMPHUB_WACH_URL;
   if (wach) {
     const ping = () => { void fetch(`${wach}?wach=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }).catch(() => {}); };

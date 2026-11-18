@@ -339,6 +339,21 @@ export async function liesJson<T>(name: string, standard: T): Promise<T> {
 /**
  * Ein Stueck einer Datei - vom Release als Teilanfrage, sonst aus der ganzen Datei geschnitten (lib/jeSpiel.mjs).
  */
+/**
+ * Ein billiger Fingerabdruck des Stands einer Datei (aendert sich, wenn die Datei sich aendert) - ohne sie zu laden. Am Release: Tag, Groesse, ETag
+ * (lib/ablageGithub releaseStempel); im Datenordner: Groesse und Aenderungszeit. null: Datei nicht da oder kein Stand feststellbar.
+ */
+export async function dateiStempel(name: string): Promise<string | null> {
+  const alteAblage = (process.env.COMPHUB_ABLAGE || '').toLowerCase();
+  if (alteAblage === 'supabase' || alteAblage === 'github' || (process.env.DATEN_TOKEN || '').trim()) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const g = require('@/lib/ablageGithub') as { nurRelease: (n: string) => boolean; releaseStempel: (n: string) => Promise<string | null> };
+    if (g.nurRelease(name)) return g.releaseStempel(name);
+  }
+  const a = await speicher.angaben(name).catch(() => null);
+  return a ? `${a.groesse}|${a.geaendert.getTime()}` : null;
+}
+
 export async function liesBereich(name: string, start: number, laenge: number): Promise<Buffer | null> {
   const alteAblage = (process.env.COMPHUB_ABLAGE || '').toLowerCase();
   if (alteAblage === 'supabase' || alteAblage === 'github' || (process.env.DATEN_TOKEN || '').trim()) {

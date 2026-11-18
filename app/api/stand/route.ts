@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { schleifenStand } from '@/lib/schleifenWaechter';
 
 /*
  * Welche Fassung der Seite gerade ausgeliefert wird.
@@ -73,6 +74,8 @@ export async function GET() {
       kerne: os.cpus().length,
       last: os.loadavg().map((x) => Math.round(x * 100) / 100),
       freiMb: Math.round(os.freemem() / 1048576),
+      // Wie lange die Ereignisschleife stand (lib/schleifenWaechter, 18.11.2026) - p50/p99/max seit dem letzten Abruf, dazu die letzten Luecken ueber 300 ms.
+      schleife: schleifenStand(),
       live: await liveTakt(),
     },
     // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.
