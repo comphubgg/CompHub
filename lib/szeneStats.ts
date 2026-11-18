@@ -1054,10 +1054,13 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
    */
   const bekannt = await bekannteKonten();
   const imArchiv = new Set(verzeichnis.map((e) => e.windowId));
-  for (const tag of await liesEpicSpieltage()) {
+  const epicTage = await liesEpicSpieltage();
+  const kopien = kopierteFenster(epicTage);
+  for (const tag of epicTage) {
     if (imArchiv.has(tag.windowId)) continue;
     let vs: AktenVorstufe | null = null;
     let replays: Map<string, [number, number]> | null = null;
+    const solo = soloElimsGelten(tag, kopien);
     for (const team of tag.teams) {
       for (const id of team.spieler) {
         if (!inSchale(id)) continue;
@@ -1068,7 +1071,8 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
         vs ??= await aktenVorstufe(tag);
         replays ??= new Map(vs.replay.map(([k, e, kn]) => [k, [e, kn]]));
         const r = replays.get(id);
-        const w = r ? { elims: r[0], knocks: r[1] } : undefined;
+        // Solo: Epics Elims sind die des Spielers, genau - sie gehen dem Replay vor (siehe soloElimsGelten). Teams: das Replay je Spieler.
+        const w = solo ? { elims: team.teamElims, knocks: r?.[1] ?? 0 } : r ? { elims: r[0], knocks: r[1] } : undefined;
         // Schaden und Clutch aus den vollen Replays, wo der Tag gelesen ist
         // (.github/workflows/clutch-rechnen.yml) - gezaehlt, nicht von Epic.
         const s = vs.schaden[id];
@@ -1081,6 +1085,7 @@ export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{
           mitspieler: team.spieler.filter((x) => x !== id),
           nurEpic: true,
           ...(w ? { replayElims: w.elims, replayKnocks: w.knocks } : {}),
+          ...(solo ? { elimsVonEpic: true as const } : {}),
           ...(sch ? { replaySchaden: sch } : {}),
           ...(typeof cl === 'number' ? { replayClutch: cl } : {}),
         });
@@ -2390,6 +2395,35 @@ export interface EpicSpieltag {
   }>;
 }
 
+/*
+ * Eliminierungen eines Solo-Spieltags aus Epics Bestenliste (18.11.2026).
+ *
+ * Bei Solos ist Epics "Team" ein Spieler, seine Elims sind also genau die des Spielers - so rechnet es auch lib/szeneEigen fuer die grossen
+ * Turniere. Die Epic-Zeilen der Akten nahmen dagegen nur das schnelle Replay, und das zaehlt an halb geladenen Tagen zu wenig: Malibuca S42
+ * Reload Solo Victory Cup Event 3 Runde 1 hatte 4 statt Epics 60, Event 4 Runde 1 30 statt 52, Solo Victory Cup Event 2 Runde 1 38 statt 52;
+ * ohne Replay (Vico S42 Arena Perf Eval, Epic 10) stand gar nichts da, und der Vergleich liess den Tag weg.
+ *
+ * Ausgenommen sind Bestenlisten, die Wort fuer Wort unter mehreren Fenstern liegen: S42 FNCS Solo Qualifiers - elf Fenster (EU, NAC, NAW,
+ * Qual1 und Qual2) mit derselben Liste, demselben Datum und 8.242 Teams, Malibuca darin elfmal Platz 659 mit 28 Elims. Welches Fenster die
+ * Liste wirklich gehoert, ist nicht zu erkennen; dort bleibt es beim Replay.
+ */
+function kopierteFenster(tage: EpicSpieltag[]): Set<string> {
+  const je = new Map<string, Set<string>>();
+  for (const t of tage) {
+    const kopf = t.teams.slice(0, 3).map((x) => `${x.platz}:${x.punkte}:${x.teamElims}:${x.spieler.join(',')}`).join(';');
+    const k = `${t.datum}|${t.teams.length}|${kopf}`;
+    je.set(k, (je.get(k) ?? new Set()).add(t.windowId));
+  }
+  const raus = new Set<string>();
+  for (const fenster of je.values()) if (fenster.size > 1) for (const w of fenster) raus.add(w);
+  return raus;
+}
+
+function soloElimsGelten(tag: EpicSpieltag, kopien: Set<string>): boolean {
+  return tag.teams.length > 0 && tag.teams.every((t) => t.spieler.length === 1 && typeof t.teamElims === 'number')
+    && !kopien.has(tag.windowId);
+}
+
 let epicListe: EpicSpieltag[] | null = null;
 let epicBis = 0;
 
@@ -2513,9 +2547,13 @@ export interface EpicZeile {
    * je Konto. Wo also ein Replay vorliegt, muss die Zeile nicht leer
    * bleiben. Schaden, Material und Bauteile stehen im Replay nicht - die
    * bleiben leer, denn geraten wird nichts.
+   *
+   * An Solo-Spieltagen steht hier Epics Zahl (je Spieler genau, siehe soloElimsGelten), sonst das Replay je Spieler.
    */
   replayElims?: number;
   replayKnocks?: number;
+  /** replayElims stammt aus Epics Solo-Bestenliste, nicht aus dem Replay. */
+  elimsVonEpic?: true;
 }
 
 export async function epicVerlauf(
@@ -2569,7 +2607,11 @@ export async function epicVerlauf(
   const imArchiv = new Set((await liesVerzeichnis()).map((e) => e.windowId));
 
   const zeilen: EpicZeile[] = [];
-  for (const tag of await liesEpicSpieltage()) {
+  const epicTage = await liesEpicSpieltage();
+  const kopien = kopierteFenster(epicTage);
+  /** Solo-Elims aus Epics Bestenliste, je Fenster (siehe soloElimsGelten) - wie in aktenSchreiben. */
+  const soloElims = new Map<string, number>();
+  for (const tag of epicTage) {
     if (imArchiv.has(tag.windowId)) continue;
     if (filter.saison && tag.season !== filter.saison) continue;
     if (filter.saisons?.length && !filter.saisons.includes(tag.season)) continue;
@@ -2577,6 +2619,7 @@ export async function epicVerlauf(
 
     const team = tag.teams.find((t) => t.spieler.includes(epicId));
     if (!team) continue;
+    if (soloElimsGelten(tag, kopien)) soloElims.set(tag.windowId, team.teamElims);
 
     zeilen.push({
       event: tag.windowId, windowId: tag.windowId, region: tag.region,
@@ -2594,6 +2637,13 @@ export async function epicVerlauf(
    */
   for (const z of zeilen) {
     const w = await replayWert(z.season, z.windowId, epicId);
+    const solo = soloElims.get(z.windowId);
+    if (typeof solo === 'number') {
+      z.replayElims = solo;
+      z.replayKnocks = w?.knocks ?? 0;
+      z.elimsVonEpic = true;
+      continue;
+    }
     if (!w) continue;
     z.replayElims = w.elims;
     z.replayKnocks = w.knocks;

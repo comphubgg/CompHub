@@ -308,6 +308,8 @@ interface VerlaufZeile {
   replayElims?: number;
   /** Ebenfalls aus dem Replay - steht im Mouseover neben den Elims. */
   replayKnocks?: number;
+  /** replayElims kommt aus Epics Solo-Bestenliste (je Spieler genau), nicht aus dem Replay. */
+  elimsVonEpic?: boolean;
   /** Aus Epics Bestenliste - fehlt, wo Epic das Fenster nicht mehr vorhaelt. */
   platz: number | null;
   punkte: number | null;
@@ -1569,7 +1571,9 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 {!z.nurEpic ? z.werte.eliminations
                   : typeof z.replayElims === 'number' ? (
                     <span
-                      title={t('Aus dem eigenen Replay dieses Spieltags '
+                      title={z.elimsVonEpic
+                        ? t('Aus Epics Bestenliste — im Solo sind die Eliminierungen des Teams die des Spielers.')
+                        : t('Aus dem eigenen Replay dieses Spieltags '
                         + 'gezählt — Epic gibt Eliminierungen nur je Team '
                         + 'heraus. Schaden, Material und Bauteile stehen im '
                         + 'Replay nicht.')
@@ -3539,7 +3543,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
         titel: string; windowId: string; region: string; season: string;
         datum: number | null; platz: number; punkte: number; matches: number;
         mitspieler: Mitspieler[];
-        replayElims?: number; replayKnocks?: number;
+        replayElims?: number; replayKnocks?: number; elimsVonEpic?: boolean;
         replaySchaden?: { dmg: number; erlitten: number; treffer: number; krit: number };
         verdienst?: number | null;
       }) => ({
@@ -3555,6 +3559,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
         nurEpic: true,
         replayElims: z.replayElims,
         replayKnocks: z.replayKnocks,
+        elimsVonEpic: z.elimsVonEpic === true,
         replaySchaden: z.replaySchaden,
         /*
          * Das Preisgeld der Epic-Zeilen ging hier verloren - die Verdienst-

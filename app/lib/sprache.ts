@@ -736,6 +736,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'eliminations per team. Damage, mats and builds are not in the replay.',
   'Die Eliminierungen kommen aus dem eigenen Replay.':
     'The eliminations come from our own replay.',
+  'Aus Epics Bestenliste — im Solo sind die Eliminierungen des Teams die des Spielers.':
+    'From Epic\'s leaderboard — in solos the team\'s eliminations are the player\'s.',
   'Spielverlauf': 'Match history',
   'Stand nach Runde {n}': 'standings after game {n}',
   'läuft gerade': 'live now',
