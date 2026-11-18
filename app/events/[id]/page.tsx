@@ -1585,6 +1585,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [dropFuer, setDropFuer] = useState('');
   useEffect(() => {
     if (!fenster) return undefined;
+    // Nur fuer den Admin (Betreiber, 18.11.2026: nicht freigegeben) - alle anderen sehen wie vorher die Noble-/Hand-Karten oder den Hinweis.
+    if (!istAdmin) { setDrop(null); setDropFuer(fenster.windowId); return undefined; }
     let weg = false;
     const w = fenster.windowId; const r = fenster.region;
     const holen = () => {
@@ -1596,9 +1598,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     holen();
     const stopp = fenster.status === 'live' ? sichtbarerTakt(holen, 60_000) : () => {};
     return () => { weg = true; stopp(); };
-  }, [fenster]);
+  }, [fenster, istAdmin]);
   // Nur die Antwort zu genau diesem Spieltag (beim Wechsel steht kurz noch die alte im Zustand).
-  const drop = dropStand && fenster && dropStand.windowId === fenster.windowId ? dropStand : null;
+  const drop = istAdmin && dropStand && fenster && dropStand.windowId === fenster.windowId ? dropStand : null;
 
 
   /**

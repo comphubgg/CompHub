@@ -134,9 +134,16 @@ const NUR_NEBENSACHE = (d) => /^(data\/|tmp|.*\.md$|\.gitignore$|.*\.(txt|out)$)
 
 const trailer = (text, name) => [...text.matchAll(new RegExp(`^${name}:\\s*(.+)$`, 'gim'))].map((m) => m[1].trim());
 
+/*
+ * Commits, die nie in den Changelog duerfen, obwohl ihr Trailer etwas anderes sagt (Commit-Texte lassen sich nachtraeglich nicht aendern).
+ * 159f0d3d: die eigene Drop-Karte - der Betreiber hat sie nicht freigegeben, sie ist nur fuer Admins (18.11.2026).
+ */
+const NIE_POSTEN = ['159f0d3d'];
+
 const gruppen = new Map(BEREICHE.map((b) => [b, []]));
 const uebersprungen = [];
 for (const c of commits) {
+  if (NIE_POSTEN.some((k) => c.sha.startsWith(k))) { uebersprungen.push([c, 'nie posten (nicht freigegeben)']); continue; }
   const neu = trailer(c.text, 'Changelog');
   const fix = trailer(c.text, 'Changelog-Fix');
   if (neu.some((x) => /^skip$/i.test(x))) { uebersprungen.push([c, 'Changelog: skip']); continue; }
