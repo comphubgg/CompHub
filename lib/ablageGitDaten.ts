@@ -68,7 +68,7 @@ const SCHNELL_MS = 10_000;
 const GESAMMELT_MS = 120_000;
 
 /** Was alle zwei Minuten statt sofort geschrieben wird: Zaehler, die bei jedem Aufruf anfallen. */
-const GESAMMELT = /^(besuche\.json|anwesenheit\.json|anwesenheit\/.*)$/;
+const GESAMMELT = /^(besuche\.json|besuche-details\.json|anwesenheit\.json|anwesenheit\/.*)$/;
 
 /*
  * Was nur im Arbeitsspeicher liegt, nie im Archiv: Zwischenspeicher, die die Seite alle paar

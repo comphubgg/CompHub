@@ -208,6 +208,10 @@ const DE: RechtsText = {
         + 'online ist. Zum Schutz vor weitergegebenen oder gestohlenen Zugängen wird je Sitzung eines angemeldeten Kontos zudem grob '
         + 'festgehalten, womit sie stattfand: Geräteart, Betriebssystem, Browser, das Handymodell, wenn der Browser es nennt, und '
         + 'das Land. Keine IP-Adresse und kein genauer Ort; aufbewahrt werden die letzten 60 Sitzungen und 12 Geräte je Konto.',
+        'Für die Besuchsstatistik werden außerdem nur Summen je Tag gebildet: wie viele Besuche aus welchem Land kamen (laut '
+        + 'Cloudflare), mit welcher Geräteart, welchem Betriebssystem und Browser, über welche Quelle (die verweisende Website, '
+        + 'z. B. X oder Google, bzw. ein utm_source-Parameter) und welche Seiten aufgerufen wurden. Diese Summen enthalten weder '
+        + 'IP-Adresse noch Kennung und lassen sich keinem einzelnen Besuch zuordnen; sie werden 90 Tage aufbewahrt.',
       ],
     },
     {

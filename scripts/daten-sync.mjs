@@ -61,7 +61,7 @@ const NOETIGES = [
   'spieler-namen.json', 'orgtags.json', 'socials.json', 'players.json', 'duos.json',
   'galerie.json', 'kontakt.json', 'sektionen.json', 'notes.json', 'offene-aufgaben.json',
   'anwesenheit.json', 'insel-bilder.json', 'tournaments.json', 'tournament-maps.json',
-  'tournamentLeaderboards.json', 'gegenstaende.json', 'besuche.json', 'epic-auth.json',
+  'tournamentLeaderboards.json', 'gegenstaende.json', 'besuche.json', 'besuche-details.json', 'epic-auth.json',
   'epic-namen.json', 'preisgelder.json', 'lan-preisgelder.json', 'cup-archiv.json',
   'bekannte-ohne-foto.txt', 'fehlende-bilder.txt',
   'discord-kanaele.json', 'discord-anfragen.json', 'vip-users.json',

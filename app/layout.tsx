@@ -257,7 +257,8 @@ export default async function RootLayout({
             * Neuladen erfasst werden; ausgewertet wird das unten im
             * Dashboard.
             */}
-          <Besuchszaehler />
+          {/* useSearchParams braucht eine eigene Grenze, sonst haengt der ganze Rahmen am Browser. */}
+          <Suspense fallback={null}><Besuchszaehler /></Suspense>
           {/* Meldet Abstuerze im Browser eines Besuchers an #admin-alarm. */}
           <Fehlerfaenger />
         </SprachProvider>

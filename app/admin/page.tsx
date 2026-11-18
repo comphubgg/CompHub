@@ -28,6 +28,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { bereichVonPfad } from '@/lib/rechte';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
+import Besucherherkunft from '@/app/components/Besucherherkunft';
 import Fusszeile from '@/app/components/Fusszeile';
 import MeinArchiv from './MeinArchiv';
 import KontoInhalt from '../account/KontoInhalt';
@@ -790,6 +791,7 @@ export default function AdminDashboardPage() {
             <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
               <h2 className="mb-3 text-sm font-extrabold uppercase tracking-[0.16em] text-rose-300"><T>Usage</T></h2>
               <Nutzungszahlen />
+              <Besucherherkunft />
             </section>
             <Klappbar titel="Offline-Seiten" kennung="offline-seiten" hinweis="Was gerade nicht online ist">
               <OfflineSeiten />

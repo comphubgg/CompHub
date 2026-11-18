@@ -6,6 +6,7 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { vipAus } from '@/lib/vipCookie';
 import { merkeAufruf } from '@/lib/anwesenheit';
 import { geraetAus } from '@/lib/geraet';
+import { zaehleDetails } from '@/lib/besuchDetails';
 
 /*
  * Die Meldung "hier ist jemand".
@@ -88,6 +89,28 @@ export async function POST(request: Request) {
     }
 
     const neuesCookie = await zaehleAufruf(laden.get(BESUCH_COOKIE)?.value);
+
+    /*
+     * Die Aufschluesselung (lib/besuchDetails): Land, Geraet, Seite, Quelle - nur als Summen. "besucher" ist genau dann wahr,
+     * wenn der Zaehler darueber den Browser heute zum ersten Mal sah (dann kommt ein neues Cookie), damit beide Zahlen passen.
+     * Der Koerper ist klein und kommt vom Besuchszaehler; fehlt er (alte Seite im Zwischenspeicher), zaehlen Land und Geraet trotzdem.
+     */
+    let koerper: { p?: unknown; s?: unknown; q?: { r?: unknown; u?: unknown } } = {};
+    try {
+      const roh = await request.text();
+      if (roh && roh.length < 2000) {
+        const j = JSON.parse(roh);
+        if (j && typeof j === 'object') koerper = j;
+      }
+    } catch { /* ohne Angaben */ }
+    await zaehleDetails({
+      headers: request.headers,
+      geraet,
+      pfad: koerper.p,
+      spieler: koerper.s,
+      sitzung: koerper.q && typeof koerper.q === 'object' ? { referrer: koerper.q.r, utm: koerper.q.u } : null,
+      besucher: neuesCookie !== null,
+    }).catch(() => { /* nie im Weg */ });
 
     const antwort = new NextResponse(null, { status: 204 });
     if (neuesCookie) {
