@@ -1,4 +1,6 @@
 import { Session } from 'node:inspector';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /*
  * Was hielt die Ereignisschleife an? (18.11.2026)
@@ -11,7 +13,7 @@ import { Session } from 'node:inspector';
 
 interface Knoten { id: number; callFrame: { functionName: string; url: string; lineNumber: number; columnNumber: number }; children?: number[] }
 interface Profil { nodes: Knoten[]; startTime: number; samples: number[]; timeDeltas: number[] }
-export interface Block { ende: string; ms: number; oben: Array<{ ms: number; kette: string[] }> }
+export interface Block { ende: string; ms: number; oben: Array<{ ms: number; kette: string[]; quelltext?: string }> }
 
 const FENSTER_MS = 30_000;
 const AB_MS = 1_000;
@@ -24,6 +26,24 @@ const kurz = (k: Knoten) => {
   const url = k.callFrame.url.replace(/^.*\/(\.next|node_modules)\//, '$1/');
   return `${k.callFrame.functionName || '(anonym)'} ${url}:${k.callFrame.lineNumber + 1}:${k.callFrame.columnNumber + 1}`;
 };
+
+/*
+ * Der Quelltext an der Stelle (18.11.2026): die Chunks sind verkleinert - "I lib_mapsVerzeichnis_ts_0o08k49._.js:1:14574" sagt nicht, welche Funktion
+ * es ist. Ein Stueck Text ab der Spalte (aus der Datei im Container) zeigt es. Nur fuer eigene Chunks, hoechstens 240 Zeichen.
+ */
+const dateien = new Map<string, string[] | null>();
+function ausschnitt(k: Knoten | undefined): string | undefined {
+  const url = k?.callFrame.url ?? '';
+  if (!/\.next\/server\//.test(url)) return undefined;
+  let zeilen = dateien.get(url);
+  if (zeilen === undefined) {
+    try { zeilen = readFileSync(url.startsWith('file:') ? fileURLToPath(url) : url, 'utf8').split('\n'); } catch { zeilen = null; }
+    dateien.set(url, zeilen);
+    if (dateien.size > 50) dateien.delete(dateien.keys().next().value as string);
+  }
+  const z = zeilen?.[k!.callFrame.lineNumber];
+  return z === undefined ? undefined : z.slice(Math.max(0, k!.callFrame.columnNumber - 40), k!.callFrame.columnNumber + 200);
+}
 
 export function auswerten(p: Profil, jetztIso: string): Block | null {
   const nach = new Map(p.nodes.map((k) => [k.id, k]));
@@ -52,7 +72,7 @@ export function auswerten(p: Profil, jetztIso: string): Block | null {
       const n = nach.get(k);
       if (n && n.callFrame.functionName !== '(root)') kette.push(kurz(n));
     }
-    return { ms: Math.round(t / 1000), kette };
+    return { ms: Math.round(t / 1000), kette, quelltext: ausschnitt(nach.get(id)) };
   });
   return { ende: jetztIso, ms: Math.round(best.us / 1000), oben };
 }
