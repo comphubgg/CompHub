@@ -1294,6 +1294,34 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
   }, [fenster, belohnungsRang, liveAn, liveQualNr]);
 
+  /*
+   * Finale ohne Weiterkommen (Betreiber, 18.11.2026: "for a final, either predict 1st place or nothing"): statt der Grenze die Punkte von Platz 1, aus
+   * vergleichbaren frueheren Finals (app/api/sieger-prognose). ohneWeiterkommen sagt der Server - dann faellt die Grenz-Prognose weg, auch ohne Daten.
+   */
+  const [sieg, setSieg] = useState<{
+    ohneWeiterkommen: boolean; vorhanden: boolean; wert: number | null; vorab: number | null; spiele: number;
+    format: string; modus: string; grundlage: number; laeuft: boolean;
+    finals: Array<{ windowId: string; titel: string | null; region: string | null; datum: number; punkte: number; spiele: number }>;
+    live: { punkte: number; spiele: number; hochgerechnet: number | null; gewicht: number; fertig: boolean } | null;
+  } | null>(null);
+  useEffect(() => {
+    let weg = false;
+    if (!fenster || !/final/i.test(fenster.windowId) || fenster.qualifiziert) { setSieg(null); return undefined; }
+    let uhr: number | undefined;
+    const holen = () => fetch(`/api/sieger-prognose?window=${encodeURIComponent(fenster.windowId)}&region=${encodeURIComponent(fenster.region)}`
+      + (liveV.current ? `&sv=${liveV.current}` : ''), { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        setSieg(j?.ohneWeiterkommen ? j : null);
+        // Waehrend des Finales im Takt der Grenz-Prognose; am Datenstrom meldet liveQualNr jeden neuen Stand.
+        if (j?.laeuft && !liveAn) uhr = window.setTimeout(() => { if (!document.hidden) holen(); }, 20_000);
+      })
+      .catch(() => {});
+    holen();
+    return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
+  }, [fenster, liveAn, liveQualNr]);
+
   /** Welcher Reiter im Preis-Block offen ist. */
   const [preisReiter, setPreisReiter] = useState<'preis' | 'wertung'>('preis');
   /** Wie viele Punkte ein Platz der Auszahlungstabelle gerade braucht (Rang -> Punkte), live aus Epics Bestenliste. */
@@ -3544,16 +3572,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * Prognose als eigene Kachel mit Logo - getrennt statt mit Punkten aneinandergehaengt.
                */
               const einfach = !qual?.kumuliert && !kumAktiv;
-              const jetztWert = einfach && typeof qual?.tatsaechlich === 'number' ? qual.tatsaechlich : null;
+              // Finale ohne Weiterkommen: keine Grenze, weder jetzt noch als Prognose - dort steht die Sieger-Prognose (sieg).
+              const finaleOhneGrenze = !!sieg?.ohneWeiterkommen;
+              const jetztWert = einfach && !finaleOhneGrenze && typeof qual?.tatsaechlich === 'number' ? qual.tatsaechlich : null;
               // Die Prognose bleibt auch nach dem Cup stehen, neben dem, was es am Ende gekostet hat (Betreiber, 8.11.2026).
               // Kommen (fast) alle weiter - Heats mit "Top 99" bei 40 Spielern je Heat -, sagt eine Grenze von ein paar Punkten nichts (stand "~3 Points" da).
-              const prognoseRoh = einfach && qual?.schnitt ? qualPrognose(qual) : null;
+              const prognoseRoh = einfach && !finaleOhneGrenze && qual?.schnitt ? qualPrognose(qual) : null;
               const prognoseWert = prognoseRoh !== null && prognoseRoh >= 20 ? prognoseRoh : null;
               /*
                * Woraus die Prognose waehrend des Spieltags besteht (Betreiber, 15.11.2026: die alte Sperre sprang ohne Erklaerung von 228 auf 173): Vorab-Prognose,
                * Grenze jetzt nach wie vielen Spielen, Hochrechnung und wie stark sie zaehlt - als Zeile unter der Zahl und ausfuehrlich beim Darueberfahren.
                */
-              const mg = qual?.mitte != null ? qual.mitteGrund ?? null : null;
+              const mg = !finaleOhneGrenze && qual?.mitte != null ? qual.mitteGrund ?? null : null;
               const prognoseGrund = mg ? [
                 mg.vorab !== null ? `${t('Vorab')} ${mg.vorab}` : null,
                 `${t('Grenze jetzt')} ${mg.grenze} ${t('nach')} ${mg.stand.toLocaleString(ort, { maximumFractionDigits: 1 })}/${mg.spiele} ${t('Spielen')}`,
@@ -3564,7 +3594,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * Woraus die Vorab-Prognose besteht (Koordinator, 16.11.2026): Schnitt der Vorlage und die gelernte Korrektur aus Regionen, deren Spieltag derselben
                * Art schon fertig ist - "S42 FNCS Solos LCQ 365 x 1,07 (OCE: Prognose 341, Ergebnis 365)".
                */
-              const vorabGrund = qual?.schnitt ? [
+              const vorabGrund = !finaleOhneGrenze && qual?.schnitt ? [
                 `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}`
                   + (qual.ausgaben.some((a) => typeof a.punkte === 'number') ? ` (${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')})` : ''),
                 !qual.aehnlich ? `+ ${QUAL_ZUSCHLAG}` : null,
@@ -3574,6 +3604,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     : `${qual.korrektur > 0 ? '+' : '−'} ${Math.abs(qual.korrektur)}`} ${t('gelernt aus fertigen Spieltagen derselben Art')}: ${qual.korrekturAus.map((k) => `${/_([A-Z]+)$/.exec(k.windowId)?.[1] ?? k.windowId} ${t('Prognose')} ${k.prognose} → ${t('Ergebnis')} ${k.tatsaechlich}`).join(' · ')}`
                   : null,
               ].filter(Boolean).join(' ') : null;
+              /*
+               * Die Sieger-Prognose und ihre Grundlage ("based on 4 past Reload Solo finals (OCE, ME, NAC, ASIA)"); waehrend des Finales das Tempo des
+               * Fuehrenden. Zu wenige vergleichbare Finals: keine Kachel (sieg.wert ist dann null).
+               */
+              const SIEG = t('Voraussichtliche Siegerpunkte');
+              const siegWert = finaleOhneGrenze && typeof sieg?.wert === 'number' ? sieg.wert : null;
+              const siegFormat = ({ solo: 'Solo', duo: 'Duo', trio: 'Trio', squad: 'Squad' } as Record<string, string>)[sieg?.format ?? ''] ?? '';
+              const siegModus = (sieg?.modus ?? '').startsWith('reload') ? 'Reload' : (sieg?.modus ?? '').includes('|zb|') ? 'Zero Build' : 'Battle Royale';
+              const siegRegionen = [...new Set((sieg?.finals ?? []).map((f) => f.region).filter((r): r is string => !!r && r !== fenster.region))];
+              const siegGrund = siegWert !== null && sieg ? [
+                t('aus {n} früheren {art}-Finals').replace('{n}', String(sieg.grundlage)).replace('{art}', `${siegModus} ${siegFormat}`.trim())
+                  + (siegRegionen.length ? ` (${siegRegionen.join(', ')})` : ''),
+                sieg.live && !sieg.live.fertig ? `${t('Platz 1 jetzt')} ${sieg.live.punkte} ${t('nach')} ${sieg.live.spiele}/${sieg.spiele} ${t('Spielen')}` : null,
+                sieg.live?.fertig ? t('alle Spiele gespielt') : null,
+              ].filter(Boolean).join(' · ') : null;
+              const siegTitel = siegWert !== null && sieg ? [
+                `${t('Median je Spiel, mal')} ${sieg.spiele} ${t('Spiele')}: ${sieg.finals.map((f) => `${f.titel ? `${f.titel} ` : ''}${f.region ?? ''} ${new Date(f.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${f.punkte} (${f.spiele} ${t('Spiele')})`).join(' · ')}`,
+                sieg.live && sieg.vorab !== null && sieg.live.hochgerechnet !== null && !sieg.live.fertig
+                  ? `${t('Vorab')} ${sieg.vorab} · ${t('hochgerechnet')} ${sieg.live.hochgerechnet} (${t('zählt')} ${Math.round(sieg.live.gewicht * 100)} %)` : null,
+              ].filter(Boolean).join('\n') : null;
+              const istPrognose = (l: string) => l === 'CompHub Prediction' || l === SIEG;
               const kacheln: Array<[string, string, string]> = [
                 [basis[0][0], basis[0][1], 'sm:flex-[1.7]'],
                 ...(ende ? [[fenster.status === 'live' ? t('Endet in') : t('Dauer'), dauer(fenster.status === 'live' ? (ende - Date.now()) / 1000 : (ende - fenster.begin) / 1000), 'sm:flex-1'] as [string, string, string]] : []),
@@ -3589,21 +3640,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 ...(fenster.sofortPunkte ? [[t('Sofort qualifiziert'), fenster.sofortPunkte >= 1000 ? t('Ein Spiel gewinnen') : `${fenster.sofortPunkte.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(jetztWert !== null ? [[qual?.laeuft ? t('Qual-Grenze jetzt') : t('Qual-Grenze am Ende'), `${jetztWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-1'] as [string, string, string]] : []),
                 ...(prognoseWert !== null ? [['CompHub Prediction', `~${prognoseWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
+                ...(siegWert !== null ? [[SIEG, `~${siegWert.toLocaleString(ort)} ${t('Punkte')}`, 'sm:flex-[1.4]'] as [string, string, string]] : []),
               ];
               void format; void region;
               return kacheln.map(([l, v, breite]) => (
-              <div key={l} className={`min-w-0 rounded-xl border px-3 py-2.5 ${breite} ${l === 'CompHub Prediction' ? 'border-sky-500/40 bg-sky-500/[0.07]' : 'border-zinc-800 bg-zinc-900/40'}`}
+              <div key={l} className={`min-w-0 rounded-xl border px-3 py-2.5 ${breite} ${istPrognose(l) ? 'border-sky-500/40 bg-sky-500/[0.07]' : 'border-zinc-800 bg-zinc-900/40'}`}
                 title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
                   ? `${qual.vortag ? t('Wert des Vortags') : qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt}${qual.aehnlich ? '' : ` + ${QUAL_ZUSCHLAG}`}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
                   : undefined}>
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
-                  {l === 'CompHub Prediction' && <img src="/logos/CompHub-Logo-96.webp" alt="" className="h-3.5 w-3.5 rounded-sm" />}
+                  {istPrognose(l) && <img src="/logos/CompHub-Logo-96.webp" alt="" className="h-3.5 w-3.5 rounded-sm" />}
                   <span>{l}</span>
                 </div>
-                <div className={`mt-0.5 break-words text-sm font-semibold ${l === 'CompHub Prediction' ? 'text-sky-300' : 'text-slate-100'}`}
+                <div className={`mt-0.5 break-words text-sm font-semibold ${istPrognose(l) ? 'text-sky-300' : 'text-slate-100'}`}
                   title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}${vorabGrund ? `\n${t('Vorab')}: ${vorabGrund}` : ''}`
-                    : l === 'CompHub Prediction' && vorabGrund ? `${t('Vorab')}: ${vorabGrund}` : v}>{v}</div>
+                    : l === 'CompHub Prediction' && vorabGrund ? `${t('Vorab')}: ${vorabGrund}`
+                    : l === SIEG && siegTitel ? siegTitel : v}>{v}</div>
                 {l === 'CompHub Prediction' && prognoseGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{prognoseGrund}</div>}
+                {l === SIEG && siegGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{siegGrund}</div>}
               </div>
             )); })()}
           </div>
