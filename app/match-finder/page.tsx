@@ -19,7 +19,7 @@ interface Favorit { id: string; name: string }
 /** Ein Suchtreffer: Pro-Name, aktueller In-Game-Name und Bild. */
 interface Treffer extends Favorit { ingame?: string | null; bild?: string | null }
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
-interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund'; windowId: string | null; titel: string | null; playlist: string | null }
+interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund' | 'rangliste'; windowId: string | null; titel: string | null; playlist: string | null }
 interface FScrim { beendet?: boolean; session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
 interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null; freund?: boolean }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }
@@ -30,6 +30,18 @@ interface FFreund { id: string; name: string; live: FLive | null; verlauf: FVerl
 
 const SPEICHER = 'match-finder-favoriten';
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
+
+/*
+ * Abruf-Takt des Finders (Betreiber-Stellschraube): waehrend ein Cup laeuft (oder ein Scrim) haeufig - die Rangliste aktualisiert sich sekuendlich, die
+ * Match-ID soll kurz nach dem ersten Kill da sein -, sonst sparsam, nur um den Start des naechsten Cups zu bemerken.
+ */
+const TAKT_LIVE_MS = 20_000;
+const TAKT_RUHE_MS = 60_000;
+
+/** Wie die Match-ID gefunden wurde - fuer das kleine Herkunfts-Etikett im Live-Kasten. */
+const QUELLE_TEXT: Record<FLive['quelle'], string> = {
+  freund: 'Freund', bestenliste: 'Live-Liste', sitzung: 'Sitzungssuche', rangliste: 'Rangliste',
+};
 
 /** Epics Playlist-Kennung lesbar: "Playlist_ShowdownAlt_Duos" -> "Tournament · Duos", "Playlist_PlaygroundV2" -> "Creative / custom lobby". */
 function spielart(p: string | null): string | null {
@@ -113,6 +125,13 @@ function LiveKasten({ live, kopiert, kopieren }: { live: FLive; kopiert: string;
         className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-400">
         {kopiert === live.matchId ? t('Kopiert') : t('Match-ID kopieren')}
       </button>
+      {/* Herkunft der Match-ID (Betreiber, 19.11.2026): "Freund" kommt schon vor dem ersten Kill, "Rangliste" greift ohne Freundschaft nach dem ersten Kill. */}
+      <span className="ml-auto whitespace-nowrap text-[11px] text-slate-400"
+        title={live.quelle === 'rangliste' ? t('Aus der Cup-Bestenliste - ohne Freundschaft, sobald der Spieler sein erstes gewertetes Ereignis hatte.')
+          : live.quelle === 'freund' ? t('Aus dem Epic-Status eines Freundes der CompHub-Konten - schon in der Aufwärmphase.')
+          : t('Aus Epics laufenden Sitzungen.')}>
+        {t('gefunden über')}: <span className="font-semibold text-slate-300">{t(QUELLE_TEXT[live.quelle])}</span>
+      </span>
     </div>
   );
 }
@@ -280,7 +299,7 @@ export default function MatchFinder() {
   useEffect(() => {
     if (!darf) return undefined;
     laden();
-    const id = window.setInterval(laden, liveCup ? 20_000 : 60_000);
+    const id = window.setInterval(laden, liveCup ? TAKT_LIVE_MS : TAKT_RUHE_MS);
     return () => window.clearInterval(id);
   }, [darf, laden, liveCup]);
 
@@ -389,7 +408,7 @@ export default function MatchFinder() {
                      * liefert fuer fremde Konten nichts). Wer nicht mit dem CompHub-Konto befreundet ist, bekommt deshalb nicht "in keinem Match", sondern den Grund.
                      */
                     <p className="mt-3 text-xs text-slate-500">{!daten ? <T>Wird geladen …</T>
-                      : s?.freund === false ? <T>Laufende Matches zeigt Epic nur Freunden - dieser Spieler ist noch nicht mit dem CompHub-Epic-Konto befreundet. Fertige Spiele stehen unten, sobald sie vorbei sind.</T>
+                      : s?.freund === false ? <T>Vor dem ersten Kill zeigt Epic die laufende Sitzung nur Freunden - dieser Spieler ist nicht mit dem CompHub-Epic-Konto befreundet. Sobald er sein erstes gewertetes Ereignis hat (erster Kill/erste Platzierung), erscheint die Match-ID hier aus der Cup-Bestenliste, auch ohne Freundschaft.</T>
                       : <T>Gerade in keinem Match.</T>}</p>
                   ) : null}
                   {/* Laufende Scrims (Noble/Yunite): Session, Platz, Punkte, Spiele und die volle Kennung des letzten Spiels. */}

@@ -6,7 +6,7 @@ import { liesJson, aendereJson } from '@/lib/ablage';
  *
  * Je Konto jede Sitzung, die der Finder gesehen hat: Match-ID, zuerst und zuletzt gesehen, Playlist, und - wo es sich zuordnen laesst - Cup-Titel und
  * windowId. Quellen: der XMPP-Dienst (scripts/xmpp-dienst.mjs, /verlauf - er sieht jeden Wechsel jedes Freundes, auch wenn niemand die Seite offen hat) und
- * die Live-Funde des Finders selbst (Bestenliste, Sitzungssuche, Freund).
+ * die Live-Funde des Finders selbst (Bestenliste, Sitzungssuche, Freund, Rangliste).
  *
  * Abgelegt als EINE kleine Datei (match-finder-verlauf.json: { <epicId>: Eintrag[] }), je Konto hoechstens 50 Eintraege der letzten 14 Tage. Geschrieben
  * wird gesammelt, hoechstens alle 60 s - und nur, wenn eine neue Sitzung oder ein neuer Titel dazukam; reine "noch gesehen"-Zeiten gehen hoechstens alle
@@ -24,7 +24,7 @@ export interface VerlaufEintrag {
   zeile?: string;
   windowId?: string | null;
   titel?: string | null;
-  quelle?: 'freund' | 'bestenliste' | 'sitzung';
+  quelle?: 'freund' | 'bestenliste' | 'sitzung' | 'rangliste';
 }
 
 const DATEI = 'match-finder-verlauf.json';

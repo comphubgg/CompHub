@@ -11,22 +11,31 @@ import { merke, verlaufVon, titelNachtragen, type VerlaufEintrag } from '@/lib/m
  * oder nicht live, dann kann man die Match-ID kopieren und ingame schauen - VIP only + Dashboard, Spieler als Favoriten - und das nicht erst, wenn er tot
  * ist, sondern sobald die Lobby eroeffnet wurde".
  *
- * Zwei Quellen, beide von Epic:
+ * Mehrere Quellen, alle von Epic (Reihenfolge in finde(): Live-Sitzung, dann Freund, dann Rangliste):
  *   - die Bestenliste des laufenden Cups: je Team die gespielten Matches mit ihrer Kennung (= Match-ID) und, auf derselben Seite, "liveSessions" - die
  *     Matches, in denen Teams gerade spielen. Die Bestenliste nennt ein Team erst nach seinem ersten Spiel.
  *   - Epics Sitzungssuche (matchmaking/session/findPlayer): die Sitzung, in der ein Konto gerade ist - auch vor dem ersten gewerteten Spiel.
- * Beides wurde am 29.10.2026 ausserhalb eines Cups geprueft (leer, wie erwartet); wie "liveSessions" waehrend eines Cups aufgebaut ist, steht erst beim
- * ersten echten Lauf fest - deshalb wird es hier tolerant gelesen und der Admin sieht den Rohwert.
+ *   - der Freund-Status (lib/epicFreundeStatus, XMPP): die laufende Sitzung eines Freundes der CompHub-Konten - schon in der Aufwaermphase, vor dem ersten Kill.
+ *   - die RANGLISTE (quelle 'rangliste', seit 19.11.2026): die neueste Sitzung aus dem Bestenlisten-Verlauf eines Teams. Das ist die einzige Quelle, die
+ *     OHNE Freundschaft fuer JEDES angemeldete Konto greift - aber erst nach dem ersten gewerteten Ereignis (Epics harte Grenze: davor fuehrt die
+ *     Bestenliste das Team nicht). "liveSessions" und die Sitzungssuche sind fuer Fremde leer (geprueft Clix, 7.11.2026); die Rangliste schliesst diese Luecke.
+ * Ausserhalb eines Cups ist alles leer (29.10.2026 geprueft, wie erwartet); "liveSessions" wird tolerant gelesen, der Admin sieht zusaetzlich den Rohwert.
  */
 
 export interface FinderMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
-export interface FinderLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund'; windowId: string | null; titel: string | null; playlist: string | null; seit: string | null }
+export interface FinderLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund' | 'rangliste'; windowId: string | null; titel: string | null; playlist: string | null; seit: string | null }
 export interface FinderSpieler { live: FinderLive | null; matches: FinderMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: ScrimTreffer | null }
 export interface FinderCup { windowId: string; eventId: string; titel: string; region: string; live: boolean }
 
 const FINDE = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/matchmaking/session/findPlayer/';
 /** Beendete Fenster zaehlen noch so lange mit - ihre letzten Matches stehen dann weiter da. */
 const NACHLAUF_MS = 3 * 3600_000;
+/*
+ * Stellschraube (Betreiber): wie lange ein Finder-Ergebnis wiederverwendet wird, bevor Epic erneut gefragt wird. Kurz, damit die Rangliste-Match-ID
+ * Sekunden nach dem ersten gewerteten Ereignis erscheint - lang genug, dass mehrere offene Seiten Epic nicht gleichzeitig durch alle hundert
+ * Bestenlisten-Seiten jagen. Die Bestenlisten-Seiten selbst sind in lib/epicCups gestaffelt und einzeln gecacht (Seite 0 alle 3 s).
+ */
+const FINDER_CACHE_MS = 15_000;
 
 interface KatalogFenster { windowId: string; eventId: string; region: string; status: string; begin?: number; end?: number; playlist?: string }
 
@@ -217,7 +226,7 @@ const NICHT_DABEI_MS = 3 * 60_000;
 export async function finde(ids: string[], mitRohwert = false, namen: Record<string, string> = {}): Promise<{ cups: FinderCup[]; spieler: Record<string, FinderSpieler>; roh?: unknown[]; verlauf: Record<string, VerlaufEintrag[]> }> {
   const schluessel = `finder|${[...ids].sort().join(',')}|${mitRohwert ? 'roh' : ''}`;
   const [r, scrims] = await Promise.all([
-    gecacht(schluessel, 15_000, () => findeFrisch(ids, mitRohwert)),
+    gecacht(schluessel, FINDER_CACHE_MS, () => findeFrisch(ids, mitRohwert)),
     // Laufende Scrims (Noble): ueber die Epic-Konto-Id im Session-Leaderboard, vor dem ersten Spiel ueber den Namen auf der Anmeldeliste.
     (async () => {
       const aktuell = await epicNamen();
@@ -234,7 +243,12 @@ export async function finde(ids: string[], mitRohwert = false, namen: Record<str
   ]);
   const spieler = Object.fromEntries(Object.entries(r.spieler).map(([id, s]) => {
     const f = freunde.get(id.toLowerCase());
-    const live = s.live ?? (f ? freundLive(f, fenster) : null);
+    const fl = f ? freundLive(f, fenster) : null;
+    /*
+     * Der Freund-Status ist die schnellste Quelle - Epic schickt ihn schon in der Aufwaermphase, vor dem ersten Kill - und geht darum vor der Rangliste
+     * (die erst nach dem ersten gewerteten Ereignis etwas hat). Epics eigene Live-Sitzungen (bestenliste/sitzung) bleiben wie bisher ganz vorn.
+     */
+    const live = (s.live && s.live.quelle !== 'rangliste') ? s.live : (fl ?? s.live);
     return [id, { ...s, live, scrim: scrims[id] ?? null, freund: freunde.has(id.toLowerCase()) }];
   }));
   // Jede gesehene Sitzung bleibt im Verlauf (Betreiber, 17.11.2026) - auch nachdem der Spieler das Match verlassen hat.
@@ -271,6 +285,18 @@ async function findeFrisch(ids: string[], mitRohwert: boolean): Promise<{ cups: 
           const live = seite ? liveAus(seite.liveSessions, e.players.map((x) => x.id), e.teamId) : null;
           if (live && !e.matches.some((m) => m.sessionId === live)) {
             s.live = { matchId: live, quelle: 'bestenliste', windowId: c.windowId, titel: c.titel, playlist: null, seit: null };
+          }
+          /*
+           * Rangliste - OHNE Freundschaft: die neueste Sitzung aus dem Bestenlisten-Verlauf des Teams. Sie steht fuer jedes angemeldete Team da,
+           * sobald Epic sie wertet - also Sekunden nach dem ersten gewerteten Ereignis (erstem Kill/erster Platzierung); vorher fuehrt Epic das Team
+           * gar nicht in der Liste. Nur fuer laufende Cups, und nur als Rueckfall: Epics Live-Sitzungen (oben) und der Freund-Status (in finde()) gehen vor.
+           */
+          if (c.live && !s.live) {
+            const neuste = [...e.matches].filter((m) => m.sessionId)
+              .sort((a, b) => (Date.parse(b.endTime ?? '') || Date.now()) - (Date.parse(a.endTime ?? '') || Date.now()))[0];
+            if (neuste?.sessionId) {
+              s.live = { matchId: neuste.sessionId, quelle: 'rangliste', windowId: c.windowId, titel: c.titel, playlist: null, seit: neuste.endTime ?? null };
+            }
           }
         }
       }
