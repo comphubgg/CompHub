@@ -1220,6 +1220,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Die Prognose waehrend des Spieltags und woraus sie besteht (app/api/qualifikation, mitteRechnen). */
     mitte?: number | null;
     mitteGrund?: { grenze: number; stand: number; spiele: number; vorab: number | null; hochgerechnet: number | null; anteil: number | null; gewicht: number; fertig: boolean } | null;
+    mitteArt?: 'fest' | 'halbzeit' | 'einmal' | null;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
     /** Gelernte Korrektur aus fertigen Spieltagen derselben Art: Punkte, als Anteil (andere Cup-Reihe als Vorlage) und woraus. */
     korrektur?: number; korrekturArt?: 'punkte' | 'anteil' | null;
@@ -3614,6 +3615,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * Grenze jetzt nach wie vielen Spielen, Hochrechnung und wie stark sie zaehlt - als Zeile unter der Zahl und ausfuehrlich beim Darueberfahren.
                */
               const mg = !finaleOhneGrenze && qual?.mitte != null ? qual.mitteGrund ?? null : null;
+              /*
+               * Eine Zahl je Cup (Betreiber, 19.11.2026: "323, 324, 314 bei jedem Neuladen"): unter der Zahl nur noch, ob sie fest ist oder einmal zur Halbzeit
+               * angepasst wird - die Zeile "Vorab ... zaehlt 2 %" verwirrte. Woraus das eine Update besteht, steht beim Darueberfahren.
+               */
+              const mitteZeile = !finaleOhneGrenze && qual?.mitte != null && qual.mitteArt
+                ? t(qual.mitteArt === 'fest' ? 'Fest für diesen Cup' : qual.mitteArt === 'einmal' ? 'Einmal zur Halbzeit angepasst' : 'Wird zur Halbzeit einmal angepasst')
+                : null;
               const prognoseGrund = mg ? [
                 mg.vorab !== null ? `${t('Vorab')} ${mg.vorab}` : null,
                 `${t('Grenze jetzt')} ${mg.grenze} ${t('nach')} ${mg.stand.toLocaleString(ort, { maximumFractionDigits: 1 })}/${mg.spiele} ${t('Spielen')}`,
@@ -3686,7 +3694,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   title={l === 'CompHub Prediction' && prognoseGrund ? `${t('Hochgerechnet über den Verlauf ähnlicher Spieltage, gewichtet mit der Vorab-Prognose')}: ${prognoseGrund}${vorabGrund ? `\n${t('Vorab')}: ${vorabGrund}` : ''}`
                     : l === 'CompHub Prediction' && vorabGrund ? `${t('Vorab')}: ${vorabGrund}`
                     : l === SIEG && siegTitel ? siegTitel : v}>{v}</div>
-                {l === 'CompHub Prediction' && prognoseGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{prognoseGrund}</div>}
+                {l === 'CompHub Prediction' && (mitteZeile ?? prognoseGrund) && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{mitteZeile ?? prognoseGrund}</div>}
                 {l === SIEG && siegGrund && <div className="mt-0.5 break-words text-[10px] leading-tight text-slate-500">{siegGrund}</div>}
               </div>
             )); })()}

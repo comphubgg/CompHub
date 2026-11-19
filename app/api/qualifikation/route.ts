@@ -118,6 +118,18 @@ export type MitteGrund = {
   fertig: boolean;
 };
 
+/** Was je Spieltag in prognose-mitte.json steht. fassung 3: vorabFest (eingefroren), einmalGesetzt (das eine Update kleiner Cups), live (nur gemerkt). */
+type MitteMerk = {
+  wert: number | null; nachSpielen: number; zeit: number; fassung?: number; grund?: MitteGrund;
+  vorabFest?: number | null; einmalGesetzt?: boolean; live?: { wert: number; nachSpielen: number; grund: MitteGrund };
+};
+
+/** Grosse Cups: die Prognose bleibt den ganzen Cup ueber eine Zahl (Betreiber, 19.11.2026). */
+const GROSSE_CUPS = /FNCS|Heat|LastChance|LCQ|Divisional|PerformanceEval|GlobalChampionship|Major|Finals?/i;
+function istGrosserCup(windowId: string, eventId: string): boolean {
+  return GROSSE_CUPS.test(windowId) || GROSSE_CUPS.test(eventId);
+}
+
 /** Die Prognose aus Grenze, Stand und Vorab-Prognose - nie unter der Grenze von jetzt. */
 function mitteRechnen(art: 'lobby' | 'offen', grenze: number, stand: number, spiele: number, vorab: number | null): { wert: number; grund: MitteGrund } | null {
   const basis = { grenze, stand: Math.round(stand * 100) / 100, spiele, vorab };
@@ -617,27 +629,61 @@ async function holeRoh(request: Request) {
    * (KURVEN), und diese Hochrechnung mit der Vorab-Prognose gewichtet - je nachdem, wie genau beide an diesem Punkt waren (inverse Varianz). Nie unter der Grenze
    * von jetzt (Punkte gehen nicht verloren, die Grenze kann nur steigen). Mittlerer Fehler bei den Reload-Heats: 10 statt 45 Punkte mit der alten Sperre.
    */
+  /*
+   * Eine Zahl je Cup (Betreiber, 19.11.2026, Performance Evaluation Event 3 EU: "die Prediction aendert sich bei jedem Neuladen - 323, 324, 314"). Die Mischung
+   * aus Vorab-Prognose und Hochrechnung wurde bei jedem Abruf neu gerechnet. Jetzt:
+   *  - Die Vorab-Prognose wird beim ersten Abruf ab kurz vor dem Start je Spieltag festgehalten (prognose-mitte.json, fassung 3, vorabFest) - danach zaehlt im
+   *    Cup nur noch sie, auch wenn sich Lernstand oder Ausgaben aendern.
+   *  - Grosse Cups (istGrosserCup): die ganze Zeit diese Zahl. Die Hochrechnung laeuft nur intern weiter (live) - fuer das Nachrechnen, nicht fuer die Anzeige.
+   *  - Kleine Cups: genau ein Update, sobald die Teams an der Grenze die Haelfte der Spiele gespielt haben (ab dort ist die Streuung der Kurven klein), dann fest.
+   *  - Mehrere Instanzen oder Abrufe zugleich: der erste geschriebene Wert gilt - vor dem Schreiben wird neu gelesen, und was schon steht, bleibt.
+   */
   let mitte: number | null = null;
   let mitteGrund: MitteGrund | null = null;
+  /** fest: grosser Cup, eine Zahl; halbzeit: kleiner Cup, noch vor dem einen Update; einmal: kleiner Cup, Update gemacht. */
+  let mitteArt: 'fest' | 'halbzeit' | 'einmal' | null = null;
   try {
     const cap = dieser.matchCap ?? 0;
     const alt = schnitt !== null ? schnitt + (aehnlich ? 0 : ZUSCHLAG) + korrektur : null;
-    const gemerkt = await liesJson<Record<string, { wert: number | null; nachSpielen: number; zeit: number; fassung?: number; grund?: MitteGrund }>>('prognose-mitte.json', {});
-    const da = gemerkt[dieser.windowId];
-    if (laeuft && !tagRunde && cap >= 4 && tatsaechlich !== null && stand !== null) {
-      const r = mitteRechnen(/Heat\d+/i.test(dieser.windowId) ? 'lobby' : 'offen', tatsaechlich, stand, cap, alt);
-      if (r) {
-        mitte = r.wert; mitteGrund = r.grund;
-        // Gemerkt wird je neuem Spielstand (hoechstens einmal je Spiel), damit nach dem Cup die letzte Prognose stehen bleibt.
-        if (!da || da.fassung !== 2 || da.nachSpielen !== gespielt) {
-          gemerkt[dieser.windowId] = { wert: r.wert, nachSpielen: gespielt, zeit: Date.now(), fassung: 2, grund: r.grund };
-          await schreibJson('prognose-mitte.json', gemerkt).catch(() => { /* beim naechsten Aufruf */ });
-        }
+    const gross = istGrosserCup(dieser.windowId, dieser.eventId);
+    const w = dieser.windowId;
+    const lies = () => liesJson<Record<string, MitteMerk>>('prognose-mitte.json', {});
+    /** Schreibt dazu, ohne einen schon gesetzten festen Wert oder das eine Update zu ueberschreiben - der erste gewinnt. */
+    const merke = async (neu: Partial<MitteMerk>): Promise<MitteMerk> => {
+      const frisch = await lies();
+      const vor = frisch[w]?.fassung === 3 ? frisch[w] : undefined;
+      const naechst: MitteMerk = { wert: null, nachSpielen: 0, ...vor, ...neu, fassung: 3, zeit: Date.now() };
+      if (vor?.vorabFest != null) naechst.vorabFest = vor.vorabFest;
+      if (vor?.einmalGesetzt) { naechst.einmalGesetzt = true; naechst.wert = vor.wert; naechst.grund = vor.grund; }
+      frisch[w] = naechst;
+      await schreibJson('prognose-mitte.json', frisch).catch(() => { /* beim naechsten Aufruf */ });
+      return naechst;
+    };
+    let da: MitteMerk | undefined = (await lies())[w];
+    const KURZ_VOR = 15 * 60_000;
+    const imCup = laeuft || (dieser.begin > jetzt && dieser.begin - jetzt <= KURZ_VOR);
+    if (imCup && alt !== null && (da?.fassung !== 3 || da.vorabFest == null)) da = await merke({ vorabFest: alt, wert: alt });
+    if (imCup && da?.fassung === 3 && da.vorabFest != null) {
+      const fest = da.vorabFest;
+      // Die Hochrechnung von jetzt - angezeigt nur beim einen Update der kleinen Cups, sonst nur gemerkt.
+      const r = laeuft && !tagRunde && cap >= 4 && tatsaechlich !== null && stand !== null
+        ? mitteRechnen(/Heat\d+/i.test(w) ? 'lobby' : 'offen', tatsaechlich, stand, cap, fest) : null;
+      if (gross) {
+        mitte = fest; mitteArt = 'fest';
+        if (r && da.live?.nachSpielen !== gespielt) await merke({ live: { wert: r.wert, nachSpielen: gespielt, grund: r.grund } });
+      } else if (da.einmalGesetzt) {
+        mitte = da.wert ?? fest; mitteGrund = da.grund ?? null; mitteArt = 'einmal';
+      } else if (r && stand !== null && stand / cap >= 0.5) {
+        const m = await merke({ einmalGesetzt: true, wert: r.wert, grund: r.grund, nachSpielen: gespielt });
+        mitte = m.wert ?? fest; mitteGrund = m.grund ?? null; mitteArt = 'einmal';
+      } else {
+        mitte = fest; mitteArt = 'halbzeit';
       }
-    } else if (laeuft && tatsaechlich !== null && alt !== null && tatsaechlich > alt) {
-      // Ohne gemessene Kurve fuer diesen Fall (Grenze tiefer als Platz 300, Runde ueber mehrere Tage): nur der Boden - nie unter der Grenze von jetzt.
-      mitte = tatsaechlich;
-      mitteGrund = { grenze: tatsaechlich, stand: stand ?? gespielt, spiele: cap, vorab: alt, hochgerechnet: null, anteil: null, gewicht: 1, fertig: false };
+    } else if (!laeuft && da?.fassung === 3) {
+      // Nach dem Cup: was im Cup galt, bleibt als "Prognose war" stehen.
+      mitte = da.einmalGesetzt ? da.wert ?? da.vorabFest ?? null : da.vorabFest ?? null;
+      mitteGrund = da.einmalGesetzt ? da.grund ?? null : null;
+      mitteArt = gross ? 'fest' : da.einmalGesetzt ? 'einmal' : 'halbzeit';
     } else if (!laeuft && da && da.fassung === 2) { mitte = da.wert; mitteGrund = da.grund ?? null; }
     // Werte der alten Sperre (ohne fassung) gelten nicht mehr - sie lagen nachweislich daneben.
   } catch { /* dann bleibt die Prognose von vorher */ }
@@ -645,6 +691,8 @@ async function holeRoh(request: Request) {
   return NextResponse.json({
     /* Die Prognose waehrend des Spieltags (null: die Vorab-Prognose bleibt) und woraus sie besteht - die Seite zeigt es an. */
     mitte, mitteGrund,
+    /* fest: grosser Cup, eine Zahl fuer den ganzen Cup; halbzeit: kleiner Cup vor seinem einen Update; einmal: das Update ist gemacht. */
+    mitteArt,
     vorhanden: schnitt !== null || tatsaechlich !== null,
     /* Was dieser Spieltag tatsaechlich kostet - waehrend er laeuft der
        Stand von jetzt, danach das Ergebnis. Steht das hier, ist der Schnitt
