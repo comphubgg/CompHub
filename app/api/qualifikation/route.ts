@@ -332,14 +332,23 @@ async function holeRoh(request: Request) {
    * ist mit Runde 1 vergleichbar, nicht mit einem Finale - dort gelten
    * andere Punktzahlen, weil weniger Teams antreten.
    */
-  const meine = reihe(window_);
-  let frueher = alle
-    .filter((f) => f.windowId !== window_
-      && reihe(f.windowId) === meine
-      && f.begin < dieser.begin
-      && f.status === 'vorbei')
-    .sort((a, b) => b.begin - a.begin)
-    .slice(0, AUSGABEN);
+  /*
+   * Die Vorsaison nur, solange die laufende Saison noch nicht genug hergibt (Betreiber, 19.11.2026: Performance Evaluation Event 3 EU - die letzten beiden
+   * echten Grenzen lagen bei 324 und 325, der Schnitt nahm S42 Event 9 mit 390 dazu). Gibt es zwei Ausgaben derselben Reihe aus der Saison des Spieltags,
+   * zaehlen nur diese - die Vorsaison hatte ein anderes Feld und andere Punkte. "rein" heisst: die Vorlage besteht nur aus der laufenden Saison.
+   */
+  const saisonVon = (w: string) => /^S(\d+)_/i.exec(w)?.[1] ?? '';
+  const vorgaenger = (f: typeof alle[number]) => {
+    const liste = alle
+      .filter((x) => x.windowId !== f.windowId && reihe(x.windowId) === reihe(f.windowId) && x.begin < f.begin && x.status === 'vorbei')
+      .sort((a, b) => b.begin - a.begin)
+      .slice(0, AUSGABEN);
+    const eigene = liste.filter((x) => saisonVon(x.windowId) === saisonVon(f.windowId));
+    return eigene.length >= 2 ? { liste: eigene, rein: true } : { liste, rein: false };
+  };
+  const eigeneReihe = vorgaenger(dieser);
+  let frueher = eigeneReihe.liste;
+  let saisonrein = eigeneReihe.rein;
   /*
    * Kein frueherer Lauf desselben Cups (einmalige Skin-Cups): die letzten Ausgaben aehnlicher Cups - gleiche Art (Skin-Cup, Cash Cup, ...), gleiche
    * Teamgroesse, gleiche Region, nicht aelter als 60 Tage. Die Titel stehen in der Antwort, damit nachpruefbar bleibt, woher die Zahl kommt.
@@ -367,7 +376,7 @@ async function holeRoh(request: Request) {
   if (/Heat\d+/i.test(dieser.windowId)) {
     const heats = alle.filter((f) => f.eventId === dieser.eventId && f.windowId !== dieser.windowId && f.status === 'vorbei'
       && f.windowId.replace(/Heat\d+/i, 'Heat#') === dieser.windowId.replace(/Heat\d+/i, 'Heat#'));
-    if (heats.length) { frueher = heats.sort((x, y) => y.begin - x.begin).slice(0, AUSGABEN); aehnlich = true; vortag = true; heatVorlage = true; }
+    if (heats.length) { frueher = heats.sort((x, y) => y.begin - x.begin).slice(0, AUSGABEN); aehnlich = true; vortag = true; heatVorlage = true; saisonrein = false; }
   }
   if (!frueher.length) {
     const art = artVon.get(dieser.windowId);
@@ -519,7 +528,8 @@ async function holeRoh(request: Request) {
   const ZUSCHLAG = 5; // wie QUAL_ZUSCHLAG auf der Event-Seite
   // Offene LCQ und LCQ-Finale haben dieselbe Event-Kennung ("..._LastChanceQualifier_<R>") - ohne den Zusatz lernte das Finale aus der offenen Runde (16.11.2026).
   const art = `${dieser.eventId.replace(/^epicgames_S\d+_/i, '').replace(/_[A-Z]+$/, '')}|${/Round(\d+)/i.exec(dieser.windowId)?.[1] ?? (/Heat/i.test(dieser.windowId) ? 'heat' : '')}${stufe(dieser) === 'lcq-finale' ? '|finale' : ''}`;
-  type Lern = { windowId: string; art: string; prognose: number; tatsaechlich: number; zeit: number };
+  /* rein/schwelle: seit 19.11.2026 mitgeschrieben - ob die Vorlage nur aus der laufenden Saison bestand, und fuer welchen Platz. */
+  type Lern = { windowId: string; art: string; prognose: number; tatsaechlich: number; zeit: number; rein?: boolean; schwelle?: number };
   let korrektur = 0; let gelernt = 0;
   /* Woraus die Korrektur gelernt ist - fuer die Erklaerung an der Prognose. */
   let korrekturAus: Array<{ windowId: string; prognose: number; tatsaechlich: number }> = [];
@@ -528,18 +538,64 @@ async function holeRoh(request: Request) {
     const lern = await liesJson<Lern[]>('prognose-lernen.json', []);
     const fertig = !laeuft && typeof dieser.end === 'number' && jetzt > dieser.end + 30 * 60_000;
     if (fertig && tatsaechlich !== null && schnitt !== null && !lern.some((l) => l.windowId === dieser.windowId)) {
-      lern.push({ windowId: dieser.windowId, art, prognose: schnitt + (aehnlich ? 0 : ZUSCHLAG), tatsaechlich, zeit: Date.now() });
+      lern.push({ windowId: dieser.windowId, art, prognose: schnitt + (aehnlich ? 0 : ZUSCHLAG), tatsaechlich, zeit: Date.now(), rein: saisonrein, schwelle });
       await schreibJson('prognose-lernen.json', lern.slice(-400)).catch(() => { /* beim naechsten Aufruf */ });
     }
-    const gleiche = lern.filter((l) => l.art === art && l.windowId !== dieser.windowId).slice(-6);
+    /*
+     * Gelernt wird nur aus Spieltagen, deren Vorlage gleich gebaut war (Betreiber, 19.11.2026: Performance Evaluation Event 3 EU, Schnitt 346 - 65 = 286, obwohl
+     * die letzten beiden Grenzen 324 und 325 waren). Die -65 waren der Fehler alter Prognosen, die auf der Vorsaison standen - steht die Vorlage jetzt auf der
+     * laufenden Saison, ist dieser Fehler schon heraus und wurde ein zweites Mal abgezogen. Deshalb:
+     *  - "rein" muss passen: Vorlage nur aus der laufenden Saison oder nicht. Fuer aeltere Eintraege ohne den Vermerk aus dem Katalog nachgerechnet, und bei
+     *    "rein" die Prognose neu - so, wie diese Fassung sie damals gestellt haette (Schnitt der Vorgaenger aus der laufenden Saison + Zuschlag).
+     *  - dieselbe Region zuerst (NA Central lag 77 daneben, Europa 47 - das ist kein Fehler, den Europa erbt). Nur ohne eigene Region die anderen, und dann
+     *    als Verhaeltnis Ergebnis/Prognose statt in Punkten.
+     */
+    const regionVon = (w: string) => /_([A-Z]+)$/.exec(w)?.[1] ?? '';
+    const fensterVon = new Map(alle.map((f) => [f.windowId, f]));
+    const fensterHier = (w: string) => fensterVon.get(w) ?? fensterVon.get(w.replace(/_[A-Z]+$/, `_${region}`));
+    const istVon = new Map<string, number>();
+    for (const l of lern) if (regionVon(l.windowId) === region) istVon.set(l.windowId, l.tatsaechlich);
+    for (const a of ausgaben) if (typeof a.punkte === 'number' && a.punkte > 0 && !a.rang && regionVon(a.windowId) === region) istVon.set(a.windowId, a.punkte);
+    /** Die Prognose dieser Fassung fuer einen frueheren Spieltag mit reiner Vorlage, oder null, wo die Werte nicht zu haben sind. */
+    const neuePrognose = async (f: typeof alle[number]): Promise<number | null> => {
+      const werteDamals: number[] = [];
+      for (const v of vorgaenger(f).liste) {
+        let p = istVon.get(v.windowId) ?? null;
+        if (p === null) {
+          try {
+            const b = await gecacht(`qual|${v.eventId}|${v.windowId}|${schwelle}`, 30 * 60_000, () => umRang(v.eventId, v.windowId, schwelle));
+            const t = b.entries.find((e) => e.rank === schwelle);
+            p = t && t.points > 0 ? t.points : null;
+          } catch { p = null; }
+        }
+        if (p === null) return null;
+        werteDamals.push(p);
+      }
+      return werteDamals.length ? Math.round(werteDamals.reduce((s, x) => s + x, 0) / werteDamals.length) + ZUSCHLAG : null;
+    };
+    const passend: Lern[] = [];
+    for (const l of lern.filter((x) => x.art === art && x.windowId !== dieser.windowId)) {
+      if (typeof l.schwelle === 'number' && l.schwelle !== schwelle) continue;
+      if (typeof l.rein === 'boolean') { if (l.rein === saisonrein) passend.push(l); continue; }
+      const f = fensterHier(l.windowId);
+      const rein = f ? vorgaenger(f).rein : false;
+      if (rein !== saisonrein) continue;
+      if (!rein) { passend.push(l); continue; }
+      // Nur in der eigenen Region nachrechenbar (die Werte der Vorgaenger stehen in ihrer Bestenliste).
+      if (!f || f.windowId !== l.windowId) continue;
+      const p = await neuePrognose(f);
+      if (p !== null) passend.push({ ...l, prognose: p });
+    }
+    const eigeneRegion = passend.filter((l) => regionVon(l.windowId) === region);
+    const gleiche = (eigeneRegion.length ? eigeneRegion : passend).slice(-6);
     // Mit einem schon gespielten Heat als Vorlage keine Korrektur obendrauf - der Wert ist bereits das echte Ergebnis.
     if (gleiche.length && !heatVorlage) {
       /*
        * Stammt die Vorlage aus einem aehnlichen, aber anderen Cup (FNCS Solos Reload LCQ nach der S42 LCQ ohne Reload, 16.11.2026), liegt das ganze Niveau
        * daneben, nicht ein fester Betrag: dann gilt das Verhaeltnis Ergebnis/Prognose der schon fertigen Regionen, auf den eigenen Schnitt angewandt (OCE
-       * 341 -> 365 macht aus EU 365 rund 391). Sonst wie bisher der mittlere Fehler in Punkten.
+       * 341 -> 365 macht aus EU 365 rund 391). Ebenso, wenn nur andere Regionen gelernt haben. Sonst wie bisher der mittlere Fehler in Punkten.
        */
-      if (aehnlich && schnitt !== null && gleiche.every((l) => l.prognose > 0)) {
+      if ((aehnlich || !eigeneRegion.length) && schnitt !== null && gleiche.every((l) => l.prognose > 0)) {
         const faktor = gleiche.reduce((s, l) => s + l.tatsaechlich / l.prognose, 0) / gleiche.length;
         korrektur = Math.round(schnitt * (faktor - 1)); korrekturArt = 'anteil';
       } else {
@@ -600,6 +656,8 @@ async function holeRoh(request: Request) {
     hergeleitet,
     /* Die Schwelle ist der letzte Platz mit Belohnung (Skin-Cup), und die Ausgaben stammen aus aehnlichen Cups statt aus demselben. */
     fuerBelohnung, aehnlich, ausVorlauf,
+    /* Die Ausgaben stammen nur aus der laufenden Saison (es gab mindestens zwei) - die Vorsaison ist dann weggelassen. */
+    saisonrein,
     /* Die Schwelle gilt fuer die Summe aller Tage dieser Runde. */
     kumuliert: tagRunde,
     /* Gelernte Korrektur aus frueheren Spieltagen derselben Art (Punkte) und aus wie vielen. */
