@@ -1,7 +1,9 @@
 /*
- * Flaggen (Land) und X-/Twitch-Konten der wichtigen Spieler aus Liquipedia nachtragen (Betreiber, 16.11.2026: "jeder wichtige Spieler muss eine Flagge und
- * ein X-Handle haben"; 23.11.2026: besonders viele US-/Amerika-Flaggen fehlen). Ergaenzt scripts/socials-finden.mjs (X/Twitch/Flagge ueber FixTweet/Twitch)
- * um eine zweite, unabhaengige Quelle: Liquipedias Spieler-Infoboxen. Ergebnis landet in denselben Dateien und erscheint automatisch in /admin/flaggen.
+ * Flaggen (Land), X-/Twitch-Konten UND den sauberen Szene-Namen (Anzeigename) der wichtigen Spieler aus Liquipedia nachtragen (Betreiber, 16.11.2026:
+ * "jeder wichtige Spieler muss eine Flagge und ein X-Handle haben"; 23.11.2026: besonders viele US-/Amerika-Flaggen fehlen, und viele Spieler zeigen noch
+ * ihren rohen Ingame-Namen statt eines sauberen Namens). Ergaenzt scripts/socials-finden.mjs (X/Twitch/Flagge ueber FixTweet/Twitch) um eine zweite,
+ * unabhaengige Quelle: Liquipedias Spieler-Infoboxen. Der saubere Name ist Liquipedias id-Feld (der Wettkampfname). Ergebnis landet in denselben Dateien
+ * (spieler-profile.json: land/x/twitch/anzeige) und erscheint automatisch im Profil, auf Plakaten/Bestenlisten und in /admin/flaggen zum Pruefen.
  *
  * Wer wird abgesucht: die wichtigen Spieler (spieler-kreis/_wichtig.json, wie /admin/flaggen und socials-finden - aus unseren eigenen Cup-Bestenlisten
  * gerechnet: Top 100 der grossen FNCS-Finals/Heats/Halbfinals), denen die Flagge ODER das X-Konto fehlt. Sortiert nach Wichtigkeit.
@@ -199,7 +201,7 @@ function gespeichert(id, namenListe, s) {
   const quellen = [s.id.get(id)];
   for (const n of namenListe) { const p = s.name.get(namensSchluessel(n)); if (p) { quellen.push(p); break; } }
   const feld = (f) => quellen.map((p) => String(p?.[f] ?? '').trim()).find(Boolean) ?? '';
-  return { land: feld('land').toUpperCase(), x: feld('x'), twitch: feld('twitch') };
+  return { land: feld('land').toUpperCase(), x: feld('x'), twitch: feld('twitch'), anzeige: feld('anzeige') };
 }
 
 function spielerListe(d) {
@@ -258,7 +260,7 @@ async function ablegen(vorschlaege, geprueft) {
       for (const { p, treffer } of vorschlaege) {
         const z = v.zeilen[p.id] ?? { name: p.name, abgelehnt: {} };
         let neu = false;
-        for (const f of ['x', 'twitch', 'land']) {
+        for (const f of ['x', 'twitch', 'land', 'anzeige']) {
           const r = treffer[f];
           // Nur in ein FREIES Feld schreiben - einen vorhandenen Vorschlag (etwa von scripts/socials-finden.mjs, mit eigenen Belegen) nie ueberschreiben.
           if (r && r.stufe === 'vorschlag' && !z[f] && !(z.abgelehnt?.[f] ?? []).includes(String(r.wert).toLowerCase())) { z[f] = { wert: r.wert, belege: r.belege, andere: [] }; neu = true; }
@@ -275,14 +277,16 @@ async function ablegen(vorschlaege, geprueft) {
 
 async function lauf(d) {
   const geprueftAlt = await liesJson(GEPRUEFT_DATEI, {});
-  let liste = spielerListe(d).filter((p) => leer(p.hat.land) || leer(p.hat.x));
+  // Offen = Flagge ODER X ODER sauberer Anzeigename fehlt. Den Namen gibt die Liquipedia-Seite ohnehin mit (kein zusaetzlicher Abruf), also tragen wir ihn
+  // bei jeder gefundenen Seite gleich mit nach.
+  let liste = spielerListe(d).filter((p) => leer(p.hat.land) || leer(p.hat.x) || leer(p.hat.anzeige));
   if (NUR.length) liste = liste.filter((p) => NUR.includes(p.id));
   else liste = liste.filter((p) => (geprueftAlt[p.id]?.zeit ?? 0) < Date.now() - TAGE * 864e5);
   if (REGIONEN.size) liste = liste.filter((p) => REGIONEN.has(p.region));
   liste = liste.slice(0, MAX === Infinity ? liste.length : MAX);
-  log(`${liste.length} wichtige Spieler offen (Flagge oder X fehlt${REGIONEN.size ? `, Region ${[...REGIONEN].join('/')}` : ''}${NUR.length ? ', ausgewaehlt' : `, nicht in den letzten ${TAGE} Tagen`}). Budget ${MINUTEN} min, ${ANWENDEN ? 'ANWENDEN' : 'nur Plan'}.`);
+  log(`${liste.length} wichtige Spieler offen (Flagge, X oder Anzeigename fehlt${REGIONEN.size ? `, Region ${[...REGIONEN].join('/')}` : ''}${NUR.length ? ', ausgewaehlt' : `, nicht in den letzten ${TAGE} Tagen`}). Budget ${MINUTEN} min, ${ANWENDEN ? 'ANWENDEN' : 'nur Plan'}.`);
 
-  const summe = { spieler: 0, seiteGefunden: 0, auto: { land: 0, x: 0, twitch: 0 }, vorschlag: { land: 0, x: 0, twitch: 0 }, eingetragen: { land: 0, x: 0, twitch: 0 }, beispiele: [] };
+  const summe = { spieler: 0, seiteGefunden: 0, auto: { land: 0, x: 0, twitch: 0, anzeige: 0 }, vorschlag: { land: 0, x: 0, twitch: 0, anzeige: 0 }, eingetragen: { land: 0, x: 0, twitch: 0, anzeige: 0 }, beispiele: [] };
   let puffer = []; let vorschlaege = []; let geprueft = [];
   const leeren = async () => {
     if (ANWENDEN) {
@@ -305,7 +309,7 @@ async function lauf(d) {
       summe.seiteGefunden += 1;
       titel = seite.titel;
       const b = L.bewertePage(seite.felder, seite.titel, p, seite.quelle, DEPS);
-      for (const f of ['land', 'x', 'twitch']) {
+      for (const f of ['land', 'x', 'twitch', 'anzeige']) {
         const r = b[f];
         if (!r) continue;
         treffer[f] = r;
@@ -315,8 +319,8 @@ async function lauf(d) {
       }
     }
     if (Object.keys(treffer).length) vorschlaege.push({ p, treffer });
-    geprueft.push([p.id, { zeit: Date.now(), titel, land: treffer.land?.stufe ?? null, x: treffer.x?.stufe ?? null, twitch: treffer.twitch?.stufe ?? null }]);
-    log(`  ${summe.spieler}. ${p.name} [${p.region}] ${titel ? `-> ${titel}` : '(keine Seite)'}${treffer.land ? ` · Flagge ${treffer.land.stufe} ${treffer.land.wert}` : ''}${treffer.x ? ` · X ${treffer.x.stufe} @${treffer.x.wert}` : ''}${treffer.twitch ? ` · Twitch ${treffer.twitch.stufe} ${treffer.twitch.wert}` : ''}`);
+    geprueft.push([p.id, { zeit: Date.now(), titel, land: treffer.land?.stufe ?? null, x: treffer.x?.stufe ?? null, twitch: treffer.twitch?.stufe ?? null, anzeige: treffer.anzeige?.stufe ?? null }]);
+    log(`  ${summe.spieler}. ${p.name} [${p.region}] ${titel ? `-> ${titel}` : '(keine Seite)'}${treffer.anzeige ? ` · Name ${treffer.anzeige.stufe} ${treffer.anzeige.wert}` : ''}${treffer.land ? ` · Flagge ${treffer.land.stufe} ${treffer.land.wert}` : ''}${treffer.x ? ` · X ${treffer.x.stufe} @${treffer.x.wert}` : ''}${treffer.twitch ? ` · Twitch ${treffer.twitch.stufe} ${treffer.twitch.wert}` : ''}`);
     if (geprueft.length >= 10) await leeren();
   }
   await leeren();

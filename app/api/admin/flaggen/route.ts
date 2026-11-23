@@ -39,12 +39,14 @@ export interface FlaggenZeile {
   rang: number; id: string; name: string; namen: string[]; region: string;
   punkte: number; final: number; semi: number; heat: number; runde: number; cup: number; besteFinal: number | null; letzte: number | null; pr: number | null;
   land: string; x: string; twitch: string;
+  /** Der gepflegte Anzeigename (sauberer Szene-Name) - leer, wenn noch keiner gesetzt ist (dann zeigt die Seite den rohen Namen). */
+  anzeige: string;
   /** Was die Seite ohne gepflegtes Land zeigen wuerde - nur ein Vorschlag, nie gespeichert. */
   auto: { land: string; quelle: string } | null;
   /** Das Profil liegt noch unter dem Namen (ohne Konto-Id) - beim Speichern wandert es unter die Id. */
   alterEintrag: string | null;
-  /** Woher land/x/twitch kommen: '' = unter dieser Konto-Id, sonst das Zweitkonto oder der Alteintrag (gespeichert, aber nicht unter dieser Id). */
-  quelle: { land: string; x: string; twitch: string };
+  /** Woher land/x/twitch/anzeige kommen: '' = unter dieser Konto-Id, sonst das Zweitkonto oder der Alteintrag (gespeichert, aber nicht unter dieser Id). */
+  quelle: { land: string; x: string; twitch: string; anzeige: string };
   /** Turnierkonten desselben Spielers mit eigenem Profil - beim Speichern werden sie mitgezogen. */
   konten: string[];
   /** Mindestens ein Wert steht nur auf einem Zweitkonto oder im Alteintrag. */
@@ -177,24 +179,26 @@ export async function GET(request: Request) {
     if (!eigen && !alt && !konten.length && /^\[[^\]]+\]/.test(name)) { ausgeschlossen.turnierkonto += 1; continue; }
     // Gespeichert = erstes nicht leeres Feld: Hauptkonto, dann Turnierkonten, dann der Alteintrag. quelle sagt, woher.
     const quellen: Array<[string, SpielerProfil | undefined]> = [['', eigen], ...konten.map((k) => [k.p.name || k.id, k.p] as [string, SpielerProfil]), [`Alteintrag „${alterEintrag}“`, alt]];
-    const feld = (f: 'land' | 'x' | 'twitch') => {
+    const feld = (f: 'land' | 'x' | 'twitch' | 'anzeige') => {
       for (const [q, p] of quellen) { const v = String(p?.[f] ?? '').trim(); if (v) return { wert: f === 'land' ? v.toUpperCase() : v, quelle: q }; }
       return { wert: '', quelle: '' };
     };
-    const land = feld('land'); const x = feld('x'); const twitch = feld('twitch');
+    const land = feld('land'); const x = feld('x'); const twitch = feld('twitch'); const anzeige = feld('anzeige');
     const nurZweit = [land, x, twitch].some((v) => v.wert && v.quelle);
     // Automatisch Eingetragenes zaehlt nur, solange es noch so dasteht (sonst hat es jemand schon geaendert).
     const autoGespeichert: FlaggenZeile['autoGespeichert'] = {};
     for (const e of autoJe.get(id) ?? []) {
-      const jetzt = { x, twitch, land }[e.feld].wert;
+      const jetzt = { x, twitch, land, anzeige }[e.feld].wert;
       if (jetzt && jetzt.toLowerCase() === e.wert.toLowerCase()) autoGespeichert[e.feld] = { wert: e.wert, belege: e.belege, zeit: e.zeit };
     }
-    if (land.wert && x.wert && !nurZweit && !Object.keys(autoGespeichert).length) { ausgeschlossen.vollstaendig += 1; continue; }
     const vz = vorschlaege.zeilen?.[id];
+    // Einen offenen Namensvorschlag (anzeige) auch zeigen, wenn die Zeile sonst vollstaendig waere - damit der Betreiber den Namen bestaetigen kann.
+    const nameVorschlagDa = !anzeige.wert && !!vz?.anzeige?.wert && !(vz?.abgelehnt?.anzeige ?? []).includes(vz.anzeige.wert.toLowerCase());
+    if (land.wert && x.wert && !nurZweit && !Object.keys(autoGespeichert).length && !nameVorschlagDa) { ausgeschlossen.vollstaendig += 1; continue; }
     const vorschlag: FlaggenZeile['vorschlag'] = {};
-    for (const f of ['x', 'twitch', 'land'] as const) {
+    for (const f of ['x', 'twitch', 'land', 'anzeige'] as const) {
       const v = vz?.[f];
-      if (v?.wert && !{ x, twitch, land }[f].wert && !(vz?.abgelehnt?.[f] ?? []).includes(v.wert.toLowerCase())) vorschlag[f] = v;
+      if (v?.wert && !{ x, twitch, land, anzeige }[f].wert && !(vz?.abgelehnt?.[f] ?? []).includes(v.wert.toLowerCase())) vorschlag[f] = v;
     }
     const auto = land.wert ? null
       : spielLand.has(id) ? { land: spielLand.get(id)!, quelle: 'Fortnite-Flagge' }
@@ -202,8 +206,8 @@ export async function GET(request: Request) {
     zeilen.push({
       rang, id, name, namen: alle.filter((n) => n !== name).slice(0, 6), region: eigen?.region || alt?.region || region || '',
       punkte, final, semi, heat, runde, cup, besteFinal, letzte, pr: prRang,
-      land: land.wert, x: x.wert, twitch: twitch.wert, auto, alterEintrag,
-      quelle: { land: land.quelle, x: x.quelle, twitch: twitch.quelle }, konten: konten.map((k) => k.id), nurZweit,
+      land: land.wert, x: x.wert, twitch: twitch.wert, anzeige: anzeige.wert, auto, alterEintrag,
+      quelle: { land: land.quelle, x: x.quelle, twitch: twitch.quelle, anzeige: anzeige.quelle }, konten: konten.map((k) => k.id), nurZweit,
       fehlt: { land: !land.wert, x: !x.wert }, speicherName: speicherName || epicName || name, vorschlag, autoGespeichert,
     });
   }
@@ -213,13 +217,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!await istAdminAnfrage()) return nein();
-  let e: { id?: string; name?: string; land?: string; x?: string; twitch?: string; konten?: string[]; aktion?: string; feld?: string; wert?: string; entscheidung?: string };
+  let e: { id?: string; name?: string; land?: string; x?: string; twitch?: string; anzeige?: string; konten?: string[]; aktion?: string; feld?: string; wert?: string; entscheidung?: string };
   try { e = await request.json(); } catch { return NextResponse.json({ ok: false, error: 'Kein JSON' }, { status: 400 }); }
   if (!/^[0-9a-f]{32}$/i.test(e.id ?? '')) return NextResponse.json({ ok: false, error: 'Epic-Konto-Id fehlt' }, { status: 400 });
   if (e.aktion === 'markieren') {
     const feld = e.feld as SocialFeld;
     const entscheidung = e.entscheidung as Entscheidung;
-    if (!['x', 'twitch', 'land'].includes(feld) || !['angenommen', 'abgelehnt', 'geprueft', 'rueckgaengig'].includes(entscheidung) || !String(e.wert ?? '').trim()) {
+    if (!['x', 'twitch', 'land', 'anzeige'].includes(feld) || !['angenommen', 'abgelehnt', 'geprueft', 'rueckgaengig'].includes(entscheidung) || !String(e.wert ?? '').trim()) {
       return NextResponse.json({ ok: false, error: 'feld, wert oder entscheidung ungueltig' }, { status: 400 });
     }
     markieren({ id: e.id!.toLowerCase(), feld, wert: String(e.wert).trim().slice(0, 40), entscheidung });
@@ -232,6 +236,7 @@ export async function POST(request: Request) {
       ...(e.land !== undefined ? { land: e.land } : {}),
       ...(e.x !== undefined ? { x: e.x } : {}),
       ...(e.twitch !== undefined ? { twitch: e.twitch } : {}),
+      ...(e.anzeige !== undefined ? { anzeige: e.anzeige } : {}),
     });
     const { schluessel, version } = await einreihen(a);
     // Die Turnierkonten desselben Spielers bekommen dieselben Felder - sonst zeigte die Bestenliste eines LAN weiter den alten Wert.

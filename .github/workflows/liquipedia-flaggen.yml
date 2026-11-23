@@ -1,8 +1,10 @@
-# Flaggen (Land) und X-/Twitch-Konten der wichtigen Spieler aus Liquipedia nachtragen (scripts/liquipedia-flaggen.mjs, lib/liquipediaInfobox.mjs).
-# Zweite, unabhaengige Quelle neben "Socials finden" (socials-finden.yml, FixTweet/Twitch). Ergebnis erscheint automatisch in /admin/flaggen:
-#   sicher (Name exakt + Region stimmig)  -> spieler-profile.json (Flagge/Handle erscheint sofort), protokolliert in socials-auto.json (zum Pruefen/Zuruecknehmen)
+# Flaggen (Land), X-/Twitch-Konten UND den sauberen Szene-Namen (Anzeigename) der wichtigen Spieler aus Liquipedia nachtragen
+# (scripts/liquipedia-flaggen.mjs, lib/liquipediaInfobox.mjs). Zweite, unabhaengige Quelle neben "Socials finden" (socials-finden.yml, FixTweet/Twitch).
+# Der saubere Name ist Liquipedias id-Feld (Wettkampfname, z. B. "Snayzy", "Threats", "Higgs"). Ergebnis erscheint automatisch im Profil, auf
+# Plakaten/Bestenlisten und in /admin/flaggen:
+#   sicher (Name exakt + Region stimmig)  -> spieler-profile.json (land/x/twitch/anzeige erscheint sofort), protokolliert in socials-auto.json (zum Pruefen/Zuruecknehmen)
 #   unsicher                              -> socials-vorschlaege.json (der Betreiber bestaetigt mit einem Klick)
-# Ein von Hand gepflegter Wert wird nie ueberschrieben. Setzt fort, wo der letzte Lauf aufhoerte (liquipedia-geprueft.json).
+# Ein von Hand gepflegter Wert (auch ein gesetzter Anzeigename) wird nie ueberschrieben. Setzt fort, wo der letzte Lauf aufhoerte (liquipedia-geprueft.json).
 #
 # Woechentlich (Montag 04:17 UTC) mit "anwenden"; auch von Hand startbar. Liquipedia: nur action=query, UA "CompHub-stats-bot/1.0", gzip, >= 2,6 s je
 # Anfrage, bei 429 immer laenger warten - ueber curl (die GitHub-Rechner werden nicht als Scraper gedrosselt, der Agenten-Sandkasten schon).

@@ -24,8 +24,8 @@ import { xNormal, twitchNormal } from '@/lib/profilEingabe';
 interface Zeile {
   rang: number; id: string; name: string; namen: string[]; region: string;
   punkte: number; final: number; semi: number; heat: number; runde: number; cup: number; besteFinal: number | null; letzte: number | null; pr: number | null;
-  land: string; x: string; twitch: string; auto: { land: string; quelle: string } | null; alterEintrag: string | null;
-  quelle: Record<'land' | 'x' | 'twitch', string>; konten: string[]; nurZweit: boolean;
+  land: string; x: string; twitch: string; anzeige: string; auto: { land: string; quelle: string } | null; alterEintrag: string | null;
+  quelle: Record<'land' | 'x' | 'twitch' | 'anzeige', string>; konten: string[]; nurZweit: boolean;
   fehlt: { land: boolean; x: boolean }; speicherName: string;
   /** Socials-Finder (scripts/socials-finden.mjs): Vorschlaege fuer leere Felder und automatisch Eingetragenes, das noch niemand geprueft hat. */
   vorschlag: Partial<Record<Feld, SocialVorschlag>>;
@@ -34,7 +34,7 @@ interface Zeile {
 interface Beleg { art: string; text: string; url?: string; stark?: boolean }
 interface SocialVorschlag { wert: string; belege: Beleg[]; andere?: Array<{ wert: string; belege: Beleg[] }> }
 interface Antwort { ok: boolean; error?: string; stand: number; wichtig: number; zeilen: Zeile[]; ausgeschlossen: { geloescht: number; turnierkonto: number; vollstaendig: number; ohneName: number } }
-type Feld = 'land' | 'x' | 'twitch';
+type Feld = 'land' | 'x' | 'twitch' | 'anzeige';
 type Werte = Record<Feld, string>;
 type Zustand = { art: 'sendet' | 'wartet' | 'ok' | 'fehler'; text?: string };
 /** Eine abgeschickte Aenderung, bis der Server sie als gespeichert meldet - so laesst sie sich bei einem Fehler von selbst noch einmal schicken. */
@@ -46,7 +46,7 @@ type Auftrag = { koerper: Record<string, unknown>; gesendet: Werte; version: num
  */
 const kern = (z: Zeile) => z.final + z.heat + z.semi >= 2 || z.runde >= 3;
 
-const FELDER: Feld[] = ['land', 'x', 'twitch'];
+const FELDER: Feld[] = ['land', 'x', 'twitch', 'anzeige'];
 const JE_SEITE = 100;
 type Filter = 'offen' | 'land' | 'x' | 'beide' | 'vorschlaege' | 'auto';
 
@@ -58,6 +58,7 @@ function pruefe(feld: Feld, roh: string): { wert: string; fehler: string } {
     const l = landAusEingabe(s);
     return l ? { wert: l.code, fehler: '' } : { wert: '', fehler: 'Unbekanntes Land' };
   }
+  if (feld === 'anzeige') return { wert: s, fehler: '' }; // ein Anzeigename wird nur getrimmt, nicht geprueft
   try { return { wert: feld === 'x' ? xNormal(s) : twitchNormal(s), fehler: '' }; } catch (e) { return { wert: '', fehler: (e as Error).message }; }
 }
 
@@ -95,7 +96,7 @@ export default function FlaggenPflege() {
         if (weg) return;
         if (!r.ok || !j?.ok) { setLadeFehler(j?.error ?? `HTTP ${r.status}`); return; }
         const werte: Record<string, Werte> = {};
-        for (const z of j.zeilen) werte[z.id] = { land: z.land, x: z.x, twitch: z.twitch };
+        for (const z of j.zeilen) werte[z.id] = { land: z.land, x: z.x, twitch: z.twitch, anzeige: z.anzeige };
         setGespeichert(werte);
         setEntwurf(werte);
         setD(j);
@@ -201,7 +202,7 @@ export default function FlaggenPflege() {
     void fetch('/api/admin/flaggen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'markieren', id, feld, wert, entscheidung }) }).catch(() => undefined);
   }, []);
   const setzeUndSpeichere = useCallback((z: Zeile, feld: Feld, wert: string) => {
-    const neu = { ...(entwurfRef.current[z.id] ?? { land: '', x: '', twitch: '' }), [feld]: wert };
+    const neu = { ...(entwurfRef.current[z.id] ?? { land: '', x: '', twitch: '', anzeige: '' }), [feld]: wert };
     entwurfRef.current = { ...entwurfRef.current, [z.id]: neu };
     setEntwurf((s) => ({ ...s, [z.id]: neu }));
     void speichern(z);
@@ -225,7 +226,7 @@ export default function FlaggenPflege() {
           if (!st) { a.version = null; a.naechster = Date.now(); continue; } // Server kennt sie nicht (Neustart): neu schicken
           if (st.art === 'gespeichert' && st.version >= a.version) {
             delete auftraege.current[id];
-            const neu: Werte = { land: st.profil?.land ?? '', x: st.profil?.x ?? '', twitch: st.profil?.twitch ?? '' };
+            const neu: Werte = { land: st.profil?.land ?? '', x: st.profil?.x ?? '', twitch: st.profil?.twitch ?? '', anzeige: st.profil?.anzeige ?? '' };
             setGespeichert((s) => ({ ...s, [id]: neu }));
             setUnterId((s) => new Set(s).add(id));
             // Steht im Feld noch dasselbe wie beim Absenden, zeigt es jetzt die gespeicherte Form ("@abc" -> "abc", "Polen" -> "PL").
@@ -376,8 +377,8 @@ export default function FlaggenPflege() {
               {!d && !ladeFehler && <tr><td colSpan={10} className="px-3 py-8 text-center text-slate-500"><T>Wird geladen …</T></td></tr>}
               {d && !aufSeite.length && <tr><td colSpan={10} className="px-3 py-8 text-center text-slate-500"><T>Nichts offen.</T></td></tr>}
               {aufSeite.map((z, i) => {
-                const e = entwurf[z.id] ?? { land: '', x: '', twitch: '' };
-                const g = gespeichert[z.id] ?? { land: '', x: '', twitch: '' };
+                const e = entwurf[z.id] ?? { land: '', x: '', twitch: '', anzeige: '' };
+                const g = gespeichert[z.id] ?? { land: '', x: '', twitch: '', anzeige: '' };
                 const pl = pruefe('land', e.land);
                 const px = pruefe('x', e.x);
                 const pt = pruefe('twitch', e.twitch);
@@ -436,6 +437,8 @@ export default function FlaggenPflege() {
                       <a href={`/statistics?spieler=${z.id}`} target="_blank" rel="noreferrer" tabIndex={-1} className={`block truncate font-semibold hover:text-sky-300 ${z.name ? 'text-slate-100' : 'font-mono text-xs text-slate-400'}`}>{z.name || `${z.id.slice(0, 12)}… (Name unbekannt)`}</a>
                       {z.namen.length > 0 && <p className="truncate text-[11px] text-slate-500" title={z.namen.join(', ')}>{z.namen.join(' · ')}</p>}
                       {z.alterEintrag && <p className="text-[11px] text-violet-300" title="Liegt nur unter dem Namen, ohne Konto-Id - die Statistik sieht es nicht. Speichern legt es unter die Id.">Alteintrag „{z.alterEintrag}“</p>}
+                      {z.anzeige && z.anzeige !== z.name && <p className="truncate text-[11px] text-sky-300/80" title="Gepflegter Anzeigename - wird überall statt des rohen Namens gezeigt">zeigt als „{z.anzeige}“</p>}
+                      {finder('anzeige')}
                     </td>
                     <td className="px-2 py-2 text-xs text-slate-400">{z.region || '–'}<span className="block text-[10px] text-slate-600">{jahr(z.letzte)}</span></td>
                     <td className="px-2 py-2 text-right text-xs tabular-nums text-slate-300">{z.final} · {z.semi + z.heat} · {z.runde} · {z.cup}</td>

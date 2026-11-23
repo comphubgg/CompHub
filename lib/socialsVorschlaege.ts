@@ -15,10 +15,10 @@ import { aendereJson, liesJson } from '@/lib/ablage';
 export const VORSCHLAG_DATEI = 'socials-vorschlaege.json';
 export const AUTO_DATEI = 'socials-auto.json';
 
-export type SocialFeld = 'x' | 'twitch' | 'land';
+export type SocialFeld = 'x' | 'twitch' | 'land' | 'anzeige';
 export interface Beleg { art: string; text: string; url?: string; stark?: boolean }
 export interface Vorschlag { wert: string; belege: Beleg[]; andere?: Array<{ wert: string; belege: Beleg[] }> }
-export interface VorschlagZeile { name: string; zeit?: number; lauf?: string; x?: Vorschlag; twitch?: Vorschlag; land?: Vorschlag; abgelehnt?: Partial<Record<SocialFeld, string[]>> }
+export interface VorschlagZeile { name: string; zeit?: number; lauf?: string; x?: Vorschlag; twitch?: Vorschlag; land?: Vorschlag; anzeige?: Vorschlag; abgelehnt?: Partial<Record<SocialFeld, string[]>> }
 export interface VorschlagDatei { stand?: number; zeilen: Record<string, VorschlagZeile> }
 export interface AutoEintrag { id: string; name: string; feld: SocialFeld; wert: string; zeit: number; lauf?: string; belege: Beleg[]; status: 'offen' | 'geprueft' | 'rueckgaengig'; entschieden?: number }
 export interface AutoDatei { eintraege: AutoEintrag[] }
