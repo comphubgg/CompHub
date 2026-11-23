@@ -389,10 +389,17 @@ function Bild({ c, klasse }: { c: Cup; klasse: string }) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={c.bild} alt="" loading="lazy" className={`${klasse} object-cover`} />;
   }
+  // Nur falls Epic wirklich kein Bild liefert: ein generisches Banner (Pokal + Name, Farbton je Typ),
+  // damit keine Kachel leer wirkt (Betreiber, 23.11.2026).
   return (
-    <div className={`${klasse} flex items-center justify-center bg-gradient-to-br px-4 ${
+    <div className={`${klasse} relative flex flex-col items-center justify-center gap-2 overflow-hidden bg-gradient-to-br px-4 ${
       ART_FARBE[c.art] ?? 'from-zinc-800 to-zinc-900'}`}>
-      <span className="text-center text-sm font-bold uppercase tracking-wide text-white/80">{c.titel}</span>
+      <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.10]"
+        style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 24px)' }} />
+      <svg aria-hidden viewBox="0 0 24 24" fill="currentColor" className="h-9 w-9 text-white/85 drop-shadow">
+        <path d="M19 5h-2V3H7v2H5a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4h.26A6 6 0 0 0 11 14.91V17H8a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2h-3v-2.09A6 6 0 0 0 16.74 12H17a4 4 0 0 0 4-4V7a2 2 0 0 0-2-2ZM7 10a2 2 0 0 1-2-2V7h2Zm12-2a2 2 0 0 1-2 2V7h2Z" />
+      </svg>
+      <span className="relative text-center text-sm font-bold uppercase tracking-wide text-white/90 drop-shadow">{c.titel}</span>
     </div>
   );
 }

@@ -995,7 +995,7 @@ export async function turnierOptik(): Promise<Record<string, TurnierOptik>> {
         untertitel: ti.title_line_2 || undefined,
         beschreibung: (ti.details_description || ti.flavor_description || '').trim() || undefined,
         kurzTitel: ti.short_format_title || undefined,
-        bild: ti.playlist_tile_image || ti.loading_screen_image || undefined,
+        bild: ti.playlist_tile_image || ti.loading_screen_image || ti.poster_front_image || ti.poster_back_image || undefined,
         posterVorn: ti.poster_front_image || undefined,
         farbe: ti.primary_color ? `#${ti.primary_color}` : undefined,
       };
