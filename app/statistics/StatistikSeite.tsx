@@ -481,20 +481,22 @@ function grossName(name: string, gepflegt = false) {
 }
 
 /**
- * Der Name in einer Ranglisten-Zeile (Betreiber, 23.11.2026: "Ingame gross +
- * sauber klein"): oben gross der Ingame-Name (Epics roher Name ohne Zierzeichen),
- * darunter klein der gepflegte Szene-Name - aber nur, wenn beide sich wirklich
- * unterscheiden. Ausschliesslich in den Ranglisten-Tabellen; Profilkopf, Overlay,
- * Podest, Duell, Cup-Kopf und Poster behalten den gepflegten Namen.
+ * Der Name in einer Ranglisten-Zeile (Betreiber, 23.11.2026, nach dem
+ * Live-Sehen umgedreht): oben gross der gepflegte Szene-Name, darunter klein
+ * der Ingame-Name (Epics roher Name) - aber nur, wenn beide sich unterscheiden.
+ * Ohne gepflegten Namen steht der Ingame-Name gross. Ausschliesslich in den
+ * Ranglisten-Tabellen; Profilkopf, Overlay, Podest, Duell, Cup-Kopf und Poster
+ * zeigen ohnehin schon den gepflegten Namen.
  */
 function RangName({ sp, grossKlasse }: { sp: { name: string; anzeige: string; gepflegt?: boolean }; grossKlasse: string }) {
   const ingame = grossName(sp.name);
   const sauber = grossName(sp.anzeige, sp.gepflegt);
+  const gross = sauber || ingame;
   return (
     <span className="block min-w-0">
-      <span className={`block truncate ${grossKlasse}`}>{ingame || sauber || '—'}</span>
-      {sauber && ingame && ingame !== sauber && (
-        <span className="block truncate text-[0.7rem] font-normal leading-tight tracking-normal text-slate-500">{sauber}</span>
+      <span className={`block truncate ${grossKlasse}`}>{gross || '—'}</span>
+      {ingame && ingame !== gross && (
+        <span className="block truncate text-[0.7rem] font-normal leading-tight tracking-normal text-slate-500">{ingame}</span>
       )}
     </span>
   );

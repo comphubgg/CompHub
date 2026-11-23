@@ -5,8 +5,8 @@
  *
  * Gleich bleiben die Daten: Epics weltweite Liste mit zehntausend Plaetzen, tagesaktuell (/api/power-rankings). Neu ist alles, was man sieht:
  * oben die Spitze als drei Karten (Podest), daneben die groessten Spruenge seit der letzten Fortschreibung und die Laender der ersten
- * hundert; darunter die ganze Liste mit einem Balken je Zeile, der die Wertung gegen die Spitze stellt. In der Liste (Betreiber, 23.11.2026)
- * steht Epics Ingame-Name gross und der gepflegte Szene-Name klein darunter; im Podest bleibt es umgekehrt (gefuehrter Name gross, Epics Name klein).
+ * hundert; darunter die ganze Liste mit einem Balken je Zeile, der die Wertung gegen die Spitze stellt. In Liste wie Podest (Betreiber,
+ * 23.11.2026, nach dem Live-Sehen) steht der gepflegte Szene-Name gross und Epics Ingame-Name klein darunter, wenn beide sich unterscheiden.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -66,22 +66,20 @@ function Bewegung({ platz, gross = false }: { platz: number; gross?: boolean }) 
 }
 
 /**
- * Der Name - klein, wenn sie sich unterscheiden, noch ein zweiter darunter.
- *
- * In der Rangliste (Betreiber, 23.11.2026: "Ingame gross + sauber klein") steht
- * oben gross der Ingame-Name und klein darunter der gepflegte Szene-Name; im
- * Podest bleibt es umgekehrt (gefuehrter Name gross, Epics Name klein).
+ * Der Name: gross der gefuehrte (gepflegte) Szene-Name, klein darunter Epics
+ * Ingame-Name - aber nur, wenn sie sich unterscheiden. Ohne gepflegten Namen
+ * steht Epics Name gross. So in der Liste wie im Podest (Betreiber, 23.11.2026,
+ * nach dem Live-Sehen: der echte Name gross, der Ingame-Name klein darunter).
  */
-function Name({ s, klein = false, ingame = false }: { s: Spieler; klein?: boolean; ingame?: boolean }) {
+function Name({ s, klein = false }: { s: Spieler; klein?: boolean }) {
   const epic = s.name || '';
   const sauber = s.anzeige || '';
-  const gleich = !epic || !sauber || epic.toLowerCase() === sauber.toLowerCase();
-  const grossText = ingame ? (epic || sauber) : (sauber || epic);
-  const kleinText = ingame ? sauber : epic;
+  const gross = sauber || epic;
+  const zeigeEpic = epic && epic.toLowerCase() !== gross.toLowerCase();
   return (
     <span className="min-w-0">
-      <span className={`block truncate font-bold leading-tight text-slate-100 ${klein ? 'text-[0.95rem]' : 'text-base'}`}>{grossText || '—'}</span>
-      {!gleich && <span className="block truncate text-[0.72rem] leading-tight text-slate-500">{kleinText}</span>}
+      <span className={`block truncate font-bold leading-tight text-slate-100 ${klein ? 'text-[0.95rem]' : 'text-base'}`}>{gross || '—'}</span>
+      {zeigeEpic && <span className="block truncate text-[0.72rem] leading-tight text-slate-500">{epic}</span>}
     </span>
   );
 }
@@ -270,7 +268,7 @@ export default function RanglisteNeu() {
                     <span className={`schrift-anzeige text-xl font-extrabold tabular-nums ${s.rank <= 3 ? '' : 'text-slate-300'}`} style={s.rank <= 3 ? { color: MEDAILLE[s.rank - 1] } : undefined}>{zahl(s.rank)}</span>
                     <span className="flex min-w-0 items-center gap-3">
                       <TeamFlagge groesse={30} laender={[s.land || undefined]} />
-                      <Name s={s} klein ingame />
+                      <Name s={s} klein />
                     </span>
                     {/* Der Balken stellt die Wertung gegen die Spitze - nur ab Tablet, auf dem Handy bleibt die Zeile schmal. */}
                     <span className="hidden sm:block">
