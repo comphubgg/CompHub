@@ -6499,7 +6499,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   { k: t('Matches'), v: zahl(offen.matches, 0, sprache), d: offen.events ? `${feldText(offen, 'elimsProMatch', 2, sprache)} E/M` : '', spark: neuProfil.sparkMatches },
                   { k: t('Siege'), v: zahl(neuProfil.wins, 0, sprache), d: winRate ? `${winRate}% ${t('Quote')}` : '', sky: true, spark: neuProfil.sparkWins, hot: true },
                   { k: t('Eliminierungen'), v: zahl(offen.elims, 0, sprache), d: `${feldText(offen, 'elimsProMatch', 1, sprache)} / ${t('Match')}`, spark: neuProfil.sparkElims, hot: true },
-                  { k: t('Schnittplatz'), v: neuProfil.avgPlatz ? neuProfil.avgPlatz.toFixed(1) : '—', d: neuProfil.platzListe.length ? `${Math.round((neuProfil.top10 / neuProfil.platzListe.length) * 100)}% Top-10` : '', spark: neuProfil.sparkPlatz },
+                  { k: t('Top-10-Quote'), v: neuProfil.platzListe.length ? `${Math.round((neuProfil.top10 / neuProfil.platzListe.length) * 100)}%` : '—', d: neuProfil.platzListe.length ? `${zahl(neuProfil.top10, 0, sprache)} / ${zahl(neuProfil.platzListe.length, 0, sprache)} ${t('Events')}` : '', spark: neuProfil.sparkPlatz },
                 ];
                 return (
                   <div className={`profilneu-grid6 ${!profilLaedt && !offen.events ? 'hidden' : ''}`}>
