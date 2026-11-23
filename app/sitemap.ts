@@ -39,7 +39,8 @@ async function spielerSeiten(w: string): Promise<string[]> {
   for (const l of d?.listen ?? []) {
     for (const p of l.plaetze ?? []) if (p.epicId && /^[0-9a-f]{32}$/i.test(p.epicId)) ids.add(p.epicId);
   }
-  return [...ids].map((id) => `/statistics?spieler=${id}`);
+  // Die eigene, indexierbare Profil-Adresse (23.11.2026) - nicht mehr /statistics?spieler=<id>, das Google als Duplikat von /statistics verwirft.
+  return [...ids].map((id) => `/player/${id}`);
 }
 
 async function cupSeiten(w: string): Promise<string[]> {
