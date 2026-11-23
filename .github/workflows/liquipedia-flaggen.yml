@@ -1,0 +1,76 @@
+# Flaggen (Land) und X-/Twitch-Konten der wichtigen Spieler aus Liquipedia nachtragen (scripts/liquipedia-flaggen.mjs, lib/liquipediaInfobox.mjs).
+# Zweite, unabhaengige Quelle neben "Socials finden" (socials-finden.yml, FixTweet/Twitch). Ergebnis erscheint automatisch in /admin/flaggen:
+#   sicher (Name exakt + Region stimmig)  -> spieler-profile.json (Flagge/Handle erscheint sofort), protokolliert in socials-auto.json (zum Pruefen/Zuruecknehmen)
+#   unsicher                              -> socials-vorschlaege.json (der Betreiber bestaetigt mit einem Klick)
+# Ein von Hand gepflegter Wert wird nie ueberschrieben. Setzt fort, wo der letzte Lauf aufhoerte (liquipedia-geprueft.json).
+#
+# Woechentlich (Montag 04:17 UTC) mit "anwenden"; auch von Hand startbar. Liquipedia: nur action=query, UA "CompHub-stats-bot/1.0", gzip, >= 2,6 s je
+# Anfrage, bei 429 immer laenger warten - ueber curl (die GitHub-Rechner werden nicht als Scraper gedrosselt, der Agenten-Sandkasten schon).
+# Das Ergebnis steht als JSON im Protokoll (Zeile ERGEBNIS_B64, gzip + base64).
+
+name: Liquipedia Flaggen
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      modus:
+        description: 'plan | anwenden'
+        type: choice
+        default: anwenden
+        options: [plan, anwenden]
+      minuten:
+        description: 'Budget in Minuten'
+        type: string
+        default: '300'
+      region:
+        description: 'Nur diese Regionen (Komma, z. B. NAC,NAW) - leer = alle'
+        type: string
+        default: ''
+      max:
+        description: 'Hoechstens so viele Spieler (0 = alle offenen)'
+        type: string
+        default: '0'
+      nur:
+        description: 'Nur diese Epic-Ids (Komma)'
+        type: string
+        default: ''
+
+concurrency:
+  group: liquipedia-flaggen
+  cancel-in-progress: false
+
+jobs:
+  finden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund 2>&1 | tail -2
+      - name: Suchen
+        env:
+          # Das Archiv (comphub-daten) mit dem Token aus ENV_LOCAL, wie scripts/socials-finden.mjs (lib/ablageGitDaten).
+          COMPHUB_ABLAGE: github
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          mkdir -p aus
+          MODUS="${{ inputs.modus || 'anwenden' }}"
+          MIN="${{ inputs.minuten || '300' }}"
+          ARGS="--minuten $MIN"
+          [ "$MODUS" = "anwenden" ] && ARGS="--anwenden $ARGS"
+          [ -n "${{ inputs.region }}" ] && ARGS="$ARGS --region ${{ inputs.region }}"
+          [ "${{ inputs.max || '0' }}" != "0" ] && ARGS="$ARGS --max ${{ inputs.max }}"
+          [ -n "${{ inputs.nur }}" ] && ARGS="$ARGS --nur ${{ inputs.nur }}"
+          echo "Modus $MODUS: $ARGS"
+          set +e
+          node scripts/liquipedia-flaggen.mjs $ARGS > aus/ergebnis.json
+          rc=$?
+          rm -f .env.local
+          echo "ERGEBNIS_B64 $(gzip -9c aus/ergebnis.json | base64 -w0)"
+          exit $rc
