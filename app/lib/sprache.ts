@@ -2266,6 +2266,11 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Banner': 'Banner',
   'Detail-Panel': 'Detail panel',
   'Leaderboard': 'Leaderboard',
+  // Leaderboard-Optionen (Spalten an/aus, Seitenleiste, letztes Match).
+  'Optionen': 'Options',
+  'Spalten': 'Columns',
+  'Seitenleiste ausblenden': 'Hide sidebar',
+  'Letztes Match': 'Latest match',
   'Rotation': 'Rotation',
   'Formen bleiben je Kartenbild gespeichert, Spieler startest du jedes Mal neu.':
     'Shapes are kept per map image; players start over every time.',

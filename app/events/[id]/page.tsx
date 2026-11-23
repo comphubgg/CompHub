@@ -327,6 +327,35 @@ interface Eintrag {
   matchesWeg?: boolean;
 }
 
+/*
+ * Die Spalten des Leaderboards - an- und ausschaltbar ueber den "Options"-Knopf neben der Suche (Betreiber-Vorbild Fortnite Tracker, aber in der
+ * eigenen Optik). Die Vorgabe ist das bisherige Bild: Rang, Spieler mit Flagge, Punkte, Elims, Siege, Ø Platz, Spiele und - wo es Preisgeld gibt -
+ * Verdienst stehen an; die Zusatzspalten (Ø Punkte, Ø Elims, K/D, Ø Überlebenszeit) stehen anfangs aus. Je Browser gemerkt (localStorage).
+ */
+const LB_SPALTEN_STD = {
+  rank: true, player: true, flagge: true, punkte: true, avgPunkte: false,
+  elims: true, avgElims: false, kd: false, siege: true, avgPlatz: true,
+  avgTimeAlive: false, spiele: true, verdienst: true,
+};
+type LbSpalten = typeof LB_SPALTEN_STD;
+/** Reihenfolge und Beschriftung der Umschalter im Options-Feld. */
+const LB_SPALTEN_FELDER: Array<{ key: keyof LbSpalten; label: string }> = [
+  { key: 'rank', label: 'Rang' },
+  { key: 'player', label: 'Spieler' },
+  { key: 'flagge', label: 'Flagge' },
+  { key: 'punkte', label: 'Punkte' },
+  { key: 'avgPunkte', label: 'Ø Punkte' },
+  { key: 'elims', label: 'Elims' },
+  { key: 'avgElims', label: 'Ø Elims' },
+  { key: 'kd', label: 'K/D' },
+  { key: 'siege', label: 'Siege' },
+  { key: 'avgPlatz', label: 'Ø Platz' },
+  { key: 'avgTimeAlive', label: 'Ø Überlebenszeit' },
+  { key: 'spiele', label: 'Spiele' },
+  { key: 'verdienst', label: 'Verdienst' },
+];
+const LB_OPTIONEN_SCHLUESSEL = 'comphub:lb-optionen';
+
 /**
  * Eine Kachel der Rundenliste - bewusst ein eigenes, gemerktes Bauteil.
  *
@@ -1411,6 +1440,42 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Der Spieltag, dessen ganze Liste gerade in der Tabelle steht. */
   const ganzGeladen = useRef('');
   const [suche, setSuche] = useState('');
+
+  /*
+   * Die Leaderboard-Optionen (Spalten + Seitenleiste), je Browser gemerkt. Vorgabe = das bisherige Bild. Gelesen wird gleich beim Aufbau aus dem
+   * Speicher: die Tabelle und die Seitenleiste haengen an spaeter geladenen Daten, stehen also im Server-HTML noch nicht - daher kein Flackern beim Laden.
+   */
+  const lbOptLesen = () => {
+    try {
+      if (typeof window === 'undefined') return null;
+      const roh = localStorage.getItem(LB_OPTIONEN_SCHLUESSEL);
+      return roh ? JSON.parse(roh) as { spalten?: Partial<LbSpalten>; sidebarAus?: boolean } : null;
+    } catch { return null; }
+  };
+  const [lbSpalten, setLbSpalten] = useState<LbSpalten>(() => {
+    const j = lbOptLesen();
+    return j?.spalten ? { ...LB_SPALTEN_STD, ...j.spalten } : LB_SPALTEN_STD;
+  });
+  const [lbSidebarAus, setLbSidebarAus] = useState<boolean>(() => lbOptLesen()?.sidebarAus === true);
+  const [lbOptionenOffen, setLbOptionenOffen] = useState(false);
+  /*
+   * Wer in den Turnier-/Player-Stats-Kacheln unter der Maus steht, leuchtet in jeder Kachel blau auf, in der er vorkommt - wie bei den
+   * Replay-Kacheln (StatKacheln). Vorher gab es das nur im fertigen Stand; bei einem laufenden Cup zeigt die Seite die Kacheln aus Epics
+   * Werten, und die hatten das Hervorheben nicht. Gemerkt wird Epics Gesamtplatz des Teams - der ist in jeder Kachel derselbe.
+   */
+  const [statMarkiert, setStatMarkiert] = useState<number | null>(null);
+  // Jede Aenderung an den Optionen je Browser merken.
+  useEffect(() => {
+    try { localStorage.setItem(LB_OPTIONEN_SCHLUESSEL, JSON.stringify({ spalten: lbSpalten, sidebarAus: lbSidebarAus })); } catch { /* voll oder gesperrt */ }
+  }, [lbSpalten, lbSidebarAus]);
+  /** "Letztes Match": in den Matches-Reiter wechseln und die neueste Lobby (laufend zuerst, sonst zuletzt beendet) gleich aufklappen. */
+  const letztesMatchOeffnen = useCallback(() => {
+    const neu = (spiele ?? []).filter((s) => !s.abgesagt).slice()
+      .sort((a, b) => (Number(!!b.live) - Number(!!a.live)) || String(b.ende ?? '').localeCompare(String(a.ende ?? '')))[0];
+    if (neu) setOffenesSpiel(neu.id);
+    setReiter('runden');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [spiele]);
 
   /** Laeuft gerade eine tiefere Stufe der Bestenliste? */
   const [vertieft, setVertieft] = useState(false);
@@ -4328,6 +4393,57 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 placeholder={t('Spieler suchen …')}
                 className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
                            text-xs text-slate-100 outline-none focus:border-sky-500" />
+              {/*
+                * "Options" neben der Suche - welche Spalten stehen, Seitenleiste an/aus, und ein Sprung zur neuesten Lobby. In der eigenen Optik
+                * (Himmelblau als Akzent); je Browser gemerkt.
+                */}
+              <div className="relative">
+                <button type="button" onClick={() => setLbOptionenOffen((o) => !o)}
+                  aria-expanded={lbOptionenOffen}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${lbOptionenOffen
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                    : 'border-zinc-800 bg-zinc-900/80 text-slate-300 hover:border-sky-500 hover:text-sky-400'}`}>
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                    <path d="M2 4h8M2 8h12M2 12h6" strokeLinecap="round" />
+                    <circle cx="12" cy="4" r="1.6" fill="currentColor" stroke="none" />
+                    <circle cx="6" cy="12" r="1.6" fill="currentColor" stroke="none" />
+                  </svg>
+                  <T>Optionen</T>
+                </button>
+                {lbOptionenOffen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setLbOptionenOffen(false)} />
+                    <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-950 p-3 shadow-2xl">
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>Spalten</T></p>
+                      <div className="grid grid-cols-2 gap-0.5">
+                        {LB_SPALTEN_FELDER.map(({ key, label }) => (
+                          <label key={key} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-300 transition hover:bg-zinc-900">
+                            <input type="checkbox" checked={lbSpalten[key]}
+                              onChange={() => setLbSpalten((s) => ({ ...s, [key]: !s[key] }))}
+                              className="h-3.5 w-3.5 shrink-0 accent-sky-500" />
+                            <span className="truncate"><T>{label}</T></span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="mt-2 space-y-0.5 border-t border-zinc-800 pt-2">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-slate-300 transition hover:bg-zinc-900">
+                          <input type="checkbox" checked={lbSidebarAus}
+                            onChange={() => setLbSidebarAus((v) => !v)}
+                            className="h-3.5 w-3.5 shrink-0 accent-sky-500" />
+                          <span><T>Seitenleiste ausblenden</T></span>
+                        </label>
+                        <button type="button" onClick={() => { letztesMatchOeffnen(); setLbOptionenOffen(false); }}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs font-semibold text-sky-300 transition hover:bg-sky-500/10">
+                          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                            <path d="M2 8h9M8 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <T>Letztes Match</T>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
               {/* Wie viele Zeilen je Seite - mehr als hundert gibt es nicht. */}
               <label className="flex items-center gap-1.5 text-xs text-slate-500">
                 <T>Zeilen</T>
@@ -4418,6 +4534,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             const einTagEinerReihe = kumTage.length > 1 && !summenFenster && kumTage.some((x) => x.windowId === fenster?.windowId);
             const mitPreis = (geldStufen.length > 0 || punkteStufen.length > 0) && !einTagEinerReihe;
             const waehrung = preise?.waehrung ?? 'USD';
+            // Wie viele Spalten gerade stehen - fuer die Qualifikationslinie und die Detailzeile auf dem Handy (colSpan).
+            const lbSpaltenAnzahl = (lbSpalten.rank ? 1 : 0) + ((lbSpalten.player || lbSpalten.flagge) ? 1 : 0)
+              + (lbSpalten.punkte ? 1 : 0) + (lbSpalten.avgPunkte ? 1 : 0) + (lbSpalten.elims ? 1 : 0) + (lbSpalten.avgElims ? 1 : 0)
+              + (lbSpalten.kd ? 1 : 0) + (lbSpalten.siege ? 1 : 0) + (lbSpalten.avgPlatz ? 1 : 0) + (lbSpalten.avgTimeAlive ? 1 : 0)
+              + (lbSpalten.spiele ? 1 : 0) + ((lbSpalten.verdienst && mitPreis) ? 1 : 0);
             /*
              * Die Details eines Teams - rechts neben der Liste.
              *
@@ -4571,14 +4692,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <thead>
                   <tr className="border-b border-zinc-800 text-[11px] uppercase
                                  tracking-wider text-slate-500">
-                    <th className="px-4 py-2 text-right font-medium">#</th>
-                    <th className="px-3 py-2 text-left font-medium">Team</th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Punkte</T></th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Siege</T></th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Ø Platz</T></th>
-                    <th className="px-4 py-2 text-right font-medium"><T>Spiele</T></th>
-                    {mitPreis && (
+                    {lbSpalten.rank && <th className="px-4 py-2 text-right font-medium">#</th>}
+                    {(lbSpalten.player || lbSpalten.flagge) && <th className="px-3 py-2 text-left font-medium">Team</th>}
+                    {lbSpalten.punkte && <th className="px-3 py-2 text-right font-medium"><T>Punkte</T></th>}
+                    {lbSpalten.avgPunkte && <th className="px-3 py-2 text-right font-medium"><T>Ø Punkte</T></th>}
+                    {lbSpalten.elims && <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>}
+                    {lbSpalten.avgElims && <th className="px-3 py-2 text-right font-medium"><T>Ø Elims</T></th>}
+                    {lbSpalten.kd && <th className="px-3 py-2 text-right font-medium">K/D</th>}
+                    {lbSpalten.siege && <th className="px-3 py-2 text-right font-medium"><T>Siege</T></th>}
+                    {lbSpalten.avgPlatz && <th className="px-3 py-2 text-right font-medium"><T>Ø Platz</T></th>}
+                    {lbSpalten.avgTimeAlive && <th className="px-3 py-2 text-right font-medium"><T>Ø Überlebenszeit</T></th>}
+                    {lbSpalten.spiele && <th className="px-4 py-2 text-right font-medium"><T>Spiele</T></th>}
+                    {lbSpalten.verdienst && mitPreis && (
                       <th className="px-4 py-2 text-right font-medium" title={preise?.proPerson ? t('je Person') : undefined}>
                         <T>Verdienst</T>
                       </th>
@@ -4592,15 +4717,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         className={`cursor-pointer border-b border-zinc-900 transition
                                     hover:bg-zinc-900/60 ${offen === e.rank ? 'bg-zinc-900/70' : ''}
                                     ${istMein(e) ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>
-                        <td className={`px-4 py-2 text-right font-bold tabular-nums ${
-                          e.rank <= 3 ? 'text-amber-400' : 'text-sky-400'}`}>{e.rank}</td>
+                        {lbSpalten.rank && <td className={`px-4 py-2 text-right font-bold tabular-nums ${
+                          e.rank <= 3 ? 'text-amber-400' : 'text-sky-400'}`}>{e.rank}</td>}
+                        {(lbSpalten.player || lbSpalten.flagge) && (
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
                             {/* Eine runde Flagge fuers Duo, diagonal geteilt.
                                 Wo keine Herkunft gepflegt ist, steht der
                                 Globus - eine leere Stelle sah nach Fehler aus. */}
-                            <TeamFlagge groesse={26}
-                              laender={e.players.map(landVon)} />
+                            {lbSpalten.flagge && <TeamFlagge groesse={26}
+                              laender={e.players.map(landVon)} />}
                             {/*
                               * Hier standen die Profilbilder der Spieler.
                               *
@@ -4612,9 +4738,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               * zu Zeile anders aus. Flagge und Teamlogo
                               * bleiben, die stimmen.
                               */}
-                            <span className="truncate text-slate-200">
+                            {lbSpalten.player && <span className="truncate text-slate-200">
                               {e.players.map(namenVon).join('  +  ')}
-                            </span>
+                            </span>}
                             {/*
                               * Hier stand einmal ein Play-Zeichen je Spieler
                               * mit hinterlegtem Twitch-Kanal.
@@ -4627,22 +4753,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               * und zwar richtig: mit der Frage an Twitch, wer
                               * in diesem Moment live ist.
                               */}
-                            {e.players.find((p) => p.logo) && (
+                            {lbSpalten.player && e.players.find((p) => p.logo) && (
                               <img src={e.players.find((p) => p.logo)!.logo!} alt=""
                                 className="ml-1 h-4 w-auto max-w-10 object-contain opacity-80" />
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-100">
+                        )}
+                        {lbSpalten.punkte && <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-100">
                           {e.points}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.elims}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.wins}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                        </td>}
+                        {lbSpalten.avgPunkte && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{schnitt(e.avgPoints, ort)}</td>}
+                        {lbSpalten.elims && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.elims}</td>}
+                        {lbSpalten.avgElims && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{schnitt(e.avgElims, ort)}</td>}
+                        {lbSpalten.kd && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{schnitt(kdVon(e), ort)}</td>}
+                        {lbSpalten.siege && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{e.wins}</td>}
+                        {lbSpalten.avgPlatz && <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                           {schnitt(e.avgPlace, ort)}
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-400">{e.games}</td>
-                        {mitPreis && (() => {
+                        </td>}
+                        {lbSpalten.avgTimeAlive && <td className="px-3 py-2 text-right tabular-nums text-slate-400">{dauer(e.games ? e.timeAlive / e.games : 0)}</td>}
+                        {lbSpalten.spiele && <td className="px-4 py-2 text-right tabular-nums text-slate-400">{e.games}</td>}
+                        {lbSpalten.verdienst && mitPreis && (() => {
                           const betrag = preisFuer(e.rank, e.points);
                           return (
                             <td className={`px-4 py-2 text-right font-semibold tabular-nums ${
@@ -4664,7 +4795,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           (siehe unten), auf dem Handy unter der Zeile. */}
                       {offen === e.rank && (
                         <tr className="border-b border-zinc-900 bg-zinc-950 lg:hidden">
-                          <td colSpan={mitPreis ? 8 : 7} className="p-0">
+                          <td colSpan={lbSpaltenAnzahl} className="p-0">
                             {teamPanel(e)}
                           </td>
                         </tr>
@@ -4675,7 +4806,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         */}
                       {fenster?.qualifiziert === e.rank && (
                         <tr>
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={lbSpaltenAnzahl} className="p-0">
                             <div className="flex items-center gap-3 border-y
                                             border-amber-500/40 bg-amber-500/10
                                             px-4 py-1">
@@ -4711,7 +4842,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         if (!q || !lc || lc.bis !== e.rank) return null;
                         return (
                           <tr>
-                            <td colSpan={7} className="p-0">
+                            <td colSpan={lbSpaltenAnzahl} className="p-0">
                               <div className="flex items-center gap-3 border-y border-sky-500/30 bg-sky-500/[0.06] px-4 py-1">
                                 <span aria-hidden className="h-px flex-1 bg-sky-500/25" />
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">
@@ -4790,7 +4921,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
               )}
             </div>
-            {gezeigt && (
+            {gezeigt && !lbSidebarAus && (
               <aside className="hidden w-[340px] shrink-0 border-l border-zinc-800 lg:sticky lg:top-4 lg:block">
                 {teamPanel(gezeigt)}
               </aside>
@@ -5888,12 +6019,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             {ueberblick && <EventUebersicht u={ueberblick} ort={ort} />}
             {/* Die Spitze jeder Kennzahl auf einen Blick, wie Osirion unter den Event Stats (Betreiber, 9.11.2026: "wo ist das, was rot umkreist ist"). */}
             {statistik.filter((b) => !b.mehr && b.plaetze.length).length > 0 && (
-              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" onMouseLeave={() => setStatMarkiert(null)}>
                 {statistik.filter((b) => !b.mehr && b.plaetze.length).slice(0, 10).map((b) => {
                   const pl = b.plaetze[0];
                   return (
                     // Dieselben Kacheln wie die Uebersicht darueber (Betreiber, 9.11.2026: "gleich wie die oberen"), Titel in jedem Wort gross wie bei Osirion.
-                    <div key={b.schluessel} className="flex min-w-0 flex-col items-center rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 text-center">
+                    <div key={b.schluessel}
+                      onMouseEnter={() => setStatMarkiert(pl.rank)}
+                      className={`flex min-w-0 flex-col items-center rounded-md border px-3 py-2.5 text-center transition ${statMarkiert === pl.rank
+                        ? 'border-sky-500/60 bg-sky-500/10' : 'border-zinc-800 bg-zinc-900/50'}`}>
                       <span className="max-w-full truncate text-[11px] text-slate-400">Top {b.titel.replace(/(^|\s)(\S)/g, (_m, a: string, c: string) => a + c.toUpperCase())}</span>
                       <span className="mt-1 flex max-w-full items-center gap-1.5 truncate text-sm font-extrabold text-slate-100">
                         <TeamFlagge groesse={14} laender={pl.spieler.map((n, k) => landVon({ name: n, id: pl.ids?.[k] }))} />
@@ -5910,7 +6044,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
             {/* Trios und Squads (Betreiber, 9.11.2026): nur Top 5, dafuer breitere Kacheln, damit alle vier Namen lesbar sind - ungekuerzt, notfalls umbrochen. */}
             {(() => { const grossTeams = statistik.some((b) => b.plaetze.some((pl) => pl.spieler.length >= 3)); return (
-            <div className={`grid gap-4 sm:grid-cols-2 ${grossTeams ? 'xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-5'}`}>
+            <div className={`grid gap-4 sm:grid-cols-2 ${grossTeams ? 'xl:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-5'}`} onMouseLeave={() => setStatMarkiert(null)}>
               {statistik.filter((b) => mehrKacheln || !b.mehr).map((b) => ({ ...b, plaetze: grossTeams ? b.plaetze.slice(0, 5) : b.plaetze })).map((b) => (
                 <div key={b.schluessel}
                   className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
@@ -5938,7 +6072,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <ol className="px-3 pb-3">
                     {b.plaetze.map((pl, i) => (
                       <li key={`${b.schluessel}-${pl.rank}-${i}`}
-                        className="mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2">
+                        onMouseEnter={() => setStatMarkiert(pl.rank)}
+                        className={`mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 transition ${statMarkiert === pl.rank ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/60' : ''}`}>
                         <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${(pl.statPlatz ?? i + 1) === 1 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>
                           {pl.statPlatz ?? i + 1}
                         </span>
@@ -6000,8 +6135,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             rounded-2xl border border-zinc-800 bg-zinc-950">
               <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
                                  px-4 py-3">
-                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
-                  <span className="not-italic">{offeneListe.symbol}</span>
+                {/* Ohne das fuehrende Emoji (Betreiber): in der Vollansicht steht nur der Titel. */}
+                <h3 className="text-sm font-semibold text-slate-100">
                   {offeneListe.titel}
                 </h3>
                 <span className="text-xs text-slate-500">

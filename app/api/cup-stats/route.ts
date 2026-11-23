@@ -202,11 +202,15 @@ async function holeRoh(request: Request) {
     const bestenlisten = KATEGORIEN.filter((k) =>
       (!nurListe || k.schluessel === nurListe) && !(teamCup && k.schluessel === 'clutch')).map((k) => {
       const mindestSpiele = k.jeSpiel ? Math.max(1, Math.ceil(eintraege.reduce((m, e) => Math.max(m, e.games || 0), 0) / 2)) : 0;
+      // Fuehrt das Turnier diese Kennzahl ueberhaupt? Erst wenn mindestens einer einen echten Wert > 0 hat, gibt es die Kategorie - sonst entfaellt sie ganz.
+      const hatKennzahl = eintraege.some((e) => { const v = k.wert(e, ex(e)); return Number.isFinite(v) && v > 0; });
+      if (!hatKennzahl) return null;
+      // Null-Werte mitnehmen (Betreiber: "Most Kills / Most Damage" sollen auch 0 zeigen, nicht verschwinden) - wer gespielt hat, steht mit seinem Wert in der
+      // Liste, auch wenn er 0 ist. Nur bei "kleiner ist besser" (Ø Platzierung) bleibt 0 draussen: dort waere 0 kein echter Platz, sondern fehlende Daten.
       const mitWert = eintraege.filter((e) => {
         const v = k.wert(e, ex(e));
-        return Number.isFinite(v) && v > 0 && (e.games || 0) >= mindestSpiele;
+        return Number.isFinite(v) && (k.kleinBesser ? v > 0 : v >= 0) && (e.games || 0) >= mindestSpiele;
       });
-      // Liefert das Turnier diese Kennzahl nicht, entfaellt die Kategorie.
       if (!mitWert.length) return null;
 
       const sortiert = [...mitWert].sort((a, b) =>
