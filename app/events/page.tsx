@@ -184,7 +184,8 @@ function serieVon(titel: string): string {
 function typenVon(c: Cup): Set<Typ> {
   const text = `${c.titel} ${c.untertitel ?? ''}`;
   const t = new Set<Typ>();
-  if (c.art === 'ranked' || /\branked\b/i.test(text)) t.add('ranked');
+  // PlayStation-Cups in die Ranked-Gruppe, damit der "Ranked Cups ausblenden"-Schalter sie mitsteuert (Betreiber, 23.11.2026).
+  if (c.art === 'ranked' || /\branked\b/i.test(text) || /\bplaystation\b/i.test(text)) t.add('ranked');
   if (c.art === 'skin') t.add('skin');
   if (c.art === 'victory' || /victory/i.test(text)) t.add('victory');
   if (c.art === 'cash' || /cash cup/i.test(text)) t.add('cash');
