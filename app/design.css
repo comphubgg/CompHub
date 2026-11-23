@@ -298,7 +298,7 @@ html[data-modus="hell"] .profilneu-phead b { color: #0b1320; }
 .profilneu-phead .c { color: var(--mut2); font-family: var(--font-geist-mono), monospace; font-size: 11px; }
 
 /* Index-Balken */
-.profilneu-ibar { display: grid; grid-template-columns: 120px 1fr 40px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line2); }
+.profilneu-ibar { display: grid; grid-template-columns: 116px 1fr 68px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line2); }
 .profilneu-ibar-l { font-size: 12px; font-weight: 700; letter-spacing: .4px; color: #e6eefb; text-transform: uppercase; }
 html[data-modus="hell"] .profilneu-ibar-l { color: #0b1320; }
 .profilneu-ibar-track { height: 9px; background: rgba(120,160,210,.08); border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; }

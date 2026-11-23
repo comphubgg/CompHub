@@ -4242,14 +4242,14 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
   const neuProfil = useMemo(() => {
     const alle = [...verlauf, ...epicZeilen];
     // Verdienst-Posten: Zeilen mit Preisgeld plus LAN-Betraege, die nicht schon als Zeile stecken.
-    const geld: Array<{ datum: number; betrag: number; season: string }> = alle
+    const geld: Array<{ datum: number; betrag: number; season: string; event: string }> = alle
       .filter((z) => typeof z.verdienst === 'number' && (z.verdienst ?? 0) > 0)
-      .map((z) => ({ datum: z.datum ?? 0, betrag: z.verdienst as number, season: z.season }));
+      .map((z) => ({ datum: z.datum ?? 0, betrag: z.verdienst as number, season: z.season, event: turnierName(z.event, t) }));
     for (const l of lanErgebnisse) {
       if ((l.betrag ?? 0) <= 0) continue;
       const kern = (l.fenster ?? '').split('_')[0];
       if (alle.some((z) => (z.verdienst ?? 0) > 0 && z.windowId.split('_')[0] === kern)) continue;
-      geld.push({ datum: l.datum ?? 0, betrag: l.betrag, season: l.season });
+      geld.push({ datum: l.datum ?? 0, betrag: l.betrag, season: l.season, event: l.name || l.fenster || l.season });
     }
     const careerTotal = geld.reduce((a, z) => a + z.betrag, 0);
     // Je Jahr: Preisgeld, Spieltage, Siege - fuer den Karriere-Streifen und das Glas.
@@ -4266,13 +4266,14 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
     const top10 = platzListe.filter((p) => p <= 10).length;
     const wins = platzListe.filter((p) => p === 1).length;
     const avgPlatz = platzListe.length ? platzListe.reduce((a, b) => a + b, 0) / platzListe.length : 0;
-    // Elims je Match, Spieltag fuer Spieltag (nur mit echten Werten).
+    // Elims je Match, Spieltag fuer Spieltag (nur mit echten Werten) - mit Event und Datum fuers Mouseover.
     const elimsSerie = alle.filter((z) => !z.gesamt && !z.nurEpic && z.werte.matchesPlayed > 0 && z.werte.eliminations > 0)
       .sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0))
-      .map((z) => ({ label: z.season, wert: z.werte.eliminations / z.werte.matchesPlayed }));
+      .map((z) => ({ event: turnierName(z.event, t), datum: z.datum ?? 0, wert: z.werte.eliminations / z.werte.matchesPlayed }));
+    // Perzentile in Klartext: welche Achse, Wert 0-100 (besser als X % des Feldes).
     const radar = perzentile ? ([
-      ['Elims', perzentile.elims], ['Damage', perzentile.damage], ['Accuracy', perzentile.genauigkeit],
-      ['Survival', perzentile.timeAlive], ['K/D', perzentile.quote],
+      ['Eliminierungen', perzentile.elims], ['Schaden', perzentile.damage], ['Trefferquote', perzentile.genauigkeit],
+      ['Überleben', perzentile.timeAlive], ['Schadensquote', perzentile.quote],
     ] as Array<[string, number | null]>).filter(([, v]) => typeof v === 'number').map(([label, v]) => ({ label, wert: v as number })) : [];
     return {
       earningsPosten: geld, careerTotal, jahre, jahrGeldMax,
@@ -4290,7 +4291,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
         return Math.max(1, 100 - avg);
       }),
     };
-  }, [verlauf, epicZeilen, lanErgebnisse, perzentile]);
+  }, [verlauf, epicZeilen, lanErgebnisse, perzentile, t]);
 
   /** Das Preisgeld des laufenden Jahres (JAHR) und die Spieltage dazu - fuers Aufmacher-Glas. */
   const jahrEintrag = neuProfil.jahre.find(([j]) => j === JAHR)?.[1];
@@ -6497,7 +6498,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   { k: t('Preisgeld'), v: earn > 0 ? `$${kurzZahl(earn, sprache)}` : '—', d: rang?.global ? `#${zahl(rang.global, 0, sprache)} ${t('Welt')}` : (heimatRegion || ''), sky: true, spark: neuProfil.sparkEarn, hot: true },
                   { k: t('Spieltage'), v: zahl(offen.events, 0, sprache), d: `${zahl(neuProfil.top10, 0, sprache)} Top-10`, spark: neuProfil.sparkEvents },
                   { k: t('Matches'), v: zahl(offen.matches, 0, sprache), d: offen.events ? `${feldText(offen, 'elimsProMatch', 2, sprache)} E/M` : '', spark: neuProfil.sparkMatches },
-                  { k: t('Siege'), v: zahl(neuProfil.wins, 0, sprache), d: winRate ? `${winRate}% ${t('Quote')}` : '', sky: true, spark: neuProfil.sparkWins, hot: true },
+                  { k: t('Siege'), v: zahl(neuProfil.wins, 0, sprache), d: winRate ? `${winRate}% ${t('Siegquote')}` : '', sky: true, spark: neuProfil.sparkWins, hot: true },
                   { k: t('Eliminierungen'), v: zahl(offen.elims, 0, sprache), d: `${feldText(offen, 'elimsProMatch', 1, sprache)} / ${t('Match')}`, spark: neuProfil.sparkElims, hot: true },
                   { k: t('Top-10-Quote'), v: neuProfil.platzListe.length ? `${Math.round((neuProfil.top10 / neuProfil.platzListe.length) * 100)}%` : '—', d: neuProfil.platzListe.length ? `${zahl(neuProfil.top10, 0, sprache)} / ${zahl(neuProfil.platzListe.length, 0, sprache)} ${t('Events')}` : '', spark: neuProfil.sparkPlatz },
                 ];
@@ -6805,33 +6806,47 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </div>
               ) : spielerReiter === 'werte' || spielerReiter === 'leistung' ? (
                 <div className="space-y-7">
-                {/* Die Diagramme (freigegebener Entwurf) - alle aus echten Reihen. */}
+                {/* Zeitraum-Umschalter direkt am Reiter: Jahr/Alle Zeit wechseln Diagramme und Zahlen (Betreiber, 22.11.2026). */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>Zeitraum</T></span>
+                  {([['alle', t('Alle Zeit')], ...Object.keys(JAHR_SAISONS).map(Number).sort((a, b) => b - a).map((j) => [`jahr:${j}`, String(j)] as [string, string])] as Array<[string, string]>).map(([w, titel]) => (
+                    <button key={w} type="button" onClick={() => profilZeitraum(w)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${profilSaison === w
+                        ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-800 text-slate-400 hover:text-slate-200'}`}>
+                      {titel}
+                    </button>
+                  ))}
+                </div>
+                {/* Die Diagramme (freigegebener Entwurf) - alle aus echten Reihen, jeder Punkt mit Mouseover. */}
                 <div className="profilneu-lab">{t('Analyse')}<span className="ln" /><span className="r">{t('Diagramme')}</span></div>
                 {neuProfil.earningsPosten.length >= 2 && (
                   <div className="profilneu-panel">
-                    <div className="profilneu-phead"><b>{t('Preisgeld über die Zeit')}</b><span className="c">{t('monatlich')} · USD</span></div>
-                    <div className="px-4 pb-2 pt-3"><EarningsVerlauf posten={neuProfil.earningsPosten} label={t('Preisgeld über die Zeit')} /></div>
+                    <div className="profilneu-phead"><b>{t('Preisgeld über die Zeit')}</b><span className="c">{t('aufsummiert')} · USD</span></div>
+                    <div className="px-4 pb-2 pt-3"><EarningsVerlauf posten={neuProfil.earningsPosten} /></div>
+                    <p className="px-4 pb-3 text-[11px] text-slate-500"><T>Die Linie steigt mit jedem Preisgeld — Punkt für Punkt ein Cup. Fahre über einen Punkt für Cup, Datum und Betrag.</T></p>
                   </div>
                 )}
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div className="profilneu-panel">
                     <div className="profilneu-phead"><b>{t('Platzierungen')}</b><span className="c">{zahl(neuProfil.platzListe.length, 0, sprache)} {t('Events')}</span></div>
-                    <div className="px-3 pb-2 pt-3"><PlatzVerteilung platzierungen={neuProfil.platzListe} label={t('Platzierungen')} /></div>
+                    <div className="px-3 pb-2 pt-3"><PlatzVerteilung platzierungen={neuProfil.platzListe} /></div>
                   </div>
                   <div className="profilneu-panel">
                     <div className="profilneu-phead"><b>{t('Elims je Match')}</b><span className="c">{t('je Spieltag')}</span></div>
-                    <div className="px-3 pb-2 pt-3"><ElimsVerlauf serie={neuProfil.elimsSerie} label={t('Elims je Match')} /></div>
+                    <div className="px-3 pb-2 pt-3"><ElimsVerlauf serie={neuProfil.elimsSerie} /></div>
                   </div>
                 </div>
                 {neuProfil.radar.length >= 3 && (
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="profilneu-panel">
-                      <div className="profilneu-phead"><b>{t('Stärkenprofil')}</b><span className="c">{t('Perzentil')} · 0–100</span></div>
-                      <div className="px-3 pb-2 pt-2"><SpielerRadar achsen={neuProfil.radar} label={t('Stärkenprofil')} /></div>
+                      <div className="profilneu-phead"><b>{t('Stärkenprofil')}</b><span className="c">0–100</span></div>
+                      <div className="px-3 pb-1 pt-2"><SpielerRadar achsen={neuProfil.radar} /></div>
+                      <p className="px-4 pb-3 text-[11px] text-slate-500"><T>Jede Achse vergleicht den Spieler mit dem ganzen Feld. 100 heißt: besser als fast alle anderen Spieler, 50 heißt: Mittelfeld.</T></p>
                     </div>
                     <div className="profilneu-panel">
-                      <div className="profilneu-phead"><b>{t('Perzentile')}</b><span className="c">{t('besser als … %')}</span></div>
+                      <div className="profilneu-phead"><b>{t('Vergleich mit dem Feld')}</b></div>
                       <IndexBalken achsen={neuProfil.radar} />
+                      <p className="px-4 pb-3 pt-1 text-[11px] text-slate-500"><T>„Top 10 %“ heißt: nur jeder zehnte Spieler ist in diesem Wert besser.</T></p>
                     </div>
                   </div>
                 )}
