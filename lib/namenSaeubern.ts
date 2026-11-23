@@ -93,6 +93,8 @@ export interface Saeuberung {
   grund: string;
   /** Welcher Team-Tag vorn weggefallen ist (fuer den Beleg), oder null. */
   tag: string | null;
+  /** Gesetzt, wenn der saubere Name 1:1 wie ein ANDERER Spieler/Pro waere - dann NIE automatisch (Betreiber, 23.11.2026: "den Pro gibt es nur einmal"). */
+  kollisionMit?: string | null;
 }
 
 const unver = (vorher: string, grund: string): Saeuberung => ({ vorher, nachher: vorher, status: 'unveraendert', grund, tag: null });
@@ -123,11 +125,28 @@ function waehleName(teile: string[]): string {
   return t[0];
 }
 
+export interface SaeuberOpt {
+  /** Der eigene Schluessel (Epic-Id/Profil-Schluessel) - fuer den Kollisions-Guard, damit der eigene Name nicht als Kollision zaehlt. */
+  schluessel?: string;
+  /** Das Namens-Universum (namensUniversum) - alle Namen aller Spieler. Gesetzt -> Kollisions-Guard aktiv. */
+  universum?: Universum;
+}
+
 /**
  * Einen rohen Namen zu einem sauberen Szene-Namen machen und einordnen. `tags` ist der Satz bekannter Team-Kuerzel (teamTags()).
- * Rechnet nichts ab, ruft nichts ab - rein aus dem Namen.
+ * Rechnet nichts ab, ruft nichts ab - rein aus dem Namen. Mit `opt.universum` greift der Kollisions-Guard: ein sauberer Name, den ein ANDERER Spieler
+ * schon traegt (roh, als Anzeigename ODER als sein eigener sauberer Name), wird nie automatisch angewendet (Betreiber: "den Pro gibt es nur einmal").
  */
-export function saeubere(name: string, tags: Set<string>): Saeuberung {
+export function saeubere(name: string, tags: Set<string>, opt?: SaeuberOpt): Saeuberung {
+  const r = saeubereRoh(name, tags);
+  if (!opt?.universum || r.status === 'unveraendert') return r;
+  const mit = kollisionsName(r.nachher, opt.schluessel ?? '', opt.universum);
+  if (!mit) return r;
+  // Kollision: nie anwenden. Als Vorschlag mit Hinweis in die Review-Liste - der Betreiber entscheidet.
+  return { ...r, status: 'vorschlag', grund: `${r.grund}/kollision`, kollisionMit: mit };
+}
+
+function saeubereRoh(name: string, tags: Set<string>): Saeuberung {
   const vorher = String(name ?? '');
   const roh = vorher.trim();
   if (!roh) return unver(vorher, 'leer');
@@ -181,3 +200,63 @@ export function saeubere(name: string, tags: Set<string>): Saeuberung {
   }
   return unver(vorher, 'mehrdeutig');
 }
+
+/* ------------------------------------------------------------------ Kollisions-Guard (Betreiber, 23.11.2026)
+ *
+ * "Ein gesaeuberter Name darf NIE 1:1 gleich sein wie der Name eines ANDEREN Spielers - vor allem nicht wie ein etablierter Pro. Es gibt den Pro nur
+ * einmal." Darum wird ein sauberer Name vor dem Anwenden gegen die GESAMTE Spielerliste geprueft: jeder rohe Name, jeder gesetzte Anzeigename UND der
+ * saubere Name jedes anderen Spielers (so faellt auch "4D Chap" -> "Chap" auf, weil der Pro "GodL Chap" sauber ebenfalls "Chap" heisst). Vergleich ohne
+ * Gross-/Kleinschreibung und ohne Fremdschrift-Zwillinge (normName). Trifft es zu: nicht anwenden, in die Review-Liste mit Hinweis.
+ */
+
+/** Vergleichsform eines Namens: Fremdschrift-Zwillinge auf Latein, alles klein, Leerraum zusammengezogen. */
+export function normName(s: string): string {
+  return vergleichbar(String(s ?? '')).replace(/\s+/g, ' ').trim();
+}
+
+export interface UniEintrag { schluessel: string; zeige: string; pro: boolean }
+export type Universum = Map<string, UniEintrag[]>;
+
+/** Was alles einen Namen "besetzt": sein roher Name, sein gesetzter Anzeigename und sein (roh gerechneter) sauberer Name. */
+function ansprueche(schluessel: string, v: { name?: string; anzeige?: string }, tags: Set<string>): { norm: string; zeige: string; pro: boolean }[] {
+  const roh = String(v?.name ?? schluessel);
+  const anz = String(v?.anzeige ?? '').trim();
+  const sauber = saeubereRoh(roh, tags).nachher;
+  const raus: { norm: string; zeige: string; pro: boolean }[] = [];
+  const dazu = (wert: string, pro: boolean) => { const n = normName(wert); if (n) raus.push({ norm: n, zeige: wert, pro }); };
+  dazu(roh, false);
+  if (anz) dazu(anz, true); // ein gesetzter Anzeigename (Hand/Liquipedia) gilt als Pro-Beleg
+  dazu(sauber, false);
+  return raus;
+}
+
+/** Das Namens-Universum aller Profile: Vergleichsform -> welche Spieler sie tragen. */
+export function namensUniversum(profile: Record<string, { name?: string; anzeige?: string }>, tags: Set<string>): Universum {
+  const uni: Universum = new Map();
+  for (const [schluessel, v] of Object.entries(profile)) {
+    if (!v || typeof v !== 'object') continue;
+    for (const a of ansprueche(schluessel, v, tags)) {
+      const liste = uni.get(a.norm) ?? [];
+      const da = liste.find((x) => x.schluessel === schluessel);
+      if (da) { da.pro = da.pro || a.pro; } else liste.push({ schluessel, zeige: a.zeige, pro: a.pro });
+      uni.set(a.norm, liste);
+    }
+  }
+  return uni;
+}
+
+/** Traegt ein ANDERER Spieler diesen Namen schon? Gibt den anschaulichsten (bevorzugt einen Pro mit Anzeigenamen) zurueck, sonst null. */
+export function kollisionsName(nachher: string, schluessel: string, uni: Universum): string | null {
+  const treffer = (uni.get(normName(nachher)) ?? []).filter((x) => x.schluessel !== schluessel);
+  if (!treffer.length) return null;
+  return (treffer.find((x) => x.pro) ?? treffer[0]).zeige;
+}
+
+/*
+ * Vom Betreiber bestaetigte Tatsachen (Name -> richtiger Szene-Name, ggf. Land) - keine Vermutung, darum ueber den Algorithmus hinaus. Nur setzen, wenn kein
+ * anderer Spieler diesen Namen schon traegt (Kollisions-Guard). Schluessel ist die Vergleichsform (normName) des rohen Namens.
+ *   "egy 1stǃ" ist der Pro bojic aus Bosnien (Betreiber, 23.11.2026).
+ */
+export const KORREKTUREN: Record<string, { anzeige: string; land?: string }> = {
+  'egy 1st!': { anzeige: 'bojic', land: 'ba' },
+};
