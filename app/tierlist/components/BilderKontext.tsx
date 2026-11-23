@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { spielerbildMini } from '@/lib/spielerbildKlein';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -58,7 +58,8 @@ export function BilderAnbieter({ children }: { children: React.ReactNode }) {
           // Ohne das Kennzeichen "?v=": mit ihm passte der Name nicht mehr auf die kleine Fassung, und aus dem Fragezeichen wurde eine Adresse, die es nicht gibt (6.11.2026: leere Kacheln).
           const pfad = (img ?? '').split('?')[0].replace(/^\/spielerbilder\//, '');
           if (pfad) { try { datei = decodeURIComponent(pfad); } catch { datei = pfad; } }
-          GEFUNDEN.set(n, datei ? spielerbildKlein(datei) : null);
+          // Die winzige Fassung (128 px) statt der 480er: die Tierlist-Kachel ist nur rund 48-96 px breit, und Hunderte 480er liessen die Liste rund eine Minute laden (23.11.2026).
+          GEFUNDEN.set(n, datei ? spielerbildMini(datei) : null);
         }
       } catch { /* die Namen bleiben ohne Eintrag und werden beim naechsten Zeichnen noch einmal angemeldet */ }
     }

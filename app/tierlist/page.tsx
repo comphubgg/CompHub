@@ -1077,9 +1077,23 @@ export default function TierListPage() {
   const poolEntryCount = filteredPoolEntries.length;
 
   // Handle drag operations
-  const handleTierDrop = (tier: TierKey) => {
-    if (!draggedId) return;
-    tierListState.moveToTier(draggedId, tier);
+  //
+  // Die gezogene Kachel steht im DataTransfer des Ablege-Ereignisses
+  // (PlayerCard legt sie beim dragstart als text/plain ab). Massgeblich ist
+  // dieser Wert, nicht der React-Zustand "draggedId": der wird erst beim
+  // naechsten Zeichnen nachgezogen, und wenn zwischen dragstart und drop neu
+  // gezeichnet wurde (etwa weil gerade Fotos ankamen), stand dort beim
+  // Ablegen noch nichts - dann landete nichts in der Stufe. Der Zustand ist
+  // nur noch der Rueckfall.
+  const gezogeneId = (e?: React.DragEvent) => {
+    const ausEreignis = e?.dataTransfer?.getData('text/plain');
+    return (ausEreignis && ausEreignis.trim()) || draggedId || null;
+  };
+
+  const handleTierDrop = (tier: TierKey, e?: React.DragEvent) => {
+    const id = gezogeneId(e);
+    if (!id) return;
+    tierListState.moveToTier(id, tier);
     resetDragState();
   };
 
