@@ -2603,7 +2603,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const groessteLobby = useMemo(() => (spiele ?? []).reduce((m, sp) => Math.max(m, sp.teams.reduce((n, z) => n + z.spieler.length, 0)), 0), [spiele]);
   const lobbyGrenze = Math.min(/reload/i.test(`${fenster?.windowId ?? ''} ${cup?.titel ?? ''}`) ? 30 : 60, Math.max(8, Math.round(groessteLobby * 0.6)));
-  const lobbySichtbar = (sp: Spiel) => eineLobby || !!matchSeiten[sp.id] || sp.teams.reduce((n, z) => n + z.spieler.length, 0) >= lobbyGrenze;
+  // Der Admin sieht jede Lobby, auch die, in der Epic gerade erst wenige Teams nennt (Betreiber, 23.11.2026: "zeig mir immer alle fuer den Admin" - im Squad-Finale war nur eine von vielen live sichtbar). Namen fuellt der Server aus eigenen Daten nach (lib/namenNachtragen).
+  const lobbySichtbar = (sp: Spiel) => eineLobby || istAdmin || !!matchSeiten[sp.id] || sp.teams.reduce((n, z) => n + z.spieler.length, 0) >= lobbyGrenze;
 
   /*
    * Die Suche in einem grossen Feld geht an den Server.
@@ -4984,8 +4985,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           const spielerIn = (sp: Spiel) => sp.teams.reduce((n, z) => n + z.spieler.length, 0);
           // 60 statt 80 (7.11.2026): eine Trios-Lobby hat seit Season 43 hoechstens 78 Spieler, mit 80 blieb die Liste immer leer.
           const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= lobbyGrenze;
-          const ausgeblendet = eineLobby ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
-          const gefiltert = eineLobby ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
+          const ausgeblendet = (eineLobby || istAdmin) ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
+          const gefiltert = (eineLobby || istAdmin) ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
           const gezeigt = gefiltert.slice(0, sichtbareSpiele);
 
           /*
