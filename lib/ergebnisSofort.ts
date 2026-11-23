@@ -20,9 +20,10 @@ import type { FtBildSpieler } from '@/lib/ftPosts';
  *   Fertig heisst (der erste zutreffende Grund gilt):
  *     1. "alle-spiele": jeder Eintrag bis zur Grenze (mindestens die ersten zehn) hat so viele Spiele, wie Epic erlaubt (matchCap) - oder ist mit einem Sieg
  *        sofort weiter (Punkte >= sofortPunkte, FNCS-Heats: der Sieger hoert auf). Mehr Spiele gibt es nicht, die Liste kann sich nicht mehr aendern.
- *     2. "ruhig": das Fenster ist zu (end vorbei) und die Liste stand bei drei Abfragen ueber mindestens 90 Sekunden still (dieselben Plaetze, Punkte, Spiele).
- *        Spiele, die kurz vor end begannen, laufen bis zu ~25 Minuten nach - darum frueher nur mit (1).
- *     3. "spaet": 40 Minuten nach end gilt der Stand in jedem Fall.
+ *     2. "ruhig": das Fenster ist zu (end vorbei), KEINE Runde ging mehr frisch zu Ende (letzte Lobby-Endzeit > LOBBY_NACHLAUF_MS her) UND die Liste stand bei
+ *        mehreren Abfragen ueber mindestens RUHE_MS (5 min) still (dieselben Plaetze, Punkte, Spiele). Die letzte Queue ist :59, Spiele dauern ~20 min, die letzte
+ *        Lobby endet also ~:20 und Epic rechnet danach noch nach - darum erst 5 min Stille statt wie frueher 90 s (Betreiber, 23.11.2026: nicht schon :03 posten).
+ *     3. "spaet": SPAET_MS (45 min) nach end gilt der Stand in jedem Fall.
  *
  * Nie doppelt: jeder Spieltag bekommt einen Eintrag in ergebnis-sofort.json (Ablage), sobald der Dienst gemeldet hat, dass er gepostet ist (vermerken).
  * Die Vorab-Prognose der Grenze wird beim ersten Blick auf den laufenden Spieltag festgehalten (Feld "prognose") - so steht im Post, was wir VOR dem Cup sagten.
@@ -31,6 +32,14 @@ import type { FtBildSpieler } from '@/lib/ftPosts';
 const SEITE = 'https://www.thecomphub.com';
 const DATEI = 'ergebnis-sofort.json';
 const ZUSCHLAG = 5; // wie QUAL_ZUSCHLAG auf der Event-Seite (app/events/[id]/page.tsx)
+/*
+ * Wann ein beendeter Spieltag als fertig gilt (Betreiber, 23.11.2026): nicht mehr schon :03 nach dem Fensterende - die letzte Queue ist :59, Spiele dauern
+ * ~20 min, die letzte Lobby endet also ~:20, und Epics Bestenliste rechnet danach noch nach. Darum erst posten, wenn seit RUHE_MS nichts mehr passiert ist und
+ * keine Runde mehr frisch zu Ende ging. Hartes Limit SPAET_MS: dann gilt der Stand so oder so.
+ */
+const RUHE_MS = 5 * 60_000; // die Liste muss fuenf Minuten unveraendert stehen (vorher 90 s)
+const LOBBY_NACHLAUF_MS = 3 * 60_000; // eine gerade gewertete Runde zaehlt so lange als "frische Lobby" - solange laeuft evtl. noch eine
+const SPAET_MS = 45 * 60_000; // Notausstieg: spaetestens 45 min nach dem Ende wird gepostet (vorher 40)
 
 interface Marke { token: string; bis: number }
 export interface SofortFenster {
@@ -59,6 +68,8 @@ export interface SofortPost {
   /** Fuer #results: Plaetze in Kurzform. */
   zeilen: string[];
   end?: number;
+  /** Wann die Zahlen geholt wurden (ms) - fuer den "as of"-Stempel auf dem Bild, damit veralteter Stand auffaellt. */
+  stand?: number;
 }
 
 const leer = (): SofortStand => ({ gepostet: {}, prognose: {} });
@@ -141,8 +152,19 @@ function naechsteStufe(f: SofortFenster, alle: Array<{ cup: SofortCup; f: Sofort
 /** Spieltage, deren Prognose schon einmal gefragt wurde (im Prozess) - ohne Ergebnis nicht alle 15 Sekunden neu. */
 const prognoseVersucht = new Set<string>();
 
-/** Stillstand je Spieltag (im Prozess): Signatur der Liste und seit wann sie so steht. */
-const ruhe = new Map<string, { sig: string; seit: number; mal: number }>();
+/** Stillstand je Spieltag: Signatur der Liste und seit wann sie so steht. Auf globalThis, damit der Fuenf-Minuten-Zaehler ein Modul-Reload der Route ueberlebt. */
+const G = globalThis as unknown as { __sofortRuhe?: Map<string, { sig: string; seit: number; mal: number }> };
+const ruhe: Map<string, { sig: string; seit: number; mal: number }> = (G.__sofortRuhe ??= new Map());
+
+/** Die spaeteste Endzeit einer gewerteten Runde unter den beobachteten Plaetzen - daran erkennt man, ob gerade noch eine Lobby frisch zu Ende ging. */
+function letzteRundenZeit(eintraege: LbEintrag[]): number {
+  let max = 0;
+  for (const e of eintraege) for (const m of (e.matches ?? []) as Array<{ endTime?: string }>) {
+    const t = Date.parse(m?.endTime ?? '') || 0;
+    if (t > max) max = t;
+  }
+  return max;
+}
 
 function fertigGrund(f: SofortFenster, eintraege: LbEintrag[], schwelle: number, jetzt: number): string | null {
   if (eintraege.length < 3) return null;
@@ -151,14 +173,21 @@ function fertigGrund(f: SofortFenster, eintraege: LbEintrag[], schwelle: number,
   const cap = f.matchCap ?? 0;
   const sofort = f.sofortPunkte ?? 0;
   const gespielt = (e: LbEintrag) => (e.matches ?? []).length;
+  // 1. "alle-spiele": jeder bis zur Grenze hat alle Spiele (oder ist mit einem Sieg sofort weiter) - die Liste KANN sich nicht mehr aendern, sofort gueltig.
   if (cap > 0 && bis.length >= Math.min(tiefe, 3) && bis.every((e) => gespielt(e) >= cap || (sofort > 0 && (e.points ?? 0) >= sofort))) return 'alle-spiele';
   const ende = f.end ?? 0;
-  if (!ende || jetzt < ende) return null;
+  if (!ende || jetzt < ende) { ruhe.delete(f.windowId); return null; }
+  // 3. "spaet": Notausstieg - 45 min nach dem Ende gilt der Stand in jedem Fall.
+  if (jetzt > ende + SPAET_MS) return 'spaet';
+  // Eine Runde, die gerade erst (vor <3 min) gewertet wurde: es laeuft evtl. noch eine Lobby, die Liste aendert sich weiter - die Ruhe erst danach beginnen.
+  const letzte = letzteRundenZeit(eintraege);
+  if (letzte && jetzt - letzte < LOBBY_NACHLAUF_MS) { ruhe.set(f.windowId, { sig: '', seit: jetzt, mal: 0 }); return null; }
+  // 2. "ruhig": das Fenster ist zu, keine frische Lobby mehr, und dieselbe Liste steht seit RUHE_MS (5 min) ueber mehrere Abfragen still.
   const sig = bis.map((e) => `${e.rank}:${(e.players ?? []).map((p) => p.id).join('+')}:${e.points}:${gespielt(e)}`).join('|');
   const r = ruhe.get(f.windowId);
-  if (!r || r.sig !== sig) ruhe.set(f.windowId, { sig, seit: jetzt, mal: 1 });
-  else { r.mal += 1; if (r.mal >= 3 && jetzt - r.seit >= 90_000) return 'ruhig'; }
-  if (jetzt > ende + 40 * 60_000) return 'spaet';
+  if (!r || r.sig !== sig) { ruhe.set(f.windowId, { sig, seit: jetzt, mal: 1 }); return null; }
+  r.mal += 1;
+  if (r.mal >= 3 && jetzt - r.seit >= RUHE_MS) return 'ruhig';
   return null;
 }
 
@@ -248,9 +277,13 @@ export async function sofortLauf(probe?: string | null): Promise<SofortLauf> {
     const grund = probe ? 'probe' : fertigGrund(f, eintraege, schwelle, jetzt);
     beobachtet.push({ windowId: f.windowId, region, grund, spiele: Math.max(0, ...eintraege.slice(0, 100).map((e) => (e.matches ?? []).length)), cap: f.matchCap ?? 0, ...(fehler ? { fehler } : {}) });
     if (!grund) continue;
+    // Fuer den Post die Liste frisch holen (wie "frisch=1" auf der Seite): so stehen im Bild und im Text dieselben Zahlen wie auf der Statistik-Seite - nicht der 20-s-Vorrat.
+    let gebaut = eintraege;
+    let standZeit = jetzt;
+    if (!probe) { const frischeListe = await bestenliste(f, true).catch(() => null); if (frischeListe && frischeListe.length) { gebaut = frischeListe; standZeit = Date.now(); } }
     konten ??= await kontenLaden();
-    const p = await postBauen(cup, region, f, alle.map((x) => ({ cup: x.cup, f: x.f })), eintraege, { ...konten, namen: { ...konten.namen } }, prognose, grund);
-    if (p) posts.push(p);
+    const p = await postBauen(cup, region, f, alle.map((x) => ({ cup: x.cup, f: x.f })), gebaut, { ...konten, namen: { ...konten.namen } }, prognose, grund);
+    if (p) { p.stand = standZeit; posts.push(p); }
   }
   if (standGeaendert) {
     // Frisch lesen und nur die Prognosen ergaenzen - ein paralleles Vermerken bleibt erhalten.

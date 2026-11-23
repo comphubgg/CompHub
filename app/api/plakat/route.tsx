@@ -272,7 +272,7 @@ function zeile(t: PlakatTeam, b: Bilder, w: number, h: number) {
   );
 }
 
-function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string }, b: Bilder, anzahl: number) {
+function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string; stand?: string }, b: Bilder, anzahl: number) {
   // Immer die Top 10 (Betreiber, 26.10.2026) - wo es weniger gibt, eben weniger.
   const liste = teams.slice(0, 10);
   const proSpalte = Math.ceil(liste.length / 2);
@@ -285,7 +285,10 @@ function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string;
           <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 68), fontWeight: 800, lineHeight: 1.05, whiteSpace: 'nowrap', overflow: 'hidden' }}>{kuerze(k.titel, 64)}</div>
           <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, color: BLAU, letterSpacing: 4, textTransform: 'uppercase', marginTop: 12, whiteSpace: 'nowrap' }}>{kuerze(['Standings', k.stufe, k.region, k.datum].filter(Boolean).join(' · '), 70)}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, width: 300, justifyContent: 'flex-end' }}>{marke(b, 30)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, width: 300 }}>
+          {marke(b, 30)}
+          {k.stand && <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, color: '#94a3b8', marginTop: 10, whiteSpace: 'nowrap' }}>{`as of ${k.stand}`}</div>}
+        </div>
       </div>
       <div style={{ position: 'absolute', left: 48, top: 196, right: 48, display: 'flex', gap: 24 }}>
         {spalten.map((sp, i) => (
@@ -296,7 +299,7 @@ function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string;
   );
 }
 
-function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string; preis: string; wort?: string }, b: Bilder) {
+function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string; preis: string; wort?: string; stand?: string }, b: Bilder) {
   const sieger = teams[0];
   const rest = teams.slice(1, 6);
   const n = sieger?.spieler.length ?? 1;
@@ -324,7 +327,10 @@ function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; re
           <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 50), fontWeight: 800, lineHeight: 1.05, maxHeight: 104, overflow: 'hidden' }}>{kuerze(k.titel, 52)}</div>
           <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, color: BLAU, letterSpacing: 3, textTransform: 'uppercase', marginTop: 10, whiteSpace: 'nowrap' }}>{kuerze([k.stufe || 'Finals', k.region, k.datum].filter(Boolean).join(' · '), 40)}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, width: 250, justifyContent: 'flex-end' }}>{marke(b, 24)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, width: 250 }}>
+          {marke(b, 24)}
+          {k.stand && <div style={{ display: 'flex', fontSize: 18, fontWeight: 700, color: '#94a3b8', marginTop: 8, whiteSpace: 'nowrap' }}>{`as of ${k.stand}`}</div>}
+        </div>
       </div>
       <div style={{ position: 'absolute', left: 724, top: 196, display: 'flex', flexDirection: 'column', gap: 11 }}>{rest.map((t) => zeile(t, b, 828, 104))}</div>
       {k.preis && (
@@ -569,9 +575,13 @@ export async function GET(request: Request) {
   const ursprung = new URL(request.url).origin;
   const art = p.get('art') ?? 'spieler';
   const nurText = p.get('format') === 'json';
+  // frisch=1: die Bestenliste frisch holen (wie die Seite), nicht aus dem 20-s-Vorrat - so sind die Zahlen so aktuell wie auf der Statistik-Seite (Betreiber, 23.11.2026).
+  const frisch = p.get('frisch') === '1';
   const kopf = {
     titel: (p.get('titel') ?? '').slice(0, 90), stufe: (p.get('stufe') ?? '').slice(0, 40), region: (p.get('region') ?? '').slice(0, 20),
     datum: (p.get('datum') ?? '').slice(0, 30), preis: (p.get('preis') ?? '').slice(0, 24),
+    // "as of HH:MM UTC": der Stand, auf den sich die Zahlen beziehen (das Bild wird beim Posten erzeugt, also = jetzt).
+    stand: `${new Date().toISOString().slice(11, 16)} UTC`,
   };
 
   try {
@@ -646,7 +656,7 @@ export async function GET(request: Request) {
       const suche = (p.get('q') ?? '').trim();
       const teamId = p.get('team') ?? '';
       const anzahl = 10;
-      let teams = await plakatTeams({ ursprung, event, windows, limit: art === 'spieler' && (teamId || suche) ? 200 : 30 });
+      let teams = await plakatTeams({ ursprung, event, windows, limit: art === 'spieler' && (teamId || suche) ? 200 : 30, frisch });
       if (!teams.length) return Response.json({ ok: false, fehler: 'Zu diesem Spieltag gibt es noch keine Bestenliste.' }, { status: 200 });
       if (art === 'spieler') {
         let t = teamId ? teams.find((x) => x.teamId === teamId) : undefined;
@@ -654,7 +664,7 @@ export async function GET(request: Request) {
           const q = suche.toLowerCase();
           t = teams.find((x) => x.spieler.some((s) => s.name.toLowerCase().includes(q)));
           // Nicht in den ersten 200: gezielt nach dem Namen fragen (die Antwort traegt den echten Platz).
-          if (!t) { const g = await plakatTeams({ ursprung, event, windows, suche }); t = g[0]; }
+          if (!t) { const g = await plakatTeams({ ursprung, event, windows, suche, frisch }); t = g[0]; }
         }
         t ??= teams[0];
         await lade(t.spieler);

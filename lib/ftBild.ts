@@ -26,6 +26,8 @@ export interface FtBildOptionen {
   schrift?: string;
   /** Schrift fuer die Adresse unter dem Logo (sonst die Anzeigeschrift der Seite). */
   anzeige?: string;
+  /** "as of HH:MM"-Stempel oben rechts (Betreiber, 23.11.2026): zeigt, wie frisch die Zahlen sind, damit veralteter Stand auffaellt. */
+  stand?: string;
 }
 
 export function ladeBild(src: string): Promise<HTMLImageElement | null> {
@@ -272,6 +274,16 @@ export async function ftBildZeichnen(leinwand: HTMLCanvasElement, spieler: FtBil
 
   hintergrund(ctx, W, H, wand);
   const { logoY, kopf } = ftKopf(ctx, W, logo, anzeige);
+  // "as of HH:MM"-Stempel oben rechts - so sieht man sofort, auf welchen Stand sich die Zahlen beziehen (Betreiber, 23.11.2026).
+  if (opt.stand) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.font = `700 22px ${familie}`;
+    ctx.fillStyle = 'rgba(203,213,225,.75)';
+    ctx.fillText(`as of ${opt.stand}`, W - 34, 30);
+    ctx.restore();
+  }
 
   // Die Karten in einer Reihe, mittig unter dem Logo.
   const n = liste.length;
