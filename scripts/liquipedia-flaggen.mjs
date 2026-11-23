@@ -281,7 +281,9 @@ async function lauf(d) {
   // bei jeder gefundenen Seite gleich mit nach.
   let liste = spielerListe(d).filter((p) => leer(p.hat.land) || leer(p.hat.x) || leer(p.hat.anzeige));
   if (NUR.length) liste = liste.filter((p) => NUR.includes(p.id));
-  else liste = liste.filter((p) => (geprueftAlt[p.id]?.zeit ?? 0) < Date.now() - TAGE * 864e5);
+  // Sonst: nicht in den letzten TAGE Tagen abgesucht - ODER der Anzeigename fehlt noch und der letzte Lauf hat ihn gar nicht erst versucht (aeltere
+  // Laeufe, die nur Flagge/X suchten; geprueft-Eintrag ohne 'anzeige'-Schluessel). So holt der erste Lauf mit Namensuche die Namen gleich nach.
+  else liste = liste.filter((p) => { const g = geprueftAlt[p.id]; return (g?.zeit ?? 0) < Date.now() - TAGE * 864e5 || (leer(p.hat.anzeige) && !!g && !('anzeige' in g)); });
   if (REGIONEN.size) liste = liste.filter((p) => REGIONEN.has(p.region));
   liste = liste.slice(0, MAX === Infinity ? liste.length : MAX);
   log(`${liste.length} wichtige Spieler offen (Flagge, X oder Anzeigename fehlt${REGIONEN.size ? `, Region ${[...REGIONEN].join('/')}` : ''}${NUR.length ? ', ausgewaehlt' : `, nicht in den letzten ${TAGE} Tagen`}). Budget ${MINUTEN} min, ${ANWENDEN ? 'ANWENDEN' : 'nur Plan'}.`);
