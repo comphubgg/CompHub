@@ -4271,10 +4271,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
       .sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0))
       .map((z) => ({ event: turnierName(z.event, t), datum: z.datum ?? 0, wert: z.werte.eliminations / z.werte.matchesPlayed }));
     // Perzentile in Klartext: welche Achse, Wert 0-100 (besser als X % des Feldes).
+    // Ein Perzentil von genau 0 ist in der Praxis ein fehlender Wert (z. B. Trefferquote
+    // ohne Datengrundlage) - solche Achsen fallen weg, statt "Top 100 %" vorzutaeuschen.
     const radar = perzentile ? ([
       ['Eliminierungen', perzentile.elims], ['Schaden', perzentile.damage], ['Trefferquote', perzentile.genauigkeit],
       ['Überleben', perzentile.timeAlive], ['Schadensquote', perzentile.quote],
-    ] as Array<[string, number | null]>).filter(([, v]) => typeof v === 'number').map(([label, v]) => ({ label, wert: v as number })) : [];
+    ] as Array<[string, number | null]>).filter(([, v]) => typeof v === 'number' && v > 0).map(([label, v]) => ({ label, wert: v as number })) : [];
     return {
       earningsPosten: geld, careerTotal, jahre, jahrGeldMax,
       platzListe, top10, wins, avgPlatz, elimsSerie, radar,
