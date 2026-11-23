@@ -6280,7 +6280,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             <section className="profilneu-hero">
               <span aria-hidden className="profilneu-beam" />
               <span aria-hidden className="profilneu-cone" />
-              {offen.bild && (
+              {offen.bild && offen.echtesFoto && (
                 <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-0 w-[62%] sm:w-[52%] md:w-[46%] xl:w-[42%]"
                   style={{ WebkitMaskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)', maskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -6288,9 +6288,17 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     style={{ filter: 'drop-shadow(0 26px 52px rgba(0,0,0,.6))' }} />
                 </div>
               )}
+              {/* Ohne echtes Foto steht das CompHub-Maskottchen im Lichtkegel - sanftes Schweben und ein pulsender blauer Schein dahinter (nur im Profil). */}
+              {!offen.echtesFoto && (
+                <div aria-hidden className="profilneu-maskott-wrap pointer-events-none absolute inset-y-0 right-0 z-0 flex items-end justify-center w-[50%] sm:w-[44%] md:w-[38%] xl:w-[32%]">
+                  <span className="profilneu-maskott-glow" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/comphub-maskottchen.png" alt="" className="profilneu-maskott relative" />
+                </div>
+              )}
               <span aria-hidden className="absolute inset-x-0 bottom-0 z-[1] h-36"
                 style={{ background: 'linear-gradient(180deg,transparent,#070b14 92%)' }} />
-              <div className={`relative z-[2] flex min-h-[24rem] flex-col justify-between gap-7 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[32rem] md:max-w-[66%]' : ''}`}>
+              <div className={`relative z-[2] flex min-h-[24rem] flex-col justify-between gap-7 p-6 sm:p-8 ${(offen.bild && offen.echtesFoto) || !offen.echtesFoto ? 'md:min-h-[32rem] md:max-w-[66%]' : ''}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <button onClick={profilSchliessen}
                     className="w-fit rounded-full border border-white/15 bg-black/40 px-4 py-1.5 text-xs font-semibold text-slate-300 backdrop-blur transition hover:border-sky-400/70 hover:text-sky-300">
