@@ -93,15 +93,20 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
   for (const s of games) if (da(s.klein)) teile.push(`<circle cx="${px(s.klein.x)}" cy="${py(s.klein.y)}" r="${pr(KLEIN)}" fill="rgba(250,204,21,0.62)"/>`);
   for (const s of games) if (da(s.gross)) teile.push(`<circle cx="${px(s.gross.x)}" cy="${py(s.gross.y)}" r="${pr(GROSS)}" fill="rgba(8,8,12,0.74)"/>`);
   const schrift = 'font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="700"';
-  // Liegen zwei Zonen fast uebereinander, ruecken die Beschriftungen auseinander ("GAMGAME 10" am FNCS-Solos-Finale EU).
+  // Jede Zone traegt ein deutliches "GAME N"-Schild, damit man im Discord sofort sieht, welche Zone welches Game war
+  // (Betreiber, 23.11.2026: "du musst diese Zonen beschriften, welche Zone welche war"). Liegen zwei Zonen fast uebereinander, ruecken die Schilder nach unten auseinander.
   const gesetzt: Array<{ x: number; y: number }> = [];
-  const hoehe = n * 0.03; const breite = n * 0.13;
+  const fs = Math.round(n * 0.030);
+  const zeile = fs * 1.7; const breite = n * 0.14;
   for (const s of games) {
     if (!da(s.gross)) continue;
     const x = px(s.gross.x); let y = py(s.gross.y);
-    for (let i = 0; i < 6 && gesetzt.some((g) => Math.abs(g.x - x) < breite && Math.abs(g.y - y) < hoehe); i += 1) y += hoehe;
+    for (let i = 0; i < 6 && gesetzt.some((g) => Math.abs(g.x - x) < breite && Math.abs(g.y - y) < zeile); i += 1) y += zeile;
     gesetzt.push({ x, y });
-    teile.push(`<text x="${x}" y="${y}" ${schrift} font-size="${Math.round(n * 0.024)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="rgba(0,0,0,0.55)" stroke-width="${n * 0.004}" paint-order="stroke">GAME ${s.nr}</text>`);
+    const text = `GAME ${s.nr}`;
+    const bw = text.length * fs * 0.6 + fs; const bh = fs * 1.5;
+    teile.push(`<rect x="${x - bw / 2}" y="${y - bh / 2}" width="${bw}" height="${bh}" rx="${bh * 0.3}" fill="rgba(2,6,14,0.86)" stroke="rgba(56,189,248,0.95)" stroke-width="${Math.max(1, n * 0.0018)}"/>`);
+    teile.push(`<text x="${x}" y="${y + fs * 0.04}" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="800" font-size="${fs}" text-anchor="middle" dominant-baseline="central" fill="#fff">${text}</text>`);
   }
   // Fusszeile wie bisher; bei mehreren Teilen an der Stelle der frueheren Tageslegende, welche Games zu welchem Teil gehoeren (ohne Farbpunkt).
   teile.push(`<text x="${rand}" y="${n - rand - n * 0.03}" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="800" font-size="${Math.round(n * 0.05)}" fill="#fff">ZONES</text>`);
