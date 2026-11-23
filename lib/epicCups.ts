@@ -1561,6 +1561,44 @@ async function rohEventsFuer(region: string, plattform: 'Windows' | 'Android') {
     { headers: { Authorization: token } });
 }
 
+/*
+ * Wann Epic zuletzt erfolgreich einen Katalog lieferte (eine Region genuegt).
+ *
+ * Ueber globalThis, weil Next diese Datei je Routen-Bauteil laedt (siehe NZ oben) - sonst
+ * haette jedes Bauteil seine eigene Uhr, und der Waechter in app/api/cup-catalog saehe mal
+ * die eine, mal die andere. Gebraucht fuer den Hinweis "Epic liefert seit X Minuten nicht".
+ */
+const EPIC_STAND = ((globalThis as { __comphubEpicKatalogStand?: { erfolg: number } })
+  .__comphubEpicKatalogStand ??= { erfolg: 0 });
+function epicErfolgMerken(): void { EPIC_STAND.erfolg = Date.now(); }
+/** Zeitpunkt (ms) des letzten erfolgreichen Epic-Katalogabrufs, oder 0, wenn noch keiner glueckte. */
+export function epicKatalogErfolgStand(): number { return EPIC_STAND.erfolg; }
+
+/**
+ * Wie viele Cups gerade ein laufendes oder noch kommendes Fenster haben - aus Beginn und Ende,
+ * Stand jetzt. Ein Fenster ist "aktuell", wenn es noch nicht begonnen hat (kommt) oder noch
+ * nicht geendet ist (live); nachgetragene Fenster ohne Endzeit zaehlen nur, solange sie in der
+ * Zukunft liegen.
+ */
+export function katalogAktuell(cups: CupGruppe[]): number {
+  const jetzt = Date.now();
+  return cups.filter((c) => Object.values(c.regionen ?? {}).flat()
+    .some((w) => jetzt < w.begin || (typeof w.end === 'number' && jetzt <= w.end))).length;
+}
+
+/**
+ * Soll der letzte gute Katalog stehen bleiben, statt durch den frisch gerechneten ersetzt zu werden?
+ *
+ * Ja, wenn der neue kein einziges laufendes oder kommendes Fenster mehr hat, der alte aber welche
+ * hatte. Dass wirklich alle Live- und Demnaechst-Cups im selben Augenblick enden, kommt nicht vor;
+ * ein solcher Einbruch stammt aus einem Epic-Ausfall (einzelne Regionen gescheitert, der Rest ohne
+ * aktuelle Cups). Dann ist der alte Stand der richtige - der neue wird ausgeliefert, aber nicht abgelegt.
+ */
+export function katalogVerschlechtert(neu: CupGruppe[], alt: CupGruppe[] | null | undefined): boolean {
+  if (!alt?.length) return false;
+  return katalogAktuell(neu) === 0 && katalogAktuell(alt) > 0;
+}
+
 // Alle Regionen einsammeln und je Cup zusammenfassen - so, wie ein Cup
 // tatsaechlich beworben wird: ein Turnier, mehrere Regionen.
 export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
@@ -1570,12 +1608,29 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
   const spuren = new Map<string, SperrSpur[]>();
 
   const alle = await Promise.all(regionen.map(async (r) => {
-    try { return { region: r, daten: await rohEvents(r) }; }
-    catch { return null; }
+    try { const daten = await rohEvents(r); epicErfolgMerken(); return { region: r, daten }; }
+    catch (e) { return { region: r, fehler: e as Error }; }
   }));
 
-  for (const eintrag of alle) {
-    if (!eintrag) continue;
+  /*
+   * Scheitern ALLE angefragten Regionen (Epic abgemeldet, gedrosselt, Zeitueberschreitung),
+   * ist das Ergebnis kein leerer Katalog, sondern ein unbekannter - und der Fehler muss hoch.
+   *
+   * Vorher wurde jede gescheiterte Region still zu null und uebersprungen; waren alle null,
+   * kam [] heraus. Dieses [] wurde als gueltige Antwort abgelegt und ueberschrieb den letzten
+   * guten Katalog. Die Events-Seite (modus=alle) baut dann nur noch aus dem Archiv - und zeigte
+   * fuer einige Minuten ausschliesslich alte, beendete Cups, waehrend Live und Demnaechst
+   * verschwanden (Betreiber: "alles eingefroren auf den 13. Nov."). Mit dem geworfenen Fehler
+   * behalten die Zwischenspeicher (gecacht, fertigeAntwort) stattdessen den letzten guten Stand,
+   * und eine abgelaufene Anmeldung kommt als EpicLoginNoetig/401 durch statt als leerer Liste.
+   */
+  const erfolgreich = alle.filter((e): e is { region: string; daten: RohEvents } => 'daten' in e);
+  if (regionen.length && erfolgreich.length === 0) {
+    const fehler = alle.map((e) => ('fehler' in e ? e.fehler : null)).find(Boolean);
+    throw fehler ?? new Error('Epic ist gerade nicht erreichbar.');
+  }
+
+  for (const eintrag of erfolgreich) {
     const { region, daten } = eintrag;
 
     // Wie viele Matches zaehlen - steht in der Vorlage, nicht im Fenster.

@@ -18,7 +18,7 @@ import path from 'path';
 import fs from '@/lib/ablageFs';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import {
-  gecacht, cupsGruppiert, leseArchiv, holeTop, holeMarken, REGIONEN,
+  gecacht, cupsGruppiert, leseArchiv, holeTop, holeMarken, REGIONEN, katalogVerschlechtert,
   type CupGruppe, type CupFensterDetail, type Marke,
 } from '@/lib/epicCups';
 import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
@@ -81,7 +81,8 @@ async function katalog(): Promise<CupGruppe[]> {
   const schluessel = `catalog|${REGIONEN.join(',')}`;
   return gecacht(schluessel, 60_000, async () => {
     try {
-      return await fertigeAntwort(schluessel, () => cupsGruppiert([...REGIONEN]), FRISCH_LIVE_MS);
+      return await fertigeAntwort(schluessel, () => cupsGruppiert([...REGIONEN]), FRISCH_LIVE_MS,
+        true, undefined, undefined, katalogVerschlechtert);
     } catch (e) {
       if (e instanceof AblageNichtErreichbar) return cupsGruppiert([...REGIONEN]);
       throw e;

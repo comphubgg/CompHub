@@ -330,6 +330,16 @@ export async function fertigeAntwort<T>(
    * rund vier Gigabyte neu gelesen, obwohl sich kein Aggregat geaendert hatte). Ohne Angabe gilt wie bisher der Beginn des Laufs.
    */
   grundlageStand?: number,
+  /**
+   * Darf ein frisch gerechneter Wert den letzten guten ersetzen - oder soll der alte stehen bleiben?
+   *
+   * Gibt diese Pruefung true zurueck (neu ist schlechter als alt), wird der neue Wert zwar ausgeliefert,
+   * aber NICHT abgelegt: der letzte gute Stand bleibt im Speicher und in der Ablage. Gebraucht fuer den
+   * Cup-Katalog: scheitert Epic nur teilweise (einzelne Regionen), kommt ein zu kurzer Katalog heraus;
+   * der darf den vollen mit Live und Demnaechst nicht ueberschreiben (siehe katalogVerschlechtert).
+   * Ohne Angabe wird wie bisher jeder frische Wert abgelegt.
+   */
+  behalteAlt?: (neu: T, alt: T | null) => boolean,
 ): Promise<T> {
   const name = nameVon(schluessel);
   /*
@@ -386,7 +396,10 @@ export async function fertigeAntwort<T>(
         nachDerAntwort(async () => {
           try {
             const wert = await rechne();
-            await merkeAntwort(name, { zeit: Date.now(), wert });
+            // Einen verschlechterten Wert (z. B. teil-gescheiterter Katalog) nicht ablegen - der alte gute bleibt.
+            if (!behalteAlt?.(wert, abgelegt?.wert ?? null)) {
+              await merkeAntwort(name, { zeit: Date.now(), wert });
+            }
           } catch { /* dann bleibt der alte Stand stehen */ }
           finally { laufend.delete(schluessel); }
         });
@@ -409,6 +422,8 @@ export async function fertigeAntwort<T>(
      * ueberdeckt es den naechsten Stand des Laufrechners bis zur Frist.
      */
     if (!hintergrund && ohneDateien()) return wert;
+    // Verschlechterten Wert ausliefern, aber nicht ablegen (hier meist kein alter da - dann greift es nicht).
+    if (behalteAlt?.(wert, abgelegt?.wert ?? null)) return wert;
     try {
       await merkeAntwort(name, { zeit: Date.now(), wert });
     } catch { /* ohne Ablage wird eben jedes Mal gerechnet */ }

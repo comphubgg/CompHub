@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import {
   nameAusFenstern, gecacht, cupsGruppiert, REGIONEN, REGION_TEXT, STANDARD_ARTEN,
   schreibeArchiv, leseArchiv, archivCups, EpicLoginNoetig,
+  katalogVerschlechtert, katalogAktuell, epicKatalogErfolgStand,
   type CupArt, type CupGruppe,
 } from '@/lib/epicCups';
 import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
@@ -159,6 +160,49 @@ function ohneFremdeFenster(cups: CupGruppe[]): CupGruppe[] {
   });
 }
 
+/*
+ * Waechter: liefert Epic seit > 15 Minuten keinen Katalog mehr, einmal melden.
+ *
+ * Normal wird der Katalog unter Besuch alle paar Minuten im Hintergrund erneuert; jeder
+ * geglueckte Abruf setzt epicKatalogErfolgStand. Bleibt das stehen (Anmeldung abgelaufen,
+ * Drosselung, Zeitueberschreitung), liefert die Seite zwar weiter den letzten guten Stand -
+ * aber niemand saehe, dass seit einer Weile nichts Frisches mehr kommt. Darum hier eine
+ * Logzeile (hoechstens alle 5 Min.) und hoechstens stuendlich eine Zeile in #admin-alarm.
+ */
+const WACHE = ((globalThis as { __comphubKatalogWache?: { log: number; alarm: number } })
+  .__comphubKatalogWache ??= { log: 0, alarm: 0 });
+
+function nachKatalogWachen(alle: CupGruppe[]): void {
+  const stand = epicKatalogErfolgStand();
+  if (!stand) return;                         // In diesem Prozess noch kein Erfolg - nichts zu vergleichen.
+  const stille = Date.now() - stand;
+  if (stille <= 15 * 60_000) return;          // Frisch genug.
+  const jetzt = Date.now();
+  const min = Math.round(stille / 60_000);
+  const aktuell = katalogAktuell(alle);
+  if (jetzt - WACHE.log > 5 * 60_000) {
+    WACHE.log = jetzt;
+    console.warn(`[cup-catalog] Epic liefert seit ${min} Min. keinen Katalog mehr - `
+      + `ausgeliefert: ${aktuell} laufende/kommende Cups (letzter guter Stand).`);
+  }
+  if (jetzt - WACHE.alarm < 60 * 60_000) return;   // Kein Dauerfeuer.
+  WACHE.alarm = jetzt;
+  try {
+    after(async () => {
+      try {
+        const { schickeAlarm } = await import('@/lib/discord');
+        await schickeAlarm({
+          titel: 'Events: Epic liefert keinen Katalog',
+          text: `Epic hat seit ${min} Minuten keinen Cup-Katalog geliefert (Anmeldung abgelaufen, `
+            + `gedrosselt oder Zeitueberschreitung). Ausgeliefert wird der letzte gute Stand mit `
+            + `${aktuell} laufenden/kommenden Cups. Faellt er auf 0, zeigt die Events-Seite nur noch `
+            + `Beendetes. Pruefen: npm run epic-login bzw. Epic-Status.`,
+        });
+      } catch { /* ohne Discord bleibt die Logzeile */ }
+    });
+  } catch { /* ausserhalb einer Anfrage gibt es after nicht - dann nur die Logzeile */ }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const gewaehlt = (searchParams.get('regions') ?? '').split(',')
@@ -185,7 +229,10 @@ export async function GET(request: Request) {
     const schluessel = `catalog|${regionen.join(',')}`;
     const alle = zustaendeJetzt(await gecacht(schluessel, 60_000, async () => {
       try {
-        return await fertigeAntwort(schluessel, () => cupsGruppiert(regionen), FRISCH_LIVE_MS);
+        // katalogVerschlechtert: ein teil-gescheiterter (zu kurzer) Katalog ohne Live/Demnaechst
+        // ersetzt den letzten guten nicht - er wird ausgeliefert, aber nicht abgelegt.
+        return await fertigeAntwort(schluessel, () => cupsGruppiert(regionen), FRISCH_LIVE_MS,
+          true, undefined, undefined, katalogVerschlechtert);
       } catch (e) {
         // Die Ablage antwortet nicht - dann direkt von Epic, das ist hier
         // ohnehin die Quelle. Vorher stand auf der Turnierseite eine
@@ -194,6 +241,9 @@ export async function GET(request: Request) {
         throw e;
       }
     }));
+
+    // Waechter: liefert Epic seit > 15 Minuten keinen Katalog mehr, obwohl Cups liefen, einmal melden.
+    nachKatalogWachen(alle);
 
     // Jeden Durchlauf mitschreiben, damit die Vergangenheit waechst.
     // Epic selbst haelt vergangene Cups nur wenige Tage vor.

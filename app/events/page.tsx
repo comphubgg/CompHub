@@ -237,6 +237,11 @@ function fensterIn(c: Cup, region: string): Fenster[] {
   return c.regionen[region] ?? [];
 }
 
+/** Hat dieser Cup gerade ein laufendes oder noch kommendes Fenster? (aus Beginn/Ende, Stand jetzt) */
+function hatAktuelleFenster(c: Cup, jetzt: number): boolean {
+  return Object.values(c.regionen).flat().some((f) => jetzt < f.begin || (typeof f.end === 'number' && jetzt <= f.end));
+}
+
 /** Laeuft dieses Fenster gerade? */
 function laeuft(f: Fenster, jetzt: number): boolean {
   if (!f.begin || f.begin > jetzt) return false;
@@ -521,12 +526,30 @@ export default function EventsPage() {
           // Ein spaeterer Abruf, der klappt, loescht die alte Fehlermeldung (sie blieb sonst bis zum Neuladen stehen).
           setFehler(null); setLoginNoetig(false);
           gemerkteRegion();
-          try { if (!mitVergangenen && d.cups?.length) localStorage.setItem('events-katalog', JSON.stringify(d.cups)); } catch { /* Speicher voll oder gesperrt */ }
+          const jetztMs = Date.now();
+          /*
+           * Nur einen Katalog mit laufenden/kommenden Cups im Browser merken. Liefert der Server bei einem
+           * Epic-Ausfall einen leeren oder nur-beendeten (dann stehen hier beim naechsten Besuch zuerst die
+           * alten Cups), soll das den letzten guten nicht ueberschreiben.
+           */
+          try {
+            if (!mitVergangenen && d.cups?.length && (d.cups as Cup[]).some((c) => hatAktuelleFenster(c, jetztMs))) {
+              localStorage.setItem('events-katalog', JSON.stringify(d.cups));
+            }
+          } catch { /* Speicher voll oder gesperrt */ }
           const neu = nachAusgaben(d.cups ?? []);
-          // Schon geladene (kommende) Cups bleiben, was neu kommt, ersetzt Cups gleicher Kennung - keine Doppelten.
+          /*
+           * Schon geladene (kommende) Cups bleiben, was neu kommt, ersetzt Cups gleicher Kennung - keine Doppelten.
+           * Aber einen Cup mit laufenden/kommenden Fenstern nicht durch eine aeltere, nur-beendete Fassung ersetzen:
+           * faellt der Server bei einem Epic-Ausfall auf das Archiv zurueck, duerfen Live und Demnaechst nicht verschwinden.
+           */
           setCups((alt) => {
             const je = new Map(alt.map((c) => [c.id, c]));
-            for (const c of neu) je.set(c.id, c);
+            for (const c of neu) {
+              const da = je.get(c.id);
+              if (da && hatAktuelleFenster(da, jetztMs) && !hatAktuelleFenster(c, jetztMs)) continue;
+              je.set(c.id, c);
+            }
             return [...je.values()];
           });
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
