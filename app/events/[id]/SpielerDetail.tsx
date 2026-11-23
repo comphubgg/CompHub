@@ -3,7 +3,7 @@
 /*
  * "Solo Stats" und "Team Stats" eines Cups wie bei Osirion: oben ein Konto-Auswahlfeld (das eigene, verifizierte Epic-Konto - oder die
  * Karte "Verify with Epic Games") und eine Spielersuche; darunter die Werte des gewaehlten Spielers. Bei einem Team-Cup stehen die
- * Mitspieler nebeneinander (Duo: zwei Spalten, Trio: drei), die eigene Spalte umrahmt, mit Pfeilen: wer bei einem Wert vorn liegt und wer
+ * Mitspieler nebeneinander (Duo: zwei Spalten, Trio: drei, Squad: vier - auf dem Handy bricht der Squad auf zwei mal zwei um), die eigene Spalte umrahmt, mit Pfeilen: wer bei einem Wert vorn liegt und wer
  * hinten. Bei einem Solo-Cup steht eine Spalte da, dazu rechts je Wert eine Kurve ueber die Matches.
  *
  * Der Betreiber (13.10.2026): "genau eins zu eins, nur mit meinen Farben ... bei Teams nebeneinander ... zu jedem einzelnen Stat eine
@@ -589,13 +589,20 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
               <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40 p-4">
-                <div className={`grid items-center gap-x-4 border-b border-white/[0.06] pb-3 ${team ? (mitglieder.length >= 3 ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'}`}>
-                  {mitglieder.map((m, i) => (
-                    <p key={m.id} className={`flex items-center justify-center gap-2 text-center text-[14px] font-bold text-slate-50 ${i > 0 ? 'border-l border-white/[0.08]' : ''}`}>
+                {/* Eine Spalte je Mitglied - Duo zwei, Trio drei, Squad vier nebeneinander. Vorher griff fuer alles ab drei "grid-cols-3", dann
+                    stand bei einem Squad der vierte Spieler allein unter den ersten dreien statt neben ihnen. Auf Handybreite bricht der Squad auf zwei mal zwei um. */}
+                <div className={`grid items-center gap-x-4 border-b border-white/[0.06] pb-3 ${!team ? 'grid-cols-1' : mitglieder.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : mitglieder.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {mitglieder.map((m, i) => {
+                    // Trennlinie links jeder Spalte ausser der ersten. Beim Squad, der auf dem Handy zweispaltig umbricht, traegt der dritte Spieler (erste Spalte der zweiten Reihe) die Linie erst ab sm, sonst saesse sie am linken Rand.
+                    const vierer = team && mitglieder.length >= 4;
+                    const trenner = i === 0 ? '' : vierer && i === 2 ? 'sm:border-l sm:border-white/[0.08]' : 'border-l border-white/[0.08]';
+                    return (
+                    <p key={m.id} className={`flex items-center justify-center gap-2 text-center text-[14px] font-bold text-slate-50 ${trenner}`}>
                       <span className="truncate">{m.name}</span>
                       <TeamFlagge groesse={16} laender={[m.land ?? undefined]} />
                     </p>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-3 flex items-baseline justify-between gap-3">
                   <p className="flex items-baseline gap-2">
