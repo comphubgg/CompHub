@@ -6280,20 +6280,16 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             <section className="profilneu-hero">
               <span aria-hidden className="profilneu-beam" />
               <span aria-hidden className="profilneu-cone" />
-              {offen.bild && offen.echtesFoto && (
+              {/* Das grosse Foto im Lichtkegel. Hat der Spieler kein echtes Foto, steht
+                  dort stattdessen das CompHub-Maskottchen als Portraet (Kopf + Oberkoerper,
+                  gleicher Rahmen wie ein echtes LAN-Foto) - genau gleich dargestellt, nur
+                  eine andere Quelle. Kein Schweben: ein Foto wippt nicht. Nur im Profil. */}
+              {(offen.echtesFoto ? offen.bild : '/comphub-maskottchen-portrait.webp') && (
                 <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-0 w-[62%] sm:w-[52%] md:w-[46%] xl:w-[42%]"
                   style={{ WebkitMaskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)', maskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={offen.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-95"
+                  <img src={offen.echtesFoto ? (offen.bild as string) : '/comphub-maskottchen-portrait.webp'} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-95"
                     style={{ filter: 'drop-shadow(0 26px 52px rgba(0,0,0,.6))' }} />
-                </div>
-              )}
-              {/* Ohne echtes Foto steht das CompHub-Maskottchen im Lichtkegel - sanftes Schweben und ein pulsender blauer Schein dahinter (nur im Profil). */}
-              {!offen.echtesFoto && (
-                <div aria-hidden className="profilneu-maskott-wrap pointer-events-none absolute inset-y-0 right-0 z-0 flex items-end justify-center w-[50%] sm:w-[44%] md:w-[38%] xl:w-[32%]">
-                  <span className="profilneu-maskott-glow" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/comphub-maskottchen.png" alt="" className="profilneu-maskott relative" />
                 </div>
               )}
               <span aria-hidden className="absolute inset-x-0 bottom-0 z-[1] h-36"

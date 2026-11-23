@@ -313,20 +313,3 @@ html[data-modus="hell"] .profilneu-ibar-l { color: #0b1320; }
 .profilneu-crow .track { height: 10px; background: rgba(120,160,210,.08); border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; }
 .profilneu-crow .track > div { height: 100%; background: linear-gradient(90deg,var(--sky2),var(--sky)); }
 @media (max-width: 560px) { .profilneu-crow { grid-template-columns: 48px 1fr 92px; } .profilneu-crow .cmeta { display: none; } }
-
-/* Maskottchen im Profil-Aufmacher, wenn kein echtes Foto vorliegt (23.11.2026).
- * Sanftes Schweben + pulsender blauer Schein; bei prefers-reduced-motion ruhig. */
-.profilneu-maskott { height: 90%; width: auto; max-width: 96%; object-fit: contain; object-position: bottom;
-  filter: drop-shadow(0 18px 38px rgba(0,0,0,.5)) drop-shadow(0 0 22px rgba(56,189,248,.35));
-  animation: profilneu-float 3.6s ease-in-out infinite; will-change: transform; }
-.profilneu-maskott-glow { position: absolute; bottom: 8%; left: 50%; width: 74%; aspect-ratio: 1 / 1;
-  transform: translateX(-50%); border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(56,189,248,.5) 0%, rgba(56,189,248,.14) 42%, transparent 70%);
-  filter: blur(26px); animation: profilneu-maskglow 4s ease-in-out infinite; }
-@keyframes profilneu-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-@keyframes profilneu-maskglow {
-  0%, 100% { opacity: .42; transform: translateX(-50%) scale(.95); }
-  50% { opacity: .85; transform: translateX(-50%) scale(1.05); } }
-@media (prefers-reduced-motion: reduce) {
-  .profilneu-maskott, .profilneu-maskott-glow { animation: none; }
-}
