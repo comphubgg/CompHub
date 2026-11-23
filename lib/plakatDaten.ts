@@ -1,5 +1,6 @@
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { liesJson } from '@/lib/ablage';
+import { anzeigenamen, anzeigenameFuer } from '@/lib/anzeigenamen';
 
 /*
  * Die Daten eines Plakats (Betreiber, 21.10.2026: "ein Plakat fuer alles unter Posts - Spieler- und Team-Stats, Standings, Finals, andere Statistiken").
@@ -45,10 +46,12 @@ export async function plakatTeams(o: { ursprung: string; event: string; windows:
   const j = await antwort.json() as { entries?: Roh[]; error?: string };
   if (!antwort.ok) throw new Error(j.error || 'Bestenliste nicht erreichbar');
   const x = await handles();
+  // Auf dem Plakat der gepflegte Szene-Name, nicht der Ingame-Name mit Org-Kuerzel/Clan-Tag (Betreiber, 23.11.2026: "GodL Chap" -> "Chap", "M8 K!ng rax" -> "Rax").
+  const namen = await anzeigenamen();
   return (j.entries ?? []).map((e) => ({
     rang: e.rank, teamId: e.teamId ?? '',
     spieler: (e.players ?? []).map((p) => ({
-      id: String(p.id ?? ''), name: String(p.anzeige || p.name || '').trim(), land: p.land ?? null, bild: p.img ?? null, x: x.get(String(p.id ?? '').toLowerCase()) ?? null,
+      id: String(p.id ?? ''), name: anzeigenameFuer(namen, String(p.id ?? ''), String(p.anzeige || p.name || '').trim()), land: p.land ?? null, bild: p.img ?? null, x: x.get(String(p.id ?? '').toLowerCase()) ?? null,
     })),
     punkte: e.points ?? 0, siege: e.wins ?? 0, elims: e.elims ?? 0, spiele: e.games ?? 0,
     avgElims: e.avgElims ?? 0, avgPlatz: Number.isFinite(e.avgPlace) && e.avgPlace > 0 ? e.avgPlace : null, bestPlatz: e.bestPlace ?? null,
