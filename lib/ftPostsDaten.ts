@@ -4,6 +4,7 @@ import { liesJson } from '@/lib/ablage';
 import { liesClutch, liesClutchJe } from '@/lib/clutchLive';
 import { istZeroBuild } from '@/lib/zeroBuild';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
+import { GET as spielerAbruf } from '@/app/api/cup-spieler/route';
 import { JE_SPALTEN, jeLesen } from '@/lib/jeSpiel.mjs';
 import { landQuellen } from '@/lib/landQuellen';
 import { ftKonten, ftPosts, ftStandings, type FtBildSpieler, type FtClutch, type FtErgebnis, type FtJeZeile, type FtKandidat, type FtPost, type FtTeam } from '@/lib/ftPosts';
@@ -48,6 +49,32 @@ function teamsVon(eintraege: LbEintrag[], namen: Record<string, string>): FtTeam
     }
     return { ids, rang: e.rank, punkte: e.points ?? 0, siege: e.wins ?? 0, elims: e.elims ?? 0, spiele: e.games ?? e.matches?.length ?? 0 };
   }).filter((t) => t.ids.length);
+}
+
+/*
+ * Die ELIMINATIONS-Bestenliste der Statistikseite (app/api/cup-spieler, kennzahl=elims) - genau die Zahlen und Reihenfolge, die der Betreiber dort sieht.
+ * Sie zaehlt aus dem vollen Kill-Feed aller eingelesenen Replays (killsEcht nur, wo jedes Spiel gelesen ist), waehrend clutch/<Fenster>.json nur so weit
+ * ist, wie der volle Leser gekommen ist. Darum baut "Most Eliminations" auf dieser Liste auf, statt den gedeckelten Clutch-Stand zu nehmen (Betreiber,
+ * 23.11.2026: Braden Peters mit 69 fehlte im Post, der 53 von veyrss lxk stand oben). Die Namen kommen mit - fuer Spieler ohne gepflegtes Profil.
+ * Schlaegt der Abruf fehl oder liegt noch keine Auswertung vor, bleibt die Liste leer und der Post rechnet wie bisher aus dem Clutch-Stand.
+ */
+async function elimsBestenliste(eventId: string, windowId: string): Promise<{ rang: Array<{ id: string; elims: number }>; namen: Record<string, string> }> {
+  const saison = /^(S\d+)_/i.exec(windowId)?.[1]?.toUpperCase() ?? '';
+  const url = `${SEITE}/api/cup-spieler?window=${encodeURIComponent(windowId)}&event=${encodeURIComponent(eventId)}`
+    + `${saison ? `&saison=${saison}` : ''}&kennzahl=elims&pro=50`;
+  const r = await spielerAbruf(new Request(url));
+  if (!r.ok) return { rang: [], namen: {} };
+  const j = (await r.json()) as { zeilen?: Array<{ epicId?: string; elims?: number; kills?: number; name?: string }> };
+  const rang: Array<{ id: string; elims: number }> = [];
+  const namen: Record<string, string> = {};
+  for (const z of j.zeilen ?? []) {
+    const id = String(z.epicId ?? '').toLowerCase();
+    const elims = typeof z.elims === 'number' ? z.elims : typeof z.kills === 'number' ? z.kills : 0;
+    if (!/^[0-9a-f]{32}$/.test(id) || !(elims > 0)) continue;
+    rang.push({ id, elims });
+    if (z.name) namen[id] = z.name;
+  }
+  return { rang, namen };
 }
 
 async function teamsAus(eventId: string, windowId: string): Promise<{ teams: FtTeam[]; namen: Record<string, string> }> {
@@ -222,7 +249,13 @@ export async function ftPostsFuer(eventId: string, windowId: string, titel: stri
     };
   }
 
-  const erg = ftPosts({ titel, clutch, je, spalten, teams: lb.teams, konten, minSpiele, fenster: windowId, zeroBuild: istZeroBuild(windowId) });
+  // "Most Eliminations" aus derselben Quelle wie die Statistikseite (cup-spieler) - gleiche Spieler, Zahlen und Reihenfolge; sonst rechnete der Post aus dem
+  // teilweise gelesenen Clutch-Stand und untercountete (Betreiber, 23.11.2026). Namen fuer Spieler ohne Profil kommen mit (vor denen aus dem Replay).
+  const elims = await elimsBestenliste(eventId, windowId).catch(() => ({ rang: [] as Array<{ id: string; elims: number }>, namen: {} as Record<string, string> }));
+  lbNamen(elims.namen);
+  spielDazu();
+
+  const erg = ftPosts({ titel, clutch, je, spalten, teams: lb.teams, konten, minSpiele, fenster: windowId, zeroBuild: istZeroBuild(windowId), elimsRang: elims.rang.length ? elims.rang : undefined });
   const posts: FtPost[] = [...(s.post ? [s.post] : []), ...erg.posts.map((p) => ({ ...p, quelle: 'replay' as const }))];
   return {
     ...erg, posts: await mitBildern(posts, schluessel, nachKonto), teams: lb.teams.length, quelle: 'replay', epicStand: s.updated,

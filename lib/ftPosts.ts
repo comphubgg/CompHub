@@ -91,6 +91,13 @@ export interface FtEingabe {
   fenster?: string;
   /** Zero Build (lib/zeroBuild): keine Mats. */
   zeroBuild?: boolean;
+  /**
+   * Massgebliche Elim-Zahlen je Spieler aus der Statistikseite (app/api/cup-spieler, dieselbe ELIMINATIONS-Bestenliste), in deren Reihenfolge. Sie zaehlt
+   * aus dem vollen Kill-Feed aller eingelesenen Replays (killsEcht nur, wo jedes Spiel gelesen ist), waehrend clutch/<Fenster>.json nur so weit ist, wie der
+   * volle Leser gekommen ist. Mit dieser Liste trifft "Most Eliminations" Spieler, Zahlen und Reihenfolge der Seite exakt, statt aus dem teilweise gelesenen
+   * Clutch-Stand zu untercounten und umzusortieren (Betreiber, 23.11.2026: Braden Peters mit 69 fehlte im Post, veyrss lxk stand mit 53 oben).
+   */
+  elimsRang?: Array<{ id: string; elims: number }>;
 }
 
 export type FtArt = 'standings' | 'best-stats' | 'elims' | 'damage' | 'best-game' | 'hits' | 'builds' | 'mats' | 'survival' | 'storm' | 'distance';
@@ -356,6 +363,13 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   const hatElims = spieler.some((s) => s.elims > 0);
   const titel = e.titel.trim();
 
+  // ELIMINATIONS wie die Statistikseite (app/api/cup-spieler, FtEingabe.elimsRang): Elim-Zahl und Reihenfolge von dort, der Schaden weiter aus dem Clutch.
+  // Der Clutch-Stand ist nur so weit, wie der volle Leser gekommen ist, und untercountet sonst (Betreiber, 23.11.2026).
+  const elimsN = (e.elimsRang ?? []).filter((r) => r?.id && Number.isFinite(r.elims) && r.elims > 0).map((r) => ({ id: r.id.toLowerCase(), elims: r.elims }));
+  const rangDa = elimsN.length > 0;
+  const clutchElim = new Map(spieler.map((s) => [klein(s.id), s.elims]));
+  const dmgVon = new Map(spieler.map((s) => [klein(s.id), s.dmg]));
+
   const posts: FtPost[] = [];
   /**
    * Eine Rangliste: Kopf (Emoji, Ueberschrift, Spieltag), dann "1. Flagge @konto – Wert". Nur Spieler mit Wert ueber 0 - haben weniger als drei einen, entfaellt der Post.
@@ -370,13 +384,30 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
     posts.push({ art, titel: ueberschrift, text: passend([`${emoji} ${ueberschrift}`, titel, ''], zeilen), kandidaten: rang.map((s) => kandidat(s.id)) });
   };
 
+  /**
+   * "Most Eliminations" direkt aus der massgeblichen Liste (cup-spieler) - gleiche Spieler, Zahlen und Reihenfolge wie die Statistikseite. Der Schaden in
+   * Klammern nur, wenn der Spieler ganz gelesen ist (dann deckt sich die Clutch-Elimzahl mit der massgeblichen) - sonst stuende eine volle Elim-Zahl neben
+   * einem Teil-Schaden. Unter drei Spielern entfaellt der Post wie bei jeder Rangliste.
+   */
+  const elimsListe = (rang: Array<{ id: string; elims: number }>) => {
+    if (rang.length < 3) return;
+    const zeilen = rang.slice(0, LISTE).map((r, i) => {
+      const dmg = dmgVon.get(r.id);
+      const schaden = clutchElim.get(r.id) === r.elims && dmg && dmg > 0 ? ` (${ftZahl(dmg)} damage)` : '';
+      return `${i + 1}. ${wer(r.id)} – ${r.elims} elims${schaden}`;
+    });
+    posts.push({ art: 'elims', titel: 'Most Eliminations', text: passend(['⚔️ Most Eliminations', titel, ''], zeilen), kandidaten: rang.slice(0, KANDIDATEN).map((r) => kandidat(r.id)) });
+  };
+
   // ---- Best Stats: je Kategorie der Beste, wichtigste zuerst (gekuerzt wird von hinten).
   const teams = [...(e.teams ?? [])].filter((t) => t.ids?.length).sort((a, b) => (a.rang ?? Infinity) - (b.rang ?? Infinity));
   const beste: string[] = [];
   const besteIds: string[] = [];
   const merke = (...ids: string[]) => { for (const i of ids) if (!besteIds.includes(klein(i))) besteIds.push(klein(i)); };
   if (teams[0]) { beste.push(`👑 Winner: ${team(teams[0].ids)}`); merke(...teams[0].ids); }
-  const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Most Elims: ${wer(e1.id)} – ${e1.elims} elims`); merke(e1.id); }
+  // Most Elims aus der massgeblichen Liste (cup-spieler), sonst aus dem Clutch-Stand.
+  if (rangDa) { const e1 = elimsN[0]; beste.push(`⚔️ Most Elims: ${wer(e1.id)} – ${e1.elims} elims`); merke(e1.id); }
+  else { const [e1] = hatElims ? top(nachElims, 1) : []; if (e1 && e1.elims > 0) { beste.push(`⚔️ Most Elims: ${wer(e1.id)} – ${e1.elims} elims`); merke(e1.id); } }
   const [d1] = top((s) => s.dmg, 1); if (d1 && d1.dmg > 0) { beste.push(`💥 Most Damage: ${wer(d1.id)} – ${ftZahl(d1.dmg)} damage`); merke(d1.id); }
   const [g1] = top((s) => (s.bestes ? s.bestes.elims * 1e6 + s.bestes.dmg : 0), 1, (s) => (s.bestes?.elims ?? 0) > 0);
   if (g1?.bestes) { beste.push(`🔥 Best Game: ${wer(g1.id)} – ${g1.bestes.elims} elims`); merke(g1.id); }
@@ -404,7 +435,9 @@ export function ftPosts(e: FtEingabe): FtErgebnis {
   }
 
   // ---- Die Ranglisten.
-  if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} elims (${ftZahl(s.dmg)} damage)`, undefined, nachElims);
+  // "Most Eliminations" aus derselben Quelle wie die Statistikseite (cup-spieler); ohne sie wie bisher aus dem Clutch-Stand.
+  if (rangDa) elimsListe(elimsN);
+  else if (hatElims) liste('elims', '⚔️', 'Most Eliminations', (s) => s.elims, (s) => `${s.elims} elims (${ftZahl(s.dmg)} damage)`, undefined, nachElims);
   liste('damage', '💥', 'Most Damage Dealt', (s) => s.dmg, (s) => (s.erlitten > 0 ? `${ftZahl(s.dmg)} damage (${ratio(s).toFixed(2)} ratio)` : `${ftZahl(s.dmg)} damage`));
   liste('best-game', '🔥', 'Best Single Game', (s) => s.bestes?.elims ?? null,
     (s) => `${s.bestes?.elims} ${s.bestes?.elims === 1 ? 'elim' : 'elims'}${s.bestes?.dmg ? ` (${ftZahl(s.bestes.dmg)} damage)` : ''}`,
