@@ -5020,18 +5020,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </thead>
                           <tbody>
                             {/*
-                              * Wird gesucht, steht nur die gesuchte Zeile da.
+                              * Immer die ganze Lobby, in Platzreihenfolge.
                               *
-                              * Der Betreiber: "wenn's ist, dann tut's nur die
-                              * anzeigen." Ohne Suche bleibt die ganze Lobby,
-                              * so wie bisher.
+                              * Wird gesucht, wird nichts mehr ausgeblendet:
+                              * die Zeile des gesuchten Spielers wird nur blau
+                              * hervorgehoben, damit der Betreiber sie im
+                              * ganzen Feld sofort findet. Geprueft wird dabei
+                              * der Ingame-Name (p.name) UND der angezeigte
+                              * Name (namenVon), damit "vico" auch dann trifft,
+                              * wenn im Konto "big gripey lover" steht.
                               */}
-                            {(spielSucheTraege.trim()
-                              ? sp.teams.filter((t) => t.spieler.some((p) => p.name
-                                .toLowerCase()
-                                .includes(spielSucheTraege.trim().toLowerCase())))
-                              : sp.teams
-                            ).map((t, i) => (
+                            {sp.teams.map((t, i) => {
+                              const suchBegriff = spielSucheTraege.trim().toLowerCase();
+                              const istTreffer = suchBegriff.length > 0
+                                && t.spieler.some((p) =>
+                                  p.name.toLowerCase().includes(suchBegriff)
+                                  || namenVon(p).toLowerCase().includes(suchBegriff));
+                              return (
                               // Zwei Zeilen koennen dieselbe Team-Id tragen:
                               // in einer Qualifikation spielt ein Konto an
                               // einem Tag in mehreren Lobbys, und Epic
@@ -5043,9 +5048,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               // Zeile eine zweite gehoeren kann: die mit den
                               // Werten aus dem eigenen Replay.
                               <Fragment key={`${t.teamId ?? 'x'}-${i}-gruppe`}>
-                              <tr className="border-b border-zinc-900/70 last:border-0">
+                              <tr className={`border-b border-zinc-900/70 last:border-0
+                                             ${istTreffer ? 'bg-sky-500/15' : ''}`}>
                                 <td className={`px-3 py-1.5 text-right font-semibold
-                                                tabular-nums ${t.platz === 1
+                                                tabular-nums ${istTreffer
+                                  ? 'border-l-2 border-l-sky-400' : ''} ${t.platz === 1
                                   ? 'text-amber-400' : 'text-slate-400'}`}>
                                   {t.platz ?? '—'}
                                 </td>
@@ -5149,7 +5156,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 </tr>
                               )}
                             </Fragment>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
