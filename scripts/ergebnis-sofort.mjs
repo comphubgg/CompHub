@@ -76,7 +76,7 @@ async function frage(weg, init = {}) {
 
 /* ------------------------------------------------------------------ Das Bild: lib/ftBild.ts im kopflosen Chromium, Bilder von "web" (dieselbe Herkunft). */
 let browser = null; let ftBildJs = null; let ohneBild = false;
-async function bildZeichnen(spieler) {
+async function bildZeichnen(spieler, stand) {
   if (ohneBild || !spieler?.length) return null;
   try {
     if (!ftBildJs) {
@@ -94,7 +94,7 @@ async function bildZeichnen(spieler) {
 import { ftBildZeichnen } from '/__ergebnis/ftBild.js';
 const spieler = ${JSON.stringify(spieler)};
 const c = document.getElementById('c');
-ftBildZeichnen(c, spieler, { schrift: "Inter, Arial, sans-serif", anzeige: "'Bricolage Grotesque', Inter, Arial, sans-serif" })
+ftBildZeichnen(c, spieler, { schrift: "Inter, Arial, sans-serif", anzeige: "'Bricolage Grotesque', Inter, Arial, sans-serif"${stand ? `, stand: ${JSON.stringify(stand)}` : ''} })
   .then(() => { window.__fertig = c.toDataURL('image/png'); }).catch((e) => { window.__fehler = String(e); });
 </script></body></html>`;
       await seite.route(`${WEB}/__ergebnis/**`, (r) => {
@@ -127,14 +127,29 @@ async function kanaele() {
   return kanalVorrat;
 }
 
-/** Nie doppelt, auch wenn die Ablage einmal nicht schreibt: was in den letzten 50 Nachrichten von #results schon steht, kommt nicht noch einmal. */
+/** Nie doppelt, auch wenn die Ablage einmal nicht schreibt: was in den letzten 50 Nachrichten von #results schon steht (Fuss "result:<windowId>"), kommt nicht noch einmal. */
 async function schonImKanal(kanalId, windowId) {
   const n = await ruf(`/channels/${kanalId}/messages?limit=50`).catch(() => []);
   return n.some((m) => (m.embeds ?? []).some((e) => e.footer?.text === `result:${windowId}`));
 }
 
-async function posten(p, bild) {
-  const k = await kanaele();
+/*
+ * Schon gemeldet? Dann NIE ein zweites Mal pingen (Betreiber, 23.11.2026: "der Post kommt ~10x und pingt mich jedes Mal"). Grund war: der Vermerk in der
+ * Ablage entsteht erst nach dem kompletten Posten - scheitert dabei etwas (Rate-Limit, Bild), laeuft derselbe Post 15 s spaeter wieder an und pingt erneut.
+ * Darum zwei Riegel: (1) #results ist das Gedaechtnis (Fuss), (2) #admin-posts - der Ping traegt den Titel, daran wird er auch ohne Ablage-Vermerk erkannt.
+ */
+async function schonGemeldet(k, p) {
+  if (k.results && await schonImKanal(k.results.id, p.windowId)) return true;
+  if (k.admin) {
+    const marke = p.titel.replace(/^🏆\s*/, '').trim();
+    const n = await ruf(`/channels/${k.admin.id}/messages?limit=50`).catch(() => []);
+    if (marke && n.some((m) => typeof m.content === 'string' && m.content.includes('Results ready') && m.content.includes(marke))) return true;
+  }
+  return false;
+}
+
+/** #admin-posts: EIN Ping an den Betreiber, darunter der fertige X-Text (mit Bild) zum Kopieren. */
+async function meldenAdmin(k, p, bild) {
   if (!k.admin) throw new Error('#admin-posts fehlt');
   const datei = bild ? [{ name: `${p.windowId}.png`, daten: bild }] : [];
   // 1. Der Ping - eine eigene Nachricht, damit der Text darunter ohne Erwaehnung kopiert werden kann.
@@ -150,7 +165,11 @@ async function posten(p, bild) {
   for (let i = 0; i < teile.length; i += 1) {
     await ruf(`/channels/${k.admin.id}/messages`, 'POST', { content: teile[i], allowed_mentions: { parse: [] }, flags: 4 }, i === 0 ? datei : []);
   }
-  // 3. #results - oeffentlich.
+}
+
+/** #results - oeffentlich, die ersten zehn als Einbettung mit Bild (eigener Fuss-Riegel gegen Doppelte). */
+async function meldenResults(k, p, bild) {
+  const datei = bild ? [{ name: `${p.windowId}.png`, daten: bild }] : [];
   if (k.results && !(await schonImKanal(k.results.id, p.windowId))) {
     const zeile = p.text.split('\n');
     const kopf = zeile[0].replace(/^🏆\s*/, '');
@@ -170,6 +189,10 @@ async function posten(p, bild) {
   }
 }
 
+/** Als gepostet vermerken (ergebnis-sofort.json) - Fehler nur melden, nie den Lauf abbrechen. */
+const vermerken = (p) => frage('/api/cron/ergebnis-sofort', { method: 'POST', body: JSON.stringify({ schluessel: p.schluessel, grund: p.grund, text: p.text }) })
+  .catch((e) => console.log(zeit(), 'vermerken fehlgeschlagen', p.windowId, e.message.split('\n')[0]));
+
 /* ------------------------------------------------------------------ Lauf */
 async function lauf() {
   if (PROBE) {
@@ -187,11 +210,21 @@ async function lauf() {
   for (const p of j.posts ?? []) {
     console.log(zeit(), ANWENDEN ? 'POSTE' : '[nur zeigen]', p.windowId, p.grund, `\n${p.text}`);
     if (!ANWENDEN) continue;
-    const bild = await bildZeichnen(p.bild);
+    const k = await kanaele();
+    // Schon im Kanal (Ablage-Vermerk ging verloren, Dienst neu gestartet, zweite Instanz)? Dann nur vermerken - NIE ein zweites Mal pingen.
+    if (await schonGemeldet(k, p).catch(() => false)) {
+      await vermerken(p);
+      console.log(zeit(), 'schon gemeldet, nur vermerkt', p.windowId);
+      continue;
+    }
+    const standLabel = p.stand ? `${new Date(p.stand).toISOString().slice(11, 16)} UTC` : null;
+    const bild = await bildZeichnen(p.bild, standLabel);
     try {
-      await posten(p, bild);
-      await frage('/api/cron/ergebnis-sofort', { method: 'POST', body: JSON.stringify({ schluessel: p.schluessel, grund: p.grund, text: p.text }) });
-      console.log(zeit(), 'gepostet', p.windowId, bild ? 'mit Bild' : 'ohne Bild');
+      await meldenAdmin(k, p, bild);
+      // Sofort vermerken: nach dem Ping darf nie neu gepingt werden, auch wenn das Results-Bild gleich scheitert.
+      await vermerken(p);
+      await meldenResults(k, p, bild).catch((e) => console.log(zeit(), 'results nicht gepostet', p.windowId, e.message.split('\n')[0]));
+      console.log(zeit(), 'gepostet', p.windowId, bild ? 'mit Bild' : 'ohne Bild', standLabel ? `(as of ${standLabel})` : '');
     } catch (e) { console.log(zeit(), 'Fehler beim Posten', p.windowId, e.message); }
   }
   return j.eng ? 15_000 : 60_000;

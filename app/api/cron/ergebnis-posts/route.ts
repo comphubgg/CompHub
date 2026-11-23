@@ -73,7 +73,8 @@ export async function GET(request: Request) {
       const schluesselBot = (process.env.CRON_SECRET || process.env.DISCORD_BOT_TOKEN || '').trim();
       if (info.event && info.window && schluesselBot) {
         try {
-          const q = new URLSearchParams({ art: 'standings', event: info.event, windows: info.window, titel: info.titel ?? '', stufe: info.stufe ?? '', region: info.region ?? '', datum: info.datum ?? '' });
+          // frisch=1: die Bestenliste frisch holen - dasselbe wie die Statistik-Seite zeigt, nicht der aeltere 20-s-Vorrat (Betreiber, 23.11.2026).
+          const q = new URLSearchParams({ art: 'standings', event: info.event, windows: info.window, titel: info.titel ?? '', stufe: info.stufe ?? '', region: info.region ?? '', datum: info.datum ?? '', frisch: '1' });
           const pl = await fetch(`https://www.thecomphub.com/api/plakat?${q.toString()}`, { headers: { Authorization: `Bearer ${schluesselBot}` }, signal: AbortSignal.timeout(90_000) });
           if (pl.ok && (pl.headers.get('content-type') ?? '').startsWith('image/')) png = new Uint8Array(await pl.arrayBuffer());
         } catch { /* dann das Fotomosaik */ }

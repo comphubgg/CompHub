@@ -34,11 +34,13 @@ async function handles(): Promise<Map<string, string>> {
   return m;
 }
 
-export async function plakatTeams(o: { ursprung: string; event: string; windows: string[]; limit?: number; suche?: string }): Promise<PlakatTeam[]> {
+export async function plakatTeams(o: { ursprung: string; event: string; windows: string[]; limit?: number; suche?: string; frisch?: boolean }): Promise<PlakatTeam[]> {
   const q = new URLSearchParams({ event: o.event });
   if (o.windows.length > 1) q.set('windows', o.windows.join(',')); else q.set('window', o.windows[0] ?? '');
   q.set('limit', String(Math.min(o.limit ?? 30, 200)));
   if (o.suche) q.set('q', o.suche);
+  // frisch=1 verwirft den 20-s-Vorrat der Bestenliste - so stehen im Plakat dieselben Zahlen wie auf der Statistik-Seite, nicht ein aelterer Stand (Betreiber, 23.11.2026).
+  if (o.frisch) q.set('frisch', '1');
   const antwort = await bestenlisteAbruf(new Request(`${o.ursprung}/api/cup-leaderboard?${q.toString()}`));
   const j = await antwort.json() as { entries?: Roh[]; error?: string };
   if (!antwort.ok) throw new Error(j.error || 'Bestenliste nicht erreichbar');
