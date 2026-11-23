@@ -1527,25 +1527,66 @@ type RohEvents = { events?: RohEvent[];
                resolvedWindowLocations?: Record<string, string[]> };
 
 /*
- * Die Events einer Region - wie ein PC und wie ein Handy sie sieht.
+ * Die Events einer Region - wie ein PC, ein Handy und eine PlayStation sie sehen.
  *
  * Epic zeigt je Plattform andere Events: am PC heisst ein Mobile Cup "...MobileCupAll" und hat kein einziges Spiel, die echten Spieltage
  * ("S42_HamiKumaMobileCup_EU", 1.111 Matches auf drei Seiten) sieht nur ein Handy (Betreiber, 29.10.2026: "Osirion hat Mobile-Statistics ...
- * wieso kann Osirion das und wir nicht"). Beide Listen werden zusammengelegt; ein leeres "All"-Fenster faellt in cupsGruppiert weg.
+ * wieso kann Osirion das und wir nicht").
+ *
+ * Und die konsolen-exklusiven Cups sieht nur eine Konsole: den PlayStation Cup liefert Epic ausschliesslich unter platform=PS4/PS5, nie
+ * unter Windows oder Android (Fortnite Tracker, 23.11.2026: der laufende BR PlayStation Cup mit ~17k Spielern fehlte im Katalog - die
+ * Diagnose scripts/abgleich-playstation.mjs zeigte das live Fenster "sichtbar nur unter: BR/PS4, BR/PS5"; nur ASIA war zusaetzlich unter
+ * Windows sichtbar, weshalb vorher ausgerechnet das veraltete ASIA-Fenster allein im Katalog stand). Darum wird auch PS5 abgefragt.
+ *
+ * Alle Listen werden zusammengelegt; ein leeres "All"-Fenster faellt in cupsGruppiert weg.
  */
 async function rohEvents(region: string): Promise<RohEvents> {
-  const [pc, handy] = await Promise.all([rohEventsFuer(region, 'Windows'), rohEventsFuer(region, 'Android').catch(() => ({} as RohEvents))]);
-  const ids = new Set((pc.events ?? []).map((e) => e.eventId));
-  const vorlagen = new Set((pc.templates ?? []).map((t) => t.eventTemplateId));
-  return {
-    events: [...(pc.events ?? []), ...(handy.events ?? []).filter((e) => !ids.has(e.eventId))],
-    templates: [...(pc.templates ?? []), ...(handy.templates ?? []).filter((t) => !vorlagen.has(t.eventTemplateId))],
-    payoutTables: { ...(handy.payoutTables ?? {}), ...(pc.payoutTables ?? {}) },
-    resolvedWindowLocations: { ...(handy.resolvedWindowLocations ?? {}), ...(pc.resolvedWindowLocations ?? {}) },
-  };
+  const leer = () => ({} as RohEvents);
+  const [pc, handy, konsole] = await Promise.all([
+    rohEventsFuer(region, 'Windows'),
+    rohEventsFuer(region, 'Android').catch(leer),
+    // PS5 deckt denselben PlayStation-Cup ab wie PS4 (Epic fuehrt beide identisch) - ein Abruf genuegt.
+    rohEventsFuer(region, 'PS5').catch(leer),
+  ]);
+  return mischeRohEvents([pc, handy, konsole]);
 }
 
-async function rohEventsFuer(region: string, plattform: 'Windows' | 'Android') {
+/*
+ * Mehrere Plattform-Abrufe einer Region zu einer Liste zusammenlegen.
+ *
+ * Die Reihenfolge ist Vorrang: der erste Abruf (Windows) bleibt die massgebliche Quelle fuer Titel, Metadaten und Auszahlungstabellen,
+ * spaetere steuern nur bei, was er nicht hatte. Zusammengelegt wird auf Fenster-Ebene, nicht nur auf Event-Ebene: taucht dasselbe Event
+ * unter zwei Plattformen mit verschiedenen Fenstern auf, bleibt die Vereinigung - sonst ginge ein Fenster verloren, das nur eine
+ * Plattform zeigt (etwa ein live PlayStation-Fenster eines Events, das Windows nur mit seinen alten Fenstern kennt).
+ */
+function mischeRohEvents(antworten: RohEvents[]): RohEvents {
+  const events = new Map<string, RohEvent>();
+  for (const a of antworten) {
+    for (const ev of a.events ?? []) {
+      const da = events.get(ev.eventId);
+      if (!da) {
+        events.set(ev.eventId, { ...ev, eventWindows: [...(ev.eventWindows ?? [])] });
+        continue;
+      }
+      const fensterIds = new Set((da.eventWindows ?? []).map((w) => w.eventWindowId));
+      for (const w of ev.eventWindows ?? []) if (!fensterIds.has(w.eventWindowId)) da.eventWindows!.push(w);
+      // Plattformen vereinen, damit die Kachel "PlayStation" auch dann zeigt, wenn das Event zuerst ueber Windows kam.
+      da.platforms = [...new Set([...(da.platforms ?? []), ...(ev.platforms ?? [])])];
+    }
+  }
+  const vorlagen = new Map<string, NonNullable<RohEvents['templates']>[number]>();
+  for (const a of antworten) for (const t of a.templates ?? []) if (!vorlagen.has(t.eventTemplateId)) vorlagen.set(t.eventTemplateId, t);
+  // Auszahlungen und Orte: bei gleichem Schluessel gewinnt der erste Abruf (Windows) - er wird zuletzt angewandt.
+  const payoutTables: Record<string, RohAuszahlung[]> = {};
+  const resolvedWindowLocations: Record<string, string[]> = {};
+  for (const a of [...antworten].reverse()) {
+    Object.assign(payoutTables, a.payoutTables ?? {});
+    Object.assign(resolvedWindowLocations, a.resolvedWindowLocations ?? {});
+  }
+  return { events: [...events.values()], templates: [...vorlagen.values()], payoutTables, resolvedWindowLocations };
+}
+
+async function rohEventsFuer(region: string, plattform: 'Windows' | 'Android' | 'PS5') {
   const { token, accountId } = await getToken();
   return req<{ events?: RohEvent[];
                templates?: Array<{ eventTemplateId: string; matchCap?: number; playlistId?: string }>;
