@@ -688,6 +688,25 @@ async function holeRoh(request: Request) {
     // Werte der alten Sperre (ohne fassung) gelten nicht mehr - sie lagen nachweislich daneben.
   } catch { /* dann bleibt die Prognose von vorher */ }
 
+  /*
+   * Die angezeigte Prognose nie unter der Ist-Grenze von jetzt (Betreiber: die Verzerrung immer leicht nach oben; "Platz 300 steht aktuell auf 435, bei
+   * Qualifying stehen 408 - das musst du live updaten"). Der eingefrorene Wert - vorab/halbzeit (fest), das eine Update (einmal), auch die alte fassung 2 -
+   * zieht nicht mit, wenn die echte Grenze waehrend des Cups weiter steigt: dann kostet der letzte Qualiplatz schon mehr, als die eingefrorene Prognose sagt,
+   * und die Zahl stuende unter dem, was Epics Liste daneben zeigt. Hier wird die Ausgabe nachgezogen - waehrend des Cups mindestens Ist + kleiner Aufschlag
+   * (die Grenze steigt weiter), danach mindestens das Ergebnis. Nur der Boden, kein Ueberschiessen: liegt die Prognose ohnehin darueber, bleibt sie, wie sie ist.
+   */
+  if (mitte !== null && tatsaechlich !== null) {
+    const aufschlag = laeuft ? Math.max(3, Math.round(tatsaechlich * 0.02)) : 0;
+    const boden = tatsaechlich + aufschlag;
+    if (mitte < boden) {
+      mitte = boden;
+      // Die Erklaerung unter der Zahl ehrlich halten: die Grenze von jetzt hat die eingefrorene Prognose ueberholt, darum steht die Prognose auf ihr.
+      mitteGrund = mitteGrund
+        ? { ...mitteGrund, grenze: tatsaechlich, hochgerechnet: null, anteil: null, gewicht: 0, fertig: false }
+        : null;
+    }
+  }
+
   return NextResponse.json({
     /* Die Prognose waehrend des Spieltags (null: die Vorab-Prognose bleibt) und woraus sie besteht - die Seite zeigt es an. */
     mitte, mitteGrund,
