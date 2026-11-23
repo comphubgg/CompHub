@@ -10,7 +10,7 @@ import { STORAGE_KEYS } from './utils/constants';
 // Hooks
 import {
   useTierList,
-  useDragDrop,
+  useZeigerZiehen,
   useSearch,
   useMode,
 } from './hooks';
@@ -23,7 +23,7 @@ import { TierList, Sidebar } from './components';
 import { BilderAnbieter } from './components/BilderKontext';
 
 // Types & Utils
-import { TierKey, Player, Duo } from './types';
+import { Player, Duo } from './types';
 import { generateId, getSoloKey, getDuoKey, getTrioKey, getDisplayName, artVon } from './utils/helpers';
 import { getRegionFromCountryCode, TIER_LABELS_DEFAULT } from './utils/constants';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
@@ -54,18 +54,25 @@ export default function TierListPage() {
     try { window.history.replaceState(null, '', `/tierlist/${MODUS_ADRESSE[m]}${window.location.search}`); } catch { /* ohne Verlauf bleibt die Adresse */ }
   };
   const { searchQuery, setSearchQuery, clearSearch } = useSearch();
-  const {
-    draggedId,
-    dragOverId,
-    dragOverTier,
-    setDraggedId,
-    setDragOverId,
-    setDragOverTier,
-    reset: resetDragState,
-  } = useDragDrop();
 
   // Tier list state (stabiler Hook-Aufruf)
   const tierListState = useTierList(listId, mode);
+
+  /*
+   * Ziehen und Ablegen ueber Pointer Events (hooks/useZeigerZiehen) statt
+   * ueber natives HTML5-Drag. Zuverlaessig an jeder Stelle, schnell (das
+   * Abbild laeuft ueber den Stil, nicht ueber den Zustand) und traegt auch
+   * Finger. Ein Klick ohne Zug auf eine eingestufte Kachel holt sie zurueck
+   * in den Pool.
+   */
+  const {
+    beginnen: kachelZeigerStart,
+    ziehId,
+    zielStufe,
+  } = useZeigerZiehen({
+    platziere: (id, stufe, vorId) => tierListState.platziere(id, stufe, vorId),
+    klick: (id, bereich) => { if (bereich === 'stufe') tierListState.removeEntry(id); },
+  });
 
   const [clipboardMessage, setClipboardMessage] = useState<string | null>(null);
 
@@ -1076,46 +1083,9 @@ export default function TierListPage() {
     });
   const poolEntryCount = filteredPoolEntries.length;
 
-  // Handle drag operations
-  //
-  // Die gezogene Kachel steht im DataTransfer des Ablege-Ereignisses
-  // (PlayerCard legt sie beim dragstart als text/plain ab). Massgeblich ist
-  // dieser Wert, nicht der React-Zustand "draggedId": der wird erst beim
-  // naechsten Zeichnen nachgezogen, und wenn zwischen dragstart und drop neu
-  // gezeichnet wurde (etwa weil gerade Fotos ankamen), stand dort beim
-  // Ablegen noch nichts - dann landete nichts in der Stufe. Der Zustand ist
-  // nur noch der Rueckfall.
-  const gezogeneId = (e?: React.DragEvent) => {
-    const ausEreignis = e?.dataTransfer?.getData('text/plain');
-    return (ausEreignis && ausEreignis.trim()) || draggedId || null;
-  };
-
-  const handleTierDrop = (tier: TierKey, e?: React.DragEvent) => {
-    const id = gezogeneId(e);
-    if (!id) return;
-    tierListState.moveToTier(id, tier);
-    resetDragState();
-  };
-
-  const handleCardDrop = (draggedId: string, targetId: string) => {
-    const draggedEntry = tierListState.entries.find((e: any) => e.id === draggedId);
-    const targetEntry = tierListState.entries.find((e: any) => e.id === targetId);
-
-    if (draggedEntry?.tier && draggedEntry.tier === targetEntry?.tier) {
-      tierListState.reorderInTier(draggedId, targetId, draggedEntry.tier);
-    }
-    resetDragState();
-  };
-
-  const handleDragOver = (entryId: string | null, tier?: TierKey) => {
-    setDragOverId(entryId);
-    setDragOverTier(tier ?? null);
-  };
-
-  const handlePoolDrop = (draggedId: string, targetId: string | null) => {
-    tierListState.reorderInPool(draggedId, targetId);
-    resetDragState();
-  };
+  // Das Ziehen, Ablegen und das Klick-zurueck-in-den-Pool laufen jetzt ueber
+  // den Pointer-Haken oben (useZeigerZiehen) und die eine Setz-Funktion
+  // tierListState.platziere. Die frueheren HTML5-Drag-Handler sind entfallen.
 
   // Create player/duo
   const getUsedDuoKeys = (): Set<string> => {
@@ -1371,6 +1341,34 @@ export default function TierListPage() {
     tierListState.deleteEntry(entryId);
   };
 
+  /*
+   * Stabile Huellen fuer die Kachel-Funktionen.
+   *
+   * Das ist der Schluessel zum sofortigen Aufnehmen: beim Beginn eines Zugs
+   * aendert sich nur, WELCHE Kachel gezogen wird (ziehId). Bekommen die
+   * Kacheln dabei aber bei jedem Zeichnen frische Funktionen (ein neues
+   * "() => loeschen(id)" je Kachel, eine neue umbenennen-Funktion aus dem
+   * Hook), aendern sich ihre Eigenschaften trotzdem - und das React.memo
+   * greift nicht, alle Hunderte Kacheln zeichnen neu, und das Aufnehmen
+   * haengt eine Sekunde. Mit diesen Huellen bleibt die Funktion dieselbe,
+   * waehrend die Kachel ihre eigene Id selbst mitgibt.
+   */
+  const loeschRef = useRef(handleDeleteEntry);
+  loeschRef.current = handleDeleteEntry;
+  const onDeleteStabil = useCallback((id: string) => { void loeschRef.current(id); }, []);
+
+  const umbenennenAktiv = isAdmin ? nameSetzen : tierListState.umbenennenNachName;
+  const umbenennenRef = useRef(umbenennenAktiv);
+  umbenennenRef.current = umbenennenAktiv;
+  const onRenameStabil = useCallback(
+    (roh: string, neu: string, welcher?: 1 | 2 | 3) => { void umbenennenRef.current(roh, neu, welcher); }, []);
+
+  const landAktiv = isAdmin ? landSetzen : tierListState.landNachName;
+  const landAktivRef = useRef(landAktiv);
+  landAktivRef.current = landAktiv;
+  const onLandStabil = useCallback(
+    (name: string, land: string) => { void landAktivRef.current(name, land); }, []);
+
   // Safe client-side render check after all hooks are executed
   if (!isMounted) return null;
 
@@ -1454,32 +1452,16 @@ export default function TierListPage() {
             // Stufe um, sah das ausser ihm niemand. Aendern darf ein Gast
             // sie weiterhin nicht, dafuer sorgt disableLabelEdit.
             tierLabels={tierListState.tierLabels}
-            draggedId={draggedId}
-            dragOverId={dragOverId}
-            dragOverTier={dragOverTier}
+            ziehId={ziehId}
+            zielStufe={zielStufe}
             onTierLabelChange={tierListState.setTierLabel}
-            onDragStart={setDraggedId}
-            onDragEnd={resetDragState}
-            onDragOver={setDragOverId}
-            onDragLeave={() => setDragOverTier(null)}
-            onTierDrop={handleTierDrop}
-            onCardDrop={handleCardDrop}
-            onReturnToPool={tierListState.removeEntry}
+            onPointerDown={kachelZeigerStart}
             isAdmin={isAdmin}
             currentUser={currentUser}
-            /*
-             * Auch fuer Nicht-Admins - handleDeleteEntry prueft selbst, wem
-             * der Eintrag gehoert, und wer ihn nicht angelegt hat, kommt
-             * dort ohnehin nicht durch. Vorher war das x auf der Kachel zwar
-             * zu sehen, tat aber nichts: die Kachel zeigt es, sobald jemand
-             * bearbeiten darf, der Handgriff dahinter kam aber nur beim
-             * Admin an. Ein Knopf, der nichts tut, ist schlimmer als keiner.
-             */
-            onDeletePlayer={handleDeleteEntry}
-            onRename={isAdmin ? nameSetzen : tierListState.umbenennenNachName}
+            onRename={onRenameStabil}
             landVon={landVon}
             anzeigeVon={anzeigeVon}
-            onLand={isAdmin ? landSetzen : tierListState.landNachName}
+            onLand={onLandStabil}
             disableLabelEdit={isGuest}
           />
         </div>
@@ -1488,13 +1470,9 @@ export default function TierListPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           poolEntries={filteredPoolEntries}
-          draggedId={draggedId}
-          dragOverId={dragOverId}
-          onPoolDragStart={setDraggedId}
-          onPoolDragEnd={resetDragState}
-          onPoolDragOver={setDragOverId}
-          onPoolDragLeave={() => setDragOverId(null)}
-          onPoolDrop={handlePoolDrop}
+          ziehId={ziehId}
+          poolZiel={zielStufe === 'pool'}
+          onPoolPointerDown={kachelZeigerStart}
           currentMode={mode}
           onSwitchMode={switchMode}
           onReset={tierListState.resetTierAssignments}
@@ -1504,11 +1482,11 @@ export default function TierListPage() {
           existingEntries={tierListState.entries}
           isAdmin={isAdmin}
           currentUser={currentUser}
-          onRenameEntry={isAdmin ? nameSetzen : tierListState.umbenennenNachName}
+          onRenameEntry={onRenameStabil}
           landVon={landVon}
           anzeigeVon={anzeigeVon}
-          onLand={isAdmin ? landSetzen : tierListState.landNachName}
-          onDeleteEntry={handleDeleteEntry}
+          onLand={onLandStabil}
+          onDeleteEntry={onDeleteStabil}
           /*
            * Warum nichts dasteht - statt "All players assigned".
            *

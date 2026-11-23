@@ -14,16 +14,14 @@ interface SidebarProps {
 
   // Pool state
   poolEntries: TierListEntry[];
-  draggedId: string | null;
-  dragOverId: string | null;
+  /** Welche Kachel gerade gezogen wird (fuer das Abdunkeln). */
+  ziehId: string | null;
+  /** Hervorhebung, wenn der Pool gerade das Ziel ist. */
+  poolZiel?: boolean;
   existingEntries: TierListEntry[];
 
-  // Pool interactions
-  onPoolDragStart: (entryId: string) => void;
-  onPoolDragEnd: () => void;
-  onPoolDragOver: (entryId: string) => void;
-  onPoolDragLeave: () => void;
-  onPoolDrop: (draggedId: string, targetId: string | null) => void;
+  // Pool interactions - der eine Pointer-Griff (hooks/useZeigerZiehen).
+  onPoolPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
 
   // Mode switching
   currentMode: 'solo' | 'duo' | 'trio';
@@ -63,13 +61,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   searchQuery,
   onSearchChange,
   poolEntries,
-  draggedId,
-  dragOverId,
-  onPoolDragStart,
-  onPoolDragEnd,
-  onPoolDragOver,
-  onPoolDragLeave,
-  onPoolDrop,
+  ziehId,
+  poolZiel = false,
+  onPoolPointerDown,
   currentMode,
   onSwitchMode,
   onReset,
@@ -101,19 +95,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <div className="sidebar-card sidebar-pool">
+      {/* data-pool: der Pool ist selbst ein Ablegeziel - so laesst sich eine
+          eingestufte Kachel per Zug zurueck in den Pool holen (hooks/useZeigerZiehen). */}
+      <div className={`sidebar-card sidebar-pool${poolZiel ? ' drag-over' : ''}`} data-pool="1">
         <div className="sidebar-section-title"></div>
         <div className="duo-pool">
           <PlayerPool
             entries={poolEntries}
             searchQuery={searchQuery}
-            draggedId={draggedId}
-            dragOverId={dragOverId}
-            onDragStart={onPoolDragStart}
-            onDragEnd={onPoolDragEnd}
-            onDragOver={onPoolDragOver}
-            onDragLeave={onPoolDragLeave}
-            onDrop={onPoolDrop}
+            ziehId={ziehId}
+            onPointerDown={onPoolPointerDown}
             isAdmin={isAdmin}
             currentUser={currentUser}
             onDelete={onDeleteEntry}

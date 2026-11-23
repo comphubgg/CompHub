@@ -9,7 +9,7 @@ import { getPrimaryRegion, isDuo, isTrio, cleanPlayerName } from '../utils/helpe
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 import { useT } from '@/app/components/SprachProvider';
-import { useBilder } from './BilderKontext';
+import { useBilder, useBilderFuer } from './BilderKontext';
 import { PLATZHALTER_FOTO } from '@/lib/spielerbildKlein';
 
 /** Spieler ohne Foto: der Platzhalter der ganzen Seite (17.11.2026, public/spielerbild-platzhalter.svg - wie app/components/SpielerPlatzhalter). */
@@ -19,12 +19,8 @@ interface PlayerCardProps {
   entry: TierListEntry;
   variant?: 'list' | 'pool';
   isDragging: boolean;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onDragOver: () => void;
-  onDragLeave: () => void;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onReturnToPool?: () => void;
+  /** Zeiger-Ziehen: der Griff. Die Kachel traegt data-id und data-bereich (siehe hooks/useZeigerZiehen). */
+  onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
   isAdmin?: boolean;
   /**
    * Einen Namen aendern.
@@ -60,7 +56,8 @@ interface PlayerCardProps {
    */
   onLand?: (name: string, land: string) => void;
   currentUser?: string;
-  onDelete?: () => void;
+  /** Loeschen - bekommt die Kennung, damit die Seite eine stabile Funktion reichen kann (React.memo). */
+  onDelete?: (entryId: string) => void;
   disabled?: boolean;
 }
 
@@ -120,16 +117,11 @@ const NameFeld: React.FC<{
   );
 };
 
-export const PlayerCard: React.FC<PlayerCardProps> = ({
+const PlayerCardRoh: React.FC<PlayerCardProps> = ({
   entry,
   variant = 'list',
   isDragging,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onReturnToPool,
+  onPointerDown,
   isAdmin = false,
   onRename,
   landVon,
@@ -288,55 +280,33 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
    * Mit Fotos (Betreiber, 20.10.2026): je Spieler ein Foto-Teil mit Name und Flagge, Duos und Trios nebeneinander in einer Kachel. Die Fotos holt BilderKontext
    * gesammelt; solange eines fehlt, steht die Silhouette da.
    */
-  const { bilder, fotoFuer, vormerken } = useBilder();
+  const { bilder } = useBilder();
   const bildTeile = [
     { roh: player1Name, anzeige: anzeige1, land: land1 },
     ...(isDuoEntry ? [{ roh: player2Name ?? '', anzeige: anzeige2 ?? '', land: land2 }] : []),
     ...(isTrioEntry ? [{ roh: player3Name ?? '', anzeige: anzeige3 ?? '', land: land3 }] : []),
   ];
-  const bildSchluessel = bildTeile.map((x) => `${x.anzeige}|${x.roh}`).join('||');
-  React.useEffect(() => {
-    if (bilder) vormerken(bildTeile.flatMap((x) => [x.anzeige, x.roh]));
-    // bildSchluessel steht fuer bildTeile
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bilder, bildSchluessel, vormerken]);
-  
+  // Fotos je Teil - meldet an und zeichnet nur diese Kachel neu, wenn ihr
+  // eigenes Foto eintrifft (siehe useBilderFuer; haelt die Liste fluessig).
+  const fotos = useBilderFuer(bildTeile);
+
   const regionText = displayRegion || 'Unknown';
   const regionClass = String(regionText).toLowerCase();
 
   return (
     <div
-      draggable={!disabled && !bearbeitet}
-      onClick={e => {
-        if (!disabled && variant === 'list' && onReturnToPool) {
-          e.stopPropagation();
-          onReturnToPool();
-        }
-      }}
-      onDragStart={disabled ? undefined : (event) => {
-        event.dataTransfer.effectAllowed = 'move';
-        try {
-          event.dataTransfer.setData('text/plain', entry.id);
-        } catch {
-          // Some browsers require setData for drag to work reliably.
-        }
-        onDragStart();
-      }}
-      onDragEnd={onDragEnd}
-      onDragOver={e => {
-        if (disabled) return;
-        e.preventDefault();
-        onDragOver();
-      }}
-      onDragLeave={onDragLeave}
-      onDrop={disabled ? undefined : (event) => {
-        event.preventDefault();
-        onDrop?.(event);
-      }}
+      // Das Ziehen und das Ablegen laufen ueber Pointer Events in einem
+      // zentralen Griff (hooks/useZeigerZiehen). Die Kachel liefert nur ihre
+      // Kennung und woher sie kommt; den Rest - Abbild, Ziel, Setzen, und der
+      // Klick-zurueck-in-den-Pool - macht der Haken.
+      data-id={entry.id}
+      data-bereich={variant === 'list' ? 'stufe' : 'pool'}
+      draggable={false}
+      onPointerDown={disabled || bearbeitet ? undefined : onPointerDown}
       className={`${bilder ? `bild-kachel ${variant === 'pool' ? 'klein' : ''} n${bildTeile.length}` : cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
     >
       {bilder ? bildTeile.map((x, i) => {
-        const foto = fotoFuer(x.anzeige, x.roh);
+        const foto = fotos[i];
         return (
           <div key={i} className="bild-teil">
             {foto
@@ -459,7 +429,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                onDelete();
+                onDelete(entry.id);
               }}
               className="admin-delete-btn"
               title="Delete entry"
@@ -541,3 +511,13 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     </div>
   );
 };
+
+/*
+ * React.memo: bei einer langen Liste (Hunderte Kacheln) zeichnet sonst jede
+ * Zustandsaenderung - ein Zug, ein ankommendes Foto, ein Tastendruck in der
+ * Suche - alle Kacheln neu, und die Liste ruckelt. Mit memo zeichnet nur
+ * neu, wessen Eigenschaften sich wirklich geaendert haben. Damit das greift,
+ * reicht die Seite stabile Funktionen herein (useCallback) und einen
+ * zentralen Pointer-Griff statt einer eigenen Funktion je Kachel.
+ */
+export const PlayerCard = React.memo(PlayerCardRoh);

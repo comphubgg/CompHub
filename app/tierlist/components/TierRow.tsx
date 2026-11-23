@@ -11,11 +11,7 @@ interface TierRowProps {
   onLabelChange: (newLabel: string) => void;
   isDragOver: boolean;
   children: React.ReactNode;
-  onDragOver: () => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   disableLabelEdit?: boolean;
-  disabled?: boolean;
 }
 
 /**
@@ -46,11 +42,7 @@ export const TierRow: React.FC<TierRowProps> = ({
   onLabelChange,
   isDragOver,
   children,
-  onDragOver,
-  onDragLeave,
-  onDrop,
   disableLabelEdit = false,
-  disabled = false,
 }) => {
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editValue, setEditValue] = useState(tierLabel);
@@ -70,7 +62,12 @@ export const TierRow: React.FC<TierRowProps> = ({
   };
 
   return (
-    <div className={`tier-row ${TIER_COLORS[tier]}`}>
+    // data-stufe auf der GANZEN Reihe: Ziel ist die ganze Flaeche - die
+    // Beschriftung, der Platz neben vorhandenen Kacheln und der leere Rest.
+    // So faellt eine Kachel ueberall in der Reihe, nicht nur genau auf einer
+    // anderen Kachel. Das Ablegen selbst macht der zentrale Pointer-Griff
+    // (hooks/useZeigerZiehen) ueber dieses Kennzeichen.
+    <div className={`tier-row ${TIER_COLORS[tier]}`} data-stufe={tier}>
       {/* Tier Label */}
       <div className="tier-label" style={stufenSchrift(tierLabel)}>
         {isEditingLabel ? (
@@ -106,22 +103,7 @@ export const TierRow: React.FC<TierRowProps> = ({
       </div>
 
       {/* Tier Content */}
-      <div
-        onDragOver={e => {
-          if (disabled) return;
-          e.preventDefault();
-          onDragOver();
-        }}
-        onDragLeave={() => {
-          if (!disabled) onDragLeave();
-        }}
-        onDrop={e => {
-          if (disabled) return;
-          e.preventDefault();
-          onDrop(e);
-        }}
-        className={`tier-content ${isDragOver ? 'drag-over' : ''}`}
-      >
+      <div className={`tier-content ${isDragOver ? 'drag-over' : ''}`}>
         {children}
       </div>
       <div className="tier-count">{entryCount > 0 ? `(${entryCount})` : ''}</div>

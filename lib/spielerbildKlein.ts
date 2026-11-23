@@ -95,18 +95,23 @@ export function spielerbildKlein(datei: string): string {
 }
 
 /**
- * Die winzige Fassung (128 Pixel) fuer die Tierlist-Kacheln (scripts/spielerbilder-klein.mjs).
+ * Die winzige Fassung (128 Pixel) fuer die Tierlist-Kacheln.
  *
  * Die 480er Fassung war fuer die kleinen Kacheln fuenfmal zu gross und liess Solo-Listen mit
- * Hunderten Spielern rund eine Minute laden (Betreiber, 23.11.2026). Hochgeladene Fotos
- * (spielerfotos/...webp) haben keine mini-Fassung und bleiben bei der gross-Adresse.
+ * Hunderten Spielern rund eine Minute laden (Betreiber, 23.11.2026).
+ *
+ *   - Mitgelieferte JPG/PNG: eine fertige Datei unter /spielerbilder-mini (scripts/spielerbilder-klein.mjs).
+ *   - Hochgeladene WebP (spielerfotos/...): keine fertige Datei - die Ausliefer-Route verkleinert
+ *     beim Abruf auf 128 px (Parameter w=128, app/api/spielerbild/hochladen). Sonst kaemen fuer die
+ *     allermeisten Spieler weiter die bis zu 600 px hohen Originale, und genau die sind die Masse.
  */
 export function spielerbildMini(datei: string): string {
   if (!fotoFrei(datei)) return PLATZHALTER_FOTO;
   const m = /^([A-Za-z0-9._-]+)\.(?:jpe?g|png)$/i.exec(datei);
-  return m
-    ? mitStand(`/spielerbilder-mini/${encodeURIComponent(m[1])}.webp`, datei)
-    : spielerbildGross(datei);
+  if (m) return mitStand(`/spielerbilder-mini/${encodeURIComponent(m[1])}.webp`, datei);
+  const gross = spielerbildGross(datei);
+  if (gross === PLATZHALTER_FOTO) return gross;
+  return gross.includes('?') ? `${gross}&w=128` : `${gross}?w=128`;
 }
 
 /** Das Original eines Spielerfotos (Profilseiten, Plakate) - mit demselben Kennzeichen. */

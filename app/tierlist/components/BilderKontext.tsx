@@ -27,13 +27,59 @@ const AUS: Wert = { bilder: false, setBilder: () => {}, fotoFuer: () => null, vo
 const Kontext = createContext<Wert>(AUS);
 export const useBilder = () => useContext(Kontext);
 
+/*
+ * Die Fotos fuer eine einzelne Kachel.
+ *
+ * Meldet ihre Namen zum Holen an und abonniert die Schübe. Zeichnet die
+ * Kachel nur neu, wenn sich IHRE Fotos geaendert haben - so greift das
+ * React.memo um die Kachel, und ein ankommendes Foto fuer irgendwen
+ * zeichnet nicht die ganze Liste neu. Gibt je Teil die Foto-Adresse (klein)
+ * oder null.
+ */
+export function useBilderFuer(teile: Array<{ anzeige?: string; roh?: string }>): Array<string | null> {
+  const { bilder, fotoFuer, vormerken } = useBilder();
+  const schluessel = teile.map((t) => `${t.anzeige ?? ''}|${t.roh ?? ''}`).join('||');
+  const [, tick] = useState(0);
+  const berechne = useCallback(
+    () => teile.map((t) => (bilder ? fotoFuer(t.anzeige, t.roh) : null)),
+    // teile steckt in schluessel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bilder, schluessel, fotoFuer],
+  );
+  const letzte = useRef<string>('');
+  useEffect(() => {
+    if (!bilder) return;
+    vormerken(teile.flatMap((t) => [t.anzeige, t.roh]));
+    letzte.current = JSON.stringify(berechne());
+    const fn = () => {
+      const neu = JSON.stringify(berechne());
+      if (neu !== letzte.current) { letzte.current = neu; tick((x) => x + 1); }
+    };
+    HOERER.add(fn);
+    return () => { HOERER.delete(fn); };
+    // teile steckt in schluessel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bilder, schluessel, vormerken, berechne]);
+  return berechne();
+}
+
 const MERKER = 'comphub-tierlist-bilder';
 /** Name -> Foto-Adresse (klein) oder null; ueber alle Kacheln und Seitenaufrufe hinweg. */
 const GEFUNDEN = new Map<string, string | null>();
+/*
+ * Wer auf neu eingetroffene Fotos wartet.
+ *
+ * Frueher rief ein ankommender Schub `neuZeichnen` am Anbieter - und weil
+ * der ueber dem ganzen Baum steht, zeichnete das alle Hunderte Kacheln neu,
+ * bei jedem der Schuebe. Jetzt meldet sich jede Kachel selbst an; nach einem
+ * Schub rechnet jede nur ihr eigenes Foto nach und zeichnet sich bloss dann
+ * neu, wenn sich daran wirklich etwas geaendert hat. So bleibt die Liste
+ * auch waehrend des Ladens fluessig (23.11.2026).
+ */
+const HOERER = new Set<() => void>();
 
 export function BilderAnbieter({ children }: { children: React.ReactNode }) {
   const [bilder, setBilderRoh] = useState(false);
-  const [, neuZeichnen] = useState(0);
   const warteschlange = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,8 +108,10 @@ export function BilderAnbieter({ children }: { children: React.ReactNode }) {
           GEFUNDEN.set(n, datei ? spielerbildMini(datei) : null);
         }
       } catch { /* die Namen bleiben ohne Eintrag und werden beim naechsten Zeichnen noch einmal angemeldet */ }
+      // Nach jedem Schub die wartenden Kacheln wecken - nicht erst am Ende,
+      // damit die ersten Fotos sofort erscheinen, nicht erst nach allen.
+      for (const fn of HOERER) fn();
     }
-    neuZeichnen((x) => x + 1);
   }, []);
 
   const vormerken = useCallback((namen: Array<string | undefined>) => {

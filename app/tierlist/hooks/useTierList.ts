@@ -159,6 +159,38 @@ export function useTierList(listId: string, mode: 'solo' | 'duo' | 'trio') {
     });
   };
 
+  /**
+   * Eine Kachel an eine Stelle setzen - der eine Weg fuer alles.
+   *
+   * `stufe` ist die Zielstufe oder null fuer den Pool. `vorId` ist die Kachel,
+   * vor der sie landen soll (die Kachel, auf der beim Ziehen zuletzt der
+   * Zeiger stand) - oder null fuer ans Ende der Gruppe. Damit deckt eine
+   * Funktion jeden Fall ab: Pool -> Stufe, Stufe -> Stufe, Stufe -> Pool, und
+   * jede Stelle darin (Anfang, Mitte, Ende, leerer Rest). Das Zeiger-Ziehen
+   * (app/tierlist/hooks/useZeigerZiehen) ruft nur noch dies auf.
+   */
+  const platziere = (entryId: string, stufe: TierKey | null, vorId: string | null) => {
+    const liste = entries.slice();
+    const i = liste.findIndex(e => e.id === entryId);
+    if (i === -1) return;
+    const [eintrag] = liste.splice(i, 1);
+    const neuer = { ...eintrag, tier: stufe };
+    let ziel: number;
+    if (vorId && vorId !== entryId) {
+      ziel = liste.findIndex(e => e.id === vorId);
+      if (ziel === -1) ziel = liste.length;
+    } else {
+      // Ans Ende der Zielgruppe: hinter die letzte Kachel mit derselben Stufe
+      // (bzw. den letzten Pool-Eintrag). Ohne eine solche Kachel ans Ende.
+      ziel = liste.length;
+      for (let k = liste.length - 1; k >= 0; k--) {
+        if ((liste[k].tier ?? null) === (stufe ?? null)) { ziel = k + 1; break; }
+      }
+    }
+    liste.splice(ziel, 0, neuer);
+    saveList({ entries: liste });
+  };
+
   const reorderInTier = (draggedId: string, targetId: string, tier: TierKey) => {
     const tierEntries = entries.filter(entry => entry.tier === tier);
     const draggedIndex = tierEntries.findIndex(item => item.id === draggedId);
@@ -380,6 +412,7 @@ export function useTierList(listId: string, mode: 'solo' | 'duo' | 'trio') {
     listName: listState.listName,
     setTierLabel,
     moveToTier,
+    platziere,
     reorderInTier,
     reorderInPool,
     addEntries,

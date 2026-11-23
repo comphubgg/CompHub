@@ -9,20 +9,15 @@ import { PlayerCard } from './PlayerCard';
 interface TierListProps {
   entries: TierListEntry[];
   tierLabels: Record<TierKey, string>;
-  draggedId: string | null;
-  dragOverId: string | null;
-  dragOverTier: TierKey | null;
+  /** Welche Kachel gerade gezogen wird (fuer das Abdunkeln). */
+  ziehId: string | null;
+  /** Welche Stufe gerade das Ziel ist (fuer die Hervorhebung) - oder 'pool'/null. */
+  zielStufe: TierKey | 'pool' | null;
   onTierLabelChange: (tier: TierKey, label: string) => void;
-  onDragStart: (entryId: string) => void;
-  onDragEnd: () => void;
-  onDragOver: (entryId: string | null, tier?: TierKey) => void;
-  onDragLeave: () => void;
-  onTierDrop: (tier: TierKey, e: React.DragEvent) => void;
-  onCardDrop: (draggedId: string, targetId: string) => void;
-  onReturnToPool: (entryId: string) => void;
+  /** Der Pointer-Griff an jede Kachel (hooks/useZeigerZiehen). */
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
   isAdmin?: boolean;
   currentUser?: string;
-  onDeletePlayer?: (entryId: string) => void;
   /** Einen Namen aendern - siehe PlayerCard. */
   onRename?: (rohName: string, neuerName: string, welcher?: 1 | 2 | 3) => void;
   /** Das gepflegte Land zu einem Namen - siehe PlayerCard. */
@@ -32,26 +27,17 @@ interface TierListProps {
   /** Die Herkunft festhalten - siehe PlayerCard. */
   onLand?: (name: string, land: string) => void;
   disableLabelEdit?: boolean;
-  disabled?: boolean;
 }
 
 export function TierList({
   entries,
   tierLabels,
-  draggedId,
-  dragOverId,
-  dragOverTier,
+  ziehId,
+  zielStufe,
   onTierLabelChange,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onTierDrop,
-  onCardDrop,
-  onReturnToPool,
+  onPointerDown,
   isAdmin = false,
   currentUser,
-  onDeletePlayer,
   onRename,
   landVon,
   anzeigeVon,
@@ -69,10 +55,7 @@ export function TierList({
           tierLabel={tierLabels[tier]}
           entryCount={getEntriesInTier(tier).length}
           onLabelChange={label => onTierLabelChange(tier, label)}
-          isDragOver={dragOverTier === tier}
-          onDragOver={() => onDragOver(null, tier)}
-          onDragLeave={onDragLeave}
-          onDrop={e => onTierDrop(tier, e)}
+          isDragOver={zielStufe === tier}
           disableLabelEdit={disableLabelEdit}
         >
           {getEntriesInTier(tier).map(entry => (
@@ -80,27 +63,14 @@ export function TierList({
               key={entry.id}
               entry={entry}
               variant="list"
-              isDragging={draggedId === entry.id}
-              onDragStart={() => onDragStart(entry.id)}
-              onDragEnd={onDragEnd}
-              onDragOver={() => onDragOver(entry.id, tier)}
-              onDragLeave={onDragLeave}
-              // Die gezogene Kachel steht im DataTransfer (PlayerCard setzt sie
-              // beim dragstart). Darauf ist Verlass, auch wenn der React-Zustand
-              // "draggedId" zum Zeitpunkt des Ablegens noch nicht nachgezogen
-              // ist - genau das liess das Ablegen bisher gelegentlich ins Leere
-              // laufen. Der Zustand bleibt nur noch der Rueckfall.
-              onDrop={e => {
-                const gezogen = e.dataTransfer.getData('text/plain') || draggedId;
-                if (gezogen && gezogen !== entry.id) onCardDrop(gezogen, entry.id);
-              }}
-              onReturnToPool={() => onReturnToPool(entry.id)}
+              isDragging={ziehId === entry.id}
+              onPointerDown={onPointerDown}
               isAdmin={isAdmin}
               currentUser={currentUser}
               onRename={onRename}
               landVon={landVon}
               anzeigeVon={anzeigeVon}
-            onLand={onLand}
+              onLand={onLand}
               disabled={false}
             />
           ))}

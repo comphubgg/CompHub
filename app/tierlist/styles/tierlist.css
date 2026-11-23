@@ -1246,3 +1246,16 @@ button,input,select,textarea{transition:var(--transition)}
 /* Stift und Kreuz liegen bei den Bild-Kacheln oben rechts im Bild und zeigen sich erst beim Darueberfahren. */
 .bild-kachel .bild-aktionen{position:absolute;top:3px;right:3px;margin:0;z-index:3;opacity:0;transition:opacity .15s;background:rgba(0,0,0,.6);border-radius:8px;padding:1px 2px}
 .bild-kachel:hover .bild-aktionen{opacity:1}
+
+/* ── Zeiger-Ziehen (Pointer Events, hooks/useZeigerZiehen) ──
+   Das Abbild (geklonte Kachel), das waehrend des Zugs am Zeiger haengt. */
+.zieh-abbild{pointer-events:none;cursor:grabbing}
+/* Kacheln ziehen mit dem Finger, ohne dass die Seite scrollt: der Zug
+   gehoert uns, nicht dem Browser. Gescrollt wird am Rand/zwischen den
+   Kacheln. Auf dem Desktop (Maus) ohne Wirkung. */
+.tierlist-page .bild-kachel,
+.tierlist-page .pool-duo-card,
+.tierlist-page .duo-card{touch-action:none;-webkit-user-select:none;user-select:none}
+/* Der Pool als Ablegeziel: eine eingestufte Kachel laesst sich hierher
+   zurueckziehen - beim Darueberziehen hervorgehoben. */
+.tierlist-page .sidebar-card.sidebar-pool.drag-over{outline:1px dashed rgba(56,189,248,0.5);outline-offset:-3px;background:var(--hover)}

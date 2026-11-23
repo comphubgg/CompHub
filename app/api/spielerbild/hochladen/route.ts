@@ -61,10 +61,29 @@ export async function GET(request: Request) {
     headers: { Location: new URL(PLATZHALTER_FOTO, adresse).pathname, 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store' },
   });
   if (!NAME.test(datei) || uploadFrei(datei) !== true) return platzhalter();
+  /*
+   * Eine kleinere Fassung fuer die Tierlist-Kacheln (?w=128).
+   *
+   * Hochgeladene Fotos liegen bis 600 px hoch im Objektspeicher - fuer die rund
+   * 96 px breite Kachel viel zu gross, und sie sind die Masse der Fotos. Mit
+   * ?w=128 wird hier beim Abruf auf 128 px Breite verkleinert (sharp ist schon
+   * im Haus). Nur erlaubte Breiten, damit die Antwort zwischenspeicherbar
+   * bleibt und niemand beliebige Groessen erzeugt.
+   */
+  const ERLAUBTE_BREITEN = new Set([128]);
+  const wRoh = Number(adresse.searchParams.get('w') ?? '');
+  const breite = ERLAUBTE_BREITEN.has(wRoh) ? wRoh : null;
   try {
     const roh = await speicher.lies(ORDNER + datei);
     if (!roh) return platzhalter();
-    return new NextResponse(new Uint8Array(roh), {
+    let aus: Buffer = Buffer.from(roh);
+    if (breite) {
+      try {
+        aus = await sharp(Buffer.from(roh)).rotate()
+          .resize({ width: breite, withoutEnlargement: true }).webp({ quality: 72 }).toBuffer();
+      } catch { /* dann eben das Original - besser ein grosses Bild als keins */ }
+    }
+    return new NextResponse(new Uint8Array(aus), {
       headers: {
         'Content-Type': 'image/webp',
         /*

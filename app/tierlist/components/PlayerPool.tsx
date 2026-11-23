@@ -9,13 +9,10 @@ import { matchesSearch, getDisplayName } from '../utils/helpers';
 interface PlayerPoolProps {
   entries: TierListEntry[];
   searchQuery: string;
-  draggedId: string | null;
-  dragOverId: string | null;
-  onDragStart: (entryId: string) => void;
-  onDragEnd: () => void;
-  onDragOver: (entryId: string) => void;
-  onDragLeave: () => void;
-  onDrop: (draggedId: string, targetId: string | null) => void;
+  /** Welche Kachel gerade gezogen wird (fuer das Abdunkeln). */
+  ziehId: string | null;
+  /** Der Pointer-Griff an jede Kachel (hooks/useZeigerZiehen). */
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
   isAdmin?: boolean;
   currentUser?: string;
   onDelete?: (entryId: string) => void;
@@ -45,13 +42,8 @@ interface PlayerPoolProps {
 export const PlayerPool: React.FC<PlayerPoolProps> = ({
   entries,
   searchQuery,
-  draggedId,
-  dragOverId,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onDrop,
+  ziehId,
+  onPointerDown,
   isAdmin = false,
   currentUser,
   onDelete,
@@ -91,22 +83,11 @@ export const PlayerPool: React.FC<PlayerPoolProps> = ({
             key={entry.id}
             entry={entry}
             variant="pool"
-            isDragging={draggedId === entry.id}
-            onDragStart={() => onDragStart(entry.id)}
-            onDragEnd={onDragEnd}
-            onDragOver={() => onDragOver(entry.id)}
-            onDragLeave={onDragLeave}
-            // Die gezogene Kachel steht im DataTransfer (PlayerCard setzt sie
-            // beim dragstart); darauf ist auch dann Verlass, wenn der
-            // React-Zustand "draggedId" noch nicht nachgezogen ist.
-            onDrop={(event) => {
-              if (disabled) return;
-              const gezogen = event.dataTransfer.getData('text/plain') || draggedId;
-              if (gezogen && gezogen !== entry.id) onDrop(gezogen, entry.id);
-            }}
+            isDragging={ziehId === entry.id}
+            onPointerDown={onPointerDown}
             isAdmin={isAdmin}
             currentUser={currentUser}
-            onDelete={() => onDelete?.(entry.id)}
+            onDelete={onDelete}
             onRename={onRename}
             landVon={landVon}
             anzeigeVon={anzeigeVon}
