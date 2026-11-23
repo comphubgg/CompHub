@@ -428,6 +428,59 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
   };
 }
 
+/*
+ * Wie "frisch" eine archivweite Antwort ist: der juengste gezaehlte Spieltag
+ * und wie viele es sind. Daraus erkennt man einen Rueckschritt.
+ *
+ * Die Startansicht traegt die Spieltage als Liste ("grundlage.spieltage", je
+ * mit "datum"); die Ranglisten je Saison/Region und die Jahresliste tragen nur
+ * ihre Zahl ("spieltage"). Beide Formen lesen wir hier, der Rest ergibt kein
+ * Signal (null) - dann wird wie bisher jede frische Antwort abgelegt.
+ */
+function datenSignal(wert: unknown): { tage: number; neuster: number } | null {
+  const o = wert as Record<string, unknown> | null;
+  if (!o || typeof o !== 'object') return null;
+  const ausListe = (arr: unknown): { tage: number; neuster: number } | null => {
+    if (!Array.isArray(arr)) return null;
+    const daten = arr
+      .map((x) => (x as { datum?: unknown })?.datum)
+      .filter((d): d is number => typeof d === 'number');
+    return { tage: arr.length, neuster: daten.length ? Math.max(...daten) : 0 };
+  };
+  const grund = (o.grundlage as { spieltage?: unknown } | undefined)?.spieltage;
+  return ausListe(grund)
+    ?? ausListe(o.spieltage)
+    ?? (typeof o.spieltage === 'number' ? { tage: o.spieltage, neuster: 0 } : null);
+}
+
+/*
+ * Darf eine frisch gerechnete Statistik-Antwort die abgelegte ersetzen?
+ *
+ * Die archivweiten Listen (Startansicht, Ranglisten je Saison und Region, das
+ * Jahr) rechnet nur der stuendliche Lauf, und er legt das Ergebnis ohne
+ * Rueckfrage ab. Faellt beim Lesen der neunhundert Spieltage einer aus, kommt
+ * eine zu kurze Liste heraus - weniger Spieltage, ein aelterer juengster Tag -
+ * und die ueberschrieb bisher den vollen Stand. Auf der Seite sprang "Stand"
+ * dann auf ein altes Datum zurueck ("As of November 13"), obwohl frischere
+ * Daten dalagen, und blieb dort, bis der naechste Lauf wieder vollstaendig las.
+ *
+ * Darum hier die Regel wie beim Cup-Katalog (katalogVerschlechtert): Ein
+ * neuerer juengster Spieltag ist echter Fortschritt und gewinnt immer. Ein
+ * aelterer juengster Tag - oder, bei gleichem Tag, weniger Spieltage - ist ein
+ * Teilausfall: die neue Antwort wird einmal ausgeliefert, aber nicht abgelegt,
+ * der volle Stand bleibt stehen. Fehlt ein Signal oder war der alte Stand leer,
+ * wird wie bisher abgelegt.
+ */
+function statistikVerschlechtert(neu: unknown, alt: unknown): boolean {
+  const a = datenSignal(alt);
+  const n = datenSignal(neu);
+  if (!a || !n) return false;
+  if (a.tage === 0 && a.neuster === 0) return false;
+  if (n.neuster > a.neuster) return false;     // neuerer Tag: frisch, immer ablegen
+  if (n.neuster < a.neuster) return true;       // aelterer juengster Tag: Rueckschritt
+  return n.tage < a.tage;                        // gleicher Tag, weniger Spieltage: Teilausfall
+}
+
 async function holeRoh(request: Request) {
   const url = new URL(request.url);
   const ansicht = url.searchParams.get('ansicht') ?? '';
@@ -549,7 +602,10 @@ async function holeRoh(request: Request) {
       return await antwort.json() as unknown;
     }, url.searchParams.has('spieler') ? 15 * 60_000 : undefined, !archivWeit,
       // Das Profil eines Spielers: nach 15 Minuten im Hintergrund erneuert, nach drei Stunden nie mehr alt ausgeliefert.
-      url.searchParams.has('spieler') ? 3 * 3_600_000 : undefined);
+      url.searchParams.has('spieler') ? 3 * 3_600_000 : undefined,
+      undefined,
+      // Eine zu kurze Neuberechnung (Teilausfall beim Lesen) darf den vollen Stand der archivweiten Listen nicht verdraengen - frische Daten gewinnen, ein Rueckschritt nicht.
+      archivWeit ? statistikVerschlechtert : undefined);
     return startAnsicht ? startAusliefern(wert, url) : NextResponse.json(wert, {
       headers: { 'Cache-Control': CDN_FRIST },
     });
