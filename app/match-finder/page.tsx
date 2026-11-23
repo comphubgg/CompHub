@@ -34,8 +34,13 @@ const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
 /*
  * Abruf-Takt des Finders (Betreiber-Stellschraube): waehrend ein Cup laeuft (oder ein Scrim) haeufig - die Rangliste aktualisiert sich sekuendlich, die
  * Match-ID soll kurz nach dem ersten Kill da sein -, sonst sparsam, nur um den Start des naechsten Cups zu bemerken.
+ *
+ * Live auf 5 s (Betreiber, 23.11.2026): ohne Neuladen hinkte die Match-ID hinterher - nach einem Reload war sie sofort da, im offenen Tab erst beim
+ * naechsten Takt (bis zu 20 s spaeter). Der Freund-Status liegt im Serverprozess schon in Echtzeit vor (XMPP), er wartet nur auf den naechsten Abruf;
+ * die Bestenliste/Rangliste ist serverseitig 15 s gecacht (lib/matchFinder FINDER_CACHE_MS). 5 s belasten Epic nicht (der Server-Cache deckelt die
+ * Epic-Abfragen), holen die neue ID aber binnen weniger Sekunden - so schnell wie ein frisches Laden.
  */
-const TAKT_LIVE_MS = 20_000;
+const TAKT_LIVE_MS = 5_000;
 const TAKT_RUHE_MS = 60_000;
 
 /** Wie die Match-ID gefunden wurde - fuer das kleine Herkunfts-Etikett im Live-Kasten. */
@@ -201,8 +206,9 @@ function Freigaben() {
 }
 
 /*
- * Nur fuer den Admin (Betreiber, 17.11.2026): alle Epic-Freunde der beiden CompHub-Konten, ohne sie als Favoriten anzulegen - live zuerst, dann nach Namen.
- * Ein Abruf je 20 s (/api/match-finder?ansicht=freunde -> ein Abruf beim XMPP-Dienst).
+ * Nur fuer den Admin (Betreiber, 17.11.2026): alle Epic-Freunde des Bot-Kontos "comphub.", ohne sie als Favoriten anzulegen - live zuerst, dann nach Namen.
+ * Nicht die Freunde des persoenlichen Kontos des Betreibers (23.11.2026, bot-only). Ein Abruf je TAKT_LIVE_MS (5 s): der XMPP-Dienst hat den Stand in
+ * Echtzeit, so stehen neue Match-IDs ohne Neuladen binnen Sekunden da (/api/match-finder?ansicht=freunde -> ein Abruf beim XMPP-Dienst, keine Epic-Last).
  */
 function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: string) => void }) {
   const t = useT();
@@ -218,7 +224,7 @@ function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: str
       })
       .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
     laden();
-    const id = window.setInterval(laden, 20_000);
+    const id = window.setInterval(laden, TAKT_LIVE_MS);
     return () => { weg = true; window.clearInterval(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

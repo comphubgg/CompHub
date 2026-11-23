@@ -7,7 +7,7 @@ import { getToken } from '@/lib/epicCups';
  * Der Match-ID-Finder fuer VIPs (lib/matchFinder): GET ?ids=<Konto>,<Konto> (hoechstens zwoelf) - je Spieler das laufende Match (Match-ID zum Zuschauen im
  * Spiel) und die gespielten Matches der laufenden und eben beendeten Cups. Nur fuer VIPs und den Admin; der Admin bekommt dazu den Rohwert von Epics
  * "liveSessions", bis feststeht, wie Epic ihn waehrend eines Cups fuellt. Dazu je Spieler der Verlauf (lib/matchVerlauf): jede gesehene Sitzung bleibt stehen.
- * ?ansicht=freunde (nur Admin): alle Epic-Freunde der beiden Konten.
+ * ?ansicht=freunde (nur Admin): alle Epic-Freunde des Bot-Kontos "comphub." (nicht die des persoenlichen Kontos des Betreibers).
  */
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'Nur für VIPs.' }, { status: 403, headers: nie });
   }
   if (!vipWerkzeug(ich, 'matchfinder')) return NextResponse.json({ ok: false, error: 'Für dein Konto nicht freigeschaltet.' }, { status: 403, headers: nie });
-  // ?ansicht=freunde: nur fuer den Admin - alle Epic-Freunde beider Konten mit Live-Status, Match-ID und Verlauf (lib/matchFinder alleFreunde).
+  // ?ansicht=freunde: nur fuer den Admin - alle Epic-Freunde des Bot-Kontos "comphub." mit Live-Status, Match-ID und Verlauf (lib/matchFinder alleFreunde).
   if (new URL(request.url).searchParams.get('ansicht') === 'freunde') {
     if (ich.rolle !== 'admin') return NextResponse.json({ ok: false, error: 'Nur für den Admin.' }, { status: 403, headers: nie });
     try {

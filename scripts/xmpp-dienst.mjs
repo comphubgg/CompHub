@@ -11,7 +11,7 @@
  *   GET /strom     -> Server-Sent Events: "hallo" { status, freunde } beim Verbinden, "freund" { id, status } bei jedem Wechsel,
  *                     "status" bei jedem Verbinden/Trennen, Lebenszeichen alle 15 s
  *   GET /status    -> { status }
- *   GET /freunde?alle=1 -> dazu "liste" (alle Freunde beider Konten laut Epics Freundesliste, auch wer offline ist) und "verlauf" (siehe unten)
+ *   GET /freunde?alle=1 -> dazu "liste" (die Freunde des Bot-Kontos laut Epics Freundesliste, auch wer offline ist) und "verlauf" (siehe unten)
  *   GET/POST /freigaben -> { ids } - die Epic-Ids, deren Freundschaftsanfragen an das Bot-Konto angenommen werden (POST { ids } setzt sie, von der Seite)
  *   GET /verlauf[?ids=a,b] -> { verlauf: { <epicId>: [{ matchId, von, bis, playlist, zeile }] } } - jede Sitzung, die ein Freund hatte (neueste zuletzt)
  *
@@ -224,22 +224,22 @@ function lies(k, von, roh) {
   wechsel(von, alt);
 }
 
-/** Ueber beide Konten: wer bei einem Konto in einem Game ist, zaehlt. */
-function gemischt(id) {
-  const a = konten.haupt.freunde.get(id);
-  const b = konten.bot.freunde.get(id);
-  if (!a) return b ?? null;
-  if (b && !a.sessionId && b.sessionId) return b;
-  return a;
+/*
+ * Nur das Bot-Konto "comphub." (Betreiber, 23.11.2026): der Match-ID-Finder zeigt ausschliesslich die Freunde des Bot-Kontos - NICHT die des persoenlichen
+ * Kontos des Betreibers ("haupt"), das er nicht mit hineingemischt haben will. Das Haupt-Konto bleibt verbunden (Statuszeile, Reserve), seine Freunde und
+ * deren Match-IDs gehen aber nicht in den Finder.
+ */
+function botFreund(id) {
+  return konten.bot.freunde.get(id) ?? null;
 }
 function alleFreunde() {
   const raus = {};
-  for (const id of new Set([...konten.haupt.freunde.keys(), ...konten.bot.freunde.keys()])) raus[id] = gemischt(id);
+  for (const [id, f] of konten.bot.freunde) raus[id] = f;
   return raus;
 }
 const zuletztGemeldet = new Map();
 function wechsel(id) {
-  const f = gemischt(id);
+  const f = botFreund(id);
   verlaufMerken(id, f);
   const k = f ? `${f.sessionId}|${f.zeile}|${f.playlist}|${f.kills}` : '';
   if (zuletztGemeldet.get(id) === k) return;
@@ -367,7 +367,8 @@ const server = http.createServer((req, res) => {
   if (u.pathname === '/status') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify({ status: status() })); return; }
   if (u.pathname === '/freunde') {
     const alle = u.searchParams.get('alle') === '1';
-    const extra = alle ? { liste: [...new Set([...konten.haupt.liste, ...konten.bot.liste])], verlauf: verlaufAls() } : {};
+    // Nur die Freundesliste des Bot-Kontos "comphub." - nicht die des persoenlichen Kontos des Betreibers (bot-only, 23.11.2026).
+    const extra = alle ? { liste: [...konten.bot.liste], verlauf: verlaufAls() } : {};
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify({ status: status(), freunde: alleFreunde(), ...extra }));
     return;
   }

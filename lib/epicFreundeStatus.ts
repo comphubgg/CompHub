@@ -97,13 +97,12 @@ function meldeWechsel(von: string, alt: FreundStatus | undefined) {
   melde(freundKanal(von), 'freund', f);
 }
 
-/** Der Status eines Freundes ueber beide Konten (wer bei einem Konto in einem Game ist, zaehlt) - wie in freundesStatus(). */
+/*
+ * Der Status eines Freundes - nur das Bot-Konto "comphub." (Betreiber, 23.11.2026): der Match-ID-Finder zeigt nicht die Freunde des persoenlichen Kontos
+ * des Betreibers ("haupt"). Dieser Rueckfallpfad (ohne XMPP-Dienst) nutzt nur den Bot, wie freundesStatus() unten.
+ */
 function gemischt(id: string): FreundStatus | null {
-  const a = zustaende.haupt.freunde.get(id);
-  const b = zustaende.bot.freunde.get(id);
-  if (!a) return b ?? null;
-  if (b && !a.sessionId && b.sessionId) return b;
-  return a;
+  return zustaende.bot.freunde.get(id) ?? null;
 }
 
 async function verbinde(konto: Konto = 'haupt'): Promise<void> {
@@ -329,8 +328,6 @@ export async function freundesStatus(): Promise<{ freunde: Map<string, FreundSta
   }
   const starts = lokalStarten();
   if (starts.length) await Promise.race([Promise.all(starts), new Promise((r) => setTimeout(r, 6_000))]);
-  // Beide zusammen: wer bei einem Konto in einem Game ist, zaehlt.
-  const freunde = new Map(zustaende.haupt.freunde);
-  for (const [id, f] of zustaende.bot.freunde) { const alt = freunde.get(id); if (!alt || (!alt.sessionId && f.sessionId)) freunde.set(id, f); }
-  return { freunde, verbunden: zustaende.haupt.verbunden || zustaende.bot.verbunden, fehler: zustaende.haupt.fehler };
+  // Nur das Bot-Konto "comphub." (Betreiber, 23.11.2026): der Match-ID-Finder zeigt nicht die Freunde des persoenlichen Kontos des Betreibers ("haupt").
+  return { freunde: new Map(zustaende.bot.freunde), verbunden: zustaende.bot.verbunden, fehler: zustaende.bot.fehler };
 }

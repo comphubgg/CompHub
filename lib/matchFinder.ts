@@ -15,7 +15,7 @@ import { merke, verlaufVon, titelNachtragen, type VerlaufEintrag } from '@/lib/m
  *   - die Bestenliste des laufenden Cups: je Team die gespielten Matches mit ihrer Kennung (= Match-ID) und, auf derselben Seite, "liveSessions" - die
  *     Matches, in denen Teams gerade spielen. Die Bestenliste nennt ein Team erst nach seinem ersten Spiel.
  *   - Epics Sitzungssuche (matchmaking/session/findPlayer): die Sitzung, in der ein Konto gerade ist - auch vor dem ersten gewerteten Spiel.
- *   - der Freund-Status (lib/epicFreundeStatus, XMPP): die laufende Sitzung eines Freundes der CompHub-Konten - schon in der Aufwaermphase, vor dem ersten Kill.
+ *   - der Freund-Status (lib/epicFreundeStatus, XMPP): die laufende Sitzung eines Freundes des Bot-Kontos "comphub." - schon in der Aufwaermphase, vor dem ersten Kill.
  *   - die RANGLISTE (quelle 'rangliste', seit 19.11.2026): die neueste Sitzung aus dem Bestenlisten-Verlauf eines Teams. Das ist die einzige Quelle, die
  *     OHNE Freundschaft fuer JEDES angemeldete Konto greift - aber erst nach dem ersten gewerteten Ereignis (Epics harte Grenze: davor fuehrt die
  *     Bestenliste das Team nicht). "liveSessions" und die Sitzungssuche sind fuer Fremde leer (geprueft Clix, 7.11.2026); die Rangliste schliesst diese Luecke.
@@ -122,9 +122,10 @@ function liveMerken(spieler: Record<string, { live: FinderLive | null }>) {
 export interface FreundZeile { id: string; name: string; live: FinderLive | null; verlauf: VerlaufEintrag[] }
 
 /*
- * Fuer den Admin (Betreiber, 17.11.2026): ALLE Epic-Freunde beider Konten ("haupt" und "comphub."), ohne sie als Favoriten anzulegen - Live-Status,
- * Match-ID, Cup und Verlauf. Ein einziger Abruf beim XMPP-Dienst (/freunde?alle=1: Status, Freundesliste, Verlauf), keine Epic-Abfrage je Freund; die Namen
- * kommen gesammelt (100 je Abfrage, im Vorrat gemerkt).
+ * Fuer den Admin (Betreiber, 17.11.2026): ALLE Epic-Freunde des Bot-Kontos "comphub." - NUR dieses Konto, nicht das persoenliche des Betreibers ("haupt",
+ * 23.11.2026: er will seine eigenen Freunde/Match-IDs hier nicht dabei haben). Ohne sie als Favoriten anzulegen - Live-Status, Match-ID, Cup und Verlauf.
+ * Ein einziger Abruf beim XMPP-Dienst (/freunde?alle=1: Status, Freundesliste, Verlauf), keine Epic-Abfrage je Freund; die Namen kommen gesammelt
+ * (100 je Abfrage, im Vorrat gemerkt).
  */
 export async function alleFreunde(): Promise<{ freunde: FreundZeile[]; quelle: 'dienst' | 'seite' }> {
   const d = await dienstAbruf<{ freunde?: Record<string, FreundStatus | null>; liste?: string[]; verlauf?: Record<string, VerlaufEintrag[]> }>('/freunde?alle=1');
