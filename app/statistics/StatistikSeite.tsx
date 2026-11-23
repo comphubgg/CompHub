@@ -481,6 +481,26 @@ function grossName(name: string, gepflegt = false) {
 }
 
 /**
+ * Der Name in einer Ranglisten-Zeile (Betreiber, 23.11.2026: "Ingame gross +
+ * sauber klein"): oben gross der Ingame-Name (Epics roher Name ohne Zierzeichen),
+ * darunter klein der gepflegte Szene-Name - aber nur, wenn beide sich wirklich
+ * unterscheiden. Ausschliesslich in den Ranglisten-Tabellen; Profilkopf, Overlay,
+ * Podest, Duell, Cup-Kopf und Poster behalten den gepflegten Namen.
+ */
+function RangName({ sp, grossKlasse }: { sp: { name: string; anzeige: string; gepflegt?: boolean }; grossKlasse: string }) {
+  const ingame = grossName(sp.name);
+  const sauber = grossName(sp.anzeige, sp.gepflegt);
+  return (
+    <span className="block min-w-0">
+      <span className={`block truncate ${grossKlasse}`}>{ingame || sauber || '—'}</span>
+      {sauber && ingame && ingame !== sauber && (
+        <span className="block truncate text-[0.7rem] font-normal leading-tight tracking-normal text-slate-500">{sauber}</span>
+      )}
+    </span>
+  );
+}
+
+/**
  * Zu welcher Reihe ein Spieltag gehoert.
  *
  * Die Quelle gliedert eine Saison nach Turnierreihen - FNCS, Division 1,
@@ -2087,8 +2107,10 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
 }
 
 /** Eine Zeile in einer Bestenliste. */
-function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
+function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen, ingame }: {
   nr: number; s: Spieler; wert: string; aufKlick?: () => void;
+  /** In einer Ranglisten-Tabelle: Ingame-Name gross, gepflegter Name klein darunter (siehe RangName). */
+  ingame?: boolean;
   /**
    * Derselbe Spieler steht gerade unter der Maus - in dieser oder einer
    * anderen Liste. Der Betreiber (28.9.2026, nach Osirions Vorbild): wer
@@ -2131,9 +2153,13 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
       <span className="min-w-0 flex-1">
         <span className={`flex items-center gap-2 ${mitBild ? 'text-base' : 'text-[12px]'}`}>
           {mitBild && <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />}
-          <span className={`truncate text-slate-200 ${mitBild ? 'font-bold uppercase tracking-wide' : 'font-medium'}`}>
-            {grossName(s.anzeige, s.gepflegt)}
-          </span>
+          {ingame ? (
+            <RangName sp={s} grossKlasse={`text-slate-200 ${mitBild ? 'font-bold uppercase tracking-wide' : 'font-medium'}`} />
+          ) : (
+            <span className={`truncate text-slate-200 ${mitBild ? 'font-bold uppercase tracking-wide' : 'font-medium'}`}>
+              {grossName(s.anzeige, s.gepflegt)}
+            </span>
+          )}
         </span>
         {zusatz && (
           <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
@@ -6082,9 +6108,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-2.5">
                                 <TeamFlagge groesse={20} laender={[sp.land ?? undefined]} />
-                                <span className="truncate font-medium text-slate-200">
-                                  {grossName(sp.anzeige, sp.gepflegt)}
-                                </span>
+                                <RangName sp={sp} grossKlasse="font-medium text-slate-200" />
                                 <RegionMarke region={sp.heimat || sp.regionen.join('/')} />
                               </div>
                             </td>
@@ -6240,6 +6264,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             <div className="divide-y divide-zinc-900">
               {zeigen.map(({ sp, nr }) => (
                 <Platz key={sp.epicId} nr={nr} s={sp}
+                  ingame
                   mitBild={istGeld}
                   wert={volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
                     : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
