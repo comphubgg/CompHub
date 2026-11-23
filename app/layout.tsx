@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque } from "next/font/google";
+import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque, Anton } from "next/font/google";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import DesignWaechter from "./components/DesignWaechter";
@@ -40,6 +40,8 @@ const geistMono = Geist_Mono({
 // Die Schriften des neuen Designs (14.10.2026): Figtree fuer Fliesstext und Bedienung, Bricolage Grotesque fuer Ueberschriften und Zahlen.
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], display: "swap" });
 const anzeige = Bricolage_Grotesque({ variable: "--font-anzeige", subsets: ["latin"], display: "swap" });
+// Anton (14.11.2026): die schwere Display-Schrift fuer das neue Spielerprofil - grosser Name und Zahlen im Aufmacher.
+const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400", display: "swap" });
 
 /**
  * Was Google und die sozialen Netze zu sehen bekommen.
@@ -187,7 +189,7 @@ export default async function RootLayout({
       data-bewegung={bewegung === 'aus' ? 'aus' : undefined}
       data-kopfzeile={kopfzeile === 'auto' ? 'auto' : undefined}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${anzeige.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${anzeige.variable} ${anton.variable} h-full antialiased`}
     >
       <head>
         <link rel="stylesheet" href="/fonts/fonts.css" />

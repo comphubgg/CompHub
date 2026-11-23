@@ -217,3 +217,99 @@ html[data-kopfzeile="auto"] .kopf[data-offen="ja"] .kopf-rest { transform: trans
   html[data-kopfzeile="auto"] .kopf:hover .kopf-grund { transform: translateY(0); pointer-events: auto; }
   html[data-kopfzeile="auto"] .kopf:hover .kopf-rest { transform: translateY(0); visibility: visible; pointer-events: auto; transition-delay: 0s; }
 }
+
+/* ============================================================
+ * Neues Spielerprofil (14.11.2026): editorialer Aufmacher mit
+ * Scheinwerfer + Daten-Dashboard. Akzent Himmelblau, Mono-Ziffern,
+ * Anton fuer Name und grosse Zahlen. Siehe app/statistics/ProfilCharts.tsx.
+ * ========================================================== */
+.profilneu { --sky:#38bdf8; --sky2:#0ea5e9; --line:rgba(120,160,210,.16); --line2:rgba(120,160,210,.085);
+  --mut:#8094ad; --mut2:#56697f; --gold:#f6c863; --pos:#34d399; }
+.profilneu .mono { font-family: var(--font-geist-mono), 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.profilneu .anton { font-family: var(--font-anton), var(--font-anzeige), sans-serif; font-weight: 400; letter-spacing: .5px; }
+
+/* Scheinwerfer-Aufmacher */
+.profilneu-hero { position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--line);
+  border-radius: 20px; background: #070b14; min-height: 24rem; }
+html[data-modus="hell"] .profilneu-hero { background: #0a1222; }
+.profilneu-beam { position: absolute; inset: 0; z-index: 0; pointer-events: none; background:
+  radial-gradient(760px 640px at 74% 34%, rgba(56,189,248,.40), rgba(14,165,233,.09) 46%, transparent 66%),
+  radial-gradient(1100px 760px at 86% 18%, rgba(99,102,241,.18), transparent 60%),
+  linear-gradient(180deg,#0a1222 0%,#080c16 62%,#070b14 100%); }
+.profilneu-cone { position: absolute; top: -150px; right: 150px; width: 640px; height: 820px; z-index: 0; pointer-events: none;
+  background: conic-gradient(from 150deg at 50% 0%, transparent 0deg, rgba(56,189,248,.18) 20deg, rgba(56,189,248,.045) 40deg, transparent 60deg);
+  filter: blur(8px); opacity: .9; }
+.profilneu-hero .profilneu-name { font-family: var(--font-anton), var(--font-anzeige), sans-serif; font-weight: 400;
+  line-height: .84; letter-spacing: 1px; color: #e6eefb; text-shadow: 0 18px 50px rgba(0,0,0,.5);
+  font-size: clamp(3.2rem, 11vw, 8.25rem); word-break: break-word; }
+.profilneu-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.14); padding: 7px 13px; border-radius: 999px; font-weight: 600; font-size: 13px; color: #e6eefb; }
+.profilneu-pill.hl { background: var(--sky); color: #061018; border-color: transparent; font-weight: 800; }
+.profilneu-pill .org { font-family: var(--font-anton), var(--font-anzeige), sans-serif; color: var(--sky); }
+.profilneu-glass { background: linear-gradient(180deg,rgba(7,11,20,.30),rgba(7,11,20,.74)); backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); border: 1px solid rgba(120,160,210,.20); border-radius: 14px; padding: 16px 20px 18px; }
+.profilneu-glass .k { color: var(--mut); font-weight: 700; font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase; }
+.profilneu-glass .v { font-family: var(--font-anton), var(--font-anzeige), sans-serif; font-size: clamp(2rem,4vw,3.3rem); line-height: .9; margin-top: 4px;
+  background: linear-gradient(180deg,#fff,var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.profilneu-glass .v.sm { font-size: clamp(1.5rem,3vw,2.4rem); background: linear-gradient(180deg,#eaf4ff,#9fc7e4); -webkit-background-clip: text; background-clip: text; }
+.profilneu-glass .d { color: var(--mut); font-weight: 600; font-size: 12px; margin-top: 5px; }
+
+/* Persistente Reiterleiste */
+.profilneu-tabs { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--line); background: rgba(8,13,22,.6);
+  border-radius: 12px; overflow-x: auto; scrollbar-width: none; }
+.profilneu-tabs::-webkit-scrollbar { display: none; }
+html[data-modus="hell"] .profilneu-tabs { background: rgba(230,234,241,.5); }
+.profilneu-tab { padding: 13px 20px; font-weight: 700; font-size: 12.5px; letter-spacing: 1px; color: var(--mut);
+  border-right: 1px solid var(--line2); display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; position: relative;
+  text-transform: uppercase; background: transparent; transition: color .15s, background .15s; }
+.profilneu-tab:hover { color: #cdd8ea; }
+.profilneu-tab .no { font-family: var(--font-geist-mono), monospace; font-size: 10.5px; color: var(--mut2); }
+.profilneu-tab.on { color: #fff; background: rgba(56,189,248,.08); }
+html[data-modus="hell"] .profilneu-tab.on { color: var(--sky2); }
+.profilneu-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--sky); box-shadow: 0 0 12px var(--sky); }
+
+/* // Abschnittsmarke */
+.profilneu-lab { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; color: var(--mut); font-size: 11.5px; letter-spacing: 2px; text-transform: uppercase; }
+.profilneu-lab::before { content: "//"; color: var(--sky); font-family: var(--font-geist-mono), monospace; }
+.profilneu-lab .ln { flex: 1; height: 1px; background: var(--line); }
+.profilneu-lab .r { color: var(--mut2); font-size: 10.5px; letter-spacing: 1px; font-family: var(--font-geist-mono), monospace; }
+
+/* Stat-Kacheln mit Sparkline */
+.profilneu-grid6 { display: grid; grid-template-columns: repeat(6,1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: rgba(10,17,29,.5); }
+html[data-modus="hell"] .profilneu-grid6 { background: rgba(230,234,241,.4); }
+@media (max-width: 900px) { .profilneu-grid6 { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 520px) { .profilneu-grid6 { grid-template-columns: repeat(2,1fr); } }
+.profilneu-cell { padding: 15px 16px 14px; border-right: 1px solid var(--line2); border-bottom: 1px solid var(--line2); }
+.profilneu-cell .k { font-size: 10.5px; color: var(--mut); letter-spacing: 1px; text-transform: uppercase; }
+.profilneu-cell .v { font-family: var(--font-geist-mono), monospace; font-weight: 700; font-size: clamp(1.4rem,2.4vw,1.85rem); margin-top: 10px; color: #e6eefb; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+html[data-modus="hell"] .profilneu-cell .v { color: #0b1320; }
+.profilneu-cell .v.sky { color: var(--sky); }
+.profilneu-cell .d { font-size: 10.5px; color: var(--mut2); margin-top: 7px; font-family: var(--font-geist-mono), monospace; }
+.profilneu-spark { display: flex; align-items: flex-end; gap: 2px; height: 20px; margin-top: 9px; }
+.profilneu-spark i { flex: 1; background: rgba(56,189,248,.28); border-radius: 1px; min-height: 2px; }
+.profilneu-spark i.hot { background: var(--sky); }
+
+/* Panel (Diagramme, Tabellen) */
+.profilneu-panel { border: 1px solid var(--line); border-radius: 12px; background: rgba(10,17,29,.5); }
+html[data-modus="hell"] .profilneu-panel { background: rgba(255,255,255,.55); }
+.profilneu-phead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 11.5px; letter-spacing: 1.2px; color: var(--mut); text-transform: uppercase; }
+.profilneu-phead b { color: #e6eefb; font-family: var(--font-anton), var(--font-anzeige), sans-serif; font-weight: 400; font-size: 14px; letter-spacing: .5px; }
+html[data-modus="hell"] .profilneu-phead b { color: #0b1320; }
+.profilneu-phead .c { color: var(--mut2); font-family: var(--font-geist-mono), monospace; font-size: 11px; }
+
+/* Index-Balken */
+.profilneu-ibar { display: grid; grid-template-columns: 120px 1fr 40px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line2); }
+.profilneu-ibar-l { font-size: 12px; font-weight: 700; letter-spacing: .4px; color: #e6eefb; text-transform: uppercase; }
+html[data-modus="hell"] .profilneu-ibar-l { color: #0b1320; }
+.profilneu-ibar-track { height: 9px; background: rgba(120,160,210,.08); border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; }
+.profilneu-ibar-track > div { height: 100%; background: linear-gradient(90deg,var(--sky2),var(--sky)); }
+.profilneu-ibar-v { text-align: right; color: var(--sky); font-weight: 700; font-size: 12.5px; font-family: var(--font-geist-mono), monospace; }
+
+/* Karriere-Streifen (Jahre) */
+.profilneu-crow { display: grid; grid-template-columns: 64px 1fr 120px 130px; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line2); }
+.profilneu-crow:first-child { border-top: none; }
+.profilneu-crow .yr { font-family: var(--font-anton), var(--font-anzeige), sans-serif; font-size: 20px; color: var(--mut); }
+.profilneu-crow .yr.on { color: var(--sky); }
+.profilneu-crow .track { height: 10px; background: rgba(120,160,210,.08); border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; }
+.profilneu-crow .track > div { height: 100%; background: linear-gradient(90deg,var(--sky2),var(--sky)); }
+@media (max-width: 560px) { .profilneu-crow { grid-template-columns: 48px 1fr 92px; } .profilneu-crow .cmeta { display: none; } }

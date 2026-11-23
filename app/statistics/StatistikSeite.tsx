@@ -27,6 +27,7 @@ import StatistikIntro from './StatistikIntro';
 import KonstanzKarte from './KonstanzKarte';
 import TurnierVerlauf, { type VerlaufKopf } from './TurnierVerlauf';
 import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
+import { EarningsVerlauf, PlatzVerteilung, ElimsVerlauf, SpielerRadar, IndexBalken, Spark } from './ProfilCharts';
 import { bildPfad } from '@/app/components/ArchivTeile';
 import type { GalerieEintrag } from '@/lib/galerieTypen';
 import ProfilVerlauf from './ProfilVerlauf';
@@ -4233,6 +4234,67 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                       .filter(Boolean).join(' · ')],
                 ];
 
+  /*
+   * Die abgeleiteten Reihen fuers neue Profil (Aufmacher-Glas, Stat-Kacheln,
+   * Diagramme) - alle aus echten Daten: Verdienst aus Verlauf und LAN-Datei,
+   * Platzierungen und Elims aus den Spieltagen, Perzentile fuers Radar.
+   */
+  const neuProfil = useMemo(() => {
+    const alle = [...verlauf, ...epicZeilen];
+    // Verdienst-Posten: Zeilen mit Preisgeld plus LAN-Betraege, die nicht schon als Zeile stecken.
+    const geld: Array<{ datum: number; betrag: number; season: string }> = alle
+      .filter((z) => typeof z.verdienst === 'number' && (z.verdienst ?? 0) > 0)
+      .map((z) => ({ datum: z.datum ?? 0, betrag: z.verdienst as number, season: z.season }));
+    for (const l of lanErgebnisse) {
+      if ((l.betrag ?? 0) <= 0) continue;
+      const kern = (l.fenster ?? '').split('_')[0];
+      if (alle.some((z) => (z.verdienst ?? 0) > 0 && z.windowId.split('_')[0] === kern)) continue;
+      geld.push({ datum: l.datum ?? 0, betrag: l.betrag, season: l.season });
+    }
+    const careerTotal = geld.reduce((a, z) => a + z.betrag, 0);
+    // Je Jahr: Preisgeld, Spieltage, Siege - fuer den Karriere-Streifen und das Glas.
+    const jahrMap = new Map<number, { betrag: number; events: number; wins: number }>();
+    const jahrVon = (ms: number) => (ms ? new Date(ms).getUTCFullYear() : 0);
+    for (const z of geld) { const j = jahrVon(z.datum); if (!j) continue; const e = jahrMap.get(j) ?? { betrag: 0, events: 0, wins: 0 }; e.betrag += z.betrag; jahrMap.set(j, e); }
+    for (const z of alle) { const j = jahrVon(z.datum ?? 0); if (!j || z.gesamt) continue; const e = jahrMap.get(j) ?? { betrag: 0, events: 0, wins: 0 }; e.events += 1; if (z.platz === 1) e.wins += 1; jahrMap.set(j, e); }
+    const jahre = [...jahrMap.entries()].sort((a, b) => a[0] - b[0]);
+    const jahrGeldMax = Math.max(1, ...jahre.map(([, v]) => v.betrag));
+    // Je Saison (alt -> neu): fuer die Sparklines der Kacheln.
+    const saisonSet = [...new Set(alle.filter((z) => !z.gesamt).map((z) => z.season))].sort((a, b) => saisonRang(a) - saisonRang(b));
+    const proS = (f: (z: VerlaufZeile) => number) => saisonSet.map((s) => alle.filter((z) => z.season === s && !z.gesamt).reduce((a, z) => a + f(z), 0));
+    const platzListe = alle.filter((z) => !z.gesamt && typeof z.platz === 'number' && (z.platz ?? 0) > 0).map((z) => z.platz as number);
+    const top10 = platzListe.filter((p) => p <= 10).length;
+    const wins = platzListe.filter((p) => p === 1).length;
+    const avgPlatz = platzListe.length ? platzListe.reduce((a, b) => a + b, 0) / platzListe.length : 0;
+    // Elims je Match, Spieltag fuer Spieltag (nur mit echten Werten).
+    const elimsSerie = alle.filter((z) => !z.gesamt && !z.nurEpic && z.werte.matchesPlayed > 0 && z.werte.eliminations > 0)
+      .sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0))
+      .map((z) => ({ label: z.season, wert: z.werte.eliminations / z.werte.matchesPlayed }));
+    const radar = perzentile ? ([
+      ['Elims', perzentile.elims], ['Damage', perzentile.damage], ['Accuracy', perzentile.genauigkeit],
+      ['Survival', perzentile.timeAlive], ['K/D', perzentile.quote],
+    ] as Array<[string, number | null]>).filter(([, v]) => typeof v === 'number').map(([label, v]) => ({ label, wert: v as number })) : [];
+    return {
+      earningsPosten: geld, careerTotal, jahre, jahrGeldMax,
+      platzListe, top10, wins, avgPlatz, elimsSerie, radar,
+      sparkEarn: proS((z) => z.verdienst ?? 0),
+      sparkEvents: saisonSet.map((s) => alle.filter((z) => z.season === s && !z.gesamt).length),
+      sparkMatches: proS((z) => z.werte.matchesPlayed),
+      sparkWins: saisonSet.map((s) => alle.filter((z) => z.season === s && z.platz === 1).length),
+      sparkElims: proS((z) => z.werte.eliminations),
+      // Durchschnittsplatz je Saison, invertiert (kleiner Platz = hoeherer Balken).
+      sparkPlatz: saisonSet.map((s) => {
+        const ps = alle.filter((z) => z.season === s && !z.gesamt && (z.platz ?? 0) > 0).map((z) => z.platz as number);
+        if (!ps.length) return 0;
+        const avg = ps.reduce((a, b) => a + b, 0) / ps.length;
+        return Math.max(1, 100 - avg);
+      }),
+    };
+  }, [verlauf, epicZeilen, lanErgebnisse, perzentile]);
+
+  /** Das Preisgeld des laufenden Jahres (JAHR) und die Spieltage dazu - fuers Aufmacher-Glas. */
+  const jahrEintrag = neuProfil.jahre.find(([j]) => j === JAHR)?.[1];
+
   /** Die laufende Bestenliste in der Leiste. */
   const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
 
@@ -6200,104 +6262,112 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
          * Platz des Inhalts ein; die Bereiche links bleiben, und Zurueck
          * fuehrt zur Liste.
          */
-        <div>
+        <div className="profilneu">
           {/* Ohne Rahmen: es ist die Seite selbst, kein Kasten auf der Seite. */}
           <div className="w-full">
 
             {/*
-              * Der Kopf (Betreiber, 14.10.2026): das Foto steht gross hinter dem Namen und blendet zur Seite hin in die Karte aus - wie bei den
-              * Spitzenreitern der Rangliste. Gesicht und Hals bleiben frei; ohne Foto steht nur der Text da.
+              * Der Aufmacher (14.11.2026, freigegebener Entwurf): editorialer
+              * Scheinwerfer - das Foto gross im blauen Lichtkegel rechts, der
+              * Name riesig in Anton, Flagge/Region/Org/Socials als Pillen, und
+              * ein Glas-Block mit Jahres- und Karriere-Preisgeld. Ohne Foto
+              * bleibt der Text fuer sich; alles andere erscheint nur, wo es
+              * wirklich Daten gibt.
               */}
-            <section className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm">
+            <section className="profilneu-hero">
+              <span aria-hidden className="profilneu-beam" />
+              <span aria-hidden className="profilneu-cone" />
               {offen.bild && (
-                <>
-                  {/* Dasselbe Foto verwischt und gross als Grund: so traegt die Flaeche links die Farben des Bildes statt eines grauen Kastens. */}
+                <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-0 w-[62%] sm:w-[52%] md:w-[46%] xl:w-[42%]"
+                  style={{ WebkitMaskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)', maskImage: 'linear-gradient(90deg,transparent 0%,#000 30%,#000 100%)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={offen.bild} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-150 object-cover opacity-45 blur-3xl" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[46%] xl:w-[40%]"
-                    style={{ objectPosition: 'center top' }} />
-                  <span aria-hidden className="foto-folie absolute inset-0 -z-10 md:hidden" />
-                </>
+                  <img src={offen.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-95"
+                    style={{ filter: 'drop-shadow(0 26px 52px rgba(0,0,0,.6))' }} />
+                </div>
               )}
-              <div className={`flex min-h-[22rem] flex-col justify-between gap-8 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[34rem] md:max-w-[62%]' : ''}`}>
-                <button onClick={profilSchliessen}
-                  className="w-fit rounded-full border border-zinc-700 bg-zinc-950/60 px-4 py-1.5 text-xs font-semibold text-slate-400 backdrop-blur transition hover:border-sky-500/60 hover:text-sky-500">
-                  ← <T>Zurück</T>
-                </button>
+              <span aria-hidden className="absolute inset-x-0 bottom-0 z-[1] h-36"
+                style={{ background: 'linear-gradient(180deg,transparent,#070b14 92%)' }} />
+              <div className={`relative z-[2] flex min-h-[24rem] flex-col justify-between gap-7 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[32rem] md:max-w-[66%]' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button onClick={profilSchliessen}
+                    className="w-fit rounded-full border border-white/15 bg-black/40 px-4 py-1.5 text-xs font-semibold text-slate-300 backdrop-blur transition hover:border-sky-400/70 hover:text-sky-300">
+                    ← <T>Zurück</T>
+                  </button>
+                  <span className="mono flex items-center gap-2 text-[10.5px] uppercase tracking-[0.2em] text-slate-500">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
+                    {t('Spielerprofil')}
+                  </span>
+                </div>
 
                 <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <TeamFlagge groesse={34} laender={[offen.land ?? undefined]} />
+                  <div className="mb-3 flex flex-wrap items-center gap-3">
+                    <TeamFlagge groesse={26} laender={[offen.land ?? undefined]} />
                     {(offen.heimat || offen.regionen?.[0]) ? (
                       <RegionMarke region={offen.heimat || offen.regionen[0]} />
                     ) : kopfVerlauf?.region ? (
-                      /* Ohne gepflegtes Profil keine Flagge (die kennen wir nicht) - dafuer die Region aus dem Turnierverlauf. */
                       <RegionMarke region={kopfVerlauf.region} />
                     ) : null}
                     <MerkStern epicId={offen.epicId} name={grossName(offen.anzeige, offen.gepflegt)} bild={offen.bild ?? null} />
-                    {offen.x && (
-                      <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
-                        className="text-xs text-slate-500 transition hover:text-sky-500">
-                        @{offen.x}
-                      </a>
-                    )}
                   </div>
-                  <h2 className="schrift-anzeige mt-3 break-words text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-100 sm:text-5xl">
-                    {grossName(offen.anzeige, offen.gepflegt)}
-                  </h2>
-                  {/* Der Epic-Name klein darunter, wenn der gelaeufige Name ein anderer ist (lib/anzeigenamen) - so bleibt das Konto auffindbar. */}
+                  <h2 className="profilneu-name">{grossName(offen.anzeige, offen.gepflegt)}</h2>
                   {(() => {
                     const epic = String((offen as { epicName?: string }).epicName || offen.name || '').trim();
                     return epic && epic.toLowerCase() !== String(offen.anzeige || '').trim().toLowerCase()
-                      ? <p className="mt-1 text-xs text-slate-500" data-epic-name>Epic: {epic}</p> : null;
+                      ? <p className="mt-2 text-xs text-slate-400" data-epic-name>Epic: {epic}</p> : null;
                   })()}
-                  <p className="mt-2 text-sm text-slate-500">
+
+                  {/* Pillen: aktuelle Org, globaler Rang, Socials - nur, wo es sie gibt. */}
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {rang?.global && (
+                      <span className="profilneu-pill hl">{t('Welt')} #{zahl(rang.global, 0, sprache)}</span>
+                    )}
+                    {(() => {
+                      const org = teamVerlauf.find((e) => e.aktuell);
+                      return org ? <span className="profilneu-pill"><span className="org">{org.team}</span></span> : null;
+                    })()}
+                    {offen.x && (
+                      <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer" className="profilneu-pill transition hover:border-sky-400/60">
+                        <span className="text-[13px] text-slate-400">𝕏</span> @{offen.x}
+                      </a>
+                    )}
+                  </div>
+
+                  <p className="mt-4 text-sm text-slate-400">
                     {offen.events
                       ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
                       : kopfVerlauf
                         ? `${zahl(kopfVerlauf.events, 0, sprache)} ${t('Turniere')}`
                         : profilLaedt ? t('Werte werden geladen …') : ''}
                   </p>
-                  {/* Konto-Id und zuletzt gesehen (aus dem Turnierverlauf) - fuer jedes Konto. */}
-                  <p className="mt-1 break-all font-mono text-[11px] text-slate-600">
+                  <p className="mono mt-1 break-all text-[11px] text-slate-600">
                     {offen.epicId}
                     {kopfVerlauf?.zuletzt ? <span className="font-sans"> · <T>zuletzt gesehen</T> {datumText(kopfVerlauf.zuletzt, sprache)}</span> : null}
                   </p>
 
-                  {/* Die Marken.
-                      Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
-                      keinen leeren Kasten. Ein Druck darauf oeffnet die Liste dahinter. */}
+                  {/* Die Marken (FNCS-Sieger, Tagesbester) und Ranked - nur, wo vorhanden. */}
                   <div className="mt-5 flex flex-wrap items-stretch gap-2">
                     {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
                       <button onClick={() => setMarke('fncs')}
                         className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-amber-400 hover:bg-amber-500/20">
-                        <span className="flex items-center justify-center gap-0.5 text-amber-500">
+                        <span className="flex items-center justify-center gap-0.5 text-amber-400">
                           {[...Array(Math.min(fncs!.titel, 8))].map((_, i) => <Pokal key={i} />)}
                           {fncs!.titel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncs!.titel}</span>}
                         </span>
-                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
+                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-400/90"><T>FNCS-Sieger</T></span>
                       </button>
                     )}
                     {tagesbest.length > 0 && (
                       <button onClick={() => setMarke('tage')}
                         className="rounded-xl border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-sky-400 hover:bg-sky-500/20">
-                        <span className="flex max-w-[132px] flex-wrap items-center justify-center gap-0.5 text-sky-500">
+                        <span className="flex max-w-[132px] flex-wrap items-center justify-center gap-0.5 text-sky-400">
                           {[...Array(Math.min(tagesbest.length, 12))].map((_, i) => <Stern key={i} />)}
                           {tagesbest.length > 12 && <span className="ml-1 text-[11px] font-bold">×{tagesbest.length}</span>}
                         </span>
-                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-500/90"><T>Tagesbester</T></span>
+                        <span className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-400/90"><T>Tagesbester</T></span>
                       </button>
                     )}
-                    {/* Hier stand die Karte "Bester Spieltag": die Marke "Tagesbester" zeigt schon, an wie vielen Spieltagen niemand mehr
-                        Eliminierungen hatte, und die Bestmarke selbst steht weiter unten bei den Rekorden. */}
                   </div>
 
-                  {/*
-                    * Epics eigenes Ranked-System: die einzige Angabe im Profil, die nicht aus einem Turnier stammt - und die einzige, die es zu
-                    * jedem Spieler gibt. Die Stufe steht als Zahl, nicht als Name: Epics Rangsaisons haben unterschiedlich viele Stufen
-                    * (achtzehn, zweiundzwanzig, einhunderteins), ein Name wie "Diamant III" passt nur zur ersten; die Zahl stimmt immer.
-                    */}
                   {rankedFehlt && (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
@@ -6308,12 +6378,12 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
                       {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
-                        <span key={r.trackguid} className="inline-flex items-baseline gap-2 rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs backdrop-blur">
-                          <span className="uppercase tracking-wider text-slate-500">{rangArt(r.rankingType)}</span>
+                        <span key={r.trackguid} className="inline-flex items-baseline gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs backdrop-blur">
+                          <span className="uppercase tracking-wider text-slate-400">{rangArt(r.rankingType)}</span>
                           {r.ranking !== null ? (
-                            <b className="tabular-nums text-amber-500">#{zahl(r.ranking, 0, sprache)}</b>
+                            <b className="tabular-nums text-amber-400">#{zahl(r.ranking, 0, sprache)}</b>
                           ) : (
-                            <b className="text-slate-300"><T>Stufe</T> {r.division}{r.stufen ? <span className="font-normal text-slate-500">{' / '}{r.stufen}</span> : null}</b>
+                            <b className="text-slate-200"><T>Stufe</T> {r.division}{r.stufen ? <span className="font-normal text-slate-500">{' / '}{r.stufen}</span> : null}</b>
                           )}
                         </span>
                       ))}
@@ -6321,6 +6391,24 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   )}
                 </div>
               </div>
+
+              {/* Das Glas: Jahres- und Karriere-Preisgeld, nur wenn vorhanden. */}
+              {neuProfil.careerTotal > 0 && (
+                <div className="absolute bottom-5 right-5 z-[3] hidden text-right sm:flex sm:flex-col sm:gap-4 profilneu-glass">
+                  {jahrEintrag && jahrEintrag.betrag > 0 && (
+                    <div>
+                      <div className="k">{JAHR} {t('Preisgeld')}</div>
+                      <div className="v">${zahl(jahrEintrag.betrag, 0, sprache)}</div>
+                      <div className="d">{rang?.global ? `#${zahl(rang.global, 0, sprache)} ${t('weltweit')} · ` : ''}{zahl(jahrEintrag.events, 0, sprache)} {t('Events')}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="k">{t('Karriere-Preisgeld')}</div>
+                    <div className="v sm">${zahl(neuProfil.careerTotal, 0, sprache)}</div>
+                    <div className="d">{neuProfil.jahre.length} {neuProfil.jahre.length === 1 ? t('Saison') : t('Saisons')}{neuProfil.jahre.length ? ` · ${neuProfil.jahre[0][0]}–${neuProfil.jahre[neuProfil.jahre.length - 1][0]}` : ''}</div>
+                  </div>
+                </div>
+              )}
             </section>
             {/* Die Fotos stammen von Event-Fotografen - der allgemeine Hinweis mit dem Link "Photos from" (Betreiber, 16./17.11.2026). */}
             {offen.bild && <FotoHinweis className="mt-2 px-1 text-right" />}
@@ -6402,17 +6490,30 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   sich nachrechnen laesst. Die beiden Raenge sind abgezaehlt -
                   aus derselben Liste, die die Seite ohnehin fuehrt. */}
               {/* Ohne ausgewertete Spieltage (Konto ohne Profil bei uns) gaebe es hier nur Nullen und Striche - dann steht der Turnierverlauf fuer sich. */}
-              <div className={`grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6 ${!profilLaedt && !offen.events ? 'hidden' : ''}`}>
-                {kennzahlen.map(([l, v, unten]) => (
-                  <div key={l} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>{l}</T></p>
-                    <p className="schrift-anzeige mt-1.5 text-3xl font-extrabold tabular-nums text-slate-100">{v}</p>
-                    {unten && (
-                      <p className="mt-1 text-xs text-slate-500">{unten}</p>
-                    )}
+              {(() => {
+                const earn = neuProfil.earningsPosten.reduce((a, p) => a + p.betrag, 0);
+                const winRate = offen.events ? Math.round((neuProfil.wins / offen.events) * 100) : 0;
+                const tiles: Array<{ k: string; v: string; d: string; sky?: boolean; spark: number[]; hot?: boolean }> = [
+                  { k: t('Preisgeld'), v: earn > 0 ? `$${kurzZahl(earn, sprache)}` : '—', d: rang?.global ? `#${zahl(rang.global, 0, sprache)} ${t('Welt')}` : (heimatRegion || ''), sky: true, spark: neuProfil.sparkEarn, hot: true },
+                  { k: t('Spieltage'), v: zahl(offen.events, 0, sprache), d: `${zahl(neuProfil.top10, 0, sprache)} Top-10`, spark: neuProfil.sparkEvents },
+                  { k: t('Matches'), v: zahl(offen.matches, 0, sprache), d: offen.events ? `${feldText(offen, 'elimsProMatch', 2, sprache)} E/M` : '', spark: neuProfil.sparkMatches },
+                  { k: t('Siege'), v: zahl(neuProfil.wins, 0, sprache), d: winRate ? `${winRate}% ${t('Quote')}` : '', sky: true, spark: neuProfil.sparkWins, hot: true },
+                  { k: t('Eliminierungen'), v: zahl(offen.elims, 0, sprache), d: `${feldText(offen, 'elimsProMatch', 1, sprache)} / ${t('Match')}`, spark: neuProfil.sparkElims, hot: true },
+                  { k: t('Schnittplatz'), v: neuProfil.avgPlatz ? neuProfil.avgPlatz.toFixed(1) : '—', d: neuProfil.platzListe.length ? `${Math.round((neuProfil.top10 / neuProfil.platzListe.length) * 100)}% Top-10` : '', spark: neuProfil.sparkPlatz },
+                ];
+                return (
+                  <div className={`profilneu-grid6 ${!profilLaedt && !offen.events ? 'hidden' : ''}`}>
+                    {tiles.map((c) => (
+                      <div key={c.k} className="profilneu-cell">
+                        <div className="k">{c.k}</div>
+                        <div className={`v ${c.sky ? 'sky' : ''}`}>{c.v}</div>
+                        {c.d && <div className="d">{c.d}</div>}
+                        <Spark werte={c.spark} hot={c.hot} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
               {/* Das Bild zum Teilen: dieselben sechs Zahlen, für den Zeitraum, der unten gewählt ist. Erst wenn es etwas zu zeigen gibt. */}
               {!profilLaedt && !profilFehler && offen.events > 0 && (
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -6442,53 +6543,49 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
             {/* Reiter, rechts daneben der Zeitraum.
                 Dort steht beim Vorbild "Season" mit einem Waehler - genau
                 dort sucht man ihn, weil die Zahlen darunter davon abhaengen. */}
-            <div className="flex flex-wrap items-center gap-6 border-b border-zinc-800
-                            px-1">
-              {/* Nach dem Vorbild einer Vergleichsseite (Betreiber, 28.9.2026): Overview,
-                  Stats, Tournament Results, FNCS, Achievements - dazu Earnings
-                  und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
-                  zusammengelegt. */}
-              {([['uebersicht', 'Überblick'],
-                 // Jeder Spieltag aus Epics Bestenlisten, fuer jedes Konto (scripts/spieler-verlauf.mjs).
-                 ['verlauf', 'Turnierverlauf'],
-                 // Die Zahlen nur, wo es welche gibt - ein Konto ohne ausgewertete Matches zeigt keine Seite voller Nullen (Betreiber, 14.10.2026).
-                 ...(offen.matches > 0 ? [['werte', 'Zahlen']] : []),
-                 ['turniere', 'Ergebnisse'],
-                 ['fncs', 'FNCS'],
-                 ['erfolge', 'Meilensteine'],
-                 ['verdienst', 'Verdienst'],
-                 ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
-                 /*
-                  * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
-                  * es keine Bilder, Videos zu einem Player gibt, dann muss
-                  * das Player Archiv auch nicht angezeigt werden, auch kein
-                  * leeres." Der Admin sieht es immer, zum Hochladen.
-                  */
-                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Galerie']] : [])] as Array<[SpielerReiter, string]>)
-                .map(([w, titel]) => (
-                // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
-                // und ihn in einer Schleife zu beschatten ist eine Falle fuer
-                // die naechste Zeile, die ihn drinnen braucht.
+            {/* Persistente Reiterleiste (freigegebener Entwurf): Overview,
+                Stats, Team History, Results, FNCS, Achievements - danach,
+                abgesetzt, Turnierverlauf, Verdienst und Galerie. Auf dem
+                Handy rollt die Leiste waagerecht. */}
+            {(() => {
+              const haupt = ([
+                ['uebersicht', 'Überblick'],
+                ...(offen.matches > 0 ? [['werte', 'Statistik']] : []),
+                ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
+                ['turniere', 'Ergebnisse'],
+                ['fncs', 'FNCS'],
+                ['erfolge', 'Meilensteine'],
+              ] as Array<[SpielerReiter, string]>);
+              const extra = ([
+                // Jeder Spieltag aus Epics Bestenlisten, fuer jedes Konto (scripts/spieler-verlauf.mjs).
+                ['verlauf', 'Turnierverlauf'],
+                ['verdienst', 'Verdienst'],
+                // Das Archiv nur, wenn es etwas gibt; der Admin sieht es immer.
+                ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Galerie']] : []),
+              ] as Array<[SpielerReiter, string]>);
+              const knopf = ([w, titel]: [SpielerReiter, string], nr: number | null) => (
                 <button key={w} onClick={() => setSpielerReiter(w)}
-                  className={`-mb-px border-b-2 py-3 text-xs font-semibold uppercase
-                              tracking-[0.12em] transition ${spielerReiter === w
-                    ? 'border-sky-500 text-sky-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-                  <T>{titel}</T>
+                  className={`profilneu-tab ${spielerReiter === w ? 'on' : ''}`}>
+                  {nr !== null && <span className="no">{String(nr).padStart(2, '0')}</span>}
+                  {w === 'fncs' ? 'FNCS' : <T>{titel}</T>}
                 </button>
-              ))}
+              );
+              return (
+                <div className="profilneu-tabs">
+                  {haupt.map((p, i) => knopf(p, i + 1))}
+                  <span aria-hidden className="w-6 shrink-0 border-r" style={{ borderColor: 'var(--line2)' }} />
+                  {extra.map((p) => knopf(p, null))}
+                </div>
+              );
+            })()}
 
-              {/* Der Turnierverlauf hat seine eigenen Filter (Saison, Modus, Region) - der Zeitraum hier gilt nur fuer die anderen Reiter. */}
-              <label className={`ml-auto flex items-center gap-2 py-2 ${spielerReiter === 'verlauf' ? 'hidden' : ''}`}>
-                <span className="text-[11px] font-semibold uppercase
-                                 tracking-[0.14em] text-slate-600">
-                  <T>Zeitraum</T>
-                </span>
+            {/* Der Turnierverlauf hat eigene Filter - der Zeitraum gilt nur fuer die anderen Reiter. */}
+            <div className={`mt-3 flex items-center justify-end ${spielerReiter === 'verlauf' ? 'hidden' : ''}`}>
+              <label className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>Zeitraum</T></span>
                 <select value={profilSaison}
                   onChange={(e) => profilZeitraum(e.target.value)}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
-                             py-1.5 text-xs text-slate-100 outline-none
-                             focus:border-sky-500">
+                  className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500">
                   <option value="alle">{t('Alle Saisons')}</option>
                   <optgroup label={t('Jahre')}>
                     {Object.keys(JAHR_SAISONS).map(Number).sort((a, b) => b - a).map((j) => (
@@ -6504,7 +6601,7 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
               </label>
             </div>
 
-            <div className="px-7 py-6">
+            <div className="py-6">
               {/* Leise ueber allem: worueber wird hier gerechnet.
                   Nicht zum Lesen gedacht, sondern zum Nachsehen - wer sich
                   fragt, ob eine Zahl fuer eine Saison oder fuers ganze
@@ -6667,6 +6764,24 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                   {/* Die besten FNCS-Platzierungen und ein paar Bilder -
                       wie beim Vorbild, "plus noch Bilder ganz unten". */}
                   <KarriereBest tafel={fncsTafel} />
+
+                  {/* Karriere-Streifen: Preisgeld je Jahr (freigegebener Entwurf). */}
+                  {neuProfil.jahre.length > 0 && (
+                    <section>
+                      <div className="profilneu-lab">{t('Karriere')} · {neuProfil.jahre[0][0]}–{neuProfil.jahre[neuProfil.jahre.length - 1][0]}<span className="ln" /></div>
+                      <div className="profilneu-panel px-5 py-3">
+                        {neuProfil.jahre.map(([j, v]) => (
+                          <div key={j} className="profilneu-crow">
+                            <div className={`yr ${j === JAHR ? 'on' : ''}`}>{j}</div>
+                            <div className="track"><div style={{ width: `${Math.round((v.betrag / neuProfil.jahrGeldMax) * 100)}%` }} /></div>
+                            <div className="mono text-right text-sm font-bold" style={{ color: j === JAHR ? 'var(--sky)' : undefined }}>${zahl(v.betrag, 0, sprache)}</div>
+                            <div className="mono cmeta text-right text-xs text-slate-500">{v.events} EV · {v.wins} W</div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
                   {archivBilder.length > 0 && (
                     <section>
                       <div className="mb-3 flex items-center gap-3">
@@ -6690,6 +6805,37 @@ export default function StatistikSeite({ profilLink = false }: { profilLink?: bo
                 </div>
               ) : spielerReiter === 'werte' || spielerReiter === 'leistung' ? (
                 <div className="space-y-7">
+                {/* Die Diagramme (freigegebener Entwurf) - alle aus echten Reihen. */}
+                <div className="profilneu-lab">{t('Analyse')}<span className="ln" /><span className="r">{t('Diagramme')}</span></div>
+                {neuProfil.earningsPosten.length >= 2 && (
+                  <div className="profilneu-panel">
+                    <div className="profilneu-phead"><b>{t('Preisgeld über die Zeit')}</b><span className="c">{t('monatlich')} · USD</span></div>
+                    <div className="px-4 pb-2 pt-3"><EarningsVerlauf posten={neuProfil.earningsPosten} label={t('Preisgeld über die Zeit')} /></div>
+                  </div>
+                )}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="profilneu-panel">
+                    <div className="profilneu-phead"><b>{t('Platzierungen')}</b><span className="c">{zahl(neuProfil.platzListe.length, 0, sprache)} {t('Events')}</span></div>
+                    <div className="px-3 pb-2 pt-3"><PlatzVerteilung platzierungen={neuProfil.platzListe} label={t('Platzierungen')} /></div>
+                  </div>
+                  <div className="profilneu-panel">
+                    <div className="profilneu-phead"><b>{t('Elims je Match')}</b><span className="c">{t('je Spieltag')}</span></div>
+                    <div className="px-3 pb-2 pt-3"><ElimsVerlauf serie={neuProfil.elimsSerie} label={t('Elims je Match')} /></div>
+                  </div>
+                </div>
+                {neuProfil.radar.length >= 3 && (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="profilneu-panel">
+                      <div className="profilneu-phead"><b>{t('Stärkenprofil')}</b><span className="c">{t('Perzentil')} · 0–100</span></div>
+                      <div className="px-3 pb-2 pt-2"><SpielerRadar achsen={neuProfil.radar} label={t('Stärkenprofil')} /></div>
+                    </div>
+                    <div className="profilneu-panel">
+                      <div className="profilneu-phead"><b>{t('Perzentile')}</b><span className="c">{t('besser als … %')}</span></div>
+                      <IndexBalken achsen={neuProfil.radar} />
+                    </div>
+                  </div>
+                )}
+                <div className="profilneu-lab">{t('Werte')}<span className="ln" /></div>
                 <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                   {([
