@@ -96,10 +96,13 @@ export const PlayerPool: React.FC<PlayerPoolProps> = ({
             onDragEnd={onDragEnd}
             onDragOver={() => onDragOver(entry.id)}
             onDragLeave={onDragLeave}
+            // Die gezogene Kachel steht im DataTransfer (PlayerCard setzt sie
+            // beim dragstart); darauf ist auch dann Verlass, wenn der
+            // React-Zustand "draggedId" noch nicht nachgezogen ist.
             onDrop={(event) => {
-              if (!disabled && draggedId) {
-                onDrop(draggedId, entry.id);
-              }
+              if (disabled) return;
+              const gezogen = event.dataTransfer.getData('text/plain') || draggedId;
+              if (gezogen && gezogen !== entry.id) onDrop(gezogen, entry.id);
             }}
             isAdmin={isAdmin}
             currentUser={currentUser}

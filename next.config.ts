@@ -111,6 +111,18 @@ const nextConfig: NextConfig = {
         source: `/${ordner}/:pfad+`,
         headers: [{ key: 'Cache-Control', value: 'public, max-age=14400, s-maxage=3600, stale-while-revalidate=86400' }],
       })),
+      /*
+       * Die kleinen und winzigen Foto-Fassungen (spielerbilder-klein 480 px, spielerbilder-mini 128 px fuer die Tierlist) duerfen der Browser
+       * lange behalten. Next schickte dafuer "public, max-age=0": der Browser fragte bei JEDEM Aufruf nach, ob sich das Foto geaendert hat - bei
+       * einer Solo-Tierlist mit Hunderten Spielern Hunderte Rueckfragen je Aufruf, und genau das liess die Liste rund eine Minute laden
+       * (Betreiber, 23.11.2026). Gefahrlos lange: jede Adresse traegt ihr Inhalts-Kennzeichen ("?v=", lib/fotoStand.json) - ein unter gleichem
+       * Namen ersetztes Foto bekommt ein neues "?v=" und damit eine neue Adresse, die der Browser sofort frisch laedt. Das Original unter
+       * /spielerbilder bleibt wie bisher ungecacht (es traegt nicht immer ein Kennzeichen).
+       */
+      ...['spielerbilder-klein', 'spielerbilder-mini'].map((ordner) => ({
+        source: `/${ordner}/:pfad+`,
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=14400, s-maxage=3600, stale-while-revalidate=86400' }],
+      })),
       // Chrome auf Android nennt das Handymodell nur auf Nachfrage (Client Hints) - fuer die grobe Geraeteangabe je Sitzung (lib/geraet).
       { source: '/:path*', headers: [{ key: 'Accept-CH', value: 'Sec-CH-UA-Model, Sec-CH-UA-Mobile, Sec-CH-UA-Platform-Version' }] },
     ];
@@ -138,6 +150,7 @@ const nextConfig: NextConfig = {
         { source: '/spielerbilder/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
         // Die entfernten kleinen Fassungen (17.11.2026): ihre alten Adressen fuehren auf den Platzhalter statt auf ein kaputtes Bild.
         { source: '/spielerbilder-klein/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
+        { source: '/spielerbilder-mini/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
       ],
     };
   },

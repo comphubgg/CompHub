@@ -38,7 +38,7 @@ export function fotoFrei(datei: string | null | undefined): boolean {
 /** Eine fertige Adresse eines Spielerfotos: frei? Alles, was kein Spielerfoto ist (Logos, /orgs/...), bleibt frei. */
 export function adresseFrei(url: string | null | undefined): boolean {
   if (!url) return false;
-  const m = /^(?:https?:\/\/[^/]+)?\/spielerbilder(-klein)?\/([^?#]+)/.exec(String(url));
+  const m = /^(?:https?:\/\/[^/]+)?\/spielerbilder(-klein|-mini)?\/([^?#]+)/.exec(String(url));
   if (!m) return true;
   let datei = m[2];
   try { datei = decodeURIComponent(datei); } catch { /* bleibt */ }
@@ -94,6 +94,21 @@ export function spielerbildKlein(datei: string): string {
     : spielerbildGross(datei);
 }
 
+/**
+ * Die winzige Fassung (128 Pixel) fuer die Tierlist-Kacheln (scripts/spielerbilder-klein.mjs).
+ *
+ * Die 480er Fassung war fuer die kleinen Kacheln fuenfmal zu gross und liess Solo-Listen mit
+ * Hunderten Spielern rund eine Minute laden (Betreiber, 23.11.2026). Hochgeladene Fotos
+ * (spielerfotos/...webp) haben keine mini-Fassung und bleiben bei der gross-Adresse.
+ */
+export function spielerbildMini(datei: string): string {
+  if (!fotoFrei(datei)) return PLATZHALTER_FOTO;
+  const m = /^([A-Za-z0-9._-]+)\.(?:jpe?g|png)$/i.exec(datei);
+  return m
+    ? mitStand(`/spielerbilder-mini/${encodeURIComponent(m[1])}.webp`, datei)
+    : spielerbildGross(datei);
+}
+
 /** Das Original eines Spielerfotos (Profilseiten, Plakate) - mit demselben Kennzeichen. */
 export function spielerbildGross(datei: string): string {
   if (!fotoFrei(datei)) return PLATZHALTER_FOTO;
@@ -102,7 +117,7 @@ export function spielerbildGross(datei: string): string {
 
 /** Das Kennzeichen zu einer fertigen Foto-Adresse nachtragen (aeltere, abgelegte Antworten). */
 export function standAnhaengen(url: string): string {
-  const m = /^\/spielerbilder(-klein)?\/([^?]+)$/.exec(url);
+  const m = /^\/spielerbilder(-klein|-mini)?\/([^?]+)$/.exec(url);
   if (!m) return url;
   let datei = m[2];
   try { datei = decodeURIComponent(datei); } catch { /* bleibt */ }

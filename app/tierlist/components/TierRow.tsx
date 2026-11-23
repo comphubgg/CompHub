@@ -13,7 +13,7 @@ interface TierRowProps {
   children: React.ReactNode;
   onDragOver: () => void;
   onDragLeave: () => void;
-  onDrop: () => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   disableLabelEdit?: boolean;
   disabled?: boolean;
 }
@@ -118,7 +118,7 @@ export const TierRow: React.FC<TierRowProps> = ({
         onDrop={e => {
           if (disabled) return;
           e.preventDefault();
-          onDrop();
+          onDrop(e);
         }}
         className={`tier-content ${isDragOver ? 'drag-over' : ''}`}
       >

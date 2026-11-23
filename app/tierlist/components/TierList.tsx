@@ -17,7 +17,7 @@ interface TierListProps {
   onDragEnd: () => void;
   onDragOver: (entryId: string | null, tier?: TierKey) => void;
   onDragLeave: () => void;
-  onTierDrop: (tier: TierKey) => void;
+  onTierDrop: (tier: TierKey, e: React.DragEvent) => void;
   onCardDrop: (draggedId: string, targetId: string) => void;
   onReturnToPool: (entryId: string) => void;
   isAdmin?: boolean;
@@ -72,7 +72,7 @@ export function TierList({
           isDragOver={dragOverTier === tier}
           onDragOver={() => onDragOver(null, tier)}
           onDragLeave={onDragLeave}
-          onDrop={() => onTierDrop(tier)}
+          onDrop={e => onTierDrop(tier, e)}
           disableLabelEdit={disableLabelEdit}
         >
           {getEntriesInTier(tier).map(entry => (
@@ -85,7 +85,15 @@ export function TierList({
               onDragEnd={onDragEnd}
               onDragOver={() => onDragOver(entry.id, tier)}
               onDragLeave={onDragLeave}
-              onDrop={() => draggedId && draggedId !== entry.id && onCardDrop(draggedId, entry.id)}
+              // Die gezogene Kachel steht im DataTransfer (PlayerCard setzt sie
+              // beim dragstart). Darauf ist Verlass, auch wenn der React-Zustand
+              // "draggedId" zum Zeitpunkt des Ablegens noch nicht nachgezogen
+              // ist - genau das liess das Ablegen bisher gelegentlich ins Leere
+              // laufen. Der Zustand bleibt nur noch der Rueckfall.
+              onDrop={e => {
+                const gezogen = e.dataTransfer.getData('text/plain') || draggedId;
+                if (gezogen && gezogen !== entry.id) onCardDrop(gezogen, entry.id);
+              }}
               onReturnToPool={() => onReturnToPool(entry.id)}
               isAdmin={isAdmin}
               currentUser={currentUser}

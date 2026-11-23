@@ -341,8 +341,14 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           <div key={i} className="bild-teil">
             {foto
               // eslint-disable-next-line @next/next/no-img-element
-              // Ohne "lazy": in der scrollenden Spielerliste kamen die Fotos sonst erst spaet oder gar nicht (6.11.2026). Es sind hoechstens 200 kleine Bilder zu je rund 25 KB.
-              ? <img src={foto} alt="" draggable={false} decoding="async" />
+              // "lazy" laedt nur die Kacheln, die man gerade sieht - bei einer langen Solo-Liste
+              // Hunderte Fotos weniger auf einmal. Die Kachel hat eine feste Groesse (CSS: 122 px
+              // hoch, 96/68 px breit), darum springt beim Nachladen nichts. Die winzige
+              // 128-px-Fassung (lib/spielerbildKlein spielerbildMini) wiegt nur wenige KB, sodass
+              // ein sichtbares Foto trotzdem sofort da ist (Fruehere Sorge vom 6.11.2026 - Fotos
+              // kamen "erst spaet oder gar nicht" - galt den schweren 480er-Bildern ohne feste
+              // Kachelgroesse).
+              ? <img src={foto} alt="" draggable={false} decoding="async" loading="lazy" width={96} height={122} />
               : SILHOUETTE}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="bild-flagge" src={getCountryFlag(x.land)} alt="" draggable={false} />
