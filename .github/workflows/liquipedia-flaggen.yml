@@ -9,6 +9,10 @@
 # Woechentlich (Montag 04:17 UTC) mit "anwenden"; auch von Hand startbar. Liquipedia: nur action=query, UA "CompHub-stats-bot/1.0", gzip, >= 2,6 s je
 # Anfrage, bei 429 immer laenger warten - ueber curl (die GitHub-Rechner werden nicht als Scraper gedrosselt, der Agenten-Sandkasten schon).
 # Das Ergebnis steht als JSON im Protokoll (Zeile ERGEBNIS_B64, gzip + base64).
+#
+# Danach, im selben Lauf: scripts/namen-saeubern.mjs (lib/namenSaeubern.ts) macht auch fuer die vielen Spieler OHNE Liquipedia-Seite einen sauberen
+# Szene-Namen aus ihrem rohen Namen (Team-Kuerzel davor + Zierrat/Satzzeichen dahinter weg) - sicher -> spieler-profile.json "anzeige" (protokolliert in
+# socials-auto.json), unsicher -> socials-vorschlaege.json. Setzt nur leere Namen, laesst also stehen, was Liquipedia schon sauber gemacht hat (Zeile NAMEN_B64).
 
 name: Liquipedia Flaggen
 
@@ -75,4 +79,20 @@ jobs:
           rc=$?
           rm -f .env.local
           echo "ERGEBNIS_B64 $(gzip -9c aus/ergebnis.json | base64 -w0)"
+          exit $rc
+      # Saubere Szene-Namen auch fuer Spieler OHNE Liquipedia-Seite - rein aus dem Namen (scripts/namen-saeubern.mjs, lib/namenSaeubern.ts): Team-Kuerzel
+      # davor und Zierrat/Satzzeichen dahinter weg. Laeuft NACH Liquipedia, setzt nur leere "anzeige"-Felder - was Liquipedia sauber gemacht hat, bleibt.
+      - name: Namen säubern
+        if: ${{ !cancelled() }}
+        env:
+          COMPHUB_ABLAGE: github
+        run: |
+          [ "${{ inputs.modus || 'anwenden' }}" = "anwenden" ] || { echo "nur Plan - übersprungen"; exit 0; }
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          mkdir -p aus
+          set +e
+          node scripts/namen-saeubern.mjs --anwenden > aus/namen.json
+          rc=$?
+          rm -f .env.local
+          echo "NAMEN_B64 $(gzip -9c aus/namen.json | base64 -w0)"
           exit $rc
