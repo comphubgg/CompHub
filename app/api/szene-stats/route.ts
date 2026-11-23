@@ -915,6 +915,13 @@ async function berechne(request: Request) {
           clutch: await clutchZeigen(daten.clutch, 10),
           listen: await Promise.all(daten.listen.map(async (l) => {
             /*
+             * Immer den AKTUELLEN Ingame-Namen zeigen, nicht den alten Cup-Namen aus dem Archiv
+             * (Betreiber, 23.11.2026: "GodL Chap" stand noch, obwohl sein Epic-Name laengst neu war).
+             * epic-namen.json wird einmal am Tag fuer alle Pros erneuert (scripts/pro-namen-erneuern.mjs).
+             */
+            const frischeNamen = await aktuelleNamen();
+            for (const x of l.plaetze) { const f = frischeNamen[x.epicId]; if (f) x.name = f; }
+            /*
              * Namen nachschlagen, die noch fehlen.
              *
              * Die Elims-Liste kommt zum Teil aus den eigenen Replays und
