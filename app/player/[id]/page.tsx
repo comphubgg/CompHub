@@ -276,7 +276,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 text-white">
+    // Eigener dunkler Hintergrund: diese SSR-Seite nutzt durchgehend text-white; ohne eigenen Grund stand weisse Schrift auf weissem Body (Betreiber-QA, 24.11.2026).
+    <div className="min-h-screen bg-zinc-950 text-white">
+    <main className="mx-auto w-full max-w-3xl px-4 py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <nav className="mb-6 text-sm text-white/50">
@@ -392,5 +394,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </p>
       </div>
     </main>
+    </div>
   );
 }
