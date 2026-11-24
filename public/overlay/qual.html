@@ -290,6 +290,13 @@ body.l-gross #oben .einheit { display: none; }
       if (vonHand || d.schnitt) {
         schaetzung = vonHand ? Math.round(Number(cfg.punkte))
           : d.schnitt + (d.aehnlich ? 0 : Math.max(0, Number(cfg.zuschlag) || 0));
+        // Nie unter dem Ist-Stand von jetzt (Betreiber, 23.11.2026: Prognose immer leicht nach oben, nie darunter) -
+        // wie der Clamp in /api/qualifikation. Waehrend des Spieltags ein kleiner Aufschlag (die Grenze steigt ja noch),
+        // nach dem Cup (!laeuft) mindestens das Ergebnis, ohne den gezeigten Wert kuenstlich aufzublasen.
+        if (typeof d.tatsaechlich === 'number' && d.tatsaechlich > 0) {
+          const aufschlag = d.laeuft ? Math.max(3, Math.round(d.tatsaechlich * 0.02)) : 0;
+          schaetzung = Math.max(schaetzung, d.tatsaechlich + aufschlag);
+        }
         Look.zahl($('schaetzung'), schaetzung);
         $('oben').hidden = false;
       } else {
