@@ -92,6 +92,8 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
   for (let i = 0; i < roh.length; i++) if (/mobiles*tests*cup/i.test(roh[i].titel)) roh[i] = { ...roh[i], bild: '/cups/mobile-test-cup.jpg' };
   // Die Arenas (Cash Cups, Fight Night) fuehrt Epic ohne Vorschaubild - das offizielle Bild der Ankuendigung, das der Betreiber geschickt hat (26.10.2026), steht stattdessen da.
   for (let i = 0; i < roh.length; i++) if (/arenas?/i.test(roh[i].id) && !roh[i].bild) roh[i] = { ...roh[i], bild: '/cups/arenas-fight-night.webp' };
+  // PlayStation Cup Zero Build: Epic liefert fuer den normalen UND den Zero-Build-PS-Cup dasselbe generische Banner - der Betreiber hat das offizielle Zero-Build-Banner geschickt (24.11.2026). Nur der ZB-Cup bekommt es; der normale behaelt Epics Bild.
+  for (let i = 0; i < roh.length; i++) if (/playstation/i.test(roh[i].id) && /(_zb\b|\bzb\b|zero.?build)/i.test(`${roh[i].id} ${roh[i].titel}`)) roh[i] = { ...roh[i], bild: '/cups/playstation-cup-zero-build.webp' };
   const je = new Map<string, number>();
   for (const c of roh) { const k = c.titel.trim().toLowerCase(); je.set(k, (je.get(k) ?? 0) + 1); }
   const benannt = roh.map((c) => {

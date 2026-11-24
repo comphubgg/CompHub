@@ -42,6 +42,8 @@ export const SAISON_OHNE_MAPS = new Set(['S8', 'S10', 'S11', 'S12', 'S13', 'S27'
 export function cupBild(name: string): string | null {
   const n = name.toLowerCase();
   if (/mobiles*tests*cup/.test(n)) return '/cups/mobile-test-cup.jpg';
+  // PlayStation Cup Zero Build: Epic fuehrt beide PS-Cups mit demselben generischen Banner - der Betreiber hat das offizielle Zero-Build-Banner geschickt (24.11.2026). Der normale PS-Cup bleibt bei Epics Bild.
+  if (/playstation/.test(n) && /(zero build|\bzb\b)/.test(n)) return '/cups/playstation-cup-zero-build.webp';
   if (/summit/.test(n)) return '/cups/major-1-summit-2026.webp';
   if (/world cup/.test(n)) return '/cups/world-cup.webp';
   if (/invitational/.test(n)) return '/cups/fncs-invitational-2022.webp';
