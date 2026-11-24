@@ -2705,6 +2705,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return /\bsolo/.test(woran);
   }, [tabelle, cup, id]);
 
+  /*
+   * Die Teamgroesse fuer den Untertitel "Werte je Duo/Trio/Squad" (Betreiber, 24.11.2026: ein Squads-Cup stand faelschlich als "Duo" da - die Zahl war fest verdrahtet).
+   * Am verlaesslichsten aus der Bestenliste selbst (die groesste Aufstellung, falls einzelne Teams live noch unvollstaendig genannt sind), sonst aus Epics Playlist.
+   */
+  const teamGroesse = useMemo(() => {
+    if (tabelle.length > 0) { const m = Math.max(...tabelle.map((e) => e.players.length)); if (m > 0) return m; }
+    return teamGroesseAus(fenster?.playlist) ?? null;
+  }, [tabelle, fenster]);
+
   useEffect(() => {
     // Ein Druck auf den Reload-Knopf holt die Werte noch einmal - still, ohne dass die Liste verschwindet.
     const vonHand = neuNr !== spielerNeuGesehen.current;
@@ -6011,7 +6020,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 * Spitzenreiters.
                 */}
               <span className="text-[11px] text-slate-500">
-                <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
+                <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : (({ 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[teamGroesse ?? 2] ?? 'Duo')}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
               </span>
             </div>
             {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
