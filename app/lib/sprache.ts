@@ -792,6 +792,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Bereiche auf Standby oder Offline stellen':
     'Set sections to standby or offline',
   'Online': 'Online',
+  'Austragungsort': 'Venue',
   'Standby': 'Standby',
   'Offline': 'Offline',
   'für alle sichtbar und nutzbar': 'visible and usable for everyone',
