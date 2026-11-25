@@ -28,6 +28,8 @@ export const KURATIERTE_TAGS: readonly string[] = [
   'void', 'fear', 'rxb', 'n8', 'cvx', 'ego', 'opi', 'leaf', 'dzd', 'detect', 'vp', 'kos', 'nto', 'flcn', 'qtd', 'havok',
   'gambit', 'evn', 'evr', 'jogo', 'stna', 'fx', 'ftk', 'umplify', 'twis', 'g2', 'og', 'flc', 'ast', 'hwk', 'sfg', 'bpro',
   'vantic', 'wooka', 'ryze', 'fly', 'bglory', 'glore', '1up', 'atlantic',
+  // 25.11.2026: in den Post-Bildern aufgefallen ("[EWC2026] RVNS SkyJump", "bepro natek", "Bepro Malibu" ...).
+  'rvns', 'bepro',
 ];
 
 /** Normalform eines Tag-Kandidaten: Fremdschrift-Zwillinge auf Latein, alles klein, nur Buchstaben/Ziffern. */

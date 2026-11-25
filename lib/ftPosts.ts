@@ -25,6 +25,7 @@
  */
 
 import { flaggeOderRegion, flaggeZeichen, landWaehlen, regionVon } from './spielerFlagge.mjs';
+import { saeubere, teamTags } from './namenSaeubern';
 
 export type FtJeZeile = Array<string | number | null>;
 
@@ -67,6 +68,8 @@ export interface FtKonten {
   twitch: Record<string, string>;
   /** Der Name, wenn es weder @ noch Twitch gibt. */
   namen: Record<string, string>;
+  /** Wessen Name gepflegt ist (der saubere Anzeigename aus dem Profil) - die anderen werden vor dem Zeigen noch von sicheren Team-Tags befreit. */
+  gepflegt?: Record<string, true>;
   /** Weitere Quellen fuers Land, in dieser Reihenfolge nach dem Profil (lib/spielerFlagge.mjs): Fortnite-Flagge (Epic), Noble. */
   spiel?: Record<string, string>;
   noble?: Record<string, string>;
@@ -186,10 +189,13 @@ export function ftKonten(
     // Ohne Streamer-Liste geht das @-Handle vor; twitch.tv nur, wenn es kein X-Konto gibt.
     const tw = eigen && (mitListe ? kanaele.has(eigen.toLowerCase()) : !x) ? eigen : (x ? xZuTwitch.get(x.toLowerCase()) ?? '' : '');
     if (tw) k.twitch[id] = tw;
-    if (p.anzeige) k.namen[id] = p.anzeige;
+    if (p.anzeige) { k.namen[id] = p.anzeige; (k.gepflegt ??= {})[id] = true; }
   }
-  // Der gepflegte Hauptname geht vor dem Anzeigenamen aus dem Profil (wie bisher im Werkzeug).
-  for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt) k.namen[id.toLowerCase()] = n.haupt;
+  /*
+   * Der saubere Anzeigename aus dem Profil geht vor dem Hauptnamen des Namensverzeichnisses (Betreiber, 25.11.2026: in den Post-Bildern standen
+   * "GW S1neD", "AUR t3eny" statt der Spielernamen). Der Hauptname ist Epics roher Ingame-Name mit Team-Tag - er gilt nur noch, wo kein Anzeigename da ist.
+   */
+  for (const [id, n] of Object.entries(namen ?? {})) if (n?.haupt && !k.namen[id.toLowerCase()]) k.namen[id.toLowerCase()] = n.haupt;
   return k;
 }
 
@@ -219,10 +225,23 @@ function passend(kopf: string[], zeilen: string[], mindestens = 3): string {
   return text();
 }
 
+/** Die bekannten Team-Tags (einmal gebaut). */
+let tagSatz: Set<string> | null = null;
+const tags = () => (tagSatz ??= teamTags());
+
 /** Wie ein Spieler bzw. ein Team im Text steht: Flagge und @X-Konto, sonst der Name - nie twitch.tv. */
 function schreibweise(k: FtKonten, ersatzNamen?: Record<string, string>) {
   const klein = (id: string) => id.toLowerCase();
-  const name = (id: string) => k.namen[klein(id)] ?? ersatzNamen?.[id] ?? id.slice(0, 8);
+  /*
+   * Ohne gepflegten Namen der rohe Ingame-Name - aber ohne bekannten Team-Tag und ohne Turnierklammer, wenn das SICHER geht (lib/namenSaeubern, Status
+   * "angewendet": "AUR t3eny" -> "t3eny", "Solary Mikori" -> "Mikori"). Unsichere Faelle bleiben, wie sie sind (Betreiber: "nur wenn 100 % sicher").
+   */
+  const name = (id: string) => {
+    const roh = k.namen[klein(id)] ?? ersatzNamen?.[id] ?? id.slice(0, 8);
+    if (k.gepflegt?.[klein(id)]) return roh;
+    const s = saeubere(roh, tags());
+    return s.status === 'angewendet' ? s.nachher : roh;
+  };
   const konto = (id: string) => {
     const i = klein(id);
     // Immer das X-Konto, nie twitch.tv (Betreiber, 14.11.2026: "immer Twitter"). twitch.tv gibt es nur im Live-Post der Streamer.
