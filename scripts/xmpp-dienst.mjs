@@ -67,6 +67,8 @@ function neu(name) {
     liste: new Set(), listeZeit: 0, listeGeladen: false,
     /** Neuaufbau der Sitzung fuer neue Freunde (siehe freundeNeuAufnehmen). */
     neuaufbauUhr: null, letzterNeuaufbau: 0,
+    /** Welche Match-ID ein Freund aus der Sitzungssuche hat (nicht aus seinem Status) - siehe sitzungenSuchen. */
+    sitzungVonSuche: new Map(),
   };
 }
 
@@ -313,10 +315,65 @@ async function diagnose(id) {
     letztePresences: presenceLog.slice(-15).map((p) => ({ ...p, id: p.id.slice(0, 8) })),
     probeGeschickt: probe,
     sitzungssucheBot: findeBot,
+    sitzungssuche,
     sitzungssucheHaupt: findeHaupt,
     versuch,
   };
 }
+
+/*
+ * Sitzungssuche fuer die Freunde des Bots (Betreiber, 25.11.2026: "finde einen anderen Weg, wie du die Match-ID schneller findest"). Rax war Freund des Bots,
+ * sein Status kam aber nie an (sehr wahrscheinlich "Offline erscheinen"). Epics Sitzungssuche (matchmaking/session/findPlayer) nennt die Sitzung, in der ein
+ * Konto gerade ist - auch vor dem ersten Kill; fuer Fremde ist sie leer (Clix, 7.11.2026), ob sie es fuer FREUNDE ist, war offen. Darum fragt der Dienst
+ * mit dem Bot-Login alle 30 s fuer jeden Freund des Bots. Findet sie etwas, steht der Freund als LIVE mit Match-ID im Finder; ein Status aus XMPP hat
+ * Vorrang und wird nie ueberschrieben. Liefert Epic nichts, aendert sich nichts. Jeder Fund steht im Protokoll und in /diagnose (sitzungssuche).
+ */
+const FINDE_URL = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/matchmaking/session/findPlayer/';
+const SITZUNG_MS = Number(process.env.XMPP_SITZUNG_S || 30) * 1000;
+const sitzungssuche = { abfragen: 0, leer: 0, funde: 0, fehler: 0, letzterFehler: null, letzteRunde: null, protokoll: [] };
+let sucheLaeuft = false;
+async function sitzungenSuchen() {
+  const k = konten.bot;
+  if (sucheLaeuft || !k.verbunden || !k.token || !k.liste.size) return;
+  sucheLaeuft = true;
+  try {
+    for (const id of k.liste) {
+      let sid = null; let playlist = null;
+      try {
+        sitzungssuche.abfragen += 1;
+        const r = await fetch(FINDE_URL + id, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(5_000) });
+        if (!r.ok) { sitzungssuche.fehler += 1; sitzungssuche.letzterFehler = `HTTP ${r.status}`; continue; }
+        const j = await r.json();
+        const sitz = Array.isArray(j) ? j.find((x) => HEX32.test(String(x?.id ?? '').toLowerCase())) : null;
+        if (sitz) { sid = String(sitz.id).toLowerCase(); playlist = sitz.attributes?.PLAYLISTNAME_s ?? null; } else sitzungssuche.leer += 1;
+      } catch (e) { sitzungssuche.fehler += 1; sitzungssuche.letzterFehler = e?.message ?? String(e); continue; }
+      const alt = k.freunde.get(id);
+      const vonSuche = k.sitzungVonSuche.get(id) ?? null;
+      const jetzt = new Date().toISOString();
+      if (sid) {
+        // Eine Match-ID aus dem XMPP-Status geht vor.
+        if (alt?.sessionId && alt.sessionId !== vonSuche) continue;
+        if (vonSuche !== sid) {
+          sitzungssuche.funde += 1;
+          sitzungssuche.protokoll.push({ t: jetzt, id: id.slice(0, 8), sitzung: sid.slice(0, 8), playlist });
+          if (sitzungssuche.protokoll.length > 50) sitzungssuche.protokoll.shift();
+          log(`[bot] Sitzungssuche ${id}: ${vonSuche ?? '-'} -> ${sid} (${playlist ?? '-'})`);
+        }
+        k.freunde.set(id, {
+          sessionId: sid, zeile: alt?.zeile || 'Im Match', playlist: playlist ?? alt?.playlist ?? null, kills: alt?.kills ?? null,
+          seit: alt?.sessionId === sid ? alt.seit : jetzt, zuletzt: jetzt, online: true,
+        });
+        k.sitzungVonSuche.set(id, sid);
+        wechsel(id);
+      } else if (vonSuche) {
+        k.sitzungVonSuche.delete(id);
+        if (alt?.sessionId === vonSuche) { k.freunde.set(id, { ...alt, sessionId: null, seit: null, zuletzt: jetzt }); wechsel(id); }
+      }
+    }
+    sitzungssuche.letzteRunde = new Date().toISOString();
+  } finally { sucheLaeuft = false; }
+}
+setInterval(() => { void sitzungenSuchen(); }, SITZUNG_MS);
 
 /* ------------------------------------------------------------------ Status der Freunde */
 
