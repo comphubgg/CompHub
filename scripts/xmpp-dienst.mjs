@@ -63,8 +63,10 @@ function neu(name) {
     name, freunde: new Map(), verbunden: false, seit: null, fehler: null, konto: null,
     versuche: 0, verbindungen: 0, presencesGesamt: 0, presencesMinute: 0, letzteStanza: 0, gen: 0,
     xmpp: null, ping: null, onlineUhr: null, neuUhr: null, token: null, aus: false,
-    /** Alle Freunde laut Epics Freundesliste (auch offline) - alle 10 min neu, zwei Abrufe insgesamt, nicht je Freund. */
-    liste: new Set(), listeZeit: 0,
+    /** Alle Freunde laut Epics Freundesliste (auch offline) - Haupt-Konto alle 10 min, Bot-Konto alle 2 min (siehe listeHolen), ein Abruf, nicht je Freund. */
+    liste: new Set(), listeZeit: 0, listeGeladen: false,
+    /** Neuaufbau der Sitzung fuer neue Freunde (siehe freundeNeuAufnehmen). */
+    neuaufbauUhr: null, letzterNeuaufbau: 0,
   };
 }
 
@@ -312,9 +314,33 @@ setInterval(async () => {
   } catch (e) { log(`Verlauf nicht geschrieben: ${e.message}`); verlaufGeaendert = true; }
 }, 60_000);
 
-/** Epics Freundesliste des Kontos (ein Abruf) - damit der Admin auch die Freunde sieht, die gerade offline sind. */
-async function listeHolen(k) {
-  if (!k.token || !k.konto || Date.now() - k.listeZeit < 9 * 60_000) return;
+/*
+ * Neue Freunde des Bot-Kontos aufnehmen (Betreiber, 25.11.2026: Rax hatte "comphub." geaddet und war live im Game, stand aber 20+ Minuten nur
+ * "gefunden ueber Standings" da). Epic schickt einer LAUFENDEN XMPP-Sitzung den Status eines neu hinzugekommenen Freundes nicht - erst eine neue
+ * Sitzung bekommt ihn (beim Verbinden fragt der Server alle Freunde ab). Die Stille-Wache greift im vollen Cup nie, dort kommt dauernd Status-Verkehr.
+ * Darum: erscheint in Epics Freundesliste (Bot-Konto alle 2 min, sofort nach jeder Annahme) eine neue Id, wird die Sitzung einmal frisch aufgebaut -
+ * 1 s Pause, die bekannten Status bleiben im Speicher. Hoechstens alle 2 Minuten, damit mehrere Annahmen hintereinander nur einen Neuaufbau kosten.
+ */
+const LISTE_MS = { haupt: 9 * 60_000, bot: 110_000 };
+const NEUAUFBAU_ABSTAND_MS = 2 * 60_000;
+function freundeNeuAufnehmen(k, neu) {
+  log(`[${k.name}] neue Freunde in Epics Liste: ${neu.map((i) => i.slice(0, 8)).join(', ')}`);
+  if (k.neuaufbauUhr) return;
+  const warte = Math.max(3_000, k.letzterNeuaufbau + NEUAUFBAU_ABSTAND_MS - Date.now());
+  k.neuaufbauUhr = setTimeout(() => {
+    k.neuaufbauUhr = null;
+    // Ist die Sitzung inzwischen ohnehin getrennt, holt die naechste die neuen Freunde von selbst.
+    if (!k.verbunden || k.aus) return;
+    k.letzterNeuaufbau = Date.now();
+    log(`[${k.name}] Sitzung neu aufbauen, damit Epic die Status der neuen Freunde schickt`);
+    getrennt(k, 'neue Freunde');
+  }, warte);
+}
+
+/** Epics Freundesliste des Kontos (ein Abruf) - damit der Admin auch die Freunde sieht, die gerade offline sind, und neue Freunde auffallen. */
+async function listeHolen(k, erzwingen = false) {
+  const abstand = LISTE_MS[k.name] ?? 9 * 60_000;
+  if (!k.token || !k.konto || (!erzwingen && Date.now() - k.listeZeit < abstand)) return;
   k.listeZeit = Date.now();
   try {
     const r = await fetch(`${FRIENDS}/friends/api/v1/${k.konto}/summary`, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(15_000) });
@@ -322,8 +348,12 @@ async function listeHolen(k) {
     const j = await r.json();
     const ids = (j.friends ?? []).map((f) => String(f.accountId ?? '').replace(/-/g, '').toLowerCase()).filter((x) => HEX32.test(x));
     if (ids.length !== k.liste.size) log(`[${k.name}] Freundesliste: ${ids.length} Freunde`);
+    // Der erste Abruf nach dem Start ist die Grundlage - die laufende Sitzung kennt diese Freunde schon.
+    const neu = k.listeGeladen ? ids.filter((id) => !k.liste.has(id)) : [];
     k.liste = new Set(ids);
-  } catch (e) { log(`[${k.name}] Freundesliste nicht lesbar: ${e.message}`); k.listeZeit = Date.now() - 8 * 60_000; }
+    k.listeGeladen = true;
+    if (neu.length && k.name === 'bot') freundeNeuAufnehmen(k, neu);
+  } catch (e) { log(`[${k.name}] Freundesliste nicht lesbar: ${e.message}`); k.listeZeit = Date.now() - abstand + 60_000; }
 }
 setInterval(() => { for (const k of Object.values(konten)) if (k.verbunden) void listeHolen(k); }, 60_000);
 
@@ -448,6 +478,8 @@ async function annahme() {
   try {
     const r = await annahmeDurchgang({ konto: k.konto, token: k.token, freigaben, basis: `${FRIENDS}/friends/api/v1` });
     if (r.angenommen.length || r.fehler) log(`[bot] Anfragen: ${r.angenommen.length} angenommen (${r.angenommen.join(', ')}), ${r.liegen} liegen${r.fehler ? `, Fehler: ${r.fehler}` : ''}`);
+    // Neu angenommen: gleich die Liste nachziehen - die neuen Freunde fuehren dann zum Neuaufbau der Sitzung (freundeNeuAufnehmen).
+    if (r.angenommen.length) void listeHolen(k, true);
   } catch (e) { log(`[bot] Annahme: ${e?.message ?? e}`); } finally { annahmeLaeuft = false; }
 }
 setInterval(() => { void annahme(); }, ANNAHME_MS);
