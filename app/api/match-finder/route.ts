@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { vipWerkzeug, wer } from '@/lib/pov';
 import { finde, alleFreunde } from '@/lib/matchFinder';
 import { getToken } from '@/lib/epicCups';
+import { dienstAbruf } from '@/lib/epicFreundeStatus';
 
 /*
  * Der Match-ID-Finder fuer VIPs (lib/matchFinder): GET ?ids=<Konto>,<Konto> (hoechstens zwoelf) - je Spieler das laufende Match (Match-ID zum Zuschauen im
@@ -22,6 +23,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'Nur für VIPs.' }, { status: 403, headers: nie });
   }
   if (!vipWerkzeug(ich, 'matchfinder')) return NextResponse.json({ ok: false, error: 'Für dein Konto nicht freigeschaltet.' }, { status: 403, headers: nie });
+  // ?ansicht=diagnose&id=<epicId>: nur fuer den Admin - was beim Bot-Konto vom Status dieses Kontos ankommt (scripts/xmpp-dienst.mjs, GET /diagnose).
+  if (new URL(request.url).searchParams.get('ansicht') === 'diagnose') {
+    if (ich.rolle !== 'admin') return NextResponse.json({ ok: false, error: 'Nur für den Admin.' }, { status: 403, headers: nie });
+    const id = (new URL(request.url).searchParams.get('id') ?? '').replace(/-/g, '').toLowerCase();
+    if (!/^[0-9a-f]{32}$/.test(id)) return NextResponse.json({ ok: false, error: 'id fehlt' }, { status: 400, headers: nie });
+    const d = await dienstAbruf<Record<string, unknown>>(`/diagnose?id=${id}`);
+    return NextResponse.json(d ? { ok: true, ...d } : { ok: false, error: 'XMPP-Dienst nicht erreichbar oder noch alte Fassung' }, { headers: nie });
+  }
   // ?ansicht=freunde: nur fuer den Admin - alle Epic-Freunde des Bot-Kontos "comphub." mit Live-Status, Match-ID und Verlauf (lib/matchFinder alleFreunde).
   if (new URL(request.url).searchParams.get('ansicht') === 'freunde') {
     if (ich.rolle !== 'admin') return NextResponse.json({ ok: false, error: 'Nur für den Admin.' }, { status: 403, headers: nie });

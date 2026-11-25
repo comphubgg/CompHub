@@ -167,6 +167,7 @@ async function verbinde(k) {
     const von = String(s.attrs.from ?? '').split('@')[0].toLowerCase();
     if (!HEX32.test(von) || von === k.konto) return;
     k.presencesGesamt += 1; k.presencesMinute += 1;
+    presenceMerken(k, von, s);
     if (s.attrs.type === 'unavailable') {
       const alt = k.freunde.get(von);
       if (alt) {
@@ -204,6 +205,54 @@ setInterval(() => {
     if (k.verbunden && Date.now() - k.letzteStanza > STILLE_MS) { log(`[${k.name}] Wache: ${Math.round((Date.now() - k.letzteStanza) / 1000)} s keine Stanza`); getrennt(k, 'Stille'); }
   }
 }, 10_000);
+
+/* ------------------------------------------------------------------ Diagnose */
+
+/*
+ * Was beim Bot-Konto ankommt (Betreiber, 25.11.2026: Rax war Freund des Bots und im offiziellen Client - eingeloggt als comphub. - online und einladbar,
+ * der Dienst bekam aber keinen Status von ihm, in einer Stunde nur von einem einzigen Freund). Die letzten 400 Presences des Bot-Kontos mit Absender-App
+ * (Resource, etwa "V2:Fortnite:WIN"), Typ, show, Statuszeile und dem Anfang der SessionId - und GET /diagnose?id=<epicId> legt Epics Sicht daneben
+ * (Freundschaft, "zuletzt online" aus dem Presence-Dienst) und schickt eine Status-Abfrage (probe) an das Konto; die Antwort steht beim naechsten Aufruf
+ * im Protokoll. Keine Schluessel in der Antwort.
+ */
+const presenceLog = [];
+function presenceMerken(k, von, s) {
+  if (k.name !== 'bot') return;
+  let j = {};
+  try { j = JSON.parse(s.getChildText('status') ?? '{}'); } catch { /* keine JSON-Zeile */ }
+  const res = String(s.attrs.from ?? '').split('/')[1] ?? '';
+  presenceLog.push({
+    t: new Date().toISOString(), id: von, app: res.split(':').slice(0, 3).join(':') || '-', typ: s.attrs.type ?? 'available',
+    show: s.getChildText('show') ?? null, zeile: String(j.Status ?? ''), session: j.SessionId ? String(j.SessionId).slice(0, 8) : null,
+  });
+  if (presenceLog.length > 400) presenceLog.splice(0, presenceLog.length - 400);
+}
+async function diagnose(id) {
+  const k = konten.bot;
+  const zeitlich = (u) => fetch(u, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(1_500) })
+    .then(async (r) => ({ status: r.status, text: (await r.text()).slice(0, 4000) })).catch((e) => ({ status: 0, text: e.message }));
+  const bindestriche = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+  const [fr, lo] = await Promise.all([
+    zeitlich(`${FRIENDS}/friends/api/v1/${k.konto}/friends/${id}`),
+    zeitlich(`https://presence-public-service-prod.ol.epicgames.com/presence/api/v1/_/${k.konto}/last-online`),
+  ]);
+  let zuletztOnline = null;
+  try { const j = JSON.parse(lo.text); zuletztOnline = j?.[id] ?? j?.[bindestriche] ?? `nicht dabei (${Object.keys(j ?? {}).length} Eintraege)`; } catch { zuletztOnline = `HTTP ${lo.status}: ${lo.text.slice(0, 200)}`; }
+  let probe = 'keine Verbindung';
+  if (k.xmpp && k.verbunden) { probe = new Date().toISOString(); k.xmpp.send(xml('presence', { type: 'probe', to: `${id}@prod.ol.epicgames.com` })).catch(() => {}); }
+  const jeAbsender = {};
+  for (const p of presenceLog) jeAbsender[p.id.slice(0, 8)] = (jeAbsender[p.id.slice(0, 8)] ?? 0) + 1;
+  return {
+    bot: { verbunden: k.verbunden, seit: k.seit, presences: k.presencesGesamt, freundeMitStatus: k.freunde.size, freundesliste: k.liste.size, inListe: k.liste.has(id) },
+    freundschaft: { status: fr.status, text: fr.text.slice(0, 400) },
+    zuletztOnline,
+    statusImDienst: k.freunde.get(id) ?? null,
+    presencesVomZiel: presenceLog.filter((p) => p.id === id).slice(-15),
+    presencesJeAbsender: jeAbsender,
+    letztePresences: presenceLog.slice(-15).map((p) => ({ ...p, id: p.id.slice(0, 8) })),
+    probeGeschickt: probe,
+  };
+}
 
 /* ------------------------------------------------------------------ Status der Freunde */
 
@@ -397,6 +446,13 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (GEHEIM && req.headers.authorization !== `Bearer ${GEHEIM}`) { res.writeHead(401).end(); return; }
   if (u.pathname === '/status') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify({ status: status() })); return; }
+  if (u.pathname === '/diagnose') {
+    const id = String(u.searchParams.get('id') ?? '').replace(/-/g, '').toLowerCase();
+    if (!HEX32.test(id)) { res.writeHead(400).end(); return; }
+    void diagnose(id).then((d) => res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(d)))
+      .catch((e) => res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ fehler: e?.message ?? String(e) })));
+    return;
+  }
   if (u.pathname === '/freunde') {
     const alle = u.searchParams.get('alle') === '1';
     // Nur die Freundesliste des Bot-Kontos "comphub." - nicht die des persoenlichen Kontos des Betreibers (bot-only, 23.11.2026).
