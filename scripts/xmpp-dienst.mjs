@@ -291,6 +291,14 @@ async function diagnose(id) {
   ]);
   let zuletztOnline = null;
   try { const j = JSON.parse(lo.text); zuletztOnline = j?.[id] ?? j?.[bindestriche] ?? `nicht dabei (${Object.keys(j ?? {}).length} Eintraege)`; } catch { zuletztOnline = `HTTP ${lo.status}: ${lo.text.slice(0, 200)}`; }
+  /*
+   * Epics Sitzungssuche (matchmaking/session/findPlayer): fuer Fremde leer (Clix, 7.11.2026) - aber gilt das auch fuer FREUNDE? Rax ist Freund des
+   * Bots, nicht des Haupt-Kontos (Betreiber, 25.11.2026: Twitch-Sub, damit er comphub. addet). Darum beide Logins nebeneinander.
+   */
+  const FINDE = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/matchmaking/session/findPlayer/';
+  const finde = (tok) => fetch(FINDE + id, { headers: { Authorization: `bearer ${tok}` }, signal: AbortSignal.timeout(1_500) })
+    .then(async (r) => ({ status: r.status, text: (await r.text()).slice(0, 1500) })).catch((e) => ({ status: 0, text: e.message }));
+  const [findeBot, findeHaupt] = await Promise.all([k.token ? finde(k.token) : null, konten.haupt.token ? finde(konten.haupt.token) : null]);
   let probe = 'keine Verbindung';
   if (k.xmpp && k.verbunden) { probe = new Date().toISOString(); k.xmpp.send(xml('presence', { type: 'probe', to: `${id}@prod.ol.epicgames.com` })).catch(() => {}); }
   const jeAbsender = {};
@@ -304,6 +312,8 @@ async function diagnose(id) {
     presencesJeAbsender: jeAbsender,
     letztePresences: presenceLog.slice(-15).map((p) => ({ ...p, id: p.id.slice(0, 8) })),
     probeGeschickt: probe,
+    sitzungssucheBot: findeBot,
+    sitzungssucheHaupt: findeHaupt,
     versuch,
   };
 }
