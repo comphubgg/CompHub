@@ -36,7 +36,7 @@ interface Eintrag {
 interface Replay { farmHolz?: number; farmStein?: number; farmMetall?: number; samHolz?: number; samStein?: number; samMetall?: number; killsNachAus?: number; jeSpiel?: Array<Array<string | number | null>>; schussEcht?: number; editOk?: number; schildHeilEcht?: number; schildWegEcht?: number; sturmSchaden?: number; busDank?: number; lebenWeg?: number; schadenAlle?: number; schadenBoden?: number; selbstHolz?: number; selbstStein?: number; selbstMetall?: number; editZahl?: number; editSek?: number; heilHp?: number; schildWeg?: number; schuss?: number; axt?: number; bauHolz?: number; bauStein?: number; bauMetall?: number; clutch?: number; lebenSek?: number; streckeM?: number; kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
-  ok: boolean; error?: string; id: string; name: string; dabei: boolean; ausserhalbListe?: boolean;
+  ok: boolean; error?: string; id: string; name: string; dabei: boolean; ausserhalbListe?: boolean; frischerStand?: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
   replayTeil?: { matches?: number; vonMindestens?: number } | null;
@@ -579,7 +579,10 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
       {wahl && fehler && !laedt && <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>{fehler}</T></p>}
       {wahl && daten && !laedt && !daten.dabei && (
         <p className="mt-4 rounded-xl border border-white/[0.08] bg-zinc-900/50 px-4 py-3 text-sm text-slate-300">
-          <b className="text-slate-100">{daten.name || wahl.name}</b> <T>war in diesem Cup nicht dabei.</T>
+          <b className="text-slate-100">{daten.name || wahl.name}</b>{' '}
+          {daten.frischerStand
+            ? <T>steht noch nicht in der Bestenliste dieses Cups — solange der Cup läuft, kann es dauern, bis du auftauchst; nach dem Cup kommen die Werte aus den Replays.</T>
+            : <T>war in diesem Cup nicht dabei.</T>}
         </p>
       )}
 

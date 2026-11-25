@@ -793,6 +793,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Set sections to standby or offline',
   'Online': 'Online',
   'Austragungsort': 'Venue',
+  'steht noch nicht in der Bestenliste dieses Cups — solange der Cup läuft, kann es dauern, bis du auftauchst; nach dem Cup kommen die Werte aus den Replays.': "isn't in this cup's leaderboard yet — while the cup is live it can take a while before you show up; after the cup the numbers come from the replays.",
   'Standby': 'Standby',
   'Offline': 'Offline',
   'für alle sichtbar und nutzbar': 'visible and usable for everyone',

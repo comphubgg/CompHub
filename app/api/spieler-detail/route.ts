@@ -308,6 +308,8 @@ export async function GET(request: Request) {
       ok: true, id, name: mitglieder.find((m) => m.ich)?.name || name,
       dabei: !!eintrag || ((clutch as unknown as { spiele?: Record<string, number> } | null)?.spiele?.[id] ?? 0) > 0 || !!eigene?.spieler?.[id],
       ausserhalbListe: !eintrag,
+      // Frischer Leaderboard-Schnappschuss (unter 20 Min) = der Cup laeuft gerade / ist eben vorbei. Dann ist "nicht gefunden" nicht dasselbe wie "nicht dabei" (Betreiber, 25.11.2026: "ich spiele den Cup, trotzdem steht nicht dabei").
+      frischerStand: !laeuftNoch(fenster),
       rank: eintrag?.rank ?? null, gesamt,
       // Epics Perzentil (Osirion zeigt dasselbe: Rang 4200 = Top 2,3 %); Rang durch die 10.000 Plaetze der Liste ergab 42 %.
       top: eintrag && typeof eintrag.percentile === 'number' && eintrag.percentile > 0 ? +(eintrag.percentile * 100).toFixed(1)
