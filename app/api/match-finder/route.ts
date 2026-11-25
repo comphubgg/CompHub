@@ -28,7 +28,8 @@ export async function GET(request: Request) {
     if (ich.rolle !== 'admin') return NextResponse.json({ ok: false, error: 'Nur für den Admin.' }, { status: 403, headers: nie });
     const id = (new URL(request.url).searchParams.get('id') ?? '').replace(/-/g, '').toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(id)) return NextResponse.json({ ok: false, error: 'id fehlt' }, { status: 400, headers: nie });
-    const d = await dienstAbruf<Record<string, unknown>>(`/diagnose?id=${id}`);
+    const versuch = new URL(request.url).searchParams.get('versuch') === '1' ? '&versuch=1' : '';
+    const d = await dienstAbruf<Record<string, unknown>>(`/diagnose?id=${id}${versuch}`);
     return NextResponse.json(d ? { ok: true, ...d } : { ok: false, error: 'XMPP-Dienst nicht erreichbar oder noch alte Fassung' }, { headers: nie });
   }
   // ?ansicht=freunde: nur fuer den Admin - alle Epic-Freunde des Bot-Kontos "comphub." mit Live-Status, Match-ID und Verlauf (lib/matchFinder alleFreunde).

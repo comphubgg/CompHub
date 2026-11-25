@@ -227,6 +227,59 @@ function presenceMerken(k, von, s) {
   });
   if (presenceLog.length > 400) presenceLog.splice(0, presenceLog.length - 400);
 }
+/*
+ * Versuch (Betreiber, 25.11.2026): Bei der Bot-Sitzung kam von KEINEM echten Spieler ein Status an - nur das Echo des eigenen Haupt-Kontos. Welche
+ * Anmeldeart bekommt Status? GET /diagnose?id=..&versuch=1 startet drei zusaetzliche Sitzungen des Bot-Kontos nebeneinander (je 45 s): wie der Dienst
+ * (Fortnite, "away"), als Epic-Launcher ("away"), und als Fortnite ohne "away" (online). Jede zaehlt, von wem Status kommt. Der Live-Betrieb laeuft
+ * unveraendert weiter; die Sitzungen werden danach bei Epic geschlossen. Das Ergebnis steht in jedem weiteren /diagnose unter "versuch".
+ */
+let versuch = null;
+async function versuchStarten() {
+  if (versuch?.laeuft) return;
+  const a = await zugangVon('bot').catch(() => null);
+  if (!a) { versuch = { laeuft: false, fehler: 'kein Bot-Zugang' }; return; }
+  const varianten = [
+    { name: 'fortnite-away (wie Dienst)', resource: 'V2:Fortnite:WIN::', show: 'away' },
+    { name: 'launcher-away', resource: 'V2:launcher:WIN::', show: 'away' },
+    { name: 'fortnite-online', resource: 'V2:Fortnite:WIN::', show: null },
+  ];
+  versuch = { laeuft: true, start: new Date().toISOString(), ergebnisse: {} };
+  await Promise.all(varianten.map(async (v) => {
+    const erg = versuch.ergebnisse[v.name] = { verbunden: false, presences: 0, vonFreunden: {}, beispiele: [], fehler: null };
+    let zugang = null; let x = null;
+    try {
+      zugang = await anmelden(a);
+      x = client({ service: XMPP_URL, domain: 'prod.ol.epicgames.com', resource: `${v.resource}${crypto.randomUUID().replace(/-/g, '').toUpperCase()}`, username: zugang.accountId, password: zugang.token });
+      try { x.reconnect?.stop?.(); } catch { /* egal */ }
+      x.on('error', (e) => { erg.fehler = e?.message ?? String(e); });
+      x.on('stanza', (st) => {
+        if (!st.is('presence')) return;
+        const id = String(st.attrs.from ?? '').split('@')[0].toLowerCase();
+        if (!HEX32.test(id) || id === zugang.accountId) return;
+        erg.presences += 1; erg.vonFreunden[id.slice(0, 8)] = (erg.vonFreunden[id.slice(0, 8)] ?? 0) + 1;
+        if (erg.beispiele.length < 6) {
+          let j = {}; try { j = JSON.parse(st.getChildText('status') ?? '{}'); } catch { /* egal */ }
+          erg.beispiele.push({ id: id.slice(0, 8), app: (String(st.attrs.from ?? '').split('/')[1] ?? '').split(':').slice(0, 3).join(':'), typ: st.attrs.type ?? 'available', zeile: String(j.Status ?? '') });
+        }
+      });
+      x.on('online', async () => {
+        erg.verbunden = true;
+        const kinder = [xml('status', {}, JSON.stringify({ Status: '', bIsPlaying: false, bIsJoinable: false, bHasVoiceSupport: false, SessionId: '', Properties: {} }))];
+        if (v.show) kinder.push(xml('show', {}, v.show));
+        await x.send(xml('presence', {}, ...kinder)).catch(() => {});
+      });
+      await x.start();
+      await new Promise((r) => setTimeout(r, 45_000));
+    } catch (e) { erg.fehler = e?.message ?? String(e); }
+    finally {
+      try { x?.removeAllListeners?.(); x?.on?.('error', () => {}); await x?.stop?.(); } catch { /* egal */ }
+      if (zugang) sitzungZu(zugang.token);
+    }
+  }));
+  versuch.laeuft = false; versuch.ende = new Date().toISOString();
+  log(`Versuch fertig: ${Object.entries(versuch.ergebnisse).map(([n, e]) => `${n}: ${e.presences} Status von ${Object.keys(e.vonFreunden).length} Freunden`).join(' | ')}`);
+}
+
 async function diagnose(id) {
   const k = konten.bot;
   const zeitlich = (u) => fetch(u, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(1_500) })
@@ -251,6 +304,7 @@ async function diagnose(id) {
     presencesJeAbsender: jeAbsender,
     letztePresences: presenceLog.slice(-15).map((p) => ({ ...p, id: p.id.slice(0, 8) })),
     probeGeschickt: probe,
+    versuch,
   };
 }
 
@@ -449,6 +503,7 @@ const server = http.createServer((req, res) => {
   if (u.pathname === '/diagnose') {
     const id = String(u.searchParams.get('id') ?? '').replace(/-/g, '').toLowerCase();
     if (!HEX32.test(id)) { res.writeHead(400).end(); return; }
+    if (u.searchParams.get('versuch') === '1') void versuchStarten();
     void diagnose(id).then((d) => res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(d)))
       .catch((e) => res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ fehler: e?.message ?? String(e) })));
     return;
