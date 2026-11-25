@@ -177,11 +177,22 @@ export async function GET(request: Request) {
     const epicZeile = r.entries.find((e) => (e.players ?? []).some((pl) => normId(pl.id) === id));
     const ausVorrat: CupEintrag | undefined = !epicZeile && vorratZeile ? (vorratZeile as unknown as CupEintrag) : undefined;
     const eintrag: CupEintrag | undefined = epicZeile ?? ausVorrat;
-    const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
+    // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
+    const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
+    /*
+     * Ausserhalb der besten 10.000 gibt es keine Bestenlisten-Zeile und damit kein Team (Betreiber, 25.11.2026: "Outside the top 10,000 - kannst du
+     * nicht meinen Mate noch hinklatschen?"). Die eigene Auswertung kennt es aber: scripts/eigene-auswerten.mjs holt die Teamkonten direkt bei Epic
+     * (teamAccountIds, auch unter Platz 10.000) und legt je Mitglied einen Eintrag an - mit Name und Werten. Dann stehen die Mates daneben.
+     */
+    const teamAusEigenen = !eintrag && eigene?.spieler
+      ? [...new Set(Object.keys(eigene.spieler).map(normId))].filter((i) => kontoOk(i) && i !== id)
+      : [];
+    const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id, ...teamAusEigenen];
 
-    // Namen: aus der Bestenliste, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
+    // Namen: aus der Bestenliste, dann aus der eigenen Auswertung, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
     const namen = new Map<string, string>();
     for (const x of eintrag?.players ?? []) namen.set(normId(x.id), x.name);
+    for (const [k, v] of Object.entries(eigene?.spieler ?? {})) if (v?.name && !namen.get(normId(k))) namen.set(normId(k), v.name);
     if (ids.some((i) => !namen.get(i))) {
       try {
         const { token } = await getToken();
@@ -219,8 +230,6 @@ export async function GET(request: Request) {
     const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
 
-    // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
-    const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
     const eigeneKomplett = !!eigene && eigene.gelesen >= eigene.sitzungen;
     const kontext = await spielerKontext().catch(() => null);
     const soloEpic = !!eintrag && eintrag.players.length === 1;
