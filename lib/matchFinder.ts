@@ -119,7 +119,11 @@ function liveMerken(spieler: Record<string, { live: FinderLive | null }>) {
   void merke(funde).catch(() => {});
 }
 
-export interface FreundZeile { id: string; name: string; live: FinderLive | null; verlauf: VerlaufEintrag[] }
+export interface FreundZeile {
+  id: string; name: string; live: FinderLive | null; verlauf: VerlaufEintrag[];
+  /** Eingeloggt - auch in der Lobby ohne Match (gruener Punkt), und was er gerade macht, wie in Fortnites Freundesliste (Betreiber, 25.11.2026). */
+  online: boolean; zeile: string | null;
+}
 
 /*
  * Fuer den Admin (Betreiber, 17.11.2026): ALLE Epic-Freunde des Bot-Kontos "comphub." - NUR dieses Konto, nicht das persoenliche des Betreibers ("haupt",
@@ -151,10 +155,15 @@ export async function alleFreunde(): Promise<{ freunde: FreundZeile[]; quelle: '
   ]);
   const freunde: FreundZeile[] = ids.map((id) => {
     const f = status.get(id);
-    return { id, name: namen[id] ?? id.slice(0, 8), live: f ? freundLive(f, fenster) : null, verlauf: (verlauf[id] ?? []).slice(0, 20) };
+    // Aeltere Dienst-Staende kennen "online" nicht: "abgemeldet" leert dort die Statuszeile, also heisst eine Zeile (oder eine Match-ID) eingeloggt.
+    const online = !!f && (f.online ?? (!!f.zeile || !!f.sessionId));
+    return {
+      id, name: namen[id] ?? id.slice(0, 8), live: f ? freundLive(f, fenster) : null, verlauf: (verlauf[id] ?? []).slice(0, 20),
+      online, zeile: online && f?.zeile ? f.zeile : null,
+    };
   });
   liveMerken(Object.fromEntries(freunde.map((f) => [f.id, f])));
-  freunde.sort((a, b) => Number(!!b.live) - Number(!!a.live) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  freunde.sort((a, b) => Number(!!b.live) - Number(!!a.live) || Number(b.online) - Number(a.online) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   return { freunde, quelle };
 }
 

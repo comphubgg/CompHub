@@ -26,7 +26,7 @@ interface FCup { windowId: string; titel: string; region: string; live: boolean 
 /** Eine Sitzung im Verlauf (lib/matchVerlauf): zuerst und zuletzt gesehen, Cup oder Playlist. */
 interface FVerlauf { matchId: string; von: string; bis: string; playlist: string | null; zeile?: string; windowId?: string | null; titel?: string | null }
 interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[]; verlauf?: Record<string, FVerlauf[]> }
-interface FFreund { id: string; name: string; live: FLive | null; verlauf: FVerlauf[] }
+interface FFreund { id: string; name: string; live: FLive | null; verlauf: FVerlauf[]; online?: boolean; zeile?: string | null }
 
 const SPEICHER = 'match-finder-favoriten';
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
@@ -231,11 +231,12 @@ function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: str
   const q = filter.trim().toLowerCase();
   const liste = (freunde ?? []).filter((f) => !q || f.name.toLowerCase().includes(q) || f.id.includes(q));
   const live = (freunde ?? []).filter((f) => f.live).length;
+  const online = (freunde ?? []).filter((f) => f.online).length;
   return (
     <section data-alle-freunde className="space-y-3">
       <div className={`${karte} flex flex-wrap items-center gap-3`}>
         <p className="text-sm text-slate-300">
-          {freunde ? <>{freunde.length} {t('Freunde')} · <span className="font-semibold text-red-400">{live} {t('live')}</span></> : t('Wird geladen …')}
+          {freunde ? <>{freunde.length} {t('Freunde')} · <span className="font-semibold text-red-400">{live} {t('live')}</span> · <span className="font-semibold text-emerald-400">{online} online</span></> : t('Wird geladen …')}
         </p>
         <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('Name filtern')}
           className="ml-auto w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500 sm:w-64" />
@@ -244,10 +245,17 @@ function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: str
       {liste.map((f) => (
         <article key={f.id} data-freund={f.id} className={karte}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="truncate text-base font-bold text-slate-100">{f.name}</p>
+            {/* Gruener Punkt = eingeloggt (auch in der Lobby, ohne Match), darunter, was er gerade macht - wie in Fortnites Freundesliste (Betreiber, 25.11.2026). */}
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 truncate text-base font-bold text-slate-100">
+                <span title={f.online ? 'Online' : 'Offline'} className={`h-2.5 w-2.5 shrink-0 rounded-full ${f.online ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-zinc-600'}`} />
+                <span className="truncate">{f.name}</span>
+              </p>
+              {f.online && f.zeile && <p className="mt-0.5 truncate pl-[18px] text-xs text-emerald-300/90">{f.zeile}</p>}
+            </div>
             {f.live
               ? <span className="flex items-center gap-1.5 text-xs font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
-              : <span className="text-xs text-slate-500">{t('Nicht live')}</span>}
+              : <span className={`text-xs ${f.online ? 'font-semibold text-emerald-400' : 'text-slate-500'}`}>{f.online ? 'Online' : t('Offline')}</span>}
           </div>
           {f.live && <LiveKasten live={f.live} kopiert={kopiert} kopieren={kopieren} />}
           <Verlauf eintraege={f.verlauf} liveId={f.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />

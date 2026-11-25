@@ -29,6 +29,8 @@ export interface FreundStatus {
   /** Seit wann diese Sitzung bekannt ist. */
   seit: string | null;
   zuletzt: string;
+  /** Eingeloggt (auch in der Lobby, ohne Match) - false nach "abgemeldet". Fehlt bei Status aus aelteren Dienst-Staenden. */
+  online?: boolean;
 }
 
 interface Zustand {

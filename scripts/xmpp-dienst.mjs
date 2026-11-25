@@ -171,7 +171,7 @@ async function verbinde(k) {
       const alt = k.freunde.get(von);
       if (alt) {
         if (alt.sessionId) log(`[${k.name}] SessionId ${von}: ${alt.sessionId} -> - (abgemeldet)`);
-        k.freunde.set(von, { ...alt, sessionId: null, seit: null, zeile: '', zuletzt: new Date().toISOString() }); wechsel(von, alt);
+        k.freunde.set(von, { ...alt, sessionId: null, seit: null, zeile: '', online: false, zuletzt: new Date().toISOString() }); wechsel(von, alt);
       }
       return;
     }
@@ -217,7 +217,9 @@ function lies(k, von, roh) {
   const jetzt = new Date().toISOString();
   if ((alt?.sessionId ?? null) !== id) log(`[${k.name}] SessionId ${von}: ${alt?.sessionId ?? '-'} -> ${id ?? '-'} (${stats?.playlist ?? '-'}, "${String(j.Status ?? '')}")`);
   k.freunde.set(von, {
-    sessionId: id, zeile: String(j.Status ?? ''),
+    // online: Epic schickt einen Status nur, solange er eingeloggt ist - "unavailable" (oben) setzt es zurueck. zeile = was er gerade macht,
+    // genau wie in Fortnites Freundesliste ("Battle Royale Lobby - 1 / 4", "1v1 Buildfights" ...), auch ohne Match-ID (Betreiber, 25.11.2026).
+    sessionId: id, zeile: String(j.Status ?? ''), online: true,
     playlist: stats?.playlist && stats.playlist !== 'None' ? stats.playlist : null,
     kills: typeof stats?.numKills === 'number' ? stats.numKills : null,
     seit: id ? (alt?.sessionId === id ? alt.seit : jetzt) : null,
