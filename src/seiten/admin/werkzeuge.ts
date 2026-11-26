@@ -29,7 +29,7 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'status', pfad: '/admin?bereich=statistik', titel: 'Status & visitors', text: 'Jobs (incl. fast lane), load times, offline pages, visitors and usage', gruppe: 'live', stichworte: 'statistics visitors usage jobs status' },
 
   // Inhalte
-  { slug: 'tweets', pfad: '/admin/tweets', titel: 'Posts', text: 'Create stat posts', gruppe: 'inhalte', stichworte: 'posts tweets x twitter stats beitraege' },
+  { slug: 'tweets', pfad: '/admin/tweets', titel: 'Posts', text: 'Create stat posts', gruppe: 'inhalte', eigen: true, stichworte: 'posts tweets x twitter stats beitraege' },
   { slug: 'daily-posts', pfad: '/posts', titel: 'Daily posts', text: 'The three posts of the day with text and image', gruppe: 'inhalte', stichworte: 'daily posts today' },
   { slug: 'post-ideen', pfad: '/admin/post-ideen', titel: 'Post ideas', text: 'Two ready posts for X every day from real data: image and text', gruppe: 'inhalte', stichworte: 'post ideas daily x orgs earnings banner' },
   { slug: 'tiktok', pfad: '/admin/tiktok', titel: 'TikTok', text: 'The daily video to download', gruppe: 'inhalte', stichworte: 'video clips' },

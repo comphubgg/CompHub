@@ -11,6 +11,8 @@ import Vips from './Vips';
 import Spieler from './Spieler';
 import Sektionen from './Sektionen';
 import Kontakt from './Kontakt';
+import { portiert } from './port/Portiert';
+import TweetSeite from './tweets/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -19,7 +21,9 @@ import { Laedt, NurAdmins, feld } from './teile';
  * entfernen."). Links alle Werkzeuge nach Gruppen (werkzeuge.ts - jedes Werkzeug der echten Seite), rechts das gewaehlte. Im Hub gebaut sind die mit
  * "eigen"; alle anderen laufen als echte Seite im Rahmen (Rahmen.tsx). Nur fuer Admins - alle anderen sehen eine freundliche Karte.
  */
-const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: Live, 'vip-access': VipZugaenge, vips: Vips, players: Spieler, sections: Sektionen, contact: Kontakt };
+const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: Live, 'vip-access': VipZugaenge, vips: Vips, players: Spieler, sections: Sektionen, contact: Kontakt,
+  tweets: portiert(TweetSeite, 'Content'),
+};
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */
 function useAdmin(): Wer | null | 'laedt' {

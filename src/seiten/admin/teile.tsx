@@ -12,13 +12,13 @@ export const knopfHaupt = `${knopf} border-sky-400 bg-sky-400 text-[#06080f] hov
 export const knopfGefahr = `${knopf} border-rose-500/40 text-rose-300 hover:border-rose-400 hover:bg-rose-500/10`;
 
 /** Kopf eines Werkzeugs: Gruppe, Titel, Satz - rechts "Classic view" (die echte Seite im Rahmen). */
-export function WerkzeugKopf({ ueber, titel, text, klassisch, rechts }: { ueber: string; titel: string; text: string; klassisch?: () => void; rechts?: ReactNode }) {
+export function WerkzeugKopf({ ueber, titel, text, klassisch, rechts }: { ueber: ReactNode; titel: ReactNode; text?: ReactNode; klassisch?: () => void; rechts?: ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-end gap-4">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">{ueber}</p>
         <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-white">{titel}</h1>
-        <p className="mt-1.5 text-sm text-white/55">{text}</p>
+        {text && <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-white/55">{text}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {rechts}

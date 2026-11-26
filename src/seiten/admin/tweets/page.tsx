@@ -1,0 +1,5320 @@
+// Beitragsvorlagen fuer X/Twitter: Cup waehlen, Vorlage waehlen, fertigen
+// Text kopieren und die passende Grafik als PNG herunterladen.
+//
+// Alle Zahlen stammen aus Epics Turnierdaten. Kennzahlen, die Epic zu einem
+// Turnier nicht mitschickt, tauchen hier gar nicht erst auf - es wird nichts
+// geschaetzt und nichts ergaenzt.
+
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { rundenBeschriftung } from '../port/lib/overlayCups';
+import { MARKE } from '../port/lib/marke';
+
+/*
+ * Kurzbefehl-Feld und "Uebernehmen & eigene Bilder" sind aus dem Werkzeug genommen (Betreiber, 19.10.2026: "das ist alles viel zu kompliziert, die Kurzbefehle und
+ * den Import brauche ich nicht"). Der Code bleibt; mit true kommen beide zurueck.
+ */
+const KURZBEFEHL_UND_IMPORT_SICHTBAR = false;
+import { kernname, namensSchluessel } from '../port/lib/homoglyph';
+
+import T from '../port/app/components/T';
+import SeitenKopf from '../port/app/components/SeitenKopf';
+import { NurAdmins } from '../teile';
+import { useSprache } from '../port/app/components/SprachProvider';
+import { speichereAdresse } from '../port/app/lib/bildSpeichern';
+import { titelMit } from '../port/lib/cupTitel';
+import { tweetLaenge } from '../port/lib/ftPosts';
+import type { FtAntwort } from '../port/lib/ftPostsDaten';
+import FtBild from './FtBild';
+import StatKarte, { type StatKartePerson } from './StatKarte';
+import { einzelZeile, fuerEinzelne, fuerSpielerKarte, spaltenName, spielerKarteKacheln, vereinheitlichen, wertText, dauer } from './kennzahlen';
+import type { StatKarteWert } from '../port/lib/statKarteBild';
+import { STAT_KARTE_WERTE } from '../port/lib/statKarteBild';
+interface Fenster {
+  status: string; begin: number;
+  /** Fehlt bei nachgetragenen Turnieren. */
+  end?: number;
+  eventId: string; windowId: string; region: string; istFinale: boolean;
+  /** Welche Marken dieser Spieltag bis zu welchem Platz vergibt - die Linie, ab der man weiter ist. */
+  marken?: Array<{ token: string; bis: number }>;
+}
+interface Cup {
+  id: string; titel: string; art: string; global: boolean;
+  regionen: Record<string, Fenster[]>;
+  live: boolean; vorbei: boolean;
+  naechsterStart: number | null; letzterStart: number | null;
+}
+/**
+ * Die Anfangszeiten der Spieltage, die schon begonnen haben. Ein kommender Termin darf den Cup nicht datieren: der FNCS Solos Last Chance Qualifier stand mit
+ * "21.10." in der Liste, obwohl er am 19. und 20. lief - der Betreiber (20.10.2026) suchte ihn unter dem gestrigen Tag und fand ihn nicht.
+ */
+function begonneneZeiten(c: Cup): number[] {
+  const alle = Object.values(c.regionen).flat();
+  const gelaufen = alle.filter((f) => f.status !== 'kommt').map((f) => f.begin);
+  return gelaufen.length ? gelaufen : alle.map((f) => f.begin);
+}
+interface Platz {
+  rank: number; spieler: string[]; wert: number; roh: number;
+  /** Epic-Konto-IDs in derselben Reihenfolge wie die Namen. */
+  ids?: string[];
+  /** Platz in dieser Kennzahl mit Gleichstand - liefert app/api/cup-stats. */
+  statPlatz?: number;
+}
+interface Bestenliste {
+  schluessel: string; titel: string; symbol: string;
+  einheit: string | null;
+  /** Werte in Sekunden - angezeigt als "1h 58m" / "7m 55s" (app/api/cup-stats schickt das mit). */
+  zeit?: boolean;
+  nachkomma?: number;
+  /** Die Spitze - das, was auf der Kachel steht. */
+  plaetze: Platz[];
+  /** Das ganze Feld in derselben Sortierung. Fuellt die Vollansicht. */
+  alle?: Platz[];
+}
+interface Stats {
+  teams: number; spiele: number;
+  bestenlisten: Bestenliste[]; geliefert: string[];
+}
+interface Eintrag {
+  rank: number; points: number; elims: number; games: number;
+  /**
+   * Gewonnene Runden.
+   *
+   * Kommt direkt von Epic: gezaehlt werden die Spiele mit Platz eins, dazu
+   * Epics eigener Sieg-Zaehler. Nichts daran ist gerechnet oder geschaetzt.
+   */
+  wins: number;
+  /**
+   * Die einzelnen Runden dieses Spieltags.
+   *
+   * Gebraucht fuer die Frage, in welchem Spiel ein Sieg gefallen ist. Die
+   * Kennung der Runde ist bei allen Teams dieselbe - darueber laesst sich
+   * eine lobbyweite Nummer bilden, statt jedem Team eine eigene zu geben.
+   */
+  matches?: Array<{ sessionId?: string; endTime?: string; placement?: number }>;
+  /** Die beste Platzierung des Tages. Null, wenn Epic keine mitschickt. */
+  bestPlace?: number | null;
+  players: Array<{ name: string; id?: string }>;
+
+  // Die uebrigen Werte, die Epic je Eintrag mitschickt. Bei einem Duo sind es
+  // Teamsummen; bei einem Solo-Cup besteht der Eintrag aus einem Spieler,
+  // dann sind es dessen eigene Zahlen. Genau das nutzt der Rueckfall weiter
+  // unten aus.
+  damage?: number;
+  damageTaken?: number;
+  headshots?: number;
+  timeAlive?: number;
+  matsGefarmt?: number;
+  matsVerbaut?: number;
+  /** Zu Fuss zurueckgelegte Strecke in Zentimetern. */
+  strecke?: number;
+  kisten?: number;
+  heilung?: number;
+  schild?: number;
+  kd?: number;
+  avgPlace?: number;
+}
+
+interface SpielerWert {
+  name: string; epicId: string;
+  elims: number; assists: number; reboots: number; headshots: number; hits: number;
+  damage: number; damageTaken: number; quote: number; heals: number;
+  genauigkeit: number; distanzGesamt: number; shots: number;
+  stormDamage: number; fallDamage: number; mats: number; builds: number;
+  distanz: number; timeInStorm: number; timeAlive: number; matches: number;
+
+  // Diese fuehrt nur Epic, nicht die Szene-Quelle: Punkte, Siege, K/D und
+  // Durchschnittsplatz ergeben sich aus der Wertung des Turniers, nicht aus
+  // dem Verlauf eines Matches. Sie bleiben deshalb wahlfrei - wo sie fehlen,
+  // faellt die zugehoerige Liste aus der Auswahl heraus.
+  points?: number; wins?: number; kd?: number; avgPlace?: number;
+  kisten?: number; matsVerbaut?: number;
+
+  // Diese beiden stehen nur im Verlauf eines Matches und kommen deshalb aus
+  // den eigenen Replays, nicht von der Szene-Quelle. Wo keine Aufzeichnung
+  // vorliegt, bleiben sie leer und ihre Listen fallen aus der Auswahl.
+  knocks?: number; gestorben?: number;
+}
+interface SpielerDaten {
+  vorhanden: boolean; quelle: string; turnier?: string;
+  region?: string; matches?: number; spieler: SpielerWert[]; hinweis?: string;
+  /** Zu welchem Spieltag diese Antwort gehoert. */
+  fuer?: string;
+}
+
+/** Kennzahlen der Einzelwertung - dieselbe Auswahl wie in den Szene-Beitraegen. */
+const SPIELER_KENNZAHLEN: Array<{
+  schluessel: keyof SpielerWert | 'quoteNiedrig'; titel: string; symbol: string;
+  einheit?: string; nachkomma?: number;
+  /** Sekunden - als Dauer angezeigt. */
+  zeit?: boolean;
+  /** Bei "Lowest Rated" gewinnt der kleinste Wert. */
+  kleinBesser?: boolean;
+}> = [
+  // Selbst gerechnet: ausgeteilter geteilt durch erlittenen Schaden - beide
+  // Werte stehen so in der Quelldatei. Der Titel sagt die Rechnung ausdruecklich
+  // dazu, denn eine Vergleichsseite zeigt auf der eigenen Seite unter "Rated" eine
+  // andere Zahl: deren Bewertung folgt einer eigenen, nicht veroeffentlichten
+  // Formel und steht in keiner der offenen Dateien. Gleicher Name fuer zwei
+  // verschiedene Rechnungen waere irrefuehrend.
+  // Zuerst das, was den Cup entscheidet. Bei einem Solo-Cup ist Epics
+  // Eintrag ein Spieler, also gelten Punkte, Siege, K/D und Durchschnittsplatz
+  // hier genauso wie in der Teamwertung. Bei der Szene-Quelle fehlen sie -
+  // dann bleiben diese Listen einfach leer.
+  { schluessel: 'points',      titel: 'Most Points',         symbol: '🏆' },
+  { schluessel: 'wins',        titel: 'Most Victory Royales', symbol: '👑' },
+  { schluessel: 'kd',          titel: 'Best K/D',            symbol: '⚔️', nachkomma: 2 },
+  { schluessel: 'avgPlace',    titel: 'Best Average Placement', symbol: '📍',
+    nachkomma: 1, kleinBesser: true },
+  { schluessel: 'quote',       titel: 'Best Damage Ratio',   symbol: '🟢', nachkomma: 2 },
+  { schluessel: 'quoteNiedrig', titel: 'Lowest Damage Ratio', symbol: '🔻', nachkomma: 2,
+    kleinBesser: true },
+  { schluessel: 'elims',       titel: 'Most Eliminations',   symbol: '🎯' },
+  // Nur aus Replays - siehe SpielerWert.
+  { schluessel: 'knocks',      titel: 'Most Knocks',         symbol: '🥊' },
+  { schluessel: 'gestorben',   titel: 'Most Deaths',         symbol: '⚰️' },
+  { schluessel: 'headshots',   titel: 'Most Headshots',      symbol: '💀' },
+  { schluessel: 'hits',        titel: 'Most Hits to Players', symbol: '🔫' },
+  { schluessel: 'damage',      titel: 'Most Damage Dealt',   symbol: '📈' },
+  { schluessel: 'damageTaken', titel: 'Most Damage Taken',   symbol: '📉' },
+  { schluessel: 'assists',     titel: 'Most Assists',        symbol: '🤝' },
+  { schluessel: 'reboots',     titel: 'Most Reboots & Revives', symbol: '🚑' },
+  { schluessel: 'fallDamage',  titel: 'Most Fall Damage',    symbol: '🪂' },
+  { schluessel: 'mats',        titel: 'Most Mats Farmed',    symbol: '🧱' },
+  // Verbautes Material und gesetzte Bauteile sind zweierlei und stammen aus
+  // zwei verschiedenen Quellen - deshalb zwei getrennte Zeilen mit zwei
+  // verschiedenen Namen.
+  { schluessel: 'matsVerbaut', titel: 'Most Mats Used',      symbol: '🪚' },
+  { schluessel: 'builds',      titel: 'Most Builds Placed',  symbol: '🔨' },
+  { schluessel: 'kisten',      titel: 'Most Chests Opened',  symbol: '📦' },
+  { schluessel: 'heals',       titel: 'Most Healing Done',   symbol: '💊' },
+  { schluessel: 'distanz',     titel: 'Most Distance on Foot', symbol: '🏃', einheit: 'km', nachkomma: 1 },
+  { schluessel: 'timeInStorm', titel: 'Most Time in Storm',  symbol: '🌪️', zeit: true },
+  { schluessel: 'timeAlive',   titel: 'Most Time Alive',     symbol: '⏱️', zeit: true },
+  { schluessel: 'stormDamage', titel: 'Most Storm Damage',   symbol: '⛈️' },
+  { schluessel: 'genauigkeit', titel: 'Best Accuracy',       symbol: '🔎', einheit: '%',
+    nachkomma: 1 },
+  // Zu Fuss plus Gleiter - die Quelle fuehrt beide Strecken getrennt.
+  { schluessel: 'distanzGesamt', titel: 'Most Distance Traveled', symbol: '🧭',
+    einheit: 'km', nachkomma: 1 },
+];
+
+/*
+ * "Plätze anzeigen" (Betreiber, 15.11.2026): in Texten ueber einen Spieler endet jede Zeile mit seinem Platz im Feld - "Points: 1,252 (#1)". Ein Schalter
+ * nimmt die " (#n)" heraus (und aus den Kacheln im Bild). Gemerkt im Browser; geht das nicht (privates Fenster, gesperrter Speicher), gilt der Wert
+ * nur bis zum Neuladen.
+ */
+const PLAETZE_SCHLUESSEL = 'comphub.beitrag.plaetze';
+const plaetzeHoerer = new Set<() => void>();
+let plaetzeWert: boolean | null = null;
+function plaetzeLesen(): boolean {
+  if (plaetzeWert !== null) return plaetzeWert;
+  try { plaetzeWert = localStorage.getItem(PLAETZE_SCHLUESSEL) !== '0'; } catch { plaetzeWert = true; }
+  return plaetzeWert;
+}
+function plaetzeSetzen(an: boolean) {
+  plaetzeWert = an;
+  try { localStorage.setItem(PLAETZE_SCHLUESSEL, an ? '1' : '0'); } catch { /* nur fuer diese Sitzung */ }
+  for (const f of plaetzeHoerer) f();
+}
+function plaetzeAbo(f: () => void) {
+  plaetzeHoerer.add(f);
+  return () => { plaetzeHoerer.delete(f); };
+}
+/** Die Platz-Anhaengsel am Zeilenende: "Damage Taken: 6,528 (#9)" -> "Damage Taken: 6,528". */
+const PLATZ_ENDE = / \(#\d[\d,]*\)$/gm;
+
+type Vorlage = 'rueckblick' | 'worst' | 'dropmap' | 'livepost' | 'qualifiziert' | 'endstand' | 'spieler'
+  | 'bestenliste' | 'spielerkarte' | 'auswahl'
+  /* Bekannte Spieler, die den Cut verpasst haben. */
+  | 'verpasst'
+  /* Ohne Cup: freier Titel, Spieler von Hand. */
+  | 'eigene';
+
+/**
+ * Was eine Auswahl ausser dem einzelnen Team noch braucht.
+ *
+ * Manche Fragen lassen sich nur im Vergleich beantworten - "wer hat jede
+ * Runde gespielt?" haengt davon ab, wie viele Runden es ueberhaupt gab.
+ * Alles hier kommt aus den Turnierdaten des Spieltags.
+ */
+interface AuswahlHilfe {
+  /** Das ganze Feld dieses Spieltags. */
+  feld: Eintrag[];
+  /** Die gewonnenen Runden eines Teams, etwa "Game 3" oder "Games 2 + 7". */
+  siegRunden: (e: Eintrag) => string;
+  /** Die Nummer der Runde, in der dieses Spiel endete. */
+  rundeVon: (m: { sessionId?: string; endTime?: string }) => number | undefined;
+  /**
+   * Der Schaden dieses Teams - summiert ueber seine Spieler.
+   *
+   * Kommt aus den Einzelwerten der Szene-Quelle, die Epics Turnierdaten nicht
+   * fuehren. Null, wo zu keinem Spieler des Teams etwas vorliegt.
+   */
+  schadenVon: (e: Eintrag) => number | null;
+}
+
+/**
+ * Eine Auswahl von Teams, die auf eine Bedingung passen.
+ *
+ * Anders als der Endstand, der einfach die ersten N Plaetze nimmt, greift
+ * hier eine Frage ans Feld heraus: "wer hat ueberhaupt mal gewonnen?", "wer
+ * steht ueber zweihundert Punkten?". Herausgesucht wird immer aus den
+ * echten Turnierdaten, und es wird nichts abgeschnitten - wer die Bedingung
+ * erfuellt, steht drin.
+ */
+interface Auswahl {
+  /** Ueberschrift des Beitrags, ohne die Anzahl. */
+  titel: string;
+  /** Gehoert dieses Team dazu? */
+  passt: (e: Eintrag, h: AuswahlHilfe) => boolean;
+  /** Was hinter dem Team steht. */
+  wert: (e: Eintrag, h: AuswahlHilfe) => string;
+  /** Wonach absteigend sortiert wird. Gleichstand entscheidet der Platz. */
+  nach: (e: Eintrag, h: AuswahlHilfe) => number;
+  /**
+   * Hoechstens so viele Zeilen.
+   *
+   * Die meisten Auswahlen fragen "wer erfuellt das?" und wollen jeden
+   * Treffer sehen - dort bleibt das Feld leer. "top 10 elims" fragt aber
+   * nach den zehn Besten, nicht nach allen mit zehn oder mehr; ohne diese
+   * Grenze standen dort hundert Zeilen.
+   */
+  grenze?: number;
+  /**
+   * Eine Bestenliste einzelner Spieler statt der Duos.
+   *
+   * Bei einer Frage wie "top 10 elims" ist der einzelne Spieler gemeint, nie
+   * das Duo - eine Bestenliste, in der zwei Namen einen Wert teilen, sagt
+   * ueber keinen der beiden etwas aus. Steht hier ein Feld, wird die Liste
+   * aus den Einzelwerten gebaut und nicht aus der Teamwertung.
+   */
+  soloFeld?: keyof SpielerWert;
+  /** Was in Klammern dahinter steht - meist der Schaden. */
+  soloKlammer?: keyof SpielerWert;
+  /** Wie die Klammer in der Ueberschrift heisst. */
+  soloKlammerTitel?: string;
+  /** Die Einheit des Hauptwerts, wo es eine gibt. */
+  soloEinheit?: string;
+  soloNachkomma?: number;
+}
+
+/** Die groesste Rundenzahl im Feld - so viele Runden gab es an diesem Tag. */
+function rundenZahl(feld: Eintrag[]) {
+  return feld.reduce((n, e) => Math.max(n, e.games), 0);
+}
+
+/** Die erste Zahl im Befehl, sonst der Standardwert. */
+function zahlIm(text: string, standard: number) {
+  const m = text.match(/\b(\d{1,4})\b/);
+  return m ? +m[1] : standard;
+}
+
+/**
+ * Die Kurzbefehle, die eine solche Auswahl beschreiben.
+ *
+ * Bewusst als Tabelle: so steht an einer Stelle, was es gibt, ein weiterer
+ * Befehl ist eine Zeile mehr, und die Befehlsuebersicht kann sie einfach
+ * aufzaehlen. Die Reihenfolge zaehlt - "no wins" enthaelt das Wort "wins"
+ * und muss deshalb vorher geprueft werden.
+ */
+const AUSWAHLBEFEHLE: Array<{
+  beispiel: string;
+  erklaerung: string;
+  deute: (text: string) => Auswahl | null;
+}> = [
+  /*
+   * Ein Befehl je Groesse, Varianten ueber Zahl und Verneinung.
+   *
+   * Vorher standen hier fuenfzehn Zeilen, von denen mehrere dasselbe in
+   * anderen Worten taten: "no elims" war die Schwelle null, "zero points"
+   * dasselbe bei den Punkten, und "played all games" und "missed games"
+   * waren die zwei Seiten derselben Muenze. Jetzt traegt jede Groesse genau
+   * einen Namen, und ob null, ab zwanzig oder verneint entscheidet der
+   * Zusatz.
+   *
+   * Die Reihenfolge zaehlt weiterhin: was enger gefasst ist, muss vorher
+   * geprueft werden, sonst verschluckt der allgemeine Befehl den engeren.
+   */
+
+  /* --------------------------------------------- die einzelne Runde */
+  {
+    beispiel: 'game 3 winner',
+    erklaerung: 'one specific game — "game 3 winner" or "game 3 top 5"',
+    deute: (t) => {
+      const m = t.match(/\b(?:game|runde|spiel)\s*(\d{1,2})\b/);
+      if (!m) return null;
+      const n = +m[1];
+      const bis = t.match(/\btop\s*(\d{1,3})\b/);
+      const sieg = /\b(winner|sieger|won|gewonnen)\b/.test(t);
+      if (!sieg && !bis) return null;
+
+      // "game 3 top 5" ist dieselbe Frage mit weiterer Schwelle - deshalb
+      // ein Befehl mit zwei Auspraegungen statt zweier Befehle.
+      const grenze = sieg && !bis ? 1 : Math.max(1, Math.min(100, +bis![1]));
+      return {
+        titel: grenze === 1 ? `Game ${n} — the win` : `Game ${n} — top ${grenze}`,
+        passt: (e, h) => (e.matches ?? []).some(
+          (x) => (x.placement ?? 999) <= grenze && h.rundeVon(x) === n),
+        wert: (e) => `${e.points} pts overall`,
+        nach: (e) => -e.rank,
+      };
+    },
+  },
+  {
+    beispiel: 'game by game',
+    erklaerung: 'all winners, ordered by the game of their first win',
+    deute: (t) => (/\b(game\s*by\s*game|runde\s*fuer\s*runde|jede\s+runde)\b/.test(t)
+      ? {
+        titel: 'Who won which game',
+        passt: (e) => e.wins > 0,
+        wert: (e, h) => h.siegRunden(e) || `${e.wins} VR`,
+        // Negativ, weil absteigend sortiert wird: so steht Runde eins oben.
+        nach: (e, h) => -Math.min(...(e.matches ?? [])
+          .filter((m) => m.placement === 1)
+          .map((m) => h.rundeVon(m) ?? 99), 99),
+      } : null),
+  },
+
+  /* ------------------------------------------- Verlauf ueber den Tag */
+  {
+    beispiel: 'strong finish',
+    erklaerung: 'who did clearly better in the second half of the day — "slow start" for the opposite',
+    deute: (t) => {
+      const stark = /\b(strong\s*finish|starkes?\s*ende|aufholjagd|comeback)\b/.test(t);
+      const schwach = /\b(slow\s*start|schwacher?\s*start|eingebrochen|drop\s*off)\b/.test(t);
+      if (!stark && !schwach) return null;
+
+      /*
+       * Der Vergleich laeuft ueber die Platzierungen: erste Haelfte des Tages
+       * gegen zweite. Eine Verbesserung um mindestens drei Plaetze im Schnitt
+       * gilt als Aufholjagd - darunter ist es Rauschen.
+       *
+       * Gerechnet wird nur, wo mindestens vier Runden vorliegen. Bei zwei
+       * Spielen waere "erste gegen zweite Haelfte" ein einzelnes Spiel
+       * gegen ein einzelnes, und ein Ausreisser entschiede alles.
+       */
+      const halften = (e: Eintrag) => {
+        const p = (e.matches ?? [])
+          .map((m) => m.placement)
+          .filter((x): x is number => typeof x === 'number');
+        if (p.length < 4) return null;
+        const mitte = Math.floor(p.length / 2);
+        const schnitt = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
+        return schnitt(p.slice(0, mitte)) - schnitt(p.slice(mitte));
+      };
+
+      return {
+        titel: stark ? 'Woke up in the back half' : 'Faded after a strong start',
+        passt: (e) => {
+          const d = halften(e);
+          if (d === null) return false;
+          return stark ? d >= 3 : d <= -3;
+        },
+        wert: (e) => {
+          const d = halften(e) ?? 0;
+          const z = Math.abs(Math.round(d * 10) / 10);
+          return `${z} places ${stark ? 'better' : 'worse'}`;
+        },
+        nach: (e) => (stark ? 1 : -1) * (halften(e) ?? 0),
+      };
+    },
+  },
+  {
+    beispiel: 'consistent',
+    erklaerung: 'who never dropped below a placement — "consistent top 20"',
+    deute: (t) => {
+      if (!/\b(consistent|konstant|nie\s+schlechter|never\s+below)\b/.test(t)) return null;
+      const m = t.match(/\b(?:top\s*)?(\d{1,3})\b/);
+      const grenze = m ? Math.max(1, Math.min(100, +m[1])) : 20;
+      return {
+        titel: `Never dropped out of the top ${grenze}`,
+        passt: (e) => {
+          const p = (e.matches ?? [])
+            .map((x) => x.placement)
+            .filter((x): x is number => typeof x === 'number');
+          // Ohne Rundendaten laesst sich nichts belegen - dann faellt der
+          // Eintrag heraus, statt als "konstant" durchzugehen.
+          return p.length >= 3 && p.every((x) => x <= grenze);
+        },
+        wert: (e) => `worst ${Math.max(...(e.matches ?? [])
+          .map((x) => x.placement ?? 0))}`,
+        nach: (e) => -Math.max(...(e.matches ?? []).map((x) => x.placement ?? 0)),
+      };
+    },
+  },
+
+  /* ------------------------------------------------ die Bestenliste */
+  {
+    beispiel: 'best 10 elims',
+    erklaerung: 'the best N single players — by elims, damage, mats, weapon …',
+    deute: (t) => {
+      /*
+       * "best 10 elims" heisst: die zehn besten SPIELER.
+       *
+       * Frueher hiess dieser Befehl "top 10 elims" - und damit bedeutete
+       * "top 10" zweierlei: hier eine Bestenliste, im Befehl darunter eine
+       * Platzierung. Zwei Bedeutungen fuer dasselbe Wort sind eine Falle,
+       * deshalb heisst die Bestenliste jetzt "best".
+       */
+      const m = t.match(/\b(?:best|beste[nr]?)\s*(\d{1,3})\b/);
+      if (!m) return null;
+
+      const n = Math.max(1, Math.min(100, +m[1]));
+      const felder: Array<{
+        r: RegExp; feld: keyof SpielerWert; titel: string;
+        einheit?: string; nachkomma?: number;
+      }> = [
+        { r: /\b(elims?|eliminations?|kills?)\b/, feld: 'elims', titel: 'Most Eliminations' },
+        { r: /\b(damage|schaden|dmg)\b/, feld: 'damage', titel: 'Most Damage' },
+        { r: /\b(headshots?|kopftreffer)\b/, feld: 'headshots', titel: 'Most Headshots' },
+        { r: /\b(mats|material)\b/, feld: 'mats', titel: 'Most Mats Farmed' },
+        { r: /\b(builds?|bauteile)\b/, feld: 'builds', titel: 'Most Builds Placed' },
+        { r: /\b(assists?)\b/, feld: 'assists', titel: 'Most Assists' },
+        { r: /\b(hits?|treffer)\b/, feld: 'hits', titel: 'Most Hits' },
+        { r: /\b(distance|strecke)\b/, feld: 'distanzGesamt',
+          titel: 'Most Distance', einheit: 'km', nachkomma: 1 },
+        { r: /\b(accuracy|genauigkeit|trefferquote)\b/, feld: 'genauigkeit',
+          titel: 'Best Accuracy', einheit: '%', nachkomma: 1 },
+        { r: /\b(points?|punkte|pts)\b/, feld: 'points', titel: 'Most Points' },
+      ];
+      const gewaehlt = felder.find((f) => f.r.test(t));
+      if (!gewaehlt) return null;
+
+      return {
+        titel: gewaehlt.titel,
+        passt: () => true,
+        wert: () => '',
+        nach: () => 0,
+        grenze: n,
+        soloFeld: gewaehlt.feld,
+        soloKlammer: gewaehlt.feld === 'damage' ? 'elims' : 'damage',
+        soloKlammerTitel: gewaehlt.feld === 'damage' ? 'Elims' : 'Damage',
+        soloEinheit: gewaehlt.einheit,
+        soloNachkomma: gewaehlt.nachkomma,
+      };
+    },
+  },
+
+  /* -------------------------------------------------- Platzierungen */
+  {
+    beispiel: 'top 10',
+    erklaerung: 'who reached a placement — "never top 10" for the opposite',
+    deute: (t) => {
+      const m = t.match(/\btop\s*(\d{1,3})\b/);
+      if (!m) return null;
+      /*
+       * "game 3 top 5" und "consistent top 20" gehoeren den Befehlen weiter
+       * oben. Ohne diesen Ausschluss traefe dieselbe Eingabe zwei Befehle -
+       * die Reihenfolge rettete es zwar, aber darauf soll sich nichts
+       * verlassen muessen.
+       */
+      if (/\b(game|runde|spiel)\s*\d/.test(t)) return null;
+      if (/\b(consistent|konstant|nie\s+schlechter|never\s+below)\b/.test(t)) return null;
+      const n = Math.max(1, Math.min(100, +m[1]));
+      const nie = /\b(never|nie|kein\w*|no)\b/.test(t);
+      return {
+        titel: nie ? `Never reached the top ${n}` : `Reached the top ${n}`,
+        passt: (e) => {
+          const traf = (e.matches ?? [])
+            .some((x) => (x.placement ?? 999) <= n);
+          return nie ? !traf : traf;
+        },
+        wert: (e) => `${e.points} pts`,
+        nach: (e) => e.points,
+      };
+    },
+  },
+
+  /* ------------------------------------------------- die Kennzahlen */
+  {
+    beispiel: '4 elims per game',
+    erklaerung: 'an average per game — the total divided by the games',
+    deute: (t) => {
+      if (!/\b(per\s*game|je\s*runde|pro\s*spiel|average|schnitt)\b/.test(t)) return null;
+      const m = t.match(/(\d+(?:[.,]\d+)?)/);
+      if (!m) return null;
+      const schwelle = parseFloat(m[1].replace(',', '.'));
+      const schaden = /\b(damage|schaden|dmg)\b/.test(t);
+      return {
+        titel: schaden
+          ? `${schwelle}+ damage per game`
+          : `${schwelle}+ eliminations per game`,
+        passt: (e, h) => {
+          if (!e.games) return false;
+          const wert = schaden ? (e.damage ?? h.schadenVon(e) ?? 0) : e.elims;
+          return wert / e.games >= schwelle;
+        },
+        wert: (e, h) => {
+          const wert = schaden ? (e.damage ?? h.schadenVon(e) ?? 0) : e.elims;
+          return `${(wert / Math.max(1, e.games)).toFixed(1)} per game`;
+        },
+        nach: (e, h) => {
+          const wert = schaden ? (e.damage ?? h.schadenVon(e) ?? 0) : e.elims;
+          return wert / Math.max(1, e.games);
+        },
+      };
+    },
+  },
+  {
+    beispiel: '20 elims',
+    erklaerung: 'from this number of eliminations — "no elims" for zero',
+    deute: (t) => {
+      if (!/\b(elims?|eliminations?|kills?)\b/.test(t)) return null;
+      if (/\b(per\s*game|je\s*runde|best|beste[nr]?)\b/.test(t)) return null;
+      const nichts = /\b(no|zero|keine?|ohne|null)\s+(elims?|eliminations?|kills?)\b/.test(t);
+      const m = t.match(/\b(\d{1,3})\b/);
+      if (!nichts && !m) return null;
+      const schwelle = nichts ? 0 : +m![1];
+      return {
+        titel: nichts ? 'Not a single elimination' : `${schwelle}+ eliminations`,
+        passt: (e) => (nichts ? e.elims === 0 : e.elims >= schwelle),
+        wert: (e) => (nichts ? `${e.points} pts` : `${e.elims} elims`),
+        nach: (e) => (nichts ? e.points : e.elims),
+      };
+    },
+  },
+  {
+    beispiel: '200 points',
+    erklaerung: 'from this number of points — "no points" for none',
+    deute: (t) => {
+      if (!/\b(points?|punkte|pts)\b/.test(t)) return null;
+      if (/\b(best|beste[nr]?)\b/.test(t)) return null;
+      const nichts = /\b(no|zero|keine?|null)\s+(points?|punkte|pts)\b/.test(t);
+      const m = t.match(/\b(\d{1,4})\b/);
+      if (!nichts && !m) return null;
+      const schwelle = nichts ? 0 : +m![1];
+      return {
+        titel: nichts ? 'Left with zero points' : `${schwelle}+ points`,
+        passt: (e) => (nichts ? e.points === 0 : e.points >= schwelle),
+        wert: (e) => (nichts ? `${e.games} games` : `${e.points} pts`),
+        nach: (e) => (nichts ? e.games : e.points),
+      };
+    },
+  },
+  {
+    beispiel: 'all winners',
+    erklaerung: 'who won — "2 wins" for two or more, "no wins" for none',
+    deute: (t) => {
+      // Bewusst ohne "victory royales": das liest sich wie die Kennzahl und
+      // gehoert zur Bestenliste.
+      if (!/\b(wins?|winners?|sieg\w*|gewonnen|winless)\b/.test(t)) return null;
+      if (/\b(game|runde|spiel)\s*\d/.test(t)) return null;
+      if (/\bgame\s*by\s*game\b/.test(t)) return null;
+
+      const nichts = /\b(no\s+wins?|winless|ohne\s+sieg\w*|keine?\s+siege?)\b/.test(t);
+      const m = t.match(/\b(\d{1,2})\b/);
+      const schwelle = nichts ? 0 : (m ? +m[1] : 1);
+      return {
+        titel: nichts
+          ? 'Still without a Victory Royale'
+          : schwelle > 1 ? `${schwelle}+ Victory Royales` : 'Everyone with a win',
+        passt: (e) => (nichts ? e.wins === 0 : e.wins >= schwelle),
+        wert: (e, h) => (nichts ? `${e.points} pts` : h.siegRunden(e) || `${e.wins} VR`),
+        nach: (e) => (nichts ? e.points : e.wins),
+      };
+    },
+  },
+  {
+    beispiel: 'all games',
+    erklaerung: 'who played every game — "missed games" for the opposite',
+    deute: (t) => {
+      const alle = /\b(all\s*games|played\s*all|jede\s+runde\s+gespielt|voll)\b/.test(t);
+      const verpasst = /\b(missed|verpasst|nicht\s+alle|fehlt\w*)\b/.test(t);
+      if (!alle && !verpasst) return null;
+      return {
+        titel: alle ? 'Played every single game' : 'Did not play the full day',
+        passt: (e, h) => {
+          const meiste = Math.max(...h.feld.map((x) => x.games), 0);
+          return alle ? e.games >= meiste : e.games < meiste;
+        },
+        wert: (e) => `${e.games} games`,
+        nach: (e) => (alle ? e.points : -e.games),
+      };
+    },
+  },
+  {
+    beispiel: 'all teams',
+    erklaerung: 'the whole field, as it stands',
+    deute: (t) => (/\b(all\s*(teams?|duos?|players?)|ganzes?\s*feld|alle)\b/.test(t)
+      ? {
+        titel: 'The full field',
+        passt: () => true,
+        wert: (e) => `${e.points} pts`,
+        nach: (e) => e.points,
+      } : null),
+  },
+];
+
+/** Welcher Auswahlbefehl steckt in dieser Eingabe? */
+function deuteAuswahl(eingabe: string): Auswahl | null {
+  const t = eingabe.trim().toLowerCase();
+  if (!t) return null;
+  for (const b of AUSWAHLBEFEHLE) {
+    const a = b.deute(t);
+    if (a) return a;
+  }
+  return null;
+}
+
+
+/**
+ * Die Vorlagen, die zur Wahl stehen.
+ *
+ * Eine Reihe Knoepfe, mehr nicht. Vorher standen hier drei Reihen
+ * uebereinander - Ordner, Vorlage und daneben noch Team- oder Einzelwerte -,
+ * und dieselbe Entscheidung liess sich an drei Stellen treffen. Wer auf
+ * "Player Stats" ging und einen Namen tippte, bekam trotzdem das Duo: der
+ * Ordner sagte das eine, die Vorlage das andere.
+ *
+ * Jetzt sagt die Vorlage alles. "Player Card" heisst Einzelwerte, "Team
+ * Spotlight" heisst Teamwerte, und die Umschaltung daneben gibt es nur noch
+ * dort, wo sie wirklich eine Frage ist: beim Stats Recap.
+ *
+ * "Qualified" ist gegangen. Sie zaehlte die Herkunft der vordersten Plaetze
+ * nach Laendern und Regionen - ein Beitrag, den der Betreiber nie schrieb.
+ * "auswahl" und "bestenliste" bleiben im Typ und im Textbau erhalten: sie
+ * schalten sich ueber das Kurzbefehl-Feld selbst ein.
+ */
+/** Kennzahlen, bei denen der Spitzenplatz schon der schlechteste ist ("Most Deaths") - dort zaehlt fuer Worst of der erste, sonst der letzte. */
+const OBEN_SCHLECHT = new Set(['damageTaken', 'gestorben', 'fallDamage', 'stormDamage', 'timeInStorm', 'quoteNiedrig']);
+/** "Most Eliminations" -> "Fewest Eliminations" usw. - fuer Worst of, wo der letzte Platz gemeint ist. */
+const umgedreht = (titel: string) => titel.replace(/^Most\b/, 'Fewest').replace(/^Best\b/, 'Worst').replace(/^Highest\b/, 'Lowest').replace(/^Longest\b/, 'Shortest');
+
+const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
+  { wert: 'endstand',     titel: 'Standings',      hinweis: 'The leading places' },
+  { wert: 'rueckblick',   titel: 'Stats Recap',    hinweis: 'Top value per stat' },
+  { wert: 'spieler',      titel: 'Team Spotlight', hinweis: 'Every value of one team' },
+  { wert: 'spielerkarte', titel: 'Player Card',    hinweis: 'Every value of one player' },
+  // Bekannte Spieler (Power Rankings), die nicht weitergekommen sind - mit Flagge, wie der Betreiber es wollte (20.10.2026).
+  { wert: 'verpasst',     titel: 'Missed the cut', hinweis: 'Notable players who did not advance' },
+  // Das Gegenstueck zum Stats Recap (Betreiber, 9.11.2026): je Kennzahl der Schlechteste - nur wer mindestens die Haelfte der Spiele hatte.
+  { wert: 'worst',        titel: 'Worst of CompHub', hinweis: 'Worst value per stat' },
+  // Die Landekarte des Spieltags mit Titel und Key Players (Betreiber, 9.11.2026: "einfach immer die Map tweeten, so schnell wie moeglich").
+  { wert: 'dropmap',      titel: 'Drop Map',       hinweis: 'Drop spots of the match day, key players' },
+  // Der Start-Post mit dem offiziellen Stream und den Co-Streamern je Land; die Markierungen kommen als Antwort darunter (Betreiber, 9.11.2026).
+  { wert: 'livepost',     titel: 'Live now',       hinweis: 'Official stream and co-streamers per country' },
+  // Die einzige Vorlage, die keinen Cup braucht.
+  { wert: 'eigene',       titel: 'Own list',       hinweis: 'Free title, players by hand' },
+];
+
+interface Profil {
+  id?: string; name: string; namen?: string[];
+  land?: string; x?: string; region?: string; anzeige?: string;
+}
+
+/** Alle Namen, unter denen ein Epic-Konto schon angetreten ist. */
+interface NamensEintrag { namen: string[]; haupt: string; schluessel?: string }
+
+/** Die sieben Wettkampfregionen samt Flaggenkuerzel fuer die Anzeige. */
+const REGIONEN: Array<{ code: string; flagge: string }> = [
+  { code: 'EU',   flagge: 'eu' },
+  { code: 'NAC',  flagge: 'us' },
+  { code: 'NAW',  flagge: 'us' },
+  { code: 'BR',   flagge: 'br' },
+  { code: 'ASIA', flagge: 'jp' },
+  { code: 'ME',   flagge: 'sa' },
+  { code: 'OCE',  flagge: 'au' },
+];
+
+/**
+ * Fuer den Beitragstext: das Flaggenzeichen zum Laenderkuerzel. Windows stellt
+ * diese Zeichen zwar nicht dar, X und die meisten anderen Systeme schon - im
+ * fertigen Beitrag sieht die Flagge also richtig aus.
+ */
+function flagge(land?: string) {
+  if (!land || !/^[A-Za-z]{2}$/.test(land)) return '';
+  return String.fromCodePoint(...[...land.toUpperCase()]
+    .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
+/**
+ * Fuer die Anzeige auf dem Bildschirm: das Flaggenbild aus dem eigenen Ordner.
+ * Windows hat keine Flaggenschrift, deshalb waeren Zeichen hier nur Buchstaben.
+ */
+function Flagge({ land, groesse = 14 }: { land?: string; groesse?: number }) {
+  if (!land || !/^[A-Za-z]{2}$/.test(land)) return null;
+  return (
+    <img src={`/flags/${land.toLowerCase()}.png`} alt={land.toUpperCase()}
+      title={land.toUpperCase()} loading="lazy"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+      style={{ height: groesse, width: groesse * 1.5, objectFit: 'cover' }}
+      className="shrink-0 rounded-[2px] border border-black/40" />
+  );
+}
+
+
+
+function kurzName(name: string) {
+  return kernname(name).slice(0, 18);
+}
+
+// spaltenName ("Most Damage Dealt" -> "Damage Dealt") steht in ./kennzahlen.
+
+/**
+ * Wie viele Zeichen muessten geaendert werden, um aus a b zu machen?
+ * Damit findet der Kurzbefehl einen Spieler auch bei Vertippern oder wenn ein
+ * Name diktiert wurde - "shark" statt "shxrk". Der Abstand bleibt eng
+ * begrenzt, damit nicht zwei verschiedene Spieler zusammenfallen.
+ */
+function abstand(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+  let vorige = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const zeile = [i];
+    for (let j = 1; j <= b.length; j++) {
+      zeile[j] = Math.min(
+        zeile[j - 1] + 1,
+        vorige[j] + 1,
+        vorige[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    vorige = zeile;
+  }
+  return vorige[b.length];
+}
+
+/**
+ * Kurzbefehle statt Klickerei: "top5", "damage", "elims 10", "mats".
+ * Rein regelbasiert - kein fremder Dienst, keine Kosten.
+ */
+function deuteBefehl(eingabe: string, listen: Bestenliste[]) {
+  const text = eingabe.trim().toLowerCase();
+  if (!text) return null;
+
+  // Eine Zahl irgendwo im Befehl gibt die Anzahl vor.
+  const zahl = text.match(/\b(\d{1,2})\b/);
+  const anzahl = zahl ? Math.max(1, Math.min(50, +zahl[1])) : null;
+
+  // Zuerst nach Kennzahlen suchen: "top 5 mats farmed" nennt beides, gemeint
+  // ist dann die Kennzahl mit fuenf Plaetzen und nicht der Endstand.
+  const fuellwoerter = /^(top|die|der|das|von|mit|nach|show|zeig|beste|meiste|most)$/;
+  const woerter = text.split(/[\s,+]+/)
+    // Ab zwei Zeichen, damit kurze Kuerzel wie "kd" nicht durchfallen.
+    .filter((w) => w.length >= 2 && !/^\d+$/.test(w))
+    .filter((w) => !fuellwoerter.test(w));
+  const passt = (b: Bestenliste, alle: boolean) => {
+    const heu = (b.titel + ' ' + b.schluessel).toLowerCase();
+    return alle ? woerter.every((w) => heu.includes(w))
+                : woerter.some((w) => heu.includes(w));
+  };
+  // Zuerst die Kennzahlen, auf die *alle* Suchwoerter passen. "mats farmed"
+  // trifft damit nur "Most Mats Farmed" und nicht auch "Most Mats Used".
+  const genau = woerter.length ? listen.filter((b) => passt(b, true)) : [];
+  const treffer = genau.length ? genau : listen.filter((b) => passt(b, false));
+
+  // Genau eine Kennzahl: als Liste mit mehreren Plaetzen ausgeben.
+  if (treffer.length === 1) {
+    return {
+      vorlage: 'bestenliste' as const,
+      anzahl: anzahl ?? 5,
+      listen: treffer.map((b) => b.schluessel),
+    };
+  }
+  // Mehrere Kennzahlen: je Kennzahl der Spitzenwert.
+  if (treffer.length > 1) {
+    return {
+      vorlage: 'rueckblick' as const,
+      anzahl: anzahl ?? 7,
+      listen: treffer.map((b) => b.schluessel),
+    };
+  }
+
+  // Keine Kennzahl erkannt - dann entscheiden die Schlagworte.
+  if (/\b(top|standing|endstand|platz|rank)/.test(text)) {
+    return { vorlage: 'endstand' as const, anzahl: anzahl ?? 5, listen: null };
+  }
+  return null;
+}
+
+/**
+ * Ein nummerierter Abschnitt der Seite.
+ *
+ * Vorher stand alles gleichzeitig da: eine Reihe Ordner, darunter Cup,
+ * Spieltag und Plaetze, daneben das Kurzbefehl-Feld und eine zweite freie
+ * Zeile, danach noch einmal Vorlagen und die Umschaltung zwischen Team- und
+ * Einzelwerten. Sieben Reihen Bedienelemente, bevor der erste Buchstabe im
+ * Beitrag stand - und keine davon sagte, was zuerst dran ist.
+ *
+ * Drei nummerierte Bloecke sagen es: erst was es werden soll, dann welcher
+ * Cup, dann der Feinschliff.
+ */
+function Schritt({ nr, titel, hinweis, children }: {
+  nr: number; titel: string; hinweis?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-5">
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center
+                         rounded-full bg-sky-500 text-xs font-bold
+                         text-white">
+          {nr}
+        </span>
+        <h2 className="text-base font-bold text-white">{titel}</h2>
+        {hinweis && <span className="text-xs text-white/40">{hinweis}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Ein Fenster ueber der Seite.
+ *
+ * Fuer Werkzeuge, die man selten braucht, aber dann in voller Groesse: die
+ * Zuordnungsliste mit zweihundert Kacheln, die Turnierstatistik mit allen
+ * Bestenlisten. Untereinander auf der Seite machten sie das Beitragsschreiben
+ * zu einem Scrollen durch Dinge, die gerade niemanden interessieren.
+ *
+ * Geschlossen wird mit dem Kreuz, mit einem Klick auf den Hintergrund oder
+ * mit Escape - drei Wege, weil ein Fenster, aus dem man nicht sofort
+ * herausfindet, schlimmer ist als kein Fenster.
+ *
+ * Solange es zu ist, wird der Inhalt gar nicht erst gebaut. Bei zweihundert
+ * Kacheln ist das der Unterschied zwischen einer traegen und einer flinken
+ * Seite.
+ */
+function Fenster({ offen, schliessen, titel, children }: {
+  offen: boolean; schliessen: () => void; titel: string;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!offen) return;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') schliessen(); };
+    window.addEventListener('keydown', taste);
+    // Die Seite darunter soll nicht mitscrollen.
+    const vorher = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', taste);
+      document.body.style.overflow = vorher;
+    };
+  }, [offen, schliessen]);
+
+  if (!offen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center
+                    overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+      onClick={schliessen}>
+      <div onClick={(e) => e.stopPropagation()}
+        className="my-8 w-full max-w-[1400px] rounded-2xl border border-white/10
+                   bg-black/40 shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center gap-3 rounded-t-2xl
+                        border-b border-white/10 bg-[#070a12]/95 px-5 py-3
+                        backdrop-blur">
+          <h2 className="text-sm font-semibold text-white"><T>{titel}</T></h2>
+          <button onClick={schliessen}
+            className="ml-auto rounded-lg border border-white/10 px-3 py-1 text-xs
+                       text-white/55 transition hover:border-rose-500/60
+                       hover:text-rose-400">
+            <T>schließen</T>
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function TweetSeite() {
+  const { t, sprache } = useSprache();
+  const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
+  const [cups, setCups] = useState<Cup[]>([]);
+  const [cupId, setCupId] = useState('');
+  const [fensterId, setFensterId] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [eintraege, setEintraege] = useState<Eintrag[]>([]);
+  const [laedt, setLaedt] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const [vorlage, setVorlage] = useState<Vorlage>('endstand');
+
+  /*
+   * Der Kasten zum Uebernehmen fremder Beitraege - zugeklappt.
+   *
+   * Er stand ganz oben und nahm bei jedem Aufruf Platz weg, obwohl er nur
+   * gebraucht wird, wenn wirklich ein fremder Beitrag uebernommen werden
+   * soll. Der Betreiber wollte ihn nur sehen, wenn er auch darin arbeitet.
+   *
+   * Offen ist er deshalb genau dann, wenn ein eigener Beitrag entsteht -
+   * dort gehoert ein uebernommener Text hin - oder wenn schon einer geholt
+   * wurde. Sonst bleibt eine Zeile stehen, die ihn mit einem Klick oeffnet.
+   */
+  const [importOffen, setImportOffen] = useState(false);
+  const [anzahl, setAnzahl] = useState(7);
+  /*
+   * Was im Feld steht, solange getippt wird.
+   *
+   * Frueher rechnete jeder Tastendruck sofort um und schob das Ergebnis in
+   * die Grenzen drei bis fuenfundzwanzig. Wer "10" tippen wollte, hatte nach
+   * der Eins bereits eine gueltige Zahl stehen; die Null danach machte
+   * daraus zehn - aber ein Tastendruck zu frueh, und aus der Eins wurde die
+   * Drei. Getippte "50" landete bei fuenfundzwanzig. Jetzt bleibt die
+   * Eingabe stehen, wie sie kommt, und wird erst beim Verlassen des Feldes
+   * zurechtgerueckt.
+   */
+  const [anzahlRoh, setAnzahlRoh] = useState('7');
+  /** Auch die aelteren Spieltage zeigen, nicht nur die letzten zwoelf. */
+  const [alleSpieltage, setAlleSpieltage] = useState(false);
+  /** Die Region, fuer die der Beitrag gemacht wird (Betreiber, 19.10.2026: statt "Matchday" die Region waehlen). */
+  const [regionWahl, setRegionWahl] = useState('');
+  /** Filter fuer die Cup-Liste - sie wird schnell zwanzig Zeilen lang. */
+  const [cupSuche, setCupSuche] = useState('');
+
+  /*
+   * Cup und Spieltag aus der Adresse uebernehmen.
+   *
+   * Vom Plus-Knopf in der Turnieransicht: dort steht der Cup schon fest, und
+   * ihn hier ein zweites Mal zu suchen war der Weg, den der Betreiber
+   * beanstandet hat - "ich muss den Cup eingeben, dann den 23.10. auswaehlen,
+   * dann unter Matchday gehen und das richtige Datum. Geht das noch
+   * komplizierter?"
+   *
+   * Einmal, sobald die Cups geladen sind. Danach nicht mehr, sonst spraenge
+   * die Auswahl bei jedem Wechsel zurueck.
+   */
+  const [ausAdresse, setAusAdresse] = useState(false);
+  useEffect(() => {
+    if (ausAdresse || !cups.length) return;
+    const wunsch = new URLSearchParams(window.location.search).get('fenster');
+    if (!wunsch) { setAusAdresse(true); return; }
+
+    /*
+     * Den Cup ueber den Spieltag finden, nicht ueber eine Kennung.
+     *
+     * Der Plus-Knopf in der Turnieransicht kennt die Epic-Kennung des
+     * Ereignisses; die Auswahlliste hier fuehrt aber die Kennung der
+     * Cup-Gruppe, und die beiden sind verschieden. Beim ersten Versuch stand
+     * deshalb wieder "— auswaehlen —" da, obwohl der Cup mitgeschickt wurde.
+     *
+     * Der Spieltag ist eindeutig: es gibt genau einen Cup, in dem er liegt.
+     */
+    for (const c of cups) {
+      for (const liste of Object.values(c.regionen ?? {})) {
+        if (!liste.some((f) => f.windowId === wunsch)) continue;
+        setCupId(c.id);
+        // Alle Spieltage zeigen, damit der gesuchte sicher in der Liste steht.
+        setAlleSpieltage(true);
+        setFensterId(wunsch);
+        setAusAdresse(true);
+        return;
+      }
+    }
+    setAusAdresse(true);
+  }, [cups, ausAdresse]);
+  /** Kennzahlen filtern und aufklappen - es sind schnell dreissig. */
+  const [listenSuche, setListenSuche] = useState('');
+  const [alleListen, setAlleListen] = useState(false);
+  const [gewaehlteListen, setGewaehlteListen] = useState<string[]>([]);
+  const [profile, setProfile] = useState<Record<string, Profil>>({});
+  const [pflegeName, setPflegeName] = useState<string | null>(null);
+  const [pflegeLand, setPflegeLand] = useState('');
+  const [pflegeX, setPflegeX] = useState('');
+  /** Rueckmeldung zum Speichern - ohne sie sah jeder Ausgang gleich aus. */
+  const [pflegeStand, setPflegeStand] = useState('');
+  const [pflegeRegion, setPflegeRegion] = useState('');
+  const [pflegeAnzeige, setPflegeAnzeige] = useState('');
+  const [kopiert, setKopiert] = useState(false);
+
+  /* Die beiden Werkzeugfenster - zu, bis jemand sie braucht. */
+  const [zuordnungOffen, setZuordnungOffen] = useState(false);
+  const [statistikOffen, setStatistikOffen] = useState(false);
+
+  /* ------------------------------------------- Eigene Liste ohne Cup */
+  /** Die Ueberschrift, die der Betreiber selbst schreibt. */
+  const [eigenerKopf, setEigenerKopf] = useState('');
+  /** Wen er dafuer ausgewaehlt hat - in der Reihenfolge der Auswahl. */
+  const [eigeneWahl, setEigeneWahl] = useState<Array<{
+    epicId: string; anzeige: string; land: string | null; bild: string | null;
+  }>>([]);
+  /** Woraus er waehlt: eine Region, oder das Ergebnis einer Suche. */
+  const [eigeneRegion, setEigeneRegion] = useState('EU');
+  const [eigeneSuche, setEigeneSuche] = useState('');
+  const [eigeneListe, setEigeneListe] = useState<Array<{
+    epicId: string; anzeige: string; land: string | null; bild: string | null;
+  }>>([]);
+  /** Ob die Nummerierung im Text stehen soll - bei einer Frage nicht. */
+  const [eigeneNummern, setEigeneNummern] = useState(true);
+
+  /* Suche und Filter fuer die Zuordnungsliste. Bei zweihundert Kacheln ist
+     Scrollen keine Bedienung mehr. */
+  const [zuordnenSuche, setZuordnenSuche] = useState('');
+  const [zuordnenFilter, setZuordnenFilter] =
+    useState<'alle' | 'offen' | 'ohneFlagge' | 'ohneKonto' | 'gepflegt'>('alle');
+
+  /**
+   * Herkunftslaender aus der Szene-Quelle, nach Konto-ID.
+   *
+   * Dieselben, die die Statistikseite zeigt. Sie treten nur dort an, wo kein
+   * gepflegtes Profil steht - was von Hand eingetragen wurde, gilt weiter.
+   */
+  const [szeneLaender, setSzeneLaender] = useState<Record<string, string>>({});
+
+  /**
+   * Steht hinter einem Spieler sein X-Konto ("@shxrk") oder nur sein Name ("Shxrk")? Der Betreiber (20.10.2026): "dann kann ich als Admin entscheiden,
+   * ob er mit Twitter-Handle oder nur der Name des Spielers". Gilt fuer jede Zeile des Beitrags; gemerkt wird es in diesem Browser.
+   */
+  const [mitX, setMitX] = useState(true);
+  useEffect(() => {
+    try { if (window.localStorage.getItem('beitrag-mit-x') === '0') setMitX(false); } catch { /* ohne Speicher bleibt es beim Handle */ }
+  }, []);
+  const mitXSetzen = (an: boolean) => {
+    setMitX(an);
+    try { window.localStorage.setItem('beitrag-mit-x', an ? '1' : '0'); } catch { /* nur eine Bequemlichkeit */ }
+  };
+
+  /* Das Fotomosaik unter dem Beitrag - drei bis fuenf Portraits nebeneinander. */
+  const [mosaikAnzahl, setMosaikAnzahl] = useState(5);
+  const [mosaikUrl, setMosaikUrl] = useState<string | null>(null);
+  const [mosaikNamen, setMosaikNamen] = useState('');
+  const [mosaikLaedt, setMosaikLaedt] = useState(false);
+  const [mosaikFehler, setMosaikFehler] = useState('');
+  const [mosaikKopiert, setMosaikKopiert] = useState(false);
+  /** Selbst geschriebener Text. Solange null, gilt der aus der Vorlage. */
+  const [eigenerText, setEigenerText] = useState<string | null>(null);
+
+  /* ------------------------------------------------ Fremdbeitrag holen */
+  /**
+   * Ein Beitrag von X, eins zu eins uebernommen.
+   *
+   * X gibt seine Beitraege nur noch ueber eine kostenpflichtige
+   * Schnittstelle mit Schluessel heraus; FixTweet spiegelt oeffentliche
+   * Beitraege dagegen als offenes JSON. Geholt werden Text und Bilder -
+   * mehr braucht es nicht, um daraus einen eigenen Beitrag zu bauen.
+   */
+  const [quellLink, setQuellLink] = useState('');
+  const [quellLaedt, setQuellLaedt] = useState(false);
+  const [quellFehler, setQuellFehler] = useState('');
+  const [quelle, setQuelle] = useState<{
+    text: string; autor: string | null; konto: string | null;
+    datum: string | null; url: string; bilder: string[]; videos: string[];
+  } | null>(null);
+  /* ------------------------------ Eigene Fassung des uebernommenen Bildes */
+  /**
+   * Dasselbe Bild, andere Gesichter.
+   *
+   * Das uebernommene Bild bleibt stehen; darunter entsteht die eigene
+   * Fassung aus den Fotos, die das Werkzeug fuehrt. Neun ergeben bei
+   * /api/beitrag-bild ein 3x3-Raster - dieselbe Anordnung wie in den
+   * Vorlagen, die auf X kursieren.
+   */
+  const [eigenAnzahl, setEigenAnzahl] = useState(9);
+  const [eigenIds, setEigenIds] = useState<string[]>([]);
+  const [eigenBild, setEigenBild] = useState<string | null>(null);
+  const [eigenLaedt, setEigenLaedt] = useState(false);
+  const [eigenRegel, setEigenRegel] = useState('');
+  const [eigenNamen, setEigenNamen] = useState('');
+  /** Das Bild als Blob - fuer die Zwischenablage, ohne Umweg ueber die Platte. */
+  const [eigenBlob, setEigenBlob] = useState<Blob | null>(null);
+  const [eigenKopiert, setEigenKopiert] = useState(false);
+
+  /**
+   * Das Bild in die Zwischenablage legen.
+   *
+   * Herunterladen, wiederfinden, hochladen, hinterher aufraeumen - fuer ein
+   * Bild, das einmal in einen Beitrag soll, sind das vier Schritte zu viel.
+   * Der Browser kann PNG unmittelbar in die Ablage schreiben.
+   */
+  async function eigenKopieren() {
+    if (!eigenBlob) return;
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': eigenBlob }),
+      ]);
+      setEigenKopiert(true);
+      setTimeout(() => setEigenKopiert(false), 2000);
+    } catch {
+      // Ohne Erlaubnis oder in einem alten Browser geht es nicht - dann
+      // bleibt der Weg ueber das Speichern, und das steht daneben.
+      setEigenKopiert(false);
+    }
+  }
+
+  /**
+   * Gesetzte Spieler - die sollen auf jeden Fall ins Bild.
+   *
+   * Der Vorschlag fuellt nur auf, was danach noch frei ist. So laesst sich
+   * ein Beitrag um zwei, drei Namen herum bauen, die feststehen, ohne die
+   * uebrigen von Hand zusammensuchen zu muessen.
+   */
+  interface Waehlbar {
+    epicId: string; anzeige: string; bild: string | null; foto: boolean;
+  }
+  const [fest, setFest] = useState<Waehlbar[]>([]);
+  const [festSuche, setFestSuche] = useState('');
+  const [festRegion, setFestRegion] = useState('EU');
+  const [festListe, setFestListe] = useState<Waehlbar[]>([]);
+
+  useEffect(() => {
+    let weg = false;
+    const q = festSuche.trim();
+    const uhr = setTimeout(() => {
+      // Bei einer Suche gilt der Text, sonst die gewaehlte Region.
+      const pfad = q.length >= 2
+        ? `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`
+        : `/api/szene-stats?region=${festRegion}&sort=elims&limit=80`;
+      fetch(pfad).then((r) => r.json())
+        .then((j) => {
+          if (weg) return;
+          const roh = Array.isArray(j?.spieler) ? j.spieler : [];
+          setFestListe(roh.map((x: {
+            epicId: string; anzeige?: string; name?: string;
+            bild?: string | null; echtesFoto?: boolean | string;
+          }) => ({
+            epicId: x.epicId,
+            anzeige: x.anzeige || x.name || x.epicId,
+            bild: x.bild ?? null,
+            foto: String(x.echtesFoto).toLowerCase() === 'true',
+          })).filter((x: Waehlbar) => /^[0-9a-f]{32}$/i.test(x.epicId)));
+        })
+        .catch(() => {});
+    }, 300);
+    return () => { weg = true; clearTimeout(uhr); };
+  }, [festSuche, festRegion]);
+
+  /** Spieler nach einer offenen Regel vorschlagen lassen. */
+  async function eigenVorschlagen(art: 'underrated' | 'topelims') {
+    setEigenLaedt(true); setEigenRegel('');
+    try {
+      const r = await fetch(`/api/spieler-vorschlag?art=${art}&anzahl=${eigenAnzahl}`);
+      const j = await r.json();
+      if (!r.ok) { setEigenRegel(j?.error ?? 'no suggestion'); return; }
+      setEigenIds((j.spieler ?? []).map((x: { epicId: string }) => x.epicId));
+      setEigenRegel(j.regel ?? '');
+    } catch (e) { setEigenRegel((e as Error).message); }
+    finally { setEigenLaedt(false); }
+  }
+
+  /** Aus den gewaehlten Konten das Bild bauen. */
+  useEffect(() => {
+    let weg = false;
+    let alte: string | null = null;
+    // Ohne Konten nichts zu bauen. Der Zustand wird trotzdem ueber dieselbe
+    // Kette zurueckgesetzt, damit im Effekt nichts unmittelbar gesetzt wird.
+    // Zuerst die gesetzten, dann der Vorschlag - doppelte fallen weg.
+    const zusammen = [...new Set([...fest.map((x) => x.epicId), ...eigenIds])]
+      .slice(0, Math.max(eigenAnzahl, 1) + 6);
+
+    const holen = zusammen.length
+      ? fetch(`/api/beitrag-bild?ids=${zusammen.join(',')}&anzahl=${eigenAnzahl}`,
+        { cache: 'no-store' })
+        .then(async (r) => {
+          if (!r.ok) return null;
+          const namen = decodeURIComponent(r.headers.get('X-Spieler') ?? '');
+          return { blob: await r.blob(), namen };
+        })
+      : Promise.resolve(null);
+
+    holen.then((erg) => {
+      if (weg) return;
+      if (!erg) {
+        setEigenBild((v) => { if (v) URL.revokeObjectURL(v); return null; });
+        return;
+      }
+      setEigenNamen(erg.namen);
+      setEigenBlob(erg.blob);
+      alte = URL.createObjectURL(erg.blob);
+      setEigenBild((v) => { if (v) URL.revokeObjectURL(v); return alte; });
+    }).catch(() => {});
+    return () => { weg = true; if (alte) URL.revokeObjectURL(alte); };
+  }, [eigenIds, eigenAnzahl, fest]);
+
+  /** Selbst hochgeladene Bilder - bleiben im Browser, nichts wird gesendet. */
+  const [eigeneBilder, setEigeneBilder] = useState<string[]>([]);
+
+  /*
+   * Einen uebernommenen Text nicht eins zu eins stehen lassen.
+   *
+   * Der Betreiber: "wenn ich eine URL einfuege, soll das nicht eins zu eins
+   * kopiert sein, sondern ein paar Emojis angepasst oder so - einfach dass
+   * es nicht ganz genau gleich aussieht."
+   *
+   * Angefasst wird deshalb nur Beiwerk: Emojis werden gegen gleichbedeutende
+   * getauscht, Interpunktion beruhigt. Woerter, Namen und Zahlen bleiben
+   * Zeichen fuer Zeichen stehen - an einem uebernommenen Text etwas
+   * umzuformulieren hiesse, eine fremde Aussage zu veraendern, und das waere
+   * schlimmer als eine woertliche Kopie.
+   */
+  /*
+   * Emojis nur innerhalb ihrer Bedeutung tauschen.
+   *
+   * Hier stand vorher eine flache Liste, und darin wurde die Zielscheibe zum
+   * Zirkuszelt. Der Betreiber hat das zu Recht abgeraeumt: "Bei
+   * Eliminierungen soll nicht einfach ein Zirkuszelt kommen. Es soll wirklich
+   * sinnvoll sein."
+   *
+   * Deshalb Gruppen statt Paare. Getauscht wird reihum innerhalb einer
+   * Gruppe, und jede Gruppe meint eine Sache: Sieg, Abschuss, Wucht, Staunen.
+   * Was in keiner Gruppe steht, bleibt unangetastet - ein Emoji, dessen
+   * Bedeutung nicht sicher ist, wird lieber gar nicht angefasst.
+   */
+  const EMOJI_GRUPPEN: string[][] = [
+    ['🏆', '👑', '🥇', '🏅'],          // Sieg und Titel
+    ['🎯', '⚔️', '🔫', '💀'],          // Abschuesse
+    ['🔥', '💥', '⚡'],                // Wucht
+    ['😳', '😮', '🤯'],               // Staunen
+    ['📈', '📊', '🚀'],               // aufwaerts
+    ['💪', '🦾'],                    // Staerke
+    ['🙌', '👏'],                    // Applaus
+    ['❤️', '🧡', '💜'],              // Zuneigung
+    ['😂', '🤣'],                    // Lachen
+  ];
+
+  const EMOJI_TAUSCH: Record<string, string> = Object.fromEntries(
+    EMOJI_GRUPPEN.flatMap((g) => g.map((z, i) => [z, g[(i + 1) % g.length]])));
+
+  function textVariieren(roh: string): string {
+    return [...roh]
+      .map((z) => EMOJI_TAUSCH[z] ?? z)
+      .join('')
+      // Drei Ausrufezeichen sind eine Handschrift, kein Inhalt.
+      .replace(/([!?])\1{1,}/g, '$1')
+      // Gedankenstrich statt Doppelbindestrich, einfache statt dreifacher
+      // Punkte - dieselbe Aussage, andere Schreibweise.
+      .replace(/\s--\s/g, ' — ')
+      .replace(/\.{3,}/g, '…');
+  }
+
+  /**
+   * Aus einem uebernommenen Beitrag die Spieler herauslesen.
+   *
+   * Der Betreiber: "Du siehst ja diese Namen ... da ist kein Bild generiert.
+   * Du sollst einfach die Namen durchlesen, und wozu Du Bilder findest,
+   * machst Du ein gutes Bild."
+   *
+   * Zwei Wege, beide ohne zu raten:
+   *
+   *   - "@venofn" ist ein X-Konto. Steht es in einem gepflegten Profil, ist
+   *     der Spieler damit eindeutig bestimmt - kein Vergleich noetig.
+   *   - Ein blosses Wort geht durch den Namensabgleich des Archivs. Hier
+   *     zaehlt nur ein sehr sicherer Treffer: in einem Satz stehen auch
+   *     Woerter wie "final" oder "clutch", und ein halbwegs aehnlicher Name
+   *     waere ein fremdes Gesicht im Bild.
+   *
+   * Die Reihenfolge folgt dem Text: wer zuerst genannt wird, steht im Bild
+   * vorn. Das ist in solchen Beitraegen fast immer der Wichtigste.
+   */
+  /*
+   * Woerter, die nie ein Spieler sind.
+   *
+   * Im Archiv steht zu fast jedem Begriff irgendein Konto - "FNCS" traf ein
+   * Konto mit ueber hundert Matches und haette ein fremdes Gesicht ins Bild
+   * gesetzt. Turnier- und Alltagswoerter kommen deshalb gar nicht erst in
+   * den Abgleich. Ein Spieler, der wirklich so heisst, steht in solchen
+   * Beitraegen ohnehin als @-Konto oder neben seinem Duopartner.
+   */
+  const KEINE_SPIELER = new Set([
+    'fncs', 'ewc', 'cup', 'cash', 'final', 'finals', 'division', 'div',
+    'solo', 'solos', 'duo', 'duos', 'trio', 'trios', 'squad', 'squads',
+    'open', 'round', 'week', 'day', 'season', 'qualifier', 'quali',
+    'elim', 'elims', 'kill', 'kills', 'point', 'points', 'top', 'win',
+    'wins', 'winner', 'winners', 'victory', 'royale', 'champion',
+    'region', 'europe', 'chapter', 'game', 'games', 'match', 'matches',
+    'recap', 'standings', 'leaderboard', 'live', 'stream', 'twitch',
+    'clutch', 'best', 'the', 'and', 'with', 'from', 'for', 'this',
+    'that', 'huge', 'run', 'take', 'takes', 'nice', 'good', 'great',
+    'first', 'second', 'third', 'place', 'placed', 'team', 'teams',
+    'grand', 'series', 'practice', 'reload', 'ranked', 'performance',
+  ]);
+
+  async function spielerAusText(text: string) {
+    const handles = text.match(/@[A-Za-z0-9_]{2,15}/g) ?? [];
+    const woerter = text.split(/[^\p{L}\p{N}_-]+/u)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 3 && /\p{L}/u.test(w))
+      .filter((w) => !KEINE_SPIELER.has(w.toLowerCase()));
+    const alle = [...new Set([...handles, ...woerter])].slice(0, 150);
+    if (!alle.length) return;
+
+    try {
+      const j = await (await fetch('/api/karten/namen', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ woerter: alle }),
+      })).json() as {
+        treffer?: Array<{
+          roh: string; epicId: string; guete: number; matches: number;
+        }>;
+      };
+
+      /*
+       * Ein blosses Wort muss zu einem Konto passen, das wirklich spielt.
+       *
+       * Im Archiv steht auch ein Konto namens "b e s t _ 1" mit acht Matches
+       * und eines namens "FTW CLUTCHあーる" mit vieren. Beide treffen die
+       * Woerter "best" und "clutch" genau - und beide gehoeren nicht in ein
+       * Bild ueber ein Finale. Die Zahl der Turniermatches trennt sie
+       * zuverlaessig von den Gemeinten: die stehen bei vierhundert bis
+       * achthundert.
+       *
+       * Ein @-Konto braucht diese Huerde nicht. Es ist eine gepflegte
+       * Zuordnung und damit ohnehin eindeutig.
+       */
+      const gut = (j.treffer ?? []).filter((x) =>
+        x.roh.startsWith('@') || (x.guete >= 0.9 && x.matches >= 100));
+      const nachStelle = gut
+        .map((x) => ({ ...x, wo: text.indexOf(x.roh) }))
+        .sort((a, b) => (a.wo < 0 ? 1e9 : a.wo) - (b.wo < 0 ? 1e9 : b.wo));
+
+      const ids = [...new Set(nachStelle.map((x) => x.epicId))].slice(0, 12);
+      if (ids.length) setEigenIds(ids);
+    } catch { /* dann bleibt das Bild leer */ }
+  }
+
+  async function quelleHolen() {
+    const link = quellLink.trim();
+    if (!link) return;
+    setQuellLaedt(true); setQuellFehler(''); setQuelle(null);
+    try {
+      const r = await fetch(`/api/tweet-holen?url=${encodeURIComponent(link)}`);
+      const j = await r.json();
+      if (!r.ok) { setQuellFehler(j?.error ?? `Error ${r.status}`); return; }
+      setQuelle(j);
+      // Der Text geht gleich in den Editor - genau das ist der Zweck. Nur
+      // nicht Zeichen fuer Zeichen: siehe textVariieren.
+      setEigenerText(textVariieren(j.text ?? ''));
+      // Und die Spieler daraus ins Bild - siehe spielerAusText.
+      void spielerAusText(j.text ?? '');
+    } catch (e) {
+      setQuellFehler((e as Error).message);
+    } finally { setQuellLaedt(false); }
+  }
+
+  function bilderWaehlen(dateien: FileList | null) {
+    for (const d of Array.from(dateien ?? [])) {
+      if (!d.type.startsWith('image/')) continue;
+      const leser = new FileReader();
+      leser.onload = () => setEigeneBilder((alt) =>
+        [...alt, String(leser.result)]);
+      leser.readAsDataURL(d);
+    }
+  }
+  const [spotlight, setSpotlight] = useState<number | null>(null);
+  /** Die zuletzt per Kurzbefehl gestellte Frage ans Feld. */
+  const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
+  /** Steht die Befehlsübersicht offen? */
+  const [befehleOffen, setBefehleOffen] = useState(false);
+  const [befehlSuche, setBefehlSuche] = useState('');
+  /** Team-Summen von Epic oder Einzelwerte aus der Szene-Quelle. */
+  const [ebene, setEbene] = useState<'team' | 'spieler'>('team');
+  const [spielerDaten, setSpielerDaten] = useState<SpielerDaten | null>(null);
+  /** Konto-ID auf bekannte Namen - loest Turnier-Tarnnamen auf. */
+  const [namen, setNamen] = useState<Record<string, NamensEintrag>>({});
+  const [befehl, setBefehl] = useState('');
+  const [befehlEcho, setBefehlEcho] = useState('');
+
+  /* --------------------------------------------------- Screenshot einlesen */
+
+  /*
+   * Hier lagen die Zustaende der Screenshot-Erkennung: eingefuegtes Bild,
+   * erkannter Text, Fortschritt. Die Erkennung ist entfallen - sie las
+   * Namen aus fremden Bildschirmfotos, was die Zuordnung ueber die Konto-Id
+   * ohnehin besser kann, und kostete eine ganze Bibliothek dafuer.
+   */
+  /**
+   * Welche Kennzahl steht gerade in voller Laenge offen? Der Schluessel der
+   * Bestenliste, oder 'alle' fuer die Gesamttabelle. Null heisst zu.
+   */
+  const [vollansicht, setVollansicht] = useState<string | null>(null);
+  /** Suchfeld der Vollansicht - filtert nach Name, Land und Region. */
+  const [vollSuche, setVollSuche] = useState('');
+  /** Wessen Werte zeigt die Player Card? Konto-ID, sonst der Name. */
+  const [karteSpieler, setKarteSpieler] =
+    useState<{ name: string; id?: string } | null>(null);
+
+  const leinwand = useRef<HTMLCanvasElement | null>(null);
+  /** Vorgeladene Flaggenbilder fuer die Leinwand, nach Laenderkuerzel. */
+  const flaggenBilder = useRef<Record<string, HTMLImageElement>>({});
+  /** Das eigene Logo fuer die Fusszeile der Grafik. */
+  const logoBild = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/check-admin')
+      .then((r) => r.json())
+      .then((j) => setIstAdmin(j.isAdmin === true))
+      .catch(() => setIstAdmin(false));
+
+    // Die Herkunftslaender der Szene-Quelle - dieselben, die auf der
+    // Statistikseite stehen. Ohne sie traegt jeder Ungepflegte eine
+    // Weltkugel, obwohl sein Land laengst bekannt ist.
+    fetch('/api/spieler-laender').then((r) => r.json())
+      .then((d) => setSzeneLaender(d?.laender ?? {})).catch(() => {});
+
+    fetch('/api/cup-catalog?modus=alle').then((r) => r.json())
+      .then((d) => setCups(d.cups ?? [])).catch(() => {});
+
+    fetch('/api/spieler-namen').then((r) => r.json())
+      .then((j) => setNamen(j.verzeichnis ?? {})).catch(() => {});
+
+    const logo = new Image();
+    logo.src = MARKE.logo;
+    logo.onload = () => { logoBild.current = logo; zeichnenRef.current?.(); };
+
+    // Herkunftsland und X-Konto kommen aus der selbst gepflegten Liste.
+    // Wer dort fehlt, erscheint ohne Flagge - erfunden wird nichts.
+    fetch('/api/spieler-profile').then((r) => r.json())
+      .then((j) => {
+        const p = (j.profile ?? {}) as Record<string, Profil & { echterName?: string }>;
+        /*
+         * Turnierkonten eines LAN ("[FNCSGC26] BIG Vico") kommen mit dem
+         * Namen des echten Kontos (lib/lanKonten). Im Beitrag steht der
+         * Spieler, nicht das Turnierkonto - "Vico", mit seinem @-Konto.
+         */
+        for (const e of Object.values(p)) if (!e.anzeige && e.echterName) e.anzeige = e.echterName;
+        setProfile(p);
+        for (const eintrag of Object.values(p)) {
+          const code = eintrag.land?.toLowerCase();
+          if (!code || flaggenBilder.current[code]) continue;
+          const bild = new Image();
+          bild.src = `/flags/${code}.png`;
+          bild.onload = () => zeichnenRef.current?.();
+          flaggenBilder.current[code] = bild;
+        }
+      }).catch(() => {});
+  }, []);
+
+  const cup = cups.find((c) => c.id === cupId);
+  const fenster = useMemo(() => {
+    if (!cup) return [];
+    return Object.entries(cup.regionen).flatMap(([region, liste]) =>
+      liste.map((f) => ({ ...f, region })));
+  }, [cup]);
+  const aktuellesFenster = fenster.find((f) => f.windowId === fensterId);
+
+  /*
+   * Stat-Posts im CompHub-Stil (Betreiber, 14.11.2026: nicht 1:1 Fortnite Tracker, eigener Stil, mehr Posts, je Post ein Bild): Cup und Spieltag sind dieselbe
+   * Auswahl wie unten in Schritt 2, Texte und Fotos kommen fertig vom Server (/api/admin/ft-posts, lib/ftPosts.ts - dieselbe Regel wie scripts/ft-posts.mjs),
+   * das Bild zeichnet lib/ftBild.ts im Browser.
+   */
+  const [ftErgebnis, setFtErgebnis] = useState<{ windowId: string; daten: FtAntwort } | null>(null);
+  const [ftLaedt, setFtLaedt] = useState(false);
+  const [ftFehler, setFtFehler] = useState<{ windowId: string; text: string } | null>(null);
+  const [ftTitel, setFtTitel] = useState<{ windowId: string; text: string } | null>(null);
+  const [ftKopiert, setFtKopiert] = useState<string | null>(null);
+  const ftStandardTitel = cup && aktuellesFenster
+    ? `${titelMit(cup.titel, aktuellesFenster.windowId)}${aktuellesFenster.region ? ` ${aktuellesFenster.region}` : ''}`
+    : '';
+  const ftTitelText = ftTitel?.windowId === fensterId ? ftTitel.text : ftStandardTitel;
+  const ftDaten = ftErgebnis?.windowId === fensterId ? ftErgebnis.daten : null;
+  // nurEpic: "Sofort (Epic)" - nur der Standings-Post, frisch aus Epics Bestenliste (die Stat-Posts kommen immer aus den Replays).
+  async function ftErstellen(nurEpic = false) {
+    if (!aktuellesFenster) return;
+    const w = aktuellesFenster.windowId;
+    setFtLaedt(true); setFtFehler(null);
+    try {
+      const r = await fetch(`/api/admin/ft-posts?event=${encodeURIComponent(aktuellesFenster.eventId)}&window=${encodeURIComponent(w)}`
+        + `&titel=${encodeURIComponent(ftTitelText)}${nurEpic ? '&quelle=epic' : ''}`, { cache: 'no-store' });
+      const j = await r.json().catch(() => ({})) as Partial<FtAntwort> & { error?: string };
+      if (!r.ok || !j.posts) throw new Error(j.error || `HTTP ${r.status}`);
+      setFtErgebnis({ windowId: w, daten: j as FtAntwort });
+    } catch (e) {
+      setFtFehler({ windowId: w, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setFtLaedt(false);
+    }
+  }
+  async function ftKopieren(art: string, text: string) {
+    try { await navigator.clipboard.writeText(text); } catch { return; }
+    setFtKopiert(art);
+    setTimeout(() => setFtKopiert((k) => (k === art ? null : k)), 1800);
+  }
+
+  /**
+   * Welche Spieltage in der Liste stehen.
+   *
+   * Eine FNCS-Saison bringt sieben Regionen mal ein Dutzend Termine mit; die
+   * Liste war laenger als der Bildschirm. Gezeigt werden deshalb die
+   * laufenden und die zwoelf zuletzt gelaufenen - und daneben steht, wie
+   * viele noch dahinter liegen. Gekuerzt wird sichtbar, nie stillschweigend.
+   */
+  const spieltage = useMemo(() => {
+    const live = fenster.filter((f) => f.status === 'live')
+      .sort((a, b) => b.begin - a.begin);
+    const vorbei = fenster.filter((f) => f.status === 'vorbei')
+      .sort((a, b) => b.begin - a.begin);
+    const gezeigt = alleSpieltage ? vorbei : vorbei.slice(0, 12);
+    return { liste: [...live, ...gezeigt], mehr: vorbei.length - gezeigt.length };
+  }, [fenster, alleSpieltage]);
+
+  /**
+   * Was zur Auswahl steht. Ueber ein Turnier, das noch nicht begonnen hat,
+   * gibt es nichts zu berichten - deshalb erscheinen nur laufende und
+   * bereits gelaufene Cups, die laufenden zuerst.
+   */
+  const sichtbareCups = useMemo(() => {
+    const laeuft = (c: Cup) => c.live
+      || Object.values(c.regionen).some((l) => l.some((f) => f.status === 'live'));
+    const gelaufen = (c: Cup) => !laeuft(c)
+      && Object.values(c.regionen).some((l) => l.some((f) => f.status === 'vorbei'));
+
+    // Die laufenden zuerst. Einen eigenen Filter dafuer gibt es nicht
+    // mehr: sie stehen oben und tragen einen roten Punkt, und damit ist die
+    // Frage "laeuft das gerade?" beantwortet, ohne einen Knopf dafuer.
+    // Ranked Cups gehoeren nicht in einen Beitrag (Betreiber, 19.10.2026).
+    const brauchbar = cups.filter((c) => !/\branked\b/i.test(c.titel));
+    const live = brauchbar.filter(laeuft);
+    const vorbei = brauchbar.filter(gelaufen)
+      // Zuletzt gelaufene zuerst - danach sucht man am haeufigsten.
+      .sort((a, b) => (b.letzterStart ?? 0) - (a.letzterStart ?? 0));
+    return { live, vorbei };
+  }, [cups]);
+
+  /**
+   * Die Cup-Liste, nach Monat gebuendelt.
+   *
+   * Sie stand als eine einzige Reihe von zwanzig Zeilen da - "Duos Reload
+   * Ranked Cup (Zero Build)", "Duos Reload Ranked Cup (Battle Royale)",
+   * "Solo Reload Ranked Cup (Battle Royale)" untereinander, unterschieden
+   * nur durch ein Datum am Ende. Der Betreiber dazu, unmissverstaendlich:
+   * "Ich seh das gar nicht uebersichtlich. Gar nicht."
+   *
+   * Jetzt: die laufenden oben in einer eigenen Gruppe, alles andere nach
+   * Monat getrennt, und darueber ein Feld zum Filtern. Der Monat kommt aus
+   * dem Datum des Cups, nicht aus einer Liste von Namen - so stimmt er auch
+   * im naechsten Jahr.
+   */
+  const cupGruppen = useMemo(() => {
+    const q = cupSuche.trim().toLowerCase();
+    const passt = (c: Cup) => !q || c.titel.toLowerCase().includes(q);
+
+    const live = sichtbareCups.live.filter(passt);
+    const monate = new Map<string, { titel: string; cups: Cup[] }>();
+    for (const c of sichtbareCups.vorbei.filter(passt)) {
+      const zeiten = begonneneZeiten(c);
+      const wann = zeiten.length ? new Date(Math.max(...zeiten)) : null;
+      const schluessel = wann
+        ? `${wann.getFullYear()}-${String(wann.getMonth()).padStart(2, '0')}`
+        : 'ohne';
+      const titel = wann
+        ? wann.toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-DE',
+          { month: 'long', year: 'numeric' })
+        : t('ohne Datum');
+      if (!monate.has(schluessel)) monate.set(schluessel, { titel, cups: [] });
+      monate.get(schluessel)!.cups.push(c);
+    }
+    return {
+      live,
+      // Die Cups sind schon nach Datum sortiert; der Schluessel jahr-monat
+      // sortiert absteigend genau so.
+      monate: [...monate.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([, v]) => v),
+      treffer: live.length
+        + [...monate.values()].reduce((a, v) => a + v.cups.length, 0),
+    };
+  }, [sichtbareCups, cupSuche, sprache, t]);
+
+  /** Wann lief dieser Cup zuletzt? Fuer die Beschriftung in der Liste. */
+  const wann = (c: Cup) => {
+    const zeiten = begonneneZeiten(c);
+    if (!zeiten.length) return '';
+    return new Date(Math.max(...zeiten))
+      .toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  };
+
+  const laden = useCallback(async () => {
+    if (!aktuellesFenster) return;
+    // Alles zuruecksetzen: sonst stehen die Spieler des vorigen Cups noch
+    // in der Liste, bis die neue Antwort eintrifft.
+    setLaedt(true); setFehler(''); setStats(null); setEintraege([]);
+    setSpielerDaten(null);
+    // Auch die Player Card: sonst zeigt sie nach dem Cup-Wechsel weiter den
+    // Spieler des vorigen Turniers, der hier gar nicht angetreten ist.
+    setKarteSpieler(null); setVollansicht(null);
+    try {
+      const p = `event=${encodeURIComponent(aktuellesFenster.eventId)}` +
+                `&window=${encodeURIComponent(aktuellesFenster.windowId)}`;
+      const [rs, rl] = await Promise.all([
+        fetch(`/api/cup-stats?${p}&top=5`),
+        fetch(`/api/cup-leaderboard?${p}&limit=500`),
+      ]);
+      const [ds, dl] = await Promise.all([rs.json(), rl.json()]);
+      if (!rs.ok) throw new Error(ds.error ?? 'Could not load the stats');
+      setStats(ds);
+      setEintraege(dl.entries ?? []);
+      setGewaehlteListen((ds.bestenlisten as Bestenliste[]).slice(0, 6).map((b) => b.schluessel));
+
+      // Einzelwerte nebenher holen - sie liegen bei einer anderen Quelle und
+      // sind nicht zu jedem Spieltag vorhanden.
+      // Region mitgeben: dieselbe Spieltagskennung kann in mehreren
+      // Regionen vorkommen, sonst kaemen die Werte der falschen.
+      /*
+       * Zuerst dieselben Werte wie unter Player Stats auf der Event-Seite (app/api/cup-spieler, aus den Replays: Schaden, Quote, Treffer, Strecke, Zeit ...) -
+       * Betreiber, 8.11.2026: "wieso kann ich da nur 3 Stats haben und die Usernamen werden so komisch angezeigt". 
+       * Sonst gibt es keine Einzelwerte.
+       */
+      const fenster0 = aktuellesFenster;
+      const ausCupSpieler = async (): Promise<SpielerDaten | null> => {
+        const j = await fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster0.windowId)}&event=${encodeURIComponent(fenster0.eventId)}`).then((r) => r.json()).catch(() => null) as {
+          spieler?: Array<Record<string, unknown>>;
+        } | null;
+        const liste = (j?.spieler ?? []).filter((s) => typeof s.epicId === 'string' && Number(s.spiele) > 0);
+        if (!liste.length) return null;
+        const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+        return {
+          vorhanden: true, quelle: 'Replays', fuer: fenster0.windowId,
+          spieler: liste.map((s) => ({
+            name: String(s.name || s.epicId), epicId: String(s.epicId),
+            elims: n(s.kills), knocks: n(s.knocks), gestorben: n(s.tode), assists: n(s.assists), reboots: n(s.reboots),
+            headshots: n(s.headshots), hits: n(s.hits), damage: n(s.damage), damageTaken: n(s.damageTaken), quote: n(s.damageRatio),
+            kd: n(s.kd), heals: 0, genauigkeit: n(s.genauigkeit), shots: 0, stormDamage: 0, fallDamage: 0, mats: n(s.mats), builds: n(s.builds),
+            distanz: 0, distanzGesamt: +(n(s.distanz) / 1000).toFixed(2), timeInStorm: n(s.timeInStorm), timeAlive: n(s.timeAlive), matches: n(s.spiele),
+          })),
+        };
+      };
+      ausCupSpieler()
+        .then((d: SpielerDaten | null) => {
+          // Eine verspaetete Antwort zu einem anderen Spieltag darf die
+          // aktuelle Auswahl nicht ueberschreiben.
+          if (d?.fuer && d.fuer !== aktuellesFenster.windowId) return;
+          setSpielerDaten(d);
+        })
+        .catch(() => setSpielerDaten(null));
+    } catch (e) {
+      setFehler((e as Error).message);
+    } finally { setLaedt(false); }
+  }, [aktuellesFenster]);
+
+  /*
+   * "Missed the cut" (Betreiber, 20.10.2026): alle bekannten Spieler des GANZEN Cups, die nicht weitgekommen sind - kein Top 10, und nicht nur ein Spieltag:
+   * "Notable Players to have not qualified Solo FNCS Grand Finals" und darunter jeder Name.
+   *
+   * Bekannt heisst: unter den ersten 200 der Power Rankings. Ihre Plaetze kommen ueber die Konto-Ids aus den Bestenlisten.
+   *
+   *  - Ist der gewaehlte Cup ein Finale (FNCS Solos Finals), zaehlen alle gespielten Spieltage der Reihe davor in dieser Region (Qualifiers, Heats, Fast Track, Last Chance):
+   *    wer dort mitspielte und im Finale nicht steht, hat es nicht geschafft. Das Feld des Finales kommt aus dessen Bestenliste und aus Epics Marken (/api/prognose-feld).
+   *  - Sonst zaehlen die Spieltage dieses Cups: wer in keinem ueber die Linie ("Top 300", /api/qualifikation) kam, ist nicht weiter. Was der Admin oben eintippt,
+   *    ersetzt die Linie.
+   *
+   * Nichts wird geschaetzt.
+   */
+  /** Die Co-Streamer je Region (/api/co-streamer) und ihre Bearbeitung als Text, eine Zeile je Streamer: "DE gripey @gripey". */
+  const [coListen, setCoListen] = useState<Record<string, Array<{ land: string; twitch: string; x?: string }>> | null>(null);
+  const [coText, setCoText] = useState('');
+  const [coGespeichert, setCoGespeichert] = useState('');
+  const [coKopiert, setCoKopiert] = useState(false);
+  /** Die Drop Map des gewaehlten Spieltags (/api/drop-map) - Titel, Region und Spieler mit Konto-ID. */
+  const [dropMap, setDropMap] = useState<{ w: string; ok: boolean; titel?: string; region?: string; spieler?: Array<{ id: string; anzeige: string; land: string | null }>; link?: string; error?: string } | null>(null);
+  const [verpasst, setVerpasst] = useState<{
+    modus: 'cut' | 'serie'; cut: number | null; spieltage: number; qualifiziert: string[];
+    zeilen: Array<{ id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>;
+    laedt: boolean; fehler: string;
+  }>({ modus: 'cut', cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: false, fehler: '' });
+  const [verpasstCutText, setVerpasstCutText] = useState('');
+  useEffect(() => {
+    if (vorlage !== 'verpasst' || !aktuellesFenster || !cup) return undefined;
+    const region = aktuellesFenster.region;
+    const gespielt = (w: { region: string; status: string; eventId: string }) => w.region === region && w.status !== 'kommt' && !String(w.eventId).startsWith('manuell_');
+    // "s42_fncssolos_final" und "s42_fncssolos_qual" gehoeren zur Reihe "s42_fncssolos"; "s42_fncssolos_reload_*" zu "s42_fncssolos_reload".
+    const reihe = (id: string) => id.replace(/_(finals?|grands?|qual|qualifiers|heats|fasttrack|lcq|lastchance\w*)$/i, '');
+    const istFinale = /final/i.test(cup.id) && !/lastchance/i.test(cup.id);
+    const vorher = istFinale
+      ? cups.filter((c) => c.id !== cup.id && reihe(c.id) === reihe(cup.id))
+        .flatMap((c) => Object.entries(c.regionen).flatMap(([r, liste]) => liste.map((w) => ({ ...w, region: r })))).filter(gespielt).slice(0, 40)
+      : [];
+    const modus: 'cut' | 'serie' = istFinale && vorher.length ? 'serie' : 'cut';
+    const spieltage = modus === 'serie' ? vorher : fenster.filter(gespielt).slice(0, 14);
+    let weg = false;
+    setVerpasst({ modus, cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: true, fehler: '' });
+    (async () => {
+      try {
+        /*
+         * Bekannt (app/api/bekannte-spieler): Profil mit X-Konto oder mindestens 20.000 $ Preisgeld - an der Liste des Betreibers gemessen (8.11.2026: "sehr viele
+         * unnoetige Spieler ... Tylio, Chrisc, Flobby, Joshbot, Finn kennt niemand"). Vorher die ersten 200 Power Rankings (Reason fehlte), dann 600 + alle Profile (zu viele).
+         */
+        const bk = await fetch('/api/bekannte-spieler').then((r) => r.json()).catch(() => null) as { spieler?: Array<{ id: string; name: string }> } | null;
+        const bekannte: Array<{ id?: string; name: string; anzeige?: string }> = (bk?.spieler ?? []).map((s) => ({ id: s.id, name: s.name, anzeige: s.name }));
+        if (!bekannte.length) throw new Error('The list of known players is not available right now.');
+        const idListen: string[] = [];
+        for (let i = 0; i < bekannte.length; i += 150) idListen.push(bekannte.slice(i, i + 150).map((x) => x.id).join(','));
+        const nachId = new Map(bekannte.map((x) => [x.id as string, x]));
+        const zeilen = new Map<string, { id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>();
+        const liesListe = async (w: { eventId: string; windowId: string }) => {
+          const teile = await Promise.all(idListen.map((ids) => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&ids=${ids}`)
+            .then((r) => r.json()).catch(() => null)));
+          const gesehen = new Set<number>();
+          return teile.flatMap((lb) => (lb?.entries ?? []) as Eintrag[]).filter((e) => (gesehen.has(e.rank) ? false : (gesehen.add(e.rank), true)));
+        };
+        let schwelleGewaehlt: number | null = null;
+        for (let i = 0; i < spieltage.length; i += 3) {
+          const stapel = spieltage.slice(i, i + 3);
+          const antworten = await Promise.all(stapel.map(async (w) => {
+            const [eintraege, ql] = await Promise.all([
+              liesListe(w),
+              modus === 'cut'
+                ? fetch(`/api/qualifikation?window=${encodeURIComponent(w.windowId)}&region=${encodeURIComponent(w.region && w.region !== 'GLOBAL' ? w.region : 'EU')}`).then((r) => r.json()).catch(() => null)
+                : Promise.resolve(null),
+            ]);
+            // Die Linie laut Auszahlungstabelle - fehlt sie dort, gilt, wie viele Marken der Spieltag vergibt (Qualifikationsrunden: "bis Platz 1000").
+            const ausMarken = ((w as { marken?: Array<{ bis: number }> }).marken ?? []).reduce((n, m) => n + (m.bis > 0 ? m.bis : 0), 0);
+            return { w, eintraege, linie: Number(ql?.schwelle) > 0 ? Number(ql.schwelle) : (ausMarken > 0 ? ausMarken : null) };
+          }));
+          if (weg) return;
+          for (const { w, eintraege, linie } of antworten) {
+            if (w.windowId === aktuellesFenster.windowId) schwelleGewaehlt = linie;
+            for (const e of eintraege) {
+              for (const p of e.players) {
+                const b = p.id ? nachId.get(p.id) : undefined;
+                if (!b) continue;
+                const z = zeilen.get(b.id as string) ?? { id: b.id as string, name: b.anzeige || b.name, raenge: [], cuts: [], zeiten: [], bekanntheit: bekannte.indexOf(b) };
+                z.raenge.push(e.rank); z.cuts.push(linie); z.zeiten.push(w.begin ?? 0);
+                zeilen.set(z.id, z);
+              }
+            }
+          }
+        }
+        // Wer im Finale steht: die Bestenliste der gespielten Tage und das Feld laut Epics Marken.
+        const qualifiziert = new Set<string>();
+        if (modus === 'serie') {
+          for (const w of fenster.filter(gespielt)) for (const e of await liesListe(w)) for (const p of e.players) if (p.id) qualifiziert.add(p.id);
+          const ersteFinale = fenster.find((w) => w.region === region && !String(w.eventId).startsWith('manuell_'));
+          if (ersteFinale) {
+            const feld = await fetch(`/api/prognose-feld?event=${encodeURIComponent(ersteFinale.eventId)}&window=${encodeURIComponent(ersteFinale.windowId)}&region=${encodeURIComponent(region)}`)
+              .then((r) => r.json()).catch(() => null) as { teams?: Array<{ ids?: string[] }> } | null;
+            for (const t of feld?.teams ?? []) for (const id of t.ids ?? []) if (id) qualifiziert.add(id);
+          }
+        }
+        if (weg) return;
+        setVerpasst({ modus, cut: schwelleGewaehlt, spieltage: spieltage.length, qualifiziert: [...qualifiziert], zeilen: [...zeilen.values()], laedt: false, fehler: '' });
+      } catch (e) {
+        if (!weg) setVerpasst({ modus, cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: false, fehler: (e as Error).message });
+      }
+    })();
+    return () => { weg = true; };
+  }, [vorlage, aktuellesFenster, fenster, cup, cups]);
+  const verpasstManuell = Number(verpasstCutText) > 0 ? Number(verpasstCutText) : 0;
+  const verpasstCut = verpasstManuell || (verpasst.cut ?? 0);
+  /** Gibt es etwas, woran sich "weitergekommen" pruefen laesst - eine Linie oder das Feld des Finales? */
+  const verpasstLinie = verpasst.modus === 'serie'
+    ? verpasst.qualifiziert.length > 0
+    : (verpasstManuell > 0 || verpasst.zeilen.some((z) => z.cuts.some(Boolean)));
+  const verpasstTreffer = useMemo(() => {
+    if (verpasst.modus === 'serie') {
+      const drin = new Set(verpasst.qualifiziert);
+      return verpasst.zeilen.filter((z) => !drin.has(z.id)).sort((a, b) => a.bekanntheit - b.bekanntheit);
+    }
+    // Entscheidend ist der letzte Spieltag, den jemand in diesem Cup gespielt hat: lag er dort hinter der Linie, ist er nicht weitergekommen. Wer in einer frueheren
+    // Runde weiter war und danach nicht mehr auftaucht, ist weiter - er spielt in einem anderen Cup oder Tag weiter.
+    return verpasst.zeilen.filter((z) => {
+      const letzte = z.raenge.reduce((bi, _, i) => (z.zeiten[i] >= z.zeiten[bi] ? i : bi), 0);
+      const c = verpasstManuell || z.cuts[letzte];
+      return !!c && z.raenge[letzte] > c;
+    }).sort((a, b) => a.bekanntheit - b.bekanntheit);
+  }, [verpasst.zeilen, verpasst.modus, verpasst.qualifiziert, verpasstManuell]);
+
+  /**
+   * Ist das ein Solo-Cup?
+   *
+   * Epic fuehrt sein Leaderboard je Eintrag, nicht je Spieler. Bei einem Duo
+   * stehen dort Teamsummen, die sich nicht auf zwei Koepfe aufteilen lassen.
+   * Besteht ein Eintrag aber nur aus einem Spieler, dann *ist* die Teamzeile
+   * bereits die Spielerzeile - und die Einzelwerte liegen von der ersten
+   * Sekunde an vor, ohne fremde Quelle.
+   */
+  const soloCup = useMemo(
+    () => eintraege.length > 0 && eintraege.every((e) => e.players.length === 1),
+    [eintraege]);
+
+  /**
+   * Einzelwerte aus Epics eigenen Zahlen - nur bei Solo-Cups.
+   *
+   * Uebernommen wird ausschliesslich, was Epic tatsaechlich mitschickt.
+   * Schuesse, Treffer, Assists, Wiederbelebungen, Sturm- und Fallschaden
+   * stehen dort nicht; sie bleiben auf null und fallen dadurch aus der
+   * Auswahl heraus, statt mit einer erfundenen Zahl zu erscheinen. Ebenso
+   * "Builds Placed": Epic zaehlt verbautes Material, nicht gesetzte Bauteile -
+   * das ist nicht dasselbe und wird deshalb nicht als solches ausgegeben.
+   */
+  const epicEinzelwerte = useMemo<SpielerWert[]>(() => {
+    if (!soloCup) return [];
+    return eintraege.map((e) => {
+      const spieler = e.players[0];
+      const damage = Math.round(e.damage ?? 0);
+      const damageTaken = Math.round(e.damageTaken ?? 0);
+      return {
+        name: spieler.name,
+        epicId: spieler.id ?? '',
+        elims: e.elims ?? 0,
+        headshots: e.headshots ?? 0,
+        damage,
+        damageTaken,
+        quote: damageTaken > 0 ? +(damage / damageTaken).toFixed(2) : 0,
+        heals: Math.round((e.heilung ?? 0) + (e.schild ?? 0)),
+        mats: e.matsGefarmt ?? 0,
+        // Zentimeter in Kilometer, wie bei der anderen Quelle auch.
+        distanz: +(((e.strecke ?? 0) / 100_000)).toFixed(2),
+        timeAlive: e.timeAlive ?? 0,
+        matches: e.games ?? 0,
+        // Die Wertung des Turniers - bei einem Solo-Cup die des Spielers.
+        points: e.points ?? 0,
+        wins: e.wins ?? 0,
+        kd: e.kd ?? 0,
+        avgPlace: e.avgPlace ?? 0,
+        kisten: e.kisten ?? 0,
+        matsVerbaut: e.matsVerbaut ?? 0,
+        // Von Epic nicht geliefert:
+        assists: 0, reboots: 0, hits: 0, shots: 0, genauigkeit: 0,
+        stormDamage: 0, fallDamage: 0, builds: 0, timeInStorm: 0,
+        distanzGesamt: 0,
+      };
+    });
+  }, [soloCup, eintraege]);
+
+  /**
+   * Welche Einzelwerte gelten - und woher sie stammen.
+   *
+   * Zuerst die Szene-Quelle: sie fuehrt mehr Kennzahlen. Fehlt der Spieltag
+   * dort, springt bei einem Solo-Cup Epic ein.
+   */
+  const einzelwerte = useMemo<SpielerWert[]>(() => {
+    if (!spielerDaten?.spieler.length) return epicEinzelwerte;
+    // Was nur Epics Wertung weiss (Punkte, Siege, Durchschnittsplatz, Heilung, Material), kommt aus der Bestenliste dazu.
+    const epic = new Map(epicEinzelwerte.map((e) => [e.epicId, e]));
+    return spielerDaten.spieler.map((s) => {
+      const e = epic.get(s.epicId);
+      if (!e) return s;
+      return { ...s, points: e.points, wins: e.wins, avgPlace: e.avgPlace, heals: s.heals || e.heals, mats: s.mats || e.mats, kd: s.kd || e.kd };
+    });
+  }, [spielerDaten, epicEinzelwerte]);
+  /** Die Einzelwerte nach Konto - fuer den Zweitwert hinter jeder Zeile. */
+  const einzelwerteNachId = useMemo(
+    () => new Map(einzelwerte.map((p) => [p.epicId, p])), [einzelwerte]);
+
+  const einzelQuelle = spielerDaten?.spieler.length
+    ? (spielerDaten.quelle ?? null)
+    : (epicEinzelwerte.length ? 'Epic' : null);
+
+  /**
+   * Die Einzelwerte in dieselbe Form bringen wie die Teamwerte. Dadurch
+   * arbeiten Textbau, Grafik und Anzeige unveraendert weiter.
+   */
+  const spielerListen = useMemo<Bestenliste[]>(() => {
+    const roh = einzelwerte;
+    if (!roh.length) return [];
+    return SPIELER_KENNZAHLEN.map((k) => {
+      // "Lowest Damage Ratio" greift auf dasselbe Feld zu, sortiert nur andersherum.
+      const feld = (k.schluessel === 'quoteNiedrig' ? 'quote' : k.schluessel) as keyof SpielerWert;
+      const wertVon = (p: SpielerWert) => Number(p[feld]);
+      // Quoten nur bei Spielern mit mindestens der Haelfte der Matches - sonst fuehrt einer mit wenigen guten Spielen (stand "3,21" statt Zynox mit 2,57).
+      const meiste = Math.max(0, ...roh.map((p) => p.matches || 0));
+      const quote = ['quote', 'quoteNiedrig', 'kd', 'genauigkeit', 'avgPlace'].includes(k.schluessel);
+      const sortiert = [...roh]
+        .filter((p) => wertVon(p) > 0 && (!quote || !meiste || (p.matches || 0) >= Math.ceil(meiste / 2)))
+        .sort((a, b) => (k.kleinBesser ? wertVon(a) - wertVon(b) : wertVon(b) - wertVon(a)));
+      if (!sortiert.length) return null;
+      // Einmal das ganze Feld aufbereiten. Die Kachel nimmt sich die ersten
+      // fuenf, die Vollansicht hinter dem Pluszeichen bekommt den Rest.
+      const alle = sortiert.map((p, i) => {
+        const roher = wertVon(p);
+        // Zeiten bleiben Sekunden - formatiert wird beim Schreiben (kennzahlen.ts, "7m 55s").
+        const wert = roher;
+        return {
+          rank: i + 1,
+          spieler: [p.name],
+          ids: [p.epicId],
+          wert: +wert.toFixed(k.nachkomma ?? 0),
+          roh: roher,
+        };
+      });
+      return {
+        schluessel: String(k.schluessel),
+        titel: k.titel,
+        symbol: k.symbol,
+        einheit: k.einheit ?? null,
+        zeit: !!k.zeit, nachkomma: k.nachkomma,
+        plaetze: alle.slice(0, 5),
+        alle,
+      };
+    }).filter(Boolean) as Bestenliste[];
+  }, [einzelwerte]);
+
+  /**
+   * Dieselben Kennzahlen, aber je Team.
+   *
+   * Epics Turnierwertung kennt sechs Groessen: Punkte, Eliminierungen, Siege,
+   * K/D, Durchschnittsplatz, Ueberlebenszeit. Alles Feinere - Material,
+   * Bauteile, Strecke, Kopftreffer, Trefferquote - hat nur die Szene-Quelle,
+   * und dort steht es je Spieler.
+   *
+   * Hier werden diese Werte je Duo zusammengefasst. Das ist keine Schaetzung:
+   * was zwei Spieler eines Teams gefarmt haben, hat das Team gefarmt.
+   *
+   * Zwei Dinge muessen dabei getrennt behandelt werden:
+   *
+   *   - Summen (Material, Strecke, Schaden) lassen sich addieren.
+   *   - Verhaeltnisse (Schadensquote, Trefferquote) NICHT. Der Mittelwert
+   *     zweier Quoten ist nicht die Quote des Teams; sie werden deshalb aus
+   *     den aufsummierten Bestandteilen neu gerechnet.
+   *
+   * Was Epic ohnehin schon fuehrt - Punkte, Siege, K/D, Platz - bleibt bei
+   * Epic. Zwei Wege zur selben Zahl waeren eine Quelle zu viel.
+   */
+  const teamListenAusEinzelwerten = useMemo<Bestenliste[]>(() => {
+    if (!einzelwerte.length || !eintraege.length) return [];
+
+    const jeKonto = new Map(einzelwerte.map((p) => [p.epicId, p]));
+
+    /** Wird schon von Epic gefuehrt - hier nicht noch einmal. */
+    const beiEpic = new Set(['points', 'wins', 'kd', 'avgPlace', 'timeAlive', 'elims']);
+    /** Aus Bestandteilen zu rechnen, nicht zu addieren. */
+    const quotient: Record<string, [keyof SpielerWert, keyof SpielerWert, number]> = {
+      quote: ['damage', 'damageTaken', 1],
+      quoteNiedrig: ['damage', 'damageTaken', 1],
+      genauigkeit: ['hits', 'shots', 100],
+    };
+
+    return SPIELER_KENNZAHLEN.map((k) => {
+      const sch = String(k.schluessel);
+      if (beiEpic.has(sch)) return null;
+
+      const zeilen = eintraege.map((e) => {
+        const teil = e.players
+          .map((sp) => (sp.id ? jeKonto.get(sp.id) : undefined))
+          .filter(Boolean) as SpielerWert[];
+        // Kein einziger Spieler des Teams in den Einzelwerten? Dann gibt es
+        // zu diesem Team nichts zu sagen - keine Null, keine Zeile.
+        if (!teil.length) return null;
+
+        let roh: number;
+        const q = quotient[sch];
+        if (q) {
+          const [oben, unten, faktor] = q;
+          const summeUnten = teil.reduce((n, p) => n + Number(p[unten] ?? 0), 0);
+          if (summeUnten <= 0) return null;
+          roh = (teil.reduce((n, p) => n + Number(p[oben] ?? 0), 0) / summeUnten) * faktor;
+        } else {
+          roh = teil.reduce((n, p) => n + Number(p[k.schluessel as keyof SpielerWert] ?? 0), 0);
+        }
+        if (!(roh > 0)) return null;
+
+        return {
+          e, roh,
+          spieler: e.players.map((sp) => sp.name),
+          ids: e.players.map((sp) => sp.id ?? ''),
+        };
+      }).filter(Boolean) as Array<{
+        e: Eintrag; roh: number; spieler: string[]; ids: string[];
+      }>;
+
+      if (!zeilen.length) return null;
+      zeilen.sort((a, b) => (k.kleinBesser ? a.roh - b.roh : b.roh - a.roh)
+        || (a.e.rank - b.e.rank));
+
+      const alle = zeilen.map((z, i) => {
+        // rank ist wie bei app/api/cup-stats Epics Gesamtplatz des Teams - daran findet das Team Spotlight seine Zeile (vorher i + 1: fremde Werte).
+        return {
+          rank: z.e.rank, statPlatz: i + 1, spieler: z.spieler, ids: z.ids,
+          wert: +z.roh.toFixed(k.nachkomma ?? 0), roh: z.roh,
+        };
+      });
+
+      return {
+        schluessel: String(k.schluessel),
+        titel: k.titel, symbol: k.symbol,
+        einheit: k.einheit ?? null, zeit: !!k.zeit, nachkomma: k.nachkomma,
+        plaetze: alle.slice(0, 5), alle,
+      };
+    }).filter(Boolean) as Bestenliste[];
+  }, [einzelwerte, eintraege]);
+
+  /**
+   * Welche Ebene tatsaechlich gilt.
+   *
+   * Bei einem Solo-Cup gibt es keine Teams, also auch keine zwei Ebenen: die
+   * Zeile eines Eintrags ist die Zeile eines Spielers. Die Umschaltung
+   * verschwindet dort, und es gilt immer die Spielerebene - unabhaengig
+   * davon, was eine Vorlage sonst vorgibt.
+   */
+  const ebeneEffektiv: 'team' | 'spieler' = soloCup ? 'spieler'
+    // Und sonst entscheidet die Vorlage. Eine Spielerkarte mit Teamsummen
+    // waere falsch beschriftet, ein Team Spotlight mit Einzelwerten
+    // unvollstaendig. Nur beim Stats Recap ist es wirklich eine Frage -
+    // dort steht die Umschaltung.
+    : vorlage === 'spielerkarte' ? 'spieler'
+    : vorlage === 'spieler' ? 'team'
+    : ebene;
+
+  /** Was gerade gilt: Teamwerte von Epic oder Einzelwerte. */
+  // Gemerkt statt bei jedem Rendern neu: an dieser Liste haengen inzwischen
+  // mehrere Berechnungen, die sonst jedes Mal von vorn anfingen.
+  // vereinheitlichen: jede Kennzahl einmal (Epic, Replays und Szene-Quelle fuehren manche doppelt), mit einem Namen, Zeichen und Format.
+  const aktiveListen = useMemo(
+    () => vereinheitlichen(ebeneEffektiv === 'spieler'
+      // Solo-Cup: zuerst genau die Kacheln der Event-Seite (Player Stats, app/api/cup-stats - mit Hits, Mats Farmed, Builds Placed; Betreiber 9.11.2026:
+      // "Hits to Players, Mats Farmed, Builds Placed fehlen komplett"), dahinter, was nur die Einzelwerte haben.
+      ? (soloCup && stats?.bestenlisten.length
+        ? [...stats.bestenlisten, ...spielerListen.filter((s) => !stats.bestenlisten.some((b) => b.titel === s.titel || b.schluessel === s.schluessel))]
+        : spielerListen)
+      // Epics sechs zuerst - sie entscheiden den Cup. Danach das Feinere aus
+      // der Szene-Quelle, je Team zusammengefasst.
+      : [...(stats?.bestenlisten ?? []), ...teamListenAusEinzelwerten]),
+    [ebeneEffektiv, spielerListen, stats, teamListenAusEinzelwerten, soloCup]);
+
+  /*
+   * Worst of CompHub: je gewaehlter Kennzahl der Schlechteste. Gezaehlt wird nur, wer mindestens die Haelfte der Spiele des Fleissigsten hatte - sonst
+   * stuende immer einer da, der nach einem Spiel raus war. Gebraucht wird die ganze Liste (alle), die Spitze allein sagt nichts ueber das Ende.
+   */
+  const worstZeilen = useMemo(() => {
+    if (vorlage !== 'worst') return [] as Array<{ titel: string; symbol: string; einheit: string | null; zeit?: boolean; nachkomma?: number; p: Platz }>;
+    const spiele = new Map<string, number>();
+    for (const e of eintraege) for (const sp of e.players) if (sp.id) spiele.set(sp.id, Math.max(spiele.get(sp.id) ?? 0, e.games || 0));
+    for (const sp of einzelwerte) if (sp.epicId && sp.matches) spiele.set(sp.epicId, Math.max(spiele.get(sp.epicId) ?? 0, sp.matches));
+    const meiste = Math.max(0, ...spiele.values());
+    const genug = (pl: Platz) => !meiste || (pl.ids ?? []).some((id) => (spiele.get(id) ?? 0) >= Math.ceil(meiste / 2));
+    return aktiveListen.filter((b) => gewaehlteListen.includes(b.schluessel)).map((b) => {
+      const feld = (b.alle ?? []).filter(genug);
+      if (feld.length < 10) return null;
+      const oben = OBEN_SCHLECHT.has(b.schluessel);
+      return { titel: oben ? b.titel : umgedreht(b.titel), symbol: b.symbol, einheit: b.einheit, zeit: b.zeit, nachkomma: b.nachkomma, p: oben ? feld[0] : feld[feld.length - 1] };
+    }).filter(Boolean) as Array<{ titel: string; symbol: string; einheit: string | null; zeit?: boolean; nachkomma?: number; p: Platz }>;
+  }, [vorlage, eintraege, einzelwerte, aktiveListen, gewaehlteListen]);
+
+  const coRegion = /^NA/.test(aktuellesFenster?.region ?? '') ? 'NA' : (aktuellesFenster?.region || 'EU');
+  useEffect(() => {
+    if (vorlage !== 'livepost' || coListen) return;
+    let weg = false;
+    fetch('/api/co-streamer', { cache: 'no-store' }).then((r) => r.json())
+      .then((j) => { if (!weg && j?.listen) setCoListen(j.listen); }).catch(() => {});
+    return () => { weg = true; };
+  }, [vorlage, coListen]);
+  const coAktiv = (coListen?.[coRegion] ?? []);
+  const coZeilenText = coAktiv.map((c) => `${c.land} ${c.twitch}${c.x ? ` @${c.x}` : ''}`).join('\n');
+  const coSpeichern = async () => {
+    const liste = coText.split('\n').map((z) => z.trim().split(/\s+/)).filter((t) => t.length >= 2)
+      .map(([land, twitch, x]) => ({ land: land.toUpperCase(), twitch, x: x?.replace(/^@/, '') }));
+    const neu = { ...(coListen ?? {}), [coRegion]: liste };
+    const r = await fetch('/api/co-streamer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listen: neu }) });
+    const j = await r.json().catch(() => null);
+    if (j?.ok) { setCoListen(j.listen); setCoGespeichert('saved'); } else setCoGespeichert(j?.error ?? 'not saved');
+    setTimeout(() => setCoGespeichert(''), 2000);
+  };
+  const flaggeVon = (land: string) => [...land.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
+  const coAntwort = coAktiv.map((c) => (c.x ? `@${c.x}` : '')).filter(Boolean).join(' ');
+
+  const dropWindow = vorlage === 'dropmap' ? (aktuellesFenster?.windowId ?? '') : '';
+  useEffect(() => {
+    if (!dropWindow) return;
+    let weg = false;
+    fetch(`/api/drop-map?w=${encodeURIComponent(dropWindow)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setDropMap({ w: dropWindow, ...j }); })
+      .catch(() => { if (!weg) setDropMap({ w: dropWindow, ok: false, error: 'not reachable' }); });
+    return () => { weg = true; };
+  }, [dropWindow]);
+  const dropTitel = dropMap?.ok && dropMap.w === dropWindow
+    ? `${dropMap.region ?? ''} ${(dropMap.titel ?? '').replace(/\s+-\s+/g, ' ')} DROP MAP`.replace(/\s+/g, ' ').trim().toUpperCase() : '';
+
+  /** Die gepflegten Profile, nachgeschlagen ueber die Konto-ID. */
+  const profilNachId = useMemo(() => {
+    const karte = new Map<string, Profil>();
+    for (const [schluessel, p] of Object.entries(profile)) {
+      const id = p.id || (/^[0-9a-f]{32}$/i.test(schluessel) ? schluessel : '');
+      if (id) karte.set(id, p);
+    }
+    return karte;
+  }, [profile]);
+
+  /**
+   * Das Profil zu einem Spieler.
+   *
+   * Ueber die Konto-ID und sonst gar nicht. Ein Profi ist genau ein Epic-Konto
+   * - der Name ist es nicht: er laesst sich nachbauen, und genau das passiert
+   * dauernd. "Peterbot 來" ist nicht peterbot, aber nach dem Abschleifen der
+   * Zierzeichen sieht der Name gleich aus. Wer nach dem Namen zuordnet,
+   * heftet dem Nachahmer die Flagge und das X-Konto des Profis an.
+   *
+   * Deshalb: bringt ein Spieler eine Konto-ID mit, entscheidet allein sie.
+   * Findet sich dazu kein gepflegtes Profil, bleibt er ohne Flagge - so, wie
+   * jeder, der kein Profi ist.
+   *
+   * Nur wo gar keine ID vorliegt - etwa bei einem aus einem Bild gelesenen
+   * Namen - bleibt der Weg ueber den Namen. Und auch dort nur, wenn er
+   * eindeutig auf ein einziges Profil zeigt.
+   */
+  const findeProfil = useCallback((name: string, id?: string): Profil | undefined => {
+    if (id) return profile[id] ?? profilNachId.get(id);
+
+    const schluessel = namensSchluessel(name);
+    const treffer = Object.values(profile).filter((p) =>
+      (p.namen ?? [p.name]).some((n) => namensSchluessel(n) === schluessel));
+    return treffer.length === 1 ? treffer[0] : undefined;
+  }, [profile, profilNachId]);
+
+  /**
+   * Ein Altprofil, das zu diesem Namen passen koennte.
+   *
+   * Frueher lagen Profile unter dem Namen statt unter der Konto-ID. Seit die
+   * Zuordnung allein ueber die ID geht, greifen sie nicht mehr - der Spieler
+   * stuende ohne Flagge da, obwohl seine Angaben laengst gepflegt sind.
+   *
+   * Aufgeloest wird das nicht von selbst: welches Konto der echte Profi ist,
+   * kann das Werkzeug nicht wissen, und genau dieses Raten hat dem Nachahmer
+   * die Flagge verschafft. Stattdessen wird der Fund nur vorgeschlagen und
+   * bleibt bis zur Bestaetigung folgenlos. Ein Vorschlag entsteht ausserdem
+   * nur, wenn genau ein Altprofil in Frage kommt.
+   */
+  const altprofilVorschlag = useCallback((name: string, id?: string): Profil | undefined => {
+    if (!id || findeProfil(name, id)) return undefined;
+    const schluessel = namensSchluessel(name);
+    const treffer = Object.entries(profile)
+      .filter(([k, pr]) => !pr.id && !/^[0-9a-f]{32}$/i.test(k))
+      .map(([, pr]) => pr)
+      .filter((pr) => (pr.namen ?? [pr.name]).some((n) => namensSchluessel(n) === schluessel));
+    return treffer.length === 1 ? treffer[0] : undefined;
+  }, [profile, findeProfil]);
+
+  const echterName = useCallback((name: string, id?: string) => {
+    // Bewusst ohne Automatik: die Konto-IDs beider Quellen stimmen nicht
+    // ueberein, und ein Abgleich ueber den Namen trifft regelmaessig mehrere
+    // Konten. Ein falsch aufgeloester Name waere schlimmer als der Tarnname,
+    // deshalb gilt nur, was von Hand bestaetigt wurde.
+    return findeProfil(name, id)?.anzeige || name;
+  }, [findeProfil]);
+
+  /**
+   * Ein Bild annehmen - aus der Zwischenablage, per Ziehen oder ueber Auswahl.
+   */
+
+
+
+  /**
+   * Den Text aus dem Bild lesen.
+   *
+   * Die Erkennung laeuft im Browser - kein fremder Dienst, kein Schluessel,
+   * keine Kosten. Das Sprachpaket holt der Browser beim ersten Mal einmalig
+   * und behaelt es danach.
+   *
+   * Was hier herauskommt, ist ausdruecklich nur der abgelesene Text. Zahlen
+   * daraus wandern nicht in einen Beitrag: was in einem fremden Screenshot
+   * steht, ist nicht geprueft. Gebraucht wird der Text, um die Namen zu
+   * finden - die Werte dazu kommen anschliessend aus den Turnierdaten.
+   */
+
+  /* ------------------------------------------------------- Spielersuche */
+
+  /**
+   * Einen getippten Namen einem Teilnehmer dieses Spieltags zuordnen.
+   *
+   * Gesucht wird ausschliesslich unter denen, die hier tatsaechlich gespielt
+   * haben - ein Name, der nicht im Feld steht, bleibt ohne Treffer, statt
+   * irgendeinen aehnlichen Spieler unterzuschieben. Verglichen wird ueber
+   * saemtliche bekannten Schreibweisen eines Kontos, damit auch der
+   * Turnier-Tarnname greift.
+   *
+   * Die Stufen werden der Reihe nach probiert und bei der ersten, die etwas
+   * findet, wird abgebrochen. Bleiben dort mehrere Spieler uebrig, gilt die
+   * Eingabe als mehrdeutig - dann wird nachgefragt statt geraten.
+   */
+  /**
+   * Alle Schreibweisen, unter denen ein Spieler auffindbar sein soll:
+   * der Turniername, der gepflegte Anzeigename und jeder Name, unter dem
+   * dieses Epic-Konto schon einmal angetreten ist.
+   */
+  const schluesselFuer = useCallback((name: string, id?: string) => {
+    const alle = new Set<string>([name]);
+    const pr = findeProfil(name, id);
+    if (pr?.anzeige) alle.add(pr.anzeige);
+    // Das X-Konto gehoert dazu.
+    //
+    // Auf einer Statistikkarte steht selten der Turniername, sondern das
+    // Konto - "@shxrkFNBR" statt "shxrk". Ohne diesen Schluessel findet der
+    // Abgleich in so einem Screenshot niemanden, obwohl jeder Name dasteht.
+    if (pr?.x) alle.add(pr.x);
+    for (const n of pr?.namen ?? []) alle.add(n);
+    if (id) for (const n of namen[id]?.namen ?? []) alle.add(n);
+    return [...alle].map(namensSchluessel).filter((k) => k.length > 1);
+  }, [findeProfil, namen]);
+
+  /**
+   * Die Stufen der Namenssuche, von streng nach nachsichtig. Es gewinnt die
+   * erste Stufe, die ueberhaupt etwas findet - so schlaegt ein genauer Treffer
+   * immer eine blosse Aehnlichkeit.
+   */
+  const suchStufen = useCallback((q: string): Array<(k: string) => boolean> => [
+    (k) => k === q,
+    (k) => k.startsWith(q) || q.startsWith(k),
+    (k) => k.includes(q) || q.includes(k),
+    // Zuletzt Vertipper und Diktierfehler, aber nur bei laengeren Eingaben:
+    // bei drei Zeichen waeren zwei Abweichungen schon ein anderer Name.
+    (k) => q.length >= 4 && abstand(k, q) <= (q.length >= 6 ? 2 : 1),
+  ], []);
+
+  const findeTeilnehmer = useCallback((eingabe: string) => {
+    const q = namensSchluessel(eingabe);
+    const roh = einzelwerte;
+    if (q.length < 2 || !roh.length) return { treffer: [], namen: [] as string[] };
+
+    const kandidaten = roh.map((sp) => ({
+      spieler: { name: findeProfil(sp.name, sp.epicId)?.anzeige || sp.name, id: sp.epicId },
+      schluessel: schluesselFuer(sp.name, sp.epicId),
+    }));
+
+    for (const passt of suchStufen(q)) {
+      const gefunden = kandidaten.filter((c) => c.schluessel.some(passt));
+      if (gefunden.length) {
+        return {
+          treffer: gefunden.map((c) => c.spieler),
+          namen: gefunden.map((c) => c.spieler.name),
+        };
+      }
+    }
+    return { treffer: [], namen: [] as string[] };
+  }, [einzelwerte, findeProfil, schluesselFuer, suchStufen]);
+
+  /**
+   * Dasselbe eine Ebene hoeher: welches Team gehoert zu diesem Namen?
+   *
+   * Bei den Teamwerten fuehrt Epic keine Einzelspieler - dort gehoeren beide
+   * Namen zu einer Zeile. Wer im Team-Modus "Cringe" tippt, meint deshalb das
+   * Duo mitsamt Partner, nicht einen einzelnen Spieler.
+   */
+  const findeTeam = useCallback((eingabe: string) => {
+    const q = namensSchluessel(eingabe);
+    if (q.length < 2 || !eintraege.length) return { treffer: [] as Eintrag[], namen: [] as string[] };
+
+    const kandidaten = eintraege.map((e) => ({
+      eintrag: e,
+      schluessel: e.players.flatMap((sp) => schluesselFuer(sp.name, sp.id)),
+    }));
+
+    for (const passt of suchStufen(q)) {
+      const gefunden = kandidaten.filter((c) => c.schluessel.some(passt));
+      if (gefunden.length) {
+        return {
+          treffer: gefunden.map((c) => c.eintrag),
+          namen: gefunden.map((c) => c.eintrag.players
+            .map((sp) => kurzName(echterName(sp.name, sp.id))).join(' + ')),
+        };
+      }
+    }
+    return { treffer: [] as Eintrag[], namen: [] as string[] };
+  }, [eintraege, schluesselFuer, suchStufen, echterName]);
+
+  /* ------------------------------------------------ Vollansicht je Kennzahl */
+
+  /** Die Bestenliste, die gerade in voller Laenge offen steht. */
+  const offeneListe = useMemo(
+    () => aktiveListen.find((b) => b.schluessel === vollansicht) ?? null,
+    [aktiveListen, vollansicht]);
+
+  /**
+   * Alle Teilnehmer mit allen Kennzahlen nebeneinander. Die Tabelle entsteht
+   * aus den Bestenlisten selbst - jede fuehrt ohnehin das ganze Feld, hier
+   * werden sie nur quer gestellt: eine Zeile je Spieler, eine Spalte je
+   * Kennzahl. Dadurch stimmt jede Zahl in der Tabelle mit der Kachel ueberein,
+   * ohne dass irgendwo ein zweiter Rechenweg entsteht.
+   */
+  const gesamtTabelle = useMemo(() => {
+    const zeilen = new Map<string,
+      { spieler: string[]; ids?: string[]; werte: Record<string, number> }>();
+    for (const b of aktiveListen) {
+      for (const pl of b.alle ?? b.plaetze) {
+        // Die Konto-ID identifiziert eindeutig, der Name ist die Rueckfallebene.
+        const k = pl.ids?.filter(Boolean).join('|') || pl.spieler.join('|');
+        if (!k) continue;
+        if (!zeilen.has(k)) zeilen.set(k, { spieler: pl.spieler, ids: pl.ids, werte: {} });
+        zeilen.get(k)!.werte[b.schluessel] = pl.wert;
+      }
+    }
+    return [...zeilen.values()];
+  }, [aktiveListen]);
+
+  /**
+   * Welche Spalten die Gesamttabelle bekommt. "Lowest Damage Ratio"
+   * ist dieselbe Kennzahl wie "Best Damage Ratio", nur andersherum
+   * sortiert - nebeneinander waeren das zwei wortgleiche Spalten. Deshalb
+   * faellt jede Liste weg, deren Werte sich Zeile fuer Zeile mit einer
+   * frueheren decken.
+   */
+  const tabellenSpalten = useMemo(() => {
+    // "Lowest Damage Ratio" nie neben der Damage Ratio - auf einer Karte stuende sonst dieselbe Kennzahl zweimal.
+    const einzeln = fuerEinzelne(aktiveListen);
+    if (!gesamtTabelle.length) return einzeln;
+    const behalten: Bestenliste[] = [];
+    for (const b of einzeln) {
+      const doppelt = behalten.some((a) => gesamtTabelle.every(
+        (z) => z.werte[a.schluessel] === z.werte[b.schluessel]));
+      if (!doppelt) behalten.push(b);
+    }
+    return behalten;
+  }, [aktiveListen, gesamtTabelle]);
+
+  /**
+   * Alle Werte eines Spielers, nach seiner Platzierung sortiert. Die Zahlen
+   * kommen aus denselben Bestenlisten wie die Kacheln - es wird nichts neu
+   * gerechnet, nur herausgesucht, wo dieser Spieler jeweils steht.
+   *
+   * Gezaehlt wird ueber die entdoppelten Spalten: auf einer Spielerkarte waere
+   * "Lowest Damage Ratio" dieselbe Zahl ein zweites Mal, nur mit dem Platz
+   * von hinten gezaehlt.
+   */
+  const karteWerte = useMemo(() => {
+    if (!karteSpieler) return [];
+    return tabellenSpalten.map((b) => {
+      const feld = b.alle ?? b.plaetze;
+      const i = feld.findIndex((pl) => (
+        karteSpieler.id && pl.ids?.[0]
+          ? pl.ids[0] === karteSpieler.id
+          : namensSchluessel(pl.spieler[0] ?? '') === namensSchluessel(karteSpieler.name)));
+      if (i < 0) return null;
+      return { liste: b, platz: feld[i].statPlatz ?? i + 1, wert: feld[i].wert, von: feld.length };
+    }).filter(Boolean).sort((a, b) => a!.platz - b!.platz) as Array<{
+      liste: Bestenliste; platz: number; wert: number; von: number;
+    }>;
+  }, [tabellenSpalten, karteSpieler]);
+
+  /** Sucht in Name, gepflegtem Anzeigenamen, frueheren Namen, Land und Region. */
+  const suchTreffer = useCallback((spieler: string[], ids?: string[]) => {
+    const q = vollSuche.trim().toLowerCase();
+    if (!q) return true;
+    return spieler.some((n, i) => {
+      const pr = findeProfil(n, ids?.[i]);
+      return [n, pr?.anzeige, pr?.land, pr?.region, ...(pr?.namen ?? [])]
+        .some((t) => !!t && t.toLowerCase().includes(q));
+    });
+  }, [vollSuche, findeProfil]);
+
+  // Mit Escape wieder zu - wie bei jedem Fenster, das sich ueberlegt.
+  useEffect(() => {
+    if (!vollansicht) return;
+    const zu = (e: KeyboardEvent) => { if (e.key === 'Escape') setVollansicht(null); };
+    window.addEventListener('keydown', zu);
+    return () => window.removeEventListener('keydown', zu);
+  }, [vollansicht]);
+
+  /** Unter welchen Namen ist dieser Spieler sonst schon angetreten? */
+  const namensVorschlaege = useCallback((name: string) => {
+    // Ueber den vergleichbaren Kernnamen: "tryonа" mit kyrillischem a und
+    // "tryona" sind damit derselbe Schluessel.
+    const kern = namensSchluessel(name);
+    if (!kern) return [];
+    const treffer: string[] = [];
+    for (const eintrag of Object.values(namen)) {
+      if (!eintrag.namen.some((n) => namensSchluessel(n) === kern)) continue;
+      // Erst die Namen mit anderem Kern - das sind die eigentlich gesuchten.
+      for (const n of eintrag.namen) {
+        if (namensSchluessel(n) !== kern && !treffer.includes(n)) treffer.push(n);
+      }
+      for (const n of eintrag.namen) {
+        if (!treffer.includes(n) && n !== name) treffer.push(n);
+      }
+    }
+    return treffer.slice(0, 8);
+  }, [namen]);
+
+  /** Name samt X-Konto, sofern eines hinterlegt ist. */
+  const mitKonto = useCallback((name: string, id?: string) => {
+    const p = findeProfil(name, id);
+    return p?.x && mitX ? `@${p.x}` : kurzName(p?.anzeige || name);
+  }, [findeProfil, mitX]);
+
+  /**
+   * Das Herkunftsland eines Spielers.
+   *
+   * Zwei Quellen, in dieser Reihenfolge:
+   *
+   *   1. Das gepflegte Profil. Was von Hand eingetragen wurde, gilt - es ist
+   *      die einzige Angabe, die jemand geprueft hat.
+   *   2. Die Spielerliste der Szene-Quelle, ueber die Konto-ID. Dort haben
+   *      3538 von 4071 Konten ein Land hinterlegt; es sind dieselben Flaggen,
+   *      die auf der Statistikseite stehen.
+   *
+   * Ueber die Konto-ID und sonst gar nicht. Nach dem Namen zu suchen hiesse,
+   * einem Nachahmer die Herkunft des Profis anzuheften - genau der Fehler,
+   * wegen dem die Zuordnung ueberhaupt auf die ID umgestellt wurde.
+   */
+  const landFuer = useCallback((name: string, id?: string): string => {
+    const p = findeProfil(name, id);
+    if (p?.land) return p.land;
+    return (id && szeneLaender[id]) || '';
+  }, [findeProfil, szeneLaender]);
+
+  /**
+   * Der Zweitwert hinter einer Zeile.
+   *
+   * In einer Liste "die meisten Eliminierungen" sagt die Punktzahl nichts -
+   * sie gehoert zur Turnierwertung, nicht zu dieser Frage. Der Schaden
+   * dagegen ordnet die Eliminierungen ein: dreizehn Elims mit 3550 Schaden
+   * sind etwas anderes als dreizehn mit 2100.
+   *
+   * Summiert ueber die genannten Konten - bei einem Duo also ueber beide.
+   * Gibt null zurueck, wenn zu keinem davon Einzelwerte vorliegen; dann
+   * bleibt die Klammer weg, statt eine Null hinzuschreiben.
+   */
+  const zweitwertVon = useCallback(
+    (ids: Array<string | undefined>, feld: keyof SpielerWert): number | null => {
+      let summe = 0;
+      let gefunden = false;
+      for (const id of ids) {
+        if (!id) continue;
+        const sp = einzelwerteNachId.get(id);
+        if (!sp) continue;
+        summe += Number(sp[feld] ?? 0);
+        gefunden = true;
+      }
+      return gefunden ? summe : null;
+    }, [einzelwerteNachId]);
+
+  /**
+   * Ein Spieler mit eigener Flagge davor. In einem Duo hat jeder seine
+   * eigene Herkunft - eine Flagge fuer beide waere schlicht falsch.
+   */
+  const mitFlagge = useCallback((name: string, id?: string) => {
+    const p = findeProfil(name, id);
+    // Ohne hinterlegtes Land die Weltkugel - so steht in jeder Zeile ein
+    // Zeichen und der Name rutscht nicht aus der Reihe.
+    const f = flagge(landFuer(name, id)) || String.fromCodePoint(0x1f310);
+    return `${f} ${p?.x && mitX ? `@${p.x}` : kurzName(p?.anzeige || name)}`.trim();
+  }, [findeProfil, landFuer, mitX]);
+
+
+  /**
+   * Welche Spieler des Spieltags stecken im erkannten Text?
+   *
+   * Gesucht wird von den Teilnehmern aus, nicht von den Woertern aus, und ein
+   * Name zaehlt nur bei genauer Uebereinstimmung. Die nachsichtigen Stufen der
+   * Spielersuche waeren hier fehl am Platz: wer selbst tippt, meint einen
+   * bestimmten Namen und darf sich vertippen - ein Fliesstext dagegen enthaelt
+   * hunderte Woerter, von denen keines gemeint ist. So wurde aus dem Wort
+   * "Championship" schon einmal der Spieler "pxmp".
+   *
+   * Verglichen wird ausserdem nur gegen dieses Teilnehmerfeld. Ein Name, der
+   * im Bild steht, hier aber nicht antritt, wird bewusst nicht angeboten.
+   */
+
+  /**
+   * Welche Runde des Spieltags ist welche?
+   *
+   * Die Nummer soll fuer die ganze Lobby gelten, nicht je Team gezaehlt
+   * werden: sonst hiesse dieselbe Runde beim einen "Game 2" und beim
+   * anderen "Game 1", nur weil eines der Teams frueher ausgestiegen ist.
+   * Epic gibt jeder Runde eine eigene Kennung, die bei allen Teams gleich
+   * ist - danach wird sortiert, und zwar nach dem Ende der Runde.
+   */
+  const rundenNummern = useMemo(() => {
+    const ende = new Map<string, number>();
+    for (const e of eintraege) {
+      for (const m of e.matches ?? []) {
+        const id = m.sessionId || m.endTime;
+        if (!id) continue;
+        const t = m.endTime ? new Date(m.endTime).getTime() : 0;
+        const bisher = ende.get(id);
+        if (bisher === undefined || t < bisher) ende.set(id, t);
+      }
+    }
+    const nummer = new Map<string, number>();
+    [...ende.entries()].sort((a, b) => a[1] - b[1])
+      .forEach(([id], i) => nummer.set(id, i + 1));
+    return nummer;
+  }, [eintraege]);
+
+  /**
+   * In welchen Runden hat dieses Team gewonnen?
+   *
+   * Leer, wenn sich keine Runde zuordnen laesst - dann steht im Beitrag die
+   * Zahl der Siege statt einer erfundenen Rundennummer.
+   */
+  const siegRunden = useCallback((e: Eintrag) => {
+    const nrn = (e.matches ?? [])
+      .filter((m) => m.placement === 1)
+      .map((m) => rundenNummern.get(m.sessionId || m.endTime || ''))
+      .filter((n): n is number => typeof n === 'number')
+      .sort((a, b) => a - b);
+    if (!nrn.length) return '';
+    return nrn.length === 1
+      ? `Game ${nrn[0]}`
+      : `Games ${nrn.join(' + ')}`;
+  }, [rundenNummern]);
+
+  /** Alles, was eine Auswahl ausser dem einzelnen Team braucht. */
+  const auswahlHilfe = useMemo<AuswahlHilfe>(() => ({
+    feld: eintraege,
+    siegRunden,
+    rundeVon: (m) => rundenNummern.get(m.sessionId || m.endTime || ''),
+    schadenVon: (e) => zweitwertVon(e.players.map((p) => p.id), 'damage'),
+  }), [eintraege, siegRunden, rundenNummern, zweitwertVon]);
+
+  /**
+   * Alles, was das Kurzbefehl-Feld gerade versteht.
+   *
+   * Bewusst aus den geladenen Daten gebaut und nicht als feste Liste
+   * hingeschrieben: so steht hier nur, was zu diesem Cup auch wirklich geht.
+   * Fuehrt ein Spieltag keine Einzelwerte, fehlt der Abschnitt - und die
+   * Zahl unten stimmt trotzdem.
+   */
+  const befehlsGruppen = useMemo(() => {
+    const gruppen: Array<{
+      titel: string; hinweis: string;
+      befehle: Array<{ b: string; e: string }>;
+    }> = [];
+
+    gruppen.push({
+      titel: 'Questions to the field',
+      hinweis: 'Finds who meets a condition. The number in it is free — '
+        + '“3 wins”, “150 points”, “30 elims” work just as well.',
+      befehle: AUSWAHLBEFEHLE.map((x) => ({ b: x.beispiel, e: x.erklaerung })),
+    });
+
+    const runden = rundenZahl(eintraege);
+    if (runden) {
+      gruppen.push({
+        titel: 'Game by game',
+        hinweis: `This match day had ${runden} games — one question per game.`,
+        befehle: Array.from({ length: runden }, (_, i) => ({
+          b: `game ${i + 1} winner`,
+          e: `who won game ${i + 1}`,
+        })),
+      });
+    }
+
+    /** Je Kennzahl zwei Befehle: die Spitze und eine laengere Liste. */
+    const ausKennzahlen = (liste: Bestenliste[]) => liste.flatMap((k) => {
+      const name = spaltenName(k.titel).toLowerCase();
+      return [
+        { b: name, e: `${k.titel} — the top five` },
+        { b: `top 10 ${name}`, e: `${k.titel} — the top ten` },
+      ];
+    });
+
+    const teamListen = stats?.bestenlisten ?? [];
+    if (teamListen.length) {
+      gruppen.push({
+        titel: 'Team stats',
+        hinweis: 'Values per team, straight from Epic. A number in the command sets the length.',
+        befehle: ausKennzahlen(teamListen),
+      });
+    }
+
+    if (spielerListen.length) {
+      gruppen.push({
+        titel: 'Player values',
+        hinweis: `Values per player from ${einzelQuelle ?? 'the replays'} — `
+          + 'only with “Player Stats”.',
+        befehle: ausKennzahlen(spielerListen),
+      });
+    }
+
+    gruppen.push({
+      titel: 'Standings and templates',
+      hinweis: 'The standings and the ready-made post formats.',
+      befehle: [
+        { b: 'top 5', e: 'Standings, the top five' },
+        { b: 'top 10', e: 'Standings, the top ten' },
+        { b: 'top 20', e: 'Standings, the top twenty' },
+        { b: 'standings', e: 'Full standings' },
+        { b: 'endstand', e: 'the same, typed in German' },
+        { b: 'rank 3', e: 'Standings counted from third place' },
+      ],
+    });
+
+    // Jeder Teilnehmer ist selbst ein Befehl - auf Team Stats das ganze Duo,
+    // auf Player Stats der einzelne Spieler.
+    const namen = [...new Set(eintraege.flatMap((e) => e.players.map((sp) => sp.name)))]
+      .map((n) => kurzName(n))
+      .filter((n) => n.length > 1)
+      .sort((a, b) => a.localeCompare(b));
+    if (namen.length) {
+      gruppen.push({
+        titel: 'Names from this match day',
+        hinweis: 'A name is enough: with Team Stats you get the team including partners, '
+          + 'with Player Stats the player card. The search forgives typos.',
+        befehle: namen.map((n) => ({ b: n, e: 'all values for them' })),
+      });
+    }
+
+    return gruppen;
+  }, [eintraege, stats, spielerListen, einzelQuelle]);
+
+  const befehlsZahl = useMemo(
+    () => befehlsGruppen.reduce((n, g) => n + g.befehle.length, 0), [befehlsGruppen]);
+
+  /*
+   * Woraus fuer die eigene Liste gewaehlt wird.
+   *
+   * Ohne Suchtext die Spieler einer Region, nach Eliminierungen sortiert -
+   * das sind die, "die man kennt". Mit Suchtext das Ergebnis der Suche,
+   * damit auch jemand aus einer anderen Region hineinkommt.
+   *
+   * Beides ueber dieselbe Schnittstelle wie die Statistikseite; der
+   * angezeigte Name ist schon der gepflegte, nicht der Ingame-Name von
+   * heute.
+   */
+  useEffect(() => {
+    if (vorlage !== 'eigene') return;
+    let weg = false;
+    const q = eigeneSuche.trim();
+
+    const uhr = setTimeout(() => {
+      void (async () => {
+        try {
+          const pfad = q.length >= 2
+            ? `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`
+            : `/api/szene-stats?region=${eigeneRegion}&sort=elims&limit=60`;
+          const j = await (await fetch(pfad)).json();
+          if (weg) return;
+          const roh = Array.isArray(j?.spieler) ? j.spieler : [];
+          setEigeneListe(roh.map((x: {
+            epicId: string; anzeige?: string; name?: string;
+            land?: string | null; bild?: string | null;
+          }) => ({
+            epicId: x.epicId,
+            anzeige: x.anzeige || x.name || x.epicId,
+            land: x.land ?? null,
+            bild: x.bild ?? null,
+          })));
+        } catch { if (!weg) setEigeneListe([]); }
+      })();
+    }, q ? 300 : 0);
+
+    return () => { weg = true; clearTimeout(uhr); };
+  }, [vorlage, eigeneRegion, eigeneSuche]);
+
+  const cupName = cup?.titel ?? '';
+  /*
+   * Kein Datum im Beitrag und nach Moeglichkeit keine Gedankenstriche (Betreiber, 19.10.2026: "kein AI-Strich", "das Datum braucht es nicht").
+   * Nur das Finale bleibt als Wort stehen; die Spielzahl ("after 6 games") nennt nur das Grand Final.
+   */
+  const tagName = aktuellesFenster?.istFinale ? 'Finals' : '';
+  const grandFinal = Boolean(aktuellesFenster?.istFinale);
+
+  /** Der Vorschlag zur gewaehlten Vorlage - englisch, wie die Beitraege. */
+  const vorlagenText = useMemo(() => {
+    /*
+     * Die eigene Liste steht vor allem anderen.
+     *
+     * Sie braucht keinen Cup und darf deshalb nicht an der Pruefung
+     * darunter scheitern - die verlangt geladene Turnierwerte.
+     */
+    if (vorlage === 'eigene') {
+      const NL = '\n';
+      const kopfZeile = eigenerKopf.trim();
+      if (!eigeneWahl.length) {
+        return kopfZeile || 'Write a title and pick players on the right.';
+      }
+
+      const zeilen = eigeneWahl.map((sp, i) => {
+        const marke = eigeneNummern
+          ? (['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`)
+          : '•';
+        return `${marke} ${mitFlagge(sp.anzeige, sp.epicId)}`.replace(/\s+/g, ' ');
+      });
+
+      return [kopfZeile, zeilen.join(NL)].filter(Boolean).join(NL + NL);
+    }
+
+    if (vorlage === 'verpasst') {
+      const NL = '\n';
+      if (verpasst.laedt) return 'Searching …';
+      if (verpasst.fehler) return verpasst.fehler;
+      if (!verpasstLinie) return verpasst.modus === 'serie' ? 'The field for this final is not set yet.' : 'Up to which place do players advance? Enter the number above.';
+      const regionText = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL' ? ` (${aktuellesFenster.region})` : '';
+      if (!verpasstTreffer.length) {
+        return `Nobody from the Power Rankings top 200 missed out on ${cupName}${regionText}.`;
+      }
+      // Wie im Beispiel des Betreibers: eine Zeile, dann jeder bekannte Name untereinander - der ganze Cup, nicht nur zehn.
+      return `Notable Players to have not qualified ${cupName}${regionText}💔:${NL}${NL}${verpasstTreffer.map((z) => {
+        // Wie im Beispiel des Betreibers: "Swizzy", nicht "swizzy" - rein kleingeschriebene Namen bekommen einen grossen Anfangsbuchstaben.
+        const n = z.name.replace(/\s+/g, ' ').trim();
+        return n === n.toLowerCase() && /^[a-z]/.test(n) ? n[0].toUpperCase() + n.slice(1) : n;
+      }).join(NL)}`;
+    }
+
+    if (!stats) return '';
+    const kopf = `${cupName}${tagName ? ` · ${tagName}` : ''}`;
+    const NL = '\n';
+    /*
+     * Die freie Zusatzzeile ist gegangen.
+     *
+     * Sie stand als eigenes Feld ueber dem Beitrag ("Eigene Zeile im Beitrag
+     * (optional)") und tat nichts, was sich nicht im Textfeld darunter
+     * genauso tippen liesse - dort, wo der fertige Beitrag ohnehin steht und
+     * sich frei bearbeiten laesst. Die Stelle bleibt, damit die Vorlagen
+     * unveraendert bauen.
+     */
+    const zusatz = '';
+
+    if (vorlage === 'spielerkarte') {
+      if (!karteSpieler) {
+        return `${kopf}${zusatz}${NL}${NL}`
+          + 'Type names into the command field or pick them below.';
+      }
+      if (!karteWerte.length) {
+        // Kein erfundener Ersatz: liegt zu diesem Spieler nichts vor, sagt der
+        // Text genau das.
+        return `${kopf}${zusatz}${NL}${NL}`
+          + `There are no per-player values for ${kurzName(karteSpieler.name)} on this match day.`;
+      }
+      // Nach Platzierung sortiert: was der Spieler am besten kann, steht oben.
+      //
+      // Ohne "Most" und "Best": auf einer Karte ueber einen einzelnen Spieler
+      // liest sich "Most Eliminations: 43" so, als fuehre er die Wertung an -
+      // der Platz dahinter sagt ohnehin genauer, wo er steht.
+      // Ohne Strecke und gefarmtes Material, bis sie nachweislich stimmen (fuerSpielerKarte).
+      const imText = new Set(fuerSpielerKarte(karteWerte.map((k) => k.liste)));
+      const zeilen = karteWerte.filter((k) => imText.has(k.liste)).map((k) => einzelZeile(k.liste, k.wert, k.platz));
+      return `${mitFlagge(karteSpieler.name, karteSpieler.id)}: ${kopf}${zusatz}`.trim()
+        + NL + NL + zeilen.join(NL);
+    }
+
+    if (vorlage === 'bestenliste') {
+      // Eine einzelne Kennzahl mit mehreren Plaetzen - das Gegenstueck zum
+      // Rueckblick, der je Kennzahl nur den Spitzenwert zeigt.
+      const liste = aktiveListen.find((b) => gewaehlteListen.includes(b.schluessel))
+        ?? aktiveListen[0];
+      if (!liste) return kopf + zusatz;
+
+      /*
+       * Was in der Klammer am Ende steht.
+       *
+       * Zuerst stand dort der Wert selbst noch einmal - "1. Twi (13)" - und
+       * in den Auswahllisten die Punktzahl. Beides sagt zu einer Frage wie
+       * "die meisten Eliminierungen" nichts: der Wert steht schon davor, und
+       * die Punkte gehoeren zur Turnierwertung.
+       *
+       * Der Schaden dagegen ordnet die Zahl ein. Bei einer Schadensliste
+       * waere er die Wiederholung des Hauptwerts, dort treten die
+       * Eliminierungen an seine Stelle.
+       */
+      const zweitFeld: keyof SpielerWert =
+        liste.schluessel === 'damage' ? 'elims' : 'damage';
+      const zweitTitel = zweitFeld === 'elims' ? 'Elims' : 'Damage';
+
+      const roh = liste.plaetze.slice(0, anzahl).map((pl, i) => ({
+        pl, i, zweit: zweitwertVon(pl.ids ?? [], zweitFeld),
+      }));
+      // Nur ankuendigen, was auch dasteht.
+      const mitKlammer = roh.some((x) => (x.zweit ?? 0) > 0);
+
+      const zeilen = roh.map(({ pl, i, zweit }) => {
+        // Bei den Einzelwerten steht die Konto-ID im Platz mit drin.
+        const namen = pl.spieler.map((n, k) => mitFlagge(n, pl.ids?.[k])).join(' + ');
+        const wert = wertText(liste, pl.wert);
+        const marke = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}`;
+        const klammer = mitKlammer && zweit
+          ? ` (${Math.round(zweit).toLocaleString('en-US')})` : '';
+        return `${marke} ${namen}: ${wert}${klammer}`.replace(/\s+/g, ' ');
+      });
+
+      const region = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL'
+        ? ` (${aktuellesFenster.region})` : '';
+      return `🏆 ${cupName}${region}${tagName ? ` · ${tagName}` : ''}`
+        + NL + `${liste.symbol} ${liste.titel}`
+        + (mitKlammer ? ` (${zweitTitel})` : '')
+        + zusatz + NL + NL + zeilen.join(NL);
+    }
+
+    if (vorlage === 'spieler') {
+      const e = eintraege.find((x) => x.rank === spotlight);
+      if (!e) return `${kopf}${zusatz}${NL}${NL}Pick a team below.`;
+      const namen = e.players.map((p) => mitFlagge(p.name, p.id)).join(' + ');
+      // Ueber das ganze Feld statt nur ueber die Top 5: sonst bleibt die Karte
+      // eines Teams aus dem Mittelfeld leer, obwohl seine Werte vorliegen.
+      // Der Platz steht dabei mit dabei, damit die Zahl einzuordnen ist.
+      const zeilen = tabellenSpalten
+        .filter((b) => gewaehlteListen.includes(b.schluessel))
+        .map((b) => {
+          const feld = b.alle ?? b.plaetze;
+          const i = feld.findIndex((pl) => pl.rank === e.rank);
+          if (i < 0) return null;
+          // Ohne den Rang in Klammern: die Zeilen stehen ohnehin nach ihm
+          // sortiert, "Eliminierungen: 21 (#1)" sagt also zweimal dasselbe.
+          return { text: einzelZeile(b, feld[i].wert),
+            platz: feld[i].statPlatz ?? i + 1 };
+        }).filter(Boolean)
+        .sort((a, b) => a!.platz - b!.platz)
+        .map((x) => x!.text);
+      return `${namen}: ${kopf}${zusatz}`.trim() + NL + NL
+        + `Finished #${e.rank} with ${e.points} points` + NL
+        + zeilen.join(NL);
+    }
+
+    if (vorlage === 'livepost') {
+      const name = `${coRegion} ${cupName}`.toUpperCase().replace(/\s+/g, ' ').trim();
+      const verb = /FNCS|SERIES|CUPS$/.test(name) ? 'HAVE' : 'HAS';
+      const zeilen = coAktiv.map((c) => `${flaggeVon(c.land)} https://www.twitch.tv/${c.twitch}`);
+      return `THE ${name} ${verb} OFFICIALLY STARTED 🚨${NL}${NL}WATCH LIVE:${NL}${NL}🌎 https://www.twitch.tv/Fortnite${zeilen.length ? `${NL}${NL}${zeilen.join(NL)}` : ''}`;
+    }
+
+    if (vorlage === 'dropmap') {
+      if (!dropMap || dropMap.w !== dropWindow) return 'Loading the drop spots …';
+      if (!dropMap.ok) return dropMap.error ?? 'There are no drop spots for this match day.';
+      // Key Players: wer ein gepflegtes Profil hat (bekannte Spieler), sonst die ersten auf der Karte.
+      const sp = dropMap.spieler ?? [];
+      const bekannt = sp.filter((x) => profilNachId.has(x.id));
+      const key = (bekannt.length >= 3 ? bekannt : sp).slice(0, 12);
+      return `🚨🚨 ${dropTitel} 👀${NL}${NL}Key Players:${NL}${NL}${key.map((x) => `- ${mitFlagge(x.anzeige, x.id)}`.replace(/\s+/g, ' ')).join(NL)}`;
+    }
+
+    if (vorlage === 'worst') {
+      if (!worstZeilen.length) return `${kopf}${zusatz}${NL}${NL}Pick stats - this needs values for the whole field.`;
+      const zeilen = worstZeilen.map(({ titel, symbol, p, einheit, zeit, nachkomma }) => {
+        const namen = p.spieler.map((n, k) => mitFlagge(n, p.ids?.[k])).join(' + ');
+        const wert = wertText({ einheit, zeit, nachkomma }, p.wert);
+        return `${symbol} ${titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
+      });
+      return `WORST OF COMPHUB 🧌${NL}${kopf}${zusatz}${NL}${NL}${zeilen.join(NL)}${NL}${NL}All love 😈`;
+    }
+
+    if (vorlage === 'rueckblick') {
+      const zeilen = aktiveListen
+        .filter((b) => gewaehlteListen.includes(b.schluessel))
+        .map((b) => {
+          const p = b.plaetze[0];
+          if (!p) return null;
+          const namen = p.spieler.map((n, k) => mitFlagge(n, p.ids?.[k])).join(' + ');
+          const wert = wertText(b, p.wert);
+          return `${b.symbol} ${b.titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
+        }).filter(Boolean);
+      return `${kopf}: Stats Recap${zusatz}${NL}${NL}${zeilen.join(NL)}`;
+    }
+
+    if (vorlage === 'auswahl') {
+      if (!auswahl) {
+        return `${kopf}${zusatz}${NL}${NL}`
+          + 'Type a question into the command field, e.g. “all winners” '
+          + 'or “200 points”.';
+      }
+      /*
+       * Eine Bestenliste einzelner Spieler.
+       *
+       * Getrennt vom Rest, weil hier nichts aus der Teamwertung kommt: die
+       * Zeilen sind einzelne Spieler, die Nummer ist ihr Platz in DIESER
+       * Liste - nicht der Platz, den ihr Duo im Turnier belegt hat. Eine
+       * Liste "die zehn meisten Eliminierungen", die mit "#63" anfaengt,
+       * liest sich wie ein Fehler.
+       */
+      if (auswahl.soloFeld) {
+        const feld = auswahl.soloFeld;
+        const klammer = auswahl.soloKlammer;
+        const roh = einzelwerte
+          .map((sp) => ({ sp, wert: Number(sp[feld] ?? 0) }))
+          .filter((x) => x.wert > 0)
+          .sort((a, b) => b.wert - a.wert)
+          .slice(0, auswahl.grenze ?? 10);
+
+        if (!roh.length) {
+          return `${auswahl.titel}: ${kopf}${zusatz}${NL}${NL}`
+            + 'No individual values are available for this match day.';
+        }
+
+        // Nur ankuendigen, was auch dasteht: fehlt der Zweitwert im ganzen
+        // Feld, gehoert er auch nicht in die Ueberschrift.
+        const mitKlammer = Boolean(klammer)
+          && roh.some((x) => Number(x.sp[klammer!] ?? 0) > 0);
+
+        const zeilen = roh.map((x, i) => {
+          const marke = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}`;
+          const wert = auswahl.soloEinheit
+            ? `${x.wert.toFixed(auswahl.soloNachkomma ?? 0)} ${auswahl.soloEinheit}`
+            : Math.round(x.wert).toLocaleString('en-US');
+          const zweit = mitKlammer
+            ? ` (${Math.round(Number(x.sp[klammer!] ?? 0)).toLocaleString('en-US')})`
+            : '';
+          return `${marke} ${mitFlagge(x.sp.name, x.sp.epicId)}: ${wert}${zweit}`
+            .replace(/\s+/g, ' ');
+        });
+
+        const region = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL'
+          ? ` (${aktuellesFenster.region})` : '';
+        return `🏆 ${cupName}${region}${tagName ? ` · ${tagName}` : ''}`
+          + NL + `📊 ${auswahl.titel}`
+          + (mitKlammer && auswahl.soloKlammerTitel ? ` (${auswahl.soloKlammerTitel})` : '')
+          + zusatz + NL + NL + zeilen.join(NL);
+      }
+
+      /*
+       * Ohne Begrenzung, wo nach einer Bedingung gefragt wurde: "wer hat
+       * ueberhaupt gewonnen?" will jeden Treffer sehen, nicht die ersten
+       * paar. Wird der Beitrag zu lang, zeigt die Zeichenzahl darunter das an.
+       *
+       * Nennt der Befehl dagegen eine Anzahl, ist sie gemeint.
+       */
+      const treffer = eintraege.filter((e) => auswahl.passt(e, auswahlHilfe))
+        .sort((a, b) => (auswahl.nach(b, auswahlHilfe) - auswahl.nach(a, auswahlHilfe))
+          || (a.rank - b.rank))
+        .slice(0, auswahl.grenze ?? Infinity);
+      if (!treffer.length) {
+        return `${auswahl.titel}: ${kopf}${zusatz}${NL}${NL}`
+          + 'Nobody in this field matches.';
+      }
+      const zeilen = treffer.map((e) => {
+        const namen = e.players.map((p) => mitFlagge(p.name, p.id)).join(' + ');
+        return `#${e.rank} ${namen}: ${auswahl.wert(e, auswahlHilfe)}`
+          .replace(/\s+/g, ' ');
+      });
+      return `${auswahl.titel} (${treffer.length}): ${kopf}${zusatz}`
+        + NL + NL + zeilen.join(NL);
+    }
+
+    /*
+     * Medaillen fuer die ersten drei, danach die Tastenfeld-Ziffern.
+     * Ab elf gibt es kein Zeichen mehr - dort steht wieder die blosse Zahl,
+     * statt etwas Aehnliches zu erfinden.
+     */
+    const PLATZZEICHEN = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    const zeilen = eintraege.slice(0, anzahl).map((e, i) => {
+      const namen = e.players.map((p) => mitFlagge(p.name, p.id)).join(' + ');
+      const marke = PLATZZEICHEN[i] ?? `${i + 1}.`;
+      return `${marke} ${namen}: ${e.points} pts`.replace(/\s+/g, ' ');
+    });
+    return `${kopf}: Standings${grandFinal ? ` after ${stats.spiele} games` : ''}${zusatz}`
+      + NL + NL + zeilen.join(NL);
+  }, [stats, eintraege, vorlage, anzahl, gewaehlteListen, cupName, tagName,
+      mitKonto, mitFlagge, spotlight, aktiveListen,
+      verpasst, verpasstCut, verpasstTreffer, aktuellesFenster,
+      profile, karteSpieler, karteWerte, tabellenSpalten, auswahl,
+      auswahlHilfe,
+      // Die eigene Liste - ohne diese drei bliebe der Text stehen, waehrend
+      // rechts schon jemand angeklickt ist.
+      eigenerKopf, eigeneWahl, eigeneNummern]);
+
+  /*
+   * Die eigene Liste braucht keinen Cup.
+   *
+   * Ohne diese Ausnahme bliebe der ganze Bereich verborgen, solange keine
+   * Turnierwerte geladen sind - und genau das ist hier ja der Punkt.
+   */
+  const ohneCup = vorlage === 'eigene';
+  const statKarteVorlage = vorlage === 'spielerkarte' || vorlage === 'spieler';
+  const plaetzeAnzeigen = useSyncExternalStore(plaetzeAbo, plaetzeLesen, () => true);
+  // Der Schalter steht nur da, wo der Text solche Plaetze traegt (heute die Player Card) - er gilt aber fuer jede Vorlage, die welche hat.
+  const hatPlaetze = new RegExp(PLATZ_ENDE.source, 'm').test(vorlagenText);
+  const text = eigenerText ?? (plaetzeAnzeigen ? vorlagenText : vorlagenText.replace(PLATZ_ENDE, ''));
+
+  /*
+   * Das Bild unter einer Player Card und einem Team Spotlight (Betreiber, 15.11.2026): links das Foto (beim Team die Fotos), rechts die wichtigsten
+   * Werte des Posts - dieselben Zahlen wie im Text, englisch, mit dem Platz im Feld, solange "Plätze anzeigen" an ist (lib/statKarteBild.ts).
+   */
+  const statKarte = useMemo((): { titel: string; untertitel?: string; personen: StatKartePerson[]; werte: StatKarteWert[] } | null => {
+    if (!stats) return null;
+    const titel = `${cupName}${tagName ? ` · ${tagName}` : ''}`;
+    const person = (name: string, id?: string): StatKartePerson => ({
+      id, name: kurzName(findeProfil(name, id)?.anzeige || name), land: landFuer(name, id) || null,
+    });
+    const zahl = (wert: number, b: Bestenliste) => wertText(b, wert);
+    if (vorlage === 'spielerkarte') {
+      if (!karteSpieler) return null;
+      return {
+        titel, untertitel: 'Player Card', personen: [person(karteSpieler.name, karteSpieler.id)],
+        // Feste acht Kacheln (kennzahlen.ts, SPIELERKARTE_KACHELN) - nicht die acht besten Plaetze.
+        werte: spielerKarteKacheln(karteWerte).slice(0, STAT_KARTE_WERTE).map(({ titel: t, w: k }) => ({ titel: t, wert: zahl(k.wert, k.liste), platz: k.platz })),
+      };
+    }
+    if (vorlage === 'spieler') {
+      const e = eintraege.find((x) => x.rank === spotlight);
+      if (!e) return null;
+      const werte: StatKarteWert[] = [{ titel: 'Points', wert: e.points.toLocaleString('en-US'), platz: e.rank }];
+      // Dieselben Kennzahlen wie im Text, nach dem Platz sortiert - die besten zuerst.
+      const zeilen = tabellenSpalten.filter((b) => gewaehlteListen.includes(b.schluessel)).map((b) => {
+        const feld = b.alle ?? b.plaetze;
+        const i = feld.findIndex((pl) => pl.rank === e.rank);
+        return i < 0 ? null : { titel: spaltenName(b.titel), wert: zahl(feld[i].wert, b), platz: feld[i].statPlatz ?? i + 1 };
+      }).filter((x): x is NonNullable<typeof x> => Boolean(x)).sort((a, b) => a.platz - b.platz);
+      werte.push(...zeilen);
+      return {
+        titel, untertitel: `Finished #${e.rank} · ${e.points.toLocaleString('en-US')} pts`,
+        personen: e.players.slice(0, 4).map((p) => person(p.name, p.id)), werte: werte.slice(0, STAT_KARTE_WERTE),
+      };
+    }
+    return null;
+  }, [stats, cupName, tagName, vorlage, karteSpieler, karteWerte, eintraege, spotlight, tabellenSpalten, gewaehlteListen, findeProfil, landFuer]);
+
+  /**
+   * Welche Kennzahlen in der Auswahl stehen.
+   *
+   * Ein Spieltag bringt bis zu dreissig mit, und alle dreissig standen als
+   * Kachelfeld auf der Seite. Gezeigt werden jetzt die ersten acht - dazu
+   * alles, was schon angehakt ist, damit eine getroffene Wahl nicht hinter
+   * dem Deckel verschwindet. Der Rest kommt ueber das Suchfeld oder den
+   * Knopf darunter.
+   */
+  const listenAnsicht = useMemo(() => {
+    const q = listenSuche.trim().toLowerCase();
+    const passend = q
+      ? aktiveListen.filter((b) => b.titel.toLowerCase().includes(q))
+      : aktiveListen;
+    if (alleListen || q) return { liste: passend, mehr: 0 };
+    const liste = passend.filter((b, i) => i < 8
+      || gewaehlteListen.includes(b.schluessel));
+    return { liste, mehr: passend.length - liste.length };
+  }, [aktiveListen, listenSuche, alleListen, gewaehlteListen]);
+
+  // Wechselt die Vorlage oder die Auswahl, gilt wieder der Vorschlag.
+  useEffect(() => { setEigenerText(null); },
+    [vorlage, anzahl, spotlight, cupId, fensterId, ebeneEffektiv]);
+
+  // Wechselt die Ebene, passen die vorher gewaehlten Kennzahlen nicht mehr.
+  useEffect(() => {
+    if (ebeneEffektiv === 'spieler' && soloCup && stats?.bestenlisten.length) {
+      // Wie die Kacheln der Event-Seite: die zehn Hauptkennzahlen (ohne die unter "Mehr anzeigen").
+      setGewaehlteListen((stats.bestenlisten as Array<Bestenliste & { mehr?: boolean }>).filter((b) => !b.mehr).slice(0, 10).map((b) => b.schluessel));
+    } else if (ebeneEffektiv === 'spieler' && spielerListen.length) {
+      // Die guten Werte zuerst, keine "schlechtesten" (Betreiber, 8.11.2026: "Most Deaths, das sind Worst-of-Statistics").
+      const VORZUG = ['damage', 'elims', 'kd', 'quote', 'timeAlive', 'distanzGesamt', 'wins', 'hits', 'headshots', 'heals', 'mats', 'damageTaken', 'builds', 'points'];
+      const da = new Set(spielerListen.map((b) => b.schluessel));
+      setGewaehlteListen(VORZUG.filter((k) => da.has(k)).slice(0, 10));
+    } else if (ebeneEffektiv === 'team' && stats) {
+      setGewaehlteListen(stats.bestenlisten.slice(0, 6).map((b) => b.schluessel));
+    }
+  }, [ebeneEffektiv, spielerListen, stats, soloCup]);
+
+  /** Die Grafik zum Beitrag. Alles wird direkt gezeichnet, ohne Fremdcode. */
+  const zeichnen = useCallback(() => {
+    const c = leinwand.current;
+    if (!c || !stats) return;
+    const B = 1200;
+    const zeilen = text.split('\n').filter((z, i) => i > 1 || z);
+    const H = Math.max(675, 260 + zeilen.length * 62);
+    c.width = B; c.height = H;
+    const g = c.getContext('2d');
+    if (!g) return;
+
+    // Hintergrund: dunkler Verlauf mit einem Lichtschein oben links, damit
+    // die Flaeche nicht wie ein leeres Rechteck wirkt.
+    const verlauf = g.createLinearGradient(0, 0, B, H);
+    verlauf.addColorStop(0, '#0b0f16');
+    verlauf.addColorStop(0.55, '#0d1420');
+    verlauf.addColorStop(1, '#0a0d13');
+    g.fillStyle = verlauf;
+    g.fillRect(0, 0, B, H);
+
+    const schein = g.createRadialGradient(120, 40, 0, 120, 40, 720);
+    schein.addColorStop(0, 'rgba(56,189,248,0.16)');
+    schein.addColorStop(1, 'rgba(56,189,248,0)');
+    g.fillStyle = schein;
+    g.fillRect(0, 0, B, H);
+
+    // Feines Raster, das sich zum unteren Rand hin verliert
+    g.strokeStyle = 'rgba(148,163,184,0.05)';
+    g.lineWidth = 1;
+    for (let x = 60; x < B; x += 60) {
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+    }
+
+    // Farbiger Streifen an der linken Kante als Wiedererkennung
+    const kante = g.createLinearGradient(0, 0, 0, H);
+    kante.addColorStop(0, '#38bdf8');
+    kante.addColorStop(1, '#0369a1');
+    g.fillStyle = kante;
+    g.fillRect(0, 0, 8, H);
+
+    const [titelZeile, ...rest] = text.split('\n');
+    // Name der Seite als kleine Zeile ueber dem Titel - so traegt jedes
+    // heruntergeladene Bild seine Herkunft.
+    g.font = '600 19px Segoe UI, system-ui, sans-serif';
+    g.fillStyle = '#38bdf8';
+    g.fillText(MARKE.name.toUpperCase(), 64, 62);
+
+    g.fillStyle = '#f4f4f5';
+    // Der Titel wird so weit verkleinert, bis er in die Breite passt -
+    // Turniernamen sind manchmal sehr lang.
+    let titelGroesse = 46;
+    do {
+      titelGroesse -= 2;
+      g.font = `bold ${titelGroesse}px Segoe UI, Segoe UI Emoji, Apple Color Emoji, system-ui, sans-serif`;
+    } while (g.measureText(titelZeile).width > B - 128 && titelGroesse > 22);
+    g.fillText(titelZeile, 64, 118);
+
+    g.strokeStyle = '#0284c7'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(64, 146); g.lineTo(240, 146); g.stroke();
+
+    let y = 222;
+    for (const z of rest) {
+      if (!z.trim()) { y += 20; continue; }
+      // Der Wert in Klammern wird abgesetzt, damit er ins Auge faellt.
+      const treffer = z.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+      const links = treffer ? treffer[1] : z;
+      const wert = treffer ? treffer[2] : '';
+
+      // Die Zeile stueckweise zeichnen: jedes Flaggenzeichen wird durch das
+      // passende Bild ersetzt, weil Windows die Zeichen nicht darstellt. So
+      // bekommt in einem Duo auch jeder Spieler seine eigene Flagge.
+      g.font = '32px Segoe UI, Segoe UI Emoji, Apple Color Emoji, system-ui, sans-serif';
+      g.fillStyle = '#e4e4e7';
+      let x = 64;
+      for (const teil of links.split(/([\u{1F1E6}-\u{1F1FF}]{2})/u)) {
+        if (!teil) continue;
+        if (/^[\u{1F1E6}-\u{1F1FF}]{2}$/u.test(teil)) {
+          const code = [...teil]
+            .map((c) => String.fromCharCode(c.codePointAt(0)! - 0x1f1e6 + 97)).join('');
+          const bild = flaggenBilder.current[code];
+          if (bild?.complete && bild.naturalWidth) {
+            g.drawImage(bild, x, y - 22, 36, 24);
+            x += 42;
+          }
+        } else {
+          g.fillText(teil, x, y);
+          x += g.measureText(teil).width;
+        }
+      }
+
+      if (wert) {
+        g.font = 'bold 34px Segoe UI, Segoe UI Emoji, Apple Color Emoji, system-ui, sans-serif';
+        g.fillStyle = '#38bdf8';
+        const breite = g.measureText(wert).width;
+        g.fillText(wert, B - 64 - breite, y);
+      }
+      y += 62;
+    }
+
+    g.strokeStyle = 'rgba(148,163,184,0.14)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(64, H - 84); g.lineTo(B - 64, H - 84); g.stroke();
+
+    g.font = '21px Segoe UI, Segoe UI Emoji, Apple Color Emoji, system-ui, sans-serif';
+    g.fillStyle = '#64748b';
+    g.fillText(`${stats.teams} teams · ${stats.spiele} games`, 64, H - 48);
+
+    // Unten rechts die eigene Kennung: Logo und Adresse.
+    g.textAlign = 'right';
+    g.font = '600 22px Segoe UI, system-ui, sans-serif';
+    g.fillStyle = '#94a3b8';
+    const kennung = MARKE.hinweis();
+    g.fillText(kennung, B - 64, H - 46);
+    const logo = logoBild.current;
+    if (logo?.complete && logo.naturalWidth) {
+      const seite = 40;
+      const lx = B - 64 - g.measureText(kennung).width - 12 - seite;
+      g.save();
+      g.beginPath();
+      g.roundRect(lx, H - 46 - seite + 10, seite, seite, 7);
+      g.clip();
+      g.drawImage(logo, lx, H - 46 - seite + 10, seite, seite);
+      g.restore();
+    }
+    g.textAlign = 'left';
+  }, [stats, text, ebeneEffektiv]);
+
+  const zeichnenRef = useRef<(() => void) | null>(null);
+  useEffect(() => { zeichnenRef.current = zeichnen; zeichnen(); }, [zeichnen]);
+
+  /** Alle Spieler der angezeigten Plaetze, ohne Doppelte. */
+  const spielerListe = useMemo(() => {
+    // Jeder Spieler einzeln, geschluesselt ueber die Konto-ID. Der blosse
+    // Name taugt nicht: zwei Spieler koennen auf dasselbe Wort enden.
+    const gefunden = new Map<string, { voll: string; id?: string }>();
+    // Beide Datenquellen fuehren eigene Konto-IDs. Ohne Gegenprobe ueber den
+    // Namen stuende jeder Spieler zweimal in der Liste - einmal je Quelle.
+    const schonDa = new Set<string>();
+    const merken = (voll: string, id?: string) => {
+      const nk = namensSchluessel(voll);
+      if (nk && schonDa.has(nk)) return;
+      const k = id || nk;
+      if (!k) return;
+      gefunden.set(k, { voll, id });
+      if (nk) schonDa.add(nk);
+    };
+    // Alle geladenen Teams, nicht nur die vordersten: wer auf Platz 14 steht,
+    // kann trotzdem in einer Kennzahl vorne liegen und braucht sein Profil.
+    for (const e of eintraege) {
+      for (const p of e.players) merken(p.name, p.id);
+    }
+    // Dazu jeden, der irgendwo in einer Bestenliste auftaucht.
+    for (const b of aktiveListen) {
+      for (const pl of b.plaetze) {
+        pl.spieler.forEach((n, i) => merken(n, pl.ids?.[i]));
+      }
+    }
+    // Und bei den Einzelwerten wirklich jeden Spieler des Spieltags.
+    for (const sp of einzelwerte) merken(sp.name, sp.epicId);
+    return [...gefunden.entries()].map(([k, v]) => ({ schluessel: k, ...v }));
+  }, [eintraege, aktiveListen, einzelwerte]);
+
+  /**
+   * Wer ins Mosaik kommt - und in welcher Reihenfolge.
+   *
+   * Dieselbe Rangfolge wie im Beitrag: Platz eins steht links. Genommen wird
+   * die erste gewaehlte Bestenliste, sonst die Teamwertung des Spieltags.
+   *
+   * Geschickt werden mehr Konten als Streifen gebraucht werden. Nicht zu
+   * jedem Spieler liegt ein Foto, und wer keins hat, soll nicht als
+   * Silhouette danebenstehen - die Schnittstelle ueberspringt ihn und nimmt
+   * den naechsten. Ohne Vorrat blieben sonst zwei Streifen uebrig, wo fuenf
+   * stehen sollten.
+   */
+  const mosaikIds = useMemo(() => {
+    /*
+     * Bei der eigenen Liste zaehlt genau, wer angeklickt wurde.
+     *
+     * "Also einfach die Spieler, die da ausgewählt werden, werden dann auch
+     * als Bild da angezeigt." Also keine Ergaenzung aus dem Turnierfeld -
+     * wer nicht in der Liste steht, gehoert nicht ins Bild.
+     */
+    if (vorlage === 'eigene') {
+      return eigeneWahl.map((x) => x.epicId).slice(0, 10);
+    }
+    if (vorlage === 'verpasst') return verpasstTreffer.map((z) => z.id);
+    if (vorlage === 'worst') return worstZeilen.flatMap((z) => (z.p.ids ?? []).slice(0, 1)).filter((id) => /^[0-9a-f]{32}$/i.test(id)).slice(0, 12);
+    // Player Card und Team Spotlight haben ihr eigenes Bild (StatKarte, lib/statKarteBild.ts) - kein Mosaik.
+    if (vorlage === 'spielerkarte' || vorlage === 'spieler') return [];
+
+    /*
+     * Je Team eine Gruppe, mit senkrechtem Strich verbunden.
+     *
+     * /api/beitrag-bild entscheidet daraus, wer ins Bild kommt: aus jedem
+     * Team hoechstens einer, und zwar der, von dem ein Foto vorliegt. Das
+     * kann nur dort entschieden werden - hier ist nicht bekannt, zu wem es
+     * ein Foto gibt.
+     */
+    const raus: string[] = [];
+    const drin = new Set<string>();
+    const gruppe = (ids?: Array<string | undefined>) => {
+      const echte = (ids ?? []).filter((id): id is string =>
+        Boolean(id) && /^[0-9a-f]{32}$/i.test(id!) && !drin.has(id!));
+      if (!echte.length) return;
+      for (const id of echte) drin.add(id);
+      raus.push(echte.join('|'));
+    };
+
+    /*
+     * Aus jedem Duo nur einer.
+     *
+     * Vorher wurden die Konten Team fuer Team angehaengt - also beide
+     * Spieler eines Duos hintereinander. Bei neun Bildern blieben davon
+     * viereinhalb Teams uebrig, und im Bild standen zweimal dieselben zwei
+     * Gesichter nebeneinander. Der Betreiber wollte es andersherum: "von
+     * jedem einer, damit jeder sicher mal drin ist."
+     *
+     * Deshalb zwei Durchgaenge. Erst von jedem Team der erste Spieler, in
+     * der Reihenfolge der Liste; danach erst die Partner. Weil das Bild
+     * vorne anfaengt und ueberspringt, wer kein Foto hat, steht damit auf
+     * neun Plaetzen auch neun verschiedene Teams - und die Partner fuellen
+     * nur auf, wenn es sonst nicht reicht.
+     */
+    const erste = aktiveListen.find((b) => gewaehlteListen.includes(b.schluessel))
+      ?? aktiveListen[0];
+    if (erste) for (const pl of erste.plaetze) gruppe(pl.ids);
+    if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
+
+    return raus.slice(0, 20);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, verpasstTreffer, worstZeilen]);
+
+  /** Wie viele Gesichter ins Mosaik (Player Card und Team Spotlight haben ihr eigenes Bild). */
+  const bildAnzahl = mosaikAnzahl;
+
+  /**
+   * Das Mosaik holen, sobald sich die Auswahl aendert.
+   *
+   * Erzeugt wird serverseitig - dort liegen die Fotos, und dort laesst sich
+   * sauber zuschneiden. Zurueck kommt ein PNG, das hier nur noch angezeigt
+   * und in die Zwischenablage gelegt wird.
+   */
+  useEffect(() => {
+    let weg = false;
+    let alteUrl: string | null = null;
+
+    const lauf = async () => {
+      if (vorlage !== 'dropmap' && !mosaikIds.length) {
+        setMosaikUrl((vorher) => { if (vorher) URL.revokeObjectURL(vorher); return null; });
+        setMosaikFehler(''); setMosaikLaedt(false);
+        return;
+      }
+      setMosaikLaedt(true); setMosaikFehler('');
+      try {
+        if (vorlage === 'dropmap' && !dropTitel) { setMosaikLaedt(false); return; }
+        const r = vorlage === 'dropmap'
+          ? await fetch(`/api/post-bild?dropmap=${encodeURIComponent(dropWindow)}&titel=${encodeURIComponent(dropTitel)}`, { cache: 'no-store' })
+          : await fetch(
+          `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
+          // Team Spotlight als Banner mit Logo in der Mitte (Beispielbild des Betreibers, 25.9.2026).
+          + `&anzahl=${bildAnzahl}${vorlage === 'spieler' ? '&form=banner' : ''}${vorlage === 'verpasst' ? '&grau=1' : ''}`, { cache: 'no-store' });
+        if (!r.ok) {
+          const j = await r.json().catch(() => null);
+          if (!weg) { setMosaikUrl(null); setMosaikFehler(j?.hinweis ?? j?.error ?? 'no image'); }
+          return;
+        }
+        const namen = decodeURIComponent(r.headers.get('X-Spieler') ?? '');
+        const blob = await r.blob();
+        if (weg) return;
+        alteUrl = URL.createObjectURL(blob);
+        setMosaikUrl((vorher) => { if (vorher) URL.revokeObjectURL(vorher); return alteUrl; });
+        setMosaikNamen(namen);
+      } catch (e) {
+        if (!weg) setMosaikFehler((e as Error).message);
+      } finally {
+        if (!weg) setMosaikLaedt(false);
+      }
+    };
+
+    /* Einen Mikrotask spaeter.
+       Ein Effekt, der noch im selben Durchlauf Zustand setzt, loest eine
+       zweite Renderrunde aus, bevor die erste fertig ist - React warnt zu
+       Recht davor. Der Abruf ist ohnehin asynchron; ihn eine Warteschlange
+       spaeter zu starten kostet nichts und raeumt das aus. */
+    void Promise.resolve().then(lauf);
+
+    return () => { weg = true; };
+  }, [mosaikIds, bildAnzahl, vorlage, dropWindow, dropTitel]);
+
+  /**
+   * Das Bild in die Zwischenablage legen.
+   *
+   * So laesst es sich auf X direkt einfuegen, ohne den Umweg ueber eine
+   * gespeicherte Datei. Der Browser gibt das nur her, wenn die Seite als
+   * sicher gilt - localhost zaehlt dazu. Klappt es nicht, bleibt der Knopf
+   * zum Speichern daneben.
+   */
+  async function mosaikKopieren() {
+    if (!mosaikUrl) return;
+    try {
+      const blob = await (await fetch(mosaikUrl)).blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob }),
+      ]);
+      setMosaikKopiert(true);
+      setTimeout(() => setMosaikKopiert(false), 1800);
+    } catch {
+      setMosaikFehler(t('The browser does not allow the clipboard — '
+        + 'please save the image.'));
+    }
+  }
+
+  function mosaikSpeichern() {
+    if (!mosaikUrl) return;
+    speichereAdresse(
+      mosaikUrl,
+      `${(cupName || 'cup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-spieler.png`,
+    );
+  }
+
+  /**
+   * Die Kacheln, die tatsaechlich zu sehen sind.
+   *
+   * Zweihundert Spieler in einem Raster sind eine Wand, keine Liste - wer
+   * einen bestimmten sucht, liest sie von oben nach unten durch. Deshalb
+   * zwei Wege hinein:
+   *
+   *   - Die Suche geht ueber ALLE Namen eines Kontos, nicht nur den, der
+   *     gerade auf der Kachel steht. Wer "scroll" tippt, findet ihn auch,
+   *     wenn er an diesem Tag als "AG Scroll 10!" antrat - und ueber das
+   *     X-Konto ebenso. Dieselbe nachsichtige Suche wie im Kurzbefehl-Feld:
+   *     erst genau, dann Anfang, dann enthalten, zuletzt Vertipper.
+   *
+   *   - Die Filter zeigen die Arbeit, die noch ansteht. "Ohne Flagge" und
+   *     "ohne @-Konto" sind dabei getrennt: die meisten Spieler haben
+   *     inzwischen ein Land aus der Szene-Quelle, aber kein X-Konto - eine
+   *     gemeinsame Zaehlung "ungepflegt" verstuende die beiden Faelle.
+   */
+  // Bewusst ohne useMemo: es sind zweihundert Eintraege, das rechnet sich
+  // schneller, als ein Vergleich der Abhaengigkeiten dauert. Der
+  // React-Compiler merkt sich das Ergebnis von selbst, wo es sich lohnt.
+  const zuordnenFrage = namensSchluessel(zuordnenSuche);
+
+  const zuordnenPasst = (sp: { voll: string; id?: string }) => {
+    const pr = findeProfil(sp.voll, sp.id);
+    if (zuordnenFilter === 'gepflegt') return Boolean(pr);
+    if (zuordnenFilter === 'ohneFlagge') return !landFuer(sp.voll, sp.id);
+    if (zuordnenFilter === 'ohneKonto') return !pr?.x;
+    return !pr;                           // 'offen'
+  };
+
+  const zuordnenGefiltert = zuordnenFilter === 'alle'
+    ? spielerListe : spielerListe.filter(zuordnenPasst);
+
+  const zuordnenTreffer = zuordnenFrage.length < 2 ? null : suchStufen(zuordnenFrage)
+    .map((passt) => zuordnenGefiltert
+      .filter((sp) => schluesselFuer(sp.voll, sp.id).some(passt)))
+    .find((gefunden) => gefunden.length) ?? [];
+
+  const gezeigteZuordnung = zuordnenTreffer ?? zuordnenGefiltert;
+
+  /**
+   * Eine Kachel zum Bearbeiten aufklappen.
+   *
+   * Als eigene Funktion, weil es zwei Wege dorthin gibt: den Klick auf die
+   * Kachel und die Eingabetaste im Suchfeld. Beide muessen dieselben Felder
+   * vorbelegen, sonst stuende beim einen Weg ein Land da und beim anderen
+   * nicht.
+   */
+  const zuordnungOeffnen = useCallback(
+    (sp: { schluessel: string; voll: string; id?: string }) => {
+      const pr = findeProfil(sp.voll, sp.id);
+      const quelle = pr ?? altprofilVorschlag(sp.voll, sp.id);
+      setPflegeName(sp.schluessel);
+      setPflegeStand('');
+      // Ohne gepflegtes Land das aus der Szene-Quelle: sonst muesste man eine
+      // Flagge abtippen, die daneben schon steht.
+      setPflegeLand(quelle?.land ?? landFuer(sp.voll, sp.id) ?? '');
+      setPflegeX(quelle?.x ?? '');
+      setPflegeRegion(quelle?.region ?? '');
+      setPflegeAnzeige(quelle?.anzeige ?? '');
+    }, [findeProfil, altprofilVorschlag, landFuer]);
+
+  /**
+   * Eingabetaste speichert, Escape bricht ab.
+   *
+   * Alle Kacheln teilen sich dieselben vier Eingabefelder. Wer tippt und
+   * dann eine andere Kachel anklickt, verliert seine Eingabe deshalb
+   * stillschweigend - die Eingabetaste ist der kuerzeste Weg, das zu
+   * vermeiden.
+   */
+  function pflegeTaste(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    sp: { voll: string; id?: string },
+  ) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void profilSpeichern(sp.voll, pflegeLand, pflegeX,
+        pflegeRegion, pflegeAnzeige, sp.id);
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setPflegeName(null); setPflegeStand('');
+    }
+  }
+
+  async function profilSpeichern(name: string, land: string, x: string,
+                                 region = '', anzeige = '', id?: string) {
+    setPflegeStand('saving …');
+    try {
+      const r = await fetch('/api/spieler-profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, land, x, region, anzeige }),
+      });
+      const j = await r.json().catch(() => null);
+
+      // Fehler nicht verschlucken. Vorher endete der Weg hier stumm, und am
+      // Bildschirm sah das genauso aus wie ein geglueckter Speichervorgang.
+      if (!r.ok) {
+        setPflegeStand(j?.error ? String(j.error) : t('nicht gespeichert'));
+        return;
+      }
+
+      setProfile((alt) => {
+        const neu = { ...alt };
+        if (j.profile) neu[j.schluessel] = j.profile;
+        else delete neu[j.schluessel];
+
+        /*
+         * Denselben Zusammenschluss nachvollziehen, den der Server macht.
+         *
+         * Wird mit einer Konto-Id gespeichert, fuehrt er ein altes, nur
+         * ueber den Namen gefuehrtes Profil mit hinein und loescht es.
+         * Blieb es hier stehen, gab es den Spieler doppelt - und die
+         * Namenssuche in findeProfil, die genau einen Treffer verlangt,
+         * fand danach gar keinen mehr.
+         */
+        if (id) {
+          const nk = namensSchluessel(name);
+          if (nk && nk !== j.schluessel && neu[nk] && !neu[nk].id) delete neu[nk];
+        }
+        return neu;
+      });
+
+      setPflegeName(null); setPflegeLand(''); setPflegeX('');
+      setPflegeRegion(''); setPflegeAnzeige('');
+      // Was gespeichert wurde, steht kurz da - der Knopf allein sagt es nicht.
+      setPflegeStand(x
+        ? `${t('gespeichert')} — @${x.replace(/^@/, '')}`
+        : t('gespeichert — ohne @-Konto'));
+      window.setTimeout(() => setPflegeStand(''), 3000);
+    } catch (e) {
+      setPflegeStand((e as Error).message);
+    }
+  }
+
+
+  async function kopieren() {
+    await navigator.clipboard.writeText(text);
+    setKopiert(true);
+    setTimeout(() => setKopiert(false), 1800);
+  }
+
+  if (istAdmin === false) {
+    return (
+      <NurAdmins />
+    );
+  }
+
+  return (
+    <main className="text-white/85">
+      <div>
+
+        <SeitenKopf className="mb-5" marke={<T>Beiträge</T>} titel={<T>Beitrag erstellen</T>}
+          text={<T>Cup wählen, Vorlage wählen — Text und Grafik entstehen aus den Turnierdaten von Epic.</T>}
+          rechts={
+            <button onClick={() => setBefehleOffen(true)}
+              title={t('Alles, was das Kurzbefehl-Feld versteht')}
+              className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-xs font-bold
+                         text-white/70 transition hover:border-sky-500 hover:text-sky-400">
+               ⌘ Commands <span className="ml-1.5 rounded-full bg-white/[0.07] px-1.5 py-0.5
+                               text-[10px] font-semibold text-white/55">
+                {befehlsZahl}
+              </span>
+            </button>
+          } />
+
+        {/* ------------------------------------------ Stat-Posts
+            Ganz oben. Cup und Spieltag teilen sich den Zustand mit Schritt 2. */}
+        <section className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 px-5 py-3">
+            <h2 className="text-sm font-bold text-white"><T>Stat-Posts</T></h2>
+            <p className="text-[11px] text-white/40">
+              <T>Best Stats, Elims, Damage, bestes Spiel, Treffer, Builds, Mats, Zeit am Leben, Strecke und Sturm – aus der Replay-Auswertung und Epics Bestenliste, je Post mit Bild.</T>
+            </p>
+          </div>
+          <div className="p-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)_auto] lg:items-end">
+              <label className="text-xs text-white/55">
+                Cup
+                <select value={cupId}
+                  onChange={(e) => { setCupId(e.target.value); setFensterId(''); setAlleSpieltage(false); }}
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500">
+                  <option value="">{t('— auswählen —')}</option>
+                  {cupGruppen.live.length > 0 && (
+                    <optgroup label={t('Läuft gerade')}>
+                      {cupGruppen.live.map((c) => <option key={c.id} value={c.id}>🔴 {c.titel}</option>)}
+                    </optgroup>
+                  )}
+                  {cupGruppen.monate.map((m) => (
+                    <optgroup key={m.titel} label={m.titel}>
+                      {m.cups.map((c) => <option key={c.id} value={c.id}>{wann(c)} · {c.titel}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-white/55">
+                <T>Spieltag</T>
+                <select value={fensterId} onChange={(e) => setFensterId(e.target.value)} disabled={!spieltage.liste.length}
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 disabled:opacity-40">
+                  <option value="">{t('— auswählen —')}</option>
+                  {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => {
+                    const runden = spieltage.liste.filter((f) => f.region === r);
+                    const namen = rundenBeschriftung(runden, t);
+                    return (
+                      <optgroup key={r} label={r}>
+                        {runden.map((f) => (
+                          <option key={f.windowId} value={f.windowId}>
+                            {f.status === 'live' ? '🔴 ' : ''}{r}{namen.get(f.windowId) ? ` · ${namen.get(f.windowId)}` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+                {spieltage.mehr > 0 && (
+                  <button type="button" onClick={() => setAlleSpieltage(true)}
+                    className="mt-1 text-[11px] text-white/40 underline decoration-dotted underline-offset-2 hover:text-sky-400">
+                    {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
+                  </button>
+                )}
+              </label>
+              <label className="text-xs text-white/55">
+                <T>Kopfzeile</T>
+                <input value={ftTitelText} disabled={!aktuellesFenster}
+                  onChange={(e) => setFtTitel({ windowId: fensterId, text: e.target.value })}
+                  spellCheck={false}
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-500 disabled:opacity-40" />
+              </label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => ftErstellen()} disabled={!aktuellesFenster || ftLaedt}
+                  className="h-[38px] rounded-lg bg-sky-500 px-5 text-sm font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
+                  {t(ftLaedt ? 'loading…' : 'Create')}
+                </button>
+                <button type="button" onClick={() => ftErstellen(true)} disabled={!aktuellesFenster || ftLaedt}
+                  title={t('Nur der Results-Post (Plätze 1–10 nach Punkten), frisch aus Epics Bestenliste – ohne Replays, direkt nach dem letzten Game.')}
+                  className="h-[38px] rounded-lg border border-amber-500/50 px-4 text-sm font-medium text-amber-300 transition hover:border-amber-400 hover:text-amber-200 disabled:opacity-40">
+                  {t('Sofort (Epic)')}
+                </button>
+              </div>
+            </div>
+
+            {ftFehler?.windowId === fensterId && (
+              <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{ftFehler.text}</p>
+            )}
+
+            {ftDaten && (
+              <>
+                {ftDaten.quelle === 'replay' ? (
+                  <p className="mt-4 text-[11px] text-white/40">
+                    {ftDaten.stand.gelesen}/{ftDaten.stand.gesamt ?? '?'} <T>Matches ausgewertet</T>
+                    {' · '}{ftDaten.spieler} <T>Spieler</T>
+                    {' · '}{ftDaten.teams} <T>Teams aus der Bestenliste</T>
+                    {' · '}<T>Mindestspiele für Ratio, Zeit am Leben und Strecke</T>: {ftDaten.minSpiele}
+                  </p>
+                ) : (
+                  <p className="mt-4 text-[11px] text-white/40">
+                    <T>Nur der Results-Post aus Epics Bestenliste</T>
+                    {ftDaten.epicStand ? <>{' · '}<T>Stand</T> {new Date(ftDaten.epicStand).toLocaleTimeString()}</> : null}
+                  </p>
+                )}
+                {ftDaten.replayFehlt && (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    {ftDaten.replayFehlt} – <T>die Stat-Posts kommen, sobald die Replays ausgewertet sind.</T>
+                  </p>
+                )}
+                {ftDaten.stand.teilweise && (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                    <T>Teilweise ausgewertet – die Werte sind noch nicht endgültig.</T>
+                  </p>
+                )}
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {ftDaten.posts.map((p) => {
+                    const laenge = tweetLaenge(p.text);
+                    const zuLang = laenge > 4000;
+                    return (
+                      <div key={p.art} className="flex flex-col rounded-xl border border-white/10 bg-black/40">
+                        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-2">
+                          <span className="flex items-center gap-2 text-xs font-semibold text-white/70">
+                            {p.titel}
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${p.quelle === 'epic'
+                              ? 'bg-amber-500/15 text-amber-300' : 'bg-sky-500/15 text-sky-300'}`}>
+                              {t(p.quelle === 'epic' ? 'Instant from Epic' : 'From replays')}
+                            </span>
+                          </span>
+                          <span title={t('Zeichen, wie X sie zählt (Emoji und Flaggen doppelt, Links 23)')}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${zuLang
+                              ? 'bg-red-500/15 text-red-300' : 'bg-white/[0.07] text-white/55'}`}>
+                            {laenge}/4000
+                          </span>
+                        </div>
+                        <p className="flex-1 whitespace-pre-wrap break-words px-4 py-3 text-sm leading-relaxed text-white">{p.text}</p>
+                        {zuLang && (
+                          <p className="px-4 pb-2 text-[11px] text-red-300">
+                            <T>Länger als 280 Zeichen – X schneidet ab bzw. lässt den Post ohne Premium nicht zu.</T>
+                          </p>
+                        )}
+                        <div className="border-t border-white/10 px-4 py-2">
+                          <button type="button" onClick={() => ftKopieren(p.art, p.text)}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${ftKopiert === p.art
+                              ? 'border-emerald-500 text-emerald-400' : 'border-white/15 text-white/70 hover:border-sky-500 hover:text-sky-400'}`}>
+                            {t(ftKopiert === p.art ? 'Copied' : 'Copy')}
+                          </button>
+                        </div>
+                        <FtBild spieler={p.bild ?? []} dateiname={`${aktuellesFenster?.windowId ?? 'cup'}-${p.art}`} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Schritt 1 und 2 nebeneinander (Betreiber, 20.10.2026: die Post-Section neu - weniger Scrollen): links was es werden soll, rechts der Cup. */}
+        <div className="grid gap-x-4 xl:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] xl:items-start">
+        {/* ------------------------------------------ Schritt 1: Vorlage */}
+        <Schritt nr={1} titel={t('Was soll es werden?')}>
+          <div className="flex flex-wrap gap-1.5">
+            {VORLAGEN.map((v) => {
+              // Beim Solo-Cup gibt es kein Team, das man beleuchten koennte.
+              if (v.wert === 'spieler' && soloCup) return null;
+              /* Die Spielerkarte braucht Einzelwerte. Liegen zu diesem
+                 Spieltag keine vor, bleibt der Knopf stehen - grau, mit dem
+                 Grund im Mouseover. Ein verschwundener Knopf wirft die Frage
+                 auf, wo er hin ist. */
+              const gesperrt = v.wert === 'spielerkarte'
+                && !!stats && !spielerListen.length;
+              return (
+                <button key={v.wert} onClick={() => setVorlage(v.wert)}
+                  disabled={gesperrt}
+                  title={gesperrt
+                    ? t('Für diesen Spieltag liegen keine Einzelwerte vor')
+                    : t(v.hinweis)}
+                  className={`rounded-lg border px-4 py-2 text-xs font-medium
+                              transition disabled:cursor-not-allowed
+                              disabled:opacity-40 ${
+                    vorlage === v.wert
+                      ? 'border-sky-500 bg-sky-500 text-white'
+                      : 'border-white/10 text-white/55 hover:border-white/15 '
+                        + 'hover:text-white/85'}`}>
+                  {v.titel}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-white/40">
+            <T>{VORLAGEN.find((v) => v.wert === vorlage)?.hinweis ?? ''}</T>
+          </p>
+          {/* Namen im Text: mit X-Konto oder nur der Name. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40"><T>Namen im Text</T></span>
+            {([[true, 'With X handle'], [false, 'Name only']] as const).map(([an, titel]) => (
+              <button key={String(an)} type="button" onClick={() => mitXSetzen(an)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${mitX === an
+                  ? 'border-sky-500 bg-sky-500 text-white' : 'border-white/10 text-white/55 hover:border-white/15 hover:text-white/85'}`}>
+                <T>{titel}</T>
+              </button>
+            ))}
+          </div>
+        </Schritt>
+
+        {/* --------------------------------- Schritt 2: Cup, Spieltag, Plätze
+            Die eigene Liste haengt an keinem Turnier - dort entfaellt der
+            ganze Schritt, statt leer und ausgegraut dazustehen. */}
+        {!ohneCup && (
+        <Schritt nr={2} titel={t('Cup & Spieltag')}
+          hinweis={t('Ein roter Punkt heißt: läuft gerade.')}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs text-white/55">
+              Cup
+              <input value={cupSuche}
+                onChange={(e) => setCupSuche(e.target.value)}
+                placeholder={t('filtern — z. B. fncs, solo, reload')}
+                spellCheck={false}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
+                           px-3 py-1.5 text-xs text-white outline-none
+                           placeholder:text-white/30 focus:border-sky-500" />
+              <select value={cupId}
+                onChange={(e) => {
+                  setCupId(e.target.value); setFensterId('');
+                  setAlleSpieltage(false);
+                }}
+                className="mt-1.5 w-full rounded-lg border border-white/10 bg-black/40
+                           px-3 py-2 text-sm text-white outline-none
+                           focus:border-sky-500">
+                <option value="">{t('— auswählen —')}</option>
+                {cupGruppen.live.length > 0 && (
+                  <optgroup label={t('Läuft gerade')}>
+                    {cupGruppen.live.map((c) => (
+                      <option key={c.id} value={c.id}>🔴 {c.titel}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {cupGruppen.monate.map((m) => (
+                  <optgroup key={m.titel} label={m.titel}>
+                    {m.cups.map((c) => (
+                      <option key={c.id} value={c.id}>{wann(c)} · {c.titel}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {/* Wieviel der Filter uebrig laesst - sonst sieht eine leere
+                  Liste aus wie ein Fehler. */}
+              {cupSuche.trim() && (
+                <span className="mt-1 block text-[11px] text-white/30">
+                  {cupGruppen.treffer} <T>Treffer</T>
+                </span>
+              )}
+            </label>
+
+            {/*
+              * Region statt Spieltag.
+              *
+              * Der Betreiber (19.10.2026): "bei Matchday soll Region stehen". Gewaehlt wird die Region; der Spieltag dazu ist der laufende, sonst der
+              * zuletzt gelaufene. Hat die Region mehrere Runden (Finals Tag 1 und 2, Heats), steht darunter eine zweite Auswahl - ohne Datum.
+              */}
+            <label className="text-xs text-white/55">
+              <T>Region</T>
+              <select value={aktuellesFenster?.region ?? regionWahl}
+                onChange={(e) => {
+                  const r = e.target.value;
+                  setRegionWahl(r);
+                  const erste = spieltage.liste.find((f) => f.region === r);
+                  setFensterId(erste ? erste.windowId : '');
+                }}
+                disabled={!fenster.length}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
+                           px-3 py-2 text-sm text-white outline-none
+                           focus:border-sky-500 disabled:opacity-40">
+                <option value="">{t('— auswählen —')}</option>
+                {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => (
+                  <option key={r} value={r}>
+                    {spieltage.liste.some((f) => f.region === r && f.status === 'live') ? '🔴 ' : ''}{r}
+                  </option>
+                ))}
+              </select>
+              {(() => {
+                const region = aktuellesFenster?.region ?? regionWahl;
+                const runden = spieltage.liste.filter((f) => f.region === region);
+                if (runden.length < 2) return null;
+                const namen = rundenBeschriftung(runden, t);
+                return (
+                  <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
+                               px-3 py-2 text-sm text-white outline-none
+                               focus:border-sky-500">
+                    {runden.map((f) => (
+                      <option key={f.windowId} value={f.windowId}>
+                        {f.status === 'live' ? '🔴 ' : ''}{namen.get(f.windowId) || t('Runde')}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
+              {spieltage.mehr > 0 && (
+                <button type="button" onClick={() => setAlleSpieltage(true)}
+                  className="mt-1 text-[11px] text-white/40 underline
+                             decoration-dotted underline-offset-2
+                             hover:text-sky-400">
+                  {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
+                </button>
+              )}
+            </label>
+
+            {/* Frei eintippen, eins bis fünfzig. Zurechtgerueckt wird erst
+                beim Verlassen des Feldes - sonst frisst der Deckel die Zahl,
+                waehrend sie noch getippt wird. */}
+            <label className="text-xs text-white/55">
+              <T>Plätze im Beitrag</T>
+              <input type="number" min={1} max={50} value={anzahlRoh}
+                onChange={(e) => {
+                  setAnzahlRoh(e.target.value);
+                  const n = Math.round(+e.target.value);
+                  if (n >= 1 && n <= 50) setAnzahl(n);
+                }}
+                onBlur={() => {
+                  const n = Math.max(1, Math.min(50,
+                    Math.round(+anzahlRoh) || anzahl));
+                  setAnzahl(n); setAnzahlRoh(String(n));
+                }}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
+                           px-3 py-2 text-sm text-white outline-none
+                           focus:border-sky-500" />
+              <span className="mt-1 block text-[11px] text-white/30">1–50</span>
+            </label>
+
+            <button onClick={laden} disabled={!fensterId || laedt}
+              className="mt-1 h-[38px] self-start rounded-lg bg-sky-500 px-4
+                         text-sm font-medium text-white transition
+                         hover:bg-sky-400 disabled:opacity-40 sm:mt-5">
+              {t(laedt ? 'loading…' : 'Load data')}
+            </button>
+          </div>
+        </Schritt>
+        )}
+        </div>
+
+        {/* ---------------------------------------- Schritt 3: Kurzbefehl */}
+        {KURZBEFEHL_UND_IMPORT_SICHTBAR && stats && (
+        <Schritt nr={3} titel={t('Command')}
+          hinweis={t('Ein Name, eine Kennzahl oder eine Platzzahl — Enter drückt ab.')}>
+          <input value={befehl}
+            onChange={(e) => setBefehl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+
+              /*
+               * Ein Name geht vor: wer genau einen Teilnehmer tippt, meint
+               * ihn und keine Kennzahl, die zufällig dieselben Buchstaben
+               * enthält.
+               *
+               * Welche Ebene gerade gilt, entscheidet dabei, was herauskommt
+               * - und die haengt seit dem Umbau an der Vorlage. Auf "Player
+               * Card" kommt der einzelne Spieler, auf "Team Spotlight" das
+               * Duo samt Partner. Vorher konnte beides gleichzeitig
+               * eingestellt sein, und dann gewann das Team.
+               */
+              if (ebeneEffektiv === 'team') {
+                const t = findeTeam(befehl);
+                if (t.treffer.length === 1) {
+                  setSpotlight(t.treffer[0].rank);
+                  setVorlage('spieler');
+                  // Alle Kennzahlen an, sonst bliebe die Karte leer.
+                  setGewaehlteListen(aktiveListen.map((b) => b.schluessel));
+                  setBefehlEcho(`${t.namen[0]} — all values`);
+                  setBefehl('');
+                  return;
+                }
+                if (t.treffer.length > 1) {
+                  setBefehlEcho(`mehrdeutig: ${t.namen.slice(0, 3).join(' / ')}`);
+                  return;
+                }
+              } else {
+                const sp = findeTeilnehmer(befehl);
+                if (sp.treffer.length === 1) {
+                  setKarteSpieler(sp.treffer[0]);
+                  setVorlage('spielerkarte');
+                  setBefehlEcho(`${kurzName(sp.treffer[0].name)} — all values`);
+                  setBefehl('');
+                  return;
+                }
+                if (sp.treffer.length > 1) {
+                  // Lieber nachfragen als den Falschen nehmen.
+                  setBefehlEcho(`mehrdeutig: ${sp.namen.slice(0, 4)
+                    .map(kurzName).join(', ')}`);
+                  return;
+                }
+              }
+
+              // Eine Frage ans Feld geht vor der Kennzahlsuche: "all
+              // winners" nennt zwar das Wort "wins", gemeint ist aber
+              // die Liste der Sieger und nicht die Kennzahl.
+              const a = deuteAuswahl(befehl);
+              if (a) {
+                setAuswahl(a);
+                setVorlage('auswahl');
+                setEbene('team');
+                const n = eintraege.filter((x) => a.passt(x, auswahlHilfe)).length;
+                setBefehlEcho(`${a.titel} — ${n} Team${n === 1 ? '' : 's'}`);
+                setBefehl('');
+                return;
+              }
+
+              const d = deuteBefehl(befehl, aktiveListen);
+              if (!d) {
+                setBefehlEcho(spielerDaten && !einzelwerte.length
+                  ? 'not understood — there are no per-player values for this match day'
+                  : 'not understood');
+                return;
+              }
+              setVorlage(d.vorlage);
+              setAnzahl(d.anzahl);
+              setAnzahlRoh(String(d.anzahl));
+              if (d.listen) setGewaehlteListen(d.listen);
+              setBefehlEcho(
+                d.listen
+                  ? `${d.listen.length} stat${d.listen.length > 1 ? 's' : ''} set`
+                  : `${VORLAGEN.find((v) => v.wert === d.vorlage)?.titel ?? d.vorlage}, `
+                    + `${d.anzahl} places`);
+              setBefehl('');
+            }}
+            placeholder="top 5 · damage · elims 10 · mats · shxrk"
+            className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2
+                       font-mono text-sm text-white outline-none
+                       focus:border-sky-500" />
+          {befehlEcho && (
+            <span className="mt-1 block text-[11px] text-sky-400">{befehlEcho}</span>
+          )}
+          {/* Was das Feld versteht. Ohne diese Zeile muss man raten. */}
+          <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]
+                           text-white/30">
+            {AUSWAHLBEFEHLE.map((b) => (
+              <button key={b.beispiel} type="button" title={b.erklaerung}
+                onClick={() => setBefehl(b.beispiel)}
+                className="font-mono text-white/40 underline decoration-dotted
+                           underline-offset-2 hover:text-sky-400">
+                {b.beispiel}
+              </button>
+            ))}
+          </span>
+        </Schritt>
+        )}
+
+        {fehler && <p className="mb-4 text-sm text-rose-400">{fehler}</p>}
+
+        {(stats || ohneCup) && (
+          <>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {/*
+                * Team- oder Einzelwerte.
+                *
+                * Nur beim Stats Recap ist das noch eine Frage: das Team
+                * Spotlight zeigt immer ein Team, die Player Card immer einen
+                * Spieler, und beim Solo-Cup gibt es ohnehin nur Spieler. Die
+                * Umschaltung stand frueher unabhaengig von der Vorlage da und
+                * konnte ihr widersprechen.
+                */}
+              {!ohneCup && !soloCup && (vorlage === 'rueckblick' || vorlage === 'worst') && (
+                <div className="flex gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                  <button onClick={() => setEbene('team')}
+                    title={t('Werte je Team, direkt von Epic')}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                      ebene === 'team' ? 'bg-sky-500 text-white'
+                                       : 'text-white/55 hover:text-white/85'}`}>
+                    Team Stats
+                  </button>
+                  <button onClick={() => setEbene('spieler')}
+                    disabled={!spielerListen.length}
+                    title={spielerListen.length
+                      ? 'Values per single player'
+                      : 'No per-player values exist for this match day'}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                      ebene === 'spieler' ? 'bg-sky-500 text-white'
+                                          : 'text-white/55 hover:text-white/85'
+                    } disabled:cursor-not-allowed disabled:opacity-40`}>
+                    Player Stats
+                  </button>
+                </div>
+              )}
+              {ebeneEffektiv === 'spieler' && einzelQuelle && (
+                <span className="text-xs text-white/40">
+                  <T>Einzelwerte von</T> {einzelQuelle}
+                </span>
+              )}
+
+              {/* Warum die Einzelwerte fehlen, gehoert sichtbar hin.
+                  Im Mouseover einer ausgegrauten Schaltflaeche findet es
+                  niemand - dort steht nur ein durchgestrichener Zeiger. */}
+              {!spielerListen.length && !ohneCup && !!stats && (
+                <span className="text-xs text-amber-500/80">
+                  {/* Die Einzelwerte kommen aus CompHubs Replay-Auswertung (app/api/cup-spieler) - nicht einer Vergleichsseite (Betreiber, 14.11.2026). */}
+                   No Player Stats yet: the replays of this match day are not fully analysed. That runs by itself after the cup (usually within an hour) - then the values per player show up here. </span>
+              )}
+
+              {/* Beim Solo-Cup ohne Szene-Quelle springt Epic ein. Dass dann
+                  weniger Kennzahlen dastehen, gehoert dazugesagt: sonst wirkt
+                  die halbe Auswahl wie ein Fehler. */}
+              {einzelQuelle === 'Epic' && (
+                <span className="text-xs text-white/40">
+                   Solo cup: the per-player values come straight from Epic, because every entry is one player. Epic does not track shots, hits, assists, revives or storm and fall damage — so those lists are missing. </span>
+              )}
+            </div>
+
+            {/*
+              * Die eigene Liste - der einzige Bereich, der ohne Cup auskommt.
+              *
+              * Links die Ueberschrift, rechts alle Spieler einer Region zum
+              * Anklicken. Was angeklickt ist, steht in der Reihenfolge der
+              * Auswahl im Beitrag und kommt ins Bild.
+              */}
+            {vorlage === 'eigene' && (
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+
+                {/* ------------------------------------------ Was dasteht */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="mb-2 text-[10px] font-semibold uppercase
+                                tracking-[0.16em] text-white/40">
+                    <T>Überschrift</T>
+                  </p>
+                  <input value={eigenerKopf}
+                    onChange={(e) => setEigenerKopf(e.target.value)}
+                    placeholder={t('z. B. „Who is the most UNDERRATED player right now?“ oder „EU“')}
+                    spellCheck={false}
+                    className="w-full rounded-lg border border-white/10 bg-black/40
+                               px-3 py-2 text-sm text-white outline-none
+                               placeholder:text-white/30 focus:border-sky-500" />
+
+                  <label className="mt-3 flex items-center gap-2 text-xs text-white/55">
+                    <input type="checkbox" checked={eigeneNummern}
+                      onChange={(e) => setEigeneNummern(e.target.checked)}
+                      className="accent-sky-500" />
+                    <T>Nummeriert (1., 2., 3.) — sonst Punkte</T>
+                  </label>
+
+                  <p className="mb-2 mt-4 flex items-baseline gap-2 text-[10px]
+                                font-semibold uppercase tracking-[0.16em]
+                                text-white/40">
+                    <T>Ausgewählt</T>
+                    <span className="tabular-nums text-white/30">
+                      {eigeneWahl.length}
+                    </span>
+                    {eigeneWahl.length > 0 && (
+                      <button onClick={() => setEigeneWahl([])}
+                        className="ml-auto font-normal normal-case tracking-normal
+                                   text-white/30 transition hover:text-rose-400">
+                        <T>alle entfernen</T>
+                      </button>
+                    )}
+                  </p>
+
+                  {eigeneWahl.length ? (
+                    <ol className="space-y-1">
+                      {eigeneWahl.map((sp, i) => (
+                        <li key={sp.epicId}
+                          className="flex items-center gap-2 rounded-lg border
+                                     border-white/5 bg-black/30 px-2.5 py-1.5">
+                          <span className="w-5 shrink-0 text-right text-[11px]
+                                           font-bold tabular-nums text-sky-400">
+                            {i + 1}
+                          </span>
+                          <Flagge land={sp.land ?? undefined} groesse={14} />
+                          <span className="min-w-0 flex-1 truncate text-xs text-white/85">
+                            {sp.anzeige}
+                          </span>
+                          {!sp.bild && (
+                            <span className="shrink-0 text-[9px] uppercase
+                                             tracking-wider text-amber-600/80"
+                              title={t('Ohne Foto — kommt nicht ins Bild')}>
+                              <T>kein Foto</T>
+                            </span>
+                          )}
+                          {/* Hoch und runter statt Ziehen: die Reihenfolge
+                              ist die Reihenfolge im Beitrag, und sie muss
+                              genau stimmen. */}
+                          <button disabled={i === 0}
+                            onClick={() => setEigeneWahl((v) => {
+                              const n = [...v];
+                              [n[i - 1], n[i]] = [n[i], n[i - 1]];
+                              return n;
+                            })}
+                            className="shrink-0 px-1 text-white/30 transition
+                                       hover:text-sky-400 disabled:opacity-20"
+                            title={t('nach oben')}>↑</button>
+                          <button disabled={i === eigeneWahl.length - 1}
+                            onClick={() => setEigeneWahl((v) => {
+                              const n = [...v];
+                              [n[i + 1], n[i]] = [n[i], n[i + 1]];
+                              return n;
+                            })}
+                            className="shrink-0 px-1 text-white/30 transition
+                                       hover:text-sky-400 disabled:opacity-20"
+                            title={t('nach unten')}>↓</button>
+                          <button
+                            onClick={() => setEigeneWahl(
+                              (v) => v.filter((x) => x.epicId !== sp.epicId))}
+                            className="shrink-0 px-1 text-white/30 transition
+                                       hover:text-rose-400"
+                            title={t('entfernen')}>×</button>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-white/10
+                                  px-3 py-6 text-center text-[11px] text-white/30">
+                      <T>Rechts jemanden anklicken.</T>
+                    </p>
+                  )}
+                </div>
+
+                {/* -------------------------------------- Woraus gewaehlt wird */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="mb-2 flex flex-wrap items-center gap-1">
+                    {REGIONEN.map((r) => (
+                      <button key={r.code}
+                        onClick={() => { setEigeneRegion(r.code); setEigeneSuche(''); }}
+                        className={`rounded-md border px-2 py-0.5 text-[11px]
+                                    font-semibold transition ${
+                          !eigeneSuche.trim() && eigeneRegion === r.code
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                            : 'border-white/10 text-white/40 hover:text-white/70'}`}>
+                        {r.code}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input value={eigeneSuche}
+                    onChange={(e) => setEigeneSuche(e.target.value)}
+                    placeholder={t('oder nach einem Namen suchen …')}
+                    spellCheck={false}
+                    className="mb-2 w-full rounded-lg border border-white/10
+                               bg-black/40 px-3 py-2 text-sm text-white
+                               outline-none placeholder:text-white/30
+                               focus:border-sky-500" />
+
+                  <div className="max-h-[420px] space-y-1 overflow-y-auto">
+                    {eigeneListe.length ? eigeneListe.map((sp) => {
+                      const drin = eigeneWahl.some((x) => x.epicId === sp.epicId);
+                      return (
+                        <button key={sp.epicId}
+                          onClick={() => setEigeneWahl((v) => (
+                            v.some((x) => x.epicId === sp.epicId)
+                              ? v.filter((x) => x.epicId !== sp.epicId)
+                              : [...v, sp]))}
+                          className={`flex w-full items-center gap-2 rounded-lg
+                                      border px-2.5 py-1.5 text-left transition ${drin
+                            ? 'border-sky-500/60 bg-sky-500/10'
+                            : 'border-white/5 bg-black/20 hover:border-white/15'}`}>
+                          <Flagge land={sp.land ?? undefined} groesse={14} />
+                          <span className="min-w-0 flex-1 truncate text-xs text-white/85">
+                            {sp.anzeige}
+                          </span>
+                          {sp.bild && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={sp.bild} alt="" loading="lazy"
+                              className="h-6 w-6 shrink-0 rounded-full border
+                                         border-white/10 object-cover object-top" />
+                          )}
+                          <span className={`shrink-0 text-sm ${drin
+                            ? 'text-sky-400' : 'text-white/20'}`}>
+                            {drin ? '−' : '+'}
+                          </span>
+                        </button>
+                      );
+                    }) : (
+                      <p className="px-3 py-6 text-center text-[11px] text-white/30">
+                        <T>Wird geladen …</T>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {vorlage === 'spielerkarte' && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="mb-2 text-xs text-white/55">
+                   Pick a player — or type the name into the command field above {' '}({einzelwerte.length}  in the field): </p>
+                {!einzelwerte.length ? (
+                  <p className="text-[11px] text-white/40">
+                    {spielerDaten?.hinweis
+                      ?? 'No individual values are available for this match day.'}
+                  </p>
+                ) : (
+                  <div className="grid max-h-48 gap-1.5 overflow-y-auto
+                                  sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {einzelwerte.map((sp) => {
+                      const pr = findeProfil(sp.name, sp.epicId);
+                      const an = karteSpieler?.id
+                        ? karteSpieler.id === sp.epicId
+                        : karteSpieler?.name === sp.name;
+                      return (
+                        <button key={sp.epicId || sp.name}
+                          onClick={() => setKarteSpieler({
+                            name: pr?.anzeige || sp.name, id: sp.epicId })}
+                          className={`flex items-center gap-1.5 overflow-hidden rounded-lg
+                                      border px-2 py-1.5 text-left text-[11px] transition ${
+                            an ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                               : 'border-white/10 text-white/55 hover:border-white/15'}`}>
+                          <Flagge land={landFuer(sp.name, sp.epicId)} groesse={11} />
+                          <span className="truncate">
+                            {kurzName(pr?.anzeige || sp.name)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {vorlage === 'livepost' && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-xs text-white/55"><T>Co-streamers for</T> {coRegion} · <T>one line per streamer: country, Twitch, X handle</T> <span className="text-white/30">(DE gripey @gripey)</span></p>
+                <textarea value={coText || coZeilenText} onChange={(e) => setCoText(e.target.value)} rows={Math.max(3, coAktiv.length + 1)}
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 font-mono text-xs text-white outline-none focus:border-sky-500" />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => void coSpeichern()} className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-sky-400"><T>Speichern</T></button>
+                  {coGespeichert && <span className="text-[11px] text-white/55">{coGespeichert}</span>}
+                </div>
+                <div className="mt-3 border-t border-white/10 pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40"><T>Reply below (tags the streamers)</T></p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <code className="rounded bg-black/40 px-2 py-1 text-xs text-white/85">{coAntwort || '—'}</code>
+                    {coAntwort && <button type="button" onClick={() => { void navigator.clipboard.writeText(coAntwort).then(() => { setCoKopiert(true); setTimeout(() => setCoKopiert(false), 1500); }); }}
+                      className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/70 hover:border-sky-500 hover:text-sky-400">{coKopiert ? <T>kopiert</T> : <T>Kopieren</T>}</button>}
+                    {!coAntwort && <span className="text-[11px] text-white/40"><T>Enter X handles above, then they show up here.</T></span>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {vorlage === 'verpasst' && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-white/55">
+                    <T>Weiter kommen die ersten (leer: laut Epic)</T>
+                    <input value={verpasstCutText} onChange={(e) => setVerpasstCutText(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder={verpasst.cut ? String(verpasst.cut) : '300'} inputMode="numeric"
+                      className="w-20 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                  </label>
+                  <span className="text-[11px] text-white/40">
+                    {verpasst.laedt ? <T>Suche läuft …</T>
+                      : verpasst.fehler ? verpasst.fehler
+                        : <>{verpasst.zeilen.length} <T>der ersten 200 der Power Rankings spielten in diesem Cup mit</T> · {verpasstTreffer.length} <T>davon kamen nicht weiter</T> · {verpasst.spieltage} <T>Spieltage gelesen</T></>}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {vorlage === 'spieler' && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="mb-2 text-xs text-white/55">
+                   Pick a team — the values come from the standings of this match day: </p>
+                <div className="grid max-h-48 gap-1.5 overflow-y-auto
+                                sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {eintraege.slice(0, 30).map((e) => (
+                    <button key={e.rank} onClick={() => setSpotlight(e.rank)}
+                      className={`flex items-center gap-1.5 overflow-hidden rounded-lg
+                                  border px-2 py-1.5 text-left text-[11px] transition ${
+                        spotlight === e.rank ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                                             : 'border-white/10 text-white/55 hover:border-white/15'}`}>
+                      <span className="w-6 shrink-0 tabular-nums text-white/40">#{e.rank}</span>
+                      <span className="truncate">
+                        {e.players.map((p) => kurzName(echterName(p.name, p.id))).join(' + ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(vorlage === 'rueckblick' || vorlage === 'worst' || vorlage === 'spieler') && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-white/55">
+                    <T>Kennzahlen im Beitrag</T>
+                    <span className="ml-1.5 tabular-nums text-white/30">
+                      {gewaehlteListen.length}/{aktiveListen.length}
+                    </span>
+                  </p>
+                  <button type="button"
+                    onClick={() => setGewaehlteListen(
+                      aktiveListen.map((b) => b.schluessel))}
+                    className="rounded-md border border-white/10 px-2 py-0.5
+                               text-[11px] text-white/55 transition
+                               hover:border-sky-500/60 hover:text-sky-400">
+                    <T>alle</T>
+                  </button>
+                  <button type="button" onClick={() => setGewaehlteListen([])}
+                    className="rounded-md border border-white/10 px-2 py-0.5
+                               text-[11px] text-white/55 transition
+                               hover:border-rose-500/60 hover:text-rose-400">
+                    <T>keine</T>
+                  </button>
+                  <input value={listenSuche}
+                    onChange={(e) => setListenSuche(e.target.value)}
+                    placeholder={t('filtern …')}
+                    className="ml-auto w-40 rounded-lg border border-white/10
+                               bg-black/40 px-2.5 py-1 text-[11px] text-white
+                               outline-none placeholder:text-white/30
+                               focus:border-sky-500" />
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {listenAnsicht.liste.map((b) => {
+                    const an = gewaehlteListen.includes(b.schluessel);
+                    return (
+                      <button key={b.schluessel}
+                        onClick={() => setGewaehlteListen((alt) => an
+                          ? alt.filter((x) => x !== b.schluessel)
+                          : [...alt, b.schluessel])}
+                        className={`flex items-center gap-1.5 overflow-hidden rounded-lg
+                                    border px-2 py-1.5 text-left text-[11px] transition ${
+                          an ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                             : 'border-white/10 text-white/55 hover:border-white/15'}`}>
+                        <span className="not-italic">{b.symbol}</span>
+                        <span className="truncate">{b.titel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Gekuerzt wird sichtbar. Was hinter dem Deckel liegt,
+                    steht als Zahl dabei - nicht stillschweigend weg. */}
+                {listenAnsicht.mehr > 0 && (
+                  <button type="button" onClick={() => setAlleListen(true)}
+                    className="mt-2 text-[11px] text-white/40 underline
+                               decoration-dotted underline-offset-2
+                               hover:text-sky-400">
+                    +{listenAnsicht.mehr} <T>weitere Kennzahlen</T>
+                  </button>
+                )}
+                {!listenAnsicht.liste.length && (
+                  <p className="py-3 text-center text-[11px] text-white/30">
+                    <T>nichts gefunden</T>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Fremden Beitrag uebernehmen und eigene Bilder dazulegen. */}
+            <div hidden={!KURZBEFEHL_UND_IMPORT_SICHTBAR} className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <button type="button"
+                onClick={() => setImportOffen((a) => !a)}
+                className="flex w-full items-center justify-between gap-2 text-left">
+                <h2 className="text-sm font-semibold text-white">
+                  <T>Übernehmen & eigene Bilder</T>
+                </h2>
+                <span className="text-[11px] text-white/40">
+                  {importOffen || vorlage === 'eigene' || quelle
+                    ? '−' : '+'}
+                </span>
+              </button>
+
+              {(importOffen || vorlage === 'eigene' || quelle) && (
+              <>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input value={quellLink}
+                  onChange={(e) => setQuellLink(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void quelleHolen(); }}
+                  placeholder="https://x.com/… "
+                  className="min-w-[260px] flex-1 rounded-lg border border-white/10
+                             bg-black/40 px-3 py-2 text-xs text-white outline-none
+                             placeholder:text-white/30 focus:border-sky-500" />
+                <button onClick={() => void quelleHolen()} disabled={quellLaedt}
+                  className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white
+                             transition hover:bg-sky-400 disabled:opacity-40">
+                  {quellLaedt ? <T>holt …</T> : <T>Text holen</T>}
+                </button>
+                <label className="cursor-pointer rounded-lg border border-white/15 px-3 py-2
+                                  text-xs text-white/70 transition hover:border-sky-500
+                                  hover:text-sky-400">
+                  <T>Eigenes Bild</T>
+                  <input type="file" accept="image/*" multiple className="hidden"
+                    onChange={(e) => bilderWaehlen(e.target.files)} />
+                </label>
+              </div>
+
+              {quellFehler && (
+                <p className="mt-2 text-[11px] text-amber-500">{quellFehler}</p>
+              )}
+
+              <p className="mt-2 text-[11px] text-white/30">
+                <T>Ein übernommener Text wird nicht Zeichen für Zeichen
+                eingesetzt: Emojis werden gegen gleichbedeutende getauscht und
+                die Zeichensetzung beruhigt. Wörter, Namen und Zahlen bleiben
+                stehen.</T>
+              </p>
+
+              {quelle && (
+                <div className="mt-2 text-[11px] text-white/40">
+                  <T>Übernommen von</T>{' '}
+                  <a href={quelle.url} target="_blank" rel="noreferrer"
+                    className="text-sky-400 underline">
+                    {quelle.autor ?? 'X'}{quelle.konto ? ` @${quelle.konto}` : ''}
+                  </a>
+                  {quelle.datum ? ` · ${quelle.datum}` : ''}
+                  {' · '}<T>der Text steht jetzt im Feld unten</T>
+                </div>
+              )}
+
+              {(quelle?.bilder.length || eigeneBilder.length) ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(quelle?.bilder ?? []).map((b) => (
+                    // Fremde Bilder liegen auf X. Herunterladen kann der
+                    // Browser sie von hier aus nicht, deshalb oeffnen sie
+                    // sich in einem Tab - dort ein Rechtsklick, fertig.
+                    <a key={b} href={b} target="_blank" rel="noreferrer"
+                      title={t('In neuem Tab öffnen')}
+                      className="block h-20 w-20 overflow-hidden rounded-lg border
+                                 border-white/10 transition hover:border-sky-500">
+                      <img src={b} alt="" className="h-full w-full object-cover" />
+                    </a>
+                  ))}
+                  {eigeneBilder.map((b, i) => (
+                    <span key={`eigen-${i}`} className="relative block h-20 w-20
+                                 overflow-hidden rounded-lg border border-sky-800">
+                      <img src={b} alt="" className="h-full w-full object-cover" />
+                      <button
+                        onClick={() => setEigeneBilder((alt) =>
+                          alt.filter((_, j) => j !== i))}
+                        title={t('Entfernen')}
+                        className="absolute right-0.5 top-0.5 rounded bg-black/70 px-1
+                                   text-[10px] leading-tight text-rose-300">
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {/*
+                * Dieselbe Bildsprache mit den eigenen Spielern.
+                *
+                * Das uebernommene Bild bleibt oben stehen, wie es ist. Hier
+                * darunter entsteht die eigene Fassung aus den Fotos, die das
+                * Werkzeug ohnehin fuehrt - gebaut von /api/beitrag-bild,
+                * derselben Stelle, die auch die Grafik unten fuellt. Wer
+                * kein Foto hat, faellt weg statt als Silhouette zu stehen.
+                */}
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider
+                                 text-white/40">
+                    <T>Spielerbilder</T>
+                  </h3>
+                  <select value={eigenAnzahl}
+                    onChange={(e) => setEigenAnzahl(Number(e.target.value))}
+                    className="rounded border border-white/10 bg-black/40 px-2 py-1
+                               text-[11px] text-white/85 outline-none">
+                    {[5, 6, 9, 10].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => void eigenVorschlagen('underrated')}
+                    disabled={eigenLaedt}
+                    className="rounded border border-white/15 px-2 py-1 text-[11px]
+                               text-white/70 transition hover:border-sky-500
+                               hover:text-sky-400 disabled:opacity-40">
+                    <T>Unterschätzte vorschlagen</T>
+                  </button>
+                  <button onClick={() => void eigenVorschlagen('topelims')}
+                    disabled={eigenLaedt}
+                    className="rounded border border-white/15 px-2 py-1 text-[11px]
+                               text-white/70 transition hover:border-sky-500
+                               hover:text-sky-400 disabled:opacity-40">
+                    <T>Meiste Elims je Match</T>
+                  </button>
+                  {eigenBild && (
+                    <>
+                      <button onClick={() => void eigenKopieren()}
+                        className="rounded bg-sky-500 px-2 py-1 text-[11px] font-medium
+                                   text-white transition hover:bg-sky-400">
+                        {eigenKopiert ? <T>kopiert</T> : <T>Bild kopieren</T>}
+                      </button>
+                      <a href={eigenBild} download="spielerbilder.png"
+                        className="text-[11px] text-white/55 underline
+                                   hover:text-white/85">
+                        <T>als PNG speichern</T>
+                      </a>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="min-w-0 flex-1">
+                    {eigenBild ? (
+                      <>
+                        <img src={eigenBild} alt=""
+                          className="max-h-48 rounded-lg border border-white/10" />
+                        {eigenNamen && (
+                          <p className="mt-1 text-[10px] text-white/40">{eigenNamen}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-white/40">
+                        {eigenLaedt ? <T>baut …</T>
+                          : <T>Wähle unten Spieler aus — daraus entsteht hier dasselbe Bild mit deinen Leuten.</T>}
+                      </p>
+                    )}
+                    {/* Warum diese Namen - die Regel gehoert sichtbar dazu,
+                        sonst steht dort eine Rangliste, die niemand
+                        nachpruefen kann. */}
+                    {eigenRegel && (
+                      <p className="mt-1 text-[10px] text-amber-600/80">{eigenRegel}</p>
+                    )}
+                  </div>
+
+                  {/* Rechts der freie Platz: suchen, anklicken, wieder
+                      rausnehmen. Bewusst schmal - es ist eine Beigabe zum
+                      Vorschlag, keine zweite Verwaltungsseite. */}
+                  <div className="w-[26rem] shrink-0">
+                    {/* Region ueber der Suche - das Werkzeug ist in Europa
+                        zu Hause, deshalb steht EU vorn. */}
+                    <div className="mb-1.5 flex flex-wrap gap-1">
+                      {['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].map((r) => (
+                        <button key={r} onClick={() => setFestRegion(r)}
+                          className={`rounded px-1.5 py-0.5 text-[10px] transition ${
+                            festRegion === r
+                              ? 'bg-sky-500/15 text-sky-400'
+                              : 'text-white/40 hover:text-white/70'}`}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input value={festSuche}
+                      onChange={(e) => setFestSuche(e.target.value)}
+                      placeholder={t('Spieler suchen …')}
+                      className="mb-1.5 w-full rounded border border-white/10 bg-black/40
+                                 px-2 py-1 text-[11px] text-white outline-none
+                                 placeholder:text-white/30 focus:border-sky-500" />
+
+                    {fest.length > 0 && (
+                      <div className="mb-1.5 flex flex-wrap gap-1">
+                        {fest.map((x) => (
+                          <button key={x.epicId}
+                            onClick={() => setFest((v) =>
+                              v.filter((y) => y.epicId !== x.epicId))}
+                            title={`${x.anzeige} — ${t('Entfernen')}`}
+                            className="relative aspect-square w-12 overflow-hidden rounded
+                                       border border-sky-600 hover:border-rose-500">
+                            {x.bild
+                              ? <img src={x.bild} alt={x.anzeige}
+                                  className="h-full w-full object-cover" />
+                              : <span className="flex h-full w-full items-center
+                                                 justify-center text-[9px] text-white/55">
+                                  {x.anzeige.slice(0, 3)}
+                                </span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/*
+                      * Gesichter statt Namen.
+                      *
+                      * Der Betreiber waehlt nach dem Bild aus - "putt einfach
+                      * die Bilder hin". Wer kein Foto hat, steht trotzdem da,
+                      * nur blass und mit Namenskuerzel: er faellt im Mosaik
+                      * ohnehin weg, und das soll man vorher sehen.
+                      */}
+                    <div className="grid max-h-72 grid-cols-7 gap-1 overflow-y-auto
+                                    rounded border border-white/10 p-1">
+                      {festListe
+                        .filter((x) => !fest.some((y) => y.epicId === x.epicId))
+                        .map((x) => (
+                          <button key={x.epicId}
+                            onClick={() => setFest((v) => [...v, x])}
+                            title={x.anzeige + (x.foto ? '' : ` — ${t('kein Foto')}`)}
+                            className={`aspect-square w-full overflow-hidden rounded
+                                        border transition hover:border-sky-500 ${x.foto
+                              ? 'border-white/10' : 'border-white/5 opacity-40'}`}>
+                            {x.bild
+                              ? <img src={x.bild} alt={x.anzeige} loading="lazy"
+                                  className="h-full w-full object-cover" />
+                              : <span className="flex h-full w-full items-center
+                                                 justify-center text-[9px] text-white/40">
+                                  {x.anzeige.slice(0, 3)}
+                                </span>}
+                          </button>
+                        ))}
+                      {!festListe.length && (
+                        <p className="col-span-7 px-1 py-1.5 text-[10px] text-white/30">
+                          <T>nichts gefunden</T>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              </>
+              )}
+            </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-white">Text</h2>
+                  {/* Die Plaetze im Feld am Zeilenende ("(#1)") ein- und ausblenden - im Text und im Bild. */}
+                  {hatPlaetze && (
+                    <button type="button" onClick={() => plaetzeSetzen(!plaetzeAnzeigen)}
+                      role="switch" aria-checked={plaetzeAnzeigen}
+                      title={t('Die Plätze im Feld am Ende jeder Zeile, z. B. „(#1)“ – im Text und im Bild.')}
+                      className={`ml-auto rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${plaetzeAnzeigen
+                        ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                        : 'border-white/10 text-white/40 hover:text-white/70'}`}>
+                      <T>Plätze anzeigen</T>{' · '}{plaetzeAnzeigen ? t('an') : t('aus')}
+                    </button>
+                  )}
+                  <button onClick={kopieren}
+                    className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white
+                               transition hover:bg-sky-400">
+                    {kopiert ? 'copied' : 'copy'}
+                  </button>
+                </div>
+                <textarea value={text} rows={16}
+                  onChange={(e) => setEigenerText(e.target.value)}
+                  className="w-full resize-none rounded-lg border border-white/10 bg-black/40
+                             p-3 font-mono text-xs leading-relaxed text-white/85 outline-none
+                             focus:border-sky-500" />
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-white/40">
+                    {text.length}  characters{eigenerText !== null && ' · edited by hand'}
+                  </p>
+                  {eigenerText !== null && (
+                    <button onClick={() => setEigenerText(null)}
+                      className="shrink-0 text-[11px] text-white/55 underline hover:text-white/85">
+                       Restore template </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Das Fotomosaik.
+                  Auf X steht unter so einer Liste ueblicherweise ein breites
+                  Bild mit den Genannten nebeneinander. Es entsteht aus den
+                  Fotos, die ohnehin schon im Werkzeug liegen - wer keins hat,
+                  wird uebersprungen statt durch eine Silhouette ersetzt. */}
+              <div className="mt-4 rounded-xl border border-white/10
+                              bg-white/[0.03] p-3">
+                <div className="mb-2 flex flex-wrap items-center gap-3">
+                  <h2 className="text-sm font-semibold text-white">
+                    <T>Spielerbild</T>
+                  </h2>
+
+                  {/*
+                    * Wie viele Gesichter ins Bild.
+                    *
+                    * Bis fuenf stehen sie nebeneinander, darueber wird
+                    * umgebrochen: sechs ergeben drei mal zwei, neun drei mal
+                    * drei, zehn fuenf mal zwei - so, wie der Betreiber es
+                    * fuer seine eigenen Beitraege wollte.
+                    */}
+                  {/* Beim Team Spotlight gibt die Teamgroesse die Zahl vor -
+                      dort gibt es nichts zu waehlen. */}
+                  {!statKarteVorlage && (
+                  <span className="flex flex-wrap items-center gap-1">
+                    {[2, 3, 4, 5, 6, 9, 10].map((n) => (
+                      <button key={n} onClick={() => setMosaikAnzahl(n)}
+                        className={`rounded-md border px-2 py-0.5 text-[11px]
+                                    font-semibold transition ${mosaikAnzahl === n
+                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          : 'border-white/10 text-white/40 hover:text-white/70'}`}>
+                        {n}
+                      </button>
+                    ))}
+                  </span>
+                  )}
+
+                  {!statKarteVorlage && (
+                  <span className="ml-auto flex items-center gap-2">
+                    <button onClick={mosaikKopieren} disabled={!mosaikUrl}
+                      className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium
+                                 text-white transition hover:bg-sky-400
+                                 disabled:cursor-not-allowed disabled:opacity-40">
+                      {mosaikKopiert ? <T>kopiert</T> : <T>Bild kopieren</T>}
+                    </button>
+                    <button onClick={mosaikSpeichern} disabled={!mosaikUrl}
+                      className="rounded-lg border border-white/10 px-3 py-1 text-xs
+                                 text-white/55 transition hover:border-sky-500/60
+                                 hover:text-sky-400 disabled:opacity-40">
+                      <T>speichern</T>
+                    </button>
+                  </span>
+                  )}
+                </div>
+
+                {/* Player Card und Team Spotlight: Foto(s) links, Werte rechts (StatKarte) - immer ein Bild, ohne Foto mit Platzhalter. */}
+                {statKarteVorlage ? (
+                  <StatKarte titel={statKarte?.titel ?? ''} untertitel={statKarte?.untertitel}
+                    personen={statKarte?.personen ?? []} werte={statKarte?.werte ?? []} plaetze={plaetzeAnzeigen}
+                    dateiname={`${(cupName || 'cup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${vorlage === 'spieler' ? 'team' : 'spieler'}.png`} />
+                ) : mosaikLaedt && !mosaikUrl ? (
+                  <p className="py-6 text-center text-xs text-white/30">
+                    <T>Bild wird gebaut …</T>
+                  </p>
+                ) : mosaikUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={mosaikUrl} alt=""
+                      className="w-full rounded-lg border border-white/10" />
+                    <p className="mt-2 text-[11px] text-white/40">
+                      {mosaikNamen}
+                    </p>
+                  </>
+                ) : (
+                  <p className="py-6 text-center text-xs text-white/30">
+                    {mosaikFehler || t('Zu diesen Spielern liegen keine Fotos vor.')}
+                  </p>
+                )}
+
+                {!statKarteVorlage && mosaikUrl && mosaikFehler && (
+                  <p className="mt-2 text-[11px] text-amber-400/90">{mosaikFehler}</p>
+                )}
+              </div>
+
+            {/* Zwei Werkzeuge, die selten gebraucht werden.
+
+                Beide standen bisher untereinander auf der Seite und
+                machten sie doppelt so lang, wie sie sein muesste: die
+                Zuordnungsliste mit zweihundert Kacheln und die
+                Turnierstatistik mit allen Bestenlisten. Wer einen Beitrag
+                schreibt, braucht keins von beidem staendig - aber wenn er
+                es braucht, dann ganz.
+
+                Deshalb hinter zwei Knoepfen, und dahinter jeweils in voller
+                Groesse. Nichts ist weggefallen. */}
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setZuordnungOffen(true)}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs
+                           text-white/55 transition hover:border-sky-500/60
+                           hover:text-sky-400">
+                <T>Spieler zuordnen</T>
+                <span className="ml-2 tabular-nums text-white/30">
+                  {spielerListe.filter((sp) => findeProfil(sp.voll, sp.id)).length}
+                  /{spielerListe.length}
+                </span>
+              </button>
+              <button type="button" onClick={() => setStatistikOffen(true)}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs
+                           text-white/55 transition hover:border-sky-500/60
+                           hover:text-sky-400">
+                <T>Turnierstatistik</T>
+                <span className="ml-2 tabular-nums text-white/30">
+                  {aktiveListen.length}
+                </span>
+              </button>
+            </div>
+
+            <Fenster offen={zuordnungOffen} schliessen={() => setZuordnungOffen(false)}
+              titel="Assign players">
+              {/* Herkunft und X-Konto pflegen */}
+              <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-semibold text-white"><T>Spieler zuordnen</T></h2>
+                  <span className="text-xs text-white/40">
+                    {spielerListe.filter((sp) => findeProfil(sp.voll, sp.id)).length} <T>von</T>{' '}
+                    {spielerListe.length}  maintained — flag and @ account only show up here </span>
+                  {/*
+                    * Die Rueckmeldung gehoert hierher, nicht in die Kachel.
+                    *
+                    * Die Kachel klappt beim Speichern zu - eine Meldung
+                    * darin waere im selben Augenblick wieder fort, und
+                    * genau so sah es vorher aus: man drueckt, und nichts
+                    * scheint zu passieren.
+                    */}
+                  {pflegeStand && (
+                    <span className={`ml-auto text-xs ${
+                      /nicht|Fehler|error|not saved/i.test(pflegeStand)
+                        ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {pflegeStand}
+                    </span>
+                  )}
+                </div>
+
+                {/* Suche und Filter.
+                    Ohne sie ist die Liste eine Wand aus zweihundert Kacheln,
+                    durch die man sich von oben nach unten liest. */}
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <input value={zuordnenSuche}
+                    onChange={(e) => setZuordnenSuche(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Eingabetaste klappt den ersten Treffer auf. Wer einen
+                      // bestimmten Spieler sucht, will ihn bearbeiten - nicht
+                      // erst noch eine Kachel treffen.
+                      if (e.key !== 'Enter' || !gezeigteZuordnung.length) return;
+                      e.preventDefault();
+                      zuordnungOeffnen(gezeigteZuordnung[0]);
+                    }}
+                    placeholder={t('Spieler suchen — auch alte Namen und @-Konten')}
+                    spellCheck={false}
+                    className="w-72 max-w-full rounded-lg border border-white/10
+                               bg-black/40 px-3 py-1.5 text-xs text-white
+                               outline-none placeholder:text-white/30
+                               focus:border-sky-500" />
+                  {zuordnenSuche && (
+                    <button onClick={() => setZuordnenSuche('')}
+                      className="text-[11px] text-white/40 underline
+                                 transition hover:text-white/70">
+                      <T>zurücksetzen</T>
+                    </button>
+                  )}
+
+                  <span className="flex flex-wrap items-center gap-1">
+                    {([
+                      ['alle', 'all'],
+                      ['offen', 'no profile'],
+                      ['ohneFlagge', 'no flag'],
+                      ['ohneKonto', 'no @ handle'],
+                      ['gepflegt', 'maintained'],
+                    ] as Array<[typeof zuordnenFilter, string]>).map(([w, titel]) => (
+                      <button key={w} onClick={() => setZuordnenFilter(w)}
+                        className={`rounded-md border px-2 py-0.5 text-[11px]
+                                    transition ${zuordnenFilter === w
+                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          : 'border-white/10 text-white/40 hover:text-white/70'}`}>
+                        <T>{titel}</T>
+                      </button>
+                    ))}
+                  </span>
+
+                  <span className="ml-auto text-[11px] tabular-nums text-white/30">
+                    {gezeigteZuordnung.length} <T>von</T> {spielerListe.length}
+                  </span>
+                </div>
+
+                {/* Festes Raster statt frei fliessender Kacheln - so steht
+                    jeder Spieler an seinem Platz und die Liste bleibt lesbar. */}
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {!gezeigteZuordnung.length && (
+                    <p className="col-span-full py-6 text-center text-xs text-white/30">
+                      <T>Niemand passt dazu.</T>
+                    </p>
+                  )}
+                  {gezeigteZuordnung.map((sp) => {
+                    const pr = findeProfil(sp.voll, sp.id);
+                    const offen = pflegeName === sp.schluessel;
+                    if (offen) {
+                      const vorschlaege = namensVorschlaege(sp.voll);
+                      return (
+                        <div key={sp.schluessel}
+                          className="col-span-full flex flex-col gap-1.5 rounded-lg
+                                     border border-sky-500 bg-black/40 px-2.5 py-2">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="text-[11px] text-white/70"
+                            title={sp.id ? `Account ${sp.id.slice(0, 8)}…` : 'without account ID'}>
+                            {kurzName(sp.voll)}
+                          </span>
+                          <input value={pflegeAnzeige}
+                            onChange={(e) => setPflegeAnzeige(e.target.value)}
+                            onKeyDown={(e) => pflegeTaste(e, sp)}
+                            placeholder={t('Anzeigename')}
+                            title={t('Wie der Spieler wirklich heisst - gilt dann ueberall')}
+                            className="w-32 rounded border border-white/10 bg-white/[0.035] backdrop-blur-xl px-1.5
+                                       py-0.5 text-[11px] text-white outline-none" />
+                          <input value={pflegeLand} onChange={(e) => setPflegeLand(e.target.value)}
+                            onKeyDown={(e) => pflegeTaste(e, sp)}
+                            placeholder="RO" maxLength={2}
+                            className="w-11 rounded border border-white/10 bg-white/[0.035] backdrop-blur-xl px-1.5
+                                       py-0.5 text-[11px] uppercase text-white outline-none" />
+                          <input value={pflegeX} onChange={(e) => setPflegeX(e.target.value)}
+                            onKeyDown={(e) => pflegeTaste(e, sp)}
+                            placeholder="@account"
+                            className="w-24 rounded border border-white/10 bg-white/[0.035] backdrop-blur-xl px-1.5
+                                       py-0.5 text-[11px] text-white outline-none" />
+                          <select value={pflegeRegion}
+                            onChange={(e) => setPflegeRegion(e.target.value)}
+                            title={t('Region — nur nötig, wenn das Land nicht eindeutig ist (etwa NAC/NAW)')}
+                            className="rounded border border-white/10 bg-white/[0.035] backdrop-blur-xl px-1
+                                       py-0.5 text-[11px] text-white outline-none">
+                            <option value="">auto</option>
+                            {REGIONEN.map((r) => (
+                              <option key={r.code} value={r.code}>{r.code}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => profilSpeichern(sp.voll, pflegeLand, pflegeX,
+                              pflegeRegion, pflegeAnzeige, sp.id)}
+                            title={t('Speichern — die Eingabetaste tut dasselbe')}
+                            className="rounded bg-sky-500 px-2 py-0.5 text-[11px] text-white">
+                            ok
+                          </button>
+                        </div>
+
+                        {/* Unter welchen Namen ist dieses Konto sonst aufgetreten?
+                            Ein Klick uebernimmt den Namen dauerhaft. */}
+                        {vorschlaege.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[10px] text-white/40">known as:</span>
+                            {vorschlaege.map((v) => (
+                              <button key={v} onClick={() => setPflegeAnzeige(v)}
+                                className="rounded border border-white/15 px-1.5 py-0.5
+                                           text-[10px] text-white/70 hover:border-sky-500
+                                           hover:text-sky-400">
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        </div>
+                      );
+                    }
+                    // Kein Profil, aber ein Altprofil gleichen Namens? Dann
+                    // wird es vorgeschlagen - angewandt wird nichts. Die Kachel
+                    // faerbt sich bernstein und traegt die Angaben schon
+                    // vorausgefuellt, sobald sie geoeffnet wird.
+                    const vorschlag = pr ? undefined : altprofilVorschlag(sp.voll, sp.id);
+                    return (
+                      <button key={sp.schluessel}
+                        onClick={() => zuordnungOeffnen(sp)}
+                        title={vorschlag
+                          ? `${sp.voll} — old profile “${vorschlag.name}” without account ID.`
+                            + ' Opening and saving links it to this account.'
+                          : sp.voll}
+                        className={`flex items-center gap-1.5 overflow-hidden rounded-lg border
+                                    px-2 py-1.5 text-left text-[11px] transition ${
+                          pr ? 'border-emerald-800/60 bg-emerald-950/30 text-emerald-200'
+                             : vorschlag
+                               ? 'border-amber-700/60 bg-amber-950/20 text-amber-200/90'
+                               : 'border-white/10 text-white/55 hover:border-white/15'}`}>
+                        {/* Die Flagge auch dann, wenn kein Profil gepflegt
+                            ist: das Land aus unseren eigenen Quellen,
+                            dasselbe, das die Statistikseite zeigt. Die
+                            gruene Umrandung bleibt der Pflege vorbehalten -
+                            so ist weiter erkennbar, wo noch etwas fehlt. */}
+                        <Flagge land={landFuer(sp.voll, sp.id)} groesse={11} />
+                        <span className="truncate">
+                          {pr?.anzeige || kurzName(sp.voll)}
+                        </span>
+                        {/* Nicht die Flagge und nicht das Land, sondern der
+                            Name des Altprofils: so steht da, was vorgeschlagen
+                            wird, und nicht eine Behauptung ueber diesen
+                            Spieler. Bei einem Nachahmer sieht man sofort, dass
+                            hier das Profil eines anderen angeboten wird. */}
+                        {vorschlag && (
+                          <span className="ml-auto shrink-0 text-[10px] text-amber-400/80">
+                            {kurzName(vorschlag.name)}?
+                          </span>
+                        )}
+                        {pr?.x && (
+                          <span className="ml-auto shrink-0 text-[10px] text-emerald-400/70">
+                            @{pr.x}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </Fenster>
+
+            <Fenster offen={statistikOffen} schliessen={() => setStatistikOffen(false)}
+              titel="Tournament stats">
+              {/* Alle Bestenlisten zum Nachschlagen */}
+              <div className="mt-6 mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="text-sm font-semibold text-white">
+                   Tournament stats — {stats?.teams ?? 0} Teams, {stats?.spiele ?? 0}  Games </h2>
+                <span className="text-[11px] text-white/40">
+                  {ebeneEffektiv === 'spieler'
+                    ? `Values per player — source: ${einzelQuelle ?? '—'}`
+                    : 'Values per team, straight from Epic. Switch to Player Stats above for per-player values.'}
+                </span>
+                {gesamtTabelle.length > 0 && (
+                  <button type="button"
+                    onClick={() => { setVollSuche(''); setVollansicht('alle'); }}
+                    className="ml-auto rounded-md border border-white/15 px-2 py-1
+                               text-[11px] text-white/70 hover:border-sky-500/60
+                               hover:bg-white/[0.08] hover:text-sky-400">
+                     All values ({gesamtTabelle.length})
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {aktiveListen.map((b) => (
+                  <div key={b.schluessel}
+                    className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                    <p className="flex items-center gap-1.5 border-b border-white/10
+                                  bg-white/[0.03] px-3 py-2 text-[11px] font-semibold
+                                  uppercase tracking-wider text-white/70">
+                      <span className="not-italic">{b.symbol}</span>{b.titel}
+                      {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld. */}
+                      {(b.alle?.length ?? 0) > b.plaetze.length && (
+                        <button type="button"
+                          onClick={() => { setVollSuche(''); setVollansicht(b.schluessel); }}
+                          title={`Show all ${b.alle!.length}`}
+                          aria-label={`${b.titel}: show all ${b.alle!.length}`}
+                          className="ml-auto shrink-0 rounded border border-white/15
+                                     px-1.5 pb-px leading-none text-sm text-white/40
+                                     hover:border-sky-500/60 hover:bg-white/[0.08]
+                                     hover:text-sky-400">
+                          +
+                        </button>
+                      )}
+                    </p>
+                    <table className="w-full table-fixed text-xs">
+                      <tbody>
+                        {b.plaetze.map((p, i) => (
+                          <tr key={p.rank}
+                            className="border-b border-white/5 last:border-0
+                                       hover:bg-white/[0.06]">
+                            <td className="w-7 py-1.5 pl-3 align-middle text-white/30
+                                           tabular-nums">{i + 1}</td>
+                            <td className="py-1.5 align-middle">
+                              {/* Jeder Spieler mit eigener Flagge - in einem Duo
+                                  haben die beiden verschiedene Herkunft. */}
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                {p.spieler.map((n, k) => (
+                                  <span key={k} className="flex items-center gap-1">
+                                    {k > 0 && <span className="text-white/30">+</span>}
+                                    <Flagge land={landFuer(n, p.ids?.[k])} groesse={11} />
+                                    <span className="text-white/85">
+                                      {kurzName(findeProfil(n, p.ids?.[k])?.anzeige || n)}
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="w-20 py-1.5 pr-3 text-right align-middle
+                                           font-semibold tabular-nums text-sky-400">
+                              {b.zeit ? dauer(p.wert) : p.wert.toLocaleString('de-DE')}
+                              {!b.zeit && b.einheit && <span className="ml-0.5 text-[10px]
+                                                   font-normal text-white/40">{b.einheit}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            </Fenster>
+          </>
+        )}
+      </div>
+
+      {/* ------------------------------------------------------ Vollansicht.
+          Entweder eine einzelne Kennzahl mit dem ganzen Teilnehmerfeld, oder
+          alle Kennzahlen nebeneinander. Beide Ansichten zeigen ausschliesslich
+          Zahlen, die schon auf den Kacheln stehen - hier eben ungekuerzt. */}
+      {vollansicht && (
+        <div role="dialog" aria-modal="true"
+          onClick={() => setVollansicht(null)}
+          className="fixed inset-0 z-50 flex items-start justify-center
+                     bg-black/75 p-3 sm:p-8">
+          <div onClick={(e) => e.stopPropagation()}
+            className="flex max-h-full w-full flex-col overflow-hidden rounded-xl
+                       border border-white/15 bg-black/40 shadow-2xl
+                       sm:max-w-[min(72rem,100%)]">
+
+            <div className="flex items-start gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-sm font-semibold
+                              uppercase tracking-wider text-white">
+                  {vollansicht === 'alle' ? 'All values' : (
+                    <>
+                      <span className="not-italic">{offeneListe?.symbol}</span>
+                      {offeneListe?.titel}
+                    </>
+                  )}
+                </p>
+                <p className="mt-0.5 text-[11px] text-white/40">
+                  {vollansicht === 'alle'
+                    ? gesamtTabelle.length
+                    : (offeneListe?.alle?.length ?? 0)}
+                  {' '}{ebeneEffektiv === 'spieler' ? 'Players' : 'Teams'}
+                  {' — source: '}
+                  {ebeneEffektiv === 'spieler' ? (einzelQuelle ?? '—') : 'Epic'}
+                </p>
+              </div>
+              <button type="button" onClick={() => setVollansicht(null)}
+                aria-label={t('Schließen')}
+                className="ml-auto shrink-0 rounded-md border border-white/15
+                           px-2 py-0.5 text-lg leading-6 text-white/55
+                           hover:border-white/30 hover:text-white">
+                ×
+              </button>
+            </div>
+
+            <div className="border-b border-white/10 px-4 py-2">
+              <input value={vollSuche} onChange={(e) => setVollSuche(e.target.value)}
+                placeholder={t('Spieler, Land oder Region suchen…')}
+                className="w-full rounded-md border border-white/10 bg-white/[0.035] backdrop-blur-xl
+                           px-3 py-1.5 text-xs text-white/85
+                           placeholder:text-white/30 focus:border-sky-500/60
+                           focus:outline-none" />
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-auto">
+              {vollansicht === 'alle' ? (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10
+                                   text-[10px] uppercase tracking-wider text-white/40">
+                      <th className="sticky left-0 top-0 z-20 bg-white/[0.035] backdrop-blur-xl px-3 py-2
+                                     text-left font-medium"><T>Spieler</T></th>
+                      {tabellenSpalten.map((b) => (
+                        <th key={b.schluessel}
+                          className="sticky top-0 z-10 whitespace-nowrap bg-white/[0.035] backdrop-blur-xl
+                                     px-2.5 py-2 text-right font-medium"
+                          title={b.titel}>
+                          {spaltenName(b.titel)}
+                          {/* Einheit einmal in den Kopf statt vierzigmal in
+                              die Spalte - sonst steht in jeder Zeile "km". */}
+                          {b.einheit && (
+                            <span className="ml-1 font-normal text-white/30">
+                              ({b.einheit})
+                            </span>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gesamtTabelle
+                      .filter((z) => suchTreffer(z.spieler, z.ids))
+                      .map((z, i) => (
+                        <tr key={z.ids?.join('|') || z.spieler.join('|') || i}
+                          className="group border-b border-white/5 last:border-0
+                                     hover:bg-white/[0.06]">
+                          <td className="sticky left-0 z-10 bg-black/40 px-3 py-1.5
+                                         group-hover:bg-white/[0.06]">
+                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                              {z.spieler.map((n, k) => (
+                                <span key={k} className="flex items-center gap-1">
+                                  {k > 0 && <span className="text-white/30">+</span>}
+                                  <Flagge land={landFuer(n, z.ids?.[k])} groesse={11} />
+                                  <span className="whitespace-nowrap text-white/85">
+                                    {kurzName(findeProfil(n, z.ids?.[k])?.anzeige || n)}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          {tabellenSpalten.map((b) => {
+                            const w = z.werte[b.schluessel];
+                            return (
+                              <td key={b.schluessel}
+                                className="whitespace-nowrap px-2.5 py-1.5 text-right
+                                           tabular-nums text-white/70">
+                                {/* Bei den Einzelwerten fuehrt die Quelle jedes
+                                    Feld fuer jeden Spieler. Wer in einer
+                                    Wertung fehlt, hat dort also tatsaechlich
+                                    null - peterbot etwa nahm keinen Fallschaden.
+                                    Bei den Teamwerten von Epic ist das anders:
+                                    dort kann ein Feld schlicht nicht gemeldet
+                                    sein, und dann bleibt ein Strich stehen,
+                                    statt eine Null zu behaupten. */}
+                                {w !== undefined
+                                  ? (b.zeit ? dauer(w) : w.toLocaleString('de-DE'))
+                                  : ebeneEffektiv === 'spieler'
+                                    ? <span className="text-white/30">0</span>
+                                    : <span className="text-white/20"
+                                        title={t('Dieses Turnier meldet den Wert nicht')}>
+                                        —
+                                      </span>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-xs">
+                  <tbody>
+                    {(offeneListe?.alle ?? [])
+                      .map((pl, i) => ({ pl, pos: i + 1 }))
+                      .filter(({ pl }) => suchTreffer(pl.spieler, pl.ids))
+                      .map(({ pl, pos }) => (
+                        <tr key={pl.ids?.join('|') || pl.spieler.join('|') || pos}
+                          className="border-b border-white/5 last:border-0
+                                     hover:bg-white/[0.06]">
+                          <td className="w-10 py-2 pl-4 align-middle text-white/30
+                                         tabular-nums">{pos}</td>
+                          <td className="py-2 align-middle">
+                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                              {pl.spieler.map((n, k) => (
+                                <span key={k} className="flex items-center gap-1">
+                                  {k > 0 && <span className="text-white/30">+</span>}
+                                  <Flagge land={landFuer(n, pl.ids?.[k])} groesse={11} />
+                                  <span className="text-white/85">
+                                    {kurzName(findeProfil(n, pl.ids?.[k])?.anzeige || n)}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="w-24 py-2 pr-4 text-right align-middle
+                                         font-semibold tabular-nums text-sky-400">
+                            {offeneListe?.zeit ? dauer(pl.wert) : pl.wert.toLocaleString('de-DE')}
+                            {!offeneListe?.zeit && offeneListe?.einheit && (
+                              <span className="ml-0.5 text-[10px] font-normal
+                                               text-white/40">
+                                {offeneListe.einheit}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Die Befehlsübersicht.
+          Gebaut aus dem, was gerade geladen ist - was hier steht, geht auch.
+          Ein Klick setzt den Befehl ins Feld, Enter drückt ihn ab. */}
+      {befehleOffen && (
+        <div className="fixed inset-0 z-[70] flex items-start justify-center
+                        overflow-y-auto bg-black/70 p-4 sm:p-8"
+          onClick={() => setBefehleOffen(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl
+                       p-5 shadow-2xl">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-white">
+                 Commands <span className="ml-2 text-[11px] font-normal text-white/40">
+                  {befehlsZahl}  options {stats ? '' : ' — with a loaded cup there are many more'}
+                </span>
+              </h3>
+              <button onClick={() => setBefehleOffen(false)}
+                className="text-white/40 hover:text-white/85">✕</button>
+            </div>
+
+            <input value={befehlSuche} onChange={(e) => setBefehlSuche(e.target.value)}
+              placeholder="search — damage, wins, elims …"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2
+                         text-sm text-white outline-none placeholder:text-white/30
+                         focus:border-sky-500" />
+
+            <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
+              {befehlsGruppen.map((g) => {
+                const q = befehlSuche.trim().toLowerCase();
+                const treffer = q
+                  ? g.befehle.filter((x) =>
+                    x.b.toLowerCase().includes(q) || x.e.toLowerCase().includes(q))
+                  : g.befehle;
+                if (!treffer.length) return null;
+                return (
+                  <div key={g.titel}>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider
+                                   text-sky-400">
+                      {g.titel}
+                      <span className="ml-1.5 font-normal text-white/30">
+                        ({treffer.length})
+                      </span>
+                    </h4>
+                    <p className="mb-2 text-[11px] leading-snug text-white/40">
+                      {g.hinweis}
+                    </p>
+                    <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {treffer.map((x) => (
+                        <button key={g.titel + x.b}
+                          onClick={() => {
+                            setBefehl(x.b); setBefehleOffen(false);
+                          }}
+                          title={x.e}
+                          className="flex flex-col rounded-lg border border-white/10
+                                     px-2.5 py-1.5 text-left transition
+                                     hover:border-sky-500 hover:bg-sky-950/20">
+                          <span className="truncate font-mono text-[12px] text-white/85">
+                            {x.b}
+                          </span>
+                          <span className="truncate text-[10px] text-white/40">
+                            {x.e}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-4 text-[11px] leading-snug text-white/30">
+               This list is built from the loaded match day — everything here can be sent as is. Numbers in a command are free, and a name always beats a stat with the same letters. </p>
+          </div>
+        </div>
+      )}
+
+    </main>
+  );
+}
