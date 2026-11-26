@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Glas } from '../../teile/Glas';
 import { Bald, TEAL, Ueberschrift } from './Teile';
 import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
+import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
 
 /*
  * Interaktive Karte der Insel von heute (Betreiber, 26.11.2026). Bild /bilder/karte-leer.png bzw. karte-orte.png (fortnite-api.com ueber
@@ -49,6 +50,10 @@ export default function Karte() {
   useEffect(() => { const f = () => setVoll(!!document.fullscreenElement); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
   const [gewaehlt, setGewaehlt] = useState<Ort | null>(null);
   const [suche, setSuche] = useState('');
+  // Eigene Zeichnungen (Zeichnen.tsx) - im Zeichenmodus verschiebt Ziehen nicht die Karte, sondern zeichnet.
+  const z = useZeichnen();
+  const [zeichnen, setZeichnen] = useState(false);
+  useEffect(() => { if (z.geteilt) setZeichnen(true); }, [z.geteilt]);
 
   useEffect(() => {
     fetch('/api/fortnite-map').then((r) => r.json()).then((j) => { setOrte(j?.orte ?? []); setStand(j?.stand ?? null); }).catch(() => {});
@@ -95,15 +100,22 @@ export default function Karte() {
   const ziehen = useRef<{ x: number; y: number; tx: number; ty: number; bewegt: boolean } | null>(null);
   const [zeiger, setZeiger] = useState<{ x: number; y: number } | null>(null);
   const gezogen = useRef(false); // war der letzte Druck ein Ziehen? Dann ist das Loslassen kein Klick auf einen Marker.
-  function runter(e: React.PointerEvent) { (e.target as Element).setPointerCapture?.(e.pointerId); gezogen.current = false; ziehen.current = { x: e.clientX, y: e.clientY, tx: sicht.tx, ty: sicht.ty, bewegt: false }; }
+  const bildPunkt = (e: React.PointerEvent | React.MouseEvent): [number, number] => {
+    const rr = rahmen.current!.getBoundingClientRect();
+    return [((e.clientX - rr.left - sicht.tx) / (basis * sicht.s)) * 1000, ((e.clientY - rr.top - sicht.ty) / (basis * sicht.s)) * 1000];
+  };
+  function runter(e: React.PointerEvent) {
+    if (zeichnen && z.werkzeug) { (e.target as Element).setPointerCapture?.(e.pointerId); z.runter(bildPunkt(e)); return; }
+    (e.target as Element).setPointerCapture?.(e.pointerId); gezogen.current = false; ziehen.current = { x: e.clientX, y: e.clientY, tx: sicht.tx, ty: sicht.ty, bewegt: false }; }
   function bewegen(e: React.PointerEvent) {
     const r = rahmen.current!.getBoundingClientRect();
     const mx = e.clientX - r.left; const my = e.clientY - r.top;
     setZeiger({ x: ((mx - sicht.tx) / (basis * sicht.s)) * RAHMEN.spanne + RAHMEN.x0, y: ((my - sicht.ty) / (basis * sicht.s)) * RAHMEN.spanne + RAHMEN.y0 });
-    const z = ziehen.current; if (!z) return;
-    const dx = e.clientX - z.x; const dy = e.clientY - z.y;
-    if (Math.abs(dx) + Math.abs(dy) > 3) { z.bewegt = true; gezogen.current = true; }
-    setSicht((v) => ({ ...v, tx: z.tx + dx, ty: z.ty + dy }));
+    if (zeichnen && z.werkzeug) { z.bewegen(bildPunkt(e)); return; }
+    const zg = ziehen.current; if (!zg) return;
+    const dx = e.clientX - zg.x; const dy = e.clientY - zg.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) { zg.bewegt = true; gezogen.current = true; }
+    setSicht((v) => ({ ...v, tx: zg.tx + dx, ty: zg.ty + dy }));
   }
   function hin(o: Ort) {
     const s = Math.max(sicht.s, 3.2);
@@ -152,6 +164,56 @@ export default function Karte() {
   const benannt = (o: Ort) => /\.POI\./.test(o.id);
   const imGitter = (o: { links: number; oben: number }) => `${SPALTEN[Math.min(GRID - 1, Math.floor(o.links / (100 / GRID)))]}${Math.min(GRID, Math.floor(o.oben / (100 / GRID)) + 1)}`;
 
+  /* ---------------------------------------------- Bild herunterladen: die aktuelle Ansicht mit allen sichtbaren Ebenen als PNG */
+  const [bildLaeuft, setBildLaeuft] = useState(false);
+  async function bildSpeichern() {
+    if (bildLaeuft) return;
+    setBildLaeuft(true);
+    try {
+      const B = groesse.b; const H = groesse.h; const dpr = 2;
+      const c = document.createElement('canvas'); c.width = B * dpr; c.height = H * dpr;
+      const g = c.getContext('2d')!; g.scale(dpr, dpr);
+      g.fillStyle = 'rgb(13,81,151)'; g.fillRect(0, 0, B, H);
+      const img = new Image(); img.src = epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'; await img.decode();
+      const kante = basis * sicht.s;
+      g.save(); g.filter = `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)`; g.drawImage(img, sicht.tx, sicht.ty, kante, kante); g.restore();
+      if (gitter) {
+        g.strokeStyle = 'rgba(255,255,255,0.28)'; g.lineWidth = 1; g.fillStyle = 'rgba(255,255,255,0.6)'; g.font = '700 11px Inter, system-ui, sans-serif';
+        for (let i = 1; i < GRID; i += 1) { const v = (i / GRID) * kante; g.beginPath(); g.moveTo(sicht.tx + v, sicht.ty); g.lineTo(sicht.tx + v, sicht.ty + kante); g.moveTo(sicht.tx, sicht.ty + v); g.lineTo(sicht.tx + kante, sicht.ty + v); g.stroke(); }
+        for (let i = 0; i < GRID * GRID; i += 1) g.fillText(`${SPALTEN[i % GRID]}${Math.floor(i / GRID) + 1}`, sicht.tx + ((i % GRID) / GRID) * kante + 5, sicht.ty + (Math.floor(i / GRID) / GRID) * kante + 14);
+      }
+      // Ziplines und Marker (als Punkte in der Ebenenfarbe, mit Zahl bei Gruppen)
+      g.setLineDash([6, 4]); g.lineWidth = 2;
+      for (const o of sichtbar) if (o.x2 !== undefined && o.y2 !== undefined) { const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2, o.y2); g.strokeStyle = ebeneVon(o.typ).farbe; g.beginPath(); g.moveTo(sicht.tx + (p.l / 100) * skala, sicht.ty + (p.o / 100) * skala); g.lineTo(sicht.tx + (q.l / 100) * skala, sicht.ty + (q.o / 100) * skala); g.stroke(); }
+      g.setLineDash([]);
+      g.globalAlpha = einst.deckkraft / 100;
+      for (const gr of gruppen.filter(imBild)) {
+        const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const rad = symbolPx / 2;
+        g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); g.lineWidth = 2; g.strokeStyle = '#06080f'; g.stroke();
+        if (gr.liste.length > 1) { g.fillStyle = '#06080f'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
+      }
+      g.globalAlpha = 1;
+      if (namen && !epicBild) {
+        g.textAlign = 'center'; g.textBaseline = 'top';
+        for (const o of orte) {
+          const x = sicht.tx + (o.links / 100) * kante; const y = sicht.ty + (o.oben / 100) * kante;
+          if (x < -50 || x > B + 50 || y < -20 || y > H + 20) continue;
+          g.font = `800 ${Math.round((benannt(o) ? 11 : 9.5) * (einst.text / 100))}px Inter, system-ui, sans-serif`;
+          g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = benannt(o) ? '#fff' : 'rgba(255,255,255,0.85)';
+          const t = o.name.toUpperCase(); g.strokeText(t, x, y + 4); g.fillText(t, x, y + 4);
+          g.beginPath(); g.arc(x, y - 2, benannt(o) ? 3.5 : 2.5, 0, Math.PI * 2); g.fill();
+        }
+        g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+      }
+      zeichneFormen(g, z.formen, ([x, y]) => [sicht.tx + (x / 1000) * kante, sicht.ty + (y / 1000) * kante], 1);
+      // Fusszeile
+      g.fillStyle = 'rgba(6,8,15,0.75)'; g.fillRect(B - 230, H - 30, 222, 22);
+      g.fillStyle = '#5eead4'; g.font = '800 11px Inter, system-ui, sans-serif'; g.fillText(`thecomphub.com · ${new Date().toLocaleDateString('en-GB')}`, B - 220, H - 15);
+      const blob: Blob | null = await new Promise((ok) => c.toBlob(ok, 'image/png'));
+      if (blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `comphub-map-${new Date().toISOString().slice(0, 10)}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+    } catch { /* Bild nicht ladbar - nichts tun */ } finally { setBildLaeuft(false); }
+  }
+
   return (
     <div className="space-y-6">
       <Ueberschrift ueber="Community · Map" titel="The island" farbe={TEAL}
@@ -160,8 +222,9 @@ export default function Karte() {
         {/* Karte */}
         <Glas className="relative overflow-hidden">
           <div ref={rahmen} className={`relative ${voll ? 'h-screen' : 'h-[calc(100vh-250px)] min-h-[560px]'} cursor-grab touch-none select-none overflow-hidden bg-[rgb(13,81,151)] active:cursor-grabbing`}
-            onPointerDown={runter} onPointerMove={bewegen} onPointerUp={() => { ziehen.current = null; }} onPointerLeave={() => { ziehen.current = null; setZeiger(null); }}
-            onDoubleClick={(e) => { const rr = rahmen.current!.getBoundingClientRect(); zoomen(1.8, e.clientX - rr.left, e.clientY - rr.top); }}>
+            onPointerDown={runter} onPointerMove={bewegen} onPointerUp={() => { ziehen.current = null; z.hoch(); }} onPointerLeave={() => { ziehen.current = null; setZeiger(null); z.hoch(); }}
+            onDoubleClick={(e) => { if (zeichnen && z.werkzeug) { if (z.werkzeug === 'polygon') z.polygonFertig(); return; } const rr = rahmen.current!.getBoundingClientRect(); zoomen(1.8, e.clientX - rr.left, e.clientY - rr.top); }}
+            style={zeichnen && z.werkzeug ? { cursor: 'crosshair' } : undefined}>
             <div className="absolute left-0 top-0 origin-top-left" style={{ width: basis, height: basis, transform: `translate(${sicht.tx}px, ${sicht.ty}px) scale(${sicht.s})` }}>
               <img src={epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'} alt="Map" draggable={false} className="absolute inset-0 h-full w-full" style={{ filter: `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)` }} />
               {gitter && (
@@ -176,6 +239,7 @@ export default function Karte() {
                   ))}
                 </svg>
               )}
+              <ZeichenEbene z={z} r={r} />
             </div>
             {/* Objekte - eine SVG-Ebene in Bildschirm-Pixeln (Symbole per <use>), damit auch Tausende Marker scharf und fluessig bleiben */}
             <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
@@ -222,9 +286,13 @@ export default function Karte() {
                 <span className={`mt-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${benannt(o) ? '' : 'text-white/80'} ${gewaehlt?.id === o.id ? 'bg-teal-500/50' : 'bg-black/35'}`} style={{ fontSize: ((benannt(o) ? 12 : 10) * einst.text) / 100 }}>{o.name}</span>
               </button>
             ))}
+            {/* Zeichnen: Werkzeugleiste und Texteingabe */}
+            <AnimatePresence>{zeichnen && <ZeichenLeiste z={z} schliessen={() => setZeichnen(false)} />}</AnimatePresence>
+            {z.textOrt && <TextEingabe z={z} ort={{ x: sicht.tx + (z.textOrt[0] / 1000) * basis * sicht.s, y: sicht.ty + (z.textOrt[1] / 1000) * basis * sicht.s }} />}
             {/* Bedienung */}
             <div className="absolute right-4 top-4 flex flex-col gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
               {[['+', () => zoomen(1.4)], ['−', () => zoomen(1 / 1.4)], ['⟲', zuruecksetzen], ['⚙', () => setEinstOffen((o) => !o)],
+                ['✎', () => { setZeichnen((v) => !v); if (!z.werkzeug) z.setWerkzeug('stift'); }], [bildLaeuft ? '…' : '⤓', bildSpeichern],
                 [voll ? '✕' : '⛶', () => (document.fullscreenElement ? document.exitFullscreen() : rahmen.current?.requestFullscreen?.())]].map(([z, f]) => (
                 <button key={z as string} type="button" onClick={f as () => void} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#06080f]/70 text-lg font-bold text-white backdrop-blur transition hover:border-teal-300/40 hover:text-teal-200">{z as string}</button>
               ))}
@@ -285,6 +353,8 @@ export default function Karte() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          <MeineZeichnungen z={z} starten={() => { setZeichnen(true); if (!z.werkzeug) z.setWerkzeug('stift'); }} />
 
           <Glas className="p-5" verzoegerung={0.1}>
             <h3 className="font-bold text-white">Layers</h3>
