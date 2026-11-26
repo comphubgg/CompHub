@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Anmeldung: Cookies der echten Seite gelten auf localhost (Domain entfernt), damit Admin/VIP-Daten auch hier laden. '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter, '/hero': weiter },
+      // Anmeldung: Cookies der echten Seite gelten auf localhost (Domain entfernt), damit Admin/VIP-Daten auch hier laden.
+      '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter, '/hero': weiter },
   },
 });
