@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Glas } from '../../teile/Glas';
 import { Bald, Laedt, TEAL, Ueberschrift } from './Teile';
 import { kern, waffeVon } from './waffenNamen';
+import { useDatenbank } from './waffenDaten';
+import WaffenDatenbank from './WaffenDatenbank';
 
 /*
  * Loot-Pool im Stil von fortnite.gg/weapons - aber mit dem, was sonst niemand hat: wie die Waffen in echten Turnieren dieser Saison wirken.
@@ -12,7 +14,9 @@ import { kern, waffeVon } from './waffenNamen';
  * Kopftreffer-Anteil, Anteil am ganzen Schaden, wie viele Spieler sie benutzten.
  *
  * Grundwerte (Schaden, DPS, Magazin, Nachladen je Seltenheit) und Truhen-/Boden-Chancen stehen in keiner offenen Quelle (fortnite-api.com kennt keine
- * Waffenwerte) - sie kommen aus dem eigenen Export der Spieldateien. Bis dahin steht dort "soon", nie eine erfundene Zahl.
+ * Waffenwerte, fortnite.gg darf nicht abgegriffen werden) - sie kommen aus dem eigenen Export der Spieldateien: public/hub-daten/waffen.json
+ * (Format in waffenDaten.ts). Liegt die Datei da, zeigt WaffenDatenbank.tsx die volle Datenbank mit den Turnierwerten als Zusatz; sonst
+ * bleibt diese Seite mit einem ehrlichen Hinweis - nie eine erfundene Zahl.
  */
 
 interface Tag { windowId: string; eventId: string; titel: string; beginn: string; matches: number }
@@ -111,6 +115,7 @@ function Balken({ titel, wert, text, max = 100 }: { titel: string; wert: number;
 
 export default function Waffen() {
   const wiki = useWiki();
+  const { db, status } = useDatenbank();
   const [tage, setTage] = useState<Tag[] | null>(null);
   const [ansichten, setAnsichten] = useState<Ansicht[]>([]);
   const [fehler, setFehler] = useState(false);
@@ -158,7 +163,32 @@ export default function Waffen() {
   return (
     <div className="space-y-8">
       <Ueberschrift ueber="Community · Weapons" titel="Loot pool" farbe={TEAL}
-        text={<>Every weapon in {saison ? `Season ${saison}` : 'this season'}'s pool – and how it really performs: measured from every hit in the latest tournament replays, not from a patch note.</>} />
+        text={db
+          ? <>Every weapon in {db.season ? `Season ${db.season}` : 'this season'}'s pool with its real stats per rarity and loot chances – straight from the game files – plus how it performs in the latest tournaments.</>
+          : <>Every weapon in {saison ? `Season ${saison}` : 'this season'}'s pool – and how it really performs: measured from every hit in the latest tournament replays, not from a patch note.</>} />
+
+      {status === 'laedt' && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
+      {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} />}
+      {status === 'fehlt' && <>
+      <Glas className="relative overflow-hidden border-teal-300/20 p-6">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">Full stats · from the game files</p>
+            <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white">The complete weapon database is on its way</h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">
+              Damage, DPS, fire rate, magazine, reload time, headshot multiplier and structure damage for every rarity – plus the exact floor and chest
+              chances – are being exported straight from the game files. Until that lands, we only show what we've measured ourselves in tournaments, and never a guessed number.
+            </p>
+          </div>
+          <Bald text="export pending" />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {['Damage', 'DPS', 'Fire rate', 'Magazine', 'Reload time', 'Headshot ×', 'Structure damage', 'Floor chance', 'Chest chance', 'Compare 2–3 weapons'].map((k) => (
+            <span key={k} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-white/50">{k}</span>
+          ))}
+        </div>
+      </Glas>
 
       {/* Kennzahlen der Messung */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -182,7 +212,6 @@ export default function Waffen() {
             {g.titel}{'liste' in g ? <span className="ml-1.5 text-white/40">{(g as { liste: Waffe[] }).liste.length}</span> : null}
           </button>
         ))}
-        <p className="ml-auto text-xs text-white/40">Base stats per rarity and chest/floor chances: from the game files <Bald text="soon" /></p>
       </div>
 
       {fehler && <Glas className="p-6 text-sm text-white/60">Deep Stats isn't answering right now – try again in a moment.</Glas>}
@@ -207,6 +236,7 @@ export default function Waffen() {
           from the replays. "Players who used it" counts per tournament day. Rarities are pooled – the replays don't say which rarity dealt a hit.
         </p>
       )}
+      </>}
     </div>
   );
 }
