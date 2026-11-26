@@ -227,6 +227,8 @@ export interface NobleKarte {
   /** Teams, fuer die Noble noch keine Form hat. */
   ohneForm: Array<{ ids: string[]; namen: string[] }>;
   anzahlTeams: number;
+  /** Nobles Kartenbild dieses Fensters ohne Ortsnamen (die Spielversion des Spieltags, z. B. .../maps/43.10/map.png) - Nobles Formen liegen darauf. */
+  bild?: string | null;
 }
 
 /** Aus dem Fenster eines Turniers die Formen (mit ihren Teams) und die Teams ohne Form. */
@@ -337,6 +339,7 @@ export async function nobleKarte(
     formen,
     ohneForm,
     anzahlTeams,
+    bild: d.windowData.map?.withoutPOINames ?? null,
     ...(ueberDatum ? { zugeordnet: 'datum' as const } : {}),
   };
 }

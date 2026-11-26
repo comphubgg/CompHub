@@ -6,7 +6,7 @@ import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
-import { rahmen as formRahmen, einheitsGroesse, anker, versatzBei, versatzTabelle, versatzFuer, zeilenMitten, ueberdeckungen, type Beschriftung, type Punkt, type Spot, type VersatzTabelle } from '@/lib/prognoseKarte';
+import { rahmen as formRahmen, einheitsGroesse, anker, versatzBei, versatzTabelle, versatzFuer, zeilenMitten, ueberdeckungen, verteilteBeschriftungen, type Beschriftung, type Punkt, type Spot, type VersatzTabelle } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
@@ -108,12 +108,17 @@ function begrenze(z: number, m: Punkt): Punkt {
  * Dieselben Bausteine wie /maps und /globals/map (app/lib/kartenStil, lib/prognoseKarte, globals.css);
  * nur die Formen und wer darauf steht kommen von Noble.
  */
-export function Karte({ f, bild, rotAb = 2 }: {
+export function Karte({ f, bild, rotAb = 2, verteilen = false }: {
   f: SolosFenster;
   /** Das Kartenbild (die Wahl des Admins hat Vorrang vor dem der Spielversion); sonst Epics aktuelle Karte. */
   bild?: string | null;
   /** Ab wie vielen Teams auf einer Stelle sie rot wird. Bei Duos und Trios drei, bei Solos zwei. */
   rotAb?: number;
+  /**
+   * Mehrere Teams auf einem hohen Rechteck: die Zeilen ueber die Hoehe verteilen statt dicht in der Mitte, wo Platz ist und kein Nachbar im Weg
+   * (lib/prognoseKarte verteilteBeschriftungen). Bisher nur die Drop-Karte (Betreiber, 26.11.2026).
+   */
+  verteilen?: boolean;
 }) {
   const t = useT();
   const flaeche = useRef<HTMLDivElement | null>(null);
@@ -219,15 +224,25 @@ export function Karte({ f, bild, rotAb = 2 }: {
    */
   const zeilenLage = useMemo(() => Object.fromEntries(spots.filter((sp) => sp.spieler.length)
     .map((sp) => [sp.id, sp.spieler.map(() => ankerJe[sp.id].x)])) as Record<string, number[]>, [spots, ankerJe]);
-  /** Die Beschriftungen fuer den Loeser - mit Breiten je Zeile (Prozent der Kartenbreite bei Zoom 1). */
-  const beschriftungenFuer = useCallback((breite: (tx: string) => number): Beschriftung[] => spots.filter((sp) => sp.spieler.length).map((sp) => {
+  /** Die Beschriftungen fuer den Loeser - mit Breiten je Zeile (Prozent der Kartenbreite bei Zoom 1); verteilt: siehe verteiltJe. */
+  const beschriftungenRoh = useCallback((breite: (tx: string) => number, verteiltJe: Set<string>): Beschriftung[] => spots.filter((sp) => sp.spieler.length).map((sp) => {
     const r = formRahmen(sp.punkte);
     return {
       id: sp.id, oben: r.oben, hoehe: r.hoehe, breite: r.breite, ax: ankerJe[sp.id].x, ay: ankerJe[sp.id].y, punkte: sp.punkte,
-      verteilt: false,
+      verteilt: verteiltJe.has(sp.id),
       zeilen: sp.spieler.map((n, i) => ({ x: zeilenLage[sp.id][i], breite: breite(kartenName(n)) })),
     };
   }), [spots, ankerJe, zeilenLage]);
+  /*
+   * Welche Stellen ihre Zeilen verteilen (nur mit verteilen, nur ab zwei Teams): einmal mit den Breiten auf dem Bildschirm entschieden und fuer
+   * Bildschirm und kopiertes Bild gleich verwendet, damit beide dieselbe Karte zeigen.
+   */
+  const verteiltJe = useMemo(() => {
+    if (!verteilen) return new Set<string>();
+    const teamsJe = Object.fromEntries(spots.map((sp) => [sp.id, sp.teams]));
+    return verteilteBeschriftungen(beschriftungenRoh((tx) => (emBreite[tx] ?? tx.length * 0.68) * groesse, new Set()), groesse, kastenEm, (b) => (teamsJe[b.id] ?? 0) > 1);
+  }, [verteilen, spots, beschriftungenRoh, emBreite, groesse, kastenEm]);
+  const beschriftungenFuer = useCallback((breite: (tx: string) => number) => beschriftungenRoh(breite, verteiltJe), [beschriftungenRoh, verteiltJe]);
   /*
    * Der Versatz je Zoomstufe: nur, wo sich Namen auf der Stufe, die gerade zu sehen ist, wirklich ueberdecken. Hineingezoomt, wo Platz ist, ist er 0
    * und jeder Name steht wieder genau auf der Mitte seiner Stelle. male() setzt beim Zoomen den Wert der aktuellen Stufe (versatzFuer).
@@ -582,7 +597,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
                     left: `${kx}%`, top: `${ky}%`,
                     width: `${r.breite}%`, height: `${r.hoehe}%`,
                     // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
-                    justifyContent: 'center',
+                    // Mehrere Teams auf einem hohen Rechteck der Drop-Karte: oben, Mitte, unten (verteiltJe, Betreiber 26.11.2026).
+                    justifyContent: verteiltJe.has(sp.id) ? 'space-between' : 'center',
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                     // Weg von der Nachbarstelle, wenn sich die Namen auf der aktuellen Zoomstufe sonst ueberdecken: translate setzt setzeVersatz()
                     // beim Zoomen direkt am Element (es setzt sich zum transform von .ist-hover dazu, statt es zu ersetzen).

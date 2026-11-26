@@ -213,8 +213,8 @@ export function eckenVon(f: Form): P[] {
  * halb:    halbe Seite des Ersatz-Quadrats um eine Stelle ohne Ort (Prozent).
  * Ergebnis: je Form ihre Ecken und die Indizes der Gruppen darauf - mehrere, wenn sie im selben Ort landen.
  */
-export function rechtecke(gruppen: Stelle[][], orte: Kasten[], halb: number): Array<{ punkte: P[]; form: Form; gruppen: number[] }> {
-  const roh: Array<{ teile: Kasten[]; gruppen: number[]; fest: boolean; vorgabe: Form | null }> = [];
+export function rechtecke(gruppen: Stelle[][], orte: Kasten[], halb: number, namen?: string[][][]): Array<{ punkte: P[]; form: Form; gruppen: number[] }> {
+  const roh: Array<{ teile: Kasten[]; gruppen: number[]; fest: boolean; vorgabe: Form | null; punkte: P[]; noble: Kasten[]; nobleForm: Form | null }> = [];
   gruppen.forEach((stellen, gi) => {
     const ks: Kasten[] = [];
     for (const { p: s, ort: fest } of stellen) {
@@ -226,61 +226,113 @@ export function rechtecke(gruppen: Stelle[][], orte: Kasten[], halb: number): Ar
     // Derselbe Ort (oder fast): eine Form, mehrere Gruppen darauf.
     // Stellen mit festem Kasten (Noble) bleiben getrennt, solange Noble sie getrennt fuehrt - nur derselbe Kasten ist dieselbe Stelle.
     const fest = stellen.every((s) => s.ort);
-    const gleich = roh.find((r) => (fest && r.fest
-      ? gleicherKasten(r.teile.reduce(vereinigt), u)
-      : iou(r.teile.reduce(vereinigt), u) >= 0.5 || stellen.every((s) => enthaelt(r.teile.reduce(vereinigt), s.p))));
+    // Liegt eine Prognose-Stelle im Kasten einer Noble-Stelle, ist es derselbe Ort - in beide Richtungen (Betreiber, 26.11.2026: "ADRIIBOOT" stand als
+    // winziges Kaestchen mitten in der Stelle von "QUIX"). Frueher galt das nur, wenn die Noble-Gruppe zuerst kam; kam die Prognose zuerst, bekam sie
+    // ein eigenes Quadrat, das beim Entzerren zwischen den Noble-Nachbarn fast verschwand. Zwei Gruppen mit Noble-Stellen werden dagegen nur eins,
+    // wenn sie eine Noble-Stelle teilen - Nobles Zuordnung bleibt, auch wenn sich die Kaesten zweier Noble-Stellen ueberschneiden.
+    const nobleHier = stellen.filter((s) => s.ort).map((s) => s.ort as Kasten);
+    const gleich = roh.find((r) => {
+      const ru = r.teile.reduce(vereinigt);
+      if (fest && r.fest) return gleicherKasten(ru, u);
+      if (nobleHier.length && r.noble.length) return nobleHier.some((k) => r.noble.some((q) => gleicherKasten(k, q)));
+      return iou(ru, u) >= 0.5 || stellen.every((s) => enthaelt(ru, s.p)) || (!r.noble.length && r.punkte.every((q) => enthaelt(u, q)));
+    });
     if (gleich) {
       for (const k of ks) if (!gleich.teile.some((t) => iou(t, k) >= 0.5)) gleich.teile.push(k);
-      gleich.gruppen.push(gi); gleich.fest &&= fest; if (!gleich.fest) gleich.vorgabe = null;
-    } else roh.push({ teile: ks, gruppen: [gi], fest, vorgabe: fest && stellen[0].form ? stellen[0].form : null });
+      gleich.gruppen.push(gi); gleich.punkte.push(...stellen.map((s) => s.p)); gleich.noble.push(...nobleHier);
+      gleich.nobleForm ??= stellen.find((s) => s.form)?.form ?? null;
+      gleich.fest &&= fest; if (!gleich.fest) gleich.vorgabe = null;
+    } else roh.push({ teile: ks, gruppen: [gi], fest, vorgabe: fest && stellen[0].form ? stellen[0].form : null, punkte: stellen.map((s) => s.p), noble: nobleHier, nobleForm: stellen.find((s) => s.form)?.form ?? null });
   });
   const formen = roh.map((r) => {
     // Kleine Stuecke (unter der Mindestgroesse) fallen weg, solange etwas Groesseres bleibt - sie zaehlen nur fuer den Kasten.
     // Eine Stelle von Noble: die eigene Form um ihre Flaeche (formUm), schon fertig.
-    if (r.vorgabe) return { kasten: { ...r.vorgabe.kasten }, ecke: r.vorgabe.ecke ? { ...r.vorgabe.ecke } : null };
+    // Eine Noble-Stelle, auf der dazu Prognose-Teams stehen (alle in ihrem Kasten): ebenso Nobles Form, nicht der grobe Kasten um alles.
+    const eineNoble = r.noble.length && r.noble.every((k) => gleicherKasten(k, r.noble[0])) && r.punkte.every((q) => enthaelt(r.noble[0], q));
+    const vorgabe = r.vorgabe ?? (eineNoble ? r.nobleForm : null);
+    if (vorgabe) return { kasten: { ...vorgabe.kasten }, ecke: vorgabe.ecke ? { ...vorgabe.ecke } : null };
     const gross = r.teile.filter((t) => t.x1 - t.x0 >= MIN_SEITE && t.y1 - t.y0 >= MIN_SEITE);
     return formAus(gross.length ? gross : r.teile);
   });
-  // Mindestgroesse, um die Mitte.
-  for (const f of formen) {
-    const k = f.kasten;
-    if (k.x1 - k.x0 < MIN_SEITE) { const m = (k.x0 + k.x1) / 2; k.x0 = runde(m - MIN_SEITE / 2); k.x1 = runde(m + MIN_SEITE / 2); f.ecke = null; }
-    if (k.y1 - k.y0 < MIN_SEITE) { const m = (k.y0 + k.y1) / 2; k.y0 = runde(m - MIN_SEITE / 2); k.y1 = runde(m + MIN_SEITE / 2); f.ecke = null; }
-  }
-  entzerre(formen);
+  // Mindestgroesse je Form, um die Mitte: so gross, dass ihre Namen hineinpassen (mindestGroesse), wenigstens MIN_SEITE.
+  const mins = roh.map((r) => mindestGroesse(namen ? r.gruppen.map((gi) => namen[gi] ?? []) : []));
+  formen.forEach((f, i) => {
+    const k = f.kasten, mn = mins[i];
+    if (k.x1 - k.x0 < mn.b) { const m = (k.x0 + k.x1) / 2; k.x0 = runde(m - mn.b / 2); k.x1 = runde(m + mn.b / 2); f.ecke = null; }
+    if (k.y1 - k.y0 < mn.h) { const m = (k.y0 + k.y1) / 2; k.y0 = runde(m - mn.h / 2); k.y1 = runde(m + mn.h / 2); f.ecke = null; }
+  });
+  entzerre(formen, mins);
   return formen.map((f, i) => ({ punkte: eckenVon(f), form: f, gruppen: roh[i].gruppen }));
 }
 
-/**
- * Ueberdeckungen aufloesen: zwei Formen, die sich wirklich ueberlappen (beim L zaehlt die leere Ecke nicht), teilen sich die Ueberdeckung ihrer
- * Kaesten an der Mitte - entlang der Achse, auf der sie schmaler ist (so verliert jede am wenigsten). Danach wird die Ecke eines L auf den neuen
- * Kasten zugeschnitten; ist es dann kein sauberes L mehr, wird es ein Rechteck. Wiederholt, bis nichts mehr ueberlappt (oder nach 50 Runden).
+/*
+ * Wie gross eine Form mindestens sein soll, damit ihre Namen hineinpassen (Betreiber, 26.11.2026: "ADRIIBOOT SNOK DORAAQG PB" stand in einem
+ * winzigen Kaestchen, die Namen hingen weit heraus). Geschaetzt in Prozent des Kartenbildes fuer das kopierte Kartenbild (Insel fuellt das Bild,
+ * Zoom gut 1,6, Schrift gut 1,1 % der Bildbreite): je Zeichen 0,45, je Zeile 1,0, dazu Rand. Nie unter MIN_SEITE, nie ueber MIN_GROSS -
+ * lange Namen duerfen eine Stelle nicht zu einem Landstrich aufblasen.
  */
-export function entzerre(fs: Form[]): void {
+const JE_ZEICHEN = 0.45;
+const JE_ZEILE = 1.0;
+const MIN_RAND = 0.6;
+const MIN_GROSS = 6;
+
+/** Mindestbreite und -hoehe einer Form aus den Teams darauf (je Gruppe die Teams, je Team die Namen). Ein Team: ein Name je Zeile; mehrere: ein Team je Zeile. */
+export function mindestGroesse(gruppen: string[][][]): { b: number; h: number } {
+  const teams = gruppen.flat().filter((t) => t.length);
+  if (!teams.length) return { b: MIN_SEITE, h: MIN_SEITE };
+  const zeilen = teams.length === 1 ? teams[0] : teams.map((t) => t.join(' '));
+  const zeichen = Math.max(...zeilen.map((z) => Math.min(16 * (teams.length === 1 ? 1 : 3), z.trim().length)));
+  const grenze = (v: number) => runde(Math.max(MIN_SEITE, Math.min(MIN_GROSS, v)));
+  return { b: grenze(zeichen * JE_ZEICHEN + MIN_RAND), h: grenze(zeilen.length * JE_ZEILE + MIN_RAND) };
+}
+
+/**
+ * Ueberdeckungen aufloesen: zwei Formen, die sich wirklich ueberlappen (beim L zaehlt die leere Ecke nicht), werden durch eine gerade Linie
+ * getrennt. Geprueft werden beide Achsen; die Linie steht zuerst in der Mitte der Ueberdeckung und wird so weit verschoben, dass jede Form ihre
+ * Mindestgroesse behaelt (mins, sonst MIN_SEITE) - lieber verliert die grosse Nachbarin ein Stueck mehr, als dass eine Stelle zum Strich wird
+ * (Betreiber, 26.11.2026). Unter den Linien, die beide Mindestgroessen halten, gilt die mit dem kleinsten Flaechenverlust; geht keine, die,
+ * bei der die schlechter gestellte Form am meisten behaelt. Danach wird die Ecke eines L auf den neuen Kasten zugeschnitten; ist es dann kein
+ * sauberes L mehr, wird es ein Rechteck. Wiederholt, bis nichts mehr ueberlappt (oder nach 50 Runden).
+ */
+export function entzerre(fs: Form[], mins?: Array<{ b: number; h: number }>): void {
+  const minVon = (i: number) => mins?.[i] ?? { b: MIN_SEITE, h: MIN_SEITE };
   for (let n = 0; n < 50; n++) {
     let geaendert = false;
     for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) {
       if (gemeinsam(fs[i], fs[j]) <= 1e-6) continue;
       const a = fs[i].kasten, b = fs[j].kasten;
       const s = schnitt(a, b);
-      const w = s.x1 - s.x0, h = s.y1 - s.y0;
       geaendert = true;
-      // Die Trennlinie in der Mitte der Ueberdeckung - aber so verschoben, dass keine Seite schmaler als MIN_SEITE wird, wo das geht.
-      const teilen = (lo: number, hi: number, aMin: number, bMax: number) => {
+      type Wahl = { achse: 'x' | 'y'; m: number; vorn: Kasten; hinten: Kasten; haelt: boolean; verlust: number; rest: number };
+      const wahlen: Wahl[] = [];
+      for (const achse of ['x', 'y'] as const) {
+        const lo = achse === 'x' ? s.x0 : s.y0, hi = achse === 'x' ? s.x1 : s.y1;
+        const mitteA = achse === 'x' ? (a.x0 + a.x1) / 2 : (a.y0 + a.y1) / 2, mitteB = achse === 'x' ? (b.x0 + b.x1) / 2 : (b.y0 + b.y1) / 2;
+        const aVorn = mitteA <= mitteB;
+        const vorn = aVorn ? a : b, hinten = aVorn ? b : a;
+        const minVorn = (aVorn ? minVon(i) : minVon(j))[achse === 'x' ? 'b' : 'h'];
+        const minHinten = (aVorn ? minVon(j) : minVon(i))[achse === 'x' ? 'b' : 'h'];
+        const v0 = achse === 'x' ? vorn.x0 : vorn.y0, h1 = achse === 'x' ? hinten.x1 : hinten.y1;
+        const unten = runde(v0 + minVorn), oben = runde(h1 - minHinten);
+        // Die Mitte der Ueberdeckung, in die Spanne geschoben, in der beide ihre Mindestgroesse behalten.
         let m = runde((lo + hi) / 2);
-        if (m - aMin < MIN_SEITE) m = Math.min(hi, runde(aMin + MIN_SEITE));
-        if (bMax - m < MIN_SEITE) m = Math.max(lo, runde(bMax - MIN_SEITE));
-        return m;
-      };
-      if (w <= h) {
-        const links = (a.x0 + a.x1) / 2 <= (b.x0 + b.x1) / 2 ? a : b; const rechts = links === a ? b : a;
-        const m = teilen(s.x0, s.x1, links.x0, rechts.x1);
-        links.x1 = Math.min(links.x1, m); rechts.x0 = Math.max(rechts.x0, m);
-      } else {
-        const oben = (a.y0 + a.y1) / 2 <= (b.y0 + b.y1) / 2 ? a : b; const unten = oben === a ? b : a;
-        const m = teilen(s.y0, s.y1, oben.y0, unten.y1);
-        oben.y1 = Math.min(oben.y1, m); unten.y0 = Math.max(unten.y0, m);
+        const haelt = unten <= oben;
+        if (haelt) m = Math.min(Math.max(m, unten), oben);
+        else m = runde((unten + oben) / 2);
+        const neuVorn = achse === 'x' ? { ...vorn, x1: Math.min(vorn.x1, m) } : { ...vorn, y1: Math.min(vorn.y1, m) };
+        const neuHinten = achse === 'x' ? { ...hinten, x0: Math.max(hinten.x0, m) } : { ...hinten, y0: Math.max(hinten.y0, m) };
+        const verlust = flaeche(vorn) - flaeche(neuVorn) + flaeche(hinten) - flaeche(neuHinten);
+        const rest = Math.min(flaeche(neuVorn) / (flaeche(vorn) || 1), flaeche(neuHinten) / (flaeche(hinten) || 1));
+        wahlen.push({ achse, m, vorn, hinten, haelt, verlust, rest });
       }
+      // Bei gleich gutem Ergebnis die Achse, auf der die Ueberdeckung schmaler ist (wie bisher) - so bleibt eine einfache Kante, wo es keine Rolle spielt.
+      const schmal = s.x1 - s.x0 <= s.y1 - s.y0 ? 'x' : 'y';
+      wahlen.sort((p, q) => Number(q.haelt) - Number(p.haelt)
+        || (p.haelt ? p.verlust - q.verlust : q.rest - p.rest)
+        || Number(q.achse === schmal) - Number(p.achse === schmal));
+      const w = wahlen[0];
+      if (w.achse === 'x') { w.vorn.x1 = Math.min(w.vorn.x1, w.m); w.hinten.x0 = Math.max(w.hinten.x0, w.m); }
+      else { w.vorn.y1 = Math.min(w.vorn.y1, w.m); w.hinten.y0 = Math.max(w.hinten.y0, w.m); }
       for (const f of [fs[i], fs[j]]) {
         if (!f.ecke) continue;
         const e = schnitt(f.ecke, f.kasten);

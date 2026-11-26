@@ -46,7 +46,7 @@ export default function DropKarteImEvent({ d }: { d: DropKarte }) {
       </div>
       <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_250px]">
         <div className="overflow-hidden rounded-2xl">
-          <Karte f={fenster} bild={d.bild} rotAb={rotAb} />
+          <Karte f={fenster} bild={d.bild} rotAb={rotAb} verteilen />
         </div>
         <aside className="relative min-h-[320px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70">
           <div className="absolute inset-0 flex flex-col">

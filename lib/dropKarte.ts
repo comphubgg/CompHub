@@ -11,6 +11,7 @@ import { liveOrt } from '@/lib/clutchLiveWahl.mjs';
 import { releaseDatei } from '@/lib/liveAblage.mjs';
 import { orteAus, rechtecke, type Kasten, type P, type Stelle, type Form, kastenUm, gleicherKasten, formUm } from '@/lib/dropFormen';
 import { nobleKarte } from '@/lib/nobleKarte';
+import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 /*
  * Drop-Karten aus den eigenen Replays (Betreiber, 18.11.2026): "fuer jeden Cup, der eine einzelne Lobby ist" - Trios-Finale bis 33 Teams, Duos bis 50,
@@ -306,7 +307,9 @@ export function formenAusStellen(stellen: Array<Stelle | null>, namenVon: (i: nu
   const halb = (FORM_RADIUS / rahmen.spanne) * 100;
   const formen: DropKarte['formen'] = [];
   const formVon = new Map<number, number>();
-  for (const r of rechtecke(voll.map((g) => g.map((i) => stellen[i]!)), orte, halb)) {
+  // Die Namen, wie die Karte sie schreibt (app/lib/kartenStil kartenName) - fuer die Mindestgroesse je Form (lib/dropFormen mindestGroesse).
+  const kartenNamen = (i: number) => namenVon(i).map((n) => ohneZierrat(kernname(String(n ?? ''))).slice(0, 16));
+  for (const r of rechtecke(voll.map((g) => g.map((i) => stellen[i]!)), orte, halb, voll.map((g) => g.map((i) => kartenNamen(i))))) {
     const g = r.gruppen.flatMap((gi) => voll[gi]);
     const gruppenNamen = g.map((i) => namenVon(i));
     for (const i of g) formVon.set(i, formen.length);
@@ -342,22 +345,43 @@ export function stellenFuer(feld: Array<{ ids: string[]; namen: string[] }>, ges
 /** Eine Stelle laut Noble Practice: wer dort steht, Mitte und Kasten (Prozent, auf unser Raster gerundet) - Nobles Polygon selbst bleibt draussen. */
 export interface NobleStelle { ids: string[]; namen: string[]; mitte: P; kasten: Kasten; form: Form }
 
-/** Die Stellen von Noble fuer dieses Fenster - leer, wenn Noble keine Karte dazu hat oder nicht antwortet (dann gilt die eigene Prognose). */
-export async function nobleStellen(windowId: string): Promise<NobleStelle[]> {
+/**
+ * Die Stellen von Noble fuer dieses Fenster - leer, wenn Noble keine Karte dazu hat oder nicht antwortet (dann gilt die eigene Prognose). Dazu Nobles
+ * Kartenbild des Fensters (die Spielversion des Spieltags) - siehe baueDropKarte.
+ */
+export async function nobleStellen(windowId: string): Promise<{ stellen: NobleStelle[]; bild: string | null }> {
   try {
     const k = await Promise.race([
       nobleKarte(windowId),
       new Promise<null>((fertig) => { setTimeout(() => fertig(null), 20_000); }),
     ]);
-    if (!k) return [];
-    return k.formen.filter((fo) => fo.teams.length && fo.punkte.length >= 3).flatMap((fo) => {
-      // Nur Lage und Ausdehnung: um Nobles Flaeche eine eigene Form (Rechteck oder ein sauberes L, lib/dropFormen formUm).
-      const form = formUm(fo.punkte);
-      const kasten = kastenUm(fo.punkte);
-      const mitte = { x: (form.kasten.x0 + form.kasten.x1) / 2, y: (form.kasten.y0 + form.kasten.y1) / 2 };
-      return fo.teams.map((t) => ({ ids: t.ids.map((id) => id.toLowerCase()), namen: t.namen, mitte, kasten, form }));
-    });
-  } catch { return []; }
+    if (!k) return { stellen: [], bild: null };
+    return { bild: k.bild ?? null, stellen: nobleStellenAus(k) };
+  } catch { return { stellen: [], bild: null }; }
+}
+
+function nobleStellenAus(k: NonNullable<Awaited<ReturnType<typeof nobleKarte>>>): NobleStelle[] {
+  return k.formen.filter((fo) => fo.teams.length && fo.punkte.length >= 3).flatMap((fo) => {
+    // Nur Lage und Ausdehnung: um Nobles Flaeche eine eigene Form (Rechteck oder ein sauberes L, lib/dropFormen formUm).
+    const form = formUm(fo.punkte);
+    const kasten = kastenUm(fo.punkte);
+    const mitte = { x: (form.kasten.x0 + form.kasten.x1) / 2, y: (form.kasten.y0 + form.kasten.y1) / 2 };
+    return fo.teams.map((t) => ({ ids: t.ids.map((id) => id.toLowerCase()), namen: t.namen, mitte, kasten, form }));
+  });
+}
+
+/*
+ * Welches Kartenbild unter der Drop-Karte liegt (Betreiber, 26.11.2026: "Nobles Karte sieht ganz anders aus"). Unser Saisonbild (/bilder/karte-s43.png)
+ * ist beim ersten Spieltag der Saison eingefroren - die Insel von 43.00. Mitte der Saison hat Epic die Insel geaendert (43.10: neue Bucht mit Schiff
+ * im Norden der Mitte und kleinere Stellen), Noble zeigt fuer jeden Spieltag das Bild seiner Spielversion (.../maps/43.10/map.png). Gemessen am
+ * 26.11.2026: Nobles 43.10 deckt genau denselben Ausschnitt ab wie karte-s43.png und Epics Karte von heute (fortnite-api.com) - beste Deckung bei
+ * 0 px Versatz, ausserhalb der geaenderten Stellen weicht kein Bildpunkt merklich ab, und 43.10 gleicht Epics heutiger Karte bis auf 0,3 Farbstufen.
+ * Darum gilt fuer Battle Royale Nobles Bild, wenn Noble eines zum Fenster nennt (ohne Logo: map.png, lib/globalsSolos saubereKarte), sonst unser
+ * Saisonbild. Der Rahmen (BR_RAHMEN) bleibt derselbe. Reload-Inseln behalten ihr eigenes, geeichtes Bild.
+ */
+function kartenBildFuer(zk: ReturnType<typeof zonenKarte>, standard: string, nobleBild: string | null): string {
+  if (zk.art !== 'br' || !nobleBild || !/^https:\/\/nobleprac\.com\/maps\/[\d.]+\/map(-\d+)?\.png$/i.test(nobleBild)) return standard;
+  return nobleBild.replace(/\/map-\d+\.png$/i, '/map.png');
 }
 
 /* ------------------------------------------------------------ Verlauf */
@@ -434,7 +458,7 @@ export async function baueDropKarte(windowId: string, region?: string | null): P
    * Practice, wenn Noble fuer dieses Fenster eine Karte hat - von Noble nur Lage, Ausdehnung und wer dort steht, die Form ist unsere (lib/dropFormen).
    * Ohne Noble die Prognose aus den letzten Matches.
    */
-  const noble = await nobleStellen(f.windowId);
+  const { stellen: noble, bild: nobleBild } = await nobleStellen(f.windowId);
   const stellen = stellenFuer(auf.teams, gespielt, noble, jeKonto, zk.rahmen);
 
   const orte = await orteDerInsel(zk.bild);
@@ -451,7 +475,7 @@ export async function baueDropKarte(windowId: string, region?: string | null): P
   const phase: DropKarte['phase'] = jetzt < f.begin ? 'vorher' : (jetzt <= (f.end ?? f.begin + 4 * 3_600_000) || f.status === 'live') ? 'live' : 'nachher';
   return {
     windowId: f.windowId, region: f.region, titel: f.cupTitel,
-    einzel: true, phase, bild: zk.bild, formen, teams,
+    einzel: true, phase, bild: kartenBildFuer(zk, zk.bild, nobleBild), formen, teams,
     spiele: gespielt.length, aufstellung: auf.quelle, verlauf: verlaufGelesen, stand: jetzt,
   };
 }

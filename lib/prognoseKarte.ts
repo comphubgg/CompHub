@@ -185,6 +185,53 @@ export function zeilenMitten(b: Beschriftung, groesse: number, z: number): Array
   });
 }
 
+/*
+ * Welche Stellen ihre Zeilen ueber die Hoehe verteilen (Betreiber, 26.11.2026, Drop-Karte): steht in einem grossen roten Rechteck mehr als ein Team,
+ * sollen die Namen nicht alle gedraengt in der Mitte stehen ("BEPRO UNKNOWN BE / SWIZZY CHAP FOCU / SHXRK PIXIE T3EN"), sondern eines oben, eines
+ * in der Mitte, eines unten - wie justify space-between. Mittig bleibt es, wo das Rechteck dafuer zu niedrig ist oder die verteilten Namen an die
+ * einer Nachbarstelle stossen wuerden; "da war die Mitte richtig". Frueher (16.11.2026) standen verteilte Namen am Rand und trafen die Nachbarn -
+ * darum wird hier jede verteilte Stelle gegen alle anderen Namen geprueft, auf mehreren Zoomstufen ab zMin: verteilt wird nur, wenn die Namen dabei
+ * keinen Namen einer anderen Stelle treffen. zMin: die kleinste Zoomstufe, auf der die Karte gewoehnlich gesehen wird
+ * (die Karte zoomt beim Oeffnen auf die Insel, das kopierte Bild ist ebenso eng geschnitten - beides gut 1,5).
+ *
+ * Nur Rechtecke (bei anderen Formen laege eine Zeile am Rand des Rahmens leicht ausserhalb der Flaeche) mit mindestens zwei Zeilen, und nur die,
+ * die darf(b) freigibt. Zu niedrig heisst: zwischen den verteilten Zeilen bliebe auf Stufe zMin weniger als VERTEIL_LUECKE Zeilenhoehen Luft -
+ * dann bringt Verteilen nichts. Gerechnet mit denselben Abstaenden wie versatzBei. Die groessten Stellen zuerst; jede verteilte zaehlt fuer die
+ * folgenden mit ihrer verteilten Lage.
+ */
+const VERTEIL_LUECKE = 0.6;
+/** Verteilte Namen halten zu fremden Namen doppelt so viel Abstand wie versatzBei verlangt (senkrecht) bzw. zwei Schriftgroessen (waagrecht). */
+const VERTEIL_LUFT = 2;
+export function verteilteBeschriftungen(
+  beschriftungen: Beschriftung[], groesse: number, kastenEm: number, darf: (b: Beschriftung) => boolean, zMin = 1.4,
+): Set<string> {
+  const h = groesse * 1.12, pad = 0.45;
+  const brauchtY = groesse * kastenEm + groesse * 0.18;
+  const liste = beschriftungen.filter((b) => b.zeilen.length).map((b) => ({ ...b, verteilt: false }));
+  const stufen = [zMin, zMin * 1.25, zMin * 1.6, zMin * 2, zMin * 3];
+  // Mit Luft: verteilte Namen sollen nicht nur nicht ueberdecken, sondern auch nicht dicht an den Namen der Nachbarstelle kleben.
+  const trifft = (p: { x: number; y: number; w: number }, q: { x: number; y: number; w: number }) =>
+    Math.abs(q.x - p.x) < (p.w + q.w) / 2 + VERTEIL_LUFT * groesse - 1e-6 && Math.abs(q.y - p.y) < VERTEIL_LUFT * brauchtY - 1e-6;
+  /** Welche anderen Stellen die Zeilen von k auf Stufe z treffen. */
+  const getroffen = (k: number, z: number) => {
+    const meine = zeilenMitten(liste[k], groesse, z);
+    return new Set(liste.flatMap((b, i) => (i !== k && zeilenMitten(b, groesse, z).some((q) => meine.some((p) => trifft(p, q))) ? [i] : [])));
+  };
+  // Verteilt wird nur, wo die Namen dann auf keiner Stufe die einer anderen Stelle treffen - sonst stuenden sie am Rand dicht an den Nachbarn.
+  const frei = (k: number) => stufen.every((z) => getroffen(k, z).size === 0);
+  const raus = new Set<string>();
+  const folge = liste.map((_, i) => i).sort((a, b) => liste[b].hoehe * liste[b].breite - liste[a].hoehe * liste[a].breite || a - b);
+  for (const k of folge) {
+    const b = liste[k], n = b.zeilen.length;
+    if (n < 2 || !b.punkte || !istRechteck(b.punkte) || !darf(b)) continue;
+    const luecke = (zMin * b.hoehe - 2 * pad - n * h) / (n - 1);
+    if (luecke < VERTEIL_LUECKE * h) continue;
+    liste[k].verteilt = true;
+    if (frei(k)) raus.add(b.id); else liste[k].verteilt = false;
+  }
+  return raus;
+}
+
 /** Wie viele Paare von Namenskaesten (Mitte x/y, Breite w, Hoehe hk) verschiedener Stellen sich ueberdecken - zum Pruefen des Kartenbilds. */
 export function ueberdeckungen(kaesten: Array<{ id: string; x: number; y: number; w: number; hk: number }>): Array<[string, string]> {
   const raus: Array<[string, string]> = [];
