@@ -20,6 +20,7 @@ import MapsKarte from './seiten/comp/mehr/maps/MapsKarte';
 import TurnierKarte from './seiten/comp/mehr/maps/TurnierKarte';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
+import Admin from './seiten/admin/Admin';
 
 
 /*
@@ -60,6 +61,7 @@ export default function App() {
           </Route>
           <Route path="/community/*" element={<Community />} />
           <Route path="/streamer/*" element={<Streamer />} />
+          <Route path="/admin/*" element={<Admin />} />
           <Route path="*" element={<Start />} />
         </Routes>
       </motion.div>
