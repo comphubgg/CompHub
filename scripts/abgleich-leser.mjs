@@ -37,6 +37,7 @@ const m = (name, a, b, wo) => {
 };
 const abschnitt = new Map(); // Schluessel der Ausgabe -> [gleich, verschieden]
 const zeiten = { alt: 0, neu: 0 }; let verglichen = 0; const fehler = [];
+const oz = { alt: 0, neu: 0, altInNeu: 0, altSchritte: 0, neuSchritte: 0, altSprung: 0, neuSprung: 0, altKurs: 0, neuKurs: 0, altKursPasst: 0, neuKursPasst: 0, blickAlt: 0, blickNeu: 0, blickGleicheZeit: 0, blickGleich: 0, svAlt: 0, svNeu: 0, svAlt12: 0, svNeu12: 0, boden: 0 };
 const waffe = { treffer: 0, mitWaffe: 0, passtHand: 0, mitHand: 0 };
 
 for (const id of ids) {
@@ -96,6 +97,33 @@ for (const id of ids) {
     const h = (b.v.hand?.[t[1]] ?? []).filter((x) => x[0] <= t[0] + 0.05).at(-1);
     if (h) { waffe.mitHand += 1; if (wb[h[1]] === wb[t[8]]) waffe.passtHand += 1; }
   }
+  // Orte und Blick genauer: sind die alten Orte im neuen enthalten, wie schnell bewegen sich die Figuren zwischen zwei Orten, passt der Blick zur Laufrichtung?
+  for (const pid of Object.keys(b.v.orte ?? {})) {
+    const oa = a.v.orte?.[pid] ?? []; const ob = b.v.orte[pid] ?? [];
+    const sch = new Set(ob.map((o) => `${o[0]}|${o[1]}|${o[2]}`));
+    oz.alt += oa.length; oz.neu += ob.length; oz.altInNeu += oa.filter((o) => sch.has(`${o[0]}|${o[1]}|${o[2]}`)).length;
+    for (const [w, l] of [['alt', oa], ['neu', ob]]) for (let i = 1; i < l.length; i += 1) {
+      const dt = l[i][0] - l[i - 1][0]; if (dt <= 0) continue;
+      const v = Math.hypot(l[i][1] - l[i - 1][1], l[i][2] - l[i - 1][2]) / 100 / dt;
+      oz[`${w}Schritte`] += 1; if (v > 150) oz[`${w}Sprung`] += 1;
+      // Laufrichtung gegen Blick (am Boden laufen die meisten nach vorn): nur zuegig, 1-3 s Abstand.
+      if (v > 4 && v < 12 && dt <= 3) {
+        const bl = (w === 'alt' ? a.v.blick : b.v.blick)?.[pid] ?? [];
+        const y = bl.filter((x) => x[0] <= l[i][0]).at(-1);
+        if (y && l[i][0] - y[0] < 2) {
+          const kurs = (Math.atan2(l[i][2] - l[i - 1][2], l[i][1] - l[i - 1][1]) * 180) / Math.PI;
+          const d = Math.abs((((kurs - y[1]) % 360) + 540) % 360 - 180);
+          oz[`${w}Kurs`] += 1; if (d < 45) oz[`${w}KursPasst`] += 1;
+        }
+      }
+    }
+    const ba = a.v.blick?.[pid] ?? []; const bb = b.v.blick?.[pid] ?? [];
+    oz.blickAlt += ba.length; oz.blickNeu += bb.length;
+    const zb = new Map(bb.map((x) => [x[0], x[1]]));
+    for (const x of ba) if (zb.has(x[0])) { oz.blickGleicheZeit += 1; const d = Math.abs((((x[1] - zb.get(x[0])) % 360) + 540) % 360 - 180); if (d <= 2) oz.blickGleich += 1; }
+    const sa = a.v.streckeVoll?.[pid]; const sb2 = b.v.streckeVoll?.[pid];
+    if (sa && sb2) { oz.svAlt += sa[0]; oz.svNeu += sb2[0]; oz.svAlt12 += sa[3]; oz.svNeu12 += sb2[3]; oz.boden += a.v.streckeBoden?.[pid] ?? 0; }
+  }
   fs.writeFileSync(path.join(AUS, `${id}.alt.json`), JSON.stringify(a.v)); fs.writeFileSync(path.join(AUS, `${id}.neu.json`), JSON.stringify({ ...b.v, treffer: trNeu }));
 }
 
@@ -105,3 +133,4 @@ for (const [k, [g, v]] of [...abschnitt].sort()) console.log(`  ${k.padEnd(24)} 
 console.log('\nMETRIK | n | gleich | Summe alt | Summe neu | max Abw | nur alt | nur neu | Beispiel');
 for (const [k, x] of [...metr].sort()) console.log(`  ${k} | ${x.n} | ${x.gleich} | ${Math.round(x.altSum * 10) / 10} | ${Math.round(x.neuSum * 10) / 10} | ${x.maxAbw === Infinity ? 'inf' : Math.round(x.maxAbw * 100) / 100} | ${x.nurAlt} | ${x.nurNeu} | ${x.bsp}`);
 console.log(`\nWAFFE je Treffer: ${waffe.treffer} Treffer, mit Waffe ${waffe.mitWaffe}, davon mit Hand-Eintrag ${waffe.mitHand}, Hand passt ${waffe.passtHand}`);
+console.log(`ORTE ${JSON.stringify(oz)}`);
