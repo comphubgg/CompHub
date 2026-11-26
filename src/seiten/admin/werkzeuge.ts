@@ -37,7 +37,7 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'maps', pfad: '/maps', titel: 'Maps', text: 'Build tournament maps and set drop spots', gruppe: 'inhalte', stichworte: 'maps drop spots karten' },
   { slug: 'alte-maps', pfad: '/admin/alte-maps', titel: 'Old maps', text: 'Maintain maps by hand: shapes, teams, leaderboard', gruppe: 'inhalte', stichworte: 'old maps archiv editor' },
   { slug: 'loot-routen', pfad: '/admin/loot-routen', titel: 'Loot routes', text: 'Paths, loot and chests of the pros per game, also in 3D', gruppe: 'inhalte', stichworte: 'loot routes 3d pros' },
-  { slug: 'predictions', pfad: '/admin/predictions', titel: 'Predictions', text: 'Draw predictions', gruppe: 'inhalte', stichworte: 'predictions prognosen' },
+  { slug: 'predictions', pfad: '/admin/predictions', titel: 'Predictions', text: 'Draw predictions', gruppe: 'inhalte', eigen: true, stichworte: 'predictions prognosen' },
   { slug: 'awards', pfad: '/admin/awards', titel: 'Awards editor', text: 'CompHub Awards 2026: categories, phases, nominees', gruppe: 'inhalte', stichworte: 'awards editor' },
   { slug: 'awards-page', pfad: '/awards', titel: 'Awards page', text: 'Preview of the awards page and voting (only for you)', gruppe: 'inhalte', stichworte: 'awards vote preview' },
   { slug: 'archive', pfad: '/admin/archive', titel: 'Archive', text: 'Photos and videos for events and players', gruppe: 'inhalte', stichworte: 'archive photos videos archiv' },

@@ -29,7 +29,7 @@ export default function OrgWahl({ kontoId, org }: { kontoId: string; org: string
 
   return (
     <div className="mt-3 rounded-lg border border-white/10 bg-black/30 p-3">
-      <p className="mb-2 text-[10px] uppercase tracking-wider text-white/30"><T>Esports-Team (Organisation)</T></p>
+      <p className="mb-2 text-[10px] uppercase tracking-wider text-white/30">Esports team (organisation)</p>
       <div className="flex flex-wrap items-center gap-3">
         <select value={wert} onChange={(e) => void setzen(e.target.value)}
           className="min-w-[14rem] rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-sky-500">
