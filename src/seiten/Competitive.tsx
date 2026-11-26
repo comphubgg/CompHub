@@ -175,8 +175,14 @@ function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt
 function DemnaechstLeiste({ kommt, jetzt }: { kommt: Termin[]; jetzt: number }) {
   const karten = useMemo(() => {
     const je = new Map<string, Termin[]>();
-    for (const t of kommt) { if (t.f.begin - jetzt > 7 * 86400e3) break; const k = t.cup.id + Math.floor(t.f.begin / 86400e3); je.set(k, [...(je.get(k) ?? []), t]); }
-    return [...je.values()].slice(0, 4);
+    // Betreiber: nur wichtige Cups - keine Ranked Cups, keine Cups nur fuer eine Nebenregion (z.B. Arenas Fight Night nur BR); EU oder NA muss dabei sein
+    const wichtig = (c: Cup) => !/ranked/i.test(c.titel) && Object.keys(c.regionen ?? {}).some((r) => r === 'EU' || r === 'NAC' || r === 'NAW');
+    for (const t of kommt) {
+      if (t.f.begin - jetzt > 14 * 86400e3) break;
+      if (!wichtig(t.cup)) continue;
+      const k = t.cup.id + Math.floor(t.f.begin / 86400e3); je.set(k, [...(je.get(k) ?? []), t]);
+    }
+    return [...je.values()].slice(0, 8);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kommt]);
   if (!karten.length) return null;
@@ -209,6 +215,14 @@ function DemnaechstLeiste({ kommt, jetzt }: { kommt: Termin[]; jetzt: number }) 
             </Kachel>
           );
         })}
+        {karten.length < 4 && (
+          <Kachel className="grid place-items-center p-6 text-center">
+            <div>
+              <p className="font-['Bebas_Neue'] text-3xl tracking-wide text-white/80">More cups soon</p>
+              <p className="mt-1 text-sm text-white/50">Epic announces cups about a week ahead – new ones show up here automatically.</p>
+            </div>
+          </Kachel>
+        )}
       </div>
     </section>
   );
@@ -315,7 +329,7 @@ function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
                   <p className="truncate text-xs text-white/50">{t.cup.titel}</p>
                   {s === undefined ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-white/[0.05]" /> : s ? (
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="flex gap-1">{s.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} gross />)}</div>
+                      {s.players.every((p) => p.img) && <div className="flex gap-1">{s.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} gross />)}</div>}
                       <div className="min-w-0"><p className="truncate text-sm font-bold text-white">🏆 {s.players.map(name).join(' · ')}</p><p className="text-[11px] text-white/50">{s.points} pts · {s.elims} elims</p></div>
                     </div>
                   ) : <p className="mt-2 text-sm text-white/40">No leaderboard</p>}
