@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Glas } from '../../../../teile/Glas';
@@ -7,12 +7,15 @@ import KartenAnsicht, { type KartenForm, type Punkt } from '../KartenAnsicht';
 import { FehlerZeile, LaenderListe, Laedt, Reiter, SEITE, datumKurz, datumLang } from '../teile';
 import { REGION_FARBE } from '../../events/gemeinsam';
 import { type MapEintrag, regionAnzeige } from './Maps';
+import KartenUpdateWahl from './KartenUpdateWahl';
+import SpielerDetail from './SpielerDetail';
 import { CupTierlist, Platzierungen, RangAusTeams, RangTabelle, TeamKarten, type MSpieler, type MTeam, type PlatzZeile } from './Mannschaften';
 
 /*
  * Die Seite eines Cups in Maps (wie /tournament-maps/karte): Kopf mit Cup-Bild und allen Spieltagen zum Umschalten, Reiter Drop spots /
  * Teams / Leaderboard / Tierlist / Nationalities, bei Finals an zwei Tagen Day 1 / Day 2 / Combined. Karte von /api/maps-karte, gewaehltes
- * Kartenbild von /api/maps-bild (Admin kann es aendern, auch fuer die ganze Saison), Replays-Knopf wenn /api/replay?tag= etwas hat.
+ * Kartenbild von /api/maps-bild (Admin kann es aendern, auch fuer die ganze Saison - aus der Auswahl oder jeder Update-Karte, KartenUpdateWahl),
+ * Replays-Knopf wenn /api/replay?tag= etwas hat. Klick auf eine Zeile der Epic-Rangliste oeffnet den Match-Verlauf (SpielerDetail) im Fenster.
  */
 
 interface Fenster {
@@ -62,6 +65,13 @@ export default function MapsKarte() {
   const [speichert, setSpeichert] = useState(false);
   const [bilderOffen, setBilderOffen] = useState(false);
   const [fuerSaison, setFuerSaison] = useState(false);
+  const [panel, setPanel] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!panel) return undefined;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanel(null); };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [panel]);
 
   useEffect(() => { setFenster(null); setFehler(''); setTag('gesamt'); setTage([]); setPlatzierungen([]); }, [params]);
 
@@ -121,7 +131,8 @@ export default function MapsKarte() {
   const rangliste = (schmal: boolean) => (nurPlatzierungen ? <Platzierungen zeilen={platzierungen} schmal={schmal} />
     : meta?.alt || !meta?.eventId || fenster?.quelle === 'hand' ? <RangAusTeams teams={fenster?.teams ?? []} schmal={schmal} />
       : <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta.epicFenster ?? fenster?.windowId ?? '')}
-          windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} anzeigen={anzeigen} schmal={schmal} />);
+          windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} anzeigen={anzeigen} schmal={schmal}
+          aufKlick={tageFenster.length > 1 ? undefined : setPanel} />);
 
   if (!params) return <FehlerZeile text="This map is not specified." />;
   const region = meta ? regionAnzeige(meta) : params.r;
@@ -183,7 +194,7 @@ export default function MapsKarte() {
                   <span className="font-bold uppercase tracking-[0.2em] text-amber-300">Admin</span>
                   <a href={`${SEITE}/admin/alte-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`} target="_blank" rel="noreferrer"
                     className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-[#06080f] transition hover:bg-amber-300">Edit this map ↗</a>
-                  {auswahl.length > 0 && <button type="button" onClick={() => setBilderOffen((v) => !v)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 font-semibold text-white/80 transition hover:border-sky-400/50">Choose map image</button>}
+                  <button type="button" onClick={() => setBilderOffen((v) => !v)} className={`rounded-lg border px-3 py-1.5 font-semibold transition ${bilderOffen ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-white/10 bg-white/[0.04] text-white/80 hover:border-sky-400/50'}`}>Choose map image</button>
                   {wahlBild && <button type="button" disabled={speichert} onClick={() => void bildSpeichern('')} className="rounded-lg border border-white/10 px-3 py-1.5 text-white/55 transition hover:border-rose-400/60 hover:text-rose-300">Game-version default</button>}
                   <label className="ml-auto flex items-center gap-2 font-semibold text-white/55"><input type="checkbox" checked={fuerSaison} onChange={(e) => setFuerSaison(e.target.checked)} className="accent-sky-400" />Apply to every day of this season</label>
                   {speichert && <span className="text-white/45">Saving …</span>}
@@ -198,6 +209,7 @@ export default function MapsKarte() {
                       ))}
                     </div>
                   )}
+                  {bilderOffen && <KartenUpdateWahl aktuell={wahlBild} vorgabe={meta?.saisonKurz} speichert={speichert} waehle={(u) => { void bildSpeichern(u); setBilderOffen(false); }} />}
                 </Glas>
               )}
               <div className="grid gap-5 lg:grid-cols-[minmax(300px,1fr)_minmax(0,1.6fr)] lg:items-start">
@@ -220,6 +232,23 @@ export default function MapsKarte() {
           )}
         </>
       )}
+
+      {/* Match-Verlauf eines Spielers (Klick auf die Rangliste) - wie das Fenster auf der Seite */}
+      <AnimatePresence>
+        {panel && meta?.eventId && fenster && tageFenster.length <= 1 && (
+          <motion.div key="panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPanel(null)}
+            className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()} className="relative my-8 w-full max-w-6xl rounded-3xl border border-white/10 bg-[#0a0e18]/95 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
+              <button type="button" aria-label="Close" onClick={() => setPanel(null)} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-white/15 text-white/60 transition hover:border-sky-400 hover:text-white">
+                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
+              </button>
+              <p className="mb-4 pr-10 text-xs font-bold uppercase tracking-[0.2em] text-sky-300">Match history · {meta.titel}</p>
+              <SpielerDetail eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta.epicFenster ?? fenster.windowId)} solo={solo} spieler={panel} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

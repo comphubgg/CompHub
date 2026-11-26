@@ -95,9 +95,11 @@ export function Platzierungen({ zeilen, schmal = false }: { zeilen: Array<PlatzZ
 
 interface LbZeile { rank: number; points: number; wins: number; elims: number; games: number; players: Array<{ id: string; name?: string; displayName?: string; anzeige?: string; land?: string | null }> }
 
-/** Die Bestenliste von Epic: Platz, das ganze Team mit Flagge, Punkte, Siege, Elims, Spiele. Klick auf eine Zeile oeffnet das Spielerprofil. */
-export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, schmal = false }: {
+/** Die Bestenliste von Epic: Platz, das ganze Team mit Flagge, Punkte, Siege, Elims, Spiele. Klick auf eine Zeile oeffnet den Match-Verlauf, ein Name das Profil. */
+export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, schmal = false, aufKlick }: {
   eventId: string | null; windowId: string; windows?: string[]; laender: Map<string, string | null>; anzeigen?: Map<string, string>; schmal?: boolean;
+  /** Klick auf eine Zeile oeffnet den Match-Verlauf (wie auf der Seite) - die Namen bleiben Links zum Spielerprofil. */
+  aufKlick?: (p: { id: string; name: string }) => void;
 }) {
   const schluessel = windows && windows.length > 1 ? windows.join(',') : '';
   const [zeilen, setZeilen] = useState<LbZeile[] | null>(null);
@@ -123,13 +125,15 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
         </tr></thead>
         <tbody>
           {zeilen.slice(0, 100).map((z) => (
-            <tr key={z.rank} className="border-b border-white/[0.04] transition hover:bg-sky-400/[0.05]">
+            <tr key={z.rank} title={aufKlick ? 'Open the match history' : undefined}
+              onClick={aufKlick && z.players[0] ? () => aufKlick({ id: z.players[0].id, name: name(z.players[0]) }) : undefined}
+              className={`border-b border-white/[0.04] transition hover:bg-sky-400/[0.05] ${aufKlick ? 'cursor-pointer' : ''}`}>
               <td className={`px-3 py-2 text-xs font-black tabular-nums ${platzFarbe(z.rank)}`}>{z.rank}</td>
               <td className="px-3 py-2">
                 <span className="flex items-center gap-2.5">
                   <TeamFlagge groesse={z.players.length > 1 ? 28 : 22} laender={z.players.map((p) => laender.get(p.id) ?? p.land ?? null)} />
                   <span className="flex min-w-0 flex-col text-[11px] font-bold uppercase leading-[1.3] tracking-wide text-white">
-                    {z.players.map((p) => <Link key={p.id} to={`/competitive/player/${p.id}`} className="truncate hover:text-sky-300">{name(p)}</Link>)}
+                    {z.players.map((p) => <Link key={p.id} to={`/competitive/player/${p.id}`} onClick={(e) => e.stopPropagation()} className="truncate hover:text-sky-300">{name(p)}</Link>)}
                   </span>
                 </span>
               </td>
