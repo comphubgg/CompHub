@@ -3,6 +3,8 @@ import Baustelle from './teile/Baustelle';
 import Hintergrund from './teile/Hintergrund';
 import Start from './seiten/Start';
 import Competitive from './seiten/Competitive';
+import Rahmen from './seiten/comp/Rahmen';
+import Rankings from './seiten/comp/Rankings';
 
 /*
  * CompHub Hub - lokale Vorschau (Betreiber, 26.11.2026: "CompHub 3.0 ... only localhost ... Startbildschirm wie Fortnite: mittig Competitive,
@@ -15,7 +17,11 @@ export default function App() {
       <div className="relative">
         <Routes>
           <Route path="/" element={<Start />} />
-          <Route path="/competitive" element={<Competitive />} />
+          <Route path="/competitive" element={<Rahmen />}>
+            <Route index element={<Competitive />} />
+            <Route path="rankings" element={<Rankings />} />
+            <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
+          </Route>
           <Route path="/community" element={<Baustelle text="Community wird gebaut …" />} />
           <Route path="/streamer" element={<Baustelle text="Streamer wird gebaut …" />} />
           <Route path="*" element={<Start />} />

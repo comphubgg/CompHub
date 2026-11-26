@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import Kopf from '../teile/Kopf';
+import { Link } from 'react-router-dom';
 
 /*
  * Competitive (Betreiber, 26.11.2026: "alles, was jetzt drin ist, in einfach 10-mal geiler, animiert, Effekte, angeordnet"). Oben live und als
@@ -72,7 +72,7 @@ function TopSpieler({ spieler }: { spieler: Spieler[] }) {
     <section>
       <div className="mb-4 flex items-end justify-between">
         <h2 className="text-2xl font-extrabold tracking-tight text-white">Power Rankings</h2>
-        <a href={`${SEITE}/power-rankings`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All 10,000 →</a>
+        <Link to="/competitive/rankings" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All 10,000 →</Link>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {spieler.slice(0, 10).map((s, i) => (
@@ -97,12 +97,12 @@ function TopSpieler({ spieler }: { spieler: Spieler[] }) {
 }
 
 const WERKZEUGE = [
-  { titel: 'Live leaderboards', text: 'Every cup, every region, live.', pfad: '/events', farbe: '56,189,248' },
-  { titel: 'Player stats', text: 'Damage, elims, mats from replays.', pfad: '/statistics', farbe: '45,212,191' },
-  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: '/deep-stats', farbe: '167,139,250' },
-  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: '/match-finder', farbe: '248,113,113' },
-  { titel: 'Replays', text: 'Watch any cup match in 2D.', pfad: '/replays', farbe: '250,204,21' },
-  { titel: 'Predictions', text: 'Who qualifies? Pick your winners.', pfad: '/predictions', farbe: '74,222,128' },
+  { titel: 'Live leaderboards', text: 'Every cup, every region, live.', pfad: 'events', farbe: '56,189,248' },
+  { titel: 'Player stats', text: 'Damage, elims, mats from replays.', pfad: 'statistics', farbe: '45,212,191' },
+  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', farbe: '167,139,250' },
+  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', farbe: '248,113,113' },
+  { titel: 'Replays', text: 'Watch any cup match in 2D.', pfad: 'replays', farbe: '250,204,21' },
+  { titel: 'Power rankings', text: 'Top 10,000, climbers and fallers.', pfad: 'rankings', farbe: '74,222,128' },
 ];
 
 export default function Competitive() {
@@ -113,9 +113,8 @@ export default function Competitive() {
     fetch('/api/power-rankings?page=1&pageSize=10').then((r) => r.json()).then((j) => setSpieler(j.players ?? [])).catch(() => {});
   }, []);
   return (
-    <div className="min-h-screen">
-      <Kopf bereich="competitive" />
-      <main className="mx-auto max-w-7xl space-y-10 px-6 py-8">
+    <div>
+      <div className="space-y-10">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">Competitive</p>
           <h1 className="mt-1 text-5xl font-extrabold tracking-tight text-white">The pro scene, live.</h1>
@@ -126,17 +125,17 @@ export default function Competitive() {
           <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Tools</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {WERKZEUGE.map((w, i) => (
-              <motion.a key={w.titel} href={`${SEITE}${w.pfad}`} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }}
+              <motion.div key={w.titel} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }}
                 whileHover={{ y: -4 }} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-30 blur-2xl transition group-hover:opacity-60" style={{ background: `rgb(${w.farbe})` }} />
                 <p className="relative text-lg font-bold text-white">{w.titel}</p>
                 <p className="relative mt-1 text-sm text-white/60">{w.text}</p>
-                <p className="relative mt-4 text-sm font-semibold" style={{ color: `rgb(${w.farbe})` }}>Open →</p>
-              </motion.a>
+                <Link to={`/competitive/${w.pfad}`} className="relative mt-4 inline-block text-sm font-semibold after:absolute after:inset-0 after:content-['']" style={{ color: `rgb(${w.farbe})` }}>Open →</Link>
+              </motion.div>
             ))}
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }
