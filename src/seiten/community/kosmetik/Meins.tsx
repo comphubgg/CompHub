@@ -1,0 +1,309 @@
+import { AnimatePresence, motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Glas } from '../../../teile/Glas';
+import { DatenFehlen, LinkKopieren, useHubDatei } from '../Bausteine';
+import { Laedt, TEAL, Ueberschrift } from '../Teile';
+import { REITER, seltenVon, useAblage, useReaktionen, useShop, useTeile, type Teil } from './daten';
+import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen } from './Raster';
+
+/*
+ * Persoenliche Seiten (Spezifikation Punkte 8, 9, 21, 22):
+ *   My Wishlist / My Locker   geordnete Liste (Ziehen zum Umordnen), Gesamtwert, "heute im Shop", Fortschritt je Typ (Spind), Raster mit Filtern,
+ *                             Teilen per Link (?ids=...) - die Liste steckt im Link, weil /api/user-storage nur fuer den Besitzer lesbar ist.
+ *   My Collections            eigene Sammlungen von Creative-Inseln (Code + Name), Standard "Favorites"
+ *   Rankings                  Reaktionen auf Kosmetik, Saisons und den heutigen Shop - eigene Wertung sofort, Gesamtwertung aller Nutzer braucht
+ *                             einen Zaehler auf dem Server (ehrliche Karte)
+ * Wert: Epic-Standardpreise je Typ und Seltenheit (Schaetzung, als solche gekennzeichnet); ist das Teil heute im Shop, gilt der echte Preis.
+ * Umrechnung grob mit 1.000 V-Bucks = 8,99 USD (kleinstes Paket).
+ */
+
+const STANDARDPREIS: Record<string, Record<string, number>> = {
+  outfit: { uncommon: 800, rare: 1200, epic: 1500, legendary: 2000 }, pickaxe: { uncommon: 500, rare: 800, epic: 1200, legendary: 1500 },
+  glider: { uncommon: 500, rare: 800, epic: 1200, legendary: 1500 }, emote: { uncommon: 200, rare: 500, epic: 800, legendary: 800 },
+  backpack: { uncommon: 200, rare: 300, epic: 400, legendary: 500 }, wrap: { uncommon: 300, rare: 500, epic: 700 }, shoe: { rare: 500, epic: 800 },
+  contrail: { rare: 300, epic: 500 }, music: { rare: 200, epic: 300 }, loadingscreen: {}, spray: {}, emoji: {}, banner: {},
+};
+const SERIEN_PREIS: Record<string, number> = { outfit: 1500, pickaxe: 800, glider: 1200, emote: 500, backpack: 400 };
+function wertVon(t: Teil, heute: Map<string, number>): { v: number; echt: boolean } | null {
+  const h = heute.get(t.id.toLowerCase()); if (h !== undefined) return { v: h, echt: true };
+  if (t.art === 'track') return { v: 500, echt: false };
+  const tab = STANDARDPREIS[t.typ]; if (!tab) return null;
+  const v = tab[t.selten] ?? (t.serie ? SERIEN_PREIS[t.typ] : undefined);
+  return v ? { v, echt: false } : null;
+}
+const usd = (vb: number) => (vb * 0.00899).toLocaleString('en', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+/* ---------------------------------------------- Wishlist / Locker */
+export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
+  const eigene = useAblage<string[]>(art === 'wunsch' ? 'wunschliste' : 'spind', []);
+  const [params] = useSearchParams();
+  const geteilt = params.get('ids');
+  const ids = useMemo(() => (geteilt ? geteilt.split(',').filter(Boolean) : eigene.wert), [geteilt, eigene.wert]);
+  const { teile, laedt } = useTeile(['br', 'track']);
+  const shop = useShop();
+  const heute = useMemo(() => { const m = new Map<string, number>(); for (const a of shop.angebote) if (a.teile.length === 1) m.set(a.teile[0].id.toLowerCase(), a.preis); return m; }, [shop.angebote]);
+  const imShop = useMemo(() => new Set(shop.angebote.flatMap((a) => a.teile.map((t) => t.id.toLowerCase()))), [shop.angebote]);
+  const karte = useMemo(() => new Map(teile.map((t) => [t.id.toLowerCase(), t])), [teile]);
+  const liste = useMemo(() => ids.map((id) => karte.get(id.toLowerCase())).filter(Boolean) as Teil[], [ids, karte]);
+  const [ansicht, setAnsicht] = useState<'ordnung' | 'raster'>('ordnung');
+  const [ziehe, setZiehe] = useState<number | null>(null);
+  const summe = liste.reduce((s, t) => s + (wertVon(t, heute)?.v ?? 0), 0);
+  const geschaetzt = liste.some((t) => wertVon(t, heute) && !wertVon(t, heute)!.echt);
+  const heuteDa = liste.filter((t) => imShop.has(t.id.toLowerCase()));
+  const titel = art === 'wunsch' ? 'My wishlist' : 'My locker';
+  const teilLink = `${window.location.origin}${window.location.pathname}?ids=${eigene.wert.join(',')}`;
+  function verschieben(von: number, nach: number) {
+    eigene.setzen((l) => { const n = [...l]; const [x] = n.splice(von, 1); n.splice(nach, 0, x); return n; });
+  }
+  return (
+    <div className="space-y-6">
+      <Ueberschrift ueber={geteilt ? 'Community · Shared list' : 'Community · Mine'} titel={geteilt ? `A shared ${art === 'wunsch' ? 'wishlist' : 'locker'}` : titel} farbe={TEAL}
+        text={geteilt ? 'Someone shared this list with you.' : art === 'wunsch' ? "Everything you want – and a heads-up when it's in today's shop." : 'Mark what you own and see your collection grow.'}
+        rechts={<div className="flex flex-wrap items-center gap-2">{!geteilt && <AblageHinweis ort={eigene.ort} />}{!geteilt && eigene.wert.length > 0 && <LinkKopieren text="Share list" url={teilLink} />}</div>} />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          ['Items', liste.length.toLocaleString('en'), '#5eead4'],
+          [geschaetzt ? 'Value (estimated)' : 'Value', <span key="w">{preis(summe)}</span>, '#7dd3fc'],
+          ['In US dollars', `≈ ${usd(summe)}`, '#c4b5fd'],
+          [art === 'wunsch' ? 'In the shop today' : 'Outfits owned', art === 'wunsch' ? String(heuteDa.length) : String(liste.filter((t) => t.typ === 'outfit').length), '#fde047'],
+        ].map(([k, v, f], i) => (
+          <Glas key={k as string} className="p-5" verzoegerung={i * 0.05}><p className="text-3xl font-black tabular-nums" style={{ color: f as string }}>{v}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p></Glas>
+        ))}
+      </div>
+      {art === 'wunsch' && heuteDa.length > 0 && !geteilt && (
+        <Glas className="border-rose-300/25 p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-300">In the shop right now</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {heuteDa.map((t) => <Link key={t.id} to="/community/shop" className="flex items-center gap-2 rounded-xl bg-white/[0.05] py-1.5 pl-1.5 pr-3 hover:bg-white/10"><img src={t.bild} alt="" className="h-10 w-10 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} /><span className="text-sm font-bold text-white">{t.name}</span>{heute.get(t.id.toLowerCase()) !== undefined && <span className="text-xs text-white/60">{preis(heute.get(t.id.toLowerCase())!)}</span>}</Link>)}
+          </div>
+        </Glas>
+      )}
+      {art === 'spind' && liste.length > 0 && <Fortschritt eigene={liste} alle={teile} />}
+      {laedt ? <Laedt farbe={TEAL} /> : !liste.length ? (
+        <Glas className="p-10 text-center">
+          <p className="text-lg font-bold text-white">{geteilt ? 'This list is empty.' : `Your ${art === 'wunsch' ? 'wishlist' : 'locker'} is empty`}</p>
+          {!geteilt && <p className="mt-1 text-sm text-white/50">Open <Link to="/community/cosmetics" className="text-teal-200 hover:text-white">Cosmetics</Link> or the <Link to="/community/shop" className="text-teal-200 hover:text-white">Item Shop</Link> and tap {art === 'wunsch' ? 'the heart' : 'the tick'} on any item.</p>}
+        </Glas>
+      ) : (
+        <>
+          <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">
+            {([['ordnung', geteilt ? 'In order' : 'My order (drag to reorder)'], ['raster', 'Browse with filters']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setAnsicht(k)} className={`rounded-lg px-3.5 py-1.5 ${ansicht === k ? 'bg-teal-300 text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</button>)}
+          </div>
+          {ansicht === 'raster' ? <Raster teile={liste} ohneReiter /> : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
+              {liste.map((t, i) => (
+                <div key={t.id} draggable={!geteilt} onDragStart={() => setZiehe(i)} onDragOver={(e) => { e.preventDefault(); if (ziehe !== null && ziehe !== i) { verschieben(ziehe, i); setZiehe(i); } }} onDragEnd={() => setZiehe(null)}
+                  className={`relative ${ziehe === i ? 'opacity-50' : ''} ${geteilt ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+                  <span className="absolute left-2 top-2 z-10 rounded-md bg-black/60 px-1.5 text-[10px] font-black tabular-nums text-white">{i + 1}</span>
+                  <Kachel t={t} index={i} unten={(() => { const w = wertVon(t, heute); return w ? <p className="mt-1 text-[10px] text-white/45">{w.echt ? 'Today ' : '≈ '}{w.v.toLocaleString('en')} V-Bucks</p> : null; })()} />
+                  {!geteilt && (
+                    <div className="mt-1 flex justify-center gap-1">
+                      <button type="button" disabled={!i} onClick={() => verschieben(i, i - 1)} className="rounded-md px-2 text-xs text-white/40 hover:text-white disabled:opacity-20">←</button>
+                      <button type="button" disabled={i === liste.length - 1} onClick={() => verschieben(i, i + 1)} className="rounded-md px-2 text-xs text-white/40 hover:text-white disabled:opacity-20">→</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-[11px] text-white/30">Values use Epic's usual shop prices per type and rarity – real prices vary with bundles and sales. Items in today's shop use today's price.{!geteilt && ' Sharing creates a link that contains your list; nobody can see it without that link.'}</p>
+    </div>
+  );
+}
+function Fortschritt({ eigene, alle }: { eigene: Teil[]; alle: Teil[] }) {
+  const reihen = REITER.filter((r) => r.art === 'br' || r.art === 'track').map((r) => {
+    const gesamt = alle.filter((t) => t.art === r.art && (!r.typen || r.typen.includes(t.typ))).length;
+    const hab = eigene.filter((t) => t.art === r.art && (!r.typen || r.typen.includes(t.typ))).length;
+    return { ...r, gesamt, hab };
+  }).filter((r) => r.hab > 0);
+  return (
+    <Glas className="p-5">
+      <h3 className="font-bold text-white">Collection progress</h3>
+      <div className="mt-3 grid gap-x-8 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
+        {reihen.map((r, i) => (
+          <div key={r.k}>
+            <div className="flex justify-between text-xs"><span className="font-semibold text-white/75">{r.titel}</span><span className="tabular-nums text-white/45">{r.hab} / {r.gesamt.toLocaleString('en')}</span></div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(1.5, (r.hab / Math.max(1, r.gesamt)) * 100)}%` }} transition={{ delay: i * 0.04, duration: 0.7 }} className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-teal-300" /></div>
+          </div>
+        ))}
+      </div>
+    </Glas>
+  );
+}
+
+/* ---------------------------------------------- Collections (Creative-Inseln) */
+interface Sammlung { id: string; name: string; inseln: Array<{ code: string; name?: string }> }
+const CODE = /^\d{4}-\d{4}-\d{4}$/;
+export function Sammlungen() {
+  const ablage = useAblage<Sammlung[]>('sammlungen', [{ id: 'favoriten', name: 'Favorites', inseln: [] }]);
+  const { daten: creative } = useHubDatei<{ inseln: Array<{ code: string; name: string; creator?: string; players?: number }> }>('creative.json');
+  const [offen, setOffen] = useState('favoriten');
+  const [neuName, setNeuName] = useState(''); const [code, setCode] = useState(''); const [name, setName] = useState('');
+  const s = ablage.wert.find((x) => x.id === offen) ?? ablage.wert[0];
+  const infos = new Map((creative?.inseln ?? []).map((i) => [i.code, i]));
+  const aendern = (f: (x: Sammlung) => Sammlung) => ablage.setzen((l) => l.map((x) => (x.id === s.id ? f(x) : x)));
+  const codeOk = CODE.test(code.trim());
+  return (
+    <div className="space-y-6">
+      <Ueberschrift ueber="Community · Mine" titel="My collections" farbe={TEAL} text="Your own lists of Creative islands – practice maps, box fights, zone wars, whatever you play." rechts={<AblageHinweis ort={ablage.ort} />} />
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Glas className="p-4">
+          <ul className="space-y-1">
+            {ablage.wert.map((x) => (
+              <li key={x.id}><button type="button" onClick={() => setOffen(x.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${x.id === s?.id ? 'bg-teal-300/15 text-white ring-1 ring-teal-300/30' : 'text-white/70 hover:bg-white/5'}`}>
+                <span className="font-bold">{x.id === 'favoriten' ? '★ ' : ''}{x.name}</span><span className="text-xs tabular-nums text-white/40">{x.inseln.length} maps</span></button></li>
+            ))}
+          </ul>
+          <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!neuName.trim()) return; const id = `s${Date.now().toString(36)}`; ablage.setzen((l) => [...l, { id, name: neuName.trim().slice(0, 40), inseln: [] }]); setOffen(id); setNeuName(''); }}>
+            <input value={neuName} onChange={(e) => setNeuName(e.target.value)} placeholder="New collection…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
+            <button type="submit" className="rounded-xl bg-teal-300 px-3 text-sm font-bold text-[#06080f]">+</button>
+          </form>
+        </Glas>
+        {s && (
+          <Glas className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-2xl font-extrabold tracking-tight text-white">{s.name}</h2>
+              {s.id !== 'favoriten' && <button type="button" onClick={() => { ablage.setzen((l) => l.filter((x) => x.id !== s.id)); setOffen('favoriten'); }} className="text-xs font-semibold text-white/40 hover:text-rose-300">Delete collection</button>}
+            </div>
+            <form className="mt-4 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (!codeOk) return; aendern((x) => ({ ...x, inseln: [...x.inseln.filter((i) => i.code !== code.trim()), { code: code.trim(), name: name.trim() || infos.get(code.trim())?.name }] })); setCode(''); setName(''); }}>
+              <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d-]/g, '').slice(0, 14))} placeholder="Island code, e.g. 1234-5678-9012" className="w-72 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="min-w-[180px] flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
+              <button type="submit" disabled={!codeOk} className="rounded-xl bg-teal-300 px-4 text-sm font-bold text-[#06080f] disabled:opacity-30">Add map</button>
+            </form>
+            <ul className="mt-4 space-y-2">
+              <AnimatePresence initial={false}>
+                {s.inseln.map((i) => (
+                  <motion.li key={i.code} layout initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
+                    <span className="font-mono text-sm font-bold text-teal-200">{i.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">{i.name ?? infos.get(i.code)?.name ?? ''}{infos.get(i.code)?.creator ? <span className="text-white/40"> · by {infos.get(i.code)!.creator}</span> : null}</span>
+                    {infos.get(i.code)?.players !== undefined && <span className="text-xs tabular-nums text-white/50">{infos.get(i.code)!.players!.toLocaleString('en')} playing</span>}
+                    <button type="button" onClick={() => navigator.clipboard?.writeText(i.code)} className="rounded-lg border border-white/10 px-2 py-1 text-xs font-semibold text-white/60 hover:text-white">Copy code</button>
+                    <button type="button" onClick={() => aendern((x) => ({ ...x, inseln: x.inseln.filter((y) => y.code !== i.code) }))} className="text-white/30 hover:text-rose-300">✕</button>
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </ul>
+            {!s.inseln.length && <p className="mt-6 text-center text-sm text-white/40">No maps yet. Paste an island code above.</p>}
+            {!creative && <p className="mt-6 text-[11px] text-white/30">Player counts and creator names appear once our Creative collector is running (see <Link to="/community/creative" className="text-teal-200/70">Creative</Link>).</p>}
+          </Glas>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------- Rankings */
+const LISTEN: Array<{ k: string; titel: string; text: string }> = [
+  { k: 'shop', titel: 'Rate today\'s shop', text: 'One item at a time' }, { k: 'cosmetics', titel: 'Best cosmetics', text: 'Everything you reacted to' },
+  { k: 'seasons', titel: 'Best seasons', text: 'Every season since Chapter 1' }, { k: 'unreleased', titel: 'Best unreleased', text: 'Still only in the files' },
+  { k: 'crew', titel: 'Best Crew skins', text: 'Fortnite Crew outfits' },
+];
+export function Ranglisten() {
+  const { liste = 'shop' } = useParams();
+  const nav = useNavigate();
+  const r = useReaktionen();
+  const { teile, laedt } = useTeile(['br']);
+  const shop = useShop();
+  const karte = useMemo(() => new Map(teile.map((t) => [t.id, t])), [teile]);
+  return (
+    <div className="space-y-6">
+      <Ueberschrift ueber="Community · Rankings" titel="Rankings" farbe={TEAL} text="React to cosmetics and seasons – your picks build your own ranking right away." rechts={<AblageHinweis ort={r.ort} />} />
+      <div className="flex flex-wrap gap-2">
+        {LISTEN.map((l) => (
+          <button key={l.k} type="button" onClick={() => nav(`/community/rankings/${l.k}`)} className={`rounded-2xl border px-4 py-2.5 text-left transition ${liste === l.k ? 'border-teal-300/40 bg-teal-300/10' : 'border-white/10 bg-white/[0.03] hover:border-teal-300/30'}`}>
+            <p className="text-sm font-bold text-white">{l.titel}</p><p className="text-[11px] text-white/45">{l.text}</p>
+          </button>
+        ))}
+      </div>
+      {laedt ? <Laedt farbe={TEAL} /> : liste === 'shop' ? <ShopBewerten angebote={shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit'))} />
+        : liste === 'seasons' ? <Saisons teile={teile} />
+        : <EigeneWertung teile={liste === 'unreleased' ? teile.filter((t) => !t.shop.length && Date.now() - Date.parse(t.hinzu) < 120 * 864e5) : liste === 'crew' ? teile.filter((t) => t.serie?.toLowerCase().includes('crew') && t.typ === 'outfit') : [...r.wert ? Object.keys(r.wert) : []].map((id) => karte.get(id)).filter(Boolean) as Teil[]} alleZeigen={liste !== 'cosmetics'} />}
+      <DatenFehlen titel="Community-wide rankings" text="Adding up everyone's reactions needs a small counter on our server (one vote per account). Until then, every ranking here is yours – and it's saved, so nothing is lost when the shared totals go live." braucht={['Server counter for reactions (one per account)']} />
+    </div>
+  );
+}
+function EigeneWertung({ teile, alleZeigen, leer }: { teile: Teil[]; alleZeigen: boolean; leer?: string }) {
+  const { wert } = useReaktionen();
+  const bewertet = teile.filter((t) => wert[t.id]).sort((a, b) => (PUNKTE[wert[b.id]] ?? 0) - (PUNKTE[wert[a.id]] ?? 0) || a.name.localeCompare(b.name));
+  const offen = alleZeigen ? teile.filter((t) => !wert[t.id]).sort((a, b) => b.hinzu.localeCompare(a.hinzu)).slice(0, 60) : [];
+  return (
+    <div className="space-y-5">
+      {REAKTIONEN.map((re) => {
+        const l = bewertet.filter((t) => wert[t.id] === re.k);
+        if (!l.length) return null;
+        return (
+          <section key={re.k} className="space-y-2">
+            <h3 className="text-lg font-extrabold text-white">{re.z} {re.t} <span className="text-sm font-semibold text-white/40">{l.length}</span></h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">{l.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<div className="mt-1.5"><Reaktionen id={t.id} klein /></div>} />)}</div>
+          </section>
+        );
+      })}
+      {!bewertet.length && !alleZeigen && <Glas className="p-8 text-center text-sm text-white/50">{leer ?? <>You haven't reacted to anything yet – start with <Link to="/community/rankings/shop" className="text-teal-200">today's shop</Link>.</>}</Glas>}
+      {offen.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-lg font-extrabold text-white">Not rated yet</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">{offen.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<div className="mt-1.5"><Reaktionen id={t.id} klein /></div>} />)}</div>
+        </section>
+      )}
+    </div>
+  );
+}
+function ShopBewerten({ angebote }: { angebote: Teil[] }) {
+  const { wert, setzen } = useReaktionen();
+  const offen = angebote.filter((t) => !wert[t.id]);
+  const t = offen[0];
+  const s = t ? seltenVon(t.selten) : null;
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
+      <Glas className="p-6">
+        <p className="text-xs text-white/45">{angebote.length - offen.length} of {angebote.length} rated</p>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div animate={{ width: `${((angebote.length - offen.length) / Math.max(1, angebote.length)) * 100}%` }} className="h-full rounded-full bg-teal-300" /></div>
+        <AnimatePresence mode="wait">
+          {t && s ? (
+            <motion.div key={t.id} initial={{ opacity: 0, x: 40, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} exit={{ opacity: 0, x: -60, rotate: -4 }} transition={{ duration: 0.25 }} className="mt-5">
+              <div className="relative aspect-square overflow-hidden rounded-2xl" style={{ background: `radial-gradient(110% 85% at 50% 18%, ${s.a}66, ${s.b} 68%, #05070d)` }}><img src={t.bildGross} alt={t.name} className="absolute inset-0 h-full w-full object-contain" /></div>
+              <h3 className="mt-3 text-2xl font-extrabold text-white">{t.name}</h3>
+              <p className="text-sm font-semibold" style={{ color: s.a }}>{t.seltenName} {t.typName}</p>
+              <div className="mt-4 flex justify-between">
+                {REAKTIONEN.map((re) => <button key={re.k} type="button" title={re.t} onClick={() => setzen((v) => ({ ...v, [t.id]: re.k }))} className="rounded-2xl bg-white/[0.05] px-3 py-2 text-3xl transition hover:scale-110 hover:bg-white/10">{re.z}</button>)}
+              </div>
+            </motion.div>
+          ) : <motion.p key="fertig" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 text-center text-lg font-bold text-white">All of today's shop rated ✓</motion.p>}
+        </AnimatePresence>
+      </Glas>
+      <EigeneWertung teile={angebote} alleZeigen={false} leer="Your ratings of today's shop show up here, grouped by reaction." />
+    </div>
+  );
+}
+function Saisons({ teile }: { teile: Teil[] }) {
+  const liste = useMemo(() => {
+    const m = new Map<number, { nr: number; kapitel: string; saison: string; n: number; bild?: Teil }>();
+    for (const t of teile) {
+      if (t.saisonNr === undefined || !t.kapitel) continue;
+      const x = m.get(t.saisonNr) ?? { nr: t.saisonNr, kapitel: t.kapitel, saison: t.saison ?? '', n: 0 };
+      x.n += 1; if (!x.bild && t.typ === 'outfit' && t.selten === 'legendary') x.bild = t; m.set(t.saisonNr, x);
+    }
+    for (const x of m.values()) if (!x.bild) x.bild = teile.find((t) => t.saisonNr === x.nr && t.typ === 'outfit');
+    return [...m.values()].sort((a, b) => b.nr - a.nr);
+  }, [teile]);
+  const { wert } = useReaktionen();
+  const sort = [...liste].sort((a, b) => (PUNKTE[wert[`saison-${b.nr}`]] ?? -9) - (PUNKTE[wert[`saison-${a.nr}`]] ?? -9) || b.nr - a.nr);
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      {sort.map((x, i) => (
+        <Glas key={x.nr} className="flex items-center gap-4 p-4" verzoegerung={Math.min(i, 20) * 0.02}>
+          {x.bild && <img src={x.bild.bild} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl object-contain" style={{ background: seltenVon(x.bild.selten).b }} />}
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300">Chapter {x.kapitel}</p>
+            <p className="text-lg font-extrabold text-white">Season {x.saison}</p>
+            <p className="text-[11px] text-white/40">{x.n.toLocaleString('en')} cosmetics introduced</p>
+            <div className="mt-1.5"><Reaktionen id={`saison-${x.nr}`} klein /></div>
+          </div>
+        </Glas>
+      ))}
+    </div>
+  );
+}

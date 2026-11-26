@@ -35,7 +35,7 @@ export function Kachel({ t, unten, gross = false, namen = true, index = 0, link 
         {t.art === 'track' && <span className="absolute inset-0 grid place-items-center text-4xl text-white/20">♪</span>}
         {t.bild ? <img src={t.bild} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = 'none'; }} className={`absolute inset-0 h-full w-full ${t.art === 'track' ? 'object-cover' : 'object-contain p-1'} transition duration-300 group-hover:scale-[1.04]`} /> : null}
         <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: s.a }} />
-        {besessen && <span className="absolute left-2 top-2 rounded-md bg-emerald-400/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#06080f]">Owned</span>}
+        {besessen && <span className="absolute bottom-2.5 left-2 rounded-md bg-emerald-400/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#06080f]">Owned</span>}
       </div>
       {namen && (
         <div className="px-2.5 pb-2.5 pt-2">

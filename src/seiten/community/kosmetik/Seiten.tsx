@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { Kosmetik, KosmetikDetail } from './Kosmetik';
+import { MeineListe, Ranglisten, Sammlungen } from './Meins';
 import { GratisKosmetik, JamTracks, KosmetikStats, MeistGenutzt, NeuInDateien } from './Listen';
 
 /*
@@ -11,7 +12,7 @@ export default function Seiten() {
   const [kopf] = p.split('/');
   if (kopf === 'cosmetics') return p.includes('/') ? <KosmetikDetail /> : <Kosmetik />;
   const seiten: Record<string, () => JSX.Element> = {
-    new: NeuInDateien, free: GratisKosmetik, 'jam-tracks': JamTracks, 'cosmetic-stats': KosmetikStats, 'most-used': MeistGenutzt,
+    new: NeuInDateien, wishlist: () => <MeineListe art="wunsch" />, locker: () => <MeineListe art="spind" />, collections: Sammlungen, rankings: Ranglisten, free: GratisKosmetik, 'jam-tracks': JamTracks, 'cosmetic-stats': KosmetikStats, 'most-used': MeistGenutzt,
   };
   const S = seiten[kopf] ?? Kosmetik;
   return <S />;

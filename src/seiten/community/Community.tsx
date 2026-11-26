@@ -38,6 +38,12 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
     { pfad: 'cosmetic-stats', titel: 'Cosmetic Stats', text: 'Longest wait, most shop days' },
     { pfad: 'most-used', titel: 'Most Used', text: 'What people actually wear' },
   ] },
+  { titel: 'Mine', seiten: [
+    { pfad: 'wishlist', titel: 'My Wishlist', text: 'What you want – and when it’s in the shop' },
+    { pfad: 'locker', titel: 'My Locker', text: 'What you own, value and progress' },
+    { pfad: 'collections', titel: 'My Collections', text: 'Your lists of Creative maps' },
+    { pfad: 'rankings', titel: 'Rankings', text: 'Rate cosmetics and seasons' },
+  ] },
   { titel: 'Season', seiten: [
     { pfad: 'season', titel: 'Season Countdown', text: 'Live event and season end' },
     { pfad: 'xp', titel: 'XP Calculator', text: 'XP per day for your level goal' },
