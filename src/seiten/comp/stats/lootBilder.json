@@ -1,0 +1,98 @@
+{
+ "WID_ArcadeShotgun": {
+  "name": "Enhanced 8-Bit Shotgun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/0/0f/8-Bit_Shotgun_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20260820224413"
+ },
+ "WID_Assault_AutoHigh_Athena": {
+  "name": "Enhanced Assault Rifle",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/4/41/Assault_Rifle_%28v11.00_-_High_Tier%29_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20210226220245"
+ },
+ "WID_Assault_Heavy_Athena": {
+  "name": "Heavy Assault Rifle",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/b/bd/Heavy_Assault_Rifle_Gameplay_%28Post_v17.30%29_-_Weapon_-_Fortnite.gif/revision/latest/scale-to-width-down/128?cb=20220602184846"
+ },
+ "WID_Shotgun_Standard_Athena": {
+  "name": "Pump Shotgun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/a/ac/Pump_Shotgun_Gameplay_-_Weapon_-_Fortnite.gif/revision/latest/scale-to-width-down/128?cb=20210722172019"
+ },
+ "WID_CrimsonMist_TacSG": {
+  "name": "Sweeper Shotgun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/3/3a/O.X.R._Weapons_-_Promo_-_Fortnite.jpg/revision/latest/scale-to-width-down/128?cb=20250806142038"
+ },
+ "WID_Shotgun_Standard_Athena_Common": {
+  "name": "Pump Shotgun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/a/ac/Pump_Shotgun_Gameplay_-_Weapon_-_Fortnite.gif/revision/latest/scale-to-width-down/128?cb=20210722172019"
+ },
+ "WID_Athena_FiendHunter_Dualies": {
+  "name": "Dual Fiend Hunters",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/8/8e/Dual_Fiend_Hunters_Gameplay_-_Weapon_-_Fortnite.gif/revision/latest/scale-to-width-down/128?cb=20211106014702"
+ },
+ "WID_Paprika_ShieldPot": {
+  "name": "Shield Potion",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/9/90/Shield_Potion_%28v11.00%29_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20201228223257"
+ },
+ "WID_Paprika_ShieldSmall": {
+  "name": "Small Shield Potion",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/4/44/Small_Shield_Potion_%28v11.00%29_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20201228223517"
+ },
+ "WID_Paprika_MedBox": {
+  "name": "Med Kit",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/b/b1/Medkit_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20180917023707"
+ },
+ "WID_Athena_WitchBroom_Durability": {
+  "name": "Witch Broom",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/4/4a/Witch_Broom_%28v26.30%29_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20230926172758"
+ },
+ "WID_Athena_FloppingRabbit": {
+  "name": "Fishing Rod",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/9/9d/Fishing_Rod_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20210511233015"
+ },
+ "WID_Paprika_Bandage": {
+  "name": "Bandage",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/5/56/Bandage_%28v11.00%29_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20210215155619"
+ },
+ "WID_AgileChug": {
+  "name": "Chug Jug",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/a/a5/Chug_Jug_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20200124184715"
+ },
+ "WID_Athena_Flopper_Shield": {
+  "name": "Shield Fish",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/4/41/Shield_Fish_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20200831154159"
+ },
+ "WID_DuckSnacks": {
+  "name": "Quack Snacks",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/f/f1/Quack_Snacks_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20260625150704"
+ },
+ "WID_VampireStake_Shotgun": {
+  "name": "Wood Stake Shotgun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/1/15/Wood_Stake_Shotgun_%28News_Tab%29_-_Promo_-_Fortnite.jpg/revision/latest/scale-to-width-down/128?cb=20241123041602"
+ },
+ "WID_Athena_Apple": {
+  "name": "Apple",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/1/14/Apple_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20200304053637"
+ },
+ "WID_Athena_CandyCorn": {
+  "name": "Candy Corn",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/5/58/Candy_Corn_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20201030121928"
+ },
+ "WID_Athena_Pepper": {
+  "name": "Pepper",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/0/04/Foraged_Items_%28Winterfest_2021%29_-_Promo_-_Fortnite.jpg/revision/latest/scale-to-width-down/128?cb=20211226111904"
+ },
+ "AGID_DuckVault_Access": {
+  "name": "Keycards",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/f/f8/Ghost_Keycard_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20220108203333"
+ },
+ "WID_Athena_FloppingRabbit_HighTier": {
+  "name": "Pro Fishing Rod",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/a/a1/Pro_Fishing_Rod_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20200830144017"
+ },
+ "WID_Athena_HappyGhost": {
+  "name": "Harpoon Gun",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/6/6e/Harpoon_Gun_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20210127234847"
+ },
+ "WID_Athena_Flopper_JellyFish": {
+  "name": "Jellyfish",
+  "bild": "https://static.wikia.nocookie.net/fortnite/images/7/74/Jellyfish_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/128?cb=20200831154456"
+ }
+}
