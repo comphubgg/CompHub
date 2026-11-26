@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Glas } from '../../teile/Glas';
 import { Bald, TEAL, Ueberschrift } from './Teile';
-import { Abzeichen, EBENEN, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
+import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
 
 /*
  * Interaktive Karte der Insel von heute (Betreiber, 26.11.2026). Bild /bilder/karte-leer.png bzw. karte-orte.png (fortnite-api.com ueber
@@ -39,6 +39,14 @@ export default function Karte() {
   const [namen, setNamen] = useState(true);
   const [epicBild, setEpicBild] = useState(false);
   const [gitter, setGitter] = useState(false);
+  // Einstellungen wie in der Spezifikation: Marker gruppieren, Groesse, Deckkraft, Schriftgroesse; Karte: Helligkeit, Kontrast, Saettigung.
+  const START_EINST = { gruppieren: true, groesse: 100, deckkraft: 100, text: 100, hell: 100, kontrast: 100, saett: 100 };
+  const [einst, setEinst] = useState(START_EINST);
+  const [einstOffen, setEinstOffen] = useState(false);
+  const [ebeneSuche, setEbeneSuche] = useState('');
+  const [zu, setZu] = useState<Record<string, boolean>>({});
+  const [voll, setVoll] = useState(false);
+  useEffect(() => { const f = () => setVoll(!!document.fullscreenElement); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
   const [gewaehlt, setGewaehlt] = useState<Ort | null>(null);
   const [suche, setSuche] = useState('');
 
@@ -109,10 +117,10 @@ export default function Karte() {
 
   /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen weit draussen */
   const skala = basis * sicht.s; // Bildschirm-Pixel je ganze Bildbreite
-  const symbolPx = Math.round(Math.min(26, Math.max(14, 8 + sicht.s * 4.2)));
+  const symbolPx = Math.round(Math.min(26, Math.max(14, 8 + sicht.s * 4.2)) * (einst.groesse / 100));
   const gruppen = useMemo(() => {
     // Weit draussen grob zusammenfassen (Uebersicht), nah dran nur, was sich ueberlappen wuerde, ganz nah gar nicht.
-    const zelle = sicht.s >= 6 ? 0 : symbolPx * (sicht.s < 2.4 ? 2.1 : sicht.s < 4 ? 1.5 : 1.15);
+    const zelle = !einst.gruppieren || sicht.s >= 6 ? 0 : symbolPx * (sicht.s < 2.4 ? 2.1 : sicht.s < 4 ? 1.5 : 1.15);
     const m = new Map<string, { typ: string; sx: number; sy: number; liste: Objekt[] }>();
     sichtbar.forEach((o, i) => {
       const p = zuProzent(o.x, o.y);
@@ -123,7 +131,7 @@ export default function Karte() {
       g.sx += px; g.sy += py; g.liste.push(o); m.set(id, g);
     });
     return [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }));
-  }, [sichtbar, skala, sicht.s, symbolPx]);
+  }, [sichtbar, skala, sicht.s, symbolPx, einst.gruppieren]);
   const [ueber, setUeber] = useState<string | null>(null);
   const [fest, setFest] = useState<string | null>(null);
   const tipp = gruppen.find((g) => g.id === (fest ?? ueber)) ?? null;
@@ -151,11 +159,11 @@ export default function Karte() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Karte */}
         <Glas className="relative overflow-hidden">
-          <div ref={rahmen} className="relative h-[calc(100vh-250px)] min-h-[560px] cursor-grab touch-none select-none overflow-hidden bg-[rgb(13,81,151)] active:cursor-grabbing"
+          <div ref={rahmen} className={`relative ${voll ? 'h-screen' : 'h-[calc(100vh-250px)] min-h-[560px]'} cursor-grab touch-none select-none overflow-hidden bg-[rgb(13,81,151)] active:cursor-grabbing`}
             onPointerDown={runter} onPointerMove={bewegen} onPointerUp={() => { ziehen.current = null; }} onPointerLeave={() => { ziehen.current = null; setZeiger(null); }}
             onDoubleClick={(e) => { const rr = rahmen.current!.getBoundingClientRect(); zoomen(1.8, e.clientX - rr.left, e.clientY - rr.top); }}>
             <div className="absolute left-0 top-0 origin-top-left" style={{ width: basis, height: basis, transform: `translate(${sicht.tx}px, ${sicht.ty}px) scale(${sicht.s})` }}>
-              <img src={epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'} alt="Map" draggable={false} className="absolute inset-0 h-full w-full" style={{ imageRendering: sicht.s > 4 ? 'auto' : undefined }} />
+              <img src={epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'} alt="Map" draggable={false} className="absolute inset-0 h-full w-full" style={{ filter: `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)` }} />
               {gitter && (
                 <svg viewBox="0 0 1000 1000" className="pointer-events-none absolute inset-0 h-full w-full">
                   {Array.from({ length: GRID - 1 }, (_, i) => (
@@ -177,7 +185,7 @@ export default function Karte() {
                   const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2!, o.y2!);
                   return <line key={i} x1={(p.l / 100) * skala} y1={(p.o / 100) * skala} x2={(q.l / 100) * skala} y2={(q.o / 100) * skala} stroke={ebeneVon(o.typ).farbe} strokeOpacity={0.85} strokeWidth={2} strokeDasharray="6 4" strokeLinecap="round" />;
                 })}
-                <g filter="url(#k-schatten)">
+                <g filter="url(#k-schatten)" opacity={einst.deckkraft / 100}>
                   {gruppen.filter(imBild).map((g) => {
                     const n = g.liste.length; const gr = n > 1 ? symbolPx + 2 : symbolPx; const aktiv = tipp?.id === g.id;
                     return (
@@ -211,15 +219,36 @@ export default function Karte() {
               <button key={o.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => hin(o)}
                 className="absolute flex -translate-x-1/2 flex-col items-center" style={{ left: sicht.tx + (o.links / 100) * basis * sicht.s, top: sicht.ty + (o.oben / 100) * basis * sicht.s - (benannt(o) ? 16 : 12) }}>
                 <OrtNadel aktiv={gewaehlt?.id === o.id} klein={!benannt(o)} />
-                <span className={`mt-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${benannt(o) ? 'text-[12px]' : 'text-[10px] text-white/80'} ${gewaehlt?.id === o.id ? 'bg-teal-500/50' : 'bg-black/35'}`}>{o.name}</span>
+                <span className={`mt-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${benannt(o) ? '' : 'text-white/80'} ${gewaehlt?.id === o.id ? 'bg-teal-500/50' : 'bg-black/35'}`} style={{ fontSize: ((benannt(o) ? 12 : 10) * einst.text) / 100 }}>{o.name}</span>
               </button>
             ))}
             {/* Bedienung */}
             <div className="absolute right-4 top-4 flex flex-col gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
-              {[['+', () => zoomen(1.4)], ['−', () => zoomen(1 / 1.4)], ['⟲', zuruecksetzen]].map(([z, f]) => (
+              {[['+', () => zoomen(1.4)], ['−', () => zoomen(1 / 1.4)], ['⟲', zuruecksetzen], ['⚙', () => setEinstOffen((o) => !o)],
+                [voll ? '✕' : '⛶', () => (document.fullscreenElement ? document.exitFullscreen() : rahmen.current?.requestFullscreen?.())]].map(([z, f]) => (
                 <button key={z as string} type="button" onClick={f as () => void} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#06080f]/70 text-lg font-bold text-white backdrop-blur transition hover:border-teal-300/40 hover:text-teal-200">{z as string}</button>
               ))}
             </div>
+            <AnimatePresence>
+              {einstOffen && (
+                <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
+                  className="absolute right-16 top-4 z-20 w-72 rounded-2xl border border-white/10 bg-[#06080f]/90 p-4 text-sm backdrop-blur-xl">
+                  <div className="flex items-center justify-between"><p className="font-bold text-white">Settings</p><button type="button" onClick={() => setEinst(START_EINST)} className="text-xs text-white/45 hover:text-white">Reset</button></div>
+                  <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Markers</p>
+                  <Schalter titel="Group nearby markers" an={einst.gruppieren} umschalten={() => setEinst((v) => ({ ...v, gruppieren: !v.gruppieren }))} />
+                  {([['groesse', 'Size', 50, 200], ['deckkraft', 'Opacity', 20, 100], ['text', 'Text size', 60, 180]] as const).map(([k, t, a, b]) => (
+                    <label key={k} className="block px-2.5 py-1 text-xs text-white/60">{t} <span className="float-right tabular-nums text-white/40">{einst[k]} %</span>
+                      <input type="range" min={a} max={b} value={einst[k]} onChange={(e) => setEinst((v) => ({ ...v, [k]: Number(e.target.value) }))} className="w-full accent-teal-300" /></label>
+                  ))}
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Map</p>
+                  <Schalter titel="Grid" an={gitter} umschalten={() => setGitter((v) => !v)} />
+                  {([['hell', 'Brightness'], ['kontrast', 'Contrast'], ['saett', 'Saturation']] as const).map(([k, t]) => (
+                    <label key={k} className="block px-2.5 py-1 text-xs text-white/60">{t} <span className="float-right tabular-nums text-white/40">{einst[k]} %</span>
+                      <input type="range" min={30} max={200} value={einst[k]} onChange={(e) => setEinst((v) => ({ ...v, [k]: Number(e.target.value) }))} className="w-full accent-teal-300" /></label>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="pointer-events-none absolute bottom-4 left-4 flex gap-2 text-[11px] font-semibold tabular-nums">
               <span className="rounded-lg bg-[#06080f]/75 px-2.5 py-1.5 text-white/70 backdrop-blur">{Math.round(sicht.s * 100)} %</span>
               {zeiger && <span className="rounded-lg bg-[#06080f]/75 px-2.5 py-1.5 text-white/70 backdrop-blur">X {Math.round(zeiger.x / 100).toLocaleString('en')} m · Y {Math.round(zeiger.y / 100).toLocaleString('en')} m</span>}
@@ -260,7 +289,7 @@ export default function Karte() {
           <Glas className="p-5" verzoegerung={0.1}>
             <h3 className="font-bold text-white">Layers</h3>
             <div className="mt-3 space-y-1.5">
-              {[['Location names', namen, setNamen], ['Epic\'s map labels', epicBild, setEpicBild], ['Grid', gitter, setGitter]].map(([t, w, f]) => (
+              {[['Location names', namen, setNamen], ['Epic\'s map labels', epicBild, setEpicBild]].map(([t, w, f]) => (
                 <Schalter key={t as string} titel={t as string} an={w as boolean} umschalten={() => (f as (x: (v: boolean) => boolean) => void)((v) => !v)} />
               ))}
             </div>
@@ -269,11 +298,42 @@ export default function Karte() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Objects</p>
               {objekte && !objekte.length && <Bald text="export pending" />}
             </div>
-            <div className="mt-2 space-y-1.5">
-              {EBENEN.filter((e) => e.typ !== 'other' || zaehlen.other).map((e) => (
-                <Schalter key={e.typ} titel={e.titel} typ={e.typ} an={an[e.typ]} anzahl={zaehlen[e.typ] ?? 0} leer={!zaehlen[e.typ]}
-                  umschalten={() => setAn((a) => ({ ...a, [e.typ]: !a[e.typ] }))} />
+            <input value={ebeneSuche} onChange={(e) => setEbeneSuche(e.target.value)} placeholder="Search markers…"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {[['Show all', true], ['Hide all', false]].map(([t, w]) => (
+                <button key={t as string} type="button" onClick={() => setAn(Object.fromEntries(EBENEN.map((e) => [e.typ, w as boolean])))} className="rounded-lg border border-white/10 py-1.5 text-xs font-semibold text-white/65 hover:bg-white/5 hover:text-white">{t as string}</button>
               ))}
+            </div>
+            <div className="mt-3 max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+              {GRUPPEN_KARTE.map((g) => {
+                const ebenen = EBENEN.filter((e) => e.gruppe === g && (e.typ !== 'other' || zaehlen.other) && e.titel.toLowerCase().includes(ebeneSuche.toLowerCase()));
+                if (!ebenen.length) return null;
+                const aktiv = ebenen.filter((e) => an[e.typ]).length;
+                return (
+                  <div key={g}>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setZu((z) => ({ ...z, [g]: !z[g] }))} className="flex flex-1 items-center gap-1.5 text-left text-sm font-bold text-white">
+                        <span className={`text-[10px] text-white/40 transition ${zu[g] ? '-rotate-90' : ''}`}>▾</span>{g}<span className="text-xs font-semibold text-white/35">{aktiv}/{ebenen.length}</span>
+                      </button>
+                      <button type="button" title={aktiv ? 'Hide group' : 'Show group'} onClick={() => setAn((a) => ({ ...a, ...Object.fromEntries(ebenen.map((e) => [e.typ, !aktiv])) }))}
+                        className={`rounded-md px-1.5 text-xs ${aktiv ? 'text-teal-300' : 'text-white/30'}`}>{aktiv ? '◉' : '○'}</button>
+                    </div>
+                    {!zu[g] && (
+                      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                        {ebenen.map((e) => (
+                          <button key={e.typ} type="button" onClick={() => setAn((a) => ({ ...a, [e.typ]: !a[e.typ] }))}
+                            className={`flex items-center gap-2 rounded-xl border px-2 py-1.5 text-left transition ${an[e.typ] ? 'border-white/15 bg-white/[0.06]' : 'border-white/5 opacity-40'} ${zaehlen[e.typ] ? '' : 'saturate-50'}`}>
+                            <Abzeichen typ={e.typ} groesse={22} />
+                            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-white/85">{e.titel}</span>
+                            <span className="text-[10px] tabular-nums text-white/40">{zaehlen[e.typ] ?? 0}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <p className="mt-4 text-[11px] leading-relaxed text-white/35">Object positions come from our own export of the game files – every chest, ammo box and barrel at its exact spot. Until it lands, the layers stay empty.</p>
           </Glas>
