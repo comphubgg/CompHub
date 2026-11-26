@@ -35,7 +35,7 @@ function StreamerWand({ logins }: { logins: string[] }) {
  * scharf oben in der Tafel, dahinter dasselbe Bild gross und weich als Fuellung; 7 s je Bild, langsames Ueberblenden.
  */
 const DAUER = 7000;
-function Slider({ bilder, farbe }: { bilder: string[]; farbe: string }) {
+function Slider({ bilder, farbe, fuellen = false }: { bilder: string[]; farbe: string; fuellen?: boolean }) {
   const [i, setI] = useState(0);
   useEffect(() => { if (bilder.length < 2) return; const t = setInterval(() => setI((x) => (x + 1) % bilder.length), DAUER); return () => clearInterval(t); }, [bilder.length]);
   const bild = bilder[i % Math.max(1, bilder.length)];
@@ -43,10 +43,11 @@ function Slider({ bilder, farbe }: { bilder: string[]; farbe: string }) {
     <>
       <AnimatePresence initial={false}>
         <motion.div key={bild} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.6, ease: 'easeInOut' }}>
+          {fuellen ? <img src={bild} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ animation: `kenburns-sanft ${DAUER + 2000}ms ease-out forwards` }} /> : <>
           <img src={bild} alt="" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-2xl" />
           <div className="absolute inset-x-0 top-0 flex h-[62%] items-center justify-center p-5">
             <img src={bild} alt="" className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_20px_60px_rgba(0,0,0,0.55)]" style={{ animation: `kenburns-sanft ${DAUER + 2000}ms ease-out forwards` }} />
-          </div>
+          </div></>}
         </motion.div>
       </AnimatePresence>
       {bilder.length > 1 && (
@@ -75,7 +76,7 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       onMouseLeave={() => { mx.set(0.5); my.set(0.5); }}
       style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
       className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'h-[min(68vh,640px)] w-[min(36vw,560px)]' : 'h-[min(58vh,540px)] w-[min(23vw,340px)]'}`}>
-      {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} />}
+      {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} fuellen={b.id === 'community'} />}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 50%, rgba(6,8,15,0.8) 72%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
       {b.schloss && (
