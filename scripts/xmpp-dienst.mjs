@@ -68,7 +68,7 @@ function neu(name) {
     /** Neuaufbau der Sitzung fuer neue Freunde (siehe freundeNeuAufnehmen). */
     neuaufbauUhr: null, letzterNeuaufbau: 0, rest: null, restZeit: 0, restLaeuft: null,
     /** Welche Match-ID ein Freund aus der Sitzungssuche hat (nicht aus seinem Status) - siehe sitzungenSuchen. */
-    sitzungVonSuche: new Map(),
+    sitzungVonSuche: new Map(), sitzungVonRest: new Map(), onlineVonRest: new Set(),
   };
 }
 
@@ -350,6 +350,7 @@ async function diagnose(id) {
     probeGeschickt: probe,
     sitzungssucheBot: findeBot,
     sitzungssuche,
+    restPresence: { ...restPresence, jeId: undefined, ziel: restPresence.jeId.get(id) ?? null, freundeImAbruf: restPresence.jeId.size },
     sitzungssucheHaupt: findeHaupt,
     versuch,
   };
@@ -408,6 +409,94 @@ async function sitzungenSuchen() {
   } finally { sucheLaeuft = false; }
 }
 setInterval(() => { void sitzungenSuchen(); }, SITZUNG_MS);
+
+/*
+ * Epics neuer Status-Dienst (EOS-Presence, REST) fuer die Freunde des Bots (Betreiber, 26.11.2026: "Rax ist gruen, also muss er online sein" - per XMPP
+ * kam von ihm aber nie ein Status). Fortnite meldet den Status inzwischen ueber EOS (fnbr.js 5.0 liest Freundes-Status nur noch dort, Nov. 2026);
+ * presence/api/v1/_/{bot}/presence?circle=friends liefert je Freund SessionIdAttributeKey ("s" + Match-ID), Playlist und Kills. Alle 15 s.
+ * Ein Status aus XMPP geht vor und wird nie ueberschrieben; alles steht in /diagnose (restPresence).
+ */
+const PRESENCE_MS = Number(process.env.XMPP_PRESENCE_S || 15) * 1000;
+const restPresence = { abrufe: 0, fehler: 0, letzterFehler: null, letzteRunde: null, mitSitzung: 0, funde: 0, protokoll: [], jeId: new Map() };
+let restLaeuft = false;
+function propsLesen(props) {
+  let sid = String(props?.SessionIdAttributeKey ?? '').toLowerCase();
+  if (sid.startsWith('s')) sid = sid.slice(1);
+  let stats = {};
+  try { const g = String(props?.FortGameplayStats ?? ''); if (g.startsWith('m')) stats = JSON.parse(g.slice(1)); } catch { /* leer */ }
+  return {
+    sid: HEX32.test(sid) ? sid : null,
+    playlist: stats.playlist && stats.playlist !== 'None' ? String(stats.playlist) : null,
+    kills: Number.isFinite(stats.numKills) ? stats.numKills : null,
+  };
+}
+async function restPresenceHolen() {
+  const k = konten.bot;
+  if (restLaeuft || !k.verbunden || !k.konto) return;
+  restLaeuft = true;
+  try {
+    restPresence.abrufe += 1;
+    const r = await epicAbruf(k, `https://presence-public-service-prod.ol.epicgames.com/presence/api/v1/_/${k.konto}/presence?circle=friends`, { signal: AbortSignal.timeout(8_000) });
+    if (!r.ok) { restPresence.fehler += 1; restPresence.letzterFehler = `HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`; return; }
+    const j = await r.json();
+    const liste = (Array.isArray(j) ? j : []).filter((c) => c?.circle === 'friends').flatMap((c) => c.presences ?? []);
+    const jetzt = new Date().toISOString();
+    const gesehen = new Set();
+    let mit = 0;
+    for (const p of liste) {
+      const id = String(p?.accountId ?? '').replace(/-/g, '').toLowerCase();
+      if (!HEX32.test(id)) continue;
+      const ns = (p.perNs ?? []).find((n) => n?.props?.SessionIdAttributeKey !== undefined) ?? (p.perNs ?? []).find((n) => n?.productId === 'prod-fn') ?? p.perNs?.[0];
+      const { sid, playlist, kills } = propsLesen(ns?.props);
+      const zeile = String(ns?.activity?.value ?? '');
+      const status = String(p.status ?? ns?.status ?? '');
+      if (status === 'offline') continue;
+      gesehen.add(id);
+      restPresence.jeId.set(id, { t: jetzt, status, sid, playlist, kills, zeile, props: Object.keys(ns?.props ?? {}).length });
+      const alt = k.freunde.get(id);
+      const vonRest = k.sitzungVonRest.get(id) ?? null;
+      if (sid) {
+        mit += 1;
+        // Eine Match-ID aus XMPP (oder der Sitzungssuche) geht vor.
+        if (alt?.sessionId && alt.sessionId !== vonRest) continue;
+        if (vonRest !== sid) {
+          restPresence.funde += 1;
+          restPresence.protokoll.push({ t: jetzt, id: id.slice(0, 8), sitzung: sid.slice(0, 8), playlist });
+          if (restPresence.protokoll.length > 50) restPresence.protokoll.shift();
+          log(`[bot] EOS-Status ${id}: ${vonRest ?? '-'} -> ${sid} (${playlist ?? '-'})`);
+        }
+        k.freunde.set(id, {
+          sessionId: sid, zeile: zeile || alt?.zeile || 'Im Match', playlist: playlist ?? alt?.playlist ?? null, kills: kills ?? alt?.kills ?? null,
+          seit: alt?.sessionId === sid ? alt.seit : jetzt, zuletzt: jetzt, online: true,
+        });
+        k.sitzungVonRest.set(id, sid); k.onlineVonRest.add(id);
+        wechsel(id);
+      } else {
+        if (vonRest) k.sitzungVonRest.delete(id);
+        const offenVonRest = vonRest && alt?.sessionId === vonRest;
+        if (offenVonRest || !alt || alt.online === false || k.onlineVonRest.has(id)) {
+          if (offenVonRest || !alt || alt.zeile !== zeile || !alt.online) {
+            k.freunde.set(id, { ...(alt ?? {}), sessionId: offenVonRest ? null : alt?.sessionId ?? null, seit: offenVonRest ? null : alt?.seit ?? null, zeile, playlist, kills, zuletzt: jetzt, online: true });
+            wechsel(id);
+          }
+          k.onlineVonRest.add(id);
+        }
+      }
+    }
+    // Nicht mehr in der Liste: was dieser Weg gesetzt hat, zuruecknehmen.
+    for (const id of [...k.onlineVonRest]) {
+      if (gesehen.has(id)) continue;
+      k.onlineVonRest.delete(id);
+      const vonRest = k.sitzungVonRest.get(id);
+      k.sitzungVonRest.delete(id);
+      const alt = k.freunde.get(id);
+      if (alt && (alt.sessionId === vonRest || !alt.sessionId)) { k.freunde.set(id, { ...alt, sessionId: alt.sessionId === vonRest ? null : alt.sessionId, seit: null, online: false, zuletzt: jetzt }); wechsel(id); }
+    }
+    restPresence.mitSitzung = mit;
+    restPresence.letzteRunde = jetzt;
+  } catch (e) { restPresence.fehler += 1; restPresence.letzterFehler = e?.message ?? String(e); } finally { restLaeuft = false; }
+}
+setInterval(() => { void restPresenceHolen(); }, PRESENCE_MS);
 
 /* ------------------------------------------------------------------ Status der Freunde */
 
