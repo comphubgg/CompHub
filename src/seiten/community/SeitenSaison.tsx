@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { Glas } from '../../teile/Glas';
 import { Countdown, DatenFehlen, KalenderKnopf, LinkKopieren, restText, useHubDatei, useJetzt } from './Bausteine';
 import { Laedt, TEAL, Ueberschrift } from './Teile';
+import { useAblage } from './kosmetik/daten';
+import { AblageHinweis } from './kosmetik/Raster';
 
 /*
  * Saison-Seiten: Season Countdown, XP Calculator, Map Rotation.
@@ -103,10 +105,15 @@ export function XpRechner() {
   const jetzt = useJetzt(60_000);
   const ende = Date.parse(s.end); const start = s.start ? Date.parse(s.start) : null;
   const tage = Math.max(0, Math.ceil((ende - jetzt) / 864e5));
-  const [stufe, setStufe] = useState(1);
-  const [ziel, setZiel] = useState(100);
+  // Extras: Stand wird gemerkt (Konto oder Browser), Spieltage pro Woche, Restlevel-Fortschritt (XP in der aktuellen Stufe).
+  const gemerkt = useAblage<{ stufe: number; ziel: number; tageProWoche: number; inStufe: number }>('xp-rechner', { stufe: 1, ziel: 100, tageProWoche: 7, inStufe: 0 });
+  const { stufe, ziel, tageProWoche, inStufe } = { ...{ tageProWoche: 7, inStufe: 0 }, ...gemerkt.wert };
+  const merken = (x: Partial<typeof gemerkt.wert>) => gemerkt.setzen((v) => ({ ...v, ...x }));
+  const setStufe = (n: number) => merken({ stufe: n }); const setZiel = (n: number) => merken({ ziel: n });
   const [tab, setTab] = useState<'rechner' | 'stufen'>('rechner');
-  const noetig = Math.max(0, ziel - stufe) * XP_PRO_STUFE;
+  const noetig = Math.max(0, Math.max(0, ziel - stufe) * XP_PRO_STUFE - inStufe);
+  const spieltage = Math.max(1, Math.round((tage * tageProWoche) / 7));
+  const proSpieltag = tage ? Math.ceil(noetig / spieltage) : noetig;
   const proTag = tage ? Math.ceil(noetig / tage) : noetig;
   // "Heute Stufe X sein": gleichmaessiger Weg vom Saisonstart bis zum Ende.
   const heuteSoll = (z: number) => (start ? Math.max(1, Math.floor(((jetzt - start) / (ende - start)) * z)) : null);
@@ -129,6 +136,13 @@ export function XpRechner() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">You need</p>
               <p className="mt-1 text-5xl font-black tabular-nums text-white">{proTag.toLocaleString('en')} <span className="text-2xl text-white/50">XP / day</span></p>
               <p className="mt-1 text-sm text-white/50">{noetig.toLocaleString('en')} XP in total · {XP_PRO_STUFE.toLocaleString('en')} XP per level (Battle Pass rule since Chapter 4)</p>
+              {tageProWoche < 7 && <p className="mt-2 text-sm font-semibold text-teal-100">Playing {tageProWoche} days a week: <b className="text-white">{proSpieltag.toLocaleString('en')} XP</b> on each of your {spieltage} play days · ≈ {(proSpieltag / 80_000).toFixed(1)} levels per session</p>}
+            </div>
+            <div className="mt-4 flex flex-wrap items-end gap-6">
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">XP already in this level<input type="number" min={0} max={XP_PRO_STUFE - 1} step={1000} value={inStufe} onChange={(e) => merken({ inStufe: Math.min(XP_PRO_STUFE - 1, Math.max(0, Number(e.target.value) || 0)) })} className="mt-1.5 block w-32 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-lg font-bold tabular-nums text-white focus:border-teal-300/60 focus:outline-none" /></label>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Days you play per week <span className="ml-1 text-teal-200">{tageProWoche}</span>
+                <input type="range" min={1} max={7} value={tageProWoche} onChange={(e) => merken({ tageProWoche: Number(e.target.value) })} className="mt-3 block w-48 accent-teal-300" /></label>
+              <AblageHinweis ort={gemerkt.ort} />
             </div>
             {start && (
               <div className="mt-4 grid grid-cols-2 gap-3">
