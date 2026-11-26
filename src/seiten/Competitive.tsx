@@ -20,6 +20,8 @@ interface Termin { cup: Cup; region: string; f: Fenster }
 
 const uhr = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  // ab 24 Stunden in Tagen (Betreiber: "anstatt 170 Stunden ... Days")
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h ${String(m).padStart(2, '0')}m`;
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(x).padStart(2, '0')}s`;
 };
 const zeit = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
