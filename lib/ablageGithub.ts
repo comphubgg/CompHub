@@ -79,6 +79,7 @@ const AM_RELEASE: Array<RegExp> = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^clutch-je\//,
+  /^clutch-tief(-je)?\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
@@ -119,6 +120,7 @@ const NUR_RELEASE: Array<RegExp> = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^clutch-je\//,
+  /^clutch-tief(-je)?\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^scrims\//,
@@ -142,6 +144,7 @@ const ZUERST: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^clutch-tief(-je)?\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|wertung-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|fncs-endspiele|team-verlauf|waffen-bilder)\.json$/,

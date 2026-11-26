@@ -118,6 +118,7 @@ jobs:
         timeout-minutes: 6
         run: node scripts/clutch-je-abgleich.mjs --hoechstens 10 --minuten 2 2>&1 | tail -40
 
+      # clutch-tief: Deep Stats je Spieltag (scripts/clutch-zusammen.mjs, 26.11.2026).
       # clutch-je ausdruecklich: --nur clutch trifft nur "clutch" und "clutch/...", nicht "clutch-je/..." (scripts/ablage-github.mjs, gewuenscht). Ohne die Datei
       # zeigte die Lage in clutch/<w>.json auf eine Datei, die es am Release nicht gab, und der naechste Lauf verwarf die Zeilen dieses Laufs (15.11.2026).
       - name: Ans Release
@@ -126,7 +127,7 @@ jobs:
         run: |
           # Die Dateien laufender oder eben beendeter grosser Cups zuerst (vor dem Neu-Lesen aelterer Spieltage).
           zuerst=$(node scripts/frischer-cup.mjs --gross --nach 360 --liste || true)
-          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh ${zuerst:+--zuerst "$zuerst"} 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh --nur clutch-je --nur clutch-umbau --nur clutch-umbau-je --nur clutch-umbau-roh --nur clutch-tief --nur clutch-tief-je ${zuerst:+--zuerst "$zuerst"} 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
           # pipefail fehlt in "run" - das Ergebnis des Hochladens selbst zaehlt (die Marke darf nur nach geglueckter Ablage kommen).
           exit ${PIPESTATUS[0]}
 

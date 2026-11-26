@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { JE_SPALTEN, alteZeile, jeDatei, jeFehltVon, jeLesen } from '../lib/jeSpiel.mjs';
 import { tagFuer } from '../lib/releaseTags.mjs';
+import { tiefZusammen } from '../lib/tiefeWerte.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const TEILE = path.join(DATEN, 'clutch-teil');
@@ -61,6 +62,41 @@ const jeVomRelease = (w, umbau) => vomRelease(`${umbau ? 'clutch-umbau-je' : 'cl
 const GROSS_MAX = 250;
 const liesDatei = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 const addiere = (ziel, quelle) => { for (const [k, v] of Object.entries(quelle ?? {})) ziel[k] = (ziel[k] ?? 0) + v; };
+
+/*
+ * Deep Stats (lib/tiefeWerte, 26.11.2026): die Beitraege je Match aus den Teilen (teil.tief, lib/vollMatch.mjs) nach clutch-tief-je/<w>.json - je Match-Id
+ * ein Eintrag. Ein Match aendert sich nie; liest der Plan es neu, ersetzt der neue Beitrag den alten (nie doppelt). Unabhaengig vom Umbau oben: die
+ * Datei waechst Match fuer Match. Daraus die Zusammenfassung, die die Seite liest (clutch-tief/<w>.json, wenige MB auch bei grossen Cups), und
+ * clutch-tief/_liste.json: welche Spieltage es gibt (fuer die Auswahl auf /deep-stats).
+ * Nicht im Live-Bau des Servers (lib/liveAblage.mjs) - dort holte jeder Bau die ganze Datei vom Release.
+ */
+const TIEF = path.join(DATEN, 'clutch-tief');
+const TIEF_JE = path.join(DATEN, 'clutch-tief-je');
+const TIEF_AUS = Boolean(process.env.LIVE_NUR_BAUEN || process.env.LIVE_SENDEN_URL || process.env.COMPHUB_LIVE_ORT);
+let tiefListe;
+async function tiefAblegen(w, d, neu) {
+  // Erst die Liste: steht der Spieltag nicht darin, gibt es seine Dateien noch nicht - kein Abruf, der erst nach 40 s "fehlt" sagt.
+  if (tiefListe === undefined) {
+    try { tiefListe = JSON.parse(String(await vomRelease('clutch-tief/_liste.json') ?? 'null')) ?? {}; } catch (e) { console.log(`  clutch-tief/_liste.json nicht lesbar (${e.message})`); tiefListe = null; }
+  }
+  if (!tiefListe) return;
+  let alt = null;
+  if (tiefListe[w] || fs.existsSync(path.join(TIEF_JE, `${w}.json`))) {
+    try { alt = JSON.parse(String(await vomRelease(`clutch-tief-je/${w}.json`) ?? 'null')); } catch (e) { console.log(`  ${w}: clutch-tief-je nicht lesbar (${e.message}) - Deep Stats diesmal nicht weitergefuehrt`); return; }
+    if (!alt?.matches) { console.log(`  ${w}: clutch-tief-je fehlt am Release - Deep Stats diesmal nicht weitergefuehrt`); return; }
+  }
+  const t = alt ?? { windowId: w, matches: {} };
+  for (const [id, b] of neu) t.matches[id] = b;
+  const kopf = { windowId: w, eventId: d.eventId ?? t.eventId ?? null, gesamt: d.gesamt ?? t.gesamt ?? null, ohne: d.ohne?.length ?? 0, gerechnet: new Date().toISOString() };
+  Object.assign(t, kopf);
+  fs.mkdirSync(TIEF_JE, { recursive: true });
+  fs.writeFileSync(path.join(TIEF_JE, `${w}.json`), JSON.stringify(t));
+  const summe = tiefZusammen(Object.values(t.matches));
+  fs.mkdirSync(TIEF, { recursive: true });
+  fs.writeFileSync(path.join(TIEF, `${w}.json`), JSON.stringify({ ...kopf, ids: Object.keys(t.matches), ...summe }));
+  tiefListe[w] = { eventId: kopf.eventId, gesamt: kopf.gesamt, matches: summe.matches, ohne: kopf.ohne, gerechnet: kopf.gerechnet };
+  fs.writeFileSync(path.join(TIEF, '_liste.json'), JSON.stringify(tiefListe));
+}
 
 const jeTag = new Map();
 /** Teil-Dateien, die eingearbeitet sind oder deren Matches schon dastanden - fuer die Marke in scripts/clutch-teile-holen.mjs (zurueckgestellte fehlen). */
@@ -141,6 +177,7 @@ for (const [w, dateien] of jeTag) {
   }
   let roh = null;
   const eingearbeitet = [];
+  const tiefNeu = new Map();
   for (const datei of dateien) {
     const t = liesDatei(datei);
     if (!t) continue;
@@ -204,6 +241,7 @@ for (const [w, dateien] of jeTag) {
       const rohDa = new Set(roh.matches.map((m) => m.id));
       for (const m of t.roh) if (!rohDa.has(m.id)) roh.matches.push(m);
     }
+    for (const b of t.tief ?? []) if (b?.id) tiefNeu.set(b.id, b);
     neu += neuHier.length;
     eingearbeitet.push(path.basename(datei));
   }
@@ -212,6 +250,7 @@ for (const [w, dateien] of jeTag) {
    * geschrieben und ging bei jeder Ablage wieder ans Release.
    */
   if (!eingearbeitet.length && !neuAnfang) continue;
+  if (tiefNeu.size && !TIEF_AUS) await tiefAblegen(w, d, tiefNeu);
   const fertigeTeile = eingearbeitet;
   const gelesen = d.matches.length;
   const erledigt = gelesen + d.ohne.length;

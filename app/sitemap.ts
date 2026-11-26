@@ -64,6 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ['/tournament-maps', 0.5, 'weekly'],
     ['/fncs', 0.5, 'weekly'],
     ['/replays', 0.6, 'daily'],
+    ['/deep-stats', 0.6, 'daily'],
     ['/privacy', 0.2, 'yearly'],
     ['/terms', 0.2, 'yearly'],
     ['/how-it-works', 0.3, 'monthly'],

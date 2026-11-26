@@ -72,6 +72,8 @@ const NUR_HIER: Ziel[] = [
   { href: '/globals-solos', titel: 'FNCS Solos', text: 'Alle Regionen: Qualifizierte, Heats, Last Chance, Finale und die Karte jedes Spieltags', symbol: 'solos' },
   // Replays gibt es nur hier (nicht in der Leiste): alle Games zum Abspielen, dort umschaltbar auf "Meine Replays".
   { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
+  // Deep Stats (Betreiber, 26.11.2026): eine eigene Seite neben Replays, nicht unter /statistics.
+  { href: '/deep-stats', titel: 'Deep Stats', text: 'Schaden je Waffe, Treffer, Third Partys und Lande- und Todesorte je Spieltag', symbol: 'statistik' },
   { href: '/contact', titel: 'Kontakt', text: 'Per Discord oder E-Mail erreichst du den Betreiber', symbol: 'kontakt' },
 ];
 const NUR_HIER_ADMIN: Ziel[] = [

@@ -68,6 +68,7 @@ export default function Fusszeile() {
               ['/tierlist', 'Tierlist'],
               ['/streams', 'Streams'],
               ['/replays', 'Replays'],
+              ['/deep-stats', 'Deep Stats'],
             ] as Array<[string, string]>).map(([pfad, titel]) => (
               <li key={pfad}>
                 <Link href={pfad}
