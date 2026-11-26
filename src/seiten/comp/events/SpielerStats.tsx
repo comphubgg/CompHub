@@ -108,7 +108,7 @@ export default function SpielerStats({ eventId, windowId, live, spielerInfo }: {
                   <td className="px-4 py-2 text-xs font-bold tabular-nums text-white/45">{i + 1}</td>
                   <td className="px-2 py-2">
                     <Link to={`/competitive/player/${z.epicId}`} className="group flex items-center gap-2.5">
-                      <Avatar p={p} groesse={7} />
+                      <span className="flex h-9 w-7 shrink-0"><Avatar p={p} klein /></span>
                       {land && <img src={flagge(land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}
                       <span className="truncate font-semibold text-white group-hover:text-sky-300">{spielerName(p)}</span>
                     </Link>

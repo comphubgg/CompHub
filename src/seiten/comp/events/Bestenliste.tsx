@@ -14,12 +14,11 @@ export interface Eintrag {
 }
 export const spielerName = (p: { anzeige?: string | null; name: string }) => p.anzeige || p.name;
 
-export function Avatar({ p, groesse = 9 }: { p: LbSpieler; groesse?: number }) {
+/** Kleines Hochformat-Foto (nie runde, ueberlappende Kreise). Ohne Foto: nichts. */
+export function Avatar({ p, klein }: { p: LbSpieler; klein?: boolean }) {
   const [kaputt, setKaputt] = useState(false);
-  const k = groesse === 9 ? 'h-9 w-9' : groesse === 7 ? 'h-7 w-7' : 'h-12 w-12';
-  return p.img && !kaputt
-    ? <img src={p.img} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${k} shrink-0 rounded-full object-cover object-top ring-2 ring-[#0a0e18]`} />
-    : <span className={`${k} grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-[11px] font-bold uppercase text-white/50 ring-2 ring-[#0a0e18]`}>{spielerName(p).replace(/[^a-z0-9]/gi, '').slice(0, 2) || '?'}</span>;
+  if (!p.img || kaputt) return null;
+  return <img src={p.img} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${klein ? 'h-9 w-7 rounded-md' : 'h-12 w-9 rounded-lg'} shrink-0 border border-white/10 object-cover object-top`} />;
 }
 
 export const SPALTEN = 'grid grid-cols-[56px_minmax(0,1fr)_84px_64px_64px_56px_72px] items-center gap-3';
@@ -29,7 +28,7 @@ function Zeile({ e, wechsel, offen, umschalten, qualiZone }: { e: Eintrag; wechs
   return (
     <motion.div layout="position" transition={{ type: 'spring', stiffness: 380, damping: 36 }}
       className={`border-b border-white/[0.04] transition-colors duration-[1500ms] ${wechsel ? (wechsel > 0 ? 'bg-emerald-400/[0.08]' : 'bg-rose-400/[0.07]') : qualiZone ? 'bg-sky-400/[0.025]' : ''}`}>
-      <div role="button" tabIndex={0} onClick={umschalten} onKeyDown={(k) => k.key === 'Enter' && umschalten()} className={`${SPALTEN} cursor-pointer px-4 py-2.5 hover:bg-white/[0.03]`}>
+      <div role="button" tabIndex={0} onClick={umschalten} onKeyDown={(k) => k.key === 'Enter' && umschalten()} className={`${SPALTEN} cursor-pointer px-4 py-2 hover:bg-white/[0.03]`}>
         <div className="flex items-center gap-1.5">
           <span className={`text-base font-extrabold tabular-nums ${farbe}`}>{e.rank}</span>
           <AnimatePresence>{wechsel ? (
@@ -37,8 +36,8 @@ function Zeile({ e, wechsel, offen, umschalten, qualiZone }: { e: Eintrag; wechs
               className={`text-[10px] font-bold tabular-nums ${wechsel > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{wechsel > 0 ? '▲' : '▼'}{Math.abs(wechsel)}</motion.span>
           ) : null}</AnimatePresence>
         </div>
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex -space-x-2.5">{e.players.map((p) => <Avatar key={p.id} p={p} />)}</div>
+        <div className="flex min-h-[48px] min-w-0 items-center gap-3">
+          {e.players.every((p) => p.img) && <div className="flex shrink-0 gap-1">{e.players.map((p) => <Avatar key={p.id} p={p} />)}</div>}
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
             {e.players.map((p) => (
               <Link key={p.id} to={`/competitive/player/${p.id}`} onClick={(x) => x.stopPropagation()} className="group flex min-w-0 items-center gap-1.5">

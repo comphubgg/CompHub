@@ -83,6 +83,9 @@ export function modiVon(c: Cup): Set<Modus> {
 }
 export const istRanked = (c: Cup) => c.art === 'ranked' || /\branked\b/i.test(`${c.titel} ${c.untertitel ?? ''}`);
 
+/** Das Bild eines Cups als Deko - nie Ranked- oder Skin-Cup-Artwork (Betreiber), dann gibt es den Farbverlauf. */
+export const dekoBild = (c: Cup): string | undefined => (c.art === 'skin' || istRanked(c) ? undefined : c.bild);
+
 /* ---------------------------------------------------------------- Stufen */
 /** Der Name eines Spieltags aus Epics Kennung: "S43_..._Event4Round2_EU" -> "Event 4 · Round 2". */
 export function stufeName(f: Pick<Fenster, 'windowId' | 'istFinale' | 'rundenTyp'>): string {
@@ -116,7 +119,7 @@ export function dauer(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sek = s % 60;
   const z = (n: number) => String(n).padStart(2, '0');
-  if (d) return `${d}d ${z(h)}h`;
+  if (d) return `${d}d ${h}h ${z(m)}m`;
   if (h) return `${h}h ${z(m)}m`;
   return `${m}m ${z(sek)}s`;
 }

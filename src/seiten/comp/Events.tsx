@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas, Titel } from '../../teile/Glas';
 import {
-  ART_NAME, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dauer, istRanked, lageVon, modiVon, stufeName, tagKurz, useJetzt,
+  ART_NAME, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dekoBild, dauer, istRanked, lageVon, modiVon, stufeName, tagKurz, useJetzt,
   type Cup, type Lage, type Modus,
 } from './events/gemeinsam';
 import { LiveMarke, RegionMarke, knopf } from './events/teile';
@@ -37,8 +37,8 @@ function Kachel({ c, lage, mitBild, jetzt, i }: { c: Cup; lage: Lage; mitBild: b
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ delay: Math.min(i, 12) * 0.035, duration: 0.4 }}>
       <Link to={cupLink(c, f)} className="group block h-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-2xl hover:shadow-sky-500/10">
-        <div className="relative aspect-[16/8] overflow-hidden">
-          {mitBild && c.bild && !kaputt ? <img src={c.bild} alt="" loading="lazy" onError={() => setKaputt(true)} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <Ersatzbild c={c} />}
+        <div className="relative aspect-video overflow-hidden">
+          {mitBild && dekoBild(c) && !kaputt ? <img src={dekoBild(c)} alt="" loading="lazy" onError={() => setKaputt(true)} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <Ersatzbild c={c} />}
           <div className="absolute inset-0 bg-gradient-to-t from-[#070a12] via-[#070a12]/20 to-transparent" />
           <div className="absolute left-3 top-3 flex gap-1.5">
             {lage.status === 'live' && <LiveMarke />}
@@ -75,7 +75,7 @@ function Held({ c, lage, jetzt }: { c: Cup; lage: Lage; jetzt: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03]">
-      {c.bild ? <motion.img src={c.bild} alt="" initial={{ scale: 1.08 }} animate={{ scale: 1 }} transition={{ duration: 1.6, ease: 'easeOut' }} className="absolute inset-0 h-full w-full object-cover object-center" /> : <Ersatzbild c={c} />}
+      {dekoBild(c) ? <motion.img src={dekoBild(c)} alt="" initial={{ scale: 1.08 }} animate={{ scale: 1 }} transition={{ duration: 1.6, ease: 'easeOut' }} className="absolute inset-0 h-full w-full object-cover object-center" /> : <Ersatzbild c={c} />}
       <div className="absolute inset-0 bg-gradient-to-r from-[#06080f] via-[#06080f]/80 to-[#06080f]/10" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/90 via-transparent to-transparent" />
       <div className="relative grid min-h-[380px] gap-8 p-8 lg:grid-cols-[1fr_auto] lg:p-12">
@@ -154,7 +154,7 @@ export default function Events() {
     const vorbei = liste.filter((x) => x.lage.status === 'vorbei' && x.lage.letzter).sort((a, b) => (b.lage.letzter ?? 0) - (a.lage.letzter ?? 0));
     // Der Kopf nimmt keinen Ranked Cup, wenn es etwas anderes gibt.
     const kopfWahl = [...live, ...[...kommt].sort((a, b) => gewicht(a.c) - gewicht(b.c) || (a.lage.naechster ?? 0) - (b.lage.naechster ?? 0))];
-    const kopf = kopfWahl.find((x) => !istRanked(x.c)) ?? kopfWahl[0] ?? null;
+    const kopf = kopfWahl.find((x) => dekoBild(x.c)) ?? kopfWahl.find((x) => !istRanked(x.c)) ?? kopfWahl[0] ?? null;
     return { live, kommt, vorbei, kopf };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cups, region, modus, ranked, suche, minute]);
@@ -164,8 +164,9 @@ export default function Events() {
     const gesehen = new Set<string>();
     const raus = new Map<string, boolean>();
     const merke = (id: string, b?: string) => { if (b && !gesehen.has(b)) { gesehen.add(b); raus.set(id, true); } else raus.set(id, false); };
-    if (ein.kopf?.c.bild) gesehen.add(ein.kopf.c.bild);
-    [...ein.live, ...ein.kommt, ...ein.vorbei.slice(0, mehr)].forEach((x) => { if (x.c.id !== ein.kopf?.c.id) merke(x.c.id, x.c.bild); });
+    const kb = ein.kopf ? dekoBild(ein.kopf.c) : undefined;
+    if (kb) gesehen.add(kb);
+    [...ein.live, ...ein.kommt, ...ein.vorbei.slice(0, mehr)].forEach((x) => { if (x.c.id !== ein.kopf?.c.id) merke(x.c.id, dekoBild(x.c)); });
     return raus;
   }, [ein, mehr]);
 

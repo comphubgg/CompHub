@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Glas } from '../../teile/Glas';
 import {
-  ART_NAME, MODUS_NAME, REGION_NAME, datum, dauer, laeuft, modiVon, stufeName, tagKurz, useJetzt, zahl, type Cup, type Fenster,
+  ART_NAME, MODUS_NAME, REGION_NAME, datum, dekoBild, dauer, laeuft, modiVon, stufeName, tagKurz, useJetzt, zahl, type Cup, type Fenster,
 } from './events/gemeinsam';
 import { LiveMarke, knopf } from './events/teile';
 import Bestenliste, { type Eintrag, type LbSpieler } from './events/Bestenliste';
@@ -173,7 +173,7 @@ export default function EventDetail() {
     <div className="space-y-6">
       {/* ------------------------------------------------ Kopf */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#070a12]">
-        {cup.bild && <motion.img src={cup.bild} alt="" initial={{ scale: 1.06 }} animate={{ scale: 1 }} transition={{ duration: 1.4 }} className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+        {dekoBild(cup) && <motion.img src={dekoBild(cup)} alt="" initial={{ scale: 1.06 }} animate={{ scale: 1 }} transition={{ duration: 1.4 }} className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
         <div className="absolute inset-0" style={{ background: `radial-gradient(90% 140% at 0% 0%, ${cup.farbe ?? '#38bdf8'}33, transparent 60%)` }} />
         <div className="absolute inset-0 bg-gradient-to-r from-[#06080f] via-[#06080f]/85 to-[#06080f]/20" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-transparent to-transparent" />
