@@ -47,11 +47,17 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
   { titel: 'Season', seiten: [
     { pfad: 'season', titel: 'Season Countdown', text: 'Live event and season end' },
     { pfad: 'xp', titel: 'XP Calculator', text: 'XP per day for your level goal' },
+    { pfad: 'treasure-hunt', titel: 'Treasure Hunt', text: 'Rewards, chances, mark as found' },
+    { pfad: 'sprites', titel: 'Sprites', text: 'Owned and mastered tracker' },
+    { pfad: 'lorebook', titel: 'Lorebook', text: 'The story, chapter by chapter' },
   ] },
   { titel: 'Live', seiten: [
     { pfad: 'players', titel: 'Player Count', text: 'Online now and history' },
     { pfad: 'creative', titel: 'Creative', text: 'Most played islands' },
     { pfad: 'news', titel: 'News', text: 'Latest in-game news' },
+    { pfad: 'discover', titel: 'Discover', text: 'What the Discover screen shows' },
+    { pfad: 'creators', titel: 'Creators', text: 'Top Creative makers' },
+    { pfad: 'social', titel: 'Community', text: 'Discord, X, Reddit and more' },
   ] },
   { titel: 'Compete', seiten: [
     { pfad: 'tournaments', titel: 'Tournaments', text: 'Upcoming cups and results' },
