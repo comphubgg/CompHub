@@ -45,6 +45,18 @@ function teileAuf(cups: Cup[], jetzt: number) {
 }
 
 /** Live-Top-5 eines laufenden Spieltags, alle 15 Sekunden frisch. */
+/** Spielerfoto hochkant (Betreiber: "nicht rund, eher hochkant rechteckig ... kleiner und zu dritt"). */
+function Hochkant({ p, gross = false }: { p: LbSpieler; gross?: boolean }) {
+  const mass = gross ? 'h-14 w-11' : 'h-12 w-9';
+  return (
+    <Link to={`/competitive/player/${p.id}`} title={name(p)} className={`group/f relative ${mass} shrink-0 overflow-hidden rounded-lg bg-white/[0.06] ring-1 ring-white/10`}>
+      {p.img ? <img src={p.img} alt="" className="h-full w-full object-cover object-top transition duration-500 group-hover/f:scale-110" />
+        : <span className="grid h-full w-full place-items-center text-sm font-black text-white/30">{name(p).slice(0, 1)}</span>}
+      <span className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+    </Link>
+  );
+}
+
 function LiveTop({ f }: { f: Fenster }) {
   const [liste, setListe] = useState<LbEintrag[] | null>(null);
   useEffect(() => {
@@ -65,11 +77,7 @@ function LiveTop({ f }: { f: Fenster }) {
           <motion.li layout key={e.players.map((p) => p.id).join()} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
             className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-xl">
             <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${e.rank === 1 ? 'bg-yellow-300 text-black' : e.rank <= 3 ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>{e.rank}</span>
-            <div className="flex -space-x-2">
-              {e.players.slice(0, 3).map((p) => p.img
-                ? <img key={p.id} src={p.img} alt="" className="h-9 w-9 rounded-full border-2 border-[#0b0f1a] object-cover object-top" />
-                : <span key={p.id} className="grid h-9 w-9 place-items-center rounded-full border-2 border-[#0b0f1a] bg-white/10 text-xs font-bold text-white/70">{name(p).slice(0, 1)}</span>)}
-            </div>
+            <div className="flex gap-1">{e.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} />)}</div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">
                 {e.players.map((p, i) => <span key={p.id}>{i > 0 && <span className="text-white/30"> · </span>}<Link to={`/competitive/player/${p.id}`} className="hover:text-sky-300">{name(p)}</Link></span>)}
@@ -163,39 +171,44 @@ function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt
   );
 }
 
-/** Die naechsten 24 Stunden als Zeitleiste, eine Spur pro Region. */
-function Zeitleiste({ kommt, live, jetzt }: { kommt: Termin[]; live: Termin[]; jetzt: number }) {
-  const SPANNE = 24 * 3600e3;
-  const alle = [...live, ...kommt.filter((t) => t.f.begin - jetzt < SPANNE)];
-  if (!alle.length) return null;
-  const regionen = [...new Set(alle.map((t) => t.region))].sort((a, b) => gewicht(a) - gewicht(b));
-  const pos = (t: number) => Math.min(100, Math.max(0, ((t - jetzt) / SPANNE) * 100));
-  const stunden = Array.from({ length: 9 }, (_, i) => jetzt + i * 3 * 3600e3);
+/** Was als Naechstes kommt: eine Karte pro Cup (alle Regionen zusammen), mit Banner, Startzeit und Countdown. */
+function DemnaechstLeiste({ kommt, jetzt }: { kommt: Termin[]; jetzt: number }) {
+  const karten = useMemo(() => {
+    const je = new Map<string, Termin[]>();
+    for (const t of kommt) { if (t.f.begin - jetzt > 7 * 86400e3) break; const k = t.cup.id + Math.floor(t.f.begin / 86400e3); je.set(k, [...(je.get(k) ?? []), t]); }
+    return [...je.values()].slice(0, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kommt]);
+  if (!karten.length) return null;
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl">
+    <section>
       <div className="mb-4 flex items-end justify-between">
-        <h2 className="text-2xl font-extrabold tracking-tight text-white">Next 24 hours</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white">Coming up</h2>
         <Link to="/competitive/events" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All events →</Link>
       </div>
-      <div className="ml-14 flex justify-between text-[11px] tabular-nums text-white/40">{stunden.map((s, i) => <span key={i}>{i === 0 ? 'Now' : zeit(s)}</span>)}</div>
-      <div className="mt-2 space-y-2">
-        {regionen.map((r) => (
-          <div key={r} className="flex items-center gap-2">
-            <span className="w-12 shrink-0 text-xs font-bold text-white/70">{r}</span>
-            <div className="relative h-9 flex-1 rounded-lg bg-white/[0.04]">
-              {alle.filter((t) => t.region === r).map((t) => {
-                const l = pos(t.f.begin), w = Math.max(1.5, pos(t.f.end) - l), an = t.f.begin <= jetzt;
-                return (
-                  <Link key={t.cup.id + t.f.begin} to={`/competitive/events/${t.cup.id}`} title={`${t.cup.titel} · ${zeit(t.f.begin)}–${zeit(t.f.end)}`}
-                    className={`absolute inset-y-1 overflow-hidden rounded-md px-2 text-[11px] font-semibold leading-7 text-white transition hover:z-10 hover:brightness-125 ${an ? 'ring-1 ring-red-400/80' : ''}`}
-                    style={{ left: `${l}%`, width: `${w}%`, background: `${t.cup.farbe ?? '#38bdf8'}b0` }}>
-                    <span className="block truncate">{an && '● '}{t.cup.titel}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {karten.map((ts, i) => {
+          const erst = ts[0];
+          return (
+            <Kachel key={erst.cup.id + erst.f.begin} delay={i * 0.04} className="group">
+              <Link to={`/competitive/events/${erst.cup.id}`} className="block">
+                <div className="relative aspect-video overflow-hidden">
+                  {erst.cup.bild && <img src={erst.cup.bild} alt="" className="h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-105 group-hover:opacity-100" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d16] via-[#0a0d16]/20 to-transparent" />
+                  <span className="absolute right-3 top-3 rounded-lg bg-black/70 px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-sky-300 backdrop-blur">in {uhr(erst.f.begin - jetzt)}</span>
+                </div>
+                <div className="p-4 pt-1">
+                  <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight text-white">{erst.cup.titel}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {ts.sort((a, b) => gewicht(a.region) - gewicht(b.region)).map((t) => (
+                      <span key={t.region + t.f.begin} className="rounded-md bg-white/[0.07] px-2 py-1 text-[11px] text-white/80"><b className="text-white">{t.region}</b> {zeit(t.f.begin)}</span>
+                    ))}
+                  </div>
+                </div>
+              </Link>
+            </Kachel>
+          );
+        })}
       </div>
     </section>
   );
@@ -263,27 +276,6 @@ function Bewegung({ liste, titel, gut }: { liste: PR[]; titel: string; gut: bool
   );
 }
 
-function Laender({ laender }: { laender: Array<{ land: string; n: number }> }) {
-  const max = Math.max(1, ...laender.map((l) => l.n));
-  return (
-    <Kachel className="p-5" delay={0.15}>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Top 100 by country</p>
-      <ul className="space-y-2">
-        {laender.slice(0, 8).map((l, i) => (
-          <li key={l.land} className="flex items-center gap-2">
-            <img src={flagge(l.land)} alt="" className="h-3.5 w-5 rounded-sm object-cover" />
-            <span className="w-7 text-[11px] font-bold uppercase text-white/50">{l.land}</span>
-            <div className="h-4 flex-1 overflow-hidden rounded bg-white/[0.04]">
-              <motion.div initial={{ width: 0 }} whileInView={{ width: `${(l.n / max) * 100}%` }} viewport={{ once: true }} transition={{ delay: 0.08 * i, duration: 0.8 }} className="h-full rounded bg-gradient-to-r from-sky-500/70 to-sky-300/70" />
-            </div>
-            <span className="w-6 text-right font-mono text-sm tabular-nums text-white">{l.n}</span>
-          </li>
-        ))}
-      </ul>
-    </Kachel>
-  );
-}
-
 /** Die Sieger der zuletzt beendeten Spieltage (EU und NAC zuerst, je Cup nur der letzte Tag). */
 function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
   const schluessel = vorbei.map((t) => t.f.windowId).join();
@@ -313,22 +305,22 @@ function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
           const s = sieger[t.f.windowId!];
           return (
             <Kachel key={t.f.windowId} delay={i * 0.06} className="group">
-              <Link to={`/competitive/events/${t.cup.id}`} className="block">
-                <div className="relative h-36 overflow-hidden">
+              <div>
+                <Link to={`/competitive/events/${t.cup.id}`} className="relative block h-36 overflow-hidden">
                   {t.cup.bild && <img src={t.cup.bild} alt="" className="h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-90" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d16] to-transparent" />
                   <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur">{t.region}</span>
-                </div>
+                </Link>
                 <div className="p-4 pt-0">
                   <p className="truncate text-xs text-white/50">{t.cup.titel}</p>
                   {s === undefined ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-white/[0.05]" /> : s ? (
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="flex -space-x-2">{s.players.slice(0, 3).map((p) => p.img ? <img key={p.id} src={p.img} alt="" className="h-10 w-10 rounded-full border-2 border-[#0a0d16] object-cover object-top" /> : <span key={p.id} className="grid h-10 w-10 place-items-center rounded-full border-2 border-[#0a0d16] bg-white/10 text-xs font-bold text-white/60">{name(p).slice(0, 1)}</span>)}</div>
+                      <div className="flex gap-1">{s.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} gross />)}</div>
                       <div className="min-w-0"><p className="truncate text-sm font-bold text-white">🏆 {s.players.map(name).join(' · ')}</p><p className="text-[11px] text-white/50">{s.points} pts · {s.elims} elims</p></div>
                     </div>
                   ) : <p className="mt-2 text-sm text-white/40">No leaderboard</p>}
                 </div>
-              </Link>
+              </div>
             </Kachel>
           );
         })}
@@ -338,10 +330,11 @@ function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
 }
 
 const WEITER = [
-  { titel: 'Statistics', text: 'Damage, elims and mats of every pro.', pfad: 'statistics', bild: '/slider/eis-trio.webp' },
-  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', bild: '/slider/disco.webp' },
-  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: '/slider/hase.webp' },
-  { titel: 'Replays', text: 'Rewatch any cup match in 2D.', pfad: 'replays', bild: '/slider/hoodie.webp' },
+  // Betreiber: Bilder im 16:9-Format, damit nichts abgeschnitten wird; keine Skin-Cups, sondern feste Cups (Cash, Ranked, FNCS)
+  { titel: 'Statistics', text: 'Damage, elims and mats of every pro.', pfad: 'statistics', bild: '/slider/eis-trio.webp', lage: 'center 30%' },
+  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', bild: 'https://cdn2.unrealengine.com/en-fneco-33-00-competitive-discoverytile-cashcup-1920x1080-1920x1080-30d0287241c3.jpg', lage: 'center' },
+  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: 'https://cdn2.unrealengine.com/en-fneco-33-00-competitive-discoverytile-rankedcups-1920x1080-1920x1080-a078f4d982b2.jpg', lage: 'center' },
+  { titel: 'Replays', text: 'Rewatch any cup match in 2D.', pfad: 'replays', bild: 'https://cdn2.unrealengine.com/en-fnce-42-00-solos-discovertile-1920x1080-1920x1080-456d617381ea.jpg', lage: 'center' },
 ];
 
 export default function Competitive() {
@@ -363,7 +356,7 @@ export default function Competitive() {
   return (
     <div className="space-y-8">
       <Buehne live={live} kommt={kommt} jetzt={jetzt} />
-      <Zeitleiste live={live} kommt={kommt} jetzt={jetzt} />
+      <DemnaechstLeiste kommt={kommt} jetzt={jetzt} />
       <section>
         <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Power Rankings this week</h2>
         <div className="grid gap-4 lg:grid-cols-4">
@@ -372,16 +365,13 @@ export default function Competitive() {
           <Bewegung liste={pr.absteiger} titel="Biggest fallers" gut={false} />
         </div>
       </section>
-      <div className="grid gap-4 lg:grid-cols-[1fr_3fr]">
-        <Laender laender={pr.laender} />
-        <LetzteSieger vorbei={vorbei} />
-      </div>
+      <LetzteSieger vorbei={vorbei} />
       <section>
         <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Go deeper</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {WEITER.map((w, i) => (
-            <Kachel key={w.pfad} delay={i * 0.05} className="group h-56">
-              <img src={w.bild} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60 transition duration-700 group-hover:scale-105 group-hover:opacity-80" />
+            <Kachel key={w.pfad} delay={i * 0.05} className="group aspect-video">
+              <img src={w.bild} alt="" style={{ objectPosition: w.lage }} className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-80" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-[#05070d]/50 to-transparent" />
               <Link to={`/competitive/${w.pfad}`} className="absolute inset-0 flex flex-col justify-end p-5">
                 <p className="font-['Bebas_Neue'] text-4xl tracking-wide text-white">{w.titel}</p>
