@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 interface Bereich { id: string; titel: string[]; unter: string; bild: string; farbe: string; pfad: string; schloss?: boolean }
 const BEREICHE: Bereich[] = [
   { id: 'community', titel: ['COMMUNITY'], unter: 'Map · Loot · Weapons · Player count', bild: '/bilder/karte-s43.png', farbe: '56,189,248', pfad: '/community' },
-  { id: 'competitive', titel: ['COMPETI', 'TIVE'], unter: 'Live cups · Stats · Rankings · Match finder', bild: '/cups/fncs-grand-finals.webp', farbe: '250,204,21', pfad: '/competitive' },
+  { id: 'competitive', titel: ['COMPETITIVE'], unter: 'Live cups · Stats · Rankings · Match finder', bild: '/cups/fncs-grand-finals.webp', farbe: '250,204,21', pfad: '/competitive' },
   { id: 'streamer', titel: ['STREAMER'], unter: 'Overlays · Your page · Tools', bild: '/cups/console-champions-cup.webp', farbe: '168,85,247', pfad: '/streamer', schloss: true },
 ];
 
@@ -40,7 +40,7 @@ function Karte({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 p-6">
-        <h2 className={`font-titel leading-[0.85] tracking-wide text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)] ${gross ? 'text-[min(8vw,120px)]' : 'text-[min(5.5vw,80px)]'}`}>
+        <h2 className={`font-titel leading-[0.85] tracking-wide text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.8)] ${gross ? 'text-[min(5.3vw,86px)]' : 'text-[min(4.6vw,72px)]'}`}>
           {b.titel.map((z) => <span key={z} className="block">{z}</span>)}
         </h2>
         <p className="mt-3 text-sm font-medium text-slate-300">{b.unter}</p>
