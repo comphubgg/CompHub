@@ -149,6 +149,7 @@ export default function Maps() {
       <SeitenKopf ueber="Drop spots" titel="Maps" text="Where every team landed — every cup, every season."
         rechts={<>
           {eintraege && <Glas className="px-5 py-3 text-right"><p className="text-3xl font-extrabold tabular-nums text-sky-400">{eintraege.length.toLocaleString('en')}</p><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Maps</p></Glas>}
+          <Link to="/community/map-evolution" className="rounded-2xl border border-teal-400/30 bg-teal-400/[0.06] px-4 py-3 text-sm font-semibold text-teal-200 backdrop-blur-xl transition hover:border-teal-300/60 hover:text-white">Map evolution →</Link>
           <Link to="/competitive/maps/view" className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-sky-400/50 hover:text-white">Tournament maps →</Link>
           {wer?.isAdmin && <a href={`${SEITE}/admin/alte-maps`} target="_blank" rel="noreferrer" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:border-amber-300">Manage old maps ↗</a>}
         </>} />

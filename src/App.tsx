@@ -19,6 +19,7 @@ import Maps from './seiten/comp/mehr/maps/Maps';
 import MapsKarte from './seiten/comp/mehr/maps/MapsKarte';
 import TurnierKarte from './seiten/comp/mehr/maps/TurnierKarte';
 import Globals from './seiten/comp/mehr/Globals';
+import GlobalsSolos from './seiten/comp/mehr/GlobalsSolos';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
 import Admin from './seiten/admin/Admin';
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="maps/cup" element={<MapsKarte />} />
             <Route path="maps/view" element={<TurnierKarte />} />
             <Route path="globals/*" element={<Globals />} />
+            <Route path="globals-solos/*" element={<GlobalsSolos />} />
             <Route path="tournament-maps" element={<Navigate to="/competitive/maps" replace />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
           </Route>
