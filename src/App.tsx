@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import Baustelle from './teile/Baustelle';
+import Hintergrund from './teile/Hintergrund';
 
 /*
  * CompHub Hub - lokale Vorschau (Betreiber, 26.11.2026: "CompHub 3.0 ... only localhost ... Startbildschirm wie Fortnite: mittig Competitive,
@@ -7,8 +8,13 @@ import Baustelle from './teile/Baustelle';
  */
 export default function App() {
   return (
-    <Routes>
-      <Route path="*" element={<Baustelle />} />
-    </Routes>
+    <div className="relative min-h-full">
+      <Hintergrund />
+      <div className="relative">
+        <Routes>
+          <Route path="*" element={<Baustelle text="Startbildschirm kommt …" />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
