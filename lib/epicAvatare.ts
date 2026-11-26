@@ -53,18 +53,35 @@ async function abarbeiten() {
     ids.forEach((i) => warteschlange.delete(i));
     const { token } = await getToken();
     avatarStatus.abrufe += 1; avatarStatus.letzterAbruf = new Date().toISOString();
-    const r = await fetch(`https://avatar-service-prod.identity.live.on.epicgames.com/v1/avatar/fortnite/ids?accountIds=${ids.join(',')}`,
-      { headers: { Authorization: token }, signal: AbortSignal.timeout(10_000), cache: 'no-store' });
-    if (!r.ok) { avatarStatus.letzterFehler = `HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`; return; }
-    const liste = await r.json() as Array<{ accountId?: string; avatarId?: string }>;
     const jetzt = Date.now();
     const neu: Record<string, Eintrag> = {};
-    for (const id of ids) neu[id] = { c: null, t: jetzt };
-    for (const a of Array.isArray(liste) ? liste : []) {
-      const id = String(a.accountId ?? '').replace(/-/g, '').toLowerCase();
-      const c = String(a.avatarId ?? '').split(':').pop()?.toLowerCase() ?? '';
-      if (KONTO.test(id) && /^[a-z0-9_]+$/.test(c)) { neu[id] = { c, t: jetzt }; avatarStatus.gefunden += 1; }
-    }
+    let okAntworten = 0;
+    // Epic antwortet mit 500, wenn eine einzige Id in der Abfrage kein gueltiges Konto ist - dann halbieren, bis die schuldige Id allein steht.
+    const frage = async (teil: string[], tiefe: number): Promise<void> => {
+      const r = await fetch(`https://avatar-service-prod.identity.live.on.epicgames.com/v1/avatar/fortnite/ids?accountIds=${teil.join(',')}`,
+        { headers: { Authorization: token }, signal: AbortSignal.timeout(10_000), cache: 'no-store' });
+      if (!r.ok) {
+        if (r.status >= 500 && teil.length > 1 && tiefe < 8) {
+          const h = Math.ceil(teil.length / 2);
+          await frage(teil.slice(0, h), tiefe + 1); await frage(teil.slice(h), tiefe + 1);
+          return;
+        }
+        if (r.status >= 500 && teil.length === 1) { neu[teil[0]] = { c: null, t: jetzt }; return; }
+        avatarStatus.letzterFehler = `HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`;
+        return;
+      }
+      okAntworten += 1;
+      const liste = await r.json() as Array<{ accountId?: string; avatarId?: string }>;
+      for (const id of teil) neu[id] = { c: null, t: jetzt };
+      for (const a of Array.isArray(liste) ? liste : []) {
+        const id = String(a.accountId ?? '').replace(/-/g, '').toLowerCase();
+        const c = String(a.avatarId ?? '').split(':').pop()?.toLowerCase() ?? '';
+        if (KONTO.test(id) && /^[a-z0-9_]+$/.test(c)) { neu[id] = { c, t: jetzt }; avatarStatus.gefunden += 1; }
+      }
+    };
+    await frage(ids, 0);
+    // Keine einzige Antwort ging durch: das liegt nicht an einzelnen Ids (Zugang, Dienst) - dann nichts als "ohne Avatar" merken, spaeter neu.
+    if (!okAntworten) { avatarStatus.letzterFehler ??= 'keine Abfrage erfolgreich'; ids.forEach((i) => warteschlange.add(i)); return; }
     const m = await avatare();
     for (const [k, v] of Object.entries(neu)) m.set(k, v);
     await aendereJson<Record<string, Eintrag>>(DATEI, {}, (o) => { Object.assign(o, neu); }, 0);
