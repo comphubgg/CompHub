@@ -9,7 +9,26 @@ import { useNavigate } from 'react-router-dom';
  */
 
 interface Bereich { id: string; titel: string; zeile: string; punkte: string[]; bilder: string[]; farbe: string; pfad: string; schloss?: boolean }
-const CUP_BILDER = ['/cups/fncs-grand-finals.webp', '/hero/cup-performance.webp', '/cups/fncs-major.webp', '/hero/cup-global.webp', '/cups/elite-cup.webp', '/cups/console-champions-cup.webp'];
+const CUP_BILDER = ['/cups/fncs-grand-finals.webp', '/cups/fncs-major.webp', '/cups/elite-cup.webp'];
+/* Die Streamer der Tafel: die Streamer-Liste der Seite (/api/streamers, Gruppe "streamer") - keine Pros (Betreiber, 26.11.2026). */
+const STREAMER_FALLBACK = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'aussieantics', 'leothecrack', 'wazz', 'nikof'];
+
+/** Die Streamer-Tafel: eine Wand aus Profilbildern (Twitch, ueber unavatar.io) - kleine Bilder bleiben klein und scharf. */
+function StreamerWand({ logins }: { logins: string[] }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(120%_80%_at_50%_0%,rgba(167,139,250,0.35),rgba(6,8,15,0.9)_70%)]">
+      <div className="absolute inset-x-6 top-14 grid grid-cols-3 gap-4">
+        {logins.slice(0, 9).map((l, i) => (
+          <motion.div key={l} className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
+            transition={{ opacity: { delay: 0.4 + i * 0.06 }, y: { duration: 4 + (i % 3), repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 } }}>
+            <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-full rounded-2xl border border-white/15 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
+            <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-wider text-white/60">{l}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Slider({ bilder, farbe }: { bilder: string[]; farbe: string }) {
   const [i, setI] = useState(0);
@@ -46,7 +65,7 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       onMouseLeave={() => { mx.set(0.5); my.set(0.5); }}
       style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
       className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'h-[min(68vh,640px)] w-[min(36vw,560px)]' : 'h-[min(58vh,540px)] w-[min(23vw,340px)]'}`}>
-      <Slider bilder={b.bilder} farbe={b.farbe} />
+      {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} />}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 30%, rgba(6,8,15,0.75) 65%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
       {b.schloss && (
@@ -71,14 +90,24 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
 
 export default function Start() {
   const [aktiv, setAktiv] = useState(1);
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [banner, setBanner] = useState<string[]>([]);
+  const [streamer, setStreamer] = useState<string[]>(STREAMER_FALLBACK);
   const nav = useNavigate();
-  useEffect(() => { fetch('/api/startvitrine').then((r) => r.json()).then((j) => setFotos((j.fotos ?? []).map((f: { bild: string }) => f.bild))).catch(() => {}); }, []);
-  const pro = (n: number) => fotos.slice(n, n + 3);
+  useEffect(() => {
+    // Epics Banner in voller Aufloesung (1920x1080 und groesser) - die kleinen Kopien waren verpixelt.
+    fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => {
+      const alle = (j.cups ?? []).map((c: { bild?: string }) => c.bild).filter((x: unknown): x is string => typeof x === 'string' && x.startsWith('https://cdn2.unrealengine.com'));
+      setBanner([...new Set<string>(alle)].slice(0, 8));
+    }).catch(() => {});
+    fetch('/api/streamers').then((r) => r.json()).then((j) => {
+      const l = (j.streamers?.streamer ?? []).map((s: { twitch?: string }) => s.twitch).filter((x: unknown): x is string => typeof x === 'string' && x !== 'fortnite');
+      if (l.length) setStreamer(l);
+    }).catch(() => {});
+  }, []);
   const BEREICHE: Bereich[] = [
-    { id: 'community', titel: 'Community', zeile: 'Explore the island', punkte: ['Map', 'Loot', 'Weapons', 'Player count'], bilder: ['/bilder/karte-s43.png', '/hero/karte-1.webp', '/hero/karte-3.webp'], farbe: '45,212,191', pfad: '/community' },
-    { id: 'competitive', titel: 'Competitive', zeile: 'Live · Stats · Rankings', punkte: ['Live cups', 'Player stats', 'Power rankings', 'Match finder', 'Deep stats'], bilder: [...CUP_BILDER.slice(0, 3), ...pro(0), ...CUP_BILDER.slice(3)], farbe: '56,189,248', pfad: '/competitive' },
-    { id: 'streamer', titel: 'Streamer', zeile: 'For creators', punkte: ['Overlays', 'Your page', 'Tools'], bilder: pro(10).length ? pro(10) : ['/cups/console-champions-cup.webp'], farbe: '167,139,250', pfad: '/streamer', schloss: true },
+    { id: 'community', titel: 'Community', zeile: 'Explore the island', punkte: ['Map', 'Loot', 'Weapons', 'Player count'], bilder: ['/bilder/karte-orte.png'], farbe: '45,212,191', pfad: '/community' },
+    { id: 'competitive', titel: 'Competitive', zeile: 'Live · Stats · Rankings', punkte: ['Live cups', 'Player stats', 'Power rankings', 'Match finder', 'Deep stats'], bilder: [...CUP_BILDER.slice(0, 1), ...banner, ...CUP_BILDER.slice(1)], farbe: '56,189,248', pfad: '/competitive' },
+    { id: 'streamer', titel: 'Streamer', zeile: 'For creators', punkte: ['Overlays', 'Your page', 'Tools'], bilder: streamer, farbe: '167,139,250', pfad: '/streamer', schloss: true },
   ];
   useEffect(() => {
     const t = (e: KeyboardEvent) => {
@@ -91,8 +120,7 @@ export default function Start() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-9 px-6 py-10">
       <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 text-lg font-black text-[#06080f] shadow-[0_0_30px_rgba(56,189,248,0.45)]">C</span>
-        <span className="text-2xl font-extrabold tracking-tight text-white">Comp<span className="text-sky-400">Hub</span></span>
+        <img src="/logos/CompHub-Logo.png" alt="CompHub" className="h-12 w-auto drop-shadow-[0_0_24px_rgba(56,189,248,0.45)]" />
       </motion.div>
       <div className="flex items-center justify-center gap-5">
         {BEREICHE.map((b, i) => (
