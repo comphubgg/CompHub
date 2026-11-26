@@ -29,6 +29,10 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
     { pfad: 'weapons/changes', titel: 'Changes', text: 'What changed per patch' },
     { pfad: 'assets', titel: 'Asset Studio', text: 'Weapon & item images – recolour, download' },
   ] },
+  { titel: 'Cosmetics', seiten: [
+    { pfad: 'shop', titel: 'Item Shop', text: "Today's shop, last seen, history" },
+    { pfad: 'cosmetics', titel: 'Cosmetics', text: 'Every cosmetic – search and filter' },
+  ] },
   { titel: 'Season', seiten: [
     { pfad: 'season', titel: 'Season Countdown', text: 'Live event and season end' },
     { pfad: 'xp', titel: 'XP Calculator', text: 'XP per day for your level goal' },
@@ -48,7 +52,8 @@ function GruppenNav() {
   const ort = useLocation();
   const [offen, setOffen] = useState<string | null>(null);
   const istAktiv = (s: Eintrag) => ort.pathname === `/community/${s.pfad}`
-    || (s.pfad === 'weapons' && /^\/community\/weapons\/(?!compare|changes)/.test(ort.pathname)) || (s.pfad === 'assets' && ort.pathname.startsWith('/community/assets'));
+    || (s.pfad === 'weapons' && /^\/community\/weapons\/(?!compare|changes)/.test(ort.pathname)) || (s.pfad === 'assets' && ort.pathname.startsWith('/community/assets'))
+    || (s.pfad === 'cosmetics' && ort.pathname.startsWith('/community/cosmetics/')) || (s.pfad === 'rankings' && ort.pathname.startsWith('/community/rankings/'));
   const knopf = (aktiv: boolean) => `relative shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition ${aktiv ? 'text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'}`;
   const stil = (aktiv: boolean) => (aktiv ? { background: `rgba(${TEAL},0.16)`, boxShadow: `inset 0 0 0 1px rgba(${TEAL},0.35)` } : undefined);
   return (
