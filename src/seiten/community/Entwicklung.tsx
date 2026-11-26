@@ -14,7 +14,13 @@ import { Laedt, TEAL, Ueberschrift } from './Teile';
  */
 
 interface Stand { patch: string; kapitel: number; saison: string; img: string; url: string; neu?: boolean }
-const bild = (u: Stand, b: number) => `/api/maps-bild?u=${encodeURIComponent(u.url)}&b=${b}`;
+// Quellen der Reihe nach (26.11.2026): der Server der Seite bekommt von fortnite.gg keine Bilder mehr (403/404 seit 16.11.), daher danach
+// direkt im Browser des Betreibers laden und zuletzt die eigene Kopie im Archiv (/maps/archiv/gg, je Saison eine).
+const QUELLEN = [
+  (u: Stand, b: number) => `/api/maps-bild?u=${encodeURIComponent(u.url)}&b=${b}`,
+  (u: Stand) => u.url,
+  (u: Stand) => `https://www.thecomphub.com/maps/archiv/gg/gg-${u.patch}.webp`,
+];
 const gruppe = (u: Stand) => (u.kapitel ? `Chapter ${u.kapitel} · ${u.saison}` : 'Newest · not sorted yet');
 
 export default function Entwicklung() {
@@ -128,7 +134,7 @@ function Vergleich({ A, B, modus }: { A: Stand; B: Stand; modus: 'swipe' | 'nebe
   const rahmen = useRef<HTMLDivElement>(null);
   const [sicht, setSicht] = useState({ s: 1, tx: 0, ty: 0 });
   const [teiler, setTeiler] = useState(50);
-  const [kaputt, setKaputt] = useState<Record<string, boolean>>({});
+  const [kaputt, setKaputt] = useState<Record<string, number>>({});
   const ziehen = useRef<{ art: 'karte' | 'teiler'; x: number; y: number; tx: number; ty: number } | null>(null);
   const breite = sicht.s > 2 ? 2400 : 1600;
 
@@ -159,9 +165,9 @@ function Vergleich({ A, B, modus }: { A: Stand; B: Stand; modus: 'swipe' | 'nebe
   }
   const ebene = (u: Stand) => (
     <div className="absolute inset-0 origin-top-left" style={{ transform: `translate(${sicht.tx}px, ${sicht.ty}px) scale(${sicht.s})` }}>
-      {kaputt[u.patch]
+      {(kaputt[u.patch] ?? 0) >= QUELLEN.length
         ? <div className="grid h-full w-full place-items-center text-center text-sm text-white/45"><div><p className="text-3xl font-black text-white/15">v{u.patch}</p><p className="mt-1">Map image not available right now</p></div></div>
-        : <img src={bild(u, breite)} alt={`Map v${u.patch}`} draggable={false} onError={() => setKaputt((k) => ({ ...k, [u.patch]: true }))} className="h-full w-full select-none object-contain" />}
+        : <img key={kaputt[u.patch] ?? 0} src={QUELLEN[kaputt[u.patch] ?? 0](u, breite)} alt={`Map v${u.patch}`} draggable={false} referrerPolicy="no-referrer" onError={() => setKaputt((k) => ({ ...k, [u.patch]: (k[u.patch] ?? 0) + 1 }))} className="h-full w-full select-none object-contain" />}
     </div>
   );
   const marke = (u: Stand, farbe: string, rechts?: boolean) => (
