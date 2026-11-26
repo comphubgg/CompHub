@@ -181,7 +181,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
                     const auf = offen === s.epicId;
                     return (
                       <motion.button key={s.epicId} type="button" onClick={() => oeffnen(s)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 28) * 0.012 }}
-                        className={`group rounded-2xl border bg-white/[0.03] p-2 text-left transition hover:-translate-y-0.5 ${auf ? 'border-sky-400 ring-2 ring-sky-400/40' : 'border-white/10 hover:border-white/25'}`}>
+                        className={`group rounded-2xl border bg-[#0a0d16]/85 p-2 text-left transition hover:-translate-y-0.5 ${auf ? 'border-sky-400 ring-2 ring-sky-400/40' : 'border-white/10 hover:border-white/25'}`}>
                         <span className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-black/30">
                           {s.foto ? <img src={s.foto} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
                             : <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/[0.06] to-transparent p-2 text-center text-sm font-black uppercase leading-tight text-white/40">{s.name}</span>}

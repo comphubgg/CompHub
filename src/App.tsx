@@ -22,6 +22,9 @@ import Globals from './seiten/comp/mehr/Globals';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
 import Admin from './seiten/admin/Admin';
+import KontoSeite from './seiten/konto/Konto';
+import Nachrichten from './seiten/konto/Nachrichten';
+import Passwort from './seiten/konto/Passwort';
 
 
 /*
@@ -64,6 +67,9 @@ export default function App() {
           <Route path="/community/*" element={<Community />} />
           <Route path="/streamer/*" element={<Streamer />} />
           <Route path="/admin/*" element={<Admin />} />
+          <Route path="/account/*" element={<KontoSeite />} />
+          <Route path="/messages" element={<Nachrichten />} />
+          <Route path="/password" element={<Passwort />} />
           <Route path="*" element={<Start />} />
         </Routes>
       </motion.div>

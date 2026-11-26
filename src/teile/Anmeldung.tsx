@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 /** konto: anmelden, registrieren: neues Konto (POST /api/konto { was: 'registrieren' }), schluessel: Zugangsschluessel. */
 export type Art = 'konto' | 'registrieren' | 'schluessel';
@@ -59,6 +60,7 @@ function Fenster({ art, setArt, zu, fertig }: { art: Art; setArt: (a: Art) => vo
           <input className={feld} type={art === 'registrieren' ? 'email' : 'text'} placeholder={art === 'konto' ? 'Email or username' : art === 'registrieren' ? 'Email' : 'Name'} value={a} onChange={(e) => setA(e.target.value)} autoFocus={art !== 'registrieren'} />
           <input className={feld} type="password" placeholder={art === 'schluessel' ? 'Access key' : 'Password'} value={b} onChange={(e) => setB(e.target.value)} />
         </div>
+        {art === 'konto' && <Link to="/password" onClick={zu} className="mt-2 block text-right text-xs text-white/40 transition hover:text-sky-300">Forgot your password?</Link>}
         {fehler && <p className="mt-3 text-sm text-red-400">{fehler}</p>}
         <button disabled={laeuft} className="mt-5 w-full rounded-xl bg-sky-400 py-3 text-sm font-bold text-[#06080f] transition hover:bg-sky-300 disabled:opacity-50">{laeuft ? '…' : art === 'registrieren' ? 'Create account' : 'Sign in'}</button>
         <p className="mt-4 text-center text-xs text-white/40">{art === 'konto' ? 'Same account as thecomphub.com' : art === 'registrieren' ? 'Free – works on thecomphub.com too' : 'Streamers and VIPs get their key from CompHub'}</p>
