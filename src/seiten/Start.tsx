@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 interface Bereich { id: string; titel: string; zeile: string; punkte: string[]; bilder: string[]; farbe: string; pfad: string; schloss?: boolean }
 const CUP_BILDER = ['/cups/fncs-grand-finals.webp', '/cups/fncs-major.webp', '/cups/elite-cup.webp'];
 /* Nur Bilder, die randlos in der hohen Tafel gut aussehen - vom Betreiber ausgesucht (26.11.2026); weitere kommen von ihm. */
-const COMPETITIVE_BILDER = ['/cups/console-champions-cup.webp', '/cups/fncs-grand-finals.webp'];
+const COMPETITIVE_BILDER = ['/cups/elite-cup.webp', '/cups/console-champions-cup.webp', '/cups/fncs-grand-finals.webp'];
 /* Die Streamer der Tafel: die Streamer-Liste der Seite (/api/streamers, Gruppe "streamer") - keine Pros (Betreiber, 26.11.2026). */
 const STREAMER_FALLBACK = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'aussieantics', 'leothecrack', 'wazz', 'nikof'];
 
