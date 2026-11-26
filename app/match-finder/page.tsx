@@ -78,6 +78,22 @@ function dauer(von: string, bis: string) {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
 }
 
+/** Spanne bis jetzt: "<1 min", "12 min", "1 h 05 min". */
+function bisJetzt(iso: string | null | undefined) {
+  return iso ? dauer(iso, new Date().toISOString()) : '';
+}
+
+/*
+ * Status statt Dauer (Betreiber, 26.11.2026): "ich will sehen, ended und wie lange er her ist ... oder live und seit wann" - damit klar ist, ob der
+ * Spieler noch im Spiel ist, bevor der Code in den Stream geht. LIVE heisst: die Sitzung steht gerade im Epic-Status bzw. in der Sitzungssuche.
+ */
+function SitzungsStatus({ live, von, bis }: { live: boolean; von: string; bis: string }) {
+  const t = useT();
+  return live
+    ? <span className="whitespace-nowrap font-semibold tabular-nums text-red-400" title={`${t('Im Spiel seit')} ${uhrzeit(von)}`}>{t('LIVE · seit {x}').replace('{x}', bisJetzt(von))}</span>
+    : <span className="whitespace-nowrap tabular-nums text-slate-500" title={`${t('Wie lange die Sitzung gesehen wurde')}: ${dauer(von, bis)}`}>{t('Beendet · vor {x}').replace('{x}', bisJetzt(bis))}</span>;
+}
+
 const verlaufStil = { fontFamily: 'Inter, var(--font-sans), system-ui, sans-serif' };
 
 /*
@@ -100,7 +116,7 @@ function Verlauf({ eintraege, liveId, kopiert, kopieren }: { eintraege: FVerlauf
               {e.titel || spielart(e.playlist) || e.zeile || t('Match')}
             </span>
             <span className="tabular-nums text-slate-400">{datumZeit(e.von)}</span>
-            <span className="tabular-nums text-slate-500" title={t('Wie lange die Sitzung gesehen wurde')}>{dauer(e.von, e.bis)}</span>
+            <SitzungsStatus live={e.matchId === liveId} von={e.von} bis={e.bis} />
             <code className="rounded bg-black/50 px-1.5 py-0.5 font-mono text-[11px] text-slate-300" title={e.matchId}>{e.matchId.slice(0, 8)}…</code>
             <button type="button" data-verlauf-kopieren={e.matchId} onClick={() => kopieren(e.matchId)}
               className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:border-sky-400 hover:text-sky-300">
@@ -119,11 +135,12 @@ function Verlauf({ eintraege, liveId, kopiert, kopieren }: { eintraege: FVerlauf
 }
 
 /** Der Live-Kasten: LIVE, Cup oder Playlist, Match-ID, kopieren. */
-function LiveKasten({ live, kopiert, kopieren }: { live: FLive; kopiert: string; kopieren: (t: string) => void }) {
+function LiveKasten({ live, kopiert, kopieren, seit }: { live: FLive; kopiert: string; kopieren: (t: string) => void; seit?: string | null }) {
   const t = useT();
   return (
     <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-      <span className="flex items-center gap-1.5 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
+      <span className="flex items-center gap-1.5 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+        {seit ? t('LIVE · seit {x}').replace('{x}', bisJetzt(seit)) : 'LIVE'}</span>
       <span className="text-xs text-slate-300">{live.titel ?? spielart(live.playlist) ?? t('Im Match')}</span>
       <code className="rounded bg-zinc-950 px-2 py-1 font-mono text-xs text-slate-200">{live.matchId}</code>
       <button type="button" onClick={() => kopieren(live.matchId)}
@@ -257,7 +274,7 @@ function AlleFreunde({ kopiert, kopieren }: { kopiert: string; kopieren: (t: str
               ? <span className="flex items-center gap-1.5 text-xs font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
               : <span className={`text-xs ${f.online ? 'font-semibold text-emerald-400' : 'text-slate-500'}`}>{f.online ? 'Online' : t('Offline')}</span>}
           </div>
-          {f.live && <LiveKasten live={f.live} kopiert={kopiert} kopieren={kopieren} />}
+          {f.live && <LiveKasten live={f.live} kopiert={kopiert} kopieren={kopieren} seit={f.verlauf.find((v) => v.matchId === f.live?.matchId)?.von} />}
           <Verlauf eintraege={f.verlauf} liveId={f.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
         </article>
       ))}
@@ -415,7 +432,7 @@ export default function MatchFinder() {
                       className="text-xs text-slate-500 transition hover:text-rose-400"><T>Entfernen</T></button>
                   </div>
                   {s?.live ? (
-                    <LiveKasten live={s.live} kopiert={kopiert} kopieren={kopieren} />
+                    <LiveKasten live={s.live} kopiert={kopiert} kopieren={kopieren} seit={daten?.verlauf?.[f.id]?.find((v) => v.matchId === s.live?.matchId)?.von} />
                   ) : !s?.scrim ? (
                     /*
                      * Epic zeigt ein laufendes Match nur Freunden (Clix, 7.11.2026: spielte im Trios Cash Cup, die Liste laufender Matches ist leer, die Sitzungssuche

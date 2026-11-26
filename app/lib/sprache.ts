@@ -4960,6 +4960,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Name filtern': 'Filter by name',
   'Alle Freunde (Admin)': 'All friends (admin)',
   'Wie lange die Sitzung gesehen wurde': 'How long the session was seen',
+  'LIVE · seit {x}': 'LIVE · for {x}',
+  'Beendet · vor {x}': 'Ended · {x} ago',
+  'Im Spiel seit': 'In game since',
   'Alle Epic-Freunde': 'All Epic friends',
   ['Alle Freunde der beiden CompHub-Epic-Konten - live, Match-ID und Verlauf']:
     'All friends of both CompHub Epic accounts - live, match ID and history',
