@@ -39,6 +39,8 @@ export default defineConfig({
     proxy: {
       // Anmeldung: Cookies der echten Seite gelten auf localhost (Domain entfernt), damit Admin/VIP-Daten auch hier laden.
       '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/spielerbilder-klein': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter, '/hero': weiter, '/orgs': weiter,
+      // Overlays der echten Seite (Vorschau im Streamer-Bereich, gleiche Herkunft -> zuschneiden und sofort aktualisieren)
+      '^/overlay(/|\\?|$)': weiter,
       // Echte Seiten im Rahmen (src/seiten/admin/Rahmen.tsx): /site/admin/live -> thecomphub.com/admin/live.
       '/site': { ...rahmen, rewrite: (p) => p.replace(/^\/site/, '') || '/' },
       ...Object.fromEntries(STATISCH.map((p) => [p, rahmen])),
