@@ -258,14 +258,10 @@ export default function CustomBaukasten() {
    * pushed in with postMessage so the score animation can be seen.
    */
   const rahmen = useRef<HTMLIFrameElement | null>(null);
-  const [erstSrc, setErstSrc] = useState(() => `${OV}/overlay/custom.html?vorschau=${encodeURIComponent(JSON.stringify(STANDARD))}`);
-  // Hub: das Overlay liegt auf thecomphub.com und nimmt keine Nachrichten von localhost an - die Vorschau laedt mit den neuen Einstellungen neu.
+  // Hub: die Vorschau laeuft ueber den eigenen Proxy (vorOrt) - Stand und Text gehen per postMessage hinein, ohne Neuladen.
+  const [erstSrc] = useState(() => `${OV}/overlay/custom.html?vorschau=${encodeURIComponent(JSON.stringify(STANDARD))}`);
   useEffect(() => {
-    const z = window.setTimeout(() => setErstSrc(`${OV}/overlay/custom.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`), 450);
-    return () => window.clearTimeout(z);
-  }, [cfg]);
-  useEffect(() => {
-    rahmen.current?.contentWindow?.postMessage({ comphub: 'custom-cfg', cfg }, OV);
+    rahmen.current?.contentWindow?.postMessage({ comphub: 'custom-cfg', cfg }, window.location.origin);
   }, [cfg]);
 
   function waehlen(o: OverlayEintrag) {
@@ -460,7 +456,7 @@ export default function CustomBaukasten() {
           <div className="xl:sticky xl:top-[124px] space-y-4">
             <Buehne src={erstSrc} titel={t('Preview')} szene onGroesse={setGroesse} onFrame={(f) => {
               rahmen.current = f;
-              f?.addEventListener('load', () => f.contentWindow?.postMessage({ comphub: 'custom-cfg', cfg }, OV), { once: true });
+              f?.addEventListener('load', () => f.contentWindow?.postMessage({ comphub: 'custom-cfg', cfg }, window.location.origin), { once: true });
             }}
               kopf={<>
                 <span className="font-mono uppercase tracking-[0.18em]"><T>live preview</T> · {obs.voll ? '1920 × 1080' : `${obs.b} × ${obs.h}`}</span>

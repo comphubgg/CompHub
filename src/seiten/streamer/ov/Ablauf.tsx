@@ -1,3 +1,4 @@
+import { vorOrt } from './ort';
 import { useState, type ReactNode } from 'react';
 import T from './T';
 import { useT } from './sprache';
@@ -117,7 +118,7 @@ export function Vorlagen<C>({ vorlagen, basis, vorschauUrl, gilt, waehle, hoehe 
               ? 'border-violet-500 shadow-[0_0_0_2px_rgba(14,165,233,.25)]' : 'border-white/10 hover:border-violet-500/60'}`}>
             <span className="pointer-events-none relative block overflow-hidden bg-black/30" style={{ height: hoehe }}>
               <span className="absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(45deg,#27272a 25%,transparent 25%),linear-gradient(-45deg,#27272a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#27272a 75%),linear-gradient(-45deg,transparent 75%,#27272a 75%)', backgroundSize: '16px 16px', backgroundPosition: '0 0,0 8px,8px -8px,-8px 0' }} />
-              <iframe title={t(v.titel)} src={vorschauUrl({ ...basis, ...v.setzt })} scrolling="no" tabIndex={-1}
+              <iframe title={t(v.titel)} src={vorOrt(vorschauUrl({ ...basis, ...v.setzt }))} scrolling="no" tabIndex={-1}
                 className="absolute left-0 top-0 border-0"
                 style={{ width: '200%', height: '200%', transform: 'scale(.5)', transformOrigin: 'top left' }} />
             </span>

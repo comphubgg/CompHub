@@ -231,7 +231,7 @@ export function useOverlays(typ: string) {
        * auf dem Stream-Bild sofort dieses Overlay zeigt.
        */
       if (typeof window !== 'undefined' && window.parent !== window) {
-        window.parent.postMessage({ comphub: 'overlay-gespeichert', typ, id: j.id, name: eintrag.name }, OV);
+        window.parent.postMessage({ comphub: 'overlay-gespeichert', typ, id: j.id, name: eintrag.name }, window.location.origin);
       }
       return j.id as string;
     } catch (e) {

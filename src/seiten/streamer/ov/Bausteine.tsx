@@ -1,3 +1,4 @@
+import { vorOrt } from './ort';
 import { OV } from './ort';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import T from './T';
@@ -90,7 +91,7 @@ export function Buehne({ src, titel = 'Preview', szene = false, breite = 1920, h
   }, []);
   useEffect(() => {
     const an = (e: MessageEvent) => {
-      if (e.origin !== OV || e.source !== rahmen.current?.contentWindow) return;
+      if (e.origin !== window.location.origin || e.source !== rahmen.current?.contentWindow) return;
       const d = e.data as { comphub?: string } & Partial<OverlayGroesse>;
       if (d?.comphub !== 'overlay-groesse' || !d.w || !d.h) return;
       const neu = { x: d.x ?? 0, y: d.y ?? 0, w: d.w, h: d.h };
@@ -112,7 +113,7 @@ export function Buehne({ src, titel = 'Preview', szene = false, breite = 1920, h
       {kopf && <figcaption className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-2.5 text-[11px] text-white/55">{kopf}</figcaption>}
       <div ref={box} className="flex w-full justify-center" style={szene ? SZENE : KARO}>
         <div className="relative overflow-hidden" style={{ width: aus.w * mass, height: aus.h * mass }}>
-          <iframe ref={(f) => { rahmen.current = f; onFrame?.(f); }} title={titel} src={src} scrolling="no" tabIndex={-1}
+          <iframe ref={(f) => { rahmen.current = f; onFrame?.(f); }} title={titel} src={vorOrt(src)} scrolling="no" tabIndex={-1}
             className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
             style={{ width: breite, height: hoehe, transform: `scale(${mass}) translate(${-aus.x}px, ${-aus.y}px)`, background: 'transparent' }} />
         </div>

@@ -14,3 +14,17 @@ export const MARKE = {
   logoFrei: '/logos/CompHub-Logo-frei.png',
   hinweis(): string { return `from ${this.seite}`; },
 } as const;
+
+/**
+ * Die Adresse fuer eine Vorschau im Hub: dieselbe Overlay-Datei, aber ueber den eigenen Proxy (vite.config.ts, /overlay -> thecomphub.com).
+ * Gleiche Herkunft heisst: das Overlay meldet seine Groesse (look.js), nimmt Einstellungen per postMessage an und holt seine Daten ueber /api.
+ * Die Adresse fuer OBS bleibt https://www.thecomphub.com/overlay/... - nur das iframe im Hub nimmt diesen Weg.
+ */
+export function vorOrt(src: string): string;
+export function vorOrt(src: string | null): string | null;
+export function vorOrt(src: string | null): string | null {
+  if (!src || !src.startsWith(`${OV}/overlay/`)) return src;
+  const u = new URL(src);
+  u.searchParams.delete('server');
+  return `${u.pathname}${u.search}`;
+}

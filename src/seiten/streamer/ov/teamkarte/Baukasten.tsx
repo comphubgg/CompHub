@@ -1,3 +1,4 @@
+import { vorOrt } from '../ort';
 import { OV } from '../ort';
 /*
  * Der Konfigurator fuer das Stream-Banner.
@@ -127,7 +128,7 @@ function LayoutVorschau({
     <span className="relative block w-full overflow-hidden bg-black/30"
       style={{ height: Math.max(hoehe, 56) }}>
       {basis && (
-        <iframe src={adresse} title={layout} tabIndex={-1} loading="lazy"
+        <iframe src={vorOrt(adresse)} title={layout} tabIndex={-1} loading="lazy"
           className="pointer-events-none absolute left-0 top-0 border-0"
           style={{ width: 820, height: 380, transform: 'scale(0.42)', transformOrigin: 'top left' }} />
       )}
@@ -168,7 +169,7 @@ function FormVorschau({
   return (
     <span className="relative block h-16 w-full overflow-hidden bg-black/30">
       {basis && (
-        <iframe src={adresse} title={form} tabIndex={-1} loading="lazy"
+        <iframe src={vorOrt(adresse)} title={form} tabIndex={-1} loading="lazy"
           className="pointer-events-none absolute left-0 top-0 border-0"
           style={{ width: 820, height: 200, transform: 'scale(0.4)', transformOrigin: 'top left' }} />
       )}

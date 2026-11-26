@@ -1,3 +1,4 @@
+import { vorOrt } from './ort';
 import { ortJetzt } from './ort';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from './T';
@@ -386,7 +387,7 @@ export function Vorschau({ src, hoehe = 220, klebt = true, leer }: {
         <div className="relative overflow-hidden rounded-xl border border-white/10"
           style={{ ...KARO, height: hoehe }}>
           {src ? (
-            <iframe key={src} src={src} title="Vorschau" scrolling="no"
+            <iframe key={src} src={vorOrt(src)} title="Preview" scrolling="no"
               className="block h-full w-full border-0" />
           ) : (
             <div className="grid h-full place-items-center px-4 text-center
@@ -465,7 +466,7 @@ function VollbildVorschau({ src, schliessen }: {
           width: BUEHNE.breite, height: BUEHNE.hoehe,
           transform: `translate(-50%, -50%) scale(${mass})`,
         }}>
-        <iframe src={src} title="Vorschau" scrolling="no"
+        <iframe src={vorOrt(src)} title="Preview" scrolling="no"
           className="block border-0"
           style={{ width: BUEHNE.breite, height: BUEHNE.hoehe }} />
       </div>
