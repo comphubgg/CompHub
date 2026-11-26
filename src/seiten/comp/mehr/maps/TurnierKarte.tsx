@@ -4,12 +4,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Glas } from '../../../../teile/Glas';
 import { useWer } from '../../../../teile/Anmeldung';
 import KartenAnsicht, { kartenName, type KartenForm, type Punkt } from '../KartenAnsicht';
+import KartenWerkzeug from '../zeichnen/KartenWerkzeug';
 import { FehlerZeile, Laedt, SEITE, SeitenKopf, Suche, TeamFlagge, datumLang, useDaten } from '../teile';
 
 /*
  * Die veroeffentlichten Turnierkarten (/maps der Seite, Ansicht fuer alle): ohne ?id die Liste (/api/turnier-karten?liste=1), mit ?id die Karte
  * (/api/turnier-karten?id=) samt Teamliste. Der Stand wandert mit (?nur=stand&seit= alle 20 s), wie auf der Seite. Bearbeitet wird im
- * Karten-Werkzeug auf thecomphub.com - der Admin bekommt dafuer einen Knopf, ebenso ein Pro, dessen Team auf der Karte steht.
+ * Karten-Werkzeug - im Hub nachgebaut (../zeichnen/KartenWerkzeug, ?edit=1): der Admin bekommt dafuer einen Knopf, ebenso ein Pro, dessen Team auf
+ * der Karte steht ("Move my team"). Ohne ?id, aber mit ?edit=1 (oder ?event=&window=) oeffnet der Admin eine neue Karte.
  */
 
 interface Spot { id: string; punkte: Punkt[]; teams: string[]; name?: string; farbe?: string | null }
@@ -18,6 +20,7 @@ interface Karte { id: string; titel: string; cupTitel?: string; region?: string;
 interface ListenKarte { id: string; titel: string; cupTitel?: string; region: string | null; windowId: string | null; bildTitel?: string; teams: number; platziert: number; geaendert: number; datum: number | null; bild: string | null }
 
 function Liste() {
+  const { wer } = useWer();
   const [s] = useDaten<{ karten: ListenKarte[] }>('/api/turnier-karten?liste=1');
   const [q, setQ] = useState('');
   if (s.art === 'laedt') return <Laedt />;
@@ -25,7 +28,11 @@ function Liste() {
   const karten = s.d.karten.filter((k) => !q || `${k.titel} ${k.cupTitel ?? ''} ${k.region ?? ''}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="space-y-6">
-      <SeitenKopf ueber="Maps" titel="Tournament maps" text="Every published drop map — live, as the admins place the teams." rechts={<Suche wert={q} setze={setQ} platz="Search a map …" />} />
+      <SeitenKopf ueber="Maps" titel="Tournament maps" text="Every published drop map — live, as the admins place the teams." rechts={<>
+        <Suche wert={q} setze={setQ} platz="Search a map …" />
+        {wer?.isAdmin && <Link to="/competitive/maps/view?edit=1" className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-amber-300">Open the map tool</Link>}
+        <a href={`${SEITE}/tournament-maps`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/50 transition hover:border-white/30 hover:text-white">Classic view ↗</a>
+      </>} />
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {karten.map((k, i) => (
           <motion.div key={k.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 14) * 0.035 }} whileHover={{ y: -5 }}>
@@ -51,6 +58,12 @@ function Liste() {
 }
 
 export default function TurnierKarte() {
+  const [adresse] = useSearchParams();
+  if (adresse.get('edit') === '1' || (!adresse.get('id') && adresse.get('event') && adresse.get('window'))) return <KartenWerkzeug key={adresse.toString()} />;
+  return <Ansicht />;
+}
+
+function Ansicht() {
   const [adresse] = useSearchParams();
   const id = adresse.get('id');
   const { wer } = useWer();
@@ -113,10 +126,11 @@ export default function TurnierKarte() {
         </span>}
         rechts={<>
           {(wer?.isAdmin || (meinTeam && (wer?.rolle === 'pro' || wer?.rolle === 'manager'))) && (
-            <a href={`${SEITE}/maps?id=${encodeURIComponent(k.id)}`} target="_blank" rel="noreferrer" className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-amber-300">
-              {wer?.isAdmin ? 'Edit in the map tool ↗' : 'Move my team ↗'}
-            </a>
+            <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-amber-300">
+              {wer?.isAdmin ? 'Edit in the map tool' : 'Move my team'}
+            </Link>
           )}
+          <a href={`${SEITE}/maps?id=${encodeURIComponent(k.id)}`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/50 transition hover:border-white/30 hover:text-white">Classic view ↗</a>
         </>} />
       {k.ersatz && <FehlerZeile text="This is the last saved copy — the live store is not answering right now." />}
       <div className="grid gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.7fr)] lg:items-start">
