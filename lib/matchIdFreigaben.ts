@@ -1,4 +1,5 @@
 import { liesJson, aendereJson } from '@/lib/ablage';
+import { lies as liesPr, LISTE as PR_LISTE } from '@/lib/powerRankings';
 
 /*
  * Die Freigabeliste fuer das Bot-Konto "comphub." (Betreiber, 17.11.2026, EU LCQ Final: "bau das direkt mal ein").
@@ -31,10 +32,14 @@ export async function freigabenSenden(liste?: Freigabe[]): Promise<boolean> {
   if (!DIENST) return false;
   try {
     const ids = (liste ?? await freigaben()).map((e) => e.id);
+    // Ziele fuer die Anfragen des Bots (Betreiber, 26.11.2026: "mach Punkt 2"): die Top 150 der Power Rankings - der Dienst schickt ihnen langsam
+    // eine Freundschaftsanfrage und nimmt ihre eigenen Anfragen an.
+    const pr = await liesPr(PR_LISTE).catch(() => null);
+    const ziele = (pr?.spieler ?? []).slice().sort((x, y) => x.rank - y.rank).slice(0, 150).map((x) => epicIdNorm(x.id)).filter((x) => HEX32.test(x));
     const r = await fetch(`${DIENST}/freigaben`, {
       method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(5_000),
       headers: { 'Content-Type': 'application/json', ...(process.env.XMPP_DIENST_GEHEIM ? { Authorization: `Bearer ${process.env.XMPP_DIENST_GEHEIM}` } : {}) },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, ziele }),
     });
     return r.ok;
   } catch { return false; }

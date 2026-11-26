@@ -350,6 +350,7 @@ async function diagnose(id) {
     probeGeschickt: probe,
     sitzungssucheBot: findeBot,
     sitzungssuche,
+    anfragen: { ziele: ziele.length, gesendet: Object.keys(anfragen).filter((x) => HEX32.test(x)).length, angenommen: Object.keys(anfragen).filter((x) => HEX32.test(x) && konten.bot.liste.has(x)).length, ...anfrageStand },
     eos: { verbunden: eos.verbunden, seit: eos.seit, verbindungen: eos.verbindungen, letzterFehler: eos.letzterFehler, eigenerStatus: eos.eigenerStatus, nachrichten: eos.nachrichten, presences: eos.presences, funde: eos.funde, typen: eos.typen, protokoll: eos.protokoll.slice(-10), freundeMitStatus: eos.jeId.size, ziel: eos.jeId.get(id) ?? null },
     sitzungssucheHaupt: findeHaupt,
     versuch,
@@ -835,25 +836,33 @@ await verlaufLaden();
  * Anfragen annehmen, die ein Streamer/Pro SELBST an das Bot-Konto geschickt hat (lib/freundAnnahme.mjs) - nur fuer freigegebene Epic-Ids.
  * Die Liste fuehrt der Admin im Match-ID-Finder (lib/matchIdFreigaben, Ablage matchid-freigaben.json); die Seite schickt sie bei jedem Aendern und bei
  * jedem Verbinden mit dem Strom hierher (POST /freigaben) - hier liegt sie im Speicher und in <daten>/matchid-freigaben.json (fuer einen Neustart).
- * Leere Liste: nichts wird angenommen. Der Bot schickt weiterhin niemandem eine Anfrage (#21).
+ * Leere Liste: nichts wird angenommen. Eigene Anfragen des Bots an die Top-Pros: siehe anfrageSchicken (26.11.2026).
  */
 const ANNAHME_MS = Number(process.env.FREUND_ANNAHME_S || 120) * 1000;
 const FREIGABEN_DATEI = path.join(DATEN, 'matchid-freigaben.json');
 let freigaben = new Set();
-try { freigaben = freigabenAus(JSON.parse(await fs.readFile(FREIGABEN_DATEI, 'utf8'))); log(`Freigaben geladen: ${freigaben.size}`); } catch { /* noch keine */ }
+/** Ziele fuer eigene Anfragen des Bots (Top-Pros, in Reihenfolge) - ihre Anfragen werden ebenfalls angenommen. */
+let ziele = [];
+try {
+  const roh = JSON.parse(await fs.readFile(FREIGABEN_DATEI, 'utf8'));
+  freigaben = freigabenAus(roh); ziele = [...freigabenAus(roh?.ziele ?? [])];
+  log(`Freigaben geladen: ${freigaben.size}, Ziele: ${ziele.length}`);
+} catch { /* noch keine */ }
+const annehmbar = () => new Set([...freigaben, ...ziele]);
 async function freigabenSetzen(roh) {
   freigaben = freigabenAus(roh);
-  await fs.mkdir(DATEN, { recursive: true }).then(() => fs.writeFile(FREIGABEN_DATEI, JSON.stringify({ ids: [...freigaben] }))).catch((e) => log(`Freigaben nicht geschrieben: ${e.message}`));
-  log(`Freigaben gesetzt: ${freigaben.size}`);
+  if (Array.isArray(roh?.ziele)) ziele = [...freigabenAus(roh.ziele)];
+  await fs.mkdir(DATEN, { recursive: true }).then(() => fs.writeFile(FREIGABEN_DATEI, JSON.stringify({ ids: [...freigaben], ziele }))).catch((e) => log(`Freigaben nicht geschrieben: ${e.message}`));
+  log(`Freigaben gesetzt: ${freigaben.size}, Ziele: ${ziele.length}`);
   void annahme();
 }
 let annahmeLaeuft = false;
 async function annahme() {
   const k = konten.bot;
-  if (annahmeLaeuft || !freigaben.size || !k.verbunden || !k.token || !k.konto) return;
+  if (annahmeLaeuft || !annehmbar().size || !k.verbunden || !k.token || !k.konto) return;
   annahmeLaeuft = true;
   try {
-    const r = await annahmeDurchgang({ konto: k.konto, token: await restToken(k), freigaben, basis: `${FRIENDS}/friends/api/v1` });
+    const r = await annahmeDurchgang({ konto: k.konto, token: await restToken(k), freigaben: annehmbar(), basis: `${FRIENDS}/friends/api/v1` });
     if (String(r.fehler ?? '').includes('401')) void restToken(k, true).catch(() => {});
     if (r.angenommen.length || r.fehler) log(`[bot] Anfragen: ${r.angenommen.length} angenommen (${r.angenommen.join(', ')}), ${r.liegen} liegen${r.fehler ? `, Fehler: ${r.fehler}` : ''}`);
     // Neu angenommen: gleich die Liste nachziehen - die neuen Freunde fuehren dann zum Neuaufbau der Sitzung (freundeNeuAufnehmen).
@@ -861,5 +870,43 @@ async function annahme() {
   } catch (e) { log(`[bot] Annahme: ${e?.message ?? e}`); } finally { annahmeLaeuft = false; }
 }
 setInterval(() => { void annahme(); }, ANNAHME_MS);
+
+/*
+ * Eigene Freundschaftsanfragen des Bots an die Top-Pros (Betreiber, 26.11.2026: "Die Spieler adden mich nicht ... mach Punkt 2"). Epic gibt den Status
+ * nur an Freunde - ein Klick auf "Annehmen" reicht dem Pro. Langsam (eine Anfrage alle 50 min, hoechstens 25 am Tag), damit Epic es nicht als Spam
+ * wertet. Wer schon Freund ist oder eine offene Anfrage hat, wird uebersprungen; jede Anfrage nur einmal (<daten>/bot-anfragen.json).
+ * Am 7.11. gingen schon einmal Anfragen an alle Pros (scripts/bot-freunde.mjs, am 16.11. entfernt, #21) - noch offene stehen in "outgoing".
+ */
+const ANFRAGE_MS = Number(process.env.BOT_ANFRAGE_MIN || 50) * 60_000;
+const ANFRAGEN_TAG = Number(process.env.BOT_ANFRAGEN_TAG || 25);
+const ANFRAGEN_DATEI = path.join(DATEN, 'bot-anfragen.json');
+let anfragen = {};
+try { anfragen = JSON.parse(await fs.readFile(ANFRAGEN_DATEI, 'utf8')); } catch { /* noch keine */ }
+const anfrageStand = { offenBeiEpic: null, letzte: null, letzterFehler: null };
+let anfrageLaeuft = false;
+async function anfrageSchicken() {
+  const k = konten.bot;
+  if (anfrageLaeuft || !ziele.length || !k.verbunden || !k.konto || !k.listeGeladen) return;
+  const heute = new Date().toISOString().slice(0, 10);
+  if (Object.values(anfragen).filter((a) => String(a.t).startsWith(heute)).length >= ANFRAGEN_TAG) return;
+  anfrageLaeuft = true;
+  try {
+    const o = await epicAbruf(k, `${FRIENDS}/friends/api/v1/${k.konto}/outgoing`, { signal: AbortSignal.timeout(10_000) });
+    const offen = new Set(o.ok ? (await o.json()).map((x) => String(x.accountId ?? '').replace(/-/g, '').toLowerCase()) : []);
+    anfrageStand.offenBeiEpic = o.ok ? offen.size : `HTTP ${o.status}`;
+    const id = ziele.find((x) => !k.liste.has(x) && !offen.has(x) && !anfragen[x] && x !== k.konto);
+    if (!id) return;
+    const r = await epicAbruf(k, `${FRIENDS}/friends/api/v1/${k.konto}/friends/${id}`, { method: 'POST', signal: AbortSignal.timeout(10_000) });
+    const text = r.ok ? '' : (await r.text()).slice(0, 200);
+    anfragen[id] = { t: new Date().toISOString(), status: r.status, ...(text ? { fehler: text } : {}) };
+    anfrageStand.letzte = { id: id.slice(0, 8), status: r.status };
+    if (!r.ok) anfrageStand.letzterFehler = `HTTP ${r.status}: ${text}`;
+    log(`[bot] Anfrage an ${id}: HTTP ${r.status}${text ? ` ${text}` : ''}`);
+    await fs.writeFile(ANFRAGEN_DATEI, JSON.stringify(anfragen)).catch(() => {});
+    // Epic sagt "zu viele": einen Tag Pause.
+    if (r.status === 429 || /too.?many|limit/i.test(text)) { anfragen[`pause-${heute}`] = { t: new Date().toISOString() }; for (let i = 0; i < ANFRAGEN_TAG; i++) anfragen[`pause-${heute}-${i}`] = { t: new Date().toISOString() }; }
+  } catch (e) { anfrageStand.letzterFehler = e?.message ?? String(e); } finally { anfrageLaeuft = false; }
+}
+setTimeout(() => { void anfrageSchicken(); setInterval(() => { void anfrageSchicken(); }, ANFRAGE_MS); }, 5 * 60_000);
 
 for (const k of Object.values(konten)) void verbinde(k);
