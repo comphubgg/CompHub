@@ -15,7 +15,7 @@ on:
 jobs:
   abgleich:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 120
     permissions:
       contents: read
     steps:
@@ -32,7 +32,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Leser bauen
-        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+        run: |
+          dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+          dotnet build tools/replay-voll-alt -c Release -v q 2>&1 | tail -3
       - name: Epic-Anmeldung
         run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
       - name: Abgleich
@@ -41,7 +43,14 @@ jobs:
           ARGUMENTE: ${{ inputs.argumente }}
         run: |
           case "$SKRIPT" in abgleich-*) ;; *) echo "nur abgleich-Skripte"; exit 1;; esac
-          node "scripts/$SKRIPT.mjs" $ARGUMENTE 2>&1 | tail -60
+          node "scripts/$SKRIPT.mjs" $ARGUMENTE 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: abgleich-aus
+          path: abgleich-aus
+          retention-days: 2
+          if-no-files-found: ignore
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local

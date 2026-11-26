@@ -431,7 +431,8 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   // Fassung 17 (16.11.2026): Trefferorte (schuesse, und in orte der Ort des Getroffenen) im richtigen Massstab - vorher zehnmal zu nah am Ursprung, siehe
   // TrefferOrtMassstab. trefferOrtMassstab = 10 sagt lib/trefferOrte.mjs, dass an dieser Datei nichts mehr nachzutragen ist.
   // Fassung 18 (16.11.2026): Schaden aus Gameplay-Effekten (LoudKiwi-Explosion, MoonFlax-Bolzen, Rakete) und vom Jagdgewehr-Geschoss - siehe EffekteEinrechnen.
-  fassung = 18, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen, landung = reader.LandungJe(),
+  // Fassung 19 (26.11.2026): Leser-Bibliothek 3.2.0 von NuGet statt 3.0.0 aus fortnite-replay-analysis, und je Treffer die Waffe als neunter Wert (siehe TrefferListe).
+  fassung = 19, trefferOrtMassstab = 10, streckeBoden = reader.StreckeBoden(todeJe), matsQuellen = reader.MatsQuellen, landung = reader.LandungJe(),
 }, Formatting.None, einst));
 }
 
@@ -1780,6 +1781,7 @@ class SchadenLeser : ReplayReader {
     }
     Zugeordnet++;
     if (unsicher) Unsicher.Add(Liste.Count);
+    if (c.SourceWeapon is uint sw && sw != 0 && pfadVonAkteur.TryGetValue(sw, out var swPfad) && swPfad is not null) trefferWaffe[Liste.Count] = swPfad;
     Liste.Add((von.Id.Value, anId.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
     if (Roh.Count < RohZeilen) {
       Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={anId}/{anTeam}");
@@ -2262,15 +2264,27 @@ class SchadenLeser : ReplayReader {
   }
 
   /// Jeder zugeordnete Treffer nach dem Bus, kompakt fuer die Replay-Ansicht ("wer hat wen angeschossen", Betreiber 28.10.2026):
-  /// [Zeit, Schuetze, Ziel, Schaden, Kopftreffer 0/1, Ziel am Boden 0/1, toedlich 0/1, auf den Schild 0/1].
+  /// [Zeit, Schuetze, Ziel, Schaden, Kopftreffer 0/1, Ziel am Boden 0/1, toedlich 0/1, auf den Schild 0/1, Waffe].
+  /*
+   * Waffe je Treffer (Fassung 19, 26.11.2026, Bibliothek 3.2.0): BatchedDamageCues.SourceWeapon nennt den Akteur der Waffe, die getroffen hat. Der neunte Wert
+   * ist seine Nummer in waffenNamen (dieselbe Liste wie in "hand"), -1 wo das Ereignis keine Waffe nennt oder ihr Bauplan unbekannt ist (Projektile, Effekte,
+   * aeltere Replays). Er steht bewusst am Ende: wer nur die ersten acht Werte liest, liest weiter dasselbe. Neue Waffennamen haengt erst diese Liste an, nach
+   * allen aus "hand" - deren Nummern bleiben dieselben wie vorher.
+   */
+  readonly Dictionary<int, string> trefferWaffe = new();
   public List<double[]> TrefferListe(double? busAb) {
     var raus = new List<double[]>();
-    foreach (var e in Liste) {
+    for (var i = 0; i < Liste.Count; i++) {
+      var e = Liste[i];
       if (e.t is not double t || (busAb is not null && t < busAb)) continue;
       bool amBoden = AmBodenZuZeit(e.an, t);
-      raus.Add(new[] { Math.Round(t, 3), e.von, e.an, Math.Round(Wirksam(e)), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
+      raus.Add(new[] { Math.Round(t, 3), e.von, e.an, Math.Round(Wirksam(e)), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0, trefferWaffe.TryGetValue(i, out var pfad) ? WaffenNr(pfad) : -1 });
     }
     return raus;
+  }
+  int WaffenNr(string pfad) {
+    if (!waffenIndex.TryGetValue(pfad, out var nr)) { nr = WaffenNamen.Count; WaffenNamen.Add(pfad); waffenIndex[pfad] = nr; }
+    return nr;
   }
 
   static readonly FieldInfo ZeitFeld = typeof(FortniteReplayBuilder).GetField("ReplicatedWorldTimeSecondsDouble", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);

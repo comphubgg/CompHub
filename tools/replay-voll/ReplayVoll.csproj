@@ -14,14 +14,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Der Leser laeuft mehrfach nebeneinander, je Kern einer: ein eigener Faden fuer die Speicherbereinigung bremst dann nur. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
-    <LeserPfad>$(MSBuildThisFileDirectory)../../node_modules/fortnite-replay-analysis/CSproj/bin/Release/net10.0/linux-x64/publish</LeserPfad>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FortniteReplayReader"><HintPath>$(LeserPfad)/FortniteReplayReader.dll</HintPath></Reference>
-    <Reference Include="Unreal.Core"><HintPath>$(LeserPfad)/Unreal.Core.dll</HintPath></Reference>
-    <Reference Include="Unreal.Encryption"><HintPath>$(LeserPfad)/Unreal.Encryption.dll</HintPath></Reference>
-    <Reference Include="OozSharp"><HintPath>$(LeserPfad)/OozSharp.dll</HintPath></Reference>
-    <Reference Include="Newtonsoft.Json"><HintPath>$(LeserPfad)/Newtonsoft.Json.dll</HintPath></Reference>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="FortniteReplayReader" Version="3.2.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 </Project>
