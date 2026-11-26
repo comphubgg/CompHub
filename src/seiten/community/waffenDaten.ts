@@ -27,22 +27,38 @@ import { kern } from './waffenNamen';
  *       "dps": 165,                            // optional; fehlt er, rechnet die Seite damage x pellets x fireRate (gekennzeichnet)
  *       "magazine": 25, "reloadTime": 2.3,     // Sekunden
  *       "structureDamage": 30,                 // EnvDmgPB
- *       "loot": { "floor": 0.81, "chest": 1.2, "ammoBox": null, "supplyDrop": null }   // Prozent (0..100) je Behaelter, optional
+ *       "loot": { "floor": 0.81, "chest": 1.2, "rareChest": 2.0, "supplyDrop": 6.6, "ammoBox": null, "fishing": 0.4, "vault": null,
+ *                 "lootCannon": null, "boss": null },   // Prozent (0..100) je Quelle, optional
+ *       "equipTime": 0.67, "adsTime": 0.2,     // optional, Sekunden (Pullout, Zielen)
+ *       "spread": 1.2, "recoilVertical": 0.8, "recoilHorizontal": 0.3,   // optional, Rohwerte aus der Stat-Zeile
+ *       "falloff": [{ "distance": 0, "factor": 1 }, { "distance": 50, "factor": 1 }, { "distance": 100, "factor": 0.9 }]   // optional, Meter
  *     }],
+ *     "description": "Fully automatic ...",    // optional, englischer Beschreibungstext der WID
+ *     "modes": ["br", "zb", "reload", "blitz", "og", "ranked"],   // optional: in welchen Modi/Warteschlangen im Pool
  *     "loot": { "floor": 3.2, "chest": 4.1 }   // optional: alle Seltenheiten zusammen; fehlt es, wird ueber rarities[].loot summiert
- *   }]
+ *   }],
+ *   "changes": [{ "date": "2026-11-18", "build": "43.10", "weaponId": "assault_heavy_recoil", "rarity": "rare", "field": "damage",
+ *                 "from": 30, "to": 29, "modes": ["br"] }]   // optional: Aenderungen zwischen zwei Exporten (alt -> neu je Feld)
  * }
  */
 
 export type Klasse = 'ar' | 'shotgun' | 'smg' | 'pistol' | 'sniper' | 'launcher' | 'melee' | 'throwable' | 'special';
-export interface Chancen { floor?: number | null; chest?: number | null; ammoBox?: number | null; supplyDrop?: number | null }
+export type Chancen = Record<string, number | null | undefined>;
+/** Bekannte Fundquellen mit Anzeigenamen - unbekannte Schluessel aus der Datei werden trotzdem gezeigt. */
+export const QUELLEN: Record<string, string> = {
+  chest: 'Chests', floor: 'Floor loot', rareChest: 'Rare chests', supplyDrop: 'Supply drops', ammoBox: 'Ammo boxes', fishing: 'Fishing',
+  vault: 'Vaults', lootCannon: 'Loot cannons', boss: 'Bosses', other: 'Other',
+};
 export interface Stufe {
   rarity: string; wid?: string; statsRow?: string;
   damage?: number; pellets?: number; headshotMultiplier?: number; fireRate?: number; dps?: number; dpsGerechnet?: boolean;
   magazine?: number; reloadTime?: number; structureDamage?: number; loot?: Chancen;
+  equipTime?: number; adsTime?: number; spread?: number; recoilVertical?: number; recoilHorizontal?: number;
+  falloff?: Array<{ distance: number; factor: number }>;
 }
-export interface DbWaffe { id: string; name: string; class: Klasse; icon?: string; ammo?: string; blueprints: string[]; rarities: Stufe[]; loot?: Chancen }
-export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[] }
+export interface Aenderung { date: string; build?: string; weaponId: string; rarity?: string; field: string; from?: number | string | null; to?: number | string | null; modes?: string[] }
+export interface DbWaffe { id: string; name: string; class: Klasse; icon?: string; ammo?: string; blueprints: string[]; rarities: Stufe[]; loot?: Chancen; description?: string; modes?: string[] }
+export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[]; changes: Aenderung[] }
 
 export const SELTENHEITEN = [
   { k: 'common', kurz: 'C', titel: 'Common', farbe: '#9ca3af' },
@@ -73,9 +89,9 @@ const KLASSE_ALIAS: Record<string, Klasse> = {
 const zahl = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 function chancen(v: unknown): Chancen | undefined {
   if (!v || typeof v !== 'object') return undefined;
-  const o = v as Record<string, unknown>;
-  const c = { floor: zahl(o.floor), chest: zahl(o.chest), ammoBox: zahl(o.ammoBox), supplyDrop: zahl(o.supplyDrop) };
-  return Object.values(c).some((x) => x !== undefined) ? c : undefined;
+  const c: Chancen = {};
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) { const n = zahl(x); if (n !== undefined) c[k] = n; }
+  return Object.keys(c).length ? c : undefined;
 }
 
 /** Prueft und vereinheitlicht die Datei - Unbekanntes faellt weg, nichts wird ergaenzt ausser dem gekennzeichneten DPS. */
@@ -94,6 +110,9 @@ export function lesen(roh: unknown): Datenbank | null {
         rarity: k, wid: typeof r.wid === 'string' ? r.wid : undefined, statsRow: typeof r.statsRow === 'string' ? r.statsRow : undefined,
         damage: zahl(r.damage), pellets: zahl(r.pellets), headshotMultiplier: zahl(r.headshotMultiplier), fireRate: zahl(r.fireRate), dps: zahl(r.dps),
         magazine: zahl(r.magazine), reloadTime: zahl(r.reloadTime), structureDamage: zahl(r.structureDamage), loot: chancen(r.loot),
+        equipTime: zahl(r.equipTime), adsTime: zahl(r.adsTime), spread: zahl(r.spread), recoilVertical: zahl(r.recoilVertical), recoilHorizontal: zahl(r.recoilHorizontal),
+        falloff: Array.isArray(r.falloff) ? (r.falloff as Array<Record<string, unknown>>).map((f) => ({ distance: zahl(f?.distance) ?? NaN, factor: zahl(f?.factor) ?? NaN }))
+          .filter((f) => Number.isFinite(f.distance) && Number.isFinite(f.factor)).sort((a, b) => a.distance - b.distance) : undefined,
       };
       if (s.dps === undefined && s.damage !== undefined && s.fireRate !== undefined) { s.dps = s.damage * (s.pellets ?? 1) * s.fireRate; s.dpsGerechnet = true; }
       rarities.push(s);
@@ -104,18 +123,20 @@ export function lesen(roh: unknown): Datenbank | null {
       id, name: w.name, class: KLASSE_ALIAS[String(w.class ?? '').toLowerCase().replace(/[\s_-]/g, '')] ?? 'special',
       icon: typeof w.icon === 'string' ? w.icon : undefined, ammo: typeof w.ammo === 'string' ? w.ammo : undefined,
       blueprints: (Array.isArray(w.blueprints) ? w.blueprints : []).filter((b): b is string => typeof b === 'string'),
-      rarities, loot: chancen(w.loot),
+      rarities, loot: chancen(w.loot), description: typeof w.description === 'string' ? w.description : undefined,
+      modes: Array.isArray(w.modes) ? (w.modes as unknown[]).filter((m): m is string => typeof m === 'string').map((m) => m.toLowerCase()) : undefined,
     });
   }
   if (!weapons.length) return null;
   return {
     weapons, season: zahl(j.season), build: typeof j.build === 'string' ? j.build : undefined,
     exportedAt: typeof j.exportedAt === 'string' ? j.exportedAt : undefined, playlist: typeof j.playlist === 'string' ? j.playlist : undefined,
+    changes: (Array.isArray(j.changes) ? j.changes as Aenderung[] : []).filter((c) => c && typeof c.weaponId === 'string' && typeof c.field === 'string' && typeof c.date === 'string'),
   };
 }
 
 /** Gesamtchance einer Waffe je Behaelter: aus "loot", sonst Summe ueber die Seltenheiten. */
-export function gesamtChance(w: DbWaffe, wo: keyof Chancen): number | undefined {
+export function gesamtChance(w: DbWaffe, wo: string): number | undefined {
   const direkt = w.loot?.[wo];
   if (typeof direkt === 'number') return direkt;
   const teile = w.rarities.map((r) => r.loot?.[wo]).filter((x): x is number => typeof x === 'number');
@@ -157,6 +178,26 @@ export const WERTE: Array<{ k: string; titel: string; kurz: string; einheit?: st
   { k: 'headshotMultiplier', titel: 'Headshot', kurz: 'HEAD', einheit: '×', hoeher: true, wert: (s) => s.headshotMultiplier },
   { k: 'structureDamage', titel: 'Structure damage', kurz: 'STRUCT', hoeher: true, wert: (s) => s.structureDamage },
 ];
+/** Weitere Werte, die nur Einzelseite und Vergleich zeigen (wenn die Datei sie hat). */
+export const WERTE_MEHR: typeof WERTE = [
+  { k: 'headshotDamage', titel: 'Headshot damage', kurz: 'HS DMG', hoeher: true, wert: (s) => (s.damage !== undefined && s.headshotMultiplier !== undefined ? s.damage * (s.pellets ?? 1) * s.headshotMultiplier : undefined) },
+  { k: 'equipTime', titel: 'Pullout time', kurz: 'EQUIP', einheit: 's', hoeher: false, wert: (s) => s.equipTime },
+  { k: 'adsTime', titel: 'ADS time', kurz: 'ADS', einheit: 's', hoeher: false, wert: (s) => s.adsTime },
+  { k: 'spread', titel: 'Spread', kurz: 'SPREAD', hoeher: false, wert: (s) => s.spread },
+  { k: 'recoilVertical', titel: 'Vertical recoil', kurz: 'V-REC', hoeher: false, wert: (s) => s.recoilVertical },
+  { k: 'recoilHorizontal', titel: 'Horizontal recoil', kurz: 'H-REC', hoeher: false, wert: (s) => s.recoilHorizontal },
+];
+
+/** Zeit bis zum Kill: jeder Schuss trifft, ohne Abfall; Nachladen, wenn das Magazin leer ist. Abgeleitet, nicht aus der Datei. */
+export function zeitBisKill(s: Stufe, leben: number, kopf: boolean): { schuesse: number; sekunden: number } | null {
+  if (s.damage === undefined || s.fireRate === undefined || !s.fireRate) return null;
+  const proSchuss = s.damage * (s.pellets ?? 1) * (kopf ? (s.headshotMultiplier ?? 1) : 1);
+  if (proSchuss <= 0) return null;
+  const n = Math.ceil(leben / proSchuss);
+  const nachladen = s.magazine && s.reloadTime ? Math.floor((n - 1) / s.magazine) * s.reloadTime : 0;
+  return { schuesse: n, sekunden: (n - 1) / s.fireRate + nachladen };
+}
+export const ZIELE = [{ hp: 100, titel: '100 HP' }, { hp: 150, titel: '150 · half shield' }, { hp: 200, titel: '200 · full shield' }, { hp: 250, titel: '250 · overshield' }];
 export function fmt(n: number, stellen?: number) {
   const d = stellen ?? (Math.abs(n) >= 100 || Number.isInteger(n) ? 0 : Math.abs(n) >= 10 ? 1 : 2);
   return n.toLocaleString('en', { maximumFractionDigits: d, minimumFractionDigits: 0 });

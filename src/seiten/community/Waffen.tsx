@@ -4,7 +4,10 @@ import { Glas } from '../../teile/Glas';
 import { Bald, Laedt, TEAL, Ueberschrift } from './Teile';
 import { kern, waffeVon } from './waffenNamen';
 import { useDatenbank } from './waffenDaten';
-import WaffenDatenbank from './WaffenDatenbank';
+import WaffenDatenbank, { turnierZuordnen } from './WaffenDatenbank';
+import { Aenderungen, Einzelwaffe, VergleichSeite, WaffenTabs } from './WaffenSeiten';
+import { DatenFehlen } from './Bausteine';
+import { Route, Routes } from 'react-router-dom';
 
 /*
  * Loot-Pool im Stil von fortnite.gg/weapons - aber mit dem, was sonst niemand hat: wie die Waffen in echten Turnieren dieser Saison wirken.
@@ -116,6 +119,10 @@ function Balken({ titel, wert, text, max = 100 }: { titel: string; wert: number;
 export default function Waffen() {
   const wiki = useWiki();
   const { db, status } = useDatenbank();
+  // Auswahl fuer den Vergleich - bleibt beim Wechsel zwischen Pool, Einzelwaffe und Vergleich erhalten.
+  const [vergleich, setVergleich] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('hub-waffen-vergleich') ?? '[]'); } catch { return []; } });
+  const vergleichSetzen = (l: string[]) => { setVergleich(l); try { localStorage.setItem('hub-waffen-vergleich', JSON.stringify(l)); } catch { /* egal */ } };
+  const umschalten = (id: string) => vergleichSetzen(vergleich.includes(id) ? vergleich.filter((x) => x !== id) : vergleich.length >= 4 ? [...vergleich.slice(1), id] : [...vergleich, id]);
   const [tage, setTage] = useState<Tag[] | null>(null);
   const [ansichten, setAnsichten] = useState<Ansicht[]>([]);
   const [fehler, setFehler] = useState(false);
@@ -160,7 +167,8 @@ export default function Waffen() {
   const gezeigt = klasse === 'alle' ? gruppen : gruppen.filter((g) => g.art === klasse);
   const laedtNoch = tage && ansichten.length < tage.length;
 
-  return (
+  const proWaffe = useMemo(() => (db ? turnierZuordnen(db, waffen).proWaffe : new Map()), [db, waffen]);
+  const pool = (
     <div className="space-y-8">
       <Ueberschrift ueber="Community · Weapons" titel="Loot pool" farbe={TEAL}
         text={db
@@ -168,7 +176,7 @@ export default function Waffen() {
           : <>Every weapon in {saison ? `Season ${saison}` : 'this season'}'s pool – and how it really performs: measured from every hit in the latest tournament replays, not from a patch note.</>} />
 
       {status === 'laedt' && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
-      {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} />}
+      {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} vergleich={vergleich} umschalten={umschalten} />}
       {status === 'fehlt' && <>
       <Glas className="relative overflow-hidden border-teal-300/20 p-6">
         <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-400/10 blur-3xl" />
@@ -237,6 +245,18 @@ export default function Waffen() {
         </p>
       )}
       </>}
+    </div>
+  );
+  const ohneDatei = status === 'laedt' ? <Laedt farbe={TEAL} /> : <DatenFehlen titel="Weapon pages need the stats from the game files" text="Each weapon gets its own page – stats per rarity, rank in its class, time-to-kill per shield level, damage by distance and where to find it – as soon as hub-daten/waffen.json is there." />;
+  return (
+    <div className="space-y-6">
+      <WaffenTabs ids={vergleich} />
+      <Routes>
+        <Route index element={pool} />
+        <Route path="compare" element={status === 'laedt' ? <Laedt farbe={TEAL} /> : <VergleichSeite db={db} wiki={wiki} proWaffe={proWaffe} setVergleich={vergleichSetzen} />} />
+        <Route path="changes" element={status === 'laedt' ? <Laedt farbe={TEAL} /> : <Aenderungen db={db} />} />
+        <Route path=":id" element={db ? <Einzelwaffe db={db} wiki={wiki} proWaffe={proWaffe} imVergleich={(id) => vergleich.includes(id)} vergleichen={umschalten} /> : ohneDatei} />
+      </Routes>
     </div>
   );
 }

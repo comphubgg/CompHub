@@ -81,8 +81,9 @@ export default function Assets() {
 const SCHACH = { backgroundImage: 'repeating-conic-gradient(rgba(255,255,255,0.08) 0 25%, transparent 0 50%)', backgroundSize: '18px 18px' };
 
 function Galerie({ liste, ausExport }: { liste: Asset[] | null; ausExport: boolean }) {
-  const [kat, setKat] = useState('weapons');
-  const [suche, setSuche] = useState('');
+  const [param] = useSearchParams();
+  const [kat, setKat] = useState(param.get('q') ? 'alle' : 'weapons');
+  const [suche, setSuche] = useState(param.get('q') ?? '');
   if (!liste) return <Laedt farbe={TEAL} text="Loading every weapon and item image …" />;
   const passt = (a: Asset, k: string) => (k === 'alle' ? true : k === 'weapons' ? WAFFEN_KLASSEN.has(a.klasse) : a.klasse === k);
   const gezeigt = liste.filter((a) => passt(a, kat) && a.name.toLowerCase().includes(suche.toLowerCase()));

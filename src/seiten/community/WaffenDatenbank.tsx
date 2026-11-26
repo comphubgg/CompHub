@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ModusUmschalter } from './Bausteine';
+import { bildVon } from './WaffenSeiten';
 import { Glas } from '../../teile/Glas';
-import { TEAL } from './Teile';
 import { KLASSEN_DB, SELTENHEITEN, WERTE, abgleichSchluessel, fmt, gesamtChance, pro, selten, type Datenbank, type DbWaffe, type Stufe } from './waffenDaten';
 import { kern, waffeVon } from './waffenNamen';
 
@@ -13,7 +15,7 @@ import { kern, waffeVon } from './waffenNamen';
  */
 
 export interface TurnierWaffe { roh: string; art: string; dmg: number; hits: number; krit: number; spieler: number; tage: number }
-interface Turnier { dmg: number; hits: number; krit: number; spieler: number; tage: number }
+export interface Turnier { dmg: number; hits: number; krit: number; spieler: number; tage: number }
 type Wiki = Map<string, { name: string; bild: string }> | undefined;
 
 const SORTEN = [
@@ -28,38 +30,44 @@ function stufeFuer(w: DbWaffe, wunsch: string): Stufe | undefined {
   const i = SELTENHEITEN.findIndex((s) => s.k === wunsch);
   return [...w.rarities].reverse().find((r) => SELTENHEITEN.findIndex((s) => s.k === r.rarity) <= i) ?? w.rarities[0];
 }
-const bildVon = (w: DbWaffe, wiki: Wiki) => w.icon ?? waffeVon(w.blueprints[0] ?? w.rarities[0]?.wid ?? w.id, wiki).bild;
 
-export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki }: { db: Datenbank; turnier: TurnierWaffe[]; gesamt: number; spielerTage: number; wiki: Wiki }) {
+/** Turnierwerte den Waffen der Datei zuordnen (ueber Bauplan/WID-Kern); Uebriges bleibt "nur im Turnier gesehen". */
+export function turnierZuordnen(db: Datenbank, turnier: TurnierWaffe[]) {
+  const schluessel = new Map<string, string>();
+  for (const w of db.weapons) for (const k of abgleichSchluessel(w)) if (!schluessel.has(k)) schluessel.set(k, w.id);
+  const m = new Map<string, Turnier>(); const rest: TurnierWaffe[] = [];
+  for (const t of turnier) {
+    const id = [kern(t.roh), kern(t.roh).replace(/\d+$/, '')].map((k) => schluessel.get(k)).find(Boolean);
+    if (!id) { rest.push(t); continue; }
+    const x = m.get(id) ?? { dmg: 0, hits: 0, krit: 0, spieler: 0, tage: 0 };
+    x.dmg += t.dmg; x.hits += t.hits; x.krit += t.krit; x.spieler += t.spieler; x.tage = Math.max(x.tage, t.tage);
+    m.set(id, x);
+  }
+  return { proWaffe: m, ohne: rest };
+}
+
+export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki, vergleich, umschalten }: { db: Datenbank; turnier: TurnierWaffe[]; gesamt: number; spielerTage: number; wiki: Wiki; vergleich: string[]; umschalten: (id: string) => void }) {
   const [klasse, setKlasse] = useState<string>('alle');
   const [sorte, setSorte] = useState('klasse');
   const [wunsch, setWunsch] = useState('hoechste');
   const [eigene, setEigene] = useState<Record<string, string>>({});
   const [suche, setSuche] = useState('');
-  const [vergleich, setVergleich] = useState<string[]>([]);
-  const [offen, setOffen] = useState(false);
+  const nav = useNavigate();
+  const modiDa = useMemo(() => [...new Set(db.weapons.flatMap((w) => w.modes ?? []))], [db]);
+  const [modus, setModus] = useState('br');
+  const [bauen, setBauen] = useState<'build' | 'zb'>('build');
+  const [ansicht, setAnsicht] = useState<'raster' | 'liste'>('raster');
 
-  // Turnierwerte den Waffen der Datei zuordnen (ueber Bauplan/WID-Kern); Uebriges bleibt "nur im Turnier gesehen".
-  const { proWaffe, ohne } = useMemo(() => {
-    const schluessel = new Map<string, string>();
-    for (const w of db.weapons) for (const k of abgleichSchluessel(w)) if (!schluessel.has(k)) schluessel.set(k, w.id);
-    const m = new Map<string, Turnier>(); const rest: TurnierWaffe[] = [];
-    for (const t of turnier) {
-      const id = [kern(t.roh), kern(t.roh).replace(/\d+$/, '')].map((k) => schluessel.get(k)).find(Boolean);
-      if (!id) { rest.push(t); continue; }
-      const x = m.get(id) ?? { dmg: 0, hits: 0, krit: 0, spieler: 0, tage: 0 };
-      x.dmg += t.dmg; x.hits += t.hits; x.krit += t.krit; x.spieler += t.spieler; x.tage = Math.max(x.tage, t.tage);
-      m.set(id, x);
-    }
-    return { proWaffe: m, ohne: rest };
-  }, [db, turnier]);
+  const { proWaffe, ohne } = useMemo(() => turnierZuordnen(db, turnier), [db, turnier]);
 
   const stufe = (w: DbWaffe) => (eigene[w.id] ? w.rarities.find((r) => r.rarity === eigene[w.id]) : undefined) ?? stufeFuer(w, wunsch);
   const klassen = KLASSEN_DB.map((k) => ({ ...k, n: db.weapons.filter((w) => w.class === k.k).length })).filter((k) => k.n);
 
   const liste = useMemo(() => {
     const q = suche.trim().toLowerCase();
-    const l = db.weapons.filter((w) => (klasse === 'alle' || w.class === klasse) && (!q || w.name.toLowerCase().includes(q)));
+    // Modus-Filter nur, wenn die Datei Modi fuehrt (sonst ist alles der Pool der exportierten Playlist).
+    const imModus = (w: DbWaffe) => !modiDa.length || !w.modes || (w.modes.includes(modus) && (bauen === 'build' || w.modes.includes('zb') || !modiDa.includes('zb')));
+    const l = db.weapons.filter((w) => imModus(w) && (klasse === 'alle' || w.class === klasse) && (!q || w.name.toLowerCase().includes(q)));
     const wert = (w: DbWaffe): number | undefined => {
       const s = stufe(w);
       if (sorte === 'floor') return s?.loot?.floor ?? gesamtChance(w, 'floor');
@@ -78,9 +86,8 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
       return aufsteigend ? x - y : y - x;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, klasse, sorte, wunsch, eigene, suche, proWaffe]);
+  }, [db, klasse, sorte, wunsch, eigene, suche, proWaffe, modus, bauen, modiDa]);
 
-  const umschalten = (id: string) => setVergleich((v) => (v.includes(id) ? v.filter((x) => x !== id) : v.length >= 3 ? [...v.slice(1), id] : [...v, id]));
   const imVergleich = vergleich.map((id) => db.weapons.find((w) => w.id === id)!).filter(Boolean);
   const stand = db.exportedAt ? new Date(db.exportedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
 
@@ -100,6 +107,8 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
           </Glas>
         ))}
       </div>
+
+      <ModusUmschalter modus={modus} setzen={setModus} bauen={bauen} setBauen={setBauen} verfuegbar={modiDa.length ? modiDa : ['br']} />
 
       {/* Werkzeugleiste */}
       <Glas className="flex flex-wrap items-center gap-x-5 gap-y-3 p-4" verzoegerung={0.15}>
@@ -128,14 +137,18 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
         </label>
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Find a weapon…"
           className="ml-auto w-full rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none sm:w-56" />
+        <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs font-bold">
+          {([['raster', 'Grid'], ['liste', 'List']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setAnsicht(k)} className={`rounded-lg px-2.5 py-1 ${ansicht === k ? 'bg-white/15 text-white' : 'text-white/45'}`}>{t}</button>)}
+        </div>
       </Glas>
 
+      {ansicht === 'liste' ? <Liste liste={liste} stufe={stufe} wiki={wiki} vergleich={vergleich} umschalten={umschalten} /> : (
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {liste.map((w, i) => (
           <DbKarte key={w.id} w={w} s={stufe(w)} waehlen={(r) => setEigene((e) => ({ ...e, [w.id]: r }))} bild={bildVon(w, wiki)} i={i}
             t={proWaffe.get(w.id)} gesamt={gesamt} spielerTage={spielerTage} imVergleich={vergleich.includes(w.id)} vergleichen={() => umschalten(w.id)} />
         ))}
-      </div>
+      </div>)}
       {!liste.length && <p className="text-sm text-white/45">No weapon matches.</p>}
 
       {ohne.length > 0 && (
@@ -160,16 +173,11 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
                 <Symbol bild={bildVon(w, wiki)} name={w.name} klein />{w.name}<span className="text-white/30 group-hover:text-white">✕</span>
               </button>
             ))}
-            {imVergleich.length < 3 && <span className="whitespace-nowrap text-xs text-white/35">{imVergleich.length === 1 ? 'pick 1–2 more' : 'add 1 more?'}</span>}
-            <button type="button" disabled={imVergleich.length < 2} onClick={() => setOffen(true)}
+            {imVergleich.length < 4 && <span className="whitespace-nowrap text-xs text-white/35">{imVergleich.length} of 4 · {imVergleich.length === 1 ? 'pick one more' : 'ready to compare'}</span>}
+            <button type="button" disabled={imVergleich.length < 2} onClick={() => nav(`/community/weapons/compare?w=${vergleich.join(',')}`)}
               className="whitespace-nowrap rounded-xl bg-teal-300 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-teal-200 disabled:opacity-30">Compare {imVergleich.length}</button>
           </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {offen && imVergleich.length >= 2 && (
-          <Vergleich waffen={imVergleich} wiki={wiki} start={(w) => stufe(w)?.rarity} proWaffe={proWaffe} schliessen={() => setOffen(false)} />
         )}
       </AnimatePresence>
       </>, document.body)}
@@ -205,7 +213,7 @@ function DbKarte({ w, s, waehlen, bild, i, t, gesamt, spielerTage, imVergleich, 
         {w.ammo && <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white/60 backdrop-blur">{w.ammo}</span>}
       </div>
       <div className="p-5 pt-4">
-        <h3 className="truncate text-lg font-extrabold tracking-tight text-white" title={w.name}>{w.name}</h3>
+        <Link to={`/community/weapons/${w.id}`} className="block truncate text-lg font-extrabold tracking-tight text-white hover:text-teal-200" title={w.name}>{w.name} <span className="text-sm text-white/30">→</span></Link>
         <div className="mt-2.5 flex gap-1">
           {SELTENHEITEN.filter((x) => x.k !== 'exotic' || w.rarities.some((r) => r.rarity === 'exotic')).map((x) => {
             const da = w.rarities.some((r) => r.rarity === x.k);
@@ -277,63 +285,23 @@ function Balken({ titel, wert, max = 100, stellen = 1 }: { titel: string; wert: 
   );
 }
 
-/* ---------------------------------------------- Vergleich: 2-3 Waffen nebeneinander, jede mit eigener Seltenheit */
-function Vergleich({ waffen, wiki, start, proWaffe, schliessen }: { waffen: DbWaffe[]; wiki: Wiki; start: (w: DbWaffe) => string | undefined; proWaffe: Map<string, Turnier>; schliessen: () => void }) {
-  const [wahl, setWahl] = useState<Record<string, string>>(() => Object.fromEntries(waffen.map((w) => [w.id, start(w) ?? w.rarities[0]?.rarity ?? 'common'])));
-  const stufen = waffen.map((w) => w.rarities.find((r) => r.rarity === wahl[w.id]) ?? w.rarities[0]);
-  const zeilen: Array<{ titel: string; werte: Array<number | undefined>; text: (v: number, i: number) => string; hoeher: boolean }> = [
-    ...WERTE.map((x) => ({ titel: x.titel, werte: stufen.map((s) => (s ? x.wert(s) : undefined)), hoeher: x.hoeher,
-      text: (v: number, i: number) => `${x.text && stufen[i] ? x.text(stufen[i]!) : fmt(v)}${x.einheit ?? ''}${x.k === 'dps' && stufen[i]?.dpsGerechnet ? ' (calc.)' : ''}` })),
-    { titel: 'Floor chance', werte: stufen.map((s) => s?.loot?.floor ?? undefined), hoeher: true, text: (v: number) => pro(v) },
-    { titel: 'Chest chance', werte: stufen.map((s) => s?.loot?.chest ?? undefined), hoeher: true, text: (v: number) => pro(v) },
-    { titel: 'Tournament dmg / hit', werte: waffen.map((w) => { const t = proWaffe.get(w.id); return t && t.hits >= 5 ? t.dmg / t.hits : undefined; }), hoeher: true, text: (v: number) => v.toFixed(1) },
-    { titel: 'Tournament headshot rate', werte: waffen.map((w) => { const t = proWaffe.get(w.id); return t && t.hits >= 5 ? (t.krit / t.hits) * 100 : undefined; }), hoeher: true, text: (v: number) => `${v.toFixed(1)} %` },
-  ];
+function Liste({ liste, stufe, wiki, vergleich, umschalten }: { liste: DbWaffe[]; stufe: (w: DbWaffe) => Stufe | undefined; wiki: Wiki; vergleich: string[]; umschalten: (id: string) => void }) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm" onClick={schliessen}>
-      <motion.div initial={{ y: 24, scale: 0.98 }} animate={{ y: 0, scale: 1 }} exit={{ y: 24, opacity: 0 }} onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0f1a]/95 p-6 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: `rgb(${TEAL})` }}>Compare</p>
-            <h2 className="text-3xl font-extrabold tracking-tight text-white">Side by side</h2>
-          </div>
-          <button type="button" onClick={schliessen} className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:text-white">Close ✕</button>
-        </div>
-        <div className="mt-5 grid gap-x-4" style={{ gridTemplateColumns: `minmax(130px,0.8fr) repeat(${waffen.length}, minmax(0,1fr))` }}>
-          <div />
-          {waffen.map((w, i) => {
-            const f = selten(stufen[i]?.rarity ?? 'common').farbe;
-            return (
-              <div key={w.id} className="rounded-2xl p-3 text-center" style={{ background: `linear-gradient(180deg, ${f}33, transparent)` }}>
-                <div className="mx-auto w-fit"><Symbol bild={bildVon(w, wiki)} name={w.name} /></div>
-                <p className="mt-1 truncate font-extrabold text-white">{w.name}</p>
-                <div className="mt-2 flex justify-center gap-1">
-                  {w.rarities.map((r) => (
-                    <button key={r.rarity} type="button" title={selten(r.rarity).titel} onClick={() => setWahl((x) => ({ ...x, [w.id]: r.rarity }))}
-                      className={`h-4 w-6 rounded transition ${wahl[w.id] === r.rarity ? 'ring-2 ring-white/80' : 'opacity-45 hover:opacity-90'}`} style={{ background: selten(r.rarity).farbe }} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-          {zeilen.map((z) => {
-            const da = z.werte.filter((v): v is number => v !== undefined);
-            const best = da.length > 1 ? (z.hoeher ? Math.max(...da) : Math.min(...da)) : undefined;
-            const max = da.length ? Math.max(...da) : 0;
-            return [
-              <div key={`${z.titel}-t`} className="border-t border-white/5 py-2.5 text-sm text-white/50">{z.titel}</div>,
-              ...z.werte.map((v, i) => (
-                <div key={`${z.titel}-${i}`} className="border-t border-white/5 px-2 py-2.5">
-                  <p className={`text-sm font-bold tabular-nums ${v === undefined ? 'text-white/25' : v === best ? 'text-teal-300' : 'text-white'}`}>{v === undefined ? '—' : z.text(v, i)}</p>
-                  {v !== undefined && max > 0 && <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06]"><motion.div className={`h-full rounded-full ${v === best ? 'bg-teal-300' : 'bg-white/30'}`} initial={{ width: 0 }} animate={{ width: `${(v / max) * 100}%` }} /></div>}
-                </div>
-              )),
-            ];
-          })}
-        </div>
-        <p className="mt-4 text-[11px] text-white/35">Best value per row in teal (lower is better for reload time). Values from the game-file export; tournament rows from replays.</p>
-      </motion.div>
-    </motion.div>
+    <Glas className="overflow-x-auto">
+      <table className="w-full min-w-[820px] text-sm">
+        <thead className="text-left text-[10px] uppercase tracking-[0.2em] text-white/40"><tr><th className="px-4 py-3">Weapon</th>{WERTE.map((d) => <th key={d.k} className="text-right">{d.kurz}</th>)}<th className="text-right">Floor</th><th className="text-right">Chest</th><th className="pr-4" /></tr></thead>
+        <tbody>{liste.map((w) => {
+          const s = stufe(w);
+          return (
+            <tr key={w.id} className="border-t border-white/5 hover:bg-white/[0.03]">
+              <td className="px-4 py-2"><Link to={`/community/weapons/${w.id}`} className="flex items-center gap-3"><Symbol bild={bildVon(w, wiki)} name={w.name} klein /><span className="font-bold text-white">{w.name}</span><span className="h-2 w-2 rounded-full" style={{ background: selten(s?.rarity ?? 'common').farbe }} /></Link></td>
+              {WERTE.map((d) => { const v = s ? d.wert(s) : undefined; return <td key={d.k} className="text-right tabular-nums text-white/85">{v === undefined ? '—' : fmt(v)}</td>; })}
+              <td className="text-right tabular-nums text-white/70">{pro(s?.loot?.floor)}</td><td className="text-right tabular-nums text-white/70">{pro(s?.loot?.chest)}</td>
+              <td className="pr-4 text-right"><button type="button" onClick={() => umschalten(w.id)} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${vergleich.includes(w.id) ? 'bg-teal-300 text-[#06080f]' : 'bg-white/[0.06] text-white/60'}`}>{vergleich.includes(w.id) ? '✓' : '+'}</button></td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+    </Glas>
   );
 }
