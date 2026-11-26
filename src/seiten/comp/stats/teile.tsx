@@ -52,9 +52,9 @@ export function Laedt({ text = 'Loading…' }: { text?: string }) {
   );
 }
 
-/** Rundes Spielerbild - nur echte Fotos, sonst die Anfangsbuchstaben (keine gleichen Platzhalter mehrfach auf einer Seite). */
+/** Spielerbild als kleines Hochformat (Betreiber: Portraet-Rechtecke, keine runden Kreise) - nur echte Fotos, sonst die Anfangsbuchstaben. */
 export function Rund({ bild, name, gross = 32 }: { bild?: string | null; name: string; gross?: number }) {
-  if (bild) return <img src={bild} alt="" loading="lazy" className="shrink-0 rounded-full object-cover object-top ring-1 ring-white/10" style={{ width: gross, height: gross }} />;
+  if (bild) return <img src={bild} alt="" loading="lazy" className="shrink-0 rounded-lg object-cover object-top ring-1 ring-white/10" style={{ width: Math.round(gross * 0.75), height: gross }} />;
   const k = name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
-  return <span className="grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-white/10 to-white/[0.02] text-[10px] font-bold text-white/45 ring-1 ring-white/10" style={{ width: gross, height: gross }}>{k}</span>;
+  return <span className="grid shrink-0 place-items-center rounded-lg bg-gradient-to-br from-white/10 to-white/[0.02] text-[10px] font-bold text-white/45 ring-1 ring-white/10" style={{ width: Math.round(gross * 0.75), height: gross }}>{k}</span>;
 }
