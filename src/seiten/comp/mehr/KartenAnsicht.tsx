@@ -206,7 +206,7 @@ export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }
     <div ref={huelle} className={`relative ${voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : ''}`}>
       <div ref={flaeche}
         className={`relative mx-auto aspect-square touch-none select-none overflow-hidden rounded-3xl border border-white/10 bg-[#0b2340] ${voll ? 'h-full max-h-screen rounded-none border-0' : 'w-full'} ${z > 1.02 ? 'cursor-grab active:cursor-grabbing' : ''}`}
-        style={{ containerType: 'inline-size' }}
+        style={{ containerType: 'inline-size', maxWidth: voll ? undefined : 'min(100%, 86vh)' }}
         onPointerDown={(e) => { const k = e.currentTarget.getBoundingClientRect(); zug.current = { sx: e.clientX, sy: e.clientY, m: mr.current, w: k.width, bewegt: false }; e.currentTarget.setPointerCapture(e.pointerId); }}
         onPointerMove={(e) => {
           const g = zug.current; if (!g || zr.current <= 1.01) return;
