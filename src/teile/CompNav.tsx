@@ -9,7 +9,6 @@ export const COMP_SEITEN = [
   { pfad: 'deep-stats', titel: 'Deep Stats' },
   { pfad: 'match-finder', titel: 'Match Finder' },
   { pfad: 'replays', titel: 'Replays' },
-  { pfad: 'streams', titel: 'Streams' },
   { pfad: 'tierlist', titel: 'Tierlist' },
   { pfad: 'fncs', titel: 'FNCS' },
 ];

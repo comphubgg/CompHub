@@ -7,6 +7,8 @@ import Dashboard from './Dashboard';
 import LiveJetzt from './LiveJetzt';
 import Overlays from './Overlays';
 import MeineSeite from './MeineSeite';
+// Streams (Multiview) gehoert seit 26.11.2026 in den Streamer-Bereich (Betreiber: "unter Competitive soll die Stream-Seite nicht mehr sein")
+import Streams from '../comp/Streams';
 import { istVip } from './zugang';
 
 /*
@@ -19,6 +21,7 @@ import { istVip } from './zugang';
 const SEITEN = [
   { pfad: '', titel: 'Dashboard' },
   { pfad: 'live', titel: 'Live now' },
+  { pfad: 'streams', titel: 'Streams' },
   { pfad: 'overlays', titel: 'Overlays' },
   { pfad: 'my-page', titel: 'My page' },
 ];
@@ -39,6 +42,7 @@ export default function Streamer() {
           <Routes>
             <Route index element={<Dashboard />} />
             <Route path="live" element={<LiveJetzt />} />
+            <Route path="streams" element={<Streams />} />
             <Route path="overlays" element={<Overlays />} />
             <Route path="my-page" element={<MeineSeite />} />
             <Route path="*" element={<Dashboard />} />

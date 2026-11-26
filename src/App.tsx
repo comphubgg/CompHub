@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Baustelle from './teile/Baustelle';
 import Hintergrund from './teile/Hintergrund';
 import Start from './seiten/Start';
@@ -13,7 +13,6 @@ import Statistics from './seiten/comp/Statistics';
 import DeepStats from './seiten/comp/DeepStats';
 import Replays from './seiten/comp/Replays';
 import MatchFinder from './seiten/comp/MatchFinder';
-import Streams from './seiten/comp/Streams';
 import Tierlist from './seiten/comp/Tierlist';
 import Fncs from './seiten/comp/Fncs';
 import Community from './seiten/community/Community';
@@ -47,7 +46,7 @@ export default function App() {
             <Route path="deep-stats" element={<DeepStats />} />
             <Route path="replays" element={<Replays />} />
             <Route path="match-finder" element={<MatchFinder />} />
-            <Route path="streams" element={<Streams />} />
+            <Route path="streams" element={<Navigate to="/streamer/streams" replace />} />
             <Route path="tierlist" element={<Tierlist />} />
             <Route path="fncs" element={<Fncs />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
