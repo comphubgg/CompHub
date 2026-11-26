@@ -31,6 +31,13 @@ function useJetzt(ms = 1000) {
 // Betreiber (26.11.2026): am 5. Dezember startet das neue Chapter. Uhrzeit ist Epics uebliche Wartung (~09:00 UTC), nicht bestaetigt.
 const SAISON_ENDE_43 = Date.UTC(2026, 11, 5, 9, 0);
 
+// Saisonnamen wie auf der Seite (lib/szeneStats.ts auf main): S43 ist die Mini-Season "Treasure Hunters" nach Chapter 7 Season 4.
+const SAISON_NAME: Record<number, { name: string; unter: string }> = {
+  39: { name: 'Chapter 7 Season 1', unter: 'Chapter 7' }, 40: { name: 'Chapter 7 Season 2', unter: 'Chapter 7' },
+  41: { name: 'Chapter 7 Season 3', unter: 'Chapter 7' }, 42: { name: 'Chapter 7 Season 4', unter: 'Chapter 7' },
+  43: { name: 'Treasure Hunters', unter: 'Chapter 7 · Mini season' },
+};
+
 function Countdown({ bis }: { bis: number }) {
   const jetzt = useJetzt();
   const rest = Math.max(0, bis - jetzt);
@@ -87,7 +94,8 @@ function Saison() {
       <div className="relative grid gap-6 p-7 md:grid-cols-[1fr_auto]">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-300">Current season</p>
-          <h2 className="mt-1 text-6xl font-black tracking-tight text-white">{saison ? `Season ${saison}` : '…'}</h2>
+          <h2 className="mt-1 text-6xl font-black tracking-tight text-white">{saison ? (SAISON_NAME[saison]?.name ?? `Season ${saison}`) : '…'}</h2>
+          {saison && <p className="mt-1 text-lg font-semibold text-teal-200/80">{SAISON_NAME[saison]?.unter ?? ''}{SAISON_NAME[saison] ? ' · ' : ''}Season {saison}</p>}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {version && <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-semibold text-white/80">Game version v{version[1]}.{version[2]}</span>}
             {tag && <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-semibold text-white/80">Day {tag} of the season</span>}

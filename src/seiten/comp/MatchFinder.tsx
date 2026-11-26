@@ -197,7 +197,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
               const verlauf = daten?.verlauf?.[f.id] ?? [];
               return (
                 <motion.article key={f.id} layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0, transition: { delay: i * 0.04 } }} exit={{ opacity: 0, x: -20 }}
-                  className={`rounded-3xl border bg-white/[0.035] p-5 backdrop-blur-xl ${s?.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)]' : 'border-white/10'}`}>
+                  className={`rounded-3xl border bg-[#080b14]/55 p-5 backdrop-blur-xl ${s?.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)]' : 'border-white/10'}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-400/30 to-violet-500/20 text-sm font-extrabold text-white">{f.name.slice(0, 1).toUpperCase()}</span>
@@ -375,7 +375,7 @@ function AlleFreunde({ kopiert, kopieren, setVerboten }: { kopiert: string; kopi
         <div className="grid gap-4 2xl:grid-cols-2">
           {liste.map((f, i) => (
             <motion.article key={f.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 20) * 0.025 } }}
-              className={`rounded-3xl border bg-white/[0.035] p-5 backdrop-blur-xl ${f.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)] 2xl:col-span-2' : 'border-white/10'}`}>
+              className={`rounded-3xl border bg-[#080b14]/55 p-5 backdrop-blur-xl ${f.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)] 2xl:col-span-2' : 'border-white/10'}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2.5 truncate text-base font-bold text-white"><Punkt an={!!f.online} /><span className="truncate">{f.name}</span></p>
