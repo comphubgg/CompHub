@@ -17,11 +17,11 @@ const STREAMER_FALLBACK = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'au
 function StreamerWand({ logins }: { logins: string[] }) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(120%_80%_at_50%_0%,rgba(167,139,250,0.35),rgba(6,8,15,0.9)_70%)]">
-      <div className="absolute inset-x-6 top-14 grid grid-cols-3 gap-4">
-        {logins.slice(0, 6).map((l, i) => (
+      <div className="absolute inset-x-8 top-14 grid grid-cols-3 gap-x-4 gap-y-2.5">
+        {logins.slice(0, 9).map((l, i) => (
           <motion.div key={l} className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
             transition={{ opacity: { delay: 0.4 + i * 0.06 }, y: { duration: 4 + (i % 3), repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 } }}>
-            <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-full rounded-2xl border border-white/15 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
+            <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-[78%] rounded-2xl border border-white/15 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
             <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-wider text-white/60">{l}</span>
           </motion.div>
         ))}
@@ -97,7 +97,12 @@ export default function Start() {
     // Epics Banner in voller Aufloesung (1920x1080 und groesser) - die kleinen Kopien waren verpixelt.
     fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => {
       const alle = (j.cups ?? []).map((c: { bild?: string }) => c.bild).filter((x: unknown): x is string => typeof x === 'string' && x.startsWith('https://cdn2.unrealengine.com'));
-      setBanner([...new Set<string>(alle)].slice(0, 8));
+      // Jedes Motiv nur einmal (Betreiber: "Thumbnails duerfen nie doppelt sein"): Epic fuehrt dasselbe Bild oft als BR-, ZB- und Mobile-Fassung.
+      const motiv = (u: string) => u.split('/').pop()!.toLowerCase().replace(/-[0-9a-f]{10,}\.(jpg|png|webp)$/, '')
+        .replace(/-?(zerobuild|zb|mobile|nobuild)(?=-|$)/g, '').replace(/-\d+x\d+/g, '').replace(/^en-[a-z]+-\d+-\d+-/, '');
+      const gesehen = new Set<string>(); const einzeln: string[] = [];
+      for (const u of alle) { const m = motiv(u); if (!gesehen.has(m)) { gesehen.add(m); einzeln.push(u); } }
+      setBanner(einzeln.slice(0, 10));
     }).catch(() => {});
     fetch('/api/streamers').then((r) => r.json()).then((j) => {
       const l = (j.streamers?.streamer ?? []).map((s: { twitch?: string }) => s.twitch).filter((x: unknown): x is string => typeof x === 'string' && x !== 'fortnite');

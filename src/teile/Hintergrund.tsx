@@ -15,13 +15,9 @@ export default function Hintergrund() {
   useEffect(() => {
     fetch('/api/startvitrine').then((r) => r.json()).then((j) => setFotos(gemischt<string>((j.fotos ?? []).map((f: { bild: string }) => f.bild)).slice(0, 32))).catch(() => {});
   }, []);
-  const reihen = [0, 1, 2, 3].map((r) => {
-    const f = fotos.slice(r * 8, r * 8 + 8);
-    const deko = gemischt([...CUPS, ...KARTEN]).slice(0, 6);
-    const mix: string[] = [];
-    for (let i = 0; i < Math.max(f.length, deko.length); i++) { if (deko[i]) mix.push(deko[i]); if (f[i]) mix.push(f[i]); }
-    return mix;
-  });
+  // Jedes Bild nur einmal auf dem Bildschirm: Banner und Fotos reihum auf die vier Reihen verteilt (keine Reihe teilt ein Bild mit einer anderen).
+  const alle = [...new Set([...CUPS, ...KARTEN, ...fotos])];
+  const reihen = [0, 1, 2, 3].map((r) => alle.filter((_, i) => i % 4 === r));
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#06080f]" aria-hidden>
       <div className="absolute -inset-[20%] flex -rotate-[8deg] flex-col justify-center gap-5 opacity-[0.7] blur-[1px]">
