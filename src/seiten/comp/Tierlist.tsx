@@ -46,12 +46,16 @@ async function fotosHolen(namen: string[]): Promise<void> {
   }
 }
 
-function Kopf({ s, gross }: { s: Sp; gross: boolean }) {
-  const foto = FOTOS.get(s.name);
-  const g = gross ? 'h-14 w-14' : 'h-11 w-11';
-  return foto
-    ? <img src={foto} alt="" draggable={false} className={`${g} shrink-0 rounded-xl object-cover object-top ring-1 ring-white/15`} />
-    : <span className={`${g} grid shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#1c2333] to-[#111622] text-base font-extrabold text-white/40 ring-1 ring-white/10`}>{s.name.slice(0, 1).toUpperCase()}</span>;
+/** Fotos als kleine Hochkant-Rechtecke nebeneinander - nur wenn JEDER Spieler des Teams eines hat (Betreiber-Regel). */
+function Fotos({ spieler }: { spieler: Sp[] }) {
+  const fotos = spieler.map((s) => FOTOS.get(s.name));
+  if (!fotos.every(Boolean)) {
+    // Ohne vollstaendige Fotos: Solo bekommt den Anfangsbuchstaben, Teams gar kein Bild.
+    return spieler.length === 1
+      ? <span className="grid h-12 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[#1c2333] to-[#111622] text-sm font-extrabold text-white/40 ring-1 ring-white/10">{spieler[0].name.slice(0, 1).toUpperCase()}</span>
+      : null;
+  }
+  return <div className="flex shrink-0 gap-1">{fotos.map((f, i) => <img key={i} src={f!} alt="" draggable={false} className="h-12 w-9 rounded-lg object-cover object-top ring-1 ring-white/15" />)}</div>;
 }
 
 function Kachel({ e, gewaehlt, ziehtGerade, onDragStart, onDragEnd, onClick, onDropVor }: {
@@ -67,7 +71,7 @@ function Kachel({ e, gewaehlt, ziehtGerade, onDragStart, onDragEnd, onClick, onD
         title={e.spieler.map((s) => s.name).join(' · ')}
         className={`group relative flex cursor-grab select-none items-center gap-2 rounded-2xl border px-2 py-1.5 backdrop-blur active:cursor-grabbing
           ${gewaehlt ? 'border-sky-400 bg-sky-400/15 shadow-[0_0_24px_-6px_rgba(56,189,248,0.8)]' : 'border-white/10 bg-white/[0.05] hover:border-white/25'} ${ziehtGerade ? 'opacity-30' : ''}`}>
-        <div className="flex -space-x-3">{e.spieler.map((s) => <Kopf key={s.name} s={s} gross={solo} />)}</div>
+        <Fotos spieler={e.spieler} />
         <div className="min-w-0 pr-1">
           {e.spieler.map((s) => (
             <p key={s.name} className={`flex items-center gap-1.5 truncate font-bold leading-tight text-white ${solo ? 'text-sm' : 'text-[11px]'}`}>

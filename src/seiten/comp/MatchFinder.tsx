@@ -267,8 +267,8 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
                 return (
                   <motion.li key={x.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
                     className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/20 px-2.5 py-2">
-                    {x.bild ? <img src={x.bild} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover object-top" />
-                      : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/5 text-sm font-bold text-white/40">{x.name.slice(0, 1).toUpperCase()}</span>}
+                    {x.bild ? <img src={x.bild} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover object-top" />
+                      : <span className="grid h-12 w-9 shrink-0 place-items-center rounded-lg bg-white/5 text-sm font-bold text-white/40">{x.name.slice(0, 1).toUpperCase()}</span>}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-white">{x.name}</span>
                       {x.ingame && x.ingame !== x.name && <span className="block truncate text-[11px] text-white/40">{x.ingame}</span>}
