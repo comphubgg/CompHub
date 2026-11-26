@@ -147,9 +147,9 @@ function ShopKachel({ a, i, besessen, gewuenscht, oeffnen, jetzt }: { a: Angebot
           <p className="flex items-center justify-between gap-2 text-sm font-bold text-white/85">
             <span>{preis(a.preis)}{a.regulaer > a.preis && <span className="ml-1.5 text-[11px] text-white/35 line-through">{a.regulaer.toLocaleString('en')}</span>}</span>
           </p>
-          <p className="mt-0.5 flex justify-between text-[10px] text-white/40">
-            <span>{a.bundle ? `${a.teile.length} items · ` : ''}{a.laeuft > 1 ? `In shop ${a.laeuft}d` : a.vorher ? `Back after ${a.wartezeit}d` : a.neu ? 'First time' : t?.art === 'br' ? '' : t?.typName}</span>
-            {geht > 0 && geht < 7 * 864e5 && <span className={geht < 864e5 ? 'text-amber-200/80' : ''}>{restText(geht)} left</span>}
+          <p className="mt-0.5 flex justify-between gap-1 text-[10px] text-white/40">
+            <span className="truncate">{a.bundle ? `${a.teile.length} items · ` : ''}{a.laeuft > 1 ? `In shop ${a.laeuft}d` : a.vorher ? `Back after ${a.wartezeit}d` : a.neu ? 'First time' : t?.art === 'br' ? '' : t?.typName}</span>
+            {geht > 0 && geht < 7 * 864e5 && <span className={`shrink-0 ${geht < 864e5 ? 'text-amber-200/80' : ''}`}>{geht >= 864e5 ? `${Math.floor(geht / 864e5)}d ${Math.floor((geht % 864e5) / 36e5)}h` : restText(geht)} left</span>}
           </p>
         </div>
       </button>
