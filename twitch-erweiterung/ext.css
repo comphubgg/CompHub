@@ -1,0 +1,30 @@
+:root{--bg:#0b0f17;--karte:#111827;--rand:#1f2937;--text:#e5e7eb;--leise:#94a3b8;--akzent:#38bdf8;--live:#ef4444;--gut:#34d399}
+*{box-sizing:border-box}
+html,body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);font-size:13px}
+body.panel,body.konfig{background:var(--bg)}
+body.overlay{background:transparent}
+.wrap{padding:12px}
+.kopf{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.logo{font-weight:800;letter-spacing:.02em}.logo b{color:var(--akzent)}
+.live{display:inline-flex;align-items:center;gap:5px;color:var(--live);font-weight:700;font-size:11px}
+.live:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live);animation:p 1.4s infinite}
+@keyframes p{50%{opacity:.35}}
+.karte{background:var(--karte);border:1px solid var(--rand);border-radius:10px;padding:10px;margin-bottom:8px}
+.titel{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--leise);margin:0 0 6px}
+.zahlen{display:flex;gap:14px}.zahl b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.zahl span{color:var(--leise);font-size:11px}
+.zeile{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--rand);font-variant-numeric:tabular-nums}
+.zeile:first-of-type{border-top:0}
+.leise{color:var(--leise)}
+button,.knopf{appearance:none;border:0;border-radius:8px;background:var(--akzent);color:#04111d;font-weight:700;padding:7px 10px;cursor:pointer;font-size:12px;text-decoration:none;display:inline-block}
+button.zweit{background:transparent;color:var(--text);border:1px solid var(--rand)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#000;padding:3px 6px;border-radius:6px;word-break:break-all}
+.fuss{margin-top:10px;font-size:11px;color:var(--leise);text-align:center}.fuss a{color:var(--akzent);text-decoration:none}
+label{display:block;margin:10px 0 4px;color:var(--leise)}
+input[type=text],select{width:100%;padding:8px;border-radius:8px;border:1px solid var(--rand);background:#000;color:var(--text)}
+.hinweis{font-size:11px;color:var(--leise);margin-top:4px}
+.ok{color:var(--gut)}.fehler{color:var(--live)}
+/* Overlay: kleines Kaestchen oben rechts, aufklappbar */
+.ov{position:fixed;top:70px;right:12px;width:230px;background:rgba(11,15,23,.92);border:1px solid var(--rand);border-radius:12px;padding:10px;backdrop-filter:blur(6px)}
+.ov.zu .inhalt{display:none}
+.ov .kopf{margin:0;cursor:pointer}
+.ov .inhalt{margin-top:8px}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CompHub Live – Settings</title><link rel="stylesheet" href="ext.css">
+<script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script></head>
+<body class="konfig" data-ansicht="config"><div class="wrap" style="max-width:520px">
+<div class="kopf"><span class="logo">Comp<b>Hub</b> Live</span><span class="leise">Settings</span></div>
+<div class="karte">
+<label for="epic">Your Epic name</label>
+<input id="epic" type="text" placeholder="e.g. Peterbot" maxlength="40" autocomplete="off">
+<div class="hinweis">Exactly as in Fortnite. Your viewers then see your live cup placement, points and recent matches.</div>
+<label><input id="plan" type="checkbox"> Show my Twitch stream schedule</label>
+<label><input id="code" type="checkbox"> Show my match code to viewers</label>
+<div class="hinweis">Off by default. Viewers could join your lobby or watch your match with it. Only turn it on if you want that.</div>
+<label for="verz">Delay before the code appears</label>
+<select id="verz"><option value="0">No delay</option><option value="1">1 minute into the match</option><option value="3">3 minutes into the match</option></select>
+<p style="margin-top:14px"><button id="speichern">Save</button> <span id="meldung"></span></p>
+</div>
+<div class="hinweis">Free, no ads. Data from thecomphub.com. Not affiliated with Epic Games.</div>
+</div><script src="ext.js"></script></body></html>
