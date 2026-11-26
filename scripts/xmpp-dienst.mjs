@@ -350,7 +350,7 @@ async function diagnose(id) {
     probeGeschickt: probe,
     sitzungssucheBot: findeBot,
     sitzungssuche,
-    restPresence: { ...restPresence, jeId: undefined, ziel: restPresence.jeId.get(id) ?? null, freundeImAbruf: restPresence.jeId.size },
+    eos: { verbunden: eos.verbunden, seit: eos.seit, verbindungen: eos.verbindungen, letzterFehler: eos.letzterFehler, nachrichten: eos.nachrichten, presences: eos.presences, funde: eos.funde, typen: eos.typen, protokoll: eos.protokoll.slice(-10), freundeMitStatus: eos.jeId.size, ziel: eos.jeId.get(id) ?? null },
     sitzungssucheHaupt: findeHaupt,
     versuch,
   };
@@ -411,14 +411,14 @@ async function sitzungenSuchen() {
 setInterval(() => { void sitzungenSuchen(); }, SITZUNG_MS);
 
 /*
- * Epics neuer Status-Dienst (EOS-Presence, REST) fuer die Freunde des Bots (Betreiber, 26.11.2026: "Rax ist gruen, also muss er online sein" - per XMPP
- * kam von ihm aber nie ein Status). Fortnite meldet den Status inzwischen ueber EOS (fnbr.js 5.0 liest Freundes-Status nur noch dort, Nov. 2026);
- * presence/api/v1/_/{bot}/presence?circle=friends liefert je Freund SessionIdAttributeKey ("s" + Match-ID), Playlist und Kills. Alle 15 s.
- * Ein Status aus XMPP geht vor und wird nie ueberschrieben; alles steht in /diagnose (restPresence).
+ * Epics neuer Status-Weg (EOS Connect, STOMP) fuer die Freunde des Bots (Betreiber, 26.11.2026: "Rax ist gruen, also muss er online sein" - per XMPP
+ * kam von ihm nie ein Status). Fortnite meldet den Freundes-Status inzwischen ueber EOS: fnbr.js 5.0 (Nov. 2026) liest ihn nur noch aus der
+ * STOMP-Verbindung wss://connect.epicgames.dev/v2 (Nachricht presence.v1.UPDATE). Anmeldung: Austauschcode des Bot-Logins -> EOS-Token
+ * (token_type epic_id, Fortnite-Deployment). Die REST-Abfrage presence?circle=friends lehnte Epic mit 401 ab (26.11.2026).
+ * Je Freund: SessionIdAttributeKey ("s" + Match-ID), Playlist, Kills. Ein Status aus XMPP geht vor und wird nie ueberschrieben; /diagnose (eos).
  */
-const PRESENCE_MS = Number(process.env.XMPP_PRESENCE_S || 15) * 1000;
-const restPresence = { abrufe: 0, fehler: 0, letzterFehler: null, letzteRunde: null, mitSitzung: 0, funde: 0, protokoll: [], jeId: new Map() };
-let restLaeuft = false;
+const EOS_DEPLOY = '62a9473a2dca46b29ccf17577fcf42d7';
+const eos = { verbunden: false, seit: null, letzterFehler: null, verbindungen: 0, nachrichten: 0, presences: 0, funde: 0, typen: {}, protokoll: [], jeId: new Map(), ws: null, ping: null, neu: null, erneuern: null };
 function propsLesen(props) {
   let sid = String(props?.SessionIdAttributeKey ?? '').toLowerCase();
   if (sid.startsWith('s')) sid = sid.slice(1);
@@ -430,73 +430,123 @@ function propsLesen(props) {
     kills: Number.isFinite(stats.numKills) ? stats.numKills : null,
   };
 }
-async function restPresenceHolen() {
-  const k = konten.bot;
-  if (restLaeuft || !k.verbunden || !k.konto) return;
-  restLaeuft = true;
-  try {
-    restPresence.abrufe += 1;
-    const r = await epicAbruf(k, `https://presence-public-service-prod.ol.epicgames.com/presence/api/v1/_/${k.konto}/presence?circle=friends`, { signal: AbortSignal.timeout(8_000) });
-    if (!r.ok) { restPresence.fehler += 1; restPresence.letzterFehler = `HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`; return; }
-    const j = await r.json();
-    const liste = (Array.isArray(j) ? j : []).filter((c) => c?.circle === 'friends').flatMap((c) => c.presences ?? []);
-    const jetzt = new Date().toISOString();
-    const gesehen = new Set();
-    let mit = 0;
-    for (const p of liste) {
-      const id = String(p?.accountId ?? '').replace(/-/g, '').toLowerCase();
-      if (!HEX32.test(id)) continue;
-      const ns = (p.perNs ?? []).find((n) => n?.props?.SessionIdAttributeKey !== undefined) ?? (p.perNs ?? []).find((n) => n?.productId === 'prod-fn') ?? p.perNs?.[0];
-      const { sid, playlist, kills } = propsLesen(ns?.props);
-      const zeile = String(ns?.activity?.value ?? '');
-      const status = String(p.status ?? ns?.status ?? '');
-      if (status === 'offline') continue;
-      gesehen.add(id);
-      restPresence.jeId.set(id, { t: jetzt, status, sid, playlist, kills, zeile, props: Object.keys(ns?.props ?? {}).length });
-      const alt = k.freunde.get(id);
-      const vonRest = k.sitzungVonRest.get(id) ?? null;
-      if (sid) {
-        mit += 1;
-        // Eine Match-ID aus XMPP (oder der Sitzungssuche) geht vor.
-        if (alt?.sessionId && alt.sessionId !== vonRest) continue;
-        if (vonRest !== sid) {
-          restPresence.funde += 1;
-          restPresence.protokoll.push({ t: jetzt, id: id.slice(0, 8), sitzung: sid.slice(0, 8), playlist });
-          if (restPresence.protokoll.length > 50) restPresence.protokoll.shift();
-          log(`[bot] EOS-Status ${id}: ${vonRest ?? '-'} -> ${sid} (${playlist ?? '-'})`);
-        }
-        k.freunde.set(id, {
-          sessionId: sid, zeile: zeile || alt?.zeile || 'Im Match', playlist: playlist ?? alt?.playlist ?? null, kills: kills ?? alt?.kills ?? null,
-          seit: alt?.sessionId === sid ? alt.seit : jetzt, zuletzt: jetzt, online: true,
-        });
-        k.sitzungVonRest.set(id, sid); k.onlineVonRest.add(id);
-        wechsel(id);
-      } else {
-        if (vonRest) k.sitzungVonRest.delete(id);
-        const offenVonRest = vonRest && alt?.sessionId === vonRest;
-        if (offenVonRest || !alt || alt.online === false || k.onlineVonRest.has(id)) {
-          if (offenVonRest || !alt || alt.zeile !== zeile || !alt.online) {
-            k.freunde.set(id, { ...(alt ?? {}), sessionId: offenVonRest ? null : alt?.sessionId ?? null, seit: offenVonRest ? null : alt?.seit ?? null, zeile, playlist, kills, zuletzt: jetzt, online: true });
-            wechsel(id);
-          }
-          k.onlineVonRest.add(id);
-        }
-      }
-    }
-    // Nicht mehr in der Liste: was dieser Weg gesetzt hat, zuruecknehmen.
-    for (const id of [...k.onlineVonRest]) {
-      if (gesehen.has(id)) continue;
-      k.onlineVonRest.delete(id);
-      const vonRest = k.sitzungVonRest.get(id);
-      k.sitzungVonRest.delete(id);
-      const alt = k.freunde.get(id);
-      if (alt && (alt.sessionId === vonRest || !alt.sessionId)) { k.freunde.set(id, { ...alt, sessionId: alt.sessionId === vonRest ? null : alt.sessionId, seit: null, online: false, zuletzt: jetzt }); wechsel(id); }
-    }
-    restPresence.mitSitzung = mit;
-    restPresence.letzteRunde = jetzt;
-  } catch (e) { restPresence.fehler += 1; restPresence.letzterFehler = e?.message ?? String(e); } finally { restLaeuft = false; }
+const stompRahmen = (befehl, kopf, rumpf = '') => `${befehl}\n${Object.entries(kopf).map(([a, b]) => `${a}:${b}`).join('\n')}\n\n${rumpf}\x00`;
+function stompLesen(text) {
+  const i = text.indexOf('\n\n');
+  const [befehl, ...zeilen] = (i < 0 ? text : text.slice(0, i)).split('\n');
+  const kopf = {};
+  for (const z of zeilen) { const j = z.indexOf(':'); if (j > 0) kopf[z.slice(0, j)] = z.slice(j + 1); }
+  return { befehl: befehl.trim(), kopf, rumpf: i < 0 ? '' : text.slice(i + 2).replace(/\x00$/, '') };
 }
-setInterval(() => { void restPresenceHolen(); }, PRESENCE_MS);
+async function eosToken(k) {
+  const t = await restToken(k);
+  const ex = await fetch(`${ACCOUNT}/account/api/oauth/exchange`, { headers: { Authorization: `bearer ${t}` }, signal: AbortSignal.timeout(10_000) });
+  if (!ex.ok) throw new Error(`Austauschcode HTTP ${ex.status}`);
+  const { code } = await ex.json();
+  const r = await fetch('https://api.epicgames.dev/epic/oauth/v2/token', {
+    method: 'POST', signal: AbortSignal.timeout(10_000),
+    headers: { Authorization: BASIC, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'exchange_code', exchange_code: code, token_type: 'epic_id', deployment_id: EOS_DEPLOY }),
+  });
+  if (!r.ok) throw new Error(`EOS-Token HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return (await r.json()).access_token;
+}
+function eosAufraeumen() {
+  if (eos.ping) clearInterval(eos.ping); eos.ping = null;
+  if (eos.erneuern) clearTimeout(eos.erneuern); eos.erneuern = null;
+  const w = eos.ws; eos.ws = null;
+  if (w) { w.removeAllListeners(); try { w.close(); } catch { /* egal */ } }
+  if (eos.verbunden) log('[eos] getrennt');
+  eos.verbunden = false;
+}
+function eosSpaeter(grund, ms = 30_000) {
+  eosAufraeumen();
+  if (eos.neu) return;
+  eos.letzterFehler = grund;
+  eos.neu = setTimeout(() => { eos.neu = null; void eosVerbinden(); }, ms);
+}
+async function eosVerbinden() {
+  const k = konten.bot;
+  if (eos.ws || !k.verbunden || !k.konto || k.aus) return;
+  let tok;
+  try { tok = await eosToken(k); } catch (e) { log(`[eos] Anmeldung: ${e.message}`); eosSpaeter(e.message, 120_000); return; }
+  const { default: WebSocket } = await import('ws');
+  const w = new WebSocket('wss://connect.epicgames.dev/v2', { headers: { Authorization: `Bearer ${tok}`, 'Epic-Connect-Device-Id': ' ', 'Epic-Connect-Protocol': 'stomp' } });
+  eos.ws = w;
+  w.on('open', () => w.send(stompRahmen('CONNECT', { 'accept-version': '1.0,1.1,1.2', 'heart-beat': '30000,0', authorization: `Bearer ${tok}` })));
+  w.on('message', (roh) => {
+    const m = stompLesen(roh.toString());
+    if (m.befehl === 'CONNECTED') {
+      const sub = `sub-eas-${Math.floor(Math.random() * 0xffffffff).toString(16)}`;
+      w.send(stompRahmen('SUBSCRIBE', { id: sub, destination: `deploymentId/${EOS_DEPLOY}/epicAccountId/${k.konto}`, authorization: `Bearer ${tok}`, 'ec-coord-accept-language': 'en' }));
+      eos.ping = setInterval(() => { try { w.send('\n'); } catch { /* egal */ } }, 30_000);
+      return;
+    }
+    if (m.befehl === 'ERROR') { log(`[eos] Fehler: ${m.rumpf.slice(0, 200)}`); eos.letzterFehler = m.rumpf.slice(0, 300); return; }
+    if (m.befehl !== 'MESSAGE' || !m.rumpf) return;
+    let d; try { d = JSON.parse(m.rumpf); } catch { return; }
+    eos.nachrichten += 1;
+    eos.typen[d.type] = (eos.typen[d.type] ?? 0) + 1;
+    if (d.type === 'core.connect.v1.connected') {
+      eos.verbunden = true; eos.seit = new Date().toISOString(); eos.verbindungen += 1; eos.letzterFehler = null;
+      log(`[eos] verbunden (Verbindung Nr. ${eos.verbindungen})`);
+      // Der EOS-Schluessel laeuft ab - vorher frisch verbinden.
+      eos.erneuern = setTimeout(() => { log('[eos] Schluessel erneuern'); eosSpaeter('erneuern', 1_000); }, 100 * 60_000);
+    } else if (d.type === 'core.connect.v1.connect-failed') {
+      log(`[eos] Verbindung abgelehnt: ${d.message ?? ''} (${d.statusCode ?? ''})`); eosSpaeter(`abgelehnt: ${d.message ?? d.statusCode}`, 120_000);
+    } else if (d.type === 'presence.v1.UPDATE') eosStatus(d.payload ?? {});
+  });
+  w.on('close', (code, grund) => { if (eos.ws === w) eosSpaeter(`geschlossen ${code} ${grund}`); });
+  w.on('error', (e) => { log(`[eos] ${e.message}`); if (eos.ws === w) eosSpaeter(e.message); });
+}
+function eosStatus(p) {
+  const k = konten.bot;
+  eos.presences += 1;
+  const id = String(p.accountId ?? '').replace(/-/g, '').toLowerCase();
+  if (!HEX32.test(id)) return;
+  const jetzt = new Date().toISOString();
+  const status = String(p.status ?? '');
+  const ns = (p.perNs ?? []).find((n) => n?.ns === EOS_DEPLOY || n?.productId === 'Fortnite' || n?.productId === 'prod-fn') ?? null;
+  const { sid, playlist, kills } = status === 'offline' ? { sid: null, playlist: null, kills: null } : propsLesen(ns?.props);
+  const zeile = String(ns?.activity?.value ?? '');
+  eos.jeId.set(id, { t: jetzt, status, sid, playlist, kills, zeile, props: Object.keys(ns?.props ?? {}).length });
+  const alt = k.freunde.get(id);
+  const vonEos = k.sitzungVonRest.get(id) ?? null;
+  if (status === 'offline' || !ns) {
+    k.sitzungVonRest.delete(id);
+    if (k.onlineVonRest.has(id) || (vonEos && alt?.sessionId === vonEos)) {
+      k.onlineVonRest.delete(id);
+      if (alt) { k.freunde.set(id, { ...alt, sessionId: alt.sessionId === vonEos ? null : alt.sessionId, seit: alt.sessionId === vonEos ? null : alt.seit, online: false, zuletzt: jetzt }); wechsel(id); }
+    }
+    return;
+  }
+  if (sid) {
+    // Eine Match-ID aus XMPP (oder der Sitzungssuche) geht vor.
+    if (alt?.sessionId && alt.sessionId !== vonEos) return;
+    if (vonEos !== sid) {
+      eos.funde += 1;
+      eos.protokoll.push({ t: jetzt, id: id.slice(0, 8), sitzung: sid.slice(0, 8), playlist });
+      if (eos.protokoll.length > 50) eos.protokoll.shift();
+      log(`[eos] ${id}: ${vonEos ?? '-'} -> ${sid} (${playlist ?? '-'})`);
+    }
+    k.freunde.set(id, {
+      sessionId: sid, zeile: zeile || alt?.zeile || 'Im Match', playlist: playlist ?? alt?.playlist ?? null, kills: kills ?? alt?.kills ?? null,
+      seit: alt?.sessionId === sid ? alt.seit : jetzt, zuletzt: jetzt, online: true,
+    });
+    k.sitzungVonRest.set(id, sid); k.onlineVonRest.add(id);
+    wechsel(id);
+    return;
+  }
+  k.sitzungVonRest.delete(id);
+  const offenVonEos = vonEos && alt?.sessionId === vonEos;
+  if (offenVonEos || !alt || alt.online === false || k.onlineVonRest.has(id)) {
+    k.freunde.set(id, { ...(alt ?? {}), sessionId: offenVonEos ? null : alt?.sessionId ?? null, seit: offenVonEos ? null : alt?.seit ?? null, zeile, playlist, kills, zuletzt: jetzt, online: true });
+    k.onlineVonRest.add(id);
+    wechsel(id);
+  }
+}
+// Sobald der Bot verbunden ist (und nach jeder Trennung) die EOS-Verbindung aufbauen.
+setInterval(() => { if (!eos.ws && !eos.neu && konten.bot.verbunden) void eosVerbinden(); }, 20_000);
 
 /* ------------------------------------------------------------------ Status der Freunde */
 
@@ -746,6 +796,7 @@ setInterval(() => {
 
 const ende = (sig) => {
   log(`${sig} - Ende`);
+  eosAufraeumen();
   for (const k of Object.values(konten)) { k.aus = true; aufraeumen(k); sitzungZu(k.token); if (k.rest !== k.token) sitzungZu(k.rest); }
   for (const res of leser) { try { res.end(); } catch { /* egal */ } }
   // Den Verlauf noch sichern (sonst fehlt nach dem Neustart bis zu einer Minute).
