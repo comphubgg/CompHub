@@ -18,7 +18,7 @@ function StreamerWand({ logins }: { logins: string[] }) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(120%_80%_at_50%_0%,rgba(167,139,250,0.35),rgba(6,8,15,0.9)_70%)]">
       <div className="absolute inset-x-6 top-14 grid grid-cols-3 gap-4">
-        {logins.slice(0, 9).map((l, i) => (
+        {logins.slice(0, 6).map((l, i) => (
           <motion.div key={l} className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
             transition={{ opacity: { delay: 0.4 + i * 0.06 }, y: { duration: 4 + (i % 3), repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 } }}>
             <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-full rounded-2xl border border-white/15 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
@@ -120,7 +120,8 @@ export default function Start() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-9 px-6 py-10">
       <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="flex items-center gap-3">
-        <img src="/logos/CompHub-Logo.png" alt="CompHub" className="h-12 w-auto drop-shadow-[0_0_24px_rgba(56,189,248,0.45)]" />
+        <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-14 w-auto drop-shadow-[0_0_24px_rgba(56,189,248,0.55)]" />
+        <span className="text-3xl font-extrabold tracking-tight text-white">Comp<span className="text-sky-400">Hub</span></span>
       </motion.div>
       <div className="flex items-center justify-center gap-5">
         {BEREICHE.map((b, i) => (
