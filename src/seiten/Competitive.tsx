@@ -349,7 +349,7 @@ const WEITER = [
   // Betreiber: Bilder im 16:9-Format, damit nichts abgeschnitten wird; keine Skin-Cups, sondern feste Cups (Cash, Ranked, FNCS)
   { titel: 'Statistics', text: 'Damage, elims and mats of every pro.', pfad: 'statistics', bild: '/slider/eis-trio.webp', lage: 'center 30%' },
   { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', bild: 'https://cdn2.unrealengine.com/en-fneco-33-00-competitive-discoverytile-cashcup-1920x1080-1920x1080-30d0287241c3.jpg', lage: 'center' },
-  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: 'https://cdn2.unrealengine.com/en-fneco-33-00-competitive-discoverytile-rankedcups-1920x1080-1920x1080-a078f4d982b2.jpg', lage: 'center' },
+  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: 'https://cdn2.unrealengine.com/en-fnce-38-00-competitive-discoverytile-victorycashcup-1980x1020-1920x1080-c8df912735af.jpg', lage: 'center' },
   { titel: 'Replays', text: 'Rewatch any cup match in 2D.', pfad: 'replays', bild: 'https://cdn2.unrealengine.com/en-fnce-42-00-solos-discovertile-1920x1080-1920x1080-456d617381ea.jpg', lage: 'center' },
 ];
 
