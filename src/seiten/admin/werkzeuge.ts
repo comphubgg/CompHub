@@ -38,23 +38,23 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'alte-maps', pfad: '/admin/alte-maps', titel: 'Old maps', text: 'Maintain maps by hand: shapes, teams, leaderboard', gruppe: 'inhalte', stichworte: 'old maps archiv editor' },
   { slug: 'loot-routen', pfad: '/admin/loot-routen', titel: 'Loot routes', text: 'Paths, loot and chests of the pros per game, also in 3D', gruppe: 'inhalte', stichworte: 'loot routes 3d pros' },
   { slug: 'predictions', pfad: '/admin/predictions', titel: 'Predictions', text: 'Draw predictions', gruppe: 'inhalte', eigen: true, stichworte: 'predictions prognosen' },
-  { slug: 'awards', pfad: '/admin/awards', titel: 'Awards editor', text: 'CompHub Awards 2026: categories, phases, nominees', gruppe: 'inhalte', stichworte: 'awards editor' },
+  { slug: 'awards', pfad: '/admin/awards', titel: 'Awards editor', text: 'CompHub Awards 2026: categories, phases, nominees', gruppe: 'inhalte', eigen: true, stichworte: 'awards editor' },
   { slug: 'awards-page', pfad: '/awards', titel: 'Awards page', text: 'Preview of the awards page and voting (only for you)', gruppe: 'inhalte', stichworte: 'awards vote preview' },
   { slug: 'archive', pfad: '/admin/archive', titel: 'Archive', text: 'Photos and videos for events and players', gruppe: 'inhalte', stichworte: 'archive photos videos archiv' },
   { slug: 'assets', pfad: '/admin/assets', titel: 'Image library', text: 'Store logos and graphics', gruppe: 'inhalte', stichworte: 'assets logos bilder bildvorrat' },
 
   // Spieler & Teams
   { slug: 'players', pfad: '/admin/players', titel: 'Player Center', text: 'Maintain flags, display names and @ accounts', gruppe: 'spieler', eigen: true, stichworte: 'players spieler flags x photos' },
-  { slug: 'flaggen', pfad: '/admin/flaggen', titel: 'Flags & X', text: 'Add missing flags or X accounts of important players', gruppe: 'spieler', stichworte: 'flags x twitter twitch socials flaggen' },
-  { slug: 'fotos-credits', pfad: '/admin/fotos-credits', titel: 'Photos & photographers', text: 'Upload player photos, credit and confirm photographers', gruppe: 'spieler', stichworte: 'photos credits photographer' },
-  { slug: 'fotos-pool', pfad: '/admin/fotos-pool', titel: 'Photo pool', text: 'Assign unnamed photos to players', gruppe: 'spieler', stichworte: 'photo pool assign' },
-  { slug: 'prospects', pfad: '/admin/prospects', titel: 'Prospects', text: 'View the ranking, hide accounts', gruppe: 'spieler', stichworte: 'prospects talents' },
-  { slug: 'orgs', pfad: '/admin/orgs', titel: 'Esports teams', text: 'Organisations, players and logos', gruppe: 'spieler', stichworte: 'orgs esports teams organisations' },
+  { slug: 'flaggen', pfad: '/admin/flaggen', titel: 'Flags & X', text: 'Add missing flags or X accounts of important players', gruppe: 'spieler', eigen: true, stichworte: 'flags x twitter twitch socials flaggen' },
+  { slug: 'fotos-credits', pfad: '/admin/fotos-credits', titel: 'Photos & photographers', text: 'Upload player photos, credit and confirm photographers', gruppe: 'spieler', eigen: true, stichworte: 'photos credits photographer' },
+  { slug: 'fotos-pool', pfad: '/admin/fotos-pool', titel: 'Photo pool', text: 'Assign unnamed photos to players', gruppe: 'spieler', eigen: true, stichworte: 'photo pool assign' },
+  { slug: 'prospects', pfad: '/admin/prospects', titel: 'Prospects', text: 'View the ranking, hide accounts', gruppe: 'spieler', eigen: true, stichworte: 'prospects talents' },
+  { slug: 'orgs', pfad: '/admin/orgs', titel: 'Esports teams', text: 'Organisations, players and logos', gruppe: 'spieler', eigen: true, stichworte: 'orgs esports teams organisations' },
   { slug: 'vips', pfad: '/admin/vips', titel: 'VIPs', text: 'Who is shown on the homepage', gruppe: 'spieler', eigen: true, stichworte: 'vips homepage startseite' },
 
   // Daten & Replays
-  { slug: 'replays', pfad: '/admin/replays', titel: 'Replays', text: 'Check tournament replays', gruppe: 'daten', stichworte: 'replays epic collect' },
-  { slug: 'replay', pfad: '/admin/replay', titel: 'Zones & games', text: 'Build zone images, kills and zones per game', gruppe: 'daten', stichworte: 'zones games kills replay' },
+  { slug: 'replays', pfad: '/admin/replays', titel: 'Replays', text: 'Check tournament replays', gruppe: 'daten', eigen: true, stichworte: 'replays epic collect' },
+  { slug: 'replay', pfad: '/admin/replay', titel: 'Zones & games', text: 'Build zone images, kills and zones per game', gruppe: 'daten', eigen: true, stichworte: 'zones games kills replay' },
   { slug: 'scrims', pfad: '/scrims', titel: 'Scrims', text: 'Scrims of the community servers (Noble, Poyo …) with sessions', gruppe: 'daten', stichworte: 'scrims noble poyo yunite' },
 
   // Nutzer & Zugang

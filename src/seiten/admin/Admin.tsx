@@ -15,6 +15,14 @@ import { portiert } from './port/Portiert';
 import TweetSeite from './tweets/page';
 import KontenSeite from './accounts/page';
 import PrognosenSeite from './predictions/page';
+import ReplaysSeite from './replays/page';
+import ReplaySeite from './replay/page';
+import OrgsSeite from './orgs/page';
+import AwardsEditor from './awards/AwardsEditor';
+import FotoPool from './fotos-pool/page';
+import FotoCredits from './fotos-credits/page';
+import FlaggenSeite from './flaggen/page';
+import ProspectsSeite from './prospects/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -27,6 +35,14 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   tweets: portiert(TweetSeite, 'Content'),
   accounts: portiert(KontenSeite, 'Users & Access'),
   predictions: portiert(PrognosenSeite, 'Content'),
+  replays: portiert(ReplaysSeite, 'Data & Replays'),
+  replay: portiert(ReplaySeite, 'Data & Replays'),
+  orgs: portiert(OrgsSeite, 'Players & Teams'),
+  awards: portiert(AwardsEditor, 'Content'),
+  'fotos-pool': portiert(FotoPool, 'Players & Teams'),
+  'fotos-credits': portiert(FotoCredits, 'Players & Teams'),
+  flaggen: portiert(FlaggenSeite, 'Players & Teams'),
+  prospects: portiert(ProspectsSeite, 'Players & Teams'),
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */

@@ -1,0 +1,731 @@
+import { useCallback, useEffect, useState } from 'react';
+import T from '../port/app/components/T';
+import SeitenKopf from '../port/app/components/SeitenKopf';
+import { useT } from '../port/app/components/SprachProvider';
+
+// Die Replay-Verwaltung.
+//
+// Zum Nachsehen und Ausprobieren, nicht zum Betreiben: das Einsammeln laeuft
+// planmaessig von selbst (scripts/replays-holen.mjs, angestossen in
+// instrumentation.ts). Epic haelt ein Replay 31 Tage vor - ein Werkzeug, das
+// erst sammelt, wenn jemand einen Knopf drueckt, sammelt Luecken.
+//
+// Was hier steht, beantwortet zwei Fragen: Laeuft das Einsammeln? Und was
+// genau steckt in einem einzelnen Match?
+
+interface Fenster {
+  season: string; windowId: string; region?: string; titel?: string;
+  datum?: number; zaehler: Record<string, number>;
+  /** Wieviele Matches das Fenster überhaupt kennt. */
+  gesamt?: number;
+  /** "Event 1 Round 2" - sonst sehen drei Runden aus wie derselbe Eintrag. */
+  runde?: string;
+  /** Aus den abgelegten Auswertungen erschlossen, nicht vom Sammler geführt. */
+  erschlossen?: boolean;
+  /** Der Sammler hat dieses Fenster noch nicht begonnen. */
+  wartet?: boolean;
+  /** Je Fehlermeldung, wie viele FAILED sie tragen (scripts/replay-uebersicht.mjs, /api/replays). */
+  fehlerArten?: Record<string, number>;
+  /** In der letzten Stunde / den letzten 24 Stunden ausgewertet (nur /api/replays). */
+  fertigStunde?: number; fertigTag?: number;
+}
+
+interface Match {
+  matchId: string; stand: string; zeitpunkt?: string | null;
+  elims?: number; konten?: number; bytes?: number;
+  fehler?: string | null; versuche?: number; zuletzt?: string;
+  parserVersion?: string; pfad?: string;
+}
+
+interface Elim {
+  zeit: number | null; opfer: string | null; taeter: string | null;
+  waffe: string | null; knock: boolean;
+}
+
+interface Auswertung {
+  matchId: string; karte?: string | null; dauerMs?: number | null;
+  zeitpunkt?: string | null; fortnite?: string | null; bytes?: number;
+  konten: string[]; elims: Elim[]; parserVersion: string;
+  ereignisArten?: Record<string, number>;
+  /** Die Aufstellung mit Platz - aus der tiefen Auswertung, wo sie lief. */
+  lobby?: {
+    teams?: Array<{ platz: number | null; spieler: Array<{ id: string; name: string | null }> }>;
+  } | null;
+}
+
+/** Der Live-Stand des Sammlers - siehe /api/replays?live=1. */
+interface LiveStand {
+  schleife?: {
+    zeit?: string; durchgaenge?: number; beendet?: boolean;
+    verlauf?: Array<{ zeit: string; live: number | null; dauerS: number;
+      sammeln: number; auswerten: number; hochladen: number }>;
+  } | null;
+  lauf?: { zeitpunkt?: string; art?: string; fenster?: number; neu?: number;
+    lagenVor?: number; ohneReplay?: number; fehlgeschlagen?: number;
+    angefasst?: string[] } | null;
+  /** Der letzte Plan der Schnellspur (#12, lib/replaySchnellStand.mjs): ok, oder ihre Quelle antwortete nicht. */
+  schnell?: {
+    zeit?: string; ok?: boolean; quelle?: string; fehler?: string; seitFehler?: string | null; letzteOk?: string | null;
+    spieltage?: number; offen?: number; gehalten?: number;
+    abgegeben?: Array<{ windowId: string; teuer: number; fragen: number; grund: string }>;
+    wiederDa?: { seit: string | null; fehler: string | null };
+  } | null;
+  jetzt?: number;
+}
+
+/** Die Zustaende aus der Pipeline, mit ihrer Farbe. */
+const FARBE: Record<string, string> = {
+  PARSED: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
+  FAILED: 'text-rose-400 border-rose-500/40 bg-rose-500/10',
+  NOT_AVAILABLE: 'text-white/40 border-white/10 bg-white/[0.03]',
+  DOWNLOADING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
+  PARSING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
+  PENDING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+  ABGELAUFEN: 'text-white/40 border-white/10 bg-white/[0.03]',
+  RETRYING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+};
+
+function Marke({ stand }: { stand: string }) {
+  return (
+    <span className={`inline-block rounded border px-2 py-0.5 text-[10px]
+                      font-semibold uppercase tracking-wider
+                      ${FARBE[stand] ?? 'text-white/55 border-white/10'}`}>
+      {stand === 'ABGELAUFEN' ? <T>Replay expired at Epic</T> : stand}
+    </span>
+  );
+}
+
+const zahl = (n: number) => n.toLocaleString('de-DE');
+
+/** Die Zustände, bei denen noch etwas zu holen ist. */
+const OFFEN = ['FAILED', 'DOWNLOADING', 'PENDING', 'RETRYING',
+  'CHECKING', 'AVAILABLE', 'DOWNLOADED', 'PARSING'];
+
+/**
+ * Der Ueberblick: wie viel ist ausgewertet, was ist noch zu holen, was ist
+ * verloren - in drei grossen Zahlen und einem Balken.
+ *
+ * Der Betreiber (1.10.2026): fuer den Admin "simpler, optisch besser
+ * sichtbar". Vorher musste man die Summenzeile unter "Eingesammelte Turniere"
+ * lesen. Gezaehlt wird wie dort: was aelter ist als Epics Frist von 31 Tagen,
+ * kommt nie mehr - das ist verloren, nicht offen.
+ */
+function Ueberblick({ fenster }: { fenster: Fenster[] }) {
+  if (!fenster.length) return null;
+  const frist = Date.now() - 31 * 864e5;
+  let gesamt = 0; let fertig = 0; let offenInFrist = 0; let verloren = 0; let ohneReplay = 0;
+  const stunde = fenster.reduce((n, f) => n + ((f as { fertigStunde?: number }).fertigStunde ?? 0), 0);
+  const tag = fenster.reduce((n, f) => n + ((f as { fertigTag?: number }).fertigTag ?? 0), 0);
+  for (const f of fenster) {
+    // Ein Spieltag, von dem kein einziges Replay da ist (die Arena-Modi haben keine Server-Replays),
+    // wartet nicht auf uns - er kommt nie. Er zaehlt als "ohne Replay", nicht als offen.
+    const nieDa = !(f.zaehler.PARSED > 0) && Object.keys(f.zaehler).every((k) => k === 'NOT_AVAILABLE');
+    for (const [stand, n] of Object.entries(f.zaehler)) {
+      gesamt += n;
+      const alt = (f.datum ?? 0) > 0 && (f.datum ?? 0) < frist;
+      if (stand === 'PARSED') fertig += n;
+      else if (alt || stand === 'ABGELAUFEN') verloren += n;
+      else if (nieDa) ohneReplay += n;
+      else offenInFrist += n;
+    }
+  }
+  if (!gesamt) return null;
+  const prozent = (n: number) => `${(n / gesamt * 100).toFixed(1)}%`;
+  const Kachel = ({ wert, titel, was, farbe }: { wert: string; titel: string; was: string; farbe: string }) => (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4">
+      <p className={`text-3xl font-bold tabular-nums ${farbe}`}>{wert}</p>
+      <p className="mt-0.5 text-sm font-medium text-white/85"><T>{titel}</T></p>
+      <p className="mt-1 text-xs leading-snug text-white/40"><T>{was}</T></p>
+    </div>
+  );
+  return (
+    <section className="mb-8">
+      <div className="flex h-3 overflow-hidden rounded-full bg-white/[0.07]">
+        <div className="bg-emerald-500" style={{ width: prozent(fertig) }} title={`${zahl(fertig)}`} />
+        <div className="bg-amber-400" style={{ width: prozent(offenInFrist) }} title={`${zahl(offenInFrist)}`} />
+        <div className="bg-white/20" style={{ width: prozent(verloren + ohneReplay) }} title={`${zahl(verloren + ohneReplay)}`} />
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kachel wert={prozent(fertig)} titel="ausgewertet" farbe="text-emerald-400"
+          was={`${zahl(fertig)} of ${zahl(gesamt)} matches`} />
+        <Kachel wert={zahl(offenInFrist)} titel="still open within the window" farbe={offenInFrist > Math.max(50, gesamt * 0.0005) ? 'text-amber-300' : 'text-emerald-400'}
+          was="The scheduled runs fetch them by themselves — Epic keeps a replay for 31 days." />
+        <Kachel wert={zahl(verloren)} titel="can no longer be fetched" farbe="text-white/70"
+          was={`Older than 31 days: Epic has deleted these replays. Plus ${zahl(ohneReplay)} matches from match days that never had replays (Arena).`} />
+        <Kachel wert={zahl(fenster.length)} titel="match days recorded" farbe="text-sky-400"
+          was="Every match day with its rounds, including the open qualifiers." />
+      </div>
+      {/* Das Tempo (Betreiber, 7.11.2026): wie viele je Stunde fertig werden und wann das Offene bei diesem Tempo abgearbeitet ist. Ziel: ohne Cup steht hier 0. */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <Kachel wert={zahl(stunde)} titel="analysed in the last hour" farbe="text-sky-400"
+          was={`${zahl(tag)} in the last 24 hours`} />
+        <Kachel wert={zahl(Math.round(tag / 24))} titel="on average per hour" farbe="text-sky-400"
+          was="Averaged over the last 24 hours." />
+        <Kachel wert={!offenInFrist ? '0' : stunde > 0 ? `${Math.max(1, Math.ceil(offenInFrist / stunde))} h` : tag > 0 ? `${Math.max(1, Math.ceil(offenInFrist / (tag / 24)))} h` : '–'}
+          titel="until everything open is done" farbe={!offenInFrist ? 'text-emerald-400' : 'text-amber-300'}
+          was="At the pace of the last hour, without new cups." />
+      </div>
+    </section>
+  );
+}
+
+export default function ReplayVerwaltung() {
+  const t = useT();
+  const [istAdmin, setIstAdmin] = useState(false);
+  const [fenster, setFenster] = useState<Fenster[]>([]);
+  const [offen, setOffen] = useState<string | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+
+  // Die Testfunktion
+  const [eingabe, setEingabe] = useState('');
+  const [laeuft, setLaeuft] = useState(false);
+  const [ergebnis, setErgebnis] = useState<{
+    gefunden: boolean; stand: string; hinweis?: string; dauerMs?: number;
+    match?: Auswertung; error?: string; namen?: Record<string, string>;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/check-admin', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setIstAdmin(Boolean(d?.isAdmin)))
+      .catch(() => setIstAdmin(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/replays', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setFenster(d?.fenster ?? []))
+      .catch(() => setFenster([]));
+  }, []);
+
+  /*
+   * Zusehen, wie gesammelt wird.
+   *
+   * Der Betreiber: "gibt es eine Funktion, das wirklich live mitzusehen?"
+   * Alle zehn Sekunden der Stand der Schleife und des letzten Laufs; die
+   * Fensterliste wird mitgeholt, damit die Zahlen wachsen, waehrend man
+   * hinsieht.
+   */
+  const [live, setLive] = useState<LiveStand | null>(null);
+  useEffect(() => {
+    let weg = false;
+    const holen = async () => {
+      try {
+        const r = await fetch('/api/replays?live=1', { cache: 'no-store' });
+        const d = await r.json();
+        if (!weg) setLive(d);
+        const r2 = await fetch('/api/replays', { cache: 'no-store' });
+        const d2 = await r2.json();
+        if (!weg && d2?.fenster) setFenster(d2.fenster);
+      } catch { /* dann beim naechsten Mal */ }
+    };
+    void holen();
+    const takt = setInterval(holen, 10_000);
+    return () => { weg = true; clearInterval(takt); };
+  }, []);
+
+  const fensterOeffnen = useCallback(async (f: Fenster) => {
+    if (offen === f.windowId) { setOffen(null); setMatches([]); return; }
+    setOffen(f.windowId);
+    setMatches([]);
+    try {
+      const r = await fetch(
+        `/api/replays?fenster=${encodeURIComponent(f.windowId)}`
+        + `&saison=${encodeURIComponent(f.season)}`, { cache: 'no-store' });
+      const d = await r.json();
+      setMatches(d?.matches ?? []);
+    } catch { setMatches([]); }
+  }, [offen]);
+
+  /**
+   * Ein einzelnes Match auswerten.
+   *
+   * Genau der Ablauf, den auch der planmaessige Lauf nimmt - nur fuer eine
+   * Id und ohne etwas abzulegen. So laesst sich pruefen, ob die Kette steht,
+   * bevor man ihr tausend Matches anvertraut.
+   */
+  const testen = useCallback(async () => {
+    const id = eingabe.trim();
+    if (!id) return;
+    setLaeuft(true); setErgebnis(null);
+    try {
+      const r = await fetch('/api/replays', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId: id }),
+      });
+      // Die Namen loest die Schnittstelle mit auf - im Replay stehen nur Ids.
+      setErgebnis(await r.json());
+    } catch (e) {
+      setErgebnis({ gefunden: false, stand: 'FAILED', error: (e as Error).message });
+    } finally { setLaeuft(false); }
+  }, [eingabe]);
+
+  /** Aus den Ereignissen die Tabelle je Spieler - dieselbe Rechnung wie im Lauf. */
+  const jeSpieler = (a: Auswertung) => {
+    const karte = new Map<string, { kills: number; knocks: number; tot: number }>();
+    for (const k of a.konten) karte.set(k, { kills: 0, knocks: 0, tot: 0 });
+    for (const e of a.elims) {
+      if (e.taeter && karte.has(e.taeter)) {
+        if (e.knock) karte.get(e.taeter)!.knocks++; else karte.get(e.taeter)!.kills++;
+      }
+      if (e.opfer && karte.has(e.opfer) && !e.knock) karte.get(e.opfer)!.tot++;
+    }
+    return [...karte.entries()]
+      .map(([epicId, w]) => ({ epicId, ...w }))
+      .sort((a2, b2) => b2.kills - a2.kills);
+  };
+
+  const name = (id: string) =>
+    ergebnis?.namen?.[id] || `${id.slice(0, 8)}…`;
+
+  return (
+    <main className="text-white">
+      <div className="">
+        <SeitenKopf className="mb-6" marke={<T>Replays</T>} titel={<T>Replay management</T>}
+          text={<T>Which match days are analysed, what is still missing and which replays are being read right now.</T>} />
+
+        <Ueberblick fenster={fenster} />
+
+        {/* Was die Replays liefern - einmal klar, damit niemand an der falschen Stelle sucht. */}
+        <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <p className="text-sm leading-relaxed text-white/55">
+            <T>The server replays give eliminations, knocks, weapon and time — and who eliminated whom. A separate reader also reads damage and hits and computes the Solo Clutch Points. This applies to every match day up to 250 matches; open rounds with several hundred lobbies are not read (about 140 MB per replay).</T>
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-amber-400/90">
+            <T>Epic keeps a replay for 31 days. Whatever is not fetched in that time is gone for good — that is why the tool collects on a schedule by itself, not at the push of a button.</T>
+          </p>
+        </div>
+
+        {/* ------------------------------------------------ Testfunktion */}
+        {istAdmin && (
+          <section className="mb-10">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em]
+                           text-white/40"><T>Check a single match</T></h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <input value={eingabe}
+                onChange={(e) => setEingabe(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void testen(); }}
+                placeholder={t('Match ID (32 characters)')}
+                spellCheck={false}
+                className="w-[27rem] max-w-full rounded-lg border border-white/10
+                           bg-white/[0.04] px-4 py-2.5 font-mono text-sm
+                           text-white outline-none placeholder:text-white/30
+                           focus:border-sky-500" />
+              <button onClick={testen} disabled={laeuft || !eingabe.trim()}
+                className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold
+                           text-white transition hover:bg-sky-400
+                           disabled:cursor-not-allowed disabled:opacity-40">
+                {laeuft ? <T>Checking …</T> : <T>Analyse replay</T>}
+              </button>
+            </div>
+
+            {ergebnis && (
+              <div className="mt-5 rounded-xl border border-white/10
+                              bg-white/[0.03] p-5">
+                <div className="mb-4 flex flex-wrap items-center gap-4">
+                  <Marke stand={ergebnis.stand} />
+                  {ergebnis.dauerMs !== undefined && (
+                    <span className="text-xs text-white/40">
+                      {(ergebnis.dauerMs / 1000).toFixed(1)} s
+                    </span>
+                  )}
+                  {ergebnis.match && (
+                    <span className="text-xs text-white/40">
+                      {((ergebnis.match.bytes ?? 0) / 1048576).toFixed(2)} MB
+                      {' · '}<T>Fortnite</T> {ergebnis.match.fortnite}
+                      {' · '}<T>Analysers</T> {ergebnis.match.parserVersion}
+                    </span>
+                  )}
+                </div>
+
+                {ergebnis.hinweis && (
+                  <p className="text-sm text-white/55"><T>{ergebnis.hinweis}</T></p>
+                )}
+                {ergebnis.error && (
+                  <p className="font-mono text-xs text-rose-400">{ergebnis.error}</p>
+                )}
+
+                {ergebnis.match && (() => {
+                  const a = ergebnis.match!;
+                  const tabelle = jeSpieler(a);
+                  const kills = a.elims.filter((e) => !e.knock).length;
+                  const killsVon = new Map(tabelle.map((z) => [z.epicId, z.kills]));
+                  const teams = (a.lobby?.teams ?? []).map((t) => ({
+                    ...t,
+                    kills: t.spieler.reduce((sum, p) => sum + (killsVon.get(p.id) ?? killsVon.get(p.id.toLowerCase()) ?? 0), 0),
+                  }));
+                  return (
+                    <>
+                      {/* Die Aufstellung: welches Team welchen Platz hat -
+                          der Betreiber will das zuerst sehen, nicht Solo-Zahlen. */}
+                      {teams.length > 0 && (
+                        <div className="mb-5 max-h-[26rem] overflow-y-auto rounded-lg
+                                        border border-white/10">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-white/[0.035] backdrop-blur-xl">
+                              <tr className="text-[10px] uppercase tracking-wider text-white/40">
+                                <th className="px-3 py-2 text-right font-medium"><T>Platz</T></th>
+                                <th className="px-3 py-2 text-left font-medium">Team</th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Kills</T></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {teams.map((t, i) => (
+                                <tr key={i} className="border-t border-white/5">
+                                  <td className={`px-3 py-1.5 text-right font-bold tabular-nums ${
+                                    t.platz === 1 ? 'text-amber-400' : 'text-white/70'}`}>
+                                    {t.platz ?? '—'}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-white/70">
+                                    {t.spieler.map((p) => name(p.id) !== p.id.slice(0, 8) ? name(p.id) : (p.name ?? name(p.id))).join('  +  ')}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-sky-400">
+                                    {t.kills}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {teams.length === 0 && (
+                        <p className="mb-4 text-[11px] text-white/40">
+                          <T>No lineup: the placements are only in the deep analysis, and that only runs where the reader lives (own computer, runner), not on the website.</T>
+                        </p>
+                      )}
+                      <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        {([
+                          ['Spieler gefunden', zahl(a.konten.length)],
+                          ['Eliminierungen', zahl(kills)],
+                          ['Knocks', zahl(a.elims.length - kills)],
+                          ['Dauer', `${Math.round((a.dauerMs ?? 0) / 60000)} min`],
+                        ] as Array<[string, string]>).map(([l, v]) => (
+                          <div key={l} className="rounded-lg border border-white/10
+                                                  bg-black/30 px-4 py-3">
+                            <p className="text-lg font-bold text-sky-400">{v}</p>
+                            <p className="mt-0.5 text-[10px] font-semibold uppercase
+                                          tracking-[0.14em] text-white/40">
+                              <T>{l}</T>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="max-h-[26rem] overflow-y-auto rounded-lg
+                                      border border-white/10">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-white/[0.035] backdrop-blur-xl">
+                            <tr className="text-[10px] uppercase tracking-wider
+                                           text-white/40">
+                              <th className="px-3 py-2 text-left font-medium">
+                                <T>Spieler</T></th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Kills</T></th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Knocks</T></th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Switched off</T></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tabelle.map((z) => (
+                              <tr key={z.epicId}
+                                className="border-t border-white/5">
+                                <td className="px-3 py-1.5 text-white/70">
+                                  {name(z.epicId)}
+                                </td>
+                                <td className="px-3 py-1.5 text-right font-semibold
+                                               tabular-nums text-sky-400">
+                                  {z.kills}
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-white/55">{z.knocks}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-white/40">{z.tot}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* -------------------------------------------------- Die Fenster */}
+        {/* Der Sammler, live */}
+          {live && (() => {
+            const jetzt = live.jetzt ?? Date.now();
+            /*
+             * 15.11.2026: hier stand "Sammler wartet · letzter Durchgang 26409 min her · 181 Durchgänge" - das Protokoll replays/_live-lauf.json schrieb
+             * nur die alte Live-Schleife (replays-live.yml), zuletzt am 28.10.2026 ("beendet"). Gesammelt wird seitdem von der Schnellspur und den
+             * Nacharbeitern (GitHub Actions) und vom Server; die Schleife zeigt sich nur noch, wenn ihr Protokoll frisch ist. Ob gesammelt wird, sagt
+             * jetzt, was wirklich fertig wurde (PARSED in der letzten Stunde, aus den Zuständen) und der letzte Lauf der Nacharbeiter (replays/_lauf.json).
+             */
+            const schleifeZeit = Date.parse(String(live.schleife?.zeit ?? ''));
+            const schleifeFrisch = Number.isFinite(schleifeZeit) && jetzt - schleifeZeit < 30 * 60_000 && !live.schleife?.beendet;
+            const letzte = schleifeFrisch ? live.schleife?.verlauf?.[live.schleife.verlauf.length - 1] : undefined;
+            const vorS = letzte ? Math.round((jetzt - Date.parse(letzte.zeit)) / 1000) : null;
+            const laufZeit = Date.parse(String(live.lauf?.zeitpunkt ?? ''));
+            const laufVorMin = Number.isFinite(laufZeit) ? Math.round((jetzt - laufZeit) / 60_000) : null;
+            const stunde = fenster.reduce((n, f) => n + (f.fertigStunde ?? 0), 0);
+            const tag = fenster.reduce((n, f) => n + (f.fertigTag ?? 0), 0);
+            const aktiv = (vorS !== null && vorS < 180) || stunde > 0 || (laufVorMin !== null && laufVorMin < 30);
+            return (
+              <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl
+                              border border-white/10 bg-black/30 px-4 py-3 text-xs">
+                <span className="flex items-center gap-2 font-semibold text-white/85">
+                  <span className={`h-2 w-2 rounded-full ${aktiv ? 'animate-pulse bg-emerald-400' : 'bg-white/20'}`} />
+                  {aktiv ? <T>Collector running</T> : <T>Collector waiting</T>}
+                </span>
+                {letzte && (
+                  <span className="text-white/40">
+                    <T>last run</T> {vorS !== null ? `${vorS < 60 ? `${vorS} s` : `${Math.round(vorS / 60)} min`} ` : ''}
+                    <T>her</T> · {live.schleife?.durchgaenge ?? 0} <T>runs</T>
+                    · {letzte.live ?? '?'} <T>running cups</T>
+                  </span>
+                )}
+                {(stunde > 0 || tag > 0) && (
+                  <span className="text-white/40">
+                    {zahl(stunde)} <T>analysed in the last hour</T> · {zahl(tag)} <T>in 24 hours</T>
+                  </span>
+                )}
+                {live.lauf && (
+                  <span className="text-white/40">
+                    <T>Nacharbeit</T>{laufVorMin !== null ? ` (${laufVorMin < 60 ? `${laufVorMin} min` : `${Math.round(laufVorMin / 60)} h`} ` : ' ('}<T>her</T>)
+                    : {live.lauf.fenster ?? 0} <T>Fenster</T>, {live.lauf.neu ?? 0} <T>newly analysed</T>
+                    {live.lauf.angefasst?.length ? ` · ${live.lauf.angefasst.map((w) => w.replace(/^S\d+_/, '')).join(', ')}` : ''}
+                  </span>
+                )}
+                {live.schnell && (() => {
+                  /*
+                   * Die Schnellspur (#12): bis 16.11.2026 war unsichtbar, wenn ihre Quelle (der Cup-Katalog dieser Seite) nicht antwortete - kein Plan, und der
+                   * Lauf trotzdem gruen. Rot, solange es so ist; gelb, wenn seit 45 Minuten kein Plan mehr kam.
+                   */
+                  const s = live.schnell;
+                  const vor = (iso?: string | null) => {
+                    const z = Date.parse(String(iso ?? ''));
+                    if (!Number.isFinite(z)) return '?';
+                    const m = Math.round((jetzt - z) / 60_000);
+                    return m < 60 ? `${m} min` : `${Math.round(m / 6) / 10} h`;
+                  };
+                  const zeitMs = Date.parse(String(s.zeit ?? ''));
+                  const alt = !Number.isFinite(zeitMs) || jetzt - zeitMs > 45 * 60_000;
+                  if (s.ok === false) {
+                    return (
+                      <span className="rounded border border-rose-500/50 bg-rose-500/10 px-2 py-0.5 font-semibold text-rose-300"
+                        title={`${s.quelle ?? ''} · ${s.fehler ?? ''}`}>
+                        <T>Fast lane: source not reachable</T> · <T>seit</T> {vor(s.seitFehler)} · <T>last attempt</T> {vor(s.zeit)} <T>her</T>
+                        {s.letzteOk ? <> · <T>last ok</T> {vor(s.letzteOk)}</> : null}
+                        {s.fehler ? ` · ${s.fehler}` : ''}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className={alt ? 'text-amber-400' : 'text-white/40'}>
+                      <T>Fast lane</T> ({vor(s.zeit)} <T>her</T>{alt ? <>, <T>no new plan</T></> : null}): {s.spieltage ?? 0} <T>Spieltage</T>, {zahl(s.offen ?? 0)} <T>offen</T>
+                      {s.gehalten ? <> · {s.gehalten} <T>kept over 36 h</T></> : null}
+                      {s.abgegeben?.length ? <> · <span title={s.abgegeben.map((a) => `${a.windowId}: ${a.grund}`).join('\n')}>{s.abgegeben.length} <T>handed over to the follow-up</T></span></> : null}
+                      {s.wiederDa?.seit ? <> · <T>source back, it was gone since</T> {new Date(s.wiederDa.seit).toLocaleString()}</> : null}
+                    </span>
+                  );
+                })()}
+                {!letzte && !live.lauf && !tag && !live.schnell && <span className="text-white/30"><T>no log yet</T></span>}
+                <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-white/30">
+                  <T>every 10 seconds</T>
+                </span>
+              </div>
+            );
+          })()}
+          <section>
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em]
+                           text-white/40"><T>Collected tournaments</T></h2>
+            {/*
+              * Die Summe ueber alles - sonst muss man neunzig Zeilen
+              * zusammenzaehlen, um zu wissen, ob noch etwas offen ist.
+              */}
+            {fenster.length > 0 && (() => {
+              const summe: Record<string, number> = {};
+              // Was aelter ist als Epics Frist von 31 Tagen, kommt nie mehr -
+              // das ist nicht "offen", sondern verloren, und gehoert getrennt
+              // gezaehlt, sonst steht der Rueckstand fuer immer da.
+              const frist = Date.now() - 31 * 864e5;
+              let offen = 0; let verloren = 0;
+              for (const f of fenster) {
+                for (const [stand, n] of Object.entries(f.zaehler)) {
+                  summe[stand] = (summe[stand] ?? 0) + n;
+                  if (stand === 'ABGELAUFEN') { verloren += n; continue; }
+                  if (!OFFEN.includes(stand)) continue;
+                  if ((f.datum ?? 0) && (f.datum ?? 0) < frist) verloren += n; else offen += n;
+                }
+              }
+              return (
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1
+                                 text-[11px] text-white/40">
+                  <span>{zahl(fenster.length)} <T>Spieltage</T></span>
+                  <span className="text-emerald-400">
+                    {zahl(summe.PARSED ?? 0)} <T>ausgewertet</T>
+                  </span>
+                  {offen > 0 && (
+                    <span className="text-rose-400">
+                      {zahl(offen)} <T>still open</T>
+                    </span>
+                  )}
+                  {summe.NOT_AVAILABLE ? (
+                    <span>{zahl(summe.NOT_AVAILABLE)} <T>ohne Replay</T></span>
+                  ) : null}
+                  {verloren > 0 && (
+                    <span title="Epic keeps replays for 31 days">
+                      {zahl(verloren)} <T>older than 31 days, no longer fetchable</T>
+                    </span>
+                  )}
+                </span>
+              );
+            })()}
+          </div>
+          {/* Offene Matches holt der planmaessige Lauf von selbst nach -
+              er fasst genau die noch einmal an, die nicht fertig wurden. */}
+
+          {!fenster.length ? (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-5
+                          text-sm text-white/40">
+              <T>Nothing collected yet. The scheduled run fetches the tournaments of the last 31 days.</T>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {fenster.map((f) => (
+                <div key={f.windowId}
+                  className="overflow-hidden rounded-xl border border-white/10
+                             bg-white/[0.03]">
+                  <button onClick={() => fensterOeffnen(f)}
+                    className="flex w-full flex-wrap items-center gap-4 px-5 py-4
+                               text-left transition hover:bg-white/[0.06]">
+                    <span className="rounded bg-white/[0.035] backdrop-blur-xl px-2 py-0.5 text-[10px]
+                                     font-semibold tracking-wider text-white/55">
+                      {f.region}
+                    </span>
+                    <span className="text-sm font-semibold text-white/85">
+                      {f.titel ?? f.windowId}
+                    </span>
+                    {/* Welche Runde. Ohne sie standen drei Zeilen "OCE Solo
+                        Victory Cup 5.9.2026" untereinander und sahen aus wie
+                        derselbe Eintrag dreimal. */}
+                    {f.runde && (
+                      <span className="rounded border border-white/10 px-1.5 py-0.5
+                                       text-[10px] text-white/40">
+                        {f.runde}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-white/30">
+                      {f.datum ? new Date(f.datum).toLocaleDateString('de-DE') : ''}
+                    </span>
+                    {f.wartet && (
+                      <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-400"
+                        title={t('The collector works through the oldest window first; this one is queued and comes next.')}>
+                        <T>queued</T>
+                      </span>
+                    )}
+                    {f.erschlossen && (
+                      <span className="rounded border border-amber-600/40
+                                       bg-amber-500/10 px-1.5 py-0.5 text-[10px]
+                                       text-amber-400"
+                        title={t('The management file is missing — this state is inferred from the stored analyses. The next full run writes it again.')}>
+                        <T>inferred</T>
+                      </span>
+                    )}
+                    <span className="ml-auto flex flex-wrap items-center gap-2">
+                      {Object.entries(f.zaehler).length ? (
+                        Object.entries(f.zaehler)
+                          // Erst was fertig ist, dann was offen blieb -
+                          // sonst wechselt die Reihenfolge von Zeile zu Zeile.
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([stand, n]) => (
+                            <span key={stand} className="flex items-center gap-1.5"
+                              // Woran es scheiterte, ohne das Fenster aufzuklappen (15.11.2026: der Betreiber sah nur "FAILED 6").
+                              title={stand === 'FAILED' && f.fehlerArten
+                                ? Object.entries(f.fehlerArten).sort((a, b) => b[1] - a[1]).map(([msg, k]) => `${k}× ${msg}`).join('\n')
+                                : undefined}>
+                              <Marke stand={stand} />
+                              <span className="text-xs tabular-nums text-white/55">
+                                {n}
+                              </span>
+                            </span>
+                          ))
+                      ) : (
+                        /* Kein leerer Platz mehr: null Matches ist eine
+                           Antwort und sieht sonst aus wie ein Fehler. */
+                        <span className="text-[11px] text-white/30"
+                          title={t('Epic has not published any match IDs for this match day.')}>
+                          {f.wartet ? <T>noch nicht begonnen</T> : <T>no matches</T>}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+
+                  {offen === f.windowId && (
+                    <div className="max-h-[24rem] overflow-y-auto border-t
+                                    border-white/10">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-white/[0.035] backdrop-blur-xl">
+                          <tr className="text-[10px] uppercase tracking-wider
+                                         text-white/40">
+                            <th className="px-4 py-2 text-left font-medium">
+                              <T>Match-ID</T></th>
+                            {/* Der Betreiber las "eine Stunde fuer ein Replay, nur 39
+                                Spieler". Die Zeit ist, wann das Match gespielt wurde,
+                                und die Zahl zaehlt nur, wer an einer Eliminierung
+                                beteiligt war - beides steht jetzt so da. */}
+                            <th className="px-4 py-2 text-left font-medium">
+                              <T>Played on</T></th>
+                            <th className="px-4 py-2 text-center font-medium">
+                              <T>Zustand</T></th>
+                            <th className="px-4 py-2 text-right font-medium"
+                              title="Accounts involved in an elimination as attacker or victim - not the whole lobby">
+                              <T>Involved in elims</T></th>
+                            <th className="px-4 py-2 text-right font-medium">
+                              <T>Ereignisse</T></th>
+                            <th className="px-4 py-2 text-left font-medium">
+                              <T>Fehler</T></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map((m) => (
+                            <tr key={m.matchId} className="border-t border-white/5">
+                              <td className="px-4 py-1.5 font-mono text-[11px]
+                                             text-white/40">
+                                {m.matchId.slice(0, 16)}…
+                              </td>
+                              <td className="px-4 py-1.5 text-white/40">
+                                {m.zeitpunkt
+                                  ? new Date(m.zeitpunkt).toLocaleString('de-DE')
+                                  : '—'}
+                              </td>
+                              <td className="px-4 py-1.5 text-center">
+                                <Marke stand={m.stand} />
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums
+                                             text-white/55">{m.konten ?? '—'}</td>
+                              <td className="px-4 py-1.5 text-right tabular-nums
+                                             text-white/55">{m.elims ?? '—'}</td>
+                              <td className="px-4 py-1.5 text-rose-400/80">
+                                {m.fehler ?? ''}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
