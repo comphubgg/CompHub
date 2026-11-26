@@ -106,8 +106,8 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
         * dem Blau der Startseite, darunter die Reiter als Pillen. Frueher stand hier ein goldener Kopf mit Banner.
         */}
       <div className={`space-y-5 ${breit ? 'w-full px-2 sm:px-3' : ''}`}>
-        <Link href="/account" className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 transition hover:text-violet-400">
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg><T>Dashboard</T>
+        <Link href="/streamer/overlays" className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 transition hover:text-violet-400">
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg>All overlays
         </Link>
         {/*
           * Kopf mit dem Bild des Turniers (Betreiber, 30.10.2026: "Ich LIEBE Bilder" - wie bei den Solos): links der Titel, rechts das Bild der
