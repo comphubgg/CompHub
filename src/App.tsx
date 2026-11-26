@@ -22,6 +22,7 @@ import Globals from './seiten/comp/mehr/Globals';
 import GlobalsSolos from './seiten/comp/mehr/GlobalsSolos';
 import Predictions from './seiten/comp/mehr/Predictions';
 import { AwardsKategorie, AwardsUebersicht } from './seiten/comp/mehr/Awards';
+import Scrims from './seiten/comp/mehr/Scrims';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
 import Admin from './seiten/admin/Admin';
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="predictions" element={<Predictions />} />
             <Route path="awards" element={<AwardsUebersicht />} />
             <Route path="awards/:kategorie" element={<AwardsKategorie />} />
+            <Route path="scrims" element={<Scrims />} />
             <Route path="tournament-maps" element={<Navigate to="/competitive/maps" replace />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
           </Route>
