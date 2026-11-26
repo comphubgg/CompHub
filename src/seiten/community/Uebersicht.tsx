@@ -28,6 +28,9 @@ function useJetzt(ms = 1000) {
   return t;
 }
 
+// Betreiber (26.11.2026): am 5. Dezember startet das neue Chapter. Uhrzeit ist Epics uebliche Wartung (~09:00 UTC), nicht bestaetigt.
+const SAISON_ENDE_43 = Date.UTC(2026, 11, 5, 9, 0);
+
 function Countdown({ bis }: { bis: number }) {
   const jetzt = useJetzt();
   const rest = Math.max(0, bis - jetzt);
@@ -95,6 +98,12 @@ function Saison() {
               <>
                 <p className="mb-2 text-sm font-semibold text-white/70">First Season {saison! + 1} cup starts in</p>
                 <Countdown bis={naechste.begin} />
+              </>
+            ) : saison === 43 && Date.now() < SAISON_ENDE_43 ? (
+              <>
+                <p className="mb-2 text-sm font-semibold text-white/70">New chapter launches Sat 5 Dec</p>
+                <Countdown bis={SAISON_ENDE_43} />
+                <p className="mt-3 max-w-xl text-xs text-white/40">Counting down to the usual update downtime (about 09:00 UTC) – Epic confirms the exact minute on the day.</p>
               </>
             ) : letzterCup ? (
               <>
