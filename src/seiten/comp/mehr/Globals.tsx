@@ -1,17 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { Glas } from '../../../teile/Glas';
 import { useWer } from '../../../teile/Anmeldung';
 import { istVip } from '../../streamer/zugang';
 import { AnmeldeKarte } from '../tools/Gemeinsam';
 import KartenAnsicht, { kartenName, type KartenForm, type Punkt } from './KartenAnsicht';
+import PrognoseWerkzeug from './zeichnen/PrognoseWerkzeug';
 import { FehlerZeile, Laedt, Leer, SEITE, Suche, TeamFlagge, chip, datumKurz, flaggenPfad, landName, useDaten } from './teile';
 
 /*
  * Globals 2026 im Hub (wie /globals der Seite): FNCS Global Championship, Antwerpen 26.-27.09.2026. Nur fuer VIPs (wie auf der Seite).
  * Overview mit Endstand (/api/globals-endstand) und Spieltagen (Katalog), Teams (/api/globals-teams, Duo-Ansicht mit gemeinsamen Cups ueber
- * /api/globals-duo), Map (Globals-Karte aus /api/turnier-karten), Predictions (eigene Prognose /api/meine-prognose bzw. /api/prognosen),
+ * /api/globals-duo), Map (Globals-Karte aus /api/turnier-karten), Predictions (das Prognose-Werkzeug im Hub, zeichnen/PrognoseWerkzeug: eigene Prognose
+ * /api/meine-prognose bzw. fuer den Admin /api/prognosen),
  * Prize pool (/api/globals-preisgeld). Die Stream-Overlays bleiben im Streamer-Bereich bzw. auf der Seite.
  */
 
@@ -326,13 +328,15 @@ function Karten() {
   }, [k, feld]);
   if (s.art === 'laedt') return <Laedt />;
   if (s.art !== 'ok') return <FehlerZeile text="The map could not be loaded." />;
-  if (!k) return <Leer text={wer?.isAdmin ? 'No Globals map yet — it is drawn in the map tool on thecomphub.com.' : 'As soon as the map is ready, it shows up here.'} />;
+  if (!k) return <Leer text={wer?.isAdmin ? 'No Globals map yet — draw it in the map tool (choose the Global Championship as cup).' : 'As soon as the map is ready, it shows up here.'}
+    kind={wer?.isAdmin ? <Link to="/competitive/maps/view?edit=1" className="mt-4 inline-block rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-[#06080f]">Open the map tool</Link> : undefined} />;
   return (
     <div className="space-y-4">
       {s.d.ersatz && <FehlerZeile text="The store is not answering right now — you see the last backup, which may be older." />}
       <div className="flex flex-wrap items-center gap-2">
         {karten.map((x, i) => <button key={x.id} type="button" onClick={() => setOffen(i)} className={chip(i === offen)}>Global Championship (2026){karten.length > 1 && <span className="ml-1.5 opacity-60">{x.bildTitel || x.titel}</span>}</button>)}
-        {wer?.isAdmin && <a href={`${SEITE}/maps?id=${encodeURIComponent(k.id)}`} target="_blank" rel="noreferrer" className="ml-auto rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white/60 transition hover:border-sky-400/50 hover:text-white">Open in the map tool ↗</a>}
+        {wer?.isAdmin && <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="ml-auto rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-[#06080f] transition hover:bg-amber-300">Open in the map tool</Link>}
+        <a href={`${SEITE}/globals/map`} target="_blank" rel="noreferrer" className={`${wer?.isAdmin ? '' : 'ml-auto '}rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white/45 transition hover:border-white/30 hover:text-white`}>Classic view ↗</a>
       </div>
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <KartenAnsicht formen={formen} bild={k.bildId ? `/bilder/karten/${encodeURIComponent(k.bildId)}.png` : null} rotAb={2} titel="globals-2026-map" />
@@ -359,28 +363,9 @@ function Karten() {
 
 /* ---------------------------------------------------------------- Predictions */
 
+/** Die Prognose: dasselbe Werkzeug wie auf /globals/predictions - der Admin die CompHub-Prognose, jeder VIP seine eigene. */
 function Prognose() {
-  const { wer } = useWer();
-  const url = wer?.isAdmin ? '/api/prognosen' : '/api/meine-prognose';
-  const [s] = useDaten<{ prognosen?: Array<Karte & { name?: string; geaendert?: number }> } | Array<Karte>>(url);
-  if (s.art === 'laedt') return <Laedt />;
-  if (s.art === 'anmelden') return <AnmeldeKarte text="Your own Globals prediction is saved with your VIP account." />;
-  if (s.art !== 'ok') return <FehlerZeile text="The prediction could not be loaded." />;
-  const liste = Array.isArray(s.d) ? s.d : s.d.prognosen ?? [];
-  const p = liste.find((x) => x.eventId === EVENT || !x.eventId) ?? liste[0];
-  return (
-    <div className="space-y-4">
-      <Glas className="flex flex-wrap items-center gap-3 p-5">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-bold text-white">{wer?.isAdmin ? 'The CompHub prediction' : 'Your prediction'}</h2>
-          <p className="mt-1 text-sm text-white/50">Draw where every duo lands and who wins. {wer?.isAdmin ? '' : 'Only you can see your own prediction.'} The drawing tool (shapes, drag & drop, Noble import) runs on thecomphub.com.</p>
-        </div>
-        <a href={`${SEITE}/globals/predictions`} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-sky-300">{p ? 'Edit prediction ↗' : 'Make a prediction ↗'}</a>
-      </Glas>
-      {p?.spots?.length ? <KartenAnsicht formen={formenAusKarte(p)} bild={p.bildId ? `/bilder/karten/${encodeURIComponent(p.bildId)}.png` : null} rotAb={2} titel="globals-prediction" />
-        : <Leer text="No prediction saved yet." />}
-    </div>
-  );
+  return <PrognoseWerkzeug />;
 }
 
 /* ---------------------------------------------------------------- Prize pool */
