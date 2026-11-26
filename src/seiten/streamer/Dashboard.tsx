@@ -5,7 +5,7 @@ import { Glas } from '../../teile/Glas';
 import { Ueberschrift, VIOLETT } from '../community/Teile';
 import { LiveKarte } from './LiveJetzt';
 import { useLive } from './live';
-import { SEITE, istVip } from './zugang';
+import { istVip } from './zugang';
 
 /*
  * Streamer-Dashboard: Begruessung mit Stufe, die Werkzeuge (kostenlose offen, VIP-Werkzeuge fuer Free-Konten als gesperrte Kacheln mit kurzem
@@ -15,13 +15,15 @@ import { SEITE, istVip } from './zugang';
 interface Werkzeug { titel: string; text: string; ziel: string; extern?: boolean; vip: boolean; zeichen: string }
 const WERKZEUGE: Werkzeug[] = [
   { titel: 'Live now', text: 'Every CompHub streamer and pro on air right now.', ziel: '/streamer/live', vip: false, zeichen: '●' },
-  { titel: 'Streams', text: 'Watch the competitive streams side by side.', ziel: '/competitive/streams', vip: false, zeichen: '▶' },
-  { titel: 'Basic overlays', text: 'Cup timer, offspawn score and a text line for OBS.', ziel: '/streamer/overlays', vip: false, zeichen: '◧' },
+  { titel: 'Streams', text: 'Watch the competitive streams side by side.', ziel: '/streamer/streams', vip: false, zeichen: '▶' },
+  { titel: 'Basic overlays', text: 'Cup timer and offspawn score for OBS – free, with live preview and OBS URL.', ziel: '/streamer/overlays', vip: false, zeichen: '◧' },
   { titel: 'My page', text: 'A preview of your channel on CompHub.', ziel: '/streamer/my-page', vip: false, zeichen: '☺' },
   { titel: 'Match Finder', text: 'Find your exact game in any cup – lobby, placement, replay.', ziel: '/competitive/match-finder', vip: true, zeichen: '⌖' },
-  { titel: 'Live cup overlays', text: 'Team banner, leaderboard, qual line and custom scoreboard.', ziel: '/streamer/overlays', vip: true, zeichen: '◩' },
+  { titel: 'Live cup overlays', text: 'Team banner, leaderboard, qual line, custom scoreboard and Globals 2026.', ziel: '/streamer/overlays', vip: true, zeichen: '◩' },
+  { titel: 'Twitch bot', text: 'Your own chat commands and rules against insults – around the clock.', ziel: '/streamer/twitch-bot', vip: true, zeichen: '⌨' },
+  { titel: 'Twitch statistics', text: 'Peak with and without raids, followers, chatters per day, week, month.', ziel: '/streamer/twitch-stats', vip: true, zeichen: '▤' },
   { titel: 'Streamer page', text: 'Your full CompHub page with schedule, clips and posts.', ziel: '/streamer/my-page', vip: true, zeichen: '★' },
-  { titel: 'Twitch bot', text: 'Chat commands with live cup stats – !map, !stats and more.', ziel: `${SEITE}/twitch-bot`, extern: true, vip: true, zeichen: '⌨' },
+  { titel: 'Globals 2026 overlays', text: 'Leaderboard, player banner and free overlay in the Global Championship look.', ziel: '/streamer/overlays/globals', vip: true, zeichen: '◆' },
 ];
 
 // Was wirklich in Arbeit ist (aus diesem Hub) - keine erfundenen Versprechen.
@@ -61,7 +63,7 @@ export default function Dashboard() {
         text={vip ? 'Everything is unlocked – live cup overlays, Match Finder, your streamer page and the Twitch bot.' : 'Your free streamer tools are ready. VIP adds live cup overlays, the Match Finder, your full streamer page and the Twitch bot.'}
         rechts={!vip ? <button type="button" onClick={() => oeffnen('schluessel')} className="rounded-full bg-violet-400 px-5 py-2.5 text-sm font-bold text-[#06080f] shadow-[0_10px_40px_rgba(167,139,250,0.3)] transition hover:bg-violet-300">Enter VIP access key</button> : undefined} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {WERKZEUGE.map((w, i) => <Kachel key={w.titel} w={w} frei={!w.vip || vip} i={i} />)}
       </div>
 

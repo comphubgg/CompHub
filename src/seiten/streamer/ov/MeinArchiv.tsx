@@ -141,7 +141,7 @@ export default function MeinArchiv() {
       ) : zeilen.length === 0 ? (
         <p className="mt-2 text-xs leading-relaxed text-white/45">{leer}</p>
       ) : (
-        <div className="mt-2 max-h-72 divide-y divide-zinc-900 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.035]/30">
+        <div className="mt-2 max-h-72 divide-y divide-zinc-900 overflow-y-auto rounded-lg border border-white/10 bg-white/[0.03]">
           {zeilen.map((z) => (
             <div key={z.schluessel} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
               <div className="min-w-0 flex-1">
@@ -177,7 +177,7 @@ export default function MeinArchiv() {
   );
 
   return (
-    <section id="archiv" className="rounded-xl border border-white/10 bg-black/30/60 p-4">
+    <section id="archiv" className="rounded-xl border border-white/10 bg-[#06080f]/60 p-4">
       <div className="flex items-baseline gap-2">
         <h2 className="text-sm font-semibold text-white"><T>Mein Archiv</T></h2>
         <span className="text-xs text-white/45"><T>sichtbar nur für dich</T></span>
@@ -199,7 +199,7 @@ export default function MeinArchiv() {
       {prognose && (
         <div className="mt-6">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55"><T>Prognose</T></h3>
-          <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035]/30 px-3 py-2.5">
+          <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-white/85"><T>Meine Globals-Prognose</T></p>
               <p className="text-[11px] text-white/45"><T>Deine eigene Prognose zur Global Championship</T></p>

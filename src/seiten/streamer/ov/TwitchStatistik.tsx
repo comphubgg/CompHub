@@ -2,7 +2,7 @@ import Link from './Link';
 import { useCallback, useEffect, useState } from 'react';
 import T from './T';
 import LadeSchirm from './LadeSchirm';
-import VipVorhang from './VipVorhang';
+import NurVip from './NurVip';
 import { useZugang } from './zugang';
 import { useSprache, useT } from './sprache';
 
@@ -32,7 +32,7 @@ interface Antwort {
 }
 
 const ARTEN: Array<[Art, string]> = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['gesamt', 'Gesamt']];
-const karte = 'rounded-xl border border-white/10 bg-white/[0.035]/40 p-5';
+const karte = 'rounded-xl border border-white/10 bg-white/[0.03] p-5';
 const zahl = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString());
 const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
@@ -62,7 +62,7 @@ function Verlauf({ v }: { v: NonNullable<Auswertung['verlauf']> }) {
 
 function Kachel({ titel, wert, unter, ton }: { titel: string; wert: string; unter?: string; ton?: 'live' }) {
   return (
-    <div className={`rounded-xl border p-4 ${ton === 'live' ? 'border-red-500/30 bg-red-500/10' : 'border-white/10 bg-white/[0.035]/40'}`}>
+    <div className={`rounded-xl border p-4 ${ton === 'live' ? 'border-red-500/30 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wider text-white/45">{titel}</p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums text-white">{wert}</p>
       {unter && <p className="mt-0.5 text-[11px] text-white/45">{unter}</p>}
@@ -115,18 +115,8 @@ export default function TwitchStatistik() {
   };
 
   if (zugang.laedt) return <LadeSchirm />;
-  if (!darf && zugang.vip) return <VipVorhang titel="Die Twitch-Statistik ist für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
-  if (!darf) {
-    return (
-      <div className="grid place-items-center px-4 text-center text-white">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-white/45"><T>Die Twitch-Statistik gibt es für VIPs, denen CompHub sie freigeschaltet hat.</T></p>
-          <Link href="/sign-in" className="mt-6 inline-block rounded-lg bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400"><T>Zur Anmeldung</T></Link>
-        </div>
-      </div>
-    );
-  }
+  if (!darf && zugang.vip) return <NurVip titel="Twitch statistics isn’t switched on for your account yet" text="CompHub switches it on per VIP – write us a quick message on Discord." />;
+  if (!darf) return <NurVip text="Twitch statistics are for VIPs that CompHub has switched them on for." />;
 
   const a = d?.auswertung ?? null;
   const w = a?.werte ?? null;
@@ -265,7 +255,7 @@ export default function TwitchStatistik() {
               </thead>
               <tbody>
                 {a.streams.map((s) => (
-                  <tr key={s.id} className="border-t border-white/10/80">
+                  <tr key={s.id} className="border-t border-white/10">
                     <td className="py-2 pr-3 tabular-nums text-white/55">{s.live ? <span className="font-bold text-red-400">LIVE</span> : new Date(s.start).toLocaleDateString(ort)}</td>
                     <td className="max-w-[320px] truncate py-2 pr-3 text-white/85" title={s.titel}>
                       {s.titel}{s.nurArchiv && <span className="ml-2 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-white/55"><T>Archiv</T></span>}
@@ -301,7 +291,7 @@ export default function TwitchStatistik() {
             {d.kanaele.length > 0 && (
               <ul className="mt-4 space-y-1.5 text-sm">
                 {d.kanaele.map((k) => (
-                  <li key={k.login} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/30/60 px-3 py-2">
+                  <li key={k.login} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#06080f]/60 px-3 py-2">
                     <span className="text-white/85">{k.name} <span className="text-xs text-white/45">→ {k.vipName}</span></span>
                     <button type="button" onClick={() => void aendern({ aktion: 'austragen', login: k.login })} className="text-xs text-white/45 transition hover:text-rose-400"><T>Entfernen</T></button>
                   </li>

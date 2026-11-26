@@ -1,8 +1,9 @@
+import { OV } from './ort';
 import Link from './Link';
 import { useCallback, useEffect, useState } from 'react';
 import T from './T';
 import LadeSchirm from './LadeSchirm';
-import VipVorhang from './VipVorhang';
+import NurVip from './NurVip';
 import { useZugang } from './zugang';
 import { useT } from './sprache';
 
@@ -20,7 +21,7 @@ interface Antwort {
   moderator: boolean | null;
 }
 
-const karte = 'rounded-xl border border-white/10 bg-white/[0.035]/40 p-5';
+const karte = 'rounded-xl border border-white/10 bg-white/[0.03] p-5';
 const feld = 'rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500';
 
 export default function TwitchBot() {
@@ -63,18 +64,8 @@ export default function TwitchBot() {
   };
 
   if (zugang.laedt) return <LadeSchirm />;
-  if (!darf && zugang.vip) return <VipVorhang titel="Der Twitch-Bot ist für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
-  if (!darf) {
-    return (
-      <div className="grid place-items-center px-4 text-center text-white">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-white/45"><T>Den CompHub-Bot gibt es für VIPs, deren Kanal CompHub freigeschaltet hat.</T></p>
-          <Link href="/sign-in" className="mt-6 inline-block rounded-lg bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400"><T>Zur Anmeldung</T></Link>
-        </div>
-      </div>
-    );
-  }
+  if (!darf && zugang.vip) return <NurVip titel="The Twitch bot isn’t switched on for your account yet" text="CompHub switches it on per VIP – write us a quick message on Discord." />;
+  if (!darf) return <NurVip text="The CompHub bot is for VIPs whose channel CompHub has switched on." />;
 
   const e = d?.einstellung ?? null;
   return (
@@ -105,7 +96,7 @@ export default function TwitchBot() {
             <p className="mt-1 text-xs text-white/45">
               {d.bot ? <><T>Verbunden als</T> <b className="text-white/85">{d.bot.login}</b>.</> : <T>Noch nicht verbunden. Melde dich bei Twitch mit dem Bot-Konto an (nicht mit deinem eigenen Kanal).</T>}
             </p>
-            <a href="/api/twitch-bot/verbinden" className="mt-3 inline-block rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400">
+            <a href={`${OV}/api/twitch-bot/verbinden`} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400">
               {d.bot ? <T>Neu verbinden</T> : <T>Bot-Konto verbinden</T>}
             </a>
           </section>
@@ -146,7 +137,7 @@ export default function TwitchBot() {
               )}
               <div className="mt-2 space-y-2">
                 {befehle.map((b, i) => (
-                  <div key={i} className="grid gap-2 rounded-lg border border-white/10 bg-black/30/60 p-3 md:grid-cols-[160px_minmax(0,1fr)_120px_110px_70px]">
+                  <div key={i} className="grid gap-2 rounded-lg border border-white/10 bg-[#06080f]/60 p-3 md:grid-cols-[160px_minmax(0,1fr)_120px_110px_70px]">
                     <input value={b.name} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} placeholder="!webseite" className={feld} />
                     <input value={b.antwort} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, antwort: ev.target.value } : x)))} placeholder={t('Antwort des Bots')} className={feld} />
                     <input type="number" min={0} max={3600} value={b.cooldownSek} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, cooldownSek: Number(ev.target.value) } : x)))} title={t('Pause in Sekunden')} className={feld} />
@@ -170,7 +161,7 @@ export default function TwitchBot() {
               )}
               <div className="mt-2 space-y-2">
                 {regeln.map((r, i) => (
-                  <div key={i} className="grid gap-2 rounded-lg border border-white/10 bg-black/30/60 p-3 md:grid-cols-[minmax(0,1fr)_170px_120px_minmax(0,0.8fr)_70px]">
+                  <div key={i} className="grid gap-2 rounded-lg border border-white/10 bg-[#06080f]/60 p-3 md:grid-cols-[minmax(0,1fr)_170px_120px_minmax(0,0.8fr)_70px]">
                     <input value={Array.isArray(r.woerter) ? r.woerter.join(', ') : r.woerter} onChange={(ev) => setRegeln(regeln.map((x, j) => (j === i ? { ...x, woerter: ev.target.value } : x)))} placeholder={t('Wörter, mit Komma getrennt')} className={feld} />
                     <select value={r.aktion} onChange={(ev) => setRegeln(regeln.map((x, j) => (j === i ? { ...x, aktion: ev.target.value as Regel['aktion'] } : x)))} className={feld}>
                       <option value="loeschen">{t('Nachricht löschen')}</option>

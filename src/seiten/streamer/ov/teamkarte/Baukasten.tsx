@@ -201,7 +201,7 @@ function Schritt({
   weiterText?: string; children: React.ReactNode;
 }) {
   return (
-    <section className={`rounded-xl border bg-white/[0.035]/40 p-4 transition
+    <section className={`rounded-xl border bg-white/[0.03] p-4 transition
       ${offen ? 'border-violet-500/40' : 'border-white/10'}
       ${gesperrt ? 'opacity-50' : ''}`}>
       <button type="button"
@@ -1554,7 +1554,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
 
           {/* Vorschau und Adresse bleiben beim Scrollen stehen. */}
           <div className="space-y-4 lg:sticky lg:top-[124px] lg:self-start">
-            <section className="rounded-xl border border-white/10 bg-white/[0.035]/40 p-4">
+            <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <h2 className="mb-3 text-sm font-semibold text-white">
                 <T>Vorschau</T>
               </h2>

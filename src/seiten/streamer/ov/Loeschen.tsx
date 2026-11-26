@@ -111,7 +111,7 @@ export default function LoeschLeiste({ typ = '' }: { typ?: string }) {
       {meinHinweis && (
         <div role="status"
           className="flex items-center gap-3 rounded-xl border border-white/15
-                     bg-white/[0.035]/80 px-3 py-2 text-[11px] text-white/70">
+                     bg-white/[0.03] px-3 py-2 text-[11px] text-white/70">
           <span className="min-w-0 flex-1 truncate">
             <T>Overlay gelöscht</T>{meinHinweis.name ? `: ${meinHinweis.name}` : ''}
           </span>
@@ -134,7 +134,7 @@ export default function LoeschLeiste({ typ = '' }: { typ?: string }) {
       )}
 
       {sichtbar.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-black/30/60 px-3 py-2.5">
+        <div className="rounded-xl border border-white/10 bg-[#06080f]/60 px-3 py-2.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
             <T>Zuletzt gelöscht</T>
           </p>

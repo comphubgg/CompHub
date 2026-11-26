@@ -41,7 +41,7 @@ function Schemen({ art, klasse, verzug }: {
           {[88, 76, 70, 61, 55].map((b, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="h-2 w-3 rounded bg-violet-300/30" />
-              <span className="h-2 rounded bg-white/70/20" style={{ width: `${b}%` }} />
+              <span className="h-2 rounded bg-white/15" style={{ width: `${b}%` }} />
             </div>
           ))}
         </div>
@@ -51,7 +51,7 @@ function Schemen({ art, klasse, verzug }: {
           <span className="h-12 w-12 rounded-xl bg-violet-400/25" />
           <span className="h-12 w-12 rounded-xl bg-violet-400/15" />
           <span className="space-y-2">
-            <span className="block h-2 w-24 rounded bg-white/80/25" />
+            <span className="block h-2 w-24 rounded bg-white/20" />
             <span className="block h-2 w-16 rounded bg-violet-300/30" />
           </span>
         </div>
@@ -127,7 +127,7 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
             </a>
             <a href={`https://x.com/${MARKE.x}`} target="_blank" rel="noreferrer"
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15
-                         bg-white/[0.035]/80 px-4 py-2.5 text-sm font-semibold text-white transition
+                         bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white transition
                          hover:border-violet-500 hover:text-violet-400">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M18.2 2.3h3.4l-7.4 8.4 8.7 11.5h-6.8l-5.3-7-6.1 7H1.3l7.9-9L.9 2.3h7l4.8 6.4 5.5-6.4Zm-1.2 17.9h1.9L7.1 4.2H5.1l11.9 16Z" />

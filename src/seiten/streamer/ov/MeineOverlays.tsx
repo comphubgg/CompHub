@@ -228,7 +228,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
   };
 
   if (!liste) {
-    return <div className="mt-10 h-24 animate-pulse rounded-xl bg-white/[0.035]/60" />;
+    return <div className="mt-10 h-24 animate-pulse rounded-xl bg-white/[0.03]" />;
   }
 
   return (
@@ -268,7 +268,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
         <div className="mt-4 space-y-2">
           {liste.map((o) => (
             <div key={o.id}
-              className="rounded-xl border border-white/10 bg-black/30/60 px-4 py-3">
+              className="rounded-xl border border-white/10 bg-[#06080f]/60 px-4 py-3">
 
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-md border border-white/10 px-2 py-0.5

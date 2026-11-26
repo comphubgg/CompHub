@@ -219,7 +219,7 @@ export default function TimerSeite() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.035]/40 p-4">
+          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Worauf gewartet wird</T>
             </h2>
@@ -288,7 +288,7 @@ export default function TimerSeite() {
           <HausGruppe cfg={cfg} setz={setzLos} />
           <DesignGruppe cfg={cfg} setz={setzLos} />
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.035]/40 p-4">
+          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Aussehen</T>
             </h2>
@@ -307,7 +307,7 @@ export default function TimerSeite() {
         </div>
 
         <div className="space-y-4">
-          <section className="rounded-xl border border-white/10 bg-white/[0.035]/40 p-4">
+          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <input value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={t('Name im Dashboard')}

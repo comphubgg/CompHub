@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWer } from '../../teile/Anmeldung';
 import { Glas } from '../../teile/Glas';
 import { Bald, Ueberschrift, VIOLETT } from '../community/Teile';
-import { SEITE, istVip } from './zugang';
+import { istVip } from './zugang';
 
 /*
  * Die eigene Seite. Fuer jedes Konto eine einfache Vorschau: Profilbild, live oder nicht, Titel (POST /api/live-status). Die volle Streamer-Seite
@@ -69,7 +70,7 @@ export default function MeineSeite() {
               <div className="mt-6 flex flex-wrap gap-2">
                 <a href={`https://twitch.tv/${kanal}`} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5">Open on Twitch</a>
                 {vip
-                  ? <a href={`${SEITE}/streamer/${kanal}`} target="_blank" rel="noreferrer" className="rounded-full bg-violet-400 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-violet-300">Full streamer page →</a>
+                  ? <Link to={`/streamer/page/${kanal}`} className="rounded-full bg-violet-400 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-violet-300">Full streamer page →</Link>
                   : <span className="rounded-full border border-violet-300/30 px-4 py-2 text-sm font-semibold text-violet-200/70">Full streamer page · VIP</span>}
               </div>
             </div>

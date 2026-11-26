@@ -59,7 +59,7 @@ export default function Ablauf({ schritte, start = 0 }: { schritte: AblaufSchrit
         })}
       </ol>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.035]/50 p-5">
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="text-lg font-extrabold text-white"><T>{s.titel}</T></h2>
         <p className="mt-1 max-w-2xl text-sm text-white/55"><T>{s.hinweis}</T></p>
         <div className="mt-5">{s.inhalt}</div>

@@ -399,7 +399,7 @@ export function Vorschau({ src, hoehe = 220, klebt = true, leer }: {
           {src && (
             <button type="button" onClick={() => setVoll(true)}
               className="absolute bottom-2 right-2 rounded-lg border border-white/15
-                         bg-black/30/85 px-3 py-1.5 text-[11px] font-medium
+                         bg-[#06080f]/85 px-3 py-1.5 text-[11px] font-medium
                          text-white/70 backdrop-blur transition
                          hover:border-violet-500 hover:text-violet-400">
               ⛶ <T>Vollbild</T>
@@ -471,13 +471,13 @@ function VollbildVorschau({ src, schliessen }: {
       </div>
       <button type="button" onClick={verlassen}
         className="absolute right-4 top-4 z-10 rounded-lg border border-white/15
-                   bg-black/30/85 px-4 py-2 text-sm font-medium text-white/85
+                   bg-[#06080f]/85 px-4 py-2 text-sm font-medium text-white/85
                    backdrop-blur transition hover:border-violet-500
                    hover:text-violet-400">
         ✕ <T>Vollbild verlassen</T>
       </button>
       <p className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap
-                    rounded-lg bg-black/30/70 px-3 py-1.5 text-[11px]
+                    rounded-lg bg-[#06080f]/70 px-3 py-1.5 text-[11px]
                     text-white/55 backdrop-blur">
         <T>So groß wie im Stream (1920 × 1080). Escape zum Verlassen.</T>
       </p>
@@ -510,7 +510,7 @@ export function MeineListe({ liste, typ, offen, waehlen, entfernen }: {
   };
 
   if (!liste) {
-    return <div className="h-20 animate-pulse rounded-xl bg-white/[0.035]/60" />;
+    return <div className="h-20 animate-pulse rounded-xl bg-white/[0.03]" />;
   }
 
   if (!liste.length) {
@@ -531,7 +531,7 @@ export function MeineListe({ liste, typ, offen, waehlen, entfernen }: {
       {liste.map((o) => (
         <div key={o.id}
           className={`rounded-xl border px-3 py-2.5 transition ${o.id === offen
-            ? 'border-violet-600 bg-violet-950/20' : 'border-white/10 bg-black/30/60'}`}>
+            ? 'border-violet-600 bg-violet-950/20' : 'border-white/10 bg-[#06080f]/60'}`}>
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => waehlen(o)}
               className="min-w-0 flex-1 truncate text-left text-sm font-semibold

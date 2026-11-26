@@ -284,7 +284,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                 {([['punkte1', 'name1', 'farbe1'], ['punkte2', 'name2', 'farbe2']] as const)
                   .map(([pk, nk, fk]) => (
                     <div key={pk} className="rounded-lg border border-white/10
-                                             bg-black/30/60 p-3">
+                                             bg-[#06080f]/60 p-3">
                       <input value={cfg[nk] as string}
                         onChange={(e) => setz(nk, e.target.value)}
                         placeholder={t('Teamname')}

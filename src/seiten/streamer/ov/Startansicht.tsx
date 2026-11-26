@@ -350,7 +350,7 @@ export default function Startansicht({ onWeiter, art }: {
                   className={`rounded-xl border px-4 py-3 text-left transition
                     ${ist
                       ? 'border-violet-500 bg-violet-500/10'
-                      : 'border-white/10 bg-white/[0.035]/40 hover:border-white/15'}`}>
+                      : 'border-white/10 bg-white/[0.03] hover:border-white/15'}`}>
                   <span className="flex items-center gap-2">
                     {k.live && (
                       <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
@@ -395,7 +395,7 @@ export default function Startansicht({ onWeiter, art }: {
         */}
       {neu && (
         <div className="sticky bottom-0 -mx-4 flex items-center gap-3
-                        border-t border-white/10 bg-black/30/95 px-4 py-3
+                        border-t border-white/10 bg-[#06080f]/95 px-4 py-3
                         backdrop-blur">
           <button onClick={() => { setNeu(false); setGewaehlt(null); }}
             className="rounded-lg border border-white/10 px-4 py-2 text-sm
