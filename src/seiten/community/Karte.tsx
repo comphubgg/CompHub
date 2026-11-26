@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Glas } from '../../teile/Glas';
 import { Bald, TEAL, Ueberschrift } from './Teile';
+import { Abzeichen, EBENEN, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
 
 /*
  * Interaktive Karte der Insel von heute (Betreiber, 26.11.2026). Bild /bilder/karte-leer.png bzw. karte-orte.png (fortnite-api.com ueber
@@ -10,7 +11,11 @@ import { Bald, TEAL, Ueberschrift } from './Teile';
  *
  * Objekt-Ebenen (Truhen, Munition, Slurp-Faesser ...): kommen aus einem eigenen Export der Spieldateien (karte/objekte.json, x/y/z in Unreal-cm).
  * Geladen wird /hub-daten/objekte.json - liegt die Datei nicht da, bleiben die Ebenen leer (mit Hinweis). Format:
- *   { probe?: true, hinweis?: string, objekte: [{ typ: 'chest', x, y, z, x2?, y2? }] }   (x2/y2: Endpunkt, z. B. Zipline)
+ *   { probe?: true, hinweis?: string, objekte: [{ typ: 'chest', x, y, z, x2?, y2?, chance?, name? }] }   (x2/y2: Endpunkt, z. B. Zipline;
+ *   chance: Erscheinungs-Wahrscheinlichkeit 0..1, falls das Objekt nicht immer da ist). Export-Auftrag: scratchpad/waffen-export-auftrag.md.
+ *
+ * Marker werden in Bildschirm-Pixeln gezeichnet (nicht mitskaliert), damit die Symbole bei jedem Zoom scharf bleiben; weit draussen werden
+ * sie kleiner und gleichartige Nachbarn zu einem Marker mit Zahl zusammengefasst (Klick zoomt hinein).
  * Statt "objekte" darf auch ein blosses Array kommen.
  */
 
@@ -18,23 +23,9 @@ const RAHMEN = { x0: -142_800, y0: -146_000, spanne: 301_500 };
 const zuProzent = (x: number, y: number) => ({ l: ((x - RAHMEN.x0) / RAHMEN.spanne) * 100, o: ((y - RAHMEN.y0) / RAHMEN.spanne) * 100 });
 
 interface Ort { id: string; name: string; x: number; y: number; links: number; oben: number }
-interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number }
-
-const EBENEN: Array<{ typ: string; titel: string; farbe: string; namen: string[] }> = [
-  { typ: 'chest', titel: 'Chests', farbe: '#facc15', namen: ['chest', 'truhe', 'tiered_chest'] },
-  { typ: 'ammo', titel: 'Ammo boxes', farbe: '#a3e635', namen: ['ammo', 'ammobox', 'munition', 'munitionskiste'] },
-  { typ: 'slurp', titel: 'Slurp barrels', farbe: '#38bdf8', namen: ['slurp', 'slurpbarrel', 'slurpfass'] },
-  { typ: 'reboot', titel: 'Reboot vans', farbe: '#f472b6', namen: ['reboot', 'rebootvan', 'reboot_van'] },
-  { typ: 'launchpad', titel: 'Launch pads', farbe: '#fb923c', namen: ['launchpad', 'launch_pad', 'sprungpad'] },
-  { typ: 'zipline', titel: 'Ziplines', farbe: '#e2e8f0', namen: ['zipline', 'seilrutsche'] },
-  { typ: 'vending', titel: 'Vending machines', farbe: '#c084fc', namen: ['vending', 'vendingmachine', 'automat'] },
-  { typ: 'fishing', titel: 'Fishing spots', farbe: '#22d3ee', namen: ['fishing', 'fishingspot', 'angelstelle'] },
-  { typ: 'other', titel: 'Other objects', farbe: '#94a3b8', namen: [] },
-];
-const typVon = (roh: string) => {
-  const n = roh.toLowerCase().replace(/[\s-]/g, '');
-  return EBENEN.find((e) => e.typ === n || e.namen.includes(n))?.typ ?? 'other';
-};
+interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string }
+/** Marker auf dem Bildschirm: ein Objekt oder (weit herausgezoomt) mehrere gleicher Art, die zu nah beieinander liegen. */
+interface Gruppe { id: string; typ: string; px: number; py: number; liste: Objekt[] }
 
 const GRID = 10;
 const SPALTEN = 'ABCDEFGHIJ';
@@ -95,14 +86,15 @@ export default function Karte() {
   }, [zoomen]);
   const ziehen = useRef<{ x: number; y: number; tx: number; ty: number; bewegt: boolean } | null>(null);
   const [zeiger, setZeiger] = useState<{ x: number; y: number } | null>(null);
-  function runter(e: React.PointerEvent) { (e.target as Element).setPointerCapture?.(e.pointerId); ziehen.current = { x: e.clientX, y: e.clientY, tx: sicht.tx, ty: sicht.ty, bewegt: false }; }
+  const gezogen = useRef(false); // war der letzte Druck ein Ziehen? Dann ist das Loslassen kein Klick auf einen Marker.
+  function runter(e: React.PointerEvent) { (e.target as Element).setPointerCapture?.(e.pointerId); gezogen.current = false; ziehen.current = { x: e.clientX, y: e.clientY, tx: sicht.tx, ty: sicht.ty, bewegt: false }; }
   function bewegen(e: React.PointerEvent) {
     const r = rahmen.current!.getBoundingClientRect();
     const mx = e.clientX - r.left; const my = e.clientY - r.top;
     setZeiger({ x: ((mx - sicht.tx) / (basis * sicht.s)) * RAHMEN.spanne + RAHMEN.x0, y: ((my - sicht.ty) / (basis * sicht.s)) * RAHMEN.spanne + RAHMEN.y0 });
     const z = ziehen.current; if (!z) return;
     const dx = e.clientX - z.x; const dy = e.clientY - z.y;
-    if (Math.abs(dx) + Math.abs(dy) > 3) z.bewegt = true;
+    if (Math.abs(dx) + Math.abs(dy) > 3) { z.bewegt = true; gezogen.current = true; }
     setSicht((v) => ({ ...v, tx: z.tx + dx, ty: z.ty + dy }));
   }
   function hin(o: Ort) {
@@ -114,6 +106,40 @@ export default function Karte() {
   const zaehlen = useMemo(() => { const m: Record<string, number> = {}; for (const o of objekte ?? []) m[o.typ] = (m[o.typ] ?? 0) + 1; return m; }, [objekte]);
   const sichtbar = useMemo(() => (objekte ?? []).filter((o) => an[o.typ]), [objekte, an]);
   const r = (px: number) => (px * 1000) / (basis * sicht.s);
+
+  /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen weit draussen */
+  const skala = basis * sicht.s; // Bildschirm-Pixel je ganze Bildbreite
+  const symbolPx = Math.round(Math.min(26, Math.max(14, 8 + sicht.s * 4.2)));
+  const gruppen = useMemo(() => {
+    // Weit draussen grob zusammenfassen (Uebersicht), nah dran nur, was sich ueberlappen wuerde, ganz nah gar nicht.
+    const zelle = sicht.s >= 6 ? 0 : symbolPx * (sicht.s < 2.4 ? 2.1 : sicht.s < 4 ? 1.5 : 1.15);
+    const m = new Map<string, { typ: string; sx: number; sy: number; liste: Objekt[] }>();
+    sichtbar.forEach((o, i) => {
+      const p = zuProzent(o.x, o.y);
+      let px = (p.l / 100) * skala; let py = (p.o / 100) * skala;
+      if (o.x2 !== undefined && o.y2 !== undefined) { const q = zuProzent(o.x2, o.y2); px = (px + (q.l / 100) * skala) / 2; py = (py + (q.o / 100) * skala) / 2; }
+      const id = zelle ? `${o.typ}:${Math.floor(px / zelle)}:${Math.floor(py / zelle)}` : `${o.typ}:${i}`;
+      const g = m.get(id) ?? { typ: o.typ, sx: 0, sy: 0, liste: [] };
+      g.sx += px; g.sy += py; g.liste.push(o); m.set(id, g);
+    });
+    return [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }));
+  }, [sichtbar, skala, sicht.s, symbolPx]);
+  const [ueber, setUeber] = useState<string | null>(null);
+  const [fest, setFest] = useState<string | null>(null);
+  const tipp = gruppen.find((g) => g.id === (fest ?? ueber)) ?? null;
+  const imBild = (g: Gruppe) => g.px + sicht.tx > -40 && g.px + sicht.tx < groesse.b + 40 && g.py + sicht.ty > -40 && g.py + sicht.ty < groesse.h + 40;
+  function markerKlick(g: Gruppe) {
+    if (gezogen.current) return;
+    if (g.liste.length > 1) { zoomen(2.2, g.px + sicht.tx, g.py + sicht.ty); setFest(null); return; }
+    setFest((f) => (f === g.id ? null : g.id));
+  }
+  // Objekte rund um einen gewaehlten Ort (120 m Umkreis)
+  const umOrt = useMemo(() => {
+    if (!gewaehlt || !objekte?.length) return [];
+    const m: Record<string, number> = {};
+    for (const o of objekte) if (Math.hypot(o.x - gewaehlt.x, o.y - gewaehlt.y) < 12_000) m[o.typ] = (m[o.typ] ?? 0) + 1;
+    return EBENEN.filter((e) => m[e.typ]).map((e) => ({ typ: e.typ, titel: e.titel, n: m[e.typ] }));
+  }, [gewaehlt, objekte]);
   const gefiltert = orte.filter((o) => o.name.toLowerCase().includes(suche.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
   const benannt = (o: Ort) => /\.POI\./.test(o.id);
   const imGitter = (o: { links: number; oben: number }) => `${SPALTEN[Math.min(GRID - 1, Math.floor(o.links / (100 / GRID)))]}${Math.min(GRID, Math.floor(o.oben / (100 / GRID)) + 1)}`;
@@ -142,20 +168,49 @@ export default function Karte() {
                   ))}
                 </svg>
               )}
-              {/* Objekte - eine SVG-Ebene, damit auch Tausende Punkte fluessig bleiben */}
-              <svg viewBox="0 0 1000 1000" className="pointer-events-none absolute inset-0 h-full w-full">
-                {sichtbar.map((o, i) => {
-                  const p = zuProzent(o.x, o.y); const farbe = EBENEN.find((e) => e.typ === o.typ)!.farbe;
-                  if (o.x2 !== undefined && o.y2 !== undefined) { const q = zuProzent(o.x2, o.y2); return <line key={i} x1={p.l * 10} y1={p.o * 10} x2={q.l * 10} y2={q.o * 10} stroke={farbe} strokeWidth={r(2.5)} strokeLinecap="round" />; }
-                  return <circle key={i} cx={p.l * 10} cy={p.o * 10} r={r(5.5)} fill={farbe} stroke="#06080f" strokeWidth={r(1.5)} />;
-                })}
-              </svg>
             </div>
-            {/* Orte - ausserhalb der skalierten Ebene, in Bildschirm-Pixeln: so bleiben Schrift und Punkte bei jedem Zoom scharf */}
+            {/* Objekte - eine SVG-Ebene in Bildschirm-Pixeln (Symbole per <use>), damit auch Tausende Marker scharf und fluessig bleiben */}
+            <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+              <SymbolVorlagen />
+              <g transform={`translate(${sicht.tx} ${sicht.ty})`}>
+                {sichtbar.filter((o) => o.x2 !== undefined && o.y2 !== undefined).map((o, i) => {
+                  const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2!, o.y2!);
+                  return <line key={i} x1={(p.l / 100) * skala} y1={(p.o / 100) * skala} x2={(q.l / 100) * skala} y2={(q.o / 100) * skala} stroke={ebeneVon(o.typ).farbe} strokeOpacity={0.85} strokeWidth={2} strokeDasharray="6 4" strokeLinecap="round" />;
+                })}
+                <g filter="url(#k-schatten)">
+                  {gruppen.filter(imBild).map((g) => {
+                    const n = g.liste.length; const gr = n > 1 ? symbolPx + 2 : symbolPx; const aktiv = tipp?.id === g.id;
+                    return (
+                      <g key={g.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(g.id)} onPointerLeave={() => setUeber((u) => (u === g.id ? null : u))} onClick={() => markerKlick(g)}>
+                        <use href={`#k-${g.typ}`} x={g.px - gr / 2} y={g.py - gr / 2} width={gr} height={gr} transform={aktiv ? `translate(${g.px} ${g.py}) scale(1.22) translate(${-g.px} ${-g.py})` : undefined} />
+                        {n > 1 && (
+                          <g>
+                            <rect x={g.px + gr / 2 - 9} y={g.py - gr / 2 - 7} width={n > 99 ? 22 : n > 9 ? 18 : 14} height={14} rx={7} fill="#06080f" stroke={ebeneVon(g.typ).farbe} strokeWidth={1.2} />
+                            <text x={g.px + gr / 2 - 9 + (n > 99 ? 11 : n > 9 ? 9 : 7)} y={g.py - gr / 2 + 3.6} textAnchor="middle" fontSize={9.5} fontWeight={800} fill="#fff">{n > 99 ? '99+' : n}</text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              </g>
+            </svg>
+            {/* Hinweis zum Marker: Art, Koordinaten, Hoehe - beim Darueberfahren, per Klick festgehalten */}
+            <AnimatePresence>
+              {tipp && (
+                <motion.div key={tipp.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={`absolute z-10 w-max min-w-[190px] max-w-[260px] -translate-x-1/2 -translate-y-full rounded-2xl border border-white/15 bg-[#06080f]/90 p-3 text-left shadow-2xl backdrop-blur-xl ${fest ? '' : 'pointer-events-none'}`}
+                  style={{ left: tipp.px + sicht.tx, top: tipp.py + sicht.ty - symbolPx / 2 - 10 }}>
+                  <MarkerInfo g={tipp} skala={skala} gitter={imGitter} schliessen={fest ? () => setFest(null) : undefined} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Orte - ausserhalb der skalierten Ebene, in Bildschirm-Pixeln: so bleiben Schrift und Nadeln bei jedem Zoom scharf */}
             {namen && !epicBild && orte.map((o) => (
               <button key={o.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => hin(o)}
-                className="absolute flex -translate-x-1/2 -translate-y-[5px] flex-col items-center" style={{ left: sicht.tx + (o.links / 100) * basis * sicht.s, top: sicht.ty + (o.oben / 100) * basis * sicht.s }}>
-                <span className={`h-2.5 w-2.5 rounded-full border-2 border-[#06080f] ${gewaehlt?.id === o.id ? 'bg-teal-300 shadow-[0_0_12px_rgba(45,212,191,0.9)]' : 'bg-white'}`} />
+                className="absolute flex -translate-x-1/2 flex-col items-center" style={{ left: sicht.tx + (o.links / 100) * basis * sicht.s, top: sicht.ty + (o.oben / 100) * basis * sicht.s - (benannt(o) ? 16 : 12) }}>
+                <OrtNadel aktiv={gewaehlt?.id === o.id} klein={!benannt(o)} />
                 <span className={`mt-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${benannt(o) ? 'text-[12px]' : 'text-[10px] text-white/80'} ${gewaehlt?.id === o.id ? 'bg-teal-500/50' : 'bg-black/35'}`}>{o.name}</span>
               </button>
             ))}
@@ -191,7 +246,12 @@ export default function Karte() {
                       <div key={k} className="rounded-xl bg-white/[0.04] px-2 py-2"><dt className="text-[10px] uppercase tracking-wider text-white/40">{k}</dt><dd className="text-sm font-bold tabular-nums text-white">{v}</dd></div>
                     ))}
                   </dl>
-                  <p className="mt-3 text-xs text-white/40">Chests, ammo and more around {gewaehlt.name} <Bald /></p>
+                  {umOrt.length ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {umOrt.map((u) => <span key={u.typ} title={u.titel} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] py-1 pl-1 pr-2 text-xs font-bold tabular-nums text-white"><Abzeichen typ={u.typ} groesse={18} />{u.n}</span>)}
+                      <span className="self-center text-[10px] text-white/35">within 120 m</span>
+                    </div>
+                  ) : <p className="mt-3 text-xs text-white/40">Chests, ammo and more around {gewaehlt.name} <Bald text="export pending" /></p>}
                 </Glas>
               </motion.div>
             )}
@@ -211,7 +271,7 @@ export default function Karte() {
             </div>
             <div className="mt-2 space-y-1.5">
               {EBENEN.filter((e) => e.typ !== 'other' || zaehlen.other).map((e) => (
-                <Schalter key={e.typ} titel={e.titel} farbe={e.farbe} an={an[e.typ]} anzahl={zaehlen[e.typ] ?? 0} leer={!zaehlen[e.typ]}
+                <Schalter key={e.typ} titel={e.titel} typ={e.typ} an={an[e.typ]} anzahl={zaehlen[e.typ] ?? 0} leer={!zaehlen[e.typ]}
                   umschalten={() => setAn((a) => ({ ...a, [e.typ]: !a[e.typ] }))} />
               ))}
             </div>
@@ -243,10 +303,41 @@ export default function Karte() {
   );
 }
 
-function Schalter({ titel, an, umschalten, farbe, anzahl, leer }: { titel: string; an: boolean; umschalten: () => void; farbe?: string; anzahl?: number; leer?: boolean }) {
+function MarkerInfo({ g, skala, gitter, schliessen }: { g: Gruppe; skala: number; gitter: (o: { links: number; oben: number }) => string; schliessen?: () => void }) {
+  const e = ebeneVon(g.typ); const n = g.liste.length; const o = g.liste[0];
+  const feld = gitter({ links: (g.px / skala) * 100, oben: (g.py / skala) * 100 });
+  const m = (cm: number) => `${Math.round(cm / 100).toLocaleString('en')} m`;
+  return (
+    <div>
+      <div className="flex items-center gap-2.5">
+        <Abzeichen typ={g.typ} groesse={26} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold leading-tight text-white">{n > 1 ? `${n} ${e.titel.toLowerCase()}` : (o.name ?? e.einzeln)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: e.farbe }}>{n > 1 ? 'Cluster · click to zoom in' : o.name ? e.einzeln : `Grid ${feld}`}</p>
+        </div>
+        {schliessen && <button type="button" onClick={schliessen} className="self-start text-xs text-white/40 hover:text-white">✕</button>}
+      </div>
+      {n === 1 ? (
+        <dl className="mt-2.5 grid grid-cols-3 gap-1.5 text-center">
+          {[['X', m(o.x)], ['Y', m(o.y)], [o.z !== undefined ? 'Height' : 'Grid', o.z !== undefined ? m(o.z) : feld]].map(([k, v]) => (
+            <div key={k} className="rounded-lg bg-white/[0.05] px-1.5 py-1"><dt className="text-[9px] uppercase tracking-wider text-white/40">{k}</dt><dd className="text-xs font-bold tabular-nums text-white">{v}</dd></div>
+          ))}
+        </dl>
+      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}. Zoom in to see each one.</p>}
+      {n === 1 && (o.name || o.chance !== undefined || o.x2 !== undefined) && (
+        <p className="mt-2 flex justify-between text-[11px] text-white/45">
+          <span>{o.name ? `Grid ${feld}` : ''}{o.x2 !== undefined && o.y2 !== undefined ? `${o.name ? ' · ' : ''}${m(Math.hypot(o.x2 - o.x, o.y2 - o.y))} long` : ''}</span>
+          {o.chance !== undefined && <span className="font-semibold text-white/70">Spawns {Math.round(o.chance * 100)} %</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Schalter({ titel, an, umschalten, typ, anzahl, leer }: { titel: string; an: boolean; umschalten: () => void; typ?: string; anzahl?: number; leer?: boolean }) {
   return (
     <button type="button" onClick={umschalten} className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-sm transition hover:bg-white/5 ${leer ? 'opacity-50' : ''}`}>
-      {farbe ? <span className="h-3 w-3 rounded-full ring-2 ring-black/40" style={{ background: farbe }} /> : null}
+      {typ ? <Abzeichen typ={typ} groesse={22} /> : null}
       <span className="flex-1 text-white/80">{titel}</span>
       {anzahl !== undefined && <span className="text-xs tabular-nums text-white/40">{anzahl.toLocaleString('en')}</span>}
       <span className={`relative h-5 w-9 rounded-full transition ${an ? 'bg-teal-400/80' : 'bg-white/10'}`}>
