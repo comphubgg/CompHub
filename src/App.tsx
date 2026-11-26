@@ -15,6 +15,9 @@ import Replays from './seiten/comp/Replays';
 import MatchFinder from './seiten/comp/MatchFinder';
 import Tierlist from './seiten/comp/Tierlist';
 import Fncs from './seiten/comp/Fncs';
+import Maps from './seiten/comp/mehr/maps/Maps';
+import MapsKarte from './seiten/comp/mehr/maps/MapsKarte';
+import TurnierKarte from './seiten/comp/mehr/maps/TurnierKarte';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
 
@@ -49,6 +52,10 @@ export default function App() {
             <Route path="streams" element={<Navigate to="/streamer/streams" replace />} />
             <Route path="tierlist" element={<Tierlist />} />
             <Route path="fncs" element={<Fncs />} />
+            <Route path="maps" element={<Maps />} />
+            <Route path="maps/cup" element={<MapsKarte />} />
+            <Route path="maps/view" element={<TurnierKarte />} />
+            <Route path="tournament-maps" element={<Navigate to="/competitive/maps" replace />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
           </Route>
           <Route path="/community/*" element={<Community />} />
