@@ -28,7 +28,16 @@ export interface KachelSpieler {
   epicId: string;
   name: string;
   land?: string | null;
+  /** Noch nicht alle Matches dieses Spielers aus den Replays gelesen - Replay-Werte sind dann vorlaeufig (Sternchen). */
+  teil?: boolean;
   [feld: string]: unknown;
+}
+
+/** Werte, die nicht aus den Replays kommen (Epics Bestenliste) - die sind auch bei fehlenden Replays vollstaendig. */
+const OHNE_REPLAY = new Set(['elims', 'kills']);
+function Teil({ s, feld }: { s: KachelSpieler; feld: string }) {
+  if (!s.teil || OHNE_REPLAY.has(feld)) return null;
+  return <span className="ml-0.5 cursor-help text-amber-400" title="Noch nicht alle Matches dieses Spielers gelesen - der Wert wird noch vollständiger.">*</span>;
 }
 
 export interface KachelListe {
@@ -153,7 +162,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                     <span className={`w-5 shrink-0 text-center text-[11.5px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{i + 1}</span>
                     <TeamFlagge groesse={14} laender={[s.land || undefined]} />
                     <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-100">{s.name}</span>
-                    <span className="shrink-0 text-[12px] font-semibold tabular-nums text-slate-50">{wert(k, Number(s[k.feld]))}</span>
+                    <span className="shrink-0 text-[12px] font-semibold tabular-nums text-slate-50">{wert(k, Number(s[k.feld]))}<Teil s={s} feld={k.feld} /></span>
                   </div>
                 ))}
               </div>
@@ -204,7 +213,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                   <TeamFlagge groesse={18} laender={[s.land || undefined]} />
                   <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-200">{s.name}</span>
                   <span className="shrink-0 text-[12px] font-bold tabular-nums text-sky-400">
-                    {wert(k, Number(s[k.feld]))}
+                    {wert(k, Number(s[k.feld]))}<Teil s={s} feld={k.feld} />
                   </span>
                 </div>
               ))}
@@ -295,7 +304,7 @@ function GanzeListe({ kachel, wert, zu, aufKlick }: {
                 <TeamFlagge groesse={22} laender={[s.land || undefined]} />
                 <span className="min-w-0 flex-1 truncate text-[13px] text-slate-200">{s.name}</span>
                 <span className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-100">
-                  {wert(kachel, Number(s[kachel.feld]))}
+                  {wert(kachel, Number(s[kachel.feld]))}<Teil s={s} feld={kachel.feld} />
                 </span>
               </button>
             </li>

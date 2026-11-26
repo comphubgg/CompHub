@@ -158,6 +158,12 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
    * einem More-Knopf, dass es clean aussieht, nicht einfach drei und fertig").
    */
   const [alleKacheln, setAlleKacheln] = useState(false);
+  // Solange Matches fehlen: Spieler, deren Replay-Elims noch nicht mit Epics Zahl uebereinstimmen, sind nur teilweise gelesen (Betreiber, 26.11.2026:
+  // "Hier steht nicht bei jedem die Damage") - ihre Replay-Werte bekommen ein Sternchen.
+  const mitTeil = useMemo(() => {
+    const fehlen = !!rundenGesamt && rundenGesamt > (matches ?? 0);
+    return fehlen ? spieler.map((s) => ({ ...s, teil: !(s as { elimsAusReplay?: boolean }).elimsAusReplay })) : spieler;
+  }, [spieler, rundenGesamt, matches]);
   const mitWerten = useMemo(() => OSIRION_KACHELN.filter((k) => spieler.some((s) => Number(s[k.feld]) > 0)), [spieler]);
   const gezeigteKacheln = alleKacheln ? mitWerten : mitWerten.slice(0, 10);
 
@@ -347,7 +353,7 @@ export default function SpielerStatsUebersicht({ ohneSummen = false, spieler, ma
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={10} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
+      <StatKacheln spieler={mitTeil} listen={gezeigteKacheln} anzahl={10} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
       {/* Die Plattformen stehen schon oben rechts als Ring (Betreiber, 14.11.2026: die zweite Box unten weg). */}
       {mitWerten.length > 10 && (
         <div className="flex justify-center">
