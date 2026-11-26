@@ -350,7 +350,7 @@ async function diagnose(id) {
     probeGeschickt: probe,
     sitzungssucheBot: findeBot,
     sitzungssuche,
-    eos: { verbunden: eos.verbunden, seit: eos.seit, verbindungen: eos.verbindungen, letzterFehler: eos.letzterFehler, nachrichten: eos.nachrichten, presences: eos.presences, funde: eos.funde, typen: eos.typen, protokoll: eos.protokoll.slice(-10), freundeMitStatus: eos.jeId.size, ziel: eos.jeId.get(id) ?? null },
+    eos: { verbunden: eos.verbunden, seit: eos.seit, verbindungen: eos.verbindungen, letzterFehler: eos.letzterFehler, eigenerStatus: eos.eigenerStatus, nachrichten: eos.nachrichten, presences: eos.presences, funde: eos.funde, typen: eos.typen, protokoll: eos.protokoll.slice(-10), freundeMitStatus: eos.jeId.size, ziel: eos.jeId.get(id) ?? null },
     sitzungssucheHaupt: findeHaupt,
     versuch,
   };
@@ -418,7 +418,7 @@ setInterval(() => { void sitzungenSuchen(); }, SITZUNG_MS);
  * Je Freund: SessionIdAttributeKey ("s" + Match-ID), Playlist, Kills. Ein Status aus XMPP geht vor und wird nie ueberschrieben; /diagnose (eos).
  */
 const EOS_DEPLOY = '62a9473a2dca46b29ccf17577fcf42d7';
-const eos = { verbunden: false, seit: null, letzterFehler: null, verbindungen: 0, nachrichten: 0, presences: 0, funde: 0, typen: {}, protokoll: [], jeId: new Map(), ws: null, ping: null, neu: null, erneuern: null };
+const eos = { eigenerStatus: null, verbunden: false, seit: null, letzterFehler: null, verbindungen: 0, nachrichten: 0, presences: 0, funde: 0, typen: {}, protokoll: [], jeId: new Map(), ws: null, ping: null, neu: null, erneuern: null };
 function propsLesen(props) {
   let sid = String(props?.SessionIdAttributeKey ?? '').toLowerCase();
   if (sid.startsWith('s')) sid = sid.slice(1);
@@ -473,11 +473,12 @@ async function eosVerbinden() {
   const { default: WebSocket } = await import('ws');
   const w = new WebSocket('wss://connect.epicgames.dev/v2', { headers: { Authorization: `Bearer ${tok}`, 'Epic-Connect-Device-Id': ' ', 'Epic-Connect-Protocol': 'stomp' } });
   eos.ws = w;
+  let sub = null;
   w.on('open', () => w.send(stompRahmen('CONNECT', { 'accept-version': '1.0,1.1,1.2', 'heart-beat': '30000,0', authorization: `Bearer ${tok}` })));
   w.on('message', (roh) => {
     const m = stompLesen(roh.toString());
     if (m.befehl === 'CONNECTED') {
-      const sub = `sub-eas-${Math.floor(Math.random() * 0xffffffff).toString(16)}`;
+      sub = `sub-eas-${Math.floor(Math.random() * 0xffffffff).toString(16)}`;
       w.send(stompRahmen('SUBSCRIBE', { id: sub, destination: `deploymentId/${EOS_DEPLOY}/epicAccountId/${k.konto}`, authorization: `Bearer ${tok}`, 'ec-coord-accept-language': 'en' }));
       eos.ping = setInterval(() => { try { w.send('\n'); } catch { /* egal */ } }, 30_000);
       return;
@@ -492,12 +493,34 @@ async function eosVerbinden() {
       log(`[eos] verbunden (Verbindung Nr. ${eos.verbindungen})`);
       // Der EOS-Schluessel laeuft ab - vorher frisch verbinden.
       eos.erneuern = setTimeout(() => { log('[eos] Schluessel erneuern'); eosSpaeter('erneuern', 1_000); }, 100 * 60_000);
+      // Wie der Fortnite-Client (fnbr.js setStatus): den eigenen Status setzen - erst dann schickt Epic die Status der Freunde.
+      if (d.connectionId && sub) void eosEigenerStatus(k, tok, `${d.connectionId}#${sub}`);
     } else if (d.type === 'core.connect.v1.connect-failed') {
       log(`[eos] Verbindung abgelehnt: ${d.message ?? ''} (${d.statusCode ?? ''})`); eosSpaeter(`abgelehnt: ${d.message ?? d.statusCode}`, 120_000);
     } else if (d.type === 'presence.v1.UPDATE') eosStatus(d.payload ?? {});
   });
   w.on('close', (code, grund) => { if (eos.ws === w) eosSpaeter(`geschlossen ${code} ${grund}`); });
   w.on('error', (e) => { log(`[eos] ${e.message}`); if (eos.ws === w) eosSpaeter(e.message); });
+}
+async function eosEigenerStatus(k, tok, verbindung) {
+  try {
+    const r = await fetch(`https://api.epicgames.dev/epic/presence/v1/${EOS_DEPLOY}/${k.konto}/presence/${encodeURIComponent(verbindung)}`, {
+      method: 'PATCH', signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'online', activity: { value: 'CompHub' }, conn: { props: {} },
+        props: {
+          EOS_Platform: 'WIN', EOS_IntegratedPlatform: 'EGS', EOS_OnlinePlatformType: '100', EOS_ProductVersion: '++Fortnite+Release-00.00-CL-00000000',
+          EOS_ProductName: 'Fortnite', EOS_Session: '{"version":3}', EOS_Lobby: '{"version":3}',
+        },
+      }),
+    });
+    const text = await r.text();
+    eos.eigenerStatus = { t: new Date().toISOString(), status: r.status, antwort: text.slice(0, 600) };
+    log(`[eos] eigener Status: HTTP ${r.status}`);
+    // Falls die Antwort schon Status von Freunden enthaelt, gleich verarbeiten.
+    try { const j = JSON.parse(text); for (const p of [j, ...(Array.isArray(j?.presences) ? j.presences : [])]) if (p?.accountId && p.accountId !== k.konto) eosStatus(p); } catch { /* keine JSON-Antwort */ }
+  } catch (e) { eos.eigenerStatus = { t: new Date().toISOString(), fehler: e.message }; }
 }
 function eosStatus(p) {
   const k = konten.bot;
