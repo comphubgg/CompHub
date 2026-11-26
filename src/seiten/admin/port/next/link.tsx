@@ -11,7 +11,11 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { href: str
 export function hubZiel(href: string): string | null {
   const [pfad] = href.split('#');
   const w = WERKZEUGE.find((x) => x.pfad === pfad) ?? WERKZEUGE.find((x) => x.pfad === pfad.split('?')[0]);
-  if (!w) return null;
+  if (!w) {
+    // Unterseiten eines Werkzeugs (z. B. /admin/alte-maps/bearbeiten?...) bleiben ebenfalls im Hub.
+    const u = WERKZEUGE.find((x) => !x.pfad.includes('?') && pfad.startsWith(`${x.pfad}/`));
+    return u ? `/admin/${u.slug}${pfad.slice(u.pfad.length)}` : null;
+  }
   const rest = pfad.includes('?') && !w.pfad.includes('?') ? pfad.slice(pfad.indexOf('?')) : '';
   return `/admin/${w.slug}${rest}`;
 }

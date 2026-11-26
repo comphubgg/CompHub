@@ -23,6 +23,7 @@ import FotoPool from './fotos-pool/page';
 import FotoCredits from './fotos-credits/page';
 import FlaggenSeite from './flaggen/page';
 import ProspectsSeite from './prospects/page';
+import AlteMaps from './alte-maps/Werkzeug';
 import PostIdeenSeite from './post-ideen/page';
 import TikTokSeite from './tiktok/page';
 import PlakateSeite from './plakate/page';
@@ -51,6 +52,7 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'fotos-credits': portiert(FotoCredits, 'Players & Teams'),
   flaggen: portiert(FlaggenSeite, 'Players & Teams'),
   prospects: portiert(ProspectsSeite, 'Players & Teams'),
+  'alte-maps': portiert(AlteMaps, 'Content'),
   'post-ideen': portiert(PostIdeenSeite, 'Content'),
   'tiktok': portiert(TikTokSeite, 'Content'),
   'plakate': portiert(PlakateSeite, 'Content'),
@@ -83,7 +85,7 @@ export default function Admin() {
             <div className="min-w-0">
               <Routes>
                 <Route index element={<Uebersicht />} />
-                <Route path=":slug" element={<Werkzeugseite />} />
+                <Route path=":slug/*" element={<Werkzeugseite />} />
               </Routes>
             </div>
           </div>
@@ -112,7 +114,7 @@ function Leiste() {
             <div key={g.id} className="mt-3">
               <p className={`flex items-center gap-2 px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.2em] ${g.farbe}`}><span className={`h-1.5 w-1.5 rounded-full ${g.punkt}`} />{g.titel}</p>
               {liste.map((w) => {
-                const aktiv = ort.pathname === `/admin/${w.slug}`;
+                const aktiv = ort.pathname === `/admin/${w.slug}` || ort.pathname.startsWith(`/admin/${w.slug}/`);
                 return (
                   <Link key={w.slug} to={`/admin/${w.slug}`} className={`relative flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition ${aktiv ? 'text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}>
                     {aktiv && <motion.span layoutId="admin-aktiv" className="absolute inset-0 rounded-xl border border-white/10 bg-white/[0.08]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}

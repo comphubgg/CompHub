@@ -1,0 +1,546 @@
+/*
+ * Der Editor einer alten Map - eigene Seite, reine Handarbeit.
+ *
+ * Der Betreiber (13.10.2026): "Edit-Menü komplett extra ... da kann ich keine Teams laden, nur Teams erstellen, löschen,
+ * bearbeiten - genauso wie die Formen, mehr nicht. Und für jede einzelne Map das Einzelne machen, Leaderboard auch von
+ * Hand." Vier Reiter: Landepunkte (Formen auf die Insel ziehen und Teams darauf legen), Teams (anlegen, ändern, löschen -
+ * auch mehrere auf einmal), Leaderboard (Platz, Punkte, VR, Eliminierungen je Team) und Angaben (Titel, Datum, LAN, Bild).
+ * Nichts wird geladen; was hier steht, speichert lib/alteMaps in alte-maps.json und die öffentliche Karte zeigt es sofort.
+ */
+
+import NurAdminSeite from '../../port/app/components/NurAdminSeite';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from '../../port/next/link';
+import T from '../../port/app/components/T';
+import { useT } from '../../port/app/components/SprachProvider';
+import LadeSchirm from '../../port/app/components/LadeSchirm';
+import SeitenKopf from '../../port/app/components/SeitenKopf';
+import TeamFlagge from '../../port/components/TeamFlagge';
+import { useZugang } from '../../port/app/lib/zugang';
+import Zeichenflaeche, { type ZForm } from './Zeichenflaeche';
+import TeamEingabe from './TeamEingabe';
+
+interface P { x: number; y: number }
+interface Form { id: string; punkte: P[]; teamIds: string[] }
+interface Spieler { name: string; epicId?: string; land?: string | null }
+interface Team { id: string; spieler: Spieler[]; rang?: number | null; punkte?: number | null; siege?: number | null; elims?: number | null }
+interface Meta { cup: string; fenster: string; datum: number | null; lan: boolean; bild: string | null }
+interface Eintrag { turnierId: string; region: string; windowId: string; titel: string; saisonKurz: string; saison: string }
+type Modus = 'waehlen' | 'rechteck' | 'polygon';
+type Reiter = 'formen' | 'teams' | 'leaderboard' | 'angaben';
+
+const REITER: Array<[Reiter, string]> = [['formen', 'Landing spots'], ['teams', 'Teams'], ['leaderboard', 'Leaderboard'], ['angaben', 'Details']];
+const neueId = () => `f${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+const teamId = (n: number) => `hand-${Date.now().toString(36)}-${n}-${Math.floor(Math.random() * 1000).toString(36)}`;
+const zahlOder = (v: string): number | null => (v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
+const namenVon = (t: Team) => t.spieler.map((s) => s.name).join(' & ');
+const tagVon = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+
+const FELD = 'rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-500';
+const ZAHL = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-right text-sm tabular-nums text-white outline-none focus:border-sky-500';
+
+export default function AlteMapBearbeiten() {
+  const t = useT();
+  const zugang = useZugang();
+  const [par, setPar] = useState<{ t: string; r: string; w: string } | null>(null);
+  const [eintrag, setEintrag] = useState<Eintrag | null>(null);
+  const [fehler, setFehler] = useState('');
+  const [bereit, setBereit] = useState(false);
+  const [reiter, setReiter] = useState<Reiter>('formen');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [formen, setFormen] = useState<Form[]>([]);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const metaStart = useRef<Meta | null>(null);
+  const [epicAn, setEpicAn] = useState(true);
+  const [hatEpic, setHatEpic] = useState(false);
+  const [eigenesEvent, setEigenesEvent] = useState(false);
+  const [versteckt, setVersteckt] = useState(false);
+  const [geaendert, setGeaendert] = useState(false);
+  const [status, setStatus] = useState('');
+
+  // Landepunkte
+  const [wahl, setWahl] = useState<string | null>(null);
+  const [modus, setModus] = useState<Modus>('rechteck');
+  /** Die Wahl des Admins fuer dieses Kartenbild - und das, was die Ansicht ohne Wahl zeigt (die Insel der Saison). */
+  const [bild, setBild] = useState<string | null>(null);
+  const [standardBild, setStandardBild] = useState<string | null>(null);
+  const [auswahl, setAuswahl] = useState<Array<{ u: string; titel: string }>>([]);
+  const [bilderOffen, setBilderOffen] = useState(false);
+  const [suche, setSuche] = useState('');
+  /** Wie viele Spieler ein Team in diesem Cup hat (null: nicht herauszufinden). */
+  const [teamGroesse, setTeamGroesse] = useState<number | null>(null);
+  /** Bei einer Karte von Noble Practice: deren Teams (zum Auflegen auf Formen) und wie viele Landepunkte Noble dort hat. */
+  const [noble, setNoble] = useState<{ teams: Team[]; formen: number } | null>(null);
+
+  // Teams anlegen
+  const [masse, setMasse] = useState('');
+  const [offenesTeam, setOffenesTeam] = useState<string | null>(null);
+  const gemerkt = useRef(new Map<string, { land: string; epicId: string }>());
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const [tid, r, w] = [p.get('t') ?? '', p.get('r') ?? '', p.get('w') ?? ''];
+    if (!tid || !r || !w) { setFehler('This map is not specified.'); return; }
+    setPar({ t: tid, r, w });
+  }, []);
+
+  useEffect(() => {
+    if (!par || !zugang.admin) return undefined;
+    let weg = false;
+    void Promise.all([
+      fetch(`/api/alte-maps?t=${encodeURIComponent(par.t)}&w=${encodeURIComponent(par.w)}`, { cache: 'no-store' }).then((r) => r.json()),
+      fetch(`/api/maps-bild?w=${encodeURIComponent(par.w)}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+      // Dasselbe Kartenbild wie die Ansicht: ohne eigene Wahl die Insel der Saison (/api/maps-karte, wie die Karten-Seite sie holt).
+      fetch(`/api/maps-karte?t=${encodeURIComponent(par.t)}&r=${encodeURIComponent(par.r)}&w=${encodeURIComponent(par.w)}&tag=gesamt`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+    ]).then(([b, bi, ka]) => {
+      if (weg) return;
+      if (!b?.ok) { setFehler(b?.error || 'The map could not be loaded.'); return; }
+      setEintrag(b.eintrag); setTeams(b.teams ?? []); setFormen(b.formen ?? []);
+      setMeta(b.meta); metaStart.current = b.meta; setEpicAn(b.epicAn !== false); setHatEpic(!!b.hatEpic);
+      setEigenesEvent(!!b.eigenesEvent); setVersteckt(!!b.versteckt);
+      setTeamGroesse(typeof b.teamGroesse === 'number' ? b.teamGroesse : null);
+      setNoble(b.noble && Array.isArray(b.noble.teams) ? { teams: b.noble.teams, formen: Number(b.noble.formen) || 0 } : null);
+      if (bi?.ok) { setBild(bi.u ?? null); setAuswahl(bi.auswahl ?? []); }
+      if (ka?.ok) setStandardBild(ka.fenster?.bild ?? null);
+      setBereit(true);
+    }).catch(() => { if (!weg) setFehler('The map could not be loaded.'); });
+    return () => { weg = true; };
+  }, [par, zugang.admin]);
+
+  useEffect(() => {
+    const fertig = (e: BeforeUnloadEvent) => { if (geaendert) e.preventDefault(); };
+    window.addEventListener('beforeunload', fertig);
+    return () => window.removeEventListener('beforeunload', fertig);
+  }, [geaendert]);
+
+  const aendern = () => { setGeaendert(true); setStatus(''); };
+
+  /* ------------------------------------------------------------ Spieler im Archiv suchen */
+
+  /** Einen Namen im Archiv suchen: bei genau einem gleichlautenden Treffer kommen Konto und Land dazu, sonst bleibt es der Name. */
+  const loese = useCallback(async (n: string): Promise<Spieler> => {
+    const m = gemerkt.current.get(n.toLowerCase());
+    if (m) return { name: n, ...(m.epicId ? { epicId: m.epicId } : {}), ...(m.land ? { land: m.land } : {}) };
+    try {
+      const j = await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(n)}`).then((r) => r.json());
+      const gleich = (j.spieler ?? []).filter((x: { anzeige?: string; name?: string }) => (x.anzeige || x.name || '').toLowerCase() === n.toLowerCase());
+      if (gleich.length === 1) {
+        const g = { land: String(gleich[0].land ?? ''), epicId: String(gleich[0].epicId ?? '') };
+        gemerkt.current.set(n.toLowerCase(), g);
+        return { name: n, ...(g.epicId ? { epicId: g.epicId } : {}), ...(g.land ? { land: g.land } : {}) };
+      }
+    } catch { /* dann bleibt es beim Namen */ }
+    return { name: n };
+  }, []);
+
+  /** Wie viele Plaetze ein Team hat: die Groesse des Cups, sonst vier. */
+  const platzZahl = teamGroesse ?? 4;
+
+  const zeilenZuTeams = async (zeilen: string[]): Promise<Team[]> => {
+    const neu: Team[] = [];
+    for (const z of zeilen) {
+      const namen = z.split(/[&,/]/).map((n) => n.trim()).filter(Boolean).slice(0, 4);
+      if (!namen.length) continue;
+      neu.push({ id: teamId(neu.length), spieler: await Promise.all(namen.map(loese)), rang: null, punkte: null, siege: null, elims: null });
+    }
+    return neu;
+  };
+
+  /** Ein Team aus der Eingabe (Spieler mit Konto und Land): doppelte Teams werden abgewiesen. */
+  const teamHinzu = (spieler: Spieler[]) => {
+    const schluessel = (l: Spieler[]) => l.map((s) => s.name.toLowerCase()).sort().join('|');
+    if (teams.some((x) => schluessel(x.spieler) === schluessel(spieler))) { setStatus('This team is already in the list.'); return; }
+    setTeams((alt) => [...alt, { id: teamId(alt.length), spieler: spieler.slice(0, 4), rang: null, punkte: null, siege: null, elims: null }]);
+    aendern(); setStatus('');
+  };
+  const masseHinzu = async () => {
+    const zeilen = masse.split('\n'); setMasse(''); setStatus('Resolving the names …');
+    const neu = await zeilenZuTeams(zeilen);
+    setTeams((alt) => [...alt, ...neu]); aendern(); setStatus(`${neu.length} teams created.`);
+  };
+
+  const teamAendern = (id: string, f: (t: Team) => Team) => { setTeams((alt) => alt.map((x) => (x.id === id ? f(x) : x))); aendern(); };
+  const teamWeg = (id: string) => {
+    setTeams((alt) => alt.filter((x) => x.id !== id));
+    setFormen((alt) => alt.map((f) => ({ ...f, teamIds: f.teamIds.filter((i) => i !== id) })));
+    aendern();
+  };
+  const alleWeg = () => {
+    if (!window.confirm('Really delete all teams of this map?')) return;
+    setTeams([]); setFormen((alt) => alt.map((f) => ({ ...f, teamIds: [] }))); aendern();
+  };
+  /** Die Namen einer Zeile geaendert: bekannte Spieler behalten Konto und Land, neue werden im Archiv gesucht. */
+  const namenAendern = async (x: Team, text: string) => {
+    if (text.trim() === namenVon(x)) return;
+    const namen = text.split(/[&,/]/).map((n) => n.trim()).filter(Boolean).slice(0, 4);
+    if (!namen.length) return;
+    const neu = await Promise.all(namen.map(async (n) => x.spieler.find((s) => s.name.toLowerCase() === n.toLowerCase()) ?? await loese(n)));
+    teamAendern(x.id, (alt) => ({ ...alt, spieler: neu }));
+  };
+
+  /* ------------------------------------------------------------ Zeichnen */
+
+  // Gezeichnet wird auf der Zeichenflaeche (Zeichenflaeche.tsx); sie meldet fertige Formen, die Wahl und das Loeschen.
+  const hinzuForm = (punkte: P[]) => {
+    const id = neueId();
+    setFormen((alt) => [...alt, { id, punkte, teamIds: [] }]);
+    setWahl(id); aendern(); setModus('waehlen');
+  };
+  const formWeg = useCallback(() => {
+    if (!wahl) return;
+    setFormen((alt) => alt.filter((f) => f.id !== wahl));
+    setWahl(null); aendern();
+  }, [wahl]);
+
+  /** Eine Form wurde verschoben oder an einer Ecke gezogen. */
+  const formAendern = (id: string, punkte: P[]) => {
+    setFormen((alt) => alt.map((f) => (f.id === id ? { ...f, punkte } : f)));
+    aendern();
+  };
+
+  /** Die Formen fuer die Zeichenflaeche: je Form die Spieler der Teams darauf (fuer die Namen auf der Karte). */
+  /** Alle Teams, die sich auf eine Form legen lassen: bei einer Karte von Noble deren Teams, dazu die eigenen. */
+  const pool = useMemo(() => [...(noble?.teams ?? []), ...teams], [noble, teams]);
+  const zformen = useMemo((): ZForm[] => formen.map((f) => ({
+    id: f.id, punkte: f.punkte,
+    teams: f.teamIds.map((id) => pool.find((x) => x.id === id)?.spieler.map((s) => s.name) ?? []).filter((n) => n.length),
+  })), [formen, pool]);
+
+  const formVon = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of formen) for (const id of f.teamIds) m.set(id, f.id);
+    return m;
+  }, [formen]);
+  const gewaehlt = formen.find((f) => f.id === wahl) ?? null;
+
+  const zuordnen = (id: string) => {
+    if (!gewaehlt) { setStatus('Click a shape first, then the team.'); return; }
+    setFormen((alt) => alt.map((f) => {
+      const ohne = f.teamIds.filter((i) => i !== id);
+      if (f.id !== gewaehlt.id) return { ...f, teamIds: ohne };
+      return { ...f, teamIds: f.teamIds.includes(id) ? ohne : [...ohne, id] };
+    }));
+    aendern();
+  };
+
+  const sichtbareTeams = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    return q ? teams.filter((x) => namenVon(x).toLowerCase().includes(q)) : teams;
+  }, [teams, suche]);
+  /** Die Teams neben der Karte (Landepunkte): bei Noble-Karten ohne eigene Teams deren Teams, sonst die eigenen. */
+  const poolSichtbar = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    const basis = teams.length ? teams : pool;
+    return q ? basis.filter((x) => namenVon(x).toLowerCase().includes(q)) : basis;
+  }, [teams, pool, suche]);
+
+  /* ------------------------------------------------------------ Speichern und Angaben */
+
+  const speichern = async () => {
+    if (!par) return;
+    setStatus('Saving …');
+    // Von den Angaben geht nur, was sich geaendert hat - sonst friert jede Speicherung Archivwerte ein.
+    const diff: Partial<Meta> = {};
+    if (meta && metaStart.current) {
+      (['cup', 'fenster', 'datum', 'lan', 'bild'] as const).forEach((k) => { if (meta[k] !== metaStart.current![k]) (diff as Record<string, unknown>)[k] = meta[k]; });
+    }
+    try {
+      const r = await fetch('/api/alte-maps', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aktion: 'speichern', w: par.w, formen, teams, ...(hatEpic ? { epicAn } : {}), ...(Object.keys(diff).length ? { meta: diff } : {}) }),
+      });
+      const j = await r.json();
+      if (j?.ok) { setGeaendert(false); setStatus('Saved.'); metaStart.current = meta; } else setStatus(j?.error || 'Not saved.');
+    } catch { setStatus('Not saved.'); }
+  };
+
+  const bildWaehlen = async (u: string) => {
+    if (!par) return;
+    const r = await fetch('/api/maps-bild', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ w: par.w, u }) });
+    const j = await r.json().catch(() => ({}));
+    if (j?.ok) { setBild(j.u ?? null); setBilderOffen(false); }
+  };
+  const hochladen = async (datei: File | null) => {
+    if (!datei) return;
+    setStatus('Uploading …');
+    const f = new FormData(); f.set('bild', datei); f.set('titel', datei.name.replace(/\.[^.]+$/, ''));
+    const r = await fetch('/api/karten-bild', { method: 'POST', body: f });
+    const j = await r.json().catch(() => ({}));
+    if (!j?.ok) { setStatus(j?.error || 'Upload failed.'); return; }
+    const bi = await fetch(`/api/maps-bild?w=${encodeURIComponent(par?.w ?? '')}`, { cache: 'no-store' }).then((x) => x.json()).catch(() => null);
+    if (bi?.ok) setAuswahl(bi.auswahl ?? []);
+    setStatus('Uploaded - now select it.');
+  };
+  const verstecken = async (v: boolean) => {
+    if (!par) return;
+    await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'verstecken', w: par.w, versteckt: v }) });
+    setVersteckt(v);
+  };
+  const loeschen = async () => {
+    if (!par || !window.confirm('Delete this event with its shapes and teams for good?')) return;
+    const r = await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'loeschen', w: par.w }) });
+    const j = await r.json().catch(() => ({}));
+    if (j?.ok) { setGeaendert(false); window.location.href = '/admin/alte-maps'; } else window.alert(j?.error || 'Not deleted.');
+  };
+
+  /* ------------------------------------------------------------ Ansicht */
+
+  if (zugang.laedt) return <main className=""><LadeSchirm /></main>;
+  if (!zugang.admin) return <NurAdminSeite />;
+
+  const oeffentlich = par ? `/tournament-maps/karte?t=${encodeURIComponent(par.t)}&r=${encodeURIComponent(par.r)}&w=${encodeURIComponent(par.w)}` : '/tournament-maps';
+  const sortiert = [...teams].sort((a, b) => (a.rang ?? 99999) - (b.rang ?? 99999));
+
+  return (
+    <main className="text-white">
+      <div>
+        <SeitenKopf marke={<>{eintrag?.saisonKurz ?? 'Old maps'}</>} titel={eintrag ? (meta ? `${meta.cup} · ${meta.fenster}` : eintrag.titel) : t('Edit map')}
+          rechts={<>
+            {status && <span className="text-xs text-white/55">{status}</span>}
+            <Link href="/admin/alte-maps" className="rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/75 transition hover:border-white/25 hover:text-white">← <T>Old maps</T></Link>
+            <Link href={oeffentlich} className="rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/75 transition hover:border-white/25 hover:text-white"><T>View</T> →</Link>
+            <button type="button" onClick={() => void speichern()} disabled={!geaendert}
+              className="rounded-full bg-amber-400 px-5 py-1.5 text-xs font-black text-black transition hover:bg-amber-300 disabled:opacity-40"><T>Speichern</T></button>
+          </>} />
+
+        {fehler && <p className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>{fehler}</T></p>}
+        {!bereit && !fehler && <div className="mt-10"><LadeSchirm /></div>}
+
+        {bereit && (
+          <>
+            <div className="mt-5 inline-flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+              {REITER.map(([k, titel]) => (
+                <button key={k} type="button" onClick={() => setReiter(k)}
+                  className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-white/55 hover:text-white'}`}>
+                  <T>{titel}</T>{k === 'teams' && <span className="ml-1.5 opacity-60">{teams.length}</span>}{k === 'formen' && <span className="ml-1.5 opacity-60">{formen.length}</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* ============================================================ Landepunkte */}
+            {reiter === 'formen' && (
+              <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {([['rechteck', 'Rectangle'], ['polygon', 'Free shape'], ['waehlen', 'Select']] as const).map(([k, titel]) => (
+                      <button key={k} type="button" onClick={() => setModus(k)}
+                        className={`rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${modus === k ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-white/70 hover:border-sky-500/60'}`}>
+                        <T>{titel}</T>
+                      </button>
+                    ))}
+                    {wahl && <button type="button" onClick={formWeg} className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-bold text-rose-300 transition hover:bg-rose-500/10"><T>Delete shape</T></button>}
+                    <button type="button" onClick={() => setBilderOffen((v) => !v)} className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-sky-500/60"><T>Pick map image</T></button>
+                  </div>
+                  <p className="mb-2 text-[11px] text-white/40">
+                    {modus === 'rechteck' && <T>Drag on the map to draw a rectangle.</T>}
+                    {modus === 'polygon' && <T>Click point by point; the first point, a double click or Enter closes the shape, Backspace removes the last point.</T>}
+                    {modus === 'waehlen' && <T>Click a shape, then put the teams on it on the right. The selected shape can be dragged (moved); the corner points make it bigger or smaller. Double click zooms to the shape, Delete removes it.</T>}
+                    {' '}<T>Mouse wheel zooms; pan with the right mouse button or space and drag.</T>
+                  </p>
+
+                  {bilderOffen && (
+                    <div className="mb-3 rounded-xl border border-white/[0.08] bg-black/30 p-2">
+                      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+                        {auswahl.map((a) => (
+                          <button key={a.u} type="button" title={a.titel} onClick={() => void bildWaehlen(a.u)}
+                            className={`overflow-hidden rounded-lg border text-left transition ${bild === a.u ? 'border-sky-400' : 'border-white/10 hover:border-sky-500/60'}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={encodeURI(a.u)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+                            <span className="block truncate px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white/55">{a.titel}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-2 text-xs text-white/55">
+                        <T>Upload your own map image:</T>
+                        <input type="file" accept="image/*" onChange={(e) => void hochladen(e.target.files?.[0] ?? null)} className="text-xs" />
+                      </div>
+                    </div>
+                  )}
+
+                  {noble && (
+                    <p className="mb-2 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100/90">
+                      <T>Noble Practice has this map.</T> {noble.formen > 0 ? `${noble.formen} ` : ''}{noble.formen > 0 ? <T>It already has drop spots - once you save shapes here, only yours count.</T> : <T>It has no drop spots there - draw them here.</T>}
+                    </p>
+                  )}
+                  <Zeichenflaeche bild={bild ?? standardBild} formen={zformen} wahl={wahl} modus={modus} onWahl={setWahl}
+                    onNeueForm={hinzuForm} onFormAendern={formAendern} onLoeschen={formWeg} onModus={setModus} />
+                  <p className="mt-2 text-[11px] text-white/30">{formen.length} <T>Formen</T> · {formen.reduce((a, f) => a + f.teamIds.length, 0)} / {teams.length} <T>teams assigned</T></p>
+                </div>
+
+                <aside className="min-w-0">
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                      {gewaehlt ? <><T>Shape selected</T> · {gewaehlt.teamIds.length} {t('Teams')}</> : <T>No shape selected</T>}
+                    </p>
+                    {gewaehlt && gewaehlt.teamIds.length > 0 && (
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {gewaehlt.teamIds.map((id) => {
+                          const x = pool.find((tt) => tt.id === id);
+                          return x ? (
+                            <li key={id}>
+                              <button type="button" onClick={() => zuordnen(id)} title={t('Remove from shape')}
+                                className="rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[11px] font-bold uppercase text-sky-100 transition hover:bg-rose-500/20">{namenVon(x).replace(/ & /g, ' · ')} ×</button>
+                            </li>
+                          ) : null;
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Quick-create team</T></p>
+                    <div className="mt-2"><TeamEingabe max={platzZahl} unbekannt={teamGroesse === null} onTeam={teamHinzu} loese={loese} /></div>
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Teams <span className="text-white/30">{teams.length ? teams.length : pool.length}</span></p>
+                      <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-40 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-sky-500" />
+                    </div>
+                    {poolSichtbar.length === 0 && <p className="py-4 text-center text-xs text-white/40"><T>No teams yet - search players above or create many at once in the “Teams” tab.</T></p>}
+                    <ul className="max-h-[520px] space-y-1.5 overflow-y-auto pr-1">
+                      {poolSichtbar.map((x) => {
+                        const drauf = formVon.get(x.id);
+                        return (
+                          <li key={x.id}>
+                            <button type="button" onClick={() => zuordnen(x.id)}
+                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${drauf === wahl && wahl ? 'border-sky-500/70 bg-sky-500/10' : drauf ? 'border-white/[0.06] bg-white/[0.03] opacity-60 hover:opacity-100' : 'border-white/[0.08] bg-white/[0.03] hover:border-sky-500/50'}`}>
+                              <TeamFlagge groesse={x.spieler.length > 1 ? 28 : 22} laender={x.spieler.map((s) => s.land ?? undefined)} />
+                              <span className="flex min-w-0 flex-col text-[11px] font-bold uppercase leading-[1.25] text-white">
+                                {x.spieler.map((s, i) => <span key={i} className="truncate">{s.name}</span>)}
+                              </span>
+                              {drauf && <span className="ml-auto shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/70" title={t('Is on a shape')}>✓</span>}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </aside>
+              </div>
+            )}
+
+            {/* ============================================================ Teams */}
+            {reiter === 'teams' && (
+              <div className="mt-5 grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Create team</T></p>
+                  <div className="mb-5 mt-2"><TeamEingabe max={platzZahl} unbekannt={teamGroesse === null} onTeam={teamHinzu} loese={loese} /></div>
+                  <p className="border-t border-white/[0.08] pt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Many teams at once</T></p>
+                  <p className="mt-1 text-xs text-white/40"><T>One line per team, names separated by &. Each name is searched in the archive: with exactly one match, flag and account are added.</T></p>
+                  <textarea value={masse} onChange={(e) => setMasse(e.target.value)} rows={10} placeholder={'Sky & Scroll\nVico & Malibuca\nPeterbot & Pollo'} className={`${FELD} mt-3 w-full font-mono`} />
+                  <div className="mt-3 flex items-center gap-3">
+                    <button type="button" onClick={() => void masseHinzu()} disabled={!masse.trim()} className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-40"><T>Create teams</T></button>
+                    {teams.length > 0 && <button type="button" onClick={alleWeg} className="ml-auto text-xs font-semibold text-white/40 transition hover:text-rose-300"><T>Delete all</T></button>}
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Teams <span className="text-white/30">{teams.length}</span></p>
+                    <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-48 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-sky-500" />
+                  </div>
+                  {teams.length === 0 && <p className="py-8 text-center text-sm text-white/40"><T>No teams yet.</T></p>}
+                  <ul className="space-y-1.5">
+                    {sichtbareTeams.map((x) => (
+                      <li key={x.id} className="rounded-lg border border-white/[0.07] bg-white/[0.03]">
+                        <div className="flex items-center gap-2.5 px-2.5 py-1.5">
+                          <TeamFlagge groesse={x.spieler.length > 1 ? 28 : 22} laender={x.spieler.map((s) => s.land ?? undefined)} />
+                          <input defaultValue={namenVon(x)} key={`${x.id}|${namenVon(x)}`} onBlur={(e) => void namenAendern(x, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-bold uppercase text-white outline-none transition hover:border-white/15 focus:border-sky-500 focus:bg-black/40" />
+                          <button type="button" onClick={() => setOffenesTeam(offenesTeam === x.id ? null : x.id)} className="rounded-md px-2 py-1 text-[11px] font-semibold text-white/55 transition hover:bg-white/[0.06]"><T>Countries</T></button>
+                          <button type="button" onClick={() => teamWeg(x.id)} title={t('Delete team')} className="rounded-md px-2 py-1 text-white/30 transition hover:bg-rose-500/15 hover:text-rose-300">×</button>
+                        </div>
+                        {offenesTeam === x.id && (
+                          <div className="flex flex-wrap gap-3 border-t border-white/[0.06] px-3 py-2">
+                            {x.spieler.map((s, i) => (
+                              <label key={i} className="flex items-center gap-2 text-xs text-white/55">
+                                <span className="font-bold uppercase text-white/70">{s.name}</span>
+                                <TeamFlagge groesse={16} laender={[s.land ?? undefined]} />
+                                <input value={s.land ?? ''} maxLength={2} placeholder="DE" onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, spieler: alt.spieler.map((q, j) => (j === i ? { ...q, land: e.target.value.toUpperCase() } : q)) }))}
+                                  className="w-12 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-center text-xs uppercase text-white outline-none focus:border-sky-500" />
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================ Leaderboard */}
+            {reiter === 'leaderboard' && (
+              <div className="mt-5">
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <p className="text-xs text-white/40"><T>Place, points, Victory Royales and eliminations per team - all by hand. Teams are created in the “Teams” tab.</T></p>
+                  <button type="button" onClick={() => { const nach = [...teams].filter((x) => x.punkte != null).sort((a, b) => (b.punkte ?? 0) - (a.punkte ?? 0)); setTeams((alt) => alt.map((x) => ({ ...x, rang: x.punkte != null ? nach.findIndex((y) => y.id === x.id) + 1 : x.rang ?? null }))); aendern(); }}
+                    className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-sky-500/60"><T>Assign places by points</T></button>
+                  <button type="button" onClick={() => { setTeams((alt) => alt.map((x) => ({ ...x, rang: null }))); aendern(); }} className="text-xs font-semibold text-white/40 transition hover:text-rose-300"><T>Clear places</T></button>
+                </div>
+                {teams.length === 0 ? <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-white/40"><T>No teams yet - create them in the “Teams” tab first.</T></p> : (
+                  <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead>
+                        <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                          <th className="w-24 px-3 py-2"><T>Platz</T></th><th className="px-3 py-2">Team</th>
+                          <th className="w-24 px-3 py-2 text-right">Pts</th><th className="w-20 px-3 py-2 text-right" title="Victory Royales">VR</th><th className="w-24 px-3 py-2 text-right">Elims</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortiert.map((x) => (
+                          <tr key={x.id} className="border-b border-white/[0.04]">
+                            <td className="px-3 py-1.5"><input inputMode="numeric" value={x.rang ?? ''} onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, rang: zahlOder(e.target.value) }))} className={ZAHL} /></td>
+                            <td className="px-3 py-1.5">
+                              <span className="flex items-center gap-2.5">
+                                <TeamFlagge groesse={x.spieler.length > 1 ? 26 : 20} laender={x.spieler.map((s) => s.land ?? undefined)} />
+                                <span className="flex flex-col text-[11px] font-bold uppercase leading-[1.25] text-white">{x.spieler.map((s, i) => <span key={i}>{s.name}</span>)}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5"><input inputMode="numeric" value={x.punkte ?? ''} onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, punkte: zahlOder(e.target.value) }))} className={ZAHL} /></td>
+                            <td className="px-3 py-1.5"><input inputMode="numeric" value={x.siege ?? ''} onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, siege: zahlOder(e.target.value) }))} className={ZAHL} /></td>
+                            <td className="px-3 py-1.5"><input inputMode="numeric" value={x.elims ?? ''} onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, elims: zahlOder(e.target.value) }))} className={ZAHL} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================ Angaben */}
+            {reiter === 'angaben' && meta && (
+              <div className="mt-5 max-w-2xl space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs text-white/55"><T>Cup</T>
+                    <input value={meta.cup} onChange={(e) => { setMeta({ ...meta, cup: e.target.value }); aendern(); }} className={`${FELD} mt-1 w-full`} /></label>
+                  <label className="text-xs text-white/55"><T>Spieltag</T>
+                    <input value={meta.fenster} onChange={(e) => { setMeta({ ...meta, fenster: e.target.value }); aendern(); }} className={`${FELD} mt-1 w-full`} /></label>
+                  <label className="text-xs text-white/55"><T>Datum</T>
+                    <input type="date" value={tagVon(meta.datum)} onChange={(e) => { setMeta({ ...meta, datum: e.target.value ? Date.parse(e.target.value) : null }); aendern(); }} className={`${FELD} mt-1 w-full`} /></label>
+                  <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-white/70"><input type="checkbox" checked={meta.lan} onChange={(e) => { setMeta({ ...meta, lan: e.target.checked }); aendern(); }} /> LAN</label>
+                </div>
+                <label className="block text-xs text-white/55"><T>Tile image (address)</T>
+                  <input value={meta.bild ?? ''} onChange={(e) => { setMeta({ ...meta, bild: e.target.value.trim() || null }); aendern(); }} placeholder="/saisonbilder/CH3.jpg" className={`${FELD} mt-1 w-full`} /></label>
+                {hatEpic && (
+                  <label className="flex items-start gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-white/70">
+                    <input type="checkbox" className="mt-1" checked={epicAn} onChange={(e) => { setEpicAn(e.target.checked); aendern(); }} />
+                    <span><T>Show Epic's leaderboard and teams as long as there are no own teams here.</T>
+                      <span className="mt-0.5 block text-xs text-white/40"><T>As soon as you create the first own team, only what you entered counts.</T></span></span>
+                  </label>
+                )}
+                <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] pt-4">
+                  <button type="button" onClick={() => void verstecken(!versteckt)} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-sky-500/60">{versteckt ? <T>Show again</T> : <T>Remove from the list</T>}</button>
+                  {eigenesEvent && <button type="button" onClick={() => void loeschen()} className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"><T>Delete event</T></button>}
+                  {versteckt && <span className="text-xs text-rose-300"><T>This map is hidden right now.</T></span>}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
