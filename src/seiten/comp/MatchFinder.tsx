@@ -180,7 +180,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
   const liveCups = daten?.cups.filter((c) => c.live) ?? [];
   return (
     <div className="space-y-5">
-      <Glas className="flex flex-wrap items-center gap-3 px-5 py-4">
+      <Glas dunkel className="flex flex-wrap items-center gap-3 px-5 py-4">
         {liveCups.length
           ? <><span className="flex items-center gap-2 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />{liveCups.length} {liveCups.length === 1 ? 'cup running' : 'cups running'}</span>
             {liveCups.map((c) => <span key={c.windowId} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">{c.titel} <span className="text-white/40">· {c.region}</span></span>)}</>
@@ -190,7 +190,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
       {fehler && <Fehler text={fehler} />}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <section className="space-y-4">
-          {favoriten.length === 0 && <Glas className="p-10 text-center text-sm text-white/45">No favourites yet. Search a player on the right and add them.</Glas>}
+          {favoriten.length === 0 && <Glas dunkel className="p-10 text-center text-sm text-white/45">No favourites yet. Search a player on the right and add them.</Glas>}
           <AnimatePresence initial={false}>
             {favoriten.map((f, i) => {
               const s = daten?.spieler[f.id];
@@ -251,7 +251,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
           </AnimatePresence>
         </section>
 
-        <Glas className="h-fit p-5 xl:sticky xl:top-24" verzoegerung={0.15}>
+        <Glas dunkel className="h-fit p-5 xl:sticky xl:top-24" verzoegerung={0.15}>
           <h3 className="font-bold text-white">Add a player</h3>
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Player name…"
             className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
@@ -309,7 +309,7 @@ function Freigaben() {
     try { nimm(await fetch(`/api/admin/matchid-freigaben?id=${id}`, { method: 'DELETE' }).then((r) => r.json())); } catch { setFehler('Not saved'); } finally { setLaeuft(false); }
   };
   return (
-    <Glas className="p-5">
+    <Glas dunkel className="p-5">
       <h3 className="font-bold text-white">Approvals for the bot account “comphub.”</h3>
       <p className="mt-1 text-xs leading-relaxed text-white/45">Anyone listed here who sends “comphub.” a friend request is accepted automatically (every 2 min). After that their match ID shows up already on the spawn island. The bot never sends requests.</p>
       <div className="mt-3 flex gap-2">
@@ -359,7 +359,7 @@ function AlleFreunde({ kopiert, kopieren, setVerboten }: { kopiert: string; kopi
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section className="space-y-4">
-        <Glas className="flex flex-wrap items-center gap-5 px-5 py-4">
+        <Glas dunkel className="flex flex-wrap items-center gap-5 px-5 py-4">
           {freunde ? (
             <div className="flex gap-6">
               <div><p className="text-2xl font-extrabold tabular-nums text-white">{freunde.length}</p><p className="text-[10px] uppercase tracking-[0.2em] text-white/40">friends</p></div>
@@ -419,7 +419,7 @@ export default function MatchFinder() {
       <div className="flex flex-wrap items-end gap-4">
         <Titel ueber="VIP tool" titel="Match-ID Finder" text="Save players as favourites. While a cup runs you see which match they're in – copy the match ID and spectate in game." />
         {admin && verboten === false && (
-          <div className="ml-auto flex rounded-full border border-white/10 bg-white/[0.03] p-1 text-sm font-semibold">
+          <div className="ml-auto flex rounded-full border border-white/10 bg-[#080b14]/60 p-1 text-sm font-semibold">
             {(['favoriten', 'freunde'] as const).map((a) => (
               <button key={a} type="button" onClick={() => wechsle(a)} className="relative rounded-full px-4 py-2">
                 {ansicht === a && <motion.span layoutId="mf-reiter" className="absolute inset-0 rounded-full bg-sky-400" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}

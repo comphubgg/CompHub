@@ -159,11 +159,11 @@ export default function Events() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cups, region, modus, ranked, suche, minute]);
 
-  // Nie dasselbe Bild zweimal auf einem Schirm: wer ein schon gezeigtes Bild haette, bekommt den Farbverlauf.
-  const mitBild = useMemo(() => {
+    const mitBild = useMemo(() => {
     const gesehen = new Set<string>();
     const raus = new Map<string, boolean>();
-    const merke = (id: string, b?: string) => { if (b && !gesehen.has(b)) { gesehen.add(b); raus.set(id, true); } else raus.set(id, false); };
+    // Thumbnails duerfen sich hier wiederholen (Betreiber: "mir fehlen ziemlich viele Thumbnails") - jeder Cup zeigt sein Bild.
+    const merke = (id: string, b?: string) => { if (b) gesehen.add(b); raus.set(id, true); };
     const kb = ein.kopf ? dekoBild(ein.kopf.c) : undefined;
     if (kb) gesehen.add(kb);
     [...ein.live, ...ein.kommt, ...ein.vorbei.slice(0, mehr)].forEach((x) => { if (x.c.id !== ein.kopf?.c.id) merke(x.c.id, dekoBild(x.c)); });

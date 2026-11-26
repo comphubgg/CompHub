@@ -84,7 +84,8 @@ export function modiVon(c: Cup): Set<Modus> {
 export const istRanked = (c: Cup) => c.art === 'ranked' || /\branked\b/i.test(`${c.titel} ${c.untertitel ?? ''}`);
 
 /** Das Bild eines Cups als Deko - nie Ranked- oder Skin-Cup-Artwork (Betreiber), dann gibt es den Farbverlauf. */
-export const dekoBild = (c: Cup): string | undefined => (c.art === 'skin' || istRanked(c) ? undefined : c.bild);
+// Betreiber (26.11.2026): auf den Event-Seiten JEDES Cup-Thumbnail zeigen, auch Ranked- und Skin-Cups (nur als Deko anderswo nicht).
+export const dekoBild = (c: Cup): string | undefined => c.bild;
 
 /* ---------------------------------------------------------------- Stufen */
 /** Der Name eines Spieltags aus Epics Kennung: "S43_..._Event4Round2_EU" -> "Event 4 · Round 2". */

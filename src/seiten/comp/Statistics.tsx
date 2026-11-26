@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas, SEITE, Titel, flagge } from '../../teile/Glas';
+import { PodestKarte } from '../../teile/Podest';
 import { Balken, Chip, Kopfzeile, Laedt, Rund, zahl } from './stats/teile';
 
 /*
@@ -58,32 +59,11 @@ function wert(s: Spieler, feld: string, nachkomma = 0) {
 /* ------------------------------------------------------------------ Podest der aktuellen Sortierung */
 
 function Spitze({ s, platz, feld, nachkomma }: { s: Spieler; platz: number; feld: string; nachkomma: number }) {
-  const farbe = platz === 1 ? '#facc15' : platz === 2 ? '#cbd5e1' : '#f59e0b';
-  const f = foto(s);
-  return (
-    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + platz * 0.08, duration: 0.55, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -6 }}
-      className={platz === 1 ? '' : 'md:mt-8'}>
-      <Link to={`/competitive/player/${s.epicId}`} className={`group relative block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] ${platz === 1 ? 'h-[340px]' : 'h-[300px]'}`}>
-        {f ? <><img src={f} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" /><img src={f} alt="" className="absolute inset-y-0 right-0 h-full aspect-[4/5] object-cover object-top transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-r from-[#0a0e18] from-30% via-[#0a0e18]/70 via-50% to-transparent to-75%" /></>
-          : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-400/15 via-transparent to-violet-500/10"><span className="text-8xl font-black text-white/10">{anzeige(s).slice(0, 2).toUpperCase()}</span></div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/80 via-transparent to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
-        <span className="absolute left-5 top-4 text-6xl font-black" style={{ color: farbe }}>{platz}</span>
-        {s.land && <img src={flagge(s.land)} alt="" className="absolute right-5 top-5 h-9 w-9 rounded-full object-cover ring-2 ring-white/30" />}
-        <div className="absolute inset-x-0 bottom-0 p-5">
-          <p className="truncate text-xl font-bold text-white">{anzeige(s)}</p>
-          <p className="truncate text-xs text-white/50">{s.name}{s.heimat ? ` · ${s.heimat}` : ''}</p>
-          <div className="mt-3 flex items-end justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">{SPALTEN.find((x) => x.feld === feld)?.kurz ?? feld}</p>
-              <p className="text-3xl font-extrabold tabular-nums text-white">{wert(s, feld, nachkomma)}</p>
-            </div>
-            <p className="text-right text-xs leading-relaxed text-white/50">{zahl(s.matches)} games<br />{zahl(s.elims)} elims · {zahl(s.damage)} dmg</p>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
+  return <PodestKarte d={{
+    platz: platz as 1 | 2 | 3, bild: foto(s), land: s.land, name: anzeige(s), unter: `${s.name}${s.heimat ? ` · ${s.heimat}` : ''}`,
+    label: SPALTEN.find((x) => x.feld === feld)?.kurz ?? feld, wert: wert(s, feld, nachkomma), link: `/competitive/player/${s.epicId}`,
+    extra: `${zahl(s.matches)} games · ${zahl(s.elims)} elims · ${zahl(s.damage)} dmg`,
+  }} />;
 }
 
 /* ------------------------------------------------------------------ Eine Bestenliste */
@@ -236,10 +216,10 @@ export default function Statistics() {
       {spitze && (
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/40">{spalte.titel} · {saisonName}{region ? ` · ${region}` : ''}</p>
-          <div className="grid items-start gap-5 md:grid-cols-3">
-            <div className="order-2 md:order-1"><Spitze s={spitze[1]} platz={2} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} /></div>
-            <div className="order-1 md:order-2"><Spitze s={spitze[0]} platz={1} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} /></div>
-            <div className="order-3"><Spitze s={spitze[2]} platz={3} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} /></div>
+          <div className="flex items-start justify-center gap-4 sm:gap-6">
+            {spitze[1] && <Spitze s={spitze[1]} platz={2} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
+            {spitze[0] && <Spitze s={spitze[0]} platz={1} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
+            {spitze[2] && <Spitze s={spitze[2]} platz={3} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
           </div>
         </div>
       )}

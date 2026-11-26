@@ -8,7 +8,7 @@ import { useWer } from '../../../teile/Anmeldung';
 export function AnmeldeKarte({ titel = 'Sign in to see this', text }: { titel?: string; text?: string }) {
   const { oeffnen, wer } = useWer();
   return (
-    <Glas className="relative mx-auto mt-6 max-w-xl overflow-hidden p-10 text-center">
+    <Glas dunkel className="relative mx-auto mt-6 max-w-xl overflow-hidden p-10 text-center">
       <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
       <div className="relative">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/5">

@@ -1,6 +1,7 @@
 import { AnimatePresence, animate, motion, useInView } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Glas, Titel, flagge } from '../../teile/Glas';
+import { Treppchen } from '../../teile/Podest';
 import { Fehler, Laedt, geld } from './tools/Gemeinsam';
 
 /*
@@ -214,29 +215,9 @@ function AllTimeAnsicht({ alt, liste }: { alt: AllTime; liste: Ereignis[] }) {
     <div className="space-y-8">
       {/* Meiste Titel - Treppchen */}
       {t1 && (
-        <div className="grid grid-cols-3 items-end gap-5">
-          {[t2, t1, t3].map((t, j) => t && (() => {
-            const platz = j === 1 ? 1 : j === 0 ? 2 : 3; const bild = bildVon(t.name);
-            return (
-              <motion.div key={t.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: platz === 1 ? 0.1 : 0.25 }} whileHover={{ y: -6 }}
-                className={`relative overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18] ${platz === 1 ? 'h-[330px]' : 'h-[290px]'}`}>
-                {bild ? <>{/* Hochkant-Foto rechts in voller Hoehe, links unscharfer Abglanz (Betreiber: Fotos nicht in die Breite ziehen) */}
-                  <img src={bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" />
-                  <img src={bild} alt="" className="absolute inset-y-0 right-0 aspect-[4/5] h-full object-cover object-top" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#0a0e18] from-30% via-[#0a0e18]/70 via-50% to-transparent to-75%" /></>
-                  : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-500/15 via-violet-500/10 to-transparent"><span className="text-8xl font-black text-white/10">{t.name.slice(0, 1)}</span></div>}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/40 to-transparent" />
-                <div className="absolute inset-x-0 top-0 h-1" style={{ background: MEDAILLE[platz - 1] }} />
-                {t.land && <img src={flagge(t.land)} alt="" className="absolute right-5 top-5 h-9 w-9 rounded-full object-cover ring-2 ring-white/30" />}
-                <div className="absolute inset-x-0 bottom-0 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">FNCS titles</p>
-                  <p className="text-5xl font-black tabular-nums" style={{ color: MEDAILLE[platz - 1] }}><Zahl wert={t.titel} /></p>
-                  <p className="mt-1 text-xl font-extrabold uppercase text-white">{t.name}</p>
-                </div>
-              </motion.div>
-            );
-          })())}
-        </div>
+        <Treppchen plaetze={[t1, t2, t3].map((t, i) => t && ({
+          platz: (i + 1) as 1 | 2 | 3, bild: bildVon(t.name), land: t.land, name: t.name, label: 'FNCS titles', wert: <Zahl wert={t.titel} />,
+        }))} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-4">
