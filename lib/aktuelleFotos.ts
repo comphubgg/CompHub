@@ -2,6 +2,7 @@ import { liesJson } from '@/lib/ablage';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { PLATZHALTER_FOTO, spielerbildGross, spielerbildKlein } from '@/lib/spielerbildKlein';
 import { anzeigenamen, anzeigenameEinsetzen } from '@/lib/anzeigenamen';
+import { avatare, avatarVon } from '@/lib/epicAvatare';
 
 /*
  * Die eine, aktuelle Quelle fuer Spielerfotos (Betreiber, 17.11.2026: "ein neues Foto soll innerhalb von Minuten ueberall erscheinen").
@@ -33,6 +34,8 @@ export interface FotoStand {
   nachName: Map<string, string>;
   /** Konto-Id (klein) -> gelaeufiger Name (spieler-anzeigenamen.json, lib/anzeigenamen) - beim Ausliefern statt des Epic-Namens. */
   anzeigenamen?: Map<string, string>;
+  /** Konto-Id -> Epics Avatar (lib/epicAvatare) - Ersatz, wenn es kein eigenes Foto gibt. */
+  avatare?: Map<string, { c: string | null; t: number }>;
 }
 
 let merker: { stand: FotoStand; bis: number } | null = null;
@@ -44,10 +47,11 @@ export async function fotoStand(): Promise<FotoStand> {
   if (unterwegs) return unterwegs;
   unterwegs = (async () => {
     try {
-      const [liste, profile, namenTafel] = await Promise.all([
+      const [liste, profile, namenTafel, avatarTafel] = await Promise.all([
         liesJson<Eintrag[]>('spielerbilder.json', []),
         liesJson<Record<string, Profil>>('spieler-profile.json', {}).catch(() => ({} as Record<string, Profil>)),
         anzeigenamen().catch(() => new Map<string, string>()),
+        avatare().catch(() => undefined),
       ]);
       const nachKonto = new Map<string, string>();
       const namen = new Map<string, Set<string>>();
@@ -70,7 +74,7 @@ export async function fotoStand(): Promise<FotoStand> {
       for (const [id, n] of namenTafel) if (nachKonto.has(id)) merk(n, id);
       const nachName = new Map<string, string>();
       for (const [k, ids] of namen) if (ids.size === 1) nachName.set(k, [...ids][0]);
-      const stand: FotoStand = { nachKonto, nachName, anzeigenamen: namenTafel };
+      const stand: FotoStand = { nachKonto, nachName, anzeigenamen: namenTafel, avatare: avatarTafel };
       // Eine leere Liste (Ablage kurz nicht erreichbar) nicht eine Minute lang festhalten.
       merker = { stand, bis: Date.now() + (nachKonto.size ? FRIST_MS : 5_000) };
       return stand;
@@ -96,7 +100,7 @@ export function kontoZuName(stand: FotoStand, name: string): string | null {
 function istSpielerfotoFeld(wert: unknown): boolean {
   if (wert === null) return true;
   if (typeof wert !== 'string') return false;
-  return wert === PLATZHALTER_FOTO || /^(?:https?:\/\/[^/]+)?\/spielerbild(?:er|er-klein|-platzhalter)/.test(wert);
+  return wert === PLATZHALTER_FOTO || /^(?:https?:\/\/[^/]+)?\/(?:spielerbild(?:er|er-klein|-platzhalter)|api\/avatar\?)/.test(wert);
 }
 
 /** Ein Original (JPG/PNG unter /spielerbilder/) - dann bleibt es beim Original. */
@@ -130,11 +134,15 @@ export function fotosEinsetzen<T>(wert: T, stand: FotoStand, gross = false): T {
          * Jedes andere alte Spielerfoto ist nicht mehr oeffentlich (der Pool loescht abgeloeste Kopien) - dann null, also der Platzhalter.
          */
         const alt = r[f];
-        if (alt === null || alt === PLATZHALTER_FOTO || (typeof alt === 'string' && /-org-[0-9a-z]+\.webp/.test(alt))) continue;
+        if (typeof alt === 'string' && /-org-[0-9a-z]+\.webp/.test(alt)) continue;
+        // Kein eigenes Foto: Epics Avatar des Spielers statt des Platzhalters (lib/epicAvatare), sobald er bekannt ist.
+        const ava = avatarVon(stand.avatare, id);
+        if (ava) { if (alt !== ava) { r[f] = ava; gesetzt = true; } continue; }
+        if (alt === null || alt === PLATZHALTER_FOTO) continue;
         r[f] = null;
         gesetzt = true;
       }
-      if (gesetzt && 'echtesFoto' in r) r.echtesFoto = FOTO_FELDER.some((f) => typeof r[f] === 'string' && r[f] !== PLATZHALTER_FOTO);
+      if (gesetzt && 'echtesFoto' in r) r.echtesFoto = FOTO_FELDER.some((f) => typeof r[f] === 'string' && r[f] !== PLATZHALTER_FOTO && !String(r[f]).startsWith('/api/avatar'));
     }
     for (const v of Object.values(r)) if (v && typeof v === 'object') besuche(v, tiefe + 1);
   };
