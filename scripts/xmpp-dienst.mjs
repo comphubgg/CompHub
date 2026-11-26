@@ -66,7 +66,7 @@ function neu(name) {
     /** Alle Freunde laut Epics Freundesliste (auch offline) - Haupt-Konto alle 10 min, Bot-Konto alle 2 min (siehe listeHolen), ein Abruf, nicht je Freund. */
     liste: new Set(), listeZeit: 0, listeGeladen: false,
     /** Neuaufbau der Sitzung fuer neue Freunde (siehe freundeNeuAufnehmen). */
-    neuaufbauUhr: null, letzterNeuaufbau: 0,
+    neuaufbauUhr: null, letzterNeuaufbau: 0, rest: null, restZeit: 0, restLaeuft: null,
     /** Welche Match-ID ein Freund aus der Sitzungssuche hat (nicht aus seinem Status) - siehe sitzungenSuchen. */
     sitzungVonSuche: new Map(),
   };
@@ -102,6 +102,35 @@ async function anmelden(a) {
 function sitzungZu(token) {
   if (!token) return;
   fetch(`${ACCOUNT}/account/api/oauth/sessions/kill/${token}`, { method: 'DELETE', headers: { Authorization: `bearer ${token}` }, signal: AbortSignal.timeout(5000) }).catch(() => {});
+}
+
+/*
+ * Schluessel fuer die REST-Abrufe (Freundesliste, Annahme, Sitzungssuche). Epics Zugangsschluessel laeuft nach 8 h ab; die XMPP-Verbindung bleibt
+ * trotzdem stehen, die Abrufe bekamen aber nur noch HTTP 401 (26.11.2026: 12 780 Fehler in der Sitzungssuche). Darum ein eigener Schluessel, der alle
+ * 3 h und sofort bei 401 erneuert wird - der Schluessel der Live-Verbindung wird dabei nie geschlossen.
+ */
+const REST_MS = 3 * 60 * 60_000;
+async function restToken(k, erzwingen = false) {
+  if (!erzwingen && k.rest && Date.now() - k.restZeit < REST_MS) return k.rest;
+  if (k.restLaeuft) return k.restLaeuft;
+  k.restLaeuft = (async () => {
+    const a = await zugangVon(k.name);
+    if (!a) throw new Error('kein Zugang');
+    const z = await anmelden(a);
+    const alt = k.rest;
+    k.rest = z.token; k.restZeit = Date.now(); k.konto = k.konto ?? z.accountId;
+    if (alt && alt !== k.token) sitzungZu(alt);
+    log(`[${k.name}] REST-Schluessel erneuert${erzwingen ? ' (nach 401)' : ''}`);
+    return z.token;
+  })().finally(() => { k.restLaeuft = null; });
+  return k.restLaeuft;
+}
+/** fetch mit REST-Schluessel; bei 401 einmal neu anmelden und wiederholen. */
+async function epicAbruf(k, url, opt = {}) {
+  const mit = (t) => fetch(url, { ...opt, headers: { ...(opt.headers ?? {}), Authorization: `bearer ${t}` } });
+  const r = await mit(await restToken(k));
+  if (r.status !== 401) return r;
+  return mit(await restToken(k, true));
 }
 
 /* ------------------------------------------------------------------ Verbindung */
@@ -146,8 +175,11 @@ async function verbinde(k) {
   let zugang;
   try { zugang = await anmelden(a); } catch (e) { k.fehler = e.message; log(`[${k.name}] ${e.message}`); spaeterNeu(k, 'Anmeldung'); return; }
   if (gen !== k.gen) return;
+  // Der REST-Schluessel haengt am alten Live-Schluessel, wenn er noch nie erneuert wurde - dann bekommt er den neuen mit.
+  const restAlt = k.rest === k.token || !k.rest;
   sitzungZu(k.token);
   k.token = zugang.token; k.konto = zugang.accountId;
+  if (restAlt) { k.rest = zugang.token; k.restZeit = Date.now(); }
   k.verbindungen += 1;
   log(`[${k.name}] verbinde (Versuch ${k.versuche + 1}, Verbindung Nr. ${k.verbindungen}) als ${zugang.accountId.slice(0, 6)}...`);
   const x = client({
@@ -284,7 +316,7 @@ async function versuchStarten() {
 
 async function diagnose(id) {
   const k = konten.bot;
-  const zeitlich = (u) => fetch(u, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(1_500) })
+  const zeitlich = (u) => epicAbruf(k, u, { signal: AbortSignal.timeout(1_500) })
     .then(async (r) => ({ status: r.status, text: (await r.text()).slice(0, 4000) })).catch((e) => ({ status: 0, text: e.message }));
   const bindestriche = `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
   const [fr, lo] = await Promise.all([
@@ -300,7 +332,9 @@ async function diagnose(id) {
   const FINDE = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/matchmaking/session/findPlayer/';
   const finde = (tok) => fetch(FINDE + id, { headers: { Authorization: `bearer ${tok}` }, signal: AbortSignal.timeout(1_500) })
     .then(async (r) => ({ status: r.status, text: (await r.text()).slice(0, 1500) })).catch((e) => ({ status: 0, text: e.message }));
-  const [findeBot, findeHaupt] = await Promise.all([k.token ? finde(k.token) : null, konten.haupt.token ? finde(konten.haupt.token) : null]);
+  const tokenOder = (kk) => (kk.token ? restToken(kk).catch(() => null) : null);
+  const [tb, th] = await Promise.all([tokenOder(k), tokenOder(konten.haupt)]);
+  const [findeBot, findeHaupt] = await Promise.all([tb ? finde(tb) : null, th ? finde(th) : null]);
   let probe = 'keine Verbindung';
   if (k.xmpp && k.verbunden) { probe = new Date().toISOString(); k.xmpp.send(xml('presence', { type: 'probe', to: `${id}@prod.ol.epicgames.com` })).catch(() => {}); }
   const jeAbsender = {};
@@ -341,7 +375,7 @@ async function sitzungenSuchen() {
       let sid = null; let playlist = null;
       try {
         sitzungssuche.abfragen += 1;
-        const r = await fetch(FINDE_URL + id, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(5_000) });
+        const r = await epicAbruf(k, FINDE_URL + id, { signal: AbortSignal.timeout(5_000) });
         if (!r.ok) { sitzungssuche.fehler += 1; sitzungssuche.letzterFehler = `HTTP ${r.status}`; continue; }
         const j = await r.json();
         const sitz = Array.isArray(j) ? j.find((x) => HEX32.test(String(x?.id ?? '').toLowerCase())) : null;
@@ -515,7 +549,7 @@ async function listeHolen(k, erzwingen = false) {
   if (!k.token || !k.konto || (!erzwingen && Date.now() - k.listeZeit < abstand)) return;
   k.listeZeit = Date.now();
   try {
-    const r = await fetch(`${FRIENDS}/friends/api/v1/${k.konto}/summary`, { headers: { Authorization: `bearer ${k.token}` }, signal: AbortSignal.timeout(15_000) });
+    const r = await epicAbruf(k, `${FRIENDS}/friends/api/v1/${k.konto}/summary`, { signal: AbortSignal.timeout(15_000) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const ids = (j.friends ?? []).map((f) => String(f.accountId ?? '').replace(/-/g, '').toLowerCase()).filter((x) => HEX32.test(x));
@@ -623,7 +657,7 @@ setInterval(() => {
 
 const ende = (sig) => {
   log(`${sig} - Ende`);
-  for (const k of Object.values(konten)) { k.aus = true; aufraeumen(k); sitzungZu(k.token); }
+  for (const k of Object.values(konten)) { k.aus = true; aufraeumen(k); sitzungZu(k.token); if (k.rest !== k.token) sitzungZu(k.rest); }
   for (const res of leser) { try { res.end(); } catch { /* egal */ } }
   // Den Verlauf noch sichern (sonst fehlt nach dem Neustart bis zu einer Minute).
   if (verlaufGeaendert) void fs.mkdir(DATEN, { recursive: true }).then(() => fs.writeFile(VERLAUF_DATEI, JSON.stringify(Object.fromEntries(verlauf)))).catch(() => {});
@@ -656,7 +690,8 @@ async function annahme() {
   if (annahmeLaeuft || !freigaben.size || !k.verbunden || !k.token || !k.konto) return;
   annahmeLaeuft = true;
   try {
-    const r = await annahmeDurchgang({ konto: k.konto, token: k.token, freigaben, basis: `${FRIENDS}/friends/api/v1` });
+    const r = await annahmeDurchgang({ konto: k.konto, token: await restToken(k), freigaben, basis: `${FRIENDS}/friends/api/v1` });
+    if (String(r.fehler ?? '').includes('401')) void restToken(k, true).catch(() => {});
     if (r.angenommen.length || r.fehler) log(`[bot] Anfragen: ${r.angenommen.length} angenommen (${r.angenommen.join(', ')}), ${r.liegen} liegen${r.fehler ? `, Fehler: ${r.fehler}` : ''}`);
     // Neu angenommen: gleich die Liste nachziehen - die neuen Freunde fuehren dann zum Neuaufbau der Sitzung (freundeNeuAufnehmen).
     if (r.angenommen.length) void listeHolen(k, true);
