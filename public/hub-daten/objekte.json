@@ -1,0 +1,10 @@
+{
+  "probe": true,
+  "hinweis": "SAMPLE ONLY - three hand-placed markers to test the layer loader. Replace with the real export (karte/objekte.json, Unreal world cm).",
+  "saison": 43,
+  "objekte": [
+    { "typ": "chest", "x": 2600, "y": 54200, "z": 1200 },
+    { "typ": "reboot", "x": -10900, "y": 6100, "z": 900 },
+    { "typ": "slurp", "x": -50800, "y": 17400, "z": 300 }
+  ]
+}
