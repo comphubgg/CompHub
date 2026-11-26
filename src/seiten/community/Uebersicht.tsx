@@ -244,7 +244,7 @@ function Neuigkeiten() {
         {(liste ?? []).slice(0, 4).map((m, i) => (
           <motion.article key={m.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 * i }} whileHover={{ y: -4 }}
             className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
-            <div className="aspect-[9/5] w-full bg-gradient-to-br from-teal-400/15 to-sky-500/5">
+            <div className="aspect-video w-full bg-gradient-to-br from-teal-400/15 to-sky-500/5">
               {(m.tileImage || m.image) && <img src={m.tileImage || m.image} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="h-full w-full object-cover" />}
             </div>
             <div className="p-5">
