@@ -58,7 +58,7 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'scrims', pfad: '/scrims', titel: 'Scrims', text: 'Scrims of the community servers (Noble, Poyo …) with sessions', gruppe: 'daten', stichworte: 'scrims noble poyo yunite' },
 
   // Nutzer & Zugang
-  { slug: 'accounts', pfad: '/admin/accounts', titel: 'Accounts', text: 'Assign roles and VIP, keys, Discord, orgs', gruppe: 'nutzer', stichworte: 'accounts roles konten rollen' },
+  { slug: 'accounts', pfad: '/admin/accounts', titel: 'Accounts', text: 'Assign roles and VIP, keys, Discord, orgs', gruppe: 'nutzer', eigen: true, stichworte: 'accounts roles konten rollen' },
   { slug: 'vip-access', pfad: '/admin/vip-access', titel: 'VIP access', text: 'Deadline, chat and delete per VIP', gruppe: 'nutzer', eigen: true, stichworte: 'vip access keys deadline discord' },
   { slug: 'switch', pfad: '/admin/switch', titel: 'Switch account', text: 'See what a VIP or manager sees', gruppe: 'nutzer', stichworte: 'switch impersonate wechseln' },
   { slug: 'sections', pfad: '/admin/sections', titel: 'Sections', text: 'Put areas on standby or offline', gruppe: 'nutzer', eigen: true, stichworte: 'sections offline standby bereiche' },

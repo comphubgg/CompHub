@@ -13,6 +13,7 @@ import Sektionen from './Sektionen';
 import Kontakt from './Kontakt';
 import { portiert } from './port/Portiert';
 import TweetSeite from './tweets/page';
+import KontenSeite from './accounts/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -23,6 +24,7 @@ import { Laedt, NurAdmins, feld } from './teile';
  */
 const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: Live, 'vip-access': VipZugaenge, vips: Vips, players: Spieler, sections: Sektionen, contact: Kontakt,
   tweets: portiert(TweetSeite, 'Content'),
+  accounts: portiert(KontenSeite, 'Users & Access'),
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */
