@@ -5251,6 +5251,8 @@ const AUF_ENGLISCH: Record<string, string> = {
  */
 const AUF_DEUTSCH: Record<string, string> = {
   // ------------------------------------------------------------ Deep Stats (/deep-stats)
+  'Newer replays name the weapon behind every hit; for older ones each hit is credited to the weapon the shooter was holding when it landed (if he had already switched to building or healing, the weapon held just before, up to 3 seconds). Damage as in Player Stats: effective damage, nothing on knocked players.': 'Neuere Replays nennen zu jedem Treffer die Waffe; bei älteren zählt jeder Treffer für die Waffe, die der Schütze hielt, als er traf (hatte er schon zum Bauen oder Heilen gewechselt, die Waffe davor, bis 3 Sekunden). Schaden wie in den Player Stats: wirksamer Schaden, nichts auf Umgehauene.',
+  'Here: {a}% of hits with the weapon named in the replay, {b}% via the weapon in hand.': 'Hier: {a} % der Treffer mit der Waffe aus dem Replay, {b} % über die Waffe in der Hand.',
   'The replays of this match day were read before landing spots were recorded, so there is no landing map.': 'Die Replays dieses Spieltags wurden gelesen, bevor Landeorte erfasst wurden - darum gibt es keine Landekarte.',
   '{n} games were read with an older reader that missed damage from explosions and bolts - damage there is about 2% lower than in Player Stats.': '{n} Spiele las ein älterer Leser, der Schaden aus Explosionen und Bolzen nicht kannte - der Schaden liegt dort rund 2 % unter den Player Stats.',
   'Shotguns': 'Schrotflinten',

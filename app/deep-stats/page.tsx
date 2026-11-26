@@ -562,7 +562,10 @@ export default function DeepStatsSeite() {
             ) : (
               <>
                 <Abschnitt nr={1} titel="Damage per weapon"
-                  text={<T>Every hit is credited to the weapon the shooter was holding when it landed. If he had already switched to building or healing, it counts for the weapon held just before (up to 3 seconds). Damage as in Player Stats: effective damage, nothing on knocked players.</T>}
+                  text={<>
+                    <T>Newer replays name the weapon behind every hit; for older ones each hit is credited to the weapon the shooter was holding when it landed (if he had already switched to building or healing, the weapon held just before, up to 3 seconds). Damage as in Player Stats: effective damage, nothing on knocked players.</T>
+                    {' '}<span className="text-slate-500">{a.weg[0] + a.weg[1] > 0 && t('Here: {a}% of hits with the weapon named in the replay, {b}% via the weapon in hand.').replace('{a}', ((a.weg[0] / (a.weg[0] + a.weg[1])) * 100).toFixed(1)).replace('{b}', ((a.weg[1] / (a.weg[0] + a.weg[1])) * 100).toFixed(1))}</span>
+                  </>}
                   rechts={<span className="text-right text-xs text-slate-500"><b className="block text-2xl font-black tabular-nums text-white">{zahl(a.summe.dmg)}</b><T>damage in total</T></span>}>
                   <div className="grid gap-8 lg:grid-cols-2">
                     <Waffenliste a={a} />

@@ -31,7 +31,7 @@ export const RASTER = 96;
 type Beitrag = NonNullable<ReturnType<typeof tiefBeitrag>>;
 /** Was tiefZusammen ausgibt (lib/tiefeWerte.mjs, dort beschrieben). */
 interface Summe {
-  v: number; zelle: number; matches: number; alteLeser?: number;
+  v: number; zelle: number; matches: number; alteLeser?: number; weg?: [number, number];
   waffen: Array<[string, number, number, number, number]>;
   spieler: Array<[string, string, number, number, number, number, number, number, Array<[number, number, number, number]>]>;
   teams: Array<[string[], number, number, number, number]>;
@@ -125,6 +125,8 @@ export interface TiefeAnsicht {
   liest: boolean; fertig: boolean; gerechnet: string | null;
   /** Matches, die ein aelterer Leser las (vor Fassung 18: ohne Schaden aus Explosionen und Bolzen, rund 2 % zu wenig). */
   alteLeser: number;
+  /** Treffer, deren Waffe der Leser selbst nennt (SourceWeapon) - und die ueber die Hand zugeordnet sind. */
+  weg: [number, number];
   summe: { dmg: number; hits: number; krit: number };
   waffen: TiefWaffe[];
   arten: Array<{ art: string; dmg: number; hits: number; krit: number }>;
@@ -135,7 +137,7 @@ export interface TiefeAnsicht {
 }
 
 const leer = (w: string): TiefeAnsicht => ({
-  windowId: w, eventId: null, titel: null, region: null, quelle: null, matches: 0, erwartet: null, ohne: 0, teilweise: 0, liest: false, fertig: false, alteLeser: 0,
+  windowId: w, eventId: null, titel: null, region: null, quelle: null, matches: 0, erwartet: null, ohne: 0, teilweise: 0, liest: false, fertig: false, alteLeser: 0, weg: [0, 0],
   gerechnet: null, summe: { dmg: 0, hits: 0, krit: 0 }, waffen: [], arten: [], artBeste: {}, spieler: [], spielerGesamt: 0, teams: [], teamGesamt: 0, karten: [],
 });
 
@@ -199,7 +201,7 @@ function zuschneiden(w: string, s: Summe, suche: string): Omit<TiefeAnsicht, 'wi
   }
 
   return {
-    summe, alteLeser: s.alteLeser ?? 0,
+    summe, alteLeser: s.alteLeser ?? 0, weg: s.weg ?? [0, 0],
     waffen: waffenRoh.slice(0, 60).map(([roh, dmg, hits, krit, n]) => ({ roh: String(roh), art: waffenArt(String(roh)), dmg, hits, krit, spieler: n })),
     arten: [...arten.values()].sort((a, b) => b.dmg - a.dmg),
     artBeste, spieler, spielerGesamt: alle.length, teams: teams.slice(0, 150), teamGesamt: teams.length, karten: [...karten.values()],
