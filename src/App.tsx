@@ -25,6 +25,8 @@ import { AwardsKategorie, AwardsUebersicht } from './seiten/comp/mehr/Awards';
 import Scrims from './seiten/comp/mehr/Scrims';
 import Pov, { PovAnsicht, PovEinladung } from './seiten/comp/mehr/pov/Pov';
 import { OrgKonto, OrgsListe, TeamSeite } from './seiten/comp/mehr/Orgs';
+import HowItWorks from './seiten/comp/mehr/HowItWorks';
+import { MatchSeite, Posts, PostsHeute } from './seiten/comp/mehr/Posts';
 import Community from './seiten/community/Community';
 import Streamer from './seiten/streamer/Streamer';
 import Admin from './seiten/admin/Admin';
@@ -78,6 +80,10 @@ export default function App() {
             <Route path="orgs" element={<OrgsListe />} />
             <Route path="team/:org" element={<TeamSeite />} />
             <Route path="org" element={<OrgKonto />} />
+            <Route path="posts" element={<PostsHeute />} />
+            <Route path="posts/:datum" element={<Posts />} />
+            <Route path="match/:tag/:nr" element={<MatchSeite />} />
+            <Route path="how-it-works" element={<HowItWorks />} />
             <Route path="tournament-maps" element={<Navigate to="/competitive/maps" replace />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
           </Route>

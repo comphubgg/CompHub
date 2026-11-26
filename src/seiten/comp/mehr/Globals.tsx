@@ -129,7 +129,7 @@ function Uebersicht() {
           {tage.map((t) => <span key={t.windowId} className="rounded-xl border border-sky-400/25 bg-sky-400/[0.06] px-3 py-1.5 text-xs font-semibold text-sky-200">{t.titel} · {new Date(t.begin).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' })}</span>)}
         </div>
         <p className="mt-3 text-[11px] text-white/35">The match days come from Epic's tournament catalogue — if Epic adds a third day, it shows up here by itself.</p>
-        <p className="mt-2 text-[11px] text-white/35">Stream overlays for the Globals (leaderboard, player banner, custom) live in the Streamer area and on <a className="text-sky-300 hover:underline" href={`${SEITE}/globals/overlays`} target="_blank" rel="noreferrer">thecomphub.com</a>.</p>
+        <p className="mt-2 text-[11px] text-white/35">Stream overlays for the Globals (leaderboard, team card, custom) live in the <NavLink className="text-sky-300 hover:underline" to="/streamer/overlays/globals">Streamer area → Globals overlays</NavLink>.</p>
       </Glas>
     </div>
   );
