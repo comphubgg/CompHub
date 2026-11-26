@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router-dom';
 
 interface Bereich { id: string; titel: string; zeile: string; punkte: string[]; bilder: string[]; farbe: string; pfad: string; schloss?: boolean }
 const CUP_BILDER = ['/cups/fncs-grand-finals.webp', '/cups/fncs-major.webp', '/cups/elite-cup.webp'];
+/* Nur Bilder, die randlos in der hohen Tafel gut aussehen - vom Betreiber ausgesucht (26.11.2026); weitere kommen von ihm. */
+const COMPETITIVE_BILDER = ['/cups/console-champions-cup.webp', '/cups/fncs-grand-finals.webp'];
 /* Die Streamer der Tafel: die Streamer-Liste der Seite (/api/streamers, Gruppe "streamer") - keine Pros (Betreiber, 26.11.2026). */
 const STREAMER_FALLBACK = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'aussieantics', 'leothecrack', 'wazz', 'nikof'];
 
@@ -76,7 +78,7 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       onMouseLeave={() => { mx.set(0.5); my.set(0.5); }}
       style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
       className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'h-[min(68vh,640px)] w-[min(36vw,560px)]' : 'h-[min(58vh,540px)] w-[min(23vw,340px)]'}`}>
-      {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} fuellen={b.id === 'community'} />}
+      {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} fuellen />}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 50%, rgba(6,8,15,0.8) 72%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
       {b.schloss && (
@@ -122,7 +124,7 @@ export default function Start() {
   }, []);
   const BEREICHE: Bereich[] = [
     { id: 'community', titel: 'Community', zeile: 'Explore the island', punkte: ['Map', 'Loot', 'Weapons', 'Player count'], bilder: ['/bilder/karte-orte.png'], farbe: '45,212,191', pfad: '/community' },
-    { id: 'competitive', titel: 'Competitive', zeile: 'Live · Stats · Rankings', punkte: ['Live cups', 'Player stats', 'Power rankings', 'Match finder', 'Deep stats'], bilder: [...CUP_BILDER.slice(0, 1), ...banner, ...CUP_BILDER.slice(1)], farbe: '56,189,248', pfad: '/competitive' },
+    { id: 'competitive', titel: 'Competitive', zeile: 'Live · Stats · Rankings', punkte: ['Live cups', 'Player stats', 'Power rankings', 'Match finder', 'Deep stats'], bilder: COMPETITIVE_BILDER, farbe: '56,189,248', pfad: '/competitive' },
     { id: 'streamer', titel: 'Streamer', zeile: 'For creators', punkte: ['Overlays', 'Your page', 'Tools'], bilder: streamer, farbe: '167,139,250', pfad: '/streamer', schloss: true },
   ];
   useEffect(() => {
