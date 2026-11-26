@@ -8,6 +8,6 @@ const weiter = { target: SEITE, changeOrigin: true, secure: true };
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter },
+    proxy: { '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter, '/hero': weiter },
   },
 });
