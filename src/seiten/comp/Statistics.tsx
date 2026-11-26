@@ -64,9 +64,9 @@ function Spitze({ s, platz, feld, nachkomma }: { s: Spieler; platz: number; feld
     <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + platz * 0.08, duration: 0.55, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -6 }}
       className={platz === 1 ? '' : 'md:mt-8'}>
       <Link to={`/competitive/player/${s.epicId}`} className={`group relative block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] ${platz === 1 ? 'h-[340px]' : 'h-[300px]'}`}>
-        {f ? <img src={f} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_20%] transition duration-700 group-hover:scale-105" />
+        {f ? <><img src={f} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" /><img src={f} alt="" className="absolute inset-y-0 right-0 h-full aspect-[4/5] object-cover object-top transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-r from-[#0a0e18] from-30% via-[#0a0e18]/70 via-50% to-transparent to-75%" /></>
           : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-400/15 via-transparent to-violet-500/10"><span className="text-8xl font-black text-white/10">{anzeige(s).slice(0, 2).toUpperCase()}</span></div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/45 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/80 via-transparent to-transparent" />
         <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
         <span className="absolute left-5 top-4 text-6xl font-black" style={{ color: farbe }}>{platz}</span>
         {s.land && <img src={flagge(s.land)} alt="" className="absolute right-5 top-5 h-9 w-9 rounded-full object-cover ring-2 ring-white/30" />}

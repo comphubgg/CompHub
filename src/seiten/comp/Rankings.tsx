@@ -13,9 +13,9 @@ function Podest({ s, platz }: { s: S; platz: number }) {
   const farbe = platz === 1 ? '#facc15' : platz === 2 ? '#cbd5e1' : '#f59e0b';
   return (
     <motion.a href={`/competitive/player/${s.id}`} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: platz === 1 ? 0.1 : 0.25 }}
-      whileHover={{ y: -6 }} className={`group relative overflow-hidden rounded-3xl border border-white/10 ${platz === 1 ? 'h-[380px]' : 'mt-10 h-[340px]'}`}>
-      {s.bild && <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_20%] transition duration-700 group-hover:scale-105" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/40 to-transparent" />
+      whileHover={{ y: -6 }} className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18] ${platz === 1 ? 'h-[380px]' : 'mt-10 h-[340px]'}`}>
+      {s.bild && <><img src={s.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" /><img src={s.bild} alt="" className="absolute inset-y-0 right-0 h-full aspect-[4/5] object-cover object-top transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-r from-[#0a0e18] from-30% via-[#0a0e18]/70 via-50% to-transparent to-75%" /></>}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/80 via-transparent to-transparent" />
       <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
       <span className="absolute left-5 top-4 text-6xl font-black" style={{ color: farbe }}>{platz}</span>
       {s.land && <img src={flagge(s.land)} alt="" className="absolute right-5 top-5 h-9 w-9 rounded-full object-cover ring-2 ring-white/30" />}
