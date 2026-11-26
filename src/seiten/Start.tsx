@@ -30,20 +30,30 @@ function StreamerWand({ logins }: { logins: string[] }) {
   );
 }
 
+/*
+ * Bild-Slider einer Tafel (Betreiber, 26.11.2026: "viel zu schnell ... ein Thumbnail darf nicht nur zu 10 % sichtbar sein"): jedes Bild ganz und
+ * scharf oben in der Tafel, dahinter dasselbe Bild gross und weich als Fuellung; 7 s je Bild, langsames Ueberblenden.
+ */
+const DAUER = 7000;
 function Slider({ bilder, farbe }: { bilder: string[]; farbe: string }) {
   const [i, setI] = useState(0);
-  useEffect(() => { if (bilder.length < 2) return; const t = setInterval(() => setI((x) => (x + 1) % bilder.length), 3800); return () => clearInterval(t); }, [bilder.length]);
+  useEffect(() => { if (bilder.length < 2) return; const t = setInterval(() => setI((x) => (x + 1) % bilder.length), DAUER); return () => clearInterval(t); }, [bilder.length]);
+  const bild = bilder[i % Math.max(1, bilder.length)];
   return (
     <>
       <AnimatePresence initial={false}>
-        <motion.img key={bilder[i]} src={bilder[i]} alt="" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.1 }}
-          className="absolute inset-0 h-full w-full object-cover" style={{ animation: 'kenburns 8s ease-out forwards' }} />
+        <motion.div key={bild} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.6, ease: 'easeInOut' }}>
+          <img src={bild} alt="" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-2xl" />
+          <div className="absolute inset-x-0 top-0 flex h-[62%] items-center justify-center p-5">
+            <img src={bild} alt="" className="max-h-full max-w-full rounded-2xl object-contain shadow-[0_20px_60px_rgba(0,0,0,0.55)]" style={{ animation: `kenburns-sanft ${DAUER + 2000}ms ease-out forwards` }} />
+          </div>
+        </motion.div>
       </AnimatePresence>
       {bilder.length > 1 && (
         <div className="absolute left-5 top-5 z-10 flex gap-1.5">
           {bilder.map((b, k) => (
             <span key={b} className="h-1 overflow-hidden rounded-full bg-white/20" style={{ width: k === i ? 28 : 10, transition: 'width .4s' }}>
-              {k === i && <motion.span key={`f${i}`} className="block h-full" style={{ background: `rgb(${farbe})` }} initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 3.8, ease: 'linear' }} />}
+              {k === i && <motion.span key={`f${i}`} className="block h-full" style={{ background: `rgb(${farbe})` }} initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: DAUER / 1000, ease: 'linear' }} />}
             </span>
           ))}
         </div>
@@ -66,7 +76,7 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
       className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'h-[min(68vh,640px)] w-[min(36vw,560px)]' : 'h-[min(58vh,540px)] w-[min(23vw,340px)]'}`}>
       {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} />}
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 30%, rgba(6,8,15,0.75) 65%, rgba(6,8,15,0.97) 100%)' }} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 50%, rgba(6,8,15,0.8) 72%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
       {b.schloss && (
         <div className="absolute right-5 top-5 z-10 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">

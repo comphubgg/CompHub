@@ -7,3 +7,4 @@ body { margin: 0; color: #e5e7eb; font-family: Inter, system-ui, sans-serif; -we
 
 @keyframes lauf { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes kenburns { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.14) translate(-2%, -2%); } }
+@keyframes kenburns-sanft { from { transform: scale(1); } to { transform: scale(1.04); } }
