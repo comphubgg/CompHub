@@ -1,32 +1,63 @@
-import { Route, Routes } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import Baustelle from './teile/Baustelle';
 import Hintergrund from './teile/Hintergrund';
 import Start from './seiten/Start';
 import Competitive from './seiten/Competitive';
 import Rahmen from './seiten/comp/Rahmen';
 import Rankings from './seiten/comp/Rankings';
+import Events from './seiten/comp/Events';
+import EventDetail from './seiten/comp/EventDetail';
+import Spieler from './seiten/comp/Spieler';
+import Statistics from './seiten/comp/Statistics';
+import DeepStats from './seiten/comp/DeepStats';
+import Replays from './seiten/comp/Replays';
+import MatchFinder from './seiten/comp/MatchFinder';
+import Streams from './seiten/comp/Streams';
+import Tierlist from './seiten/comp/Tierlist';
+import Fncs from './seiten/comp/Fncs';
+import Community from './seiten/community/Community';
+import Streamer from './seiten/streamer/Streamer';
+
 
 /*
  * CompHub Hub - lokale Vorschau (Betreiber, 26.11.2026: "CompHub 3.0 ... only localhost ... Startbildschirm wie Fortnite: mittig Competitive,
  * links Community, rechts VIP/Streamer"). Laeuft nur auf dem PC des Betreibers; Daten von thecomphub.com ueber den Proxy (vite.config.ts).
  */
 export default function App() {
+  const ort = useLocation();
+  // Wechsel zwischen Start und den Bereichen mit Bewegung (Betreiber: "man soll sich ein bisschen bewegen muessen, nicht einfach switchen").
+  const bereich = ort.pathname.split('/')[1] || 'start';
   return (
     <div className="relative min-h-full">
       <Hintergrund />
-      <div className="relative">
-        <Routes>
+      <AnimatePresence mode="wait">
+      <motion.div key={bereich} className="relative" initial={{ opacity: 0, scale: bereich === 'start' ? 1.04 : 0.97, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, scale: bereich === 'start' ? 0.96 : 1.03, filter: 'blur(8px)' }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+        <Routes location={ort}>
           <Route path="/" element={<Start />} />
           <Route path="/competitive" element={<Rahmen />}>
             <Route index element={<Competitive />} />
             <Route path="rankings" element={<Rankings />} />
+            <Route path="events" element={<Events />} />
+            <Route path="events/:id" element={<EventDetail />} />
+            <Route path="player/:id" element={<Spieler />} />
+            <Route path="statistics" element={<Statistics />} />
+            <Route path="deep-stats" element={<DeepStats />} />
+            <Route path="replays" element={<Replays />} />
+            <Route path="match-finder" element={<MatchFinder />} />
+            <Route path="streams" element={<Streams />} />
+            <Route path="tierlist" element={<Tierlist />} />
+            <Route path="fncs" element={<Fncs />} />
             <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
           </Route>
-          <Route path="/community" element={<Baustelle text="Community wird gebaut …" />} />
-          <Route path="/streamer" element={<Baustelle text="Streamer wird gebaut …" />} />
+          <Route path="/community/*" element={<Community />} />
+          <Route path="/streamer/*" element={<Streamer />} />
           <Route path="*" element={<Start />} />
         </Routes>
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
