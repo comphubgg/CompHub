@@ -1,31 +1,12 @@
 import { useEffect, useId, useRef } from 'react';
+import { skriptLaden, type TwitchSpieler } from '../../streamer/mv/Kachel';
 
 /*
  * Ein Twitch-Player ueber die Embed-Schnittstelle (wie app/streams/Kachel.tsx der echten Seite): einmal gebaut, danach werden Ton und Lautstaerke am
  * laufenden Player gestellt - kein Neuladen beim Umschalten des Tons. parent = der Host, auf dem der Hub laeuft (localhost / 127.0.0.1).
  */
 
-interface TwitchSpieler { setMuted(s: boolean): void; setVolume(v: number): void; addEventListener(e: string, f: () => void): void }
-declare global {
-  interface Window { Twitch?: { Player: { new (ziel: string, o: Record<string, unknown>): TwitchSpieler; READY: string } } }
-}
-
-let laden: Promise<void> | null = null;
-function skriptLaden(): Promise<void> {
-  if (window.Twitch?.Player) return Promise.resolve();
-  if (!laden) {
-    laden = new Promise<void>((ok, nein) => {
-      const s = document.createElement('script');
-      s.src = 'https://player.twitch.tv/js/embed/v1.js';
-      s.async = true;
-      s.onload = () => ok();
-      s.onerror = () => { laden = null; nein(new Error('Twitch-Skript nicht geladen')); };
-      document.head.appendChild(s);
-    });
-  }
-  return laden;
-}
-
+// Skript und Typen teilt sie mit der Multiview (src/seiten/streamer/mv/Kachel.tsx - die Multiview der echten Seite).
 export default function TwitchKachel({ kanal, ton, lautstaerke = 0.5 }: { kanal: string; ton: boolean; lautstaerke?: number }) {
   const ziel = `tw-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const spieler = useRef<TwitchSpieler | null>(null);

@@ -1,4 +1,7 @@
-import { WOERTER } from './woerter';
+import { WOERTER as OV_W } from './woerter';
+import { WOERTER as MV_W } from '../mv/woerter';
+
+const WOERTER: Record<string, string> = { ...MV_W, ...OV_W };
 
 /*
  * Die Sprache der portierten Seiten. Auf main steht der deutsche Text im Code und app/lib/sprache.ts uebersetzt ihn; der Hub ist englisch,

@@ -2,9 +2,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Glas, Titel } from '../../teile/Glas';
 import { Fehler, Laedt } from './tools/Gemeinsam';
-import TwitchKachel from './tools/TwitchKachel';
+import MvSeite from '../streamer/mv/Seite';
+import { SCHLUESSEL_SEITE, SCHLUESSEL_STAND } from '../streamer/mv/mvTypen';
 
 /*
+ * Live Streams (Betreiber, 26.11.2026: Profis UND Streamer/Watch-Partys, daher nicht mehr "Pro Streams").
+ * Oben bleibt die Hub-Uebersicht; die Multiview ist die der echten Seite (app/streams/**, portiert nach src/seiten/streamer/mv):
+ * Seitenleiste links (Strg + B) mit "Add stream", Liste zum Ziehen, Ordnern, Titelfiltern, Qualitaet, Steuerung, Einstellungen und
+ * Einzelansicht - die Wand liegt fest unter dem Kopf, man muss nie scrollen. "+ Multiview" auf einer Karte legt den Kanal in die
+ * gespeicherte Wand (multihub_mv_v2) und oeffnet sie.
+ *
  * Streams im Hub - wie /streams der echten Seite: die Ordner des Admins (/api/dashboard: Fortnite Pros EU, NA, Streamer), ihr Live-Stand
  * (POST /api/live-status: isLive, viewers, title, bild), ein Raster der sendenden Profis mit Vorschaubild und Zuschauern, Regionsfilter, und eine
  * Multiview aus Twitch-Playern (Embed-Schnittstelle, parent = localhost). Ton immer nur auf einem Stream.
@@ -15,16 +22,29 @@ interface Ordner { id: string; name: string; streamers: Streamer[] }
 interface Stand { isLive: boolean; viewers: number; title?: string; bild?: string | null; unbekannt?: boolean }
 interface Kanal { twitch: string; name: string; ordner: string[]; stand?: Stand }
 
-const SPEICHER_WAND = 'hub:streams-wand';
-const MAX_WAND = 9;
 const TAKT = 60_000;
 
 /** Kurzer Regionsname fuer die Filter-Chips: "Fortnite Pros EU" -> "EU". */
 const kurz = (name: string) => name.replace(/^Fortnite Pros\s*/i, '') || name;
 const zahl = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}K` : n.toLocaleString('en'));
 
-/** Spaltenzahl der Wand je nach Anzahl Streams. */
-const spalten = (n: number) => (n <= 1 ? 'grid-cols-1' : n === 2 || n === 4 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3');
+/** Die Kanaele der gespeicherten Wand (Multiview der echten Seite, localStorage). */
+function wandLesen(): string[] {
+  try { const j = JSON.parse(localStorage.getItem(SCHLUESSEL_STAND) || 'null'); return Array.isArray(j?.streams) ? j.streams.filter((x: { pov?: string }) => !x.pov).map((x: { kanal: string }) => String(x.kanal).toLowerCase()) : []; } catch { return []; }
+}
+/** Einen Kanal in die gespeicherte Wand legen (oder herausnehmen) und die Multiview mit offener Seitenleiste vormerken. */
+function wandSetzen(kanal: string, rein: boolean) {
+  try {
+    const j = JSON.parse(localStorage.getItem(SCHLUESSEL_STAND) || 'null') ?? { streams: [], qualitaet: 'auto' };
+    const liste: Array<Record<string, unknown>> = Array.isArray(j.streams) ? j.streams : [];
+    const da = liste.some((x) => String(x.kanal).toLowerCase() === kanal);
+    if (rein && !da) liste.push({ id: Math.random().toString(36).slice(2, 10), nr: Date.now(), kanal, versteckt: false, zeigeOffline: false, einmalig: false, fest: false, qualitaet: '' });
+    j.streams = rein ? liste : liste.filter((x) => String(x.kanal).toLowerCase() !== kanal);
+    localStorage.setItem(SCHLUESSEL_STAND, JSON.stringify(j));
+    localStorage.setItem('multihub_mehrfach', 'true');
+    localStorage.setItem(SCHLUESSEL_SEITE, 'true');
+  } catch { /* ohne Speicher bleibt die Wand, wie sie ist */ }
+}
 
 function Zuschauer({ n }: { n: number }) {
   return (
@@ -75,9 +95,8 @@ export default function Streams() {
   const [region, setRegion] = useState<string>('alle');
   const [suche, setSuche] = useState('');
   const [offlineAuf, setOfflineAuf] = useState(false);
-  const [wand, setWand] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(SPEICHER_WAND) || '[]'); } catch { return []; } });
-  const [ton, setTon] = useState<string>('');
-  const [gross, setGross] = useState<string>('');
+  const [wand, setWand] = useState<string[]>(wandLesen);
+  const [mvOffen, setMvOffen] = useState(false);
 
   useEffect(() => {
     fetch('/api/dashboard').then((r) => r.json()).then((j) => setOrdner(Array.isArray(j?.folders) ? j.folders : []))
@@ -112,8 +131,11 @@ export default function Streams() {
   }, [kanaele]);
   useEffect(() => { ladeStand(); const id = window.setInterval(ladeStand, TAKT); return () => window.clearInterval(id); }, [ladeStand]);
 
-  useEffect(() => { try { localStorage.setItem(SPEICHER_WAND, JSON.stringify(wand)); } catch { /* egal */ } }, [wand]);
-  const umschalten = (t: string) => setWand((w) => (w.includes(t) ? w.filter((x) => x !== t) : w.length >= MAX_WAND ? w : [...w, t]));
+  // Karte "+ Multiview": hinein und die Wand oeffnen; steht er schon drin, nur oeffnen.
+  const umschalten = (t: string) => { wandSetzen(t, true); setWand(wandLesen()); setMvOffen(true); };
+  // Zurueck aus der Multiview: die Wand kann sich dort geaendert haben.
+  useEffect(() => { if (!mvOffen) setWand(wandLesen()); }, [mvOffen]);
+  // Escape schliesst nicht (die Multiview braucht es selbst) - zurueck geht es ueber den Knopf.
 
   const q = suche.trim().toLowerCase();
   const mitStand = kanaele.map((k) => ({ ...k, stand: staende[k.twitch] }));
@@ -122,13 +144,11 @@ export default function Streams() {
   const offline = gefiltert.filter((k) => !k.stand?.isLive).sort((a, b) => a.name.localeCompare(b.name));
   const zuschauerGesamt = live.reduce((s, k) => s + (k.stand?.viewers ?? 0), 0);
   const geladen = Object.keys(staende).length > 0;
-  const wandKanaele = wand.map((t) => mitStand.find((k) => k.twitch === t) ?? { twitch: t, name: t, ordner: [] as string[], stand: undefined });
-  const zeigen = gross ? wandKanaele.filter((k) => k.twitch === gross) : wandKanaele;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-6">
-        <Titel ueber="Live now" titel="Pro Streams" text="Every tracked Fortnite pro on Twitch – who's live, how many are watching, and a multiview to follow several POVs at once." />
+        <Titel ueber="Live now" titel="Live Streams" text="Pros, streamers and watch parties on Twitch – who's live, how many are watching, and the full multiview to follow several streams at once." />
         {geladen && (
           <div className="ml-auto flex gap-8">
             {[['Live', live.length, 'text-red-400'], ['Watching', zahl(zuschauerGesamt), 'text-white'], ['Tracked', gefiltert.length, 'text-white/60']].map(([t, v, c], i) => (
@@ -141,37 +161,25 @@ export default function Streams() {
         )}
       </div>
 
-      {/* Multiview */}
-      <AnimatePresence>
-        {wand.length > 0 && (
-          <motion.section initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <Glas className="p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
-                <h3 className="font-bold text-white">Multiview</h3>
-                <span className="text-xs text-white/40">{wand.length}/{MAX_WAND} · sound on one stream at a time</span>
-                {gross && <button type="button" onClick={() => setGross('')} className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/70 hover:border-sky-400/60 hover:text-sky-300">Show all {wand.length}</button>}
-                <button type="button" onClick={() => { setWand([]); setGross(''); setTon(''); }} className="ml-auto rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-white/60 hover:border-rose-400/60 hover:text-rose-300">Clear</button>
-              </div>
-              <div className={`grid gap-3 ${spalten(zeigen.length)}`}>
-                {zeigen.map((k) => (
-                  <motion.div key={k.twitch} layout className={`group relative aspect-video overflow-hidden rounded-2xl border bg-black ${ton === k.twitch ? 'border-sky-400/70' : 'border-white/10'}`}>
-                    <TwitchKachel kanal={k.twitch} ton={ton === k.twitch} />
-                    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent p-2.5 opacity-0 transition group-hover:opacity-100">
-                      <span className="text-sm font-bold text-white">{k.name}</span>
-                      {k.stand?.isLive ? <Zuschauer n={k.stand.viewers} /> : <span className="rounded bg-white/10 px-1.5 text-[10px] text-white/60">offline</span>}
-                      <span className="pointer-events-auto ml-auto flex gap-1.5">
-                        <button type="button" onClick={() => setTon(ton === k.twitch ? '' : k.twitch)} className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${ton === k.twitch ? 'bg-sky-400 text-[#06080f]' : 'bg-white/15 text-white hover:bg-white/25'}`}>{ton === k.twitch ? 'Sound on' : 'Sound'}</button>
-                        <button type="button" onClick={() => setGross(gross === k.twitch ? '' : k.twitch)} className="rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-white/25">{gross === k.twitch ? 'Back' : 'Focus'}</button>
-                        <button type="button" onClick={() => { umschalten(k.twitch); if (gross === k.twitch) setGross(''); }} className="rounded-lg bg-white/15 px-2 py-1 text-[11px] font-bold text-white hover:bg-rose-500">✕</button>
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </Glas>
-          </motion.section>
-        )}
-      </AnimatePresence>
+      {/* Multiview: die der echten Seite, fest unter dem Kopf */}
+      <Glas className="flex flex-wrap items-center gap-4 p-4" verzoegerung={0.05}>
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400/15 text-lg text-sky-300">▦</span>
+        <div className="min-w-0">
+          <h3 className="font-bold text-white">Multiview</h3>
+          <p className="text-xs text-white/45">{wand.length ? `${wand.length} stream${wand.length === 1 ? '' : 's'} on your wall` : 'Your wall is empty – add streams from the cards or in the side panel'} · side panel with folders, filters and quality · <kbd className="rounded border border-white/15 px-1 font-mono">Ctrl</kbd>+<kbd className="rounded border border-white/15 px-1 font-mono">B</kbd></p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <button type="button" onClick={() => { try { localStorage.setItem('multihub_mehrfach', 'false'); } catch { /* egal */ } setMvOffen(true); }} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 transition hover:border-sky-400/60 hover:text-white">Single view</button>
+          <button type="button" onClick={() => { try { localStorage.setItem('multihub_mehrfach', 'true'); localStorage.setItem(SCHLUESSEL_SEITE, 'true'); } catch { /* egal */ } setMvOffen(true); }} className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-[#06080f] shadow-[0_10px_30px_-10px_rgba(56,189,248,0.8)] transition hover:-translate-y-0.5 hover:bg-sky-300">Open multiview →</button>
+        </div>
+      </Glas>
+      {mvOffen && (
+        <>
+          <MvSeite />
+          <button type="button" onClick={() => setMvOffen(false)}
+            className="fixed bottom-4 right-4 z-[400] rounded-full border border-white/15 bg-[#06080f]/85 px-4 py-1.5 text-xs font-bold text-white shadow-xl backdrop-blur transition hover:border-sky-400/60 hover:text-sky-300">✕ Back to Live Streams</button>
+        </>
+      )}
 
       {/* Filter */}
       <Glas className="flex flex-wrap items-center gap-3 p-3" verzoegerung={0.1}>
