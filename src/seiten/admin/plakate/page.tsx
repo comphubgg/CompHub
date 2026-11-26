@@ -1,0 +1,318 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import T from '../port/app/components/T';
+import SeitenKopf from '../port/app/components/SeitenKopf';
+import { NurAdmins } from '../teile';
+import { useT } from '../port/app/components/SprachProvider';
+import KartenPlakat from './KartenPlakat';
+
+/*
+ * Plakate - ein Bild fuer Spieler, Standings, Finals und Top 5, mit Beitragstext zum Kopieren (Betreiber, 21.10.2026: "ein Plakat fuer alles unter Posts, in meinem Stil").
+ *
+ * Gezeichnet wird auf dem Server (/api/plakat, nur fuer den Admin); die Zahlen sind die der Cup-Seiten und der Statistik - nichts ist geschaetzt. Hier waehlt man den Cup und die
+ * Spieltage (mehrere Tage eines Finales rechnen sich zusammen), den Spieler oder das Team und sieht gleich das Bild. Herunterladen, als Bild kopieren oder den Text zum Beitrag nehmen.
+ */
+
+type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'chancen' | 'heats' | 'karte';
+const ARTEN: Array<[Art, string]> = [['spieler', 'Players'], ['standings', 'Standings'], ['finale', 'Finals'], ['top5', 'Top 5'], ['earnings', 'Earnings timeline'], ['chancen', 'Chances'], ['heats', 'Heats'], ['karte', 'Map']];
+
+interface Fenster { status: string; begin: number; end?: number; eventId: string; windowId: string; region: string; istFinale: boolean }
+interface Cup { id: string; titel: string; regionen: Record<string, Fenster[]> }
+
+const LISTEN: Array<[string, string]> = [
+  ['verdienst', 'Prize Pool'], ['elims', 'Eliminations'], ['teamElims', 'Team eliminations'], ['damage', 'Damage'], ['hits', 'Hits'], ['headshots', 'Headshots'], ['builds', 'Builds placed'],
+];
+const REGIONEN = ['', 'EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+const feld = 'w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500';
+const beschriftung = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-white/40';
+const tag = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+export default function PlakatSeite() {
+  const t = useT();
+  const [erlaubt, setErlaubt] = useState<boolean | null>(null);
+  const [cups, setCups] = useState<Cup[]>([]);
+  const [laedt, setLaedt] = useState(true);
+  const [art, setArt] = useState<Art>('standings');
+  const [suche, setSuche] = useState('');
+  const [cupId, setCupId] = useState('');
+  const [region, setRegion] = useState('');
+  const [tage, setTage] = useState<string[]>([]);
+  const [titel, setTitel] = useState('');
+  const [stufe, setStufe] = useState('');
+  const [datum, setDatum] = useState('');
+  const [preis, setPreis] = useState('');
+  const [spieler, setSpieler] = useState('');
+  const [anzahl, setAnzahl] = useState(10);
+  const [liste, setListe] = useState('verdienst');
+  const [jahr, setJahr] = useState(new Date().getFullYear());
+  const [topRegion, setTopRegion] = useState('EU');
+  const [chancenTag, setChancenTag] = useState('');
+
+  const [bildUrl, setBildUrl] = useState('');
+  const [bildFehler, setBildFehler] = useState('');
+  const [bauen, setBauen] = useState(false);
+  const [text, setText] = useState('');
+  const [meldung, setMeldung] = useState('');
+  const blobUrl = useRef('');
+
+  useEffect(() => {
+    fetch('/api/auth/check-admin').then((r) => r.json()).then((j) => setErlaubt(j?.isAdmin === true)).catch(() => setErlaubt(false));
+  }, []);
+  useEffect(() => {
+    if (!erlaubt) return;
+    fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups(Array.isArray(j?.cups) ? j.cups : []))
+      .catch(() => setCups([])).finally(() => setLaedt(false));
+  }, [erlaubt]);
+
+  // Die Cups mit mindestens einem Spieltag, der schon begonnen hat - zuerst die juengsten.
+  const wahl = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    const jetzt = Date.now();
+    return cups
+      .map((c) => ({ c, letzter: Math.max(0, ...Object.values(c.regionen).flat().filter((f) => f.begin <= jetzt).map((f) => f.begin)) }))
+      .filter((x) => x.letzter > 0 && (!q || x.c.titel.toLowerCase().includes(q)))
+      .sort((a, b) => b.letzter - a.letzter).slice(0, 40).map((x) => x.c);
+  }, [cups, suche]);
+  const cup = cups.find((c) => c.id === cupId);
+  const regionen = cup ? Object.keys(cup.regionen) : [];
+  const fenster = useMemo(() => (cup && region ? [...(cup.regionen[region] ?? [])].filter((f) => f.begin <= Date.now()).sort((a, b) => a.begin - b.begin) : []), [cup, region]);
+
+  const cupWaehlen = (c: Cup) => {
+    setCupId(c.id); setTitel(c.titel);
+    const rs = Object.keys(c.regionen);
+    const r = rs.includes('EU') ? 'EU' : rs[0] ?? '';
+    setRegion(r); setTage([]); setDatum('');
+  };
+  const tagUmschalten = (f: Fenster) => {
+    const neu = tage.includes(f.windowId) ? tage.filter((x) => x !== f.windowId) : [...tage, f.windowId];
+    setTage(neu);
+    const erster = fenster.filter((x) => neu.includes(x.windowId)).sort((a, b) => a.begin - b.begin)[0];
+    setDatum(erster ? tag(erster.begin) : '');
+  };
+
+  const adresse = useMemo(() => {
+    if (art === 'karte') return '';
+    const q = new URLSearchParams({ art });
+    if (art === 'top5') {
+      q.set('region', topRegion); q.set('liste', liste); q.set('jahr', String(jahr));
+      return `/api/plakat?${q.toString()}`;
+    }
+    if (art === 'chancen') {
+      if (chancenTag) q.set('window', chancenTag); else q.set('region', topRegion);
+      return `/api/plakat?${q.toString()}`;
+    }
+    if (art === 'earnings') {
+      if (spieler.trim().length < 2) return '';
+      q.set('q', spieler.trim());
+      return `/api/plakat?${q.toString()}`;
+    }
+    // Heats: die Einteilung des gewaehlten Heats-Events (lib/heatsPosts) - auch bevor sie ganz feststeht, als Vorschau.
+    if (art === 'heats') {
+      const h = fenster.find((x) => /Heat\d+/i.test(x.windowId));
+      if (!h) return '';
+      q.set('event', h.eventId); q.set('region', region); q.set('alle', '1');
+      return `/api/plakat?${q.toString()}`;
+    }
+    const f = fenster.find((x) => tage.includes(x.windowId));
+    if (!f || !tage.length) return '';
+    q.set('event', f.eventId); q.set('windows', tage.join(','));
+    if (titel) q.set('titel', titel);
+    if (stufe) q.set('stufe', stufe);
+    q.set('region', region);
+    if (datum) q.set('datum', datum);
+    if (preis) q.set('preis', preis);
+    if (art === 'spieler' && spieler.trim()) q.set('q', spieler.trim());
+    return `/api/plakat?${q.toString()}`;
+  }, [art, fenster, tage, titel, stufe, region, datum, preis, spieler, anzahl, liste, jahr, topRegion, chancenTag]);
+
+  const zeichnen = useCallback(async () => {
+    if (!adresse) { setBildUrl(''); setText(''); return; }
+    setBauen(true); setBildFehler(''); setMeldung('');
+    try {
+      const [b, tx] = await Promise.all([fetch(adresse), fetch(`${adresse}&format=json`)]);
+      const typ = b.headers.get('Content-Type') ?? '';
+      if (typ.startsWith('image/')) {
+        const blob = await b.blob();
+        if (blobUrl.current) URL.revokeObjectURL(blobUrl.current);
+        blobUrl.current = URL.createObjectURL(blob);
+        setBildUrl(blobUrl.current);
+      } else {
+        const j = await b.json().catch(() => ({} as { fehler?: string }));
+        setBildUrl(''); setBildFehler(String((j as { fehler?: string }).fehler ?? t('The poster cannot be drawn right now.')));
+      }
+      const tj = await tx.json().catch(() => ({} as { text?: string }));
+      setText(String((tj as { text?: string }).text ?? ''));
+    } catch { setBildFehler(t('No connection to the server.')); } finally { setBauen(false); }
+  }, [adresse, t]);
+
+  // Neu zeichnen, kurz nachdem sich eine Eingabe nicht mehr aendert.
+  useEffect(() => {
+    const uhr = setTimeout(() => { void zeichnen(); }, 600);
+    return () => clearTimeout(uhr);
+  }, [zeichnen]);
+  useEffect(() => () => { if (blobUrl.current) URL.revokeObjectURL(blobUrl.current); }, []);
+
+  const bildKopieren = async () => {
+    try {
+      const blob = await (await fetch(bildUrl)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setMeldung(t('Image copied'));
+    } catch { setMeldung(t('Copying did not work - please download.')); }
+    setTimeout(() => setMeldung(''), 2500);
+  };
+  const textKopieren = async () => {
+    try { await navigator.clipboard.writeText(text); setMeldung(t('Text copied')); } catch { setMeldung(t('Copying did not work.')); }
+    setTimeout(() => setMeldung(''), 2500);
+  };
+
+  if (erlaubt === false) {
+    return <NurAdmins />;
+  }
+
+  return (
+    <main className="text-white">
+      <div className="">
+        <SeitenKopf className="mb-6" marke={<T>Posts</T>} titel={<T>Plakate</T>}
+          text={<T>An image for the post: a player or team with all numbers, the standings, the final or the top 5. The numbers are those of the cup pages and the stats.</T>} />
+
+        <nav className="mb-5 flex flex-wrap gap-1 self-start rounded-full border border-white/10 bg-white/[0.035] backdrop-blur-xl p-1">
+          {ARTEN.map(([k, name]) => (
+            <button key={k} type="button" onClick={() => setArt(k)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${art === k ? 'bg-sky-500 text-white shadow' : 'text-white/55 hover:text-white'}`}>
+              <T>{name}</T>
+            </button>
+          ))}
+        </nav>
+
+        {art === 'karte' ? <KartenPlakat /> : (
+        <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
+          <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            {art === 'earnings' ? (
+              <label className="block"><span className={beschriftung}><T>Spieler</T></span>
+                <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder={t('Name as in the profile, e.g. Peterbot')} spellCheck={false} className={feld} />
+                <span className="mt-2 block text-[11px] leading-snug text-white/40"><T>Prize money per year since 2019 from Epic's payout tables and the LAN prize lists - the same numbers as in the stats.</T></span>
+              </label>
+            ) : art === 'chancen' ? (
+              <>
+                <label className="block"><span className={beschriftung}><T>Region</T></span>
+                  <select value={topRegion} onChange={(e) => { setTopRegion(e.target.value); setChancenTag(''); }} className={feld}>
+                    {REGIONEN.filter(Boolean).map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select></label>
+                <label className="block"><span className={beschriftung}><T>Played day (optional)</T></span>
+                  <input value={chancenTag} onChange={(e) => setChancenTag(e.target.value.trim())} placeholder="S42_FNCSSolo_Final_Day1_EU" spellCheck={false} className={feld} />
+                  <span className="mt-2 block text-[11px] leading-snug text-white/40"><T>Who wins the final? The five best projections after the first day - points per game without the best game, blended with the field average. Empty: the final that is waiting for its next day right now.</T></span>
+                </label>
+              </>
+            ) : art === 'top5' ? (
+              <>
+                <label className="block"><span className={beschriftung}><T>Liste</T></span>
+                  <select value={liste} onChange={(e) => setListe(e.target.value)} className={feld}>
+                    {LISTEN.map(([k, n]) => <option key={k} value={k}>{t(n)}</option>)}
+                  </select></label>
+                <label className="block"><span className={beschriftung}><T>Region</T></span>
+                  <select value={topRegion} onChange={(e) => setTopRegion(e.target.value)} className={feld}>
+                    {REGIONEN.map((r) => <option key={r} value={r}>{r || t('Welt')}</option>)}
+                  </select></label>
+                <label className="block"><span className={beschriftung}><T>Jahr</T></span>
+                  <input type="number" value={jahr} onChange={(e) => setJahr(Number(e.target.value) || new Date().getFullYear())} className={feld} /></label>
+              </>
+            ) : (
+              <>
+                <label className="block"><span className={beschriftung}><T>Cup</T></span>
+                  <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Search cup …')} spellCheck={false} className={feld} /></label>
+                <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+                  {laedt && <p className="py-3 text-center text-xs text-white/40"><T>Wird geladen …</T></p>}
+                  {wahl.map((c) => (
+                    <button key={c.id} type="button" onClick={() => cupWaehlen(c)}
+                      className={`block w-full truncate rounded-lg border px-3 py-1.5 text-left text-xs transition ${cupId === c.id
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-white/10 text-white/70 hover:border-white/25'}`}>{c.titel}</button>
+                  ))}
+                </div>
+                {cup && (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {regionen.map((r) => (
+                        <button key={r} type="button" onClick={() => { setRegion(r); setTage([]); setDatum(''); }}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${region === r
+                            ? 'border-sky-500 bg-sky-500 text-white' : 'border-white/15 text-white/55 hover:border-white/30'}`}>{r}</button>
+                      ))}
+                    </div>
+                    <div>
+                      <span className={beschriftung}><T>Match days — several are added up</T></span>
+                      <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+                        {fenster.map((f) => (
+                          <label key={f.windowId} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition ${tage.includes(f.windowId)
+                            ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/10 hover:border-white/25'}`}>
+                            <input type="checkbox" checked={tage.includes(f.windowId)} onChange={() => tagUmschalten(f)} className="accent-sky-500" />
+                            <span className="min-w-0 flex-1 truncate">{f.windowId.replace(/^S\d+_/, '').replace(/_[A-Z]{2,4}$/, '')}</span>
+                            <span className="text-[10px] text-white/40">{tag(f.begin)}{f.istFinale ? ' · F' : ''}</span>
+                          </label>
+                        ))}
+                        {!fenster.length && <p className="py-3 text-center text-xs text-white/40"><T>No match day played yet.</T></p>}
+                      </div>
+                    </div>
+                  </>
+                )}
+                <label className="block"><span className={beschriftung}><T>Titel</T></span>
+                  <input value={titel} onChange={(e) => setTitel(e.target.value)} spellCheck={false} className={feld} /></label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block"><span className={beschriftung}><T>Stufe</T></span>
+                    <input value={stufe} onChange={(e) => setStufe(e.target.value)} placeholder="Finals" spellCheck={false} className={feld} /></label>
+                  <label className="block"><span className={beschriftung}><T>Datum</T></span>
+                    <input value={datum} onChange={(e) => setDatum(e.target.value)} spellCheck={false} className={feld} /></label>
+                </div>
+                <label className="block"><span className={beschriftung}><T>Prize money (optional)</T></span>
+                  <input value={preis} onChange={(e) => setPreis(e.target.value)} placeholder="$20,000" spellCheck={false} className={feld} /></label>
+                {art === 'spieler' && (
+                  <label className="block"><span className={beschriftung}><T>Player or team</T></span>
+                    <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder={t('Type a name — without input the first one')} spellCheck={false} className={feld} /></label>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              {bildUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={bildUrl} alt="" className={`w-full rounded-xl transition ${bauen ? 'opacity-50' : ''}`} />
+                : (
+                  <p className="px-6 py-24 text-center text-sm text-white/40">
+                    {bauen ? <T>Drawing poster …</T>
+                      : bildFehler || (art === 'top5' || art === 'earnings' || art === 'chancen' ? <T>The poster shows up here.</T> : <T>Pick a cup, region and at least one match day — then the poster shows up here.</T>)}
+                  </p>
+                )}
+              {bauen && bildUrl && <span className="absolute right-5 top-5 rounded-full bg-black/40 px-3 py-1 text-[11px] text-white/70"><T>drawing …</T></span>}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <a href={bildUrl || undefined} download="comphub-plakat.png" aria-disabled={!bildUrl}
+                className={`rounded-full px-5 py-2 text-xs font-bold text-white transition ${bildUrl ? 'bg-sky-500 hover:bg-sky-400' : 'pointer-events-none bg-white/[0.12] opacity-50'}`}>
+                <T>Herunterladen</T>
+              </a>
+              <button type="button" onClick={() => void bildKopieren()} disabled={!bildUrl}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                <T>Bild kopieren</T>
+              </button>
+              {meldung && <span className="text-xs text-white/55">{meldung}</span>}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/40"><T>Text for the post</T></h2>
+                <button type="button" onClick={() => void textKopieren()} disabled={!text}
+                  className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                  <T>Text kopieren</T>
+                </button>
+              </div>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={9} spellCheck={false}
+                className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm leading-relaxed text-white/85 outline-none focus:border-sky-500" />
+              <p className="mt-2 text-[11px] text-white/40"><T>X accounts are in the text where maintained — check briefly before posting.</T></p>
+            </div>
+          </section>
+        </div>
+        )}
+      </div>
+    </main>
+  );
+}

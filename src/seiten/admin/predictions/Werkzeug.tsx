@@ -1594,7 +1594,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     };
     karteZeigen([...liste, neu], liste.length);
     setTurnierListeOffen(false);
-    setStatus(`${uebs('Shapes taken from')} „${tk.titel}" — `
+    setStatus(`${uebs('Shapes taken from')} “${tk.titel}” — `
       + uebs('you set the assignment yourself'));
   }
 

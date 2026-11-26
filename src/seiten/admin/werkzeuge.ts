@@ -31,17 +31,17 @@ export const WERKZEUGE: Werkzeug[] = [
   // Inhalte
   { slug: 'tweets', pfad: '/admin/tweets', titel: 'Posts', text: 'Create stat posts', gruppe: 'inhalte', eigen: true, stichworte: 'posts tweets x twitter stats beitraege' },
   { slug: 'daily-posts', pfad: '/posts', titel: 'Daily posts', text: 'The three posts of the day with text and image', gruppe: 'inhalte', stichworte: 'daily posts today' },
-  { slug: 'post-ideen', pfad: '/admin/post-ideen', titel: 'Post ideas', text: 'Two ready posts for X every day from real data: image and text', gruppe: 'inhalte', stichworte: 'post ideas daily x orgs earnings banner' },
-  { slug: 'tiktok', pfad: '/admin/tiktok', titel: 'TikTok', text: 'The daily video to download', gruppe: 'inhalte', stichworte: 'video clips' },
-  { slug: 'plakate', pfad: '/admin/plakate', titel: 'Posters', text: 'Image and text for players, standings, finals and top 5', gruppe: 'inhalte', stichworte: 'posters grafik plakate' },
+  { slug: 'post-ideen', pfad: '/admin/post-ideen', titel: 'Post ideas', text: 'Two ready posts for X every day from real data: image and text', gruppe: 'inhalte', eigen: true, stichworte: 'post ideas daily x orgs earnings banner' },
+  { slug: 'tiktok', pfad: '/admin/tiktok', titel: 'TikTok', text: 'The daily video to download', gruppe: 'inhalte', eigen: true, stichworte: 'video clips' },
+  { slug: 'plakate', pfad: '/admin/plakate', titel: 'Posters', text: 'Image and text for players, standings, finals and top 5', gruppe: 'inhalte', eigen: true, stichworte: 'posters grafik plakate' },
   { slug: 'maps', pfad: '/maps', titel: 'Maps', text: 'Build tournament maps and set drop spots', gruppe: 'inhalte', stichworte: 'maps drop spots karten' },
   { slug: 'alte-maps', pfad: '/admin/alte-maps', titel: 'Old maps', text: 'Maintain maps by hand: shapes, teams, leaderboard', gruppe: 'inhalte', stichworte: 'old maps archiv editor' },
   { slug: 'loot-routen', pfad: '/admin/loot-routen', titel: 'Loot routes', text: 'Paths, loot and chests of the pros per game, also in 3D', gruppe: 'inhalte', stichworte: 'loot routes 3d pros' },
   { slug: 'predictions', pfad: '/admin/predictions', titel: 'Predictions', text: 'Draw predictions', gruppe: 'inhalte', eigen: true, stichworte: 'predictions prognosen' },
   { slug: 'awards', pfad: '/admin/awards', titel: 'Awards editor', text: 'CompHub Awards 2026: categories, phases, nominees', gruppe: 'inhalte', eigen: true, stichworte: 'awards editor' },
   { slug: 'awards-page', pfad: '/awards', titel: 'Awards page', text: 'Preview of the awards page and voting (only for you)', gruppe: 'inhalte', stichworte: 'awards vote preview' },
-  { slug: 'archive', pfad: '/admin/archive', titel: 'Archive', text: 'Photos and videos for events and players', gruppe: 'inhalte', stichworte: 'archive photos videos archiv' },
-  { slug: 'assets', pfad: '/admin/assets', titel: 'Image library', text: 'Store logos and graphics', gruppe: 'inhalte', stichworte: 'assets logos bilder bildvorrat' },
+  { slug: 'archive', pfad: '/admin/archive', titel: 'Archive', text: 'Photos and videos for events and players', gruppe: 'inhalte', eigen: true, stichworte: 'archive photos videos archiv' },
+  { slug: 'assets', pfad: '/admin/assets', titel: 'Image library', text: 'Store logos and graphics', gruppe: 'inhalte', eigen: true, stichworte: 'assets logos bilder bildvorrat' },
 
   // Spieler & Teams
   { slug: 'players', pfad: '/admin/players', titel: 'Player Center', text: 'Maintain flags, display names and @ accounts', gruppe: 'spieler', eigen: true, stichworte: 'players spieler flags x photos' },
@@ -60,13 +60,13 @@ export const WERKZEUGE: Werkzeug[] = [
   // Nutzer & Zugang
   { slug: 'accounts', pfad: '/admin/accounts', titel: 'Accounts', text: 'Assign roles and VIP, keys, Discord, orgs', gruppe: 'nutzer', eigen: true, stichworte: 'accounts roles konten rollen' },
   { slug: 'vip-access', pfad: '/admin/vip-access', titel: 'VIP access', text: 'Deadline, chat and delete per VIP', gruppe: 'nutzer', eigen: true, stichworte: 'vip access keys deadline discord' },
-  { slug: 'switch', pfad: '/admin/switch', titel: 'Switch account', text: 'See what a VIP or manager sees', gruppe: 'nutzer', stichworte: 'switch impersonate wechseln' },
+  { slug: 'switch', pfad: '/admin/switch', titel: 'Switch account', text: 'See what a VIP or manager sees', gruppe: 'nutzer', eigen: true, stichworte: 'switch impersonate wechseln' },
   { slug: 'sections', pfad: '/admin/sections', titel: 'Sections', text: 'Put areas on standby or offline', gruppe: 'nutzer', eigen: true, stichworte: 'sections offline standby bereiche' },
-  { slug: 'services', pfad: '/admin/services', titel: 'Sign-in services', text: 'Set up Twitch, Discord and Google', gruppe: 'nutzer', stichworte: 'services oauth discord google twitch' },
+  { slug: 'services', pfad: '/admin/services', titel: 'Sign-in services', text: 'Set up Twitch, Discord and Google', gruppe: 'nutzer', eigen: true, stichworte: 'services oauth discord google twitch' },
 
   // Posteingang
   { slug: 'contact', pfad: '/admin/contact', titel: 'Contact', text: 'Read messages from the form', gruppe: 'post', eigen: true, zaehler: 'kontakt', stichworte: 'contact inbox kontakt' },
-  { slug: 'partner', pfad: '/admin/partner', titel: 'Partner requests', text: 'Copy ready emails and DMs to streamers', gruppe: 'post', stichworte: 'partner requests streamer mail dm' },
+  { slug: 'partner', pfad: '/admin/partner', titel: 'Partner requests', text: 'Copy ready emails and DMs to streamers', gruppe: 'post', eigen: true, stichworte: 'partner requests streamer mail dm' },
 
   // Die Bereiche des Dashboards der Seite selbst
   { slug: 'vip-tools', pfad: '/admin?bereich=vip', titel: 'VIP tools', text: 'Overlays, globals, POV, match ID finder, Twitch bot and stats', gruppe: 'dashboard', stichworte: 'overlays globals pov twitch bot' },

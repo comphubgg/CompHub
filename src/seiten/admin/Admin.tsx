@@ -23,6 +23,14 @@ import FotoPool from './fotos-pool/page';
 import FotoCredits from './fotos-credits/page';
 import FlaggenSeite from './flaggen/page';
 import ProspectsSeite from './prospects/page';
+import PostIdeenSeite from './post-ideen/page';
+import TikTokSeite from './tiktok/page';
+import PlakateSeite from './plakate/page';
+import ArchivSeite from './archive/page';
+import BildvorratSeite from './assets/page';
+import WechselSeite from './switch/page';
+import DiensteSeite from './services/page';
+import PartnerSeite from './partner/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -43,6 +51,14 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'fotos-credits': portiert(FotoCredits, 'Players & Teams'),
   flaggen: portiert(FlaggenSeite, 'Players & Teams'),
   prospects: portiert(ProspectsSeite, 'Players & Teams'),
+  'post-ideen': portiert(PostIdeenSeite, 'Content'),
+  'tiktok': portiert(TikTokSeite, 'Content'),
+  'plakate': portiert(PlakateSeite, 'Content'),
+  'archive': portiert(ArchivSeite, 'Content'),
+  'assets': portiert(BildvorratSeite, 'Content'),
+  'switch': portiert(WechselSeite, 'Users & Access'),
+  'services': portiert(DiensteSeite, 'Users & Access'),
+  'partner': portiert(PartnerSeite, 'Inbox'),
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */

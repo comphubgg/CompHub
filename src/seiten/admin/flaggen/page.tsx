@@ -437,7 +437,7 @@ export default function FlaggenPflege() {
                     <td className="max-w-[230px] px-3 py-2">
                       <a href={`/statistics?spieler=${z.id}`} target="_blank" rel="noreferrer" tabIndex={-1} className={`block truncate font-semibold hover:text-sky-300 ${z.name ? 'text-white' : 'font-mono text-xs text-white/55'}`}>{z.name || `${z.id.slice(0, 12)}… (name unknown)`}</a>
                       {z.namen.length > 0 && <p className="truncate text-[11px] text-white/40" title={z.namen.join(', ')}>{z.namen.join(' · ')}</p>}
-                      {z.alterEintrag && <p className="text-[11px] text-violet-300" title="Stored only under the name, without account ID - the stats cannot see it. Saving puts it under the ID.">Alteintrag „{z.alterEintrag}“</p>}
+                      {z.alterEintrag && <p className="text-[11px] text-violet-300" title="Stored only under the name, without account ID - the stats cannot see it. Saving puts it under the ID.">Old entry “{z.alterEintrag}”</p>}
                       {z.anzeige && z.anzeige !== z.name && <p className="truncate text-[11px] text-sky-300/80" title="Maintained display name - shown everywhere instead of the raw name">shows as “{z.anzeige}“</p>}
                       {finder('anzeige')}
                     </td>
