@@ -1,141 +1,396 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { flagge } from '../teile/Glas';
 
 /*
- * Competitive (Betreiber, 26.11.2026: "alles, was jetzt drin ist, in einfach 10-mal geiler, animiert, Effekte, angeordnet"). Oben live und als
- * Naechstes, dann die Top-Spieler der Power Rankings, dann alle Werkzeuge. Daten von thecomphub.com (/api/cup-catalog, /api/power-rankings).
+ * Competitive-Uebersicht, neu (Betreiber, 26.11.2026: "Top 10 reingeklatscht, Tools, live ... so fuehle ich sie gar nicht"). Aufbau:
+ * 1. Buehne ueber die volle Breite: der wichtigste Cup (live, sonst der naechste) mit Banner, Countdown und - wenn live - der Live-Top-5.
+ * 2. Zeitleiste der naechsten 24 Stunden ueber alle Regionen.
+ * 3. Kachelwand: Nummer 1 der Power Rankings gross, die Verfolger, Aufsteiger/Absteiger, Laender, letzte Sieger.
+ * Die Werkzeuge stehen oben in der Unter-Navigation, hier unten nur als Bild-Kacheln zum Weiterklicken.
  */
 
-interface Fenster { status: string; begin: number; end: number; name?: string; windowId?: string }
-interface Cup { id: string; titel: string; bild?: string; farbe?: string; regionen?: Record<string, Fenster[]> }
-interface Spieler { rank: number; id: string; name: string; anzeige?: string; land?: string; wertung: number; deltaPlatz: number; bild?: string | null }
+interface Fenster { status: string; begin: number; end: number; eventId?: string; windowId?: string; region?: string; rundenTyp?: string; istFinale?: boolean }
+interface Cup { id: string; titel: string; untertitel?: string; bild?: string; farbe?: string; regionen?: Record<string, Fenster[]> }
+interface PR { rank: number; id: string; name: string; anzeige?: string; land?: string; wertung: number; deltaPlatz: number; deltaWertung?: number; bild?: string | null }
+interface LbSpieler { id: string; name: string; anzeige?: string; land?: string; img?: string | null }
+interface LbEintrag { rank: number; points: number; elims: number; games: number; wins: number; players: LbSpieler[] }
+interface Termin { cup: Cup; region: string; f: Fenster }
 
-const SEITE = 'https://www.thecomphub.com';
-const uhr = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(x).padStart(2, '0')}s`; };
-const flagge = (l?: string) => l ? `${SEITE}/flags/${l.toLowerCase()}.png` : '';
+const uhr = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(x).padStart(2, '0')}s`;
+};
+const zeit = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+// Wichtigkeit einer Region fuer die Buehne: EU und NAC zuerst (dort sitzt das Publikum)
+const GEWICHT: Record<string, number> = { EU: 0, NAC: 1, NAW: 2, BR: 3, ASIA: 4, ME: 5, OCE: 6 };
+const gewicht = (r: string) => GEWICHT[r] ?? 9;
+const name = (p: { anzeige?: string; name: string }) => p.anzeige || p.name;
 
 function useJetzt() { const [t, setT] = useState(Date.now()); useEffect(() => { const i = setInterval(() => setT(Date.now()), 1000); return () => clearInterval(i); }, []); return t; }
 
-function LiveLeiste({ cups }: { cups: Cup[] }) {
-  const jetzt = useJetzt();
-  const { live, naechste } = useMemo(() => {
-    const live: Array<{ cup: Cup; region: string; f: Fenster }> = []; const kommt: Array<{ cup: Cup; region: string; f: Fenster }> = [];
-    for (const c of cups) for (const [r, ws] of Object.entries(c.regionen ?? {})) for (const f of ws) {
-      if (f.begin <= jetzt && f.end >= jetzt) live.push({ cup: c, region: r, f });
-      else if (f.begin > jetzt && f.begin - jetzt < 36 * 3600e3) kommt.push({ cup: c, region: r, f });
-    }
-    kommt.sort((a, b) => a.f.begin - b.f.begin);
-    return { live, naechste: kommt.slice(0, 6) };
-  }, [cups, jetzt]);
+function teileAuf(cups: Cup[], jetzt: number) {
+  const live: Termin[] = [], kommt: Termin[] = [], vorbei: Termin[] = [];
+  for (const c of cups) for (const [r, ws] of Object.entries(c.regionen ?? {})) for (const f of ws) {
+    const t = { cup: c, region: r, f };
+    if (f.begin <= jetzt && f.end >= jetzt) live.push(t);
+    else if (f.begin > jetzt) kommt.push(t);
+    else if (jetzt - f.end < 3 * 86400e3) vorbei.push(t);
+  }
+  live.sort((a, b) => gewicht(a.region) - gewicht(b.region));
+  kommt.sort((a, b) => a.f.begin - b.f.begin);
+  vorbei.sort((a, b) => b.f.end - a.f.end);
+  return { live, kommt, vorbei };
+}
+
+/** Live-Top-5 eines laufenden Spieltags, alle 15 Sekunden frisch. */
+function LiveTop({ f }: { f: Fenster }) {
+  const [liste, setListe] = useState<LbEintrag[] | null>(null);
+  useEffect(() => {
+    setListe(null);
+    if (!f.eventId || !f.windowId) return;
+    let aus = false;
+    const holen = () => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId!)}&window=${encodeURIComponent(f.windowId!)}&limit=5`)
+      .then((r) => r.json()).then((j) => { if (!aus) setListe((j.entries ?? []).slice(0, 5)); }).catch(() => { if (!aus) setListe([]); });
+    holen(); const i = setInterval(holen, 15000);
+    return () => { aus = true; clearInterval(i); };
+  }, [f.eventId, f.windowId]);
+  if (!liste) return <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/[0.05]" />)}</div>;
+  if (!liste.length) return <p className="py-6 text-sm text-white/60">First games are still running – the leaderboard fills after the first results.</p>;
   return (
-    <section className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" /></span>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-red-300">Live now</h2>
-        </div>
-        {live.length === 0 ? <p className="mt-6 text-2xl font-bold text-white/70">No cup running right now.</p> : (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {live.slice(0, 4).map(({ cup, region, f }, i) => (
-              <motion.a key={cup.id + region} href={`${SEITE}/events/${cup.id}`} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                className="group relative overflow-hidden rounded-2xl border border-white/10">
-                {cup.bild && <img src={cup.bild} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40 transition duration-700 group-hover:scale-105 group-hover:opacity-60" />}
-                <div className="relative bg-gradient-to-t from-black/80 to-transparent p-4 pt-16">
-                  <p className="text-xs font-semibold text-sky-300">{region} · ends in {uhr(f.end - jetzt)}</p>
-                  <p className="mt-1 text-lg font-bold leading-tight text-white">{cup.titel}</p>
-                </div>
-              </motion.a>
-            ))}
+    <ol className="space-y-2">
+      <AnimatePresence initial={false}>
+        {liste.map((e) => (
+          <motion.li layout key={e.players.map((p) => p.id).join()} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-xl">
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${e.rank === 1 ? 'bg-yellow-300 text-black' : e.rank <= 3 ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>{e.rank}</span>
+            <div className="flex -space-x-2">
+              {e.players.slice(0, 3).map((p) => p.img
+                ? <img key={p.id} src={p.img} alt="" className="h-9 w-9 rounded-full border-2 border-[#0b0f1a] object-cover object-top" />
+                : <span key={p.id} className="grid h-9 w-9 place-items-center rounded-full border-2 border-[#0b0f1a] bg-white/10 text-xs font-bold text-white/70">{name(p).slice(0, 1)}</span>)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {e.players.map((p, i) => <span key={p.id}>{i > 0 && <span className="text-white/30"> · </span>}<Link to={`/competitive/player/${p.id}`} className="hover:text-sky-300">{name(p)}</Link></span>)}
+              </p>
+              <p className="text-[11px] text-white/50">{e.games} games · {e.elims} elims{e.wins ? ` · ${e.wins} win${e.wins > 1 ? 's' : ''}` : ''}</p>
+            </div>
+            <span className="shrink-0 text-right"><span className="block font-mono text-lg font-bold tabular-nums text-white">{e.points}</span><span className="text-[10px] uppercase tracking-wider text-white/40">pts</span></span>
+          </motion.li>
+        ))}
+      </AnimatePresence>
+    </ol>
+  );
+}
+
+function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt: number }) {
+  const [wahl, setWahl] = useState<string | null>(null);
+  const haupt = live.find((t) => t.cup.id + t.region === wahl) ?? live[0] ?? kommt[0];
+  if (!haupt) return <div className="h-[56vh] animate-pulse rounded-[2rem] bg-white/[0.03]" />;
+  const istLive = live.includes(haupt);
+  const regionenLive = live.filter((t) => t.cup.id === haupt.cup.id);
+  const andere = live.filter((t) => t.cup.id !== haupt.cup.id);
+  return (
+    <section className="relative isolate overflow-hidden rounded-[2rem] border border-white/10">
+      <AnimatePresence mode="wait">
+        <motion.img key={haupt.cup.bild} src={haupt.cup.bild} alt="" initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.2 }}
+          className="absolute inset-0 -z-10 h-full w-full object-cover" />
+      </AnimatePresence>
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#05070d] via-[#05070d]/75 to-[#05070d]/10" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#05070d] via-transparent to-transparent" />
+      <div className="grid min-h-[56vh] gap-8 p-8 lg:grid-cols-[1.3fr_1fr] lg:p-12">
+        <div className="flex flex-col justify-end">
+          <div className="flex flex-wrap items-center gap-2">
+            {istLive ? (
+              <span className="flex items-center gap-2 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-red-300 ring-1 ring-red-400/40">
+                <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-red-400 opacity-70" /><span className="relative h-2 w-2 rounded-full bg-red-500" /></span>Live now
+              </span>
+            ) : <span className="rounded-full bg-sky-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-300 ring-1 ring-sky-400/40">Up next</span>}
+            {haupt.f.rundenTyp && <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{haupt.f.istFinale ? 'Final' : haupt.f.rundenTyp}</span>}
           </div>
-        )}
+          <h1 className="mt-4 max-w-3xl font-['Bebas_Neue'] text-6xl leading-[0.9] tracking-wide text-white drop-shadow-2xl lg:text-8xl">{haupt.cup.titel}</h1>
+          <div className="mt-6 flex flex-wrap items-end gap-10">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">{istLive ? 'Ends in' : 'Starts in'}</p>
+              <p className="font-mono text-5xl font-bold tabular-nums text-white">{uhr((istLive ? haupt.f.end : haupt.f.begin) - jetzt)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Window ({haupt.region})</p>
+              <p className="text-2xl font-semibold text-white/90">{zeit(haupt.f.begin)} – {zeit(haupt.f.end)}</p>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {istLive && regionenLive.length > 1 && regionenLive.map((t) => (
+              <button key={t.region} onClick={() => setWahl(t.cup.id + t.region)}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${t === haupt ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}>{t.region}</button>
+            ))}
+            <Link to={`/competitive/events/${haupt.cup.id}`} className="rounded-xl bg-sky-500 px-5 py-2 text-sm font-bold text-black shadow-lg shadow-sky-500/30 transition hover:bg-sky-400">{istLive ? 'Full live leaderboard →' : 'Event details →'}</Link>
+          </div>
+        </div>
+        <div className="flex flex-col justify-end">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl">
+            {istLive ? (
+              <>
+                <div className="mb-3 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Live top 5 · {haupt.region}</p><p className="text-[11px] text-white/40">updates every 15 s</p></div>
+                <LiveTop f={haupt.f} />
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Also coming up</p>
+                <ul className="space-y-2">{kommt.slice(1, 6).map((t) => (
+                  <li key={t.cup.id + t.region + t.f.begin} className="flex items-center gap-3 rounded-xl bg-black/30 px-3 py-2">
+                    <span className="w-12 rounded-md bg-white/10 py-1 text-center text-[11px] font-bold text-white/80">{t.region}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-white">{t.cup.titel}</span>
+                    <span className="font-mono text-sm tabular-nums text-sky-300">{uhr(t.f.begin - jetzt)}</span>
+                  </li>))}</ul>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Up next</h2>
-        <ul className="mt-4 space-y-2.5">
-          {naechste.map(({ cup, region, f }) => (
-            <li key={cup.id + region + f.begin} className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5">
-              <span className="w-10 shrink-0 rounded-md bg-white/10 py-1 text-center text-[11px] font-bold text-white/80">{region}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{cup.titel}</span>
-              <span className="shrink-0 font-mono text-sm tabular-nums text-sky-300">{uhr(f.begin - jetzt)}</span>
-            </li>
+      {andere.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto border-t border-white/10 bg-black/40 px-8 py-3 backdrop-blur-xl lg:px-12">
+          <span className="shrink-0 self-center text-[11px] font-semibold uppercase tracking-[0.25em] text-white/40">Also live</span>
+          {andere.map((t) => (
+            <button key={t.cup.id + t.region} onClick={() => setWahl(t.cup.id + t.region)} className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-1.5 text-sm text-white hover:bg-white/15">
+              <span className="text-[11px] font-bold text-red-300">{t.region}</span>{t.cup.titel}
+            </button>
           ))}
-          {naechste.length === 0 && <li className="text-sm text-white/50">Nothing in the next 36 hours.</li>}
-        </ul>
-      </div>
+        </div>
+      )}
     </section>
   );
 }
 
-function TopSpieler({ spieler }: { spieler: Spieler[] }) {
+/** Die naechsten 24 Stunden als Zeitleiste, eine Spur pro Region. */
+function Zeitleiste({ kommt, live, jetzt }: { kommt: Termin[]; live: Termin[]; jetzt: number }) {
+  const SPANNE = 24 * 3600e3;
+  const alle = [...live, ...kommt.filter((t) => t.f.begin - jetzt < SPANNE)];
+  if (!alle.length) return null;
+  const regionen = [...new Set(alle.map((t) => t.region))].sort((a, b) => gewicht(a) - gewicht(b));
+  const pos = (t: number) => Math.min(100, Math.max(0, ((t - jetzt) / SPANNE) * 100));
+  const stunden = Array.from({ length: 9 }, (_, i) => jetzt + i * 3 * 3600e3);
   return (
-    <section>
+    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl">
       <div className="mb-4 flex items-end justify-between">
-        <h2 className="text-2xl font-extrabold tracking-tight text-white">Power Rankings</h2>
-        <Link to="/competitive/rankings" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All 10,000 →</Link>
+        <h2 className="text-2xl font-extrabold tracking-tight text-white">Next 24 hours</h2>
+        <Link to="/competitive/events" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All events →</Link>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {spieler.slice(0, 10).map((s, i) => (
-          <motion.a key={s.id} href={`${SEITE}/player/${s.id}`} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}
-            whileHover={{ y: -6 }} className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-sky-500/10 to-white/[0.02]">
-            {s.bild && <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_15%] transition duration-700 group-hover:scale-105" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/30 to-transparent" />
-            <span className={`absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-xl text-sm font-black ${i === 0 ? 'bg-yellow-300 text-black' : i < 3 ? 'bg-white text-black' : 'bg-black/60 text-white backdrop-blur'}`}>{s.rank}</span>
-            {s.deltaPlatz !== 0 && <span className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-[11px] font-bold ${s.deltaPlatz > 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>{s.deltaPlatz > 0 ? '▲' : '▼'} {Math.abs(s.deltaPlatz)}</span>}
-            <div className="absolute inset-x-0 bottom-0 p-3">
-              <div className="flex items-center gap-1.5">
-                {s.land && <img src={flagge(s.land)} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
-                <p className="truncate text-base font-bold text-white">{s.anzeige || s.name}</p>
-              </div>
-              <p className="text-xs tabular-nums text-white/60">{s.wertung.toLocaleString('en')} pts</p>
+      <div className="ml-14 flex justify-between text-[11px] tabular-nums text-white/40">{stunden.map((s, i) => <span key={i}>{i === 0 ? 'Now' : zeit(s)}</span>)}</div>
+      <div className="mt-2 space-y-2">
+        {regionen.map((r) => (
+          <div key={r} className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-xs font-bold text-white/70">{r}</span>
+            <div className="relative h-9 flex-1 rounded-lg bg-white/[0.04]">
+              {alle.filter((t) => t.region === r).map((t) => {
+                const l = pos(t.f.begin), w = Math.max(1.5, pos(t.f.end) - l), an = t.f.begin <= jetzt;
+                return (
+                  <Link key={t.cup.id + t.f.begin} to={`/competitive/events/${t.cup.id}`} title={`${t.cup.titel} · ${zeit(t.f.begin)}–${zeit(t.f.end)}`}
+                    className={`absolute inset-y-1 overflow-hidden rounded-md px-2 text-[11px] font-semibold leading-7 text-white transition hover:z-10 hover:brightness-125 ${an ? 'ring-1 ring-red-400/80' : ''}`}
+                    style={{ left: `${l}%`, width: `${w}%`, background: `${t.cup.farbe ?? '#38bdf8'}b0` }}>
+                    <span className="block truncate">{an && '● '}{t.cup.titel}</span>
+                  </Link>
+                );
+              })}
             </div>
-          </motion.a>
+          </div>
         ))}
       </div>
     </section>
   );
 }
 
-const WERKZEUGE = [
-  { titel: 'Live leaderboards', text: 'Every cup, every region, live.', pfad: 'events', farbe: '56,189,248' },
-  { titel: 'Player stats', text: 'Damage, elims, mats from replays.', pfad: 'statistics', farbe: '45,212,191' },
-  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', farbe: '167,139,250' },
-  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', farbe: '248,113,113' },
-  { titel: 'Replays', text: 'Watch any cup match in 2D.', pfad: 'replays', farbe: '250,204,21' },
-  { titel: 'Power rankings', text: 'Top 10,000, climbers and fallers.', pfad: 'rankings', farbe: '74,222,128' },
+function Kachel({ children, className = '', delay = 0 }: { children?: React.ReactNode; className?: string; delay?: number }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ delay, duration: 0.5 }}
+      className={`relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`}>{children}</motion.div>
+  );
+}
+
+function Spitze({ spitze }: { spitze: PR[] }) {
+  const [eins, ...rest] = spitze;
+  if (!eins) return <Kachel className="min-h-[28rem] animate-pulse lg:col-span-2 lg:row-span-2" />;
+  return (
+    <>
+      <Kachel className="group min-h-[28rem] lg:col-span-2 lg:row-span-2">
+        {eins.bild && <img src={eins.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_20%] transition duration-[2s] group-hover:scale-105" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-[#05070d]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#05070d]/70 to-transparent" />
+        <Link to={`/competitive/player/${eins.id}`} className="absolute inset-0 flex flex-col justify-between p-7">
+          <span className="self-start rounded-full bg-yellow-300 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-black">#1 Power Ranking</span>
+          <div>
+            <div className="flex items-center gap-3">{eins.land && <img src={flagge(eins.land)} alt="" className="h-6 w-9 rounded object-cover" />}<p className="font-['Bebas_Neue'] text-7xl leading-none tracking-wide text-white">{name(eins)}</p></div>
+            <div className="mt-3 flex gap-10">
+              <div><p className="text-[11px] uppercase tracking-[0.25em] text-white/50">Points</p><p className="font-mono text-3xl font-bold tabular-nums text-white">{eins.wertung.toLocaleString('en')}</p></div>
+              {eins.deltaWertung != null && <div><p className="text-[11px] uppercase tracking-[0.25em] text-white/50">This week</p><p className={`font-mono text-3xl font-bold tabular-nums ${eins.deltaWertung >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{eins.deltaWertung >= 0 ? '+' : ''}{eins.deltaWertung.toLocaleString('en')}</p></div>}
+            </div>
+          </div>
+        </Link>
+      </Kachel>
+      <Kachel className="p-5 lg:col-span-2" delay={0.05}>
+        <div className="mb-3 flex items-end justify-between"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Chasing the top</p><Link to="/competitive/rankings" className="text-xs font-semibold text-sky-400 hover:text-sky-300">All 10,000 →</Link></div>
+        <div className="grid grid-cols-5 gap-3">
+          {rest.slice(0, 5).map((s) => (
+            <Link key={s.id} to={`/competitive/player/${s.id}`} className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/[0.04]">
+              {s.bild ? <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top transition duration-700 group-hover:scale-110" /> : <span className="absolute inset-0 grid place-items-center text-3xl font-black text-white/20">{name(s).slice(0, 1)}</span>}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+              <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 text-xs font-black text-white">{s.rank}</span>
+              <p className="absolute inset-x-2 bottom-2 truncate text-sm font-bold text-white">{name(s)}</p>
+            </Link>
+          ))}
+        </div>
+      </Kachel>
+    </>
+  );
+}
+
+function Bewegung({ liste, titel, gut }: { liste: PR[]; titel: string; gut: boolean }) {
+  return (
+    <Kachel className="p-5" delay={0.1}>
+      <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.3em] ${gut ? 'text-emerald-300' : 'text-red-300'}`}>{titel}</p>
+      <ul className="space-y-1">
+        {liste.slice(0, 5).map((s) => (
+          <li key={s.id}><Link to={`/competitive/player/${s.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.05]">
+            {s.land ? <img src={flagge(s.land)} alt="" className="h-3 w-[18px] rounded-sm object-cover" /> : <span className="w-[18px]" />}
+            <span className="min-w-0 flex-1 truncate text-sm text-white">{name(s)}</span>
+            <span className="text-[11px] tabular-nums text-white/40">#{s.rank.toLocaleString('en')}</span>
+            <span className={`w-16 text-right font-mono text-sm font-bold tabular-nums ${gut ? 'text-emerald-300' : 'text-red-300'}`}>{gut ? '▲' : '▼'} {Math.abs(s.deltaPlatz).toLocaleString('en')}</span>
+          </Link></li>
+        ))}
+      </ul>
+    </Kachel>
+  );
+}
+
+function Laender({ laender }: { laender: Array<{ land: string; n: number }> }) {
+  const max = Math.max(1, ...laender.map((l) => l.n));
+  return (
+    <Kachel className="p-5" delay={0.15}>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Top 100 by country</p>
+      <ul className="space-y-2">
+        {laender.slice(0, 8).map((l, i) => (
+          <li key={l.land} className="flex items-center gap-2">
+            <img src={flagge(l.land)} alt="" className="h-3.5 w-5 rounded-sm object-cover" />
+            <span className="w-7 text-[11px] font-bold uppercase text-white/50">{l.land}</span>
+            <div className="h-4 flex-1 overflow-hidden rounded bg-white/[0.04]">
+              <motion.div initial={{ width: 0 }} whileInView={{ width: `${(l.n / max) * 100}%` }} viewport={{ once: true }} transition={{ delay: 0.08 * i, duration: 0.8 }} className="h-full rounded bg-gradient-to-r from-sky-500/70 to-sky-300/70" />
+            </div>
+            <span className="w-6 text-right font-mono text-sm tabular-nums text-white">{l.n}</span>
+          </li>
+        ))}
+      </ul>
+    </Kachel>
+  );
+}
+
+/** Die Sieger der zuletzt beendeten Spieltage (EU und NAC zuerst, je Cup nur der letzte Tag). */
+function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
+  const schluessel = vorbei.map((t) => t.f.windowId).join();
+  const auswahl = useMemo(() => {
+    const gesehen = new Set<string>(); const out: Termin[] = [];
+    for (const t of [...vorbei].sort((a, b) => gewicht(a.region) - gewicht(b.region) || b.f.end - a.f.end)) {
+      if (gesehen.has(t.cup.id) || !t.f.eventId || !t.f.windowId) continue;
+      gesehen.add(t.cup.id); out.push(t); if (out.length >= 4) break;
+    }
+    return out.sort((a, b) => b.f.end - a.f.end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schluessel]);
+  const [sieger, setSieger] = useState<Record<string, LbEintrag | null>>({});
+  useEffect(() => {
+    for (const t of auswahl) {
+      const k = t.f.windowId!;
+      fetch(`/api/cup-leaderboard?event=${encodeURIComponent(t.f.eventId!)}&window=${encodeURIComponent(k)}&limit=1`).then((r) => r.json())
+        .then((j) => setSieger((s) => ({ ...s, [k]: j.entries?.[0] ?? null }))).catch(() => setSieger((s) => ({ ...s, [k]: null })));
+    }
+  }, [auswahl]);
+  if (!auswahl.length) return null;
+  return (
+    <section>
+      <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Latest winners</h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {auswahl.map((t, i) => {
+          const s = sieger[t.f.windowId!];
+          return (
+            <Kachel key={t.f.windowId} delay={i * 0.06} className="group">
+              <Link to={`/competitive/events/${t.cup.id}`} className="block">
+                <div className="relative h-36 overflow-hidden">
+                  {t.cup.bild && <img src={t.cup.bild} alt="" className="h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-90" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d16] to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur">{t.region}</span>
+                </div>
+                <div className="p-4 pt-0">
+                  <p className="truncate text-xs text-white/50">{t.cup.titel}</p>
+                  {s === undefined ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-white/[0.05]" /> : s ? (
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="flex -space-x-2">{s.players.slice(0, 3).map((p) => p.img ? <img key={p.id} src={p.img} alt="" className="h-10 w-10 rounded-full border-2 border-[#0a0d16] object-cover object-top" /> : <span key={p.id} className="grid h-10 w-10 place-items-center rounded-full border-2 border-[#0a0d16] bg-white/10 text-xs font-bold text-white/60">{name(p).slice(0, 1)}</span>)}</div>
+                      <div className="min-w-0"><p className="truncate text-sm font-bold text-white">🏆 {s.players.map(name).join(' · ')}</p><p className="text-[11px] text-white/50">{s.points} pts · {s.elims} elims</p></div>
+                    </div>
+                  ) : <p className="mt-2 text-sm text-white/40">No leaderboard</p>}
+                </div>
+              </Link>
+            </Kachel>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const WEITER = [
+  { titel: 'Statistics', text: 'Damage, elims and mats of every pro.', pfad: 'statistics', bild: '/slider/eis-trio.webp' },
+  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', bild: '/slider/disco.webp' },
+  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: '/slider/hase.webp' },
+  { titel: 'Replays', text: 'Rewatch any cup match in 2D.', pfad: 'replays', bild: '/slider/hoodie.webp' },
 ];
 
 export default function Competitive() {
+  const jetzt = useJetzt();
   const [cups, setCups] = useState<Cup[]>([]);
-  const [spieler, setSpieler] = useState<Spieler[]>([]);
+  const [pr, setPr] = useState<{ spitze: PR[]; aufsteiger: PR[]; absteiger: PR[]; laender: Array<{ land: string; n: number }> }>({ spitze: [], aufsteiger: [], absteiger: [], laender: [] });
   useEffect(() => {
-    fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups(j.cups ?? [])).catch(() => {});
-    fetch('/api/power-rankings?page=1&pageSize=10').then((r) => r.json()).then((j) => setSpieler(j.players ?? [])).catch(() => {});
+    const katalog = () => fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups(j.cups ?? [])).catch(() => {});
+    katalog(); const i = setInterval(katalog, 5 * 60e3);
+    fetch('/api/power-rankings?uebersicht=1').then((r) => r.json()).then((j) => setPr((v) => ({ spitze: v.spitze.length ? v.spitze : j.spitze ?? [], aufsteiger: j.aufsteiger ?? [], absteiger: j.absteiger ?? [], laender: j.laender ?? [] }))).catch(() => {});
+    // die Uebersicht liefert nur die Top 3 - fuer "Chasing the top" braucht es die Top 6
+    fetch('/api/power-rankings?page=1&pageSize=6').then((r) => r.json()).then((j) => { if (j.players?.length) setPr((v) => ({ ...v, spitze: j.players.slice(0, 6) })); }).catch(() => {});
+    return () => clearInterval(i);
   }, []);
+  // Einteilung live/kommt/vorbei nur jede Minute neu, der Countdown tickt trotzdem sekundengenau
+  const minute = Math.floor(jetzt / 60000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { live, kommt, vorbei } = useMemo(() => teileAuf(cups, jetzt), [cups, minute]);
   return (
-    <div>
-      <div className="space-y-10">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">Competitive</p>
-          <h1 className="mt-1 text-5xl font-extrabold tracking-tight text-white">The pro scene, live.</h1>
-        </motion.div>
-        <LiveLeiste cups={cups} />
-        <TopSpieler spieler={spieler} />
-        <section>
-          <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Tools</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {WERKZEUGE.map((w, i) => (
-              <motion.div key={w.titel} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }}
-                whileHover={{ y: -4 }} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
-                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-30 blur-2xl transition group-hover:opacity-60" style={{ background: `rgb(${w.farbe})` }} />
-                <p className="relative text-lg font-bold text-white">{w.titel}</p>
-                <p className="relative mt-1 text-sm text-white/60">{w.text}</p>
-                <Link to={`/competitive/${w.pfad}`} className="relative mt-4 inline-block text-sm font-semibold after:absolute after:inset-0 after:content-['']" style={{ color: `rgb(${w.farbe})` }}>Open →</Link>
-              </motion.div>
-            ))}
-          </div>
-        </section>
+    <div className="space-y-8">
+      <Buehne live={live} kommt={kommt} jetzt={jetzt} />
+      <Zeitleiste live={live} kommt={kommt} jetzt={jetzt} />
+      <section>
+        <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Power Rankings this week</h2>
+        <div className="grid gap-4 lg:grid-cols-4">
+          <Spitze spitze={pr.spitze} />
+          <Bewegung liste={pr.aufsteiger} titel="Biggest climbers" gut />
+          <Bewegung liste={pr.absteiger} titel="Biggest fallers" gut={false} />
+        </div>
+      </section>
+      <div className="grid gap-4 lg:grid-cols-[1fr_3fr]">
+        <Laender laender={pr.laender} />
+        <LetzteSieger vorbei={vorbei} />
       </div>
+      <section>
+        <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Go deeper</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {WEITER.map((w, i) => (
+            <Kachel key={w.pfad} delay={i * 0.05} className="group h-56">
+              <img src={w.bild} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60 transition duration-700 group-hover:scale-105 group-hover:opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-[#05070d]/50 to-transparent" />
+              <Link to={`/competitive/${w.pfad}`} className="absolute inset-0 flex flex-col justify-end p-5">
+                <p className="font-['Bebas_Neue'] text-4xl tracking-wide text-white">{w.titel}</p>
+                <p className="text-sm text-white/70">{w.text}</p>
+              </Link>
+            </Kachel>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
