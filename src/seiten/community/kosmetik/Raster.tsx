@@ -32,7 +32,8 @@ export function Kachel({ t, unten, gross = false, namen = true, index = 0, link 
   const inhalt = (
     <>
       <div className="relative aspect-square overflow-hidden" style={{ background: `radial-gradient(120% 90% at 50% 15%, ${s.a}55, ${s.b} 70%, #05070d)` }}>
-        {t.bild ? <img src={t.bild} alt="" loading="lazy" draggable={false} className={`absolute inset-0 h-full w-full ${t.art === 'track' ? 'object-cover' : 'object-contain p-1'} transition duration-300 group-hover:scale-[1.04]`} /> : null}
+        {t.art === 'track' && <span className="absolute inset-0 grid place-items-center text-4xl text-white/20">♪</span>}
+        {t.bild ? <img src={t.bild} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = 'none'; }} className={`absolute inset-0 h-full w-full ${t.art === 'track' ? 'object-cover' : 'object-contain p-1'} transition duration-300 group-hover:scale-[1.04]`} /> : null}
         <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: s.a }} />
         {besessen && <span className="absolute left-2 top-2 rounded-md bg-emerald-400/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#06080f]">Owned</span>}
       </div>

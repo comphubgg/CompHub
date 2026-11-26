@@ -132,7 +132,8 @@ function ShopKachel({ a, i, besessen, gewuenscht, oeffnen, jetzt }: { a: Angebot
       className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] transition hover:-translate-y-0.5 hover:border-white/25">
       <button type="button" onClick={oeffnen} className="block w-full text-left">
         <div className="relative aspect-square overflow-hidden" style={{ background: a.farben?.length ? `radial-gradient(120% 90% at 50% 15%, ${a.farben[0]}, ${a.farben.at(-1)} 75%, #05070d)` : `radial-gradient(120% 90% at 50% 15%, ${s.a}55, ${s.b} 70%, #05070d)` }}>
-          {a.bild && <img src={a.bild} alt="" loading="lazy" draggable={false} className={`absolute inset-0 h-full w-full ${t?.art === 'track' ? 'object-cover' : 'object-contain'} transition duration-300 group-hover:scale-[1.04]`} />}
+          {t?.art === 'track' && <span className="absolute inset-0 grid place-items-center text-4xl text-white/20">♪</span>}
+          {a.bild && <img src={a.bild} alt="" loading="lazy" draggable={false} onError={(e) => { e.currentTarget.style.display = 'none'; }} className={`absolute inset-0 h-full w-full ${t?.art === 'track' ? 'object-cover' : 'object-contain'} transition duration-300 group-hover:scale-[1.04]`} />}
           <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: s.a }} />
           <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
             {a.neu && <span className="rounded-md bg-teal-300 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#06080f]">New</span>}

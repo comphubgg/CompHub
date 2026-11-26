@@ -32,6 +32,11 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
   { titel: 'Cosmetics', seiten: [
     { pfad: 'shop', titel: 'Item Shop', text: "Today's shop, last seen, history" },
     { pfad: 'cosmetics', titel: 'Cosmetics', text: 'Every cosmetic – search and filter' },
+    { pfad: 'new', titel: 'New in the files', text: 'Added with the latest update' },
+    { pfad: 'free', titel: 'Free Cosmetics', text: 'Free rewards and time left' },
+    { pfad: 'jam-tracks', titel: 'Jam Tracks', text: "Today's tracks and the library" },
+    { pfad: 'cosmetic-stats', titel: 'Cosmetic Stats', text: 'Longest wait, most shop days' },
+    { pfad: 'most-used', titel: 'Most Used', text: 'What people actually wear' },
   ] },
   { titel: 'Season', seiten: [
     { pfad: 'season', titel: 'Season Countdown', text: 'Live event and season end' },
