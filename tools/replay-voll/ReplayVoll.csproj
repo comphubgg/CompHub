@@ -4,6 +4,11 @@
     Match, Zonen, Kill-Feed. Grundlage fuer die Replay-Seite (/admin/replay)
     und fuer genaue Solo Clutch Points (Reboots). Nutzt denselben Leser wie
     fortnite-replay-analysis, nur im vollen Lesemodus.
+
+    Seit 26.11.2026 die Bibliothek FortniteReplayReader 3.2.0 von NuGet (Shiqan/FortniteReplayDecompressor) statt der
+    Fassung 3.0.0 aus node_modules/fortnite-replay-analysis: behebt die Endlosschleife bei ueberlaufenden Buendeln (#74),
+    die Drehung der Figur ab Build 41 (#76) und liefert je Treffer die Waffe (BatchedDamageCues.SourceWeapon). Unreal.Core,
+    Unreal.Encryption, OozSharp und Microsoft.Extensions.Logging.Abstractions kommen als Abhaengigkeiten mit.
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -14,14 +19,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Der Leser laeuft mehrfach nebeneinander, je Kern einer: ein eigener Faden fuer die Speicherbereinigung bremst dann nur. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
-    <LeserPfad>$(MSBuildThisFileDirectory)../../node_modules/fortnite-replay-analysis/CSproj/bin/Release/net10.0/linux-x64/publish</LeserPfad>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FortniteReplayReader"><HintPath>$(LeserPfad)/FortniteReplayReader.dll</HintPath></Reference>
-    <Reference Include="Unreal.Core"><HintPath>$(LeserPfad)/Unreal.Core.dll</HintPath></Reference>
-    <Reference Include="Unreal.Encryption"><HintPath>$(LeserPfad)/Unreal.Encryption.dll</HintPath></Reference>
-    <Reference Include="OozSharp"><HintPath>$(LeserPfad)/OozSharp.dll</HintPath></Reference>
-    <Reference Include="Newtonsoft.Json"><HintPath>$(LeserPfad)/Newtonsoft.Json.dll</HintPath></Reference>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="FortniteReplayReader" Version="3.2.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 </Project>

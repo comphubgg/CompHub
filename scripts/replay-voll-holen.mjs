@@ -73,7 +73,8 @@ const listenFrist = START + Math.max(2, zahl('--minuten', 20) / 2) * 60_000;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Hoch setzen, wenn der Leser sich aendert (neue Bibliothek, behobener Fehler): Leser-Fehler werden dann einmal neu versucht. */
 // 10.11.2026: Endlosschleife der Bibliothek abgefangen (ganze Matches blieben leer oder liefen in den Zeitwaechter) - Leser-Fehler einmal neu.
-const LESER_STAND = '2026-11-10';
+// 26.11.2026: Bibliothek 3.2.0 (Endlosschleife #74 und Bewegung ab Build 41 #76 behoben) - Leser-Fehler einmal neu.
+const LESER_STAND = '2026-11-26';
 const LESER_SEKUNDEN = 150;
 const STUNDE = 3600_000;
 

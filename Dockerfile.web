@@ -23,11 +23,10 @@ RUN NODE_OPTIONS=--max-old-space-size=6144 npx next build
 
 # Der eigene Replay-Leser (tools/replay-voll) fuer die Live-Spur auf dem
 # Server (scripts/live-spur.mjs) - gebaut wie im Ablauf "Clutch rechnen"
-# (dotnet build -c Release). Er verweist per HintPath auf die DLLs aus
-# node_modules/fortnite-replay-analysis; die kommen aus "bau" (npm ci).
+# (dotnet build -c Release). Die Leser-Bibliothek kommt seit 26.11.2026 von NuGet
+# (FortniteReplayReader 3.2.0), nicht mehr aus node_modules/fortnite-replay-analysis.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS leser
 WORKDIR /app
-COPY --from=bau /app/node_modules/fortnite-replay-analysis ./node_modules/fortnite-replay-analysis
 COPY tools/replay-voll ./tools/replay-voll
 RUN dotnet build tools/replay-voll -c Release -v q
 
