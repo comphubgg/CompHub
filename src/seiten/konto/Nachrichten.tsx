@@ -130,7 +130,7 @@ export default function Nachrichten() {
                             <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${ich ? 'bg-sky-400/15 text-sky-50' : 'bg-white/[0.05] text-white/90'}`}>
                               <p className="text-[11px] font-semibold text-white/45">{n.name} · {wann(n.zeit)}</p>
                               <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed">{n.text}</p>
-                              {!!n.bilder?.length && <div className="mt-2 flex flex-wrap gap-2">{n.bilder.map((b) => <a key={b} href={b} target="_blank" rel="noreferrer"><img src={b} alt="" className="h-24 rounded-lg object-cover" /></a>)}</div>}
+                              {!!n.bilder?.length && <div className="mt-2 flex flex-wrap gap-2">{n.bilder.map((b) => { const u = /^(data:|https?:|\/)/.test(b) ? b : `/api/kontakt-bild?datei=${encodeURIComponent(b)}`; return <a key={b} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" className="h-24 rounded-lg object-cover" /></a>; })}</div>}
                             </div>
                           </div>
                         );

@@ -61,11 +61,11 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'accounts', pfad: '/admin/accounts', titel: 'Accounts', text: 'Assign roles and VIP, keys, Discord, orgs', gruppe: 'nutzer', stichworte: 'accounts roles konten rollen' },
   { slug: 'vip-access', pfad: '/admin/vip-access', titel: 'VIP access', text: 'Deadline, chat and delete per VIP', gruppe: 'nutzer', eigen: true, stichworte: 'vip access keys deadline discord' },
   { slug: 'switch', pfad: '/admin/switch', titel: 'Switch account', text: 'See what a VIP or manager sees', gruppe: 'nutzer', stichworte: 'switch impersonate wechseln' },
-  { slug: 'sections', pfad: '/admin/sections', titel: 'Sections', text: 'Put areas on standby or offline', gruppe: 'nutzer', stichworte: 'sections offline standby bereiche' },
+  { slug: 'sections', pfad: '/admin/sections', titel: 'Sections', text: 'Put areas on standby or offline', gruppe: 'nutzer', eigen: true, stichworte: 'sections offline standby bereiche' },
   { slug: 'services', pfad: '/admin/services', titel: 'Sign-in services', text: 'Set up Twitch, Discord and Google', gruppe: 'nutzer', stichworte: 'services oauth discord google twitch' },
 
   // Posteingang
-  { slug: 'contact', pfad: '/admin/contact', titel: 'Contact', text: 'Read messages from the form', gruppe: 'post', zaehler: 'kontakt', stichworte: 'contact inbox kontakt' },
+  { slug: 'contact', pfad: '/admin/contact', titel: 'Contact', text: 'Read messages from the form', gruppe: 'post', eigen: true, zaehler: 'kontakt', stichworte: 'contact inbox kontakt' },
   { slug: 'partner', pfad: '/admin/partner', titel: 'Partner requests', text: 'Copy ready emails and DMs to streamers', gruppe: 'post', stichworte: 'partner requests streamer mail dm' },
 
   // Die Bereiche des Dashboards der Seite selbst
