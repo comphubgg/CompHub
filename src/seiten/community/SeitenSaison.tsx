@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Glas } from '../../teile/Glas';
-import { Countdown, DatenFehlen, KalenderKnopf, LinkKopieren, restText, useHubDatei, useJetzt } from './Bausteine';
+import { Countdown, DatenFehlen, Hinweis, KalenderKnopf, LinkKopieren, restText, useHubDatei, useJetzt } from './Bausteine';
 import { Laedt, TEAL, Ueberschrift } from './Teile';
 import { useAblage } from './kosmetik/daten';
 import { AblageHinweis } from './kosmetik/Raster';
+import { RotationLive } from './epic/Rotation';
 
 /*
  * Saison-Seiten: Season Countdown, XP Calculator, Map Rotation.
@@ -193,14 +194,37 @@ export function KartenRotation() {
     });
   }, [daten, m, jetzt]);
   const uhr = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  // Bilder der Reload-Inseln aus den Spieldateien (wie in der Uebersicht): /api/karten-bild
+  const [bilder, setBilder] = useState<Array<{ id: string; name: string }>>([]);
+  const [liveNamen, setLiveNamen] = useState<string[]>([]); // diese Bilder stehen schon oben - nicht doppelt zeigen
+  useEffect(() => {
+    fetch('/api/karten-bild').then((r) => r.json()).then((j) => setBilder(((j?.karten ?? []) as Array<{ id: string; titel: string }>).filter((k) => k.id.startsWith('reload-') && !/-(png|nah)$/.test(k.id)).map((k) => ({ id: k.id, name: k.titel.replace(/^Reload - /, '') })))).catch(() => {});
+  }, []);
   if (status === 'laedt') return <Laedt farbe={TEAL} />;
   return (
     <div className="space-y-6">
       <Ueberschrift ueber="Community · Island" titel="Map rotation" farbe={TEAL} text="Which map is live in Reload and Blitz right now – and what's next. Times in your time zone." />
       {!plan ? (
-        <DatenFehlen titel="The rotation schedule isn't in yet"
-          text={<>Epic rotates Reload and Blitz maps on a fixed clock, but doesn't publish the order openly. Once the order and one known start time are in <code className="text-teal-200">hub-daten/rotation.json</code>, this page runs live by itself – current map, countdown, up next and the full rotation.</>}
-          braucht={['Map order per mode', 'Slot length (minutes)', 'One known start time', 'Map images']} />
+        <>
+          <RotationLive bilder={bilder} live={setLiveNamen} />
+          {bilder.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-2xl font-extrabold tracking-tight text-white">Reload islands</h2>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
+                {bilder.filter((b) => !liveNamen.includes(b.name.toLowerCase())).map((b, i) => (
+                  <motion.div key={b.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.04 }} whileHover={{ y: -5 }} className="group relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-[#0a1a2a]">
+                    <img src={`/api/karten-bild?id=${encodeURIComponent(b.id)}&datei=1`} alt={b.name} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-transparent to-transparent" />
+                    <p className="absolute bottom-3 left-4 font-extrabold text-white">{b.name}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+          )}
+          <Hinweis mehr={<>Epic rotates Reload and Blitz maps on a fixed clock but doesn't publish the order. With the order and one known start time in <code className="text-teal-200">hub-daten/rotation.json</code>, this page also shows exact countdowns and what's up next.</>}>
+            Live map detection from Epic's player numbers – exact "up next" times need the rotation schedule.
+          </Hinweis>
+        </>
       ) : (
         <>
           <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">

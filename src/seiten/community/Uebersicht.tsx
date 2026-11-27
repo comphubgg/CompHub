@@ -2,14 +2,16 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas } from '../../teile/Glas';
-import { Bald, TEAL, Ueberschrift } from './Teile';
+import { TEAL, Ueberschrift } from './Teile';
+import { kurz, letzter, useModi } from './epic/daten';
+import { MiniVerlauf, Zahl } from './epic/Diagramm';
+import { SPIELMODI } from './epic/modi';
 
 /*
  * Community-Uebersicht. Alles aus echten Quellen, nichts geschaetzt ohne es zu sagen:
  *   - Saison: Nummer und Spielversion von fortnite-api.com (/v2/cosmetics/new, "build"), Saisonbeginn = erster Cup der Saison in Deep Stats
  *     (/api/deep-stats), Ende: Epic nennt es nirgends oeffentlich - gezeigt wird, bis wann Epic Cups dieser Saison angesetzt hat (/api/cup-events).
- *   - Spielerzahlen: Epics Fortnite Data API (api.fortnite.com/ecosystem/v1) direkt aus dem Browser; antwortet sie nicht (CORS, Modus unbekannt),
- *     steht "coming soon" statt einer Zahl.
+ *   - Spielerzahlen: Epics Fortnite Data API (api.fortnite.com/ecosystem/v1) ueber den Proxy /epic-daten (epic/daten.ts).
  *   - Karte von heute: /api/fortnite-map (fortnite-api.com) mit /bilder/karte-orte.png.
  *   - Reload-Inseln: /api/karten-bild (Bilder aus den Spieldateien, lib/reloadKarten auf main) - "inseln" sind die Inseln, die schon in
  *     Turnier-Replays vorkamen.
@@ -119,10 +121,10 @@ function Saison() {
                 <Countdown bis={letzterCup} />
                 <p className="mt-3 max-w-xl text-xs text-white/40">
                   Epic doesn't publish the season end in any open source yet, so this counts down to the last tournament currently on Epic's calendar
-                  ({offen} still to come in EU). The exact season end <Bald text="coming soon" />
+                  ({offen} still to come in EU). <Link to="/community/season" className="text-teal-200/80 hover:text-white">Season countdown →</Link>
                 </p>
               </>
-            ) : fenster ? <p className="text-sm text-white/50">Season end <Bald /></p> : <p className="text-sm text-white/40">Loading the schedule …</p>}
+            ) : fenster ? <Link to="/community/season" className="text-sm font-semibold text-teal-200/80 hover:text-white">Season countdown →</Link> : <p className="text-sm text-white/40">Loading the schedule …</p>}
           </div>
         </div>
         <Link to="/community/map" className="group relative block aspect-square w-full overflow-hidden rounded-2xl border border-white/10 md:w-[420px]">
@@ -143,63 +145,32 @@ function Saison() {
 
 /* ------------------------------------------------------------------ Spielerzahlen */
 
-/*
- * Epic-Modi in der Data API: die Kennungen sind die Playlists in Kleinschrift. Welche davon die API wirklich fuehrt, ist nicht dokumentiert -
- * jede wird gefragt, wer nicht antwortet, bleibt ohne Zahl.
- */
-const MODI = [
-  { titel: 'Battle Royale', code: 'playlist_defaultsquad' },
-  { titel: 'Zero Build', code: 'playlist_nobuildbr_squad' },
-  { titel: 'Reload', code: 'playlist_blastberry_squad' },
-  { titel: 'OG', code: 'playlist_figment_squads' },
-];
-type Zahl = { wert: number; zeit: string } | null | undefined;
-
-async function spielerJetzt(code: string): Promise<Zahl> {
-  const r = await fetch(`https://api.fortnite.com/ecosystem/v1/islands/${code}/metrics/minute/peak-ccu`, { signal: AbortSignal.timeout(8000) });
-  if (!r.ok) return null;
-  const j = await r.json() as { intervals?: Array<{ value: number | null; timestamp: string }> };
-  const letzte = [...(j.intervals ?? [])].reverse().find((i) => typeof i.value === 'number');
-  return letzte ? { wert: letzte.value as number, zeit: letzte.timestamp } : null;
-}
-
+/* Spielerzahlen je Modus aus Epics Fortnite Data API (ueber den Proxy, Codes in epic/modi.ts) - dieselben Daten wie die Player-Count-Seite. */
 function Spielerzahlen() {
-  const [zahlen, setZahlen] = useState<Record<string, Zahl>>({});
-  useEffect(() => {
-    let weg = false;
-    const holen = () => MODI.forEach((m) => spielerJetzt(m.code).then((z) => { if (!weg) setZahlen((a) => ({ ...a, [m.code]: z })); }).catch(() => { if (!weg) setZahlen((a) => ({ ...a, [m.code]: null })); }));
-    holen();
-    const i = setInterval(holen, 60_000);
-    return () => { weg = true; clearInterval(i); };
-  }, []);
-  const fertig = MODI.every((m) => zahlen[m.code] !== undefined);
-  const keine = fertig && MODI.every((m) => !zahlen[m.code]);
+  const { daten, laedt } = useModi('1D');
+  const da = SPIELMODI.filter((m) => daten[m.k]);
   return (
     <Glas className="p-6" verzoegerung={0.1}>
       <div className="flex items-baseline justify-between">
         <h3 className="font-bold text-white">Players right now</h3>
-        <span className="flex items-center gap-1.5 text-[11px] text-white/40"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />Epic data API · per minute</span>
+        <Link to="/community/players" className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />Epic data API · all modes →</Link>
       </div>
-      {keine ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-5 text-center">
-          <p className="text-sm font-semibold text-white/70">Live player counts per mode</p>
-          <p className="mt-1 text-xs text-white/40">Epic's data API doesn't answer this browser yet – the counts arrive with the hub's own data feed.</p>
-          <div className="mt-3"><Bald /></div>
-        </div>
-      ) : (
-        <ul className="mt-4 space-y-2">
-          {MODI.map((m, i) => {
-            const z = zahlen[m.code];
-            return (
-              <motion.li key={m.code} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
-                className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                <span className="text-sm font-medium text-white/80">{m.titel}</span>
-                {z === undefined ? <span className="h-4 w-16 animate-pulse rounded bg-white/10" /> : z ? <span className="text-xl font-extrabold tabular-nums text-white">{z.wert.toLocaleString('en')}</span> : <Bald />}
-              </motion.li>
-            );
-          })}
-        </ul>
-      )}
+      <ul className="mt-4 space-y-2">
+        {SPIELMODI.map((m, i) => {
+          const x = daten[m.k];
+          return (
+            <motion.li key={m.k} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
+              className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: m.farbe }} />
+              <span className="w-28 text-sm font-medium text-white/80">{m.titel}</span>
+              <span className="flex-1"><MiniVerlauf punkte={x?.m.peakCCU ?? []} farbe={m.farbe} hoehe={22} /></span>
+              {x ? <span className="w-20 text-right text-lg font-extrabold text-white"><Zahl wert={letzter(x.m.peakCCU)} format={kurz} /></span>
+                : x === null || !laedt ? <span className="w-20 text-right text-sm text-white/30">—</span> : <span className="h-4 w-16 animate-pulse rounded bg-white/10" />}
+            </motion.li>
+          );
+        })}
+      </ul>
+      {!laedt && !da.length && <p className="mt-3 text-[11px] text-white/35">Epic's data API isn't answering right now – the counts appear as soon as it does.</p>}
     </Glas>
   );
 }
@@ -223,7 +194,7 @@ function Reload() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-2xl font-extrabold tracking-tight text-white">Reload islands</h2>
-        <p className="text-xs text-white/40">Maps read straight from the game files · the live rotation order <Bald /></p>
+        <p className="text-xs text-white/40">Maps read straight from the game files · <Link to="/community/rotation" className="font-semibold text-teal-200/80 hover:text-white">which one is live now →</Link></p>
       </div>
       {!karten ? <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">{Array.from({ length: 6 }, (_, i) => <div key={i} className="aspect-square animate-pulse rounded-3xl bg-white/[0.04]" />)}</div> : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
