@@ -3,8 +3,10 @@ import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Glas } from '../../../teile/Glas';
 
 /*
- * Gemeinsame Bausteine der "More"-Seiten (Maps, Globals, Predictions, Awards, Scrims, POV, Posts, Orgs, Match, How it works).
- * Alles im Glas-Stil des Hubs; Daten immer ueber den Proxy (/api ...) von thecomphub.com.
+ * Gemeinsame Bausteine der Scene-Seiten (Maps, Globals, Predictions, Awards, Scrims, POV, Posts, Orgs, Match, How it works): Laden (holen,
+ * useDaten), Zeit und Zahlen, Flaggen, Hochkant-Fotos. Seit dem Design-System 3.0 (27.11.2026) nur noch Daten-Helfer und Kleinteile in den
+ * Klassen des Systems (.chip, .eingabe, Akzentfarbe) - Flaechen, Koepfe und Karten kommen aus src/ds/Bausteine.tsx.
+ * Daten immer ueber den Proxy (/api ...) von thecomphub.com.
  */
 
 export const SEITE = 'https://www.thecomphub.com';
@@ -46,8 +48,8 @@ export function useDaten<T>(url: string | null, takt = 0): [Stand<T>, () => void
 
 export function Laedt({ text = 'Loading …' }: { text?: string }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-20 text-white/40">
-      <span className="h-6 w-6 animate-spin rounded-full border-2 border-sky-500/20 border-t-sky-400" />
+    <div className="flex items-center justify-center gap-3 py-16 text-white/40">
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-akz" />
       <span className="text-sm">{text}</span>
     </div>
   );
@@ -55,10 +57,10 @@ export function Laedt({ text = 'Loading …' }: { text?: string }) {
 
 export function Leer({ text, kind }: { text: string; kind?: ReactNode }) {
   return (
-    <Glas className="px-6 py-14 text-center">
-      <p className="text-sm text-white/50">{text}</p>
+    <div className="rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center">
+      <p className="text-sm text-white/45">{text}</p>
       {kind}
-    </Glas>
+    </div>
   );
 }
 
@@ -66,20 +68,19 @@ export function FehlerZeile({ text }: { text: string }) {
   return <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{text}</p>;
 }
 
-/** Runder Umschaltknopf (Filter, Reiter). */
-export const chip = (an: boolean) => `shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${an
-  ? 'bg-sky-400 text-[#06080f] shadow shadow-sky-500/30' : 'border border-white/10 bg-white/[0.03] text-white/65 hover:border-sky-400/40 hover:text-white'}`;
+/** Runder Umschaltknopf (Filter) - die .chip-Klassen des Design-Systems. */
+export const chip = (an: boolean) => `chip ${an ? 'chip-an' : ''}`;
 
-/** Reiterleiste in einer Glas-Pille - scrollt auf dem Handy waagerecht. */
+/** Umschalter mit gleitender Pille (wie Segment aus dem Design-System) - rollt auf dem Handy waagerecht. */
 export function Reiter<K extends string>({ liste, wert, setze, klein }: { liste: Array<[K, string]>; wert: K; setze: (k: K) => void; klein?: boolean }) {
   const id = useId();
   return (
-    <div className="max-w-full overflow-x-auto">
-      <div className="inline-flex gap-1 rounded-2xl border border-white/10 bg-white/[0.035] p-1 backdrop-blur-xl">
+    <div className="ohne-leiste max-w-full overflow-x-auto">
+      <div className="inline-flex rounded-xl border border-white/10 bg-black/40 p-1">
         {liste.map(([k, t]) => (
           <button key={k} type="button" onClick={() => setze(k)}
-            className={`relative shrink-0 rounded-xl ${klein ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-semibold transition ${wert === k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>
-            {wert === k && <motion.span layoutId={`reiter-${id}`} className="absolute inset-0 rounded-xl bg-sky-400" transition={{ type: 'spring', stiffness: 400, damping: 34 }} />}
+            className={`relative shrink-0 whitespace-nowrap rounded-lg ${klein ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-sm'} font-semibold transition ${wert === k ? 'text-[#04050a]' : 'text-white/60 hover:text-white'}`}>
+            {wert === k && <motion.span layoutId={`reiter-${id}`} className="absolute inset-0 rounded-lg bg-akz shadow-[0_6px_18px_-6px_rgb(var(--akz)/0.9)]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
             <span className="relative">{t}</span>
           </button>
         ))}
@@ -91,7 +92,7 @@ export function Reiter<K extends string>({ liste, wert, setze, klein }: { liste:
 export function Suche({ wert, setze, platz = 'Search …', className = '' }: { wert: string; setze: (s: string) => void; platz?: string; className?: string }) {
   return (
     <input value={wert} onChange={(e) => setze(e.target.value)} placeholder={platz}
-      className={`w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none sm:w-64 ${className}`} />
+      className={`eingabe w-full !py-2 sm:w-64 ${className}`} />
   );
 }
 
@@ -197,7 +198,7 @@ export function LaenderListe({ spieler }: { spieler: Array<{ land?: string | nul
         <motion.li key={l.code || 'x'} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 20) * 0.025 }} className="flex items-center gap-3 text-sm">
           <span className="flex w-44 shrink-0 items-center gap-2"><TeamFlagge groesse={18} laender={[l.code || undefined]} /><span className="truncate text-white/80">{l.name}</span></span>
           <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-            <motion.span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-600 to-sky-400" initial={{ width: 0 }} animate={{ width: `${(l.n / max) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 + Math.min(i, 20) * 0.02 }} />
+            <motion.span className="absolute inset-y-0 left-0 rounded-full bg-akz" initial={{ width: 0 }} animate={{ width: `${(l.n / max) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 + Math.min(i, 20) * 0.02 }} />
           </span>
           <span className="w-8 shrink-0 text-right font-bold tabular-nums text-white">{l.n}</span>
         </motion.li>
@@ -209,7 +210,7 @@ export function LaenderListe({ spieler }: { spieler: Array<{ land?: string | nul
 /** Hochkant-Foto eines Spielers (h-12 w-9) - Betreiber: Rechtecke nebeneinander, keine Kreise. */
 export function Hochkant({ bild, klein }: { bild?: string | null; klein?: boolean }) {
   if (!bild) return null;
-  return <img src={bild} alt="" loading="lazy" className={`${klein ? 'h-10 w-[30px]' : 'h-12 w-9'} shrink-0 rounded-lg object-cover object-top ring-1 ring-white/15`} />;
+  return <img src={bild} alt="" loading="lazy" className={`${klein ? 'h-10 w-[30px]' : 'h-12 w-9'} shrink-0 rounded-lg object-cover object-top ring-1 ring-white/10`} />;
 }
 
 /** Die Fotos eines Teams - nur wenn jeder Spieler eines hat (Betreiber-Regel). */

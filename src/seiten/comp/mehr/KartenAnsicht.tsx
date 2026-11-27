@@ -3,7 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 /*
  * Die Landepunkt-Karte im Hub - wie jede Turnierkarte der Seite: Schwarz, wo ein Team steht, Rot ab rotAb Teams, weisse Namen in
  * Grossbuchstaben mit schwarzer Kontur. Rad zoomt zum Zeiger, Ziehen verschiebt, Doppelklick zoomt hinein, Strg+F sucht einen Spieler
- * und springt hin, Vollbild, als PNG speichern. Nur Anschauen - bearbeitet wird auf thecomphub.com (/maps).
+ * und springt hin, Vollbild, als PNG speichern. Nur Anschauen - bearbeitet wird im Karten-Werkzeug (zeichnen/KartenWerkzeug).
+ * Design-System 3.0: die Werkzeuge haengen als Leiste oben rechts an der Karte, Hervorhebungen in der Akzentfarbe des Bereichs. `deckel` begrenzt
+ * die Breite (in der Werkbank 'none' - dort gibt die Spalte die Groesse vor), `zeige` laesst die Karte von aussen zu einem Namen springen
+ * (Klick auf ein Team in der angedockten Liste).
  */
 
 export interface Punkt { x: number; y: number }
@@ -57,7 +60,13 @@ function begrenze(z: number, m: Punkt): Punkt {
   return { x: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.x)), y: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.y)) };
 }
 
-export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }: { formen: KartenForm[]; bild?: string | null; rotAb?: number; titel?: string }) {
+export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map', deckel = 'min(100%, 86vh)', zeige = null }: {
+  formen: KartenForm[]; bild?: string | null; rotAb?: number; titel?: string;
+  /** Hoechstbreite der Karte (CSS) - in der Werkbank 'none'. */
+  deckel?: string;
+  /** Von aussen: zu der Stelle springen, an der einer dieser Namen steht (n hochzaehlen, um dieselbe Stelle erneut anzuspringen). */
+  zeige?: { namen: string[]; n: number } | null;
+}) {
   const huelle = useRef<HTMLDivElement | null>(null);
   const flaeche = useRef<HTMLDivElement | null>(null);
   const [z, setZ] = useState(1);
@@ -169,6 +178,15 @@ export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }
     gleite(Math.max(3, Math.min(ZOOM_MAX - 1, 55 / Math.max(s.r.breite, s.r.hoehe, 1))), { x: s.r.links + s.r.breite / 2, y: s.r.oben + s.r.hoehe / 2 });
     setLeuchte(i); setTimeout(() => setLeuchte((x) => (x === i ? null : x)), 2600);
   };
+  const springeRef = useRef(springe);
+  useEffect(() => { springeRef.current = springe; });
+  useEffect(() => {
+    if (!zeige?.namen.length) return;
+    const q = new Set(zeige.namen.flatMap((n) => [n.toLowerCase(), kartenName(n).toLowerCase()]));
+    const s = spots.find((x) => (x.alle ?? x.zeilen).some((n) => q.has(n.toLowerCase()) || q.has(kartenName(n).toLowerCase())));
+    if (s) springeRef.current(s.i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zeige?.n]);
 
   /** Als PNG speichern: Bild, Formen und Namen auf eine Leinwand. */
   const speichern = async () => {
@@ -200,13 +218,13 @@ export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }
 
   // Namen wachsen beim Zoomen nur langsam mit (z^0.35), sonst ueberdecken sie sich bei Zoom 1 oder werden winzig beim Hineinzoomen.
   const fs = (schrift * z ** 0.35) / z;
-  const knopf = 'grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-black/60 text-white backdrop-blur transition hover:border-sky-400/60 hover:bg-black/80';
+  const knopf = 'grid h-9 w-9 place-items-center text-white/75 transition hover:bg-akz/15 hover:text-white';
 
   return (
-    <div ref={huelle} className={`relative ${voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : ''}`}>
+    <div ref={huelle} className={`relative ${voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : 'mx-auto w-full'}`} style={voll ? undefined : { maxWidth: deckel }}>
       <div ref={flaeche}
-        className={`relative mx-auto aspect-square touch-none select-none overflow-hidden rounded-3xl border border-white/10 bg-[#0b2340] ${voll ? 'h-full max-h-screen rounded-none border-0' : 'w-full'} ${z > 1.02 ? 'cursor-grab active:cursor-grabbing' : ''}`}
-        style={{ containerType: 'inline-size', maxWidth: voll ? undefined : 'min(100%, 86vh)' }}
+        className={`relative mx-auto aspect-square touch-none select-none overflow-hidden bg-[#0b2340] ${voll ? 'h-full max-h-screen' : 'w-full rounded-3xl border border-white/[0.07]'} ${z > 1.02 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        style={{ containerType: 'inline-size', maxWidth: voll ? undefined : deckel }}
         onPointerDown={(e) => { const k = e.currentTarget.getBoundingClientRect(); zug.current = { sx: e.clientX, sy: e.clientY, m: mr.current, w: k.width, bewegt: false }; e.currentTarget.setPointerCapture(e.pointerId); }}
         onPointerMove={(e) => {
           const g = zug.current; if (!g || zr.current <= 1.01) return;
@@ -225,8 +243,8 @@ export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }
               const an = hover === s.i || leuchte === s.i || trefferSet.has(s.i);
               return (
                 <polygon key={s.i} points={s.punkte.map((p) => `${p.x},${p.y}`).join(' ')}
-                  fill={leuchte === s.i ? 'rgba(56,189,248,0.45)' : fb.f} stroke={an ? '#38bdf8' : fb.r} strokeWidth={an ? 2.4 : 1.5} vectorEffect="non-scaling-stroke"
-                  style={{ transition: 'fill .2s, stroke .2s', filter: an ? 'drop-shadow(0 0 6px rgba(56,189,248,.7))' : undefined }}
+                  strokeWidth={an ? 2.4 : 1.5} vectorEffect="non-scaling-stroke"
+                  style={{ fill: leuchte === s.i ? 'rgb(var(--akz) / 0.45)' : fb.f, stroke: an ? 'rgb(var(--akz))' : fb.r, transition: 'fill .2s, stroke .2s', filter: an ? 'drop-shadow(0 0 6px rgb(var(--akz) / 0.7))' : undefined }}
                   onPointerEnter={() => setHover(s.i)} onPointerLeave={() => setHover((x) => (x === s.i ? null : x))} />
               );
             })}
@@ -238,40 +256,40 @@ export default function KartenAnsicht({ formen, bild, rotAb = 2, titel = 'map' }
             </div>
           ))}
         </div>
-        {!geladen && <div className="absolute inset-0 grid place-items-center"><span className="h-7 w-7 animate-spin rounded-full border-2 border-sky-500/20 border-t-sky-400" /></div>}
+        {!geladen && <div className="absolute inset-0 grid place-items-center"><span className="h-7 w-7 animate-spin rounded-full border-2 border-white/15 border-t-akz" /></div>}
         <span className="pointer-events-none absolute bottom-3 left-4 text-[11px] font-black uppercase tracking-[0.2em] text-white/60 drop-shadow">thecomphub.com</span>
       </div>
 
-      {/* Werkzeuge unten rechts */}
-      <div className="absolute bottom-3 right-3 flex gap-1.5">
-        <button type="button" title="Zoom in" onClick={() => gleite(zr.current * 1.6, mr.current)} className={knopf}>+</button>
-        <button type="button" title="Zoom out" onClick={() => gleite(zr.current / 1.6, mr.current)} className={knopf}>−</button>
-        {z > 1.02 && <button type="button" title="Reset" onClick={() => gleite(1, { x: 50, y: 50 })} className={knopf}>
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 10a6 6 0 1 0 2-4.5M4 3v3h3" strokeLinecap="round" /></svg></button>}
-        {formen.some((f) => f.zeilen.length) && <button type="button" title="Find a player (Ctrl + F)" onClick={() => setSucheOffen((v) => !v)} className={knopf}>
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4 4" strokeLinecap="round" /></svg></button>}
-        <button type="button" title="Save as PNG" onClick={() => void speichern()} className={knopf}>
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3v9m0 0l-3.5-3.5M10 12l3.5-3.5M4 15h12" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+      {/* Werkzeugleiste oben rechts an der Karte */}
+      <div className="absolute right-3 top-3 z-10 flex flex-col divide-y divide-white/[0.07] overflow-hidden rounded-2xl border border-white/10 bg-fl/90 shadow-xl backdrop-blur">
         <button type="button" title={voll ? 'Exit fullscreen' : 'Fullscreen'} onClick={() => (document.fullscreenElement ? void document.exitFullscreen() : void huelle.current?.requestFullscreen?.())} className={knopf}>
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">{voll ? <path d="M8 3v5H3M12 3v5h5M8 17v-5H3M12 17v-5h5" /> : <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" />}</svg></button>
+        {formen.some((f) => f.zeilen.length) && <button type="button" title="Find a player (Ctrl + F)" onClick={() => setSucheOffen((v) => !v)} className={`${knopf} ${sucheOffen ? 'bg-akz/20 text-white' : ''}`}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4 4" strokeLinecap="round" /></svg></button>}
+        <button type="button" title="Zoom in" onClick={() => gleite(zr.current * 1.6, mr.current)} className={`${knopf} text-lg font-semibold`}>+</button>
+        <button type="button" title="Zoom out" onClick={() => gleite(zr.current / 1.6, mr.current)} className={`${knopf} text-lg font-semibold`}>−</button>
+        {z > 1.02 && <button type="button" title="Reset" onClick={() => gleite(1, { x: 50, y: 50 })} className={knopf}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 10a6 6 0 1 0 2-4.5M4 3v3h3" strokeLinecap="round" /></svg></button>}
+        <button type="button" title="Save as PNG" onClick={() => void speichern()} className={knopf}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 3v9m0 0l-3.5-3.5M10 12l3.5-3.5M4 15h12" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
       </div>
 
       {sucheOffen && (
-        <div className="absolute left-3 top-3 w-[min(320px,calc(100%-24px))] rounded-2xl border border-white/10 bg-[#0a0e18]/90 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="absolute left-3 top-3 z-10 w-[min(320px,calc(100%-76px))] rounded-2xl border border-white/10 bg-fl/95 p-2 shadow-2xl backdrop-blur-xl">
           <input autoFocus value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Find a player …"
             onKeyDown={(e) => { if (e.key === 'Enter' && treffer[0]) springe(treffer[0].i); }}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
+            className="eingabe w-full !py-2" />
           {treffer.length > 0 && (
             <ul className="mt-1 max-h-60 overflow-y-auto">
               {treffer.map((t, k) => (
-                <li key={`${t.i}-${k}`}><button type="button" onClick={() => springe(t.i)} className="w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-white/80 hover:bg-sky-400/10 hover:text-white">{t.name}</button></li>
+                <li key={`${t.i}-${k}`}><button type="button" onClick={() => springe(t.i)} className="w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-white/80 hover:bg-akz/10 hover:text-white">{t.name}</button></li>
               ))}
             </ul>
           )}
           {suche && !treffer.length && <p className="px-3 py-2 text-xs text-white/40">Nobody with that name on this map.</p>}
         </div>
       )}
-      {!formen.length && <p className="mt-3 text-center text-xs text-white/40">No drop spots for this day yet.</p>}
+      {!formen.length && <p className="pointer-events-none absolute inset-x-0 bottom-10 text-center text-xs font-semibold text-white/60 drop-shadow">No drop spots for this day yet.</p>}
     </div>
   );
 }

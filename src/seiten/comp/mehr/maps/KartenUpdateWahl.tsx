@@ -97,7 +97,7 @@ export default function KartenUpdateWahl({ aktuell, waehle, vorgabe, speichert =
           {angezeigt.map((u, i) => (
             <motion.button key={u.img} type="button" disabled={speichert} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }} whileHover={{ y: -3 }}
               onClick={() => waehle(u.url, `${u.kapitel ? `Chapter ${u.kapitel} · ` : ''}${saisonName(u.saison)} · Update ${u.patch}`)}
-              className={`overflow-hidden rounded-xl border text-left transition ${aktuell === u.url ? 'border-sky-400 ring-2 ring-sky-400/30' : 'border-white/10 hover:border-sky-400/50'}`}>
+              className={`overflow-hidden rounded-xl border text-left transition ${aktuell === u.url ? 'border-akz ring-2 ring-akz/30' : 'border-white/10 hover:border-akz/50'}`}>
               <Vorschau u={u} />
               <span className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] font-bold text-white/85">
                 <span>Update {u.patch}</span>

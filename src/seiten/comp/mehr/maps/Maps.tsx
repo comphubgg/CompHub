@@ -1,16 +1,17 @@
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../../../teile/Glas';
+import { Bild, Flaeche, Laedt, Leer, Marke, MedienKarte, Segment, Zaehler } from '../../../../ds/Bausteine';
 import { useWer } from '../../../../teile/Anmeldung';
-import { FehlerZeile, Laedt, SEITE, SeitenKopf, Suche, chip, datumLang, useDaten } from '../teile';
+import { FehlerZeile, SEITE, chip, datumLang, useDaten } from '../teile';
 import { REGION_FARBE } from '../../events/gemeinsam';
 
 /*
  * Maps im Hub - die Landepunkt-Karten aller Cups, nach Kapitel und Saison (wie /tournament-maps der Seite, /api/maps-liste).
- * Kapitel als Bildstreifen (grau, solange nicht gewaehlt; "0" wo nichts vorliegt), darunter die Saisons, dann die Cups als 16:9-Kacheln
- * oder als Liste. Filter Art (FNCS, Performance, Division, Reload, Cups) und Region, Suche. Dazu die eigenen Karten (/api/turnier-karten?liste=1),
- * die zu keinem bekannten Spieltag gehoeren. Kein "All time" - waere zu viel (Betreiber).
+ * Aufbau (Design-System 3.0, 27.11.2026): links eine klebende Leiste - Titel, Suche, die Kapitel als grosse Ziffern mit Mengenbalken, die Wege
+ * zu Map Evolution und den Turnierkarten; rechts die Buehne des gewaehlten Kapitels (Kapitelbild, Saisons als Chips), darunter die Filter (Art,
+ * Region - immer sichtbar) und die Cups je Saison als Bildkarten oder als Liste. Dazu die eigenen Karten (/api/turnier-karten?liste=1), die zu
+ * keinem bekannten Spieltag gehoeren. Kein "All time" - waere zu viel (Betreiber).
  */
 
 type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
@@ -45,39 +46,17 @@ export const kartenLink = (e: { turnierId: string; region: string; windowId: str
   `/competitive/maps/cup?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`;
 
 export function StandMarke({ s }: { s: 'ended' | 'live' | 'upcoming' }) {
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] backdrop-blur ${s === 'live' ? 'bg-rose-500/90 text-white'
-      : s === 'upcoming' ? 'bg-sky-400/90 text-[#06080f]' : 'bg-black/55 text-white/75 ring-1 ring-white/15'}`}>
-      {s === 'live' ? 'Live' : s === 'upcoming' ? 'Upcoming' : 'Ended'}
-    </span>
-  );
+  return s === 'live' ? <Marke ton="rot" puls>Live</Marke> : s === 'upcoming' ? <Marke ton="akz">Upcoming</Marke> : <Marke>Ended</Marke>;
 }
 
-function Marke({ text, farbe }: { text: string; farbe?: string }) {
-  return farbe
-    ? <span className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={{ borderColor: `${farbe}55`, color: farbe, background: `${farbe}14` }}>{text}</span>
-    : <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/55">{text}</span>;
+/** Region als kleine farbige Marke (jede Region hat ihre feste Farbe - wie in Events). */
+export function RegionMarke({ r }: { r: string }) {
+  const f = REGION_FARBE[r] ?? '#94a3b8';
+  return <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 backdrop-blur" style={{ color: f, background: 'rgba(0,0,0,.6)', boxShadow: `inset 0 0 0 1px ${f}55` }}>{r === 'GLOBAL' ? 'Global' : r}</span>;
 }
 
-function Kachel({ titel, bild, href, i, oben, unten, datum }: { titel: string; bild: string | null; href: string; i: number; oben?: React.ReactNode; unten?: React.ReactNode; datum: number | null }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 14) * 0.035, duration: 0.45, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -5 }}>
-      <Link to={href} className="group block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl transition hover:border-sky-400/40">
-        <div className="relative aspect-video overflow-hidden bg-[#0a0e18]">
-          {bild ? <img src={bild} alt="" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-            : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-[#0a0e18] to-[#06080f] text-3xl font-black tracking-widest text-sky-400/30">MAP</div>}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/20 to-transparent" />
-          <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">{oben}</div>
-          <p className="absolute inset-x-4 bottom-3 line-clamp-2 text-lg font-extrabold leading-tight text-white drop-shadow">{titel.replace(/\s*·\s*/g, ' – ')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1 px-4 py-3">
-          {unten}
-          <span className="ml-auto text-[11px] tabular-nums text-white/40">{datum ? datumLang(datum) : ''}</span>
-        </div>
-      </Link>
-    </motion.div>
-  );
-}
+const titelSauber = (t: string) => t.replace(/\s*·\s*/g, ' – ');
+const klein = 'rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/50';
 
 export default function Maps() {
   const { wer } = useWer();
@@ -93,7 +72,6 @@ export default function Maps() {
   const [kapitel, setKapitel] = useState(0);
   const [saison, setSaison] = useState('');
   const [region, setRegion] = useState('');
-  const [filterOffen, setFilterOffen] = useState(false);
   const [ansicht, setAnsicht] = useState<'kacheln' | 'liste'>(() => { try { return localStorage.getItem('hub_maps_ansicht') === 'liste' ? 'liste' : 'kacheln'; } catch { return 'kacheln'; } });
 
   const zahlJe = useMemo(() => {
@@ -141,135 +119,165 @@ export default function Maps() {
     return eigene.filter((k) => !(k.windowId && bekannt.has(k.windowId)) && (!q || `${k.titel} ${k.region ?? ''}`.toLowerCase().includes(q)));
   }, [eigene, bekannt, typ, saison, region, suche, offen, juengstes]);
 
-  const titelZeile = saison ? (() => { const s = saisons.find((x) => x.kennung === saison); return s ? `${s.name}${s.titel ? ` · ${s.titel}` : ''}` : ''; })() : (kapitel ? `Chapter ${kapitel}` : '');
-  const filterZahl = (typ ? 1 : 0) + (region ? 1 : 0);
+  /** Die sichtbaren Karten je Saison, die juengste Saison zuerst - so liest sich ein Kapitel von oben nach unten durch seine Saisons. */
+  const gruppen = useMemo(() => {
+    const reihe = [...(offen?.saisons ?? [])].sort((a, b) => b.nr - a.nr);
+    return reihe.map((s) => ({ s, l: sichtbar.filter((e) => e.saison === s.kennung) })).filter((g) => g.l.length);
+  }, [offen, sichtbar]);
+
+  const gewaehlteSaison = saison ? saisons.find((x) => x.kennung === saison) ?? null : null;
+  const maxKapitel = Math.max(1, ...kapitelListe.map((k) => k.n));
+  const merkeAnsicht = (k: 'kacheln' | 'liste') => { setAnsicht(k); try { localStorage.setItem('hub_maps_ansicht', k); } catch { /* ohne Speicher */ } };
+
+  const karte = (e: MapEintrag, i: number) => {
+    const r = regionAnzeige(e);
+    return (
+      <MedienKarte key={`${e.turnierId}|${e.region}|${e.windowId}`} verz={Math.min(i, 10) * 0.03} bild={e.bild} zu={kartenLink(e)} titel={titelSauber(e.titel)}
+        unter={<span className="zahl">{[e.fenster, e.datum ? datumLang(e.datum) : ''].filter(Boolean).join(' · ')}</span>}
+        marke={<><StandMarke s={stand(e)} />{e.lan && <Marke ton="gold">LAN</Marke>}</>} ecke={<RegionMarke r={r} />}>
+        <p className="mt-2.5 flex flex-wrap gap-1"><span className={klein}>{TYP_NAME[e.typ]}</span>{e.saisonKurz && <span className={klein}>{e.saisonKurz}</span>}</p>
+      </MedienKarte>
+    );
+  };
+  const eigeneKarte = (k: Eigene, i: number) => (
+    <MedienKarte key={k.id} verz={Math.min(i, 10) * 0.03} bild={k.bild} zu={`/competitive/maps/view?id=${encodeURIComponent(k.id)}`} titel={titelSauber(k.titel)}
+      unter={<span className="zahl">{k.datum ? datumLang(k.datum) : 'Tournament map'}</span>} marke={<Marke ton="akz">Tournament map</Marke>}
+      ecke={k.region && k.region !== 'GLOBAL' ? <RegionMarke r={k.region} /> : undefined} />
+  );
+  const zeile = (key: string, href: string, bild: string | null, titel: string, datum: number | null, mitte: ReactNode, rechts: ReactNode) => (
+    <Link key={key} to={href} className="group flex items-center gap-3 border-t border-white/[0.05] px-3 py-2 text-sm transition first:border-t-0 hover:bg-white/[0.035]">
+      <Bild src={bild} ersatz={titel} className="aspect-video h-10 shrink-0 rounded-lg" />
+      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-white group-hover:text-akz">{titelSauber(titel)}</span><span className="zahl block text-[11px] text-white/40">{datum ? datumLang(datum) : ''}</span></span>
+      <span className="hidden shrink-0 items-center gap-1 sm:flex">{mitte}</span>
+      {rechts}
+    </Link>
+  );
 
   return (
-    <div className="space-y-6">
-      <SeitenKopf ueber="Drop spots" titel="Maps" text="Where every team landed — every cup, every season."
-        rechts={<>
-          {eintraege && <Glas className="px-5 py-3 text-right"><p className="text-3xl font-extrabold tabular-nums text-sky-400">{eintraege.length.toLocaleString('en')}</p><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Maps</p></Glas>}
-          <Link to="/community/map-evolution" className="rounded-2xl border border-teal-400/30 bg-teal-400/[0.06] px-4 py-3 text-sm font-semibold text-teal-200 backdrop-blur-xl transition hover:border-teal-300/60 hover:text-white">Map evolution →</Link>
-          <Link to="/competitive/maps/view" className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-sky-400/50 hover:text-white">Tournament maps →</Link>
-          {wer?.isAdmin && <Link to="/admin/alte-maps" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:border-amber-300">Manage old maps</Link>}
-        </>} />
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+      {/* Linke Leiste: Titel, Suche, Kapitel */}
+      <aside className="min-w-0 space-y-3 lg:sticky lg:top-[7.5rem]">
+        <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="fl-fest p-5">
+          <p className="ueber">Drop spots</p>
+          <h1 className="titel mt-1 text-6xl">Maps</h1>
+          <p className="mt-2 text-[13px] leading-relaxed text-white/50">Where every team landed — every cup, every season.</p>
+          {eintraege && <p className="mt-4 flex items-baseline gap-2"><Zaehler wert={eintraege.length} className="titel text-4xl !text-akz" /><span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">maps in {saisons.length} seasons</span></p>}
+          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search a cup …" className="eingabe mt-4 w-full" />
+        </motion.div>
 
-      {/* Kapitel als Bildstreifen */}
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2" role="tablist">
-        {kapitelListe.length === 0 && liste.art === 'laedt' && <Laedt />}
-        {[...kapitelListe].reverse().map((k, i) => {
-          const an = k.nr === kapitel;
-          return (
-            <motion.button key={k.nr} type="button" role="tab" aria-selected={an} onClick={() => { setKapitel(k.nr); setSaison(''); }}
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} whileHover={{ y: -3 }}
-              className={`group relative h-24 w-44 shrink-0 overflow-hidden rounded-2xl border text-left transition ${an ? 'border-sky-400 ring-2 ring-sky-400/30' : 'border-white/10 hover:border-white/30'}`}>
-              {KAPITEL_BILD[k.nr]
-                ? <img src={`${SEITE}${encodeURI(KAPITEL_BILD[k.nr])}`} alt="" loading="lazy" className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${an ? 'scale-105' : 'grayscale brightness-[.5] group-hover:brightness-75'}`} />
-                : <span className={`absolute inset-0 bg-gradient-to-br ${an ? 'from-sky-900 to-[#0a0e18]' : 'from-white/10 to-[#0a0e18]'}`} />}
-              <span className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <span className="relative flex h-full flex-col justify-end px-3 pb-2.5">
-                <span className="text-base font-extrabold uppercase tracking-wide text-white">Chapter {k.nr}</span>
-                <span className="text-[11px] font-semibold tabular-nums text-white/60">{k.n} maps</span>
-              </span>
-            </motion.button>
-          );
-        })}
-      </div>
-
-      {offen && (
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-          <button type="button" onClick={() => setSaison('')} className={chip(saison === '')}>All</button>
-          {offen.saisons.map((s) => {
-            const n = zahlJe.get(s.kennung) ?? 0;
-            return (
-              <button key={s.kennung} type="button" onClick={() => setSaison(s.kennung)} className={`${chip(saison === s.kennung)} ${n || saison === s.kennung ? '' : 'opacity-40'}`}>
-                {s.kurz}{s.titel && <span className="ml-1.5 font-normal opacity-70">{s.titel}</span>}<span className="ml-2 tabular-nums opacity-60">{n}</span>
-              </button>
-            );
-          })}
+        <div className="fl-fest p-2">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Chapter</p>
+          {kapitelListe.length === 0 && liste.art === 'laedt' && <Laedt />}
+          <div role="tablist" className="ohne-leiste flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+            {[...kapitelListe].reverse().map((k) => {
+              const an = k.nr === kapitel;
+              return (
+                <button key={k.nr} type="button" role="tab" aria-selected={an} onClick={() => { setKapitel(k.nr); setSaison(''); }}
+                  className={`group relative flex shrink-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition lg:w-full ${an ? 'bg-akz/[0.12]' : 'hover:bg-white/[0.04]'} ${k.n ? '' : 'opacity-45'}`}>
+                  {an && <motion.span layoutId="maps-kapitel" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.9)]" />}
+                  <span className={`titel w-9 text-center text-4xl ${an ? '!text-akz' : '!text-white/35 group-hover:!text-white/70'}`}>{k.nr}</span>
+                  <span className="min-w-[5.5rem] flex-1">
+                    <span className={`block text-[13px] font-bold ${an ? 'text-white' : 'text-white/70'}`}>Chapter {k.nr}</span>
+                    <span className="mt-1 hidden h-1 overflow-hidden rounded-full bg-white/[0.06] lg:block"><span className={`block h-full rounded-full ${an ? 'bg-akz' : 'bg-white/25'}`} style={{ width: `${(k.n / maxKapitel) * 100}%` }} /></span>
+                  </span>
+                  <span className="zahl text-xs font-semibold text-white/45">{k.n}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
 
-      <Glas className="space-y-3 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="mr-2 text-lg font-extrabold text-white">{titelZeile}<span className="ml-2 text-xs font-semibold text-white/40">{sichtbar.length}</span></h2>
-          <Suche wert={suche} setze={setSuche} platz="Search a cup …" />
-          <button type="button" onClick={() => setFilterOffen((v) => !v)} className={`ml-auto ${chip(filterOffen)}`}>
-            Filter{filterZahl ? ` (${filterZahl})` : ''}
-          </button>
-          {(['kacheln', 'liste'] as const).map((k) => (
-            <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('hub_maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chip(ansicht === k)}>{k === 'kacheln' ? 'Tiles' : 'List'}</button>
-          ))}
+        <div className="fl-fest flex flex-wrap divide-white/[0.06] overflow-hidden text-sm font-semibold max-lg:gap-x-2 lg:block lg:divide-y">
+          <Link to="/competitive/maps/view" className="flex items-center justify-between gap-2 px-4 py-3 text-white/80 transition hover:bg-white/[0.04] hover:text-akz">Tournament maps <span aria-hidden>→</span></Link>
+          <Link to="/community/map-evolution" className="flex items-center justify-between gap-2 px-4 py-3 text-white/80 transition hover:bg-white/[0.04] hover:text-akz">Map evolution <span aria-hidden>→</span></Link>
+          {wer?.isAdmin && <Link to="/admin/alte-maps" className="flex items-center justify-between gap-2 px-4 py-3 text-amber-200 transition hover:bg-amber-400/10">Manage old maps <span aria-hidden>→</span></Link>}
         </div>
-        {filterOffen && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-t border-white/5 pt-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Type</span>
-              {TYPEN.map(([k, t]) => <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chip(typ === k)}>{t}</button>)}
+      </aside>
+
+      {/* Rechts: Buehne des Kapitels, Filter, Karten je Saison */}
+      <div className="min-w-0 space-y-5">
+        {offen && (
+          <motion.header key={offen.nr} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="fl-fest relative isolate overflow-hidden">
+            {KAPITEL_BILD[offen.nr] && <Bild src={`${SEITE}${encodeURI(KAPITEL_BILD[offen.nr])}`} className="absolute inset-y-0 right-0 -z-10 h-full w-full sm:w-[58%]" />}
+            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/85 to-fl/5" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-fl/20 to-transparent" />
+            <div className="px-5 pb-4 pt-10 sm:px-7 sm:pt-14">
+              <p className="ueber">Chapter {offen.nr}{gewaehlteSaison ? ` · ${gewaehlteSaison.kurz}` : ` · ${offen.saisons.length} seasons`}</p>
+              <h2 className="titel mt-1 text-5xl sm:text-6xl">{gewaehlteSaison ? (gewaehlteSaison.titel || gewaehlteSaison.name) : `Chapter ${offen.nr}`}</h2>
+              <p className="zahl mt-1 text-sm text-white/55">{sichtbar.length === offen.n ? `${offen.n} maps` : `${sichtbar.length} of ${offen.n} maps`}{nurEigene.length > 0 && ` · ${nurEigene.length} tournament maps`}</p>
+              <div className="ohne-leiste -mx-1 mt-5 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap">
+                <button type="button" onClick={() => setSaison('')} className={chip(saison === '')}>All seasons</button>
+                {[...offen.saisons].sort((a, b) => b.nr - a.nr).map((s) => {
+                  const n = zahlJe.get(s.kennung) ?? 0;
+                  return (
+                    <button key={s.kennung} type="button" onClick={() => setSaison(s.kennung)} className={`${chip(saison === s.kennung)} ${n || saison === s.kennung ? '' : 'opacity-40'}`}>
+                      {s.kurz}{s.titel && s.titel !== s.kurz && <span className="font-normal text-white/55">{s.titel}</span>}<span className="zahl text-white/45">{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Region</span>
-              <button type="button" onClick={() => setRegion('')} className={chip(region === '')}>All</button>
-              {REGIONEN.filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
-                const an = region === r; const f = REGION_FARBE[r] ?? '#94a3b8';
-                return (
-                  <button key={r} type="button" onClick={() => setRegion(an ? '' : r)} className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                    style={an ? { background: f, borderColor: f, color: '#06080f' } : { borderColor: `${f}55`, color: f }}>
-                    {r === 'GLOBAL' ? 'Global' : r}<span className="ml-1.5 tabular-nums opacity-60">{zahlRegion.get(r) ?? 0}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
+          </motion.header>
         )}
-      </Glas>
 
-      {liste.art === 'fehler' && <FehlerZeile text="The maps could not be loaded right now. Please try again in a moment." />}
-      {eintraege && offen && offen.n === 0 && <Glas className="px-6 py-10 text-center text-sm text-white/45">No maps for this chapter yet.</Glas>}
-      {eintraege && offen && offen.n > 0 && sichtbar.length === 0 && nurEigene.length === 0 && <p className="text-sm text-white/45">No map found.</p>}
-
-      {ansicht === 'kacheln' ? (
-        <div key={`${kapitel}|${saison}|${typ}|${region}`} className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {sichtbar.map((e, i) => {
-            const r = regionAnzeige(e);
-            return (
-              <Kachel key={`${e.turnierId}|${e.region}|${e.windowId}`} i={i} titel={e.titel} bild={e.bild} href={kartenLink(e)} datum={e.datum}
-                oben={<><StandMarke s={stand(e)} /><span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white ring-1 ring-white/15 backdrop-blur">{r}</span></>}
-                unten={<>
-                  {e.lan && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#06080f]">LAN</span>}
-                  <Marke text={r} farbe={REGION_FARBE[r] ?? '#94a3b8'} />
-                  {e.saisonKurz && <Marke text={e.saisonKurz} />}
-                  <Marke text={TYP_NAME[e.typ]} />
-                  {e.fenster && <Marke text={e.fenster} />}
-                </>} />
-            );
-          })}
-          {nurEigene.map((k, i) => (
-            <Kachel key={k.id} i={sichtbar.length + i} titel={k.titel} bild={k.bild} href={`/competitive/maps/view?id=${encodeURIComponent(k.id)}`} datum={k.datum}
-              oben={<><span />{k.region && k.region !== 'GLOBAL' && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white ring-1 ring-white/15">{k.region}</span>}</>}
-              unten={<Marke text="Tournament map" farbe="#a78bfa" />} />
-          ))}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          <div className="ohne-leiste flex max-w-full items-center gap-1.5 overflow-x-auto">
+            <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Type</span>
+            <button type="button" onClick={() => setTyp('')} className={chip(typ === '')}>All</button>
+            {TYPEN.map(([k, t]) => <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chip(typ === k)}>{t}</button>)}
+          </div>
+          <div className="ohne-leiste flex max-w-full items-center gap-1.5 overflow-x-auto">
+            <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Region</span>
+            <button type="button" onClick={() => setRegion('')} className={chip(region === '')}>All</button>
+            {REGIONEN.filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
+              const an = region === r; const f = REGION_FARBE[r] ?? '#94a3b8';
+              return (
+                <button key={r} type="button" onClick={() => setRegion(an ? '' : r)} className="chip" style={an ? { background: f, borderColor: f, color: '#04050a' } : { color: f }}>
+                  {r === 'GLOBAL' ? 'Global' : r}<span className="zahl opacity-60">{zahlRegion.get(r) ?? 0}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="ml-auto"><Segment id="maps-ansicht" klein wert={ansicht} onWahl={merkeAnsicht} wahl={[{ k: 'kacheln', titel: 'Tiles' }, { k: 'liste', titel: 'List' }]} /></div>
         </div>
-      ) : (
-        <Glas className="divide-y divide-white/5 overflow-hidden">
-          {sichtbar.map((e) => (
-            <Link key={`${e.turnierId}|${e.region}|${e.windowId}`} to={kartenLink(e)} className="flex items-center gap-3 px-4 py-3 text-sm transition hover:bg-white/[0.04]">
-              <span className="w-24 shrink-0 text-[11px] tabular-nums text-white/40">{e.datum ? datumLang(e.datum).slice(5) : ''}</span>
-              <Marke text={regionAnzeige(e)} farbe={REGION_FARBE[regionAnzeige(e)] ?? '#94a3b8'} />
-              <span className="min-w-0 flex-1 truncate font-semibold text-white">{e.titel}</span>
-              <span className="hidden shrink-0 text-xs text-white/40 sm:inline">{e.saisonKurz}</span>
-              <StandMarke s={stand(e)} />
-            </Link>
+
+        {liste.art === 'laedt' && <Laedt text="Loading the maps" />}
+        {liste.art === 'fehler' && <FehlerZeile text="The maps could not be loaded right now. Please try again in a moment." />}
+        {eintraege && offen && offen.n === 0 && <Leer text="No maps for this chapter yet." />}
+        {eintraege && offen && offen.n > 0 && sichtbar.length === 0 && nurEigene.length === 0 && <Leer text="No map matches these filters." />}
+
+        <div key={`${kapitel}|${saison}|${typ}|${region}|${ansicht}`} className="space-y-8">
+          {gruppen.map((g) => (
+            <section key={g.s.kennung}>
+              <SaisonKopf titel={g.s.titel || g.s.name} unter={g.s.kurz === g.s.name ? `Chapter ${g.s.kapitel}` : `${g.s.kurz} · ${g.s.name}`} n={g.l.length} />
+              {ansicht === 'kacheln' ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{g.l.map(karte)}</div> : (
+                <Flaeche fest className="overflow-hidden">
+                  {g.l.map((e) => zeile(`${e.turnierId}|${e.region}|${e.windowId}`, kartenLink(e), e.bild, e.titel, e.datum,
+                    <><span className={klein}>{TYP_NAME[e.typ]}</span>{e.fenster && <span className={klein}>{e.fenster}</span>}<RegionMarke r={regionAnzeige(e)} /></>, <StandMarke s={stand(e)} />))}
+                </Flaeche>
+              )}
+            </section>
           ))}
-          {nurEigene.map((k) => (
-            <Link key={k.id} to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}`} className="flex items-center gap-3 px-4 py-3 text-sm transition hover:bg-white/[0.04]">
-              <span className="w-24 shrink-0 text-[11px] tabular-nums text-white/40">{k.datum ? datumLang(k.datum).slice(5) : ''}</span>
-              <Marke text="Map" farbe="#a78bfa" />
-              <span className="min-w-0 flex-1 truncate font-semibold text-white">{k.titel}</span>
-            </Link>
-          ))}
-        </Glas>
-      )}
+          {nurEigene.length > 0 && (
+            <section>
+              <SaisonKopf titel="Tournament maps" unter="Published by the admins" n={nurEigene.length} />
+              {ansicht === 'kacheln' ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{nurEigene.map(eigeneKarte)}</div>
+                : <Flaeche fest className="overflow-hidden">{nurEigene.map((k) => zeile(k.id, `/competitive/maps/view?id=${encodeURIComponent(k.id)}`, k.bild, k.titel, k.datum, null, <Marke ton="akz">Map</Marke>))}</Flaeche>}
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SaisonKopf({ titel, unter, n }: { titel: string; unter: string; n: number }) {
+  return (
+    <div className="mb-3 flex items-end gap-3">
+      <span className="mb-1 h-6 w-1 rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.8)]" />
+      <div className="min-w-0"><p className="truncate text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{unter}</p><h3 className="titel truncate text-3xl">{titel}</h3></div>
+      <span className="zahl mb-1 text-sm font-semibold text-white/35">{n}</span>
+      <span className="mb-2.5 h-px flex-1 bg-white/[0.07]" />
     </div>
   );
 }

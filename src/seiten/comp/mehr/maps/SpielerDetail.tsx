@@ -155,7 +155,7 @@ function PunkteKurve({ platz, elim }: { platz: Array<number | null>; elim: Array
         <line x1="0" x2="300" y1="70" y2="70" stroke="#52525b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className="absolute right-1 text-[10px] font-semibold text-white/70" style={{ top: oben(platz) }}>Placement</span>
-      <span className="absolute right-1 text-[10px] font-semibold text-sky-300" style={{ top: oben(elim) }}>Elimination</span>
+      <span className="absolute right-1 text-[10px] font-semibold text-akz" style={{ top: oben(elim) }}>Elimination</span>
     </div>
   );
 }
@@ -269,20 +269,20 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
   const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
   const sichtbar = mehr ? zeilen : zeilen.slice(0, ZUERST);
-  const kum = <label title="Shows the running total over the matches instead of the value per match" className="flex cursor-pointer items-center gap-1.5 text-[12px] text-white/50"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>;
+  const kum = <label title="Shows the running total over the matches instead of the value per match" className="flex cursor-pointer items-center gap-1.5 text-[12px] text-white/50"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-akz" /> Cumulative</label>;
   const nummern = <p className="flex justify-between text-[10px] tabular-nums text-white/35">{nr.map((n) => <span key={n}>{n}</span>)}</p>;
 
   if (laedt) return <Laedt text="Loading the match history …" />;
   if (fehler) return <p className="rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-4 py-3 text-sm text-rose-200">{fehler}</p>;
   if (!daten) return null;
-  if (!daten.dabei) return <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70"><b className="text-white">{daten.name || spieler.name}</b> {daten.frischerStand ? 'is not in this cup\'s leaderboard yet — while the cup is running it can take a while to show up; after the cup the values come from the replays.' : 'did not play in this cup.'}</p>;
+  if (!daten.dabei) return <p className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/70"><b className="text-white">{daten.name || spieler.name}</b> {daten.frischerStand ? 'is not in this cup\'s leaderboard yet — while the cup is running it can take a while to show up; after the cup the values come from the replays.' : 'did not play in this cup.'}</p>;
   if (!e && !daten.ausserhalbListe) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
             <div className={`grid items-center gap-x-4 border-b border-white/[0.06] pb-3 ${!team ? 'grid-cols-1' : mitglieder.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : mitglieder.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {mitglieder.map((m, i) => (
                 <p key={m.id} className={`flex items-center justify-center gap-2 text-center text-[14px] font-bold text-white ${i ? 'border-l border-white/[0.08]' : ''}`}><span className="truncate">{m.name}</span><TeamFlagge groesse={16} laender={[m.land]} /></p>
@@ -298,7 +298,7 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
             {e && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
               <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
                 <p className="flex justify-between"><span className="text-white/50">Placement</span><span className="tabular-nums text-white/85">{num(e.punktePlatz ?? 0)} points</span></p>
-                <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-white/85">{num(e.punkteElims ?? 0)} points</span></p>
+                <p className="flex justify-between"><span className="text-akz">Elimination</span><span className="tabular-nums text-white/85">{num(e.punkteElims ?? 0)} points</span></p>
               </div>
             )}
           </div>
@@ -310,11 +310,11 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
       </div>
 
       {meinEpic && mitglieder.some((m) => m.id === meinEpic) && auswertung?.stand === 'angefragt' && (
-        <p className="flex items-start gap-2 rounded-2xl border border-sky-400/30 bg-sky-400/[0.06] px-3 py-2.5 text-[12px] text-sky-100"><span className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-400" />We are analysing the replays of your games in this cup — damage, hits and headshots will be added. This usually takes 10 to 30 minutes; this window updates itself.</p>
+        <p className="flex items-start gap-2 rounded-2xl border border-akz/30 bg-akz/[0.06] px-3 py-2.5 text-[12px] text-akz"><span className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-akz" />We are analysing the replays of your games in this cup — damage, hits and headshots will be added. This usually takes 10 to 30 minutes; this window updates itself.</p>
       )}
-      {auswertung?.stand === 'fehler' && auswertung.fehler && <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[12px] text-white/50">{auswertung.fehler}</p>}
+      {auswertung?.stand === 'fehler' && auswertung.fehler && <p className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 text-[12px] text-white/50">{auswertung.fehler}</p>}
       {daten.eigeneAuswertung && daten.eigeneAuswertung.gelesen < daten.eigeneAuswertung.sitzungen && (
-        <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[12px] text-white/50">{daten.eigeneAuswertung.gelesen} / {daten.eigeneAuswertung.sitzungen} games could be analysed — Epic no longer keeps all replays. Damage and hits count only these games.</p>
+        <p className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 text-[12px] text-white/50">{daten.eigeneAuswertung.gelesen} / {daten.eigeneAuswertung.sitzungen} games could be analysed — Epic no longer keeps all replays. Damage and hits count only these games.</p>
       )}
       {!daten.replayTeil?.matches && e && e.games > 0 && mitglieder.some((m) => typeof rp(m, 'spiele') === 'number' && (rp(m, 'spiele') ?? 0) < e.games) && (
         <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm"><p className="font-semibold text-amber-300">Not finished yet</p>
@@ -338,7 +338,7 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
                 return (
                   <div key={m.id} role={team ? 'button' : undefined} tabIndex={team ? 0 : undefined} onClick={team ? () => setGewaehlt(m.id) : undefined}
                     onKeyDown={team ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setGewaehlt(m.id); } } : undefined}
-                    className={`min-w-[112px] flex-1 rounded-2xl border bg-black/25 ${team ? 'cursor-pointer transition hover:border-sky-400/40' : ''} ${an ? 'border-sky-400/60' : 'border-white/[0.06]'}`}>
+                    className={`min-w-[112px] flex-1 rounded-2xl border bg-black/25 ${team ? 'cursor-pointer transition hover:border-akz/40' : ''} ${an ? 'border-akz/60' : 'border-white/[0.06]'}`}>
                     <p className={`flex h-[40px] items-center justify-center border-b border-white/[0.06] px-2 text-center text-[13px] font-bold ${an ? 'text-white' : 'text-white/45'}`}><span className="truncate">{m.name}</span></p>
                     {sichtbar.map((z) => {
                       const werte = mitglieder.map((x) => z.wert(x, ctx)); const w = werte[i];
@@ -350,8 +350,8 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
                 );
               })}
             </div>
-          ) : <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/50">Values per player only exist in the replays — they are not available for this cup yet. Epic counts points, eliminations and time per team (right).</p>}
-          {zeilen.length > ZUERST && <button type="button" onClick={() => setMehr((x) => !x)} className="mx-auto mt-2 block text-[12px] font-semibold text-white/50 transition hover:text-sky-300">{mehr ? 'Show less ▲' : 'Show more ▼'}</button>}
+          ) : <p className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-[12px] text-white/50">Values per player only exist in the replays — they are not available for this cup yet. Epic counts points, eliminations and time per team (right).</p>}
+          {zeilen.length > ZUERST && <button type="button" onClick={() => setMehr((x) => !x)} className="mx-auto mt-2 block text-[12px] font-semibold text-white/50 transition hover:text-akz">{mehr ? 'Show less ▲' : 'Show more ▼'}</button>}
         </div>
         <div>
           {!team && spiele.length > 1 && <>
@@ -361,13 +361,13 @@ export default function SpielerDetail({ eventId, windowId, solo, spieler }: { ev
           </>}
           {team && !!eigeneSpiele?.length && spiele.length > 1 && (
             <div className="mb-4">
-              <div className="flex h-[40px] items-center justify-between"><span className="truncate text-[13px] font-bold text-sky-300">{aktiv?.name} · per game</span>{kum}</div>
+              <div className="flex h-[40px] items-center justify-between"><span className="truncate text-[13px] font-bold text-akz">{aktiv?.name} · per game</span>{kum}</div>
               {sichtbar.map((z) => <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]"><Welle werte={kurve(z)} rot={z.rot} kumuliert={kumuliert} /></div>)}
               {nummern}
             </div>
           )}
           {team && (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
+            <div className="rounded-2xl border border-white/10 bg-black/30">
               <div className="flex h-[40px] items-center justify-between border-b border-white/[0.06] px-3"><span className="text-[13px] font-bold text-white/85">Team per game</span>{spiele.length > 1 && kum}</div>
               {teamReihen.map((z) => {
                 const w = mitglieder[0] ? z.wert(mitglieder[0], ctx) : null; if (w === null) return null;
