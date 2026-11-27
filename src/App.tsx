@@ -85,7 +85,7 @@ export default function App() {
             <Route path="match/:tag/:nr" element={<MatchSeite />} />
             <Route path="how-it-works" element={<HowItWorks />} />
             <Route path="tournament-maps" element={<Navigate to="/competitive/maps" replace />} />
-            <Route path="*" element={<Baustelle text="Diese Seite wird gebaut …" />} />
+            <Route path="*" element={<Baustelle />} />
           </Route>
           <Route path="/community/*" element={<Community />} />
           <Route path="/streamer/*" element={<Streamer />} />

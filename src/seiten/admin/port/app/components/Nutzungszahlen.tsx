@@ -107,6 +107,8 @@ export default function Nutzungszahlen() {
         const r = await fetch(`/api/statistik/nutzung?tage=${spanne}`, { cache: 'no-store' });
         if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as Zahlen;
+        // Ohne Rechte antwortet die Schnittstelle mit 200 und {fehler} - dann nicht zeichnen (sonst "tage is not iterable")
+        if (!Array.isArray(j?.tage)) throw new Error('keine Tage');
         if (!abgebrochen) { setZahlen(j); setFehler(''); }
       } catch {
         if (!abgebrochen) setFehler(t('Die Zahlen ließen sich nicht laden.'));

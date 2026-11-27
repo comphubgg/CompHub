@@ -101,7 +101,8 @@ export function JamTracks() {
   const { teile, laedt } = useTeile(['track']);
   const [roh, setRoh] = useState<Map<string, Record<string, number>>>(new Map());
   useEffect(() => { holen<Array<{ id: string; difficulty?: Record<string, number> }>>('/v2/cosmetics/tracks').then((l) => setRoh(new Map(l.map((x) => [x.id, x.difficulty ?? {}])))).catch(() => {}); }, []);
-  const imShop = useMemo(() => shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'track').map((t) => ({ t, preis: a.preis, bis: a.bis }))), [shop.angebote]);
+  // Ein Track kann in mehreren Angeboten stecken - jeden nur einmal zeigen (sonst doppelte Kacheln und doppelte Schluessel)
+  const imShop = useMemo(() => [...new Map(shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'track').map((t) => ({ t, preis: a.preis, bis: a.bis }))).map((x) => [x.t.id, x] as const)).values()], [shop.angebote]);
   const [suche, setSuche] = useState(''); const [genre, setGenre] = useState('alle'); const [sort, setSort] = useState('neu');
   const genres = useMemo(() => [...new Set(teile.flatMap((t) => t.tags))].sort(), [teile]);
   const liste = useMemo(() => {

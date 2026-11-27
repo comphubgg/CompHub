@@ -10,7 +10,7 @@ const API: Record<string, string> = {
   'nur fuer den Betreiber': 'Admins only.', 'Nur für Admins – bitte (neu) anmelden.': 'Admins only – please sign in (again).', 'Dafür brauchst du Admin-Rechte.': 'You need admin rights for this.',
   'Dafür fehlt dir das Recht.': 'You do not have the right for this.', 'Bitte zuerst anmelden.': 'Please sign in first.', 'Nicht angemeldet.': 'Not signed in.', 'Unbekannte Aktion.': 'Unknown action.',
   'Die Ablage antwortet gerade nicht.': 'The storage is not answering right now.', 'Nur für VIPs.': 'VIPs only.', 'Nur für Profis.': 'Pros only.', 'Discord antwortet nicht.': 'Discord is not answering.',
-  'Zu diesem Spieltag gibt es keine ausgewerteten Replays.': 'There are no analysed replays for this match day.', 'Kein JSON': 'Not JSON',
+  'Zu diesem Spieltag gibt es keine ausgewerteten Replays.': 'There are no analysed replays for this match day.', 'Kein JSON': 'Not JSON', 'Nicht erlaubt.': 'Not allowed.', 'Nicht erlaubt': 'Not allowed.',
 };
 const t = (text: string): string => {
   if (!text) return text;

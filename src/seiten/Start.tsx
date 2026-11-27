@@ -5,10 +5,10 @@ import { useNavigate } from 'react-router-dom';
 /*
  * Der Startbildschirm im eigenen CompHub-Stil (Betreiber, 26.11.2026: "nicht wie Fortnite, eigener Style, aber das Prinzip ... bei Competitive
  * Slider, wo mehrere Bilder kommen"). Drei Glas-Tafeln: Community links, Competitive in der Mitte (am groessten, mit Bild-Slider), Streamer
- * rechts (Zugangsschluessel). Pfeiltasten waehlen, Enter oeffnet.
+ * rechts (offen fuer alle; mit kostenlosem Konto die einfachen Werkzeuge, mit VIP-Zugangsschluessel die erweiterten). Pfeiltasten waehlen, Enter oeffnet.
  */
 
-interface Bereich { id: string; titel: string; zeile: string; punkte: string[]; bilder: string[]; farbe: string; pfad: string; schloss?: boolean }
+interface Bereich { id: string; titel: string; zeile: string; punkte: string[]; bilder: string[]; farbe: string; pfad: string; schloss?: boolean } // schloss: Hinweis-Pille oben rechts (Streamer: frei + VIP)
 const CUP_BILDER = ['/cups/fncs-grand-finals.webp', '/cups/fncs-major.webp', '/cups/elite-cup.webp'];
 /* Nur Bilder, die randlos in der hohen Tafel gut aussehen - vom Betreiber ausgesucht (26.11.2026); weitere kommen von ihm. */
 const COMPETITIVE_BILDER = ['/cups/elite-cup.webp', '/slider/eis-trio.webp', '/slider/hase.webp', '/cups/console-champions-cup.webp', '/slider/disco.webp', '/cups/fncs-grand-finals.webp', '/slider/hoodie.webp'];
@@ -23,7 +23,7 @@ function StreamerWand({ logins }: { logins: string[] }) {
         {logins.slice(0, 9).map((l, i) => (
           <motion.div key={l} className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
             transition={{ opacity: { delay: 0.4 + i * 0.06 }, y: { duration: 4 + (i % 3), repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 } }}>
-            <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-[78%] rounded-2xl border border-white/15 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
+            <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-[78%] rounded-2xl border border-white/10 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
             <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-wider text-white/60">{l}</span>
           </motion.div>
         ))}
@@ -82,9 +82,8 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 50%, rgba(6,8,15,0.8) 72%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
       {b.schloss && (
-        <div className="absolute right-5 top-5 z-10 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>
-          Key
+        <div className="absolute right-5 top-5 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">
+          <span className="text-white/80">Free</span><span className="text-white/35">+</span><span style={{ color: `rgb(${b.farbe})` }}>VIP</span>
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 p-7">
@@ -125,7 +124,7 @@ export default function Start() {
   const BEREICHE: Bereich[] = [
     { id: 'community', titel: 'Community', zeile: 'Explore the island', punkte: ['Map', 'Loot', 'Weapons', 'Player count'], bilder: ['/bilder/karte-orte.png'], farbe: '45,212,191', pfad: '/community' },
     { id: 'competitive', titel: 'Competitive', zeile: 'Live · Stats · Rankings', punkte: ['Live cups', 'Player stats', 'Power rankings', 'Match finder', 'Deep stats'], bilder: COMPETITIVE_BILDER, farbe: '56,189,248', pfad: '/competitive' },
-    { id: 'streamer', titel: 'Streamer', zeile: 'For creators', punkte: ['Overlays', 'Your page', 'Tools'], bilder: streamer, farbe: '167,139,250', pfad: '/streamer', schloss: true },
+    { id: 'streamer', titel: 'Streamer', zeile: 'Open to everyone', punkte: ['Who is live', 'Free tools with an account', 'VIP key for extras'], bilder: streamer, farbe: '167,139,250', pfad: '/streamer', schloss: true },
   ];
   useEffect(() => {
     const t = (e: KeyboardEvent) => {

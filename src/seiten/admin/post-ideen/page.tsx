@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import T from '../port/app/components/T';
 import SeitenKopf from '../port/app/components/SeitenKopf';
 import { NurAdmins } from '../teile';
-import { useT } from '../port/app/components/SprachProvider';
+import { apiText, useT } from '../port/app/components/SprachProvider';
 import { tweetLaenge } from '../port/lib/ftPosts';
 import type { Format, PostIdee } from '../port/lib/postIdeen';
 
@@ -81,7 +81,7 @@ export default function PostIdeenSeite() {
     try {
       const r = await fetch(`/api/post-ideen${neu ? '?neu=1' : ''}`, { cache: 'no-store' });
       const j = await r.json();
-      if (!r.ok) throw new Error(j?.fehler ?? `HTTP ${r.status}`);
+      if (!r.ok || !Array.isArray(j?.ideen) || !Array.isArray(j?.auswahl)) throw new Error(apiText(j?.fehler ?? `HTTP ${r.status}`));
       setStand(j as Stand);
     } catch (e) { setFehler((e as Error).message); } finally { setLaedt(false); }
   }, []);

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Glas, Titel } from '../../teile/Glas';
 import { useWer } from '../../teile/Anmeldung';
 import { AnmeldeKarte, Fehler, Laedt } from './tools/Gemeinsam';
+import { apiText } from '../admin/port/app/components/SprachProvider';
 
 /*
  * Match-ID-Finder im Hub - wie /match-finder der echten Seite (/api/match-finder): Favoriten (am Konto, /api/user-storage), je Favorit das laufende
@@ -148,7 +149,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
     fetch(`/api/match-finder?ids=${ids}&namen=${namen}`, { cache: 'no-store' }).then(async (r) => {
       if (r.status === 401 || r.status === 403) { setVerboten(true); return; }
       const j = await r.json() as Antwort;
-      if (j?.ok) { setDaten(j); setFehler(''); } else setFehler(j?.error ?? 'Could not load');
+      if (j?.ok) { setDaten(j); setFehler(''); } else setFehler(j?.error ? apiText(j.error) : 'Could not load');
     }).catch(() => setFehler('Could not load'));
   }, [ids, namen, setVerboten]);
   const liveCup = Boolean(daten?.cups.some((c) => c.live) || Object.values(daten?.spieler ?? {}).some((s) => s.scrim));
@@ -295,7 +296,7 @@ function Freigaben() {
   const [fehler, setFehler] = useState('');
   const [laeuft, setLaeuft] = useState(false);
   const nimm = (j: { ok?: boolean; error?: string; eintraege?: FFreigabe[]; dienst?: { ids: string[] } | null }) => {
-    if (!j?.ok) { setFehler(j?.error ?? 'Error'); return; }
+    if (!j?.ok) { setFehler(j?.error ? apiText(j.error) : 'Error'); return; }
     setFehler(''); setListe(j.eintraege ?? []); setDienst(j.dienst?.ids ?? null);
   };
   useEffect(() => { fetch('/api/admin/matchid-freigaben', { cache: 'no-store' }).then((r) => r.json()).then(nimm).catch(() => setFehler('Could not load')); }, []);
@@ -344,7 +345,7 @@ function AlleFreunde({ kopiert, kopieren, setVerboten }: { kopiert: string; kopi
       if (weg) return;
       if (r.status === 401 || r.status === 403) { setVerboten(true); return; }
       const j = await r.json() as { ok?: boolean; error?: string; freunde?: FFreund[] };
-      if (j?.ok) { setFreunde(j.freunde ?? []); setFehler(''); } else setFehler(j?.error ?? 'Could not load');
+      if (j?.ok) { setFreunde(j.freunde ?? []); setFehler(''); } else setFehler(j?.error ? apiText(j.error) : 'Could not load');
     }).catch(() => { if (!weg) setFehler('Could not load'); });
     laden();
     const id = window.setInterval(laden, TAKT_LIVE);
