@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
-import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Kopf from '../../teile/Kopf';
 import { Glas } from '../../teile/Glas';
 import { useWer, type Wer } from '../../teile/Anmeldung';
@@ -33,6 +33,7 @@ import WechselSeite from './switch/page';
 import DiensteSeite from './services/page';
 import PartnerSeite from './partner/page';
 import LootRouten from './loot-routen/page';
+import AlleEpicFreunde from './epic-friends/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -63,6 +64,7 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'services': portiert(DiensteSeite, 'Users & Access'),
   'partner': portiert(PartnerSeite, 'Inbox'),
   'loot-routen': LootRouten,
+  'epic-friends': AlleEpicFreunde,
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */
@@ -118,10 +120,11 @@ function Leiste() {
               {liste.map((w) => {
                 const aktiv = ort.pathname === `/admin/${w.slug}` || ort.pathname.startsWith(`/admin/${w.slug}/`);
                 return (
-                  <Link key={w.slug} to={`/admin/${w.slug}`} className={`relative flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition ${aktiv ? 'text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}>
+                  <Link key={w.slug} to={w.hub ?? `/admin/${w.slug}`} title={w.hub ? `Opens the hub page ${w.hub.split('?')[0]}` : undefined} className={`relative flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] transition ${aktiv ? 'text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}>
                     {aktiv && <motion.span layoutId="admin-aktiv" className="absolute inset-0 rounded-xl border border-white/10 bg-white/[0.08]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
                     <span className="relative truncate">{w.titel}</span>
                     {w.eigen && <span className="relative ml-auto rounded-full bg-sky-400/15 px-1.5 py-px text-[9px] font-bold uppercase text-sky-300">Hub</span>}
+                    {w.hub && <span className="relative ml-auto rounded-full bg-teal-400/15 px-1.5 py-px text-[9px] font-bold uppercase text-teal-300">Hub ↗</span>}
                   </Link>
                 );
               })}
@@ -140,6 +143,8 @@ function Werkzeugseite() {
   const [p, setP] = useSearchParams();
   const w = werkzeugNach(slug);
   if (!w) return <Glas className="p-8 text-sm text-white/55">This tool does not exist. <Link to="/admin" className="text-sky-300">Back to the overview</Link></Glas>;
+  // Die Seite gibt es im Hub schon (Maps, Scrims, Awards, Tagesposts) - dorthin; ?classic=1 zeigt weiter die echte Seite.
+  if (w.hub && p.get('classic') !== '1') return <Navigate to={w.hub} replace />;
   const Eigen = EIGEN[w.slug];
   const klassisch = p.get('classic') === '1';
   if (Eigen && !klassisch) return <Eigen key={w.slug} klassisch={() => setP({ classic: '1' })} />;
@@ -180,7 +185,7 @@ function Uebersicht() {
     { titel: 'Online now', wert: z.online, unter: z.leute !== undefined ? `${z.leute} people recorded` : 'Live presence', zu: 'live', farbe: 'text-emerald-300' },
     { titel: 'Open contact messages', wert: z.kontakt, unter: 'Contact inbox', zu: 'contact', farbe: 'text-rose-300' },
     { titel: 'VIPs on the homepage', wert: z.vips, unter: 'Homepage selection', zu: 'vips', farbe: 'text-violet-300' },
-    { titel: 'Admin tools', wert: WERKZEUGE.length, unter: `${WERKZEUGE.filter((w) => w.eigen).length} rebuilt in the hub`, zu: '', farbe: 'text-sky-300' },
+    { titel: 'Admin tools', wert: WERKZEUGE.length, unter: `${WERKZEUGE.filter((w) => w.eigen || w.hub).length} in the hub`, zu: '', farbe: 'text-sky-300' },
   ];
   let n = 0;
   return (
@@ -189,7 +194,7 @@ function Uebersicht() {
         <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Admin</p>
           <h1 className="mt-1 text-5xl font-extrabold tracking-tight text-white">Control room</h1>
-          <p className="mt-2 text-white/55">Every tool of thecomphub.com in one place. Tools marked <span className="rounded-full bg-sky-400/15 px-1.5 text-[10px] font-bold uppercase text-sky-300">Hub</span> are rebuilt here; all others open the real page inside the hub.</p>
+          <p className="mt-2 text-white/55">Every tool of thecomphub.com in one place. Tools marked <span className="rounded-full bg-sky-400/15 px-1.5 text-[10px] font-bold uppercase text-sky-300">Hub</span> are rebuilt here, <span className="rounded-full bg-teal-400/15 px-1.5 text-[10px] font-bold uppercase text-teal-300">Hub ↗</span> open the hub's own public page; all others open the real page inside the hub.</p>
         </div>
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search tools …" autoFocus
           onKeyDown={(e) => { if (e.key === 'Enter' && gefiltert[0]) weiter(`/admin/${gefiltert[0].slug}`); }}
@@ -230,14 +235,14 @@ function Uebersicht() {
 function Kachel({ w, rand, i, kontakt }: { w: Werkzeug; rand: string; i: number; kontakt?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 30) * 0.02, duration: 0.45, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -3 }}>
-      <Link to={`/admin/${w.slug}`} className={`group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition hover:bg-white/[0.055] ${rand}`}>
+      <Link to={w.hub ?? `/admin/${w.slug}`} className={`group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl transition hover:bg-white/[0.055] ${rand}`}>
         <span className="flex items-center gap-2">
           <span className="text-[15px] font-bold text-white group-hover:text-sky-200">{w.titel}</span>
           {!!kontakt && <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{kontakt}</span>}
-          <span className={`ml-auto rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${w.eigen ? 'bg-sky-400/15 text-sky-300' : 'bg-white/5 text-white/40'}`}>{w.eigen ? 'Hub' : 'Live page'}</span>
+          <span className={`ml-auto rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${w.eigen ? 'bg-sky-400/15 text-sky-300' : w.hub ? 'bg-teal-400/15 text-teal-300' : 'bg-white/5 text-white/40'}`}>{w.eigen ? 'Hub' : w.hub ? 'Hub page ↗' : 'Live page'}</span>
         </span>
         <span className="mt-1.5 flex-1 text-xs leading-relaxed text-white/50">{w.text}</span>
-        <span className="mt-3 font-mono text-[10px] text-white/25">{w.pfad}</span>
+        <span className="mt-3 font-mono text-[10px] text-white/25">{w.hub ? w.hub.split('?')[0] : w.pfad}</span>
       </Link>
     </motion.div>
   );

@@ -6,11 +6,12 @@
  *   slug   - die Adresse im Hub: /admin/<slug>
  *   pfad   - die Seite auf thecomphub.com
  *   eigen  - im Hub neu gebaut (die echte Seite bleibt als "Classic view" erreichbar)
+ *   hub    - die oeffentliche Seite gibt es im Hub schon (Maps, Scrims, Awards, Tagesposts) - der Eintrag fuehrt direkt dorthin
  */
 export type GruppeId = 'inhalte' | 'spieler' | 'daten' | 'live' | 'nutzer' | 'post' | 'dashboard';
 
 export interface Gruppe { id: GruppeId; titel: string; farbe: string; punkt: string; rand: string }
-export interface Werkzeug { slug: string; pfad: string; titel: string; text: string; gruppe: GruppeId; stichworte?: string; eigen?: boolean; zaehler?: 'kontakt' }
+export interface Werkzeug { slug: string; pfad: string; titel: string; text: string; gruppe: GruppeId; stichworte?: string; eigen?: boolean; zaehler?: 'kontakt'; hub?: string }
 
 export const GRUPPEN: Gruppe[] = [
   { id: 'live', titel: 'Live & Cups', farbe: 'text-orange-300', punkt: 'bg-orange-400', rand: 'hover:border-orange-400/40' },
@@ -25,21 +26,21 @@ export const GRUPPEN: Gruppe[] = [
 export const WERKZEUGE: Werkzeug[] = [
   // Live & Cups
   { slug: 'live', pfad: '/admin/live', titel: 'Live', text: 'Who is online right now and when everyone signed in', gruppe: 'live', eigen: true, stichworte: 'online presence anwesend sessions devices' },
-  { slug: 'epic-friends', pfad: '/match-finder?ansicht=freunde', titel: 'All Epic friends', text: 'Friends of both Epic accounts live with match ID, plus the shares', gruppe: 'live', stichworte: 'match finder match-id friends freigaben' },
+  { slug: 'epic-friends', pfad: '/match-finder?ansicht=freunde', titel: 'All Epic friends', text: 'Friends of both Epic accounts live with match ID, plus the shares', gruppe: 'live', eigen: true, stichworte: 'match finder match-id friends freigaben' },
   { slug: 'status', pfad: '/admin?bereich=statistik', titel: 'Status & visitors', text: 'Jobs (incl. fast lane), load times, offline pages, visitors and usage', gruppe: 'live', stichworte: 'statistics visitors usage jobs status' },
 
   // Inhalte
   { slug: 'tweets', pfad: '/admin/tweets', titel: 'Posts', text: 'Create stat posts', gruppe: 'inhalte', eigen: true, stichworte: 'posts tweets x twitter stats beitraege' },
-  { slug: 'daily-posts', pfad: '/posts', titel: 'Daily posts', text: 'The three posts of the day with text and image', gruppe: 'inhalte', stichworte: 'daily posts today' },
+  { slug: 'daily-posts', pfad: '/posts', titel: 'Daily posts', text: 'The three posts of the day with text and image', gruppe: 'inhalte', hub: '/competitive/posts', stichworte: 'daily posts today' },
   { slug: 'post-ideen', pfad: '/admin/post-ideen', titel: 'Post ideas', text: 'Two ready posts for X every day from real data: image and text', gruppe: 'inhalte', eigen: true, stichworte: 'post ideas daily x orgs earnings banner' },
   { slug: 'tiktok', pfad: '/admin/tiktok', titel: 'TikTok', text: 'The daily video to download', gruppe: 'inhalte', eigen: true, stichworte: 'video clips' },
   { slug: 'plakate', pfad: '/admin/plakate', titel: 'Posters', text: 'Image and text for players, standings, finals and top 5', gruppe: 'inhalte', eigen: true, stichworte: 'posters grafik plakate' },
-  { slug: 'maps', pfad: '/maps', titel: 'Maps', text: 'Build tournament maps and set drop spots', gruppe: 'inhalte', stichworte: 'maps drop spots karten' },
+  { slug: 'maps', pfad: '/maps', titel: 'Maps', text: 'Build tournament maps and set drop spots', gruppe: 'inhalte', hub: '/competitive/maps/view?edit=1', stichworte: 'maps drop spots karten map tool' },
   { slug: 'alte-maps', pfad: '/admin/alte-maps', titel: 'Old maps', text: 'Maintain maps by hand: shapes, teams, leaderboard', gruppe: 'inhalte', eigen: true, stichworte: 'old maps archiv editor' },
   { slug: 'loot-routen', pfad: '/admin/loot-routen', titel: 'Loot routes', text: 'Paths, loot and chests of the pros per game, also in 3D', gruppe: 'inhalte', eigen: true, stichworte: 'loot routes 3d pros chests' },
   { slug: 'predictions', pfad: '/admin/predictions', titel: 'Predictions', text: 'Draw predictions', gruppe: 'inhalte', eigen: true, stichworte: 'predictions prognosen' },
   { slug: 'awards', pfad: '/admin/awards', titel: 'Awards editor', text: 'CompHub Awards 2026: categories, phases, nominees', gruppe: 'inhalte', eigen: true, stichworte: 'awards editor' },
-  { slug: 'awards-page', pfad: '/awards', titel: 'Awards page', text: 'Preview of the awards page and voting (only for you)', gruppe: 'inhalte', stichworte: 'awards vote preview' },
+  { slug: 'awards-page', pfad: '/awards', titel: 'Awards page', text: 'Preview of the awards page and voting (only for you)', gruppe: 'inhalte', hub: '/competitive/awards', stichworte: 'awards vote preview' },
   { slug: 'archive', pfad: '/admin/archive', titel: 'Archive', text: 'Photos and videos for events and players', gruppe: 'inhalte', eigen: true, stichworte: 'archive photos videos archiv' },
   { slug: 'assets', pfad: '/admin/assets', titel: 'Image library', text: 'Store logos and graphics', gruppe: 'inhalte', eigen: true, stichworte: 'assets logos bilder bildvorrat' },
 
@@ -55,7 +56,7 @@ export const WERKZEUGE: Werkzeug[] = [
   // Daten & Replays
   { slug: 'replays', pfad: '/admin/replays', titel: 'Replays', text: 'Check tournament replays', gruppe: 'daten', eigen: true, stichworte: 'replays epic collect' },
   { slug: 'replay', pfad: '/admin/replay', titel: 'Zones & games', text: 'Build zone images, kills and zones per game', gruppe: 'daten', eigen: true, stichworte: 'zones games kills replay' },
-  { slug: 'scrims', pfad: '/scrims', titel: 'Scrims', text: 'Scrims of the community servers (Noble, Poyo …) with sessions', gruppe: 'daten', stichworte: 'scrims noble poyo yunite' },
+  { slug: 'scrims', pfad: '/scrims', titel: 'Scrims', text: 'Scrims of the community servers (Noble, Poyo …) with sessions', gruppe: 'daten', hub: '/competitive/scrims', stichworte: 'scrims noble poyo yunite' },
 
   // Nutzer & Zugang
   { slug: 'accounts', pfad: '/admin/accounts', titel: 'Accounts', text: 'Assign roles and VIP, keys, Discord, orgs', gruppe: 'nutzer', eigen: true, stichworte: 'accounts roles konten rollen' },
