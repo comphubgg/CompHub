@@ -1,7 +1,3 @@
 node_modules
 dist
 
-# Exporte der lokalen Sitzung (Spieldateien) - nur auf dem PC des Betreibers, nie im Repo; der Abgleich (git reset --hard) laesst sie so in Ruhe.
-public/hub-daten/*.json
-!public/hub-daten/*-beispiel.json
-public/hub-daten/assets/

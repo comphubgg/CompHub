@@ -15,7 +15,7 @@ Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die
 
 Du hast lokalen Zugriff auf die Fortnite-Installation und arbeitest mit **CUE4Parse** (oder FModel). Exportiere zwei JSON-Dateien für die CompHub-Hub-Vorschau. Regel Nummer eins: **Keine Zahl erfinden oder schätzen.** Was du nicht sicher aus den Dateien lesen kannst, lässt du weg (Feld weglassen oder `null`) und schreibst es in den Bericht.
 
-**Zielordner:** Der Hub liegt auf diesem PC unter `%USERPROFILE%\CompHubHub` (z. B. `C:\Users\<Name>\CompHubHub`). Alle Pfade `public/hub-daten/...` unten sind relativ zu diesem Ordner. Diese Dateien sind absichtlich NICHT im Git (siehe `.gitignore`) – nicht committen, nicht pushen; der automatische Abgleich lässt sie in Ruhe.
+**Zielordner:** Der Hub liegt auf diesem PC unter `%USERPROFILE%\CompHubHub` (z. B. `C:\Users\<Name>\CompHubHub`). Alle Pfade `public/hub-daten/...` unten sind relativ zu diesem Ordner. Am Ende committest und pushst du sie auf den Branch `hub-vorschau` (Schritt 6) – dann sind sie gesichert und der automatische Abgleich behält sie.
 
 ### Schritt 0 – Vorbereitung (sicher nötig)
 
@@ -198,6 +198,9 @@ Pfad im Hub: **`public/hub-daten/objekte.json`** (die Probedatei `objekte-beispi
 - Klassen (Beispiele, sicher seit Jahren vorhanden – aber Namen der aktuellen Saison in Schritt 1 bestätigen): `Tiered_Chest_Athena_C` (Truhe), `Tiered_Ammo_Athena_C` (Munitionskiste). Slurp-Fass, Reboot-Van, Startrampe, Zipline, Automat, Angelstelle: Klassennamen aus der Liste in Schritt 1 nehmen.
 - **Position = vollständige Welt-Transformation**: `RootComponent.RelativeLocation` des Actors **plus** alle übergeordneten Transformationen (Level-Instanz-Position, -Drehung, -Skalierung; Attach-Parent). Nur `RelativeLocation` allein ist bei Level-Instanzen falsch!
 - Doppelte (gleiche Klasse, < 50 cm Abstand) zusammenfassen.
+- **Werkzeuge, die das schon können (CUE4Parse-basiert, prüfen welches mit dem aktuellen Build läuft):** CUE4Parse direkt (C#), CUE4Parse.CLI (exportiert .umap-Listen als JSON), UnrealExporter (Batch-Export .umap → JSON), BlenderUmap2 (exportiert .umap-Actors samt Transformationen). Es gibt keine fertige öffentliche Liste der Truhen – fortnite.gg rechnet sie selbst aus genau diesen Dateien, deshalb geht es **ab dem ersten Tag einer Season** (nicht erst nach Spielen).
+- **Spawnchance pro Truhe (wichtig, Betreiber: "die Chance ist immer gleich, auch wo sie keiner öffnet"):** Nicht jede platzierte Truhe erscheint in jeder Runde. Die Wahrscheinlichkeit steht in den Spieldaten, nicht in Replays: am Actor bzw. seiner Blueprint-Vorlage (Properties wie Spawn-/Erscheinungs-Chance, Spawner-/Gruppen-Actor, der aus N Plätzen M auswählt) – genaue Property-Namen in Schritt 1 finden und melden. Pro Truhe `chance` (0..1) setzen; bei Gruppen („2 von 5 Plätzen“) jedem Platz `chance = M/N` und zusätzlich `"gruppe": "<id>"`.
+- **Bei jedem Update neu exportieren** (Saisonstart und jedes Patch-Update), mit `build` in der Datei – die Karte zeigt den Stand an.
 - Nur die BR-Insel – keine Lobby-/Test-/Kreativ-Teilkarten, keine Objekte, die nur in einem Event-Modus auftauchen (im Bericht nennen, wenn unklar).
 
 **Gegenprobe Karte:** Nimm 3 Truhen an bekannten Orten (z. B. in einem benannten POI), schau im Hub auf **Community → Map** nach, ob die Symbole am richtigen Haus liegen. Liegen alle um denselben Betrag verschoben, ist eine Transformation vergessen worden.
