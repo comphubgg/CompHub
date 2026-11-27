@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Glas } from '../../teile/Glas';
 import { DatenFehlen, LinkKopieren } from './Bausteine';
+import { bildNachName } from './waffenNamen';
 import { TEAL, Ueberschrift } from './Teile';
 import {
   KLASSEN_DB, QUELLEN, SELTENHEITEN, WERTE, WERTE_MEHR, ZIELE, fmt, gesamtChance, pro, selten, zeitBisKill, type Datenbank, type DbWaffe, type Stufe,
@@ -16,7 +17,8 @@ import { waffeVon } from './waffenNamen';
 
 export interface Turnier { dmg: number; hits: number; krit: number; spieler: number; tage: number }
 type Wiki = Map<string, { name: string; bild: string }> | undefined;
-export const bildVon = (w: DbWaffe, wiki: Wiki) => w.icon ?? waffeVon(w.blueprints[0] ?? w.rarities[0]?.wid ?? w.id, wiki).bild;
+/** Bild: eigenes Symbol (/waffen, /api/waffen-bilder) zuerst, Bild aus dem Fortnite Wiki nur als Ersatz. */
+export const bildVon = (w: DbWaffe, wiki: Wiki) => w.icon ?? (w.blueprints[0] || w.rarities[0]?.wid ? waffeVon(w.blueprints[0] ?? w.rarities[0]!.wid!, wiki).bild : null) ?? bildNachName(w.name, wiki) ?? w.wikiBild ?? null;
 const ALLE_WERTE = [...WERTE, ...WERTE_MEHR];
 
 export function WaffenTabs({ ids }: { ids: string[] }) {
@@ -55,7 +57,7 @@ export function Einzelwaffe({ db, wiki, proWaffe, imVergleich, vergleichen }: { 
   const { id } = useParams();
   const w = db.weapons.find((x) => x.id === id);
   const [r, setR] = useState<string | null>(null);
-  if (!w) return <Glas className="p-6 text-sm text-white/60">This weapon isn't in the current export. <Link to="/community/weapons" className="text-teal-300">Back to the loot pool</Link></Glas>;
+  if (!w) return <Glas className="p-6 text-sm text-white/60">This weapon isn't in the database (yet). <Link to="/community/weapons" className="text-teal-300">Back to the loot pool</Link></Glas>;
   const s = w.rarities.find((x) => x.rarity === r) ?? w.rarities[Math.min(1, w.rarities.length - 1)];
   const farbe = selten(s?.rarity ?? 'common').farbe;
   const klasse = KLASSEN_DB.find((k) => k.k === w.class)?.titel ?? 'Weapons';
@@ -87,7 +89,15 @@ export function Einzelwaffe({ db, wiki, proWaffe, imVergleich, vergleichen }: { 
             <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
               <span className="rounded-lg bg-white/[0.06] px-2 py-1 text-white/70">{klasse}</span>
               {w.ammo && <span className="rounded-lg bg-white/[0.06] px-2 py-1 text-white/70">{w.ammo}</span>}
+              {w.vaulted ? <span className="rounded-lg bg-amber-300/90 px-2 py-1 font-black uppercase text-[#06080f]">Vaulted</span> : <span className="rounded-lg bg-emerald-400/15 px-2 py-1 text-emerald-200">In the current pool</span>}
             </div>
+            {w.saisons?.length ? (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Seasons available</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">{w.saisons.map((x, i) => <motion.span key={x} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }} className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-white/75">{x.replace(/^C(\d+) S(\w+)$/, 'Ch. $1 S$2')}</motion.span>)}</div>
+              </div>
+            ) : null}
+            {w.wiki && <a href={w.wiki} target="_blank" rel="noreferrer" className="block text-xs font-semibold text-white/45 hover:text-white">Data: Fortnite Wiki, CC BY-SA ↗</a>}
             {w.description && <p className="text-sm text-white/55">{w.description}</p>}
             <div className="flex items-center gap-3"><Punkte w={w} wahl={s?.rarity} setzen={setR} /><span className="text-sm font-bold" style={{ color: farbe }}>{selten(s?.rarity ?? 'common').titel}</span></div>
             <button type="button" onClick={() => vergleichen(w.id)} className={`w-full rounded-xl py-2.5 text-sm font-bold transition ${imVergleich(w.id) ? 'border border-teal-300/50 bg-teal-300/10 text-teal-100' : 'bg-teal-300 text-[#06080f] hover:bg-teal-200'}`}>{imVergleich(w.id) ? '✓ In compare' : '⇄ Add to compare'}</button>

@@ -4,6 +4,7 @@ import { Glas } from '../../teile/Glas';
 import { Bald, Laedt, TEAL, Ueberschrift } from './Teile';
 import { kern, waffeVon } from './waffenNamen';
 import { useDatenbank } from './waffenDaten';
+import { useWikiWaffen, zusammenfuehren } from './waffenWiki';
 import WaffenDatenbank, { turnierZuordnen } from './WaffenDatenbank';
 import { Aenderungen, Einzelwaffe, VergleichSeite, WaffenTabs } from './WaffenSeiten';
 import { DatenFehlen } from './Bausteine';
@@ -118,7 +119,17 @@ function Balken({ titel, wert, text, max = 100 }: { titel: string; wert: number;
 
 export default function Waffen() {
   const wiki = useWiki();
-  const { db, status } = useDatenbank();
+  const { db: spielDb, status: spielStatus } = useDatenbank();
+  // Alle Waffen, die es je gab: Fortnite Wiki (waffenWiki.ts) - Werte aus den Spieldateien gehen vor
+  const wikiW = useWikiWaffen();
+  const dbRoh = useMemo(() => zusammenfuehren(spielDb, wikiW.waffen), [spielDb, wikiW.waffen]);
+  const status = spielStatus === 'laedt' ? 'laedt' : dbRoh ? 'da' : wikiW.status === 'laedt' ? 'laedt' : 'fehlt';
+  const wikiFortschritt = wikiW.status === 'laedt' && wikiW.gesamt > 0 ? (
+    <div className="flex flex-wrap items-center gap-3 text-xs text-white/45">
+      <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full bg-teal-300" animate={{ width: `${(wikiW.fertig / wikiW.gesamt) * 100}%` }} /></div>
+      Reading every weapon from the Fortnite Wiki · {wikiW.fertig.toLocaleString('en')} / {wikiW.gesamt.toLocaleString('en')} pages
+    </div>
+  ) : null;
   // Auswahl fuer den Vergleich - bleibt beim Wechsel zwischen Pool, Einzelwaffe und Vergleich erhalten.
   const [vergleich, setVergleich] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('hub-waffen-vergleich') ?? '[]'); } catch { return []; } });
   const vergleichSetzen = (l: string[]) => { setVergleich(l); try { localStorage.setItem('hub-waffen-vergleich', JSON.stringify(l)); } catch { /* egal */ } };
@@ -167,15 +178,24 @@ export default function Waffen() {
   const gezeigt = klasse === 'alle' ? gruppen : gruppen.filter((g) => g.art === klasse);
   const laedtNoch = tage && ansichten.length < tage.length;
 
+  // Ohne Spieldateien-Export: was in den Turnieren dieser Saison benutzt wurde, ist im aktuellen Pool (nicht vaulted)
+  const db = useMemo(() => {
+    if (!dbRoh || spielDb || !waffen.length) return dbRoh;
+    const gesehen = turnierZuordnen(dbRoh, waffen).proWaffe;
+    return { ...dbRoh, weapons: dbRoh.weapons.map((w) => (gesehen.has(w.id) ? { ...w, vaulted: false } : w)) };
+  }, [dbRoh, spielDb, waffen]);
   const proWaffe = useMemo(() => (db ? turnierZuordnen(db, waffen).proWaffe : new Map()), [db, waffen]);
   const pool = (
     <div className="space-y-8">
       <Ueberschrift ueber="Community · Weapons" titel="Loot pool" farbe={TEAL}
-        text={db
+        text={db && !spielDb
+          ? <>Every Fortnite weapon ever – the current pool and everything vaulted, with stats per rarity and the seasons each one was in – plus how today's weapons perform in tournaments.</>
+          : db
           ? <>Every weapon in {db.season ? `Season ${db.season}` : 'this season'}'s pool with its real stats per rarity and loot chances – straight from the game files – plus how it performs in the latest tournaments.</>
           : <>Every weapon in {saison ? `Season ${saison}` : 'this season'}'s pool – and how it really performs: measured from every hit in the latest tournament replays, not from a patch note.</>} />
 
-      {status === 'laedt' && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
+      {wikiFortschritt}
+      {status === 'laedt' && !wikiFortschritt && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
       {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} vergleich={vergleich} umschalten={umschalten} />}
       {status === 'fehlt' && <>
       <Glas className="relative overflow-hidden border-teal-300/20 p-6">
@@ -247,7 +267,7 @@ export default function Waffen() {
       </>}
     </div>
   );
-  const ohneDatei = status === 'laedt' ? <Laedt farbe={TEAL} /> : <DatenFehlen titel="Weapon pages need the stats from the game files" text="Each weapon gets its own page – stats per rarity, rank in its class, time-to-kill per shield level, damage by distance and where to find it – as soon as hub-daten/waffen.json is there." />;
+  const ohneDatei = status === 'laedt' || wikiW.status === 'laedt' ? (wikiFortschritt ?? <Laedt farbe={TEAL} />) : <DatenFehlen titel="Weapon pages need the stats from the game files" text="Each weapon gets its own page – stats per rarity, rank in its class, time-to-kill per shield level, damage by distance and where to find it – as soon as hub-daten/waffen.json is there." />;
   return (
     <div className="space-y-6">
       <WaffenTabs ids={vergleich} />

@@ -43,3 +43,19 @@ export function waffeVon(roh: string, wiki?: Map<string, { name: string; bild: s
   const nurBild = NUR_BILD.find(([m]) => m.test(roh));
   return { name: ersatz(roh), bild: nurBild ? `/waffen/${nurBild[1]}.webp` : null };
 }
+
+/** Bild nach dem Anzeigenamen (fuer Waffen ohne Bauplan, z. B. aus dem Fortnite Wiki): eigene Symbole, dann /api/waffen-bilder. */
+let nachName: Map<string, string> | null = null;
+const nameKey = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '');
+export function bildNachName(name: string, wiki?: Map<string, { name: string; bild: string }>): string | null {
+  if (!nachName) {
+    nachName = new Map();
+    for (const [, n, b] of SPIEL_SYMBOLE) nachName.set(nameKey(n), `/waffen/${b}.webp`);
+    for (const [n, b] of Object.values(SYMBOLE)) if (!nachName.has(nameKey(n))) nachName.set(nameKey(n), `/waffen/${b}.webp`);
+  }
+  const k = nameKey(name);
+  const eigen = nachName.get(k);
+  if (eigen) return eigen;
+  for (const v of wiki?.values() ?? []) if (nameKey(v.name) === k) return v.bild;
+  return null;
+}

@@ -55,9 +55,15 @@ export interface Stufe {
   magazine?: number; reloadTime?: number; structureDamage?: number; loot?: Chancen;
   equipTime?: number; adsTime?: number; spread?: number; recoilVertical?: number; recoilHorizontal?: number;
   falloff?: Array<{ distance: number; factor: number }>;
+  /** Wert stammt aus dem Fortnite Wiki (nicht aus den Spieldateien) */
+  ausWiki?: boolean;
 }
 export interface Aenderung { date: string; build?: string; weaponId: string; rarity?: string; field: string; from?: number | string | null; to?: number | string | null; modes?: string[] }
-export interface DbWaffe { id: string; name: string; class: Klasse; icon?: string; ammo?: string; blueprints: string[]; rarities: Stufe[]; loot?: Chancen; description?: string; modes?: string[] }
+export interface DbWaffe {
+  id: string; name: string; class: Klasse; icon?: string; ammo?: string; blueprints: string[]; rarities: Stufe[]; loot?: Chancen; description?: string; modes?: string[];
+  /** Aus dem Fortnite Wiki (waffenWiki.ts): Saisons ("C1 S3"), vaulted, Herkunft des Eintrags, Wiki-Seite, Wiki-Bild (nur Ersatz) */
+  saisons?: string[]; vaulted?: boolean; quelle?: 'spiel' | 'wiki'; wiki?: string; wikiBild?: string;
+}
 export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[]; changes: Aenderung[] }
 
 export const SELTENHEITEN = [

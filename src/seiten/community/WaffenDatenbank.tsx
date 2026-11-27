@@ -35,9 +35,11 @@ function stufeFuer(w: DbWaffe, wunsch: string): Stufe | undefined {
 export function turnierZuordnen(db: Datenbank, turnier: TurnierWaffe[]) {
   const schluessel = new Map<string, string>();
   for (const w of db.weapons) for (const k of abgleichSchluessel(w)) if (!schluessel.has(k)) schluessel.set(k, w.id);
+  // Waffen ohne Bauplan (Fortnite Wiki): ueber den Anzeigenamen
+  const nachName = new Map(db.weapons.map((w) => [w.name.toLowerCase().replace(/[^a-z0-9]/g, ''), w.id]));
   const m = new Map<string, Turnier>(); const rest: TurnierWaffe[] = [];
   for (const t of turnier) {
-    const id = [kern(t.roh), kern(t.roh).replace(/\d+$/, '')].map((k) => schluessel.get(k)).find(Boolean);
+    const id = [kern(t.roh), kern(t.roh).replace(/\d+$/, '')].map((k) => schluessel.get(k)).find(Boolean) ?? nachName.get(waffeVon(t.roh).name.toLowerCase().replace(/[^a-z0-9]/g, ''));
     if (!id) { rest.push(t); continue; }
     const x = m.get(id) ?? { dmg: 0, hits: 0, krit: 0, spieler: 0, tage: 0 };
     x.dmg += t.dmg; x.hits += t.hits; x.krit += t.krit; x.spieler += t.spieler; x.tage = Math.max(x.tage, t.tage);
@@ -57,6 +59,14 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
   const [modus, setModus] = useState('br');
   const [bauen, setBauen] = useState<'build' | 'zb'>('build');
   const [ansicht, setAnsicht] = useState<'raster' | 'liste'>('raster');
+  // Alle Waffen je (Fortnite Wiki): aktueller Pool, vaulted oder alle - und je Saison
+  const mitWiki = useMemo(() => db.weapons.some((w) => w.quelle === 'wiki' || w.wiki), [db]);
+  const [poolArt, setPoolArt] = useState<'aktuell' | 'vaulted' | 'alle'>('aktuell');
+  const [saison, setSaison] = useState('alle');
+  const saisonListe = useMemo(() => { const m = new Map<string, number>(); for (const w of db.weapons) for (const x of w.saisons ?? []) m.set(x, (m.get(x) ?? 0) + 1);
+    const wert = (x: string) => { const [, c, t] = /C(\d+) S(\w+)/.exec(x) ?? []; return Number(c) * 100 + (Number(t) || (t === 'X' ? 10 : 60)); };
+    return [...m.keys()].sort((a, b) => wert(b) - wert(a)); }, [db]);
+  const imPool = (w: DbWaffe) => (!mitWiki || poolArt === 'alle' || (poolArt === 'vaulted' ? !!w.vaulted : !w.vaulted)) && (saison === 'alle' || (w.saisons ?? []).includes(saison));
 
   const { proWaffe, ohne } = useMemo(() => turnierZuordnen(db, turnier), [db, turnier]);
 
@@ -67,7 +77,7 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
     const q = suche.trim().toLowerCase();
     // Modus-Filter nur, wenn die Datei Modi fuehrt (sonst ist alles der Pool der exportierten Playlist).
     const imModus = (w: DbWaffe) => !modiDa.length || !w.modes || (w.modes.includes(modus) && (bauen === 'build' || w.modes.includes('zb') || !modiDa.includes('zb')));
-    const l = db.weapons.filter((w) => imModus(w) && (klasse === 'alle' || w.class === klasse) && (!q || w.name.toLowerCase().includes(q)));
+    const l = db.weapons.filter((w) => imPool(w) && imModus(w) && (klasse === 'alle' || w.class === klasse) && (!q || w.name.toLowerCase().includes(q)));
     const wert = (w: DbWaffe): number | undefined => {
       const s = stufe(w);
       if (sorte === 'floor') return s?.loot?.floor ?? gesamtChance(w, 'floor');
@@ -86,7 +96,7 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
       return aufsteigend ? x - y : y - x;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, klasse, sorte, wunsch, eigene, suche, proWaffe, modus, bauen, modiDa]);
+  }, [db, klasse, sorte, wunsch, eigene, suche, proWaffe, modus, bauen, modiDa, poolArt, saison, mitWiki]);
 
   const imVergleich = vergleich.map((id) => db.weapons.find((w) => w.id === id)!).filter(Boolean);
   const stand = db.exportedAt ? new Date(db.exportedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
@@ -96,10 +106,10 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
       {/* Kennzahlen */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          ['Weapons in the pool', String(db.weapons.length)],
+          [mitWiki ? (poolArt === 'aktuell' ? 'In the current pool' : poolArt === 'vaulted' ? 'Vaulted weapons' : 'Weapons ever') : 'Weapons in the pool', String(liste.length)],
           ['Rarity variants', String(db.weapons.reduce((a, w) => a + w.rarities.length, 0))],
           ['Seen in tournaments', String(proWaffe.size)],
-          ['From the game files', stand ?? (db.season ? `Season ${db.season}` : 'Export')],
+          mitWiki && !stand && !db.season ? ['Seasons covered', String(saisonListe.length)] : ['From the game files', stand ?? (db.season ? `Season ${db.season}` : 'Export')],
         ].map(([k, v], i) => (
           <Glas key={k} className="p-5" verzoegerung={0.05 * i}>
             <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k}</p>
@@ -107,6 +117,26 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
           </Glas>
         ))}
       </div>
+
+      {mitWiki && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-2xl border border-white/10 bg-black/30 p-1">
+            {([['aktuell', 'Current pool'], ['vaulted', 'Vaulted'], ['alle', 'All weapons ever']] as const).map(([k, t]) => (
+              <button key={k} type="button" onClick={() => setPoolArt(k)} className="relative rounded-xl px-3.5 py-1.5 text-sm font-bold">
+                {poolArt === k && <motion.span layoutId="waffen-pool" className="absolute inset-0 rounded-xl bg-teal-300" />}
+                <span className={`relative ${poolArt === k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{t}<span className="ml-1.5 text-xs opacity-60">{db.weapons.filter((w) => k === 'alle' || (k === 'vaulted' ? w.vaulted : !w.vaulted)).length}</span></span>
+              </button>
+            ))}
+          </div>
+          {saisonListe.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-white/50">Season
+              <select value={saison} onChange={(e) => setSaison(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1220] px-2.5 py-1.5 text-sm text-white focus:border-teal-300/60 focus:outline-none">
+                <option value="alle">Any season</option>{saisonListe.map((x) => <option key={x} value={x}>{saisonText(x)}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
 
       <ModusUmschalter modus={modus} setzen={setModus} bauen={bauen} setBauen={setBauen} verfuegbar={modiDa.length ? modiDa : ['br']} />
 
@@ -153,11 +183,13 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
 
       {ohne.length > 0 && (
         <p className="text-xs text-white/35">
-          Also seen in tournaments but not in the game-file export: {ohne.slice(0, 12).map((t) => waffeVon(t.roh, wiki).name).join(', ')}{ohne.length > 12 ? ` and ${ohne.length - 12} more` : ''}.
+          Also seen in tournaments but not in the {db.build || db.exportedAt ? 'game-file export' : 'database yet'}: {ohne.slice(0, 12).map((t) => waffeVon(t.roh, wiki).name).join(', ')}{ohne.length > 12 ? ` and ${ohne.length - 12} more` : ''}.
         </p>
       )}
       <p className="text-xs leading-relaxed text-white/35">
-        Base stats and loot chances: exported from the game files{db.build ? ` (${db.build})` : ''}{db.playlist ? `, loot for ${db.playlist}` : ''}. Damage is per body shot (all pellets for shotguns).
+        {db.build || db.exportedAt ? <>Base stats and loot chances: exported from the game files{db.build ? ` (${db.build})` : ''}{db.playlist ? `, loot for ${db.playlist}` : ''}. </> : null}
+        {mitWiki && <>Vaulted weapons, seasons and stats not in the game files: <a href="https://fortnite.fandom.com/" target="_blank" rel="noreferrer" className="text-teal-200/80 hover:text-white">Data: Fortnite Wiki, CC BY-SA</a> (marked "wiki"). </>}
+        Damage is per body shot (all pellets for shotguns).
         DPS marked "calc." is damage × fire rate. "In tournaments": the latest tournament days on the main island, rarities pooled.
       </p>
 
@@ -185,6 +217,9 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
   );
 }
 
+/** "C1 S7" -> "Ch. 1 S7" */
+export const saisonText = (x: string) => x.replace(/^C(\d+) S(\w+)$/, 'Ch. $1 S$2');
+
 function Symbol({ bild, name, klein }: { bild: string | null; name: string; klein?: boolean }) {
   const [kaputt, setKaputt] = useState(false);
   const g = klein ? 'h-7 w-7' : 'h-[110px] w-[110px]';
@@ -210,7 +245,10 @@ function DbKarte({ w, s, waehlen, bild, i, t, gesamt, spielerTage, imVergleich, 
           className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold backdrop-blur transition ${imVergleich ? 'bg-teal-300 text-[#06080f]' : 'bg-black/40 text-white/70 hover:bg-black/60 hover:text-white'}`}>
           {imVergleich ? '✓ Comparing' : '+ Compare'}
         </button>
-        {w.ammo && <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white/60 backdrop-blur">{w.ammo}</span>}
+        <div className="absolute left-3 top-3 flex flex-col items-start gap-1">
+          {w.vaulted && <span className="rounded-full bg-amber-300/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#06080f]">Vaulted</span>}
+          {w.ammo && <span className="rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white/60 backdrop-blur">{w.ammo}</span>}
+        </div>
       </div>
       <div className="p-5 pt-4">
         <Link to={`/community/weapons/${w.id}`} className="block truncate text-lg font-extrabold tracking-tight text-white hover:text-teal-200" title={w.name}>{w.name} <span className="text-sm text-white/30">→</span></Link>
@@ -223,7 +261,8 @@ function DbKarte({ w, s, waehlen, bild, i, t, gesamt, spielerTage, imVergleich, 
             );
           })}
         </div>
-        <p className="mt-1 text-[11px] font-semibold" style={{ color: farbe }}>{selten(s?.rarity ?? 'common').titel}{(s?.pellets ?? 1) > 1 ? <span className="text-white/40"> · {s!.pellets} pellets × {fmt(s!.damage!)}</span> : null}</p>
+        <p className="mt-1 text-[11px] font-semibold" style={{ color: farbe }}>{selten(s?.rarity ?? 'common').titel}{(s?.pellets ?? 1) > 1 ? <span className="text-white/40"> · {s!.pellets} pellets × {fmt(s!.damage!)}</span> : null}{(s?.ausWiki || w.quelle === 'wiki') && s ? <span className="ml-1.5 rounded bg-white/10 px-1 text-[9px] uppercase text-white/50">wiki</span> : null}</p>
+        {w.saisons?.length ? <p className="mt-1 truncate text-[10px] text-white/40" title={w.saisons.map(saisonText).join(', ')}>{saisonText(w.saisons[0])}{w.saisons.length > 1 ? ` – ${saisonText(w.saisons.at(-1)!)} · ${w.saisons.length} seasons` : ''}</p> : null}
 
         <dl className="mt-3 grid grid-cols-4 gap-1.5 text-center">
           {haupt.map((x) => {
