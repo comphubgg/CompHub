@@ -344,7 +344,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                       {ORTE.map((o) => (
                         <button key={o.wert} type="button" onClick={() => aendereBanner({ ort: o.wert })}
                           className={`rounded-md border px-1 py-1 transition ${banner.einst.ort === o.wert
-                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
                           {t(o.titel)}
                         </button>
                       ))}
@@ -356,7 +356,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                       {GROESSEN.map((o) => (
                         <button key={o.wert} type="button" onClick={() => aendereBanner({ groesse: o.wert })}
                           className={`rounded-md border px-1 py-1 transition ${banner.einst.groesse === o.wert
-                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
                           {t(o.titel)}
                         </button>
                       ))}
@@ -387,7 +387,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                           {STATS_ORTE.map((o) => (
                             <button key={o.wert} type="button" onClick={() => aendereStats({ ort: o.wert })}
                               className={`rounded-md border px-0.5 py-1 text-[11px] transition ${stats.einst.ort === o.wert
-                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
                               {t(o.titel)}
                             </button>
                           ))}
@@ -399,7 +399,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                           {GROESSEN.map((o) => (
                             <button key={o.wert} type="button" onClick={() => aendereStats({ groesse: o.wert })}
                               className={`rounded-md border px-1 py-1 transition ${stats.einst.groesse === o.wert
-                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
                               {t(o.titel)}
                             </button>
                           ))}

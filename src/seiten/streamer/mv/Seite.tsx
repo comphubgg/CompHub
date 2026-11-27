@@ -1832,7 +1832,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
 
   const liveAusfallHinweis = liveAusfall && (
     <p role="status"
-      className="fixed inset-x-3 top-3 z-[190] mx-auto max-w-xl rounded-xl border border-zinc-700 bg-zinc-900/95 px-4 py-2.5 text-sm text-slate-200 shadow-lg">
+      className="fixed inset-x-3 top-3 z-[190] mx-auto max-w-xl rounded-xl border border-white/10 bg-zinc-900/95 px-4 py-2.5 text-sm text-slate-200 shadow-lg">
       {t('{bereich} ist gerade nicht erreichbar.').replace('{bereich}', t('Live-Status'))}
     </p>
   );
