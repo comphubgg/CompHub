@@ -48,7 +48,9 @@ export default function App() {
       <Hintergrund />
       <AnimatePresence mode="wait">
       <motion.div key={bereich} className="relative" initial={{ opacity: 0, scale: bereich === 'start' ? 1.04 : 0.97, filter: 'blur(8px)' }}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, scale: bereich === 'start' ? 0.96 : 1.03, filter: 'blur(8px)' }}
+        // transitionEnd: nach dem Einblenden KEIN filter mehr - ein bleibendes filter: blur(0px) macht diese Huelle zur "Backdrop Root", dann
+        // zeigen die klebenden Glas-Leisten (Kopf, Reiter) den Seiteninhalt durchscheinend statt verschwommen (Titel lief sichtbar hinter den Reitern)
+        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }} exit={{ opacity: 0, scale: bereich === 'start' ? 0.96 : 1.03, filter: 'blur(8px)' }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
         <Routes location={ort}>
           <Route path="/" element={<Start />} />
