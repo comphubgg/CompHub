@@ -19,9 +19,9 @@ const STREAMER_FALLBACK = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'au
 function StreamerWand({ logins }: { logins: string[] }) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(120%_80%_at_50%_0%,rgba(167,139,250,0.35),rgba(6,8,15,0.9)_70%)]">
-      <div className="absolute inset-x-8 top-14 grid grid-cols-3 gap-x-4 gap-y-2.5">
+      <div className="absolute inset-x-5 top-14 grid grid-cols-6 gap-x-2 gap-y-2 md:inset-x-8 md:grid-cols-3 md:gap-x-4 md:gap-y-2.5">
         {logins.slice(0, 9).map((l, i) => (
-          <motion.div key={l} className="flex flex-col items-center gap-1.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
+          <motion.div key={l} className={`flex-col items-center gap-1.5 ${i >= 6 ? 'hidden md:flex' : 'flex'}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: [0, -4, 0] }}
             transition={{ opacity: { delay: 0.4 + i * 0.06 }, y: { duration: 4 + (i % 3), repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 } }}>
             <img src={`https://unavatar.io/twitch/${l}`} alt="" className="aspect-square w-[78%] rounded-2xl border border-white/10 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.5)]" />
             <span className="max-w-full truncate text-[10px] font-semibold uppercase tracking-wider text-white/60">{l}</span>
@@ -77,7 +77,7 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
       onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); mx.set((e.clientX - r.left) / r.width); my.set((e.clientY - r.top) / r.height); }}
       onMouseLeave={() => { mx.set(0.5); my.set(0.5); }}
       style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200 }}
-      className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'h-[min(68vh,640px)] w-[min(36vw,560px)]' : 'h-[min(58vh,540px)] w-[min(23vw,340px)]'}`}>
+      className={`group relative shrink-0 overflow-hidden rounded-[28px] border text-left outline-none backdrop-blur-xl transition-colors duration-500 ${aktiv ? 'border-white/25' : 'border-white/10'} ${gross ? 'order-first h-[40vh] min-h-[300px] w-full md:order-none md:h-[min(68vh,640px)] md:w-[min(36vw,560px)]' : 'h-[32vh] min-h-[250px] w-full md:h-[min(58vh,540px)] md:w-[min(23vw,340px)]'}`}>
       {b.id === 'streamer' ? <StreamerWand logins={b.bilder} /> : <Slider bilder={b.bilder} farbe={b.farbe} fuellen />}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,8,15,0) 50%, rgba(6,8,15,0.8) 72%, rgba(6,8,15,0.97) 100%)' }} />
       <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 60% at 50% 110%, rgba(${b.farbe},0.35), transparent 60%)` }} />
@@ -86,12 +86,12 @@ function Tafel({ b, gross, aktiv, onWahl, onLos, nr }: { b: Bereich; gross: bool
           <span className="text-white/80">Free</span><span className="text-white/35">+</span><span style={{ color: `rgb(${b.farbe})` }}>VIP</span>
         </div>
       )}
-      <div className="absolute inset-x-0 bottom-0 p-7">
+      <div className="absolute inset-x-0 bottom-0 p-5 md:p-7">
         <div className="mb-3 flex items-center gap-2">
           <span className="h-px w-6" style={{ background: `rgb(${b.farbe})` }} />
           <span className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: `rgb(${b.farbe})` }}>{b.zeile}</span>
         </div>
-        <h2 className={`font-text font-extrabold uppercase leading-none tracking-tight text-white ${gross ? 'text-[min(4.4vw,64px)]' : 'text-[min(2.6vw,36px)]'}`}>{b.titel}</h2>
+        <h2 className={`font-text font-extrabold uppercase leading-none tracking-tight text-white ${gross ? 'text-4xl md:text-[min(4.4vw,64px)]' : 'text-3xl md:text-[min(2.6vw,36px)]'}`}>{b.titel}</h2>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {b.punkte.map((p) => <span key={p} className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-white/75">{p}</span>)}
         </div>
@@ -135,12 +135,13 @@ export default function Start() {
     addEventListener('keydown', t); return () => removeEventListener('keydown', t);
   }, [aktiv, nav]);
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-9 px-6 py-10">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-8 md:gap-9 md:px-6 md:py-10">
       <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="flex items-center gap-3">
         <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-14 w-auto drop-shadow-[0_0_24px_rgba(56,189,248,0.55)]" />
         <span className="text-3xl font-extrabold tracking-tight text-white">Comp<span className="text-sky-400">Hub</span></span>
       </motion.div>
-      <div className="flex items-center justify-center gap-5">
+      {/* Handy: die Tafeln untereinander, Competitive oben (order-first) - nebeneinander waren sie je ~100 px schmal */}
+      <div className="flex w-full flex-col items-center justify-center gap-4 md:w-auto md:flex-row md:gap-5">
         {BEREICHE.map((b, i) => (
           <Tafel key={b.id} b={b} nr={i === 1 ? 0 : i === 0 ? 1 : 2} gross={i === 1} aktiv={aktiv === i} onWahl={() => setAktiv(i)} onLos={() => nav(b.pfad)} />
         ))}
