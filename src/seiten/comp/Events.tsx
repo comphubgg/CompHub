@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas, Titel } from '../../teile/Glas';
 import {
-  ART_NAME, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dekoBild, dauer, istRanked, lageVon, modiVon, stufeName, tagKurz, useJetzt,
+  ART_NAME, MODI, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dekoBild, dauer, istRanked, lageVon, modiVon, stufeName, tagKurz, useJetzt,
   type Cup, type Lage, type Modus,
 } from './events/gemeinsam';
 import { LiveMarke, RegionMarke, knopf } from './events/teile';
@@ -194,7 +194,7 @@ export default function Events() {
           </div>
           <div className="flex flex-wrap rounded-full border border-white/10 bg-black/20 p-1">
             <button type="button" className={knopf(modus === 'alle')} onClick={() => setModus('alle')}>All modes</button>
-            {(['br', 'zb', 'reload'] as Modus[]).map((m) => <button key={m} type="button" className={knopf(modus === m)} onClick={() => setModus(m)}>{MODUS_NAME[m]}</button>)}
+            {MODI.filter((m) => m !== 'sonst' || (cups ?? []).some((c) => modiVon(c).has('sonst'))).map((m) => <button key={m} type="button" className={knopf(modus === m)} onClick={() => setModus(m)}>{MODUS_NAME[m]}</button>)}
           </div>
           <button type="button" onClick={() => setRanked((x) => !x)} className="ml-auto flex items-center gap-2.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70 hover:text-white">
             <span className={`relative h-4 w-7 rounded-full transition ${ranked ? 'bg-sky-400' : 'bg-white/15'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${ranked ? 'left-3.5' : 'left-0.5'}`} /></span>

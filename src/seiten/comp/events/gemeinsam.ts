@@ -66,19 +66,38 @@ export function lageVon(c: Cup, region: string, jetzt: number): Lage {
 }
 
 /* ---------------------------------------------------------------- Modus */
-export type Modus = 'br' | 'zb' | 'reload';
-export const MODUS_NAME: Record<Modus, string> = { br: 'Battle Royale', zb: 'Zero Build', reload: 'Reload' };
+export type Modus = 'br' | 'zb' | 'reload' | 'arenas' | 'sonst';
+export const MODUS_NAME: Record<Modus, string> = { br: 'Battle Royale', zb: 'Zero Build', reload: 'Reload', arenas: 'Arenas', sonst: 'Other' };
+export const MODI: Modus[] = ['br', 'zb', 'reload', 'arenas', 'sonst'];
 
-/** Welche Spielarten ein Cup hat - aus Epics Benennung (Titel, Kennungen, Playlist). */
+/** Epics Decknamen der Reload-Inseln in den Playlists (PiperBoot, BlastBerry ...) und das Kuerzel _RE_. */
+const RELOAD_PLAYLIST = /PiperBoot|BlastBerry|DashBerry|PunchBerry|SourSpawn|JumpBear|_RE_/i;
+/** Eine gewoehnliche Turnier-Playlist der Hauptinsel: Playlist_ShowdownTournament_[FN_|FNCS_][NPM_|RC_]Solo/Duos/Trios/Squads. */
+const BR_PLAYLIST = /^Playlist_ShowdownTournament_(?:FN_|FNCS_)?(?:NPM_|RC_)*(?:Solo|Duos?|Trios?|Squads?)$/i;
+
+/**
+ * Welche Spielarten ein Cup hat - aus Epics Benennung (Titel, Kennungen) und den Playlists ALLER Spieltage.
+ * Betreiber (27.11.2026): "Arenas Fight Night ist NICHT Battle Royale" - Arenas (Boxfights, Playlist_VK_Play) ist eine eigene Spielart, und
+ * Unbekanntes wird nie stillschweigend zu Battle Royale: Battle Royale gibt es nur mit Beleg (Playlist der Hauptinsel oder Epics eigener Titel),
+ * sonst "Other".
+ */
 export function modiVon(c: Cup): Set<Modus> {
   const alle = Object.values(c.regionen).flat();
-  const text = `${c.id} ${c.titel} ${c.untertitel ?? ''} ${alle.slice(0, 3).map((f) => `${f.eventId} ${f.windowId} ${f.playlist ?? ''}`).join(' ')}`;
+  const playlists = [...new Set(alle.map((f) => f.playlist ?? '').filter(Boolean))];
+  const text = `${c.id} ${c.titel} ${c.untertitel ?? ''} ${alle.slice(0, 3).map((f) => `${f.eventId} ${f.windowId}`).join(' ')}`;
   const m = new Set<Modus>();
-  const zb = /zero\s*build|zerobuild|(^|[_\s])zb($|[_\s])|_ZB_|NoBuild/i.test(text);
-  const reload = /reload/i.test(text);
+  if (/arena|fight\s*night|box\s*fight/i.test(text) || playlists.some((p) => /VK_Play|Arena|Boxfight/i.test(p))) { m.add('arenas'); return m; }
+  // Epics Titel geht vor: steht dort "(Battle Royale)", macht eine einzelne NoBuild-Playlist in den Daten den Cup nicht zu Zero Build
+  const sagtBr = /battle\s*royale/i.test(`${c.titel} ${c.untertitel ?? ''}`);
+  const zb = /zero\s*build|zerobuild|(^|[_\s])zb($|[_\s])|_ZB_|NoBuild/i.test(text) || (!sagtBr && playlists.some((p) => /NoBuild/i.test(p)));
+  const reload = /reload/i.test(text) || playlists.some((p) => RELOAD_PLAYLIST.test(p));
   if (zb) m.add('zb');
   if (reload) m.add('reload');
-  if (!zb && !reload) m.add('br');
+  if (zb || reload) return m;
+  const belegt = playlists.some((p) => BR_PLAYLIST.test(p)) || /battle\s*royale/i.test(text)
+    // ohne Playlist (nachgetragene Turniere): FNCS und seine Divisionen werden auf der Hauptinsel gespielt
+    || (!playlists.length && (/\bFNCS\b/i.test(text) || c.art === 'division'));
+  m.add(belegt ? 'br' : 'sonst');
   return m;
 }
 export const istRanked = (c: Cup) => c.art === 'ranked' || /\branked\b/i.test(`${c.titel} ${c.untertitel ?? ''}`);
