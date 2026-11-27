@@ -57,10 +57,12 @@ export default function Karte() {
 
   useEffect(() => {
     fetch('/api/fortnite-map').then((r) => r.json()).then((j) => { setOrte(j?.orte ?? []); setStand(j?.stand ?? null); }).catch(() => {});
-    fetch('/hub-daten/objekte.json', { cache: 'no-store' }).then((r) => {
+    // Erst der echte Export der lokalen Sitzung (nie im Repo, siehe .gitignore - der 10-s-Abgleich darf ihn nicht ueberschreiben), sonst die Probe.
+    const laden = (u: string) => fetch(u, { cache: 'no-store' }).then((r) => {
       if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error('fehlt');
       return r.json();
-    }).then((j) => {
+    });
+    laden('/hub-daten/objekte.json').catch(() => laden('/hub-daten/objekte-beispiel.json')).then((j) => {
       const liste = (Array.isArray(j) ? j : j?.objekte ?? []) as Objekt[];
       setObjekte(liste.filter((o) => Number.isFinite(o?.x) && Number.isFinite(o?.y)).map((o) => ({ ...o, typ: typVon(String(o.typ ?? '')) })));
       if (!Array.isArray(j) && j?.probe) setProbe(String(j.hinweis ?? 'Sample data'));
