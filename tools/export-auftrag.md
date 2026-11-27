@@ -15,7 +15,7 @@ Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die
 
 Du hast lokalen Zugriff auf die Fortnite-Installation und arbeitest mit **CUE4Parse** (oder FModel). Exportiere zwei JSON-Dateien für die CompHub-Hub-Vorschau. Regel Nummer eins: **Keine Zahl erfinden oder schätzen.** Was du nicht sicher aus den Dateien lesen kannst, lässt du weg (Feld weglassen oder `null`) und schreibst es in den Bericht.
 
-**Zielordner:** Der Hub liegt auf diesem PC unter `%USERPROFILE%\CompHubHub` (z. B. `C:\Users\<Name>\CompHubHub`). Alle Pfade `public/hub-daten/...` unten sind relativ zu diesem Ordner. Am Ende committest und pushst du sie auf den Branch `hub-vorschau` (Schritt 6) – dann sind sie gesichert und der automatische Abgleich behält sie.
+**Zielordner:** Der Hub liegt auf diesem PC unter `%USERPROFILE%\CompHubHub` (z. B. `C:\Users\<Name>\CompHubHub`). Alle Pfade `public/hub-daten/...` unten sind relativ zu diesem Ordner. Diese Dateien bleiben NUR auf diesem PC – NICHT committen, NICHT pushen (das Repo ist öffentlich; Epics Daten und Bilder gehören nicht hinein). `.gitignore` schützt sie, und der automatische Abgleich lässt sie in Ruhe.
 
 ### Schritt 0 – Vorbereitung (sicher nötig)
 
@@ -232,13 +232,7 @@ Gesamtgröße im Blick behalten (eine Waffe ~50–300 KB); bei sehr vielen Bilde
 ### Schritt 6 – Abliefern
 
 1. Beide Dateien als gültiges JSON speichern (UTF-8, ohne Kommentare). Kurz prüfen: `node -e "JSON.parse(require('fs').readFileSync('public/hub-daten/waffen.json','utf8'))"`.
-2. Im Hub-Ordner (Branch **`hub-vorschau`**, niemals `main`): `public/hub-daten/waffen.json`, `public/hub-daten/objekte.json`, ggf. `assets.json` + `assets/*.png`, `icons/*.png`, `saison.json`, `rotation.json` committen und pushen:
-   ```
-   git pull --rebase origin hub-vorschau
-   git add public/hub-daten
-   git commit -m "Hub: Waffenwerte und Karten-Objekte aus den Spieldateien (Build …)"
-   git push origin HEAD:hub-vorschau
-   ```
+2. Nur lokal speichern (Ordner `%USERPROFILE%\CompHubHub\public\hub-daten\`). **Nicht** committen oder pushen – der Hub im Browser liest die Dateien direkt; ein Neuladen reicht.
 3. **Bericht** an den Betreiber (kurz, deutsch): Build, Playlist, welche Tabellen benutzt wurden, Anzahl Waffen/Seltenheiten/Objekte je Typ, alles was unsicher war oder weggelassen wurde, Ergebnis der Gegenproben.
 
 ### Was sicher ist und was nicht – Überblick

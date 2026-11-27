@@ -1,3 +1,11 @@
 node_modules
 dist
 
+
+# Exporte aus den Spieldateien (lokale 3D-Sitzung) bleiben NUR auf dem PC des Betreibers - das Repo ist oeffentlich (Epic-Daten/-Bilder nicht veroeffentlichen).
+# Der 10-s-Abgleich (git reset --hard) laesst ignorierte Dateien in Ruhe.
+public/hub-daten/*.json
+!public/hub-daten/*-beispiel.json
+!public/hub-daten/kisten-aus-replays.json
+public/hub-daten/assets/
+public/hub-daten/icons/
