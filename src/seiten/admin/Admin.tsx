@@ -32,6 +32,7 @@ import BildvorratSeite from './assets/page';
 import WechselSeite from './switch/page';
 import DiensteSeite from './services/page';
 import PartnerSeite from './partner/page';
+import LootRouten from './loot-routen/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -61,6 +62,7 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'switch': portiert(WechselSeite, 'Users & Access'),
   'services': portiert(DiensteSeite, 'Users & Access'),
   'partner': portiert(PartnerSeite, 'Inbox'),
+  'loot-routen': LootRouten,
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */
