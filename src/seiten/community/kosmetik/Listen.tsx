@@ -158,7 +158,7 @@ export function JamTracks() {
   );
 }
 
-/* ---------------------------------------------- Cosmetic Stats */
+/* ---------------------------------------------- Cosmetic Stats (Betreiber 27.11.: Balken "zu fest" - jetzt nur eine feine Linie unter der Zeile) */
 export function KosmetikStats() {
   const { teile, laedt } = useTeile(['br']);
   const shop = useShop();
@@ -205,7 +205,7 @@ function Tabelle({ titel, einheit, liste }: { titel: string; einheit: string; li
         {liste.slice(0, n).map(({ t, w }, i) => (
           <li key={t.id}>
             <Link to={`/community/cosmetics/${t.id}`} className="relative flex items-center gap-3 overflow-hidden rounded-xl px-2 py-1.5 hover:bg-white/[0.04]">
-              <motion.span initial={{ width: 0 }} animate={{ width: `${(w / max) * 100}%` }} transition={{ duration: 0.6, delay: i * 0.02 }} className="absolute inset-y-0 left-0 bg-teal-300/[0.07]" />
+              <motion.span initial={{ width: 0 }} animate={{ width: `${(w / max) * 100}%` }} transition={{ duration: 0.6, delay: i * 0.02 }} className="absolute bottom-0 left-2 h-[2px] rounded-full bg-teal-300/25" />
               <span className="relative w-6 text-right text-xs font-bold tabular-nums text-white/40">{i + 1}</span>
               <img src={t.bild} alt="" loading="lazy" className="relative h-9 w-9 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} />
               <span className="relative min-w-0 flex-1"><span className="block truncate text-sm font-bold text-white">{t.name}</span><span className="block truncate text-[11px]" style={{ color: seltenVon(t.selten).a }}>{t.typName}</span></span>

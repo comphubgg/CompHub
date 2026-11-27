@@ -324,7 +324,7 @@ export function GratisKosmetik() {
   );
 }
 
-/* ================================================================== Most Used (ehrlicher Ersatz) */
+/* ================================================================== Most Used (ehrlicher Ersatz; Betreiber: Name wie bei fortnite.gg, Balken nur als feine Linie) */
 const MEIST_TYPEN = [['outfit', 'Outfits'], ['emote', 'Emotes'], ['pickaxe', 'Pickaxes'], ['backpack', 'Back Blings'], ['glider', 'Gliders'], ['wrap', 'Wraps']] as const;
 export function MeistGenutzt() {
   const { teile, laedt } = useTeile(['br']);
@@ -339,7 +339,7 @@ export function MeistGenutzt() {
   const titel = REITER.find((r) => r.k === typ)?.titel ?? MEIST_TYPEN.find(([k]) => k === typ)?.[1];
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber="Community · Cosmetics" titel="Most seen" farbe={TEAL} text="The cosmetics the item shop shows the most – the closest honest proxy for what you meet on the island." rechts={<LinkKopieren />} />
+      <Ueberschrift ueber="Community · Cosmetics" titel="Most used" farbe={TEAL} text="The cosmetics the item shop shows the most – the closest honest proxy for what you meet on the island." rechts={<LinkKopieren />} />
       <Hinweis mehr={<>Epic doesn't publish what players wear, and we won't guess. Our tournament replays contain every player's outfit, so a real "Most used in pro play" list can come from the replay parser – this page then switches to it.</>}>
         <b className="text-white/70">Not usage numbers:</b> ranked by days in the item shop{zeit === '365' ? ' over the last 12 months' : ' since the shop began'}.
       </Hinweis>
@@ -380,7 +380,7 @@ export function MeistGenutzt() {
               {liste.slice(3).map(({ t, n }, i) => (
                 <motion.li key={`${typ}-${t.id}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 30) * 0.015 }}>
                   <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="relative flex items-center gap-3 overflow-hidden rounded-xl px-2 py-1.5 hover:bg-white/[0.04]">
-                    <motion.span className="absolute inset-y-0 left-0 bg-teal-300/[0.07]" initial={{ width: 0 }} animate={{ width: `${(n / max) * 100}%` }} transition={{ duration: 0.7, delay: Math.min(i, 30) * 0.015 }} />
+                    <motion.span className="absolute bottom-0 left-2 h-[2px] rounded-full bg-teal-300/25" initial={{ width: 0 }} animate={{ width: `${(n / max) * 100}%` }} transition={{ duration: 0.7, delay: Math.min(i, 30) * 0.015 }} />
                     <span className="relative w-6 text-right text-xs font-bold tabular-nums text-white/40">{i + 4}</span>
                     <img src={t.bild} alt="" loading="lazy" className="relative h-9 w-9 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} />
                     <span className="relative min-w-0 flex-1 truncate text-sm font-bold text-white">{t.name}</span>
