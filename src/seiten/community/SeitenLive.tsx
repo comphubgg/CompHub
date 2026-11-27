@@ -47,7 +47,7 @@ export function News() {
           </Glas>
         ))}
       </div>
-      <p className="text-xs text-white/35">Source: Epic's in-game news via fortnite-api.com. Reactions are saved on this device only – shared counts need a backend.</p>
+      <p className="text-xs text-white/35">Source: Epic's in-game news via fortnite-api.com. Reactions are saved on this device.</p>
     </div>
   );
 }
@@ -166,8 +166,8 @@ export function Benachrichtigungen() {
           </ul>
         </Glas>
         <Glas className="p-6" verzoegerung={0.08}>
-          <h3 className="font-bold text-white">What still needs a backend</h3>
-          <p className="mt-2 text-sm leading-relaxed text-white/55">Your choices are saved on this device. To actually send alerts while the page is closed, the site needs Web Push: a service worker on thecomphub.com, VAPID keys, a store for each device's push subscription with its chosen topics, and a job that fires when a cup starts, the rotation changes, a patch lands or the season ends.</p>
+          <h3 className="font-bold text-white">Good to know</h3>
+          <p className="mt-2 text-sm leading-relaxed text-white/55">Your picks are saved on this device. Alerts go out once CompHub's push service is switched on — until then this page remembers what you want to hear about, so nothing is lost.</p>
         </Glas>
       </div>
     </div>

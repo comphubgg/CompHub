@@ -99,7 +99,7 @@ export function CommunitySeite() {
           <Link to="/community/news" className="block text-sm font-semibold text-teal-200 hover:text-white">All news →</Link>
         </div>
       </div>
-      <p className="text-[11px] text-white/30">Reddit posts are loaded straight from reddit.com in your browser and open there. Our own posts with comments and profiles need a moderated community backend – not built yet.</p>
+      <p className="text-[11px] text-white/30">Reddit posts are loaded straight from reddit.com in your browser and open there.</p>
     </div>
   );
 }
