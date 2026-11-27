@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Glas } from '../../teile/Glas';
-import { TEAL, Ueberschrift } from './Teile';
+import { TEAL } from './Teile';
 import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
 import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
 import { waffeVon } from './waffenNamen';
@@ -192,8 +192,20 @@ export default function Karte() {
       const g = m.get(id) ?? { typ: o.typ, sx: 0, sy: 0, liste: [] };
       g.sx += px; g.sy += py; g.liste.push(o); m.set(id, g);
     });
-    return [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }));
+    const roh = [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }));
+    if (!einst.gruppieren || sicht.s >= 6) return roh;
+    // Weniger Ueberlappung (Betreiber 27.11.2026: zu unruhig): grosse Haufen zuerst, dann nach Ebenen-Reihenfolge; was ein schon gesetztes
+    // Symbol zu mehr als der Haelfte verdecken wuerde, wird ausgelassen - es erscheint beim Hineinzoomen (ab 600 % alles).
+    const rang = (t: string) => EBENEN.findIndex((e) => e.typ === t);
+    const gesetzt: Gruppe[] = []; const abstand = symbolPx * 0.62;
+    for (const g of [...roh].sort((a, b) => b.liste.length - a.liste.length || rang(a.typ) - rang(b.typ))) {
+      if (gesetzt.some((x) => Math.abs(x.px - g.px) < abstand && Math.abs(x.py - g.py) < abstand)) continue;
+      gesetzt.push(g);
+    }
+    return gesetzt;
   }, [sichtbar, skala, sicht.s, symbolPx, einst.gruppieren]);
+  // Zahl nur an echten Haufen und nur weit draussen - kleine Gruppen (2-4) zeigen einfach ein Symbol.
+  const mitZahl = (g: Gruppe) => g.liste.length >= 5 && sicht.s < 3.5;
   const [ueber, setUeber] = useState<string | null>(null);
   const [fest, setFest] = useState<string | null>(null);
   const tipp = gruppen.find((g) => g.id === (fest ?? ueber)) ?? null;
@@ -242,7 +254,7 @@ export default function Karte() {
       for (const gr of gruppen.filter(imBild)) {
         const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const rad = symbolPx / 2;
         g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); g.lineWidth = 2; g.strokeStyle = '#06080f'; g.stroke();
-        if (gr.liste.length > 1) { g.fillStyle = '#06080f'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
+        if (mitZahl(gr)) { g.fillStyle = '#06080f'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
       }
       g.globalAlpha = 1;
       if (namen && !epicBild) {
@@ -267,13 +279,19 @@ export default function Karte() {
   }
 
   return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Map" titel="The island" farbe={TEAL}
-        text={<>Scroll to zoom, drag to move. Positions are Epic's own world coordinates{stand ? <> · map image from {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}.</>} />
+    <div className="space-y-4">
+      {/* Kompakte Kopfzeile, damit die Karte fast den ganzen Bildschirm fuellt (Betreiber 27.11.2026: unten war zu viel frei) */}
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: `rgb(${TEAL})` }}>Community · Map</p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white">The island</h1>
+        </div>
+        <p className="text-xs text-white/45">Scroll to zoom, drag to move. Epic's own world coordinates{stand ? <> · map image from {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}.</p>
+      </div>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         {/* Karte */}
         <Glas className="relative overflow-hidden">
-          <div ref={rahmen} className={`relative ${voll ? 'h-screen' : 'h-[calc(100vh-250px)] min-h-[560px]'} cursor-grab touch-none select-none overflow-hidden bg-[rgb(13,81,151)] active:cursor-grabbing`}
+          <div ref={rahmen} className={`relative ${voll ? 'h-screen' : 'h-[calc(100vh-222px)] min-h-[480px]'} cursor-grab touch-none select-none overflow-hidden bg-[rgb(13,81,151)] active:cursor-grabbing`}
             onPointerDown={runter} onPointerMove={bewegen} onPointerUp={() => { ziehen.current = null; z.hoch(); }} onPointerLeave={() => { ziehen.current = null; setZeiger(null); z.hoch(); }}
             onDoubleClick={(e) => { if (zeichnen && z.werkzeug) { if (z.werkzeug === 'polygon') z.polygonFertig(); return; } const rr = rahmen.current!.getBoundingClientRect(); zoomen(1.8, e.clientX - rr.left, e.clientY - rr.top); }}
             style={zeichnen && z.werkzeug ? { cursor: 'crosshair' } : undefined}>
@@ -315,11 +333,11 @@ export default function Karte() {
                 })}
                 <g filter="url(#k-schatten)" opacity={einst.deckkraft / 100}>
                   {gruppen.filter(imBild).map((g) => {
-                    const n = g.liste.length; const gr = n > 1 ? symbolPx + 2 : symbolPx; const aktiv = tipp?.id === g.id;
+                    const n = g.liste.length; const zahl = mitZahl(g); const gr = zahl ? symbolPx + 2 : symbolPx; const aktiv = tipp?.id === g.id;
                     return (
                       <g key={g.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(g.id)} onPointerLeave={() => setUeber((u) => (u === g.id ? null : u))} onClick={() => markerKlick(g)}>
                         <use href={`#k-${g.typ}`} x={g.px - gr / 2} y={g.py - gr / 2} width={gr} height={gr} transform={aktiv ? `translate(${g.px} ${g.py}) scale(1.22) translate(${-g.px} ${-g.py})` : undefined} />
-                        {n > 1 && (
+                        {zahl && (
                           <g>
                             <rect x={g.px + gr / 2 - 9} y={g.py - gr / 2 - 7} width={n > 99 ? 22 : n > 9 ? 18 : 14} height={14} rx={7} fill="#06080f" stroke={ebeneVon(g.typ).farbe} strokeWidth={1.2} />
                             <text x={g.px + gr / 2 - 9 + (n > 99 ? 11 : n > 9 ? 9 : 7)} y={g.py - gr / 2 + 3.6} textAnchor="middle" fontSize={9.5} fontWeight={800} fill="#fff">{n > 99 ? '99+' : n}</text>
@@ -401,8 +419,8 @@ export default function Karte() {
           </div>
         </Glas>
 
-        {/* Seitenleiste */}
-        <div className="space-y-5">
+        {/* Seitenleiste - am breiten Bildschirm so hoch wie die Karte und in sich scrollbar (kein leerer Raum unter der Karte) */}
+        <div className="space-y-5 xl:max-h-[calc(100vh-222px)] xl:min-h-[480px] xl:overflow-y-auto xl:pr-1 [scrollbar-width:thin]">
           <AnimatePresence>
             {gewaehlt && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>

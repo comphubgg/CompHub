@@ -5,7 +5,7 @@
 1. Öffne auf deinem PC die **lokale Claude-Code-Sitzung**, die schon mit CUE4Parse/FModel an den Spieldateien arbeitet.
 2. Kopiere **alles ab der Linie „AUFTRAG FÜR DIE LOKALE SITZUNG“** und füge es dort als Nachricht ein.
 3. Die Sitzung meldet sich nach **Schritt 1** (Bestandsaufnahme) mit einer kurzen Liste zurück. Schau kurz drüber („passt das?“), dann lässt du sie weitermachen.
-4. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
+4. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), die Original-Kartensymbole unter `icons/karte/`, `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
 
 Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die Spieldateien auf deinem PC sind die saubere Quelle – daraus rechnet fortnite.gg selbst auch.
 
@@ -220,6 +220,17 @@ Für das **Asset Studio** (`/community/assets`) und schärfere Waffenbilder:
 ```
 `class` aus: `ar`, `shotgun`, `smg`, `pistol`, `sniper`, `bow`, `marksman`, `explosive`, `melee`, `consumable`, `item`, `trap`, `medallion`, `boon`, `currency`, `material`, `vehicle`, `container`, `object`, `creature`. `season` = Saison, in der das Item zuerst in den Dateien auftauchte (wenn bekannt, sonst weglassen).
 Gesamtgröße im Blick behalten (eine Waffe ~50–300 KB); bei sehr vielen Bildern lieber nur die aktuellen Saisons plus alle Waffen.
+
+### Schritt 5d – Original-Kartensymbole (`icons/karte/<typ>.png`)
+
+Der Betreiber will auf **Community → Map** die **Original-Symbole aus dem Spiel** (wie fortnite.gg) statt der selbst gezeichneten Abzeichen. Die Karte nimmt automatisch `public/hub-daten/icons/karte/<typ>.png`, sobald die Datei da ist – fehlt eine, bleibt das eigene Abzeichen als Ersatz.
+
+1. **Suchen** (nicht raten, erst auflisten): Texturen der Karten-/Minimap-Marker. Typische Orte – **prüfen**: `FortniteGame/Content/UI/…` (Unterordner mit `Minimap`, `Map`, `MapIcons`, `Markers`, `Compass`, `Icons`), dazu `FortniteGame/Plugins/GameFeatures/<Name>/Content/UI/…` für saisonale Objekte. Namen enthalten meist `Minimap`, `MapIcon`, `Map_Icon`, `Marker` (z. B. `T_UI_…Minimap…Chest…`). Gegenprobe: Die Kartenmarker-Definitionen der Objekte (Actor-Klassen aus Schritt 1, Felder wie `MinimapIcon`, `MapIcon`, `MarkerIcon`, `IndicatorBrush`) zeigen auf genau die Textur, die das Spiel benutzt – diesem Verweis folgen hat Vorrang vor der Namenssuche.
+2. **Exportieren** als **PNG mit Alpha**, Originalgröße (nicht hochskalieren), quadratisch zugeschnitten, wenn nötig mit transparentem Rand. Eine Datei je Typ, Dateiname exakt nach dieser Liste (das sind die Ebenen der Karte):
+   `vault`, `chest`, `buried`, `rarechest`, `lootcannon`, `ammo`, `spritechest`, `wanted`, `extraction`, `launchpad`, `cannon`, `zipline`, `portapotty`, `whirlpool`, `sportscar`, `suv`, `boat`, `tires`, `service`, `campfire`, `produce`, `slurp`, `slurptruck`, `fishingrod`, `fishing`, `npc`, `reboot`, `vending`, `bush`.
+   Ziel: `public/hub-daten/icons/karte/chest.png`, `…/ammo.png`, `…/slurp.png` usw. Was es in dieser Saison nicht gibt oder wofür kein Original-Symbol existiert, einfach weglassen.
+3. **Nur lokal** (`.gitignore` deckt `public/hub-daten/icons/` ab) – nicht committen, nicht pushen.
+4. Im **Bericht**: je Typ die Quell-Textur (voller Pfad) und woher die Zuordnung kommt (Verweis aus der Actor-Klasse oder nur Namenssuche).
 
 ### Schritt 5c – Saison, Rotation und sonstige Daten (nur was sicher in den Dateien steht)
 

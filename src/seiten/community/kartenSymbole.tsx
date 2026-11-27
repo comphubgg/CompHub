@@ -1,5 +1,28 @@
+import { useEffect, useState } from 'react';
+
 /*
- * Eigene Karten-Symbole (Betreiber, 26.11.2026: "richtige Icons wie bei Fortnite.gg statt Punkte"). Selbst gezeichnet, keine fremden Dateien:
+ * Original-Symbole (Betreiber 27.11.2026: die eigenen wirken "KI-generiert" - er will die Original-Kartensymbole aus dem Spiel, wie fortnite.gg).
+ * Die kommen aus seinem lokalen Export der Spieldateien (tools/export-auftrag.md, Schritt "Karten-Symbole") nach
+ * public/hub-daten/icons/karte/<typ>.png - nur lokal, nie im Repo (.gitignore: public/hub-daten). Liegt eine Datei da, nimmt die Karte sie;
+ * sonst bleibt das eigene Abzeichen darunter als Ersatz. Vite liefert fuer fehlende Dateien index.html - daher der Blick auf den Content-Type.
+ */
+export const ORIGINAL_PFAD = (typ: string) => `/hub-daten/icons/karte/${typ}.png`;
+let originalSuche: Promise<Set<string>> | null = null;
+function originaleSuchen() {
+  originalSuche ??= Promise.all(EBENEN.map((e) => fetch(ORIGINAL_PFAD(e.typ), { method: 'HEAD', cache: 'no-store' })
+    .then((r) => (r.ok && (r.headers.get('content-type') ?? '').startsWith('image/') ? e.typ : null)).catch(() => null)))
+    .then((l) => new Set(l.filter((x): x is string => !!x)));
+  return originalSuche;
+}
+/** Welche Objektarten haben ein Original-Symbol aus dem lokalen Export? (einmal je Sitzung geprueft) */
+export function useOriginalSymbole() {
+  const [da, setDa] = useState<Set<string>>(new Set());
+  useEffect(() => { let weg = false; originaleSuchen().then((s) => { if (!weg) setDa(s); }); return () => { weg = true; }; }, []);
+  return da;
+}
+
+/*
+ * Eigene Karten-Symbole (Ersatz, wenn kein Original da ist) (Betreiber, 26.11.2026: "richtige Icons wie bei Fortnite.gg statt Punkte"). Selbst gezeichnet, keine fremden Dateien:
  * je Objektart ein abgerundetes Abzeichen in der Farbe der Ebene mit einem klaren, dunklen Zeichen darin (24er-Raster, nur Linien und Flaechen,
  * damit es bei jedem Zoom scharf bleibt). Die Karte haengt sie einmal als <symbol> in ihre SVG und setzt sie per <use> - so bleiben auch
  * Tausende Marker leicht; die Seitenleiste zeichnet dasselbe Abzeichen als eigenes kleines SVG.
@@ -170,11 +193,16 @@ export function AbzeichenInhalt({ typ }: { typ: string }) {
   );
 }
 
-/** Die <symbol>-Vorlagen fuer die Karte (einmal je SVG einhaengen, dann <use href="#k-chest" />). */
+/** Die <symbol>-Vorlagen fuer die Karte (einmal je SVG einhaengen, dann <use href="#k-chest" />). Original-Symbol, wenn vorhanden. */
 export function SymbolVorlagen() {
+  const original = useOriginalSymbole();
   return (
     <defs>
-      {EBENEN.map((e) => <symbol key={e.typ} id={`k-${e.typ}`} viewBox="0 0 24 24"><AbzeichenInhalt typ={e.typ} /></symbol>)}
+      {EBENEN.map((e) => (
+        <symbol key={e.typ} id={`k-${e.typ}`} viewBox="0 0 24 24">
+          {original.has(e.typ) ? <image href={ORIGINAL_PFAD(e.typ)} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" /> : <AbzeichenInhalt typ={e.typ} />}
+        </symbol>
+      ))}
       <filter id="k-schatten" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#000" floodOpacity="0.65" /></filter>
     </defs>
   );
@@ -182,6 +210,8 @@ export function SymbolVorlagen() {
 
 /** Abzeichen als eigenstaendiges kleines SVG (Seitenleiste, Hinweise). */
 export function Abzeichen({ typ, groesse = 20, className = '' }: { typ: string; groesse?: number; className?: string }) {
+  const original = useOriginalSymbole();
+  if (original.has(typ)) return <img src={ORIGINAL_PFAD(typ)} alt="" width={groesse} height={groesse} className={`shrink-0 object-contain ${className}`} aria-hidden="true" />;
   return <svg viewBox="0 0 24 24" width={groesse} height={groesse} className={`shrink-0 ${className}`} aria-hidden="true"><AbzeichenInhalt typ={typ} /></svg>;
 }
 
