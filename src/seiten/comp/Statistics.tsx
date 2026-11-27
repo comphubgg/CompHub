@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Glas, SEITE, Titel, flagge } from '../../teile/Glas';
-import { PodestKarte } from '../../teile/Podest';
-import { Balken, Chip, Kopfzeile, Laedt, Rund, zahl } from './stats/teile';
+import { Flaeche, Kennzahl, Laedt, Leer, Marke, SeitenKopf } from '../../ds/Bausteine';
+import { SEITE, flagge } from '../../teile/Glas';
+import { Treppchen } from '../../teile/Podest';
+import { Balken, Chip, Klein, Portraet, zahl } from './stats/teile';
 
 /*
  * Statistics im Hub - dieselben Zahlen wie thecomphub.com/statistics (/api/szene-stats):
@@ -11,6 +12,10 @@ import { Balken, Chip, Kopfzeile, Laedt, Rund, zahl } from './stats/teile';
  *   ?saison&region&sort&q   -> die sortierbare Spielertabelle (Epics Turnierdaten + eigene Replay-Auswertung)
  *   ?ansicht=jahr&jahr&saison&region -> die Bestenlisten (Preisgeld, Team-Elims, Elims, Schaden, Treffer, Bauteile, Quote)
  *   ?ansicht=start&saison   -> die juengsten Spieltage mit ihrem besten Spieler
+ *
+ * Aufbau (Design-System 3.0, neu komponiert): oben EINE Frage - "wer fuehrt die Saison an?" - als Buehne: links das Rennen in der gewaehlten
+ * Wertung (Treppchen + Verfolger 4-8), rechts die Fuehrenden aller sieben Wertungen zum Aufklappen. Darunter die Spieltags-Besten als Raster und
+ * die ganze Tabelle. Jeder Spieler zeigt sein Foto ueberall, wo er vorkommt (Betreiber: nie ein vorhandenes Foto verstecken); ohne Foto steht nichts.
  */
 
 interface Saison { kennung: string; name: string }
@@ -50,58 +55,67 @@ const BRETT: Record<string, { titel: string; farbe: string }> = {
   quote: { titel: 'Damage ratio', farbe: '#34d399' },
 };
 
+/** "Chapter 7 Season 4" -> "CH7 S4" (der volle Name steht im Tooltip und in der Kopfzeile); Saisons mit eigenem Namen bleiben. */
+const saisonKurz = (n: string) => n.replace(/^Chapter\s+(\d+)\s+Season\s+(\d+)$/i, 'CH$1 S$2');
 const feldWert = (s: Spieler, feld: string) => Number((s as unknown as Record<string, number>)[feld] ?? 0);
 function wert(s: Spieler, feld: string, nachkomma = 0) {
   const v = feldWert(s, feld);
   return feld === 'verdienst' ? `$${zahl(v)}` : zahl(v, nachkomma);
 }
 
-/* ------------------------------------------------------------------ Podest der aktuellen Sortierung */
+/* ------------------------------------------------------------------ Die Fuehrenden aller Wertungen (rechts in der Buehne) */
 
-function Spitze({ s, platz, feld, nachkomma }: { s: Spieler; platz: number; feld: string; nachkomma: number }) {
-  return <PodestKarte d={{
-    platz: platz as 1 | 2 | 3, bild: foto(s), land: s.land, name: anzeige(s), unter: `${s.name}${s.heimat ? ` · ${s.heimat}` : ''}`,
-    label: SPALTEN.find((x) => x.feld === feld)?.kurz ?? feld, wert: wert(s, feld, nachkomma), link: `/competitive/player/${s.epicId}`,
-    extra: `${zahl(s.matches)} games · ${zahl(s.elims)} elims · ${zahl(s.damage)} dmg`,
-  }} />;
-}
-
-/* ------------------------------------------------------------------ Eine Bestenliste */
-
-function Brett({ l, i, fotos, gross }: { l: Liste; i: number; fotos: Map<string, string | null>; gross?: boolean }) {
-  const info = BRETT[l.feld] ?? { titel: l.titel, farbe: '#38bdf8' };
-  const zeilen = l.plaetze.slice(0, gross ? 11 : 5);
-  const max = zeilen[0] ? feldWert(zeilen[0], l.feld) : 1;
+function Wertungen({ bretter, offen, setOffen }: { bretter: Liste[]; offen: string; setOffen: (f: string) => void }) {
   return (
-    <Glas className={`flex flex-col p-5 ${gross ? 'xl:row-span-2' : ''}`} verzoegerung={0.05 * i}>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 font-bold text-white"><span className="h-2.5 w-2.5 rounded-full" style={{ background: info.farbe }} />{info.titel}</h3>
-        {l.mindestMatches ? <span className="text-[10px] text-white/35">min. {l.mindestMatches} games</span> : null}
-      </div>
-      <ol className="mt-4 space-y-2.5">
-        {zeilen.map((s, k) => {
-          const f = fotos.get(`${l.feld}:${s.epicId}`) ?? null;
-          return (
-            <li key={s.epicId}>
-              <Link to={`/competitive/player/${s.epicId}`} className="group flex items-center gap-2.5">
-                <span className={`w-4 text-right text-xs font-black tabular-nums ${k === 0 ? 'text-amber-300' : 'text-white/35'}`}>{k + 1}</span>
-                <Rund bild={f} name={anzeige(s)} gross={40} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      {s.land && <img src={flagge(s.land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}
-                      <span className="truncate text-sm font-medium text-white group-hover:text-sky-300">{anzeige(s)}</span>
-                    </span>
-                    <span className="shrink-0 text-sm font-bold tabular-nums text-white">{wert(s, l.feld, l.nachkomma)}</span>
-                  </span>
-                  <span className="mt-1 block"><Balken wert={feldWert(s, l.feld)} max={max} farbe={info.farbe} hoehe="h-1" verzoegerung={0.2 + k * 0.05} /></span>
+    <ul className="divide-y divide-white/[0.06]">
+      {bretter.map((l) => {
+        const info = BRETT[l.feld] ?? { titel: l.titel, farbe: 'rgb(var(--akz))' };
+        const an = offen === l.feld;
+        const erster = l.plaetze[0];
+        const max = erster ? feldWert(erster, l.feld) : 1;
+        return (
+          <li key={l.feld}>
+            <button type="button" onClick={() => setOffen(an ? '' : l.feld)} aria-expanded={an}
+              className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${an ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]'}`}>
+              <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: info.farbe }} />
+              <span className="min-w-0 flex-1">
+                <Klein>{info.titel}{l.mindestMatches ? ` · min. ${l.mindestMatches} games` : ''}</Klein>
+                <span className="mt-0.5 flex items-center gap-1.5">
+                  {erster?.land && <img src={flagge(erster.land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}
+                  <span className="truncate text-[15px] font-bold text-white">{erster ? anzeige(erster) : '–'}</span>
                 </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
-    </Glas>
+              </span>
+              <span className="zahl font-titel text-2xl tracking-wide text-white">{erster ? wert(erster, l.feld, l.nachkomma) : ''}</span>
+              <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-white/35 transition ${an ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
+            </button>
+            <AnimatePresence initial={false}>
+              {an && (
+                <motion.ol initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden bg-black/25">
+                  {l.plaetze.slice(0, 5).map((s, k) => (
+                    <li key={s.epicId}>
+                      <Link to={`/competitive/player/${s.epicId}`} className="group flex items-center gap-3 px-5 py-1.5 transition hover:bg-white/[0.04]">
+                        <span className={`zahl w-5 text-right text-xs font-black ${k === 0 ? 'text-amber-300' : 'text-white/35'}`}>{k + 1}</span>
+                        <Portraet bild={foto(s)} gross={36} platz />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              {s.land && <img src={flagge(s.land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}
+                              <span className="truncate text-sm font-semibold text-white group-hover:text-akz">{anzeige(s)}</span>
+                            </span>
+                            <span className="zahl shrink-0 text-sm font-bold text-white">{wert(s, l.feld, l.nachkomma)}</span>
+                          </span>
+                          <span className="mt-1 block"><Balken wert={feldWert(s, l.feld)} max={max} farbe={info.farbe} hoehe="h-1" verzoegerung={0.05 + k * 0.03} /></span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </motion.ol>
+              )}
+            </AnimatePresence>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -122,6 +136,9 @@ export default function Statistics() {
   const [bretter, setBretter] = useState<Liste[] | null>(null);
   const [kacheln, setKacheln] = useState<Kachel[]>([]);
   const [zeigen, setZeigen] = useState(50);
+  /** Die Spitze der gewaehlten Wertung OHNE Suche - das Treppchen bleibt stehen, waehrend man in der Tabelle sucht. */
+  const [rennen, setRennen] = useState<{ schluessel: string; liste: Spieler[] } | null>(null);
+  const [offen, setOffen] = useState('verdienst');
   const nr = useRef(0);
 
   // Filter: Saisons und Regionen.
@@ -145,10 +162,22 @@ export default function Statistics() {
         if (meine !== nr.current) return;
         if (!Array.isArray(j.spieler)) throw new Error('keine Liste');
         setListe(j.spieler); setGesamt(j.gesamt ?? 0); setMindest(typeof j.mindestMatches === 'number' ? j.mindestMatches : null); setFehler(false); setZeigen(50);
+        if (!q.trim()) setRennen({ schluessel: `${saison}|${region}|${String(sort)}`, liste: j.spieler.slice(0, 18) });
       }).catch(() => { if (meine === nr.current) { setListe([]); setFehler(true); } });
     }, q ? 300 : 0);
     return () => clearTimeout(z);
   }, [saison, region, sort, q]);
+
+  // Wird gesucht und die Wertung/Saison/Region wechselt, holt sich das Treppchen seine Spitze selbst (18 Zeilen, ohne Suche).
+  const rennSchluessel = `${saison}|${region}|${String(sort)}`;
+  useEffect(() => {
+    if (!saison || !q.trim() || rennen?.schluessel === rennSchluessel) return undefined;
+    let weg = false;
+    const p = new URLSearchParams({ saison, sort: String(sort), limit: '18' });
+    if (region) p.set('region', region);
+    fetch(`/api/szene-stats?${p}`).then((r) => r.json()).then((j) => { if (!weg && Array.isArray(j.spieler)) setRennen({ schluessel: rennSchluessel, liste: j.spieler.slice(0, 18) }); }).catch(() => {});
+    return () => { weg = true; };
+  }, [saison, region, sort, q, rennen?.schluessel, rennSchluessel]);
 
   // Bestenlisten aus der Jahresansicht (mit Saison und Region).
   useEffect(() => {
@@ -170,163 +199,160 @@ export default function Statistics() {
   const spalte = SPALTEN.find((s) => s.feld === sort) ?? SPALTEN[2];
   const regionenSichtbar = useMemo(() => ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'OCE', 'ME'].filter((r) => regionen.includes(r)), [regionen]);
   const saisonName = saison === 'alle' ? 'All seasons' : saisons.find((s) => s.kennung === saison)?.name ?? saison;
-  const spitze = useMemo(() => (!q && liste && liste.length >= 3 ? liste.slice(0, 3) : null), [q, liste]);
-  /*
-   * Jedes Foto nur einmal auf der Seite: Podest zuerst, dann die Bestenlisten, dann die Spieltage - wer schon zu sehen ist, steht danach mit
-   * seinen Anfangsbuchstaben da. Vorab gerechnet (nicht beim Zeichnen), damit es auch bei doppeltem Rendern stimmt.
-   */
-  const fotos = useMemo(() => {
-    const gesehen = new Set<string>((spitze ?? []).map(foto).filter(Boolean) as string[]);
-    const m = new Map<string, string | null>();
-    const nimm = (schluessel: string, s: Spieler) => { const f = foto(s); m.set(schluessel, f && !gesehen.has(f) ? f : null); if (f) gesehen.add(f); };
-    (bretter ?? []).forEach((l, i) => l.plaetze.slice(0, i === 0 ? 11 : 5).forEach((s) => nimm(`${l.feld}:${s.epicId}`, s)));
-    kacheln.slice(0, 10).forEach((k) => nimm(`tag:${k.turnier.windowId}:${k.spitze.epicId}`, k.spitze));
-    return m;
-  }, [spitze, bretter, kacheln]);
   const maxSort = liste?.[0] ? feldWert(liste[0], String(sort)) : 1;
+  const nk = spalte.nachkomma ?? 0;
+  const podest = rennen && rennen.schluessel === rennSchluessel ? rennen.liste : null;
+  const maxRennen = podest?.[0] ? feldWert(podest[0], String(sort)) : 1;
+  const brettOffen = bretter?.some((l) => l.feld === offen) || offen === '' ? offen : bretter?.[0]?.feld ?? '';
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-6">
-        <Titel ueber="Player statistics" titel="Statistics" text="Every competitive player, every stat – from Epic's tournament data and CompHub's own replay analysis." />
-        <div className="flex gap-3">
-          {([['Match days', spieltage], ['Players', gesamt || null]] as Array<[string, number | null]>).map(([k, v]) => (
-            <Glas key={k} className="px-5 py-3"><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k}</p><p className="text-2xl font-extrabold tabular-nums text-white">{v === null ? '–' : zahl(v)}</p></Glas>
-          ))}
+    <div className="space-y-6">
+      <SeitenKopf ueber={`Season statistics · ${saisonName}${region ? ` · ${region}` : ''}`} titel="Statistics"
+        text="Every competitive player, every stat – from Epic's tournament data and CompHub's own replay analysis."
+        rechts={<div className="flex gap-8"><Kennzahl label="Match days" wert={spieltage} /><Kennzahl label="Players" wert={gesamt || null} ton="akz" /></div>}>
+        {/* Filter: Saison, Region, Suche - eine Zeile, auf dem Handy rollen die Pillen seitlich */}
+        <div className="fl flex flex-col gap-3 p-3 xl:flex-row xl:items-center">
+          <div className="ohne-leiste flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            {saisons.map((s) => <span key={s.kennung} title={s.name} className="shrink-0"><Chip an={saison === s.kennung} onClick={() => setSaison(s.kennung)}>{saisonKurz(s.name)}</Chip></span>)}
+            <Chip an={saison === 'alle'} onClick={() => setSaison('alle')}>All seasons</Chip>
+          </div>
+          <span aria-hidden className="hidden h-6 w-px shrink-0 bg-white/10 xl:block" />
+          <div className="ohne-leiste flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto">
+            <Chip an={!region} onClick={() => setRegion('')}>Global</Chip>
+            {regionenSichtbar.map((r) => <Chip key={r} an={region === r} onClick={() => setRegion(r)}>{r}</Chip>)}
+          </div>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="eingabe w-full shrink-0 !py-2 xl:w-64" />
         </div>
+      </SeitenKopf>
+
+      {/* Buehne: links das Rennen in der gewaehlten Wertung, rechts die Fuehrenden aller Wertungen */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Flaeche className="flex flex-col overflow-hidden p-5 lg:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div><p className="ueber">The race</p><h2 className="titel mt-1 text-4xl">{spalte.titel}</h2></div>
+            <div className="ohne-leiste -mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1">
+              {SPALTEN.filter((s) => s.sortierbar).map((s) => <Chip key={String(s.feld)} an={sort === s.feld} onClick={() => setSort(s.feld)}>{s.kurz}</Chip>)}
+            </div>
+          </div>
+          {!podest ? <Laedt /> : podest.length < 3 ? <div className="mt-5"><Leer text="Not enough players in this selection for a podium." /></div> : (
+            <>
+              <div className="mt-6">
+                <Treppchen plaetze={podest.slice(0, 3).map((s, i) => ({
+                  platz: (i + 1) as 1 | 2 | 3, bild: foto(s), land: s.land, name: anzeige(s), unter: `${s.name}${s.heimat ? ` · ${s.heimat}` : ''}`,
+                  label: spalte.kurz, wert: wert(s, String(sort), nk), link: `/competitive/player/${s.epicId}`,
+                  extra: `${zahl(s.matches)} games · ${zahl(s.elims)} elims · ${zahl(s.damage)} dmg`,
+                }))} />
+              </div>
+              {/* Die Verfolger: Plaetze 4-18 als gleich grosse Felder (auf dem Handy 4-9) */}
+              <div className="mt-auto grid grid-cols-2 gap-2 pt-5 sm:grid-cols-5">
+                {podest.slice(3, 18).map((s, i) => (
+                  <Link key={s.epicId} to={`/competitive/player/${s.epicId}`} className={`group items-center gap-2.5 rounded-2xl border border-white/[0.07] bg-black/30 p-2 transition hover:border-akz/40 ${i >= 6 ? 'hidden sm:flex' : 'flex'}`}>
+                    <span className="zahl w-5 shrink-0 text-center font-titel text-xl text-white/35">{i + 4}</span>
+                    <Portraet bild={foto(s)} gross={48} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">{s.land && <img src={flagge(s.land)} alt="" className="h-3 w-3 rounded-full object-cover" />}<span className="truncate text-[13px] font-bold text-white group-hover:text-akz">{anzeige(s)}</span></span>
+                      <span className="zahl block text-sm font-extrabold text-white">{wert(s, String(sort), nk)}</span>
+                      <Balken wert={feldWert(s, String(sort))} max={maxRennen} hoehe="h-0.5" verzoegerung={0.2 + i * 0.05} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </Flaeche>
+
+        <Flaeche className="flex flex-col overflow-hidden" verz={0.08}>
+          <div className="flex items-end justify-between gap-3 px-5 pb-3 pt-5 lg:pt-6">
+            <div><p className="ueber">Category leaders</p><h2 className="titel mt-1 text-4xl">Who leads what</h2></div>
+            <span className="text-right text-[11px] text-white/40">{saison === 'alle' ? 'The year 2026 so far' : saisonName}<br />{region || 'all regions'}</span>
+          </div>
+          {!bretter ? <Laedt /> : bretter.length === 0 ? <div className="p-5"><Leer text="No leaderboards for this selection." /></div>
+            : <Wertungen bretter={bretter} offen={brettOffen} setOffen={setOffen} />}
+        </Flaeche>
       </div>
 
-      {/* Filter */}
-      <Glas className="space-y-3 p-4" verzoegerung={0.05}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="w-16 text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Season</span>
-          {saisons.map((s) => <Chip key={s.kennung} an={saison === s.kennung} onClick={() => setSaison(s.kennung)}>{s.name}</Chip>)}
-          <Chip an={saison === 'alle'} onClick={() => setSaison('alle')}>All seasons</Chip>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="w-16 text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Region</span>
-          <Chip an={!region} onClick={() => setRegion('')}>Global</Chip>
-          {regionenSichtbar.map((r) => <Chip key={r} an={region === r} onClick={() => setRegion(r)}>{r}</Chip>)}
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…"
-            className="ml-auto w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none sm:w-72" />
-        </div>
-      </Glas>
-
-      {/* Podest der Sortierung */}
-      {spitze && (
-        <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/40">{spalte.titel} · {saisonName}{region ? ` · ${region}` : ''}</p>
-          <div className="flex items-start justify-center gap-4 sm:gap-6">
-            {spitze[1] && <Spitze s={spitze[1]} platz={2} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
-            {spitze[0] && <Spitze s={spitze[0]} platz={1} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
-            {spitze[2] && <Spitze s={spitze[2]} platz={3} feld={String(sort)} nachkomma={spalte.nachkomma ?? 0} />}
-          </div>
-        </div>
-      )}
-
-      {/* Bestenlisten */}
-      <section className="space-y-4">
-        <Kopfzeile nr="Leaderboards" titel={`${saisonName}${region ? ` · ${region}` : ' · all regions'}`} text={saison === 'alle' ? 'The year 2026 so far.' : undefined} />
-        {!bretter ? <Laedt /> : bretter.length === 0 ? <Glas className="p-6 text-sm text-white/45">No leaderboards for this selection.</Glas> : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {bretter.map((l, i) => <Brett key={l.feld} l={l} i={i} fotos={fotos} gross={i === 0 && bretter.length === 7} />)}
-          </div>
-        )}
-      </section>
-
-      {/* Juengste Spieltage */}
+      {/* Juengste Spieltage: wer hatte die meisten Elims */}
       {kacheln.length > 0 && (
-        <section className="space-y-4">
-          <Kopfzeile nr="Latest match days" titel="Top fragger of every match day" />
-          <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
-            {kacheln.slice(0, 10).map((k, i) => {
-              const f = fotos.get(`tag:${k.turnier.windowId}:${k.spitze.epicId}`) ?? null;
-              return (
-                <motion.div key={k.turnier.windowId + k.spitze.epicId} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }} whileHover={{ y: -4 }} className="w-[280px] shrink-0">
-                  <Link to={`/competitive/player/${k.spitze.epicId}`} className="block h-full rounded-3xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-xl transition hover:border-sky-400/40">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
-                      <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/80">{k.turnier.region}</span>
-                      <span>{new Date(k.turnier.datum).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-                      <span className="ml-auto">{k.turnier.matches} games</span>
-                    </div>
-                    <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-white/85">{k.turnier.name.replace(/Runde/g, 'Round')}</p>
-                    <div className="mt-3 flex items-center gap-3">
-                      <Rund bild={f} name={anzeige(k.spitze)} gross={56} />
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 truncate font-bold text-white">{k.spitze.land && <img src={flagge(k.spitze.land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}{anzeige(k.spitze)}</p>
-                        <p className="text-xs text-white/45">{k.spitze.elims} elims · {zahl(k.spitze.damage)} dmg{k.stand ? ` · team #${k.stand.platz}` : ''}</p>
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div><p className="ueber">Latest match days</p><h2 className="titel mt-1 text-3xl">Top fragger of every match day</h2></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {kacheln.slice(0, 10).map((k, i) => (
+              <Flaeche key={k.turnier.windowId + k.spitze.epicId} fest klick verz={Math.min(i, 9) * 0.03}>
+                <Link to={`/competitive/player/${k.spitze.epicId}`} className="flex h-full gap-3 p-3">
+                  <Portraet bild={foto(k.spitze)} gross={92} />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-2"><Marke>{k.turnier.region}</Marke><span className="text-[11px] text-white/40">{new Date(k.turnier.datum).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {k.turnier.matches} games</span></div>
+                    <p className="mt-1.5 flex items-center gap-1.5 truncate text-base font-extrabold text-white">{k.spitze.land && <img src={flagge(k.spitze.land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}<span className="truncate">{anzeige(k.spitze)}</span></p>
+                    <p className="zahl text-xs text-white/60"><b className="text-akz">{k.spitze.elims}</b> elims · {zahl(k.spitze.damage)} dmg{k.stand ? ` · team #${k.stand.platz}` : ''}</p>
+                    <p className="mt-auto line-clamp-2 pt-1.5 text-[11px] leading-snug text-white/40">{k.turnier.name.replace(/Runde/g, 'Round')}</p>
+                  </div>
+                </Link>
+              </Flaeche>
+            ))}
           </div>
         </section>
       )}
 
       {/* Die ganze Tabelle */}
-      <Glas className="overflow-hidden" verzoegerung={0.15}>
-        <div className="flex flex-wrap items-center gap-3 border-b border-white/5 p-4">
-          <h3 className="font-bold text-white">All players</h3>
-          <span className="text-xs text-white/40">{zahl(gesamt)} players · sorted by {spalte.titel.toLowerCase()}{mindest ? ` · min. ${mindest} games` : ''}</span>
-          <span className="ml-auto text-[11px] text-white/35">Click a column to sort</span>
+      <Flaeche fest className="overflow-hidden" verz={0.05}>
+        <div className="flex flex-wrap items-end justify-between gap-3 px-5 pb-3 pt-5">
+          <div><p className="ueber">The full table</p><h2 className="titel mt-1 text-3xl">All players</h2></div>
+          <p className="text-xs text-white/40">{zahl(gesamt)} players · sorted by {spalte.titel.toLowerCase()}{mindest ? ` · min. ${mindest} games` : ''} · click a column to sort</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="tabelle min-w-[1080px]">
             <thead>
-              <tr className="border-b border-white/5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
-                <th className="w-14 px-4 py-3 text-left">#</th>
-                <th className="px-2 py-3 text-left">Player</th>
-                <th className="px-2 py-3 text-left">Region</th>
+              <tr>
+                <th className="w-12 !pl-5">#</th>
+                <th>Player</th>
+                <th>Region</th>
                 {SPALTEN.map((s) => (
-                  <th key={String(s.feld)} className="px-3 py-3 text-right">
+                  <th key={String(s.feld)} className="!text-right">
                     {s.sortierbar ? (
-                      <button type="button" onClick={() => setSort(s.feld)} className={`uppercase tracking-[0.15em] transition ${sort === s.feld ? 'text-sky-400' : 'hover:text-white'}`}>{s.kurz}{sort === s.feld ? ' ▾' : ''}</button>
+                      <button type="button" onClick={() => setSort(s.feld)} className={`uppercase tracking-[0.2em] transition ${sort === s.feld ? 'text-akz' : 'hover:text-white'}`}>{s.kurz}{sort === s.feld ? ' ▾' : ''}</button>
                     ) : s.kurz}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <AnimatePresence initial={false}>
-                {(liste ?? []).slice(0, zeigen).map((s, i) => (
-                  <motion.tr key={s.epicId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 20) * 0.015 }}
-                    className="border-b border-white/[0.04] transition hover:bg-white/[0.04]">
-                    <td className="px-4 py-2 text-sm font-bold tabular-nums text-white/45">{i + 1}</td>
-                    <td className="px-2 py-2">
-                      <Link to={`/competitive/player/${s.epicId}`} className="group flex items-center gap-2.5">
-                        <Rund bild={i < 3 && spitze ? null : foto(s)} name={anzeige(s)} gross={40} />
-                        {s.land && <img src={flagge(s.land)} alt="" className="h-4 w-4 rounded-full object-cover" />}
-                        <span className="max-w-[220px] truncate font-medium text-white group-hover:text-sky-300">{anzeige(s)}</span>
-                        {s.anzeige && s.anzeige !== s.name && <span className="hidden max-w-[160px] truncate text-xs text-white/30 xl:inline">{s.name}</span>}
-                      </Link>
+              {(liste ?? []).slice(0, zeigen).map((s, i) => (
+                <tr key={s.epicId}>
+                  <td className={`zahl !pl-5 text-sm font-bold ${i < 3 && !q ? 'text-amber-300' : 'text-white/40'}`}>{i + 1}</td>
+                  <td className="!py-1.5">
+                    <Link to={`/competitive/player/${s.epicId}`} className="group flex items-center gap-2.5">
+                      <Portraet bild={foto(s)} gross={40} platz />
+                      {s.land ? <img src={flagge(s.land)} alt="" className="h-4 w-4 rounded-full object-cover" /> : <span className="w-4" />}
+                      <span className="max-w-[220px] truncate font-semibold text-white group-hover:text-akz">{anzeige(s)}</span>
+                      {s.anzeige && s.anzeige !== s.name && <span className="hidden max-w-[160px] truncate text-xs text-white/30 xl:inline">{s.name}</span>}
+                    </Link>
+                  </td>
+                  <td className="text-xs font-semibold text-white/50">{s.heimat || s.regionen?.[0] || '–'}</td>
+                  {SPALTEN.map((c) => (
+                    <td key={String(c.feld)} className={`zahl text-right ${sort === c.feld ? 'font-bold text-white' : 'text-white/65'}`}>
+                      {sort === c.feld ? (
+                        <span className="inline-flex w-full flex-col items-end gap-1">
+                          {zahl(feldWert(s, String(c.feld)), c.nachkomma ?? 0)}
+                          <span className="w-16"><Balken wert={feldWert(s, String(c.feld))} max={maxSort} hoehe="h-0.5" /></span>
+                        </span>
+                      ) : zahl(feldWert(s, String(c.feld)), c.nachkomma ?? 0)}
                     </td>
-                    <td className="px-2 py-2 text-xs font-semibold text-white/50">{s.heimat || s.regionen?.[0] || '–'}</td>
-                    {SPALTEN.map((c) => (
-                      <td key={String(c.feld)} className={`px-3 py-2 text-right tabular-nums ${sort === c.feld ? 'font-bold text-white' : 'text-white/65'}`}>
-                        {sort === c.feld ? (
-                          <span className="inline-flex w-full flex-col items-end gap-1">
-                            {zahl(feldWert(s, String(c.feld)), c.nachkomma ?? 0)}
-                            <span className="w-16"><Balken wert={feldWert(s, String(c.feld))} max={maxSort} hoehe="h-0.5" /></span>
-                          </span>
-                        ) : zahl(feldWert(s, String(c.feld)), c.nachkomma ?? 0)}
-                      </td>
-                    ))}
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
         {!liste && <Laedt />}
         {liste && liste.length === 0 && <p className="p-8 text-center text-sm text-white/40">{fehler ? 'The stats could not be loaded right now – try again in a moment.' : 'No player found.'}</p>}
         {liste && liste.length > zeigen && (
-          <div className="border-t border-white/5 p-3 text-center">
-            <button type="button" onClick={() => setZeigen((z) => z + 50)} className="rounded-lg px-4 py-1.5 text-sm text-sky-300 hover:bg-white/5">Show more ({liste.length - zeigen})</button>
+          <div className="border-t border-white/[0.06] p-3 text-center">
+            <button type="button" onClick={() => setZeigen((z) => z + 50)} className="knopf">Show 50 more <span className="text-white/40">({liste.length - zeigen} left)</span></button>
           </div>
         )}
-      </Glas>
+      </Flaeche>
     </div>
   );
 }
