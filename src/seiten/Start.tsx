@@ -14,7 +14,7 @@ import { useLive } from './streamer/live';
  */
 const NEIGUNG = 8; // Grad
 /* Nur Bilder, die randlos gut aussehen - vom Betreiber ausgesucht (26.11.2026). */
-const COMP_BILDER = ['/cups/elite-cup.webp', '/slider/eis-trio.webp', '/cups/fncs-grand-finals.webp', '/slider/hase.webp', '/cups/console-champions-cup.webp', '/slider/disco.webp', '/slider/hoodie.webp'];
+const COMP_BILDER = ['/slider/victory-cup.webp', '/cups/elite-cup.webp', '/slider/eis-trio.webp', '/cups/fncs-grand-finals.webp', '/slider/hase.webp', '/cups/console-champions-cup.webp', '/slider/disco.webp', '/slider/hoodie.webp'];
 // Betreiber (26.11.2026): am 5. Dezember startet das neue Chapter; Uhrzeit = Epics uebliche Wartung (~09:00 UTC), nicht bestaetigt.
 const NEUES_CHAPTER = Date.UTC(2026, 11, 5, 9, 0);
 const STREAMER_FEST = ['gripey', 'amar', 'faxuty', 'coachboop', 'katoo', 'aussieantics', 'leothecrack', 'wazz', 'nikof', 'velofps', 'vadeal', 'eomzo'];
