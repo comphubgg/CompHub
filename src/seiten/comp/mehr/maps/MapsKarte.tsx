@@ -192,8 +192,8 @@ export default function MapsKarte() {
               {wer?.isAdmin && (
                 <Glas className="flex flex-wrap items-center gap-2 border-amber-400/25 bg-amber-400/[0.05] px-4 py-3 text-xs">
                   <span className="font-bold uppercase tracking-[0.2em] text-amber-300">Admin</span>
-                  <a href={`${SEITE}/admin/alte-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`} target="_blank" rel="noreferrer"
-                    className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-[#06080f] transition hover:bg-amber-300">Edit this map ↗</a>
+                  <a href={`/admin/alte-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`}
+                    className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-[#06080f] transition hover:bg-amber-300">Edit this map</a>
                   <button type="button" onClick={() => setBilderOffen((v) => !v)} className={`rounded-lg border px-3 py-1.5 font-semibold transition ${bilderOffen ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-white/10 bg-white/[0.04] text-white/80 hover:border-sky-400/50'}`}>Choose map image</button>
                   {wahlBild && <button type="button" disabled={speichert} onClick={() => void bildSpeichern('')} className="rounded-lg border border-white/10 px-3 py-1.5 text-white/55 transition hover:border-rose-400/60 hover:text-rose-300">Game-version default</button>}
                   <label className="ml-auto flex items-center gap-2 font-semibold text-white/55"><input type="checkbox" checked={fuerSaison} onChange={(e) => setFuerSaison(e.target.checked)} className="accent-sky-400" />Apply to every day of this season</label>
