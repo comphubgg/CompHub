@@ -28,17 +28,14 @@ export function Flaeche({ children, className = '', verz = 0, klick = false, fes
   );
 }
 
-/** Bild mit Ersatz: faellt das Bild aus, steht dort ein ruhiger Farbverlauf mit den Anfangsbuchstaben - nie das kaputte-Bild-Symbol. */
-export function Bild({ src, alt = '', className = '', ersatz, lage }: { src?: string | null; alt?: string; className?: string; ersatz?: string; lage?: string }) {
+/**
+ * Bild mit Ersatz: faellt das Bild aus (oder fehlt es), steht dort eine ruhige dunkle Flaeche - nie das kaputte-Bild-Symbol und NIE Buchstaben
+ * (Betreiber, 27.11.2026: "diese Buchstaben ... das machen nur KIs. Profilbild oder gar nichts").
+ */
+export function Bild({ src, alt = '', className = '', lage }: { src?: string | null; alt?: string; className?: string; ersatz?: string; lage?: string }) {
   const [kaputt, setKaputt] = useState(false);
   useEffect(() => setKaputt(false), [src]);
-  if (!src || kaputt) {
-    return (
-      <div className={`grid place-items-center bg-gradient-to-br from-akz/25 via-fl to-grund ${className}`} aria-hidden>
-        {ersatz && <span className="font-titel text-4xl tracking-wider text-white/15">{ersatz.slice(0, 2).toUpperCase()}</span>}
-      </div>
-    );
-  }
+  if (!src || kaputt) return <div className={`bg-gradient-to-br from-akz/15 via-fl to-grund ${className}`} aria-hidden />;
   return <img src={src} alt={alt} loading="lazy" draggable={false} onError={() => setKaputt(true)} style={lage ? { objectPosition: lage } : undefined} className={`object-cover ${className}`} />;
 }
 

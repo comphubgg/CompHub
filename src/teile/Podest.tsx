@@ -28,7 +28,7 @@ export function PodestKarte({ d }: { d: PodestDaten }) {
   const inhalt = (
     <>
       {d.bild ? <img src={d.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top transition duration-700 group-hover:scale-105" />
-        : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-500/15 via-violet-500/10 to-transparent"><span className="text-8xl font-black text-white/10">{d.name.slice(0, 2).toUpperCase()}</span></div>}
+        : <div className="absolute inset-0 bg-gradient-to-br from-akz/15 via-fl to-grund" />}
       <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/30 via-45% to-transparent" />
       <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
       <span className="absolute left-2.5 top-1.5 text-4xl font-black sm:left-4 sm:top-3 sm:text-6xl drop-shadow-lg" style={{ color: farbe }}>{d.platz}</span>
