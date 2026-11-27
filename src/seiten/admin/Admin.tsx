@@ -35,6 +35,7 @@ import PartnerSeite from './partner/page';
 import LootRouten from './loot-routen/page';
 import AlleEpicFreunde from './epic-friends/page';
 import StatusSeite from './status/page';
+import { Schnellzugriff, SiteDashboard, VipWerkzeuge } from './dashboard/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -67,6 +68,9 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'loot-routen': LootRouten,
   'epic-friends': AlleEpicFreunde,
   status: StatusSeite,
+  'vip-tools': VipWerkzeuge,
+  'quick-access': Schnellzugriff,
+  'site-dashboard': SiteDashboard,
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */

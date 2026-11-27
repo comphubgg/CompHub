@@ -70,9 +70,9 @@ export const WERKZEUGE: Werkzeug[] = [
   { slug: 'partner', pfad: '/admin/partner', titel: 'Partner requests', text: 'Copy ready emails and DMs to streamers', gruppe: 'post', eigen: true, stichworte: 'partner requests streamer mail dm' },
 
   // Die Bereiche des Dashboards der Seite selbst
-  { slug: 'vip-tools', pfad: '/admin?bereich=vip', titel: 'VIP tools', text: 'Overlays, globals, POV, match ID finder, Twitch bot and stats', gruppe: 'dashboard', stichworte: 'overlays globals pov twitch bot' },
-  { slug: 'quick-access', pfad: '/admin?bereich=schnell', titel: 'Quick access', text: 'Every public page with one click', gruppe: 'dashboard', stichworte: 'quick access' },
-  { slug: 'site-dashboard', pfad: '/admin', titel: 'Site dashboard', text: 'The classic dashboard: archive, chat, everything', gruppe: 'dashboard', stichworte: 'dashboard classic overview uebersicht' },
+  { slug: 'vip-tools', pfad: '/admin?bereich=vip', titel: 'VIP tools', text: 'Overlays, globals, POV, match ID finder, Twitch bot and stats', gruppe: 'dashboard', eigen: true, stichworte: 'overlays globals pov twitch bot' },
+  { slug: 'quick-access', pfad: '/admin?bereich=schnell', titel: 'Quick access', text: 'Every public page with one click', gruppe: 'dashboard', eigen: true, stichworte: 'quick access' },
+  { slug: 'site-dashboard', pfad: '/admin', titel: 'Site dashboard', text: 'The classic dashboard: archive, chat, everything', gruppe: 'dashboard', eigen: true, stichworte: 'dashboard classic overview uebersicht' },
 ];
 
 export const werkzeugNach = (slug: string) => WERKZEUGE.find((w) => w.slug === slug) ?? null;
