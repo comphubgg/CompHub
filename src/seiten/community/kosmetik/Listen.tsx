@@ -5,7 +5,7 @@ import { Glas } from '../../../teile/Glas';
 import { DatenFehlen, LinkKopieren, restText, useHubDatei, useJetzt } from '../Bausteine';
 import { Laedt, TEAL, Ueberschrift } from '../Teile';
 import { auftritte, datumKurz, holen, QUELLEN, seltenVon, tageSeit, useAblage, useShop, useTeile, type Teil } from './daten';
-import { AblageHinweis, Auswahl, Bereich, Kachel, Schalter } from './Raster';
+import { AblageHinweis, Auswahl, Bereich, Kachel, preis as vb, Schalter } from './Raster';
 
 /*
  * Weitere Kosmetik-Seiten der Spezifikation:
@@ -120,7 +120,7 @@ export function JamTracks() {
       <Bereich titel={<>In the shop today <span className="text-sm font-semibold text-white/40">{imShop.length}</span></>}>
         {shop.laedt ? <Laedt farbe={TEAL} /> : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
-            {[...imShop].sort((a, b) => a.t.name.localeCompare(b.t.name)).slice(0, 40).map(({ t, preis }, i) => <Kachel key={t.id} t={t} index={i} unten={<p className="mt-1 text-[10px] text-white/45">{preis.toLocaleString('en')} V-Bucks</p>} />)}
+            {[...imShop].sort((a, b) => a.t.name.localeCompare(b.t.name)).slice(0, 40).map(({ t, preis }, i) => <Kachel key={t.id} t={t} index={i} unten={<p className="mt-1 text-[11px] font-semibold text-white/60">{vb(preis)}</p>} />)}
           </div>
         )}
         {imShop.length > 40 && <p className="text-xs text-white/40">+{imShop.length - 40} more in the <Link to="/community/shop" className="text-teal-200">Item Shop</Link>.</p>}

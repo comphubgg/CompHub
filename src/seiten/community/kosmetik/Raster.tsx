@@ -14,13 +14,9 @@ import { datumKurz, REITER, seltenVon, SELTEN, tageSeit, useReaktionen, useSpind
  *   AblageHinweis  sagt ehrlich, wo die eigenen Listen liegen (Konto oder nur dieser Browser)
  */
 
-export const VBUCK = (
-  <svg viewBox="0 0 24 24" className="inline-block h-[1em] w-[1em] -translate-y-px" aria-hidden>
-    <circle cx="12" cy="12" r="10" fill="#38bdf8" /><circle cx="12" cy="12" r="10" fill="url(#vb-g)" />
-    <defs><linearGradient id="vb-g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#7dd3fc" /><stop offset="1" stopColor="#0369a1" /></linearGradient></defs>
-    <path d="M7.5 7.5h2.6L12 13.4l1.9-5.9h2.6L13.3 16.5h-2.6z" fill="#fff" />
-  </svg>
-);
+/* Das Original-V-Bucks-Symbol (Betreiber 27.11.: kein selbstgemaltes) - fortnite-api.com liefert es im Shop-Endpunkt als data.vbuckIcon. */
+export const VBUCK_BILD = 'https://fortnite-api.com/images/vbuck.png';
+export const VBUCK = <img src={VBUCK_BILD} alt="V-Bucks" title="V-Bucks" className="inline-block h-[1.1em] w-[1.1em] shrink-0 -translate-y-px object-contain" />;
 export const preis = (n: number) => <span className="inline-flex items-center gap-1 tabular-nums">{VBUCK}{n.toLocaleString('en')}</span>;
 
 /* ---------------------------------------------- Kachel */

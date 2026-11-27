@@ -96,7 +96,7 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
                 <div key={t.id} draggable={!geteilt} onDragStart={() => setZiehe(i)} onDragOver={(e) => { e.preventDefault(); if (ziehe !== null && ziehe !== i) { verschieben(ziehe, i); setZiehe(i); } }} onDragEnd={() => setZiehe(null)}
                   className={`relative ${ziehe === i ? 'opacity-50' : ''} ${geteilt ? '' : 'cursor-grab active:cursor-grabbing'}`}>
                   <span className="absolute left-2 top-2 z-10 rounded-md bg-black/60 px-1.5 text-[10px] font-black tabular-nums text-white">{i + 1}</span>
-                  <Kachel t={t} index={i} unten={(() => { const w = wertVon(t, heute); return w ? <p className="mt-1 text-[10px] text-white/45">{w.echt ? 'Today ' : '≈ '}{w.v.toLocaleString('en')} V-Bucks</p> : null; })()} />
+                  <Kachel t={t} index={i} unten={(() => { const w = wertVon(t, heute); return w ? <p className="mt-1 text-[11px] font-semibold text-white/60">{w.echt ? 'Today ' : '≈ '}{preis(w.v)}</p> : null; })()} />
                   {!geteilt && (
                     <div className="mt-1 flex justify-center gap-1">
                       <button type="button" disabled={!i} onClick={() => verschieben(i, i - 1)} className="rounded-md px-2 text-xs text-white/40 hover:text-white disabled:opacity-20">←</button>
