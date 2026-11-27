@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Glas } from '../../teile/Glas';
-import { Bald, TEAL, Ueberschrift } from './Teile';
+import { TEAL, Ueberschrift } from './Teile';
 import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
 import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
 import { waffeVon } from './waffenNamen';
@@ -77,6 +77,9 @@ export default function Karte() {
   const [minSpiele, setMinSpiele] = useState(3);
   const [beuteArt, setBeuteArt] = useState<'chest' | 'ammo_box' | 'beide'>('beide');
   const [beuteTipp, setBeuteTipp] = useState<{ b: Beute; fest: boolean } | null>(null);
+  // Ohne Export der Spieldateien: die Truhen-/Munitions-Ebenen zeigen die Cup-Replay-Daten (klar beschriftet) statt leerer Zaehler
+  const ohneExport = objekte !== null && !objekte.length;
+  useEffect(() => { if (ohneExport) setBeuteAn(true); }, [ohneExport]);
   useEffect(() => {
     if (!beuteAn || beute) return;
     fetch('/hub-daten/kisten-aus-replays.json', { cache: 'no-store' }).then((r) => { if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error(); return r.json(); })
@@ -95,7 +98,9 @@ export default function Karte() {
       if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error('fehlt');
       return r.json();
     });
-    laden('/hub-daten/objekte.json').catch(() => laden('/hub-daten/objekte-beispiel.json')).then((j) => {
+    // Die Probe-Datei (3 Marker) nur zum Testen mit ?probe=1 - sonst nie im normalen Betrieb
+    const probeUrl = new URLSearchParams(window.location.search).get('probe') === '1';
+    (probeUrl ? laden('/hub-daten/objekte-beispiel.json') : laden('/hub-daten/objekte.json')).then((j) => {
       const liste = (Array.isArray(j) ? j : j?.objekte ?? []) as Objekt[];
       setObjekte(liste.filter((o) => Number.isFinite(o?.x) && Number.isFinite(o?.y)).map((o) => ({ ...o, typ: typVon(String(o.typ ?? '')) })));
       if (!Array.isArray(j) && j?.probe) setProbe(String(j.hinweis ?? 'Sample data'));
@@ -158,11 +163,18 @@ export default function Karte() {
     setGewaehlt(o);
   }
 
-  const zaehlen = useMemo(() => { const m: Record<string, number> = {}; for (const o of objekte ?? []) m[o.typ] = (m[o.typ] ?? 0) + 1; return m; }, [objekte]);
+  const [beuteZahl, setBeuteZahl] = useState<Record<string, number>>({});
+  const zaehlen = useMemo(() => { const m: Record<string, number> = { ...beuteZahl }; for (const o of objekte ?? []) m[o.typ] = (m[o.typ] ?? 0) + 1; return m; }, [objekte, beuteZahl]);
   const mitChance = useMemo(() => (objekte ?? []).some((o) => o.chance !== undefined), [objekte]);
   const sichtbar = useMemo(() => (objekte ?? []).filter((o) => an[o.typ] && (o.chance === undefined || o.chance * 100 >= minChance - 1e-9)), [objekte, an, minChance]);
   const beuteDa = beute && beute !== 'fehlt' ? beute : null;
-  const beuteSicht = useMemo(() => (!beuteAn || !beuteDa ? [] : beuteDa.objekte.filter((b) => b.geoeffnet >= minSpiele && (beuteArt === 'beide' || b.typ === beuteArt))), [beuteAn, beuteDa, minSpiele, beuteArt]);
+  useEffect(() => {
+    if (!ohneExport || !beuteDa) { setBeuteZahl({}); return; }
+    const l = beuteDa.objekte.filter((b) => b.geoeffnet >= minSpiele);
+    setBeuteZahl({ chest: l.filter((b) => b.typ === 'chest').length, ammo: l.filter((b) => b.typ === 'ammo_box').length });
+  }, [ohneExport, beuteDa, minSpiele]);
+  const beuteSicht = useMemo(() => (!beuteAn || !beuteDa ? [] : beuteDa.objekte.filter((b) => b.geoeffnet >= minSpiele && (beuteArt === 'beide' || b.typ === beuteArt)
+    && (!ohneExport || an[b.typ === 'chest' ? 'chest' : 'ammo']))), [beuteAn, beuteDa, minSpiele, beuteArt, ohneExport, an]);
   const r = (px: number) => (px * 1000) / (basis * sicht.s);
 
   /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen weit draussen */
@@ -193,11 +205,13 @@ export default function Karte() {
   }
   // Objekte rund um einen gewaehlten Ort (120 m Umkreis)
   const umOrt = useMemo(() => {
-    if (!gewaehlt || !objekte?.length) return [];
+    if (!gewaehlt) return [];
     const m: Record<string, number> = {};
-    for (const o of objekte) if (Math.hypot(o.x - gewaehlt.x, o.y - gewaehlt.y) < 12_000) m[o.typ] = (m[o.typ] ?? 0) + 1;
+    for (const o of objekte ?? []) if (Math.hypot(o.x - gewaehlt.x, o.y - gewaehlt.y) < 12_000) m[o.typ] = (m[o.typ] ?? 0) + 1;
+    // ohne Export: geplunderte Truhen/Munitionskisten aus den Cup-Replays
+    for (const b of beuteSicht) if (Math.hypot(b.x - gewaehlt.x, b.y - gewaehlt.y) < 12_000) { const t = b.typ === 'chest' ? 'chest' : 'ammo'; m[t] = (m[t] ?? 0) + 1; }
     return EBENEN.filter((e) => m[e.typ]).map((e) => ({ typ: e.typ, titel: e.titel, n: m[e.typ] }));
-  }, [gewaehlt, objekte]);
+  }, [gewaehlt, objekte, beuteSicht]);
   const gefiltert = orte.filter((o) => o.name.toLowerCase().includes(suche.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
   const benannt = (o: Ort) => /\.POI\./.test(o.id);
   const imGitter = (o: { links: number; oben: number }) => `${SPALTEN[Math.min(GRID - 1, Math.floor(o.links / (100 / GRID)))]}${Math.min(GRID, Math.floor(o.oben / (100 / GRID)) + 1)}`;
@@ -408,9 +422,9 @@ export default function Karte() {
                   {umOrt.length ? (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {umOrt.map((u) => <span key={u.typ} title={u.titel} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] py-1 pl-1 pr-2 text-xs font-bold tabular-nums text-white"><Abzeichen typ={u.typ} groesse={18} />{u.n}</span>)}
-                      <span className="self-center text-[10px] text-white/35">within 120 m</span>
+                      <span className="self-center text-[10px] text-white/35">within 120 m{ohneExport ? ' · looted in cups' : ''}</span>
                     </div>
-                  ) : <p className="mt-3 text-xs text-white/40">Chests, ammo and more around {gewaehlt.name} <Bald text="export pending" /></p>}
+                  ) : <p className="mt-3 text-xs text-white/40">No chests or ammo boxes recorded within 120 m of {gewaehlt.name}.</p>}
                 </Glas>
               </motion.div>
             )}
@@ -433,7 +447,7 @@ export default function Karte() {
             <div className="my-4 h-px bg-white/5" />
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Objects</p>
-              {objekte && !objekte.length && <Bald text="export pending" />}
+              {ohneExport && beuteDa && <span className="text-[10px] font-semibold text-amber-200/80">Chests & ammo: looted in cups</span>}
             </div>
             <input value={ebeneSuche} onChange={(e) => setEbeneSuche(e.target.value)} placeholder="Search markers…"
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
@@ -472,7 +486,7 @@ export default function Karte() {
                 );
               })}
             </div>
-            <p className="mt-4 text-[11px] leading-relaxed text-white/35">Object positions come from our own export of the game files – every chest, ammo box and barrel at its exact spot. Until it lands, the layers stay empty.</p>
+            <p className="mt-4 text-[11px] leading-relaxed text-white/35">{ohneExport ? <>Until our game-file export lands, Chests and Ammo boxes show the spots players looted in {beuteDa?.spiele ?? 'our'} S{beuteDa?.saison ?? 43} cup replays (approximate positions, chests nobody opened are missing). The export brings every object at its exact spot with spawn chances.</> : 'Object positions come from our own export of the game files – every chest, ammo box and barrel at its exact spot.'}</p>
           </Glas>
 
           <Glas className="p-5" verzoegerung={0.14}>

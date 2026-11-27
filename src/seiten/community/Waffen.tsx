@@ -7,7 +7,7 @@ import { useDatenbank } from './waffenDaten';
 import { useWikiWaffen, zusammenfuehren } from './waffenWiki';
 import WaffenDatenbank, { turnierZuordnen } from './WaffenDatenbank';
 import { Aenderungen, Einzelwaffe, VergleichSeite, WaffenTabs } from './WaffenSeiten';
-import { DatenFehlen } from './Bausteine';
+import { DatenFehlen, Hinweis } from './Bausteine';
 import { Route, Routes } from 'react-router-dom';
 
 /*
@@ -198,25 +198,9 @@ export default function Waffen() {
       {status === 'laedt' && !wikiFortschritt && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
       {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} vergleich={vergleich} umschalten={umschalten} />}
       {status === 'fehlt' && <>
-      <Glas className="relative overflow-hidden border-teal-300/20 p-6">
-        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-400/10 blur-3xl" />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">Full stats · from the game files</p>
-            <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white">The complete weapon database is on its way</h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/55">
-              Damage, DPS, fire rate, magazine, reload time, headshot multiplier and structure damage for every rarity – plus the exact floor and chest
-              chances – are being exported straight from the game files. Until that lands, we only show what we've measured ourselves in tournaments, and never a guessed number.
-            </p>
-          </div>
-          <Bald text="export pending" />
-        </div>
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {['Damage', 'DPS', 'Fire rate', 'Magazine', 'Reload time', 'Headshot ×', 'Structure damage', 'Floor chance', 'Chest chance', 'Compare 2–3 weapons'].map((k) => (
-            <span key={k} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-white/50">{k}</span>
-          ))}
-        </div>
-      </Glas>
+      <Hinweis mehr={<>Damage, DPS, fire rate, magazine, reload, headshot and structure damage per rarity come from the Fortnite Wiki (every weapon ever) and, for the current season, from our game-file export with exact floor and chest chances. Neither answered just now – below is what we measured ourselves in tournaments.</>}>
+        Full stats per rarity load from the Fortnite Wiki and the game-file export – showing tournament measurements for now.
+      </Hinweis>
 
       {/* Kennzahlen der Messung */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
