@@ -274,7 +274,7 @@ export default function Waffen() {
       <Routes>
         <Route index element={pool} />
         <Route path="compare" element={status === 'laedt' ? <Laedt farbe={TEAL} /> : <VergleichSeite db={db} wiki={wiki} proWaffe={proWaffe} setVergleich={vergleichSetzen} />} />
-        <Route path="changes" element={status === 'laedt' ? <Laedt farbe={TEAL} /> : <Aenderungen db={db} />} />
+        <Route path="changes" element={status === 'laedt' ? <Laedt farbe={TEAL} /> : <Aenderungen db={db} wiki={wiki} />} />
         <Route path=":id" element={db ? <Einzelwaffe db={db} wiki={wiki} proWaffe={proWaffe} imVergleich={(id) => vergleich.includes(id)} vergleichen={umschalten} /> : ohneDatei} />
       </Routes>
     </div>

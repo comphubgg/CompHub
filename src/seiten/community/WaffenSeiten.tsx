@@ -359,11 +359,9 @@ export function VergleichSeite({ db, wiki, proWaffe, setVergleich }: { db: Daten
 }
 
 /* ---------------------------------------------- Aenderungen */
-export function Aenderungen({ db }: { db: Datenbank | null }) {
+export function Aenderungen({ db, wiki }: { db: Datenbank | null; wiki?: Wiki }) {
   const [q, setQ] = useState('');
-  if (!db || !db.changes.length) {
-    return <DatenFehlen titel="Patch changes appear with the second export" text="Every time the game files are exported again, the exporter compares them with the previous export and lists each change per weapon, rarity and loot source (old → new). The first export is the baseline – changes show up from the next patch on." braucht={['changes[] in waffen.json', 'date + build', 'field, from, to', 'modes']} />;
-  }
+  if (!db || !db.changes.length) return <SaisonVerlauf db={db} wiki={wiki} />;
   const name = (id: string) => db.weapons.find((w) => w.id === id)?.name ?? id;
   const liste = db.changes.filter((c) => name(c.weaponId).toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.date.localeCompare(a.date));
   const tage = [...new Set(liste.map((c) => c.date))];
@@ -377,6 +375,48 @@ export function Aenderungen({ db }: { db: Datenbank | null }) {
           <ul className="mt-3 space-y-1.5 text-sm">{liste.filter((c) => c.date === d).map((c, i) => <AenderungZeile key={i} c={c} mitWaffe={name(c.weaponId)} />)}</ul>
         </Glas>
       ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------- Ohne Patch-Vergleich: Waffen je Saison (Fortnite Wiki) */
+function SaisonVerlauf({ db, wiki }: { db: Datenbank | null; wiki?: Wiki }) {
+  const saisons = useMemo(() => {
+    const wert = (x: string) => { const [, c, t] = /C(\d+) S(\w+)/.exec(x) ?? []; return Number(c) * 100 + (Number(t) || (t === 'X' ? 10 : 60)); };
+    const m = new Map<string, { neu: DbWaffe[]; weg: DbWaffe[] }>();
+    for (const w of db?.weapons ?? []) {
+      const l = w.saisons ?? []; if (!l.length) continue;
+      const erst = l[0]; const letzt = l[l.length - 1];
+      if (!m.has(erst)) m.set(erst, { neu: [], weg: [] }); m.get(erst)!.neu.push(w);
+      if (w.vaulted && l.length > 1) { if (!m.has(letzt)) m.set(letzt, { neu: [], weg: [] }); m.get(letzt)!.weg.push(w); }
+    }
+    return [...m.entries()].sort((a, b) => wert(b[0]) - wert(a[0]));
+  }, [db]);
+  const [n, setN] = useState(8);
+  return (
+    <div className="space-y-6">
+      <Ueberschrift ueber="Community · Weapons" titel="Changes" farbe={TEAL} text="Which weapons came into the game and which were vaulted, season by season." />
+      {!saisons.length && <p className="text-sm text-white/45">Loading the weapon history …</p>}
+      <div className="relative space-y-4 pl-6 before:absolute before:bottom-2 before:left-2 before:top-2 before:w-px before:bg-white/10">
+        {saisons.slice(0, n).map(([x, g], i) => (
+          <motion.div key={x} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 8) * 0.05 }} className="relative">
+            <span className="absolute -left-[22px] top-5 h-3 w-3 rounded-full border-2 border-[#06080f] bg-teal-300 shadow-[0_0_12px_rgba(45,212,191,0.7)]" />
+            <Glas className="p-5">
+              <h2 className="text-xl font-extrabold text-white">{x.replace(/^C(\d+) S(\w+)$/, 'Chapter $1 · Season $2')}</h2>
+              {([['Added', g.neu, 'text-emerald-300'], ['Last season before the vault', g.weg, 'text-amber-300']] as const).map(([t, l, f]) => l.length ? (
+                <div key={t} className="mt-3">
+                  <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${f}`}>{t} · {l.length}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {l.map((w) => <Link key={w.id} to={`/community/weapons/${w.id}`} className="flex items-center gap-2 rounded-xl bg-white/[0.05] py-1 pl-1 pr-2.5 text-sm font-semibold text-white hover:bg-white/10"><Symbol bild={bildVon(w, wiki)} name={w.name} groesse="h-7 w-7" />{w.name}</Link>)}
+                  </div>
+                </div>
+              ) : null)}
+            </Glas>
+          </motion.div>
+        ))}
+      </div>
+      {saisons.length > n && <button type="button" onClick={() => setN((v) => v + 10)} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white/70 hover:text-white">Older seasons ({saisons.length - n})</button>}
+      <p className="text-[11px] text-white/30">Seasons: <a href="https://fortnite.fandom.com/" target="_blank" rel="noreferrer" className="text-teal-200/70 hover:text-white">Data: Fortnite Wiki, CC BY-SA</a>. Per-stat patch changes (old → new) appear here once two game-file exports can be compared.</p>
     </div>
   );
 }
