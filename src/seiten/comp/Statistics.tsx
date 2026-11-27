@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Flaeche, Kennzahl, Laedt, Leer, Marke, SeitenKopf } from '../../ds/Bausteine';
+import { Flaeche, Kennzahl, Laedt, Leer, Marke, Segment, SeitenKopf } from '../../ds/Bausteine';
 import { SEITE, flagge } from '../../teile/Glas';
 import { Treppchen } from '../../teile/Podest';
 import { Balken, Chip, Klein, Portraet, zahl } from './stats/teile';
@@ -55,8 +55,6 @@ const BRETT: Record<string, { titel: string; farbe: string }> = {
   quote: { titel: 'Damage ratio', farbe: '#34d399' },
 };
 
-/** "Chapter 7 Season 4" -> "CH7 S4" (der volle Name steht im Tooltip und in der Kopfzeile); Saisons mit eigenem Namen bleiben. */
-const saisonKurz = (n: string) => n.replace(/^Chapter\s+(\d+)\s+Season\s+(\d+)$/i, 'CH$1 S$2');
 const feldWert = (s: Spieler, feld: string) => Number((s as unknown as Record<string, number>)[feld] ?? 0);
 function wert(s: Spieler, feld: string, nachkomma = 0) {
   const v = feldWert(s, feld);
@@ -210,18 +208,20 @@ export default function Statistics() {
       <SeitenKopf ueber={`Season statistics · ${saisonName}${region ? ` · ${region}` : ''}`} titel="Statistics"
         text="Every competitive player, every stat – from Epic's tournament data and CompHub's own replay analysis."
         rechts={<div className="flex gap-8"><Kennzahl label="Match days" wert={spieltage} /><Kennzahl label="Players" wert={gesamt || null} ton="akz" /></div>}>
-        {/* Filter: Saison, Region, Suche - eine Zeile, auf dem Handy rollen die Pillen seitlich */}
-        <div className="fl flex flex-col gap-3 p-3 xl:flex-row xl:items-center">
-          <div className="ohne-leiste flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-            {saisons.map((s) => <span key={s.kennung} title={s.name} className="shrink-0"><Chip an={saison === s.kennung} onClick={() => setSaison(s.kennung)}>{saisonKurz(s.name)}</Chip></span>)}
-            <Chip an={saison === 'alle'} onClick={() => setSaison('alle')}>All seasons</Chip>
+        {/* Filter in EINER ruhigen Zeile (Betreiber: keine Wand aus Pillen): Saison als Auswahlfeld, Region als Umschalter, Suche rechts */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <label className="relative shrink-0">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Season</span>
+            <select value={saison} onChange={(e) => setSaison(e.target.value)} className="eingabe w-full cursor-pointer appearance-none !py-2 !pl-[5.2rem] !pr-9 font-semibold lg:w-72">
+              {saisons.map((s) => <option key={s.kennung} value={s.kennung} className="bg-fl">{s.name}</option>)}
+              <option value="alle" className="bg-fl">All seasons</option>
+            </select>
+            <svg viewBox="0 0 20 20" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
+          </label>
+          <div className="ohne-leiste -mx-1 min-w-0 overflow-x-auto px-1">
+            <Segment id="stat-region" klein wert={region} onWahl={setRegion} wahl={[{ k: '', titel: 'Global' }, ...regionenSichtbar.map((r) => ({ k: r, titel: r }))]} />
           </div>
-          <span aria-hidden className="hidden h-6 w-px shrink-0 bg-white/10 xl:block" />
-          <div className="ohne-leiste flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto">
-            <Chip an={!region} onClick={() => setRegion('')}>Global</Chip>
-            {regionenSichtbar.map((r) => <Chip key={r} an={region === r} onClick={() => setRegion(r)}>{r}</Chip>)}
-          </div>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="eingabe w-full shrink-0 !py-2 xl:w-64" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="eingabe w-full shrink-0 !py-2 lg:ml-auto lg:w-72" />
         </div>
       </SeitenKopf>
 
@@ -278,7 +278,7 @@ export default function Statistics() {
             <div><p className="ueber">Latest match days</p><h2 className="titel mt-1 text-3xl">Top fragger of every match day</h2></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {kacheln.slice(0, 10).map((k, i) => (
+            {kacheln.slice(0, kacheln.length >= 10 ? 10 : kacheln.length >= 5 ? 5 : kacheln.length).map((k, i) => (
               <Flaeche key={k.turnier.windowId + k.spitze.epicId} fest klick verz={Math.min(i, 9) * 0.03}>
                 <Link to={`/competitive/player/${k.spitze.epicId}`} className="flex h-full gap-3 p-3">
                   <Portraet bild={foto(k.spitze)} gross={92} />
