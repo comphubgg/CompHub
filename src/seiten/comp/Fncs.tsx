@@ -57,12 +57,12 @@ function Aufmacher({ e }: { e: Ereignis }) {
     <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 + i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="flex min-w-0 flex-1 flex-col items-center">
       {/* Fotos als Hochkant-Rechtecke nebeneinander - nur wenn jeder Spieler des Teams eines hat. */}
       {p.spieler.every((s) => s.bild) ? (
-        <div className="flex gap-1.5">
-          {p.spieler.map((s) => <img key={s.name} src={s.bild!} alt="" className={`${platz === 1 ? 'h-28 w-20' : 'h-20 w-[3.75rem]'} rounded-lg border-2 object-cover object-top shadow-xl`} style={{ borderColor: MEDAILLE[platz - 1] }} />)}
+        <div className="flex gap-1 sm:gap-1.5">
+          {p.spieler.map((s) => <img key={s.name} src={s.bild!} alt="" className={`${platz === 1 ? 'h-[4.5rem] w-12 sm:h-28 sm:w-20' : 'h-14 w-10 sm:h-20 sm:w-[3.75rem]'} rounded-lg border-2 object-cover object-top shadow-xl`} style={{ borderColor: MEDAILLE[platz - 1] }} />)}
         </div>
-      ) : <div className={platz === 1 ? 'h-28' : 'h-20'} />}
-      <p className="mt-3 flex max-w-full items-center gap-1.5 truncate text-center text-sm font-extrabold uppercase text-white"><Flaggen sp={p.spieler} />{namen(p.spieler)}</p>
-      <p className="text-xs tabular-nums text-white/50">{p.punkte != null ? `${p.punkte} pts` : ''}{p.elims != null ? ` · ${p.elims} elims` : ''}{p.preis ? ` · ${p.preis}` : ''}</p>
+      ) : <div className={platz === 1 ? 'h-[4.5rem] sm:h-28' : 'h-14 sm:h-20'} />}
+      <p className="mt-3 flex max-w-full items-center gap-1.5 truncate text-center text-xs font-extrabold uppercase text-white sm:text-sm"><Flaggen sp={p.spieler} />{namen(p.spieler)}</p>
+      <p className="max-w-full truncate text-[11px] tabular-nums text-white/50 sm:text-xs">{p.punkte != null ? `${p.punkte} pts` : ''}{p.elims != null ? ` · ${p.elims} elims` : ''}{p.preis ? ` · ${p.preis}` : ''}</p>
       <div className={`mt-3 w-full rounded-t-2xl border-x border-t border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent ${hoehe} grid place-items-start justify-center pt-3`}>
         <span className="text-4xl font-black" style={{ color: MEDAILLE[platz - 1] }}>{platz}</span>
       </div>
@@ -89,7 +89,7 @@ function Aufmacher({ e }: { e: Ereignis }) {
           </div>
         </div>
         <div>
-          <div className="flex items-end gap-3">{stufe(p2, 2, 'h-20', 1)}{stufe(p1, 1, 'h-32', 0)}{stufe(p3, 3, 'h-14', 2)}</div>
+          <div className="flex items-end gap-2 sm:gap-3">{stufe(p2, 2, 'h-20', 1)}{stufe(p1, 1, 'h-32', 0)}{stufe(p3, 3, 'h-14', 2)}</div>
           <div className="mt-1 space-y-1 rounded-2xl border border-white/10 bg-black/30 p-2">
             {e.spitze.slice(3).map((p) => (
               <div key={p.rang} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm">
