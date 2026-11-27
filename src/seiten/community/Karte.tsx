@@ -4,6 +4,7 @@ import { Glas } from '../../teile/Glas';
 import { Bald, TEAL, Ueberschrift } from './Teile';
 import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
 import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
+import { waffeVon } from './waffenNamen';
 
 /*
  * Interaktive Karte der Insel von heute (Betreiber, 26.11.2026). Bild /bilder/karte-leer.png bzw. karte-orte.png (fortnite-api.com ueber
@@ -24,7 +25,27 @@ const RAHMEN = { x0: -142_800, y0: -146_000, spanne: 301_500 };
 const zuProzent = (x: number, y: number) => ({ l: ((x - RAHMEN.x0) / RAHMEN.spanne) * 100, o: ((y - RAHMEN.y0) / RAHMEN.spanne) * 100 });
 
 interface Ort { id: string; name: string; x: number; y: number; links: number; oben: number }
-interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string }
+interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string; gruppe?: string }
+/*
+ * Zusatz-Ebene "Looted in cups" (/hub-daten/kisten-aus-replays.json, aus unseren eigenen Cup-Replays): wie oft Spieler eine Truhe / Munitionskiste
+ * geoeffnet haben und was herauskam. KEINE Truhenliste (nie geoeffnete fehlen, keine Spawn-Chancen) - deshalb aus, bis man sie einschaltet,
+ * und klar beschriftet. Positionen stammen daher, wo die Beute lag (4,5-m-Cluster) - ungefaehr.
+ */
+interface Beute { typ: 'chest' | 'ammo_box'; x: number; y: number; z?: number; geoeffnet: number; anteil: number; loot: Array<{ item: string; n: number }> }
+interface BeuteDatei { spiele: number; saison?: number; stand?: string; objekte: Beute[] }
+/** Hitze-Farbe 0..1: blau -> gelb -> rot. */
+const hitze = (a: number) => `hsl(${Math.round(210 - Math.min(1, Math.max(0, a)) * 210)} 95% ${55 + a * 5}%)`;
+const MUNITION: Record<string, string> = {
+  AthenaAmmoDataBulletsMedium: 'Medium ammo', AthenaAmmoDataBulletsLight: 'Light ammo', AthenaAmmoDataBulletsHeavy: 'Heavy ammo', AthenaAmmoDataShells: 'Shells',
+  AmmoDataRockets: 'Rockets', MetalItemData: 'Metal', StoneItemData: 'Brick', WoodItemData: 'Wood', AthenaAmmoDataEnergyCell: 'Energy cells',
+};
+const SELTEN_BEUTE: Record<string, [string, string]> = { C: ['Common', '#9ca3af'], UC: ['Uncommon', '#4ade80'], R: ['Rare', '#38bdf8'], VR: ['Epic', '#c084fc'], SR: ['Legendary', '#fb923c'], UR: ['Mythic', '#facc15'] };
+function beuteName(item: string): { name: string; bild: string | null; selten?: [string, string] } {
+  if (MUNITION[item]) return { name: MUNITION[item], bild: null };
+  const w = waffeVon(item);
+  const m = /_(C|UC|R|VR|SR|UR)(_Ore_T0\d|_T0\d)?$/i.exec(item);
+  return { ...w, selten: m ? SELTEN_BEUTE[m[1].toUpperCase()] : undefined };
+}
 /** Marker auf dem Bildschirm: ein Objekt oder (weit herausgezoomt) mehrere gleicher Art, die zu nah beieinander liegen. */
 interface Gruppe { id: string; typ: string; px: number; py: number; liste: Objekt[] }
 
@@ -49,6 +70,18 @@ export default function Karte() {
   const [voll, setVoll] = useState(false);
   useEffect(() => { const f = () => setVoll(!!document.fullscreenElement); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
   const [gewaehlt, setGewaehlt] = useState<Ort | null>(null);
+  // Spawn-Chance-Filter (nur sichtbar, wenn der Export Chancen hat) und die Zusatz-Ebene "Looted in cups"
+  const [minChance, setMinChance] = useState(0);
+  const [beute, setBeute] = useState<BeuteDatei | null | 'fehlt'>(null);
+  const [beuteAn, setBeuteAn] = useState(false);
+  const [minSpiele, setMinSpiele] = useState(3);
+  const [beuteArt, setBeuteArt] = useState<'chest' | 'ammo_box' | 'beide'>('beide');
+  const [beuteTipp, setBeuteTipp] = useState<{ b: Beute; fest: boolean } | null>(null);
+  useEffect(() => {
+    if (!beuteAn || beute) return;
+    fetch('/hub-daten/kisten-aus-replays.json', { cache: 'no-store' }).then((r) => { if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error(); return r.json(); })
+      .then((j: BeuteDatei) => setBeute({ ...j, objekte: (j.objekte ?? []).filter((o) => Number.isFinite(o.x) && Number.isFinite(o.y)) })).catch(() => setBeute('fehlt'));
+  }, [beuteAn, beute]);
   const [suche, setSuche] = useState('');
   // Eigene Zeichnungen (Zeichnen.tsx) - im Zeichenmodus verschiebt Ziehen nicht die Karte, sondern zeichnet.
   const z = useZeichnen();
@@ -126,7 +159,10 @@ export default function Karte() {
   }
 
   const zaehlen = useMemo(() => { const m: Record<string, number> = {}; for (const o of objekte ?? []) m[o.typ] = (m[o.typ] ?? 0) + 1; return m; }, [objekte]);
-  const sichtbar = useMemo(() => (objekte ?? []).filter((o) => an[o.typ]), [objekte, an]);
+  const mitChance = useMemo(() => (objekte ?? []).some((o) => o.chance !== undefined), [objekte]);
+  const sichtbar = useMemo(() => (objekte ?? []).filter((o) => an[o.typ] && (o.chance === undefined || o.chance * 100 >= minChance - 1e-9)), [objekte, an, minChance]);
+  const beuteDa = beute && beute !== 'fehlt' ? beute : null;
+  const beuteSicht = useMemo(() => (!beuteAn || !beuteDa ? [] : beuteDa.objekte.filter((b) => b.geoeffnet >= minSpiele && (beuteArt === 'beide' || b.typ === beuteArt))), [beuteAn, beuteDa, minSpiele, beuteArt]);
   const r = (px: number) => (px * 1000) / (basis * sicht.s);
 
   /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen weit draussen */
@@ -247,6 +283,18 @@ export default function Karte() {
             <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
               <SymbolVorlagen />
               <g transform={`translate(${sicht.tx} ${sicht.ty})`}>
+                {beuteSicht.length > 0 && (
+                  <g>
+                    {beuteSicht.map((b, i) => {
+                      const p = zuProzent(b.x, b.y); const x = (p.l / 100) * skala; const y = (p.o / 100) * skala;
+                      if (x + sicht.tx < -20 || x + sicht.tx > groesse.b + 20 || y + sicht.ty < -20 || y + sicht.ty > groesse.h + 20) return null;
+                      const rad = Math.max(2.5, Math.min(9, 1.2 + sicht.s * 1.1)) * (0.75 + b.anteil * 0.6);
+                      return <circle key={i} cx={x} cy={y} r={rad} fill={hitze(b.anteil)} fillOpacity={0.8} stroke={b.typ === 'ammo_box' ? '#fff' : '#06080f'} strokeWidth={b.typ === 'ammo_box' ? 1 : 0.8}
+                        style={{ pointerEvents: 'auto', cursor: 'pointer' }} onPointerEnter={() => setBeuteTipp((t) => (t?.fest ? t : { b, fest: false }))} onPointerLeave={() => setBeuteTipp((t) => (t?.fest ? t : null))}
+                        onClick={() => { if (!gezogen.current) setBeuteTipp((t) => (t?.fest && t.b === b ? null : { b, fest: true })); }} />;
+                    })}
+                  </g>
+                )}
                 {sichtbar.filter((o) => o.x2 !== undefined && o.y2 !== undefined).map((o, i) => {
                   const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2!, o.y2!);
                   return <line key={i} x1={(p.l / 100) * skala} y1={(p.o / 100) * skala} x2={(q.l / 100) * skala} y2={(q.o / 100) * skala} stroke={ebeneVon(o.typ).farbe} strokeOpacity={0.85} strokeWidth={2} strokeDasharray="6 4" strokeLinecap="round" />;
@@ -279,6 +327,18 @@ export default function Karte() {
                   <MarkerInfo g={tipp} skala={skala} gitter={imGitter} schliessen={fest ? () => setFest(null) : undefined} />
                 </motion.div>
               )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {beuteTipp && beuteDa && (() => {
+                const p = zuProzent(beuteTipp.b.x, beuteTipp.b.y);
+                return (
+                  <motion.div key={`${beuteTipp.b.x}:${beuteTipp.b.y}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} onPointerDown={(e) => e.stopPropagation()}
+                    className={`absolute z-10 w-[250px] -translate-x-1/2 -translate-y-full rounded-2xl border border-white/15 bg-[#06080f]/92 p-3 text-left shadow-2xl backdrop-blur-xl ${beuteTipp.fest ? '' : 'pointer-events-none'}`}
+                    style={{ left: (p.l / 100) * skala + sicht.tx, top: (p.o / 100) * skala + sicht.ty - 12 }}>
+                    <BeuteInfo b={beuteTipp.b} spiele={beuteDa.spiele} feld={imGitter({ links: p.l, oben: p.o })} schliessen={beuteTipp.fest ? () => setBeuteTipp(null) : undefined} />
+                  </motion.div>
+                );
+              })()}
             </AnimatePresence>
             {/* Orte - ausserhalb der skalierten Ebene, in Bildschirm-Pixeln: so bleiben Schrift und Nadeln bei jedem Zoom scharf */}
             {namen && !epicBild && orte.map((o) => (
@@ -365,6 +425,11 @@ export default function Karte() {
                 <Schalter key={t as string} titel={t as string} an={w as boolean} umschalten={() => (f as (x: (v: boolean) => boolean) => void)((v) => !v)} />
               ))}
             </div>
+            {mitChance && (
+              <label className="mt-3 block rounded-xl bg-white/[0.03] px-2.5 py-2 text-xs text-white/60">Min. spawn chance <span className="float-right font-bold tabular-nums text-white">{minChance} %</span>
+                <input type="range" min={0} max={100} step={5} value={minChance} onChange={(e) => setMinChance(Number(e.target.value))} className="mt-1 w-full accent-teal-300" />
+              </label>
+            )}
             <div className="my-4 h-px bg-white/5" />
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Objects</p>
@@ -408,6 +473,34 @@ export default function Karte() {
               })}
             </div>
             <p className="mt-4 text-[11px] leading-relaxed text-white/35">Object positions come from our own export of the game files – every chest, ammo box and barrel at its exact spot. Until it lands, the layers stay empty.</p>
+          </Glas>
+
+          <Glas className="p-5" verzoegerung={0.14}>
+            <Schalter titel="Looted in cups" an={beuteAn} umschalten={() => setBeuteAn((v) => !v)} anzahl={beuteAn && beuteDa ? beuteSicht.length : undefined} />
+            <p className="px-2.5 text-[11px] leading-relaxed text-white/40">
+              Extra overlay from our own S{beuteDa?.saison ?? 43} cup replays{beuteDa ? ` (${beuteDa.spiele} games)` : ''}: how often players opened a chest or ammo box and what came out. Not the chest list – chests nobody opened are missing, and positions are approximate (where the loot dropped).
+            </p>
+            <AnimatePresence initial={false}>
+              {beuteAn && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  {beute === 'fehlt' ? <p className="mt-3 px-2.5 text-xs text-white/45">The replay file isn't there yet.</p> : !beuteDa ? <p className="mt-3 px-2.5 text-xs text-white/45">Loading …</p> : (
+                    <div className="mt-3 space-y-3 px-2.5">
+                      <div className="inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5 text-[11px] font-bold">
+                        {([['beide', 'Both'], ['chest', 'Chests'], ['ammo_box', 'Ammo boxes']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setBeuteArt(k)} className={`rounded-md px-2.5 py-1 ${beuteArt === k ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'}`}>{t}</button>)}
+                      </div>
+                      <label className="block text-xs text-white/60">Looted in at least <span className="float-right font-bold tabular-nums text-white">{minSpiele} game{minSpiele === 1 ? '' : 's'}</span>
+                        <input type="range" min={1} max={Math.min(40, beuteDa.spiele)} value={minSpiele} onChange={(e) => setMinSpiele(Number(e.target.value))} className="mt-1 w-full accent-teal-300" />
+                      </label>
+                      <div>
+                        <div className="h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${hitze(0)}, ${hitze(0.5)}, ${hitze(1)})` }} />
+                        <div className="mt-1 flex justify-between text-[10px] text-white/40"><span>rarely looted</span><span>looted almost every game</span></div>
+                      </div>
+                      <p className="text-[10px] text-white/30">from {beuteDa.spiele} cup replays{beuteDa.stand ? ` · ${new Date(beuteDa.stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''} · white ring = ammo box</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Glas>
 
           <Glas className="p-5" verzoegerung={0.18}>
@@ -455,13 +548,48 @@ function MarkerInfo({ g, skala, gitter, schliessen }: { g: Gruppe; skala: number
             <div key={k} className="rounded-lg bg-white/[0.05] px-1.5 py-1"><dt className="text-[9px] uppercase tracking-wider text-white/40">{k}</dt><dd className="text-xs font-bold tabular-nums text-white">{v}</dd></div>
           ))}
         </dl>
-      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}. Zoom in to see each one.</p>}
+      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}{g.liste.some((x) => x.chance !== undefined) ? ` · avg. spawn chance ${Math.round((g.liste.reduce((a, x) => a + (x.chance ?? 1), 0) / n) * 100)}%` : ''}. Zoom in to see each one.</p>}
+      {n === 1 && o.gruppe && <p className="mt-2 text-[11px] text-white/50">Group <b className="text-white/75">{o.gruppe}</b></p>}
       {n === 1 && (o.name || o.chance !== undefined || o.x2 !== undefined) && (
         <p className="mt-2 flex justify-between text-[11px] text-white/45">
           <span>{o.name ? `Grid ${feld}` : ''}{o.x2 !== undefined && o.y2 !== undefined ? `${o.name ? ' · ' : ''}${m(Math.hypot(o.x2 - o.x, o.y2 - o.y))} long` : ''}</span>
-          {o.chance !== undefined && <span className="font-semibold text-white/70">Spawns {Math.round(o.chance * 100)} %</span>}
+          {o.chance !== undefined && <span className="font-semibold text-white/70">Spawn chance {Math.round(o.chance * 100)}%</span>}
         </p>
       )}
+    </div>
+  );
+}
+
+function BeuteInfo({ b, spiele, feld, schliessen }: { b: Beute; spiele: number; feld: string; schliessen?: () => void }) {
+  const m = (cm: number) => `${Math.round(cm / 100).toLocaleString('en')} m`;
+  const summe = b.loot.reduce((a, l) => a + l.n, 0) || 1;
+  return (
+    <div>
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 h-6 w-6 shrink-0 rounded-full" style={{ background: hitze(b.anteil), boxShadow: `0 0 12px ${hitze(b.anteil)}` }} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold leading-tight text-white">{b.typ === 'chest' ? 'Chest' : 'Ammo box'} · grid {feld}</p>
+          <p className="text-[11px] text-white/60">Opened in <b className="text-white">{Math.round(b.anteil * 100)}%</b> of {spiele} cup games ({b.geoeffnet})</p>
+        </div>
+        {schliessen && <button type="button" onClick={schliessen} className="text-xs text-white/40 hover:text-white">✕</button>}
+      </div>
+      {b.loot.length > 0 && (
+        <ul className="mt-2.5 space-y-1">
+          {b.loot.slice(0, 6).map((l) => {
+            const w = beuteName(l.item);
+            return (
+              <li key={l.item} className="relative flex items-center gap-2 overflow-hidden rounded-lg px-1.5 py-0.5 text-[11px]">
+                <span className="absolute inset-y-0 left-0 bg-white/[0.05]" style={{ width: `${(l.n / summe) * 100}%` }} />
+                {w.bild ? <img src={w.bild} alt="" className="relative h-5 w-5 object-contain" /> : <span className="relative h-5 w-5 rounded bg-white/10" />}
+                <span className="relative min-w-0 flex-1 truncate font-semibold text-white/85">{w.name}</span>
+                {w.selten && <span className="relative text-[9px] font-bold" style={{ color: w.selten[1] }}>{w.selten[0]}</span>}
+                <span className="relative tabular-nums text-white/50">×{l.n}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-2 text-[10px] tabular-nums text-white/35">X {m(b.x)} · Y {m(b.y)}{b.z !== undefined ? ` · height ${m(b.z)}` : ''} · approximate</p>
     </div>
   );
 }
