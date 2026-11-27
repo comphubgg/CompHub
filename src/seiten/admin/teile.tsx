@@ -15,7 +15,7 @@ export const knopfGefahr = `${knopf} border-rose-500/40 text-rose-300 hover:bord
 export function WerkzeugKopf({ ueber, titel, text, klassisch, rechts }: { ueber: ReactNode; titel: ReactNode; text?: ReactNode; klassisch?: () => void; rechts?: ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-end gap-4">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[min(100%,20rem)] flex-1">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">{ueber}</p>
         <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-white">{titel}</h1>
         {text && <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-white/55">{text}</p>}

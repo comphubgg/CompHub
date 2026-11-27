@@ -6,7 +6,7 @@ export default function NurVip({ titel = 'VIPs only', text }: { titel?: string; 
   const { oeffnen } = useWer();
   return (
     <div className="relative grid min-h-[60vh] place-items-center">
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[380px] w-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/20 blur-[110px]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[380px] w-[min(620px,100%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/20 blur-[110px]" />
       <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-xl rounded-[2rem] border border-violet-300/20 bg-[#0b0d16]/75 p-9 text-center backdrop-blur-2xl">
         <span className="rounded-full bg-violet-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#06080f]">VIP</span>

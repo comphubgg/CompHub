@@ -21,7 +21,7 @@ const QUELLEN = [
   (u: Stand) => u.url,
   (u: Stand) => `https://www.thecomphub.com/maps/archiv/gg/gg-${u.patch}.webp`,
 ];
-const gruppe = (u: Stand) => (u.kapitel ? `Chapter ${u.kapitel} · ${u.saison}` : 'Newest · not sorted yet');
+const gruppe = (u: Stand) => (u.kapitel ? `Chapter ${u.kapitel} · ${u.saison}` : 'Latest patches');
 
 export default function Entwicklung() {
   const [liste, setListe] = useState<Stand[] | null>(null);

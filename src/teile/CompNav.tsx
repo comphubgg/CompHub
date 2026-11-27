@@ -56,13 +56,18 @@ export default function CompNav() {
   const aktivMehr = MEHR_SEITEN.flatMap((g) => g.seiten).sort((a, b) => b.pfad.length - a.pfad.length)
     .find((s) => rest === s.pfad || rest.startsWith(`${s.pfad}/`) || (s.pfad === 'orgs' && rest.startsWith('team/')));
   const istHaupt = (pfad: string) => !aktivMehr && (pfad === '' ? rest === '' : rest === pfad || rest.startsWith(`${pfad}/`));
+  // Handy: der aktive Reiter rollt ins Bild (wie die Community-Reiter)
+  const reihe = useRef<HTMLElement | null>(null); const reihe2 = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    for (const r of [reihe, reihe2]) r.current?.querySelector('[data-aktiv="1"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [ort.pathname]);
 
   return (
     <div ref={huelle} className="sticky top-[57px] z-20 border-b border-white/5 bg-[#06080f]/60 backdrop-blur-xl">
       <div className="flex items-center gap-1 px-6 py-2 lg:px-10">
-        <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
+        <nav ref={reihe} className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {COMP_SEITEN.map((s) => (
-            <NavLink key={s.pfad} to={`/competitive${s.pfad ? `/${s.pfad}` : ''}`}
+            <NavLink key={s.pfad} to={`/competitive${s.pfad ? `/${s.pfad}` : ''}`} data-aktiv={istHaupt(s.pfad) ? '1' : '0'}
               className={`relative shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition ${istHaupt(s.pfad) ? 'bg-white/10 text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'}`}>
               {s.titel}
             </NavLink>
@@ -74,6 +79,21 @@ export default function CompNav() {
           <motion.svg animate={{ rotate: offen ? 180 : 0 }} viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></motion.svg>
         </button>
       </div>
+      {/* Zweite Reihe (wie Community): steht man auf einer Seite aus "More", sind deren Geschwister sichtbar - kein Menue noetig, um zu wechseln */}
+      {aktivMehr && (
+        <nav ref={reihe2} className="flex items-center gap-1 overflow-x-auto px-6 pb-0 [scrollbar-width:none] lg:px-10 [&::-webkit-scrollbar]:hidden">
+          {MEHR_SEITEN.flatMap((g) => g.seiten).map((s) => {
+            const an = aktivMehr.pfad === s.pfad;
+            return (
+              <Link key={s.pfad} to={`/competitive/${s.pfad}`} data-aktiv={an ? '1' : '0'} title={s.text}
+                className={`relative block shrink-0 px-3 pb-2.5 pt-1 text-[13px] font-medium transition-colors ${an ? 'text-white' : 'text-white/45 hover:text-white/85'}`}>
+                {s.titel}
+                {an && <motion.span layoutId="comp-mehr" className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.7)]" />}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
       <AnimatePresence>
         {offen && (
           <motion.div initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}

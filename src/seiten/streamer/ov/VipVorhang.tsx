@@ -1,6 +1,7 @@
 import Link from './Link';
 import T from './T';
 import { MARKE } from './ort';
+import { useWer } from '../../../teile/Anmeldung';
 
 /*
  * Was sieht, wer ohne VIP auf die Overlays kommt.
@@ -71,6 +72,8 @@ function Schemen({ art, klasse, verzug }: {
  * (lib/rechte VIP_BEREICHE) - dann ohne "Schon VIP? Anmelden".
  */
 export default function VipVorhang({ titel, text }: { titel?: string; text?: string } = {}) {
+  // Im Hub kommt man mit dem VIP-Zugangsschluessel hinein - der Weg steht hier neben Discord/X (wie auf dem Streamer-Tor)
+  const { oeffnen } = useWer();
   return (
     <div className="relative flex overflow-hidden text-white/85"
       style={HINTERGRUND}>
@@ -137,9 +140,13 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
           </div>
         </div>
 
+        <button type="button" onClick={() => oeffnen('schluessel')}
+          className="mt-6 rounded-full bg-violet-400 px-6 py-2.5 text-sm font-bold text-[#06080f] transition hover:-translate-y-0.5 hover:bg-violet-300">
+          Have a VIP access key?
+        </button>
         {!titel && (
           <Link href="/sign-in"
-            className="mt-6 text-xs font-semibold text-white/45 transition hover:text-violet-400">
+            className="mt-4 text-xs font-semibold text-white/45 transition hover:text-violet-400">
             <T>Schon VIP? Anmelden</T> →
           </Link>
         )}

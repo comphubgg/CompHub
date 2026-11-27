@@ -72,19 +72,19 @@ function Aufmacher({ e }: { e: Ereignis }) {
     <Glas className="relative overflow-hidden">
       {e.bild && <img src={e.bild} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />}
       <div className="absolute inset-0 bg-gradient-to-r from-[#06080f] via-[#06080f]/85 to-[#06080f]/40" />
-      <div className="relative grid gap-8 p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:p-10">
+      <div className="relative grid grid-cols-[minmax(0,1fr)] gap-8 p-5 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:p-10">
         <div className="flex flex-col">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-sky-400 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#06080f]">Latest final</span>
             <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${e.lan ? 'border-amber-300/40 text-amber-300' : 'border-white/15 text-white/60'}`}>{e.lan ? 'LAN' : 'Online'}</span>
             <span className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/60">{e.region}</span>
           </div>
-          <p className="mt-6 text-6xl font-black tracking-tight text-white">{e.kopf1}</p>
-          <p className="text-2xl font-extrabold tracking-[0.12em] text-sky-300">{e.kopf2}</p>
+          <p className="mt-6 text-5xl font-black tracking-tight text-white sm:text-6xl">{e.kopf1}</p>
+          <p className="text-lg font-extrabold tracking-[0.08em] text-sky-300 sm:text-2xl sm:tracking-[0.12em]">{e.kopf2}</p>
           <p className="mt-2 text-sm text-white/50">{[e.saisonTitel, datum(e.datum), e.ort].filter(Boolean).join(' · ')}</p>
           <div className="mt-auto grid grid-cols-3 gap-4 pt-8">
             {[['Prize pool', e.preisgeld ?? '—'], ['Teams', e.teams ? String(e.teams) : '—'], ['Winner elims', p1?.elims != null ? String(p1.elims) : '—']].map(([t, v]) => (
-              <div key={t}><p className="text-3xl font-extrabold tabular-nums text-white">{v}</p><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{t}</p></div>
+              <div key={t}><p className="text-2xl font-extrabold tabular-nums text-white sm:text-3xl">{v}</p><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{t}</p></div>
             ))}
           </div>
         </div>

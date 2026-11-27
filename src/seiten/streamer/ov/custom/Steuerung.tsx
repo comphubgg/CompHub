@@ -71,7 +71,7 @@ export default function Steuerung() {
   }
 
   if (!id) {
-    return <div className="grid place-items-center p-6 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></div>;
+    return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-white/[0.035] p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
   }
 
   const s = stand ?? { p1: 0, p2: 0, stand: 0 };

@@ -424,7 +424,7 @@ export default function PrognoseWerkzeug() {
   return (
     <div className="space-y-4">
       <Glas className="flex flex-wrap items-center gap-3 p-4">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
           <input value={titel} onChange={(e) => setTitel(e.target.value)} title="Title" className="w-full max-w-xl bg-transparent text-lg font-extrabold text-white outline-none focus:text-sky-200" />
           <p className="truncate text-xs text-white/45">{ziel && <>{new Date(ziel.begin).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} · </>}Field according to Epic · {eigen ? 'Only you can see your own prediction.' : 'The CompHub prediction — visible on the Predictions page.'}</p>
         </div>

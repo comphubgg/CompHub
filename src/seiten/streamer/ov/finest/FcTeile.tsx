@@ -2,6 +2,7 @@ import Link from '../Link';
 import type { ReactNode } from 'react';
 import T from '../T';
 import LadeSchirm from '../LadeSchirm';
+import NurVip from '../NurVip';
 import { useZugang } from '../zugang';
 
 /*
@@ -53,17 +54,7 @@ export function fcVarianteFuer(v: FcVariante, teams: number): FcVariante {
 export function FcRahmen({ titel, text, children }: { titel: string; text?: string; children: ReactNode }) {
   const { laedt, darf } = useFinest();
   if (laedt) return <LadeSchirm />;
-  if (!darf) {
-    return (
-      <div className="grid place-items-center px-4 py-16 text-center text-white/70">
-        <div className="max-w-sm">
-          <p className="text-lg font-bold text-white"><T>No access</T></p>
-          <p className="mt-2 text-sm text-white/55"><T>This section is only available to invited accounts.</T></p>
-          <Link href="/streamer/overlays" className="mt-5 inline-block rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white">← <T>Overlays</T></Link>
-        </div>
-      </div>
-    );
-  }
+  if (!darf) return <NurVip titel="No access" text="This section is only available to invited accounts." />;
   return (
     <div className="text-white/85">
       <div className="">

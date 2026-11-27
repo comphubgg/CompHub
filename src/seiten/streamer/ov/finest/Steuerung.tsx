@@ -92,7 +92,7 @@ function Steuerung() {
     } catch { setFehler('No connection — try again.'); }
   }
 
-  if (!id) return <p className="text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p>;
+  if (!id) return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-white/[0.035] p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
   if (!cfg) return <p className="text-sm text-white/55">{fehler || '…'}</p>;
 
   const teams = Math.max(2, Math.min(4, Number(cfg.teams) || 2));

@@ -109,7 +109,7 @@ function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt
       </AnimatePresence>
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#05070d] via-[#05070d]/75 to-[#05070d]/10" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#05070d] via-transparent to-transparent" />
-      <div className="grid min-h-[56vh] gap-8 p-8 lg:grid-cols-[1.3fr_1fr] lg:p-12">
+      <div className="grid min-h-[56vh] grid-cols-[minmax(0,1fr)] gap-8 p-5 sm:p-8 lg:grid-cols-[1.3fr_1fr] lg:p-12">
         <div className="flex flex-col justify-end">
           <div className="flex flex-wrap items-center gap-2">
             {istLive ? (
@@ -119,8 +119,8 @@ function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt
             ) : <span className="rounded-full bg-sky-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-300 ring-1 ring-sky-400/40">Up next</span>}
             {haupt.f.rundenTyp && <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{haupt.f.istFinale ? 'Final' : haupt.f.rundenTyp}</span>}
           </div>
-          <h1 className="mt-4 max-w-3xl font-['Bebas_Neue'] text-6xl leading-[0.9] tracking-wide text-white drop-shadow-2xl lg:text-8xl">{haupt.cup.titel}</h1>
-          <div className="mt-6 flex flex-wrap items-end gap-10">
+          <h1 className="mt-4 max-w-3xl font-['Bebas_Neue'] text-5xl leading-[0.9] sm:text-6xl tracking-wide text-white drop-shadow-2xl lg:text-8xl">{haupt.cup.titel}</h1>
+          <div className="mt-6 flex flex-wrap items-end gap-x-10 gap-y-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/50">{istLive ? 'Ends in' : 'Starts in'}</p>
               <p className="font-mono text-5xl font-bold tabular-nums text-white">{uhr((istLive ? haupt.f.end : haupt.f.begin) - jetzt)}</p>

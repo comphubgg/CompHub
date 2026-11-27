@@ -18,7 +18,7 @@ export default function Tor() {
   const { oeffnen } = useWer();
   return (
     <div className="relative grid min-h-[calc(100vh-140px)] place-items-center">
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/20 blur-[120px]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[520px] w-[min(820px,100%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/20 blur-[120px]" />
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-5xl overflow-hidden rounded-[2rem] border border-violet-300/20 bg-[#0b0d16]/75 p-8 backdrop-blur-2xl md:p-12">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/70 to-transparent" />

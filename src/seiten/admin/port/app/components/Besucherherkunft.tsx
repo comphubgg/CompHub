@@ -90,6 +90,8 @@ export default function Besucherherkunft() {
         const r = await fetch(`/api/statistik/besucher?spanne=${spanne}`, { cache: 'no-store' });
         if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as Daten;
+        // Ohne Rechte kommt 200 mit {fehler} - dann nicht zeichnen
+        if (!j?.gesamt || !Array.isArray(j.laender)) throw new Error('keine Daten');
         if (!ab) { setDaten(j); setFehler(''); }
       } catch {
         if (!ab) setFehler(t('Die Zahlen ließen sich nicht laden.'));

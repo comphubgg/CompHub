@@ -4,6 +4,7 @@ import T from '../T';
 import { useT } from '../sprache';
 import { useZugang } from '../zugang';
 import LadeSchirm from '../LadeSchirm';
+import NurVip from '../NurVip';
 
 /*
  * Das Geruest der Globals-Seiten.
@@ -78,26 +79,8 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
   // Jeder VIP darf hinein (Betreiber, 12.10.2026: "Grand-Sachen sind eigentlich fuer jeden VIP immer sichtbar"); das Recht "globals" gilt weiter fuer Manager.
   const darfHinein = zugang.admin || zugang.vip || zugang.rechte.includes('globals');
 
-  if (!darfHinein) {
-    return (
-      <div className="grid place-items-center px-4
-                       text-center text-white">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-white/45">
-            <T>Die Globals-Seite wird einzeln vergeben — mit einem
-            gewöhnlichen Konto ist sie nicht zugänglich.</T>
-          </p>
-          <Link href="/sign-in"
-            className="mt-6 inline-block rounded-lg bg-violet-500 px-5 py-2.5
-                       text-sm font-semibold text-white transition
-                       hover:bg-violet-400">
-            <T>Zur Anmeldung</T>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // Ohne Zugang: dieselbe violette Glas-Karte wie die anderen VIP-Werkzeuge (Anmelden / Zugangsschluessel) statt nacktem Text
+  if (!darfHinein) return <NurVip text="The Globals overlays are granted individually — a regular account cannot open them." />;
 
   return (
     <div className="relative isolate text-white/85">

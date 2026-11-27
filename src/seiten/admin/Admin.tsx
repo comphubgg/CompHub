@@ -110,9 +110,19 @@ function Leiste() {
   const [suche, setSuche] = useState('');
   const ort = useLocation();
   const gefiltert = WERKZEUGE.filter((w) => passt(w, suche));
+  // Handy: die Liste (36 Werkzeuge) klappt ein, sonst steht sie vor jedem Werkzeug eine ganze Bildschirmhoehe lang im Weg
+  const [auf, setAuf] = useState(false);
+  useEffect(() => { setAuf(false); }, [ort.pathname]);
+  const jetzt = WERKZEUGE.find((w) => ort.pathname === `/admin/${w.slug}` || ort.pathname.startsWith(`/admin/${w.slug}/`));
   return (
     <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:pr-1">
       <Glas className="p-3">
+        <button type="button" onClick={() => setAuf((v) => !v)} aria-expanded={auf} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-white lg:hidden">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" /></svg>
+          <span className="text-white/45">Tools</span><span className="truncate">{jetzt?.titel ?? 'Overview'}</span>
+          <motion.svg animate={{ rotate: auf ? 180 : 0 }} viewBox="0 0 20 20" className="ml-auto h-3.5 w-3.5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></motion.svg>
+        </button>
+        <div className={`${auf ? 'mt-2 block' : 'hidden'} lg:mt-0 lg:block`}>
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={`Search ${WERKZEUGE.length} tools …`} className={`${feld} w-full rounded-full py-1.5 text-xs`} />
         <NavLink to="/admin" end className={({ isActive }) => `mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${isActive ? 'bg-white/[0.08] text-white' : 'text-white/65 hover:bg-white/[0.04] hover:text-white'}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg>Overview
@@ -138,6 +148,7 @@ function Leiste() {
           );
         })}
         {!gefiltert.length && <p className="px-3 py-4 text-xs text-white/40">No tool matches.</p>}
+        </div>
       </Glas>
     </aside>
   );
