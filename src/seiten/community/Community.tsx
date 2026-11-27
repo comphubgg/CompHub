@@ -1,13 +1,13 @@
-import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
-import { lazy, Suspense, useEffect, useRef } from 'react';
-import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { motion, MotionConfig } from 'framer-motion';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import Kopf from '../../teile/Kopf';
 import { Laedt, TEAL } from './Teile';
 import Uebersicht from './Uebersicht';
 
 /*
  * Community-Bereich (Betreiber, 26.11.2026: "alles, was fortnite.gg hat, plus genaue Details, die sonst niemand hat"; Spezifikation mit 30
- * Menuepunkten). Die Unter-Navigation: zwei Reiter-Reihen (Gruppen, darunter deren Seiten) - siehe GruppenNav. Gemountet unter /community/* (src/App.tsx), daher die eigenen Routes hier.
+ * Menuepunkten). Die Unter-Navigation: eine Reiter-Reihe mit allen Seiten - siehe GruppenNav. Gemountet unter /community/* (src/App.tsx), daher die eigenen Routes hier.
  */
 const Karte = lazy(() => import('./Karte'));
 const Waffen = lazy(() => import('./Waffen'));
@@ -23,7 +23,7 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
     { pfad: 'rotation', titel: 'Map Rotation', text: 'Reload & Blitz – live and up next' },
   ] },
   { titel: 'Loot', seiten: [
-    { pfad: 'weapons', titel: 'Loot Pool', text: 'All weapons with real stats' },
+    { pfad: 'weapons', titel: 'Weapons', text: 'All weapons with real stats' },
     { pfad: 'weapons/compare', titel: 'Compare', text: 'Up to four weapons side by side' },
     { pfad: 'weapons/changes', titel: 'Changes', text: 'What changed per patch' },
     { pfad: 'assets', titel: 'Asset Studio', text: 'Weapon & item images – recolour, download' },
@@ -35,17 +35,17 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
     { pfad: 'free', titel: 'Free Cosmetics', text: 'Free rewards and time left' },
     { pfad: 'jam-tracks', titel: 'Jam Tracks', text: "Today's tracks and the library" },
     { pfad: 'cosmetic-stats', titel: 'Cosmetic Stats', text: 'Longest wait, most shop days' },
-    { pfad: 'most-used', titel: 'Most Seen', text: 'Most days in the item shop' },
+    { pfad: 'most-used', titel: 'Most Used', text: 'The cosmetics seen most often' },
   ] },
   { titel: 'Mine', seiten: [
-    { pfad: 'wishlist', titel: 'My Wishlist', text: 'What you want – and when it’s in the shop' },
-    { pfad: 'locker', titel: 'My Locker', text: 'What you own, value and progress' },
-    { pfad: 'collections', titel: 'My Collections', text: 'Your lists of Creative maps' },
+    { pfad: 'wishlist', titel: 'Wishlist', text: 'What you want – and when it’s in the shop' },
+    { pfad: 'locker', titel: 'Locker', text: 'What you own, value and progress' },
+    { pfad: 'collections', titel: 'Collections', text: 'Your lists of Creative maps' },
     { pfad: 'rankings', titel: 'Rankings', text: 'Rate cosmetics and seasons' },
   ] },
   { titel: 'Season', seiten: [
-    { pfad: 'season', titel: 'Season Countdown', text: 'Live event and season end' },
-    { pfad: 'xp', titel: 'XP Calculator', text: 'XP per day for your level goal' },
+    { pfad: 'season', titel: 'Season', text: 'Live event and season end' },
+    { pfad: 'xp', titel: 'XP', text: 'XP per day for your level goal' },
     { pfad: 'treasure-hunt', titel: 'Treasure Hunt', text: 'Rewards, chances, mark as found' },
     { pfad: 'sprites', titel: 'Sprites', text: 'Owned and mastered tracker' },
     { pfad: 'lorebook', titel: 'Lorebook', text: 'The story, chapter by chapter' },
@@ -53,9 +53,9 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
   { titel: 'Live', seiten: [
     { pfad: 'players', titel: 'Player Count', text: 'Online now and history' },
     { pfad: 'creative', titel: 'Creative', text: 'Most played islands' },
-    { pfad: 'news', titel: 'News', text: 'Latest in-game news' },
     { pfad: 'discover', titel: 'Discover', text: 'What the Discover screen shows' },
     { pfad: 'creators', titel: 'Creators', text: 'Top Creative makers' },
+    { pfad: 'news', titel: 'News', text: 'Latest in-game news' },
     { pfad: 'social', titel: 'Community', text: 'Discord, X, Reddit and more' },
   ] },
   { titel: 'Compete', seiten: [
@@ -73,54 +73,59 @@ function seiteAktiv(s: Eintrag, pfad: string) {
 }
 
 /*
- * Zwei Reihen Reiter (Betreiber 27.11.2026: keine Ausklapp-Menues, in die man "hineinfahren" muss): oben die Gruppen, darunter - immer
- * sichtbar, solange man in der Gruppe ist - deren Seiten. Ein Klick auf eine Gruppe oeffnet ihre erste Seite. Die Markierung gleitet
- * (layoutId), die zweite Reihe gleitet beim Gruppenwechsel ein. Auf dem Handy scrollen beide Reihen waagerecht, der aktive Reiter rollt ins Bild.
+ * EINE Reiter-Reihe mit allen Community-Seiten nebeneinander (Betreiber 27.11.2026: keine zwei Reihen, kein Umschalten, keine Ausklapp-
+ * Menues). Duenne Trennstriche zwischen den Gruppen, waagerecht scrollbar (Leiste versteckt, Rand blendet aus), die aktive Seite traegt die
+ * gleitende Pille (layoutId) und rollt ins Bild. Klebt oben mit dichtem, dunklem Grund - nichts scheint durch.
  */
 function GruppenNav() {
   const ort = useLocation();
-  const geh = useNavigate();
   const pfad = ort.pathname.replace(/\/$/, '');
-  const gruppe = GRUPPEN.find((g) => g.seiten.some((s) => seiteAktiv(s, pfad)));
-  const uebersicht = pfad === '/community';
-  const reihe1 = useRef<HTMLDivElement>(null); const reihe2 = useRef<HTMLDivElement>(null);
+  const reihe = useRef<HTMLElement>(null);
+  const [rand, setRand] = useState({ links: false, rechts: false });
+  const randPruefen = () => {
+    const r = reihe.current; if (!r) return;
+    setRand({ links: r.scrollLeft > 4, rechts: r.scrollLeft + r.clientWidth < r.scrollWidth - 4 });
+  };
   useEffect(() => {
-    for (const r of [reihe1, reihe2]) r.current?.querySelector('[data-aktiv="1"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    const r = reihe.current; if (!r) return;
+    const a = r.querySelector<HTMLElement>('[data-aktiv="1"]');
+    // nur waagerecht rollen (scrollIntoView wuerde auch die Seite verschieben)
+    if (a) r.scrollTo({ left: a.offsetLeft - r.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' });
+    randPruefen();
   }, [pfad]);
-  const reiter = 'relative shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors';
+  useEffect(() => { window.addEventListener('resize', randPruefen); return () => window.removeEventListener('resize', randPruefen); }, []);
+  const reiter = (an: boolean) => `relative block shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-[13px] font-semibold transition-colors ${an ? 'text-white' : 'text-white/50 hover:text-white'}`;
+  const pille = <motion.span layoutId="komm-reiter" className="absolute inset-0 rounded-xl" style={{ background: `rgba(${TEAL},0.18)`, boxShadow: `inset 0 0 0 1px rgba(${TEAL},0.45)` }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />;
+  const blende = 'pointer-events-none absolute inset-y-0 z-10 w-12 transition-opacity duration-200';
   return (
-    <div className="sticky top-[57px] z-30 border-b border-white/5 bg-[#06080f]/75 backdrop-blur-xl">
-      <div className="flex items-center gap-2 px-6 pt-2 lg:px-10">
-        <nav ref={reihe1} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[{ titel: 'Overview', ziel: '/community', aktiv: uebersicht }, ...GRUPPEN.map((g) => ({ titel: g.titel, ziel: `/community/${g.seiten[0].pfad}`, aktiv: g === gruppe }))].map((g) => (
-            <button key={g.titel} type="button" data-aktiv={g.aktiv ? '1' : '0'} onClick={() => geh(g.ziel)} className={`${reiter} ${g.aktiv ? 'text-white' : 'text-white/50 hover:text-white'}`}>
-              {g.aktiv && <motion.span layoutId="komm-gruppe" className="absolute inset-0 rounded-xl" style={{ background: `rgba(${TEAL},0.16)`, boxShadow: `inset 0 0 0 1px rgba(${TEAL},0.4)` }} transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
-              <span className="relative">{g.titel}</span>
-            </button>
-          ))}
-        </nav>
-        <NavLink to="/community/notifications" title="Notifications" className={({ isActive }) => `${reiter} ${isActive ? 'bg-teal-300/15 text-white ring-1 ring-teal-300/40' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>
+    <div className="sticky top-[57px] z-30 border-b border-white/[0.06] bg-[#05070d] shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+      <div className="flex items-center gap-2 px-6 py-2 lg:px-10">
+        <div className="relative min-w-0 flex-1">
+          <div className={`${blende} left-0 bg-gradient-to-r from-[#05070d] to-transparent ${rand.links ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`${blende} right-0 bg-gradient-to-l from-[#05070d] to-transparent ${rand.rechts ? 'opacity-100' : 'opacity-0'}`} />
+          <nav ref={reihe} onScroll={randPruefen} className="flex items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Link to="/community" data-aktiv={pfad === '/community' ? '1' : '0'} className={reiter(pfad === '/community')}>
+              {pfad === '/community' && pille}<span className="relative">Overview</span>
+            </Link>
+            {GRUPPEN.map((g) => (
+              <div key={g.titel} className="flex shrink-0 items-center gap-0.5">
+                <span aria-hidden className="mx-1.5 h-4 w-px shrink-0 bg-white/10" title={g.titel} />
+                {g.seiten.map((s) => {
+                  const an = seiteAktiv(s, pfad);
+                  return (
+                    <Link key={s.pfad} to={`/community/${s.pfad}`} data-aktiv={an ? '1' : '0'} title={`${g.titel} · ${s.text}`} className={reiter(an)}>
+                      {an && pille}<span className="relative">{s.titel}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </div>
+        <NavLink to="/community/notifications" title="Notifications" className={({ isActive }) => `shrink-0 rounded-xl px-2.5 py-1.5 transition ${isActive ? 'bg-teal-300/15 text-white ring-1 ring-teal-300/40' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0" /></svg>
         </NavLink>
       </div>
-      <AnimatePresence initial={false} mode="wait">
-        {gruppe ? (
-          <motion.nav key={gruppe.titel} ref={reihe2} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center gap-1 overflow-x-auto px-6 pb-0 pt-1 [scrollbar-width:none] lg:px-10 [&::-webkit-scrollbar]:hidden">
-            {gruppe.seiten.map((s, i) => {
-              const an = seiteAktiv(s, pfad);
-              return (
-                <motion.div key={s.pfad} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.025, duration: 0.2 }} className="shrink-0">
-                  <Link to={`/community/${s.pfad}`} data-aktiv={an ? '1' : '0'} title={s.text} className={`relative block px-3 pb-2.5 pt-1.5 text-[13px] font-medium transition-colors ${an ? 'text-white' : 'text-white/45 hover:text-white/85'}`}>
-                    {s.titel}
-                    {an && <motion.span layoutId="komm-seite" className="absolute inset-x-2 bottom-0 h-[2px] rounded-full" style={{ background: `rgb(${TEAL})`, boxShadow: `0 0 12px rgba(${TEAL},0.7)` }} transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.nav>
-        ) : <motion.div key="leer" initial={{ height: 0 }} animate={{ height: 8 }} exit={{ height: 0 }} />}
-      </AnimatePresence>
     </div>
   );
 }
