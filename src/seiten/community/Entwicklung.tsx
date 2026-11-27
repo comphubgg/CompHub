@@ -1,15 +1,15 @@
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Glas } from '../../teile/Glas';
 import { LinkKopieren } from './Bausteine';
-import { Laedt, TEAL, Ueberschrift } from './Teile';
+import { Laedt, TEAL } from './Teile';
 
 /*
  * Map Evolution (Betreiber, 26.11.2026: Wunsch Nummer eins). Zwei Kartenstaende nebeneinander oder per Schieberegler uebereinander, Zoom und
  * Verschieben fuer beide gleich. Daten wie auf der Seite: /api/karten-updates (jede Kartenversion je Patch mit Kapitel/Saison, lib/kartenUpdates.ts
  * auf main), Bilder ueber /api/maps-bild?u=<Adresse>&b=<Breite> (verkleinert die Seite selbst). Das Turnier-Kartenarchiv liegt unter
- * /competitive/maps (anderer Helfer) - hier nur verlinkt, nichts doppelt.
+ * /competitive/maps (anderer Helfer). Betreiber 27.11.2026: nur das Wichtigste - zwei Versionswahlen, nebeneinander/Swipe, Link kopieren.
  * Tasten: Pfeil links/rechts = rechte Karte einen Patch zurueck/vor, mit Umschalt die linke.
  */
 
@@ -27,7 +27,8 @@ export default function Entwicklung() {
   const [liste, setListe] = useState<Stand[] | null>(null);
   const [fehler, setFehler] = useState(false);
   const [suche, setSuche] = useSearchParams();
-  const [modus, setModus] = useState<'swipe' | 'nebeneinander'>(() => (suche.get('m') === 'side' ? 'nebeneinander' : 'swipe'));
+  // Betreiber 27.11.2026: "nur das Wichtigste" - Standard nebeneinander, Swipe nur als kleiner Schalter.
+  const [modus, setModus] = useState<'swipe' | 'nebeneinander'>(() => (suche.get('m') === 'swipe' ? 'swipe' : 'nebeneinander'));
 
   useEffect(() => {
     fetch('/api/karten-updates').then((r) => r.json()).then((j) => setListe((j?.updates ?? []) as Stand[])).catch(() => setFehler(true));
@@ -40,7 +41,7 @@ export default function Entwicklung() {
   const setzen = useCallback((na: number, nb: number, m = modus) => {
     if (!alle.length) return;
     const k = (i: number) => alle[Math.max(0, Math.min(alle.length - 1, i))].patch;
-    setSuche({ a: k(na), b: k(nb), ...(m === 'nebeneinander' ? { m: 'side' } : {}) }, { replace: true });
+    setSuche({ a: k(na), b: k(nb), ...(m === 'swipe' ? { m: 'swipe' } : {}) }, { replace: true });
   }, [alle, modus, setSuche]);
 
   useEffect(() => {
@@ -57,75 +58,43 @@ export default function Entwicklung() {
   if (fehler) return <Glas className="p-6 text-sm text-white/60">The map archive isn't answering right now – try again in a moment.</Glas>;
   if (!liste) return <Laedt farbe={TEAL} text="Loading every map version …" />;
   const A = alle[a]; const B = alle[b];
-  const kapitelB = B?.kapitel;
-  const leiste = alle.map((u, i) => ({ u, i })).filter(({ u }) => u.kapitel === kapitelB);
 
+  // Nur das Wichtigste (Betreiber 27.11.2026): zwei Versionswahlen, Side by side (Swipe als kleiner Schalter), Copy link - und grosse Karten.
   return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Map Evolution" titel="How the island changed" farbe={TEAL}
-        text={<>{alle.length} map versions from Chapter 1 to today. Drag the divider, zoom in, step through patches with ← →  (Shift for the left map).</>}
-        rechts={<div className="flex flex-wrap items-center gap-2"><LinkKopieren /><Link to="/competitive/maps" className="rounded-xl border border-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:text-white">Tournament map archive →</Link></div>} />
-
-      <Glas className="flex flex-wrap items-end gap-x-6 gap-y-4 p-4" verzoegerung={0.08}>
-        <Wahl titel="Left · before" alle={alle} i={a} setzen={(i) => setzen(i, b)} farbe="#fbbf24" />
-        <button type="button" onClick={() => setzen(b, a)} title="Swap" className="mb-1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-white/60 hover:text-white">⇄</button>
-        <Wahl titel="Right · after" alle={alle} i={b} setzen={(i) => setzen(a, i)} farbe={`rgb(${TEAL})`} />
-        <div className="ml-auto inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">
-          {([['swipe', 'Swipe'], ['nebeneinander', 'Side by side']] as const).map(([k, t]) => (
-            <button key={k} type="button" onClick={() => { setModus(k); setzen(a, b, k); }} className={`rounded-lg px-3.5 py-1.5 transition ${modus === k ? 'bg-teal-300 text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</button>
-          ))}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        <div className="mr-auto">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: `rgb(${TEAL})` }}>Community · Map Evolution</p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white">How the island changed</h1>
         </div>
-      </Glas>
-
+        <Wahl titel="Before" alle={alle} i={a} setzen={(i) => setzen(i, b)} farbe="#fbbf24" />
+        <Wahl titel="After" alle={alle} i={b} setzen={(i) => setzen(a, i)} farbe={`rgb(${TEAL})`} />
+        <button type="button" onClick={() => { const m = modus === 'swipe' ? 'nebeneinander' : 'swipe'; setModus(m); setzen(a, b, m); }} title="Switch between side by side and swipe"
+          className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${modus === 'swipe' ? 'border-teal-300/50 bg-teal-300/15 text-white' : 'border-white/10 text-white/55 hover:text-white'}`}>
+          {modus === 'swipe' ? '⇆ Swipe on' : '⇆ Swipe'}
+        </button>
+        <LinkKopieren />
+      </div>
       {A && B && <Vergleich A={A} B={B} modus={modus} />}
-
-      {/* Zeitleiste des Kapitels der rechten Karte */}
-      <Glas className="p-4" verzoegerung={0.12}>
-        <div className="flex items-baseline justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">{kapitelB ? `Chapter ${kapitelB}` : 'Newest'} · every patch</p>
-          <p className="text-[11px] text-white/35">click = right map · Shift+click = left map</p>
-        </div>
-        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
-          {leiste.map(({ u, i }, k) => {
-            const neueSaison = k === 0 || leiste[k - 1].u.saison !== u.saison;
-            return (
-              <div key={u.patch} className="flex shrink-0 items-end gap-1.5">
-                {neueSaison && k > 0 && <span className="mx-1 h-8 w-px bg-white/10" />}
-                <button type="button" onClick={(e) => (e.shiftKey ? setzen(i, b) : setzen(a, i))}
-                  className={`rounded-xl border px-2.5 py-1.5 text-left transition ${i === b ? 'border-teal-300/60 bg-teal-300/15' : i === a ? 'border-amber-300/60 bg-amber-300/10' : 'border-white/10 hover:bg-white/5'}`}>
-                  {neueSaison && <span className="block text-[9px] font-semibold uppercase tracking-wider text-white/40">{u.saison}</span>}
-                  <span className="text-sm font-bold tabular-nums text-white">{u.patch}</span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </Glas>
-      <p className="text-xs text-white/35">Map images per patch from the site's map archive. Swipe and side-by-side use the same framing, so both islands line up.</p>
     </div>
   );
 }
 
 function Wahl({ titel, alle, i, setzen, farbe }: { titel: string; alle: Stand[]; i: number; setzen: (i: number) => void; farbe: string }) {
-  const u = alle[i];
-  const gruppen = useMemo(() => { const m: string[] = []; for (const x of alle) if (!m.includes(gruppe(x))) m.push(gruppe(x)); return m; }, [alle]);
-  const inGruppe = alle.map((x, k) => ({ x, k })).filter(({ x }) => gruppe(x) === gruppe(u));
-  const pfeil = 'grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-white/60 transition hover:border-white/30 hover:text-white disabled:opacity-25';
+  // Eine Auswahl je Seite, nach Kapitel/Saison gruppiert (neueste oben)
+  const gruppen = useMemo(() => {
+    const m = new Map<string, Array<{ x: Stand; k: number }>>();
+    alle.forEach((x, k) => { const g = gruppe(x); m.set(g, [...(m.get(g) ?? []), { x, k }]); });
+    return [...m.entries()].reverse();
+  }, [alle]);
   return (
-    <div>
-      <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45"><span className="h-2 w-2 rounded-full" style={{ background: farbe }} />{titel}</p>
-      <div className="flex items-center gap-1.5">
-        <button type="button" className={pfeil} disabled={i <= 0} onClick={() => setzen(i - 1)} title="Older patch">‹</button>
-        <select value={gruppe(u)} onChange={(e) => { const k = alle.findIndex((x) => gruppe(x) === e.target.value); if (k >= 0) setzen(k); }}
-          className="rounded-xl border border-white/10 bg-[#0b1220] px-3 py-2 text-sm font-semibold text-white focus:border-teal-300/60 focus:outline-none">
-          {gruppen.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <select value={i} onChange={(e) => setzen(Number(e.target.value))} className="rounded-xl border border-white/10 bg-[#0b1220] px-3 py-2 text-sm font-semibold tabular-nums text-white focus:border-teal-300/60 focus:outline-none">
-          {inGruppe.map(({ x, k }) => <option key={x.patch} value={k}>v{x.patch}</option>)}
-        </select>
-        <button type="button" className={pfeil} disabled={i >= alle.length - 1} onClick={() => setzen(i + 1)} title="Newer patch">›</button>
-      </div>
-    </div>
+    <label className="block">
+      <span className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45"><span className="h-2 w-2 rounded-full" style={{ background: farbe }} />{titel}</span>
+      <select value={i} onChange={(e) => setzen(Number(e.target.value))}
+        className="min-w-[230px] rounded-xl border border-white/10 bg-[#0b1220] px-3 py-2 text-sm font-semibold tabular-nums text-white focus:border-teal-300/60 focus:outline-none">
+        {gruppen.map(([g, l]) => <optgroup key={g} label={g}>{[...l].reverse().map(({ x, k }) => <option key={x.patch} value={k}>{g} · v{x.patch}</option>)}</optgroup>)}
+      </select>
+    </label>
   );
 }
 
@@ -179,7 +148,7 @@ function Vergleich({ A, B, modus }: { A: Stand; B: Stand; modus: 'swipe' | 'nebe
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative">
       <div ref={rahmen} onPointerDown={(e) => runter(e, 'karte')} onPointerMove={bewegen} onPointerUp={() => { ziehen.current = null; }} onDoubleClick={() => setSicht({ s: 1, tx: 0, ty: 0 })}
-        className={`relative mx-auto cursor-grab touch-none select-none overflow-hidden rounded-3xl border border-white/10 bg-[rgb(13,40,80)] active:cursor-grabbing ${modus === 'swipe' ? 'aspect-square max-h-[calc(100vh-180px)] max-w-[calc(100vh-180px)]' : 'grid aspect-[2/1] max-h-[calc(100vh-180px)] grid-cols-2 gap-3 bg-transparent'}`}>
+        className={`relative mx-auto cursor-grab touch-none select-none overflow-hidden rounded-3xl border border-white/10 bg-[rgb(13,40,80)] active:cursor-grabbing ${modus === 'swipe' ? 'aspect-square max-h-[calc(100vh-235px)] max-w-[calc(100vh-235px)]' : 'grid aspect-[2/1] max-h-[calc(100vh-235px)] max-w-[calc((100vh-235px)*2)] grid-cols-2 gap-3 bg-transparent'}`}>
         {modus === 'swipe' ? (
           <>
             {ebene(B)}
