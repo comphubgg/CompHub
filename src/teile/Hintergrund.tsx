@@ -10,7 +10,8 @@ const KARTEN: string[] = [];
 
 function gemischt<T>(a: T[]): T[] { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
 
-export default function Hintergrund() {
+/** `ruhig`: in den Bereichen liegt die Bilderwand nur noch leise hinter den dichten Flaechen (Betreiber: "zu durchlaessig"), am Start steht sie nicht im Bild. */
+export default function Hintergrund({ ruhig = false }: { ruhig?: boolean }) {
   const [fotos, setFotos] = useState<string[]>([]);
   useEffect(() => {
     fetch('/api/startvitrine').then((r) => r.json()).then((j) => setFotos(gemischt<string>((j.fotos ?? []).map((f: { bild: string }) => f.bild)).slice(0, 32))).catch(() => {});
@@ -19,8 +20,8 @@ export default function Hintergrund() {
   const alle = [...new Set([...CUPS, ...KARTEN, ...fotos])];
   const reihen = [0, 1, 2, 3].map((r) => alle.filter((_, i) => i % 4 === r));
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#06080f]" aria-hidden>
-      <div className="absolute -inset-[20%] flex -rotate-[8deg] flex-col justify-center gap-5 opacity-[0.7] blur-[1px]">
+    <div className="fixed inset-0 overflow-hidden bg-grund" aria-hidden>
+      <div className={`absolute -inset-[20%] flex -rotate-[8deg] flex-col justify-center gap-5 blur-[1px] transition-opacity duration-700 ${ruhig ? 'opacity-[0.32]' : 'opacity-[0.7]'}`}>
         {reihen.map((bilder, r) => (
           <div key={r} className="flex w-max gap-5" style={{ animation: `lauf ${70 + r * 12}s linear infinite ${r % 2 ? 'reverse' : ''}` }}>
             {[...bilder, ...bilder].map((src, i) => (

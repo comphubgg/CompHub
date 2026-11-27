@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWer } from './Anmeldung';
+import { sucheOeffnen } from '../ds/Suche';
 
 /*
  * Kopfzeile der Bereiche (Betreiber, 26.11.2026): links das Logo - es fuehrt zurueck zum Startbildschirm, dort wechselt man den Bereich (kein
@@ -17,19 +18,25 @@ export async function abmelden() {
 
 export default function Kopf({ bereich }: { bereich: KopfBereich }) {
   const { wer, oeffnen } = useWer();
-  const farbe = bereich === 'community' ? 'text-teal-300' : bereich === 'streamer' ? 'text-violet-300' : bereich === 'admin' ? 'text-amber-300' : 'text-sky-300';
+  const name = bereich === 'account' ? 'Account' : bereich[0].toUpperCase() + bereich.slice(1);
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#06080f]/90 backdrop-blur-xl">
-      <div className="flex items-center gap-4 px-6 py-3 lg:px-10">
-        <Link to="/" title="Back to the hub" className="group flex items-center gap-2.5">
-          <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-8 w-auto transition group-hover:scale-110 group-hover:drop-shadow-[0_0_14px_rgba(56,189,248,0.7)]" />
-          <span className="text-lg font-extrabold tracking-tight text-white">Comp<span className="text-sky-400">Hub</span></span>
-          <span className={`ml-2 hidden rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.2em] sm:inline ${farbe}`}>{bereich}</span>
+    <header data-bereich={bereich} className="sticky top-0 z-40 h-14 border-b border-white/[0.07] bg-grund/90 backdrop-blur-xl">
+      <div className="flex h-full items-center gap-3 px-4 lg:px-8">
+        {/* Logo: zurueck zum Startbildschirm - nur dort wechselt man den Bereich */}
+        <Link to="/" title="Back to the hub start" className="group flex shrink-0 items-center gap-2.5">
+          <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-8 w-auto transition duration-300 group-hover:-translate-x-0.5 group-hover:drop-shadow-[0_0_14px_rgb(var(--akz)/0.8)]" />
+          <span className="hidden text-lg font-extrabold tracking-tight text-white sm:inline">Comp<span className="text-sky-400">Hub</span></span>
         </Link>
-        <div className="ml-auto">
-          {wer?.userName ? <Menue /> : (
-            <button type="button" onClick={() => oeffnen('konto')} className="rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-sky-300">Sign in</button>
-          )}
+        <span className="hidden h-6 w-px bg-white/10 sm:block" />
+        <span className="font-titel text-2xl tracking-wider text-akz">{name}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={sucheOeffnen} title="Search (Ctrl K)"
+            className="flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-white/45 transition hover:border-akz/40 hover:text-white md:w-64">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <span className="hidden flex-1 truncate text-left md:inline">Search anything</span>
+            <kbd className="hidden rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/40 md:inline">Ctrl K</kbd>
+          </button>
+          {wer?.userName ? <Menue /> : <button type="button" onClick={() => oeffnen('konto')} className="knopf-prim !rounded-full !py-2">Sign in</button>}
         </div>
       </div>
     </header>
@@ -37,7 +44,7 @@ export default function Kopf({ bereich }: { bereich: KopfBereich }) {
 }
 
 /** Das Menue unter dem Namen - Glas, wie die Tafeln. Schliesst bei Klick daneben und mit Escape. */
-function Menue() {
+export function Menue() {
   const { wer, neu } = useWer();
   const [offen, setOffen] = useState(false);
   const [geht, setGeht] = useState(false);

@@ -2,9 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design-System 3.0 (Betreiber, 27.11.2026: "alles wird neu gebaut ... ich will nichts 1:1 gleich sehen"). Die Bausteine stehen hier als
+ * Klassen, damit jede Seite dieselben Flaechen, Knoepfe und Schriften benutzt - eine Aenderung hier aendert den ganzen Hub.
+ *   .fl          Flaeche (Karte): dicht, dunkel, feine Kante, Licht von oben
+ *   .fl-klick    dazu fuer anklickbare Karten (hebt sich, Kante in Akzentfarbe)
+ *   .ueber       kleine Zeile ueber einem Titel (Akzentfarbe, gesperrt)
+ *   .titel       grosse Ueberschrift (Bebas Neue)
+ *   .knopf / .knopf-prim / .knopf-leer   Knoepfe
+ *   .chip / .chip-an                    Filter-Pillen
+ *   .eingabe     Textfelder und Auswahlfelder
+ *   .tabelle     Tabellen
+ */
+:root { --akz: 56 189 248; --grund: 4 5 9; --fl: 10 12 19; }
+[data-bereich='community'] { --akz: 45 212 191; }
+[data-bereich='streamer'] { --akz: 167 139 250; }
+[data-bereich='admin'] { --akz: 251 191 36; }
+
 html, body, #root { height: 100%; }
-body { margin: 0; color: #e5e7eb; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { margin: 0; color: #e5e7eb; background: rgb(var(--grund)); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+::selection { background: rgb(var(--akz) / 0.35); }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+
+@layer components {
+  .fl {
+    @apply relative rounded-3xl border border-white/[0.07] bg-fl/[0.92] backdrop-blur-xl;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 30px 60px -40px rgba(0, 0, 0, 0.95);
+  }
+  .fl-fest { @apply relative rounded-3xl border border-white/[0.07] bg-fl; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  .fl-klick { @apply transition duration-300 hover:-translate-y-1 hover:border-akz/40; }
+  .fl-klick:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 60px -30px rgb(var(--akz) / 0.35); }
+  .ueber { @apply text-[11px] font-semibold uppercase tracking-[0.32em] text-akz; }
+  .titel { @apply font-titel uppercase leading-[0.9] tracking-wide text-white; }
+  .knopf { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:opacity-40; }
+  .knopf-prim { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-akz px-5 py-2.5 text-sm font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40; box-shadow: 0 12px 30px -12px rgb(var(--akz) / 0.9); }
+  .knopf-leer { @apply inline-flex items-center gap-1.5 text-sm font-semibold text-akz transition hover:brightness-125; }
+  .chip { @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/65 transition hover:border-white/20 hover:text-white; }
+  .chip-an { @apply border-akz/50 bg-akz/15 text-white; }
+  .eingabe { @apply rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-akz/60; }
+  .tabelle { @apply w-full text-sm; }
+  .tabelle th { @apply px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40; }
+  .tabelle td { @apply border-t border-white/[0.05] px-3 py-2.5; }
+  .tabelle tbody tr { @apply transition hover:bg-white/[0.035]; }
+  .zahl { font-variant-numeric: tabular-nums; }
+  .ohne-leiste { scrollbar-width: none; }
+  .ohne-leiste::-webkit-scrollbar { display: none; }
+}
 
 @keyframes lauf { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes kenburns { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.14) translate(-2%, -2%); } }
 @keyframes kenburns-sanft { from { transform: scale(1); } to { transform: scale(1.04); } }
+@keyframes glanz { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(320%) skewX(-20deg); } }
+@keyframes atmen { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

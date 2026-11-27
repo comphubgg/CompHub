@@ -1,14 +1,7 @@
 import { Outlet } from 'react-router-dom';
-import CompNav from '../../teile/CompNav';
-import Kopf from '../../teile/Kopf';
+import Schale from '../../ds/Schale';
 
-/** Rahmen aller Competitive-Seiten: Kopf, Unter-Navigation, Inhalt. */
+/** Rahmen aller Competitive-Seiten: die Schale des Design-Systems (Kopf, eine Leiste mit allen Seiten, Inhalt). */
 export default function Rahmen() {
-  return (
-    <div className="min-h-screen">
-      <Kopf bereich="competitive" />
-      <CompNav />
-      <main className="px-6 py-8 lg:px-10"><Outlet /></main>
-    </div>
-  );
+  return <Schale bereich="competitive"><Outlet /></Schale>;
 }

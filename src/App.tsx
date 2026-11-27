@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Baustelle from './teile/Baustelle';
+import Suche from './ds/Suche';
 import Hintergrund from './teile/Hintergrund';
 import Start from './seiten/Start';
 import Competitive from './seiten/Competitive';
@@ -45,9 +46,10 @@ export default function App() {
   const bereich = ort.pathname.split('/')[1] || 'start';
   return (
     <div className="relative min-h-full">
-      <Hintergrund />
+      <Hintergrund ruhig={bereich !== 'start'} />
+      <Suche />
       <AnimatePresence mode="wait">
-      <motion.div key={bereich} className="relative" initial={{ opacity: 0, scale: bereich === 'start' ? 1.04 : 0.97, filter: 'blur(8px)' }}
+      <motion.div key={bereich} data-bereich={bereich} className="relative" initial={{ opacity: 0, scale: bereich === 'start' ? 1.04 : 0.97, filter: 'blur(8px)' }}
         // transitionEnd: nach dem Einblenden KEIN filter mehr - ein bleibendes filter: blur(0px) macht diese Huelle zur "Backdrop Root", dann
         // zeigen die klebenden Glas-Leisten (Kopf, Reiter) den Seiteninhalt durchscheinend statt verschwommen (Titel lief sichtbar hinter den Reitern)
         animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }} exit={{ opacity: 0, scale: bereich === 'start' ? 0.96 : 1.03, filter: 'blur(8px)' }}
