@@ -2,8 +2,8 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas } from '../../teile/Glas';
-import { TEAL, Ueberschrift } from './Teile';
-import { kurz, letzter, useModi } from './epic/daten';
+import { Laedt, TEAL, Ueberschrift } from './Teile';
+import { kurz, letzter, useModi, useTopInseln } from './epic/daten';
 import { MiniVerlauf, Zahl } from './epic/Diagramm';
 import { SPIELMODI } from './epic/modi';
 
@@ -145,32 +145,47 @@ function Saison() {
 
 /* ------------------------------------------------------------------ Spielerzahlen */
 
-/* Spielerzahlen je Modus aus Epics Fortnite Data API (ueber den Proxy, Codes in epic/modi.ts) - dieselben Daten wie die Player-Count-Seite. */
+/*
+ * Spielerzahlen aus Epics Fortnite Data API (dieselben Daten wie die Player-Count-Seite). Epics eigene Modi stehen bisher nicht in der API -
+ * sie werden leise weiter gefragt; antwortet keiner, zeigt die Karte die 5 meistgespielten oeffentlichen Inseln (letzte Stunde).
+ */
 function Spielerzahlen() {
-  const { daten, laedt } = useModi('1D');
+  const { daten } = useModi('1D');
   const da = SPIELMODI.filter((m) => daten[m.k]);
+  const r = useTopInseln('1H', true);
+  const top = r.liste.slice(0, 5);
+  const wartet = !top.length && (r.laedt || !r.fertig);
   return (
     <Glas className="p-6" verzoegerung={0.1}>
-      <div className="flex items-baseline justify-between">
-        <h3 className="font-bold text-white">Players right now</h3>
-        <Link to="/community/players" className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />Epic data API · all modes →</Link>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-bold text-white">{da.length ? 'Players right now' : 'Most played islands right now'}</h3>
+        <Link to="/community/players" className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/40 hover:text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />Player count →</Link>
       </div>
       <ul className="mt-4 space-y-2">
-        {SPIELMODI.map((m, i) => {
-          const x = daten[m.k];
+        {da.length ? da.map((m, i) => {
+          const x = daten[m.k]!;
           return (
             <motion.li key={m.k} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
               className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5">
               <span className="h-2 w-2 rounded-full" style={{ background: m.farbe }} />
               <span className="w-28 text-sm font-medium text-white/80">{m.titel}</span>
-              <span className="flex-1"><MiniVerlauf punkte={x?.m.peakCCU ?? []} farbe={m.farbe} hoehe={22} /></span>
-              {x ? <span className="w-20 text-right text-lg font-extrabold text-white"><Zahl wert={letzter(x.m.peakCCU)} format={kurz} /></span>
-                : x === null || !laedt ? <span className="w-20 text-right text-sm text-white/30">—</span> : <span className="h-4 w-16 animate-pulse rounded bg-white/10" />}
+              <span className="flex-1"><MiniVerlauf punkte={x.m.peakCCU} farbe={m.farbe} hoehe={22} /></span>
+              <span className="w-20 text-right text-lg font-extrabold text-white"><Zahl wert={letzter(x.m.peakCCU)} format={kurz} /></span>
             </motion.li>
           );
-        })}
+        }) : top.map((x, i) => (
+          <motion.li key={x.i.code} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.06 }}>
+            <Link to={`/community/creative/${encodeURIComponent(x.i.code)}`} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5 transition hover:border-white/15 hover:bg-white/[0.04]">
+              <span className="w-4 text-right text-xs font-black tabular-nums text-white/35">{i + 1}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-white/85">{x.i.titel}</span><span className="block truncate text-[10px] text-white/35">{x.i.creator || 'unknown'}</span></span>
+              <span className="hidden w-24 sm:block"><MiniVerlauf punkte={x.w.serie.filter((p) => p.t >= Date.now() - 864e5)} farbe="#5eead4" hoehe={22} /></span>
+              <span className="w-16 text-right text-lg font-extrabold text-white"><Zahl wert={x.v} format={kurz} /></span>
+            </Link>
+          </motion.li>
+        ))}
       </ul>
-      {!laedt && !da.length && <p className="mt-3 text-[11px] text-white/35">Epic's data API isn't answering right now – the counts appear as soon as it does.</p>}
+      {!da.length && !top.length && <div className="py-3"><Laedt farbe={TEAL} text={wartet ? 'Asking Epic for player numbers …' : "Epic's data API isn't answering right now."} /></div>}
+      {!da.length && top.length > 0 && <p className="mt-3 text-[11px] text-white/35">Peak players in the latest hour. Epic's own modes (Battle Royale, Zero Build, Reload …) aren't in Epic's public data yet.</p>}
     </Glas>
   );
 }

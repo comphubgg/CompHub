@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { istEpicCode, SPIELMODI, type Spielmodus } from './modi';
 
 /*
@@ -102,14 +102,17 @@ export interface Punkt { t: number; v: number }
 export interface Metriken {
   peakCCU: Punkt[]; uniquePlayers: Punkt[]; plays: Punkt[]; minutesPlayed: Punkt[]; averageMinutesPerPlayer: Punkt[]; favorites: Punkt[]; recommendations: Punkt[];
   retention: Array<{ t: number; d1?: number; d7?: number }>;
+  /** Juengster Zeitpunkt, den Epic geliefert hat - auch wenn dort null steht (unter 5 Spielern). So ist "jetzt" ehrlich: kein alter Wert. */
+  stand?: number;
 }
-export const METRIK_NAMEN: Record<Exclude<keyof Metriken, 'retention'>, { titel: string; text: string }> = {
+export type MetrikName = Exclude<keyof Metriken, 'retention' | 'stand'>;
+export const METRIK_NAMEN: Record<MetrikName, { titel: string; text: string }> = {
   peakCCU: { titel: 'Peak players', text: 'Most players at the same time' }, uniquePlayers: { titel: 'Unique players', text: 'Different players in the interval' },
   plays: { titel: 'Plays', text: 'Matches / sessions started' }, minutesPlayed: { titel: 'Minutes played', text: 'Total playtime' },
   averageMinutesPerPlayer: { titel: 'Avg. minutes per player', text: 'Playtime per player' }, favorites: { titel: 'Favorites', text: 'Times added to favorites' },
   recommendations: { titel: 'Recommendations', text: 'Times recommended' },
 };
-const ALIAS: Record<keyof Metriken, string[]> = {
+const ALIAS: Record<Exclude<keyof Metriken, 'stand'>, string[]> = {
   peakCCU: ['peakCCU', 'peakCcu', 'peak_ccu', 'peak-ccu', 'ccu'], uniquePlayers: ['uniquePlayers', 'unique_players', 'unique-players'], plays: ['plays'],
   minutesPlayed: ['minutesPlayed', 'minutes_played', 'minutes-played'], averageMinutesPerPlayer: ['averageMinutesPerPlayer', 'average_minutes_per_player', 'averageMinutes'],
   favorites: ['favorites'], recommendations: ['recommendations'], retention: ['retention'],
@@ -120,14 +123,20 @@ function reihe(roh: any): Punkt[] {
   return (l as any[]).map((x) => (Array.isArray(x) ? { t: Date.parse(x[0]), v: Number(x[1]) } : { t: zeitVon(x), v: x?.value === null || x?.value === undefined ? NaN : Number(x.value) }))
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v)).sort((a, b) => a.t - b.t);
 }
+function standAus(roh: any): number | undefined {
+  const l = Array.isArray(roh) ? roh : Array.isArray(roh?.intervals) ? roh.intervals : Array.isArray(roh?.data) ? roh.data : Array.isArray(roh?.values) ? roh.values : [];
+  const t = (l as any[]).map((x) => (Array.isArray(x) ? Date.parse(x[0]) : zeitVon(x))).filter(Number.isFinite);
+  return t.length ? Math.max(...t) : undefined;
+}
 export function metrikenAus(j: any): Metriken {
   const q = j?.data ?? j ?? {};
-  const feld = (k: keyof Metriken) => { for (const a of ALIAS[k]) if (q[a] !== undefined) return q[a]; return undefined; };
+  const feld = (k: Exclude<keyof Metriken, 'stand'>) => { for (const a of ALIAS[k]) if (q[a] !== undefined) return q[a]; return undefined; };
   const ret = (Array.isArray(feld('retention')) ? feld('retention') : []) as any[];
   return {
     peakCCU: reihe(feld('peakCCU')), uniquePlayers: reihe(feld('uniquePlayers')), plays: reihe(feld('plays')), minutesPlayed: reihe(feld('minutesPlayed')),
     averageMinutesPerPlayer: reihe(feld('averageMinutesPerPlayer')), favorites: reihe(feld('favorites')), recommendations: reihe(feld('recommendations')),
     retention: ret.map((x) => ({ t: zeitVon(x), d1: x?.d1 ?? x?.day1 ?? undefined, d7: x?.d7 ?? x?.day7 ?? undefined })).filter((x) => Number.isFinite(x.t)),
+    stand: standAus(feld('peakCCU')),
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -144,15 +153,32 @@ const VERSUCHE: Record<Zeitraum, Array<{ iv: Intervall; ms?: number }>> = {
 const runden = (t: number, schritt: number) => Math.floor(t / schritt) * schritt;
 const TTL: Record<Intervall, number> = { minute: 4 * 60_000, hour: 15 * 60_000, day: 60 * 60_000 };
 
+/*
+ * Codes, die Epic mit 404 beantwortet hat (z. B. die Modus-Playlists - Epics eigene Modi stehen nicht in der oeffentlichen API), werden
+ * eine Weile nicht mehr gefragt: so blockieren die leisen Modus-Versuche nicht die Warteschlange fuer die Inseln. 30 min im sessionStorage.
+ */
+const TOT_TTL = 30 * 60_000;
+const tot = new Set<string>((ss.lesen('epic:tot', TOT_TTL) as string[] | null) ?? []);
+function totMerken(code: string) { tot.add(code); ss.schreiben('epic:tot', [...tot]); }
 /** Metriken einer Insel fuer einen Intervall (mit optionalem Zeitfenster). Kleinschreibung als zweiter Versuch, falls Epic sie so fuehrt. */
 export async function metriken(code: string, iv: Intervall, ms?: number): Promise<Metriken> {
+  if (tot.has(code)) throw new EpicFehler(404, 'not found (remembered)');
   const bis = runden(Date.now(), iv === 'minute' ? 5 * 60_000 : 30 * 60_000);
   const q = ms ? `?from=${new Date(bis - ms).toISOString()}&to=${new Date(bis).toISOString()}` : '';
   const pfad = (c: string) => `/islands/${encodeURIComponent(c)}/metrics/${iv}${q}`;
   try { return metrikenAus(await epicHolen(pfad(code), TTL[iv])); } catch (e) {
-    if (e instanceof EpicFehler && e.status === 404 && code !== code.toLowerCase()) return metrikenAus(await epicHolen(pfad(code.toLowerCase()), TTL[iv]));
-    throw e;
+    if (!(e instanceof EpicFehler && e.status === 404)) throw e;
+    if (code !== code.toLowerCase()) {
+      try { return metrikenAus(await epicHolen(pfad(code.toLowerCase()), TTL[iv])); } catch (e2) { if (e2 instanceof EpicFehler && e2.status === 404) totMerken(code); throw e2; }
+    }
+    totMerken(code); throw e;
   }
+}
+/** Spielerzahl "jetzt": der juengste Wert - aber nur, wenn er im juengsten Intervall liegt, das Epic liefert (sonst unter 5 Spielern = null). */
+export function aktuell(m: Pick<Metriken, 'peakCCU' | 'stand'>): number | null {
+  const l = m.peakCCU.at(-1);
+  if (!l) return null;
+  return m.stand === undefined || l.t >= m.stand ? l.v : null;
 }
 /** Nur die Punkte im Zeitraum behalten (falls Epic mehr liefert, z. B. ohne from/to). Tageswerte duerfen bis 7 Tage zurueck. */
 const FENSTER: Record<Zeitraum, number> = { '1H': 36e5, '1D': 864e5, '1W': 7 * 864e5 };
@@ -160,7 +186,7 @@ function zuschneiden(m: Metriken, z: Zeitraum, iv: Intervall): Metriken {
   const ab = Date.now() - FENSTER[z] - (iv === 'day' ? 864e5 : iv === 'hour' ? 36e5 : 10 * 60_000);
   const f = (r: Punkt[]) => { const l = r.filter((p) => p.t >= ab); return l.length >= 2 || !r.length ? l : r.slice(-2); };
   return { peakCCU: f(m.peakCCU), uniquePlayers: f(m.uniquePlayers), plays: f(m.plays), minutesPlayed: f(m.minutesPlayed), averageMinutesPerPlayer: f(m.averageMinutesPerPlayer),
-    favorites: f(m.favorites), recommendations: f(m.recommendations), retention: m.retention.filter((r) => r.t >= ab) };
+    favorites: f(m.favorites), recommendations: f(m.recommendations), retention: m.retention.filter((r) => r.t >= ab), stand: m.stand };
 }
 /** Metriken fuer einen Zeitraum - probiert die Varianten aus VERSUCHE der Reihe nach. */
 export async function metrikenZeitraum(code: string, z: Zeitraum): Promise<Metriken & { iv: Intervall }> {
@@ -179,12 +205,21 @@ export function summe(reihen: Punkt[][]): Punkt[] {
   return [...m.entries()].map(([t, v]) => ({ t, v })).sort((a, b) => a.t - b.t);
 }
 function summeMetriken(l: Metriken[]): Metriken {
-  const k = (f: Exclude<keyof Metriken, 'retention'>) => summe(l.map((m) => m[f]));
-  return { peakCCU: k('peakCCU'), uniquePlayers: k('uniquePlayers'), plays: k('plays'), minutesPlayed: k('minutesPlayed'), averageMinutesPerPlayer: [], favorites: k('favorites'), recommendations: k('recommendations'), retention: [] };
+  const k = (f: MetrikName) => summe(l.map((m) => m[f]));
+  const st = l.map((m) => m.stand).filter((t): t is number => t !== undefined);
+  return { peakCCU: k('peakCCU'), uniquePlayers: k('uniquePlayers'), plays: k('plays'), minutesPlayed: k('minutesPlayed'), averageMinutesPerPlayer: [], favorites: k('favorites'), recommendations: k('recommendations'), retention: [],
+    stand: st.length ? Math.max(...st) : undefined };
 }
 
 /* ---------------------------------------------- Spielmodi (Epics eigene "Inseln") */
 export interface ModusDaten { m: Metriken; iv: Intervall; quelle: string[]; set: boolean }
+/* Leise Versuche fuer die Modi: hoechstens 2 gleichzeitig, damit die Inseln (Player Count, Discover) zuerst dran sind. */
+let proben = 0;
+const probenWarten: Array<() => void> = [];
+async function leise<T>(f: () => Promise<T>): Promise<T> {
+  if (proben >= 2) await new Promise<void>((r) => probenWarten.push(r)); else proben += 1;
+  try { return await f(); } finally { const n = probenWarten.shift(); if (n) n(); else proben -= 1; }
+}
 const modusCache = new Map<string, Promise<ModusDaten | null>>();
 /** Erst die Sammel-Codes, dann alle Playlists addiert. null = nichts gefunden (Codes in modi.ts pruefen). */
 export function modusMetriken(modus: Spielmodus, z: Zeitraum): Promise<ModusDaten | null> {
@@ -192,9 +227,9 @@ export function modusMetriken(modus: Spielmodus, z: Zeitraum): Promise<ModusDate
   if (!modusCache.has(k)) {
     modusCache.set(k, (async () => {
       for (const s of modus.sets) {
-        try { const m = await metrikenZeitraum(s, z); if (!leer(m)) return { m, iv: m.iv, quelle: [s], set: true }; } catch (e) { if (e instanceof EpicFehler && e.status === 0) throw e; }
+        try { const m = await leise(() => metrikenZeitraum(s, z)); if (!leer(m)) return { m, iv: m.iv, quelle: [s], set: true }; } catch (e) { if (e instanceof EpicFehler && e.status === 0) throw e; }
       }
-      const r = await Promise.allSettled(modus.playlists.map((p) => metrikenZeitraum(p, z).then((m) => ({ p, m }))));
+      const r = await Promise.allSettled(modus.playlists.map((p) => leise(() => metrikenZeitraum(p, z)).then((m) => ({ p, m }))));
       const ok = r.flatMap((x) => (x.status === 'fulfilled' && !leer(x.value.m) ? [x.value] : []));
       if (!ok.length) { if (r.some((x) => x.status === 'rejected' && x.reason instanceof EpicFehler && x.reason.status === 0)) throw new EpicFehler(0, 'offline'); return null; }
       return { m: summeMetriken(ok.map((x) => x.m)), iv: ok[0].m.iv, quelle: ok.map((x) => x.p), set: false };
@@ -245,10 +280,12 @@ const poolMelden = (sofort = false) => {
 };
 function werteAus(m: Metriken): InselWerte {
   const jetzt = Date.now();
-  return { jetzt: letzter(m.peakCCU), tag: spitze(m.peakCCU, jetzt - 864e5), woche: spitze(m.peakCCU), spieler1d: gesamt(m.uniquePlayers, jetzt - 864e5), plays1d: gesamt(m.plays, jetzt - 864e5), serie: m.peakCCU };
+  return { jetzt: aktuell(m), tag: spitze(m.peakCCU, jetzt - 864e5), woche: spitze(m.peakCCU), spieler1d: gesamt(m.uniquePlayers, jetzt - 864e5), plays1d: gesamt(m.plays, jetzt - 864e5), serie: m.peakCCU };
 }
 async function werteLaden(i: Insel) {
-  try { pool.werte.set(i.code, werteAus(await metrikenZeitraum(i.code, '1W'))); } catch (e) { if (e instanceof EpicFehler && e.status === 0) pool.offline = true; }
+  // Eine Abfrage je Insel (Stunden, 7 Tage). Inseln mit nur null-Werten (unter 5 Spielern) bekommen null - sie fallen aus den Ranglisten, nie "0".
+  const holen = () => metriken(i.code, 'hour', 7 * 864e5).catch((e) => { if (e instanceof EpicFehler && e.status === 400) return metriken(i.code, 'hour'); throw e; });
+  try { pool.werte.set(i.code, werteAus(await holen())); } catch (e) { if (e instanceof EpicFehler && e.status === 0) pool.offline = true; }
   pool.geprueft += 1; poolMelden();
 }
 export async function poolLaden(mehrSeiten = 0) {
@@ -256,8 +293,8 @@ export async function poolLaden(mehrSeiten = 0) {
   pool.laedt = true; poolMelden(true);
   const ziel = Math.max(POOL_SEITEN, pool.seiten + mehrSeiten);
   try {
-    if (pool.seiten === 0) {
-      // Epics eigene Modi als "Inseln" dazu (mit dem Code, der antwortet)
+    const modiProbieren = () => {
+      // Epics eigene Modi als "Inseln" dazu (mit dem Code, der antwortet) - leise und erst nach der ersten Inselseite
       for (const m of SPIELMODI) {
         modusMetriken(m, '1W').then((d) => {
           if (!d) return;
@@ -266,7 +303,8 @@ export async function poolLaden(mehrSeiten = 0) {
           pool.werte.set(code, werteAus(d.m)); poolMelden();
         }).catch(() => {});
       }
-    }
+    };
+    const ersteSeite = pool.seiten === 0;
     while (pool.seiten < ziel && (pool.seiten === 0 || pool.weiter)) {
       const s = await inselnSeite(pool.weiter);
       pool.seiten += 1; pool.weiter = s.weiter;
@@ -274,6 +312,7 @@ export async function poolLaden(mehrSeiten = 0) {
       neu.forEach((i) => pool.inseln.set(i.code, i));
       poolMelden(true);
       await Promise.all(neu.map(werteLaden));
+      if (ersteSeite && pool.seiten === 1) modiProbieren();
       if (!s.weiter) break;
     }
   } catch (e) { if (e instanceof EpicFehler && e.status === 0) pool.offline = true; } finally { pool.laedt = false; pool.fertig = true; poolMelden(true); }
@@ -286,6 +325,15 @@ export function useInselPool() {
     return () => { poolHoerer.delete(h); };
   }, []);
   return { inseln: [...pool.inseln.values()], werte: pool.werte, laedt: pool.laedt, fertig: pool.fertig, offline: pool.offline, seiten: pool.seiten, mehr: pool.weiter ? () => poolLaden(2) : null, geprueft: pool.geprueft };
+}
+/** Rangliste aus dem Pool fuer einen Zeitraum: nur Inseln mit echten Spielerzahlen (> 0), absteigend. */
+export function useTopInseln(z: Zeitraum, ohneEpic: boolean) {
+  const p = useInselPool();
+  const liste = useMemo(() => p.inseln.filter((i) => !(ohneEpic && i.epic)).map((i) => ({ i, w: p.werte.get(i.code), v: wertFuer(p.werte.get(i.code), z) }))
+    .filter((x): x is { i: Insel; w: InselWerte; v: number } => x.w !== undefined && x.v !== null && Number.isFinite(x.v) && x.v > 0).sort((a, b) => b.v - a.v),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [p.inseln.length, p.geprueft, z, ohneEpic, p.laedt]);
+  return { ...p, liste };
 }
 /** Wert einer Insel fuer einen Zeitraum-Chip. */
 export const wertFuer = (w: InselWerte | undefined, z: Zeitraum) => (!w ? null : z === '1H' ? w.jetzt : z === '1D' ? w.tag : w.woche);

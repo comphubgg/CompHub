@@ -7,8 +7,8 @@ import { Laedt, TEAL, Ueberschrift } from '../Teile';
 import { useAblage } from '../kosmetik/daten';
 import { AblageHinweis, Auswahl, Schalter } from '../kosmetik/Raster';
 import {
-  gesamt, inselHolen, inselLink, kurz, letzter, METRIK_NAMEN, metrikenZeitraum, POOL_SEITEN, spitze, useEpicErreichbar, useInselPool, useModi, wertFuer,
-  type Insel, type InselWerte, type Metriken, type Zeitraum,
+  aktuell, gesamt, inselHolen, inselLink, kurz, letzter, METRIK_NAMEN, metrikenZeitraum, POOL_SEITEN, spitze, useEpicErreichbar, useInselPool, useModi, useTopInseln, wertFuer,
+  type Insel, type Metriken, type MetrikName, type ModusDaten, type Zeitraum,
 } from './daten';
 import { MiniVerlauf, Verlauf, Zahl } from './Diagramm';
 import { SPIELMODI } from './modi';
@@ -52,12 +52,134 @@ function InselBild({ i, klein = false }: { i: Insel; klein?: boolean }) {
 }
 
 /* ================================================================== Player Count */
+/*
+ * Epics eigene Modi (BR, ZB, Reload, OG, Ranked, Blitz) stehen bisher NICHT in Epics oeffentlicher Data API (alle Codes aus modi.ts -> 404).
+ * Die Seite fragt sie trotzdem leise weiter (falls Epic sie ergaenzt) - antwortet mindestens einer, zeigt sie die Modus-Ansicht (nur Modi mit
+ * Zahlen). Sonst wird sie zu "Most played islands right now": die meistgespielten oeffentlichen Inseln aus derselben Liste wie Discover.
+ */
 export function Spielerzahl() {
   const [z, setZ] = useState<Zeitraum>('1D');
-  const { daten, laedt, offline } = useModi(z);
-  const [gewaehlt, setGewaehlt] = useState('br');
-  const modus = SPIELMODI.find((m) => m.k === gewaehlt)!;
+  const modi = useModi(z);
+  const da = SPIELMODI.filter((m) => modi.daten[m.k]);
+  const chips = <div className="flex items-center gap-2"><ZeitChips wert={z} setzen={(w) => setZ(w as Zeitraum)} optionen={Z} /><LinkKopieren /></div>;
+  return da.length ? <ModusAnsicht z={z} chips={chips} daten={modi.daten} /> : <InselAnsicht z={z} chips={chips} />;
+}
+
+/** Farben fuer die Top 10 im gestapelten Verlauf (jede Insel eine eigene, gut unterscheidbare Farbe). */
+const TOP_FARBEN = ['#5eead4', '#38bdf8', '#a78bfa', '#f59e0b', '#f472b6', '#34d399', '#fb7185', '#facc15', '#818cf8', '#fdba74'];
+/** Fenster fuer den Verlauf: 1H zeigt die letzten 6 Stunden (Epic liefert Stundenwerte), sonst den Zeitraum selbst. */
+const VERLAUF_FENSTER: Record<Zeitraum, number> = { '1H': 6 * 36e5, '1D': 864e5, '1W': 7 * 864e5 };
+
+function InselAnsicht({ z, chips }: { z: Zeitraum; chips: React.ReactNode }) {
+  const r = useTopInseln(z, true);
+  const [n, setN] = useState(25);
+  const top100 = r.liste.slice(0, 100);
+  const summe = top100.reduce((s, x) => s + x.v, 0);
+  const top10 = r.liste.slice(0, 10);
+  const ab = Date.now() - VERLAUF_FENSTER[z] - 36e5;
+  const serien = top10.map((x, k) => ({ name: x.i.titel, farbe: TOP_FARBEN[k], punkte: x.w.serie.filter((p) => p.t >= ab) }));
+  const max = r.liste[0]?.v ?? 1;
+  const wartet = !r.liste.length && (r.laedt || !r.fertig);
+  const pruefen = r.inseln.filter((i) => !i.epic).length;
+  return (
+    <div className="space-y-6">
+      <Ueberschrift ueber="Community · Player count" titel="Most played islands right now" farbe={TEAL} text="Fortnite's public islands ranked by how many people play them at the same time – live from Epic's official Fortnite Data API." rechts={chips} />
+      <p className="flex items-start gap-2 text-xs text-white/45">
+        <svg viewBox="0 0 20 20" className="mt-px h-3.5 w-3.5 shrink-0 text-teal-300/80" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10" cy="10" r="7.5" /><path d="M10 9v5M10 6.2v.1" strokeLinecap="round" /></svg>
+        Epic's own modes (Battle Royale, Zero Build, Reload …) aren't in Epic's public data yet – these are the most played public islands.
+      </p>
+      <EpicHinweis offline={r.offline && !r.liste.length} />
+
+      <Glas className="relative overflow-hidden p-6 md:p-8">
+        <div className="pointer-events-none absolute -left-20 -top-24 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-teal-300">Top {top100.length || 100} islands · peak players combined</p>
+            {r.liste.length
+              ? <p className="mt-1 text-6xl font-black tracking-tight text-white md:text-7xl"><Zahl wert={summe} /></p>
+              : <div className="mt-4 h-[72px]"><Laedt farbe={TEAL} text={wartet ? 'Asking Epic for island numbers …' : 'No island numbers from Epic right now.'} /></div>}
+            <p className="mt-1 text-sm text-white/45">Sum of each island's peak · {Z_TEXT[z]}</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {r.liste[0] && (
+              <Link to={`/community/creative/${encodeURIComponent(r.liste[0].i.code)}`} className="text-right">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35">#1 · {Z_TEXT[z]}</span>
+                <span className="block max-w-[22rem] truncate text-lg font-extrabold text-white hover:text-teal-200">{r.liste[0].i.titel}</span>
+                <span className="block text-sm font-bold text-teal-200">{kurz(r.liste[0].v)} playing</span>
+              </Link>
+            )}
+            <Fortschritt geprueft={r.geprueft} gesamt={pruefen} laedt={r.laedt} />
+          </div>
+        </div>
+        <div className="relative mt-6 pb-5">
+          {top10.length >= 2 ? <Verlauf gestapelt hoehe={280} serien={[...serien].reverse()} />
+            : <div className="grid h-[280px] place-items-center rounded-2xl border border-dashed border-white/10 text-sm text-white/35">{wartet ? 'The chart appears as soon as the first islands answer.' : 'Not enough islands with players for a chart.'}</div>}
+        </div>
+        {top10.length > 0 && (
+          <div className="relative flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+            {top10.map((x, k) => <span key={x.i.code} className="flex min-w-0 items-center gap-1.5 text-white/60"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TOP_FARBEN[k] }} /><span className="max-w-[14rem] truncate">{x.i.titel}</span></span>)}
+          </div>
+        )}
+        <p className="relative mt-3 text-[11px] text-white/30">Chart: the top 10 islands stacked · hourly peaks · {z === '1H' ? 'last 6 hours' : Z_TEXT[z]}</p>
+      </Glas>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <Glas className="overflow-hidden">
+          <div className="flex items-baseline justify-between px-5 pt-5"><h2 className="text-xl font-extrabold text-white">Ranking</h2><span className="text-xs text-white/40">Peak players · {Z_TEXT[z]}</span></div>
+          <LayoutGroup>
+            <ol className="mt-3">
+              {r.liste.slice(0, n).map((x, k) => (
+                <motion.li layout key={x.i.code} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ layout: { type: 'spring', stiffness: 320, damping: 34 } }} className="border-t border-white/5">
+                  <Link to={`/community/creative/${encodeURIComponent(x.i.code)}`} className="group relative flex items-center gap-4 px-4 py-2.5 hover:bg-white/[0.03]">
+                    <motion.span className="absolute inset-y-0 left-0 bg-teal-300/[0.06]" initial={{ width: 0 }} animate={{ width: `${(x.v / max) * 100}%` }} transition={{ duration: 0.7 }} />
+                    <span className="relative w-7 text-right text-sm font-black tabular-nums" style={{ color: k < 10 ? TOP_FARBEN[k] : 'rgba(255,255,255,0.35)' }}>{k + 1}</span>
+                    <span className="relative h-10 w-[72px] shrink-0 overflow-hidden rounded-lg"><InselBild i={x.i} klein /></span>
+                    <span className="relative min-w-0 flex-1"><span className="block truncate font-bold text-white">{x.i.titel}</span><span className="block truncate text-[11px] text-white/40">{x.i.creator || 'unknown'} · <span className="font-mono">{x.i.code}</span></span></span>
+                    <span className="relative hidden w-32 sm:block"><MiniVerlauf punkte={x.w.serie.filter((p) => p.t >= ab)} farbe={k < 10 ? TOP_FARBEN[k] : '#5eead4'} hoehe={26} /></span>
+                    <span className="relative hidden w-14 text-right text-[11px] tabular-nums text-white/40 md:block">{summe ? `${((x.v / summe) * 100).toFixed(1)} %` : ''}</span>
+                    <span className="relative w-20 text-right font-black tabular-nums text-teal-200">{kurz(x.v)}</span>
+                  </Link>
+                </motion.li>
+              ))}
+            </ol>
+          </LayoutGroup>
+          {r.liste.length > n && <button type="button" onClick={() => setN((v) => v + 25)} className="w-full border-t border-white/5 py-3 text-sm font-semibold text-teal-200 hover:bg-white/[0.03]">Show more ({r.liste.length - n} left)</button>}
+          {!r.liste.length && <div className="border-t border-white/5 p-5"><Laedt farbe={TEAL} text={wartet ? 'Asking Epic for player numbers …' : 'No islands with players found.'} /></div>}
+        </Glas>
+        <div className="space-y-5">
+          <Glas className="p-5" verzoegerung={0.05}>
+            <h3 className="font-bold text-white">Top 10 share</h3>
+            <p className="text-xs text-white/40">of the top {top100.length || 100} islands' combined peak</p>
+            <ul className="mt-4 space-y-2.5">
+              {top10.map((x, k) => (
+                <li key={x.i.code}>
+                  <div className="flex items-baseline justify-between gap-3 text-xs"><span className="truncate font-semibold text-white/75">{x.i.titel}</span><span className="shrink-0 tabular-nums text-white/45">{summe ? `${((x.v / summe) * 100).toFixed(1)} %` : ''}</span></div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><motion.div className="h-full rounded-full" style={{ background: TOP_FARBEN[k] }} initial={{ width: 0 }} animate={{ width: `${summe ? (x.v / summe) * 100 : 0}%` }} transition={{ duration: 0.8, delay: k * 0.04 }} /></div>
+                </li>
+              ))}
+            </ul>
+            {!top10.length && <p className="mt-4 text-sm text-white/35">{wartet ? 'Waiting for the first islands …' : 'No numbers yet.'}</p>}
+          </Glas>
+          <Glas className="p-5 text-xs text-white/45" verzoegerung={0.1}>
+            <p className="font-bold text-white">How this is counted</p>
+            <p className="mt-2">Each island's peak concurrent players from Epic's Fortnite Data API, ranked among the first {r.seiten * 100 || POOL_SEITEN * 100} islands of Epic's public island list. Islands with fewer than 5 players get no number from Epic and are left out.</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {r.mehr && <button type="button" disabled={r.laedt} onClick={() => r.mehr?.()} className="rounded-lg border border-white/10 px-2.5 py-1 font-semibold text-white/60 hover:text-white disabled:opacity-40">Check more islands</button>}
+              <Link to="/community/discover" className="py-1 font-semibold text-teal-200/80 hover:text-white">Discover with pictures →</Link>
+            </div>
+          </Glas>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Modus-Ansicht (nur, wenn Epic mindestens einen Modus beantwortet) - es erscheinen nur Modi mit Zahlen, nie leere Karten. */
+function ModusAnsicht({ z, chips, daten }: { z: Zeitraum; chips: React.ReactNode; daten: Record<string, ModusDaten | null> }) {
   const da = SPIELMODI.filter((m) => daten[m.k]);
+  const [wahl, setGewaehlt] = useState('br');
+  const gewaehlt = da.some((m) => m.k === wahl) ? wahl : da[0].k;
+  const modus = SPIELMODI.find((m) => m.k === gewaehlt)!;
   const summeJetzt = da.reduce((s, m) => s + (letzter(daten[m.k]!.m.peakCCU) ?? 0), 0);
   const d = daten[gewaehlt];
   // Stundentabelle (bzw. je Intervall) fuer den gewaehlten Modus: Spitze, Veraenderung zum Intervall davor, eindeutige Spieler
@@ -68,16 +190,14 @@ export function Spielerzahl() {
   const ivText = d?.iv === 'minute' ? '10-minute' : d?.iv === 'day' ? 'daily' : 'hourly';
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber="Community · Live" titel="Player count" farbe={TEAL} text="How many people play each Fortnite mode – straight from Epic's official Fortnite Data API."
-        rechts={<div className="flex items-center gap-2"><ZeitChips wert={z} setzen={(w) => setZ(w as Zeitraum)} optionen={Z} /><LinkKopieren /></div>} />
-      <EpicHinweis offline={offline && !da.length} />
+      <Ueberschrift ueber="Community · Live" titel="Player count" farbe={TEAL} text="How many people play each Fortnite mode – straight from Epic's official Fortnite Data API." rechts={chips} />
 
       <Glas className="relative overflow-hidden p-6 md:p-8">
         <div className="pointer-events-none absolute -left-20 -top-24 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-teal-300">All modes · latest peak</p>
-            <p className="mt-1 text-6xl font-black tracking-tight text-white md:text-7xl">{da.length ? <Zahl wert={summeJetzt} /> : laedt ? <span className="inline-block h-14 w-64 animate-pulse rounded-2xl bg-white/[0.06]" /> : '—'}</p>
+            <p className="mt-1 text-6xl font-black tracking-tight text-white md:text-7xl"><Zahl wert={summeJetzt} /></p>
             <p className="mt-1 text-sm text-white/45">Sum of each mode's most recent {ivText} peak · {Z_TEXT[z]}</p>
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
@@ -85,21 +205,20 @@ export function Spielerzahl() {
           </div>
         </div>
         <div className="relative mt-6 pb-5">
-          {da.length ? <Verlauf gestapelt hoehe={260} serien={[...da].reverse().map((m) => ({ name: m.titel, farbe: m.farbe, punkte: daten[m.k]!.m.peakCCU }))} />
-            : <div className="h-[260px] animate-pulse rounded-2xl bg-white/[0.03]" />}
+          <Verlauf gestapelt hoehe={260} serien={[...da].reverse().map((m) => ({ name: m.titel, farbe: m.farbe, punkte: daten[m.k]!.m.peakCCU }))} />
         </div>
       </Glas>
 
       <LayoutGroup>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {SPIELMODI.map((m, i) => {
+          {da.map((m, i) => {
             const x = daten[m.k]; const an = m.k === gewaehlt;
             return (
               <motion.button key={m.k} type="button" onClick={() => setGewaehlt(m.k)} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileHover={{ y: -4 }}
                 className={`relative overflow-hidden rounded-3xl border p-4 text-left backdrop-blur-xl transition-colors ${an ? 'border-white/25 bg-white/[0.07]' : 'border-white/10 bg-white/[0.035] hover:border-white/20'}`}>
                 {an && <motion.span layoutId="modus-karte" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: m.farbe, boxShadow: `0 0 16px ${m.farbe}` }} />}
                 <p className="flex items-center gap-2 text-sm font-bold text-white"><span className="h-2 w-2 rounded-full" style={{ background: m.farbe }} />{m.titel}</p>
-                <p className="mt-2 text-3xl font-black text-white">{x ? <Zahl wert={letzter(x.m.peakCCU)} format={(n) => kurz(n)} /> : x === null ? '—' : <span className="inline-block h-8 w-20 animate-pulse rounded-lg bg-white/[0.06]" />}</p>
+                <p className="mt-2 text-3xl font-black text-white"><Zahl wert={letzter(x!.m.peakCCU)} format={(n) => kurz(n)} /></p>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">latest peak</p>
                 <div className="mt-2"><MiniVerlauf punkte={x?.m.peakCCU ?? []} farbe={m.farbe} hoehe={36} /></div>
                 <div className="mt-2 flex justify-between text-[11px] text-white/45"><span>Peak <b className="text-white/80">{kurz(spitze(x?.m.peakCCU ?? []))}</b></span><span>Unique <b className="text-white/80">{kurz(gesamt(x?.m.uniquePlayers ?? []))}</b></span></div>
@@ -118,7 +237,7 @@ export function Spielerzahl() {
             </div>
             <div className="mt-4 pb-5">
               {d ? <Verlauf hoehe={300} serien={[{ name: 'Peak players', farbe: modus.farbe, punkte: d.m.peakCCU }, ...(d.m.uniquePlayers.length && z !== '1H' ? [] : [])]} />
-                : <div className="grid h-[300px] place-items-center text-sm text-white/40">{laedt ? <Laedt farbe={TEAL} text={`Asking Epic for ${modus.titel} …`} /> : 'No numbers for this mode yet.'}</div>}
+                : <div className="grid h-[300px] place-items-center text-sm text-white/40">No numbers for this mode yet.</div>}
             </div>
             {d && d.m.uniquePlayers.length > 1 && (
               <div className="mt-4 border-t border-white/5 pt-4">
@@ -142,7 +261,7 @@ export function Spielerzahl() {
                 ))}
               </tbody>
             </table>
-            {!tabelle.length && <p className="px-5 pb-5 text-sm text-white/40">{laedt ? 'Loading …' : 'No intervals yet.'}</p>}
+            {!tabelle.length && <p className="px-5 pb-5 text-sm text-white/40">No intervals yet.</p>}
           </Glas>
         </motion.div>
       </AnimatePresence>
@@ -167,14 +286,7 @@ function Fortschritt({ geprueft, gesamt: g, laedt }: { geprueft: number; gesamt:
     </div>
   );
 }
-function useRangliste(z: Zeitraum, ohneEpic: boolean) {
-  const p = useInselPool();
-  const liste = useMemo(() => p.inseln.filter((i) => !(ohneEpic && i.epic)).map((i) => ({ i, w: p.werte.get(i.code), v: wertFuer(p.werte.get(i.code), z) }))
-    .filter((x): x is { i: Insel; w: InselWerte; v: number } => x.v !== null && x.v !== undefined && x.v > 0).sort((a, b) => b.v - a.v),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [p.inseln.length, p.geprueft, z, ohneEpic, p.laedt]);
-  return { ...p, liste };
-}
+const useRangliste = useTopInseln;
 export function Entdecken() {
   const [z, setZ] = useState<Zeitraum>('1H');
   const [ohneEpic, setOhneEpic] = useState(false);
@@ -394,7 +506,7 @@ export function Creative() {
 }
 
 /* ================================================================== Insel-Detail */
-const METRIKEN: Array<{ k: Exclude<keyof Metriken, 'retention'>; farbe: string }> = [
+const METRIKEN: Array<{ k: MetrikName; farbe: string }> = [
   { k: 'peakCCU', farbe: '#5eead4' }, { k: 'uniquePlayers', farbe: '#c4b5fd' }, { k: 'plays', farbe: '#fde047' }, { k: 'minutesPlayed', farbe: '#7dd3fc' },
   { k: 'averageMinutesPerPlayer', farbe: '#fdba74' }, { k: 'favorites', farbe: '#f9a8d4' }, { k: 'recommendations', farbe: '#86efac' },
 ];
@@ -405,7 +517,7 @@ export function InselDetail() {
   const [z, setZ] = useState<Zeitraum>('1D');
   const [m, setM] = useState<(Metriken & { iv: string }) | null | undefined>(undefined);
   const [tage, setTage] = useState<Metriken | null>(null);
-  const [metrik, setMetrik] = useState<Exclude<keyof Metriken, 'retention'>>('peakCCU');
+  const [metrik, setMetrik] = useState<MetrikName>('peakCCU');
   const pool = useInselPool();
   const ausPool = pool.inseln.find((i) => i.code === code);
   useEffect(() => { let weg = false; setInsel(undefined); inselHolen(code).then((i) => { if (!weg) setInsel(i); }).catch(() => { if (!weg) setInsel(null); }); return () => { weg = true; }; }, [code]);
@@ -414,7 +526,7 @@ export function InselDetail() {
   const i: Insel = insel ?? ausPool ?? { code, titel: code, creator: '', tags: [], epic: /^(set_|playlist_)/i.test(code) };
   const jetzt = Date.now();
   const kacheln: Array<[string, number | null | undefined, string?]> = [
-    ['Players now', letzter(tage?.peakCCU ?? m?.peakCCU ?? [])], ['Peak 24h', spitze(tage?.peakCCU ?? [], jetzt - 864e5)], ['Peak 7 days', spitze(tage?.peakCCU ?? [])],
+    ['Players now', tage ? aktuell(tage) : m ? aktuell(m) : null], ['Peak 24h', spitze(tage?.peakCCU ?? [], jetzt - 864e5)], ['Peak 7 days', spitze(tage?.peakCCU ?? [])],
     ['Unique players 24h', gesamt(tage?.uniquePlayers ?? [], jetzt - 864e5)], ['Plays 24h', gesamt(tage?.plays ?? [], jetzt - 864e5)],
     ['Minutes played 24h', gesamt(tage?.minutesPlayed ?? [], jetzt - 864e5)],
   ];

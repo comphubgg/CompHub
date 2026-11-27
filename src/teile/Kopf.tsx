@@ -19,7 +19,7 @@ export default function Kopf({ bereich }: { bereich: KopfBereich }) {
   const { wer, oeffnen } = useWer();
   const farbe = bereich === 'community' ? 'text-teal-300' : bereich === 'streamer' ? 'text-violet-300' : bereich === 'admin' ? 'text-amber-300' : 'text-sky-300';
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#06080f]/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#06080f]/90 backdrop-blur-xl">
       <div className="flex items-center gap-4 px-6 py-3 lg:px-10">
         <Link to="/" title="Back to the hub" className="group flex items-center gap-2.5">
           <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-8 w-auto transition group-hover:scale-110 group-hover:drop-shadow-[0_0_14px_rgba(56,189,248,0.7)]" />
