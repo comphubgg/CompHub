@@ -94,56 +94,6 @@ function Stufe({ t }: { t: Teil }) {
     : <p className="mt-1 text-[10px] font-semibold text-rose-300/80">Not released yet</p>;
 }
 
-/* ---------------------------------------------- Free Cosmetics */
-interface Gratis { id: string; titel: string; text: string; bis?: string; ab?: string; bild?: string; quelle?: string; teile?: string[] }
-export function GratisKosmetik() {
-  const { daten, status } = useHubDatei<{ stand?: string; eintraege: Gratis[] }>('gratis.json');
-  const erledigt = useAblage<string[]>('gratis-erledigt', []);
-  const [zeigen, setZeigen] = useState(false);
-  const jetzt = useJetzt();
-  const { teile } = useTeile(['br']);
-  const liste = (daten?.eintraege ?? []).filter((e) => !e.bis || Date.parse(e.bis) > jetzt).filter((e) => zeigen || !erledigt.wert.includes(e.id))
-    .sort((a, b) => (a.bis ? Date.parse(a.bis) : Infinity) - (b.bis ? Date.parse(b.bis) : Infinity));
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Cosmetics" titel="Free cosmetics" farbe={TEAL} text="Everything you can unlock for free right now – and how long you've got left." rechts={<AblageHinweis ort={erledigt.ort} />} />
-      {status === 'fehlt' ? (
-        <DatenFehlen titel="The free-rewards list is written by hand" text={<>Epic doesn't publish one list of free rewards – they come from quests, Twitch drops, events and promotions. Our editors keep them in <code className="text-teal-200">/hub-daten/gratis.json</code>; as soon as it's there, the cards with countdowns and "Mark as completed" appear here.<pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/60">{JSON.stringify({ stand: '2026-11-26', eintraege: [{ id: 'winterfest-1', titel: '…', text: 'What to do', bis: '2026-12-31T14:00:00Z', quelle: 'https://…', teile: ['CID_…'] }] }, null, 2)}</pre></>} braucht={['Editorial list', 'End date per reward', 'Cosmetic IDs (optional)']} />
-      ) : (
-        <>
-          <div className="flex items-center gap-3"><Schalter titel="Show completed" an={zeigen} setzen={setZeigen} /><span className="text-xs text-white/40">{erledigt.wert.length} completed</span></div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {liste.map((e, i) => {
-              const fertig = erledigt.wert.includes(e.id);
-              const zu = (e.teile ?? []).map((id) => teile.find((t) => t.id.toLowerCase() === id.toLowerCase())).filter(Boolean) as Teil[];
-              return (
-                <Glas key={e.id} className={`p-5 ${fertig ? 'opacity-60' : ''}`} verzoegerung={i * 0.04}>
-                  <div className="flex gap-4">
-                    {(e.bild || zu[0]?.bild) && <img src={e.bild ?? zu[0].bild} alt="" className="h-20 w-20 shrink-0 rounded-xl object-contain" style={{ background: `radial-gradient(circle at 50% 20%, ${seltenVon(zu[0]?.selten ?? 'rare').a}55, #05070d)` }} />}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-lg font-extrabold text-white">{e.titel}</h3>
-                      {e.bis && <p className="text-xs font-semibold text-amber-200/80">{restText(Date.parse(e.bis) - jetzt)} left · ends {datumKurz(e.bis)}</p>}
-                      <p className="mt-1.5 text-sm leading-relaxed text-white/60">{e.text}</p>
-                    </div>
-                  </div>
-                  {zu.length > 1 && <div className="mt-3 flex gap-1.5">{zu.slice(1, 6).map((t) => <Link key={t.id} to={`/community/cosmetics/${t.id}`}><img src={t.bild} alt={t.name} title={t.name} className="h-10 w-10 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} /></Link>)}</div>}
-                  <div className="mt-4 flex items-center justify-between">
-                    {e.quelle ? <a href={e.quelle} target="_blank" rel="noreferrer" className="text-xs font-semibold text-teal-200 hover:text-white">Source ↗</a> : <span />}
-                    <button type="button" onClick={() => erledigt.setzen((v) => (fertig ? v.filter((x) => x !== e.id) : [...v, e.id]))}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${fertig ? 'bg-emerald-400 text-[#06080f]' : 'border border-white/10 text-white/75 hover:text-white'}`}>{fertig ? '✓ Completed' : 'Mark as completed'}</button>
-                  </div>
-                </Glas>
-              );
-            })}
-          </div>
-          {!liste.length && <Glas className="p-8 text-center text-sm text-white/45">{zeigen ? 'No free rewards right now.' : 'All done – nothing left to claim.'}</Glas>}
-        </>
-      )}
-    </div>
-  );
-}
-
 /* ---------------------------------------------- Jam Tracks */
 const SCHWIERIG: Array<[string, string]> = [['vocals', 'Vocals'], ['guitar', 'Lead'], ['bass', 'Bass'], ['drums', 'Drums']];
 export function JamTracks() {
@@ -265,16 +215,5 @@ function Tabelle({ titel, einheit, liste }: { titel: string; einheit: string; li
       </ol>
       {liste.length > n && <button type="button" onClick={() => setN((x) => x + 15)} className="mt-2 text-sm font-semibold text-teal-200 hover:text-white">More</button>}
     </Glas>
-  );
-}
-
-/* ---------------------------------------------- Most Used */
-export function MeistGenutzt() {
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Cosmetics" titel="Most used" farbe={TEAL} text="Which skins people actually wear." />
-      <DatenFehlen titel="No honest source for this yet" text={<>Epic doesn't publish how often a cosmetic is used, and we won't guess. Two ways we can get real numbers: our tournament replays already contain every player's outfit, so a <b className="text-white/80">"Most used in pro play"</b> list can come straight from the replay parser – and later, opt-in lockers of signed-in users (<Link to="/community/locker" className="text-teal-200">My Locker</Link>).</>}
-        braucht={['Replay parser: export cosmetic IDs per player', 'Aggregation per tournament / season']} />
-    </div>
   );
 }

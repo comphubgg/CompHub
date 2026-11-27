@@ -1,9 +1,10 @@
 import { useLocation } from 'react-router-dom';
 import { Kosmetik, KosmetikDetail } from './Kosmetik';
-import { CommunitySeite, Lorebook, Schatzsuche, Sprites } from './Mehr';
+import { CommunitySeite, Lorebook } from './Mehr';
+import { GratisKosmetik, MeistGenutzt, Schatzsuche, Sprites } from './Saison';
 import { Creators, Entdecken } from '../epic/Live';
 import { MeineListe, Ranglisten, Sammlungen } from './Meins';
-import { GratisKosmetik, JamTracks, KosmetikStats, MeistGenutzt, NeuInDateien } from './Listen';
+import { JamTracks, KosmetikStats, NeuInDateien } from './Listen';
 
 /*
  * Verteiler fuer die Kosmetik- und Mehr-Seiten (ein Chunk). src/seiten/community/Seiten.tsx haengt die Pfade ein; hier wird nach der Adresse

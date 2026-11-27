@@ -5,7 +5,7 @@ import { useWer } from '../../../teile/Anmeldung';
  * Datenschicht fuer Shop, Cosmetics und die persoenlichen Listen (Spezifikation 26.11.2026, Punkte 6-14, 21, 22).
  *   - Quelle: fortnite-api.com (oeffentlich, erlaubt Abfragen aus dem Browser - Access-Control-Allow-Origin: *, geprueft 26.11.2026).
  *       /v2/shop                         heutiger Item-Shop
- *       /v2/cosmetics/br?responseFlags=4 alle BR-Kosmetik MIT Shop-Verlauf (Flag 4 = shopHistory) - ~2 MB gepackt, einmal je Sitzung
+ *       /v2/cosmetics/br?responseFlags=6 alle BR-Kosmetik MIT Shop-Verlauf (4) und Spiel-Tags (2, Herkunft) - ~2,5 MB gepackt, einmal je Sitzung
  *       /v2/cosmetics/tracks | instruments | cars | lego/kits   die uebrigen Arten, erst beim Oeffnen des Reiters
  *       /v2/cosmetics/new                was mit dem letzten Patch in die Dateien kam ("New in the files")
  *       /v2/cosmetics/br/<id>?responseFlags=7   Einzelteil mit Spiel-Tags (Quelle: Battle Pass, Shop ...) fuer die Detailseite
@@ -24,6 +24,8 @@ export interface Teil {
   serie?: string; set?: string; kapitel?: string; saison?: string; saisonNr?: number; saisonText?: string;
   bild: string; bildGross: string; bildFeatured?: string; hinzu: string; shop: string[]; tags: string[];
   varianten?: Variante[]; video?: string; jahr?: number; bpm?: number; dauer?: number;
+  /** Herkunft aus den Spiel-Tags (ohne "Cosmetics.Source."), z. B. "Season43.BattlePass.Free", "QuestReward", "ItemShop" */
+  herkunft?: string[]; bildBreit?: string;
 }
 
 /* ---------------------------------------------- Laden mit Cache */
@@ -45,6 +47,7 @@ function ausBr(x: any): Teil {
     serie: x.series?.value, set: x.set?.value || undefined, kapitel: x.introduction?.chapter, saison: x.introduction?.season, saisonNr: x.introduction?.backendValue,
     saisonText: x.introduction?.text, bild: x.images?.icon ?? x.images?.smallIcon ?? '', bildGross: x.images?.featured ?? x.images?.icon ?? '', bildFeatured: x.images?.featured,
     hinzu: x.added, shop: x.shopHistory ?? [], tags: x.searchTags ?? [], varianten: x.variants, video: x.showcaseVideo,
+    herkunft: (x.gameplayTags ?? []).filter((g: string) => g.startsWith('Cosmetics.Source.')).map((g: string) => g.slice(17)), bildBreit: x.images?.other?.background,
   };
 }
 function ausTrack(x: any): Teil {
@@ -67,7 +70,7 @@ const titelFall = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpp
 
 /** Die Arten, die geladen werden koennen - BR sofort, der Rest beim ersten Bedarf. */
 export const QUELLEN: Record<Art, { pfad: string; umbau: (x: unknown) => Teil }> = {
-  br: { pfad: '/v2/cosmetics/br?responseFlags=4', umbau: ausBr },
+  br: { pfad: '/v2/cosmetics/br?responseFlags=6', umbau: ausBr }, // 4 = Shop-Verlauf, 2 = Spiel-Tags (Herkunft: Battle Pass frei/bezahlt, Quest, Event ...)
   track: { pfad: '/v2/cosmetics/tracks', umbau: ausTrack },
   instrument: { pfad: '/v2/cosmetics/instruments', umbau: (x) => ausAnderem(x, 'instrument') },
   car: { pfad: '/v2/cosmetics/cars', umbau: (x) => ausAnderem(x, 'car') },

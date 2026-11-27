@@ -35,7 +35,7 @@ export const GRUPPEN: Array<{ titel: string; seiten: Eintrag[] }> = [
     { pfad: 'free', titel: 'Free Cosmetics', text: 'Free rewards and time left' },
     { pfad: 'jam-tracks', titel: 'Jam Tracks', text: "Today's tracks and the library" },
     { pfad: 'cosmetic-stats', titel: 'Cosmetic Stats', text: 'Longest wait, most shop days' },
-    { pfad: 'most-used', titel: 'Most Used', text: 'What people actually wear' },
+    { pfad: 'most-used', titel: 'Most Seen', text: 'Most days in the item shop' },
   ] },
   { titel: 'Mine', seiten: [
     { pfad: 'wishlist', titel: 'My Wishlist', text: 'What you want – and when it’s in the shop' },
