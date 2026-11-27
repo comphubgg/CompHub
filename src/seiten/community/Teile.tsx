@@ -12,7 +12,7 @@ export const VIOLETT = '167,139,250';
 export function BereichNav({ basis, seiten, farbe, rechts }: { basis: string; seiten: Array<{ pfad: string; titel: string; zeichen?: string }>; farbe: string; rechts?: ReactNode }) {
   return (
     <div className="sticky top-[57px] z-20 border-b border-white/5 bg-[#06080f]/60 backdrop-blur-xl">
-      <nav className="flex items-center gap-1 overflow-x-auto px-6 py-2 lg:px-10">
+      <nav className="flex items-center gap-1 overflow-x-auto px-6 py-2 [scrollbar-width:none] lg:px-10 [&::-webkit-scrollbar]:hidden">
         {seiten.map((s) => (
           <NavLink key={s.pfad} to={`${basis}${s.pfad ? `/${s.pfad}` : ''}`} end
             className={({ isActive }) => `relative shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium transition ${isActive ? 'text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'}`}

@@ -55,16 +55,16 @@ export function Countdown({ ziel, groesse = 'gross', farbe = '#5eead4' }: { ziel
   const felder: Array<[string, number]> = [['days', t], ['hours', h], ['minutes', m], ['seconds', s]];
   const gross = groesse === 'gross';
   return (
-    <div className={`flex items-start ${gross ? 'gap-3 md:gap-5' : 'gap-2'}`}>
+    <div className={`flex items-start ${gross ? 'gap-1.5 sm:gap-3 md:gap-5' : 'gap-2'}`}>
       {felder.map(([k, v], i) => (
         <div key={k} className="flex items-start">
           <div className="text-center">
-            <div className={`font-black tabular-nums tracking-tight ${gross ? 'text-6xl md:text-8xl' : 'text-3xl'}`} style={{ color: i === 0 ? farbe : 'white' }}>
+            <div className={`flex justify-center font-black tabular-nums tracking-tight ${gross ? 'text-4xl sm:text-6xl md:text-8xl' : 'text-3xl'}`} style={{ color: i === 0 ? farbe : 'white' }}>
               {String(v).padStart(2, '0').split('').map((z, j) => <Ziffer key={j} z={z} />)}
             </div>
-            <p className={`mt-1 font-semibold uppercase tracking-[0.25em] text-white/40 ${gross ? 'text-[11px]' : 'text-[9px]'}`}>{k}</p>
+            <p className={`mt-1 font-semibold uppercase tracking-[0.15em] text-white/40 sm:tracking-[0.25em] ${gross ? 'text-[9px] sm:text-[11px]' : 'text-[9px]'}`}>{k}</p>
           </div>
-          {i < 3 && <span className={`font-black text-white/20 ${gross ? 'ml-3 text-6xl md:ml-5 md:text-8xl' : 'ml-2 text-3xl'}`}>:</span>}
+          {i < 3 && <span className={`font-black text-white/20 ${gross ? 'ml-1.5 text-4xl sm:ml-3 sm:text-6xl md:ml-5 md:text-8xl' : 'ml-2 text-3xl'}`}>:</span>}
         </div>
       ))}
     </div>

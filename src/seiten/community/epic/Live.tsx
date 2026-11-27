@@ -149,7 +149,7 @@ export function Spielerzahl() {
 
       <details className="text-[11px] text-white/35">
         <summary className="cursor-pointer select-none hover:text-white/60">Source: Epic's Fortnite Data API · which codes answered</summary>
-        <ul className="mt-2 space-y-1">{SPIELMODI.map((m) => <li key={m.k}><b className="text-white/55">{m.titel}:</b> {daten[m.k] ? `${daten[m.k]!.set ? 'set' : `${daten[m.k]!.quelle.length} playlists summed`} – ${daten[m.k]!.quelle.slice(0, 6).join(', ')}${daten[m.k]!.quelle.length > 6 ? ' …' : ''}` : daten[m.k] === null ? 'no answer – check the codes in src/seiten/community/epic/modi.ts' : 'loading'}</li>)}</ul>
+        <ul className="mt-2 space-y-1">{SPIELMODI.map((m) => <li key={m.k}><b className="text-white/55">{m.titel}:</b> {daten[m.k] ? `${daten[m.k]!.set ? 'set' : `${daten[m.k]!.quelle.length} playlists summed`} – ${daten[m.k]!.quelle.slice(0, 6).join(', ')}${daten[m.k]!.quelle.length > 6 ? ' …' : ''}` : daten[m.k] === null ? 'no answer' : 'loading'}</li>)}</ul>
         <p className="mt-1">Peaks of single playlists are added up per interval, so the total can be slightly higher than the true simultaneous peak.</p>
       </details>
     </div>

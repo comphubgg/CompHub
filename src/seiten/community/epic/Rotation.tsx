@@ -90,7 +90,7 @@ export function RotationLive({ bilder, live: liveMelden }: { bilder: Array<{ id:
           {!sortiert.length && <div className="py-6">{fertig ? <p className="text-sm text-white/45">No map playlists answered.</p> : <Laedt farbe={TEAL} text="Asking Epic which maps were played …" />}</div>}
         </div>
       </Glas>
-      <p className="text-[11px] text-white/30">Live detection from Epic's Fortnite Data API (players per map playlist). Map codenames come from the game files; codes are listed in src/seiten/community/epic/modi.ts.</p>
+      <p className="text-[11px] text-white/30">Live detection from Epic's Fortnite Data API (players per map playlist). Map codenames come from the game files.</p>
     </div>
   );
 }

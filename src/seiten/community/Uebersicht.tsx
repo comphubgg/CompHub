@@ -48,11 +48,11 @@ function Countdown({ bis }: { bis: number }) {
     { n: Math.floor(rest / 6e4) % 60, w: 'min' }, { n: Math.floor(rest / 1e3) % 60, w: 'sec' },
   ];
   return (
-    <div className="flex gap-3">
+    <div className="grid max-w-md grid-cols-4 gap-2 sm:gap-3">
       {teile.map((t) => (
-        <div key={t.w} className="min-w-[84px] rounded-2xl border border-teal-300/20 bg-teal-300/[0.06] px-3 py-3 text-center">
-          <p className="text-4xl font-extrabold tabular-nums text-white">{t.w === 'days' ? t.n : zwei(t.n)}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-200/60">{t.w}</p>
+        <div key={t.w} className="min-w-0 rounded-2xl border border-teal-300/20 bg-teal-300/[0.06] px-3 py-3 text-center">
+          <p className="text-3xl font-extrabold tabular-nums text-white sm:text-4xl">{t.w === 'days' ? t.n : zwei(t.n)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-200/60">{t.w}</p>
         </div>
       ))}
     </div>

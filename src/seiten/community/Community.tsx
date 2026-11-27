@@ -90,7 +90,7 @@ function GruppenNav() {
   const reiter = 'relative shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors';
   return (
     <div className="sticky top-[57px] z-30 border-b border-white/5 bg-[#06080f]/75 backdrop-blur-xl">
-      <div className="flex items-center gap-2 px-4 pt-2 sm:px-6 lg:px-10">
+      <div className="flex items-center gap-2 px-6 pt-2 lg:px-10">
         <nav ref={reihe1} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[{ titel: 'Overview', ziel: '/community', aktiv: uebersicht }, ...GRUPPEN.map((g) => ({ titel: g.titel, ziel: `/community/${g.seiten[0].pfad}`, aktiv: g === gruppe }))].map((g) => (
             <button key={g.titel} type="button" data-aktiv={g.aktiv ? '1' : '0'} onClick={() => geh(g.ziel)} className={`${reiter} ${g.aktiv ? 'text-white' : 'text-white/50 hover:text-white'}`}>
@@ -106,7 +106,7 @@ function GruppenNav() {
       <AnimatePresence initial={false} mode="wait">
         {gruppe ? (
           <motion.nav key={gruppe.titel} ref={reihe2} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center gap-1 overflow-x-auto px-4 pb-0 pt-1 [scrollbar-width:none] sm:px-6 lg:px-10 [&::-webkit-scrollbar]:hidden">
+            className="flex items-center gap-1 overflow-x-auto px-6 pb-0 pt-1 [scrollbar-width:none] lg:px-10 [&::-webkit-scrollbar]:hidden">
             {gruppe.seiten.map((s, i) => {
               const an = seiteAktiv(s, pfad);
               return (
@@ -132,7 +132,7 @@ export default function Community() {
     <div className="min-h-screen">
       <Kopf bereich="community" />
       <GruppenNav />
-      <main className="px-4 py-8 sm:px-6 lg:px-10">
+      <main className="px-6 py-8 lg:px-10">
         <MotionConfig reducedMotion="user">
         <Suspense fallback={<Laedt farbe={TEAL} />}>
           {/* Seitenwechsel: kurz einblenden und hochgleiten (kein Warten auf ein Ausblenden - fuehlt sich schneller an) */}
