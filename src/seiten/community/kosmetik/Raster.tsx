@@ -20,7 +20,8 @@ export const VBUCK = <img src={VBUCK_BILD} alt="V-Bucks" title="V-Bucks" classNa
 export const preis = (n: number) => <span className="inline-flex items-center gap-1 tabular-nums">{VBUCK}{n.toLocaleString('en')}</span>;
 
 /* ---------------------------------------------- Kachel */
-export function Kachel({ t, unten, gross = false, namen = true, index = 0, link = true }: { t: Teil; unten?: ReactNode; gross?: boolean; namen?: boolean; index?: number; link?: boolean }) {
+/** beiKlick: statt zur Detailseite zu springen, ruft die Kachel das auf (z. B. Free Cosmetics: "So bekommst du es"). */
+export function Kachel({ t, unten, gross = false, namen = true, index = 0, link = true, beiKlick }: { t: Teil; unten?: ReactNode; gross?: boolean; namen?: boolean; index?: number; link?: boolean; beiKlick?: () => void }) {
   const s = seltenVon(t.selten);
   const wunsch = useWunschliste(); const spind = useSpind();
   const gewuenscht = wunsch.wert.includes(t.id); const besessen = spind.wert.includes(t.id);
@@ -45,7 +46,8 @@ export function Kachel({ t, unten, gross = false, namen = true, index = 0, link 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 24) * 0.015, duration: 0.35 }}
       className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] transition hover:-translate-y-0.5 hover:border-white/25">
-      {link ? <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="block">{inhalt}</Link> : inhalt}
+      {beiKlick ? <div role="button" tabIndex={0} onClick={beiKlick} onKeyDown={(e) => { if (e.key === 'Enter') beiKlick(); }} className="block cursor-pointer">{inhalt}</div>
+        : link ? <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="block">{inhalt}</Link> : inhalt}
       <div className="absolute right-1.5 top-1.5 flex flex-col gap-1 opacity-0 transition group-hover:opacity-100 [@media(hover:none)]:opacity-100">
         <button type="button" title={gewuenscht ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => umschalten(wunsch, gewuenscht)}
           className={`grid h-7 w-7 place-items-center rounded-lg backdrop-blur transition ${gewuenscht ? 'bg-rose-500 text-white' : 'bg-black/55 text-white/75 hover:text-white'}`}>

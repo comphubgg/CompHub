@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Glas } from '../../../teile/Glas';
@@ -248,6 +248,89 @@ function SpriteKnoepfe({ id, stand, schalten }: { id: string; stand: Record<stri
 }
 
 /* ================================================================== Free Cosmetics */
+/*
+ * "So bekommst du es" (Betreiber 27.11.2026): Klick auf ein Gratis-Teil oeffnet eine klare Anleitung. Grundlage sind nur echte Daten:
+ * die Herkunfts-Tags der Spieldateien (Cosmetics.Source.*), Einfuehrung/Set/Beschreibung von fortnite-api.com, der Gratis-Shop von heute
+ * und die Redaktions-Eintraege aus gratis.json. Was dort nicht steht (z. B. die genauen Quest-Schritte), sagen wir ausdruecklich.
+ */
+interface Weg { art: string; titel: string; schritte: string[]; unbekannt?: string; link?: { text: string; zu: string; extern?: boolean } }
+const menschlich = (x: string) => x.replace(/\./g, ' · ').replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/(\d+)/g, ' $1').replace(/\s+/g, ' ').trim();
+function wegeFuer(t: Teil, o: { passEnde?: string; shopBis?: string; redaktion?: Gratis }): Weg[] {
+  const h = t.herkunft ?? []; const w: Weg[] = [];
+  if (o.redaktion) w.push({ art: 'Editor note', titel: o.redaktion.titel, schritte: [o.redaktion.text, ...(o.redaktion.bis ? [`Available until ${datumKurz(o.redaktion.bis)}.`] : [])], link: o.redaktion.quelle ? { text: 'Source', zu: o.redaktion.quelle, extern: true } : undefined });
+  if (o.shopBis) w.push({ art: 'Item Shop', titel: 'Free in the Item Shop today', schritte: ['Open the Item Shop in the Fortnite lobby.', `Find "${t.name}" – it costs 0 V-Bucks.`, `Click it and confirm "Get" before it leaves the shop (${datumKurz(o.shopBis)}).`], link: { text: "Today's shop", zu: '/community/shop' } });
+  for (const x of h) {
+    const pass = /^Season(\d+)\.BattlePass\.Free$/.exec(x);
+    if (pass) w.push({ art: 'Battle Pass · free tier', titel: `Free tier of the Season ${pass[1]} Battle Pass`, schritte: ['Play any mode to earn XP – every match, quest and daily goal counts.', 'Open the Battle Pass tab in the lobby and go to the page with this reward.', 'Claim it with Battle Stars (pages unlock as you level up) – no purchase needed.', ...(o.passEnde ? [`Claim before the season ends (${datumKurz(o.passEnde)}).`] : [])], unbekannt: 'Which pass page it sits on isn\u2019t in the public data – check the Battle Pass tab.', link: { text: 'XP calculator', zu: '/community/xp' } });
+    else if (/^SparksPass\.Free$/.test(x)) w.push({ art: 'Music Pass · free tier', titel: 'Free tier of the Music (Sparks) Pass', schritte: ['Earn XP in any mode.', 'Open the Music Pass in the Pass tab and claim the reward on its page.'] });
+    else if (x === 'QuestReward' || x === 'LevelUpQuest' || x === 'Challenge' || /Challenges$/.test(x)) w.push({ art: 'Quest', titel: 'Quest reward', schritte: ['Open the Quests tab in the lobby.', 'Find the quest line this reward belongs to and complete its stages.', 'The reward unlocks automatically when the last stage is done.'], unbekannt: 'The exact quest steps aren\u2019t in Epic\u2019s public files – the in-game Quests tab lists them.' });
+    else if (/^Season\d+\.FirstWin$/.test(x)) w.push({ art: 'First win', titel: 'Win your first match of the season', schritte: ['Get a Victory Royale in Battle Royale or Zero Build during that season.', 'The reward is granted automatically.'] });
+    else if (/^Season\d+\.Level[uU]p$/.test(x)) w.push({ art: 'Level reward', titel: 'Reach a season level', schritte: ['Level up during the season – the reward is granted at a set level.'], unbekannt: 'The exact level isn\u2019t in the public data.' });
+    else if (x === 'FNCS' || x === 'CompReward' || /Tournament|Competitive/.test(x)) w.push({ art: 'Tournament', titel: x === 'FNCS' ? 'FNCS reward' : 'Tournament reward', schritte: ['Play the cup this reward belongs to (Compete tab in the lobby).', 'Reach the points or placement the cup asks for – shown in the cup\u2019s rules in game.', 'Rewards are usually granted within a few days after the event.'], unbekannt: 'Which cup and how many points isn\u2019t in the public files.', link: { text: 'Tournaments', zu: '/community/tournaments' } });
+    else if (x === 'Granted.Twitch') w.push({ art: 'Twitch drop', titel: 'Twitch drop', schritte: ['Link your Epic account to Twitch (twitch.tv/drops → Connections).', 'Watch eligible Fortnite streams with drops enabled during the drop window.', 'Claim it in your Twitch Drops inventory – it appears in your locker afterwards.'], unbekannt: 'Past drop windows are over – it can only return with a new campaign.' });
+    else if (x === 'Promo' || x.startsWith('Platform.') || x === 'PlaystationActivation') w.push({ art: 'Promotion', titel: x === 'Promo' ? 'Promotion' : `Platform reward (${menschlich(x.replace(/^Platform\./, ''))})`, schritte: ['Given out through a partner or platform promotion – usually as a code.', 'Redeem codes at fortnite.com/redeem while signed in to your Epic account.'], unbekannt: 'Which promotion and whether it still runs isn\u2019t in the public data.' });
+    else if (x.startsWith('Event') || x.startsWith('Winterfest')) w.push({ art: 'Event', titel: `Event: ${menschlich(x.replace(/^Event\.?/, '')) || 'limited-time event'}`, schritte: ['Earned during a limited-time event – by completing its quests or opening its rewards (e.g. Winterfest presents).', 'When the event returns, its quests appear in the Quests tab.'], unbekannt: 'The exact event tasks aren\u2019t in the public files.' });
+  }
+  if (!w.length) w.push({ art: 'Unknown', titel: 'How to get it: unknown', schritte: [], unbekannt: `The game files tag this item only as ${h.length ? h.map(menschlich).join(', ') : 'nothing'} – no public source says how to get it for free. If you know, tell us and our editors add it.` });
+  return w;
+}
+
+function WieBekommen({ t, zu, passEnde, shopBis, redaktion }: { t: Teil | null; zu: () => void; passEnde?: string; shopBis?: string; redaktion?: Gratis }) {
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') zu(); };
+    document.addEventListener('keydown', taste); return () => document.removeEventListener('keydown', taste);
+  }, [zu]);
+  return (
+    <AnimatePresence>
+      {t && (
+        <motion.div key={t.id} className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={zu}>
+          <motion.div initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }} transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+            onClick={(e) => e.stopPropagation()} className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0d16] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+            <div className="grid gap-0 sm:grid-cols-[220px_1fr]">
+              <div className="relative aspect-square sm:aspect-auto" style={{ background: `radial-gradient(120% 90% at 50% 15%, ${seltenVon(t.selten).a}66, ${seltenVon(t.selten).b} 70%, #05070d)` }}>
+                <img src={t.bildGross || t.bild} alt="" className="absolute inset-0 h-full w-full object-contain p-3" />
+              </div>
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-teal-300">How to get it</p>
+                    <h3 className="mt-1 text-2xl font-extrabold tracking-tight text-white">{t.name}</h3>
+                    <p className="text-sm font-semibold" style={{ color: seltenVon(t.selten).a }}>{t.seltenName} {t.typName}</p>
+                  </div>
+                  <button type="button" onClick={zu} aria-label="Close" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-white/60 hover:bg-white/10 hover:text-white">✕</button>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {wegeFuer(t, { passEnde, shopBis, redaktion }).map((w, i) => (
+                    <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">{w.art}</p>
+                      <p className="mt-0.5 font-bold text-white">{w.titel}</p>
+                      {w.schritte.length > 0 && (
+                        <ol className="mt-2 space-y-1.5">
+                          {w.schritte.map((x, k) => <li key={k} className="flex gap-2.5 text-sm text-white/75"><span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-teal-300/15 text-[11px] font-bold text-teal-200">{k + 1}</span>{x}</li>)}
+                        </ol>
+                      )}
+                      {w.unbekannt && <p className="mt-2.5 flex gap-2 rounded-xl bg-amber-300/[0.07] px-3 py-2 text-xs text-amber-100/80"><span className="font-bold text-amber-200">Unknown:</span>{w.unbekannt}</p>}
+                      {w.link && (w.link.extern ? <a href={w.link.zu} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-teal-200 hover:text-white">{w.link.text} ↗</a>
+                        : <Link to={w.link.zu} className="mt-2 inline-block text-xs font-semibold text-teal-200 hover:text-white">{w.link.text} →</Link>)}
+                    </div>
+                  ))}
+                </div>
+                <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  {t.saisonText && <><dt className="text-white/40">Introduced</dt><dd className="text-white/75">{t.saisonText.replace(/^Introduced in /, '').replace(/\.$/, '')}</dd></>}
+                  {t.set && <><dt className="text-white/40">Set</dt><dd className="text-white/75">{t.set}</dd></>}
+                  <dt className="text-white/40">In the files since</dt><dd className="text-white/75">{datumKurz(t.hinzu)}</dd>
+                  {(t.herkunft ?? []).length > 0 && <><dt className="text-white/40">Source tags</dt><dd className="break-words font-mono text-[10px] text-white/55">{t.herkunft!.join(', ')}</dd></>}
+                </dl>
+                <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="mt-5 inline-flex rounded-xl bg-teal-300 px-4 py-2 text-sm font-bold text-[#06080f] hover:bg-teal-200">Full item page →</Link>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 interface Gratis { id: string; titel: string; text: string; bis?: string; bild?: string; quelle?: string; teile?: string[] }
 export function GratisKosmetik() {
   const { teile, laedt, nr } = useSaisonTeile();
@@ -256,6 +339,7 @@ export function GratisKosmetik() {
   const { daten } = useHubDatei<{ eintraege: Gratis[] }>('gratis.json');
   const erledigt = useAblage<string[]>('gratis-erledigt', []);
   const [ausblenden, setAusblenden] = useState(false);
+  const [offen, setOffen] = useState<Teil | null>(null);
   const jetzt = useJetzt(60_000);
   const d = useMemo(() => {
     const hat = (t: Teil, re: RegExp) => (t.herkunft ?? []).some((h) => re.test(h));
@@ -308,18 +392,20 @@ export function GratisKosmetik() {
       )}
       {gratisShop.length > 0 && (
         <Bereich titel={<>Free in the shop today <span className="text-sm font-semibold text-white/40">{gratisShop.length}</span></>}>
-          <div className={RASTER}>{sicht(gratisShop.map((x) => x.t)).map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<><p className="mt-1 text-[10px] font-semibold text-emerald-300/80">Free · {restText(Date.parse(gratisShop.find((x) => x.t.id === t.id)!.bis) - jetzt)} left</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
+          <div className={RASTER}>{sicht(gratisShop.map((x) => x.t)).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-emerald-300/80">Free · {restText(Date.parse(gratisShop.find((x) => x.t.id === t.id)!.bis) - jetzt)} left</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
         </Bereich>
       )}
       {laedt && <Laedt farbe={TEAL} text="Looking for free rewards in the files …" />}
       {abschnitte.filter((a) => a.liste.length).map((a, k) => (
         <Bereich key={a.titel} verzoegerung={k * 0.04} titel={<>{a.titel} <span className="text-sm font-semibold text-white/40">{a.liste.length}</span></>} rechts={<span className="text-xs text-white/40">{a.text}</span>}>
-          <div className={RASTER}>{sicht(a.liste).slice(0, 48).map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<><p className="mt-1 text-[10px] font-semibold text-teal-200/70">{a.marke}{a.bis ? ` · ${restText(a.bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
+          <div className={RASTER}>{sicht(a.liste).slice(0, 48).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-teal-200/70">{a.marke}{a.bis ? ` · ${restText(a.bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
         </Bereich>
       ))}
       <Hinweis mehr={<>Twitch drops, Fortnite Crew perks and one-off promotions aren't tagged in the game files. Our editors can add them in <code className="text-teal-200">/hub-daten/gratis.json</code> (title, text, end date, source, cosmetic IDs) – they then show as cards with a countdown at the top.</>}>
-        Free rewards are found through the game's own source tags (free pass tier, quest, event, tournament).
+        Free rewards are found through the game's own source tags (free pass tier, quest, event, tournament). Click any item to see how to get it.
       </Hinweis>
+      <WieBekommen t={offen} zu={() => setOffen(null)} passEnde={s.end} shopBis={offen ? gratisShop.find((x) => x.t.id === offen.id)?.bis : undefined}
+        redaktion={offen ? (daten?.eintraege ?? []).find((e) => e.teile?.some((id) => id.toLowerCase() === offen.id.toLowerCase())) : undefined} />
     </div>
   );
 }
