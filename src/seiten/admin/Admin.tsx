@@ -34,6 +34,7 @@ import DiensteSeite from './services/page';
 import PartnerSeite from './partner/page';
 import LootRouten from './loot-routen/page';
 import AlleEpicFreunde from './epic-friends/page';
+import StatusSeite from './status/page';
 import { GRUPPEN, WERKZEUGE, passt, werkzeugNach, type Werkzeug } from './werkzeuge';
 import { Laedt, NurAdmins, feld } from './teile';
 
@@ -65,6 +66,7 @@ const EIGEN: Record<string, ComponentType<{ klassisch: () => void }>> = { live: 
   'partner': portiert(PartnerSeite, 'Inbox'),
   'loot-routen': LootRouten,
   'epic-friends': AlleEpicFreunde,
+  status: StatusSeite,
 };
 
 /** check-admin selbst nachfragen, solange useWer noch nichts weiss - sonst blitzte kurz "admins only" auf. */

@@ -27,7 +27,7 @@ export const WERKZEUGE: Werkzeug[] = [
   // Live & Cups
   { slug: 'live', pfad: '/admin/live', titel: 'Live', text: 'Who is online right now and when everyone signed in', gruppe: 'live', eigen: true, stichworte: 'online presence anwesend sessions devices' },
   { slug: 'epic-friends', pfad: '/match-finder?ansicht=freunde', titel: 'All Epic friends', text: 'Friends of both Epic accounts live with match ID, plus the shares', gruppe: 'live', eigen: true, stichworte: 'match finder match-id friends freigaben' },
-  { slug: 'status', pfad: '/admin?bereich=statistik', titel: 'Status & visitors', text: 'Jobs (incl. fast lane), load times, offline pages, visitors and usage', gruppe: 'live', stichworte: 'statistics visitors usage jobs status' },
+  { slug: 'status', pfad: '/admin?bereich=statistik', titel: 'Status & visitors', text: 'Jobs (incl. fast lane), load times, offline pages, visitors and usage', gruppe: 'live', eigen: true, stichworte: 'statistics visitors usage jobs status' },
 
   // Inhalte
   { slug: 'tweets', pfad: '/admin/tweets', titel: 'Posts', text: 'Create stat posts', gruppe: 'inhalte', eigen: true, stichworte: 'posts tweets x twitter stats beitraege' },
