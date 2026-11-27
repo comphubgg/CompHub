@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Glas } from '../../teile/Glas';
 
 /*
  * Wiederkehrende Bausteine des Community-Bereichs (Spezifikation 26.11.2026, "einmal bauen, ueberall nutzen"): Zeit-Chips, Countdown mit
@@ -151,21 +150,33 @@ export function KalenderKnopf({ titel, start, ende, text = 'Add to calendar', be
   );
 }
 
-/* ---------------------------------------------- Ehrlich: Daten fehlen noch */
+/* ---------------------------------------------- Ehrlich, aber klein: was noch fehlt */
+/**
+ * Betreiber 27.11.2026: "Es soll immer etwas da sein" - fehlende Daten nie als ganze Seite, nur als kleine Zeile unter/neben echtem Inhalt.
+ * Hinweis: eine Zeile mit Punkt; "mehr" klappt die Details (was genau fehlt, welche Datei) auf.
+ */
+export function Hinweis({ children, mehr, ton = 'teal' }: { children: ReactNode; mehr?: ReactNode; ton?: 'teal' | 'amber' }) {
+  const [offen, setOffen] = useState(false);
+  const farbe = ton === 'amber' ? 'bg-amber-300' : 'bg-teal-300';
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-4 py-2.5 text-xs leading-relaxed text-white/50">
+      <div className="flex items-start gap-2.5">
+        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${farbe}`} />
+        <div className="min-w-0 flex-1">{children}{mehr && <button type="button" onClick={() => setOffen((o) => !o)} className="ml-1.5 font-semibold text-teal-200/80 hover:text-white">{offen ? 'less' : 'more'}</button>}</div>
+      </div>
+      <AnimatePresence initial={false}>
+        {offen && mehr && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-4"><div className="pt-2 text-white/45">{mehr}</div></motion.div>}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+/** Frueher eine grosse Karte - jetzt nur noch der kleine Hinweis (Titel fett, Details aufklappbar). */
 export function DatenFehlen({ titel, text, braucht, kinder }: { titel: string; text: ReactNode; braucht?: string[]; kinder?: ReactNode }) {
   return (
-    <Glas className="relative overflow-hidden border-teal-300/20 p-6">
-      <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-teal-400/10 blur-3xl" />
-      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">Data pending</p>
-      <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-white">{titel}</h2>
-      <div className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">{text}</div>
-      {braucht && (
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {braucht.map((k) => <span key={k} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-white/50">{k}</span>)}
-        </div>
-      )}
-      {kinder}
-    </Glas>
+    <Hinweis mehr={<>{text}{braucht && <div className="mt-2 flex flex-wrap gap-1.5">{braucht.map((k) => <span key={k} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/45">{k}</span>)}</div>}{kinder}</>}>
+      <span className="font-semibold text-white/70">{titel}</span>
+    </Hinweis>
   );
 }
 

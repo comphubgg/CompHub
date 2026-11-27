@@ -3,11 +3,15 @@ import { Route, Routes } from 'react-router-dom';
 import { Laedt, TEAL } from './Teile';
 import Uebersicht from './Uebersicht';
 import { KartenRotation, SaisonCountdown, XpRechner } from './SeitenSaison';
-import { Benachrichtigungen, Creative, News, Spielerzahl, Stats, Turniere } from './SeitenLive';
+import { Benachrichtigungen, News, Stats, Turniere } from './SeitenLive';
 
 // Kosmetik, persoenliche Listen und die uebrigen Menuepunkte der Spezifikation - je ein eigener Chunk (src/seiten/community/kosmetik).
 const Shop = lazy(() => import('./kosmetik/Shop'));
 const K = lazy(() => import('./kosmetik/Seiten'));
+// Live-Seiten auf Epics Fortnite Data API (Player Count, Creative + Insel-Detail, Discover, Creators)
+const Spielerzahl = lazy(() => import('./epic/Live').then((m) => ({ default: m.Spielerzahl })));
+const Creative = lazy(() => import('./epic/Live').then((m) => ({ default: m.Creative })));
+const InselDetail = lazy(() => import('./epic/Live').then((m) => ({ default: m.InselDetail })));
 const L = ({ c }: { c: ReactNode }) => <Suspense fallback={<Laedt farbe={TEAL} />}>{c}</Suspense>;
 
 /* Die kleineren Community-Seiten (eigener Chunk, damit die Karte und die Waffen nicht mitgeladen werden muessen). */
@@ -17,8 +21,9 @@ export default function Seiten() {
       <Route path="rotation" element={<KartenRotation />} />
       <Route path="season" element={<SaisonCountdown />} />
       <Route path="xp" element={<XpRechner />} />
-      <Route path="players" element={<Spielerzahl />} />
-      <Route path="creative" element={<Creative />} />
+      <Route path="players" element={<L c={<Spielerzahl />} />} />
+      <Route path="creative" element={<L c={<Creative />} />} />
+      <Route path="creative/:code" element={<L c={<InselDetail />} />} />
       <Route path="news" element={<News />} />
       <Route path="tournaments" element={<Turniere />} />
       <Route path="stats" element={<Stats />} />

@@ -154,11 +154,19 @@ export async function metriken(code: string, iv: Intervall, ms?: number): Promis
     throw e;
   }
 }
+/** Nur die Punkte im Zeitraum behalten (falls Epic mehr liefert, z. B. ohne from/to). Tageswerte duerfen bis 7 Tage zurueck. */
+const FENSTER: Record<Zeitraum, number> = { '1H': 36e5, '1D': 864e5, '1W': 7 * 864e5 };
+function zuschneiden(m: Metriken, z: Zeitraum, iv: Intervall): Metriken {
+  const ab = Date.now() - FENSTER[z] - (iv === 'day' ? 864e5 : iv === 'hour' ? 36e5 : 10 * 60_000);
+  const f = (r: Punkt[]) => { const l = r.filter((p) => p.t >= ab); return l.length >= 2 || !r.length ? l : r.slice(-2); };
+  return { peakCCU: f(m.peakCCU), uniquePlayers: f(m.uniquePlayers), plays: f(m.plays), minutesPlayed: f(m.minutesPlayed), averageMinutesPerPlayer: f(m.averageMinutesPerPlayer),
+    favorites: f(m.favorites), recommendations: f(m.recommendations), retention: m.retention.filter((r) => r.t >= ab) };
+}
 /** Metriken fuer einen Zeitraum - probiert die Varianten aus VERSUCHE der Reihe nach. */
 export async function metrikenZeitraum(code: string, z: Zeitraum): Promise<Metriken & { iv: Intervall }> {
   let letzter: unknown = null;
   for (const v of VERSUCHE[z]) {
-    try { const m = await metriken(code, v.iv, v.ms); if (!leer(m)) return { ...m, iv: v.iv }; } catch (e) { letzter = e; if (e instanceof EpicFehler && (e.status === 0 || e.status === 404)) break; }
+    try { const m = zuschneiden(await metriken(code, v.iv, v.ms), z, v.iv); if (!leer(m)) return { ...m, iv: v.iv }; } catch (e) { letzter = e; if (e instanceof EpicFehler && (e.status === 0 || e.status === 404)) break; }
   }
   if (letzter) throw letzter;
   return { ...metrikenAus({}), iv: VERSUCHE[z][0].iv };

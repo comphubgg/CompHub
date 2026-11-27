@@ -7,105 +7,12 @@ import { Laedt, TEAL, Ueberschrift } from './Teile';
 
 /*
  * Live-Seiten: Player Count, Creative, News, Tournaments (Teaser in /competitive/events), Stats (Spielersuche), Notifications.
- *   - Player Count / Creative: Epic veroeffentlicht keine offene Spielerzahl - noetig ist ein eigener Sammler auf dem Server (alle paar Minuten
- *     abfragen und speichern). Bis dahin liest die Seite /hub-daten/spieler.json bzw. creative.json, wenn vorhanden, sonst ehrlicher Hinweis.
+ *   - Player Count / Creative: jetzt in epic/Live.tsx (Epics offizielle Fortnite Data API ueber den Proxy /epic-daten).
  *   - News: fortnite-api.com/v2/news/br (erlaubt Abfragen aus dem Browser).
  *   - Tournaments: /api/cup-events?region=.. wie die Events-Seite, nur kommende Spieltage als Teaser.
  *   - Stats: Spielersuche ueber /api/spieler-namen (Verzeichnis der Seite) -> Spielerseite im Competitive-Bereich; /api/stats (tracker.gg) nur,
  *     wenn die Seite den Schluessel hat.
  */
-
-/* ---------------------------------------------- Player Count */
-interface Punkt { t: string; online: number; inMatch?: number }
-const ZEIT_MS: Record<string, number> = { '1H': 36e5, '1D': 864e5, '1W': 6048e5, '1M': 2592e6, '1Y': 31536e6, ALL: Infinity };
-export function Spielerzahl() {
-  const { daten, status } = useHubDatei<{ punkte: Punkt[]; allTimePeak?: { wert: number; t: string } }>('spieler.json');
-  const [zeit, setZeit] = useState('1D');
-  const punkte = useMemo(() => {
-    const alle = (daten?.punkte ?? []).map((p) => ({ ...p, ms: Date.parse(p.t) })).sort((a, b) => a.ms - b.ms);
-    const letzt = alle.at(-1)?.ms ?? 0;
-    return alle.filter((p) => p.ms >= letzt - ZEIT_MS[zeit]);
-  }, [daten, zeit]);
-  const jetzt = punkte.at(-1);
-  const spitze24 = Math.max(0, ...punkte.filter((p) => p.ms >= (jetzt?.ms ?? 0) - 864e5).map((p) => p.inMatch ?? p.online));
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  const max = Math.max(1, ...punkte.map((p) => p.online));
-  const x = (i: number) => (punkte.length > 1 ? (i / (punkte.length - 1)) * 1000 : 0);
-  const y = (v: number) => 300 - (v / max) * 280;
-  const linie = (f: (p: Punkt) => number | undefined) => punkte.map((p, i) => (f(p) === undefined ? '' : `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(f(p)!).toFixed(1)}`)).join(' ');
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Live" titel="Player count" farbe={TEAL} text="How many people play Fortnite right now – and how it moved over time." />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[['Online now', jetzt?.online, '#fde047'], ['In a match now', jetzt?.inMatch, '#86efac'], ['24-hour peak', spitze24 || undefined, '#c4b5fd'], ['All-time peak', daten?.allTimePeak?.wert, '#7dd3fc']].map(([k, v, f], i) => (
-          <Glas key={k as string} className="p-5" verzoegerung={i * 0.05}>
-            <p className="text-3xl font-black tabular-nums" style={{ color: f as string }}>{typeof v === 'number' ? v.toLocaleString('en') : '—'}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p>
-          </Glas>
-        ))}
-      </div>
-      <Glas className="p-5">
-        <div className="flex items-center justify-between"><ZeitChips wert={zeit} setzen={setZeit} /><span className="text-xs text-white/35">{punkte.length ? `${punkte.length} data points` : ''}</span></div>
-        {punkte.length > 1 ? (
-          <svg viewBox="0 0 1000 300" className="mt-4 h-72 w-full" preserveAspectRatio="none">
-            <defs><linearGradient id="sp-g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#86efac" stopOpacity="0.35" /><stop offset="1" stopColor="#86efac" stopOpacity="0" /></linearGradient></defs>
-            {[0.25, 0.5, 0.75].map((g) => <line key={g} x1="0" x2="1000" y1={300 - g * 280} y2={300 - g * 280} stroke="rgba(255,255,255,0.06)" />)}
-            {punkte.some((p) => p.inMatch !== undefined) && <path d={`${linie((p) => p.inMatch)} L1000 300 L0 300 Z`} fill="url(#sp-g)" />}
-            <path d={linie((p) => p.inMatch)} fill="none" stroke="#86efac" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            <path d={linie((p) => p.online)} fill="none" stroke="#fde047" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-          </svg>
-        ) : (
-          <div className="mt-4 grid h-72 place-items-center rounded-2xl border border-dashed border-white/10 text-center text-sm text-white/45">
-            <div className="max-w-lg px-6">
-              <p className="font-bold text-white/70">No player-count history yet</p>
-              <p className="mt-1">Epic doesn't publish an open player count. This needs our own collector on the server that asks Epic's discovery service every few minutes and stores the numbers – then the chart, the hourly table with peak / gain / average and the most played maps fill in automatically.</p>
-            </div>
-          </div>
-        )}
-      </Glas>
-    </div>
-  );
-}
-
-/* ---------------------------------------------- Creative */
-interface Insel { code: string; name: string; creator?: string; players: number; rating?: number; image?: string; epic?: boolean; tags?: string[] }
-export function Creative() {
-  const { daten, status } = useHubDatei<{ stand?: string; inseln: Insel[] }>('creative.json');
-  const [suche, setSuche] = useState(''); const [ohneEpic, setOhneEpic] = useState(false); const [tag, setTag] = useState('all');
-  const tags = useMemo(() => [...new Set((daten?.inseln ?? []).flatMap((i) => i.tags ?? []))].slice(0, 12), [daten]);
-  const liste = (daten?.inseln ?? []).filter((i) => (!ohneEpic || !i.epic) && (tag === 'all' || i.tags?.includes(tag)) && `${i.name} ${i.creator ?? ''} ${i.code}`.toLowerCase().includes(suche.toLowerCase()))
-    .sort((a, b) => b.players - a.players);
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Live" titel="Most played islands" farbe={TEAL} text="Creative and UEFN islands by live players – including the practice maps pros use (box fights, zone wars, aim trainers)." />
-      {!daten ? (
-        <DatenFehlen titel="Live island numbers need our own collector"
-          text="Players per island come from Epic's discovery service, which needs a signed-in server and regular polling. Once that collector writes hub-daten/creative.json, this grid shows every island with live players, rating, tags and a 'hide Epic maps' switch."
-          braucht={['Island code', 'Name + creator', 'Players now', 'Rating', 'Tags', 'Thumbnail']} />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search islands, creators, codes…" className="w-72 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-            {['all', ...tags].map((t) => <button key={t} type="button" onClick={() => setTag(t)} className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${tag === t ? 'border-teal-300/50 bg-teal-300/15 text-white' : 'border-white/10 text-white/55'}`}>{t}</button>)}
-            <label className="ml-auto flex items-center gap-2 text-sm text-white/60"><input type="checkbox" checked={ohneEpic} onChange={(e) => setOhneEpic(e.target.checked)} /> Hide Epic maps</label>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
-            {liste.map((i, k) => (
-              <motion.a key={i.code} href={`https://www.fortnite.com/@${i.creator ?? 'epic'}/${i.code}`} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(k * 0.02, 0.4) }} whileHover={{ y: -4 }}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
-                <div className="relative aspect-video bg-white/5">{i.image && <img src={i.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
-                  <span className="absolute bottom-2 left-2 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-white">{i.players.toLocaleString('en')} playing</span>
-                  {i.rating !== undefined && <span className="absolute bottom-2 right-2 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-teal-200">{Math.round(i.rating)} %</span>}</div>
-                <div className="p-3"><p className="truncate font-bold text-white">{i.name}</p><p className="truncate text-xs text-white/45">{i.creator ?? 'Epic'} · {i.code}</p></div>
-              </motion.a>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 /* ---------------------------------------------- News */
 interface Motd { id: string; title: string; tabTitle?: string; body: string; image?: string; tileImage?: string; hidden?: boolean }

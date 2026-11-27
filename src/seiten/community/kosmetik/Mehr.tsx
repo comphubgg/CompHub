@@ -9,8 +9,7 @@ import { AblageHinweis, Auswahl, Bereich, Kachel } from './Raster';
 
 /*
  * Die uebrigen Menuepunkte der Spezifikation:
- *   Discover (20)     Epics Discovery braucht ein angemeldetes Epic-Konto auf dem Server -> /hub-daten/discover.json (Sammler), sonst ehrliche Karte
- *   Creators (19)     aus /hub-daten/creative.json (derselbe Sammler wie Creative), "Following" pro Konto/Browser
+ *   Discover / Creators: jetzt in epic/Live.tsx (Epics Fortnite Data API)
  *   Community (27)    Linksammlung (Discord, X, TikTok, Reddit) + Reddit-Beitraege je Thema direkt aus dem Browser (reddit.com/.json, wenn erreichbar)
  *                     + Epics Spiel-News (fortnite-api.com/v2/news/br)
  *   Sprites (1)       /hub-daten/sprites.json (Spieldaten-Export) + Owned/Mastered pro Variante
@@ -21,106 +20,6 @@ import { AblageHinweis, Auswahl, Bereich, Kachel } from './Raster';
 const SOCIAL = {
   discord: 'https://discord.gg/8jQ3tf37sQ', x: 'https://x.com/CompHub_gg', tiktok: 'https://www.tiktok.com/@comphub.gg',
 };
-
-/* ---------------------------------------------- Discover */
-interface Discover { stand?: string; reihen: Array<{ titel: string; inseln: Array<{ code: string; name: string; players?: number; image?: string; creator?: string; seit?: string }> }> }
-export function Entdecken() {
-  const { daten, status } = useHubDatei<Discover>('discover.json');
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Creative" titel="Discover" farbe={TEAL} text="What Fortnite's Discover screen shows right now – row by row, with how long each island has been there." />
-      {!daten?.reihen?.length ? (
-        <DatenFehlen titel="Needs our Discover collector" text={<>Epic's Discover feed is only served to signed-in game clients, so the browser can't read it. A small collector on our server (signed in with a bot account) asks for it every 15 minutes and writes <code className="text-teal-200">/hub-daten/discover.json</code> – then the rows, the hero spot, banner history and a "time in row" timeline show up here.
-          <pre className="mt-3 overflow-x-auto rounded-xl bg-black/40 p-3 text-[11px] text-white/60">{JSON.stringify({ stand: '2026-11-26T20:00:00Z', reihen: [{ titel: 'Popular', inseln: [{ code: '1234-5678-9012', name: '…', players: 12000, image: 'https://…', creator: '…', seit: '2026-11-20T00:00:00Z' }] }] }, null, 2)}</pre></>}
-          braucht={['Server collector (Epic bot account)', 'Archive per 15 minutes for the timeline']} />
-      ) : (
-        daten.reihen.map((r, ri) => (
-          <Bereich key={r.titel} titel={r.titel} verzoegerung={ri * 0.05} rechts={daten.stand ? <span className="text-xs text-white/40">as of {datumKurz(daten.stand)}</span> : undefined}>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {r.inseln.map((i) => (
-                <Glas key={i.code} className="w-72 shrink-0 overflow-hidden">
-                  <div className="aspect-video bg-white/[0.04]">{i.image && <img src={i.image} alt="" loading="lazy" className="h-full w-full object-cover" />}</div>
-                  <div className="p-3">
-                    <p className="truncate font-bold text-white">{i.name}</p>
-                    <p className="flex justify-between text-xs text-white/45"><span className="font-mono">{i.code}</span>{i.players !== undefined && <span className="tabular-nums text-teal-200">{i.players.toLocaleString('en')} playing</span>}</p>
-                    {i.seit && <p className="mt-1 text-[10px] text-white/35">In this row since {datumKurz(i.seit)}</p>}
-                  </div>
-                </Glas>
-              ))}
-            </div>
-          </Bereich>
-        ))
-      )}
-    </div>
-  );
-}
-
-/* ---------------------------------------------- Creators */
-export function Creators() {
-  const { daten, status } = useHubDatei<{ stand?: string; inseln: Array<{ code: string; name: string; creator?: string; players: number; epic?: boolean }> }>('creative.json');
-  const folge = useAblage<string[]>('creators-folgen', []);
-  const [reiter, setReiter] = useState<'alle' | 'folge'>('alle');
-  const [suche, setSuche] = useState(''); const [sort, setSort] = useState('spieler'); const [seite, setSeite] = useState(0);
-  const creators = useMemo(() => {
-    const m = new Map<string, { name: string; spieler: number; maps: number; top: string }>();
-    for (const i of daten?.inseln ?? []) {
-      if (!i.creator) continue;
-      const x = m.get(i.creator) ?? { name: i.creator, spieler: 0, maps: 0, top: i.name };
-      x.spieler += i.players; x.maps += 1; m.set(i.creator, x);
-    }
-    return [...m.values()];
-  }, [daten]);
-  const liste = creators.filter((c) => (reiter === 'alle' || folge.wert.includes(c.name)) && c.name.toLowerCase().includes(suche.toLowerCase()))
-    .sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : sort === 'maps' ? b.maps - a.maps : b.spieler - a.spieler));
-  const PRO = 50;
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Creative" titel="Creators" farbe={TEAL} text="Creative makers ranked by how many people are playing their islands right now." rechts={<AblageHinweis ort={folge.ort} />} />
-      {status === 'fehlt' ? (
-        <DatenFehlen titel="Needs the Creative collector" text={<>The creator ranking is built from the same live player counts as <Link to="/community/creative" className="text-teal-200">Creative</Link>. As soon as our collector writes <code className="text-teal-200">/hub-daten/creative.json</code> (with a <code>creator</code> per island), this table fills in – with search, sorting and a Following list that's saved to your account.</>} braucht={['Server collector for island player counts']} />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">
-              {([['alle', 'All creators'], ['folge', `Following ${folge.wert.length}`]] as const).map(([k, t]) => <button key={k} type="button" onClick={() => { setReiter(k); setSeite(0); }} className={`rounded-lg px-3.5 py-1.5 ${reiter === k ? 'bg-teal-300 text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</button>)}
-            </div>
-            <input value={suche} onChange={(e) => { setSuche(e.target.value); setSeite(0); }} placeholder="Find a creator…" className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-            <Auswahl titel="Sort" wert={sort} setzen={setSort} optionen={[['spieler', 'Players now'], ['maps', 'Islands'], ['name', 'Name']]} />
-          </div>
-          <Glas className="overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-white/40"><tr><th className="w-12 px-4 py-3">#</th><th>Creator</th><th className="hidden md:table-cell">Top island</th><th className="text-right">Islands</th><th className="px-4 text-right">Playing now</th><th className="w-12" /></tr></thead>
-              <tbody>
-                {liste.slice(seite * PRO, seite * PRO + PRO).map((c, i) => {
-                  const an = folge.wert.includes(c.name);
-                  return (
-                    <tr key={c.name} className="border-t border-white/5 hover:bg-white/[0.03]">
-                      <td className="px-4 py-2.5 tabular-nums text-white/40">{seite * PRO + i + 1}</td>
-                      <td className="font-bold text-white">{c.name}</td>
-                      <td className="hidden truncate text-white/55 md:table-cell">{c.top}</td>
-                      <td className="text-right tabular-nums text-white/60">{c.maps}</td>
-                      <td className="px-4 text-right font-bold tabular-nums text-teal-200">{c.spieler.toLocaleString('en')}</td>
-                      <td><button type="button" onClick={() => folge.setzen((v) => (an ? v.filter((x) => x !== c.name) : [...v, c.name]))} className={`rounded-lg px-2 py-1 text-xs font-bold ${an ? 'text-teal-300' : 'text-white/35 hover:text-white'}`}>{an ? '★' : '☆'}</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {liste.length > PRO && (
-              <div className="flex items-center justify-center gap-3 border-t border-white/5 py-3 text-sm">
-                <button type="button" disabled={!seite} onClick={() => setSeite((s) => s - 1)} className="text-white/60 hover:text-white disabled:opacity-25">← Previous</button>
-                <span className="tabular-nums text-white/40">{seite + 1} / {Math.ceil(liste.length / PRO)}</span>
-                <button type="button" disabled={(seite + 1) * PRO >= liste.length} onClick={() => setSeite((s) => s + 1)} className="text-white/60 hover:text-white disabled:opacity-25">Next →</button>
-              </div>
-            )}
-          </Glas>
-        </>
-      )}
-    </div>
-  );
-}
 
 /* ---------------------------------------------- Community */
 const THEMEN: Array<{ k: string; titel: string; sub: string }> = [
