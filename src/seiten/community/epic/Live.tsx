@@ -288,7 +288,7 @@ export function Creators() {
               return (
                 <motion.li layout key={c.name} className="border-t border-white/5 first:border-0">
                   <div className="relative flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03]">
-                    <motion.span className="absolute inset-y-0 left-0 bg-violet-400/[0.07]" initial={{ width: 0 }} animate={{ width: `${(c.spieler / max) * 100}%` }} transition={{ duration: 0.7 }} />
+                    <motion.span className="absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-violet-400/60 to-teal-300/60" initial={{ width: 0 }} animate={{ width: `${(c.spieler / max) * 100}%` }} transition={{ duration: 0.7 }} />
                     <span className="relative w-7 text-right text-sm font-black tabular-nums text-white/35">{k + 1}</span>
                     <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black text-white" style={{ background: `hsl(${farbeAus(c.name)} 55% 35%)` }}>{c.name.slice(0, 1).toUpperCase()}</span>
                     <button type="button" onClick={() => setOffen(auf ? null : c.name)} className="relative min-w-0 flex-1 text-left">
@@ -367,10 +367,10 @@ export function Creative() {
       <EpicHinweis offline={p.offline && !p.inseln.length} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
         {liste.slice(0, n).map(({ i, w }, k) => (
-          <motion.div key={i.code} layout="position" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(k, 18) * 0.025 }} whileHover={{ y: -4 }}>
+          <motion.div key={i.code} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(k, 18) * 0.025 }} whileHover={{ y: -4 }}>
             <Link to={`/community/creative/${encodeURIComponent(i.code)}`} className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] hover:border-white/25">
               <div className="relative aspect-video"><InselBild i={i} />
-                {w?.jetzt ? <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />{kurz(w.jetzt)} playing</span> : null}
+                {w?.jetzt ? <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-bold text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />{kurz(w.jetzt)} playing</span> : null}
                 {i.erstelltIn && <span className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/70">{i.erstelltIn}</span>}
               </div>
               <div className="p-3">
