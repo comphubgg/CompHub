@@ -4,7 +4,8 @@
  * `auch`: weitere Pfad-Anfaenge, bei denen der Eintrag als aktiv gilt (z. B. Spielerseiten unter Rankings).
  */
 export type BereichId = 'competitive' | 'community' | 'streamer' | 'admin' | 'account';
-export interface Seite { pfad: string; titel: string; text?: string; auch?: string[] }
+/** `haupt`: steht auch in der kurzen Leiste oben; alles andere erreicht man ueber das Menue-Fenster (und die Schnellsuche). */
+export interface Seite { pfad: string; titel: string; text?: string; auch?: string[]; haupt?: boolean }
 export interface Gruppe { titel: string; seiten: Seite[] }
 export interface BereichInfo { id: BereichId; titel: string; basis: string; zeile: string; gruppen: Gruppe[] }
 
@@ -13,19 +14,19 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
     id: 'competitive', titel: 'Competitive', basis: '/competitive', zeile: 'Live · Stats · Rankings',
     gruppen: [
       { titel: 'Now', seiten: [
-        { pfad: '', titel: 'Overview', text: 'Live cup, next cups, rankings' },
-        { pfad: 'events', titel: 'Events', text: 'Every cup and live leaderboard', auch: ['match'] },
-        { pfad: 'rankings', titel: 'Rankings', text: 'Power Rankings, top 10,000', auch: ['player'] },
+        { pfad: '', titel: 'Overview', text: 'Live cup, next cups, rankings', haupt: true },
+        { pfad: 'events', titel: 'Events', text: 'Every cup and live leaderboard', auch: ['match'], haupt: true },
+        { pfad: 'rankings', titel: 'Rankings', text: 'Power Rankings, top 10,000', auch: ['player'], haupt: true },
       ] },
       { titel: 'Stats', seiten: [
-        { pfad: 'statistics', titel: 'Statistics', text: 'Damage, elims, earnings' },
-        { pfad: 'deep-stats', titel: 'Deep Stats', text: 'Damage per weapon, heatmaps' },
-        { pfad: 'replays', titel: 'Replays', text: 'Watch any cup game in 2D' },
-        { pfad: 'match-finder', titel: 'Match Finder', text: 'Live match IDs of the pros' },
+        { pfad: 'statistics', titel: 'Statistics', text: 'Damage, elims, earnings', haupt: true },
+        { pfad: 'deep-stats', titel: 'Deep Stats', text: 'Damage per weapon, heatmaps', haupt: true },
+        { pfad: 'replays', titel: 'Replays', text: 'Watch any cup game in 2D', haupt: true },
+        { pfad: 'match-finder', titel: 'Match Finder', text: 'Live match IDs of the pros', haupt: true },
       ] },
       { titel: 'Scene', seiten: [
-        { pfad: 'maps', titel: 'Maps', text: 'Drop maps of every cup', auch: ['tournament-maps'] },
-        { pfad: 'fncs', titel: 'FNCS', text: 'Finals, champions, all-time' },
+        { pfad: 'maps', titel: 'Maps', text: 'Drop maps of every cup', auch: ['tournament-maps'], haupt: true },
+        { pfad: 'fncs', titel: 'FNCS', text: 'Finals, champions, all-time', haupt: true },
         { pfad: 'globals', titel: 'Globals', text: 'Global Championship', auch: ['globals-solos'] },
         { pfad: 'tierlist', titel: 'Tierlist', text: 'Build your own tier list' },
         { pfad: 'predictions', titel: 'Predictions', text: 'Call the final' },
@@ -43,20 +44,20 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
   community: {
     id: 'community', titel: 'Community', basis: '/community', zeile: 'The island · Loot · Shop',
     gruppen: [
-      { titel: 'Start', seiten: [{ pfad: '', titel: 'Overview', text: 'Season, island, shop, news' }] },
+      { titel: 'Start', seiten: [{ pfad: '', titel: 'Overview', text: 'Season, island, shop, news', haupt: true }] },
       { titel: 'Island', seiten: [
-        { pfad: 'map', titel: 'Map', text: 'Chests, ammo boxes and more' },
+        { pfad: 'map', titel: 'Map', text: 'Chests, ammo boxes and more', haupt: true },
         { pfad: 'map-evolution', titel: 'Map Evolution', text: 'Compare the island across patches' },
         { pfad: 'rotation', titel: 'Map Rotation', text: 'Reload and Blitz maps' },
       ] },
       { titel: 'Loot', seiten: [
-        { pfad: 'weapons', titel: 'Weapons', text: 'Every weapon with stats', auch: ['weapons/changes'] },
+        { pfad: 'weapons', titel: 'Weapons', text: 'Every weapon with stats', auch: ['weapons/changes'], haupt: true },
         { pfad: 'weapons/compare', titel: 'Compare', text: 'Weapons side by side' },
         { pfad: 'assets', titel: 'Asset Studio', text: 'Weapon and item images' },
       ] },
       { titel: 'Shop', seiten: [
-        { pfad: 'shop', titel: 'Item Shop', text: "Today's shop and history" },
-        { pfad: 'cosmetics', titel: 'Cosmetics', text: 'Every cosmetic' },
+        { pfad: 'shop', titel: 'Item Shop', text: "Today's shop and history", haupt: true },
+        { pfad: 'cosmetics', titel: 'Cosmetics', text: 'Every cosmetic', haupt: true },
         { pfad: 'new', titel: 'New', text: 'New in the files' },
         { pfad: 'free', titel: 'Free', text: 'Free cosmetics and how to get them' },
         { pfad: 'jam-tracks', titel: 'Jam Tracks', text: 'Tracks today and the library' },
@@ -70,18 +71,18 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
         { pfad: 'rankings', titel: 'Rankings', text: 'Rate cosmetics and seasons' },
       ] },
       { titel: 'Season', seiten: [
-        { pfad: 'season', titel: 'Season', text: 'Countdown and live event' },
+        { pfad: 'season', titel: 'Season', text: 'Countdown and live event', haupt: true },
         { pfad: 'xp', titel: 'XP', text: 'XP per day for your level goal' },
         { pfad: 'treasure-hunt', titel: 'Treasure Hunt', text: 'Rewards and progress' },
         { pfad: 'sprites', titel: 'Sprites', text: 'Owned and mastered' },
         { pfad: 'lorebook', titel: 'Lorebook', text: 'The story so far' },
       ] },
       { titel: 'Live', seiten: [
-        { pfad: 'players', titel: 'Player Count', text: 'Most played right now' },
-        { pfad: 'discover', titel: 'Discover', text: 'Top islands right now' },
+        { pfad: 'players', titel: 'Player Count', text: 'Most played right now', haupt: true },
+        { pfad: 'discover', titel: 'Discover', text: 'Top islands right now', haupt: true },
         { pfad: 'creative', titel: 'Creative', text: 'Browse islands' },
         { pfad: 'creators', titel: 'Creators', text: 'Top island makers' },
-        { pfad: 'news', titel: 'News', text: 'Fortnite news' },
+        { pfad: 'news', titel: 'News', text: 'Fortnite news', haupt: true },
         { pfad: 'social', titel: 'Social', text: 'X, Discord, Reddit' },
         { pfad: 'tournaments', titel: 'Tournaments', text: 'Next cups' },
         { pfad: 'stats', titel: 'Player lookup', text: 'Find any player' },
@@ -92,18 +93,18 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
     id: 'streamer', titel: 'Streamer', basis: '/streamer', zeile: 'Watch · Overlays · Tools',
     gruppen: [
       { titel: 'Watch', seiten: [
-        { pfad: '', titel: 'Studio', text: 'Your streamer home' },
-        { pfad: 'streams', titel: 'Live Streams', text: 'Multiview of everyone live', auch: ['live'] },
+        { pfad: '', titel: 'Studio', text: 'Your streamer home', haupt: true },
+        { pfad: 'streams', titel: 'Live Streams', text: 'Multiview of everyone live', auch: ['live'], haupt: true },
       ] },
       { titel: 'Create', seiten: [
-        { pfad: 'overlays', titel: 'Overlays', text: 'OBS overlays with live cup data' },
-        { pfad: 'my-page', titel: 'My page', text: 'Your own streamer page', auch: ['page'] },
+        { pfad: 'overlays', titel: 'Overlays', text: 'OBS overlays with live cup data', haupt: true },
+        { pfad: 'my-page', titel: 'My page', text: 'Your own streamer page', auch: ['page'], haupt: true },
       ] },
       { titel: 'Twitch', seiten: [
-        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands for your channel' },
-        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Viewers and streams over time' },
+        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands for your channel', haupt: true },
+        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Viewers and streams over time', haupt: true },
       ] },
-      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your access and extras' }] },
+      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your access and extras', haupt: true }] },
     ],
   },
 };
