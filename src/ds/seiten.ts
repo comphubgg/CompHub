@@ -1,3 +1,5 @@
+import { GRUPPEN as ADMIN_GRUPPEN, WERKZEUGE as ADMIN_WERKZEUGE } from '../seiten/admin/werkzeuge';
+
 /*
  * Das Seitenverzeichnis des Hubs (Design-System 3.0, 27.11.2026): EINE Liste fuer die Leiste jedes Bereichs und fuer die Schnellsuche (Strg+K).
  * Gruppen trennen die Leiste nur optisch (feiner Strich) - es gibt kein Ausklappen und kein Umschalten (Betreiber: "eine Reihe, alle Seiten").
@@ -9,7 +11,20 @@ export interface Seite { pfad: string; titel: string; text?: string; auch?: stri
 export interface Gruppe { titel: string; seiten: Seite[] }
 export interface BereichInfo { id: BereichId; titel: string; basis: string; zeile: string; gruppen: Gruppe[] }
 
-export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichInfo> = {
+/*
+ * Admin (28.11.2026): die Seiten kommen aus dem Werkzeug-Verzeichnis des Admin-Bereichs (src/seiten/admin/werkzeuge.ts) - dort steht jedes Werkzeug
+ * der echten Seite einmal. Alle stehen in der Leiste (Betreiber: "eine Reihe, alle Seiten"); die Schnellsuche zeigt sie nur Admins (Suche.tsx).
+ */
+const ADMIN: BereichInfo = {
+  id: 'admin', titel: 'Admin', basis: '/admin', zeile: 'Control room · Tools',
+  gruppen: [
+    { titel: 'Now', seiten: [{ pfad: '', titel: 'Control room', text: 'What needs you now: jobs, inbox, live cups', haupt: true }] },
+    ...ADMIN_GRUPPEN.map((g) => ({ titel: g.titel, seiten: ADMIN_WERKZEUGE.filter((w) => w.gruppe === g.id).map((w) => ({ pfad: w.slug, titel: w.titel, text: w.text, haupt: true })) })),
+  ],
+};
+
+export const BEREICHE: Record<'competitive' | 'community' | 'streamer' | 'admin', BereichInfo> = {
+  admin: ADMIN,
   competitive: {
     id: 'competitive', titel: 'Competitive', basis: '/competitive', zeile: 'Live · Stats · Rankings',
     gruppen: [

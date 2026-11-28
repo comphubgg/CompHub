@@ -52,12 +52,12 @@ export default function Suche() {
 
   const seiten = useMemo<Treffer[]>(() => {
     const out: Treffer[] = [];
-    for (const b of Object.values(BEREICHE)) for (const g of b.gruppen) for (const s of g.seiten) {
+    // Admin-Seiten nur fuer Admins
+    for (const b of Object.values(BEREICHE)) if (b.id !== 'admin' || wer?.isAdmin) for (const g of b.gruppen) for (const s of g.seiten) {
       out.push({ art: 'Page', titel: s.titel, unter: `${b.titel}${s.text ? ` · ${s.text}` : ''}`, zu: `${b.basis}${s.pfad ? `/${s.pfad}` : ''}`, farbe: FARBE[b.id] });
     }
     out.push({ art: 'Page', titel: 'Hub start', unter: 'Choose Competitive, Community or Streamer', zu: '/', farbe: '255 255 255' });
     if (wer?.userName) out.push({ art: 'Page', titel: 'Account', unter: 'Profile, socials, password', zu: '/account', farbe: '255 255 255' }, { art: 'Page', titel: 'Messages', unter: 'Your conversations with CompHub', zu: '/messages', farbe: '255 255 255' });
-    if (wer?.isAdmin) out.push({ art: 'Page', titel: 'Admin', unter: 'Every admin tool', zu: '/admin', farbe: FARBE.admin });
     return out;
   }, [wer]);
   const treffer = useMemo<Treffer[]>(() => {
