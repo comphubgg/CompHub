@@ -32,3 +32,29 @@ jobs:
           if [ -d aus/public/waffen/alle ]; then du -sh aus/public/waffen/alle; tar cf waffen-bilder-alle.tar -C aus public; gh release upload medien waffen-bilder-alle.tar --clobber; fi
           tar cf waffen-bilder-alle-diagnose.tar -C aus --exclude=public .
           gh release upload medien waffen-bilder-alle-diagnose.tar --clobber
+  # Gegenprobe zur Diagnose: kommen Wiki-Bilder durch den Vite-Proxy der Hub-Vorschau (/wikia, /fandom) - so wie auf dem PC des Betreibers?
+  proxy-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: hub-vorschau }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci --no-audit --no-fund
+      - name: Vite starten und Bilder durch den Proxy holen
+        run: |
+          (npx vite --host 127.0.0.1 --port 5173 > vite.log 2>&1 &)
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:5173/ && break; sleep 1; done
+          for p in \
+            "fortnite/images/b/b8/A280-CFE_Blaster_Rifle_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/160?cb=20250503124739" \
+            "fortnite/images/1/1d/Blitz_Boss_Carti%27s_Nemesis_AR_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/160?cb=20251211150807" \
+            "fortnite/images/9/9b/Burst_Assault_Rifle_%28v11.00%29_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/160?cb=20200429201027" \
+            "fortnite/images/1/1c/Assault_Rifle_-_Weapon_-_Fortnite.png/revision/latest/scale-to-width-down/256?cb=20240730154848"; do
+            echo "== $p"
+            echo -n "direkt:            "; curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}\n' "https://static.wikia.nocookie.net/$p"
+            echo -n "Proxy ohne Kopf:   "; curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}\n' "http://127.0.0.1:5173/wikia/$p"
+            echo -n "Proxy wie Browser: "; curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}\n' -H 'Accept: image/avif,image/webp,image/apng,image/*,*/*;q=0.8' -H 'Referer: http://localhost:5173/community/weapons' -H 'Sec-Fetch-Dest: image' -H 'Sec-Fetch-Mode: no-cors' -H 'Sec-Fetch-Site: same-origin' -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36' "http://127.0.0.1:5173/wikia/$p"
+          done
+          echo -n "Proxy /fandom api: "; curl -s -o /dev/null -w '%{http_code} %{content_type}\n' "http://127.0.0.1:5173/fandom/api.php?action=query&meta=siteinfo&format=json&origin=*"
+          tail -20 vite.log

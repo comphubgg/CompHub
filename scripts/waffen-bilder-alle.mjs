@@ -17,6 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import crypto from 'node:crypto';
 import sharp from 'sharp';
 
 const HUB = path.resolve(process.argv[2] || 'hub');
@@ -25,11 +26,12 @@ const BILDER = path.join(AUS, 'public', 'waffen', 'alle');
 fs.mkdirSync(BILDER, { recursive: true });
 const API = 'https://fortnite.fandom.com/api.php';
 const KOPF = { 'User-Agent': 'CompHub/1.0 (+https://thecomphub.com; weapon icons, one-off)' };
-const warte = (ms) => new Promise((w) => setTimeout(w, ms));
+const warte = (ms) => new Promise((w) => setTimeout(w, ms * (Number(process.env.WARTE_FAKTOR) || 1)));
 const RAR = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'exotic'];
 
 /* ---------------------------------------------- Jede Anfrage protokollieren (auch die des Hub-Codes) */
 const protokoll = [];
+const mitschnitt = new Map(); // Seitentitel -> { text, bild }
 const echtFetch = globalThis.fetch;
 globalThis.fetch = async (u, o = {}) => {
   // Wie der Vite-Proxy des Hubs: /fandom/... -> fortnite.fandom.com, /wikia/... -> static.wikia.nocookie.net
@@ -40,7 +42,11 @@ globalThis.fetch = async (u, o = {}) => {
     const r = await echtFetch(u, { ...o, headers: { ...KOPF, ...(o.headers ?? {}) } });
     const e = { u: adresse.slice(0, 400), s: r.status, ms: Date.now() - t };
     if (adresse.includes('api.php')) {
-      try { const j = await r.clone().json(); if (j?.error) e.fehler = j.error.code; if (j?.warnings) e.warnung = JSON.stringify(j.warnings).slice(0, 300); } catch { e.fehler = 'kein JSON'; }
+      try {
+        const j = await r.clone().json(); if (j?.error) e.fehler = j.error.code; if (j?.warnings) e.warnung = JSON.stringify(j.warnings).slice(0, 300);
+        // Quelltexte und Seitenbilder, die der Hub ohnehin holt, mitschneiden - dann braucht es dafuer keine zweite Abfrage
+        for (const p of j?.query?.pages ?? []) { const t = p.revisions?.[0]?.slots?.main?.content; if (typeof t === 'string') mitschnitt.set(p.title, { text: t, bild: p.thumbnail?.source }); }
+      } catch { e.fehler = 'kein JSON'; }
     }
     protokoll.push(e); return r;
   } catch (f) { protokoll.push({ u: adresse.slice(0, 400), f: String(f?.cause?.code ?? f?.message ?? f), ms: Date.now() - t }); throw f; }
@@ -55,13 +61,14 @@ async function parallel(liste, n, fn) {
 const api429 = [];
 async function api(q) {
   let letzter;
-  for (let v = 0; v < 8; v++) {
+  for (let v = 0; v < 4; v++) {
     try {
       const r = await fetch(`${API}?${new URLSearchParams({ format: 'json', formatversion: '2', ...q })}`);
       if (r.status === 429 || r.status >= 500) {
         const nach = Number(r.headers.get('retry-after')) || 0;
         api429.push({ s: r.status, nach, kopf: Object.fromEntries([...r.headers].filter(([k]) => /retry|rate|limit|server|x-|cf-|via/i.test(k))), text: (await r.text()).slice(0, 200) });
-        if (nach) await warte(Math.min(nach, 120) * 1000);
+        console.log('429 von der Wiki-API:', JSON.stringify(api429.at(-1)).slice(0, 600));
+        await warte(Math.max(nach, 60) * 1000);
         throw new Error(`HTTP ${r.status}`);
       }
       const j = await r.json();
@@ -128,17 +135,25 @@ fs.writeFileSync(path.join(AUS, 'hub-liste.json'), `${JSON.stringify(liste)}\n`)
 fs.writeFileSync(path.join(AUS, 'diagnose-hub.json'), `${JSON.stringify({ hubFehler, waffen: diagnose }, null, 1)}\n`);
 
 /* ---------------------------------------------- 2. Je Seite: Quelltext, Seitenbild, alle Dateien */
-const titel = [...new Set(liste.map((w) => w.wikiSeite).filter(Boolean))];
+// Quelltexte und Seitenbilder hat der Hub schon geholt (mitgeschnitten). Eine zweite Abfrage derselben Seiten bekam vom Wiki nur noch 429.
+/** Bildadresse des Wikis -> "File:Name mit Leerzeichen.png" */
+const dateiAusUrl = (u) => { const m = /\/images\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/.exec(u ?? ''); return m ? `File:${decodeURIComponent(m[1]).replace(/_/g, ' ')}` : null; };
+const DATEI_IM_TEXT = /(?:\[\[\s*(?:File|Image)\s*:\s*|^\s*(?:File:|Image:)?|=\s*(?:File:|Image:)?)([^|\]\n=[{}<>]+?\.(?:png|jpe?g|webp|gif))/gim;
 const proSeite = new Map();
+for (const [t, x] of mitschnitt) proSeite.set(t, { text: x.text, seitenBild: dateiAusUrl(x.bild), dateien: [...new Set([...x.text.matchAll(DATEI_IM_TEXT)].map((m) => `File:${m[1].trim()}`))] });
+// Dazu prop=images (auch Dateien, die Vorlagen einbinden) - wenn das Wiki antwortet; langsam, mit Pausen
+const titel = [...new Set(liste.map((w) => w.wikiSeite).filter(Boolean))];
+let bilderListe = 'ja';
+await warte(90_000);
 for (let i = 0; i < titel.length; i += 50) {
   const teil = titel.slice(i, i + 50);
-  const a = await abfrageAlle({ prop: 'revisions|pageimages', rvprop: 'content', rvslots: 'main', piprop: 'name|original', titles: teil.join('|') });
-  const b = await abfrageAlle({ prop: 'images', imlimit: 'max', titles: teil.join('|') });
-  for (const [t, p] of a.seiten) proSeite.set(t, { text: p.revisions?.[0]?.slots?.main?.content ?? '', seitenBild: p.pageimage ? `File:${p.pageimage}` : null, dateien: [] });
-  for (const [t, p] of b.seiten) if (proSeite.has(t)) proSeite.get(t).dateien = (p.images ?? []).map((x) => x.title);
-  await warte(800);
+  try {
+    const b = await abfrageAlle({ prop: 'images', imlimit: 'max', titles: teil.join('|') });
+    for (const [t, p] of b.seiten) if (proSeite.has(t)) proSeite.get(t).dateien.push(...(p.images ?? []).map((x) => x.title));
+  } catch (f) { bilderListe = `abgebrochen bei ${i} von ${titel.length}: ${f.message}`; break; }
+  await warte(3000);
 }
-console.log(`${proSeite.size} Seiten gelesen`);
+console.log(`${proSeite.size} Seiten (mitgeschnitten), prop=images: ${bilderListe}`);
 
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 const RAR_WORT = /\b(common|uncommon|rare|epic|legendary|mythic|exotic)\b/i;
@@ -188,28 +203,20 @@ for (const w of liste) {
 }
 console.log(`${alleDateien.size} Dateien zu pruefen`);
 
-/* ---------------------------------------------- 3. Dateien: Adresse, Groesse; dann laden und ansehen */
-const info = new Map(); // Dateiname -> { url, thumb, w, h, mime } | null
+/* ---------------------------------------------- 3. Dateien laden und ansehen */
+// Ohne Wiki-API: der Pfad einer Datei ist der MD5 ihres Namens (MediaWiki), 404 = gibt es nicht. scale-to-width-down vergroessert nie.
+const info = new Map(); // Dateiname -> { url, echt }
 const dateiListe = [...alleDateien];
-for (let i = 0; i < dateiListe.length; i += 50) {
-  const teil = dateiListe.slice(i, i + 50);
-  const { seiten, normal, weiter } = await abfrageAlle({ prop: 'imageinfo', iiprop: 'url|size|mime', iiurlwidth: '512', titles: teil.join('|'), redirects: '1' });
-  const nach = new Map();
-  for (const x of normal) nach.set(x.to, [...(nach.get(x.to) ?? []), x.from]);
-  for (const x of weiter) nach.set(x.to, [...(nach.get(x.to) ?? []), ...(nach.get(x.from) ?? [x.from])]);
-  for (const [t, p] of seiten) {
-    const ii = p.imageinfo?.[0];
-    const wert = ii && !p.missing ? { url: ii.url, thumb: ii.thumburl ?? ii.url, w: ii.width, h: ii.height, mime: ii.mime, echt: t } : null;
-    for (const name of [t, ...(nach.get(t) ?? [])]) info.set(name.replace(/_/g, ' '), wert);
-  }
-  await warte(500);
+for (const d of dateiListe) {
+  let n = d.replace(/^File:/i, '').trim().replace(/\s+/g, '_'); n = n[0].toUpperCase() + n.slice(1);
+  const h = crypto.createHash('md5').update(n).digest('hex');
+  info.set(d, { url: `https://static.wikia.nocookie.net/fortnite/images/${h[0]}/${h.slice(0, 2)}/${encodeURIComponent(n)}/revision/latest/scale-to-width-down/512`, echt: `File:${n.replace(/_/g, ' ')}` });
 }
 const geladen = new Map(); // Dateiname -> Analyse
-const zuLaden = dateiListe.filter((d) => info.get(d));
+const zuLaden = dateiListe;
 await parallel(zuLaden, 4, async (d) => {
-  const i = info.get(d);
-  const buf = await bildLaden(i.w > 512 ? i.thumb : i.url);
-  if (!buf) { geladen.set(d, { fehler: 'nicht ladbar' }); return; }
+  const buf = await bildLaden(info.get(d).url);
+  if (!buf) { geladen.set(d, { fehler: 'nicht da' }); return; }
   try {
     const { data, info: r } = await sharp(buf, { animated: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const W = r.width; const H = r.height; let frei = 0; let x0 = W; let y0 = H; let x1 = -1; let y1 = -1;
@@ -256,12 +263,12 @@ for (const [n, w] of liste.entries()) {
   if (d.hub.quelle === 'keins') {
     const s = proSeite.get(w.wikiSeite); const nach = s ? seiteLesen(w.wikiSeite, s.text) : null;
     const dat = nach?.wikiBild?.startsWith('datei:') ? `File:${nach.wikiBild.slice(6)}`.replace(/_/g, ' ') : null;
-    d.hub.warum = !s ? 'Seite nicht gelesen' : dat ? (info.get(dat) ? `Infobox-Datei existiert (${dat}) - im Hub nicht aufgeloest` : `Infobox nennt ${dat} - die Datei gibt es nicht`)
+    d.hub.warum = !s ? 'Seite nicht gelesen' : dat ? (geladen.get(dat)?.buf ? `Infobox-Datei existiert (${dat}) - im Hub nicht aufgeloest` : `Infobox nennt ${dat} - die Datei gibt es nicht`)
       : s.seitenBild ? `keine Infobox-Datei erkannt (Seitenbild ${s.seitenBild} - im Hub nicht angekommen)` : 'weder Infobox-Datei noch Seitenbild';
     d.hub.infoboxRoh = Object.entries(Object.assign({}, ...vorlagen(s?.text ?? '').filter((x) => /infobox|weapon/i.test(x.name)).map((b) => b.params))).filter(([k]) => /^(image|icon)/.test(k)).map(([k, v]) => `${k}=${v.slice(0, 160)}`);
   }
-  d.kandidaten = (kandidaten.get(w.id) ?? []).map((x) => { const g = geladen.get(x.datei); const i = info.get(x.datei); return { d: x.datei.replace(/^File:/, ''), ib: x.infobox ? 1 : undefined, sb: x.seitenBild ? 1 : undefined, nm: x.name || undefined, rar: x.rar, ger: x.geraten ? 1 : undefined, da: i ? 1 : 0, gr: g?.W ? `${g.W}x${g.H}` : undefined, frei: g?.durchsichtig ? 1 : g?.W ? 0 : undefined, err: g?.fehler, p: Math.round(punkte(x) * 10) / 10 }; });
-  if (!k.length) { ohne.push(w.id); d.grund = !proSeite.has(w.wikiSeite) ? 'Seite nicht gelesen' : !(kandidaten.get(w.id) ?? []).some((x) => info.get(x.datei)) ? 'keine Bilddatei auf der Seite' : 'Dateien nicht ladbar oder kein passendes Bild'; continue; }
+  d.kandidaten = (kandidaten.get(w.id) ?? []).map((x) => { const g = geladen.get(x.datei); return { d: x.datei.replace(/^File:/, ''), ib: x.infobox ? 1 : undefined, sb: x.seitenBild ? 1 : undefined, nm: x.name || undefined, rar: x.rar, ger: x.geraten ? 1 : undefined, da: g?.buf ? 1 : 0, gr: g?.W ? `${g.W}x${g.H}` : undefined, frei: g?.durchsichtig ? 1 : g?.W ? 0 : undefined, err: g?.fehler, p: Math.round(punkte(x) * 10) / 10 }; });
+  if (!k.length) { ohne.push(w.id); d.grund = !proSeite.has(w.wikiSeite) ? 'Seite nicht gelesen' : !(kandidaten.get(w.id) ?? []).some((x) => geladen.get(x.datei)?.buf) ? 'keine Bilddatei auf der Seite' : 'Dateien nicht ladbar oder kein passendes Bild'; continue; }
   // Standardbild: durchsichtig und ohne Seltenheit vor durchsichtig mit Seltenheit vor allem anderen
   const ohneRar = k.filter((x) => !x.rar);
   const haupt = [...k].sort((a, b) => (b.p + (b.rar ? 0 : 0.5)) - (a.p + (a.rar ? 0 : 0.5)))[0] ?? ohneRar[0];
@@ -322,7 +329,7 @@ const bericht = {
     hubBildDurchsichtig: zaehle((d) => (d.hub.url?.startsWith('https://') ? `frei=${lastErgebnis.get(d.hub.url)?.frei}` : 'eigen/keins')),
     warumKeins: zaehle((d) => (d.hub.warum ?? '-').replace(/\(.*\)/, '').replace(/File:.*? -/, 'File -')),
   },
-  api429,
+  api429, bilderListe,
   neu: { waffen: Object.keys(manifest).length, durchsichtig: Object.values(manifest).filter((x) => x.f).length, jeSeltenheit: Object.values(manifest).filter((x) => x.r).length, dateien: gespeichert.size, bytes: summe, ohne: ohne.length, ladeStatus },
   waffen: diagnose.map((d) => ({ ...d, lasttest: d.hub.url ? lastErgebnis.get(d.hub.url) : undefined })),
 };
