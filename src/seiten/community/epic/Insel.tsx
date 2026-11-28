@@ -337,7 +337,7 @@ function Spielerzahl({ code, e, epic, seite, lang, istEpic }: { code: string; e:
         <div className="flex flex-col gap-5 border-b border-white/[0.07] p-5 sm:p-6 lg:border-b-0 lg:border-r">
           <div>
             <p className="ueber flex items-center gap-2">{nun ? <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative h-2 w-2 rounded-full bg-emerald-400" /></span> : null}Player count</p>
-            <p className="titel mt-2 text-7xl leading-none text-white sm:text-8xl">{nun ? <Zaehler wert={nun} /> : '–'}</p>
+            <p className="titel mt-2 text-6xl leading-none text-white sm:text-8xl lg:text-6xl 2xl:text-7xl">{nun ? <Zaehler wert={nun} /> : '–'}</p>
             <p className="mt-1 text-xs text-white/50">{nun ? 'playing right now' : laedt ? 'asking Epic …' : epic.fehler === 0 ? "no live number – Epic's Data API isn't answering" : epic.fehler === 404 ? 'not on Discover right now' : 'fewer than 5 players right now (Epic hides smaller numbers)'}</p>
           </div>
           <div className={`grid gap-4 lg:grid-cols-1 lg:gap-5 ${allzeit !== null ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
