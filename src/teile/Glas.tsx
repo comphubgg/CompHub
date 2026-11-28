@@ -24,4 +24,17 @@ export function Titel({ ueber, titel, text }: { ueber: string; titel: string; te
 }
 
 export const SEITE = 'https://www.thecomphub.com';
-export const flagge = (l?: string | null) => (l ? `/flags/${l.toLowerCase()}.png` : '');
+/*
+ * Flaggen liegen nur fuer diese Laender als Datei vor (public/flags auf thecomphub.com, wie VORHANDEN in comp/mehr/teile.tsx). Epic liefert fuer
+ * England/Wales/Schottland eigene Kuerzel (EN, WAL, SC) - die zeigen die britische Flagge; alles andere ohne Datei den Globus statt eines
+ * kaputten Bildes (vorher 404 bei en.png, wal.png, uy.png ... in Rankings, Tierlist, FNCS).
+ */
+const FLAGGEN = new Set(('ae al ar at au ba be bg bh br by ca ch cn co cz de dk ee eg es fi fr gb gr hr hu ie il in ir is it jp kr kw lb lt lv '
+  + 'mc md mk mx ng nl no nz om pe pl pt ro rs ru sa se si sk sy tr ua us ve ye').split(' '));
+const FLAGGE_ALIAS: Record<string, string> = { en: 'gb', eng: 'gb', wal: 'gb', wls: 'gb', sc: 'gb', sco: 'gb', sct: 'gb', nir: 'gb', uk: 'gb' };
+export const flagge = (l?: string | null) => {
+  if (!l) return '';
+  const k = l.toLowerCase();
+  const d = FLAGGE_ALIAS[k] ?? k;
+  return FLAGGEN.has(d) ? `/flags/${d}.png` : '/flags/flag-GLOBE.png';
+};

@@ -101,7 +101,9 @@ const VORHANDEN = new Set(('ae al ar at au ba be bg bh br by ca ch cn co cz de d
   + 'mc md mk mx ng nl no nz om pe pl pt ro rs ru sa se si sk sy tr ua us ve ye').split(' '));
 export const GLOBUS = '/flags/flag-GLOBE.png';
 export function flaggenPfad(land?: string | null) {
-  const k = land && /^[A-Za-z]{2}$/.test(land) ? land.toLowerCase() : null;
+  // EN/WAL/SC (England, Wales, Schottland bei Epic) -> britische Flagge statt Globus
+  const roh = land?.toLowerCase() ?? '';
+  const k = ['en', 'eng', 'wal', 'sc', 'sco', 'nir'].includes(roh) ? 'gb' : /^[a-z]{2}$/.test(roh) ? roh : null;
   return k && VORHANDEN.has(k) ? `/flags/${k}.png` : GLOBUS;
 }
 
