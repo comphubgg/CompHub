@@ -88,14 +88,15 @@ async function abfrageAlle(q) {
 /** Bild laden (mit Wiederholung) - Status-Codes zaehlen. */
 const ladeStatus = {};
 async function bildLaden(url) {
-  for (let v = 0; v < 6; v++) {
+  for (let v = 0; v < 8; v++) {
     try {
       const r = await fetch(url, { headers: { Accept: 'image/png,image/*;q=0.8' }, signal: AbortSignal.timeout(30_000) });
       ladeStatus[r.status] = (ladeStatus[r.status] ?? 0) + 1;
       if (r.status === 404) return null;
+      if (r.status === 429) await warte(Math.min(Number(r.headers.get('retry-after')) || 10, 120) * 1000);
       if (!r.ok) throw new Error(String(r.status));
       return Buffer.from(await r.arrayBuffer());
-    } catch { await warte(1500 * 2 ** v); }
+    } catch { await warte(1500 * 2 ** Math.min(v, 5)); }
   }
   return null;
 }
@@ -122,25 +123,9 @@ const diagnose = liste.map((w) => {
   return { id: w.id, name: w.name, seite: w.wikiSeite, hub: { quelle: eigen?.startsWith('/waffen/') ? 'eigenes-symbol' : eigen ? 'api-waffen-bilder' : wikiUrl ? 'wiki' : 'keins', url: zeigt, jeSeltenheit: Object.keys(w.wikiBilder ?? {}) } };
 });
 
-/* ---------------------------------------------- 1b. Lasttest wie im Browser: alle Wiki-Bilder des Hubs auf einmal */
-const hubUrls = [...new Set(diagnose.map((d) => d.hub.url).filter((u) => u?.startsWith('https://')))];
-const last = {};
-const lastErgebnis = new Map();
-await parallel(hubUrls, 60, async (u) => {
-  try {
-    const r = await echtFetch(u, { headers: KOPF, signal: AbortSignal.timeout(30_000) }); const buf = Buffer.from(await r.arrayBuffer());
-    last[r.status] = (last[r.status] ?? 0) + 1;
-    // Was der Browser dann zeigt: durchsichtig (Ecken frei) oder ein Quadrat mit Hintergrund?
-    let frei;
-    if (r.ok) { try { const { data, info: i } = await sharp(buf, { animated: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true }); frei = [[1, 1], [i.width - 2, 1], [1, i.height - 2], [i.width - 2, i.height - 2]].filter(([x, y]) => data[(y * i.width + x) * 4 + 3] < 16).length >= 3; } catch { frei = undefined; } }
-    lastErgebnis.set(u, { s: r.status, frei });
-  } catch (f) { last.fehler = (last.fehler ?? 0) + 1; lastErgebnis.set(u, { s: 'fehler' }); }
-});
-console.log('Lasttest (60 gleichzeitig):', JSON.stringify(last));
 // Zwischenstand sichern (falls spaeter etwas scheitert)
 fs.writeFileSync(path.join(AUS, 'hub-liste.json'), `${JSON.stringify(liste)}\n`);
-fs.writeFileSync(path.join(AUS, 'diagnose-hub.json'), `${JSON.stringify({ hubFehler, last, waffen: diagnose.map((d) => ({ ...d, lasttest: lastErgebnis.get(d.hub.url) })) }, null, 1)}\n`);
-await warte(5000);
+fs.writeFileSync(path.join(AUS, 'diagnose-hub.json'), `${JSON.stringify({ hubFehler, waffen: diagnose }, null, 1)}\n`);
 
 /* ---------------------------------------------- 2. Je Seite: Quelltext, Seitenbild, alle Dateien */
 const titel = [...new Set(liste.map((w) => w.wikiSeite).filter(Boolean))];
@@ -295,7 +280,36 @@ for (const [n, w] of liste.entries()) {
   d.gewaehlt = { haupt: e.q, frei: e.f, nurAehnlich: stufeA.length ? undefined : 1, je: Object.fromEntries(Object.entries(je).map(([r, x]) => [r, x.q])) };
 }
 
+/* ---------------------------------------------- 1b. Lasttest wie im Browser (ganz am Ende - er kann das Wiki eine Weile sperren) */
+const hubUrls = [...new Set(diagnose.map((d) => d.hub.url).filter((u) => u?.startsWith('https://')))];
+const last = {};
+const lastErgebnis = new Map();
+const nachLast = [];
+async function lasttest() {
+  const t1 = Date.now();
+  await parallel(hubUrls, 60, async (u) => {
+    try {
+      const r = await echtFetch(u, { headers: KOPF, signal: AbortSignal.timeout(30_000) }); const buf = Buffer.from(await r.arrayBuffer());
+      last[r.status] = (last[r.status] ?? 0) + 1;
+      // Was der Browser dann zeigt: durchsichtig (Ecken frei) oder ein Quadrat mit Hintergrund?
+      let frei;
+      if (r.ok) { try { const { data, info: i } = await sharp(buf, { animated: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true }); frei = [[1, 1], [i.width - 2, 1], [1, i.height - 2], [i.width - 2, i.height - 2]].filter(([x, y]) => data[(y * i.width + x) * 4 + 3] < 16).length >= 3; } catch { frei = undefined; } }
+      lastErgebnis.set(u, { s: r.status, frei });
+    } catch (f) { last.fehler = (last.fehler ?? 0) + 1; lastErgebnis.set(u, { s: 'fehler', f: String(f?.cause?.code ?? f?.message) }); }
+  });
+  last.sekunden = Math.round((Date.now() - t1) / 1000);
+  console.log('Lasttest (60 gleichzeitig):', JSON.stringify(last));
+  // Danach: antwortet die Wiki-API noch? (alle 15 s, 3 Minuten lang)
+  for (let n = 0; n < 12; n++) {
+    const r = await echtFetch(`${API}?action=query&meta=siteinfo&format=json`, { headers: KOPF }).catch((f) => ({ status: String(f?.message), headers: new Headers() }));
+    nachLast.push({ nachSek: n * 15, s: r.status, retryAfter: r.headers.get?.('retry-after') ?? null });
+    await warte(15_000);
+  }
+  console.log('Wiki-API nach dem Lasttest:', JSON.stringify(nachLast.map((x) => x.s)));
+}
+
 /* ---------------------------------------------- 5. Ausgabe */
+await lasttest();
 const summe = [...gespeichert.values()].reduce((s, x) => s + x.bytes, 0);
 fs.writeFileSync(path.join(AUS, 'public', 'waffen', 'alle.json'), `${JSON.stringify({ stand: new Date().toISOString(), quelle: 'fortnite.fandom.com', waffen: manifest })}\n`);
 const zaehle = (f) => diagnose.reduce((m, d) => { const k = f(d); m[k] = (m[k] ?? 0) + 1; return m; }, {});
@@ -304,7 +318,7 @@ const bericht = {
   hub: {
     waffen: liste.length, anfragen: hubProtokoll.length, fehlerAnfragen: hubFehler,
     bildQuelle: zaehle((d) => d.hub.quelle),
-    lasttest: { gleichzeitig: 60, urls: hubUrls.length, status: last },
+    lasttest: { gleichzeitig: 60, urls: hubUrls.length, status: last, wikiApiDanach: nachLast },
     hubBildDurchsichtig: zaehle((d) => (d.hub.url?.startsWith('https://') ? `frei=${lastErgebnis.get(d.hub.url)?.frei}` : 'eigen/keins')),
     warumKeins: zaehle((d) => (d.hub.warum ?? '-').replace(/\(.*\)/, '').replace(/File:.*? -/, 'File -')),
   },

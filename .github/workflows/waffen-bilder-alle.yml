@@ -1,7 +1,8 @@
 # ALLE Waffen, die es je gab, mit eigenem Bild (scripts/waffen-bilder-alle.mjs) - die Sandbox kommt nicht ans Wiki, der Runner schon.
 # Liest die Waffenliste GENAU wie die Hub-Vorschau (src/seiten/community/waffenWiki.ts vom Branch hub-vorschau, gebuendelt), stellt fest, warum
 # Karten ohne Bild blieben, und legt je Waffe (und Seltenheit) das beste Bild als WebP ab: public/waffen/alle/*.webp + public/waffen/alle.json.
-# Ergebnis als Artefakt "waffen-bilder-alle" (mit diagnose.json) und als Tar im Release "medien"; eingecheckt wird von Hand (wie waffen-bilder-lokal).
+# Ergebnis als Tar im Release "medien" (waffen-bilder-alle.tar = public/..., waffen-bilder-alle-diagnose.tar = diagnose.json, Hub-Liste);
+# eingecheckt wird von Hand (wie waffen-bilder-lokal).
 name: Waffen-Bilder alle
 on:
   workflow_dispatch:
@@ -23,16 +24,11 @@ jobs:
           cp "$GITHUB_WORKSPACE/scripts/waffen-bilder-alle.mjs" /tmp/w/
       - name: Laden
         run: cd /tmp/w && node waffen-bilder-alle.mjs /tmp/w/hub "$GITHUB_WORKSPACE/aus"
-      - uses: actions/upload-artifact@v4
+      - name: Ins Release medien (Bilder + Diagnose, auch wenn etwas scheiterte)
         if: always()
-        with:
-          name: waffen-bilder-alle
-          path: aus
-          retention-days: 14
-      - name: Ins Release medien
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          tar cf waffen-bilder-alle.tar -C aus public
-          ls -la waffen-bilder-alle.tar
-          du -sh aus/public/waffen/alle
-          gh release upload medien waffen-bilder-alle.tar --clobber
+          ls aus
+          if [ -d aus/public/waffen/alle ]; then du -sh aus/public/waffen/alle; tar cf waffen-bilder-alle.tar -C aus public; gh release upload medien waffen-bilder-alle.tar --clobber; fi
+          tar cf waffen-bilder-alle-diagnose.tar -C aus --exclude=public .
+          gh release upload medien waffen-bilder-alle-diagnose.tar --clobber
