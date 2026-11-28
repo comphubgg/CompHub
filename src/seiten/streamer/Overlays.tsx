@@ -107,9 +107,9 @@ export default function Overlays() {
         </ol>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
         {/* ------------------------------------------------ 1 Choose */}
-        <aside className="fl-fest p-3 lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto">
+        <aside className="fl-fest min-w-0 p-3 lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto">
           <p className="px-1 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">1 · Choose</p>
           {/* Handy: ein Streifen zum Wischen (die Buehne folgt gleich darunter), ab lg eine Spalte */}
           <div className="ohne-leiste -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0">
