@@ -2,9 +2,9 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LinkKopieren } from '../Bausteine';
-import { Bild, Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { Bild, Flaeche, Laedt, Leer, Segment, SeitenKopf } from '../../../ds/Bausteine';
 import { auftritte, datumKurz, holen, QUELLEN, seltenVon, tageSeit, useShop, useTeile, type Teil } from './daten';
-import { Auswahl, Bereich, Kachel, preis as vb, Schalter, ZahlenLeiste } from './Raster';
+import { Kachel, preis as vb, Schalter } from './Raster';
 
 /*
  * Weitere Kosmetik-Seiten der Spezifikation:
@@ -16,15 +16,19 @@ import { Auswahl, Bereich, Kachel, preis as vb, Schalter, ZahlenLeiste } from '.
  *   Most Used         (Punkt 11) Epic veroeffentlicht keine Nutzungszahlen -> ehrliche Karte
  */
 
-/* ---------------------------------------------- New in the files */
+/* ---------------------------------------------- New in the files (Design 3.0, neu komponiert 28.11.2026)
+ * Das Update ist die Buehne: Versionsnummer gross, verglichen mit, Zahlen. Darunter getrennt, was noch NICHT raus ist (das Spannende, breite
+ * Spalte) und was schon im Shop war. Danach eine Zeitleiste: links klebt der Tag, rechts seine Kacheln; Status und Zeitraum als Segmente.
+ */
 interface Neu { date: string; build: string; previousBuild: string; items: Record<string, unknown[] | null> }
+const version = (b: string) => b.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '');
 export function NeuInDateien() {
   const [neu, setNeu] = useState<Neu | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => { holen<Neu>('/v2/cosmetics/new').then(setNeu).catch((e) => setFehler((e as Error).message)); }, []);
   const { teile, laedt } = useTeile(['br', 'track']);
-  const [tage, setTage] = useState('30');
-  const [stufe, setStufe] = useState('alle');
+  const [tage, setTage] = useState<'7' | '30' | '60'>('30');
+  const [stufe, setStufe] = useState<'alle' | 'raus' | 'nicht'>('alle');
   const patch = useMemo(() => {
     if (!neu) return [] as Teil[];
     const ids = new Set([...(neu.items.br ?? []), ...(neu.items.tracks ?? []), ...(neu.items.instruments ?? [])].map((x) => String((x as { id: string }).id).toLowerCase()));
@@ -41,41 +45,74 @@ export function NeuInDateien() {
     for (const t of l) { const k = t.hinzu.slice(0, 10); m.set(k, [...(m.get(k) ?? []), t]); }
     return [...m.entries()];
   }, [teile, tage, stufe]);
-  const unveroeffentlicht = patch.filter((t) => !t.shop.length).length;
+  const offen = patch.filter((t) => !t.shop.length); const raus = patch.filter((t) => t.shop.length);
+  const raster = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4';
   return (
-    <div className="space-y-6">
-      <SeitenKopf klein ueber="Community · Cosmetics" titel="New in the files"
-        text="Cosmetics that were added to Fortnite's game files with the latest updates – some are already out, others haven't been released yet." rechts={<LinkKopieren />} />
-      {fehler && <Flaeche fest className="p-6 text-sm text-white/60">The list couldn't be loaded ({fehler}).</Flaeche>}
-      {neu && (
-        <ZahlenLeiste werte={[['Latest update', neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')], ['Compared with', neu.previousBuild.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')],
-          ['New items', patch.length.toLocaleString('en')], ['Not released yet', laedt ? '…' : unveroeffentlicht.toLocaleString('en')]]} />
-      )}
+    <div className="space-y-8">
+      {/* ------------------------------------------------ das Update als Buehne */}
+      <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="fl-fest relative overflow-hidden p-6 lg:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-akz/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+          <div>
+            <p className="ueber">Community · New in the files</p>
+            <h1 className="titel mt-2 text-7xl lg:text-8xl">{neu ? `v${version(neu.build)}` : fehler ? 'New in the files' : '…'}</h1>
+            <p className="mt-2 text-sm text-white/55">{neu ? <>Latest update, {datumKurz(neu.date)} · compared with v{version(neu.previousBuild)}</> : fehler ? `The list couldn't be loaded (${fehler}).` : 'Reading the latest update'}</p>
+          </div>
+          <div className="flex flex-wrap gap-x-10 gap-y-4">
+            {([['New items', patch.length, 'text-white'], ['Not released yet', offen.length, 'text-rose-300'], ['Already out', raus.length, 'text-emerald-300']] as const).map(([k, v, f]) => (
+              <div key={k}><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{k}</p><p className={`titel zahl text-6xl ${f}`}>{neu && !laedt ? v : '…'}</p></div>
+            ))}
+            <div className="self-center"><LinkKopieren /></div>
+          </div>
+        </div>
+        <p className="relative mt-4 max-w-3xl text-xs text-white/40">Cosmetics added to Fortnite's game files with the latest updates – some are already out, others haven't been released yet and can still change or never come out.</p>
+      </motion.header>
+
       {laedt && <Laedt text="Loading cosmetics" />}
       {neu && patch.length > 0 && (
-        <Bereich titel={<>With update {neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')} <span className="text-sm font-semibold text-white/40">{datumKurz(neu.date)}</span></>}>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
-            {patch.map((t, i) => <Kachel key={t.id} t={t} index={i} link={t.art !== 'instrument'} unten={<Stufe t={t} />} />)}
-          </div>
-        </Bereich>
-      )}
-      <Bereich titel="Added recently" rechts={
-        <div className="flex flex-wrap gap-2">
-          <Auswahl titel="Status" wert={stufe} setzen={setStufe} optionen={[['alle', 'All'], ['raus', 'Released'], ['nicht', 'Not released yet']]} />
-          <Auswahl titel="Period" wert={tage} setzen={setTage} optionen={[['7', 'Last 7 days'], ['30', 'Last 30 days'], ['60', 'Last 60 days']]} />
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <section className="space-y-3">
+            <div className="flex items-center gap-3"><span className="h-6 w-1 rounded-full bg-rose-400 shadow-[0_0_14px_rgba(251,113,133,0.8)]" /><h2 className="titel text-3xl">Not released yet <span className="zahl text-base text-white/40">{offen.length}</span></h2></div>
+            {offen.length ? <div className={`${raster} xl:grid-cols-5 2xl:grid-cols-6`}>{offen.map((t, i) => <Kachel key={t.id} t={t} index={i} link={t.art !== 'instrument'} unten={<Stufe t={t} />} />)}</div>
+              : <Leer text="Everything from this update is already out." />}
+          </section>
+          <section className="space-y-3">
+            <div className="flex items-center gap-3"><span className="h-6 w-1 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" /><h2 className="titel text-3xl">Already out <span className="zahl text-base text-white/40">{raus.length}</span></h2></div>
+            {raus.length ? <div className={`${raster} xl:grid-cols-3 2xl:grid-cols-4`}>{raus.map((t, i) => <Kachel key={t.id} t={t} index={i} link={t.art !== 'instrument'} unten={<Stufe t={t} />} />)}</div>
+              : <Leer text="Nothing from this update has been in the shop yet." />}
+          </section>
         </div>
-      }>
-        {juengst.map(([tag, l], gi) => (
-          <div key={tag} className="space-y-2">
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(gi, 10) * 0.04 }} className="text-sm font-bold text-white/70">{datumKurz(tag)} <span className="font-semibold text-white/35">· {l.length} items</span></motion.p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
-              {l.slice(0, 40).map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<Stufe t={t} />} />)}
-            </div>
-            {l.length > 40 && <p className="text-xs text-white/35">+{l.length - 40} more from this day – see <Link to="/community/cosmetics" className="text-akz">Cosmetics</Link> sorted by newest.</p>}
+      )}
+
+      {/* ------------------------------------------------ Zeitleiste */}
+      <section className="space-y-4">
+        <div className="fl-fest flex flex-wrap items-center justify-between gap-3 p-2 pl-5">
+          <h2 className="titel text-3xl">Added recently</h2>
+          <div className="flex flex-wrap gap-2">
+            <Segment id="neu-stufe" klein wert={stufe} onWahl={setStufe} wahl={[{ k: 'alle', titel: 'All' }, { k: 'raus', titel: 'Released' }, { k: 'nicht', titel: 'Not released yet' }]} />
+            <Segment id="neu-tage" klein wert={tage} onWahl={setTage} wahl={[{ k: '7', titel: '7 days' }, { k: '30', titel: '30 days' }, { k: '60', titel: '60 days' }]} />
           </div>
-        ))}
-        {!laedt && !juengst.length && <Flaeche fest className="p-8 text-center text-sm text-white/45">Nothing in this period.</Flaeche>}
-      </Bereich>
+        </div>
+        <div className="relative">
+          <span className="absolute bottom-0 left-[7px] top-2 hidden w-px bg-white/[0.08] md:block" />
+          {juengst.map(([tag, l], gi) => (
+            <div key={tag} className="relative grid gap-3 pb-7 md:grid-cols-[170px_minmax(0,1fr)]">
+              <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(gi, 10) * 0.04 }} className="md:sticky md:top-[7.5rem] md:self-start md:pl-7">
+                <span className="absolute left-0 top-2 hidden h-[15px] w-[15px] rounded-full border-2 border-akz bg-grund md:block" />
+                <p className="titel text-3xl leading-none">{new Date(tag).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                <p className="mt-1 text-xs text-white/45">{new Date(tag).toLocaleDateString('en-GB', { weekday: 'long' })} · <span className="zahl">{l.length}</span> items</p>
+              </motion.div>
+              <div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-9">
+                  {l.slice(0, 36).map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<Stufe t={t} />} />)}
+                </div>
+                {l.length > 36 && <p className="mt-2 text-xs text-white/35">+{l.length - 36} more from this day – see <Link to="/community/cosmetics" className="text-akz">Cosmetics</Link> sorted by newest.</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+        {!laedt && !juengst.length && <Leer text="Nothing in this period." />}
+      </section>
       <p className="text-[11px] text-white/30">Data: fortnite-api.com, which reads the public game files after every update. Items that aren't released yet can still change or never come out.</p>
     </div>
   );
