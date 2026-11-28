@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Glas, flagge } from '../../../teile/Glas';
+import { Laedt, Leer } from '../../../ds/Bausteine';
+import { flagge } from '../../../teile/Glas';
 import { useWer } from '../../../teile/Anmeldung';
 import { zahl } from './gemeinsam';
-import { Avatar, type LbSpieler, spielerName } from './Bestenliste';
+import { type LbSpieler, spielerName } from './Bestenliste';
+import { Hochkant } from './teile';
 
 /*
  * Spieler-Stats eines Spieltags (/api/cup-spieler): Schaden, Elims, Treffer, Bauteile, Mats ... je Spieler aus den Server-Replays.
+ * Neu gesetzt: oben die Tagesbesten je Wertung als Fotokacheln (ein Klick sortiert die Tabelle danach), darunter die sortierbare Tabelle.
  * Sternchen-Regel wie auf der Seite: solange nicht alle Runden gelesen sind, bekommen Spieler ohne elimsAusReplay ein Sternchen an den Replay-Werten.
  */
 
@@ -25,6 +28,11 @@ const SPALTEN: Array<{ feld: keyof Zeile; titel: string; f?: Format; replay?: bo
   { feld: 'hits', titel: 'Hits', replay: true }, { feld: 'headshots', titel: 'Headshots', replay: true }, { feld: 'builds', titel: 'Builds', replay: true },
   { feld: 'matsFarmed', titel: 'Mats farmed', replay: true }, { feld: 'timeAlive', titel: 'Time alive', f: 'zeit', replay: true },
   { feld: 'distanz', titel: 'Distance', f: 'km', replay: true }, { feld: 'reboots', titel: 'Reboots', replay: true },
+];
+/** Die Wertungen der Fotokacheln oben. */
+const BESTE: Array<{ feld: keyof Zeile; titel: string; f?: Format }> = [
+  { feld: 'elims', titel: 'Most eliminations' }, { feld: 'damage', titel: 'Most damage' }, { feld: 'headshots', titel: 'Most headshots' },
+  { feld: 'builds', titel: 'Most builds' }, { feld: 'matsFarmed', titel: 'Most mats farmed' }, { feld: 'timeAlive', titel: 'Longest alive', f: 'zeit' },
 ];
 const zeigen = (v: unknown, f?: Format) => {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
@@ -56,42 +64,66 @@ export default function SpielerStats({ eventId, windowId, live, spielerInfo }: {
   }, [eventId, windowId, live]);
 
   const teilweise = !!d?.rundenGesamt && (d.rundenGesamt ?? 0) > (d.runden ?? 0);
-  const spalten = useMemo(() => SPALTEN.filter((s) => d?.spieler.some((z) => typeof z[s.feld] === 'number' && (z[s.feld] as number) > 0)), [d]);
+  const spalten = useMemo(() => SPALTEN.filter((s) => d?.spieler?.some((z) => typeof z[s.feld] === 'number' && (z[s.feld] as number) > 0)), [d]);
   const liste = useMemo(() => {
     const t = q.trim().toLowerCase();
     const l = (d?.spieler ?? []).filter((z) => !t || `${z.name} ${spielerInfo.get(z.epicId)?.anzeige ?? ''}`.toLowerCase().includes(t));
     const w = (z: Zeile) => (typeof z[sort.feld] === 'number' ? (z[sort.feld] as number) : sort.ab ? -Infinity : Infinity);
     return [...l].sort((a, b) => (sort.ab ? w(b) - w(a) : w(a) - w(b)));
   }, [d, q, sort, spielerInfo]);
+  /** Der Tagesbeste je Wertung. */
+  const beste = useMemo(() => BESTE.map((b) => {
+    let top: Zeile | null = null;
+    for (const z of d?.spieler ?? []) { const v = z[b.feld]; if (typeof v === 'number' && v > 0 && (!top || v > (top[b.feld] as number))) top = z; }
+    return top ? { ...b, z: top as Zeile } : null;
+  }).filter((x): x is NonNullable<typeof x> => !!x), [d]);
 
   if (status === 'anmelden') return (
-    <Glas className="p-10 text-center">
-      <p className="text-lg font-bold text-white">Sign in to see this</p>
-      <p className="mt-1 text-sm text-white/50">Player stats for this match day need a CompHub account.</p>
-      <button type="button" onClick={() => oeffnen('konto')} className="mt-4 rounded-xl bg-sky-400 px-5 py-2.5 text-sm font-bold text-[#06080f] hover:bg-sky-300">Sign in</button>
-    </Glas>
+    <div className="p-6"><Leer text={<><span className="block text-base font-bold text-white">Sign in to see this</span>Player stats for this match day need a CompHub account.</>}>
+      <button type="button" onClick={() => oeffnen('konto')} className="knopf-prim">Sign in</button>
+    </Leer></div>
   );
-  if (status === 'laedt') return <div className="space-y-1.5 p-4">{[...Array(10)].map((_, i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-white/[0.03]" />)}</div>;
+  if (status === 'laedt') return <Laedt text="Loading player stats" />;
   if (status === 'fehler' || !d) return <p className="p-10 text-center text-sm text-white/50">Player stats aren't reachable right now.</p>;
   if (!d.vorhanden || !d.spieler?.length) return <p className="p-10 text-center text-sm leading-relaxed text-white/50">{d.hinweis || 'Per-player values come from the server replays — they are not read for this match day yet.'}</p>;
 
   const kopf = (feld: keyof Zeile) => setSort((s) => ({ feld, ab: s.feld === feld ? !s.ab : feld !== 'platz' }));
+  const person = (z: Zeile): LbSpieler => spielerInfo.get(z.epicId) ?? { id: z.epicId, name: z.name, land: z.land };
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 border-b border-white/5 px-4 py-3 text-xs text-white/50">
-        <span>{zahl(d.gesamt ?? d.spieler.length)} players</span>
+      {/* ------------------------------------------------ Tagesbeste als Fotokacheln */}
+      {beste.length > 0 && (
+        <div className="grid grid-cols-2 gap-px border-b border-white/[0.06] bg-white/[0.06] md:grid-cols-3 2xl:grid-cols-6">
+          {beste.map((b, i) => {
+            const p = person(b.z); const an = sort.feld === b.feld;
+            return (
+              <motion.button key={b.feld} type="button" onClick={() => setSort({ feld: b.feld, ab: true })} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
+                className={`flex items-center gap-3 px-4 py-3 text-left transition ${an ? 'bg-akz/10' : 'bg-fl hover:bg-white/[0.03]'}`}>
+                <Hochkant p={p} mass="h-14 w-[42px]" />
+                <span className="min-w-0">
+                  <span className={`block text-[9px] font-semibold uppercase tracking-[0.2em] ${an ? 'text-akz' : 'text-white/40'}`}>{b.titel}</span>
+                  <span className="titel zahl block text-3xl">{zeigen(b.z[b.feld], b.f)}</span>
+                  <span className="block truncate text-xs font-semibold text-white/75">{spielerName(p)}</span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.06] px-4 py-3 text-xs text-white/50 sm:px-5">
+        <span className="zahl">{zahl(d.gesamt ?? d.spieler.length)} players</span>
         <span>·</span>
-        {teilweise ? <span className="text-amber-300/90">{zahl(d.runden)} of {zahl(d.rundenGesamt)} games read from replays</span> : <span>{zahl(d.runden)} games</span>}
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="ml-auto w-56 rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
+        {teilweise ? <span className="zahl text-amber-300/90">{zahl(d.runden)} of {zahl(d.rundenGesamt)} games read from replays</span> : <span className="zahl">{zahl(d.runden)} games</span>}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="eingabe ml-auto w-full !py-1.5 sm:w-56" />
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-sm">
+        <table className="tabelle min-w-[1100px]">
           <thead>
-            <tr className="border-b border-white/10 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40">
-              <th className="w-12 px-4 py-2.5 text-left">#</th>
-              <th className="px-2 py-2.5 text-left">Player</th>
+            <tr>
+              <th className="w-12 !pl-5">#</th>
+              <th>Player</th>
               {spalten.map((s) => (
-                <th key={s.feld} onClick={() => kopf(s.feld)} className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 text-right transition hover:text-white ${sort.feld === s.feld ? 'text-sky-300' : ''}`}>
+                <th key={s.feld} onClick={() => kopf(s.feld)} className={`cursor-pointer select-none whitespace-nowrap !text-right transition hover:!text-white ${sort.feld === s.feld ? '!text-akz' : ''}`}>
                   {s.titel}{sort.feld === s.feld ? (sort.ab ? ' ↓' : ' ↑') : ''}
                 </th>
               ))}
@@ -100,36 +132,39 @@ export default function SpielerStats({ eventId, windowId, live, spielerInfo }: {
           <tbody>
             {liste.slice(0, zeige).map((z, i) => {
               const info = spielerInfo.get(z.epicId);
-              const p: LbSpieler = info ?? { id: z.epicId, name: z.name, land: z.land };
+              const p = person(z);
               const stern = teilweise && !z.elimsAusReplay;
               const land = info?.land || z.land || info?.spielLand;
               return (
-                <motion.tr key={z.epicId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 20) * 0.015 }} className="border-b border-white/[0.04] hover:bg-white/[0.03]">
-                  <td className="px-4 py-2 text-xs font-bold tabular-nums text-white/45">{i + 1}</td>
-                  <td className="px-2 py-2">
+                <tr key={z.epicId}>
+                  <td className="zahl !py-1.5 !pl-5 text-xs font-bold text-white/45">{i + 1}</td>
+                  <td className="!py-1.5">
                     <Link to={`/competitive/player/${z.epicId}`} className="group flex items-center gap-2.5">
-                      <span className="flex h-9 w-7 shrink-0"><Avatar p={p} klein /></span>
-                      {land && <img src={flagge(land)} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />}
-                      <span className="truncate font-semibold text-white group-hover:text-sky-300">{spielerName(p)}</span>
+                      {/* Foto oder nichts - der Platz bleibt, damit die Namen untereinander stehen */}
+                      <span className="flex h-10 w-[30px] shrink-0"><Hochkant p={p} mass="h-10 w-[30px]" rund="rounded-md" /></span>
+                      {land ? <img src={flagge(land)} alt="" className="h-3 w-[18px] shrink-0 rounded-[3px] object-cover" /> : <span className="w-[18px] shrink-0" />}
+                      <span className="truncate font-semibold text-white transition group-hover:text-akz">{spielerName(p)}</span>
                     </Link>
                   </td>
                   {spalten.map((s) => (
-                    <td key={s.feld} className={`whitespace-nowrap px-3 py-2 text-right tabular-nums ${sort.feld === s.feld ? 'font-bold text-white' : 'text-white/70'}`}>
+                    <td key={s.feld} className={`zahl whitespace-nowrap !py-1.5 text-right ${sort.feld === s.feld ? 'font-bold text-white' : 'text-white/65'}`}>
                       {zeigen(z[s.feld], s.f)}{stern && s.replay && typeof z[s.feld] === 'number' ? <span className="text-amber-300">*</span> : null}
                     </td>
                   ))}
-                </motion.tr>
+                </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {liste.length > zeige && <div className="flex justify-center p-4"><button type="button" onClick={() => setZeige((x) => x + 200)} className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2 text-sm font-semibold text-white/80 hover:border-sky-400/40">Show more ({zahl(liste.length - zeige)})</button></div>}
-      <p className="border-t border-white/5 px-4 py-3 text-[11px] leading-relaxed text-white/40">
-        {teilweise && <><span className="text-amber-300">*</span> Not every game of this player has been read from the replays yet — replay values are provisional. </>}
-        {d.streckeGeschaetzt && 'Distance is estimated from position samples. '}
-        {d.hinweis}
-      </p>
+      {liste.length > zeige && <div className="flex justify-center p-4"><button type="button" onClick={() => setZeige((x) => x + 200)} className="knopf">Show more ({zahl(liste.length - zeige)})</button></div>}
+      {(teilweise || d.streckeGeschaetzt || d.hinweis) && (
+        <p className="border-t border-white/[0.06] px-5 py-3 text-[11px] leading-relaxed text-white/40">
+          {teilweise && <><span className="text-amber-300">*</span> Not every game of this player has been read from the replays yet — replay values are provisional. </>}
+          {d.streckeGeschaetzt && 'Distance is estimated from position samples. '}
+          {d.hinweis}
+        </p>
+      )}
     </div>
   );
 }
