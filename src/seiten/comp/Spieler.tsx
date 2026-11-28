@@ -308,6 +308,7 @@ export default function Spieler() {
   const geldMax = Math.max(1, ...proJahr.map(([, v]) => v.geld));
   const vertMax = Math.max(1, ...verteilung.map((v) => v.n));
   const mitFoto = !!sp?.bild && !bildKaputt;
+  const mitGeld = geldKarriere > 0 || (basis.fncs?.titel ?? 0) + (basis.lan ?? []).filter((l) => l.platz === 1).length > 0;
 
   const werte: Array<[string, string, string?]> = spZ ? ([
     ['Eliminations', zahl(spZ.elims), spZ.matchesElims ? `over ${zahl(spZ.matchesElims)} matches with replay data` : undefined],
@@ -342,7 +343,7 @@ export default function Spieler() {
         {bilderGal[0] && <img src={galBild(bilderGal[0])} alt="" className="absolute inset-y-0 right-0 -z-10 h-full w-full object-cover opacity-60 lg:w-[72%]" />}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/90 to-fl/35" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-fl/25 to-transparent" />
-        <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-end lg:gap-8 lg:p-8">
+        <div className={`grid gap-6 p-5 sm:p-7 lg:items-end lg:gap-8 lg:p-8 ${mitFoto ? (mitGeld ? 'lg:grid-cols-[auto_minmax(0,1fr)_auto]' : 'lg:grid-cols-[auto_minmax(0,1fr)]') : mitGeld ? 'lg:grid-cols-[minmax(0,1fr)_auto]' : ''}`}>
           {mitFoto && (
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}
               className="relative mx-auto h-[300px] w-[225px] shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/10 lg:mx-0 lg:h-[360px] lg:w-[270px]">
@@ -351,7 +352,9 @@ export default function Spieler() {
               {index?.pr?.platz ? <span className="zahl absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-bold text-akz ring-1 ring-akz/40 backdrop-blur">PR #{zahl(index.pr.platz)}</span> : null}
             </motion.div>
           )}
-          <div className="min-w-0">
+          {/* ohne Foto stehen die Raenge rechts neben dem Namen - sonst bliebe die Buehne rechts leer */}
+          <div className={`min-w-0 ${mitFoto ? '' : 'lg:flex lg:items-end lg:justify-between lg:gap-10'}`}>
+            <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-sm text-white/65">
               {land && <img src={flagge(land)} alt="" className="h-4 w-6 rounded-[3px] object-cover ring-1 ring-white/15" />}
               <span className="font-semibold">{landName(land) ?? 'Competitive Fortnite player'}</span>
@@ -374,7 +377,8 @@ export default function Spieler() {
               )}
               {sozial.map((s) => <a key={s.feld} href={s.url(s.h as string)} target="_blank" rel="noreferrer" className="chip">{s.name}{s.feld === 'x' ? ` @${s.h}` : ''} ↗</a>)}
             </div>
-            <div className="mt-5 flex flex-wrap gap-x-7 gap-y-4">
+            </div>
+            <div className={`mt-5 flex flex-wrap gap-x-7 gap-y-4 ${mitFoto ? '' : 'lg:shrink-0 lg:justify-end'}`}>
               {index?.pr?.platz ? (
                 <div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">Power Ranking</p>
                   <p className="titel zahl text-4xl !text-akz">#{zahl(index.pr.platz)}</p><p className="zahl text-[11px] text-white/40">{zahl(index.pr.punkte)} pts</p></div>
@@ -401,8 +405,8 @@ export default function Spieler() {
               )}
             </div>
           </div>
-          {/* Preisgeld und Titel */}
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.06] lg:w-[300px] lg:grid-cols-1">
+          {/* Preisgeld und Titel - nur, wenn es welche gibt (keine Kasten voller Striche) */}
+          {mitGeld && <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.06] lg:w-[300px] lg:grid-cols-1">
             <div className="col-span-2 bg-fl/90 px-5 py-4 backdrop-blur lg:col-span-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">Career earnings</p>
               <p className="titel mt-1 text-5xl !text-emerald-300">{geldKarriere > 0 ? <Zaehler wert={geldKarriere} format={geld} /> : '—'}</p>
@@ -417,7 +421,7 @@ export default function Spieler() {
               <p className="titel zahl mt-0.5 text-3xl !text-amber-300">{titel || '—'}</p>
               {titel > 0 && <p className="truncate text-[11px] text-white/40">{[basis.fncs?.titel ? `${basis.fncs.titel} FNCS` : '', lanSiege ? `${lanSiege} LAN` : ''].filter(Boolean).join(' · ')}</p>}
             </div>
-          </div>
+          </div>}
         </div>
       </motion.header>
 
