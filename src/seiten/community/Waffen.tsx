@@ -4,7 +4,7 @@ import { Glas } from '../../teile/Glas';
 import { Bald, Laedt, TEAL, Ueberschrift } from './Teile';
 import { kern, waffeVon } from './waffenNamen';
 import { useDatenbank } from './waffenDaten';
-import { useWikiWaffen, zusammenfuehren } from './waffenWiki';
+import { useWikiWaffen, wikiProxy, zusammenfuehren } from './waffenWiki';
 import WaffenDatenbank, { turnierZuordnen } from './WaffenDatenbank';
 import { Aenderungen, Einzelwaffe, VergleichSeite, WaffenTabs } from './WaffenSeiten';
 import { DatenFehlen, Hinweis } from './Bausteine';
@@ -43,7 +43,7 @@ function useWiki() {
   useEffect(() => {
     fetch('/api/waffen-bilder').then((r) => r.json()).then((j: Record<string, { name: string; bild: string }>) => {
       const neu = new Map<string, { name: string; bild: string }>();
-      for (const [k, v] of Object.entries(j ?? {})) { const n = kern(k); if (!neu.has(n)) neu.set(n, v); }
+      for (const [k, v] of Object.entries(j ?? {})) { const n = kern(k); if (!neu.has(n)) neu.set(n, { ...v, bild: wikiProxy(v.bild) ?? v.bild }); }
       setM(neu);
     }).catch(() => {});
   }, []);
@@ -67,7 +67,7 @@ function Karte({ w, gesamt, spielerTage, wiki, i }: { w: Waffe; gesamt: number; 
         <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: farbe }} />
         {bild && !kaputt
           ? <img src={bild} alt={name} loading="lazy" referrerPolicy="no-referrer" onError={() => setKaputt(true)} className="absolute left-1/2 top-1/2 h-[110px] w-[110px] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)] transition duration-500 group-hover:scale-110" />
-          : <span className="absolute inset-0 grid place-items-center text-4xl font-black text-white/20">?</span>}
+          : null}
         <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white/70 backdrop-blur">{w.tage} {w.tage === 1 ? 'day' : 'days'}</span>
       </div>
       <div className="p-5 pt-4">

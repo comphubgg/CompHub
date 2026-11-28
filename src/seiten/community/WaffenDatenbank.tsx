@@ -190,7 +190,7 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
       {ansicht === 'liste' ? <Liste liste={liste} stufe={stufe} wiki={wiki} vergleich={vergleich} umschalten={umschalten} /> : (
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {liste.map((w, i) => (
-          <DbKarte key={w.id} w={w} s={stufe(w)} waehlen={(r) => setEigene((e) => ({ ...e, [w.id]: r }))} bild={bildVon(w, wiki)} i={i}
+          <DbKarte key={w.id} w={w} s={stufe(w)} waehlen={(r) => setEigene((e) => ({ ...e, [w.id]: r }))} bild={bildVon(w, wiki, stufe(w)?.rarity)} i={i}
             t={proWaffe.get(w.id)} gesamt={gesamt} spielerTage={spielerTage} imVergleich={vergleich.includes(w.id)} vergleichen={() => umschalten(w.id)} />
         ))}
       </div>)}
@@ -238,7 +238,8 @@ export const saisonText = (x: string) => x.replace(/^C(\d+) S(\w+)$/, 'Ch. $1 S$
 function Symbol({ bild, name, klein }: { bild: string | null; name: string; klein?: boolean }) {
   const [kaputt, setKaputt] = useState(false);
   const g = klein ? 'h-7 w-7' : 'h-[110px] w-[110px]';
-  if (!bild || kaputt) return <span className={`grid ${g} place-items-center rounded-lg text-white/20 ${klein ? 'bg-white/5 text-xs' : 'text-4xl font-black'}`}>?</span>;
+  // Kein Bild: nichts zeigen (kein "?", keine Buchstaben - Betreiber 28.11.2026)
+  if (!bild || kaputt) return <span className={`block ${g}`} aria-hidden />;
   return <img src={bild} alt={name} loading="lazy" referrerPolicy="no-referrer" onError={() => setKaputt(true)} className={`${g} object-contain ${klein ? '' : 'drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]'}`} />;
 }
 

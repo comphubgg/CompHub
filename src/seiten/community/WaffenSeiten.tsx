@@ -18,7 +18,9 @@ import { waffeVon } from './waffenNamen';
 export interface Turnier { dmg: number; hits: number; krit: number; spieler: number; tage: number }
 type Wiki = Map<string, { name: string; bild: string }> | undefined;
 /** Bild: eigenes Symbol (/waffen, /api/waffen-bilder) zuerst, Bild aus dem Fortnite Wiki nur als Ersatz. */
-export const bildVon = (w: DbWaffe, wiki: Wiki) => w.icon ?? (w.blueprints[0] || w.rarities[0]?.wid ? waffeVon(w.blueprints[0] ?? w.rarities[0]!.wid!, wiki).bild : null) ?? bildNachName(w.name, wiki) ?? w.wikiBild ?? null;
+/** Bild: Export-Symbol, Spiel-Symbol (/waffen), dann das Wiki-Bild - je Seltenheit, wo das Wiki eins hat. */
+export const bildVon = (w: DbWaffe, wiki: Wiki, seltenheit?: string) => w.icon ?? (w.blueprints[0] || w.rarities[0]?.wid ? waffeVon(w.blueprints[0] ?? w.rarities[0]!.wid!, wiki).bild : null) ?? bildNachName(w.name, wiki)
+  ?? (seltenheit ? w.wikiBilder?.[seltenheit] : undefined) ?? w.wikiBild ?? (w.wikiBilder ? Object.values(w.wikiBilder)[0] : undefined) ?? null;
 const ALLE_WERTE = [...WERTE, ...WERTE_MEHR];
 
 export function WaffenTabs({ ids }: { ids: string[] }) {
@@ -35,7 +37,8 @@ export function WaffenTabs({ ids }: { ids: string[] }) {
 
 function Symbol({ bild, name, groesse = 'h-28 w-28' }: { bild: string | null; name: string; groesse?: string }) {
   const [kaputt, setKaputt] = useState(false);
-  if (!bild || kaputt) return <span className={`grid ${groesse} place-items-center text-3xl font-black text-white/15`}>?</span>;
+  // Kein Bild: nichts zeigen (kein "?", keine Buchstaben - Betreiber 28.11.2026)
+  if (!bild || kaputt) return <span className={`block ${groesse}`} aria-hidden />;
   return <img src={bild} alt={name} referrerPolicy="no-referrer" onError={() => setKaputt(true)} className={`${groesse} object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]`} />;
 }
 function Punkte({ w, wahl, setzen }: { w: DbWaffe; wahl?: string; setzen: (r: string) => void }) {

@@ -63,6 +63,8 @@ export interface DbWaffe {
   id: string; name: string; class: Klasse; icon?: string; ammo?: string; blueprints: string[]; rarities: Stufe[]; loot?: Chancen; description?: string; modes?: string[];
   /** Aus dem Fortnite Wiki (waffenWiki.ts): Saisons ("C1 S3"), vaulted, Herkunft des Eintrags, Wiki-Seite, Wiki-Bild (nur Ersatz) */
   saisons?: string[]; vaulted?: boolean; quelle?: 'spiel' | 'wiki'; wiki?: string; wikiBild?: string;
+  /** Wiki-Bild je Seltenheit (wo die Infobox eins hat) und - nur beim Laden - das Seitenbild aus prop=pageimages */
+  wikiBilder?: Record<string, string>; wikiSeitenBild?: string;
 }
 export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[]; changes: Aenderung[] }
 

@@ -5,9 +5,16 @@ import type { DbWaffe, Klasse, Stufe } from './waffenDaten';
  * ALLE Waffen, die es je gab (Betreiber 27.11.2026): aus dem Fortnite Wiki (fortnite.fandom.com, Texte CC BY-SA - auf den Seiten mit Link genannt).
  * Abgefragt wird die MediaWiki-API ueber den Vite-Proxy /fandom (vite.config.ts; Betreiber 28.11.2026: direkt aus dem Browser kamen auf seinem
  * PC keine alten Waffen an - der Abruf scheiterte). Antwortet der Proxy nicht, wird einmal direkt gefragt (origin=* = anonymes CORS):
- *   1. list=categorymembers  - Waffen-Kategorie und ihre Unterkategorien (Assault Rifles, Shotguns ...), ohne Save the World / LEGO / Creative
- *   2. prop=revisions        - Quelltext (Wikitext) von je 50 Seiten auf einmal, 3 Abfragen parallel
- *   3. lesen                 - Infobox-Parameter + Werte-Tabellen je Seltenheit, Saisons (eingefuehrt / vaulted / unvaulted), Klasse, Bild
+ *   1. list=categorymembers  - ALLE Waffen-Wurzelkategorien (nicht nur die erste, die antwortet) und ihre Unterkategorien bis Tiefe 5
+ *                              (Assault Rifles, Shotguns, Mythic, Exotic, Vaulted ...), jede Kategorie ganz durchgeblaettert (cmcontinue),
+ *                              ohne Save the World / LEGO / Creative
+ *   1b. list=embeddedin      - zusaetzlich jede Seite, die die Waffen-Infobox einbindet (Betreiber 28.11.2026: "nur 425 - viel zu wenig";
+ *                              Varianten wie "Ares' Modular Warforged Assault Rifle" stehen oft in keiner Waffen-Kategorie)
+ *   2. prop=revisions        - Quelltext (Wikitext) von je 50 Seiten auf einmal, 3 Abfragen parallel; redirects=1 folgt Weiterleitungen,
+ *                              prop=pageimages liefert das Hauptbild der Seite
+ *   3. lesen                 - Infobox-Parameter + Werte-Tabellen je Seltenheit, Saisons (eingefuehrt / vaulted / unvaulted), Klasse, Bilder
+ *                              (auch je Seltenheit: image_common, image2 ... mit rarities=)
+ *   4. prop=imageinfo        - Dateinamen der Infobox -> echte Bild-URL (static.wikia.nocookie.net, im Hub ueber den Proxy /wikia)
  * Ergebnis: DbWaffe[] im selben Format wie waffen.json (waffenDaten.ts), gemerkt fuer 7 Tage (IndexedDB, sonst localStorage).
  * Werte aus den Spieldateien (waffen.json) gehen immer vor - siehe zusammenfuehren().
  */
@@ -15,10 +22,13 @@ export const WIKI = 'https://fortnite.fandom.com';
 /** Erst ueber den eigenen Proxy (gleiche Herkunft), sonst direkt */
 const APIS = ['/fandom/api.php', `${WIKI}/api.php`];
 let apiNr = 0;
-const WURZELN = ['Category:Battle Royale Weapons', 'Category:Weapons (Battle Royale)', 'Category:Weapons'];
+const WURZELN = ['Category:Battle Royale Weapons', 'Category:Weapons (Battle Royale)', 'Category:Weapons', 'Category:Mythic Weapons', 'Category:Exotic Weapons',
+  'Category:Vaulted Weapons', 'Category:Unvaulted Weapons', 'Category:Removed Weapons', 'Category:Limited Time Mode Weapons'];
+/** Infobox-Vorlagen, deren Seiten auf jeden Fall gelesen werden (weitere findet laden() selbst in den ersten Seiten). */
+const VORLAGEN = ['Template:Weapon Infobox', 'Template:Infobox Weapon', 'Template:Infobox weapon', 'Template:WeaponInfobox'];
 const OHNE = /save the world|stw|lego|creative|festival|ammunition|traps?\b|consumables|healing|resources|items by|cosmetic|harvesting|pickaxe|unreleased|concept|cut content/i;
-const MAX_SEITEN = 1600;
-const SCHLUESSEL = 'hub-waffen-wiki-v2';
+const MAX_SEITEN = 6000;
+const SCHLUESSEL = 'hub-waffen-wiki-v3';
 const ALTER = 7 * 864e5;
 
 /* ---------------------------------------------- Wikitext lesen */
@@ -160,13 +170,24 @@ export function seiteLesen(titel: string, text: string, kategorien: string[] = [
   const verfuegbar = ['introduced', 'added', 'release', 'released', 'availability', 'available', 'seasons', 'vaulted', 'unvaulted', 'removed'].map((k) => p[k] ?? '').join(' ');
   // Saisons: Infobox-Felder + Fliesstext (ohne Vorlagen wie Navigationsleisten)
   const abschnitt = text.replace(/\{\{[\s\S]*?\}\}/g, ' ').replace(/\[\[Category:[^\]]*\]\]/g, ' ');
-  const bildDatei = klartext(p.image ?? p.image1 ?? p.icon ?? '').replace(/^(File|Image):/i, '');
+  const datei = (v?: string) => { const d = klartext(v ?? '').replace(/^(File|Image):/i, '').split('|')[0].trim(); return /\.(png|jpe?g|webp|gif)$/i.test(d) ? d : undefined; };
+  const bildDatei = datei(p.image) ?? datei(p.image1) ?? datei(p.icon) ?? datei(p.imagecommon) ?? Object.entries(p).map(([k, v]) => (/^(image|icon)/.test(k) ? datei(v) : undefined)).find(Boolean);
+  // Bilder je Seltenheit: image_legendary / imagelegendary / image3 (mit rarities=Common, ... in derselben Reihenfolge)
+  const reihe = (p.rarities ?? p.rarity ?? p.availablerarities ?? '').split(/[,/;\n]|<br\s*\/?>/i).map(rar).filter(Boolean) as string[];
+  const bildDateien: Record<string, string> = {};
+  for (const [k, v] of Object.entries(p)) {
+    if (!/^(image|icon)/.test(k)) continue; const d = datei(v); if (!d) continue;
+    const w = RAR_WORT.exec(k); const z = /(\d)$/.exec(k);
+    if (w) bildDateien[w[1]] = d; else if (z && reihe[Number(z[1]) - 1]) bildDateien[reihe[Number(z[1]) - 1]] = d;
+  }
   return {
     id: `wiki_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`, name, class: klasse, blueprints: [], rarities,
     ammo: p.ammo || p.ammotype ? klartext(p.ammo ?? p.ammotype) : undefined, description: p.description ? klartext(p.description).slice(0, 400) : undefined,
     saisons: saisonen(`${verfuegbar} ${abschnitt}`), vaulted: (/vaulted/i.test(`${alleKat} ${p.status ?? ''}`) && !/unvaulted|current/i.test(p.status ?? '')) || (/\bvaulted\b/i.test(abschnitt) && !/\bunvaulted\b/i.test(abschnitt)),
     quelle: 'wiki', wiki: `${WIKI}/wiki/${encodeURIComponent(titel.replace(/ /g, '_'))}`,
-    wikiBild: bildDatei && /\.(png|jpe?g|webp|gif)$/i.test(bildDatei) ? `${WIKI}/wiki/Special:FilePath/${encodeURIComponent(bildDatei)}?width=256` : undefined,
+    // vorlaeufig die Datei - laden() ersetzt sie durch die echte URL (imageinfo) bzw. das Seitenbild (pageimages)
+    wikiBild: bildDatei ? `datei:${bildDatei}` : undefined,
+    wikiBilder: Object.keys(bildDateien).length ? Object.fromEntries(Object.entries(bildDateien).map(([r, d]) => [r, `datei:${d}`])) : undefined,
   };
 }
 
@@ -187,7 +208,7 @@ async function api(q: Record<string, string>) {
 }
 async function mitglieder(kat: string): Promise<Array<{ title: string; ns: number }>> {
   const out: Array<{ title: string; ns: number }> = []; let weiter: Record<string, string> = {};
-  for (let n = 0; n < 10; n++) {
+  for (let n = 0; n < 40; n++) {
     const j = await api({ action: 'query', list: 'categorymembers', cmtitle: kat, cmlimit: '500', cmtype: 'page|subcat', ...weiter });
     out.push(...(j?.query?.categorymembers ?? []));
     if (!j?.continue) break; weiter = j.continue;
@@ -195,10 +216,11 @@ async function mitglieder(kat: string): Promise<Array<{ title: string; ns: numbe
   return out;
 }
 async function seitenListe(): Promise<string[]> {
-  for (const w of WURZELN) {
-    const seiten = new Set<string>(); const gesehen = new Set<string>([w]);
-    let ebene = [w];
-    for (let tiefe = 0; tiefe < 3 && ebene.length; tiefe++) {
+  // Frueher: nur die erste Wurzel, die antwortete, und Tiefe 3 - dabei fielen ganze Zweige (Mythic, Exotic, Vaulted ...) weg.
+  const seiten = new Set<string>(); const gesehen = new Set<string>(WURZELN);
+  {
+    let ebene = [...WURZELN];
+    for (let tiefe = 0; tiefe < 5 && ebene.length; tiefe++) {
       const naechste: string[] = [];
       for (const k of ebene) {
         for (const m of await mitglieder(k).catch(() => [])) {
@@ -207,14 +229,48 @@ async function seitenListe(): Promise<string[]> {
       }
       ebene = naechste;
     }
-    if (seiten.size) return [...seiten].slice(0, MAX_SEITEN);
   }
-  return [];
+  for (const v of VORLAGEN) for (const t of await einbindungen(v).catch(() => [])) if (!OHNE.test(t)) seiten.add(t);
+  return [...seiten].slice(0, MAX_SEITEN);
 }
 /* eslint-disable @typescript-eslint/no-explicit-any */
-async function quelltexte(titel: string[]): Promise<Array<{ titel: string; text: string; kat: string[] }>> {
-  const j = await api({ action: 'query', prop: 'revisions|categories', rvprop: 'content', rvslots: 'main', cllimit: 'max', titles: titel.join('|') });
-  return (j?.query?.pages ?? []).map((p: any) => ({ titel: p.title, text: p.revisions?.[0]?.slots?.main?.content ?? p.revisions?.[0]?.content ?? p.revisions?.[0]?.['*'] ?? '', kat: (p.categories ?? []).map((c: any) => String(c.title).replace(/^Category:/, '')) }));
+async function quelltexte(titel: string[]): Promise<Array<{ titel: string; text: string; kat: string[]; bild?: string }>> {
+  const j = await api({ action: 'query', prop: 'revisions|categories|pageimages', rvprop: 'content', rvslots: 'main', cllimit: 'max', redirects: '1',
+    piprop: 'thumbnail', pithumbsize: '256', pilimit: '50', titles: titel.join('|') });
+  return (j?.query?.pages ?? []).map((p: any) => ({ titel: p.title, text: p.revisions?.[0]?.slots?.main?.content ?? p.revisions?.[0]?.content ?? p.revisions?.[0]?.['*'] ?? '',
+    kat: (p.categories ?? []).map((c: any) => String(c.title).replace(/^Category:/, '')), bild: p.thumbnail?.source }));
+}
+/** Seiten, die eine Vorlage einbinden (alle, durchgeblaettert). */
+async function einbindungen(vorlage: string): Promise<string[]> {
+  const out: string[] = []; let weiter: Record<string, string> = {};
+  for (let n = 0; n < 20; n++) {
+    const j = await api({ action: 'query', list: 'embeddedin', eititle: vorlage, einamespace: '0', eilimit: '500', ...weiter });
+    out.push(...(j?.query?.embeddedin ?? []).map((x: any) => String(x.title)));
+    if (!j?.continue) break; weiter = j.continue;
+  }
+  return out;
+}
+/** Dateinamen -> Bild-URL (256 px breit), je 50 auf einmal. */
+async function dateiUrls(dateien: string[]): Promise<Map<string, string>> {
+  const m = new Map<string, string>();
+  for (let i = 0; i < dateien.length; i += 50) {
+    const teil = dateien.slice(i, i + 50);
+    const j = await api({ action: 'query', prop: 'imageinfo', iiprop: 'url', iiurlwidth: '256', titles: teil.map((d) => `File:${d}`).join('|') }).catch(() => null);
+    const norm = new Map<string, string>((j?.query?.normalized ?? []).map((x: any) => [String(x.to), String(x.from)]));
+    for (const p of j?.query?.pages ?? []) {
+      const url = p.imageinfo?.[0]?.thumburl ?? p.imageinfo?.[0]?.url; if (!url) continue;
+      const roh = (norm.get(p.title) ?? p.title).replace(/^File:/, '');
+      m.set(roh, url); m.set(String(p.title).replace(/^File:/, ''), url);
+    }
+  }
+  return m;
+}
+/** Wiki-Bild ueber den eigenen Proxy (Hotlink-Schutz); ausserhalb von Vite bleibt die Adresse direkt. */
+export const wikiProxy = (url?: string) => (url ? url.replace(/^https:\/\/static\.wikia\.nocookie\.net\//, '/wikia/') : undefined);
+/** Wie viele Seiten die Wurzelkategorien laut Wiki haben - fuer "x von y gelesen". */
+async function kategorieZahlen(): Promise<number> {
+  const j = await api({ action: 'query', prop: 'categoryinfo', titles: WURZELN.join('|') }).catch(() => null);
+  return Math.max(0, ...(j?.query?.pages ?? []).map((p: any) => Number(p.categoryinfo?.pages ?? 0)));
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -235,7 +291,7 @@ async function cacheSchreiben(waffen: DbWaffe[]) {
 }
 
 /* ---------------------------------------------- Laden mit Fortschritt (einmal je Sitzung, geteilt) */
-interface Stand { waffen: DbWaffe[] | null; status: 'laedt' | 'da' | 'fehlt'; fertig: number; gesamt: number; stand?: number }
+interface Stand { waffen: DbWaffe[] | null; status: 'laedt' | 'da' | 'fehlt'; fertig: number; gesamt: number; stand?: number; /** Seiten der groessten Wurzelkategorie laut Wiki */ imWiki?: number }
 let stand: Stand = { waffen: null, status: 'laedt', fertig: 0, gesamt: 0 };
 let gestartet = false;
 const hoerer = new Set<() => void>();
@@ -247,19 +303,44 @@ async function laden(neu = false) {
     if (c?.waffen?.length) { melden({ waffen: c.waffen, status: 'da', stand: c.t, fertig: 1, gesamt: 1 }); if (Date.now() - c.t < ALTER) return; }
   }
   try {
-    const titel = await seitenListe();
+    const [titel, imWiki] = await Promise.all([seitenListe(), kategorieZahlen()]);
     if (!titel.length) throw new Error('keine Seiten');
+    melden({ imWiki });
     melden({ gesamt: titel.length, fertig: 0 });
     const pakete: string[][] = []; for (let i = 0; i < titel.length; i += 50) pakete.push(titel.slice(i, i + 50));
     const waffen = new Map<string, DbWaffe>(); let fertig = 0;
+    // Weitere Infobox-Vorlagen aus den gelesenen Seiten - deren Seiten kommen am Ende dazu
+    const vorlagenGesehen = new Set<string>();
     const arbeiter = async () => {
       for (let p = pakete.shift(); p; p = pakete.shift()) {
         const seiten = await quelltexte(p).catch(() => []);
-        for (const s of seiten) { const w = seiteLesen(s.titel, s.text, s.kat); if (w && !waffen.has(w.id)) waffen.set(w.id, w); }
+        for (const s of seiten) {
+          for (const v of vorlagen(s.text)) if (/infobox/i.test(v.name) && /weapon/i.test(v.name) && !/navbox/i.test(v.name)) vorlagenGesehen.add(`Template:${v.name.replace(/_/g, ' ')}`);
+          const w = seiteLesen(s.titel, s.text, s.kat);
+          if (w && !waffen.has(w.id)) { if (s.bild) w.wikiSeitenBild = s.bild; waffen.set(w.id, w); }
+        }
         fertig += p.length; melden({ fertig: Math.min(fertig, titel.length) });
       }
     };
     await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
+    // Nachlese: Seiten weiterer Infobox-Vorlagen, die noch nicht gelesen sind
+    const bekannt = new Set(titel);
+    const nach: string[] = [];
+    for (const v of vorlagenGesehen) if (!VORLAGEN.includes(v)) for (const t of await einbindungen(v).catch(() => [])) if (!bekannt.has(t) && !OHNE.test(t)) { bekannt.add(t); nach.push(t); }
+    if (nach.length) {
+      melden({ gesamt: titel.length + nach.length });
+      for (let i = 0; i < nach.length; i += 50) pakete.push(nach.slice(i, i + 50));
+      await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
+    }
+    // Bilder: Dateinamen der Infoboxen -> URL; ohne Datei das Seitenbild
+    const dateien = [...new Set([...waffen.values()].flatMap((w) => [w.wikiBild, ...Object.values(w.wikiBilder ?? {})]).filter((x): x is string => !!x?.startsWith('datei:')).map((x) => x.slice(6)))];
+    const urls = await dateiUrls(dateien).catch(() => new Map<string, string>());
+    const url = (x?: string) => (x?.startsWith('datei:') ? urls.get(x.slice(6)) ?? urls.get(x.slice(6).replace(/_/g, ' ')) : x);
+    for (const w of waffen.values()) {
+      w.wikiBild = wikiProxy(url(w.wikiBild) ?? w.wikiSeitenBild);
+      if (w.wikiBilder) { const b = Object.fromEntries(Object.entries(w.wikiBilder).map(([r, d]) => [r, wikiProxy(url(d))]).filter(([, u]) => u)); w.wikiBilder = Object.keys(b).length ? b as Record<string, string> : undefined; }
+      delete w.wikiSeitenBild;
+    }
     const liste = [...waffen.values()].filter((w) => w.rarities.length || (w.saisons?.length ?? 0) > 0);
     if (!liste.length) throw new Error('nichts gelesen');
     melden({ waffen: liste, status: 'da', stand: Date.now() });
@@ -296,3 +377,4 @@ export function zusammenfuehren<T extends { weapons: DbWaffe[] }>(spiel: T | nul
   // Gibt es den Export der Spieldateien, ist alles, was dort fehlt, nicht im aktuellen Pool
   return { ...basis, weapons: [...weapons, ...[...nachName.values()].map((w) => (spiel ? { ...w, vaulted: true } : w))] };
 }
+
