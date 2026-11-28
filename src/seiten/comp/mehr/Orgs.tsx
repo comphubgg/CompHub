@@ -35,7 +35,8 @@ interface OrgKurz { id: string; name: string; logo: string | null; banner: strin
 /** Die Hochkant-Fotos der Pros nebeneinander - jeder mit Foto wird gezeigt, wer keines hat, steht als Name daneben. */
 function KaderFotos({ o, gross }: { o: OrgKurz; gross?: boolean }) {
   const pros = o.spieler.filter((p) => p.rolle === 'pro');
-  const mit = pros.filter((p) => p.bild).slice(0, gross ? 6 : 5);
+  // gross (Podest): hoechstens drei - sechs Hochkant-Fotos ragten aus der Karte und lagen auf dem Handy ueber der Summe
+  const mit = pros.filter((p) => p.bild).slice(0, gross ? 3 : 5);
   return <span className="flex shrink-0 gap-1">{mit.map((p) => <img key={p.name} src={p.bild!} alt={p.name} title={p.name} loading="lazy" className={`${gross ? 'h-28 w-[84px] rounded-xl' : 'h-11 w-[33px] rounded-lg'} object-cover object-top`} />)}</span>;
 }
 
@@ -93,7 +94,7 @@ export function OrgsListe() {
                   </div>
                   {o.logo && <Bild src={o.logo} className="h-16 w-16 shrink-0 rounded-2xl bg-black/40 !object-contain p-1.5" />}
                 </div>
-                <div className="mt-4 flex items-end justify-between gap-3">
+                <div className="mt-auto flex flex-wrap items-end justify-between gap-3 pt-4">
                   <div><p className="titel zahl text-5xl !text-emerald-300">{geld(o.gesamt)}</p><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">Roster earnings</p></div>
                   <KaderFotos o={o} gross />
                 </div>
