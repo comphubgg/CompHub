@@ -53,7 +53,7 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
   const geschaetzt = liste.some((t) => wertVon(t, heute) && !wertVon(t, heute)!.echt);
   const heuteDa = liste.filter((t) => imShop.has(t.id.toLowerCase()));
   // Fuer die leere Liste: je Angebot das erste BR-Teil von heute, Outfits zuerst
-  const heuteTeile = useMemo(() => shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit')), [shop.angebote]);
+  const heuteTeile = useMemo(() => [...new Map(shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).map((t) => [t.id, t] as const)).values()].sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit')), [shop.angebote]);
   const titel = art === 'wunsch' ? 'My wishlist' : 'My locker';
   const teilLink = `${window.location.origin}${window.location.pathname}?ids=${eigene.wert.join(',')}`;
   function verschieben(von: number, nach: number) {
