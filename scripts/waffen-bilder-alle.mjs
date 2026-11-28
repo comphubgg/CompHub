@@ -95,15 +95,18 @@ async function abfrageAlle(q) {
 /** Bild laden (mit Wiederholung) - Status-Codes zaehlen. */
 const ladeStatus = {};
 let bild429 = 0;
+const LADEN_BIS = Date.now() + 70 * 60_000; // nie laenger als der Lauf darf
 async function bildLaden(url) {
-  for (let v = 0; v < 8; v++) {
+  let n429 = 0;
+  for (let v = 0; v < 6 && Date.now() < LADEN_BIS; v++) {
     try {
       const r = await fetch(url, { headers: { Accept: 'image/png,image/*;q=0.8' }, signal: AbortSignal.timeout(30_000) });
       ladeStatus[r.status] = (ladeStatus[r.status] ?? 0) + 1;
       if (r.status === 404) return null;
       if (r.status === 429) {
         bild429 += 1; if (bild429 <= 3) console.log('429 vom Bild-Server:', url.slice(0, 160), JSON.stringify(Object.fromEntries([...r.headers].filter(([k]) => /retry|rate|limit|x-|via|server/i.test(k)))).slice(0, 400));
-        await warte(Math.min(Number(r.headers.get('retry-after')) || 10, 120) * 1000);
+        if (++n429 >= 4) return null;
+        await warte(Math.min(Number(r.headers.get('retry-after')) || 10, 60) * 1000);
       }
       if (!r.ok) throw new Error(String(r.status));
       return Buffer.from(await r.arrayBuffer());
@@ -209,13 +212,14 @@ for (const w of liste) {
 console.log(`${alleDateien.size} Dateien zu pruefen`);
 
 /* ---------------------------------------------- 3. Dateien laden und ansehen */
-// Ohne Wiki-API: der Pfad einer Datei ist der MD5 ihres Namens (MediaWiki), 404 = gibt es nicht. scale-to-width-down vergroessert nie.
+// Ohne Wiki-API: der Pfad einer Datei ist der MD5 ihres Namens (MediaWiki), 404 = gibt es nicht. Das Original, nicht scale-to-width-down:
+// neue Vorschaugroessen muss der Server erst rechnen - der letzte Lauf hing daran 45 Minuten (vermutlich 429, siehe Protokoll).
 const info = new Map(); // Dateiname -> { url, echt }
 const dateiListe = [...alleDateien];
 for (const d of dateiListe) {
   let n = d.replace(/^File:/i, '').trim().replace(/\s+/g, '_'); n = n[0].toUpperCase() + n.slice(1);
   const h = crypto.createHash('md5').update(n).digest('hex');
-  info.set(d, { url: `https://static.wikia.nocookie.net/fortnite/images/${h[0]}/${h.slice(0, 2)}/${encodeURIComponent(n)}/revision/latest/scale-to-width-down/512`, echt: `File:${n.replace(/_/g, ' ')}` });
+  info.set(d, { url: `https://static.wikia.nocookie.net/fortnite/images/${h[0]}/${h.slice(0, 2)}/${encodeURIComponent(n)}/revision/latest`, echt: `File:${n.replace(/_/g, ' ')}` });
 }
 const geladen = new Map(); // Dateiname -> Analyse
 const zuLaden = dateiListe;
