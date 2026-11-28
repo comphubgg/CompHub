@@ -121,7 +121,7 @@ function Konto() {
   if (laedt) return <Laedt />;
   if (!konto) return wer?.userName ? <NurSchluessel /> : (
     <Glas className="mx-auto mt-10 max-w-xl p-10 text-center">
-      <h1 className="text-3xl font-extrabold tracking-tight text-white">Your account</h1>
+      <h1 className="titel text-5xl">Your account</h1>
       <p className="mt-2 text-sm text-white/55">Sign in with your CompHub account to see and edit your profile — the same account as on thecomphub.com.</p>
       <div className="mt-6 flex justify-center gap-2">
         <button type="button" onClick={() => oeffnen('konto')} className={`${knopfHaupt} px-6 py-2.5 text-sm`}>Sign in</button>

@@ -35,9 +35,9 @@ export default function Passwort() {
       <Kopf bereich="account" />
       <main className="grid place-items-center px-6 py-20 lg:px-10">
         <motion.form onSubmit={senden} initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.035] p-8 backdrop-blur-xl">
+          className="fl w-full max-w-md p-8">
           <img src="/logos/CompHub-Logo-frei.png" alt="" className="h-12" />
-          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-white">{schluessel ? 'Set a new password' : 'Forgot your password?'}</h1>
+          <h1 className="titel mt-5 text-5xl">{schluessel ? 'Set a new password' : 'Forgot your password?'}</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/55">
             {schluessel ? 'Choose a new password. You are signed in right afterwards.' : 'Enter your email address or your name — we send you a link. It is valid for one hour.'}
           </p>

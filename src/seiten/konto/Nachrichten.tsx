@@ -67,8 +67,8 @@ export default function Nachrichten() {
       <main className="px-6 pb-16 pt-8 lg:px-10">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-wrap items-end gap-4">
           <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">Account</p>
-            <h1 className="mt-1 text-5xl font-extrabold tracking-tight text-white">Messages</h1>
+            <p className="ueber">Account</p>
+            <h1 className="titel mt-1 text-6xl">Messages</h1>
             <p className="mt-2 text-white/55">{daten?.admin ? 'Every conversation with CompHub. Notes, done and delete are in the admin contact tool.' : 'Your conversations with CompHub. New questions go to Discord or email.'}</p>
           </div>
           {daten?.admin && <Link to="/admin/contact" className={`${knopfLeise} !border-rose-400/40 !text-rose-200`}>Contact inbox (admin)</Link>}
