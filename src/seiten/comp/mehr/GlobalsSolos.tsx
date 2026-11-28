@@ -1,18 +1,22 @@
 import { motion } from 'framer-motion';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
+import { Bild, Flaeche, Leer, Marke, Segment, Zaehler } from '../../../ds/Bausteine';
 import { useWer } from '../../../teile/Anmeldung';
 import KartenAnsicht from './KartenAnsicht';
 import { formenVon } from './maps/MapsKarte';
-import { FehlerZeile, LaenderListe, Laedt, Leer, Reiter, Suche, TeamFlagge, chip, datumKurz, flaggenPfad, landName } from './teile';
+import { Dock, KopfBand, Werkbank } from './Werkbank';
+import { FehlerZeile, LaenderListe, Laedt, Suche, TeamFlagge, chip, datumKurz, flaggenPfad, landName } from './teile';
 import { REGION_FARBE, REGION_NAME } from '../events/gemeinsam';
 
 /*
  * FNCS Solos im Hub (wie /globals-solos der Seite, /api/globals-solos): fuer jede Region der Weg ins Grand Final (/api/solos-weg, mit "You are here"
  * fuer das verknuepfte Epic-Konto), Qualifizierte nach Weg, Heat-Einteilung, jeder Spieltag mit Karte / Bestenliste / Spieler / Laender, Preisgeld
  * (/api/solos-preisgeld). Laufende Reihe oder Archiv (?reihe=S42). Erneuert sich alle zwei Minuten, die Bestenliste waehrend eines Heats alle 30 s.
- * Die alten Unterseiten (/heats, /qualifiziert, /map, /laender) fuehren auf die Reiter.
+ * Die alten Unterseiten (/heats, /qualifiziert, /map, /laender) fuehren auf die Ansichten.
+ * Aufbau (Design-System 3.0, 27.11.2026): schmales Kopfband (Turnierbild, Reihe, Live) und die Regionen als Chips; darunter links eine klebende
+ * Leiste "Stages" - der Weg, die Qualifizierten, die Heats und jeder Spieltag als Zeitleiste mit Datum und Stand -, rechts der gewaehlte Teil.
+ * Ein Spieltag zeigt die Karte als Werkbank (Karte ueber die Hoehe, daneben die Spieler - Klick fliegt zum Landepunkt).
  */
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
@@ -31,31 +35,44 @@ const regionText = (r: string) => (r === 'GLOBAL' ? 'Global' : r);
 
 /* ---------------------------------------------------------------- Spieler-Kachel */
 
+/** Ein Spieler als Hochkant-Fotokarte (4:5), Name darunter. */
 function Kachel({ s, unter }: { s: SSpieler; unter?: string }) {
   return (
     <Link to={`/competitive/player/${s.id}`} title={s.anzeige} className="group flex min-w-0 flex-col gap-2 text-left">
-      {s.bild ? (
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0a0e18]">
-          <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
-        </div>
-      ) : (
-        <div className="relative grid aspect-[4/5] w-full place-items-center overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-sky-950/70 via-[#0a0e18] to-[#06080f]">
-          <img src={flaggenPfad(s.land)} alt="" className="h-12 w-12 rounded-full object-cover opacity-80 ring-2 ring-white/10" />
-        </div>
-      )}
-      <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-white group-hover:text-sky-300">
+      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-black/50">
+        <img src={s.bild!} alt="" loading="lazy" className="h-full w-full object-cover object-top transition duration-700 group-hover:scale-[1.06]" />
+      </div>
+      <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-white group-hover:text-akz">
         <img src={flaggenPfad(s.land)} alt="" className="mt-px h-3 w-3 shrink-0 rounded-full object-cover" /><span className="line-clamp-2 min-w-0 break-words">{s.anzeige}</span>
       </p>
-      {unter && <p className="-mt-1 text-[11px] font-semibold tabular-nums text-white/40">{unter}</p>}
+      {unter && <p className="zahl -mt-1 text-[11px] font-semibold text-white/40">{unter}</p>}
     </Link>
   );
 }
-const RASTER = 'grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10';
+const RASTER = 'grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-9';
+/** Spieler mit Foto als Fotokarten; wer keines hat, steht darunter als gleich grosse Namens-Zeile (kein Ersatzbild - Betreiber: "Profilbild oder gar nichts"). */
 function Spielerliste({ spieler, unter, klein }: { spieler: SSpieler[]; unter?: (s: SSpieler) => string | undefined; klein?: boolean }) {
-  const reihe = [...spieler.filter((x) => x.bild), ...spieler.filter((x) => !x.bild)];
-  return <div className={klein ? 'grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 lg:grid-cols-5' : RASTER}>{reihe.map((x) => <Kachel key={x.id} s={x} unter={unter?.(x)} />)}</div>;
+  const mit = spieler.filter((x) => x.bild), ohne = spieler.filter((x) => !x.bild);
+  return (
+    <>
+      {mit.length > 0 && <div className={klein ? 'grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 lg:grid-cols-5' : RASTER}>{mit.map((x) => <Kachel key={x.id} s={x} unter={unter?.(x)} />)}</div>}
+      {ohne.length > 0 && (
+        <div className={`grid gap-1.5 ${klein ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'} ${mit.length ? 'mt-5' : ''}`}>
+          {ohne.map((x) => (
+            <Link key={x.id} to={`/competitive/player/${x.id}`} className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-white/[0.07] bg-black/30 px-2.5 text-[11px] font-bold uppercase tracking-wide text-white transition hover:border-akz/50">
+              <img src={flaggenPfad(x.land)} alt="" className="h-4 w-4 shrink-0 rounded-full object-cover" /><span className="min-w-0 flex-1 truncate">{x.anzeige}</span>
+              {unter?.(x) && <span className="zahl shrink-0 text-[10px] font-semibold text-white/40">{unter(x)}</span>}
+            </Link>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
-const Tafel = ({ children, className = '' }: { children: ReactNode; className?: string }) => <Glas className={`p-5 ${className}`}>{children}</Glas>;
+const Tafel = ({ children, className = '' }: { children: ReactNode; className?: string }) => <Flaeche fest className={`p-5 ${className}`}>{children}</Flaeche>;
+const Kopf2 = ({ titel, zahl, rechts }: { titel: ReactNode; zahl?: ReactNode; rechts?: ReactNode }) => (
+  <div className="flex flex-wrap items-center gap-3"><span className="h-6 w-1 rounded-full bg-akz" /><h2 className="titel text-3xl">{titel}</h2>{zahl != null && <span className="titel text-3xl !text-akz">{zahl}</span>}{rechts && <span className="ml-auto">{rechts}</span>}</div>
+);
 
 /* ---------------------------------------------------------------- Der Weg */
 
@@ -74,12 +91,12 @@ function Kasten({ k, hier }: { k: WKnoten; hier: boolean }) {
   const live = k.status === 'live';
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-      className={`min-w-[170px] flex-1 rounded-2xl border p-3.5 ${live ? 'border-sky-400 bg-sky-400/10 shadow-[0_0_24px_rgba(56,189,248,.25)]' : hier ? 'border-amber-300/70 bg-amber-300/[0.06]' : k.status === 'kommt' ? 'border-white/10 bg-white/[0.02]' : 'border-white/10 bg-white/[0.04]'}`}>
+      className={`min-w-[170px] flex-1 rounded-2xl border p-3.5 ${live ? 'border-akz bg-akz/10 shadow-[0_0_24px_rgb(var(--akz)/0.25)]' : hier ? 'border-amber-300/70 bg-amber-300/[0.06]' : k.status === 'kommt' ? 'border-dashed border-white/10 bg-black/20' : 'border-white/[0.08] bg-black/40'}`}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[15px] font-extrabold leading-tight text-white">{KNAME[k.id] ?? k.id}</p>
-        {live && <span className="inline-flex items-center gap-1 rounded-full bg-sky-400 px-2 py-0.5 text-[10px] font-bold uppercase text-[#06080f]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#06080f]" />Live</span>}
+        <p className="titel text-2xl">{KNAME[k.id] ?? k.id}</p>
+        {live && <span className="inline-flex items-center gap-1 rounded-full bg-akz px-2 py-0.5 text-[10px] font-bold uppercase text-[#04050a]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#04050a]" />Live</span>}
         {!live && k.status === 'kommt' && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold uppercase text-white/45">Upcoming</span>}
-        {hier && <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-black uppercase text-[#06080f]">You</span>}
+        {hier && <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-black uppercase text-[#04050a]">You</span>}
       </div>
       <p className="mt-0.5 text-[11px] text-white/40">{spanne(k.von, k.bis)}{(k.id === 'q1r1' || k.id === 'q2r1') && k.fenster.length > 1 ? ` · ${k.fenster.length} days` : ''}{k.id === 'heats' ? ` · ${k.fenster.length} heats` : ''}</p>
       <div className="mt-2 space-y-0.5 text-xs">
@@ -87,15 +104,15 @@ function Kasten({ k, hier }: { k: WKnoten; hier: boolean }) {
         {k.spieler && <p className="font-semibold text-white/85">{zz(k.spieler)} <span className="font-normal text-white/45">players</span></p>}
         {k.schnitt.length > 0 && (k.schnitt.every((s) => s.punkte === null)
           ? <p className="text-white/40">#{k.schnitt[0].rang.toLocaleString('en')} · no points yet</p>
-          : <p className="font-semibold text-white/70">#{k.schnitt[0].rang.toLocaleString('en')} = <span className="tabular-nums">{k.schnitt.map((s) => (s.punkte === null ? '–' : s.punkte)).join(' / ')}</span> pts{live && <span className="ml-1 font-normal text-sky-300">(live)</span>}</p>)}
-        {k.sofortPunkte ? <p className="font-semibold text-sky-300">{k.sofortPunkte.toLocaleString('en')} pts = straight through</p> : null}
+          : <p className="font-semibold text-white/70">#{k.schnitt[0].rang.toLocaleString('en')} = <span className="tabular-nums">{k.schnitt.map((s) => (s.punkte === null ? '–' : s.punkte)).join(' / ')}</span> pts{live && <span className="ml-1 font-normal text-akz">(live)</span>}</p>)}
+        {k.sofortPunkte ? <p className="font-semibold text-akz">{k.sofortPunkte.toLocaleString('en')} pts = straight through</p> : null}
       </div>
     </motion.div>
   );
 }
 function Pfeil({ k }: { k?: WKante }) {
   if (!k) return <span className="hidden w-6 shrink-0 sm:block" />;
-  const farbe = k.art === 'finale' ? 'text-sky-400' : k.art === 'gesetzt' ? 'text-sky-300' : 'text-white/45';
+  const farbe = k.art === 'finale' ? 'text-akz' : k.art === 'gesetzt' ? 'text-akz' : 'text-white/45';
   return (
     <div className={`flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-1 sm:w-24 ${farbe}`}>
       <span className="text-center text-[11px] font-extrabold leading-tight">{k.text.replace(/Top (\d+)/, (_, n) => `Top ${Number(n).toLocaleString('en')}`)}{k.jeHeat && <span className="block text-[10px] font-semibold opacity-80">per heat</span>}</span>
@@ -146,53 +163,52 @@ function WegPlan({ region }: { region: string }) {
   const finale = kn('finale');
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-white/[0.08] bg-black/40 px-4 py-3 text-sm">
         <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">You are here</span>
         {!wer?.epicId && <span className="text-white/60">Link your Epic account on thecomphub.com to see where you stand on the road.</span>}
         {wer?.epicId && sucht && <span className="text-white/45">Searching …</span>}
-        {wer?.epicId && !sucht && hier && hier !== 'keins' && <span className="text-white/85"><b className="text-sky-300">{KNAME[hier.knoten] ?? hier.name}</b> · {hier.name} — place <b className="tabular-nums">{hier.rang.toLocaleString('en')}</b>, {hier.punkte} pts</span>}
+        {wer?.epicId && !sucht && hier && hier !== 'keins' && <span className="text-white/85"><b className="text-akz">{KNAME[hier.knoten] ?? hier.name}</b> · {hier.name} — place <b className="tabular-nums">{hier.rang.toLocaleString('en')}</b>, {hier.punkte} pts</span>}
         {wer?.epicId && !sucht && hier === 'keins' && (
           <span className="text-white/50">{tief ? 'Your account is in no leaderboard of this region.' : 'Your account is in no list from round 3 (top 1,000).'}
-            {!tief && <button type="button" onClick={() => void suche(true)} className="ml-1 font-semibold text-sky-300 hover:underline">Search round 1, 2 and the Last Chance too</button>}</span>
+            {!tief && <button type="button" onClick={() => void suche(true)} className="ml-1 font-semibold text-akz hover:underline">Search round 1, 2 and the Last Chance too</button>}</span>
         )}
       </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="space-y-5">
-          {reihen.map(([titel, ids]) => {
-            const da = ids.filter((id) => kn(id));
-            if (!da.length) return null;
-            return (
-              <div key={titel}>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-sky-300">{titel}</p>
-                <div className="flex flex-col items-stretch sm:flex-row">
-                  {da.map((id, i) => (
-                    <div key={id} className="flex flex-1 flex-col sm:flex-row">
-                      {i > 0 && <Pfeil k={ka(da[i - 1], id)} />}
-                      <Kasten k={kn(id)!} hier={hierId === id} />
-                    </div>
-                  ))}
-                  {ka(da[da.length - 1], 'finale') && <Pfeil k={ka(da[da.length - 1], 'finale')} />}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {finale && (
-          <div className="rounded-2xl border-2 border-sky-400/60 bg-sky-400/10 p-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-sky-300">Grand Finals</p>
-            <p className="mt-1 text-3xl font-black text-white">Finals</p>
-            <p className="mt-1 text-xs text-white/60">{spanne(finale.von, finale.bis)}{finale.fenster.length > 1 ? ` · ${finale.fenster.length} days` : ''}</p>
-            {finale.spieler && <p className="mt-1 text-xs font-semibold text-white/85">{zz(finale.spieler)} players</p>}
-            {finale.preisgeld ? <><p className="mt-4 text-[10px] font-bold uppercase tracking-[0.25em] text-sky-300">Prize pool</p><p className="text-3xl font-black tabular-nums text-amber-300">${finale.preisgeld.toLocaleString('en')}</p>{finale.erster ? <p className="text-xs text-white/60">1st place · ${finale.erster.toLocaleString('en')}</p> : null}</> : null}
-            {plan.herkunft.length > 0 && <ul className="mt-4 space-y-0.5 text-[11px] text-white/55">{plan.herkunft.map((h) => <li key={h.von}><b className="tabular-nums text-white/85">{h.zahl}</b> {h.von === 'ft' ? 'from the Fast Track' : h.von === 'heats' ? 'from the heats' : 'from the Last Chance Lobby'}</li>)}</ul>}
+      {finale && (
+        <div className="grid gap-x-8 gap-y-3 rounded-2xl border border-akz/40 bg-akz/[0.08] p-5 sm:grid-cols-[auto_auto_1fr] sm:items-end">
+          <div>
+            <p className="ueber">Grand Finals</p>
+            <p className="titel mt-1 text-5xl">Finals</p>
+            <p className="mt-1 text-xs text-white/60">{spanne(finale.von, finale.bis)}{finale.fenster.length > 1 ? ` · ${finale.fenster.length} days` : ''}{finale.spieler ? ` · ${zz(finale.spieler)} players` : ''}</p>
           </div>
-        )}
+          {finale.preisgeld ? <div><p className="ueber">Prize pool</p><p className="titel mt-1 text-5xl !text-amber-300">${finale.preisgeld.toLocaleString('en')}</p>{finale.erster ? <p className="mt-1 text-xs text-white/60">1st place · ${finale.erster.toLocaleString('en')}</p> : null}</div> : <span />}
+          {plan.herkunft.length > 0 && <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-white/55 sm:justify-end">{plan.herkunft.map((h) => <li key={h.von}><b className="titel mr-1 text-2xl !text-white">{h.zahl}</b>{h.von === 'ft' ? 'from the Fast Track' : h.von === 'heats' ? 'from the heats' : 'from the Last Chance Lobby'}</li>)}</ul>}
+        </div>
+      )}
+      <div className="space-y-5">
+        {reihen.map(([titel, ids]) => {
+          const da = ids.filter((id) => kn(id));
+          if (!da.length) return null;
+          return (
+            <div key={titel}>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-akz">{titel}</p>
+              <div className="flex flex-col items-stretch sm:flex-row">
+                {da.map((id, i) => (
+                  <div key={id} className="flex flex-1 flex-col sm:flex-row">
+                    {i > 0 && <Pfeil k={ka(da[i - 1], id)} />}
+                    <Kasten k={kn(id)!} hier={hierId === id} />
+                  </div>
+                ))}
+                {ka(da[da.length - 1], 'finale') && <Pfeil k={ka(da[da.length - 1], 'finale')} />}
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/5 pt-4 text-[11px] text-white/45">
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-sky-400 bg-sky-400/20" />Live now</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-akz bg-akz/20" />Live now</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-white/45" />Epic token</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dashed border-sky-300" />Set by Epic (no token)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-sky-400" />Into the finals</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dashed border-akz" />Set by Epic (no token)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-akz" />Into the finals</span>
       </div>
     </div>
   );
@@ -230,39 +246,36 @@ function Bestenliste({ f, stufe, zielText }: { f: SFenster; stufe?: SStufe; ziel
     : f.spieler.map((s, i) => ({ key: s.id, rang: i + 1, s, x: null as LbEintrag | null }));
   const gefiltert = q ? zeilen.filter((z) => z.s.anzeige.toLowerCase().includes(q.toLowerCase())) : zeilen;
   return (
-    <Glas className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-white/5 p-4">
-        <h3 className="font-bold text-white">{f.name}</h3>
-        {live && <span className="rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Live · every 30 s</span>}
+    <Flaeche fest className="overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+        <span className="h-4 w-1 rounded-full bg-akz" /><h3 className="titel text-2xl">{f.name}</h3>
+        {live && <Marke ton="rot" puls>Live · every 30 s</Marke>}
         {!e.length && <span className="text-xs text-white/45">Not started yet — start list</span>}
         <Suche wert={q} setze={setQ} platz="Search a player …" className="ml-auto" />
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead><tr className="border-b border-white/5 text-left text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-            <th className="w-12 px-4 py-2.5">#</th><th className="px-3 py-2.5">Player</th><th className="w-20 px-3 py-2.5 text-right">Points</th><th className="w-20 px-3 py-2.5 text-right">Matches</th><th className="w-16 px-3 py-2.5 text-right">Wins</th><th className="w-16 px-4 py-2.5 text-right">Elims</th>
-          </tr></thead>
+        <table className="tabelle min-w-[560px]">
+          <thead><tr><th className="w-12">#</th><th>Player</th><th className="w-20 !text-right">Points</th><th className="w-20 !text-right">Matches</th><th className="w-16 !text-right">Wins</th><th className="w-16 !text-right">Elims</th></tr></thead>
           <tbody>
             {gefiltert.map((z) => (
               <Fragment key={z.key}>
-                <tr onClick={() => z.x && setOffen(offen === z.key ? null : z.key)}
-                  className={`border-b border-white/[0.04] transition hover:bg-sky-400/[0.05] ${z.x ? 'cursor-pointer' : ''} ${schwelle && z.rang === schwelle ? 'border-b-2 border-b-emerald-400/60' : ''}`}>
-                  <td className={`px-4 py-2 text-xs font-black tabular-nums ${schwelle && z.rang <= schwelle ? 'text-emerald-300' : 'text-white/40'}`}>{z.rang}</td>
-                  <td className="px-3 py-2"><span className="flex items-center gap-2.5"><TeamFlagge groesse={20} laender={[z.s.land]} /><span className="truncate font-bold uppercase text-white">{z.s.anzeige}</span></span></td>
-                  <td className="px-3 py-2 text-right font-bold tabular-nums text-white">{z.x ? z.x.points : '–'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-white/60">{z.x?.games ?? '–'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-white/60">{z.x?.wins ?? '–'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-white/60">{z.x?.elims ?? '–'}</td>
+                <tr onClick={() => z.x && setOffen(offen === z.key ? null : z.key)} className={`${z.x ? 'cursor-pointer' : ''} ${schwelle && z.rang === schwelle ? '[&>td]:border-b-2 [&>td]:border-b-emerald-400/60' : ''}`}>
+                  <td className={`zahl text-xs font-black ${schwelle && z.rang <= schwelle ? 'text-emerald-300' : 'text-white/40'}`}>{z.rang}</td>
+                  <td><span className="flex items-center gap-2.5"><TeamFlagge groesse={20} laender={[z.s.land]} />{z.s.bild && <img src={z.s.bild} alt="" loading="lazy" className="h-9 w-[27px] shrink-0 rounded-md object-cover object-top" />}<span className="truncate font-bold uppercase text-white">{z.s.anzeige}</span></span></td>
+                  <td className="zahl text-right font-bold text-white">{z.x ? z.x.points : '–'}</td>
+                  <td className="zahl text-right text-white/60">{z.x?.games ?? '–'}</td>
+                  <td className="zahl text-right text-white/60">{z.x?.wins ?? '–'}</td>
+                  <td className="zahl text-right text-white/60">{z.x?.elims ?? '–'}</td>
                 </tr>
                 {offen === z.key && z.x && (
-                  <tr className="bg-black/20">
-                    <td colSpan={6} className="px-4 py-3">
+                  <tr className="!bg-black/40">
+                    <td colSpan={6}>
                       <div className="flex flex-wrap gap-2">
                         {(z.x.matches ?? []).map((m, i) => (
-                          <span key={m.sessionId ?? i} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70">Game {i + 1}: <b className={m.placement === 1 ? 'text-amber-300' : 'text-white'}>#{m.placement ?? '–'}</b> · {m.elims ?? 0} elims</span>
+                          <span key={m.sessionId ?? i} className="rounded-xl border border-white/[0.08] bg-black/40 px-3 py-1.5 text-xs text-white/70">Game {i + 1}: <b className={m.placement === 1 ? 'text-amber-300' : 'text-white'}>#{m.placement ?? '–'}</b> · {m.elims ?? 0} elims</span>
                         ))}
                         {!(z.x.matches ?? []).length && <span className="text-xs text-white/40">No match details.</span>}
-                        <Link to={`/competitive/player/${z.s.id}`} className="ml-auto text-xs font-semibold text-sky-300 hover:underline">Player profile →</Link>
+                        <Link to={`/competitive/player/${z.s.id}`} className="knopf-leer ml-auto !text-xs">Player profile →</Link>
                       </div>
                     </td>
                   </tr>
@@ -272,8 +285,8 @@ function Bestenliste({ f, stufe, zielText }: { f: SFenster; stufe?: SStufe; ziel
           </tbody>
         </table>
       </div>
-      {schwelle && e.length > 0 && <p className="border-t border-white/5 px-4 py-2.5 text-[11px] text-emerald-300/80">Top {schwelle} → {zielText ?? 'next stage'}</p>}
-    </Glas>
+      {schwelle && e.length > 0 && <p className="border-t border-white/[0.06] px-4 py-2.5 text-[11px] text-emerald-300/80">Top {schwelle} → {zielText ?? 'next stage'}</p>}
+    </Flaeche>
   );
 }
 
@@ -286,28 +299,28 @@ function HeatsPlan({ plan }: { plan: Heats }) {
   const passt = (s: { name: string; land: string }) => !x || s.name.toLowerCase().includes(x) || (!!s.land && (s.land.toLowerCase() === x || (x.length >= 3 && landName(s.land).toLowerCase().includes(x))));
   const treffer = x ? plan.heats.reduce((a, h) => a + h.spieler.filter(passt).length, 0) : 0;
   return (
-    <div className="space-y-4">
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-2">
-        <Suche wert={q} setze={setQ} platz="Search a player or country …" className="sm:w-full" />
-        <div className="flex gap-1">{[null, ...plan.heats.map((h) => h.nr)].map((n) => <button key={String(n)} type="button" onClick={() => setNur(n)} className={chip(nur === n)}>{n === null ? 'All heats' : `Heat ${n}`}</button>)}</div>
+    <div className="space-y-3">
+      <div className="fl-fest flex flex-wrap items-center gap-x-4 gap-y-2.5 !rounded-2xl px-4 py-3">
+        <div className="ohne-leiste flex max-w-full gap-1.5 overflow-x-auto">{[null, ...plan.heats.map((h) => h.nr)].map((n) => <button key={String(n)} type="button" onClick={() => setNur(n)} className={chip(nur === n)}>{n === null ? 'All heats' : `Heat ${n}`}</button>)}</div>
         <p className="text-xs text-white/45">{x ? `${treffer} players found` : plan.ausMarken ? 'Assignment confirmed by Epic.' : "Assigned by Epic's rule from the last round's placement — Epic confirms it later."}</p>
+        <Suche wert={q} setze={setQ} platz="Search a player or country …" className="ml-auto sm:!w-72" />
       </div>
-      <div className={`grid gap-4 ${nur === null ? 'xl:grid-cols-2' : ''}`}>
+      <div className={`grid grid-cols-1 gap-3 ${nur === null ? '2xl:grid-cols-2' : ''}`}>
         {plan.heats.filter((h) => nur === null || h.nr === nur).map((h) => (
-          <Glas key={h.nr} className="overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-5 py-3"><h3 className="text-sm font-black uppercase tracking-[0.25em] text-white">Heat {h.nr}</h3><span className="text-xs tabular-nums text-white/45">{datumKurz(h.begin)} · {h.spieler.length} players</span></div>
-            <ol className="columns-1 gap-0 sm:columns-2">
+          <Flaeche key={h.nr} fest className="overflow-hidden">
+            <div className="flex items-end justify-between border-b border-white/[0.06] px-5 py-3"><h3 className="titel text-4xl">Heat {h.nr}</h3><span className="zahl text-xs text-white/45">{datumKurz(h.begin)} · {h.spieler.length} players</span></div>
+            <ol className={`columns-1 gap-0 sm:columns-2 ${nur === null ? '' : 'xl:columns-3'}`}>
               {h.spieler.map((s, i) => (
-                <li key={s.id} className={`flex break-inside-avoid items-center gap-2.5 border-b border-white/[0.04] px-4 py-2 text-sm ${x ? (passt(s) ? 'bg-sky-400/10' : 'opacity-30') : ''}`}>
-                  <span className={`w-5 text-right text-xs font-bold tabular-nums ${i < 3 ? 'text-white' : 'text-white/40'}`}>{i + 1}</span>
-                  <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/45">{plan.quelle} #{s.rang}</span>
+                <li key={s.id} className={`flex break-inside-avoid items-center gap-2.5 border-b border-white/[0.05] px-4 py-2 text-sm ${x ? (passt(s) ? 'bg-akz/10' : 'opacity-30') : ''}`}>
+                  <span className={`zahl w-5 text-right text-xs font-bold ${i < 3 ? 'text-white' : 'text-white/40'}`}>{i + 1}</span>
+                  <span className="zahl rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/45">{plan.quelle} #{s.rang}</span>
                   <TeamFlagge groesse={14} laender={[s.land || null]} />
                   <span className="min-w-0 flex-1 truncate font-extrabold uppercase text-white">{s.name}</span>
-                  <span className="font-bold tabular-nums text-white/70">{s.punkte}</span>
+                  <span className="zahl font-bold text-white/70">{s.punkte}</span>
                 </li>
               ))}
             </ol>
-          </Glas>
+          </Flaeche>
         ))}
       </div>
     </div>
@@ -322,27 +335,29 @@ function Preisgeld({ region }: { region: string }) {
   if (!d) return <Laedt />;
   if (!d.ok || !d.gruppen?.length) return <Leer text="Epic is not publishing a payout table for this region right now." />;
   const usd = (n: number) => `$${n.toLocaleString('en')}`;
+  const gold = ['#facc15', '#cbd5e1', '#f59e0b'];
   return (
-    <div className="space-y-6">
-      {d.gruppen.map((g) => (
-        <div key={g.id} className="space-y-4">
-          <Glas className="relative overflow-hidden px-6 py-8 text-center">
-            <div aria-hidden className="absolute inset-0" style={{ background: 'radial-gradient(60% 80% at 50% 0%, rgba(14,71,222,.3), transparent 70%)' }} />
-            <p className="relative text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">{g.name}</p>
-            <p className="relative mt-2 text-5xl font-black tabular-nums text-amber-300">{usd(g.summe)}</p>
-            <p className="relative mt-2 text-sm text-white/50">{g.plaetze.length} paid places</p>
-          </Glas>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {g.plaetze.map((p, i) => (
-              <motion.div key={p.platz} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 20) * 0.02 }}
-                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 ${i < 3 ? 'border-amber-300/30 bg-amber-300/[0.05]' : 'border-white/10 bg-white/[0.03]'}`}>
-                <span className={`grid h-10 w-14 shrink-0 place-items-center rounded-xl bg-black/30 text-sm font-black tabular-nums ${i < 3 ? 'text-amber-300' : 'text-sky-200'}`}>{p.spanne[0] !== p.spanne[1] ? `${p.spanne[0]}–${p.spanne[1]}` : `#${p.platz}`}</span>
-                <span className="text-lg font-bold tabular-nums text-white">{usd(p.proSpieler)}</span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      ))}
+    <div className={`grid grid-cols-1 gap-3 ${d.gruppen.length > 1 ? '2xl:grid-cols-2' : ''}`}>
+      {d.gruppen.map((g) => {
+        const max = Math.max(1, ...g.plaetze.map((p) => p.proSpieler));
+        return (
+          <Flaeche key={g.id} fest className="overflow-hidden">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+              <div><p className="ueber">{g.name}</p><p className="titel mt-1 text-6xl !text-amber-300"><Zaehler wert={g.summe} format={usd} /></p></div>
+              <p className="zahl text-sm text-white/50">{g.plaetze.length} paid places · {g.waehrung || 'USD'}</p>
+            </div>
+            <ul>
+              {g.plaetze.map((p, i) => (
+                <li key={p.platz} className="flex items-center gap-4 border-b border-white/[0.05] px-5 py-2 last:border-b-0">
+                  <span className="titel w-20 shrink-0 text-2xl" style={{ color: gold[i] ?? 'rgba(255,255,255,.45)' }}>{p.spanne[0] !== p.spanne[1] ? `${p.spanne[0]}–${p.spanne[1]}` : `#${p.platz}`}</span>
+                  <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]"><motion.span className="absolute inset-y-0 left-0 rounded-full" style={{ background: gold[i] ?? 'rgb(var(--akz))' }} initial={{ width: 0 }} whileInView={{ width: `${(p.proSpieler / max) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: Math.min(i, 12) * 0.03 }} /></span>
+                  <span className="zahl w-24 shrink-0 text-right text-base font-bold text-white">{usd(p.proSpieler)}</span>
+                </li>
+              ))}
+            </ul>
+          </Flaeche>
+        );
+      })}
     </div>
   );
 }
@@ -430,134 +445,163 @@ export default function GlobalsSolos() {
   const formen = useMemo(() => formenVon(f?.formen ?? []), [f]);
   const qualZahl = daten?.qualifiziert.reduce((a, g) => a + g.spieler.length, 0) ?? 0;
   const zielText = `FNCS Solos${reihe === 'reload' ? ' Reload' : ''} ${st?.art === 'heat' || /fast/i.test(st?.name ?? '') ? 'Grand Finals' : 'next stage'}`;
-  const knopf = (an: boolean) => `inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${an ? 'bg-sky-400 text-[#06080f]' : 'text-white/60 hover:bg-white/5 hover:text-white'}`;
+  const [zeige, setZeige] = useState<{ namen: string[]; n: number } | null>(null);
+  const [kartenSuche, setKartenSuche] = useState('');
+  const springe = (namen: string[]) => setZeige((alt) => ({ namen, n: (alt?.n ?? 0) + 1 }));
+  const aufKarteNamen = useMemo(() => new Set((f?.formen ?? []).flatMap((fo) => fo.spieler.map((n) => n.toLowerCase()))), [f]);
+
+  /** Ein Eintrag der Leiste "Stages" - auf dem Rechner eine Zeile der Zeitleiste, auf dem Handy ein Chip. */
+  const stufeKnopf = (k: string, titel: ReactNode, unter?: string, zustand?: 'live' | 'kommt' | 'vorbei') => {
+    const an = stufe === k;
+    return (
+      <button key={k} type="button" onClick={() => waehleStufe(k)}
+        className={`relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-left transition lg:w-full ${an ? 'bg-akz/[0.12] text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}>
+        {an && <motion.span layoutId="solos-stufe" className="absolute inset-y-2 left-0 hidden w-[3px] rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.9)] lg:block" />}
+        <span className={`h-2 w-2 shrink-0 rounded-full ${zustand === 'live' ? 'animate-pulse bg-red-400' : zustand === 'vorbei' ? 'bg-emerald-400/70' : zustand === 'kommt' ? 'border border-white/30' : an ? 'bg-akz' : 'bg-white/20'}`} />
+        <span className="min-w-0 flex-1"><span className="block whitespace-nowrap text-[13px] font-semibold lg:truncate">{titel}</span>{unter && <span className="zahl hidden text-[10px] text-white/40 lg:block">{unter}</span>}</span>
+        {zustand === 'live' && <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-red-300">Live</span>}
+      </button>
+    );
+  };
+  const tagUnter = (x: SFenster) => [x.start ? datumKurz(x.start) : '', x.spieler.length ? `${x.spieler.length} players` : ''].filter(Boolean).join(' · ');
 
   return (
-    <div className="space-y-6">
-      <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18]">
-        <img src={bild} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
-        <div className="grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_minmax(0,520px)]">
-          <div className="order-2 lg:order-1">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-300">{reihe === 'reload' ? 'FNCS · Reload' : 'FNCS · Battle Royale'}</p>
-            <h1 className="mt-1 text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl">FNCS Solos{reihe === 'reload' ? ' Reload' : ''} <span className="text-sky-400">{regionText(region)}</span></h1>
-            <p className="mt-3 max-w-xl text-sm text-white/60">Every stage on the road to the Grand Finals — for every region: qualifiers, fast tracks, heats, last chance, finals and the drop spots.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <div className="inline-flex rounded-xl border border-white/15 bg-black/40 p-1">
-                <button type="button" onClick={() => { const p = new URLSearchParams(adresse); p.delete('reihe'); setAdresse(p); }} className={`rounded-lg px-4 py-1.5 text-xs font-bold ${!archiv ? 'bg-white text-[#06080f]' : 'text-white/55 hover:text-white'}`}>FNCS Reload Solo</button>
-                <button type="button" onClick={() => { const p = new URLSearchParams(adresse); p.set('reihe', 'S42'); setAdresse(p); }} className={`rounded-lg px-4 py-1.5 text-xs font-bold ${archiv === 'S42' ? 'bg-white text-[#06080f]' : 'text-white/55 hover:text-white'}`}>FNCS Solos</button>
-              </div>
-              {live && <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-xs font-bold uppercase text-white"><span className="h-2 w-2 animate-pulse rounded-full bg-white" />Live</span>}
-              {daten && <span className="rounded-full border border-white/20 bg-black/40 px-3 py-1 text-xs font-semibold text-white/85">{qualZahl} qualified</span>}
-            </div>
-          </div>
-          <img src={bild} alt="" className="order-1 aspect-video w-full rounded-2xl border border-white/10 object-cover shadow-2xl lg:order-2" />
-        </div>
-      </motion.section>
+    <div className="-mt-2 space-y-3">
+      <KopfBand bild={<Bild src={bild} className="hidden aspect-video h-[72px] shrink-0 rounded-2xl sm:block" />}
+        ueber={reihe === 'reload' ? 'FNCS · Reload · Road to the Grand Finals' : 'FNCS · Battle Royale · Road to the Grand Finals'}
+        titel={<>FNCS Solos{reihe === 'reload' ? ' Reload' : ''} <span className="text-akz">{regionText(region)}</span></>}
+        marken={<>
+          {live && <Marke ton="rot" puls>Live</Marke>}
+          {daten && <Marke><span className="zahl">{qualZahl}</span> qualified</Marke>}
+          <span className="text-xs text-white/45">Qualifiers, fast tracks, heats, last chance, finals and the drop spots — for every region.</span>
+        </>}
+        rechts={<Segment id="solos-reihe" wert={archiv === 'S42' ? 'archiv' : 'jetzt'} wahl={[{ k: 'jetzt', titel: 'FNCS Reload Solo' }, { k: 'archiv', titel: 'FNCS Solos' }]}
+          onWahl={(k) => { const p = new URLSearchParams(adresse); if (k === 'archiv') p.set('reihe', 'S42'); else p.delete('reihe'); setAdresse(p); }} />} />
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="ohne-leiste flex items-center gap-1.5 overflow-x-auto">
+        <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Region</span>
         {REGIONEN.map((r) => {
           const fb = REGION_FARBE[r] ?? '#38bdf8';
-          return <button key={r} type="button" onClick={() => waehleRegion(r)} title={REGION_NAME[r]} className="shrink-0 rounded-full border px-4 py-1.5 text-xs font-bold transition"
-            style={region === r ? { background: fb, borderColor: fb, color: '#06080f' } : { borderColor: `${fb}44`, color: fb }}>{r}</button>;
+          return <button key={r} type="button" onClick={() => waehleRegion(r)} title={REGION_NAME[r]} className="chip !px-4 !font-bold"
+            style={region === r ? { background: fb, borderColor: fb, color: '#04050a' } : { color: fb }}>{r}</button>;
         })}
       </div>
 
-      <div className="max-w-full overflow-x-auto">
-        <nav className="inline-flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.035] p-1.5 backdrop-blur-xl">
-          <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}>The road</button>
-          <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}>Qualified</button>
-          {heatsPlan && <button type="button" onClick={() => waehleStufe('heats')} className={knopf(stufe === 'heats')}>Heat assignment</button>}
-          {!spieltage.length && daten?.leereKarte && <button type="button" onClick={() => waehleStufe('karte')} className={knopf(stufe === 'karte')}>Map</button>}
-          {spieltage.length > 0 && <span className="mx-1 h-5 w-px shrink-0 bg-white/10" />}
-          {spieltage.map((x) => (
-            <button key={x.windowId} type="button" onClick={() => waehleStufe(x.name)} className={knopf(stufe === x.name)}>
-              {statusVon(x) === 'live' && <span className={`h-2 w-2 animate-pulse rounded-full ${stufe === x.name ? 'bg-[#06080f]' : 'bg-rose-400'}`} />}{x.name}
-            </button>
-          ))}
-          <span className="mx-1 h-5 w-px shrink-0 bg-white/10" />
-          <button type="button" onClick={() => waehleStufe('preisgeld')} className={knopf(stufe === 'preisgeld')}>Prize pool</button>
-          {wer?.isAdmin && <button type="button" disabled={neuLaedt} onClick={async () => { setNeuLaedt(true); try { await holen(() => false, true); } finally { setNeuLaedt(false); } }}
-            className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-bold text-white/70 hover:border-sky-400/50 disabled:opacity-50">
-            <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 ${neuLaedt ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3v4h-4" /></svg>Reload</button>}
-        </nav>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start">
+        {/* Leiste: alle Teile der Reihe als Zeitleiste */}
+        <aside className="fl-fest min-w-0 p-2 lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100vh-8.5rem)] lg:overflow-y-auto">
+          <p className="hidden px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40 lg:block">Stages</p>
+          <nav className="ohne-leiste flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+            {stufeKnopf('weg', 'The road', 'How to reach the finals')}
+            {stufeKnopf('qualifiziert', 'Qualified', daten ? `${qualZahl} players` : undefined)}
+            {heatsPlan && stufeKnopf('heats', 'Heat assignment', `${heatsPlan.heats.length} heats`)}
+            {!spieltage.length && daten?.leereKarte && stufeKnopf('karte', 'Map')}
+            {spieltage.length > 0 && <span className="mx-1 my-1 w-px shrink-0 bg-white/10 lg:mx-3 lg:my-1.5 lg:h-px lg:w-auto" />}
+            {spieltage.map((x) => stufeKnopf(x.name, x.name, tagUnter(x), statusVon(x)))}
+            <span className="mx-1 my-1 w-px shrink-0 bg-white/10 lg:mx-3 lg:my-1.5 lg:h-px lg:w-auto" />
+            {stufeKnopf('preisgeld', 'Prize pool')}
+            {wer?.isAdmin && <button type="button" disabled={neuLaedt} onClick={async () => { setNeuLaedt(true); try { await holen(() => false, true); } finally { setNeuLaedt(false); } }}
+              className="knopf shrink-0 !py-1.5 !text-xs lg:mt-1">
+              <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 ${neuLaedt ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3v4h-4" /></svg>Reload</button>}
+          </nav>
+        </aside>
+
+        <div className="min-w-0 space-y-3">
+          {f && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h2 className="titel text-4xl">{f.name}</h2>
+              {statusVon(f) === 'live' ? <Marke ton="rot" puls>Live</Marke> : statusVon(f) === 'kommt' ? <Marke ton="akz">Upcoming</Marke> : <Marke>Ended</Marke>}
+              {f.start && <span className="zahl text-xs text-white/45">{datumKurz(f.start)}</span>}
+              <span className="ml-auto"><Segment id="solos-ansicht" wert={ansicht} onWahl={waehleAnsicht} wahl={[{ k: 'karte', titel: 'Map' }, { k: 'bestenliste', titel: 'Leaderboard' }, { k: 'spieler', titel: 'Players' }, { k: 'laender', titel: 'Countries' }]} /></span>
+            </div>
+          )}
+
+          {!daten && !fehler && stufe !== 'preisgeld' && <Laedt />}
+          {fehler && !daten && stufe !== 'preisgeld' && <FehlerZeile text={fehler} />}
+
+          {daten && stufe === 'weg' && (
+            <>
+              <Tafel>
+                <Kopf2 titel="The road to the Grand Finals" />
+                <p className="mt-2 max-w-3xl text-sm text-white/50">Every arrow is an Epic token: the reward of one round is the entry requirement of the next. All numbers come from Epic's leaderboards and payout tables.</p>
+                <div className="mt-5"><WegPlan region={region} /></div>
+              </Tafel>
+              {qualZahl > 0 && (
+                <Tafel>
+                  <Kopf2 titel="Already in the Grand Finals" zahl={qualZahl} rechts={<button type="button" onClick={() => waehleStufe('qualifiziert')} className="knopf-leer">See all →</button>} />
+                  <div className="mt-5"><Spielerliste spieler={(() => { const a = daten.qualifiziert.flatMap((g) => g.spieler); return [...a.filter((s) => s.bild), ...a.filter((s) => !s.bild)].slice(0, 18); })()} /></div>
+                </Tafel>
+              )}
+            </>
+          )}
+          {daten && stufe === 'karte' && daten.leereKarte && (
+            <Tafel><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><Kopf2 titel={daten.leereKarte.titel} /><p className="text-xs text-white/45">Drop spots appear once the first round is played.</p></div>
+              <img src={daten.leereKarte.url} alt="" className="mx-auto block w-full max-w-4xl rounded-2xl" /></Tafel>
+          )}
+          {daten && stufe === 'qualifiziert' && (
+            <>
+              <Kopf2 titel="Qualified for the Grand Finals" zahl={qualZahl} rechts={<span className="text-xs text-white/45">Grouped by the road: fast tracks, heats, last chance.</span>} />
+              {!daten.qualifiziert.length ? <Leer text="Nobody has qualified yet." /> : daten.qualifiziert.map((g) => {
+                const titel = g.art === 'heat' ? g.quelle : /fast/i.test(g.quelle) ? 'Fast Tracks' : /last chance|lcq/i.test(g.quelle) ? g.quelle : 'Other';
+                const text = g.art === 'heat' ? 'Through the heat into the Grand Finals' : /fast/i.test(g.quelle) ? 'Straight into the Grand Finals' : /last chance|lcq/i.test(g.quelle) ? 'Through the Last Chance into the Grand Finals' : 'Another road — not tied to a stage';
+                const ft = /fast/i.test(g.quelle) ? daten.stufen.find((s) => s.art === 'fasttrack')?.qualifiziert : undefined;
+                return (
+                  <Tafel key={g.windowId ?? g.quelle}>
+                    <div className="flex flex-wrap items-end gap-x-3 gap-y-1"><h3 className="titel text-3xl">{titel}</h3><span className="titel text-3xl !text-akz">{g.spieler.length}</span>{ft && <Marke ton="akz">Top {ft} → Grand Finals</Marke>}<p className="ml-auto text-[11px] text-white/40">{text}</p></div>
+                    <div className="mt-4"><Spielerliste spieler={g.spieler} unter={(s) => (s.rang != null ? `#${s.rang}${s.punkte != null ? ` · ${s.punkte} pts` : ''}` : undefined)} /></div>
+                  </Tafel>
+                );
+              })}
+              {daten.fenster.some((x) => x.art === 'heat') && (
+                <>
+                  <Kopf2 titel="Qualified for the heats" zahl={daten.fenster.filter((x) => x.art === 'heat').reduce((a, x) => a + x.spieler.length, 0)} />
+                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    {daten.fenster.filter((x) => x.art === 'heat').map((h) => (
+                      <Tafel key={h.windowId}><p className="titel text-2xl">{h.name} <span className="zahl font-text text-xs font-semibold normal-case tracking-normal text-white/40">{h.spieler.length}</span></p><div className="mt-3 max-h-[26rem] overflow-y-auto pr-1"><Spielerliste spieler={h.spieler} klein /></div></Tafel>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          {stufe === 'heats' && heatsPlan && <HeatsPlan plan={heatsPlan} />}
+          {stufe === 'preisgeld' && <Preisgeld region={region} />}
+
+          {daten && f && ansicht === 'karte' && (
+            !HAT_KARTE.has(region) ? <Leer text="There is no drop-spot source for this region." />
+              : !f.formen.length ? <Leer text="No drop spots for this day yet." />
+                : (
+                  <Werkbank rechts={(
+                    <Dock titel="On the map" zahl={`${aufKarte}/${f.spieler.length || aufKarte} players`}
+                      kopf={<input value={kartenSuche} onChange={(e) => setKartenSuche(e.target.value)} placeholder="Search a player …" className="eingabe w-full !py-2 !text-[13px]" />}
+                      fuss="Click a player to fly to the drop spot. Wheel zooms, drag moves, Ctrl + F searches.">
+                      <ul className="grid grid-cols-1 2xl:grid-cols-2">
+                        {f.spieler.filter((x) => !kartenSuche.trim() || x.anzeige.toLowerCase().includes(kartenSuche.trim().toLowerCase())).map((x, i) => {
+                          const drauf = aufKarteNamen.has(x.name.toLowerCase()) || aufKarteNamen.has(x.anzeige.toLowerCase());
+                          return (
+                            <li key={x.id}>
+                              <button type="button" disabled={!drauf} onClick={() => springe([x.name, x.anzeige])} className={`flex h-12 w-full items-center gap-2.5 border-b border-white/[0.05] px-3 text-left transition ${drauf ? 'hover:bg-akz/[0.08]' : 'opacity-45'}`}>
+                                <span className="zahl w-7 shrink-0 text-xs font-black text-white/40">{x.rang ?? i + 1}</span>
+                                <TeamFlagge groesse={18} laender={[x.land]} />
+                                <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase tracking-wide text-white">{x.anzeige}</span>
+                                {x.punkte != null && <span className="zahl text-[11px] font-semibold text-white/50">{x.punkte}</span>}
+                                {x.bild && <img src={x.bild} alt="" loading="lazy" className="h-9 w-[27px] shrink-0 rounded-md object-cover object-top" />}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Dock>
+                  )}>
+                    <KartenAnsicht key={f.windowId} formen={formen} bild={f.bild} rotAb={2} deckel="none" zeige={zeige} titel={`fncs-solos-${region}-${f.name}`} />
+                  </Werkbank>
+                )
+          )}
+          {daten && f && ansicht === 'bestenliste' && <Bestenliste key={f.windowId} f={f} stufe={st} zielText={zielText} />}
+          {daten && f && ansicht === 'spieler' && <Tafel><Kopf2 titel="Players" zahl={f.spieler.length} /><div className="mt-4">{f.spieler.length ? <Spielerliste spieler={f.spieler} /> : <p className="py-6 text-center text-sm text-white/45">No players yet.</p>}</div></Tafel>}
+          {daten && f && ansicht === 'laender' && <Tafel className="max-w-4xl"><Kopf2 titel="Players by country" /><div className="mt-4"><LaenderListe spieler={[...new Map(f.spieler.map((s) => [s.id, s])).values()]} /></div></Tafel>}
+        </div>
       </div>
-      {f && <div className="flex justify-end"><Reiter<Ansicht> wert={ansicht} setze={waehleAnsicht} klein liste={[['karte', 'Map'], ['bestenliste', 'Leaderboard'], ['spieler', 'Players'], ['laender', 'Countries']]} /></div>}
-
-      {!daten && !fehler && stufe !== 'preisgeld' && <Laedt />}
-      {fehler && !daten && stufe !== 'preisgeld' && <FehlerZeile text={fehler} />}
-
-      {daten && stufe === 'weg' && (
-        <div className="space-y-5">
-          <Tafel>
-            <h2 className="text-xl font-extrabold text-white">The road to the Grand Finals</h2>
-            <p className="mt-1 max-w-3xl text-sm text-white/50">Every arrow is an Epic token: the reward of one round is the entry requirement of the next. All numbers come from Epic's leaderboards and payout tables.</p>
-            <div className="mt-5"><WegPlan region={region} /></div>
-          </Tafel>
-          {qualZahl > 0 && (
-            <Tafel>
-              <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-extrabold text-white">Already in the Grand Finals <span className="ml-1 tabular-nums text-sky-400">{qualZahl}</span></h2><button type="button" onClick={() => waehleStufe('qualifiziert')} className="text-xs font-semibold text-sky-300 hover:underline">See all →</button></div>
-              <div className="mt-5"><Spielerliste spieler={(() => { const a = daten.qualifiziert.flatMap((g) => g.spieler); return [...a.filter((s) => s.bild), ...a.filter((s) => !s.bild)].slice(0, 20); })()} /></div>
-            </Tafel>
-          )}
-        </div>
-      )}
-      {daten && stufe === 'karte' && daten.leereKarte && (
-        <Tafel><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold uppercase tracking-wider text-white">{daten.leereKarte.titel}</p><p className="text-xs text-white/45">Drop spots appear once the first round is played.</p></div>
-          <img src={daten.leereKarte.url} alt="" className="mx-auto block w-full max-w-4xl rounded-2xl" /></Tafel>
-      )}
-      {daten && stufe === 'qualifiziert' && (
-        <div className="space-y-5">
-          <Tafel>
-            <h2 className="text-xl font-extrabold text-white">Qualified for the Grand Finals <span className="ml-1 tabular-nums text-sky-400">{qualZahl}</span></h2>
-            <p className="mt-1 text-sm text-white/50">Grouped by the road: fast tracks, heats, last chance.</p>
-            {!daten.qualifiziert.length ? <p className="mt-4 rounded-2xl border border-white/10 px-4 py-8 text-center text-sm text-white/45">Nobody has qualified yet.</p> : (
-              <div className="mt-5 space-y-5">
-                {daten.qualifiziert.map((g) => {
-                  const titel = g.art === 'heat' ? g.quelle : /fast/i.test(g.quelle) ? 'Fast Tracks' : /last chance|lcq/i.test(g.quelle) ? g.quelle : 'Other';
-                  const text = g.art === 'heat' ? 'Through the heat into the Grand Finals' : /fast/i.test(g.quelle) ? 'Straight into the Grand Finals' : /last chance|lcq/i.test(g.quelle) ? 'Through the Last Chance into the Grand Finals' : 'Another road — not tied to a stage';
-                  const ft = /fast/i.test(g.quelle) ? daten.stufen.find((s) => s.art === 'fasttrack')?.qualifiziert : undefined;
-                  return (
-                    <div key={g.windowId ?? g.quelle} className="rounded-2xl border border-white/10 bg-black/20 p-5">
-                      <div className="flex flex-wrap items-center gap-2"><h3 className="font-extrabold text-white">{titel}</h3><span className="rounded-full bg-sky-400/15 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-300">{g.spieler.length}</span>{ft && <span className="rounded-full border border-sky-400/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-300">Top {ft} → Grand Finals</span>}</div>
-                      <p className="mt-0.5 text-[11px] text-white/40">{text}</p>
-                      <div className="mt-4"><Spielerliste spieler={g.spieler} unter={(s) => (s.rang != null ? `#${s.rang}${s.punkte != null ? ` · ${s.punkte} pts` : ''}` : undefined)} /></div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Tafel>
-          {daten.fenster.some((x) => x.art === 'heat') && (
-            <Tafel>
-              <h2 className="text-lg font-extrabold text-white">Qualified for the heats <span className="ml-1 tabular-nums text-sky-400">{daten.fenster.filter((x) => x.art === 'heat').reduce((a, x) => a + x.spieler.length, 0)}</span></h2>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                {daten.fenster.filter((x) => x.art === 'heat').map((h) => (
-                  <div key={h.windowId} className="rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-sm font-extrabold text-white">{h.name} <span className="ml-1 text-xs text-white/40">{h.spieler.length}</span></p><div className="mt-3 max-h-[26rem] overflow-y-auto pr-1"><Spielerliste spieler={h.spieler} klein /></div></div>
-                ))}
-              </div>
-            </Tafel>
-          )}
-        </div>
-      )}
-      {stufe === 'heats' && heatsPlan && <HeatsPlan plan={heatsPlan} />}
-      {stufe === 'preisgeld' && <Preisgeld region={region} />}
-
-      {daten && f && ansicht === 'karte' && (
-        !HAT_KARTE.has(region) ? <Leer text="There is no drop-spot source for this region." />
-          : !f.formen.length ? <Leer text="No drop spots for this day yet." />
-            : (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-full border border-white/15 bg-black/30 px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-white">FNCS Solos · {f.name}</span>
-                  <span className="rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-bold tabular-nums text-white/80">Players {aufKarte}/{f.spieler.length || aufKarte}</span>
-                </div>
-                <KartenAnsicht key={f.windowId} formen={formen} bild={f.bild} rotAb={2} titel={`fncs-solos-${region}-${f.name}`} />
-              </div>
-            )
-      )}
-      {daten && f && ansicht === 'bestenliste' && <Bestenliste key={f.windowId} f={f} stufe={st} zielText={zielText} />}
-      {daten && f && ansicht === 'spieler' && <Tafel><h3 className="font-extrabold text-white">{f.name} <span className="ml-1 text-sm text-white/40">{f.spieler.length}</span></h3><div className="mt-4">{f.spieler.length ? <Spielerliste spieler={f.spieler} /> : <p className="py-6 text-center text-sm text-white/45">No players yet.</p>}</div></Tafel>}
-      {daten && f && ansicht === 'laender' && <Tafel className="max-w-3xl"><h3 className="mb-4 font-extrabold text-white">Players by country · {f.name}</h3><LaenderListe spieler={[...new Map(f.spieler.map((s) => [s.id, s])).values()]} /></Tafel>}
     </div>
   );
 }

@@ -94,8 +94,8 @@ function Uebersicht() {
       {s.art === 'laedt' && <Laedt />}
       {s.art === 'fehler' && <FehlerZeile text="The final standings could not be loaded right now." />}
       {sieger && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <div className="grid content-start gap-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="grid min-w-0 grid-cols-1 content-start gap-4">
             {/* Die Sieger */}
             <Flaeche fest className="p-4 sm:p-5">
               <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -134,7 +134,7 @@ function Uebersicht() {
             </Flaeche>
           </div>
           {/* Der Endstand ab Platz 4 */}
-          <div className="relative min-h-[520px]">
+          <div className="relative min-h-[520px] min-w-0">
             <Dock titel="Final standings" zahl={`${teams.length} teams · both days`} className="xl:absolute xl:inset-0">
               <table className="tabelle">
                 <thead><tr><th className="w-10">#</th><th>Team</th><th className="hidden w-14 !text-right sm:table-cell">Wins</th><th className="w-14 !text-right">Elims</th><th className="w-16 !text-right">Points</th></tr></thead>
@@ -491,7 +491,7 @@ function Preisgeld() {
     </motion.div>
   );
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:items-start">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:items-start">
       <div className="space-y-4 xl:sticky xl:top-[7.5rem]">
         <Flaeche fest className="p-6">
           <p className="ueber">Prize pool · {d.waehrung || 'USD'}</p>

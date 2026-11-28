@@ -207,10 +207,11 @@ export function LaenderListe({ spieler }: { spieler: Array<{ land?: string | nul
   );
 }
 
-/** Hochkant-Foto eines Spielers (h-12 w-9) - Betreiber: Rechtecke nebeneinander, keine Kreise. */
+/** Hochkant-Foto eines Spielers (h-12 w-9) - Betreiber: Rechtecke nebeneinander, keine Kreise. Laedt das Bild nicht, steht dort nichts (kein Ersatzbild). */
 export function Hochkant({ bild, klein }: { bild?: string | null; klein?: boolean }) {
-  if (!bild) return null;
-  return <img src={bild} alt="" loading="lazy" className={`${klein ? 'h-10 w-[30px]' : 'h-12 w-9'} shrink-0 rounded-lg object-cover object-top ring-1 ring-white/10`} />;
+  const [kaputt, setKaputt] = useState(false);
+  if (!bild || kaputt) return null;
+  return <img src={bild} alt="" loading="lazy" onError={() => setKaputt(true)} className={`${klein ? 'h-10 w-[30px]' : 'h-12 w-9'} shrink-0 rounded-lg object-cover object-top ring-1 ring-white/10`} />;
 }
 
 /** Die Fotos eines Teams - nur wenn jeder Spieler eines hat (Betreiber-Regel). */
