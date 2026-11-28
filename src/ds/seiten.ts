@@ -69,6 +69,7 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
         { pfad: 'locker', titel: 'Locker', text: 'What you own' },
         { pfad: 'collections', titel: 'Collections', text: 'Your lists of islands' },
         { pfad: 'rankings', titel: 'Rankings', text: 'Rate cosmetics and seasons' },
+        { pfad: 'notifications', titel: 'Notifications', text: 'Alerts for shop, cups and season' },
       ] },
       { titel: 'Season', seiten: [
         { pfad: 'season', titel: 'Season', text: 'Countdown and live event', haupt: true },
