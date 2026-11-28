@@ -1,14 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Abschnitt, Flaeche, Kennzahl, Laedt, Leer, Marke, Segment, SeitenKopf, Zaehler } from '../../../ds/Bausteine';
 import { LinkKopieren } from '../Bausteine';
 import { useAblage } from '../kosmetik/daten';
 import { AblageHinweis } from '../kosmetik/Raster';
-import {
-  aktuell, gesamt, inselHolen, inselLink, kurz, METRIK_NAMEN, metrikenZeitraum, poolAbo, poolLaden, poolStand, spitze,
-  type Insel, type Metriken, type MetrikName, type Zeitraum,
-} from './daten';
+import { kurz, poolAbo, poolLaden, poolStand, type Insel } from './daten';
 import { MiniVerlauf, Verlauf } from './Diagramm';
 import { creatorsAus, useInselInfos, useRangliste, type Creator, type Eintrag } from './fn';
 import { AnteilLinie, InselBild, InselKarte, inselPfad, QuellenZeile, vonWem } from './Teile';
@@ -20,7 +17,7 @@ import { AnteilLinie, InselBild, InselKarte, inselPfad, QuellenZeile, vonWem } f
  *   Discover       Bilderwand wie der Discover-Schirm im Spiel: #1 als Buehne, #2-#5 daneben, "Climbing", dann alle als gleiche Karten
  *   Creators       Spieler je Creator zusammengezaehlt (Epic steht wie in Wirklichkeit vorn), Liste + Schaukasten des gewaehlten Creators
  *   Creative       Werkzeug zum Stoebern: Filter links (Suche, Code, Tags, Sortierung), Karten rechts
- *   Insel          Buehne mit Thumbnail, Kennzahlen, Verlauf je Metrik, Retention, mehr vom selben Creator, in eine Sammlung legen
+ *   Insel          eigene Datei: epic/Insel.tsx
  */
 
 const FARBEN = ['#5eead4', '#38bdf8', '#a78bfa', '#f59e0b', '#f472b6', '#34d399', '#fb7185', '#facc15'];
@@ -416,134 +413,5 @@ export function Creative() {
   );
 }
 
-/* ================================================================== Insel-Detail */
-const METRIKEN: Array<{ k: MetrikName; farbe: string }> = [
-  { k: 'peakCCU', farbe: '#5eead4' }, { k: 'uniquePlayers', farbe: '#c4b5fd' }, { k: 'plays', farbe: '#fde047' }, { k: 'minutesPlayed', farbe: '#7dd3fc' },
-  { k: 'averageMinutesPerPlayer', farbe: '#fdba74' }, { k: 'favorites', farbe: '#f9a8d4' }, { k: 'recommendations', farbe: '#86efac' },
-];
-const Z_TEXT: Record<Zeitraum, string> = { '1H': 'last hour', '1D': 'last 24 hours', '1W': 'last 7 days' };
-interface Sammlung { id: string; name: string; inseln: Array<{ code: string; name?: string }> }
-export function InselDetail() {
-  const { code: roh = '' } = useParams();
-  const code = decodeURIComponent(roh);
-  const r = useRangliste();
-  const info = useInselInfos([code])(code);
-  const [insel, setInsel] = useState<Insel | null | undefined>(undefined);
-  const [z, setZ] = useState<Zeitraum>('1D');
-  const [m, setM] = useState<(Metriken & { iv: string }) | null | undefined>(undefined);
-  const [tage, setTage] = useState<Metriken | null>(null);
-  const [metrik, setMetrik] = useState<MetrikName>('peakCCU');
-  const sammlungen = useAblage<Sammlung[]>('sammlungen', [{ id: 'favoriten', name: 'Favorites', inseln: [] }]);
-  const epicCode = !/^\d{4}-\d{4}-\d{4}$/.test(code);
-  useEffect(() => { let weg = false; setInsel(undefined); if (epicCode) { setInsel(null); return undefined; } inselHolen(code).then((i) => { if (!weg) setInsel(i); }).catch(() => { if (!weg) setInsel(null); }); return () => { weg = true; }; }, [code, epicCode]);
-  useEffect(() => { let weg = false; setM(undefined); if (epicCode) { setM(null); return undefined; } metrikenZeitraum(code, z).then((x) => { if (!weg) setM(x); }).catch(() => { if (!weg) setM(null); }); return () => { weg = true; }; }, [code, z, epicCode]);
-  useEffect(() => { let weg = false; setTage(null); if (epicCode) return undefined; metrikenZeitraum(code, '1W').then((x) => { if (!weg) setTage(x); }).catch(() => {}); return () => { weg = true; }; }, [code, epicCode]);
-  const platz = r.liste.findIndex((e) => e.code === code); const e = platz >= 0 ? r.liste[platz] : null;
-  const titel = e?.titel ?? info?.titel ?? insel?.titel ?? code;
-  const creator = e?.creator || info?.creator || insel?.creator || '';
-  const istEpic = e?.epic ?? insel?.epic ?? epicCode;
-  const bild = e?.bild ?? info?.bild ?? insel?.bild ?? null;
-  const jetzt = Date.now();
-  const spielerJetzt = e?.spieler ?? (tage ? aktuell(tage) : m ? aktuell(m) : null);
-  const serie24 = e?.serie.length ? e.serie.map((p) => p.v) : null;
-  const kacheln: Array<[string, number | null]> = [
-    ['Peak 24h', serie24 ? Math.max(...serie24, e?.spieler ?? 0) : spitze(tage?.peakCCU ?? [], jetzt - 864e5)], ['Peak 7 days', spitze(tage?.peakCCU ?? [])],
-    ['Unique players 24h', gesamt(tage?.uniquePlayers ?? [], jetzt - 864e5)], ['Plays 24h', gesamt(tage?.plays ?? [], jetzt - 864e5)], ['Minutes played 24h', gesamt(tage?.minutesPlayed ?? [], jetzt - 864e5)],
-  ];
-  const ret = (tage?.retention ?? []).filter((x) => x.d1 !== undefined || x.d7 !== undefined).at(-1);
-  const verfuegbar = METRIKEN.filter((x) => (m?.[x.k]?.length ?? 0) > 1);
-  const aktiv = verfuegbar.find((x) => x.k === metrik) ?? verfuegbar[0];
-  const mehrVon = r.liste.filter((x) => x.code !== code && (istEpic ? x.epic : x.creator && x.creator === creator)).slice(0, 8);
-  const gemerkt = sammlungen.wert.some((s) => s.id === 'favoriten' && s.inseln.some((i) => i.code === code));
-  const merken = () => sammlungen.setzen((l) => {
-    const basis = l.some((s) => s.id === 'favoriten') ? l : [{ id: 'favoriten', name: 'Favorites', inseln: [] }, ...l];
-    return basis.map((s) => (s.id !== 'favoriten' ? s : { ...s, inseln: gemerkt ? s.inseln.filter((i) => i.code !== code) : [...s.inseln, { code, name: titel }] }));
-  });
-  const tagsAlle = [info?.typ ?? insel?.erstelltIn, insel?.kategorie, ...(insel?.tags ?? e?.tags ?? [])].filter(Boolean) as string[];
-  return (
-    <div className="space-y-7">
-      <header className="fl-fest relative isolate overflow-hidden">
-        <div className="absolute inset-y-0 right-0 -z-10 w-full lg:w-[64%]"><InselBild code={code} bild={bild} className="absolute inset-0" /></div>
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/85 to-fl/5" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-transparent to-transparent" />
-        <div className="px-6 pb-7 pt-6 lg:px-10 lg:pb-9">
-          <Link to="/community/creative" className="knopf-leer !text-xs">← All islands</Link>
-          <div className="mt-20 flex flex-wrap items-end justify-between gap-x-10 gap-y-6 lg:mt-36">
-            <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="min-w-0 max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
-                {platz >= 0 && <Marke ton={platz === 0 ? 'gold' : 'akz'}>#{platz + 1} on Discover</Marke>}
-                <Marke>{istEpic ? 'Epic Games' : creator ? `by @${creator}` : 'Island'}</Marke>
-              </div>
-              <h1 className="titel mt-3 text-5xl sm:text-6xl lg:text-7xl">{titel}</h1>
-              {(info?.tagline ?? insel?.text) && <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-white/60">{info?.tagline ?? insel?.text}</p>}
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                {!epicCode && <LinkKopieren text={code} url={code} />}
-                <a href={inselLink({ code, creator })} target="_blank" rel="noreferrer" className="knopf-prim">Open on fortnite.com ↗</a>
-                {!epicCode && <button type="button" onClick={merken} className="knopf">{gemerkt ? '★ In your Favorites' : '☆ Save to Favorites'}</button>}
-                {creator && !istEpic && <Link to={`/community/creators?c=${encodeURIComponent(creator)}`} className="knopf">More by @{creator}</Link>}
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-left lg:text-right">
-              <p className="titel text-7xl text-akz lg:text-8xl">{spielerJetzt ? <Zaehler wert={spielerJetzt} /> : '–'}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">{spielerJetzt ? 'playing right now' : 'fewer than 5 players right now'}</p>
-            </motion.div>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        {kacheln.map(([k, v], i) => <Flaeche key={k} className="p-5" verz={i * 0.04}><Kennzahl label={k} wert={v} format={kurz} /></Flaeche>)}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Flaeche className="p-5 lg:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              {verfuegbar.map((x) => <button key={x.k} type="button" onClick={() => setMetrik(x.k)} className={`chip ${aktiv?.k === x.k ? 'chip-an' : ''}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: x.farbe }} />{METRIK_NAMEN[x.k].titel}</button>)}
-              {!verfuegbar.length && <h2 className="titel text-3xl">History</h2>}
-            </div>
-            {!epicCode && <Segment klein id="insel-zeit" wert={z} wahl={[{ k: '1H', titel: '1H' }, { k: '1D', titel: '1D' }, { k: '1W', titel: '1W' }]} onWahl={setZ} />}
-          </div>
-          <div className="mt-5 pb-5">
-            {m === undefined ? <div className="h-[320px] animate-pulse rounded-2xl bg-white/[0.03]" /> : aktiv && m ? (
-              <AnimatePresence mode="wait"><motion.div key={aktiv.k + z} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                <Verlauf hoehe={320} serien={[{ name: METRIK_NAMEN[aktiv.k].titel, farbe: aktiv.farbe, punkte: m[aktiv.k] }]} />
-              </motion.div></AnimatePresence>
-            ) : e && e.serie.length > 2 ? <Verlauf hoehe={320} serien={[{ name: 'Players', farbe: '#5eead4', punkte: e.serie }]} />
-              : <p className="grid h-[200px] place-items-center text-center text-sm text-white/40">{epicCode ? "Epic doesn't publish history for its own modes." : `No numbers from Epic for the ${Z_TEXT[z]} – they only appear above 5 players.`}</p>}
-          </div>
-          {aktiv && <p className="text-xs text-white/35">{METRIK_NAMEN[aktiv.k].text} · {m?.iv === 'minute' ? '10-minute' : m?.iv === 'day' ? 'daily' : 'hourly'} values from Epic's Fortnite Data API</p>}
-        </Flaeche>
-        <div className="space-y-6">
-          {ret && (
-            <Flaeche className="space-y-5 p-5" verz={0.05}>
-              <h3 className="titel text-2xl">Who comes back</h3>
-              {([['Next day', ret.d1], ['A week later', ret.d7]] as const).map(([k, v]) => {
-                const p = v === undefined ? null : v <= 1 ? v * 100 : v;
-                return (
-                  <div key={k}>
-                    <div className="flex items-baseline justify-between"><p className="text-sm font-semibold text-white/70">{k}</p><p className="titel text-3xl text-akz">{p === null ? '–' : `${Math.round(p)}%`}</p></div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]"><motion.div className="h-full rounded-full bg-akz" initial={{ width: 0 }} whileInView={{ width: `${Math.min(100, p ?? 0)}%` }} viewport={{ once: true }} transition={{ duration: 0.9 }} /></div>
-                  </div>
-                );
-              })}
-              <p className="text-xs text-white/40">Share of new players who return – Epic's retention figure.</p>
-            </Flaeche>
-          )}
-          {tagsAlle.length > 0 && (
-            <Flaeche className="p-5" verz={0.1}>
-              <h3 className="titel text-2xl">About</h3>
-              <div className="mt-3 flex flex-wrap gap-1.5">{tagsAlle.map((t) => <span key={t} className="chip capitalize">{t}</span>)}</div>
-            </Flaeche>
-          )}
-        </div>
-      </div>
-
-      {mehrVon.length > 0 && (
-        <Abschnitt titel={istEpic ? "More of Epic's modes" : `More by @${creator}`} zu={istEpic ? '/community/players' : `/community/creators?c=${encodeURIComponent(creator)}`}>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 2xl:grid-cols-8">{mehrVon.map((x, k) => <InselKarte key={x.code} e={x} klein verz={k * 0.03} />)}</div>
-        </Abschnitt>
-      )}
-    </div>
-  );
-}
+/* Insel-Detail steht seit 28.11.2026 in einer eigenen Datei (epic/Insel.tsx) - hier nur weitergereicht. */
+export { InselDetail } from './Insel';

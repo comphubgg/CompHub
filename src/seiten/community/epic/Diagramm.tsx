@@ -10,7 +10,8 @@ export interface Serie { name: string; farbe: string; punkte: Punkt[] }
 
 const zeitText = (t: number, spanne: number) => new Date(t).toLocaleString('en-GB', spanne > 2 * 864e5 ? { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
 
-export function Verlauf({ serien, hoehe = 280, flaeche = true, gestapelt = false }: { serien: Serie[]; hoehe?: number; flaeche?: boolean; gestapelt?: boolean }) {
+/** `format` (optional) schreibt Achse und Tooltip, z. B. Prozent oder Minuten - ohne: ganze Zahlen. */
+export function Verlauf({ serien, hoehe = 280, flaeche = true, gestapelt = false, format }: { serien: Serie[]; hoehe?: number; flaeche?: boolean; gestapelt?: boolean; format?: (n: number) => string }) {
   const ruhig = useReducedMotion();
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -60,14 +61,14 @@ export function Verlauf({ serien, hoehe = 280, flaeche = true, gestapelt = false
         </g>
       </svg>
       {/* Achsen-Beschriftung */}
-      <div className="pointer-events-none absolute right-0 top-0 text-[10px] tabular-nums text-white/30">{kurz(max / 1.08)}</div>
+      <div className="pointer-events-none absolute right-0 top-0 text-[10px] tabular-nums text-white/30">{(format ?? kurz)(max / 1.08)}</div>
       <div className="pointer-events-none absolute inset-x-0 -bottom-5 flex justify-between text-[10px] tabular-nums text-white/30"><span>{zeitText(zeiten[0], spanne)}</span><span>{zeitText(zeiten.at(-1)!, spanne)}</span></div>
       {hi !== null && (
         <>
           <div className="pointer-events-none absolute inset-y-0 w-px bg-white/25" style={{ left: `${hx}%` }} />
           <div className={`pointer-events-none absolute top-2 z-10 min-w-[150px] rounded-xl border border-white/10 bg-[#0b1220]/95 px-3 py-2 text-xs shadow-2xl backdrop-blur ${hx > 60 ? '-translate-x-[calc(100%+10px)]' : 'translate-x-[10px]'}`} style={{ left: `${hx}%` }}>
             <p className="mb-1 font-semibold text-white/50">{new Date(hi).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-            {serien.map((s) => { const v = s.punkte.find((p) => p.t === hi)?.v; return v === undefined ? null : <p key={s.name} className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-white/70"><span className="h-2 w-2 rounded-full" style={{ background: s.farbe }} />{s.name}</span><span className="font-bold tabular-nums text-white">{Math.round(v).toLocaleString('en')}</span></p>; })}
+            {serien.map((s) => { const v = s.punkte.find((p) => p.t === hi)?.v; return v === undefined ? null : <p key={s.name} className="flex items-center justify-between gap-4"><span className="flex items-center gap-1.5 text-white/70"><span className="h-2 w-2 rounded-full" style={{ background: s.farbe }} />{s.name}</span><span className="font-bold tabular-nums text-white">{format ? format(v) : Math.round(v).toLocaleString('en')}</span></p>; })}
           </div>
         </>
       )}

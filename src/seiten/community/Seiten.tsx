@@ -11,7 +11,7 @@ const K = lazy(() => import('./kosmetik/Seiten'));
 // Live-Seiten auf Epics Fortnite Data API (Player Count, Creative + Insel-Detail, Discover, Creators)
 const Spielerzahl = lazy(() => import('./epic/Live').then((m) => ({ default: m.Spielerzahl })));
 const Creative = lazy(() => import('./epic/Live').then((m) => ({ default: m.Creative })));
-const InselDetail = lazy(() => import('./epic/Live').then((m) => ({ default: m.InselDetail })));
+const InselDetail = lazy(() => import('./epic/Insel').then((m) => ({ default: m.InselDetail })));
 // Season (Design 3.0) - laedt Kosmetik und News von fortnite-api.com, deshalb eigener Chunk
 const SaisonSeite = lazy(() => import('./SaisonSeite'));
 const L = ({ c }: { c: ReactNode }) => <Suspense fallback={<Laedt farbe={TEAL} />}>{c}</Suspense>;
