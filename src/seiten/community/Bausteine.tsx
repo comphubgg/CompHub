@@ -135,7 +135,7 @@ export function KalenderKnopf({ titel, start, ende, text = 'Add to calendar', be
   const google = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titel)}&dates=${f(start)}/${f(bis)}&details=${encodeURIComponent(beschreibung)}`;
   return (
     <div className="relative inline-block">
-      <button type="button" onClick={() => setOffen((o) => !o)} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-300 px-3.5 py-1.5 text-sm font-bold text-[#06080f] transition hover:bg-teal-200">
+      <button type="button" onClick={() => setOffen((o) => !o)} className="knopf-prim !px-3.5 !py-1.5">
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg>{text}
       </button>
       <AnimatePresence>

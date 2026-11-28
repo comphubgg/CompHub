@@ -8,7 +8,7 @@ import { AblageHinweis } from './kosmetik/Raster';
 import { RotationLive } from './epic/Rotation';
 
 /*
- * Saison-Seiten: Season Countdown, XP Calculator, Map Rotation.
+ * Saison-Seiten: XP Calculator, Map Rotation (Season Countdown: SaisonSeite.tsx).
  *
  * Saison-Stand: fest hier (wie in der Uebersicht - Betreiber 26.11.2026: neues Chapter am 5. Dezember, Uhrzeit Epics uebliche Wartung, nicht
  * bestaetigt) und ueberschreibbar per /hub-daten/saison.json:
@@ -35,70 +35,7 @@ export function useSaison(): { s: Saison; ausDatei: boolean; laedt: boolean } {
 }
 const zeit = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
 
-/* ---------------------------------------------- Season Countdown */
-export function SaisonCountdown() {
-  const { s, ausDatei } = useSaison();
-  const jetzt = useJetzt(60_000);
-  const ende = Date.parse(s.end);
-  const ev = s.liveEvent;
-  const start = s.start ? Date.parse(s.start) : null;
-  const fortschritt = start ? Math.min(100, Math.max(0, ((jetzt - start) / (ende - start)) * 100)) : null;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Season" titel="Season countdown" farbe={TEAL} rechts={<LinkKopieren />} />
-      <Glas className="relative overflow-hidden p-8 md:p-10">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-teal-400/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 right-0 h-96 w-[40rem] rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="relative">
-          <span className="rounded-full border border-teal-300/40 bg-teal-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-teal-200">{ev ? 'Live event' : 'Season ends'}</span>
-          <h2 className="mt-4 text-5xl font-black tracking-tight text-white md:text-7xl">{ev ? ev.name : s.name}</h2>
-          <p className="mt-1 text-lg font-semibold text-white/55">{ev ? `${s.name} finale · starts in` : `${s.sub ?? ''}${s.sub ? ' · ' : ''}Season ${s.season} · ends in`}</p>
-          <div className="mt-6"><Countdown ziel={ev ? Date.parse(ev.start) : ende} /></div>
-          <div className="mt-6 flex flex-wrap items-end gap-8">
-            {ev?.doorsOpen && <Zeit titel="Doors open" wert={zeit(ev.doorsOpen)} />}
-            {ev && <Zeit titel="Event starts" wert={zeit(ev.start)} />}
-            <Zeit titel="Season ends" wert={`${zeit(s.end)}${s.endConfirmed ? '' : ' · time not confirmed'}`} />
-            <KalenderKnopf titel={ev ? `Fortnite live event: ${ev.name}` : `Fortnite ${s.name} ends`} start={ev ? Date.parse(ev.doorsOpen ?? ev.start) : ende} />
-          </div>
-          {fortschritt !== null && (
-            <div className="mt-8 max-w-2xl">
-              <div className="flex justify-between text-xs text-white/50"><span>{s.name} is {fortschritt.toFixed(0)} % done</span><span>{restText(ende - jetzt)} left</span></div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-gradient-to-r from-teal-300 to-violet-400" initial={{ width: 0 }} animate={{ width: `${fortschritt}%` }} transition={{ duration: 1.2 }} /></div>
-            </div>
-          )}
-        </div>
-      </Glas>
-
-      {s.modes?.length ? (
-        <div className="flex flex-wrap gap-2">
-          {s.modes.map((m) => <span key={m.mode} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">{m.title} <span className="ml-1 text-teal-300">{restText(Date.parse(m.end) - jetzt)}</span></span>)}
-        </div>
-      ) : null}
-
-      {s.history?.length ? (
-        <Glas className="overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-left text-[10px] uppercase tracking-[0.2em] text-white/40"><tr><th className="px-5 py-3">Season</th><th>Start</th><th>End</th><th className="pr-5 text-right">Days</th></tr></thead>
-            <tbody>{s.history.map((h) => (
-              <tr key={`${h.chapter}-${h.season}`} className="border-t border-white/5">
-                <td className="px-5 py-2.5 font-semibold text-white">Chapter {h.chapter} · {h.season} <span className="text-white/45">{h.name}</span>{h.battlePass ? <span className="ml-2 rounded bg-violet-400/20 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">Battle Pass</span> : null}</td>
-                <td className="text-white/60">{new Date(h.start).toLocaleDateString('en-GB')}</td><td className="text-white/60">{new Date(h.end).toLocaleDateString('en-GB')}</td>
-                <td className="pr-5 text-right tabular-nums text-white">{Math.round((Date.parse(h.end) - Date.parse(h.start)) / 864e5)}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </Glas>
-      ) : (
-        <DatenFehlen titel="Live-event times, per-mode end dates and the season history"
-          text={<>Epic announces the live event and mode schedules shortly before. As soon as they're confirmed they go into <code className="text-teal-200">hub-daten/saison.json</code> and show up here – until then only the season end is shown{ausDatei ? '' : ' (with Epic\'s usual maintenance time, not confirmed)'}.</>}
-          braucht={['Live event name + start', 'Doors open', 'End per mode (BR, OG, LEGO, Festival)', 'All seasons with dates']} />
-      )}
-    </div>
-  );
-}
-function Zeit({ titel, wert }: { titel: string; wert: string }) {
-  return <div><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{titel}</p><p className="mt-0.5 font-bold text-white">{wert}</p></div>;
-}
+/* Season Countdown: SaisonSeite.tsx (Design 3.0) */
 
 /* ---------------------------------------------- XP Calculator */
 export function XpRechner() {
