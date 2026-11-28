@@ -4,6 +4,16 @@
 name: Messen Vorrechnen
 on:
   workflow_dispatch:
+    inputs:
+      # Leer: der bisherige Messlauf (Startansichten S41 bis S43). Sonst diese Abfragen (durch Leerzeichen getrennt, ohne "/api/"), jede auf
+      # demselben frischen Server, mit Speicherverlauf und den Antworten als Anhang "messung" (28.11.2026: wo der Server beim Vorrechnen stirbt).
+      abfragen:
+        required: false
+        default: ''
+      # Heap des Servers in MB (wie in daten-erneuern.yml: 7168).
+      heap:
+        required: false
+        default: '7168'
 jobs:
   messen:
     runs-on: ubuntu-latest
@@ -52,7 +62,39 @@ jobs:
           if [ -d data ]; then mv data /tmp/bau-leer; fi
           mv /tmp/daten-beiseite data
           tail -5 /tmp/bau.log; exit $CODE
+      - name: Messen (Abfragen)
+        if: inputs.abfragen != ''
+        timeout-minutes: 70
+        env:
+          COMPHUB_VORRECHNEN: '1'
+          ABFRAGEN: ${{ inputs.abfragen }}
+          HEAP: ${{ inputs.heap }}
+        run: |
+          set +e
+          sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
+          mkdir -p /tmp/antworten
+          du -sh data/epic-spieltage data/clutch data/replays-schlank data/replays data/platzierungen 2>&1
+          for d in data/epic-spieltage/*; do echo "  $d: $(ls $d | wc -l) Dateien, $(du -sh $d | cut -f1)"; done
+          export LAUF_BEGINN=$(date +%s)
+          export MESSEN_GROSS=1
+          NODE_OPTIONS="--max-old-space-size=$HEAP --require $PWD/tools/messen/messen.cjs" npx next start -p 3000 >> /tmp/server.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf http://localhost:3000/api/stand >/dev/null && break; sleep 2; done
+          ( while sleep 15; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Ausl. $(free -m | awk 'NR==3{print $3}') MB, Server $(ps -eo rss=,comm= --sort=-rss | awk '/next-server/{printf "%d MB", $1/1024; exit}')"; done ) &
+          WACHE=$!
+          N=0
+          for q in $ABFRAGEN; do
+            N=$((N + 1))
+            S=$(date +%s.%N); curl -s -o "/tmp/antworten/$N.json" -w "%{http_code} %{size_download}B" -m 1800 "http://localhost:3000/api/$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            grep '\[MESS\]' /tmp/server.log | tail -1 | cut -c1-900
+          done
+          kill $WACHE
+          echo "=== Verlauf"; grep '\[MESS\]' /tmp/server.log | cut -c1-900
+          echo "=== Grosse Dateien"; grep '\[GROSS\]' /tmp/server.log | head -60
+          tail -30 /tmp/server.log | grep -v '\[MESS\]' | cut -c1-300
+          true
+
       - name: Messen
+        if: inputs.abfragen == ''
         timeout-minutes: 70
         env:
           COMPHUB_VORRECHNEN: '1'
@@ -95,6 +137,7 @@ jobs:
           name: messung
           path: |
             /tmp/server.log
+            /tmp/antworten
           retention-days: 3
       - if: always()
         run: rm -f .env.local
