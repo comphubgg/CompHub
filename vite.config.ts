@@ -1,5 +1,7 @@
 import { defineConfig, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
+// News-Archiv und Reddit fuer die Community-Seiten (serverseitig, weil der Browser diese Quellen nicht fragen darf) - siehe tools/hubQuellen.mjs
+import hubQuellen from './tools/hubQuellen.mjs';
 
 // Nur lokal (localhost). Alle Daten kommen von der echten Seite - der Proxy reicht /api, Bilder und Fotos an thecomphub.com weiter.
 const SEITE = 'https://www.thecomphub.com';
@@ -34,7 +36,7 @@ const STATISCH = ['/_next/', '/fonts/', '/webfonts/', '/icons/', '/assets/', '/d
   '/icon', '/manifest', '/spielerbild-platzhalter.svg', '/comphub-maskottchen-portrait.webp'];
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), hubQuellen()],
   server: {
     proxy: {
       // Anmeldung: Cookies der echten Seite gelten auf localhost (Domain entfernt), damit Admin/VIP-Daten auch hier laden.

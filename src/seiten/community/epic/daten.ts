@@ -317,6 +317,9 @@ export async function poolLaden(mehrSeiten = 0) {
     }
   } catch (e) { if (e instanceof EpicFehler && e.status === 0) pool.offline = true; } finally { pool.laedt = false; pool.fertig = true; poolMelden(true); }
 }
+/** Fuer epic/fn.ts: den Pool ohne Hook beobachten (er wird dort nur als Ersatz gebraucht). */
+export function poolAbo(h: () => void) { poolHoerer.add(h); return () => { poolHoerer.delete(h); }; }
+export const poolStand = () => ({ inseln: [...pool.inseln.values()], werte: pool.werte, laedt: pool.laedt, geprueft: pool.geprueft, gestartet: pool.seiten > 0 || pool.laedt });
 export function useInselPool() {
   const [, neu] = useState(0);
   useEffect(() => {
