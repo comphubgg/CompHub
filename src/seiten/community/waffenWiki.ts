@@ -378,3 +378,23 @@ export function zusammenfuehren<T extends { weapons: DbWaffe[] }>(spiel: T | nul
   return { ...basis, weapons: [...weapons, ...[...nachName.values()].map((w) => (spiel ? { ...w, vaulted: true } : w))] };
 }
 
+/* ---------------------------------------------- Laufende Saison (fortnite-api.com /v2/cosmetics/new) */
+/**
+ * Die Saisonliste kommt aus den Wiki-Texten - die laufende Saison (z. B. die Mini-Saison nach Ch. 7 S4) steht dort oft noch nicht. Deshalb:
+ * die hoechste Saison der neuesten Kosmetik laut fortnite-api.com ("Introduced in Chapter 7, Season 5", backendValue 43) - nichts fest verdrahtet.
+ */
+let saisonVersprechen: Promise<{ k: string; nr: number } | null> | null = null;
+export function useAktuelleSaison(): { k: string; nr: number } | null {
+  const [s, setS] = useState<{ k: string; nr: number } | null>(null);
+  useEffect(() => {
+    saisonVersprechen ??= fetch('https://fortnite-api.com/v2/cosmetics/new').then((r) => r.json()).then((j) => {
+      const l = (j?.data?.items?.br ?? []) as Array<{ introduction?: { chapter?: string; season?: string; backendValue?: number } }>;
+      const x = l.map((i) => i.introduction).filter((i): i is { chapter: string; season: string; backendValue: number } => !!i?.chapter && !!i.season && typeof i.backendValue === 'number')
+        .sort((a, b) => b.backendValue - a.backendValue)[0];
+      return x ? { k: `C${x.chapter} S${x.season.toUpperCase()}`, nr: x.backendValue } : null;
+    }).catch(() => { saisonVersprechen = null; return null; });
+    let weg = false; saisonVersprechen.then((v) => { if (!weg) setS(v); });
+    return () => { weg = true; };
+  }, []);
+  return s;
+}

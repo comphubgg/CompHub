@@ -7,6 +7,10 @@ import { bildVon } from './WaffenSeiten';
 import { Glas } from '../../teile/Glas';
 import { KLASSEN_DB, SELTENHEITEN, WERTE, abgleichSchluessel, fmt, gesamtChance, pro, selten, type Datenbank, type DbWaffe, type Stufe } from './waffenDaten';
 import { kern, waffeVon } from './waffenNamen';
+import { useAktuelleSaison } from './waffenWiki';
+
+/** Saisons einer Waffe - wer jetzt im Pool ist (nicht vaulted), ist auch in der laufenden Saison, auch wenn der Wiki-Text sie noch nicht nennt. */
+export const saisonenVon = (w: DbWaffe, aktuell?: string) => (aktuell && !w.vaulted && !(w.saisons ?? []).includes(aktuell) ? [...(w.saisons ?? []), aktuell] : w.saisons ?? []);
 
 /*
  * Volle Waffen-Datenbank (nur wenn public/hub-daten/waffen.json da ist): Karte je Waffe mit Seltenheits-Wahl, die alle Werte umschaltet,
@@ -67,10 +71,11 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
   // Betreiber 28.11.2026: "alle Waffen, die es je gab" soll man sofort sehen - deshalb steht die Ansicht vorn und ist die erste Wahl
   const [poolArt, setPoolArt] = useState<'aktuell' | 'vaulted' | 'alle'>('alle');
   const [saison, setSaison] = useState('alle');
-  const saisonListe = useMemo(() => { const m = new Map<string, number>(); for (const w of db.weapons) for (const x of w.saisons ?? []) m.set(x, (m.get(x) ?? 0) + 1);
+  const aktuell = useAktuelleSaison();
+  const saisonListe = useMemo(() => { const m = new Map<string, number>(); for (const w of db.weapons) for (const x of saisonenVon(w, aktuell?.k)) m.set(x, (m.get(x) ?? 0) + 1);
     const wert = (x: string) => { const [, c, t] = /C(\d+) S(\w+)/.exec(x) ?? []; return Number(c) * 100 + (Number(t) || (t === 'X' ? 10 : 60)); };
-    return [...m.keys()].sort((a, b) => wert(b) - wert(a)); }, [db]);
-  const imPool = (w: DbWaffe) => (!mitWiki || poolArt === 'alle' || (poolArt === 'vaulted' ? !!w.vaulted : !w.vaulted)) && (saison === 'alle' || (w.saisons ?? []).includes(saison));
+    return [...m.keys()].sort((a, b) => wert(b) - wert(a)); }, [db, aktuell]);
+  const imPool = (w: DbWaffe) => (!mitWiki || poolArt === 'alle' || (poolArt === 'vaulted' ? !!w.vaulted : !w.vaulted)) && (saison === 'alle' || saisonenVon(w, aktuell?.k).includes(saison));
 
   const { proWaffe, ohne } = useMemo(() => turnierZuordnen(db, turnier), [db, turnier]);
 
@@ -146,7 +151,7 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
           {saisonListe.length > 0 && (
             <label className="flex items-center gap-2 text-sm text-white/50">Season
               <select value={saison} onChange={(e) => setSaison(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1220] px-2.5 py-1.5 text-sm text-white focus:border-teal-300/60 focus:outline-none">
-                <option value="alle">Any season</option>{saisonListe.map((x) => <option key={x} value={x}>{saisonText(x)}</option>)}
+                <option value="alle">Any season</option>{saisonListe.map((x) => <option key={x} value={x}>{saisonText(x)}{x === aktuell?.k ? ' · now' : ''}</option>)}
               </select>
             </label>
           )}
