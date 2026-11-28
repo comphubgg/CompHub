@@ -10,6 +10,8 @@ import {
   overlayZeitraumWeit, rundenBeschriftung,
 } from './lib/overlayCups';
 import { ARTEN } from './OverlayGeruest';
+import { probeVon, useProbeDaten } from './proben';
+import { ProbeBuehne } from '../Teile';
 
 /*
  * Die Startseite der Overlays.
@@ -92,6 +94,9 @@ export default function Startansicht({ onWeiter, art }: {
    * nichts zu waehlen, und "Neues Overlay" fuehrt sofort in den Baukasten.
    */
   const ohneCup = Boolean(ARTEN.find((a) => a.schluessel === art)?.ohneCup);
+  // Design 3.0: neben der Liste laeuft das Overlay mit Beispielwerten - man sieht, was man anlegt
+  const probeDaten = useProbeDaten();
+  const [probeStart] = useState(() => Date.now() + 2 * 3_600_000 + 14 * 60_000);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [neu, setNeu] = useState(false);
   /*
@@ -238,10 +243,11 @@ export default function Startansicht({ onWeiter, art }: {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* ------------------------------------------------ Schritt 1 */}
-      <section>
+      {/* ------------------------------------------------ Schritt 1: links die eigenen Overlays, rechts die laufende Vorschau */}
+      <div className={neu ? '' : 'grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'}>
+      <section className="fl-fest min-w-0 p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-bold text-white">
+          <h1 className="titel text-3xl">
             {zugang.verwaltet
               ? `${zugang.verwaltet} Overlays` : <T>Deine Overlays</T>}
           </h1>
@@ -256,6 +262,13 @@ export default function Startansicht({ onWeiter, art }: {
 
         {!neu && <MeineOverlays nurArt={art} />}
       </section>
+      {!neu && (
+        <section className="fl-fest min-w-0 overflow-hidden">
+          <p className="border-b border-white/[0.06] px-5 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">Live preview · sample values</p>
+          <ProbeBuehne probe={probeVon(art, probeDaten, probeStart)} titel={ARTEN.find((a) => a.schluessel === art)?.titel ?? 'Preview'} maxMass={2} className="aspect-video w-full" />
+        </section>
+      )}
+      </div>
 
       {/* ------------------------------------------------ Schritt 2 */}
       {neu && (
