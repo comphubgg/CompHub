@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { Kosmetik, KosmetikDetail } from './Kosmetik';
-import { CommunitySeite, Lorebook } from './Mehr';
+import { Lorebook } from './Mehr';
+import { CommunitySeite } from '../epic/Sozial';
 import { GratisKosmetik, MeistGenutzt, Schatzsuche, Sprites } from './Saison';
 import { Creators, Entdecken } from '../epic/Live';
 import { MeineListe, Ranglisten, Sammlungen } from './Meins';
