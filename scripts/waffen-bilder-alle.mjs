@@ -252,7 +252,10 @@ await parallel(zuLaden, 6, async (d) => {
 console.log('Bilder geladen, Status:', JSON.stringify(ladeStatus));
 
 /* ---------------------------------------------- 4. Auswahl je Waffe (und je Seltenheit) */
+// Platzhalter, Vorab-Versionen, Werbebilder, Spielszenen, Banner: lieber kein Bild als ein falsches (Lauf vom 28.11.: A280 zeigte einen Platzhalter)
+const SCHLECHT = /placeholder|prototype|promo|gameplay|banner|t-banners|news tab|\(mesh\)|balloon|^(File:|Hub:)?BRSeason|\.gif$|\.jpe?g$/i;
 const punkte = (k) => {
+  if (SCHLECHT.test(k.datei)) return -1;
   const g = geladen.get(k.datei);
   if (!g || g.fehler || !g.rahmen) return -1;
   if (Math.min(g.W, g.H) < 48) return -1;
