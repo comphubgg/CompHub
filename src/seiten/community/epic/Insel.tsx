@@ -14,7 +14,7 @@ import { InselKarte } from './Teile';
  * Design-System 3.0, nur mit Zahlen, die es wirklich gibt:
  *
  *   Kopf          grosses 16:9-Bild (fn-inseln bildGross), Titel, Code zum Kopieren, Creator, Tags (Epic Data API), Beschreibung (fn-inseln tagline)
- *   Player count  jetzt (Discover / Epic), Spitze 24 h, 7 Tage und "all time" seit Beginn der eigenen Aufzeichnung, Durchschnitt; Verlauf 1H
+ *   Player count  jetzt (Discover / Epic), Spitze 24 h, 7 Tage und "Peak seit <Datum>" (NICHT "all time" - Betreiber 28.11.2026: BR hatte frueher ueber 14 Mio., wir zaehlen erst seit Beginn der eigenen Aufzeichnung, Durchschnitt; Verlauf 1H
  *                 (10-Minuten-Werte), 1D, 1W (Stundenwerte), 1M und ALL aus der eigenen Aufzeichnung (sobald sie so weit reicht)
  *   Stundentabelle Spitze, Zuwachs, Durchschnitt (= minutesPlayed / 60), einzelne Spieler und Plays je Stunde
  *   Discover      in welchen Reihen die Insel gerade steht und an welcher Stelle (fn-entdecken?reihen=1); darunter die Zeitleiste: je Reihe
@@ -343,7 +343,7 @@ function Spielerzahl({ code, e, epic, seite, lang, istEpic }: { code: string; e:
           <div className={`grid gap-4 lg:grid-cols-1 lg:gap-5 ${allzeit !== null ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
             {spitze24 !== null && <Zahl label="Peak · 24 h" wert={spitze24} ton="text-akz" />}
             {spitze7 !== null && (hatWoche || spitze7 !== spitze24) && <Zahl label={hatWoche ? 'Peak · 7 days' : 'Peak · recorded'} wert={spitze7} ton="text-violet-300" unter={hatWoche ? 'Epic keeps 7 days' : undefined} />}
-            {allzeit !== null && allzeitSeit !== null && <Zahl label="All-time peak" wert={allzeit} ton="text-amber-300" unter={`since ${datum(allzeitSeit)}${lang?.peak && lang.peak.wert >= allzeit ? ` · reached ${datum(lang.peak.t)}` : ''}`} immer />}
+            {allzeit !== null && allzeitSeit !== null && <Zahl label={`Peak since ${datum(allzeitSeit)}`} wert={allzeit} ton="text-amber-300" unter={`Our own records${lang?.peak && lang.peak.wert >= allzeit ? ` · reached ${datum(lang.peak.t)}` : ''}`} immer />}
             {schnitt !== null && <Zahl label="Avg players · 24 h" wert={schnitt} ton="text-white" unter="minutes played ÷ 1,440" />}
           </div>
         </div>
