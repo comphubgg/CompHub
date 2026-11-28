@@ -11,3 +11,5 @@ public/hub-daten/assets/
 public/hub-daten/icons/
 # Die fertige 3D-Ansicht der lokalen 3D-Sitzung (Karte -> 3D) - nur lokal
 public/hub-daten/3d/
+# Draufsicht der Insel aus der lokalen 3D-Sitzung (tools/karten-render-auftrag.md) - nur lokal
+public/hub-daten/karte/

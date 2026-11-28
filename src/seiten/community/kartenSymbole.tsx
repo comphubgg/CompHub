@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /*
@@ -24,10 +24,9 @@ export function useOriginalSymbole() {
 
 /*
  * Eigene Karten-Symbole (Ersatz, wenn kein Original da ist). Betreiber 28.11.2026: so nah wie moeglich am Spiel - flach, einfach, wie die
- * Minimap-Symbole (Truhe gold, Munitionskiste gruen, Slurp-Fass blau ...). Jedes Symbol ist die flache Silhouette in der Farbe der Ebene mit
- * dunklem Umriss und leichtem Schatten ("Aufkleber"-Stil des Spiels), keine Scheibe, kein Ring. Gezeichnet im 24er-Raster (Zeichen), einmal je
- * Art zu einem SVG-Bild (data:-Adresse) gerendert - die Karte setzt es per <image> ein, so kostet der Umriss-Filter nichts, egal wie viele
- * Marker zu sehen sind. Die Seitenleiste zeigt dasselbe Bild.
+ * Minimap-Symbole (Truhe gold, Munitionskiste gruen, Slurp-Fass blau ...). Jedes Symbol ist die flache Silhouette in der Farbe der Ebene, keine
+ * Scheibe, kein Ring. Gezeichnet im 24er-Raster (Zeichen); den dunklen Aufkleber-Rand und den Schatten bekommt es beim Backen (siehe unten,
+ * genau wie die Originale), die Seitenleiste zeigt dasselbe Bild.
  */
 
 export interface Ebene { typ: string; titel: string; einzeln: string; farbe: string; namen: string[]; gruppe: string; zeichen?: string }
@@ -187,14 +186,11 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
   }
 }
 
-/** Ersatz-Symbol im Spielstil als SVG-Text: Silhouette in der Ebenenfarbe, dunkler Umriss (Filter), leichter Schatten nach unten. */
+/** Ersatz-Symbol im Spielstil als SVG-Text: nur die Silhouette in der Ebenenfarbe - Umriss und Schatten bekommt es beim Backen (wie die Originale). */
 function spielSvg(typ: string) {
   const farbe = ebeneVon(typ).farbe;
   const inhalt = renderToStaticMarkup(<g color={UMRISS}><Zeichen typ={typ} tinte={farbe} /></g>);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 30 30" width="96" height="96"><defs><filter id="u" x="-30%" y="-30%" width="160%" height="160%">`
-    + `<feMorphology in="SourceAlpha" operator="dilate" radius="1.45" result="d"/><feFlood flood-color="${UMRISS}"/><feComposite in2="d" operator="in" result="r"/>`
-    + `<feGaussianBlur in="d" stdDeviation="0.9" result="b"/><feOffset in="b" dy="1.1" result="o"/><feFlood flood-color="#000" flood-opacity="0.55"/><feComposite in2="o" operator="in" result="s"/>`
-    + `<feMerge><feMergeNode in="s"/><feMergeNode in="r"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#u)">${inhalt}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="192" height="192">${inhalt}</svg>`;
 }
 const SPIEL_BILD = new Map<string, string>();
 /** Ersatz-Symbol einer Objektart als Bildadresse (data:, einmal je Art gebaut). */
@@ -203,27 +199,97 @@ export function spielBild(typ: string) {
   if (!u) { u = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(spielSvg(typ))}`; SPIEL_BILD.set(typ, u); }
   return u;
 }
-/** Bildquelle eines Markers: Original aus dem lokalen Export, sonst das Ersatz-Symbol. */
+/** Bildquelle eines Markers ohne Rand: Original aus dem lokalen Export, sonst das Ersatz-Symbol. */
 export const symbolQuelle = (typ: string, original: Set<string>) => (original.has(typ) ? ORIGINAL_PFAD(typ) : spielBild(typ));
 
-/** Die <symbol>-Vorlagen fuer die Karte (einmal je SVG einhaengen, dann <use href="#k-chest" />). Original-Symbol, wenn vorhanden. */
+/*
+ * Aufkleber-Rand (Betreiber 28.11.2026, Vergleich mit fortnite.gg: "unsere Truhen verschwinden in der Karte"). Die Original-Minimap-Texturen
+ * haben keinen Rand - eine braune Truhe auf braunem Boden ist kaum zu sehen. Deshalb wird JEDES Symbol (Original wie Ersatz) einmal je Art auf
+ * einem Canvas gebacken: transparenten Rand abschneiden, Motiv fuellend einpassen, die Silhouette ringsum um RAND px verschoben fast schwarz
+ * darunterlegen (dicker dunkler Umriss), darunter ein weicher Schatten nach unten. Ergebnis ist ein PNG (data:) - die Karte setzt es per <use>
+ * ein, so kostet der Rand nichts, egal wie viele Marker zu sehen sind. Das Motiv fuellt INHALT (~80 %) des Bildes, der Rest ist Rand + Schatten.
+ */
+const BACK = 128; // Kantenlaenge des gebackenen Bildes
+const RAND = 9; // Umriss-Dicke (bei 128 px; am 30-px-Marker gut 2 px)
+const SCHATTEN = 4;
+/** Anteil des Motivs am gebackenen Bild - die Karte rechnet damit die Markergroesse. */
+export const INHALT = (BACK - 2 * (RAND + SCHATTEN)) / BACK;
+const GEBACKEN = new Map<string, Promise<string>>();
+function backen(quelle: string): Promise<string> {
+  let p = GEBACKEN.get(quelle);
+  if (!p) {
+    p = (async () => {
+      const img = new Image(); img.src = quelle; await img.decode();
+      // 1) Quelle gross zeichnen und den sichtbaren Bereich suchen (Alpha > 20)
+      const T = 256; const q = document.createElement('canvas'); q.width = T; q.height = T;
+      const qg = q.getContext('2d', { willReadFrequently: true })!;
+      const nb = img.naturalWidth || T; const nh = img.naturalHeight || T; const f = T / Math.max(nb, nh);
+      qg.drawImage(img, (T - nb * f) / 2, (T - nh * f) / 2, nb * f, nh * f);
+      const a = qg.getImageData(0, 0, T, T).data;
+      let x0 = T; let y0 = T; let x1 = -1; let y1 = -1;
+      for (let y = 0; y < T; y += 1) for (let x = 0; x < T; x += 1) if (a[(y * T + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0) return quelle;
+      // 2) Motiv mittig in die Innenflaeche einpassen
+      const innen = BACK - 2 * (RAND + SCHATTEN); const bw = x1 - x0 + 1; const bh = y1 - y0 + 1; const k = innen / Math.max(bw, bh);
+      const motiv = document.createElement('canvas'); motiv.width = BACK; motiv.height = BACK;
+      const mg = motiv.getContext('2d')!; mg.imageSmoothingQuality = 'high';
+      mg.drawImage(q, x0, y0, bw, bh, (BACK - bw * k) / 2, (BACK - bh * k) / 2 - SCHATTEN / 2, bw * k, bh * k);
+      // 3) Silhouette fast schwarz, ringsum verschoben -> dicker Umriss
+      const sil = document.createElement('canvas'); sil.width = BACK; sil.height = BACK;
+      const sg = sil.getContext('2d')!; sg.drawImage(motiv, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = UMRISS; sg.fillRect(0, 0, BACK, BACK);
+      const rand = document.createElement('canvas'); rand.width = BACK; rand.height = BACK;
+      const rg = rand.getContext('2d')!;
+      for (const r of [RAND, RAND * 0.55]) for (let i = 0; i < 32; i += 1) { const w = (i / 32) * Math.PI * 2; rg.drawImage(sil, Math.cos(w) * r, Math.sin(w) * r); }
+      // 4) Zusammensetzen: Schatten, Umriss, Motiv
+      const aus = document.createElement('canvas'); aus.width = BACK; aus.height = BACK;
+      const ag = aus.getContext('2d')!;
+      ag.shadowColor = 'rgba(0,0,0,0.6)'; ag.shadowBlur = 5; ag.shadowOffsetY = 3; ag.drawImage(rand, 0, 0);
+      ag.shadowColor = 'transparent'; ag.drawImage(motiv, 0, 0);
+      return aus.toDataURL('image/png');
+    })().catch(() => quelle);
+    GEBACKEN.set(quelle, p);
+  }
+  return p;
+}
+
+/**
+ * Die gebackenen Symbole (mit Aufkleber-Rand) aller Arten: erst wird geprueft, welche Originale im lokalen Export liegen, dann alles in einem
+ * Rutsch gebacken - so springt kein Marker vom Ersatz- aufs Original-Symbol. Bis dahin liefert die Funktion '' (Marker kurz unsichtbar).
+ */
+export function useSymbolBilder() {
+  const [bilder, setBilder] = useState<Map<string, string> | null>(null);
+  useEffect(() => {
+    let weg = false;
+    originaleSuchen().then((original) => Promise.all(EBENEN.map(async (e) => [e.typ, await backen(symbolQuelle(e.typ, original))] as const)))
+      .then((l) => { if (!weg) setBilder(new Map(l)); }).catch(() => {});
+    return () => { weg = true; };
+  }, []);
+  return useCallback((typ: string) => bilder?.get(typ) ?? bilder?.get('other') ?? '', [bilder]);
+}
+
+/** Die <symbol>-Vorlagen fuer die Karte (einmal je SVG einhaengen, dann <use href="#k-chest" />): das gebackene Symbol jeder Art. */
 export function SymbolVorlagen() {
-  const original = useOriginalSymbole();
+  const bild = useSymbolBilder();
   return (
     <defs>
       {EBENEN.map((e) => (
         <symbol key={e.typ} id={`k-${e.typ}`} viewBox="0 0 24 24">
-          <image href={symbolQuelle(e.typ, original)} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
+          {bild(e.typ) && <image href={bild(e.typ)} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" />}
         </symbol>
       ))}
     </defs>
   );
 }
 
-/** Symbol als kleines Bild (Seitenleiste, Hinweise) - Original oder Ersatz im Spielstil. */
+/** Symbol als kleines Bild (Seitenleiste, Hinweise) - dasselbe gebackene Bild wie auf der Karte. `groesse` = Groesse des Motivs. */
 export function Abzeichen({ typ, groesse = 20, className = '' }: { typ: string; groesse?: number; className?: string }) {
-  const original = useOriginalSymbole();
-  return <img src={symbolQuelle(typ, original)} alt="" width={groesse} height={groesse} draggable={false} className={`shrink-0 object-contain ${className}`} aria-hidden="true" />;
+  const bild = useSymbolBilder();
+  const g = Math.round(groesse / INHALT);
+  return (
+    <span className={`relative inline-block shrink-0 ${className}`} style={{ width: groesse, height: groesse }} aria-hidden="true">
+      {bild(typ) && <img src={bild(typ)} alt="" width={g} height={g} draggable={false} className="absolute max-w-none" style={{ left: (groesse - g) / 2, top: (groesse - g) / 2 }} />}
+    </span>
+  );
 }
 
 /*

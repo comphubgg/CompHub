@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Segment } from '../../ds/Bausteine';
 import { Kipp, Regler } from './teileA';
-import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, chanceVon, ebeneVon, symbolQuelle, typVon, useOriginalSymbole } from './kartenSymbole';
+import { Abzeichen, EBENEN, GRUPPEN_KARTE, INHALT, SymbolVorlagen, chanceVon, ebeneVon, typVon, useSymbolBilder } from './kartenSymbole';
 import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
 import { waffeVon } from './waffenNamen';
 
@@ -16,8 +16,9 @@ import { waffeVon } from './waffenNamen';
  *   { probe?: true, hinweis?: string, objekte: [{ typ: 'chest', x, y, z, x2?, y2?, chance?, name? }] }   (x2/y2: Endpunkt, z. B. Zipline;
  *   chance: Erscheinungs-Wahrscheinlichkeit 0..1, falls das Objekt nicht immer da ist). Export-Auftrag: scratchpad/waffen-export-auftrag.md.
  *
- * Marker werden in Bildschirm-Pixeln gezeichnet (nicht mitskaliert), damit die Symbole bei jedem Zoom scharf bleiben; weit draussen werden
- * sie kleiner und gleichartige Nachbarn zu einem Marker mit Zahl zusammengefasst (Klick zoomt hinein).
+ * Marker werden in Bildschirm-Pixeln gezeichnet (nicht mitskaliert), damit die Symbole bei jedem Zoom scharf bleiben. Wie bei fortnite.gg
+ * (Betreiber 28.11.2026): jedes Symbol mit dickem dunklem Aufkleber-Rand (kartenSymbole.tsx, backen), gleichartige Objekte, die sich auf dem
+ * Schirm ueberdecken wuerden, werden zu EINEM Symbol mit gelbem Zahl-Kreis (Klick zoomt hinein, ganz nah eine Liste).
  * Statt "objekte" darf auch ein blosses Array kommen.
  *
  * Aufbau seit dem Design-System 3.0 (27.11.2026, Betreiber: "die Karte ist die Seite"): die Seite hat keinen Rand (Schale ohneRand) und fuellt
@@ -40,8 +41,26 @@ interface Ort { id: string; name: string; x: number; y: number; links: number; o
 interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string; gruppe?: string; nr: number }
 /** Linien-Objekt (Zipline): zwei Endpunkte statt eines Punkts */
 const istLinie = (o: Objekt) => typeof o.x2 === 'number' && typeof o.y2 === 'number' && Number.isFinite(o.x2) && Number.isFinite(o.y2);
-/** Ist das ganze Kartenbild kleiner als so viele Pixel (weiter draussen als die ganze Insel, oder das Handy), werden gleiche Marker zu Haufen mit Zahl zusammengefasst. */
-const BUENDELN_BIS = 1050;
+/** Gleichartige Objekte naeher als dieser Anteil der Markergroesse (Bildschirm-Pixel) werden ein Stapel mit gelber Zahl. */
+const STAPEL_ABSTAND = 0.7;
+const MAX_ZOOM = 10;
+/** Epics Beschriftung ist ins Kartenbild gebacken und waechst mit: nur bis zu dieser Bildgroesse (px) zeigen, darueber unsere kleinen Namen. */
+const EPIC_BIS = 1500;
+/*
+ * Draufsicht aus der lokalen 3D-Sitzung (tools/karten-render-auftrag.md, nur lokal, nie im Repo): liegt render.webp (4096 px) bzw. render.png da,
+ * ersetzt sie das Kartenbild; render-8192.webp/.png wird erst geladen, wenn das Bild groesser als 4096 px auf dem Schirm ist. Gleicher
+ * Weltausschnitt wie das Epic-Bild (RAHMEN): links oben X -142.800 / Y -146.000, rechts unten X 158.700 / Y 155.500 (cm), Bildspalte = X.
+ */
+const RENDER = ['/hub-daten/karte/render.webp', '/hub-daten/karte/render.png'];
+const RENDER_GROSS = ['/hub-daten/karte/render-8192.webp', '/hub-daten/karte/render-8192.png'];
+/** Erste vorhandene Bilddatei der Liste (Vite liefert fuer fehlende Dateien die Hub-Seite - daher der Blick auf den Content-Type). */
+async function ersteDa(l: string[]) {
+  for (const u of l) {
+    const ok = await fetch(u, { method: 'HEAD', cache: 'no-store' }).then((r) => r.ok && (r.headers.get('content-type') ?? '').startsWith('image/')).catch(() => false);
+    if (ok) return u;
+  }
+  return null;
+}
 /*
  * Zusatz-Ebene "Looted in cups" (/hub-daten/kisten-aus-replays.json, aus unseren eigenen Cup-Replays): wie oft Spieler eine Truhe / Munitionskiste
  * geoeffnet haben und was herauskam. KEINE Truhenliste (nie geoeffnete fehlen, keine Spawn-Chancen) - deshalb aus, bis man sie einschaltet,
@@ -78,6 +97,8 @@ const RAND_WEICH: React.CSSProperties = {
   maskImage: 'linear-gradient(to right, transparent, #000 4%, #000 96%, transparent), linear-gradient(to bottom, transparent, #000 4%, #000 96%, transparent)',
   WebkitMaskComposite: 'source-in', maskComposite: 'intersect',
 };
+/** Duenner dunkler Rand um die Ortsnamen (acht Richtungen + weicher Schatten), wie bei fortnite.gg */
+const ORT_RAND = '1px 0 0 #05070c, -1px 0 0 #05070c, 0 1px 0 #05070c, 0 -1px 0 #05070c, 1px 1px 0 #05070c, -1px 1px 0 #05070c, 1px -1px 0 #05070c, -1px -1px 0 #05070c, 0 2px 4px rgba(0,0,0,0.6)';
 const GRID = 10;
 const SPALTEN = 'ABCDEFGHIJ';
 
@@ -87,13 +108,14 @@ export default function Karte() {
   const [objekte, setObjekte] = useState<Objekt[] | null>(null);
   const [probe, setProbe] = useState<string | null>(null);
   const [exportStand, setExportStand] = useState<{ build?: string; am?: string } | null>(null);
-  const original = useOriginalSymbole();
+  const symbolBild = useSymbolBilder();
   const [an, setAn] = useState<Record<string, boolean>>(() => Object.fromEntries(EBENEN.map((e) => [e.typ, true])));
   const [namen, setNamen] = useState(true);
   const [epicBild, setEpicBild] = useState(false);
   const [gitter, setGitter] = useState(false);
   // Einstellungen wie in der Spezifikation: Marker gruppieren, Groesse, Deckkraft, Schriftgroesse; Karte: Helligkeit, Kontrast, Saettigung.
-  const START_EINST = { gruppieren: true, groesse: 100, deckkraft: 100, text: 100, hell: 100, kontrast: 100, saett: 100 };
+  // Das Kartenbild startet leicht gedaempft (etwas dunkler, weniger bunt), damit die Marker davor stehen - die Regler holen das Original zurueck.
+  const START_EINST = { gruppieren: true, groesse: 100, deckkraft: 100, text: 100, hell: 92, kontrast: 100, saett: 80 };
   const [einst, setEinst] = useState(START_EINST);
   const [einstOffen, setEinstOffen] = useState(false);
   const [ebeneSuche, setEbeneSuche] = useState('');
@@ -108,6 +130,10 @@ export default function Karte() {
     fetch(DREI_D, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : Promise.reject(new Error('fehlt'))))
       .then((t) => setDreiD(t.includes('/src/main.tsx') || !/<(html|canvas|script|body)/i.test(t) ? 'fehlt' : 'da')).catch(() => setDreiD('fehlt'));
   }, []);
+  // Draufsicht aus der lokalen 3D-Sitzung (falls da) statt Epics Kartenbild; die 8192er erst beim Hineinzoomen (siehe RENDER)
+  const [render, setRender] = useState<string | null>(null);
+  const [renderGross, setRenderGross] = useState<string | 'pruefen' | 'fehlt' | null>(null);
+  useEffect(() => { ersteDa(RENDER).then(setRender).catch(() => {}); }, []);
   const ansichtWaehlen = (k: '2d' | '3d') => { if (k === '3d' && dreiD !== 'da') { setHinweis3d(true); return; } setHinweis3d(false); setAnsicht(k); };
   // Hoehe: genau der Platz unter Kopf und Leiste (am breiten Schirm), damit unter der Karte nichts frei bleibt
   const seite = useRef<HTMLDivElement>(null);
@@ -178,7 +204,7 @@ export default function Karte() {
 
   const zoomen = useCallback((faktor: number, mx?: number, my?: number) => {
     setSicht((v) => {
-      const s = Math.min(10, Math.max(0.8, v.s * faktor));
+      const s = Math.min(MAX_ZOOM, Math.max(0.8, v.s * faktor));
       const px = mx ?? groesse.b / 2; const py = my ?? groesse.h / 2;
       return { s, tx: px - (px - v.tx) * (s / v.s), ty: py - (py - v.ty) * (s / v.s) };
     });
@@ -233,26 +259,45 @@ export default function Karte() {
     && (!ohneExport || an[b.typ === 'chest' ? 'chest' : 'ammo']))), [beuteAn, beuteDa, minSpiele, beuteArt, ohneExport, an]);
   const r = (px: number) => (px * 1000) / (basis * sicht.s);
 
-  /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen nur weit draussen */
+  /* ---------------------------------------------- Marker: Groesse je Zoom, gleichartige Nachbarn als Stapel mit Zahl */
   const skala = basis * sicht.s; // Bildschirm-Pixel je ganze Bildbreite
-  // Wie fortnite.gg: ueber der ganzen Insel klein (16 px), beim Hineinzoomen groesser (bis 36 px); "Size" in den Einstellungen skaliert mit
-  // (gemessen an der Bildgroesse in Pixeln, nicht am Zoomfaktor - so passt es auch auf dem Handy, wo die ganze Insel nur ~600 px misst)
-  const symbolPx = Math.round(Math.min(36, Math.max(12, 9 + skala * 0.0058)) * (einst.groesse / 100));
+  // Kartenbild: Epics Bild mit Beschriftung nur weit draussen (die Schrift ist ins Bild gebacken und waechst mit), sonst das leere Bild
+  // bzw. die eigene Draufsicht - und darauf unsere kleinen Namen
+  const epicSicht = epicBild && skala <= EPIC_BIS;
+  const grundBild = (skala > 4300 && renderGross && renderGross !== 'pruefen' && renderGross !== 'fehlt' ? renderGross : render) ?? '/bilder/karte-leer.png';
+  useEffect(() => {
+    if (!render || skala <= 4300 || renderGross !== null) return;
+    setRenderGross('pruefen'); ersteDa(RENDER_GROSS).then((u) => setRenderGross(u ?? 'fehlt')).catch(() => setRenderGross('fehlt'));
+  }, [render, skala, renderGross]);
+  // Wie fortnite.gg, nur etwas groesser: ueber der ganzen Insel ~15 px Motiv, beim Hineinzoomen bis ~36 px; "Size" skaliert mit.
+  // symbolPx = Kante des gebackenen Bildes (Motiv = INHALT davon, der Rest ist Aufkleber-Rand und Schatten). Gemessen an der Bildgroesse
+  // in Pixeln, nicht am Zoomfaktor - so passt es auch auf dem Handy, wo die ganze Insel nur ~600 px misst.
+  const symbolPx = Math.round(Math.min(46, Math.max(18, 13 + skala * 0.0075)) * (einst.groesse / 100));
   const gruppen = useMemo(() => {
-    // Nur weit draussen (kleiner als die ganze Insel) gleiche Nachbarn zu einem Haufen mit Zahl zusammenfassen - sonst jedes Objekt einzeln.
-    const zelle = einst.gruppieren && skala < BUENDELN_BIS ? symbolPx * 2.2 : 0;
-    const m = new Map<string, { typ: string; sx: number; sy: number; liste: Objekt[] }>();
+    // Stapel wie fortnite.gg: gleichartige Objekte, die auf dem Schirm naeher als STAPEL_ABSTAND x Markergroesse liegen, werden EIN Symbol
+    // mit gelber Zahl. Gierig ueber ein Raster: jedes Objekt geht zum ersten Stapel seiner Art, dessen Start-Objekt nah genug ist.
+    // (ueber der ganzen Insel etwas grosszuegiger, sonst ist das Handy nur noch gelbe Kreise)
+    const rad = einst.gruppieren ? symbolPx * (skala < 1200 ? 1 : STAPEL_ABSTAND) : 0;
+    const stapel: Array<{ typ: string; ax: number; ay: number; sx: number; sy: number; liste: Objekt[] }> = [];
+    const raster = new Map<string, number[]>();
     for (const o of sichtbar) {
       if (istLinie(o)) continue;
       const p = zuProzent(o.x, o.y);
       const px = (p.l / 100) * skala; const py = (p.o / 100) * skala;
-      const id = zelle ? `${o.typ}:${Math.floor(px / zelle)}:${Math.floor(py / zelle)}` : `o:${o.nr}`;
-      const g = m.get(id) ?? { typ: o.typ, sx: 0, sy: 0, liste: [] };
-      g.sx += px; g.sy += py; g.liste.push(o); m.set(id, g);
+      let ziel = -1;
+      if (rad) {
+        const cx = Math.floor(px / rad); const cy = Math.floor(py / rad);
+        for (let dx = -1; dx <= 1 && ziel < 0; dx += 1) for (let dy = -1; dy <= 1 && ziel < 0; dy += 1) {
+          for (const i of raster.get(`${o.typ}:${cx + dx}:${cy + dy}`) ?? []) if (Math.hypot(stapel[i].ax - px, stapel[i].ay - py) < rad) { ziel = i; break; }
+        }
+        if (ziel < 0) { const k = `${o.typ}:${cx}:${cy}`; raster.set(k, [...(raster.get(k) ?? []), stapel.length]); }
+      }
+      if (ziel < 0) { ziel = stapel.length; stapel.push({ typ: o.typ, ax: px, ay: py, sx: 0, sy: 0, liste: [] }); }
+      const st = stapel[ziel]; st.sx += px; st.sy += py; st.liste.push(o);
     }
     // Zeichenreihenfolge: seltene Arten zuletzt (oben), Loot ganz oben - so verdeckt kein Busch eine Truhe
     const rang = (t: string) => EBENEN.findIndex((e) => e.typ === t);
-    return [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }))
+    return stapel.map((g): Gruppe => ({ id: g.liste.length > 1 ? `s:${g.typ}:${g.liste[0].nr}` : `o:${g.liste[0].nr}`, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }))
       .sort((a, b) => rang(b.typ) - rang(a.typ));
   }, [sichtbar, skala, symbolPx, einst.gruppieren]);
   // Ziplines: Linie zwischen den zwei Endpfosten (Bildschirm-Pixel ohne Verschiebung); Mitte fuer die Info-Karte
@@ -261,7 +306,6 @@ export default function Karte() {
     const l: [number, number, number, number] = [(p.l / 100) * skala, (p.o / 100) * skala, (q.l / 100) * skala, (q.o / 100) * skala];
     return { id: `l:${o.nr}`, typ: o.typ, px: (l[0] + l[2]) / 2, py: (l[1] + l[3]) / 2, liste: [o], linie: l };
   }), [sichtbar, skala]);
-  const mitZahl = (g: Gruppe) => g.liste.length >= 2;
   const [ueber, setUeber] = useState<string | null>(null);
   const [fest, setFest] = useState<string | null>(null);
   const tippId = fest ?? ueber;
@@ -275,9 +319,16 @@ export default function Karte() {
   const imBild = (g: Gruppe) => g.px + sicht.tx > -40 && g.px + sicht.tx < groesse.b + 40 && g.py + sicht.ty > -40 && g.py + sicht.ty < groesse.h + 40;
   const markerKlick = useCallback((g: Gruppe) => {
     if (gezogen.current) return;
-    if (g.liste.length > 1) { zoomen(Math.max(1.8, (BUENDELN_BIS * 1.6) / skala), g.px + sicht.tx, g.py + sicht.ty); setFest(null); return; }
+    if (g.liste.length > 1) {
+      // Stapel: so weit hineinzoomen, dass er zerfaellt (hoechstens bis zum Maximum); liegen die Objekte selbst dann noch aufeinander,
+      // haelt der Klick die Karte mit der Liste fest
+      const breite = Math.max(...g.liste.map((o) => { const p = zuProzent(o.x, o.y); return Math.hypot((p.l / 100) * skala - g.px, (p.o / 100) * skala - g.py); })) * 2;
+      const rest = MAX_ZOOM / sicht.s;
+      if (rest < 1.05 || breite * rest < symbolPx * STAPEL_ABSTAND) { setFest((f) => (f === g.id ? null : g.id)); return; }
+      zoomen(Math.min(rest, Math.max(1.8, (symbolPx * 1.6) / Math.max(1, breite))), g.px + sicht.tx, g.py + sicht.ty); setFest(null); return;
+    }
     setFest((f) => (f === g.id ? null : g.id));
-  }, [zoomen, sicht, skala]);
+  }, [zoomen, sicht, skala, symbolPx]);
   // Objekte rund um einen gewaehlten Ort (120 m Umkreis)
   const umOrt = useMemo(() => {
     if (!gewaehlt) return [];
@@ -301,7 +352,7 @@ export default function Karte() {
       const c = document.createElement('canvas'); c.width = B * dpr; c.height = H * dpr;
       const g = c.getContext('2d')!; g.scale(dpr, dpr);
       g.fillStyle = 'rgb(13,81,151)'; g.fillRect(0, 0, B, H);
-      const img = new Image(); img.src = epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'; await img.decode();
+      const img = new Image(); img.src = epicSicht ? '/bilder/karte-orte.png' : grundBild; await img.decode();
       const kante = basis * sicht.s;
       g.save(); g.filter = `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)`; g.drawImage(img, sicht.tx, sicht.ty, kante, kante); g.restore();
       if (gitter) {
@@ -317,24 +368,29 @@ export default function Karte() {
         for (const [x, y] of [[x1, y1], [x2, y2]]) { g.beginPath(); g.arc(x, y, 3.4, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#05070c'; g.stroke(); }
       }
       const bilder = new Map<string, HTMLImageElement>();
-      await Promise.all([...new Set(gruppen.map((x) => x.typ))].map(async (t) => { const im = new Image(); im.src = symbolQuelle(t, original); try { await im.decode(); bilder.set(t, im); } catch { /* ohne Bild */ } }));
+      await Promise.all([...new Set(gruppen.map((x) => x.typ))].map(async (t) => { const im = new Image(); im.src = symbolBild(t); try { await im.decode(); bilder.set(t, im); } catch { /* ohne Bild */ } }));
       for (const gr of gruppen.filter(imBild)) {
-        const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const gross = mitZahl(gr) ? symbolPx + 4 : symbolPx; const rad = gross / 2;
+        const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const gross = symbolPx; const rad = gross / 2;
         const im = bilder.get(gr.typ);
         if (im) g.drawImage(im, x - rad, y - rad, gross, gross);
-        else { g.beginPath(); g.arc(x, y, rad * 0.7, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); }
-        if (mitZahl(gr)) { g.fillStyle = '#05070c'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
+        else { g.beginPath(); g.arc(x, y, rad * 0.5, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); }
+        const b = zahlKreis(gross, gr.liste.length);
+        if (b) {
+          const bx = x + b.dx; const by = y + b.dy; const r0 = b.h / 2;
+          g.beginPath(); g.roundRect(bx - b.b / 2, by - r0, b.b, b.h, r0); g.fillStyle = STAPEL_GELB; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#05070c'; g.stroke();
+          g.fillStyle = '#05070c'; g.font = `900 ${b.pt}px Inter, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.text, bx, by + 0.5); g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+        }
       }
       g.globalAlpha = 1;
-      if (namen && !epicBild) {
-        g.textAlign = 'center'; g.textBaseline = 'top';
+      if (namen && !epicSicht) {
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
         for (const o of orte) {
           const x = sicht.tx + (o.links / 100) * kante; const y = sicht.ty + (o.oben / 100) * kante;
-          if (x < -50 || x > B + 50 || y < -20 || y > H + 20) continue;
-          g.font = `800 ${Math.round((benannt(o) ? 11 : 9.5) * (einst.text / 100))}px Inter, system-ui, sans-serif`;
-          g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = benannt(o) ? '#fff' : 'rgba(255,255,255,0.85)';
-          const t = o.name.toUpperCase(); g.strokeText(t, x, y + 4); g.fillText(t, x, y + 4);
-          g.beginPath(); g.arc(x, y - 2, benannt(o) ? 3.5 : 2.5, 0, Math.PI * 2); g.fill();
+          if (x < -80 || x > B + 80 || y < -20 || y > H + 20 || (!benannt(o) && kante < 1700)) continue;
+          const pt = (benannt(o) ? Math.min(14, Math.max(10, 8.6 + kante * 0.0012)) : Math.min(11.5, Math.max(8.5, 7 + kante * 0.0011))) * (einst.text / 100);
+          g.font = `800 ${pt.toFixed(1)}px Inter, system-ui, sans-serif`;
+          g.lineWidth = 2.6; g.strokeStyle = '#05070c'; g.fillStyle = benannt(o) ? '#fff' : 'rgba(255,255,255,0.85)';
+          const t = o.name.toUpperCase(); g.strokeText(t, x, y); g.fillText(t, x, y);
         }
         g.textAlign = 'start'; g.textBaseline = 'alphabetic';
       }
@@ -426,7 +482,9 @@ export default function Karte() {
             onDoubleClick={(e) => { if (zeichnen && z.werkzeug) { if (z.werkzeug === 'polygon') z.polygonFertig(); return; } const rr = rahmen.current!.getBoundingClientRect(); zoomen(1.8, e.clientX - rr.left, e.clientY - rr.top); }}
             style={zeichnen && z.werkzeug ? { cursor: 'crosshair' } : undefined}>
             <div className="absolute left-0 top-0 origin-top-left" style={{ width: basis, height: basis, transform: `translate(${sicht.tx}px, ${sicht.ty}px) scale(${sicht.s})` }}>
-              <img src={epicBild ? '/bilder/karte-orte.png' : '/bilder/karte-leer.png'} alt="Map" draggable={false} className="absolute inset-0 h-full w-full" style={{ filter: `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)`, ...RAND_WEICH }} />
+              <img src={grundBild} alt="Map" draggable={false} className="absolute inset-0 h-full w-full" style={{ filter: `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)`, ...RAND_WEICH }} />
+              {/* Epics Bild mit Beschriftung blendet beim Hineinzoomen weich aus (die Schrift waere sonst riesig) */}
+              {epicBild && <img src="/bilder/karte-orte.png" alt="" draggable={false} className="absolute inset-0 h-full w-full transition-opacity duration-300" style={{ opacity: epicSicht ? 1 : 0, filter: `brightness(${einst.hell}%) contrast(${einst.kontrast}%) saturate(${einst.saett}%)`, ...RAND_WEICH }} />}
               {gitter && (
                 <svg viewBox="0 0 1000 1000" className="pointer-events-none absolute inset-0 h-full w-full">
                   {Array.from({ length: GRID - 1 }, (_, i) => (
@@ -476,7 +534,7 @@ export default function Karte() {
                 {geschwister.length > 0 && tipp && (
                   <g pointerEvents="none">
                     {geschwister.map((x) => <line key={`v${x.nr}`} x1={tipp.px} y1={tipp.py} x2={x.px} y2={x.py} stroke="rgb(var(--akz))" strokeOpacity={0.55} strokeWidth={1.4} strokeDasharray="4 4" />)}
-                    {geschwister.map((x) => <circle key={`k${x.nr}`} cx={x.px} cy={x.py} r={symbolPx * 0.78} fill="rgb(var(--akz) / 0.12)" stroke="rgb(var(--akz))" strokeWidth={1.6} strokeDasharray="3 3" />)}
+                    {geschwister.map((x) => <circle key={`k${x.nr}`} cx={x.px} cy={x.py} r={symbolPx * 0.5} fill="rgb(var(--akz) / 0.12)" stroke="rgb(var(--akz))" strokeWidth={1.6} strokeDasharray="3 3" />)}
                   </g>
                 )}
                 <g opacity={einst.deckkraft / 100}>
@@ -488,7 +546,7 @@ export default function Karte() {
             <AnimatePresence>
               {tipp && (() => {
                 // Ueber dem Marker, mittig; nahe am oberen Rand darunter; seitlich nie aus dem Bild (nur Deckkraft animiert - die Lage macht translate)
-                const abstand = tipp.linie ? 10 : symbolPx / 2 + 10; const y = tipp.py + sicht.ty; const unten = y < 250;
+                const abstand = tipp.linie ? 10 : symbolPx * 0.42 + 8; const y = tipp.py + sicht.ty; const unten = y < 250;
                 return (
                 <motion.div key={tipp.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
                   onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
@@ -511,14 +569,20 @@ export default function Karte() {
                 );
               })()}
             </AnimatePresence>
-            {/* Orte - ausserhalb der skalierten Ebene, in Bildschirm-Pixeln: so bleiben Schrift und Nadeln bei jedem Zoom scharf */}
-            {namen && !epicBild && orte.map((o) => (
-              <button key={o.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => hin(o)}
-                className="absolute flex -translate-x-1/2 flex-col items-center" style={{ left: sicht.tx + (o.links / 100) * basis * sicht.s, top: sicht.ty + (o.oben / 100) * basis * sicht.s - (benannt(o) ? 16 : 12) }}>
-                <OrtNadel aktiv={gewaehlt?.id === o.id} klein={!benannt(o)} />
-                <span className={`mt-1 whitespace-nowrap rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wide text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${benannt(o) ? '' : 'text-white/80'} ${gewaehlt?.id === o.id ? 'bg-akz/60' : 'bg-black/35'}`} style={{ fontSize: ((benannt(o) ? 12 : 10) * einst.text) / 100 }}>{o.name}</span>
-              </button>
-            ))}
+            {/* Orte - ausserhalb der skalierten Ebene, in Bildschirm-Pixeln: so bleibt die Schrift bei jedem Zoom scharf. Wie fortnite.gg klein,
+                weiss, mit duennem dunklem Rand, ohne Kasten; waechst nur maessig mit dem Zoom, Nebenorte erst, wenn man naeher dran ist. */}
+            {namen && !epicSicht && orte.map((o) => {
+              const gross = benannt(o); if (!gross && skala < 1700) return null;
+              const pt = (gross ? Math.min(14, Math.max(10, 8.6 + skala * 0.0012)) : Math.min(11.5, Math.max(8.5, 7 + skala * 0.0011))) * (einst.text / 100);
+              const an = gewaehlt?.id === o.id;
+              return (
+                <button key={o.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => hin(o)}
+                  className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: sicht.tx + (o.links / 100) * skala, top: sicht.ty + (o.oben / 100) * skala }}>
+                  <span className={`whitespace-nowrap font-extrabold uppercase leading-none tracking-[0.04em] transition-colors ${an ? 'text-akz' : gross ? 'text-white' : 'text-[#d6e2ff]'} group-hover:text-akz`}
+                    style={{ fontSize: pt, textShadow: ORT_RAND }}>{o.name}</span>
+                </button>
+              );
+            })}
             {/* Zeichnen: Werkzeugleiste und Texteingabe */}
             <AnimatePresence>{zeichnen && <ZeichenLeiste z={z} schliessen={() => setZeichnen(false)} />}</AnimatePresence>
             {z.textOrt && <TextEingabe z={z} ort={{ x: sicht.tx + (z.textOrt[0] / 1000) * basis * sicht.s, y: sicht.ty + (z.textOrt[1] / 1000) * basis * sicht.s }} />}
@@ -571,7 +635,7 @@ export default function Karte() {
                   ))}
                   <p className="mt-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Map image</p>
                   {([['hell', 'Brightness'], ['kontrast', 'Contrast'], ['saett', 'Saturation']] as const).map(([k, t]) => (
-                    <Regler key={k} titel={t} wert={einst[k]} min={30} max={200} einheit=" %" setzen={(n) => setEinst((v) => ({ ...v, [k]: n }))} start={100} />
+                    <Regler key={k} titel={t} wert={einst[k]} min={30} max={200} einheit=" %" setzen={(n) => setEinst((v) => ({ ...v, [k]: n }))} start={START_EINST[k]} />
                   ))}
                 </motion.div>
               )}
@@ -598,7 +662,7 @@ export default function Karte() {
               {tafel === 'ebenen' && (
                 <div>
                   <Kipp titel="Location names" an={namen} umschalten={() => setNamen((v) => !v)} />
-                  <Kipp titel="Epic's map labels" an={epicBild} umschalten={() => setEpicBild((v) => !v)} />
+                  <Kipp titel="Epic's map labels" unter="Zoomed out only – baked into the image, they grow with it" an={epicBild} umschalten={() => setEpicBild((v) => !v)} />
                   <Kipp titel="Grid" unter="A1 – J10" an={gitter} umschalten={() => setGitter((v) => !v)} />
                   {mitChance && <div className="mt-1 rounded-xl bg-black/30 py-1"><Regler titel="Min. spawn chance" wert={minChance} min={0} max={100} schritt={5} einheit=" %" setzen={setMinChance} start={0} /></div>}
                   <div className="mt-4 flex items-baseline justify-between gap-2 px-2.5">
@@ -692,7 +756,7 @@ export default function Karte() {
 
               {tafel === 'zeichnen' && <div className="px-1.5 py-1"><MeineZeichnungen z={z} starten={zeichnenStarten} /></div>}
             </div>
-            <p className="hidden border-t border-white/[0.07] px-5 py-2.5 text-[11px] text-white/35 xl:block">Scroll to zoom, drag to move · Epic's world coordinates{stand ? <> · map image {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}</p>
+            <p className="hidden border-t border-white/[0.07] px-5 py-2.5 text-[11px] text-white/35 xl:block">Scroll to zoom, drag to move · Epic's world coordinates{stand ? <> · map image {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}{render ? ' · top-down render' : ''}</p>
           </>
       </aside>
       )}
@@ -702,6 +766,16 @@ export default function Karte() {
 
 function Icon({ d }: { d: string }) {
   return <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>;
+}
+
+/** Gelb der Stapel-Zahl */
+const STAPEL_GELB = '#ffe11a';
+/** Lage und Groesse des gelben Zahl-Kreises eines Stapels (relativ zur Markermitte) - null bei einem einzelnen Objekt. */
+function zahlKreis(gross: number, n: number) {
+  if (n < 2) return null;
+  const text = n > 99 ? '99+' : String(n);
+  const h = Math.max(11, Math.round(gross * 0.46)); const pt = h * 0.72;
+  return { text, h, pt, b: text.length === 1 ? h : h + (text.length - 1) * pt * 0.6, dx: gross * 0.3, dy: gross * 0.24 };
 }
 
 /**
@@ -714,15 +788,17 @@ const MarkerEbene = memo(function MarkerEbene({ gruppen, gr, aktiv, setUeber, kl
   return (
     <>
       {gruppen.map((g) => {
-        const n = g.liste.length; const an = aktiv === g.id; const gross = n > 1 ? gr + 4 : an ? Math.round(gr * 1.3) : gr;
+        const n = g.liste.length; const an = aktiv === g.id; const gross = an ? Math.round(gr * 1.25) : gr;
+        const b = zahlKreis(gross, n);
         return (
           <g key={g.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(() => g.id)} onPointerLeave={() => setUeber((u) => (u === g.id ? null : u))} onClick={() => klick(g)}>
-            {an && <circle cx={g.px} cy={g.py} r={gross * 0.72} fill="rgb(var(--akz) / 0.25)" stroke="rgb(var(--akz))" strokeWidth={2} />}
+            {an && <circle cx={g.px} cy={g.py} r={gross * 0.5} fill="rgb(var(--akz) / 0.25)" stroke="rgb(var(--akz))" strokeWidth={2} />}
             <use href={`#k-${g.typ}`} x={g.px - gross / 2} y={g.py - gross / 2} width={gross} height={gross} />
-            {n > 1 && (
-              <g>
-                <rect x={g.px + gross / 2 - 9} y={g.py - gross / 2 - 7} width={n > 99 ? 23 : n > 9 ? 18 : 14} height={14} rx={7} fill="#05070c" stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
-                <text x={g.px + gross / 2 - 9 + (n > 99 ? 11.5 : n > 9 ? 9 : 7)} y={g.py - gross / 2 + 3.3} textAnchor="middle" fontSize={9} fontWeight={800} fill="#fff">{n > 99 ? '99+' : n}</text>
+            {/* Stapel: gelber Kreis mit schwarzer Zahl und schwarzem Rand unten rechts am Symbol (wie fortnite.gg) */}
+            {b && (
+              <g pointerEvents="none">
+                <rect x={g.px + b.dx - b.b / 2} y={g.py + b.dy - b.h / 2} width={b.b} height={b.h} rx={b.h / 2} fill={STAPEL_GELB} stroke="#05070c" strokeWidth={1.6} />
+                <text x={g.px + b.dx} y={g.py + b.dy + b.pt * 0.36} textAnchor="middle" fontSize={b.pt} fontWeight={900} fill="#05070c" fontFamily="Inter, system-ui, sans-serif">{b.text}</text>
               </g>
             )}
           </g>
@@ -749,7 +825,7 @@ function MarkerInfo({ g, skala, gitter, gruppenGroesse, schliessen }: { g: Grupp
         <Abzeichen typ={g.typ} groesse={34} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-extrabold leading-tight text-white">{n > 1 ? `${n} ${e.titel.toLowerCase()}` : (o.name && o.name !== 'needs key' ? o.name : e.einzeln)}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{n > 1 ? 'Click to zoom in' : `${e.gruppe} · grid ${feld}`}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{n > 1 ? (schliessen ? `${e.gruppe} · same spot` : 'Click to zoom in') : `${e.gruppe} · grid ${feld}`}</p>
         </div>
         {schliessen && <button type="button" aria-label="Close" onClick={schliessen} className="self-start text-white/40 hover:text-white"><Icon d="M6 6l12 12M18 6L6 18" /></button>}
       </div>
@@ -774,7 +850,26 @@ function MarkerInfo({ g, skala, gitter, gruppenGroesse, schliessen }: { g: Grupp
             ? [zelle('Length', m(Math.hypot(o.x2 - o.x, o.y2 - o.y))), zelle('From', feld), zelle('To', feldVon(g.linie[2], g.linie[3]))]
             : [zelle('X', m(o.x)), zelle('Y', m(o.y)), zelle('Height', o.z !== undefined ? m(o.z) : '–')]}
         </dl>
-      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}{schnitt.length ? ` · avg. spawn chance ${Math.round((schnitt.reduce((a, x) => a + x.wert, 0) / schnitt.length) * 100)}%` : ''}.</p>}
+      ) : (
+        <>
+          <p className="mt-2 text-xs text-white/55">Around grid {feld}{schnitt.length ? ` · avg. spawn chance ${Math.round((schnitt.reduce((a, x) => a + x.wert, 0) / schnitt.length) * 100)}%` : ''}.</p>
+          {/* Die Objekte des Stapels einzeln: Spawn-Chance und Hoehe */}
+          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
+            {g.liste.slice(0, 30).map((x, i) => {
+              const cx = chanceVon(x);
+              return (
+                <li key={x.nr} className="zahl flex items-center gap-2 rounded-lg bg-black/40 px-2 py-1 text-[11px]">
+                  <span className="w-4 text-white/40">{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold text-white/85">{x.name && x.name !== 'needs key' ? x.name : e.einzeln}</span>
+                  {cx && <span className="font-bold text-akz">{cx.wert >= 1 ? 'Always' : `${Math.round(cx.wert * 100)}%`}</span>}
+                  <span className="text-white/45">{x.z !== undefined ? m(x.z) : ''}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {g.liste.length > 30 && <p className="mt-1 text-[10px] text-white/40">+{g.liste.length - 30} more – zoom in</p>}
+        </>
+      )}
       {n === 1 && o.name === 'needs key' && <p className="mt-2 text-[11px] text-amber-200/80">Needs a key</p>}
     </div>
   );
