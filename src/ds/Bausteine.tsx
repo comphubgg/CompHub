@@ -99,7 +99,8 @@ export function SeitenKopf({ ueber, titel, text, rechts, bild, children, klein =
   return (
     <header className="fl-fest relative isolate mb-7 overflow-hidden">
       <Bild src={bild} className="absolute inset-y-0 right-0 -z-10 h-full w-full lg:w-[62%]" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/85 to-fl/10" />
+      {/* unter lg liegt das Bild unter dem ganzen Text - dort staerker abdunkeln, sonst ist Text auf hellen Bannern (Globals) kaum lesbar */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl/90 via-fl/70 to-fl/40 lg:from-fl lg:via-fl/85 lg:to-fl/10" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-transparent to-transparent" />
       <div className="px-7 pb-7 pt-16 lg:px-10 lg:pt-24">{kopf}{children && <div className="mt-6">{children}</div>}</div>
     </header>
