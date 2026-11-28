@@ -111,13 +111,14 @@ export default function Overlays() {
         {/* ------------------------------------------------ 1 Choose */}
         <aside className="fl-fest p-3 lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto">
           <p className="px-1 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">1 · Choose</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+          {/* Handy: ein Streifen zum Wischen (die Buehne folgt gleich darunter), ab lg eine Spalte */}
+          <div className="ohne-leiste -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0">
             {arten.map((x) => {
               const an = x.schluessel === a.schluessel;
               const zu = !darfArt(zugang, x.schluessel);
               return (
                 <button key={x.schluessel} type="button" onClick={() => waehlen(x.schluessel)} aria-pressed={an}
-                  className={`group overflow-hidden rounded-2xl border text-left transition ${an ? 'border-akz/50 bg-akz/[0.08]' : 'border-white/[0.06] bg-black/20 hover:border-white/15'}`}>
+                  className={`group w-52 shrink-0 snap-start overflow-hidden rounded-2xl border text-left transition lg:w-auto ${an ? 'border-akz/50 bg-akz/[0.08]' : 'border-white/[0.06] bg-black/20 hover:border-white/15'}`}>
                   <ProbeBuehne probe={probeVon(x.schluessel, daten, start)} titel={x.titel} maxMass={0.9} className="aspect-video" />
                   <span className="flex items-center gap-2 px-3 py-2">
                     <span className="min-w-0 flex-1">

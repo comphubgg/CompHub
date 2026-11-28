@@ -96,14 +96,13 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
           * Kopf mit dem Bild des Turniers (Betreiber, 30.10.2026: "Ich LIEBE Bilder" - wie bei den Solos): links der Titel, rechts das Bild der
           * Global Championship 2026 ganz. Farben fest, damit der helle Modus den Kopf nicht umfaerbt.
           */}
-        <section className="relative isolate overflow-hidden rounded-3xl border border-white/[0.08] bg-[#09090b] shadow-[0_20px_50px_rgba(0,0,0,.4)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cups/fncs-global-championship-2026-hd.jpg" alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
+        {/* Design 3.0: dichte Flaeche, das Bild nur einmal (kein verschwommenes Doppel dahinter) */}
+        <section className="fl-fest relative isolate overflow-hidden">
           <div className="grid items-center gap-6 p-5 sm:p-7 lg:grid-cols-[1fr_minmax(0,560px)]">
             <div className="order-2 lg:order-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#7dd3fc]"><T>FNCS · Antwerpen · 26.–27.09.2026</T></p>
-              <h1 className="mt-1 text-4xl font-black uppercase leading-[0.95] tracking-tight text-[#fff] sm:text-6xl">Globals <span className="text-[#38bdf8]">2026</span></h1>
-              <p className="mt-3 max-w-xl text-sm text-[#cbd5e1]"><T>Die FNCS Global Championship an einem Ort: Overlays für deinen Stream, das Feld, die Karte, der Tipp auf den Ausgang und das Preisgeld.</T></p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#7dd3fc]"><T>FNCS · Antwerpen · 26.–27.09.2026</T></p>
+              <h1 className="titel mt-1 text-6xl sm:text-8xl">Globals <span className="text-[#38bdf8]">2026</span></h1>
+              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/60"><T>Die FNCS Global Championship an einem Ort: Overlays für deinen Stream, das Feld, die Karte, der Tipp auf den Ausgang und das Preisgeld.</T></p>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/cups/fncs-global-championship-2026-hd.jpg" alt="FNCS Global Championship 2026"
@@ -111,12 +110,12 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
           </div>
         </section>
 
-        <nav className="flex w-fit max-w-full flex-wrap gap-1 rounded-full border border-white/10 bg-fl p-1 shadow-sm">
+        <nav className="ohne-leiste flex max-w-full gap-1.5 overflow-x-auto">
           {GLOBALS_SEITEN.map((s) => {
             const an = hier === s.pfad || hier.startsWith(`${s.pfad}/`);
             return (
               <Link key={s.pfad} href={s.pfad} title={t(s.was)}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${an ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white'}`}>
+                className={`chip !px-4 !py-2 !text-sm ${an ? 'chip-an' : ''}`}>
                 <T>{s.titel}</T>
               </Link>
             );

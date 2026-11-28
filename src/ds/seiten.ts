@@ -96,17 +96,17 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
     gruppen: [
       { titel: 'Watch', seiten: [
         { pfad: '', titel: 'Studio', text: 'Your control room: live, overlays, tools', haupt: true },
-        { pfad: 'streams', titel: 'Live Streams', text: 'Who is live, and the multiview wall', auch: ['live'], haupt: true },
+        { pfad: 'streams', titel: 'Live Streams', text: 'Who is live and the multiview wall – one page', auch: ['live'], haupt: true },
       ] },
       { titel: 'Create', seiten: [
-        { pfad: 'overlays', titel: 'Overlays', text: 'OBS overlays with live cup data', haupt: true },
-        { pfad: 'my-page', titel: 'My page', text: 'Your channel on CompHub', auch: ['page'], haupt: true },
+        { pfad: 'overlays', titel: 'Overlays', text: 'Choose, adjust, copy the OBS URL', haupt: true },
+        { pfad: 'my-page', titel: 'My page', text: 'Your channel as viewers see it', auch: ['page'], haupt: true },
       ] },
       { titel: 'Twitch', seiten: [
-        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands and rules for your channel', haupt: true },
-        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Peak, average, followers, chatters', haupt: true },
+        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands and rules · VIP', haupt: true },
+        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Viewer curve, peak, followers · VIP', haupt: true },
       ] },
-      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your access, key and archive', haupt: true }] },
+      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your pass, key, tools and archive', haupt: true }] },
     ],
   },
 };
