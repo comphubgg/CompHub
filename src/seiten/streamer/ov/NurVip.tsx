@@ -1,23 +1,52 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useWer } from '../../../teile/Anmeldung';
+import { StufenMarke, Zeichen } from '../Teile';
 
-/* Ein VIP-Werkzeug ohne VIP: violettes Glas mit Anmelden und Zugangsschluessel (ersetzt "Nur fuer VIPs" der Seite auf main). */
+/*
+ * Ein VIP-Werkzeug ohne VIP (Design 3.0, 28.11.2026): links was fehlt und die zwei Wege hinein (Zugangsschluessel, anderes Konto), rechts was
+ * VIP alles freischaltet - eine echte Auskunft statt eines leuchtenden Kastens. VIP ist Gold (Bedeutungsfarbe), der Bereich bleibt Violett.
+ */
+const EXTRAS: Array<{ z: string; titel: string; text: string; zu: string }> = [
+  { z: 'overlay', titel: 'Live cup overlays', text: 'Team banner, leaderboard and qual line with live Epic data', zu: '/streamer/overlays' },
+  { z: 'pokal', titel: 'Globals 2026 overlays', text: 'In the look of the Global Championship', zu: '/streamer/overlays/globals' },
+  { z: 'bot', titel: 'Twitch bot', text: 'Your commands and chat rules, around the clock', zu: '/streamer/twitch-bot' },
+  { z: 'kurve', titel: 'Twitch stats', text: 'Peak, average, followers and chatters per stream', zu: '/streamer/twitch-stats' },
+  { z: 'archiv', titel: 'Your archive', text: 'Every overlay you saved, in one place', zu: '/streamer/vip' },
+];
+
 export default function NurVip({ titel = 'VIPs only', text }: { titel?: string; text: string }) {
   const { oeffnen } = useWer();
   return (
-    <div className="relative grid min-h-[60vh] place-items-center">
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[380px] w-[min(620px,100%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-akz/20 blur-[110px]" />
-      <motion.div initial={{ opacity: 0, y: 20, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-xl rounded-[2rem] border border-akz/20 bg-[#0b0d16]/75 p-9 text-center backdrop-blur-2xl">
-        <span className="rounded-full bg-akz px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#06080f]">VIP</span>
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white">{titel}</h1>
-        <p className="mt-2 text-white/55">{text}</p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <button type="button" onClick={() => oeffnen('schluessel')} className="rounded-full bg-akz px-6 py-2.5 text-sm font-bold text-[#06080f] transition hover:-translate-y-0.5 hover:brightness-110">Enter VIP access key</button>
-          <button type="button" onClick={() => oeffnen('konto')} className="rounded-full border border-akz/40 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-akz/10">Sign in with another account</button>
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="fl-fest grid overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div className="p-7 sm:p-10">
+        <StufenMarke vip />
+        <h1 className="titel mt-4 text-5xl sm:text-6xl">{titel}</h1>
+        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/60">{text}</p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <button type="button" onClick={() => oeffnen('schluessel')} className="knopf-prim">Enter VIP access key</button>
+          <button type="button" onClick={() => oeffnen('konto')} className="knopf">Sign in with another account</button>
         </div>
-        <a href="https://discord.gg/8jQ3tf37sQ" target="_blank" rel="noreferrer" className="mt-5 inline-block text-xs text-white/45 hover:text-akz">Want VIP? Ask us on Discord →</a>
-      </motion.div>
-    </div>
+        <a href="https://discord.gg/8jQ3tf37sQ" target="_blank" rel="noreferrer" className="knopf-leer mt-6">Want VIP? Ask us on Discord <span aria-hidden>→</span></a>
+      </div>
+      <div className="border-t border-white/[0.06] bg-black/20 p-7 sm:p-10 lg:border-l lg:border-t-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">What VIP unlocks</p>
+        <ul className="mt-4 divide-y divide-white/[0.05]">
+          {EXTRAS.map((x) => (
+            <li key={x.titel}>
+              <Link to={x.zu} className="group flex items-center gap-4 py-3.5">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-200"><Zeichen name={x.z} className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-white">{x.titel}</span>
+                  <span className="block truncate text-xs text-white/45">{x.text}</span>
+                </span>
+                <Zeichen name="pfeil" className="h-4 w-4 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-white/60" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </motion.div>
   );
 }
