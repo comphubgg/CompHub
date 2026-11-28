@@ -1,92 +1,102 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Abschnitt, Bild, Flaeche, Marke, MedienKarte, Zaehler, dauer, useJetzt } from '../ds/Bausteine';
 import { flagge } from '../teile/Glas';
+import { REGION_NAME, cupLink, datum, istRanked, laeuft, lageVon, stufeName, tagKurz, vorbei, type Cup, type Fenster, type Lage } from './comp/events/gemeinsam';
+import { CupBild, CupKarte, CupMarken, LiveMarke, RegionMarke, TeamFotos, TeamNamen, Uhrwerk, type FotoSpieler } from './comp/events/teile';
 
 /*
- * Competitive-Uebersicht, neu (Betreiber, 26.11.2026: "Top 10 reingeklatscht, Tools, live ... so fuehle ich sie gar nicht"). Aufbau:
- * 1. Buehne ueber die volle Breite: der wichtigste Cup (live, sonst der naechste) mit Banner, Countdown und - wenn live - der Live-Top-5.
- * 2. Zeitleiste der naechsten 24 Stunden ueber alle Regionen.
- * 3. Kachelwand: Nummer 1 der Power Rankings gross, die Verfolger, Aufsteiger/Absteiger, Laender, letzte Sieger.
- * Die Werkzeuge stehen oben in der Unter-Navigation, hier unten nur als Bild-Kacheln zum Weiterklicken.
+ * Competitive-Uebersicht - die Titelseite der Szene (Design-System 3.0, Betreiber 27.11.2026: "alles wird neu gebaut ... nichts 1:1 gleich").
+ *
+ *   1. Buehne ueber die volle Breite: der laufende Cup (sonst der naechste wichtige) mit seinem Banner, Countdown in Kacheln, daneben die Top 5
+ *      mit Hochkant-Fotos - live alle 15 s frisch, vor dem Start das Ergebnis des letzten Spieltags desselben Cups. Darunter der Puls der Szene.
+ *   2. Magazin-Raster: links "Coming up" (nur wichtige Cups: kein Ranked, EU/NA dabei) und "Latest winners" mit Banner und Siegerfotos,
+ *      rechts ueber beide Reihen die Power Rankings (Nummer 1, Verfolger, Auf- und Absteiger).
+ *   3. Werkzeuge: eine grosse Kachel und sechs kleine, jede mit einem echten 16:9-Bild.
+ *
+ * Daten: /api/cup-catalog?modus=alle, /api/cup-leaderboard, /api/power-rankings.
  */
 
-interface Fenster { status: string; begin: number; end: number; eventId?: string; windowId?: string; region?: string; rundenTyp?: string; istFinale?: boolean }
-interface Cup { id: string; titel: string; untertitel?: string; bild?: string; farbe?: string; regionen?: Record<string, Fenster[]> }
-interface PR { rank: number; id: string; name: string; anzeige?: string; land?: string; wertung: number; deltaPlatz: number; deltaWertung?: number; bild?: string | null }
-interface LbSpieler { id: string; name: string; anzeige?: string; land?: string; img?: string | null }
-interface LbEintrag { rank: number; points: number; elims: number; games: number; wins: number; players: LbSpieler[] }
-interface Termin { cup: Cup; region: string; f: Fenster }
+interface PR { rank: number; id: string; name: string; anzeige?: string; land?: string; wertung: number; bestwert?: number; deltaPlatz: number; deltaWertung?: number; bild?: string | null }
+interface LbEintrag { rank: number; points: number; elims: number; games: number; wins: number; players: FotoSpieler[] }
+interface Termin { cup: Cup; f: Fenster }
 
-const uhr = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
-  // ab 24 Stunden in Tagen (Betreiber: "anstatt 170 Stunden ... Days")
-  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h ${String(m).padStart(2, '0')}m`;
-  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m ${String(x).padStart(2, '0')}s`;
-};
-const zeit = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-// Wichtigkeit einer Region fuer die Buehne: EU und NAC zuerst (dort sitzt das Publikum)
+const HAUPT = ['EU', 'NAC', 'NAW'];
 const GEWICHT: Record<string, number> = { EU: 0, NAC: 1, NAW: 2, BR: 3, ASIA: 4, ME: 5, OCE: 6 };
 const gewicht = (r: string) => GEWICHT[r] ?? 9;
+/** Wichtig fuer die Titelseite: kein Ranked Cup, und Europa oder Nordamerika spielt mit (Betreiber). */
+const wichtig = (c: Cup) => !istRanked(c) && Object.keys(c.regionen).some((r) => HAUPT.includes(r));
+/** Auf die Buehne gehoert der naechste GROSSE Cup - Test-Cups und Mobile-Cups stehen nur im Kalender darunter. */
+const buehnenReif = (c: Cup) => wichtig(c) && c.art !== 'mobile' && !/\btest\b/i.test(c.titel);
 const name = (p: { anzeige?: string; name: string }) => p.anzeige || p.name;
+const uhrzeit = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+/** "Scott Pilgrim Cup · Duos (Battle Royale)" -> gross "Scott Pilgrim Cup", klein "Duos · Battle Royale". */
+const titelTeile = (t: string) => { const [haupt, ...rest] = t.split(/\s·\s|\s\(/); return { haupt, zusatz: rest.map((x) => x.replace(/\)$/, '')).join(' · ') }; };
+const TAG = 86400e3;
+/** Ersatzbild der Buehne, wenn der Cup kein eigenes Banner hat (Bild des Betreibers). */
+const BUEHNE_ERSATZ = '/slider/eis-trio.webp';
 
-function useJetzt() { const [t, setT] = useState(Date.now()); useEffect(() => { const i = setInterval(() => setT(Date.now()), 1000); return () => clearInterval(i); }, []); return t; }
-
-function teileAuf(cups: Cup[], jetzt: number) {
-  const live: Termin[] = [], kommt: Termin[] = [], vorbei: Termin[] = [];
-  for (const c of cups) for (const [r, ws] of Object.entries(c.regionen ?? {})) for (const f of ws) {
-    const t = { cup: c, region: r, f };
-    if (f.begin <= jetzt && f.end >= jetzt) live.push(t);
-    else if (f.begin > jetzt) kommt.push(t);
-    else if (jetzt - f.end < 3 * 86400e3) vorbei.push(t);
+function einteilen(cups: Cup[], jetzt: number) {
+  const live: Termin[] = [];
+  let bald = 0, gewesen = 0;
+  for (const c of cups) for (const f of Object.values(c.regionen).flat()) {
+    if (laeuft(f, jetzt)) live.push({ cup: c, f });
+    else if (f.begin > jetzt && f.begin - jetzt < 7 * TAG) bald += 1;
+    else if (f.end && f.end <= jetzt && jetzt - f.end < 7 * TAG) gewesen += 1;
   }
-  live.sort((a, b) => gewicht(a.region) - gewicht(b.region));
-  kommt.sort((a, b) => a.f.begin - b.f.begin);
-  vorbei.sort((a, b) => b.f.end - a.f.end);
-  return { live, kommt, vorbei };
+  live.sort((a, b) => Number(!wichtig(a.cup)) - Number(!wichtig(b.cup)) || gewicht(a.f.region) - gewicht(b.f.region));
+  const kommend = cups.filter(wichtig).map((c) => ({ c, lage: lageVon(c, 'alle', jetzt) }))
+    .filter((x) => x.lage.status === 'kommt' && (x.lage.naechster ?? 0) - jetzt < 21 * TAG).sort((a, b) => (a.lage.naechster ?? 0) - (b.lage.naechster ?? 0));
+  // Sieger: je Cup der zuletzt beendete Spieltag (Europa vor Nordamerika), feste Cups vor Skin-Cups, nie Ranked oder Mobile
+  const sieger: Termin[] = [];
+  for (const c of cups) {
+    if (!wichtig(c) || c.art === 'mobile') continue;
+    const fertig = Object.values(c.regionen).flat().filter((f) => HAUPT.includes(f.region) && f.end && vorbei(f, jetzt) && jetzt - f.end < 7 * TAG && f.eventId && f.windowId)
+      .sort((a, b) => gewicht(a.region) - gewicht(b.region) || (b.end ?? 0) - (a.end ?? 0));
+    if (fertig[0]) sieger.push({ cup: c, f: fertig[0] });
+  }
+  sieger.sort((a, b) => Number(a.cup.art === 'skin') - Number(b.cup.art === 'skin') || (b.f.end ?? 0) - (a.f.end ?? 0));
+  return { live, kommend, sieger: sieger.slice(0, 4).sort((a, b) => (b.f.end ?? 0) - (a.f.end ?? 0)), bald, gewesen };
 }
 
-/** Live-Top-5 eines laufenden Spieltags, alle 15 Sekunden frisch. */
-/** Spielerfoto hochkant (Betreiber: "nicht rund, eher hochkant rechteckig ... kleiner und zu dritt"). */
-function Hochkant({ p, gross = false }: { p: LbSpieler; gross?: boolean }) {
-  const mass = gross ? 'h-14 w-11' : 'h-12 w-9';
-  return (
-    <Link to={`/competitive/player/${p.id}`} title={name(p)} className={`group/f relative ${mass} shrink-0 overflow-hidden rounded-lg bg-white/[0.06] ring-1 ring-white/10`}>
-      {p.img ? <img src={p.img} alt="" className="h-full w-full object-cover object-top transition duration-500 group-hover/f:scale-110" />
-        : <span className="grid h-full w-full place-items-center text-sm font-black text-white/30">{name(p).slice(0, 1)}</span>}
-      <span className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-    </Link>
-  );
+/** Der Spieltag, mit dem ein kommender Cup auf die Buehne geht: der naechste - in Europa, wenn Europa am selben Tag spielt. */
+function naechsterTermin(c: Cup, jetzt: number): Termin | null {
+  const kommt = Object.values(c.regionen).flat().filter((f) => f.begin > jetzt).sort((a, b) => a.begin - b.begin);
+  if (!kommt.length) return null;
+  const tag = kommt.filter((f) => f.begin - kommt[0].begin < TAG).sort((a, b) => gewicht(a.region) - gewicht(b.region));
+  return { cup: c, f: tag[0] };
 }
 
-function LiveTop({ f }: { f: Fenster }) {
+/* ------------------------------------------------------------------------------------------------ Buehne */
+
+/** Die Top 5 eines Spieltags. Laeuft er, alle 15 Sekunden frisch. */
+function TopFuenf({ f, live }: { f: Fenster; live: boolean }) {
   const [liste, setListe] = useState<LbEintrag[] | null>(null);
   useEffect(() => {
     setListe(null);
-    if (!f.eventId || !f.windowId) return;
     let aus = false;
-    const holen = () => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId!)}&window=${encodeURIComponent(f.windowId!)}&limit=5`)
-      .then((r) => r.json()).then((j) => { if (!aus) setListe((j.entries ?? []).slice(0, 5)); }).catch(() => { if (!aus) setListe([]); });
-    holen(); const i = setInterval(holen, 15000);
-    return () => { aus = true; clearInterval(i); };
-  }, [f.eventId, f.windowId]);
-  if (!liste) return <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-14 animate-pulse rounded-2xl bg-white/[0.05]" />)}</div>;
-  if (!liste.length) return <p className="py-6 text-sm text-white/60">First games are still running – the leaderboard fills after the first results.</p>;
+    const holen = () => fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&limit=5`)
+      .then((r) => r.json()).then((j) => { if (!aus) setListe((j.entries ?? []).slice(0, 5)); }).catch(() => { if (!aus) setListe((l) => l ?? []); });
+    holen();
+    const i = live ? setInterval(holen, 15000) : undefined;
+    return () => { aus = true; if (i) clearInterval(i); };
+  }, [f.eventId, f.windowId, live]);
+  if (!liste) return <div className="space-y-px">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-16 animate-pulse bg-white/[0.03]" />)}</div>;
+  if (!liste.length) return <p className="px-4 py-8 text-sm text-white/55">{live ? 'First games are still running – the leaderboard fills after the first results.' : 'No result published for this match day.'}</p>;
   return (
-    <ol className="space-y-2">
+    <ol>
       <AnimatePresence initial={false}>
-        {liste.map((e) => (
-          <motion.li layout key={e.players.map((p) => p.id).join()} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-xl">
-            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${e.rank === 1 ? 'bg-yellow-300 text-black' : e.rank <= 3 ? 'bg-white text-black' : 'bg-white/10 text-white'}`}>{e.rank}</span>
-            <div className="flex gap-1">{e.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} />)}</div>
+        {liste.map((e, i) => (
+          <motion.li layout key={e.players.map((p) => p.id).join()} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.04 }}
+            className="flex min-h-[64px] items-center gap-3 border-t border-white/[0.05] px-4 py-2 first:border-t-0">
+            <span className={`titel zahl w-6 shrink-0 text-center text-3xl ${e.rank === 1 ? '!text-amber-300' : e.rank > 3 ? '!text-white/40' : ''}`}>{e.rank}</span>
+            <TeamFotos spieler={e.players.slice(0, 4)} mass="h-10 w-[30px] sm:h-12 sm:w-9" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">
-                {e.players.map((p, i) => <span key={p.id}>{i > 0 && <span className="text-white/30"> · </span>}<Link to={`/competitive/player/${p.id}`} className="hover:text-sky-300">{name(p)}</Link></span>)}
-              </p>
-              <p className="text-[11px] text-white/50">{e.games} games · {e.elims} elims{e.wins ? ` · ${e.wins} win${e.wins > 1 ? 's' : ''}` : ''}</p>
+              <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-white sm:line-clamp-1 sm:text-sm"><TeamNamen spieler={e.players} /></p>
+              <p className="zahl text-[11px] text-white/45">{e.games} games · {e.elims} elims{e.wins ? ` · ${e.wins} win${e.wins > 1 ? 's' : ''}` : ''}</p>
             </div>
-            <span className="shrink-0 text-right"><span className="block font-mono text-lg font-bold tabular-nums text-white">{e.points}</span><span className="text-[10px] uppercase tracking-wider text-white/40">pts</span></span>
+            <span className="shrink-0 text-right"><span className="titel zahl block text-3xl">{e.points}</span><span className="block text-[9px] font-semibold uppercase tracking-[0.25em] text-white/35">pts</span></span>
           </motion.li>
         ))}
       </AnimatePresence>
@@ -94,309 +104,367 @@ function LiveTop({ f }: { f: Fenster }) {
   );
 }
 
-function Buehne({ live, kommt, jetzt }: { live: Termin[]; kommt: Termin[]; jetzt: number }) {
-  const [wahl, setWahl] = useState<string | null>(null);
-  const haupt = live.find((t) => t.cup.id + t.region === wahl) ?? live[0] ?? kommt[0];
-  if (!haupt) return <div className="h-[56vh] animate-pulse rounded-[2rem] bg-white/[0.03]" />;
-  const istLive = live.includes(haupt);
-  const regionenLive = live.filter((t) => t.cup.id === haupt.cup.id);
-  const andere = live.filter((t) => t.cup.id !== haupt.cup.id);
+function PulsZelle({ label, zu, children, unter }: { label: string; zu: string; children: ReactNode; unter: ReactNode }) {
   return (
-    <section className="relative isolate overflow-hidden rounded-[2rem] border border-white/10">
-      <AnimatePresence mode="wait">
-        <motion.img key={haupt.cup.bild} src={haupt.cup.bild} alt="" initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.2 }}
-          className="absolute inset-0 -z-10 h-full w-full object-cover" />
-      </AnimatePresence>
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#05070d] via-[#05070d]/75 to-[#05070d]/10" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#05070d] via-transparent to-transparent" />
-      <div className="grid min-h-[56vh] grid-cols-[minmax(0,1fr)] gap-8 p-5 sm:p-8 lg:grid-cols-[1.3fr_1fr] lg:p-12">
-        <div className="flex flex-col justify-end">
-          <div className="flex flex-wrap items-center gap-2">
+    <Link to={zu} className="group bg-fl px-5 py-4 transition hover:bg-white/[0.03] lg:px-7">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{label}</p>
+      <p className="titel mt-1 text-4xl transition group-hover:!text-akz">{children}</p>
+      <p className="mt-0.5 truncate text-xs text-white/45">{unter}</p>
+    </Link>
+  );
+}
+
+function Buehne({ live, naechster, jetzt, puls }: { live: Termin[]; naechster: Termin | null; jetzt: number; puls: ReactNode }) {
+  const [wahl, setWahl] = useState<string | null>(null);
+  const [bildFehlt, setBildFehlt] = useState<string | null>(null);
+  const liveWichtig = live.filter((t) => wichtig(t.cup));
+  const haupt = live.find((t) => t.f.windowId === wahl) ?? liveWichtig[0] ?? naechster ?? live[0] ?? null;
+  if (!haupt) return <div className="fl-fest h-[560px] animate-pulse" />;
+  const { cup, f } = haupt;
+  const istLive = laeuft(f, jetzt);
+  const { haupt: titel, zusatz } = titelTeile(cup.titel);
+  // Ranked-Banner sind keine Deko fuer die Titelseite - dann das Bild des Betreibers
+  const bild = !istRanked(cup) && cup.bild && bildFehlt !== cup.bild ? cup.bild : BUEHNE_ERSATZ;
+  const regionenLive = live.filter((t) => t.cup.id === cup.id);
+  const auchLive = live.filter((t) => t.cup.id !== cup.id);
+  // vor dem Start: wann welche Region dran ist, und das Ergebnis des letzten Spieltags
+  const tagesFenster = istLive ? [] : Object.values(cup.regionen).flat().filter((x) => x.begin > jetzt && x.begin - f.begin < TAG && x.begin >= f.begin - TAG)
+    .sort((a, b) => gewicht(a.region) - gewicht(b.region) || a.begin - b.begin).filter((x, i, l) => l.findIndex((y) => y.region === x.region) === i).slice(0, 7);
+  const letzter = istLive ? null : [...(cup.regionen[f.region] ?? []), ...HAUPT.flatMap((r) => (r === f.region ? [] : cup.regionen[r] ?? []))]
+    .filter((x) => vorbei(x, jetzt) && x.eventId && x.windowId).sort((a, b) => Number(b.region === f.region) - Number(a.region === f.region) || b.begin - a.begin)[0] ?? null;
+  const tafel = istLive ? f : letzter;
+  const anteil = istLive && f.end ? Math.min(1, Math.max(0, (jetzt - f.begin) / (f.end - f.begin))) : 0;
+  const kommende = Object.values(cup.regionen).flat().filter((x) => x.begin > jetzt).sort((a, b) => a.begin - b.begin).slice(0, 6);
+  return (
+    <section className="fl-fest relative isolate overflow-hidden">
+      <motion.img key={bild} src={bild} alt="" draggable={false} onError={() => setBildFehlt(cup.bild ?? null)} initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} className="absolute inset-0 -z-10 h-full w-full object-cover object-[center_30%]" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/70 to-transparent" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-fl/20 to-transparent" />
+
+      <div className="grid gap-7 p-5 sm:p-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.95fr)] lg:gap-10 lg:p-10 xl:min-h-[540px]">
+        <div className="flex min-w-0 flex-col justify-end">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {istLive ? <LiveMarke text="Live now" /> : <Marke ton="akz">Up next</Marke>}
+            <CupMarken c={cup} />
+            {zusatz && <Marke>{zusatz}</Marke>}
+          </div>
+          <h1 className="titel mt-4 text-[2.9rem] drop-shadow-[0_6px_30px_rgba(0,0,0,0.85)] sm:text-7xl 2xl:text-8xl">{titel}</h1>
+          <p className="mt-3 text-[15px] text-white/65"><span className="font-semibold text-white">{stufeName(f)}</span> · {REGION_NAME[f.region] ?? f.region} · {datum(f.begin)}{f.end ? `–${uhrzeit(f.end)}` : ''}{f.matchCap ? ` · ${f.matchCap} matches` : ''}</p>
+          <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">{istLive ? 'Ends in' : 'Starts in'}</p>
+              <div className="mt-1.5"><Uhrwerk ms={(istLive ? f.end ?? jetzt : f.begin) - jetzt} ton={istLive ? 'rot' : 'akz'} /></div>
+            </div>
             {istLive ? (
-              <span className="flex items-center gap-2 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-red-300 ring-1 ring-red-400/40">
-                <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-red-400 opacity-70" /><span className="relative h-2 w-2 rounded-full bg-red-500" /></span>Live now
-              </span>
-            ) : <span className="rounded-full bg-sky-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-300 ring-1 ring-sky-400/40">Up next</span>}
-            {haupt.f.rundenTyp && <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">{haupt.f.istFinale ? 'Final' : haupt.f.rundenTyp}</span>}
+              <div className="min-w-[180px] flex-1 pb-1 sm:max-w-xs">
+                <div className="flex justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45"><span>{uhrzeit(f.begin)}</span><span>{Math.round(anteil * 100)}% played</span><span>{f.end ? uhrzeit(f.end) : ''}</span></div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-gradient-to-r from-red-400 to-amber-300" initial={{ width: 0 }} animate={{ width: `${anteil * 100}%` }} transition={{ duration: 1 }} /></div>
+              </div>
+            ) : tagesFenster.length > 0 && (
+              <div className="pb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">Start per region</p>
+                <div className="mt-1.5 flex max-w-md flex-wrap gap-1">{tagesFenster.map((x) => <RegionMarke key={x.windowId} r={x.region} zeit={uhrzeit(x.begin)} />)}</div>
+              </div>
+            )}
           </div>
-          <h1 className="mt-4 max-w-3xl font-['Bebas_Neue'] text-5xl leading-[0.9] sm:text-6xl tracking-wide text-white drop-shadow-2xl lg:text-8xl">{haupt.cup.titel}</h1>
-          <div className="mt-6 flex flex-wrap items-end gap-x-10 gap-y-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">{istLive ? 'Ends in' : 'Starts in'}</p>
-              <p className="font-mono text-5xl font-bold tabular-nums text-white">{uhr((istLive ? haupt.f.end : haupt.f.begin) - jetzt)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Window ({haupt.region})</p>
-              <p className="text-2xl font-semibold text-white/90">{zeit(haupt.f.begin)} – {zeit(haupt.f.end)}</p>
-            </div>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <Link to={cupLink(cup, f)} className="knopf-prim">{istLive ? 'Full live leaderboard' : 'Event page'} <span aria-hidden>→</span></Link>
             {istLive && regionenLive.length > 1 && regionenLive.map((t) => (
-              <button key={t.region} onClick={() => setWahl(t.cup.id + t.region)}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${t === haupt ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}>{t.region}</button>
+              <button key={t.f.windowId} type="button" onClick={() => setWahl(t.f.windowId)} className={`chip !py-2 ${t === haupt ? 'chip-an' : ''}`}>{t.f.region}</button>
             ))}
-            <Link to={`/competitive/events/${haupt.cup.id}`} className="rounded-xl bg-sky-500 px-5 py-2 text-sm font-bold text-black shadow-lg shadow-sky-500/30 transition hover:bg-sky-400">{istLive ? 'Full live leaderboard →' : 'Event details →'}</Link>
+            <Link to="/competitive/events" className="knopf">All events</Link>
           </div>
         </div>
-        <div className="flex flex-col justify-end">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-2xl">
-            {istLive ? (
+
+        <div className="flex min-w-0 flex-col justify-end">
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-fl/[0.88] backdrop-blur-xl">
+            {tafel ? (
               <>
-                <div className="mb-3 flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Live top 5 · {haupt.region}</p><p className="text-[11px] text-white/40">updates every 15 s</p></div>
-                <LiveTop f={haupt.f} />
+                <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="ueber">{istLive ? 'Live top 5' : 'Last match day · top 5'}</p>
+                    <p className="mt-0.5 truncate text-xs text-white/45">{REGION_NAME[tafel.region] ?? tafel.region} · {stufeName(tafel)}{istLive ? '' : ` · ${tagKurz(tafel.begin)}`}</p>
+                  </div>
+                  {istLive ? <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/45"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />every 15 s</span>
+                    : <Link to={cupLink(cup, tafel)} className="knopf-leer shrink-0 !text-xs">Full result <span aria-hidden>→</span></Link>}
+                </div>
+                <TopFuenf f={tafel} live={istLive} />
               </>
             ) : (
               <>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Also coming up</p>
-                <ul className="space-y-2">{kommt.slice(1, 6).map((t) => (
-                  <li key={t.cup.id + t.region + t.f.begin} className="flex items-center gap-3 rounded-xl bg-black/30 px-3 py-2">
-                    <span className="w-12 rounded-md bg-white/10 py-1 text-center text-[11px] font-bold text-white/80">{t.region}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-white">{t.cup.titel}</span>
-                    <span className="font-mono text-sm tabular-nums text-sky-300">{uhr(t.f.begin - jetzt)}</span>
+                <div className="border-b border-white/[0.06] px-4 py-3"><p className="ueber">Match days</p><p className="mt-0.5 text-xs text-white/45">First edition – no earlier result</p></div>
+                <ul>{kommende.map((x) => (
+                  <li key={x.windowId} className="flex items-center gap-3 border-t border-white/[0.05] px-4 py-3 first:border-t-0">
+                    <RegionMarke r={x.region} />
+                    <span className="min-w-0 flex-1 truncate text-sm text-white">{stufeName(x)} <span className="text-white/40">· {datum(x.begin)}</span></span>
+                    <span className="zahl text-sm font-bold text-akz">{dauer(x.begin - jetzt)}</span>
                   </li>))}</ul>
               </>
             )}
           </div>
         </div>
       </div>
-      {andere.length > 0 && (
-        <div className="flex gap-3 overflow-x-auto border-t border-white/10 bg-black/40 px-8 py-3 backdrop-blur-xl lg:px-12">
-          <span className="shrink-0 self-center text-[11px] font-semibold uppercase tracking-[0.25em] text-white/40">Also live</span>
-          {andere.map((t) => (
-            <button key={t.cup.id + t.region} onClick={() => setWahl(t.cup.id + t.region)} className="flex shrink-0 items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-1.5 text-sm text-white hover:bg-white/15">
-              <span className="text-[11px] font-bold text-red-300">{t.region}</span>{t.cup.titel}
-            </button>
+
+      {auchLive.length > 0 && (
+        <div className="ohne-leiste flex items-center gap-2 overflow-x-auto border-t border-white/[0.07] bg-fl/90 px-5 py-2.5 lg:px-10">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-red-300">Also live</span>
+          {auchLive.map((t) => (
+            <button key={t.f.windowId} type="button" onClick={() => setWahl(t.f.windowId)} className="chip"><span className="font-bold text-red-300">{t.f.region}</span>{t.cup.titel}</button>
           ))}
         </div>
       )}
+      <div className="grid grid-cols-2 gap-px border-t border-white/[0.07] bg-white/[0.06] lg:grid-cols-4">{puls}</div>
     </section>
   );
 }
 
-/** Was als Naechstes kommt: eine Karte pro Cup (alle Regionen zusammen), mit Banner, Startzeit und Countdown. */
-function DemnaechstLeiste({ kommt, jetzt }: { kommt: Termin[]; jetzt: number }) {
-  const karten = useMemo(() => {
-    const je = new Map<string, Termin[]>();
-    // Betreiber: nur wichtige Cups - keine Ranked Cups, keine Cups nur fuer eine Nebenregion (z.B. Arenas Fight Night nur BR); EU oder NA muss dabei sein
-    const wichtig = (c: Cup) => !/ranked/i.test(c.titel) && Object.keys(c.regionen ?? {}).some((r) => r === 'EU' || r === 'NAC' || r === 'NAW');
-    for (const t of kommt) {
-      if (t.f.begin - jetzt > 14 * 86400e3) break;
-      if (!wichtig(t.cup)) continue;
-      const k = t.cup.id + Math.floor(t.f.begin / 86400e3); je.set(k, [...(je.get(k) ?? []), t]);
-    }
-    return [...je.values()].slice(0, 8);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kommt]);
-  if (!karten.length) return null;
+/* ------------------------------------------------------------------------------------------------ Magazin */
+
+/** Ein einzelner kommender Cup: quer, Banner links, rechts alles Wichtige - fuellt die Breite, statt als kleine Karte allein zu stehen. */
+function QuerKarte({ c, lage, jetzt, zeiten }: { c: Cup; lage: Lage; jetzt: number; zeiten: Array<{ r: string; zeit: string }> }) {
+  const f = lage.fenster;
   return (
-    <section>
-      <div className="mb-4 flex items-end justify-between">
-        <h2 className="text-2xl font-extrabold tracking-tight text-white">Coming up</h2>
-        <Link to="/competitive/events" className="text-sm font-semibold text-sky-400 hover:text-sky-300">All events →</Link>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {karten.map((ts, i) => {
-          const erst = ts[0];
+    <Flaeche fest klick className="group overflow-hidden">
+      <Link to={cupLink(c, f)} className="grid md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden"><CupBild c={c} className="transition duration-700 group-hover:scale-[1.05]" /></div>
+        <div className="flex flex-col justify-center gap-3 p-6">
+          <div className="flex flex-wrap gap-1.5"><CupMarken c={c} /></div>
+          <h3 className="titel text-5xl">{titelTeile(c.titel).haupt}</h3>
+          <p className="text-sm text-white/55">{f ? stufeName(f) : ''}{lage.naechster ? ` · ${datum(lage.naechster)}` : ''}</p>
+          {lage.naechster && <Uhrwerk ms={lage.naechster - jetzt} klein />}
+          <div className="flex flex-wrap gap-1">{zeiten.map((z) => <RegionMarke key={z.r} r={z.r} zeit={z.zeit} klein />)}</div>
+        </div>
+      </Link>
+    </Flaeche>
+  );
+}
+
+function Demnaechst({ kommend, jetzt }: { kommend: Array<{ c: Cup; lage: Lage }>; jetzt: number }) {
+  if (!kommend.length) return null;
+  const zeige = kommend.slice(0, kommend.length >= 6 ? 6 : 3);
+  const zeiten = (c: Cup, start: number) => Object.values(c.regionen).flat().filter((f) => f.begin >= start && f.begin - start < TAG)
+    .sort((a, b) => gewicht(a.region) - gewicht(b.region) || a.begin - b.begin).filter((x, i, l) => l.findIndex((y) => y.region === x.region) === i).slice(0, 4).map((f) => ({ r: f.region, zeit: uhrzeit(f.begin) }));
+  return (
+    <Abschnitt ueber="Calendar" titel="Coming up" zu="/competitive/events" zuText="All events">
+      {zeige.length === 1 ? <QuerKarte c={zeige[0].c} lage={zeige[0].lage} jetzt={jetzt} zeiten={zeiten(zeige[0].c, zeige[0].lage.naechster ?? jetzt)} /> : (
+        <div className={`grid gap-5 sm:grid-cols-2 ${zeige.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+          {zeige.map((x, i) => <CupKarte key={x.c.id} c={x.c} lage={x.lage} verz={i * 0.05} dauerText={`in ${dauer((x.lage.naechster ?? jetzt) - jetzt)}`} zeiten={zeiten(x.c, x.lage.naechster ?? jetzt)} />)}
+        </div>
+      )}
+    </Abschnitt>
+  );
+}
+
+/** Die Sieger der zuletzt beendeten Spieltage - Banner des Cups, darunter die Fotos und Namen. */
+function LetzteSieger({ sieger }: { sieger: Termin[] }) {
+  const schluessel = sieger.map((t) => t.f.windowId).join();
+  const [erste, setErste] = useState<Record<string, LbEintrag | null>>({});
+  useEffect(() => {
+    for (const t of sieger) {
+      const k = t.f.windowId;
+      fetch(`/api/cup-leaderboard?event=${encodeURIComponent(t.f.eventId)}&window=${encodeURIComponent(k)}&limit=1`).then((r) => r.json())
+        .then((j) => setErste((s) => ({ ...s, [k]: j.entries?.[0] ?? null }))).catch(() => setErste((s) => ({ ...s, [k]: null })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schluessel]);
+  if (!sieger.length) return null;
+  return (
+    <Abschnitt ueber="Results" titel="Latest winners" zu="/competitive/events" zuText="All results">
+      <div className="grid gap-5 md:grid-cols-2">
+        {sieger.map((t, i) => {
+          const s = erste[t.f.windowId];
+          const { haupt, zusatz } = titelTeile(t.cup.titel);
           return (
-            <Kachel key={erst.cup.id + erst.f.begin} delay={i * 0.04} className="group">
-              <Link to={`/competitive/events/${erst.cup.id}`} className="block">
-                <div className="relative aspect-video overflow-hidden">
-                  {erst.cup.bild && <img src={erst.cup.bild} alt="" className="h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-105 group-hover:opacity-100" />}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d16] via-[#0a0d16]/20 to-transparent" />
-                  <span className="absolute right-3 top-3 rounded-lg bg-black/70 px-2.5 py-1 font-mono text-sm font-bold tabular-nums text-sky-300 backdrop-blur">in {uhr(erst.f.begin - jetzt)}</span>
-                </div>
-                <div className="p-4 pt-1">
-                  <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-tight text-white">{erst.cup.titel}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {ts.sort((a, b) => gewicht(a.region) - gewicht(b.region)).map((t) => (
-                      <span key={t.region + t.f.begin} className="rounded-md bg-white/[0.07] px-2 py-1 text-[11px] text-white/80"><b className="text-white">{t.region}</b> {zeit(t.f.begin)}</span>
-                    ))}
-                  </div>
-                </div>
+            <Flaeche key={t.f.windowId} fest klick verz={i * 0.05} className="group grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] overflow-hidden">
+              <Link to={cupLink(t.cup, t.f)} className="relative block min-h-[150px] overflow-hidden">
+                <CupBild c={t.cup} className="transition duration-700 group-hover:scale-[1.06]" />
+                <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-fl to-transparent" />
+                <span className="absolute left-3 top-3 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 ring-1 ring-amber-300/40 backdrop-blur">Winner</span>
               </Link>
-            </Kachel>
+              <div className="flex min-w-0 flex-col justify-center gap-2 py-4 pl-2 pr-4">
+                <div className="flex items-center gap-2"><RegionMarke r={t.f.region} klein /><span className="zahl text-[11px] text-white/45">{tagKurz(t.f.end ?? t.f.begin)}</span></div>
+                <div className="min-w-0">
+                  <Link to={cupLink(t.cup, t.f)} className="block truncate text-[13px] font-semibold text-white/80 transition hover:text-akz">{haupt}</Link>
+                  <p className="truncate text-[11px] text-white/40">{[zusatz, stufeName(t.f)].filter(Boolean).join(' · ')}</p>
+                </div>
+                {s === undefined ? <div className="h-12 animate-pulse rounded-lg bg-white/[0.04]" /> : s ? (
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                    <TeamFotos spieler={s.players.slice(0, 4)} />
+                    <div className="min-w-[7rem] flex-1">
+                      <p className="line-clamp-2 text-sm font-bold leading-snug text-white"><TeamNamen spieler={s.players} /></p>
+                      <p className="zahl mt-0.5 truncate text-[11px] text-white/50">{s.points} pts · {s.elims} elims{s.wins ? ` · ${s.wins} win${s.wins > 1 ? 's' : ''}` : ''}</p>
+                    </div>
+                  </div>
+                ) : <p className="text-sm text-white/40">No result published.</p>}
+              </div>
+            </Flaeche>
           );
         })}
-        {karten.length < 4 && (
-          <Kachel className="grid place-items-center p-6 text-center">
-            <div>
-              <p className="font-['Bebas_Neue'] text-3xl tracking-wide text-white/80">More cups soon</p>
-              <p className="mt-1 text-sm text-white/50">Epic announces cups about a week ahead – new ones show up here automatically.</p>
-            </div>
-          </Kachel>
-        )}
       </div>
-    </section>
+    </Abschnitt>
   );
 }
 
-function Kachel({ children, className = '', delay = 0 }: { children?: React.ReactNode; className?: string; delay?: number }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ delay, duration: 0.5 }}
-      className={`relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl ${className}`}>{children}</motion.div>
-  );
+function Wechsel({ n }: { n: number }) {
+  if (!n) return <span className="zahl w-12 text-right text-[11px] text-white/25">–</span>;
+  return <span className={`zahl w-12 text-right text-[11px] font-bold ${n > 0 ? 'text-emerald-400' : 'text-red-400'}`}>{n > 0 ? '▲' : '▼'} {Math.abs(n).toLocaleString('en')}</span>;
 }
 
-function Spitze({ spitze }: { spitze: PR[] }) {
+/** Power Rankings als hohe Tafel am rechten Rand: Nummer 1 mit Hochkant-Foto, die Verfolger, Auf- und Absteiger. */
+function RanglistenTafel({ spitze, aufsteiger, absteiger }: { spitze: PR[]; aufsteiger: PR[]; absteiger: PR[] }) {
   const [eins, ...rest] = spitze;
-  if (!eins) return <Kachel className="min-h-[28rem] animate-pulse lg:col-span-2 lg:row-span-2" />;
   return (
-    <>
-      <Kachel className="group min-h-[28rem] lg:col-span-2 lg:row-span-2">
-        {eins.bild && <img src={eins.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_20%] transition duration-[2s] group-hover:scale-105" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-[#05070d]/30 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#05070d]/70 to-transparent" />
-        <Link to={`/competitive/player/${eins.id}`} className="absolute inset-0 flex flex-col justify-between p-7">
-          <span className="self-start rounded-full bg-yellow-300 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-black">#1 Power Ranking</span>
-          <div>
-            <div className="flex items-center gap-3">{eins.land && <img src={flagge(eins.land)} alt="" className="h-6 w-9 rounded object-cover" />}<p className="font-['Bebas_Neue'] text-7xl leading-none tracking-wide text-white">{name(eins)}</p></div>
-            <div className="mt-3 flex gap-10">
-              <div><p className="text-[11px] uppercase tracking-[0.25em] text-white/50">Points</p><p className="font-mono text-3xl font-bold tabular-nums text-white">{eins.wertung.toLocaleString('en')}</p></div>
-              {eins.deltaWertung != null && <div><p className="text-[11px] uppercase tracking-[0.25em] text-white/50">This week</p><p className={`font-mono text-3xl font-bold tabular-nums ${eins.deltaWertung >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{eins.deltaWertung >= 0 ? '+' : ''}{eins.deltaWertung.toLocaleString('en')}</p></div>}
+    <Flaeche fest className="flex h-full flex-col overflow-hidden xl:absolute xl:inset-0">
+      <div className="flex items-end justify-between gap-3 px-5 pt-5">
+        <div><p className="ueber">Power Rankings</p><h2 className="titel mt-1 text-3xl">The top right now</h2></div>
+        <Link to="/competitive/rankings" className="knopf-leer">All 10,000 <span aria-hidden>→</span></Link>
+      </div>
+      {!eins ? <div className="m-5 h-56 animate-pulse rounded-2xl bg-white/[0.04]" /> : (
+        <Link to={`/competitive/player/${eins.id}`} className="group relative mx-5 mt-4 flex h-56 shrink-0 overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40 transition hover:border-amber-300/40">
+          <span className="absolute inset-x-0 top-0 z-10 h-[3px] bg-amber-300" />
+          {eins.bild && <div className="relative w-[44%] shrink-0 overflow-hidden"><Bild src={eins.bild} className="absolute inset-0 h-full w-full object-top transition duration-700 group-hover:scale-105" /></div>}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
+            <div className="flex items-start justify-between"><span className="titel zahl text-6xl !text-amber-300">1</span>{eins.land && <img src={flagge(eins.land)} alt="" className="h-5 w-7 rounded-sm object-cover" />}</div>
+            <div>
+              <p className="titel truncate text-5xl">{name(eins)}</p>
+              <p className="truncate text-xs text-white/45">{eins.name}</p>
+              <div className="mt-2 flex gap-5">
+                <div><p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/40">Score</p><p className="text-xl font-extrabold text-white"><Zaehler wert={eins.wertung} /></p></div>
+                {eins.deltaWertung != null && <div><p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/40">This week</p><p className={`zahl text-xl font-extrabold ${eins.deltaWertung >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{eins.deltaWertung >= 0 ? '+' : ''}{eins.deltaWertung.toLocaleString('en')}</p></div>}
+              </div>
             </div>
           </div>
         </Link>
-      </Kachel>
-      <Kachel className="p-5 lg:col-span-2" delay={0.05}>
-        <div className="mb-3 flex items-end justify-between"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Chasing the top</p><Link to="/competitive/rankings" className="text-xs font-semibold text-sky-400 hover:text-sky-300">All 10,000 →</Link></div>
-        <div className="grid grid-cols-5 gap-3">
-          {rest.slice(0, 5).map((s) => (
-            <Link key={s.id} to={`/competitive/player/${s.id}`} className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/[0.04]">
-              {s.bild ? <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top transition duration-700 group-hover:scale-110" /> : <span className="absolute inset-0 grid place-items-center text-3xl font-black text-white/20">{name(s).slice(0, 1)}</span>}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
-              <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 text-xs font-black text-white">{s.rank}</span>
-              <p className="absolute inset-x-2 bottom-2 truncate text-sm font-bold text-white">{name(s)}</p>
-            </Link>
-          ))}
-        </div>
-      </Kachel>
-    </>
-  );
-}
-
-function Bewegung({ liste, titel, gut }: { liste: PR[]; titel: string; gut: boolean }) {
-  return (
-    <Kachel className="p-5" delay={0.1}>
-      <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.3em] ${gut ? 'text-emerald-300' : 'text-red-300'}`}>{titel}</p>
-      <ul className="space-y-1">
-        {liste.slice(0, 5).map((s) => (
-          <li key={s.id}><Link to={`/competitive/player/${s.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.05]">
-            {s.land ? <img src={flagge(s.land)} alt="" className="h-3 w-[18px] rounded-sm object-cover" /> : <span className="w-[18px]" />}
-            <span className="min-w-0 flex-1 truncate text-sm text-white">{name(s)}</span>
-            <span className="text-[11px] tabular-nums text-white/40">#{s.rank.toLocaleString('en')}</span>
-            <span className={`w-16 text-right font-mono text-sm font-bold tabular-nums ${gut ? 'text-emerald-300' : 'text-red-300'}`}>{gut ? '▲' : '▼'} {Math.abs(s.deltaPlatz).toLocaleString('en')}</span>
-          </Link></li>
+      )}
+      {/* Verfolger: so viele, wie in die Hoehe passen - unten laeuft die Liste aus */}
+      <div className="relative mt-2 min-h-[180px] flex-1 overflow-hidden px-2">
+        {rest.slice(0, 9).map((s) => (
+          <Link key={s.id} to={`/competitive/player/${s.id}`} className="group flex h-[58px] items-center gap-3 rounded-xl px-3 transition hover:bg-white/[0.04]">
+            <span className="titel zahl w-6 text-center text-2xl !text-white/50">{s.rank}</span>
+            {s.bild ? <Bild src={s.bild} className="h-12 w-9 shrink-0 rounded-lg object-top ring-1 ring-white/10" /> : <span className="w-9 shrink-0" />}
+            {s.land && <img src={flagge(s.land)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />}
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white group-hover:text-akz">{name(s)}</span>
+            <Wechsel n={s.deltaPlatz} />
+            <span className="zahl w-14 text-right text-sm font-bold text-white">{s.wertung.toLocaleString('en')}</span>
+          </Link>
         ))}
-      </ul>
-    </Kachel>
-  );
-}
-
-/** Die Sieger der zuletzt beendeten Spieltage (EU und NAC zuerst, je Cup nur der letzte Tag). */
-function LetzteSieger({ vorbei }: { vorbei: Termin[] }) {
-  const schluessel = vorbei.map((t) => t.f.windowId).join();
-  const auswahl = useMemo(() => {
-    const gesehen = new Set<string>(); const out: Termin[] = [];
-    for (const t of [...vorbei].sort((a, b) => gewicht(a.region) - gewicht(b.region) || b.f.end - a.f.end)) {
-      if (gesehen.has(t.cup.id) || !t.f.eventId || !t.f.windowId) continue;
-      gesehen.add(t.cup.id); out.push(t); if (out.length >= 4) break;
-    }
-    return out.sort((a, b) => b.f.end - a.f.end);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schluessel]);
-  const [sieger, setSieger] = useState<Record<string, LbEintrag | null>>({});
-  useEffect(() => {
-    for (const t of auswahl) {
-      const k = t.f.windowId!;
-      fetch(`/api/cup-leaderboard?event=${encodeURIComponent(t.f.eventId!)}&window=${encodeURIComponent(k)}&limit=1`).then((r) => r.json())
-        .then((j) => setSieger((s) => ({ ...s, [k]: j.entries?.[0] ?? null }))).catch(() => setSieger((s) => ({ ...s, [k]: null })));
-    }
-  }, [auswahl]);
-  if (!auswahl.length) return null;
-  return (
-    <section>
-      <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Latest winners</h2>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {auswahl.map((t, i) => {
-          const s = sieger[t.f.windowId!];
-          return (
-            <Kachel key={t.f.windowId} delay={i * 0.06} className="group">
-              <div>
-                <Link to={`/competitive/events/${t.cup.id}`} className="relative block h-36 overflow-hidden">
-                  {t.cup.bild && <img src={t.cup.bild} alt="" className="h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-90" />}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d16] to-transparent" />
-                  <span className="absolute left-3 top-3 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur">{t.region}</span>
-                </Link>
-                <div className="p-4 pt-0">
-                  <p className="truncate text-xs text-white/50">{t.cup.titel}</p>
-                  {s === undefined ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-white/[0.05]" /> : s ? (
-                    <div className="mt-2 flex items-center gap-3">
-                      {s.players.every((p) => p.img) && <div className="flex gap-1">{s.players.slice(0, 3).map((p) => <Hochkant key={p.id} p={p} gross />)}</div>}
-                      <div className="min-w-0"><p className="truncate text-sm font-bold text-white">🏆 {s.players.map(name).join(' · ')}</p><p className="text-[11px] text-white/50">{s.points} pts · {s.elims} elims</p></div>
-                    </div>
-                  ) : <p className="mt-2 text-sm text-white/40">No leaderboard</p>}
-                </div>
-              </div>
-            </Kachel>
-          );
-        })}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-fl to-transparent" />
       </div>
-    </section>
+      <div className="grid shrink-0 grid-cols-2 gap-px border-t border-white/[0.07] bg-white/[0.06]">
+        {([['Biggest climbers', aufsteiger, true], ['Biggest fallers', absteiger, false]] as Array<[string, PR[], boolean]>).map(([titel, liste, hoch]) => (
+          <div key={titel} className="bg-fl px-3 py-3">
+            <p className={`px-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${hoch ? 'text-emerald-300' : 'text-red-300'}`}>{titel}</p>
+            <ul className="mt-1">
+              {liste.slice(0, 5).map((s) => (
+                <li key={s.id}><Link to={`/competitive/player/${s.id}`} className="flex items-center gap-1.5 rounded-md px-1 py-1 transition hover:bg-white/[0.05]">
+                  {s.land ? <img src={flagge(s.land)} alt="" className="h-2.5 w-[15px] shrink-0 rounded-[2px] object-cover" /> : <span className="w-[15px] shrink-0" />}
+                  <span className="min-w-0 flex-1 truncate text-xs text-white/85">{name(s)}</span>
+                  <span className={`zahl shrink-0 text-[11px] font-bold ${hoch ? 'text-emerald-400' : 'text-red-400'}`}>{hoch ? '▲' : '▼'} {Math.abs(s.deltaPlatz).toLocaleString('en')}</span>
+                </Link></li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Flaeche>
   );
 }
 
-const WEITER = [
-  // Betreiber: Bilder im 16:9-Format, damit nichts abgeschnitten wird; keine Skin-Cups, sondern feste Cups (Cash, Ranked, FNCS)
-  { titel: 'Statistics', text: 'Damage, elims and mats of every pro.', pfad: 'statistics', bild: '/slider/eis-trio.webp', lage: 'center 30%' },
-  { titel: 'Deep stats', text: 'Damage per weapon, third parties, heatmaps.', pfad: 'deep-stats', bild: 'https://cdn2.unrealengine.com/en-fneco-33-00-competitive-discoverytile-cashcup-1920x1080-1920x1080-30d0287241c3.jpg', lage: 'center' },
-  { titel: 'Match finder', text: 'Live match IDs of the pros.', pfad: 'match-finder', bild: 'https://cdn2.unrealengine.com/en-fnce-38-00-competitive-discoverytile-victorycashcup-1980x1020-1920x1080-c8df912735af.jpg', lage: 'center' },
-  { titel: 'Replays', text: 'Rewatch any cup match in 2D.', pfad: 'replays', bild: 'https://cdn2.unrealengine.com/en-fnce-42-00-solos-discovertile-1920x1080-1920x1080-456d617381ea.jpg', lage: 'center' },
+/* ------------------------------------------------------------------------------------------------ Werkzeuge */
+
+// Nur eigene Bilder des Betreibers und feste Cup-Banner im 16:9-Format - keine Ranked- oder Skin-Cup-Motive als Deko, jedes Bild nur einmal.
+const WERKZEUGE = [
+  { titel: 'Deep Stats', text: 'Damage per weapon, third parties, heatmaps', pfad: 'deep-stats', bild: '/cups/console-champions-cup.webp' },
+  { titel: 'Replays', text: 'Rewatch any cup game in 2D', pfad: 'replays', bild: '/cups/gamers8.webp' },
+  { titel: 'Match Finder', text: 'Live match IDs of the pros', pfad: 'match-finder', bild: '/cups/elite-cup.webp' },
+  { titel: 'Maps', text: 'Drop maps of every cup', pfad: 'maps', bild: '/cups/reload-cup.webp' },
+  { titel: 'FNCS', text: 'Finals, champions, all-time', pfad: 'fncs', bild: '/cups/fncs-grand-finals.webp' },
+  { titel: 'Tierlist', text: 'Build your own tier list', pfad: 'tierlist', bild: '/cups/zb-duos-cash-cup.webp' },
 ];
+
+function Werkzeuge() {
+  return (
+    <Abschnitt ueber="Tools" titel="Go deeper">
+      <div className="grid gap-5 xl:grid-cols-12">
+        <Flaeche fest klick className="group overflow-hidden xl:col-span-5">
+          <Link to="/competitive/statistics" className="flex h-full flex-col">
+            <div className="relative aspect-video overflow-hidden xl:aspect-auto xl:min-h-[240px] xl:flex-1">
+              <Bild src="/slider/victory-cup.webp" className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.05]" />
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-fl to-transparent" />
+            </div>
+            <div className="flex shrink-0 flex-wrap items-end justify-between gap-4 px-6 pb-6 pt-2">
+              <div className="min-w-0">
+                <p className="ueber">Every pro · every cup</p>
+                <h3 className="titel mt-1 text-5xl">Statistics</h3>
+                <p className="mt-1.5 max-w-md text-sm text-white/55">Damage, eliminations, mats and earnings of every pro – per match day or over a whole season.</p>
+              </div>
+              <span className="knopf-prim shrink-0">Open statistics <span aria-hidden>→</span></span>
+            </div>
+          </Link>
+        </Flaeche>
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 xl:col-span-7">
+          {WERKZEUGE.map((w, i) => <MedienKarte key={w.pfad} bild={w.bild} titel={w.titel} unter={w.text} zu={`/competitive/${w.pfad}`} verz={i * 0.04} />)}
+        </div>
+      </div>
+    </Abschnitt>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------ Seite */
 
 export default function Competitive() {
   const jetzt = useJetzt();
-  const [cups, setCups] = useState<Cup[]>([]);
-  const [pr, setPr] = useState<{ spitze: PR[]; aufsteiger: PR[]; absteiger: PR[]; laender: Array<{ land: string; n: number }> }>({ spitze: [], aufsteiger: [], absteiger: [], laender: [] });
+  const [cups, setCups] = useState<Cup[] | null>(null);
+  const [pr, setPr] = useState<{ spitze: PR[]; aufsteiger: PR[]; absteiger: PR[]; total: number; stand: number | null }>({ spitze: [], aufsteiger: [], absteiger: [], total: 0, stand: null });
   useEffect(() => {
-    const katalog = () => fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups(j.cups ?? [])).catch(() => {});
+    const katalog = () => fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups(j.cups ?? [])).catch(() => setCups((c) => c ?? []));
+    // erst der kleine Katalog (live + kommend), damit die Buehne sofort steht - der ganze mit den beendeten Cups kommt nach
+    fetch('/api/cup-catalog?modus=alle-aktuell').then((r) => r.json()).then((j) => setCups((c) => c ?? j.cups ?? null)).catch(() => {});
     katalog(); const i = setInterval(katalog, 5 * 60e3);
-    fetch('/api/power-rankings?uebersicht=1').then((r) => r.json()).then((j) => setPr((v) => ({ spitze: v.spitze.length ? v.spitze : j.spitze ?? [], aufsteiger: j.aufsteiger ?? [], absteiger: j.absteiger ?? [], laender: j.laender ?? [] }))).catch(() => {});
-    // die Uebersicht liefert nur die Top 3 - fuer "Chasing the top" braucht es die Top 6
-    fetch('/api/power-rankings?page=1&pageSize=6').then((r) => r.json()).then((j) => { if (j.players?.length) setPr((v) => ({ ...v, spitze: j.players.slice(0, 6) })); }).catch(() => {});
+    fetch('/api/power-rankings?uebersicht=1').then((r) => r.json())
+      .then((j) => setPr((v) => ({ ...v, spitze: v.spitze.length ? v.spitze : j.spitze ?? [], aufsteiger: j.aufsteiger ?? [], absteiger: j.absteiger ?? [], total: j.total ?? 0, stand: j.fetchedAt ?? null }))).catch(() => {});
+    // die Uebersicht liefert nur die Top 3 - die Verfolger kommen aus der ersten Seite der Liste
+    fetch('/api/power-rankings?page=1&pageSize=10').then((r) => r.json()).then((j) => { if (j.players?.length) setPr((v) => ({ ...v, spitze: j.players.slice(0, 10) })); }).catch(() => {});
     return () => clearInterval(i);
   }, []);
-  // Einteilung live/kommt/vorbei nur jede Minute neu, der Countdown tickt trotzdem sekundengenau
+  // Einteilung nur jede Minute neu, die Countdowns ticken trotzdem sekundengenau
   const minute = Math.floor(jetzt / 60000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { live, kommt, vorbei } = useMemo(() => teileAuf(cups, jetzt), [cups, minute]);
+  const ein = useMemo(() => einteilen(cups ?? [], Date.now()), [cups, minute]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const naechster = useMemo(() => {
+    const t = Date.now();
+    const gross = ein.kommend.find((x) => buehnenReif(x.c) && (x.lage.naechster ?? 0) - t < 14 * TAG) ?? ein.kommend[0];
+    return gross ? naechsterTermin(gross.c, t) : null;
+  }, [ein]);
+  const aufBuehne = ein.live.some((t) => wichtig(t.cup)) ? null : naechster?.cup.id;
+  const liveCups = new Set(ein.live.map((t) => t.cup.id)).size;
+  const puls = (
+    <>
+      <PulsZelle label="Live now" zu="/competitive/events" unter={liveCups ? [...new Set(ein.live.map((t) => t.f.region))].join(' · ') : 'no cup is running right now'}>
+        <span className={liveCups ? 'text-red-300' : ''}><Zaehler wert={liveCups} /></span> <span className="text-xl text-white/40">{liveCups === 1 ? 'cup' : 'cups'}</span>
+      </PulsZelle>
+      <PulsZelle label="Next 7 days" zu="/competitive/events" unter="match days on the calendar, all regions"><Zaehler wert={ein.bald} /></PulsZelle>
+      <PulsZelle label="Last 7 days" zu="/competitive/events" unter="match days played, with full results"><Zaehler wert={ein.gewesen} /></PulsZelle>
+      <PulsZelle label="Power Rankings" zu="/competitive/rankings" unter={pr.stand ? `updated ${new Date(pr.stand).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'Epic’s global ranking'}>
+        <Zaehler wert={pr.total} /> <span className="text-xl text-white/40">players</span>
+      </PulsZelle>
+    </>
+  );
+  // Der Cup auf der Buehne steht nicht noch einmal unter "Coming up" (jedes Banner nur einmal auf dem Schirm)
+  const kommend = ein.kommend.filter((x) => x.c.id !== aufBuehne);
   return (
-    <div className="space-y-8">
-      <Buehne live={live} kommt={kommt} jetzt={jetzt} />
-      <DemnaechstLeiste kommt={kommt} jetzt={jetzt} />
-      <section>
-        <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Power Rankings this week</h2>
-        <div className="grid gap-4 lg:grid-cols-4">
-          <Spitze spitze={pr.spitze} />
-          <Bewegung liste={pr.aufsteiger} titel="Biggest climbers" gut />
-          <Bewegung liste={pr.absteiger} titel="Biggest fallers" gut={false} />
+    <div className="space-y-9">
+      {cups === null ? <div className="fl-fest h-[560px] animate-pulse" /> : <Buehne live={ein.live} naechster={naechster} jetzt={jetzt} puls={puls} />}
+      <div className="grid gap-x-5 gap-y-9 xl:grid-cols-12">
+        <div className="space-y-9 xl:col-span-8">
+          <Demnaechst kommend={kommend} jetzt={jetzt} />
+          <LetzteSieger sieger={ein.sieger} />
         </div>
-      </section>
-      <LetzteSieger vorbei={vorbei} />
-      <section>
-        <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-white">Go deeper</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {WEITER.map((w, i) => (
-            <Kachel key={w.pfad} delay={i * 0.05} className="group aspect-video">
-              <img src={w.bild} alt="" style={{ objectPosition: w.lage }} className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-80" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#05070d] via-[#05070d]/50 to-transparent" />
-              <Link to={`/competitive/${w.pfad}`} className="absolute inset-0 flex flex-col justify-end p-5">
-                <p className="font-['Bebas_Neue'] text-4xl tracking-wide text-white">{w.titel}</p>
-                <p className="text-sm text-white/70">{w.text}</p>
-              </Link>
-            </Kachel>
-          ))}
-        </div>
-      </section>
+        <aside className="relative xl:col-span-4 xl:min-h-[800px]"><RanglistenTafel spitze={pr.spitze} aufsteiger={pr.aufsteiger} absteiger={pr.absteiger} /></aside>
+      </div>
+      <Werkzeuge />
     </div>
   );
 }
