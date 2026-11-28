@@ -86,7 +86,10 @@ jobs:
           N=0
           for q in $ABFRAGEN; do
             N=$((N + 1))
+            # "warten": keine Abfrage, nur zwei Minuten - was der Server von selbst tut (instrumentation-node.ts).
+            if [ "$q" = warten ]; then sleep 120; echo "  120s  (ohne Abfrage)"; else
             S=$(date +%s.%N); curl -s -o "/tmp/antworten/$N.json" -w "%{http_code} %{size_download}B" -m 1800 "http://localhost:3000/api/$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
+            fi
             A=$(grep -c '\[PROFIL\]' /tmp/server.log)
             pkill -USR2 -f next-server; sleep 30; grep '\[HEAP\]' /tmp/server.log | tail -1
             grep '\[PROFIL\]' /tmp/server.log | tail -n +$((A + 1)) | cut -c1-400
