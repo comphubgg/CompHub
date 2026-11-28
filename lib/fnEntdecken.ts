@@ -16,16 +16,16 @@
  *   4. Folgeseiten einer Reihe       POST discovery/surface/<Flaeche>/page   - nur alle dreissig Minuten, um weitere Inseln zu finden
  *   5. Zahlen zu bekannten Codes     POST discovery/link-entries             - fuer Inseln, die gerade nicht auf einer ersten Seite stehen
  *
- * Frist: fuenf Minuten. Dazu ein Verlauf je Code in Stundenpunkten ueber sieben Tage (fuer die Kurven im Hub).
+ * Frist: fuenf Minuten. Dazu ein Verlauf je Code in Stundenpunkten mit den Reihen von Discover, seit dem 28.11.2026 ohne Ende (lib/fnVerlauf).
  *
  * Was der Dienst nicht hergibt: eine Liste ALLER Inseln nach Spielerzahl. Gefuehrt wird, was in den Reihen steht (erste Seiten und zwei Folgeseiten)
  * - die grossen Inseln stehen dort, eine kleine ohne Platz in einer Reihe fehlt. Inseln, deren Zahl Epic verbirgt (globalCCU -1), fehlen ebenfalls.
  */
 
-import { aendereJson, liesJson } from '@/lib/ablage';
 import { getToken } from '@/lib/epicCups';
 import { epicAbruf, epicFehler, mitSpeicher } from '@/lib/fnEpic';
 import { holeInseln, type InselIntern } from '@/lib/fnInseln';
+import { verlaufFuer, verlaufMerken as merkeVerlauf } from '@/lib/fnVerlauf';
 
 const FN = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api';
 export const ENTDECKEN = 'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v2/discovery';
@@ -318,111 +318,40 @@ function standHolen(): Promise<Stand> {
 /* ------------------------------------------------------------ Verlauf */
 
 /*
- * Stundenpunkte ueber sieben Tage, je Code der HOECHSTE Stand der Stunde.
+ * Der Verlauf liegt seit dem 28.11.2026 in lib/fnVerlauf: je Code und Stunde der hoechste Stand und die Reihen von Discover, ein Tag je Datei
+ * (fn-verlauf/tage/), dazu der Hoechststand aller Zeiten - ohne Ende, nicht mehr nur sieben Tage (fn-entdecken-verlauf.json, uebernommen).
  *
- * Der hoechste und nicht der Mittelwert, weil er sich ohne Zaehler fortschreiben laesst: ein Neustart mitten in der Stunde oder ein zweiter Vorgang,
- * der dieselbe Datei schreibt, verfaelscht ihn nicht (max ist max). Gefuehrt werden die oberen Eintraege jedes Abrufs und alle von Epic.
- *
- * Geschrieben wird hoechstens alle dreissig Minuten in die Ablage (fn-entdecken-verlauf.json) - jede Fassung ist dort ein Commit. Was dazwischen
- * liegt, steht im Arbeitsspeicher; nach einem Neustart fehlen hoechstens diese Minuten, und die Stunde fuellt sich mit dem naechsten Abruf wieder.
- *
- * Damit die Kurve keine Loecher hat, wenn eine Weile niemand die Seite oeffnet, holt der Server den Stand selbst alle fuenf Minuten - aber nur,
- * solange in den letzten 24 Stunden jemand danach gefragt hat. Ohne Besucher kostet es Epic nichts.
+ * Damit die Kurve keine Loecher hat, wenn eine Weile niemand die Seite oeffnet, holt der Server den Stand selbst alle fuenf Minuten - solange in
+ * den letzten 24 Stunden jemand danach gefragt hat, und auf dem Server der Seite immer (instrumentation-node.ts setzt __comphubFnDauernd: die
+ * Aufzeichnung soll ab jetzt lueckenlos sein). Auf den Laufrechnern (Vorrechnen, Proben) nicht.
  */
-const VERLAUF_DATEI = 'fn-entdecken-verlauf.json';
-const STUNDEN = 7 * 24;
 const VERLAUF_OBERE = 60;
-const VERLAUF_CODES = 400;
-const SCHREIB_ABSTAND_MS = 30 * 60_000;
 const GEFRAGT_FRIST_MS = 24 * 60 * 60_000;
 
-/** stunden: Stunden seit 1970, aufsteigend; werte[code][i] gehoert zu stunden[i] (null = in der Stunde nicht gesehen). */
-interface Verlauf { stunden: number[]; werte: Record<string, Array<number | null>> }
-
 interface Zustand {
-  verlauf: Verlauf | null; geladen: boolean; laedt: Promise<Verlauf> | null; geaendert: boolean; geschrieben: number; schreibt: boolean;
   uhr: ReturnType<typeof setInterval> | null; gefragt: number;
   /** Codes, die in den letzten Tagen in einer Reihe standen: letzte Zahl und wann zuletzt gesehen. */
   bekannt: Map<string, { n: number; gesehen: number }>; tiefZuletzt: number; stand: Stand | null;
 }
 const Z: Zustand = ((globalThis as { __comphubFnEntdecken?: Zustand }).__comphubFnEntdecken ??= {
-  verlauf: null, geladen: false, laedt: null, geaendert: false, geschrieben: Date.now(), schreibt: false, uhr: null, gefragt: 0,
-  bekannt: new Map(), tiefZuletzt: 0, stand: null,
+  uhr: null, gefragt: 0, bekannt: new Map(), tiefZuletzt: 0, stand: null,
 });
 
-const gueltig = (v: unknown): v is Verlauf => Boolean(v) && Array.isArray((v as Verlauf).stunden) && typeof (v as Verlauf).werte === 'object';
-
-/** Zwei Verlaeufe zu einem: alle Stunden beider, je Punkt der hoehere Wert, auf sieben Tage gekuerzt. */
-function mische(a: Verlauf, b: Verlauf): Verlauf {
-  const ab = Math.floor(Date.now() / 3_600_000) - STUNDEN + 1;
-  const stunden = [...new Set([...a.stunden, ...b.stunden])].filter((s) => Number.isFinite(s) && s >= ab).sort((x, y) => x - y);
-  const stelle = new Map(stunden.map((s, i) => [s, i]));
-  const werte: Verlauf['werte'] = {};
-  for (const v of [a, b]) {
-    for (const [code, reihe] of Object.entries(v.werte)) {
-      if (!Array.isArray(reihe)) continue;
-      const ziel = (werte[code] ??= new Array<number | null>(stunden.length).fill(null));
-      reihe.forEach((w, i) => {
-        const j = stelle.get(v.stunden[i]);
-        if (j !== undefined && typeof w === 'number' && w > (ziel[j] ?? -1)) ziel[j] = w;
-      });
-    }
-  }
-  // Codes ohne einen einzigen Punkt im Zeitraum fallen weg; sind es danach noch zu viele, die mit dem niedrigsten Hoechststand.
-  let codes = Object.keys(werte).filter((c) => werte[c].some((w) => w !== null));
-  if (codes.length > VERLAUF_CODES) {
-    const spitze = (c: string) => Math.max(...werte[c].map((w) => w ?? 0));
-    codes = codes.sort((x, y) => spitze(y) - spitze(x)).slice(0, VERLAUF_CODES);
-  }
-  return { stunden, werte: Object.fromEntries(codes.map((c) => [c, werte[c]])) };
-}
-
-async function verlaufLaden(): Promise<Verlauf> {
-  if (Z.geladen && Z.verlauf) return Z.verlauf;
-  Z.laedt ??= liesJson<unknown>(VERLAUF_DATEI, null)
-    .catch(() => null)
-    .then((v) => {
-      const ausAblage: Verlauf = gueltig(v) ? v : { stunden: [], werte: {} };
-      // Was vor dem Laden schon gemerkt wurde (der erste Abruf wartet nicht auf die Ablage), geht nicht verloren.
-      Z.verlauf = mische(ausAblage, Z.verlauf ?? { stunden: [], werte: {} });
-      Z.geladen = true;
-      return Z.verlauf;
-    })
-    .finally(() => { Z.laedt = null; });
-  return Z.laedt;
-}
-
 function verlaufMerken(stand: Stand): void {
-  const stunde = Math.floor(Date.parse(stand.stand) / 3_600_000);
-  const jetzt: Verlauf = { stunden: [stunde], werte: {} };
-  stand.eintraege.forEach((e, i) => {
-    if (i >= VERLAUF_OBERE && !e.epic) return;
-    jetzt.werte[e.code] = [e.spieler];
-    // Auch die Spiellisten von Epics Modi (Zero Build, Ranked ... unter Battle Royale) - fuer eigene Kurven.
-    if (e.epic) for (const t of e.teile ?? []) jetzt.werte[t.code] = [t.spieler];
-  });
-  Z.verlauf = mische(Z.verlauf ?? { stunden: [], werte: {} }, jetzt);
-  Z.geaendert = true;
-  void verlaufLaden().then(() => verlaufSichern()).catch(() => { /* beim naechsten Abruf wieder */ });
-}
-
-async function verlaufSichern(): Promise<void> {
-  if (!Z.geaendert || Z.schreibt || !Z.verlauf || Date.now() - Z.geschrieben < SCHREIB_ABSTAND_MS) return;
-  Z.schreibt = true;
-  try {
-    // Auf den frisch gelesenen Stand gesetzt (aendereJson): schreibt ein zweiter Vorgang dieselbe Datei, bleiben seine Punkte erhalten.
-    const neu = await aendereJson<Verlauf>(VERLAUF_DATEI, { stunden: [], werte: {} }, (alt) => mische(gueltig(alt) ? alt : { stunden: [], werte: {} }, Z.verlauf!), 0);
-    Z.verlauf = mische(neu, Z.verlauf);
-    Z.geaendert = false;
-  } catch { /* bleibt vorgemerkt - in einer halben Stunde wieder */ }
-  Z.geschrieben = Date.now();
-  Z.schreibt = false;
+  // Jeder Code mit Zahl: die Eintraege und die Spiellisten von Epics Modi (Zero Build, Ranked ... unter Battle Royale) - fuer eigene Kurven.
+  const spieler = new Map<string, number>();
+  for (const e of stand.eintraege) {
+    spieler.set(e.code, e.spieler);
+    for (const t of e.teile ?? []) spieler.set(t.code, t.spieler);
+  }
+  try { merkeVerlauf({ stand: stand.stand, spieler, reihen: stand.reihen }); } catch (e) { console.warn('[fn-verlauf] Merken fehlgeschlagen:', (e as Error).message); }
 }
 
 function taktStarten(): void {
   if (Z.uhr || process.env.NEXT_PHASE === 'phase-production-build') return;
   Z.uhr = setInterval(() => {
-    if (Date.now() - Z.gefragt > GEFRAGT_FRIST_MS) return;
+    const dauernd = (globalThis as { __comphubFnDauernd?: boolean }).__comphubFnDauernd === true;
+    if (!dauernd && Date.now() - Z.gefragt > GEFRAGT_FRIST_MS) return;
     void standHolen().catch(() => { /* Epic antwortet gerade nicht - in fuenf Minuten wieder */ });
   }, ENTDECKEN_FRIST_MS + 5_000);
   Z.uhr.unref?.();
@@ -434,17 +363,21 @@ export interface VerlaufAntwort {
   verlauf: Record<string, Array<[number, number]>>;
 }
 
-/** Der Verlauf fuer die gefragten Codes (oder alle gefuehrten) ueber die letzten `tage` Tage. */
+/**
+ * Der Verlauf fuer die gefragten Codes ueber die letzten `tage` Tage (1..7). Ohne Codes wie bisher die gefuehrten: die oberen sechzig des
+ * letzten Stands und alle von Epic mit ihren Spiellisten.
+ */
 export async function entdeckenVerlauf(codes: string[] | null, tage: number): Promise<VerlaufAntwort> {
-  const v = await verlaufLaden();
-  const ab = Math.floor(Date.now() / 3_600_000) - Math.max(1, Math.min(7, tage)) * 24 + 1;
-  const verlauf: VerlaufAntwort['verlauf'] = {};
-  for (const code of codes ?? Object.keys(v.werte)) {
-    const reihe = v.werte[code];
-    if (!reihe) continue;
-    const punkte: Array<[number, number]> = [];
-    reihe.forEach((w, i) => { if (typeof w === 'number' && v.stunden[i] >= ab) punkte.push([v.stunden[i] * 3_600_000, w]); });
-    if (punkte.length) verlauf[code] = punkte;
+  let liste = codes;
+  if (!liste) {
+    const s = Z.stand ?? await entdecken().catch(() => null);
+    liste = [];
+    s?.eintraege.forEach((e, i) => {
+      if (i >= VERLAUF_OBERE && !e.epic) return;
+      liste!.push(e.code);
+      if (e.epic) for (const t of e.teile ?? []) liste!.push(t.code);
+    });
   }
-  return { stand: new Date().toISOString(), verlauf };
+  const ab = (Math.floor(Date.now() / 3_600_000) - Math.max(1, Math.min(7, tage)) * 24 + 1) * 3_600_000;
+  return { stand: new Date().toISOString(), verlauf: await verlaufFuer(liste, ab) };
 }

@@ -110,6 +110,16 @@ export async function registerNode() {
     if (process.env.COMPHUB_VORRECHNEN !== '1') setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
 
     /*
+     * Fortnites Entdecken lueckenlos aufzeichnen (lib/fnEntdecken, lib/fnVerlauf; 28.11.2026: Hoechststand aller Zeiten und Discover-Verlauf fuer die
+     * Inselseite) - auch wenn eine Weile niemand die Seiten oeffnet. Nur im Dienst "web" auf dem Server (deploy/server-compose*.yml): nur dort steht
+     * XMPP_DIENST_URL zusammen mit COMPHUB_KEIN_HINTERGRUND. Die Laufrechner (Vorrechnen, Proben) und "hintergrund" zeichnen nicht auf.
+     */
+    if (process.env.COMPHUB_VORRECHNEN !== '1' && process.env.XMPP_DIENST_URL && process.env.COMPHUB_KEIN_HINTERGRUND) {
+      (globalThis as { __comphubFnDauernd?: boolean }).__comphubFnDauernd = true;
+      setTimeout(() => { void rufe('/api/fn-entdecken'); }, 60_000).unref?.();
+    }
+
+    /*
      * Bestenlisten vorbauen (Betreiber, 30.10.2026: "13 Sekunden?! Maximal 3 ... bei anderen Webseiten geht das schneller"). Die ganze Liste eines
      * Spieltags (bis 10.000 Plaetze, hundert Seiten bei Epic) zu holen dauert gut zehn Sekunden - das soll nie ein Besucher abwarten. Der Server haelt
      * deshalb selbst fertig auf der Platte (app/api/cup-leaderboard, ganz=1): jede laufende Liste hoechstens drei Minuten alt, jede in den letzten

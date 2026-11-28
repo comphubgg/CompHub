@@ -12,6 +12,7 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
  *   GET ?reihen=1  -> zusaetzlich reihen: [{ name, titel, codes }]                               die Reihen der Uebersicht in Epics Reihenfolge
  *   GET ?verlauf=1 -> { stand, verlauf: { "<code>": [[msSeit1970, spieler], ...] } }             Stundenpunkte (hoechster Stand der Stunde)
  *        &tage=1..7 (Voreinstellung 7)   &codes=a,b,c (Voreinstellung: alle gefuehrten)
+ *   Laenger als sieben Tage, mit Hoechststand aller Zeiten und den Reihen von Discover je Stunde: /api/fn-verlauf?code=... (lib/fnVerlauf).
  *
  * Epics eigene Modi (Battle Royale, Reload, OG ...) stehen mit epic: true in derselben Liste. Quelle, Fristen und Verlauf: lib/fnEntdecken.
  */
