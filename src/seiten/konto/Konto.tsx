@@ -68,10 +68,19 @@ export default function KontoSeite() {
 
 function Karte({ titel, farbe = 'text-sky-300', children, i = 0, className = '' }: { titel: string; farbe?: string; children: ReactNode; i?: number; className?: string }) {
   return (
-    <Glas verzoegerung={0.04 * i} className={`p-6 ${className}`}>
+    <Glas verzoegerung={0.04 * i} className={`min-w-0 p-6 ${className}`}>
       <h2 className={`mb-4 text-xs font-bold uppercase tracking-[0.25em] ${farbe}`}>{titel}</h2>
       {children}
     </Glas>
+  );
+}
+/** Ohne Profilbild kein Buchstabe (Betreiber 27.11.: "Profilbild oder gar nichts") - nur das Feld zum Hochladen mit Kamera-Zeichen. */
+function OhneBild() {
+  return (
+    <span className="flex h-full flex-col items-center justify-center gap-1 rounded-[inherit] border-2 border-dashed border-white/15 text-white/45 transition hover:border-akz/50 hover:text-akz">
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+      <span className="text-[9px] font-bold uppercase tracking-wider">Add photo</span>
+    </span>
   );
 }
 const Stand = ({ text }: { text: string }) => (text ? <span className="text-xs text-white/55">{text}</span> : null);
@@ -126,8 +135,8 @@ function Konto() {
   return (
     <>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8 flex flex-wrap items-center gap-6">
-        <button type="button" onClick={() => datei.current?.click()} title="Change profile picture" className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-sky-400/30 to-violet-400/20">
-          {bild ? <img src={bild} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center text-4xl font-extrabold text-white/80">{(konto.name || konto.email).charAt(0).toUpperCase()}</span>}
+        <button type="button" onClick={() => datei.current?.click()} title="Change profile picture" className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
+          {bild ? <img src={bild} alt="" className="h-full w-full object-cover" /> : <OhneBild />}
           <span className="absolute inset-0 hidden place-items-center bg-black/55 text-[10px] font-bold uppercase tracking-wider text-sky-200 group-hover:grid">Change</span>
         </button>
         <input ref={datei} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async (e) => {
@@ -135,8 +144,8 @@ function Konto() {
           try { const b = await verkleinern(d); setBild(b); void speichern(b); } catch (x) { setStand((x as Error).message); }
         }} />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">Account</p>
-          <h1 className="mt-1 truncate text-5xl font-extrabold tracking-tight text-white">{konto.name || 'No name yet'}</h1>
+          <p className="ueber">Account</p>
+          <h1 className="titel mt-1 truncate text-6xl">{konto.name || 'No name yet'}</h1>
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/55">
             <span>{konto.email}</span>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${konto.rolle === 'admin' ? 'bg-amber-400 text-black' : 'bg-white/10 text-white/75'}`}>{rolle}</span>
@@ -294,18 +303,18 @@ function NurSchluessel() {
   return (
     <>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-300">Access key</p>
-        <h1 className="mt-1 text-5xl font-extrabold tracking-tight text-white">{name || wer?.userName}</h1>
+        <p className="ueber">Access key</p>
+        <h1 className="titel mt-1 truncate text-6xl">{name || wer?.userName}</h1>
         <p className="mt-2 text-sm text-white/55">You are signed in with an access key. Create a CompHub account to also get email, password and the Epic link.</p>
       </motion.div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Karte titel="Profile">
           <div className="flex items-center gap-4">
             <button type="button" onClick={() => datei.current?.click()} className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-              {bild ? <img src={bild} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center text-3xl font-extrabold text-white/60">{(name || wer?.userName || '?').charAt(0).toUpperCase()}</span>}
+              {bild ? <img src={bild} alt="" className="h-full w-full object-cover" /> : <OhneBild />}
             </button>
             <input ref={datei} type="file" accept="image/*" className="hidden" onChange={async (e) => { const d = e.target.files?.[0]; e.target.value = ''; if (!d) return; const b = await verkleinern(d); setBild(b); void sichern(b); }} />
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Display name" className={`${feld} flex-1`} />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Display name" className={`${feld} min-w-0 flex-1`} />
           </div>
           <div className="mt-4 flex items-center gap-3"><button type="button" onClick={() => void sichern()} className={knopfHaupt}>Save</button><Stand text={stand} /></div>
         </Karte>
