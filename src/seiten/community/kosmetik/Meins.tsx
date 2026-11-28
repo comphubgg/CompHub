@@ -222,7 +222,7 @@ export function Ranglisten() {
       <SeitenKopf klein ueber="Community · Rankings" titel="Rankings" text="React to cosmetics and seasons – your picks build your own ranking right away." rechts={<AblageHinweis ort={r.ort} />} />
       <div className="flex flex-wrap gap-2">
         {LISTEN.map((l) => (
-          <button key={l.k} type="button" onClick={() => nav(`/community/rankings/${l.k}`)} className={`rounded-2xl border px-4 py-2.5 text-left transition ${liste === l.k ? 'border-akz/40 bg-akz/10' : 'border-white/10 bg-white/[0.03] hover:border-akz/30'}`}>
+          <button key={l.k} type="button" onClick={() => nav(`/community/rankings/${l.k}`)} className={`rounded-2xl border px-4 py-2.5 text-left transition ${liste === l.k ? 'border-akz/40 bg-akz/10' : 'fl-fest !rounded-2xl hover:border-akz/30'}`}>
             <p className="text-sm font-bold text-white">{l.titel}</p><p className="text-[11px] text-white/45">{l.text}</p>
           </button>
         ))}
