@@ -286,7 +286,8 @@ function EigeneWertung({ teile, alleZeigen, leer }: { teile: Teil[]; alleZeigen:
 function ShopBewerten({ angebote }: { angebote: Teil[] }) {
   const { wert, setzen } = useReaktionen();
   const offen = angebote.filter((t) => !wert[t.id]);
-  const t = offen[0];
+  const [vorne, setVorne] = useState<string | null>(null);
+  const t = offen.find((x) => x.id === vorne) ?? offen[0];
   const s = t ? seltenVon(t.selten) : null;
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
@@ -306,7 +307,20 @@ function ShopBewerten({ angebote }: { angebote: Teil[] }) {
           ) : <motion.p key="fertig" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 text-center text-lg font-bold text-white">All of today's shop rated ✓</motion.p>}
         </AnimatePresence>
       </Flaeche>
-      <EigeneWertung teile={angebote} alleZeigen={false} leer="Your ratings of today's shop show up here, grouped by reaction." />
+      <div className="min-w-0 space-y-5">
+        <EigeneWertung teile={angebote} alleZeigen={false} leer="Your ratings of today's shop show up here, grouped by reaction." />
+        {/* Was als Naechstes kommt - so ist die rechte Seite nie leer, und ein Klick springt direkt zu einem Teil */}
+        {offen.length > 1 && (
+          <div>
+            <p className="ueber mb-3">Up next · {offen.length - 1} to go</p>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
+              {offen.filter((x) => x.id !== t?.id).slice(0, 12).map((x, i) => (
+                <Kachel key={x.id} t={x} index={i} link={false} beiKlick={() => setVorne(x.id)} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
