@@ -64,7 +64,7 @@ export interface DbWaffe {
   /** Aus dem Fortnite Wiki (waffenWiki.ts): Saisons ("C1 S3"), vaulted, Herkunft des Eintrags, Wiki-Seite, Wiki-Bild (nur Ersatz) */
   saisons?: string[]; vaulted?: boolean; quelle?: 'spiel' | 'wiki'; wiki?: string; wikiBild?: string;
   /** Wiki-Bild je Seltenheit (wo die Infobox eins hat) und - nur beim Laden - das Seitenbild aus prop=pageimages */
-  wikiBilder?: Record<string, string>; wikiSeitenBild?: string;
+  wikiBilder?: Record<string, string>; wikiSeitenBild?: string; /** Titel der Wiki-Seite (nach Weiterleitung) */ wikiSeite?: string;
   /** Abschnitt "Update History" der Wiki-Seite, Zeile fuer Zeile */
   historie?: Array<{ wann?: string; text: string }>;
 }

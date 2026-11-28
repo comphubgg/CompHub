@@ -322,53 +322,61 @@ let stand: Stand = { waffen: null, status: 'laedt', fertig: 0, gesamt: 0 };
 let gestartet = false;
 const hoerer = new Set<() => void>();
 const melden = (x: Partial<Stand>) => { stand = { ...stand, ...x }; hoerer.forEach((h) => h()); };
-async function laden(neu = false) {
+/**
+ * Die ganze Liste lesen (ohne Cache) - wie der Hub sie baut. Exportiert, damit der Runner (scripts/waffen-bilder-alle.mjs auf main) GENAU dieselbe
+ * Waffenliste bekommt und dafuer die Bilder bei uns ablegt.
+ */
+export async function alleWaffenLesen(melde: (x: Partial<Stand>) => void = () => {}): Promise<DbWaffe[]> {
   apiNr = 0;
+  const [titel, imWiki] = await Promise.all([seitenListe(), kategorieZahlen()]);
+  if (!titel.length) throw new Error('keine Seiten');
+  melde({ imWiki });
+  melde({ gesamt: titel.length, fertig: 0 });
+  const pakete: string[][] = []; for (let i = 0; i < titel.length; i += 50) pakete.push(titel.slice(i, i + 50));
+  const waffen = new Map<string, DbWaffe>(); let fertig = 0;
+  // Weitere Infobox-Vorlagen aus den gelesenen Seiten - deren Seiten kommen am Ende dazu
+  const vorlagenGesehen = new Set<string>();
+  const arbeiter = async () => {
+    for (let p = pakete.shift(); p; p = pakete.shift()) {
+      const seiten = await quelltexte(p).catch(() => []);
+      for (const s of seiten) {
+        for (const v of vorlagen(s.text)) if (/infobox/i.test(v.name) && /weapon/i.test(v.name) && !/navbox/i.test(v.name)) vorlagenGesehen.add(`Template:${v.name.replace(/_/g, ' ')}`);
+        const w = seiteLesen(s.titel, s.text, s.kat);
+        if (w && !waffen.has(w.id)) { if (s.bild) w.wikiSeitenBild = s.bild; w.wikiSeite = s.titel; waffen.set(w.id, w); }
+      }
+      fertig += p.length; melde({ fertig: Math.min(fertig, titel.length) });
+    }
+  };
+  await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
+  // Nachlese: Seiten weiterer Infobox-Vorlagen, die noch nicht gelesen sind
+  const bekannt = new Set(titel);
+  const nach: string[] = [];
+  for (const v of vorlagenGesehen) if (!VORLAGEN.includes(v)) for (const t of await einbindungen(v).catch(() => [])) if (!bekannt.has(t) && !OHNE.test(t)) { bekannt.add(t); nach.push(t); }
+  if (nach.length) {
+    melde({ gesamt: titel.length + nach.length });
+    for (let i = 0; i < nach.length; i += 50) pakete.push(nach.slice(i, i + 50));
+    await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
+  }
+  // Bilder: Dateinamen der Infoboxen -> URL; ohne Datei das Seitenbild
+  const dateien = [...new Set([...waffen.values()].flatMap((w) => [w.wikiBild, ...Object.values(w.wikiBilder ?? {})]).filter((x): x is string => !!x?.startsWith('datei:')).map((x) => x.slice(6)))];
+  const urls = await dateiUrls(dateien).catch(() => new Map<string, string>());
+  const url = (x?: string) => (x?.startsWith('datei:') ? urls.get(x.slice(6)) ?? urls.get(x.slice(6).replace(/_/g, ' ')) : x);
+  for (const w of waffen.values()) {
+    w.wikiBild = wikiProxy(url(w.wikiBild) ?? w.wikiSeitenBild);
+    if (w.wikiBilder) { const b = Object.fromEntries(Object.entries(w.wikiBilder).map(([r, d]) => [r, wikiProxy(url(d))]).filter(([, u]) => u)); w.wikiBilder = Object.keys(b).length ? b as Record<string, string> : undefined; }
+    delete w.wikiSeitenBild;
+  }
+  const liste = [...waffen.values()].filter((w) => w.rarities.length || (w.saisons?.length ?? 0) > 0);
+  if (!liste.length) throw new Error('nichts gelesen');
+  return liste;
+}
+async function laden(neu = false) {
   if (!neu) {
     const c = await cacheLesen();
     if (c?.waffen?.length) { melden({ waffen: c.waffen, status: 'da', stand: c.t, fertig: 1, gesamt: 1 }); if (Date.now() - c.t < ALTER) return; }
   }
   try {
-    const [titel, imWiki] = await Promise.all([seitenListe(), kategorieZahlen()]);
-    if (!titel.length) throw new Error('keine Seiten');
-    melden({ imWiki });
-    melden({ gesamt: titel.length, fertig: 0 });
-    const pakete: string[][] = []; for (let i = 0; i < titel.length; i += 50) pakete.push(titel.slice(i, i + 50));
-    const waffen = new Map<string, DbWaffe>(); let fertig = 0;
-    // Weitere Infobox-Vorlagen aus den gelesenen Seiten - deren Seiten kommen am Ende dazu
-    const vorlagenGesehen = new Set<string>();
-    const arbeiter = async () => {
-      for (let p = pakete.shift(); p; p = pakete.shift()) {
-        const seiten = await quelltexte(p).catch(() => []);
-        for (const s of seiten) {
-          for (const v of vorlagen(s.text)) if (/infobox/i.test(v.name) && /weapon/i.test(v.name) && !/navbox/i.test(v.name)) vorlagenGesehen.add(`Template:${v.name.replace(/_/g, ' ')}`);
-          const w = seiteLesen(s.titel, s.text, s.kat);
-          if (w && !waffen.has(w.id)) { if (s.bild) w.wikiSeitenBild = s.bild; waffen.set(w.id, w); }
-        }
-        fertig += p.length; melden({ fertig: Math.min(fertig, titel.length) });
-      }
-    };
-    await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
-    // Nachlese: Seiten weiterer Infobox-Vorlagen, die noch nicht gelesen sind
-    const bekannt = new Set(titel);
-    const nach: string[] = [];
-    for (const v of vorlagenGesehen) if (!VORLAGEN.includes(v)) for (const t of await einbindungen(v).catch(() => [])) if (!bekannt.has(t) && !OHNE.test(t)) { bekannt.add(t); nach.push(t); }
-    if (nach.length) {
-      melden({ gesamt: titel.length + nach.length });
-      for (let i = 0; i < nach.length; i += 50) pakete.push(nach.slice(i, i + 50));
-      await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
-    }
-    // Bilder: Dateinamen der Infoboxen -> URL; ohne Datei das Seitenbild
-    const dateien = [...new Set([...waffen.values()].flatMap((w) => [w.wikiBild, ...Object.values(w.wikiBilder ?? {})]).filter((x): x is string => !!x?.startsWith('datei:')).map((x) => x.slice(6)))];
-    const urls = await dateiUrls(dateien).catch(() => new Map<string, string>());
-    const url = (x?: string) => (x?.startsWith('datei:') ? urls.get(x.slice(6)) ?? urls.get(x.slice(6).replace(/_/g, ' ')) : x);
-    for (const w of waffen.values()) {
-      w.wikiBild = wikiProxy(url(w.wikiBild) ?? w.wikiSeitenBild);
-      if (w.wikiBilder) { const b = Object.fromEntries(Object.entries(w.wikiBilder).map(([r, d]) => [r, wikiProxy(url(d))]).filter(([, u]) => u)); w.wikiBilder = Object.keys(b).length ? b as Record<string, string> : undefined; }
-      delete w.wikiSeitenBild;
-    }
-    const liste = [...waffen.values()].filter((w) => w.rarities.length || (w.saisons?.length ?? 0) > 0);
-    if (!liste.length) throw new Error('nichts gelesen');
+    const liste = await alleWaffenLesen(melden);
     melden({ waffen: liste, status: 'da', stand: Date.now() });
     cacheSchreiben(liste);
   } catch {
