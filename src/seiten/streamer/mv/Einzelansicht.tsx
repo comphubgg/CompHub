@@ -95,7 +95,7 @@ function Abschnitt({ children }: { children: ReactNode }) {
 }
 function Titel({ symbol, children, rechts }: { symbol: ReactNode; children: ReactNode; rechts?: ReactNode }) {
   return (
-    <p className="mv-mute mb-2 flex items-center gap-1.5 text-[11px] font-medium">
+    <p className="mv-mute mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em]">
       {symbol}<span className="min-w-0 flex-1">{children}</span>{rechts}
     </p>
   );
@@ -238,7 +238,7 @@ export default function Einzelansicht(p: Props) {
     <aside data-tour="sidebar" className="mv-fl mv-rand flex h-full w-[min(320px,92vw)] flex-col border-r">
       <div className="mv-rand flex items-center gap-2 border-b px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold"><T>Einzelansicht</T></p>
+          <p className="titel truncate text-[26px] leading-none"><T>Einzelansicht</T></p>
         </div>
         <button type="button" onClick={p.zurMultiview}
           className="mv-fl mv-hover flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition">

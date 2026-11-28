@@ -213,7 +213,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   return (
     <Abschnitt>
       <div className="mb-2 flex items-center gap-2">
-        <p className="mv-mute flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-medium">
+        <p className="mv-mute flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em]">
           <Zeichen d={D.ordner} klein /><T>Ordner</T> ({p.ordner.length})
         </p>
         {p.ordner.length > 1 && (
@@ -227,7 +227,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
 
       <div className="mb-2">
         <button type="button" onClick={() => setFilterAuf((a) => !a)} aria-expanded={filterAuf}
-          className="mv-mute flex w-full items-center gap-1.5 text-[11px] font-medium">
+          className="mv-mute flex w-full items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em]">
           <svg viewBox="0 0 20 20" className={`h-3 w-3 shrink-0 transition ${filterAuf ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l6 6-6 6" /></svg>
           <T>Filter</T>
           {aktive.length > 0 && <span className="rounded-full bg-akz/20 px-1.5 text-[10px] font-semibold text-akz">{aktive.length}</span>}
@@ -620,7 +620,7 @@ export default function Seitenleiste(p: Props) {
         {/* Streams */}
         <Abschnitt>
           <div className="mb-2 flex items-center gap-1">
-            <p className="mv-mute flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-medium">
+            <p className="mv-mute flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em]">
               <Zeichen d={D.start} klein /><T>Streams</T> ({p.streams.length})
             </p>
             {p.streams.length > 0 && (
@@ -816,7 +816,7 @@ export default function Seitenleiste(p: Props) {
         {/* Qualitaet */}
         <Abschnitt>
           <div className="mb-2 flex items-center">
-            <p className="mv-mute flex-1 text-[11px] font-medium"><T>Stream-Qualität</T></p>
+            <p className="mv-mute flex-1 text-[10px] font-semibold uppercase tracking-[0.2em]"><T>Stream-Qualität</T></p>
             <Knopf titel={t('Auf Auto zurücksetzen')} klick={() => a.alleQualitaet('auto')}><Zeichen d={D.neu} klein /></Knopf>
           </div>
           <select value={p.qualitaetAlle} onChange={(e) => a.alleQualitaet(e.target.value)}

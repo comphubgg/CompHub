@@ -729,7 +729,7 @@ export default function Multiview(props: MultiviewProps) {
         )}
 
         {sichtbar.length === 0 && props.buehne && (
-          <div className={`absolute inset-0 overflow-y-auto overscroll-contain transition-[padding] duration-200 ${seite ? 'lg:pl-[20rem]' : ''}`}>
+          <div className={`absolute inset-0 overflow-y-auto overscroll-contain transition-[padding] duration-200 ${seite ? 'lg:pl-[20rem]' : 'pt-10'}`}>
             {streams.length > 0 && (
               <p className="mx-4 mt-4 rounded-xl border border-white/[0.07] bg-fl px-4 py-2.5 text-xs text-white/55 lg:mx-8">
                 <T>Alle Streams sind ausgeblendet oder offline. Die Seitenleiste zeigt sie, auch die Offline-Streams.</T>
