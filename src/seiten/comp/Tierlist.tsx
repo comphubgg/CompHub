@@ -292,7 +292,7 @@ export default function Tierlist() {
             </div>
             {!poolZu && (
               <>
-                <div className={`grid max-h-[24vh] min-h-[76px] content-start sm:max-h-[34vh] gap-1.5 overflow-y-auto border-t border-white/[0.07] p-2 transition-colors ${ueber === 'pool' ? 'bg-rose-400/[0.06]' : ''}`} style={raster}>
+                <div className={`grid max-h-[24vh] min-h-[76px] content-start sm:max-h-[27vh] gap-1.5 overflow-y-auto border-t border-white/[0.07] p-2 transition-colors ${ueber === 'pool' ? 'bg-rose-400/[0.06]' : ''}`} style={raster}>
                   {imPool.slice(0, 400).map((e) => (
                     <Kachel key={e.key} e={e} modus={modus} gewaehlt={gewaehlt === e.key} ziehtGerade={zieht === e.key}
                       onDragStart={ziehStart(e.key)} onDragEnd={ziehEnde} onClick={() => setGewaehlt(gewaehlt === e.key ? null : e.key)} />
