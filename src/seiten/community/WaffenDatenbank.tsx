@@ -48,7 +48,10 @@ export function turnierZuordnen(db: Datenbank, turnier: TurnierWaffe[]) {
   return { proWaffe: m, ohne: rest };
 }
 
-export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki, vergleich, umschalten }: { db: Datenbank; turnier: TurnierWaffe[]; gesamt: number; spielerTage: number; wiki: Wiki; vergleich: string[]; umschalten: (id: string) => void }) {
+/** Zustand des Wiki-Abrufs (alle Waffen, die es je gab) - fuer Fortschritt und die eine Fehlerzeile */
+export interface WikiZustand { status: 'laedt' | 'da' | 'fehlt'; fertig: number; gesamt: number; neu: () => void }
+
+export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki, vergleich, umschalten, wikiZustand }: { db: Datenbank; turnier: TurnierWaffe[]; gesamt: number; spielerTage: number; wiki: Wiki; vergleich: string[]; umschalten: (id: string) => void; wikiZustand?: WikiZustand }) {
   const [klasse, setKlasse] = useState<string>('alle');
   const [sorte, setSorte] = useState('klasse');
   const [wunsch, setWunsch] = useState('hoechste');
@@ -61,7 +64,8 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
   const [ansicht, setAnsicht] = useState<'raster' | 'liste'>('raster');
   // Alle Waffen je (Fortnite Wiki): aktueller Pool, vaulted oder alle - und je Saison
   const mitWiki = useMemo(() => db.weapons.some((w) => w.quelle === 'wiki' || w.wiki), [db]);
-  const [poolArt, setPoolArt] = useState<'aktuell' | 'vaulted' | 'alle'>('aktuell');
+  // Betreiber 28.11.2026: "alle Waffen, die es je gab" soll man sofort sehen - deshalb steht die Ansicht vorn und ist die erste Wahl
+  const [poolArt, setPoolArt] = useState<'aktuell' | 'vaulted' | 'alle'>('alle');
   const [saison, setSaison] = useState('alle');
   const saisonListe = useMemo(() => { const m = new Map<string, number>(); for (const w of db.weapons) for (const x of w.saisons ?? []) m.set(x, (m.get(x) ?? 0) + 1);
     const wert = (x: string) => { const [, c, t] = /C(\d+) S(\w+)/.exec(x) ?? []; return Number(c) * 100 + (Number(t) || (t === 'X' ? 10 : 60)); };
@@ -118,13 +122,24 @@ export default function WaffenDatenbank({ db, turnier, gesamt, spielerTage, wiki
         ))}
       </div>
 
+      {/* Alle Waffen je: Fortschritt beim ersten Laden, eine Zeile, wenn das Wiki nicht antwortet */}
+      {!mitWiki && wikiZustand?.status === 'laedt' && (
+        <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+          <span className="font-semibold text-white/75">Loading every weapon ever</span>
+          <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full bg-akz" animate={{ width: wikiZustand.gesamt ? `${(wikiZustand.fertig / wikiZustand.gesamt) * 100}%` : '4%' }} /></div>
+          {wikiZustand.gesamt > 0 && <span className="zahl">{wikiZustand.fertig.toLocaleString('en')} / {wikiZustand.gesamt.toLocaleString('en')} wiki pages</span>}
+        </div>
+      )}
+      {!mitWiki && wikiZustand?.status === 'fehlt' && (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-white/55"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />The Fortnite Wiki didn't answer – weapons from earlier seasons are missing.<button type="button" onClick={wikiZustand.neu} className="font-semibold text-akz hover:text-white">Try again</button></p>
+      )}
       {mitWiki && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-2xl border border-white/10 bg-black/30 p-1">
-            {([['aktuell', 'Current pool'], ['vaulted', 'Vaulted'], ['alle', 'All weapons ever']] as const).map(([k, t]) => (
-              <button key={k} type="button" onClick={() => setPoolArt(k)} className="relative rounded-xl px-3.5 py-1.5 text-sm font-bold">
-                {poolArt === k && <motion.span layoutId="waffen-pool" className="absolute inset-0 rounded-xl bg-teal-300" />}
-                <span className={`relative ${poolArt === k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{t}<span className="ml-1.5 text-xs opacity-60">{db.weapons.filter((w) => k === 'alle' || (k === 'vaulted' ? w.vaulted : !w.vaulted)).length}</span></span>
+          <div className="inline-flex rounded-2xl border border-white/10 bg-black/40 p-1">
+            {([['alle', 'All weapons ever'], ['aktuell', 'Current pool'], ['vaulted', 'Vaulted']] as const).map(([k, t]) => (
+              <button key={k} type="button" onClick={() => setPoolArt(k)} className={`relative rounded-xl font-bold ${k === 'alle' ? 'px-4 py-2 text-base' : 'px-3.5 py-1.5 text-sm'}`}>
+                {poolArt === k && <motion.span layoutId="waffen-pool" className="absolute inset-0 rounded-xl bg-akz shadow-[0_6px_18px_-6px_rgb(var(--akz)/0.9)]" />}
+                <span className={`relative ${poolArt === k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{t}<span className="zahl ml-1.5 text-xs opacity-60">{db.weapons.filter((w) => k === 'alle' || (k === 'vaulted' ? w.vaulted : !w.vaulted)).length}</span></span>
               </button>
             ))}
           </div>

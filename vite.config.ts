@@ -43,6 +43,9 @@ export default defineConfig({
       '/api': weiter, '/bilder': weiter, '/spielerbilder': weiter, '/spielerbilder-klein': weiter, '/cups': weiter, '/logos': weiter, '/waffen': weiter, '/flags': weiter, '/hero': weiter, '/orgs': weiter,
       // Epics offizielle, freie Fortnite Data API (Inseln, Spielerzahlen je Insel/Playlist) - ueber den Proxy, damit der Browser keine CORS-Probleme hat.
       '/epic-daten': { target: 'https://api.fortnite.com', changeOrigin: true, secure: true, rewrite: (p) => p.replace(/^\/epic-daten/, '') },
+      // Fortnite Wiki (alle Waffen, die es je gab - src/seiten/community/waffenWiki.ts): ueber den Proxy, weil der Browser fandom direkt oft
+      // nicht fragen darf (CORS/Blocker). /fandom/api.php -> https://fortnite.fandom.com/api.php
+      '/fandom': { target: 'https://fortnite.fandom.com', changeOrigin: true, secure: true, rewrite: (p) => p.replace(/^\/fandom/, '') },
       // Overlays der echten Seite (Vorschau im Streamer-Bereich, gleiche Herkunft -> zuschneiden und sofort aktualisieren)
       '^/overlay(/|\\?|$)': weiter,
       // Echte Seiten im Rahmen (src/seiten/admin/Rahmen.tsx): /site/admin/live -> thecomphub.com/admin/live.
@@ -50,7 +53,7 @@ export default defineConfig({
       ...Object.fromEntries(STATISCH.map((p) => [p, rahmen])),
       // Zuletzt: alles andere nur, wenn es aus dem Rahmen kommt - sonst bedient Vite den Hub selbst (Rueckgabe der Adresse = nicht weiterreichen).
       // (ohne /hub-daten: die lokale 3D-Ansicht der Karte steht selbst in einem Rahmen und liegt im Hub-Ordner, nicht auf der echten Seite)
-      '^/(?!@|src/|node_modules/|site/|hub-daten/)': { ...rahmen, bypass: (a) => (ausRahmen(a) ? undefined : a.url) },
+      '^/(?!@|src/|node_modules/|site/|hub-daten/|fandom/)': { ...rahmen, bypass: (a) => (ausRahmen(a) ? undefined : a.url) },
     },
   },
 });

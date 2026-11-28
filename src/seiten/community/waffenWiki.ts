@@ -3,7 +3,8 @@ import type { DbWaffe, Klasse, Stufe } from './waffenDaten';
 
 /*
  * ALLE Waffen, die es je gab (Betreiber 27.11.2026): aus dem Fortnite Wiki (fortnite.fandom.com, Texte CC BY-SA - auf den Seiten mit Link genannt).
- * Abgefragt wird die MediaWiki-API direkt aus dem Browser (origin=* = anonymes CORS):
+ * Abgefragt wird die MediaWiki-API ueber den Vite-Proxy /fandom (vite.config.ts; Betreiber 28.11.2026: direkt aus dem Browser kamen auf seinem
+ * PC keine alten Waffen an - der Abruf scheiterte). Antwortet der Proxy nicht, wird einmal direkt gefragt (origin=* = anonymes CORS):
  *   1. list=categorymembers  - Waffen-Kategorie und ihre Unterkategorien (Assault Rifles, Shotguns ...), ohne Save the World / LEGO / Creative
  *   2. prop=revisions        - Quelltext (Wikitext) von je 50 Seiten auf einmal, 3 Abfragen parallel
  *   3. lesen                 - Infobox-Parameter + Werte-Tabellen je Seltenheit, Saisons (eingefuehrt / vaulted / unvaulted), Klasse, Bild
@@ -11,11 +12,13 @@ import type { DbWaffe, Klasse, Stufe } from './waffenDaten';
  * Werte aus den Spieldateien (waffen.json) gehen immer vor - siehe zusammenfuehren().
  */
 export const WIKI = 'https://fortnite.fandom.com';
-const API = `${WIKI}/api.php`;
+/** Erst ueber den eigenen Proxy (gleiche Herkunft), sonst direkt */
+const APIS = ['/fandom/api.php', `${WIKI}/api.php`];
+let apiNr = 0;
 const WURZELN = ['Category:Battle Royale Weapons', 'Category:Weapons (Battle Royale)', 'Category:Weapons'];
 const OHNE = /save the world|stw|lego|creative|festival|ammunition|traps?\b|consumables|healing|resources|items by|cosmetic|harvesting|pickaxe|unreleased|concept|cut content/i;
 const MAX_SEITEN = 1600;
-const SCHLUESSEL = 'hub-waffen-wiki-v1';
+const SCHLUESSEL = 'hub-waffen-wiki-v2';
 const ALTER = 7 * 864e5;
 
 /* ---------------------------------------------- Wikitext lesen */
@@ -170,8 +173,17 @@ export function seiteLesen(titel: string, text: string, kategorien: string[] = [
 /* ---------------------------------------------- Abfragen */
 async function api(q: Record<string, string>) {
   const u = new URLSearchParams({ format: 'json', formatversion: '2', origin: '*', ...q });
-  const r = await fetch(`${API}?${u}`); if (!r.ok) throw new Error(`wiki ${r.status}`);
-  return r.json();
+  for (;;) {
+    try {
+      const r = await fetch(`${APIS[apiNr]}?${u}`);
+      // Vite liefert ohne Proxy die Hub-Seite (HTML) - das zaehlt wie ein Fehler
+      if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error(`wiki ${r.status}`);
+      return await r.json();
+    } catch (f) {
+      if (apiNr >= APIS.length - 1) throw f;
+      apiNr += 1; // naechster Weg (direkt) fuer diese und alle weiteren Abfragen
+    }
+  }
 }
 async function mitglieder(kat: string): Promise<Array<{ title: string; ns: number }>> {
   const out: Array<{ title: string; ns: number }> = []; let weiter: Record<string, string> = {};
@@ -229,6 +241,7 @@ let gestartet = false;
 const hoerer = new Set<() => void>();
 const melden = (x: Partial<Stand>) => { stand = { ...stand, ...x }; hoerer.forEach((h) => h()); };
 async function laden(neu = false) {
+  apiNr = 0;
   if (!neu) {
     const c = await cacheLesen();
     if (c?.waffen?.length) { melden({ waffen: c.waffen, status: 'da', stand: c.t, fertig: 1, gesamt: 1 }); if (Date.now() - c.t < ALTER) return; }
@@ -262,7 +275,7 @@ export function useWikiWaffen(): Stand & { neu: () => void } {
     if (!gestartet) { gestartet = true; laden(); }
     return () => { hoerer.delete(h); };
   }, []);
-  return { ...stand, neu: () => { melden({ fertig: 0 }); laden(true); } };
+  return { ...stand, neu: () => { melden({ fertig: 0, status: stand.waffen ? stand.status : 'laedt' }); laden(true); } };
 }
 
 /* ---------------------------------------------- Zusammenfuehren: Spieldateien vor Wiki */

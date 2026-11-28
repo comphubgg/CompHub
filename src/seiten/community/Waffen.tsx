@@ -194,13 +194,14 @@ export default function Waffen() {
           ? <>Every weapon in {db.season ? `Season ${db.season}` : 'this season'}'s pool with its real stats per rarity and loot chances – straight from the game files – plus how it performs in the latest tournaments.</>
           : <>Every weapon in {saison ? `Season ${saison}` : 'this season'}'s pool – and how it really performs: measured from every hit in the latest tournament replays, not from a patch note.</>} />
 
-      {wikiFortschritt}
+      {!db && wikiFortschritt}
       {status === 'laedt' && !wikiFortschritt && <Laedt farbe={TEAL} text="Loading the weapon database …" />}
-      {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} vergleich={vergleich} umschalten={umschalten} />}
+      {db && <WaffenDatenbank db={db} turnier={waffen} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} vergleich={vergleich} umschalten={umschalten} wikiZustand={wikiW} />}
       {status === 'fehlt' && <>
       <Hinweis mehr={<>Damage, DPS, fire rate, magazine, reload, headshot and structure damage per rarity come from the Fortnite Wiki (every weapon ever) and, for the current season, from our game-file export with exact floor and chest chances. Neither answered just now – below is what we measured ourselves in tournaments.</>}>
         Full stats per rarity load from the Fortnite Wiki and the game-file export – showing tournament measurements for now.
       </Hinweis>
+      {wikiW.status === 'fehlt' && <p className="flex flex-wrap items-center gap-2 text-xs text-white/55"><span className="h-1.5 w-1.5 rounded-full bg-amber-300" />The Fortnite Wiki didn't answer.<button type="button" onClick={wikiW.neu} className="font-semibold text-akz hover:text-white">Try again</button></p>}
 
       {/* Kennzahlen der Messung */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
