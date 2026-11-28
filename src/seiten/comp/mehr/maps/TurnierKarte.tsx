@@ -1,17 +1,20 @@
-import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../../../teile/Glas';
+import { Bild, Leer, Marke, MedienKarte, SeitenKopf, Zaehler } from '../../../../ds/Bausteine';
 import { useWer } from '../../../../teile/Anmeldung';
 import KartenAnsicht, { kartenName, type KartenForm, type Punkt } from '../KartenAnsicht';
 import KartenWerkzeug from '../zeichnen/KartenWerkzeug';
-import { FehlerZeile, Laedt, SEITE, SeitenKopf, Suche, TeamFlagge, datumLang, useDaten } from '../teile';
+import { Dock, KopfBand, Werkbank } from '../Werkbank';
+import { FehlerZeile, Laedt, SEITE, TeamFlagge, datumLang, useDaten } from '../teile';
+import { RegionMarke } from './Maps';
 
 /*
  * Die veroeffentlichten Turnierkarten (/maps der Seite, Ansicht fuer alle): ohne ?id die Liste (/api/turnier-karten?liste=1), mit ?id die Karte
  * (/api/turnier-karten?id=) samt Teamliste. Der Stand wandert mit (?nur=stand&seit= alle 20 s), wie auf der Seite. Bearbeitet wird im
  * Karten-Werkzeug - im Hub nachgebaut (../zeichnen/KartenWerkzeug, ?edit=1): der Admin bekommt dafuer einen Knopf, ebenso ein Pro, dessen Team auf
  * der Karte steht ("Move my team"). Ohne ?id, aber mit ?edit=1 (oder ?event=&window=) oeffnet der Admin eine neue Karte.
+ * Aufbau (Design-System 3.0): Liste = Buehne mit der neuesten Karte gross, darunter alle als Bildkarten mit Belegungs-Balken. Karte = Werkbank:
+ * links die Teams (Klick fliegt zum Landepunkt), Mitte die Karte ueber die ganze Hoehe, rechts die belegten Stellen (umkaempfte zuerst).
  */
 
 interface Spot { id: string; punkte: Punkt[]; teams: string[]; name?: string; farbe?: string | null }
@@ -19,41 +22,78 @@ interface Team { id: string; spieler: string[]; ids?: string[]; farbe?: string; 
 interface Karte { id: string; titel: string; cupTitel?: string; region?: string; windowId?: string; bildId?: string; bildTitel?: string; spots: Spot[]; teams: Team[]; geaendert: number; gesperrt?: boolean; spiele?: string; ersatz?: boolean }
 interface ListenKarte { id: string; titel: string; cupTitel?: string; region: string | null; windowId: string | null; bildTitel?: string; teams: number; platziert: number; geaendert: number; datum: number | null; bild: string | null }
 
+const titelSauber = (t: string) => t.replace(/\s*·\s*/g, ' – ');
+
+/** Wie viele Teams schon auf der Karte stehen - als feiner Balken. */
+function Belegung({ platziert, teams }: { platziert: number; teams: number }) {
+  const voll = teams > 0 && platziert >= teams;
+  return (
+    <div className="mt-2.5 flex items-center gap-2.5">
+      <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]"><span className={`block h-full rounded-full ${voll ? 'bg-emerald-400' : 'bg-akz'}`} style={{ width: `${teams ? Math.min(100, (platziert / teams) * 100) : 0}%` }} /></span>
+      <span className="zahl text-[11px] font-semibold text-white/50">{platziert}/{teams} placed</span>
+    </div>
+  );
+}
+
 function Liste() {
   const { wer } = useWer();
   const [s] = useDaten<{ karten: ListenKarte[] }>('/api/turnier-karten?liste=1');
   const [q, setQ] = useState('');
-  if (s.art === 'laedt') return <Laedt />;
-  if (s.art !== 'ok') return <FehlerZeile text="The tournament maps could not be loaded." />;
-  const karten = s.d.karten.filter((k) => !q || `${k.titel} ${k.cupTitel ?? ''} ${k.region ?? ''}`.toLowerCase().includes(q.toLowerCase()));
+  const alle = s.art === 'ok' ? s.d.karten : [];
+  const karten = alle.filter((k) => !q || `${k.titel} ${k.cupTitel ?? ''} ${k.region ?? ''}`.toLowerCase().includes(q.toLowerCase()));
+  const [erste, ...rest] = karten;
   return (
-    <div className="space-y-6">
-      <SeitenKopf ueber="Maps" titel="Tournament maps" text="Every published drop map — live, as the admins place the teams." rechts={<>
-        <Suche wert={q} setze={setQ} platz="Search a map …" />
-        {wer?.isAdmin && <Link to="/competitive/maps/view?edit=1" className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-amber-300">Open the map tool</Link>}
-        <a href={`${SEITE}/tournament-maps`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/50 transition hover:border-white/30 hover:text-white">Classic view ↗</a>
-      </>} />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {karten.map((k, i) => (
-          <motion.div key={k.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 14) * 0.035 }} whileHover={{ y: -5 }}>
-            <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}`} className="group block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl transition hover:border-sky-400/40">
-              <div className="relative aspect-video overflow-hidden bg-[#0a0e18]">
-                {k.bild ? <img src={k.bild} alt="" loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  : <div className="grid h-full place-items-center text-3xl font-black tracking-widest text-sky-400/30">MAP</div>}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-transparent to-transparent" />
-                {k.region && <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white ring-1 ring-white/15">{k.region}</span>}
-                <p className="absolute inset-x-4 bottom-3 line-clamp-2 text-lg font-extrabold leading-tight text-white">{k.titel.replace(/\s*·\s*/g, ' – ')}</p>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-white/45">
-                <span className="tabular-nums">{k.platziert}/{k.teams} placed</span>
-                {k.bildTitel && <span className="truncate">· {k.bildTitel}</span>}
-                <span className="ml-auto tabular-nums">{k.datum ? datumLang(k.datum) : ''}</span>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
-      </div>
+    <div>
+      <SeitenKopf ueber="Maps · live" titel="Tournament maps" text="Every published drop map — live, as the admins place the teams."
+        rechts={<>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a map …" className="eingabe w-full sm:w-64" />
+          {wer?.isAdmin && <Link to="/competitive/maps/view?edit=1" className="knopf-prim !bg-amber-400">Open the map tool</Link>}
+          <Link to="/competitive/maps" className="knopf">All cup maps</Link>
+          <a href={`${SEITE}/tournament-maps`} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-white/45 hover:!text-white">Classic view ↗</a>
+        </>} />
+      {s.art === 'laedt' && <Laedt />}
+      {s.art !== 'ok' && s.art !== 'laedt' && <FehlerZeile text="The tournament maps could not be loaded." />}
+      {s.art === 'ok' && !karten.length && <Leer text={alle.length ? 'No map matches the search.' : 'No tournament map has been published yet.'} />}
+      {erste && (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          {/* Die neueste Karte gross */}
+          <Link to={`/competitive/maps/view?id=${encodeURIComponent(erste.id)}`} className="fl-fest fl-klick group relative isolate flex min-h-[300px] flex-col justify-end overflow-hidden p-6 lg:min-h-[380px]">
+            <Bild src={erste.bild} className="absolute inset-0 -z-10 h-full w-full transition duration-700 group-hover:scale-[1.04]" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-fl/60 to-transparent" />
+            <div className="absolute left-5 top-5 flex gap-1.5"><Marke ton="akz">Latest map</Marke>{erste.region && <RegionMarke r={erste.region} />}</div>
+            <p className="ueber">{erste.cupTitel || erste.bildTitel || 'Tournament map'}</p>
+            <h2 className="titel mt-1 text-4xl sm:text-5xl">{titelSauber(erste.titel)}</h2>
+            <p className="zahl mt-1 text-sm text-white/55">{[erste.bildTitel, erste.datum ? datumLang(erste.datum) : ''].filter(Boolean).join(' · ')}</p>
+            <div className="max-w-md"><Belegung platziert={erste.platziert} teams={erste.teams} /></div>
+          </Link>
+          {/* Zahlen und die naechsten zwei */}
+          <div className="grid content-start gap-4">
+            <div className="fl-fest grid grid-cols-3 divide-x divide-white/[0.06] py-5 text-center">
+              {([['Maps', alle.length], ['Teams placed', alle.reduce((n, k) => n + k.platziert, 0)], ['Complete', alle.filter((k) => k.teams > 0 && k.platziert >= k.teams).length]] as Array<[string, number]>).map(([l, v]) => (
+                <div key={l}><Zaehler wert={v} className="titel text-5xl !text-akz" /><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{l}</p></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {rest.slice(0, 2).map((k, i) => <KartenKachel key={k.id} k={k} i={i} />)}
+            </div>
+          </div>
+        </div>
+      )}
+      {rest.length > 2 && (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+          {rest.slice(2).map((k, i) => <KartenKachel key={k.id} k={k} i={i} />)}
+        </div>
+      )}
     </div>
+  );
+}
+
+function KartenKachel({ k, i }: { k: ListenKarte; i: number }) {
+  return (
+    <MedienKarte verz={Math.min(i, 10) * 0.03} bild={k.bild} zu={`/competitive/maps/view?id=${encodeURIComponent(k.id)}`} titel={titelSauber(k.titel)}
+      unter={<span className="zahl">{[k.bildTitel, k.datum ? datumLang(k.datum) : ''].filter(Boolean).join(' · ')}</span>} ecke={k.region ? <RegionMarke r={k.region} /> : undefined}>
+      <Belegung platziert={k.platziert} teams={k.teams} />
+    </MedienKarte>
   );
 }
 
@@ -69,7 +109,6 @@ function Ansicht() {
   const { wer } = useWer();
   const [k, setK] = useState<Karte | null>(null);
   const [fehler, setFehler] = useState('');
-  const [q, setQ] = useState('');
 
   useEffect(() => {
     if (!id) return undefined;
@@ -107,50 +146,83 @@ function Ansicht() {
   const solo = (k?.teams ?? []).every((t) => t.spieler.length <= 1);
   const meinTeam = wer?.epicId ? (k?.teams ?? []).find((t) => (t.ids ?? []).includes(wer.epicId!)) : undefined;
 
+  const [q, setQ] = useState('');
+  const [zeige, setZeige] = useState<{ namen: string[]; n: number } | null>(null);
+  const springe = (namen: string[]) => setZeige((alt) => ({ namen, n: (alt?.n ?? 0) + 1 }));
+
   if (!id) return <Liste />;
   if (fehler) return <FehlerZeile text={fehler} />;
   if (!k) return <Laedt text="Loading the map …" />;
   const teams = (k.teams ?? []).filter((t) => !q || t.spieler.some((s) => s.toLowerCase().includes(q.toLowerCase())));
   const bild = k.bildId ? `/bilder/karten/${encodeURIComponent(k.bildId)}.png` : null;
+  const belegt = k.spots.filter((s) => s.teams.length).sort((a, b) => b.teams.length - a.teams.length);
+  const platziert = (k.teams ?? []).filter((t) => spotVon.has(t.id)).length;
 
   return (
-    <div className="space-y-6">
-      <Link to="/competitive/maps/view" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-1.5 text-xs font-semibold text-white/70 transition hover:border-sky-400/50 hover:text-white">← Tournament maps</Link>
-      <SeitenKopf ueber={k.cupTitel || 'Tournament map'} titel={k.titel.replace(/\s*·\s*/g, ' – ')}
-        text={<span className="flex flex-wrap items-center gap-2 text-sm">
-          {k.region && <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-white/80">{k.region}</span>}
-          {k.bildTitel && <span>{k.bildTitel}</span>}
-          {k.spiele && <span>· Games {k.spiele}</span>}
-          <span>· {k.spots.filter((s) => s.teams.length).length} spots, {k.teams.length} {solo ? 'players' : 'teams'}</span>
-          {k.gesperrt && <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-300">Locked</span>}
-        </span>}
+    <div className="-mt-2 space-y-3">
+      <KopfBand zurueck="/competitive/maps/view" zurueckTitel="Tournament maps" ueber={k.cupTitel || 'Tournament map'} titel={k.titel.replace(/\s*·\s*/g, ' – ')}
+        marken={<>
+          {k.region && <RegionMarke r={k.region} />}
+          {k.bildTitel && <Marke>{k.bildTitel}</Marke>}
+          {k.spiele && <Marke>Games {k.spiele}</Marke>}
+          <Marke><span className="zahl">{belegt.length}</span> spots · <span className="zahl">{k.teams.length}</span> {solo ? 'players' : 'teams'}</Marke>
+          {k.gesperrt && <Marke ton="gold">Locked</Marke>}
+          <Marke ton="gruen" puls>Updates live</Marke>
+        </>}
         rechts={<>
           {(wer?.isAdmin || (meinTeam && (wer?.rolle === 'pro' || wer?.rolle === 'manager'))) && (
-            <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-amber-300">
-              {wer?.isAdmin ? 'Edit in the map tool' : 'Move my team'}
-            </Link>
+            <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="knopf-prim !bg-amber-400">{wer?.isAdmin ? 'Edit in the map tool' : 'Move my team'}</Link>
           )}
-          <a href={`${SEITE}/maps?id=${encodeURIComponent(k.id)}`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-semibold text-white/50 transition hover:border-white/30 hover:text-white">Classic view ↗</a>
+          <a href={`${SEITE}/maps?id=${encodeURIComponent(k.id)}`} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-white/45 hover:!text-white">Classic view ↗</a>
         </>} />
       {k.ersatz && <FehlerZeile text="This is the last saved copy — the live store is not answering right now." />}
-      <div className="grid gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.7fr)] lg:items-start">
-        <Glas className="overflow-hidden lg:sticky lg:top-32">
-          <div className="flex items-center gap-3 border-b border-white/5 p-3">
-            <h2 className="font-bold text-white">{solo ? 'Players' : 'Teams'}</h2>
-            <Suche wert={q} setze={setQ} platz="Search …" className="ml-auto sm:w-44" />
-          </div>
-          <ul className="max-h-[72vh] divide-y divide-white/[0.04] overflow-y-auto">
-            {teams.map((t) => (
-              <li key={t.id} className={`flex items-center gap-3 px-3 py-2 ${t === meinTeam ? 'bg-sky-400/10' : ''}`}>
-                <TeamFlagge groesse={t.spieler.length > 1 ? 26 : 20} laender={t.laender ?? t.spieler.map(() => null)} />
-                <span className="flex min-w-0 flex-1 flex-col text-[11px] font-bold uppercase leading-[1.3] text-white">{t.spieler.map((s, i) => <span key={i} className="truncate">{kartenName(s)}</span>)}</span>
-                <span className="max-w-[40%] truncate text-right text-[11px] text-white/45">{spotVon.has(t.id) ? (spotVon.get(t.id) || 'placed') : <span className="text-white/25">not placed</span>}</span>
-              </li>
-            ))}
-          </ul>
-        </Glas>
-        <KartenAnsicht formen={formen} bild={bild} rotAb={2} titel={k.titel} />
-      </div>
+      <Werkbank
+        links={(
+          <Dock titel={solo ? 'Players' : 'Teams'} zahl={`${platziert}/${k.teams.length} placed`}
+            kopf={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player …" className="eingabe w-full !py-2 !text-[13px]" />}
+            fuss="Click a team to fly to its drop spot.">
+            <ul>
+              {teams.map((t) => {
+                const drauf = spotVon.has(t.id);
+                return (
+                  <li key={t.id}>
+                    <button type="button" disabled={!drauf} onClick={() => springe(t.spieler)} title={drauf ? 'Show on the map' : undefined}
+                      className={`flex w-full items-center gap-3 border-b border-white/[0.05] px-3 py-2 text-left transition ${t === meinTeam ? 'bg-akz/10' : ''} ${drauf ? 'hover:bg-akz/[0.08]' : ''}`}>
+                      <TeamFlagge groesse={t.spieler.length > 1 ? 26 : 20} laender={t.laender ?? t.spieler.map(() => null)} />
+                      <span className="flex min-w-0 flex-1 flex-col text-[11px] font-bold uppercase leading-[1.3] tracking-wide text-white">{t.spieler.map((s, i) => <span key={i} className="truncate">{kartenName(s)}</span>)}</span>
+                      {t === meinTeam && <Marke ton="akz">You</Marke>}
+                      <span className="max-w-[40%] truncate text-right text-[11px] text-white/45">{drauf ? (spotVon.get(t.id) || 'placed') : <span className="text-white/25">not placed</span>}</span>
+                    </button>
+                  </li>
+                );
+              })}
+              {!teams.length && <li className="px-4 py-6 text-center text-sm text-white/45">{k.teams.length ? 'No player found.' : 'No teams yet.'}</li>}
+            </ul>
+          </Dock>
+        )}
+        rechts={(
+          <Dock titel="Spots" zahl={`${belegt.filter((s) => s.teams.length > 1).length} contested`} fuss="Wheel zooms, drag moves, double-click zooms in, Ctrl + F searches.">
+            <ul>
+              {belegt.map((sp) => {
+                const ts = sp.teams.map((t) => teamNach.get(t)).filter((t): t is Team => Boolean(t));
+                return (
+                  <li key={sp.id}>
+                    <button type="button" onClick={() => springe(ts.flatMap((t) => t.spieler))} className={`flex w-full items-start gap-3 border-b border-white/[0.05] px-3 py-2.5 text-left transition ${ts.length > 1 ? 'hover:bg-red-500/[0.08]' : 'hover:bg-akz/[0.08]'}`}>
+                      <span className={`titel w-7 shrink-0 text-center text-3xl ${ts.length > 1 ? '!text-red-400' : '!text-white/30'}`}>{ts.length}</span>
+                      <span className="min-w-0 flex-1">
+                        {sp.name?.trim() && <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{sp.name}</span>}
+                        {ts.map((t) => <span key={t.id} className="block truncate text-[11px] font-bold uppercase tracking-wide text-white">{t.spieler.map(kartenName).join(' · ')}</span>)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {!belegt.length && <li className="px-4 py-6 text-center text-sm text-white/45">No team is placed yet.</li>}
+            </ul>
+          </Dock>
+        )}>
+        <KartenAnsicht formen={formen} bild={bild} rotAb={2} deckel="none" zeige={zeige} titel={k.titel} />
+      </Werkbank>
     </div>
   );
 }
