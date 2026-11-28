@@ -1,14 +1,21 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Glas, Titel } from '../../teile/Glas';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Flaeche, Laedt, Marke, Segment, SeitenKopf } from '../../ds/Bausteine';
 import { useWer } from '../../teile/Anmeldung';
-import { AnmeldeKarte, Fehler, Laedt } from './tools/Gemeinsam';
+import { AnmeldeKarte, Fehler } from './tools/Gemeinsam';
+import { Klein, Portraet } from './stats/teile';
 import { apiText } from '../admin/port/app/components/SprachProvider';
 
 /*
  * Match-ID-Finder im Hub - wie /match-finder der echten Seite (/api/match-finder): Favoriten (am Konto, /api/user-storage), je Favorit das laufende
  * Match mit Match-ID zum Kopieren, Verlauf (LIVE · seit X / Ended · vor X), gespielte Cup-Matches, Scrims. Admin: alle Epic-Freunde des Bot-Kontos und die
  * Freigaben. Nur VIP (Recht "matchfinder") und Admin - sonst 403, dann die Anmelde-Karte.
+ *
+ * Aufbau (Design-System 3.0; Betreiber: die alte Seite war "unuebersichtlich"): die Seite beantwortet EINE Frage zuerst - wer ist JETZT im Match?
+ *   1. LIVE NOW   ganz oben, gross: Foto, Name, seit wann, Cup, die Match-ID und ein grosser Kopierknopf. Niemand live -> eine ruhige Zeile.
+ *   2. Favourites darunter als gleich grosse Karten (Foto, Name, Stand in einem Satz); rechts daneben das Hinzufuegen.
+ *   3. History    je Favorit eingeklappt (ein Klick klappt Verlauf und gespielte Cup-Matches auf).
+ * Die Fotos kommen ueber POST /api/spielerbild (Name -> Bild); ohne Foto steht nichts (keine Buchstaben-Kaesten).
  */
 
 interface Favorit { id: string; name: string }
@@ -54,13 +61,29 @@ function useUhr() {
   useEffect(() => { const id = window.setInterval(() => setN((n) => n + 1), 30_000); return () => window.clearInterval(id); }, []);
 }
 
-function KopierKnopf({ id, kopiert, kopieren, text = 'Copy', gross = false }: { id: string; kopiert: string; kopieren: (t: string) => void; text?: string; gross?: boolean }) {
+/* Fotos der Favoriten: einmal je Name holen (wie auf der Tierlist), fuer alle Karten gemeinsam. */
+const FOTOS = new Map<string, string | null>();
+function useFotos(namen: string[]): (name: string) => string | null {
+  const [, neu] = useState(0);
+  const schluessel = namen.join('|');
+  useEffect(() => {
+    const offen = [...new Set(namen)].filter((n) => n && !FOTOS.has(n));
+    if (!offen.length) return;
+    fetch('/api/spielerbild', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ namen: offen.slice(0, 150) }) })
+      .then((r) => r.json()).then((j: { bilder?: Record<string, string | null> }) => { for (const n of offen) FOTOS.set(n, j.bilder?.[n] ?? null); neu((x) => x + 1); }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schluessel]);
+  return (name) => FOTOS.get(name) ?? null;
+}
+
+function KopierKnopf({ id, kopiert, kopieren, text = 'Copy', gross = false, gold = false }: { id: string; kopiert: string; kopieren: (t: string) => void; text?: string; gross?: boolean; gold?: boolean }) {
   const ok = kopiert === id;
   return (
     <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={() => kopieren(id)}
       className={gross
-        ? `rounded-xl px-4 py-2 text-xs font-bold transition ${ok ? 'bg-emerald-400 text-[#06080f]' : 'bg-red-500 text-white hover:bg-red-400'}`
-        : `rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${ok ? 'border-emerald-400/50 text-emerald-300' : 'border-white/10 text-white/70 hover:border-sky-400/60 hover:text-sky-300'}`}>
+        ? `inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${ok ? 'bg-emerald-400 text-[#04050a]' : gold ? 'bg-amber-400 text-[#04050a] hover:bg-amber-300' : 'bg-red-500 text-white shadow-[0_12px_30px_-12px_rgba(239,68,68,0.9)] hover:bg-red-400'}`
+        : `shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${ok ? 'border-emerald-400/50 text-emerald-300' : 'border-white/10 text-white/70 hover:border-akz/60 hover:text-akz'}`}>
+      {gross && !ok && <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="10" height="10" rx="2" /><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /></svg>}
       {ok ? 'Copied ✓' : text}
     </motion.button>
   );
@@ -68,50 +91,88 @@ function KopierKnopf({ id, kopiert, kopieren, text = 'Copy', gross = false }: { 
 
 function SitzungsStatus({ live, von, bis }: { live: boolean; von: string; bis: string }) {
   return live
-    ? <span className="whitespace-nowrap font-semibold tabular-nums text-red-400" title={`In game since ${uhrzeit(von)}`}>LIVE · since {bisJetzt(von)}</span>
-    : <span className="whitespace-nowrap tabular-nums text-white/40" title={`Seen for ${dauer(von, bis)}`}>Ended · {bisJetzt(bis)} ago</span>;
+    ? <span className="zahl whitespace-nowrap font-semibold text-red-400" title={`In game since ${uhrzeit(von)}`}>LIVE · since {bisJetzt(von)}</span>
+    : <span className="zahl whitespace-nowrap text-white/40" title={`Seen for ${dauer(von, bis)}`}>Ended · {bisJetzt(bis)} ago</span>;
 }
 
-function LiveKasten({ live, seit, kopiert, kopieren }: { live: FLive; seit?: string | null; kopiert: string; kopieren: (t: string) => void }) {
+/** Kopf eines Seitenteils: Titel in der Schrift der Seite, rechts Platz fuer Zahlen oder ein Feld. */
+function TeilKopf({ titel, zusatz, rechts, live = false }: { titel: string; zusatz?: ReactNode; rechts?: ReactNode; live?: boolean }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="relative mt-4 flex flex-wrap items-center gap-3 overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-r from-red-500/15 via-red-500/5 to-transparent px-4 py-3">
-      <span className="flex items-center gap-2 text-sm font-extrabold text-red-400">
-        <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-70" /><span className="relative h-2.5 w-2.5 rounded-full bg-red-500" /></span>
-        {seit ? `LIVE · since ${bisJetzt(seit)}` : 'LIVE'}
-      </span>
-      <span className="text-xs text-white/70">{live.titel ?? spielart(live.playlist) ?? 'In a match'}</span>
-      <code className="rounded-lg bg-black/50 px-2.5 py-1 font-mono text-xs text-white/90">{live.matchId}</code>
-      <KopierKnopf id={live.matchId} kopiert={kopiert} kopieren={kopieren} text="Copy match ID" gross />
-      <span className="ml-auto whitespace-nowrap text-[11px] text-white/40">found via <span className="font-semibold text-white/70">{QUELLE[live.quelle]}</span></span>
-    </motion.div>
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="flex items-center gap-3">
+        {live ? <span className="relative flex h-3 w-3"><span className="absolute h-full w-full animate-ping rounded-full bg-red-500 opacity-70" /><span className="relative h-3 w-3 rounded-full bg-red-500" /></span>
+          : <span className="h-6 w-1 rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.8)]" />}
+        <h2 className="titel text-3xl">{titel}</h2>
+        {zusatz && <span className="pt-1 text-sm text-white/45">{zusatz}</span>}
+      </div>
+      {rechts}
+    </div>
   );
 }
 
+/** GROSS: jemand ist gerade im Match - Foto, Name, seit wann, die Match-ID und der Kopierknopf. */
+function LiveKarte({ name, bild, live, seit, unter, kopiert, kopieren, breit = false }: { name: string; bild?: string | null; live: FLive; seit?: string | null; unter?: ReactNode; kopiert: string; kopieren: (t: string) => void; breit?: boolean }) {
+  return (
+    <motion.article layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      className={`fl-fest relative flex flex-wrap items-center gap-x-5 gap-y-4 overflow-hidden !border-red-500/35 p-4 shadow-[0_0_60px_-24px_rgba(239,68,68,0.7)] sm:p-5 ${breit ? '2xl:col-span-2' : ''}`}>
+      <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-red-500/[0.13] to-transparent" />
+      <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-red-500" />
+      <Portraet bild={bild} gross={104} />
+      <div className="relative min-w-0 flex-1 basis-56">
+        <div className="flex flex-wrap items-center gap-2">
+          <Marke ton="rot" puls>{seit ? `Live · since ${bisJetzt(seit)}` : 'Live'}</Marke>
+          <span className="truncate text-xs font-medium text-white/70">{live.titel ?? spielart(live.playlist) ?? 'In a match'}</span>
+        </div>
+        <p className="titel mt-2 truncate text-5xl">{name}</p>
+        <p className="mt-1 truncate text-xs text-white/45">found via <span className="font-semibold text-white/75">{QUELLE[live.quelle]}</span>{unter ? <> · {unter}</> : null}</p>
+      </div>
+      <div className="relative flex w-full flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/50 p-2 pl-4 lg:w-auto">
+        <div className="min-w-0 flex-1"><Klein>Match ID</Klein><code className="block break-all font-mono text-sm text-white sm:text-base">{live.matchId}</code></div>
+        <KopierKnopf id={live.matchId} kopiert={kopiert} kopieren={kopieren} text="Copy match ID" gross />
+      </div>
+    </motion.article>
+  );
+}
+
+/** Verlauf und gespielte Cup-Matches - steht eingeklappt in der Karte des Favoriten. */
 function Verlauf({ eintraege, liveId, kopiert, kopieren }: { eintraege: FVerlauf[]; liveId: string | null; kopiert: string; kopieren: (t: string) => void }) {
   const [alle, setAlle] = useState(false);
   if (!eintraege.length) return null;
   const zeigen = alle ? eintraege : eintraege.slice(0, 5);
   return (
-    <div className="mt-4 rounded-2xl border border-white/[0.06] bg-black/25 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">History</p>
-      <ul className="mt-1.5 divide-y divide-white/[0.05]">
+    <div>
+      <Klein>Sessions</Klein>
+      <ul className="mt-1 divide-y divide-white/[0.05]">
         {zeigen.map((e) => (
-          <li key={e.matchId} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 text-xs">
-            <span className="min-w-0 flex-1 truncate font-medium text-white/90" title={e.playlist ?? undefined}>
+          <li key={e.matchId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
+            <span className="min-w-0 flex-1 basis-32 truncate font-medium text-white/90" title={e.playlist ?? undefined}>
               {e.matchId === liveId && <span className="mr-2 inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-red-500 align-middle" />}
               {e.titel || spielart(e.playlist) || e.zeile || 'Match'}
             </span>
-            <span className="tabular-nums text-white/40">{datumZeit(e.von)}</span>
+            <span className="zahl text-white/40">{datumZeit(e.von)}</span>
             <SitzungsStatus live={e.matchId === liveId} von={e.von} bis={e.bis} />
-            <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-white/60" title={e.matchId}>{e.matchId.slice(0, 8)}…</code>
-            <KopierKnopf id={e.matchId} kopiert={kopiert} kopieren={kopieren} />
+            <KopierKnopf id={e.matchId} kopiert={kopiert} kopieren={kopieren} text={`${e.matchId.slice(0, 8)}…`} />
           </li>
         ))}
       </ul>
-      {eintraege.length > 5 && (
-        <button type="button" onClick={() => setAlle(!alle)} className="mt-1 text-[11px] font-semibold text-sky-300/80 hover:text-sky-300">{alle ? 'Show less' : `Show all (${eintraege.length})`}</button>
-      )}
+      {eintraege.length > 5 && <button type="button" onClick={() => setAlle(!alle)} className="knopf-leer mt-1 !text-[11px]">{alle ? 'Show less' : `Show all (${eintraege.length})`}</button>}
+    </div>
+  );
+}
+
+/** Der aufklappbare Fuss einer Karte: "History (n)". */
+function Klappe({ zahl, children }: { zahl: number; children: ReactNode }) {
+  const [auf, setAuf] = useState(false);
+  // Immer vorhanden, damit alle Karten gleich hoch sind (Betreiber: gleichfoermige Kacheln) - ohne Eintraege nur ausgegraut.
+  return (
+    <div className="border-t border-white/[0.06]">
+      <button type="button" disabled={!zahl} onClick={() => setAuf(!auf)} aria-expanded={auf} className="flex w-full items-center justify-between px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45 transition enabled:hover:text-white disabled:text-white/20">
+        <span>History <span className="zahl opacity-70">({zahl})</span></span>
+        <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 transition ${auf ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
+      </button>
+      <AnimatePresence initial={false}>
+        {auf && zahl > 0 && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="space-y-3 px-4 pb-3">{children}</div></motion.div>}
+      </AnimatePresence>
     </div>
   );
 }
@@ -179,111 +240,158 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
   }, [suche, nochmal]);
 
   const liveCups = daten?.cups.filter((c) => c.live) ?? [];
-  return (
-    <div className="space-y-5">
-      <Glas dunkel className="flex flex-wrap items-center gap-3 px-5 py-4">
-        {liveCups.length
-          ? <><span className="flex items-center gap-2 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />{liveCups.length} {liveCups.length === 1 ? 'cup running' : 'cups running'}</span>
-            {liveCups.map((c) => <span key={c.windowId} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">{c.titel} <span className="text-white/40">· {c.region}</span></span>)}</>
-          : <span className="text-sm text-white/45">No cup is running right now – match IDs appear as soon as one starts.</span>}
-        <span className="ml-auto text-xs text-white/35">{favoriten.length}/12 favourites · refreshes every {liveCup ? '5 s' : 'minute'}</span>
-      </Glas>
-      {fehler && <Fehler text={fehler} />}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="space-y-4">
-          {favoriten.length === 0 && <Glas dunkel className="p-10 text-center text-sm text-white/45">No favourites yet. Search a player on the right and add them.</Glas>}
-          <AnimatePresence initial={false}>
-            {favoriten.map((f, i) => {
-              const s = daten?.spieler[f.id];
-              const verlauf = daten?.verlauf?.[f.id] ?? [];
-              return (
-                <motion.article key={f.id} layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0, transition: { delay: i * 0.04 } }} exit={{ opacity: 0, x: -20 }}
-                  className={`rounded-3xl border bg-[#080b14]/55 p-5 backdrop-blur-xl ${s?.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)]' : 'border-white/10'}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-400/30 to-violet-500/20 text-sm font-extrabold text-white">{f.name.slice(0, 1).toUpperCase()}</span>
-                      <div className="min-w-0">
-                        <p className="truncate text-lg font-extrabold tracking-tight text-white">{f.name}</p>
-                        {s?.rang ? <p className="text-xs text-white/45">#{s.rang} · {s.punkte ?? 0} points</p> : <p className="font-mono text-[10px] text-white/25">{f.id}</p>}
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => speichern(favoriten.filter((x) => x.id !== f.id))} className="text-xs text-white/35 transition hover:text-rose-400">Remove</button>
-                  </div>
-                  {s?.live ? <LiveKasten live={s.live} seit={verlauf.find((v) => v.matchId === s.live?.matchId)?.von} kopiert={kopiert} kopieren={kopieren} />
-                    : !s?.scrim ? (
-                      <p className="mt-3 text-xs leading-relaxed text-white/40">{!daten ? 'Loading …'
-                        : s?.freund === false ? 'Before the first kill Epic only shows the running session to friends – this player is not friends with the CompHub Epic account. After the first scored event the match ID appears here from the cup leaderboard.'
-                          : 'Not in a match right now.'}</p>
-                    ) : null}
-                  {s?.scrim && (
-                    <div className={`mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 ${s.scrim.beendet ? 'border-white/10 bg-white/[0.02]' : 'border-amber-400/30 bg-amber-400/10'}`}>
-                      {s.scrim.beendet ? <span className="text-sm font-bold text-white/50">Scrim ended</span>
-                        : <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? 'Registered' : 'SCRIM LIVE'}</span>}
-                      <span className="text-xs text-white/80">{s.scrim.session} <span className="text-white/40">· {s.scrim.server}</span></span>
-                      {!s.scrim.nurAngemeldet && <span className="text-xs tabular-nums text-white/60">#{s.scrim.platz} · {s.scrim.punkte} pts · {s.scrim.spiele} games{s.scrim.kills != null ? ` · ${s.scrim.kills} elims` : ''}</span>}
-                      {s.scrim.letztesSpiel && (
-                        <span className="flex items-center gap-2 text-xs text-white/50">Last game · Yunite code <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-white/80">{s.scrim.letztesSpiel.code}</code>
-                          <KopierKnopf id={s.scrim.letztesSpiel.code} kopiert={kopiert} kopieren={kopieren} /> {uhrzeit(s.scrim.letztesSpiel.ende)}</span>
-                      )}
-                      <a href={s.scrim.link} target="_blank" rel="noreferrer" className="ml-auto text-xs font-semibold text-amber-300 hover:text-amber-200">Noble leaderboard →</a>
-                    </div>
-                  )}
-                  <Verlauf eintraege={verlauf} liveId={s?.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
-                  {s && s.matches.length > 0 && (
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <tbody>
-                          {s.matches.map((m) => (
-                            <tr key={m.matchId} className="border-t border-white/[0.05]">
-                              <td className="py-2 pr-3 tabular-nums text-white/40">{uhrzeit(m.ende)}</td>
-                              <td className="py-2 pr-3 text-white/60">{m.titel}</td>
-                              <td className="py-2 pr-3 font-semibold tabular-nums text-white/85">{m.platz ? `#${m.platz}` : ''}</td>
-                              <td className="py-2 pr-3 tabular-nums text-white/60">{m.elims != null ? `${m.elims} elims` : ''}</td>
-                              <td className="py-2 text-right"><KopierKnopf id={m.matchId} kopiert={kopiert} kopieren={kopieren} text={`${m.matchId.slice(0, 8)}…`} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </motion.article>
-              );
-            })}
-          </AnimatePresence>
-        </section>
+  const foto = useFotos(favoriten.map((f) => f.name));
+  const live = favoriten.filter((f) => daten?.spieler[f.id]?.live);
+  const scrims = favoriten.filter((f) => { const sc = daten?.spieler[f.id]?.scrim; return sc && !sc.beendet && !sc.nurAngemeldet && !daten?.spieler[f.id]?.live; });
+  const voll = favoriten.length >= 12;
 
-        <Glas dunkel className="h-fit p-5 xl:sticky xl:top-24" verzoegerung={0.15}>
-          <h3 className="font-bold text-white">Add a player</h3>
-          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Player name…"
-            className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
-          {epicFehler && (
-            <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-300">{epicFehler}
-              <button type="button" onClick={() => setNochmal((n) => n + 1)} className="ml-2 font-semibold text-sky-300 hover:text-sky-200">Try again</button></div>
-          )}
-          {treffer && treffer.length === 0 && !epicFehler && <p className="mt-3 text-xs text-white/40">Nobody found. For players from open cups type the exact Epic name.</p>}
-          {treffer && treffer.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {treffer.map((x, i) => {
-                const da = favoriten.some((f) => f.id === x.id);
+  return (
+    <div className="space-y-7">
+      {fehler && <Fehler text={fehler} />}
+
+      {/* 1. Wer ist JETZT im Match */}
+      <section>
+        <TeilKopf titel="Live now" live={live.length > 0} zusatz={live.length ? `${live.length} of your ${favoriten.length} favourites ${live.length === 1 ? 'is' : 'are'} in a match` : undefined}
+          rechts={(
+            <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
+              {liveCups.length > 0 && <Marke ton="rot" puls>{liveCups.length} {liveCups.length === 1 ? 'cup running' : 'cups running'}</Marke>}
+              {liveCups.slice(0, 4).map((c) => <span key={c.windowId} className="chip !cursor-default !py-1">{c.titel}<span className="text-white/40">{c.region}</span></span>)}
+              <span>refreshes every {liveCup ? '5 s' : 'minute'}</span>
+            </div>
+          )} />
+        {live.length + scrims.length === 0 ? (
+          <div className="fl flex flex-wrap items-center gap-3 px-5 py-4 text-sm text-white/55">
+            <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+            {!favoriten.length ? 'Add a favourite below – as soon as they are in a match, their match ID shows up here.'
+              : !daten ? 'Checking your favourites …'
+                : liveCups.length ? 'None of your favourites is in a match right now.' : 'Nobody is in a match and no cup is running right now – match IDs appear here as soon as one starts.'}
+          </div>
+        ) : (
+          <div className={`grid grid-cols-1 gap-3 ${live.length + scrims.length > 1 ? '2xl:grid-cols-2' : ''}`}>
+            <AnimatePresence initial={false}>
+              {live.map((f) => {
+                const s = daten!.spieler[f.id]; const verlauf = daten?.verlauf?.[f.id] ?? [];
+                return <LiveKarte key={f.id} breit={(live.length + scrims.length) % 2 === 1 && f === live[0]} name={f.name} bild={foto(f.name)} live={s.live!} seit={verlauf.find((v) => v.matchId === s.live?.matchId)?.von}
+                  unter={s.rang ? `#${s.rang} · ${s.punkte ?? 0} points` : undefined} kopiert={kopiert} kopieren={kopieren} />;
+              })}
+              {scrims.map((f) => {
+                const sc = daten!.spieler[f.id].scrim!;
                 return (
-                  <motion.li key={x.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-                    className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/20 px-2.5 py-2">
-                    {x.bild ? <img src={x.bild} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover object-top" />
-                      : <span className="grid h-12 w-9 shrink-0 place-items-center rounded-lg bg-white/5 text-sm font-bold text-white/40">{x.name.slice(0, 1).toUpperCase()}</span>}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold text-white">{x.name}</span>
-                      {x.ingame && x.ingame !== x.name && <span className="block truncate text-[11px] text-white/40">{x.ingame}</span>}
-                    </span>
-                    <button type="button" disabled={da || favoriten.length >= 12} onClick={() => { speichern([...favoriten, { id: x.id, name: x.name }]); setSuche(''); setTreffer(null); }}
-                      className="shrink-0 rounded-lg bg-sky-400 px-3 py-1 text-xs font-bold text-[#06080f] transition hover:bg-sky-300 disabled:opacity-40">{da ? 'Added' : 'Add'}</button>
-                  </motion.li>
+                  <motion.article key={`scrim-${f.id}`} layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="fl-fest relative flex flex-wrap items-center gap-x-5 gap-y-4 overflow-hidden !border-amber-400/35 p-4 sm:p-5">
+                    <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-amber-400" />
+                    <Portraet bild={foto(f.name)} gross={104} />
+                    <div className="min-w-0 flex-1 basis-56">
+                      <div className="flex flex-wrap items-center gap-2"><Marke ton="gold" puls>Scrim live</Marke><span className="truncate text-xs text-white/70">{sc.session} · {sc.server}</span></div>
+                      <p className="titel mt-2 truncate text-5xl">{f.name}</p>
+                      <p className="zahl mt-1 text-xs text-white/50">#{sc.platz} · {sc.punkte} pts · {sc.spiele} games{sc.kills != null ? ` · ${sc.kills} elims` : ''}</p>
+                    </div>
+                    <div className="flex w-full flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/50 p-2 pl-4 lg:w-auto">
+                      {sc.letztesSpiel ? <><div className="min-w-0 flex-1"><Klein>Last game · Yunite code · {uhrzeit(sc.letztesSpiel.ende)}</Klein><code className="block font-mono text-base text-white">{sc.letztesSpiel.code}</code></div>
+                        <KopierKnopf id={sc.letztesSpiel.code} kopiert={kopiert} kopieren={kopieren} text="Copy code" gross gold /></> : <span className="py-2 text-xs text-white/45">No game played yet</span>}
+                      <a href={sc.link} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-amber-300">Noble leaderboard <span aria-hidden>→</span></a>
+                    </div>
+                  </motion.article>
                 );
               })}
-            </ul>
-          )}
-          <p className="mt-4 text-[11px] leading-relaxed text-white/35">Up to 12 favourites, saved to your account. The match ID of a running game comes from Epic's leaderboard and session data; played matches are listed with their ID.</p>
-        </Glas>
-      </div>
+            </AnimatePresence>
+          </div>
+        )}
+      </section>
+
+      {/* 2. Favoriten als gleich grosse Karten, rechts das Hinzufuegen */}
+      <section>
+        <TeilKopf titel="Favourites" zusatz={<span className="zahl">{favoriten.length}/12</span>} />
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {favoriten.length === 0 && <div className="fl px-5 py-8 text-center text-sm text-white/45 md:col-span-2 2xl:col-span-3">No favourites yet – search a player and add them. Up to 12, saved to your account.</div>}
+            <AnimatePresence initial={false}>
+              {favoriten.map((f, i) => {
+                const s = daten?.spieler[f.id];
+                const verlauf = daten?.verlauf?.[f.id] ?? [];
+                const letzter = verlauf.find((v) => v.matchId !== s?.live?.matchId);
+                const sc = s?.scrim;
+                return (
+                  <motion.article key={f.id} layout="position" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: { delay: i * 0.03 } }} exit={{ opacity: 0, scale: 0.97 }}
+                    className={`fl-fest overflow-hidden ${s?.live ? '!border-red-500/30' : ''}`}>
+                    <div className="flex items-center gap-3 p-3">
+                      <Portraet bild={foto(f.name)} gross={64} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-extrabold text-white">{f.name}</p>
+                        <p className="zahl truncate text-[11px] text-white/40">{s?.rang ? `#${s.rang} · ${s.punkte ?? 0} points` : letzter ? `last seen ${bisJetzt(letzter.bis)} ago` : 'no match recorded yet'}</p>
+                        <p className="mt-1 flex items-center gap-1.5 truncate text-xs">
+                          {s?.live ? <span className="flex items-center gap-1.5 font-bold text-red-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />In a match – ID above</span>
+                            : sc && !sc.beendet ? <span className="font-semibold text-amber-300">{sc.nurAngemeldet ? `Registered · ${sc.session}` : 'Scrim live – see above'}</span>
+                              : !daten ? <span className="text-white/45">Checking …</span>
+                                : s?.freund === false ? <span className="truncate text-white/45" title="Before the first kill Epic only shows the running session to friends – this player is not friends with the CompHub Epic account. After the first scored event the match ID appears here from the cup leaderboard.">Not in a match · <span className="text-amber-300/80">not a friend: ID only after the first kill</span></span>
+                                  : <span className="text-white/45">Not in a match{sc?.beendet ? ' · scrim ended' : ''}</span>}
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => speichern(favoriten.filter((x) => x.id !== f.id))} aria-label={`Remove ${f.name}`} title="Remove"
+                        className="grid h-8 w-8 shrink-0 place-items-center self-start rounded-lg text-white/30 transition hover:bg-rose-500/10 hover:text-rose-400">
+                        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                      </button>
+                    </div>
+                    <Klappe zahl={verlauf.length + (s?.matches.length ?? 0) + (sc && (sc.beendet || sc.nurAngemeldet) && sc.letztesSpiel ? 1 : 0)}>
+                      {sc && (sc.beendet || sc.nurAngemeldet) && sc.letztesSpiel && (
+                        <p className="flex flex-wrap items-center gap-2 text-[11px] text-white/50">Last scrim game ({sc.session}) · Yunite code <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-white/80">{sc.letztesSpiel.code}</code>
+                          <KopierKnopf id={sc.letztesSpiel.code} kopiert={kopiert} kopieren={kopieren} /><a href={sc.link} target="_blank" rel="noreferrer" className="ml-auto font-semibold text-amber-300 hover:text-amber-200">Noble →</a></p>
+                      )}
+                      <Verlauf eintraege={verlauf} liveId={s?.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
+                      {s && s.matches.length > 0 && (
+                        <div>
+                          <Klein>Played cup matches</Klein>
+                          <ul className="mt-1 divide-y divide-white/[0.05]">
+                            {s.matches.map((m) => (
+                              <li key={m.matchId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
+                                <span className="zahl text-white/40">{uhrzeit(m.ende)}</span>
+                                <span className="min-w-0 flex-1 basis-24 truncate text-white/70">{m.titel}</span>
+                                <span className="zahl font-semibold text-white/85">{m.platz ? `#${m.platz}` : ''}</span>
+                                <span className="zahl text-white/55">{m.elims != null ? `${m.elims} elims` : ''}</span>
+                                <KopierKnopf id={m.matchId} kopiert={kopiert} kopieren={kopieren} text={`${m.matchId.slice(0, 8)}…`} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </Klappe>
+                  </motion.article>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+
+          <Flaeche className="h-fit p-4 xl:sticky xl:top-28" verz={0.08}>
+            <p className="ueber">Add a player</p>
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={voll ? 'All 12 slots are taken' : 'Player name…'} disabled={voll} className="eingabe mt-2 w-full" />
+            {epicFehler && (
+              <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-300">{epicFehler}
+                <button type="button" onClick={() => setNochmal((n) => n + 1)} className="ml-2 font-semibold text-akz hover:brightness-125">Try again</button></div>
+            )}
+            {treffer && treffer.length === 0 && !epicFehler && <p className="mt-3 text-xs text-white/40">Nobody found. For players from open cups type the exact Epic name.</p>}
+            {treffer && treffer.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {treffer.map((x, i) => {
+                  const da = favoriten.some((f) => f.id === x.id);
+                  return (
+                    <motion.li key={x.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+                      className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/30 px-2.5 py-2">
+                      <Portraet bild={x.bild} gross={48} platz />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-white">{x.name}</span>
+                        {x.ingame && x.ingame !== x.name && <span className="block truncate text-[11px] text-white/40">{x.ingame}</span>}
+                      </span>
+                      <button type="button" disabled={da || voll} onClick={() => { speichern([...favoriten, { id: x.id, name: x.name }]); setSuche(''); setTreffer(null); }}
+                        className="knopf-prim shrink-0 !px-3 !py-1.5 !text-xs">{da ? 'Added' : 'Add'}</button>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+            )}
+            <p className="mt-3 text-[11px] leading-relaxed text-white/35">Up to 12 favourites, saved to your account. The match ID of a running game comes from Epic's leaderboard and session data; played matches are listed with their ID under History.</p>
+          </Flaeche>
+        </div>
+      </section>
     </div>
   );
 }
@@ -310,28 +418,28 @@ function Freigaben() {
     try { nimm(await fetch(`/api/admin/matchid-freigaben?id=${id}`, { method: 'DELETE' }).then((r) => r.json())); } catch { setFehler('Not saved'); } finally { setLaeuft(false); }
   };
   return (
-    <Glas dunkel className="p-5">
-      <h3 className="font-bold text-white">Approvals for the bot account “comphub.”</h3>
+    <Flaeche className="p-4">
+      <p className="ueber">Approvals</p>
+      <h3 className="mt-1 text-base font-bold text-white">Bot account “comphub.”</h3>
       <p className="mt-1 text-xs leading-relaxed text-white/45">Anyone listed here who sends “comphub.” a friend request is accepted automatically (every 2 min). After that their match ID shows up already on the spawn island. The bot never sends requests.</p>
       <div className="mt-3 flex gap-2">
-        <input value={eingabe} onChange={(e) => setEingabe(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void dazu(); }} maxLength={60} placeholder="Epic name or account ID"
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
-        <button type="button" onClick={() => void dazu()} disabled={laeuft || !eingabe.trim()} className="rounded-xl bg-sky-400 px-4 text-sm font-bold text-[#06080f] disabled:opacity-40">Add</button>
+        <input value={eingabe} onChange={(e) => setEingabe(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void dazu(); }} maxLength={60} placeholder="Epic name or account ID" className="eingabe min-w-0 flex-1 !py-2" />
+        <button type="button" onClick={() => void dazu()} disabled={laeuft || !eingabe.trim()} className="knopf-prim !px-4 !py-2">Add</button>
       </div>
       {fehler && <p className="mt-2 text-xs text-rose-400">{fehler}</p>}
       {liste === null ? <p className="mt-3 text-xs text-white/40">Loading …</p> : !liste.length ? <p className="mt-3 text-xs text-white/40">Nobody approved yet.</p> : (
-        <ul className="mt-3 max-h-72 divide-y divide-white/[0.05] overflow-auto text-sm">
+        <ul className="mt-3 max-h-80 divide-y divide-white/[0.05] overflow-auto text-sm">
           {liste.map((f) => (
             <li key={f.id} className="flex items-center gap-2 py-2">
-              <span className="font-semibold text-white">{f.name || f.id.slice(0, 8)}</span>
-              {dienst && !dienst.includes(f.id) && <span className="text-[11px] text-amber-400">not yet at the service</span>}
-              <span className="ml-auto text-[11px] text-white/35">{datumZeit(f.seit)}</span>
-              <button type="button" onClick={() => void weg(f.id)} disabled={laeuft} className="rounded-lg border border-white/10 px-2 py-0.5 text-xs text-white/60 hover:border-rose-500 hover:text-rose-300">Remove</button>
+              <span className="truncate font-semibold text-white">{f.name || f.id.slice(0, 8)}</span>
+              {dienst && !dienst.includes(f.id) && <span className="shrink-0 text-[11px] text-amber-400">not yet at the service</span>}
+              <span className="zahl ml-auto shrink-0 text-[11px] text-white/35">{datumZeit(f.seit)}</span>
+              <button type="button" onClick={() => void weg(f.id)} disabled={laeuft} className="shrink-0 rounded-lg border border-white/10 px-2 py-0.5 text-xs text-white/60 hover:border-rose-500 hover:text-rose-300">Remove</button>
             </li>
           ))}
         </ul>
       )}
-    </Glas>
+    </Flaeche>
   );
 }
 
@@ -357,41 +465,43 @@ function AlleFreunde({ kopiert, kopieren, setVerboten }: { kopiert: string; kopi
     .sort((a, b) => Number(!!b.live) - Number(!!a.live) || Number(!!b.online) - Number(!!a.online) || a.name.localeCompare(b.name));
   const live = (freunde ?? []).filter((f) => f.live).length;
   const online = (freunde ?? []).filter((f) => f.online).length;
+  const liveListe = liste.filter((f) => f.live);
+  const rest = liste.filter((f) => !f.live);
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <section className="space-y-4">
-        <Glas dunkel className="flex flex-wrap items-center gap-5 px-5 py-4">
-          {freunde ? (
-            <div className="flex gap-6">
-              <div><p className="text-2xl font-extrabold tabular-nums text-white">{freunde.length}</p><p className="text-[10px] uppercase tracking-[0.2em] text-white/40">friends</p></div>
-              <div><p className="text-2xl font-extrabold tabular-nums text-red-400">{live}</p><p className="text-[10px] uppercase tracking-[0.2em] text-white/40">live</p></div>
-              <div><p className="text-2xl font-extrabold tabular-nums text-emerald-400">{online}</p><p className="text-[10px] uppercase tracking-[0.2em] text-white/40">online</p></div>
-            </div>
-          ) : <span className="text-sm text-white/45">Loading …</span>}
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter by name…"
-            className="ml-auto w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none sm:w-72" />
-        </Glas>
-        {fehler && <Fehler text={fehler} />}
-        {!freunde && !fehler && <Laedt />}
-        <div className="grid gap-4 2xl:grid-cols-2">
-          {liste.map((f, i) => (
-            <motion.article key={f.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 20) * 0.025 } }}
-              className={`rounded-3xl border bg-[#080b14]/55 p-5 backdrop-blur-xl ${f.live ? 'border-red-500/30 shadow-[0_0_40px_-12px_rgba(239,68,68,0.45)] 2xl:col-span-2' : 'border-white/10'}`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2.5 truncate text-base font-bold text-white"><Punkt an={!!f.online} /><span className="truncate">{f.name}</span></p>
-                  {f.online && f.zeile && <p className="mt-0.5 truncate pl-5 text-xs text-emerald-300/80">{f.zeile}</p>}
+    <div className="space-y-7">
+      {fehler && <Fehler text={fehler} />}
+      <section>
+        <TeilKopf titel="Live now" live={live > 0} zusatz={freunde ? `${live} of ${freunde.length} friends in a match` : undefined} rechts={<span className="text-xs text-white/45">refreshes every 5 s</span>} />
+        {!freunde && !fehler ? <Laedt /> : liveListe.length === 0 ? (
+          <div className="fl flex items-center gap-3 px-5 py-4 text-sm text-white/55"><span className="h-2.5 w-2.5 rounded-full bg-white/20" />{q ? 'No live friend matches this filter.' : 'No friend of the bot account is in a match right now.'}</div>
+        ) : (
+          <div className={`grid grid-cols-1 gap-3 ${liveListe.length > 1 ? '2xl:grid-cols-2' : ''}`}>
+            {liveListe.map((f) => <LiveKarte key={f.id} name={f.name} live={f.live!} seit={f.verlauf.find((v) => v.matchId === f.live?.matchId)?.von} unter={f.zeile ?? undefined} kopiert={kopiert} kopieren={kopieren} />)}
+          </div>
+        )}
+      </section>
+      <section>
+        <TeilKopf titel="All friends" zusatz={freunde ? <span className="zahl">{freunde.length} · <span className="text-emerald-400">{online} online</span></span> : undefined}
+          rechts={<input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter by name…" className="eingabe w-full !py-2 sm:w-72" />} />
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {rest.map((f, i) => (
+              <motion.article key={f.id} layout="position" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 20) * 0.02 } }} className="fl-fest overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Punkt an={!!f.online} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-white">{f.name}</p>
+                    <p className={`truncate text-[11px] ${f.online ? 'text-emerald-300/80' : 'text-white/35'}`}>{f.online ? f.zeile || 'Online' : f.verlauf[0] ? `Offline · last seen ${bisJetzt(f.verlauf[0].bis)} ago` : 'Offline'}</p>
+                  </div>
                 </div>
-                {f.live ? <span className="flex items-center gap-1.5 text-xs font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
-                  : <span className={`text-xs ${f.online ? 'font-semibold text-emerald-400' : 'text-white/30'}`}>{f.online ? 'Online' : 'Offline'}</span>}
-              </div>
-              {f.live && <LiveKasten live={f.live} seit={f.verlauf.find((v) => v.matchId === f.live?.matchId)?.von} kopiert={kopiert} kopieren={kopieren} />}
-              <Verlauf eintraege={f.verlauf} liveId={f.live?.matchId ?? null} kopiert={kopiert} kopieren={kopieren} />
-            </motion.article>
-          ))}
+                <Klappe zahl={f.verlauf.length}><Verlauf eintraege={f.verlauf} liveId={null} kopiert={kopiert} kopieren={kopieren} /></Klappe>
+              </motion.article>
+            ))}
+            {freunde && rest.length === 0 && liveListe.length === 0 && <div className="fl px-5 py-8 text-center text-sm text-white/45 md:col-span-2 2xl:col-span-3">No friend matches this filter.</div>}
+          </div>
+          <div className="h-fit xl:sticky xl:top-28"><Freigaben /></div>
         </div>
       </section>
-      <div className="h-fit xl:sticky xl:top-24"><Freigaben /></div>
     </div>
   );
 }
@@ -416,20 +526,10 @@ export default function MatchFinder() {
   const merkeVerboten = useCallback((v: boolean) => setVerboten(v), []);
   const admin = !!wer?.isAdmin;
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4">
-        <Titel ueber="VIP tool" titel="Match-ID Finder" text="Save players as favourites. While a cup runs you see which match they're in – copy the match ID and spectate in game." />
-        {admin && verboten === false && (
-          <div className="ml-auto flex rounded-full border border-white/10 bg-[#080b14]/60 p-1 text-sm font-semibold">
-            {(['favoriten', 'freunde'] as const).map((a) => (
-              <button key={a} type="button" onClick={() => wechsle(a)} className="relative rounded-full px-4 py-2">
-                {ansicht === a && <motion.span layoutId="mf-reiter" className="absolute inset-0 rounded-full bg-sky-400" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
-                <span className={`relative ${ansicht === a ? 'text-[#06080f]' : 'text-white/60'}`}>{a === 'favoriten' ? 'Favourites' : 'All friends (admin)'}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div>
+      <SeitenKopf klein ueber="VIP tool" titel="Match Finder"
+        text="See which match your favourite players are in while a cup runs – copy the match ID and spectate in game."
+        rechts={admin && verboten === false && <Segment id="mf-ansicht" wert={ansicht} onWahl={wechsle} wahl={[{ k: 'favoriten', titel: 'Favourites' }, { k: 'freunde', titel: 'All friends (admin)' }]} />} />
       {verboten === null ? <Laedt /> : verboten
         ? <AnmeldeKarte text="The Match-ID Finder is for CompHub VIPs and admins. Sign in with your thecomphub.com account or VIP access key." />
         : admin && ansicht === 'freunde' ? <AlleFreunde kopiert={kopiert} kopieren={kopieren} setVerboten={merkeVerboten} />
