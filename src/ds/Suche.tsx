@@ -8,7 +8,7 @@ import { BEREICHE } from './seiten';
  * Schnellsuche ueber den ganzen Hub (Strg+K oder "/"): jede Seite aller Bereiche, dazu Spieler (Power Rankings) und Cups. Pfeiltasten waehlen,
  * Enter oeffnet, Escape schliesst. Geoeffnet wird sie auch ueber das Ereignis "hub-suche" (der Knopf in der Kopfzeile).
  */
-interface Treffer { art: 'Page' | 'Player' | 'Cup'; titel: string; unter: string; zu: string; farbe: string; bild?: string | null }
+interface Treffer { art: 'Page' | 'Player' | 'Cup' | 'Stats'; titel: string; unter: string; zu: string; farbe: string; bild?: string | null }
 const FARBE: Record<string, string> = { competitive: '56 189 248', community: '45 212 191', streamer: '167 139 250', admin: '251 191 36' };
 export const sucheOeffnen = () => window.dispatchEvent(new Event('hub-suche'));
 
@@ -66,7 +66,9 @@ export default function Suche() {
     const passt = (t: string) => t.toLowerCase().includes(s);
     const p = seiten.filter((x) => passt(x.titel) || passt(x.unter)).sort((a, b) => Number(passt(b.titel)) - Number(passt(a.titel))).slice(0, 7);
     const c = cups.filter((x) => passt(x.titel)).slice(0, 4).map<Treffer>((x) => ({ art: 'Cup', titel: x.titel, unter: 'Competitive · Event', zu: `/competitive/events/${x.id}`, farbe: FARBE.competitive, bild: x.bild }));
-    return [...p, ...spieler, ...c];
+    // Jeder Epic-Name, auch ohne Turniere: die normalen Fortnite-Stats (Rang, Level, Siege) in Community -> Stats (/api/fn-spieler).
+    const epic: Treffer = { art: 'Stats', titel: `Fortnite stats of “${q.trim()}”`, unter: 'Community · Rank, level, wins, K/D – any Epic name', zu: `/community/stats?name=${encodeURIComponent(q.trim())}`, farbe: FARBE.community };
+    return [...p, ...spieler, ...c, ...(s.length >= 3 ? [epic] : [])];
   }, [q, seiten, spieler, cups]);
   useEffect(() => { setWahl(0); }, [q]);
   useEffect(() => { liste.current?.querySelector('[data-an="1"]')?.scrollIntoView({ block: 'nearest' }); }, [wahl]);
