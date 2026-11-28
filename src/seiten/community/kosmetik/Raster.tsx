@@ -227,6 +227,21 @@ export function ZuletztImShop({ t }: { t: Teil }) {
   return <p className="mt-1 text-[10px] text-white/40" title={datumKurz(d)}>{n <= 0 ? 'In the shop today' : `Last in shop ${n}d ago`}</p>;
 }
 
+/** Kennzahlen als EINE dichte Leiste (statt vier loser Kaesten): grosse Bebas-Zahlen, Haarlinien dazwischen, die erste in der Bereichsfarbe. */
+export function ZahlenLeiste({ werte }: { werte: Array<[string, ReactNode]> }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+      className={`fl-fest grid grid-cols-2 overflow-hidden ${werte.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} [&>div]:border-white/[0.06] [&>div:nth-child(odd)]:border-r lg:[&>div]:border-r lg:[&>div:last-child]:border-r-0 [&>div:nth-child(n+3)]:border-t lg:[&>div:nth-child(n+3)]:border-t-0`}>
+      {werte.map(([k, v], i) => (
+        <div key={k} className="min-w-0 px-5 py-5 lg:px-7">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{k}</p>
+          <div className={`titel zahl mt-1 truncate text-4xl lg:text-5xl ${i === 0 ? 'text-akz' : 'text-white'}`}>{v}</div>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
 /** Ein- und ausblendender Bereich mit Ueberschrift. */
 export function Bereich({ titel, rechts, children, verzoegerung = 0 }: { titel: ReactNode; rechts?: ReactNode; children: ReactNode; verzoegerung?: number }) {
   return (

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { LinkKopieren, useHubDatei } from '../Bausteine';
 import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { REITER, seltenVon, useAblage, useReaktionen, useShop, useTeile, type Teil } from './daten';
-import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen } from './Raster';
+import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen, ZahlenLeiste } from './Raster';
 
 /*
  * Persoenliche Seiten (Spezifikation Punkte 8, 9, 21, 22):
@@ -60,16 +60,10 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
       <SeitenKopf klein ueber={geteilt ? 'Community · Shared list' : 'Community · Mine'} titel={geteilt ? `A shared ${art === 'wunsch' ? 'wishlist' : 'locker'}` : titel}
         text={geteilt ? 'Someone shared this list with you.' : art === 'wunsch' ? "Everything you want – and a heads-up when it's in today's shop." : 'Mark what you own and see your collection grow.'}
         rechts={<div className="flex flex-wrap items-center gap-2">{!geteilt && <AblageHinweis ort={eigene.ort} />}{!geteilt && eigene.wert.length > 0 && <LinkKopieren text="Share list" url={teilLink} />}</div>} />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          ['Items', liste.length.toLocaleString('en'), '#5eead4'],
-          [geschaetzt ? 'Value (estimated)' : 'Value', <span key="w">{preis(summe)}</span>, '#7dd3fc'],
-          ['In US dollars', `≈ ${usd(summe)}`, '#c4b5fd'],
-          [art === 'wunsch' ? 'In the shop today' : 'Outfits owned', art === 'wunsch' ? String(heuteDa.length) : String(liste.filter((t) => t.typ === 'outfit').length), '#fde047'],
-        ].map(([k, v, f], i) => (
-          <Flaeche fest key={k as string} className="p-5" verz={i * 0.05}><p className="text-3xl font-black tabular-nums" style={{ color: f as string }}>{v}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p></Flaeche>
-        ))}
-      </div>
+      <ZahlenLeiste werte={[
+        ['Items', liste.length.toLocaleString('en')], [geschaetzt ? 'Value (estimated)' : 'Value', preis(summe)], ['In US dollars', `≈ ${usd(summe)}`],
+        [art === 'wunsch' ? 'In the shop today' : 'Outfits owned', art === 'wunsch' ? String(heuteDa.length) : String(liste.filter((t) => t.typ === 'outfit').length)],
+      ]} />
       {art === 'wunsch' && heuteDa.length > 0 && !geteilt && (
         <Flaeche fest className="border-rose-300/25 p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-300">In the shop right now</p>

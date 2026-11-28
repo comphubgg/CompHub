@@ -2,11 +2,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Countdown, Hinweis, LinkKopieren, restText, useHubDatei, useJetzt } from '../Bausteine';
-import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { dauer, Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { useSaison } from '../SeitenSaison';
 import { Zahl } from '../epic/Diagramm';
 import { datumKurz, holen, REITER, seltenVon, useAblage, useShop, useTeile, type Teil } from './daten';
-import { AblageHinweis, Bereich, Kachel, Schalter } from './Raster';
+import { AblageHinweis, Bereich, Kachel, Schalter, ZahlenLeiste } from './Raster';
 
 /*
  * Saison-Seiten mit dem, was es WIRKLICH gibt (Betreiber 27.11.2026: "Es soll immer etwas da sein"):
@@ -365,14 +365,7 @@ export function GratisKosmetik() {
     <div className="space-y-8">
       <SeitenKopf klein ueber="Community · Cosmetics" titel="Free cosmetics" text="Everything you can get without spending V-Bucks right now – from the pass's free tier, quests, events, tournaments and free shop offers."
         rechts={<div className="flex gap-2"><AblageHinweis ort={erledigt.ort} /><LinkKopieren /></div>} />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[['Free items found', alle.length], ['Claimed by you', fertig], ['Free in the shop today', gratisShop.length], ['Free tier ends in', null]].map(([k, v], i) => (
-          <Flaeche fest key={k as string} className="p-5" verz={i * 0.05}>
-            <p className="text-3xl font-black text-akz">{v === null ? restText(Date.parse(s.end) - jetzt) : <Zahl wert={v as number} />}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p>
-          </Flaeche>
-        ))}
-      </div>
+      <ZahlenLeiste werte={[['Free items found', <Zahl key="a" wert={alle.length} />], ['Claimed by you', <Zahl key="b" wert={fertig} />], ['Free in the shop today', <Zahl key="c" wert={gratisShop.length} />], ['Free tier ends in', dauer(Date.parse(s.end) - jetzt)]]} />
       <div className="flex flex-wrap items-center gap-4"><Schalter titel="Hide what I've claimed" an={ausblenden} setzen={setAusblenden} /><Fortschritt hab={fertig} von={alle.length} titel="Claimed" /></div>
       {eigene.length > 0 && (
         <Bereich titel="Limited-time free rewards">

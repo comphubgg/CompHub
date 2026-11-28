@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { LinkKopieren } from '../Bausteine';
 import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { auftritte, datumKurz, holen, QUELLEN, seltenVon, tageSeit, useShop, useTeile, type Teil } from './daten';
-import { Auswahl, Bereich, Kachel, preis as vb } from './Raster';
+import { Auswahl, Bereich, Kachel, preis as vb, ZahlenLeiste } from './Raster';
 
 /*
  * Weitere Kosmetik-Seiten der Spezifikation:
@@ -48,15 +48,8 @@ export function NeuInDateien() {
         text="Cosmetics that were added to Fortnite's game files with the latest updates – some are already out, others haven't been released yet." rechts={<LinkKopieren />} />
       {fehler && <Flaeche fest className="p-6 text-sm text-white/60">The list couldn't be loaded ({fehler}).</Flaeche>}
       {neu && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[['Latest update', neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, ''), '#5eead4'], ['Compared with', neu.previousBuild.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, ''), '#c4b5fd'],
-            ['New items', String(patch.length), '#fde047'], ['Not released yet', laedt ? '…' : String(unveroeffentlicht), '#fda4af']].map(([k, v, f], i) => (
-            <Flaeche fest key={k} className="p-5" verz={i * 0.05}>
-              <p className="text-3xl font-black tabular-nums" style={{ color: f }}>{v}</p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k}</p>
-            </Flaeche>
-          ))}
-        </div>
+        <ZahlenLeiste werte={[['Latest update', neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')], ['Compared with', neu.previousBuild.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')],
+          ['New items', patch.length.toLocaleString('en')], ['Not released yet', laedt ? '…' : unveroeffentlicht.toLocaleString('en')]]} />
       )}
       {laedt && <Laedt text="Loading cosmetics …" />}
       {neu && patch.length > 0 && (
