@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../teile/Glas';
+import { Flaeche, Laedt, SeitenKopf } from '../../ds/Bausteine';
 import { LinkKopieren, useHubDatei } from './Bausteine';
-import { Laedt, TEAL, Ueberschrift } from './Teile';
 import SPIEL_SYMBOLE from './spielSymbole.json';
+import { wikiProxy } from './waffenWiki';
 
 /*
  * Asset Studio (Betreiber, 26.11.2026 - eigene Umsetzung der Idee): Galerie aller Waffen- und Gegenstandsbilder nach Kategorie, Detailansicht mit
@@ -14,7 +14,12 @@ import SPIEL_SYMBOLE from './spielSymbole.json';
  *
  * Bilder: zuerst /hub-daten/assets.json aus dem Export der Spieldateien (volle Menge, PNG mit Alpha - Format: { assets: [{ id, name, class,
  * rarity?, season?, image }] }), sonst was die Seite schon hat: die Symbole unter /waffen (spielSymbole.json, gleiche Herkunft, 160 px) und das
- * Fortnite-Wiki (/api/waffen-bilder). Nie hochskaliert: das Bild wird in seiner eigenen Groesse gerechnet und exportiert.
+ * Fortnite-Wiki (/api/waffen-bilder, ueber den Proxy /wikia - so darf der Canvas auch die Wiki-Bilder bearbeiten und exportieren).
+ * Nie hochskaliert: das Bild wird in seiner eigenen Groesse gerechnet und exportiert.
+ *
+ * Design 3.0 (neu komponiert 28.11.2026): Galerie mit Kategorien als Leiste links (Handy: Chips) und gleich grossen Kacheln; das Studio fuellt
+ * den Bildschirm: links die Leinwand, rechts die Regler in zwei Gruppen (Licht, Farbe), Vorlagen, Hintergrund und Export; darunter die
+ * Nachbarn derselben Kategorie zum Weiterklicken.
  */
 
 export interface Asset { id: string; name: string; klasse: string; bild: string; seltenheit?: string; saison?: string; fremd?: boolean }
@@ -69,7 +74,7 @@ export function useAssets(): { liste: Asset[] | null; ausExport: boolean } {
     }
     for (const [k, v] of Object.entries(wiki)) {
       if (namen.has(v.name)) continue; namen.add(v.name);
-      m.set(k.toLowerCase(), { id: k.toLowerCase(), name: v.name, klasse: klasseVon(k, v.name), bild: v.bild.replace(/\/scale-to-width-down\/\d+/, ''), fremd: true });
+      m.set(k.toLowerCase(), { id: k.toLowerCase(), name: v.name, klasse: klasseVon(k, v.name), bild: wikiProxy(v.bild.replace(/\/scale-to-width-down\/\d+/, '')) ?? v.bild, fremd: true });
     }
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [daten, status, wiki]);
@@ -92,43 +97,69 @@ function Galerie({ liste, ausExport }: { liste: Asset[] | null; ausExport: boole
   const [param] = useSearchParams();
   const [kat, setKat] = useState(param.get('q') ? 'alle' : 'weapons');
   const [suche, setSuche] = useState(param.get('q') ?? '');
-  if (!liste) return <Laedt farbe={TEAL} text="Loading every weapon and item image …" />;
+  const [anzahl, setAnzahl] = useState(240);
+  const kopf = (
+    <SeitenKopf klein ueber="Community · Loot" titel="Asset Studio" text="Every weapon and item image – recolour it, put it on any background, download a transparent PNG or copy it straight into your thumbnail."
+      rechts={<input value={suche} onChange={(e) => { setSuche(e.target.value); setAnzahl(240); }} placeholder="Search images…" className="eingabe w-full sm:w-72" />} />
+  );
+  if (!liste) return <div>{kopf}<Laedt text="Loading every weapon and item image" /></div>;
   const passt = (a: Asset, k: string) => (k === 'alle' ? true : k === 'weapons' ? WAFFEN_KLASSEN.has(a.klasse) : a.klasse === k);
   const gezeigt = liste.filter((a) => passt(a, kat) && a.name.toLowerCase().includes(suche.toLowerCase()));
-  const chip = (k: string, t: string) => {
-    const n = liste.filter((a) => passt(a, k)).length; if (!n && k !== kat) return null;
-    return <button key={k} type="button" onClick={() => setKat(k)} className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${kat === k ? 'border-teal-300/50 bg-teal-300/15 text-white' : 'border-white/10 text-white/55 hover:text-white'}`}>{t}<span className="ml-1 text-white/35">{n}</span></button>;
-  };
+  const gruppen: Array<{ titel: string; eintraege: Array<{ k: string; t: string }> }> = [
+    { titel: 'Weapons', eintraege: [{ k: 'weapons', t: 'All weapons' }, ...KATEGORIEN.filter((k) => k.gruppe === 'Weapons').map((k) => ({ k: k.k, t: k.titel }))] },
+    { titel: 'Other', eintraege: [{ k: 'alle', t: 'Everything' }, ...KATEGORIEN.filter((k) => k.gruppe === 'Other').map((k) => ({ k: k.k, t: k.titel }))] },
+  ];
+  const zahl = (k: string) => liste.filter((a) => passt(a, k)).length;
   return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Loot" titel="Asset studio" farbe={TEAL} text="Every weapon and item image – recolour it, put it on any background, download a PNG or copy it straight into your thumbnail." />
-      <Glas className="space-y-3 p-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Weapons</span>
-          {chip('weapons', 'All weapons')}{KATEGORIEN.filter((k) => k.gruppe === 'Weapons').map((k) => chip(k.k, k.titel))}
-          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search…" className="ml-auto w-56 rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Other</span>
-          {chip('alle', 'Everything')}{KATEGORIEN.filter((k) => k.gruppe === 'Other').map((k) => chip(k.k, k.titel))}
-        </div>
-      </Glas>
-      {!ausExport && <p className="text-xs text-white/40">Showing the images the site already has ({liste.length}). The full set – every weapon and item, per rarity, as transparent PNG – comes with the game-file export.</p>}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
-        {gezeigt.slice(0, 400).map((a, i) => (
-          <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.01, 0.4) }} whileHover={{ y: -4 }}>
-            <Link to={`/community/assets/${encodeURIComponent(a.id)}`} className="group block overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-teal-300/40">
-              <div className="grid aspect-square place-items-center bg-[#0b111c] p-3" style={SCHACH}>
-                <img src={a.bild} alt={a.name} loading="lazy" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain transition duration-300 group-hover:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.15'; }} />
+    <div>
+      {kopf}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+        {/* Kategorien: links als Leiste, auf dem Handy als Chips */}
+        <nav className="min-w-0 lg:sticky lg:top-[120px] lg:self-start">
+          <div className="ohne-leiste flex gap-1.5 overflow-x-auto lg:hidden">
+            {gruppen.flatMap((g) => g.eintraege).filter((e) => zahl(e.k) || e.k === kat).map((e) => <button key={e.k} type="button" onClick={() => setKat(e.k)} className={`chip ${kat === e.k ? 'chip-an' : ''}`}>{e.t}<span className="zahl text-white/40">{zahl(e.k)}</span></button>)}
+          </div>
+          <Flaeche fest className="hidden space-y-4 p-3 lg:block">
+            {gruppen.map((g) => (
+              <div key={g.titel}>
+                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">{g.titel}</p>
+                {g.eintraege.filter((e) => zahl(e.k) || e.k === kat).map((e) => (
+                  <button key={e.k} type="button" onClick={() => setKat(e.k)} className={`relative flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-sm transition ${kat === e.k ? 'font-semibold text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}>
+                    {kat === e.k && <motion.span layoutId="asset-kat" className="absolute inset-0 rounded-lg border border-akz/40 bg-akz/15" />}
+                    <span className="relative">{e.t}</span><span className="zahl relative text-xs text-white/40">{zahl(e.k)}</span>
+                  </button>
+                ))}
               </div>
-              <p className="truncate px-2.5 py-2 text-xs font-semibold text-white/80">{a.name}</p>
-            </Link>
-          </motion.div>
-        ))}
+            ))}
+          </Flaeche>
+        </nav>
+        <div className="min-w-0 space-y-4">
+          <p className="text-sm text-white/50"><b className="zahl text-white">{gezeigt.length.toLocaleString('en')}</b> images{!ausExport && <span className="text-white/35"> · the images the site already has – every weapon and item per rarity comes with the game-file export</span>}</p>
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-9">
+            {gezeigt.slice(0, anzahl).map((a, i) => (
+              <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 30) * 0.01 }}>
+                <Link to={`/community/assets/${encodeURIComponent(a.id)}`} className="fl-fest fl-klick group block overflow-hidden !rounded-2xl">
+                  <div className="grid aspect-square place-items-center bg-black/30 p-3" style={SCHACH}>
+                    <AssetBild a={a} className="max-h-full max-w-full transition duration-300 group-hover:scale-110" />
+                  </div>
+                  <p className="truncate px-2.5 py-2 text-xs font-semibold text-white/75 group-hover:text-white">{a.name}</p>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+          {gezeigt.length > anzahl && <div className="flex justify-center"><button type="button" onClick={() => setAnzahl((n) => n + 480)} className="knopf">Show more ({(gezeigt.length - anzahl).toLocaleString('en')} left)</button></div>}
+          {!gezeigt.length && <p className="text-sm text-white/45">No image matches.</p>}
+        </div>
       </div>
-      {gezeigt.length > 400 && <p className="text-xs text-white/40">Showing 400 of {gezeigt.length} – search to narrow it down.</p>}
     </div>
   );
+}
+
+/** Bild einer Kachel - laedt es nicht, bleibt die Kachel leer (kein kaputtes Symbol, kein Buchstabe). */
+function AssetBild({ a, className }: { a: Asset; className: string }) {
+  const [weg, setWeg] = useState(false);
+  if (weg) return <span aria-hidden />;
+  return <img src={a.bild} alt={a.name} loading="lazy" referrerPolicy="no-referrer" onError={() => setWeg(true)} className={`object-contain ${className}`} />;
 }
 
 /* ---------------------------------------------- Studio */
@@ -139,6 +170,11 @@ const REGLER = [
 ] as const;
 type ReglerK = (typeof REGLER)[number]['k'];
 type Werte = Record<ReglerK, number> & { bg: 'none' | 'farbe' | 'verlauf'; f1: string; f2: string; winkel: number; rand: number };
+/** Schnelle Vorlagen fuer Thumbnails - setzen nur die Regler, Hintergrund und Rand bleiben. */
+const VORLAGEN: Array<{ t: string; w: Partial<Werte> }> = [
+  { t: 'Original', w: {} }, { t: 'Pop', w: { sat: 35, kontrast: 20, lichter: 15 } }, { t: 'Warm', w: { temp: 35, sat: 10 } }, { t: 'Cool', w: { temp: -35, tint: -10 } },
+  { t: 'Mono', w: { sat: -100, kontrast: 15 } }, { t: 'Glow', w: { hell: 15, lichter: 40, weiss: 20 } }, { t: 'Night', w: { hell: -25, tiefen: -30, temp: -20 } },
+];
 const START: Werte = { temp: 0, tint: 0, sat: 0, hue: 0, hell: 0, kontrast: 0, lichter: 0, tiefen: 0, weiss: 0, schwarz: 0, bg: 'none', f1: '#0f766e', f2: '#4c1d95', winkel: 135, rand: 12 };
 
 /** Pixel fuer Pixel: Weissabgleich, Farbton, Saettigung, Helligkeit/Kontrast, Lichter/Tiefen, Weiss-/Schwarzpunkt. */
@@ -219,61 +255,89 @@ function Studio({ liste }: { liste: Asset[] | null }) {
       try { if (!b) throw new Error('leer'); await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]); kurz('Copied to clipboard ✓'); } catch { kurz('Your browser blocked the clipboard'); }
     }, 'image/png');
   }
-  if (!liste) return <Laedt farbe={TEAL} />;
-  if (!a) return <Glas className="p-6 text-sm text-white/60">This asset doesn't exist. <Link to="/community/assets" className="text-teal-300">Back to the gallery</Link></Glas>;
+  if (!liste) return <Laedt />;
+  if (!a) return <Flaeche fest className="p-6 text-sm text-white/60">This image doesn't exist. <Link to="/community/assets" className="font-semibold text-akz">Back to the gallery</Link></Flaeche>;
   const nr = liste.indexOf(a);
+  const kategorie = KATEGORIEN.find((k) => k.k === a.klasse)?.titel ?? 'Item';
+  const nachbarn = (() => { const l = liste.filter((x) => x.klasse === a.klasse); const i = l.indexOf(a); return [...l.slice(Math.max(0, i - 8), i), ...l.slice(i + 1, i + 9)].slice(0, 16); })();
   const regler = (k: ReglerK, t: string, min = -100, max = 100) => (
     <label key={k} className="block">
-      <div className="flex justify-between text-xs"><span className="text-white/60">{t}</span><span className="tabular-nums text-white/40">{w[k]}</span></div>
-      <input type="range" min={min} max={max} value={w[k]} disabled={gesperrt} onChange={(e) => setW((v) => ({ ...v, [k]: Number(e.target.value) }))} onDoubleClick={() => setW((v) => ({ ...v, [k]: START[k] }))} className="mt-1 w-full accent-teal-300 disabled:opacity-30" />
+      <div className="flex justify-between text-xs"><span className="text-white/60">{t}</span><span className={`zahl ${w[k] ? 'font-bold text-akz' : 'text-white/35'}`}>{w[k] > 0 ? `+${w[k]}` : w[k]}</span></div>
+      <input type="range" min={min} max={max} value={w[k]} disabled={gesperrt} onChange={(e) => setW((v) => ({ ...v, [k]: Number(e.target.value) }))} onDoubleClick={() => setW((v) => ({ ...v, [k]: START[k] }))} className="mt-1 w-full accent-akz disabled:opacity-30" />
     </label>
   );
-  const knopf = 'rounded-xl border border-white/10 px-3 py-1.5 text-sm text-white/60 hover:text-white disabled:opacity-30';
+  const gruppe = (titel: string, ks: ReglerK[]) => (
+    <div>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{titel}</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">{REGLER.filter((r) => ks.includes(r.k)).map((r) => regler(r.k, r.t, 'min' in r ? r.min : -100, 'max' in r ? r.max : 100))}</div>
+    </div>
+  );
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to="/community/assets" className={knopf}>← Gallery</Link>
-        <button type="button" disabled={nr <= 0} onClick={() => nav(`/community/assets/${encodeURIComponent(liste[nr - 1].id)}`)} className={knopf}>‹ Prev</button>
-        <button type="button" disabled={nr >= liste.length - 1} onClick={() => nav(`/community/assets/${encodeURIComponent(liste[nr + 1].id)}`)} className={knopf}>Next ›</button>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link to="/community/assets" className="knopf">← Gallery</Link>
+        <button type="button" disabled={nr <= 0} onClick={() => nav(`/community/assets/${encodeURIComponent(liste[nr - 1].id)}`)} className="knopf" aria-label="Previous">‹</button>
+        <button type="button" disabled={nr >= liste.length - 1} onClick={() => nav(`/community/assets/${encodeURIComponent(liste[nr + 1].id)}`)} className="knopf" aria-label="Next">›</button>
+        <div className="ml-1 min-w-0"><p className="ueber">Asset Studio · {kategorie}</p><h1 className="titel truncate text-4xl sm:text-5xl">{a.name}</h1></div>
       </div>
-      <Ueberschrift ueber={`Asset studio · ${KATEGORIEN.find((k) => k.k === a.klasse)?.titel ?? 'Item'}`} titel={a.name} farbe={TEAL} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <Glas className="relative grid min-h-[520px] place-items-center overflow-hidden p-8" verzoegerung={0.05}>
-          <div className="absolute inset-0 bg-[#0b111c]" style={SCHACH} />
-          {!bild && <Laedt farbe={TEAL} />}
-          <canvas ref={leinwand} className="relative max-h-[70vh] max-w-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.45)]" />
-          {bild && <p className="absolute bottom-3 left-4 text-[11px] text-white/35">{bild.naturalWidth} × {bild.naturalHeight} px · exported at native size, never upscaled</p>}
-          {meldung && <p className="absolute right-4 top-4 rounded-lg bg-teal-300 px-3 py-1.5 text-xs font-bold text-[#06080f]">{meldung}</p>}
-        </Glas>
-        <Glas className="space-y-5 p-5" verzoegerung={0.1}>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Leinwand */}
+        <Flaeche fest className="relative grid min-h-[360px] place-items-center overflow-hidden p-6 sm:p-10 xl:min-h-[560px]">
+          <div className="absolute inset-0 bg-black/40" style={SCHACH} />
+          {!bild && <Laedt />}
+          <canvas ref={leinwand} className="relative max-h-[68vh] max-w-full drop-shadow-[0_24px_40px_rgba(0,0,0,0.5)]" />
+          {bild && <p className="zahl absolute bottom-3 left-4 text-[11px] text-white/40">{bild.naturalWidth} × {bild.naturalHeight} px · exported at native size, never upscaled</p>}
+          {meldung && <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="absolute right-4 top-4 rounded-lg bg-akz px-3 py-1.5 text-xs font-bold text-[#04050a]">{meldung}</motion.p>}
+        </Flaeche>
+        {/* Regler */}
+        <Flaeche fest className="space-y-5 p-5 xl:sticky xl:top-[120px] xl:self-start" verz={0.08}>
           {gesperrt && <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100">This image comes from an outside source that doesn't allow editing or exporting in the browser. Images from the game-file export work fully.</p>}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">{REGLER.map((r) => regler(r.k, r.t, 'min' in r ? r.min : -100, 'max' in r ? r.max : 100))}</div>
-          <div className="h-px bg-white/5" />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Background</p>
-            <div className="mt-2 inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs font-bold">
-              {([['none', 'Transparent'], ['farbe', 'Colour'], ['verlauf', 'Gradient']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setW((v) => ({ ...v, bg: k }))} className={`rounded-lg px-3 py-1 ${w.bg === k ? 'bg-white/15 text-white' : 'text-white/45'}`}>{t}</button>)}
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Presets</p>
+            <div className="flex flex-wrap gap-1.5">
+              {VORLAGEN.map((v) => <button key={v.t} type="button" disabled={gesperrt} onClick={() => setW((x) => ({ ...x, ...START, bg: x.bg, f1: x.f1, f2: x.f2, winkel: x.winkel, rand: x.rand, ...v.w }))} className="chip disabled:opacity-30">{v.t}</button>)}
+            </div>
+          </div>
+          {gruppe('Light', ['hell', 'kontrast', 'lichter', 'tiefen', 'weiss', 'schwarz'])}
+          {gruppe('Colour', ['temp', 'tint', 'sat', 'hue'])}
+          <div className="h-px bg-white/[0.06]" />
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Background</p>
+            <div className="inline-flex rounded-xl border border-white/10 bg-black/40 p-0.5 text-xs font-bold">
+              {([['none', 'Transparent'], ['farbe', 'Colour'], ['verlauf', 'Gradient']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setW((v) => ({ ...v, bg: k }))} className={`rounded-lg px-3 py-1 ${w.bg === k ? 'bg-akz text-[#04050a]' : 'text-white/50 hover:text-white'}`}>{t}</button>)}
             </div>
             {w.bg !== 'none' && (
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <input type="color" value={w.f1} onChange={(e) => setW((v) => ({ ...v, f1: e.target.value }))} className="h-9 w-12 cursor-pointer rounded-lg border border-white/10 bg-transparent" />
+                <input type="color" value={w.f1} onChange={(e) => setW((v) => ({ ...v, f1: e.target.value }))} className="h-9 w-12 cursor-pointer rounded-lg border border-white/10 bg-transparent" aria-label="Colour" />
                 {w.bg === 'verlauf' && <>
-                  <input type="color" value={w.f2} onChange={(e) => setW((v) => ({ ...v, f2: e.target.value }))} className="h-9 w-12 cursor-pointer rounded-lg border border-white/10 bg-transparent" />
-                  <label className="flex-1 text-xs text-white/50">Angle {w.winkel}°<input type="range" min={0} max={360} value={w.winkel} onChange={(e) => setW((v) => ({ ...v, winkel: Number(e.target.value) }))} className="w-full accent-teal-300" /></label>
+                  <input type="color" value={w.f2} onChange={(e) => setW((v) => ({ ...v, f2: e.target.value }))} className="h-9 w-12 cursor-pointer rounded-lg border border-white/10 bg-transparent" aria-label="Second colour" />
+                  <label className="flex-1 text-xs text-white/50">Angle <span className="zahl">{w.winkel}°</span><input type="range" min={0} max={360} value={w.winkel} onChange={(e) => setW((v) => ({ ...v, winkel: Number(e.target.value) }))} className="w-full accent-akz" /></label>
                 </>}
               </div>
             )}
-            <label className="mt-3 block text-xs text-white/50">Padding {w.rand} %<input type="range" min={0} max={50} value={w.rand} onChange={(e) => setW((v) => ({ ...v, rand: Number(e.target.value) }))} className="w-full accent-teal-300" /></label>
+            <label className="mt-3 block text-xs text-white/50">Padding <span className="zahl">{w.rand} %</span><input type="range" min={0} max={50} value={w.rand} onChange={(e) => setW((v) => ({ ...v, rand: Number(e.target.value) }))} className="w-full accent-akz" /></label>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={gesperrt} onClick={laden} className="rounded-xl bg-teal-300 px-4 py-2 text-sm font-bold text-[#06080f] hover:bg-teal-200 disabled:opacity-40">Download PNG</button>
-            <button type="button" disabled={gesperrt} onClick={kopieren} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white disabled:opacity-40">Copy image</button>
-            <button type="button" onClick={() => setW(START)} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white/60 hover:text-white">Reset</button>
-            <LinkKopieren text="Share" />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" disabled={gesperrt} onClick={laden} className="knopf-prim col-span-2">Download PNG</button>
+            <button type="button" disabled={gesperrt} onClick={kopieren} className="knopf">Copy image</button>
+            <button type="button" onClick={() => setW(START)} className="knopf">Reset</button>
           </div>
-          <p className="text-[11px] text-white/35">Double-click a slider to reset it. The share link keeps all settings.</p>
-        </Glas>
+          <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-white/35">Double-click a slider to reset it. The share link keeps every setting.</p><LinkKopieren text="Share" /></div>
+        </Flaeche>
       </div>
+      {nachbarn.length > 0 && (
+        <div>
+          <p className="ueber mb-2">More {kategorie.toLowerCase()}</p>
+          <div className="ohne-leiste -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 lg:-mx-8 lg:px-8">
+            {nachbarn.map((x) => (
+              <Link key={x.id} to={`/community/assets/${encodeURIComponent(x.id)}`} className="fl-fest fl-klick group w-28 shrink-0 overflow-hidden !rounded-2xl">
+                <div className="grid aspect-square place-items-center bg-black/30 p-2.5" style={SCHACH}><AssetBild a={x} className="max-h-full max-w-full transition duration-300 group-hover:scale-110" /></div>
+                <p className="truncate px-2 py-1.5 text-[11px] font-semibold text-white/70 group-hover:text-white">{x.name}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
