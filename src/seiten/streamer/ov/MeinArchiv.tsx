@@ -177,9 +177,9 @@ export default function MeinArchiv() {
   );
 
   return (
-    <section id="archiv" className="rounded-xl border border-white/10 bg-[#06080f]/60 p-4">
-      <div className="flex items-baseline gap-2">
-        <h2 className="text-sm font-semibold text-white"><T>Mein Archiv</T></h2>
+    <section id="archiv" className="fl-fest scroll-mt-32 p-5 sm:p-6">
+      <div className="flex items-baseline gap-3">
+        <h2 className="titel text-4xl"><T>Mein Archiv</T></h2>
         <span className="text-xs text-white/45"><T>sichtbar nur für dich</T></span>
       </div>
       <p className="mt-1 text-xs text-white/45">
