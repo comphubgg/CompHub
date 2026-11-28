@@ -99,10 +99,10 @@ function SitzungsStatus({ live, von, bis }: { live: boolean; von: string; bis: s
 function TeilKopf({ titel, zusatz, rechts, live = false }: { titel: string; zusatz?: ReactNode; rechts?: ReactNode; live?: boolean }) {
   return (
     <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {live ? <span className="relative flex h-3 w-3"><span className="absolute h-full w-full animate-ping rounded-full bg-red-500 opacity-70" /><span className="relative h-3 w-3 rounded-full bg-red-500" /></span>
           : <span className="h-6 w-1 rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.8)]" />}
-        <h2 className="titel text-3xl">{titel}</h2>
+        <h2 className="titel whitespace-nowrap text-3xl">{titel}</h2>
         {zusatz && <span className="pt-1 text-sm text-white/45">{zusatz}</span>}
       </div>
       {rechts}
@@ -127,7 +127,7 @@ function LiveKarte({ name, bild, live, seit, unter, kopiert, kopieren, breit = f
         <p className="mt-1 truncate text-xs text-white/45">found via <span className="font-semibold text-white/75">{QUELLE[live.quelle]}</span>{unter ? <> · {unter}</> : null}</p>
       </div>
       <div className="relative flex w-full flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/50 p-2 pl-4 lg:w-auto">
-        <div className="min-w-0 flex-1"><Klein>Match ID</Klein><code className="block break-all font-mono text-sm text-white sm:text-base">{live.matchId}</code></div>
+        <div className="min-w-[13rem] flex-1"><Klein>Match ID</Klein><code className="block break-all font-mono text-sm text-white sm:text-base">{live.matchId}</code></div>
         <KopierKnopf id={live.matchId} kopiert={kopiert} kopieren={kopieren} text="Copy match ID" gross />
       </div>
     </motion.article>
@@ -287,7 +287,7 @@ function Favoriten({ kopiert, kopieren, setVerboten }: { kopiert: string; kopier
                       <p className="zahl mt-1 text-xs text-white/50">#{sc.platz} · {sc.punkte} pts · {sc.spiele} games{sc.kills != null ? ` · ${sc.kills} elims` : ''}</p>
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-black/50 p-2 pl-4 lg:w-auto">
-                      {sc.letztesSpiel ? <><div className="min-w-0 flex-1"><Klein>Last game · Yunite code · {uhrzeit(sc.letztesSpiel.ende)}</Klein><code className="block font-mono text-base text-white">{sc.letztesSpiel.code}</code></div>
+                      {sc.letztesSpiel ? <><div className="min-w-[13rem] flex-1"><Klein>Last game · Yunite code · {uhrzeit(sc.letztesSpiel.ende)}</Klein><code className="block font-mono text-base text-white">{sc.letztesSpiel.code}</code></div>
                         <KopierKnopf id={sc.letztesSpiel.code} kopiert={kopiert} kopieren={kopieren} text="Copy code" gross gold /></> : <span className="py-2 text-xs text-white/45">No game played yet</span>}
                       <a href={sc.link} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-amber-300">Noble leaderboard <span aria-hidden>→</span></a>
                     </div>
