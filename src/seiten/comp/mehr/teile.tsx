@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
-import { Glas } from '../../../teile/Glas';
+import { useEffect, useId, useMemo, useState } from 'react';
 
 /*
  * Gemeinsame Bausteine der Scene-Seiten (Maps, Globals, Predictions, Awards, Scrims, POV, Posts, Orgs, Match, How it works): Laden (holen,
@@ -15,7 +14,7 @@ export const SEITE = 'https://www.thecomphub.com';
 
 export type Stand<T> = { art: 'laedt' } | { art: 'ok'; d: T } | { art: 'anmelden' } | { art: 'fehler'; text: string };
 
-/** JSON holen - 401/403 wird zu "anmelden", damit die Seite die Glas-Anmeldekarte zeigen kann. */
+/** JSON holen - 401/403 wird zu "anmelden", damit die Seite die Anmeldekarte zeigen kann. */
 export async function holen<T>(url: string, init?: RequestInit): Promise<Stand<T>> {
   try {
     const r = await fetch(url, { cache: 'no-store', credentials: 'include', ...init });
@@ -55,15 +54,6 @@ export function Laedt({ text = 'Loading …' }: { text?: string }) {
   );
 }
 
-export function Leer({ text, kind }: { text: string; kind?: ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center">
-      <p className="text-sm text-white/45">{text}</p>
-      {kind}
-    </div>
-  );
-}
-
 export function FehlerZeile({ text }: { text: string }) {
   return <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{text}</p>;
 }
@@ -96,30 +86,6 @@ export function Suche({ wert, setze, platz = 'Search …', className = '' }: { w
   );
 }
 
-/** Grosse Kennzahl in einer kleinen Glas-Kachel. */
-export function Kennzahl({ wert, titel, farbe = '#38bdf8', verzoegerung = 0 }: { wert: ReactNode; titel: string; farbe?: string; verzoegerung?: number }) {
-  return (
-    <Glas className="px-5 py-4" verzoegerung={verzoegerung}>
-      <p className="text-3xl font-extrabold tabular-nums tracking-tight" style={{ color: farbe }}>{wert}</p>
-      <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{titel}</p>
-    </Glas>
-  );
-}
-
-/** Kopf einer Unterseite: Ueberzeile, Titel, Text, rechts Platz fuer Kennzahlen/Knoepfe. */
-export function SeitenKopf({ ueber, titel, text, rechts }: { ueber: string; titel: ReactNode; text?: ReactNode; rechts?: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-5">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400">{ueber}</p>
-        <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">{titel}</h1>
-        {text && <p className="mt-2 max-w-2xl text-white/55">{text}</p>}
-      </motion.div>
-      {rechts && <div className="flex flex-wrap items-center gap-3">{rechts}</div>}
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- Zeit */
 
 export function useJetzt(ms = 1000) {
@@ -127,22 +93,8 @@ export function useJetzt(ms = 1000) {
   useEffect(() => { const i = setInterval(() => setT(Date.now()), ms); return () => clearInterval(i); }, [ms]);
   return t;
 }
-/** Countdown - ab 24 h mit Tagen ("7d 2h 04m"). */
-export function rest(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sek = s % 60;
-  const z = (n: number) => String(n).padStart(2, '0');
-  if (d) return `${d}d ${h}h ${z(m)}m`;
-  if (h) return `${h}h ${z(m)}m ${z(sek)}s`;
-  return `${m}m ${z(sek)}s`;
-}
 export const datumLang = (ms: number | string) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
 export const datumKurz = (ms: number | string) => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'Europe/Brussels' });
-export const uhrzeit = (ms: number | string) => new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' });
-export const zahl = (n: number | null | undefined, stellen = 0) => (typeof n === 'number' && Number.isFinite(n)
-  ? n.toLocaleString('en', { minimumFractionDigits: stellen, maximumFractionDigits: stellen }) : '—');
-export const geld = (n: number | null | undefined) => (typeof n === 'number' && Number.isFinite(n) ? `$${Math.round(n).toLocaleString('en')}` : '—');
-
 /* ---------------------------------------------------------------- Flaggen */
 
 const VORHANDEN = new Set(('ae al ar at au ba be bg bh br by ca ch cn co cz de dk ee eg es fi fr gb gr hr hu ie il in ir is it jp kr kw lb lt lv '
@@ -218,25 +170,4 @@ export function Hochkant({ bild, klein }: { bild?: string | null; klein?: boolea
 export function TeamFotos({ spieler, klein }: { spieler: Array<{ bild?: string | null }>; klein?: boolean }) {
   if (!spieler.length || spieler.some((s) => !s.bild)) return null;
   return <span className="flex shrink-0 gap-1">{spieler.map((s, i) => <Hochkant key={i} bild={s.bild} klein={klein} />)}</span>;
-}
-
-/** Podest-/Fotokarte wie in den Rankings: verschwommener Hintergrund, rechts das Foto in 4:5 ungeschnitten. */
-export function FotoKarte({ bild, kopf, kind, farbe = '#38bdf8', hoehe = 'h-[300px]', href }: {
-  bild?: string | null; kopf?: ReactNode; kind: ReactNode; farbe?: string; hoehe?: string; href?: string;
-}) {
-  const Wurzel = href ? motion.a : motion.div;
-  return (
-    <Wurzel href={href} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -5 }}
-      className={`group relative block overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18] ${hoehe}`}>
-      {bild && <>
-        <img src={bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" />
-        <img src={bild} alt="" className="absolute inset-y-0 right-0 aspect-[4/5] h-full object-cover object-top transition duration-700 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0e18] from-30% via-[#0a0e18]/70 via-50% to-transparent to-75%" />
-      </>}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/85 via-transparent to-transparent" />
-      <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
-      {kopf}
-      <div className="absolute inset-x-0 bottom-0 p-5">{kind}</div>
-    </Wurzel>
-  );
 }
