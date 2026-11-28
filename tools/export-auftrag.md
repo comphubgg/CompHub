@@ -5,7 +5,8 @@
 1. Öffne auf deinem PC die **lokale Claude-Code-Sitzung**, die schon mit CUE4Parse/FModel an den Spieldateien arbeitet.
 2. Kopiere **alles ab der Linie „AUFTRAG FÜR DIE LOKALE SITZUNG“** und füge es dort als Nachricht ein.
 3. Die Sitzung meldet sich nach **Schritt 1** (Bestandsaufnahme) mit einer kurzen Liste zurück. Schau kurz drüber („passt das?“), dann lässt du sie weitermachen.
-4. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), die Original-Kartensymbole unter `icons/karte/`, die 3D-Ansicht der Insel unter `3d/`, `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
+4. **Alles bleibt NUR auf deinem PC** – die lokale Sitzung committet und pusht nichts davon (das Repo ist öffentlich; Epics Dateien, Bilder und Koordinaten gehören nicht hinein). `.gitignore` deckt `public/hub-daten/*.json`, `icons/`, `assets/` und `3d/` ab.
+5. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), die Original-Kartensymbole unter `icons/karte/`, die 3D-Ansicht der Insel unter `3d/`, `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
 
 Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die Spieldateien auf deinem PC sind die saubere Quelle – daraus rechnet fortnite.gg selbst auch.
 
@@ -14,6 +15,12 @@ Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die
 ## AUFTRAG FÜR DIE LOKALE SITZUNG
 
 Du hast lokalen Zugriff auf die Fortnite-Installation und arbeitest mit **CUE4Parse** (oder FModel). Exportiere zwei JSON-Dateien für die CompHub-Hub-Vorschau. Regel Nummer eins: **Keine Zahl erfinden oder schätzen.** Was du nicht sicher aus den Dateien lesen kannst, lässt du weg (Feld weglassen oder `null`) und schreibst es in den Bericht.
+
+**Priorität jetzt (28.11.2026): die Karte.** Die Hub-Karte (Community → Map) ist fertig gebaut und zeigt alles, sobald die Dateien da sind. Reihenfolge:
+1. `public/hub-daten/objekte.json` – alle 29 Typen mit Positionen, Zipline-Endpunkten und `chance` (Schritt 5),
+2. `public/hub-daten/icons/karte/<typ>.png` – die Original-Minimap-Symbole (Schritt 5d),
+3. deine 3D-Ansicht nach `public/hub-daten/3d/` kopieren (Schritt 5e) und den Empfänger für die Objekte einbauen (Schritt 5f).
+Wenn du Schritt 1 schon erledigt hast (Klassenliste und die Chancen aus `AthenaGameData` gefunden), nicht noch einmal stoppen – direkt weiter. Waffen (Schritte 2–4) danach.
 
 **Zielordner:** Der Hub liegt auf diesem PC unter `%USERPROFILE%\CompHubHub` (z. B. `C:\Users\<Name>\CompHubHub`). Alle Pfade `public/hub-daten/...` unten sind relativ zu diesem Ordner. Diese Dateien bleiben NUR auf diesem PC – NICHT committen, NICHT pushen (das Repo ist öffentlich; Epics Daten und Bilder gehören nicht hinein). `.gitignore` schützt sie, und der automatische Abgleich lässt sie in Ruhe.
 
@@ -190,8 +197,45 @@ Pfad im Hub: **`public/hub-daten/objekte.json`** (die Probedatei `objekte-beispi
 - Bei Tresoren, die einen Schlüssel brauchen: `"name": "needs key"` o. ä.
 - `x`, `y`, `z`: **Unreal-Weltkoordinaten in cm**, wie im Spiel (dieselben Koordinaten, die Epic für die POIs liefert). Ganze Zahlen reichen.
 - `x2`, `y2`: nur bei Ziplines – der zweite Endpunkt (Spline-Ende / zweiter Pfosten).
-- `chance` (optional, 0..1): wenn das Objekt nur mit einer Wahrscheinlichkeit erscheint (z. B. Truhen-Spawnchance), sonst weglassen.
-- `name` (optional): nur wenn das Spiel einen Namen führt.
+- `chance` (0..1): Spawn-Wahrscheinlichkeit **dieses** Objekts. Für jedes Objekt setzen, dessen Klasse/Platz eine Chance hat. Die Werte, die du in `AthenaGameData` schon gefunden hast: **normale Truhe 0.67**, **Munitionskiste 0.75**, Objekte mit **AlwaysSpawn → 1**. Weicht ein Platz davon ab (eigene Chance am Actor/Spawner), gilt der Wert des Platzes. Nur weglassen, wenn es wirklich keine Chance gibt (z. B. Ziplines, Startrampen) – die Karte nimmt dann für Truhen 67 % und Munition 75 % als Grundchance der Klasse, für alles andere zeigt sie keine Chance.
+- `gruppe` (optional): ID einer Spawn-Gruppe („M von N Plätzen erscheinen“). Jeder Platz der Gruppe bekommt dieselbe `gruppe` und `chance = M/N` – die Karte zeigt daraus „2 of 5 spots of this group spawn“ und markiert beim Anklicken die anderen Plätze.
+- `name` (optional): nur wenn das Spiel einen Namen führt (NPC-Name, „needs key“ bei Tresoren).
+
+**Alle 29 Typen – vollständige Checkliste** (Dateiname des Symbols in Schritt 5d = derselbe Schlüssel). Nichts weglassen, was es auf der aktuellen Insel gibt; was es nicht gibt, im Bericht mit „0“ nennen:
+
+| `typ` | Was | Besonderheit |
+|---|---|---|
+| `chest` | normale Truhe (`Tiered_Chest_Athena_C` o. ä.) | `chance` 0.67 bzw. Wert des Platzes |
+| `rarechest` | seltene/besondere Truhe (Rare/Supply/Legendary Chest der Saison) | `chance` + ggf. `gruppe` |
+| `ammo` | Munitionskiste (`Tiered_Ammo_Athena_C`) | `chance` 0.75 bzw. Wert des Platzes |
+| `vault` | Tresor | `name: "needs key"`, wenn Schlüssel nötig |
+| `buried` | vergrabene Truhe | |
+| `lootcannon` | Beute-Kanone | |
+| `spritechest` | Sprite-Truhe | |
+| `wanted` | Steckbrief | |
+| `extraction` | Extraktionspunkt | |
+| `launchpad` | Startrampe | |
+| `cannon` | Piraten-/Schleuder-Kanone | |
+| `zipline` | Zipline | **beide Endpfosten**: `x,y,z` = Pfosten 1, `x2,y2` = Pfosten 2 (Spline-Anfang/-Ende in Weltkoordinaten). Eine Zeile je Seil, nicht je Pfosten. Die Karte zeichnet daraus das Seil mit Punkten an den Enden |
+| `portapotty` | Dixi-Klo (Verstecken) | |
+| `whirlpool` | Wirbel/Vortex im Wasser | |
+| `sportscar` | Sportwagen (alle Pkw-Klassen) | Spawnplätze der Fahrzeuge, `chance` falls vorhanden |
+| `suv` | SUV/Pickup/Truck | dito |
+| `boat` | Motorboot | dito |
+| `tires` | Offroad-Reifen | |
+| `service` | Tankstelle/Werkstatt | |
+| `campfire` | Lagerfeuer | |
+| `produce` | Obstkiste | |
+| `slurp` | Slurp-Fass | |
+| `slurptruck` | Slurp-Laster | |
+| `fishingrod` | Angel-Fass | |
+| `fishing` | Angelstelle | |
+| `npc` | Figur/NPC | `name` = Figurenname |
+| `reboot` | Reboot-Van | |
+| `vending` | Automat | |
+| `bush` | Busch (Versteck-Busch, nicht Vegetation) | |
+
+Andere Klassen, die zu keinem Typ passen: `"typ": "other"` mit `name` = Klassenname (die Karte zeigt sie unter „Other objects“) – und im Bericht nennen, damit wir einen eigenen Typ anlegen.
 
 **Wie finden (prüfen!):**
 - Die BR-Hauptkarte ist eine **World-Partition**-Karte. Die Actors stecken in vielen Zell-Paketen (Ordner `…/_Generated_/` unter der Karte) und in **Level-Instanzen** (Gebäude-Vorlagen, die mehrfach platziert sind). Alle durchgehen.
@@ -225,8 +269,10 @@ Gesamtgröße im Blick behalten (eine Waffe ~50–300 KB); bei sehr vielen Bilde
 
 Der Betreiber will auf **Community → Map** die **Original-Symbole aus dem Spiel** (wie fortnite.gg) statt der selbst gezeichneten Abzeichen. Die Karte nimmt automatisch `public/hub-daten/icons/karte/<typ>.png`, sobald die Datei da ist – fehlt eine, bleibt das eigene Abzeichen als Ersatz.
 
+Der Betreiber hat Bildschirmfotos von fortnite.gg geschickt: genau diese Original-Symbole will er sehen – Truhe (gold), Munitionskiste (grün), Slurp-Fass, Slurp-Laster, Wirbel (blaue Spirale), Autos, seltene/Versorgungs-Truhen, Startrampen. Das sind die **Minimap-/Vollbildkarten-Symbole des Spiels**, nicht die Item-Bilder.
+
 1. **Suchen** (nicht raten, erst auflisten): Texturen der Karten-/Minimap-Marker. Typische Orte – **prüfen**: `FortniteGame/Content/UI/…` (Unterordner mit `Minimap`, `Map`, `MapIcons`, `Markers`, `Compass`, `Icons`), dazu `FortniteGame/Plugins/GameFeatures/<Name>/Content/UI/…` für saisonale Objekte. Namen enthalten meist `Minimap`, `MapIcon`, `Map_Icon`, `Marker` (z. B. `T_UI_…Minimap…Chest…`). Gegenprobe: Die Kartenmarker-Definitionen der Objekte (Actor-Klassen aus Schritt 1, Felder wie `MinimapIcon`, `MapIcon`, `MarkerIcon`, `IndicatorBrush`) zeigen auf genau die Textur, die das Spiel benutzt – diesem Verweis folgen hat Vorrang vor der Namenssuche.
-2. **Exportieren** als **PNG mit Alpha**, Originalgröße (nicht hochskalieren), quadratisch zugeschnitten, wenn nötig mit transparentem Rand. Eine Datei je Typ, Dateiname exakt nach dieser Liste (das sind die Ebenen der Karte):
+2. **Exportieren** als **PNG mit Alpha**, Originalgröße (nicht hochskalieren; 64–256 px sind ideal – die Karte zeigt sie mit 16–36 px, gestochen scharf), quadratisch zugeschnitten, wenn nötig mit transparentem Rand. Kein Hintergrund, keine Scheibe dazu malen – genau das Symbol wie im Spiel. Eine Datei je Typ, Dateiname exakt nach dieser Liste (das sind die Ebenen der Karte):
    `vault`, `chest`, `buried`, `rarechest`, `lootcannon`, `ammo`, `spritechest`, `wanted`, `extraction`, `launchpad`, `cannon`, `zipline`, `portapotty`, `whirlpool`, `sportscar`, `suv`, `boat`, `tires`, `service`, `campfire`, `produce`, `slurp`, `slurptruck`, `fishingrod`, `fishing`, `npc`, `reboot`, `vending`, `bush`.
    Ziel: `public/hub-daten/icons/karte/chest.png`, `…/ammo.png`, `…/slurp.png` usw. Was es in dieser Saison nicht gibt oder wofür kein Original-Symbol existiert, einfach weglassen.
 3. **Nur lokal** (`.gitignore` deckt `public/hub-daten/icons/` ab) – nicht committen, nicht pushen.
@@ -241,6 +287,34 @@ Der Betreiber (27.11.2026): „Wo ist die 3D?“ – die Karte im Hub (**Communi
 3. **Prüfen**: `http://localhost:5173/hub-daten/3d/index.html` im Browser öffnen – die Insel muss ohne Fehler in der Konsole erscheinen. Dann im Hub **Community → Map → 3D**.
 4. **Nur lokal** (`.gitignore` deckt `public/hub-daten/3d/` ab) – nicht committen, nicht pushen. Nach jeder Änderung an der 3D-Ansicht Schritt 1–2 wiederholen; im Hub reicht ein Neuladen.
 5. Im **Bericht**: Größe des Ordners, ob die Ansicht ohne Internet läuft und ob etwas fehlt (z. B. Texturen, die nicht mitkopiert wurden).
+
+### Schritt 5f – 3D-Ansicht: Objekte der Karte anzeigen (postMessage)
+
+Die Hub-Karte schickt ihre Objekte an deine 3D-Ansicht im Rahmen (gleiche Herkunft `http://localhost:5173`), damit die 3D-Ansicht Truhen, Ziplines usw. selbst zeichnen kann – ohne die Datei ein zweites Mal zu laden. Baue in die 3D-Ansicht einen Empfänger ein:
+
+```js
+// in der 3D-Ansicht (public/hub-daten/3d/...)
+window.addEventListener('message', (e) => {
+  if (e.origin !== window.location.origin) return;          // nur vom Hub
+  const d = e.data;
+  if (d?.type !== 'comphub-objekte') return;
+  // d.version   = 1
+  // d.build     = Build aus objekte.json (oder null)
+  // d.rahmen    = { x0, y0, spanne } – Weltausschnitt des 2D-Kartenbilds (cm), nur zur Info
+  // d.ebenen    = ['chest', 'ammo', ...] – Typen, die der Nutzer gerade eingeschaltet hat
+  // d.minChance = 0..1 – Mindest-Spawnchance aus dem Regler
+  // d.objekte   = [{ typ, x, y, z?, x2?, y2?, chance?, chanceStandard?, gruppe?, name? }, ...]
+  //   x/y/z in Unreal-cm wie in objekte.json; chance = Wert aus dem Export oder (chanceStandard: true) Grundchance der Klasse
+  //   Ziplines: x,y(,z) -> x2,y2 als Seil zeichnen
+  zeichneObjekte(d);                                          // deine Funktion
+});
+// Beim Start (und nach jedem Neuladen) einmal nachfragen - der Hub antwortet sofort mit der Nachricht oben:
+window.parent.postMessage({ type: 'comphub-objekte-bitte' }, window.location.origin);
+```
+
+- Die Nachricht kommt beim Laden des Rahmens, nach `comphub-objekte-bitte` und jedes Mal, wenn der Nutzer Ebenen ein-/ausschaltet oder den Chance-Regler bewegt. Immer die ganze Liste – einfach neu zeichnen.
+- Symbole: dieselben PNGs unter `/hub-daten/icons/karte/<typ>.png` (z. B. als Sprites über den Objekten).
+- **Nur lokal** wie die ganze 3D-Ansicht – nichts davon committen oder pushen.
 
 ### Schritt 5c – Saison, Rotation und sonstige Daten (nur was sicher in den Dateien steht)
 
