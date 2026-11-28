@@ -1,20 +1,26 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Route, Routes } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Bild, Flaeche, Leer, Marke, SeitenKopf, Segment, Zaehler } from '../../../ds/Bausteine';
 import { useWer } from '../../../teile/Anmeldung';
 import { istVip } from '../../streamer/zugang';
 import { AnmeldeKarte } from '../tools/Gemeinsam';
 import KartenAnsicht, { kartenName, type KartenForm, type Punkt } from './KartenAnsicht';
 import PrognoseWerkzeug from './zeichnen/PrognoseWerkzeug';
-import { FehlerZeile, Laedt, Leer, SEITE, Suche, TeamFlagge, chip, datumKurz, flaggenPfad, landName, useDaten } from './teile';
+import { Dock, KopfBand, Werkbank } from './Werkbank';
+import { FehlerZeile, Laedt, SEITE, TeamFlagge, TeamFotos, datumKurz, flaggenPfad, landName, useDaten } from './teile';
 
 /*
  * Globals 2026 im Hub (wie /globals der Seite): FNCS Global Championship, Antwerpen 26.-27.09.2026. Nur fuer VIPs (wie auf der Seite).
- * Overview mit Endstand (/api/globals-endstand) und Spieltagen (Katalog), Teams (/api/globals-teams, Duo-Ansicht mit gemeinsamen Cups ueber
- * /api/globals-duo), Map (Globals-Karte aus /api/turnier-karten), Predictions (das Prognose-Werkzeug im Hub, zeichnen/PrognoseWerkzeug: eigene Prognose
- * /api/meine-prognose bzw. fuer den Admin /api/prognosen),
- * Prize pool (/api/globals-preisgeld). Die Stream-Overlays bleiben im Streamer-Bereich bzw. auf der Seite.
+ * Aufbau (Design-System 3.0, 27.11.2026): oben die Buehne mit dem Turnierbild und den Unterseiten als sichtbarer Umschalter (auf Map und
+ * Predictions nur ein schmales Kopfband, damit die Karte die Hoehe bekommt).
+ *   Overview     - die Sieger gross im Hochkant-Foto, Platz 2 und 3 daneben, der Endstand als Tabelle mit Fotos (/api/globals-endstand, Fotos
+ *                  aus /api/globals-teams), Spieltage aus dem Katalog
+ *   Teams        - Duos als Fotokarten, nach Region gegliedert; Nationalities, Regions; Klick = gemeinsame Cups (/api/globals-duo)
+ *   Map          - Werkbank: Teams nach Region links, Karte in der Mitte, belegte Stellen rechts (/api/turnier-karten)
+ *   Predictions  - das Prognose-Werkzeug (zeichnen/PrognoseWerkzeug: eigene Prognose /api/meine-prognose bzw. fuer den Admin /api/prognosen)
+ *   Prize pool   - Summe, Treppchen der ersten drei, alle Plaetze als Balken (/api/globals-preisgeld)
+ * Die Stream-Overlays bleiben im Streamer-Bereich bzw. auf der Seite.
  */
 
 const EVENT = 'epicgames_MannekenPis_Official';
@@ -48,91 +54,109 @@ function useTage() {
 
 const ordnung = (n: number) => `${n}${[, 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] ?? 'th'}`;
 const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+const MEDAILLE = ['#facc15', '#cbd5e1', '#f59e0b'];
+
+/** Der Endstand - Fotos kommen aus dem Feld (/api/globals-teams), weil der Endstand selbst keine fuehrt. */
+function useEndstand() {
+  const tage = useTage();
+  const [s] = useDaten<{ ok: boolean; teams: EndTeam[] }>('/api/globals-endstand');
+  const [f] = useDaten<{ teams: GTeam[] }>(`/api/globals-teams?fenster=${encodeURIComponent(tage[0].windowId)}`);
+  const teams = useMemo(() => {
+    const roh = s.art === 'ok' && s.d.ok ? s.d.teams : [];
+    const foto = new Map<string, string>();
+    for (const t of f.art === 'ok' ? f.d.teams ?? [] : []) for (const p of t.spieler) if (p.bild) { if (p.epicId) foto.set(p.epicId, p.bild); foto.set(p.anzeige.toLowerCase(), p.bild); }
+    return roh.map((t) => ({ ...t, spieler: t.spieler.map((p) => ({ ...p, bild: p.bild ?? foto.get(p.id) ?? foto.get(p.anzeige.toLowerCase()) ?? null })) }));
+  }, [s, f]);
+  return { stand: s, teams, tage };
+}
 
 /* ---------------------------------------------------------------- Overview */
 
-function Uebersicht() {
-  const [s] = useDaten<{ ok: boolean; teams: EndTeam[] }>('/api/globals-endstand');
-  const tage = useTage();
-  const teams = s.art === 'ok' && s.d.ok ? s.d.teams : [];
-  const [sieger, ...rest] = teams;
+/** Ein Spieler gross im Hochkant-Foto (4:5), Name unten links - ohne Foto dieselbe Karte nur mit Flagge und Name. */
+function Hochformat({ p, farbe, verz = 0 }: { p: EndTeam['spieler'][number]; farbe: string; verz?: number }) {
   return (
-    <div className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: verz, duration: 0.5 }} className="group relative aspect-[4/5] min-w-0 flex-1 overflow-hidden rounded-2xl bg-black/50">
+      {p.bild && <img src={p.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top transition duration-700 group-hover:scale-105" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-fl via-fl/10 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-1" style={{ background: farbe }} />
+      <Link to={`/competitive/player/${p.id}`} className="absolute inset-x-0 bottom-0 flex items-center gap-2 p-3 sm:p-4">
+        <TeamFlagge groesse={22} laender={[p.land]} /><span className="titel truncate text-2xl sm:text-4xl">{p.anzeige}</span>
+      </Link>
+    </motion.div>
+  );
+}
+
+function Uebersicht() {
+  const { stand: s, teams, tage } = useEndstand();
+  const [sieger, zweiter, dritter, ...rest] = teams;
+  return (
+    <div className="space-y-4">
       {s.art === 'laedt' && <Laedt />}
       {s.art === 'fehler' && <FehlerZeile text="The final standings could not be loaded right now." />}
       {sieger && (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-          <Glas className="relative overflow-hidden p-6">
-            <span aria-hidden className="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full bg-amber-400/15 blur-3xl" />
-            <p className="relative text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Champions</p>
-            {sieger.spieler.every((p) => p.bild) ? (
-              <div className="relative mt-4 grid grid-cols-2 gap-3">
-                {sieger.spieler.map((p, i) => (
-                  <motion.div key={p.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1 }}
-                    className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-amber-300/30 bg-[#0a0e18]">
-                    <img src={p.bild!} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" />
-                    <img src={p.bild!} alt="" className="absolute inset-0 h-full w-full object-contain object-bottom" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-transparent to-transparent" />
-                    <p className="absolute inset-x-3 bottom-3 flex items-center gap-2 text-xl font-black uppercase tracking-tight text-white">
-                      <TeamFlagge groesse={22} laender={[p.land]} /><span className="truncate">{p.anzeige}</span>
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="relative mt-5 space-y-3">
-                {sieger.spieler.map((p, i) => (
-                  <motion.p key={p.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.1 }}
-                    className="flex items-center gap-4 text-4xl font-black uppercase tracking-tight text-white sm:text-5xl">
-                    <TeamFlagge groesse={44} laender={[p.land]} /><span className="truncate">{p.anzeige}</span>
-                  </motion.p>
-                ))}
-              </div>
-            )}
-            <div className="relative mt-5 grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 pt-4">
-              {([['Points', sieger.punkte], ['Eliminations', sieger.elims], ['Wins', sieger.siege]] as Array<[string, number]>).map(([l, v], i) => (
-                <div key={l} className={i ? 'px-4' : 'pr-4'}>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{l}</p>
-                  <p className="mt-1 text-3xl font-extrabold tabular-nums text-white">{v}</p>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="grid content-start gap-4">
+            {/* Die Sieger */}
+            <Flaeche fest className="p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div><p className="ueber !text-amber-300">Global Champions 2026</p><h2 className="titel mt-1 text-4xl sm:text-5xl">{sieger.spieler.map((p) => p.anzeige).join(' & ')}</h2></div>
+                <div className="flex gap-6">
+                  {([['Points', sieger.punkte], ['Elims', sieger.elims], ['Wins', sieger.siege]] as Array<[string, number]>).map(([l, v]) => (
+                    <div key={l} className="text-right"><Zaehler wert={v} className="titel text-4xl !text-amber-300" /><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{l}</p></div>
+                  ))}
                 </div>
+              </div>
+              <div className="flex gap-3">{sieger.spieler.map((p, i) => <Hochformat key={p.id} p={p} farbe={MEDAILLE[0]} verz={0.1 + i * 0.1} />)}</div>
+            </Flaeche>
+            {/* Platz 2 und 3 */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[zweiter, dritter].filter(Boolean).map((t, i) => (
+                <Flaeche key={t.rang} fest verz={0.15 + i * 0.08} className="relative overflow-hidden p-4">
+                  <div className="absolute inset-x-0 top-0 h-1" style={{ background: MEDAILLE[i + 1] }} />
+                  <div className="flex items-center gap-3">
+                    <span className="titel text-6xl" style={{ color: MEDAILLE[i + 1] }}>{t.rang}</span>
+                    <div className="min-w-0 flex-1">
+                      {t.spieler.map((p) => <Link key={p.id} to={`/competitive/player/${p.id}`} className="flex items-center gap-2 text-lg font-extrabold uppercase tracking-tight text-white hover:text-akz"><TeamFlagge groesse={18} laender={[p.land]} /><span className="truncate">{p.anzeige}</span></Link>)}
+                      <p className="zahl mt-1 text-xs text-white/50"><b className="text-white">{t.punkte}</b> pts · {t.elims} elims · {t.siege} {t.siege === 1 ? 'win' : 'wins'}</p>
+                    </div>
+                    {t.spieler.every((p) => p.bild) && <span className="flex shrink-0 gap-1.5">{t.spieler.map((p) => <img key={p.id} src={p.bild!} alt="" className="h-24 w-[72px] rounded-xl object-cover object-top" />)}</span>}
+                  </div>
+                </Flaeche>
               ))}
             </div>
-          </Glas>
-          <Glas className="overflow-hidden" verzoegerung={0.1}>
-            <p className="border-b border-white/5 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">Final standings after both days</p>
-            <ol className="max-h-[620px] overflow-y-auto">
-              {rest.map((x, i) => (
-                <motion.li key={x.rang} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 20) * 0.02 }}
-                  className="flex items-center gap-3 border-b border-white/[0.04] px-5 py-2.5 last:border-b-0 hover:bg-white/[0.03]">
-                  <span className={`w-6 text-center text-xs font-black tabular-nums ${x.rang <= 3 ? 'text-amber-300' : 'text-white/40'}`}>{x.rang}</span>
-                  <TeamFlagge groesse={26} laender={x.spieler.map((p) => p.land)} />
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold uppercase text-white">{x.spieler.map((p) => p.anzeige).join(' · ')}</span>
-                  <span className="hidden text-[11px] tabular-nums text-white/40 sm:inline">{x.elims} elims</span>
-                  <span className="w-12 text-right text-sm font-black tabular-nums text-sky-400">{x.punkte}</span>
-                </motion.li>
-              ))}
-            </ol>
-          </Glas>
+            {/* Spieltage */}
+            <Flaeche fest verz={0.25} className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+              <div><p className="ueber">Antwerp · Belgium</p><p className="titel mt-1 text-2xl">Match days</p></div>
+              <div className="flex flex-wrap gap-2">
+                {tage.map((t) => <span key={t.windowId} className="rounded-xl border border-akz/25 bg-akz/[0.08] px-3 py-1.5 text-xs font-semibold text-white">{t.titel} <span className="zahl font-normal text-white/55">{new Date(t.begin).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' })}</span></span>)}
+              </div>
+              <p className="basis-full text-[11px] leading-relaxed text-white/40">The match days come from Epic's tournament catalogue — if Epic adds a third day, it shows up here by itself. Stream overlays for the Globals (leaderboard, team card, custom) live in the <NavLink className="text-akz hover:underline" to="/streamer/overlays/globals">Streamer area → Globals overlays</NavLink>.</p>
+            </Flaeche>
+          </div>
+          {/* Der Endstand ab Platz 4 */}
+          <div className="relative min-h-[520px]">
+            <Dock titel="Final standings" zahl={`${teams.length} teams · both days`} className="xl:absolute xl:inset-0">
+              <table className="tabelle">
+                <thead><tr><th className="w-10">#</th><th>Team</th><th className="hidden w-14 !text-right sm:table-cell">Wins</th><th className="w-14 !text-right">Elims</th><th className="w-16 !text-right">Points</th></tr></thead>
+                <tbody>
+                  {rest.map((x) => (
+                    <tr key={x.rang}>
+                      <td className="zahl text-xs font-black text-white/40">{x.rang}</td>
+                      <td><span className="flex items-center gap-2.5">
+                        <TeamFlagge groesse={26} laender={x.spieler.map((p) => p.land)} /><TeamFotos klein spieler={x.spieler} />
+                        <span className="flex min-w-0 flex-col text-[12px] font-bold uppercase leading-[1.3] tracking-wide text-white">{x.spieler.map((p) => <Link key={p.id} to={`/competitive/player/${p.id}`} className="truncate hover:text-akz">{p.anzeige}</Link>)}</span>
+                      </span></td>
+                      <td className="zahl hidden text-right text-white/60 sm:table-cell">{x.siege}</td>
+                      <td className="zahl text-right text-white/60">{x.elims}</td>
+                      <td className="zahl text-right font-black text-akz">{x.punkte}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Dock>
+          </div>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {UNTER.slice(1).map((u, i) => (
-          <motion.div key={u.pfad} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.05 }} whileHover={{ y: -4 }}>
-            <NavLink to={`/competitive/globals/${u.pfad}`} className="block h-full rounded-3xl border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-sky-400/40">
-              <p className="font-bold text-white">{u.titel}</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">{u.text}</p>
-            </NavLink>
-          </motion.div>
-        ))}
-      </div>
-      <Glas className="p-5">
-        <h2 className="font-bold text-white">Match days</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {tage.map((t) => <span key={t.windowId} className="rounded-xl border border-sky-400/25 bg-sky-400/[0.06] px-3 py-1.5 text-xs font-semibold text-sky-200">{t.titel} · {new Date(t.begin).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' })}</span>)}
-        </div>
-        <p className="mt-3 text-[11px] text-white/35">The match days come from Epic's tournament catalogue — if Epic adds a third day, it shows up here by itself.</p>
-        <p className="mt-2 text-[11px] text-white/35">Stream overlays for the Globals (leaderboard, team card, custom) live in the <NavLink className="text-sky-300 hover:underline" to="/streamer/overlays/globals">Streamer area → Globals overlays</NavLink>.</p>
-      </Glas>
     </div>
   );
 }
@@ -154,40 +178,42 @@ function DuoAnsicht({ team, zu }: { team: GTeam; zu: () => void }) {
     return () => { weg = true; };
   }, [a, b]);
   useEffect(() => { const t = (e: KeyboardEvent) => { if (e.key === 'Escape') zu(); }; window.addEventListener('keydown', t); return () => window.removeEventListener('keydown', t); }, [zu]);
+  const mitFotos = team.spieler.slice(0, 2).every((s) => s.bild);
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={zu}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:items-center">
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-sm sm:items-center">
       <motion.div initial={{ y: 30, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20 }} onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18]/95 shadow-2xl backdrop-blur-xl">
-        <div className="relative grid grid-cols-2">
-          {team.spieler.slice(0, 2).map((s) => (
-            <div key={s.turnierId} className="relative aspect-[4/5] overflow-hidden bg-[#06080f]">
-              {s.bild ? <img src={s.bild} alt="" className="h-full w-full object-cover object-top" /> : <div className="grid h-full place-items-center text-7xl font-black text-white/10">{s.anzeige.slice(0, 1).toUpperCase()}</div>}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-4">
-                <p className="flex items-center gap-2 text-xl font-black text-white"><img src={flaggenPfad(s.land)} alt="" className="h-5 w-5 rounded-full object-cover" /><span className="truncate">{s.anzeige}</span></p>
-                {s.x && <a href={`https://x.com/${s.x}`} target="_blank" rel="noreferrer" className="text-xs text-white/60 hover:text-sky-300">@{s.x}</a>}
+        className="fl-fest grid w-full max-w-5xl overflow-hidden shadow-2xl md:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        {/* Links das Duo, rechts die gemeinsamen Cups */}
+        <div className="relative border-b border-white/[0.06] p-4 md:border-b-0 md:border-r">
+          <p className="ueber">{team.region || 'Global Championship'}{team.spiele > 0 ? ` · #${team.rang} · ${team.punkte} pts` : ''}</p>
+          <div className="mt-3 flex gap-2.5">
+            {team.spieler.slice(0, 2).map((s) => (
+              <div key={s.turnierId} className="min-w-0 flex-1">
+                {mitFotos && <img src={s.bild!} alt="" className="mb-2.5 aspect-[4/5] w-full rounded-2xl object-cover object-top" />}
+                <p className="flex items-center gap-2"><img src={flaggenPfad(s.land)} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" /><span className="titel truncate text-2xl">{s.anzeige}</span></p>
+                {s.x && <a href={`https://x.com/${s.x}`} target="_blank" rel="noreferrer" className="text-xs text-white/50 hover:text-akz">@{s.x}</a>}
+                {s.epicId && <Link to={`/competitive/player/${s.epicId}`} className="knopf-leer mt-1 !text-xs">Player profile →</Link>}
               </div>
-            </div>
-          ))}
-          {team.spiele > 0 && <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2.5 py-1 text-sm font-bold text-sky-300">#{team.rang}</span>}
-          <button type="button" onClick={zu} className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/70 text-lg text-white hover:bg-black">×</button>
+            ))}
+          </div>
         </div>
-        <div className="p-5">
-          <h3 className="mb-3 text-sm font-bold text-sky-200">Played together — this season</h3>
+        <div className="relative min-w-0 p-5">
+          <button type="button" onClick={zu} aria-label="Close" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-white/10 text-white/60 transition hover:border-akz hover:text-white">×</button>
+          <h3 className="titel mb-3 pr-10 text-2xl">Played together — this season</h3>
           {z === null ? <Laedt /> : z === 'fehler' ? <p className="py-6 text-center text-xs text-white/40">The cups could not be loaded right now.</p>
             : !z.length ? <p className="py-6 text-center text-xs text-white/40">{!a?.epicId || !b?.epicId ? 'The tool does not know both accounts of this duo — so no cups.' : 'These two have no recorded cup together this season.'}</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs tabular-nums">
-                  <thead className="text-[10px] uppercase tracking-[0.18em] text-white/40"><tr><th className="py-1.5 pr-2">Cup</th><th className="py-1.5 pr-2">Date</th><th className="py-1.5 pr-2 text-right">Place</th><th className="py-1.5 pr-2 text-right">Points</th><th className="py-1.5 pr-2 text-right">Elims</th><th className="py-1.5 text-right">Earnings</th></tr></thead>
+              <div className="max-h-[60vh] overflow-auto">
+                <table className="tabelle zahl !text-xs">
+                  <thead><tr><th>Cup</th><th>Date</th><th className="!text-right">Place</th><th className="!text-right">Points</th><th className="!text-right">Elims</th><th className="!text-right">Earnings</th></tr></thead>
                   <tbody>{z.map((r) => (
-                    <tr key={r.windowId} className="border-t border-white/5">
-                      <td className="max-w-[260px] truncate py-2 pr-2 text-white/85">{r.titel}</td>
-                      <td className="py-2 pr-2 text-white/40">{r.datum ? datumKurz(r.datum) : ''}</td>
-                      <td className={`py-2 pr-2 text-right font-semibold ${r.platz && r.platz <= 3 ? 'text-amber-300' : 'text-white'}`}>{r.platz ? `#${r.platz}` : '–'}</td>
-                      <td className="py-2 pr-2 text-right text-white/70">{r.punkte ?? '–'}</td>
-                      <td className="py-2 pr-2 text-right text-white/70">{r.elims ?? '–'}</td>
-                      <td className="py-2 text-right text-emerald-300">{r.verdienst ? `$${r.verdienst.toLocaleString('en-US')}` : '–'}</td>
+                    <tr key={r.windowId}>
+                      <td className="max-w-[260px] truncate text-white/85">{r.titel}</td>
+                      <td className="text-white/40">{r.datum ? datumKurz(r.datum) : ''}</td>
+                      <td className={`text-right font-semibold ${r.platz && r.platz <= 3 ? 'text-amber-300' : 'text-white'}`}>{r.platz ? `#${r.platz}` : '–'}</td>
+                      <td className="text-right text-white/70">{r.punkte ?? '–'}</td>
+                      <td className="text-right text-white/70">{r.elims ?? '–'}</td>
+                      <td className="text-right text-emerald-300">{r.verdienst ? `$${r.verdienst.toLocaleString('en-US')}` : '–'}</td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -197,6 +223,41 @@ function DuoAnsicht({ team, zu }: { team: GTeam; zu: () => void }) {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+/** Ein Duo als Karte: oben die zwei Hochkant-Fotos nebeneinander, unten der feste dunkle Teil mit Namen, Region, Platz. */
+function DuoKarte({ t, i, auf }: { t: GTeam; i: number; auf: () => void }) {
+  return (
+    <motion.button type="button" onClick={auf} initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={{ delay: Math.min(i % 6, 6) * 0.04, duration: 0.45 }}
+      className="fl-fest fl-klick group overflow-hidden text-left">
+      <div className="relative grid grid-cols-2 gap-px bg-black">
+        {t.spieler.slice(0, 2).map((p) => (
+          <div key={p.turnierId} className="relative aspect-[4/5] overflow-hidden bg-black/60">
+            <img src={p.bild!} alt="" loading="lazy" className="h-full w-full object-cover object-top transition duration-700 group-hover:scale-[1.06]" />
+          </div>
+        ))}
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-fl to-transparent" />
+        {t.spiele > 0 && <span className="absolute left-2.5 top-2.5"><Marke ton={t.rang <= 3 ? 'gold' : 'still'}>#{t.rang}</Marke></span>}
+        {t.region && <span className="absolute right-2.5 top-2.5"><Marke>{t.region}</Marke></span>}
+      </div>
+      <div className="grid grid-cols-2 gap-px px-1 pb-3 pt-1">
+        {t.spieler.slice(0, 2).map((p) => <p key={p.turnierId} className="flex min-w-0 items-center gap-1.5 px-2 text-sm font-bold text-white"><img src={flaggenPfad(p.land)} alt="" className="h-4 w-4 shrink-0 rounded-full object-cover" /><span className="truncate">{p.anzeige}</span></p>)}
+        {t.spiele > 0 && <p className="zahl col-span-2 px-2 pt-1 text-[11px] text-white/45">{t.punkte} pts · {t.elims} elims · {t.spiele} games</p>}
+      </div>
+    </motion.button>
+  );
+}
+
+/** Dasselbe Duo ohne Fotostreifen (nicht jeder hat ein Foto) - gleich grosse Zeilenkachel. */
+function DuoZeileKarte({ t, auf }: { t: GTeam; auf: () => void }) {
+  return (
+    <button type="button" onClick={auf} className="fl-fest fl-klick flex h-[68px] items-center gap-3 px-3.5 text-left">
+      <TeamFlagge groesse={30} laender={t.spieler.map((p) => p.land)} />
+      <span className="flex min-w-0 flex-1 flex-col text-[13px] font-bold uppercase leading-snug tracking-wide text-white">{t.spieler.slice(0, 2).map((p) => <span key={p.turnierId} className="truncate">{p.anzeige}</span>)}</span>
+      {t.region && <Marke>{t.region}</Marke>}
+      {t.spiele > 0 && <span className="zahl w-9 text-right text-xs font-black text-white/50">#{t.rang}</span>}
+    </button>
   );
 }
 
@@ -219,66 +280,61 @@ function Teams() {
   if (s.art === 'laedt') return <Laedt />;
   if (s.art !== 'ok') return <FehlerZeile text="The field could not be loaded right now." />;
   if (!teams.length) return <Leer text="Epic has no participant list for this day yet. As soon as it exists, the teams are here — nothing is invented." />;
+  const mitFoto = gezeigt.filter((t) => t.spieler.length > 0 && t.spieler.every((p) => p.bild));
+  const ohneFoto = gezeigt.filter((t) => !(t.spieler.length > 0 && t.spieler.every((p) => p.bild)));
+  const regionen = REGIONEN.map((r) => ({ r, l: gezeigt.filter((t) => t.region === r) })).filter((g) => g.l.length);
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        {(['spieler', 'laender', 'regionen'] as const).map((k) => <button key={k} type="button" onClick={() => setAnsicht(k)} className={chip(ansicht === k)}>{k === 'spieler' ? 'Players' : k === 'laender' ? 'Nationalities' : 'Regions'}</button>)}
-        <span className="text-xs tabular-nums text-white/40">{teams.length} teams · {s.d.spieler ?? teams.length * 2} players</span>
-        <Suche wert={q} setze={setQ} platz="Search a player …" className="ml-auto" />
-      </div>
-      {ansicht === 'spieler' && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {gezeigt.map((t, i) => (
-            <motion.button key={t.rang} type="button" onClick={() => setOffen(t)} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 16) * 0.03 }} whileHover={{ y: -4 }}
-              className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] text-left backdrop-blur-xl transition hover:border-sky-400/40">
-              {t.spieler.every((p) => p.bild) ? (
-                <div className="grid grid-cols-2">
-                  {t.spieler.slice(0, 2).map((p) => (
-                    <div key={p.turnierId} className="relative aspect-[4/5] overflow-hidden bg-[#0a0e18]">
-                      <img src={p.bild!} alt="" loading="lazy" className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-                      <p className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 p-2.5 text-sm font-bold text-white"><img src={flaggenPfad(p.land)} alt="" className="h-4 w-4 rounded-full object-cover" /><span className="truncate">{p.anzeige}</span></p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="relative grid aspect-[8/5] grid-cols-2 bg-gradient-to-br from-sky-950/60 via-[#0a0e18] to-[#06080f]">
-                  {t.spieler.slice(0, 2).map((p) => (
-                    <div key={p.turnierId} className="flex flex-col items-center justify-center gap-3 p-3">
-                      <img src={flaggenPfad(p.land)} alt="" className="h-14 w-14 rounded-full object-cover ring-2 ring-white/15" />
-                      <span className="max-w-full truncate text-base font-black uppercase tracking-wide text-white">{p.anzeige}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {t.spiele > 0 && <span className="absolute left-2 top-2 rounded-lg bg-black/70 px-2 py-0.5 text-xs font-bold tabular-nums text-sky-300">#{t.rang}</span>}
-              {t.spiele > 0 && <span className="absolute right-2 top-2 rounded-lg bg-black/70 px-2 py-0.5 text-xs tabular-nums text-white">{t.punkte} pts</span>}
-              {t.region && <span className="absolute bottom-12 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white/80">{t.region}</span>}
-            </motion.button>
+      <div className="fl-fest flex flex-wrap items-center gap-x-5 gap-y-3 !rounded-2xl px-4 py-3">
+        <Segment id="globals-teams" wert={ansicht} onWahl={setAnsicht} wahl={[{ k: 'spieler', titel: 'Players' }, { k: 'laender', titel: 'Nationalities' }, { k: 'regionen', titel: 'Regions' }]} />
+        <div className="flex gap-5">
+          {([['Teams', teams.length], ['Players', s.d.spieler ?? teams.length * 2], ['Countries', laender.length]] as Array<[string, number]>).map(([l, v]) => (
+            <p key={l} className="flex items-baseline gap-1.5"><span className="titel text-3xl !text-akz">{v}</span><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">{l}</span></p>
           ))}
         </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player …" className="eingabe ml-auto w-full !py-2 sm:w-64" />
+      </div>
+      {!gezeigt.length && <Leer text="No player found." />}
+      {ansicht === 'spieler' && (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {mitFoto.map((t, i) => <DuoKarte key={t.rang} t={t} i={i} auf={() => setOffen(t)} />)}
+          </div>
+          {ohneFoto.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-center gap-3"><span className="h-5 w-1 rounded-full bg-akz" /><h3 className="titel text-2xl">More teams</h3><span className="zahl text-sm font-semibold text-white/35">{ohneFoto.length}</span><span className="h-px flex-1 bg-white/[0.07]" /></div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{ohneFoto.map((t) => <DuoZeileKarte key={t.rang} t={t} auf={() => setOffen(t)} />)}</div>
+            </section>
+          )}
+        </>
       )}
       {ansicht === 'laender' && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {laender.map(([land, sp], i) => (
-            <Glas key={land} className="p-4" verzoegerung={Math.min(i, 12) * 0.03}>
-              <div className="mb-2 flex items-center gap-2 border-b border-white/5 pb-2"><img src={flaggenPfad(land)} alt="" className="h-5 w-5 rounded-full object-cover" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{landName(land)}</span><span className="text-xs tabular-nums text-white/40">{sp.length}</span></div>
-              <ul className="space-y-1 text-center">{sp.map((p) => <li key={p.turnierId} className="truncate text-sm font-semibold uppercase tracking-wide text-white/80">{p.anzeige}</li>)}</ul>
-            </Glas>
+            <Flaeche key={land} fest className="p-4" verz={Math.min(i, 12) * 0.03}>
+              <div className="mb-3 flex items-center gap-2.5 border-b border-white/[0.06] pb-2.5"><img src={flaggenPfad(land)} alt="" className="h-6 w-6 rounded-full object-cover" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{landName(land)}</span><span className="titel text-2xl !text-akz">{sp.length}</span></div>
+              <ul className="space-y-1.5">{sp.map((p) => (
+                <li key={p.turnierId} className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-white/85">
+                  {p.bild && <img src={p.bild} alt="" loading="lazy" className="h-9 w-[27px] shrink-0 rounded-md object-cover object-top" />}<span className="truncate">{p.anzeige}</span>
+                </li>
+              ))}</ul>
+            </Flaeche>
           ))}
         </div>
       )}
       {ansicht === 'regionen' && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {REGIONEN.map((r) => ({ r, l: gezeigt.filter((t) => t.region === r) })).filter((g) => g.l.length).map((g, i) => (
-            <Glas key={g.r} className="p-4" verzoegerung={i * 0.04}>
-              <div className="mb-2 flex items-center gap-2 border-b border-white/5 pb-2"><span className="rounded-md bg-sky-400/15 px-2 py-0.5 text-xs font-black text-sky-200">{g.r}</span><span className="ml-auto text-xs tabular-nums text-white/40">{g.l.length}</span></div>
+          {regionen.map((g, i) => (
+            <Flaeche key={g.r} fest className="overflow-hidden" verz={i * 0.04}>
+              <div className="flex items-end justify-between border-b border-white/[0.06] px-4 py-3"><h3 className="titel text-4xl">{g.r}</h3><span className="zahl text-xs font-semibold text-white/45">{g.l.length} teams</span></div>
               <ul>{g.l.map((t) => (
-                <li key={t.rang}><button type="button" onClick={() => setOffen(t)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-white/85 hover:bg-white/5">
-                  <TeamFlagge groesse={20} laender={t.spieler.map((p) => p.land)} /><span className="min-w-0 flex-1 truncate font-semibold">{t.spieler.map((p) => p.anzeige).join(' + ')}</span>
+                <li key={t.rang}><button type="button" onClick={() => setOffen(t)} className="flex w-full items-center gap-2.5 border-b border-white/[0.05] px-4 py-2 text-left transition last:border-b-0 hover:bg-akz/[0.08]">
+                  <TeamFlagge groesse={24} laender={t.spieler.map((p) => p.land)} />
+                  <span className="flex min-w-0 flex-1 flex-col text-[12px] font-bold uppercase leading-snug tracking-wide text-white">{t.spieler.map((p) => <span key={p.turnierId} className="truncate">{p.anzeige}</span>)}</span>
+                  <TeamFotos klein spieler={t.spieler} />
                 </button></li>
               ))}</ul>
-            </Glas>
+            </Flaeche>
           ))}
         </div>
       )}
@@ -310,6 +366,7 @@ function Karten() {
   const [s] = useDaten<{ karten: Karte[]; ersatz?: boolean }>('/api/turnier-karten');
   const [f] = useDaten<{ teams: GTeam[] }>(`/api/globals-teams?fenster=${encodeURIComponent(tage[0].windowId)}`);
   const [offen, setOffen] = useState(0);
+  const [zeige, setZeige] = useState<{ namen: string[]; n: number } | null>(null);
   const karten = s.art === 'ok' ? (s.d.karten ?? []).filter((k) => k.eventId === EVENT) : [];
   const feld = useMemo(() => {
     const sp = new Map<string, GSpieler>(); const rg = new Map<string, string>();
@@ -322,41 +379,68 @@ function Karten() {
   const gruppen = useMemo(() => {
     if (!k) return [];
     const platziert = new Set((k.spots ?? []).flatMap((sp) => sp.teams));
-    const zeilen = (k.teams ?? []).map((t) => ({ t, namen: name(t), laender: (t.ids ?? []).map((id) => feld.sp.get(id)?.land ?? null), region: (t.ids ?? []).map((id) => feld.rg.get(id)).find(Boolean) ?? '', drauf: platziert.has(t.id) }));
+    const zeilen = (k.teams ?? []).map((t) => ({ t, namen: name(t), laender: (t.ids ?? []).map((id) => feld.sp.get(id)?.land ?? null), bilder: (t.ids ?? []).map((id) => ({ bild: feld.sp.get(id)?.bild })), region: (t.ids ?? []).map((id) => feld.rg.get(id)).find(Boolean) ?? '', drauf: platziert.has(t.id) }));
     return [...REGIONEN, ''].map((r) => ({ r, z: zeilen.filter((x) => (REGIONEN.includes(x.region) ? x.region : '') === r) })).filter((g) => g.z.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [k, feld]);
   if (s.art === 'laedt') return <Laedt />;
   if (s.art !== 'ok') return <FehlerZeile text="The map could not be loaded." />;
-  if (!k) return <Leer text={wer?.isAdmin ? 'No Globals map yet — draw it in the map tool (choose the Global Championship as cup).' : 'As soon as the map is ready, it shows up here.'}
-    kind={wer?.isAdmin ? <Link to="/competitive/maps/view?edit=1" className="mt-4 inline-block rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-[#06080f]">Open the map tool</Link> : undefined} />;
+  if (!k) return <Leer text={wer?.isAdmin ? 'No Globals map yet — draw it in the map tool (choose the Global Championship as cup).' : 'As soon as the map is ready, it shows up here.'}>
+    {wer?.isAdmin ? <Link to="/competitive/maps/view?edit=1" className="knopf-prim !bg-amber-400">Open the map tool</Link> : undefined}</Leer>;
+  const springe = (namen: string[]) => setZeige((alt) => ({ namen, n: (alt?.n ?? 0) + 1 }));
+  const nach = new Map((k.teams ?? []).map((t) => [t.id, t]));
+  const belegt = (k.spots ?? []).filter((sp) => sp.teams.length).sort((a, b) => b.teams.length - a.teams.length);
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {s.d.ersatz && <FehlerZeile text="The store is not answering right now — you see the last backup, which may be older." />}
-      <div className="flex flex-wrap items-center gap-2">
-        {karten.map((x, i) => <button key={x.id} type="button" onClick={() => setOffen(i)} className={chip(i === offen)}>Global Championship (2026){karten.length > 1 && <span className="ml-1.5 opacity-60">{x.bildTitel || x.titel}</span>}</button>)}
-        {wer?.isAdmin && <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="ml-auto rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold text-[#06080f] transition hover:bg-amber-300">Open in the map tool</Link>}
-        <a href={`${SEITE}/globals/map`} target="_blank" rel="noreferrer" className={`${wer?.isAdmin ? '' : 'ml-auto '}rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white/45 transition hover:border-white/30 hover:text-white`}>Classic view ↗</a>
+      <div className="ohne-leiste flex items-center gap-2 overflow-x-auto">
+        {karten.map((x, i) => <button key={x.id} type="button" onClick={() => setOffen(i)} className={`chip ${i === offen ? 'chip-an' : ''}`}>Global Championship (2026){karten.length > 1 && <span className="text-white/55">{x.bildTitel || x.titel}</span>}</button>)}
+        {k.spiele && <Marke>Games {k.spiele}</Marke>}
+        {wer?.isAdmin && <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="chip ml-auto !border-amber-400/40 !text-amber-200">Open in the map tool</Link>}
+        <a href={`${SEITE}/globals/map`} target="_blank" rel="noreferrer" className={`${wer?.isAdmin ? '' : 'ml-auto '}knopf-leer shrink-0 !text-xs !text-white/45 hover:!text-white`}>Classic view ↗</a>
       </div>
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <KartenAnsicht formen={formen} bild={k.bildId ? `/bilder/karten/${encodeURIComponent(k.bildId)}.png` : null} rotAb={2} titel="globals-2026-map" />
-        <Glas className="p-4 lg:sticky lg:top-32 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto">
-          <h2 className="mb-3 flex items-baseline justify-between font-bold text-white">Teams<span className="text-xs font-normal tabular-nums text-white/40">{(k.teams ?? []).length}</span></h2>
-          <div className="space-y-3">
+      <Werkbank
+        links={(
+          <Dock titel="Teams" zahl={(k.teams ?? []).length} fuss="Click a team to fly to its drop spot. View only — teams are placed in the map tool.">
             {gruppen.map((g) => (
               <div key={g.r || 'x'}>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/80">{g.r || 'No region'}<span className="ml-1.5 font-normal text-white/30">{g.z.length}</span></p>
+                <p className="sticky top-0 z-[1] flex items-center justify-between border-b border-white/[0.06] bg-fl px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-akz">{g.r || 'No region'}<span className="zahl text-white/35">{g.z.length}</span></p>
                 <ul>{g.z.map((z) => (
-                  <li key={z.t.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-[12px] font-semibold uppercase tracking-wide ${z.drauf ? 'text-white/85' : 'text-white/35'}`}>
-                    <TeamFlagge groesse={18} laender={z.laender} /><span className="min-w-0 flex-1 truncate">{z.namen.map(kartenName).join(' + ')}</span>
+                  <li key={z.t.id}>
+                    <button type="button" disabled={!z.drauf} onClick={() => springe(z.namen)} className={`flex w-full items-center gap-2.5 border-b border-white/[0.05] px-3 py-1.5 text-left transition ${z.drauf ? 'hover:bg-akz/[0.08]' : 'opacity-40'}`}>
+                      <TeamFlagge groesse={22} laender={z.laender} />
+                      <span className="flex min-w-0 flex-1 flex-col text-[11px] font-bold uppercase leading-[1.3] tracking-wide text-white">{z.namen.map((n, i) => <span key={i} className="truncate">{kartenName(n)}</span>)}</span>
+                      <TeamFotos klein spieler={z.bilder} />
+                    </button>
                   </li>
                 ))}</ul>
               </div>
             ))}
-          </div>
-        </Glas>
-      </div>
-      <p className="text-center text-[11px] text-white/30">Wheel zooms, drag moves, double click zooms in. View only — teams are placed in the map tool.</p>
+          </Dock>
+        )}
+        rechts={(
+          <Dock titel="Spots" zahl={`${belegt.filter((sp) => sp.teams.length > 1).length} contested`} fuss="Wheel zooms, drag moves, double click zooms in.">
+            <ul>
+              {belegt.map((sp) => {
+                const ts = sp.teams.map((t) => nach.get(t)).filter((t): t is KTeam => Boolean(t));
+                return (
+                  <li key={sp.id}>
+                    <button type="button" onClick={() => springe(ts.flatMap((t) => name(t)))} className={`flex w-full items-start gap-3 border-b border-white/[0.05] px-3 py-2.5 text-left transition ${ts.length > 1 ? 'hover:bg-red-500/[0.08]' : 'hover:bg-akz/[0.08]'}`}>
+                      <span className={`titel w-7 shrink-0 text-center text-3xl ${ts.length > 1 ? '!text-red-400' : '!text-white/30'}`}>{ts.length}</span>
+                      <span className="min-w-0 flex-1">
+                        {sp.name?.trim() && <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{sp.name}</span>}
+                        {ts.map((t) => <span key={t.id} className="block truncate text-[11px] font-bold uppercase tracking-wide text-white">{name(t).map(kartenName).join(' · ')}</span>)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {!belegt.length && <li className="px-4 py-6 text-center text-sm text-white/45">No team is placed yet.</li>}
+            </ul>
+          </Dock>
+        )}>
+        <KartenAnsicht formen={formen} bild={k.bildId ? `/bilder/karten/${encodeURIComponent(k.bildId)}.png` : null} rotAb={2} deckel="none" zeige={zeige} titel="globals-2026-map" />
+      </Werkbank>
     </div>
   );
 }
@@ -372,39 +456,67 @@ function Prognose() {
 
 function Preisgeld() {
   const [s] = useDaten<{ waehrung: string; plaetze: Array<{ platz: number; proSpieler: number; proTeam: number; spanne: [number, number] }>; summe: number; summeProSpieler: number; error?: string }>('/api/globals-preisgeld');
+  const { teams } = useEndstand();
   if (s.art === 'laedt') return <Laedt />;
-  if (s.art !== 'ok' || s.d.error) return <Leer text="Epic is not publishing the payout table for the Globals right now — please reload in a moment." />;
+  if (s.art !== 'ok' || s.d.error) {
+    // Ohne Auszahlungstabelle: ein Satz dazu - und der Endstand, um den es beim Preisgeld geht (keine leere Seite).
+    return (
+      <div className="space-y-4">
+        <p className="rounded-2xl border border-dashed border-white/10 px-5 py-3 text-sm text-white/50">Epic is not publishing the payout table for the Globals right now — the amounts appear here as soon as it is back. Until then: the final standings the prize money follows.</p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {teams.slice(0, 16).map((t, i) => (
+            <Flaeche key={t.rang} fest verz={Math.min(i, 10) * 0.03} className="flex h-[76px] items-center gap-3 px-4">
+              <span className="titel w-10 text-4xl" style={{ color: MEDAILLE[t.rang - 1] ?? 'rgba(255,255,255,.3)' }}>{t.rang}</span>
+              <TeamFlagge groesse={28} laender={t.spieler.map((p) => p.land)} />
+              <span className="flex min-w-0 flex-1 flex-col text-[13px] font-bold uppercase leading-snug tracking-wide text-white">{t.spieler.map((p) => <span key={p.id} className="truncate">{p.anzeige}</span>)}</span>
+              <TeamFotos spieler={t.spieler} />
+              <span className="zahl text-right text-sm font-black text-akz">{t.punkte}</span>
+            </Flaeche>
+          ))}
+        </div>
+      </div>
+    );
+  }
   const d = s.d;
-  const podest = [{ r: '#facc15', g: 'from-amber-300/20' }, { r: '#cbd5e1', g: 'from-slate-300/15' }, { r: '#f59e0b', g: 'from-orange-500/15' }];
+  const max = Math.max(1, ...d.plaetze.map((p) => p.proTeam));
+  const [eins, zwei, drei] = d.plaetze;
+  const stufe = (p: typeof eins | undefined, i: number, hoehe: string) => p && (
+    <motion.div key={p.platz} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1, duration: 0.5 }} className="flex min-w-0 flex-1 flex-col justify-end">
+      <p className="zahl truncate text-center text-xl font-extrabold text-white sm:text-3xl">{usd(p.proTeam)}</p>
+      <p className="zahl mb-2 truncate text-center text-[11px] text-white/45">{usd(p.proSpieler)} per player</p>
+      <div className={`relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-white/[0.07] to-transparent ${hoehe}`}>
+        <div className="absolute inset-x-0 top-0 h-1" style={{ background: MEDAILLE[i] }} />
+        <p className="titel pt-3 text-center text-6xl sm:text-7xl" style={{ color: MEDAILLE[i] }}>{p.platz}</p>
+      </div>
+    </motion.div>
+  );
   return (
-    <div className="space-y-6">
-      <Glas className="relative overflow-hidden px-6 py-10 text-center">
-        <div aria-hidden className="absolute inset-0" style={{ background: 'radial-gradient(60% 80% at 50% 0%, rgba(14,71,222,.35), transparent 70%)' }} />
-        <p className="relative text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">Prize pool</p>
-        <motion.p initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative mt-2 text-5xl font-black tabular-nums text-amber-300 sm:text-7xl">{usd(d.summe)}</motion.p>
-        <p className="relative mt-3 text-sm text-white/55">{d.plaetze.length} paid places · {usd(d.summeProSpieler)} per player side</p>
-        <p className="relative mt-1 text-[11px] text-white/30">Source: Epic's payout table. Amounts are per player; a duo gets double.</p>
-      </Glas>
-      <div className="grid gap-4 md:grid-cols-3">
-        {d.plaetze.slice(0, 3).map((p, i) => (
-          <Glas key={p.platz} className="relative overflow-hidden p-6" verzoegerung={0.1 + i * 0.05}>
-            <div aria-hidden className={`absolute inset-0 bg-gradient-to-b ${podest[i].g} to-transparent`} />
-            <div className="absolute inset-x-0 top-0 h-1" style={{ background: podest[i].r }} />
-            <p className="relative text-sm font-black uppercase tracking-widest text-white/50">{ordnung(p.platz)}</p>
-            <p className="relative mt-2 text-4xl font-black tabular-nums" style={{ color: podest[i].r }}>{usd(p.proTeam)}</p>
-            <p className="relative mt-1 text-sm text-white/50">per team · {usd(p.proSpieler)} per player</p>
-          </Glas>
-        ))}
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:items-start">
+      <div className="space-y-4 xl:sticky xl:top-[7.5rem]">
+        <Flaeche fest className="p-6">
+          <p className="ueber">Prize pool · {d.waehrung || 'USD'}</p>
+          <p className="titel mt-2 text-7xl !text-amber-300 sm:text-8xl"><Zaehler wert={d.summe} format={usd} /></p>
+          <p className="zahl mt-2 text-sm text-white/55">{d.plaetze.length} paid places · {usd(d.summeProSpieler)} per player side</p>
+          <p className="mt-1 text-[11px] text-white/30">Source: Epic's payout table. Amounts are per player; a duo gets double.</p>
+        </Flaeche>
+        <Flaeche fest verz={0.08} className="px-5 pt-5">
+          <div className="flex items-end gap-3">{stufe(zwei, 1, 'h-28')}{stufe(eins, 0, 'h-40')}{stufe(drei, 2, 'h-20')}</div>
+        </Flaeche>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {d.plaetze.slice(3).map((p) => (
-          <div key={p.platz} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-sky-400/40">
-            <span className="grid h-10 w-14 shrink-0 place-items-center rounded-xl bg-black/30 text-sm font-black tabular-nums text-sky-200">{ordnung(p.platz)}</span>
-            <span className="min-w-0 flex-1"><span className="block text-lg font-bold tabular-nums text-white">{usd(p.proTeam)}</span><span className="block text-xs text-white/40">{usd(p.proSpieler)} per player</span></span>
-            {p.spanne[0] !== p.spanne[1] && <span className="rounded-md border border-white/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white/50">{p.spanne[0]}–{p.spanne[1]}</span>}
-          </div>
-        ))}
-      </div>
+      <Flaeche fest verz={0.12} className="overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3"><span className="h-4 w-1 rounded-full bg-akz" /><h2 className="titel text-xl">Every paid place</h2></div>
+        <ul>
+          {d.plaetze.map((p, i) => (
+            <li key={p.platz} className="flex items-center gap-4 border-b border-white/[0.05] px-4 py-2.5 last:border-b-0">
+              <span className="titel w-16 shrink-0 text-2xl" style={{ color: MEDAILLE[i] ?? 'rgba(255,255,255,.45)' }}>{p.spanne[0] !== p.spanne[1] ? `${p.spanne[0]}–${p.spanne[1]}` : ordnung(p.platz)}</span>
+              <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <motion.span className="absolute inset-y-0 left-0 rounded-full" style={{ background: MEDAILLE[i] ?? 'rgb(var(--akz))' }} initial={{ width: 0 }} whileInView={{ width: `${(p.proTeam / max) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: Math.min(i, 12) * 0.03 }} />
+              </span>
+              <span className="w-28 shrink-0 text-right"><span className="zahl block text-base font-bold text-white">{usd(p.proTeam)}</span><span className="zahl block text-[11px] text-white/40">{usd(p.proSpieler)} per player</span></span>
+            </li>
+          ))}
+        </ul>
+      </Flaeche>
     </div>
   );
 }
@@ -412,49 +524,57 @@ function Preisgeld() {
 /* ---------------------------------------------------------------- Rahmen */
 
 const UNTER = [
-  { pfad: '', titel: 'Overview', text: '' },
-  { pfad: 'teams', titel: 'Teams', text: 'Who is in the field, and from which country' },
-  { pfad: 'map', titel: 'Map', text: 'The tournament map — who lands where' },
-  { pfad: 'predictions', titel: 'Predictions', text: 'Your call on the outcome' },
-  { pfad: 'prizepool', titel: 'Prize Pool', text: 'Every place with its prize money' },
+  { pfad: '', titel: 'Overview' },
+  { pfad: 'teams', titel: 'Teams' },
+  { pfad: 'map', titel: 'Map' },
+  { pfad: 'predictions', titel: 'Predictions' },
+  { pfad: 'prizepool', titel: 'Prize Pool' },
 ];
+
+/** Die Unterseiten als sichtbarer Umschalter (Links mit gleitender Pille) - kein Ausklappen. */
+function UnterNav({ aktiv }: { aktiv: string }) {
+  return (
+    <nav className="ohne-leiste inline-flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-1">
+      {UNTER.map((u) => (
+        <NavLink key={u.pfad} to={`/competitive/globals${u.pfad ? `/${u.pfad}` : ''}`} end
+          className={`relative shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${aktiv === u.pfad ? 'text-[#04050a]' : 'text-white/60 hover:text-white'}`}>
+          {aktiv === u.pfad && <motion.span layoutId="globals-unter" className="absolute inset-0 rounded-lg bg-akz shadow-[0_6px_18px_-6px_rgb(var(--akz)/0.9)]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+          <span className="relative">{u.titel}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
 
 export default function Globals() {
   const { wer } = useWer();
+  const ort = useLocation();
   if (!wer) return <Laedt />;
   const darf = istVip(wer) || wer.rechte?.includes('globals');
+  const teil = ort.pathname.replace(/\/$/, '').split('/')[3] ?? '';
+  const aktiv = UNTER.some((u) => u.pfad === teil) ? teil : '';
+  // Die grosse Buehne nur auf der Uebersicht - auf den Unterseiten ein schmales Kopfband, damit der Inhalt (Karte, Feld) gleich oben beginnt.
+  const werkzeug = darf && aktiv !== '';
   return (
-    <div className="space-y-6">
-      <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18]">
-        <img src={BILD} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
-        <div className="grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_minmax(0,560px)]">
-          <div className="order-2 lg:order-1">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-300">FNCS · Antwerp · 26–27.09.2026</p>
-            <h1 className="mt-1 text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl">Globals <span className="text-sky-400">2026</span></h1>
-            <p className="mt-3 max-w-xl text-sm text-white/60">The FNCS Global Championship in one place: the field, the map, your prediction and the prize money.</p>
-          </div>
-          <img src={BILD} alt="FNCS Global Championship 2026" className="order-1 aspect-video w-full rounded-2xl border border-white/10 object-cover shadow-2xl lg:order-2" />
-        </div>
-      </motion.section>
+    <div className={werkzeug ? '-mt-2 space-y-3' : ''}>
+      {werkzeug ? (
+        <KopfBand zurueck="/competitive/globals" zurueckTitel="Globals overview" bild={<Bild src={BILD} className="hidden aspect-video h-[72px] shrink-0 rounded-2xl sm:block" />}
+          ueber="FNCS · Antwerp · 26–27.09.2026" titel={<>Globals <span className="text-akz">2026</span></>} rechts={<UnterNav aktiv={aktiv} />} />
+      ) : (
+        <SeitenKopf bild={BILD} ueber="FNCS · Antwerp · 26–27.09.2026" titel={<>Globals <span className="text-akz">2026</span></>}
+          text="The FNCS Global Championship in one place: the field, the map, your prediction and the prize money.">
+          {darf && <UnterNav aktiv={aktiv} />}
+        </SeitenKopf>
+      )}
       {!darf ? <AnmeldeKarte titel="VIPs only" text="The Globals page is for VIPs — sign in with a VIP account or access key." /> : (
-        <>
-          <div className="max-w-full overflow-x-auto">
-            <nav className="inline-flex gap-1 rounded-2xl border border-white/10 bg-white/[0.035] p-1 backdrop-blur-xl">
-              {UNTER.map((u) => (
-                <NavLink key={u.pfad} to={`/competitive/globals${u.pfad ? `/${u.pfad}` : ''}`} end
-                  className={({ isActive }) => `shrink-0 rounded-xl px-4 py-2 text-sm font-semibold transition ${isActive ? 'bg-sky-400 text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{u.titel}</NavLink>
-              ))}
-            </nav>
-          </div>
-          <Routes>
-            <Route index element={<Uebersicht />} />
-            <Route path="teams" element={<Teams />} />
-            <Route path="map" element={<Karten />} />
-            <Route path="predictions" element={<Prognose />} />
-            <Route path="prizepool" element={<Preisgeld />} />
-            <Route path="*" element={<Uebersicht />} />
-          </Routes>
-        </>
+        <Routes>
+          <Route index element={<Uebersicht />} />
+          <Route path="teams" element={<Teams />} />
+          <Route path="map" element={<Karten />} />
+          <Route path="predictions" element={<Prognose />} />
+          <Route path="prizepool" element={<Preisgeld />} />
+          <Route path="*" element={<Uebersicht />} />
+        </Routes>
       )}
     </div>
   );

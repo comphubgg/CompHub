@@ -232,14 +232,14 @@ export default function Zeichenflaeche({
 
   const gew = spots.find((s) => s.id === gewaehlt) ?? null;
   const zeigen = anzeige ?? spots;
-  const knopf = 'grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-black/60 text-white backdrop-blur transition hover:border-sky-400/60 hover:bg-black/80';
+  const knopf = 'grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-black/60 text-white backdrop-blur transition hover:border-akz/60 hover:bg-black/80';
 
   return (
     <div ref={flaeche}
       onMouseDown={runter} onMouseMove={bewegt} onMouseUp={hoch} onDoubleClick={doppelt}
       onMouseLeave={() => { setHover(null); halteAus(); gummiRef.current = null; setGummi(null); if (griff.current?.art === 'karte') { setZoom(zr.current); setMitte(mr.current); } griff.current = null; }}
       onDragOver={(e) => { if (darfAblegen) e.preventDefault(); }} onDrop={fallen}
-      className={`relative mx-auto aspect-square select-none overflow-hidden bg-[#0b2340] ${voll ? 'h-full max-h-screen' : 'w-full rounded-3xl border border-white/10'} ${werkzeug ? 'cursor-crosshair' : zoom > 1.02 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`relative mx-auto aspect-square select-none overflow-hidden bg-[#0b2340] ${voll ? 'h-full max-h-screen' : 'w-full rounded-3xl border border-white/[0.07]'} ${werkzeug ? 'cursor-crosshair' : zoom > 1.02 ? 'cursor-grab active:cursor-grabbing' : ''}`}
       style={{ containerType: 'inline-size', overscrollBehavior: 'contain' }}>
       <div ref={ebene} className="absolute inset-0 origin-top-left"
         style={{ transform: `scale(${zoom}) translate(${50 / zoom - mitte.x}%, ${50 / zoom - mitte.y}%)`, transformOrigin: '0 0', '--z': zoom } as CSSProperties}>
@@ -260,12 +260,11 @@ export default function Zeichenflaeche({
             const an = hover === s.id || gewaehlt === s.id || hervorheben === s.id;
             return (
               <polygon key={s.id} points={s.punkte.map((p) => `${p.x},${p.y}`).join(' ')}
-                fill={hervorheben === s.id ? 'rgba(56,189,248,0.4)' : f.fuellung} stroke={gewaehlt === s.id ? '#38bdf8' : an ? '#7dd3fc' : f.rand}
                 strokeWidth={an ? 2.4 : 1.5} vectorEffect="non-scaling-stroke"
-                style={{ transition: 'fill .2s, stroke .2s', filter: an ? 'drop-shadow(0 0 6px rgba(56,189,248,.6))' : undefined }} />
+                style={{ fill: hervorheben === s.id ? 'rgb(var(--akz) / 0.4)' : f.fuellung, stroke: an ? 'rgb(var(--akz))' : f.rand, transition: 'fill .2s, stroke .2s', filter: an ? 'drop-shadow(0 0 6px rgb(var(--akz) / 0.6))' : undefined }} />
             );
           })}
-          {gummi && <polygon points={rechteckPunkte(gummi.von, gummi.bis).map((p) => `${p.x},${p.y}`).join(' ')} fill="rgba(56,189,248,0.2)" stroke="#38bdf8" strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />}
+          {gummi && <polygon points={rechteckPunkte(gummi.von, gummi.bis).map((p) => `${p.x},${p.y}`).join(' ')} strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" style={{ fill: 'rgb(var(--akz) / 0.2)', stroke: 'rgb(var(--akz))' }} />}
           {rohbau.length > 0 && <polyline points={[...rohbau, ...(zeiger ? [zeiger] : [])].map((p) => `${p.x},${p.y}`).join(' ')} fill="rgba(52,211,153,0.14)" stroke="#34d399" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
         </svg>
         {rohbau.length >= 3 && <span style={{ left: `${rohbau[0].x}%`, top: `${rohbau[0].y}%`, transform: 'translate(-50%,-50%) scale(calc(1 / var(--z, 1)))' }} className="pointer-events-none absolute z-20 h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-emerald-950" />}
@@ -275,7 +274,7 @@ export default function Zeichenflaeche({
             onMouseDown={(e) => { e.stopPropagation(); merke?.(); griff.current = { art: 'ecke', index: i, gegen: gew.form === 'rechteck' && gew.punkte.length === 4 ? gew.punkte[(i + 2) % 4] : null }; }}
             style={{ left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%) scale(calc(1 / var(--z, 1)))' }}
             className="absolute z-20 grid h-6 w-6 cursor-grab place-items-center">
-            <span className="h-3 w-3 rounded-sm border-2 border-sky-400 bg-[#06080f]" />
+            <span className="h-3 w-3 rounded-sm border-2 border-akz bg-[#04050a]" />
           </button>
         ))}
 
@@ -309,20 +308,20 @@ export default function Zeichenflaeche({
 
         {marken?.map((m) => (
           <span key={m.id} style={{ left: `${m.x}%`, top: `${m.y}%`, transform: 'translate(-50%,-50%) scale(calc(1 / var(--z, 1)))' }}
-            className={`pointer-events-none absolute z-20 whitespace-nowrap rounded px-1 py-0.5 text-[9px] font-semibold shadow ${m.an ? 'bg-sky-500/90 text-white' : 'bg-black/80 text-white/40 line-through'}`}>{m.text}</span>
+            className={`pointer-events-none absolute z-20 whitespace-nowrap rounded px-1 py-0.5 text-[9px] font-semibold shadow ${m.an ? 'bg-akz/90 text-white' : 'bg-black/80 text-white/40 line-through'}`}>{m.text}</span>
         ))}
       </div>
 
-      {!geladen && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="h-7 w-7 animate-spin rounded-full border-2 border-sky-500/20 border-t-sky-400" /></div>}
+      {!geladen && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="h-7 w-7 animate-spin rounded-full border-2 border-akz/20 border-t-akz" /></div>}
       <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} className="absolute right-3 top-3 z-30 flex flex-col gap-1.5">
         {oben}
       </div>
       <div onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} className="absolute bottom-3 left-3 z-30 flex flex-wrap items-center gap-1.5">
         <button type="button" title="Zoom in" onClick={() => gleite(zr.current * 1.6, mr.current)} className={knopf}>+</button>
         <button type="button" title="Zoom out" onClick={() => gleite(zr.current / 1.6, mr.current)} className={knopf}>−</button>
-        {zoom > 1.02 && <button type="button" onClick={() => gleite(1, { x: 50, y: 50 })} className="rounded-xl border border-white/10 bg-black/60 px-2.5 py-2 text-[11px] font-semibold text-white/80 backdrop-blur hover:border-sky-400/60">{zoom.toFixed(1)}× · reset</button>}
+        {zoom > 1.02 && <button type="button" onClick={() => gleite(1, { x: 50, y: 50 })} className="rounded-xl border border-white/10 bg-black/60 px-2.5 py-2 text-[11px] font-semibold text-white/80 backdrop-blur hover:border-akz/60">{zoom.toFixed(1)}× · reset</button>}
         {werkzeug === 'polygon' && <span className="rounded-xl bg-black/70 px-2.5 py-2 text-[11px] font-semibold text-emerald-300">Click corner by corner — click the first point to close ({rohbau.length} set) · Esc cancels</span>}
-        {werkzeug === 'rechteck' && <span className="rounded-xl bg-black/70 px-2.5 py-2 text-[11px] font-semibold text-sky-300">Drag a rectangle on the map · Esc cancels</span>}
+        {werkzeug === 'rechteck' && <span className="rounded-xl bg-black/70 px-2.5 py-2 text-[11px] font-semibold text-akz">Drag a rectangle on the map · Esc cancels</span>}
         {unten}
       </div>
     </div>
@@ -333,8 +332,8 @@ export default function Zeichenflaeche({
 export function WerkzeugKnopf({ titel, aktiv, gefahr, onClick, kind, aus }: { titel: string; aktiv?: boolean; gefahr?: boolean; onClick: () => void; kind: ReactNode; aus?: boolean }) {
   return (
     <button type="button" title={titel} aria-label={titel} onClick={onClick} disabled={aus}
-      className={`grid h-9 w-9 place-items-center rounded-xl border backdrop-blur transition disabled:opacity-40 ${aktiv ? 'border-sky-400 bg-sky-400 text-[#06080f]'
-        : gefahr ? 'border-white/10 bg-black/60 text-rose-300 hover:border-rose-400/70' : 'border-white/10 bg-black/60 text-white/80 hover:border-sky-400/60 hover:text-white'}`}>
+      className={`grid h-9 w-9 place-items-center rounded-xl border backdrop-blur transition disabled:opacity-40 ${aktiv ? 'border-akz bg-akz text-[#04050a]'
+        : gefahr ? 'border-white/10 bg-black/60 text-rose-300 hover:border-rose-400/70' : 'border-white/10 bg-black/60 text-white/80 hover:border-akz/60 hover:text-white'}`}>
       <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{kind}</svg>
     </button>
   );

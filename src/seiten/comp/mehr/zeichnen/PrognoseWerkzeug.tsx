@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Glas } from '../../../../teile/Glas';
+import { Dock, Werkbank } from '../Werkbank';
 import { useWer } from '../../../../teile/Anmeldung';
 import { FehlerZeile, Laedt, SEITE, TeamFlagge } from '../teile';
 import Zeichenflaeche, { IKONE, WerkzeugKnopf, type Gruppe, type Steuerung } from './Zeichenflaeche';
@@ -19,6 +19,8 @@ import {
  *  - Admin: die CompHub-Prognose (/api/prognosen, Speichern-Knopf), Flagge/Name/Region je Spieler pflegen (/api/spieler-profile), Reload-Insel
  *    zuordnen, Karte leeren. VIP: die eigene Prognose (/api/meine-prognose), speichert sich eine Sekunde nach jeder Aenderung selbst.
  *  - Screenshot: Karte und Reihenfolge als ein Bild (Zwischenablage oder PNG); "Predictions" zeigt die Reihenfolge gross.
+ * Aufbau (Design-System 3.0): eine Leiste mit Titel und Speichern, darunter die Werkbank - Reihenfolge links angedockt, Karte in der Mitte ueber
+ * die ganze Hoehe, das Feld rechts.
  */
 
 const GLOBALS_EVENT = 'epicgames_MannekenPis_Official';
@@ -40,7 +42,7 @@ interface TKarte { id: string; titel: string; cupId?: string; bildId?: string; b
 
 const ordnung = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th'}`;
 const kennung = (cId: string, grp: string) => `${cId}-${grp || 'gesamt'}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const knopfLeise = 'rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-white/80 transition hover:border-sky-400/50 hover:text-white disabled:opacity-40';
+const knopfLeise = 'rounded-xl border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold text-white/80 transition hover:border-akz/50 hover:text-white disabled:opacity-40';
 
 function MvpWahl({ wert, setzen, spieler, gross }: { wert: string; setzen: (n: string) => void; spieler: Array<{ name: string; land?: string | null; region: string; schluessel: string }>; gross: boolean }) {
   const [offen, setOffen] = useState(false);
@@ -53,10 +55,10 @@ function MvpWahl({ wert, setzen, spieler, gross }: { wert: string; setzen: (n: s
         onBlur={() => setTimeout(() => setOffen(false), 150)} onKeyDown={(e) => { if (e.key === 'Enter' && treffer[0]) { e.preventDefault(); waehle(treffer[0].name); } if (e.key === 'Escape') setOffen(false); }}
         className="w-full min-w-0 bg-transparent font-semibold text-white outline-none placeholder:text-white/30" />
       {offen && (
-        <ul className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0e18]/95 py-1 shadow-2xl backdrop-blur-xl">
+        <ul className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-fl py-1 shadow-2xl backdrop-blur-xl">
           {treffer.length ? treffer.map((x) => (
             <li key={x.schluessel}><button type="button" onMouseDown={(e) => { e.preventDefault(); waehle(x.name); }}
-              className={`flex w-full items-center gap-2 px-2.5 text-left transition hover:bg-sky-400/10 ${gross ? 'py-2 text-[15px]' : 'py-1.5 text-[12px]'} ${x.name === wert ? 'bg-amber-400/10' : ''}`}>
+              className={`flex w-full items-center gap-2 px-2.5 text-left transition hover:bg-akz/10 ${gross ? 'py-2 text-[15px]' : 'py-1.5 text-[12px]'} ${x.name === wert ? 'bg-amber-400/10' : ''}`}>
               <TeamFlagge laender={[x.land]} groesse={gross ? 22 : 18} /><span className="min-w-0 flex-1 truncate font-semibold text-white">{x.name}</span>
               {x.region && <span className="shrink-0 rounded border border-white/15 px-1.5 text-[10px] font-semibold text-white/50">{x.region}</span>}
             </button></li>
@@ -371,10 +373,10 @@ export default function PrognoseWerkzeug() {
   /* ---------------------------------------------------------------- Ansicht */
 
   if (!wer) return <Laedt />;
-  if (anmelden) return <Glas className="px-6 py-10 text-center text-sm text-white/55">Your own Globals prediction is saved with your VIP account — please sign in.</Glas>;
+  if (anmelden) return <p className="rounded-2xl border border-dashed border-white/10 px-6 py-8 text-center text-sm text-white/55">Your own Globals prediction is saved with your VIP account — please sign in.</p>;
   if (!cupId) {
     return ladeFehler ? <FehlerZeile text="Your prediction is not reachable right now — the store is not answering. Nothing is lost; please reload in a moment." />
-      : cupsLaden || !gespeicherteDa ? <Laedt text="Loading your prediction …" /> : <Glas className="px-6 py-10 text-center text-sm text-white/50">The Global Championship is not in the tournament catalogue right now.</Glas>;
+      : cupsLaden || !gespeicherteDa ? <Laedt text="Loading your prediction …" /> : <p className="rounded-2xl border border-dashed border-white/10 px-6 py-8 text-center text-sm text-white/50">The Global Championship is not in the tournament catalogue right now.</p>;
   }
 
   const gesetzt = feld.length - offen.length;
@@ -391,7 +393,7 @@ export default function PrognoseWerkzeug() {
         return (
           <div key={i} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const k = e.dataTransfer.getData('text/team') || gezogen.current; if (k) aufPlatz(i, k); }}
             draggable={!!t} onDragStart={(e) => { if (!key) return; e.dataTransfer.setData('text/team', key); gezogen.current = key; }}
-            className={`flex items-center rounded-xl border transition ${gross ? 'gap-3 px-3 py-2.5 text-[15px]' : 'gap-2 px-2 py-1.5 text-[12px]'} ${weiter ? 'border-amber-400/60 bg-amber-400/10' : t ? 'cursor-grab border-white/10 bg-black/30 hover:border-sky-400/40' : 'border-dashed border-white/10'}`}>
+            className={`flex items-center rounded-xl border transition ${gross ? 'gap-3 px-3 py-2.5 text-[15px]' : 'gap-2 px-2 py-1.5 text-[12px]'} ${weiter ? 'border-amber-400/60 bg-amber-400/10' : t ? 'cursor-grab border-white/10 bg-black/30 hover:border-akz/40' : 'border-dashed border-white/10'}`}>
             <span className={`shrink-0 text-right text-[11px] font-black tabular-nums ${gross ? 'w-10' : 'w-8'} ${weiter ? 'text-amber-300' : 'text-white/40'}`}>{ordnung(i + 1)}</span>
             {t ? <>
               <TeamFlagge groesse={gross ? 32 : 22} laender={t.namen.map((n, k) => findeProfil(n, t.ids[k])?.land)} />
@@ -415,53 +417,103 @@ export default function PrognoseWerkzeug() {
   const knopf = (
     <>
       <button type="button" onClick={() => setPlaetze((a) => a.map(() => null))} disabled={!plaetze.some(Boolean)} className={knopfLeise}>Reset</button>
-      <button type="button" onClick={() => setVollbildListe((v) => !v)} className={`${knopfLeise} ${vollbildListe ? '' : 'border-sky-400/50 text-sky-200'}`}>{vollbildListe ? '✕ Close' : 'Predictions'}</button>
+      <button type="button" onClick={() => setVollbildListe((v) => !v)} className={`${knopfLeise} ${vollbildListe ? '' : 'border-akz/50 text-akz'}`}>{vollbildListe ? '✕ Close' : 'Predictions'}</button>
       <button type="button" onClick={() => void alsSchnappschuss()} disabled={!plaetze.length} title="Save map and ranking as one image" className={knopfLeise}>Screenshot</button>
       {schnappschuss && <span className="self-center text-[11px] text-white/45">{schnappschuss}</span>}
     </>
   );
 
   return (
-    <div className="space-y-4">
-      <Glas className="flex flex-wrap items-center gap-3 p-4">
+    <div className="space-y-3">
+      {/* Leiste des Werkzeugs: Titel, Aufstieg, Feld neu laden, Speichern */}
+      <div className="fl-fest flex flex-wrap items-center gap-x-4 gap-y-2 !rounded-2xl px-4 py-2.5">
         <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-          <input value={titel} onChange={(e) => setTitel(e.target.value)} title="Title" className="w-full max-w-xl bg-transparent text-lg font-extrabold text-white outline-none focus:text-sky-200" />
-          <p className="truncate text-xs text-white/45">{ziel && <>{new Date(ziel.begin).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} · </>}Field according to Epic · {eigen ? 'Only you can see your own prediction.' : 'The CompHub prediction — visible on the Predictions page.'}</p>
+          <input value={titel} onChange={(e) => setTitel(e.target.value)} title="Title" className="titel w-full max-w-xl bg-transparent text-2xl outline-none focus:!text-akz" />
+          <p className="truncate text-[11px] text-white/45">{ziel && <>{new Date(ziel.begin).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} · </>}Field according to Epic · {eigen ? 'Only you can see your own prediction.' : 'The CompHub prediction — visible on the Predictions page.'}{status && <span className="ml-2 text-akz">{status}</span>}</p>
         </div>
+        {!eigen && gespeicherte.filter((x) => x.cupId === cupId).length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            {gespeicherte.filter((x) => x.cupId === cupId).map((x) => (
+              <button key={x.id} type="button" onClick={() => laden(x)} className={`chip !py-1 uppercase ${(x.gruppe ?? '') === gruppe ? '!border-amber-400 !bg-amber-400/10 !text-amber-200' : ''}`}>{x.gruppe || x.titel}</button>
+            ))}
+          </div>
+        )}
         <label className="text-[11px] text-white/50">Advance up to place
           <input value={qualiBis || ''} inputMode="numeric" onChange={(e) => { const n = parseInt(e.target.value, 10); setQualiBis(Number.isFinite(n) && n > 0 ? n : 0); }} className="ml-1.5 w-12 rounded-lg border border-white/10 bg-black/40 px-1.5 py-1 text-center text-xs text-white outline-none focus:border-amber-400/60" />
         </label>
         {ziel && <button type="button" onClick={() => void feldLaden(ziel, true)} disabled={laedt} title="Fetch the field from Epic again" className={knopfLeise}>{laedt ? 'loading …' : 'Reload field'}</button>}
         {eigen ? <span className="rounded-xl border border-white/10 px-3 py-1.5 text-[11px] text-white/45">{gespeichertUm ? `Saved ${new Date(gespeichertUm).toLocaleTimeString('en-GB')}` : 'Saves itself'}</span>
-          : <button type="button" onClick={() => void speichern()} disabled={!feld.length} className="rounded-xl bg-sky-400 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-sky-300 disabled:opacity-40">Save</button>}
-        <a href={`${SEITE}/globals/predictions`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/45 transition hover:border-white/30 hover:text-white">Classic view ↗</a>
-      </Glas>
-      {!eigen && gespeicherte.filter((x) => x.cupId === cupId).length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {gespeicherte.filter((x) => x.cupId === cupId).map((x) => (
-            <button key={x.id} type="button" onClick={() => laden(x)} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${(x.gruppe ?? '') === gruppe ? 'border-amber-400 bg-amber-400/10 text-amber-200' : 'border-white/10 text-white/50 hover:border-white/30'}`}>{x.gruppe || x.titel}</button>
-          ))}
+          : <button type="button" onClick={() => void speichern()} disabled={!feld.length} className="knopf-prim !py-2">Save</button>}
+        <a href={`${SEITE}/globals/predictions`} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-white/45 hover:!text-white">Classic view ↗</a>
+      </div>
+      {istAdmin && (
+        <div className="ohne-leiste flex items-center gap-2 overflow-x-auto text-[11px] text-white/50">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Map</span>
+          <span className="zahl shrink-0">{spots.length} spots · {Object.values(aufSpot).flat().length} placed</span>
+          <span className="chip !py-1">{kartenName2}</span>
+          {!karteFest && inselJetzt.art === 'reload' && inselJetzt.schluessel && (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-2.5 py-1">Reload island <b className="text-white/80">{inselJetzt.schluessel}</b> →
+              <select value={inseln[inselJetzt.schluessel] ?? ''} onChange={(e) => void inselZuordnen(inselJetzt.schluessel as string, e.target.value)} className="rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-white outline-none">
+                <option value="">Assign image …</option>{bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
+              </select></span>
+          )}
+          {globalsKarte && <Link to={`/competitive/maps/view?id=${encodeURIComponent(globalsKarte.id)}&edit=1`} className="chip !py-1">Open in the map tool</Link>}
+          {Object.keys(aufSpot).length > 0 && !karteFest && <button type="button" onClick={() => setAufSpot({})} className="chip !py-1 hover:!border-rose-400/60">Clear map</button>}
         </div>
       )}
-      {status && <p className="text-xs text-white/45">{status}</p>}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,min(calc(100vh-11rem),900px))_minmax(300px,1fr)_280px]">
-        <div ref={huelle} className={voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : 'min-w-0'}>
-          {istAdmin && !voll && (
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-white/50">
-              <span className="text-sm font-bold text-white">Map</span>
-              <span>{spots.length} spots · {Object.values(aufSpot).flat().length} placed</span>
-              <span className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-white/80">{kartenName2}</span>
-              {!karteFest && inselJetzt.art === 'reload' && inselJetzt.schluessel && (
-                <span className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-2 py-1">Reload island <b className="text-white/80">{inselJetzt.schluessel}</b> →
-                  <select value={inseln[inselJetzt.schluessel] ?? ''} onChange={(e) => void inselZuordnen(inselJetzt.schluessel as string, e.target.value)} className="rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-white outline-none">
-                    <option value="">Assign image …</option>{bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
-                  </select></span>
-              )}
-              {globalsKarte && <Link to={`/competitive/maps/view?id=${encodeURIComponent(globalsKarte.id)}&edit=1`} className="rounded-lg border border-white/10 px-2 py-1 text-white/70 hover:border-sky-400/50 hover:text-sky-200">Open in the map tool</Link>}
-              {Object.keys(aufSpot).length > 0 && !karteFest && <button type="button" onClick={() => setAufSpot({})} className="rounded-lg border border-white/10 px-2 py-1 text-white/70 hover:border-rose-400/60">Clear map</button>}
+      <Werkbank
+        links={(
+          <Dock fest titel="Order" zahl={plaetze.length ? `place 1 to ${plaetze.length}` : undefined} kopf={<div className="flex flex-wrap gap-1.5">{knopf}</div>}
+            fuss={<>Drag teams from the list onto the places{karteFest ? '' : ' or onto a spot on the map'} — or click for the next free place.</>}>
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {!plaetze.length ? <p className="py-8 text-center text-xs text-white/40">{laedt ? 'Loading the field …' : 'No field yet.'}</p> : platzListe(false)}
             </div>
-          )}
+          </Dock>
+        )}
+        rechts={(
+          <Dock fest titel="Field" zahl={`${gesetzt}/${feld.length} placed`}
+            kopf={feld.length > 0 ? (
+              <div className="relative">
+                <input value={suche} onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setSuche(''); }} placeholder="Search a player …" className="eingabe w-full !py-2 !pr-8 !text-[13px]" />
+                {suche && <button type="button" onClick={() => setSuche('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">×</button>}
+              </div>
+            ) : undefined}>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+              {regionen.map(([region, ts]) => (
+                <div key={region}>
+                  {regionen.length > 1 && <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-akz">{region} <span className="text-white/30">{ts.length}</span></p>}
+                  <div className="space-y-1">
+                    {ts.map((t) => (
+                      <button key={t.key} type="button" draggable onClick={() => setzen(t.key)} onDragStart={(e) => { e.dataTransfer.setData('text/team', t.key); gezogen.current = t.key; }} onDragEnd={() => { gezogen.current = null; }}
+                        title="Drag for a specific place (or onto a spot), click for the next free one"
+                        className="flex w-full items-center gap-2.5 rounded-xl border border-white/[0.07] bg-black/30 px-2.5 py-2 text-left text-[13px] transition hover:border-akz/50 hover:bg-akz/[0.06]">
+                        <TeamFlagge laender={t.namen.map((n, k) => findeProfil(n, t.ids[k])?.land)} />
+                        <span className="flex min-w-0 flex-1 flex-col leading-tight">{t.namen.map((n, k) => <span key={k} className="truncate font-semibold text-white">{nameVon(n, t.ids[k])}</span>)}</span>
+                        <span className="shrink-0 rounded border border-akz/40 px-1 py-px text-[9px] font-bold uppercase text-akz">{t.region || '?'}</span>
+                        {!eigen && <span role="button" tabIndex={0} title={`Set flags of this team by hand · #${t.besterPlatz}`} onClick={(e) => { e.stopPropagation(); pflegeOeffnen(t); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); pflegeOeffnen(t); } }} className="shrink-0 cursor-pointer text-white/30 hover:text-amber-300">✎</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {suche.trim() && (() => {
+                const schon = plaetze.map((key, i) => ({ t: teamZu(key), i })).filter((x): x is { t: TeamImFeld; i: number } => !!x.t && passt(x.t));
+                return schon.length ? <div><p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Already placed</p>
+                  <div className="space-y-1">{schon.map(({ t, i }) => (
+                    <div key={t.key} className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] px-2.5 py-2 text-[13px] opacity-70">
+                      <span className="zahl w-9 shrink-0 text-[11px] font-bold text-akz">{ordnung(i + 1)}</span><TeamFlagge laender={t.namen.map((n, k) => findeProfil(n, t.ids[k])?.land)} />
+                      <span className="flex min-w-0 flex-1 flex-col leading-tight">{t.namen.map((n, k) => <span key={k} className="truncate text-white/70">{nameVon(n, t.ids[k])}</span>)}</span>
+                    </div>
+                  ))}</div></div> : null;
+              })()}
+              {suche.trim() && feld.length > 0 && !feld.some(passt) && <p className="py-4 text-center text-[11px] text-white/40">No player in the field matches the search.</p>}
+              {!offen.length && feld.length > 0 && !suche.trim() && <p className="py-4 text-center text-[11px] text-white/40">All teams are placed.</p>}
+              {!feld.length && <p className="py-4 text-center text-[11px] text-white/40">No field loaded yet.</p>}
+            </div>
+          </Dock>
+        )}>
+        <div ref={huelle} className={voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : 'w-full min-w-0'}>
           <div className={voll ? 'h-full' : ''} style={voll ? { aspectRatio: '1 / 1' } : undefined}>
             <Zeichenflaeche spots={flaechen} anzeige={anzeigeFlaechen} gruppen={gruppen} schrift={schrift} bild={bild} bildRef={bildRef} steuerung={steuerung} voll={voll}
               darfAblegen={!karteFest} gezogen={gezogen} labelZiehbar={!karteFest} labelKlick={karteFest ? undefined : vonForm}
@@ -474,64 +526,11 @@ export default function PrognoseWerkzeug() {
                 : karteFest ? <span className="rounded-xl bg-black/70 px-2.5 py-2 text-[11px] text-white/60">The drop spots come from the CompHub map</span> : undefined} />
           </div>
         </div>
-
-        <Glas className="flex min-w-0 flex-col p-3 xl:max-h-[calc(100vh-9rem)]">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-white">Order{plaetze.length ? <span className="ml-1.5 font-normal text-white/40">place 1 to {plaetze.length}</span> : null}</h2>
-            <div className="flex flex-wrap gap-1.5">{knopf}</div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            {!plaetze.length ? <p className="py-8 text-center text-xs text-white/40">{laedt ? 'Loading the field …' : 'No field yet.'}</p> : platzListe(false)}
-          </div>
-        </Glas>
-
-        <Glas className="flex min-w-0 flex-col p-3 xl:max-h-[calc(100vh-9rem)]">
-          <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-bold text-white">List</h2><span className="text-xs tabular-nums text-white/40">{gesetzt}/{feld.length} placed</span></div>
-          {feld.length > 0 && (
-            <div className="relative mb-2">
-              <input value={suche} onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setSuche(''); }} placeholder="Search a player …" className="w-full rounded-xl border border-white/10 bg-black/40 py-2 pl-3 pr-8 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-sky-400/60" />
-              {suche && <button type="button" onClick={() => setSuche('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">×</button>}
-            </div>
-          )}
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" style={{ maxHeight: '70vh' }}>
-            {regionen.map(([region, ts]) => (
-              <div key={region}>
-                {regionen.length > 1 && <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300/70">{region} <span className="text-white/30">{ts.length}</span></p>}
-                <div className="space-y-1">
-                  {ts.map((t) => (
-                    <button key={t.key} type="button" draggable onClick={() => setzen(t.key)} onDragStart={(e) => { e.dataTransfer.setData('text/team', t.key); gezogen.current = t.key; }} onDragEnd={() => { gezogen.current = null; }}
-                      title="Drag for a specific place (or onto a spot), click for the next free one"
-                      className="flex w-full items-center gap-2.5 rounded-xl border border-white/[0.07] px-2.5 py-2 text-left text-[13px] transition hover:border-sky-400/50 hover:bg-sky-400/[0.06]">
-                      <TeamFlagge laender={t.namen.map((n, k) => findeProfil(n, t.ids[k])?.land)} />
-                      <span className="flex min-w-0 flex-1 flex-col leading-tight">{t.namen.map((n, k) => <span key={k} className="truncate font-semibold text-white">{nameVon(n, t.ids[k])}</span>)}</span>
-                      <span className="shrink-0 rounded border border-sky-400/40 px-1 py-px text-[9px] font-bold uppercase text-sky-300">{t.region || '?'}</span>
-                      {!eigen && <span role="button" tabIndex={0} title={`Set flags of this team by hand · #${t.besterPlatz}`} onClick={(e) => { e.stopPropagation(); pflegeOeffnen(t); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); pflegeOeffnen(t); } }} className="shrink-0 cursor-pointer text-white/30 hover:text-amber-300">✎</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {suche.trim() && (() => {
-              const schon = plaetze.map((key, i) => ({ t: teamZu(key), i })).filter((x): x is { t: TeamImFeld; i: number } => !!x.t && passt(x.t));
-              return schon.length ? <div><p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Already placed</p>
-                <div className="space-y-1">{schon.map(({ t, i }) => (
-                  <div key={t.key} className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] px-2.5 py-2 text-[13px] opacity-70">
-                    <span className="w-9 shrink-0 text-[11px] font-bold tabular-nums text-sky-300">{ordnung(i + 1)}</span><TeamFlagge laender={t.namen.map((n, k) => findeProfil(n, t.ids[k])?.land)} />
-                    <span className="flex min-w-0 flex-1 flex-col leading-tight">{t.namen.map((n, k) => <span key={k} className="truncate text-white/70">{nameVon(n, t.ids[k])}</span>)}</span>
-                  </div>
-                ))}</div></div> : null;
-            })()}
-            {suche.trim() && feld.length > 0 && !feld.some(passt) && <p className="py-4 text-center text-[11px] text-white/40">No player in the field matches the search.</p>}
-            {!offen.length && feld.length > 0 && !suche.trim() && <p className="py-4 text-center text-[11px] text-white/40">All teams are placed.</p>}
-            {!feld.length && <p className="py-4 text-center text-[11px] text-white/40">No field loaded yet.</p>}
-          </div>
-        </Glas>
-      </div>
-      <p className="text-center text-[11px] text-white/30">Drag teams from the list onto the places{karteFest ? '' : ' or onto a spot on the map'} — or click for the next free place. Wheel zooms, drag moves, double-click zooms in.</p>
+      </Werkbank>
 
       <AnimatePresence>
         {vollbildListe && (
-          <motion.div key="liste" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] overflow-auto bg-[#06080f]/95 p-6 backdrop-blur-xl">
+          <motion.div key="liste" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[400] overflow-auto bg-[#04050a]/95 p-6 backdrop-blur-xl">
             <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-extrabold text-white">{titel}</h2><div className="ml-auto flex flex-wrap gap-1.5">{knopf}</div></div>
             {platzListe(true)}
             {!!qualiBis && <p className="mt-4 flex items-center justify-center gap-5 text-[11px] uppercase tracking-wider text-white/45">
@@ -541,7 +540,7 @@ export default function PrognoseWerkzeug() {
         )}
         {pflegt && (
           <motion.div key="pflege" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPflegt(null)} className="fixed inset-0 z-[450] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <motion.div initial={{ y: 16, scale: 0.98 }} animate={{ y: 0, scale: 1 }} onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0e18]/95 p-5 shadow-2xl backdrop-blur-xl">
+            <motion.div initial={{ y: 16, scale: 0.98 }} animate={{ y: 0, scale: 1 }} onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-fl p-5 shadow-2xl backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-white">Flag, name and region<span className="ml-2 text-[11px] font-normal text-white/40">{pflegt.namen.map(kartenName).join(' + ')}</span></h3>
                 <button type="button" onClick={() => setPflegt(null)} className="text-white/40 hover:text-white">✕</button>
@@ -564,7 +563,7 @@ export default function PrognoseWerkzeug() {
                         {(regionEntwurf[k] ?? '') && <button type="button" onClick={() => setRegionEntwurf((a) => a.map((v, i) => (i === k ? '' : v)))} className="ml-1 text-[11px] text-white/35 hover:text-rose-300">as counted</button>}
                       </div>
                       <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
-                        {liste.map((f) => <button key={f} type="button" title={f.toUpperCase()} onClick={() => setEntwurf((a) => a.map((v, i) => (i === k ? f.toUpperCase() : v)))} className={`rounded-full p-0.5 transition ${gesetztL === f ? 'ring-2 ring-amber-400' : 'ring-1 ring-white/10 hover:ring-sky-400'}`}><img src={`/flags/${f}.png`} alt={f} className="h-6 w-6 rounded-full object-cover" /></button>)}
+                        {liste.map((f) => <button key={f} type="button" title={f.toUpperCase()} onClick={() => setEntwurf((a) => a.map((v, i) => (i === k ? f.toUpperCase() : v)))} className={`rounded-full p-0.5 transition ${gesetztL === f ? 'ring-2 ring-amber-400' : 'ring-1 ring-white/10 hover:ring-akz'}`}><img src={`/flags/${f}.png`} alt={f} className="h-6 w-6 rounded-full object-cover" /></button>)}
                         {!liste.length && <p className="py-2 text-[11px] text-white/35">No flag file for “{flaggenSuche}”.</p>}
                       </div>
                     </div>
@@ -576,7 +575,7 @@ export default function PrognoseWerkzeug() {
                 <div className="flex shrink-0 items-center gap-2">
                   {pflegeStand && <span className="text-[11px] text-white/40">{pflegeStand}</span>}
                   <button type="button" onClick={() => setPflegt(null)} className={knopfLeise}>Cancel</button>
-                  <button type="button" onClick={() => void pflegeSichern()} className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-bold text-[#06080f] hover:bg-amber-300">Save</button>
+                  <button type="button" onClick={() => void pflegeSichern()} className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-bold text-[#04050a] hover:bg-amber-300">Save</button>
                 </div>
               </div>
             </motion.div>
