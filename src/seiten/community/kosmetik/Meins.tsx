@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { DatenFehlen, LinkKopieren, useHubDatei } from '../Bausteine';
+import { LinkKopieren, useHubDatei } from '../Bausteine';
 import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { REITER, seltenVon, useAblage, useReaktionen, useShop, useTeile, type Teil } from './daten';
 import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen } from './Raster';
@@ -220,7 +220,6 @@ export function Ranglisten() {
       {laedt ? <Laedt /> : liste === 'shop' ? <ShopBewerten angebote={shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit'))} />
         : liste === 'seasons' ? <Saisons teile={teile} />
         : <EigeneWertung teile={liste === 'unreleased' ? teile.filter((t) => !t.shop.length && Date.now() - Date.parse(t.hinzu) < 120 * 864e5) : liste === 'crew' ? teile.filter((t) => t.serie?.toLowerCase().includes('crew') && t.typ === 'outfit') : [...r.wert ? Object.keys(r.wert) : []].map((id) => karte.get(id)).filter(Boolean) as Teil[]} alleZeigen={liste !== 'cosmetics'} />}
-      <DatenFehlen titel="Community-wide rankings" text="Adding up everyone's reactions needs a small counter on our server (one vote per account). Until then, every ranking here is yours – and it's saved, so nothing is lost when the shared totals go live." braucht={['Server counter for reactions (one per account)']} />
     </div>
   );
 }

@@ -162,8 +162,8 @@ export function Schatzsuche() {
         </Bereich>
       )}
       {!daten?.belohnungen?.length && (
-        <Hinweis mehr={<>The loot tables of the buried chests (which reward, how likely) are in this season's game data. When the export writes <code className="text-akz">/hub-daten/schatzsuche.json</code>, "1 in N" chances appear above and the dig spots go onto the <Link to="/community/map" className="text-akz">map</Link>.</>}>
-          Exact drop chances per treasure chest come with the game-file export.
+        <Hinweis mehr={<>Drop chances per chest aren't published by Epic, so they're not shown here. Dig spots are on the <Link to="/community/map" className="text-akz">map</Link>.</>}>
+          Rewards come from this season's cosmetics; mark what you've found and it's remembered.
         </Hinweis>
       )}
       <p className="text-[11px] text-white/30">Rewards come from the game's own tags (battle pass free / paid, quest) via fortnite-api.com · "Found" is saved {gefunden.ort === 'konto' ? 'to your account' : 'in this browser'}.</p>
@@ -231,7 +231,7 @@ export function Sprites() {
       }>
         {laedt ? <Laedt text="Searching the files for sprites …" /> : <div className={RASTER}>{sicht.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>}
       </Bereich>
-      {!zeilen.length && <Hinweis mehr={<>Names, variants (Standard, Fortune, Cursed, Gold …) and spawn spots of the collectible sprites are part of the season's game data. Once the export writes <code className="text-akz">/hub-daten/sprites.json</code>, the per-variant tracker appears above.</>}>The full sprite list with variants and spawn spots comes with the game-file export.</Hinweis>}
+      {!zeilen.length && <Hinweis>The sprite items below come straight from Fortnite's cosmetics data – mark each as owned or mastered.</Hinweis>}
     </div>
   );
 }
@@ -400,7 +400,7 @@ export function GratisKosmetik() {
           <div className={RASTER}>{sicht(a.liste).slice(0, 48).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-akz/70">{a.marke}{a.bis ? ` · ${restText(a.bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
         </Bereich>
       ))}
-      <Hinweis mehr={<>Twitch drops, Fortnite Crew perks and one-off promotions aren't tagged in the game files. Our editors can add them in <code className="text-akz">/hub-daten/gratis.json</code> (title, text, end date, source, cosmetic IDs) – they then show as cards with a countdown at the top.</>}>
+      <Hinweis mehr={<>Twitch drops, Fortnite Crew perks and one-off promotions aren't marked in the game data, so they only show up here when CompHub adds them by hand.</>}>
         Free rewards are found through the game's own source tags (free pass tier, quest, event, tournament). Click any item to see how to get it.
       </Hinweis>
       <WieBekommen t={offen} zu={() => setOffen(null)} passEnde={s.end} shopBis={offen ? gratisShop.find((x) => x.t.id === offen.id)?.bis : undefined}

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DatenFehlen, LinkKopieren } from '../Bausteine';
+import { LinkKopieren } from '../Bausteine';
 import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { auftritte, datumKurz, holen, QUELLEN, seltenVon, tageSeit, useShop, useTeile, type Teil } from './daten';
 import { Auswahl, Bereich, Kachel, preis as vb } from './Raster';
@@ -179,10 +179,15 @@ export function KosmetikStats() {
   return (
     <div className="space-y-6">
       <SeitenKopf klein ueber="Community · Cosmetics" titel="Cosmetic stats" text="Leaderboards built from the complete item-shop history." rechts={<LinkKopieren />} />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[['Items ever in the shop', tabellen.mitShop], ['Longest wait right now', `${(tabellen.warten[0]?.w ?? 0).toLocaleString('en')} days`], ['Biggest comeback today', `${(tabellen.zurueck[0]?.w ?? 0).toLocaleString('en')} days`], ['Never sold (main types)', tabellen.nie]].map(([k, v], i) => (
-          <Flaeche fest key={k as string} className="p-5" verz={i * 0.05}><p className="text-3xl font-black tabular-nums text-akz">{typeof v === 'number' ? v.toLocaleString('en') : v}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p></Flaeche>
-        ))}
+      {/* Zwei Rekorde als Buehnen (je ein eigenes Bild), die Zahlen dazwischen */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,5fr)]">
+        {tabellen.warten[0] && <Rekord t={tabellen.warten[0].t} wert={tabellen.warten[0].w} titel="Longest wait right now" unter="days since it was last in the shop" />}
+        <Flaeche fest verz={0.05} className="grid grid-cols-2 content-center gap-x-6 gap-y-6 p-6 lg:grid-cols-1">
+          {([['Items ever in the shop', tabellen.mitShop], ['Never sold', tabellen.nie, 'outfits, emotes, pickaxes, back blings, gliders'], ['Back today', tabellen.zurueck.length, 'after a break']] as Array<[string, number, string?]>).map(([k, v, u]) => (
+            <div key={k}><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{k}</p><p className="titel zahl mt-1 text-5xl">{v.toLocaleString('en')}</p>{u && <p className="text-[11px] text-white/40">{u}</p>}</div>
+          ))}
+        </Flaeche>
+        {tabellen.zurueck[0] && <Rekord t={tabellen.zurueck[0].t} wert={tabellen.zurueck[0].w} titel="Biggest comeback today" unter="days away before today's shop" verz={0.1} />}
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Tabelle titel="Longest wait in the shop" einheit="days since last seen" liste={tabellen.warten} />
@@ -190,8 +195,27 @@ export function KosmetikStats() {
         <Tabelle titel="Most days in the shop" einheit="days" liste={tabellen.tage} />
         <Tabelle titel="Most shop appearances" einheit="times" liste={tabellen.auftr} />
       </div>
-      <DatenFehlen titel="Most wishlisted & best rated" text="These need everyone's wishlists and reactions added up on our server. Your own wishlist and reactions already save to your account – the shared counter is the missing piece." braucht={['Server counter for wishlists', 'Server counter for reactions']} />
     </div>
+  );
+}
+/** Ein Rekord als Buehne: grosses Bild auf Seltenheitslicht, Zahl in Bebas. */
+function Rekord({ t, wert, titel, unter, verz = 0 }: { t: Teil; wert: number; titel: string; unter: string; verz?: number }) {
+  const sv = seltenVon(t.selten);
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: verz, duration: 0.5 }}>
+      <Link to={`/community/cosmetics/${t.id}`} className="fl-fest fl-klick group relative isolate flex h-full min-h-[300px] overflow-hidden">
+        <div className="absolute inset-0 -z-20" style={{ background: `radial-gradient(90% 110% at 78% 35%, ${sv.a}88, ${sv.b} 60%, #04050a)` }} />
+        <img src={t.bildGross || t.bild} alt="" className="absolute inset-y-0 right-0 -z-10 h-full w-[62%] object-contain object-right transition duration-700 group-hover:scale-[1.05]" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#04050a]/90 via-[#04050a]/45 to-transparent" />
+        <div className="flex flex-col justify-end p-6">
+          <p className="ueber">{titel}</p>
+          <p className="titel zahl mt-1 text-7xl text-akz">{wert.toLocaleString('en')}</p>
+          <p className="text-xs text-white/50">{unter}</p>
+          <p className="mt-3 text-xl font-bold text-white group-hover:text-akz">{t.name}</p>
+          <p className="text-xs font-semibold" style={{ color: sv.a }}>{t.seltenName} {t.typName}</p>
+        </div>
+      </Link>
+    </motion.div>
   );
 }
 function Tabelle({ titel, einheit, liste }: { titel: string; einheit: string; liste: Array<{ t: Teil; w: number }> }) {
@@ -199,7 +223,7 @@ function Tabelle({ titel, einheit, liste }: { titel: string; einheit: string; li
   const max = Math.max(1, liste[0]?.w ?? 1);
   return (
     <Flaeche fest className="p-5">
-      <div className="flex items-baseline justify-between"><h3 className="font-bold text-white">{titel}</h3><span className="text-xs text-white/40">{einheit}</span></div>
+      <div className="flex items-baseline justify-between gap-3"><h3 className="titel text-3xl">{titel}</h3><span className="text-xs text-white/40">{einheit}</span></div>
       <ol className="mt-3 space-y-1.5">
         {liste.slice(0, n).map(({ t, w }, i) => (
           <li key={t.id}>
