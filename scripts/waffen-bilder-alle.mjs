@@ -94,13 +94,17 @@ async function abfrageAlle(q) {
 }
 /** Bild laden (mit Wiederholung) - Status-Codes zaehlen. */
 const ladeStatus = {};
+let bild429 = 0;
 async function bildLaden(url) {
   for (let v = 0; v < 8; v++) {
     try {
       const r = await fetch(url, { headers: { Accept: 'image/png,image/*;q=0.8' }, signal: AbortSignal.timeout(30_000) });
       ladeStatus[r.status] = (ladeStatus[r.status] ?? 0) + 1;
       if (r.status === 404) return null;
-      if (r.status === 429) await warte(Math.min(Number(r.headers.get('retry-after')) || 10, 120) * 1000);
+      if (r.status === 429) {
+        bild429 += 1; if (bild429 <= 3) console.log('429 vom Bild-Server:', url.slice(0, 160), JSON.stringify(Object.fromEntries([...r.headers].filter(([k]) => /retry|rate|limit|x-|via|server/i.test(k)))).slice(0, 400));
+        await warte(Math.min(Number(r.headers.get('retry-after')) || 10, 120) * 1000);
+      }
       if (!r.ok) throw new Error(String(r.status));
       return Buffer.from(await r.arrayBuffer());
     } catch { await warte(1500 * 2 ** Math.min(v, 5)); }
@@ -151,6 +155,7 @@ for (let i = 0; i < titel.length; i += 50) {
     const b = await abfrageAlle({ prop: 'images', imlimit: 'max', titles: teil.join('|') });
     for (const [t, p] of b.seiten) if (proSeite.has(t)) proSeite.get(t).dateien.push(...(p.images ?? []).map((x) => x.title));
   } catch (f) { bilderListe = `abgebrochen bei ${i} von ${titel.length}: ${f.message}`; break; }
+  console.log(`  prop=images ${Math.min(i + 50, titel.length)}/${titel.length}`);
   await warte(3000);
 }
 console.log(`${proSeite.size} Seiten (mitgeschnitten), prop=images: ${bilderListe}`);
@@ -214,8 +219,11 @@ for (const d of dateiListe) {
 }
 const geladen = new Map(); // Dateiname -> Analyse
 const zuLaden = dateiListe;
-await parallel(zuLaden, 4, async (d) => {
+console.log(`${zuLaden.length} Dateien laden ...`);
+let fertigN = 0; const tLaden = Date.now();
+await parallel(zuLaden, 6, async (d) => {
   const buf = await bildLaden(info.get(d).url);
+  if (++fertigN % 200 === 0) console.log(`  ${fertigN}/${zuLaden.length} nach ${Math.round((Date.now() - tLaden) / 1000)} s, Status ${JSON.stringify(ladeStatus)}`);
   if (!buf) { geladen.set(d, { fehler: 'nicht da' }); return; }
   try {
     const { data, info: r } = await sharp(buf, { animated: false }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
