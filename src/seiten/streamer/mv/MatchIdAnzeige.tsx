@@ -94,11 +94,11 @@ export default function MatchIdAnzeige({ kanal }: { kanal: string }) {
   if (!id) return zeile;
   return (
     <>
-    <span data-match-id={id} className="flex shrink-0 items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[11px]">
-      <span className="font-semibold text-sky-300">{t('Match-ID')}</span>
+    <span data-match-id={id} className="flex shrink-0 items-center gap-1.5 rounded-md border border-akz/40 bg-akz/10 px-2 py-1 text-[11px]">
+      <span className="font-semibold text-akz">{t('Match-ID')}</span>
       <code className="font-mono text-slate-200">{id}</code>
       <button type="button" onClick={() => { void navigator.clipboard.writeText(id).then(() => { setKopiert(true); setTimeout(() => setKopiert(false), 2000); }); }}
-        className="rounded border border-sky-500/40 px-1.5 font-semibold text-sky-300 transition hover:bg-sky-500/20">
+        className="rounded border border-akz/40 px-1.5 font-semibold text-akz transition hover:bg-akz/20">
         {kopiert ? t('Kopiert') : t('Kopieren')}
       </button>
     </span>

@@ -332,7 +332,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                 onClick={() => aendereBanner({ an: !banner.einst.an })}
                 className="flex w-full items-center justify-between gap-3 text-left">
                 <span>{t('Namensbanner zeigen')}</span>
-                <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${banner.einst.an ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${banner.einst.an ? 'bg-akz' : 'bg-white/15'}`}>
                   <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${banner.einst.an ? 'left-[18px]' : 'left-0.5'}`} />
                 </span>
               </button>
@@ -344,7 +344,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                       {ORTE.map((o) => (
                         <button key={o.wert} type="button" onClick={() => aendereBanner({ ort: o.wert })}
                           className={`rounded-md border px-1 py-1 transition ${banner.einst.ort === o.wert
-                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
+                            ? 'border-akz/50 bg-akz/15 text-akz' : 'border-white/10 hover:border-white/15'}`}>
                           {t(o.titel)}
                         </button>
                       ))}
@@ -356,14 +356,14 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                       {GROESSEN.map((o) => (
                         <button key={o.wert} type="button" onClick={() => aendereBanner({ groesse: o.wert })}
                           className={`rounded-md border px-1 py-1 transition ${banner.einst.groesse === o.wert
-                            ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
+                            ? 'border-akz/50 bg-akz/15 text-akz' : 'border-white/10 hover:border-white/15'}`}>
                           {t(o.titel)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <label className="flex cursor-pointer items-center gap-2">
-                    <input type="checkbox" checked={banner.einst.mitBild} className="accent-sky-500"
+                    <input type="checkbox" checked={banner.einst.mitBild} className="accent-[rgb(var(--akz))]"
                       onChange={(e) => aendereBanner({ mitBild: e.target.checked })} />
                     {t('Mit Profilbild')}
                   </label>
@@ -375,7 +375,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                     onClick={() => aendereStats({ an: !stats.einst.an })}
                     className="flex w-full items-center justify-between gap-3 text-left">
                     <span>{t('Mit Statistik')}</span>
-                    <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${stats.einst.an ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                    <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${stats.einst.an ? 'bg-akz' : 'bg-white/15'}`}>
                       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${stats.einst.an ? 'left-[18px]' : 'left-0.5'}`} />
                     </span>
                   </button>
@@ -387,7 +387,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                           {STATS_ORTE.map((o) => (
                             <button key={o.wert} type="button" onClick={() => aendereStats({ ort: o.wert })}
                               className={`rounded-md border px-0.5 py-1 text-[11px] transition ${stats.einst.ort === o.wert
-                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
+                                ? 'border-akz/50 bg-akz/15 text-akz' : 'border-white/10 hover:border-white/15'}`}>
                               {t(o.titel)}
                             </button>
                           ))}
@@ -399,14 +399,14 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                           {GROESSEN.map((o) => (
                             <button key={o.wert} type="button" onClick={() => aendereStats({ groesse: o.wert })}
                               className={`rounded-md border px-1 py-1 transition ${stats.einst.groesse === o.wert
-                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-white/10 hover:border-white/15'}`}>
+                                ? 'border-akz/50 bg-akz/15 text-akz' : 'border-white/10 hover:border-white/15'}`}>
                               {t(o.titel)}
                             </button>
                           ))}
                         </div>
                       </div>
                       <label className="flex cursor-pointer items-center gap-2">
-                        <input type="checkbox" checked={stats.einst.mitBild} className="accent-sky-500"
+                        <input type="checkbox" checked={stats.einst.mitBild} className="accent-[rgb(var(--akz))]"
                           onChange={(e) => aendereStats({ mitBild: e.target.checked })} />
                         {t('Mit Profilbild')}
                       </label>
@@ -433,13 +433,13 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                 setTon(n > 0);
               }}
               title={`${t('Lautstärke')} ${ton ? prozent : 0} %`} aria-label={t('Lautstärke')}
-              className="h-1 w-24 cursor-pointer accent-sky-500" />
+              className="h-1 w-24 cursor-pointer accent-[rgb(var(--akz))]" />
             <span className="w-9 text-[10px] tabular-nums text-white/80">{ton ? prozent : 0}%</span>
 
             <span className="flex-1" />
 
             {banner && (
-              <button type="button" className={`${knopf} ${zahnrad ? 'ring-1 ring-sky-400' : ''}`} onClick={() => setZahnrad((x) => !x)}
+              <button type="button" className={`${knopf} ${zahnrad ? 'ring-1 ring-akz/60' : ''}`} onClick={() => setZahnrad((x) => !x)}
                 title={t('POV-Banner')} aria-label={t('POV-Banner')}>
                 <Ikone d="M3 6h8M15 6h2M3 14h2M9 14h8M13 4v4M7 12v4" />
               </button>

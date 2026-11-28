@@ -1,20 +1,22 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Glas, Titel } from '../../teile/Glas';
-import { Fehler, Laedt } from './tools/Gemeinsam';
+import { Kennzahl, Laedt, Segment } from '../../ds/Bausteine';
 import MvSeite from '../streamer/mv/Seite';
-import { SCHLUESSEL_SEITE, SCHLUESSEL_STAND } from '../streamer/mv/mvTypen';
+import type { BuehnenGriff } from '../streamer/mv/Multiview';
+import { Kanalbild, Zeichen, Zuschauer } from '../streamer/Teile';
+import { kurzZahl, vorschaubild } from '../streamer/live';
 
 /*
- * Live Streams (Betreiber, 26.11.2026: Profis UND Streamer/Watch-Partys, daher nicht mehr "Pro Streams").
- * Oben bleibt die Hub-Uebersicht; die Multiview ist die der echten Seite (app/streams/**, portiert nach src/seiten/streamer/mv):
- * Seitenleiste links (Strg + B) mit "Add stream", Liste zum Ziehen, Ordnern, Titelfiltern, Qualitaet, Steuerung, Einstellungen und
- * Einzelansicht - die Wand liegt fest unter dem Kopf, man muss nie scrollen. "+ Multiview" auf einer Karte legt den Kanal in die
- * gespeicherte Wand (multihub_mv_v2) und oeffnet sie.
+ * Live Streams - neu gebaut auf dem Design-System 3.0 (28.11.2026). Betreiber: "Live Streams und Multiview in EINER Seite".
  *
- * Streams im Hub - wie /streams der echten Seite: die Ordner des Admins (/api/dashboard: Fortnite Pros EU, NA, Streamer), ihr Live-Stand
- * (POST /api/live-status: isLive, viewers, title, bild), ein Raster der sendenden Profis mit Vorschaubild und Zuschauern, Regionsfilter, und eine
- * Multiview aus Twitch-Playern (Embed-Schnittstelle, parent = localhost). Ton immer nur auf einem Stream.
+ * Die Seite IST die Multiview (src/seiten/streamer/mv, die der echten Seite app/streams/**): links die Seitenleiste (Strg + B) mit "Add stream",
+ * Liste zum Ziehen, Ordnern, Titelfiltern, "Save wall as folder", Qualitaet, Steuerung, Einstellungen und Einzelansicht; rechts die Wand.
+ * Ist die Wand leer, steht auf ihr die Buehne: wer gerade live ist - der meistgesehene Stream gross, die anderen als Bildkarten, Regionen und
+ * Suche, Offline-Kanaele eingeklappt. Ein Klick legt einen Kanal auf die Wand (oder nimmt ihn herunter). Laufen Streams, liegt dieselbe
+ * Uebersicht als Schublade "Live now" rechts auf der Wand.
+ *
+ * Daten wie /streams der echten Seite: die Ordner des Admins (/api/dashboard: Fortnite Pros EU, NA, Streamer) und ihr Live-Stand
+ * (POST /api/live-status: isLive, viewers, title, bild = Twitch-Profilbild), jede Minute neu. Vorschaubilder von static-cdn.jtvnw.net.
  */
 
 interface Streamer { twitch: string; twitter?: string; anzeige?: string }
@@ -23,84 +25,21 @@ interface Stand { isLive: boolean; viewers: number; title?: string; bild?: strin
 interface Kanal { twitch: string; name: string; ordner: string[]; stand?: Stand }
 
 const TAKT = 60_000;
+const SANFT = [0.22, 1, 0.36, 1] as const;
 
-/** Kurzer Regionsname fuer die Filter-Chips: "Fortnite Pros EU" -> "EU". */
+/** Kurzer Regionsname: "Fortnite Pros EU" -> "EU". */
 const kurz = (name: string) => name.replace(/^Fortnite Pros\s*/i, '') || name;
-const zahl = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}K` : n.toLocaleString('en'));
 
-/** Die Kanaele der gespeicherten Wand (Multiview der echten Seite, localStorage). */
-function wandLesen(): string[] {
-  try { const j = JSON.parse(localStorage.getItem(SCHLUESSEL_STAND) || 'null'); return Array.isArray(j?.streams) ? j.streams.filter((x: { pov?: string }) => !x.pov).map((x: { kanal: string }) => String(x.kanal).toLowerCase()) : []; } catch { return []; }
-}
-/** Einen Kanal in die gespeicherte Wand legen (oder herausnehmen) und die Multiview mit offener Seitenleiste vormerken. */
-function wandSetzen(kanal: string, rein: boolean) {
-  try {
-    const j = JSON.parse(localStorage.getItem(SCHLUESSEL_STAND) || 'null') ?? { streams: [], qualitaet: 'auto' };
-    const liste: Array<Record<string, unknown>> = Array.isArray(j.streams) ? j.streams : [];
-    const da = liste.some((x) => String(x.kanal).toLowerCase() === kanal);
-    if (rein && !da) liste.push({ id: Math.random().toString(36).slice(2, 10), nr: Date.now(), kanal, versteckt: false, zeigeOffline: false, einmalig: false, fest: false, qualitaet: '' });
-    j.streams = rein ? liste : liste.filter((x) => String(x.kanal).toLowerCase() !== kanal);
-    localStorage.setItem(SCHLUESSEL_STAND, JSON.stringify(j));
-    localStorage.setItem('multihub_mehrfach', 'true');
-    localStorage.setItem(SCHLUESSEL_SEITE, 'true');
-  } catch { /* ohne Speicher bleibt die Wand, wie sie ist */ }
-}
-
-function Zuschauer({ n }: { n: number }) {
-  return (
-    <span className="flex items-center gap-1.5 rounded-md bg-black/70 px-2 py-0.5 text-[11px] font-bold tabular-nums text-white backdrop-blur">
-      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />{zahl(n)}
-    </span>
-  );
-}
-
-function StreamKarte({ k, i, takt, aufWand, umschalten }: { k: Kanal; i: number; takt: number; aufWand: boolean; umschalten: () => void }) {
-  const [bildFehlt, setBildFehlt] = useState(false);
-  return (
-    <motion.article layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ delay: Math.min(i, 16) * 0.035, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -5 }}
-      className={`group overflow-hidden rounded-3xl border bg-white/[0.035] backdrop-blur-xl transition-colors ${aufWand ? 'border-sky-400/60 shadow-[0_0_30px_-10px_rgba(56,189,248,0.7)]' : 'border-white/10 hover:border-white/20'}`}>
-      <button type="button" onClick={umschalten} className="relative block aspect-video w-full overflow-hidden bg-black/40 text-left">
-        {!bildFehlt
-          ? <img src={`https://static-cdn.jtvnw.net/previews-ttv/live_user_${k.twitch}-640x360.jpg?t=${takt}`} alt="" loading="lazy" onError={() => setBildFehlt(true)}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
-          : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-violet-500/20 via-sky-500/10 to-transparent"><span className="text-3xl font-black text-white/20">{k.name}</span></div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        <span className="absolute left-3 top-3 rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">Live</span>
-        <span className="absolute right-3 top-3"><Zuschauer n={k.stand?.viewers ?? 0} /></span>
-        <span className={`absolute bottom-3 right-3 rounded-full px-3 py-1 text-[11px] font-bold transition ${aufWand ? 'bg-sky-400 text-[#06080f]' : 'bg-white/15 text-white opacity-0 backdrop-blur group-hover:opacity-100'}`}>
-          {aufWand ? '✓ In multiview' : '+ Multiview'}
-        </span>
-      </button>
-      <div className="flex gap-3 p-4">
-        {k.stand?.bild ? <img src={k.stand.bild} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-red-500/70" />
-          : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold text-white/50">{k.name.slice(0, 1).toUpperCase()}</span>}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <a href={`https://twitch.tv/${k.twitch}`} target="_blank" rel="noreferrer" className="truncate font-bold text-white hover:text-sky-300">{k.name}</a>
-            {k.ordner.map((o) => <span key={o} className="shrink-0 rounded-full border border-white/10 px-2 py-px text-[10px] font-semibold uppercase tracking-wider text-white/45">{kurz(o)}</span>)}
-          </div>
-          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-white/50" title={k.stand?.title}>{k.stand?.title || '—'}</p>
-        </div>
-      </div>
-    </motion.article>
-  );
-}
-
-export default function Streams() {
+/** Laedt Ordner und Live-Stand - einmal fuer die ganze Seite (Buehne und Schublade lesen dasselbe). */
+function useUebersicht() {
   const [ordner, setOrdner] = useState<Ordner[] | null>(null);
   const [staende, setStaende] = useState<Record<string, Stand>>({});
   const [takt, setTakt] = useState(() => Math.floor(Date.now() / TAKT));
   const [fehler, setFehler] = useState('');
-  const [region, setRegion] = useState<string>('alle');
-  const [suche, setSuche] = useState('');
-  const [offlineAuf, setOfflineAuf] = useState(false);
-  const [wand, setWand] = useState<string[]>(wandLesen);
-  const [mvOffen, setMvOffen] = useState(false);
 
   useEffect(() => {
     fetch('/api/dashboard').then((r) => r.json()).then((j) => setOrdner(Array.isArray(j?.folders) ? j.folders : []))
-      .catch(() => { setOrdner([]); setFehler('Could not load the stream folders'); });
+      .catch(() => { setOrdner([]); setFehler('The stream folders could not be loaded.'); });
   }, []);
 
   // Alle Kanaele aus allen Ordnern, Doppeltes zusammengelegt (ein Kanal kann in mehreren Ordnern stehen).
@@ -126,114 +65,242 @@ export default function Streams() {
         // Unbekannt (Twitch nicht erreichbar): den letzten Stand behalten statt "offline" zu raten.
         setStaende((alt) => { const n = { ...alt }; for (const [k, v] of Object.entries(j)) if (!v?.unbekannt) n[k.toLowerCase()] = v; return n; });
         setTakt(Math.floor(Date.now() / TAKT));
+        setFehler('');
       })
-      .catch(() => setFehler('Live status is not available right now'));
+      .catch(() => setFehler('Live status is not available right now – the list tries again every minute.'));
   }, [kanaele]);
   useEffect(() => { ladeStand(); const id = window.setInterval(ladeStand, TAKT); return () => window.clearInterval(id); }, [ladeStand]);
 
-  // Karte "+ Multiview": hinein und die Wand oeffnen; steht er schon drin, nur oeffnen.
-  const umschalten = (t: string) => { wandSetzen(t, true); setWand(wandLesen()); setMvOffen(true); };
-  // Zurueck aus der Multiview: die Wand kann sich dort geaendert haben.
-  useEffect(() => { if (!mvOffen) setWand(wandLesen()); }, [mvOffen]);
-  // Escape schliesst nicht (die Multiview braucht es selbst) - zurueck geht es ueber den Knopf.
+  const mitStand = useMemo(() => kanaele.map((k) => ({ ...k, stand: staende[k.twitch] })), [kanaele, staende]);
+  return { ordner, kanaele: mitStand, takt, fehler, geladen: Object.keys(staende).length > 0 };
+}
+type Uebersicht = ReturnType<typeof useUebersicht>;
 
+/* ------------------------------------------------------------------ Teile */
+
+/** Vorschaubild eines laufenden Streams - laedt es nicht, bleibt eine ruhige dunkle Flaeche (nie ein kaputtes Bild). */
+function Vorschau({ login, takt, gross = false }: { login: string; takt: number; gross?: boolean }) {
+  const [kaputt, setKaputt] = useState(false);
+  useEffect(() => setKaputt(false), [login]);
+  if (kaputt) return <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_120%,rgb(var(--akz)/0.25),transparent_60%),linear-gradient(180deg,#121520,#06070c)]" aria-hidden />;
+  return <img src={vorschaubild(login, takt, gross ? 1280 : 640, gross ? 720 : 360)} alt="" loading="lazy" draggable={false} onError={() => setKaputt(true)}
+    className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.05]" />;
+}
+
+/** Ruhige LIVE-Marke (ohne Dauer-Animation - viele Karten auf einer Seite). */
+const Live = ({ gross = false }: { gross?: boolean }) => (
+  <span className={`inline-flex items-center gap-1.5 rounded-md bg-red-600 font-extrabold uppercase tracking-[0.16em] text-white ${gross ? 'px-2.5 py-1 text-[11px]' : 'px-2 py-0.5 text-[9px]'}`}>
+    <span className="h-1.5 w-1.5 rounded-full bg-white" />Live
+  </span>
+);
+
+/** Auf der Wand oder nicht - die Ecke unten rechts auf dem Bild. */
+function WandKnopf({ an, gross = false }: { an: boolean; gross?: boolean }) {
+  return (
+    <span className={`absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-lg font-bold transition ${gross ? 'px-3.5 py-2 text-sm' : 'px-2.5 py-1 text-[11px]'}
+      ${an ? 'bg-akz text-[#04050a]' : `bg-black/70 text-white backdrop-blur ${gross ? '' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}`}>
+      <Zeichen name={an ? 'haken' : 'plus'} className={gross ? 'h-4 w-4' : 'h-3.5 w-3.5'} />{an ? 'On your wall' : 'Add to wall'}
+    </span>
+  );
+}
+
+function Regionen({ k }: { k: Kanal }) {
+  return <>{k.ordner.map((o) => <span key={o} className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">{kurz(o)}</span>)}</>;
+}
+
+/** Der meistgesehene Stream: gross, Titel in zwei Zeilen, Knopf zum Hinlegen gut sichtbar. */
+function Hauptstream({ k, takt, an, klick }: { k: Kanal; takt: number; an: boolean; klick: () => void }) {
+  return (
+    <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: SANFT }}
+      className={`fl-fest group relative overflow-hidden sm:col-span-2 lg:row-span-2 ${an ? '!border-akz/50' : ''}`}>
+      <button type="button" onClick={klick} className="relative block aspect-video w-full overflow-hidden bg-black text-left lg:aspect-auto lg:h-full lg:min-h-[22rem]">
+        <Vorschau login={k.twitch} takt={takt} gross />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
+        <div className="absolute left-4 top-4 flex items-center gap-2"><Live gross /><span className="hidden rounded-md bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur sm:inline">Most watched</span></div>
+        <div className="absolute right-4 top-4"><Zuschauer n={k.stand?.viewers ?? 0} /></div>
+        <div className="absolute inset-x-0 bottom-0 flex items-end gap-4 p-4 pb-14 sm:p-5 sm:pr-48">
+          <Kanalbild src={k.stand?.bild} className="hidden h-14 w-14 rounded-xl ring-1 ring-white/15 sm:block" />
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-3"><span className="titel truncate text-3xl sm:text-4xl lg:text-5xl">{k.name}</span><Regionen k={k} /></div>
+            <p className="mt-1 line-clamp-2 max-w-2xl text-sm text-white/65">{k.stand?.title || 'Live on Twitch'}</p>
+          </div>
+        </div>
+        <WandKnopf an={an} gross />
+      </button>
+    </motion.article>
+  );
+}
+
+function StreamKachel({ k, i, takt, an, klick }: { k: Kanal; i: number; takt: number; an: boolean; klick: () => void }) {
+  return (
+    <motion.article layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ delay: Math.min(i, 14) * 0.03, duration: 0.4, ease: SANFT }}
+      className={`fl-fest fl-klick group flex flex-col overflow-hidden ${an ? '!border-akz/50' : ''}`}>
+      <button type="button" onClick={klick} className="relative block aspect-video w-full overflow-hidden bg-black text-left">
+        <Vorschau login={k.twitch} takt={takt} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
+        <span className="absolute left-3 top-3"><Live /></span>
+        <span className="absolute right-3 top-3"><Zuschauer n={k.stand?.viewers ?? 0} /></span>
+        <WandKnopf an={an} />
+      </button>
+      <div className="flex flex-1 items-start gap-3 px-4 pb-4 pt-3">
+        <Kanalbild src={k.stand?.bild} className="h-10 w-10 rounded-xl ring-1 ring-white/10" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <a href={`https://twitch.tv/${k.twitch}`} target="_blank" rel="noreferrer" className="truncate text-[15px] font-bold text-white transition hover:text-akz">{k.name}</a>
+            <Regionen k={k} />
+          </div>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-white/50" title={k.stand?.title}>{k.stand?.title || 'Live on Twitch'}</p>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+/** Eine Zeile in der Schublade: Bild klein, Name, Zuschauer, Titel; ein Klick legt hin oder nimmt herunter. */
+function SchubladenZeile({ k, takt, an, klick }: { k: Kanal; takt: number; an: boolean; klick: () => void }) {
+  return (
+    <button type="button" onClick={klick} className={`group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.05] ${an ? 'bg-akz/10' : ''}`}>
+      <span className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-black">
+        <Vorschau login={k.twitch} takt={takt} />
+        <span className="zahl absolute bottom-1 right-1 rounded bg-black/75 px-1.5 text-[10px] font-bold text-white">{kurzZahl(k.stand?.viewers ?? 0)}</span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2"><span className="truncate text-sm font-bold text-white">{k.name}</span><Regionen k={k} /></span>
+        <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/45">{k.stand?.title || 'Live on Twitch'}</span>
+      </span>
+      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${an ? 'bg-akz text-[#04050a]' : 'bg-white/[0.06] text-white/60 group-hover:text-white'}`}>
+        <Zeichen name={an ? 'haken' : 'plus'} className="h-4 w-4" />
+      </span>
+    </button>
+  );
+}
+
+/** Offline-Kanaele: eingeklappt, dicht; Profilbild oder nichts. */
+function Offline({ liste, aufWand, umschalten, schmal = false }: { liste: Kanal[]; aufWand: Set<string>; umschalten: (k: string) => void; schmal?: boolean }) {
+  const [auf, setAuf] = useState(false);
+  if (!liste.length) return null;
+  return (
+    <section className={schmal ? 'px-2 py-2' : 'fl-fest p-4'}>
+      <button type="button" onClick={() => setAuf(!auf)} className="flex w-full items-center gap-3 text-left">
+        <span className={`titel ${schmal ? 'text-xl' : 'text-2xl'}`}>Offline</span>
+        <span className="zahl text-xs text-white/40">{liste.length} channels</span>
+        <span className="ml-auto text-xs text-white/40">{auf ? 'Hide' : 'Show all'}</span>
+        <motion.span animate={{ rotate: auf ? 180 : 0 }} className="text-white/40">▾</motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {auf && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className={`mt-3 grid gap-1 ${schmal ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8'}`}>
+              {liste.map((k) => {
+                const an = aufWand.has(k.twitch);
+                return (
+                  <div key={k.twitch} className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.04] ${an ? 'bg-akz/10' : ''}`}>
+                    <Kanalbild src={k.stand?.bild} className="h-7 w-7 rounded-lg opacity-60 grayscale" />
+                    <a href={`https://twitch.tv/${k.twitch}`} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs text-white/60 hover:text-white">{k.name}</a>
+                    <button type="button" title={an ? 'Remove from your wall' : 'Add to your wall anyway'} onClick={() => umschalten(k.twitch)}
+                      className={`grid h-6 w-6 shrink-0 place-items-center rounded-md transition ${an ? 'text-akz' : 'text-white/30 hover:text-white sm:opacity-0 sm:group-hover:opacity-100'}`}>
+                      <Zeichen name={an ? 'haken' : 'plus'} className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ Buehne */
+
+function Buehne({ u, g }: { u: Uebersicht; g: BuehnenGriff }) {
+  const [region, setRegion] = useState<string>('alle');
+  const [suche, setSuche] = useState('');
   const q = suche.trim().toLowerCase();
-  const mitStand = kanaele.map((k) => ({ ...k, stand: staende[k.twitch] }));
-  const gefiltert = mitStand.filter((k) => (region === 'alle' || k.ordner.includes(region)) && (!q || k.name.toLowerCase().includes(q) || k.twitch.includes(q) || (k.stand?.title ?? '').toLowerCase().includes(q)));
+  const gefiltert = u.kanaele.filter((k) => (region === 'alle' || k.ordner.includes(region)) && (!q || k.name.toLowerCase().includes(q) || k.twitch.includes(q) || (k.stand?.title ?? '').toLowerCase().includes(q)));
   const live = gefiltert.filter((k) => k.stand?.isLive).sort((a, b) => (b.stand?.viewers ?? 0) - (a.stand?.viewers ?? 0));
   const offline = gefiltert.filter((k) => !k.stand?.isLive).sort((a, b) => a.name.localeCompare(b.name));
-  const zuschauerGesamt = live.reduce((s, k) => s + (k.stand?.viewers ?? 0), 0);
-  const geladen = Object.keys(staende).length > 0;
+  const zuschauer = live.reduce((s, k) => s + (k.stand?.viewers ?? 0), 0);
+  const regionen = [{ k: 'alle', titel: 'All' }, ...(u.ordner ?? []).map((o) => ({ k: o.name, titel: kurz(o.name) }))];
+  const keiner = <p className="rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center text-sm text-white/45">Nobody{region !== 'alle' ? ` in ${kurz(region)}` : ''} is live right now{q ? ' for this search' : ''}.</p>;
 
+  const suchfeld = (
+    <label className="relative block min-w-0 flex-1">
+      <Zeichen name="finder" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+      <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Name or stream title (e.g. “finals”)" className="eingabe w-full !py-2 !pl-9" />
+    </label>
+  );
+
+  /* ---- Schublade auf der laufenden Wand */
+  if (g.kompakt) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="space-y-3 border-b border-white/[0.06] p-4">
+          <div className="flex items-center gap-3">
+            <span className="h-5 w-1 rounded-full bg-red-500" />
+            <h2 className="titel text-3xl">Live now</h2>
+            <span className="zahl text-sm font-bold text-red-300">{live.length}</span>
+            <button type="button" onClick={g.zu} aria-label="Close" className="ml-auto grid h-8 w-8 place-items-center rounded-lg text-white/50 transition hover:bg-white/[0.06] hover:text-white">✕</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {regionen.map((r) => <button key={r.k} type="button" onClick={() => setRegion(r.k)} className={`chip ${region === r.k ? 'chip-an' : ''}`}>{r.titel}</button>)}
+          </div>
+          {suchfeld}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {u.fehler && <p className="px-2 py-2 text-xs text-amber-200/80">{u.fehler}</p>}
+          {!u.geladen ? <Laedt text="Checking who's live" /> : live.length ? live.map((k) => <SchubladenZeile key={k.twitch} k={k} takt={u.takt} an={g.aufWand.has(k.twitch)} klick={() => g.umschalten(k.twitch)} />) : <div className="p-2">{keiner}</div>}
+          {offline.length > 0 && <div className="mt-2 border-t border-white/[0.06] pt-1"><Offline liste={offline} aufWand={g.aufWand} umschalten={g.umschalten} schmal /></div>}
+        </div>
+      </div>
+    );
+  }
+
+  /* ---- Buehne auf der leeren Wand */
+  const [erster, ...rest] = live;
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-6">
-        <Titel ueber="Live now" titel="Live Streams" text="Pros, streamers and watch parties on Twitch – who's live, how many are watching, and the full multiview to follow several streams at once." />
-        {geladen && (
-          <div className="ml-auto flex gap-8">
-            {[['Live', live.length, 'text-red-400'], ['Watching', zahl(zuschauerGesamt), 'text-white'], ['Tracked', gefiltert.length, 'text-white/60']].map(([t, v, c], i) => (
-              <motion.div key={String(t)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.08 }}>
-                <p className={`text-3xl font-extrabold tabular-nums ${c}`}>{v}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{t}</p>
-              </motion.div>
-            ))}
+    <div className="space-y-5 px-4 pb-10 pt-6 lg:px-8">
+      {/* Kopf: Titel links, Kennzahlen rechts - eine Zeile */}
+      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+        <motion.div initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, ease: SANFT }} className="min-w-0">
+          <p className="ueber">Watch · Multiview</p>
+          <h1 className="titel mt-1 text-6xl lg:text-7xl">Live streams</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-white/55">Pros, creators and watch parties on Twitch. Click a stream to put it on your wall – the panel on the left (<kbd className="rounded border border-white/15 px-1 font-mono text-[11px]">Ctrl</kbd>+<kbd className="rounded border border-white/15 px-1 font-mono text-[11px]">B</kbd>) has folders, filters, quality and the single view.</p>
+        </motion.div>
+        {u.geladen && (
+          <div className="flex gap-8 sm:gap-10">
+            <Kennzahl label="Live" wert={live.length} ton="rot" />
+            <Kennzahl label="Watching" wert={zuschauer} format={(n) => kurzZahl(Math.round(n))} />
+            <Kennzahl label="Tracked" wert={gefiltert.length} />
           </div>
         )}
+      </header>
+
+      {/* Filter: Regionen und Suche */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Segment id="st-region" wert={region} wahl={regionen} onWahl={setRegion} />
+        <div className="flex min-w-[14rem] flex-1 sm:max-w-md">{suchfeld}</div>
+        {g.aufWand.size > 0 && <span className="text-xs text-white/45"><span className="zahl font-bold text-akz">{g.aufWand.size}</span> on your wall, offline or hidden</span>}
       </div>
 
-      {/* Multiview: die der echten Seite, fest unter dem Kopf */}
-      <Glas className="flex flex-wrap items-center gap-4 p-4" verzoegerung={0.05}>
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400/15 text-lg text-sky-300">▦</span>
-        <div className="min-w-0">
-          <h3 className="font-bold text-white">Multiview</h3>
-          <p className="text-xs text-white/45">{wand.length ? `${wand.length} stream${wand.length === 1 ? '' : 's'} on your wall` : 'Your wall is empty – add streams from the cards or in the side panel'} · side panel with folders, filters and quality · <kbd className="rounded border border-white/15 px-1 font-mono">Ctrl</kbd>+<kbd className="rounded border border-white/15 px-1 font-mono">B</kbd></p>
+      {u.fehler && <p className="text-xs text-amber-200/80">{u.fehler}</p>}
+      {!u.ordner || (!u.geladen && !u.fehler) ? <Laedt text="Checking who's live" /> : !live.length ? keiner : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
+          <Hauptstream k={erster} takt={u.takt} an={g.aufWand.has(erster.twitch)} klick={() => g.umschalten(erster.twitch)} />
+          <AnimatePresence>
+            {rest.map((k, i) => <StreamKachel key={k.twitch} k={k} i={i} takt={u.takt} an={g.aufWand.has(k.twitch)} klick={() => g.umschalten(k.twitch)} />)}
+          </AnimatePresence>
         </div>
-        <div className="ml-auto flex gap-2">
-          <button type="button" onClick={() => { try { localStorage.setItem('multihub_mehrfach', 'false'); } catch { /* egal */ } setMvOffen(true); }} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 transition hover:border-sky-400/60 hover:text-white">Single view</button>
-          <button type="button" onClick={() => { try { localStorage.setItem('multihub_mehrfach', 'true'); localStorage.setItem(SCHLUESSEL_SEITE, 'true'); } catch { /* egal */ } setMvOffen(true); }} className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-[#06080f] shadow-[0_10px_30px_-10px_rgba(56,189,248,0.8)] transition hover:-translate-y-0.5 hover:bg-sky-300">Open multiview →</button>
-        </div>
-      </Glas>
-      {mvOffen && (
-        <>
-          <MvSeite />
-          <button type="button" onClick={() => setMvOffen(false)}
-            className="fixed bottom-4 right-4 z-[400] rounded-full border border-white/15 bg-[#06080f]/85 px-4 py-1.5 text-xs font-bold text-white shadow-xl backdrop-blur transition hover:border-sky-400/60 hover:text-sky-300">✕ Back to Live Streams</button>
-        </>
       )}
 
-      {/* Filter */}
-      <Glas className="flex flex-wrap items-center gap-3 p-3" verzoegerung={0.1}>
-        <div className="flex flex-wrap rounded-full border border-white/10 bg-black/20 p-1 text-sm font-semibold">
-          {[{ id: 'alle', name: 'All regions' }, ...(ordner ?? []).map((o) => ({ id: o.name, name: kurz(o.name) }))].map((r) => (
-            <button key={r.id} type="button" onClick={() => setRegion(r.id)} className="relative rounded-full px-4 py-1.5">
-              {region === r.id && <motion.span layoutId="st-region" className="absolute inset-0 rounded-full bg-sky-400" transition={{ type: 'spring', stiffness: 400, damping: 32 }} />}
-              <span className={`relative ${region === r.id ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{r.name}</span>
-            </button>
-          ))}
-        </div>
-        <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search name or stream title (e.g. “finals”)…"
-          className="ml-auto w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none sm:w-96" />
-      </Glas>
-
-      {fehler && <Fehler text={fehler} />}
-      {!ordner || (!geladen && !fehler) ? <Laedt text="Checking who's live …" /> : (
-        <>
-          {live.length === 0
-            ? <Glas className="p-12 text-center text-sm text-white/45">Nobody{region !== 'alle' ? ` in ${kurz(region)}` : ''} is live right now{q ? ' for this search' : ''}.</Glas>
-            : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                <AnimatePresence>
-                  {live.map((k, i) => <StreamKarte key={k.twitch} k={k} i={i} takt={takt} aufWand={wand.includes(k.twitch)} umschalten={() => umschalten(k.twitch)} />)}
-                </AnimatePresence>
-              </div>
-            )}
-
-          <Glas className="p-5" verzoegerung={0.2}>
-            <button type="button" onClick={() => setOfflineAuf(!offlineAuf)} className="flex w-full items-center gap-3 text-left">
-              <h3 className="font-bold text-white">Offline</h3>
-              <span className="text-xs text-white/40">{offline.length} channels</span>
-              <motion.span animate={{ rotate: offlineAuf ? 180 : 0 }} className="ml-auto text-white/40">▾</motion.span>
-            </button>
-            <AnimatePresence initial={false}>
-              {offlineAuf && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
-                    {offline.map((k) => (
-                      <div key={k.twitch} className="group flex items-center gap-2 rounded-xl border border-white/[0.05] bg-black/20 px-2.5 py-2">
-                        {k.stand?.bild ? <img src={k.stand.bild} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover opacity-60 grayscale" />
-                          : <span className="h-7 w-7 shrink-0 rounded-full bg-white/10" />}
-                        <a href={`https://twitch.tv/${k.twitch}`} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs text-white/60 hover:text-white">{k.name}</a>
-                        <button type="button" title="Add to multiview anyway" onClick={() => umschalten(k.twitch)}
-                          className={`text-xs font-bold ${wand.includes(k.twitch) ? 'text-sky-400' : 'text-white/25 opacity-0 group-hover:opacity-100 hover:text-sky-300'}`}>{wand.includes(k.twitch) ? '✓' : '+'}</button>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Glas>
-        </>
-      )}
+      {u.geladen && <Offline liste={offline} aufWand={g.aufWand} umschalten={g.umschalten} />}
     </div>
   );
+}
+
+export default function Streams() {
+  const u = useUebersicht();
+  return <MvSeite buehne={(g) => <Buehne u={u} g={g} />} />;
 }

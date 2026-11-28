@@ -13,7 +13,7 @@ import T from '../ov/T';
 import { useT } from '../ov/sprache';
 import { useZugang } from '../ov/zugang';
 import Kachel from './Kachel';
-import Multiview from './Multiview';
+import Multiview, { type MultiviewProps } from './Multiview';
 import Einzelansicht from './Einzelansicht';
 import {
   EINSTELLUNGEN_STANDARD, SCHLUESSEL_EINSTELLUNGEN, ladeJson, speichereJson, type MvEinstellungen,
@@ -97,7 +97,8 @@ const DEFAULT_FOLDERS: Folder[] = [
   }
 ];
 
-export default function Home() {
+/** Hub: `buehne` ist die Live-Uebersicht der Seite Live Streams - sie fuellt die leere Wand und liegt danach als Schublade rechts (siehe Multiview). */
+export default function Home({ buehne }: { buehne?: MultiviewProps['buehne'] } = {}) {
 
   const t = useT();
   const [isMounted, setIsMounted] = useState(false);
@@ -143,7 +144,8 @@ export default function Home() {
    * Aus, solange nichts anderes gespeichert ist: wer die Seite zum ersten
    * Mal oeffnet, will einen Stream sehen und nicht sechs gleichzeitig.
    */
-  const [mehrfach, setMehrfach] = useState<boolean>(false);
+  // Hub: Live Streams und Multiview sind eine Seite - ohne gespeicherte Wahl beginnt sie mit der Wand (Einzelansicht per Knopf in der Leiste)
+  const [mehrfach, setMehrfach] = useState<boolean>(true);
   /**
    * Von Hand fuer die Kachelansicht gewaehlte Streamer.
    *
@@ -1846,7 +1848,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       </span>
       <button type="button"
         onClick={() => { if (letzteAdminOrdner.current) void adminSpeichern(letzteAdminOrdner.current); }}
-        className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+        className="rounded-lg bg-akz px-3 py-1.5 text-xs font-bold text-[#04050a] transition hover:brightness-110">
         {t('Erneut versuchen')}
       </button>
     </div>
@@ -1907,6 +1909,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
             : f)));
         }}
         zurEinzelansicht={mehrfachUmschalten}
+        buehne={buehne}
       />
       </>
     );

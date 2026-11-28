@@ -58,7 +58,7 @@ function Zeile({ symbol, text, an, aendern }: {
       className="mv-hover flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition">
       <span className="mv-mute flex h-4 w-4 shrink-0 items-center justify-center">{symbol}</span>
       <span className="min-w-0 flex-1">{text}</span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${an ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${an ? 'bg-akz' : 'bg-white/15'}`}>
         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${an ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
@@ -117,7 +117,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
           <span className="w-4 shrink-0" />
           <span className="min-w-0 flex-1"><T>Abfrage alle</T></span>
           <select value={einst.liveTakt} onChange={(e) => aendern({ liveTakt: Number(e.target.value) })}
-            className="mv-fl rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500">
+            className="mv-fl rounded-md border px-2 py-1 text-xs outline-none focus:border-akz/60">
             {LIVE_TAKTE.map((s) => (
               <option key={s} value={s}>{s < 60 ? `${s} s` : `${s / 60} min`}</option>
             ))}
@@ -137,7 +137,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
               {POV_ORTE.map((o) => (
                 <button key={o.wert} type="button" onClick={() => aendern({ povBannerOrt: o.wert })}
                   className={`rounded-md border px-2 py-1 text-xs transition ${einst.povBannerOrt === o.wert
-                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                    ? 'border-akz/50 bg-akz/15 text-akz' : 'mv-fl mv-hover'}`}>
                   {t(o.titel)}
                 </button>
               ))}
@@ -150,7 +150,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
               {([['klein', 'Klein'], ['mittel', 'Mittel'], ['gross', 'Groß']] as const).map(([wert, titel]) => (
                 <button key={wert} type="button" onClick={() => aendern({ povBannerGroesse: wert })}
                   className={`rounded-md border px-2 py-1 text-xs transition ${einst.povBannerGroesse === wert
-                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                    ? 'border-akz/50 bg-akz/15 text-akz' : 'mv-fl mv-hover'}`}>
                   {t(titel)}
                 </button>
               ))}
@@ -173,7 +173,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
               {STATS_ORTE.map((o) => (
                 <button key={o.wert} type="button" onClick={() => aendern({ povStatsOrt: o.wert })}
                   className={`rounded-md border px-2 py-1 text-xs transition ${einst.povStatsOrt === o.wert
-                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                    ? 'border-akz/50 bg-akz/15 text-akz' : 'mv-fl mv-hover'}`}>
                   {t(o.titel)}
                 </button>
               ))}
@@ -186,7 +186,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
               {([['klein', 'Klein'], ['mittel', 'Mittel'], ['gross', 'Groß']] as const).map(([wert, titel]) => (
                 <button key={wert} type="button" onClick={() => aendern({ povStatsGroesse: wert })}
                   className={`rounded-md border px-2 py-1 text-xs transition ${einst.povStatsGroesse === wert
-                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                    ? 'border-akz/50 bg-akz/15 text-akz' : 'mv-fl mv-hover'}`}>
                   {t(titel)}
                 </button>
               ))}
@@ -253,7 +253,7 @@ export function KuerzelFenster({ kuerzel, setzen, zurueck, zu }: {
             </div>
             <button type="button" onClick={() => setWartet(z.name)}
               className={`mv-fl rounded-md border px-2.5 py-1 font-mono text-xs transition
-                ${wartet === z.name ? 'border-sky-500 text-sky-400' : 'mv-hover'}`}>
+                ${wartet === z.name ? 'border-akz/50 text-akz' : 'mv-hover'}`}>
               {wartet === z.name ? t('Taste drücken …') : kuerzelText(kuerzel[z.name])}
             </button>
           </div>
@@ -267,7 +267,7 @@ export function KuerzelFenster({ kuerzel, setzen, zurueck, zu }: {
           <T>Auf Standard zurücksetzen</T>
         </button>
         <button type="button" onClick={zu}
-          className="rounded-md bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+          className="rounded-md bg-akz px-4 py-1.5 text-xs font-bold text-[#04050a] transition hover:brightness-110">
           <T>Schließen</T>
         </button>
       </div>
@@ -289,13 +289,13 @@ export function KanalAendernFenster({ kanal, speichern, zu }: {
       <input ref={feld} value={wert} onChange={(e) => setWert(e.target.value)} spellCheck={false}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); abschicken(); } }}
         placeholder={t('Kanalname …')}
-        className="mv-fl mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-sky-500" />
+        className="mv-fl mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-akz/60" />
       <div className="mt-4 flex justify-end gap-2">
         <button type="button" onClick={zu} className="mv-mute mv-hover rounded-md px-3 py-1.5 text-xs transition">
           <T>Abbrechen</T>
         </button>
         <button type="button" onClick={abschicken} disabled={!neu}
-          className="rounded-md bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:opacity-40">
+          className="rounded-md bg-akz px-4 py-1.5 text-xs font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
           <T>Speichern</T>
         </button>
       </div>

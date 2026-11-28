@@ -106,7 +106,7 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
   return (
     <button type="button" title={titel} aria-label={titel} onClick={klick}
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded transition
-        ${aktiv ? 'text-sky-400' : 'mv-mute'} ${gefahr ? 'hover:text-rose-400' : 'hover:text-sky-400'} mv-hover`}>
+        ${aktiv ? 'text-akz' : 'mv-mute'} ${gefahr ? 'hover:text-rose-400' : 'hover:text-akz'} mv-hover`}>
       {children}
     </button>
   );
@@ -186,14 +186,15 @@ export default function Einzelansicht(p: Props) {
     const gewaehlt = !p.aktivPov && p.aktiv === twitch;
     return (
       <li key={`${ordnerId ?? 'fav'}:${twitch}`}
-        className={`group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1 ${gewaehlt ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>
-        <span className="relative shrink-0">
-          {p.profilBilder?.[twitch.toLowerCase()]
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={p.profilBilder[twitch.toLowerCase()]} alt="" loading="lazy" className={`h-6 w-6 rounded-full object-cover ${live ? '' : 'opacity-50 grayscale'}`} />
-            : <span className="mv-fl flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold uppercase">{anzeige(twitch).slice(0, 1)}</span>}
-          <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[var(--mv-grund,#0b0d12)] ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
-        </span>
+        className={`group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1 ${gewaehlt ? 'bg-akz/10 ring-1 ring-inset ring-akz/40' : ''}`}>
+        {/* Profilbild oder gar nichts (Betreiber, 27.11.2026) - ohne Bild bleibt nur der Live-Punkt, mittig im selben Platz */}
+        {p.profilBilder?.[twitch.toLowerCase()] ? (
+          <span className="relative shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.profilBilder[twitch.toLowerCase()]} alt="" loading="lazy" className={`h-6 w-6 rounded-md object-cover ${live ? '' : 'opacity-50 grayscale'}`} />
+            <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[rgb(var(--fl))] ${live ? 'bg-red-500' : 'bg-white/20'}`} />
+          </span>
+        ) : <span className="grid h-6 w-6 shrink-0 place-items-center"><span className={`h-2 w-2 rounded-full ${live ? 'bg-red-500' : 'bg-white/20'}`} /></span>}
         {streamerName?.twitch === twitch ? (
           <input autoFocus value={streamerName.name} placeholder={twitch}
             onChange={(e) => setStreamerName({ twitch, name: e.target.value })}
@@ -202,7 +203,7 @@ export default function Einzelansicht(p: Props) {
               if (e.key === 'Escape') setStreamerName(null);
             }}
             onBlur={() => { p.streamerUmbenennen?.(twitch, streamerName.name); setStreamerName(null); }}
-            className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-sky-500" />
+            className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-akz/60" />
         ) : (
           <button type="button" onClick={() => { p.waehleStreamer(twitch); schmalZu(); }} title={p.namen[twitch] ? twitch : undefined}
             className={`min-w-0 flex-1 truncate text-left text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(twitch)}</button>
@@ -264,9 +265,9 @@ export default function Einzelansicht(p: Props) {
               }}>
               <input value={neuerOrdner} onChange={(e) => setNeuerOrdner(e.target.value)}
                 placeholder={t('Neuen Ordner anlegen …')}
-                className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-sky-500" />
+                className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-akz/60" />
               <button type="submit" disabled={!neuerOrdner.trim()}
-                className="flex shrink-0 items-center gap-1 rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:opacity-40">
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-akz px-3 text-xs font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
                 <Zeichen d={D.plus} klein /><T>Anlegen</T>
               </button>
             </form>
@@ -299,9 +300,9 @@ export default function Einzelansicht(p: Props) {
               <li>
                 <button type="button" onClick={() => povOrdnerSetzen(true)}
                   className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${povZeigen
-                    ? 'border-sky-400 bg-sky-500/15' : 'border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10'}`}>
-                  <span className="text-sky-400"><Zeichen d={D.sender} klein /></span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">POVs</span>
+                    ? 'border-akz/50 bg-akz/15' : 'border-akz/30 hover:border-akz/50 hover:bg-akz/10'}`}>
+                  <span className="text-akz"><Zeichen d={D.sender} klein /></span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-akz">POVs</span>
                   <span className="mv-mute shrink-0 text-[10px] tabular-nums">{p.povs.length}</span>
                   {p.povs.some((x) => x.live) && (
                     <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums text-red-500">
@@ -317,7 +318,7 @@ export default function Einzelansicht(p: Props) {
               return (
                 <li key={o.id}>
                   <div className={`group flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition ${gewaehlt
-                    ? 'border-sky-500/60 bg-sky-500/10' : 'mv-rand mv-hover'}`}>
+                    ? 'border-akz/60 bg-akz/10' : 'mv-rand mv-hover'}`}>
                     {umbenennen?.id === o.id ? (
                       <input autoFocus value={umbenennen.name}
                         onChange={(e) => setUmbenennen({ id: o.id, name: e.target.value })}
@@ -326,7 +327,7 @@ export default function Einzelansicht(p: Props) {
                           if (e.key === 'Escape') setUmbenennen(null);
                         }}
                         onBlur={() => { if (umbenennen.name.trim()) p.ordnerUmbenennen(o.id, umbenennen.name); setUmbenennen(null); }}
-                        className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500" />
+                        className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-akz/60" />
                     ) : (
                       <button type="button" onClick={() => { povOrdnerSetzen(false); p.waehleOrdner(o.id); setSuche(''); }}
                         className="min-w-0 flex-1 truncate text-left text-xs font-semibold">{o.name}</button>
@@ -364,12 +365,12 @@ export default function Einzelansicht(p: Props) {
                 <li key={x.ident}>
                   <button type="button" onClick={() => { p.waehlePov(x.ident); schmalZu(); }}
                     className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${p.aktivPov === x.ident
-                      ? 'border-sky-400 bg-sky-500/15' : 'border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10'}`}>
+                      ? 'border-akz/50 bg-akz/15' : 'border-akz/30 hover:border-akz/50 hover:bg-akz/10'}`}>
                     {x.bild
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={x.bild} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
                       : <span className="mv-rand h-6 w-6 shrink-0 rounded-full border" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">{x.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-akz">{x.name}</span>
                     {x.live
                       ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
                       : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
@@ -402,9 +403,9 @@ export default function Einzelansicht(p: Props) {
                 <input value={neuerKanal} spellCheck={false}
                   onChange={(e) => { setNeuerKanal(e.target.value); setNeuFehler(false); }}
                   placeholder={t('Streamer zum Ordner hinzufügen …')}
-                  className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500 ${neuFehler ? 'border-rose-500' : ''}`} />
+                  className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-akz/60 ${neuFehler ? 'border-rose-500' : ''}`} />
                 <button type="submit" aria-label={t('Streamer zum Ordner hinzufügen')}
-                  className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500 text-white transition hover:bg-sky-400">
+                  className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-akz text-[#04050a] transition hover:brightness-110">
                   <Zeichen d={D.plus} klein />
                 </button>
               </form>
@@ -413,11 +414,11 @@ export default function Einzelansicht(p: Props) {
               {/* Ein Feld fuer Name und Stream-Titel (Idee 28, 31.10.2026) - vorher zwei Felder untereinander. */}
               <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
                 placeholder={t('Streamer oder Stream-Titel suchen …')}
-                className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+                className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-akz/60" />
               <div className="mt-1 flex flex-wrap gap-1">
                 {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Trio', 'Reload', 'Performance', 'Division', 'Cash'].map((w) => (
                   <button key={w} type="button" onClick={() => setSuche((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${q === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-mute mv-hover'}`}>
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${q === w.toLowerCase() ? 'border-akz/50 bg-akz/15 text-akz' : 'mv-mute mv-hover'}`}>
                     {w}
                   </button>
                 ))}
@@ -481,7 +482,7 @@ export default function Einzelansicht(p: Props) {
             <button type="button" onClick={p.chatUmschalten} aria-pressed={p.chatAn}
               title={p.chatAn ? t('Chat ausblenden') : t('Chat einblenden')} aria-label={p.chatAn ? t('Chat ausblenden') : t('Chat einblenden')}
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition ${p.chatAn
-                ? 'border-sky-500/60 bg-sky-500/10 text-sky-400' : 'mv-fl mv-hover mv-mute'}`}>
+                ? 'border-akz/60 bg-akz/10 text-akz' : 'mv-fl mv-hover mv-mute'}`}>
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 4.5h14v9H8.5L5 16.5v-3H3z" />
                 {!p.chatAn && <path d="M3 17L17 3" />}

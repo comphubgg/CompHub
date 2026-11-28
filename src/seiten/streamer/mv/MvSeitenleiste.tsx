@@ -84,7 +84,7 @@ function Abschnitt({ children }: { children: ReactNode }) {
 }
 function Titel({ symbol, children }: { symbol: ReactNode; children: ReactNode }) {
   return (
-    <p className="mv-mute mb-2 flex items-center gap-1.5 text-[11px] font-medium">
+    <p className="mv-mute mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em]">
       {symbol}{children}
     </p>
   );
@@ -96,7 +96,7 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
   return (
     <button type="button" title={titel} aria-label={titel} onClick={klick}
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded transition
-        ${aktiv ? 'text-sky-400' : 'mv-mute'} ${gefahr ? 'hover:text-rose-400' : 'hover:text-sky-400'} mv-hover`}>
+        ${aktiv ? 'text-akz' : 'mv-mute'} ${gefahr ? 'hover:text-rose-400' : 'hover:text-akz'} mv-hover`}>
       {children}
     </button>
   );
@@ -208,7 +208,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   };
 
   const umschalten = (id: string) => setWahl((alt) => (alt.includes(id) ? alt.filter((x) => x !== id) : [...alt, id]));
-  const kleinKnopf = 'mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40';
+  const kleinKnopf = 'mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-akz/50 hover:text-akz disabled:opacity-40';
 
   return (
     <Abschnitt>
@@ -218,7 +218,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
         </p>
         {p.ordner.length > 1 && (
           <label className="mv-mute flex cursor-pointer items-center gap-1 text-[10px]">
-            <input type="checkbox" checked={alleGewaehlt} className="accent-sky-500"
+            <input type="checkbox" checked={alleGewaehlt} className="accent-[rgb(var(--akz))]"
               onChange={() => setWahl(alleGewaehlt ? [] : p.ordner.map((o) => o.id))} />
             <T>alle wählen</T>
           </label>
@@ -230,21 +230,21 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
           className="mv-mute flex w-full items-center gap-1.5 text-[11px] font-medium">
           <svg viewBox="0 0 20 20" className={`h-3 w-3 shrink-0 transition ${filterAuf ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l6 6-6 6" /></svg>
           <T>Filter</T>
-          {aktive.length > 0 && <span className="rounded-full bg-sky-500/20 px-1.5 text-[10px] font-semibold text-sky-400">{aktive.length}</span>}
+          {aktive.length > 0 && <span className="rounded-full bg-akz/20 px-1.5 text-[10px] font-semibold text-akz">{aktive.length}</span>}
         </button>
         {filterAuf && (
           <div className="mt-1.5">
             <input value={eingabe} onChange={(e) => setEingabe(e.target.value)} spellCheck={false}
               onKeyDown={(e) => { if (e.key === 'Enter') eigeneHinzu(); }}
               placeholder={t('Im Stream-Titel suchen … (Enter = eigener Filter)')}
-              className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+              className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-akz/60" />
             <div className="mt-1 flex flex-wrap gap-1">
               {[...cupKapseln.map((c) => c.name), ...filter.filter((w) => !cupKapseln.some((c) => c.name.toLowerCase() === w.toLowerCase()))].map((w) => {
                 const an = gewaehlteWoerter.has(w.toLowerCase());
                 return (
                   <button key={w} type="button" onClick={(e) => kapselKlick(w, e.shiftKey || e.ctrlKey || e.metaKey)}
                     title={t('Umschalt (Shift) gedrückt: mehrere Filter zugleich')}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${an ? 'border-sky-500 bg-sky-500/15 text-sky-400' : zahlFuer(w) > 0 ? 'mv-hover' : 'mv-mute mv-hover opacity-60'}`}>
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${an ? 'border-akz/50 bg-akz/15 text-akz' : zahlFuer(w) > 0 ? 'mv-hover' : 'mv-mute mv-hover opacity-60'}`}>
                     {w}{zahlFuer(w) > 0 && <span className="ml-1 tabular-nums text-red-500">{zahlFuer(w)}</span>}
                   </button>
                 );
@@ -298,7 +298,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
               <li key={o.id} className="mv-rand rounded-lg border">
                 <div className="flex items-center gap-1.5 px-2 py-1.5">
                   <input type="checkbox" checked={gewaehlt.includes(o.id)} onChange={() => umschalten(o.id)}
-                    aria-label={o.name} className="shrink-0 accent-sky-500" />
+                    aria-label={o.name} className="shrink-0 accent-[rgb(var(--akz))]" />
                   <button type="button" onClick={() => setAuf(offen ? null : o.id)} aria-expanded={offen}
                     className="flex min-w-0 flex-1 items-center gap-1 text-left">
                     <svg viewBox="0 0 20 20" className={`mv-mute h-3 w-3 shrink-0 transition ${offen ? 'rotate-90' : ''}`} fill="none"
@@ -333,7 +333,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                         const aufWand = p.streams.some((s) => s.kanal === x.twitch && p.aufWand.has(s.id));
                         return (
                           <li key={x.twitch} className="group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1">
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-white/20'}`} />
                             {umbenennen?.twitch === x.twitch ? (
                               <input autoFocus value={umbenennen.name} placeholder={x.twitch}
                                 onChange={(e) => setUmbenennen({ twitch: x.twitch, name: e.target.value })}
@@ -342,7 +342,7 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                                   if (e.key === 'Escape') setUmbenennen(null);
                                 }}
                                 onBlur={() => { p.streamerUmbenennen?.(x.twitch, umbenennen.name); setUmbenennen(null); }}
-                                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-sky-500" />
+                                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-akz/60" />
                             ) : (
                               <span title={stand?.title || (p.namen[x.twitch] ? x.twitch : undefined)} className="min-w-0 flex-1">
                                 <span className={`block truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(x.twitch)}</span>
@@ -386,9 +386,9 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                         }}>
                         <input value={neuerKanal} spellCheck={false} onChange={(e) => { setNeuerKanal(e.target.value); setNeuFehler(false); }}
                           placeholder={t('Streamer zum Ordner hinzufügen …')}
-                          className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500 ${neuFehler ? 'border-rose-500' : ''}`} />
+                          className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-akz/60 ${neuFehler ? 'border-rose-500' : ''}`} />
                         <button type="submit" aria-label={t('Streamer zum Ordner hinzufügen')}
-                          className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500 text-white transition hover:bg-sky-400">
+                          className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-akz text-[#04050a] transition hover:brightness-110">
                           <Zeichen d={D.plus} klein />
                         </button>
                       </form>
@@ -419,8 +419,8 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
             <input autoFocus value={ordnerName} onChange={(e) => setOrdnerName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') setOrdnerName(null); }}
               placeholder={t('Name des Ordners …')}
-              className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-sky-500" />
-            <button type="submit" className="rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white transition hover:bg-sky-400">
+              className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-akz/60" />
+            <button type="submit" className="rounded-lg bg-akz px-3 text-xs font-bold text-[#04050a] transition hover:brightness-110">
               <T>Speichern</T>
             </button>
           </form>
@@ -544,7 +544,7 @@ export default function Seitenleiste(p: Props) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logos/CompHub-Logo.png" alt="" className="h-8 w-8 rounded-md object-contain" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-tight">CompHub Multiview</p>
+          <p className="titel truncate text-[26px] leading-none">Multiview</p>
           <p className="mv-mute flex items-center gap-1 text-[10px]">
             <kbd className="mv-rand rounded border px-1 font-mono">Ctrl</kbd>+
             <kbd className="mv-rand rounded border px-1 font-mono">B</kbd>
@@ -564,9 +564,9 @@ export default function Seitenleiste(p: Props) {
               onFocus={() => setFundeOffen(true)} onBlur={() => setFundeOffen(false)}
               placeholder={t('Kanalname …')}
               className={`mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none
-                focus:border-sky-500 ${fehler ? 'border-rose-500' : ''}`} />
+                focus:border-akz/60 ${fehler ? 'border-rose-500' : ''}`} />
             <button type="submit" aria-label={t('Stream hinzufügen')} title={t('Stream hinzufügen')}
-              className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white transition hover:bg-sky-400">
+              className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-akz text-[#04050a] transition hover:brightness-110">
               <Zeichen d={D.plus} />
             </button>
             {fundeOffen && eingabe.trim().length >= 2 && gezeigt.length > 0 && (
@@ -577,8 +577,8 @@ export default function Seitenleiste(p: Props) {
                     className="mv-hover flex w-full items-center gap-2.5 px-3 py-2 text-left transition">
                     {k.bild
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={k.bild} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
-                      : <span className="mv-rand h-7 w-7 shrink-0 rounded-full border" />}
+                      ? <img src={k.bild} alt="" className="h-7 w-7 shrink-0 rounded-md object-cover" />
+                      : null}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
                         <span className="truncate text-xs font-semibold">{k.name}</span>
@@ -598,7 +598,7 @@ export default function Seitenleiste(p: Props) {
                 ))}
                 {!mehr && funde.length > erste.length && (
                   <button type="button" onClick={() => setMehr(true)}
-                    className="mv-rand mv-mute w-full border-t px-3 py-1.5 text-center text-[11px] transition hover:text-sky-400">
+                    className="mv-rand mv-mute w-full border-t px-3 py-1.5 text-center text-[11px] transition hover:text-akz">
                     <T>mehr anzeigen</T> ({funde.length - erste.length})
                   </button>
                 )}
@@ -609,7 +609,7 @@ export default function Seitenleiste(p: Props) {
             <label className="mv-mute mt-2 flex items-center gap-2 text-[11px]">
               <span className="shrink-0"><T>Speichern in</T></span>
               <select value={zielOrdner} onChange={(e) => setZielOrdner(e.target.value)}
-                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500">
+                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-akz/60">
                 <option value="">{t('Nur diese Sitzung')}</option>
                 {p.ordner.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
@@ -651,7 +651,7 @@ export default function Seitenleiste(p: Props) {
                 className="rounded-md bg-rose-500 px-2.5 py-1 font-semibold text-white transition hover:bg-rose-400">
                 <T>Entfernen</T>
               </button>
-              <button type="button" onClick={() => setAlleWeg(false)} className="mv-mute transition hover:text-sky-400">
+              <button type="button" onClick={() => setAlleWeg(false)} className="mv-mute transition hover:text-akz">
                 <T>Abbrechen</T>
               </button>
             </div>
@@ -668,12 +668,12 @@ export default function Seitenleiste(p: Props) {
                   </span>
                   <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
                     placeholder={t('Streams durchsuchen …')}
-                    className="mv-fl w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none focus:border-sky-500" />
+                    className="mv-fl w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none focus:border-akz/60" />
                 </div>
                 <button type="button" role="switch" aria-checked={p.offlineAlle} onClick={a.offlineAlleUmschalten}
                   className="mv-hover -mx-1 mb-2 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-md px-1 py-1 text-left text-xs transition">
                   <span className="min-w-0 flex-1"><T>Alle Offline-Streams zeigen</T></span>
-                  <span className={`relative h-4 w-7 shrink-0 rounded-full transition ${p.offlineAlle ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                  <span className={`relative h-4 w-7 shrink-0 rounded-full transition ${p.offlineAlle ? 'bg-akz' : 'bg-white/15'}`}>
                     <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${p.offlineAlle ? 'left-[14px]' : 'left-0.5'}`} />
                   </span>
                 </button>
@@ -686,7 +686,7 @@ export default function Seitenleiste(p: Props) {
                     return (
                       <li key={s.id} ref={(el) => { if (el) zeilen.current.set(s.id, el); else zeilen.current.delete(s.id); }}
                         className={`group relative rounded-lg border transition ${ziehId === s.id
-                          ? 'border-sky-500 bg-sky-500/10' : 'mv-rand'} ${s.versteckt || !p.aufWand.has(s.id) ? 'opacity-60' : ''}`}>
+                          ? 'border-akz/50 bg-akz/10' : 'mv-rand'} ${s.versteckt || !p.aufWand.has(s.id) ? 'opacity-60' : ''}`}>
                         <div className="flex items-center gap-1.5 px-1.5 py-1.5">
                           <span onPointerDown={(e) => { if (!s.fest) ziehen(e, s.id); }}
                             title={s.fest ? t('Angeheftet') : t('Zum Sortieren ziehen')}
@@ -698,9 +698,9 @@ export default function Seitenleiste(p: Props) {
                           </span>
                           <button type="button" onClick={() => setZeilenAktiv(aktiv ? null : s.id)}
                             className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-                            <span className={`truncate text-xs font-semibold ${povArt ? 'text-sky-400' : ''}`}>{s.kanal}</span>
+                            <span className={`truncate text-xs font-semibold ${povArt ? 'text-akz' : ''}`}>{s.kanal}</span>
                             {povArt && (
-                              <span className="shrink-0 rounded border border-sky-500/50 px-1 text-[9px] font-semibold uppercase tracking-wider text-sky-400">
+                              <span className="shrink-0 rounded border border-akz/50 px-1 text-[9px] font-semibold uppercase tracking-wider text-akz">
                                 POV
                               </span>
                             )}
@@ -716,11 +716,11 @@ export default function Seitenleiste(p: Props) {
                             <button type="button" onClick={() => a.zeigeOfflineUmschalten(s.id)}
                               title={s.zeigeOffline ? t('Offline nicht mehr zeigen') : t('Auch offline zeigen')}
                               className={`shrink-0 rounded-full border px-1.5 py-px text-[9px] uppercase tracking-wider transition ${s.zeigeOffline
-                                ? 'border-sky-500 text-sky-400' : 'mv-rand mv-mute hover:border-sky-500 hover:text-sky-400'}`}>
+                                ? 'border-akz/50 text-akz' : 'mv-rand mv-mute hover:border-akz/50 hover:text-akz'}`}>
                               offline{s.zeigeOffline ? ' ✓' : ''}
                             </button>
                           )}
-                          {s.fest && <span className="text-sky-400" title={t('Angeheftet')}><Zeichen d={D.nadel} klein /></span>}
+                          {s.fest && <span className="text-akz" title={t('Angeheftet')}><Zeichen d={D.nadel} klein /></span>}
                           {/* Zeilenaktionen: beim Darueberfahren, oder nach einem Tipp auf den Namen (Touch). */}
                           <div className={`items-center gap-0.5 ${aktiv ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
                             <Knopf titel={s.fest ? t('Lösen') : t('Anheften')} aktiv={s.fest} klick={() => a.festmachen(s.id)}>
@@ -752,7 +752,7 @@ export default function Seitenleiste(p: Props) {
                                 <button key={o.id} type="button" disabled={drin}
                                   onClick={() => { p.zuOrdner(o.id, s.kanal); setOrdnerMenue(null); }}
                                   className={`rounded-full border px-2 py-0.5 text-[10px] transition ${drin
-                                    ? 'mv-rand mv-mute opacity-50' : 'mv-rand hover:border-sky-500 hover:text-sky-400'}`}>
+                                    ? 'mv-rand mv-mute opacity-50' : 'mv-rand hover:border-akz/50 hover:text-akz'}`}>
                                   {o.name}{drin ? ' ✓' : ''}
                                 </button>
                               );
@@ -778,12 +778,12 @@ export default function Seitenleiste(p: Props) {
               {p.povs.map((x) => {
                 const drauf = p.streams.some((s) => s.pov === x.ident && p.aufWand.has(s.id));
                 return (
-                  <li key={x.ident} className="flex items-center gap-2 rounded-lg border border-sky-500/30 px-2 py-1.5">
+                  <li key={x.ident} className="flex items-center gap-2 rounded-lg border border-akz/30 px-2 py-1.5">
                     {x.bild
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={x.bild} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
                       : <span className="mv-rand h-6 w-6 shrink-0 rounded-full border" />}
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">{x.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-akz">{x.name}</span>
                     {x.live
                       ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
                       : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
@@ -820,7 +820,7 @@ export default function Seitenleiste(p: Props) {
             <Knopf titel={t('Auf Auto zurücksetzen')} klick={() => a.alleQualitaet('auto')}><Zeichen d={D.neu} klein /></Knopf>
           </div>
           <select value={p.qualitaetAlle} onChange={(e) => a.alleQualitaet(e.target.value)}
-            className="mv-fl w-full rounded-lg border px-3 py-1.5 text-sm outline-none focus:border-sky-500">
+            className="mv-fl w-full rounded-lg border px-3 py-1.5 text-sm outline-none focus:border-akz/60">
             {QUALITAETEN.map((q) => <option key={q.wert} value={q.wert}>{q.name}</option>)}
           </select>
         </Abschnitt>
@@ -847,7 +847,7 @@ export default function Seitenleiste(p: Props) {
       {/* Fuss */}
       <div className="mv-rand flex items-center justify-between border-t px-4 py-2.5">
         <button type="button" onClick={p.einstellungen}
-          className="mv-mute flex items-center gap-1.5 text-xs transition hover:text-sky-400">
+          className="mv-mute flex items-center gap-1.5 text-xs transition hover:text-akz">
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6"
             strokeLinecap="round" strokeLinejoin="round">
             <circle cx="10" cy="10" r="2.5" />
@@ -856,7 +856,7 @@ export default function Seitenleiste(p: Props) {
           <T>Einstellungen</T>
         </button>
         <button type="button" onClick={p.einzelAnsicht}
-          className="mv-mute flex items-center gap-1.5 text-xs transition hover:text-sky-400">
+          className="mv-mute flex items-center gap-1.5 text-xs transition hover:text-akz">
           <T>Einzelansicht</T>
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6"
             strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="14" height="12" rx="2" /></svg>

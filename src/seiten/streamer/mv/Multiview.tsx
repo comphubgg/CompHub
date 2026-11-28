@@ -1,5 +1,5 @@
 import {
-  memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+  memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode,
 } from 'react';
 import T from '../ov/T';
 import { useT } from '../ov/sprache';
@@ -80,7 +80,7 @@ const festeVor = (liste: MvStream[]) => [...liste.filter((s) => s.fest), ...list
 
 export const CSS = `
 @layer components {
-  .mv-root{--mv-bg:#09090b;--mv-panel:#111113;--mv-rand:#27272a;--mv-text:#f4f4f5;--mv-mute:#a1a1aa;--mv-hover:#1f1f23;background:var(--mv-bg);color:var(--mv-text)}
+  .mv-root{--mv-bg:rgb(var(--grund));--mv-panel:rgb(var(--fl));--mv-rand:rgba(255,255,255,0.07);--mv-text:#f4f4f5;--mv-mute:rgba(255,255,255,0.5);--mv-hover:rgba(255,255,255,0.05);background:var(--mv-bg);color:var(--mv-text)}
   .mv-root.mv-hell,html[data-modus="hell"] .mv-root{--mv-bg:#f4f4f5;--mv-panel:#ffffff;--mv-rand:#e4e4e7;--mv-text:#18181b;--mv-mute:#52525b;--mv-hover:#e9e9ec}
   .mv-fl{background:var(--mv-panel);color:var(--mv-text);border-color:var(--mv-rand)}
   input.mv-fl,select.mv-fl{background:var(--mv-bg)}
@@ -135,7 +135,7 @@ const Kachel = memo(function Kachel(p: KachelProps) {
       }}
       className="group">
       <div className={`h-full w-full overflow-hidden bg-black ${p.abgerundet ? 'rounded-lg' : ''}
-        ${p.ziehend ? 'shadow-2xl ring-2 ring-sky-400' : ''}`}>
+        ${p.ziehend ? 'shadow-2xl ring-2 ring-akz/60' : ''}`}>
         {s.pov
           ? <PovVideo key={`${s.pov}#${p.neu}`} ref={(h) => p.griff(s.id, h)} pro={s.pov} name={s.kanal}
             banner={p.banner} aendereBanner={p.aendereBanner} stats={p.stats} aendereStats={p.aendereStats} />
@@ -146,7 +146,7 @@ const Kachel = memo(function Kachel(p: KachelProps) {
       {/* POV: ein blauer Rand, damit die POVs der Seite zwischen den Streams auffallen. */}
       {p.pov && (
         <div aria-hidden
-          className={`pointer-events-none absolute inset-0 border-2 border-sky-400/70
+          className={`pointer-events-none absolute inset-0 border-2 border-akz/70
             shadow-[0_0_14px_rgba(56,189,248,0.25)] ${p.abgerundet ? 'rounded-lg' : ''}`} />
       )}
 
@@ -170,7 +170,7 @@ const Kachel = memo(function Kachel(p: KachelProps) {
           <div className="absolute left-1/2 top-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white">
             {s.kanal}
             {p.pov && (
-              <span className="rounded border border-sky-400/60 px-1 text-[9px] font-semibold uppercase tracking-wider text-sky-300">
+              <span className="rounded border border-akz/60 px-1 text-[9px] font-semibold uppercase tracking-wider text-akz">
                 {p.pov === 'discord' ? 'Discord POV' : 'POV'}
               </span>
             )}
@@ -227,7 +227,13 @@ export interface MultiviewProps {
   ordnerSpeichern: (name: string, kanaele: string[]) => void;
   zuOrdner: (ordnerId: string, kanal: string) => void;
   zurEinzelansicht: () => void;
+  /**
+   * Hub (Design 3.0, 28.11.2026): "Live Streams und Multiview auf EINER Seite". Die Buehne ist die Uebersicht, wer live ist - sie fuellt die leere
+   * Wand und liegt, sobald Streams auf der Wand sind, als Schublade rechts ("Live now"). `umschalten` legt einen Kanal auf die Wand oder nimmt ihn herunter.
+   */
+  buehne?: (a: BuehnenGriff) => ReactNode;
 }
+export interface BuehnenGriff { aufWand: Set<string>; umschalten: (kanal: string) => void; kompakt: boolean; zu?: () => void }
 
 export default function Multiview(props: MultiviewProps) {
   const t = useT();
@@ -263,6 +269,8 @@ export default function Multiview(props: MultiviewProps) {
     () => ({ ...KUERZEL_STANDARD, ...ladeJson<Partial<Record<KuerzelName, Kuerzel>>>(SCHLUESSEL_KUERZEL, {}) }));
   const [seite, setSeite] = useState<boolean>(() => {
     const gemerkt = ladeJson<boolean | null>(SCHLUESSEL_SEITE, null);
+    // Mit Buehne auf dem Handy erst die Buehne zeigen - die Seitenleiste wuerde sie ganz bedecken.
+    if (gemerkt === null && props.buehne && typeof window !== 'undefined' && window.innerWidth < 1024) return false;
     return gemerkt === null ? streams.length === 0 : gemerkt;
   });
   const [neu, setNeu] = useState<Record<string, number>>({});
@@ -277,6 +285,7 @@ export default function Multiview(props: MultiviewProps) {
   const [zieh, setZieh] = useState<null | { id: string; x: number; y: number }>(null);
   const [flaeche, setFlaeche] = useState({ b: 0, h: 0 });
   const [oben, setOben] = useState(0);
+  const [schublade, setSchublade] = useState(false);
 
   const streamsRef = useRef(streams);
   streamsRef.current = streams;
@@ -530,6 +539,13 @@ export default function Multiview(props: MultiviewProps) {
   }), [streams, liveAlle, einst.offlineAlle, einst.liveAbfrage, liveFertig, props.povs]);
   const aufWand = useMemo(() => new Set(sichtbar.map((s) => s.id)), [sichtbar]);
   const raster = useMemo(() => rastern(sichtbar.length, flaeche.b, flaeche.h), [sichtbar.length, flaeche]);
+  // Was die Buehne wissen muss: welche Kanaele schon auf der Wand liegen, und ein Griff zum Hinlegen/Herunternehmen
+  const aufWandKanaele = useMemo(() => new Set(streams.filter((s) => !s.pov).map((s) => s.kanal.toLowerCase())), [streams]);
+  const buehnenUmschalten = useCallback((kanal: string) => {
+    const k = kanal.toLowerCase();
+    const da = streamsRef.current.find((s) => !s.pov && s.kanal.toLowerCase() === k);
+    if (da) aktionen.entfernen(da.id); else aktionen.kanalZeigen(k);
+  }, [aktionen]);
   const sichtbarRef = useRef(sichtbar);
   sichtbarRef.current = sichtbar;
   const rasterRef = useRef(raster);
@@ -712,11 +728,21 @@ export default function Multiview(props: MultiviewProps) {
           </p>
         )}
 
-        {sichtbar.length === 0 && (
+        {sichtbar.length === 0 && props.buehne && (
+          <div className={`absolute inset-0 overflow-y-auto overscroll-contain transition-[padding] duration-200 ${seite ? 'lg:pl-[20rem]' : ''}`}>
+            {streams.length > 0 && (
+              <p className="mx-4 mt-4 rounded-xl border border-white/[0.07] bg-fl px-4 py-2.5 text-xs text-white/55 lg:mx-8">
+                <T>Alle Streams sind ausgeblendet oder offline. Die Seitenleiste zeigt sie, auch die Offline-Streams.</T>
+              </p>
+            )}
+            {props.buehne({ aufWand: aufWandKanaele, umschalten: buehnenUmschalten, kompakt: false })}
+          </div>
+        )}
+        {sichtbar.length === 0 && !props.buehne && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <svg viewBox="0 0 24 24" className="h-9 w-9 text-sky-400" fill="none" stroke="currentColor" strokeWidth="1.6"
+            <svg viewBox="0 0 24 24" className="h-9 w-9 text-akz" fill="none" stroke="currentColor" strokeWidth="1.6"
               strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5" /><path d="M15.5 10.5l6-3.5v10l-6-3.5" /></svg>
-            <h1 className="text-xl font-semibold text-sky-400">CompHub Multiview</h1>
+            <h1 className="text-xl font-semibold text-akz">CompHub Multiview</h1>
             <p className="mv-mute max-w-xs text-sm">
               {streams.length
                 ? <T>Alle Streams sind ausgeblendet oder offline. Die Seitenleiste zeigt sie, auch die Offline-Streams.</T>
@@ -751,15 +777,29 @@ export default function Multiview(props: MultiviewProps) {
         banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, groesse: einst.povBannerGroesse }}
         stats={{ an: einst.povStats, ort: einst.povStatsOrt, mitBild: einst.povStatsBild, groesse: einst.povStatsGroesse }} />
 
+      {/* Hub: "Live now" als Schublade rechts, solange die Wand Streams zeigt - dort legt man weitere dazu */}
+      {props.buehne && sichtbar.length > 0 && !schublade && (
+        <button type="button" onClick={() => setSchublade(true)}
+          className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-lg bg-black/70 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-black/90">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Live now
+        </button>
+      )}
+      {props.buehne && sichtbar.length > 0 && (
+        <aside aria-hidden={!schublade} {...(schublade ? {} : { inert: true })}
+          className={`mv-fl absolute bottom-0 right-0 top-0 z-30 flex w-[24rem] max-w-full flex-col border-l shadow-2xl transition-transform duration-200 ${schublade ? 'translate-x-0' : 'translate-x-full'}`}>
+          {schublade && props.buehne({ aufWand: aufWandKanaele, umschalten: buehnenUmschalten, kompakt: true, zu: () => setSchublade(false) })}
+        </aside>
+      )}
+
       {/* Rueckgaengig nach dem Entfernen */}
       {rueck && (
         <div className="mv-fl absolute bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 text-xs shadow-2xl">
           <span>{rueck.text} <T>entfernt</T></span>
           <button type="button" onClick={() => { setStreams(rueck.stand); setRueck(null); }}
-            className="font-semibold text-sky-400 transition hover:text-sky-300">
+            className="font-semibold text-akz transition hover:text-akz">
             <T>Rückgängig</T>
           </button>
-          <button type="button" aria-label="Close" onClick={() => setRueck(null)} className="mv-mute transition hover:text-sky-400">×</button>
+          <button type="button" aria-label="Close" onClick={() => setRueck(null)} className="mv-mute transition hover:text-akz">×</button>
         </div>
       )}
 
