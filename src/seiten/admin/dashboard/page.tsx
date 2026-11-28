@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
+import { Flaeche } from '../../../ds/Bausteine';
 import MeinArchiv from '../../streamer/ov/MeinArchiv';
 import { WerkzeugKopf, knopfLeise } from '../teile';
 
@@ -11,6 +11,8 @@ import { WerkzeugKopf, knopfLeise } from '../teile';
  *  - Schnellzugriff (?bereich=schnell): alles als kleine Knoepfe
  *  - Site-Dashboard (Start): Kopf mit Profil (/api/profile), "Nur im Dashboard", "Fuer alle", Mein Archiv (dasselbe wie unter Streamer -> VIP) und der
  *    Twitch-Chat des eigenen Kanals; Konto, Admin-Tools und Statistik sind im Hub eigene Seiten und hier verlinkt.
+ * Design-System 3.0 (28.11.2026): VIP-Werkzeuge als Bento (Overlays gross), Schnellzugriff als Starter in drei Spalten mit Filter, Site-Dashboard
+ * mit Profilkopf ohne Buchstaben-Ersatz und festem Chat rechts.
  * Die Ziele sind die Seiten des Hubs (nicht thecomphub.com). Der Admin sieht jedes VIP-Werkzeug (main: frei = admin || Recht).
  */
 
@@ -65,11 +67,11 @@ const VIP_ZIELE: Ziel[] = [
 ];
 
 function Abschnitt({ ton, titel, marke, text }: { ton: 'vip' | 'hier' | 'alle'; titel: string; marke: string; text: string }) {
-  const farbe = ton === 'vip' ? 'text-amber-300' : ton === 'hier' ? 'text-white' : 'text-akz';
-  const pille = ton === 'vip' ? 'border-amber-400/40 bg-amber-400/10 text-amber-300' : ton === 'hier' ? 'border-white/20 bg-white/[0.06] text-white/70' : 'border-akz/30 bg-akz/10 text-akz';
+  const farbe = ton === 'hier' ? 'text-white' : 'text-akz';
+  const pille = ton === 'vip' ? 'border-akz/40 bg-akz/15 text-akz' : 'border-white/15 bg-white/[0.06] text-white/70';
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <h2 className={`text-sm font-extrabold uppercase tracking-[0.18em] ${farbe}`}>{titel}</h2>
+      <h2 className={`titel text-3xl ${farbe}`}>{titel}</h2>
       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${pille}`}>{marke}</span>
       <span aria-hidden className="hidden h-px min-w-[2rem] flex-1 bg-white/[0.08] sm:block" />
       <p className="w-full text-xs text-white/45 sm:w-auto">{text}</p>
@@ -83,15 +85,15 @@ function VipKarten() {
   return (
     <section>
       <Abschnitt ton="vip" titel="VIP" marke="VIP only" text="Visible only for VIPs — the overlays, the Globals and the tools unlocked per VIP." />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <div className="mt-4 grid auto-rows-[minmax(150px,auto)] gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {VIP_ZIELE.map((z, i) => (
-          <motion.div key={z.zu} {...rein(i)} whileHover={{ y: -3 }}>
-            <Link to={z.zu} className="group relative flex min-h-[150px] flex-col overflow-hidden rounded-3xl border border-amber-400/25 bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-amber-300/60">
-              <span aria-hidden className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-amber-400/10 blur-2xl transition group-hover:bg-amber-400/20" />
-              <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-[#06080f]"><Zeichen name={z.symbol} groesse={19} /></span>
-              <h3 className="relative mt-3 text-lg font-extrabold tracking-tight text-white">{z.titel}</h3>
-              <p className="relative mt-0.5 max-w-[36ch] text-[13px] leading-snug text-white/55">{z.text}</p>
-              <span className="relative mt-auto pt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300">Open →</span>
+          <motion.div key={z.zu} {...rein(i)} className={i === 0 ? 'sm:col-span-2 lg:row-span-2' : ''}>
+            <Link to={z.zu} className="fl-fest fl-klick group relative flex h-full flex-col overflow-hidden p-5">
+              <span aria-hidden className={`pointer-events-none absolute -right-12 -top-12 rounded-full bg-akz/10 blur-2xl transition group-hover:bg-akz/20 ${i === 0 ? 'h-80 w-80' : 'h-44 w-44'}`} />
+              <span className={`relative flex items-center justify-center rounded-xl bg-akz text-[#04050a] ${i === 0 ? 'h-14 w-14' : 'h-10 w-10'}`}><Zeichen name={z.symbol} groesse={i === 0 ? 26 : 19} /></span>
+              <h3 className={`relative mt-auto pt-4 ${i === 0 ? 'titel text-6xl' : 'text-lg font-extrabold tracking-tight text-white'}`}>{z.titel}</h3>
+              <p className={`relative mt-1 text-white/55 ${i === 0 ? 'max-w-[44ch] text-[15px]' : 'max-w-[36ch] text-[13px] leading-snug'}`}>{z.text}</p>
+              <span className="relative mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-akz">Open →</span>
             </Link>
           </motion.div>
         ))}
@@ -107,7 +109,7 @@ function NurHier() {
       <div className="mt-4 grid gap-2.5 lg:grid-cols-3">
         {NUR_HIER.map((z, i) => (
           <motion.div key={z.zu} {...rein(i)}>
-            <Link to={z.zu} className="group flex h-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3.5 backdrop-blur-xl transition hover:border-akz/50 hover:bg-white/[0.06]">
+            <Link to={z.zu} className="fl-fest fl-klick group flex h-full items-center gap-4 !rounded-2xl px-4 py-3.5">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-white/80 transition group-hover:bg-akz/15 group-hover:text-akz"><Zeichen name={z.symbol} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-bold text-white">{z.titel}</span>
@@ -129,7 +131,7 @@ function FuerAlle() {
       <div className="mt-4 flex flex-wrap gap-2">
         {FUER_ALLE.map((z, i) => (
           <motion.div key={z.zu} {...rein(i)}>
-            <Link to={z.zu} title={z.text} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] py-2 pl-3 pr-4 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-akz/50 hover:text-akz">
+            <Link to={z.zu} title={z.text} className="chip !py-2 !pl-3 !pr-4 !text-sm hover:!border-akz/50 hover:!text-akz">
               <span className="text-akz"><Zeichen name={z.symbol} groesse={16} /></span>{z.titel}
             </Link>
           </motion.div>
@@ -149,22 +151,39 @@ export function VipWerkzeuge({ klassisch }: { klassisch?: () => void }) {
   );
 }
 
-/** Schnellzugriff (main: /admin?bereich=schnell) - jede Seite mit einem Klick. */
+/** Schnellzugriff (main: /admin?bereich=schnell) - jede Seite mit einem Klick, als Starter in drei Spalten (VIP / nur hier / fuer alle) mit Filter. */
 export function Schnellzugriff({ klassisch }: { klassisch?: () => void }) {
-  const alle = [...VIP_ZIELE, ...NUR_HIER, ...FUER_ALLE];
+  const [q, setQ] = useState('');
+  const s = q.trim().toLowerCase();
+  const spalten: Array<{ titel: string; marke: string; ziele: Ziel[] }> = [
+    { titel: 'VIP tools', marke: 'VIP only', ziele: VIP_ZIELE },
+    { titel: 'Only in the dashboard', marke: 'Only here', ziele: NUR_HIER },
+    { titel: 'For everyone', marke: 'Open to all', ziele: FUER_ALLE },
+  ];
+  let n = 0;
   return (
     <>
-      <WerkzeugKopf ueber="Site dashboard" titel="Quick access" text="Everything you can open from the dashboard – without a detour." klassisch={klassisch} />
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8">
-        {alle.map((z, i) => {
-          const vip = VIP_ZIELE.includes(z);
+      <WerkzeugKopf ueber="Site dashboard" titel="Quick access" text="Everything you can open from the dashboard – without a detour." klassisch={klassisch}
+        rechts={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter …" spellCheck={false} className="eingabe w-56 !py-1.5" />} />
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        {spalten.map((sp) => {
+          const liste = sp.ziele.filter((z) => !s || `${z.titel} ${z.text}`.toLowerCase().includes(s));
           return (
-            <motion.div key={z.zu + z.titel} {...rein(i)} whileHover={{ y: -3 }}>
-              <Link to={z.zu} title={z.text} className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-4 text-center backdrop-blur-xl transition hover:border-akz/50 hover:bg-white/[0.06]">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${vip ? 'bg-amber-400 text-[#06080f]' : 'bg-white/[0.07] text-white/80 group-hover:text-akz'}`}><Zeichen name={z.symbol} groesse={19} /></span>
-                <span className="text-[13px] font-semibold leading-tight text-white">{z.titel}</span>
-              </Link>
-            </motion.div>
+            <Flaeche key={sp.titel} fest className="overflow-hidden">
+              <div className="flex items-center gap-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">{sp.titel}</h2><span className="ml-auto rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/55">{sp.marke}</span></div>
+              <ul className="divide-y divide-white/[0.04]">
+                {liste.map((z) => (
+                  <motion.li key={z.zu + z.titel} {...rein(n++)}>
+                    <Link to={z.zu} className="group flex items-center gap-3 px-5 py-3 transition hover:bg-white/[0.03]">
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${sp.ziele === VIP_ZIELE ? 'bg-akz text-[#04050a]' : 'bg-white/[0.07] text-white/80 group-hover:text-akz'}`}><Zeichen name={z.symbol} groesse={17} /></span>
+                      <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-white group-hover:text-akz">{z.titel}</span><span className="block truncate text-xs text-white/45">{z.text}</span></span>
+                      <span aria-hidden className="text-white/25 transition group-hover:translate-x-0.5 group-hover:text-akz">→</span>
+                    </Link>
+                  </motion.li>
+                ))}
+                {!liste.length && <li className="px-5 py-5 text-xs text-white/40">Nothing matches.</li>}
+              </ul>
+            </Flaeche>
           );
         })}
       </div>
@@ -206,30 +225,28 @@ export function SiteDashboard({ klassisch }: { klassisch?: () => void }) {
   return (
     <>
       <WerkzeugKopf ueber="Site dashboard" titel="Dashboard" text="The classic dashboard of thecomphub.com: only-here tools, your archive and your Twitch chat." klassisch={klassisch} />
-      <Glas className="relative mb-6 overflow-hidden px-6 py-6">
+      <Flaeche fest className="relative mb-6 overflow-hidden px-6 py-6">
         <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-akz/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center gap-4">
-          <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-black/40 text-2xl font-extrabold uppercase text-white/70">
-            {profil?.avatarUrl ? <img src={profil.avatarUrl} alt="" className="h-full w-full object-cover" /> : (profil?.displayName || '?').trim().charAt(0)}
-          </span>
+          {profil?.avatarUrl && <img src={profil.avatarUrl} alt="" className="h-20 w-16 shrink-0 rounded-2xl border border-white/10 object-cover object-top" />}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-akz">Dashboard</p>
-            <h2 className="truncate text-3xl font-extrabold tracking-tight text-white">{profil ? (profil.displayName || 'No name') : 'Loading …'}</h2>
+            <p className="ueber">Signed in as</p>
+            <h2 className="titel truncate text-5xl">{profil ? (profil.displayName || 'No name') : 'Loading …'}</h2>
             <span className="mt-1.5 inline-block rounded-full border border-akz/30 bg-akz/10 px-2.5 py-0.5 text-xs font-semibold text-akz">Admin{status && status !== 'Admin' ? ` · ${status}` : ''}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {wege.map(([zu, t, x]) => <Link key={zu} to={zu} title={x} className={knopfLeise}>{t}</Link>)}
           </div>
         </div>
-      </Glas>
+      </Flaeche>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-9">
           <NurHier />
           <FuerAlle />
           <div><MeinArchiv /></div>
         </div>
-        <Glas className="h-fit overflow-hidden">
+        <Flaeche fest className="h-fit overflow-hidden xl:sticky xl:top-32">
           <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
             <h2 className="truncate text-sm font-bold text-white">{twitch ? `Chat · ${twitch}` : 'Twitch chat'}</h2>
             {twitch && (
@@ -244,7 +261,7 @@ export function SiteDashboard({ klassisch }: { klassisch?: () => void }) {
             : !twitch ? <p className="p-8 text-center text-sm text-white/45">Add your Twitch channel under <Link to="/account" className="text-akz">Account</Link>, then the chat shows up here.</p>
               : !profil.twitchChatEnabled ? <p className="p-8 text-center text-sm text-white/45">Chat is off.</p>
                 : <iframe title={`Twitch chat ${twitch}`} src={`https://www.twitch.tv/embed/${encodeURIComponent(twitch)}/chat?parent=${window.location.hostname}&darkpopout`} className="h-[320px] w-full bg-black sm:h-[560px] xl:h-[calc(100vh-260px)]" />}
-        </Glas>
+        </Flaeche>
       </div>
     </>
   );
