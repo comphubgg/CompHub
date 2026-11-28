@@ -1,17 +1,20 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Glas } from '../../../teile/Glas';
+import { Flaeche, Leer, Marke, Segment, Zaehler } from '../../../ds/Bausteine';
 import { useWer } from '../../../teile/Anmeldung';
 import { AnmeldeKarte } from '../tools/Gemeinsam';
-import { FehlerZeile, Laedt, Reiter, SEITE, SeitenKopf, Suche, chip, flaggenPfad, GLOBUS } from './teile';
+import { FehlerZeile, Laedt, SEITE, chip, flaggenPfad, GLOBUS } from './teile';
 
 /*
  * Scrims im Hub (wie /scrims der Seite): die Uebungsrunden der Community-Server - Noble und Poyo aus dem Archiv (/api/scrims?quelle=archiv) und live
- * (quelle=noble, quelle=poyo-heute), dazu Yunite-Server (/api/scrims, ?server=). Kacheln oder Liste, Scrims oder Community Events, Region; rechts die
- * Server mit Discord und Mitgliederzahl (/api/scrims/einladungen). Ein Klick auf eine Kachel zeigt die Sessions, eine Session oeffnet sich mit Kopf,
- * Event-Info (Punkteverteilung, Summen), Stand (Leaderboard / Spieler / Teams, Suche, Nachladen beim Scrollen), Team-Details mit jeder Runde, den Besten und
- * den Matches. Wie auf der Seite noch nicht fuer alle: nur der Admin sieht die Scrims, sonst "Something Big Is Coming".
+ * (quelle=noble, quelle=poyo-heute), dazu Yunite-Server (/api/scrims, ?server=). Kacheln oder Liste, Scrims oder Community Events, Region; die
+ * Server mit Discord und Mitgliederzahl (/api/scrims/einladungen). Eine Session oeffnet sich mit Kopf, Event-Info (Punkteverteilung, Summen), Stand
+ * (Leaderboard / Spieler / Teams, Suche, Nachladen beim Scrollen), Team-Details mit jeder Runde, den Besten und den Matches. Wie auf der Seite noch
+ * nicht fuer alle: nur der Admin sieht die Scrims, sonst "Something Big Is Coming".
  * Die Beispiel-Kacheln der Seite (Platzhalter fuer noch nicht verbundene Server, mit unechten Zahlen) sind hier bewusst weggelassen.
+ * Aufbau (Design-System 3.0, 27.11.2026): oben die vier Server als Band (Logo, Mitglieder, online, Join); jede Serie ist eine Karte mit ihrem
+ * Logo und den juengsten Sessions gleich sichtbar (kein Aufklappen ueber dem Bild). Eine Session: Kopf mit Logo und allen Sessions als Chips,
+ * die Besten als Zahlenreihe, darunter drei Spalten - Event-Info und Lobbies, der Stand, die Details des gewaehlten Teams.
  */
 
 interface Sitzung { id: string; name: string; beschreibung?: string; bild?: string; teamGroesse: number; region: string; beginn: number; ende: number; art: string; bauen?: string | null; modus?: string | null; live: boolean; vorbei: boolean; guildId?: string; archiv?: boolean; spieler?: number; plaetze?: number }
@@ -57,66 +60,69 @@ function Namen({ spieler }: { spieler: Team['spieler'] }) {
 function StatusMarke({ status, klein }: { status: 'live' | 'laeuft' | 'vorbei'; klein?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full bg-black/65 font-bold uppercase tracking-wider ring-1 ring-white/15 backdrop-blur ${klein ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'} ${status === 'vorbei' ? 'text-white/50' : 'text-white'}`}>
-      {status === 'live' && <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" /><span className="relative h-2 w-2 rounded-full bg-sky-400" /></span>}
+      {status === 'live' && <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative h-2 w-2 rounded-full bg-red-400" /></span>}
       {status === 'laeuft' && <span className="h-2 w-2 rounded-full border border-white/60" />}
       {status === 'live' ? 'Live' : status === 'laeuft' ? 'Running' : 'Ended'}
     </span>
   );
 }
-const sitzStatus = (s: Sitzung, jetzt: number) => (s.live ? <span className="text-sky-300">Live</span> : s.vorbei ? <span className="text-white/40">Ended</span> : <span className="text-violet-300">Upcoming · {bald(s.beginn, jetzt)}</span>);
+const sitzStatus = (s: Sitzung, jetzt: number) => (s.live ? <span className="text-red-300">Live</span> : s.vorbei ? <span className="text-white/40">Ended</span> : <span className="text-akz">Upcoming · {bald(s.beginn, jetzt)}</span>);
 
-function Kachel({ s, offen, umschalten, waehle, i }: { s: Serie; offen: boolean; umschalten: () => void; waehle: (x: Sitzung) => void; i: number }) {
+/** Eine Serie als Karte: Logo links, daneben Name, Stand und die juengsten Sessions - ein Klick oeffnet die Session. */
+function SerienKarte({ s, offen, umschalten, waehle, i }: { s: Serie; offen: boolean; umschalten: () => void; waehle: (x: Sitzung) => void; i: number }) {
   const st = statusVon(s); const jetzt = Date.now();
+  const gezeigt = offen ? s.sitzungen : s.sitzungen.slice(0, 3);
   return (
-    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.04 }} whileHover={{ y: -4 }}
-      className="group relative overflow-hidden rounded-3xl border border-white/10 bg-[#0a0e18]">
-      <div role="button" tabIndex={0} onClick={umschalten} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') umschalten(); }} className="relative block aspect-square w-full cursor-pointer overflow-hidden">
-        {s.logo ? <img src={bild(s.logo)!} alt="" loading="lazy" className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.04] ${st === 'vorbei' ? 'opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0' : ''}`} />
-          : <div className="h-full w-full bg-gradient-to-br from-sky-900/60 to-[#06080f]" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
-        <h3 className="absolute inset-x-0 bottom-0 p-4 text-2xl font-black leading-tight tracking-tight text-white drop-shadow">{s.name}</h3>
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-          {s.inaktiv || s.fehler || s.ruhtSeit ? <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold uppercase text-white/50 ring-1 ring-white/15">{s.inaktiv || s.ruhtSeit ? 'Inactive' : 'No response'}</span> : <StatusMarke status={st} />}
-          {s.region && <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold uppercase text-white/85 ring-1 ring-white/15">{s.region}</span>}
+    <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={{ delay: Math.min(i % 6, 6) * 0.04, duration: 0.45 }}
+      className={`fl-fest overflow-hidden ${st === 'live' ? '!border-red-400/40' : ''}`}>
+      <div className="flex gap-4 p-3">
+        {s.logo && <img src={bild(s.logo)!} alt="" loading="lazy" className={`h-24 w-24 shrink-0 rounded-2xl object-cover ${st === 'vorbei' ? 'opacity-70' : ''}`} />}
+        <div className="min-w-0 flex-1 py-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{s.server}</p>
+          <h3 className="titel mt-0.5 truncate text-3xl">{s.name}</h3>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {s.inaktiv || s.fehler || s.ruhtSeit ? <Marke>{s.inaktiv || s.ruhtSeit ? 'Inactive' : 'No response'}</Marke> : <StatusMarke status={st} klein />}
+            {s.region && <Marke>{s.region}</Marke>}
+            <span className="zahl text-[11px] text-white/40">{s.sitzungen.length} sessions</span>
+          </div>
         </div>
-        <AnimatePresence>
-          {offen && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 overflow-y-auto bg-[#06080f]/92 p-2 backdrop-blur" onClick={(e) => e.stopPropagation()}>
-              {!s.sitzungen.length && <p className="p-3 text-center text-xs text-white/45">{s.inaktiv ? 'This server is inactive right now.' : s.fehler ? 'nobleprac.com is not answering right now.' : s.ruhtSeit ? `No sessions since ${kurz(Date.parse(`${s.ruhtSeit}T12:00:00Z`))}.` : 'No sessions.'}</p>}
-              {s.sitzungen.map((x) => (
-                <button key={x.id} type="button" onClick={() => waehle(x)} className={`mb-1 flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${x.vorbei ? 'bg-white/[0.03] text-white/55 hover:bg-white/[0.07]' : 'bg-white/[0.07] text-white hover:bg-white/[0.12]'}`}>
-                  <span className="min-w-0 flex-1 truncate">{x.name}</span>
-                  {!!x.beginn && <span className="shrink-0 text-[11px] tabular-nums text-white/40">{kurz(x.beginn)}</span>}
-                  <span className="shrink-0 text-[11px] font-bold uppercase">{sitzStatus(x, jetzt)}</span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+      </div>
+      <div className="border-t border-white/[0.06]">
+        {!s.sitzungen.length && <p className="px-4 py-3 text-xs text-white/45">{s.inaktiv ? 'This server is inactive right now.' : s.fehler ? 'nobleprac.com is not answering right now.' : s.ruhtSeit ? `No sessions since ${kurz(Date.parse(`${s.ruhtSeit}T12:00:00Z`))}.` : 'No sessions.'}</p>}
+        <div className={offen ? 'max-h-80 overflow-y-auto' : ''}>
+          {gezeigt.map((x) => (
+            <button key={x.id} type="button" onClick={() => waehle(x)} className="flex w-full items-center gap-3 border-b border-white/[0.05] px-4 py-2 text-left text-sm transition last:border-b-0 hover:bg-akz/[0.08]">
+              <span className={`min-w-0 flex-1 truncate font-semibold ${x.vorbei ? 'text-white/70' : 'text-white'}`}>{x.name}</span>
+              {!!x.beginn && <span className="zahl shrink-0 text-[11px] text-white/40">{kurz(x.beginn)}</span>}
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider">{sitzStatus(x, jetzt)}</span>
+            </button>
+          ))}
+        </div>
+        {s.sitzungen.length > 3 && <button type="button" onClick={umschalten} className="w-full border-t border-white/[0.06] py-2 text-xs font-semibold text-akz transition hover:bg-white/[0.03]">{offen ? 'Show fewer' : `All ${s.sitzungen.length} sessions`}</button>}
       </div>
     </motion.div>
   );
 }
 
-function ServerRand() {
-  const [zahlen, setZahlen] = useState<Record<string, { mitglieder: number }>>({});
+/** Die vier Community-Server als Band ueber die Breite: Logo, Mitglieder, gerade online, Discord. */
+function ServerBand() {
+  const [zahlen, setZahlen] = useState<Record<string, { mitglieder: number; online?: number }>>({});
   useEffect(() => { let weg = false; fetch('/api/scrims/einladungen').then((r) => r.json()).then((d) => { if (!weg) setZahlen(d.zahlen ?? {}); }).catch(() => {}); return () => { weg = true; }; }, []);
   return (
-    <aside className="space-y-3">
-      <h2 className="text-lg font-extrabold text-white">Servers</h2>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {SERVER.map((s, i) => (
-        <motion.div key={s.name} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
-          className="flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] pr-3 backdrop-blur-xl">
-          <img src={bild(s.logo)!} alt="" className="min-h-16 w-16 shrink-0 self-stretch object-cover" />
+        <Flaeche key={s.name} fest verz={i * 0.05} className="flex items-center gap-3 overflow-hidden p-2.5">
+          <img src={bild(s.logo)!} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold leading-tight text-white">{s.name}</p>
-            <p className="text-[11px] text-white/40">{s.region}</p>
-            {zahlen[s.code] && <p className="flex items-center gap-1.5 text-[11px] text-white/45"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{zahlen[s.code].mitglieder.toLocaleString('en')} members</p>}
+            <p className="truncate text-sm font-bold leading-tight text-white">{s.name}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{s.region}</p>
+            {zahlen[s.code] && <p className="mt-0.5 flex items-baseline gap-1.5"><Zaehler wert={zahlen[s.code].mitglieder} className="titel text-2xl !text-akz" /><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">members</span></p>}
+            {typeof zahlen[s.code]?.online === 'number' && <p className="zahl flex items-center gap-1.5 text-[11px] text-white/45"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{zahlen[s.code].online!.toLocaleString('en')} online</p>}
           </div>
-          <a href={`https://discord.com/invite/${s.code}`} target="_blank" rel="noreferrer" className="shrink-0 rounded-xl bg-[#5865F2] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#4752c4]">Join</a>
-        </motion.div>
+          <a href={`https://discord.com/invite/${s.code}`} target="_blank" rel="noreferrer" className="shrink-0 rounded-xl bg-[#5865F2] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#4752c4]">Join</a>
+        </Flaeche>
       ))}
-    </aside>
+    </div>
   );
 }
 
@@ -126,10 +132,10 @@ function Verteilung({ teams }: { teams: Team[] }) {
   const max = Math.max(1, ...eimer.map((e) => e.n));
   return (
     <div>
-      <div className="flex h-28 items-end gap-2 border-b border-l border-white/10 pl-2">
-        {eimer.map((e, i) => <motion.div key={e.von} title={`${e.n}`} className="flex-1 rounded-t-lg bg-gradient-to-t from-sky-600 to-sky-400" initial={{ height: 0 }} animate={{ height: `${(e.n / max) * 100}%` }} transition={{ duration: 0.7, delay: i * 0.05 }} />)}
+      <div className="flex h-28 items-end gap-2 border-b border-white/10">
+        {eimer.map((e, i) => <div key={e.von} className="flex h-full flex-1 flex-col justify-end"><span className="zahl mb-1 text-center text-[10px] font-semibold text-white/50">{e.n || ''}</span><motion.div className="rounded-t-lg bg-akz" initial={{ height: 0 }} animate={{ height: `${(e.n / max) * 80}%` }} transition={{ duration: 0.7, delay: i * 0.05 }} /></div>)}
       </div>
-      <div className="mt-1 flex gap-2 pl-2 text-[10px] tabular-nums text-white/40">{eimer.map((e) => <span key={e.von} className="flex-1 text-center">{e.von}-{e.bis}</span>)}</div>
+      <div className="zahl mt-1 flex gap-2 text-[9px] text-white/40">{eimer.map((e) => <span key={e.von} className="min-w-0 flex-1 truncate text-center">{e.von}–{e.bis}</span>)}</div>
     </div>
   );
 }
@@ -159,39 +165,39 @@ function Session({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, wechs
   const beste = useMemo(() => {
     if (!teams.length) return [];
     const nach = (f: (x: Team) => number, auf = false) => [...teams].filter((x) => x.matches > 0).sort((a, b) => (auf ? f(a) - f(b) : f(b) - f(a)))[0];
-    const l: Array<[string, Team | undefined, (x: Team) => string]> = [['Most points', nach((x) => x.punkte), (x) => `${x.punkte} points`], ['Most eliminations', nach((x) => x.elims), (x) => `${x.elims} elims`], ['Most wins', nach((x) => x.siege), (x) => `${x.siege} wins`], ['Best average place', nach((x) => x.schnittPlatz, true), (x) => `Ø ${x.schnittPlatz}`],
+    const l: Array<[string, Team | undefined, (x: Team) => string]> = [['Most points', nach((x) => x.punkte), (x) => `${x.punkte}`], ['Most eliminations', nach((x) => x.elims), (x) => `${x.elims}`], ['Most wins', nach((x) => x.siege), (x) => `${x.siege}`], ['Best average place', nach((x) => x.schnittPlatz, true), (x) => `Ø ${x.schnittPlatz}`],
       ...(teams.some((x) => x.zeitSchnitt > 0) ? [['Longest alive', nach((x) => x.zeitSchnitt), (x: Team) => zeitText(x.zeitSchnitt)] as [string, Team | undefined, (x: Team) => string]] : [])];
     return l.map(([titel, x, w]) => ({ titel, team: x, wert: x ? w(x) : '' }));
   }, [teams]);
-  const zeile = 'border-t border-white/[0.04]';
-  const th = 'px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40';
+  const kopf = (titel: string, zahl?: string | number) => <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3"><span className="h-4 w-1 rounded-full bg-akz" /><h2 className="titel text-xl">{titel}</h2>{zahl != null && <span className="zahl text-xs font-semibold text-white/40">{zahl}</span>}</div>;
   return (
-    <div className="space-y-6">
-      <button type="button" onClick={zurueck} className="text-sm font-semibold text-sky-400 hover:text-sky-300">← All events</button>
-      <Glas className="overflow-hidden">
-        <div className="flex flex-col sm:flex-row">
-          {serie.logo && <img src={bild(serie.logo)!} alt="" className="aspect-square w-full shrink-0 object-cover sm:w-56" />}
-          <div className="min-w-0 flex-1 p-5">
-            <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">{serie.name}: {sitzung.name}</h1>
-            {sitzung.beschreibung && <div className="mt-2 max-w-3xl text-sm text-white/55"><p className={`whitespace-pre-line ${mehr ? '' : 'line-clamp-3'}`}>{sitzung.beschreibung}</p><button type="button" onClick={() => setMehr((v) => !v)} className="mt-1 text-xs font-semibold text-white/80 hover:text-sky-300">{mehr ? 'Less' : 'More'}</button></div>}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-xl bg-sky-400 px-3 py-1.5 text-xs font-bold text-[#06080f]">{sitzung.region ? REGION_NAME[sitzung.region] ?? sitzung.region : 'All regions'}</span>
-              <select value={sitzung.id} onChange={(e) => { const s = serie.sitzungen.find((x) => x.id === e.target.value); if (s) wechsle(s); }} className="rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs font-bold text-white focus:outline-none">
-                {serie.sitzungen.map((s) => <option key={s.id} value={s.id}>{s.name}{s.beginn ? ` · ${kurz(s.beginn)}` : ''}</option>)}
-              </select>
-              {serie.einladung && <a href={serie.einladung} target="_blank" rel="noreferrer" className="rounded-xl bg-[#5865F2] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#4752c4]">Join server</a>}
+    <div className="-mt-2 space-y-3">
+      {/* Kopf: Logo, Titel, Eckdaten, alle Sessions der Serie */}
+      <header className="fl-fest overflow-hidden">
+        <div className="flex flex-col gap-4 p-3 sm:flex-row">
+          {serie.logo && <img src={bild(serie.logo)!} alt="" className="h-28 w-28 shrink-0 rounded-2xl object-cover" />}
+          <div className="min-w-0 flex-1 sm:py-1">
+            <button type="button" onClick={zurueck} className="knopf-leer !text-xs">← All events</button>
+            <p className="ueber mt-1.5 truncate !tracking-[0.25em]">{serie.name}</p>
+            <h1 className="titel mt-0.5 text-4xl sm:text-5xl">{sitzung.name}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {sitzung.live ? <Marke ton="rot" puls>Live</Marke> : kommt ? <Marke ton="akz">Upcoming · {bald(sitzung.beginn, Date.now())}{sitzung.plaetze ? ` · ${sitzung.spieler ?? 0}/${sitzung.plaetze} players` : ''}</Marke> : <Marke>Ended</Marke>}
+              <Marke ton="akz">{sitzung.region ? REGION_NAME[sitzung.region] ?? sitzung.region : 'All regions'}</Marke>
+              <Marke>{GROESSE[sitzung.teamGroesse] ?? `${sitzung.teamGroesse}s`}</Marke>
+              {sitzung.bauen === 'ZERO_BUILD' && <Marke>Zero Build</Marke>}
+              {sitzung.modus && sitzung.modus !== 'Battle Royale' && <Marke>{sitzung.modus}</Marke>}
+              {!kommt && <Marke><span className="zahl">{runden.length}</span> {wort}</Marke>}
+              <span className="zahl text-xs text-white/50">{uhr(sitzung.beginn)}{sitzung.ende ? ` – ${uhr(sitzung.ende)}` : ''}{sitzung.ende > sitzung.beginn ? ` · ${dauer(sitzung.ende - sitzung.beginn)}` : ''}</span>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm font-semibold text-white/80">
-              <span>{uhr(sitzung.beginn)}{sitzung.ende ? ` – ${uhr(sitzung.ende)}` : ''}</span>
-              {sitzung.ende > sitzung.beginn && <span>{dauer(sitzung.ende - sitzung.beginn)}</span>}
-              <span>{GROESSE[sitzung.teamGroesse] ?? `${sitzung.teamGroesse}s`}</span>
-              {kommt ? <span className="text-violet-300">Upcoming · {bald(sitzung.beginn, Date.now())}{sitzung.plaetze ? ` · ${sitzung.spieler ?? 0}/${sitzung.plaetze} players` : ''}</span> : <span>{runden.length} {wort}</span>}
-              {sitzung.bauen === 'ZERO_BUILD' && <span>Zero Build</span>}
-              {sitzung.modus && sitzung.modus !== 'Battle Royale' && <span>{sitzung.modus}</span>}
-            </div>
+            {sitzung.beschreibung && <div className="mt-2 max-w-3xl text-sm text-white/55"><p className={`whitespace-pre-line ${mehr ? '' : 'line-clamp-2'}`}>{sitzung.beschreibung}</p><button type="button" onClick={() => setMehr((v) => !v)} className="mt-1 text-xs font-semibold text-white/80 hover:text-akz">{mehr ? 'Less' : 'More'}</button></div>}
           </div>
+          {serie.einladung && <a href={serie.einladung} target="_blank" rel="noreferrer" className="self-start rounded-xl bg-[#5865F2] px-4 py-2 text-sm font-bold text-white hover:bg-[#4752c4]">Join server</a>}
         </div>
-      </Glas>
+        <div className="ohne-leiste flex items-center gap-1.5 overflow-x-auto border-t border-white/[0.06] px-3 py-2.5">
+          <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Sessions</span>
+          {serie.sitzungen.map((s) => <button key={s.id} type="button" onClick={() => { if (s.id !== sitzung.id) wechsle(s); }} className={chip(s.id === sitzung.id)}>{s.live && <span className="h-1.5 w-1.5 rounded-full bg-red-400" />}{s.name}{s.beginn ? <span className="zahl font-normal text-white/45">{kurz(s.beginn)}</span> : null}</button>)}
+        </div>
+      </header>
       {!laedt && offeneQuelle && !teams.length && (
         <p className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-200/90">
           {kommt ? 'This session has not started yet. The leaderboard appears after the first round.' : sitzung.live ? 'The session is running but has no entries yet — they appear after the first scored round.'
@@ -199,101 +205,102 @@ function Session({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, wechs
         </p>
       )}
       {laedt ? <Laedt /> : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="min-w-0 space-y-6">
-            <section>
-              <h2 className="mb-2 text-lg font-extrabold text-white">Event info</h2>
-              <Glas className="overflow-hidden">
-                <div className="grid grid-cols-4 border-b border-white/5 text-center text-sm font-semibold">
-                  {([['uebersicht', 'Overview'], ['wertung', 'Scoring'], ['preise', 'Prizes'], ['streams', 'Streams']] as const).map(([k, t]) => (
-                    <button key={k} type="button" onClick={() => setReiter(k)} className={`py-3 transition ${reiter === k ? 'border-b-2 border-sky-400 text-white' : 'text-white/40 hover:text-white/75'}`}>{t}</button>
-                  ))}
-                </div>
+        <>
+          {/* Die Besten als Zahlenreihe */}
+          {beste.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+              {beste.map((b, i) => (
+                <Flaeche key={b.titel} fest verz={i * 0.05} klick className="cursor-pointer p-4">
+                  <button type="button" disabled={!b.team} onClick={() => { if (b.team) { setListe('leaderboard'); setGewaehlt(b.team.teamId); } }} className="block w-full text-left">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{b.titel}</p>
+                    <p className="titel mt-1 text-5xl !text-akz">{b.wert}</p>
+                    <p className="mt-1 truncate text-xs font-bold text-white">{b.team ? <Namen spieler={b.team.spieler} /> : '–'}</p>
+                  </button>
+                </Flaeche>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)_340px] xl:items-start">
+            {/* Event-Info und Lobbies */}
+            <div className="min-w-0 space-y-3 xl:sticky xl:top-[7.5rem]">
+              <Flaeche fest className="overflow-hidden">
+                {kopf('Event info')}
+                <div className="border-b border-white/[0.06] px-3 py-2.5"><Segment id="scrim-info" klein wert={reiter} onWahl={setReiter} wahl={[{ k: 'uebersicht', titel: 'Overview' }, { k: 'wertung', titel: 'Scoring' }, { k: 'preise', titel: 'Prizes' }, { k: 'streams', titel: 'Streams' }]} /></div>
                 {reiter === 'uebersicht' ? (
-                  <div className="p-5">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-white/70">{solo ? 'Player points' : 'Team points'}</p>
+                  <div className="p-4">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{solo ? 'Player points' : 'Team points'}</p>
                     <Verteilung teams={teams} />
-                    <p className="mt-5 text-sm font-semibold text-white/80">Total <span className="text-xs text-white/40">{runden.length} {wort}</span></p>
-                    <div className={`mt-2 grid grid-cols-2 gap-4 ${solo ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
-                      {([...(solo ? [] : [['Teams', teams.length]]), ['Players', teams.reduce((n, x) => n + x.spieler.length, 0)], ['Kills', teams.reduce((n, x) => n + x.elims, 0).toLocaleString('en')], ['Wins', teams.reduce((n, x) => n + x.siege, 0)]] as Array<[string, number | string]>).map(([t, w]) => (
-                        <div key={t}><p className="text-xs text-white/40">{t}</p><p className="text-2xl font-extrabold tabular-nums text-white">{w}</p></div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      {([...(solo ? [] : [['Teams', teams.length]]), ['Players', teams.reduce((n, x) => n + x.spieler.length, 0)], ['Kills', teams.reduce((n, x) => n + x.elims, 0).toLocaleString('en')], ['Wins', teams.reduce((n, x) => n + x.siege, 0)], [wort, runden.length]] as Array<[string, number | string]>).map(([t, w]) => (
+                        <div key={t}><p className="titel zahl text-3xl">{w}</p><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{t}</p></div>
                       ))}
                     </div>
                   </div>
-                ) : <p className="p-6 text-center text-sm text-white/40">{offeneQuelle ? 'The source does not name this for this session.' : 'Yunite does not hand this out for this session.'}</p>}
-              </Glas>
-            </section>
-            <section>
-              <h2 className="mb-2 text-lg font-extrabold text-white">Session standings</h2>
-              <div className="mb-3"><Reiter wert={liste} setze={setListe} klein liste={solo ? [['leaderboard', 'Leaderboard'], ['spieler', 'Players']] : [['leaderboard', 'Leaderboard'], ['spieler', 'Players'], ['teams', 'Teams']]} /></div>
-              <Glas className="overflow-hidden">
-                <p className="border-b border-white/5 px-4 py-2.5 text-center text-xs text-white/45">
-                  {offeneQuelle ? <a href={quellLink} target="_blank" rel="noreferrer" className="hover:text-sky-300">Data from {quellSeite}</a> : 'Powered by Yunite'} // {teams.length} {solo ? 'players' : 'teams'}
-                </p>
-                <div className="border-b border-white/5 px-4 py-2"><Suche wert={q} setze={setQ} platz="Find a player" className="sm:w-full" /></div>
-                <div className={liste === 'leaderboard' ? 'grid lg:grid-cols-[minmax(0,1fr)_280px]' : ''}>
-                  <div className="overflow-x-auto">
-                    {liste === 'leaderboard' && (
-                      <table className="w-full text-left text-sm"><thead><tr><th className={`${th} px-4`}>Place</th><th className={th}>{solo ? 'Player' : 'Team'}</th><th className={`${th} text-right`}>Points</th><th className={`${th} text-right`}>Matches</th><th className={`${th} text-right`}>Wins</th><th className={`${th} px-4 text-right`}>Ø Elims</th></tr></thead>
-                        <tbody className="tabular-nums">{gefiltert.slice(0, zeigen).map((t) => (
-                          <tr key={t.teamId} onClick={() => setGewaehlt(t.teamId)} className={`${zeile} cursor-pointer transition ${team?.teamId === t.teamId ? 'bg-sky-400/10' : 'hover:bg-white/[0.03]'}`}>
-                            <td className="px-4 py-2.5"><span className={`grid h-8 w-8 place-items-center rounded-lg text-sm font-black ${t.platz === 1 ? 'bg-amber-300/20 text-amber-300' : t.platz <= 3 ? 'bg-white/10 text-white' : 'text-white/45'}`}>{t.platz}</span></td>
-                            <td className="max-w-[340px] px-3 py-2.5 font-semibold text-white"><span className="line-clamp-1"><Namen spieler={t.spieler} /></span></td>
-                            <td className="px-3 py-2.5 text-right font-bold text-white">{t.punkte}</td><td className="px-3 py-2.5 text-right text-white/65">{t.matches}</td><td className="px-3 py-2.5 text-right text-white/65">{t.siege}</td><td className="px-4 py-2.5 text-right text-white/65">{t.elimsJeMatch.toFixed(2)}</td>
-                          </tr>))}</tbody></table>
-                    )}
-                    {liste === 'spieler' && (
-                      <table className="w-full text-left text-sm"><thead><tr><th className={`${th} px-4`}>Player</th><th className={`${th} text-right`}>Place</th><th className={`${th} text-right`}>Points</th><th className={`${th} px-4 text-right`}>Elims</th></tr></thead>
-                        <tbody className="tabular-nums">{gefiltert.slice(0, zeigen).flatMap((t) => t.spieler.map((s) => (
-                          <tr key={`${t.teamId}-${s.name}`} className={zeile}><td className="px-4 py-2 font-semibold text-white"><Namen spieler={[s]} /></td><td className="px-3 py-2 text-right text-white/65">{t.platz}</td><td className="px-3 py-2 text-right text-white/65">{t.punkte}</td><td className="px-4 py-2 text-right text-white/65">{t.elims}</td></tr>)))}</tbody></table>
-                    )}
-                    {liste === 'teams' && !solo && (
-                      <table className="w-full text-left text-sm"><thead><tr><th className={`${th} px-4`}>Team</th><th className={`${th} text-right`}>Elims</th><th className={`${th} text-right`}>Wins</th><th className={`${th} text-right`}>Ø Place</th><th className={`${th} px-4 text-right`}>Ø Alive</th></tr></thead>
-                        <tbody className="tabular-nums">{[...gefiltert].sort((a, b) => b.elims - a.elims).slice(0, zeigen).map((t) => (
-                          <tr key={t.teamId} className={zeile}><td className="max-w-[340px] px-4 py-2 font-semibold text-white"><span className="line-clamp-1"><Namen spieler={t.spieler} /></span></td><td className="px-3 py-2 text-right text-white/65">{t.elims}</td><td className="px-3 py-2 text-right text-white/65">{t.siege}</td><td className="px-3 py-2 text-right text-white/65">{t.schnittPlatz}</td><td className="px-4 py-2 text-right text-white/65">{zeitText(t.zeitSchnitt)}</td></tr>))}</tbody></table>
-                    )}
-                    {liste === 'spieler' && <p className="px-4 py-2 text-[11px] text-white/30">Counted per team — every player shows their team's values.</p>}
-                    {!gefiltert.length && <p className="py-8 text-center text-sm text-white/40">Nobody found.</p>}
-                    <div ref={ende} aria-hidden className="h-px" />
-                  </div>
-                  {liste === 'leaderboard' && team && (
-                    <div className="border-t border-white/5 lg:border-l lg:border-t-0">
-                      <p className="border-b border-white/5 px-4 py-2 text-xs font-semibold text-white/45">#{team.platz} {solo ? 'Player details' : 'Team details'}</p>
-                      <div className="space-y-1 border-b border-white/5 px-4 py-3">{team.spieler.map((s) => <p key={s.name} className="truncate text-lg font-black text-white"><Namen spieler={[s]} /></p>)}</div>
-                      <div className="grid grid-cols-3 gap-3 border-b border-white/5 px-4 py-3 text-xs tabular-nums">
-                        {([['Points', team.punkte], ['Matches', team.matches], ['Wins', team.siege], ['Elims', team.elims], ['Ø Elims', team.elimsJeMatch.toFixed(1)], ['Ø Place', team.schnittPlatz], ['Ø Points', team.matches ? (team.punkte / team.matches).toFixed(1) : '–'], ['Ø Alive', zeitText(team.zeitSchnitt)]] as Array<[string, string | number]>).map(([t, w]) => <div key={t}><p className="text-white/40">{t}</p><p className="font-bold text-white">{w}</p></div>)}
-                      </div>
-                      <div className={`space-y-1.5 p-3 ${team.spiele.length > 40 ? 'max-h-[80vh] overflow-y-auto' : ''}`}>
-                        {team.spiele.map((sp, nr) => ({ sp, nr })).reverse().map(({ sp, nr }) => (
-                          <div key={nr} className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${sp.platz === 1 ? 'border-amber-300/40 bg-amber-300/10' : sp.platz <= 3 ? 'border-white/15 bg-white/[0.05]' : 'border-white/5 bg-white/[0.02]'} ${sp.zaehlt === false ? 'opacity-50' : ''}`}>
-                            <div><p className="text-[10px] text-white/40">{sp.zeitpunkt ? uhr(sp.zeitpunkt, false) : `${serie.offen ? 'Lobby' : 'Match'} ${nr + 1}`}</p><p className="font-bold text-white">{sp.platz}. place</p></div>
-                            <div className="text-right"><p className="text-[10px] text-white/40">Elims</p><p className="font-bold tabular-nums text-white">{sp.elims}</p></div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                ) : <p className="p-5 text-center text-sm text-white/40">{offeneQuelle ? 'The source does not name this for this session.' : 'Yunite does not hand this out for this session.'}</p>}
+              </Flaeche>
+              <Flaeche fest className="overflow-hidden">
+                {kopf(wort, runden.length)}
+                <div className="max-h-80 overflow-y-auto">
+                  {runden.map((r, i) => <div key={r.sessionId} className="flex items-center justify-between gap-3 border-b border-white/[0.05] px-4 py-2 text-xs last:border-b-0"><span><span className="block font-semibold text-white/85">{serie.offen ? 'Lobby' : 'Match'} {runden.length - i}</span><span className="zahl text-[10px] text-white/40">{uhr(r.zeitpunkt)}</span></span><span className="text-white/60">{r.ignoriert ? 'not scored' : r.gewertet === 'SCORED' ? `${r.spieler} players` : 'being scored'}</span></div>)}
+                  {!runden.length && <p className="py-4 text-center text-xs text-white/40">No round played yet.</p>}
                 </div>
-              </Glas>
-            </section>
+              </Flaeche>
+            </div>
+            {/* Der Stand */}
+            <Flaeche fest className="min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+                <span className="h-4 w-1 rounded-full bg-akz" /><h2 className="titel text-xl">Session standings</h2><span className="zahl text-xs font-semibold text-white/40">{teams.length} {solo ? 'players' : 'teams'}</span>
+                <span className="ml-auto text-[11px] text-white/40">{offeneQuelle ? <a href={quellLink} target="_blank" rel="noreferrer" className="hover:text-akz">Data from {quellSeite}</a> : 'Powered by Yunite'}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-3 py-2.5">
+                <Segment id="scrim-liste" klein wert={liste} onWahl={setListe} wahl={solo ? [{ k: 'leaderboard', titel: 'Leaderboard' }, { k: 'spieler', titel: 'Players' }] : [{ k: 'leaderboard', titel: 'Leaderboard' }, { k: 'spieler', titel: 'Players' }, { k: 'teams', titel: 'Teams' }]} />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a player" className="eingabe min-w-0 flex-1 !px-3 !py-1.5 !text-xs" />
+              </div>
+              <div className="overflow-x-auto">
+                {liste === 'leaderboard' && (
+                  <table className="tabelle zahl"><thead><tr><th className="w-14">Place</th><th>{solo ? 'Player' : 'Team'}</th><th className="!text-right">Points</th><th className="!text-right">Matches</th><th className="!text-right">Wins</th><th className="!text-right">Ø Elims</th></tr></thead>
+                    <tbody>{gefiltert.slice(0, zeigen).map((t) => (
+                      <tr key={t.teamId} onClick={() => setGewaehlt(t.teamId)} className={`cursor-pointer ${team?.teamId === t.teamId ? '!bg-akz/10' : ''}`}>
+                        <td><span className={`titel text-2xl ${t.platz === 1 ? '!text-amber-300' : t.platz <= 3 ? '' : '!text-white/35'}`}>{t.platz}</span></td>
+                        <td className="max-w-[340px] font-semibold text-white"><span className="line-clamp-1"><Namen spieler={t.spieler} /></span></td>
+                        <td className="text-right font-bold text-white">{t.punkte}</td><td className="text-right text-white/65">{t.matches}</td><td className="text-right text-white/65">{t.siege}</td><td className="text-right text-white/65">{t.elimsJeMatch.toFixed(2)}</td>
+                      </tr>))}</tbody></table>
+                )}
+                {liste === 'spieler' && (
+                  <table className="tabelle zahl"><thead><tr><th>Player</th><th className="!text-right">Place</th><th className="!text-right">Points</th><th className="!text-right">Elims</th></tr></thead>
+                    <tbody>{gefiltert.slice(0, zeigen).flatMap((t) => t.spieler.map((s) => (
+                      <tr key={`${t.teamId}-${s.name}`}><td className="font-semibold text-white"><Namen spieler={[s]} /></td><td className="text-right text-white/65">{t.platz}</td><td className="text-right text-white/65">{t.punkte}</td><td className="text-right text-white/65">{t.elims}</td></tr>)))}</tbody></table>
+                )}
+                {liste === 'teams' && !solo && (
+                  <table className="tabelle zahl"><thead><tr><th>Team</th><th className="!text-right">Elims</th><th className="!text-right">Wins</th><th className="!text-right">Ø Place</th><th className="!text-right">Ø Alive</th></tr></thead>
+                    <tbody>{[...gefiltert].sort((a, b) => b.elims - a.elims).slice(0, zeigen).map((t) => (
+                      <tr key={t.teamId}><td className="max-w-[340px] font-semibold text-white"><span className="line-clamp-1"><Namen spieler={t.spieler} /></span></td><td className="text-right text-white/65">{t.elims}</td><td className="text-right text-white/65">{t.siege}</td><td className="text-right text-white/65">{t.schnittPlatz}</td><td className="text-right text-white/65">{zeitText(t.zeitSchnitt)}</td></tr>))}</tbody></table>
+                )}
+                {liste === 'spieler' && <p className="px-4 py-2 text-[11px] text-white/30">Counted per team — every player shows their team's values.</p>}
+                {!gefiltert.length && <p className="py-8 text-center text-sm text-white/40">Nobody found.</p>}
+                <div ref={ende} aria-hidden className="h-px" />
+              </div>
+            </Flaeche>
+            {/* Details des gewaehlten Teams */}
+            {team && (
+              <Flaeche fest className="min-w-0 overflow-hidden xl:col-span-2 2xl:sticky 2xl:top-[7.5rem] 2xl:col-span-1">
+                {kopf(solo ? 'Player details' : 'Team details', `#${team.platz}`)}
+                <div className="space-y-0.5 border-b border-white/[0.06] px-4 py-3">{team.spieler.map((s) => <p key={s.name} className="titel truncate text-3xl"><Namen spieler={[s]} /></p>)}</div>
+                <div className="grid grid-cols-4 gap-x-3 gap-y-3 border-b border-white/[0.06] px-4 py-3 2xl:grid-cols-4">
+                  {([['Points', team.punkte], ['Matches', team.matches], ['Wins', team.siege], ['Elims', team.elims], ['Ø Elims', team.elimsJeMatch.toFixed(1)], ['Ø Place', team.schnittPlatz], ['Ø Points', team.matches ? (team.punkte / team.matches).toFixed(1) : '–'], ['Ø Alive', zeitText(team.zeitSchnitt)]] as Array<[string, string | number]>).map(([t, w]) => <div key={t} className="min-w-0"><p className="titel zahl truncate text-xl">{w}</p><p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/40">{t}</p></div>)}
+                </div>
+                <div className="grid max-h-[60vh] grid-cols-2 gap-1.5 overflow-y-auto p-3 sm:grid-cols-4 2xl:grid-cols-2">
+                  {team.spiele.map((sp, nr) => ({ sp, nr })).reverse().map(({ sp, nr }) => (
+                    <div key={nr} className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${sp.platz === 1 ? 'border-amber-300/40 bg-amber-300/10' : sp.platz <= 3 ? 'border-white/15 bg-black/40' : 'border-white/[0.06] bg-black/30'} ${sp.zaehlt === false ? 'opacity-50' : ''}`}>
+                      <div><p className="zahl text-[10px] text-white/40">{sp.zeitpunkt ? uhr(sp.zeitpunkt, false) : `${serie.offen ? 'Lobby' : 'Match'} ${nr + 1}`}</p><p className="font-bold text-white">{sp.platz}. place</p></div>
+                      <div className="text-right"><p className="text-[10px] text-white/40">Elims</p><p className="zahl font-bold text-white">{sp.elims}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </Flaeche>
+            )}
           </div>
-          <aside className="space-y-6">
-            <section>
-              <h2 className="mb-2 text-lg font-extrabold text-white">The best</h2>
-              <Glas className="overflow-hidden border-sky-400/30">
-                {beste.map((b) => <div key={b.titel} className="border-b border-white/[0.04] px-4 py-3 last:border-0"><p className="text-[11px] font-semibold text-sky-300">{b.titel}</p><p className="truncate text-sm font-bold text-white">{b.team ? <Namen spieler={b.team.spieler} /> : '–'}</p><p className="text-[11px] text-white/40">{b.wert}</p></div>)}
-                {!beste.length && <p className="p-4 text-xs text-white/40">No results yet.</p>}
-              </Glas>
-            </section>
-            <section>
-              <h2 className="mb-2 text-lg font-extrabold text-white">{wort} <span className="text-xs font-normal text-white/40">{runden.length}</span></h2>
-              <Glas className="max-h-96 space-y-1.5 overflow-y-auto p-3">
-                {runden.map((r, i) => <div key={r.sessionId} className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-xs"><p className="text-[10px] text-white/40">{uhr(r.zeitpunkt)} // {serie.offen ? 'Lobby' : 'Match'} {runden.length - i}</p><p className="font-semibold text-white/85">{r.ignoriert ? 'not scored' : r.gewertet === 'SCORED' ? `${r.spieler} players` : 'being scored'}</p></div>)}
-                {!runden.length && <p className="py-4 text-center text-xs text-white/40">No round played yet.</p>}
-              </Glas>
-            </section>
-          </aside>
-        </div>
+        </>
       )}
     </div>
   );
@@ -376,29 +383,44 @@ export default function Scrims() {
   if (!wer) return <Laedt />;
   if (!darf) {
     return (
-      <div className="relative flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center">
-        <div className="relative"><div className="absolute inset-0 -z-10 animate-pulse rounded-full bg-sky-500/25 blur-3xl" /><img src="/logos/CompHub-Logo-frei.png" alt="" className="h-24 w-auto" /></div>
-        <h1 className="mt-8 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">Something Big Is Coming</h1>
-        <p className="mt-4 max-w-xl text-white/55">Scrims from the community servers — leaderboards, sessions and stats, right on CompHub.</p>
-        <div className="mt-8"><AnmeldeKarte titel="Admin preview" text="Scrims are not public yet. Admins can sign in to see the preview." /></div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:items-start">
+        <div className="space-y-4">
+          <header><p className="ueber">Community servers</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Scrims</h1>
+            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-white/55">Scrims from the community servers — leaderboards, sessions and stats, right on CompHub. Not public yet; the servers are already here.</p></header>
+          <ServerBand />
+        </div>
+        <AnmeldeKarte titel="Admin preview" text="Scrims are not public yet. Admins can sign in to see the preview." />
       </div>
     );
   }
   if (laedt) return <Laedt text="Loading scrims …" />;
   if (offen) return <Session serie={offen.serie} sitzung={offen.sitzung} teams={teams} runden={runden} laedt={laedtCup} nichtDa={nichtDa} zurueck={() => setOffen(null)} wechsle={(s) => { void oeffnen(offen.serie, s); }} />;
 
+  const liveZahl = gezeigt.filter((s) => statusVon(s) === 'live').length;
+  const sitzungenZahl = gezeigt.reduce((n, s) => n + s.sitzungen.length, 0);
   return (
-    <div className="space-y-6">
-      <SeitenKopf ueber="Community servers" titel="Scrims" text="Leaderboards, sessions and stats from the scrims of the community servers." />
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setArt('scrims')} className={chip(art === 'scrims')}>Scrims</button>
-        <button type="button" onClick={() => setArt('community')} className={chip(art === 'community')}>Community events</button>
-        <span className="mx-1 h-5 w-px bg-white/10" />
-        <button type="button" onClick={() => setAnsicht('raster')} className={chip(ansicht === 'raster')}>Grid</button>
-        <button type="button" onClick={() => setAnsicht('liste')} className={chip(ansicht === 'liste')}>List</button>
-        <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs font-semibold text-white focus:outline-none">
-          <option value="alle">All regions</option>{regionen.map((r) => <option key={r} value={r}>{REGION_NAME[r] ?? r}</option>)}
-        </select>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}>
+          <p className="ueber">Community servers</p>
+          <h1 className="titel mt-1 text-6xl lg:text-7xl">Scrims</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-white/55">Leaderboards, sessions and stats from the scrims of the community servers.</p>
+        </motion.div>
+        <div className="flex gap-7">
+          {([['Series', gezeigt.length], ['Sessions', sitzungenZahl], ['Live now', liveZahl]] as Array<[string, number]>).map(([l, v]) => (
+            <div key={l} className="text-right"><Zaehler wert={v} className={`titel text-5xl ${l === 'Live now' && v ? '!text-red-400' : '!text-akz'}`} /><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{l}</p></div>
+          ))}
+        </div>
+      </header>
+      <ServerBand />
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+        <Segment id="scrims-art" wert={art} onWahl={setArt} wahl={[{ k: 'scrims', titel: 'Scrims' }, { k: 'community', titel: 'Community events' }]} />
+        <div className="ohne-leiste flex max-w-full items-center gap-1.5 overflow-x-auto">
+          <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">Region</span>
+          <button type="button" onClick={() => setRegion('alle')} className={chip(region === 'alle')}>All regions</button>
+          {regionen.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={chip(region === r)}>{REGION_NAME[r] ?? r}</button>)}
+        </div>
+        <div className="ml-auto"><Segment id="scrims-ansicht" klein wert={ansicht} onWahl={setAnsicht} wahl={[{ k: 'raster', titel: 'Cards' }, { k: 'liste', titel: 'List' }]} /></div>
       </div>
       {hinweis && (
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-200/90">
@@ -407,36 +429,31 @@ export default function Scrims() {
           <p className="mt-1 text-[11px] text-amber-200/70">Noble and Poyo are real, from nobleprac.com and scrims.poyocup.com, collected since 21 Sep and updated hourly.</p>
         </div>
       )}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
-          {!gezeigt.length ? <Glas className="p-8 text-center text-sm text-white/45">{art === 'community' ? 'There are no community events right now.' : 'There are no scrims in this region right now.'}</Glas>
-            : ansicht === 'raster' ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                {gezeigt.map((s, i) => <Kachel key={s.id} s={s} i={i} offen={offenK === s.id} umschalten={() => setOffenK((v) => (v === s.id ? null : s.id))} waehle={(x) => { void oeffnen(s, x); }} />)}
-              </div>
-            ) : (
-              <Glas className="overflow-hidden">
-                {gezeigt.map((s) => (
-                  <div key={s.id} className="border-b border-white/[0.04] last:border-0">
-                    <button type="button" onClick={() => setOffenK((v) => (v === s.id ? null : s.id))} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-white/[0.03]">
-                      {s.logo && <img src={bild(s.logo)!} alt="" className="h-11 w-11 rounded-xl object-cover" />}
-                      <span className="min-w-0 flex-1 truncate font-bold text-white">{s.name}</span>
-                      {s.region && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold text-white/70">{s.region}</span>}
-                      <StatusMarke status={statusVon(s)} klein />
-                      <span className="w-24 text-right text-xs text-white/40">{s.sitzungen.length} sessions</span>
-                    </button>
-                    {offenK === s.id && (
-                      <div className="grid gap-1 px-3 pb-3 sm:grid-cols-2">
-                        {s.sitzungen.map((x) => <button key={x.id} type="button" onClick={() => { void oeffnen(s, x); }} className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2 text-left text-sm font-semibold text-white/85 hover:bg-white/[0.08]"><span className="truncate">{x.name}</span><span className="text-[11px] font-bold uppercase">{sitzStatus(x, Date.now())}</span></button>)}
-                      </div>
-                    )}
+      {!gezeigt.length ? <Leer text={art === 'community' ? 'There are no community events right now.' : 'There are no scrims in this region right now.'} />
+        : ansicht === 'raster' ? (
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {gezeigt.map((s, i) => <SerienKarte key={s.id} s={s} i={i} offen={offenK === s.id} umschalten={() => setOffenK((v) => (v === s.id ? null : s.id))} waehle={(x) => { void oeffnen(s, x); }} />)}
+          </div>
+        ) : (
+          <Flaeche fest className="overflow-hidden">
+            {gezeigt.map((s) => (
+              <div key={s.id} className="border-b border-white/[0.05] last:border-0">
+                <button type="button" onClick={() => setOffenK((v) => (v === s.id ? null : s.id))} className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-white/[0.035]">
+                  {s.logo && <img src={bild(s.logo)!} alt="" className="h-11 w-11 rounded-xl object-cover" />}
+                  <span className="min-w-0 flex-1 truncate font-bold text-white">{s.name}</span>
+                  {s.region && <Marke>{s.region}</Marke>}
+                  <StatusMarke status={statusVon(s)} klein />
+                  <span className="zahl w-24 text-right text-xs text-white/40">{s.sitzungen.length} sessions</span>
+                </button>
+                {offenK === s.id && (
+                  <div className="grid gap-1 px-3 pb-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {s.sitzungen.map((x) => <button key={x.id} type="button" onClick={() => { void oeffnen(s, x); }} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 text-left text-sm font-semibold text-white/85 transition hover:border-akz/50"><span className="truncate">{x.name}</span><span className="shrink-0 text-[10px] font-bold uppercase tracking-wider">{sitzStatus(x, Date.now())}</span></button>)}
                   </div>
-                ))}
-              </Glas>
-            )}
-        </div>
-        <ServerRand />
-      </div>
+                )}
+              </div>
+            ))}
+          </Flaeche>
+        )}
     </div>
   );
 }
