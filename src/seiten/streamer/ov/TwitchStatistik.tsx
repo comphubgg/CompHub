@@ -1,4 +1,5 @@
-import Link from './Link';
+import { motion } from 'framer-motion';
+import { Laedt, Leer, Marke, Segment } from '../../../ds/Bausteine';
 import { useCallback, useEffect, useState } from 'react';
 import T from './T';
 import LadeSchirm from './LadeSchirm';
@@ -32,7 +33,6 @@ interface Antwort {
 }
 
 const ARTEN: Array<[Art, string]> = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['gesamt', 'Gesamt']];
-const karte = 'rounded-2xl border border-white/[0.07] bg-fl p-5';
 const zahl = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString());
 const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
@@ -46,26 +46,27 @@ function Verlauf({ v }: { v: NonNullable<Auswertung['verlauf']> }) {
   const start = Date.parse(v.start);
   return (
     <svg viewBox={`0 0 ${B} ${H + 18}`} className="w-full" role="img" aria-label={t('Zuschauerverlauf')}>
-      <path d={`${linie} L${B},${H} L0,${H} Z`} fill="rgb(139 92 246 / 0.15)" />
-      <path d={linie} fill="none" stroke="rgb(167 139 250)" strokeWidth="2" />
+      <defs><linearGradient id="ts-flaeche" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="rgb(var(--akz))" stopOpacity="0.35" /><stop offset="1" stopColor="rgb(var(--akz))" stopOpacity="0" /></linearGradient></defs>
+      <path d={`${linie} L${B},${H} L0,${H} Z`} fill="url(#ts-flaeche)" />
+      <path d={linie} fill="none" stroke="rgb(var(--akz))" strokeWidth="2" vectorEffect="non-scaling-stroke" />
       {v.raids.map((r) => {
         const m = (Date.parse(r.zeit) - start) / 60_000;
         if (m < 0 || m > maxM) return null;
         return <g key={r.zeit}><line x1={x(m)} x2={x(m)} y1={4} y2={H} stroke="rgb(34 197 94)" strokeDasharray="3 3" /><text x={x(m) + 4} y={14} fill="rgb(74 222 128)" fontSize="11">Raid {r.zuschauer}</text></g>;
       })}
-      <text x={0} y={H + 15} fill="rgb(100 116 139)" fontSize="11">0 min</text>
-      <text x={B} y={H + 15} fill="rgb(100 116 139)" fontSize="11" textAnchor="end">{maxM} min</text>
-      <text x={B} y={14} fill="rgb(100 116 139)" fontSize="11" textAnchor="end">{maxV.toLocaleString()}</text>
+      <text x={0} y={H + 15} fill="rgba(255,255,255,0.4)" fontSize="11">0 min</text>
+      <text x={B} y={H + 15} fill="rgba(255,255,255,0.4)" fontSize="11" textAnchor="end">{maxM} min</text>
+      <text x={B} y={14} fill="rgba(255,255,255,0.4)" fontSize="11" textAnchor="end">{maxV.toLocaleString()}</text>
     </svg>
   );
 }
 
-function Kachel({ titel, wert, unter, ton }: { titel: string; wert: string; unter?: string; ton?: 'live' }) {
+function Kachel({ titel, wert, unter, ton, gross = false }: { titel: string; wert: string; unter?: string; ton?: 'live' | 'akz'; gross?: boolean }) {
   return (
-    <div className={`rounded-xl border p-4 ${ton === 'live' ? 'border-red-500/30 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/45">{titel}</p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums text-white">{wert}</p>
-      {unter && <p className="mt-0.5 text-[11px] text-white/45">{unter}</p>}
+    <div className={`rounded-2xl border ${gross ? 'flex flex-col justify-center border-white/[0.07] bg-fl p-5' : 'p-4'} ${ton === 'live' ? 'border-red-500/25 bg-red-500/[0.07]' : gross ? '' : 'border-white/[0.06] bg-black/25'}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">{titel}</p>
+      <p className={`zahl mt-1 font-extrabold leading-none tracking-tight ${gross ? 'text-4xl' : 'text-2xl'} ${ton === 'akz' ? 'text-akz' : 'text-white'}`}>{wert}</p>
+      {unter && <p className="mt-1.5 text-[11px] text-white/45">{unter}</p>}
     </div>
   );
 }
@@ -122,185 +123,171 @@ export default function TwitchStatistik() {
   const w = a?.werte ?? null;
   const verfuegbar = a ? ARTEN.filter(([k]) => a.einheiten[k]?.length) : [];
 
+  const live = a?.live ?? null;
   return (
-    <div className="text-white">
-      <div className="">
-        <section className="relative mb-5 overflow-hidden rounded-3xl border border-white/10 bg-fl p-6 sm:p-8">
-          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-akz/25 blur-3xl" />
-          <div className="relative flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-akz">Twitch</p>
-              <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl">{a?.name ?? <T>Twitch-Statistik</T>}</h1>
-              {a && <p className="mt-2 text-sm text-white/55">{zahl(a.follower)} <T>Follower</T>{a.zaehltSeit ? <> · <T>gezählt seit</T> {new Date(a.zaehltSeit).toLocaleDateString(ort)}</> : null}</p>}
-            </div>
-            {d && d.kanaele.length > 1 && (
-              <select value={d.gewaehlt ?? ''} onChange={(e) => { setKanal(e.target.value); setWahl({}); }}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
-                {d.kanaele.map((k) => <option key={k.login} value={k.id ?? k.login}>{k.name}{d.admin ? ` (${k.vipName})` : ''}</option>)}
-              </select>
-            )}
-          </div>
-        </section>
+    <div className="space-y-5 text-white">
+      {/* ------------------------------------------- Kopf: Kanal links, Zeitraum rechts */}
+      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+        <motion.div initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }} className="min-w-0">
+          <p className="ueber">Twitch · Statistics</p>
+          <h1 className="titel mt-1 truncate text-6xl lg:text-7xl">{a?.name ?? <T>Twitch-Statistik</T>}</h1>
+          {a && <p className="mt-2 text-[15px] text-white/55"><span className="zahl font-semibold text-white">{zahl(a.follower)}</span> <T>Follower</T>{a.zaehltSeit ? <> · <T>gezählt seit</T> {new Date(a.zaehltSeit).toLocaleDateString(ort)}</> : null}
+            {' · '}<a href={`https://twitch.tv/${a.login}`} target="_blank" rel="noreferrer" className="text-akz hover:brightness-125">twitch.tv/{a.login}</a></p>}
+        </motion.div>
+        <div className="flex flex-wrap items-center gap-2">
+          {d && d.kanaele.length > 1 && (
+            <select value={d.gewaehlt ?? ''} onChange={(e) => { setKanal(e.target.value); setWahl({}); }} className="eingabe !py-2">
+              {d.kanaele.map((k) => <option key={k.login} value={k.id ?? k.login}>{k.name}{d.admin ? ` (${k.vipName})` : ''}</option>)}
+            </select>
+          )}
+          {a && verfuegbar.length > 0 && <Segment id="ts-art" wert={a.art} wahl={verfuegbar.map(([k, name]) => ({ k, titel: t(name) }))} onWahl={(k) => setWahl({ art: k })} />}
+          {a && (a.art === 'tag' || a.art === 'woche') && (
+            <select value={a.einheit} onChange={(e) => setWahl({ art: a.art, einheit: e.target.value })} className="eingabe !py-2">
+              {a.einheiten[a.art].map((e) => <option key={e} value={e}>{einheitText(a.art, e)}</option>)}
+            </select>
+          )}
+        </div>
+      </header>
+      {a && (a.art === 'monat' || a.art === 'jahr') && (
+        <div className="ohne-leiste -mt-1 flex gap-1.5 overflow-x-auto">
+          {a.einheiten[a.art].map((e) => <button key={e} type="button" onClick={() => setWahl({ art: a.art, einheit: e })} className={`chip ${a.einheit === e ? 'chip-an' : ''}`}>{einheitText(a.art, e)}</button>)}
+        </div>
+      )}
 
-        {fehler && <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
-        {!d && !fehler && <p className="text-sm text-white/45"><T>Wird geladen …</T></p>}
-        {d && !d.kanaele.length && (
-          <p className={`${karte} text-sm text-white/55`}>
-            {d.admin ? <T>Noch kein Kanal eingetragen - unten einen Twitch-Kanal und den VIP wählen, der ihn sehen darf.</T>
-              : <T>Für dein Konto ist noch kein Twitch-Kanal freigeschaltet. Melde dich bei CompHub auf Discord.</T>}
-          </p>
-        )}
+      {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
+      {!d && !fehler && <Laedt text={t('Wird geladen …').replace(/ …$/, '')} />}
+      {d && !d.kanaele.length && (
+        <Leer text={d.admin ? <T>Noch kein Kanal eingetragen - unten einen Twitch-Kanal und den VIP wählen, der ihn sehen darf.</T>
+          : <T>Für dein Konto ist noch kein Twitch-Kanal freigeschaltet. Melde dich bei CompHub auf Discord.</T>} />
+      )}
 
-        {/* ------------------------------------------- Live */}
-        {a?.live && (
-          <section className="mb-5 rounded-2xl border border-red-500/40 bg-red-500/5 p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="flex items-center gap-2 rounded-full bg-red-500 px-3 py-1 text-xs font-extrabold text-white"><span className="h-2 w-2 animate-pulse rounded-full bg-white" />LIVE</span>
-              <span className="text-sm font-semibold text-white">{a.live.titel}</span>
-              <span className="text-xs text-white/55">{a.live.spiel} · {dauer(a.live.minuten)} h</span>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-6">
-              <Kachel ton="live" titel={t('Zuschauer jetzt')} wert={zahl(a.live.zuschauer)} />
-              <Kachel ton="live" titel={t('Spitze bisher')} wert={zahl(a.live.peak)} />
-              <Kachel ton="live" titel={t('Ø bisher')} wert={zahl(a.live.durchschnitt)} />
-              <Kachel ton="live" titel={t('Chatter')} wert={zahl(a.live.chatter)} />
-              <Kachel ton="live" titel={t('Nachrichten')} wert={zahl(a.live.nachrichten)} />
-              <Kachel ton="live" titel={t('Raids')} wert={zahl(a.live.raids.length)} unter={a.live.raids.length ? a.live.raids.map((r) => `${r.von} (${r.zuschauer})`).join(', ') : undefined} />
-            </div>
-          </section>
-        )}
-
-        {a && verfuegbar.length > 0 && (
-          <>
-            {/* ------------------------------------------- Zeitraum wie im Kalender */}
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <div className="inline-flex gap-1 rounded-full border border-white/10 bg-fl p-1">
-                {verfuegbar.map(([k, name]) => (
-                  <button key={k} type="button" onClick={() => setWahl({ art: k })}
-                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${a.art === k ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white/85'}`}>
-                    <T>{name}</T>
-                  </button>
-                ))}
+      {/* ------------------------------------------- Buehne: Zuschauerverlauf gross, die vier wichtigsten Zahlen daneben */}
+      {a && (a.verlauf || w) && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <section className={`fl-fest overflow-hidden ${live ? '!border-red-500/30' : ''}`}>
+            {live && (
+              <div className="flex flex-wrap items-center gap-3 border-b border-red-500/20 bg-red-500/[0.06] px-5 py-3">
+                <Marke ton="rot" puls>Live</Marke>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{live.titel}</span>
+                <span className="text-xs text-white/55">{live.spiel} · {dauer(live.minuten)} h</span>
               </div>
-              {a.art !== 'gesamt' && (a.art === 'tag' || a.art === 'woche') && (
-                <select value={a.einheit} onChange={(e) => setWahl({ art: a.art, einheit: e.target.value })}
-                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
-                  {a.einheiten[a.art].map((e) => <option key={e} value={e}>{einheitText(a.art, e)}</option>)}
-                </select>
+            )}
+            <div className="p-5">
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="titel text-3xl">{a.verlauf?.live ? <T>Laufender Stream</T> : <T>Letzter Stream</T>}</h2>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40"><T>Zuschauer</T></span>
+              </div>
+              {a.verlauf ? <Verlauf v={a.verlauf} /> : <p className="text-xs text-white/45"><T>Noch zu wenige Werte für einen Verlauf.</T></p>}
+              {live && (
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                  <Kachel ton="live" titel={t('Zuschauer jetzt')} wert={zahl(live.zuschauer)} />
+                  <Kachel ton="live" titel={t('Spitze bisher')} wert={zahl(live.peak)} />
+                  <Kachel ton="live" titel={t('Ø bisher')} wert={zahl(live.durchschnitt)} />
+                  <Kachel ton="live" titel={t('Chatter')} wert={zahl(live.chatter)} />
+                  <Kachel ton="live" titel={t('Nachrichten')} wert={zahl(live.nachrichten)} />
+                  <Kachel ton="live" titel={t('Raids')} wert={zahl(live.raids.length)} unter={live.raids.length ? live.raids.map((r) => `${r.von} (${r.zuschauer})`).join(', ') : undefined} />
+                </div>
               )}
             </div>
-            {(a.art === 'monat' || a.art === 'jahr') && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                {a.einheiten[a.art].map((e) => (
-                  <button key={e} type="button" onClick={() => setWahl({ art: a.art, einheit: e })}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${a.einheit === e ? 'border-akz bg-akz/15 text-akz' : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/85'}`}>
-                    {einheitText(a.art, e)}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {w && (
-              <>
-                {w.nurArchiv && (
-                  <p className="mb-3 text-xs text-white/45"><T>Für diesen Zeitraum gibt es nur Twitchs gespeicherte Streams (Dauer und Titel) - Zuschauer, Chatter und Raids zählt CompHub ab dem Eintragen.</T></p>
-                )}
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <Kachel titel={t('Spitze')} wert={zahl(w.peak)} unter={t('mit Raids')} />
-                  <Kachel titel={t('Spitze ohne Raid')} wert={zahl(w.peakOhneRaid)} />
-                  <Kachel titel={t('Ø Zuschauer')} wert={zahl(w.durchschnitt)} />
-                  <Kachel titel={t('Neue Follower')} wert={w.neueFollower === null ? '—' : `${w.neueFollower >= 0 ? '+' : ''}${w.neueFollower.toLocaleString()}`} />
-                  <Kachel titel={t('Chatter')} wert={zahl(w.chatter)} unter={w.chatterMax !== null ? `${t('max.')} ${zahl(w.chatterMax)} ${t('je Stream')}` : undefined} />
-                  <Kachel titel={t('Nachrichten')} wert={zahl(w.nachrichten)} />
-                  <Kachel titel={t('Raids')} wert={zahl(w.raids)} unter={w.raids ? `${zahl(w.raidZuschauer)} ${t('Zuschauer')}` : undefined} />
-                  <Kachel titel={t('Streams')} wert={zahl(w.streams)} unter={`${w.stunden.toLocaleString()} h`} />
-                </div>
-              </>
-            )}
-          </>
-        )}
-
-        {/* ------------------------------------------- TwitchTracker: die letzten 30 Tage, auch vor dem Eintragen */}
-        {a?.tracker && (
-          <section className={`${karte} mt-5`}>
-            <h2 className="text-sm font-semibold"><T>Letzte 30 Tage</T> <span className="text-xs font-normal text-white/45">· <T>Quelle</T>: TwitchTracker</span></h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-              <Kachel titel={t('Ø Zuschauer')} wert={zahl(a.tracker.avgViewers)} />
-              <Kachel titel={t('Spitze')} wert={zahl(a.tracker.maxViewers)} />
-              <Kachel titel={t('Gestreamt')} wert={`${a.tracker.stunden.toLocaleString()} h`} />
-              <Kachel titel={t('Watch-Hours')} wert={zahl(a.tracker.watchHours)} />
-              <Kachel titel={t('Neue Follower')} wert={`${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString()}`} />
-            </div>
           </section>
-        )}
+          {w && (
+            <section className="grid grid-cols-2 gap-3 xl:grid-cols-1">
+              <Kachel gross ton="akz" titel={t('Spitze')} wert={zahl(w.peak)} unter={t('mit Raids')} />
+              <Kachel gross titel={t('Spitze ohne Raid')} wert={zahl(w.peakOhneRaid)} />
+              <Kachel gross titel={t('Ø Zuschauer')} wert={zahl(w.durchschnitt)} />
+              <Kachel gross titel={t('Neue Follower')} wert={w.neueFollower === null ? '—' : `${w.neueFollower >= 0 ? '+' : ''}${w.neueFollower.toLocaleString()}`} />
+            </section>
+          )}
+        </div>
+      )}
 
-        {a?.verlauf && (
-          <section className={`${karte} mt-5`}>
-            <h2 className="mb-3 text-sm font-semibold">{a.verlauf.live ? <T>Laufender Stream</T> : <T>Letzter Stream</T>} · <T>Zuschauer</T></h2>
-            <Verlauf v={a.verlauf} />
-          </section>
-        )}
+      {/* ------------------------------------------- weitere Zahlen des Zeitraums und die letzten 30 Tage (TwitchTracker) */}
+      {w && (
+        <section className="fl-fest p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="titel text-2xl">{a ? einheitText(a.art, a.einheit) : ''}</h2>
+            {w.nurArchiv && <p className="text-xs text-white/45"><T>Für diesen Zeitraum gibt es nur Twitchs gespeicherte Streams (Dauer und Titel) - Zuschauer, Chatter und Raids zählt CompHub ab dem Eintragen.</T></p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Kachel titel={t('Chatter')} wert={zahl(w.chatter)} unter={w.chatterMax !== null ? `${t('max.')} ${zahl(w.chatterMax)} ${t('je Stream')}` : undefined} />
+            <Kachel titel={t('Nachrichten')} wert={zahl(w.nachrichten)} />
+            <Kachel titel={t('Raids')} wert={zahl(w.raids)} unter={w.raids ? `${zahl(w.raidZuschauer)} ${t('Zuschauer')}` : undefined} />
+            <Kachel titel={t('Streams')} wert={zahl(w.streams)} unter={`${w.stunden.toLocaleString()} h`} />
+          </div>
+        </section>
+      )}
+      {a?.tracker && (
+        <section className="fl-fest p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="titel text-2xl"><T>Letzte 30 Tage</T></h2>
+            <span className="text-[11px] text-white/40"><T>Quelle</T>: TwitchTracker</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <Kachel titel={t('Ø Zuschauer')} wert={zahl(a.tracker.avgViewers)} />
+            <Kachel titel={t('Spitze')} wert={zahl(a.tracker.maxViewers)} />
+            <Kachel titel={t('Gestreamt')} wert={`${a.tracker.stunden.toLocaleString()} h`} />
+            <Kachel titel={t('Watch-Hours')} wert={zahl(a.tracker.watchHours)} />
+            <Kachel titel={t('Neue Follower')} wert={`${a.tracker.follower >= 0 ? '+' : ''}${a.tracker.follower.toLocaleString()}`} />
+          </div>
+        </section>
+      )}
 
-        {a && a.streams.length > 0 && (
-          <section className={`${karte} mt-5 overflow-x-auto`}>
-            <h2 className="mb-3 text-sm font-semibold"><T>Streams</T> · {einheitText(a.art, a.einheit)}</h2>
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-white/45">
-                  <th className="py-2 pr-3"><T>Datum</T></th><th className="py-2 pr-3"><T>Titel</T></th>
-                  <th className="py-2 pr-3 text-right"><T>Dauer</T></th><th className="py-2 pr-3 text-right"><T>Spitze</T></th>
-                  <th className="py-2 pr-3 text-right"><T>ohne Raid</T></th><th className="py-2 pr-3 text-right">Ø</th>
-                  <th className="py-2 pr-3 text-right"><T>Chatter</T></th><th className="py-2 text-right"><T>Raids</T></th>
+      {/* ------------------------------------------- jeder Stream des Zeitraums */}
+      {a && a.streams.length > 0 && (
+        <section className="fl-fest overflow-x-auto p-2 sm:p-3">
+          <h2 className="titel px-3 pb-1 pt-2 text-2xl"><T>Streams</T> <span className="zahl text-base text-white/35">{a.streams.length}</span></h2>
+          <table className="tabelle min-w-[680px]">
+            <thead>
+              <tr>
+                <th><T>Datum</T></th><th><T>Titel</T></th>
+                <th className="!text-right"><T>Dauer</T></th><th className="!text-right"><T>Spitze</T></th>
+                <th className="!text-right"><T>ohne Raid</T></th><th className="!text-right">Ø</th>
+                <th className="!text-right"><T>Chatter</T></th><th className="!text-right"><T>Raids</T></th>
+              </tr>
+            </thead>
+            <tbody>
+              {a.streams.map((s) => (
+                <tr key={s.id}>
+                  <td className="zahl whitespace-nowrap text-white/55">{s.live ? <Marke ton="rot">Live</Marke> : new Date(s.start).toLocaleDateString(ort)}</td>
+                  <td className="max-w-[360px] truncate text-white/85" title={s.titel}>
+                    {s.titel}{s.nurArchiv && <span className="ml-2 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-white/55"><T>Archiv</T></span>}
+                  </td>
+                  <td className="zahl text-right text-white/55">{dauer(s.minuten)}</td>
+                  <td className="zahl text-right font-semibold text-white">{s.nurArchiv ? '—' : zahl(s.peak)}</td>
+                  <td className="zahl text-right text-white/70">{s.nurArchiv ? '—' : zahl(s.peakOhneRaid)}</td>
+                  <td className="zahl text-right text-white/70">{s.nurArchiv ? '—' : zahl(s.durchschnitt)}</td>
+                  <td className="zahl text-right text-white/70">{s.nurArchiv ? '—' : zahl(s.chatter)}</td>
+                  <td className="zahl text-right text-white/70">{s.raids ? `${s.raids} (${zahl(s.raidZuschauer)})` : '—'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {a.streams.map((s) => (
-                  <tr key={s.id} className="border-t border-white/10">
-                    <td className="py-2 pr-3 tabular-nums text-white/55">{s.live ? <span className="font-bold text-red-400">LIVE</span> : new Date(s.start).toLocaleDateString(ort)}</td>
-                    <td className="max-w-[320px] truncate py-2 pr-3 text-white/85" title={s.titel}>
-                      {s.titel}{s.nurArchiv && <span className="ml-2 rounded bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-white/55"><T>Archiv</T></span>}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-white/55">{dauer(s.minuten)}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-white">{s.nurArchiv ? '—' : zahl(s.peak)}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-white/70">{s.nurArchiv ? '—' : zahl(s.peakOhneRaid)}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-white/70">{s.nurArchiv ? '—' : zahl(s.durchschnitt)}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-white/70">{s.nurArchiv ? '—' : zahl(s.chatter)}</td>
-                    <td className="py-2 text-right tabular-nums text-white/70">{s.raids ? `${s.raids} (${zahl(s.raidZuschauer)})` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
-        {d?.admin && (
-          <section className={`${karte} mt-5`}>
-            <h2 className="text-sm font-semibold"><T>Kanäle freigeben (Admin)</T></h2>
-            <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void aendern({ aktion: 'eintragen', login: neu.login, vip: neu.vip }); }}>
-              <input value={neu.login} onChange={(e) => setNeu({ ...neu, login: e.target.value })} placeholder={t('Twitch-Name')}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz" />
-              <select value={neu.vip} onChange={(e) => setNeu({ ...neu, vip: e.target.value })}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
-                <option value="">{t('VIP wählen')}</option>
-                {(d.vips ?? []).map((v) => <option key={v.ident} value={v.ident}>{v.name}</option>)}
-              </select>
-              <button type="submit" disabled={!neu.login || !neu.vip} className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
-                <T>Freigeben</T>
-              </button>
-            </form>
-            {d.kanaele.length > 0 && (
-              <ul className="mt-4 space-y-1.5 text-sm">
-                {d.kanaele.map((k) => (
-                  <li key={k.login} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#06080f]/60 px-3 py-2">
-                    <span className="text-white/85">{k.name} <span className="text-xs text-white/45">→ {k.vipName}</span></span>
-                    <button type="button" onClick={() => void aendern({ aktion: 'austragen', login: k.login })} className="text-xs text-white/45 transition hover:text-rose-400"><T>Entfernen</T></button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-      </div>
+      {d?.admin && (
+        <section className="fl-fest p-5">
+          <h2 className="titel text-2xl"><T>Kanäle freigeben (Admin)</T></h2>
+          <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void aendern({ aktion: 'eintragen', login: neu.login, vip: neu.vip }); }}>
+            <input value={neu.login} onChange={(e) => setNeu({ ...neu, login: e.target.value })} placeholder={t('Twitch-Name')} className="eingabe !py-2" />
+            <select value={neu.vip} onChange={(e) => setNeu({ ...neu, vip: e.target.value })} className="eingabe !py-2">
+              <option value="">{t('VIP wählen')}</option>
+              {(d.vips ?? []).map((v) => <option key={v.ident} value={v.ident}>{v.name}</option>)}
+            </select>
+            <button type="submit" disabled={!neu.login || !neu.vip} className="knopf-prim"><T>Freigeben</T></button>
+          </form>
+          {d.kanaele.length > 0 && (
+            <ul className="mt-4 grid gap-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+              {d.kanaele.map((k) => (
+                <li key={k.login} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2">
+                  <span className="min-w-0 truncate text-white/85">{k.name} <span className="text-xs text-white/45">→ {k.vipName}</span></span>
+                  <button type="button" onClick={() => void aendern({ aktion: 'austragen', login: k.login })} className="text-xs text-white/45 transition hover:text-rose-400"><T>Entfernen</T></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }
