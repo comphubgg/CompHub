@@ -51,17 +51,23 @@ async function parallel(liste, n, fn) {
   await Promise.all(Array.from({ length: n }, async () => { for (let k = i++; k < liste.length; k = i++) aus[k] = await fn(liste[k], k); }));
   return aus;
 }
-/** MediaWiki-API mit Wiederholung (POST - lange Titellisten). */
+/** MediaWiki-API mit Wiederholung (GET wie der Hub; bei 429 so lange warten, wie Retry-After sagt). */
+const api429 = [];
 async function api(q) {
   let letzter;
-  for (let v = 0; v < 7; v++) {
+  for (let v = 0; v < 8; v++) {
     try {
-      const r = await fetch(API, { method: 'POST', body: new URLSearchParams({ format: 'json', formatversion: '2', ...q }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-      if (r.status === 429 || r.status >= 500) throw new Error(`HTTP ${r.status}`);
+      const r = await fetch(`${API}?${new URLSearchParams({ format: 'json', formatversion: '2', ...q })}`);
+      if (r.status === 429 || r.status >= 500) {
+        const nach = Number(r.headers.get('retry-after')) || 0;
+        api429.push({ s: r.status, nach, kopf: Object.fromEntries([...r.headers].filter(([k]) => /retry|rate|limit|server|x-|cf-|via/i.test(k))), text: (await r.text()).slice(0, 200) });
+        if (nach) await warte(Math.min(nach, 120) * 1000);
+        throw new Error(`HTTP ${r.status}`);
+      }
       const j = await r.json();
       if (j.error) throw new Error(j.error.code);
       return j;
-    } catch (f) { letzter = f; await warte(1500 * 2 ** v); }
+    } catch (f) { letzter = f; await warte(2000 * 2 ** Math.min(v, 5)); }
   }
   throw letzter;
 }
@@ -131,6 +137,9 @@ await parallel(hubUrls, 60, async (u) => {
   } catch (f) { last.fehler = (last.fehler ?? 0) + 1; lastErgebnis.set(u, { s: 'fehler' }); }
 });
 console.log('Lasttest (60 gleichzeitig):', JSON.stringify(last));
+// Zwischenstand sichern (falls spaeter etwas scheitert)
+fs.writeFileSync(path.join(AUS, 'hub-liste.json'), `${JSON.stringify(liste)}\n`);
+fs.writeFileSync(path.join(AUS, 'diagnose-hub.json'), `${JSON.stringify({ hubFehler, last, waffen: diagnose.map((d) => ({ ...d, lasttest: lastErgebnis.get(d.hub.url) })) }, null, 1)}\n`);
 await warte(5000);
 
 /* ---------------------------------------------- 2. Je Seite: Quelltext, Seitenbild, alle Dateien */
@@ -142,7 +151,7 @@ for (let i = 0; i < titel.length; i += 50) {
   const b = await abfrageAlle({ prop: 'images', imlimit: 'max', titles: teil.join('|') });
   for (const [t, p] of a.seiten) proSeite.set(t, { text: p.revisions?.[0]?.slots?.main?.content ?? '', seitenBild: p.pageimage ? `File:${p.pageimage}` : null, dateien: [] });
   for (const [t, p] of b.seiten) if (proSeite.has(t)) proSeite.get(t).dateien = (p.images ?? []).map((x) => x.title);
-  await warte(300);
+  await warte(800);
 }
 console.log(`${proSeite.size} Seiten gelesen`);
 
@@ -208,7 +217,7 @@ for (let i = 0; i < dateiListe.length; i += 50) {
     const wert = ii && !p.missing ? { url: ii.url, thumb: ii.thumburl ?? ii.url, w: ii.width, h: ii.height, mime: ii.mime, echt: t } : null;
     for (const name of [t, ...(nach.get(t) ?? [])]) info.set(name.replace(/_/g, ' '), wert);
   }
-  await warte(200);
+  await warte(500);
 }
 const geladen = new Map(); // Dateiname -> Analyse
 const zuLaden = dateiListe.filter((d) => info.get(d));
@@ -271,7 +280,7 @@ for (const [n, w] of liste.entries()) {
   // Standardbild: durchsichtig und ohne Seltenheit vor durchsichtig mit Seltenheit vor allem anderen
   const ohneRar = k.filter((x) => !x.rar);
   const haupt = [...k].sort((a, b) => (b.p + (b.rar ? 0 : 0.5)) - (a.p + (a.rar ? 0 : 0.5)))[0] ?? ohneRar[0];
-  const e = { n: w.name, ...(await speichern(haupt.datei)) };
+  const e = { n: w.name, k: w.class, ...(await speichern(haupt.datei)) };
   // je Seltenheit: nur wenn eine andere Datei dafuer da ist und sie mindestens so gut ist (durchsichtig bleibt durchsichtig)
   const je = {};
   for (const r of RAR) {
@@ -299,10 +308,12 @@ const bericht = {
     hubBildDurchsichtig: zaehle((d) => (d.hub.url?.startsWith('https://') ? `frei=${lastErgebnis.get(d.hub.url)?.frei}` : 'eigen/keins')),
     warumKeins: zaehle((d) => (d.hub.warum ?? '-').replace(/\(.*\)/, '').replace(/File:.*? -/, 'File -')),
   },
+  api429,
   neu: { waffen: Object.keys(manifest).length, durchsichtig: Object.values(manifest).filter((x) => x.f).length, jeSeltenheit: Object.values(manifest).filter((x) => x.r).length, dateien: gespeichert.size, bytes: summe, ohne: ohne.length, ladeStatus },
   waffen: diagnose.map((d) => ({ ...d, lasttest: d.hub.url ? lastErgebnis.get(d.hub.url) : undefined })),
 };
 fs.writeFileSync(path.join(AUS, 'diagnose.json'), `${JSON.stringify(bericht, null, 1)}\n`);
 fs.writeFileSync(path.join(AUS, 'protokoll-hub.json'), `${JSON.stringify(hubProtokoll)}\n`);
+// hub-liste.json (oben): die Liste selbst, nur im Artefakt - fuer Bildschirmfotos der Hub-Vorschau in der Sandbox, die das Wiki nicht erreicht
 console.log(JSON.stringify({ hub: { ...bericht.hub, fehlerAnfragen: bericht.hub.fehlerAnfragen.length }, neu: bericht.neu }, null, 1));
 console.log('Ohne Bild:', ohne.map((id) => manifest[id]?.n ?? diagnose.find((d) => d.id === id)?.name).join(' | '));
