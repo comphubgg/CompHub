@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { LinkKopieren, useHubDatei } from '../Bausteine';
-import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { LinkKopieren } from '../Bausteine';
+import { Flaeche, Laedt, Leer, Marke, SeitenKopf } from '../../../ds/Bausteine';
+import { useInselInfos, useRangliste } from '../epic/fn';
+import { InselBild, inselPfad } from '../epic/Teile';
 import { REITER, seltenVon, useAblage, useReaktionen, useShop, useTeile, type Teil } from './daten';
 import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen, ZahlenLeiste } from './Raster';
 
@@ -132,56 +134,70 @@ interface Sammlung { id: string; name: string; inseln: Array<{ code: string; nam
 const CODE = /^\d{4}-\d{4}-\d{4}$/;
 export function Sammlungen() {
   const ablage = useAblage<Sammlung[]>('sammlungen', [{ id: 'favoriten', name: 'Favorites', inseln: [] }]);
-  const { daten: creative } = useHubDatei<{ inseln: Array<{ code: string; name: string; creator?: string; players?: number }> }>('creative.json');
   const [offen, setOffen] = useState('favoriten');
   const [neuName, setNeuName] = useState(''); const [code, setCode] = useState(''); const [name, setName] = useState('');
+  const [kopiert, setKopiert] = useState<string | null>(null);
   const s = ablage.wert.find((x) => x.id === offen) ?? ablage.wert[0];
-  const infos = new Map((creative?.inseln ?? []).map((i) => [i.code, i]));
+  // Titel, Thumbnail und Creator je Code von der Seite (/api/fn-inseln), Spieler jetzt aus /api/fn-entdecken
+  const info = useInselInfos(s?.inseln.map((i) => i.code) ?? []);
+  const r = useRangliste();
+  const jetzt = useMemo(() => new Map(r.liste.map((e) => [e.code, e])), [r.liste]);
   const aendern = (f: (x: Sammlung) => Sammlung) => ablage.setzen((l) => l.map((x) => (x.id === s.id ? f(x) : x)));
   const codeOk = CODE.test(code.trim());
+  const kopieren = (c: string) => { void navigator.clipboard?.writeText(c); setKopiert(c); setTimeout(() => setKopiert((k) => (k === c ? null : k)), 1500); };
   return (
     <div className="space-y-6">
       <SeitenKopf klein ueber="Community · Mine" titel="My collections" text="Your own lists of Creative islands – practice maps, box fights, zone wars, whatever you play." rechts={<AblageHinweis ort={ablage.ort} />} />
-      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Flaeche fest className="p-4">
+      <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <Flaeche fest className="p-4 lg:sticky lg:top-32 lg:self-start">
           <ul className="space-y-1">
             {ablage.wert.map((x) => (
-              <li key={x.id}><button type="button" onClick={() => setOffen(x.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${x.id === s?.id ? 'bg-akz/15 text-white ring-1 ring-akz/30' : 'text-white/70 hover:bg-white/5'}`}>
-                <span className="font-bold">{x.id === 'favoriten' ? '★ ' : ''}{x.name}</span><span className="text-xs tabular-nums text-white/40">{x.inseln.length} maps</span></button></li>
+              <li key={x.id}><button type="button" onClick={() => setOffen(x.id)} className={`relative flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${x.id === s?.id ? 'text-white' : 'text-white/70 hover:bg-white/5'}`}>
+                {x.id === s?.id && <motion.span layoutId="sammlung-wahl" className="absolute inset-0 rounded-xl bg-akz/15 ring-1 ring-akz/30" />}
+                <span className="relative font-bold">{x.id === 'favoriten' ? '★ ' : ''}{x.name}</span><span className="zahl relative text-xs text-white/40">{x.inseln.length} maps</span></button></li>
             ))}
           </ul>
           <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!neuName.trim()) return; const id = `s${Date.now().toString(36)}`; ablage.setzen((l) => [...l, { id, name: neuName.trim().slice(0, 40), inseln: [] }]); setOffen(id); setNeuName(''); }}>
-            <input value={neuName} onChange={(e) => setNeuName(e.target.value)} placeholder="New collection…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
-            <button type="submit" className="rounded-xl bg-akz px-3 text-sm font-bold text-[#06080f]">+</button>
+            <input value={neuName} onChange={(e) => setNeuName(e.target.value)} placeholder="New collection" className="eingabe min-w-0 flex-1" />
+            <button type="submit" className="knopf-prim !px-4">+</button>
           </form>
         </Flaeche>
         {s && (
-          <Flaeche fest className="p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-2xl font-extrabold tracking-tight text-white">{s.name}</h2>
+          <div className="min-w-0 space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="titel text-5xl">{s.name} <span className="zahl text-2xl text-white/35">{s.inseln.length}</span></h2>
               {s.id !== 'favoriten' && <button type="button" onClick={() => { ablage.setzen((l) => l.filter((x) => x.id !== s.id)); setOffen('favoriten'); }} className="text-xs font-semibold text-white/40 hover:text-rose-300">Delete collection</button>}
             </div>
-            <form className="mt-4 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (!codeOk) return; aendern((x) => ({ ...x, inseln: [...x.inseln.filter((i) => i.code !== code.trim()), { code: code.trim(), name: name.trim() || infos.get(code.trim())?.name }] })); setCode(''); setName(''); }}>
-              <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d-]/g, '').slice(0, 14))} placeholder="Island code, e.g. 1234-5678-9012" className="w-72 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="min-w-[180px] flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
-              <button type="submit" disabled={!codeOk} className="rounded-xl bg-akz px-4 text-sm font-bold text-[#06080f] disabled:opacity-30">Add map</button>
+            <form className="fl-fest flex flex-wrap gap-2 p-3" onSubmit={(e) => { e.preventDefault(); if (!codeOk) return; aendern((x) => ({ ...x, inseln: [...x.inseln.filter((i) => i.code !== code.trim()), { code: code.trim(), name: name.trim() || undefined }] })); setCode(''); setName(''); }}>
+              <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d-]/g, '').slice(0, 14))} placeholder="Island code, e.g. 1234-5678-9012" className="eingabe w-full font-mono sm:w-72" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name for it (optional)" className="eingabe min-w-[180px] flex-1" />
+              <button type="submit" disabled={!codeOk} className="knopf-prim disabled:opacity-30">Add map</button>
             </form>
-            <ul className="mt-4 space-y-2">
-              <AnimatePresence initial={false}>
-                {s.inseln.map((i) => (
-                  <motion.li key={i.code} layout initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
-                    <span className="font-mono text-sm font-bold text-akz">{i.code}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-white/80">{i.name ?? infos.get(i.code)?.name ?? ''}{infos.get(i.code)?.creator ? <span className="text-white/40"> · by {infos.get(i.code)!.creator}</span> : null}</span>
-                    {infos.get(i.code)?.players !== undefined && <span className="text-xs tabular-nums text-white/50">{infos.get(i.code)!.players!.toLocaleString('en')} playing</span>}
-                    <button type="button" onClick={() => navigator.clipboard?.writeText(i.code)} className="rounded-lg border border-white/10 px-2 py-1 text-xs font-semibold text-white/60 hover:text-white">Copy code</button>
-                    <button type="button" onClick={() => aendern((x) => ({ ...x, inseln: x.inseln.filter((y) => y.code !== i.code) }))} className="text-white/30 hover:text-rose-300">✕</button>
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ul>
-            {!s.inseln.length && <p className="mt-6 text-center text-sm text-white/40">No maps yet. Paste an island code above.</p>}
-            {!creative && <p className="mt-6 text-[11px] text-white/30">Player counts and creator names appear once our Creative collector is running (see <Link to="/community/creative" className="text-akz/70">Creative</Link>).</p>}
-          </Flaeche>
+            {s.inseln.length ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <AnimatePresence initial={false}>
+                  {s.inseln.map((i) => {
+                    const x = info(i.code); const e = jetzt.get(i.code);
+                    const titel = i.name ?? e?.titel ?? x?.titel ?? i.code;
+                    return (
+                      <motion.div key={i.code} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} className="fl-fest fl-klick group overflow-hidden">
+                        <Link to={inselPfad(i.code)} className="relative block aspect-video overflow-hidden">
+                          <InselBild code={i.code} bild={e?.bild ?? x?.bild} className="absolute inset-0 transition duration-700 group-hover:scale-[1.06]" />
+                          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-fl to-transparent" />
+                          {e && <span className="absolute right-3 top-3"><Marke ton="rot" puls>{e.spieler.toLocaleString('en')} playing</Marke></span>}
+                        </Link>
+                        <div className="flex items-center gap-2 px-4 pb-4 pt-1">
+                          <div className="min-w-0 flex-1"><p className="truncate font-bold text-white group-hover:text-akz">{titel}</p><p className="truncate text-xs text-white/45"><span className="font-mono">{i.code}</span>{(e?.creator || x?.creator) ? ` · @${e?.creator || x?.creator}` : ''}</p></div>
+                          <button type="button" onClick={() => kopieren(i.code)} className="knopf !px-2.5 !py-1 !text-xs">{kopiert === i.code ? 'Copied' : 'Copy'}</button>
+                          <button type="button" title="Remove" onClick={() => aendern((y) => ({ ...y, inseln: y.inseln.filter((z) => z.code !== i.code) }))} className="px-1 text-white/30 hover:text-rose-300">✕</button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            ) : <Leer text={<>No maps yet. Paste an island code above, or add one from any island page in <Link to="/community/discover" className="text-akz">Discover</Link>.</>} />}
+          </div>
         )}
       </div>
     </div>
