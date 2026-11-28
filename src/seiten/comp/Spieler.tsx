@@ -464,14 +464,14 @@ export default function Spieler() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-separate border-spacing-0 text-[13px]">
+              <table className="w-full sm:min-w-[720px] border-separate border-spacing-0 text-[13px]">
                 <thead>
                   <tr className="text-[10px] uppercase tracking-[0.16em] text-white/40">
                     <th className="border-b border-white/[0.07] py-2 pl-5 pr-2 text-left font-semibold">Place</th>
                     <th className="border-b border-white/[0.07] px-2 py-2 text-left font-semibold">Tournament</th>
                     <th className="w-16 border-b border-white/[0.07] px-2 py-2 text-right font-semibold">Pts</th>
-                    <th className="w-16 border-b border-white/[0.07] px-2 py-2 text-right font-semibold">Games</th>
-                    <th className="w-16 border-b border-white/[0.07] px-2 py-2 text-right font-semibold">Elims</th>
+                    <th className="hidden w-16 border-b border-white/[0.07] px-2 py-2 text-right font-semibold sm:table-cell">Games</th>
+                    <th className="hidden w-16 border-b border-white/[0.07] px-2 py-2 text-right font-semibold sm:table-cell">Elims</th>
                     <th className="w-24 border-b border-white/[0.07] py-2 pl-2 pr-5 text-right font-semibold">Prize</th>
                   </tr>
                 </thead>
@@ -481,7 +481,7 @@ export default function Spieler() {
                     const el = elimsVon.get(t.w);
                     return (
                       <tr key={t.w} className="transition hover:bg-white/[0.03]">
-                        <td className="w-[92px] border-b border-white/[0.04] py-1.5 pl-5 pr-2">
+                        <td className="w-[72px] border-b border-white/[0.04] py-1.5 pl-4 pr-2 sm:w-[92px] sm:pl-5">
                           <Platz p={t.platz} />{t.teams ? <span className="zahl block text-[10px] leading-none text-white/30">of {zahl(t.teams)}</span> : null}
                         </td>
                         <td className="max-w-0 border-b border-white/[0.04] px-2 py-1.5">
@@ -495,8 +495,8 @@ export default function Spieler() {
                           </p>
                         </td>
                         <td className="zahl whitespace-nowrap border-b border-white/[0.04] px-2 py-1.5 text-right text-white/75">{t.punkte != null ? zahl(t.punkte) : '—'}</td>
-                        <td className="zahl whitespace-nowrap border-b border-white/[0.04] px-2 py-1.5 text-right text-white/55">{t.matches ? zahl(t.matches) : '—'}</td>
-                        <td className="zahl whitespace-nowrap border-b border-white/[0.04] px-2 py-1.5 text-right text-white/55">{el ? zahl(el) : '—'}</td>
+                        <td className="zahl hidden whitespace-nowrap border-b border-white/[0.04] px-2 py-1.5 text-right text-white/55 sm:table-cell">{t.matches ? zahl(t.matches) : '—'}</td>
+                        <td className="zahl hidden whitespace-nowrap border-b border-white/[0.04] px-2 py-1.5 text-right text-white/55 sm:table-cell">{el ? zahl(el) : '—'}</td>
                         <td className={`zahl whitespace-nowrap border-b border-white/[0.04] py-1.5 pl-2 pr-5 text-right ${prize ? 'font-semibold text-emerald-300' : 'text-white/25'}`}>{prize ? geld(prize) : '—'}</td>
                       </tr>
                     );
