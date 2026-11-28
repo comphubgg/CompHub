@@ -38,9 +38,14 @@ export default function Suche() {
   }, [offen, cups.length]);
   useEffect(() => {
     const s = q.trim(); if (s.length < 2) { setSpieler([]); return undefined; }
+    // Spieler aus dem Verzeichnis der Szene (Pros mit Foto, gepflegt, viele Turniere zuerst) - nicht irgendwelche Konten aus den Power Rankings
+    // (Betreiber, 28.11.2026: "dann sollen auch wirklich die Pros kommen, nicht nur irgendwelche Randoms")
     const t = setTimeout(() => {
-      fetch(`/api/power-rankings?page=1&pageSize=6&q=${encodeURIComponent(s)}`).then((r) => r.json()).then((j) => setSpieler((j.players ?? []).map((p: { id: string; name: string; anzeige?: string; rank: number; bild?: string | null }) => (
-        { art: 'Player' as const, titel: p.anzeige || p.name, unter: `#${p.rank.toLocaleString('en')} Power Ranking · ${p.name}`, zu: `/competitive/player/${p.id}`, farbe: FARBE.competitive, bild: p.bild })))).catch(() => setSpieler([]));
+      fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(s)}`).then((r) => r.json()).then((j) => {
+        type P = { epicId: string; name: string; anzeige?: string; gepflegt?: boolean; events?: number; bild?: string | null; land?: string; regionen?: string[] };
+        const l = ((j.spieler ?? []) as P[]).sort((a, b) => Number(!!b.gepflegt) - Number(!!a.gepflegt) || Number(!!b.bild) - Number(!!a.bild) || (b.events ?? 0) - (a.events ?? 0)).slice(0, 7);
+        setSpieler(l.map((p) => ({ art: 'Player' as const, titel: p.anzeige || p.name, unter: [p.anzeige && p.anzeige !== p.name ? p.name : null, p.regionen?.join(' · '), p.events ? `${p.events} cups` : null].filter(Boolean).join(' · '), zu: `/competitive/player/${p.epicId}`, farbe: FARBE.competitive, bild: p.bild })));
+      }).catch(() => setSpieler([]));
     }, 180);
     return () => clearTimeout(t);
   }, [q]);
@@ -91,10 +96,9 @@ export default function Suche() {
               {treffer.map((t, i) => (
                 <button key={t.art + t.zu} type="button" data-an={i === wahl ? '1' : '0'} onMouseEnter={() => setWahl(i)} onClick={() => los(t)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${i === wahl ? 'bg-white/[0.07]' : ''}`}>
-                  {t.bild ? <img src={t.bild} alt="" className={`shrink-0 rounded-lg object-cover object-top ${t.art === 'Player' ? 'h-10 w-8' : 'h-8 w-14'}`} />
-                    : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10" style={{ background: `rgb(${t.farbe} / 0.12)` }}><span className="h-2 w-2 rounded-full" style={{ background: `rgb(${t.farbe})`, boxShadow: `0 0 10px rgb(${t.farbe})` }} /></span>}
+                  {t.bild && <img src={t.bild} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className={`shrink-0 rounded-lg object-cover object-top ${t.art === 'Player' ? 'h-10 w-8' : 'h-8 w-14'}`} />}
                   <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-white">{t.titel}</span><span className="block truncate text-xs text-white/45">{t.unter}</span></span>
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30">{t.art}</span>
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: `rgb(${t.farbe} / 0.7)` }}>{t.art === 'Page' ? t.unter.split(' · ')[0] : t.art}</span>
                 </button>
               ))}
             </div>
