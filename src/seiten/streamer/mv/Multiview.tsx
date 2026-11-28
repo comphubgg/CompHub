@@ -780,7 +780,7 @@ export default function Multiview(props: MultiviewProps) {
       {/* Hub: "Live now" als Schublade rechts, solange die Wand Streams zeigt - dort legt man weitere dazu */}
       {props.buehne && sichtbar.length > 0 && !schublade && (
         <button type="button" onClick={() => setSchublade(true)}
-          className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded-lg bg-black/70 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-black/90">
+          className="absolute bottom-3 right-3 z-20 flex items-center gap-2 rounded-lg bg-black/75 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-black/90">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />Live now
         </button>
       )}
