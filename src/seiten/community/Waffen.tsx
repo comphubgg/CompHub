@@ -8,12 +8,14 @@ import { useWikiWaffen, wikiProxy, zusammenfuehren } from './waffenWiki';
 import WaffenDatenbank, { turnierZuordnen } from './WaffenDatenbank';
 import { Aenderungen, Einzelwaffe, VergleichSeite } from './WaffenSeiten';
 import { Linie, WaffenBild, WaffenReiter } from './waffenTeile';
+import { eintragVon, pfad, useWaffenBilder, type BilderTafel } from './waffenBilder';
 
 /*
  * Waffen (Design 3.0, neu komponiert 28.11.2026) - Loot Pool, eigene Seite je Waffe, Vergleich, Aenderungen.
  *
  * Datenquellen (unveraendert):
- *   - Alle Waffen, die es je gab: Fortnite Wiki ueber den Vite-Proxy /fandom (waffenWiki.ts), Bilder ueber /wikia.
+ *   - Alle Waffen, die es je gab: Fortnite Wiki ueber den Vite-Proxy /fandom (waffenWiki.ts). Bilder NICHT mehr aus dem Wiki, sondern eigene
+ *     unter /waffen/alle (waffenBilder.ts, vom Runner abgelegt) und die Spiel-Symbole unter /waffen.
  *   - Spieldateien-Export public/hub-daten/waffen.json (nur lokal beim Betreiber, nie im Repo) - Werte daraus gehen vor (waffenDaten.ts).
  *   - Was die Waffen in echten Turnieren tun: Deep Stats (/api/deep-stats) - die letzten Spieltage der laufenden Saison auf der grossen Insel
  *     (ohne Reload), je Waffe Schaden, Treffer, Kopftreffer und Spieler.
@@ -44,8 +46,11 @@ function useWiki() {
 }
 
 /** Karte nur mit Turnierwerten (ohne Wiki und Export) - gleich gebaut wie die Karten der Datenbank. */
-function TurnierKarte({ w, gesamt, spielerTage, wiki, i }: { w: Waffe; gesamt: number; spielerTage: number; wiki?: Map<string, { name: string; bild: string }>; i: number }) {
-  const { name, bild } = waffeVon(w.roh, wiki);
+function TurnierKarte({ w, gesamt, spielerTage, wiki, bilder, i }: { w: Waffe; gesamt: number; spielerTage: number; wiki?: Map<string, { name: string; bild: string }>; bilder: BilderTafel | null; i: number }) {
+  const { name, bild: roh } = waffeVon(w.roh, wiki);
+  // Nur eigene Dateien: Spiel-Symbol, sonst das eigene Bild nach Namen - kein Wiki-Hotlink
+  const e = eintragVon(bilder, { name });
+  const bild = (roh?.startsWith('/waffen/') ? roh : null) ?? (e ? pfad(e) : null);
   const proTreffer = w.hits ? w.dmg / w.hits : 0; const kopf = w.hits ? (w.krit / w.hits) * 100 : 0;
   const anteil = gesamt ? (w.dmg / gesamt) * 100 : 0; const genutzt = spielerTage ? Math.min(100, (w.spieler / spielerTage) * 100) : 0;
   return (
@@ -73,7 +78,12 @@ export default function Waffen() {
   const { db: spielDb, status: spielStatus } = useDatenbank();
   // Alle Waffen, die es je gab: Fortnite Wiki (waffenWiki.ts) - Werte aus den Spieldateien gehen vor
   const wikiW = useWikiWaffen();
-  const dbRoh = useMemo(() => zusammenfuehren(spielDb, wikiW.waffen), [spielDb, wikiW.waffen]);
+  const bilder = useWaffenBilder();
+  // Eigene Bilder (/waffen/alle.json) an jede Waffe haengen - nach Kennung, sonst nach Namen
+  const dbRoh = useMemo(() => {
+    const d = zusammenfuehren(spielDb, wikiW.waffen);
+    return d && bilder ? { ...d, weapons: d.weapons.map((w) => { const e = eintragVon(bilder, w); return e ? { ...w, eigen: e } : w; }) } : d;
+  }, [spielDb, wikiW.waffen, bilder]);
   const status = spielStatus === 'laedt' ? 'laedt' : dbRoh ? 'da' : wikiW.status === 'laedt' ? 'laedt' : 'fehlt';
   // Auswahl fuer den Vergleich - bleibt beim Wechsel zwischen Pool, Einzelwaffe und Vergleich erhalten.
   const [vergleich, setVergleich] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('hub-waffen-vergleich') ?? '[]'); } catch { return []; } });
@@ -163,7 +173,7 @@ export default function Waffen() {
           <section key={g.art}>
             <div className="mb-3 flex items-baseline gap-3"><h2 className="titel text-3xl">{g.titel}</h2><span className="zahl text-sm text-white/40">{g.liste.length}</span></div>
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-              {g.liste.map((w, i) => <TurnierKarte key={w.roh} w={w} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} i={i} />)}
+              {g.liste.map((w, i) => <TurnierKarte key={w.roh} w={w} gesamt={gesamt} spielerTage={spielerTage} wiki={wiki} bilder={bilder} i={i} />)}
             </div>
           </section>
         ))}

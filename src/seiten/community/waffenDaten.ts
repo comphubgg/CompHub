@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { kern } from './waffenNamen';
+import type { BildEintrag } from './waffenBilder';
 
 /*
  * Waffen-Datenbank aus den Spieldateien (Betreiber, 26.11.2026: "alles wie fortnite.gg/weapons"). fortnite.gg darf nicht abgegriffen werden -
@@ -67,6 +68,8 @@ export interface DbWaffe {
   wikiBilder?: Record<string, string>; wikiSeitenBild?: string; /** Titel der Wiki-Seite (nach Weiterleitung) */ wikiSeite?: string;
   /** Abschnitt "Update History" der Wiki-Seite, Zeile fuer Zeile */
   historie?: Array<{ wann?: string; text: string }>;
+  /** Eigenes Bild (und je Seltenheit) von /waffen/alle.json - siehe waffenBilder.ts */
+  eigen?: BildEintrag;
 }
 export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[]; changes: Aenderung[] }
 

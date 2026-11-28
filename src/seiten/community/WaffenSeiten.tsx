@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Abschnitt, Flaeche, Marke } from '../../ds/Bausteine';
 import { LinkKopieren } from './Bausteine';
+import { pfad } from './waffenBilder';
 import { bildNachName, waffeVon } from './waffenNamen';
 import {
   KLASSEN_DB, QUELLEN, SELTENHEITEN, WERTE, WERTE_MEHR, ZIELE, fmt, gesamtChance, pro, selten, zeitBisKill, type Datenbank, type DbWaffe, type Stufe,
@@ -23,9 +24,17 @@ import { useAktuelleSaison } from './waffenWiki';
 
 export interface Turnier { dmg: number; hits: number; krit: number; spieler: number; tage: number }
 type Wiki = Map<string, { name: string; bild: string }> | undefined;
-/** Bild: Export-Symbol, Spiel-Symbol (/waffen), dann das Wiki-Bild - je Seltenheit, wo das Wiki eins hat. */
-export const bildVon = (w: DbWaffe, wiki: Wiki, seltenheit?: string) => w.icon ?? (w.blueprints[0] || w.rarities[0]?.wid ? waffeVon(w.blueprints[0] ?? w.rarities[0]!.wid!, wiki).bild : null) ?? bildNachName(w.name, wiki)
-  ?? (seltenheit ? w.wikiBilder?.[seltenheit] : undefined) ?? w.wikiBild ?? (w.wikiBilder ? Object.values(w.wikiBilder)[0] : undefined) ?? null;
+/** Nur eigene Dateien (/waffen/...) - nie mehr ein Bild direkt aus dem Wiki (Betreiber 28.11.2026). */
+const nurEigen = (u: string | null | undefined) => (u?.startsWith('/waffen/') ? u : null);
+/**
+ * Bild einer Waffe: Export-Symbol, dann das eigene Bild aus /waffen/alle.json (je Seltenheit, freigestellt), dann das Spiel-Symbol unter /waffen,
+ * zuletzt das eigene Bild mit Hintergrund (Quadrat). Kein Wiki-Hotlink mehr.
+ */
+export const bildVon = (w: DbWaffe, wiki: Wiki, seltenheit?: string) => {
+  const e = w.eigen; const je = (seltenheit ? e?.r?.[seltenheit] : undefined) ?? e;
+  const spiel = w.blueprints[0] || w.rarities[0]?.wid ? nurEigen(waffeVon(w.blueprints[0] ?? w.rarities[0]!.wid!, wiki).bild) : null;
+  return w.icon ?? (je?.f ? pfad(je) : null) ?? spiel ?? nurEigen(bildNachName(w.name, wiki)) ?? (je ? pfad(je) : null);
+};
 const ALLE_WERTE = [...WERTE, ...WERTE_MEHR];
 const MODUS_TITEL: Record<string, string> = { br: 'Battle Royale', zb: 'Zero Build', reload: 'Reload', blitz: 'Blitz', og: 'OG', ranked: 'Ranked', creative: 'Creative' };
 /** Linienfarben im Vergleich: Bereichsfarbe zuerst, dann neutrale Toene (keine zweite Bereichsfarbe). */

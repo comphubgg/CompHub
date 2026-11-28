@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { selten } from './waffenDaten';
+import { QUADRATE } from './waffenBilder';
 
 /*
  * Kleine Teile der Waffen-Seiten (Design 3.0, 28.11.2026): Waffenbild auf dem Schein seiner Seltenheit, Reiter Loot Pool / Compare / Changes,
@@ -10,15 +11,29 @@ import { selten } from './waffenDaten';
 
 /**
  * Waffenbild. Fehlt es (oder laedt nicht), steht dort NICHTS - kein "?", keine Buchstaben (Betreiber 28.11.2026).
- * Nie hochskaliert: hoechstens so gross, wie die Datei ist (die Spiel-Symbole unter /waffen haben 160 px).
+ * Immer ganz zu sehen (object-contain, nie beschnitten) und nie hochskaliert: hoechstens so gross, wie die Datei ist.
+ * Freigestellte Bilder liegen direkt auf dem Schein der Seltenheit; ein Bild mit eigenem Hintergrund (QUADRATE aus /waffen/alle.json, f: 0)
+ * steht als ganzes Quadrat mit runden Ecken darin.
  */
 export function WaffenBild({ bild, name, className = 'h-24 w-24', schatten = true }: { bild: string | null | undefined; name: string; className?: string; schatten?: boolean }) {
   const [kaputt, setKaputt] = useState<string | null>(null);
   const [gross, setGross] = useState<{ w: number; h: number } | null>(null);
   if (!bild || kaputt === bild) return <span className={`block ${className}`} aria-hidden />;
+  const quadrat = QUADRATE.has(bild);
+  const masse = gross ? { maxWidth: gross.w, maxHeight: gross.h, marginInline: 'auto' } : undefined;
+  if (quadrat) {
+    // Rahmen in Bildgroesse (aspect-square), damit die runden Ecken am Bild sitzen und nicht am leeren Kasten
+    return (
+      <span className={`${className} grid place-items-center`}>
+        <img src={bild} alt={name} loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setKaputt(bild)}
+          onLoad={(e) => setGross({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} style={masse}
+          className={`aspect-square h-full max-h-full w-auto max-w-full rounded-[14%] object-contain ${schatten ? 'shadow-[0_14px_30px_-12px_rgba(0,0,0,0.8)]' : ''}`} />
+      </span>
+    );
+  }
   return <img src={bild} alt={name} loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setKaputt(bild)}
     onLoad={(e) => setGross({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-    style={gross ? { maxWidth: gross.w, maxHeight: gross.h, marginInline: 'auto' } : undefined}
+    style={masse}
     className={`${className} object-contain ${schatten ? 'drop-shadow-[0_14px_22px_rgba(0,0,0,0.7)]' : ''}`} />;
 }
 

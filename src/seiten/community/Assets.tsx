@@ -4,7 +4,8 @@ import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 're
 import { Flaeche, Laedt, SeitenKopf } from '../../ds/Bausteine';
 import { LinkKopieren, useHubDatei } from './Bausteine';
 import SPIEL_SYMBOLE from './spielSymbole.json';
-import { wikiProxy } from './waffenWiki';
+import WIKI_SYMBOLE from './wikiSymbole.json';
+import { pfad, useWaffenBilder } from './waffenBilder';
 
 /*
  * Asset Studio (Betreiber, 26.11.2026 - eigene Umsetzung der Idee): Galerie aller Waffen- und Gegenstandsbilder nach Kategorie, Detailansicht mit
@@ -13,8 +14,11 @@ import { wikiProxy } from './waffenWiki';
  * Einstellungen in der Adresse.
  *
  * Bilder: zuerst /hub-daten/assets.json aus dem Export der Spieldateien (volle Menge, PNG mit Alpha - Format: { assets: [{ id, name, class,
- * rarity?, season?, image }] }), sonst was die Seite schon hat: die Symbole unter /waffen (spielSymbole.json, gleiche Herkunft, 160 px) und das
- * Fortnite-Wiki (/api/waffen-bilder, ueber den Proxy /wikia - so darf der Canvas auch die Wiki-Bilder bearbeiten und exportieren).
+ * rarity?, season?, image }] }), sonst was die Seite selbst ablegt (gleiche Herkunft - der Canvas darf alles bearbeiten und exportieren):
+ *   1. alle Waffen, die es je gab, je Seltenheit: /waffen/alle.json (waffenBilder.ts, vom Runner aus dem Wiki geholt, freigestellt)
+ *   2. die Spiel-Symbole unter /waffen (spielSymbole.json, 160 px)
+ *   3. die lokalen Kopien der Wiki-Bilder unter /waffen/wiki-*.webp (wikiSymbole.json - Kopie von main app/replays/wikiSymbole.json)
+ * Nichts mehr direkt aus dem Wiki (Betreiber 28.11.2026).
  * Nie hochskaliert: das Bild wird in seiner eigenen Groesse gerechnet und exportiert.
  *
  * Design 3.0 (neu komponiert 28.11.2026): Galerie mit Kategorien als Leiste links (Handy: Chips) und gleich grossen Kacheln; das Studio fuellt
@@ -52,32 +56,41 @@ function klasseVon(schluessel: string, name: string): string {
   return 'item';
 }
 
-// Wiki-Bilderliste einmal je Sitzung laden (Galerie -> Detail baut die Seite neu auf).
-let wikiLaden: Promise<Record<string, { name: string; bild: string }>> | null = null;
-let wikiFertig: Record<string, { name: string; bild: string }> | null = null;
+const SELTEN_TITEL: Record<string, string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', exotic: 'Exotic' };
+/** Klasse aus waffenWiki.ts -> Kategorie der Galerie (Bogen und Marksman erkennt klasseVon am Namen). */
+function kategorieVon(id: string, name: string, k?: string): string {
+  const nachName = klasseVon(id, name);
+  if (nachName === 'bow' || nachName === 'marksman') return nachName;
+  if (k === 'launcher' || k === 'throwable') return 'explosive';
+  return k && k !== 'special' ? k : nachName;
+}
 
 export function useAssets(): { liste: Asset[] | null; ausExport: boolean } {
   const { daten, status } = useHubDatei<{ assets: Array<{ id: string; name: string; class: string; rarity?: string; season?: string; image: string }> }>('assets.json');
-  const [wiki, setWiki] = useState<Record<string, { name: string; bild: string }> | null>(wikiFertig);
-  useEffect(() => {
-    if (status !== 'fehlt' || wikiFertig) return;
-    wikiLaden ??= fetch('/api/waffen-bilder').then((r) => r.json()).catch(() => ({})).then((j) => { wikiFertig = j; return j; });
-    wikiLaden.then(setWiki);
-  }, [status]);
+  const bilder = useWaffenBilder();
+  const [bilderFertig, setBilderFertig] = useState(false);
+  // Antwortet /waffen/alle.json nicht, kommt die Galerie nach kurzer Zeit trotzdem (mit den uebrigen eigenen Bildern)
+  useEffect(() => { const t = setTimeout(() => setBilderFertig(true), 4000); return () => clearTimeout(t); }, []);
   const liste = useMemo(() => {
     if (daten?.assets?.length) return daten.assets.map((a) => ({ id: a.id, name: a.name, klasse: a.class, bild: a.image, seltenheit: a.rarity, saison: a.season }));
-    if (status !== 'fehlt' || !wiki) return null;
+    if (status !== 'fehlt' || (!bilder && !bilderFertig)) return null;
     const m = new Map<string, Asset>(); const namen = new Set<string>();
-    for (const [k, [name, datei]] of Object.entries(SPIEL_SYMBOLE as unknown as Record<string, [string, string]>)) {
-      if (namen.has(name)) continue; namen.add(name);
-      m.set(k, { id: k, name, klasse: klasseVon(k, name), bild: `/waffen/${datei}.webp` });
+    // 1. Alle Waffen, die es je gab - je Seltenheit, wo das Wiki eigene Bilder hat
+    for (const [id, e] of bilder?.nachId ?? []) {
+      const klasse = kategorieVon(id, e.n, e.k);
+      if (namen.has(e.n)) continue; namen.add(e.n);
+      m.set(id, { id, name: e.n, klasse, bild: pfad(e) });
+      for (const [r, x] of Object.entries(e.r ?? {})) m.set(`${id}-${r}`, { id: `${id}-${r}`, name: `${e.n} (${SELTEN_TITEL[r] ?? r})`, klasse, bild: pfad(x), seltenheit: r });
     }
-    for (const [k, v] of Object.entries(wiki)) {
-      if (namen.has(v.name)) continue; namen.add(v.name);
-      m.set(k.toLowerCase(), { id: k.toLowerCase(), name: v.name, klasse: klasseVon(k, v.name), bild: wikiProxy(v.bild.replace(/\/scale-to-width-down\/\d+/, '')) ?? v.bild, fremd: true });
+    // 2./3. Spiel-Symbole und lokale Kopien der Wiki-Bilder (Gegenstaende, Waffen ohne Eintrag oben)
+    for (const tafel of [SPIEL_SYMBOLE, WIKI_SYMBOLE] as unknown as Array<Record<string, [string, string]>>) {
+      for (const [k, [name, datei]] of Object.entries(tafel)) {
+        if (namen.has(name)) continue; namen.add(name);
+        m.set(k, { id: k, name, klasse: klasseVon(k, name), bild: `/waffen/${datei}.webp` });
+      }
     }
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [daten, status, wiki]);
+  }, [daten, status, bilder, bilderFertig]);
   return { liste, ausExport: !!daten?.assets?.length };
 }
 
