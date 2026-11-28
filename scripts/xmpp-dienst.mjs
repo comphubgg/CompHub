@@ -509,7 +509,7 @@ async function eosEigenerStatus(k, tok, verbindung) {
       method: 'PATCH', signal: AbortSignal.timeout(10_000),
       headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status: 'online', activity: { value: 'CompHub' }, conn: { props: {} },
+        status: 'online', activity: { value: 'thecomphub.com' }, conn: { props: {} },
         props: {
           EOS_Platform: 'WIN', EOS_IntegratedPlatform: 'EGS', EOS_OnlinePlatformType: '100', EOS_ProductVersion: '++Fortnite+Release-00.00-CL-00000000',
           EOS_ProductName: 'Fortnite', EOS_Session: '{"version":3}', EOS_Lobby: '{"version":3}',
