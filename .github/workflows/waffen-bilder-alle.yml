@@ -1,0 +1,37 @@
+# ALLE Waffen, die es je gab, mit eigenem Bild (scripts/waffen-bilder-alle.mjs) - die Sandbox kommt nicht ans Wiki, der Runner schon.
+# Liest die Waffenliste GENAU wie die Hub-Vorschau (src/seiten/community/waffenWiki.ts vom Branch hub-vorschau, gebuendelt), stellt fest, warum
+# Karten ohne Bild blieben, und legt je Waffe (und Seltenheit) das beste Bild als WebP ab: public/waffen/alle/*.webp + public/waffen/alle.json.
+# Ergebnis als Artefakt "waffen-bilder-alle" (mit diagnose.json) und als Tar im Release "medien"; eingecheckt wird von Hand (wie waffen-bilder-lokal).
+name: Waffen-Bilder alle
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  laden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lader der Hub-Vorschau holen und buendeln
+        run: |
+          git fetch --depth=1 origin hub-vorschau
+          mkdir -p /tmp/hub /tmp/w
+          git archive FETCH_HEAD src/seiten/community/waffenWiki.ts src/seiten/community/waffenNamen.ts src/seiten/community/spielSymbole.json src/seiten/community/waffenDaten.ts | tar x -C /tmp/hub
+          cd /tmp/w && npm init -y >/dev/null && npm i --no-audit --no-fund sharp@0.34.5 esbuild@0.25.0 react@18.3.1
+          npx esbuild /tmp/hub/src/seiten/community/waffenWiki.ts /tmp/hub/src/seiten/community/waffenNamen.ts --bundle --format=esm --platform=node --external:react --outdir=/tmp/w/hub
+          cp "$GITHUB_WORKSPACE/scripts/waffen-bilder-alle.mjs" /tmp/w/
+      - name: Laden
+        run: cd /tmp/w && node waffen-bilder-alle.mjs /tmp/w/hub "$GITHUB_WORKSPACE/aus"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waffen-bilder-alle
+          path: aus
+          retention-days: 14
+      - name: Ins Release medien
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          tar cf waffen-bilder-alle.tar -C aus public
+          ls -la waffen-bilder-alle.tar
+          du -sh aus/public/waffen/alle
+          gh release upload medien waffen-bilder-alle.tar --clobber
