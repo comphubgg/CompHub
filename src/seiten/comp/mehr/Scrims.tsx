@@ -342,7 +342,9 @@ export default function Scrims() {
     });
     try {
       const d = await j('/api/scrims');
-      if (!d || d.error === 'nicht-eingerichtet' || d.eingerichtet === false) { setHinweis('nicht-eingerichtet'); setSerien(echte); return; }
+      // keine Antwort (Netz, 401/403) ist nicht dasselbe wie "nicht eingerichtet" - sonst stand faelschlich "app key is missing" da
+      if (!d) { setHinweis('fehler'); setSerien(echte); return; }
+      if (d.error === 'nicht-eingerichtet' || d.eingerichtet === false) { setHinweis('nicht-eingerichtet'); setSerien(echte); return; }
       const neu: Serie[] = []; let ohnePremium = 0;
       for (const s of (d.server ?? []) as Array<{ guildId: string; name: string; bild: string | null }>) {
         const e = await j(`/api/scrims?server=${encodeURIComponent(s.guildId)}`);
@@ -424,7 +426,7 @@ export default function Scrims() {
       </div>
       {hinweis && (
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-200/90">
-          {hinweis === 'nicht-eingerichtet' ? 'Yunite is not set up yet — the app key is missing.' : hinweis === 'kein-server' ? 'No Discord server has enabled the app yet. As soon as one does, its scrims show up here.'
+          {hinweis === 'nicht-eingerichtet' ? 'Yunite scrims are not connected yet – Noble and Poyo below are complete.' : hinweis === 'kein-server' ? 'No Discord server has enabled the app yet. As soon as one does, its scrims show up here.'
             : hinweis === 'kein-premium' ? 'The enabled server has no Yunite Premium — without it Yunite does not hand out its scrims.' : hinweis === 'keine-scrims' ? 'This server has not held any scrims yet.' : <FehlerZeile text="Yunite is not answering right now." />}
           <p className="mt-1 text-[11px] text-amber-200/70">Noble and Poyo are real, from nobleprac.com and scrims.poyocup.com, collected since 21 Sep and updated hourly.</p>
         </div>
