@@ -100,7 +100,14 @@ export async function registerNode() {
       // Fuer den Wechsel ohne Ausfall (deploy/comphub-update.sh): erst wenn das hier durch ist, bekommt dieser Container Besucher.
       (globalThis as { __comphubWarm?: number }).__comphubWarm = Date.now();
     };
-    setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
+    /*
+     * Nicht beim Vorrechnen des stuendlichen Laufs (COMPHUB_VORRECHNEN=1, daten-erneuern.yml): dort startet fuer jede Portion ein frischer
+     * Server ohne Besucher, und das Aufwaermen rechnete neben der Portion "alle Zeit" (jahr=alle), die Spielerliste und ein Profil - gemessen
+     * am 28.11.2026 (Messlauf 46126385723) ohne eine einzige Abfrage 5,5 GB nach anderthalb Minuten. Zusammen mit der ersten Abfrage der
+     * Portion lief der Server ueber seine 7 GB und starb ("heap out of memory"); seit dem 21.11. kam so keine Portion mehr durch, und die
+     * Liste von S43 blieb beim 19.11. stehen.
+     */
+    if (process.env.COMPHUB_VORRECHNEN !== '1') setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
 
     /*
      * Bestenlisten vorbauen (Betreiber, 30.10.2026: "13 Sekunden?! Maximal 3 ... bei anderen Webseiten geht das schneller"). Die ganze Liste eines

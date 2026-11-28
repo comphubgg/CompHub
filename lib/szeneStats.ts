@@ -221,8 +221,17 @@ export interface SpielerSumme {
 const eigeneDateien = new Map<string, EigeneSpielerZeile[]>();
 let eigeneMerker: { liste: ArchivEintrag[]; bis: number } | null = null;
 
+/** Ein Aufbau zugleich (28.11.2026, wie liesEpicSpieltage): summen() und heimatRechnen() fragten im selben Promise.all und bauten beide. */
+let eigeneLaeuft: Promise<ArchivEintrag[]> | null = null;
+
 async function eigeneEintraege(): Promise<ArchivEintrag[]> {
   if (eigeneMerker && Date.now() < eigeneMerker.bis) return eigeneMerker.liste;
+  if (eigeneLaeuft) return eigeneLaeuft;
+  eigeneLaeuft = eigeneEintraegeBauen().finally(() => { eigeneLaeuft = null; });
+  return eigeneLaeuft;
+}
+
+async function eigeneEintraegeBauen(): Promise<ArchivEintrag[]> {
   const kandidaten = (await liesEpicSpieltage()).filter((t) => eigenKandidat(t));
   const liste: ArchivEintrag[] = [];
   const doppelt = new Set<string>();
@@ -1903,10 +1912,11 @@ async function geldRechnen(o: {
      *
      * Vorher wurde fuer jeden Spieltag die volle Karte gebaut und gemerkt - je Konto ein Eintrag mit eigener Mitspielerliste, bei
      * einem Trio-Cash-Cup 30.000 - und erst am ersten Eintrag gemerkt, dass es keine Regel gibt. Gemessen an den Epic-Spieltagen
-     * vom 28.11.: S43 allein 2,8 Millionen Eintraege, 0,8 GB, S42 8 Millionen, 2,2 GB. Seit dem Nachholen alter Spieltage (18. bis
-     * 21.11.) starb der Server des Vorrechnens daran mit "heap out of memory" - die Liste von S43 blieb beim 19.11. stehen (ohne
-     * FNCS Solos Reload Final, Trios Cash Cup #3, Performance Evaluation Cup #4). Ohne Regel gibt verdienst() fuer jeden Platz
-     * null (verdienstRegelDa prueft dieselben Quellen), das Ergebnis bleibt also dasselbe.
+     * vom 28.11.: S43 allein 2,8 Millionen Eintraege, 0,8 GB, S42 8 Millionen, 2,2 GB; "alle Zeit" ueber alle 3.326 Spieltage. Seit dem
+     * Nachholen alter Spieltage (18. bis 21.11.) lief der Server des Vorrechnens damit (und mit dem Aufwaermen, instrumentation-node.ts)
+     * in "heap out of memory" - die Liste von S43 blieb beim 19.11. stehen (ohne FNCS Solos Reload Final, Trios Cash Cup #3,
+     * Performance Evaluation Cup #4). Ohne Regel gibt verdienst() fuer jeden Platz null (verdienstRegelDa prueft dieselben Quellen),
+     * das Ergebnis bleibt also dasselbe.
      */
     if (!(await verdienstRegelDa({ windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name }))) continue;
     const karte = await platzKarte(e.season, e.windowId);
@@ -2447,9 +2457,21 @@ function soloElimsGelten(tag: EpicSpieltag, kopien: Set<string>): boolean {
 
 let epicListe: EpicSpieltag[] | null = null;
 let epicBis = 0;
+/*
+ * Ein Laden zugleich (28.11.2026). Wer fragt, waehrend gelesen wird, wartet auf dasselbe Laden. Vorher las jeder gleichzeitige Aufruf alle
+ * 3.326 Dateien selbst - beim Vorrechnen etwa die Startabfrage und das Aufwaermen des Servers (instrumentation-node.ts) nebeneinander:
+ * gemessen 5,5 GB lebend in liesEpicSpieltage statt 2,0 GB fuer eine Liste, der Server starb an "heap out of memory".
+ */
+let epicLaedt: Promise<EpicSpieltag[]> | null = null;
 
 async function liesEpicSpieltage(): Promise<EpicSpieltag[]> {
   if (epicListe && Date.now() < epicBis) return epicListe;
+  if (epicLaedt) return epicLaedt;
+  epicLaedt = epicSpieltageLaden().finally(() => { epicLaedt = null; });
+  return epicLaedt;
+}
+
+async function epicSpieltageLaden(): Promise<EpicSpieltag[]> {
   /*
    * Nie auf dem Host der Seite.
    *
