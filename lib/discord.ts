@@ -1753,6 +1753,26 @@ export async function ticketPanel(
 }
 
 /**
+ * Die Kategorie "Chats" fuer ein Gespraech - eine mit Platz.
+ *
+ * Discord nimmt hoechstens 50 Kanaele je Kategorie; ist "Chats" voll, lehnt es jeden weiteren ab. Dann die naechste
+ * ("Chats 2", "Chats 3" ...), bei Bedarf neu angelegt (kategorieFuer: privat, nur Bot und Admin-Rolle). Gesucht wird ueber
+ * den Kern des Namens, also auch "💬-chats". Ist die Kanalliste gerade nicht lesbar: null - nie blind eine neue anlegen.
+ */
+async function chatKategorie(kanaele?: RoherKanal[]): Promise<string | null> {
+  const liste = kanaele?.length ? kanaele : await alleKanaele();
+  if (!liste.length) return null;
+  for (let n = 1; n <= 9; n += 1) {
+    const name = n === 1 ? CHAT_KATEGORIE : `${CHAT_KATEGORIE} ${n}`;
+    const kat = liste.find((k) => k.type === 4 && gleich(k.name, name));
+    if (!kat) return kategorieFuer(name);
+    const belegt = liste.filter((k) => k.parent_id === kat.id).length;
+    if (belegt < 50) return kat.id;
+  }
+  return null;
+}
+
+/**
  * Ein Ticket aufmachen - oder das vorhandene nennen.
  *
  * Ein Kanal je Person: wer zweimal drueckt, bekommt keinen zweiten, sondern
@@ -1771,9 +1791,24 @@ export async function ticketOeffnen(
   const schon = kanaele.find((k) => k.type === 0 && k.name === name);
   if (schon) return { ok: true, kanal: schon.id, schonDa: true };
 
-  const support = kanaele.find((k) => k.type === 0
-    && gleich(k.name, fuerManager ? 'manager-support' : 'support'));
-  const kategorie = support?.parent_id ?? await kategorieFuer('Support');
+  /*
+   * Wohin der Kanal kommt.
+   *
+   * Ein Gespraech, das der Admin anstoesst (anlass: "Chat" unter einer Anfrage, "Chat" in der VIP-Uebersicht, "Message
+   * as CompHub" ohne DM), gehoert in die Kategorie "Chats" - der Betreiber (28.11.2026): #ticket-ben-nazha landete unter
+   * "Support". Ursache: diese Funktion nahm immer die Kategorie von #support (oder legte "Support" an), auch fuer die
+   * Chats des Admins. Nur wer selbst im Support-Panel ein Anliegen waehlt, bekommt seinen Kanal weiter unter Support.
+   */
+  let kategorie: string | null;
+  if (anlass) {
+    kategorie = await chatKategorie(kanaele);
+    // Ohne Kategorie lieber nichts anlegen als einen Kanal irgendwo (Discord bremst gerade, 429) - der Knopf geht gleich wieder.
+    if (!kategorie) return { ok: false, grund: 'keine-kategorie' };
+  } else {
+    const support = kanaele.find((k) => k.type === 0
+      && gleich(k.name, fuerManager ? 'manager-support' : 'support'));
+    kategorie = support?.parent_id ?? await kategorieFuer('Support');
+  }
 
   const ich = await werBinIch();
   const adminRolle = await adminRolleId();
@@ -2856,7 +2891,9 @@ export async function zugangChat(
     titel: `About your ${a.art === 'vip' ? 'VIP' : 'manager'} access request`,
     text: `Juanito would like to talk to you about your request for **${a.name}**. Just reply here.`,
   });
-  if (!erg.ok || !erg.kanal) return { ok: false, text: 'The chat could not be opened.' };
+  if (!erg.ok || !erg.kanal) {
+    return { ok: false, text: erg.grund === 'keine-kategorie' ? 'Discord did not hand out the channel list (busy) - nothing was created. Press Chat again in a minute.' : 'The chat could not be opened.' };
+  }
   return { ok: true, text: erg.schonDa ? `There is already a chat: <#${erg.kanal}>` : `Chat open: <#${erg.kanal}>` };
 }
 

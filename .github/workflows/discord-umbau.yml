@@ -8,6 +8,8 @@
 #   x-probe         pruefen, welche kostenlosen Wege an die Posts von @CompHub_gg herankommen (aendert nichts)
 #   tweets-plan     die Beitraege aus "links" holen und zeigen, was nach #social-posts ginge (scripts/discord-tweets.mjs)
 #   tweets          sie posten (schon gepostete werden uebersprungen)
+#   chats-plan      zeigen, welche Admin-Gespraeche (#ticket-...) unter Support statt Chats liegen (scripts/discord-chats-ordnen.mjs)
+#   chats-ordnen    sie nach Chats verschieben (Freigaben bleiben, nichts wird geloescht)
 
 name: Discord Umbau
 
@@ -15,10 +17,10 @@ on:
   workflow_dispatch:
     inputs:
       modus:
-        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe | tweets-plan | tweets | notiz-plan | notiz-posten'
+        description: 'plan | anwenden | loeschen | updates-plan | updates-posten | x-probe | tweets-plan | tweets | notiz-plan | notiz-posten | chats-plan | chats-ordnen'
         type: choice
         default: plan
-        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe, tweets-plan, tweets, notiz-plan, notiz-posten]
+        options: [plan, anwenden, loeschen, updates-plan, updates-posten, x-probe, tweets-plan, tweets, notiz-plan, notiz-posten, chats-plan, chats-ordnen]
       emoji_namen:
         description: 'Auch Kanaele umbenennen, die der Code ueber den Namen sucht (nur nach dem Code-Patch!)'
         type: boolean
@@ -113,6 +115,19 @@ jobs:
           ARGS=""
           [ "${{ inputs.modus }}" = "notiz-posten" ] && ARGS="--anwenden"
           node scripts/discord-notiz.mjs $ARGS
+          rc=$?
+          rm -f .env.local
+          exit $rc
+
+      # Admin-Gespraeche aus "Support" nach "Chats" (28.11.2026, #ticket-ben-nazha) - scripts/discord-chats-ordnen.mjs.
+      - name: Chats ordnen
+        if: startsWith(inputs.modus, 'chats')
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          ARGS=""
+          [ "${{ inputs.modus }}" = "chats-ordnen" ] && ARGS="--anwenden"
+          node scripts/discord-chats-ordnen.mjs $ARGS
           rc=$?
           rm -f .env.local
           exit $rc
