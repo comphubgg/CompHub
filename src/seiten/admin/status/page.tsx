@@ -153,7 +153,7 @@ export default function StatusSeite({ klassisch }: { klassisch?: () => void }) {
             ) : <p className="px-5 py-4 text-sm text-white/45">{z ? 'No open task.' : '…'}</p>}
           </Flaeche>
           <Flaeche fest verz={0.15} className="overflow-hidden">
-            <div className="flex items-baseline gap-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Offline pages</h2><Link to="/admin/sections" className="knopf-leer ml-auto !text-xs">Sections →</Link></div>
+            <div className="flex flex-wrap items-baseline gap-x-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Offline pages</h2><Link to="/admin/sections" className="knopf-leer ml-auto !text-xs">Sections →</Link></div>
             {sektionen.fehler ? <p className="px-5 py-4 text-sm text-red-300">The state of the pages could not be loaded.</p>
               : !sektionen.daten ? <p className="px-5 py-4 text-sm text-white/40">Loading …</p>
                 : !raus.length ? <p className="flex items-center gap-2 px-5 py-4 text-sm text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Every page is online.</p> : (

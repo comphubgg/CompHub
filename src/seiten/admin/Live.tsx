@@ -127,7 +127,7 @@ export default function Live({ klassisch }: { klassisch: () => void }) {
             </Flaeche>
 
             <Flaeche fest verz={0.05} className="overflow-hidden">
-              <div className="flex items-baseline gap-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Last 24 hours</h2><span className="text-xs text-white/40">{imTag.length} people · every bar is a session</span></div>
+              <div className="flex flex-wrap items-baseline gap-x-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Last 24 hours</h2><span className="text-xs text-white/40">{imTag.length} people · every bar is a session</span></div>
               <div className="ohne-leiste overflow-x-auto">
                 <div className="min-w-[560px] px-5 pb-4 pt-2">
                   <div className="relative ml-36 h-6 text-[10px] text-white/35">
@@ -161,12 +161,12 @@ export default function Live({ klassisch }: { klassisch: () => void }) {
 
           <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             <Flaeche fest verz={0.05} className="overflow-hidden">
-              <div className="flex items-baseline gap-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Everyone</h2><span className="text-xs text-white/40">online first, then by last visit · click for devices and sessions</span></div>
+              <div className="flex flex-wrap items-baseline gap-x-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">Everyone</h2><span className="text-xs text-white/40">online first, then by last visit · click for devices and sessions</span></div>
               <ul className="divide-y divide-white/[0.05]">{[...online, ...rest].map(zeile)}</ul>
             </Flaeche>
             {verlauf.length > 0 && (
               <Flaeche fest verz={0.1} className="overflow-hidden xl:sticky xl:top-32 xl:self-start">
-                <div className="flex items-baseline gap-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">History</h2><span className="text-xs text-white/40">latest {verlauf.length} sessions</span></div>
+                <div className="flex flex-wrap items-baseline gap-x-3 border-b border-white/[0.06] px-5 py-3.5"><h2 className="titel text-3xl">History</h2><span className="text-xs text-white/40">latest {verlauf.length} sessions</span></div>
                 <ul className="max-h-[70vh] divide-y divide-white/[0.04] overflow-y-auto">
                   {verlauf.map((v) => (
                     <li key={`${v.kennung}-${v.von}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-5 py-2 text-[13px]">
