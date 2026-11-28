@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Abschnitt, Flaeche, Leer } from '../../ds/Bausteine';
+import { Flaeche, Leer } from '../../ds/Bausteine';
 import { useWer } from '../../teile/Anmeldung';
 import { ARTEN, FREIE_ARTEN, darfArt, overlayAdresse } from './ov/OverlayGeruest';
 import { MARKE } from './ov/ort';
@@ -11,7 +11,8 @@ import { Kanalbild, Kopieren, LiveMarke, ProbeBuehne, StreamBild, StufenMarke, Z
 import { GRUPPEN, MV_PFAD, ansichtMerken, kurzZahl, useLive, vorschaubild, wandLesen, wandSetzen, type Kanal } from './live';
 
 /*
- * Das Studio - die Startseite des Streamer-Bereichs nach dem Anmelden, gebaut wie ein Regieraum (Betreiber, 27.11.2026):
+ * Das Studio - die Startseite des Streamer-Bereichs nach dem Anmelden, gebaut wie ein Regieraum (Betreiber, 27.11.2026; neu komponiert 28.11.:
+ * Pult in drei Spalten - Geraete links, Programm (PGM) mit Vorschau-Monitoren (PVW) und der eigenen Wand in der Mitte, Overlays rechts):
  *   - Regieleiste statt Begruessung: Stufe (Free / VIP / Admin), wie viele live sind, der eigene Kanal, Overlays, Bot, die zwei Hauptknoepfe
  *   - Programm: der groesste laufende Stream gross, darunter die naechsten als Vorschau-Monitore (ein Klick holt sie ins Programm);
  *     "Watch in multiview" legt ihn auf die Wand und oeffnet sie
@@ -70,7 +71,7 @@ function useMeinKanal(login: string, liste: Kanal[] | null) {
 function StatusFeld({ label, children, ton = 'weiss' }: { label: string; children: React.ReactNode; ton?: 'weiss' | 'rot' | 'gruen' | 'gold' | 'still' }) {
   const farbe = { weiss: 'text-white', rot: 'text-red-300', gruen: 'text-emerald-300', gold: 'text-amber-200', still: 'text-white/45' }[ton];
   return (
-    <div className="min-w-0 px-5 py-3.5">
+    <div className="min-w-0 border-white/[0.06] px-5 py-3.5 max-md:[&:nth-child(n+3)]:border-t">
       <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{label}</p>
       <p className={`mt-0.5 truncate text-sm font-bold ${farbe}`}>{children}</p>
     </div>
@@ -120,30 +121,32 @@ export default function Studio() {
   const offen = werkzeuge.filter((w) => !w.vip || hat(w.recht)).length;
 
   return (
-    <div className="space-y-6">
-      {/* ------------------------------------------------ Regieleiste: wo man ist, was laeuft, die zwei Hauptknoepfe - kein Begruessungskopf */}
-      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="fl-fest flex flex-wrap items-stretch overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-3.5">
-          <h1 className="titel text-4xl">Studio</h1>
-          {!z.laedt && (z.vip ? <span className="rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-black">{stufe}</span> : <StufenMarke vip={false} />)}
+    <div className="space-y-5">
+      {/* ------------------------------------------------ Kopfleiste: Name, Stufe, vier Kontrolllampen, die zwei Hauptknoepfe */}
+      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="flex items-end gap-4">
+          <div><p className="ueber">Your control room</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Studio</h1></div>
+          {!z.laedt && <span className="mb-2">{z.vip ? <span className="rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-black">{stufe}</span> : <StufenMarke vip={false} />}</span>}
         </div>
-        <div className="grid min-w-0 flex-1 grid-cols-2 divide-white/[0.06] border-white/[0.06] max-lg:basis-full max-lg:border-t md:grid-cols-4 md:divide-x lg:border-l">
-          <StatusFeld label="On air" ton={live.length ? 'rot' : 'still'}>{liste ? <>{live.length} live · {kurzZahl(zuschauer)} watching</> : fehler ? 'Twitch is not answering' : '…'}</StatusFeld>
-          <StatusFeld label="Your channel" ton={mein?.isLive ? 'rot' : 'weiss'}>{kanal ? <>{kanal} · {mein ? (mein.isLive ? `live, ${kurzZahl(mein.viewers)}` : 'offline') : '…'}</> : 'Not set yet'}</StatusFeld>
-          <StatusFeld label="Overlays" ton={meine?.length ? 'weiss' : 'still'}>{meine ? (meine.length ? `${meine.length} saved` : 'None saved yet') : '…'}</StatusFeld>
-          <StatusFeld label="Twitch bot" ton={twitch.bot?.an ? 'gruen' : 'still'}>{z.laedt ? '…' : !hat('twitchbot') ? (z.vip ? 'Not switched on' : 'VIP tool') : twitch.bot ? (twitch.bot.an ? `On in ${twitch.bot.login}` : 'Off') : 'No channel yet'}</StatusFeld>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-white/[0.06] px-5 py-3 max-lg:basis-full max-lg:border-t lg:border-l">
+        <div className="flex flex-wrap items-center gap-2">
           <Link to={MV_PFAD} onClick={() => ansichtMerken(true)} className="knopf-prim"><Zeichen name="wand" className="h-4 w-4" />Open multiview</Link>
           <Link to="/streamer/overlays" className="knopf"><Zeichen name="overlay" className="h-4 w-4" />New overlay</Link>
         </div>
       </motion.header>
 
-      {/* ------------------------------------------------ Programm + eigener Kanal */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-        <Flaeche fest className="min-w-0 overflow-hidden">
+      <div className="fl-fest grid grid-cols-2 divide-white/[0.06] overflow-hidden md:grid-cols-4 md:divide-x">
+        <StatusFeld label="On air" ton={live.length ? 'rot' : 'still'}>{liste ? <>{live.length} live · {kurzZahl(zuschauer)} watching</> : fehler ? 'Twitch is not answering' : '…'}</StatusFeld>
+        <StatusFeld label="Your channel" ton={mein?.isLive ? 'rot' : 'weiss'}>{kanal ? <>{kanal} · {mein ? (mein.isLive ? `live, ${kurzZahl(mein.viewers)}` : 'offline') : '…'}</> : 'Not set yet'}</StatusFeld>
+        <StatusFeld label="Overlays" ton={meine?.length ? 'weiss' : 'still'}>{meine ? (meine.length ? `${meine.length} saved` : 'None saved yet') : '…'}</StatusFeld>
+        <StatusFeld label="Twitch bot" ton={twitch.bot?.an ? 'gruen' : 'still'}>{z.laedt ? '…' : !hat('twitchbot') ? (z.vip ? 'Not switched on' : 'VIP tool') : twitch.bot ? (twitch.bot.an ? `On in ${twitch.bot.login}` : 'Off') : 'No channel yet'}</StatusFeld>
+      </div>
+
+      {/* ------------------------------------------------ Pult in drei Spalten: Geraete links · Programm Mitte · Overlays rechts */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+        {/* Programm + Vorschau-Monitore + die eigene Wand */}
+        <Flaeche fest className="min-w-0 overflow-hidden 2xl:order-2">
           <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-            <div className="flex items-center gap-3"><span className="h-5 w-1 rounded-full bg-red-500 shadow-[0_0_14px_rgba(239,68,68,0.8)]" /><h2 className="titel text-2xl">On air now</h2>{liste && <span className="zahl text-sm font-bold text-red-300">{live.length}</span>}</div>
+            <div className="flex items-center gap-3"><span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-black tracking-[0.18em] text-white">PGM</span><h2 className="titel text-2xl">On air now</h2>{liste && <span className="zahl text-sm font-bold text-red-300">{live.length}</span>}</div>
             <Link to="/streamer/streams" className="knopf-leer">All live streams <span aria-hidden>→</span></Link>
           </div>
           {!liste ? <div className="mx-5 mb-5 aspect-video animate-pulse rounded-2xl bg-white/[0.04]" />
@@ -172,11 +175,12 @@ export default function Studio() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 p-3 sm:p-5 md:grid-cols-4">
-                  {monitore.map((k) => (
-                    <button key={k.login} type="button" onClick={() => setWahl(k.login)} title="Show in the big monitor" className="group overflow-hidden rounded-xl text-left ring-1 ring-white/[0.07] transition hover:ring-akz/50">
+                  {monitore.map((k, i) => (
+                    <button key={k.login} type="button" onClick={() => setWahl(k.login)} title="Take to program" className="group overflow-hidden rounded-xl text-left ring-1 ring-white/[0.07] transition hover:ring-akz/50">
                       <div className="relative aspect-video overflow-hidden bg-black">
                         <MonitorBild login={k.login} takt={takt} />
                         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 to-transparent" />
+                        <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-black tracking-[0.16em] text-emerald-300">PVW {i + 1}</span>
                         <span className="absolute right-2 top-2"><Zuschauer n={k.viewers} /></span>
                         <p className="absolute inset-x-2.5 bottom-2 truncate text-sm font-bold text-white">{k.anzeige || k.login}</p>
                       </div>
@@ -185,10 +189,38 @@ export default function Studio() {
                 </div>
               </>
             )}
+          {/* alle weiteren, die live sind: eine Zeile je Kanal - ins Programm holen oder auf die Wand legen */}
+          {live.length > 1 + monitore.length && (
+            <div className="grid grid-cols-1 gap-x-4 border-t border-white/[0.06] px-3 py-2 sm:px-5 md:grid-cols-2">
+              {live.filter((k) => k.login !== programm?.login && !monitore.some((m) => m.login === k.login)).slice(0, 8).map((k) => (
+                <div key={k.login} className="flex items-center gap-3 border-b border-white/[0.04] py-2 last:border-b-0 md:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                  <Kanalbild src={k.bild} className="h-8 w-8 rounded-lg ring-1 ring-white/10" />
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-white">{k.anzeige || k.login}</span><span className="block truncate text-[11px] text-white/45">{k.title}</span></span>
+                  <span className="zahl text-xs font-bold text-red-300">{kurzZahl(k.viewers)}</span>
+                  <button type="button" onClick={() => setWahl(k.login)} title="Take to program" className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] font-black tracking-[0.14em] text-white/60 hover:border-red-400/60 hover:text-red-300">PGM</button>
+                  <button type="button" onClick={() => aufWand(k.login)} title={wand.includes(k.login) ? 'Remove from your wall' : 'Add to your wall'} className={`grid h-6 w-6 place-items-center rounded-md border ${wand.includes(k.login) ? 'border-akz/50 text-akz' : 'border-white/10 text-white/50 hover:text-white'}`}><Zeichen name={wand.includes(k.login) ? 'haken' : 'plus'} className="h-3.5 w-3.5" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* die eigene Wand der Multiview: wer drauf ist, mit Entfernen */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] px-5 py-3.5">
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Your wall</span>
+            {wand.length ? wand.map((l) => {
+              const k = (liste ?? []).find((x) => x.login === l);
+              return (
+                <span key={l} className="chip !py-1 !pr-1.5">
+                  {k?.isLive && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}{k?.anzeige || l}
+                  <button type="button" onClick={() => aufWand(l)} title="Remove from your wall" className="grid h-5 w-5 place-items-center rounded-full text-white/40 hover:bg-white/10 hover:text-white">×</button>
+                </span>
+              );
+            }) : <span className="text-xs text-white/40">Empty – add streams with "Add to wall".</span>}
+            {wand.length > 0 && <Link to={MV_PFAD} onClick={() => ansichtMerken(true)} className="knopf-leer ml-auto">Open the wall <span aria-hidden>→</span></Link>}
+          </div>
         </Flaeche>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          {/* der eigene Kanal */}
+        {/* Geraete: eigener Kanal + Werkzeuge */}
+        <div className="flex min-w-0 flex-col gap-4 2xl:order-1">
           <Flaeche fest verz={0.06} className="p-5">
             <div className="flex items-center justify-between gap-3"><p className="ueber">Your channel</p>{mein?.isLive && <LiveMarke klein />}</div>
             {kanal ? (
@@ -209,7 +241,6 @@ export default function Studio() {
             ) : <p className="mt-3 text-sm text-white/55">Tell CompHub your Twitch channel on <Link to="/streamer/my-page" className="font-semibold text-akz">My page</Link> – it then shows up here with its live status.</p>}
           </Flaeche>
 
-          {/* Geraeteschrank: jedes Werkzeug eine Zeile mit seinem Stand - keine Kachelwand */}
           <Flaeche fest verz={0.12} className="flex-1 overflow-hidden">
             <div className="flex items-center justify-between gap-3 px-5 pt-5"><p className="ueber">Your tools</p><span className="zahl text-xs font-semibold text-white/40">{offen} of {werkzeuge.length} unlocked</span></div>
             <div className="mt-2 divide-y divide-white/[0.05]">
@@ -240,63 +271,52 @@ export default function Studio() {
             )}
           </Flaeche>
         </div>
-      </div>
 
-      {/* ------------------------------------------------ die eigenen Overlays */}
-      <Abschnitt ueber="OBS browser source" titel={gespeichert.length ? 'Your overlays' : 'Start with an overlay'} zu="/streamer/overlays" zuText="Overlay gallery">
-        {meine === null ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <div key={i} className="fl-fest aspect-[16/11] animate-pulse" />)}</div>
-          : gespeichert.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {gespeichert.slice(0, 5).map((o, i) => {
-                const art = ARTEN.find((a) => a.schluessel === o.typ);
-                const adresse = overlayAdresse(o.typ, o.id);
-                return (
-                  <Flaeche key={o.id} fest verz={i * 0.05} className="flex flex-col overflow-hidden">
-                    <ProbeBuehne probe={{ src: adresse, b: 1920, h: 1080, aus: probeVon(o.typ, daten, start)?.aus ?? { x: 0, y: 0, w: 1920, h: 1080 } }} titel={o.name} />
-                    <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0"><h3 className="truncate text-[15px] font-bold text-white">{o.name}</h3><p className="text-xs text-white/45">{art?.titel ?? o.typ}{o.geaendert ? ` · changed ${new Date(o.geaendert).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}</p></div>
-                        <StufenMarke vip={!FREIE_ARTEN.includes(o.typ)} />
-                      </div>
-                      <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                        <Kopieren wert={adresse} className="knopf-prim !px-4 !py-2" />
-                        {art && <Link to={`${art.pfad}?id=${encodeURIComponent(o.id)}&bauen=1`} reloadDocument className="knopf">Edit</Link>}
-                      </div>
-                    </div>
-                  </Flaeche>
-                );
-              })}
-              <Link to="/streamer/overlays" className="fl-fest fl-klick group grid min-h-[220px] place-items-center p-6 text-center">
-                <div>
-                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-akz/10 text-akz ring-1 ring-akz/30 transition group-hover:bg-akz group-hover:text-black"><Zeichen name="plus" className="h-6 w-6" /></span>
-                  <p className="titel mt-4 text-2xl">New overlay</p>
-                  <p className="mt-1 text-sm text-white/50">{gespeichert.length > 5 ? <>All {gespeichert.length} saved overlays are in your <span className="text-akz">archive</span>.</> : 'Choose one, adjust it, copy the URL into OBS.'}</p>
-                </div>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {arten.map((a, i) => {
-                const frei = darfArt(z, a.schluessel);
-                return (
-                  <Flaeche key={a.schluessel} fest verz={i * 0.05} className="flex flex-col overflow-hidden">
-                    <div className={frei ? '' : 'opacity-60 saturate-50'}><ProbeBuehne probe={probeVon(a.schluessel, daten, start)} titel={a.titel} /></div>
-                    <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0"><h3 className="titel text-2xl">{a.titel}</h3><p className="mt-0.5 text-sm text-white/50">{a.kurz}</p></div>
-                        <StufenMarke vip={!FREIE_ARTEN.includes(a.schluessel)} zu={!frei} />
-                      </div>
-                      <div className="mt-auto pt-4">
-                        {frei ? <Link to={a.ohneCup ? a.pfad : `${a.pfad}?neu=1`} className="knopf-prim !px-4 !py-2">Create <span aria-hidden>→</span></Link>
-                          : <button type="button" onClick={() => oeffnen('schluessel')} className="knopf"><Zeichen name="schloss" className="h-4 w-4" />Unlock with a VIP key</button>}
+        {/* Overlays: die eigenen als laufende Vorschau mit OBS-Adresse - oder die Arten zum Anlegen */}
+        <Flaeche fest verz={0.16} className="min-w-0 overflow-hidden xl:col-span-2 2xl:order-3 2xl:col-span-1">
+          <div className="flex items-center justify-between gap-3 px-5 pt-5">
+            <div><p className="ueber">OBS browser source</p><h2 className="titel mt-0.5 text-2xl">{gespeichert.length ? 'Your overlays' : 'Start with an overlay'}</h2></div>
+            <Link to="/streamer/overlays" className="knopf-leer">Gallery <span aria-hidden>→</span></Link>
+          </div>
+          {meine === null ? <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-1">{Array.from({ length: 3 }, (_, i) => <div key={i} className="aspect-[16/8] animate-pulse rounded-2xl bg-white/[0.04]" />)}</div>
+            : gespeichert.length ? (
+              <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-1">
+                {gespeichert.slice(0, 4).map((o) => {
+                  const art = ARTEN.find((a) => a.schluessel === o.typ);
+                  const adresse = overlayAdresse(o.typ, o.id);
+                  return (
+                    <div key={o.id} className="overflow-hidden rounded-2xl bg-black/25 ring-1 ring-white/[0.06]">
+                      <ProbeBuehne probe={{ src: adresse, b: 1920, h: 1080, aus: probeVon(o.typ, daten, start)?.aus ?? { x: 0, y: 0, w: 1920, h: 1080 } }} titel={o.name} className="aspect-[16/8]" />
+                      <div className="flex items-center gap-3 px-3.5 py-3">
+                        <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-white">{o.name}</p><p className="truncate text-[11px] text-white/45">{art?.titel ?? o.typ}{o.geaendert ? ` · ${new Date(o.geaendert).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}</p></div>
+                        <Kopieren wert={adresse} text="OBS URL" className="knopf-prim !px-3 !py-1.5 !text-xs" />
+                        {art && <Link to={`${art.pfad}?id=${encodeURIComponent(o.id)}&bauen=1`} reloadDocument className="knopf !px-3 !py-1.5 !text-xs">Edit</Link>}
                       </div>
                     </div>
-                  </Flaeche>
-                );
-              })}
-            </div>
-          )}
-      </Abschnitt>
+                  );
+                })}
+                {gespeichert.length > 4 && <Link to="/streamer/vip#archiv" className="knopf-leer px-1">All {gespeichert.length} in your archive →</Link>}
+              </div>
+            ) : (
+              <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-1">
+                {arten.map((a) => {
+                  const frei = darfArt(z, a.schluessel);
+                  return (
+                    <div key={a.schluessel} className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-white/[0.03]">
+                      <div className={`w-32 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/[0.06] ${frei ? '' : 'opacity-60 saturate-50'}`}><ProbeBuehne probe={probeVon(a.schluessel, daten, start)} titel={a.titel} /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-2 text-sm font-bold text-white">{a.titel}<StufenMarke vip={!FREIE_ARTEN.includes(a.schluessel)} zu={!frei} /></p>
+                        <p className="truncate text-xs text-white/45">{a.kurz}</p>
+                        {frei ? <Link to={a.ohneCup ? a.pfad : `${a.pfad}?neu=1`} className="knopf-leer mt-1 !text-xs">Create →</Link>
+                          : <button type="button" onClick={() => oeffnen('schluessel')} className="mt-1 text-xs font-semibold text-amber-200 hover:text-amber-100">Unlock with a VIP key</button>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+        </Flaeche>
+      </div>
     </div>
   );
 }
