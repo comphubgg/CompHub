@@ -65,6 +65,8 @@ export interface DbWaffe {
   saisons?: string[]; vaulted?: boolean; quelle?: 'spiel' | 'wiki'; wiki?: string; wikiBild?: string;
   /** Wiki-Bild je Seltenheit (wo die Infobox eins hat) und - nur beim Laden - das Seitenbild aus prop=pageimages */
   wikiBilder?: Record<string, string>; wikiSeitenBild?: string;
+  /** Abschnitt "Update History" der Wiki-Seite, Zeile fuer Zeile */
+  historie?: Array<{ wann?: string; text: string }>;
 }
 export interface Datenbank { season?: number; build?: string; exportedAt?: string; playlist?: string; weapons: DbWaffe[]; changes: Aenderung[] }
 

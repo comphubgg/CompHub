@@ -148,6 +148,31 @@ function saisonen(text: string): string[] {
   return [...s].sort((a, b) => wert(a) - wert(b));
 }
 
+/**
+ * Abschnitt "Update History" / "Changelog" / "History" einer Seite: jede Aufzaehlungszeile als Eintrag, wie sie dort steht (kein Raten von Werten).
+ * "wann" = Version (v12.30), Datum oder Saison aus der Zeile bzw. aus einer Zwischenueberschrift.
+ */
+export function verlaufLesen(text: string): Array<{ wann?: string; text: string }> {
+  const m = /^(=+)\s*(update history|changelog|change log|history|patch history|version history)\s*\1\s*$/im.exec(text);
+  if (!m) return [];
+  const rest = text.slice(m.index + m[0].length);
+  const ende = new RegExp(`^={1,${m[1].length}}[^=]`, 'm').exec(rest);
+  const block = ende ? rest.slice(0, ende.index) : rest;
+  const out: Array<{ wann?: string; text: string }> = []; let wann: string | undefined;
+  for (const zeile of block.split('\n')) {
+    const z = zeile.trim();
+    const kopf = /^(=+|;|'{3})\s*(.+?)\s*(=+|'{3})?$/.exec(z);
+    if (kopf && !z.startsWith('*')) { const k = klartext(kopf[2]); if (k && k.length < 60) wann = k; continue; }
+    if (!z.startsWith('*')) continue;
+    const t = klartext(z.replace(/^\*+\s*/, ''));
+    if (t.length < 4) continue;
+    const v = /\bv?(\d{1,2}\.\d{1,2})\b/.exec(z)?.[1];
+    out.push({ wann: v ? `v${v}` : wann, text: t.length > 240 ? `${t.slice(0, 237)}…` : t });
+    if (out.length >= 60) break;
+  }
+  return out;
+}
+
 /** Eine Wiki-Seite -> DbWaffe (oder null, wenn es keine BR-Waffe ist). */
 export function seiteLesen(titel: string, text: string, kategorien: string[] = []): DbWaffe | null {
   if (!text || /^#redirect/i.test(text.trim())) return null;
@@ -187,6 +212,7 @@ export function seiteLesen(titel: string, text: string, kategorien: string[] = [
     quelle: 'wiki', wiki: `${WIKI}/wiki/${encodeURIComponent(titel.replace(/ /g, '_'))}`,
     // vorlaeufig die Datei - laden() ersetzt sie durch die echte URL (imageinfo) bzw. das Seitenbild (pageimages)
     wikiBild: bildDatei ? `datei:${bildDatei}` : undefined,
+    historie: (() => { const h = verlaufLesen(text); return h.length ? h : undefined; })(),
     wikiBilder: Object.keys(bildDateien).length ? Object.fromEntries(Object.entries(bildDateien).map(([r, d]) => [r, `datei:${d}`])) : undefined,
   };
 }
