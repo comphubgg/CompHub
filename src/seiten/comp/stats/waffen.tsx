@@ -86,7 +86,7 @@ export function bildVon(roh: string): { name: string; bild: string } | null {
 }
 export const waffenName = (roh: string) => (roh === '?' ? 'Unknown' : bildVon(roh)?.name ?? artVon(roh).name);
 
-/** Das Fach einer Waffe: Bild auf der Farbe der Seltenheit, sonst ein Kuerzel. */
+/** Das Fach einer Waffe: das Original-Symbol auf der Farbe der Seltenheit; ohne Symbol nur das farbige Fach. */
 export function Waffe({ roh, gross = 40 }: { roh: string; gross?: number }) {
   useWiki();
   const echt = roh === '?' ? null : bildVon(roh);
@@ -96,7 +96,7 @@ export function Waffe({ roh, gross = 40 }: { roh: string; gross?: number }) {
       style={{ width: gross, height: gross, background: `linear-gradient(160deg, ${seltenheit(roh)}cc, #0b1220)`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.14)' }}>
       {echt && !kaputt
         ? <img src={echt.bild} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setKaputt(true)} className="h-[84%] w-[84%] object-contain drop-shadow" draggable={false} />
-        : <span className="text-[10px] font-black uppercase text-white/50">{roh === '?' ? '?' : artVon(roh).art.slice(0, 3)}</span>}
+        : null /* ohne Symbol bleibt das Fach leer - keine Buchstaben-Kuerzel (Betreiber: Bild oder nichts) */}
     </span>
   );
 }
