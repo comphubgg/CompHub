@@ -52,6 +52,8 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
   const summe = liste.reduce((s, t) => s + (wertVon(t, heute)?.v ?? 0), 0);
   const geschaetzt = liste.some((t) => wertVon(t, heute) && !wertVon(t, heute)!.echt);
   const heuteDa = liste.filter((t) => imShop.has(t.id.toLowerCase()));
+  // Fuer die leere Liste: je Angebot das erste BR-Teil von heute, Outfits zuerst
+  const heuteTeile = useMemo(() => shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit')), [shop.angebote]);
   const titel = art === 'wunsch' ? 'My wishlist' : 'My locker';
   const teilLink = `${window.location.origin}${window.location.pathname}?ids=${eigene.wert.join(',')}`;
   function verschieben(von: number, nach: number) {
@@ -76,9 +78,15 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
       )}
       {art === 'spind' && liste.length > 0 && <Fortschritt eigene={liste} alle={teile} />}
       {laedt ? <Laedt /> : !liste.length ? (
-        <Flaeche fest className="p-10 text-center">
-          <p className="text-lg font-bold text-white">{geteilt ? 'This list is empty.' : `Your ${art === 'wunsch' ? 'wishlist' : 'locker'} is empty`}</p>
-          {!geteilt && <p className="mt-1 text-sm text-white/50">Open <Link to="/community/cosmetics" className="text-akz hover:text-white">Cosmetics</Link> or the <Link to="/community/shop" className="text-akz hover:text-white">Item Shop</Link> and tap {art === 'wunsch' ? 'the heart' : 'the tick'} on any item.</p>}
+        <Flaeche fest className="p-6 text-center lg:p-8">
+          <p className="titel text-3xl">{geteilt ? 'This list is empty.' : `Your ${art === 'wunsch' ? 'wishlist' : 'locker'} is empty`}</p>
+          {!geteilt && <p className="mt-1 text-sm text-white/50">Open <Link to="/community/cosmetics" className="text-akz hover:text-white">Cosmetics</Link> or the <Link to="/community/shop" className="text-akz hover:text-white">Item Shop</Link> and tap {art === 'wunsch' ? 'the heart' : 'the tick'} on any item – or start right here with today's shop.</p>}
+          {/* Leere Liste: gleich mit dem heutigen Shop anfangen (Herz/Haken sitzen auf jeder Kachel) */}
+          {!geteilt && heuteTeile.length > 0 && (
+            <div className="mt-6 grid grid-cols-2 gap-3 text-left sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+              {heuteTeile.slice(0, 16).map((t, i) => <Kachel key={t.id} t={t} index={i} />)}
+            </div>
+          )}
         </Flaeche>
       ) : (
         <>
