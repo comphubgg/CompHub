@@ -30,3 +30,47 @@ try {
     process.stderr.write(`[HEAP] ${new Date().toISOString().slice(11, 19)} pid=${process.pid} vor=${Math.round(vor / 1e6)}MB lebend=${Math.round(m.heapUsed / 1e6)}MB rss=${Math.round(m.rss / 1e6)}MB extern=${Math.round(m.external / 1e6)}MB ${raeume}\n`);
   });
 } catch (e) { process.stderr.write(`[HEAP] nicht moeglich: ${e.message}\n`); }
+// Mit MESSEN_HEAPPROFIL=1 (28.11.2026): Stichproben des Heaps ab dem Start; auf SIGUSR2 die lebenden Stichproben nach Aufrufstelle,
+// je Stelle mit dem Stueck Quelltext dort (die Chunks sind verkleinert) - wer den Speicher wirklich haelt.
+if (process.env.MESSEN_HEAPPROFIL === '1') {
+  try {
+    const inspector = require('inspector');
+    const sitzung = new inspector.Session();
+    sitzung.connect();
+    sitzung.post('HeapProfiler.startSampling', { samplingInterval: 256 * 1024 });
+    const stueck = (url, zeile, spalte) => {
+      try {
+        const datei = String(url).replace(/^file:\/\//, '');
+        const z = fs.readFileSync(datei, 'utf8').split('\n')[zeile] || '';
+        return z.slice(Math.max(0, spalte - 60), spalte + 100).replace(/\s+/g, ' ');
+      } catch { return ''; }
+    };
+    process.on('SIGUSR2', () => {
+      sitzung.post('HeapProfiler.getSamplingProfile', (fehler, antwort) => {
+        if (fehler || !antwort) { process.stderr.write(`[PROFIL] ${fehler && fehler.message}\n`); return; }
+        const je = new Map();
+        const geh = (knoten, pfad) => {
+          const f = knoten.callFrame;
+          const hier = f.functionName || f.url ? [...pfad, f] : pfad;
+          if (knoten.selfSize > 0) {
+            // Die vier innersten Rahmen mit Datei - JSON.parse und Co. haben keine.
+            const mit = hier.filter((x) => x.url).slice(-4);
+            const k = mit.map((x) => `${x.functionName || '(anonym)'}@${String(x.url).split('/').slice(-1)[0]}:${x.lineNumber + 1}:${x.columnNumber}`).join(' <- ') + ` [${f.functionName || '?'}]`;
+            const e = je.get(k) || { groesse: 0, rahmen: mit };
+            e.groesse += knoten.selfSize;
+            je.set(k, e);
+          }
+          for (const c of knoten.children || []) geh(c, hier);
+        };
+        geh(antwort.profile.head, []);
+        const liste = [...je.entries()].sort((a, b) => b[1].groesse - a[1].groesse).slice(0, 25);
+        const summe = [...je.values()].reduce((s, x) => s + x.groesse, 0);
+        process.stderr.write(`[PROFIL] lebend gesamt ${Math.round(summe / 1e6)} MB\n`);
+        for (const [k, e] of liste) {
+          process.stderr.write(`[PROFIL] ${Math.round(e.groesse / 1e6)} MB  ${k}\n`);
+          for (const x of e.rahmen.slice(-2)) if (/\.next\//.test(String(x.url))) process.stderr.write(`[PROFIL]      ${String(x.url).split('/').slice(-1)[0]}:${x.columnNumber}: ${stueck(x.url, x.lineNumber, x.columnNumber)}\n`);
+        }
+      });
+    });
+  } catch (e) { process.stderr.write(`[PROFIL] nicht moeglich: ${e.message}\n`); }
+}
