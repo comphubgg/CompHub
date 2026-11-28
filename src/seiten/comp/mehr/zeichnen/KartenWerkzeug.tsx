@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../../../teile/Glas';
+import { Dock, KopfBand, Werkbank } from '../Werkbank';
 import { useWer } from '../../../../teile/Anmeldung';
 import { SEITE, TeamFlagge, flaggenPfad } from '../teile';
 import Zeichenflaeche, { IKONE, WerkzeugKnopf, type Gruppe, type Steuerung } from './Zeichenflaeche';
@@ -71,15 +71,15 @@ function finaleFenster(c: Cup | undefined): (Fenster & { region: string }) | nul
   return finals.find((f) => f.region === 'EU') ?? finals[0] ?? null;
 }
 
-const feldKlasse = 'mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-400/60';
-const knopfHell = 'rounded-xl bg-sky-400 px-4 py-2 text-sm font-bold text-[#06080f] transition hover:bg-sky-300 disabled:opacity-40';
-const knopfLeise = 'rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-sky-400/50 hover:text-white disabled:opacity-40';
-const etikett = 'block text-[10px] font-bold uppercase tracking-[0.2em] text-white/40';
+const feldKlasse = 'eingabe mt-1 w-full !py-2';
+const knopfHell = 'rounded-xl bg-akz px-4 py-2 text-sm font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40';
+const knopfLeise = 'rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-semibold text-white/80 transition hover:border-akz/50 hover:text-white disabled:opacity-40';
+const etikett = 'block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40';
 
 function Hinweis({ farbe = 'sky', kind, zu }: { farbe?: 'sky' | 'amber' | 'emerald' | 'rose'; kind: ReactNode; zu?: () => void }) {
-  const f = { sky: 'border-sky-400/30 bg-sky-400/[0.06] text-sky-100', amber: 'border-amber-400/30 bg-amber-400/[0.07] text-amber-100', emerald: 'border-emerald-400/30 bg-emerald-400/[0.07] text-emerald-100', rose: 'border-rose-400/30 bg-rose-400/[0.07] text-rose-100' }[farbe];
+  const f = { sky: 'border-akz/30 bg-akz/[0.08] text-white/85', amber: 'border-amber-400/30 bg-amber-400/[0.07] text-amber-100', emerald: 'border-emerald-400/30 bg-emerald-400/[0.07] text-emerald-100', rose: 'border-rose-400/30 bg-rose-400/[0.07] text-rose-100' }[farbe];
   return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm backdrop-blur-xl ${f}`}>
+    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 rounded-2xl border px-3.5 py-3 text-sm ${f}`}>
       <div className="min-w-0 flex-1">{kind}</div>
       {zu && <button type="button" onClick={zu} title="Close" className="shrink-0 text-white/50 transition hover:text-white">×</button>}
     </motion.div>
@@ -873,11 +873,11 @@ export default function KartenWerkzeug() {
         onDragStart={(e) => { gezogen.current = t.id; e.dataTransfer.setData('text/team', t.id); e.dataTransfer.effectAllowed = 'move'; }}
         onClick={() => { if (inBearbeitung || !spot) return; setGewaehlt(darfBauen ? spot.id : null); zeigeSpot(spot); }}
         title={spot ? 'Show on the map' : ziehbar ? 'Drag onto a shape' : undefined}
-        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-[13px] transition ${mein ? 'border-sky-400/50 bg-sky-400/10' : spot ? 'border-white/10 bg-black/30 hover:border-sky-400/40' : 'border-white/[0.06] hover:border-white/20'} ${spot ? 'cursor-zoom-in' : ziehbar ? 'cursor-grab' : ''}`}>
+        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-[13px] transition ${mein ? 'border-akz/50 bg-akz/10' : spot ? 'border-white/10 bg-black/30 hover:border-akz/40' : 'border-white/[0.06] hover:border-white/20'} ${spot ? 'cursor-zoom-in' : ziehbar ? 'cursor-grab' : ''}`}>
         <TeamFlagge groesse={24} laender={laenderVon(t)} />
         {inBearbeitung ? (
           <div className="min-w-0 flex-1 space-y-1.5" onClick={(e) => e.stopPropagation()}>
-            <input value={entwurf} onChange={(e) => setEntwurf(e.target.value)} placeholder="Name + Name + Name" className="w-full rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-sky-400/60" />
+            <input value={entwurf} onChange={(e) => setEntwurf(e.target.value)} placeholder="Name + Name + Name" className="w-full rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-akz/60" />
             {t.spieler.map((sp, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <img src={flaggenPfad(landEntwurf[i] || undefined)} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
@@ -888,7 +888,7 @@ export default function KartenWerkzeug() {
             ))}
             <div className="flex max-h-16 flex-wrap gap-0.5 overflow-y-auto">
               {flaggen.map((f) => (
-                <button key={f} type="button" title={f.toUpperCase()} onClick={() => setLandEntwurf((a) => { const o = a.findIndex((v) => !v); const z = o >= 0 ? o : 0; return a.map((v, k) => (k === z ? f.toUpperCase() : v)); })} className="rounded-full p-px ring-1 ring-white/10 hover:ring-sky-400">
+                <button key={f} type="button" title={f.toUpperCase()} onClick={() => setLandEntwurf((a) => { const o = a.findIndex((v) => !v); const z = o >= 0 ? o : 0; return a.map((v, k) => (k === z ? f.toUpperCase() : v)); })} className="rounded-full p-px ring-1 ring-white/10 hover:ring-akz">
                   <img src={`/flags/${f}.png`} alt={f} className="h-4 w-4 rounded-full object-cover" />
                 </button>
               ))}
@@ -899,7 +899,7 @@ export default function KartenWerkzeug() {
                 inhaltVomNutzer.current = true;
                 setTeams((alt) => alt.map((x) => (x.id === t.id ? { ...x, spieler: neu } : x))); setBearbeite(null);
                 await profilSichern(t, landEntwurf, neu);
-              }} className="rounded-lg bg-sky-400 px-2.5 py-0.5 text-[11px] font-bold text-[#06080f]">OK</button>
+              }} className="rounded-lg bg-akz px-2.5 py-0.5 text-[11px] font-bold text-[#04050a]">OK</button>
               <button type="button" onClick={() => setBearbeite(null)} className="text-[11px] text-white/45 hover:text-white">Cancel</button>
             </div>
           </div>
@@ -912,7 +912,7 @@ export default function KartenWerkzeug() {
             )}
             {istAdmin && !mein && <>
               <button type="button" title="Edit names and flags" onClick={(e) => { e.stopPropagation(); setBearbeite(t.id); setEntwurf(t.spieler.join(' + ')); setLandEntwurf(t.spieler.map((_, i) => profilVon(t, i)?.land ?? '')); }}
-                className={`shrink-0 text-white/35 hover:text-sky-300 ${spot ? '' : 'ml-auto'}`}>
+                className={`shrink-0 text-white/35 hover:text-akz ${spot ? '' : 'ml-auto'}`}>
                 <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" /></svg>
               </button>
               <button type="button" title="Remove from the list" onClick={(e) => { e.stopPropagation(); inhaltVomNutzer.current = true; setTeams((alt) => alt.filter((x) => x.id !== t.id)); setSpots((alt) => alt.map((sp) => (sp.teams.includes(t.id) ? { ...sp, teams: sp.teams.filter((id) => id !== t.id) } : sp))); }}
@@ -924,229 +924,65 @@ export default function KartenWerkzeug() {
     );
   };
 
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link to={ausTurnier ? `/competitive/maps/view?id=${encodeURIComponent(ausTurnier)}` : '/competitive/maps/view'} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-1.5 text-xs font-semibold text-white/70 transition hover:border-sky-400/50 hover:text-white">
-          ← {ausTurnier ? 'Map view' : 'Tournament maps'}
-        </Link>
-        {offeneKarte?.cupId && <Link to={`/competitive/events/${encodeURIComponent(offeneKarte.cupId)}`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-1.5 text-xs font-semibold text-white/70 transition hover:border-sky-400/50 hover:text-white">← Back to {offeneKarte.cupTitel || 'the event'}</Link>}
-        <a href={`${SEITE}/maps${linkKarte ? `?id=${encodeURIComponent(linkKarte)}` : ''}`} target="_blank" rel="noreferrer" className="ml-auto rounded-full border border-white/10 px-4 py-1.5 text-xs font-semibold text-white/50 transition hover:border-white/30 hover:text-white" title="The original map tool on thecomphub.com">Classic view ↗</a>
-      </div>
+  /* ---------------------------------------------------------------- Ansicht: Kopfband, darunter die Werkbank (Einrichtung | Karte | Teams) */
 
-      <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-300">{istAdmin ? 'Map tool' : 'Tournament map'}</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{istAdmin && !direkt ? 'Tournament map' : titel.replace(/\s*·\s*/g, ' – ')}</h1>
-          <p className="mt-1 text-sm text-white/50">
-            {!istAdmin || direkt ? (darfMichSetzen ? 'Drag your own team onto the shape where you land — it is saved at once.' : 'Who lands where. Fullscreen is on the right of the map.')
-              : ausTurnier ? (bearbeitenAn ? 'Published tournament map — editing is on.' : 'Published tournament map — view only. Click "Edit this map" to change it.')
-                : 'Shapes are kept per map image; players start fresh every time.'}
-          </p>
-          {istAdmin && ausTurnier && !direkt && (
-            <button type="button" onClick={() => setBearbeitenAn((v) => !v)} className={`mt-2 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${bearbeitenAn ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-white/10 text-white/70 hover:border-white/30'}`}>
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" /></svg>
-              {bearbeitenAn ? 'Stop editing' : 'Edit this map'}
-            </button>
-          )}
-        </div>
-        {istAdmin && (
-          <Glas className="px-5 py-3 text-right text-xs text-white/50">
-            {bildId ? <p className="font-semibold text-emerald-300">{bilder.find((b) => b.id === bildId)?.titel ?? 'Own map image'}</p>
-              : stand?.stand ? <p>Fortnite map of <span className="text-white/80">{new Date(stand.stand).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span>{stand.tageAlt !== null && stand.tageAlt > 3 && <span className="text-amber-300"> · {stand.tageAlt} days old</span>}</p> : null}
-            <p className="mt-0.5 flex items-center justify-end gap-2"><span className="text-lg font-extrabold tabular-nums text-sky-300">{spots.length}</span> spots · <span className="text-lg font-extrabold tabular-nums text-sky-300">{teams.length}</span> teams
-              {darfBauen && fensterId && (
-                <button type="button" onClick={() => void generiereKarte()} disabled={nobleLaeuft} title="Take shapes and players of this match day from Noble. Also to refresh shortly before the cup." aria-label="Finish map"
-                  className="grid h-7 w-7 place-items-center rounded-full border border-white/15 text-white/60 transition hover:border-sky-400 hover:text-sky-300 disabled:opacity-40">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={nobleLaeuft ? 'animate-spin' : ''}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
-                </button>
-              )}
-            </p>
-            {selbstGesichert && <p className="mt-0.5 text-[10px] text-emerald-300/80">saved automatically {new Date(selbstGesichert).toLocaleTimeString('en-GB')}</p>}
-          </Glas>
-        )}
-      </motion.header>
+  const abschnitt = 'border-b border-white/[0.06] px-4 py-3.5';
+  const kopfZeile = 'mb-2.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45';
 
-      {veraltet && <Hinweis farbe="amber" kind={<div className="flex flex-wrap items-center gap-3"><span className="min-w-0 flex-1">This page shows an older state of the map. So that it overwrites nothing, nothing is saved. Please reload, then carry on.</span><button type="button" onClick={() => window.location.reload()} className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-bold text-[#06080f]">Reload</button></div>} />}
-      {ausErsatz && <Hinweis farbe="amber" kind="The store is not answering right now. You see the last backup, which may be older. Your map is not lost. Saving resumes once the store answers." />}
-
-      {offeneKarte && geschwister.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-white/40">{geschwister.length} maps for this match day:</span>
-          {geschwister.map((k) => (
-            <Link key={k.id} to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} title={k.spiele ? `For games ${k.spiele}` : undefined}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${k.id === offeneKarte.id ? 'border-sky-400 bg-sky-400/10 text-sky-300' : 'border-white/10 text-white/70 hover:border-white/30'}`}>
-              {k.bildTitel ?? k.titel}{k.spiele && <span className="ml-1.5 text-[10px] text-white/40">{k.spiele}</span>}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {istAdmin && !direkt && (
-        <Glas className="relative z-20 space-y-3 p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_auto_auto] lg:items-end">
-            <div className="relative">
-              <span className={etikett}>Cup <span className="text-white/25">({cups.length})</span></span>
-              <input value={cupOffen ? cupSuche : gewaehlterCupText} placeholder="Search — name, date, type"
-                onChange={(e) => { setCupSuche(e.target.value); setCupOffen(true); }} onFocus={() => { setCupSuche(''); setCupOffen(true); }} onBlur={() => setCupOffen(false)}
-                onKeyDown={(e) => { if (e.key === 'Escape') setCupOffen(false); if (e.key === 'Enter' && cupListe[0]) { e.preventDefault(); cupGewaehlt(cupListe[0].cup); setCupOffen(false); } }}
-                className={feldKlasse} />
-              {cupOffen && (
-                <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0e18]/95 shadow-2xl backdrop-blur-xl">
-                  {cupListe.length ? cupListe.map((x) => (
-                    <button key={x.cup.id} type="button" onMouseDown={(ev) => { ev.preventDefault(); cupGewaehlt(x.cup); setCupOffen(false); }}
-                      className={`block w-full border-b border-white/[0.04] px-3 py-2 text-left text-xs last:border-0 hover:bg-sky-400/10 ${cupId === x.cup.id ? 'text-sky-300' : 'text-white/80'}`}>{x.etikett}</button>
-                  )) : <p className="px-3 py-2 text-xs text-white/40">No cup matches the search</p>}
-                </div>
-              )}
-            </div>
-            <label>
-              <span className={etikett}>Match day</span>
-              <select value={fensterId} disabled={!fenster.length} className={`${feldKlasse} disabled:opacity-40`}
-                onChange={(e) => { setFensterId(e.target.value); const f = fenster.find((x) => x.windowId === e.target.value); if (!titelVomNutzer.current) setTitel(kartenTitel(cup?.titel, f) || 'New tournament map'); stelleWiederHer(e.target.value, bildId, gespeicherte); }}>
-                <option value="">— choose —</option>
-                {fenster.map((f) => <option key={f.windowId} value={f.windowId}>{f.region} · {tagKurz(f.begin)}{f.istFinale ? ' · Final' : ''}</option>)}
-              </select>
-            </label>
-            {darfBauen && <button type="button" onClick={() => void generiereKarte()} disabled={!fensterId || nobleLaeuft} title="Take shapes and players of this match day from Noble. Also to refresh shortly before the cup." className={knopfHell}>{nobleLaeuft ? 'loading …' : spots.length ? 'Finish map' : 'Generate map'}</button>}
-            <button type="button" onClick={() => sichern(false)} className={knopfHell}>Save</button>
+  /** Meldungen des Werkzeugs - stehen oben in der Einrichtung, direkt bei den Knoepfen, die sie ausloesen. */
+  const meldungen = (
+    <AnimatePresence>
+      {istAdmin && funde && (
+        <Hinweis key="funde" kind={<>
+          <p className="font-semibold text-white">{funde.length} players found in the image</p>
+          <div className="mt-2 space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={alsTeams} onChange={(e) => setAlsTeams(e.target.checked)} className="accent-akz" />join names standing together into one team</label>
+            <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={aufFormen} onChange={(e) => setAufFormen(e.target.checked)} className="accent-akz" />put them on the shape they stand in</label>
+            <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={formenAnlegen} disabled={!aufFormen} onChange={(e) => setFormenAnlegen(e.target.checked)} className="accent-akz" />create a shape where there is none</label>
           </div>
-          <details className="group rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-2.5">
-            <summary className="cursor-pointer select-none text-xs font-semibold text-white/55 transition hover:text-white">More options</summary>
-            <div className="mt-3 grid gap-3 pb-1 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-              <label><span className={etikett}>Title</span><input value={titel} onChange={(e) => { titelVomNutzer.current = true; inhaltVomNutzer.current = true; setTitel(e.target.value); }} className={feldKlasse} /></label>
-              <label><span className={etikett}>Games</span><input value={spiele} placeholder="e.g. 1–5" onChange={(e) => { inhaltVomNutzer.current = true; setSpiele(e.target.value); }} className={feldKlasse} /></label>
-              <label title="How many teams are loaded. For a final map only those who advanced count."><span className={etikett}>Only the best</span>
-                <input value={teamGrenze || ''} inputMode="numeric" placeholder="auto" onChange={(e) => { const n = parseInt(e.target.value, 10); setTeamGrenze(Number.isFinite(n) ? n : 0); }} className={feldKlasse} /></label>
-              <button type="button" onClick={() => void ladeTeams()} disabled={!fensterId || laedtTeams} title={fensterId && vorrundeZu(fensterId) ? 'If the final has no results yet, the qualified teams of the previous round are loaded' : undefined} className={knopfLeise}>{laedtTeams ? 'loading …' : 'Load teams'}</button>
-              {darfBauen && nobleListe && (
-                <label><span className={etikett}>Match day at Noble</span>
-                  <select defaultValue="" className={feldKlasse} onChange={(e) => { const w = nobleListe.find((x) => `${x.turnierId}|${x.region}|${x.windowId}` === e.target.value); if (w) void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region }); }}>
-                    <option value="">— choose —</option>
-                    {nobleListe.map((w) => <option key={`${w.turnierId}|${w.region}|${w.windowId}`} value={`${w.turnierId}|${w.region}|${w.windowId}`}>{w.turnier} · {w.name} · {w.region}{w.start ? ` · ${tagKurz(w.start)}` : ''}</option>)}
-                  </select></label>
-              )}
-              <label className="relative" title="Separate names with &, comma or slash. A single name is a solo.">
-                <span className={etikett}>Team by hand</span>
-                <input value={eigenesTeam} placeholder="Name & Name & Name" onChange={(e) => setEigenesTeam(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') teamEintragen(); }} className={feldKlasse} />
-                {vorschlaege.length > 0 && (
-                  <ul className="absolute z-40 mt-1 w-60 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0e18]/95 shadow-2xl backdrop-blur-xl">
-                    {vorschlaege.map((v) => <li key={v.epicId || v.name}><button type="button" onClick={() => vorschlagNehmen(v.name)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-white/85 hover:bg-sky-400/10"><TeamFlagge groesse={18} laender={[v.land || undefined]} /><span className="truncate">{v.name}</span></button></li>)}
-                  </ul>
-                )}
-              </label>
-              <button type="button" onClick={teamEintragen} disabled={!eigenesTeam.trim()} className={knopfLeise}>Add</button>
-              <label>
-                <span className={etikett}>Map image</span>
-                <select value={bildId} className={feldKlasse} onChange={(e) => { bildVonHandFuer.current = fensterId; inhaltVomNutzer.current = true; setBildId(e.target.value); setBildStand(Date.now()); stelleWiederHer(fensterId, e.target.value, gespeicherte); }}>
-                  <option value="">Battle Royale</option>
-                  {bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
-                </select>
-                {insel.art === 'reload' && insel.schluessel && (
-                  <span className="mt-1 flex items-center gap-1.5 text-[11px] text-white/50">Reload island: <b className="text-white/80">{insel.schluessel}</b> →
-                    <select value={inseln[insel.schluessel] ?? ''} title="Which map image belongs to this island" onChange={(e) => inselZuordnen(insel.schluessel!, e.target.value)} className="rounded-lg border border-white/10 bg-black/40 px-1.5 py-0.5 text-[11px] text-white outline-none">
-                      <option value="">Assign image …</option>
-                      {bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
-                    </select>
-                  </span>
-                )}
-              </label>
-            </div>
-          </details>
-        </Glas>
-      )}
-
-      {istAdmin && (
-        <Glas className="flex flex-wrap items-center gap-3 px-4 py-3 text-xs text-white/55"
-        >
-          <span className="font-bold uppercase tracking-[0.2em] text-violet-300">Template</span>
-          {!pause ? (
-            <span className="min-w-0 flex-1">Paste a screenshot of another drop map (Ctrl+V) or <label className="cursor-pointer font-semibold text-sky-300 underline">choose a file<input type="file" accept="image/*" className="hidden" onChange={(e) => { vorlageAus(e.target.files?.[0]); e.target.value = ''; }} /></label> — it lies under the map to scale, stays in this browser, and can read the player names out of it.</span>
-          ) : (
-            <>
-              <label className="flex items-center gap-2">Opacity<input type="range" min={10} max={100} value={pauseKlar} onChange={(e) => setPauseKlar(Number(e.target.value))} className="w-32 accent-sky-400" /><span className="w-8 tabular-nums">{pauseKlar}%</span></label>
-              <button type="button" onClick={() => void bildLesen()} disabled={!!lesen} className={knopfLeise}>{lesen || 'Read players from the template'}</button>
-              <button type="button" onClick={() => { setPause(null); setFunde(null); }} className="rounded-xl border border-white/10 px-3 py-2 font-semibold text-white/55 transition hover:border-rose-400/60 hover:text-rose-300">Remove template</button>
-            </>
-          )}
-        </Glas>
-      )}
-
-      <AnimatePresence>
-        {istAdmin && funde && (
-          <Hinweis key="funde" kind={<>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="font-semibold text-sky-200">{funde.length} players found in the image</span>
-              <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={alsTeams} onChange={(e) => setAlsTeams(e.target.checked)} className="accent-sky-400" />join names standing together into one team</label>
-              <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={aufFormen} onChange={(e) => setAufFormen(e.target.checked)} className="accent-sky-400" />put them on the shape they stand in</label>
-              <label className="flex items-center gap-1.5 text-xs text-white/60"><input type="checkbox" checked={formenAnlegen} disabled={!aufFormen} onChange={(e) => setFormenAnlegen(e.target.checked)} className="accent-sky-400" />create a shape where there is none</label>
-              <span className="ml-auto flex gap-2">
-                <button type="button" onClick={() => setFunde(null)} className={knopfLeise}>Discard</button>
-                <button type="button" onClick={fundeUebernehmen} disabled={!funde.some((f) => f.nehmen)} className={knopfHell}>Apply</button>
-              </span>
-            </div>
-            <ul className="mt-2.5 flex flex-wrap gap-1.5">
-              {funde.map((f, i) => (
-                <li key={f.epicId}><button type="button" title={`read as: ${f.roh}`} onClick={() => setFunde((alt) => (alt ?? []).map((x, k) => (k === i ? { ...x, nehmen: !x.nehmen } : x)))}
-                  className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition ${f.nehmen ? 'border-sky-400/50 bg-sky-400/10 text-white' : 'border-white/10 text-white/35 line-through'}`}>
-                  <TeamFlagge groesse={16} laender={[f.land || undefined]} /><span>{f.name}</span>{f.guete < 1 && <span className="text-[10px] text-white/40">“{f.roh}”</span>}
-                </button></li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[11px] leading-relaxed text-white/40">Only names come from the image — no shapes, no background. Where the recognition read something else, it is shown in quotes; what matches no account in the archive does not appear at all. A click takes a name out of the selection.</p>
-          </>} />
-        )}
-        {istAdmin && !funde && ruecknahme && (
-          <Hinweis key="rueck" farbe="emerald" zu={() => setRuecknahme(null)} kind={<div className="flex flex-wrap items-center gap-3">
-            <span>{ruecknahme.teamIds.length} teams taken from the image{ruecknahme.anzahl > 0 && `, ${ruecknahme.anzahl} of them put on a shape`}{ruecknahme.neueFormen > 0 && ` · ${ruecknahme.neueFormen} new shapes created`}</span>
-            <button type="button" onClick={leseZuruecknehmen} className="rounded-xl border border-white/15 px-3 py-1 text-xs font-semibold text-white/70 hover:border-rose-400/60 hover:text-rose-300">Take back</button>
-          </div>} />
-        )}
-        {darfBauen && nobleFrage && (
-          <Hinweis key="frage" kind={<div className="flex flex-wrap items-center gap-3"><p className="min-w-0 flex-1">{nobleFrage.text}</p>
-            <button type="button" onClick={() => nobleFrage.anwenden()} className={knopfHell}>Continue</button>
-            <button type="button" onClick={() => setNobleFrage(null)} className={knopfLeise}>Cancel</button></div>} />
-        )}
-        {darfBauen && nobleMeldung && (
-          <Hinweis key="meldung" farbe={nobleMeldung.art === 'ok' ? 'emerald' : 'amber'} zu={() => setNobleMeldung(null)} kind={nobleMeldung.art === 'nichts' ? (() => {
-            const ref = fensterJetzt?.begin ?? Date.now();
-            const ab = (s: string | null) => (s ? Math.abs(Date.parse(s) - ref) : Infinity);
-            const nahe = [...(nobleListe ?? [])].sort((a, b) => ab(a.start) - ab(b.start)).slice(0, 12);
-            return <>
-              <p className="font-semibold">Noble has no map for this match day.</p>
-              <p className="mt-1 text-xs text-white/60">{nahe.length ? 'Noble has these match days — click one to take its shapes and players. Your map stays unchanged until you confirm.' : 'The list of Noble match days could not be loaded. Try again in a moment.'}</p>
-              {nahe.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{nahe.map((w) => (
-                <button key={`${w.turnierId}|${w.region}|${w.windowId}`} type="button" onClick={() => void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region })}
-                  className="rounded-lg border border-amber-400/40 px-2.5 py-1 text-xs text-amber-100 transition hover:border-amber-300 hover:bg-amber-400/10">{w.turnier} · {w.name} · {w.region}{w.start ? ` · ${tagKurz(w.start)}` : ''}</button>
-              ))}</div>}
-            </>;
-          })() : <p className={nobleMeldung.art === 'ok' ? 'font-semibold' : ''}>{nobleMeldung.text}</p>} />
-        )}
-      </AnimatePresence>
-
-      {istAdmin && !direkt && (
-        <details className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 backdrop-blur-xl">
-          <summary className="cursor-pointer select-none text-xs font-semibold text-white/55 hover:text-white">Own map images ({bilder.length}) — rename and upload</summary>
-          <div className="mt-2 flex flex-wrap items-center gap-2 pb-1">
-            {bilder.map((b) => (
-              <span key={b.id} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] ${bildId === b.id ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200' : 'border-white/10 text-white/70'}`}>
-                {benennt === b.id ? <>
-                  <input autoFocus value={benenntTitel} list="hub-kartenvorlagen" onChange={(e) => setBenenntTitel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void bildUmbenennen(b.id, benenntTitel); if (e.key === 'Escape') setBenennt(null); }} className="w-44 rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[11px] text-white outline-none" />
-                  <button type="button" onClick={() => void bildUmbenennen(b.id, benenntTitel)} className="text-emerald-300">✓</button><button type="button" onClick={() => setBenennt(null)} className="text-white/40">×</button>
-                </> : <>{b.titel}<button type="button" title="Rename" onClick={() => { setBenennt(b.id); setBenenntTitel(b.titel); }} className="text-white/40 hover:text-sky-300">✎</button></>}
-              </span>
+          <ul className="mt-2.5 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
+            {funde.map((f, i) => (
+              <li key={f.epicId}><button type="button" title={`read as: ${f.roh}`} onClick={() => setFunde((alt) => (alt ?? []).map((x, k) => (k === i ? { ...x, nehmen: !x.nehmen } : x)))}
+                className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition ${f.nehmen ? 'border-akz/50 bg-akz/10 text-white' : 'border-white/10 text-white/35 line-through'}`}>
+                <TeamFlagge groesse={16} laender={[f.land || undefined]} /><span>{f.name}</span>{f.guete < 1 && <span className="text-[10px] text-white/40">“{f.roh}”</span>}
+              </button></li>
             ))}
-            <input value={neuerTitel} onChange={(e) => setNeuerTitel(e.target.value)} placeholder="Name of the new map" list="hub-kartenvorlagen" className="w-52 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-white outline-none focus:border-sky-400/60" />
-            <datalist id="hub-kartenvorlagen"><option value="Battle Royale - CH7 S4" /><option value="Battle Royale - CH7 S3" /><option value="Reload - Slurpush" /><option value="Reload - Elite Stronghold" /></datalist>
-            <label className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] ${neuerTitel.trim() ? 'border-sky-400 bg-sky-400/10 text-sky-300' : 'border-white/10 text-white/30'}`}>Upload PNG
-              <input type="file" accept="image/*" className="hidden" disabled={!neuerTitel.trim()} onChange={(e) => { const d = e.target.files?.[0]; if (d) void bildHochladen(d, neuerTitel.trim()); e.target.value = ''; }} /></label>
-            <span className="text-[10px] text-white/30">name it first, then choose the file</span>
+          </ul>
+          <p className="mt-2 text-[11px] leading-relaxed text-white/40">Only names come from the image — no shapes, no background. Where the recognition read something else, it is shown in quotes; what matches no account in the archive does not appear at all. A click takes a name out of the selection.</p>
+          <div className="mt-2.5 flex gap-2">
+            <button type="button" onClick={fundeUebernehmen} disabled={!funde.some((f) => f.nehmen)} className={knopfHell}>Apply</button>
+            <button type="button" onClick={() => setFunde(null)} className={knopfLeise}>Discard</button>
           </div>
-        </details>
+        </>} />
       )}
-
+      {istAdmin && !funde && ruecknahme && (
+        <Hinweis key="rueck" farbe="emerald" zu={() => setRuecknahme(null)} kind={<div className="flex flex-wrap items-center gap-3">
+          <span>{ruecknahme.teamIds.length} teams taken from the image{ruecknahme.anzahl > 0 && `, ${ruecknahme.anzahl} of them put on a shape`}{ruecknahme.neueFormen > 0 && ` · ${ruecknahme.neueFormen} new shapes created`}</span>
+          <button type="button" onClick={leseZuruecknehmen} className="rounded-xl border border-white/15 px-3 py-1 text-xs font-semibold text-white/70 hover:border-rose-400/60 hover:text-rose-300">Take back</button>
+        </div>} />
+      )}
+      {darfBauen && nobleFrage && (
+        <Hinweis key="frage" kind={<><p>{nobleFrage.text}</p><div className="mt-2.5 flex gap-2">
+          <button type="button" onClick={() => nobleFrage.anwenden()} className={knopfHell}>Continue</button>
+          <button type="button" onClick={() => setNobleFrage(null)} className={knopfLeise}>Cancel</button></div></>} />
+      )}
+      {darfBauen && nobleMeldung && (
+        <Hinweis key="meldung" farbe={nobleMeldung.art === 'ok' ? 'emerald' : 'amber'} zu={() => setNobleMeldung(null)} kind={nobleMeldung.art === 'nichts' ? (() => {
+          const ref = fensterJetzt?.begin ?? Date.now();
+          const ab = (s: string | null) => (s ? Math.abs(Date.parse(s) - ref) : Infinity);
+          const nahe = [...(nobleListe ?? [])].sort((a, b) => ab(a.start) - ab(b.start)).slice(0, 12);
+          return <>
+            <p className="font-semibold">Noble has no map for this match day.</p>
+            <p className="mt-1 text-xs text-white/60">{nahe.length ? 'Noble has these match days — click one to take its shapes and players. Your map stays unchanged until you confirm.' : 'The list of Noble match days could not be loaded. Try again in a moment.'}</p>
+            {nahe.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{nahe.map((w) => (
+              <button key={`${w.turnierId}|${w.region}|${w.windowId}`} type="button" onClick={() => void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region })}
+                className="rounded-lg border border-amber-400/40 px-2.5 py-1 text-xs text-amber-100 transition hover:border-amber-300 hover:bg-amber-400/10">{w.turnier} · {w.name} · {w.region}{w.start ? ` · ${tagKurz(w.start)}` : ''}</button>
+            ))}</div>}
+          </>;
+        })() : <p className={nobleMeldung.art === 'ok' ? 'font-semibold' : ''}>{nobleMeldung.text}</p>} />
+      )}
       {veroeffentlicht && (
-        <Hinweis farbe={veroeffentlicht.cup && veroeffentlicht.spieltag ? 'emerald' : 'amber'} zu={() => setVeroeffentlicht(null)} kind={veroeffentlicht.cup && veroeffentlicht.spieltag ? <>
+        <Hinweis key="oeffentlich" farbe={veroeffentlicht.cup && veroeffentlicht.spieltag ? 'emerald' : 'amber'} zu={() => setVeroeffentlicht(null)} kind={veroeffentlicht.cup && veroeffentlicht.spieltag ? <>
           <p className="font-semibold">Saved and publicly visible</p>
           <p className="mt-1 text-xs text-white/65">Everyone now finds the map under Events → {veroeffentlicht.cup} → match day {veroeffentlicht.spieltag} via "Open map". Open pages update themselves within 20 seconds.</p>
           <p className="mt-2 flex flex-wrap gap-2">
@@ -1158,49 +994,281 @@ export default function KartenWerkzeug() {
           <p className="mt-1 text-xs text-white/65">Without a cup and match day the assignment is missing, so the map does not show up under Events. Choose both above and save again.</p>
         </>} />
       )}
+    </AnimatePresence>
+  );
+  const hatMeldung = (istAdmin && (funde || ruecknahme)) || (darfBauen && (nobleFrage || nobleMeldung)) || veroeffentlicht;
 
-      {status && <p className="text-xs text-white/50">{status}</p>}
+  /** Linke Tafel des Admins: Meldungen, Cup und Spieltag, weitere Angaben, Vorlage, eigene Kartenbilder, gespeicherte Karten. */
+  const einrichtung = (
+    <Dock titel="Setup" rechts={istAdmin && !direkt ? <button type="button" onClick={() => sichern(false)} className="knopf-prim !px-4 !py-1.5">Save</button> : undefined}>
+      {hatMeldung && <div className={`${abschnitt} space-y-2`}>{meldungen}</div>}
+      {status && <p className="border-b border-white/[0.06] px-4 py-2 text-xs text-akz">{status}</p>}
 
-      {istAdmin && !direkt && (gespeicherte.length > 0 || offeneFinals.length > 0) && (
-        <details className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 backdrop-blur-xl">
-          <summary className="cursor-pointer select-none text-xs font-semibold text-white/55 hover:text-white">Saved maps ({gespeicherte.length})</summary>
-          <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            <div>
-              <p className="mb-2 text-[11px] text-white/40">Hidden maps stay here — nothing gets lost.</p>
-              <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
-                {gespeicherte.map((k) => {
-                  const sichtbar = k.oeffentlich !== false;
-                  return (
-                    <div key={k.id} className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs transition ${k.id === ausTurnier ? 'border-sky-400/60 bg-sky-400/10' : 'border-white/[0.06] hover:border-white/20'}`}>
-                      <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="min-w-0 flex-1 truncate text-white/80 hover:text-sky-300">{k.titel}<span className="ml-1.5 text-[10px] text-white/35">{k.bildTitel ?? 'Battle Royale'}{k.cupTitel ? ` · ${k.cupTitel}` : ''}</span></Link>
-                      {!sichtbar && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/50">hidden</span>}
-                      <button type="button" onClick={() => void sichtbarkeit(k.id, !sichtbar)} title={sichtbar ? 'Hide publicly — the map is kept' : 'Show publicly again'} className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${sichtbar ? 'text-white/40 hover:bg-white/10 hover:text-white' : 'text-emerald-300 hover:bg-emerald-400/10'}`}>{sichtbar ? 'Hide' : 'Show'}</button>
-                      <button type="button" onClick={() => void karteLoeschen(k.id, k.titel)} title="Delete for good — shapes and assignment are gone" className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-rose-300 hover:bg-rose-400/10">×</button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            {offeneFinals.length > 0 && (
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Finals without a map ({offeneFinals.length})</p>
-                <div className="space-y-1">
-                  {offeneFinals.map((f) => (
-                    <Link key={f.windowId} to={`/competitive/maps/view?edit=1&event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`}
-                      className="flex items-center gap-1 rounded-xl border border-dashed border-white/10 px-2.5 py-1.5 text-xs text-white/60 transition hover:border-sky-400/50 hover:text-sky-300">
-                      <span className="min-w-0 flex-1 truncate">{kartenTitel(f.cupTitel, f) || f.windowId}<span className="ml-1.5 text-[10px] text-white/30">{f.region} · {tagKurz(f.begin)}</span></span>
-                    </Link>
-                  ))}
-                </div>
+      {!direkt && (
+        <div className={`${abschnitt} relative z-20 space-y-3`}>
+          <div className="relative">
+            <span className={etikett}>Cup <span className="text-white/25">({cups.length})</span></span>
+            <input value={cupOffen ? cupSuche : gewaehlterCupText} placeholder="Search — name, date, type"
+              onChange={(e) => { setCupSuche(e.target.value); setCupOffen(true); }} onFocus={() => { setCupSuche(''); setCupOffen(true); }} onBlur={() => setCupOffen(false)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setCupOffen(false); if (e.key === 'Enter' && cupListe[0]) { e.preventDefault(); cupGewaehlt(cupListe[0].cup); setCupOffen(false); } }}
+              className={feldKlasse} />
+            {cupOffen && (
+              <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-fl shadow-2xl">
+                {cupListe.length ? cupListe.map((x) => (
+                  <button key={x.cup.id} type="button" onMouseDown={(ev) => { ev.preventDefault(); cupGewaehlt(x.cup); setCupOffen(false); }}
+                    className={`block w-full border-b border-white/[0.04] px-3 py-2 text-left text-xs last:border-0 hover:bg-akz/10 ${cupId === x.cup.id ? 'text-akz' : 'text-white/80'}`}>{x.etikett}</button>
+                )) : <p className="px-3 py-2 text-xs text-white/40">No cup matches the search</p>}
               </div>
             )}
+          </div>
+          <label className="block">
+            <span className={etikett}>Match day</span>
+            <select value={fensterId} disabled={!fenster.length} className={`${feldKlasse} disabled:opacity-40`}
+              onChange={(e) => { setFensterId(e.target.value); const f = fenster.find((x) => x.windowId === e.target.value); if (!titelVomNutzer.current) setTitel(kartenTitel(cup?.titel, f) || 'New tournament map'); stelleWiederHer(e.target.value, bildId, gespeicherte); }}>
+              <option value="">— choose —</option>
+              {fenster.map((f) => <option key={f.windowId} value={f.windowId}>{f.region} · {tagKurz(f.begin)}{f.istFinale ? ' · Final' : ''}</option>)}
+            </select>
+          </label>
+          {darfBauen && <button type="button" onClick={() => void generiereKarte()} disabled={!fensterId || nobleLaeuft} title="Take shapes and players of this match day from Noble. Also to refresh shortly before the cup." className={`${knopfHell} w-full`}>{nobleLaeuft ? 'loading …' : spots.length ? 'Finish map' : 'Generate map'}</button>}
+        </div>
+      )}
+
+      {!direkt && (
+        <details className={`${abschnitt} group`}>
+          <summary className="cursor-pointer select-none text-xs font-semibold text-white/60 transition hover:text-white">More options</summary>
+          <div className="mt-3 grid grid-cols-2 items-end gap-3">
+            <label className="col-span-2"><span className={etikett}>Title</span><input value={titel} onChange={(e) => { titelVomNutzer.current = true; inhaltVomNutzer.current = true; setTitel(e.target.value); }} className={feldKlasse} /></label>
+            <label><span className={etikett}>Games</span><input value={spiele} placeholder="e.g. 1–5" onChange={(e) => { inhaltVomNutzer.current = true; setSpiele(e.target.value); }} className={feldKlasse} /></label>
+            <label title="How many teams are loaded. For a final map only those who advanced count."><span className={etikett}>Only the best</span>
+              <input value={teamGrenze || ''} inputMode="numeric" placeholder="auto" onChange={(e) => { const n = parseInt(e.target.value, 10); setTeamGrenze(Number.isFinite(n) ? n : 0); }} className={feldKlasse} /></label>
+            <button type="button" onClick={() => void ladeTeams()} disabled={!fensterId || laedtTeams} title={fensterId && vorrundeZu(fensterId) ? 'If the final has no results yet, the qualified teams of the previous round are loaded' : undefined} className={`${knopfLeise} col-span-2`}>{laedtTeams ? 'loading …' : 'Load teams'}</button>
+            {darfBauen && nobleListe && (
+              <label className="col-span-2"><span className={etikett}>Match day at Noble</span>
+                <select defaultValue="" className={feldKlasse} onChange={(e) => { const w = nobleListe.find((x) => `${x.turnierId}|${x.region}|${x.windowId}` === e.target.value); if (w) void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region }); }}>
+                  <option value="">— choose —</option>
+                  {nobleListe.map((w) => <option key={`${w.turnierId}|${w.region}|${w.windowId}`} value={`${w.turnierId}|${w.region}|${w.windowId}`}>{w.turnier} · {w.name} · {w.region}{w.start ? ` · ${tagKurz(w.start)}` : ''}</option>)}
+                </select></label>
+            )}
+            <div className="col-span-2 flex items-end gap-2">
+              <label className="relative min-w-0 flex-1" title="Separate names with &, comma or slash. A single name is a solo.">
+                <span className={etikett}>Team by hand</span>
+                <input value={eigenesTeam} placeholder="Name & Name & Name" onChange={(e) => setEigenesTeam(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') teamEintragen(); }} className={feldKlasse} />
+                {vorschlaege.length > 0 && (
+                  <ul className="absolute z-40 mt-1 w-60 overflow-hidden rounded-2xl border border-white/10 bg-fl shadow-2xl">
+                    {vorschlaege.map((v) => <li key={v.epicId || v.name}><button type="button" onClick={() => vorschlagNehmen(v.name)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-white/85 hover:bg-akz/10"><TeamFlagge groesse={18} laender={[v.land || undefined]} /><span className="truncate">{v.name}</span></button></li>)}
+                  </ul>
+                )}
+              </label>
+              <button type="button" onClick={teamEintragen} disabled={!eigenesTeam.trim()} className={knopfLeise}>Add</button>
+            </div>
+            <label className="col-span-2">
+              <span className={etikett}>Map image</span>
+              <select value={bildId} className={feldKlasse} onChange={(e) => { bildVonHandFuer.current = fensterId; inhaltVomNutzer.current = true; setBildId(e.target.value); setBildStand(Date.now()); stelleWiederHer(fensterId, e.target.value, gespeicherte); }}>
+                <option value="">Battle Royale</option>
+                {bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
+              </select>
+              {insel.art === 'reload' && insel.schluessel && (
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-white/50">Reload island: <b className="text-white/80">{insel.schluessel}</b> →
+                  <select value={inseln[insel.schluessel] ?? ''} title="Which map image belongs to this island" onChange={(e) => inselZuordnen(insel.schluessel!, e.target.value)} className="rounded-lg border border-white/10 bg-black/40 px-1.5 py-0.5 text-[11px] text-white outline-none">
+                    <option value="">Assign image …</option>
+                    {bilder.map((b) => <option key={b.id} value={b.id}>{b.titel}</option>)}
+                  </select>
+                </span>
+              )}
+            </label>
           </div>
         </details>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-        <div ref={huelle} className={voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : ''}>
-          <div className={voll ? 'h-full' : 'mx-auto'} style={voll ? { aspectRatio: '1 / 1' } : { maxWidth: 'min(100%, 86vh)' }}>
+      <div className={`${abschnitt} text-xs text-white/55`}>
+        <p className={kopfZeile}>Template</p>
+        {!pause ? (
+          <p className="leading-relaxed">Paste a screenshot of another drop map (Ctrl+V) or <label className="cursor-pointer font-semibold text-akz underline">choose a file<input type="file" accept="image/*" className="hidden" onChange={(e) => { vorlageAus(e.target.files?.[0]); e.target.value = ''; }} /></label> — it lies under the map to scale, stays in this browser, and can read the player names out of it.</p>
+        ) : (
+          <div className="space-y-2.5">
+            <label className="flex items-center gap-2">Opacity<input type="range" min={10} max={100} value={pauseKlar} onChange={(e) => setPauseKlar(Number(e.target.value))} className="min-w-0 flex-1 accent-akz" /><span className="zahl w-8">{pauseKlar}%</span></label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => void bildLesen()} disabled={!!lesen} className={knopfLeise}>{lesen || 'Read players from the template'}</button>
+              <button type="button" onClick={() => { setPause(null); setFunde(null); }} className="rounded-xl border border-white/10 px-3 py-2 font-semibold text-white/55 transition hover:border-rose-400/60 hover:text-rose-300">Remove template</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!direkt && (
+        <details className={abschnitt}>
+          <summary className="cursor-pointer select-none text-xs font-semibold text-white/60 hover:text-white">Own map images ({bilder.length}) — rename and upload</summary>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {bilder.map((b) => (
+              <span key={b.id} className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] ${bildId === b.id ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200' : 'border-white/10 text-white/70'}`}>
+                {benennt === b.id ? <>
+                  <input autoFocus value={benenntTitel} list="hub-kartenvorlagen" onChange={(e) => setBenenntTitel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void bildUmbenennen(b.id, benenntTitel); if (e.key === 'Escape') setBenennt(null); }} className="w-44 rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[11px] text-white outline-none" />
+                  <button type="button" onClick={() => void bildUmbenennen(b.id, benenntTitel)} className="text-emerald-300">✓</button><button type="button" onClick={() => setBenennt(null)} className="text-white/40">×</button>
+                </> : <>{b.titel}<button type="button" title="Rename" onClick={() => { setBenennt(b.id); setBenenntTitel(b.titel); }} className="text-white/40 hover:text-akz">✎</button></>}
+              </span>
+            ))}
+            <input value={neuerTitel} onChange={(e) => setNeuerTitel(e.target.value)} placeholder="Name of the new map" list="hub-kartenvorlagen" className="min-w-0 flex-1 basis-40 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-white outline-none focus:border-akz/60" />
+            <datalist id="hub-kartenvorlagen"><option value="Battle Royale - CH7 S4" /><option value="Battle Royale - CH7 S3" /><option value="Reload - Slurpush" /><option value="Reload - Elite Stronghold" /></datalist>
+            <label className={`cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] ${neuerTitel.trim() ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/30'}`}>Upload PNG
+              <input type="file" accept="image/*" className="hidden" disabled={!neuerTitel.trim()} onChange={(e) => { const d = e.target.files?.[0]; if (d) void bildHochladen(d, neuerTitel.trim()); e.target.value = ''; }} /></label>
+            <span className="text-[10px] text-white/30">name it first, then choose the file</span>
+          </div>
+        </details>
+      )}
+
+      {!direkt && (gespeicherte.length > 0 || offeneFinals.length > 0) && (
+        <details className={abschnitt}>
+          <summary className="cursor-pointer select-none text-xs font-semibold text-white/60 hover:text-white">Saved maps ({gespeicherte.length}){offeneFinals.length > 0 && <span className="ml-2 text-amber-300">{offeneFinals.length} finals without a map</span>}</summary>
+          <p className="mb-2 mt-2.5 text-[11px] text-white/40">Hidden maps stay here — nothing gets lost.</p>
+          <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
+            {gespeicherte.map((k) => {
+              const sichtbar = k.oeffentlich !== false;
+              return (
+                <div key={k.id} className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs transition ${k.id === ausTurnier ? 'border-akz/60 bg-akz/10' : 'border-white/[0.06] hover:border-white/20'}`}>
+                  <Link to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} className="min-w-0 flex-1 truncate text-white/80 hover:text-akz">{k.titel}<span className="ml-1.5 text-[10px] text-white/35">{k.bildTitel ?? 'Battle Royale'}{k.cupTitel ? ` · ${k.cupTitel}` : ''}</span></Link>
+                  {!sichtbar && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/50">hidden</span>}
+                  <button type="button" onClick={() => void sichtbarkeit(k.id, !sichtbar)} title={sichtbar ? 'Hide publicly — the map is kept' : 'Show publicly again'} className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${sichtbar ? 'text-white/40 hover:bg-white/10 hover:text-white' : 'text-emerald-300 hover:bg-emerald-400/10'}`}>{sichtbar ? 'Hide' : 'Show'}</button>
+                  <button type="button" onClick={() => void karteLoeschen(k.id, k.titel)} title="Delete for good — shapes and assignment are gone" className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-rose-300 hover:bg-rose-400/10">×</button>
+                </div>
+              );
+            })}
+          </div>
+          {offeneFinals.length > 0 && (
+            <>
+              <p className={`${kopfZeile} mt-4`}>Finals without a map ({offeneFinals.length})</p>
+              <div className="space-y-1">
+                {offeneFinals.map((f) => (
+                  <Link key={f.windowId} to={`/competitive/maps/view?edit=1&event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`}
+                    className="flex items-center gap-1 rounded-xl border border-dashed border-white/10 px-2.5 py-1.5 text-xs text-white/60 transition hover:border-akz/50 hover:text-akz">
+                    <span className="min-w-0 flex-1 truncate">{kartenTitel(f.cupTitel, f) || f.windowId}<span className="ml-1.5 text-[10px] text-white/30">{f.region} · {tagKurz(f.begin)}</span></span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </details>
+      )}
+      <p className="px-4 py-3 text-[11px] leading-relaxed text-white/30">Wheel zooms to the pointer, drag moves, double-click zooms in{darfBauen ? ' or opens a shape' : ''}, a long press jumps to a spot. Ctrl+Z undoes, Ctrl+V pastes a template.</p>
+    </Dock>
+  );
+
+  /** Linke Tafel fuer alle anderen: die belegten Stellen - Klick fliegt hin. */
+  const belegt = spots.filter((s) => s.teams.length).sort((a, b) => b.teams.length - a.teams.length);
+  const stellen = (
+    <Dock titel="Spots" zahl={`${belegt.length} taken`} fuss="Wheel zooms to the pointer, drag moves, double-click zooms in, a long press jumps to a spot.">
+      {hatMeldung && <div className={`${abschnitt} space-y-2`}>{meldungen}</div>}
+      {status && <p className="border-b border-white/[0.06] px-4 py-2 text-xs text-akz">{status}</p>}
+      <ul>
+        {belegt.map((s) => (
+          <li key={s.id}>
+            <button type="button" onClick={() => zeigeSpot(s)} className="flex w-full items-start gap-3 border-b border-white/[0.05] px-3 py-2.5 text-left transition hover:bg-akz/[0.08]">
+              <span className={`titel w-7 shrink-0 text-center text-3xl ${s.teams.length > 1 ? '!text-red-400' : '!text-white/35'}`}>{s.teams.length}</span>
+              <span className="min-w-0 flex-1">
+                {s.name && <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{s.name}</span>}
+                {s.teams.map((tid) => { const t = teamNach.get(tid); return t ? <span key={tid} className="block truncate text-[11px] font-bold uppercase tracking-wide text-white">{namenVon(t).join(' · ')}</span> : null; })}
+              </span>
+            </button>
+          </li>
+        ))}
+        {!belegt.length && <li className="px-4 py-6 text-center text-sm text-white/45">No team is placed yet.</li>}
+      </ul>
+    </Dock>
+  );
+
+  return (
+    <div className="-mt-2 space-y-3">
+      <KopfBand zurueck={ausTurnier ? `/competitive/maps/view?id=${encodeURIComponent(ausTurnier)}` : '/competitive/maps/view'} zurueckTitel={ausTurnier ? 'Map view' : 'Tournament maps'}
+        ueber={istAdmin ? 'Map tool' : 'Tournament map'} titel={istAdmin && !direkt ? (titel === 'New tournament map' ? 'Tournament map' : titel.replace(/\s*·\s*/g, ' – ')) : titel.replace(/\s*·\s*/g, ' – ')}
+        marken={<>
+          <span className="text-xs text-white/50">
+            {!istAdmin || direkt ? (darfMichSetzen ? 'Drag your own team onto the shape where you land — it is saved at once.' : 'Who lands where. Fullscreen is on the right of the map.')
+              : ausTurnier ? (bearbeitenAn ? 'Published tournament map — editing is on.' : 'Published tournament map — view only. Click "Edit this map" to change it.')
+                : 'Shapes are kept per map image; players start fresh every time.'}
+          </span>
+          {offeneKarte?.cupId && <Link to={`/competitive/events/${encodeURIComponent(offeneKarte.cupId)}`} className="chip !py-1">← Back to {offeneKarte.cupTitel || 'the event'}</Link>}
+        </>}
+        rechts={<>
+          {istAdmin && (
+            <div className="text-right text-[11px] leading-snug text-white/50">
+              {bildId ? <p className="font-semibold text-emerald-300">{bilder.find((b) => b.id === bildId)?.titel ?? 'Own map image'}</p>
+                : stand?.stand ? <p>Fortnite map of <span className="text-white/80">{new Date(stand.stand).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span>{stand.tageAlt !== null && stand.tageAlt > 3 && <span className="text-amber-300"> · {stand.tageAlt} days old</span>}</p> : null}
+              {selbstGesichert && <p className="text-emerald-300/80">saved automatically {new Date(selbstGesichert).toLocaleTimeString('en-GB')}</p>}
+            </div>
+          )}
+          {istAdmin && (
+            <div className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-black/40 px-3.5 py-1.5">
+              <span className="text-center"><span className="titel block text-2xl !text-akz">{spots.length}</span><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-white/40">spots</span></span>
+              <span className="text-center"><span className="titel block text-2xl !text-akz">{teams.length}</span><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-white/40">teams</span></span>
+              {darfBauen && fensterId && (
+                <button type="button" onClick={() => void generiereKarte()} disabled={nobleLaeuft} title="Take shapes and players of this match day from Noble. Also to refresh shortly before the cup." aria-label="Finish map"
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/15 text-white/60 transition hover:border-akz hover:text-akz disabled:opacity-40">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={nobleLaeuft ? 'animate-spin' : ''}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
+                </button>
+              )}
+            </div>
+          )}
+          {istAdmin && ausTurnier && !direkt && (
+            <button type="button" onClick={() => setBearbeitenAn((v) => !v)} className={`knopf ${bearbeitenAn ? '!border-akz !bg-akz/15' : ''}`}>
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" /></svg>
+              {bearbeitenAn ? 'Stop editing' : 'Edit this map'}
+            </button>
+          )}
+          <a href={`${SEITE}/maps${linkKarte ? `?id=${encodeURIComponent(linkKarte)}` : ''}`} target="_blank" rel="noreferrer" className="knopf-leer !text-xs !text-white/45 hover:!text-white" title="The original map tool on thecomphub.com">Classic view ↗</a>
+        </>} />
+
+      {veraltet && <Hinweis farbe="amber" kind={<div className="flex flex-wrap items-center gap-3"><span className="min-w-0 flex-1">This page shows an older state of the map. So that it overwrites nothing, nothing is saved. Please reload, then carry on.</span><button type="button" onClick={() => window.location.reload()} className="rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-bold text-[#04050a]">Reload</button></div>} />}
+      {ausErsatz && <Hinweis farbe="amber" kind="The store is not answering right now. You see the last backup, which may be older. Your map is not lost. Saving resumes once the store answers." />}
+
+      {offeneKarte && geschwister.length > 1 && (
+        <div className="ohne-leiste flex items-center gap-1.5 overflow-x-auto">
+          <span className="mr-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{geschwister.length} maps for this match day</span>
+          {geschwister.map((k) => (
+            <Link key={k.id} to={`/competitive/maps/view?id=${encodeURIComponent(k.id)}&edit=1`} title={k.spiele ? `For games ${k.spiele}` : undefined} className={`chip ${k.id === offeneKarte.id ? 'chip-an' : ''}`}>
+              {k.bildTitel ?? k.titel}{k.spiele && <span className="text-[10px] text-white/40">{k.spiele}</span>}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <Werkbank links={istAdmin ? einrichtung : stellen}
+        rechts={<>
+          {darfBauen && gewaehlterSpot && (
+            <Dock eng titel="Shape" className="!border-akz/40">
+              <div className="space-y-2 p-3">
+                <p className="text-[11px] leading-relaxed text-white/55">Shape open — dragging moves it, the corners reshape it. The bin at the map deletes it, Ctrl+Z brings it back.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input value={gewaehlterSpot.name ?? ''} placeholder="Label (optional)" onChange={(e) => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, name: e.target.value || undefined } : x)))}
+                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-akz/60" />
+                  <input type="color" value={gewaehlterSpot.farbe ?? '#38bdf8'} title="Own colour for this shape" onChange={(e) => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, farbe: e.target.value } : x)))} className="h-7 w-9 cursor-pointer rounded border border-white/10 bg-black/40 p-0.5" />
+                  {gewaehlterSpot.farbe && <button type="button" onClick={() => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, farbe: undefined } : x)))} className="text-[11px] text-white/45 underline">automatic</button>}
+                </div>
+                {gewaehlterSpot.teams.length ? (
+                  <div className="flex flex-wrap gap-1">
+                    {gewaehlterSpot.teams.map((tid) => { const t = teamNach.get(tid); return t ? <button key={tid} type="button" onClick={() => teamAbziehen(tid)} title="Remove from the shape" className="rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 text-[11px] text-white/85 hover:border-rose-400/60">{namenVon(t).join(' + ')} ×</button> : null; })}
+                  </div>
+                ) : <p className="text-[11px] text-white/40">Drag a team from the list onto the shape.</p>}
+              </div>
+            </Dock>
+          )}
+          <Dock fest titel="Teams" zahl={`${verteilt}/${teams.length} placed`}
+            kopf={(teams.length > 8 || meinTeam || (istAdmin && !darfBauen)) ? <div className="space-y-2">
+              {meinTeam && <div><p className={`${kopfZeile} !mb-1.5`}>Your team</p>{teamZeile(meinTeam, true)}</div>}
+              {teams.length > 8 && (
+                <div className="relative">
+                  <input value={teamSuche} onChange={(e) => setTeamSuche(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setTeamSuche(''); }} placeholder="Search a player …" className="eingabe w-full !py-2 !pr-14 !text-[13px]" />
+                  {teamSuche && <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[10px] text-white/40">{sichtbareTeams.length}<button type="button" onClick={() => setTeamSuche('')} className="text-white/50 hover:text-white">×</button></span>}
+                </div>
+              )}
+              {istAdmin && !darfBauen && <p className="rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-2.5 py-1.5 text-[11px] text-amber-200">{gesperrt ? 'The map is locked — open the lock first to place teams.' : 'View only — click "Edit this map" to place teams.'}</p>}
+            </div> : undefined}>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+              {!sichtbareTeams.length && <p className="py-4 text-center text-[11px] text-white/40">{teams.length ? `No team found for "${teamSuche}".` : istAdmin ? 'Choose a cup and match day on the left.' : 'No teams yet.'}</p>}
+              {sichtbareTeams.map((t) => teamZeile(t))}
+            </div>
+          </Dock>
+        </>}>
+        <div ref={huelle} className={voll ? 'flex h-full w-full items-center justify-center bg-[#0b2340]' : 'w-full'}>
+          <div className={voll ? 'h-full' : ''} style={voll ? { aspectRatio: '1 / 1' } : undefined}>
             <Zeichenflaeche spots={spots} anzeige={anzeigeSpots} gruppen={gruppen} schrift={schrift} bild={bildQuelle} voll={voll}
               darfBauen={darfBauen} werkzeug={werkzeug} setWerkzeug={setWerkzeug} gewaehlt={gewaehlt} setGewaehlt={setGewaehlt}
               aendern={aendern} merke={merke} neueForm={neueForm} darfAblegen={darfBauen || darfMichSetzen} abgelegt={abgelegt} gezogen={gezogen}
@@ -1213,50 +1281,7 @@ export default function KartenWerkzeug() {
               </>} />
           </div>
         </div>
-
-        <div className="flex min-h-0 flex-col gap-3 lg:sticky lg:top-32 lg:max-h-[calc(100vh-9rem)]">
-          {darfBauen && gewaehlterSpot && (
-            <Glas className="space-y-2 border-sky-400/30 p-3">
-              <p className="text-[11px] leading-relaxed text-white/55">Shape open — dragging moves it, the corners reshape it. The bin at the map deletes it, Ctrl+Z brings it back.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <input value={gewaehlterSpot.name ?? ''} placeholder="Label (optional)" onChange={(e) => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, name: e.target.value || undefined } : x)))}
-                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-sky-400/60" />
-                <input type="color" value={gewaehlterSpot.farbe ?? '#38bdf8'} title="Own colour for this shape" onChange={(e) => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, farbe: e.target.value } : x)))} className="h-7 w-9 cursor-pointer rounded border border-white/10 bg-black/40 p-0.5" />
-                {gewaehlterSpot.farbe && <button type="button" onClick={() => aendern((alt) => alt.map((x) => (x.id === gewaehlterSpot.id ? { ...x, farbe: undefined } : x)))} className="text-[11px] text-white/45 underline">automatic</button>}
-              </div>
-              {gewaehlterSpot.teams.length ? (
-                <div className="flex flex-wrap gap-1">
-                  {gewaehlterSpot.teams.map((tid) => { const t = teamNach.get(tid); return t ? <button key={tid} type="button" onClick={() => teamAbziehen(tid)} title="Remove from the shape" className="rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 text-[11px] text-white/85 hover:border-rose-400/60">{namenVon(t).join(' + ')} ×</button> : null; })}
-                </div>
-              ) : <p className="text-[11px] text-white/40">Drag a team from the list onto the shape.</p>}
-            </Glas>
-          )}
-
-          <Glas className="flex min-h-0 flex-1 flex-col p-3">
-            {meinTeam && <>
-              <h2 className="mb-2 text-sm font-bold text-white">Your team</h2>
-              <div className="mb-3">{teamZeile(meinTeam, true)}</div>
-            </>}
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white">Teams</h2>
-              <span className="text-xs tabular-nums text-white/40">{verteilt}/{teams.length} placed</span>
-            </div>
-            {teams.length > 8 && (
-              <div className="relative mb-2">
-                <input value={teamSuche} onChange={(e) => setTeamSuche(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setTeamSuche(''); }} placeholder="Search a player …"
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 pr-14 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-sky-400/60" />
-                {teamSuche && <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-[10px] text-white/40">{sichtbareTeams.length}<button type="button" onClick={() => setTeamSuche('')} className="text-white/50 hover:text-white">×</button></span>}
-              </div>
-            )}
-            {istAdmin && !darfBauen && <p className="mb-2 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-2.5 py-1.5 text-[11px] text-amber-200">{gesperrt ? 'The map is locked — open the lock first to place teams.' : 'View only — click "Edit this map" to place teams.'}</p>}
-            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-0.5" style={{ maxHeight: '70vh' }}>
-              {!sichtbareTeams.length && <p className="py-4 text-center text-[11px] text-white/40">{teams.length ? `No team found for "${teamSuche}".` : istAdmin ? 'Choose a cup and match day above.' : 'No teams yet.'}</p>}
-              {sichtbareTeams.map((t) => teamZeile(t))}
-            </div>
-          </Glas>
-        </div>
-      </div>
-      <p className="text-center text-[11px] text-white/30">Wheel zooms to the pointer, drag moves, double-click zooms in{darfBauen ? ' or opens a shape' : ''}, a long press jumps to a spot.{istAdmin ? ' Ctrl+Z undoes, Ctrl+V pastes a template.' : ''}</p>
+      </Werkbank>
     </div>
   );
 }

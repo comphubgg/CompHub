@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { Link } from 'react-router-dom';
 
 /*
  * Die Werkbank der Karten-Seiten (Design-System 3.0, 27.11.2026): die Karte fuellt die Hoehe des Bildschirms, links und rechts haengen
@@ -6,6 +7,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type R
  *   useRestHoehe()  misst, wie viel Hoehe unter einem Element bis zum unteren Bildschirmrand bleibt
  *   <Werkbank>      drei Zonen: Tafel links, Karte (quadratisch, so hoch wie der Bildschirm), Tafel rechts; auf dem Handy untereinander, Karte zuerst
  *   <Dock>          eine angedockte Tafel: Kopfzeile, rollender Inhalt, optional ein fester Fuss
+ *   <KopfBand>      das niedrige Kopfband darueber (zurueck, Bild, Titel, Marken, Aktionen)
  */
 
 /** Die Hoehe vom oberen Rand des Elements bis zum unteren Bildschirmrand (bei Seitenanfang) - folgt Fenstergroesse und allem, was darueber waechst. */
@@ -63,5 +65,31 @@ export function Dock({ titel, zahl, rechts, kopf, children, fuss, className = ''
       <div className={fest ? 'flex min-h-0 flex-1 flex-col' : 'min-h-0 flex-1 overflow-y-auto'}>{children}</div>
       {fuss && <footer className="shrink-0 border-t border-white/[0.06] px-4 py-2.5 text-[11px] text-white/40">{fuss}</footer>}
     </section>
+  );
+}
+
+/**
+ * Das schmale Kopfband ueber einer Werkbank: Zurueck-Knopf, optional ein 16:9-Bild, Zeile darueber, Titel, Marken - rechts Umschalter und Knoepfe.
+ * Bewusst niedrig, damit die Karte darunter die Hoehe bekommt.
+ */
+export function KopfBand({ zurueck, zurueckTitel = 'Back', bild, ueber, titel, marken, rechts }: {
+  zurueck?: string; zurueckTitel?: string; bild?: ReactNode; ueber?: ReactNode; titel: ReactNode; marken?: ReactNode; rechts?: ReactNode;
+}) {
+  return (
+    <header className="fl-fest flex flex-wrap items-center gap-x-4 gap-y-3 p-2.5 pr-4">
+      {zurueck && (
+        <Link to={zurueck} title={zurueckTitel} aria-label={zurueckTitel}
+          className="grid h-[72px] w-10 shrink-0 place-items-center rounded-2xl border border-white/[0.07] bg-black/40 text-white/60 transition hover:border-akz/50 hover:text-white">
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5l-5 5 5 5" /></svg>
+        </Link>
+      )}
+      {bild}
+      <div className="min-w-0 flex-1 basis-[260px]">
+        {ueber && <p className="ueber truncate !tracking-[0.25em]">{ueber}</p>}
+        <h1 className="titel mt-0.5 truncate text-3xl sm:text-4xl">{titel}</h1>
+        {marken && <div className="mt-1.5 flex flex-wrap items-center gap-1.5">{marken}</div>}
+      </div>
+      {rechts && <div className="flex max-w-full flex-wrap items-center justify-end gap-2">{rechts}</div>}
+    </header>
   );
 }
