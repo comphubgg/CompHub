@@ -9,7 +9,7 @@ import { einladungFuer, einladungZurueckziehenNach } from '@/lib/povVip';
 import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
-  zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
+  zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden, vipEntwurf,
   anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen, zugangStufe,
   chatErstellen, nachrichtAnMitglied, dmsSpiegeln, alsCompHub, vorlagenText, zeitraumVon, VORLAGEN,
   type KnopfNachricht, proPanel, proPanelInhalt,
@@ -152,7 +152,14 @@ export async function POST(request: NextRequest) {
        * Discord schachtelt es doppelt: eine Zeile je Reihe, darin die
        * einzelnen Felder. Wir haben genau ein Feld, also genuegt das erste.
        */
-      components?: Array<{ components?: Array<{ custom_id?: string; value?: string }> }>;
+      components?: Array<{
+        components?: Array<{ custom_id?: string; value?: string }>;
+        /*
+         * Seit dem Label (Typ 18, im VIP-Formular seit 28.11.2026) steht das Feld einzeln unter "component" - ein
+         * Textfeld mit value, eine Checkbox-Gruppe oder Auswahl mit values, eine einzelne Checkbox mit value true/false.
+         */
+        component?: { custom_id?: string; value?: string | boolean | null; values?: string[] };
+      }>;
       /** Was in einer Auswahlliste angeklickt wurde. */
       values?: string[];
     };
@@ -307,6 +314,12 @@ export async function POST(request: NextRequest) {
     const raus: Record<string, string> = {};
     for (const zeile of d.data?.components ?? []) {
       for (const f of zeile.components ?? []) if (f.custom_id) raus[f.custom_id] = String(f.value ?? '');
+      const f = zeile.component;
+      if (f?.custom_id) {
+        // Checkbox-Gruppe "folgt" (eine Option "ja"): angehakt -> "true".
+        if (Array.isArray(f.values)) raus[f.custom_id] = f.custom_id === 'folgt' ? String(f.values.includes('ja')) : f.values.join(',');
+        else raus[f.custom_id] = String(f.value ?? '');
+      }
     }
     return raus;
   };
@@ -413,16 +426,57 @@ export async function POST(request: NextRequest) {
     if (!nutzer?.id) return nurFuerIhn('I could not tell who pressed that.');
     return NextResponse.json(zugangFormular(id.endsWith('manager') ? 'manager' : 'vip'));
   }
-  // Das ausgefuellte Fenster: ablegen und dem Admin zeigen.
+  /*
+   * "Edit my answer" unter dem Hinweis nach dem Absenden: das VIP-Formular noch einmal, mit dem, was schon drinstand.
+   * Ein Fenster muss sofort kommen (drei Sekunden, keine Verzoegerung moeglich) - antwortet die Ablage nicht schnell
+   * genug, kommt es leer; das Absenden bessert die offene Anfrage trotzdem nach (zugangAnfrage sucht sie ueber die Person).
+   */
+  if (id.startsWith('zugang:bearbeiten:')) {
+    if (!nutzer?.id) return nurFuerIhn('I could not tell who pressed that.');
+    const anfrageId = id.slice('zugang:bearbeiten:'.length);
+    const entwurf = await Promise.race([
+      vipEntwurf(nutzer.id, anfrageId).catch(() => null),
+      new Promise<null>((r) => setTimeout(() => r(null), 1800)),
+    ]);
+    return NextResponse.json(zugangFormular('vip', entwurf, anfrageId));
+  }
+  // Das ausgefuellte Fenster: ablegen und dem Admin zeigen - immer, auch wenn es duenn ist (dann mit Hinweis zurueck).
   if (id.startsWith('zugang:formular:')) {
     if (!nutzer?.id) return nurFuerIhn('I could not tell who sent that.');
-    const art = id.endsWith('manager') ? 'manager' : 'vip';
+    const art = id.startsWith('zugang:formular:manager') ? 'manager' : 'vip';
     const felder = felderAus();
     const wer = nutzer.global_name || nutzer.username || nutzer.id;
     after(async () => {
-      const erg = await zugangAnfrage({ nutzerId: nutzer.id as string, nutzerName: wer, art, felder });
+      let erg: Awaited<ReturnType<typeof zugangAnfrage>>;
+      try {
+        erg = await zugangAnfrage({ nutzerId: nutzer.id as string, nutzerName: wer, art, felder });
+      } catch (e) {
+        console.error('[discord] Anfrage gescheitert:', (e as Error).message);
+        erg = { ok: false };
+      }
+      const hinweise = erg.hinweise ?? [];
+      if (erg.ok && hinweise.length && erg.id && d.application_id && d.token) {
+        await fetch(`https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: [
+              `Your request ${erg.bearbeitet ? 'was updated' : 'was sent to Juanito'}, but as it is now it will **very likely be declined**:`,
+              ...hinweise.map((h) => `• ${h.nutzer}`),
+              '',
+              'Press **Edit my answer** to fix it - your request is updated, not sent twice. '
+              + 'Requests are checked by hand. Fake or empty answers are declined.',
+            ].join('\n').slice(0, 1900),
+            allowed_mentions: { parse: [] },
+            components: [{ type: 1, components: [{ type: 2, style: 1, label: 'Edit my answer', custom_id: `zugang:bearbeiten:${erg.id}` }] }],
+          }),
+        });
+        return;
+      }
       await melde(erg.ok
-        ? 'Thanks - your request is in. You get a direct message as soon as Juanito has decided.'
+        ? (erg.bearbeitet
+          ? 'Thanks - your request is updated. Juanito checks every request by hand; you get a direct message as soon as he has decided.'
+          : 'Thanks - your request is in. Juanito checks every request by hand; you get a direct message as soon as he has decided.')
         : erg.grund === 'schon-offen' ? 'You already have an open request. Please wait for the answer.'
           : erg.grund === 'name' ? 'Please give a name with at least three letters or digits.'
             : 'That did not work. Please write to Juanito directly.');
