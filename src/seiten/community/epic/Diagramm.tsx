@@ -8,7 +8,7 @@ import { kurz, type Punkt } from './daten';
  */
 export interface Serie { name: string; farbe: string; punkte: Punkt[] }
 
-const zeitText = (t: number, spanne: number) => new Date(t).toLocaleString('en-GB', spanne > 2 * 864e5 ? { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
+const zeitText = (t: number, spanne: number) => new Date(t).toLocaleString('en-GB', spanne > 20 * 864e5 ? { day: 'numeric', month: 'short', year: 'numeric' } : spanne > 2 * 864e5 ? { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
 
 /** `format` (optional) schreibt Achse und Tooltip, z. B. Prozent oder Minuten - ohne: ganze Zahlen. */
 export function Verlauf({ serien, hoehe = 280, flaeche = true, gestapelt = false, format }: { serien: Serie[]; hoehe?: number; flaeche?: boolean; gestapelt?: boolean; format?: (n: number) => string }) {
@@ -18,7 +18,9 @@ export function Verlauf({ serien, hoehe = 280, flaeche = true, gestapelt = false
   const B = 1000; const H = hoehe;
   const { zeiten, min, max, y, pfade } = useMemo(() => {
     const zeiten = [...new Set(serien.flatMap((s) => s.punkte.map((p) => p.t)))].sort((a, b) => a - b);
-    const wert = (s: Serie, t: number) => s.punkte.find((p) => p.t === t)?.v;
+    // Je Serie ein Verzeichnis Zeit -> Wert (bei Monaten Stundenwerte sind es Tausende Punkte - find je Punkt waere quadratisch)
+    const je = new Map(serien.map((s) => [s, new Map(s.punkte.map((p) => [p.t, p.v]))]));
+    const wert = (s: Serie, t: number) => je.get(s)!.get(t);
     // gestapelt: Werte je Zeitpunkt aufsummieren (Reihenfolge der Serien = von unten nach oben)
     const stapel = serien.map((s, i) => zeiten.map((t) => (gestapelt ? serien.slice(0, i + 1).reduce((a, x) => a + (wert(x, t) ?? 0), 0) : wert(s, t))));
     const alle = stapel.flat().filter((v): v is number => v !== undefined);

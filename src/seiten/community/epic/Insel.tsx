@@ -14,15 +14,19 @@ import { InselKarte } from './Teile';
  * Design-System 3.0, nur mit Zahlen, die es wirklich gibt:
  *
  *   Kopf          grosses 16:9-Bild (fn-inseln bildGross), Titel, Code zum Kopieren, Creator, Tags (Epic Data API), Beschreibung (fn-inseln tagline)
- *   Player count  jetzt (Discover / Epic), Spitze 24 h und 7 Tage, Durchschnitt; Verlauf 1H (10-Minuten-Werte), 1D, 1W (Stundenwerte)
+ *   Player count  jetzt (Discover / Epic), Spitze 24 h, 7 Tage und "all time" seit Beginn der eigenen Aufzeichnung, Durchschnitt; Verlauf 1H
+ *                 (10-Minuten-Werte), 1D, 1W (Stundenwerte), 1M und ALL aus der eigenen Aufzeichnung (sobald sie so weit reicht)
  *   Stundentabelle Spitze, Zuwachs, Durchschnitt (= minutesPlayed / 60), einzelne Spieler und Plays je Stunde
- *   Discover      in welchen Reihen die Insel gerade steht und an welcher Stelle (fn-entdecken?reihen=1) - nur "jetzt", keine Historie
+ *   Discover      in welchen Reihen die Insel gerade steht und an welcher Stelle (fn-entdecken?reihen=1); darunter die Zeitleiste: je Reihe
+ *                 eine Bahn ueber die Zeit, Farbe = bester Platz der Stunde (fn-verlauf) - erst, wenn es mehr als eine Stunde Verlauf gibt
  *   Vergleich     gegen die anderen Inseln derselben Genre-Reihe (Epic-Tageswerte jeder Insel, letzter voller Tag)
  *   Engagement    Unique players, Plays, Favoriten, Empfehlungen, Spielzeit, Session, Retention Tag 1 / Tag 7 - je ein kleines Diagramm
  *   Mehr          mehr vom selben Creator, mehr aus denselben Discover-Reihen (Thumbnails, keine Insel doppelt)
  *
- * Epic bewahrt nur sieben Tage auf (Fortnite Data API) - darum gibt es kein "All time" und keine Monatsansicht. Plattform-Anteile, die
- * Discover-Historie und geschaetzte Einnahmen gibt es oeffentlich nicht (Epic nennt keine Rate je Minute) - sie fehlen bewusst.
+ * Epic bewahrt nur sieben Tage auf (Fortnite Data API). Alles Laengere zeichnet CompHub seit dem 28.11.2026 selbst auf (alle fuenf Minuten aus
+ * Fortnites Discover, /api/fn-verlauf: Stundenspitzen, Hoechststand, Reihen und Plaetze je Stunde) - und sagt immer dazu, seit wann. Solange es
+ * dort nichts gibt, zeigt die Seite nichts davon (kein "bald"). Plattform-Anteile und geschaetzte Einnahmen gibt es oeffentlich nicht (Epic
+ * nennt keine Rate je Minute) - sie fehlen bewusst.
  */
 
 const TAG = 864e5;
@@ -32,6 +36,7 @@ const prozent = (v: number) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
 const minuten = (v: number) => `${v.toFixed(1)} min`;
 const stunden = (v: number) => `${kurz(v)} h`;
 const zeitStunde = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const datum = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 /** Retention kommt als Anteil (0.23) oder schon als Prozent (23) - immer Prozent zurueck. */
 const alsProzent = (v: number) => (v <= 1 ? v * 100 : v);
 
@@ -96,6 +101,37 @@ function useSeitenVerlauf(code: string): Punkt[] | undefined {
   return p;
 }
 
+/**
+ * Die eigene Aufzeichnung der Seite (fn-verlauf, seit 28.11.2026): Stundenspitzen ohne Ende, Hoechststand seit Beginn, Discover-Reihen je Stunde.
+ * null = nicht erreichbar oder noch nichts aufgezeichnet (start fehlt) - dann zeigt die Seite nichts davon.
+ */
+interface Lang { start: number; seit: number | null; stunden: Punkt[]; peak: { wert: number; t: number } | null; discover: Array<{ t: number; reihe: string; platz: number }>; reihen: Record<string, string> }
+const langCache = new Map<string, { zeit: number; p: Promise<Lang | null> }>();
+function langerVerlauf(code: string): Promise<Lang | null> {
+  const c = langCache.get(code);
+  if (c && Date.now() - c.zeit < 5 * 60_000) return c.p;
+  const p = fetch(`/api/fn-verlauf?code=${encodeURIComponent(code)}`, { headers: { Accept: 'application/json' } })
+    .then((r) => (r.ok && (r.headers.get('content-type') ?? '').includes('json') ? r.json() : null))
+    .then((j: { start?: unknown; seit?: unknown; stunden?: unknown; peak?: { wert?: unknown; t?: unknown } | null; discover?: unknown; reihen?: unknown } | null) => {
+      const start = Number(j?.start);
+      if (!j || !(start > 0)) return null;
+      const stunden = (Array.isArray(j.stunden) ? j.stunden : []).map((x) => ({ t: Number((x as number[])[0]), v: Number((x as number[])[1]) }))
+        .filter((x) => Number.isFinite(x.t) && x.v > 0).sort((a, b) => a.t - b.t);
+      const discover = (Array.isArray(j.discover) ? j.discover : []).map((x) => ({ t: Number((x as unknown[])[0]), reihe: String((x as unknown[])[1] ?? ''), platz: Number((x as unknown[])[2]) }))
+        .filter((x) => Number.isFinite(x.t) && x.reihe && x.platz >= 1);
+      const peak = j.peak && Number(j.peak.wert) > 0 ? { wert: Number(j.peak.wert), t: Number(j.peak.t) } : null;
+      const reihen = j.reihen && typeof j.reihen === 'object' ? Object.fromEntries(Object.entries(j.reihen as Record<string, unknown>).map(([k, v]) => [k, String(v ?? '')])) : {};
+      return { start, seit: Number(j.seit) > 0 ? Number(j.seit) : null, stunden, peak, discover, reihen };
+    }).catch(() => null);
+  langCache.set(code, { zeit: Date.now(), p });
+  return p;
+}
+function useLangerVerlauf(code: string): Lang | null | undefined {
+  const [l, setL] = useState<Lang | null | undefined>(undefined);
+  useEffect(() => { let weg = false; setL(undefined); langerVerlauf(code).then((x) => { if (!weg) setL(x); }); return () => { weg = true; }; }, [code]);
+  return l;
+}
+
 /** Die Reihen von Fortnites Discover in Epics Reihenfolge (fn-entdecken?reihen=1), einmal je Minute. */
 interface Reihe { name: string; titel: string; codes: string[] }
 let reihenZeit = 0; let reihenP: Promise<Reihe[]> | null = null;
@@ -129,7 +165,7 @@ const teilen = (a: number | null, b: number | null) => (a === null || b === null
 
 /* ================================================================== Seite */
 interface Sammlung { id: string; name: string; inseln: Array<{ code: string; name?: string }> }
-type Spanne = '1H' | '1D' | '1W';
+type Spanne = '1H' | '1D' | '1W' | '1M' | 'ALL';
 
 export function InselDetail() {
   const { code: roh = '' } = useParams();
@@ -138,6 +174,7 @@ export function InselDetail() {
   const info = useInselInfos([code])(code) as (InselInfo & { bildGross?: string | null }) | null;
   const epic = useEpic(code);
   const seite = useSeitenVerlauf(code);
+  const lang = useLangerVerlauf(code);
   const reihen = useReihen();
   const sammlungen = useAblage<Sammlung[]>('sammlungen', [{ id: 'favoriten', name: 'Favorites', inseln: [] }]);
 
@@ -172,21 +209,22 @@ export function InselDetail() {
   return (
     <div className="space-y-7">
       <Kopf code={code} titel={titel} creator={creator} istEpic={istEpic} bild={bild} text={text} insel={epic.insel} typ={info?.typ} platz={platz} gemerkt={gemerkt} merken={merken} genre={genre?.titel ?? null} />
-      <Spielerzahl code={code} e={e} epic={epic} seite={seite} istEpic={istEpic} />
+      <Spielerzahl code={code} e={e} epic={epic} seite={seite} lang={lang} istEpic={istEpic} />
       {tabelle ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
           <Stundentabelle epic={epic} seite={seite} />
           <div className="space-y-6">
-            <DiscoverKarte reihen={meineReihen} geladen={reihen !== undefined} platz={platz} />
-            <Herkunft epic={epic} istEpic={istEpic} seite={seite} />
+            <DiscoverKarte reihen={meineReihen} geladen={reihen !== undefined} platz={platz} verlauf={discoverVerlaufDa(lang)} />
+            <Herkunft epic={epic} istEpic={istEpic} seite={seite} lang={lang} />
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-          <DiscoverKarte reihen={meineReihen} geladen={reihen !== undefined} platz={platz} />
-          <Herkunft epic={epic} istEpic={istEpic} seite={seite} />
+          <DiscoverKarte reihen={meineReihen} geladen={reihen !== undefined} platz={platz} verlauf={discoverVerlaufDa(lang)} />
+          <Herkunft epic={epic} istEpic={istEpic} seite={seite} lang={lang} />
         </div>
       )}
+      {lang && discoverVerlaufDa(lang) && <DiscoverVerlauf code={code} lang={lang} />}
       {genre && !istEpic && <Vergleich code={code} reihe={genre} eigen={epic.tag} liste={r.liste} />}
       {(epic.std || epic.tag) && <Engagement epic={epic} />}
       <Mehr code={code} creator={creator} istEpic={istEpic} liste={r.liste} reihen={meineReihen} />
@@ -251,7 +289,7 @@ function Kopf({ code, titel, creator, istEpic, bild, text, insel, typ, platz, ge
 }
 
 /* ================================================================== Player count */
-function Spielerzahl({ code, e, epic, seite, istEpic }: { code: string; e: Eintrag | null; epic: EpicStand; seite: Punkt[] | undefined; istEpic: boolean }) {
+function Spielerzahl({ code, e, epic, seite, lang, istEpic }: { code: string; e: Eintrag | null; epic: EpicStand; seite: Punkt[] | undefined; lang: Lang | null | undefined; istEpic: boolean }) {
   const jetzt = Date.now();
   const min = epic.min?.peakCCU ?? [];
   const std = epic.std?.peakCCU ?? [];
@@ -269,7 +307,13 @@ function Spielerzahl({ code, e, epic, seite, istEpic }: { code: string; e: Eintr
   else if (d1site.length > 2) reihen['1D'] = { punkte: d1site, text: "Hourly peaks recorded by CompHub from Fortnite's Discover" };
   if (spanneVon(std) > 30 * STUNDE) reihen['1W'] = { punkte: std, text: 'Hourly peaks from Epic · Epic keeps 7 days' };
   else if (spanneVon(site) > 30 * STUNDE) reihen['1W'] = { punkte: site, text: "Hourly peaks recorded by CompHub from Fortnite's Discover" };
-  const wahl = (['1H', '1D', '1W'] as Spanne[]).filter((k) => reihen[k]);
+  // Laenger als Epics sieben Tage: nur aus der eigenen Aufzeichnung, und erst, wenn sie den Zeitraum wirklich abdeckt (ALL: mehr als eine Woche,
+  // 1M: vier Wochen). Immer mit dem Datum, seit dem aufgezeichnet wird.
+  const lst = lang?.stunden ?? [];
+  const seitText = lang ? ` since ${datum(lang.start)}` : '';
+  if (spanneVon(lst) >= 28 * TAG) reihen['1M'] = { punkte: lst.filter((p) => p.t >= jetzt - 30 * TAG), text: `Hourly peaks recorded by CompHub from Fortnite's Discover · recording${seitText}` };
+  if (spanneVon(lst) > 8 * TAG) reihen.ALL = { punkte: lst, text: `Hourly peaks recorded by CompHub from Fortnite's Discover · everything${seitText}` };
+  const wahl = (['1H', '1D', '1W', '1M', 'ALL'] as Spanne[]).filter((k) => reihen[k]);
   const [z, setZ] = useState<Spanne>('1D');
   useEffect(() => { if (wahl.length && !wahl.includes(z)) setZ(wahl.includes('1D') ? '1D' : wahl[0]); }, [wahl.join(','), z]); // eslint-disable-line react-hooks/exhaustive-deps
   const aktiv = reihen[z] ?? reihen[wahl[0]];
@@ -279,6 +323,10 @@ function Spielerzahl({ code, e, epic, seite, istEpic }: { code: string; e: Eintr
   const spitze24 = [max(d1min), max(d1std), max(d1site), nun].reduce<number | null>((a, b) => (b === null ? a : a === null ? b : Math.max(a, b)), null);
   const spitze7 = [max(std), max(site), spitze24].reduce<number | null>((a, b) => (b === null ? a : a === null ? b : Math.max(a, b)), null);
   const hatWoche = spanneVon(std) > 30 * STUNDE || spanneVon(site) > 30 * STUNDE;
+  // Hoechststand aller Zeiten = das Hoechste, was es gibt: die eigene Aufzeichnung (seit ihrem Beginn) und Epics sieben Tage, wenn sie weiter
+  // zurueckreichen. "since" nennt den fruehesten Zeitpunkt, den diese Zahlen abdecken.
+  const allzeit = lang?.peak ? Math.max(lang.peak.wert, spitze7 ?? 0) : null;
+  const allzeitSeit = lang ? Math.min(lang.start, std.length ? std[0].t : Infinity) : null;
   const min24 = (epic.std?.minutesPlayed ?? []).filter((p) => p.t >= jetzt - TAG);
   const schnitt = min24.length >= 12 ? min24.reduce((s, p) => s + p.v, 0) / (min24.length * 60) : null;
   const laedt = epic.min === undefined || epic.std === undefined || seite === undefined;
@@ -292,15 +340,16 @@ function Spielerzahl({ code, e, epic, seite, istEpic }: { code: string; e: Eintr
             <p className="titel mt-2 text-7xl leading-none text-white sm:text-8xl">{nun ? <Zaehler wert={nun} /> : '–'}</p>
             <p className="mt-1 text-xs text-white/50">{nun ? 'playing right now' : laedt ? 'asking Epic …' : epic.fehler === 0 ? "no live number – Epic's Data API isn't answering" : epic.fehler === 404 ? 'not on Discover right now' : 'fewer than 5 players right now (Epic hides smaller numbers)'}</p>
           </div>
-          <div className="grid grid-cols-3 gap-4 lg:grid-cols-1 lg:gap-5">
+          <div className={`grid gap-4 lg:grid-cols-1 lg:gap-5 ${allzeit !== null ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
             {spitze24 !== null && <Zahl label="Peak · 24 h" wert={spitze24} ton="text-akz" />}
             {spitze7 !== null && (hatWoche || spitze7 !== spitze24) && <Zahl label={hatWoche ? 'Peak · 7 days' : 'Peak · recorded'} wert={spitze7} ton="text-violet-300" unter={hatWoche ? 'Epic keeps 7 days' : undefined} />}
+            {allzeit !== null && allzeitSeit !== null && <Zahl label="All-time peak" wert={allzeit} ton="text-amber-300" unter={`since ${datum(allzeitSeit)}${lang?.peak && lang.peak.wert >= allzeit ? ` · reached ${datum(lang.peak.t)}` : ''}`} immer />}
             {schnitt !== null && <Zahl label="Avg players · 24 h" wert={schnitt} ton="text-white" unter="minutes played ÷ 1,440" />}
           </div>
         </div>
         <div className="min-w-0 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="titel text-3xl">{z === '1H' ? 'Last hour' : z === '1W' ? 'Last 7 days' : 'Last 24 hours'}</h2>
+            <h2 className="titel text-3xl">{z === '1H' ? 'Last hour' : z === '1W' ? 'Last 7 days' : z === '1M' ? 'Last 30 days' : z === 'ALL' && lang ? `Since ${datum(lang.start)}` : 'Last 24 hours'}</h2>
             {wahl.length > 1 && <Segment klein id={`insel-zahl-${code}`} wert={z} wahl={wahl.map((k) => ({ k, titel: k }))} onWahl={setZ} />}
           </div>
           <div className="mt-4 pb-6">
@@ -317,12 +366,12 @@ function Spielerzahl({ code, e, epic, seite, istEpic }: { code: string; e: Eintr
     </Flaeche>
   );
 }
-function Zahl({ label, wert, ton, unter, format = kurz }: { label: string; wert: number | null; ton: string; unter?: string; format?: (n: number) => string }) {
+function Zahl({ label, wert, ton, unter, format = kurz, immer = false }: { label: string; wert: number | null; ton: string; unter?: string; format?: (n: number) => string; immer?: boolean }) {
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{label}</p>
       <p className={`titel mt-1 text-4xl leading-none ${ton}`}>{wert === null ? '–' : <Zaehler wert={wert} format={format} />}</p>
-      {unter && <p className="mt-1 hidden text-[11px] text-white/35 sm:block">{unter}</p>}
+      {unter && <p className={`mt-1 text-[11px] text-white/35 ${immer ? '' : 'hidden sm:block'}`}>{unter}</p>}
     </div>
   );
 }
@@ -389,7 +438,7 @@ function Stundentabelle({ epic, seite }: { epic: EpicStand; seite: Punkt[] | und
 }
 
 /* ================================================================== Discover jetzt */
-function DiscoverKarte({ reihen, geladen, platz }: { reihen: Array<Reihe & { stelle: number; rang: number; genre: boolean }>; geladen: boolean; platz: number }) {
+function DiscoverKarte({ reihen, geladen, platz, verlauf }: { reihen: Array<Reihe & { stelle: number; rang: number; genre: boolean }>; geladen: boolean; platz: number; verlauf: boolean }) {
   return (
     <Flaeche className="p-5 sm:p-6" verz={0.08}>
       <p className="ueber">On Discover right now</p>
@@ -411,19 +460,20 @@ function DiscoverKarte({ reihen, geladen, platz }: { reihen: Array<Reihe & { ste
           ))}
         </ul>
       )}
-      {geladen && <p className="mt-3 text-[11px] text-white/35">Live from Fortnite's Discover rows – only today's placement, no history.</p>}
+      {geladen && <p className="mt-3 text-[11px] text-white/35">{verlauf ? "Live from Fortnite's Discover rows · history below." : "Live from Fortnite's Discover rows – right now."}</p>}
     </Flaeche>
   );
 }
 
 /** Woher die Zahlen kommen - eine kleine Karte statt Fussnoten unter jedem Teil. */
-function Herkunft({ epic, istEpic, seite }: { epic: EpicStand; istEpic: boolean; seite: Punkt[] | undefined }) {
+function Herkunft({ epic, istEpic, seite, lang }: { epic: EpicStand; istEpic: boolean; seite: Punkt[] | undefined; lang: Lang | null | undefined }) {
   const stand = epic.min?.stand ?? epic.std?.stand;
   const zeilen: Array<[string, string, string]> = [];
   if (epic.fehler === 0) zeilen.push(['bg-amber-300', "Epic's Data API isn't answering", 'Charts fall back to CompHub\'s own hourly Discover numbers.']);
   else if (epic.fehler === 404) zeilen.push(['bg-white/30', istEpic ? 'Epic mode' : 'Not in Epic\'s Data API', istEpic ? "Epic's public Data API has no stats for its own modes." : 'Epic only publishes stats for public, discoverable islands.']);
   else if (stand) zeilen.push(['bg-emerald-400', "Epic's Fortnite Data API", `Latest value ${zeitStunde(stand)} · 10-minute, hourly and daily values · kept for 7 days`]);
-  if (seite?.length) zeilen.push(['bg-akz', "Fortnite's Discover", `Players right now and ${seite.length} hourly peaks recorded by CompHub`]);
+  if (lang?.stunden.length) zeilen.push(['bg-akz', "Fortnite's Discover", `Players right now · CompHub has recorded ${lang.stunden.length.toLocaleString('en')} hourly peaks${lang.discover.length ? ' and Discover rows' : ''} since ${datum(lang.start)}`]);
+  else if (seite?.length) zeilen.push(['bg-akz', "Fortnite's Discover", `Players right now and ${seite.length} hourly peaks recorded by CompHub`]);
   if (!zeilen.length) return null;
   return (
     <Flaeche className="space-y-3 p-5" verz={0.12}>
@@ -431,6 +481,117 @@ function Herkunft({ epic, istEpic, seite }: { epic: EpicStand; istEpic: boolean;
         <div key={k} className="flex gap-3"><span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${farbe}`} /><div><p className="text-sm font-semibold text-white/85">{k}</p><p className="text-xs text-white/45">{v}</p></div></div>
       ))}
     </Flaeche>
+  );
+}
+
+/* ================================================================== Discover-Verlauf (eigene Aufzeichnung) */
+/** Gibt es Discover-Verlauf, der mehr ist als "jetzt"? Mindestens zwei Stunden mit einem Platz in einer Reihe. */
+function discoverVerlaufDa(l: Lang | null | undefined): boolean {
+  if (!l?.discover.length) return false;
+  const erste = l.discover[0].t;
+  return l.discover.some((d) => d.t !== erste);
+}
+type DSpanne = '1D' | '1W' | '1M' | 'ALL';
+const D_SPANNE: Record<Exclude<DSpanne, 'ALL'>, number> = { '1D': TAG, '1W': 7 * TAG, '1M': 30 * TAG };
+/** Farbe einer Kachel nach Platz: vorne kraeftig, weit hinten blass (wie fortnite.gg, eigene Stufen). */
+const platzStufe = (p: number) => (p <= 3 ? 1 : p <= 10 ? 0.72 : p <= 20 ? 0.48 : 0.28);
+const zeitAchse = (t: number, spanne: number) => new Date(t).toLocaleString('en-GB', spanne > 2 * TAG ? { day: 'numeric', month: 'short' } : { hour: '2-digit', minute: '2-digit' });
+
+function DiscoverVerlauf({ code, lang }: { code: string; lang: Lang }) {
+  const erste = lang.discover.reduce((m, d) => Math.min(m, d.t), Infinity);
+  const jetzt = Date.now();
+  const abgedeckt = jetzt - erste;
+  // Nur Zeitraeume, die die Aufzeichnung wirklich abdeckt (wie bei der Spielerzahl)
+  const wahl = (['1D', '1W', '1M', 'ALL'] as DSpanne[]).filter((k) => k === '1D' || (k === '1W' ? abgedeckt > 1.5 * TAG : k === '1M' ? abgedeckt >= 28 * TAG : abgedeckt > 8 * TAG));
+  const [z, setZ] = useState<DSpanne>(abgedeckt > 1.5 * TAG ? '1W' : '1D');
+  const aktiv: DSpanne = wahl.includes(z) ? z : wahl.at(-1)!;
+  const bis = Math.floor(jetzt / STUNDE) * STUNDE + STUNDE;
+  const von = Math.floor(Math.max(erste, aktiv === 'ALL' ? lang.start : jetzt - D_SPANNE[aktiv]) / STUNDE) * STUNDE;
+  const spanne = Math.max(STUNDE, bis - von);
+  const [hover, setHover] = useState<number | null>(null);
+  const [alle, setAlle] = useState(false);
+
+  // Je Reihe (gleiche Titel zusammen - Epic fuehrt manche Genres doppelt) der beste Platz je Stunde, als zusammenhaengende Stuecke
+  const bahnen = useMemo(() => {
+    const je = new Map<string, Map<number, number>>();
+    for (const d of lang.discover) {
+      if (d.t < von) continue;
+      const titel = lang.reihen[d.reihe] || d.reihe;
+      let m = je.get(titel); if (!m) { m = new Map(); je.set(titel, m); }
+      const p = m.get(d.t); if (p === undefined || d.platz < p) m.set(d.t, d.platz);
+    }
+    return [...je].map(([titel, m]) => {
+      const zeiten = [...m.keys()].sort((a, b) => a - b);
+      const stuecke: Array<{ von: number; bis: number; platz: number }> = [];
+      for (const t of zeiten) {
+        const p = m.get(t)!; const letzt = stuecke.at(-1);
+        if (letzt && letzt.bis === t && letzt.platz === p) letzt.bis = t + STUNDE; else stuecke.push({ von: t, bis: t + STUNDE, platz: p });
+      }
+      return { titel, m, stunden: zeiten.length, best: Math.min(...m.values()), stuecke };
+    }).sort((a, b) => b.stunden - a.stunden || a.best - b.best || a.titel.localeCompare(b.titel));
+  }, [lang, von]);
+  if (!bahnen.length) return null;
+  const sicht = alle ? bahnen : bahnen.slice(0, 10);
+  const x = (t: number) => ((t - von) / spanne) * 100;
+  const hi = hover === null ? null : Math.floor((von + hover * spanne) / STUNDE) * STUNDE;
+  const bewegen = (e: React.PointerEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); setHover(Math.min(0.9999, Math.max(0, (e.clientX - r.left) / r.width))); };
+
+  return (
+    <Abschnitt ueber={`Discover history · since ${datum(lang.start)}`} titel="Where it showed up on Discover"
+      rechts={wahl.length > 1 ? <Segment klein id={`insel-discover-${code}`} wert={aktiv} wahl={wahl.map((k) => ({ k, titel: k }))} onWahl={setZ} /> : undefined}>
+      <Flaeche className="p-4 sm:p-6">
+        <div className="grid grid-cols-[104px_minmax(0,1fr)] gap-x-3 sm:grid-cols-[190px_minmax(0,1fr)] sm:gap-x-5">
+          <div />
+          <div className="relative mb-2 h-4 text-[10px] tabular-nums text-white/35">
+            {[0, 0.25, 0.5, 0.75, 1].map((a) => <span key={a} className={`absolute top-0 whitespace-nowrap ${a === 0 ? '' : a === 1 ? '-translate-x-full' : '-translate-x-1/2'} ${a === 0.25 || a === 0.75 ? 'hidden sm:block' : ''}`} style={{ left: `${a * 100}%` }}>{zeitAchse(von + a * spanne, spanne)}</span>)}
+          </div>
+          {sicht.map((b, i) => (
+            <div key={b.titel} className="contents">
+              <div className="flex min-w-0 flex-col justify-center border-t border-white/[0.05] py-1.5">
+                <p className="truncate text-[13px] font-semibold text-white/85">{b.titel}</p>
+                <p className="text-[10px] text-white/40">best #{b.best} · {b.stunden} h</p>
+              </div>
+              <div className="relative border-t border-white/[0.05] py-1.5">
+                <div className="relative h-6 overflow-hidden rounded-md bg-white/[0.03]">
+                  {b.stuecke.map((s) => (
+                    <motion.div key={s.von} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: Math.min(0.4, i * 0.03) }}
+                      className="absolute inset-y-0 bg-akz" style={{ left: `${x(s.von)}%`, width: `max(2px, ${x(s.bis) - x(s.von)}%)`, opacity: platzStufe(s.platz) }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Fadenkreuz ueber allen Bahnen: welche Reihe, welcher Platz in dieser Stunde */}
+        <div className="pointer-events-none relative -mt-px grid grid-cols-[104px_minmax(0,1fr)] gap-x-3 sm:grid-cols-[190px_minmax(0,1fr)] sm:gap-x-5">
+          <div />
+          <div className="relative h-0">
+            <div className="pointer-events-auto absolute inset-x-0 touch-none" style={{ bottom: 0, height: `${sicht.length * 41 + 4}px` }} onPointerMove={bewegen} onPointerLeave={() => setHover(null)}>
+              {hi !== null && (
+                <>
+                  <div className="absolute inset-y-0 w-px bg-white/40" style={{ left: `${x(hi + STUNDE / 2)}%` }} />
+                  <div className={`absolute bottom-full z-10 mb-2 min-w-[170px] rounded-xl border border-white/10 bg-[#0b1220]/95 px-3 py-2 text-xs shadow-2xl backdrop-blur ${x(hi) > 60 ? '-translate-x-full' : ''}`} style={{ left: `${x(hi + STUNDE / 2)}%` }}>
+                    <p className="mb-1 font-semibold text-white/50">{new Date(hi).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                    {(() => {
+                      const da = sicht.map((b) => ({ titel: b.titel, p: b.m.get(hi) })).filter((x): x is { titel: string; p: number } => x.p !== undefined);
+                      return da.length ? da.map((d) => <p key={d.titel} className="flex justify-between gap-4"><span className="text-white/70">{d.titel}</span><span className="font-bold tabular-nums text-white">#{d.p}</span></p>)
+                        : <p className="text-white/45">Not in any of these rows</p>;
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 text-[10px] text-white/40">
+            {[[1, 'tile 1–3'], [0.72, '4–10'], [0.48, '11–20'], [0.28, 'further back']].map(([o, t]) => <span key={String(t)} className="flex items-center gap-1.5"><span className="h-2.5 w-4 rounded-sm bg-akz" style={{ opacity: Number(o) }} />{t}</span>)}
+          </div>
+          {bahnen.length > 10 && <button type="button" onClick={() => setAlle((v) => !v)} className="knopf-leer !text-xs">{alle ? 'Show 10 rows' : `Show all ${bahnen.length} rows`}</button>}
+        </div>
+        <p className="mt-2 text-[11px] text-white/35">Best tile per hour in each Discover row, from CompHub's own check of Fortnite's Discover every 5 minutes. Nothing before {datum(lang.start)} – recording started then.</p>
+      </Flaeche>
+    </Abschnitt>
   );
 }
 
