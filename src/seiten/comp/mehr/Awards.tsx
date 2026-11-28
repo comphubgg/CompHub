@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
+import { Flaeche, Marke } from '../../../ds/Bausteine';
 import { AnmeldeKarte } from '../tools/Gemeinsam';
 import { FehlerZeile, Laedt, SEITE, flaggenPfad, useDaten, useJetzt } from './teile';
 
@@ -10,6 +10,9 @@ import { FehlerZeile, Laedt, SEITE, flaggenPfad, useDaten, useJetzt } from './te
  * Sonderpreise, je Kategorie die Nominierten mit Foto, Flagge, Team, Statistikzeile, X und Clip; Abstimmen mit dem Epic-Konto (eine Stimme je Konto,
  * zweimal tippen = endgueltig, /api/awards/stimme), nach dem Ergebnis Sieger und Anteile. Noch nicht oeffentlich: die Daten liefert nur /api/awards
  * fuer den Admin (sonst 404) - dann steht die Anmeldekarte da, wie die Vorschau auf der Seite.
+ * Aufbau (Design-System 3.0, 27.11.2026): eine goldene Buehne (Titel, Stand, Countdown in grossen Ziffern, die drei Phasen als Zeitstrahl);
+ * jede Kategorie ist eine Karte mit den Hochkant-Fotos ihrer Nominierten oben. Die Kategorie-Seite: schmaler Kopf, alle Kategorien als Chips
+ * zum Umschalten, die Nominierten als Fotokarten - steht das Ergebnis fest, der Sieger gross links und die Anteile als Balken daneben.
  */
 
 interface Nominierter { id: string; art: 'spieler' | 'person' | 'clip'; name: string; epicId?: string | null; team?: string | null; teamLogo?: string | null; land?: string | null; bild?: string | null; statZeile?: string | null; x?: string | null; link?: string | null }
@@ -31,17 +34,17 @@ function naechster(a: Awards, jetzt: number) {
   return null;
 }
 
-function Countdown({ ziel, was }: { ziel: string; was: string }) {
+function Countdown({ ziel, was, klein }: { ziel: string; was: string; klein?: boolean }) {
   const jetzt = useJetzt(1000);
   const r = Math.max(0, Date.parse(ziel) - jetzt);
   const teile: Array<[string, number]> = [['days', Math.floor(r / 86_400_000)], ['hrs', Math.floor(r / 3_600_000) % 24], ['min', Math.floor(r / 60_000) % 60], ['sec', Math.floor(r / 1000) % 60]];
   return (
-    <Glas className="px-6 py-5">
-      <p className="text-xs font-bold uppercase tracking-[0.28em] text-sky-400">{was}</p>
-      <div className="mt-3 flex gap-4 sm:gap-6">
-        {teile.map(([e, n]) => <div key={e} className="min-w-[3.4rem] text-center"><div className="text-4xl font-black tabular-nums text-white sm:text-5xl">{String(n).padStart(2, '0')}</div><div className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{e}</div></div>)}
+    <div>
+      <p className="ueber !text-amber-300">{was}</p>
+      <div className={`mt-2 flex ${klein ? 'gap-3' : 'gap-4 sm:gap-6'}`}>
+        {teile.map(([e, n]) => <div key={e} className="text-center"><div className={`titel zahl ${klein ? 'text-4xl' : 'text-6xl sm:text-8xl'}`}>{String(n).padStart(2, '0')}</div><div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{e}</div></div>)}
       </div>
-    </Glas>
+    </div>
   );
 }
 
@@ -69,50 +72,72 @@ export function AwardsUebersicht() {
   ];
   const karte = (k: Kategorie, i: number) => {
     const sieger = phase === 'ergebnis' ? k.nominierte.find((x) => x.id === k.sieger) : undefined;
-    const fotos = k.nominierte.filter((x) => x.bild).slice(0, 5);
+    const fotos = k.nominierte.filter((x) => x.bild).slice(0, 6);
     return (
-      <motion.div key={k.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.04 }} whileHover={{ y: -4 }}>
-        <Link to={`/competitive/awards/${k.id}`} className="group flex h-full flex-col rounded-3xl border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl transition hover:border-sky-400/50 hover:shadow-[0_0_34px_rgba(14,165,233,.18)]">
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300">Community vote</span>
-            <span className="text-xs font-semibold text-white/40">{k.nominierte.length ? `${k.nominierte.length} nominee${k.nominierte.length === 1 ? '' : 's'}` : 'Nominees TBA'}</span>
+      <motion.div key={k.id} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={{ delay: Math.min(i % 4, 4) * 0.05, duration: 0.45 }} className="h-full">
+        <Link to={`/competitive/awards/${k.id}`} className="fl-fest fl-klick group flex h-full flex-col overflow-hidden hover:!border-amber-300/40">
+          {fotos.length > 0 && (
+            <div className="relative flex h-44 gap-px overflow-hidden bg-black">
+              {fotos.map((x) => <img key={x.id} src={x.bild!} alt="" loading="lazy" className={`h-full min-w-0 flex-1 object-cover object-top transition duration-700 group-hover:scale-[1.05] ${sieger && sieger.id !== x.id ? 'opacity-35 grayscale' : ''}`} />)}
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-fl to-transparent" />
+              {sieger && <span className="absolute left-3 top-3"><Marke ton="gold">★ Winner: {sieger.name}</Marke></span>}
+            </div>
+          )}
+          <div className="flex flex-1 flex-col p-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-300">{k.sonderpreis ? 'Special prize' : 'Community vote'}</span>
+              <span className="zahl text-xs font-semibold text-white/40">{k.nominierte.length ? `${k.nominierte.length} nominee${k.nominierte.length === 1 ? '' : 's'}` : 'Nominees TBA'}</span>
+            </div>
+            <h3 className="titel mt-2 text-4xl">{k.name}</h3>
+            <p className="mt-2 flex-1 text-sm leading-relaxed text-white/50">{k.beschreibung}</p>
+            {sieger && !fotos.length && <p className="mt-3 text-sm font-bold text-white"><span className="text-amber-300">★ Winner:</span> {sieger.name}</p>}
+            <span className="knopf-leer mt-4 !text-amber-300">{phase === 'abstimmung' ? 'Vote now' : 'View category'} <span aria-hidden>→</span></span>
           </div>
-          <h3 className="mt-4 text-2xl font-black uppercase leading-none tracking-tight text-white">{k.name}</h3>
-          <p className="mt-2 flex-1 text-sm leading-relaxed text-white/50">{k.beschreibung}</p>
-          {sieger ? <p className="mt-4 text-sm font-bold text-white"><span className="text-amber-300">★ Winner:</span> {sieger.name}</p>
-            : fotos.length > 0 ? <div className="mt-4 flex gap-1.5">{fotos.map((x) => <img key={x.id} src={x.bild!} alt="" className="h-12 w-9 rounded-lg object-cover object-top ring-1 ring-white/15" />)}</div> : null}
-          <span className="mt-4 text-sm font-semibold text-sky-400 group-hover:text-sky-300">View category →</span>
         </Link>
       </motion.div>
     );
   };
   const haupt = a.kategorien.filter((k) => !k.sonderpreis), sonder = a.kategorien.filter((k) => k.sonderpreis);
+  const nominiert = a.kategorien.reduce((x, k) => x + k.nominierte.length, 0);
   return (
-    <div className="space-y-10">
-      <header className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-400">Competitive Fortnite · Season 2026</p>
-          <h1 className="mt-3 text-6xl font-black uppercase leading-[0.92] tracking-tight text-white sm:text-8xl">CompHub<br />Awards <span className="text-sky-400">2026</span></h1>
-          <p className="mt-5 max-w-xl text-white/60">The year in competitive Fortnite, honoured. Every award is a <b className="text-sky-300">fan vote</b>: the community decides every category, one vote per Epic account.</p>
-          <span className="mt-6 inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sky-300"><span className="h-2 w-2 rounded-full bg-sky-400" />{PHASE_TEXT[phase]}</span>
-          {typeof s.d.waehler === 'number' && <span className="ml-2 text-xs text-white/40">{s.d.waehler} voters so far</span>}
-        </motion.div>
-        {n && <Countdown ziel={n.ziel} was={n.was} />}
-      </header>
-      <ol className="grid gap-3 sm:grid-cols-3">
-        {schritte.map((x, i) => (
-          <li key={x.titel} className={`rounded-3xl border bg-white/[0.035] px-5 py-4 backdrop-blur-xl ${x.aktiv ? 'border-sky-400/70 shadow-[0_0_30px_rgba(14,165,233,.22)]' : 'border-white/10'}`}>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/45">
-              <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] ${x.aktiv ? 'bg-sky-400 text-[#06080f]' : x.vorbei ? 'bg-sky-900 text-sky-300' : 'bg-white/10 text-white/60'}`}>{x.vorbei ? '✓' : i + 1}</span>
-              {x.aktiv ? <span className="text-sky-300">Now</span> : x.vorbei ? 'Done' : 'Upcoming'}
+    <div className="space-y-8">
+      {/* Die Buehne: Titel, Stand, Countdown, Zeitstrahl */}
+      <header className="fl-fest relative isolate overflow-hidden">
+        <div aria-hidden className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(70% 120% at 85% 0%, rgba(251,191,36,.16), transparent 60%)' }} />
+        <div className="flex flex-col gap-8 px-6 pb-6 pt-10 sm:px-9 lg:flex-row lg:items-end lg:justify-between lg:pt-14">
+          <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="min-w-0">
+            <p className="ueber !text-amber-300">Competitive Fortnite · Season 2026</p>
+            <h1 className="titel mt-2 text-7xl sm:text-8xl xl:text-9xl">CompHub Awards <span className="text-amber-300">2026</span></h1>
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/55">The year in competitive Fortnite, honoured. Every award is a <b className="text-amber-200">fan vote</b>: the community decides every category, one vote per Epic account.</p>
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <Marke ton="gold" puls={phase === 'abstimmung' || phase === 'nominierung'}>{PHASE_TEXT[phase]}</Marke>
+              {([['Categories', a.kategorien.length], ['Nominees', nominiert], ...(typeof s.d.waehler === 'number' ? [['Voters so far', s.d.waehler]] : [])] as Array<[string, number]>).map(([l, v]) => (
+                <p key={l} className="flex items-baseline gap-1.5"><span className="titel zahl text-3xl !text-amber-300">{v.toLocaleString('en')}</span><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">{l}</span></p>
+              ))}
             </div>
-            <div className="mt-2 text-2xl font-black uppercase text-white">{x.titel}</div>
-            <div className="mt-1 text-sm text-white/45">{x.wann}</div>
-          </li>
-        ))}
-      </ol>
-      <section><h2 className="text-xs font-bold uppercase tracking-[0.3em] text-sky-400">Categories</h2><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{haupt.map(karte)}</div></section>
-      {sonder.length > 0 && <section><h2 className="text-xs font-bold uppercase tracking-[0.3em] text-sky-400">Special prizes</h2><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{sonder.map(karte)}</div></section>}
+          </motion.div>
+          {n && <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="shrink-0"><Countdown ziel={n.ziel} was={n.was} /></motion.div>}
+        </div>
+        <ol className="grid border-t border-white/[0.06] sm:grid-cols-3">
+          {schritte.map((x, i) => (
+            <li key={x.titel} className={`relative flex items-center gap-4 border-b border-white/[0.06] px-6 py-4 sm:border-b-0 sm:border-r sm:last:border-r-0 sm:px-9 ${x.aktiv ? 'bg-amber-300/[0.07]' : ''}`}>
+              {x.aktiv && <span className="absolute inset-x-0 top-0 h-[3px] bg-amber-300 shadow-[0_0_16px_rgba(252,211,77,.8)]" />}
+              <span className={`titel text-5xl ${x.aktiv ? '!text-amber-300' : x.vorbei ? '!text-emerald-400/70' : '!text-white/20'}`}>{x.vorbei ? '✓' : i + 1}</span>
+              <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{x.aktiv ? <span className="text-amber-300">Now</span> : x.vorbei ? 'Done' : 'Upcoming'}</span><span className="titel block truncate text-2xl">{x.titel}</span><span className="zahl block text-xs text-white/45">{x.wann}</span></span>
+            </li>
+          ))}
+        </ol>
+      </header>
+      <section>
+        <div className="mb-4 flex items-center gap-3"><span className="h-6 w-1 rounded-full bg-amber-300" /><h2 className="titel text-3xl">Categories</h2><span className="zahl text-sm font-semibold text-white/35">{haupt.length}</span><span className="h-px flex-1 bg-white/[0.07]" /></div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{haupt.map(karte)}</div>
+      </section>
+      {sonder.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-center gap-3"><span className="h-6 w-1 rounded-full bg-amber-300" /><h2 className="titel text-3xl">Special prizes</h2><span className="zahl text-sm font-semibold text-white/35">{sonder.length}</span><span className="h-px flex-1 bg-white/[0.07]" /></div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{sonder.map(karte)}</div>
+        </section>
+      )}
     </div>
   );
 }
@@ -161,80 +186,115 @@ export function AwardsKategorie() {
     } catch { setMeldung('Your vote could not be saved - please try again.'); }
     setSendet(false); setWahl(null);
   };
+  const anteilVon = (x: Nominierter) => (zahlen && gesamt ? Math.round(((zahlen[x.id] ?? 0) / gesamt) * 1000) / 10 : null);
+  const verweise = (x: Nominierter) => (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold">
+      {x.x && <a href={`https://x.com/${x.x}`} target="_blank" rel="noreferrer" className="text-white/45 hover:text-amber-200">@{x.x}</a>}
+      {x.link && <a href={x.link} target="_blank" rel="noreferrer" className="text-amber-300 hover:text-amber-200">{x.art === 'clip' ? '▶ Watch the play' : 'Link'}</a>}
+      {x.epicId && <Link to={`/competitive/player/${x.epicId}`} className="text-white/45 hover:text-amber-200">Profile</Link>}
+    </div>
+  );
+  const team = (x: Nominierter) => ((x.team || x.teamLogo) ? <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-white/60">{x.teamLogo && <img src={x.teamLogo} alt="" className="h-4 w-4 rounded-sm object-contain" />}<span className="truncate">{x.team}</span></div> : null);
+  // Wer ein Foto hat, zuerst - Karten ohne Foto haben denselben Aufbau, nur ohne das Bild (kein Ersatzbild).
+  const reihe = sieger && zahlen ? [...k.nominierte].sort((x, y) => (zahlen[y.id] ?? 0) - (zahlen[x.id] ?? 0)) : [...k.nominierte.filter((x) => x.bild), ...k.nominierte.filter((x) => !x.bild)];
+  const gewinner = sieger ? k.nominierte.find((x) => x.id === sieger) ?? null : null;
+
+  const fotoKarte = (x: Nominierter, j: number) => {
+    const gewaehlt = stand.meine === x.id, gewinnt = sieger === x.id; const anteil = anteilVon(x);
+    return (
+      <motion.article key={x.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(j, 12) * 0.04 }}
+        className={`fl-fest group relative flex flex-col overflow-hidden ${gewinnt ? '!border-amber-300/70 shadow-[0_0_40px_-10px_rgba(252,211,77,.6)]' : gewaehlt ? '!border-amber-300/50' : wahl === x.id ? '!border-amber-300/40' : ''}`}>
+        {x.bild && (
+          <div className="relative aspect-[4/5] w-full overflow-hidden bg-black/60">
+            <img src={x.bild} alt={x.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-700 group-hover:scale-[1.05]" />
+            <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-fl to-transparent" />
+            <span className="absolute left-3 top-3 flex gap-1.5">{gewinnt && <Marke ton="gold">★ Winner</Marke>}{gewaehlt && !gewinnt && <Marke ton="gold">Your vote</Marke>}</span>
+          </div>
+        )}
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          {!x.bild && (gewinnt || gewaehlt) && <span>{gewinnt ? <Marke ton="gold">★ Winner</Marke> : <Marke ton="gold">Your vote</Marke>}</span>}
+          <div>
+            <div className="flex items-center gap-2">{x.land && <img src={flaggenPfad(x.land)} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />}<h3 className="titel truncate text-3xl">{x.name}</h3></div>
+            {team(x)}
+          </div>
+          {x.statZeile && <p className="text-xs font-semibold leading-snug text-white/70">{x.statZeile}</p>}
+          {verweise(x)}
+          {anteil !== null && (
+            <div className="mt-auto pt-2">
+              <div className="flex justify-between text-xs font-bold text-white/70"><span>Community</span><span className="zahl">{anteil}%</span></div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-amber-300" initial={{ width: 0 }} animate={{ width: `${anteil}%` }} transition={{ duration: 0.8 }} /></div>
+            </div>
+          )}
+          {darf && (
+            <button type="button" disabled={sendet} onClick={() => void abstimmen(x)}
+              className={`mt-auto rounded-xl px-3 py-2.5 text-sm font-bold transition disabled:opacity-60 ${wahl === x.id ? 'bg-amber-300 text-[#04050a] hover:brightness-110' : 'border border-amber-300/50 text-amber-200 hover:bg-amber-300/10'}`}>
+              {wahl === x.id ? (sendet ? 'Saving…' : 'Confirm — final') : 'Vote'}
+            </button>
+          )}
+        </div>
+      </motion.article>
+    );
+  };
 
   return (
-    <div className="space-y-8">
-      <Link to="/competitive/awards" className="text-sm font-semibold text-sky-400 hover:text-sky-300">← CompHub Awards 2026</Link>
-      <header className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-sky-400">{k.sonderpreis ? 'Special prize' : 'Category'} · Community vote</p>
-          <h1 className="mt-3 text-5xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-7xl">{k.name}</h1>
-          <p className="mt-4 max-w-2xl text-white/60">{k.beschreibung}</p>
-          <p className="mt-4 text-sm text-white/45">Community vote {zeitraum(a.phasen.abstimmung.start, a.phasen.abstimmung.ende)} · one vote per Epic account
-            <span className="ml-2 inline-block rounded-full border border-sky-400/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">{PHASE_TEXT[phase]}</span></p>
+    <div className="space-y-4">
+      {/* Kopf: Kategorie, Stand, Countdown */}
+      <header className="fl-fest relative isolate flex flex-wrap items-end justify-between gap-x-8 gap-y-5 overflow-hidden px-6 py-6 sm:px-8">
+        <div aria-hidden className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(60% 140% at 90% 0%, rgba(251,191,36,.14), transparent 60%)' }} />
+        <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }} className="min-w-0">
+          <Link to="/competitive/awards" className="knopf-leer !text-xs !text-amber-300">← CompHub Awards 2026</Link>
+          <p className="ueber mt-3 !text-amber-300">{k.sonderpreis ? 'Special prize' : 'Category'} · Community vote</p>
+          <h1 className="titel mt-1 text-6xl sm:text-7xl">{k.name}</h1>
+          <p className="mt-2 max-w-2xl text-[15px] text-white/55">{k.beschreibung}</p>
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-white/45"><Marke ton="gold" puls={offen}>{PHASE_TEXT[phase]}</Marke><span className="zahl">Community vote {zeitraum(a.phasen.abstimmung.start, a.phasen.abstimmung.ende)} · one vote per Epic account</span></p>
         </motion.div>
-        {n && <Countdown ziel={n.ziel} was={n.was} />}
+        {n && <div className="shrink-0"><Countdown klein ziel={n.ziel} was={n.was} /></div>}
       </header>
 
+      {/* Alle Kategorien zum Umschalten */}
+      <div className="ohne-leiste flex items-center gap-1.5 overflow-x-auto">
+        {a.kategorien.map((x) => <Link key={x.id} to={`/competitive/awards/${x.id}`} className={`chip ${x.id === k.id ? '!border-amber-300/60 !bg-amber-300/15 !text-white' : ''}`}>{x.name}</Link>)}
+      </div>
+
       {abstimmbar && offen && !stand.laedt && !stand.angemeldet && (
-        <Glas className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="fl-fest flex flex-col gap-3 !rounded-2xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-white/70">Voting is open. Sign in with your Epic Games account to cast your vote — one vote per account.</p>
-          <a href={`${SEITE}/api/auth/epic/authorize?zurueck=${encodeURIComponent(`/awards/${k.id}`)}`} className="shrink-0 rounded-xl bg-sky-400 px-5 py-2.5 text-center text-sm font-bold text-[#06080f] transition hover:bg-sky-300">Sign in with Epic Games</a>
-        </Glas>
+          <a href={`${SEITE}/api/auth/epic/authorize?zurueck=${encodeURIComponent(`/awards/${k.id}`)}`} className="knopf-prim shrink-0 !bg-amber-300">Sign in with Epic Games</a>
+        </div>
       )}
-      {stand.meine && <p className="rounded-2xl border border-sky-400/40 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-200">Your vote is in. Results are revealed when voting has closed.</p>}
+      {stand.meine && <p className="rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">Your vote is in. Results are revealed when voting has closed.</p>}
       {meldung && <FehlerZeile text={meldung} />}
       {stand.fehler && stand.fehler !== 'Not found' && <FehlerZeile text={stand.fehler} />}
 
       {!k.nominierte.length ? (
-        <Glas className="px-6 py-16 text-center"><p className="text-3xl font-black uppercase text-white/80">Nominees TBA</p><p className="mt-2 text-sm text-white/45">The shortlist is still being put together.</p></Glas>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-          {k.nominierte.map((x, j) => {
-            const gewaehlt = stand.meine === x.id, gewinner = sieger === x.id;
-            const anteil = zahlen && gesamt ? Math.round(((zahlen[x.id] ?? 0) / gesamt) * 1000) / 10 : null;
-            return (
-              <motion.article key={x.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(j, 12) * 0.04 }}
-                className={`relative flex flex-col overflow-hidden rounded-3xl border bg-white/[0.035] backdrop-blur-xl ${gewinner ? 'border-amber-300/80 shadow-[0_0_40px_rgba(252,211,77,.25)]' : gewaehlt ? 'border-sky-400/80 shadow-[0_0_34px_rgba(14,165,233,.3)]' : 'border-white/10'}`}>
-                <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#0a0e18]">
-                  {x.bild ? <><img src={x.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" /><img src={x.bild} alt={x.name} className="absolute inset-0 h-full w-full object-cover object-top" /></>
-                    : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950/60 to-[#06080f] text-6xl font-black text-white/10">{x.name.slice(0, 1).toUpperCase()}</div>}
-                  <span aria-hidden className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#06080f] via-[#06080f]/60 to-transparent" />
-                  {gewinner && <span className="absolute left-3 top-3 rounded-full bg-amber-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#06080f]">★ Winner</span>}
-                  {gewaehlt && !gewinner && <span className="absolute left-3 top-3 rounded-full bg-sky-400 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#06080f]">Your vote</span>}
-                  <div className="absolute inset-x-0 bottom-0 p-4">
-                    <div className="flex items-center gap-2">{x.land && <img src={flaggenPfad(x.land)} alt="" className="h-[18px] w-[26px] rounded-[3px] object-cover" />}<h3 className="truncate text-2xl font-black uppercase leading-none text-white">{x.name}</h3></div>
-                    {(x.team || x.teamLogo) && <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-white/65">{x.teamLogo && <img src={x.teamLogo} alt="" className="h-4 w-4 rounded-sm object-contain" />}<span className="truncate">{x.team}</span></div>}
+        <p className="rounded-2xl border border-dashed border-white/10 px-5 py-6 text-center text-sm text-white/50">The shortlist for this category is still being put together — nominees appear here as soon as they are set.</p>
+      ) : gewinner ? (
+        /* Ergebnis: Sieger gross, daneben alle mit ihrem Anteil */
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
+          <div className="lg:sticky lg:top-[7.5rem]">{fotoKarte(gewinner, 0)}</div>
+          <Flaeche fest className="overflow-hidden">
+            <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3"><span className="h-4 w-1 rounded-full bg-amber-300" /><h2 className="titel text-xl">The vote</h2>{gesamt > 0 && <span className="zahl text-xs font-semibold text-white/40">{gesamt.toLocaleString('en')} votes</span>}</div>
+            <ul>
+              {reihe.map((x, j) => { const anteil = anteilVon(x); return (
+                <li key={x.id} className={`flex items-center gap-3 border-b border-white/[0.05] px-4 py-2.5 last:border-b-0 ${x.id === sieger ? 'bg-amber-300/[0.06]' : ''}`}>
+                  <span className={`titel w-8 shrink-0 text-3xl ${x.id === sieger ? '!text-amber-300' : '!text-white/30'}`}>{j + 1}</span>
+                  {x.bild && <img src={x.bild} alt="" loading="lazy" className="h-14 w-[42px] shrink-0 rounded-lg object-cover object-top" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">{x.land && <img src={flaggenPfad(x.land)} alt="" className="h-4 w-4 shrink-0 rounded-full object-cover" />}<span className="titel truncate text-2xl">{x.name}</span>{stand.meine === x.id && <Marke ton="gold">Your vote</Marke>}</div>
+                    {anteil !== null && <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/[0.07]"><motion.div className={`h-full rounded-full ${x.id === sieger ? 'bg-amber-300' : 'bg-white/35'}`} initial={{ width: 0 }} whileInView={{ width: `${anteil}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: Math.min(j, 10) * 0.04 }} /></div>}
+                    <div className="mt-1">{verweise(x)}</div>
                   </div>
-                </div>
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  {x.statZeile && <p className="text-xs font-semibold leading-snug text-sky-200/90">{x.statZeile}</p>}
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold">
-                    {x.x && <a href={`https://x.com/${x.x}`} target="_blank" rel="noreferrer" className="text-white/45 hover:text-sky-300">@{x.x}</a>}
-                    {x.link && <a href={x.link} target="_blank" rel="noreferrer" className="text-sky-400 hover:text-sky-300">{x.art === 'clip' ? '▶ Watch the play' : 'Link'}</a>}
-                    {x.epicId && <Link to={`/competitive/player/${x.epicId}`} className="text-white/45 hover:text-sky-300">Profile</Link>}
-                  </div>
-                  {anteil !== null && (
-                    <div className="mt-auto pt-2">
-                      <div className="flex justify-between text-xs font-bold text-white/70"><span>Community</span><span>{anteil}%</span></div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-sky-400" initial={{ width: 0 }} animate={{ width: `${anteil}%` }} transition={{ duration: 0.8 }} /></div>
-                    </div>
-                  )}
-                  {darf && (
-                    <button type="button" disabled={sendet} onClick={() => void abstimmen(x)}
-                      className={`mt-auto rounded-xl px-3 py-2.5 text-sm font-bold transition disabled:opacity-60 ${wahl === x.id ? 'bg-sky-400 text-[#06080f] hover:bg-sky-300' : 'border border-sky-400/50 text-sky-300 hover:bg-sky-400/10'}`}>
-                      {wahl === x.id ? (sendet ? 'Saving…' : 'Confirm — final') : 'Vote'}
-                    </button>
-                  )}
-                </div>
-              </motion.article>
-            );
-          })}
+                  {anteil !== null && <span className="titel zahl w-20 shrink-0 text-right text-3xl">{anteil}%</span>}
+                </li>); })}
+            </ul>
+          </Flaeche>
         </div>
+      ) : (
+        <div className="grid grid-cols-2 items-start gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">{reihe.map(fotoKarte)}</div>
       )}
-      <nav className="flex flex-wrap justify-between gap-3 text-sm font-semibold">
-        {vor ? <Link to={`/competitive/awards/${vor.id}`} className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-white/80 hover:border-sky-400/50">← {vor.name}</Link> : <span />}
-        {nach ? <Link to={`/competitive/awards/${nach.id}`} className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-white/80 hover:border-sky-400/50">{nach.name} →</Link> : <span />}
+      <nav className="flex flex-wrap justify-between gap-3">
+        {vor ? <Link to={`/competitive/awards/${vor.id}`} className="knopf">← {vor.name}</Link> : <span />}
+        {nach ? <Link to={`/competitive/awards/${nach.id}`} className="knopf">{nach.name} →</Link> : <span />}
       </nav>
     </div>
   );
