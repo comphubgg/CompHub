@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Abschnitt, Bild, Flaeche, Marke, MedienKarte, Zaehler, dauer, useJetzt } from '../ds/Bausteine';
 import { flagge } from '../teile/Glas';
 import { REGION_NAME, cupLink, datum, istRanked, laeuft, lageVon, stufeName, tagKurz, vorbei, type Cup, type Fenster, type Lage } from './comp/events/gemeinsam';
-import { CupBild, CupKarte, CupMarken, LiveMarke, RegionMarke, TeamFotos, TeamNamen, Uhrwerk, type FotoSpieler } from './comp/events/teile';
+import { BildMarke, CupBild, CupKarte, CupMarken, LiveMarke, RegionMarke, TeamFotos, TeamNamen, Uhrwerk, type FotoSpieler, spiele } from './comp/events/teile';
 
 /*
  * Competitive-Uebersicht - die Titelseite der Szene (Design-System 3.0, Betreiber 27.11.2026: "alles wird neu gebaut ... nichts 1:1 gleich").
@@ -150,7 +150,7 @@ function Buehne({ live, naechster, jetzt, puls }: { live: Termin[]; naechster: T
             {zusatz && <Marke>{zusatz}</Marke>}
           </div>
           <h1 className="titel mt-4 text-[2.9rem] drop-shadow-[0_6px_30px_rgba(0,0,0,0.85)] sm:text-7xl 2xl:text-8xl">{titel}</h1>
-          <p className="mt-3 text-[15px] text-white/65"><span className="font-semibold text-white">{stufeName(f)}</span> · {REGION_NAME[f.region] ?? f.region} · {datum(f.begin)}{f.end ? `–${uhrzeit(f.end)}` : ''}{f.matchCap ? ` · ${f.matchCap} matches` : ''}</p>
+          <p className="mt-3 text-[15px] text-white/65"><span className="font-semibold text-white">{stufeName(f)}</span> · {REGION_NAME[f.region] ?? f.region} · {datum(f.begin)}{f.end ? `–${uhrzeit(f.end)}` : ''}{f.matchCap ? ` · ${spiele(f.matchCap)}` : ''}</p>
           <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">{istLive ? 'Ends in' : 'Starts in'}</p>
@@ -280,7 +280,7 @@ function LetzteSieger({ sieger }: { sieger: Termin[] }) {
               <Link to={cupLink(t.cup, t.f)} className="relative block min-h-[150px] overflow-hidden">
                 <CupBild c={t.cup} className="transition duration-700 group-hover:scale-[1.06]" />
                 <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-fl to-transparent" />
-                <span className="absolute left-3 top-3 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300 ring-1 ring-amber-300/40 backdrop-blur">Winner</span>
+                <span className="absolute left-3 top-3"><BildMarke ton="gold">Winner</BildMarke></span>
               </Link>
               <div className="flex min-w-0 flex-col justify-center gap-2 py-4 pl-2 pr-4">
                 <div className="flex items-center gap-2"><RegionMarke r={t.f.region} klein /><span className="zahl text-[11px] text-white/45">{tagKurz(t.f.end ?? t.f.begin)}</span></div>

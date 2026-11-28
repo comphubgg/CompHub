@@ -1,124 +1,185 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Glas, Titel } from '../../teile/Glas';
+import { Flaeche, Kennzahl, Leer, Segment, SeitenKopf } from '../../ds/Bausteine';
 import {
-  ART_NAME, MODI, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dekoBild, dauer, istRanked, lageVon, modiVon, stufeName, tagKurz, useJetzt,
-  type Cup, type Lage, type Modus,
+  ART_NAME, MODI, MODUS_NAME, REGIONEN, REGION_NAME, cupLink, datum, dauer, fensterIn, istRanked, laeuft, lageVon, modiVon, stufeName, tagKurz, useJetzt, vorbei,
+  type Cup, type Fenster, type Lage, type Modus,
 } from './events/gemeinsam';
-import { LiveMarke, RegionMarke, knopf } from './events/teile';
+import { BildMarke, CupBild, CupKarte, CupKarteQuer, CupMarken, LiveMarke, RegionMarke, Uhrwerk, spiele } from './events/teile';
 
 /*
- * Alle Cups im Hub (/api/cup-catalog): oben der laufende Cup gross mit Banner, Regionen und Countdown bis zum Ende, darunter Filter
- * (Region, Modus, Suche, Ranked ein/aus) und die Abschnitte Live, Demnaechst und Beendet. Zuerst nur Live/Demnaechst (modus=alle-aktuell, klein),
+ * Alle Cups im Hub (/api/cup-catalog), neu komponiert (Design-System 3.0):
+ *   links   der wichtigste Cup als geteilte Karte (Banner ganz zu sehen, daneben Countdown-Kacheln, Startzeiten je Region), darunter eine
+ *           Filterzeile (Stand, Suche, Region, Spielart, Ranked) und die Cups als gleich grosse Karten - Beendete nach Monaten gegliedert
+ *   rechts  der Spielplan: die naechsten Spieltage als Tagesliste, klebt beim Rollen
+ * Jeder Cup zeigt hier sein eigenes Thumbnail, auch Ranked- und Skin-Cups (Betreiber). Zuerst nur Live/Demnaechst (modus=alle-aktuell, klein),
  * der ganze Katalog mit den beendeten Cups kommt im Hintergrund nach (modus=alle).
  */
 
 /** Nach Wichtigkeit wie auf der Seite: FNCS, Globals, Division, Majors zuerst - Arena, Test, Mobile zuletzt. */
 const gewicht = (c: Cup) => (/FNCS|Global|Championship|Division|Major|LAN|Elite/i.test(c.titel) ? 0 : /Arena|Test|Fight Night|Mobile/i.test(c.titel) ? 2 : 1);
-
-/** Ersatz fuer ein fehlendes oder schon gezeigtes Bild: Verlauf in der Farbe des Cups mit seiner Art. */
-function Ersatzbild({ c }: { c: Cup }) {
-  const farbe = c.farbe || '#38bdf8';
-  return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: `radial-gradient(120% 120% at 0% 0%, ${farbe}55, transparent 60%), linear-gradient(135deg, #0b1220, #070a12)` }}>
-      <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '14px 14px' }} />
-      <span className="absolute -bottom-3 right-3 select-none text-[72px] font-black uppercase leading-none tracking-tighter text-white/[0.07]">{(ART_NAME[c.art] ?? 'Cup').split(' ')[0]}</span>
-    </div>
-  );
+const GEWICHT_REGION: Record<string, number> = { EU: 0, NAC: 1, NAW: 2, BR: 3, ASIA: 4, ME: 5, OCE: 6 };
+const uhrzeit = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const TAG = 86400e3;
+type Stand = 'alle' | 'live' | 'kommt' | 'vorbei';
+/** Wann welche Region am Tag des naechsten Spieltags dran ist. */
+function zeitenVon(c: Cup, region: string, f: Fenster | null) {
+  if (!f) return [];
+  return fensterIn(c, region).filter((x) => x.begin >= f.begin && x.begin - f.begin < TAG)
+    .sort((a, b) => (GEWICHT_REGION[a.region] ?? 9) - (GEWICHT_REGION[b.region] ?? 9) || a.begin - b.begin).filter((x, i, l) => l.findIndex((y) => y.region === x.region) === i);
 }
+interface Zeile { c: Cup; lage: Lage }
 
-function Kachel({ c, lage, mitBild, jetzt, i }: { c: Cup; lage: Lage; mitBild: boolean; jetzt: number; i: number }) {
-  const modi = modiVon(c);
-  const f = lage.fenster;
-  const regionen = Object.keys(c.regionen);
-  const [kaputt, setKaputt] = useState(false);
-  const zeigRegionen = lage.wo.length ? lage.wo : regionen;
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ delay: Math.min(i, 12) * 0.035, duration: 0.4 }}>
-      <Link to={cupLink(c, f)} className="group block h-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-2xl hover:shadow-sky-500/10">
-        <div className="relative aspect-video overflow-hidden">
-          {mitBild && dekoBild(c) && !kaputt ? <img src={dekoBild(c)} alt="" loading="lazy" onError={() => setKaputt(true)} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <Ersatzbild c={c} />}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#070a12] via-[#070a12]/20 to-transparent" />
-          <div className="absolute left-3 top-3 flex gap-1.5">
-            {lage.status === 'live' && <LiveMarke />}
-            {[...modi].filter((m) => m !== 'br').map((m) => <span key={m} className="rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/85 backdrop-blur">{MODUS_NAME[m]}</span>)}
-          </div>
-          <span className="absolute right-3 top-3 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/70 backdrop-blur">{ART_NAME[c.art] ?? c.art}</span>
-        </div>
-        <div className="space-y-2.5 p-4">
-          <div>
-            <h3 className="line-clamp-1 font-bold tracking-tight text-white">{c.titel}</h3>
-            <p className="line-clamp-1 text-xs text-white/45">{f ? stufeName(f) : c.untertitel ?? '—'}</p>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {zeigRegionen.length >= 6 ? <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/55">All {zeigRegionen.length} regions</span>
-              : zeigRegionen.map((r) => <RegionMarke key={r} r={r} klein />)}
-          </div>
-          <div className="flex items-baseline justify-between border-t border-white/5 pt-2.5 text-xs">
-            {lage.status === 'live' && f?.end ? <><span className="text-white/45">ends in</span><span className="font-bold tabular-nums text-rose-300">{dauer(f.end - jetzt)}</span></>
-              : lage.status === 'kommt' && lage.naechster ? <><span className="text-white/45">{datum(lage.naechster)}</span><span className="font-bold tabular-nums text-sky-300">in {dauer(lage.naechster - jetzt)}</span></>
-                : <><span className="text-white/45">Finished</span><span className="font-semibold tabular-nums text-white/60">{lage.letzter ? tagKurz(lage.letzter) : '—'}</span></>}
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
-}
-
-/** Der Kopf: der wichtigste laufende Cup gross - sonst der naechste. */
-function Held({ c, lage, jetzt }: { c: Cup; lage: Lage; jetzt: number }) {
+/** Der Kopf: der wichtigste laufende Cup - sonst der naechste. Banner links ganz zu sehen, rechts alles zum Spieltag. */
+function Held({ c, lage, jetzt, region }: { c: Cup; lage: Lage; jetzt: number; region: string }) {
   const f = lage.fenster;
   const live = lage.status === 'live';
   const ziel = live ? f?.end ?? null : lage.naechster;
   const anteil = live && f?.end ? Math.min(1, Math.max(0, (jetzt - f.begin) / (f.end - f.begin))) : 0;
+  // wann welche Region am selben Tag dran ist (live: wo es gerade laeuft)
+  const zeiten = live ? [] : zeitenVon(c, region, f);
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03]">
-      {dekoBild(c) ? <motion.img src={dekoBild(c)} alt="" initial={{ scale: 1.08 }} animate={{ scale: 1 }} transition={{ duration: 1.6, ease: 'easeOut' }} className="absolute inset-0 h-full w-full object-cover object-center" /> : <Ersatzbild c={c} />}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#06080f] via-[#06080f]/80 to-[#06080f]/10" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#06080f]/90 via-transparent to-transparent" />
-      <div className="relative grid min-h-[380px] gap-8 p-8 lg:grid-cols-[1fr_auto] lg:p-12">
-        <div className="flex max-w-3xl flex-col justify-end">
-          <div className="flex flex-wrap items-center gap-2">
-            {live ? <LiveMarke /> : <span className="rounded-full bg-sky-400/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">Up next</span>}
-            <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 backdrop-blur">{ART_NAME[c.art] ?? c.art}</span>
+    <Flaeche fest className="group overflow-hidden">
+      <div className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <Link to={cupLink(c, f)} className="relative block aspect-video overflow-hidden lg:aspect-auto lg:min-h-[340px]">
+          <CupBild c={c} className="transition duration-700 group-hover:scale-[1.04]" />
+          <div className="absolute inset-y-0 right-0 hidden w-24 bg-gradient-to-l from-fl to-transparent lg:block" />
+          <div className="absolute left-4 top-4 flex flex-wrap gap-1.5">{live ? <LiveMarke text="Live now" /> : <BildMarke>Up next</BildMarke>}</div>
+        </Link>
+        <div className="flex min-w-0 flex-col justify-center gap-4 p-6 lg:p-8">
+          <div className="flex flex-wrap gap-1.5"><CupMarken c={c} /></div>
+          <div>
+            <h2 className="titel text-5xl 2xl:text-6xl">{c.titel.split(/\s·\s|\s\(/)[0]}</h2>
+            {f && <p className="mt-2 text-[15px] text-white/60"><span className="font-semibold text-white">{stufeName(f)}</span>{f.matchCap ? ` · ${spiele(f.matchCap)}` : ''}{ziel ? ` · ${live ? 'ends ' : ''}${datum(ziel)}` : ''}</p>}
           </div>
-          <h2 className="mt-4 text-4xl font-extrabold leading-[1.05] tracking-tight text-white lg:text-6xl">{c.titel}</h2>
-          {f && <p className="mt-2 text-lg font-medium text-white/70">{stufeName(f)}{f.matchCap ? <span className="text-white/40"> · {f.matchCap} matches</span> : null}</p>}
-          {c.beschreibung && <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/50">{c.beschreibung}</p>}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            {(lage.wo.length ? lage.wo : Object.keys(c.regionen)).map((r) => <RegionMarke key={r} r={r} />)}
+          {ziel && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">{live ? 'Ends in' : 'Starts in'}</p>
+              <div className="mt-1.5"><Uhrwerk ms={ziel - jetzt} ton={live ? 'rot' : 'akz'} /></div>
+              {live && <div className="mt-3 h-1.5 max-w-sm overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-gradient-to-r from-red-400 to-amber-300" initial={{ width: 0 }} animate={{ width: `${anteil * 100}%` }} transition={{ duration: 1 }} /></div>}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-1">
+            {live ? lage.wo.map((r) => <RegionMarke key={r} r={r} />) : zeiten.map((x) => <RegionMarke key={x.windowId} r={x.region} zeit={uhrzeit(x.begin)} />)}
           </div>
-          <div className="mt-6"><Link to={cupLink(c, f)} className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 text-sm font-bold text-[#06080f] shadow-lg shadow-sky-500/25 transition hover:-translate-y-0.5 hover:bg-sky-300">{live ? 'Open live leaderboard' : 'Open event'} →</Link></div>
+          <div><Link to={cupLink(c, f)} className="knopf-prim">{live ? 'Open live leaderboard' : 'Open event'} <span aria-hidden>→</span></Link></div>
         </div>
-        {ziel && (
-          <div className="self-end rounded-3xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl lg:min-w-[300px]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">{live ? 'Ends in' : 'Starts in'}</p>
-            <p className={`mt-1 text-5xl font-black tabular-nums tracking-tight ${live ? 'text-rose-300' : 'text-sky-300'}`}>{dauer(ziel - jetzt)}</p>
-            <p className="mt-1 text-xs text-white/45">{datum(ziel)}</p>
-            {live && (
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-gradient-to-r from-rose-400 to-amber-300" initial={{ width: 0 }} animate={{ width: `${anteil * 100}%` }} transition={{ duration: 1 }} /></div>
-            )}
-          </div>
-        )}
       </div>
-    </motion.div>
+    </Flaeche>
   );
 }
 
-function Abschnitt({ titel, zahl: n, children, rechts }: { titel: string; zahl: number; children: React.ReactNode; rechts?: React.ReactNode }) {
+/** Der Spielplan am rechten Rand: was laeuft und was kommt, nach Tagen - je Cup eine Zeile mit den Startzeiten der Regionen. */
+function Spielplan({ cups, region, jetzt }: { cups: Cup[]; region: string; jetzt: number }) {
+  const [alle, setAlle] = useState(false);
+  const minute = Math.floor(jetzt / 60_000);
+  const tage = useMemo(() => {
+    const t = Date.now();
+    const je = new Map<string, { c: Cup; tag: number; fenster: Fenster[]; live: boolean }>();
+    for (const c of cups) for (const f of fensterIn(c, region)) {
+      const l = laeuft(f, t);
+      if (!l && !(f.begin > t && f.begin - t < 14 * TAG)) continue;
+      const d = new Date(l ? t : f.begin); const tag = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const k = `${c.id}|${tag}`;
+      const e = je.get(k) ?? { c, tag, fenster: [], live: false };
+      e.fenster.push(f); e.live = e.live || l; je.set(k, e);
+    }
+    const zeilen = [...je.values()].map((e) => ({ ...e, fenster: e.fenster.sort((a, b) => a.begin - b.begin), start: Math.min(...e.fenster.map((f) => f.begin)) }))
+      .sort((a, b) => a.tag - b.tag || Number(b.live) - Number(a.live) || a.start - b.start);
+    const gruppen: Array<{ tag: number; zeilen: typeof zeilen }> = [];
+    for (const z of zeilen) { const g = gruppen[gruppen.length - 1]; if (g && g.tag === z.tag) g.zeilen.push(z); else gruppen.push({ tag: z.tag, zeilen: [z] }); }
+    return gruppen;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cups, region, minute]);
+  const heute = new Date(); const h0 = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate()).getTime();
+  const tagName = (t: number) => (t === h0 ? 'Today' : t === h0 + TAG ? 'Tomorrow' : new Date(t).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }));
+  const anzahl = tage.reduce((n, g) => n + g.zeilen.length, 0);
+  // Rueckblick: die zuletzt gespielten Spieltage (7 Tage), neueste zuerst - je Cup und Tag eine Zeile
+  const gespielt = useMemo(() => {
+    const t = Date.now();
+    const je = new Map<string, { c: Cup; ende: number; fenster: Fenster[] }>();
+    for (const c of cups) for (const f of fensterIn(c, region)) {
+      if (!vorbei(f, t) || t - (f.end ?? f.begin) > 7 * TAG) continue;
+      const d = new Date(f.begin); const k = `${c.id}|${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const e = je.get(k) ?? { c, ende: 0, fenster: [] };
+      e.fenster.push(f); e.ende = Math.max(e.ende, f.end ?? f.begin); je.set(k, e);
+    }
+    return [...je.values()].sort((a, b) => b.ende - a.ende).slice(0, 14)
+      .map((e) => ({ ...e, fenster: e.fenster.sort((a, b) => (GEWICHT_REGION[a.region] ?? 9) - (GEWICHT_REGION[b.region] ?? 9) || b.begin - a.begin) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cups, region, minute]);
+  let rest = alle ? Infinity : 6;
+  const kopfzeile = 'sticky top-0 z-10 flex items-center justify-between bg-fl px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45';
   return (
-    <section className="space-y-4">
-      <div className="flex items-end justify-between gap-4">
-        <h2 className="flex items-baseline gap-3 text-2xl font-extrabold tracking-tight text-white">{titel}<span className="text-sm font-semibold text-white/35">{n}</span></h2>
+    <Flaeche fest className="flex flex-col overflow-hidden xl:max-h-[calc(100vh-128px)]">
+      <div className="flex items-end justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+        <div><p className="ueber">Schedule</p><h2 className="titel mt-1 text-3xl">Match days</h2></div>
+        <span className="zahl text-right text-xs text-white/40">{region === 'alle' ? 'all regions' : REGION_NAME[region] ?? region}<br />your local time</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {!anzahl && <p className="px-5 py-5 text-sm text-white/45">Nothing scheduled in the next 14 days with these filters – Epic announces cups about a week ahead.</p>}
+        {tage.map((g) => {
+          if (rest <= 0) return null;
+          const zeilen = g.zeilen.slice(0, rest); rest -= zeilen.length;
+          return (
+            <div key={g.tag}>
+              <p className={kopfzeile}>
+                <span className={g.tag === h0 ? 'text-akz' : ''}>{tagName(g.tag)}</span>
+                {g.tag > h0 && <span className="zahl normal-case tracking-normal text-white/30">in {dauer(g.zeilen[0].start - jetzt)}</span>}
+              </p>
+              {zeilen.map((z) => (
+                <Link key={z.c.id} to={cupLink(z.c, z.fenster.find((f) => laeuft(f, jetzt)) ?? z.fenster[0])} className="group flex gap-3 border-t border-white/[0.04] px-5 py-2.5 transition hover:bg-white/[0.035]">
+                  <div className="relative h-[46px] w-[82px] shrink-0 overflow-hidden rounded-lg bg-black/40"><CupBild c={z.c} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-[13px] font-semibold text-white group-hover:text-akz">
+                      {z.live && <span className="relative flex h-1.5 w-1.5 shrink-0"><span className="absolute h-full w-full animate-ping rounded-full bg-red-400 opacity-70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>}
+                      <span className="truncate">{z.c.titel}</span>
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {z.fenster.filter((f, i, l) => l.findIndex((y) => y.region === f.region) === i).slice(0, 7).map((f) => <RegionMarke key={f.windowId} r={f.region} zeit={laeuft(f, jetzt) ? 'live' : uhrzeit(f.begin)} klein />)}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          );
+        })}
+        {anzahl > 6 && <button type="button" onClick={() => setAlle((x) => !x)} className="w-full border-t border-white/[0.06] py-2.5 text-xs font-semibold text-akz transition hover:bg-white/[0.03]">{alle ? 'Show less' : `Show all ${anzahl} upcoming entries`}</button>}
+        {gespielt.length > 0 && (
+          <div className="border-t border-white/[0.07]">
+            <p className={kopfzeile}><span>Just played · results</span><span className="zahl normal-case tracking-normal text-white/30">last 7 days</span></p>
+            {gespielt.map((z, i) => (
+              <Link key={`${z.c.id}-${z.ende}`} to={cupLink(z.c, z.fenster[0])} className={`group gap-3 ${i >= 5 ? 'hidden xl:flex' : 'flex'} border-t border-white/[0.04] px-5 py-2.5 transition hover:bg-white/[0.035]`}>
+                <div className="relative h-[46px] w-[82px] shrink-0 overflow-hidden rounded-lg bg-black/40"><CupBild c={z.c} /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold text-white group-hover:text-akz">{z.c.titel}</p>
+                  <p className="zahl mt-0.5 truncate text-[11px] text-white/45">{stufeName(z.fenster[0])} · {tagKurz(z.ende)} · {[...new Set(z.fenster.map((f) => f.region))].slice(0, 7).join(' ')}</p>
+                </div>
+                <span aria-hidden className="self-center text-white/25 transition group-hover:text-akz">→</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </Flaeche>
+  );
+}
+
+function Teil({ titel, zahl: n, rechts, children }: { titel: string; zahl: number; rechts?: ReactNode; children: ReactNode }) {
+  return (
+    <section>
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="h-6 w-1 rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.8)]" />
+          <h2 className="titel text-3xl">{titel}</h2><span className="zahl mt-1 rounded-md bg-white/[0.06] px-2 py-0.5 text-xs font-bold text-white/55">{n}</span>
+        </div>
         {rechts}
       </div>
       {children}
     </section>
   );
 }
-
 
 export default function Events() {
   const [cups, setCups] = useState<Cup[] | null>(null);
@@ -128,6 +189,7 @@ export default function Events() {
   const [modus, setModus] = useState<'alle' | Modus>('alle');
   const [ranked, setRanked] = useState(false);
   const [suche, setSuche] = useState('');
+  const [stand, setStand] = useState<Stand>('alle');
   const [mehr, setMehr] = useState(12);
   const jetzt = useJetzt();
 
@@ -144,85 +206,126 @@ export default function Events() {
   const ein = useMemo(() => {
     const t = Date.now();
     const q = suche.trim().toLowerCase();
-    const liste = (cups ?? []).filter((c) => (region === 'alle' || c.global || c.regionen[region])
+    const gefiltert = (cups ?? []).filter((c) => (region === 'alle' || c.global || c.regionen[region])
       && (modus === 'alle' || modiVon(c).has(modus))
       && (ranked || q || !istRanked(c))
-      && (!q || `${c.titel} ${c.untertitel ?? ''} ${c.art}`.toLowerCase().includes(q)))
-      .map((c) => ({ c, lage: lageVon(c, region, t) }));
+      && (!q || `${c.titel} ${c.untertitel ?? ''} ${c.art} ${ART_NAME[c.art] ?? ''}`.toLowerCase().includes(q)));
+    const liste: Zeile[] = gefiltert.map((c) => ({ c, lage: lageVon(c, region, t) }));
     const live = liste.filter((x) => x.lage.status === 'live').sort((a, b) => gewicht(a.c) - gewicht(b.c));
     const kommt = liste.filter((x) => x.lage.status === 'kommt').sort((a, b) => (a.lage.naechster ?? 0) - (b.lage.naechster ?? 0));
     const vorbei = liste.filter((x) => x.lage.status === 'vorbei' && x.lage.letzter).sort((a, b) => (b.lage.letzter ?? 0) - (a.lage.letzter ?? 0));
     // Der Kopf nimmt keinen Ranked Cup, wenn es etwas anderes gibt.
     const kopfWahl = [...live, ...[...kommt].sort((a, b) => gewicht(a.c) - gewicht(b.c) || (a.lage.naechster ?? 0) - (b.lage.naechster ?? 0))];
-    const kopf = kopfWahl.find((x) => dekoBild(x.c)) ?? kopfWahl.find((x) => !istRanked(x.c)) ?? kopfWahl[0] ?? null;
-    return { live, kommt, vorbei, kopf };
+    const kopf = kopfWahl.find((x) => x.c.bild && !istRanked(x.c)) ?? kopfWahl.find((x) => x.c.bild) ?? kopfWahl[0] ?? null;
+    return { gefiltert, live, kommt, vorbei, kopf };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cups, region, modus, ranked, suche, minute]);
 
-    const mitBild = useMemo(() => {
-    const gesehen = new Set<string>();
-    const raus = new Map<string, boolean>();
-    // Thumbnails duerfen sich hier wiederholen (Betreiber: "mir fehlen ziemlich viele Thumbnails") - jeder Cup zeigt sein Bild.
-    const merke = (id: string, b?: string) => { if (b) gesehen.add(b); raus.set(id, true); };
-    const kb = ein.kopf ? dekoBild(ein.kopf.c) : undefined;
-    if (kb) gesehen.add(kb);
-    [...ein.live, ...ein.kommt, ...ein.vorbei.slice(0, mehr)].forEach((x) => { if (x.c.id !== ein.kopf?.c.id) merke(x.c.id, dekoBild(x.c)); });
-    return raus;
-  }, [ein, mehr]);
-
-  const ohneKopf = <T extends { c: Cup }>(l: T[]) => l.filter((x) => x.c.id !== ein.kopf?.c.id);
+  const ohneKopf = (l: Zeile[]) => (stand === 'alle' ? l.filter((x) => x.c.id !== ein.kopf?.c.id) : l);
   const lebende = ohneKopf(ein.live);
   const kommende = ohneKopf(ein.kommt);
-  const raster = 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4';
+  // Beendete nach Monaten gegliedert
+  const monate = useMemo(() => {
+    const g: Array<{ titel: string; zeilen: Zeile[] }> = [];
+    for (const x of ein.vorbei.slice(0, mehr)) {
+      const titel = new Date(x.lage.letzter ?? 0).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      const l = g[g.length - 1]; if (l && l.titel === titel) l.zeilen.push(x); else g.push({ titel, zeilen: [x] });
+    }
+    return g;
+  }, [ein.vorbei, mehr]);
+  const mitSonst = (cups ?? []).some((c) => modiVon(c).has('sonst'));
+  const raster = 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3 min-[1900px]:grid-cols-4';
+  const karte = (x: Zeile, i: number) => (
+    <CupKarte key={x.c.id} c={x.c} lage={x.lage} verz={Math.min(i, 8) * 0.03}
+      dauerText={x.lage.status === 'live' && x.lage.fenster?.end ? `ends in ${dauer(x.lage.fenster.end - jetzt)}` : x.lage.status === 'kommt' && x.lage.naechster ? `in ${dauer(x.lage.naechster - jetzt)}` : undefined} />
+  );
+  /** Ein oder zwei Cups stehen quer ueber die ganze Breite - eine einzelne kleine Karte in einer leeren Reihe gibt es nicht. */
+  const reihe = (l: Zeile[]) => (l.length > 2 ? <div className={raster}>{l.map(karte)}</div> : (
+    <div className={`grid gap-5 ${l.length === 2 ? 'min-[1900px]:grid-cols-2' : ''}`}>
+      {l.map((x, i) => {
+        const f = x.lage.fenster; const live = x.lage.status === 'live';
+        return <CupKarteQuer key={x.c.id} c={x.c} lage={x.lage} verz={i * 0.04} ms={live ? (f?.end ? f.end - jetzt : null) : x.lage.naechster ? x.lage.naechster - jetzt : null}
+          zeiten={live ? undefined : zeitenVon(x.c, region, f).map((y) => ({ r: y.region, zeit: uhrzeit(y.begin) }))} />;
+      })}
+    </div>
+  ));
+  const zeigt = (s: Stand) => stand === 'alle' || stand === s;
+  const gefiltert = region !== 'alle' || modus !== 'alle' || ranked || !!suche.trim();
+
   return (
-    <div className="space-y-8">
-      <Titel ueber="Tournaments" titel="Events" text="Every Fortnite competitive cup — live, upcoming and finished, straight from Epic's tournament data." />
+    <div>
+      <SeitenKopf ueber="Tournaments" titel="Events" text="Every Fortnite competitive cup – live, upcoming and finished, straight from Epic's tournament data."
+        rechts={cups && (
+          <div className="flex gap-7">
+            <Kennzahl label="Live now" wert={ein.live.length} ton={ein.live.length ? 'rot' : 'weiss'} />
+            <Kennzahl label="Upcoming" wert={ein.kommt.length} ton="akz" />
+            <Kennzahl label="Finished" wert={ganz ? ein.vorbei.length : '…'} />
+          </div>
+        )} />
 
-      {!cups && !fehler && <div className="h-[380px] animate-pulse rounded-[2rem] border border-white/5 bg-white/[0.03]" />}
-      {fehler && !cups && <Glas className="p-10 text-center text-white/60">The event catalogue isn't reachable right now. Try again in a moment.</Glas>}
-      {ein.kopf && <Held c={ein.kopf.c} lage={ein.kopf.lage} jetzt={jetzt} />}
+      {!cups && !fehler && <div className="fl-fest h-[360px] animate-pulse" />}
+      {fehler && !cups && <Leer text="The event catalogue isn't reachable right now. Try again in a moment." />}
 
       {cups && (
-        <Glas className="sticky top-2 z-20 flex flex-wrap items-center gap-3 !bg-[#0a0e18]/80 p-3" verzoegerung={0.1}>
-          <div className="relative">
-            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search a cup…" className="w-60 rounded-xl border border-white/10 bg-black/30 py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/30 focus:border-sky-400/60 focus:outline-none" />
-            <svg className="absolute left-3 top-2.5 h-4 w-4 text-white/35" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          </div>
-          <div className="flex flex-wrap rounded-full border border-white/10 bg-black/20 p-1">
-            <button type="button" className={knopf(region === 'alle')} onClick={() => setRegion('alle')}>All regions</button>
-            {REGIONEN.map((r) => <button key={r} type="button" title={REGION_NAME[r]} className={knopf(region === r)} onClick={() => setRegion(r)}>{r}</button>)}
-          </div>
-          <div className="flex flex-wrap rounded-full border border-white/10 bg-black/20 p-1">
-            <button type="button" className={knopf(modus === 'alle')} onClick={() => setModus('alle')}>All modes</button>
-            {MODI.filter((m) => m !== 'sonst' || (cups ?? []).some((c) => modiVon(c).has('sonst'))).map((m) => <button key={m} type="button" className={knopf(modus === m)} onClick={() => setModus(m)}>{MODUS_NAME[m]}</button>)}
-          </div>
-          <button type="button" onClick={() => setRanked((x) => !x)} className="ml-auto flex items-center gap-2.5 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70 hover:text-white">
-            <span className={`relative h-4 w-7 rounded-full transition ${ranked ? 'bg-sky-400' : 'bg-white/15'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${ranked ? 'left-3.5' : 'left-0.5'}`} /></span>
-            Show ranked cups
-          </button>
-        </Glas>
-      )}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:grid-rows-[auto_1fr]">
+          {/* Auf dem Handy: Kopf, Spielplan, dann Filter und Karten. Am Bildschirm steht der Spielplan rechts ueber die ganze Hoehe und klebt. */}
+          {ein.kopf && stand === 'alle' && <div className="min-w-0"><Held c={ein.kopf.c} lage={ein.kopf.lage} jetzt={jetzt} region={region} /></div>}
+          <aside className="min-w-0 xl:col-start-2 xl:row-span-2 xl:row-start-1"><div className="xl:sticky xl:top-[112px]"><Spielplan cups={ein.gefiltert} region={region} jetzt={jetzt} /></div></aside>
+          <div className="min-w-0 space-y-6 xl:col-start-1">
 
-      {lebende.length > 0 && (
-        <Abschnitt titel="Live now" zahl={ein.live.length}>
-          <div className={raster}><AnimatePresence>{lebende.map((x, i) => <Kachel key={x.c.id} c={x.c} lage={x.lage} mitBild={!!mitBild.get(x.c.id)} jetzt={jetzt} i={i} />)}</AnimatePresence></div>
-        </Abschnitt>
-      )}
-      {cups && (
-        <Abschnitt titel="Upcoming" zahl={ein.kommt.length}>
-          {kommende.length ? <div className={raster}><AnimatePresence>{kommende.map((x, i) => <Kachel key={x.c.id} c={x.c} lage={x.lage} mitBild={!!mitBild.get(x.c.id)} jetzt={jetzt} i={i} />)}</AnimatePresence></div>
-            : <Glas className="p-8 text-center text-sm text-white/45">No {ein.kommt.length ? 'other ' : ''}upcoming cups match these filters.</Glas>}
-        </Abschnitt>
-      )}
-      {cups && (
-        <Abschnitt titel="Recently finished" zahl={ein.vorbei.length} rechts={!ganz && <span className="text-xs text-white/40">loading the full archive…</span>}>
-          {ein.vorbei.length ? (
-            <>
-              <div className={raster}><AnimatePresence>{ein.vorbei.slice(0, mehr).map((x, i) => <Kachel key={x.c.id} c={x.c} lage={x.lage} mitBild={!!mitBild.get(x.c.id)} jetzt={jetzt} i={i} />)}</AnimatePresence></div>
-              {ein.vorbei.length > mehr && <div className="flex justify-center"><button type="button" onClick={() => setMehr((m) => m + 12)} className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white/80 transition hover:border-sky-400/40 hover:text-white">Show more ({ein.vorbei.length - mehr})</button></div>}
-            </>
-          ) : ganz && <Glas className="p-8 text-center text-sm text-white/45">No finished cups match these filters.</Glas>}
-        </Abschnitt>
+            {/* ------------------------------------------------ Filter: klebt unter der Leiste */}
+            <div className="fl-fest sticky top-[104px] z-20 space-y-2.5 !rounded-2xl p-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Segment id="ev-stand" wert={stand} onWahl={setStand} klein wahl={[
+                  { k: 'alle', titel: 'All' }, { k: 'live', titel: `Live ${ein.live.length}` }, { k: 'kommt', titel: `Upcoming ${ein.kommt.length}` }, { k: 'vorbei', titel: `Finished ${ganz ? ein.vorbei.length : '…'}` },
+                ]} />
+                <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
+                  <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search a cup…" className="eingabe w-full !py-2 !pl-9" />
+                  <svg className="absolute left-3 top-2.5 h-4 w-4 text-white/35" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                </div>
+                <button type="button" onClick={() => setRanked((x) => !x)} aria-pressed={ranked} className="ml-auto flex items-center gap-2.5 text-xs font-semibold text-white/65 transition hover:text-white">
+                  <span className={`relative h-4 w-7 rounded-full transition ${ranked ? 'bg-akz' : 'bg-white/15'}`}><span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${ranked ? 'left-3.5' : 'left-0.5'}`} /></span>
+                  Ranked cups
+                </button>
+              </div>
+              <div className="ohne-leiste -mx-1 flex items-center gap-1.5 overflow-x-auto px-1">
+                <button type="button" className={`chip ${region === 'alle' ? 'chip-an' : ''}`} onClick={() => setRegion('alle')}>All regions</button>
+                {REGIONEN.map((r) => <button key={r} type="button" title={REGION_NAME[r]} className={`chip ${region === r ? 'chip-an' : ''}`} onClick={() => setRegion(r)}>{r}</button>)}
+                <span aria-hidden className="mx-1.5 h-5 w-px shrink-0 bg-white/10" />
+                <button type="button" className={`chip ${modus === 'alle' ? 'chip-an' : ''}`} onClick={() => setModus('alle')}>All modes</button>
+                {MODI.filter((m) => m !== 'sonst' || mitSonst).map((m) => <button key={m} type="button" className={`chip ${modus === m ? 'chip-an' : ''}`} onClick={() => setModus(m)}>{MODUS_NAME[m]}</button>)}
+                {gefiltert && <button type="button" className="knopf-leer ml-1 shrink-0 !text-xs" onClick={() => { setRegion('alle'); setModus('alle'); setRanked(false); setSuche(''); }}>Reset</button>}
+              </div>
+            </div>
+
+            {zeigt('live') && (lebende.length > 0 || stand === 'live') && (
+              <Teil titel="Live now" zahl={ein.live.length}>
+                {lebende.length ? reihe(lebende) : <Leer text="No cup is live right now with these filters." />}
+              </Teil>
+            )}
+            {zeigt('kommt') && (
+              <Teil titel="Upcoming" zahl={ein.kommt.length}>
+                {kommende.length ? reihe(kommende)
+                  : <Leer text={ein.kommt.length ? 'The next cup is the one on top – nothing else is announced with these filters.' : 'No upcoming cups match these filters – Epic announces cups about a week ahead.'} />}
+              </Teil>
+            )}
+            {zeigt('vorbei') && (
+              <Teil titel="Finished" zahl={ein.vorbei.length} rechts={!ganz && <span className="text-xs text-white/40">loading the full archive…</span>}>
+                {ein.vorbei.length ? (
+                  <div className="space-y-6">
+                    {monate.map((m) => (
+                      <div key={m.titel}>
+                        <p className="mb-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45">{m.titel}<span className="h-px flex-1 bg-white/[0.07]" /></p>
+                        <div className={raster}>{m.zeilen.map(karte)}</div>
+                      </div>
+                    ))}
+                    {ein.vorbei.length > mehr && <div className="flex justify-center"><button type="button" onClick={() => setMehr((m) => m + 12)} className="knopf">Show more ({ein.vorbei.length - mehr})</button></div>}
+                  </div>
+                ) : ganz && <Leer text="No finished cups match these filters." />}
+              </Teil>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

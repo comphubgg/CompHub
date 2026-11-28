@@ -15,6 +15,8 @@ import { ART_NAME, MODUS_NAME, REGION_FARBE, REGION_NAME, cupLink, datum, modiVo
  */
 
 const SANFT = [0.22, 1, 0.36, 1] as const;
+/** "1 match" / "8 matches" */
+export const spiele = (n: number) => `${n} ${n === 1 ? 'match' : 'matches'}`;
 
 /** Plakat fuer Cups ohne Banner: Farbe des Cups, sein Titel gross und leise. */
 function Plakat({ c, className = '' }: { c: Pick<Cup, 'titel' | 'farbe'>; className?: string }) {
@@ -46,8 +48,18 @@ export function RegionMarke({ r, klein, zeit }: { r: string; klein?: boolean; ze
   );
 }
 
+/** Marke AUF einem Bild: dunkler Grund, damit sie auch auf hellen Bannern lesbar ist. `ton`: akz | gold. */
+export function BildMarke({ children, ton = 'akz' }: { children: ReactNode; ton?: 'akz' | 'gold' | 'weiss' }) {
+  const farbe = { akz: 'text-akz ring-akz/40', gold: 'text-amber-300 ring-amber-300/40', weiss: 'text-white/85 ring-white/15' }[ton];
+  return <span className={`inline-flex items-center rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ring-1 backdrop-blur ${farbe}`}>{children}</span>;
+}
+
 export function LiveMarke({ text = 'Live' }: { text?: string }) {
-  return <Marke ton="rot" puls>{text}</Marke>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white shadow-[0_6px_20px_-6px_rgba(239,68,68,0.9)]">
+      <span className="relative flex h-1.5 w-1.5"><span className="absolute h-full w-full animate-ping rounded-full bg-white opacity-70" /><span className="relative h-1.5 w-1.5 rounded-full bg-white" /></span>{text}
+    </span>
+  );
 }
 
 /** Wird von den alten Ansichten noch gebraucht, bis sie neu gebaut sind. */
@@ -130,14 +142,14 @@ export function CupKarte({ c, lage, dauerText, verz = 0, zeiten, children }: {
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-fl to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
             {lage.status === 'live' && <LiveMarke />}
-            {[...modiVon(c)].filter((m) => m !== 'br').map((m) => <Marke key={m}>{MODUS_NAME[m]}</Marke>)}
+            {[...modiVon(c)].filter((m) => m !== 'br').map((m) => <BildMarke key={m} ton="weiss">{MODUS_NAME[m]}</BildMarke>)}
           </div>
           {dauerText && <span className={`zahl absolute right-3 top-3 rounded-lg bg-black/75 px-2.5 py-1 text-xs font-bold backdrop-blur ${lage.status === 'live' ? 'text-red-300' : 'text-akz'}`}>{dauerText}</span>}
         </div>
         <div className="flex flex-1 flex-col px-4 pb-4 pt-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-akz/90">{ART_NAME[c.art] ?? 'Cup'}</p>
           <h3 className="mt-0.5 line-clamp-1 text-[15px] font-bold leading-snug text-white">{c.titel}</h3>
-          <p className="line-clamp-1 text-xs text-white/45">{f ? stufeName(f) : c.untertitel ?? ''}{f?.matchCap ? ` · ${f.matchCap} matches` : ''}</p>
+          <p className="line-clamp-1 text-xs text-white/45">{f ? stufeName(f) : c.untertitel ?? ''}{f?.matchCap ? ` · ${spiele(f.matchCap)}` : ''}</p>
           <div className="mt-auto flex flex-wrap items-center gap-1 pt-3">
             {zeiten ? zeiten.map((z) => <RegionMarke key={z.r + z.zeit} r={z.r} zeit={z.zeit} klein />)
               : regionen.length >= 6 ? <span className="rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/60">All {regionen.length} regions</span>
@@ -147,6 +159,41 @@ export function CupKarte({ c, lage, dauerText, verz = 0, zeiten, children }: {
             </span>
           </div>
           {children}
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
+/**
+ * Die Karte eines Cups im Querformat - fuer Reihen mit nur ein oder zwei Cups, damit die Breite gefuellt ist statt zwei Drittel leer zu lassen:
+ * Banner links (16:9), daneben Titel, Spieltag, Regionen mit Startzeiten und rechts der Countdown in Kacheln.
+ */
+export function CupKarteQuer({ c, lage, ms, zeiten, verz = 0 }: { c: Cup; lage: Lage; ms?: number | null; zeiten?: Array<{ r: string; zeit: string }>; verz?: number }) {
+  const f = lage.fenster;
+  const regionen = lage.wo.length ? lage.wo : Object.keys(c.regionen);
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }} transition={{ delay: verz, duration: 0.45, ease: SANFT }}>
+      <Link to={cupLink(c, f)} className="fl-fest fl-klick group grid overflow-hidden sm:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden">
+          <CupBild c={c} className="transition duration-700 group-hover:scale-[1.06]" />
+          {lage.status === 'live' && <div className="absolute left-3 top-3"><LiveMarke /></div>}
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 p-5">
+          <div className="min-w-[200px] flex-1">
+            <div className="flex flex-wrap gap-1.5"><CupMarken c={c} /></div>
+            <h3 className="titel mt-2 line-clamp-2 text-4xl">{c.titel.split(/\s·\s|\s\(/)[0]}</h3>
+            <p className="mt-1 text-sm text-white/55">{f ? stufeName(f) : c.untertitel ?? ''}{f?.matchCap ? ` · ${spiele(f.matchCap)}` : ''}{lage.status === 'kommt' && lage.naechster ? ` · ${datum(lage.naechster)}` : ''}</p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {zeiten?.length ? zeiten.map((z) => <RegionMarke key={z.r + z.zeit} r={z.r} zeit={z.zeit} klein />) : regionen.map((r) => <RegionMarke key={r} r={r} klein />)}
+            </div>
+          </div>
+          {ms != null && (
+            <div className="shrink-0">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">{lage.status === 'live' ? 'Ends in' : 'Starts in'}</p>
+              <Uhrwerk ms={ms} ton={lage.status === 'live' ? 'rot' : 'akz'} klein />
+            </div>
+          )}
         </div>
       </Link>
     </motion.div>
