@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EpicLoginNoetig } from '@/lib/epicCups';
+import { diagnose } from '@/lib/fnDiagnose';
 import { entdecken, entdeckenVerlauf } from '@/lib/fnEntdecken';
 import { inselCode } from '@/lib/fnInseln';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
@@ -21,6 +22,8 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   try {
+    // Voruebergehend, siehe lib/fnDiagnose.
+    if (searchParams.get('diagnose')) return NextResponse.json(await diagnose(), { headers: { 'Cache-Control': 'no-store' } });
     if (searchParams.get('verlauf')) {
       const codes = (searchParams.get('codes') ?? '').split(',').map((c) => inselCode(c)).filter((c): c is string => Boolean(c)).slice(0, 100);
       const tage = Number(searchParams.get('tage')) || 7;

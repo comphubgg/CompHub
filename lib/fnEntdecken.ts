@@ -20,7 +20,7 @@ import { epicAbruf, epicFehler, mitSpeicher } from '@/lib/fnEpic';
 import { holeInseln, type InselIntern } from '@/lib/fnInseln';
 
 const FN = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api';
-const ENTDECKEN = 'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v2/discovery/surface';
+export const ENTDECKEN = 'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v2/discovery/surface';
 const FLAECHE = 'CreativeDiscoverySurface_Frontend';
 
 export const ENTDECKEN_FRIST_MS = 5 * 60_000;
@@ -54,13 +54,13 @@ export interface Stand {
 
 /* ------------------------------------------------------------ Fassung und Marke */
 
-interface Fassung { zweig: string; agent: string }
+export interface Fassung { zweig: string; agent: string }
 
 /**
  * Die laufende Fassung des Spiels ("++Fortnite+Release-39.30"). Der Entdecken-Dienst gibt seine Marke je Fassung aus; nach einem Update gilt die
  * alte nicht mehr. Eine Stunde gemerkt - ein Update kommt hoechstens alle zwei Wochen.
  */
-function fassung(): Promise<Fassung> {
+export function fassung(): Promise<Fassung> {
   return mitSpeicher('entdecken|fassung', 60 * 60_000, async () => {
     const a = await epicAbruf<{ version?: string; branch?: string; cln?: string }>(`${FN}/version`);
     const zweig = a.daten?.branch || (a.daten?.version ? `Release-${a.daten.version}` : '');
@@ -70,7 +70,7 @@ function fassung(): Promise<Fassung> {
   });
 }
 
-function marke(f: Fassung): Promise<string> {
+export function marke(f: Fassung): Promise<string> {
   return mitSpeicher(`entdecken|marke|${f.zweig}`, 60 * 60_000, async () => {
     const a = await epicAbruf<{ token?: string }>(`${FN}/discovery/accessToken/${encodeURIComponent(f.zweig)}`, { kopf: { 'User-Agent': f.agent } });
     if (a.status !== 200 || !a.daten?.token) throw new Error(`Marke fuer Entdecken nicht erhalten: ${epicFehler(a)}`);
