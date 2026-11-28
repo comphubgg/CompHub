@@ -5,6 +5,7 @@ import { BEITRAEGE, FARBE, type Sprache, type Sichtbar } from './discordTexte';
 import { willkommen, WILLKOMMEN_MARKE, STATS_BEFEHLE } from './discordVorlagen.mjs';
 import { alleZugaenge } from './vipZugaenge';
 import { MARKE } from './marke';
+import { pruefeAnfrage, kanaeleAus, BEISPIEL, X_KONTO } from './vipFormular.mjs';
 
 /*
  * Zugangsschluessel nach Discord schicken.
@@ -2348,6 +2349,17 @@ export interface ZugangAnfrage {
   name: string;
   socials: string;
   grund: string;
+  /** VIP-Formular seit 28.11.2026: das X-Handle (gueltig, ohne @) - oder, wenn ungueltig, nicht gesetzt und der Text steht in xRoh. */
+  x?: string;
+  xRoh?: string;
+  /** Twitch / TikTok / YouTube, wie eingegeben (eine Zeile je Kanal). */
+  kanaele?: string;
+  /** Hat "I follow @CompHub_gg on X" angehakt (selbst bestaetigt, nicht geprueft). */
+  folgt?: boolean;
+  /** Die Markierungen fuer den Betreiber (lib/vipFormular.mjs), z. B. "Same text in several fields". */
+  hinweise?: string[];
+  /** Wie oft die Person die offene Anfrage nachgebessert hat. */
+  bearbeitet?: number;
   /** Bei Managern: fuer welchen Streamer. */
   streamer?: string;
   kanal?: string;
@@ -2417,11 +2429,17 @@ export function anfrageAusNachricht(m?: KnopfNachricht | null): ZugangAnfrage | 
   if (!nutzerId || !id || !name) return null;
   const art: ZugangArt = /^manager/i.test(e.title ?? '') ? 'manager' : 'vip';
   const ohneStrich = (x: string) => (x === '—' ? '' : x);
+  // Das neue VIP-Formular (28.11.2026): X und die weiteren Kanaele als eigene Felder, Links darin als [text](url).
+  const xFeld = feld('X');
+  const x = /x\.com\/([A-Za-z0-9_]{1,15})\)/.exec(xFeld)?.[1];
+  const kanaele = [...ohneStrich(feld('Other channels')).matchAll(/\((https?:\/\/[^)\s]+)\)/g)].map((t) => t[1]).join('\n');
   return {
     id, nutzerId, art, name,
     nutzerName: /\(([^)]+)\)/.exec(feld('Discord'))?.[1] ?? name,
-    socials: ohneStrich(feld('Socials')),
+    socials: ohneStrich(feld('Socials')) || [x ? `X: x.com/${x}` : '', kanaele].filter(Boolean).join('\n'),
     grund: ohneStrich(feld('Why')),
+    ...(x ? { x } : {}),
+    ...(kanaele ? { kanaele } : {}),
     ...(art === 'manager' ? { streamer: feld('Manages') } : {}),
     kanal: m.channel_id, nachricht: m.id,
     status: 'offen', zeit: new Date().toISOString(),
@@ -2435,8 +2453,19 @@ export function anfrageAusNachricht(m?: KnopfNachricht | null): ZugangAnfrage | 
  * der Betreiber will auch nach der Entscheidung noch mit der Person reden
  * koennen -, und nach einem Accept kommt "Delete access" dazu.
  */
-function anfrageKnoepfe(a: Pick<ZugangAnfrage, 'id' | 'status' | 'art'>) {
+function anfrageKnoepfe(a: Pick<ZugangAnfrage, 'id' | 'status' | 'art'> & Partial<Pick<ZugangAnfrage, 'x' | 'kanaele'>>) {
   if (!knoepfeMoeglich()) return [];
+  /*
+   * Eine zweite Reihe mit Links (Betreiber, 28.11.2026: "mit einem Klick pruefen"): das X-Profil und die weiteren Kanaele.
+   * Wer auf X als @CompHub_gg angemeldet ist, sieht auf dem Profil "Follows you" - so laesst sich das Folgen pruefen.
+   */
+  const links: Array<Record<string, unknown>> = [];
+  if (a.x) links.push({ type: 2, style: 5, label: 'Check X profile', url: `https://x.com/${a.x}` });
+  for (const k of kanaeleAus(a.kanaele ?? '')) {
+    if (links.length >= 5) break;
+    if (k.link && /^https?:\/\//.test(k.link)) links.push({ type: 2, style: 5, label: k.plattform === 'Link' ? 'Open link' : `Open ${k.plattform}`, url: k.link.slice(0, 512) });
+  }
+  const linkReihe = links.length ? [{ type: 1, components: links }] : [];
   const { id, status: stand, art } = a;
   const k: Array<Record<string, unknown>> = [];
   if (stand === 'offen') {
@@ -2459,7 +2488,7 @@ function anfrageKnoepfe(a: Pick<ZugangAnfrage, 'id' | 'status' | 'art'>) {
     }
     k.push({ type: 2, style: 4, label: 'Delete access', custom_id: `zugang:weg:${id}` });
   }
-  return [{ type: 1, components: k }];
+  return [{ type: 1, components: k }, ...linkReihe];
 }
 
 /** Wann die Anfrage einging - aus der Kennung der Nachricht, sonst aus der Ablage. */
@@ -2563,9 +2592,13 @@ export async function richteZugangEin(
         + 'private channel, overlays, and the VIP views on thecomphub.com.',
         '**Manager access** is for people who run the overlays for a VIP.',
         '',
-        'Press a button, fill in your socials and why you want access. Juanito '
-        + 'reads every request and you get a direct message with the answer - '
-        + 'accepted or declined, always with a reason.',
+        'Press a button and fill in the form: your X handle, your channels and '
+        + 'why you want access. VIP is only for people who follow '
+        + `[@${X_KONTO}](https://x.com/${X_KONTO}) on X.`,
+        '',
+        '**Requests are checked by hand. Fake or empty answers are declined.** '
+        + 'Juanito reads every request and you get a direct message with the '
+        + 'answer - accepted or declined, always with a reason.',
       ].join('\n'),
       color: FARBE,
     }],
@@ -2586,8 +2619,56 @@ export async function richteZugangEin(
   schritte.push({ text: 'Get-Access-Aushang steht', wert: `#${ZUGANG_PANEL}` });
 }
 
-/** Das Eingabefenster nach dem Knopf. */
-export function zugangFormular(art: ZugangArt) {
+/** Was im VIP-Formular vorausgefuellt wird ("Edit my answer"). */
+export interface VipEntwurf { name?: string; x?: string; kanaele?: string; grund?: string; folgt?: boolean }
+
+/**
+ * Das Eingabefenster nach dem Knopf.
+ *
+ * VIP (neu seit 28.11.2026, Betreiber: die meisten schrieben Unsinn in das eine freie Socials-Feld): fuenf Felder mit
+ * Label und Beschreibung (Discord-Komponente 18, seit 25.8.2025; ActionRow mit Textfeld gilt seitdem als veraltet) -
+ * Name, X-Handle (Pflicht), Folgen von @CompHub_gg (Checkbox-Gruppe 22 mit einer Pflicht-Option, seit 12.2.2026 - eine
+ * einzelne Checkbox 23 kann nicht Pflicht sein), Twitch/TikTok/YouTube (freiwillig), und das Warum mit Beispiel als
+ * Platzhalter. Mehr als fuenf oberste Komponenten nimmt Discord in einem Fenster nicht; darum keine eigene Text-Anzeige -
+ * der Ehrlichkeitshinweis steht in den Beschreibungen und im Aushang.
+ *
+ * Mindestlaengen nur, wo ein Feld sonst wertlos ist: blockiert wird nichts (Betreiber: "jede Anfrage muss ankommen"),
+ * gewarnt wird nach dem Absenden (lib/vipFormular.mjs).
+ *
+ * bearbeite: die Kennung der offenen Anfrage, die "Edit my answer" nachbessert - dann ist alles vorausgefuellt.
+ */
+export function zugangFormular(art: ZugangArt, vorbelegt?: VipEntwurf | null, bearbeite?: string) {
+  if (art === 'vip') {
+    const v = vorbelegt ?? {};
+    const text = (custom_id: string, style: 1 | 2, placeholder: string, required: boolean, min: number, max: number, wert?: string) => ({
+      type: 4, custom_id, style, placeholder, required, min_length: min, max_length: max,
+      ...(wert ? { value: wert.slice(0, max) } : {}),
+    });
+    const label = (titel: string, beschreibung: string, component: Record<string, unknown>) => ({
+      type: 18, label: titel, description: beschreibung, component,
+    });
+    return {
+      type: 9,
+      data: {
+        custom_id: bearbeite ? `zugang:formular:vip:${bearbeite}` : 'zugang:formular:vip',
+        title: bearbeite ? 'Edit your VIP request' : 'VIP access',
+        components: [
+          label('Your name (as it should appear)', 'Your VIP sign-in name, e.g. your Fortnite or creator name.',
+            text('name', 1, 'e.g. Malibuca', true, 3, 24, v.name)),
+          label('Your X (Twitter) handle', 'Required. Every request is checked by hand - we open your profile.',
+            text('x', 1, '@yourname  or  x.com/yourname', true, 1, 60, v.x)),
+          label(`Do you follow @${X_KONTO} on X?`, `VIP is only for people who follow @${X_KONTO}. We check it.`, {
+            type: 22, custom_id: 'folgt', required: true, min_values: 1, max_values: 1,
+            options: [{ value: 'ja', label: `Yes, I follow @${X_KONTO} on X`, ...(v.folgt ? { default: true } : {}) }],
+          }),
+          label('Twitch / TikTok / YouTube (optional)', 'One per line, as a link or "Twitch: yourname".',
+            text('kanaele', 2, 'twitch.tv/yourname\ntiktok.com/@yourname', false, 0, 300, v.kanaele)),
+          label('What will you use VIP for, and why you?', 'Checked by hand. Fake, copied or empty answers will very likely be declined.',
+            text('grund', 2, BEISPIEL, true, 2, 800, v.grund)),
+        ],
+      },
+    };
+  }
   const feld = (custom_id: string, label: string, style: 1 | 2, placeholder: string, required = true, max = 400) => ({
     type: 1, components: [{ type: 4, custom_id, label, style, placeholder, required, max_length: max, min_length: required ? 2 : 0 }],
   });
@@ -2595,15 +2676,26 @@ export function zugangFormular(art: ZugangArt) {
     type: 9,
     data: {
       custom_id: `zugang:formular:${art}`,
-      title: art === 'vip' ? 'VIP access' : 'Manager access',
+      title: 'Manager access',
       components: [
         feld('name', 'Your name (as it should appear)', 1, 'e.g. Malibuca', true, 24),
-        ...(art === 'manager' ? [feld('streamer', 'Streamer you manage', 1, 'the VIP name', true, 24)] : []),
+        feld('streamer', 'Streamer you manage', 1, 'the VIP name', true, 24),
         feld('socials', 'Your socials (name or link, one per line)', 2, 'Twitch: ...\nX: ...\nTikTok: ...\nYouTube: ...'),
         feld('grund', 'Why do you want access?', 2, 'A few sentences are enough.', true, 800),
       ],
     },
   };
+}
+
+/**
+ * Den Entwurf zu "Edit my answer": die offene VIP-Anfrage dieser Person aus der Ablage.
+ * null, wenn es sie nicht (mehr) gibt oder sie schon entschieden ist - dann oeffnet sich das leere Formular.
+ */
+export async function vipEntwurf(nutzerId: string, id: string): Promise<VipEntwurf | null> {
+  const liste = await anfragenOderNichts();
+  const a = liste?.[id];
+  if (!a || a.nutzerId !== nutzerId || a.status !== 'offen' || a.art !== 'vip') return null;
+  return { name: a.name, x: a.x ? `@${a.x}` : (a.xRoh ?? ''), kanaele: a.kanaele ?? '', grund: a.grund, folgt: a.folgt };
 }
 
 /** Den Wunschnamen in einen Zugangsnamen bringen - wie in der Verwaltung. */
@@ -2612,17 +2704,99 @@ function zugangsName(roh: string): string {
   return rein.slice(0, 24);
 }
 
+/** Ein Hinweis an die Person (englisch) - lib/vipFormular.mjs. */
+export interface AnfrageHinweis { code: string; nutzer: string; admin: string }
+
+/** Markdown-Zeichen in Nutzertext entschaerfen, damit "[x](y)" oder "**" in der Anfrage nichts vortaeuscht. */
+const ohneMarkdown = (t: string) => t.replace(/([\\*_~`|>[\]()])/g, '\\$1');
+
+/**
+ * Die Nachricht einer Anfrage in #access-requests.
+ *
+ * VIP (28.11.2026): oben die Markierungen ("⚠ Low-effort answer: ..."), dann X als Link mit dem Folgen-Haken, die
+ * weiteren Kanaele als Links, das Warum. Unter den Entscheidungsknoepfen eine Reihe mit Links ("Check X profile").
+ */
+function anfrageNachricht(a: ZugangAnfrage) {
+  const nummer = a.nummer ?? 1;
+  const hinweise = a.hinweise ?? [];
+  const vip = a.art === 'vip';
+  const felder: Array<{ name: string; value: string; inline?: boolean }> = [
+    { name: 'Discord', value: `<@${a.nutzerId}> (${a.nutzerName})`, inline: true },
+    { name: 'Access name', value: a.name, inline: true },
+    { name: 'Request', value: nummer > 1 ? `${ordnungszahl(nummer)} from this person` : 'first', inline: true },
+    ...(a.streamer ? [{ name: 'Manages', value: a.streamer, inline: true }] : []),
+  ];
+  if (vip && (a.x !== undefined || a.xRoh !== undefined || a.folgt !== undefined)) {
+    const xZeile = a.x ? `[@${a.x}](https://x.com/${a.x})` : (a.xRoh ? `${ohneMarkdown(a.xRoh.slice(0, 80))} (not a valid X handle)` : '—');
+    felder.push({
+      name: 'X',
+      value: `${xZeile}\nFollows @${X_KONTO}: ${a.folgt ? 'ticked by them (not verified)' : '**not ticked**'}`,
+    });
+    const kanaele = kanaeleAus(a.kanaele ?? '');
+    felder.push({
+      name: 'Other channels',
+      value: kanaele.length
+        ? kanaele.map((k) => (k.link ? `${k.plattform === 'Link' ? '' : `${k.plattform}: `}[${ohneMarkdown(k.zeige ?? k.link)}](${k.link})` : `${ohneMarkdown(k.text ?? '')} (no platform)`)).join('\n').slice(0, 1000)
+        : '—',
+    });
+  } else {
+    felder.push({ name: 'Socials', value: (a.socials || '—').slice(0, 1000) });
+  }
+  felder.push({ name: 'Why', value: (a.grund || '—').slice(0, 1000) });
+  return {
+    content: `New ${vip ? 'VIP' : 'manager'} request from <@${a.nutzerId}>`
+      + (nummer > 1 ? ` · **${ordnungszahl(nummer)} request**` : '')
+      + (hinweise.length ? ' · ⚠ **check before accepting**' : ''),
+    embeds: [{
+      title: `${vip ? 'VIP' : 'Manager'} access · ${a.name}`,
+      // Orange, wenn etwas auffiel - so sieht der Betreiber es schon in der Kanalliste.
+      color: hinweise.length ? 0xf59e0b : FARBE,
+      ...(hinweise.length ? { description: hinweise.map((h) => `⚠ **Low-effort answer:** ${h}`).join('\n').slice(0, 2000) } : {}),
+      fields: felder,
+      footer: { text: `Request ${a.id}${a.bearbeitet ? ` · edited by the applicant${a.bearbeitet > 1 ? ` (${a.bearbeitet}x)` : ''}` : ''}` },
+    }],
+    components: anfrageKnoepfe(a),
+  };
+}
+
+/**
+ * Die Anfrage posten. Lehnt Discord ab (400 - etwa ein Link, den Discord als Knopf-Adresse nicht nimmt), noch einmal
+ * ohne die Link-Reihe: die Anfrage darf an einem Link nicht verloren gehen.
+ */
+async function anfragePosten(kanal: string, a: ZugangAnfrage, nachricht?: string): Promise<string | null> {
+  const inhalt = anfrageNachricht(a);
+  const weg = nachricht ? `/channels/${kanal}/messages/${nachricht}` : `/channels/${kanal}/messages`;
+  const art = nachricht ? 'PATCH' : 'POST';
+  const erst = await ruf(weg, art, inhalt);
+  if (erst) return idAus(erst) ?? nachricht ?? null;
+  if (letzterStatus !== 400) return null;
+  const ohneLinks = { ...inhalt, components: inhalt.components.slice(0, 1) };
+  return idAus(await ruf(weg, art, ohneLinks)) ?? null;
+}
+
 /**
  * Eine Anfrage ablegen und dem Admin zeigen - mit Accept und Decline.
+ *
+ * Nichts wird abgewiesen (Betreiber, 28.11.2026: "jede Anfrage soll in #access-requests landen, auch Unsinn"): was
+ * lib/vipFormular.mjs findet, steht als Markierung in der Anfrage und geht als Hinweis an die Person zurueck - mit dem
+ * Knopf "Edit my answer". Hat die Person schon eine offene VIP-Anfrage, wird diese nachgebessert (dieselbe Nachricht,
+ * dazu eine kurze Meldung darunter) statt einer zweiten.
  */
 export async function zugangAnfrage(
   { nutzerId, nutzerName, art, felder }: {
     nutzerId: string; nutzerName: string; art: ZugangArt; felder: Record<string, string>;
   },
-): Promise<{ ok: boolean; grund?: string }> {
+): Promise<{ ok: boolean; grund?: string; id?: string; hinweise?: AnfrageHinweis[]; bearbeitet?: boolean }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
-  const name = zugangsName(felder.name ?? '');
-  if (name.length < 3) return { ok: false, grund: 'name' };
+  let name = zugangsName(felder.name ?? '');
+  const pruefung = art === 'vip'
+    ? pruefeAnfrage({ name: felder.name, x: felder.x, kanaele: felder.kanaele, grund: felder.grund, folgt: felder.folgt === 'true' })
+    : null;
+  if (name.length < 3) {
+    // VIP: nicht abweisen - der Name laesst sich beim Annehmen nicht mehr aendern, also das X-Handle oder der Discord-Name.
+    if (art !== 'vip') return { ok: false, grund: 'name' };
+    name = zugangsName(pruefung?.x ?? '') || zugangsName(nutzerName) || `user-${nutzerId.slice(-6)}`;
+  }
 
   const kanaele = await alleKanaele();
   let anfragenKanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_ANFRAGEN))?.id ?? null;
@@ -2637,7 +2811,48 @@ export async function zugangAnfrage(
   const anfragen = await anfragenOderNichts();
   // Eine offene Anfrage je Person und Art - kein Stapel derselben Bitte.
   const offen = Object.values(anfragen ?? {}).find((a) => a.nutzerId === nutzerId && a.art === art && a.status === 'offen');
-  if (offen) return { ok: false, grund: 'schon-offen' };
+  if (offen && art !== 'vip') return { ok: false, grund: 'schon-offen' };
+
+  const inhalt = {
+    name,
+    socials: art === 'vip'
+      ? [pruefung?.x ? `X: x.com/${pruefung.x}` : (felder.x ?? '').trim() ? `X: ${(felder.x ?? '').trim()}` : '', (felder.kanaele ?? '').trim()]
+        .filter(Boolean).join('\n').slice(0, 800)
+      : (felder.socials ?? '').trim().slice(0, 800),
+    grund: (felder.grund ?? '').trim().slice(0, 1200),
+    ...(art === 'manager' ? { streamer: zugangsName(felder.streamer ?? '') } : {}),
+    ...(art === 'vip' && pruefung ? {
+      ...(pruefung.x ? { x: pruefung.x } : { xRoh: (felder.x ?? '').trim().slice(0, 80) }),
+      kanaele: (felder.kanaele ?? '').trim().slice(0, 300),
+      folgt: felder.folgt === 'true',
+      hinweise: pruefung.hinweise.map((h: AnfrageHinweis) => h.admin),
+    } : {}),
+  };
+  const hinweise: AnfrageHinweis[] = pruefung?.hinweise ?? [];
+
+  /* Nachbessern: dieselbe Nachricht, neuer Inhalt. */
+  if (offen) {
+    const neu: ZugangAnfrage = { ...offen, ...inhalt, bearbeitet: (offen.bearbeitet ?? 0) + 1 };
+    if (!pruefung?.x) delete neu.x;
+    else delete neu.xRoh;
+    const ziel = offen.kanal ?? anfragenKanal;
+    const geaendert = offen.nachricht ? await anfragePosten(ziel, neu, offen.nachricht) : null;
+    if (geaendert && offen.nachricht) {
+      await ruf(`/channels/${ziel}/messages`, 'POST', {
+        content: `✏️ <@${nutzerId}> edited their VIP request${neu.hinweise?.length ? ` - still ⚠ ${neu.hinweise.length} point${neu.hinweise.length > 1 ? 's' : ''} to check` : ' - looks complete now'}.`,
+        allowed_mentions: { parse: [] },
+        message_reference: { message_id: offen.nachricht, fail_if_not_exists: false },
+      });
+      await anfrageMerken(anfragen, neu);
+      return { ok: true, id: neu.id, hinweise, bearbeitet: true };
+    }
+    // Die alte Nachricht ist weg (geloescht?): die Anfrage neu posten - sie darf nicht verloren gehen.
+    const gesendet = await anfragePosten(anfragenKanal, neu);
+    if (!gesendet) return { ok: false, grund: 'abgelehnt' };
+    neu.kanal = anfragenKanal; neu.nachricht = gesendet;
+    await anfrageMerken(anfragen, neu);
+    return { ok: true, id: neu.id, hinweise, bearbeitet: true };
+  }
 
   /*
    * Die wievielte Anfrage ist das?
@@ -2660,37 +2875,16 @@ export async function zugangAnfrage(
 
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const anfrage: ZugangAnfrage = {
-    id, nutzerId, nutzerName, art, name,
-    socials: (felder.socials ?? '').trim().slice(0, 800),
-    grund: (felder.grund ?? '').trim().slice(0, 1200),
-    ...(art === 'manager' ? { streamer: zugangsName(felder.streamer ?? '') } : {}),
+    id, nutzerId, nutzerName, art, ...inhalt,
     status: 'offen', zeit: new Date().toISOString(), nummer,
   };
 
-  const gesendet = await ruf(`/channels/${anfragenKanal}/messages`, 'POST', {
-    content: `New ${art === 'vip' ? 'VIP' : 'manager'} request from <@${nutzerId}>`
-      + (nummer > 1 ? ` · **${ordnungszahl(nummer)} request**` : ''),
-    embeds: [{
-      title: `${art === 'vip' ? 'VIP' : 'Manager'} access · ${name}`,
-      color: FARBE,
-      fields: [
-        { name: 'Discord', value: `<@${nutzerId}> (${nutzerName})`, inline: true },
-        { name: 'Access name', value: name, inline: true },
-        { name: 'Request', value: nummer > 1 ? `${ordnungszahl(nummer)} from this person` : 'first', inline: true },
-        ...(anfrage.streamer ? [{ name: 'Manages', value: anfrage.streamer, inline: true }] : []),
-        { name: 'Socials', value: anfrage.socials || '—' },
-        { name: 'Why', value: anfrage.grund || '—' },
-      ],
-      footer: { text: `Request ${id}` },
-    }],
-    components: anfrageKnoepfe({ id, status: 'offen', art }),
-  });
-  const nachricht = idAus(gesendet);
+  const nachricht = await anfragePosten(anfragenKanal, anfrage);
   if (!nachricht) return { ok: false, grund: 'abgelehnt' };
   anfrage.kanal = anfragenKanal;
   anfrage.nachricht = nachricht;
   await anfrageMerken(anfragen, anfrage);
-  return { ok: true };
+  return { ok: true, id, hinweise };
 }
 
 /** Eine Direktnachricht - oder false, wenn die Person keine annimmt. */
