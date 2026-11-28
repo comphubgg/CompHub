@@ -55,7 +55,7 @@ function TurnierKarte({ w, gesamt, spielerTage, wiki, bilder, i }: { w: Waffe; g
   const anteil = gesamt ? (w.dmg / gesamt) * 100 : 0; const genutzt = spielerTage ? Math.min(100, (w.spieler / spielerTage) * 100) : 0;
   return (
     <motion.article initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 16) * 0.025 }} className="fl-fest fl-klick group overflow-hidden !rounded-2xl">
-      <div className="relative grid aspect-[16/10] place-items-center bg-[radial-gradient(90%_85%_at_50%_30%,rgb(var(--akz)/0.2),transparent_75%)] p-4">
+      <div className="relative flex aspect-[16/10] items-center justify-center bg-[radial-gradient(90%_85%_at_50%_30%,rgb(var(--akz)/0.2),transparent_75%)] p-4">
         <WaffenBild bild={bild} name={name} className="h-full w-full transition duration-500 group-hover:scale-[1.08]" />
         <span className="absolute right-2 top-2"><Marke>{w.tage} {w.tage === 1 ? 'day' : 'days'}</Marke></span>
       </div>

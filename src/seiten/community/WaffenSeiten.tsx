@@ -116,7 +116,7 @@ export function Einzelwaffe({ db, wiki, proWaffe, gesamt, spielerTage, vergleich
         <div className="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
           <div className="relative grid min-h-[220px] place-items-center overflow-hidden p-8 transition-[background] duration-500 sm:min-h-[280px]" style={schein(rar, 0.55)}>
             <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:32px_32px]" />
-            <motion.div key={bild ?? ''} initial={{ opacity: 0, scale: 0.92, rotate: -3 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="relative grid h-40 w-full place-items-center sm:h-60">
+            <motion.div key={bild ?? ''} initial={{ opacity: 0, scale: 0.92, rotate: -3 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="relative flex h-40 w-full items-center justify-center sm:h-60">
               <WaffenBild bild={bild} name={w.name} className="h-full w-full" />
             </motion.div>
             <span className="absolute inset-x-0 bottom-0 h-1 transition-colors duration-500" style={{ background: farbe }} />
@@ -271,7 +271,7 @@ export function Einzelwaffe({ db, wiki, proWaffe, gesamt, spielerTage, vergleich
               const st = naechste(x, rar);
               return (
                 <Link key={x.id} to={`/community/weapons/${x.id}`} onClick={() => setR(null)} className="fl-fest fl-klick group w-44 shrink-0 overflow-hidden !rounded-2xl">
-                  <div className="grid h-28 place-items-center p-3" style={schein(st?.rarity ?? 'common', 0.35)}><WaffenBild bild={bildVon(x, wiki)} name={x.name} className="h-[88px] w-full transition duration-500 group-hover:scale-110" /></div>
+                  <div className="flex h-28 items-center justify-center p-3" style={schein(st?.rarity ?? 'common', 0.35)}><WaffenBild bild={bildVon(x, wiki)} name={x.name} className="h-[88px] w-full transition duration-500 group-hover:scale-110" /></div>
                   <div className="p-3"><p className="truncate text-sm font-bold text-white group-hover:text-akz">{x.name}</p><p className="zahl text-[11px] text-white/45">{st?.dps !== undefined ? `${fmt(st.dps)} DPS` : x.vaulted ? 'Vaulted' : 'In the pool'}</p></div>
                 </Link>
               );
@@ -422,7 +422,7 @@ export function VergleichSeite({ db, wiki, proWaffe, setVergleich }: { db: Daten
                   <div key={w.id} className="relative mb-3 overflow-hidden rounded-2xl border border-white/[0.07]">
                     <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: LINIEN[i] }} />
                     <button type="button" onClick={() => schreiben(auswahl.filter((x) => x.id !== w.id))} className="absolute right-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-lg bg-black/50 text-xs text-white/60 hover:text-white" title="Remove">✕</button>
-                    <button type="button" onClick={() => nav(`/community/weapons/${w.id}`)} className="grid aspect-[16/10] w-full place-items-center p-3" style={schein(r, 0.4)}><WaffenBild bild={bildVon(w, wiki, r)} name={w.name} className="h-full w-full" /></button>
+                    <button type="button" onClick={() => nav(`/community/weapons/${w.id}`)} className="flex aspect-[16/10] w-full items-center justify-center p-3" style={schein(r, 0.4)}><WaffenBild bild={bildVon(w, wiki, r)} name={w.name} className="h-full w-full" /></button>
                     <div className="p-3">
                       <p className="truncate font-bold text-white">{w.name}</p>
                       <select value={stufen[i]?.rarity} onChange={(e) => schreiben(auswahl.map((x) => (x.id === w.id ? { ...x, r: e.target.value } : x)))} className="eingabe mt-2 w-full !py-1 !text-xs font-bold" style={{ color: selten(r).farbe }}>

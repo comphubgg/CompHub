@@ -20,7 +20,8 @@ export function WaffenBild({ bild, name, className = 'h-24 w-24', schatten = tru
   const [gross, setGross] = useState<{ w: number; h: number } | null>(null);
   if (!bild || kaputt === bild) return <span className={`block ${className}`} aria-hidden />;
   const quadrat = QUADRATE.has(bild);
-  const masse = gross ? { maxWidth: gross.w, maxHeight: gross.h, marginInline: 'auto' } : undefined;
+  // Nie groesser als die Datei und nie groesser als der Kasten (min-Werte) - so bleibt die ganze Waffe sichtbar
+  const masse = gross ? { maxWidth: `min(100%, ${gross.w}px)`, maxHeight: `min(100%, ${gross.h}px)`, marginInline: 'auto' } : { maxWidth: '100%', maxHeight: '100%' };
   if (quadrat) {
     // Rahmen in Bildgroesse (aspect-square), damit die runden Ecken am Bild sitzen und nicht am leeren Kasten
     return (
@@ -34,7 +35,7 @@ export function WaffenBild({ bild, name, className = 'h-24 w-24', schatten = tru
   return <img src={bild} alt={name} loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setKaputt(bild)}
     onLoad={(e) => setGross({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
     style={masse}
-    className={`${className} object-contain ${schatten ? 'drop-shadow-[0_14px_22px_rgba(0,0,0,0.7)]' : ''}`} />;
+    className={`${className} min-h-0 min-w-0 object-contain ${schatten ? 'drop-shadow-[0_14px_22px_rgba(0,0,0,0.7)]' : ''}`} />;
 }
 
 /** Hintergrund-Schein in der Farbe der Seltenheit (fuer Bildflaechen). */

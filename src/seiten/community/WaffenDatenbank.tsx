@@ -305,7 +305,7 @@ function WaffenKarte({ w, s, waehlen, bild, i, t, gesamt, jetzt, imVergleich, ve
       className={`fl-fest fl-klick group flex flex-col overflow-hidden !rounded-2xl ${imVergleich ? '!border-akz/60' : ''}`}>
       <Link to={`/community/weapons/${w.id}`} className="relative block aspect-[16/10] overflow-hidden transition-[background] duration-500" style={schein(r)}>
         <span className="absolute inset-x-0 bottom-0 h-[3px] transition-colors duration-500" style={{ background: selten(r).farbe }} />
-        <div className="absolute inset-0 grid place-items-center p-4 transition duration-500 group-hover:scale-[1.08]"><WaffenBild bild={bild} name={w.name} className="h-full w-full" /></div>
+        <div className="absolute inset-0 flex items-center justify-center p-4 transition duration-500 group-hover:scale-[1.08]"><WaffenBild bild={bild} name={w.name} className="h-full w-full" /></div>
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
           {w.vaulted ? <Marke ton="gold">Vaulted</Marke> : w.quelle === 'wiki' || w.wiki ? <Marke ton="gruen">In pool</Marke> : null}
         </div>
