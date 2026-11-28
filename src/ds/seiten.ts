@@ -84,7 +84,7 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer' | 'admin'
         { pfad: 'locker', titel: 'Locker', text: 'What you own' },
         { pfad: 'collections', titel: 'Collections', text: 'Your lists of islands' },
         { pfad: 'rankings', titel: 'Rankings', text: 'Rate cosmetics and seasons' },
-        { pfad: 'notifications', titel: 'Notifications', text: 'Alerts for shop, cups and season' },
+        { pfad: 'notifications', titel: 'Notifications', text: 'Alerts for shop, cups, rotations and season' },
       ] },
       { titel: 'Season', seiten: [
         { pfad: 'season', titel: 'Season', text: 'Countdown and live event', haupt: true },
@@ -102,7 +102,6 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer' | 'admin'
         { pfad: 'social', titel: 'Social', text: 'X, Discord, Reddit' },
         { pfad: 'tournaments', titel: 'Tournaments', text: 'Next cups' },
         { pfad: 'stats', titel: 'Player lookup', text: 'Casual stats of any player' },
-        { pfad: 'notifications', titel: 'Notifications', text: 'Alerts for cups, rotations, season end' },
       ] },
     ],
   },
