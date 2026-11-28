@@ -1,13 +1,19 @@
 import { motion } from 'framer-motion';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
-import { Laedt, VIOLETT } from '../../community/Teile';
+import { Bild, Laedt, Leer, Marke } from '../../../ds/Bausteine';
+import { Kanalbild, LiveMarke, Zeichen, Zuschauer } from '../Teile';
+import { vorschaubild } from '../live';
 
 /*
- * Streamer-Seite (main: app/streamer/[kanal], lib/streamerSeite, /api/streamer-seite) - im Hub unter /streamer/page/:kanal.
- * Kanal, Live-Status, Stream-Plan, Clips, Link aufs CompHub-Spielerprofil und ein Post-Kanal mit Community-Fragen.
- * Die Schnittstelle gibt die Seite vorerst nur dem Admin (403 sonst) - dann steht hier, was Twitch ueber den Kanal sagt (POST /api/live-status).
+ * Streamer-Seite (main: app/streamer/[kanal], lib/streamerSeite, /api/streamer-seite) - im Hub unter /streamer/page/:kanal und als Herz von
+ * "My page". Neu gebaut auf dem Design-System 3.0 (28.11.2026):
+ *   Buehne      Banner des Kanals ueber die volle Breite, Profilbild, Name, Bio, Twitch / Comp stats - laeuft der Stream, steht rechts das
+ *               Live-Bild mit Zuschauern
+ *   links       Top-Clips als Bildkarten (16:9), darunter Posts und Community-Fragen
+ *   rechts      Stream-Plan als Zeitleiste
+ * Die Schnittstelle gibt die volle Seite vorerst nur dem Admin (403 sonst) - dann steht hier, was Twitch ueber den Kanal sagt
+ * (POST /api/live-status: live, Zuschauer, Titel, Profilbild), mit dem Live-Bild, wenn er sendet.
  */
 
 interface Daten {
@@ -22,44 +28,70 @@ interface Daten {
 interface Stand { isLive: boolean; viewers: number; title?: string; bild?: string | null }
 
 const zeit = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-const feld = 'rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-akz/60';
+const SANFT = [0.22, 1, 0.36, 1] as const;
 
-/** Ohne Admin: nur, was Twitch ueber den Kanal sagt. */
-function NurVorschau({ kanal, grund }: { kanal: string; grund: string }) {
+/** Die Buehne oben: Banner, Bild, Name, Text, Knoepfe - rechts das Live-Bild, wenn er sendet. */
+function KanalBuehne({ login, name, bild, banner, text, live, unter, knoepfe, takt = 0 }: {
+  login: string; name: string; bild?: string | null; banner?: string | null; text?: ReactNode; unter?: ReactNode; knoepfe?: ReactNode;
+  live: { titel: string; zuschauer: number; vorschau?: string } | null; takt?: number;
+}) {
+  return (
+    <motion.header initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: SANFT }}
+      className={`fl-fest relative isolate overflow-hidden ${live ? '!border-red-500/30' : ''}`}>
+      {banner && <Bild src={banner} className="absolute inset-0 -z-10 h-full w-full opacity-45" />}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl via-fl/90 to-fl/40" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-transparent to-transparent" />
+      <div className={`grid items-end gap-6 p-6 sm:p-8 ${live ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]' : ''}`}>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-end gap-5">
+            <Kanalbild src={bild} className={`h-28 w-28 rounded-2xl ring-4 sm:h-32 sm:w-32 ${live ? 'ring-red-500' : 'ring-black/60'}`} />
+            <div className="min-w-0">
+              <p className="ueber">Streamer page</p>
+              <h1 className="titel mt-1 truncate text-6xl lg:text-7xl">{name}</h1>
+              {unter && <div className="mt-1 text-sm text-white/60">{unter}</div>}
+            </div>
+          </div>
+          {text && <p className="mt-4 line-clamp-3 max-w-3xl text-[15px] leading-relaxed text-white/60">{text}</p>}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a href={`https://twitch.tv/${login}`} target="_blank" rel="noreferrer" className="knopf-prim"><Zeichen name="aussen" className="h-4 w-4" />Open on Twitch</a>
+            {knoepfe}
+          </div>
+        </div>
+        {live && (
+          <a href={`https://twitch.tv/${login}`} target="_blank" rel="noreferrer" className="group relative block aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black">
+            <Bild src={live.vorschau || vorschaubild(login, takt, 1280, 720)} className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.04]" />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
+            <span className="absolute left-3 top-3"><LiveMarke /></span>
+            <span className="absolute right-3 top-3"><Zuschauer n={live.zuschauer} /></span>
+            <span className="absolute inset-x-4 bottom-3 line-clamp-2 text-sm font-semibold text-white">{live.titel}</span>
+          </a>
+        )}
+      </div>
+    </motion.header>
+  );
+}
+
+/** Ohne Admin: was Twitch ueber den Kanal sagt - Bild, live oder nicht, Titel, Live-Bild. */
+function NurVorschau({ kanal, grund, knoepfe }: { kanal: string; grund: string; knoepfe?: ReactNode }) {
   const [s, setS] = useState<Stand | null | undefined>(undefined);
+  const [takt] = useState(() => Math.floor(Date.now() / 60_000));
   useEffect(() => {
+    setS(undefined);
     fetch('/api/live-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usernames: [kanal] }) })
       .then((r) => r.json()).then((j: Record<string, Stand>) => setS(j[kanal] ?? null)).catch(() => setS(null));
   }, [kanal]);
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-      <Glas className="relative overflow-hidden p-7">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-akz/25 blur-3xl" />
-        <div className="relative flex items-center gap-5">
-          {s?.bild
-            ? <img src={s.bild} alt="" referrerPolicy="no-referrer" className={`h-24 w-24 rounded-3xl object-cover ring-4 ${s.isLive ? 'ring-red-500' : 'ring-white/10'}`} />
-            : <span className="grid h-24 w-24 place-items-center rounded-3xl bg-akz/20 text-4xl font-black uppercase text-akz">{kanal[0]}</span>}
-          <div className="min-w-0">
-            <h1 className="truncate text-4xl font-extrabold tracking-tight text-white">{kanal}</h1>
-            <p className="mt-1 text-sm text-white/55">
-              {s === undefined ? 'Asking Twitch …' : s === null ? 'Twitch didn\'t answer for this channel.' : s.isLive ? <><span className="font-bold text-red-400">{s.viewers.toLocaleString('en')} watching</span> · {s.title}</> : 'Offline right now'}
-            </p>
-          </div>
-        </div>
-        <a href={`https://twitch.tv/${kanal}`} target="_blank" rel="noreferrer" className="relative mt-6 inline-flex rounded-full bg-akz px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:brightness-110">Open on Twitch</a>
-      </Glas>
-      <Glas className="p-7" verzoegerung={0.1}>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-akz">Streamer page</p>
-        <h2 className="mt-2 text-xl font-bold text-white">The full page is still in admin testing</h2>
-        <p className="mt-2 text-sm text-white/55">Schedule, top clips, posts and community questions show up here as soon as CompHub opens streamer pages for everyone.</p>
-        <p className="mt-3 text-xs text-white/35">{grund}</p>
-      </Glas>
+    <div className="space-y-3">
+      <KanalBuehne login={kanal} name={kanal} bild={s?.bild} takt={takt} knoepfe={knoepfe}
+        live={s?.isLive ? { titel: s.title || 'Live on Twitch', zuschauer: s.viewers } : null}
+        unter={s === undefined ? 'Asking Twitch …' : s === null ? 'Twitch didn’t answer for this channel.' : s.isLive ? <><span className="zahl font-bold text-red-300">{s.viewers.toLocaleString('en')} watching</span> · {s.title}</> : 'Offline right now'} />
+      <p className="px-1 text-xs text-white/40">{grund}</p>
     </div>
   );
 }
 
-export default function StreamerSeite() {
-  const { kanal = '' } = useParams();
+/** Die ganze Seite eines Kanals - fuer /streamer/page/:kanal und fuer "My page". `knoepfe` stehen neben "Open on Twitch". */
+export function KanalAnsicht({ kanal, knoepfe, grund = 'Schedule, top clips and posts are only visible to the admin for now.' }: { kanal: string; knoepfe?: ReactNode; grund?: string }) {
   const k = kanal.toLowerCase();
   const [d, setD] = useState<Daten | null>(null);
   const [fehler, setFehler] = useState<{ text: string; status: number } | null>(null);
@@ -82,102 +114,94 @@ export default function StreamerSeite() {
     await fetch(`/api/streamer-seite?kanal=${encodeURIComponent(k)}&id=${id}`, { method: 'DELETE' }); laden();
   }
 
-  if (fehler?.status === 403) return <NurVorschau kanal={k} grund="Only the admin sees full streamer pages for now." />;
-  if (fehler) return <Glas className="p-8 text-white/70">{fehler.status === 404 ? `There is no Twitch channel called “${k}”.` : fehler.text === 'Ungültiger Kanal' ? 'That is not a valid Twitch name.' : fehler.text}</Glas>;
-  if (!d) return <Laedt farbe={VIOLETT} text="Loading the streamer page …" />;
+  // 403 (oder die Meldung "Nur für den Admin." ohne Status, z. B. hinter einem Proxy): nur die Twitch-Vorschau
+  if (fehler && (fehler.status === 403 || fehler.status === 401 || /admin/i.test(fehler.text))) return <NurVorschau kanal={k} grund={grund} knoepfe={knoepfe} />;
+  if (fehler) return <Leer text={fehler.status === 404 ? `There is no Twitch channel called “${k}”.` : fehler.text === 'Ungültiger Kanal' ? 'That is not a valid Twitch name.' : fehler.text} />;
+  if (!d) return <Laedt text="Loading the streamer page" />;
 
   return (
-    <div className="space-y-6">
-      <Glas className="relative overflow-hidden">
-        <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-akz/40 via-fuchsia-500/15 to-transparent sm:h-60">
-          {d.banner && <img src={d.banner} alt="" className="h-full w-full object-cover opacity-60" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b0d16] via-[#0b0d16]/30 to-transparent" />
-        </div>
-        <div className="relative -mt-16 flex flex-wrap items-end gap-5 px-7 pb-7">
-          <motion.img initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} src={d.bild} alt={d.name}
-            className={`h-32 w-32 rounded-3xl object-cover ring-4 ${d.live ? 'ring-red-500' : 'ring-[#0b0d16]'}`} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="truncate text-5xl font-extrabold tracking-tight text-white">{d.name}</h1>
-              {d.live && <span className="flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-black text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>}
-            </div>
-            <p className="mt-1 line-clamp-2 max-w-3xl text-sm text-white/55">{d.bio}</p>
-          </div>
-          <div className="flex gap-2">
-            <a href={`https://twitch.tv/${d.login}`} target="_blank" rel="noreferrer" className="rounded-full bg-akz px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:brightness-110">Twitch</a>
-            {d.epicId && <Link to={`/competitive/player/${d.epicId}`} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/5">Comp stats</Link>}
-          </div>
-        </div>
-      </Glas>
-      <p className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-xs text-amber-200">Preview – only visible to the admin.</p>
+    <div className="space-y-5">
+      <KanalBuehne login={d.login} name={d.name} bild={d.bild} banner={d.banner} text={d.bio}
+        live={d.live ? { titel: d.live.titel, zuschauer: d.live.zuschauer, vorschau: d.live.vorschau } : null}
+        unter={d.live ? <><span className="zahl font-bold text-red-300">{d.live.zuschauer.toLocaleString('en')} watching</span> · {d.live.spiel} · since {zeit(d.live.seit)}</> : <>Offline · last stream: {d.titel ?? '—'}{d.spiel ? ` · ${d.spiel}` : ''}</>}
+        knoepfe={<>{d.epicId && <Link to={`/competitive/player/${d.epicId}`} className="knopf">Comp stats</Link>}{knoepfe}</>} />
+      <p className="px-1 text-xs text-amber-200/80">Preview – only visible to the admin.</p>
 
-      <div className="grid gap-5 xl:grid-cols-3">
-        <div className="space-y-5 xl:col-span-2">
-          {d.live ? (
-            <a href={`https://twitch.tv/${d.login}`} target="_blank" rel="noreferrer" className="block">
-              <Glas className="overflow-hidden p-4 transition hover:border-akz/30">
-                <img src={d.live.vorschau} alt="" className="aspect-video w-full rounded-2xl object-cover" />
-                <p className="mt-3 font-semibold text-white">{d.live.titel}</p>
-                <p className="text-sm text-white/55">{d.live.spiel} · <span className="font-bold text-red-400">{d.live.zuschauer.toLocaleString('en')} viewers</span> · since {zeit(d.live.seit)}</p>
-              </Glas>
-            </a>
-          ) : (
-            <Glas className="p-6"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">Offline</p><p className="mt-1 text-lg font-bold text-white">{d.titel ?? '—'}</p><p className="text-sm text-white/55">{d.spiel ?? ''}</p></Glas>
-          )}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-5">
+          {/* Top-Clips als Bildkarten */}
+          <section>
+            <div className="mb-3 flex items-baseline gap-3"><h2 className="titel text-3xl">Top clips</h2><span className="text-xs text-white/40">last 30 days</span></div>
+            {d.clips.length === 0 ? <Leer text="No clips in the last 30 days." /> : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                {d.clips.map((c, i) => (
+                  <motion.a key={c.url} href={c.url} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.04, duration: 0.4 }}
+                    className="fl-fest fl-klick group block overflow-hidden">
+                    <span className="relative block aspect-video overflow-hidden bg-black">
+                      <Bild src={c.bild} className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-[1.05]" />
+                      <span className="zahl absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] font-bold text-white">{Math.round(c.dauer)} s</span>
+                    </span>
+                    <span className="block px-4 pb-4 pt-3">
+                      <span className="line-clamp-2 text-sm font-bold text-white">{c.titel}</span>
+                      <span className="zahl mt-0.5 block text-xs text-white/45">{c.aufrufe.toLocaleString('en')} views · {new Date(c.datum).toLocaleDateString('en-GB')}</span>
+                    </span>
+                  </motion.a>
+                ))}
+              </div>
+            )}
+          </section>
 
-          <Glas className="p-6" verzoegerung={0.05}>
-            <h2 className="text-lg font-bold text-white">Posts &amp; questions</h2>
+          {/* Posts und Community-Fragen */}
+          <section className="fl-fest p-5 sm:p-6">
+            <h2 className="titel text-3xl">Posts &amp; questions</h2>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <select value={art} onChange={(e) => setArt(e.target.value as 'post' | 'frage')} className={feld}>
-                <option value="post">Post</option><option value="frage">Community question</option>
-              </select>
+              <div className="inline-flex shrink-0 rounded-xl border border-white/10 bg-black/40 p-1">
+                {([['post', 'Post'], ['frage', 'Question']] as const).map(([w, t]) => (
+                  <button key={w} type="button" onClick={() => setArt(w)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${art === w ? 'bg-akz text-[#04050a]' : 'text-white/60 hover:text-white'}`}>{t}</button>
+                ))}
+              </div>
               <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void senden(); }} maxLength={1000}
-                placeholder="Write something for the community…" className={`${feld} min-w-0 flex-1`} />
-              <button type="button" onClick={() => void senden()} className="rounded-xl bg-akz px-5 py-2 text-sm font-bold text-[#06080f] transition hover:brightness-110">Post</button>
+                placeholder={art === 'frage' ? 'Ask your community something…' : 'Write something for the community…'} className="eingabe min-w-0 flex-1" />
+              <button type="button" onClick={() => void senden()} className="knopf-prim">Post</button>
             </div>
-            <ul className="mt-4 space-y-3">
-              {d.posts.length === 0 && <li className="text-sm text-white/45">No posts yet.</li>}
+            <ul className="mt-4 divide-y divide-white/[0.05]">
+              {d.posts.length === 0 && <li className="py-3 text-sm text-white/45">No posts yet.</li>}
               {d.posts.map((p, i) => (
-                <motion.li key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <motion.li key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="py-3">
                   <div className="flex items-center gap-2 text-xs text-white/45">
-                    {p.art === 'frage' && <span className="rounded-full bg-akz/15 px-2 py-0.5 font-semibold text-akz">Question</span>}
+                    {p.art === 'frage' && <Marke ton="akz">Question</Marke>}
                     <span>{new Date(p.t).toLocaleString('en-GB')}</span>
                     <button type="button" onClick={() => void loeschen(p.id)} className="ml-auto text-white/35 hover:text-red-400">Delete</button>
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-white/85">{p.text}</p>
+                  <p className="mt-1.5 whitespace-pre-wrap text-sm text-white/85">{p.text}</p>
                 </motion.li>
               ))}
             </ul>
-          </Glas>
-
-          <Glas className="p-6" verzoegerung={0.1}>
-            <h2 className="text-lg font-bold text-white">Top clips <span className="text-sm font-normal text-white/40">30 days</span></h2>
-            <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {d.clips.length === 0 && <p className="text-sm text-white/45">No clips.</p>}
-              {d.clips.map((c) => (
-                <a key={c.url} href={c.url} target="_blank" rel="noreferrer" className="group block">
-                  <div className="aspect-video overflow-hidden rounded-xl border border-white/10"><img src={c.bild} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /></div>
-                  <p className="mt-1.5 line-clamp-2 text-xs font-medium text-white/85">{c.titel}</p>
-                  <p className="text-[11px] text-white/45">{c.aufrufe.toLocaleString('en')} views · {Math.round(c.dauer)} s</p>
-                </a>
-              ))}
-            </div>
-          </Glas>
+          </section>
         </div>
 
-        <Glas className="h-fit p-6" verzoegerung={0.15}>
-          <h2 className="text-lg font-bold text-white">Stream schedule</h2>
-          <ul className="mt-3 space-y-2">
-            {d.plan.length === 0 && <li className="text-sm text-white/45">No schedule set on Twitch.</li>}
-            {d.plan.map((s) => (
-              <li key={s.start} className="rounded-xl bg-white/[0.03] px-3 py-2.5">
-                <p className="text-sm font-medium text-white">{s.titel || s.spiel || 'Stream'}</p>
-                <p className="text-xs text-white/45">{zeit(s.start)}{s.spiel ? ` · ${s.spiel}` : ''}</p>
-              </li>
-            ))}
-          </ul>
-        </Glas>
+        {/* Stream-Plan als Zeitleiste */}
+        <aside className="fl-fest h-fit p-5 sm:p-6 xl:sticky xl:top-[7.5rem]">
+          <h2 className="titel text-3xl">Schedule</h2>
+          {d.plan.length === 0 ? <p className="mt-2 text-sm text-white/45">No schedule set on Twitch.</p> : (
+            <ol className="relative mt-4 space-y-4 border-l border-white/10 pl-5">
+              {d.plan.map((s, i) => (
+                <li key={s.start} className="relative">
+                  <span className={`absolute -left-[1.6rem] top-1 h-3 w-3 rounded-full ring-4 ring-fl ${i === 0 ? 'bg-akz' : 'bg-white/25'}`} />
+                  <p className="zahl text-xs font-semibold text-akz">{zeit(s.start)}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-white">{s.titel || s.spiel || 'Stream'}</p>
+                  {s.spiel && <p className="text-xs text-white/45">{s.spiel}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </aside>
       </div>
     </div>
   );
+}
+
+export default function StreamerSeite() {
+  const { kanal = '' } = useParams();
+  return <KanalAnsicht kanal={kanal} grund="Schedule, top clips and posts of streamer pages are only visible to the admin for now." />;
 }
