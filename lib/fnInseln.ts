@@ -35,7 +35,7 @@ export interface Insel {
 export interface InselIntern extends Insel {
   code: string;
   epic: boolean;
-  /** Der Modus, zu dem eine Spielliste gehoert (metadata.parent_set). */
+  /** Der Modus, zu dem eine Spielliste gehoert (metadata.parent_experience, aelter: parent_set). */
   eltern: string | null;
   /** Die Spiellisten eines Modus (metadata.sub_link_codes). */
   unter: string[];
@@ -53,6 +53,7 @@ interface RohLink {
     image_url?: string;
     image_urls?: { url?: string; url_m?: string; url_s?: string; url_xs?: string };
     parent_set?: string;
+    parent_experience?: string;
     sub_link_codes?: string[];
   };
 }
@@ -72,7 +73,7 @@ function forme(r: RohLink, code: string): InselIntern {
     tagline: text(m.tagline),
     typ: text(r.linkType),
     epic: r.accountId === 'epic',
-    eltern: text(m.parent_set),
+    eltern: text(m.parent_experience) ?? text(m.parent_set),
     unter: Array.isArray(m.sub_link_codes) ? m.sub_link_codes.filter((c): c is string => typeof c === 'string') : [],
   };
 }
