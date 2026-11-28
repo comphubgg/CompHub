@@ -213,9 +213,8 @@ function Kopf({ code, titel, creator, istEpic, bild, text, insel, typ, platz, ge
   ];
   return (
     <header className="fl-fest relative isolate overflow-hidden">
-      {/* Weicher Schein des Bildes hinter der ganzen Buehne (stark unscharf - kein hochgezogenes Mini-Bild) */}
-      <div className="absolute inset-0 -z-10 opacity-30 blur-3xl saturate-150"><Bild src={bild} className="h-full w-full" /></div>
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-fl/70 via-fl/90 to-fl" />
+      {/* Leichter Akzent-Schein statt eines zweiten (unscharfen) Bildes - dasselbe Bild nie doppelt als Deko */}
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgb(var(--akz)/0.14),transparent_60%)]" />
       <div className="grid grid-cols-1 gap-6 p-4 sm:p-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] xl:gap-9 xl:p-7">
         <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="relative aspect-video self-start overflow-hidden rounded-2xl border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
@@ -242,7 +241,7 @@ function Kopf({ code, titel, creator, istEpic, bild, text, insel, typ, platz, ge
               {lang && <button type="button" onClick={() => setOffen((x) => !x)} className="knopf-leer mt-1 !text-xs">{offen ? 'Show less' : 'Show more'}</button>}
             </div>
           )}
-          <dl className="mt-auto grid grid-cols-2 gap-x-5 gap-y-3 border-t border-white/[0.07] pt-4 sm:grid-cols-4">
+          <dl className="mt-5 grid grid-cols-2 xl:mt-auto gap-x-5 gap-y-3 border-t border-white/[0.07] pt-4 sm:grid-cols-4">
             {fakten.map(([k, v]) => <div key={k} className="min-w-0"><dt className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">{k}</dt><dd className="mt-0.5 truncate text-sm font-semibold text-white/85">{v}</dd></div>)}
           </dl>
         </motion.div>
