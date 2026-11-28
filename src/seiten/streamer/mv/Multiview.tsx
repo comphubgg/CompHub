@@ -785,7 +785,7 @@ export default function Multiview(props: MultiviewProps) {
         </button>
       )}
       {props.buehne && sichtbar.length > 0 && (
-        <aside aria-hidden={!schublade} {...(schublade ? {} : { inert: true })}
+        <aside aria-hidden={!schublade} {...(schublade ? {} : { inert: '' })}
           className={`mv-fl absolute bottom-0 right-0 top-0 z-30 flex w-[24rem] max-w-full flex-col border-l shadow-2xl transition-transform duration-200 ${schublade ? 'translate-x-0' : 'translate-x-full'}`}>
           {schublade && props.buehne({ aufWand: aufWandKanaele, umschalten: buehnenUmschalten, kompakt: true, zu: () => setSchublade(false) })}
         </aside>

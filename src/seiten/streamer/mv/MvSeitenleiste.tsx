@@ -536,7 +536,7 @@ export default function Seitenleiste(p: Props) {
     <aside
       aria-hidden={!p.offen}
       // inert: ein geschlossenes Panel nimmt weder Tab noch Klick.
-      {...(p.offen ? {} : { inert: true })}
+      {...(p.offen ? {} : { inert: '' })}
       className={`mv-fl absolute bottom-0 left-0 top-0 z-30 flex w-[20rem] max-w-full flex-col border-r
         shadow-2xl transition-transform duration-200 ${p.offen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Kopf */}
