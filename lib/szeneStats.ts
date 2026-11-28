@@ -16,7 +16,7 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
-import { verdienst, lanSummen, lanEintraege, lanUnvollstaendig } from '@/lib/preisgeld';
+import { verdienst, verdienstRegelDa, lanSummen, lanEintraege, lanUnvollstaendig } from '@/lib/preisgeld';
 import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdienstArchiv';
 import { teamElimsListe } from '@/lib/elimsArchiv';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
@@ -703,6 +703,16 @@ async function tagesSumme(season: string, windowId: string, tage: number) {
   return karte;
 }
 
+/*
+ * Eine Karte merken - und Abgelaufenes dabei wegwerfen (28.11.2026). Vorher blieb jede je gebaute Karte bis zum Ende des Vorgangs
+ * im Speicher (die Frist galt nur fuers Lesen, geloescht wurde nie), ueber alle Saisons Millionen Eintraege.
+ */
+function platzMerken(schluessel: string, karte: Map<string, Platzierung> | null) {
+  const jetzt = Date.now();
+  for (const [k, v] of platzCache) if (v.bis <= jetzt) platzCache.delete(k);
+  platzCache.set(schluessel, { karte, bis: jetzt + HALTBAR });
+}
+
 async function platzKarte(season: string, windowId: string, nurDerTag = false): Promise<Map<string, Platzierung> | null> {
   const schluessel = `${season}|${windowId}${nurDerTag ? '|tag' : ''}`;
   const gemerkt = platzCache.get(schluessel);
@@ -712,7 +722,7 @@ async function platzKarte(season: string, windowId: string, nurDerTag = false): 
   if (letzterTag) {
     const gesamt = await tagesSumme(season, windowId, letzterTag);
     if (gesamt) {
-      platzCache.set(schluessel, { karte: gesamt, bis: Date.now() + HALTBAR });
+      platzMerken(schluessel, gesamt);
       return gesamt;
     }
   }
@@ -771,7 +781,7 @@ async function platzKarte(season: string, windowId: string, nurDerTag = false): 
       karte = null;
     }
   }
-  platzCache.set(schluessel, { karte, bis: Date.now() + HALTBAR });
+  platzMerken(schluessel, karte);
   return karte;
 }
 
@@ -1888,6 +1898,17 @@ async function geldRechnen(o: {
   }
   let mitRegel = 0;
   for (const e of [...eintraege, ...weitere]) {
+    /*
+     * Erst nachsehen, ob der Spieltag ueberhaupt eine Preisgeldregel hat, dann die Platzkarte bauen (28.11.2026).
+     *
+     * Vorher wurde fuer jeden Spieltag die volle Karte gebaut und gemerkt - je Konto ein Eintrag mit eigener Mitspielerliste, bei
+     * einem Trio-Cash-Cup 30.000 - und erst am ersten Eintrag gemerkt, dass es keine Regel gibt. Gemessen an den Epic-Spieltagen
+     * vom 28.11.: S43 allein 2,8 Millionen Eintraege, 0,8 GB, S42 8 Millionen, 2,2 GB. Seit dem Nachholen alter Spieltage (18. bis
+     * 21.11.) starb der Server des Vorrechnens daran mit "heap out of memory" - die Liste von S43 blieb beim 19.11. stehen (ohne
+     * FNCS Solos Reload Final, Trios Cash Cup #3, Performance Evaluation Cup #4). Ohne Regel gibt verdienst() fuer jeden Platz
+     * null (verdienstRegelDa prueft dieselben Quellen), das Ergebnis bleibt also dasselbe.
+     */
+    if (!(await verdienstRegelDa({ windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name }))) continue;
     const karte = await platzKarte(e.season, e.windowId);
     if (!karte) continue;
     let dieserTag = false;

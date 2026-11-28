@@ -304,6 +304,57 @@ function ausTabelle(t: Tabelle, platz: number | null, punkte: number | null): Ve
 }
 
 /**
+ * Zaehlt ein Spieltag fuer eine gepflegte Regel mit "nurFinale" als Finale?
+ *
+ * Ohne Epics Kennzeichen sagt es der Name - oder die Fensterkennung:
+ * "…Week2Final_EU", und bei Victory- und Performance-Cups ist die zweite
+ * Runde das Finale ("…Round2_EU"). Epics Kennzeichen zaehlt, wo es gesetzt
+ * ist - beim Performance Cup steht es faelschlich auf false (siehe
+ * istFinaleTag), darum zusaetzlich Name und Kennung.
+ */
+export function gepflegtesFinale(angaben: { windowId: string; name?: string; istFinale?: boolean }): boolean {
+  return Boolean(angaben.istFinale)
+    || istFinaleTag(angaben.name ?? '', undefined, angaben.windowId)
+    || /final/i.test(angaben.windowId)
+    || (/victory|performance/i.test(angaben.windowId) && /round2/i.test(angaben.windowId));
+}
+
+/**
+ * Passt eine gepflegte Regel (data/preisgelder.json) zu diesem Turnier?
+ *
+ * Die Regel nennt den Anfang der Turnierkennung: "PerformanceEvaluation" gilt auch fuer
+ * "PerformanceEvaluationTrios" (S43). Dieselbe Pruefung fuer das Preisgeld (verdienst) und
+ * fuer die Cup-Seite (app/api/cup-preise) - bis zum 28.11.2026 verglich die Cup-Seite
+ * Wort fuer Wort und zeigte bei Round 2 "keine Auszahlungstabelle", waehrend die Earnings
+ * dieselbe Regel sehr wohl zaehlten.
+ */
+export function regelPasst(
+  r: { turnier: string; region: string; nurFinale?: boolean }, kern: string, region: string, finale: boolean,
+): boolean {
+  return kern.startsWith(r.turnier.toLowerCase())
+    && r.region.toUpperCase() === region.toUpperCase()
+    && (!r.nurFinale || finale);
+}
+
+/**
+ * Gibt es fuer diesen Spieltag ueberhaupt eine Preisgeldregel - eine Tabelle, eine gepflegte Regel oder (mit Konto) eine LAN-Liste?
+ *
+ * Dieselben Quellen in derselben Reihenfolge wie verdienst(): ist hier false, gibt verdienst() fuer jeden Platz dieses Spieltags null.
+ * Fuer die Jahreslisten (lib/szeneStats, geldRechnen), die vorher fuer jeden Spieltag zuerst die ganze Platzkarte bauten (bis zu
+ * 30.000 Konten je Cash Cup) und erst danach merkten, dass es keine Regel gibt - siehe dort.
+ */
+export async function verdienstRegelDa(angaben: {
+  windowId: string; eventId?: string; region: string; name?: string; istFinale?: boolean; epicId?: string;
+}): Promise<boolean> {
+  if (angaben.epicId && (await lanEintraege()).some((e) => e.fenster === angaben.windowId)) return true;
+  if (await tabelleFuer(angaben.windowId, angaben.region)) return true;
+  const kern = turnierKern(angaben.eventId || angaben.windowId);
+  if (!kern) return false;
+  const finale = gepflegtesFinale(angaben);
+  return (await liesRegeln()).some((r) => regelPasst(r, kern, angaben.region, finale));
+}
+
+/**
  * Der Betrag zu einem Platz oder einer Punktzahl - oder null, wenn dazu
  * keine Regel gepflegt ist.
  */
@@ -322,20 +373,8 @@ export async function verdienst(angaben: {
   if (tabelle) return ausTabelle(tabelle, angaben.platz, angaben.punkte);
   const kern = turnierKern(angaben.eventId || angaben.windowId);
   if (!kern) return null;
-  // Ohne Epics Kennzeichen sagt es der Name - oder die Fensterkennung:
-  // "…Week2Final_EU", und bei Victory- und Performance-Cups ist die zweite
-  // Runde das Finale ("…Round2_EU").
-  // Epics Kennzeichen zaehlt, wo es gesetzt ist - beim Performance Cup
-  // steht es faelschlich auf false (siehe istFinaleTag), darum zusaetzlich
-  // Name und Kennung.
-  const finale = Boolean(angaben.istFinale)
-    || istFinaleTag(angaben.name ?? '', undefined, angaben.windowId)
-    || /final/i.test(angaben.windowId)
-    || (/victory|performance/i.test(angaben.windowId) && /round2/i.test(angaben.windowId));
-  const regel = (await liesRegeln()).find((r) =>
-    kern.startsWith(r.turnier.toLowerCase())
-    && r.region.toUpperCase() === angaben.region.toUpperCase()
-    && (!r.nurFinale || finale));
+  const finale = gepflegtesFinale(angaben);
+  const regel = (await liesRegeln()).find((r) => regelPasst(r, kern, angaben.region, finale));
   if (!regel) return null;
   const waehrung = regel.waehrung ?? 'USD';
 

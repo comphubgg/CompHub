@@ -8,7 +8,7 @@ import {
   holeKatalog, wertungVon, type EpicKatalog,
 } from '@/lib/cupWertung';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { lanEintraege, tabelleFuer } from '@/lib/preisgeld';
+import { gepflegtesFinale, lanEintraege, regelPasst, tabelleFuer } from '@/lib/preisgeld';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { GLOBALS_EVENT, istGlobalsFenster } from '@/lib/globalsCup';
 import { istGlobalsFinale } from '@/lib/globalsGesamt';
@@ -214,10 +214,10 @@ async function holeRoh(request: Request) {
   async function ausDatei() {
     if (!eventId) return null;
     const kern = turnierKern(eventId);
-    const treffer = (await gepflegte()).find((g) =>
-      g.turnier.toLowerCase() === kern
-      && g.region.toUpperCase() === region
-      && (!g.nurFinale || istFinale));
+    // Dieselbe Regel wie beim Preisgeld (lib/preisgeld, regelPasst): der Anfang der Kennung genuegt ("PerformanceEvaluation" fuer
+    // "PerformanceEvaluationTrios"), und Round 2 eines Performance- oder Victory-Cups ist das Finale, auch ohne "finale=1".
+    const finale = istFinale || gepflegtesFinale({ windowId: window_ ?? '' });
+    const treffer = (await gepflegte()).find((g) => regelPasst(g, kern, region, finale));
     if (!treffer) return null;
 
     /*
