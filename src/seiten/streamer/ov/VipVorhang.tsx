@@ -33,15 +33,15 @@ function Schemen({ art, klasse, verzug }: {
   return (
     <div aria-hidden
       className={`vorhang-schweben pointer-events-none absolute hidden rounded-2xl border
-                  border-violet-400/20 bg-violet-950/30 p-3 shadow-[0_0_40px_rgba(14,165,233,0.12)]
+                  border-akz/20 bg-violet-950/30 p-3 shadow-[0_0_40px_rgba(14,165,233,0.12)]
                   backdrop-blur-[2px] md:block ${klasse}`}
       style={{ animationDelay: verzug }}>
       {art === 'rangliste' && (
         <div className="space-y-1.5">
-          <div className="mb-2 h-2 w-20 rounded bg-violet-400/40" />
+          <div className="mb-2 h-2 w-20 rounded bg-akz/40" />
           {[88, 76, 70, 61, 55].map((b, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="h-2 w-3 rounded bg-violet-300/30" />
+              <span className="h-2 w-3 rounded bg-akz/30" />
               <span className="h-2 rounded bg-white/15" style={{ width: `${b}%` }} />
             </div>
           ))}
@@ -49,18 +49,18 @@ function Schemen({ art, klasse, verzug }: {
       )}
       {art === 'teamkarte' && (
         <div className="flex items-center gap-3">
-          <span className="h-12 w-12 rounded-xl bg-violet-400/25" />
-          <span className="h-12 w-12 rounded-xl bg-violet-400/15" />
+          <span className="h-12 w-12 rounded-xl bg-akz/25" />
+          <span className="h-12 w-12 rounded-xl bg-akz/15" />
           <span className="space-y-2">
             <span className="block h-2 w-24 rounded bg-white/20" />
-            <span className="block h-2 w-16 rounded bg-violet-300/30" />
+            <span className="block h-2 w-16 rounded bg-akz/30" />
           </span>
         </div>
       )}
       {art === 'timer' && (
         <div className="flex items-center gap-3">
-          <span className="h-3 w-3 rounded-full bg-violet-400/60" />
-          <span className="font-mono text-xl font-bold tracking-widest text-violet-200/40">12:47</span>
+          <span className="h-3 w-3 rounded-full bg-akz/60" />
+          <span className="font-mono text-xl font-bold tracking-widest text-akz/40">12:47</span>
         </div>
       )}
     </div>
@@ -96,14 +96,14 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
       <div className="relative mx-auto flex min-h-[78vh] max-w-2xl flex-col items-center
                       justify-center px-4 py-20 text-center">
         <div className="relative">
-          <div className="absolute inset-0 -z-10 animate-pulse rounded-full bg-violet-500/25 blur-3xl
+          <div className="absolute inset-0 -z-10 animate-pulse rounded-full bg-akz/25 blur-3xl
                           motion-reduce:animate-none" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={MARKE.logoFrei} alt="CompHub" className="h-24 w-auto sm:h-28" />
         </div>
 
-        <p className="mt-8 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px]
-                      font-bold uppercase tracking-[0.25em] text-violet-300">
+        <p className="mt-8 rounded-full border border-akz/30 bg-akz/10 px-3 py-1 text-[11px]
+                      font-bold uppercase tracking-[0.25em] text-akz">
           VIP
         </p>
         <h1 className="mt-4 text-balance text-3xl font-black tracking-tight text-white sm:text-5xl">
@@ -121,8 +121,8 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <a href={MARKE.discord} target="_blank" rel="noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-500 px-4
-                         py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400">
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-akz px-4
+                         py-2.5 text-sm font-semibold text-[#04050a] transition hover:brightness-110">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.2.5a18.3 18.3 0 0 1 4.5 1.6 16.5 16.5 0 0 0-15.4 0A18.3 18.3 0 0 1 8.8 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.6 9 .1 13.5.3 18a19.9 19.9 0 0 0 6 3l1.3-2.1a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 11.8 0l.5.4a12.9 12.9 0 0 1-2 1L17.7 21a19.9 19.9 0 0 0 6-3c.3-5.2-.6-9.7-3.4-13.6ZM8.4 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4Zm7.2 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4Z" />
               </svg>
@@ -131,7 +131,7 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
             <a href={`https://x.com/${MARKE.x}`} target="_blank" rel="noreferrer"
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15
                          bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white transition
-                         hover:border-violet-500 hover:text-violet-400">
+                         hover:border-akz hover:text-akz">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
                 <path d="M18.2 2.3h3.4l-7.4 8.4 8.7 11.5h-6.8l-5.3-7-6.1 7H1.3l7.9-9L.9 2.3h7l4.8 6.4 5.5-6.4Zm-1.2 17.9h1.9L7.1 4.2H5.1l11.9 16Z" />
               </svg>
@@ -141,12 +141,12 @@ export default function VipVorhang({ titel, text }: { titel?: string; text?: str
         </div>
 
         <button type="button" onClick={() => oeffnen('schluessel')}
-          className="mt-6 rounded-full bg-violet-400 px-6 py-2.5 text-sm font-bold text-[#06080f] transition hover:-translate-y-0.5 hover:bg-violet-300">
+          className="mt-6 rounded-full bg-akz px-6 py-2.5 text-sm font-bold text-[#06080f] transition hover:-translate-y-0.5 hover:brightness-110">
           Have a VIP access key?
         </button>
         {!titel && (
           <Link href="/sign-in"
-            className="mt-4 text-xs font-semibold text-white/45 transition hover:text-violet-400">
+            className="mt-4 text-xs font-semibold text-white/45 transition hover:text-akz">
             <T>Schon VIP? Anmelden</T> →
           </Link>
         )}

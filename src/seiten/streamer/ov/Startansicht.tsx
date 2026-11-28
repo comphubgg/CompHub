@@ -247,8 +247,8 @@ export default function Startansicht({ onWeiter, art }: {
           </h1>
           {!neu && (
             <button onClick={() => (ohneCup ? onWeiter('', '') : setNeu(true))}
-              className="ml-auto rounded-lg bg-violet-500 px-4 py-2 text-sm
-                         font-semibold text-white transition hover:bg-violet-400">
+              className="ml-auto rounded-lg bg-akz px-4 py-2 text-sm
+                         font-semibold text-[#04050a] transition hover:brightness-110">
               <T>Neues Overlay</T>
             </button>
           )}
@@ -267,8 +267,8 @@ export default function Startansicht({ onWeiter, art }: {
             </h2>
             {!nurLaufende && (
               <button onClick={() => setFrueher((v) => !v)}
-                className={`ml-auto text-[11px] transition hover:text-violet-400 ${
-                  frueher ? 'text-violet-400' : 'text-white/45'}`}>
+                className={`ml-auto text-[11px] transition hover:text-akz ${
+                  frueher ? 'text-akz' : 'text-white/45'}`}>
                 {frueher ? <T>nur was läuft</T> : <T>auch die letzte Woche zeigen</T>}
               </button>
             )}
@@ -282,7 +282,7 @@ export default function Startansicht({ onWeiter, art }: {
                 className="w-full max-w-md rounded-lg border border-white/10
                            bg-black/30 px-4 py-2.5 text-center text-sm
                            text-white outline-none
-                           placeholder:text-white/30 focus:border-violet-500" />
+                           placeholder:text-white/30 focus:border-akz" />
             </div>
           )}
           {/* Die Filter: Region, wichtige Cups, Finals - im Stil der Reiter daneben. */}
@@ -292,22 +292,22 @@ export default function Startansicht({ onWeiter, art }: {
                 <button key={r || 'alle'} onClick={() => setRegionFilter(r)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     regionFilter === r
-                      ? 'bg-violet-500 text-white'
-                      : 'border border-white/10 text-white/55 hover:border-violet-500 hover:text-white/85'}`}>
+                      ? 'bg-akz text-[#04050a]'
+                      : 'border border-white/10 text-white/55 hover:border-akz hover:text-white/85'}`}>
                   {r || t('Alle Regionen')}
                 </button>
               ))}
               <span className="mx-1 h-5 w-px bg-white/[0.07]" />
               <button onClick={() => setNurWichtige((v) => !v)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  nurWichtige ? 'bg-violet-500 text-white'
-                    : 'border border-white/10 text-white/55 hover:border-violet-500 hover:text-white/85'}`}>
+                  nurWichtige ? 'bg-akz text-[#04050a]'
+                    : 'border border-white/10 text-white/55 hover:border-akz hover:text-white/85'}`}>
                 <T>Nur FNCS, Cash und Performance</T>
               </button>
               <button onClick={() => setNurFinals((v) => !v)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  nurFinals ? 'bg-violet-500 text-white'
-                    : 'border border-white/10 text-white/55 hover:border-violet-500 hover:text-white/85'}`}>
+                  nurFinals ? 'bg-akz text-[#04050a]'
+                    : 'border border-white/10 text-white/55 hover:border-akz hover:text-white/85'}`}>
                 <T>Nur Finals</T>
               </button>
             </div>
@@ -315,7 +315,7 @@ export default function Startansicht({ onWeiter, art }: {
 
           {!cups && <LadeSchirm />}
           {nurLaufende && (
-            <p className="mb-3 text-[11px] leading-relaxed text-violet-400/80">
+            <p className="mb-3 text-[11px] leading-relaxed text-akz/80">
               <T>Als Manager wählst du den Spieltag, um den es gerade geht:
               was läuft, was heute schon lief, und was gleich anfängt — in
               Europa ab 15 Minuten vorher, in den anderen Regionen ab zwei
@@ -349,7 +349,7 @@ export default function Startansicht({ onWeiter, art }: {
                 <button key={k.windowId} onClick={() => setGewaehlt(k)}
                   className={`rounded-xl border px-4 py-3 text-left transition
                     ${ist
-                      ? 'border-violet-500 bg-violet-500/10'
+                      ? 'border-akz bg-akz/10'
                       : 'border-white/10 bg-white/[0.03] hover:border-white/15'}`}>
                   <span className="flex items-center gap-2">
                     {k.live && (
@@ -409,8 +409,8 @@ export default function Startansicht({ onWeiter, art }: {
           <button
             onClick={() => gewaehlt && onWeiter(gewaehlt.eventId, gewaehlt.windowId)}
             disabled={!gewaehlt}
-            className="ml-auto rounded-lg bg-violet-500 px-5 py-2 text-sm
-                       font-semibold text-white transition hover:bg-violet-400
+            className="ml-auto rounded-lg bg-akz px-5 py-2 text-sm
+                       font-semibold text-[#04050a] transition hover:brightness-110
                        disabled:cursor-not-allowed disabled:opacity-40">
             <T>Weiter</T>
           </button>

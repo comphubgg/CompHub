@@ -92,7 +92,7 @@ function Steuerung() {
     } catch { setFehler('No connection — try again.'); }
   }
 
-  if (!id) return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-white/[0.035] p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
+  if (!id) return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-fl p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
   if (!cfg) return <p className="text-sm text-white/55">{fehler || '…'}</p>;
 
   const teams = Math.max(2, Math.min(4, Number(cfg.teams) || 2));
@@ -110,7 +110,7 @@ function Steuerung() {
     <div className="mx-auto max-w-3xl space-y-4">
       <div className={`grid gap-3 ${teams > 2 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
         {[1, 2, 3, 4].slice(0, teams).map((s) => (
-          <div key={s} className="flex flex-col rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
+          <div key={s} className="flex flex-col rounded-2xl border border-white/[0.07] bg-fl p-4">
             <p className="truncate text-center text-sm font-bold text-white/85">{seitenName(s)}</p>
             <p className={`my-3 text-center font-mono font-black text-white ${teams > 2 ? 'text-5xl' : 'text-7xl'}`}>{n(`punkte${s}`)}</p>
             <button type="button" onClick={() => void senden({ [`punkte${s}`]: n(`punkte${s}`) + 1 })}
@@ -121,7 +121,7 @@ function Steuerung() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.07] bg-fl p-4">
         <span className="text-xs font-bold uppercase tracking-wider text-white/45"><T>Round</T></span>
         <button type="button" className={knopf} onClick={() => void senden({ runde: Math.max(0, n('runde') - 1) })}>−</button>
         <span className="w-8 text-center font-mono text-xl font-bold">{n('runde')}</span>
@@ -141,7 +141,7 @@ function Steuerung() {
         {fehler && <span className="self-center text-xs text-rose-400">{fehler}</span>}
       </div>
 
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
+      <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
         <p className="mb-3 text-sm font-bold text-white"><T>Teams and players</T></p>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-xs text-white/45"><T>Teams</T>:</span>
@@ -181,7 +181,7 @@ function Steuerung() {
           className="mt-3 rounded-lg px-5 py-2 text-sm font-bold text-black" style={{ background: FC_GOLD }}><T>Update line-up</T></button>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
+      <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
         <button type="button" onClick={() => setKopfOffen(!kopfOffen)} className="flex w-full items-center justify-between text-sm font-bold text-white">
           <T>Map header</T> <span className="text-white/45">{kopfOffen ? '−' : '+'}</span>
         </button>

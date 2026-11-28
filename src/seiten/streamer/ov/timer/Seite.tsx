@@ -207,19 +207,59 @@ export default function TimerSeite() {
   return (
     <OverlayGeruest aktiv="timer">
       <div className="mb-5">
-        <h1 className="text-xl font-semibold text-white"><T>Cup timer</T></h1>
+        <h1 className="sr-only"><T>Cup timer</T></h1>
         <p className="mt-1 text-sm text-white/45">
           <T>Ein Countdown bis zum Start des Spieltags. Danach zählt er auf
           Wunsch die Zeit seit dem Start weiter — oder verschwindet.</T>
         </p>
       </div>
 
-      <Vorschau src={vorschau} hoehe={220} />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {/* Design 3.0: links die grosse Vorschau mit Speichern und OBS-Adresse (klebt), rechts die Einstellungen angedockt */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] xl:items-start">
+        <div className="space-y-4 xl:sticky xl:top-[7.5rem] xl:max-h-[calc(100dvh-8.5rem)] xl:overflow-y-auto">
+        <Vorschau klebt={false} src={vorschau} hoehe={380} />
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder={t('Name im Dashboard')}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10
+                             bg-black/30 px-3 py-2 text-sm text-white
+                             outline-none focus:border-akz" />
+                <button onClick={sichern}
+                  className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold
+                             text-[#04050a] transition hover:brightness-110">
+                  {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Anlegen'))}
+                </button>
+                {id && (
+                  <button onClick={neu}
+                    className="rounded-lg border border-white/10 px-3 py-2 text-xs
+                               text-white/55 transition hover:border-akz/60
+                               hover:text-akz">
+                    <T>Neu</T>
+                  </button>
+                )}
+              </div>
+              {fehler && <p className="mb-2 text-xs text-rose-400">{fehler}</p>}
+              {id && schmutzig && (
+                <p className="mb-2 text-[11px] text-amber-500/90">
+                  <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
+                </p>
+              )}
+              {id && (
+                <input readOnly value={overlayAdresse('timer', id)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="w-full rounded-lg border border-white/10 bg-black/30
+                             px-3 py-2 font-mono text-[11px] text-white/55" />
+              )}
+            </section>
+  
+            <MeineListe liste={liste} typ="timer" offen={id}
+              waehlen={laden} entfernen={entfernen} />
+          </div>
         <div className="space-y-4">
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Worauf gewartet wird</T>
             </h2>
@@ -236,7 +276,7 @@ export default function TimerSeite() {
                   onChange={(e) => setz('wort', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-white/10
                              bg-black/30 px-3 py-2 text-sm text-white
-                             outline-none focus:border-violet-500" />
+                             outline-none focus:border-akz" />
               </label>
             </div>
 
@@ -247,12 +287,12 @@ export default function TimerSeite() {
                   onChange={(e) => setz('wortLaeuft', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-white/10
                              bg-black/30 px-3 py-2 text-sm text-white
-                             outline-none focus:border-violet-500" />
+                             outline-none focus:border-akz" />
               </label>
             )}
 
             {cfg.beginn > 0 && (
-              <p className="mt-3 text-[11px] text-violet-400/80">
+              <p className="mt-3 text-[11px] text-akz/80">
                 <T>Start</T>{': '}
                 {new Date(cfg.beginn).toLocaleString(ortJetzt())}
                 {restText ? ` · ${restText}` : ''}
@@ -288,7 +328,7 @@ export default function TimerSeite() {
           <HausGruppe cfg={cfg} setz={setzLos} />
           <DesignGruppe cfg={cfg} setz={setzLos} />
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Aussehen</T>
             </h2>
@@ -306,45 +346,6 @@ export default function TimerSeite() {
           </section>
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                placeholder={t('Name im Dashboard')}
-                className="min-w-0 flex-1 rounded-lg border border-white/10
-                           bg-black/30 px-3 py-2 text-sm text-white
-                           outline-none focus:border-violet-500" />
-              <button onClick={sichern}
-                className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold
-                           text-white transition hover:bg-violet-400">
-                {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Anlegen'))}
-              </button>
-              {id && (
-                <button onClick={neu}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs
-                             text-white/55 transition hover:border-violet-500/60
-                             hover:text-violet-400">
-                  <T>Neu</T>
-                </button>
-              )}
-            </div>
-            {fehler && <p className="mb-2 text-xs text-rose-400">{fehler}</p>}
-            {id && schmutzig && (
-              <p className="mb-2 text-[11px] text-amber-500/90">
-                <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
-              </p>
-            )}
-            {id && (
-              <input readOnly value={overlayAdresse('timer', id)}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-lg border border-white/10 bg-black/30
-                           px-3 py-2 font-mono text-[11px] text-white/55" />
-            )}
-          </section>
-
-          <MeineListe liste={liste} typ="timer" offen={id}
-            waehlen={laden} entfernen={entfernen} />
-        </div>
       </div>
     </OverlayGeruest>
   );

@@ -145,9 +145,9 @@ export function KopierFeld({ wert, knopf = 'Copy OBS URL', klein = false }: { we
   return (
     <div className="flex min-w-0 items-stretch gap-2">
       <input readOnly value={wert} onFocus={(e) => e.currentTarget.select()}
-        className={`min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/40 px-3 font-mono text-white/70 outline-none focus:border-violet-400/60 ${klein ? 'py-1.5 text-[11px]' : 'py-2 text-xs'}`} />
+        className={`min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/40 px-3 font-mono text-white/70 outline-none focus:border-akz/60 ${klein ? 'py-1.5 text-[11px]' : 'py-2 text-xs'}`} />
       <button type="button" onClick={kopieren}
-        className={`shrink-0 rounded-lg font-bold transition ${ok ? 'bg-violet-300 text-[#06080f]' : 'bg-violet-500 text-white hover:bg-violet-400'} ${klein ? 'px-3 text-[11px]' : 'px-4 text-xs'}`}>
+        className={`shrink-0 rounded-lg font-bold transition ${ok ? 'bg-akz text-[#06080f]' : 'bg-akz text-[#04050a] hover:brightness-110'} ${klein ? 'px-3 text-[11px]' : 'px-4 text-xs'}`}>
         {ok ? t('Copied') : t(knopf)}
       </button>
     </div>
@@ -165,7 +165,7 @@ export function ObsSchritte({ breite, hoehe, kompakt = false }: { breite: number
     <ol className={`grid gap-3 ${kompakt ? '' : 'sm:grid-cols-3'}`}>
       {schritte.map(([titel, text], i) => (
         <li key={titel} className="flex gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-500/15 font-mono text-xs font-bold text-violet-300">{i + 1}</span>
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-akz/15 font-mono text-xs font-bold text-akz">{i + 1}</span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-white"><T>{titel}</T></span>
             <span className="mt-0.5 block text-xs leading-relaxed text-white/55">{text}</span>
@@ -179,7 +179,7 @@ export function ObsSchritte({ breite, hoehe, kompakt = false }: { breite: number
 /** A titled group of controls. */
 export function Gruppe({ titel, text, children, rechts }: { titel: string; text?: string; children: ReactNode; rechts?: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+    <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold tracking-wide text-white"><T>{titel}</T></h3>
@@ -192,7 +192,7 @@ export function Gruppe({ titel, text, children, rechts }: { titel: string; text?
   );
 }
 
-export const FELD = 'rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400/70';
+export const FELD = 'rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz/70';
 
 export function Text({ titel, wert, setzen, platzhalter, max = 40 }: {
   titel: string; wert: string; setzen: (v: string) => void; platzhalter?: string; max?: number;
@@ -218,7 +218,7 @@ export function Segmente<W extends string | number>({ titel, wert, optionen, set
         {optionen.map((o) => (
           <button key={String(o.wert)} type="button" onClick={() => setzen(o.wert)} aria-pressed={wert === o.wert}
             className={`flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition ${wert === o.wert
-              ? 'bg-violet-500 text-white shadow' : 'text-white/55 hover:bg-white/[0.04] hover:text-white/85'}`}>
+              ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:bg-white/[0.04] hover:text-white/85'}`}>
             <T>{o.titel}</T>
           </button>
         ))}
@@ -233,7 +233,7 @@ export function Schalter({ titel, an, setzen }: { titel: string; an: boolean; se
     <button type="button" role="switch" aria-checked={an} onClick={() => setzen(!an)}
       className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-left text-xs font-medium text-white/70 transition hover:border-white/[0.12]">
       <T>{titel}</T>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${an ? 'bg-violet-500' : 'bg-white/[0.12]'}`}>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${an ? 'bg-akz' : 'bg-white/[0.12]'}`}>
         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${an ? 'left-[18px]' : 'left-0.5'}`} />
       </span>
     </button>
@@ -254,7 +254,7 @@ export function Farbe({ titel, wert, setzen, vorschlaege = [] }: {
         </label>
         {vorschlaege.map((v) => (
           <button key={v} type="button" onClick={() => setzen(v)} aria-label={v}
-            className={`h-6 w-6 rounded-md border transition ${wert.toLowerCase() === v.toLowerCase() ? 'border-white ring-2 ring-violet-400/60' : 'border-white/15 hover:border-white/50'}`}
+            className={`h-6 w-6 rounded-md border transition ${wert.toLowerCase() === v.toLowerCase() ? 'border-white ring-2 ring-akz/60' : 'border-white/15 hover:border-white/50'}`}
             style={{ background: v }} />
         ))}
       </div>
@@ -274,7 +274,7 @@ export function Schieber({ titel, wert, von, bis, schritt = 1, einheit = '', set
         <span className="font-mono normal-case tracking-normal text-white/70">{anzeige ? anzeige(wert) : `${wert}${einheit}`}</span>
       </span>
       <input type="range" min={von} max={bis} step={schritt} value={wert}
-        onChange={(e) => setzen(Number(e.target.value))} className="w-full accent-violet-500" />
+        onChange={(e) => setzen(Number(e.target.value))} className="w-full accent-[rgb(var(--akz))]" />
     </label>
   );
 }
@@ -320,7 +320,7 @@ export function DesignGruppe<C extends LookConfig>({ cfg, setz, akzentStandard =
           {LOOKS.map((l) => (
             <button key={l.wert} type="button" onClick={() => setz('look', l.wert)} aria-pressed={cfg.look === l.wert}
               className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${cfg.look === l.wert
-                ? 'border-violet-400 bg-violet-500/15 text-violet-200' : 'border-white/[0.08] text-white/55 hover:border-white/25 hover:text-white/85'}`}>
+                ? 'border-akz bg-akz/15 text-akz' : 'border-white/[0.08] text-white/55 hover:border-white/25 hover:text-white/85'}`}>
               <T>{l.titel}</T>
             </button>
           ))}

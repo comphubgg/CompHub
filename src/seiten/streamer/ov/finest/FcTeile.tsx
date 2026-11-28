@@ -58,7 +58,7 @@ export function FcRahmen({ titel, text, children }: { titel: string; text?: stri
   return (
     <div className="text-white/85">
       <div className="">
-        <header className="relative mb-5 overflow-hidden rounded-3xl border border-[#f5b82e]/20 bg-white/[0.035] backdrop-blur-xl">
+        <header className="relative mb-5 overflow-hidden rounded-3xl border border-[#f5b82e]/20 bg-fl">
           <div className="h-2 w-full" style={{ background: `repeating-linear-gradient(-45deg,#111 0 10px,${FC_GOLD} 10px 20px)` }} />
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8">
             <div className="flex min-w-0 items-center gap-4">

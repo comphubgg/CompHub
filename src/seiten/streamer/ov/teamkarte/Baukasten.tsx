@@ -203,7 +203,7 @@ function Schritt({
 }) {
   return (
     <section className={`rounded-xl border bg-white/[0.03] p-4 transition
-      ${offen ? 'border-violet-500/40' : 'border-white/10'}
+      ${offen ? 'border-akz/40' : 'border-white/10'}
       ${gesperrt ? 'opacity-50' : ''}`}>
       <button type="button"
         onClick={() => { if (!gesperrt) onOeffnen(); }}
@@ -212,8 +212,8 @@ function Schritt({
                     font-semibold text-white
                     ${gesperrt ? 'cursor-not-allowed' : ''}`}>
         <span className={`flex h-5 w-5 shrink-0 items-center justify-center
-                          rounded-full text-[11px] font-bold text-white
-                          ${offen ? 'bg-violet-500' : 'bg-white/[0.12]'}`}>
+                          rounded-full text-[11px] font-bold text-[#04050a]
+                          ${offen ? 'bg-akz' : 'bg-white/[0.12]'}`}>
           {nummer}
         </span>
         <T>{titel}</T>
@@ -230,8 +230,8 @@ function Schritt({
 
       {offen && weiter && (
         <button type="button" onClick={weiter}
-          className="mt-4 rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold
-                     text-white transition hover:bg-violet-400">
+          className="mt-4 rounded-lg bg-akz px-4 py-2 text-sm font-semibold
+                     text-[#04050a] transition hover:brightness-110">
           <T>{weiterText}</T>
         </button>
       )}
@@ -950,7 +950,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
 
   const feld = 'w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 '
     + 'text-sm text-white outline-none placeholder:text-white/30 '
-    + 'focus:border-violet-500';
+    + 'focus:border-akz';
 
   const inhalt = (
       <div>
@@ -1009,7 +1009,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                       <button key={g} type="button" onClick={() => stelleTeamGroesse(g)}
                         className={`rounded-lg border px-3 py-1 text-xs font-medium transition ${
                           teamGroesse === g
-                            ? 'border-violet-500 bg-violet-500/10 text-white'
+                            ? 'border-akz bg-akz/10 text-white'
                             : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                         {g === 1 ? <T>Solo</T> : g === 2 ? <T>Duo</T> : <T>Trio</T>}
                       </button>
@@ -1017,7 +1017,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   </div>
                   {teamHinweis && (
                     <p className="mb-2 rounded-lg border border-violet-900/60 bg-violet-950/20 px-3 py-2
-                                  text-[11px] leading-relaxed text-violet-200/80">
+                                  text-[11px] leading-relaxed text-akz/80">
                       <T>In diesem Cup spielen Teams. Das Banner zeigt die Werte des
                       Teams und trägt dafür die Zeile „Team stats“.</T>
                     </p>
@@ -1063,7 +1063,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                             className={`flex items-center gap-1.5 rounded-md border px-2 py-1
                                         text-[12px] transition hover:border-violet-700 ${
                               duo.some((x) => x.id === s.id)
-                                ? 'border-violet-500 bg-violet-500/10 text-white'
+                                ? 'border-akz bg-akz/10 text-white'
                                 : 'border-white/10'}`}>
                             {s.img ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -1131,7 +1131,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                             className="h-6 w-6 shrink-0 rounded object-cover" />
                         ) : <span className="h-6 w-6 shrink-0 rounded bg-white/[0.07]" />}
                         <span className="min-w-0 flex-1 truncate">{p.anzeige}</span>
-                        <span className="shrink-0 text-[10px] text-violet-400">
+                        <span className="shrink-0 text-[10px] text-akz">
                           <T>vormerken</T>
                         </span>
                       </button>
@@ -1199,8 +1199,8 @@ export default function TeamkarteBaukasten({ globals = false }: {
                           etikett: duo.map((x, i) => (namen[i] || namensVorschlag(x.name)))
                             .join(' + '),
                         }]))}
-                      className="rounded-lg bg-violet-500 px-3 py-1 text-xs font-medium
-                                 text-white transition hover:bg-violet-400">
+                      className="rounded-lg bg-akz px-3 py-1 text-xs font-medium
+                                 text-[#04050a] transition hover:brightness-110">
                       <T>Dieses Duo dazunehmen</T>
                     </button>
                   </div>
@@ -1242,7 +1242,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                         <span className="ml-2 tabular-nums text-white/70">{wechsel} s</span>
                         <input type="range" min={3} max={30} value={wechsel}
                           onChange={(e) => setWechsel(Number(e.target.value))}
-                          className="mt-1 w-full accent-violet-500" />
+                          className="mt-1 w-full accent-[rgb(var(--akz))]" />
                       </label>
                     </>
                   )}
@@ -1271,7 +1271,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     ] as const).map((f) => (
                       <button key={f.id} type="button" onClick={() => waehleForm(f.id)}
                         className={`overflow-hidden rounded-lg border text-left transition ${
-                          form === f.id ? 'border-violet-500 bg-violet-500/5' : 'border-white/10 hover:border-white/25'}`}>
+                          form === f.id ? 'border-akz bg-akz/5' : 'border-white/10 hover:border-white/25'}`}>
                         <FormVorschau basis={basis} form={f.id} vorlage={vorlage}
                           klar={klar} akzent={akzent} />
                         <span className="block px-3 pb-2 pt-1.5">
@@ -1291,7 +1291,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     {TRIO_LAYOUTS.map((l) => (
                       <button key={l.id} type="button" onClick={() => waehleLayout(l.id)}
                         className={`overflow-hidden rounded-lg border text-left transition ${
-                          layout === l.id ? 'border-violet-500 bg-violet-500/5' : 'border-white/10 hover:border-white/25'}`}>
+                          layout === l.id ? 'border-akz bg-akz/5' : 'border-white/10 hover:border-white/25'}`}>
                         <LayoutVorschau basis={basis} layout={l.id} vorlage={vorlage}
                           klar={klar} abstand={abstand}
                           ids={duo.length >= 3 ? duo.map((x) => x.id) : []}
@@ -1316,7 +1316,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 {VORLAGEN.map((v) => (
                   <button key={v.id} onClick={() => setVorlage(v.id)}
                     className={`overflow-hidden rounded-lg border transition ${
-                      v.id === vorlage ? 'border-violet-500' : 'border-white/10 hover:border-white/25'}`}>
+                      v.id === vorlage ? 'border-akz' : 'border-white/10 hover:border-white/25'}`}>
                     <span className="flex h-10 items-center justify-center gap-1"
                       style={{ background: v.grund }}>
                       <span className="h-1.5 w-8 rounded"
@@ -1341,7 +1341,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button type="button" onClick={() => setAkzent('')}
                     className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
-                      !akzent ? 'border-violet-500 bg-violet-500/10 text-white'
+                      !akzent ? 'border-akz bg-akz/10 text-white'
                         : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                     <T>wie die Vorlage</T>
                   </button>
@@ -1363,7 +1363,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 <span className="ml-2 tabular-nums text-white/70">{klar}%</span>
                 <input type="range" min={0} max={100} value={klar}
                   onChange={(e) => setKlar(Number(e.target.value))}
-                  className="mt-1 w-full accent-violet-500" />
+                  className="mt-1 w-full accent-[rgb(var(--akz))]" />
               </label>
 
               <label className={`mb-3 ${leiste ? 'hidden' : 'block'} text-[11px] text-white/45`}>
@@ -1376,7 +1376,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     zieht jede Bewegung sichtbar auseinander. */}
                 <input type="range" min={18} max={96} value={abstand}
                   onChange={(e) => setAbstand(Number(e.target.value))}
-                  className="mt-1 w-full accent-violet-500" />
+                  className="mt-1 w-full accent-[rgb(var(--akz))]" />
               </label>
 
               <label className="block text-[11px] text-white/45">
@@ -1388,7 +1388,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     abgeschnitten, und der Regler durfte gar nicht so weit. */}
                 <input type="range" min={32} max={teamGroesse === 3 ? 340 : 220} value={hoehe}
                   onChange={(e) => setHoehe(Number(e.target.value))}
-                  className="mt-1 w-full accent-violet-500" />
+                  className="mt-1 w-full accent-[rgb(var(--akz))]" />
               </label>
             </Schritt>
 
@@ -1415,7 +1415,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 <div className="mb-3 space-y-1.5 text-[12px] text-white/70">
                   <label className="flex cursor-pointer items-start gap-2">
                     <input type="radio" name="fest" checked={fest} onChange={() => setFest(true)}
-                      className="mt-0.5 accent-violet-500" />
+                      className="mt-0.5 accent-[rgb(var(--akz))]" />
                     <span>
                       <T>Dieser Spieltag bleibt fest</T>
                       <span className="block text-[11px] text-white/45">
@@ -1426,7 +1426,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   </label>
                   <label className="flex cursor-pointer items-start gap-2">
                     <input type="radio" name="fest" checked={!fest} onChange={() => setFest(false)}
-                      className="mt-0.5 accent-violet-500" />
+                      className="mt-0.5 accent-[rgb(var(--akz))]" />
                     <span>
                       <T>Folgt dem laufenden Cup der Region</T>
                       <span className="block text-[11px] text-white/45">
@@ -1473,9 +1473,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     }
                   }}
                   disabled={!duo.length}
-                  className="shrink-0 rounded-lg bg-violet-500 px-5 py-2 text-sm
-                             font-semibold text-white transition
-                             hover:bg-violet-400 disabled:cursor-not-allowed
+                  className="shrink-0 rounded-lg bg-akz px-5 py-2 text-sm
+                             font-semibold text-[#04050a] transition
+                             hover:brightness-110 disabled:cursor-not-allowed
                              disabled:opacity-40">
                   {bearbeiteId ? <T>Übernehmen</T> : <T>Speichern</T>}
                 </button>
@@ -1505,9 +1505,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     onFocus={(e) => e.currentTarget.select()}
                     className={`${feld} font-mono text-[10px]`} />
                   <button onClick={() => void kopiere(obsAdresse)}
-                    className="shrink-0 rounded-lg bg-violet-500 px-4 text-sm
-                               font-medium text-white transition
-                               hover:bg-violet-400">
+                    className="shrink-0 rounded-lg bg-akz px-4 text-sm
+                               font-medium text-[#04050a] transition
+                               hover:brightness-110">
                     <T>Kopieren</T>
                   </button>
                 </div>
@@ -1547,7 +1547,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 onClick={() => { window.location.href = window.location.pathname; }}
                 className="mt-5 rounded-lg border border-white/10 px-4 py-2
                            text-sm text-white/70 transition
-                           hover:border-violet-500 hover:text-violet-300">
+                           hover:border-akz hover:text-akz">
                 <T>Fertig</T>
               </button>
             </Schritt>
@@ -1555,7 +1555,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
 
           {/* Vorschau und Adresse bleiben beim Scrollen stehen. */}
           <div className="space-y-4 lg:sticky lg:top-[124px] lg:self-start">
-            <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
               <h2 className="mb-3 text-sm font-semibold text-white">
                 <T>Vorschau</T>
               </h2>
@@ -1570,8 +1570,8 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   onFocus={(e) => e.currentTarget.select()}
                   className={`${feld} font-mono text-[10px]`} />
                 <button onClick={() => void kopiere(obsAdresse)}
-                  className="shrink-0 rounded-lg bg-violet-500 px-4 text-sm font-medium
-                             text-white transition hover:bg-violet-400">
+                  className="shrink-0 rounded-lg bg-akz px-4 text-sm font-medium
+                             text-[#04050a] transition hover:brightness-110">
                   <T>Kopieren</T>
                 </button>
               </div>

@@ -85,8 +85,8 @@ export default function FotoWahl({ wert, eigenes, onWahl }: {
 
         <button type="button" onClick={() => setOffen((v) => !v)}
           className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px]
-                     text-white/55 transition hover:border-violet-500/60
-                     hover:text-violet-400">
+                     text-white/55 transition hover:border-akz/60
+                     hover:text-akz">
           {wert === KEIN_FOTO
             ? <T>kein Foto</T>
             : wert ? <T>eigenes Foto</T> : <T>Foto automatisch</T>}
@@ -100,7 +100,7 @@ export default function FotoWahl({ wert, eigenes, onWahl }: {
               onClick={() => { onWahl(''); setOffen(false); }}
               className={`rounded border px-2 py-1 text-[11px] transition ${
                 wert === ''
-                  ? 'border-violet-500 text-violet-400'
+                  ? 'border-akz text-akz'
                   : 'border-white/10 text-white/55 hover:border-white/15'}`}>
               <T>Automatisch</T>
             </button>
@@ -108,7 +108,7 @@ export default function FotoWahl({ wert, eigenes, onWahl }: {
               onClick={() => { onWahl(KEIN_FOTO); setOffen(false); }}
               className={`rounded border px-2 py-1 text-[11px] transition ${
                 wert === KEIN_FOTO
-                  ? 'border-violet-500 text-violet-400'
+                  ? 'border-akz text-akz'
                   : 'border-white/10 text-white/55 hover:border-white/15'}`}>
               <T>Kein Foto</T>
             </button>
@@ -118,7 +118,7 @@ export default function FotoWahl({ wert, eigenes, onWahl }: {
             placeholder={t('Anderes Foto — Namen eintippen')}
             className="w-full rounded-lg border border-white/10 bg-black/30
                        px-2.5 py-1.5 text-[12px] text-white outline-none
-                       placeholder:text-white/30 focus:border-violet-500" />
+                       placeholder:text-white/30 focus:border-akz" />
 
           <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
             {treffer.map((x) => (
@@ -126,7 +126,7 @@ export default function FotoWahl({ wert, eigenes, onWahl }: {
                 title={x.anzeige}
                 onClick={() => { onWahl(x.bild ?? ''); setOffen(false); }}
                 className="overflow-hidden rounded border border-white/10
-                           transition hover:border-violet-500">
+                           transition hover:border-akz">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={x.bild ?? ''} alt={x.anzeige}
                   className="h-12 w-12 object-cover" />

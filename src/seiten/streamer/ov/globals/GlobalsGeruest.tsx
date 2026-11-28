@@ -89,7 +89,7 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
         * dem Blau der Startseite, darunter die Reiter als Pillen. Frueher stand hier ein goldener Kopf mit Banner.
         */}
       <div className={`space-y-5 ${breit ? 'w-full px-2 sm:px-3' : ''}`}>
-        <Link href="/streamer/overlays" className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 transition hover:text-violet-400">
+        <Link href="/streamer/overlays" className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 transition hover:text-akz">
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg>All overlays
         </Link>
         {/*
@@ -111,12 +111,12 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
           </div>
         </section>
 
-        <nav className="flex w-fit max-w-full flex-wrap gap-1 rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-sm">
+        <nav className="flex w-fit max-w-full flex-wrap gap-1 rounded-full border border-white/10 bg-fl p-1 shadow-sm">
           {GLOBALS_SEITEN.map((s) => {
             const an = hier === s.pfad || hier.startsWith(`${s.pfad}/`);
             return (
               <Link key={s.pfad} href={s.pfad} title={t(s.was)}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${an ? 'bg-violet-500 text-white shadow' : 'text-white/55 hover:text-white'}`}>
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${an ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white'}`}>
                 <T>{s.titel}</T>
               </Link>
             );

@@ -48,9 +48,9 @@ export default function Ablauf({ schritte, start = 0 }: { schritte: AblaufSchrit
             <li key={x.schluessel}>
               <button type="button" onClick={() => gehe(i)} aria-current={an ? 'step' : undefined}
                 className={`flex items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-4 text-sm font-bold transition ${an
-                  ? 'border-violet-500 bg-violet-500/15 text-violet-300' : 'border-white/10 bg-white/[0.035] text-white/55 hover:border-violet-500/50 hover:text-white'}`}>
+                  ? 'border-akz bg-akz/15 text-akz' : 'border-white/10 bg-fl text-white/55 hover:border-akz/50 hover:text-white'}`}>
                 <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-black tabular-nums ${an
-                  ? 'bg-violet-500 text-white' : getan ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/[0.07] text-white/55'}`}>
+                  ? 'bg-akz text-[#04050a]' : getan ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/[0.07] text-white/55'}`}>
                   {getan ? '✓' : i + 1}
                 </span>
                 <T>{x.titel}</T>
@@ -67,13 +67,13 @@ export default function Ablauf({ schritte, start = 0 }: { schritte: AblaufSchrit
         <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
           {aktuell > 0 && (
             <button type="button" onClick={() => gehe(aktuell - 1)}
-              className="rounded-full border border-white/15 px-5 py-2 text-sm font-bold text-white/70 transition hover:border-violet-500 hover:text-violet-400">
+              className="rounded-full border border-white/15 px-5 py-2 text-sm font-bold text-white/70 transition hover:border-akz hover:text-akz">
               ← <T>Zurück</T>
             </button>
           )}
           {naechster && (
             <button type="button" onClick={() => gehe(aktuell + 1)}
-              className="ml-auto rounded-full bg-violet-500 px-6 py-2 text-sm font-bold text-white transition hover:bg-violet-400">
+              className="ml-auto rounded-full bg-akz px-6 py-2 text-sm font-bold text-[#04050a] transition hover:brightness-110">
               <T>Weiter</T>: <T>{naechster.titel}</T> →
             </button>
           )}
@@ -115,7 +115,7 @@ export function Vorlagen<C>({ vorlagen, basis, vorschauUrl, gilt, waehle, hoehe 
         return (
           <button key={v.schluessel} type="button" onClick={() => waehle(v)} aria-pressed={an}
             className={`group overflow-hidden rounded-2xl border text-left transition ${an
-              ? 'border-violet-500 shadow-[0_0_0_2px_rgba(14,165,233,.25)]' : 'border-white/10 hover:border-violet-500/60'}`}>
+              ? 'border-akz shadow-[0_0_0_2px_rgba(14,165,233,.25)]' : 'border-white/10 hover:border-akz/60'}`}>
             <span className="pointer-events-none relative block overflow-hidden bg-black/30" style={{ height: hoehe }}>
               <span className="absolute inset-0 opacity-60" style={{ backgroundImage: 'linear-gradient(45deg,#27272a 25%,transparent 25%),linear-gradient(-45deg,#27272a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#27272a 75%),linear-gradient(-45deg,transparent 75%,#27272a 75%)', backgroundSize: '16px 16px', backgroundPosition: '0 0,0 8px,8px -8px,-8px 0' }} />
               <iframe title={t(v.titel)} src={vorOrt(vorschauUrl({ ...basis, ...v.setzt }))} scrolling="no" tabIndex={-1}
@@ -125,7 +125,7 @@ export function Vorlagen<C>({ vorlagen, basis, vorschauUrl, gilt, waehle, hoehe 
             <span className="block px-4 py-3">
               <span className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-white"><T>{v.titel}</T></span>
-                {an && <span className="rounded-full bg-violet-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white"><T>Gewählt</T></span>}
+                {an && <span className="rounded-full bg-akz px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#04050a]"><T>Gewählt</T></span>}
               </span>
               <span className="mt-0.5 block text-[11px] leading-snug text-white/45"><T>{v.text}</T></span>
             </span>
@@ -168,14 +168,14 @@ export function FertigSchritt({ typ, id, name, setName, sichern, gespeichert, sc
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Name im Dashboard')}
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500 sm:max-w-sm" />
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none focus:border-akz sm:max-w-sm" />
         <button type="button" onClick={sichern}
-          className="rounded-full bg-violet-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-violet-400">
+          className="rounded-full bg-akz px-6 py-2.5 text-sm font-bold text-[#04050a] transition hover:brightness-110">
           {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Speichern'))}
         </button>
         {id && (
           <button type="button" onClick={neu}
-            className="rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-white/55 transition hover:border-violet-500/60 hover:text-violet-400">
+            className="rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-white/55 transition hover:border-akz/60 hover:text-akz">
             <T>Neues Overlay beginnen</T>
           </button>
         )}
@@ -184,12 +184,12 @@ export function FertigSchritt({ typ, id, name, setName, sichern, gespeichert, sc
       {id && schmutzig && <p className="text-xs text-amber-400"><T>Nicht übernommen — im Stream steht noch der vorige Stand.</T></p>}
 
       {id ? (
-        <div className="rounded-2xl border border-violet-500/30 bg-violet-500/[0.06] p-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-400"><T>Deine Adresse für OBS</T></p>
+        <div className="rounded-2xl border border-akz/30 bg-akz/[0.06] p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-akz"><T>Deine Adresse für OBS</T></p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-black/30 px-3 py-2 text-xs text-white/85">{adresse}</code>
             <button type="button" onClick={kopieren}
-              className="rounded-full bg-violet-500 px-5 py-2 text-xs font-bold text-white transition hover:bg-violet-400">
+              className="rounded-full bg-akz px-5 py-2 text-xs font-bold text-[#04050a] transition hover:brightness-110">
               {kopiert ? t('kopiert') : t('Adresse kopieren')}
             </button>
           </div>

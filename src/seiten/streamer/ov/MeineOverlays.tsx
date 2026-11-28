@@ -308,8 +308,8 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                 {offen === o.id ? (
                   <>
                     <button onClick={() => name.trim() && void aendern(o, name.trim())}
-                      className="rounded-lg bg-violet-500 px-3 py-1 text-[11px]
-                                 font-medium text-white hover:bg-violet-400">
+                      className="rounded-lg bg-akz px-3 py-1 text-[11px]
+                                 font-medium text-[#04050a] hover:brightness-110">
                       <T>Übernehmen</T>
                     </button>
                     <button onClick={() => setOffen(null)}
@@ -331,8 +331,8 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                       */}
                     <a href={`${ARTEN.find((a) => a.schluessel === o.typ)?.pfad
                       ?? '/streamer/overlays'}?id=${encodeURIComponent(o.id)}&bauen=1`}
-                      className="text-[11px] font-medium text-violet-400
-                                 underline hover:text-violet-300">
+                      className="text-[11px] font-medium text-akz
+                                 underline hover:text-akz">
                       <T>Bearbeiten</T>
                     </a>
                     <button onClick={() => { setOffen(o.id); setName(o.name); }}
@@ -341,8 +341,8 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                       <T>Umbenennen</T>
                     </button>
                     <button onClick={() => void kopieren(o)}
-                      className="rounded-lg bg-violet-500 px-3 py-1 text-[11px]
-                                 font-medium text-white hover:bg-violet-400">
+                      className="rounded-lg bg-akz px-3 py-1 text-[11px]
+                                 font-medium text-[#04050a] hover:brightness-110">
                       {kopiert === o.id ? <T>Kopiert</T> : <T>Adresse</T>}
                     </button>
                     <button onClick={() => void entfernen(o)}
@@ -412,7 +412,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                         }}
                         className="flex w-full items-center px-3 py-1.5
                                    text-left text-[11px] text-white/45
-                                   hover:bg-white/[0.035]">
+                                   hover:bg-fl">
                         {t('— keiner —')}
                       </button>
 
@@ -425,7 +425,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                           }}
                           className="flex w-full items-center gap-2 px-3 py-1.5
                                      text-left text-[11px] text-white/70
-                                     hover:bg-white/[0.035]">
+                                     hover:bg-fl">
                           {c.live && (
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full
                                              bg-rose-500" />
@@ -461,7 +461,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                           }}
                           className="flex w-full items-center gap-2 px-3 py-1.5
                                      text-left text-[11px] text-white/45
-                                     hover:bg-white/[0.035]">
+                                     hover:bg-fl">
                           <span className="min-w-0 flex-1 truncate">{c.titel}</span>
                           <span className="shrink-0 tabular-nums text-white/30">
                             {new Date(c.begin).toLocaleDateString(ortJetzt(),

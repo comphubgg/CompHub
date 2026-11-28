@@ -131,7 +131,7 @@ export default function MeinArchiv() {
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55"><T>{titel}</T></h3>
         {geladen && <span className="text-[11px] text-white/30">{zeilen.length}</span>}
         {kopfLink && (
-          <Link href={kopfLink.href} className="ml-auto text-[11px] text-white/45 transition hover:text-violet-400">
+          <Link href={kopfLink.href} className="ml-auto text-[11px] text-white/45 transition hover:text-akz">
             <T>{kopfLink.text}</T> →
           </Link>
         )}
@@ -154,13 +154,13 @@ export default function MeinArchiv() {
                 <button type="button" onClick={() => void kopieren(z.overlay!.typ, z.overlay!.id)}
                   title={t('Adresse für OBS kopieren')}
                   className="rounded-md border border-white/15 px-2.5 py-1 text-[11px] text-white/55 transition
-                             hover:border-violet-500 hover:text-violet-400">
+                             hover:border-akz hover:text-akz">
                   {kopiert === z.overlay.id ? <T>Kopiert</T> : <T>OBS-Adresse</T>}
                 </button>
               )}
               <Link href={z.oeffnen.href}
-                className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-[11px] font-semibold
-                           text-violet-400 transition hover:bg-violet-500/20">
+                className="rounded-md border border-akz/40 bg-akz/10 px-3 py-1 text-[11px] font-semibold
+                           text-akz transition hover:bg-akz/20">
                 <T>{z.oeffnen.text}</T>
               </Link>
               {(z.overlay || z.tierlist) && (
@@ -205,7 +205,7 @@ export default function MeinArchiv() {
               <p className="text-[11px] text-white/45"><T>Deine eigene Prognose zur Global Championship</T></p>
             </div>
             <Link href="/globals/predictions"
-              className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-[11px] font-semibold text-violet-400 transition hover:bg-violet-500/20">
+              className="rounded-md border border-akz/40 bg-akz/10 px-3 py-1 text-[11px] font-semibold text-akz transition hover:bg-akz/20">
               <T>Öffnen</T>
             </Link>
           </div>

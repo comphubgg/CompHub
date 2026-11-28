@@ -219,7 +219,7 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
           <button key={w.windowId} type="button" onClick={() => waehle(w)}
             className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2
                         text-left text-[13px] transition ${w.windowId === fenster
-              ? 'border-violet-500 bg-violet-500/10 text-white'
+              ? 'border-akz bg-akz/10 text-white'
               : 'border-white/10 text-white/70 hover:border-white/25'}`}>
             {w.live && (
               <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold
@@ -257,14 +257,14 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
       <label className="mt-2 flex items-center gap-2 text-[11px] text-white/45">
         <input type="checkbox" checked={!alle}
           onChange={(e) => setAlle(!e.target.checked)}
-          className="accent-violet-500" />
+          className="accent-[rgb(var(--akz))]" />
         <T>nur FNCS, Cash Cups und Performance Cups</T>
       </label>
       {!nurKommende && (
         <label className="mt-1.5 flex items-center gap-2 text-[11px] text-white/45">
           <input type="checkbox" checked={frueher}
             onChange={(e) => setFrueher(e.target.checked)}
-            className="accent-violet-500" />
+            className="accent-[rgb(var(--akz))]" />
           <T>auch Spieltage der letzten sieben Tage</T>
         </label>
       )}
@@ -292,7 +292,7 @@ export function Regler({ titel, wert, von, bis, schritt = 1, einheit, setzen }: 
       </span>
       <input type="range" min={von} max={bis} step={schritt} value={wert}
         onChange={(e) => setzen(Number(e.target.value))}
-        className="mt-1 w-full accent-violet-500" />
+        className="mt-1 w-full accent-[rgb(var(--akz))]" />
     </label>
   );
 }
@@ -311,7 +311,7 @@ export function Wahlreihe<W extends string | number>({ titel, wert, optionen, se
           <button key={String(o.wert)} type="button" onClick={() => setzen(o.wert)}
             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
               wert === o.wert
-                ? 'border-violet-500 bg-violet-500/15 text-violet-400'
+                ? 'border-akz bg-akz/15 text-akz'
                 : 'border-white/10 text-white/55 hover:border-white/15'}`}>
             <T>{o.titel}</T>
           </button>
@@ -381,10 +381,10 @@ export function Vorschau({ src, hoehe = 220, klebt = true, leer }: {
     <>
       <div
         className={klebt
-          ? 'sticky z-30 mb-5 bg-[#06080f]/80 pb-3 pt-2 backdrop-blur-xl'
+          ? 'sticky z-30 mb-5 bg-grund/90 pb-3 pt-2 backdrop-blur-xl'
           : 'mb-3'}
         style={klebt ? { top: oben } : undefined}>
-        <div className="relative overflow-hidden rounded-xl border border-white/10"
+        <div className="relative overflow-hidden rounded-2xl border border-white/[0.07]"
           style={{ ...KARO, height: hoehe }}>
           {src ? (
             <iframe key={src} src={vorOrt(src)} title="Preview" scrolling="no"
@@ -402,7 +402,7 @@ export function Vorschau({ src, hoehe = 220, klebt = true, leer }: {
               className="absolute bottom-2 right-2 rounded-lg border border-white/15
                          bg-[#06080f]/85 px-3 py-1.5 text-[11px] font-medium
                          text-white/70 backdrop-blur transition
-                         hover:border-violet-500 hover:text-violet-400">
+                         hover:border-akz hover:text-akz">
               ⛶ <T>Vollbild</T>
             </button>
           )}
@@ -473,8 +473,8 @@ function VollbildVorschau({ src, schliessen }: {
       <button type="button" onClick={verlassen}
         className="absolute right-4 top-4 z-10 rounded-lg border border-white/15
                    bg-[#06080f]/85 px-4 py-2 text-sm font-medium text-white/85
-                   backdrop-blur transition hover:border-violet-500
-                   hover:text-violet-400">
+                   backdrop-blur transition hover:border-akz
+                   hover:text-akz">
         ✕ <T>Vollbild verlassen</T>
       </button>
       <p className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap
@@ -536,12 +536,12 @@ export function MeineListe({ liste, typ, offen, waehlen, entfernen }: {
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => waehlen(o)}
               className="min-w-0 flex-1 truncate text-left text-sm font-semibold
-                         text-white/85 hover:text-violet-400">
+                         text-white/85 hover:text-akz">
               {o.name}
             </button>
             <button onClick={() => kopieren(o.id)}
-              className="rounded-lg bg-violet-500 px-2.5 py-1 text-[11px] font-medium
-                         text-white transition hover:bg-violet-400">
+              className="rounded-lg bg-akz px-2.5 py-1 text-[11px] font-medium
+                         text-[#04050a] transition hover:brightness-110">
               {kopiert === o.id ? t('kopiert') : t('Adresse kopieren')}
             </button>
             <button onClick={() => entfernen(o.id)}

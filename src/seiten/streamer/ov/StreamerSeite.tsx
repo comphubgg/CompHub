@@ -22,7 +22,7 @@ interface Daten {
 interface Stand { isLive: boolean; viewers: number; title?: string; bild?: string | null }
 
 const zeit = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-const feld = 'rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-300/60';
+const feld = 'rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-akz/60';
 
 /** Ohne Admin: nur, was Twitch ueber den Kanal sagt. */
 function NurVorschau({ kanal, grund }: { kanal: string; grund: string }) {
@@ -34,11 +34,11 @@ function NurVorschau({ kanal, grund }: { kanal: string; grund: string }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <Glas className="relative overflow-hidden p-7">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-akz/25 blur-3xl" />
         <div className="relative flex items-center gap-5">
           {s?.bild
             ? <img src={s.bild} alt="" referrerPolicy="no-referrer" className={`h-24 w-24 rounded-3xl object-cover ring-4 ${s.isLive ? 'ring-red-500' : 'ring-white/10'}`} />
-            : <span className="grid h-24 w-24 place-items-center rounded-3xl bg-violet-400/20 text-4xl font-black uppercase text-violet-200">{kanal[0]}</span>}
+            : <span className="grid h-24 w-24 place-items-center rounded-3xl bg-akz/20 text-4xl font-black uppercase text-akz">{kanal[0]}</span>}
           <div className="min-w-0">
             <h1 className="truncate text-4xl font-extrabold tracking-tight text-white">{kanal}</h1>
             <p className="mt-1 text-sm text-white/55">
@@ -46,10 +46,10 @@ function NurVorschau({ kanal, grund }: { kanal: string; grund: string }) {
             </p>
           </div>
         </div>
-        <a href={`https://twitch.tv/${kanal}`} target="_blank" rel="noreferrer" className="relative mt-6 inline-flex rounded-full bg-violet-400 px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-violet-300">Open on Twitch</a>
+        <a href={`https://twitch.tv/${kanal}`} target="_blank" rel="noreferrer" className="relative mt-6 inline-flex rounded-full bg-akz px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:brightness-110">Open on Twitch</a>
       </Glas>
       <Glas className="p-7" verzoegerung={0.1}>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-300">Streamer page</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-akz">Streamer page</p>
         <h2 className="mt-2 text-xl font-bold text-white">The full page is still in admin testing</h2>
         <p className="mt-2 text-sm text-white/55">Schedule, top clips, posts and community questions show up here as soon as CompHub opens streamer pages for everyone.</p>
         <p className="mt-3 text-xs text-white/35">{grund}</p>
@@ -89,7 +89,7 @@ export default function StreamerSeite() {
   return (
     <div className="space-y-6">
       <Glas className="relative overflow-hidden">
-        <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-violet-500/40 via-fuchsia-500/15 to-transparent sm:h-60">
+        <div className="relative h-44 w-full overflow-hidden bg-gradient-to-br from-akz/40 via-fuchsia-500/15 to-transparent sm:h-60">
           {d.banner && <img src={d.banner} alt="" className="h-full w-full object-cover opacity-60" />}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0d16] via-[#0b0d16]/30 to-transparent" />
         </div>
@@ -104,7 +104,7 @@ export default function StreamerSeite() {
             <p className="mt-1 line-clamp-2 max-w-3xl text-sm text-white/55">{d.bio}</p>
           </div>
           <div className="flex gap-2">
-            <a href={`https://twitch.tv/${d.login}`} target="_blank" rel="noreferrer" className="rounded-full bg-violet-400 px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:bg-violet-300">Twitch</a>
+            <a href={`https://twitch.tv/${d.login}`} target="_blank" rel="noreferrer" className="rounded-full bg-akz px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:brightness-110">Twitch</a>
             {d.epicId && <Link to={`/competitive/player/${d.epicId}`} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/5">Comp stats</Link>}
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function StreamerSeite() {
         <div className="space-y-5 xl:col-span-2">
           {d.live ? (
             <a href={`https://twitch.tv/${d.login}`} target="_blank" rel="noreferrer" className="block">
-              <Glas className="overflow-hidden p-4 transition hover:border-violet-300/30">
+              <Glas className="overflow-hidden p-4 transition hover:border-akz/30">
                 <img src={d.live.vorschau} alt="" className="aspect-video w-full rounded-2xl object-cover" />
                 <p className="mt-3 font-semibold text-white">{d.live.titel}</p>
                 <p className="text-sm text-white/55">{d.live.spiel} · <span className="font-bold text-red-400">{d.live.zuschauer.toLocaleString('en')} viewers</span> · since {zeit(d.live.seit)}</p>
@@ -133,14 +133,14 @@ export default function StreamerSeite() {
               </select>
               <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void senden(); }} maxLength={1000}
                 placeholder="Write something for the community…" className={`${feld} min-w-0 flex-1`} />
-              <button type="button" onClick={() => void senden()} className="rounded-xl bg-violet-400 px-5 py-2 text-sm font-bold text-[#06080f] transition hover:bg-violet-300">Post</button>
+              <button type="button" onClick={() => void senden()} className="rounded-xl bg-akz px-5 py-2 text-sm font-bold text-[#06080f] transition hover:brightness-110">Post</button>
             </div>
             <ul className="mt-4 space-y-3">
               {d.posts.length === 0 && <li className="text-sm text-white/45">No posts yet.</li>}
               {d.posts.map((p, i) => (
                 <motion.li key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center gap-2 text-xs text-white/45">
-                    {p.art === 'frage' && <span className="rounded-full bg-violet-400/15 px-2 py-0.5 font-semibold text-violet-200">Question</span>}
+                    {p.art === 'frage' && <span className="rounded-full bg-akz/15 px-2 py-0.5 font-semibold text-akz">Question</span>}
                     <span>{new Date(p.t).toLocaleString('en-GB')}</span>
                     <button type="button" onClick={() => void loeschen(p.id)} className="ml-auto text-white/35 hover:text-red-400">Delete</button>
                   </div>

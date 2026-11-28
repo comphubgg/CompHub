@@ -321,7 +321,7 @@ function Baukasten() {
             f?.addEventListener('load', () => f.contentWindow?.postMessage({ comphub: 'fc-cfg', cfg }, OV), { once: true });
           }} kopf={<><span className="font-mono uppercase tracking-[0.18em]">1920 × 1080 · <T>live preview</T></span><span className="text-white/45"><T>Transparent in OBS</T></span></>} />
 
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <input value={name} onChange={(e) => setName(e.target.value)} className={`${FELD} min-w-0 flex-1 sm:max-w-xs`} />
               <button type="button" onClick={() => void sichern()} className="rounded-lg px-5 py-2 text-sm font-bold text-black" style={{ background: FC_GOLD }}>
@@ -358,12 +358,12 @@ function Baukasten() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
             <h3 className="mb-3 text-sm font-bold text-white"><T>How to add it in OBS</T></h3>
             <ObsSchritte breite={1920} hoehe={1080} />
           </section>
 
-          <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
             <h3 className="mb-3 text-sm font-bold text-white"><T>Your scoreboards</T></h3>
             <FcListe liste={liste} offen={id} waehlen={waehlen} entfernen={(x) => { void entfernen(x); if (x === id) neu(); }} />
           </section>

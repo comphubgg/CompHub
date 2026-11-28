@@ -9,7 +9,7 @@ import { overlayLoeschen, useLoeschStand } from './Loeschen';
 import Startansicht from './Startansicht';
 import LadeSchirm from './LadeSchirm';
 import VipVorhang from './VipVorhang';
-import SeitenKopf from './SeitenKopf';
+import { motion } from 'framer-motion';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -297,31 +297,36 @@ export default function OverlayGeruest({ aktiv, children, immerBaukasten = false
           */}
         {!eingebettet && (
           <>
-            <Link href="/streamer/overlays" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-white/45 transition hover:text-violet-300">← <T>All overlays</T></Link>
-            <SeitenKopf marke={<T>Für deinen Stream</T>}
-              titel={<>{ARTEN.find((a) => a.schluessel === aktiv)?.titel ?? t('Overlays')}</>}
-              text={<T>Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst, ist im Stream nach wenigen Sekunden zu sehen — ohne die Browserquelle anzufassen.</T>}
-              rechts={
-                <Link href="/streamer/vip#archiv"
-                  className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/70 transition hover:border-violet-400 hover:text-violet-200">
-                  All saved overlays → My archive
-                </Link>
-              } />
-            <nav className="flex flex-wrap gap-1 self-start rounded-full border border-white/10 bg-white/[0.035] p-1 shadow-sm">
-              <Link href="/streamer/overlays"
-                className="rounded-full px-5 py-2 text-sm font-bold text-white/55 transition hover:text-white">
-                <T>Overview</T>
-              </Link>
+            {/* Design 3.0 (28.11.2026): ein schmaler Kopf statt der Glastafel - zurueck, Name, die drei Schritte, Archiv; darunter die Arten als Chips */}
+            <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+              className="fl-fest flex flex-wrap items-center gap-x-8 gap-y-4 px-5 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-4">
+                <Link href="/streamer/overlays" title={t('All overlays')} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 text-white/60 transition hover:border-akz/50 hover:text-white">←</Link>
+                <div className="min-w-0">
+                  <p className="ueber">{FREIE_ARTEN.includes(aktiv) ? 'Free overlay' : 'VIP overlay'} · OBS browser source</p>
+                  <h1 className="titel mt-0.5 truncate text-4xl sm:text-5xl">{ARTEN.find((a) => a.schluessel === aktiv)?.titel ?? t('Overlays')}</h1>
+                </div>
+              </div>
+              <ol className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold" aria-label="Steps">
+                <li><Link href={`/streamer/overlays#${aktiv}`} className="flex items-center gap-2 text-white/70 transition hover:text-white"><span className="grid h-6 w-6 place-items-center rounded-full bg-akz text-[11px] text-[#04050a]">✓</span>Choose</Link></li>
+                <li className="h-px w-6 bg-white/15" aria-hidden />
+                <li className="flex items-center gap-2 text-white"><span className="grid h-6 w-6 place-items-center rounded-full bg-akz/15 text-[11px] text-akz ring-1 ring-akz/50">2</span>Adjust</li>
+                <li className="h-px w-6 bg-white/15" aria-hidden />
+                <li className="flex items-center gap-2 text-white/55"><span className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.06] text-[11px]">3</span>Copy the OBS URL</li>
+              </ol>
+              <p className="max-w-md flex-1 text-xs leading-relaxed text-white/45"><T>Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst, ist im Stream nach wenigen Sekunden zu sehen — ohne die Browserquelle anzufassen.</T></p>
+              <Link href="/streamer/vip#archiv" className="knopf ml-auto">My archive</Link>
+            </motion.header>
+            <nav className="ohne-leiste -mx-1 flex gap-1.5 overflow-x-auto px-1" aria-label="Overlay types">
+              <Link href="/streamer/overlays" className="chip">All overlays</Link>
               {ARTEN.filter((a) => !a.versteckt || a.schluessel === aktiv).map((a) => (
-                <Link key={a.schluessel} href={a.pfad} title={t(a.was)}
-                  className={`rounded-full px-5 py-2 text-sm font-bold transition ${
-                    aktiv === a.schluessel ? 'bg-violet-400 text-[#06080f] shadow' : 'text-white/55 hover:text-white'}`}>
-                  {a.titel}{!FREIE_ARTEN.includes(a.schluessel) && !zugang.vip && <span className="ml-1.5 text-[9px] opacity-70">🔒</span>}
+                <Link key={a.schluessel} href={a.pfad} title={t(a.was)} className={`chip ${aktiv === a.schluessel ? 'chip-an' : ''}`}>
+                  {a.titel}{!FREIE_ARTEN.includes(a.schluessel) && !zugang.vip && <span className="text-[9px] text-amber-200/80">VIP</span>}
                 </Link>
               ))}
             </nav>
             {imBaukasten && (
-              <details className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-2.5">
+              <details className="fl-fest px-5 py-3">
                 <summary className="cursor-pointer select-none text-xs font-semibold text-white/55 transition hover:text-white/85"><T>Deine Overlays</T></summary>
                 <div className="mt-3 max-w-xl"><MeineOverlays nurArt={aktiv} /></div>
               </details>
@@ -335,7 +340,7 @@ export default function OverlayGeruest({ aktiv, children, immerBaukasten = false
               {!eingebettet && !immerBaukasten && (
                 <button onClick={() => { window.location.href = window.location.pathname; }}
                   className="mb-4 text-[11px] text-white/45 transition
-                             hover:text-violet-400">
+                             hover:text-akz">
                   ← <T>zurück zu deinen Overlays</T>
                 </button>
               )}

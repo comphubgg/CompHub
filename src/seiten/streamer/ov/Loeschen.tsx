@@ -116,8 +116,8 @@ export default function LoeschLeiste({ typ = '' }: { typ?: string }) {
             <T>Overlay gelöscht</T>{meinHinweis.name ? `: ${meinHinweis.name}` : ''}
           </span>
           <button onClick={() => void overlayWiederherstellen(meinHinweis)}
-            className="rounded-lg bg-violet-500 px-3 py-1 text-[11px] font-medium
-                       text-white hover:bg-violet-400">
+            className="rounded-lg bg-akz px-3 py-1 text-[11px] font-medium
+                       text-[#04050a] hover:brightness-110">
             <T>Rückgängig</T>
           </button>
         </div>
@@ -145,8 +145,8 @@ export default function LoeschLeiste({ typ = '' }: { typ?: string }) {
                   {o.name}
                 </span>
                 <button onClick={() => void overlayWiederherstellen(o)}
-                  className="rounded-lg bg-violet-500 px-3 py-1 text-[11px] font-medium
-                             text-white hover:bg-violet-400">
+                  className="rounded-lg bg-akz px-3 py-1 text-[11px] font-medium
+                             text-[#04050a] hover:brightness-110">
                   <T>Wiederherstellen</T>
                 </button>
               </li>

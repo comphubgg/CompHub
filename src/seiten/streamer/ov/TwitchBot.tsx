@@ -21,8 +21,8 @@ interface Antwort {
   moderator: boolean | null;
 }
 
-const karte = 'rounded-xl border border-white/10 bg-white/[0.03] p-5';
-const feld = 'rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500';
+const karte = 'rounded-2xl border border-white/[0.07] bg-fl p-5';
+const feld = 'rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz';
 
 export default function TwitchBot() {
   const t = useT();
@@ -71,11 +71,11 @@ export default function TwitchBot() {
   return (
     <div className="text-white">
       <div className="">
-        <section className="relative mb-5 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] p-6 sm:p-8">
-          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
+        <section className="relative mb-5 overflow-hidden rounded-3xl border border-white/10 bg-fl p-6 sm:p-8">
+          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-akz/25 blur-3xl" />
           <div className="relative flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-400">Twitch</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-akz">Twitch</p>
               <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl">CompHub Bot</h1>
               <p className="mt-2 max-w-2xl text-sm text-white/55"><T>Befehle wie !webseite mit deiner eigenen Antwort und Regeln gegen Beleidigungen - rund um die Uhr, auch wenn dein PC aus ist.</T></p>
             </div>
@@ -96,7 +96,7 @@ export default function TwitchBot() {
             <p className="mt-1 text-xs text-white/45">
               {d.bot ? <><T>Verbunden als</T> <b className="text-white/85">{d.bot.login}</b>.</> : <T>Noch nicht verbunden. Melde dich bei Twitch mit dem Bot-Konto an (nicht mit deinem eigenen Kanal).</T>}
             </p>
-            <a href={`${OV}/api/twitch-bot/verbinden`} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400">
+            <a href={`${OV}/api/twitch-bot/verbinden`} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110">
               {d.bot ? <T>Neu verbinden</T> : <T>Bot-Konto verbinden</T>}
             </a>
           </section>
@@ -119,7 +119,7 @@ export default function TwitchBot() {
                   </p>
                 </div>
                 <button type="button" disabled={arbeitet || !d?.bot} onClick={() => void senden({ aktion: 'an', kanal: e.id, an: !e.an }, e.an ? t('Bot ausgeschaltet.') : t('Bot eingeschaltet.'))}
-                  className={`rounded-full px-5 py-2 text-sm font-bold transition disabled:opacity-40 ${e.an ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'border border-white/15 text-white/70 hover:border-violet-500'}`}>
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition disabled:opacity-40 ${e.an ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'border border-white/15 text-white/70 hover:border-akz'}`}>
                   {e.an ? <T>An</T> : <T>Aus</T>}
                 </button>
               </div>
@@ -141,13 +141,13 @@ export default function TwitchBot() {
                     <input value={b.name} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} placeholder="!webseite" className={feld} />
                     <input value={b.antwort} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, antwort: ev.target.value } : x)))} placeholder={t('Antwort des Bots')} className={feld} />
                     <input type="number" min={0} max={3600} value={b.cooldownSek} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, cooldownSek: Number(ev.target.value) } : x)))} title={t('Pause in Sekunden')} className={feld} />
-                    <label className="flex items-center gap-1.5 text-xs text-white/55"><input type="checkbox" checked={b.nurMods} className="accent-violet-500" onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, nurMods: ev.target.checked } : x)))} /><T>nur Mods</T></label>
+                    <label className="flex items-center gap-1.5 text-xs text-white/55"><input type="checkbox" checked={b.nurMods} className="accent-[rgb(var(--akz))]" onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, nurMods: ev.target.checked } : x)))} /><T>nur Mods</T></label>
                     <button type="button" onClick={() => setBefehle(befehle.filter((_, j) => j !== i))} className="text-xs text-white/45 hover:text-rose-400"><T>Entfernen</T></button>
                   </div>
                 ))}
               </div>
               <button type="button" onClick={() => setBefehle([...befehle, { name: '!', antwort: '', cooldownSek: 10, nurMods: false }])}
-                className="mt-3 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 transition hover:border-violet-500"><T>Befehl hinzufügen</T></button>
+                className="mt-3 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 transition hover:border-akz"><T>Befehl hinzufügen</T></button>
             </section>
 
             {/* ------------------------------------------- Regeln */}
@@ -175,12 +175,12 @@ export default function TwitchBot() {
                 ))}
               </div>
               <button type="button" onClick={() => setRegeln([...regeln, { woerter: '', aktion: 'timeout', dauerSek: 600, grund: '' }])}
-                className="mt-3 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 transition hover:border-violet-500"><T>Regel hinzufügen</T></button>
+                className="mt-3 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 transition hover:border-akz"><T>Regel hinzufügen</T></button>
             </section>
 
             <button type="button" disabled={arbeitet}
               onClick={() => void senden({ aktion: 'speichern', kanal: e.id, befehle, regeln: regeln.map((r) => ({ ...r, woerter: String(r.woerter).split(',').map((w) => w.trim()).filter(Boolean) })) }, t('Gespeichert'))}
-              className="rounded-lg bg-violet-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-400 disabled:opacity-50">
+              className="rounded-lg bg-akz px-6 py-3 text-sm font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-50">
               <T>Speichern</T>
             </button>
           </>

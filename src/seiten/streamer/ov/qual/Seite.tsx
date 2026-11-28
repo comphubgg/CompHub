@@ -133,21 +133,60 @@ export default function QualSeite() {
   return (
     <OverlayGeruest aktiv="qual">
       <div className="mb-5">
-        <h1 className="text-xl font-semibold text-white"><T>Qual line</T></h1>
+        <h1 className="sr-only"><T>Qual line</T></h1>
         <p className="mt-1 text-sm text-white/45">
           <T>Wie viele Punkte es zum Weiterkommen braucht — geschätzt aus
           früheren Ausgaben desselben Cups, daneben der Stand von jetzt.</T>
         </p>
       </div>
 
-      <Vorschau src={vorschau || null} hoehe={200}
-        leer={<T>Erst anlegen — dann steht hier die Vorschau, genau so wie
-          sie im Stream aussieht.</T>} />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {/* Design 3.0: links die grosse Vorschau mit Speichern und OBS-Adresse (klebt), rechts die Einstellungen angedockt */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] xl:items-start">
+        <div className="space-y-4 xl:sticky xl:top-[7.5rem] xl:max-h-[calc(100dvh-8.5rem)] xl:overflow-y-auto">
+        <Vorschau klebt={false} src={vorschau || null} hoehe={380}
+          leer={<T>Erst anlegen — dann steht hier die Vorschau, genau so wie
+            sie im Stream aussieht.</T>} />
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder={t('Name im Dashboard')}
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30
+                             px-3 py-2 text-sm text-white outline-none
+                             focus:border-akz" />
+                <button onClick={sichern}
+                  className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold
+                             text-[#04050a] transition hover:brightness-110">
+                  {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Anlegen'))}
+                </button>
+                {id && (
+                  <button onClick={neu}
+                    className="rounded-lg border border-white/10 px-3 py-2 text-xs
+                               text-white/55 transition hover:border-akz/60
+                               hover:text-akz">
+                    <T>Neu</T>
+                  </button>
+                )}
+              </div>
+              {fehler && <p className="mb-2 text-xs text-rose-400">{fehler}</p>}
+              {id && schmutzig && (
+                <p className="mb-2 text-[11px] text-amber-500/90">
+                  <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
+                </p>
+              )}
+            </section>
+  
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
+              <h2 className="mb-3 text-sm font-semibold text-white">
+                <T>Meine Qual lines</T>
+              </h2>
+              <MeineListe liste={liste} typ="qual" offen={id}
+                waehlen={waehlen} entfernen={(x) => { void entfernen(x); if (x === id) neu(); }} />
+            </section>
+          </div>
         <div className="space-y-4">
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Was gezeigt wird</T>
             </h2>
@@ -171,7 +210,7 @@ export default function QualSeite() {
                     onChange={(e) => setz('punkte', Math.max(1, +e.target.value || 1))}
                     className="mt-2 w-full rounded-lg border border-white/10 bg-black/30
                                px-3 py-2 text-sm text-white outline-none
-                               focus:border-violet-500" />
+                               focus:border-akz" />
                 )}
                 <span className="mt-1 block text-[11px] text-white/30">
                   {cfg.punkte > 0
@@ -191,7 +230,7 @@ export default function QualSeite() {
                   onChange={(e) => setz('wort', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-black/30
                              px-3 py-2 text-sm text-white outline-none
-                             focus:border-violet-500" />
+                             focus:border-akz" />
               </label>
             </div>
           </section>
@@ -199,7 +238,7 @@ export default function QualSeite() {
           <HausGruppe cfg={cfg} setz={setzLos} />
           <DesignGruppe cfg={cfg} setz={setzLos} />
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">
               <T>Aussehen</T>
             </h2>
@@ -227,7 +266,7 @@ export default function QualSeite() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <section className="rounded-2xl border border-white/[0.07] bg-fl p-4">
             <h2 className="mb-1 text-sm font-semibold text-white">
               <T>Ein- und ausblenden</T>
             </h2>
@@ -244,44 +283,6 @@ export default function QualSeite() {
           </section>
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                placeholder={t('Name im Dashboard')}
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30
-                           px-3 py-2 text-sm text-white outline-none
-                           focus:border-violet-500" />
-              <button onClick={sichern}
-                className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold
-                           text-white transition hover:bg-violet-400">
-                {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Anlegen'))}
-              </button>
-              {id && (
-                <button onClick={neu}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs
-                             text-white/55 transition hover:border-violet-500/60
-                             hover:text-violet-400">
-                  <T>Neu</T>
-                </button>
-              )}
-            </div>
-            {fehler && <p className="mb-2 text-xs text-rose-400">{fehler}</p>}
-            {id && schmutzig && (
-              <p className="mb-2 text-[11px] text-amber-500/90">
-                <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
-              </p>
-            )}
-          </section>
-
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h2 className="mb-3 text-sm font-semibold text-white">
-              <T>Meine Qual lines</T>
-            </h2>
-            <MeineListe liste={liste} typ="qual" offen={id}
-              waehlen={waehlen} entfernen={(x) => { void entfernen(x); if (x === id) neu(); }} />
-          </section>
-        </div>
       </div>
     </OverlayGeruest>
   );

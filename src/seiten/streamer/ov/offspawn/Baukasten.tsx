@@ -259,7 +259,7 @@ export default function OffspawnBaukasten({ globals = false }: {
 
   const feld = 'w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 '
     + 'text-sm text-white outline-none placeholder:text-white/30 '
-    + 'focus:border-violet-500';
+    + 'focus:border-akz';
 
   const inhalt = (
     <>
@@ -317,7 +317,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                                 onClick={() => uebernimm(pk === 'punkte1' ? 1 : 2, f)}
                                 className="flex w-full items-center gap-2 px-2 py-1.5
                                            text-left text-xs text-white/70
-                                           hover:bg-white/[0.035] disabled:cursor-not-allowed
+                                           hover:bg-fl disabled:cursor-not-allowed
                                            disabled:opacity-50">
                                 {f.bild
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -359,7 +359,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                                   setzeFotos(seite, fotosVon(cfg, seite).filter((_, k) => k !== i));
                                 }}
                                 className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center
-                                           rounded-full bg-white/[0.035] text-[10px] leading-none
+                                           rounded-full bg-fl text-[10px] leading-none
                                            text-white/70 ring-1 ring-white/15 transition
                                            hover:bg-rose-600 hover:text-white">
                                 ×
@@ -375,7 +375,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                         <button onClick={() => zaehle(pk, -1)}
                           className="h-11 w-11 rounded-lg border border-white/10
                                      text-lg font-bold text-white/70 transition
-                                     hover:border-violet-500 hover:text-violet-300">
+                                     hover:border-akz hover:text-akz">
                           −
                         </button>
                         <span className="w-14 text-center text-3xl font-black
@@ -383,9 +383,9 @@ export default function OffspawnBaukasten({ globals = false }: {
                           {cfg[pk] as number}
                         </span>
                         <button onClick={() => zaehle(pk, 1)}
-                          className="h-11 w-11 rounded-lg bg-violet-500 text-lg
-                                     font-bold text-white transition
-                                     hover:bg-violet-400">
+                          className="h-11 w-11 rounded-lg bg-akz text-lg
+                                     font-bold text-[#04050a] transition
+                                     hover:brightness-110">
                           +
                         </button>
                       </div>
@@ -502,7 +502,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                     * vermeidet.
                     */}
                   {cfg.massstab === 2 ? (
-                    <p className="text-[11px] leading-relaxed text-violet-400/80">
+                    <p className="text-[11px] leading-relaxed text-akz/80">
                       <T>Trag die Browser-Quelle in OBS mit der doppelten Breite und
                       Höhe ein und zieh sie in der Szene auf 50 % — dann wird nichts
                       hochgerechnet und alles ist scharf.</T>

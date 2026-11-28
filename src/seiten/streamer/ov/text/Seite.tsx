@@ -113,7 +113,7 @@ export default function TextSeite() {
             <div className="grid grid-cols-3 gap-1.5">
               {VORLAGEN.map((v) => (
                 <button key={v.name} type="button" onClick={() => { setCfg((a) => ({ ...a, ...v.setzt })); setSchmutzig(true); }}
-                  className="rounded-lg border border-white/[0.08] px-2 py-1.5 text-xs font-semibold text-white/70 hover:border-violet-400/60"><T>{v.name}</T></button>
+                  className="rounded-lg border border-white/[0.08] px-2 py-1.5 text-xs font-semibold text-white/70 hover:border-akz/60"><T>{v.name}</T></button>
               ))}
             </div>
             <Segmente titel="Form" wert={cfg.form} setzen={(v) => setz('form', v)}
@@ -137,23 +137,23 @@ export default function TextSeite() {
           <div className="space-y-4 xl:sticky xl:top-[124px]">
             <Buehne src={vorschau} szene breite={1280} hoehe={720}
               kopf={<><span className="font-mono uppercase tracking-[0.18em]"><T>live preview</T></span><span className="text-white/45"><T>Transparent in OBS</T></span></>} />
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <input value={name} onChange={(e) => setName(e.target.value)} className={`${FELD} min-w-0 flex-1 sm:max-w-xs`} />
-                <button type="button" onClick={() => void sichern()} className="rounded-lg bg-violet-500 px-5 py-2 text-sm font-bold text-white hover:bg-violet-400">
+                <button type="button" onClick={() => void sichern()} className="rounded-lg bg-akz px-5 py-2 text-sm font-bold text-[#04050a] hover:brightness-110">
                   {id ? t('Save changes') : t('Save and get OBS URL')}
                 </button>
-                {status && <span className="text-xs text-violet-300">{status}</span>}
+                {status && <span className="text-xs text-akz">{status}</span>}
               </div>
               {fehler && <p className="mt-2 text-xs text-rose-400">{fehler}</p>}
               {id && schmutzig && <p className="mt-2 text-xs text-orange-300"><T>Unsaved changes — OBS still shows the last saved version.</T></p>}
               {id && <div className="mt-4"><KopierFeld wert={overlayAdresse('text', id)} /></div>}
             </section>
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-white"><T>How to add it in OBS</T></h3>
               <ObsSchritte breite={1920} hoehe={1080} />
             </section>
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-white"><T>Your texts</T></h3>
               <MeineListe liste={liste} typ="text" offen={id} waehlen={waehlen} entfernen={(x) => { void entfernen(x); if (x === id) { setId(null); setCfg(STANDARD); } }} />
             </section>

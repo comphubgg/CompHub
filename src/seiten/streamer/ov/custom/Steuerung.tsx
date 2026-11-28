@@ -71,7 +71,7 @@ export default function Steuerung() {
   }
 
   if (!id) {
-    return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-white/[0.035] p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
+    return <div className="mx-auto mt-10 max-w-md rounded-3xl border border-white/10 bg-fl p-8 text-center backdrop-blur-xl"><p className="font-bold text-white">No scoreboard selected</p><p className="mt-2 text-sm text-white/55"><T>This link is missing the scoreboard id.</T></p><a href="/streamer/overlays" className="mt-5 inline-block rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:text-white">← Overlays</a></div>;
   }
 
   const s = stand ?? { p1: 0, p2: 0, stand: 0 };
@@ -82,7 +82,7 @@ export default function Steuerung() {
     const wert = n === 1 ? s.p1 : s.p2;
     const setze = (v: number) => (n === 1 ? senden(Math.max(0, v), s.p2) : senden(s.p1, Math.max(0, v)));
     return (
-      <div className="flex flex-col rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4" style={{ boxShadow: `inset 0 4px 0 ${akzent}` }}>
+      <div className="flex flex-col rounded-2xl border border-white/[0.07] bg-fl p-4" style={{ boxShadow: `inset 0 4px 0 ${akzent}` }}>
         <p className="truncate text-center text-sm font-bold uppercase tracking-[0.2em]" style={{ color: akzent }}>{name}</p>
         {spieler.length > 0 && <p className="mt-1 truncate text-center text-[11px] uppercase tracking-wide text-white/45">{spieler.join(' · ')}</p>}
         <p className="my-4 text-center font-mono text-7xl font-black tabular-nums text-white">{wert}</p>
@@ -97,7 +97,7 @@ export default function Steuerung() {
   return (
     <div className="text-white/85">
       <div className="mx-auto max-w-3xl">
-        <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-violet-400"><T>Score control</T></p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-akz"><T>Score control</T></p>
         <h1 className="mt-1 text-2xl font-black tracking-tight text-white">{String(cfg?.titel || 'Custom scoreboard')}</h1>
         <p className="mt-1 text-xs text-white/45"><T>Every tap is on stream within about 2 seconds. Keep this page open as long as you like.</T></p>
         <div className="mt-5 grid grid-cols-2 gap-3">

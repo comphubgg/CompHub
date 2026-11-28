@@ -172,7 +172,7 @@ function SpielerZeile({ name, land, setzen, entfernen }: {
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/[0.08] text-white/45 transition hover:border-rose-400/60 hover:text-rose-300">×</button>
       )}
       {offen && funde.length > 0 && (
-        <div className="absolute left-14 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-white/10 bg-white/[0.035] shadow-2xl">
+        <div className="absolute left-14 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-white/10 bg-fl shadow-2xl">
           {funde.map((f) => (
             <button key={f.epicId} type="button" onMouseDown={(e) => e.preventDefault()}
               onClick={() => { setzen(f.anzeige, ''); setOffen(false); }}
@@ -222,7 +222,7 @@ function TeamKarte({ n, cfg, setz }: {
       </div>
       {spieler.length < 4 && (
         <button type="button" onClick={() => setz(sk, [...spieler, ''])}
-          className="mt-2 w-full rounded-lg border border-dashed border-white/[0.12] py-1.5 text-xs font-semibold text-white/55 transition hover:border-violet-400/60 hover:text-violet-300">
+          className="mt-2 w-full rounded-lg border border-dashed border-white/[0.12] py-1.5 text-xs font-semibold text-white/55 transition hover:border-akz/60 hover:text-akz">
           + <T>Add player</T>
         </button>
       )}
@@ -327,7 +327,7 @@ export default function CustomBaukasten() {
                   <p className="my-1 font-mono text-4xl font-black tabular-nums text-white">{s === 1 ? cfg.punkte1 : cfg.punkte2}</p>
                   <div className="flex gap-1.5">
                     <button type="button" onClick={() => void zaehle(s, -1)} className="h-10 flex-1 rounded-lg border border-white/[0.1] text-lg font-bold text-white/70 transition hover:border-white/30">−</button>
-                    <button type="button" onClick={() => void zaehle(s, 1)} className="h-10 flex-[2] rounded-lg bg-violet-500 text-lg font-bold text-white transition hover:bg-violet-400">+</button>
+                    <button type="button" onClick={() => void zaehle(s, 1)} className="h-10 flex-[2] rounded-lg bg-akz text-lg font-bold text-[#04050a] transition hover:brightness-110">+</button>
                   </div>
                 </div>
               ))}
@@ -393,7 +393,7 @@ export default function CustomBaukasten() {
               <div className="grid grid-cols-3 gap-1.5">
                 {PRESETS.map((p) => (
                   <button key={p.name} type="button" onClick={() => { setCfg((a) => ({ ...a, ...p.setzt })); setSchmutzig(true); }}
-                    className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-2 py-1.5 text-left text-xs font-semibold text-white/70 transition hover:border-violet-400/60">
+                    className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-2 py-1.5 text-left text-xs font-semibold text-white/70 transition hover:border-akz/60">
                     <span className="flex h-4 w-7 overflow-hidden rounded" style={{ background: p.setzt.grund }}>
                       <span className="w-1/2" style={{ background: p.setzt.akzent1 }} /><span className="w-1/2" style={{ background: p.setzt.akzent2 }} />
                     </span>
@@ -463,12 +463,12 @@ export default function CustomBaukasten() {
                 <span className="text-white/45"><T>Transparent in OBS</T></span>
               </>} />
 
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Name')}
                   className={`${FELD} min-w-0 flex-1 sm:max-w-xs`} />
                 <button type="button" onClick={() => void sichern()}
-                  className="rounded-lg bg-violet-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-violet-400">
+                  className="rounded-lg bg-akz px-5 py-2 text-sm font-bold text-[#04050a] transition hover:brightness-110">
                   {id ? t('Save changes') : t('Save and get OBS URL')}
                 </button>
                 {id && (
@@ -476,7 +476,7 @@ export default function CustomBaukasten() {
                     <T>New</T>
                   </button>
                 )}
-                {status && <span className="text-xs text-violet-300">{status}</span>}
+                {status && <span className="text-xs text-akz">{status}</span>}
               </div>
               {fehler && <p className="mt-2 text-xs text-rose-400">{fehler}</p>}
               {id && schmutzig && <p className="mt-2 text-xs text-orange-300"><T>Unsaved changes — OBS still shows the last saved version.</T></p>}
@@ -484,7 +484,7 @@ export default function CustomBaukasten() {
               {id ? (
                 <div className="mt-4 space-y-3">
                   <div>
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-300"><T>OBS URL</T></p>
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-akz"><T>OBS URL</T></p>
                     <KopierFeld wert={obsUrl} />
                   </div>
                   {steuerUrl && (
@@ -493,7 +493,7 @@ export default function CustomBaukasten() {
                       <KopierFeld wert={steuerUrl} knopf="Copy link" />
                       <p className="mt-1 text-[11px] leading-relaxed text-white/45">
                         <T>Your mods can run the scoreboard for you: send them this link (no account needed — big + and − buttons, works on a phone). Anyone with the link can change the score and nothing else. Managers on your VIP access can also open it without the link.</T>
-                        {' '}<a href={steuerUrl} target="_blank" rel="noreferrer" className="text-violet-300 underline-offset-2 hover:underline"><T>Open control</T> ↗</a>
+                        {' '}<a href={steuerUrl} target="_blank" rel="noreferrer" className="text-akz underline-offset-2 hover:underline"><T>Open control</T> ↗</a>
                       </p>
                     </div>
                   )}
@@ -506,7 +506,7 @@ export default function CustomBaukasten() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-white"><T>How to add it in OBS</T></h3>
               <ObsSchritte breite={obs.b} hoehe={obs.h} />
               <p className="mt-3 text-[11px] leading-relaxed text-white/45">
@@ -516,7 +516,7 @@ export default function CustomBaukasten() {
               </p>
             </section>
 
-            <section className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4 sm:p-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-fl p-4 sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-white"><T>Your scoreboards</T></h3>
               <MeineListe liste={liste} typ="custom" offen={id} waehlen={waehlen}
                 entfernen={(x) => { void entfernen(x); if (x === id) neu(); }} />

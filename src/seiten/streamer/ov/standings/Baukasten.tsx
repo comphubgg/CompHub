@@ -311,7 +311,7 @@ export default function StandingsBaukasten({ globals = false }: {
                       onClick={() => setCfg((a) => ({ ...a, von: 1, bis: n }))}
                       className={`rounded-full border px-4 py-1.5 text-xs font-bold transition ${
                         cfg.von === 1 && cfg.bis === n
-                          ? 'border-violet-500 bg-violet-500/15 text-violet-400'
+                          ? 'border-akz bg-akz/15 text-akz'
                           : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                       <T>Top</T> {n}
                     </button>
@@ -319,11 +319,11 @@ export default function StandingsBaukasten({ globals = false }: {
                   <span className="mx-2 text-xs text-white/30"><T>oder von</T></span>
                   <input type="number" min={1} max={200} value={cfg.von} aria-label={t('Von Platz')}
                     onChange={(e) => setz('von', Math.max(1, +e.target.value || 1))}
-                    className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white outline-none focus:border-violet-500" />
+                    className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
                   <span className="text-xs text-white/30"><T>bis</T></span>
                   <input type="number" min={1} max={200} value={cfg.bis} aria-label={t('Bis Platz')}
                     onChange={(e) => setz('bis', Math.max(cfg.von, +e.target.value || 5))}
-                    className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white outline-none focus:border-violet-500" />
+                    className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
                 </div>
               </div>
 
@@ -338,7 +338,7 @@ export default function StandingsBaukasten({ globals = false }: {
                   <input type="checkbox" checked={gesamt}
                     onChange={(e) => setz('fenster',
                       e.target.checked ? tage.map((x) => x.windowId) : [])}
-                    className="mt-0.5 accent-violet-500" />
+                    className="mt-0.5 accent-[rgb(var(--akz))]" />
                   <span>
                     <T>Gesamtstand über alle Tage</T>
                     <span className="mt-0.5 block text-[11px] text-white/45">
@@ -401,7 +401,7 @@ export default function StandingsBaukasten({ globals = false }: {
                     onChange={(e) => setz('titel', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 bg-black/30
                                px-3 py-2 text-sm text-white outline-none
-                               focus:border-violet-500" />
+                               focus:border-akz" />
                 </label>
                 <label className="text-xs text-white/55">
                   <T>Rechts in der Kopfzeile</T>
@@ -409,7 +409,7 @@ export default function StandingsBaukasten({ globals = false }: {
                     onChange={(e) => setz('kopfrechts', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 bg-black/30
                                px-3 py-2 text-sm text-white outline-none
-                               focus:border-violet-500" />
+                               focus:border-akz" />
                 </label>
               </div>
 
@@ -441,7 +441,7 @@ export default function StandingsBaukasten({ globals = false }: {
                   <label className="flex items-center gap-2 self-end text-xs text-white/55">
                     <input type="checkbox" checked={Boolean(cfg.marke)}
                       onChange={(e) => setz('marke', e.target.checked ? 1 : 0)}
-                      className="accent-violet-500" />
+                      className="accent-[rgb(var(--akz))]" />
                     <T>CompHub-Zeichen in der Kopfzeile</T>
                   </label>
                   {/* In der Globals-Fassung nicht: "Die Funktion Photos before
@@ -473,7 +473,7 @@ export default function StandingsBaukasten({ globals = false }: {
                   <input type="checkbox" checked={cfg.seitenBis > 0}
                     onChange={(e) => setz('seitenBis', e.target.checked
                       ? Math.max(cfg.bis * 2, 20) : 0)}
-                    className="accent-violet-500" />
+                    className="accent-[rgb(var(--akz))]" />
                   <T>Durch die Plätze blättern</T>
                 </label>
 
@@ -519,7 +519,7 @@ export default function StandingsBaukasten({ globals = false }: {
                     einheit="s" setzen={(n) => setz('sichtbar', n)} />
                 </div>
                 {cfg.pausiert > 0 && (
-                  <p className="mt-2 text-[11px] text-violet-400/80">
+                  <p className="mt-2 text-[11px] text-akz/80">
                     {t('Alle {p} verborgen, dann {s} zu sehen.')
                       .replace('{p}', cfg.pausiert >= 60
                         ? `${Math.round(cfg.pausiert / 60)} min` : `${cfg.pausiert} s`)

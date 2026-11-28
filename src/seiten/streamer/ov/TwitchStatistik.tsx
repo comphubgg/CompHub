@@ -32,7 +32,7 @@ interface Antwort {
 }
 
 const ARTEN: Array<[Art, string]> = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['jahr', 'Jahr'], ['gesamt', 'Gesamt']];
-const karte = 'rounded-xl border border-white/10 bg-white/[0.03] p-5';
+const karte = 'rounded-2xl border border-white/[0.07] bg-fl p-5';
 const zahl = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toLocaleString());
 const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
@@ -125,17 +125,17 @@ export default function TwitchStatistik() {
   return (
     <div className="text-white">
       <div className="">
-        <section className="relative mb-5 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] p-6 sm:p-8">
-          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
+        <section className="relative mb-5 overflow-hidden rounded-3xl border border-white/10 bg-fl p-6 sm:p-8">
+          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-akz/25 blur-3xl" />
           <div className="relative flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-400">Twitch</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-akz">Twitch</p>
               <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl">{a?.name ?? <T>Twitch-Statistik</T>}</h1>
               {a && <p className="mt-2 text-sm text-white/55">{zahl(a.follower)} <T>Follower</T>{a.zaehltSeit ? <> · <T>gezählt seit</T> {new Date(a.zaehltSeit).toLocaleDateString(ort)}</> : null}</p>}
             </div>
             {d && d.kanaele.length > 1 && (
               <select value={d.gewaehlt ?? ''} onChange={(e) => { setKanal(e.target.value); setWahl({}); }}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-violet-500">
+                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
                 {d.kanaele.map((k) => <option key={k.login} value={k.id ?? k.login}>{k.name}{d.admin ? ` (${k.vipName})` : ''}</option>)}
               </select>
             )}
@@ -174,17 +174,17 @@ export default function TwitchStatistik() {
           <>
             {/* ------------------------------------------- Zeitraum wie im Kalender */}
             <div className="mb-3 flex flex-wrap items-center gap-3">
-              <div className="inline-flex gap-1 rounded-full border border-white/10 bg-white/[0.035] p-1">
+              <div className="inline-flex gap-1 rounded-full border border-white/10 bg-fl p-1">
                 {verfuegbar.map(([k, name]) => (
                   <button key={k} type="button" onClick={() => setWahl({ art: k })}
-                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${a.art === k ? 'bg-violet-500 text-white shadow' : 'text-white/55 hover:text-white/85'}`}>
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${a.art === k ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white/85'}`}>
                     <T>{name}</T>
                   </button>
                 ))}
               </div>
               {a.art !== 'gesamt' && (a.art === 'tag' || a.art === 'woche') && (
                 <select value={a.einheit} onChange={(e) => setWahl({ art: a.art, einheit: e.target.value })}
-                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-violet-500">
+                  className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
                   {a.einheiten[a.art].map((e) => <option key={e} value={e}>{einheitText(a.art, e)}</option>)}
                 </select>
               )}
@@ -193,7 +193,7 @@ export default function TwitchStatistik() {
               <div className="mb-4 flex flex-wrap gap-2">
                 {a.einheiten[a.art].map((e) => (
                   <button key={e} type="button" onClick={() => setWahl({ art: a.art, einheit: e })}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${a.einheit === e ? 'border-violet-500 bg-violet-500/15 text-violet-200' : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/85'}`}>
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${a.einheit === e ? 'border-akz bg-akz/15 text-akz' : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/85'}`}>
                     {einheitText(a.art, e)}
                   </button>
                 ))}
@@ -278,13 +278,13 @@ export default function TwitchStatistik() {
             <h2 className="text-sm font-semibold"><T>Kanäle freigeben (Admin)</T></h2>
             <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void aendern({ aktion: 'eintragen', login: neu.login, vip: neu.vip }); }}>
               <input value={neu.login} onChange={(e) => setNeu({ ...neu, login: e.target.value })} placeholder={t('Twitch-Name')}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500" />
+                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz" />
               <select value={neu.vip} onChange={(e) => setNeu({ ...neu, vip: e.target.value })}
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-violet-500">
+                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white/85 outline-none focus:border-akz">
                 <option value="">{t('VIP wählen')}</option>
                 {(d.vips ?? []).map((v) => <option key={v.ident} value={v.ident}>{v.name}</option>)}
               </select>
-              <button type="submit" disabled={!neu.login || !neu.vip} className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40">
+              <button type="submit" disabled={!neu.login || !neu.vip} className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
                 <T>Freigeben</T>
               </button>
             </form>
