@@ -175,7 +175,7 @@ export default function WaffenDatenbank({ db, turnier, gesamt, wiki, vergleich, 
                     <span className="titel zahl w-5 text-xl text-white/35">{i + 1}</span>
                     <WaffenBild bild={bildVon(w, wiki)} name={w.name} className="h-9 w-14 shrink-0" schatten={false} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2"><span className="truncate text-sm font-bold text-white group-hover:text-akz">{w.name}</span><span className="zahl text-xs font-bold text-white">{gesamt ? ((t.dmg / gesamt) * 100).toFixed(1) : '—'} %</span></div>
+                      <div className="flex items-baseline justify-between gap-2"><span className="truncate text-sm font-bold text-white group-hover:text-akz">{w.name}</span><span className="zahl shrink-0 whitespace-nowrap text-xs font-bold text-white">{gesamt ? ((t.dmg / gesamt) * 100).toFixed(1) : '—'} %</span></div>
                       <Linie anteil={gesamt ? (t.dmg / gesamt) * 100 * 2.5 : 0} />
                     </div>
                   </Link>

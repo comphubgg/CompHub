@@ -155,7 +155,7 @@ export function Einzelwaffe({ db, wiki, proWaffe, gesamt, spielerTage, vergleich
         {/* Zahlenreihe */}
         <div className="grid grid-cols-2 gap-px border-t border-white/[0.06] bg-white/[0.04] sm:grid-cols-4 lg:grid-cols-7">
           {zahlen.map(([k, v, e, u], i) => (
-            <div key={k} className="bg-fl px-5 py-4">
+            <div key={k} className={`bg-fl px-5 py-4 ${i === zahlen.length - 1 ? 'max-sm:col-span-2' : ''}`}>
               <Wert titel={k} wert={v === undefined ? '—' : `${fmt(v)}${e}`} unter={u} gross={i < 2} ton={i === 1 && v !== undefined ? '!text-akz' : v === undefined ? '!text-white/25' : ''} />
             </div>
           ))}
@@ -262,7 +262,7 @@ export function Einzelwaffe({ db, wiki, proWaffe, gesamt, spielerTage, vergleich
               const st = naechste(x, rar);
               return (
                 <Link key={x.id} to={`/community/weapons/${x.id}`} onClick={() => setR(null)} className="fl-fest fl-klick group w-44 shrink-0 overflow-hidden !rounded-2xl">
-                  <div className="grid aspect-[16/10] place-items-center p-3" style={schein(st?.rarity ?? 'common', 0.35)}><WaffenBild bild={bildVon(x, wiki)} name={x.name} className="h-full w-full transition duration-500 group-hover:scale-110" /></div>
+                  <div className="grid h-28 place-items-center p-3" style={schein(st?.rarity ?? 'common', 0.35)}><WaffenBild bild={bildVon(x, wiki)} name={x.name} className="h-[88px] w-full transition duration-500 group-hover:scale-110" /></div>
                   <div className="p-3"><p className="truncate text-sm font-bold text-white group-hover:text-akz">{x.name}</p><p className="zahl text-[11px] text-white/45">{st?.dps !== undefined ? `${fmt(st.dps)} DPS` : x.vaulted ? 'Vaulted' : 'In the pool'}</p></div>
                 </Link>
               );
@@ -320,7 +320,7 @@ function Abfall({ reihen }: { reihen: Array<{ s: Stufe; farbe: string; name: str
           );
         })}
       </svg>
-      <p className="mt-1 text-[11px] text-white/40">Solid = body, dashed = headshot{mit.length > 1 ? '' : ''}.</p>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/40">{mit.length > 1 && mit.map((r) => <span key={r.name} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: r.farbe }} />{r.name}</span>)}<span>Solid = body, dashed = headshot.</span></div>
     </div>
   );
 }
@@ -512,7 +512,7 @@ function SaisonVerlauf({ db, wiki }: { db: Datenbank | null; wiki?: Wiki }) {
   const [n, setN] = useState(6);
   const kachel = (w: DbWaffe) => (
     <Link key={w.id} to={`/community/weapons/${w.id}`} className="group flex w-28 shrink-0 flex-col items-center gap-1 rounded-xl bg-black/25 p-2 text-center transition hover:bg-white/[0.06] sm:w-32">
-      <div className="grid h-14 w-full place-items-center"><WaffenBild bild={bildVon(w, wiki)} name={w.name} className="h-full w-full transition duration-500 group-hover:scale-110" schatten={false} /></div>
+      <WaffenBild bild={bildVon(w, wiki)} name={w.name} className="h-14 w-full transition duration-500 group-hover:scale-110" schatten={false} />
       <span className="line-clamp-2 text-[11px] font-semibold leading-tight text-white/75 group-hover:text-white">{w.name}</span>
     </Link>
   );
