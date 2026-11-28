@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
-import { Glas } from '../../teile/Glas';
+import { Flaeche, Kennzahl } from '../../ds/Bausteine';
 import { Laedt, Meldung, NurAdmins, WerkzeugKopf, datum, feld, knopfGefahr, knopfHaupt, knopfLeise } from './teile';
 
 /*
- * VIP-Zugaenge (app/admin/vip-access auf main, /api/admin/vip-panel): jeder Zugang mit Frist, Chat, Discord-Verknuepfung und Loeschen.
+ * VIP-Zugaenge (app/admin/vip-access auf main, /api/admin/vip-panel). Design-System 3.0 (28.11.2026): Zahlen als Filter oben (bald ablaufend,
+ * ohne Discord, Manager), darunter eine Tabelle - je Zugang eine Zeile mit Frist-Balken, Aktionen klappen darunter auf; keine Buchstaben-Bildchen.
+ * Jeder Zugang mit Frist, Chat, Discord-Verknuepfung und Loeschen.
  * Was die Person erreicht, schickt der CompHub-Bot. Alle Aktionen wie auf der Seite - POST { name, aktion: chat | frist | suchen | verknuepfen | loeschen }.
  */
 interface Zeile {
@@ -36,31 +38,35 @@ function Karte({ z, jetzt, neuLaden, melden, i }: { z: Zeile; jetzt: number; neu
 
   return (
     <motion.li initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 24) * 0.025 }}
-      className={`rounded-2xl border bg-white/[0.03] p-4 backdrop-blur-xl transition hover:bg-white/[0.045] ${abgelaufen ? 'border-amber-400/40' : 'border-white/10'}`}>
-      <div className="flex flex-wrap items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-400/30 to-akz/20 text-lg font-extrabold text-white">{z.name.charAt(0).toUpperCase()}</span>
-        <div className="min-w-0 flex-1">
+      className={`px-5 py-3.5 transition hover:bg-white/[0.025] ${abgelaufen ? 'bg-akz/[0.05]' : ''}`}>
+      <div className="grid items-center gap-x-5 gap-y-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.1fr)_19rem]">
+        <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2">
             <span className="text-base font-bold text-white">{z.name}</span>
-            <span className="rounded-full border border-akz/40 bg-akz/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-akz">{was}</span>
-            {!z.aktiv && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase text-white/50">blocked</span>}
-            {z.anfragen > 1 && <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-200">request #{z.anfragen}</span>}
+            <span className="rounded-md bg-akz/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-akz">{was}</span>
+            {!z.aktiv && <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/50">blocked</span>}
+            {z.anfragen > 1 && <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-white/70">request #{z.anfragen}</span>}
           </p>
-          <p className="mt-1 text-xs text-white/45">
-            {z.verwaltet && <>manages {z.verwaltet} · </>}created {z.angelegt ? datum(Date.parse(z.angelegt)) : '—'} ·{' '}
-            {z.discordId ? <a href={`https://discord.com/users/${z.discordId}`} target="_blank" rel="noreferrer" className="text-white/75 hover:text-akz">Discord: {z.discordName ?? z.discordId}</a>
-              : <span className="text-amber-300/80">not linked to Discord</span>}
-          </p>
-          <p className="mt-1 text-xs">
-            {z.vipBis === null || z.vipBis === 0 ? <span className="text-white/55">no end date</span>
-              : abgelaufen ? <span className="text-amber-300">expired on {datum(z.vipBis)}{z.fristLoescht ? ' · will be deleted' : ''}</span>
-              : <span className="text-white/75">valid until {datum(z.vipBis)} · {tage} {tage === 1 ? 'day' : 'days'}{z.fristLoescht ? ' · deleted afterwards' : ''}</span>}
-          </p>
+          <p className="mt-0.5 text-xs text-white/40">{z.verwaltet && <>manages <span className="text-white/70">{z.verwaltet}</span> · </>}created {z.angelegt ? datum(Date.parse(z.angelegt)) : '—'}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <p className="text-xs">
+          {z.discordId ? <a href={`https://discord.com/users/${z.discordId}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/75 hover:text-akz"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Discord: {z.discordName ?? z.discordId}</a>
+            : <span className="flex items-center gap-1.5 text-akz"><span className="h-1.5 w-1.5 rounded-full bg-akz" />not linked to Discord</span>}
+        </p>
+        <div className="text-xs">
+          {z.vipBis === null || z.vipBis === 0 ? <span className="text-white/45">no end date</span>
+            : abgelaufen ? <span className="text-akz">expired on {datum(z.vipBis)}{z.fristLoescht ? ' · will be deleted' : ''}</span>
+            : (
+              <>
+                <span className={tage !== null && tage <= 7 ? 'text-akz' : 'text-white/75'}>until {datum(z.vipBis)} · <b className="zahl">{tage}</b> {tage === 1 ? 'day' : 'days'}{z.fristLoescht ? ' · deleted afterwards' : ''}</span>
+                <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-white/[0.06]"><span className={`block h-full rounded-full ${tage !== null && tage <= 7 ? 'bg-akz' : 'bg-white/40'}`} style={{ width: `${Math.max(3, Math.min(100, ((tage ?? 0) / 90) * 100))}%` }} /></span>
+              </>
+            )}
+        </div>
+        <div className="flex flex-wrap gap-1.5 lg:justify-end">
           <button type="button" disabled={laeuft || !z.discordId} title={z.discordId ? undefined : 'Link Discord first'} className={knopfLeise}
-            onClick={async () => { const e = await schicke({ aktion: 'chat' }); melden(e.text ?? '', !!e.ok); if (e.ok && e.kanal) window.open(`https://discord.com/channels/${SERVER}/${e.kanal}`, '_blank'); }}>Open chat</button>
-          <button type="button" onClick={() => umschalten('frist')} className={offen === 'frist' ? `${knopfLeise} !border-akz !text-akz` : knopfLeise}>Set deadline</button>
+            onClick={async () => { const e = await schicke({ aktion: 'chat' }); melden(e.text ?? '', !!e.ok); if (e.ok && e.kanal) window.open(`https://discord.com/channels/${SERVER}/${e.kanal}`, '_blank'); }}>Chat</button>
+          <button type="button" onClick={() => umschalten('frist')} className={offen === 'frist' ? `${knopfLeise} !border-akz !text-akz` : knopfLeise}>Deadline</button>
           {!z.discordId && <button type="button" onClick={() => umschalten('verknuepfen')} className={offen === 'verknuepfen' ? `${knopfLeise} !border-akz !text-akz` : knopfLeise}>Link Discord</button>}
           <button type="button" onClick={() => umschalten('loeschen')} className={knopfGefahr}>Delete</button>
         </div>
@@ -122,6 +128,7 @@ export default function VipZugaenge({ klassisch }: { klassisch: () => void }) {
   const [erlaubt, setErlaubt] = useState(true);
   const [meldung, setMeldung] = useState<{ text: string; gut: boolean } | null>(null);
   const [suche, setSuche] = useState('');
+  const [filter, setFilter] = useState<'alle' | 'bald' | 'vorbei' | 'ohne' | 'manager'>('alle');
   const [jetzt, setJetzt] = useState(() => Date.now());
   const holen = useCallback(async () => {
     try {
@@ -141,15 +148,44 @@ export default function VipZugaenge({ klassisch }: { klassisch: () => void }) {
   if (fehler) return <>{kopf}<Meldung text={fehler} gut={false} /></>;
   if (!zeilen) return <>{kopf}<Laedt /></>;
   const q = suche.trim().toLowerCase();
-  const gezeigt = zeilen.filter((z) => !q || z.name.toLowerCase().includes(q) || (z.discordName ?? '').toLowerCase().includes(q));
+  const bald = (z: Zeile) => !!z.vipBis && z.vipBis > jetzt && z.vipBis - jetzt < 7 * 86_400_000;
+  const vorbei = (z: Zeile) => !!z.vipBis && z.vipBis <= jetzt;
+  const FILTER: Array<{ k: typeof filter; titel: string; passt: (z: Zeile) => boolean }> = [
+    { k: 'alle', titel: 'All', passt: () => true },
+    { k: 'bald', titel: 'Ends within 7 days', passt: bald },
+    { k: 'vorbei', titel: 'Expired', passt: vorbei },
+    { k: 'ohne', titel: 'No Discord', passt: (z) => !z.discordId },
+    { k: 'manager', titel: 'Managers', passt: (z) => z.art === 'manager' },
+  ];
+  const fl = FILTER.find((f) => f.k === filter) ?? FILTER[0];
+  const gezeigt = zeilen.filter(fl.passt).filter((z) => !q || z.name.toLowerCase().includes(q) || (z.discordName ?? '').toLowerCase().includes(q))
+    .sort((a, b) => Number(vorbei(b)) - Number(vorbei(a)) || Number(bald(b)) - Number(bald(a)) || a.name.localeCompare(b.name));
   return (
     <>
       {kopf}
       {meldung && <Meldung text={meldung.text} gut={meldung.gut} />}
-      <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search access or Discord name" className={`${feld} mb-4 w-full max-w-xl`} />
-      {!gezeigt.length ? <Glas className="p-6 text-sm text-white/50">Nobody matches.</Glas> : (
-        <ul className="grid gap-3 min-[1900px]:grid-cols-2">{gezeigt.map((z, i) => <Karte key={z.name} z={z} i={i} jetzt={jetzt} neuLaden={holen} melden={(text, gut) => setMeldung({ text, gut })} />)}</ul>
-      )}
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { label: 'Accesses', wert: zeilen.length, ton: 'weiss' as const, f: 'alle' as const },
+          { label: 'End within 7 days', wert: zeilen.filter(bald).length, ton: 'akz' as const, f: 'bald' as const },
+          { label: 'Not linked to Discord', wert: zeilen.filter((z) => !z.discordId).length, ton: 'akz' as const, f: 'ohne' as const },
+          { label: 'Managers', wert: zeilen.filter((z) => z.art === 'manager').length, ton: 'weiss' as const, f: 'manager' as const },
+        ].map((k) => (
+          <button key={k.label} type="button" onClick={() => setFilter(k.f)} className={`fl-fest fl-klick !rounded-2xl px-5 py-4 text-left ${filter === k.f ? '!border-akz/50' : ''}`}>
+            <Kennzahl label={k.label} wert={k.wert} ton={k.wert ? k.ton : 'weiss'} />
+          </button>
+        ))}
+      </div>
+      <Flaeche fest className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-5 py-3">
+          {FILTER.map((f) => <button key={f.k} type="button" onClick={() => setFilter(f.k)} className={`chip ${filter === f.k ? 'chip-an' : ''}`}>{f.titel} <span className="zahl text-white/40">{zeilen.filter(f.passt).length}</span></button>)}
+          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search access or Discord name" className={`${feld} w-full sm:ml-auto sm:w-72`} />
+        </div>
+        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.1fr)_19rem] gap-5 border-b border-white/[0.06] px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35 lg:grid"><span>Access</span><span>Discord</span><span>Deadline</span><span className="text-right">Actions</span></div>
+        {!gezeigt.length ? <p className="px-5 py-8 text-center text-sm text-white/45">Nobody matches.</p> : (
+          <ul className="divide-y divide-white/[0.05]">{gezeigt.map((z, i) => <Karte key={z.name} z={z} i={i} jetzt={jetzt} neuLaden={holen} melden={(text, gut) => setMeldung({ text, gut })} />)}</ul>
+        )}
+      </Flaeche>
     </>
   );
 }
