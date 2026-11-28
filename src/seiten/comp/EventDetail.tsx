@@ -5,7 +5,7 @@ import { Flaeche, Leer, Marke, Segment } from '../../ds/Bausteine';
 import { REGION_FARBE, REGION_NAME, datum, dauer, laeuft, stufeName, tagKurz, useJetzt, zahl, type Cup, type Fenster } from './events/gemeinsam';
 import { CupBild, CupMarken, LiveMarke, TeamFotos, TeamNamen, Uhrwerk, spiele } from './events/teile';
 import Bestenliste, { type Eintrag, type LbSpieler } from './events/Bestenliste';
-import SpielerStats from './events/SpielerStats';
+import SpielerStats, { spielerStatsVorladen } from './events/SpielerStats';
 import Matches from './events/Matches';
 
 /*
@@ -218,6 +218,14 @@ export default function EventDetail() {
     return () => { weg = true; clearInterval(i); };
   }, [f?.windowId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Player stats rechnet der Server 7-30 s: schon holen, sobald die Bestenliste steht - beim Klick auf den Reiter ist die Antwort meist fertig.
+  const hatTabelle = tabelle.length > 0;
+  useEffect(() => {
+    if (!f || !hatTabelle || f.begin > Date.now()) return;
+    const t = setTimeout(() => spielerStatsVorladen(f.eventId, f.windowId), 800);
+    return () => clearTimeout(t);
+  }, [f?.windowId, hatTabelle]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const spielerInfo = useMemo(() => new Map<string, LbSpieler>(tabelle.flatMap((e) => e.players.map((p) => [p.id, p] as const))), [tabelle]);
 
   const schnitt = useMemo(() => {
@@ -302,7 +310,8 @@ export default function EventDetail() {
         </div>
       </motion.header>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {/* Player stats und Matches sind breite Tabellen: dort nimmt die Tafel die ganze Breite, der Rand steht nur neben dem Leaderboard */}
+      <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 ${reiter === 'tabelle' ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
         {/* ------------------------------------------------ Tafel: Leaderboard / Player stats / Matches */}
         <Flaeche fest className="order-2 min-w-0 self-start overflow-hidden xl:order-none">
           <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] p-3 sm:px-5">
@@ -323,14 +332,14 @@ export default function EventDetail() {
                 ) : reiter === 'tabelle' ? (laedt && !tabelle.length
                   ? <div className="space-y-px">{[...Array(12)].map((_, i) => <div key={i} className="h-16 animate-pulse bg-white/[0.025]" />)}</div>
                   : <Bestenliste tabelle={tabelle} wechsel={wechsel} schnitt={schnitt} schnittText={schnittText} suche={suche} />)
-                  : reiter === 'spieler' ? <SpielerStats eventId={f.eventId} windowId={f.windowId} live={istLive} spielerInfo={spielerInfo} />
+                  : reiter === 'spieler' ? <SpielerStats eventId={f.eventId} windowId={f.windowId} live={istLive} spielerInfo={spielerInfo} tabelle={tabelle} />
                     : <Matches eventId={f.eventId} windowId={f.windowId} live={istLive} spielerInfo={spielerInfo} />}
             </motion.div>
           </AnimatePresence>
         </Flaeche>
 
         {/* ------------------------------------------------ Rand: klebt am Bildschirm; auf dem Handy stehen die Kennzahlen vor der Tafel, der Rest danach */}
-        <aside className="contents xl:block">
+        <aside className={reiter === 'tabelle' ? 'contents xl:block' : 'hidden'}>
           <div className="contents xl:sticky xl:top-[112px] xl:block xl:space-y-6">
             {f && (
               <Flaeche fest className="order-1 overflow-hidden xl:order-none">

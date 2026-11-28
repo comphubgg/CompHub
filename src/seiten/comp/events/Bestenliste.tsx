@@ -27,9 +27,9 @@ function Zeile({ e, wechsel, offen, umschalten, qualiZone }: { e: Eintrag; wechs
     <motion.div layout="position" transition={{ type: 'spring', stiffness: 380, damping: 36 }}
       className={`relative border-b border-white/[0.045] transition-colors duration-[1500ms] ${wechsel ? (wechsel > 0 ? 'bg-emerald-400/[0.08]' : 'bg-red-400/[0.07]') : qualiZone ? 'bg-akz/[0.028]' : ''}`}>
       {medaille && <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: medaille }} />}
-      <div role="button" tabIndex={0} aria-expanded={offen} onClick={umschalten} onKeyDown={(k) => k.key === 'Enter' && umschalten()} className={`${SPALTEN} cursor-pointer px-3 py-1.5 transition hover:bg-white/[0.035] sm:px-5`}>
+      <div role="button" tabIndex={0} aria-expanded={offen} onClick={umschalten} onKeyDown={(k) => k.key === 'Enter' && umschalten()} className={`${SPALTEN} cursor-pointer px-3 py-1 transition hover:bg-white/[0.035] sm:px-5`}>
         <div className="flex items-baseline gap-1">
-          <span className="titel zahl text-xl sm:text-2xl" style={medaille ? { color: medaille } : { color: 'rgba(255,255,255,0.6)' }}>{e.rank}</span>
+          <span className="titel zahl text-xl" style={medaille ? { color: medaille } : { color: 'rgba(255,255,255,0.6)' }}>{e.rank}</span>
           <AnimatePresence>{wechsel ? (
             <motion.span initial={{ opacity: 0, y: wechsel > 0 ? 6 : -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className={`zahl text-[10px] font-bold ${wechsel > 0 ? 'text-emerald-400' : 'text-red-400'}`}>{wechsel > 0 ? '▲' : '▼'}{Math.abs(wechsel)}</motion.span>
@@ -45,7 +45,7 @@ function Zeile({ e, wechsel, offen, umschalten, qualiZone }: { e: Eintrag; wechs
             ))}
           </div>
         </div>
-        <span className="titel zahl text-right text-xl sm:text-2xl">{zahl(e.points)}</span>
+        <span className="titel zahl text-right text-xl">{zahl(e.points)}</span>
         <span className="zahl text-right text-sm text-white/75">{zahl(e.elims)}</span>
         <span className="zahl hidden text-right text-sm text-white/55 sm:block">{zahl(e.games)}</span>
         <span className={`zahl hidden text-right text-sm sm:block ${e.wins ? 'font-bold text-amber-300' : 'text-white/30'}`}>{zahl(e.wins)}</span>
