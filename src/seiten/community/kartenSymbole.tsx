@@ -158,8 +158,8 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
       return <g><path d="M6 15.5a7 7 0 0 0 12 0" {...linie} /><path d="M12 15V4.5M8 8.5l4-4 4 4" {...linie} strokeWidth={2.4} /></g>;
     case 'portapotty': // Kabine mit Mond
       return <g><rect x="6.5" y="3.5" width="11" height="17" rx="1.6" {...linie} /><path d="M13.6 6.6a2 2 0 1 0 0 3.2 2.5 2.5 0 0 1 0-3.2z" fill={tinte} /><circle cx="15" cy="13.5" r="0.9" fill={tinte} /></g>;
-    case 'whirlpool': // Wirbel: dicke blaue Spirale
-      return <path d="M12 12a1.6 1.6 0 1 1 1.6 1.6A3.4 3.4 0 1 1 15.4 10a5.4 5.4 0 1 1-8.8 4.2" {...linie} strokeWidth={3} />;
+    case 'whirlpool': // Wirbel: blaue Scheibe mit dunkler Spirale (der Umriss wuerde eine freie Spirale zulaufen lassen)
+      return <g><circle cx="12" cy="12" r="9.2" fill={tinte} /><path d="M12 12a1.4 1.4 0 1 1 1.4 1.4A3 3 0 1 1 15 10.1a4.9 4.9 0 1 1-7.9 3.8" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" /></g>;
     case 'sportscar': // flaches Auto
       return <g><path d="M3 15.5v-2l3.5-.8 3-3h5l3.5 3 3 .8v2z" fill={tinte} /><circle cx="7.5" cy="16" r="2" fill={tinte} stroke="currentColor" strokeWidth="1.2" /><circle cx="16.5" cy="16" r="2" fill={tinte} stroke="currentColor" strokeWidth="1.2" /></g>;
     case 'suv': // hohes Auto
