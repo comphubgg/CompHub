@@ -503,13 +503,14 @@ async function eosVerbinden() {
   w.on('close', (code, grund) => { if (eos.ws === w) eosSpaeter(`geschlossen ${code} ${grund}`); });
   w.on('error', (e) => { log(`[eos] ${e.message}`); if (eos.ws === w) eosSpaeter(e.message); });
 }
+// Statuszeile: Epic nimmt Adressen an (HTTP 200), leert sie aber - "thecomphub.com" kam am 28.11.2026 als activity.value "" zurueck. Daher ohne ".com".
 async function eosEigenerStatus(k, tok, verbindung) {
   try {
     const r = await fetch(`https://api.epicgames.dev/epic/presence/v1/${EOS_DEPLOY}/${k.konto}/presence/${encodeURIComponent(verbindung)}`, {
       method: 'PATCH', signal: AbortSignal.timeout(10_000),
       headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status: 'online', activity: { value: 'thecomphub.com' }, conn: { props: {} },
+        status: 'online', activity: { value: 'TheCompHub' }, conn: { props: {} },
         props: {
           EOS_Platform: 'WIN', EOS_IntegratedPlatform: 'EGS', EOS_OnlinePlatformType: '100', EOS_ProductVersion: '++Fortnite+Release-00.00-CL-00000000',
           EOS_ProductName: 'Fortnite', EOS_Session: '{"version":3}', EOS_Lobby: '{"version":3}',
