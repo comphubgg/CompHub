@@ -204,7 +204,23 @@ export function Sammlungen() {
                   })}
                 </AnimatePresence>
               </div>
-            ) : <Leer text={<>No maps yet. Paste an island code above, or add one from any island page in <Link to="/community/discover" className="text-akz">Discover</Link>.</>} />}
+            ) : (
+              <div className="space-y-4">
+                <Leer text={<>No maps yet. Paste an island code above, add one from any island page in <Link to="/community/discover" className="text-akz">Discover</Link> – or pick from what's popular right now.</>} />
+                {/* Leere Sammlung: die meistgespielten Creator-Inseln gleich zum Hinzufuegen */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {r.liste.filter((e) => !e.epic).slice(0, 8).map((e, k) => (
+                    <motion.div key={e.code} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: k * 0.04 }} className="fl-fest group overflow-hidden">
+                      <Link to={inselPfad(e.code)} className="relative block aspect-video overflow-hidden"><InselBild code={e.code} bild={e.bild} className="absolute inset-0 transition duration-700 group-hover:scale-[1.06]" /><div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-fl to-transparent" /><span className="absolute right-3 top-3"><Marke ton="rot" puls>{e.spieler.toLocaleString('en')} playing</Marke></span></Link>
+                      <div className="flex items-center gap-2 px-4 pb-4 pt-1">
+                        <div className="min-w-0 flex-1"><p className="truncate font-bold text-white">{e.titel}</p><p className="truncate text-xs text-white/45">@{e.creator}</p></div>
+                        <button type="button" onClick={() => aendern((x) => ({ ...x, inseln: [...x.inseln.filter((i) => i.code !== e.code), { code: e.code }] }))} className="knopf-prim !px-3 !py-1.5 !text-xs">+ Add</button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
