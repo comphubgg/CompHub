@@ -2,9 +2,9 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LinkKopieren } from '../Bausteine';
-import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { Bild, Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { auftritte, datumKurz, holen, QUELLEN, seltenVon, tageSeit, useShop, useTeile, type Teil } from './daten';
-import { Auswahl, Bereich, Kachel, preis as vb, ZahlenLeiste } from './Raster';
+import { Auswahl, Bereich, Kachel, preis as vb, Schalter, ZahlenLeiste } from './Raster';
 
 /*
  * Weitere Kosmetik-Seiten der Spezifikation:
@@ -86,65 +86,191 @@ function Stufe({ t }: { t: Teil }) {
     : <p className="mt-1 text-[10px] font-semibold text-rose-300/80">Not released yet</p>;
 }
 
-/* ---------------------------------------------- Jam Tracks */
+/* ---------------------------------------------- Jam Tracks (Design 3.0, neu komponiert 28.11.2026)
+ * Plattenladen statt Tabelle: oben links das Spotlight (ein Track des heutigen Shops gross - Cover, Zahlen, Schwierigkeit je Instrument, Preis),
+ * rechts die Cover-Wand des heutigen Shops (ein Klick holt den Track ins Spotlight). Darunter die Bibliothek: links klebende Filter
+ * (Suche, Sortierung, Genres mit Zahl, Jahrzehnte), rechts dichte Zeilen mit Cover, Zahlen und Schwierigkeitsbalken; "im Shop" markiert.
+ * Daten: v2/shop (heute), v2/cosmetics/tracks (Bibliothek + Schwierigkeit).
+ */
 const SCHWIERIG: Array<[string, string]> = [['vocals', 'Vocals'], ['guitar', 'Lead'], ['bass', 'Bass'], ['drums', 'Drums']];
+const laenge = (s?: number) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '—');
+function Stufen({ n, gross = false }: { n: number; gross?: boolean }) {
+  return <span className="flex gap-0.5">{Array.from({ length: 7 }, (_, j) => <span key={j} className={`${gross ? 'h-3 w-2.5' : 'h-2.5 w-1.5'} rounded-sm ${j < n ? 'bg-akz' : 'bg-white/10'}`} />)}</span>;
+}
 export function JamTracks() {
   const shop = useShop();
   const { teile, laedt } = useTeile(['track']);
   const [roh, setRoh] = useState<Map<string, Record<string, number>>>(new Map());
   useEffect(() => { holen<Array<{ id: string; difficulty?: Record<string, number> }>>('/v2/cosmetics/tracks').then((l) => setRoh(new Map(l.map((x) => [x.id, x.difficulty ?? {}])))).catch(() => {}); }, []);
   // Ein Track kann in mehreren Angeboten stecken - jeden nur einmal zeigen (sonst doppelte Kacheln und doppelte Schluessel)
-  const imShop = useMemo(() => [...new Map(shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'track').map((t) => ({ t, preis: a.preis, bis: a.bis }))).map((x) => [x.t.id, x] as const)).values()], [shop.angebote]);
-  const [suche, setSuche] = useState(''); const [genre, setGenre] = useState('alle'); const [sort, setSort] = useState('neu');
-  const genres = useMemo(() => [...new Set(teile.flatMap((t) => t.tags))].sort(), [teile]);
+  const imShop = useMemo(() => [...new Map(shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'track').map((t) => ({ t, preis: a.preis, bis: a.bis }))).map((x) => [x.t.id, x] as const)).values()]
+    .sort((a, b) => b.t.hinzu.localeCompare(a.t.hinzu) || a.t.name.localeCompare(b.t.name)), [shop.angebote]);
+  const shopIds = useMemo(() => new Set(imShop.map((x) => x.t.id)), [imShop]);
+  const [wahl, setWahl] = useState<string | null>(null);
+  const spot = imShop.find((x) => x.t.id === wahl) ?? imShop[0] ?? null;
+  const [alleCover, setAlleCover] = useState(false);
+  const [suche, setSuche] = useState(''); const [genre, setGenre] = useState('alle'); const [sort, setSort] = useState('neu'); const [jahrzehnt, setJahrzehnt] = useState('alle');
+  const [nurShop, setNurShop] = useState(false);
+  const genres = useMemo(() => {
+    const m = new Map<string, number>(); for (const t of teile) for (const g of t.tags) m.set(g, (m.get(g) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [teile]);
+  const jahrzehnte = useMemo(() => [...new Set(teile.map((t) => (t.jahr ? Math.floor(t.jahr / 10) * 10 : 0)).filter(Boolean))].sort((a, b) => b - a), [teile]);
   const liste = useMemo(() => {
     const q = suche.toLowerCase();
-    const l = teile.filter((t) => (genre === 'alle' || t.tags.includes(genre)) && (!q || `${t.name} ${t.text}`.toLowerCase().includes(q)));
+    const l = teile.filter((t) => (genre === 'alle' || t.tags.includes(genre)) && (!q || `${t.name} ${t.text}`.toLowerCase().includes(q))
+      && (jahrzehnt === 'alle' || (t.jahr && Math.floor(t.jahr / 10) * 10 === Number(jahrzehnt))) && (!nurShop || shopIds.has(t.id)));
     const f: Record<string, (a: Teil, b: Teil) => number> = { neu: (a, b) => b.hinzu.localeCompare(a.hinzu), titel: (a, b) => a.name.localeCompare(b.name), kuenstler: (a, b) => a.text.localeCompare(b.text),
       jahr: (a, b) => (b.jahr ?? 0) - (a.jahr ?? 0), bpm: (a, b) => (b.bpm ?? 0) - (a.bpm ?? 0) };
     return [...l].sort(f[sort]);
-  }, [teile, suche, genre, sort]);
+  }, [teile, suche, genre, sort, jahrzehnt, nurShop, shopIds]);
   const [mehr, setMehr] = useState(60);
+  useEffect(() => setMehr(60), [suche, genre, sort, jahrzehnt, nurShop]);
   const heute = shop.datum ? new Date(shop.datum).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  const cover = alleCover ? imShop : imShop.slice(0, 18);
+  const st = spot?.t;
   return (
-    <div className="space-y-6">
-      <SeitenKopf klein ueber="Community · Cosmetics" titel="Jam Tracks" text={<>The Jam Tracks in today's shop{heute ? ` (${heute})` : ''} and the whole Festival library – search by song, artist or genre.</>} rechts={<LinkKopieren />} />
-      <Bereich titel={<>In the shop today <span className="text-sm font-semibold text-white/40">{imShop.length}</span></>}>
-        {shop.laedt ? <Laedt /> : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
-            {[...imShop].sort((a, b) => a.t.name.localeCompare(b.t.name)).slice(0, 40).map(({ t, preis }, i) => <Kachel key={t.id} t={t} index={i} unten={<p className="mt-1 text-[11px] font-semibold text-white/60">{vb(preis)}</p>} />)}
-          </div>
-        )}
-        {imShop.length > 40 && <p className="text-xs text-white/40">+{imShop.length - 40} more in the <Link to="/community/shop" className="text-akz">Item Shop</Link>.</p>}
-      </Bereich>
-      <Bereich titel={<>Library <span className="text-sm font-semibold text-white/40">{teile.length}</span></>} rechts={
-        <div className="flex flex-wrap gap-2">
-          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Song or artist…" className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
-          <Auswahl titel="Genre" wert={genre} setzen={setGenre} optionen={[['alle', 'All'], ...genres.map((g): [string, string] => [g, g])]} />
-          <Auswahl titel="Sort" wert={sort} setzen={setSort} optionen={[['neu', 'Newest'], ['titel', 'Title'], ['kuenstler', 'Artist'], ['jahr', 'Release year'], ['bpm', 'BPM']]} />
+    <div className="space-y-8">
+      {/* schmaler Kopf: Titel und die drei Zahlen in einer Zeile */}
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div><p className="ueber">Community · Festival</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Jam Tracks</h1></div>
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
+          {([['In the shop today', imShop.length], ['In the library', teile.length], ['Genres', genres.length]] as const).map(([k, v]) => (
+            <div key={k}><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">{k}</p><p className="titel zahl text-4xl">{v ? v.toLocaleString('en') : '…'}</p></div>
+          ))}
+          <LinkKopieren />
         </div>
-      }>
-        {laedt ? <Laedt /> : (
-          <Flaeche fest className="overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead className="text-[10px] uppercase tracking-wider text-white/40"><tr><th className="px-4 py-3">Song</th><th className="hidden px-3 md:table-cell">Year</th><th className="hidden px-3 md:table-cell">BPM</th><th className="hidden px-3 lg:table-cell">Length</th>{SCHWIERIG.map(([, t]) => <th key={t} className="hidden px-3 xl:table-cell">{t}</th>)}<th className="px-4 text-right">Added</th></tr></thead>
-              <tbody>
-                {liste.slice(0, mehr).map((t, i) => (
-                  <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 30) * 0.01 }} className="border-t border-white/5 hover:bg-white/[0.03]">
-                    <td className="px-4 py-2"><Link to={`/community/cosmetics/${t.id}`} className="flex items-center gap-3"><span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/[0.06] text-white/25">♪<img src={t.bild} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover" /></span><span className="min-w-0"><span className="block truncate font-bold text-white">{t.name}</span><span className="block truncate text-xs text-white/50">{t.text}{t.tags.length ? ` · ${t.tags.join(', ')}` : ''}</span></span></Link></td>
-                    <td className="hidden px-3 tabular-nums text-white/60 md:table-cell">{t.jahr ?? '—'}</td>
-                    <td className="hidden px-3 tabular-nums text-white/60 md:table-cell">{t.bpm ?? '—'}</td>
-                    <td className="hidden px-3 tabular-nums text-white/60 lg:table-cell">{t.dauer ? `${Math.floor(t.dauer / 60)}:${String(t.dauer % 60).padStart(2, '0')}` : '—'}</td>
-                    {SCHWIERIG.map(([k]) => { const n = roh.get(t.id)?.[k] ?? 0; return <td key={k} className="hidden px-3 xl:table-cell"><span className="flex gap-0.5">{Array.from({ length: 7 }, (_, j) => <span key={j} className={`h-2.5 w-1.5 rounded-sm ${j < n ? 'bg-akz' : 'bg-white/10'}`} />)}</span></td>; })}
-                    <td className="px-4 text-right text-xs tabular-nums text-white/45">{datumKurz(t.hinzu)}</td>
-                  </motion.tr>
+      </header>
+
+      {/* ------------------------------------------------ Spotlight + Cover-Wand des heutigen Shops */}
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Flaeche fest className="relative flex flex-col overflow-hidden p-5 sm:p-6">
+          <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-akz/15 blur-3xl" />
+          <p className="ueber relative">In the shop today{heute ? ` · ${heute}` : ''}</p>
+          {shop.laedt ? <Laedt /> : !st ? <p className="relative mt-4 text-sm text-white/50">No Jam Tracks in today's shop.</p> : (
+            <motion.div key={st.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="relative mt-4 flex flex-col gap-5 sm:flex-row">
+              <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-2xl bg-black/40 ring-1 ring-white/10 sm:w-60 lg:w-72 2xl:w-80">
+                <Bild src={st.bild} className="absolute inset-0 h-full w-full" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="titel text-5xl lg:text-6xl">{st.name}</h2>
+                <p className="mt-1 truncate text-lg font-semibold text-white/70">{st.text}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {st.tags.map((g) => <span key={g} className="chip !py-1">{g}</span>)}
+                </div>
+                <dl className="mt-4 grid grid-cols-3 gap-3">
+                  {([['Year', st.jahr ?? '—'], ['BPM', st.bpm ?? '—'], ['Length', laenge(st.dauer)]] as const).map(([k, v]) => (
+                    <div key={k}><dt className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">{k}</dt><dd className="titel zahl text-3xl">{v}</dd></div>
+                  ))}
+                </dl>
+                <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-2">
+                  {SCHWIERIG.map(([k, t]) => <div key={k} className="flex items-center justify-between gap-2 text-xs text-white/55"><span>{t}</span><Stufen n={roh.get(st.id)?.[k] ?? 0} gross /></div>)}
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <span className="text-xl font-extrabold text-white">{vb(spot!.preis)}</span>
+                  {spot!.bis && <span className="text-xs text-white/45">until {datumKurz(spot!.bis)}</span>}
+                  <Link to={`/community/cosmetics/${st.id}`} className="knopf-prim ml-auto">Track page <span aria-hidden>→</span></Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+          {/* als Naechstes: die vier Tracks nach dem Spotlight - ein Klick holt sie nach vorn */}
+          {st && imShop.length > 1 && (
+            <div className="relative mt-auto pt-5">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Up next</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[1, 2, 3, 4].map((d) => imShop[(imShop.findIndex((x) => x.t.id === st.id) + d) % imShop.length]).filter((x, i, l) => x.t.id !== st.id && l.findIndex((y) => y.t.id === x.t.id) === i).map(({ t }) => (
+                  <button key={t.id} type="button" onClick={() => setWahl(t.id)} className="flex min-w-0 items-center gap-2 rounded-xl bg-white/[0.03] p-1.5 text-left ring-1 ring-white/[0.05] transition hover:ring-akz/40">
+                    <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-black/40"><Bild src={t.bild} className="absolute inset-0 h-full w-full" /></span>
+                    <span className="min-w-0"><span className="block truncate text-xs font-bold text-white">{t.name}</span><span className="block truncate text-[10px] text-white/45">{t.text}</span></span>
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          )}
+        </Flaeche>
+
+        <Flaeche fest verz={0.05} className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="titel text-3xl">Today's wall <span className="zahl text-base text-white/40">{imShop.length}</span></h2>
+            <span className="hidden text-xs text-white/40 sm:inline">Newest first · click a cover for the spotlight</span>
+          </div>
+          {shop.laedt ? <Laedt /> : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+              {cover.map(({ t, preis }, i) => (
+                <motion.button key={t.id} type="button" onClick={() => setWahl(t.id)} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: Math.min(i, 24) * 0.015 }}
+                  className={`group relative aspect-square overflow-hidden rounded-xl bg-black/40 text-left ring-1 transition ${spot?.t.id === t.id ? 'ring-2 ring-akz' : 'ring-white/[0.07] hover:ring-akz/50'}`} title={`${t.name} – ${t.text}`}>
+                  <Bild src={t.bild} className="absolute inset-0 h-full w-full transition duration-500 group-hover:scale-105" />
+                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2 pb-1.5 pt-6">
+                    <span className="block truncate text-[12px] font-bold leading-tight text-white">{t.name}</span>
+                    <span className="flex items-center justify-between gap-1 text-[10px] text-white/55"><span className="truncate">{t.text}</span><span className="shrink-0">{vb(preis)}</span></span>
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          )}
+          {imShop.length > 18 && <button type="button" onClick={() => setAlleCover((x) => !x)} className="knopf-leer mt-3">{alleCover ? 'Show fewer' : `Show all ${imShop.length}`}</button>}
+          <p className="mt-2 text-[11px] text-white/35">Also in the <Link to="/community/shop" className="text-akz/80 hover:text-akz">Item Shop</Link>.</p>
+        </Flaeche>
+      </section>
+
+      {/* ------------------------------------------------ Bibliothek: Filter links (klebt), Zeilen rechts */}
+      <section className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+        <Flaeche fest className="space-y-5 p-5 lg:sticky lg:top-[7.5rem]">
+          <div><p className="ueber">The library</p><h2 className="titel mt-1 text-4xl">Every track</h2></div>
+          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Song or artist…" className="eingabe w-full" />
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Sort</p>
+            <div className="flex flex-wrap gap-1.5">{([['neu', 'Newest'], ['titel', 'Title'], ['kuenstler', 'Artist'], ['jahr', 'Year'], ['bpm', 'BPM']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setSort(k)} className={`chip ${sort === k ? 'chip-an' : ''}`}>{t}</button>)}</div>
+          </div>
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Genre</p>
+            <div className="ohne-leiste flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+              <button type="button" onClick={() => setGenre('alle')} className={`chip ${genre === 'alle' ? 'chip-an' : ''}`}>All</button>
+              {genres.map(([g, n]) => <button key={g} type="button" onClick={() => setGenre(g)} className={`chip ${genre === g ? 'chip-an' : ''}`}>{g}<span className="zahl text-white/35">{n}</span></button>)}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Released</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setJahrzehnt('alle')} className={`chip ${jahrzehnt === 'alle' ? 'chip-an' : ''}`}>Any</button>
+              {jahrzehnte.map((j) => <button key={j} type="button" onClick={() => setJahrzehnt(String(j))} className={`chip ${jahrzehnt === String(j) ? 'chip-an' : ''}`}>{j}s</button>)}
+            </div>
+          </div>
+          <Schalter titel="Only what's in the shop today" an={nurShop} setzen={setNurShop} />
+          <p className="zahl text-xs text-white/40">{liste.length.toLocaleString('en')} tracks match</p>
+        </Flaeche>
+
+        {laedt ? <Laedt text="Loading the library" /> : (
+          <Flaeche fest verz={0.05} className="overflow-hidden">
+            <div className="hidden grid-cols-[minmax(0,1fr)_56px_56px_56px_auto_88px] items-center gap-4 border-b border-white/[0.06] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40 md:grid xl:grid-cols-[minmax(0,1fr)_56px_56px_56px_300px_88px]">
+              <span>Song</span><span>Year</span><span>BPM</span><span>Length</span><span className="hidden xl:grid xl:grid-cols-4 xl:gap-3">{SCHWIERIG.map(([, t]) => <span key={t}>{t}</span>)}</span><span className="text-right">Added</span>
+            </div>
+            <ul>
+              {liste.slice(0, mehr).map((t) => (
+                <li key={t.id} className="border-t border-white/[0.04] first:border-t-0">
+                  <Link to={`/community/cosmetics/${t.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-2 transition hover:bg-white/[0.035] md:grid-cols-[minmax(0,1fr)_56px_56px_56px_auto_88px] xl:grid-cols-[minmax(0,1fr)_56px_56px_56px_300px_88px]">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-black/40"><Bild src={t.bild} className="absolute inset-0 h-full w-full" /></span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2"><span className="truncate font-bold text-white">{t.name}</span>{shopIds.has(t.id) && <span className="shrink-0 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">In shop</span>}</span>
+                        <span className="block truncate text-xs text-white/50">{t.text}{t.tags.length ? ` · ${t.tags.join(', ')}` : ''}</span>
+                      </span>
+                    </span>
+                    <span className="zahl hidden text-sm text-white/60 md:block">{t.jahr ?? '—'}</span>
+                    <span className="zahl hidden text-sm text-white/60 md:block">{t.bpm ?? '—'}</span>
+                    <span className="zahl hidden text-sm text-white/60 md:block">{laenge(t.dauer)}</span>
+                    <span className="hidden xl:grid xl:grid-cols-4 xl:gap-3">{SCHWIERIG.map(([k]) => <Stufen key={k} n={roh.get(t.id)?.[k] ?? 0} />)}</span>
+                    <span className="zahl text-right text-xs text-white/45">{datumKurz(t.hinzu)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {!liste.length && <p className="px-5 py-10 text-center text-sm text-white/45">No track matches these filters.</p>}
             {liste.length > mehr && <button type="button" onClick={() => setMehr((n) => n + 100)} className="w-full border-t border-white/5 py-3 text-sm font-semibold text-akz hover:bg-white/[0.03]">Show more ({liste.length - mehr} left)</button>}
           </Flaeche>
         )}
-      </Bereich>
+      </section>
       <p className="text-[11px] text-white/30">Data: fortnite-api.com. Festival's free daily rotation isn't in a public feed we can read from the browser – this page shows the Jam Tracks you can buy today.</p>
     </div>
   );
