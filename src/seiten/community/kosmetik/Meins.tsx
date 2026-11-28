@@ -1,9 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
 import { DatenFehlen, LinkKopieren, useHubDatei } from '../Bausteine';
-import { Laedt, TEAL, Ueberschrift } from '../Teile';
+import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
 import { REITER, seltenVon, useAblage, useReaktionen, useShop, useTeile, type Teil } from './daten';
 import { AblageHinweis, Kachel, preis, PUNKTE, Raster, REAKTIONEN, Reaktionen } from './Raster';
 
@@ -58,7 +57,7 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
   }
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber={geteilt ? 'Community · Shared list' : 'Community · Mine'} titel={geteilt ? `A shared ${art === 'wunsch' ? 'wishlist' : 'locker'}` : titel} farbe={TEAL}
+      <SeitenKopf klein ueber={geteilt ? 'Community · Shared list' : 'Community · Mine'} titel={geteilt ? `A shared ${art === 'wunsch' ? 'wishlist' : 'locker'}` : titel}
         text={geteilt ? 'Someone shared this list with you.' : art === 'wunsch' ? "Everything you want – and a heads-up when it's in today's shop." : 'Mark what you own and see your collection grow.'}
         rechts={<div className="flex flex-wrap items-center gap-2">{!geteilt && <AblageHinweis ort={eigene.ort} />}{!geteilt && eigene.wert.length > 0 && <LinkKopieren text="Share list" url={teilLink} />}</div>} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -68,27 +67,27 @@ export function MeineListe({ art }: { art: 'wunsch' | 'spind' }) {
           ['In US dollars', `≈ ${usd(summe)}`, '#c4b5fd'],
           [art === 'wunsch' ? 'In the shop today' : 'Outfits owned', art === 'wunsch' ? String(heuteDa.length) : String(liste.filter((t) => t.typ === 'outfit').length), '#fde047'],
         ].map(([k, v, f], i) => (
-          <Glas key={k as string} className="p-5" verzoegerung={i * 0.05}><p className="text-3xl font-black tabular-nums" style={{ color: f as string }}>{v}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p></Glas>
+          <Flaeche fest key={k as string} className="p-5" verz={i * 0.05}><p className="text-3xl font-black tabular-nums" style={{ color: f as string }}>{v}</p><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">{k as string}</p></Flaeche>
         ))}
       </div>
       {art === 'wunsch' && heuteDa.length > 0 && !geteilt && (
-        <Glas className="border-rose-300/25 p-5">
+        <Flaeche fest className="border-rose-300/25 p-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-300">In the shop right now</p>
           <div className="mt-3 flex flex-wrap gap-3">
             {heuteDa.map((t) => <Link key={t.id} to="/community/shop" className="flex items-center gap-2 rounded-xl bg-white/[0.05] py-1.5 pl-1.5 pr-3 hover:bg-white/10"><img src={t.bild} alt="" className="h-10 w-10 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} /><span className="text-sm font-bold text-white">{t.name}</span>{heute.get(t.id.toLowerCase()) !== undefined && <span className="text-xs text-white/60">{preis(heute.get(t.id.toLowerCase())!)}</span>}</Link>)}
           </div>
-        </Glas>
+        </Flaeche>
       )}
       {art === 'spind' && liste.length > 0 && <Fortschritt eigene={liste} alle={teile} />}
-      {laedt ? <Laedt farbe={TEAL} /> : !liste.length ? (
-        <Glas className="p-10 text-center">
+      {laedt ? <Laedt /> : !liste.length ? (
+        <Flaeche fest className="p-10 text-center">
           <p className="text-lg font-bold text-white">{geteilt ? 'This list is empty.' : `Your ${art === 'wunsch' ? 'wishlist' : 'locker'} is empty`}</p>
-          {!geteilt && <p className="mt-1 text-sm text-white/50">Open <Link to="/community/cosmetics" className="text-teal-200 hover:text-white">Cosmetics</Link> or the <Link to="/community/shop" className="text-teal-200 hover:text-white">Item Shop</Link> and tap {art === 'wunsch' ? 'the heart' : 'the tick'} on any item.</p>}
-        </Glas>
+          {!geteilt && <p className="mt-1 text-sm text-white/50">Open <Link to="/community/cosmetics" className="text-akz hover:text-white">Cosmetics</Link> or the <Link to="/community/shop" className="text-akz hover:text-white">Item Shop</Link> and tap {art === 'wunsch' ? 'the heart' : 'the tick'} on any item.</p>}
+        </Flaeche>
       ) : (
         <>
           <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">
-            {([['ordnung', geteilt ? 'In order' : 'My order (drag to reorder)'], ['raster', 'Browse with filters']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setAnsicht(k)} className={`rounded-lg px-3.5 py-1.5 ${ansicht === k ? 'bg-teal-300 text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</button>)}
+            {([['ordnung', geteilt ? 'In order' : 'My order (drag to reorder)'], ['raster', 'Browse with filters']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setAnsicht(k)} className={`rounded-lg px-3.5 py-1.5 ${ansicht === k ? 'bg-akz text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</button>)}
           </div>
           {ansicht === 'raster' ? <Raster teile={liste} ohneReiter /> : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
@@ -120,17 +119,17 @@ function Fortschritt({ eigene, alle }: { eigene: Teil[]; alle: Teil[] }) {
     return { ...r, gesamt, hab };
   }).filter((r) => r.hab > 0);
   return (
-    <Glas className="p-5">
+    <Flaeche fest className="p-5">
       <h3 className="font-bold text-white">Collection progress</h3>
       <div className="mt-3 grid gap-x-8 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
         {reihen.map((r, i) => (
           <div key={r.k}>
             <div className="flex justify-between text-xs"><span className="font-semibold text-white/75">{r.titel}</span><span className="tabular-nums text-white/45">{r.hab} / {r.gesamt.toLocaleString('en')}</span></div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(1.5, (r.hab / Math.max(1, r.gesamt)) * 100)}%` }} transition={{ delay: i * 0.04, duration: 0.7 }} className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-teal-300" /></div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(1.5, (r.hab / Math.max(1, r.gesamt)) * 100)}%` }} transition={{ delay: i * 0.04, duration: 0.7 }} className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-akz" /></div>
           </div>
         ))}
       </div>
-    </Glas>
+    </Flaeche>
   );
 }
 
@@ -148,36 +147,36 @@ export function Sammlungen() {
   const codeOk = CODE.test(code.trim());
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber="Community · Mine" titel="My collections" farbe={TEAL} text="Your own lists of Creative islands – practice maps, box fights, zone wars, whatever you play." rechts={<AblageHinweis ort={ablage.ort} />} />
+      <SeitenKopf klein ueber="Community · Mine" titel="My collections" text="Your own lists of Creative islands – practice maps, box fights, zone wars, whatever you play." rechts={<AblageHinweis ort={ablage.ort} />} />
       <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Glas className="p-4">
+        <Flaeche fest className="p-4">
           <ul className="space-y-1">
             {ablage.wert.map((x) => (
-              <li key={x.id}><button type="button" onClick={() => setOffen(x.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${x.id === s?.id ? 'bg-teal-300/15 text-white ring-1 ring-teal-300/30' : 'text-white/70 hover:bg-white/5'}`}>
+              <li key={x.id}><button type="button" onClick={() => setOffen(x.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${x.id === s?.id ? 'bg-akz/15 text-white ring-1 ring-akz/30' : 'text-white/70 hover:bg-white/5'}`}>
                 <span className="font-bold">{x.id === 'favoriten' ? '★ ' : ''}{x.name}</span><span className="text-xs tabular-nums text-white/40">{x.inseln.length} maps</span></button></li>
             ))}
           </ul>
           <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!neuName.trim()) return; const id = `s${Date.now().toString(36)}`; ablage.setzen((l) => [...l, { id, name: neuName.trim().slice(0, 40), inseln: [] }]); setOffen(id); setNeuName(''); }}>
-            <input value={neuName} onChange={(e) => setNeuName(e.target.value)} placeholder="New collection…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-            <button type="submit" className="rounded-xl bg-teal-300 px-3 text-sm font-bold text-[#06080f]">+</button>
+            <input value={neuName} onChange={(e) => setNeuName(e.target.value)} placeholder="New collection…" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
+            <button type="submit" className="rounded-xl bg-akz px-3 text-sm font-bold text-[#06080f]">+</button>
           </form>
-        </Glas>
+        </Flaeche>
         {s && (
-          <Glas className="p-5">
+          <Flaeche fest className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-2xl font-extrabold tracking-tight text-white">{s.name}</h2>
               {s.id !== 'favoriten' && <button type="button" onClick={() => { ablage.setzen((l) => l.filter((x) => x.id !== s.id)); setOffen('favoriten'); }} className="text-xs font-semibold text-white/40 hover:text-rose-300">Delete collection</button>}
             </div>
             <form className="mt-4 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (!codeOk) return; aendern((x) => ({ ...x, inseln: [...x.inseln.filter((i) => i.code !== code.trim()), { code: code.trim(), name: name.trim() || infos.get(code.trim())?.name }] })); setCode(''); setName(''); }}>
-              <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d-]/g, '').slice(0, 14))} placeholder="Island code, e.g. 1234-5678-9012" className="w-72 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="min-w-[180px] flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-              <button type="submit" disabled={!codeOk} className="rounded-xl bg-teal-300 px-4 text-sm font-bold text-[#06080f] disabled:opacity-30">Add map</button>
+              <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d-]/g, '').slice(0, 14))} placeholder="Island code, e.g. 1234-5678-9012" className="w-72 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" className="min-w-[180px] flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-akz/60 focus:outline-none" />
+              <button type="submit" disabled={!codeOk} className="rounded-xl bg-akz px-4 text-sm font-bold text-[#06080f] disabled:opacity-30">Add map</button>
             </form>
             <ul className="mt-4 space-y-2">
               <AnimatePresence initial={false}>
                 {s.inseln.map((i) => (
                   <motion.li key={i.code} layout initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
-                    <span className="font-mono text-sm font-bold text-teal-200">{i.code}</span>
+                    <span className="font-mono text-sm font-bold text-akz">{i.code}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-white/80">{i.name ?? infos.get(i.code)?.name ?? ''}{infos.get(i.code)?.creator ? <span className="text-white/40"> · by {infos.get(i.code)!.creator}</span> : null}</span>
                     {infos.get(i.code)?.players !== undefined && <span className="text-xs tabular-nums text-white/50">{infos.get(i.code)!.players!.toLocaleString('en')} playing</span>}
                     <button type="button" onClick={() => navigator.clipboard?.writeText(i.code)} className="rounded-lg border border-white/10 px-2 py-1 text-xs font-semibold text-white/60 hover:text-white">Copy code</button>
@@ -187,8 +186,8 @@ export function Sammlungen() {
               </AnimatePresence>
             </ul>
             {!s.inseln.length && <p className="mt-6 text-center text-sm text-white/40">No maps yet. Paste an island code above.</p>}
-            {!creative && <p className="mt-6 text-[11px] text-white/30">Player counts and creator names appear once our Creative collector is running (see <Link to="/community/creative" className="text-teal-200/70">Creative</Link>).</p>}
-          </Glas>
+            {!creative && <p className="mt-6 text-[11px] text-white/30">Player counts and creator names appear once our Creative collector is running (see <Link to="/community/creative" className="text-akz/70">Creative</Link>).</p>}
+          </Flaeche>
         )}
       </div>
     </div>
@@ -210,15 +209,15 @@ export function Ranglisten() {
   const karte = useMemo(() => new Map(teile.map((t) => [t.id, t])), [teile]);
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber="Community · Rankings" titel="Rankings" farbe={TEAL} text="React to cosmetics and seasons – your picks build your own ranking right away." rechts={<AblageHinweis ort={r.ort} />} />
+      <SeitenKopf klein ueber="Community · Rankings" titel="Rankings" text="React to cosmetics and seasons – your picks build your own ranking right away." rechts={<AblageHinweis ort={r.ort} />} />
       <div className="flex flex-wrap gap-2">
         {LISTEN.map((l) => (
-          <button key={l.k} type="button" onClick={() => nav(`/community/rankings/${l.k}`)} className={`rounded-2xl border px-4 py-2.5 text-left transition ${liste === l.k ? 'border-teal-300/40 bg-teal-300/10' : 'border-white/10 bg-white/[0.03] hover:border-teal-300/30'}`}>
+          <button key={l.k} type="button" onClick={() => nav(`/community/rankings/${l.k}`)} className={`rounded-2xl border px-4 py-2.5 text-left transition ${liste === l.k ? 'border-akz/40 bg-akz/10' : 'border-white/10 bg-white/[0.03] hover:border-akz/30'}`}>
             <p className="text-sm font-bold text-white">{l.titel}</p><p className="text-[11px] text-white/45">{l.text}</p>
           </button>
         ))}
       </div>
-      {laedt ? <Laedt farbe={TEAL} /> : liste === 'shop' ? <ShopBewerten angebote={shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit'))} />
+      {laedt ? <Laedt /> : liste === 'shop' ? <ShopBewerten angebote={shop.angebote.flatMap((a) => a.teile.filter((t) => t.art === 'br').slice(0, 1)).sort((a, b) => Number(b.typ === 'outfit') - Number(a.typ === 'outfit'))} />
         : liste === 'seasons' ? <Saisons teile={teile} />
         : <EigeneWertung teile={liste === 'unreleased' ? teile.filter((t) => !t.shop.length && Date.now() - Date.parse(t.hinzu) < 120 * 864e5) : liste === 'crew' ? teile.filter((t) => t.serie?.toLowerCase().includes('crew') && t.typ === 'outfit') : [...r.wert ? Object.keys(r.wert) : []].map((id) => karte.get(id)).filter(Boolean) as Teil[]} alleZeigen={liste !== 'cosmetics'} />}
       <DatenFehlen titel="Community-wide rankings" text="Adding up everyone's reactions needs a small counter on our server (one vote per account). Until then, every ranking here is yours – and it's saved, so nothing is lost when the shared totals go live." braucht={['Server counter for reactions (one per account)']} />
@@ -241,7 +240,7 @@ function EigeneWertung({ teile, alleZeigen, leer }: { teile: Teil[]; alleZeigen:
           </section>
         );
       })}
-      {!bewertet.length && !alleZeigen && <Glas className="p-8 text-center text-sm text-white/50">{leer ?? <>You haven't reacted to anything yet – start with <Link to="/community/rankings/shop" className="text-teal-200">today's shop</Link>.</>}</Glas>}
+      {!bewertet.length && !alleZeigen && <Flaeche fest className="p-8 text-center text-sm text-white/50">{leer ?? <>You haven't reacted to anything yet – start with <Link to="/community/rankings/shop" className="text-akz">today's shop</Link>.</>}</Flaeche>}
       {offen.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-lg font-extrabold text-white">Not rated yet</h3>
@@ -258,9 +257,9 @@ function ShopBewerten({ angebote }: { angebote: Teil[] }) {
   const s = t ? seltenVon(t.selten) : null;
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
-      <Glas className="p-6">
+      <Flaeche fest className="p-6">
         <p className="text-xs text-white/45">{angebote.length - offen.length} of {angebote.length} rated</p>
-        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div animate={{ width: `${((angebote.length - offen.length) / Math.max(1, angebote.length)) * 100}%` }} className="h-full rounded-full bg-teal-300" /></div>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><motion.div animate={{ width: `${((angebote.length - offen.length) / Math.max(1, angebote.length)) * 100}%` }} className="h-full rounded-full bg-akz" /></div>
         <AnimatePresence mode="wait">
           {t && s ? (
             <motion.div key={t.id} initial={{ opacity: 0, x: 40, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} exit={{ opacity: 0, x: -60, rotate: -4 }} transition={{ duration: 0.25 }} className="mt-5">
@@ -273,7 +272,7 @@ function ShopBewerten({ angebote }: { angebote: Teil[] }) {
             </motion.div>
           ) : <motion.p key="fertig" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 text-center text-lg font-bold text-white">All of today's shop rated ✓</motion.p>}
         </AnimatePresence>
-      </Glas>
+      </Flaeche>
       <EigeneWertung teile={angebote} alleZeigen={false} leer="Your ratings of today's shop show up here, grouped by reaction." />
     </div>
   );
@@ -294,15 +293,15 @@ function Saisons({ teile }: { teile: Teil[] }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {sort.map((x, i) => (
-        <Glas key={x.nr} className="flex items-center gap-4 p-4" verzoegerung={Math.min(i, 20) * 0.02}>
+        <Flaeche fest key={x.nr} className="flex items-center gap-4 p-4" verz={Math.min(i, 20) * 0.02}>
           {x.bild && <img src={x.bild.bild} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl object-contain" style={{ background: seltenVon(x.bild.selten).b }} />}
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300">Chapter {x.kapitel}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-akz">Chapter {x.kapitel}</p>
             <p className="text-lg font-extrabold text-white">Season {x.saison}</p>
             <p className="text-[11px] text-white/40">{x.n.toLocaleString('en')} cosmetics introduced</p>
             <div className="mt-1.5"><Reaktionen id={`saison-${x.nr}`} klein /></div>
           </div>
-        </Glas>
+        </Flaeche>
       ))}
     </div>
   );

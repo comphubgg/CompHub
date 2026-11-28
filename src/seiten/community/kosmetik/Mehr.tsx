@@ -1,108 +1,17 @@
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Glas } from '../../../teile/Glas';
-import { DatenFehlen, LinkKopieren, useHubDatei } from '../Bausteine';
-import { Laedt, TEAL, Ueberschrift } from '../Teile';
-import { datumKurz, holen, seltenVon, useAblage, useTeile, type Teil } from './daten';
-import { AblageHinweis, Auswahl, Bereich, Kachel } from './Raster';
+import { useMemo, useState } from 'react';
+import { useHubDatei } from '../Bausteine';
+import { Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { seltenVon, useTeile, type Teil } from './daten';
 
 /*
  * Die uebrigen Menuepunkte der Spezifikation:
  *   Discover / Creators: jetzt in epic/Live.tsx (Epics Fortnite Data API)
- *   Community (27)    Linksammlung (Discord, X, TikTok, Reddit) + Reddit-Beitraege je Thema direkt aus dem Browser (reddit.com/.json, wenn erreichbar)
- *                     + Epics Spiel-News (fortnite-api.com/v2/news/br)
+ *   Community (27)    jetzt in epic/Sozial.tsx (Social: X zuerst, Reddit als Zweites)
  *   Sprites (1)       /hub-daten/sprites.json (Spieldaten-Export) + Owned/Mastered pro Variante
  *   Treasure Hunt (2) /hub-daten/schatzsuche.json (Spieldaten-Export, Format unten) + "Mark as found"; dazu die Kosmetik der laufenden Saison
  *   Lorebook (25)     Geruest aus den echten Kapiteln/Saisons (fortnite-api: introduction); Texte redaktionell in /hub-daten/lorebook.json
  */
-
-const SOCIAL = {
-  discord: 'https://discord.gg/8jQ3tf37sQ', x: 'https://x.com/CompHub_gg', tiktok: 'https://www.tiktok.com/@comphub.gg',
-};
-
-/* ---------------------------------------------- Community */
-const THEMEN: Array<{ k: string; titel: string; sub: string }> = [
-  { k: 'comp', titel: 'Competitive', sub: 'FortniteCompetitive' }, { k: 'br', titel: 'Battle Royale', sub: 'FortNiteBR' }, { k: 'leaks', titel: 'Leaks', sub: 'FortniteLeaks' },
-  { k: 'creative', titel: 'Creative', sub: 'FortniteCreative' }, { k: 'fashion', titel: 'Fashion', sub: 'FortniteFashion' },
-];
-interface Beitrag { id: string; title: string; author: string; permalink: string; score: number; num_comments: number; created_utc: number; link_flair_text?: string }
-export function CommunitySeite() {
-  const [thema, setThema] = useState(THEMEN[0]);
-  const [beitraege, setBeitraege] = useState<Beitrag[] | null>(null);
-  const [fehlt, setFehlt] = useState(false);
-  const [news, setNews] = useState<Array<{ id: string; title: string; body: string; image?: string; tileImage?: string }>>([]);
-  useEffect(() => {
-    let weg = false; setBeitraege(null); setFehlt(false);
-    fetch(`https://www.reddit.com/r/${thema.sub}/hot.json?limit=25&raw_json=1`).then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((j) => { if (!weg) setBeitraege((j?.data?.children ?? []).map((c: { data: Beitrag }) => c.data).filter((b: Beitrag & { stickied?: boolean }) => !b.stickied)); })
-      .catch(() => { if (!weg) setFehlt(true); });
-    return () => { weg = true; };
-  }, [thema]);
-  useEffect(() => { holen<{ motds?: Array<{ id: string; title: string; body: string; image?: string; tileImage?: string }> }>('/v2/news/br').then((d) => setNews(d?.motds ?? [])).catch(() => {}); }, []);
-  const karten = [
-    { t: 'Discord', s: 'Our server – cups, results, help', u: SOCIAL.discord, f: '#818cf8' }, { t: 'X', s: '@CompHub_gg – live results and news', u: SOCIAL.x, f: '#e5e7eb' },
-    { t: 'TikTok', s: '@comphub.gg – clips and highlights', u: SOCIAL.tiktok, f: '#f472b6' }, { t: 'Reddit', s: `r/${thema.sub}`, u: `https://www.reddit.com/r/${thema.sub}/`, f: '#fb923c' },
-  ];
-  const vor = (s: number) => { const h = Math.floor((Date.now() / 1000 - s) / 3600); return h < 1 ? 'just now' : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; };
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community" titel="Community" farbe={TEAL} text="Where the Fortnite community talks – our own channels, the big subreddits and Epic's latest news." />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {karten.map((k, i) => (
-          <motion.a key={k.t} href={k.u} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileHover={{ y: -3 }}
-            className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl hover:border-white/25">
-            <span className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-3xl" style={{ background: `${k.f}33` }} />
-            <p className="text-2xl font-extrabold text-white">{k.t} <span className="text-base text-white/40">↗</span></p>
-            <p className="mt-1 text-sm text-white/55">{k.s}</p>
-          </motion.a>
-        ))}
-      </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            {THEMEN.map((t) => (
-              <button key={t.k} type="button" onClick={() => setThema(t)} className="relative rounded-xl px-3.5 py-1.5 text-sm font-bold">
-                {thema.k === t.k && <motion.span layoutId="komm-thema" className="absolute inset-0 rounded-xl bg-teal-300" />}
-                <span className={`relative ${thema.k === t.k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{t.titel}</span>
-              </button>
-            ))}
-          </div>
-          <Glas className="overflow-hidden">
-            {fehlt ? (
-              <div className="p-8 text-center text-sm text-white/50">Reddit didn't answer from your browser (some networks and privacy blockers stop it). <a href={`https://www.reddit.com/r/${thema.sub}/`} target="_blank" rel="noreferrer" className="font-semibold text-teal-200 hover:text-white">Open r/{thema.sub} ↗</a></div>
-            ) : !beitraege ? <div className="px-5"><Laedt farbe={TEAL} /></div> : (
-              <ul>
-                {beitraege.map((b, i) => (
-                  <motion.li key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 20) * 0.02 }} className="border-t border-white/5 first:border-0">
-                    <a href={`https://www.reddit.com${b.permalink}`} target="_blank" rel="noreferrer" className="flex items-center gap-4 px-5 py-3 hover:bg-white/[0.03]">
-                      <span className="w-12 shrink-0 text-center text-sm font-black tabular-nums text-orange-300">{b.score >= 1000 ? `${(b.score / 1000).toFixed(1)}k` : b.score}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-white">{b.title}</span>
-                        <span className="block text-[11px] text-white/40">u/{b.author} · {vor(b.created_utc)} · {b.num_comments} comments{b.link_flair_text ? ` · ${b.link_flair_text}` : ''}</span>
-                      </span>
-                    </a>
-                  </motion.li>
-                ))}
-              </ul>
-            )}
-          </Glas>
-        </div>
-        <div className="space-y-3">
-          <h2 className="text-xl font-extrabold text-white">From Epic</h2>
-          {news.slice(0, 5).map((n, i) => (
-            <Glas key={n.id} className="overflow-hidden" verzoegerung={i * 0.05}>
-              {(n.tileImage || n.image) && <div className="aspect-video bg-gradient-to-br from-teal-400/15 to-violet-500/10"><img src={n.tileImage ?? n.image} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="h-full w-full object-cover" /></div>}
-              <div className="p-4"><p className="font-bold text-white">{n.title}</p><p className="mt-1 line-clamp-3 text-sm text-white/55">{n.body}</p></div>
-            </Glas>
-          ))}
-          <Link to="/community/news" className="block text-sm font-semibold text-teal-200 hover:text-white">All news →</Link>
-        </div>
-      </div>
-      <p className="text-[11px] text-white/30">Reddit posts are loaded straight from reddit.com in your browser and open there.</p>
-    </div>
-  );
-}
 
 /* ---------------------------------------------- Lorebook */
 interface Lore { aktuell?: { titel: string; text: string }; kapitel?: Record<string, { titel?: string; zeitraum?: string; text?: string; saisons?: Record<string, string> }> }
@@ -123,36 +32,36 @@ export function Lorebook() {
   const zeig = offen ?? kapitel[0]?.k ?? null;
   return (
     <div className="space-y-6">
-      <Ueberschrift ueber="Community · Season" titel="Lorebook" farbe={TEAL} text="Fortnite's story, chapter by chapter." />
-      {daten?.aktuell && <Glas className="border-teal-300/25 p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">Current season</p><h2 className="mt-1 text-3xl font-extrabold text-white">{daten.aktuell.titel}</h2><p className="mt-2 max-w-3xl whitespace-pre-line text-white/60">{daten.aktuell.text}</p></Glas>}
-      {laedt ? <Laedt farbe={TEAL} /> : (
+      <SeitenKopf klein ueber="Community · Season" titel="Lorebook" text="Fortnite's story, chapter by chapter." />
+      {daten?.aktuell && <Flaeche fest className="border-akz/25 p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-akz">Current season</p><h2 className="titel mt-1 text-5xl">{daten.aktuell.titel}</h2><p className="mt-2 max-w-3xl whitespace-pre-line text-white/60">{daten.aktuell.text}</p></Flaeche>}
+      {laedt ? <Laedt /> : (
         <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <Glas className="h-max p-3">
+          <Flaeche fest className="h-max p-3">
             {kapitel.map((c) => (
-              <button key={c.k} type="button" onClick={() => setOffen(c.k)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${zeig === c.k ? 'bg-teal-300/15 text-white ring-1 ring-teal-300/30' : 'text-white/65 hover:bg-white/5'}`}>
+              <button key={c.k} type="button" onClick={() => setOffen(c.k)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${zeig === c.k ? 'bg-akz/15 text-white ring-1 ring-akz/30' : 'text-white/65 hover:bg-white/5'}`}>
                 <span className="font-bold">{daten?.kapitel?.[c.k]?.titel ?? `Chapter ${c.k}`}</span><span className="text-xs text-white/40">{c.saisons.length} seasons</span>
               </button>
             ))}
-          </Glas>
+          </Flaeche>
           {zeig && (() => {
             const c = kapitel.find((x) => x.k === zeig)!; const ed = daten?.kapitel?.[zeig];
             return (
               <motion.div key={zeig} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                <Glas className="p-6">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">Chapter {zeig}{ed?.zeitraum ? ` · ${ed.zeitraum}` : ''}</p>
-                  <h2 className="mt-1 text-3xl font-extrabold text-white">{ed?.titel ?? `Chapter ${zeig}`}</h2>
-                  <p className="mt-2 max-w-3xl whitespace-pre-line text-white/60">{ed?.text ?? 'The story of this chapter is being written by our editors.'}</p>
-                </Glas>
+                <Flaeche fest className="p-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-akz">Chapter {zeig}{ed?.zeitraum ? ` · ${ed.zeitraum}` : ''}</p>
+                  <h2 className="titel mt-1 text-5xl">{ed?.titel ?? `Chapter ${zeig}`}</h2>
+                  {ed?.text && <p className="mt-2 max-w-3xl whitespace-pre-line text-white/60">{ed.text}</p>}
+                </Flaeche>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {c.saisons.map(([s, x], i) => (
-                    <Glas key={s} className="flex gap-4 p-4" verzoegerung={i * 0.03}>
+                    <Flaeche fest key={s} className="flex gap-4 p-4" verz={i * 0.03}>
                       {x.bild && <img src={x.bild.bild} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-xl object-contain" style={{ background: seltenVon(x.bild.selten).b }} />}
                       <div className="min-w-0">
                         <p className="text-lg font-extrabold text-white">{/^\d+$/.test(s) ? `Season ${s}` : s}</p>
                         <p className="text-[11px] text-white/40">{x.n.toLocaleString('en')} cosmetics introduced</p>
                         <p className="mt-1 line-clamp-3 text-sm text-white/55">{ed?.saisons?.[s] ?? ''}</p>
                       </div>
-                    </Glas>
+                    </Flaeche>
                   ))}
                 </div>
               </motion.div>
@@ -160,7 +69,7 @@ export function Lorebook() {
           })()}
         </div>
       )}
-      {!daten && <p className="text-[11px] text-white/30">Chapters and seasons come from the cosmetics data. Story texts go into <code>/hub-daten/lorebook.json</code> ({'{ aktuell: { titel, text }, kapitel: { "7": { titel, zeitraum, text, saisons: { "1": "…" } } } }'}).</p>}
+      <p className="text-[11px] text-white/30">Chapters and seasons come from Fortnite's cosmetics data.</p>
     </div>
   );
 }
