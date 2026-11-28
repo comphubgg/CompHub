@@ -17,7 +17,7 @@ export default function Suche() {
   const [q, setQ] = useState('');
   const [wahl, setWahl] = useState(0);
   const [spieler, setSpieler] = useState<Treffer[]>([]);
-  const [cups, setCups] = useState<Array<{ id: string; titel: string; bild?: string }>>([]);
+  const [cups, setCups] = useState<Array<{ id: string; titel: string; bild?: string; naechster?: number | null; letzter?: number | null; live?: boolean }>>([]);
   const { wer } = useWer();
   const nav = useNavigate();
   const liste = useRef<HTMLDivElement>(null);
@@ -34,7 +34,10 @@ export default function Suche() {
   }, []);
   useEffect(() => {
     if (!offen) { setQ(''); setWahl(0); return; }
-    if (!cups.length) fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups((j.cups ?? []).map((c: { id: string; titel: string; bild?: string }) => ({ id: c.id, titel: c.titel, bild: c.bild })))).catch(() => {});
+    if (!cups.length) {
+      fetch('/api/cup-catalog?modus=alle').then((r) => r.json()).then((j) => setCups((j.cups ?? []).map((c: { id: string; titel: string; bild?: string; naechsterStart?: number | null; letzterStart?: number | null; live?: boolean }) => (
+        { id: c.id, titel: c.titel, bild: c.bild, naechster: c.naechsterStart, letzter: c.letzterStart, live: c.live })))).catch(() => {});
+    }
   }, [offen, cups.length]);
   useEffect(() => {
     const s = q.trim(); if (s.length < 2) { setSpieler([]); return undefined; }
@@ -65,7 +68,16 @@ export default function Suche() {
     if (!s) return seiten.filter((x) => ['Overview', 'Events', 'Rankings', 'Map', 'Weapons', 'Item Shop', 'Live Streams', 'Overlays'].includes(x.titel)).slice(0, 9);
     const passt = (t: string) => t.toLowerCase().includes(s);
     const p = seiten.filter((x) => passt(x.titel) || passt(x.unter)).sort((a, b) => Number(passt(b.titel)) - Number(passt(a.titel))).slice(0, 7);
-    const c = cups.filter((x) => passt(x.titel)).slice(0, 4).map<Treffer>((x) => ({ art: 'Cup', titel: x.titel, unter: 'Competitive · Event', zu: `/competitive/events/${x.id}`, farbe: FARBE.competitive, bild: x.bild }));
+    // Gleich heissende Cups mehrerer Saisons (Arenas Cash Cup S42/S43 ...) waren nicht zu unterscheiden: Saison und Termin dazu, live/kommend zuerst
+    const jetzt = Date.now();
+    const tag = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const c = cups.filter((x) => passt(x.titel))
+      .sort((a, b) => Number(!!b.live) - Number(!!a.live) || Number((b.naechster ?? 0) > jetzt) - Number((a.naechster ?? 0) > jetzt) || (b.letzter ?? b.naechster ?? 0) - (a.letzter ?? a.naechster ?? 0))
+      .slice(0, 4).map<Treffer>((x) => {
+        const saison = /^s(\d+)_/.exec(x.id)?.[1];
+        const wann = x.live ? 'live now' : x.naechster && x.naechster > jetzt ? `next ${tag(x.naechster)}` : x.letzter ? `last ${tag(x.letzter)}` : '';
+        return { art: 'Cup', titel: x.titel, unter: ['Competitive', saison && `Season ${saison}`, wann].filter(Boolean).join(' · '), zu: `/competitive/events/${x.id}`, farbe: FARBE.competitive, bild: x.bild };
+      });
     // Jeder Epic-Name, auch ohne Turniere: die normalen Fortnite-Stats (Rang, Level, Siege) in Community -> Stats (/api/fn-spieler).
     const epic: Treffer = { art: 'Stats', titel: `Fortnite stats of “${q.trim()}”`, unter: 'Community · Rank, level, wins, K/D – any Epic name', zu: `/community/stats?name=${encodeURIComponent(q.trim())}`, farbe: FARBE.community };
     return [...p, ...spieler, ...c, ...(s.length >= 3 ? [epic] : [])];
