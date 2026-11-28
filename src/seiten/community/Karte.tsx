@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Segment } from '../../ds/Bausteine';
 import { Kipp, Regler } from './teileA';
-import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, ebeneVon, typVon } from './kartenSymbole';
+import { Abzeichen, EBENEN, GRUPPEN_KARTE, OrtNadel, SymbolVorlagen, chanceVon, ebeneVon, symbolQuelle, typVon, useOriginalSymbole } from './kartenSymbole';
 import { MeineZeichnungen, TextEingabe, ZeichenEbene, ZeichenLeiste, zeichneFormen, useZeichnen } from './Zeichnen';
 import { waffeVon } from './waffenNamen';
 
@@ -24,14 +24,24 @@ import { waffeVon } from './waffenNamen';
  * den Bildschirm unter der Leiste genau aus. Links die angedockte Tafel (Titel, 2D/3D, Reiter Layers / Places / Cup loot / Drawings - der Inhalt
  * rollt in sich), rechts die Karte bis an den Rand mit schwebender Werkzeugleiste. Auf dem Handy: Karte oben, Tafel darunter.
  * 3D: laedt die fertige Ansicht der lokalen 3D-Sitzung aus /hub-daten/3d/index.html in einem Rahmen, sobald die Datei dort liegt (nur lokal,
- * siehe tools/export-auftrag.md Schritt 5e) - sonst ein ehrlicher Satz.
+ * siehe tools/export-auftrag.md Schritt 5e) - sonst ein ehrlicher Satz. Der Rahmen bekommt die Objekte der Karte per postMessage
+ * ({ type: 'comphub-objekte', ... }, Format in tools/export-auftrag.md Schritt "3D-Ansicht"), damit die 3D-Ansicht sie selbst zeichnen kann.
+ *
+ * Objekte wie bei fortnite.gg (Betreiber 28.11.2026): je Art das Original-Symbol aus dem Spiel (icons/karte/<typ>.png, sonst ein flaches
+ * Ersatz-Symbol im Spielstil), Groesse waechst mit dem Zoom; Ziplines als Seil zwischen den zwei Endpfosten mit kleinen Punkten an den Enden;
+ * Klick auf einen Marker oeffnet die Karte mit Art, Spawn-Chance (aus dem Export, sonst die Grundchance der Klasse), Hoehe, Planquadrat und
+ * Gruppe ("2 of 5 spots"); zusammengefasst wird nur weit herausgezoomt.
  */
 
 const RAHMEN = { x0: -142_800, y0: -146_000, spanne: 301_500 };
 const zuProzent = (x: number, y: number) => ({ l: ((x - RAHMEN.x0) / RAHMEN.spanne) * 100, o: ((y - RAHMEN.y0) / RAHMEN.spanne) * 100 });
 
 interface Ort { id: string; name: string; x: number; y: number; links: number; oben: number }
-interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string; gruppe?: string }
+interface Objekt { typ: string; x: number; y: number; z?: number; x2?: number; y2?: number; chance?: number; name?: string; gruppe?: string; nr: number }
+/** Linien-Objekt (Zipline): zwei Endpunkte statt eines Punkts */
+const istLinie = (o: Objekt) => typeof o.x2 === 'number' && typeof o.y2 === 'number' && Number.isFinite(o.x2) && Number.isFinite(o.y2);
+/** Ist das ganze Kartenbild kleiner als so viele Pixel (weiter draussen als die ganze Insel, oder das Handy), werden gleiche Marker zu Haufen mit Zahl zusammengefasst. */
+const BUENDELN_BIS = 1050;
 /*
  * Zusatz-Ebene "Looted in cups" (/hub-daten/kisten-aus-replays.json, aus unseren eigenen Cup-Replays): wie oft Spieler eine Truhe / Munitionskiste
  * geoeffnet haben und was herauskam. KEINE Truhenliste (nie geoeffnete fehlen, keine Spawn-Chancen) - deshalb aus, bis man sie einschaltet,
@@ -47,6 +57,11 @@ const MUNITION: Record<string, string> = {
 };
 /** Liegt die 3D-Ansicht im Hub-Ordner? Vite liefert fuer fehlende Dateien die Hub-Seite selbst (erkennbar an /src/main.tsx) - das zaehlt nicht. */
 const DREI_D = '/hub-daten/3d/index.html';
+const HINWEIS_3D = "The 3D island isn't installed on this PC yet.";
+const ANSICHTEN: Array<{ k: '2d' | '3d'; titel: React.ReactNode }> = [
+  { k: '2d', titel: <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14" /></svg>2D map</span> },
+  { k: '3d', titel: <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5" /></svg>3D island</span> },
+];
 const SELTEN_BEUTE: Record<string, [string, string]> = { C: ['Common', '#9ca3af'], UC: ['Uncommon', '#4ade80'], R: ['Rare', '#38bdf8'], VR: ['Epic', '#c084fc'], SR: ['Legendary', '#fb923c'], UR: ['Mythic', '#facc15'] };
 function beuteName(item: string): { name: string; bild: string | null; selten?: [string, string] } {
   if (MUNITION[item]) return { name: MUNITION[item], bild: null };
@@ -55,7 +70,7 @@ function beuteName(item: string): { name: string; bild: string | null; selten?: 
   return { ...w, selten: m ? SELTEN_BEUTE[m[1].toUpperCase()] : undefined };
 }
 /** Marker auf dem Bildschirm: ein Objekt oder (weit herausgezoomt) mehrere gleicher Art, die zu nah beieinander liegen. */
-interface Gruppe { id: string; typ: string; px: number; py: number; liste: Objekt[] }
+interface Gruppe { id: string; typ: string; px: number; py: number; liste: Objekt[]; linie?: [number, number, number, number] }
 
 /** Der Bildrand laeuft weich ins Meerblau des Rahmens aus - so sieht man bei keinem Zoom eine Kante. */
 const RAND_WEICH: React.CSSProperties = {
@@ -71,6 +86,8 @@ export default function Karte() {
   const [stand, setStand] = useState<string | null>(null);
   const [objekte, setObjekte] = useState<Objekt[] | null>(null);
   const [probe, setProbe] = useState<string | null>(null);
+  const [exportStand, setExportStand] = useState<{ build?: string; am?: string } | null>(null);
+  const original = useOriginalSymbole();
   const [an, setAn] = useState<Record<string, boolean>>(() => Object.fromEntries(EBENEN.map((e) => [e.typ, true])));
   const [namen, setNamen] = useState(true);
   const [epicBild, setEpicBild] = useState(false);
@@ -112,6 +129,7 @@ export default function Karte() {
   const [beuteTipp, setBeuteTipp] = useState<{ b: Beute; fest: boolean } | null>(null);
   // Ohne Export der Spieldateien: die Truhen-/Munitions-Ebenen zeigen die Cup-Replay-Daten (klar beschriftet) statt leerer Zaehler
   const ohneExport = objekte !== null && !objekte.length;
+  const mitExport = !!objekte?.length;
   useEffect(() => { if (ohneExport) setBeuteAn(true); }, [ohneExport]);
   useEffect(() => {
     if (!beuteAn || beute) return;
@@ -135,8 +153,9 @@ export default function Karte() {
     const probeUrl = new URLSearchParams(window.location.search).get('probe') === '1';
     (probeUrl ? laden('/hub-daten/objekte-beispiel.json') : laden('/hub-daten/objekte.json')).then((j) => {
       const liste = (Array.isArray(j) ? j : j?.objekte ?? []) as Objekt[];
-      setObjekte(liste.filter((o) => Number.isFinite(o?.x) && Number.isFinite(o?.y)).map((o) => ({ ...o, typ: typVon(String(o.typ ?? '')) })));
+      setObjekte(liste.filter((o) => Number.isFinite(o?.x) && Number.isFinite(o?.y)).map((o, nr) => ({ ...o, typ: typVon(String(o.typ ?? '')), nr })));
       if (!Array.isArray(j) && j?.probe) setProbe(String(j.hinweis ?? 'Sample data'));
+      if (!Array.isArray(j)) setExportStand({ build: typeof j?.build === 'string' ? j.build : undefined, am: typeof j?.exportedAt === 'string' ? j.exportedAt : undefined });
     }).catch(() => setObjekte([]));
   }, []);
 
@@ -199,8 +218,11 @@ export default function Karte() {
 
   const [beuteZahl, setBeuteZahl] = useState<Record<string, number>>({});
   const zaehlen = useMemo(() => { const m: Record<string, number> = { ...beuteZahl }; for (const o of objekte ?? []) m[o.typ] = (m[o.typ] ?? 0) + 1; return m; }, [objekte, beuteZahl]);
-  const mitChance = useMemo(() => (objekte ?? []).some((o) => o.chance !== undefined), [objekte]);
-  const sichtbar = useMemo(() => (objekte ?? []).filter((o) => an[o.typ] && (o.chance === undefined || o.chance * 100 >= minChance - 1e-9)), [objekte, an, minChance]);
+  // Spawn-Chance je Objekt: aus dem Export, sonst die Grundchance der Klasse (Truhe 67 %, Munition 75 %) - siehe chanceVon
+  const mitChance = useMemo(() => (objekte ?? []).some((o) => chanceVon(o) !== null), [objekte]);
+  const sichtbar = useMemo(() => (objekte ?? []).filter((o) => { if (!an[o.typ]) return false; const c = chanceVon(o); return !c || c.wert * 100 >= minChance - 1e-9; }), [objekte, an, minChance]);
+  // Gruppen aus dem Export ("M von N Plaetzen"): wie viele Plaetze hat jede Gruppe?
+  const gruppenGroesse = useMemo(() => { const m = new Map<string, number>(); for (const o of objekte ?? []) if (o.gruppe) m.set(o.gruppe, (m.get(o.gruppe) ?? 0) + 1); return m; }, [objekte]);
   const beuteDa = beute && beute !== 'fehlt' ? beute : null;
   useEffect(() => {
     if (!ohneExport || !beuteDa) { setBeuteZahl({}); return; }
@@ -211,44 +233,51 @@ export default function Karte() {
     && (!ohneExport || an[b.typ === 'chest' ? 'chest' : 'ammo']))), [beuteAn, beuteDa, minSpiele, beuteArt, ohneExport, an]);
   const r = (px: number) => (px * 1000) / (basis * sicht.s);
 
-  /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen weit draussen */
+  /* ---------------------------------------------- Marker: Groesse je Zoom, Zusammenfassen nur weit draussen */
   const skala = basis * sicht.s; // Bildschirm-Pixel je ganze Bildbreite
-  const symbolPx = Math.round(Math.min(26, Math.max(14, 8 + sicht.s * 4.2)) * (einst.groesse / 100));
+  // Wie fortnite.gg: ueber der ganzen Insel klein (16 px), beim Hineinzoomen groesser (bis 36 px); "Size" in den Einstellungen skaliert mit
+  // (gemessen an der Bildgroesse in Pixeln, nicht am Zoomfaktor - so passt es auch auf dem Handy, wo die ganze Insel nur ~600 px misst)
+  const symbolPx = Math.round(Math.min(36, Math.max(12, 9 + skala * 0.0058)) * (einst.groesse / 100));
   const gruppen = useMemo(() => {
-    // Weit draussen grob zusammenfassen (Uebersicht), nah dran nur, was sich ueberlappen wuerde, ganz nah gar nicht.
-    const zelle = !einst.gruppieren || sicht.s >= 6 ? 0 : symbolPx * (sicht.s < 2.4 ? 2.1 : sicht.s < 4 ? 1.5 : 1.15);
+    // Nur weit draussen (kleiner als die ganze Insel) gleiche Nachbarn zu einem Haufen mit Zahl zusammenfassen - sonst jedes Objekt einzeln.
+    const zelle = einst.gruppieren && skala < BUENDELN_BIS ? symbolPx * 2.2 : 0;
     const m = new Map<string, { typ: string; sx: number; sy: number; liste: Objekt[] }>();
-    sichtbar.forEach((o, i) => {
+    for (const o of sichtbar) {
+      if (istLinie(o)) continue;
       const p = zuProzent(o.x, o.y);
-      let px = (p.l / 100) * skala; let py = (p.o / 100) * skala;
-      if (o.x2 !== undefined && o.y2 !== undefined) { const q = zuProzent(o.x2, o.y2); px = (px + (q.l / 100) * skala) / 2; py = (py + (q.o / 100) * skala) / 2; }
-      const id = zelle ? `${o.typ}:${Math.floor(px / zelle)}:${Math.floor(py / zelle)}` : `${o.typ}:${i}`;
+      const px = (p.l / 100) * skala; const py = (p.o / 100) * skala;
+      const id = zelle ? `${o.typ}:${Math.floor(px / zelle)}:${Math.floor(py / zelle)}` : `o:${o.nr}`;
       const g = m.get(id) ?? { typ: o.typ, sx: 0, sy: 0, liste: [] };
       g.sx += px; g.sy += py; g.liste.push(o); m.set(id, g);
-    });
-    const roh = [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }));
-    if (!einst.gruppieren || sicht.s >= 6) return roh;
-    // Weniger Ueberlappung (Betreiber 27.11.2026: zu unruhig): grosse Haufen zuerst, dann nach Ebenen-Reihenfolge; was ein schon gesetztes
-    // Symbol zu mehr als der Haelfte verdecken wuerde, wird ausgelassen - es erscheint beim Hineinzoomen (ab 600 % alles).
-    const rang = (t: string) => EBENEN.findIndex((e) => e.typ === t);
-    const gesetzt: Gruppe[] = []; const abstand = symbolPx * 0.62;
-    for (const g of [...roh].sort((a, b) => b.liste.length - a.liste.length || rang(a.typ) - rang(b.typ))) {
-      if (gesetzt.some((x) => Math.abs(x.px - g.px) < abstand && Math.abs(x.py - g.py) < abstand)) continue;
-      gesetzt.push(g);
     }
-    return gesetzt;
-  }, [sichtbar, skala, sicht.s, symbolPx, einst.gruppieren]);
-  // Zahl nur an echten Haufen und nur weit draussen - kleine Gruppen (2-4) zeigen einfach ein Symbol.
-  const mitZahl = (g: Gruppe) => g.liste.length >= 5 && sicht.s < 3.5;
+    // Zeichenreihenfolge: seltene Arten zuletzt (oben), Loot ganz oben - so verdeckt kein Busch eine Truhe
+    const rang = (t: string) => EBENEN.findIndex((e) => e.typ === t);
+    return [...m.entries()].map(([id, g]): Gruppe => ({ id, typ: g.typ, px: g.sx / g.liste.length, py: g.sy / g.liste.length, liste: g.liste }))
+      .sort((a, b) => rang(b.typ) - rang(a.typ));
+  }, [sichtbar, skala, symbolPx, einst.gruppieren]);
+  // Ziplines: Linie zwischen den zwei Endpfosten (Bildschirm-Pixel ohne Verschiebung); Mitte fuer die Info-Karte
+  const linien = useMemo(() => sichtbar.filter(istLinie).map((o): Gruppe => {
+    const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2!, o.y2!);
+    const l: [number, number, number, number] = [(p.l / 100) * skala, (p.o / 100) * skala, (q.l / 100) * skala, (q.o / 100) * skala];
+    return { id: `l:${o.nr}`, typ: o.typ, px: (l[0] + l[2]) / 2, py: (l[1] + l[3]) / 2, liste: [o], linie: l };
+  }), [sichtbar, skala]);
+  const mitZahl = (g: Gruppe) => g.liste.length >= 2;
   const [ueber, setUeber] = useState<string | null>(null);
   const [fest, setFest] = useState<string | null>(null);
-  const tipp = gruppen.find((g) => g.id === (fest ?? ueber)) ?? null;
+  const tippId = fest ?? ueber;
+  const tipp = useMemo(() => (tippId ? (tippId.startsWith('l:') ? linien : gruppen).find((g) => g.id === tippId) ?? null : null), [tippId, gruppen, linien]);
+  // Gewaehltes Objekt einer Gruppe: die anderen Plaetze derselben Gruppe markieren
+  const geschwister = useMemo(() => {
+    const o = tipp?.liste.length === 1 ? tipp.liste[0] : null;
+    if (!o?.gruppe) return [];
+    return (objekte ?? []).filter((x) => x.gruppe === o.gruppe && x.nr !== o.nr).map((x) => { const p = zuProzent(x.x, x.y); return { nr: x.nr, px: (p.l / 100) * skala, py: (p.o / 100) * skala }; });
+  }, [tipp, objekte, skala]);
   const imBild = (g: Gruppe) => g.px + sicht.tx > -40 && g.px + sicht.tx < groesse.b + 40 && g.py + sicht.ty > -40 && g.py + sicht.ty < groesse.h + 40;
-  function markerKlick(g: Gruppe) {
+  const markerKlick = useCallback((g: Gruppe) => {
     if (gezogen.current) return;
-    if (g.liste.length > 1) { zoomen(2.2, g.px + sicht.tx, g.py + sicht.ty); setFest(null); return; }
+    if (g.liste.length > 1) { zoomen(Math.max(1.8, (BUENDELN_BIS * 1.6) / skala), g.px + sicht.tx, g.py + sicht.ty); setFest(null); return; }
     setFest((f) => (f === g.id ? null : g.id));
-  }
+  }, [zoomen, sicht, skala]);
   // Objekte rund um einen gewaehlten Ort (120 m Umkreis)
   const umOrt = useMemo(() => {
     if (!gewaehlt) return [];
@@ -280,15 +309,21 @@ export default function Karte() {
         for (let i = 1; i < GRID; i += 1) { const v = (i / GRID) * kante; g.beginPath(); g.moveTo(sicht.tx + v, sicht.ty); g.lineTo(sicht.tx + v, sicht.ty + kante); g.moveTo(sicht.tx, sicht.ty + v); g.lineTo(sicht.tx + kante, sicht.ty + v); g.stroke(); }
         for (let i = 0; i < GRID * GRID; i += 1) g.fillText(`${SPALTEN[i % GRID]}${Math.floor(i / GRID) + 1}`, sicht.tx + ((i % GRID) / GRID) * kante + 5, sicht.ty + (Math.floor(i / GRID) / GRID) * kante + 14);
       }
-      // Ziplines und Marker (als Punkte in der Ebenenfarbe, mit Zahl bei Gruppen)
-      g.setLineDash([6, 4]); g.lineWidth = 2;
-      for (const o of sichtbar) if (o.x2 !== undefined && o.y2 !== undefined) { const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2, o.y2); g.strokeStyle = ebeneVon(o.typ).farbe; g.beginPath(); g.moveTo(sicht.tx + (p.l / 100) * skala, sicht.ty + (p.o / 100) * skala); g.lineTo(sicht.tx + (q.l / 100) * skala, sicht.ty + (q.o / 100) * skala); g.stroke(); }
-      g.setLineDash([]);
-      g.globalAlpha = einst.deckkraft / 100;
+      // Ziplines (Seil mit Endpunkten) und Marker mit denselben Symbolen wie auf dem Schirm
+      g.globalAlpha = einst.deckkraft / 100; g.lineCap = 'round';
+      for (const l of linien) {
+        const [x1, y1, x2, y2] = l.linie!.map((v, i) => v + (i % 2 ? sicht.ty : sicht.tx));
+        for (const [farbe, w] of [['rgba(5,7,12,0.7)', 5], ['#eef2f7', 2.4]] as const) { g.strokeStyle = farbe; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+        for (const [x, y] of [[x1, y1], [x2, y2]]) { g.beginPath(); g.arc(x, y, 3.4, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#05070c'; g.stroke(); }
+      }
+      const bilder = new Map<string, HTMLImageElement>();
+      await Promise.all([...new Set(gruppen.map((x) => x.typ))].map(async (t) => { const im = new Image(); im.src = symbolQuelle(t, original); try { await im.decode(); bilder.set(t, im); } catch { /* ohne Bild */ } }));
       for (const gr of gruppen.filter(imBild)) {
-        const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const rad = symbolPx / 2;
-        g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); g.lineWidth = 2; g.strokeStyle = '#06080f'; g.stroke();
-        if (mitZahl(gr)) { g.fillStyle = '#06080f'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
+        const x = gr.px + sicht.tx; const y = gr.py + sicht.ty; const gross = mitZahl(gr) ? symbolPx + 4 : symbolPx; const rad = gross / 2;
+        const im = bilder.get(gr.typ);
+        if (im) g.drawImage(im, x - rad, y - rad, gross, gross);
+        else { g.beginPath(); g.arc(x, y, rad * 0.7, 0, Math.PI * 2); g.fillStyle = ebeneVon(gr.typ).farbe; g.fill(); }
+        if (mitZahl(gr)) { g.fillStyle = '#05070c'; g.beginPath(); g.arc(x + rad, y - rad, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.font = '800 9px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gr.liste.length > 99 ? '99+' : String(gr.liste.length), x + rad, y - rad); g.textAlign = 'start'; g.textBaseline = 'alphabetic'; }
       }
       g.globalAlpha = 1;
       if (namen && !epicBild) {
@@ -318,17 +353,37 @@ export default function Karte() {
     <>
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0"><p className="ueber">Community · Map</p><h1 className="titel mt-1 text-4xl">The island</h1></div>
-        <Segment id={`karte-ansicht-${id}`} klein wert={ansicht} wahl={[{ k: '2d', titel: '2D' }, { k: '3d', titel: '3D' }]} onWahl={ansichtWaehlen} />
+        {id === 'handy' && <Segment id="karte-ansicht-handy" klein wert={ansicht} wahl={[{ k: '2d', titel: '2D map' }, { k: '3d', titel: '3D island' }]} onWahl={ansichtWaehlen} />}
       </div>
       <AnimatePresence initial={false}>
-        {hinweis3d && (
+        {hinweis3d && id === 'handy' && (
           <motion.p initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden text-xs text-white/60">
-            <span className="mt-2 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/40 px-3 py-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-akz" />3D view appears once the local 3D export is in the hub folder.</span>
+            <span className="mt-2 flex items-start gap-2 rounded-xl border border-white/[0.07] bg-black/40 px-3 py-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-akz" />{HINWEIS_3D}</span>
           </motion.p>
         )}
       </AnimatePresence>
     </>
   );
+  /*
+   * 3D-Ansicht: die Objekte der Karte gehen per postMessage an den Rahmen (gleiche Herkunft), damit die lokale 3D-Ansicht sie zeichnen kann.
+   * Gesendet beim Laden des Rahmens, bei jeder Aenderung (Ebenen an/aus, Mindest-Chance) und wenn die Ansicht danach fragt
+   * ({ type: 'comphub-objekte-bitte' }). Format: tools/export-auftrag.md, Schritt "3D-Ansicht".
+   */
+  const dreiRahmen = useRef<HTMLIFrameElement>(null);
+  const objekteSenden = useCallback(() => {
+    const w = dreiRahmen.current?.contentWindow; if (!w || !objekte) return;
+    w.postMessage({
+      type: 'comphub-objekte', version: 1, build: exportStand?.build ?? null, rahmen: RAHMEN,
+      ebenen: EBENEN.filter((e) => an[e.typ]).map((e) => e.typ), minChance: minChance / 100,
+      objekte: objekte.map(({ nr: _nr, ...o }) => { const c = chanceVon(o); return { ...o, chance: c ? c.wert : undefined, chanceStandard: c?.standard || undefined }; }),
+    }, window.location.origin);
+  }, [objekte, exportStand, an, minChance]);
+  useEffect(() => { if (ansicht === '3d') objekteSenden(); }, [ansicht, objekteSenden]);
+  useEffect(() => {
+    const bitte = (e: MessageEvent) => { if (e.origin === window.location.origin && e.data?.type === 'comphub-objekte-bitte') objekteSenden(); };
+    window.addEventListener('message', bitte); return () => window.removeEventListener('message', bitte);
+  }, [objekteSenden]);
+
   const werkzeuge: Array<{ t: string; d: string; f: () => void; an?: boolean }> = [
     { t: 'Zoom in', d: 'M12 5v14M5 12h14', f: () => zoomen(1.4) }, { t: 'Zoom out', d: 'M5 12h14', f: () => zoomen(1 / 1.4) },
     { t: 'Reset view', d: 'M4 4v6h6M20 20v-6h-6M5.5 15a7 7 0 0 0 12 2.5M18.5 9a7 7 0 0 0-12-2.5', f: zuruecksetzen },
@@ -345,9 +400,23 @@ export default function Karte() {
 
       {/* Karte */}
       <div className="relative order-1 h-[68svh] min-h-[380px] min-w-0 shrink-0 xl:order-2 xl:h-auto xl:min-h-0 xl:flex-1 xl:shrink">
+        {/* 2D / 3D - gross und mittig ueber der Karte, damit man ihn sofort sieht */}
+        <div className="pointer-events-none absolute inset-x-0 top-4 z-30 hidden flex-col items-center gap-2 xl:flex">
+          <div className="pointer-events-auto rounded-2xl border border-white/10 bg-fl/95 p-1 shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            <Segment id="karte-ansicht" wert={ansicht} wahl={ANSICHTEN} onWahl={ansichtWaehlen} />
+          </div>
+          <AnimatePresence>
+            {hinweis3d && (
+              <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="pointer-events-auto flex items-center gap-2 rounded-xl border border-white/10 bg-fl/95 px-3.5 py-2 text-xs text-white/70 shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-akz" />{HINWEIS_3D}
+                <button type="button" aria-label="Close" onClick={() => setHinweis3d(false)} className="ml-1 text-white/40 hover:text-white"><Icon d="M6 6l12 12M18 6L6 18" /></button>
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
         {ansicht === '3d' ? (
           <>
-            <iframe title="The island in 3D" src={DREI_D} className="absolute inset-0 h-full w-full border-0 bg-black" allow="fullscreen" />
+            <iframe ref={dreiRahmen} title="The island in 3D" src={DREI_D} onLoad={objekteSenden} className="absolute inset-0 h-full w-full border-0 bg-black" allow="fullscreen" />
             {/* 3D fuellt die ganze Flaeche - der Umschalter schwebt darueber (die Tafel gehoert zur 2D-Karte) */}
             <div className="absolute left-4 top-4 z-10 hidden w-[340px] rounded-2xl border border-white/10 bg-fl/95 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl xl:block">{kopf('drei')}</div>
           </>
@@ -388,44 +457,53 @@ export default function Karte() {
                     })}
                   </g>
                 )}
-                {sichtbar.filter((o) => o.x2 !== undefined && o.y2 !== undefined).map((o, i) => {
-                  const p = zuProzent(o.x, o.y); const q = zuProzent(o.x2!, o.y2!);
-                  return <line key={i} x1={(p.l / 100) * skala} y1={(p.o / 100) * skala} x2={(q.l / 100) * skala} y2={(q.o / 100) * skala} stroke={ebeneVon(o.typ).farbe} strokeOpacity={0.7} strokeWidth={1.6} strokeDasharray="6 4" strokeLinecap="round" />;
-                })}
-                <g filter="url(#k-schatten)" opacity={einst.deckkraft / 100}>
-                  {gruppen.filter(imBild).map((g) => {
-                    const n = g.liste.length; const zahl = mitZahl(g); const gr = zahl ? symbolPx + 2 : symbolPx; const aktiv = tipp?.id === g.id;
+                {/* Ziplines: Seil zwischen den zwei Endpfosten, dunkel unterlegt, kleine Punkte an den Enden (wie fortnite.gg) */}
+                <g opacity={einst.deckkraft / 100}>
+                  {linien.map((l) => {
+                    const [x1, y1, x2, y2] = l.linie!; const aktiv = tipp?.id === l.id;
+                    const breite = Math.min(4, Math.max(2, 1.4 + sicht.s * 0.4)); const ende = Math.min(5, Math.max(2.6, 1.8 + sicht.s * 0.5));
                     return (
-                      <g key={g.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(g.id)} onPointerLeave={() => setUeber((u) => (u === g.id ? null : u))} onClick={() => markerKlick(g)}>
-                        <use href={`#k-${g.typ}`} x={g.px - gr / 2} y={g.py - gr / 2} width={gr} height={gr} transform={aktiv ? `translate(${g.px} ${g.py}) scale(1.22) translate(${-g.px} ${-g.py})` : undefined} />
-                        {zahl && (
-                          <g>
-                            <rect x={g.px + gr / 2 - 8} y={g.py - gr / 2 - 6} width={n > 99 ? 21 : n > 9 ? 17 : 13} height={12} rx={6} fill="#080a11" stroke="rgba(255,255,255,0.22)" strokeWidth={1} />
-                            <text x={g.px + gr / 2 - 8 + (n > 99 ? 10.5 : n > 9 ? 8.5 : 6.5)} y={g.py - gr / 2 + 3} textAnchor="middle" fontSize={8.5} fontWeight={800} fill="#fff">{n > 99 ? '99+' : n}</text>
-                          </g>
-                        )}
+                      <g key={l.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(l.id)} onPointerLeave={() => setUeber((u) => (u === l.id ? null : u))} onClick={() => markerKlick(l)}>
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={14} />
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#05070c" strokeOpacity={0.7} strokeWidth={breite + 2.6} strokeLinecap="round" />
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={aktiv ? 'rgb(var(--akz))' : '#eef2f7'} strokeWidth={breite} strokeLinecap="round" />
+                        {[[x1, y1], [x2, y2]].map(([x, y], k) => <circle key={k} cx={x} cy={y} r={aktiv ? ende + 1 : ende} fill={aktiv ? 'rgb(var(--akz))' : '#ffffff'} stroke="#05070c" strokeWidth={1.6} />)}
                       </g>
                     );
                   })}
+                </g>
+                {/* Die anderen Plaetze derselben Gruppe ("2 of 5 spots") - gestrichelt verbunden */}
+                {geschwister.length > 0 && tipp && (
+                  <g pointerEvents="none">
+                    {geschwister.map((x) => <line key={`v${x.nr}`} x1={tipp.px} y1={tipp.py} x2={x.px} y2={x.py} stroke="rgb(var(--akz))" strokeOpacity={0.55} strokeWidth={1.4} strokeDasharray="4 4" />)}
+                    {geschwister.map((x) => <circle key={`k${x.nr}`} cx={x.px} cy={x.py} r={symbolPx * 0.78} fill="rgb(var(--akz) / 0.12)" stroke="rgb(var(--akz))" strokeWidth={1.6} strokeDasharray="3 3" />)}
+                  </g>
+                )}
+                <g opacity={einst.deckkraft / 100}>
+                  <MarkerEbene gruppen={gruppen} gr={symbolPx} aktiv={tipp && !tipp.linie ? tipp.id : null} setUeber={setUeber} klick={markerKlick} />
                 </g>
               </g>
             </svg>
             {/* Hinweis zum Marker: Art, Koordinaten, Hoehe - beim Darueberfahren, per Klick festgehalten */}
             <AnimatePresence>
-              {tipp && (
-                <motion.div key={tipp.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className={`absolute z-10 w-max min-w-[190px] max-w-[260px] -translate-x-1/2 -translate-y-full rounded-2xl border border-white/10 bg-fl/95 p-3 text-left shadow-[0_24px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl ${fest ? '' : 'pointer-events-none'}`}
-                  style={{ left: tipp.px + sicht.tx, top: tipp.py + sicht.ty - symbolPx / 2 - 10 }}>
-                  <MarkerInfo g={tipp} skala={skala} gitter={imGitter} schliessen={fest ? () => setFest(null) : undefined} />
+              {tipp && (() => {
+                // Ueber dem Marker, mittig; nahe am oberen Rand darunter; seitlich nie aus dem Bild (nur Deckkraft animiert - die Lage macht translate)
+                const abstand = tipp.linie ? 10 : symbolPx / 2 + 10; const y = tipp.py + sicht.ty; const unten = y < 250;
+                return (
+                <motion.div key={tipp.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+                  onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+                  className={`absolute z-20 w-max min-w-[210px] max-w-[270px] -translate-x-1/2 rounded-2xl border border-white/10 bg-fl/95 p-3 text-left shadow-[0_24px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl ${unten ? '' : '-translate-y-full'} ${fest ? '' : 'pointer-events-none'}`}
+                  style={{ left: Math.min(Math.max(tipp.px + sicht.tx, 140), groesse.b - 140), top: unten ? y + abstand : y - abstand }}>
+                  <MarkerInfo g={tipp} skala={skala} gitter={imGitter} gruppenGroesse={gruppenGroesse} schliessen={fest ? () => setFest(null) : undefined} />
                 </motion.div>
-              )}
+                );
+              })()}
             </AnimatePresence>
             <AnimatePresence>
               {beuteTipp && beuteDa && (() => {
                 const p = zuProzent(beuteTipp.b.x, beuteTipp.b.y);
                 return (
-                  <motion.div key={`${beuteTipp.b.x}:${beuteTipp.b.y}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} onPointerDown={(e) => e.stopPropagation()}
+                  <motion.div key={`${beuteTipp.b.x}:${beuteTipp.b.y}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} onPointerDown={(e) => e.stopPropagation()}
                     className={`absolute z-10 w-[250px] -translate-x-1/2 -translate-y-full rounded-2xl border border-white/10 bg-fl/95 p-3 text-left shadow-[0_24px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl ${beuteTipp.fest ? '' : 'pointer-events-none'}`}
                     style={{ left: (p.l / 100) * skala + sicht.tx, top: (p.o / 100) * skala + sicht.ty - 12 }}>
                     <BeuteInfo b={beuteTipp.b} spiele={beuteDa.spiele} feld={imGitter({ links: p.l, oben: p.o })} schliessen={beuteTipp.fest ? () => setBeuteTipp(null) : undefined} />
@@ -535,7 +613,7 @@ export default function Karte() {
                   </div>
                   <div className="mt-3 space-y-3 px-1">
                     {GRUPPEN_KARTE.map((g) => {
-                      const ebenen = EBENEN.filter((e) => e.gruppe === g && (e.typ !== 'other' || zaehlen.other) && e.titel.toLowerCase().includes(ebeneSuche.toLowerCase()));
+                      const ebenen = EBENEN.filter((e) => e.gruppe === g && (mitExport ? !!zaehlen[e.typ] : e.typ !== 'other' || zaehlen.other) && e.titel.toLowerCase().includes(ebeneSuche.toLowerCase()));
                       if (!ebenen.length) return null;
                       const aktiv = ebenen.filter((e) => an[e.typ]).length;
                       return (
@@ -564,7 +642,7 @@ export default function Karte() {
                       );
                     })}
                   </div>
-                  <p className="mt-4 px-2.5 text-[11px] leading-relaxed text-white/35">{ohneExport ? <>Until our game-file export lands, Chests and Ammo boxes show the spots players looted in {beuteDa?.spiele ?? 'our'} S{beuteDa?.saison ?? 43} cup replays (approximate positions, chests nobody opened are missing). The export brings every object at its exact spot with spawn chances.</> : 'Object positions come from our own export of the game files – every chest, ammo box and barrel at its exact spot.'}</p>
+                  <p className="mt-4 px-2.5 text-[11px] leading-relaxed text-white/35">{ohneExport ? <>Until our game-file export lands, Chests and Ammo boxes show the spots players looted in {beuteDa?.spiele ?? 'our'} S{beuteDa?.saison ?? 43} cup replays (approximate positions, chests nobody opened are missing). The export brings every object at its exact spot with spawn chances.</> : <>Every object at its exact spot, from our own export of the game files{exportStand?.build ? <> · build <span className="zahl">{exportStand.build.replace(/^\+\+Fortnite\+Release-/, '')}</span></> : null}{exportStand?.am ? ` · ${new Date(exportStand.am).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.</>}</p>
                 </div>
               )}
 
@@ -626,37 +704,78 @@ function Icon({ d }: { d: string }) {
   return <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>;
 }
 
-function MarkerInfo({ g, skala, gitter, schliessen }: { g: Gruppe; skala: number; gitter: (o: { links: number; oben: number }) => string; schliessen?: () => void }) {
+/**
+ * Alle Marker als eine Ebene (Bildschirm-Pixel, Symbole per <use>). Eigene, gemerkte Komponente: beim Verschieben aendert sich nur die
+ * Verschiebung der Ebene darueber, die Tausende Marker werden dabei nicht neu gebaut.
+ */
+const MarkerEbene = memo(function MarkerEbene({ gruppen, gr, aktiv, setUeber, klick }: {
+  gruppen: Gruppe[]; gr: number; aktiv: string | null; setUeber: (f: (u: string | null) => string | null) => void; klick: (g: Gruppe) => void;
+}) {
+  return (
+    <>
+      {gruppen.map((g) => {
+        const n = g.liste.length; const an = aktiv === g.id; const gross = n > 1 ? gr + 4 : an ? Math.round(gr * 1.3) : gr;
+        return (
+          <g key={g.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }} onPointerEnter={() => setUeber(() => g.id)} onPointerLeave={() => setUeber((u) => (u === g.id ? null : u))} onClick={() => klick(g)}>
+            {an && <circle cx={g.px} cy={g.py} r={gross * 0.72} fill="rgb(var(--akz) / 0.25)" stroke="rgb(var(--akz))" strokeWidth={2} />}
+            <use href={`#k-${g.typ}`} x={g.px - gross / 2} y={g.py - gross / 2} width={gross} height={gross} />
+            {n > 1 && (
+              <g>
+                <rect x={g.px + gross / 2 - 9} y={g.py - gross / 2 - 7} width={n > 99 ? 23 : n > 9 ? 18 : 14} height={14} rx={7} fill="#05070c" stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
+                <text x={g.px + gross / 2 - 9 + (n > 99 ? 11.5 : n > 9 ? 9 : 7)} y={g.py - gross / 2 + 3.3} textAnchor="middle" fontSize={9} fontWeight={800} fill="#fff">{n > 99 ? '99+' : n}</text>
+              </g>
+            )}
+          </g>
+        );
+      })}
+    </>
+  );
+});
+
+function MarkerInfo({ g, skala, gitter, gruppenGroesse, schliessen }: { g: Gruppe; skala: number; gitter: (o: { links: number; oben: number }) => string; gruppenGroesse: Map<string, number>; schliessen?: () => void }) {
   const e = ebeneVon(g.typ); const n = g.liste.length; const o = g.liste[0];
-  const feld = gitter({ links: (g.px / skala) * 100, oben: (g.py / skala) * 100 });
+  const feldVon = (px: number, py: number) => gitter({ links: (px / skala) * 100, oben: (py / skala) * 100 });
+  const feld = g.linie ? feldVon(g.linie[0], g.linie[1]) : feldVon(g.px, g.py);
   const m = (cm: number) => `${Math.round(cm / 100).toLocaleString('en')} m`;
+  const c = n === 1 ? chanceVon(o) : null;
+  const plaetze = o.gruppe ? gruppenGroesse.get(o.gruppe) ?? 1 : 0;
+  // "M of N spots": M aus der Chance des Exports (Gruppe aus N Plaetzen, M erscheinen -> chance = M/N)
+  const davon = o.gruppe && c && !c.standard ? Math.round(c.wert * plaetze) : null;
+  const zelle = (k: string, v: string) => <div key={k} className="rounded-lg bg-black/40 px-1.5 py-1"><dt className="text-[9px] uppercase tracking-wider text-white/40">{k}</dt><dd className="zahl text-xs font-bold text-white">{v}</dd></div>;
+  const schnitt = n > 1 ? g.liste.map(chanceVon).filter((x): x is NonNullable<typeof x> => !!x) : [];
   return (
     <div>
       <div className="flex items-center gap-2.5">
-        <Abzeichen typ={g.typ} groesse={28} />
+        <Abzeichen typ={g.typ} groesse={34} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-extrabold leading-tight text-white">{n > 1 ? `${n} ${e.titel.toLowerCase()}` : (o.name ?? e.einzeln)}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{n > 1 ? 'Cluster · click to zoom in' : o.name ? e.einzeln : `Grid ${feld}`}</p>
+          <p className="text-sm font-extrabold leading-tight text-white">{n > 1 ? `${n} ${e.titel.toLowerCase()}` : (o.name && o.name !== 'needs key' ? o.name : e.einzeln)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{n > 1 ? 'Click to zoom in' : `${e.gruppe} · grid ${feld}`}</p>
         </div>
         {schliessen && <button type="button" aria-label="Close" onClick={schliessen} className="self-start text-white/40 hover:text-white"><Icon d="M6 6l12 12M18 6L6 18" /></button>}
       </div>
-      {n === 1 && o.chance !== undefined && (
+      {c && (
         <div className="mt-2.5 rounded-lg bg-black/40 px-2.5 py-1.5">
-          <div className="flex items-baseline justify-between text-[11px]"><span className="font-semibold uppercase tracking-wider text-white/45">Spawn chance</span><span className="zahl text-sm font-extrabold text-akz">{Math.round(o.chance * 100)}%</span></div>
-          <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-akz" style={{ width: `${Math.round(o.chance * 100)}%` }} /></div>
+          <div className="flex items-baseline justify-between gap-3 text-[11px]">
+            <span className="font-semibold uppercase tracking-wider text-white/45">Spawn chance</span>
+            <span className="zahl text-base font-extrabold text-akz">{c.wert >= 1 ? 'Always' : `${Math.round(c.wert * 100)}%`}</span>
+          </div>
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-akz" style={{ width: `${Math.round(c.wert * 100)}%` }} /></div>
+          {c.standard && <p className="mt-1 text-[10px] text-white/40">Base chance for every {e.einzeln.toLowerCase()}</p>}
         </div>
+      )}
+      {o.gruppe && n === 1 && (
+        <p className="mt-2 rounded-lg bg-akz/10 px-2.5 py-1.5 text-[11px] text-white/75">
+          {davon !== null ? <><b className="zahl text-white">{davon} of {plaetze}</b> spots of this group spawn</> : <>One of <b className="zahl text-white">{plaetze}</b> spots in this group</>}
+        </p>
       )}
       {n === 1 ? (
         <dl className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-          {[['X', m(o.x)], ['Y', m(o.y)], [o.z !== undefined ? 'Height' : 'Grid', o.z !== undefined ? m(o.z) : feld]].map(([k, v]) => (
-            <div key={k} className="rounded-lg bg-black/40 px-1.5 py-1"><dt className="text-[9px] uppercase tracking-wider text-white/40">{k}</dt><dd className="zahl text-xs font-bold text-white">{v}</dd></div>
-          ))}
+          {g.linie && o.x2 !== undefined && o.y2 !== undefined
+            ? [zelle('Length', m(Math.hypot(o.x2 - o.x, o.y2 - o.y))), zelle('From', feld), zelle('To', feldVon(g.linie[2], g.linie[3]))]
+            : [zelle('X', m(o.x)), zelle('Y', m(o.y)), zelle('Height', o.z !== undefined ? m(o.z) : '–')]}
         </dl>
-      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}{g.liste.some((x) => x.chance !== undefined) ? ` · avg. spawn chance ${Math.round((g.liste.reduce((a, x) => a + (x.chance ?? 1), 0) / n) * 100)}%` : ''}. Zoom in to see each one.</p>}
-      {n === 1 && o.gruppe && <p className="mt-2 text-[11px] text-white/50">Group <b className="text-white/75">{o.gruppe}</b></p>}
-      {n === 1 && (o.name || o.x2 !== undefined) && (
-        <p className="mt-2 text-[11px] text-white/45">{o.name ? `Grid ${feld}` : ''}{o.x2 !== undefined && o.y2 !== undefined ? `${o.name ? ' · ' : ''}${m(Math.hypot(o.x2 - o.x, o.y2 - o.y))} long` : ''}</p>
-      )}
+      ) : <p className="mt-2 text-xs text-white/55">Around grid {feld}{schnitt.length ? ` · avg. spawn chance ${Math.round((schnitt.reduce((a, x) => a + x.wert, 0) / schnitt.length) * 100)}%` : ''}.</p>}
+      {n === 1 && o.name === 'needs key' && <p className="mt-2 text-[11px] text-amber-200/80">Needs a key</p>}
     </div>
   );
 }

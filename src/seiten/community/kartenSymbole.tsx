@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 /*
  * Original-Symbole (Betreiber 27.11.2026: die eigenen wirken "KI-generiert" - er will die Original-Kartensymbole aus dem Spiel, wie fortnite.gg).
@@ -22,10 +23,11 @@ export function useOriginalSymbole() {
 }
 
 /*
- * Eigene Karten-Symbole (Ersatz, wenn kein Original da ist) (Betreiber, 26.11.2026: "richtige Icons wie bei Fortnite.gg statt Punkte"). Selbst gezeichnet, keine fremden Dateien:
- * je Objektart eine dunkle runde Scheibe mit feinem Ring und klarem Zeichen in der Farbe der Ebene (24er-Raster, nur Linien und Flaechen,
- * damit es bei jedem Zoom scharf bleibt). Die Karte haengt sie einmal als <symbol> in ihre SVG und setzt sie per <use> - so bleiben auch
- * Tausende Marker leicht; die Seitenleiste zeichnet dasselbe Abzeichen als eigenes kleines SVG.
+ * Eigene Karten-Symbole (Ersatz, wenn kein Original da ist). Betreiber 28.11.2026: so nah wie moeglich am Spiel - flach, einfach, wie die
+ * Minimap-Symbole (Truhe gold, Munitionskiste gruen, Slurp-Fass blau ...). Jedes Symbol ist die flache Silhouette in der Farbe der Ebene mit
+ * dunklem Umriss und leichtem Schatten ("Aufkleber"-Stil des Spiels), keine Scheibe, kein Ring. Gezeichnet im 24er-Raster (Zeichen), einmal je
+ * Art zu einem SVG-Bild (data:-Adresse) gerendert - die Karte setzt es per <image> ein, so kostet der Umriss-Filter nichts, egal wie viele
+ * Marker zu sehen sind. Die Seitenleiste zeigt dasselbe Bild.
  */
 
 export interface Ebene { typ: string; titel: string; einzeln: string; farbe: string; namen: string[]; gruppe: string; zeichen?: string }
@@ -33,11 +35,11 @@ export interface Ebene { typ: string; titel: string; einzeln: string; farbe: str
 /** Ebenen nach der Spezifikation (Loot, Sprites, Movement, Vehicles, Healing, Fishing, NPCs, Other). zeichen = anderes Zeichen wiederverwenden. */
 export const EBENEN: Ebene[] = [
   { gruppe: 'Loot', typ: 'vault', titel: 'Vaults', einzeln: 'Vault', farbe: '#e2e8f0', namen: ['vault', 'tresor'] },
-  { gruppe: 'Loot', typ: 'chest', titel: 'Chests', einzeln: 'Chest', farbe: '#facc15', namen: ['chest', 'chests', 'truhe', 'tiered_chest', 'tieredchest'] },
+  { gruppe: 'Loot', typ: 'chest', titel: 'Chests', einzeln: 'Chest', farbe: '#fbc531', namen: ['chest', 'chests', 'truhe', 'tiered_chest', 'tieredchest'] },
   { gruppe: 'Loot', typ: 'buried', titel: 'Buried chests', einzeln: 'Buried chest', farbe: '#d97706', namen: ['buried', 'buriedchest', 'buried_chest'] },
   { gruppe: 'Loot', typ: 'rarechest', titel: 'Rare chests', einzeln: 'Rare chest', farbe: '#a78bfa', namen: ['rarechest', 'rare_chest'], zeichen: 'chest' },
   { gruppe: 'Loot', typ: 'lootcannon', titel: 'Loot cannons', einzeln: 'Loot cannon', farbe: '#f87171', namen: ['lootcannon', 'loot_cannon'], zeichen: 'cannon' },
-  { gruppe: 'Loot', typ: 'ammo', titel: 'Ammo boxes', einzeln: 'Ammo box', farbe: '#a3e635', namen: ['ammo', 'ammobox', 'ammo_box', 'munition', 'munitionskiste'] },
+  { gruppe: 'Loot', typ: 'ammo', titel: 'Ammo boxes', einzeln: 'Ammo box', farbe: '#9bd84a', namen: ['ammo', 'ammobox', 'ammo_box', 'munition', 'munitionskiste'] },
   { gruppe: 'Sprites', typ: 'spritechest', titel: 'Sprite chests', einzeln: 'Sprite chest', farbe: '#e879f9', namen: ['spritechest', 'sprite_chest'], zeichen: 'chest' },
   { gruppe: 'Sprites', typ: 'wanted', titel: 'Wanted posters', einzeln: 'Wanted poster', farbe: '#fcd34d', namen: ['wanted', 'wantedposter', 'wanted_poster'] },
   { gruppe: 'Sprites', typ: 'extraction', titel: 'Extraction sites', einzeln: 'Extraction site', farbe: '#34d399', namen: ['extraction', 'extractionsite', 'extraction_site'] },
@@ -53,7 +55,7 @@ export const EBENEN: Ebene[] = [
   { gruppe: 'Vehicles', typ: 'service', titel: 'Service stations', einzeln: 'Service station', farbe: '#fca5a5', namen: ['service', 'servicestation', 'gas', 'gasstation'] },
   { gruppe: 'Healing', typ: 'campfire', titel: 'Campfires', einzeln: 'Campfire', farbe: '#fb7185', namen: ['campfire'] },
   { gruppe: 'Healing', typ: 'produce', titel: 'Produce boxes', einzeln: 'Produce box', farbe: '#86efac', namen: ['produce', 'producebox', 'produce_box'] },
-  { gruppe: 'Healing', typ: 'slurp', titel: 'Slurp barrels', einzeln: 'Slurp barrel', farbe: '#38bdf8', namen: ['slurp', 'slurpbarrel', 'slurp_barrel', 'slurpfass'] },
+  { gruppe: 'Healing', typ: 'slurp', titel: 'Slurp barrels', einzeln: 'Slurp barrel', farbe: '#3fb5ff', namen: ['slurp', 'slurpbarrel', 'slurp_barrel', 'slurpfass'] },
   { gruppe: 'Healing', typ: 'slurptruck', titel: 'Slurp trucks', einzeln: 'Slurp truck', farbe: '#22d3ee', namen: ['slurptruck', 'slurp_truck'] },
   { gruppe: 'Fishing', typ: 'fishingrod', titel: 'Fishing rods', einzeln: 'Fishing rod', farbe: '#5eead4', namen: ['fishingrod', 'fishing_rod', 'rodbarrel'] },
   { gruppe: 'Fishing', typ: 'fishing', titel: 'Fishing spots', einzeln: 'Fishing spot', farbe: '#22d3ee', namen: ['fishing', 'fishingspot', 'fishing_spot', 'fishinghole', 'angelstelle'] },
@@ -71,49 +73,52 @@ export const typVon = (roh: string) => {
 };
 
 const DUNKEL = '#0b1220';
-const GRUND = '#080a11';
+/** Umriss und Aussparungen der Ersatz-Symbole (fast schwarz, wie die Raender der Spielsymbole) */
+const UMRISS = '#0a0d14';
 
 /** Das Zeichen im Abzeichen (24er-Raster, Mitte 12/12). `tinte` = Farbe des Zeichens; Aussparungen nehmen currentColor (= Grund des Abzeichens). */
 export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: string }) {
   const typ = ebeneVon(roh).zeichen ?? roh;
   const linie = { fill: 'none', stroke: tinte, strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   switch (typ) {
-    case 'chest': // Truhe: gewoelbter Deckel, Kasten, Schloss
+    case 'chest': // Truhe wie im Spiel: gewoelbter Deckel, Kasten, dunkle Fuge, Schloss
       return (
         <g>
-          <path d="M4.5 11V9.2A4.2 4.2 0 0 1 8.7 5h6.6a4.2 4.2 0 0 1 4.2 4.2V11" {...linie} />
-          <path d="M4.5 11h15v7a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18z" fill={tinte} />
-          <rect x="10.4" y="9.4" width="3.2" height="4.6" rx="1" fill={tinte} stroke="currentColor" strokeWidth="1.2" />
+          <path d="M3.6 10.6V9.2A4.2 4.2 0 0 1 7.8 5h8.4a4.2 4.2 0 0 1 4.2 4.2v1.4z" fill={tinte} />
+          <rect x="3.6" y="11.9" width="16.8" height="7.6" rx="1.4" fill={tinte} />
+          <rect x="10.1" y="8.6" width="3.8" height="5.6" rx="0.9" fill="currentColor" />
+          <rect x="11.2" y="10" width="1.6" height="2.4" rx="0.6" fill={tinte} />
         </g>
       );
-    case 'ammo': // eine grosse Patrone: Spitze, Fuge, Huelse mit Rand
-      return (
-        <g fill={tinte}>
-          <path d="M8.3 10.3V8.6C8.3 5.9 12 2.8 12 2.8s3.7 3.1 3.7 5.8v1.7z" />
-          <rect x="8.3" y="11.7" width="7.4" height="6.9" rx="0.6" />
-          <rect x="7.3" y="19.2" width="9.4" height="1.9" rx="0.7" />
-        </g>
-      );
-    case 'slurp': // Fass mit Reifen und Tropfen
+    case 'ammo': // Munitionskiste: Kasten mit Deckelleiste und drei Patronen
       return (
         <g>
-          <path d="M7.2 4h9.6l1.6 8-1.6 8H7.2l-1.6-8z" {...linie} />
-          <path d="M6.2 8.2h11.6M6.2 15.8h11.6" {...linie} strokeWidth={1.6} />
-          <path d="M12 9.6c1.4 1.8 2 2.8 2 3.7a2 2 0 0 1-4 0c0-.9.6-1.9 2-3.7z" fill={tinte} />
+          <rect x="3" y="4.6" width="18" height="2.2" rx="1.1" fill={tinte} />
+          <rect x="3" y="7.8" width="18" height="11.6" rx="1.6" fill={tinte} />
+          {[6.6, 10.9, 15.2].map((x) => <path key={x} d={`M${x} 17.2v-4.6c0-1.3 1.1-2.6 1.1-2.6s1.1 1.3 1.1 2.6v4.6z`} fill="currentColor" />)}
         </g>
       );
-    case 'reboot': // Neustart-Pfeil im Kreis
+    case 'slurp': // Slurp-Fass: gefuelltes Fass, dunkle Reifen, Tropfen
       return (
         <g>
-          <path d="M18.6 12.4A6.7 6.7 0 1 1 16.6 7.3" {...linie} strokeWidth={2.4} />
-          <path d="M18.8 4.4v4.4h-4.4" {...linie} strokeWidth={2.4} />
+          <path d="M7 3.4h10l1.9 8.6L17 20.6H7L5.1 12z" fill={tinte} />
+          <path d="M5.9 7.8h12.2M5.9 16.2h12.2" stroke="currentColor" strokeWidth={1.4} />
+          <path d="M12 9.4c1.5 1.9 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.6-1.9 2.1-3.8z" fill="currentColor" />
         </g>
       );
-    case 'launchpad': // zwei Pfeile nach oben
+    case 'reboot': // Reboot-Van: gefuellte Scheibe mit dunklem Neustart-Pfeil
       return (
         <g>
-          <path d="M6 12.4l6-6 6 6" {...linie} strokeWidth={2.6} />
-          <path d="M6 18.6l6-6 6 6" {...linie} strokeWidth={2.6} />
+          <circle cx="12" cy="12" r="9" fill={tinte} />
+          <path d="M16.9 12.3A4.9 4.9 0 1 1 15.4 8.4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" />
+          <path d="M16.6 5.9v3.4h-3.4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      );
+    case 'launchpad': // Startrampe: Platte mit zwei dunklen Pfeilen nach oben
+      return (
+        <g>
+          <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="3.2" fill={tinte} />
+          <path d="M7.4 11.6l4.6-4.6 4.6 4.6M7.4 17l4.6-4.6 4.6 4.6" fill="none" stroke="currentColor" strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round" />
         </g>
       );
     case 'zipline': // Seil, Laufrolle, Griff
@@ -124,13 +129,13 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
           <path d="M11.6 9.4l-2.2 6.4h4.8z" {...linie} strokeWidth={1.9} />
         </g>
       );
-    case 'vending': // Automat: Fenster, Knoepfe, Ausgabe
+    case 'vending': // Automat: gefuellter Kasten, dunkles Fenster und Ausgabe
       return (
         <g>
-          <rect x="5.8" y="3.6" width="12.4" height="16.8" rx="1.6" {...linie} />
-          <rect x="8" y="6" width="5.4" height="8" rx="0.8" fill={tinte} />
-          <circle cx="15.6" cy="7.2" r="0.95" fill={tinte} /><circle cx="15.6" cy="10" r="0.95" fill={tinte} /><circle cx="15.6" cy="12.8" r="0.95" fill={tinte} />
-          <path d="M8.4 17.4h7.2" {...linie} />
+          <rect x="5.4" y="3" width="13.2" height="18" rx="1.8" fill={tinte} />
+          <rect x="7.4" y="5.2" width="6" height="9" rx="0.9" fill="currentColor" />
+          <circle cx="15.8" cy="6.6" r="1" fill="currentColor" /><circle cx="15.8" cy="9.4" r="1" fill="currentColor" /><circle cx="15.8" cy="12.2" r="1" fill="currentColor" />
+          <rect x="7.4" y="16.4" width="9.2" height="2.4" rx="0.8" fill="currentColor" />
         </g>
       );
     case 'fishing': // Fisch mit Schwanzflosse
@@ -141,8 +146,8 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
           <circle cx="7.4" cy="11.2" r="1.15" fill="currentColor" />
         </g>
       );
-    case 'vault': // Tresortuer mit Rad
-      return <g><rect x="4.5" y="4.5" width="15" height="15" rx="2" {...linie} /><circle cx="12" cy="12" r="3.6" {...linie} /><path d="M12 8.4V5.8M12 18.2v-2.6M8.4 12H5.8M18.2 12h-2.6" {...linie} strokeWidth={1.6} /></g>;
+    case 'vault': // Tresortuer: gefuellte Tuer, dunkles Rad
+      return <g><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="2.4" fill={tinte} /><circle cx="12" cy="12" r="4.4" fill="none" stroke="currentColor" strokeWidth={2} /><path d="M12 7.6V5.4M12 18.6v-2.2M7.6 12H5.4M18.6 12h-2.2" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" /></g>;
     case 'buried': // Schatzkarten-X auf dem Boden
       return <g><path d="M7 5.5l10 10M17 5.5l-10 10" {...linie} strokeWidth={3} /><path d="M4 19.5h16" {...linie} strokeWidth={2.2} /></g>;
     case 'cannon': // Kanonenrohr auf Rad
@@ -153,8 +158,8 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
       return <g><path d="M6 15.5a7 7 0 0 0 12 0" {...linie} /><path d="M12 15V4.5M8 8.5l4-4 4 4" {...linie} strokeWidth={2.4} /></g>;
     case 'portapotty': // Kabine mit Mond
       return <g><rect x="6.5" y="3.5" width="11" height="17" rx="1.6" {...linie} /><path d="M13.6 6.6a2 2 0 1 0 0 3.2 2.5 2.5 0 0 1 0-3.2z" fill={tinte} /><circle cx="15" cy="13.5" r="0.9" fill={tinte} /></g>;
-    case 'whirlpool': // Spirale
-      return <path d="M12 12a1.6 1.6 0 1 1 1.6 1.6A3.4 3.4 0 1 1 15.4 10a5.4 5.4 0 1 1-8.8 4.2" {...linie} strokeWidth={2.2} />;
+    case 'whirlpool': // Wirbel: dicke blaue Spirale
+      return <path d="M12 12a1.6 1.6 0 1 1 1.6 1.6A3.4 3.4 0 1 1 15.4 10a5.4 5.4 0 1 1-8.8 4.2" {...linie} strokeWidth={3} />;
     case 'sportscar': // flaches Auto
       return <g><path d="M3 15.5v-2l3.5-.8 3-3h5l3.5 3 3 .8v2z" fill={tinte} /><circle cx="7.5" cy="16" r="2" fill={tinte} stroke="currentColor" strokeWidth="1.2" /><circle cx="16.5" cy="16" r="2" fill={tinte} stroke="currentColor" strokeWidth="1.2" /></g>;
     case 'suv': // hohes Auto
@@ -182,19 +187,24 @@ export function Zeichen({ typ: roh, tinte = DUNKEL }: { typ: string; tinte?: str
   }
 }
 
-/**
- * Ein vollstaendiges Abzeichen im 24er-Raster. Ruhige Fassung (Betreiber 27.11.2026: "weniger bunt, sauber", bis die Original-Symbole da sind):
- * dunkle runde Scheibe, feiner Ring und Zeichen in der Farbe der Ebene - statt der bunt gefuellten Kacheln.
- */
-export function AbzeichenInhalt({ typ }: { typ: string }) {
+/** Ersatz-Symbol im Spielstil als SVG-Text: Silhouette in der Ebenenfarbe, dunkler Umriss (Filter), leichter Schatten nach unten. */
+function spielSvg(typ: string) {
   const farbe = ebeneVon(typ).farbe;
-  return (
-    <g color={GRUND}>
-      <circle cx="12" cy="12" r="11" fill={GRUND} stroke={farbe} strokeWidth="1.4" />
-      <g transform="translate(12 12) scale(0.72) translate(-12 -12)"><Zeichen typ={typ} tinte={farbe} /></g>
-    </g>
-  );
+  const inhalt = renderToStaticMarkup(<g color={UMRISS}><Zeichen typ={typ} tinte={farbe} /></g>);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 30 30" width="96" height="96"><defs><filter id="u" x="-30%" y="-30%" width="160%" height="160%">`
+    + `<feMorphology in="SourceAlpha" operator="dilate" radius="1.45" result="d"/><feFlood flood-color="${UMRISS}"/><feComposite in2="d" operator="in" result="r"/>`
+    + `<feGaussianBlur in="d" stdDeviation="0.9" result="b"/><feOffset in="b" dy="1.1" result="o"/><feFlood flood-color="#000" flood-opacity="0.55"/><feComposite in2="o" operator="in" result="s"/>`
+    + `<feMerge><feMergeNode in="s"/><feMergeNode in="r"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#u)">${inhalt}</g></svg>`;
 }
+const SPIEL_BILD = new Map<string, string>();
+/** Ersatz-Symbol einer Objektart als Bildadresse (data:, einmal je Art gebaut). */
+export function spielBild(typ: string) {
+  let u = SPIEL_BILD.get(typ);
+  if (!u) { u = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(spielSvg(typ))}`; SPIEL_BILD.set(typ, u); }
+  return u;
+}
+/** Bildquelle eines Markers: Original aus dem lokalen Export, sonst das Ersatz-Symbol. */
+export const symbolQuelle = (typ: string, original: Set<string>) => (original.has(typ) ? ORIGINAL_PFAD(typ) : spielBild(typ));
 
 /** Die <symbol>-Vorlagen fuer die Karte (einmal je SVG einhaengen, dann <use href="#k-chest" />). Original-Symbol, wenn vorhanden. */
 export function SymbolVorlagen() {
@@ -203,19 +213,29 @@ export function SymbolVorlagen() {
     <defs>
       {EBENEN.map((e) => (
         <symbol key={e.typ} id={`k-${e.typ}`} viewBox="0 0 24 24">
-          {original.has(e.typ) ? <image href={ORIGINAL_PFAD(e.typ)} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" /> : <AbzeichenInhalt typ={e.typ} />}
+          <image href={symbolQuelle(e.typ, original)} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
         </symbol>
       ))}
-      <filter id="k-schatten" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#000" floodOpacity="0.65" /></filter>
     </defs>
   );
 }
 
-/** Abzeichen als eigenstaendiges kleines SVG (Seitenleiste, Hinweise). */
+/** Symbol als kleines Bild (Seitenleiste, Hinweise) - Original oder Ersatz im Spielstil. */
 export function Abzeichen({ typ, groesse = 20, className = '' }: { typ: string; groesse?: number; className?: string }) {
   const original = useOriginalSymbole();
-  if (original.has(typ)) return <img src={ORIGINAL_PFAD(typ)} alt="" width={groesse} height={groesse} className={`shrink-0 object-contain ${className}`} aria-hidden="true" />;
-  return <svg viewBox="0 0 24 24" width={groesse} height={groesse} className={`shrink-0 ${className}`} aria-hidden="true"><AbzeichenInhalt typ={typ} /></svg>;
+  return <img src={symbolQuelle(typ, original)} alt="" width={groesse} height={groesse} draggable={false} className={`shrink-0 object-contain ${className}`} aria-hidden="true" />;
+}
+
+/*
+ * Spawn-Chancen: steht im Export bei einem Objekt `chance`, gilt die. Sonst die Grundchance der Klasse aus den Spieldaten (AthenaGameData,
+ * von der lokalen Export-Sitzung gelesen): normale Truhe 67 %, Munitionskiste 75 %. Objekte mit AlwaysSpawn bekommen im Export chance 1.
+ * Fuer alle anderen Arten gibt es keine Grundchance - dann zeigt die Karte keine.
+ */
+export const STANDARD_CHANCE: Record<string, number> = { chest: 0.67, ammo: 0.75 };
+export function chanceVon(o: { typ: string; chance?: number | null }): { wert: number; standard: boolean } | null {
+  if (typeof o.chance === 'number' && Number.isFinite(o.chance)) return { wert: Math.min(1, Math.max(0, o.chance)), standard: false };
+  const s = STANDARD_CHANCE[o.typ];
+  return s === undefined ? null : { wert: s, standard: true };
 }
 
 /** Stecknadel fuer benannte Orte (POI). */
