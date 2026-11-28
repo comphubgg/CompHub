@@ -1,15 +1,18 @@
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { Bild, Leer, Marke } from '../../../ds/Bausteine';
 import { useWer } from '../../../teile/Anmeldung';
 import { AnmeldeKarte } from '../tools/Gemeinsam';
-
-import { FehlerZeile, Laedt, Leer, SeitenKopf } from './teile';
+import { FehlerZeile, Laedt } from './teile';
 
 /*
  * Tagesposts im Hub (wie /posts und /posts/[datum], nur Admin): die Posts des Tages fuer X (/api/posts?datum=) mit Bild (/api/post-bild), Text kopieren,
  * Bild kopieren (sonst herunterladen), "Anderen Post" (POST aktion neu), Tag vor/zurueck. Alles aus echten Zahlen, nichts doppelt.
  * Dazu die Match-Seite /competitive/match/:tag/:nr - sie fuehrt auf das Game in den Replays des Hubs.
+ * Aufbau (Design-System 3.0, 27.11.2026): oben der Tag gross und eine Wochenleiste zum Springen (sieben Tage, kein Vor/Zurueck-Raten); links klebt
+ * die Reihenfolge des Tages (Art, Titel, Zeichenzahl - Klick springt zum Post), rechts die Posts als Bildkarten in zwei Spalten: Bild oben in
+ * 16:9, darunter Text, Zeichenbalken bis 280 und die Knoepfe.
  */
 
 interface Post { nr: number; art: string; schluessel: string; titel: string; text: string }
@@ -55,36 +58,78 @@ export function Posts() {
       if (j?.ok) { setPlan(j.plan); setStand((s) => s + 1); } else setFehler('No other post found.');
     } finally { setErsetzt(null); }
   };
-  const knopf = 'rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-xs font-bold text-white/75 backdrop-blur-xl transition hover:border-sky-400/50 hover:text-white';
+  const woche = Array.from({ length: 7 }, (_, i) => versatz(datum, i - 3));
+  const tagName = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short' });
   return (
-    <div className="space-y-6">
-      <SeitenKopf ueber="Daily posts" titel={new Date(`${datum}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        text="Today's posts: copy text and picture, paste into X. Everything from real numbers, no hashtags, nothing twice."
-        rechts={<><Link to={`/competitive/posts/${versatz(datum, -1)}`} className={knopf}>← {versatz(datum, -1)}</Link>{datum !== heute() && <Link to={`/competitive/posts/${heute()}`} className={knopf}>Today</Link>}<Link to={`/competitive/posts/${versatz(datum, 1)}`} className={knopf}>{versatz(datum, 1)} →</Link></>} />
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }} className="min-w-0">
+          <p className="ueber">Daily posts · for the CompHub X account</p>
+          <h1 className="titel mt-1 text-5xl lg:text-7xl">{new Date(`${datum}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-white/55">Today's posts: copy text and picture, paste into X. Everything from real numbers, no hashtags, nothing twice.</p>
+        </motion.div>
+        {/* Wochenleiste: drei Tage zurueck, drei voraus */}
+        <nav className="ohne-leiste flex max-w-full items-stretch gap-1.5 overflow-x-auto">
+          {woche.map((d) => {
+            const an = d === datum, istHeute = d === heute();
+            return (
+              <Link key={d} to={`/competitive/posts/${d}`} className={`flex w-14 shrink-0 flex-col items-center rounded-2xl border py-2 transition ${an ? 'border-akz bg-akz/15' : 'border-white/[0.08] bg-fl hover:border-white/25'}`}>
+                <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${istHeute ? 'text-akz' : 'text-white/40'}`}>{istHeute ? 'Today' : tagName(d)}</span>
+                <span className={`titel zahl text-3xl ${an ? '' : '!text-white/60'}`}>{Number(d.slice(8))}</span>
+              </Link>
+            );
+          })}
+          {!woche.includes(heute()) && <Link to={`/competitive/posts/${heute()}`} className="knopf shrink-0 self-center">Today</Link>}
+        </nav>
+      </header>
       {plan === undefined && <Laedt />}
       {fehler && <FehlerZeile text={fehler} />}
       {plan === null && !fehler && <Leer text="No posts for this day yet." />}
       {plan && !plan.posts.length && <Leer text="Today's data does not allow a post — nothing is invented." />}
-      <div className="space-y-6">
-        {plan?.posts.map((p, i) => (
-          <motion.article key={`${p.nr}-${p.schluessel}-${stand}`} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className="grid gap-5 rounded-3xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-xl lg:grid-cols-[1.15fr_1fr] lg:p-5">
-            <div>
-              <img src={bildUrl(p)} alt="" className="w-full rounded-2xl border border-white/10 bg-black/40" />
-              <button type="button" onClick={() => void bildKopieren(p)} className={`mt-3 ${knopf}`}>{bildKopiert === p.nr ? 'Picture copied ✓' : 'Copy picture'}</button>
-            </div>
-            <div className="flex min-w-0 flex-col">
-              <div className="flex items-center gap-2"><span className="rounded-full bg-sky-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#06080f]">{ART[p.art] ?? p.art}</span><h2 className="min-w-0 truncate text-sm font-bold text-white/85">{p.titel}</h2></div>
-              <pre className="mt-3 flex-1 whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/30 p-4 font-sans text-sm leading-relaxed text-white/85">{p.text}</pre>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => { void navigator.clipboard.writeText(p.text).then(() => { setKopiert(p.nr); setTimeout(() => setKopiert(null), 1800); }).catch(() => {}); }} className="rounded-full bg-sky-400 px-5 py-2 text-xs font-bold text-[#06080f] hover:bg-sky-300">{kopiert === p.nr ? 'Copied ✓' : 'Copy text'}</button>
-                <button type="button" disabled={ersetzt === p.nr} onClick={() => void anderen(p.nr)} className={`${knopf} disabled:opacity-50`}>{ersetzt === p.nr ? 'searching …' : 'Another post'}</button>
-                <span className={`ml-auto text-[11px] tabular-nums ${p.text.length > 280 ? 'text-amber-300' : 'text-white/40'}`}>{p.text.length} / 280+</span>
-              </div>
-            </div>
-          </motion.article>
-        ))}
-      </div>
+      {plan && plan.posts.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:items-start">
+          {/* Die Reihenfolge des Tages */}
+          <aside className="fl-fest overflow-hidden xl:sticky xl:top-[7.5rem]">
+            <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3"><span className="h-4 w-1 rounded-full bg-akz" /><h2 className="titel text-xl">Today's queue</h2><span className="zahl text-xs font-semibold text-white/40">{plan.posts.length} posts</span></div>
+            <ol>
+              {plan.posts.map((p, i) => (
+                <li key={`${p.nr}-${p.schluessel}`}>
+                  <a href={`#post-${p.nr}`} className="flex items-center gap-3 border-b border-white/[0.05] px-4 py-2.5 transition last:border-b-0 hover:bg-akz/[0.07]">
+                    <span className="titel w-7 shrink-0 text-3xl !text-white/30">{i + 1}</span>
+                    <span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-akz">{ART[p.art] ?? p.art}</span><span className="block truncate text-[13px] font-semibold text-white/85">{p.titel}</span></span>
+                    <span className={`zahl shrink-0 text-[11px] ${p.text.length > 280 ? 'text-amber-300' : 'text-white/35'}`}>{p.text.length}</span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </aside>
+          {/* Die Posts */}
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+            {plan.posts.map((p, i) => (
+              <motion.article key={`${p.nr}-${p.schluessel}-${stand}`} id={`post-${p.nr}`} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.05 }}
+                className="fl-fest flex scroll-mt-36 flex-col overflow-hidden">
+                <div className="relative">
+                  <Bild src={bildUrl(p)} className="aspect-video w-full" />
+                  <span className="absolute left-3 top-3 flex gap-1.5"><Marke ton="akz">{ART[p.art] ?? p.art}</Marke><Marke><span className="zahl">#{i + 1}</span></Marke></span>
+                  <button type="button" onClick={() => void bildKopieren(p)} className="absolute bottom-3 right-3 rounded-xl border border-white/10 bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur transition hover:border-akz/60">{bildKopiert === p.nr ? 'Picture copied ✓' : 'Copy picture'}</button>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col p-4">
+                  <h2 className="truncate text-[15px] font-bold text-white">{p.titel}</h2>
+                  <pre className="mt-2.5 flex-1 whitespace-pre-wrap rounded-2xl border border-white/[0.06] bg-black/40 p-4 font-sans text-sm leading-relaxed text-white/85">{p.text}</pre>
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]"><span className={`block h-full rounded-full ${p.text.length > 280 ? 'bg-amber-300' : 'bg-akz'}`} style={{ width: `${Math.min(100, (p.text.length / 280) * 100)}%` }} /></span>
+                    <span className={`zahl text-[11px] ${p.text.length > 280 ? 'text-amber-300' : 'text-white/40'}`}>{p.text.length} / 280+</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => { void navigator.clipboard.writeText(p.text).then(() => { setKopiert(p.nr); setTimeout(() => setKopiert(null), 1800); }).catch(() => {}); }} className="knopf-prim !py-2">{kopiert === p.nr ? 'Copied ✓' : 'Copy text'}</button>
+                    <button type="button" disabled={ersetzt === p.nr} onClick={() => void anderen(p.nr)} className="knopf">{ersetzt === p.nr ? 'searching …' : 'Another post'}</button>
+                  </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
