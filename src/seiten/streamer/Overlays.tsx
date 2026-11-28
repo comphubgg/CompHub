@@ -1,66 +1,35 @@
-import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Bild, Laedt, Marke } from '../../ds/Bausteine';
 import { useWer } from '../../teile/Anmeldung';
-import { ARTEN, FREIE_ARTEN, darfArt, overlayAdresse, type OverlayEintrag } from './ov/OverlayGeruest';
-import { Buehne, KopierFeld, ObsSchritte, obsGroesse, type OverlayGroesse } from './ov/Bausteine';
+import { ARTEN, FREIE_ARTEN, darfArt, overlayAdresse } from './ov/OverlayGeruest';
+import { KopierFeld, ObsSchritte, obsGroesse, type OverlayGroesse } from './ov/Bausteine';
 import { customParamUrl, STANDARD as CUSTOM_STANDARD } from './ov/custom/Baukasten';
-import { GLOBALS_EVENT, GLOBALS_TAGE } from './ov/lib/globalsCup';
+import { REIHENFOLGE, probeVon, useProbeDaten } from './ov/proben';
 import HubLink from './ov/Link';
 import { OV } from './ov/ort';
 import { useZugang } from './ov/zugang';
-import { Laedt, VIOLETT } from '../community/Teile';
+import { ProbeBuehne, StufenMarke, Zeichen, useMeineOverlays } from './Teile';
 
 /*
- * Die Overlay-Uebersicht (main: app/overlays/page.tsx, 11/2026) im Hub: je Overlay die echte Overlay-Datei von thecomphub.com mit
- * Beispielwerten auf einer 16:9-Buehne, in klaren Worten was es zeigt, wann man es nimmt, woher die Zahlen kommen und die OBS-Groesse - dazu
- * die eigenen gespeicherten Overlays dieser Art mit ihrer OBS-Adresse zum Kopieren, und der Weg in den Baukasten.
+ * Overlays - neu gebaut auf dem Design-System 3.0 (28.11.2026). Betreiber: "grosse Live-Vorschau als Buehne, Einstellungen angedockt,
+ * Schritte waehlen -> anpassen -> OBS-Adresse kopieren".
+ *
+ *   links    1 Choose  - jede Art als Karte mit ihrer laufenden Mini-Vorschau, darunter Globals 2026 und die privaten Partner-Kacheln
+ *   Mitte    die Buehne - die echte Overlay-Datei (thecomphub.com/overlay/..., im Hub ueber den Proxy) mit Beispielwerten, gross; darunter
+ *            was es zeigt, wann man es nimmt, woher die Zahlen kommen
+ *   rechts   2 Adjust  - in den Baukasten (neu anlegen, eigene Overlays, Steuerseite)
+ *            3 Copy    - die OBS-Adressen der eigenen Overlays dieser Art (https://www.thecomphub.com/overlay/...?id=...), die OBS-Schritte
  * Kostenlos: Cup timer, Offspawn (und der versteckte eigene Text); alles mit Live-Cupdaten fuer VIPs (darfArt in ov/OverlayGeruest).
- * Darunter die Globals-2026-Overlays und - nur wer sie sehen darf - die privaten Partner-Kacheln (/api/partner-kacheln).
+ * Die Wahl steht in der Adresse (#timer ...), damit alte Sprungmarken weiter treffen.
  */
 
-const TAG1 = GLOBALS_TAGE[0].windowId;
-const json = (o: unknown) => encodeURIComponent(JSON.stringify(o));
-
-/** Beispiel-Einstellungen je Overlay - und der Ausschnitt, in dem es auf der Flaeche sitzt (die Groessenmeldung kommt nicht ueber die Domaingrenze). */
-function vorschauVon(schluessel: string, duo: string, start: number): { src: string; b: number; h: number; aus: OverlayGroesse } | null {
-  switch (schluessel) {
-    case 'custom':
-      return { src: `${OV}/overlay/custom.html?vorschau=${json({ ...CUSTOM_STANDARD, punkte1: 2, punkte2: 1 })}`, b: 1920, h: 1080, aus: { x: 360, y: 0, w: 1200, h: 675 } };
-    case 'teamkarte':
-      return { src: `${OV}/overlay/banner.html?event=${encodeURIComponent(GLOBALS_EVENT)}&window=${encodeURIComponent(TAG1)}&klar=70&hoehe=190${duo ? `&id=${encodeURIComponent(duo)}` : '&probe=1&spieler=2'}`, b: 1280, h: 720, aus: { x: 160, y: 0, w: 960, h: 540 } };
-    case 'standings':
-      return {
-        src: `${OV}/overlay/standings.html?vorschau=${json({
-          event: GLOBALS_EVENT, window: TAG1, fenster: [], titel: 'LEADERBOARD', kopfrechts: 'POINTS', thema: '', ecken: 10, marke: 0, von: 1, bis: 5, takt: 15,
-          grund: '11 17 32', deckkraft: 0.85, akzent: '#a78bfa', schrift: 16, breite: 420, bilder: false, gold: 1, pausiert: 0, sichtbar: 15, seitenBis: 0, seitenTakt: 8,
-        })}`, b: 960, h: 540, aus: { x: 0, y: 0, w: 480, h: 270 },
-      };
-    case 'timer':
-      return {
-        src: `${OV}/overlay/timer.html?vorschau=${json({ event: GLOBALS_EVENT, window: TAG1, beginn: start, cup: 'FNCS Global Championship', wort: 'STARTS IN', cupZeigen: true, grund: '0 0 0', deckkraft: 0.72, akzent: '#a78bfa', schrift: 34, abStunden: 12, anordnung: 'zwei', immer: true })}`,
-        b: 960, h: 540, aus: { x: 0, y: 0, w: 400, h: 225 },
-      };
-    case 'qual':
-      return {
-        src: `${OV}/overlay/qual.html?vorschau=${json({ event: GLOBALS_EVENT, window: TAG1, schwelle: 50, wort: 'QUAL ~', takt: 15, grund: '0 0 0', deckkraft: 0.72, akzent: '#a78bfa', schrift: 18, pausiert: 0, sichtbar: 15, anordnung: 'zwei' })}`,
-        b: 960, h: 540, aus: { x: 0, y: 0, w: 400, h: 225 },
-      };
-    case 'offspawn':
-      return {
-        src: `${OV}/overlay/offspawn.html?vorschau=${json({ kopf: 'OFFSPAWN', kopfZeigen: true, name1: 'TEAM 1', name2: 'TEAM 2', punkte1: 2, punkte2: 1, farbe1: '#ffffff', farbe2: '#ffffff', breite: 0, massstab: 1, bilder1: [], bilder2: [], bild1: '', bild2: '', grund: '0 0 0', deckkraft: 0.72, schrift: 30, thema: '', ecken: 12 })}`,
-        b: 960, h: 540, aus: { x: 0, y: 0, w: 400, h: 225 },
-      };
-    default:
-      return null;
-  }
-}
-
-const REIHENFOLGE = ['timer', 'offspawn', 'custom', 'teamkarte', 'standings', 'qual'];
+type Art = (typeof ARTEN)[number];
 
 /** Private Partner-Kacheln: der Server schickt nur die, die diese Person sehen darf (app/api/partner-kacheln). */
 interface PartnerKachel { id: string; titel: string; text: string; href: string; logo: string; farbe: string; knopf: string }
-function PartnerKacheln() {
+function usePartner() {
   const [kacheln, setKacheln] = useState<PartnerKachel[]>([]);
   useEffect(() => {
     let weg = false;
@@ -68,190 +37,225 @@ function PartnerKacheln() {
       .then((j) => { if (!weg && Array.isArray(j?.kacheln)) setKacheln(j.kacheln as PartnerKachel[]); }).catch(() => {});
     return () => { weg = true; };
   }, []);
+  return kacheln;
+}
+
+/** Ein Schritt im Kopf: Nummer, Wort, erledigt/aktiv. */
+function Schritt({ n, titel, stand }: { n: number; titel: string; stand: 'fertig' | 'jetzt' | 'spaeter' }) {
   return (
-    <>
-      {kacheln.map((k) => (
-        <article key={k.id} id={k.id} className="overflow-hidden rounded-3xl border bg-white/[0.035] backdrop-blur-xl" style={{ borderColor: `${k.farbe}40` }}>
-          <div className="h-2" style={{ background: `repeating-linear-gradient(-45deg,#111 0 10px,${k.farbe} 10px 20px)` }} />
-          <div className="flex flex-wrap items-center justify-between gap-5 p-6">
-            <div className="flex min-w-0 items-center gap-4">
-              <img src={k.logo} alt="" className="h-12 w-auto shrink-0" />
-              <div className="min-w-0">
-                <h2 className="text-2xl font-black tracking-tight" style={{ color: k.farbe }}>{k.titel}</h2>
-                <p className="text-sm text-white/55">{k.text}</p>
-              </div>
-            </div>
-            <HubLink href={k.href} className="rounded-full px-5 py-2.5 text-sm font-bold text-black" style={{ background: k.farbe }}>{k.knopf} →</HubLink>
-          </div>
-        </article>
-      ))}
-    </>
+    <li className="flex items-center gap-2.5">
+      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${stand === 'fertig' ? 'bg-akz text-[#04050a]' : stand === 'jetzt' ? 'bg-akz/15 text-akz ring-1 ring-akz/50' : 'bg-white/[0.05] text-white/45'}`}>
+        {stand === 'fertig' ? <Zeichen name="haken" className="h-3.5 w-3.5" /> : n}
+      </span>
+      <span className={`text-sm font-semibold ${stand === 'spaeter' ? 'text-white/45' : 'text-white'}`}>{titel}</span>
+    </li>
   );
 }
 
-/** Die eigenen gespeicherten Overlays aller Arten - eine Anfrage fuer die ganze Seite. */
-function useMeine(an: boolean) {
-  const { wer } = useWer();
-  const [liste, setListe] = useState<OverlayEintrag[] | null>(null);
-  useEffect(() => {
-    if (!an) { setListe([]); return; }
-    fetch('/api/overlay-config?meine=1', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : { overlays: [] }))
-      .then((j) => setListe(j.overlays ?? [])).catch(() => setListe([]));
-  }, [an, wer?.userName]);
-  return liste;
-}
-
-function Gesperrt() {
-  const { oeffnen } = useWer();
+/** Kopf einer angedockten Tafel: Schritt-Nummer und Wort. */
+function TafelKopf({ n, titel, rechts }: { n: number; titel: string; rechts?: ReactNode }) {
   return (
-    <div className="absolute inset-3 grid place-items-center rounded-2xl bg-[#06080f]/45 sm:inset-4">
-      <div className="text-center">
-        <span className="rounded-full bg-violet-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#06080f]">VIP</span>
-        <p className="mt-2 text-sm text-white/70">Live cup data on your stream</p>
-        <button type="button" onClick={() => oeffnen('schluessel')} className="mt-3 rounded-full border border-violet-300/40 px-4 py-1.5 text-xs font-bold text-violet-100 transition hover:bg-violet-400/10">Unlock with an access key</button>
-      </div>
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className="grid h-6 w-6 place-items-center rounded-full bg-akz/15 text-[11px] font-bold text-akz">{n}</span>
+      <h2 className="titel text-2xl">{titel}</h2>
+      {rechts && <span className="ml-auto">{rechts}</span>}
     </div>
   );
 }
 
 export default function Overlays() {
   const zugang = useZugang();
-  const [groessen, setGroessen] = useState<Record<string, OverlayGroesse>>({});
+  const { oeffnen } = useWer();
+  const daten = useProbeDaten();
   const [start] = useState(() => Date.now() + 2 * 3_600_000 + 14 * 60_000);
-  const meine = useMeine(zugang.nutzer);
+  const meine = useMeineOverlays(zugang.nutzer);
+  const partner = usePartner();
+  const [groessen, setGroessen] = useState<Record<string, OverlayGroesse>>({});
 
-  // Ein echtes Duo der Global Championship fuer das Team-Banner-Beispiel.
-  const [duo, setDuo] = useState('');
-  useEffect(() => {
-    let weg = false;
-    fetch(`/api/globals-teams?fenster=${encodeURIComponent(TAG1)}`).then((r) => r.json())
-      .then((j) => { if (weg) return; const ids = ((j?.teams ?? [])[0]?.spieler ?? []).map((s: { turnierId: string }) => s.turnierId).filter(Boolean); if (ids.length) setDuo(ids.join(',')); })
-      .catch(() => {});
-    return () => { weg = true; };
-  }, []);
+  const arten = useMemo(() => REIHENFOLGE.map((k) => ARTEN.find((a) => a.schluessel === k)).filter((a): a is Art => Boolean(a && !a.versteckt)), []);
+  const [wahl, setWahl] = useState<string>(() => {
+    const h = typeof window === 'undefined' ? '' : window.location.hash.slice(1);
+    return REIHENFOLGE.includes(h) ? h : 'timer';
+  });
+  const waehlen = (k: string) => { setWahl(k); try { window.history.replaceState(null, '', `#${k}`); } catch { /* egal */ } };
 
-  const arten = useMemo(() => REIHENFOLGE.map((k) => ARTEN.find((a) => a.schluessel === k)).filter((a): a is (typeof ARTEN)[number] => Boolean(a && !a.versteckt)), []);
-  if (zugang.laedt) return <Laedt farbe={VIOLETT} text="Checking your access …" />;
+  if (zugang.laedt) return <Laedt text="Checking your access" />;
+
+  const a = arten.find((x) => x.schluessel === wahl) ?? arten[0];
+  const frei = darfArt(zugang, a.schluessel);
+  const istCustom = a.schluessel === 'custom';
+  const eigene = (meine ?? []).filter((o) => o.typ === a.schluessel);
+  const obs = obsGroesse(groessen[a.schluessel] ?? null);
+  const probe = probeVon(a.schluessel, daten, start);
+  const neuPfad = a.ohneCup ? a.pfad : `${a.pfad}?neu=1`;
+  const hatAdresse = frei && (eigene.length > 0 || istCustom);
 
   return (
-    <div className="space-y-8">
-      {/* ------------------------------------------------ Kopf */}
-      <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] px-6 py-8 backdrop-blur-xl sm:px-10">
-        <span aria-hidden className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
-        <span aria-hidden className="pointer-events-none absolute -bottom-32 left-10 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-3xl" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:items-end">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-300">Streamer · OBS browser source</p>
-            <h1 className="mt-2 text-5xl font-extrabold tracking-tight text-white">Stream overlays</h1>
-            <p className="mt-3 max-w-2xl text-white/55">Live cup numbers and scoreboards that sit on top of your gameplay. Pick one, set it up, copy the URL into OBS — done. The URL never changes: whatever you adjust later shows up on stream within seconds.</p>
-            <nav className="mt-6 flex flex-wrap gap-1.5" aria-label="Overlays">
-              {arten.map((a) => (
-                <a key={a.schluessel} href={`#${a.schluessel}`} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-white/70 transition hover:border-violet-300/50 hover:text-white">
-                  {a.titel}{!FREIE_ARTEN.includes(a.schluessel) && <span className="ml-1.5 text-[9px] font-black text-violet-300">VIP</span>}
-                </a>
-              ))}
-              <a href="#globals" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-white/70 transition hover:border-violet-300/50 hover:text-white">Globals 2026</a>
-            </nav>
-          </div>
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 p-4">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">How to add an overlay in OBS</p>
-            <ObsSchritte breite={1920} hoehe={1080} kompakt />
-          </div>
-        </div>
-      </motion.header>
+    <div className="space-y-5">
+      {/* ------------------------------------------------ Kopf: Titel und die drei Schritte */}
+      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
+        <motion.div initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }} className="min-w-0">
+          <p className="ueber">Create · OBS browser source</p>
+          <h1 className="titel mt-1 text-6xl lg:text-7xl">Overlays</h1>
+        </motion.div>
+        <ol className="flex flex-wrap items-center gap-x-6 gap-y-3" aria-label="Steps">
+          <Schritt n={1} titel="Choose an overlay" stand="fertig" />
+          <span className="hidden h-px w-8 bg-white/15 sm:block" />
+          <Schritt n={2} titel="Adjust it" stand={eigene.length ? 'fertig' : 'jetzt'} />
+          <span className="hidden h-px w-8 bg-white/15 sm:block" />
+          <Schritt n={3} titel="Copy the OBS URL" stand={hatAdresse ? 'jetzt' : 'spaeter'} />
+        </ol>
+      </header>
 
-      {/* ------------------------------------------------ eine Reihe je Overlay */}
-      <div className="space-y-6">
-        {arten.map((a, i) => {
-          const v = vorschauVon(a.schluessel, duo, start);
-          const frei = darfArt(zugang, a.schluessel);
-          const istCustom = a.schluessel === 'custom';
-          const eigene = (meine ?? []).filter((o) => o.typ === a.schluessel);
-          const g = groessen[a.schluessel] ?? null;
-          return (
-            <motion.article key={a.schluessel} id={a.schluessel} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.08 * i }}
-              className={`scroll-mt-32 overflow-hidden rounded-3xl border bg-white/[0.035] backdrop-blur-xl ${FREIE_ARTEN.includes(a.schluessel) ? 'border-white/10' : 'border-violet-300/20'}`}>
-              <div className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-                <div className={`relative min-w-0 p-3 sm:p-4 ${i % 2 ? 'lg:order-2' : ''}`}>
-                  {v && <Buehne src={v.src} breite={v.b} hoehe={v.h} szene titel={a.titel} ersatz={v.aus} maxMass={2}
-                    onGroesse={(n) => setGroessen((alt) => (alt[a.schluessel]?.w === n.w && alt[a.schluessel]?.h === n.h && alt[a.schluessel]?.x === n.x ? alt : { ...alt, [a.schluessel]: n }))}
-                    kopf={<><span className="font-mono uppercase tracking-[0.18em]">Live preview · sample values</span><span className="font-mono text-white/45">OBS {obsGroesse(g).b} × {obsGroesse(g).h}</span></>} />}
-                  {!frei && <Gesperrt />}
-                </div>
-                <div className="flex min-w-0 flex-col p-6 sm:p-7">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-3xl font-extrabold tracking-tight text-white">{a.titel}</h2>
-                    {FREIE_ARTEN.includes(a.schluessel)
-                      ? <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/60">Free</span>
-                      : <span className="rounded-full bg-violet-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#06080f]">VIP</span>}
-                  </div>
-                  <p className="text-sm font-medium text-violet-200/90">{a.kurz}</p>
-                  <dl className="mt-4 space-y-3 text-sm leading-relaxed">
-                    <div><dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">What it shows</dt><dd className="mt-0.5 text-white/70">{a.zeigt}</dd></div>
-                    <div><dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">When to use it</dt><dd className="mt-0.5 text-white/70">{a.wann}</dd></div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                      <div><dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">Data</dt><dd className="mt-0.5 text-xs text-white/55">{a.quelle}</dd></div>
-                      <div><dt className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">OBS size</dt><dd className="mt-0.5 font-mono text-xs text-white/70">{obsGroesse(g).b} × {obsGroesse(g).h}</dd></div>
-                    </div>
-                  </dl>
-                  {frei && istCustom && (
-                    <div className="mt-4">
-                      <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">Try it right now</p>
-                      <KopierFeld wert={customParamUrl(CUSTOM_STANDARD, OV)} knopf="Copy OBS URL" klein />
+      <div className="grid gap-4 lg:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
+        {/* ------------------------------------------------ 1 Choose */}
+        <aside className="fl-fest p-3 lg:sticky lg:top-[7.5rem] lg:max-h-[calc(100dvh-9rem)] lg:self-start lg:overflow-y-auto">
+          <p className="px-1 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/40">1 · Choose</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+            {arten.map((x) => {
+              const an = x.schluessel === a.schluessel;
+              const zu = !darfArt(zugang, x.schluessel);
+              return (
+                <button key={x.schluessel} type="button" onClick={() => waehlen(x.schluessel)} aria-pressed={an}
+                  className={`group overflow-hidden rounded-2xl border text-left transition ${an ? 'border-akz/50 bg-akz/[0.08]' : 'border-white/[0.06] bg-black/20 hover:border-white/15'}`}>
+                  <ProbeBuehne probe={probeVon(x.schluessel, daten, start)} titel={x.titel} maxMass={0.9} className="aspect-video" />
+                  <span className="flex items-center gap-2 px-3 py-2">
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-sm font-bold ${an ? 'text-white' : 'text-white/80'}`}>{x.titel}</span>
+                      <span className="block truncate text-[11px] text-white/45">{x.kurz}</span>
+                    </span>
+                    {!FREIE_ARTEN.includes(x.schluessel) && <StufenMarke vip zu={zu} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Globals 2026 und Partner: eigene Seiten */}
+          <Link to="/streamer/overlays/globals" id="globals" className="group mt-3 block overflow-hidden rounded-2xl border border-white/[0.06] bg-black/20 transition hover:border-white/15">
+            <span className="relative block aspect-video overflow-hidden">
+              <Bild src="/cups/fncs-global-championship-2026-hd.jpg" alt="FNCS Global Championship 2026" className="absolute inset-0 h-full w-full transition duration-700 group-hover:scale-105" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <span className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2">
+                <span className="titel text-2xl">Globals 2026</span>
+                <StufenMarke vip zu={!zugang.vip} />
+              </span>
+            </span>
+            <span className="block px-3 py-2 text-[11px] text-white/45">Leaderboard, player banner and a free overlay in the Global Championship look</span>
+          </Link>
+          {partner.map((k) => (
+            <HubLink key={k.id} href={k.href} className="mt-3 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-3 transition hover:border-white/15">
+              <img src={k.logo} alt="" className="h-9 w-auto shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold" style={{ color: k.farbe }}>{k.titel}</span>
+                <span className="block truncate text-[11px] text-white/45">{k.text}</span>
+              </span>
+              <Zeichen name="pfeil" className="h-4 w-4 text-white/40" />
+            </HubLink>
+          ))}
+        </aside>
+
+        {/* ------------------------------------------------ Buehne */}
+        <section className="min-w-0 space-y-4">
+          <div className="fl-fest overflow-hidden">
+            <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-5 py-3">
+              <h2 className="titel text-3xl">{a.titel}</h2>
+              <StufenMarke vip={!FREIE_ARTEN.includes(a.schluessel)} zu={!frei} />
+              <span className="text-sm text-white/50">{a.kurz}</span>
+              <span className="ml-auto flex items-center gap-3 text-[11px] text-white/45">
+                <span className="hidden font-mono uppercase tracking-[0.18em] sm:inline">Live preview · sample values</span>
+                <span className="zahl rounded-md bg-white/[0.05] px-2 py-1 font-mono text-white/70">OBS {obs.b} × {obs.h}</span>
+              </span>
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div key={a.schluessel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+                <ProbeBuehne probe={probe} titel={a.titel} maxMass={2.4} className="aspect-video w-full"
+                  onGroesse={(g) => setGroessen((alt) => (alt[a.schluessel]?.w === g.w && alt[a.schluessel]?.h === g.h && alt[a.schluessel]?.x === g.x ? alt : { ...alt, [a.schluessel]: g }))}>
+                  {!frei && (
+                    <div className="absolute inset-0 grid place-items-center bg-grund/55 backdrop-blur-[2px]">
+                      <div className="text-center">
+                        <Marke ton="gold">VIP</Marke>
+                        <p className="mt-3 text-sm text-white/75">Live cup data on your stream</p>
+                        <button type="button" onClick={() => oeffnen('schluessel')} className="knopf mt-3">Unlock with an access key</button>
+                      </div>
                     </div>
                   )}
-                  {frei && eigene.length > 0 && (
-                    <div className="mt-4 space-y-1.5">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">Your {a.titel} overlays</p>
-                      {eigene.slice(0, 3).map((o) => (
-                        <div key={o.id} className="flex items-center gap-2">
-                          <Link to={`${a.pfad}?id=${encodeURIComponent(o.id)}&bauen=1`} reloadDocument className="w-32 shrink-0 truncate text-xs font-semibold text-white/80 hover:text-violet-200">{o.name}</Link>
-                          <div className="min-w-0 flex-1"><KopierFeld wert={overlayAdresse(o.typ, o.id)} klein /></div>
-                        </div>
-                      ))}
-                      {eigene.length > 3 && <Link to={a.pfad} className="text-[11px] text-violet-300 hover:underline">+{eigene.length - 3} more</Link>}
-                    </div>
-                  )}
-                  <div className="mt-auto flex flex-wrap gap-2 pt-5">
-                    {frei ? (
-                      <>
-                        <Link to={a.ohneCup ? a.pfad : `${a.pfad}?neu=1`} className="rounded-full bg-violet-400 px-5 py-2.5 text-sm font-bold text-[#06080f] transition hover:-translate-y-0.5 hover:bg-violet-300">{istCustom ? 'Open configurator' : 'Create overlay'} →</Link>
-                        {!istCustom && <Link to={a.pfad} className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/75 transition hover:border-violet-300/50 hover:text-white">My overlays</Link>}
-                        {istCustom && <Link to="/streamer/overlays/custom/control" className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/75 transition hover:border-violet-300/50 hover:text-white">Control panel</Link>}
-                      </>
-                    ) : <span className="text-sm text-white/45">Part of VIP – enter your access key to set it up.</span>}
-                  </div>
-                </div>
+                </ProbeBuehne>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Was, wann, woher - eine Zeile unter der Buehne */}
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {[['What it shows', a.zeigt], ['When to use it', a.wann], ['Where the data comes from', a.quelle]].map(([t, v]) => (
+              <div key={t} className="fl-fest p-4">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">{t}</dt>
+                <dd className="mt-1.5 text-sm leading-relaxed text-white/70">{v}</dd>
               </div>
-            </motion.article>
-          );
-        })}
+            ))}
+          </dl>
+        </section>
+
+        {/* ------------------------------------------------ 2 Adjust + 3 Copy, angedockt */}
+        <aside className="space-y-4 lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 2xl:sticky 2xl:top-[7.5rem] 2xl:col-span-1 2xl:block 2xl:space-y-4 2xl:self-start">
+          <div className="fl-fest p-5">
+            <TafelKopf n={2} titel="Adjust" />
+            {frei ? (
+              <>
+                <p className="text-sm leading-relaxed text-white/55">
+                  {istCustom ? 'Teams, colours, fonts, flags and position – the score is changed live from the control page.' : a.ohneCup ? 'Names, score, colours and look – the preview updates while you type.' : 'Pick the cup day, then the look – the preview updates while you change it.'}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link to={neuPfad} className="knopf-prim">{istCustom ? 'Open configurator' : 'Create overlay'} <span aria-hidden>→</span></Link>
+                  {istCustom
+                    ? <Link to="/streamer/overlays/custom/control" className="knopf">Control panel</Link>
+                    : <Link to={a.pfad} className="knopf">My {a.titel} overlays</Link>}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm leading-relaxed text-white/55">{a.titel} runs on live cup data and is part of VIP. With a free account you get the cup timer and the offspawn score.</p>
+                <button type="button" onClick={() => oeffnen('schluessel')} className="knopf-prim mt-4">Enter access key</button>
+              </>
+            )}
+          </div>
+
+          <div className="fl-fest p-5">
+            <TafelKopf n={3} titel="Copy to OBS" rechts={<span className="zahl font-mono text-[11px] text-white/45">{obs.b} × {obs.h}</span>} />
+            {frei && eigene.length > 0 && (
+              <div className="space-y-2.5">
+                {eigene.slice(0, 4).map((o) => (
+                  <div key={o.id}>
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-white/80">{o.name}</span>
+                      <Link to={`${a.pfad}?id=${encodeURIComponent(o.id)}&bauen=1`} reloadDocument className="text-[11px] font-semibold text-akz hover:brightness-125">Edit</Link>
+                    </div>
+                    <KopierFeld wert={overlayAdresse(o.typ, o.id)} klein />
+                  </div>
+                ))}
+                {eigene.length > 4 && <Link to={a.pfad} className="knopf-leer text-xs">+{eigene.length - 4} more</Link>}
+              </div>
+            )}
+            {frei && istCustom && (
+              <div className={eigene.length ? 'mt-4' : ''}>
+                <p className="mb-1 text-xs font-semibold text-white/70">Try it right now – default look</p>
+                <KopierFeld wert={customParamUrl(CUSTOM_STANDARD, OV)} klein />
+              </div>
+            )}
+            {frei && !eigene.length && !istCustom && (
+              <p className="rounded-xl border border-dashed border-white/10 px-4 py-4 text-center text-xs text-white/45">Create a {a.titel.toLowerCase()} first – its OBS URL shows up here. The URL never changes: what you adjust later is on stream within seconds.</p>
+            )}
+            {!frei && <p className="text-xs text-white/45">Unlock VIP to get an OBS URL for this overlay.</p>}
+            <div className="mt-4 border-t border-white/[0.06] pt-4"><ObsSchritte breite={obs.b} hoehe={obs.h} kompakt /></div>
+          </div>
+
+          <div className="fl-fest p-5 text-xs leading-relaxed text-white/55 lg:col-span-2 2xl:col-span-1">
+            <p><b className="text-white/80">Crisp at 1080p.</b> Never stretch the source in OBS – use the overlay's own size setting. Blurry text almost always means the source was scaled.</p>
+            <p className="mt-2"><b className="text-white/80">Transparent by default.</b> Leave the custom CSS field in OBS empty.</p>
+            <p className="mt-2"><b className="text-white/80">Every overlay you saved</b> is in your archive – <Link to="/streamer/vip#archiv" className="text-akz hover:brightness-125">VIP → My archive</Link>.</p>
+          </div>
+        </aside>
       </div>
-
-      {/* ------------------------------------------------ Globals 2026 */}
-      <Link to="/streamer/overlays/globals" id="globals" className="group block scroll-mt-32">
-        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} whileHover={{ y: -4 }}
-          className="relative grid overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
-          <div className="relative z-10 p-7 sm:p-9">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">FNCS · Global Championship</p>
-            <h2 className="mt-1 text-4xl font-extrabold tracking-tight text-white">Globals <span className="text-sky-400">2026</span> overlays</h2>
-            <p className="mt-2 max-w-xl text-white/55">Leaderboard, player banner and a free overlay in the look of the Global Championship – the cup is fixed, you only pick the day.</p>
-            <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition group-hover:bg-white/15">{zugang.vip ? 'Open Globals overlays →' : '🔒 VIP – Open Globals overlays'}</span>
-          </div>
-          <div className="relative aspect-video lg:aspect-auto">
-            <img src="/cups/fncs-global-championship-2026-hd.jpg" alt="FNCS Global Championship 2026" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0b0d16] via-[#0b0d16]/30 to-transparent" />
-          </div>
-        </motion.section>
-      </Link>
-
-      <PartnerKacheln />
-
-      <section className="grid gap-5 rounded-3xl border border-white/10 bg-white/[0.035] p-6 backdrop-blur-xl sm:grid-cols-3 sm:p-7">
-        <div><h3 className="text-sm font-bold text-white">Crisp at 1080p</h3><p className="mt-1 text-xs leading-relaxed text-white/55">Add every overlay as a 1920 × 1080 source and never stretch it — make it bigger with its own size setting instead. Blurry text almost always means the source was scaled in the scene.</p></div>
-        <div><h3 className="text-sm font-bold text-white">Transparent by default</h3><p className="mt-1 text-xs leading-relaxed text-white/55">Everything outside the overlay is see-through. Leave the custom CSS field in OBS empty.</p></div>
-        <div><h3 className="text-sm font-bold text-white">Saved overlays</h3><p className="mt-1 text-xs leading-relaxed text-white/55">All overlays you created are in your archive. <Link to="/streamer/vip#archiv" className="text-violet-300 underline-offset-2 hover:underline">VIP → My archive</Link></p></div>
-      </section>
     </div>
   );
 }

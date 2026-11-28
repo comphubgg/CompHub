@@ -106,13 +106,15 @@ export const FLAECHE: React.CSSProperties = {
  * Ein Overlay in einem Kasten fester Form: die echte Overlay-Datei laeuft in einem Rahmen, zugeschnitten auf das Overlay und so gross, wie der
  * Kasten es zulaesst (hoechstens `maxMass`-fach). Das Overlay meldet seine Groesse selbst (gleiche Herkunft ueber den Proxy) - bis dahin gilt `aus`.
  */
-export function ProbeBuehne({ probe, titel, maxMass = 1.6, className = 'aspect-video', nackt = false }: { probe: Probe | null; titel: string; maxMass?: number; className?: string; nackt?: boolean }) {
+export function ProbeBuehne({ probe, titel, maxMass = 1.6, className = 'aspect-video', nackt = false, onGroesse, children }: { probe: Probe | null; titel: string; maxMass?: number; className?: string; nackt?: boolean; onGroesse?: (g: { x: number; y: number; w: number; h: number }) => void; children?: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const rahmen = useRef<HTMLIFrameElement | null>(null);
   const [platz, setPlatz] = useState({ b: 0, h: 0 });
   const [g, setG] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   // Das Overlay laeuft nur, solange der Kasten im Bild (oder knapp davor) ist - eine Seite mit vielen Vorschauen haelt so nur wenige Rahmen am Leben
   const [nah, setNah] = useState(false);
+  const onGroesseRef = useRef(onGroesse);
+  onGroesseRef.current = onGroesse;
   useEffect(() => {
     const el = box.current; if (!el) return undefined;
     const messen = () => setPlatz({ b: el.clientWidth, h: el.clientHeight });
@@ -127,6 +129,7 @@ export function ProbeBuehne({ probe, titel, maxMass = 1.6, className = 'aspect-v
       const d = e.data as { comphub?: string; x?: number; y?: number; w?: number; h?: number };
       if (d?.comphub !== 'overlay-groesse' || !d.w || !d.h) return;
       setG((alt) => (alt && alt.w === d.w && alt.h === d.h && alt.x === (d.x ?? 0) && alt.y === (d.y ?? 0) ? alt : { x: d.x ?? 0, y: d.y ?? 0, w: d.w!, h: d.h! }));
+      onGroesseRef.current?.({ x: d.x ?? 0, y: d.y ?? 0, w: d.w, h: d.h });
     };
     window.addEventListener('message', an);
     return () => window.removeEventListener('message', an);
@@ -144,6 +147,7 @@ export function ProbeBuehne({ probe, titel, maxMass = 1.6, className = 'aspect-v
             style={{ width: probe.b, height: probe.h, transform: `scale(${mass}) translate(${-aus.x}px, ${-aus.y}px)`, background: 'transparent' }} />
         </div>
       )}
+      {children}
     </div>
   );
 }
