@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Countdown, Hinweis, LinkKopieren, restText, useHubDatei, useJetzt } from '../Bausteine';
-import { dauer, Flaeche, Laedt, Leer, Segment, SeitenKopf } from '../../../ds/Bausteine';
+import { Bild, dauer, Flaeche, Laedt, Leer, Marke, Segment, SeitenKopf } from '../../../ds/Bausteine';
 import { useSaison } from '../SeitenSaison';
 import { Zahl } from '../epic/Diagramm';
 import { datumKurz, holen, REITER, seltenVon, useAblage, useShop, useTeile, type Teil } from './daten';
@@ -53,31 +53,56 @@ function Fortschritt({ hab, von, titel }: { hab: number; von: number; titel: str
 }
 const RASTER = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
 
-/** Breites Saison-Bild (2:1, scharf) mit Text darueber. */
-function Held({ bild, ueber, titel, unter, rechts, kinder }: { bild?: string; ueber: string; titel: string; unter?: ReactNode; rechts?: ReactNode; kinder?: ReactNode }) {
+/** Fortschritt als Ring (Design 3.0): grosse Zahl in der Mitte. */
+function Ring({ hab, von, titel, groesse = 150 }: { hab: number; von: number; titel: string; groesse?: number }) {
+  const r = 42; const u = 2 * Math.PI * r; const p = von ? hab / von : 0;
   return (
-    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative overflow-hidden rounded-3xl border border-white/10">
-      <div className="relative aspect-[4/3] sm:aspect-[2/1] xl:aspect-[21/8]">
-        {bild ? <motion.img src={bild} alt="" initial={{ scale: 1.06 }} animate={{ scale: 1 }} transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }} className="absolute inset-0 h-full w-full object-cover object-center" />
-          : <div className="absolute inset-0 bg-gradient-to-br from-akz/25 via-violet-500/10 to-transparent" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/50 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#06080f]/80 via-transparent to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-6 p-6 md:p-8">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-akz">{ueber}</p>
-            <h2 className="mt-1 text-4xl font-black tracking-tight text-white md:text-6xl">{titel}</h2>
-            {unter && <div className="mt-2 max-w-2xl text-sm text-white/70">{unter}</div>}
-            {kinder}
-          </div>
-          {rechts}
-        </div>
+    <div className="relative shrink-0" style={{ width: groesse, height: groesse }}>
+      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="7" />
+        <motion.circle cx="50" cy="50" r={r} fill="none" stroke="rgb(var(--akz))" strokeWidth="7" strokeLinecap="round" strokeDasharray={u}
+          initial={{ strokeDashoffset: u }} animate={{ strokeDashoffset: u * (1 - p) }} transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }} />
+      </svg>
+      <div className="absolute inset-0 grid place-content-center text-center">
+        <p className="titel zahl text-4xl leading-none">{hab}<span className="text-xl text-white/40">/{von}</span></p>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">{titel}</p>
+      </div>
+    </div>
+  );
+}
+/** Breites Saisonbild als Buehne (16:9-Motiv, ganze Hoehe), Text unten links. */
+function Buehne({ bild, ueber, titel, unter, kinder }: { bild?: string; ueber: string; titel: string; unter?: ReactNode; kinder?: ReactNode }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="fl-fest relative isolate min-h-[340px] overflow-hidden lg:min-h-[420px]">
+      {bild && <motion.img src={bild} alt="" initial={{ scale: 1.05 }} animate={{ scale: 1 }} transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }} className="absolute inset-0 -z-10 h-full w-full object-cover" />}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-fl via-fl/50 to-transparent" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-fl/85 via-transparent to-transparent" />
+      <div className="flex h-full min-h-[inherit] flex-col justify-end p-6 md:p-8">
+        <p className="ueber">{ueber}</p>
+        <h2 className="titel mt-1 text-6xl md:text-7xl">{titel}</h2>
+        {unter && <div className="mt-2 max-w-2xl text-sm text-white/70">{unter}</div>}
+        {kinder}
       </div>
     </motion.div>
   );
 }
+/** Eine Zeile im Fortschrittsfeld: Name, Zahl, feine Linie - klickbar als Filter. */
+function KatZeile({ titel, hab, von, an, klick }: { titel: string; hab: number; von: number; an: boolean; klick: () => void }) {
+  return (
+    <button type="button" onClick={klick} className={`w-full rounded-xl px-3 py-2 text-left transition ${an ? 'bg-akz/10 ring-1 ring-akz/40' : 'hover:bg-white/[0.04]'}`}>
+      <span className="flex items-baseline justify-between gap-2 text-sm"><span className="font-semibold text-white">{titel}</span><span className="zahl text-xs font-bold text-white/60">{hab} / {von}</span></span>
+      <span className="mt-1.5 block h-[3px] overflow-hidden rounded-full bg-white/[0.07]"><motion.span className="block h-full rounded-full bg-akz" initial={{ width: 0 }} animate={{ width: `${von ? (hab / von) * 100 : 0}%` }} transition={{ duration: 0.8 }} /></span>
+    </button>
+  );
+}
 
-/* ================================================================== Treasure Hunt */
+/* ================================================================== Treasure Hunt (Design 3.0, neu komponiert 28.11.2026)
+ * Schatzkarte: links die Key Art der Saison mit Countdown als Buehne, rechts "Your haul" - Ring mit allem Gefundenen und je Kategorie
+ * eine Zeile, die zugleich Filter ist. Darunter EIN Raster gleich grosser Kacheln, umgeschaltet per Segment (Alle Belohnungen, Free tier,
+ * Battle Pass, Quests, Schatz-Kosmetik). Optional aus schatzsuche.json: Ablauf-Schritte und Truhen-Belohnungen mit Chance.
+ */
 interface Schatz { saison?: string; mechanik?: Array<{ titel: string; text: string }>; belohnungen: Array<{ id: string; name: string; typ?: string; chance?: number; einsIn?: number; bild?: string; cosmeticId?: string; quelle?: string }> }
+type SchatzKat = 'alle' | 'frei' | 'pass' | 'quest' | 'schatz';
 export function Schatzsuche() {
   const { teile, laedt, nr } = useSaisonTeile();
   const { s } = useSaison();
@@ -85,50 +110,69 @@ export function Schatzsuche() {
   const gefunden = useAblage<string[]>('schatz-gefunden', []);
   const news = useNews();
   const [nurOffen, setNurOffen] = useState(false);
+  const [kat, setKat] = useState<SchatzKat>('alle');
   const d = useMemo(() => {
     const dieSaison = teile.filter((t) => t.saisonNr === nr);
     const hat = (t: Teil, h: string) => (t.herkunft ?? []).some((x) => x === h || x.startsWith(`${h}.`));
     const bpFrei = teile.filter((t) => hat(t, `Season${nr}.BattlePass.Free`));
     const bpBezahlt = teile.filter((t) => !bpFrei.includes(t) && hat(t, `Season${nr}.BattlePass`));
     const quests = dieSaison.filter((t) => hat(t, 'QuestReward'));
-    const schatz = dieSaison.filter((t) => /treasure|gold|pirate|captain|finders|keepers|loot|chest|map|buried|doubloon|tide/i.test(`${t.name} ${t.text} ${t.set ?? ''}`) && !bpFrei.includes(t) && !bpBezahlt.includes(t) && !quests.includes(t));
+    const schatz = dieSaison.filter((t) => /treasure|gold|pirate|captain|finders|keepers|loot|chest|map|buried|doubloon|tide/i.test(`${t.name} ${t.text} ${t.set ?? ''}`) && !bpFrei.includes(t) && !bpBezahlt.includes(t) && !quests.includes(t) && HAUPT.includes(t.typ)).slice(0, 48);
     const keyArt = dieSaison.find((t) => /KeyArt/i.test(t.id) && t.bildBreit) ?? dieSaison.find((t) => t.typ === 'loadingscreen' && t.bildBreit);
     return { bpFrei, bpBezahlt, quests, schatz, keyArt, anzahl: dieSaison.length };
   }, [teile, nr]);
   const belohnungen = [...d.bpFrei, ...d.bpBezahlt, ...d.quests];
-  const hab = belohnungen.filter((t) => gefunden.wert.includes(t.id)).length;
+  const zahl = (l: Teil[]) => l.filter((t) => gefunden.wert.includes(t.id)).length;
+  const hab = zahl(belohnungen);
   const umschalten = (id: string) => gefunden.setzen((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
-  const sicht = (l: Teil[]) => (nurOffen ? l.filter((t) => !gefunden.wert.includes(t.id)) : l);
   const schatzNews = news.filter((m) => /treasure|gold|loot|chest|devil fruit|captain|pirate|hunt/i.test(`${m.title} ${m.body}`));
-  const kachel = (t: Teil, i: number, zusatz?: string) => (
-    <Kachel key={t.id} t={t} index={i} unten={<>{zusatz && <p className="mt-1 text-[10px] font-semibold text-amber-200/80">{zusatz}</p>}<Merker an={gefunden.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as found" textAn="✓ Found" /></>} />
-  );
+  const marke = (t: Teil) => (d.bpFrei.includes(t) ? 'Free tier' : d.bpBezahlt.includes(t) ? ((t.herkunft ?? []).some((h) => h.endsWith('Additional')) ? 'Bonus reward' : 'Paid tier') : d.quests.includes(t) ? 'Quest' : t.set ?? 'Treasure-themed');
+  const quelle: Record<SchatzKat, Teil[]> = { alle: belohnungen, frei: d.bpFrei, pass: d.bpBezahlt, quest: d.quests, schatz: d.schatz };
+  const sicht = quelle[kat].filter((t) => !nurOffen || !gefunden.wert.includes(t.id));
+  const wahl: Array<{ k: SchatzKat; titel: string }> = [{ k: 'alle', titel: `All rewards ${belohnungen.length}` }, { k: 'frei', titel: `Free tier ${d.bpFrei.length}` }, { k: 'pass', titel: `Battle Pass ${d.bpBezahlt.length}` }, ...(d.quests.length ? [{ k: 'quest' as const, titel: `Quests ${d.quests.length}` }] : []), ...(d.schatz.length ? [{ k: 'schatz' as const, titel: `Treasure-themed ${d.schatz.length}` }] : [])];
   return (
-    <div className="space-y-8">
-      <SeitenKopf klein ueber="Community · Season" titel="Treasure Hunt" text={`${s.name} – every reward you can dig up, earn or unlock this season, and what you've already found.`}
-        rechts={<div className="flex gap-2"><AblageHinweis ort={gefunden.ort} /><LinkKopieren /></div>} />
-      <Held bild={d.keyArt?.bildBreit} ueber={`${s.sub ?? 'Season'} · Season ${s.season}`} titel={s.name} unter={d.keyArt?.text || 'Sand, sun, and searching for lost loot.'}
-        kinder={<div className="mt-5"><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">Season ends in</p><Countdown ziel={Date.parse(s.end)} groesse="mittel" /></div>}
-        rechts={<Flaeche fest className="p-4"><Fortschritt hab={hab} von={belohnungen.length} titel="Rewards found" /><p className="mt-2 text-[11px] text-white/45"><Zahl wert={d.anzahl} /> new cosmetics this season</p></Flaeche>} />
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><p className="ueber">Community · Season</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Treasure Hunt</h1></div>
+        <div className="flex flex-wrap gap-2"><AblageHinweis ort={gefunden.ort} /><LinkKopieren /></div>
+      </header>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Buehne bild={d.keyArt?.bildBreit} ueber={`${s.sub ?? 'Season'} · Season ${s.season}`} titel={s.name} unter={d.keyArt?.text || 'Sand, sun, and searching for lost loot.'}
+          kinder={<div className="mt-5"><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/50">Season ends in</p><Countdown ziel={Date.parse(s.end)} groesse="mittel" /></div>} />
+        <Flaeche fest verz={0.06} className="flex flex-col p-5">
+          <p className="ueber">Your haul</p>
+          <div className="mt-3 flex items-center gap-5">
+            <Ring hab={hab} von={belohnungen.length} titel="Found" />
+            <div className="min-w-0 text-sm text-white/55"><p><b className="titel zahl text-3xl text-white"><Zahl wert={d.anzahl} /></b><br />new cosmetics this season</p><p className="mt-2 text-xs">Mark a reward as found and it's remembered {gefunden.ort === 'konto' ? 'on your account' : 'in this browser'}.</p></div>
+          </div>
+          <div className="mt-4 space-y-1">
+            <KatZeile titel="Free pass rewards" hab={zahl(d.bpFrei)} von={d.bpFrei.length} an={kat === 'frei'} klick={() => setKat('frei')} />
+            <KatZeile titel="Battle Pass rewards" hab={zahl(d.bpBezahlt)} von={d.bpBezahlt.length} an={kat === 'pass'} klick={() => setKat('pass')} />
+            {d.quests.length > 0 && <KatZeile titel="Quest rewards" hab={zahl(d.quests)} von={d.quests.length} an={kat === 'quest'} klick={() => setKat('quest')} />}
+          </div>
+          {/* Epics News zur Schatzsuche - kompakt im selben Feld */}
+          {schatzNews.length > 0 && (
+            <div className="mt-5 border-t border-white/[0.06] pt-4">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">On the island right now</p>
+              <ul className="space-y-3">
+                {schatzNews.slice(0, 3).map((m) => (
+                  <li key={m.id} className="flex gap-3">
+                    <span className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-black/40"><Bild src={m.image || m.tileImage} className="absolute inset-0 h-full w-full" /></span>
+                    <span className="min-w-0"><span className="block text-sm font-bold leading-snug text-white">{m.title}</span><span className="line-clamp-2 text-xs text-white/50">{m.body}</span></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Flaeche>
+      </div>
 
       {daten?.mechanik?.length ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {daten.mechanik.map((m, i) => <Flaeche fest key={m.titel} className="p-5" verz={i * 0.05}><p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-akz">Step {i + 1}</p><h3 className="mt-1 text-lg font-extrabold text-white">{m.titel}</h3><p className="mt-1 text-sm text-white/55">{m.text}</p></Flaeche>)}
-        </div>
+        <Flaeche fest className="grid divide-white/[0.06] md:grid-cols-2 md:divide-x xl:grid-cols-4">
+          {daten.mechanik.map((m, i) => <div key={m.titel} className="p-5"><p className="titel zahl text-4xl text-akz">{String(i + 1).padStart(2, '0')}</p><h3 className="mt-1 text-lg font-extrabold text-white">{m.titel}</h3><p className="mt-1 text-sm text-white/55">{m.text}</p></div>)}
+        </Flaeche>
       ) : null}
-
-      {schatzNews.length > 0 && (
-        <Bereich titel="On the island right now">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {schatzNews.slice(0, 3).map((m, i) => (
-              <Flaeche fest key={m.id} className="overflow-hidden" verz={i * 0.06}>
-                {(m.image || m.tileImage) && <div className="aspect-video bg-gradient-to-br from-amber-300/15 via-akz/10 to-transparent"><img src={m.image || m.tileImage} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="h-full w-full object-cover" /></div>}
-                <div className="p-5"><h3 className="text-lg font-extrabold text-white">{m.title}</h3><p className="mt-1 text-sm leading-relaxed text-white/60">{m.body}</p></div>
-              </Flaeche>
-            ))}
-          </div>
-        </Bereich>
-      )}
 
       {daten?.belohnungen?.length ? (
         <Bereich titel="Treasure chest rewards & chances">
@@ -137,7 +181,7 @@ export function Schatzsuche() {
               const t = b.cosmeticId ? teile.find((x) => x.id.toLowerCase() === b.cosmeticId!.toLowerCase()) : undefined; const n = b.einsIn ?? (b.chance ? Math.round(1 / b.chance) : null);
               const da = gefunden.wert.includes(b.id);
               return (
-                <Flaeche fest key={b.id} className={`overflow-hidden ${da ? 'ring-1 ring-emerald-300/40' : ''}`} verz={Math.min(i, 20) * 0.02}>
+                <Flaeche fest key={b.id} className={`overflow-hidden !rounded-2xl ${da ? 'ring-1 ring-emerald-300/40' : ''}`} verz={Math.min(i, 20) * 0.02}>
                   <div className="relative aspect-square" style={{ background: `radial-gradient(110% 85% at 50% 18%, ${seltenVon(t?.selten ?? 'legendary').a}55, #05070d)` }}>
                     {(b.bild ?? t?.bild) && <img src={b.bild ?? t!.bild} alt="" className="h-full w-full object-contain" />}
                     {n && <span className="absolute left-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-amber-200">1 in {n.toLocaleString('en')}</span>}
@@ -151,16 +195,23 @@ export function Schatzsuche() {
         </Bereich>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3"><Schalter titel="Hide what I've found" an={nurOffen} setzen={setNurOffen} /></div>
-      {laedt && <Laedt text="Loading this season's cosmetics" />}
-      {d.bpFrei.length > 0 && <Bereich titel={<>Free pass rewards <span className="text-sm font-semibold text-white/40">{d.bpFrei.length}</span></>}><div className={RASTER}>{sicht(d.bpFrei).map((t, i) => kachel(t, i, 'Free tier'))}</div></Bereich>}
-      {d.bpBezahlt.length > 0 && <Bereich titel={<>Battle Pass rewards <span className="text-sm font-semibold text-white/40">{d.bpBezahlt.length}</span></>}><div className={RASTER}>{sicht(d.bpBezahlt).map((t, i) => kachel(t, i, (t.herkunft ?? []).some((h) => h.endsWith('Additional')) ? 'Bonus reward' : 'Paid tier'))}</div></Bereich>}
-      {d.quests.length > 0 && <Bereich titel={<>Quest rewards <span className="text-sm font-semibold text-white/40">{d.quests.length}</span></>}><div className={RASTER}>{sicht(d.quests).map((t, i) => kachel(t, i, 'Quest'))}</div></Bereich>}
-      {d.schatz.length > 0 && (
-        <Bereich titel={<>Treasure-themed cosmetics <span className="text-sm font-semibold text-white/40">{d.schatz.length}</span></>} rechts={<Link to="/community/shop" className="text-sm font-semibold text-akz/80 hover:text-white">Item Shop →</Link>}>
-          <div className={RASTER}>{d.schatz.filter((t) => HAUPT.includes(t.typ)).slice(0, 32).map((t, i) => <Kachel key={t.id} t={t} index={i} unten={t.set ? <p className="mt-1 truncate text-[10px] text-white/40">{t.set}</p> : undefined} />)}</div>
-        </Bereich>
-      )}
+      <section className="space-y-4">
+        <div className="fl-fest flex flex-wrap items-center justify-between gap-3 p-2">
+          <div className="ohne-leiste max-w-full overflow-x-auto"><Segment id="schatz-kat" wert={kat} onWahl={setKat} wahl={wahl} klein /></div>
+          {kat !== 'schatz' ? <Schalter titel="Hide what I've found" an={nurOffen} setzen={setNurOffen} /> : <Link to="/community/shop" className="knopf-leer px-2">Item Shop →</Link>}
+        </div>
+        {laedt ? <Laedt text="Loading this season's cosmetics" /> : !sicht.length ? <Leer text={nurOffen ? 'You found everything here.' : 'Nothing in this group this season.'} /> : (
+          <div key={kat} className={RASTER}>
+            {sicht.map((t, i) => (
+              <Kachel key={t.id} t={t} index={i} unten={<>
+                <p className="mt-1 truncate text-[10px] font-semibold text-amber-200/80">{marke(t)}</p>
+                {kat !== 'schatz' ? <Merker an={gefunden.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as found" textAn="✓ Found" />
+                  : null}
+              </>} />
+            ))}
+          </div>
+        )}
+      </section>
       {!daten?.belohnungen?.length && (
         <Hinweis mehr={<>Drop chances per chest aren't published by Epic, so they're not shown here. Dig spots are on the <Link to="/community/map" className="text-akz">map</Link>.</>}>
           Rewards come from this season's cosmetics; mark what you've found and it's remembered.
@@ -171,13 +222,17 @@ export function Schatzsuche() {
   );
 }
 
-/* ================================================================== Sprites */
+/* ================================================================== Sprites (Design 3.0, neu komponiert 28.11.2026)
+ * Wie die Schatzsuche aufgebaut: Key Art als Buehne mit den Sprite-Arten darauf, rechts zwei Ringe (Owned / Mastered); darunter ein
+ * Raster mit Ansicht (alle Teile / Meisterschafts-Belohnungen) und Filter (alle, fehlt, besessen, gemeistert). sprites.json optional.
+ */
 interface Sprite { id: string; name: string; varianten?: string[]; bild?: string; neu?: boolean }
 export function Sprites() {
   const { teile, laedt } = useTeile(['br']);
   const { daten } = useHubDatei<{ saison?: string; sprites: Sprite[] }>('sprites.json');
   const stand = useAblage<Record<string, { o?: boolean; m?: boolean }>>('sprites', {});
-  const [filter, setFilter] = useState<'alle' | 'fehlt' | 'hab'>('alle');
+  const [filter, setFilter] = useState<'alle' | 'fehlt' | 'hab' | 'meister'>('alle');
+  const [ansicht, setAnsicht] = useState<'alle' | 'belohnung'>('alle');
   const d = useMemo(() => {
     const alle = teile.filter((t) => /sprite/i.test(`${t.name} ${t.text}`) && !/aethersprite|woodsprite/i.test(t.name));
     const meister = alle.filter((t) => /mastery|trainer/i.test(t.name) || (t.herkunft ?? []).includes('QuestReward'));
@@ -189,24 +244,36 @@ export function Sprites() {
   const zeilen = (daten?.sprites ?? []).flatMap((s) => (s.varianten?.length ? s.varianten : ['Standard']).map((v) => ({ s, v, k: `${s.id}:${v}` })));
   const schalten = (k: string, f: 'o' | 'm') => stand.setzen((v) => ({ ...v, [k]: { ...v[k], [f]: !v[k]?.[f] } }));
   const hab = d.alle.filter((t) => stand.wert[t.id]?.o).length; const gemeistert = d.alle.filter((t) => stand.wert[t.id]?.m).length;
-  const sicht = d.alle.filter((t) => filter === 'alle' || (filter === 'hab' ? stand.wert[t.id]?.o : !stand.wert[t.id]?.o));
+  const basis = ansicht === 'alle' ? d.alle : d.meister;
+  const sicht = basis.filter((t) => filter === 'alle' || (filter === 'hab' ? stand.wert[t.id]?.o : filter === 'meister' ? stand.wert[t.id]?.m : !stand.wert[t.id]?.o));
   return (
-    <div className="space-y-8">
-      <SeitenKopf klein ueber="Community · Season" titel="Sprites" text="Every sprite-related item in Fortnite's files – mastery rewards, sprite types and sprite gear – with your own Owned / Mastered tracker." rechts={<div className="flex gap-2"><AblageHinweis ort={stand.ort} /><LinkKopieren /></div>} />
-      <Held bild={d.keyArt?.bildBreit} ueber={d.keyArt?.saisonText?.replace('Introduced in ', '').replace(/\.$/, '') ?? 'Sprites'} titel={d.keyArt?.name ?? 'Sprites'} unter={d.keyArt?.text}
-        rechts={<Flaeche fest className="space-y-3 p-4"><Fortschritt hab={hab} von={d.alle.length} titel="Owned" /><Fortschritt hab={gemeistert} von={d.alle.length} titel="Mastered" /></Flaeche>} />
-      {d.arten.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-white/45">Sprite types in the files:</span>
-          {d.arten.map((a, i) => <motion.span key={a} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }} className="rounded-full border border-akz/30 bg-akz/10 px-3 py-1 text-xs font-bold text-akz">{a} Sprite</motion.span>)}
-          {d.saisonen.length > 0 && <span className="text-xs text-white/35">· items from {d.saisonen.slice(0, 4).join(', ')}</span>}
-        </div>
-      )}
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><p className="ueber">Community · Season</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Sprites</h1></div>
+        <div className="flex flex-wrap gap-2"><AblageHinweis ort={stand.ort} /><LinkKopieren /></div>
+      </header>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Buehne bild={d.keyArt?.bildBreit} ueber={d.keyArt?.saisonText?.replace('Introduced in ', '').replace(/\.$/, '') ?? 'Sprites'} titel={d.keyArt?.name ?? 'Sprites'} unter={d.keyArt?.text}
+          kinder={d.arten.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {d.arten.map((a, i) => <motion.span key={a} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}><Marke ton="akz">{a} Sprite</Marke></motion.span>)}
+            </div>
+          ) : undefined} />
+        <Flaeche fest verz={0.06} className="flex flex-col p-5">
+          <p className="ueber">Your collection</p>
+          <div className="mt-4 flex flex-wrap justify-around gap-4">
+            <Ring hab={hab} von={d.alle.length} titel="Owned" groesse={140} />
+            <Ring hab={gemeistert} von={d.alle.length} titel="Mastered" groesse={140} />
+          </div>
+          <p className="mt-4 text-sm text-white/55">Every sprite-related item in Fortnite's files – mastery rewards, sprite types and sprite gear. Mark each as owned or mastered.</p>
+          {d.saisonen.length > 0 && <p className="mt-auto pt-3 text-xs text-white/40">Items from {d.saisonen.slice(0, 4).join(', ')}</p>}
+        </Flaeche>
+      </div>
       {zeilen.length > 0 && (
         <Bereich titel={<>Sprite list {daten?.saison ? <span className="text-sm font-semibold text-white/40">{daten.saison}</span> : null}</>}>
           <div className={RASTER}>
             {zeilen.map(({ s, v, k }, i) => (
-              <Flaeche fest key={k} className="overflow-hidden" verz={Math.min(i, 20) * 0.02}>
+              <Flaeche fest key={k} className="overflow-hidden !rounded-2xl" verz={Math.min(i, 20) * 0.02}>
                 <div className="aspect-square bg-gradient-to-b from-akz/20 to-transparent">{s.bild && <img src={s.bild} alt="" className="h-full w-full object-contain p-3" />}</div>
                 <div className="p-3"><p className="font-bold text-white">{s.name}</p><p className="text-[11px] text-akz/80">{v}</p>
                   <div className="mt-2 grid grid-cols-2 gap-1.5">{(['o', 'm'] as const).map((f) => <button key={f} type="button" onClick={() => schalten(k, f)} className={`rounded-lg py-1 text-[11px] font-bold ${stand.wert[k]?.[f] ? 'bg-akz text-[#06080f]' : 'bg-white/[0.06] text-white/55 hover:text-white'}`}>{f === 'o' ? 'Owned' : 'Mastered'}</button>)}</div></div>
@@ -215,23 +282,14 @@ export function Sprites() {
           </div>
         </Bereich>
       )}
-      {d.meister.length > 0 && (
-        <Bereich titel={<>Mastery rewards <span className="text-sm font-semibold text-white/40">{d.meister.length}</span></>}>
-          <div className={RASTER}>{d.meister.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>
-        </Bereich>
-      )}
-      <Bereich titel={<>All sprite items <span className="text-sm font-semibold text-white/40">{d.alle.length}</span></>} rechts={
-        <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs font-bold">
-          {([['alle', 'All'], ['fehlt', 'Missing'], ['hab', 'Owned']] as const).map(([k, t]) => (
-            <button key={k} type="button" onClick={() => setFilter(k)} className="relative rounded-lg px-3 py-1">
-              {filter === k && <motion.span layoutId="sprite-filter" className="absolute inset-0 rounded-lg bg-akz" />}<span className={`relative ${filter === k ? 'text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{t}</span>
-            </button>
-          ))}
+      <section className="space-y-4">
+        <div className="fl-fest flex flex-wrap items-center justify-between gap-3 p-2">
+          <Segment id="sprite-ansicht" klein wert={ansicht} onWahl={setAnsicht} wahl={[{ k: 'alle', titel: `All sprite items ${d.alle.length}` }, { k: 'belohnung', titel: `Mastery rewards ${d.meister.length}` }]} />
+          <Segment id="sprite-filter" klein wert={filter} onWahl={setFilter} wahl={[{ k: 'alle', titel: 'All' }, { k: 'fehlt', titel: 'Missing' }, { k: 'hab', titel: 'Owned' }, { k: 'meister', titel: 'Mastered' }]} />
         </div>
-      }>
-        {laedt ? <Laedt text="Searching the files for sprites" /> : <div className={RASTER}>{sicht.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>}
-      </Bereich>
-      {!zeilen.length && <Hinweis>The sprite items below come straight from Fortnite's cosmetics data – mark each as owned or mastered.</Hinweis>}
+        {laedt ? <Laedt text="Searching the files for sprites" /> : !sicht.length ? <Leer text="Nothing here with this filter." />
+          : <div key={`${ansicht}-${filter}`} className={RASTER}>{sicht.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>}
+      </section>
     </div>
   );
 }
