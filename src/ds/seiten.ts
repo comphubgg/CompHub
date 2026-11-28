@@ -95,18 +95,18 @@ export const BEREICHE: Record<'competitive' | 'community' | 'streamer', BereichI
     id: 'streamer', titel: 'Streamer', basis: '/streamer', zeile: 'Watch · Overlays · Tools',
     gruppen: [
       { titel: 'Watch', seiten: [
-        { pfad: '', titel: 'Studio', text: 'Your streamer home', haupt: true },
-        { pfad: 'streams', titel: 'Live Streams', text: 'Multiview of everyone live', auch: ['live'], haupt: true },
+        { pfad: '', titel: 'Studio', text: 'Your control room: live, overlays, tools', haupt: true },
+        { pfad: 'streams', titel: 'Live Streams', text: 'Who is live, and the multiview wall', auch: ['live'], haupt: true },
       ] },
       { titel: 'Create', seiten: [
         { pfad: 'overlays', titel: 'Overlays', text: 'OBS overlays with live cup data', haupt: true },
-        { pfad: 'my-page', titel: 'My page', text: 'Your own streamer page', auch: ['page'], haupt: true },
+        { pfad: 'my-page', titel: 'My page', text: 'Your channel on CompHub', auch: ['page'], haupt: true },
       ] },
       { titel: 'Twitch', seiten: [
-        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands for your channel', haupt: true },
-        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Viewers and streams over time', haupt: true },
+        { pfad: 'twitch-bot', titel: 'Twitch bot', text: 'Chat commands and rules for your channel', haupt: true },
+        { pfad: 'twitch-stats', titel: 'Twitch stats', text: 'Peak, average, followers, chatters', haupt: true },
       ] },
-      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your access and extras', haupt: true }] },
+      { titel: 'Access', seiten: [{ pfad: 'vip', titel: 'VIP', text: 'Your access, key and archive', haupt: true }] },
     ],
   },
 };
