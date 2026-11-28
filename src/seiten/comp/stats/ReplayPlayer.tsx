@@ -11,8 +11,11 @@ import { zahl } from './teile';
  * dann links und rechts weiter gezeigt) -, die Steuerung ist unten an die Buehne angedockt, Kill-Feed und Teams stehen in der Seitentafel rechts
  * (auf dem Handy darunter). `kopf` ist der Kopf der Seitentafel (Titel, Zurueck, Game-Wahl) und kommt von der Seite. Vollbild ueber den Knopf.
  *
- * Alles wird auf eine Leinwand gezeichnet (kein DOM je Spieler): Karte, Sturm (aktueller Kreis, naechster Kreis gestrichelt), der Bus, jeder Spieler
- * als Punkt in der Farbe seines Teams mit einer kurzen Spur, Knocks als Ring, Eliminierungen als X. Die Spielerorte aus dem Replay sind duenn
+ * Alles wird auf eine Leinwand gezeichnet (kein DOM je Spieler): Karte, Sturm (aktueller Kreis, naechster Kreis gestrichelt), die Busroute als
+ * Pfeilkette und der Battle Bus selbst (/replay/battlebus.webp der echten Seite, in Flugrichtung gedreht), jeder Spieler als PFEIL in der Farbe seines
+ * Teams, der in Blickrichtung zeigt (Betreiber, 28.11.2026: Dreiecke wie auf Fortnites eigener Replay-Karte; `blick` aus dem Replay, sonst die
+ * Laufrichtung) mit einer kurzen Spur, Knocks als Ring, Eliminierungen als X. Wer im Sturm steht, bekommt einen violetten Ring und einen weissen
+ * Rand, damit er auf der violetten Flaeche lesbar bleibt. Die Spielerorte aus dem Replay sind duenn
  * (alle paar Sekunden ein Punkt) - dazwischen wird geradlinig gerechnet. Mausrad = Zoom, Ziehen = Verschieben, Leertaste = Abspielen/Pause.
  */
 
@@ -24,12 +27,24 @@ export interface RMatch {
   orte?: Record<string, number[][]>; figuren?: Array<{ id: number; t: number }>; laender?: Record<string, string>;
   bus?: Array<{ x?: number; y?: number; yaw?: number; tempo?: number; sprungAb?: number; sprungBis?: number; flugBis?: number }> | null; busAb?: number;
   schaden?: Array<{ id: number; gemacht?: number }>;
+  /** Blickrichtung je Spieler: [Zeit, Yaw in Grad] - wo das Replay sie fuehrt. */
+  blick?: Record<string, number[][]>;
 }
 export interface Rahmen { x0: number; y0: number; spanne: number }
 
 const FARBEN = ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#fb7185', '#facc15', '#60a5fa', '#2dd4bf', '#c084fc', '#fb923c', '#a3e635', '#e879f9', '#4ade80', '#f87171', '#93c5fd'];
 const URSACHE: Record<number, string> = { 0: 'Storm', 1: 'Fall', 2: 'Pistol', 3: 'Shotgun', 4: 'Rifle', 5: 'SMG', 6: 'Sniper', 7: 'Sniper', 8: 'Melee', 10: 'Grenade', 12: 'Launcher', 13: 'Rocket', 17: 'Bleed out', 23: 'Vehicle' };
 const TEMPI = [1, 2, 5, 10, 20, 50];
+
+/* Der Battle Bus der echten Seite (public/replay/battlebus.webp, Front zeigt nach oben) - einmal geladen, fuer alle Wiedergaben. */
+let BUS_BILD: HTMLImageElement | null = null;
+let busBildDa = false;
+function busBild(neuZeichnen: () => void): HTMLImageElement | null {
+  if (!BUS_BILD && typeof Image !== 'undefined') { BUS_BILD = new Image(); BUS_BILD.onload = () => { busBildDa = true; neuZeichnen(); }; BUS_BILD.src = '/replay/battlebus.webp'; }
+  return busBildDa ? BUS_BILD : null;
+}
+/** Kuerzester Weg von Winkel a nach b (Bogenmass), Anteil f - damit sich die Pfeile weich drehen. */
+function drehe(a: number, b: number, f: number) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return a + d * f; }
 const uhr = (s: number) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
 const ohneMarke = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/, '').trim() || '?';
 const nameVon = (p?: RSpieler) => (p?.bot ? 'Bot' : ohneMarke(p?.name));
@@ -99,6 +114,13 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
   const orte = useMemo(() => orteAufbereiten(match), [match]);
   const feed = useMemo(() => [...match.feed].sort((a, b) => a.t - b.t), [match.feed]);
   const nachId = useMemo(() => new Map(match.spieler.map((s) => [s.id, s])), [match.spieler]);
+  const blick = useMemo(() => {
+    const m = new Map<number, Float64Array>();
+    for (const [k, l] of Object.entries(match.blick ?? {})) { const nach = [...l].sort((a, b) => a[0] - b[0]); const f = new Float64Array(nach.length * 2); nach.forEach((o, i) => { f[i * 2] = o[0]; f[i * 2 + 1] = o[1]; }); m.set(Number(k), f); }
+    return m;
+  }, [match.blick]);
+  /** Zuletzt gezeichneter Winkel je Spieler (Bogenmass) - Ausgangspunkt fuer das weiche Drehen und Ersatz, wenn jemand steht. */
+  const winkel = useRef(new Map<number, number>());
   const teamFarbe = useMemo(() => {
     // Farbe je Team nach Endplatz - die Besten bekommen die kraeftigsten Farben.
     const teams = [...new Set(match.spieler.map((s) => s.team ?? -s.id))].sort((a, b) => {
@@ -158,6 +180,11 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
   const meer = useRef('#0a1220');
   const theater = useRef<HTMLDivElement>(null);
   const [voll, setVoll] = useState(false);
+  /** 3D-Ansicht: nur wenn die lokale Datei /hub-daten/3d/replay.html da ist (liegt auf dem PC des Betreibers, tools/3d-replay-auftrag.md). */
+  const [dreiDa, setDreiDa] = useState(false);
+  const [dreiOffen, setDreiOffen] = useState(false);
+  const dreiRahmen = useRef<HTMLIFrameElement>(null);
+  const dreiGeladen = useRef(false);
   const zeichnenRef = useRef<() => void>(() => {});
 
   useEffect(() => { sicht.current = welt; tRef.current = start; setT(start); zeichnenRef.current(); }, [welt, start]);
@@ -202,23 +229,34 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
     const z = zoneBei(match.zonen, jetzt);
     if (z.jetzt && z.jetzt.r > 0) {
       g.save(); g.beginPath(); g.rect(0, 0, W, H); g.arc(px(z.jetzt.x), py(z.jetzt.y), pr(z.jetzt.r), 0, Math.PI * 2, true);
-      g.fillStyle = 'rgba(126,34,206,.28)'; g.fill('evenodd'); g.restore();
+      g.fillStyle = 'rgba(109,40,217,.2)'; g.fill('evenodd'); g.restore();
       g.beginPath(); g.arc(px(z.jetzt.x), py(z.jetzt.y), pr(z.jetzt.r), 0, Math.PI * 2); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2 * dpr; g.stroke();
     }
     if (z.ziel && z.ziel.r > 0) {
       g.beginPath(); g.setLineDash([8 * dpr, 6 * dpr]); g.arc(px(z.ziel.x), py(z.ziel.y), pr(z.ziel.r), 0, Math.PI * 2); g.strokeStyle = 'rgba(56,189,248,.8)'; g.lineWidth = 1.5 * dpr; g.stroke(); g.setLineDash([]);
     }
 
-    // Der Bus, solange er fliegt.
+    // Die Busroute wie im Spiel: eine Kette von Pfeilspitzen in Flugrichtung - kraeftig gelb, wo man abspringen kann, sonst blass. Der Bus selbst
+    // wird ganz zum Schluss gezeichnet (er fliegt ueber allem).
     const bus = match.bus?.[0];
-    if (bus && typeof match.busAb === 'number' && typeof bus.x === 'number' && typeof bus.y === 'number' && typeof bus.yaw === 'number' && bus.tempo) {
-      const rad = (bus.yaw * Math.PI) / 180; const s = jetzt - match.busAb; const flug = bus.flugBis ?? 60;
-      if (s <= flug + 2) {
-        const a = { x: bus.x, y: bus.y }; const e = { x: bus.x + Math.cos(rad) * bus.tempo * flug, y: bus.y + Math.sin(rad) * bus.tempo * flug };
-        g.beginPath(); g.moveTo(px(a.x), py(a.y)); g.lineTo(px(e.x), py(e.y)); g.strokeStyle = 'rgba(250,204,21,.55)'; g.lineWidth = 2 * dpr; g.setLineDash([4 * dpr, 5 * dpr]); g.stroke(); g.setLineDash([]);
-        const b = { x: bus.x + Math.cos(rad) * bus.tempo * Math.max(0, s), y: bus.y + Math.sin(rad) * bus.tempo * Math.max(0, s) };
-        g.beginPath(); g.arc(px(b.x), py(b.y), 7 * dpr, 0, Math.PI * 2); g.fillStyle = '#facc15'; g.fill(); g.strokeStyle = '#000'; g.lineWidth = 2 * dpr; g.stroke();
+    const busDa = bus && typeof match.busAb === 'number' && typeof bus.x === 'number' && typeof bus.y === 'number' && typeof bus.yaw === 'number' && bus.tempo ? bus : null;
+    const busRad = busDa ? (busDa.yaw! * Math.PI) / 180 : 0; const busS = busDa ? jetzt - match.busAb! : 0; const busFlug = busDa?.flugBis ?? 60;
+    if (busDa && busS <= busFlug + 25) {
+      const bei = (sek: number) => ({ x: busDa.x! + Math.cos(busRad) * busDa.tempo! * sek, y: busDa.y! + Math.sin(busRad) * busDa.tempo! * sek });
+      const abstand = (welt.spanne * 0.03) / busDa.tempo!; const gross = pr(welt.spanne * 0.014); const quer = busRad + Math.PI / 2;
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      const blass = busS > busFlug ? Math.max(0, 1 - (busS - busFlug) / 25) : 1;
+      for (let sek = abstand / 2; sek <= busFlug; sek += abstand) {
+        g.globalAlpha = blass * (sek < busS - 1 ? 0.5 : 1); // was der Bus schon ueberflogen hat, tritt zurueck
+        const sprung = sek >= (busDa.sprungAb ?? 0) && sek <= (busDa.sprungBis ?? busFlug);
+        const m = bei(sek); const mx = px(m.x); const my = py(m.y);
+        const vx = mx + Math.cos(busRad) * gross * 0.5; const vy = my + Math.sin(busRad) * gross * 0.5;
+        const hx = mx - Math.cos(busRad) * gross * 0.5; const hy = my - Math.sin(busRad) * gross * 0.5;
+        g.beginPath(); g.moveTo(hx + Math.cos(quer) * gross * 0.6, hy + Math.sin(quer) * gross * 0.6); g.lineTo(vx, vy); g.lineTo(hx - Math.cos(quer) * gross * 0.6, hy - Math.sin(quer) * gross * 0.6);
+        g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = (sprung ? 4.6 : 3.4) * dpr; g.stroke();
+        g.strokeStyle = sprung ? '#facc15' : 'rgba(255,255,255,.6)'; g.lineWidth = (sprung ? 2.6 : 1.8) * dpr; g.stroke();
       }
+      g.globalAlpha = 1;
     }
 
     const team = (id: number) => nachId.get(id)?.team;
@@ -242,7 +280,7 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
     }
     g.globalAlpha = 1;
 
-    // Spieler: Spur der letzten 20 s, dann der Punkt.
+    // Spieler: Spur der letzten 20 s, dann der Pfeil in Blick- oder Laufrichtung. Alles NACH dem Sturm gezeichnet, also nie von ihm ueberdeckt.
     const punkte: Array<{ id: number; x: number; y: number }> = [];
     for (const [id, f] of orte) {
       if (!f.length || jetzt < f[0]) continue;
@@ -252,27 +290,70 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
       if ((typeof tot === 'number' && jetzt > tot && letzte <= tot + 1) || jetzt > letzte + 15) continue;
       const o = ortBei(f, jetzt); if (!o) continue;
       const col = farbe(id); const dim = gedimmt(id);
+      const imSturm = !!z.jetzt && z.jetzt.r > 0 && Math.hypot(o[0] - z.jetzt.x, o[1] - z.jetzt.y) > z.jetzt.r;
+      const i = bis(f, jetzt);
       g.globalAlpha = dim ? 0.18 : 1;
       if (spuren) {
-        const i = bis(f, jetzt); let k = i; while (k > 0 && f[(k - 1) * 3] >= jetzt - 20) k -= 1;
+        let k = i; while (k > 0 && f[(k - 1) * 3] >= jetzt - 20) k -= 1;
         g.beginPath(); g.moveTo(px(o[0]), py(o[1]));
         for (let j = i; j >= k; j -= 1) g.lineTo(px(f[j * 3 + 1]), py(f[j * 3 + 2]));
-        g.strokeStyle = col; g.globalAlpha = dim ? 0.08 : 0.45; g.lineWidth = 1.6 * dpr; g.stroke();
+        g.lineJoin = 'round';
+        if (imSturm && !dim) { g.strokeStyle = 'rgba(0,0,0,.5)'; g.globalAlpha = 0.6; g.lineWidth = 3.4 * dpr; g.stroke(); }
+        g.strokeStyle = col; g.globalAlpha = dim ? 0.08 : imSturm ? 0.8 : 0.5; g.lineWidth = 1.8 * dpr; g.stroke();
         g.globalAlpha = dim ? 0.18 : 1;
       }
+      // Richtung: der Blick aus dem Replay, wenn er frisch ist (6 s), sonst die Laufrichtung des Abschnitts, sonst die letzte bekannte.
+      let ziel: number | null = null;
+      const bl = blick.get(id);
+      if (bl && bl.length) { let lo = 0; let hi = bl.length / 2 - 1; let r = -1; while (lo <= hi) { const mid = (lo + hi) >> 1; if (bl[mid * 2] <= jetzt) { r = mid; lo = mid + 1; } else hi = mid - 1; } if (r >= 0 && jetzt - bl[r * 2] < 6) ziel = (bl[r * 2 + 1] * Math.PI) / 180; }
+      if (ziel === null) {
+        const n = f.length / 3;
+        for (const [a0, a1] of [[i, i + 1], [i - 1, i]] as Array<[number, number]>) {
+          if (a0 < 0 || a1 >= n) continue;
+          const dx = f[a1 * 3 + 1] - f[a0 * 3 + 1]; const dy = f[a1 * 3 + 2] - f[a0 * 3 + 2];
+          if (dx * dx + dy * dy > 2500) { ziel = Math.atan2(dy, dx); break; }
+        }
+      }
+      const alt = winkel.current.get(id);
+      const w = ziel === null ? alt ?? -Math.PI / 2 : alt === undefined ? ziel : drehe(alt, ziel, 0.3);
+      winkel.current.set(id, w);
       const x = px(o[0]); const y = py(o[1]);
-      g.beginPath(); g.arc(x, y, (markiert !== null && !dim ? 6 : 4.5) * dpr, 0, Math.PI * 2); g.fillStyle = col; g.fill();
-      g.strokeStyle = 'rgba(0,0,0,.85)'; g.lineWidth = 1.5 * dpr; g.stroke();
+      const L = (markiert !== null && !dim ? 10 : 8) * dpr;
+      if (imSturm) { g.beginPath(); g.arc(x, y, L * 1.55, 0, Math.PI * 2); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 3.6 * dpr; g.stroke(); g.strokeStyle = '#d8b4fe'; g.lineWidth = 1.8 * dpr; g.stroke(); }
+      const cw = Math.cos(w); const sw = Math.sin(w);
+      const ecke = (vx: number, vy: number): [number, number] => [x + (vx * cw - vy * sw) * L, y + (vx * sw + vy * cw) * L];
+      g.beginPath();
+      const [x1, y1] = ecke(1.05, 0); const [x2, y2] = ecke(-0.8, -0.78); const [x3, y3] = ecke(-0.38, 0); const [x4, y4] = ecke(-0.8, 0.78);
+      g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4); g.closePath();
+      g.lineJoin = 'round';
+      g.strokeStyle = imSturm ? '#ffffff' : 'rgba(0,0,0,.95)'; g.lineWidth = (imSturm ? 3.4 : 3) * dpr; g.stroke();
+      if (imSturm) { g.strokeStyle = 'rgba(0,0,0,.95)'; g.lineWidth = 1.4 * dpr; g.stroke(); }
+      g.fillStyle = col; g.fill();
       if ((namen || (markiert !== null && !dim)) && sp) {
         g.font = `600 ${11 * dpr}px Inter, sans-serif`; g.fillStyle = 'rgba(0,0,0,.7)';
-        const txt = nameVon(sp); const w = g.measureText(txt).width;
-        g.fillRect(x + 7 * dpr, y - 8 * dpr, w + 8 * dpr, 16 * dpr); g.fillStyle = '#fff'; g.fillText(txt, x + 11 * dpr, y + 4 * dpr);
+        const txt = nameVon(sp); const tw = g.measureText(txt).width;
+        g.fillRect(x + 10 * dpr, y - 8 * dpr, tw + 8 * dpr, 16 * dpr); g.fillStyle = '#fff'; g.fillText(txt, x + 14 * dpr, y + 4 * dpr);
       }
       punkte.push({ id, x: x / dpr, y: y / dpr });
     }
     g.globalAlpha = 1;
+
+    // Der Battle Bus, solange er fliegt (bis zum Ende der Route) - ueber allem, in Flugrichtung gedreht.
+    if (busDa && busS >= 0 && busS <= busFlug + 2) {
+      const sek = Math.min(busS, busFlug);
+      const bx = px(busDa.x! + Math.cos(busRad) * busDa.tempo! * sek); const by = py(busDa.y! + Math.sin(busRad) * busDa.tempo! * sek);
+      const b = busBild(() => zeichnenRef.current());
+      const gr = Math.max(84 * dpr, S * 0.12);
+      if (b) {
+        g.save(); g.translate(bx, by); g.rotate(busRad + Math.PI / 2);
+        // erst ein heller Schein, dann der Bus mit dunklem Schatten - so hebt er sich von Karte und Pfeilen ab
+        g.shadowColor = 'rgba(255,255,255,.9)'; g.shadowBlur = 14 * dpr; g.drawImage(b, -gr / 2, -gr / 2, gr, gr);
+        g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = 6 * dpr; g.shadowOffsetY = 2 * dpr; g.drawImage(b, -gr / 2, -gr / 2, gr, gr); g.restore();
+      } else { g.beginPath(); g.arc(bx, by, 8 * dpr, 0, Math.PI * 2); g.fillStyle = '#facc15'; g.fill(); g.strokeStyle = '#000'; g.lineWidth = 2 * dpr; g.stroke(); }
+    }
+    g.globalAlpha = 1;
     punkteRef.current = punkte;
-  }, [bild, bildRahmen, match.zonen, match.bus, match.busAb, feed, orte, nachId, farbe, markiert, spuren, namen]);
+  }, [bild, bildRahmen, match.zonen, match.bus, match.busAb, feed, orte, nachId, farbe, markiert, spuren, namen, blick, welt.spanne]);
   const punkteRef = useRef<Array<{ id: number; x: number; y: number }>>([]);
   zeichnenRef.current = zeichnen;
   useEffect(() => { zeichnen(); }, [zeichnen, t]);
@@ -352,6 +433,30 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
   const hoch = () => { ziehen.current = null; };
   const zurueck = () => { sicht.current = welt; zeichnenRef.current(); };
   useEffect(() => { const f = () => setVoll(document.fullscreenElement === theater.current); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
+  // Gibt es die 3D-Seite? Vite liefert fuer fehlende Dateien die Hub-Seite selbst (200) - nur eine ANDERE HTML-Seite zaehlt.
+  useEffect(() => {
+    let weg = false;
+    fetch('/hub-daten/3d/replay.html', { cache: 'no-store' }).then(async (r) => {
+      if (!r.ok || !(r.headers.get('content-type') ?? '').includes('html')) return;
+      const text = await r.text();
+      if (!weg && text.length > 50 && !text.includes('/src/main.tsx')) setDreiDa(true);
+    }).catch(() => {});
+    return () => { weg = true; };
+  }, []);
+  // Das Spiel an die 3D-Seite schicken, sobald sie geladen ist (oder sich mit "comphub-bereit" meldet); beim Abspielen die Zeit, damit 2D und 3D gleich laufen.
+  const dreiSenden = useCallback(() => {
+    dreiGeladen.current = true;
+    dreiRahmen.current?.contentWindow?.postMessage({ type: 'comphub-replay', match }, window.location.origin);
+    dreiRahmen.current?.contentWindow?.postMessage({ type: 'comphub-zeit', t: tRef.current }, window.location.origin);
+  }, [match]);
+  useEffect(() => {
+    if (!dreiOffen) { dreiGeladen.current = false; return undefined; }
+    const f = (e: MessageEvent) => { if (e.source === dreiRahmen.current?.contentWindow && (e.data as { type?: string } | null)?.type === 'comphub-bereit') dreiSenden(); };
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setDreiOffen(false); };
+    window.addEventListener('message', f); window.addEventListener('keydown', taste);
+    return () => { window.removeEventListener('message', f); window.removeEventListener('keydown', taste); };
+  }, [dreiOffen, dreiSenden]);
+  useEffect(() => { if (dreiOffen && dreiGeladen.current) dreiRahmen.current?.contentWindow?.postMessage({ type: 'comphub-zeit', t }, window.location.origin); }, [t, dreiOffen]);
   const vollbild = () => { if (document.fullscreenElement) void document.exitFullscreen(); else void theater.current?.requestFullscreen?.().catch(() => {}); };
 
   /* --------------------------------------------------------- Seitenleiste: Teams und Feed */
@@ -410,6 +515,8 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-dashed border-sky-400" />Next zone</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-rose-300" />Knock</span>
             <span><b className="text-rose-300">✕</b> Elimination</span>
+            <span className="flex items-center gap-1.5"><svg viewBox="0 0 20 20" className="h-3 w-3"><path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill="#e5e7eb" stroke="#000" strokeWidth="1.5" strokeLinejoin="round" /></svg>Player, facing</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-violet-300" />In the storm</span>
             <span className="ml-auto hidden lg:inline">Wheel zoom · drag to pan · space play/pause · ←/→ 10 s</span>
           </div>
         </div>
@@ -443,12 +550,29 @@ export default function ReplayPlayer({ match, kartenBild, bildRahmen, ausschnitt
             <button type="button" onClick={() => setSpuren(!spuren)} aria-pressed={spuren} className={schalter(spuren)}>Trails</button>
             <button type="button" onClick={() => setNamen(!namen)} aria-pressed={namen} className={schalter(namen)}>Names</button>
             <button type="button" onClick={zurueck} className={kn}>Reset view</button>
+            {dreiDa && <button type="button" onClick={() => setDreiOffen(true)} className={`${kn} !border-akz/50 !text-akz`} title="Open this game in 3D">3D</button>}
             <button type="button" onClick={vollbild} className={kn} aria-label={voll ? 'Leave full screen' : 'Full screen'} title={voll ? 'Leave full screen' : 'Full screen'}>
               <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{voll ? <path d="M8 3v5H3M12 3v5h5M8 17v-5H3M12 17v-5h5" /> : <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" />}</svg>
             </button>
           </div>
         </div>
       </div>
+
+      {/* 3D-Ansicht: die lokale Seite in einem Rahmen ueber dem ganzen Bildschirm; die Wiedergabe darunter laeuft weiter und gibt die Zeit vor */}
+      {dreiOffen && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-grund/95 p-3 backdrop-blur">
+          <div className="fl-fest flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.07] px-4 py-2">
+              <p className="ueber">3D replay</p>
+              <span className="zahl text-sm font-bold text-white">{uhr(t - start)} <span className="text-white/35">/ {uhr(ende - start)}</span></span>
+              <button type="button" onClick={() => { if (tRef.current >= ende) springe(start); setLaeuft(!laeuft); }} className={kn}>{laeuft ? 'Pause' : 'Play'}</button>
+              <span className="hidden text-[11px] text-white/35 sm:inline">The 2D timeline drives the time · Esc closes</span>
+              <button type="button" onClick={() => setDreiOffen(false)} className={`${kn} ml-auto`}>Close 3D</button>
+            </div>
+            <iframe ref={dreiRahmen} src="/hub-daten/3d/replay.html" title="3D replay" onLoad={dreiSenden} allow="fullscreen" className="min-h-0 w-full flex-1 border-0 bg-black" />
+          </div>
+        </div>
+      )}
 
       {/* Seitentafel: Kopf der Seite, Kill-Feed, Teams */}
       <aside className="flex w-full shrink-0 flex-col gap-3 xl:min-h-0 xl:w-[380px]">
