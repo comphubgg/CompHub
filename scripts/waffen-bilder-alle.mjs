@@ -102,7 +102,9 @@ async function bildLaden(url) {
     try {
       const r = await fetch(url, { headers: { Accept: 'image/png,image/*;q=0.8' }, signal: AbortSignal.timeout(30_000) });
       ladeStatus[r.status] = (ladeStatus[r.status] ?? 0) + 1;
-      if (r.status === 404) return null;
+      if (r.status === 404 || r.status === 400) return null;
+      // 503 = der Bild-Server rechnet/drosselt (Originale und neue Groessen): einmal kurz nachfragen, dann aufgeben - die Vorschau des Hubs ist im Cache
+      if (r.status === 503) { if (++n429 >= 2) return null; await warte(3000); continue; }
       if (r.status === 429) {
         bild429 += 1; if (bild429 <= 3) console.log('429 vom Bild-Server:', url.slice(0, 160), JSON.stringify(Object.fromEntries([...r.headers].filter(([k]) => /retry|rate|limit|x-|via|server/i.test(k)))).slice(0, 400));
         if (++n429 >= 4) return null;
@@ -174,6 +176,8 @@ const dateienIn = (v) => [...(v ?? '').matchAll(/([^|[\]{}=\n:]+?\.(?:png|jpe?g|
 
 // Infobox-Dateien (je Seltenheit, soweit erkennbar) aus dem Quelltext - mit vorlagen() des Hubs
 const { vorlagen, seiteLesen } = await import(pathToFileURL(path.join(HUB, 'waffenWiki.mjs')).href);
+const hubUrlVon = new Map(diagnose.filter((d) => d.hub.url?.startsWith('https://')).map((d) => [d.id, d.hub.url]));
+const hubUrls2 = new Map(); // "Hub:Datei" -> Adresse
 const kandidaten = new Map(); // Waffe -> [{ datei, infobox, rar, seitenBild, name }]
 const alleDateien = new Set();
 for (const w of liste) {
@@ -200,6 +204,9 @@ for (const w of liste) {
   }
   // Die uebliche Benennung des Wikis auch dann pruefen, wenn die Seite sie nicht einbindet
   k.push({ datei: `File:${w.name} - Weapon - Fortnite.png`, name: 2, geraten: true });
+  // Das Bild, das der Hub selbst zeigte (Vorschau 160/256 px - liegt im Cache des Bild-Servers, kommt immer)
+  const hu = hubUrlVon.get(w.id);
+  if (hu) { const f = dateiAusUrl(hu); if (f) { hubUrls2.set(`Hub:${f.slice(5)}`, hu); k.push({ datei: `Hub:${f.slice(5)}`, hub: true, name: namen.includes(stamm(f)) ? 2 : 0 }); } }
   // zusammenlegen (dieselbe Datei aus mehreren Quellen)
   const m = new Map();
   for (const x of k) {
@@ -217,6 +224,7 @@ console.log(`${alleDateien.size} Dateien zu pruefen`);
 const info = new Map(); // Dateiname -> { url, echt }
 const dateiListe = [...alleDateien];
 for (const d of dateiListe) {
+  if (hubUrls2.has(d)) { info.set(d, { url: hubUrls2.get(d), echt: `File:${d.slice(4)}` }); continue; }
   let n = d.replace(/^File:/i, '').trim().replace(/\s+/g, '_'); n = n[0].toUpperCase() + n.slice(1);
   const h = crypto.createHash('md5').update(n).digest('hex');
   info.set(d, { url: `https://static.wikia.nocookie.net/fortnite/images/${h[0]}/${h.slice(0, 2)}/${encodeURIComponent(n)}/revision/latest`, echt: `File:${n.replace(/_/g, ' ')}` });
@@ -248,7 +256,7 @@ const punkte = (k) => {
   const g = geladen.get(k.datei);
   if (!g || g.fehler || !g.rahmen) return -1;
   if (Math.min(g.W, g.H) < 48) return -1;
-  return (g.durchsichtig ? 10 : 0) + (k.name ?? 0) * 2 + (k.infobox ? 3 : 0) + (k.seitenBild ? 1 : 0) + (/- weapon - fortnite/i.test(k.datei) ? 2 : 0) + Math.min(2, (g.W * g.H) / 131072);
+  return (g.durchsichtig ? 10 : 0) + (k.name ?? 0) * 2 + (k.infobox ? 3 : 0) + (k.seitenBild ? 1 : 0) + (k.hub ? 3 : 0) + (/- weapon - fortnite/i.test(k.datei) ? 2 : 0) + Math.min(2, (g.W * g.H) / 131072);
 };
 const gespeichert = new Map(); // Dateiname -> { b, f, q, bytes }
 async function speichern(datei) {
@@ -268,7 +276,7 @@ const manifest = {}; const ohne = [];
 for (const [n, w] of liste.entries()) {
   const alleK = (kandidaten.get(w.id) ?? []).map((x) => ({ ...x, p: punkte(x) })).filter((x) => x.p >= 0);
   // Stufe A: genauer Name, Infobox oder Seitenbild. Nur wenn es davon nichts gibt: Dateien, deren Name den Waffennamen enthaelt (Stufe B, im Bericht markiert)
-  const stufeA = alleK.filter((x) => x.name >= 2 || x.infobox || x.seitenBild);
+  const stufeA = alleK.filter((x) => x.name >= 2 || x.infobox || x.seitenBild || x.hub);
   const k = (stufeA.length ? stufeA : alleK.filter((x) => x.name === 1)).sort((a, b) => b.p - a.p);
   const d = diagnose[n];
   // Warum zeigte der Hub nichts? Mit dem Quelltext nachgestellt (seiteLesen des Hubs)
