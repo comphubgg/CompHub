@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Glas } from '../../teile/Glas';
 import { useAblage } from './kosmetik/daten';
 import { AblageHinweis } from './kosmetik/Raster';
 
@@ -157,28 +156,25 @@ export function zeichneFormen(c: CanvasRenderingContext2D, formen: Form[], zuPx:
 }
 
 /* ---------------------------------------------- Werkzeugleiste (ueber der Karte) */
+const Zeichen = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>;
 export function ZeichenLeiste({ z, schliessen }: { z: Zeichnen; schliessen: () => void }) {
-  const knopf = (an: boolean) => `grid h-9 w-9 place-items-center rounded-lg transition ${an ? 'bg-teal-300 text-[#06080f]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`;
+  const knopf = (an: boolean) => `grid h-9 w-9 shrink-0 place-items-center rounded-lg transition ${an ? 'bg-akz text-[#04050a]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`;
   const [kopiert, setKopiert] = useState(false);
   return (
-    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
-      className="absolute bottom-4 left-1/2 z-20 flex max-w-[calc(100%-200px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl border border-white/10 bg-[#06080f]/90 p-1.5 shadow-2xl backdrop-blur-xl">
-      {WERKZEUGE.map(([k, t, d]) => (
-        <button key={k} type="button" title={t} onClick={() => z.setWerkzeug(z.werkzeug === k ? null : k)} className={knopf(z.werkzeug === k)}>
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
-        </button>
-      ))}
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+      className="absolute bottom-4 left-1/2 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-2xl border border-white/10 bg-fl/95 p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+      {WERKZEUGE.map(([k, t, d]) => <button key={k} type="button" title={t} onClick={() => z.setWerkzeug(z.werkzeug === k ? null : k)} className={knopf(z.werkzeug === k)}><Zeichen d={d} /></button>)}
       <span className="mx-1 h-6 w-px bg-white/10" />
-      {FARBEN.map((f) => <button key={f} type="button" title={f} onClick={() => z.setFarbe(f)} className={`h-6 w-6 rounded-full border-2 transition ${z.farbe === f ? 'scale-110 border-white' : 'border-white/15'}`} style={{ background: f }} />)}
-      <input type="range" min={1} max={8} value={z.breite} onChange={(e) => z.setBreite(Number(e.target.value))} title="Thickness" className="mx-1 w-16 accent-teal-300" />
+      {FARBEN.map((f) => <button key={f} type="button" title={f} onClick={() => z.setFarbe(f)} className={`h-5 w-5 shrink-0 rounded-full border-2 transition ${z.farbe === f ? 'scale-125 border-white' : 'border-white/15'}`} style={{ background: f }} />)}
+      <input type="range" min={1} max={8} value={z.breite} onChange={(e) => z.setBreite(Number(e.target.value))} title="Thickness" className="mx-1 w-16" style={{ accentColor: 'rgb(var(--akz))' }} />
       <span className="mx-1 h-6 w-px bg-white/10" />
-      <button type="button" title="Undo" disabled={!z.kannRueck} onClick={z.rueck} className={`${knopf(false)} disabled:opacity-25`}>↶</button>
-      <button type="button" title="Redo" disabled={!z.kannVor} onClick={z.wieder} className={`${knopf(false)} disabled:opacity-25`}>↷</button>
-      <button type="button" title="Clear" disabled={!z.formen.length} onClick={z.loeschen} className={`${knopf(false)} disabled:opacity-25`}>🗑</button>
-      {z.entwurf?.a === 'polygon' && <button type="button" onClick={z.polygonFertig} className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white">Close shape</button>}
-      <button type="button" disabled={!z.formen.length} onClick={() => z.speichern()} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/15 disabled:opacity-30">Save</button>
-      <button type="button" disabled={!z.formen.length} onClick={() => { navigator.clipboard?.writeText(z.link()).then(() => { setKopiert(true); setTimeout(() => setKopiert(false), 1500); }).catch(() => {}); }} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/15 disabled:opacity-30">{kopiert ? 'Copied ✓' : 'Share link'}</button>
-      <button type="button" onClick={() => { z.setWerkzeug(null); schliessen(); }} className="rounded-lg bg-teal-300 px-3 py-1.5 text-xs font-bold text-[#06080f]">Done</button>
+      <button type="button" title="Undo" disabled={!z.kannRueck} onClick={z.rueck} className={`${knopf(false)} disabled:opacity-25`}><Zeichen d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></button>
+      <button type="button" title="Redo" disabled={!z.kannVor} onClick={z.wieder} className={`${knopf(false)} disabled:opacity-25`}><Zeichen d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" /></button>
+      <button type="button" title="Clear" disabled={!z.formen.length} onClick={z.loeschen} className={`${knopf(false)} disabled:opacity-25`}><Zeichen d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></button>
+      {z.entwurf?.a === 'polygon' && <button type="button" onClick={z.polygonFertig} className="knopf !px-2.5 !py-1.5 !text-xs">Close shape</button>}
+      <button type="button" disabled={!z.formen.length} onClick={() => z.speichern()} className="knopf !px-3 !py-1.5 !text-xs">Save</button>
+      <button type="button" disabled={!z.formen.length} onClick={() => { navigator.clipboard?.writeText(z.link()).then(() => { setKopiert(true); setTimeout(() => setKopiert(false), 1500); }).catch(() => {}); }} className="knopf !px-3 !py-1.5 !text-xs">{kopiert ? 'Copied' : 'Share link'}</button>
+      <button type="button" onClick={() => { z.setWerkzeug(null); schliessen(); }} className="knopf-prim !rounded-lg !px-3 !py-1.5 !text-xs">Done</button>
     </motion.div>
   );
 }
@@ -189,45 +185,45 @@ export function TextEingabe({ z, ort }: { z: Zeichnen; ort: { x: number; y: numb
   return (
     <form onPointerDown={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); z.textSetzen(t); }} className="absolute z-20 -translate-x-1/2 -translate-y-1/2" style={{ left: ort.x, top: ort.y }}>
       <input autoFocus value={t} onChange={(e) => setT(e.target.value)} onBlur={() => z.textSetzen(t)} onKeyDown={(e) => { if (e.key === 'Escape') z.setTextOrt(null); }} placeholder="Label…"
-        className="w-44 rounded-lg border border-teal-300/50 bg-[#06080f]/90 px-2 py-1 text-sm font-bold text-white focus:outline-none" style={{ color: z.farbe }} />
+        className="w-44 rounded-lg border border-akz/60 bg-fl/95 px-2 py-1 text-sm font-bold text-white focus:outline-none" style={{ color: z.farbe }} />
     </form>
   );
 }
 
-/* ---------------------------------------------- Seitenleiste: Meine Zeichnungen */
+/* ---------------------------------------------- Seitentafel: Meine Zeichnungen (Inhalt eines Reiters der Karten-Tafel) */
 export function MeineZeichnungen({ z, starten }: { z: Zeichnen; starten: () => void }) {
   const [name, setName] = useState('');
   const l = z.ablage.wert;
   return (
-    <Glas className="p-5" verzoegerung={0.14}>
-      <div className="flex items-center justify-between gap-2"><h3 className="font-bold text-white">My drawings</h3><span className="text-xs text-white/40">{l.length}</span></div>
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">My drawings · {l.length}</p>
       <div className="mt-2"><AblageHinweis ort={z.ablage.ort} /></div>
       <AnimatePresence>
-        {z.geteilt && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-3 rounded-xl border border-teal-300/25 bg-teal-300/10 px-3 py-2 text-xs text-teal-100">Someone shared this drawing with you. Save it to keep a copy.</motion.p>}
+        {z.geteilt && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-3 rounded-xl border border-akz/30 bg-akz/10 px-3 py-2 text-xs text-white/85">Someone shared this drawing with you. Save it to keep a copy.</motion.p>}
       </AnimatePresence>
       <div className="mt-3 flex gap-2">
-        <button type="button" onClick={starten} className="flex-1 rounded-xl bg-teal-300 py-2 text-sm font-bold text-[#06080f] hover:bg-teal-200">✎ Draw</button>
-        <button type="button" onClick={z.neu} className="rounded-xl border border-white/10 px-3 text-sm font-semibold text-white/65 hover:text-white">New</button>
+        <button type="button" onClick={starten} className="knopf-prim flex-1 !py-2"><Zeichen d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3" />Draw on the map</button>
+        <button type="button" onClick={z.neu} className="knopf">New</button>
       </div>
       {z.formen.length > 0 && (
         <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); z.speichern(name.trim() || undefined); setName(''); }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={z.offenId ? 'Rename…' : 'Name this drawing…'} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-teal-300/60 focus:outline-none" />
-          <button type="submit" className="rounded-xl bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/15">Save</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={z.offenId ? 'Rename…' : 'Name this drawing…'} className="eingabe min-w-0 flex-1 !py-1.5" />
+          <button type="submit" className="knopf !py-1.5">Save</button>
         </form>
       )}
-      <ul className="mt-3 max-h-56 space-y-1 overflow-y-auto pr-1">
+      <ul className="mt-3 space-y-1">
         {l.map((d) => (
-          <li key={d.id} className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm ${z.offenId === d.id ? 'bg-teal-300/10' : 'hover:bg-white/5'}`}>
+          <li key={d.id} className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-sm ${z.offenId === d.id ? 'bg-akz/10 ring-1 ring-akz/30' : 'hover:bg-white/[0.05]'}`}>
             <button type="button" onClick={() => z.oeffnen(d)} className="min-w-0 flex-1 text-left">
               <span className="block truncate font-semibold text-white/85">{d.name}</span>
               <span className="block text-[10px] text-white/35">{d.formen.length} shapes · {new Date(d.stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
             </button>
-            <button type="button" title="Copy share link" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${window.location.pathname}#zeichnung=${kodieren(d.formen)}`)} className="text-xs text-white/35 hover:text-white">🔗</button>
-            <button type="button" title="Delete" onClick={() => z.ablage.setzen((x) => x.filter((y) => y.id !== d.id))} className="text-xs text-white/30 hover:text-rose-300">✕</button>
+            <button type="button" title="Copy share link" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${window.location.pathname}#zeichnung=${kodieren(d.formen)}`)} className="grid h-7 w-7 place-items-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white"><Zeichen d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></button>
+            <button type="button" title="Delete" onClick={() => z.ablage.setzen((x) => x.filter((y) => y.id !== d.id))} className="grid h-7 w-7 place-items-center rounded-lg text-white/35 hover:bg-red-500/15 hover:text-red-300"><Zeichen d="M6 6l12 12M18 6L6 18" /></button>
           </li>
         ))}
       </ul>
-      {!l.length && <p className="mt-2 text-xs text-white/40">Plan your drop, rotations or loot route – pen, lines, arrows, shapes, pins and labels.</p>}
-    </Glas>
+      {!l.length && <p className="mt-3 text-xs leading-relaxed text-white/45">Plan your drop, rotations or loot route – pen, lines, arrows, shapes, pins and labels. Saved drawings show up here and can be shared as a link.</p>}
+    </div>
   );
 }

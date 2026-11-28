@@ -49,7 +49,8 @@ export default defineConfig({
       '/site': { ...rahmen, rewrite: (p) => p.replace(/^\/site/, '') || '/' },
       ...Object.fromEntries(STATISCH.map((p) => [p, rahmen])),
       // Zuletzt: alles andere nur, wenn es aus dem Rahmen kommt - sonst bedient Vite den Hub selbst (Rueckgabe der Adresse = nicht weiterreichen).
-      '^/(?!@|src/|node_modules/|site/)': { ...rahmen, bypass: (a) => (ausRahmen(a) ? undefined : a.url) },
+      // (ohne /hub-daten: die lokale 3D-Ansicht der Karte steht selbst in einem Rahmen und liegt im Hub-Ordner, nicht auf der echten Seite)
+      '^/(?!@|src/|node_modules/|site/|hub-daten/)': { ...rahmen, bypass: (a) => (ausRahmen(a) ? undefined : a.url) },
     },
   },
 });

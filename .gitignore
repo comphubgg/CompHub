@@ -9,3 +9,5 @@ public/hub-daten/*.json
 !public/hub-daten/kisten-aus-replays.json
 public/hub-daten/assets/
 public/hub-daten/icons/
+# Die fertige 3D-Ansicht der lokalen 3D-Sitzung (Karte -> 3D) - nur lokal
+public/hub-daten/3d/

@@ -5,7 +5,7 @@
 1. Öffne auf deinem PC die **lokale Claude-Code-Sitzung**, die schon mit CUE4Parse/FModel an den Spieldateien arbeitet.
 2. Kopiere **alles ab der Linie „AUFTRAG FÜR DIE LOKALE SITZUNG“** und füge es dort als Nachricht ein.
 3. Die Sitzung meldet sich nach **Schritt 1** (Bestandsaufnahme) mit einer kurzen Liste zurück. Schau kurz drüber („passt das?“), dann lässt du sie weitermachen.
-4. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), die Original-Kartensymbole unter `icons/karte/`, `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
+4. Am Ende liegen im Hub mindestens `public/hub-daten/waffen.json` und `public/hub-daten/objekte.json`, dazu wenn möglich `assets.json` (+ Bilder), die Original-Kartensymbole unter `icons/karte/`, die 3D-Ansicht der Insel unter `3d/`, `saison.json`, `rotation.json`. Die Hub-Seiten **Weapons**, **Map**, **Asset Studio**, **Season**, **XP Calculator** und **Map Rotation** zeigen sie automatisch an, sobald sie da sind (ein Neuladen reicht).
 
 Warum so: fortnite.gg dürfen wir nicht abgreifen (deren Daten, Cloudflare). Die Spieldateien auf deinem PC sind die saubere Quelle – daraus rechnet fortnite.gg selbst auch.
 
@@ -231,6 +231,16 @@ Der Betreiber will auf **Community → Map** die **Original-Symbole aus dem Spie
    Ziel: `public/hub-daten/icons/karte/chest.png`, `…/ammo.png`, `…/slurp.png` usw. Was es in dieser Saison nicht gibt oder wofür kein Original-Symbol existiert, einfach weglassen.
 3. **Nur lokal** (`.gitignore` deckt `public/hub-daten/icons/` ab) – nicht committen, nicht pushen.
 4. Im **Bericht**: je Typ die Quell-Textur (voller Pfad) und woher die Zuordnung kommt (Verweis aus der Actor-Klasse oder nur Namenssuche).
+
+### Schritt 5e – 3D-Ansicht der Insel in den Hub kopieren (`3d/index.html`)
+
+Der Betreiber (27.11.2026): „Wo ist die 3D?“ – die Karte im Hub (**Community → Map**) hat oben einen Umschalter **2D / 3D**. „3D“ zeigt deine fertige 3D-Ansicht der Insel in einem Rahmen, sobald sie im Hub-Ordner liegt. Der Hub baut selbst keine 3D-Karte – er lädt nur deine.
+
+1. **Fertige Ansicht bauen** (falls sie noch als Entwicklungsstand läuft): ein statischer Ordner mit `index.html` und allem, was sie braucht (Skripte, Modelle, Texturen). Alle Pfade **relativ** (`./assets/…`, nicht `/assets/…`), damit die Ansicht in einem Unterordner läuft. Bei Vite: `base: './'` setzen und `npm run build` – der Inhalt von `dist/` ist die fertige Ansicht.
+2. **Kopieren** nach `%USERPROFILE%\CompHubHub\public\hub-daten\3d\` – so dass `…\hub-daten\3d\index.html` existiert, die übrigen Dateien daneben bzw. in Unterordnern. Vorher den alten Inhalt des Ordners löschen.
+3. **Prüfen**: `http://localhost:5173/hub-daten/3d/index.html` im Browser öffnen – die Insel muss ohne Fehler in der Konsole erscheinen. Dann im Hub **Community → Map → 3D**.
+4. **Nur lokal** (`.gitignore` deckt `public/hub-daten/3d/` ab) – nicht committen, nicht pushen. Nach jeder Änderung an der 3D-Ansicht Schritt 1–2 wiederholen; im Hub reicht ein Neuladen.
+5. Im **Bericht**: Größe des Ordners, ob die Ansicht ohne Internet läuft und ob etwas fehlt (z. B. Texturen, die nicht mitkopiert wurden).
 
 ### Schritt 5c – Saison, Rotation und sonstige Daten (nur was sicher in den Dateien steht)
 
