@@ -555,7 +555,7 @@ export default function DeepStats() {
 
           {a.matches === 0 ? <Leer text="No game of this match day has been read yet." /> : (
             <>
-              <div className="ohne-leiste -mx-1 overflow-x-auto px-1"><Segment id="ds-ansicht" wert={ansichtWahl} onWahl={zeige} wahl={ANSICHTEN} /></div>
+              <div className="ohne-leiste -mx-1 overflow-x-auto whitespace-nowrap px-1"><Segment id="ds-ansicht" wert={ansichtWahl} onWahl={zeige} wahl={ANSICHTEN} /></div>
               <AnimatePresence mode="wait">
                 <motion.div key={ansichtWahl} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
                   {ansichtWahl === 'waffen' && (

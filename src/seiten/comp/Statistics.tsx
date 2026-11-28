@@ -218,7 +218,7 @@ export default function Statistics() {
             </select>
             <svg viewBox="0 0 20 20" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
           </label>
-          <div className="ohne-leiste -mx-1 min-w-0 overflow-x-auto px-1">
+          <div className="ohne-leiste -mx-1 min-w-0 overflow-x-auto whitespace-nowrap px-1">
             <Segment id="stat-region" klein wert={region} onWahl={setRegion} wahl={[{ k: '', titel: 'Global' }, ...regionenSichtbar.map((r) => ({ k: r, titel: r }))]} />
           </div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a player…" className="eingabe w-full shrink-0 !py-2 lg:ml-auto lg:w-72" />
