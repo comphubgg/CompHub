@@ -51,7 +51,7 @@ export function NeuInDateien() {
         <ZahlenLeiste werte={[['Latest update', neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')], ['Compared with', neu.previousBuild.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')],
           ['New items', patch.length.toLocaleString('en')], ['Not released yet', laedt ? '…' : unveroeffentlicht.toLocaleString('en')]]} />
       )}
-      {laedt && <Laedt text="Loading cosmetics …" />}
+      {laedt && <Laedt text="Loading cosmetics" />}
       {neu && patch.length > 0 && (
         <Bereich titel={<>With update {neu.build.replace(/^\+\+Fortnite\+Release-/, '').replace(/-CL-\d+$/, '')} <span className="text-sm font-semibold text-white/40">{datumKurz(neu.date)}</span></>}>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
@@ -168,7 +168,7 @@ export function KosmetikStats() {
     const nie = teile.filter((t) => !t.shop.length && ['outfit', 'emote', 'pickaxe', 'backpack', 'glider'].includes(t.typ)).length;
     return { warten, tage, auftr, zurueck, nie, mitShop: mitShop.length };
   }, [teile, shop.angebote, shop.datum]);
-  if (laedt) return <Laedt text="Loading shop history …" />;
+  if (laedt) return <Laedt text="Loading shop history" />;
   return (
     <div className="space-y-6">
       <SeitenKopf klein ueber="Community · Cosmetics" titel="Cosmetic stats" text="Leaderboards built from the complete item-shop history." rechts={<LinkKopieren />} />

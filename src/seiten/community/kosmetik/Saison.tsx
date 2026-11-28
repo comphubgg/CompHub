@@ -152,7 +152,7 @@ export function Schatzsuche() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3"><Schalter titel="Hide what I've found" an={nurOffen} setzen={setNurOffen} /></div>
-      {laedt && <Laedt text="Loading this season's cosmetics …" />}
+      {laedt && <Laedt text="Loading this season's cosmetics" />}
       {d.bpFrei.length > 0 && <Bereich titel={<>Free pass rewards <span className="text-sm font-semibold text-white/40">{d.bpFrei.length}</span></>}><div className={RASTER}>{sicht(d.bpFrei).map((t, i) => kachel(t, i, 'Free tier'))}</div></Bereich>}
       {d.bpBezahlt.length > 0 && <Bereich titel={<>Battle Pass rewards <span className="text-sm font-semibold text-white/40">{d.bpBezahlt.length}</span></>}><div className={RASTER}>{sicht(d.bpBezahlt).map((t, i) => kachel(t, i, (t.herkunft ?? []).some((h) => h.endsWith('Additional')) ? 'Bonus reward' : 'Paid tier'))}</div></Bereich>}
       {d.quests.length > 0 && <Bereich titel={<>Quest rewards <span className="text-sm font-semibold text-white/40">{d.quests.length}</span></>}><div className={RASTER}>{sicht(d.quests).map((t, i) => kachel(t, i, 'Quest'))}</div></Bereich>}
@@ -229,7 +229,7 @@ export function Sprites() {
           ))}
         </div>
       }>
-        {laedt ? <Laedt text="Searching the files for sprites …" /> : <div className={RASTER}>{sicht.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>}
+        {laedt ? <Laedt text="Searching the files for sprites" /> : <div className={RASTER}>{sicht.map((t, i) => <Kachel key={t.id} t={t} index={i} unten={<SpriteKnoepfe id={t.id} stand={stand.wert} schalten={schalten} />} />)}</div>}
       </Bereich>
       {!zeilen.length && <Hinweis>The sprite items below come straight from Fortnite's cosmetics data – mark each as owned or mastered.</Hinweis>}
     </div>
@@ -387,7 +387,7 @@ export function GratisKosmetik() {
           <div className={RASTER}>{sicht(gratisShop.map((x) => x.t)).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-emerald-300/80">Free · {restText(Date.parse(gratisShop.find((x) => x.t.id === t.id)!.bis) - jetzt)} left</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
         </Bereich>
       )}
-      {laedt && <Laedt text="Looking for free rewards in the files …" />}
+      {laedt && <Laedt text="Looking for free rewards in the files" />}
       {abschnitte.filter((a) => a.liste.length).map((a, k) => (
         <Bereich key={a.titel} verzoegerung={k * 0.04} titel={<>{a.titel} <span className="text-sm font-semibold text-white/40">{a.liste.length}</span></>} rechts={<span className="text-xs text-white/40">{a.text}</span>}>
           <div className={RASTER}>{sicht(a.liste).slice(0, 48).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-akz/70">{a.marke}{a.bis ? ` · ${restText(a.bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
@@ -433,7 +433,7 @@ export function MeistGenutzt() {
           {([['365', 'Last 12 months'], ['alle', 'All time']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setZeit(k)} className={`rounded-lg px-3 py-1 ${zeit === k ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'}`}>{t}</button>)}
         </div>
       </div>
-      {laedt ? <Laedt text="Counting shop days …" /> : (
+      {laedt ? <Laedt text="Counting shop days" /> : (
         <>
           <div className="grid gap-4 md:grid-cols-3">
             {liste.slice(0, 3).map(({ t, n }, i) => {

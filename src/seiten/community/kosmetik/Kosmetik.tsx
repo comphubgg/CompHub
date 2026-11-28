@@ -25,7 +25,7 @@ export function Kosmetik() {
         text="Every outfit, emote, pickaxe, Jam Track, car and more – search, filter and see when it was last in the shop." rechts={<LinkKopieren />} />
       {fehler ? <Flaeche fest className="p-8 text-sm text-white/60">Cosmetics couldn't be loaded ({fehler}).</Flaeche> : (
         <Raster teile={teile} reiter={r.k} setReiter={(k) => setParams({ type: k }, { replace: true })} zusatz={(t) => <ZuletztImShop t={t} />}
-          oben={laedt ? <Laedt text={r.art === 'br' ? 'Loading all cosmetics with shop history (about 2 MB, once per visit) …' : 'Loading …'} /> : null} />
+          oben={laedt ? <Laedt text={r.art === 'br' ? 'Loading all cosmetics with shop history (about 2 MB, once per visit)' : 'Loading'} /> : null} />
       )}
     </div>
   );
